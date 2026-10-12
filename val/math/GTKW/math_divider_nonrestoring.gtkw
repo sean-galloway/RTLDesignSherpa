@@ -1,0 +1,55 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_divider_nonrestoring_W8_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_divider_nonrestoring.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_divider_nonrestoring.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+math_divider_nonrestoring.i_clk
+math_divider_nonrestoring.i_rst_n
+@200
+-interface
+@22
+math_divider_nonrestoring.COUNT_W[5:0]
+math_divider_nonrestoring.C_ONE[6:0]
+@28
+math_divider_nonrestoring.DATA_WIDTH
+math_divider_nonrestoring.S_CORR
+math_divider_nonrestoring.S_DONE
+@22
+math_divider_nonrestoring.S_IDLE[7:0]
+math_divider_nonrestoring.S_RUN[8:0]
+math_divider_nonrestoring.i_dividend[1:0]
+math_divider_nonrestoring.i_divisor[2:0]
+@28
+math_divider_nonrestoring.i_valid
+math_divider_nonrestoring.ow_busy
+math_divider_nonrestoring.ow_dbz
+@22
+math_divider_nonrestoring.ow_done
+math_divider_nonrestoring.ow_quotient[3:0]
+math_divider_nonrestoring.ow_remainder[4:0]
+@28
+math_divider_nonrestoring.r_busy
+math_divider_nonrestoring.r_count
+math_divider_nonrestoring.r_dbz
+math_divider_nonrestoring.r_divisor
+math_divider_nonrestoring.r_done
+math_divider_nonrestoring.r_qacc
+math_divider_nonrestoring.r_rem
+math_divider_nonrestoring.r_state
+math_divider_nonrestoring.r_x_shift
+math_divider_nonrestoring.w_q
+math_divider_nonrestoring.w_q_ext
+math_divider_nonrestoring.w_t

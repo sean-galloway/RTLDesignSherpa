@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axil5_master_rd_mon_nb1_wq0_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil5_master_rd_mon.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil5_master_rd_mon.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil5_master_rd_mon.ACLK_MHZ
+axil5_master_rd_mon.aclk
+axil5_master_rd_mon.aresetn
+axil5_master_rd_mon.perf_burst_count
+@200
+-interface
+@28
+axil5_master_rd_mon.ACTIVE_TRANS_THRESHOLD
+axil5_master_rd_mon.ADDR_FILTER_ENABLE
+axil5_master_rd_mon.ADD_PIPELINE_STAGE
+axil5_master_rd_mon.AGENT_ID
+axil5_master_rd_mon.AW
+axil5_master_rd_mon.AXIL_ADDR_WIDTH
+axil5_master_rd_mon.AXIL_DATA_WIDTH
+axil5_master_rd_mon.CFI_MAX_FREQ_MHZ
+axil5_master_rd_mon.CFI_MIN_FREQ_MHZ
+axil5_master_rd_mon.DW
+axil5_master_rd_mon.ENABLE_COMPL_LOGIC
+axil5_master_rd_mon.ENABLE_DEBUG_LOGIC
+axil5_master_rd_mon.ENABLE_ERROR_LOGIC
+axil5_master_rd_mon.ENABLE_FILTERING
+axil5_master_rd_mon.ENABLE_PERF_LOGIC
+axil5_master_rd_mon.ENABLE_POISON
+axil5_master_rd_mon.ENABLE_THRESHOLD_LOGIC
+axil5_master_rd_mon.ENABLE_TIMEOUT_LOGIC
+axil5_master_rd_mon.ENABLE_TRACE
+axil5_master_rd_mon.ENABLE_USER
+axil5_master_rd_mon.ID_FILTER_ENABLE
+axil5_master_rd_mon.ID_MATCH_BASE
+axil5_master_rd_mon.ID_MATCH_COUNT
+axil5_master_rd_mon.ID_WIDTH
+axil5_master_rd_mon.IW
+axil5_master_rd_mon.MAX_TRANSACTIONS
+axil5_master_rd_mon.NUM_BANKS
+axil5_master_rd_mon.N_ADDR_RANGES
+axil5_master_rd_mon.PW
+axil5_master_rd_mon.SKID_DEPTH_AR
+axil5_master_rd_mon.SKID_DEPTH_R
+axil5_master_rd_mon.UNIT_ID
+axil5_master_rd_mon.USER_WIDTH
+axil5_master_rd_mon.USE_MONITOR
+axil5_master_rd_mon.USE_WDATA_ORDER_Q
+axil5_master_rd_mon.UW
+axil5_master_rd_mon.cam_clear
+axil5_master_rd_mon.fub_axil_araddr
+axil5_master_rd_mon.fub_axil_arid
+axil5_master_rd_mon.fub_axil_arprot
+axil5_master_rd_mon.fub_axil_arready
+axil5_master_rd_mon.fub_axil_artrace
+axil5_master_rd_mon.fub_axil_aruser
+axil5_master_rd_mon.fub_axil_arvalid
+axil5_master_rd_mon.fub_axil_rdata
+axil5_master_rd_mon.fub_axil_rid
+axil5_master_rd_mon.fub_axil_rpoison
+axil5_master_rd_mon.fub_axil_rready
+axil5_master_rd_mon.fub_axil_rresp
+axil5_master_rd_mon.fub_axil_rtrace
+axil5_master_rd_mon.fub_axil_ruser
+axil5_master_rd_mon.fub_axil_rvalid
+axil5_master_rd_mon.m_axil_araddr
+axil5_master_rd_mon.m_axil_arid
+axil5_master_rd_mon.m_axil_arprot
+axil5_master_rd_mon.m_axil_arready
+axil5_master_rd_mon.m_axil_artrace
+axil5_master_rd_mon.m_axil_aruser
+axil5_master_rd_mon.m_axil_arvalid
+axil5_master_rd_mon.m_axil_rid
+@200
+-axil5_master_rd_inst
+@28
+axil5_master_rd_mon.axil5_master_rd_inst.AXIL_ADDR_WIDTH
+axil5_master_rd_mon.axil5_master_rd_inst.AXIL_DATA_WIDTH
+axil5_master_rd_mon.axil5_master_rd_inst.ENABLE_POISON
+axil5_master_rd_mon.axil5_master_rd_inst.ENABLE_TRACE
+axil5_master_rd_mon.axil5_master_rd_inst.ENABLE_USER
+axil5_master_rd_mon.axil5_master_rd_inst.ID_WIDTH
+axil5_master_rd_mon.axil5_master_rd_inst.SKID_DEPTH_AR
+axil5_master_rd_mon.axil5_master_rd_inst.USER_WIDTH
+@200
+-gen_monitor
+@28
+axil5_master_rd_mon.gen_monitor.axi_monitor_inst.AGENT_ID
+axil5_master_rd_mon.gen_monitor.axi_monitor_inst.CFI_FREQ_STRATEGY
+axil5_master_rd_mon.gen_monitor.axi_monitor_inst.CFI_MAX_FREQ_MHZ
+axil5_master_rd_mon.gen_monitor.axi_monitor_inst.CFI_MIN_FREQ_MHZ
+axil5_master_rd_mon.gen_monitor.axi_monitor_inst.CFI_NUM_FREQ_ENTRIES
+axil5_master_rd_mon.gen_monitor.axi_monitor_inst.MAX_TRANSACTIONS
+axil5_master_rd_mon.gen_monitor.axi_monitor_inst.UNIT_ID
+axil5_master_rd_mon.gen_monitor.axi_monitor_inst.USE_WDATA_ORDER_Q

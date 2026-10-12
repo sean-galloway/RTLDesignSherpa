@@ -1,0 +1,118 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi4ace_slave_wr_i08_a32_d032_u1_awd2_wd4_bd2_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4ace_slave_wr.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4ace_slave_wr.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4ace_slave_wr.aclk
+axi4ace_slave_wr.aresetn
+axi4ace_slave_wr.fub_axi_awburst
+axi4ace_slave_wr.s_axi_awburst
+@200
+-interface
+@28
+axi4ace_slave_wr.AW
+axi4ace_slave_wr.AWSize
+axi4ace_slave_wr.AXI_ADDR_WIDTH
+axi4ace_slave_wr.AXI_DATA_WIDTH
+axi4ace_slave_wr.AXI_ID_WIDTH
+axi4ace_slave_wr.AXI_USER_WIDTH
+axi4ace_slave_wr.AXI_WSTRB_WIDTH
+axi4ace_slave_wr.BSize
+axi4ace_slave_wr.DW
+axi4ace_slave_wr.IW
+axi4ace_slave_wr.SKID_DEPTH_AW
+axi4ace_slave_wr.SKID_DEPTH_B
+axi4ace_slave_wr.SKID_DEPTH_W
+axi4ace_slave_wr.SW
+axi4ace_slave_wr.UW
+axi4ace_slave_wr.WSize
+axi4ace_slave_wr.fub_axi_awaddr
+axi4ace_slave_wr.fub_axi_awbar
+axi4ace_slave_wr.fub_axi_awcache
+axi4ace_slave_wr.fub_axi_awdomain
+axi4ace_slave_wr.fub_axi_awid
+axi4ace_slave_wr.fub_axi_awlen
+axi4ace_slave_wr.fub_axi_awlock
+axi4ace_slave_wr.fub_axi_awprot
+axi4ace_slave_wr.fub_axi_awqos
+axi4ace_slave_wr.fub_axi_awready
+axi4ace_slave_wr.fub_axi_awregion
+axi4ace_slave_wr.fub_axi_awsize
+axi4ace_slave_wr.fub_axi_awsnoop
+axi4ace_slave_wr.fub_axi_awuser
+axi4ace_slave_wr.fub_axi_awvalid
+axi4ace_slave_wr.fub_axi_wdata
+axi4ace_slave_wr.fub_axi_wstrb
+axi4ace_slave_wr.s_axi_awaddr
+axi4ace_slave_wr.s_axi_awbar
+axi4ace_slave_wr.s_axi_awcache
+axi4ace_slave_wr.s_axi_awdomain
+axi4ace_slave_wr.s_axi_awid
+axi4ace_slave_wr.s_axi_awlen
+axi4ace_slave_wr.s_axi_awlock
+axi4ace_slave_wr.s_axi_awprot
+axi4ace_slave_wr.s_axi_awqos
+axi4ace_slave_wr.s_axi_awready
+axi4ace_slave_wr.s_axi_awregion
+axi4ace_slave_wr.s_axi_awsize
+axi4ace_slave_wr.s_axi_awsnoop
+axi4ace_slave_wr.s_axi_awuser
+axi4ace_slave_wr.s_axi_awvalid
+axi4ace_slave_wr.s_axi_bid
+axi4ace_slave_wr.s_axi_bready
+axi4ace_slave_wr.s_axi_bresp
+axi4ace_slave_wr.s_axi_buser
+axi4ace_slave_wr.s_axi_bvalid
+axi4ace_slave_wr.s_axi_wack
+axi4ace_slave_wr.s_axi_wdata
+axi4ace_slave_wr.s_axi_wlast
+axi4ace_slave_wr.s_axi_wready
+axi4ace_slave_wr.s_axi_wstrb
+axi4ace_slave_wr.s_axi_wuser
+axi4ace_slave_wr.s_axi_wvalid
+@200
+-i_aw_channel
+@28
+axi4ace_slave_wr.i_aw_channel.DATA_WIDTH
+axi4ace_slave_wr.i_aw_channel.DEPTH
+axi4ace_slave_wr.i_aw_channel.DW
+axi4ace_slave_wr.i_aw_channel.axi_aclk
+axi4ace_slave_wr.i_aw_channel.axi_aresetn
+axi4ace_slave_wr.i_aw_channel.wr_data
+axi4ace_slave_wr.i_aw_channel.wr_ready
+axi4ace_slave_wr.i_aw_channel.wr_valid
+@200
+-i_b_channel
+@28
+axi4ace_slave_wr.i_b_channel.DATA_WIDTH
+axi4ace_slave_wr.i_b_channel.DEPTH
+axi4ace_slave_wr.i_b_channel.DW
+axi4ace_slave_wr.i_b_channel.axi_aclk
+axi4ace_slave_wr.i_b_channel.axi_aresetn
+axi4ace_slave_wr.i_b_channel.wr_data
+axi4ace_slave_wr.i_b_channel.wr_ready
+axi4ace_slave_wr.i_b_channel.wr_valid
+@200
+-i_w_channel
+@28
+axi4ace_slave_wr.i_w_channel.DATA_WIDTH
+axi4ace_slave_wr.i_w_channel.DEPTH
+axi4ace_slave_wr.i_w_channel.DW
+axi4ace_slave_wr.i_w_channel.axi_aclk
+axi4ace_slave_wr.i_w_channel.axi_aresetn
+axi4ace_slave_wr.i_w_channel.wr_data
+axi4ace_slave_wr.i_w_channel.wr_ready
+axi4ace_slave_wr.i_w_channel.wr_valid

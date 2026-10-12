@@ -1,0 +1,139 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axil5_axil5_master_rd_a32_d32_ard4_rd4_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil5_master_rd.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil5_master_rd.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil5_master_rd.aclk
+axil5_master_rd.aresetn
+@200
+-interface
+@28
+axil5_master_rd.AXIL_ADDR_WIDTH[31:0]
+axil5_master_rd.AXIL_DATA_WIDTH[31:0]
+axil5_master_rd.ID_WIDTH[31:0]
+axil5_master_rd.USER_WIDTH[31:0]
+axil5_master_rd.ENABLE_USER
+axil5_master_rd.ENABLE_TRACE
+axil5_master_rd.ENABLE_POISON
+axil5_master_rd.SKID_DEPTH_AR[31:0]
+axil5_master_rd.SKID_DEPTH_R[31:0]
+axil5_master_rd.AW[31:0]
+axil5_master_rd.DW[31:0]
+axil5_master_rd.IW[31:0]
+axil5_master_rd.UW[31:0]
+axil5_master_rd.PW[31:0]
+axil5_master_rd.ARSize[31:0]
+axil5_master_rd.RSize[31:0]
+@22
+axil5_master_rd.fub_arid[3:0]
+axil5_master_rd.fub_araddr[31:0]
+axil5_master_rd.fub_arprot[2:0]
+axil5_master_rd.fub_aruser[3:0]
+@28
+axil5_master_rd.fub_artrace
+axil5_master_rd.fub_arvalid
+axil5_master_rd.fub_arready
+@22
+axil5_master_rd.m_axil_arid[3:0]
+axil5_master_rd.m_axil_araddr[31:0]
+axil5_master_rd.m_axil_arprot[2:0]
+axil5_master_rd.m_axil_aruser[3:0]
+@28
+axil5_master_rd.m_axil_artrace
+axil5_master_rd.m_axil_arvalid
+axil5_master_rd.m_axil_arready
+@22
+axil5_master_rd.m_axil_rid[3:0]
+axil5_master_rd.m_axil_rdata[31:0]
+axil5_master_rd.m_axil_rresp[1:0]
+axil5_master_rd.m_axil_ruser[3:0]
+@28
+axil5_master_rd.m_axil_rtrace
+axil5_master_rd.m_axil_rpoison[0:0]
+axil5_master_rd.m_axil_rvalid
+axil5_master_rd.m_axil_rready
+@22
+axil5_master_rd.fub_rid[3:0]
+axil5_master_rd.fub_rdata[31:0]
+axil5_master_rd.fub_rresp[1:0]
+axil5_master_rd.fub_ruser[3:0]
+@28
+axil5_master_rd.fub_rtrace
+axil5_master_rd.fub_rpoison[0:0]
+axil5_master_rd.fub_rvalid
+axil5_master_rd.fub_rready
+axil5_master_rd.busy
+@22
+axil5_master_rd.w_ar_wr_data[43:0]
+axil5_master_rd.w_ar_rd_data[43:0]
+axil5_master_rd.w_ar_count[3:0]
+axil5_master_rd.w_r_wr_data[43:0]
+axil5_master_rd.w_r_rd_data[43:0]
+axil5_master_rd.w_r_count[3:0]
+@200
+-ar_channel
+@28
+axil5_master_rd.ar_channel.DATA_WIDTH[31:0]
+axil5_master_rd.ar_channel.DEPTH[31:0]
+axil5_master_rd.ar_channel.DW[31:0]
+axil5_master_rd.ar_channel.axi_aclk
+axil5_master_rd.ar_channel.axi_aresetn
+axil5_master_rd.ar_channel.wr_valid
+axil5_master_rd.ar_channel.wr_ready
+@22
+axil5_master_rd.ar_channel.wr_data[43:0]
+axil5_master_rd.ar_channel.count[3:0]
+@28
+axil5_master_rd.ar_channel.rd_valid
+axil5_master_rd.ar_channel.rd_ready
+@22
+axil5_master_rd.ar_channel.rd_count[3:0]
+axil5_master_rd.ar_channel.rd_data[43:0]
+axil5_master_rd.ar_channel.r_data[0][43:0]
+axil5_master_rd.ar_channel.r_data[1][43:0]
+axil5_master_rd.ar_channel.r_data[2][43:0]
+axil5_master_rd.ar_channel.r_data[3][43:0]
+axil5_master_rd.ar_channel.r_data_count[3:0]
+@28
+axil5_master_rd.ar_channel.w_wr_xfer
+axil5_master_rd.ar_channel.w_rd_xfer
+@200
+-r_channel
+@28
+axil5_master_rd.r_channel.DATA_WIDTH[31:0]
+axil5_master_rd.r_channel.DEPTH[31:0]
+axil5_master_rd.r_channel.DW[31:0]
+axil5_master_rd.r_channel.axi_aclk
+axil5_master_rd.r_channel.axi_aresetn
+axil5_master_rd.r_channel.wr_valid
+axil5_master_rd.r_channel.wr_ready
+@22
+axil5_master_rd.r_channel.wr_data[43:0]
+axil5_master_rd.r_channel.count[3:0]
+@28
+axil5_master_rd.r_channel.rd_valid
+axil5_master_rd.r_channel.rd_ready
+@22
+axil5_master_rd.r_channel.rd_count[3:0]
+axil5_master_rd.r_channel.rd_data[43:0]
+axil5_master_rd.r_channel.r_data[0][43:0]
+axil5_master_rd.r_channel.r_data[1][43:0]
+axil5_master_rd.r_channel.r_data[2][43:0]
+axil5_master_rd.r_channel.r_data[3][43:0]
+axil5_master_rd.r_channel.r_data_count[3:0]
+@28
+axil5_master_rd.r_channel.w_wr_xfer
+axil5_master_rd.r_channel.w_rd_xfer

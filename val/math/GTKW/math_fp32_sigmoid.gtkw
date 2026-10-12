@@ -1,0 +1,35 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp32_sigmoid_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp32_sigmoid.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp32_sigmoid.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_fp32_sigmoid.HALF
+math_fp32_sigmoid.ONE
+math_fp32_sigmoid.ZERO
+math_fp32_sigmoid.i_a
+math_fp32_sigmoid.ow_result
+math_fp32_sigmoid.r_result
+math_fp32_sigmoid.w_exp
+math_fp32_sigmoid.w_is_inf
+math_fp32_sigmoid.w_is_nan
+math_fp32_sigmoid.w_is_subnormal
+math_fp32_sigmoid.w_is_zero
+math_fp32_sigmoid.w_mant
+@22
+math_fp32_sigmoid.w_near_zero
+@28
+math_fp32_sigmoid.w_saturated
+math_fp32_sigmoid.w_sign

@@ -1,0 +1,21 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/common/local_sim_build/test_count_trailing_zeros_w08_func_FUNC/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/common/GTKW/count_trailing_zeros.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] count_trailing_zeros.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+count_trailing_zeros.WIDTH
+count_trailing_zeros.ctz
+count_trailing_zeros.data

@@ -1,0 +1,100 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_ieee754_2008_fp32_sqrt_gate_GATE_sn0/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_ieee754_2008_fp32_sqrt.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_ieee754_2008_fp32_sqrt.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+math_ieee754_2008_fp32_sqrt.i_clk
+math_ieee754_2008_fp32_sqrt.i_rst_n
+@200
+-interface
+@28
+math_ieee754_2008_fp32_sqrt.SUBNORMAL_SUPPORT
+@22
+math_ieee754_2008_fp32_sqrt.S_E1R[4:0]
+math_ieee754_2008_fp32_sqrt.S_E2R[7:0]
+math_ieee754_2008_fp32_sqrt.S_IDLE[1:0]
+@28
+math_ieee754_2008_fp32_sqrt.S_OUT
+math_ieee754_2008_fp32_sqrt.S_RNE
+math_ieee754_2008_fp32_sqrt.S_SCALE
+math_ieee754_2008_fp32_sqrt.S_SQ
+@22
+math_ieee754_2008_fp32_sqrt.S_T1[3:0]
+math_ieee754_2008_fp32_sqrt.S_T2[6:0]
+math_ieee754_2008_fp32_sqrt.S_U1[2:0]
+math_ieee754_2008_fp32_sqrt.S_U2[5:0]
+math_ieee754_2008_fp32_sqrt.S_Y[8:0]
+@28
+math_ieee754_2008_fp32_sqrt.i_a
+math_ieee754_2008_fp32_sqrt.i_valid
+@22
+math_ieee754_2008_fp32_sqrt.ow_invalid
+@28
+math_ieee754_2008_fp32_sqrt.ow_result
+math_ieee754_2008_fp32_sqrt.ow_underflow
+math_ieee754_2008_fp32_sqrt.ow_valid
+math_ieee754_2008_fp32_sqrt.r_a_sub_shift
+math_ieee754_2008_fp32_sqrt.r_er
+math_ieee754_2008_fp32_sqrt.r_g
+math_ieee754_2008_fp32_sqrt.r_invalid
+math_ieee754_2008_fp32_sqrt.r_owv
+math_ieee754_2008_fp32_sqrt.r_r0
+math_ieee754_2008_fp32_sqrt.r_r1
+math_ieee754_2008_fp32_sqrt.r_r2
+math_ieee754_2008_fp32_sqrt.r_result
+math_ieee754_2008_fp32_sqrt.r_s24
+math_ieee754_2008_fp32_sqrt.r_sq
+math_ieee754_2008_fp32_sqrt.r_state
+math_ieee754_2008_fp32_sqrt.r_t1
+math_ieee754_2008_fp32_sqrt.r_t2
+math_ieee754_2008_fp32_sqrt.r_u1
+math_ieee754_2008_fp32_sqrt.r_u2
+math_ieee754_2008_fp32_sqrt.r_underflow
+math_ieee754_2008_fp32_sqrt.r_y0
+math_ieee754_2008_fp32_sqrt.r_yc
+math_ieee754_2008_fp32_sqrt.w_a_eff_zero
+math_ieee754_2008_fp32_sqrt.w_a_is_inf
+math_ieee754_2008_fp32_sqrt.w_a_is_nan
+math_ieee754_2008_fp32_sqrt.w_a_is_subnormal
+math_ieee754_2008_fp32_sqrt.w_a_is_zero
+math_ieee754_2008_fp32_sqrt.w_e1
+math_ieee754_2008_fp32_sqrt.w_e1_full
+math_ieee754_2008_fp32_sqrt.w_e2
+math_ieee754_2008_fp32_sqrt.w_e2_full
+math_ieee754_2008_fp32_sqrt.w_er_s
+math_ieee754_2008_fp32_sqrt.w_ex_s
+math_ieee754_2008_fp32_sqrt.w_ex_sub
+math_ieee754_2008_fp32_sqrt.w_exp_a
+math_ieee754_2008_fp32_sqrt.w_g
+math_ieee754_2008_fp32_sqrt.w_is_special
+math_ieee754_2008_fp32_sqrt.w_mant_a
+math_ieee754_2008_fp32_sqrt.w_ref_sum
+math_ieee754_2008_fp32_sqrt.w_sig_a
+math_ieee754_2008_fp32_sqrt.w_sig_a_norm
+math_ieee754_2008_fp32_sqrt.w_sign_a
+math_ieee754_2008_fp32_sqrt.w_spec_invalid
+math_ieee754_2008_fp32_sqrt.w_spec_result
+@200
+-u_mant_mult
+@28
+math_ieee754_2008_fp32_sqrt.u_mant_mult.i_a_is_normal
+math_ieee754_2008_fp32_sqrt.u_mant_mult.i_b_is_normal
+math_ieee754_2008_fp32_sqrt.u_mant_mult.i_mant_a
+math_ieee754_2008_fp32_sqrt.u_mant_mult.i_mant_b
+math_ieee754_2008_fp32_sqrt.u_mant_mult.ow_guard_bit
+math_ieee754_2008_fp32_sqrt.u_mant_mult.ow_mant_out
+math_ieee754_2008_fp32_sqrt.u_mant_mult.ow_needs_norm
+math_ieee754_2008_fp32_sqrt.u_mant_mult.ow_product

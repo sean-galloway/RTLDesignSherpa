@@ -1,0 +1,120 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_axis4_master_monlite_dw32_iw8_destw4_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axis4_master_monlite.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis4_master_monlite.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-parameters
+@28
+axis4_master_monlite.USE_MONITOR
+@22
+axis4_master_monlite.ACLK_MHZ
+axis4_master_monlite.AGENT_ID
+axis4_master_monlite.AXIS_DATA_WIDTH
+axis4_master_monlite.AXIS_DEST_WIDTH
+axis4_master_monlite.AXIS_ID_WIDTH
+axis4_master_monlite.AXIS_USER_WIDTH
+axis4_master_monlite.CFI_MAX_FREQ_MHZ
+axis4_master_monlite.CFI_MIN_FREQ_MHZ
+axis4_master_monlite.DESTW
+axis4_master_monlite.DESTW_WIDTH
+axis4_master_monlite.DW
+axis4_master_monlite.IW
+axis4_master_monlite.IW_WIDTH
+axis4_master_monlite.OUT_DEPTH
+axis4_master_monlite.SKID_DEPTH
+axis4_master_monlite.SW
+axis4_master_monlite.UNIT_ID
+axis4_master_monlite.UW
+axis4_master_monlite.UW_WIDTH
+@200
+-clk-rst
+@28
+axis4_master_monlite.aclk
+axis4_master_monlite.aresetn
+@200
+-fub
+@28
+axis4_master_monlite.fub_axis_tlast
+axis4_master_monlite.fub_axis_tready
+axis4_master_monlite.fub_axis_tuser
+axis4_master_monlite.fub_axis_tvalid
+@22
+axis4_master_monlite.fub_axis_tdata
+axis4_master_monlite.fub_axis_tdest
+axis4_master_monlite.fub_axis_tid
+axis4_master_monlite.fub_axis_tstrb
+@200
+-m_axis
+@28
+axis4_master_monlite.m_axis_tlast
+axis4_master_monlite.m_axis_tready
+axis4_master_monlite.m_axis_tuser
+axis4_master_monlite.m_axis_tvalid
+@22
+axis4_master_monlite.m_axis_tdata
+axis4_master_monlite.m_axis_tdest
+axis4_master_monlite.m_axis_tid
+axis4_master_monlite.m_axis_tstrb
+@200
+-cfg
+@28
+axis4_master_monlite.cfg_channel_enable
+axis4_master_monlite.cfg_compl_enable
+axis4_master_monlite.cfg_credit_enable
+axis4_master_monlite.cfg_error_enable
+axis4_master_monlite.cfg_monitor_enable
+axis4_master_monlite.cfg_strb_check_enable
+axis4_master_monlite.cfg_stream_enable
+axis4_master_monlite.cfg_timeout_enable
+@22
+axis4_master_monlite.cfg_axis_pkt_mask
+axis4_master_monlite.cfg_freq_sel
+axis4_master_monlite.cfg_stall_threshold
+axis4_master_monlite.cfg_timeout_cycles
+@200
+-monbus
+@28
+axis4_master_monlite.monbus_ready
+axis4_master_monlite.monbus_valid
+@22
+axis4_master_monlite.monbus_packet
+axis4_master_monlite.monbus_timestamp
+@200
+-ctrl
+@28
+axis4_master_monlite.busy
+axis4_master_monlite.in_packet
+@22
+axis4_master_monlite.i_mon_time
+axis4_master_monlite.packet_count
+@200
+-counters
+@22
+axis4_master_monlite.dropped_count
+axis4_master_monlite.error_count
+@200
+-mon_internal
+@28
+axis4_master_monlite.w_mon_busy
+axis4_master_monlite.w_mon_tvalid
+@22
+axis4_master_monlite.w_timeout_cnt
+@200
+-core_internals
+@28
+axis4_master_monlite.u_core.int_skid_tready
+axis4_master_monlite.u_core.int_skid_tvalid
+@22
+axis4_master_monlite.u_core.int_t_count
+axis4_master_monlite.u_core.int_t_pkt

@@ -1,0 +1,108 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_gw0_axi4ace_slave_rd_monlite_iw8_aw32_dw32_uw1_mt16_sk2x4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4ace_slave_rd_monlite.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4ace_slave_rd_monlite.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4ace_slave_rd_monlite.ACLK_MHZ
+axi4ace_slave_rd_monlite.aclk
+axi4ace_slave_rd_monlite.aresetn
+axi4ace_slave_rd_monlite.fub_axi_arburst
+axi4ace_slave_rd_monlite.s_axi_arburst
+@200
+-interface
+@28
+axi4ace_slave_rd_monlite.ACTIVE_TRANS_THRESHOLD
+axi4ace_slave_rd_monlite.ADDR_RANGE_IS_ERROR
+axi4ace_slave_rd_monlite.AGENT_ID
+axi4ace_slave_rd_monlite.ARSize
+axi4ace_slave_rd_monlite.AW
+axi4ace_slave_rd_monlite.AXI_ADDR_WIDTH
+axi4ace_slave_rd_monlite.AXI_DATA_WIDTH
+axi4ace_slave_rd_monlite.AXI_ID_WIDTH
+axi4ace_slave_rd_monlite.AXI_USER_WIDTH
+axi4ace_slave_rd_monlite.AXI_WSTRB_WIDTH
+axi4ace_slave_rd_monlite.CFI_MAX_FREQ_MHZ
+axi4ace_slave_rd_monlite.CFI_MIN_FREQ_MHZ
+axi4ace_slave_rd_monlite.DW
+axi4ace_slave_rd_monlite.IW
+axi4ace_slave_rd_monlite.MAX_TRANSACTIONS
+axi4ace_slave_rd_monlite.N_ADDR_RANGES
+axi4ace_slave_rd_monlite.OUT_DEPTH
+axi4ace_slave_rd_monlite.RSize
+axi4ace_slave_rd_monlite.SKID_DEPTH_AR
+axi4ace_slave_rd_monlite.SKID_DEPTH_R
+axi4ace_slave_rd_monlite.SW
+axi4ace_slave_rd_monlite.UNIT_ID
+axi4ace_slave_rd_monlite.USE_MONITOR
+axi4ace_slave_rd_monlite.UW
+axi4ace_slave_rd_monlite.fub_axi_araddr
+axi4ace_slave_rd_monlite.fub_axi_arbar
+axi4ace_slave_rd_monlite.fub_axi_arcache
+axi4ace_slave_rd_monlite.fub_axi_ardomain
+axi4ace_slave_rd_monlite.fub_axi_arid
+axi4ace_slave_rd_monlite.fub_axi_arlen
+axi4ace_slave_rd_monlite.fub_axi_arlock
+axi4ace_slave_rd_monlite.fub_axi_arprot
+axi4ace_slave_rd_monlite.fub_axi_arqos
+axi4ace_slave_rd_monlite.fub_axi_arregion
+axi4ace_slave_rd_monlite.fub_axi_arsize
+axi4ace_slave_rd_monlite.fub_axi_arsnoop
+axi4ace_slave_rd_monlite.fub_axi_aruser
+axi4ace_slave_rd_monlite.s_axi_araddr
+axi4ace_slave_rd_monlite.s_axi_arbar
+axi4ace_slave_rd_monlite.s_axi_arcache
+axi4ace_slave_rd_monlite.s_axi_ardomain
+axi4ace_slave_rd_monlite.s_axi_arid
+axi4ace_slave_rd_monlite.s_axi_arlen
+axi4ace_slave_rd_monlite.s_axi_arlock
+axi4ace_slave_rd_monlite.s_axi_arprot
+axi4ace_slave_rd_monlite.s_axi_arqos
+axi4ace_slave_rd_monlite.s_axi_arready
+axi4ace_slave_rd_monlite.s_axi_arregion
+axi4ace_slave_rd_monlite.s_axi_arsize
+axi4ace_slave_rd_monlite.s_axi_arsnoop
+axi4ace_slave_rd_monlite.s_axi_aruser
+axi4ace_slave_rd_monlite.s_axi_arvalid
+axi4ace_slave_rd_monlite.s_axi_rack
+axi4ace_slave_rd_monlite.s_axi_rdata
+axi4ace_slave_rd_monlite.s_axi_rid
+axi4ace_slave_rd_monlite.s_axi_rlast
+axi4ace_slave_rd_monlite.s_axi_rready
+axi4ace_slave_rd_monlite.s_axi_rresp
+axi4ace_slave_rd_monlite.s_axi_ruser
+axi4ace_slave_rd_monlite.s_axi_rvalid
+@200
+-gen_monitor_lite
+@28
+axi4ace_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.ADDR_WIDTH
+axi4ace_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.AGENT_ID
+axi4ace_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.ID_WIDTH
+axi4ace_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.IS_AXI
+axi4ace_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.IS_READ
+axi4ace_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.MAX_TRANSACTIONS
+axi4ace_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.TS_WIDTH
+axi4ace_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.UNIT_ID
+@200
+-u_core
+@28
+axi4ace_slave_rd_monlite.u_core.AW
+axi4ace_slave_rd_monlite.u_core.AXI_ADDR_WIDTH
+axi4ace_slave_rd_monlite.u_core.AXI_DATA_WIDTH
+axi4ace_slave_rd_monlite.u_core.AXI_ID_WIDTH
+axi4ace_slave_rd_monlite.u_core.AXI_USER_WIDTH
+axi4ace_slave_rd_monlite.u_core.AXI_WSTRB_WIDTH
+axi4ace_slave_rd_monlite.u_core.SKID_DEPTH_AR
+axi4ace_slave_rd_monlite.u_core.SKID_DEPTH_R

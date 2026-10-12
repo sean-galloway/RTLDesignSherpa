@@ -1,0 +1,52 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/common/local_sim_build/test_arbiter_round_robin_simple_ack_c02_FUNC/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/common/GTKW/arbiter_round_robin_simple_ack.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] arbiter_round_robin_simple_ack.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+arbiter_round_robin_simple_ack.clk
+arbiter_round_robin_simple_ack.rst_n
+@200
+-interface
+@28
+arbiter_round_robin_simple_ack.N
+arbiter_round_robin_simple_ack.W
+arbiter_round_robin_simple_ack.grant
+arbiter_round_robin_simple_ack.grant_ack
+@22
+arbiter_round_robin_simple_ack.grant_id
+@28
+arbiter_round_robin_simple_ack.grant_valid
+@22
+arbiter_round_robin_simple_ack.r_grant[1:0]
+arbiter_round_robin_simple_ack.r_grant_valid[2:0]
+@28
+arbiter_round_robin_simple_ack.r_last_grant
+arbiter_round_robin_simple_ack.request
+arbiter_round_robin_simple_ack.w_ack
+@22
+arbiter_round_robin_simple_ack.w_any_masked[7:0]
+@28
+arbiter_round_robin_simple_ack.w_nxt_grant
+@22
+arbiter_round_robin_simple_ack.w_nxt_grant_id[5:0]
+@28
+arbiter_round_robin_simple_ack.w_nxt_grant_valid
+arbiter_round_robin_simple_ack.w_other_req
+@22
+arbiter_round_robin_simple_ack.w_req_masked[6:0]
+arbiter_round_robin_simple_ack.w_req_sel[8:0]
+arbiter_round_robin_simple_ack.w_win_mask_decode[0][3:0]
+arbiter_round_robin_simple_ack.w_win_mask_decode[1][4:0]

@@ -1,0 +1,72 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_divider_srt_radix4_W8_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_divider_srt_radix2_csa_structural.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_divider_srt_radix4.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+math_divider_srt_radix4.i_clk
+math_divider_srt_radix4.i_rst_n
+@200
+-interface
+@22
+math_divider_srt_radix4.COUNT_W[7:0]
+@28
+math_divider_srt_radix4.C_MINUS1
+math_divider_srt_radix4.DATA_WIDTH
+@22
+math_divider_srt_radix4.EVEN_W[6:0]
+math_divider_srt_radix4.N[5:0]
+@28
+math_divider_srt_radix4.S_DONE
+@22
+math_divider_srt_radix4.S_IDLE[8:0]
+@28
+math_divider_srt_radix4.S_RUN
+@22
+math_divider_srt_radix4.i_dividend[1:0]
+math_divider_srt_radix4.i_divisor[2:0]
+@28
+math_divider_srt_radix4.i_valid
+math_divider_srt_radix4.ow_busy
+math_divider_srt_radix4.ow_dbz
+@22
+math_divider_srt_radix4.ow_done
+math_divider_srt_radix4.ow_quotient[3:0]
+math_divider_srt_radix4.ow_remainder[4:0]
+@28
+math_divider_srt_radix4.r_Q
+math_divider_srt_radix4.r_QM
+math_divider_srt_radix4.r_R
+math_divider_srt_radix4.r_busy
+math_divider_srt_radix4.r_count
+math_divider_srt_radix4.r_dbz
+math_divider_srt_radix4.r_divisor
+math_divider_srt_radix4.r_done
+math_divider_srt_radix4.r_state
+math_divider_srt_radix4.r_xreg
+math_divider_srt_radix4.w_3D
+math_divider_srt_radix4.w_5D
+math_divider_srt_radix4.w_D
+math_divider_srt_radix4.w_D_r
+math_divider_srt_radix4.w_QM_next
+math_divider_srt_radix4.w_Q_next
+math_divider_srt_radix4.w_b
+math_divider_srt_radix4.w_q
+math_divider_srt_radix4.w_qD
+math_divider_srt_radix4.w_q_ext
+math_divider_srt_radix4.w_q_out
+math_divider_srt_radix4.w_r_out
+math_divider_srt_radix4.w_t
+math_divider_srt_radix4.w_t2

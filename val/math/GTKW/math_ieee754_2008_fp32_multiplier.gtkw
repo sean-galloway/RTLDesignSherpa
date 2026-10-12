@@ -1,0 +1,112 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_ieee754_2008_fp32_multiplier_gate_GATE_sn0/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_ieee754_2008_fp32_multiplier.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_ieee754_2008_fp32_multiplier.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_ieee754_2008_fp32_multiplier.SUBNORMAL_SUPPORT
+math_ieee754_2008_fp32_multiplier.i_a
+math_ieee754_2008_fp32_multiplier.i_b
+math_ieee754_2008_fp32_multiplier.ow_invalid
+math_ieee754_2008_fp32_multiplier.ow_overflow
+math_ieee754_2008_fp32_multiplier.ow_result
+math_ieee754_2008_fp32_multiplier.ow_underflow
+math_ieee754_2008_fp32_multiplier.r_left_shift
+math_ieee754_2008_fp32_multiplier.w_a_eff_zero
+math_ieee754_2008_fp32_multiplier.w_a_h1
+@22
+math_ieee754_2008_fp32_multiplier.w_a_is_inf[7:0]
+@28
+math_ieee754_2008_fp32_multiplier.w_a_is_nan
+math_ieee754_2008_fp32_multiplier.w_a_is_normal
+@22
+math_ieee754_2008_fp32_multiplier.w_a_is_subnormal[5:0]
+math_ieee754_2008_fp32_multiplier.w_a_is_zero[3:0]
+@28
+math_ieee754_2008_fp32_multiplier.w_b_eff_zero
+math_ieee754_2008_fp32_multiplier.w_b_h1
+@22
+math_ieee754_2008_fp32_multiplier.w_b_is_inf[8:0]
+@28
+math_ieee754_2008_fp32_multiplier.w_b_is_nan
+math_ieee754_2008_fp32_multiplier.w_b_is_normal
+@22
+math_ieee754_2008_fp32_multiplier.w_b_is_subnormal[6:0]
+math_ieee754_2008_fp32_multiplier.w_b_is_zero[4:0]
+@28
+math_ieee754_2008_fp32_multiplier.w_exp_a
+math_ieee754_2008_fp32_multiplier.w_exp_a_adj
+math_ieee754_2008_fp32_multiplier.w_exp_a_inf
+math_ieee754_2008_fp32_multiplier.w_exp_a_nan
+math_ieee754_2008_fp32_multiplier.w_exp_a_zero
+@22
+math_ieee754_2008_fp32_multiplier.w_exp_b[1:0]
+@28
+math_ieee754_2008_fp32_multiplier.w_exp_b_adj
+math_ieee754_2008_fp32_multiplier.w_exp_b_inf
+math_ieee754_2008_fp32_multiplier.w_exp_b_nan
+math_ieee754_2008_fp32_multiplier.w_exp_b_zero
+math_ieee754_2008_fp32_multiplier.w_exp_overflow
+math_ieee754_2008_fp32_multiplier.w_exp_sum
+math_ieee754_2008_fp32_multiplier.w_exp_true
+math_ieee754_2008_fp32_multiplier.w_exp_underflow
+math_ieee754_2008_fp32_multiplier.w_guard_bit
+math_ieee754_2008_fp32_multiplier.w_left_shift
+@22
+math_ieee754_2008_fp32_multiplier.w_mant_a
+math_ieee754_2008_fp32_multiplier.w_mant_b[2:0]
+@28
+math_ieee754_2008_fp32_multiplier.w_mant_mult_out
+math_ieee754_2008_fp32_multiplier.w_mant_norm
+math_ieee754_2008_fp32_multiplier.w_mant_product
+math_ieee754_2008_fp32_multiplier.w_needs_norm
+math_ieee754_2008_fp32_multiplier.w_prod_lt1
+math_ieee754_2008_fp32_multiplier.w_round_bit
+math_ieee754_2008_fp32_multiplier.w_shift_all
+math_ieee754_2008_fp32_multiplier.w_sig_v
+math_ieee754_2008_fp32_multiplier.w_sign_a
+math_ieee754_2008_fp32_multiplier.w_sign_b
+math_ieee754_2008_fp32_multiplier.w_sign_result
+math_ieee754_2008_fp32_multiplier.w_sticky_bit
+math_ieee754_2008_fp32_multiplier.w_sub_g
+math_ieee754_2008_fp32_multiplier.w_sub_mant
+math_ieee754_2008_fp32_multiplier.w_sub_mask
+math_ieee754_2008_fp32_multiplier.w_sub_r
+math_ieee754_2008_fp32_multiplier.w_sub_shift
+math_ieee754_2008_fp32_multiplier.w_sub_shift_s
+math_ieee754_2008_fp32_multiplier.w_subnorm_path
+math_ieee754_2008_fp32_multiplier.w_v_shifted
+@200
+-u_exp_add
+@28
+math_ieee754_2008_fp32_multiplier.u_exp_add.i_exp_a
+math_ieee754_2008_fp32_multiplier.u_exp_add.i_exp_b
+math_ieee754_2008_fp32_multiplier.u_exp_add.i_norm_adjust
+math_ieee754_2008_fp32_multiplier.u_exp_add.ow_a_is_zero
+math_ieee754_2008_fp32_multiplier.u_exp_add.ow_b_is_zero
+math_ieee754_2008_fp32_multiplier.u_exp_add.ow_exp_out
+math_ieee754_2008_fp32_multiplier.u_exp_add.ow_overflow
+math_ieee754_2008_fp32_multiplier.u_exp_add.ow_underflow
+@200
+-u_mant_mult
+@28
+math_ieee754_2008_fp32_multiplier.u_mant_mult.i_a_is_normal
+math_ieee754_2008_fp32_multiplier.u_mant_mult.i_b_is_normal
+math_ieee754_2008_fp32_multiplier.u_mant_mult.i_mant_a
+math_ieee754_2008_fp32_multiplier.u_mant_mult.i_mant_b
+math_ieee754_2008_fp32_multiplier.u_mant_mult.ow_guard_bit
+math_ieee754_2008_fp32_multiplier.u_mant_mult.ow_mant_out
+math_ieee754_2008_fp32_multiplier.u_mant_mult.ow_needs_norm
+math_ieee754_2008_fp32_multiplier.u_mant_mult.ow_product

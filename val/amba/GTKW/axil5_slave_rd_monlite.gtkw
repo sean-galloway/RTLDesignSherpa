@@ -1,0 +1,106 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_gw0_axil5_slave_rd_monlite_nb1_wq0_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil5_slave_rd_monlite.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil5_slave_rd_monlite.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil5_slave_rd_monlite.ACLK_MHZ
+axil5_slave_rd_monlite.aclk
+axil5_slave_rd_monlite.aresetn
+@200
+-interface
+@28
+axil5_slave_rd_monlite.ACTIVE_TRANS_THRESHOLD
+axil5_slave_rd_monlite.ADDR_RANGE_IS_ERROR
+axil5_slave_rd_monlite.AGENT_ID
+axil5_slave_rd_monlite.ARSize
+axil5_slave_rd_monlite.AW
+axil5_slave_rd_monlite.AXIL_ADDR_WIDTH
+axil5_slave_rd_monlite.AXIL_DATA_WIDTH
+axil5_slave_rd_monlite.CFI_MAX_FREQ_MHZ
+axil5_slave_rd_monlite.CFI_MIN_FREQ_MHZ
+axil5_slave_rd_monlite.DW
+axil5_slave_rd_monlite.ENABLE_POISON
+axil5_slave_rd_monlite.ENABLE_TRACE
+axil5_slave_rd_monlite.ENABLE_USER
+axil5_slave_rd_monlite.ID_WIDTH
+axil5_slave_rd_monlite.IW
+axil5_slave_rd_monlite.MAX_TRANSACTIONS
+axil5_slave_rd_monlite.N_ADDR_RANGES
+axil5_slave_rd_monlite.OUT_DEPTH
+axil5_slave_rd_monlite.PW
+axil5_slave_rd_monlite.RSize
+axil5_slave_rd_monlite.SKID_DEPTH_AR
+axil5_slave_rd_monlite.SKID_DEPTH_R
+axil5_slave_rd_monlite.UNIT_ID
+axil5_slave_rd_monlite.USER_WIDTH
+axil5_slave_rd_monlite.USE_MONITOR
+axil5_slave_rd_monlite.UW
+axil5_slave_rd_monlite.busy
+axil5_slave_rd_monlite.cam_clear
+axil5_slave_rd_monlite.cfg_error_enable
+axil5_slave_rd_monlite.cfg_monitor_enable
+axil5_slave_rd_monlite.fub_axil_araddr
+axil5_slave_rd_monlite.fub_axil_arid
+axil5_slave_rd_monlite.fub_axil_arprot
+axil5_slave_rd_monlite.fub_axil_arready
+axil5_slave_rd_monlite.fub_axil_artrace
+axil5_slave_rd_monlite.fub_axil_aruser
+axil5_slave_rd_monlite.fub_axil_arvalid
+axil5_slave_rd_monlite.fub_axil_rdata
+axil5_slave_rd_monlite.fub_axil_rid
+axil5_slave_rd_monlite.fub_axil_rpoison
+axil5_slave_rd_monlite.fub_axil_rready
+axil5_slave_rd_monlite.fub_axil_rresp
+axil5_slave_rd_monlite.fub_axil_rtrace
+axil5_slave_rd_monlite.fub_axil_ruser
+axil5_slave_rd_monlite.fub_axil_rvalid
+axil5_slave_rd_monlite.s_axil_araddr
+axil5_slave_rd_monlite.s_axil_arid
+axil5_slave_rd_monlite.s_axil_arprot
+axil5_slave_rd_monlite.s_axil_arready
+axil5_slave_rd_monlite.s_axil_artrace
+axil5_slave_rd_monlite.s_axil_aruser
+axil5_slave_rd_monlite.s_axil_arvalid
+axil5_slave_rd_monlite.s_axil_rdata
+axil5_slave_rd_monlite.s_axil_rid
+axil5_slave_rd_monlite.s_axil_rpoison
+axil5_slave_rd_monlite.s_axil_rready
+axil5_slave_rd_monlite.s_axil_rresp
+axil5_slave_rd_monlite.s_axil_rtrace
+axil5_slave_rd_monlite.s_axil_ruser
+axil5_slave_rd_monlite.s_axil_rvalid
+@200
+-gen_monitor_lite
+@28
+axil5_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.ADDR_WIDTH
+axil5_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.AGENT_ID
+axil5_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.ID_WIDTH
+axil5_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.IS_AXI
+axil5_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.IS_READ
+axil5_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.MAX_TRANSACTIONS
+axil5_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.TS_WIDTH
+axil5_slave_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.UNIT_ID
+@200
+-u_core
+@28
+axil5_slave_rd_monlite.u_core.AXIL_ADDR_WIDTH
+axil5_slave_rd_monlite.u_core.AXIL_DATA_WIDTH
+axil5_slave_rd_monlite.u_core.ENABLE_POISON
+axil5_slave_rd_monlite.u_core.ENABLE_TRACE
+axil5_slave_rd_monlite.u_core.ENABLE_USER
+axil5_slave_rd_monlite.u_core.ID_WIDTH
+axil5_slave_rd_monlite.u_core.SKID_DEPTH_AR
+axil5_slave_rd_monlite.u_core.USER_WIDTH

@@ -1,0 +1,118 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_adder_gate_pipe0000_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_adder.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_adder.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+math_bf16_adder.i_clk
+math_bf16_adder.i_rst_n
+@200
+-interface
+@22
+math_bf16_adder.CLZ_WIDTH[8:0]
+math_bf16_adder.EXP_WIDTH[6:0]
+math_bf16_adder.EXT_MANT_WIDTH[7:0]
+math_bf16_adder.MANT_WIDTH[5:0]
+@28
+math_bf16_adder.PIPE_STAGE_1
+math_bf16_adder.PIPE_STAGE_2
+math_bf16_adder.PIPE_STAGE_3
+math_bf16_adder.PIPE_STAGE_4
+math_bf16_adder.SHIFT_LEFT_LOGIC
+math_bf16_adder.SHIFT_NONE
+math_bf16_adder.SHIFT_RIGHT_LOGIC
+math_bf16_adder.i_a
+math_bf16_adder.i_b
+@22
+math_bf16_adder.i_valid
+math_bf16_adder.ow_invalid[3:0]
+math_bf16_adder.ow_overflow[1:0]
+@28
+math_bf16_adder.ow_result
+@22
+math_bf16_adder.ow_underflow[2:0]
+math_bf16_adder.ow_valid[4:0]
+@28
+math_bf16_adder.r1_any_inf
+math_bf16_adder.r1_any_nan
+math_bf16_adder.r1_inf_minus_inf
+math_bf16_adder.r1_valid
+math_bf16_adder.w_a_eff_zero
+math_bf16_adder.w_a_is_inf
+math_bf16_adder.w_a_is_nan
+math_bf16_adder.w_a_is_normal
+math_bf16_adder.w_a_is_subnorm
+math_bf16_adder.w_a_is_zero
+math_bf16_adder.w_a_larger
+math_bf16_adder.w_any_inf
+math_bf16_adder.w_any_nan
+math_bf16_adder.w_b_eff_zero
+math_bf16_adder.w_b_is_inf
+math_bf16_adder.w_b_is_nan
+math_bf16_adder.w_b_is_normal
+math_bf16_adder.w_b_is_subnorm
+math_bf16_adder.w_b_is_zero
+math_bf16_adder.w_eff_sub
+math_bf16_adder.w_exp_a
+math_bf16_adder.w_exp_a_larger
+math_bf16_adder.w_exp_b
+math_bf16_adder.w_exp_diff
+math_bf16_adder.w_exp_diff_raw
+math_bf16_adder.w_exp_equal
+math_bf16_adder.w_exp_l
+math_bf16_adder.w_inf_minus_inf
+math_bf16_adder.w_l_is_normal
+math_bf16_adder.w_mant_a
+math_bf16_adder.w_mant_a_larger
+math_bf16_adder.w_mant_b
+math_bf16_adder.w_mant_l
+math_bf16_adder.w_mant_s
+math_bf16_adder.w_result_sign
+math_bf16_adder.w_s_eff_zero
+math_bf16_adder.w_s_is_normal
+math_bf16_adder.w_sign_a
+math_bf16_adder.w_sign_b
+math_bf16_adder.w_sign_l
+math_bf16_adder.w_sign_s
+@200
+-u_align_shifter
+@22
+math_bf16_adder.u_align_shifter.WIDTH[7:0]
+@28
+math_bf16_adder.u_align_shifter.ctrl
+math_bf16_adder.u_align_shifter.data
+math_bf16_adder.u_align_shifter.data_out
+math_bf16_adder.u_align_shifter.shift_amount
+math_bf16_adder.u_align_shifter.w_array_rs[0]
+math_bf16_adder.u_align_shifter.w_array_rs[1]
+math_bf16_adder.u_align_shifter.w_array_rs[2]
+@200
+-u_clz
+@28
+math_bf16_adder.u_clz.WIDTH
+math_bf16_adder.u_clz.clz
+math_bf16_adder.u_clz.data
+@200
+-u_norm_shifter
+@22
+math_bf16_adder.u_norm_shifter.WIDTH[7:0]
+@28
+math_bf16_adder.u_norm_shifter.ctrl
+math_bf16_adder.u_norm_shifter.data
+math_bf16_adder.u_norm_shifter.data_out
+math_bf16_adder.u_norm_shifter.shift_amount
+math_bf16_adder.u_norm_shifter.w_array_rs[0]
+math_bf16_adder.u_norm_shifter.w_array_rs[1]
+math_bf16_adder.u_norm_shifter.w_array_rs[2]

@@ -1,0 +1,108 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi5_master_rd_cg_iw8_aw32_dw32_ard2_rd4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi5_master_rd_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi5_master_rd_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi5_master_rd_cg.aclk
+axi5_master_rd_cg.aresetn
+axi5_master_rd_cg.fub_axi_arburst
+axi5_master_rd_cg.gated_aclk
+axi5_master_rd_cg.m_axi_arburst
+@200
+-interface
+@28
+axi5_master_rd_cg.AW
+axi5_master_rd_cg.AXI_ADDR_WIDTH
+axi5_master_rd_cg.AXI_CHUNKNUM_WIDTH
+axi5_master_rd_cg.AXI_DATA_WIDTH
+axi5_master_rd_cg.AXI_ID_WIDTH
+axi5_master_rd_cg.AXI_MECID_WIDTH
+axi5_master_rd_cg.AXI_MPAM_WIDTH
+axi5_master_rd_cg.AXI_NSAID_WIDTH
+axi5_master_rd_cg.AXI_TAGOP_WIDTH
+axi5_master_rd_cg.AXI_TAG_WIDTH
+axi5_master_rd_cg.AXI_USER_WIDTH
+axi5_master_rd_cg.AXI_WSTRB_WIDTH
+axi5_master_rd_cg.CG_IDLE_COUNT_WIDTH
+axi5_master_rd_cg.CHUNK_STRB_WIDTH
+axi5_master_rd_cg.DW
+axi5_master_rd_cg.ENABLE_CHUNKING
+axi5_master_rd_cg.ENABLE_MECID
+axi5_master_rd_cg.ENABLE_MPAM
+axi5_master_rd_cg.ENABLE_MTE
+axi5_master_rd_cg.ENABLE_NSAID
+axi5_master_rd_cg.ENABLE_POISON
+axi5_master_rd_cg.ENABLE_TRACE
+axi5_master_rd_cg.ENABLE_UNIQUE
+axi5_master_rd_cg.ENABLE_WAKEUP
+axi5_master_rd_cg.IW
+axi5_master_rd_cg.NUM_TAGS
+axi5_master_rd_cg.SKID_DEPTH_AR
+axi5_master_rd_cg.SKID_DEPTH_R
+axi5_master_rd_cg.SW
+axi5_master_rd_cg.TW
+axi5_master_rd_cg.UW
+axi5_master_rd_cg.cfg_cg_enable
+axi5_master_rd_cg.cfg_cg_idle_count
+axi5_master_rd_cg.fub_axi_araddr
+axi5_master_rd_cg.fub_axi_arcache
+axi5_master_rd_cg.fub_axi_archunken
+axi5_master_rd_cg.fub_axi_arid
+axi5_master_rd_cg.fub_axi_aridunq
+axi5_master_rd_cg.fub_axi_arlen
+axi5_master_rd_cg.fub_axi_arlock
+axi5_master_rd_cg.fub_axi_armecid
+axi5_master_rd_cg.fub_axi_armpam
+axi5_master_rd_cg.fub_axi_arnsaid
+axi5_master_rd_cg.fub_axi_arprot
+axi5_master_rd_cg.fub_axi_arqos
+axi5_master_rd_cg.fub_axi_arready
+axi5_master_rd_cg.fub_axi_arsize
+axi5_master_rd_cg.fub_axi_artagop
+axi5_master_rd_cg.fub_axi_artrace
+axi5_master_rd_cg.fub_axi_aruser
+axi5_master_rd_cg.fub_axi_arvalid
+axi5_master_rd_cg.fub_axi_awakeup
+axi5_master_rd_cg.fub_axi_rdata
+axi5_master_rd_cg.fub_axi_rid
+axi5_master_rd_cg.fub_axi_rlast
+axi5_master_rd_cg.fub_axi_rready
+axi5_master_rd_cg.fub_axi_rresp
+axi5_master_rd_cg.fub_axi_rtrace
+axi5_master_rd_cg.fub_axi_ruser
+axi5_master_rd_cg.fub_axi_rvalid
+@200
+-i_amba_clock_gate_ctrl
+@28
+axi5_master_rd_cg.i_amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+axi5_master_rd_cg.i_amba_clock_gate_ctrl.ICW
+axi5_master_rd_cg.i_amba_clock_gate_ctrl.aresetn
+axi5_master_rd_cg.i_amba_clock_gate_ctrl.axi_valid
+axi5_master_rd_cg.i_amba_clock_gate_ctrl.cfg_cg_enable
+axi5_master_rd_cg.i_amba_clock_gate_ctrl.cfg_cg_idle_count
+axi5_master_rd_cg.i_amba_clock_gate_ctrl.clk_in
+axi5_master_rd_cg.i_amba_clock_gate_ctrl.user_valid
+@200
+-i_axi5_master_rd
+@28
+axi5_master_rd_cg.i_axi5_master_rd.AXI_ADDR_WIDTH
+axi5_master_rd_cg.i_axi5_master_rd.AXI_DATA_WIDTH
+axi5_master_rd_cg.i_axi5_master_rd.AXI_ID_WIDTH
+axi5_master_rd_cg.i_axi5_master_rd.AXI_NSAID_WIDTH
+axi5_master_rd_cg.i_axi5_master_rd.AXI_USER_WIDTH
+axi5_master_rd_cg.i_axi5_master_rd.AXI_WSTRB_WIDTH
+axi5_master_rd_cg.i_axi5_master_rd.SKID_DEPTH_AR
+axi5_master_rd_cg.i_axi5_master_rd.SKID_DEPTH_R

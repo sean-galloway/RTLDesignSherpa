@@ -1,0 +1,108 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_ieee754_2008_fp16_fma_gate_GATE_sn0/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_ieee754_2008_fp16_fma.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_ieee754_2008_fp16_fma.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_ieee754_2008_fp16_fma.SUBNORMAL_SUPPORT
+math_ieee754_2008_fp16_fma.i_a
+math_ieee754_2008_fp16_fma.i_b
+math_ieee754_2008_fp16_fma.i_c
+math_ieee754_2008_fp16_fma.ow_invalid
+math_ieee754_2008_fp16_fma.ow_overflow
+math_ieee754_2008_fp16_fma.ow_result
+math_ieee754_2008_fp16_fma.ow_underflow
+math_ieee754_2008_fp16_fma.w_a_eff_zero
+math_ieee754_2008_fp16_fma.w_a_h1
+math_ieee754_2008_fp16_fma.w_a_is_inf
+math_ieee754_2008_fp16_fma.w_a_is_nan
+math_ieee754_2008_fp16_fma.w_a_is_normal
+math_ieee754_2008_fp16_fma.w_a_is_subnormal
+@22
+math_ieee754_2008_fp16_fma.w_a_is_zero[8:0]
+@28
+math_ieee754_2008_fp16_fma.w_b_eff_zero
+math_ieee754_2008_fp16_fma.w_b_h1
+math_ieee754_2008_fp16_fma.w_b_is_inf
+math_ieee754_2008_fp16_fma.w_b_is_nan
+math_ieee754_2008_fp16_fma.w_b_is_normal
+math_ieee754_2008_fp16_fma.w_b_is_subnormal
+math_ieee754_2008_fp16_fma.w_b_is_zero
+math_ieee754_2008_fp16_fma.w_c_eff_zero
+math_ieee754_2008_fp16_fma.w_c_h1
+math_ieee754_2008_fp16_fma.w_c_is_inf
+math_ieee754_2008_fp16_fma.w_c_is_nan
+math_ieee754_2008_fp16_fma.w_c_is_normal
+math_ieee754_2008_fp16_fma.w_c_is_subnormal
+math_ieee754_2008_fp16_fma.w_c_is_zero
+math_ieee754_2008_fp16_fma.w_exp_a
+math_ieee754_2008_fp16_fma.w_exp_a_adj
+@22
+math_ieee754_2008_fp16_fma.w_exp_b[3:0]
+@28
+math_ieee754_2008_fp16_fma.w_exp_b_adj
+@22
+math_ieee754_2008_fp16_fma.w_exp_c[6:0]
+@28
+math_ieee754_2008_fp16_fma.w_exp_c_adj
+math_ieee754_2008_fp16_fma.w_exp_c_ext
+math_ieee754_2008_fp16_fma.w_exp_diff
+@22
+math_ieee754_2008_fp16_fma.w_mant_a[1:0]
+@28
+math_ieee754_2008_fp16_fma.w_mant_a_ext
+@22
+math_ieee754_2008_fp16_fma.w_mant_b[4:0]
+@28
+math_ieee754_2008_fp16_fma.w_mant_b_ext
+@22
+math_ieee754_2008_fp16_fma.w_mant_c[7:0]
+@28
+math_ieee754_2008_fp16_fma.w_mant_c_ext
+math_ieee754_2008_fp16_fma.w_prod_exp
+math_ieee754_2008_fp16_fma.w_prod_exp_ext
+math_ieee754_2008_fp16_fma.w_prod_exp_larger
+math_ieee754_2008_fp16_fma.w_prod_exp_raw
+math_ieee754_2008_fp16_fma.w_prod_exp_raw_adj
+math_ieee754_2008_fp16_fma.w_prod_exp_x
+math_ieee754_2008_fp16_fma.w_prod_mant_44
+math_ieee754_2008_fp16_fma.w_prod_mant_norm
+math_ieee754_2008_fp16_fma.w_prod_mant_raw
+math_ieee754_2008_fp16_fma.w_prod_mant_x
+math_ieee754_2008_fp16_fma.w_prod_needs_norm
+math_ieee754_2008_fp16_fma.w_prod_sign
+math_ieee754_2008_fp16_fma.w_shift_amt
+math_ieee754_2008_fp16_fma.w_shift_clamped
+@22
+math_ieee754_2008_fp16_fma.w_sign_a
+math_ieee754_2008_fp16_fma.w_sign_b[2:0]
+math_ieee754_2008_fp16_fma.w_sign_c[5:0]
+@200
+-u_clz
+@28
+math_ieee754_2008_fp16_fma.u_clz.WIDTH
+math_ieee754_2008_fp16_fma.u_clz.clz
+math_ieee754_2008_fp16_fma.u_clz.data
+@200
+-u_mant_mult
+@28
+math_ieee754_2008_fp16_fma.u_mant_mult.N
+math_ieee754_2008_fp16_fma.u_mant_mult.i_multiplicand
+math_ieee754_2008_fp16_fma.u_mant_mult.i_multiplier
+math_ieee754_2008_fp16_fma.u_mant_mult.ow_product
+math_ieee754_2008_fp16_fma.u_mant_mult.w_pp_00_00
+math_ieee754_2008_fp16_fma.u_mant_mult.w_pp_00_01
+math_ieee754_2008_fp16_fma.u_mant_mult.w_pp_00_02
+math_ieee754_2008_fp16_fma.u_mant_mult.w_pp_00_03

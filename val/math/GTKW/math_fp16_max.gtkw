@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp16_max_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp16_max.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp16_max.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_fp16_max.i_a
+math_fp16_max.i_b
+math_fp16_max.ow_result
+@22
+math_fp16_max.w_a_greater[3:0]
+math_fp16_max.w_a_is_nan
+@28
+math_fp16_max.w_a_is_zero
+math_fp16_max.w_b_is_nan
+math_fp16_max.w_b_is_zero
+math_fp16_max.w_both_zero
+math_fp16_max.w_exp_a
+math_fp16_max.w_exp_b
+@22
+math_fp16_max.w_mag_a[1:0]
+math_fp16_max.w_mag_b[2:0]
+@28
+math_fp16_max.w_mant_a
+math_fp16_max.w_mant_b
+math_fp16_max.w_sign_a
+math_fp16_max.w_sign_b

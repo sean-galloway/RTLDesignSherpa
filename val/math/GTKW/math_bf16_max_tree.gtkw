@@ -1,0 +1,110 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_max_tree_gate_n8_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_max_tree.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_max_tree.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@22
+math_bf16_max_tree.IDX_WIDTH[1:0]
+@28
+math_bf16_max_tree.NUM_INPUTS
+@22
+math_bf16_max_tree.NUM_LEVELS[1:0]
+math_bf16_max_tree.TOTAL_NODES[2:0]
+@28
+math_bf16_max_tree.i_values[0]
+math_bf16_max_tree.i_values[1]
+math_bf16_max_tree.i_values[2]
+math_bf16_max_tree.i_values[3]
+math_bf16_max_tree.i_values[4]
+math_bf16_max_tree.i_values[5]
+@22
+math_bf16_max_tree.i_values[6]
+@28
+math_bf16_max_tree.i_values[7]
+math_bf16_max_tree.i_values_flat
+math_bf16_max_tree.input_is_zero
+math_bf16_max_tree.node_indices[0]
+math_bf16_max_tree.node_indices[1]
+math_bf16_max_tree.node_indices[2]
+math_bf16_max_tree.node_indices[3]
+math_bf16_max_tree.node_indices[4]
+math_bf16_max_tree.node_indices[5]
+math_bf16_max_tree.node_indices[6]
+@22
+math_bf16_max_tree.node_values[0][3:0]
+math_bf16_max_tree.node_values[1][4:0]
+math_bf16_max_tree.node_values[2][5:0]
+math_bf16_max_tree.node_values[3][6:0]
+math_bf16_max_tree.node_values[4][7:0]
+math_bf16_max_tree.node_values[5][8:0]
+@28
+math_bf16_max_tree.node_values[6]
+math_bf16_max_tree.ow_all_zero
+math_bf16_max_tree.ow_max
+math_bf16_max_tree.ow_max_index
+@200
+-gen_level0[0]
+@28
+math_bf16_max_tree.gen_level0[0].w_a_is_nan
+math_bf16_max_tree.gen_level0[0].w_a_mag
+math_bf16_max_tree.gen_level0[0].w_a_selected
+math_bf16_max_tree.gen_level0[0].w_b_is_nan
+math_bf16_max_tree.gen_level0[0].w_b_mag
+@200
+-gen_level0[1]
+@28
+math_bf16_max_tree.gen_level0[1].w_a_is_nan
+math_bf16_max_tree.gen_level0[1].w_a_mag
+math_bf16_max_tree.gen_level0[1].w_a_selected
+math_bf16_max_tree.gen_level0[1].w_b_is_nan
+math_bf16_max_tree.gen_level0[1].w_b_mag
+@200
+-gen_level0[2]
+@28
+math_bf16_max_tree.gen_level0[2].w_a_is_nan
+math_bf16_max_tree.gen_level0[2].w_a_mag
+math_bf16_max_tree.gen_level0[2].w_a_selected
+math_bf16_max_tree.gen_level0[2].w_b_is_nan
+math_bf16_max_tree.gen_level0[2].w_b_mag
+@200
+-gen_level0[3]
+@28
+math_bf16_max_tree.gen_level0[3].w_a_is_nan
+math_bf16_max_tree.gen_level0[3].w_a_mag
+math_bf16_max_tree.gen_level0[3].w_a_selected
+math_bf16_max_tree.gen_level0[3].w_b_is_nan
+math_bf16_max_tree.gen_level0[3].w_b_mag
+@200
+-gen_level1_plus
+@28
+math_bf16_max_tree.gen_level1_plus.L1_COUNT
+math_bf16_max_tree.gen_level1_plus.L1_START
+math_bf16_max_tree.gen_level1_plus.gen_level1[0].SRC_BASE
+math_bf16_max_tree.gen_level1_plus.gen_level1[0].w_a_is_nan
+math_bf16_max_tree.gen_level1_plus.gen_level1[0].w_a_mag
+math_bf16_max_tree.gen_level1_plus.gen_level1[0].w_a_selected
+math_bf16_max_tree.gen_level1_plus.gen_level1[0].w_b_is_nan
+math_bf16_max_tree.gen_level1_plus.gen_level1[0].w_b_mag
+@200
+-gen_level2_plus
+@28
+math_bf16_max_tree.gen_level2_plus.L1_START
+math_bf16_max_tree.gen_level2_plus.L2_COUNT
+math_bf16_max_tree.gen_level2_plus.L2_START
+math_bf16_max_tree.gen_level2_plus.gen_level2[0].w_a_is_nan
+math_bf16_max_tree.gen_level2_plus.gen_level2[0].w_a_mag
+math_bf16_max_tree.gen_level2_plus.gen_level2[0].w_a_selected
+math_bf16_max_tree.gen_level2_plus.gen_level2[0].w_b_is_nan
+math_bf16_max_tree.gen_level2_plus.gen_level2[0].w_b_mag

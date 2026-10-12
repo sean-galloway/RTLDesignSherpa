@@ -1,0 +1,34 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp8_e4m3_to_bf16_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp8_e4m3_tanh.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp8_e4m3_to_bf16.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_fp8_e4m3_to_bf16.i_a
+math_fp8_e4m3_to_bf16.ow_invalid
+math_fp8_e4m3_to_bf16.ow_result
+math_fp8_e4m3_to_bf16.r_invalid
+@22
+math_fp8_e4m3_to_bf16.r_result
+@28
+math_fp8_e4m3_to_bf16.w_exp
+math_fp8_e4m3_to_bf16.w_exp_converted
+math_fp8_e4m3_to_bf16.w_is_inf
+math_fp8_e4m3_to_bf16.w_is_nan
+math_fp8_e4m3_to_bf16.w_is_subnormal
+math_fp8_e4m3_to_bf16.w_is_zero
+math_fp8_e4m3_to_bf16.w_mant
+math_fp8_e4m3_to_bf16.w_mant_extended
+math_fp8_e4m3_to_bf16.w_sign

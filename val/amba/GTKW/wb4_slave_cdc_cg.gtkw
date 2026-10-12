@@ -1,0 +1,96 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_wb4_slave_cdc_cg_aw032_dw032_mo16_pipe_wb10_a3_cg_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/wb4_slave_cdc_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wb4_slave_cdc_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clks-rst
+@28
+wb4_slave_cdc_cg.wb_clk
+wb4_slave_cdc_cg.wb_resetn
+wb4_slave_cdc_cg.aclk
+wb4_slave_cdc_cg.aresetn
+wb4_slave_cdc_cg.gated_wb_clk
+@200
+-params
+@28
+wb4_slave_cdc_cg.ADDR_WIDTH
+wb4_slave_cdc_cg.DATA_WIDTH
+wb4_slave_cdc_cg.MAX_OUTSTANDING
+wb4_slave_cdc_cg.CLASSIC
+wb4_slave_cdc_cg.CDC_DEPTH
+wb4_slave_cdc_cg.USE_JOHNSON
+wb4_slave_cdc_cg.USE_BURST_HINTS
+wb4_slave_cdc_cg.CG_IDLE_COUNT_WIDTH
+@200
+-clock-gate-ctrl
+@28
+wb4_slave_cdc_cg.cfg_cg_enable
+@22
+wb4_slave_cdc_cg.cfg_cg_idle_count
+@28
+wb4_slave_cdc_cg.cg_gating
+wb4_slave_cdc_cg.cg_idle
+wb4_slave_cdc_cg.w_wakeup
+wb4_slave_cdc_cg.w_stall
+wb4_slave_cdc_cg.w_wb_busy
+@200
+-wb-slave
+@28
+wb4_slave_cdc_cg.s_wb_CYC
+wb4_slave_cdc_cg.s_wb_STB
+wb4_slave_cdc_cg.s_wb_WE
+wb4_slave_cdc_cg.s_wb_STALL
+wb4_slave_cdc_cg.s_wb_ACK
+wb4_slave_cdc_cg.s_wb_ERR
+wb4_slave_cdc_cg.s_wb_RTY
+@22
+wb4_slave_cdc_cg.s_wb_ADR
+wb4_slave_cdc_cg.s_wb_DAT_W
+wb4_slave_cdc_cg.s_wb_DAT_R
+wb4_slave_cdc_cg.s_wb_SEL
+wb4_slave_cdc_cg.s_wb_CTI
+wb4_slave_cdc_cg.s_wb_BTE
+@200
+-fub-cmd
+@28
+wb4_slave_cdc_cg.cmd_valid
+wb4_slave_cdc_cg.cmd_ready
+wb4_slave_cdc_cg.cmd_we
+@22
+wb4_slave_cdc_cg.cmd_adr
+wb4_slave_cdc_cg.cmd_dat
+wb4_slave_cdc_cg.cmd_sel
+wb4_slave_cdc_cg.cmd_cti
+wb4_slave_cdc_cg.cmd_bte
+@200
+-fub-rsp
+@28
+wb4_slave_cdc_cg.rsp_valid
+wb4_slave_cdc_cg.rsp_ready
+@22
+wb4_slave_cdc_cg.rsp_status
+wb4_slave_cdc_cg.rsp_dat
+@200
+-clock-gate-internals
+@28
+wb4_slave_cdc_cg.u_clock_gate_ctrl.clk_in
+wb4_slave_cdc_cg.u_clock_gate_ctrl.clk_out
+wb4_slave_cdc_cg.u_clock_gate_ctrl.user_valid
+wb4_slave_cdc_cg.u_clock_gate_ctrl.axi_valid
+wb4_slave_cdc_cg.u_clock_gate_ctrl.gating
+wb4_slave_cdc_cg.u_clock_gate_ctrl.idle
+wb4_slave_cdc_cg.u_clock_gate_ctrl.r_wakeup
+@22
+wb4_slave_cdc_cg.u_clock_gate_ctrl.u_clock_gate_ctrl.r_idle_counter
+wb4_slave_cdc_cg.u_clock_gate_ctrl.u_clock_gate_ctrl.w_gate_enable

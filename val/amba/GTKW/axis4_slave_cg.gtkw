@@ -1,0 +1,90 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axis_slave_cg_sd4_dw032_iw08_destw4_uw1_gate_comprehensive/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axis4_slave_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis4_slave_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axis4_slave_cg.aclk
+axis4_slave_cg.aresetn
+axis4_slave_cg.gated_aclk
+@200
+-interface
+@22
+axis4_slave_cg.AXIS_DATA_WIDTH[7:0]
+axis4_slave_cg.AXIS_DEST_WIDTH[6:0]
+axis4_slave_cg.AXIS_ID_WIDTH[8:0]
+@28
+axis4_slave_cg.AXIS_USER_WIDTH
+@22
+axis4_slave_cg.CG_IDLE_COUNT_WIDTH[8:0]
+axis4_slave_cg.DESTW[6:0]
+axis4_slave_cg.DESTW_WIDTH[6:0]
+axis4_slave_cg.DW[7:0]
+axis4_slave_cg.IW[8:0]
+axis4_slave_cg.IW_WIDTH[8:0]
+axis4_slave_cg.SKID_DEPTH[6:0]
+axis4_slave_cg.SW[6:0]
+@28
+axis4_slave_cg.UW
+axis4_slave_cg.UW_WIDTH
+axis4_slave_cg.axi_valid
+axis4_slave_cg.cfg_cg_enable
+axis4_slave_cg.cfg_cg_idle_count
+axis4_slave_cg.cg_gating
+axis4_slave_cg.cg_idle
+axis4_slave_cg.fub_axis_tdata
+axis4_slave_cg.fub_axis_tdest
+axis4_slave_cg.fub_axis_tid
+axis4_slave_cg.fub_axis_tlast
+axis4_slave_cg.fub_axis_tready
+axis4_slave_cg.fub_axis_tstrb
+axis4_slave_cg.fub_axis_tuser
+axis4_slave_cg.fub_axis_tvalid
+axis4_slave_cg.int_busy
+axis4_slave_cg.int_tready
+axis4_slave_cg.s_axis_tdata
+axis4_slave_cg.s_axis_tdest
+axis4_slave_cg.s_axis_tid
+axis4_slave_cg.s_axis_tlast
+axis4_slave_cg.s_axis_tready
+axis4_slave_cg.s_axis_tstrb
+axis4_slave_cg.s_axis_tuser
+axis4_slave_cg.s_axis_tvalid
+axis4_slave_cg.user_valid
+@200
+-i_amba_clock_gate_ctrl
+@22
+axis4_slave_cg.i_amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH[8:0]
+axis4_slave_cg.i_amba_clock_gate_ctrl.ICW[8:0]
+@28
+axis4_slave_cg.i_amba_clock_gate_ctrl.aresetn
+axis4_slave_cg.i_amba_clock_gate_ctrl.axi_valid
+axis4_slave_cg.i_amba_clock_gate_ctrl.cfg_cg_enable
+axis4_slave_cg.i_amba_clock_gate_ctrl.cfg_cg_idle_count
+axis4_slave_cg.i_amba_clock_gate_ctrl.clk_in
+axis4_slave_cg.i_amba_clock_gate_ctrl.user_valid
+@200
+-i_axis_slave
+@22
+axis4_slave_cg.i_axis_slave.AXIS_DATA_WIDTH[7:0]
+axis4_slave_cg.i_axis_slave.AXIS_DEST_WIDTH[6:0]
+axis4_slave_cg.i_axis_slave.AXIS_ID_WIDTH[8:0]
+@28
+axis4_slave_cg.i_axis_slave.AXIS_USER_WIDTH
+@22
+axis4_slave_cg.i_axis_slave.DESTW[6:0]
+axis4_slave_cg.i_axis_slave.DW[7:0]
+axis4_slave_cg.i_axis_slave.IW[8:0]
+axis4_slave_cg.i_axis_slave.SKID_DEPTH[6:0]

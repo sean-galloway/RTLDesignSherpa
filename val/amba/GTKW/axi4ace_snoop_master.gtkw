@@ -1,0 +1,103 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi4ace_snoop_master_a32_d032_ac2_cr4_cd4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4ace_snoop_master.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4ace_snoop_master.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4ace_snoop_master.aclk
+axi4ace_snoop_master.aresetn
+@200
+-interface
+@28
+axi4ace_snoop_master.ACSize
+axi4ace_snoop_master.ADDR_WIDTH
+axi4ace_snoop_master.AW
+axi4ace_snoop_master.CDSize
+axi4ace_snoop_master.CRSize
+axi4ace_snoop_master.DATA_WIDTH
+axi4ace_snoop_master.DW
+axi4ace_snoop_master.SKID_DEPTH_AC
+axi4ace_snoop_master.SKID_DEPTH_CD
+axi4ace_snoop_master.SKID_DEPTH_CR
+axi4ace_snoop_master.busy
+axi4ace_snoop_master.fub_acaddr
+axi4ace_snoop_master.fub_acprot
+axi4ace_snoop_master.fub_acready
+axi4ace_snoop_master.fub_acsnoop
+axi4ace_snoop_master.fub_acvalid
+axi4ace_snoop_master.fub_cddata
+axi4ace_snoop_master.fub_cdlast
+axi4ace_snoop_master.fub_cdready
+axi4ace_snoop_master.fub_cdvalid
+axi4ace_snoop_master.fub_crready
+axi4ace_snoop_master.fub_crresp
+axi4ace_snoop_master.fub_crvalid
+axi4ace_snoop_master.int_ac_count
+axi4ace_snoop_master.int_ac_pkt
+axi4ace_snoop_master.int_cd_count
+axi4ace_snoop_master.int_cd_pkt
+axi4ace_snoop_master.int_cr_count
+axi4ace_snoop_master.int_cr_pkt
+axi4ace_snoop_master.int_skid_acready
+axi4ace_snoop_master.int_skid_acvalid
+axi4ace_snoop_master.int_skid_cdready
+axi4ace_snoop_master.int_skid_cdvalid
+axi4ace_snoop_master.int_skid_crready
+axi4ace_snoop_master.int_skid_crvalid
+axi4ace_snoop_master.m_axi_acaddr
+axi4ace_snoop_master.m_axi_acprot
+axi4ace_snoop_master.m_axi_acready
+axi4ace_snoop_master.m_axi_acsnoop
+axi4ace_snoop_master.m_axi_acvalid
+axi4ace_snoop_master.m_axi_cddata
+axi4ace_snoop_master.m_axi_cdlast
+axi4ace_snoop_master.m_axi_cdready
+axi4ace_snoop_master.m_axi_cdvalid
+axi4ace_snoop_master.m_axi_crready
+axi4ace_snoop_master.m_axi_crresp
+axi4ace_snoop_master.m_axi_crvalid
+@200
+-ac_channel
+@28
+axi4ace_snoop_master.ac_channel.DATA_WIDTH
+axi4ace_snoop_master.ac_channel.DEPTH
+axi4ace_snoop_master.ac_channel.DW
+axi4ace_snoop_master.ac_channel.axi_aclk
+axi4ace_snoop_master.ac_channel.axi_aresetn
+axi4ace_snoop_master.ac_channel.wr_data
+axi4ace_snoop_master.ac_channel.wr_ready
+axi4ace_snoop_master.ac_channel.wr_valid
+@200
+-cd_channel
+@28
+axi4ace_snoop_master.cd_channel.DATA_WIDTH
+axi4ace_snoop_master.cd_channel.DEPTH
+axi4ace_snoop_master.cd_channel.DW
+axi4ace_snoop_master.cd_channel.axi_aclk
+axi4ace_snoop_master.cd_channel.axi_aresetn
+axi4ace_snoop_master.cd_channel.wr_data
+axi4ace_snoop_master.cd_channel.wr_ready
+axi4ace_snoop_master.cd_channel.wr_valid
+@200
+-cr_channel
+@28
+axi4ace_snoop_master.cr_channel.DATA_WIDTH
+axi4ace_snoop_master.cr_channel.DEPTH
+axi4ace_snoop_master.cr_channel.DW
+axi4ace_snoop_master.cr_channel.axi_aclk
+axi4ace_snoop_master.cr_channel.axi_aresetn
+axi4ace_snoop_master.cr_channel.wr_data
+axi4ace_snoop_master.cr_channel.wr_ready
+axi4ace_snoop_master.cr_channel.wr_valid

@@ -1,0 +1,76 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_divider_srt_radix2_csa_W8_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_divider_srt_radix2_csa.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_divider_srt_radix2_csa.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+math_divider_srt_radix2_csa.i_clk
+math_divider_srt_radix2_csa.i_rst_n
+@200
+-interface
+@28
+math_divider_srt_radix2_csa.i_valid
+@22
+math_divider_srt_radix2_csa.i_dividend
+math_divider_srt_radix2_csa.i_divisor
+@28
+math_divider_srt_radix2_csa.ow_busy
+math_divider_srt_radix2_csa.ow_dbz
+math_divider_srt_radix2_csa.ow_done
+@22
+math_divider_srt_radix2_csa.ow_quotient
+math_divider_srt_radix2_csa.ow_remainder
+@200
+-parameters
+@22
+math_divider_srt_radix2_csa.DATA_WIDTH
+math_divider_srt_radix2_csa.COUNT_W
+math_divider_srt_radix2_csa.C_ONE
+math_divider_srt_radix2_csa.PW
+math_divider_srt_radix2_csa.REXT
+math_divider_srt_radix2_csa.MASK
+math_divider_srt_radix2_csa.S_IDLE
+math_divider_srt_radix2_csa.S_RUN
+math_divider_srt_radix2_csa.S_DONE
+@200
+-internals
+@22
+math_divider_srt_radix2_csa.r_state
+math_divider_srt_radix2_csa.r_count
+math_divider_srt_radix2_csa.r_p
+@28
+math_divider_srt_radix2_csa.r_busy
+math_divider_srt_radix2_csa.r_dbz
+math_divider_srt_radix2_csa.r_done
+@22
+math_divider_srt_radix2_csa.r_d
+math_divider_srt_radix2_csa.r_x_shift
+math_divider_srt_radix2_csa.r_Q
+math_divider_srt_radix2_csa.r_QM
+math_divider_srt_radix2_csa.r_S
+math_divider_srt_radix2_csa.r_C
+math_divider_srt_radix2_csa.w_q
+math_divider_srt_radix2_csa.w_Q_next
+math_divider_srt_radix2_csa.w_QM_next
+math_divider_srt_radix2_csa.w_est
+math_divider_srt_radix2_csa.w_bucket
+math_divider_srt_radix2_csa.w_Sx
+math_divider_srt_radix2_csa.w_Sy
+math_divider_srt_radix2_csa.w_Cx
+math_divider_srt_radix2_csa.w_Cy
+math_divider_srt_radix2_csa.w_t_true
+math_divider_srt_radix2_csa.w_term
+math_divider_srt_radix2_csa.w_final_R
+math_divider_srt_radix2_csa.w_rem_out

@@ -1,0 +1,50 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/cdc/local_sim_build/test_johnson2bin_j10_w05_func_FUNC/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/cdc/GTKW/sync_pulse.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] johnson2bin.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+johnson2bin.clk
+johnson2bin.rst_n
+@200
+-interface
+@28
+johnson2bin.JCW
+johnson2bin.N
+johnson2bin.PAD_WIDTH
+johnson2bin.WIDTH
+johnson2bin.binary
+johnson2bin.gray
+johnson2bin.w_all_ones
+@22
+johnson2bin.w_all_zeroes
+@28
+johnson2bin.w_binary
+johnson2bin.w_leading_one
+johnson2bin.w_trailing_one
+@22
+johnson2bin.w_valid[1:0]
+@200
+-u_leading_one_trailing_o
+@28
+johnson2bin.u_leading_one_trailing_one.WIDTH
+@22
+johnson2bin.u_leading_one_trailing_one.all_ones[8:0]
+johnson2bin.u_leading_one_trailing_one.all_zeroes[7:0]
+johnson2bin.u_leading_one_trailing_one.data[2:0]
+johnson2bin.u_leading_one_trailing_one.leadingone[3:0]
+johnson2bin.u_leading_one_trailing_one.leadingone_vector[4:0]
+johnson2bin.u_leading_one_trailing_one.trailingone[5:0]
+johnson2bin.u_leading_one_trailing_one.trailingone_vector[6:0]

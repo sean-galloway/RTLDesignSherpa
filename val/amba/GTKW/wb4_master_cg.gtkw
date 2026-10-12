@@ -1,0 +1,93 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_wb4_master_cg_aw032_dw032_pipe_cg1_ic4_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/wb4_master_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wb4_master_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+wb4_master_cg.USE_BURST_HINTS
+wb4_master_cg.aresetn
+wb4_master_cg.clk
+wb4_master_cg.gated_clk
+@200
+-interface
+@28
+wb4_master_cg.ADDR_WIDTH
+wb4_master_cg.AW
+wb4_master_cg.BTW
+wb4_master_cg.CG_IDLE_COUNT_WIDTH
+wb4_master_cg.CLASSIC
+wb4_master_cg.CMD_DEPTH
+wb4_master_cg.CTW
+wb4_master_cg.DATA_WIDTH
+wb4_master_cg.DW
+wb4_master_cg.ICW
+wb4_master_cg.RSP_DEPTH
+wb4_master_cg.SEL_WIDTH
+wb4_master_cg.STW
+wb4_master_cg.SW
+wb4_master_cg.cfg_cg_enable
+wb4_master_cg.cfg_cg_idle_count
+wb4_master_cg.cg_gating
+wb4_master_cg.cg_idle
+wb4_master_cg.cmd_adr
+wb4_master_cg.cmd_bte
+wb4_master_cg.cmd_cti
+wb4_master_cg.cmd_dat
+wb4_master_cg.cmd_ready
+wb4_master_cg.cmd_sel
+wb4_master_cg.cmd_valid
+wb4_master_cg.cmd_we
+wb4_master_cg.m_wb_ACK
+wb4_master_cg.m_wb_ADR
+wb4_master_cg.m_wb_BTE
+wb4_master_cg.m_wb_CTI
+wb4_master_cg.m_wb_CYC
+wb4_master_cg.m_wb_DAT_R
+wb4_master_cg.m_wb_DAT_W
+wb4_master_cg.m_wb_ERR
+wb4_master_cg.m_wb_RTY
+wb4_master_cg.m_wb_SEL
+wb4_master_cg.m_wb_STALL
+wb4_master_cg.m_wb_STB
+wb4_master_cg.m_wb_WE
+wb4_master_cg.rsp_dat
+wb4_master_cg.rsp_ready
+wb4_master_cg.rsp_status
+wb4_master_cg.rsp_valid
+wb4_master_cg.w_cmd_ready
+wb4_master_cg.w_rsp_valid
+wb4_master_cg.w_wakeup
+@200
+-u_clock_gate_ctrl
+@28
+wb4_master_cg.u_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+wb4_master_cg.u_clock_gate_ctrl.ICW
+wb4_master_cg.u_clock_gate_ctrl.aresetn
+wb4_master_cg.u_clock_gate_ctrl.axi_valid
+wb4_master_cg.u_clock_gate_ctrl.cfg_cg_enable
+wb4_master_cg.u_clock_gate_ctrl.cfg_cg_idle_count
+wb4_master_cg.u_clock_gate_ctrl.clk_in
+wb4_master_cg.u_clock_gate_ctrl.user_valid
+@200
+-u_wb4_master
+@28
+wb4_master_cg.u_wb4_master.ADDR_WIDTH
+wb4_master_cg.u_wb4_master.AW
+wb4_master_cg.u_wb4_master.CLASSIC
+wb4_master_cg.u_wb4_master.CMD_DEPTH
+wb4_master_cg.u_wb4_master.DATA_WIDTH
+wb4_master_cg.u_wb4_master.RSP_DEPTH
+wb4_master_cg.u_wb4_master.SEL_WIDTH
+wb4_master_cg.u_wb4_master.USE_BURST_HINTS

@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_cocotb_test_single_mark_per_write/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi_monitor_pktgen_dut.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_monitor_pktgen_dut.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi_monitor_pktgen_dut.aclk
+axi_monitor_pktgen_dut.aresetn
+@200
+-params
+@28
+axi_monitor_pktgen_dut.MAX_TRANSACTIONS
+axi_monitor_pktgen_dut.INTR_FIFO_DEPTH
+axi_monitor_pktgen_dut.IS_READ
+@200
+-cfg
+@28
+axi_monitor_pktgen_dut.cfg_error_enable
+axi_monitor_pktgen_dut.cfg_compl_enable
+axi_monitor_pktgen_dut.cfg_timeout_enable
+axi_monitor_pktgen_dut.cfg_threshold_enable
+axi_monitor_pktgen_dut.cfg_perf_enable
+axi_monitor_pktgen_dut.cfg_debug_enable
+@22
+axi_monitor_pktgen_dut.cfg_addr_cnt
+axi_monitor_pktgen_dut.cfg_data_cnt
+axi_monitor_pktgen_dut.cfg_resp_cnt
+axi_monitor_pktgen_dut.active_trans_threshold
+axi_monitor_pktgen_dut.latency_threshold
+@200
+-slot-table
+@22
+axi_monitor_pktgen_dut.slot_valid
+axi_monitor_pktgen_dut.slot_state
+axi_monitor_pktgen_dut.slot_cmd_received
+axi_monitor_pktgen_dut.slot_data_started
+axi_monitor_pktgen_dut.slot_data_completed
+axi_monitor_pktgen_dut.slot_resp_received
+axi_monitor_pktgen_dut.slot_addr
+axi_monitor_pktgen_dut.slot_event_code
+axi_monitor_pktgen_dut.slot_channel
+axi_monitor_pktgen_dut.slot_addr_timestamp
+axi_monitor_pktgen_dut.slot_data_timestamp
+@200
+-timeout
+@28
+axi_monitor_pktgen_dut.timer_tick
+@22
+axi_monitor_pktgen_dut.timeout_detected
+@200
+-monbus
+@28
+axi_monitor_pktgen_dut.monbus_valid
+axi_monitor_pktgen_dut.monbus_ready
+@22
+axi_monitor_pktgen_dut.monbus_packet
+@200
+-counters-flags
+@22
+axi_monitor_pktgen_dut.event_count
+axi_monitor_pktgen_dut.perf_completed_count
+axi_monitor_pktgen_dut.perf_error_count
+axi_monitor_pktgen_dut.event_reported_flags
+@200
+-transaction-struct-slot0
+@28
+axi_monitor_pktgen_dut.w_trans_table[0].valid
+axi_monitor_pktgen_dut.w_trans_table[0].cmd_received
+axi_monitor_pktgen_dut.w_trans_table[0].data_started
+axi_monitor_pktgen_dut.w_trans_table[0].data_completed
+axi_monitor_pktgen_dut.w_trans_table[0].resp_received
+axi_monitor_pktgen_dut.w_trans_table[0].event_reported
+axi_monitor_pktgen_dut.w_trans_table[0].eos_seen
+@22
+axi_monitor_pktgen_dut.w_trans_table[0].state
+axi_monitor_pktgen_dut.w_trans_table[0].addr
+axi_monitor_pktgen_dut.w_trans_table[0].id
+axi_monitor_pktgen_dut.w_trans_table[0].len
+axi_monitor_pktgen_dut.w_trans_table[0].size
+axi_monitor_pktgen_dut.w_trans_table[0].burst
+axi_monitor_pktgen_dut.w_trans_table[0].channel
+axi_monitor_pktgen_dut.w_trans_table[0].addr_timer
+axi_monitor_pktgen_dut.w_trans_table[0].data_timer
+axi_monitor_pktgen_dut.w_trans_table[0].resp_timer
+axi_monitor_pktgen_dut.w_trans_table[0].addr_timestamp
+axi_monitor_pktgen_dut.w_trans_table[0].data_timestamp
+axi_monitor_pktgen_dut.w_trans_table[0].resp_timestamp
+axi_monitor_pktgen_dut.w_trans_table[0].expected_beats
+axi_monitor_pktgen_dut.w_trans_table[0].data_beat_count
+axi_monitor_pktgen_dut.w_trans_table[0].event_code.axi_error
+axi_monitor_pktgen_dut.w_trans_table[0].event_code.axi_timeout
+axi_monitor_pktgen_dut.w_trans_table[0].event_code.axi_completion
+axi_monitor_pktgen_dut.w_trans_table[0].event_code.axi_threshold
+axi_monitor_pktgen_dut.w_trans_table[0].event_code.axi_performance
+axi_monitor_pktgen_dut.w_trans_table[0].event_code.raw_code

@@ -1,0 +1,72 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/cdc/local_sim_build/test_gw0_cdc_open_loop_auto_src20ns_dst10ns_auto1_stretch2_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/cdc/GTKW/cdc_open_loop.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] cdc_open_loop.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+cdc_open_loop.clk_src
+cdc_open_loop.rst_src_n
+cdc_open_loop.clk_dst
+cdc_open_loop.rst_dst_n
+@200
+-params
+@28
+cdc_open_loop.DATA_WIDTH
+cdc_open_loop.STRETCH_CYCLES
+cdc_open_loop.SYNC_STAGES
+cdc_open_loop.AUTO_STRETCH
+cdc_open_loop.SRC_CLK_HZ
+cdc_open_loop.DST_CLK_HZ
+cdc_open_loop.STRETCH_AUTO_VAL
+cdc_open_loop.STRETCH_RAW
+cdc_open_loop.STRETCH_EFF
+cdc_open_loop.CTR_WIDTH
+@200
+-src
+@28
+cdc_open_loop.src_valid
+cdc_open_loop.src_busy
+@22
+cdc_open_loop.src_data
+@200
+-dst
+@28
+cdc_open_loop.dst_valid
+@22
+cdc_open_loop.dst_data
+@200
+-stretch
+@28
+cdc_open_loop.r_src_valid_stretch
+@22
+cdc_open_loop.r_src_data
+cdc_open_loop.r_stretch_count
+@200
+-sync-path
+@28
+cdc_open_loop.w_valid_sync
+cdc_open_loop.r_valid_sync_prev
+cdc_open_loop.w_valid_rise
+@200
+-u_valid_sync
+@28
+cdc_open_loop.u_valid_sync.clk
+cdc_open_loop.u_valid_sync.rst_n
+cdc_open_loop.u_valid_sync.d
+cdc_open_loop.u_valid_sync.q
+cdc_open_loop.u_valid_sync.r_q_array[0]
+cdc_open_loop.u_valid_sync.r_q_array[1]
+@22
+cdc_open_loop.u_valid_sync.flat_r_q

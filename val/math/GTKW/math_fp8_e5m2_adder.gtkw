@@ -1,0 +1,90 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp8_e5m2_adder_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp8_e5m2_adder.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp8_e5m2_adder.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_fp8_e5m2_adder.i_a
+math_fp8_e5m2_adder.i_b
+math_fp8_e5m2_adder.ow_invalid
+math_fp8_e5m2_adder.ow_overflow
+math_fp8_e5m2_adder.ow_result
+math_fp8_e5m2_adder.ow_underflow
+math_fp8_e5m2_adder.w_a_eff_zero
+math_fp8_e5m2_adder.w_a_exp_larger
+@22
+math_fp8_e5m2_adder.w_a_is_inf[6:0]
+math_fp8_e5m2_adder.w_a_is_nan[8:0]
+@28
+math_fp8_e5m2_adder.w_a_is_normal
+@22
+math_fp8_e5m2_adder.w_a_is_subnormal[4:0]
+math_fp8_e5m2_adder.w_a_is_zero[2:0]
+@28
+math_fp8_e5m2_adder.w_add_overflow
+math_fp8_e5m2_adder.w_b_eff_zero
+@22
+math_fp8_e5m2_adder.w_b_is_inf[7:0]
+@28
+math_fp8_e5m2_adder.w_b_is_nan
+math_fp8_e5m2_adder.w_b_is_normal
+@22
+math_fp8_e5m2_adder.w_b_is_subnormal[5:0]
+math_fp8_e5m2_adder.w_b_is_zero[3:0]
+@28
+math_fp8_e5m2_adder.w_effective_sub
+math_fp8_e5m2_adder.w_exp_a
+math_fp8_e5m2_adder.w_exp_adjusted
+math_fp8_e5m2_adder.w_exp_b
+math_fp8_e5m2_adder.w_exp_diff
+math_fp8_e5m2_adder.w_exp_larger
+math_fp8_e5m2_adder.w_exp_smaller
+math_fp8_e5m2_adder.w_guard
+math_fp8_e5m2_adder.w_larger_normal
+math_fp8_e5m2_adder.w_lz_count
+math_fp8_e5m2_adder.w_mant_a
+@22
+math_fp8_e5m2_adder.w_mant_b[1:0]
+@28
+math_fp8_e5m2_adder.w_mant_larger
+math_fp8_e5m2_adder.w_mant_larger_7
+math_fp8_e5m2_adder.w_mant_larger_ext
+math_fp8_e5m2_adder.w_mant_norm
+math_fp8_e5m2_adder.w_mant_pre
+math_fp8_e5m2_adder.w_mant_rounded
+math_fp8_e5m2_adder.w_mant_smaller
+math_fp8_e5m2_adder.w_mant_smaller_7
+math_fp8_e5m2_adder.w_mant_smaller_ext
+math_fp8_e5m2_adder.w_mant_smaller_shifted
+math_fp8_e5m2_adder.w_mant_sum_abs
+math_fp8_e5m2_adder.w_mant_sum_raw
+math_fp8_e5m2_adder.w_norm_shift
+math_fp8_e5m2_adder.w_overflow_lost_sticky
+math_fp8_e5m2_adder.w_result_sign
+math_fp8_e5m2_adder.w_round
+math_fp8_e5m2_adder.w_round_overflow
+math_fp8_e5m2_adder.w_round_up
+math_fp8_e5m2_adder.w_shift_amt
+math_fp8_e5m2_adder.w_shift_mask
+math_fp8_e5m2_adder.w_sign_a
+@22
+math_fp8_e5m2_adder.w_sign_b
+@28
+math_fp8_e5m2_adder.w_sign_larger
+math_fp8_e5m2_adder.w_sign_smaller
+math_fp8_e5m2_adder.w_smaller_normal
+math_fp8_e5m2_adder.w_sticky
+math_fp8_e5m2_adder.w_sticky_from_shift
+math_fp8_e5m2_adder.w_sum_negative

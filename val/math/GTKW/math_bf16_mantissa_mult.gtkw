@@ -1,0 +1,55 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_mantissa_mult_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_mantissa_mult.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_mantissa_mult.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_mantissa_mult.i_a_is_normal
+math_bf16_mantissa_mult.i_b_is_normal
+math_bf16_mantissa_mult.i_mant_a
+math_bf16_mantissa_mult.i_mant_b
+@22
+math_bf16_mantissa_mult.ow_guard_bit[1:0]
+@28
+math_bf16_mantissa_mult.ow_mant_out
+@22
+math_bf16_mantissa_mult.ow_needs_norm
+@28
+math_bf16_mantissa_mult.ow_product
+@22
+math_bf16_mantissa_mult.ow_round_bit[2:0]
+math_bf16_mantissa_mult.ow_sticky_bit[3:0]
+math_bf16_mantissa_mult.w_guard_nonorm[7:0]
+math_bf16_mantissa_mult.w_guard_norm[6:0]
+math_bf16_mantissa_mult.w_mant_a_ext[4:0]
+math_bf16_mantissa_mult.w_mant_b_ext[5:0]
+@28
+math_bf16_mantissa_mult.w_round_nonorm
+@22
+math_bf16_mantissa_mult.w_round_norm[8:0]
+@28
+math_bf16_mantissa_mult.w_sticky_nonorm
+math_bf16_mantissa_mult.w_sticky_norm
+@200
+-u_mult
+@28
+math_bf16_mantissa_mult.u_mult.N
+math_bf16_mantissa_mult.u_mult.i_multiplicand
+math_bf16_mantissa_mult.u_mult.i_multiplier
+math_bf16_mantissa_mult.u_mult.ow_product
+math_bf16_mantissa_mult.u_mult.w_pp_0_0
+math_bf16_mantissa_mult.u_mult.w_pp_0_1
+math_bf16_mantissa_mult.u_mult.w_pp_0_2
+math_bf16_mantissa_mult.u_mult.w_pp_0_3

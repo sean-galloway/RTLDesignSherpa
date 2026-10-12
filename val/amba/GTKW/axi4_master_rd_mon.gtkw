@@ -1,0 +1,100 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi4_master_rd_mon_iw8_aw32_dw32_mt16_sk2x4_nb1_wq0_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_master_rd_mon.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_master_rd_mon.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+axi4_master_rd_mon.aclk
+axi4_master_rd_mon.aresetn
+@200
+-interface
+axi4_master_rd_mon.AW
+axi4_master_rd_mon.AXI_ADDR_WIDTH
+axi4_master_rd_mon.AXI_DATA_WIDTH
+axi4_master_rd_mon.AXI_ID_WIDTH
+axi4_master_rd_mon.AXI_USER_WIDTH
+axi4_master_rd_mon.AXI_WSTRB_WIDTH
+axi4_master_rd_mon.DW
+axi4_master_rd_mon.IW
+axi4_master_rd_mon.SW
+axi4_master_rd_mon.UW
+axi4_master_rd_mon.UNIT_ID
+axi4_master_rd_mon.AGENT_ID
+axi4_master_rd_mon.MAX_TRANSACTIONS
+axi4_master_rd_mon.NUM_BANKS
+axi4_master_rd_mon.USE_WDATA_ORDER_Q
+axi4_master_rd_mon.SKID_DEPTH_AR
+axi4_master_rd_mon.SKID_DEPTH_R
+axi4_master_rd_mon.ENABLE_FILTERING
+axi4_master_rd_mon.fub_axi_arvalid
+axi4_master_rd_mon.fub_axi_arready
+axi4_master_rd_mon.fub_axi_araddr
+axi4_master_rd_mon.fub_axi_arid
+axi4_master_rd_mon.fub_axi_arlen
+axi4_master_rd_mon.fub_axi_arsize
+axi4_master_rd_mon.fub_axi_arburst
+axi4_master_rd_mon.fub_axi_arlock
+axi4_master_rd_mon.fub_axi_arcache
+axi4_master_rd_mon.fub_axi_arprot
+axi4_master_rd_mon.fub_axi_arqos
+axi4_master_rd_mon.fub_axi_arregion
+axi4_master_rd_mon.fub_axi_aruser
+axi4_master_rd_mon.fub_axi_rvalid
+axi4_master_rd_mon.fub_axi_rready
+axi4_master_rd_mon.fub_axi_rdata
+axi4_master_rd_mon.fub_axi_rid
+axi4_master_rd_mon.fub_axi_rlast
+axi4_master_rd_mon.fub_axi_rresp
+axi4_master_rd_mon.fub_axi_ruser
+axi4_master_rd_mon.m_axi_arvalid
+axi4_master_rd_mon.m_axi_arready
+axi4_master_rd_mon.m_axi_araddr
+axi4_master_rd_mon.m_axi_arid
+axi4_master_rd_mon.m_axi_arlen
+axi4_master_rd_mon.m_axi_arsize
+axi4_master_rd_mon.m_axi_arburst
+axi4_master_rd_mon.m_axi_arlock
+axi4_master_rd_mon.m_axi_arcache
+axi4_master_rd_mon.m_axi_arprot
+axi4_master_rd_mon.m_axi_arqos
+axi4_master_rd_mon.m_axi_arregion
+axi4_master_rd_mon.m_axi_aruser
+axi4_master_rd_mon.m_axi_rvalid
+axi4_master_rd_mon.m_axi_rready
+axi4_master_rd_mon.m_axi_rdata
+axi4_master_rd_mon.m_axi_rid
+axi4_master_rd_mon.m_axi_rlast
+axi4_master_rd_mon.m_axi_rresp
+axi4_master_rd_mon.m_axi_ruser
+axi4_master_rd_mon.monbus_valid
+axi4_master_rd_mon.monbus_ready
+axi4_master_rd_mon.monbus_packet
+@200
+-axi4_master_rd_inst
+axi4_master_rd_mon.axi4_master_rd_inst.AXI_ADDR_WIDTH
+axi4_master_rd_mon.axi4_master_rd_inst.AXI_DATA_WIDTH
+axi4_master_rd_mon.axi4_master_rd_inst.AXI_ID_WIDTH
+axi4_master_rd_mon.axi4_master_rd_inst.AXI_USER_WIDTH
+axi4_master_rd_mon.axi4_master_rd_inst.SKID_DEPTH_AR
+axi4_master_rd_mon.axi4_master_rd_inst.SKID_DEPTH_R
+@200
+-gen_monitor.axi_monitor_inst
+axi4_master_rd_mon.gen_monitor.axi_monitor_inst.ENABLE_FILTERING
+axi4_master_rd_mon.gen_monitor.axi_monitor_inst.UNIT_ID
+axi4_master_rd_mon.gen_monitor.axi_monitor_inst.AGENT_ID
+axi4_master_rd_mon.gen_monitor.axi_monitor_inst.ADDR_WIDTH
+axi4_master_rd_mon.gen_monitor.axi_monitor_inst.ID_WIDTH
+axi4_master_rd_mon.gen_monitor.axi_monitor_inst.MAX_TRANSACTIONS
+axi4_master_rd_mon.gen_monitor.axi_monitor_inst.NUM_BANKS
+axi4_master_rd_mon.gen_monitor.axi_monitor_inst.USE_WDATA_ORDER_Q

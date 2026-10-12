@@ -1,0 +1,85 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_wb4_monitor_aw032_dw032_mt8_ar0_nohint_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/wb4_monitor.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wb4_monitor.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+wb4_monitor.USE_BURST_HINTS
+wb4_monitor.aclk
+wb4_monitor.aresetn
+@200
+-interface
+@28
+wb4_monitor.ADDR_WIDTH
+wb4_monitor.AGENT_ID
+wb4_monitor.AW
+wb4_monitor.CTW
+wb4_monitor.DATA_WIDTH
+wb4_monitor.DW
+wb4_monitor.MAX_TRANSACTIONS
+wb4_monitor.MONITOR_FIFO_DEPTH
+wb4_monitor.N_ADDR_RANGES
+wb4_monitor.STW
+wb4_monitor.SW
+wb4_monitor.UNIT_ID
+wb4_monitor.USE_MONITOR
+wb4_monitor.active_count
+wb4_monitor.cfg_addr_check_enable
+wb4_monitor.cfg_addr_range_enable
+wb4_monitor.cfg_addr_range_high[0]
+wb4_monitor.cfg_addr_range_low[0]
+wb4_monitor.cfg_cmd_timeout_cnt
+wb4_monitor.cfg_debug_enable
+wb4_monitor.cfg_debug_level
+wb4_monitor.cfg_error_enable
+wb4_monitor.cfg_latency_enable
+wb4_monitor.cfg_latency_threshold
+wb4_monitor.cfg_perf_enable
+wb4_monitor.cfg_protocol_enable
+wb4_monitor.cfg_rsp_timeout_cnt
+wb4_monitor.cfg_slverr_enable
+wb4_monitor.cfg_throughput_enable
+wb4_monitor.cfg_throughput_threshold
+wb4_monitor.cfg_timeout_enable
+wb4_monitor.cfg_trans_debug_enable
+wb4_monitor.cmd_adr
+wb4_monitor.cmd_cti
+wb4_monitor.cmd_dat
+wb4_monitor.cmd_ready
+wb4_monitor.cmd_sel
+wb4_monitor.cmd_valid
+wb4_monitor.cmd_we
+wb4_monitor.error_count
+wb4_monitor.i_mon_time
+wb4_monitor.monbus_packet
+wb4_monitor.monbus_ready
+wb4_monitor.monbus_timestamp
+wb4_monitor.monbus_valid
+wb4_monitor.rsp_dat
+wb4_monitor.rsp_ready
+wb4_monitor.rsp_status
+wb4_monitor.rsp_valid
+wb4_monitor.transaction_count
+@200
+-gen_monitor
+@28
+wb4_monitor.gen_monitor.CW
+wb4_monitor.gen_monitor.QW
+wb4_monitor.gen_monitor.r_q[0].adr
+wb4_monitor.gen_monitor.r_q[0].cti
+wb4_monitor.gen_monitor.r_q[0].sel4
+wb4_monitor.gen_monitor.r_q[0].t_issue
+wb4_monitor.gen_monitor.r_q[0].we
+wb4_monitor.gen_monitor.w_cmd_cti

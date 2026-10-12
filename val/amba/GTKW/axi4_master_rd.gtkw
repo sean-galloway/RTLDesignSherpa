@@ -1,0 +1,86 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi4_master_rd_stub_i08_a32_d032_u1_ard2_rd4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_master_rd.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_master_rd_stub.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_master_rd_stub.aclk
+axi4_master_rd_stub.aresetn
+axi4_master_rd_stub.m_axi_arburst
+@200
+-interface
+@28
+axi4_master_rd_stub.ARSize
+axi4_master_rd_stub.AW
+axi4_master_rd_stub.AXI_ADDR_WIDTH
+axi4_master_rd_stub.AXI_DATA_WIDTH
+axi4_master_rd_stub.AXI_ID_WIDTH
+axi4_master_rd_stub.AXI_USER_WIDTH
+axi4_master_rd_stub.AXI_WSTRB_WIDTH
+axi4_master_rd_stub.DW
+axi4_master_rd_stub.IW
+axi4_master_rd_stub.RSize
+axi4_master_rd_stub.SKID_DEPTH_AR
+axi4_master_rd_stub.SKID_DEPTH_R
+axi4_master_rd_stub.SW
+axi4_master_rd_stub.UW
+axi4_master_rd_stub.fub_axi_ar_count
+axi4_master_rd_stub.fub_axi_ar_pkt
+axi4_master_rd_stub.fub_axi_arready
+axi4_master_rd_stub.fub_axi_arvalid
+axi4_master_rd_stub.fub_axi_r_pkt
+axi4_master_rd_stub.fub_axi_rready
+axi4_master_rd_stub.fub_axi_rvalid
+axi4_master_rd_stub.m_axi_araddr
+axi4_master_rd_stub.m_axi_arcache
+axi4_master_rd_stub.m_axi_arid
+axi4_master_rd_stub.m_axi_arlen
+axi4_master_rd_stub.m_axi_arlock
+axi4_master_rd_stub.m_axi_arprot
+axi4_master_rd_stub.m_axi_arqos
+axi4_master_rd_stub.m_axi_arready
+axi4_master_rd_stub.m_axi_arregion
+axi4_master_rd_stub.m_axi_arsize
+axi4_master_rd_stub.m_axi_aruser
+axi4_master_rd_stub.m_axi_arvalid
+axi4_master_rd_stub.m_axi_rdata
+axi4_master_rd_stub.m_axi_rid
+axi4_master_rd_stub.m_axi_rlast
+axi4_master_rd_stub.m_axi_rready
+axi4_master_rd_stub.m_axi_rresp
+axi4_master_rd_stub.m_axi_ruser
+axi4_master_rd_stub.m_axi_rvalid
+@200
+-inst_ar_phase
+@28
+axi4_master_rd_stub.inst_ar_phase.DATA_WIDTH
+axi4_master_rd_stub.inst_ar_phase.DEPTH
+axi4_master_rd_stub.inst_ar_phase.DW
+axi4_master_rd_stub.inst_ar_phase.axi_aclk
+axi4_master_rd_stub.inst_ar_phase.axi_aresetn
+axi4_master_rd_stub.inst_ar_phase.wr_data
+axi4_master_rd_stub.inst_ar_phase.wr_ready
+axi4_master_rd_stub.inst_ar_phase.wr_valid
+@200
+-inst_r_phase
+@28
+axi4_master_rd_stub.inst_r_phase.DATA_WIDTH
+axi4_master_rd_stub.inst_r_phase.DEPTH
+axi4_master_rd_stub.inst_r_phase.DW
+axi4_master_rd_stub.inst_r_phase.axi_aclk
+axi4_master_rd_stub.inst_r_phase.axi_aresetn
+axi4_master_rd_stub.inst_r_phase.wr_data
+axi4_master_rd_stub.inst_r_phase.wr_ready
+axi4_master_rd_stub.inst_r_phase.wr_valid

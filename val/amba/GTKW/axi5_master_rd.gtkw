@@ -1,0 +1,133 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi5_master_rd_i08_a32_d032_u1_ard2_rd4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi5_master_rd.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi5_master_rd.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+axi5_master_rd.aclk
+axi5_master_rd.aresetn
+@200
+-interface
+axi5_master_rd.AW
+axi5_master_rd.AXI_ADDR_WIDTH
+axi5_master_rd.AXI_DATA_WIDTH
+axi5_master_rd.AXI_ID_WIDTH
+axi5_master_rd.AXI_USER_WIDTH
+axi5_master_rd.AXI_WSTRB_WIDTH
+axi5_master_rd.AXI_NSAID_WIDTH
+axi5_master_rd.AXI_MPAM_WIDTH
+axi5_master_rd.AXI_MECID_WIDTH
+axi5_master_rd.AXI_TAG_WIDTH
+axi5_master_rd.AXI_TAGOP_WIDTH
+axi5_master_rd.AXI_CHUNKNUM_WIDTH
+axi5_master_rd.DW
+axi5_master_rd.IW
+axi5_master_rd.SW
+axi5_master_rd.UW
+axi5_master_rd.TW
+axi5_master_rd.NUM_TAGS
+axi5_master_rd.CHUNK_STRB_WIDTH
+axi5_master_rd.SKID_DEPTH_AR
+axi5_master_rd.SKID_DEPTH_R
+axi5_master_rd.ENABLE_NSAID
+axi5_master_rd.ENABLE_MPAM
+axi5_master_rd.ENABLE_MECID
+axi5_master_rd.ENABLE_MTE
+axi5_master_rd.ENABLE_TRACE
+axi5_master_rd.ENABLE_UNIQUE
+axi5_master_rd.ENABLE_POISON
+axi5_master_rd.ENABLE_CHUNKING
+axi5_master_rd.ENABLE_WAKEUP
+axi5_master_rd.fub_axi_arvalid
+axi5_master_rd.fub_axi_arready
+axi5_master_rd.fub_axi_araddr
+axi5_master_rd.fub_axi_arid
+axi5_master_rd.fub_axi_arlen
+axi5_master_rd.fub_axi_arsize
+axi5_master_rd.fub_axi_arburst
+axi5_master_rd.fub_axi_arlock
+axi5_master_rd.fub_axi_arcache
+axi5_master_rd.fub_axi_arprot
+axi5_master_rd.fub_axi_arqos
+axi5_master_rd.fub_axi_aruser
+axi5_master_rd.fub_axi_arnsaid
+axi5_master_rd.fub_axi_armpam
+axi5_master_rd.fub_axi_armecid
+axi5_master_rd.fub_axi_artrace
+axi5_master_rd.fub_axi_aridunq
+axi5_master_rd.fub_axi_artagop
+axi5_master_rd.fub_axi_archunken
+axi5_master_rd.fub_axi_awakeup
+axi5_master_rd.fub_axi_rvalid
+axi5_master_rd.fub_axi_rready
+axi5_master_rd.fub_axi_rdata
+axi5_master_rd.fub_axi_rid
+axi5_master_rd.fub_axi_rlast
+axi5_master_rd.fub_axi_rresp
+axi5_master_rd.fub_axi_ruser
+axi5_master_rd.fub_axi_rtrace
+axi5_master_rd.m_axi_arvalid
+axi5_master_rd.m_axi_arready
+axi5_master_rd.m_axi_araddr
+axi5_master_rd.m_axi_arid
+axi5_master_rd.m_axi_arlen
+axi5_master_rd.m_axi_arsize
+axi5_master_rd.m_axi_arburst
+axi5_master_rd.m_axi_arlock
+axi5_master_rd.m_axi_arcache
+axi5_master_rd.m_axi_arprot
+axi5_master_rd.m_axi_arqos
+axi5_master_rd.m_axi_aruser
+axi5_master_rd.m_axi_arnsaid
+axi5_master_rd.m_axi_armpam
+axi5_master_rd.m_axi_armecid
+axi5_master_rd.m_axi_artrace
+axi5_master_rd.m_axi_aridunq
+axi5_master_rd.m_axi_artagop
+axi5_master_rd.m_axi_archunken
+axi5_master_rd.m_axi_awakeup
+axi5_master_rd.m_axi_rvalid
+axi5_master_rd.m_axi_rready
+axi5_master_rd.m_axi_rdata
+axi5_master_rd.m_axi_rid
+axi5_master_rd.m_axi_rlast
+axi5_master_rd.m_axi_rresp
+axi5_master_rd.m_axi_ruser
+axi5_master_rd.m_axi_rtrace
+@200
+-ar_channel
+axi5_master_rd.ar_channel.DATA_WIDTH
+axi5_master_rd.ar_channel.DEPTH
+axi5_master_rd.ar_channel.DW
+axi5_master_rd.ar_channel.axi_aclk
+axi5_master_rd.ar_channel.axi_aresetn
+axi5_master_rd.ar_channel.wr_valid
+axi5_master_rd.ar_channel.wr_ready
+axi5_master_rd.ar_channel.wr_data
+axi5_master_rd.ar_channel.rd_valid
+axi5_master_rd.ar_channel.rd_ready
+axi5_master_rd.ar_channel.rd_data
+@200
+-r_channel
+axi5_master_rd.r_channel.DATA_WIDTH
+axi5_master_rd.r_channel.DEPTH
+axi5_master_rd.r_channel.DW
+axi5_master_rd.r_channel.axi_aclk
+axi5_master_rd.r_channel.axi_aresetn
+axi5_master_rd.r_channel.wr_valid
+axi5_master_rd.r_channel.wr_ready
+axi5_master_rd.r_channel.wr_data
+axi5_master_rd.r_channel.rd_valid
+axi5_master_rd.r_channel.rd_ready
+axi5_master_rd.r_channel.rd_data

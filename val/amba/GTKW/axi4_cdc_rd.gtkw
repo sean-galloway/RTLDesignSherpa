@@ -1,0 +1,175 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi4_cdc_rd_dw32_s10_m3_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_cdc_rd.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_cdc_rd.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_cdc_rd.u_ar.g_ptr_gray.rd_ptr_counter_bingray.clk
+@200
+-interface
+@22
+axi4_cdc_rd.ARPW [31:0]
+axi4_cdc_rd.AW [31:0]
+axi4_cdc_rd.AXI_ADDR_WIDTH [31:0]
+axi4_cdc_rd.AXI_DATA_WIDTH [31:0]
+axi4_cdc_rd.AXI_ID_WIDTH [31:0]
+axi4_cdc_rd.AXI_USER_WIDTH [31:0]
+axi4_cdc_rd.CDC_DEPTH [31:0]
+axi4_cdc_rd.DW [31:0]
+axi4_cdc_rd.IW [31:0]
+axi4_cdc_rd.N_FLOP_CROSS [31:0]
+axi4_cdc_rd.RPW [31:0]
+axi4_cdc_rd.USE_JOHNSON [31:0]
+axi4_cdc_rd.UW [31:0]
+@28
+axi4_cdc_rd.m_aclk
+axi4_cdc_rd.m_aresetn
+@22
+axi4_cdc_rd.m_axi_araddr [31:0]
+axi4_cdc_rd.m_axi_arburst [1:0]
+axi4_cdc_rd.m_axi_arcache [3:0]
+axi4_cdc_rd.m_axi_arid [3:0]
+axi4_cdc_rd.m_axi_arlen [7:0]
+@28
+axi4_cdc_rd.m_axi_arlock
+@22
+axi4_cdc_rd.m_axi_arprot [2:0]
+axi4_cdc_rd.m_axi_arqos [3:0]
+@28
+axi4_cdc_rd.m_axi_arready
+@22
+axi4_cdc_rd.m_axi_arregion [3:0]
+axi4_cdc_rd.m_axi_arsize [2:0]
+@28
+axi4_cdc_rd.m_axi_aruser [0:0]
+axi4_cdc_rd.m_axi_arvalid
+@22
+axi4_cdc_rd.m_axi_rdata [31:0]
+axi4_cdc_rd.m_axi_rid [3:0]
+@28
+axi4_cdc_rd.m_axi_rlast
+axi4_cdc_rd.m_axi_rready
+@22
+axi4_cdc_rd.m_axi_rresp [1:0]
+@28
+axi4_cdc_rd.m_axi_ruser [0:0]
+axi4_cdc_rd.m_axi_rvalid
+axi4_cdc_rd.s_aclk
+axi4_cdc_rd.s_aresetn
+@22
+axi4_cdc_rd.s_axi_araddr [31:0]
+axi4_cdc_rd.s_axi_arburst [1:0]
+axi4_cdc_rd.s_axi_arcache [3:0]
+axi4_cdc_rd.s_axi_arid [3:0]
+axi4_cdc_rd.s_axi_arlen [7:0]
+@28
+axi4_cdc_rd.s_axi_arlock
+@22
+axi4_cdc_rd.s_axi_arprot [2:0]
+axi4_cdc_rd.s_axi_arqos [3:0]
+@28
+axi4_cdc_rd.s_axi_arready
+@22
+axi4_cdc_rd.s_axi_arregion [3:0]
+axi4_cdc_rd.s_axi_arsize [2:0]
+@28
+axi4_cdc_rd.s_axi_aruser [0:0]
+axi4_cdc_rd.s_axi_arvalid
+@22
+axi4_cdc_rd.s_axi_rdata [31:0]
+axi4_cdc_rd.s_axi_rid [3:0]
+@28
+axi4_cdc_rd.s_axi_rlast
+axi4_cdc_rd.s_axi_rready
+@22
+axi4_cdc_rd.s_axi_rresp [1:0]
+@28
+axi4_cdc_rd.s_axi_ruser [0:0]
+axi4_cdc_rd.s_axi_rvalid
+@22
+axi4_cdc_rd.u_ar.ALMOST_RD_MARGIN [31:0]
+axi4_cdc_rd.u_ar.ALMOST_WR_MARGIN [31:0]
+axi4_cdc_rd.u_ar.AW [31:0]
+axi4_cdc_rd.u_ar.D [31:0]
+axi4_cdc_rd.u_ar.DATA_WIDTH [31:0]
+axi4_cdc_rd.u_ar.DEPTH [31:0]
+axi4_cdc_rd.u_ar.DW [31:0]
+axi4_cdc_rd.u_ar.JCW [31:0]
+axi4_cdc_rd.u_ar.MEM_STYLE [31:0]
+axi4_cdc_rd.u_ar.N [31:0]
+axi4_cdc_rd.u_ar.N_FLOP_CROSS [31:0]
+axi4_cdc_rd.u_ar.PTRW [31:0]
+axi4_cdc_rd.u_ar.REGISTERED [31:0]
+axi4_cdc_rd.u_ar.USE_JOHNSON [31:0]
+@28
+axi4_cdc_rd.u_ar.axi_rd_aclk
+axi4_cdc_rd.u_ar.axi_rd_aresetn
+axi4_cdc_rd.u_ar.axi_wr_aclk
+axi4_cdc_rd.u_ar.axi_wr_aresetn
+@22
+axi4_cdc_rd.u_ar.fifo_control_inst.ADDR_WIDTH [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.AEMPTY [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.AET [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.AFT [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.AFULL [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.ALMOST_RD_MARGIN [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.ALMOST_WR_MARGIN [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.AW [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.D [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.DEPTH [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.REGISTERED [31:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.count [3:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.r_count [3:0]
+@28
+axi4_cdc_rd.u_ar.fifo_control_inst.rd_almost_empty
+axi4_cdc_rd.u_ar.fifo_control_inst.rd_clk
+axi4_cdc_rd.u_ar.fifo_control_inst.rd_empty
+@22
+axi4_cdc_rd.u_ar.fifo_control_inst.rd_ptr_bin [3:0]
+@28
+axi4_cdc_rd.u_ar.fifo_control_inst.rd_rst_n
+@22
+axi4_cdc_rd.u_ar.fifo_control_inst.rdom_wr_ptr_bin [3:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.w_almost_empty_count [3:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.w_almost_full_count [3:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.w_count [3:0]
+@28
+axi4_cdc_rd.u_ar.fifo_control_inst.w_rd_almost_empty_d
+axi4_cdc_rd.u_ar.fifo_control_inst.w_rd_empty_d
+axi4_cdc_rd.u_ar.fifo_control_inst.w_rdom_ptr_xor
+axi4_cdc_rd.u_ar.fifo_control_inst.w_rdom_ptr_xor_for_empty
+axi4_cdc_rd.u_ar.fifo_control_inst.w_wdom_ptr_xor
+axi4_cdc_rd.u_ar.fifo_control_inst.w_wr_almost_full_d
+axi4_cdc_rd.u_ar.fifo_control_inst.w_wr_full_d
+@22
+axi4_cdc_rd.u_ar.fifo_control_inst.w_wr_ptr_for_empty [3:0]
+axi4_cdc_rd.u_ar.fifo_control_inst.wdom_rd_ptr_bin [3:0]
+@28
+axi4_cdc_rd.u_ar.fifo_control_inst.wr_almost_full
+axi4_cdc_rd.u_ar.fifo_control_inst.wr_clk
+axi4_cdc_rd.u_ar.fifo_control_inst.wr_full
+@22
+axi4_cdc_rd.u_ar.fifo_control_inst.wr_ptr_bin [3:0]
+@28
+axi4_cdc_rd.u_ar.fifo_control_inst.wr_rst_n
+@22
+axi4_cdc_rd.u_ar.g_cvt_gray.rd_ptr_gray2bin_inst.WIDTH [31:0]
+axi4_cdc_rd.u_ar.g_cvt_gray.rd_ptr_gray2bin_inst.binary [3:0]
+axi4_cdc_rd.u_ar.g_cvt_gray.rd_ptr_gray2bin_inst.gray [3:0]
+axi4_cdc_rd.u_ar.g_cvt_gray.wr_ptr_gray2bin_inst.WIDTH [31:0]
+axi4_cdc_rd.u_ar.g_cvt_gray.wr_ptr_gray2bin_inst.binary [3:0]
+axi4_cdc_rd.u_ar.g_cvt_gray.wr_ptr_gray2bin_inst.gray [3:0]
+axi4_cdc_rd.u_ar.g_ptr_gray.rd_ptr_counter_bingray.WIDTH [31:0]
+axi4_cdc_rd.u_ar.g_ptr_gray.rd_ptr_counter_bingray.counter_bin [3:0]

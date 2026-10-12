@@ -1,0 +1,134 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axis5_master_sd4_dw32_wk_np/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axis5_master.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis5_master.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axis5_master.aclk
+axis5_master.aresetn
+@200
+-interface
+@28
+axis5_master.SKID_DEPTH[31:0]
+axis5_master.AXIS_DATA_WIDTH[31:0]
+axis5_master.AXIS_ID_WIDTH[31:0]
+axis5_master.AXIS_DEST_WIDTH[31:0]
+axis5_master.AXIS_USER_WIDTH[31:0]
+axis5_master.ENABLE_WAKEUP
+axis5_master.ENABLE_PARITY
+axis5_master.DW[31:0]
+axis5_master.IW[31:0]
+axis5_master.DESTW[31:0]
+axis5_master.UW[31:0]
+axis5_master.SW[31:0]
+axis5_master.IW_WIDTH[31:0]
+axis5_master.DESTW_WIDTH[31:0]
+axis5_master.UW_WIDTH[31:0]
+axis5_master.TDATACHK_W[31:0]
+axis5_master.TSTRBCHK_W[31:0]
+axis5_master.TIDCHK_W[31:0]
+axis5_master.TDESTCHK_W[31:0]
+axis5_master.TUSERCHK_W[31:0]
+@22
+axis5_master.fub_axis_tdata[31:0]
+axis5_master.fub_axis_tstrb[3:0]
+@28
+axis5_master.fub_axis_tlast
+@22
+axis5_master.fub_axis_tid[7:0]
+axis5_master.fub_axis_tdest[3:0]
+@28
+axis5_master.fub_axis_tuser[0:0]
+axis5_master.fub_axis_tvalid
+axis5_master.fub_axis_tready
+axis5_master.fub_axis_twakeup
+@22
+axis5_master.fub_axis_tdatachk[3:0]
+@28
+axis5_master.fub_axis_tstrbchk[0:0]
+axis5_master.fub_axis_tlastchk
+axis5_master.fub_axis_tidchk[0:0]
+axis5_master.fub_axis_tdestchk[0:0]
+axis5_master.fub_axis_tuserchk[0:0]
+@22
+axis5_master.m_axis_tdata[31:0]
+axis5_master.m_axis_tstrb[3:0]
+@28
+axis5_master.m_axis_tlast
+@22
+axis5_master.m_axis_tid[7:0]
+axis5_master.m_axis_tdest[3:0]
+@28
+axis5_master.m_axis_tuser[0:0]
+axis5_master.m_axis_tvalid
+axis5_master.m_axis_tready
+axis5_master.m_axis_twakeup
+@22
+axis5_master.m_axis_tdatachk[3:0]
+@28
+axis5_master.m_axis_tstrbchk[0:0]
+axis5_master.m_axis_tlastchk
+axis5_master.m_axis_tidchk[0:0]
+axis5_master.m_axis_tdestchk[0:0]
+axis5_master.m_axis_tuserchk[0:0]
+axis5_master.m_axis_tvalidchk
+axis5_master.m_axis_treadychk
+axis5_master.m_axis_twakeupchk
+axis5_master.busy
+axis5_master.parity_error
+axis5_master.CHKW[31:0]
+axis5_master.TSize[31:0]
+@22
+axis5_master.int_t_count[3:0]
+axis5_master.int_t_pkt[50:0]
+@28
+axis5_master.int_skid_tvalid
+axis5_master.int_skid_tready
+@22
+axis5_master.w_fub_chk[8:0]
+axis5_master.wr_data_packed[50:0]
+@28
+axis5_master.PARITY_OFFSET[31:0]
+@200
+-g_no_parity
+@28
+axis5_master.g_no_parity.unused_chk_inputs
+@200
+-t_channel
+@28
+axis5_master.t_channel.DATA_WIDTH[31:0]
+axis5_master.t_channel.DEPTH[31:0]
+axis5_master.t_channel.DW[31:0]
+axis5_master.t_channel.axi_aclk
+axis5_master.t_channel.axi_aresetn
+axis5_master.t_channel.wr_valid
+axis5_master.t_channel.wr_ready
+@22
+axis5_master.t_channel.wr_data[50:0]
+axis5_master.t_channel.count[3:0]
+@28
+axis5_master.t_channel.rd_valid
+axis5_master.t_channel.rd_ready
+@22
+axis5_master.t_channel.rd_count[3:0]
+axis5_master.t_channel.rd_data[50:0]
+axis5_master.t_channel.r_data[0][50:0]
+axis5_master.t_channel.r_data[1][50:0]
+axis5_master.t_channel.r_data[2][50:0]
+axis5_master.t_channel.r_data[3][50:0]
+axis5_master.t_channel.r_data_count[3:0]
+@28
+axis5_master.t_channel.w_wr_xfer
+axis5_master.t_channel.w_rd_xfer

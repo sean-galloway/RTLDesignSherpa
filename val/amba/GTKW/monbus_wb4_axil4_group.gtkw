@@ -1,0 +1,105 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monbus_wb4_axil4_group_basic_flow_fde064_fdw096_aw32_np3_sdw64/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monbus_wb4_axil4_group.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_wb4_axil4_group.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+monbus_wb4_axil4_group.axi_aclk
+monbus_wb4_axil4_group.axi_aresetn
+@200
+-interface
+@28
+monbus_wb4_axil4_group.ADDR_WIDTH
+monbus_wb4_axil4_group.FIFO_DEPTH_ERR
+monbus_wb4_axil4_group.FIFO_DEPTH_WRITE
+monbus_wb4_axil4_group.FLUSH_TIMEOUT_CYCLES
+monbus_wb4_axil4_group.HALF_BEAT_EN
+monbus_wb4_axil4_group.NUM_PROTOCOLS
+monbus_wb4_axil4_group.SKID_DEPTH_AR
+monbus_wb4_axil4_group.SKID_DEPTH_AW
+monbus_wb4_axil4_group.SKID_DEPTH_B
+monbus_wb4_axil4_group.SKID_DEPTH_R
+monbus_wb4_axil4_group.SKID_DEPTH_W
+monbus_wb4_axil4_group.S_AXIL_DATA_WIDTH
+monbus_wb4_axil4_group.USE_COMPRESSION
+monbus_wb4_axil4_group.cam_clear
+monbus_wb4_axil4_group.cfg_axi_addr_mask
+monbus_wb4_axil4_group.cfg_axi_compl_mask
+monbus_wb4_axil4_group.cfg_axi_debug_mask
+monbus_wb4_axil4_group.cfg_axi_err_select
+monbus_wb4_axil4_group.cfg_axi_error_mask
+monbus_wb4_axil4_group.cfg_axi_perf_mask
+monbus_wb4_axil4_group.cfg_axi_pkt_mask
+monbus_wb4_axil4_group.cfg_axi_thresh_mask
+monbus_wb4_axil4_group.cfg_axi_timeout_mask
+monbus_wb4_axil4_group.cfg_axis_err_select
+monbus_wb4_axil4_group.cfg_axis_error_mask
+monbus_wb4_axil4_group.cfg_axis_pkt_mask
+monbus_wb4_axil4_group.cfg_base_addr
+monbus_wb4_axil4_group.cfg_compress_en
+monbus_wb4_axil4_group.cfg_flush_watermark
+monbus_wb4_axil4_group.cfg_limit_addr
+monbus_wb4_axil4_group.irq_out
+monbus_wb4_axil4_group.m_axil_awaddr
+monbus_wb4_axil4_group.m_axil_awprot
+monbus_wb4_axil4_group.m_axil_awready
+monbus_wb4_axil4_group.m_axil_awvalid
+monbus_wb4_axil4_group.m_axil_bready
+monbus_wb4_axil4_group.m_axil_bresp
+monbus_wb4_axil4_group.m_axil_bvalid
+monbus_wb4_axil4_group.m_axil_wdata
+monbus_wb4_axil4_group.m_axil_wready
+monbus_wb4_axil4_group.m_axil_wstrb
+monbus_wb4_axil4_group.m_axil_wvalid
+monbus_wb4_axil4_group.mon_time_out
+monbus_wb4_axil4_group.monbus_packet
+monbus_wb4_axil4_group.monbus_ready
+monbus_wb4_axil4_group.monbus_timestamp
+monbus_wb4_axil4_group.monbus_valid
+monbus_wb4_axil4_group.s_wb_ACK
+monbus_wb4_axil4_group.s_wb_ADR
+monbus_wb4_axil4_group.s_wb_BTE
+monbus_wb4_axil4_group.s_wb_CTI
+monbus_wb4_axil4_group.s_wb_CYC
+monbus_wb4_axil4_group.s_wb_DAT_R
+monbus_wb4_axil4_group.s_wb_DAT_W
+monbus_wb4_axil4_group.s_wb_ERR
+monbus_wb4_axil4_group.s_wb_RTY
+monbus_wb4_axil4_group.s_wb_SEL
+monbus_wb4_axil4_group.s_wb_STALL
+monbus_wb4_axil4_group.s_wb_STB
+monbus_wb4_axil4_group.s_wb_WE
+@200
+-u_group
+@28
+monbus_wb4_axil4_group.u_group.ADDR_WIDTH
+monbus_wb4_axil4_group.u_group.FIFO_DEPTH_ERR
+monbus_wb4_axil4_group.u_group.FIFO_DEPTH_WRITE
+monbus_wb4_axil4_group.u_group.FLUSH_TIMEOUT_CYCLES
+monbus_wb4_axil4_group.u_group.HALF_BEAT_EN
+monbus_wb4_axil4_group.u_group.NUM_PROTOCOLS
+monbus_wb4_axil4_group.u_group.S_AXIL_DATA_WIDTH
+monbus_wb4_axil4_group.u_group.USE_COMPRESSION
+@200
+-u_wb_rd_shim
+@28
+monbus_wb4_axil4_group.u_wb_rd_shim.ADDR_WIDTH
+monbus_wb4_axil4_group.u_wb_rd_shim.AW
+monbus_wb4_axil4_group.u_wb_rd_shim.AXIL_PROT
+monbus_wb4_axil4_group.u_wb_rd_shim.CLASSIC
+monbus_wb4_axil4_group.u_wb_rd_shim.CMD_DEPTH
+monbus_wb4_axil4_group.u_wb_rd_shim.DATA_WIDTH
+monbus_wb4_axil4_group.u_wb_rd_shim.DW
+monbus_wb4_axil4_group.u_wb_rd_shim.RSP_DEPTH

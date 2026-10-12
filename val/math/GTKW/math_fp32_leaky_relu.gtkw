@@ -1,0 +1,27 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp32_leaky_relu_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp32_leaky_relu.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp32_leaky_relu.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_fp32_leaky_relu.ALPHA_SHIFT
+math_fp32_leaky_relu.i_a
+math_fp32_leaky_relu.ow_result
+math_fp32_leaky_relu.w_exp
+math_fp32_leaky_relu.w_is_nan
+math_fp32_leaky_relu.w_is_zero
+math_fp32_leaky_relu.w_mant
+math_fp32_leaky_relu.w_scaled_exp
+math_fp32_leaky_relu.w_sign

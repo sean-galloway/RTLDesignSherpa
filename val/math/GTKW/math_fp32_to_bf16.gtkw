@@ -1,0 +1,59 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp32_to_bf16_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp32_to_bf16.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp32_to_bf16.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_fp32_to_bf16.i_a
+math_fp32_to_bf16.ow_invalid
+math_fp32_to_bf16.ow_overflow
+math_fp32_to_bf16.ow_result
+math_fp32_to_bf16.ow_underflow
+math_fp32_to_bf16.r_invalid
+math_fp32_to_bf16.r_overflow
+math_fp32_to_bf16.r_result
+math_fp32_to_bf16.r_underflow
+math_fp32_to_bf16.w_exp
+@22
+math_fp32_to_bf16.w_exp_adjusted[1:0]
+@28
+math_fp32_to_bf16.w_exp_final
+@22
+math_fp32_to_bf16.w_exp_overflow[2:0]
+math_fp32_to_bf16.w_exp_underflow[3:0]
+@28
+math_fp32_to_bf16.w_final_overflow
+@22
+math_fp32_to_bf16.w_guard[5:0]
+math_fp32_to_bf16.w_is_inf
+@28
+math_fp32_to_bf16.w_is_nan
+math_fp32_to_bf16.w_is_subnormal
+math_fp32_to_bf16.w_is_zero
+@22
+math_fp32_to_bf16.w_lsb[8:0]
+@28
+math_fp32_to_bf16.w_mant
+math_fp32_to_bf16.w_mant_final
+math_fp32_to_bf16.w_mant_overflow
+math_fp32_to_bf16.w_mant_rounded
+@22
+math_fp32_to_bf16.w_mant_truncated[4:0]
+math_fp32_to_bf16.w_round[6:0]
+@28
+math_fp32_to_bf16.w_round_up
+math_fp32_to_bf16.w_sign
+@22
+math_fp32_to_bf16.w_sticky[7:0]

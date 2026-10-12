@@ -1,0 +1,106 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axis5_master_cg_sd4_dw32_wk/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axis5_master_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis5_master_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axis5_master_cg.aclk
+axis5_master_cg.aresetn
+axis5_master_cg.gated_clk
+@200
+-interface
+@28
+axis5_master_cg.AXIS_DATA_WIDTH
+axis5_master_cg.AXIS_DEST_WIDTH
+axis5_master_cg.AXIS_ID_WIDTH
+axis5_master_cg.AXIS_USER_WIDTH
+axis5_master_cg.CG_IDLE_COUNT_WIDTH
+axis5_master_cg.DESTW
+axis5_master_cg.DESTW_WIDTH
+axis5_master_cg.DW
+axis5_master_cg.ENABLE_PARITY
+axis5_master_cg.ENABLE_WAKEUP
+axis5_master_cg.ICW
+axis5_master_cg.IW
+axis5_master_cg.IW_WIDTH
+axis5_master_cg.SKID_DEPTH
+axis5_master_cg.SW
+axis5_master_cg.TDATACHK_W
+axis5_master_cg.TDESTCHK_W
+axis5_master_cg.TIDCHK_W
+axis5_master_cg.TSTRBCHK_W
+axis5_master_cg.TUSERCHK_W
+axis5_master_cg.UW
+axis5_master_cg.UW_WIDTH
+axis5_master_cg.busy
+axis5_master_cg.cfg_cg_enable
+axis5_master_cg.cfg_cg_idle_count
+axis5_master_cg.cg_gating
+axis5_master_cg.fub_axis5_tdata
+axis5_master_cg.fub_axis5_tdatachk
+axis5_master_cg.fub_axis5_tdest
+axis5_master_cg.fub_axis5_tdestchk
+axis5_master_cg.fub_axis5_tid
+axis5_master_cg.fub_axis5_tidchk
+axis5_master_cg.fub_axis5_tlast
+axis5_master_cg.fub_axis5_tlastchk
+axis5_master_cg.fub_axis5_tready
+axis5_master_cg.fub_axis5_tstrb
+axis5_master_cg.fub_axis5_tstrbchk
+axis5_master_cg.fub_axis5_tuser
+axis5_master_cg.fub_axis5_tuserchk
+axis5_master_cg.fub_axis5_tvalid
+axis5_master_cg.fub_axis5_twakeup
+axis5_master_cg.m_axis5_tdata
+axis5_master_cg.m_axis5_tdatachk
+axis5_master_cg.m_axis5_tdest
+axis5_master_cg.m_axis5_tdestchk
+axis5_master_cg.m_axis5_tid
+axis5_master_cg.m_axis5_tidchk
+axis5_master_cg.m_axis5_tlast
+axis5_master_cg.m_axis5_tlastchk
+axis5_master_cg.m_axis5_tready
+axis5_master_cg.m_axis5_treadychk
+axis5_master_cg.m_axis5_tstrb
+axis5_master_cg.m_axis5_tstrbchk
+axis5_master_cg.m_axis5_tuser
+axis5_master_cg.m_axis5_tuserchk
+axis5_master_cg.m_axis5_tvalid
+axis5_master_cg.m_axis5_tvalidchk
+axis5_master_cg.m_axis5_twakeup
+axis5_master_cg.m_axis5_twakeupchk
+axis5_master_cg.parity_error
+@200
+-u_axis5_master
+@28
+axis5_master_cg.u_axis5_master.AXIS_DATA_WIDTH
+axis5_master_cg.u_axis5_master.AXIS_DEST_WIDTH
+axis5_master_cg.u_axis5_master.AXIS_ID_WIDTH
+axis5_master_cg.u_axis5_master.AXIS_USER_WIDTH
+axis5_master_cg.u_axis5_master.DW
+axis5_master_cg.u_axis5_master.ENABLE_PARITY
+axis5_master_cg.u_axis5_master.ENABLE_WAKEUP
+axis5_master_cg.u_axis5_master.SKID_DEPTH
+@200
+-u_clock_gate_ctrl
+@28
+axis5_master_cg.u_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+axis5_master_cg.u_clock_gate_ctrl.ICW
+axis5_master_cg.u_clock_gate_ctrl.aresetn
+axis5_master_cg.u_clock_gate_ctrl.axi_valid
+axis5_master_cg.u_clock_gate_ctrl.cfg_cg_enable
+axis5_master_cg.u_clock_gate_ctrl.cfg_cg_idle_count
+axis5_master_cg.u_clock_gate_ctrl.clk_in
+axis5_master_cg.u_clock_gate_ctrl.user_valid

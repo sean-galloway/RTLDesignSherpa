@@ -1,0 +1,100 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_ieee754_2008_fp32_divider_gate_GATE_sn0/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_ieee754_2008_fp32_divider.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_ieee754_2008_fp32_divider.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+math_ieee754_2008_fp32_divider.i_clk
+math_ieee754_2008_fp32_divider.i_rst_n
+@200
+-interface
+@28
+math_ieee754_2008_fp32_divider.SUBNORMAL_SUPPORT
+@22
+math_ieee754_2008_fp32_divider.S_IDLE[5:0]
+math_ieee754_2008_fp32_divider.S_LUT[6:0]
+math_ieee754_2008_fp32_divider.S_NR1A[7:0]
+math_ieee754_2008_fp32_divider.S_NR1B[8:0]
+@28
+math_ieee754_2008_fp32_divider.S_NR2A
+math_ieee754_2008_fp32_divider.S_NR2B
+math_ieee754_2008_fp32_divider.S_OUT
+math_ieee754_2008_fp32_divider.S_Q0
+math_ieee754_2008_fp32_divider.S_REM
+math_ieee754_2008_fp32_divider.S_RNE
+math_ieee754_2008_fp32_divider.S_SUBN
+math_ieee754_2008_fp32_divider.i_a
+math_ieee754_2008_fp32_divider.i_b
+@22
+math_ieee754_2008_fp32_divider.i_valid
+math_ieee754_2008_fp32_divider.ow_invalid[3:0]
+math_ieee754_2008_fp32_divider.ow_overflow[1:0]
+@28
+math_ieee754_2008_fp32_divider.ow_result
+@22
+math_ieee754_2008_fp32_divider.ow_underflow[2:0]
+math_ieee754_2008_fp32_divider.ow_valid[4:0]
+@28
+math_ieee754_2008_fp32_divider.r_a24
+math_ieee754_2008_fp32_divider.r_a_sub_shift
+math_ieee754_2008_fp32_divider.r_b24
+math_ieee754_2008_fp32_divider.r_b_sub_shift
+math_ieee754_2008_fp32_divider.r_ea_s
+math_ieee754_2008_fp32_divider.r_eb_s
+math_ieee754_2008_fp32_divider.r_sign
+math_ieee754_2008_fp32_divider.r_state
+math_ieee754_2008_fp32_divider.w_a_eff_zero
+math_ieee754_2008_fp32_divider.w_a_is_inf
+math_ieee754_2008_fp32_divider.w_a_is_nan
+math_ieee754_2008_fp32_divider.w_a_is_subnormal
+math_ieee754_2008_fp32_divider.w_a_is_zero
+math_ieee754_2008_fp32_divider.w_any_nan
+math_ieee754_2008_fp32_divider.w_b_eff_zero
+math_ieee754_2008_fp32_divider.w_b_is_inf
+math_ieee754_2008_fp32_divider.w_b_is_nan
+math_ieee754_2008_fp32_divider.w_b_is_subnormal
+math_ieee754_2008_fp32_divider.w_b_is_zero
+math_ieee754_2008_fp32_divider.w_ea_s
+math_ieee754_2008_fp32_divider.w_ea_sub
+math_ieee754_2008_fp32_divider.w_eb_s
+math_ieee754_2008_fp32_divider.w_eb_sub
+math_ieee754_2008_fp32_divider.w_exp_a
+math_ieee754_2008_fp32_divider.w_exp_b
+math_ieee754_2008_fp32_divider.w_half
+math_ieee754_2008_fp32_divider.w_inf_inf
+math_ieee754_2008_fp32_divider.w_is_special
+math_ieee754_2008_fp32_divider.w_mant_a
+math_ieee754_2008_fp32_divider.w_mant_b
+math_ieee754_2008_fp32_divider.w_sig_a
+math_ieee754_2008_fp32_divider.w_sig_a_norm
+math_ieee754_2008_fp32_divider.w_sig_b
+math_ieee754_2008_fp32_divider.w_sig_b_norm
+math_ieee754_2008_fp32_divider.w_sign_a
+math_ieee754_2008_fp32_divider.w_sign_b
+math_ieee754_2008_fp32_divider.w_sign_result
+math_ieee754_2008_fp32_divider.w_spec_invalid
+math_ieee754_2008_fp32_divider.w_spec_result
+math_ieee754_2008_fp32_divider.w_zero_zero
+@200
+-u_mant_mult
+@28
+math_ieee754_2008_fp32_divider.u_mant_mult.i_a_is_normal
+math_ieee754_2008_fp32_divider.u_mant_mult.i_b_is_normal
+math_ieee754_2008_fp32_divider.u_mant_mult.i_mant_a
+math_ieee754_2008_fp32_divider.u_mant_mult.i_mant_b
+math_ieee754_2008_fp32_divider.u_mant_mult.ow_guard_bit
+math_ieee754_2008_fp32_divider.u_mant_mult.ow_mant_out
+math_ieee754_2008_fp32_divider.u_mant_mult.ow_needs_norm
+math_ieee754_2008_fp32_divider.u_mant_mult.ow_product

@@ -1,0 +1,101 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/common/local_sim_build/test_arbiter_deficit_round_robin_c04_q16_cw4_w0_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/common/GTKW/arbiter_deficit_round_robin.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] arbiter_deficit_round_robin.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+arbiter_deficit_round_robin.clk
+@22
+arbiter_deficit_round_robin.rst_n
+@200
+-interface
+@28
+arbiter_deficit_round_robin.C
+arbiter_deficit_round_robin.CLIENTS
+arbiter_deficit_round_robin.COST_WIDTH
+arbiter_deficit_round_robin.CXCW
+arbiter_deficit_round_robin.CXQW
+@22
+arbiter_deficit_round_robin.DW[8:0]
+@28
+arbiter_deficit_round_robin.MAX_QUANTUM
+arbiter_deficit_round_robin.N
+arbiter_deficit_round_robin.QUANTUM_DRAIN_CYCLES
+arbiter_deficit_round_robin.QUANTUM_STABILIZE_CYCLES
+arbiter_deficit_round_robin.QUANTUM_TIMEOUT_CYCLES
+arbiter_deficit_round_robin.QW
+arbiter_deficit_round_robin.WAIT_GNT_ACK
+arbiter_deficit_round_robin.block_arb
+@22
+arbiter_deficit_round_robin.grant[6:0]
+arbiter_deficit_round_robin.grant_ack[4:0]
+arbiter_deficit_round_robin.grant_id[7:0]
+arbiter_deficit_round_robin.grant_valid[5:0]
+arbiter_deficit_round_robin.quantum[1:0]
+@28
+arbiter_deficit_round_robin.r_cost_arb[0]
+arbiter_deficit_round_robin.r_cost_arb[1]
+arbiter_deficit_round_robin.r_cost_arb[2]
+arbiter_deficit_round_robin.r_cost_arb[3]
+arbiter_deficit_round_robin.r_deficit[0]
+arbiter_deficit_round_robin.r_deficit[1]
+arbiter_deficit_round_robin.r_deficit[2]
+arbiter_deficit_round_robin.r_deficit[3]
+arbiter_deficit_round_robin.r_quant_state
+arbiter_deficit_round_robin.r_quant_timer
+arbiter_deficit_round_robin.r_safe_quantum
+@22
+arbiter_deficit_round_robin.req_cost[2:0]
+arbiter_deficit_round_robin.request[3:0]
+@28
+arbiter_deficit_round_robin.w_affords
+arbiter_deficit_round_robin.w_any_affordable_requester
+arbiter_deficit_round_robin.w_client_quantum[0]
+arbiter_deficit_round_robin.w_client_quantum[1]
+arbiter_deficit_round_robin.w_client_quantum[2]
+arbiter_deficit_round_robin.w_client_quantum[3]
+arbiter_deficit_round_robin.w_cost[0]
+arbiter_deficit_round_robin.w_cost[1]
+arbiter_deficit_round_robin.w_cost[2]
+arbiter_deficit_round_robin.w_cost[3]
+arbiter_deficit_round_robin.w_cost_raw[0]
+arbiter_deficit_round_robin.w_cost_raw[1]
+arbiter_deficit_round_robin.w_cost_raw[2]
+arbiter_deficit_round_robin.w_cost_raw[3]
+arbiter_deficit_round_robin.w_deficit[0]
+arbiter_deficit_round_robin.w_deficit[1]
+arbiter_deficit_round_robin.w_deficit[2]
+arbiter_deficit_round_robin.w_deficit[3]
+arbiter_deficit_round_robin.w_global_replenish
+arbiter_deficit_round_robin.w_grant_completed
+arbiter_deficit_round_robin.w_mask_last_client
+arbiter_deficit_round_robin.w_mask_multi_req
+arbiter_deficit_round_robin.w_mask_req
+arbiter_deficit_round_robin.w_normal_operation
+arbiter_deficit_round_robin.w_pending_grants
+arbiter_deficit_round_robin.w_quantum_change_req
+arbiter_deficit_round_robin.w_req_post
+arbiter_deficit_round_robin.w_valid_clients
+@200
+-u_base_arbiter
+@28
+arbiter_deficit_round_robin.u_base_arbiter.CLIENTS
+arbiter_deficit_round_robin.u_base_arbiter.N
+arbiter_deficit_round_robin.u_base_arbiter.WAIT_GNT_ACK
+arbiter_deficit_round_robin.u_base_arbiter.block_arb
+arbiter_deficit_round_robin.u_base_arbiter.clk
+arbiter_deficit_round_robin.u_base_arbiter.grant_ack
+arbiter_deficit_round_robin.u_base_arbiter.request
+arbiter_deficit_round_robin.u_base_arbiter.rst_n

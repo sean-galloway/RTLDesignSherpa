@@ -1,0 +1,125 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axil5_opt_slave_a32_d032_all_on_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil5_opt_slave.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil5_opt_slave.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil5_opt_slave.aclk
+axil5_opt_slave.aresetn
+@200
+-interface
+@28
+axil5_opt_slave.AXIL_ADDR_WIDTH[31:0]
+axil5_opt_slave.AXIL_DATA_WIDTH[31:0]
+axil5_opt_slave.MEM_DEPTH[31:0]
+axil5_opt_slave.ID_WIDTH[31:0]
+axil5_opt_slave.USER_WIDTH[31:0]
+axil5_opt_slave.ENABLE_USER
+axil5_opt_slave.ENABLE_TRACE
+axil5_opt_slave.ENABLE_POISON
+axil5_opt_slave.AW[31:0]
+axil5_opt_slave.DW[31:0]
+axil5_opt_slave.SW[31:0]
+axil5_opt_slave.POISON_WIDTH[31:0]
+axil5_opt_slave.IDX_W[31:0]
+axil5_opt_slave.ADDR_LSB[31:0]
+@22
+axil5_opt_slave.s_axil_awid[3:0]
+axil5_opt_slave.s_axil_awaddr[31:0]
+axil5_opt_slave.s_axil_awprot[2:0]
+axil5_opt_slave.s_axil_awuser[3:0]
+@28
+axil5_opt_slave.s_axil_awtrace
+axil5_opt_slave.s_axil_awvalid
+axil5_opt_slave.s_axil_awready
+@22
+axil5_opt_slave.s_axil_wdata[31:0]
+axil5_opt_slave.s_axil_wstrb[3:0]
+axil5_opt_slave.s_axil_wuser[3:0]
+@28
+axil5_opt_slave.s_axil_wpoison[0:0]
+axil5_opt_slave.s_axil_wvalid
+axil5_opt_slave.s_axil_wready
+@22
+axil5_opt_slave.s_axil_bid[3:0]
+axil5_opt_slave.s_axil_bresp[1:0]
+axil5_opt_slave.s_axil_buser[3:0]
+@28
+axil5_opt_slave.s_axil_btrace
+axil5_opt_slave.s_axil_bvalid
+axil5_opt_slave.s_axil_bready
+@22
+axil5_opt_slave.s_axil_arid[3:0]
+axil5_opt_slave.s_axil_araddr[31:0]
+axil5_opt_slave.s_axil_arprot[2:0]
+axil5_opt_slave.s_axil_aruser[3:0]
+@28
+axil5_opt_slave.s_axil_artrace
+axil5_opt_slave.s_axil_arvalid
+axil5_opt_slave.s_axil_arready
+@22
+axil5_opt_slave.s_axil_rid[3:0]
+axil5_opt_slave.s_axil_rdata[31:0]
+axil5_opt_slave.s_axil_rresp[1:0]
+axil5_opt_slave.s_axil_ruser[3:0]
+@28
+axil5_opt_slave.s_axil_rtrace
+axil5_opt_slave.s_axil_rpoison[0:0]
+axil5_opt_slave.s_axil_rvalid
+axil5_opt_slave.s_axil_rready
+@22
+axil5_opt_slave.o_last_aw_prot[2:0]
+axil5_opt_slave.o_last_w_user[3:0]
+axil5_opt_slave.o_last_ar_prot[2:0]
+@28
+axil5_opt_slave.RESP_OKAY[1:0]
+axil5_opt_slave.r_aw_full
+@22
+axil5_opt_slave.r_aw_idx[7:0]
+axil5_opt_slave.r_aw_id[3:0]
+axil5_opt_slave.r_aw_user[3:0]
+@28
+axil5_opt_slave.r_aw_trace
+axil5_opt_slave.r_w_full
+@22
+axil5_opt_slave.r_w_data[31:0]
+axil5_opt_slave.r_w_strb[3:0]
+@28
+axil5_opt_slave.r_w_poison[0:0]
+axil5_opt_slave.r_b_valid
+@22
+axil5_opt_slave.r_b_id[3:0]
+axil5_opt_slave.r_b_resp[1:0]
+axil5_opt_slave.r_b_user[3:0]
+@28
+axil5_opt_slave.r_b_trace
+axil5_opt_slave.r_r_valid
+@22
+axil5_opt_slave.r_r_data[31:0]
+axil5_opt_slave.r_r_id[3:0]
+axil5_opt_slave.r_r_resp[1:0]
+axil5_opt_slave.r_r_user[3:0]
+@28
+axil5_opt_slave.r_r_trace
+axil5_opt_slave.r_r_poison[0:0]
+axil5_opt_slave.w_aw_fire
+axil5_opt_slave.w_w_fire
+axil5_opt_slave.w_ar_fire
+axil5_opt_slave.w_wr_commit
+axil5_opt_slave.w_b_fire
+axil5_opt_slave.w_r_fire
+@22
+axil5_opt_slave.w_ar_idx[7:0]
+axil5_opt_slave.w_wr_data[31:0]

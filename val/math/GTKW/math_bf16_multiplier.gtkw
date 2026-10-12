@@ -1,0 +1,105 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_multiplier_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_multiplier.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_multiplier.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_multiplier.i_a
+math_bf16_multiplier.i_b
+math_bf16_multiplier.ow_invalid
+math_bf16_multiplier.ow_overflow
+math_bf16_multiplier.ow_result
+math_bf16_multiplier.ow_underflow
+math_bf16_multiplier.w_a_eff_zero
+@22
+math_bf16_multiplier.w_a_is_inf[6:0]
+math_bf16_multiplier.w_a_is_nan[8:0]
+@28
+math_bf16_multiplier.w_a_is_normal
+@22
+math_bf16_multiplier.w_a_is_subnormal[4:0]
+math_bf16_multiplier.w_a_is_zero[2:0]
+@28
+math_bf16_multiplier.w_any_nan
+math_bf16_multiplier.w_b_eff_zero
+@22
+math_bf16_multiplier.w_b_is_inf[7:0]
+@28
+math_bf16_multiplier.w_b_is_nan
+math_bf16_multiplier.w_b_is_normal
+@22
+math_bf16_multiplier.w_b_is_subnormal[5:0]
+math_bf16_multiplier.w_b_is_zero[3:0]
+@28
+math_bf16_multiplier.w_exp_a
+math_bf16_multiplier.w_exp_a_inf
+math_bf16_multiplier.w_exp_a_nan
+math_bf16_multiplier.w_exp_a_zero
+math_bf16_multiplier.w_exp_b
+math_bf16_multiplier.w_exp_b_inf
+math_bf16_multiplier.w_exp_b_nan
+math_bf16_multiplier.w_exp_b_zero
+math_bf16_multiplier.w_exp_final
+math_bf16_multiplier.w_exp_overflow
+math_bf16_multiplier.w_exp_sum
+math_bf16_multiplier.w_exp_sum_was_zero
+math_bf16_multiplier.w_exp_underflow
+math_bf16_multiplier.w_final_overflow
+math_bf16_multiplier.w_guard_bit
+math_bf16_multiplier.w_invalid_op
+math_bf16_multiplier.w_lsb
+math_bf16_multiplier.w_mant_a
+@22
+math_bf16_multiplier.w_mant_b[1:0]
+@28
+math_bf16_multiplier.w_mant_final
+math_bf16_multiplier.w_mant_mult_out
+math_bf16_multiplier.w_mant_product
+math_bf16_multiplier.w_mant_round_overflow
+math_bf16_multiplier.w_mant_rounded
+math_bf16_multiplier.w_needs_norm
+math_bf16_multiplier.w_result_inf
+math_bf16_multiplier.w_result_zero
+math_bf16_multiplier.w_round_bit
+math_bf16_multiplier.w_round_up
+math_bf16_multiplier.w_sign_a
+@22
+math_bf16_multiplier.w_sign_b
+@28
+math_bf16_multiplier.w_sign_result
+math_bf16_multiplier.w_sticky_bit
+math_bf16_multiplier.w_uf_rescued
+@200
+-u_exp_add
+@28
+math_bf16_multiplier.u_exp_add.i_exp_a
+math_bf16_multiplier.u_exp_add.i_exp_b
+math_bf16_multiplier.u_exp_add.i_norm_adjust
+math_bf16_multiplier.u_exp_add.ow_a_is_zero
+math_bf16_multiplier.u_exp_add.ow_b_is_zero
+math_bf16_multiplier.u_exp_add.ow_exp_out
+math_bf16_multiplier.u_exp_add.ow_overflow
+math_bf16_multiplier.u_exp_add.ow_underflow
+@200
+-u_mant_mult
+@28
+math_bf16_multiplier.u_mant_mult.i_a_is_normal
+math_bf16_multiplier.u_mant_mult.i_b_is_normal
+math_bf16_multiplier.u_mant_mult.i_mant_a
+math_bf16_multiplier.u_mant_mult.i_mant_b
+math_bf16_multiplier.u_mant_mult.ow_guard_bit
+math_bf16_multiplier.u_mant_mult.ow_mant_out
+math_bf16_multiplier.u_mant_mult.ow_needs_norm
+math_bf16_multiplier.u_mant_mult.ow_product

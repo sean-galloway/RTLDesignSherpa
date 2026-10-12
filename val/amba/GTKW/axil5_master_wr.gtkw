@@ -1,0 +1,116 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axil5_master_wr_a32_d32_awd2_wd4_bd2_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil5_master_wr.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil5_master_wr.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil5_master_wr.aclk
+axil5_master_wr.aresetn
+@200
+-interface
+@28
+axil5_master_wr.AW
+axil5_master_wr.AWSize
+axil5_master_wr.AXIL_ADDR_WIDTH
+axil5_master_wr.AXIL_DATA_WIDTH
+axil5_master_wr.BSize
+axil5_master_wr.DW
+axil5_master_wr.ENABLE_POISON
+axil5_master_wr.ENABLE_TRACE
+axil5_master_wr.ENABLE_USER
+axil5_master_wr.ID_WIDTH
+axil5_master_wr.IW
+axil5_master_wr.PW
+axil5_master_wr.SKID_DEPTH_AW
+axil5_master_wr.SKID_DEPTH_B
+axil5_master_wr.SKID_DEPTH_W
+axil5_master_wr.SW
+axil5_master_wr.USER_WIDTH
+axil5_master_wr.UW
+axil5_master_wr.WSize
+axil5_master_wr.busy
+axil5_master_wr.fub_awaddr
+axil5_master_wr.fub_awid
+axil5_master_wr.fub_awprot
+axil5_master_wr.fub_awready
+axil5_master_wr.fub_awtrace
+axil5_master_wr.fub_awuser
+axil5_master_wr.fub_awvalid
+axil5_master_wr.fub_bid
+axil5_master_wr.fub_bready
+axil5_master_wr.fub_bresp
+axil5_master_wr.fub_btrace
+axil5_master_wr.fub_buser
+axil5_master_wr.fub_bvalid
+axil5_master_wr.fub_wdata
+axil5_master_wr.fub_wpoison
+axil5_master_wr.fub_wready
+axil5_master_wr.fub_wstrb
+axil5_master_wr.fub_wuser
+axil5_master_wr.fub_wvalid
+axil5_master_wr.m_axil_awaddr
+axil5_master_wr.m_axil_awid
+axil5_master_wr.m_axil_awprot
+axil5_master_wr.m_axil_awready
+axil5_master_wr.m_axil_awtrace
+axil5_master_wr.m_axil_awuser
+axil5_master_wr.m_axil_awvalid
+axil5_master_wr.m_axil_bid
+axil5_master_wr.m_axil_bready
+axil5_master_wr.m_axil_bresp
+axil5_master_wr.m_axil_btrace
+axil5_master_wr.m_axil_buser
+axil5_master_wr.m_axil_bvalid
+axil5_master_wr.m_axil_wdata
+axil5_master_wr.m_axil_wpoison
+axil5_master_wr.m_axil_wready
+axil5_master_wr.m_axil_wstrb
+axil5_master_wr.m_axil_wuser
+axil5_master_wr.m_axil_wvalid
+axil5_master_wr.w_aw_rd_data
+axil5_master_wr.w_aw_wr_data
+@200
+-aw_channel
+@28
+axil5_master_wr.aw_channel.DATA_WIDTH
+axil5_master_wr.aw_channel.DEPTH
+axil5_master_wr.aw_channel.DW
+axil5_master_wr.aw_channel.axi_aclk
+axil5_master_wr.aw_channel.axi_aresetn
+axil5_master_wr.aw_channel.wr_data
+axil5_master_wr.aw_channel.wr_ready
+axil5_master_wr.aw_channel.wr_valid
+@200
+-b_channel
+@28
+axil5_master_wr.b_channel.DATA_WIDTH
+axil5_master_wr.b_channel.DEPTH
+axil5_master_wr.b_channel.DW
+axil5_master_wr.b_channel.axi_aclk
+axil5_master_wr.b_channel.axi_aresetn
+axil5_master_wr.b_channel.wr_data
+axil5_master_wr.b_channel.wr_ready
+axil5_master_wr.b_channel.wr_valid
+@200
+-w_channel
+@28
+axil5_master_wr.w_channel.DATA_WIDTH
+axil5_master_wr.w_channel.DEPTH
+axil5_master_wr.w_channel.DW
+axil5_master_wr.w_channel.axi_aclk
+axil5_master_wr.w_channel.axi_aresetn
+axil5_master_wr.w_channel.wr_data
+axil5_master_wr.w_channel.wr_ready
+axil5_master_wr.w_channel.wr_valid

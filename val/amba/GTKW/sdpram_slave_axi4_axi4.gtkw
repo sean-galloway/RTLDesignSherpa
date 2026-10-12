@@ -1,0 +1,104 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/sdpram_slave_wrAXI4_rdAXI4_dw64_d64/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/sdpram_slave_axi4_axi4.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] sdpram_slave_axi4_axi4.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+sdpram_slave_axi4_axi4.aclk
+sdpram_slave_axi4_axi4.aresetn
+sdpram_slave_axi4_axi4.i_cfg_start_clear
+sdpram_slave_axi4_axi4.o_cfg_done_clear
+@200
+-params
+sdpram_slave_axi4_axi4.DATA_WIDTH
+sdpram_slave_axi4_axi4.ADDR_WIDTH
+sdpram_slave_axi4_axi4.MEM_DEPTH
+sdpram_slave_axi4_axi4.AXI_ID_WIDTH
+sdpram_slave_axi4_axi4.USER_WIDTH
+sdpram_slave_axi4_axi4.USE_WSTRB
+sdpram_slave_axi4_axi4.SKID_DEPTH_AW
+sdpram_slave_axi4_axi4.SKID_DEPTH_W
+sdpram_slave_axi4_axi4.SKID_DEPTH_B
+sdpram_slave_axi4_axi4.SKID_DEPTH_AR
+sdpram_slave_axi4_axi4.SKID_DEPTH_R
+@200
+-s_axi_aw
+sdpram_slave_axi4_axi4.s_axi_awvalid
+sdpram_slave_axi4_axi4.s_axi_awready
+sdpram_slave_axi4_axi4.s_axi_awid
+sdpram_slave_axi4_axi4.s_axi_awaddr
+sdpram_slave_axi4_axi4.s_axi_awlen
+sdpram_slave_axi4_axi4.s_axi_awsize
+sdpram_slave_axi4_axi4.s_axi_awburst
+@200
+-s_axi_w
+sdpram_slave_axi4_axi4.s_axi_wvalid
+sdpram_slave_axi4_axi4.s_axi_wready
+sdpram_slave_axi4_axi4.s_axi_wdata
+sdpram_slave_axi4_axi4.s_axi_wstrb
+sdpram_slave_axi4_axi4.s_axi_wlast
+@200
+-s_axi_b
+sdpram_slave_axi4_axi4.s_axi_bvalid
+sdpram_slave_axi4_axi4.s_axi_bready
+sdpram_slave_axi4_axi4.s_axi_bid
+sdpram_slave_axi4_axi4.s_axi_bresp
+@200
+-s_axi_ar
+sdpram_slave_axi4_axi4.s_axi_arvalid
+sdpram_slave_axi4_axi4.s_axi_arready
+sdpram_slave_axi4_axi4.s_axi_arid
+sdpram_slave_axi4_axi4.s_axi_araddr
+sdpram_slave_axi4_axi4.s_axi_arlen
+sdpram_slave_axi4_axi4.s_axi_arsize
+sdpram_slave_axi4_axi4.s_axi_arburst
+@200
+-s_axi_r
+sdpram_slave_axi4_axi4.s_axi_rvalid
+sdpram_slave_axi4_axi4.s_axi_rready
+sdpram_slave_axi4_axi4.s_axi_rid
+sdpram_slave_axi4_axi4.s_axi_rdata
+sdpram_slave_axi4_axi4.s_axi_rresp
+sdpram_slave_axi4_axi4.s_axi_rlast
+@200
+-fub_wr
+sdpram_slave_axi4_axi4.fub_awvalid
+sdpram_slave_axi4_axi4.fub_awready
+sdpram_slave_axi4_axi4.fub_awaddr
+sdpram_slave_axi4_axi4.fub_awlen
+sdpram_slave_axi4_axi4.fub_wvalid
+sdpram_slave_axi4_axi4.fub_wready
+sdpram_slave_axi4_axi4.fub_wdata
+sdpram_slave_axi4_axi4.fub_wstrb
+sdpram_slave_axi4_axi4.fub_bvalid
+sdpram_slave_axi4_axi4.fub_bready
+sdpram_slave_axi4_axi4.fub_bresp
+@200
+-fub_rd
+sdpram_slave_axi4_axi4.fub_arvalid
+sdpram_slave_axi4_axi4.fub_arready
+sdpram_slave_axi4_axi4.fub_araddr
+sdpram_slave_axi4_axi4.fub_arlen
+sdpram_slave_axi4_axi4.fub_rvalid
+sdpram_slave_axi4_axi4.fub_rready
+sdpram_slave_axi4_axi4.fub_rdata
+sdpram_slave_axi4_axi4.fub_rlast
+@200
+-debug
+sdpram_slave_axi4_axi4.o_dbg_busy_wr
+sdpram_slave_axi4_axi4.o_dbg_busy_rd
+sdpram_slave_axi4_axi4.o_dbg_bram_wr
+sdpram_slave_axi4_axi4.o_dbg_bram_rd
+sdpram_slave_axi4_axi4.o_dbg_vr
+sdpram_slave_axi4_axi4.o_dbg_fub_vr

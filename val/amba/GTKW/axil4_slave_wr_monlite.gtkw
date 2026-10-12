@@ -1,0 +1,106 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_gw0_axil4_slave_wr_monlite_nb1_wq0_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil4_slave_wr_monlite.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil4_slave_wr_monlite.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil4_slave_wr_monlite.ACLK_MHZ
+axil4_slave_wr_monlite.aclk
+axil4_slave_wr_monlite.aresetn
+@200
+-interface
+@28
+axil4_slave_wr_monlite.ACTIVE_TRANS_THRESHOLD
+axil4_slave_wr_monlite.ADDR_RANGE_IS_ERROR
+axil4_slave_wr_monlite.AGENT_ID
+axil4_slave_wr_monlite.AW
+axil4_slave_wr_monlite.AWSize
+axil4_slave_wr_monlite.AXIL_ADDR_WIDTH
+axil4_slave_wr_monlite.AXIL_DATA_WIDTH
+axil4_slave_wr_monlite.BSize
+axil4_slave_wr_monlite.CFI_MAX_FREQ_MHZ
+axil4_slave_wr_monlite.CFI_MIN_FREQ_MHZ
+axil4_slave_wr_monlite.DW
+axil4_slave_wr_monlite.MAX_TRANSACTIONS
+axil4_slave_wr_monlite.N_ADDR_RANGES
+axil4_slave_wr_monlite.OUT_DEPTH
+axil4_slave_wr_monlite.SKID_DEPTH_AW
+axil4_slave_wr_monlite.SKID_DEPTH_B
+axil4_slave_wr_monlite.SKID_DEPTH_W
+axil4_slave_wr_monlite.UNIT_ID
+axil4_slave_wr_monlite.USE_MONITOR
+axil4_slave_wr_monlite.WSize
+axil4_slave_wr_monlite.busy
+axil4_slave_wr_monlite.cam_clear
+axil4_slave_wr_monlite.cfg_addr_check_enable
+axil4_slave_wr_monlite.cfg_addr_match_enable
+axil4_slave_wr_monlite.cfg_addr_range_enable
+axil4_slave_wr_monlite.cfg_addr_range_high[0]
+axil4_slave_wr_monlite.cfg_addr_range_low[0]
+axil4_slave_wr_monlite.cfg_axi_pkt_mask
+axil4_slave_wr_monlite.cfg_compl_enable
+axil4_slave_wr_monlite.cfg_error_enable
+axil4_slave_wr_monlite.cfg_freq_sel
+axil4_slave_wr_monlite.cfg_latency_threshold
+axil4_slave_wr_monlite.cfg_monitor_enable
+axil4_slave_wr_monlite.cfg_threshold_enable
+axil4_slave_wr_monlite.cfg_timeout_cycles
+axil4_slave_wr_monlite.cfg_timeout_enable
+axil4_slave_wr_monlite.fub_axil_awaddr
+axil4_slave_wr_monlite.fub_axil_awprot
+axil4_slave_wr_monlite.fub_axil_awready
+axil4_slave_wr_monlite.fub_axil_awvalid
+axil4_slave_wr_monlite.fub_axil_bready
+axil4_slave_wr_monlite.fub_axil_bresp
+axil4_slave_wr_monlite.fub_axil_bvalid
+axil4_slave_wr_monlite.fub_axil_wdata
+axil4_slave_wr_monlite.fub_axil_wready
+axil4_slave_wr_monlite.fub_axil_wstrb
+axil4_slave_wr_monlite.fub_axil_wvalid
+axil4_slave_wr_monlite.i_mon_time
+axil4_slave_wr_monlite.monbus_valid
+axil4_slave_wr_monlite.s_axil_awaddr
+axil4_slave_wr_monlite.s_axil_awprot
+axil4_slave_wr_monlite.s_axil_awready
+axil4_slave_wr_monlite.s_axil_awvalid
+axil4_slave_wr_monlite.s_axil_bready
+axil4_slave_wr_monlite.s_axil_bresp
+axil4_slave_wr_monlite.s_axil_bvalid
+axil4_slave_wr_monlite.s_axil_wdata
+axil4_slave_wr_monlite.s_axil_wready
+axil4_slave_wr_monlite.s_axil_wstrb
+axil4_slave_wr_monlite.s_axil_wvalid
+@200
+-gen_monitor_lite
+@28
+axil4_slave_wr_monlite.gen_monitor_lite.axi_monitor_lite_inst.ADDR_WIDTH
+axil4_slave_wr_monlite.gen_monitor_lite.axi_monitor_lite_inst.AGENT_ID
+axil4_slave_wr_monlite.gen_monitor_lite.axi_monitor_lite_inst.ID_WIDTH
+axil4_slave_wr_monlite.gen_monitor_lite.axi_monitor_lite_inst.IS_AXI
+axil4_slave_wr_monlite.gen_monitor_lite.axi_monitor_lite_inst.IS_READ
+axil4_slave_wr_monlite.gen_monitor_lite.axi_monitor_lite_inst.MAX_TRANSACTIONS
+axil4_slave_wr_monlite.gen_monitor_lite.axi_monitor_lite_inst.TS_WIDTH
+axil4_slave_wr_monlite.gen_monitor_lite.axi_monitor_lite_inst.UNIT_ID
+@200
+-u_core
+@28
+axil4_slave_wr_monlite.u_core.AW
+axil4_slave_wr_monlite.u_core.AWSize
+axil4_slave_wr_monlite.u_core.AXIL_ADDR_WIDTH
+axil4_slave_wr_monlite.u_core.AXIL_DATA_WIDTH
+axil4_slave_wr_monlite.u_core.DW
+axil4_slave_wr_monlite.u_core.SKID_DEPTH_AW
+axil4_slave_wr_monlite.u_core.SKID_DEPTH_B
+axil4_slave_wr_monlite.u_core.SKID_DEPTH_W

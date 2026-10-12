@@ -1,0 +1,48 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_wb4_master_stub_nohints/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/wb4_master_stub.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wb4_master_stub.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+wb4_master_stub.clk
+wb4_master_stub.aresetn
+@200
+-interface
+wb4_master_stub.ADDR_WIDTH
+wb4_master_stub.DATA_WIDTH
+wb4_master_stub.USE_BURST_HINTS
+wb4_master_stub.cmd_valid
+wb4_master_stub.cmd_ready
+wb4_master_stub.cmd_data
+wb4_master_stub.rsp_valid
+wb4_master_stub.rsp_ready
+wb4_master_stub.rsp_data
+wb4_master_stub.m_wb_CYC
+wb4_master_stub.m_wb_STB
+wb4_master_stub.m_wb_WE
+wb4_master_stub.m_wb_ADR
+wb4_master_stub.m_wb_DAT_W
+wb4_master_stub.m_wb_DAT_R
+wb4_master_stub.m_wb_SEL
+wb4_master_stub.m_wb_ACK
+wb4_master_stub.m_wb_ERR
+wb4_master_stub.m_wb_RTY
+wb4_master_stub.m_wb_STALL
+wb4_master_stub.m_wb_CTI
+wb4_master_stub.m_wb_BTE
+@200
+-u_wb4_master
+wb4_master_stub.u_wb4_master.ADDR_WIDTH
+wb4_master_stub.u_wb4_master.DATA_WIDTH
+wb4_master_stub.u_wb4_master.USE_BURST_HINTS

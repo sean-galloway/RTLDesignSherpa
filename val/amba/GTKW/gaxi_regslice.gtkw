@@ -1,0 +1,37 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gaxi_regslice_gw0_regslice_d08_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/gaxi_regslice.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gaxi_regslice.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+gaxi_regslice.axi_aclk
+gaxi_regslice.axi_aresetn
+@200
+-interface
+gaxi_regslice.DATA_WIDTH
+gaxi_regslice.DW
+gaxi_regslice.wr_valid
+gaxi_regslice.wr_ready
+gaxi_regslice.wr_data
+gaxi_regslice.rd_valid
+gaxi_regslice.rd_ready
+gaxi_regslice.rd_data
+@200
+-internals
+gaxi_regslice.r_data
+gaxi_regslice.r_valid
+gaxi_regslice.count
+gaxi_regslice.rd_count
+gaxi_regslice.w_rxfer
+gaxi_regslice.w_wxfer

@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_gw0_axil5_master_wr_monlite_cg_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil5_master_wr_monlite_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil5_master_wr_monlite_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil5_master_wr_monlite_cg.ACLK_MHZ
+axil5_master_wr_monlite_cg.aclk
+axil5_master_wr_monlite_cg.aresetn
+axil5_master_wr_monlite_cg.gated_aclk
+@200
+-interface
+@28
+axil5_master_wr_monlite_cg.ACTIVE_TRANS_THRESHOLD
+axil5_master_wr_monlite_cg.ADDR_RANGE_IS_ERROR
+axil5_master_wr_monlite_cg.AGENT_ID
+axil5_master_wr_monlite_cg.AW
+axil5_master_wr_monlite_cg.AWSize
+axil5_master_wr_monlite_cg.AXIL_ADDR_WIDTH
+axil5_master_wr_monlite_cg.AXIL_DATA_WIDTH
+axil5_master_wr_monlite_cg.BSize
+axil5_master_wr_monlite_cg.CFI_MAX_FREQ_MHZ
+axil5_master_wr_monlite_cg.CFI_MIN_FREQ_MHZ
+axil5_master_wr_monlite_cg.CG_IDLE_COUNT_WIDTH
+axil5_master_wr_monlite_cg.DW
+axil5_master_wr_monlite_cg.ENABLE_POISON
+axil5_master_wr_monlite_cg.ENABLE_TRACE
+axil5_master_wr_monlite_cg.ENABLE_USER
+axil5_master_wr_monlite_cg.ID_WIDTH
+axil5_master_wr_monlite_cg.IW
+axil5_master_wr_monlite_cg.MAX_TRANSACTIONS
+axil5_master_wr_monlite_cg.N_ADDR_RANGES
+axil5_master_wr_monlite_cg.OUT_DEPTH
+axil5_master_wr_monlite_cg.PW
+axil5_master_wr_monlite_cg.SKID_DEPTH_AW
+axil5_master_wr_monlite_cg.SKID_DEPTH_B
+axil5_master_wr_monlite_cg.SKID_DEPTH_W
+axil5_master_wr_monlite_cg.SW
+axil5_master_wr_monlite_cg.UNIT_ID
+axil5_master_wr_monlite_cg.USER_WIDTH
+axil5_master_wr_monlite_cg.USE_MONITOR
+axil5_master_wr_monlite_cg.UW
+axil5_master_wr_monlite_cg.WSize
+axil5_master_wr_monlite_cg.fub_axil_awaddr
+axil5_master_wr_monlite_cg.fub_axil_awid
+axil5_master_wr_monlite_cg.fub_axil_awprot
+axil5_master_wr_monlite_cg.fub_axil_awready
+axil5_master_wr_monlite_cg.fub_axil_awtrace
+axil5_master_wr_monlite_cg.fub_axil_awuser
+axil5_master_wr_monlite_cg.fub_axil_awvalid
+axil5_master_wr_monlite_cg.fub_axil_wdata
+axil5_master_wr_monlite_cg.fub_axil_wpoison
+axil5_master_wr_monlite_cg.fub_axil_wready
+axil5_master_wr_monlite_cg.fub_axil_wstrb
+axil5_master_wr_monlite_cg.fub_axil_wuser
+axil5_master_wr_monlite_cg.fub_axil_wvalid
+axil5_master_wr_monlite_cg.m_axil_awaddr
+axil5_master_wr_monlite_cg.m_axil_awid
+axil5_master_wr_monlite_cg.m_axil_awprot
+axil5_master_wr_monlite_cg.m_axil_awready
+axil5_master_wr_monlite_cg.m_axil_awtrace
+axil5_master_wr_monlite_cg.m_axil_awuser
+axil5_master_wr_monlite_cg.m_axil_awvalid
+axil5_master_wr_monlite_cg.m_axil_bid
+axil5_master_wr_monlite_cg.m_axil_bresp
+axil5_master_wr_monlite_cg.m_axil_btrace
+axil5_master_wr_monlite_cg.m_axil_buser
+axil5_master_wr_monlite_cg.m_axil_wdata
+axil5_master_wr_monlite_cg.m_axil_wpoison
+axil5_master_wr_monlite_cg.m_axil_wready
+axil5_master_wr_monlite_cg.m_axil_wstrb
+axil5_master_wr_monlite_cg.m_axil_wuser
+axil5_master_wr_monlite_cg.m_axil_wvalid
+@200
+-i_amba_clock_gate_ctrl
+@28
+axil5_master_wr_monlite_cg.i_amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+axil5_master_wr_monlite_cg.i_amba_clock_gate_ctrl.ICW
+axil5_master_wr_monlite_cg.i_amba_clock_gate_ctrl.aresetn
+axil5_master_wr_monlite_cg.i_amba_clock_gate_ctrl.axi_valid
+axil5_master_wr_monlite_cg.i_amba_clock_gate_ctrl.cfg_cg_enable
+axil5_master_wr_monlite_cg.i_amba_clock_gate_ctrl.cfg_cg_idle_count
+axil5_master_wr_monlite_cg.i_amba_clock_gate_ctrl.clk_in
+axil5_master_wr_monlite_cg.i_amba_clock_gate_ctrl.user_valid
+@200
+-u_monlite
+@28
+axil5_master_wr_monlite_cg.u_monlite.ACTIVE_TRANS_THRESHOLD
+axil5_master_wr_monlite_cg.u_monlite.ADDR_RANGE_IS_ERROR
+axil5_master_wr_monlite_cg.u_monlite.AGENT_ID
+axil5_master_wr_monlite_cg.u_monlite.MAX_TRANSACTIONS
+axil5_master_wr_monlite_cg.u_monlite.N_ADDR_RANGES
+axil5_master_wr_monlite_cg.u_monlite.OUT_DEPTH
+axil5_master_wr_monlite_cg.u_monlite.UNIT_ID
+axil5_master_wr_monlite_cg.u_monlite.USE_MONITOR

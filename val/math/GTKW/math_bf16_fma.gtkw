@@ -1,0 +1,132 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_fma_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_fma.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_fma.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_fma.i_a
+math_bf16_fma.i_b
+math_bf16_fma.i_c
+math_bf16_fma.ow_invalid
+math_bf16_fma.ow_overflow
+math_bf16_fma.ow_result
+math_bf16_fma.ow_underflow
+math_bf16_fma.w_a_eff_zero
+math_bf16_fma.w_a_is_inf
+math_bf16_fma.w_a_is_nan
+math_bf16_fma.w_a_is_normal
+math_bf16_fma.w_a_is_subnormal
+@22
+math_bf16_fma.w_a_is_zero[7:0]
+@28
+math_bf16_fma.w_adder_b
+math_bf16_fma.w_adder_sum
+math_bf16_fma.w_b_eff_zero
+math_bf16_fma.w_b_is_inf
+math_bf16_fma.w_b_is_nan
+math_bf16_fma.w_b_is_normal
+math_bf16_fma.w_b_is_subnormal
+@22
+math_bf16_fma.w_b_is_zero[8:0]
+@28
+math_bf16_fma.w_c_eff_zero
+math_bf16_fma.w_c_is_inf
+math_bf16_fma.w_c_is_nan
+math_bf16_fma.w_c_is_normal
+math_bf16_fma.w_c_is_subnormal
+math_bf16_fma.w_c_is_zero
+math_bf16_fma.w_c_mant_48
+math_bf16_fma.w_c_mant_ext
+math_bf16_fma.w_effective_sub
+@22
+math_bf16_fma.w_exp_a
+math_bf16_fma.w_exp_b[2:0]
+math_bf16_fma.w_exp_c[5:0]
+@28
+math_bf16_fma.w_exp_c_ext
+math_bf16_fma.w_exp_diff
+math_bf16_fma.w_exp_result_pre
+math_bf16_fma.w_mant_a
+math_bf16_fma.w_mant_a_ext
+@22
+math_bf16_fma.w_mant_b[3:0]
+@28
+math_bf16_fma.w_mant_b_ext
+@22
+math_bf16_fma.w_mant_c[6:0]
+@28
+math_bf16_fma.w_mant_larger
+math_bf16_fma.w_mant_smaller_shifted
+math_bf16_fma.w_prod_exp
+math_bf16_fma.w_prod_exp_adj
+math_bf16_fma.w_prod_exp_larger
+math_bf16_fma.w_prod_exp_raw
+math_bf16_fma.w_prod_mant_48
+math_bf16_fma.w_prod_mant_ext
+math_bf16_fma.w_prod_mant_raw
+math_bf16_fma.w_prod_needs_norm
+math_bf16_fma.w_prod_sign
+math_bf16_fma.w_prod_underflow
+math_bf16_fma.w_shift_amt
+math_bf16_fma.w_shift_clamped
+math_bf16_fma.w_sign_a
+@22
+math_bf16_fma.w_sign_b[1:0]
+math_bf16_fma.w_sign_c[4:0]
+@28
+math_bf16_fma.w_sign_larger
+math_bf16_fma.w_sign_smaller
+@200
+-u_clz
+@28
+math_bf16_fma.u_clz.WIDTH
+math_bf16_fma.u_clz.clz
+math_bf16_fma.u_clz.data
+@200
+-u_mant_mult
+@28
+math_bf16_fma.u_mant_mult.N
+math_bf16_fma.u_mant_mult.i_multiplicand
+math_bf16_fma.u_mant_mult.i_multiplier
+math_bf16_fma.u_mant_mult.ow_product
+math_bf16_fma.u_mant_mult.w_pp_0_0
+math_bf16_fma.u_mant_mult.w_pp_0_1
+math_bf16_fma.u_mant_mult.w_pp_0_2
+math_bf16_fma.u_mant_mult.w_pp_0_3
+@200
+-u_negate_adder
+@28
+math_bf16_fma.u_negate_adder.N
+math_bf16_fma.u_negate_adder.i_a
+math_bf16_fma.u_negate_adder.i_b
+math_bf16_fma.u_negate_adder.i_cin
+math_bf16_fma.u_negate_adder.ow_cout
+math_bf16_fma.u_negate_adder.ow_sum
+math_bf16_fma.u_negate_adder.w_g0
+math_bf16_fma.u_negate_adder.w_p0
+@200
+-u_wide_adder
+@28
+math_bf16_fma.u_wide_adder.N
+@22
+math_bf16_fma.u_wide_adder.i_a
+@28
+math_bf16_fma.u_wide_adder.i_b
+math_bf16_fma.u_wide_adder.i_cin
+@22
+math_bf16_fma.u_wide_adder.ow_cout[14:0]
+math_bf16_fma.u_wide_adder.ow_sum[4:0]
+math_bf16_fma.u_wide_adder.w_g0[34:0]
+math_bf16_fma.u_wide_adder.w_p0[24:0]

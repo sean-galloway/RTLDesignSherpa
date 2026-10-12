@@ -1,0 +1,92 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_divider_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_divider.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_divider.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_divider.i_a
+math_bf16_divider.i_b
+math_bf16_divider.ow_div_by_zero
+math_bf16_divider.ow_invalid
+math_bf16_divider.ow_overflow
+math_bf16_divider.ow_result
+math_bf16_divider.ow_underflow
+math_bf16_divider.w_a_eff_zero
+@22
+math_bf16_divider.w_a_is_inf[8:0]
+@28
+math_bf16_divider.w_a_is_nan
+@22
+math_bf16_divider.w_a_is_subnormal[6:0]
+math_bf16_divider.w_a_is_zero[4:0]
+@28
+math_bf16_divider.w_any_nan
+math_bf16_divider.w_b_eff_zero
+math_bf16_divider.w_b_is_inf
+math_bf16_divider.w_b_is_nan
+@22
+math_bf16_divider.w_b_is_subnormal[7:0]
+math_bf16_divider.w_b_is_zero[5:0]
+@28
+math_bf16_divider.w_div_by_zero
+math_bf16_divider.w_dividend
+math_bf16_divider.w_dividend_ext
+math_bf16_divider.w_divisor
+@22
+math_bf16_divider.w_exp_a
+@28
+math_bf16_divider.w_exp_adjusted
+@22
+math_bf16_divider.w_exp_b[2:0]
+@28
+math_bf16_divider.w_exp_diff
+math_bf16_divider.w_exp_final
+math_bf16_divider.w_exp_left_shift
+math_bf16_divider.w_exp_no_shift
+math_bf16_divider.w_exp_overflow
+math_bf16_divider.w_exp_right_shift
+math_bf16_divider.w_exp_selected
+math_bf16_divider.w_exp_underflow
+math_bf16_divider.w_finite_div_inf
+math_bf16_divider.w_guard
+math_bf16_divider.w_inf_div_inf
+math_bf16_divider.w_invalid_op
+math_bf16_divider.w_lsb
+math_bf16_divider.w_mant_a
+@22
+math_bf16_divider.w_mant_b[3:0]
+@28
+math_bf16_divider.w_mant_final
+math_bf16_divider.w_mant_overflow
+math_bf16_divider.w_mant_raw
+math_bf16_divider.w_mant_rounded
+math_bf16_divider.w_needs_left_shift
+math_bf16_divider.w_needs_right_shift
+math_bf16_divider.w_quotient
+math_bf16_divider.w_quotient_ge_1
+math_bf16_divider.w_quotient_ge_2
+math_bf16_divider.w_quotient_norm
+math_bf16_divider.w_quotient_raw
+math_bf16_divider.w_remainder
+math_bf16_divider.w_result_zero
+math_bf16_divider.w_round_bit
+math_bf16_divider.w_round_up
+math_bf16_divider.w_sign_a
+@22
+math_bf16_divider.w_sign_b[1:0]
+@28
+math_bf16_divider.w_sign_result
+math_bf16_divider.w_sticky_bit
+math_bf16_divider.w_zero_div_zero

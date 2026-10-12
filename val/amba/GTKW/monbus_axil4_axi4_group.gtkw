@@ -1,0 +1,119 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monbus_axil4_axi4_group_burst_sdw64/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monbus_axil4_axi4_group.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_axil4_axi4_group.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+monbus_axil4_axi4_group.MAX_BURST_BEATS
+monbus_axil4_axi4_group.axi_aclk
+monbus_axil4_axi4_group.axi_aresetn
+monbus_axil4_axi4_group.axi_wr_fub_awburst
+monbus_axil4_axi4_group.m_axi_awburst
+@200
+-interface
+@28
+monbus_axil4_axi4_group.ADDR_WIDTH
+monbus_axil4_axi4_group.AXI_ID_WIDTH
+monbus_axil4_axi4_group.AXI_USER_WIDTH
+monbus_axil4_axi4_group.FIFO_DEPTH_ERR
+monbus_axil4_axi4_group.FIFO_DEPTH_WRITE
+monbus_axil4_axi4_group.FLUSH_TIMEOUT_CYCLES
+monbus_axil4_axi4_group.NUM_PROTOCOLS
+monbus_axil4_axi4_group.SKID_DEPTH_AR
+monbus_axil4_axi4_group.SKID_DEPTH_AW
+monbus_axil4_axi4_group.SKID_DEPTH_B
+monbus_axil4_axi4_group.SKID_DEPTH_R
+monbus_axil4_axi4_group.SKID_DEPTH_W
+monbus_axil4_axi4_group.S_AXIL_DATA_WIDTH
+monbus_axil4_axi4_group.USE_COMPRESSION
+monbus_axil4_axi4_group.cam_clear
+monbus_axil4_axi4_group.cfg_axi_err_select
+monbus_axil4_axi4_group.cfg_axi_error_mask
+monbus_axil4_axi4_group.cfg_axi_pkt_mask
+monbus_axil4_axi4_group.cfg_axi_timeout_mask
+monbus_axil4_axi4_group.cfg_base_addr
+monbus_axil4_axi4_group.cfg_compress_en
+monbus_axil4_axi4_group.cfg_flush_watermark
+monbus_axil4_axi4_group.cfg_limit_addr
+monbus_axil4_axi4_group.irq_out
+monbus_axil4_axi4_group.m_axi_awaddr
+monbus_axil4_axi4_group.m_axi_awcache
+monbus_axil4_axi4_group.m_axi_awid
+monbus_axil4_axi4_group.m_axi_awlen
+monbus_axil4_axi4_group.m_axi_awlock
+monbus_axil4_axi4_group.m_axi_awprot
+monbus_axil4_axi4_group.m_axi_awqos
+monbus_axil4_axi4_group.m_axi_awready
+monbus_axil4_axi4_group.m_axi_awregion
+monbus_axil4_axi4_group.m_axi_awsize
+monbus_axil4_axi4_group.m_axi_awuser
+monbus_axil4_axi4_group.m_axi_awvalid
+monbus_axil4_axi4_group.m_axi_bid
+monbus_axil4_axi4_group.m_axi_bready
+monbus_axil4_axi4_group.m_axi_bresp
+monbus_axil4_axi4_group.m_axi_buser
+monbus_axil4_axi4_group.m_axi_bvalid
+monbus_axil4_axi4_group.m_axi_wdata
+monbus_axil4_axi4_group.m_axi_wlast
+monbus_axil4_axi4_group.m_axi_wready
+monbus_axil4_axi4_group.m_axi_wstrb
+monbus_axil4_axi4_group.m_axi_wuser
+monbus_axil4_axi4_group.m_axi_wvalid
+monbus_axil4_axi4_group.mon_time_out
+monbus_axil4_axi4_group.monbus_packet
+monbus_axil4_axi4_group.monbus_ready
+monbus_axil4_axi4_group.monbus_timestamp
+monbus_axil4_axi4_group.monbus_valid
+monbus_axil4_axi4_group.s_axil_araddr
+monbus_axil4_axi4_group.s_axil_arprot
+monbus_axil4_axi4_group.s_axil_arready
+monbus_axil4_axi4_group.s_axil_arvalid
+monbus_axil4_axi4_group.s_axil_rdata
+monbus_axil4_axi4_group.s_axil_rready
+monbus_axil4_axi4_group.s_axil_rresp
+monbus_axil4_axi4_group.s_axil_rvalid
+@200
+-u_axi4_wr
+@28
+monbus_axil4_axi4_group.u_axi4_wr.AXI_ADDR_WIDTH
+monbus_axil4_axi4_group.u_axi4_wr.AXI_DATA_WIDTH
+monbus_axil4_axi4_group.u_axi4_wr.AXI_ID_WIDTH
+monbus_axil4_axi4_group.u_axi4_wr.AXI_USER_WIDTH
+monbus_axil4_axi4_group.u_axi4_wr.AXI_WSTRB_WIDTH
+monbus_axil4_axi4_group.u_axi4_wr.SKID_DEPTH_AW
+monbus_axil4_axi4_group.u_axi4_wr.SKID_DEPTH_B
+monbus_axil4_axi4_group.u_axi4_wr.SKID_DEPTH_W
+@200
+-u_axil_rd
+@28
+monbus_axil4_axi4_group.u_axil_rd.ARSize
+monbus_axil4_axi4_group.u_axil_rd.AW
+monbus_axil4_axi4_group.u_axil_rd.AXIL_ADDR_WIDTH
+monbus_axil4_axi4_group.u_axil_rd.AXIL_DATA_WIDTH
+monbus_axil4_axi4_group.u_axil_rd.DW
+monbus_axil4_axi4_group.u_axil_rd.RSize
+monbus_axil4_axi4_group.u_axil_rd.SKID_DEPTH_AR
+monbus_axil4_axi4_group.u_axil_rd.SKID_DEPTH_R
+@200
+-u_core
+@28
+monbus_axil4_axi4_group.u_core.ADDR_WIDTH
+monbus_axil4_axi4_group.u_core.AXI_ID_WIDTH_M
+monbus_axil4_axi4_group.u_core.AXI_ID_WIDTH_S
+monbus_axil4_axi4_group.u_core.FIFO_DEPTH_ERR
+monbus_axil4_axi4_group.u_core.FIFO_DEPTH_WRITE
+monbus_axil4_axi4_group.u_core.FLUSH_TIMEOUT_CYCLES
+monbus_axil4_axi4_group.u_core.MAX_BURST_BEATS
+monbus_axil4_axi4_group.u_core.NUM_PROTOCOLS

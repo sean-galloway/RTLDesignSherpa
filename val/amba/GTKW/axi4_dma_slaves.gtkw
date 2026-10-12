@@ -1,0 +1,109 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi4_dma_slaves_read_smoke_gate_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_dma_slaves.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_dma_slaves.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_dma_slaves.aclk
+axi4_dma_slaves.aresetn
+axi4_dma_slaves.read_lfsr_reset
+axi4_dma_slaves.s_axi_arburst
+axi4_dma_slaves.s_axi_awburst
+axi4_dma_slaves.write_crc_reset
+@200
+-interface
+@28
+axi4_dma_slaves.AXI_ADDR_WIDTH
+axi4_dma_slaves.AXI_DATA_WIDTH
+axi4_dma_slaves.AXI_ID_WIDTH
+axi4_dma_slaves.AXI_USER_WIDTH
+axi4_dma_slaves.CIW
+axi4_dma_slaves.CRC_DATA_WIDTH
+axi4_dma_slaves.CRC_INIT
+axi4_dma_slaves.CRC_POLY
+axi4_dma_slaves.CRC_REFIN
+axi4_dma_slaves.CRC_REFOUT
+axi4_dma_slaves.CRC_SLICE_OFFSET
+axi4_dma_slaves.CRC_WIDTH
+axi4_dma_slaves.CRC_XOROUT
+axi4_dma_slaves.LFSR_SEED
+axi4_dma_slaves.LFSR_TAPS
+axi4_dma_slaves.LFSR_WIDTH
+axi4_dma_slaves.NUM_CHANNELS
+axi4_dma_slaves.REPLICATION_FACTOR
+axi4_dma_slaves.SKID_DEPTH_AR
+axi4_dma_slaves.SKID_DEPTH_AW
+axi4_dma_slaves.SKID_DEPTH_B
+axi4_dma_slaves.SKID_DEPTH_R
+axi4_dma_slaves.SKID_DEPTH_W
+axi4_dma_slaves.read_beat_count[0]
+axi4_dma_slaves.read_beat_count_total
+axi4_dma_slaves.read_crc_valid
+axi4_dma_slaves.read_crc_value[0]
+axi4_dma_slaves.s_axi_araddr
+axi4_dma_slaves.s_axi_arcache
+axi4_dma_slaves.s_axi_arid
+axi4_dma_slaves.s_axi_arlen
+axi4_dma_slaves.s_axi_arlock
+axi4_dma_slaves.s_axi_arprot
+axi4_dma_slaves.s_axi_arqos
+axi4_dma_slaves.s_axi_arready
+axi4_dma_slaves.s_axi_arregion
+axi4_dma_slaves.s_axi_arsize
+axi4_dma_slaves.s_axi_aruser
+axi4_dma_slaves.s_axi_arvalid
+axi4_dma_slaves.s_axi_awaddr
+axi4_dma_slaves.s_axi_awcache
+axi4_dma_slaves.s_axi_awid
+axi4_dma_slaves.s_axi_awlen
+axi4_dma_slaves.s_axi_awlock
+axi4_dma_slaves.s_axi_awprot
+axi4_dma_slaves.s_axi_awqos
+axi4_dma_slaves.s_axi_awregion
+axi4_dma_slaves.s_axi_awsize
+axi4_dma_slaves.s_axi_awuser
+axi4_dma_slaves.s_axi_rdata
+axi4_dma_slaves.s_axi_rid
+axi4_dma_slaves.s_axi_rlast
+axi4_dma_slaves.s_axi_rready
+axi4_dma_slaves.s_axi_rresp
+axi4_dma_slaves.s_axi_ruser
+axi4_dma_slaves.s_axi_rvalid
+axi4_dma_slaves.write_beat_count[0]
+axi4_dma_slaves.write_beat_count_total
+axi4_dma_slaves.write_crc_valid
+axi4_dma_slaves.write_crc_value[0]
+@200
+-u_rd_injector
+@28
+axi4_dma_slaves.u_rd_injector.AXI_ADDR_WIDTH
+axi4_dma_slaves.u_rd_injector.AXI_DATA_WIDTH
+axi4_dma_slaves.u_rd_injector.AXI_ID_WIDTH
+axi4_dma_slaves.u_rd_injector.AXI_USER_WIDTH
+axi4_dma_slaves.u_rd_injector.LFSR_WIDTH
+axi4_dma_slaves.u_rd_injector.NUM_CHANNELS
+axi4_dma_slaves.u_rd_injector.SKID_DEPTH_AR
+axi4_dma_slaves.u_rd_injector.SKID_DEPTH_R
+@200
+-u_wr_crc_check
+@28
+axi4_dma_slaves.u_wr_crc_check.AXI_ADDR_WIDTH
+axi4_dma_slaves.u_wr_crc_check.AXI_DATA_WIDTH
+axi4_dma_slaves.u_wr_crc_check.AXI_ID_WIDTH
+axi4_dma_slaves.u_wr_crc_check.AXI_USER_WIDTH
+axi4_dma_slaves.u_wr_crc_check.NUM_CHANNELS
+axi4_dma_slaves.u_wr_crc_check.SKID_DEPTH_AW
+axi4_dma_slaves.u_wr_crc_check.SKID_DEPTH_B
+axi4_dma_slaves.u_wr_crc_check.SKID_DEPTH_W

@@ -1,0 +1,57 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi5_atomic_rr_tracker_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi5_atomic_rr_tracker.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi5_atomic_rr_tracker.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi5_atomic_rr_tracker.aclk
+axi5_atomic_rr_tracker.aresetn
+@200
+-interface
+@28
+axi5_atomic_rr_tracker.AXI_ID_WIDTH
+axi5_atomic_rr_tracker.DATA_WIDTH
+axi5_atomic_rr_tracker.DEPTH
+axi5_atomic_rr_tracker.DW
+axi5_atomic_rr_tracker.IW
+axi5_atomic_rr_tracker.SLOT_W
+axi5_atomic_rr_tracker.alloc
+axi5_atomic_rr_tracker.alloc_data
+@22
+axi5_atomic_rr_tracker.alloc_id
+axi5_atomic_rr_tracker.full[1:0]
+axi5_atomic_rr_tracker.hit[3:0]
+axi5_atomic_rr_tracker.hit_data[4:0]
+axi5_atomic_rr_tracker.lookup_id[2:0]
+@28
+axi5_atomic_rr_tracker.r_data[0]
+axi5_atomic_rr_tracker.r_data[1]
+axi5_atomic_rr_tracker.r_data[2]
+axi5_atomic_rr_tracker.r_data[3]
+@22
+axi5_atomic_rr_tracker.r_id[0][7:0]
+axi5_atomic_rr_tracker.r_id[1][8:0]
+@28
+axi5_atomic_rr_tracker.r_id[2]
+axi5_atomic_rr_tracker.r_id[3]
+@22
+axi5_atomic_rr_tracker.r_valid[6:0]
+axi5_atomic_rr_tracker.release_beat[5:0]
+@28
+axi5_atomic_rr_tracker.w_do_alloc
+axi5_atomic_rr_tracker.w_do_release
+axi5_atomic_rr_tracker.w_free_loc
+axi5_atomic_rr_tracker.w_hit_loc
+axi5_atomic_rr_tracker.w_match

@@ -1,0 +1,111 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monbus_compressor_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monbus_compressor.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_compressor.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+monbus_compressor.clk[5:0]
+monbus_compressor.rst_n[6:0]
+@200
+-interface
+@28
+monbus_compressor.CAM_DEPTH
+monbus_compressor.DELTA_TS_A_BITS
+monbus_compressor.DELTA_TS_B_BITS
+monbus_compressor.DELTA_TS_C_BITS
+monbus_compressor.EVENT_DATA_A_BITS
+monbus_compressor.EVENT_DATA_B_BITS
+monbus_compressor.EVENT_DATA_C_DELTA
+@22
+monbus_compressor.HALF_BEAT_EN[4:0]
+@28
+monbus_compressor.HALF_DATA_BITS
+monbus_compressor.HALF_DELTA_BITS
+monbus_compressor.HSUB_A
+monbus_compressor.HSUB_C
+monbus_compressor.KEY_WIDTH
+monbus_compressor.SKID_DEPTH
+monbus_compressor.TAG_FORMAT_A
+monbus_compressor.TAG_FORMAT_B
+monbus_compressor.TAG_FORMAT_C
+monbus_compressor.TAG_RAW
+monbus_compressor.TMPL_IDX_BITS
+monbus_compressor.TMPL_IDX_SHIFT
+monbus_compressor.TS_BITS
+monbus_compressor.TS_STORE_BITS
+monbus_compressor.cam_en
+@22
+monbus_compressor.clear[7:0]
+@28
+monbus_compressor.enc_commit
+monbus_compressor.in_agent_id
+monbus_compressor.in_channel_id
+monbus_compressor.in_event_code
+monbus_compressor.in_event_data
+monbus_compressor.in_key
+monbus_compressor.in_packet
+monbus_compressor.in_packet_type
+monbus_compressor.in_protocol
+monbus_compressor.in_ready
+monbus_compressor.in_source_ts
+monbus_compressor.in_src_ts60
+monbus_compressor.in_src_ts_lo
+monbus_compressor.in_unit_id
+@22
+monbus_compressor.in_valid[8:0]
+@28
+monbus_compressor.out_half_slot
+monbus_compressor.out_half_valid
+monbus_compressor.out_ready
+monbus_compressor.out_slot
+monbus_compressor.out_valid
+monbus_compressor.p_delta_ts
+monbus_compressor.p_event_data
+monbus_compressor.p_hit
+monbus_compressor.p_idx
+monbus_compressor.p_old_data
+monbus_compressor.p_packet
+monbus_compressor.p_src_ts60
+monbus_compressor.p_valid
+monbus_compressor.stat_cam_miss
+monbus_compressor.stat_delta_ts_ovf
+monbus_compressor.stat_ed_delta_ovf
+monbus_compressor.stat_event_data_ovf
+monbus_compressor.stat_tier0
+monbus_compressor.stat_tier1_a
+monbus_compressor.stat_tier1_b
+monbus_compressor.stat_tier1_c
+@200
+-u_cam_pipe
+@28
+monbus_compressor.u_cam_pipe.CNT_WIDTH
+monbus_compressor.u_cam_pipe.DATA_WIDTH
+monbus_compressor.u_cam_pipe.DEPTH
+monbus_compressor.u_cam_pipe.IDX_WIDTH
+monbus_compressor.u_cam_pipe.KEY_WIDTH
+monbus_compressor.u_cam_pipe.TS_WIDTH
+monbus_compressor.u_cam_pipe.clk
+monbus_compressor.u_cam_pipe.rst_n
+@200
+-u_res_skid
+@28
+monbus_compressor.u_res_skid.DATA_WIDTH
+monbus_compressor.u_res_skid.DEPTH
+monbus_compressor.u_res_skid.DW
+monbus_compressor.u_res_skid.axi_aclk
+monbus_compressor.u_res_skid.axi_aresetn
+monbus_compressor.u_res_skid.wr_data
+monbus_compressor.u_res_skid.wr_ready
+monbus_compressor.u_res_skid.wr_valid

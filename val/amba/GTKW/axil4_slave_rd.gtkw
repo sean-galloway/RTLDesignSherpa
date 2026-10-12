@@ -1,0 +1,119 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axil4_slave_rd_a32_d032_ard2_rd4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil4_slave_rd.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil4_slave_rd.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil4_slave_rd.aclk
+axil4_slave_rd.aresetn
+@200
+-interface
+@28
+axil4_slave_rd.AXIL_ADDR_WIDTH[31:0]
+axil4_slave_rd.AXIL_DATA_WIDTH[31:0]
+axil4_slave_rd.SKID_DEPTH_AR[31:0]
+axil4_slave_rd.SKID_DEPTH_R[31:0]
+axil4_slave_rd.AW[31:0]
+axil4_slave_rd.DW[31:0]
+axil4_slave_rd.ARSize[31:0]
+axil4_slave_rd.RSize[31:0]
+@22
+axil4_slave_rd.s_axil_araddr[31:0]
+axil4_slave_rd.s_axil_arprot[2:0]
+@28
+axil4_slave_rd.s_axil_arvalid
+axil4_slave_rd.s_axil_arready
+@22
+axil4_slave_rd.s_axil_rdata[31:0]
+axil4_slave_rd.s_axil_rresp[1:0]
+@28
+axil4_slave_rd.s_axil_rvalid
+axil4_slave_rd.s_axil_rready
+@22
+axil4_slave_rd.fub_araddr[31:0]
+axil4_slave_rd.fub_arprot[2:0]
+@28
+axil4_slave_rd.fub_arvalid
+axil4_slave_rd.fub_arready
+@22
+axil4_slave_rd.fub_rdata[31:0]
+axil4_slave_rd.fub_rresp[1:0]
+@28
+axil4_slave_rd.fub_rvalid
+axil4_slave_rd.fub_rready
+axil4_slave_rd.busy
+@22
+axil4_slave_rd.int_ar_count[3:0]
+axil4_slave_rd.int_ar_pkt[34:0]
+@28
+axil4_slave_rd.int_skid_arvalid
+axil4_slave_rd.int_skid_arready
+@22
+axil4_slave_rd.int_r_count[3:0]
+@28
+axil4_slave_rd.int_skid_rvalid
+axil4_slave_rd.int_skid_rready
+@200
+-i_ar_channel
+@28
+axil4_slave_rd.i_ar_channel.DATA_WIDTH[31:0]
+axil4_slave_rd.i_ar_channel.DEPTH[31:0]
+axil4_slave_rd.i_ar_channel.DW[31:0]
+axil4_slave_rd.i_ar_channel.axi_aclk
+axil4_slave_rd.i_ar_channel.axi_aresetn
+axil4_slave_rd.i_ar_channel.wr_valid
+axil4_slave_rd.i_ar_channel.wr_ready
+@22
+axil4_slave_rd.i_ar_channel.wr_data[34:0]
+axil4_slave_rd.i_ar_channel.count[3:0]
+@28
+axil4_slave_rd.i_ar_channel.rd_valid
+axil4_slave_rd.i_ar_channel.rd_ready
+@22
+axil4_slave_rd.i_ar_channel.rd_count[3:0]
+axil4_slave_rd.i_ar_channel.rd_data[34:0]
+axil4_slave_rd.i_ar_channel.r_data[0][34:0]
+axil4_slave_rd.i_ar_channel.r_data[1][34:0]
+axil4_slave_rd.i_ar_channel.r_data_count[3:0]
+@28
+axil4_slave_rd.i_ar_channel.w_wr_xfer
+axil4_slave_rd.i_ar_channel.w_rd_xfer
+@200
+-i_r_channel
+@28
+axil4_slave_rd.i_r_channel.DATA_WIDTH[31:0]
+axil4_slave_rd.i_r_channel.DEPTH[31:0]
+axil4_slave_rd.i_r_channel.DW[31:0]
+axil4_slave_rd.i_r_channel.axi_aclk
+axil4_slave_rd.i_r_channel.axi_aresetn
+axil4_slave_rd.i_r_channel.wr_valid
+axil4_slave_rd.i_r_channel.wr_ready
+@22
+axil4_slave_rd.i_r_channel.wr_data[33:0]
+axil4_slave_rd.i_r_channel.count[3:0]
+@28
+axil4_slave_rd.i_r_channel.rd_valid
+axil4_slave_rd.i_r_channel.rd_ready
+@22
+axil4_slave_rd.i_r_channel.rd_count[3:0]
+axil4_slave_rd.i_r_channel.rd_data[33:0]
+axil4_slave_rd.i_r_channel.r_data[0][33:0]
+axil4_slave_rd.i_r_channel.r_data[1][33:0]
+axil4_slave_rd.i_r_channel.r_data[2][33:0]
+axil4_slave_rd.i_r_channel.r_data[3][33:0]
+axil4_slave_rd.i_r_channel.r_data_count[3:0]
+@28
+axil4_slave_rd.i_r_channel.w_wr_xfer
+axil4_slave_rd.i_r_channel.w_rd_xfer

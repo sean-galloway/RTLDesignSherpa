@@ -1,0 +1,103 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_wb4_master_aw032_dw032_cd4_rd4_pipe_nohint_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/wb4_master.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wb4_master.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+wb4_master.USE_BURST_HINTS
+wb4_master.aresetn
+wb4_master.clk
+@200
+-interface
+@28
+wb4_master.ADDR_WIDTH
+wb4_master.AW
+wb4_master.BTW
+wb4_master.CLASSIC
+wb4_master.CMD_DEPTH
+wb4_master.CPW
+wb4_master.CTW
+wb4_master.CW
+wb4_master.DATA_WIDTH
+wb4_master.DW
+wb4_master.RPW
+wb4_master.RSP_DEPTH
+wb4_master.SEL_WIDTH
+wb4_master.STW
+wb4_master.SW
+wb4_master.cmd_adr
+wb4_master.cmd_bte
+wb4_master.cmd_cti
+wb4_master.cmd_dat
+wb4_master.cmd_ready
+wb4_master.cmd_sel
+wb4_master.cmd_valid
+wb4_master.cmd_we
+wb4_master.m_wb_ACK
+wb4_master.m_wb_ADR
+wb4_master.m_wb_BTE
+wb4_master.m_wb_CTI
+wb4_master.m_wb_CYC
+wb4_master.m_wb_DAT_R
+wb4_master.m_wb_DAT_W
+wb4_master.m_wb_ERR
+wb4_master.m_wb_RTY
+wb4_master.m_wb_SEL
+wb4_master.m_wb_STALL
+wb4_master.m_wb_STB
+wb4_master.m_wb_WE
+wb4_master.r_cmd_data_out
+wb4_master.r_cmd_valid
+wb4_master.r_inflight
+wb4_master.r_reserved
+wb4_master.rsp_dat
+wb4_master.rsp_ready
+wb4_master.rsp_status
+wb4_master.rsp_valid
+wb4_master.w_cmd_data_in
+wb4_master.w_cmd_pop
+wb4_master.w_issue
+wb4_master.w_rsp_data_in
+wb4_master.w_rsp_pop
+wb4_master.w_rsp_push
+wb4_master.w_rsp_space
+wb4_master.w_status
+wb4_master.w_term
+@200
+-g_no_hints
+@28
+wb4_master.g_no_hints.w_unused_hints
+@200
+-u_cmd_skid
+@28
+wb4_master.u_cmd_skid.DATA_WIDTH
+wb4_master.u_cmd_skid.DEPTH
+wb4_master.u_cmd_skid.DW
+wb4_master.u_cmd_skid.axi_aclk
+wb4_master.u_cmd_skid.axi_aresetn
+wb4_master.u_cmd_skid.wr_data
+wb4_master.u_cmd_skid.wr_ready
+wb4_master.u_cmd_skid.wr_valid
+@200
+-u_rsp_skid
+@28
+wb4_master.u_rsp_skid.DATA_WIDTH
+wb4_master.u_rsp_skid.DEPTH
+wb4_master.u_rsp_skid.DW
+wb4_master.u_rsp_skid.axi_aclk
+wb4_master.u_rsp_skid.axi_aresetn
+wb4_master.u_rsp_skid.wr_data
+wb4_master.u_rsp_skid.wr_ready
+wb4_master.u_rsp_skid.wr_valid

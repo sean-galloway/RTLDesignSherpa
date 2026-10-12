@@ -1,0 +1,62 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_adder_brent_kung_008_N8_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_adder_brent_kung.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_adder_brent_kung_008.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_adder_brent_kung_008.N
+math_adder_brent_kung_008.i_a
+math_adder_brent_kung_008.i_b
+math_adder_brent_kung_008.i_c
+math_adder_brent_kung_008.ow_carry
+math_adder_brent_kung_008.ow_g
+math_adder_brent_kung_008.ow_gg
+math_adder_brent_kung_008.ow_p
+math_adder_brent_kung_008.ow_sum
+@200
+-BitwisePGLogic_inst
+@28
+math_adder_brent_kung_008.BitwisePGLogic_inst.N
+@22
+math_adder_brent_kung_008.BitwisePGLogic_inst.gen_loop[0].PG_Bit.i_a[3:0]
+math_adder_brent_kung_008.BitwisePGLogic_inst.gen_loop[0].PG_Bit.i_b[4:0]
+@28
+math_adder_brent_kung_008.BitwisePGLogic_inst.i_a
+@22
+math_adder_brent_kung_008.BitwisePGLogic_inst.i_b
+@28
+math_adder_brent_kung_008.BitwisePGLogic_inst.i_c
+@22
+math_adder_brent_kung_008.BitwisePGLogic_inst.ow_g[1:0]
+math_adder_brent_kung_008.BitwisePGLogic_inst.ow_p[2:0]
+@200
+-GroupPGLogic_inst
+@28
+math_adder_brent_kung_008.GroupPGLogic_inst.N
+math_adder_brent_kung_008.GroupPGLogic_inst.i_g
+math_adder_brent_kung_008.GroupPGLogic_inst.i_p
+math_adder_brent_kung_008.GroupPGLogic_inst.ow_gg
+math_adder_brent_kung_008.GroupPGLogic_inst.ow_pp
+math_adder_brent_kung_008.GroupPGLogic_inst.w_gg_1
+math_adder_brent_kung_008.GroupPGLogic_inst.w_gg_2
+math_adder_brent_kung_008.GroupPGLogic_inst.w_gg_3
+@200
+-SumLogic_inst
+@28
+math_adder_brent_kung_008.SumLogic_inst.N
+math_adder_brent_kung_008.SumLogic_inst.i_gg
+math_adder_brent_kung_008.SumLogic_inst.i_p
+math_adder_brent_kung_008.SumLogic_inst.ow_carry
+math_adder_brent_kung_008.SumLogic_inst.ow_sum

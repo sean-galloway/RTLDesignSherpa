@@ -1,0 +1,97 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_wb4_slave_cg_aw032_dw032_mo16_pipe_cg1_ic4_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/wb4_slave_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wb4_slave_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+wb4_slave_cg.USE_BURST_HINTS
+wb4_slave_cg.aresetn
+wb4_slave_cg.clk
+wb4_slave_cg.gated_clk
+@200
+-interface
+@28
+wb4_slave_cg.ADDR_WIDTH
+wb4_slave_cg.AW
+wb4_slave_cg.BTW
+wb4_slave_cg.CG_IDLE_COUNT_WIDTH
+wb4_slave_cg.CLASSIC
+wb4_slave_cg.CMD_DEPTH
+wb4_slave_cg.CTW
+wb4_slave_cg.DATA_WIDTH
+wb4_slave_cg.DW
+wb4_slave_cg.ICW
+wb4_slave_cg.MAX_OUTSTANDING
+wb4_slave_cg.RSP_DEPTH
+wb4_slave_cg.SEL_WIDTH
+wb4_slave_cg.STW
+wb4_slave_cg.SW
+wb4_slave_cg.cfg_cg_enable
+wb4_slave_cg.cfg_cg_idle_count
+wb4_slave_cg.cg_gating
+wb4_slave_cg.cg_idle
+wb4_slave_cg.cmd_adr
+@22
+wb4_slave_cg.cmd_bte[8:0]
+wb4_slave_cg.cmd_cti[7:0]
+@28
+wb4_slave_cg.cmd_dat
+wb4_slave_cg.cmd_ready
+wb4_slave_cg.cmd_sel
+wb4_slave_cg.cmd_valid
+wb4_slave_cg.cmd_we
+wb4_slave_cg.rsp_dat
+wb4_slave_cg.rsp_ready
+wb4_slave_cg.rsp_status
+wb4_slave_cg.rsp_valid
+wb4_slave_cg.s_wb_ACK
+wb4_slave_cg.s_wb_ADR
+wb4_slave_cg.s_wb_BTE
+wb4_slave_cg.s_wb_CTI
+wb4_slave_cg.s_wb_CYC
+wb4_slave_cg.s_wb_DAT_R
+wb4_slave_cg.s_wb_DAT_W
+wb4_slave_cg.s_wb_ERR
+wb4_slave_cg.s_wb_RTY
+wb4_slave_cg.s_wb_SEL
+wb4_slave_cg.s_wb_STALL
+wb4_slave_cg.s_wb_STB
+wb4_slave_cg.s_wb_WE
+wb4_slave_cg.w_cmd_valid
+wb4_slave_cg.w_rsp_ready
+wb4_slave_cg.w_stall
+wb4_slave_cg.w_wakeup
+@200
+-u_clock_gate_ctrl
+@28
+wb4_slave_cg.u_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+wb4_slave_cg.u_clock_gate_ctrl.ICW
+wb4_slave_cg.u_clock_gate_ctrl.aresetn
+wb4_slave_cg.u_clock_gate_ctrl.axi_valid
+wb4_slave_cg.u_clock_gate_ctrl.cfg_cg_enable
+wb4_slave_cg.u_clock_gate_ctrl.cfg_cg_idle_count
+wb4_slave_cg.u_clock_gate_ctrl.clk_in
+wb4_slave_cg.u_clock_gate_ctrl.user_valid
+@200
+-u_wb4_slave
+@28
+wb4_slave_cg.u_wb4_slave.ADDR_WIDTH
+wb4_slave_cg.u_wb4_slave.CLASSIC
+wb4_slave_cg.u_wb4_slave.CMD_DEPTH
+wb4_slave_cg.u_wb4_slave.DATA_WIDTH
+wb4_slave_cg.u_wb4_slave.MAX_OUTSTANDING
+wb4_slave_cg.u_wb4_slave.RSP_DEPTH
+wb4_slave_cg.u_wb4_slave.SEL_WIDTH
+wb4_slave_cg.u_wb4_slave.USE_BURST_HINTS

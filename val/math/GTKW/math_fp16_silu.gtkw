@@ -1,0 +1,35 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp16_tanh_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp16_silu.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp16_tanh.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_fp16_tanh.NEG_ONE
+math_fp16_tanh.POS_ONE
+math_fp16_tanh.ZERO
+math_fp16_tanh.i_a
+math_fp16_tanh.ow_result
+math_fp16_tanh.r_result
+math_fp16_tanh.w_exp
+math_fp16_tanh.w_is_inf
+math_fp16_tanh.w_is_nan
+math_fp16_tanh.w_is_subnormal
+math_fp16_tanh.w_is_zero
+math_fp16_tanh.w_mant
+@22
+math_fp16_tanh.w_near_zero
+@28
+math_fp16_tanh.w_saturated
+math_fp16_tanh.w_sign

@@ -1,0 +1,32 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/cdc/local_sim_build/test_sync_pulse_s3_sp10_dp10_func_FUNC/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/cdc/GTKW/johnson2bin.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] sync_pulse.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+sync_pulse.i_dst_clk
+sync_pulse.i_dst_rst_n
+sync_pulse.i_src_clk
+sync_pulse.i_src_rst_n
+@200
+-interface
+@28
+sync_pulse.SYNC_STAGES
+sync_pulse.i_pulse
+sync_pulse.o_pulse
+sync_pulse.r_src_toggle
+sync_pulse.r_sync
+@22
+sync_pulse.r_sync_prev

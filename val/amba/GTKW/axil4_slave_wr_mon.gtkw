@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axil4_slave_wr_mon_nb1_wq0_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil4_slave_wr_mon.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil4_slave_wr_mon.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil4_slave_wr_mon.ACLK_MHZ
+axil4_slave_wr_mon.aclk
+axil4_slave_wr_mon.aresetn
+axil4_slave_wr_mon.perf_burst_count
+@200
+-interface
+@28
+axil4_slave_wr_mon.ACTIVE_TRANS_THRESHOLD
+axil4_slave_wr_mon.ADDR_FILTER_ENABLE
+axil4_slave_wr_mon.ADD_PIPELINE_STAGE
+axil4_slave_wr_mon.AGENT_ID
+axil4_slave_wr_mon.AW
+axil4_slave_wr_mon.AXIL_ADDR_WIDTH
+axil4_slave_wr_mon.AXIL_DATA_WIDTH
+axil4_slave_wr_mon.CFI_MAX_FREQ_MHZ
+axil4_slave_wr_mon.CFI_MIN_FREQ_MHZ
+axil4_slave_wr_mon.DW
+axil4_slave_wr_mon.ENABLE_COMPL_LOGIC
+axil4_slave_wr_mon.ENABLE_DEBUG_LOGIC
+axil4_slave_wr_mon.ENABLE_ERROR_LOGIC
+axil4_slave_wr_mon.ENABLE_FILTERING
+axil4_slave_wr_mon.ENABLE_PERF_LOGIC
+axil4_slave_wr_mon.ENABLE_THRESHOLD_LOGIC
+axil4_slave_wr_mon.ENABLE_TIMEOUT_LOGIC
+axil4_slave_wr_mon.ID_FILTER_ENABLE
+axil4_slave_wr_mon.ID_MATCH_BASE
+axil4_slave_wr_mon.ID_MATCH_COUNT
+axil4_slave_wr_mon.MAX_TRANSACTIONS
+axil4_slave_wr_mon.NUM_BANKS
+axil4_slave_wr_mon.N_ADDR_RANGES
+axil4_slave_wr_mon.SKID_DEPTH_AW
+axil4_slave_wr_mon.SKID_DEPTH_B
+axil4_slave_wr_mon.SKID_DEPTH_W
+axil4_slave_wr_mon.UNIT_ID
+axil4_slave_wr_mon.USE_MONITOR
+axil4_slave_wr_mon.USE_WDATA_ORDER_Q
+axil4_slave_wr_mon.cam_clear
+axil4_slave_wr_mon.cfg_compl_enable
+axil4_slave_wr_mon.cfg_debug_enable
+axil4_slave_wr_mon.cfg_error_enable
+axil4_slave_wr_mon.cfg_monitor_enable
+axil4_slave_wr_mon.cfg_perf_enable
+axil4_slave_wr_mon.cfg_threshold_enable
+axil4_slave_wr_mon.cfg_timeout_cycles
+axil4_slave_wr_mon.cfg_timeout_enable
+axil4_slave_wr_mon.fub_axil_awaddr
+axil4_slave_wr_mon.fub_axil_awprot
+axil4_slave_wr_mon.fub_axil_awready
+axil4_slave_wr_mon.fub_axil_awvalid
+axil4_slave_wr_mon.fub_axil_bready
+axil4_slave_wr_mon.fub_axil_bresp
+axil4_slave_wr_mon.fub_axil_bvalid
+axil4_slave_wr_mon.fub_axil_wdata
+axil4_slave_wr_mon.fub_axil_wready
+axil4_slave_wr_mon.fub_axil_wstrb
+axil4_slave_wr_mon.fub_axil_wvalid
+axil4_slave_wr_mon.s_axil_awaddr
+axil4_slave_wr_mon.s_axil_awprot
+axil4_slave_wr_mon.s_axil_awready
+axil4_slave_wr_mon.s_axil_awvalid
+axil4_slave_wr_mon.s_axil_bready
+axil4_slave_wr_mon.s_axil_bresp
+axil4_slave_wr_mon.s_axil_bvalid
+axil4_slave_wr_mon.s_axil_wdata
+axil4_slave_wr_mon.s_axil_wready
+axil4_slave_wr_mon.s_axil_wstrb
+axil4_slave_wr_mon.s_axil_wvalid
+@200
+-axil4_slave_wr_inst
+@28
+axil4_slave_wr_mon.axil4_slave_wr_inst.AW
+axil4_slave_wr_mon.axil4_slave_wr_inst.AWSize
+axil4_slave_wr_mon.axil4_slave_wr_inst.AXIL_ADDR_WIDTH
+axil4_slave_wr_mon.axil4_slave_wr_inst.AXIL_DATA_WIDTH
+axil4_slave_wr_mon.axil4_slave_wr_inst.DW
+axil4_slave_wr_mon.axil4_slave_wr_inst.SKID_DEPTH_AW
+axil4_slave_wr_mon.axil4_slave_wr_inst.SKID_DEPTH_B
+axil4_slave_wr_mon.axil4_slave_wr_inst.SKID_DEPTH_W
+@200
+-gen_monitor
+@28
+axil4_slave_wr_mon.gen_monitor.axi_monitor_inst.AGENT_ID
+axil4_slave_wr_mon.gen_monitor.axi_monitor_inst.CFI_FREQ_STRATEGY
+axil4_slave_wr_mon.gen_monitor.axi_monitor_inst.CFI_MAX_FREQ_MHZ
+axil4_slave_wr_mon.gen_monitor.axi_monitor_inst.CFI_MIN_FREQ_MHZ
+axil4_slave_wr_mon.gen_monitor.axi_monitor_inst.CFI_NUM_FREQ_ENTRIES
+axil4_slave_wr_mon.gen_monitor.axi_monitor_inst.MAX_TRANSACTIONS
+axil4_slave_wr_mon.gen_monitor.axi_monitor_inst.UNIT_ID
+axil4_slave_wr_mon.gen_monitor.axi_monitor_inst.USE_WDATA_ORDER_Q

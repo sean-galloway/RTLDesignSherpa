@@ -1,0 +1,108 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axil4_slave_rd_mon_cg_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil4_slave_rd_mon_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil4_slave_rd_mon_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil4_slave_rd_mon_cg.ACLK_MHZ
+axil4_slave_rd_mon_cg.aclk
+axil4_slave_rd_mon_cg.aresetn
+axil4_slave_rd_mon_cg.gated_aclk
+axil4_slave_rd_mon_cg.perf_burst_count
+@200
+-interface
+@28
+axil4_slave_rd_mon_cg.ADDR_FILTER_ENABLE
+axil4_slave_rd_mon_cg.ADD_PIPELINE_STAGE
+axil4_slave_rd_mon_cg.AGENT_ID
+axil4_slave_rd_mon_cg.AW
+axil4_slave_rd_mon_cg.AXIL_ADDR_WIDTH
+axil4_slave_rd_mon_cg.AXIL_DATA_WIDTH
+axil4_slave_rd_mon_cg.CFI_MAX_FREQ_MHZ
+axil4_slave_rd_mon_cg.CFI_MIN_FREQ_MHZ
+axil4_slave_rd_mon_cg.CG_IDLE_COUNT_WIDTH
+axil4_slave_rd_mon_cg.DW
+axil4_slave_rd_mon_cg.ENABLE_COMPL_LOGIC
+axil4_slave_rd_mon_cg.ENABLE_DEBUG_LOGIC
+axil4_slave_rd_mon_cg.ENABLE_ERROR_LOGIC
+axil4_slave_rd_mon_cg.ENABLE_FILTERING
+axil4_slave_rd_mon_cg.ENABLE_PERF_LOGIC
+axil4_slave_rd_mon_cg.ENABLE_THRESHOLD_LOGIC
+axil4_slave_rd_mon_cg.ENABLE_TIMEOUT_LOGIC
+axil4_slave_rd_mon_cg.MAX_TRANSACTIONS
+axil4_slave_rd_mon_cg.NUM_BANKS
+axil4_slave_rd_mon_cg.N_ADDR_RANGES
+axil4_slave_rd_mon_cg.SKID_DEPTH_AR
+axil4_slave_rd_mon_cg.SKID_DEPTH_R
+axil4_slave_rd_mon_cg.UNIT_ID
+axil4_slave_rd_mon_cg.USE_MONITOR
+axil4_slave_rd_mon_cg.USE_WDATA_ORDER_Q
+axil4_slave_rd_mon_cg.cam_clear
+axil4_slave_rd_mon_cg.cfg_axi_addr_mask
+axil4_slave_rd_mon_cg.cfg_axi_compl_mask
+axil4_slave_rd_mon_cg.cfg_axi_err_select
+axil4_slave_rd_mon_cg.cfg_axi_error_mask
+axil4_slave_rd_mon_cg.cfg_axi_perf_mask
+axil4_slave_rd_mon_cg.cfg_axi_pkt_mask
+axil4_slave_rd_mon_cg.cfg_axi_thresh_mask
+axil4_slave_rd_mon_cg.cfg_axi_timeout_mask
+axil4_slave_rd_mon_cg.cfg_compl_enable
+axil4_slave_rd_mon_cg.cfg_debug_enable
+axil4_slave_rd_mon_cg.cfg_error_enable
+axil4_slave_rd_mon_cg.cfg_freq_sel
+axil4_slave_rd_mon_cg.cfg_latency_threshold
+axil4_slave_rd_mon_cg.cfg_monitor_enable
+axil4_slave_rd_mon_cg.cfg_perf_enable
+axil4_slave_rd_mon_cg.cfg_threshold_enable
+axil4_slave_rd_mon_cg.cfg_timeout_cycles
+axil4_slave_rd_mon_cg.cfg_timeout_enable
+axil4_slave_rd_mon_cg.fub_axil_araddr
+axil4_slave_rd_mon_cg.fub_axil_arprot
+axil4_slave_rd_mon_cg.fub_axil_arready
+axil4_slave_rd_mon_cg.fub_axil_arvalid
+axil4_slave_rd_mon_cg.fub_axil_rdata
+axil4_slave_rd_mon_cg.fub_axil_rready
+axil4_slave_rd_mon_cg.fub_axil_rresp
+axil4_slave_rd_mon_cg.fub_axil_rvalid
+axil4_slave_rd_mon_cg.s_axil_araddr
+axil4_slave_rd_mon_cg.s_axil_arprot
+axil4_slave_rd_mon_cg.s_axil_arready
+axil4_slave_rd_mon_cg.s_axil_arvalid
+axil4_slave_rd_mon_cg.s_axil_rdata
+axil4_slave_rd_mon_cg.s_axil_rready
+axil4_slave_rd_mon_cg.s_axil_rresp
+axil4_slave_rd_mon_cg.s_axil_rvalid
+@200
+-axil4_slave_rd_mon_inst
+@28
+axil4_slave_rd_mon_cg.axil4_slave_rd_mon_inst.ACLK_MHZ
+axil4_slave_rd_mon_cg.axil4_slave_rd_mon_inst.AXIL_ADDR_WIDTH
+axil4_slave_rd_mon_cg.axil4_slave_rd_mon_inst.AXIL_DATA_WIDTH
+axil4_slave_rd_mon_cg.axil4_slave_rd_mon_inst.CFI_MAX_FREQ_MHZ
+axil4_slave_rd_mon_cg.axil4_slave_rd_mon_inst.CFI_MIN_FREQ_MHZ
+axil4_slave_rd_mon_cg.axil4_slave_rd_mon_inst.SKID_DEPTH_AR
+axil4_slave_rd_mon_cg.axil4_slave_rd_mon_inst.SKID_DEPTH_R
+axil4_slave_rd_mon_cg.axil4_slave_rd_mon_inst.USE_MONITOR
+@200
+-i_amba_clock_gate_ctrl
+@28
+axil4_slave_rd_mon_cg.i_amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+axil4_slave_rd_mon_cg.i_amba_clock_gate_ctrl.ICW
+axil4_slave_rd_mon_cg.i_amba_clock_gate_ctrl.aresetn
+axil4_slave_rd_mon_cg.i_amba_clock_gate_ctrl.axi_valid
+axil4_slave_rd_mon_cg.i_amba_clock_gate_ctrl.cfg_cg_enable
+axil4_slave_rd_mon_cg.i_amba_clock_gate_ctrl.cfg_cg_idle_count
+axil4_slave_rd_mon_cg.i_amba_clock_gate_ctrl.clk_in
+axil4_slave_rd_mon_cg.i_amba_clock_gate_ctrl.user_valid

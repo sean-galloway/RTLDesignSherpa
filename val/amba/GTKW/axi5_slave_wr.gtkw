@@ -1,0 +1,117 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi5_slave_wr_stub_i08_a32_d032_u1_awd2_wd4_bd2_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi5_slave_wr.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi5_slave_wr_stub.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi5_slave_wr_stub.aclk
+axi5_slave_wr_stub.aresetn
+axi5_slave_wr_stub.s_axi_awburst
+@200
+-interface
+@28
+axi5_slave_wr_stub.AW
+axi5_slave_wr_stub.AWSize
+axi5_slave_wr_stub.AXI_ADDR_WIDTH
+axi5_slave_wr_stub.AXI_ATOP_WIDTH
+axi5_slave_wr_stub.AXI_DATA_WIDTH
+axi5_slave_wr_stub.AXI_ID_WIDTH
+axi5_slave_wr_stub.AXI_MECID_WIDTH
+axi5_slave_wr_stub.AXI_MPAM_WIDTH
+axi5_slave_wr_stub.AXI_NSAID_WIDTH
+axi5_slave_wr_stub.AXI_TAGOP_WIDTH
+axi5_slave_wr_stub.AXI_TAG_WIDTH
+axi5_slave_wr_stub.AXI_USER_WIDTH
+axi5_slave_wr_stub.AXI_WSTRB_WIDTH
+axi5_slave_wr_stub.BSize
+axi5_slave_wr_stub.DW
+axi5_slave_wr_stub.IW
+axi5_slave_wr_stub.NUM_TAGS
+axi5_slave_wr_stub.SKID_DEPTH_AW
+axi5_slave_wr_stub.SKID_DEPTH_B
+axi5_slave_wr_stub.SKID_DEPTH_W
+axi5_slave_wr_stub.SW
+axi5_slave_wr_stub.TW
+axi5_slave_wr_stub.UW
+axi5_slave_wr_stub.WSize
+axi5_slave_wr_stub.s_axi_awaddr
+axi5_slave_wr_stub.s_axi_awakeup
+axi5_slave_wr_stub.s_axi_awatop
+axi5_slave_wr_stub.s_axi_awcache
+axi5_slave_wr_stub.s_axi_awid
+axi5_slave_wr_stub.s_axi_awidunq
+axi5_slave_wr_stub.s_axi_awlen
+axi5_slave_wr_stub.s_axi_awlock
+axi5_slave_wr_stub.s_axi_awmecid
+axi5_slave_wr_stub.s_axi_awmpam
+axi5_slave_wr_stub.s_axi_awnsaid
+axi5_slave_wr_stub.s_axi_awprot
+axi5_slave_wr_stub.s_axi_awqos
+axi5_slave_wr_stub.s_axi_awready
+axi5_slave_wr_stub.s_axi_awsize
+axi5_slave_wr_stub.s_axi_awtagop
+axi5_slave_wr_stub.s_axi_awtrace
+axi5_slave_wr_stub.s_axi_awuser
+axi5_slave_wr_stub.s_axi_awvalid
+axi5_slave_wr_stub.s_axi_bid
+axi5_slave_wr_stub.s_axi_bidunq
+axi5_slave_wr_stub.s_axi_bready
+axi5_slave_wr_stub.s_axi_bresp
+axi5_slave_wr_stub.s_axi_btagmatch
+axi5_slave_wr_stub.s_axi_btrace
+axi5_slave_wr_stub.s_axi_buser
+axi5_slave_wr_stub.s_axi_bvalid
+axi5_slave_wr_stub.s_axi_wdata
+axi5_slave_wr_stub.s_axi_wlast
+axi5_slave_wr_stub.s_axi_wpoison
+axi5_slave_wr_stub.s_axi_wready
+axi5_slave_wr_stub.s_axi_wstrb
+axi5_slave_wr_stub.s_axi_wtag
+axi5_slave_wr_stub.s_axi_wtagupdate
+axi5_slave_wr_stub.s_axi_wuser
+axi5_slave_wr_stub.s_axi_wvalid
+@200
+-inst_aw_phase
+@28
+axi5_slave_wr_stub.inst_aw_phase.DATA_WIDTH
+axi5_slave_wr_stub.inst_aw_phase.DEPTH
+axi5_slave_wr_stub.inst_aw_phase.DW
+axi5_slave_wr_stub.inst_aw_phase.axi_aclk
+axi5_slave_wr_stub.inst_aw_phase.axi_aresetn
+axi5_slave_wr_stub.inst_aw_phase.wr_data
+axi5_slave_wr_stub.inst_aw_phase.wr_ready
+axi5_slave_wr_stub.inst_aw_phase.wr_valid
+@200
+-inst_b_phase
+@28
+axi5_slave_wr_stub.inst_b_phase.DATA_WIDTH
+axi5_slave_wr_stub.inst_b_phase.DEPTH
+axi5_slave_wr_stub.inst_b_phase.DW
+axi5_slave_wr_stub.inst_b_phase.axi_aclk
+axi5_slave_wr_stub.inst_b_phase.axi_aresetn
+axi5_slave_wr_stub.inst_b_phase.wr_data
+axi5_slave_wr_stub.inst_b_phase.wr_ready
+axi5_slave_wr_stub.inst_b_phase.wr_valid
+@200
+-inst_w_phase
+@28
+axi5_slave_wr_stub.inst_w_phase.DATA_WIDTH
+axi5_slave_wr_stub.inst_w_phase.DEPTH
+axi5_slave_wr_stub.inst_w_phase.DW
+axi5_slave_wr_stub.inst_w_phase.axi_aclk
+axi5_slave_wr_stub.inst_w_phase.axi_aresetn
+axi5_slave_wr_stub.inst_w_phase.wr_data
+axi5_slave_wr_stub.inst_w_phase.wr_ready
+axi5_slave_wr_stub.inst_w_phase.wr_valid

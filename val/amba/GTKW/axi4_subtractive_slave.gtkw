@@ -1,0 +1,134 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi4_subtractive_slave_id004_aw032_dw064_func/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_subtractive_slave.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_subtractive_slave.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_subtractive_slave.aclk
+axi4_subtractive_slave.aresetn
+@200
+-params
+@28
+axi4_subtractive_slave.AXI_ID_WIDTH
+axi4_subtractive_slave.AXI_ADDR_WIDTH
+axi4_subtractive_slave.AXI_DATA_WIDTH
+axi4_subtractive_slave.AXI_USER_WIDTH
+axi4_subtractive_slave.ENABLE_MONBUS
+axi4_subtractive_slave.IW
+axi4_subtractive_slave.AW
+axi4_subtractive_slave.DW
+axi4_subtractive_slave.UW
+axi4_subtractive_slave.READ_FILL
+axi4_subtractive_slave.UNIT_ID
+axi4_subtractive_slave.AGENT_ID
+axi4_subtractive_slave.RESP_DECERR
+axi4_subtractive_slave.FILL_REPS
+@200
+-axi-wr-addr
+@22
+axi4_subtractive_slave.s_axi_awid
+axi4_subtractive_slave.s_axi_awaddr
+axi4_subtractive_slave.s_axi_awlen
+@28
+axi4_subtractive_slave.s_axi_awvalid
+axi4_subtractive_slave.s_axi_awready
+@200
+-axi-wr-data
+@22
+axi4_subtractive_slave.s_axi_wdata
+@28
+axi4_subtractive_slave.s_axi_wlast
+axi4_subtractive_slave.s_axi_wvalid
+axi4_subtractive_slave.s_axi_wready
+@200
+-axi-wr-resp
+@22
+axi4_subtractive_slave.s_axi_bid
+axi4_subtractive_slave.s_axi_bresp
+axi4_subtractive_slave.s_axi_buser
+@28
+axi4_subtractive_slave.s_axi_bvalid
+axi4_subtractive_slave.s_axi_bready
+@200
+-axi-rd-addr
+@22
+axi4_subtractive_slave.s_axi_arid
+axi4_subtractive_slave.s_axi_araddr
+axi4_subtractive_slave.s_axi_arlen
+@28
+axi4_subtractive_slave.s_axi_arvalid
+axi4_subtractive_slave.s_axi_arready
+@200
+-axi-rd-data
+@22
+axi4_subtractive_slave.s_axi_rid
+axi4_subtractive_slave.s_axi_rdata
+axi4_subtractive_slave.s_axi_rresp
+axi4_subtractive_slave.s_axi_ruser
+@28
+axi4_subtractive_slave.s_axi_rlast
+axi4_subtractive_slave.s_axi_rvalid
+axi4_subtractive_slave.s_axi_rready
+@200
+-hit-status
+@28
+axi4_subtractive_slave.i_hit_clear
+axi4_subtractive_slave.o_hit_irq
+@22
+axi4_subtractive_slave.o_hit_addr
+axi4_subtractive_slave.o_hit_count
+@200
+-monbus
+@28
+axi4_subtractive_slave.monbus_valid
+axi4_subtractive_slave.monbus_ready
+@22
+axi4_subtractive_slave.monbus_packet
+@200
+-internals
+@22
+axi4_subtractive_slave.w_fill_wide
+axi4_subtractive_slave.r_wlast_credits
+axi4_subtractive_slave.r_bid
+axi4_subtractive_slave.r_rid
+axi4_subtractive_slave.r_beats_left
+@28
+axi4_subtractive_slave.w_wlast_taken
+axi4_subtractive_slave.r_b_pending
+axi4_subtractive_slave.w_aw_fire
+axi4_subtractive_slave.w_wlast_fire
+axi4_subtractive_slave.w_b_fire
+axi4_subtractive_slave.r_r_active
+axi4_subtractive_slave.w_ar_fire
+axi4_subtractive_slave.w_r_fire
+axi4_subtractive_slave.w_hit
+@200
+-monbus-internals
+@28
+axi4_subtractive_slave.g_monbus.r_rpt_valid
+axi4_subtractive_slave.g_monbus.r_rpt_w_valid
+axi4_subtractive_slave.g_monbus.r_rpt_r_valid
+axi4_subtractive_slave.g_monbus.w_rpt_drain
+axi4_subtractive_slave.g_monbus.w_drain_w
+axi4_subtractive_slave.g_monbus.w_drain_r
+@22
+axi4_subtractive_slave.g_monbus.r_rpt_addr
+axi4_subtractive_slave.g_monbus.r_rpt_id
+axi4_subtractive_slave.g_monbus.r_rpt_w_addr
+axi4_subtractive_slave.g_monbus.r_rpt_r_addr
+axi4_subtractive_slave.g_monbus.r_rpt_w_id
+axi4_subtractive_slave.g_monbus.r_rpt_r_id
+axi4_subtractive_slave.g_monbus.w_chan_id
+axi4_subtractive_slave.g_monbus.w_addr_payload

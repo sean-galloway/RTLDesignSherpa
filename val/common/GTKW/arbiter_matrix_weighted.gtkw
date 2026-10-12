@@ -1,0 +1,54 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/common/local_sim_build/test_arbiter_matrix_weighted_c01_w0_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/common/GTKW/arbiter_matrix_weighted.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] arbiter_matrix_weighted.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+arbiter_matrix_weighted.clk
+@22
+arbiter_matrix_weighted.rst_n
+@200
+-interface
+@28
+arbiter_matrix_weighted.C
+arbiter_matrix_weighted.CLIENTS
+arbiter_matrix_weighted.CXMTW
+arbiter_matrix_weighted.MAX_LEVELS
+arbiter_matrix_weighted.MAX_LEVELS_WIDTH
+arbiter_matrix_weighted.MTW
+arbiter_matrix_weighted.N
+arbiter_matrix_weighted.WAIT_GNT_ACK
+arbiter_matrix_weighted.block_arb
+@22
+arbiter_matrix_weighted.grant[5:0]
+arbiter_matrix_weighted.grant_ack[3:0]
+arbiter_matrix_weighted.grant_id[6:0]
+arbiter_matrix_weighted.grant_valid[4:0]
+arbiter_matrix_weighted.last_grant[7:0]
+arbiter_matrix_weighted.max_thresh[1:0]
+arbiter_matrix_weighted.request[2:0]
+arbiter_matrix_weighted.w_client_weight[0][8:0]
+@28
+arbiter_matrix_weighted.w_valid_clients
+@200
+-gen_single_client
+@28
+arbiter_matrix_weighted.gen_single_client.r_credit_counter
+arbiter_matrix_weighted.gen_single_client.w_ack_received
+arbiter_matrix_weighted.gen_single_client.w_can_grant
+arbiter_matrix_weighted.gen_single_client.w_credit_next
+arbiter_matrix_weighted.gen_single_client.w_has_credit
+arbiter_matrix_weighted.gen_single_client.w_req
+arbiter_matrix_weighted.gen_single_client.w_should_grant

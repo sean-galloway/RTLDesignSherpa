@@ -1,0 +1,85 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_axis_monitor_lite_dw32_iw8_destw4_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/tb_axis_monitor_lite.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_axis_monitor_lite.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-parameters
+@22
+tb_axis_monitor_lite.ACLK_MHZ
+tb_axis_monitor_lite.AGENT_ID
+tb_axis_monitor_lite.AXIS_DATA_WIDTH
+tb_axis_monitor_lite.AXIS_DEST_WIDTH
+tb_axis_monitor_lite.AXIS_ID_WIDTH
+tb_axis_monitor_lite.AXIS_USER_WIDTH
+tb_axis_monitor_lite.DESTW
+tb_axis_monitor_lite.DW
+tb_axis_monitor_lite.IW
+tb_axis_monitor_lite.OUT_DEPTH
+tb_axis_monitor_lite.SW
+tb_axis_monitor_lite.UNIT_ID
+tb_axis_monitor_lite.UW
+@200
+-clk-rst
+@28
+tb_axis_monitor_lite.aclk
+tb_axis_monitor_lite.aresetn
+@200
+-axis
+@28
+tb_axis_monitor_lite.axis_tlast
+tb_axis_monitor_lite.axis_tready
+tb_axis_monitor_lite.axis_tuser
+tb_axis_monitor_lite.axis_tvalid
+@22
+tb_axis_monitor_lite.axis_tdata
+tb_axis_monitor_lite.axis_tdest
+tb_axis_monitor_lite.axis_tid
+tb_axis_monitor_lite.axis_tstrb
+@200
+-cfg
+@28
+tb_axis_monitor_lite.cfg_channel_enable
+tb_axis_monitor_lite.cfg_compl_enable
+tb_axis_monitor_lite.cfg_credit_enable
+tb_axis_monitor_lite.cfg_error_enable
+tb_axis_monitor_lite.cfg_strb_check_enable
+tb_axis_monitor_lite.cfg_stream_enable
+tb_axis_monitor_lite.cfg_timeout_enable
+@22
+tb_axis_monitor_lite.cfg_axis_pkt_mask
+tb_axis_monitor_lite.cfg_freq_sel
+tb_axis_monitor_lite.cfg_stall_threshold
+tb_axis_monitor_lite.cfg_timeout_cnt
+@200
+-monbus
+@28
+tb_axis_monitor_lite.monbus_ready
+tb_axis_monitor_lite.monbus_valid
+@22
+tb_axis_monitor_lite.monbus_packet
+tb_axis_monitor_lite.monbus_timestamp
+@200
+-ctrl
+@28
+tb_axis_monitor_lite.busy
+tb_axis_monitor_lite.clear
+tb_axis_monitor_lite.in_packet
+@22
+tb_axis_monitor_lite.i_mon_time
+tb_axis_monitor_lite.packet_count
+@200
+-counters
+@22
+tb_axis_monitor_lite.dropped_count
+tb_axis_monitor_lite.error_count

@@ -1,0 +1,58 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp8_e4m3_to_fp8_e5m2_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp8_e4m3_to_fp8_e5m2.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp8_e4m3_to_fp8_e5m2.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_fp8_e4m3_to_fp8_e5m2.i_a
+math_fp8_e4m3_to_fp8_e5m2.ow_invalid
+math_fp8_e4m3_to_fp8_e5m2.ow_overflow
+math_fp8_e4m3_to_fp8_e5m2.ow_result
+math_fp8_e4m3_to_fp8_e5m2.ow_underflow
+math_fp8_e4m3_to_fp8_e5m2.r_invalid
+math_fp8_e4m3_to_fp8_e5m2.r_overflow
+math_fp8_e4m3_to_fp8_e5m2.r_result
+math_fp8_e4m3_to_fp8_e5m2.r_underflow
+math_fp8_e4m3_to_fp8_e5m2.w_exp
+@22
+math_fp8_e4m3_to_fp8_e5m2.w_exp_adjusted[1:0]
+@28
+math_fp8_e4m3_to_fp8_e5m2.w_exp_final
+@22
+math_fp8_e4m3_to_fp8_e5m2.w_exp_overflow
+math_fp8_e4m3_to_fp8_e5m2.w_exp_underflow
+@28
+math_fp8_e4m3_to_fp8_e5m2.w_final_overflow
+@22
+math_fp8_e4m3_to_fp8_e5m2.w_guard[3:0]
+math_fp8_e4m3_to_fp8_e5m2.w_is_inf
+@28
+math_fp8_e4m3_to_fp8_e5m2.w_is_nan
+math_fp8_e4m3_to_fp8_e5m2.w_is_subnormal
+math_fp8_e4m3_to_fp8_e5m2.w_is_zero
+@22
+math_fp8_e4m3_to_fp8_e5m2.w_lsb[4:0]
+@28
+math_fp8_e4m3_to_fp8_e5m2.w_mant
+@22
+math_fp8_e4m3_to_fp8_e5m2.w_mant_converted[8:0]
+math_fp8_e4m3_to_fp8_e5m2.w_mant_overflow[7:0]
+math_fp8_e4m3_to_fp8_e5m2.w_mant_rounded[6:0]
+math_fp8_e4m3_to_fp8_e5m2.w_mant_truncated[2:0]
+math_fp8_e4m3_to_fp8_e5m2.w_round_up[5:0]
+@28
+math_fp8_e4m3_to_fp8_e5m2.w_sign
+@22
+math_fp8_e4m3_to_fp8_e5m2.w_sticky

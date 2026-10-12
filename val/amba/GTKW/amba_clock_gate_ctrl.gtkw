@@ -1,0 +1,51 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_amba_clock_gate_ctrl_clk10_icw4_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/amba_clock_gate_ctrl.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] amba_clock_gate_ctrl.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+amba_clock_gate_ctrl.aresetn
+amba_clock_gate_ctrl.clk_in
+amba_clock_gate_ctrl.clk_out
+@200
+-interface
+@28
+amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+amba_clock_gate_ctrl.ICW
+@22
+amba_clock_gate_ctrl.axi_valid
+@28
+amba_clock_gate_ctrl.cfg_cg_enable
+amba_clock_gate_ctrl.cfg_cg_idle_count
+@22
+amba_clock_gate_ctrl.gating[1:0]
+amba_clock_gate_ctrl.idle[2:0]
+amba_clock_gate_ctrl.r_wakeup[3:0]
+@28
+amba_clock_gate_ctrl.user_valid
+@200
+-u_clock_gate_ctrl
+@28
+amba_clock_gate_ctrl.u_clock_gate_ctrl.IDLE_CNTR_WIDTH
+@22
+amba_clock_gate_ctrl.u_clock_gate_ctrl.aresetn[5:0]
+amba_clock_gate_ctrl.u_clock_gate_ctrl.cfg_cg_enable[6:0]
+amba_clock_gate_ctrl.u_clock_gate_ctrl.cfg_cg_idle_count[7:0]
+amba_clock_gate_ctrl.u_clock_gate_ctrl.clk_in[4:0]
+@28
+amba_clock_gate_ctrl.u_clock_gate_ctrl.clk_out
+amba_clock_gate_ctrl.u_clock_gate_ctrl.gating
+@22
+amba_clock_gate_ctrl.u_clock_gate_ctrl.wakeup[8:0]

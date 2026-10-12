@@ -1,0 +1,72 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axis4_slave_sd4_dw032_iw08_destw4_uw1/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axis4_slave.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis4_slave.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+axis4_slave.aclk[8:0]
+@28
+axis4_slave.aresetn
+@200
+-interface
+@22
+axis4_slave.AXIS_DATA_WIDTH[4:0]
+axis4_slave.AXIS_DEST_WIDTH[3:0]
+axis4_slave.AXIS_ID_WIDTH[5:0]
+axis4_slave.AXIS_USER_WIDTH[6:0]
+axis4_slave.DESTW[3:0]
+axis4_slave.DESTW_WIDTH[3:0]
+axis4_slave.DW[4:0]
+axis4_slave.IW[5:0]
+axis4_slave.IW_WIDTH[5:0]
+axis4_slave.SKID_DEPTH[3:0]
+axis4_slave.SW[3:0]
+axis4_slave.TSize[7:0]
+axis4_slave.UW[6:0]
+axis4_slave.UW_WIDTH[6:0]
+@28
+axis4_slave.busy
+axis4_slave.fub_axis_tdata
+axis4_slave.fub_axis_tdest
+axis4_slave.fub_axis_tid
+axis4_slave.fub_axis_tlast
+axis4_slave.fub_axis_tready
+axis4_slave.fub_axis_tstrb
+axis4_slave.fub_axis_tuser
+axis4_slave.fub_axis_tvalid
+axis4_slave.int_skid_tready
+axis4_slave.int_skid_tvalid
+axis4_slave.int_t_count
+axis4_slave.int_t_pkt
+axis4_slave.s_axis_tdata
+axis4_slave.s_axis_tdest
+axis4_slave.s_axis_tid
+axis4_slave.s_axis_tlast
+axis4_slave.s_axis_tready
+axis4_slave.s_axis_tstrb
+axis4_slave.s_axis_tuser
+axis4_slave.s_axis_tvalid
+@200
+-i_t_channel
+@22
+axis4_slave.i_t_channel.DATA_WIDTH[7:0]
+axis4_slave.i_t_channel.DEPTH[3:0]
+axis4_slave.i_t_channel.DW[7:0]
+@28
+axis4_slave.i_t_channel.axi_aclk
+axis4_slave.i_t_channel.axi_aresetn
+axis4_slave.i_t_channel.wr_data
+axis4_slave.i_t_channel.wr_ready
+axis4_slave.i_t_channel.wr_valid

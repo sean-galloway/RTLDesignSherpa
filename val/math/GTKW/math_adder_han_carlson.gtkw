@@ -1,0 +1,30 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_adder_hybrid_ripple_prefix_N32_R8_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_adder_han_carlson.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_adder_hybrid_ripple_prefix.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_adder_hybrid_ripple_prefix.N
+math_adder_hybrid_ripple_prefix.RIPPLE_BITS
+math_adder_hybrid_ripple_prefix.i_a
+math_adder_hybrid_ripple_prefix.i_b
+math_adder_hybrid_ripple_prefix.i_c
+math_adder_hybrid_ripple_prefix.ow_carry
+math_adder_hybrid_ripple_prefix.ow_sum
+@200
+-gen_valid_params
+@28
+math_adder_hybrid_ripple_prefix.gen_valid_params.LEVELS
+math_adder_hybrid_ripple_prefix.gen_valid_params.M

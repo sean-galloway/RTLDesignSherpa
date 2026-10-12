@@ -1,0 +1,108 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi4_master_wr_cg_id008_aw032_dw032_uw001_awd002_wd004_bd002_full_comprehensive/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_master_wr_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_master_wr_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_master_wr_cg.aclk
+axi4_master_wr_cg.aresetn
+axi4_master_wr_cg.fub_axi_awburst
+axi4_master_wr_cg.gated_aclk
+axi4_master_wr_cg.m_axi_awburst
+@200
+-interface
+@28
+axi4_master_wr_cg.AW
+axi4_master_wr_cg.AWSize
+axi4_master_wr_cg.AXI_ADDR_WIDTH
+axi4_master_wr_cg.AXI_DATA_WIDTH
+axi4_master_wr_cg.AXI_ID_WIDTH
+axi4_master_wr_cg.AXI_USER_WIDTH
+axi4_master_wr_cg.AXI_WSTRB_WIDTH
+axi4_master_wr_cg.BSize
+axi4_master_wr_cg.CG_IDLE_COUNT_WIDTH
+axi4_master_wr_cg.DW
+axi4_master_wr_cg.IW
+axi4_master_wr_cg.SKID_DEPTH_AW
+axi4_master_wr_cg.SKID_DEPTH_B
+axi4_master_wr_cg.SKID_DEPTH_W
+axi4_master_wr_cg.SW
+axi4_master_wr_cg.UW
+axi4_master_wr_cg.WSize
+axi4_master_wr_cg.cfg_cg_enable
+axi4_master_wr_cg.cfg_cg_idle_count
+axi4_master_wr_cg.fub_axi_awaddr
+axi4_master_wr_cg.fub_axi_awcache
+axi4_master_wr_cg.fub_axi_awid
+axi4_master_wr_cg.fub_axi_awlen
+axi4_master_wr_cg.fub_axi_awlock
+axi4_master_wr_cg.fub_axi_awprot
+axi4_master_wr_cg.fub_axi_awqos
+axi4_master_wr_cg.fub_axi_awready
+axi4_master_wr_cg.fub_axi_awregion
+axi4_master_wr_cg.fub_axi_awsize
+axi4_master_wr_cg.fub_axi_awuser
+axi4_master_wr_cg.fub_axi_awvalid
+axi4_master_wr_cg.fub_axi_bid
+axi4_master_wr_cg.fub_axi_bready
+axi4_master_wr_cg.fub_axi_bresp
+axi4_master_wr_cg.fub_axi_buser
+axi4_master_wr_cg.fub_axi_bvalid
+axi4_master_wr_cg.fub_axi_wdata
+axi4_master_wr_cg.fub_axi_wlast
+axi4_master_wr_cg.fub_axi_wready
+axi4_master_wr_cg.fub_axi_wstrb
+axi4_master_wr_cg.fub_axi_wuser
+axi4_master_wr_cg.fub_axi_wvalid
+axi4_master_wr_cg.m_axi_awaddr
+axi4_master_wr_cg.m_axi_awcache
+axi4_master_wr_cg.m_axi_awid
+axi4_master_wr_cg.m_axi_awlen
+axi4_master_wr_cg.m_axi_awlock
+axi4_master_wr_cg.m_axi_awprot
+axi4_master_wr_cg.m_axi_awqos
+axi4_master_wr_cg.m_axi_awready
+axi4_master_wr_cg.m_axi_awregion
+axi4_master_wr_cg.m_axi_awsize
+axi4_master_wr_cg.m_axi_awuser
+axi4_master_wr_cg.m_axi_awvalid
+axi4_master_wr_cg.m_axi_wdata
+axi4_master_wr_cg.m_axi_wlast
+axi4_master_wr_cg.m_axi_wready
+axi4_master_wr_cg.m_axi_wstrb
+axi4_master_wr_cg.m_axi_wuser
+axi4_master_wr_cg.m_axi_wvalid
+@200
+-i_amba_clock_gate_ctrl
+@28
+axi4_master_wr_cg.i_amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+axi4_master_wr_cg.i_amba_clock_gate_ctrl.ICW
+axi4_master_wr_cg.i_amba_clock_gate_ctrl.aresetn
+axi4_master_wr_cg.i_amba_clock_gate_ctrl.axi_valid
+axi4_master_wr_cg.i_amba_clock_gate_ctrl.cfg_cg_enable
+axi4_master_wr_cg.i_amba_clock_gate_ctrl.cfg_cg_idle_count
+axi4_master_wr_cg.i_amba_clock_gate_ctrl.clk_in
+axi4_master_wr_cg.i_amba_clock_gate_ctrl.user_valid
+@200
+-i_axi_master_wr
+@28
+axi4_master_wr_cg.i_axi_master_wr.AXI_ADDR_WIDTH
+axi4_master_wr_cg.i_axi_master_wr.AXI_DATA_WIDTH
+axi4_master_wr_cg.i_axi_master_wr.AXI_ID_WIDTH
+axi4_master_wr_cg.i_axi_master_wr.AXI_USER_WIDTH
+axi4_master_wr_cg.i_axi_master_wr.AXI_WSTRB_WIDTH
+axi4_master_wr_cg.i_axi_master_wr.SKID_DEPTH_AW
+axi4_master_wr_cg.i_axi_master_wr.SKID_DEPTH_B
+axi4_master_wr_cg.i_axi_master_wr.SKID_DEPTH_W

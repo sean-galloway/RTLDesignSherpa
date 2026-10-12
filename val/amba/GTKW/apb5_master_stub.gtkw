@@ -1,0 +1,112 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_apb5_master_stub_aw12_dw32_au4_np/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/apb5_master_stub.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb5_master_stub.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+apb5_master_stub.cmd_first
+apb5_master_stub.pclk
+apb5_master_stub.presetn
+@200
+-interface
+@28
+apb5_master_stub.ACW
+apb5_master_stub.ADDR_WIDTH
+apb5_master_stub.AUCW
+apb5_master_stub.AUSER_WIDTH
+apb5_master_stub.AUW
+apb5_master_stub.AW
+apb5_master_stub.BUCW
+apb5_master_stub.BUSER_WIDTH
+apb5_master_stub.BUW
+apb5_master_stub.CMD_DEPTH
+apb5_master_stub.CMD_PACKET_WIDTH
+apb5_master_stub.CPW
+apb5_master_stub.DATA_WIDTH
+apb5_master_stub.DCW
+apb5_master_stub.DW
+apb5_master_stub.ENABLE_PARITY
+apb5_master_stub.PROT_WIDTH
+apb5_master_stub.PW
+apb5_master_stub.RESP_PACKET_WIDTH
+apb5_master_stub.RPW
+apb5_master_stub.RSP_DEPTH
+apb5_master_stub.RUCW
+apb5_master_stub.RUSER_WIDTH
+apb5_master_stub.RUW
+apb5_master_stub.STRB_WIDTH
+apb5_master_stub.SW
+apb5_master_stub.WUCW
+apb5_master_stub.WUSER_WIDTH
+apb5_master_stub.WUW
+apb5_master_stub.cmd_ready
+apb5_master_stub.cmd_valid
+apb5_master_stub.m_apb_PADDR
+@22
+apb5_master_stub.m_apb_PADDRCHK[1:0]
+@28
+apb5_master_stub.m_apb_PAUSER
+@22
+apb5_master_stub.m_apb_PAUSERCHK[4:0]
+@28
+apb5_master_stub.m_apb_PBUSER
+apb5_master_stub.m_apb_PBUSERCHK
+@22
+apb5_master_stub.m_apb_PCTRLCHK[2:0]
+@28
+apb5_master_stub.m_apb_PENABLE
+@22
+apb5_master_stub.m_apb_PENABLECHK[2:0]
+@28
+apb5_master_stub.m_apb_PPROT
+apb5_master_stub.m_apb_PRDATA
+apb5_master_stub.m_apb_PRDATACHK
+apb5_master_stub.m_apb_PREADY
+apb5_master_stub.m_apb_PREADYCHK
+apb5_master_stub.m_apb_PRUSER
+apb5_master_stub.m_apb_PRUSERCHK
+apb5_master_stub.m_apb_PSEL
+@22
+apb5_master_stub.m_apb_PSELCHK[2:0]
+@28
+apb5_master_stub.m_apb_PSLVERR
+apb5_master_stub.m_apb_PSLVERRCHK
+apb5_master_stub.m_apb_PSTRB
+@22
+apb5_master_stub.m_apb_PSTRBCHK[2:0]
+@28
+apb5_master_stub.m_apb_PWAKEUP
+@22
+apb5_master_stub.m_apb_PWAKEUPCHK[2:0]
+@28
+apb5_master_stub.m_apb_PWDATA
+@22
+apb5_master_stub.m_apb_PWDATACHK[3:0]
+@28
+apb5_master_stub.m_apb_PWRITE
+apb5_master_stub.m_apb_PWUSER
+@22
+apb5_master_stub.m_apb_PWUSERCHK[4:0]
+@200
+-u_apb5_master
+@28
+apb5_master_stub.u_apb5_master.ADDR_WIDTH
+apb5_master_stub.u_apb5_master.AUSER_WIDTH
+apb5_master_stub.u_apb5_master.BUSER_WIDTH
+apb5_master_stub.u_apb5_master.CMD_DEPTH
+apb5_master_stub.u_apb5_master.DATA_WIDTH
+apb5_master_stub.u_apb5_master.PROT_WIDTH
+apb5_master_stub.u_apb5_master.RUSER_WIDTH
+apb5_master_stub.u_apb5_master.WUSER_WIDTH

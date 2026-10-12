@@ -1,0 +1,106 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_newton_raphson_recip_gate_iter1_lut32_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_newton_raphson_recip.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_newton_raphson_recip.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_newton_raphson_recip.BF16_NAN
+@22
+math_bf16_newton_raphson_recip.BF16_NEG_INF
+@28
+math_bf16_newton_raphson_recip.BF16_POS_INF
+math_bf16_newton_raphson_recip.BF16_TWO
+math_bf16_newton_raphson_recip.BF16_ZERO
+math_bf16_newton_raphson_recip.ITERATIONS
+math_bf16_newton_raphson_recip.LUT_DEPTH
+math_bf16_newton_raphson_recip.i_bf16
+math_bf16_newton_raphson_recip.ow_is_inf
+math_bf16_newton_raphson_recip.ow_is_nan
+math_bf16_newton_raphson_recip.ow_is_zero
+math_bf16_newton_raphson_recip.ow_reciprocal
+@22
+math_bf16_newton_raphson_recip.w_a_times_x0[7:0]
+@28
+math_bf16_newton_raphson_recip.w_add1_inv
+math_bf16_newton_raphson_recip.w_add1_ovf
+math_bf16_newton_raphson_recip.w_add1_udf
+math_bf16_newton_raphson_recip.w_add1_valid
+@22
+math_bf16_newton_raphson_recip.w_init_inf[3:0]
+math_bf16_newton_raphson_recip.w_init_mant_approx[6:0]
+math_bf16_newton_raphson_recip.w_init_nan[4:0]
+math_bf16_newton_raphson_recip.w_init_underflow[5:0]
+math_bf16_newton_raphson_recip.w_init_zero[2:0]
+@28
+math_bf16_newton_raphson_recip.w_mult_ax0_inv
+math_bf16_newton_raphson_recip.w_mult_ax0_ovf
+math_bf16_newton_raphson_recip.w_mult_ax0_udf
+math_bf16_newton_raphson_recip.w_mult_x1_inv
+math_bf16_newton_raphson_recip.w_mult_x1_ovf
+math_bf16_newton_raphson_recip.w_mult_x1_udf
+math_bf16_newton_raphson_recip.w_neg_ax0
+@22
+math_bf16_newton_raphson_recip.w_two_minus_ax0[8:0]
+math_bf16_newton_raphson_recip.w_x0[1:0]
+@28
+math_bf16_newton_raphson_recip.w_x1
+@200
+-gen_iter1
+@28
+math_bf16_newton_raphson_recip.gen_iter1.w_result_iter1
+@200
+-u_initial_estimate
+@28
+math_bf16_newton_raphson_recip.u_initial_estimate.LUT_ADDR_BITS
+math_bf16_newton_raphson_recip.u_initial_estimate.LUT_DEPTH
+math_bf16_newton_raphson_recip.u_initial_estimate.i_bf16
+math_bf16_newton_raphson_recip.u_initial_estimate.ow_is_inf
+math_bf16_newton_raphson_recip.u_initial_estimate.ow_is_nan
+math_bf16_newton_raphson_recip.u_initial_estimate.ow_is_zero
+math_bf16_newton_raphson_recip.u_initial_estimate.ow_reciprocal
+math_bf16_newton_raphson_recip.u_initial_estimate.ow_underflow
+@200
+-u_mult_ax0
+@28
+math_bf16_newton_raphson_recip.u_mult_ax0.i_a
+math_bf16_newton_raphson_recip.u_mult_ax0.i_b
+math_bf16_newton_raphson_recip.u_mult_ax0.ow_invalid
+math_bf16_newton_raphson_recip.u_mult_ax0.ow_overflow
+math_bf16_newton_raphson_recip.u_mult_ax0.ow_result
+math_bf16_newton_raphson_recip.u_mult_ax0.ow_underflow
+math_bf16_newton_raphson_recip.u_mult_ax0.w_exp_a
+math_bf16_newton_raphson_recip.u_mult_ax0.w_sign_a
+@200
+-u_mult_x1
+@28
+math_bf16_newton_raphson_recip.u_mult_x1.i_a
+math_bf16_newton_raphson_recip.u_mult_x1.i_b
+math_bf16_newton_raphson_recip.u_mult_x1.ow_invalid
+math_bf16_newton_raphson_recip.u_mult_x1.ow_overflow
+math_bf16_newton_raphson_recip.u_mult_x1.ow_result
+math_bf16_newton_raphson_recip.u_mult_x1.ow_underflow
+math_bf16_newton_raphson_recip.u_mult_x1.w_exp_a
+math_bf16_newton_raphson_recip.u_mult_x1.w_sign_a
+@200
+-u_sub_iter1
+@28
+math_bf16_newton_raphson_recip.u_sub_iter1.PIPE_STAGE_1
+math_bf16_newton_raphson_recip.u_sub_iter1.PIPE_STAGE_2
+math_bf16_newton_raphson_recip.u_sub_iter1.PIPE_STAGE_3
+math_bf16_newton_raphson_recip.u_sub_iter1.PIPE_STAGE_4
+math_bf16_newton_raphson_recip.u_sub_iter1.i_a
+math_bf16_newton_raphson_recip.u_sub_iter1.i_b
+math_bf16_newton_raphson_recip.u_sub_iter1.i_clk
+math_bf16_newton_raphson_recip.u_sub_iter1.i_rst_n

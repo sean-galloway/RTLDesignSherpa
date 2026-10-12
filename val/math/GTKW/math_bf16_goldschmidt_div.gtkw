@@ -1,0 +1,142 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_goldschmidt_div_gate_iter1_pipe_lut32_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_goldschmidt_div.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_goldschmidt_div.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+math_bf16_goldschmidt_div.i_clk
+math_bf16_goldschmidt_div.i_rst_n
+@200
+-interface
+@28
+math_bf16_goldschmidt_div.BF16_NAN
+math_bf16_goldschmidt_div.BF16_NEG_INF
+@22
+math_bf16_goldschmidt_div.BF16_ONE[8:0]
+@28
+math_bf16_goldschmidt_div.BF16_POS_INF
+@22
+math_bf16_goldschmidt_div.BF16_TWO[7:0]
+@28
+math_bf16_goldschmidt_div.BF16_ZERO
+math_bf16_goldschmidt_div.ITERATIONS
+math_bf16_goldschmidt_div.LUT_DEPTH
+math_bf16_goldschmidt_div.PIPELINED
+math_bf16_goldschmidt_div.i_denominator
+@22
+math_bf16_goldschmidt_div.i_numerator
+math_bf16_goldschmidt_div.i_valid[1:0]
+math_bf16_goldschmidt_div.ow_div_by_zero[4:0]
+math_bf16_goldschmidt_div.ow_is_inf[5:0]
+math_bf16_goldschmidt_div.ow_is_nan[6:0]
+math_bf16_goldschmidt_div.ow_quotient[2:0]
+math_bf16_goldschmidt_div.ow_valid[3:0]
+@28
+math_bf16_goldschmidt_div.w_a_exp
+math_bf16_goldschmidt_div.w_a_is_inf
+math_bf16_goldschmidt_div.w_a_is_nan
+math_bf16_goldschmidt_div.w_a_is_zero
+math_bf16_goldschmidt_div.w_a_mant
+math_bf16_goldschmidt_div.w_a_sign
+math_bf16_goldschmidt_div.w_b_exp
+math_bf16_goldschmidt_div.w_b_is_inf
+math_bf16_goldschmidt_div.w_b_is_nan
+math_bf16_goldschmidt_div.w_b_is_zero
+math_bf16_goldschmidt_div.w_b_mant
+math_bf16_goldschmidt_div.w_b_sign
+math_bf16_goldschmidt_div.w_d0
+math_bf16_goldschmidt_div.w_n0
+math_bf16_goldschmidt_div.w_prescale_d_inv
+math_bf16_goldschmidt_div.w_prescale_d_ovf
+math_bf16_goldschmidt_div.w_prescale_d_udf
+math_bf16_goldschmidt_div.w_prescale_n_inv
+math_bf16_goldschmidt_div.w_prescale_n_ovf
+math_bf16_goldschmidt_div.w_prescale_n_udf
+math_bf16_goldschmidt_div.w_recip_b
+math_bf16_goldschmidt_div.w_recip_inf
+math_bf16_goldschmidt_div.w_recip_mant_approx
+math_bf16_goldschmidt_div.w_recip_mant_interp
+math_bf16_goldschmidt_div.w_recip_nan
+math_bf16_goldschmidt_div.w_recip_underflow
+math_bf16_goldschmidt_div.w_recip_zero
+math_bf16_goldschmidt_div.w_result_sign
+@200
+-gen_single_iter
+@28
+math_bf16_goldschmidt_div.gen_single_iter.w_direct_product
+math_bf16_goldschmidt_div.gen_single_iter.w_quot_ge_one
+math_bf16_goldschmidt_div.gen_single_iter.w_special_inf
+math_bf16_goldschmidt_div.gen_single_iter.w_special_nan
+math_bf16_goldschmidt_div.gen_single_iter.w_special_zero
+math_bf16_goldschmidt_div.gen_single_iter.w_true_exp_approx
+math_bf16_goldschmidt_div.gen_single_iter.w_true_underflow
+math_bf16_goldschmidt_div.gen_single_iter.w_use_direct_calc
+@200
+-u_compute_f0
+@28
+math_bf16_goldschmidt_div.u_compute_f0.PIPE_STAGE_1
+math_bf16_goldschmidt_div.u_compute_f0.PIPE_STAGE_2
+math_bf16_goldschmidt_div.u_compute_f0.PIPE_STAGE_3
+math_bf16_goldschmidt_div.u_compute_f0.PIPE_STAGE_4
+@22
+math_bf16_goldschmidt_div.u_compute_f0.i_a[7:0]
+@28
+math_bf16_goldschmidt_div.u_compute_f0.i_b
+math_bf16_goldschmidt_div.u_compute_f0.i_clk
+math_bf16_goldschmidt_div.u_compute_f0.i_rst_n
+@200
+-u_initial_recip
+@28
+math_bf16_goldschmidt_div.u_initial_recip.LUT_ADDR_BITS
+math_bf16_goldschmidt_div.u_initial_recip.LUT_DEPTH
+math_bf16_goldschmidt_div.u_initial_recip.i_bf16
+math_bf16_goldschmidt_div.u_initial_recip.ow_is_inf
+math_bf16_goldschmidt_div.u_initial_recip.ow_is_nan
+math_bf16_goldschmidt_div.u_initial_recip.ow_is_zero
+math_bf16_goldschmidt_div.u_initial_recip.ow_reciprocal
+math_bf16_goldschmidt_div.u_initial_recip.ow_underflow
+@200
+-u_mult_d1
+@28
+math_bf16_goldschmidt_div.u_mult_d1.i_a
+math_bf16_goldschmidt_div.u_mult_d1.i_b
+math_bf16_goldschmidt_div.u_mult_d1.ow_invalid
+math_bf16_goldschmidt_div.u_mult_d1.ow_overflow
+math_bf16_goldschmidt_div.u_mult_d1.ow_result
+math_bf16_goldschmidt_div.u_mult_d1.ow_underflow
+math_bf16_goldschmidt_div.u_mult_d1.w_exp_a
+math_bf16_goldschmidt_div.u_mult_d1.w_sign_a
+@200
+-u_mult_n1
+@28
+math_bf16_goldschmidt_div.u_mult_n1.i_a
+math_bf16_goldschmidt_div.u_mult_n1.i_b
+math_bf16_goldschmidt_div.u_mult_n1.ow_invalid
+math_bf16_goldschmidt_div.u_mult_n1.ow_overflow
+math_bf16_goldschmidt_div.u_mult_n1.ow_result
+math_bf16_goldschmidt_div.u_mult_n1.ow_underflow
+math_bf16_goldschmidt_div.u_mult_n1.w_exp_a
+math_bf16_goldschmidt_div.u_mult_n1.w_sign_a
+@200
+-u_prescale_d
+@28
+math_bf16_goldschmidt_div.u_prescale_d.i_a
+math_bf16_goldschmidt_div.u_prescale_d.i_b
+math_bf16_goldschmidt_div.u_prescale_d.ow_invalid
+math_bf16_goldschmidt_div.u_prescale_d.ow_overflow
+math_bf16_goldschmidt_div.u_prescale_d.ow_result
+math_bf16_goldschmidt_div.u_prescale_d.ow_underflow
+math_bf16_goldschmidt_div.u_prescale_d.w_exp_a
+math_bf16_goldschmidt_div.u_prescale_d.w_sign_a

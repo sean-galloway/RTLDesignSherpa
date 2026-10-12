@@ -1,0 +1,109 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi4_master_pat_crc_pair_kb4/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/tb_axi4_master_pat_crc_pair.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_axi4_master_pat_crc_pair.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+tb_axi4_master_pat_crc_pair.aclk
+tb_axi4_master_pat_crc_pair.aresetn
+tb_axi4_master_pat_crc_pair.cfg_axi_burst
+tb_axi4_master_pat_crc_pair.cfg_burst_len
+tb_axi4_master_pat_crc_pair.rd_arburst
+tb_axi4_master_pat_crc_pair.wr_awburst
+@200
+-interface
+@28
+tb_axi4_master_pat_crc_pair.AW
+tb_axi4_master_pat_crc_pair.AXI_ADDR_WIDTH
+tb_axi4_master_pat_crc_pair.AXI_DATA_WIDTH
+tb_axi4_master_pat_crc_pair.AXI_ID_WIDTH
+tb_axi4_master_pat_crc_pair.AXI_USER_WIDTH
+tb_axi4_master_pat_crc_pair.DW
+tb_axi4_master_pat_crc_pair.IW
+tb_axi4_master_pat_crc_pair.MAX_OUTSTANDING
+tb_axi4_master_pat_crc_pair.MEM_DEPTH_LOG2
+tb_axi4_master_pat_crc_pair.OSW
+tb_axi4_master_pat_crc_pair.SW
+tb_axi4_master_pat_crc_pair.cfg_addr_stride_0
+tb_axi4_master_pat_crc_pair.cfg_addr_stride_1
+tb_axi4_master_pat_crc_pair.cfg_addr_wrap_mask_0
+tb_axi4_master_pat_crc_pair.cfg_addr_wrap_mask_1
+tb_axi4_master_pat_crc_pair.cfg_axi_id
+tb_axi4_master_pat_crc_pair.cfg_axi_size
+tb_axi4_master_pat_crc_pair.cfg_data_mode
+tb_axi4_master_pat_crc_pair.cfg_done_rd
+tb_axi4_master_pat_crc_pair.cfg_done_wr
+tb_axi4_master_pat_crc_pair.cfg_fill_pattern
+tb_axi4_master_pat_crc_pair.cfg_hammer_en
+tb_axi4_master_pat_crc_pair.cfg_hash_seed0
+tb_axi4_master_pat_crc_pair.cfg_hash_seed1
+tb_axi4_master_pat_crc_pair.cfg_hash_seed2
+tb_axi4_master_pat_crc_pair.cfg_id_mode
+tb_axi4_master_pat_crc_pair.cfg_lfsr_seed
+tb_axi4_master_pat_crc_pair.cfg_max_outstanding
+tb_axi4_master_pat_crc_pair.cfg_rd_gap
+tb_axi4_master_pat_crc_pair.cfg_start_addr
+tb_axi4_master_pat_crc_pair.cfg_start_rd
+tb_axi4_master_pat_crc_pair.cfg_start_wr
+tb_axi4_master_pat_crc_pair.cfg_txn_count
+tb_axi4_master_pat_crc_pair.cfg_wr_gap
+tb_axi4_master_pat_crc_pair.o_actual_crc
+tb_axi4_master_pat_crc_pair.o_actual_crc_valid
+tb_axi4_master_pat_crc_pair.o_beats_mismatched
+tb_axi4_master_pat_crc_pair.o_bresp_error
+tb_axi4_master_pat_crc_pair.o_data_error
+tb_axi4_master_pat_crc_pair.o_err_bits
+tb_axi4_master_pat_crc_pair.o_expected_crc
+tb_axi4_master_pat_crc_pair.o_expected_crc_valid
+tb_axi4_master_pat_crc_pair.o_rresp_error
+tb_axi4_master_pat_crc_pair.o_stray_beat_error
+tb_axi4_master_pat_crc_pair.o_stray_beats
+tb_axi4_master_pat_crc_pair.wr_awaddr
+tb_axi4_master_pat_crc_pair.wr_awcache
+tb_axi4_master_pat_crc_pair.wr_awid
+tb_axi4_master_pat_crc_pair.wr_awlen
+tb_axi4_master_pat_crc_pair.wr_awlock
+tb_axi4_master_pat_crc_pair.wr_awprot
+tb_axi4_master_pat_crc_pair.wr_awqos
+tb_axi4_master_pat_crc_pair.wr_awready
+tb_axi4_master_pat_crc_pair.wr_awregion
+tb_axi4_master_pat_crc_pair.wr_awsize
+tb_axi4_master_pat_crc_pair.wr_awuser
+tb_axi4_master_pat_crc_pair.wr_awvalid
+tb_axi4_master_pat_crc_pair.wr_wdata
+tb_axi4_master_pat_crc_pair.wr_wstrb
+tb_axi4_master_pat_crc_pair.wr_wuser
+@200
+-u_rd
+@28
+tb_axi4_master_pat_crc_pair.u_rd.AXI_ADDR_WIDTH
+tb_axi4_master_pat_crc_pair.u_rd.AXI_DATA_WIDTH
+tb_axi4_master_pat_crc_pair.u_rd.AXI_ID_WIDTH
+tb_axi4_master_pat_crc_pair.u_rd.AXI_USER_WIDTH
+tb_axi4_master_pat_crc_pair.u_rd.LFSR_SEED
+tb_axi4_master_pat_crc_pair.u_rd.LFSR_WIDTH
+tb_axi4_master_pat_crc_pair.u_rd.SKID_DEPTH_AR
+tb_axi4_master_pat_crc_pair.u_rd.SKID_DEPTH_R
+@200
+-u_wr
+@28
+tb_axi4_master_pat_crc_pair.u_wr.AXI_ADDR_WIDTH
+tb_axi4_master_pat_crc_pair.u_wr.AXI_DATA_WIDTH
+tb_axi4_master_pat_crc_pair.u_wr.AXI_ID_WIDTH
+tb_axi4_master_pat_crc_pair.u_wr.AXI_USER_WIDTH
+tb_axi4_master_pat_crc_pair.u_wr.AXI_WSTRB_WIDTH
+tb_axi4_master_pat_crc_pair.u_wr.SKID_DEPTH_AW
+tb_axi4_master_pat_crc_pair.u_wr.SKID_DEPTH_B
+tb_axi4_master_pat_crc_pair.u_wr.SKID_DEPTH_W

@@ -1,0 +1,134 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axis5_slave_sd4_dw32_wk_np/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axis5_slave.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis5_slave.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axis5_slave.aclk
+axis5_slave.aresetn
+@200
+-interface
+@28
+axis5_slave.SKID_DEPTH[31:0]
+axis5_slave.AXIS_DATA_WIDTH[31:0]
+axis5_slave.AXIS_ID_WIDTH[31:0]
+axis5_slave.AXIS_DEST_WIDTH[31:0]
+axis5_slave.AXIS_USER_WIDTH[31:0]
+axis5_slave.ENABLE_WAKEUP
+axis5_slave.ENABLE_PARITY
+axis5_slave.DW[31:0]
+axis5_slave.IW[31:0]
+axis5_slave.DESTW[31:0]
+axis5_slave.UW[31:0]
+axis5_slave.SW[31:0]
+axis5_slave.IW_WIDTH[31:0]
+axis5_slave.DESTW_WIDTH[31:0]
+axis5_slave.UW_WIDTH[31:0]
+axis5_slave.TDATACHK_W[31:0]
+axis5_slave.TSTRBCHK_W[31:0]
+axis5_slave.TIDCHK_W[31:0]
+axis5_slave.TDESTCHK_W[31:0]
+axis5_slave.TUSERCHK_W[31:0]
+@22
+axis5_slave.s_axis_tdata[31:0]
+axis5_slave.s_axis_tstrb[3:0]
+@28
+axis5_slave.s_axis_tlast
+@22
+axis5_slave.s_axis_tid[7:0]
+axis5_slave.s_axis_tdest[3:0]
+@28
+axis5_slave.s_axis_tuser[0:0]
+axis5_slave.s_axis_tvalid
+axis5_slave.s_axis_tready
+axis5_slave.s_axis_twakeup
+@22
+axis5_slave.s_axis_tdatachk[3:0]
+@28
+axis5_slave.s_axis_tstrbchk[0:0]
+axis5_slave.s_axis_tlastchk
+axis5_slave.s_axis_tidchk[0:0]
+axis5_slave.s_axis_tdestchk[0:0]
+axis5_slave.s_axis_tuserchk[0:0]
+axis5_slave.s_axis_tvalidchk
+axis5_slave.s_axis_treadychk
+axis5_slave.s_axis_twakeupchk
+@22
+axis5_slave.fub_axis_tdata[31:0]
+axis5_slave.fub_axis_tstrb[3:0]
+@28
+axis5_slave.fub_axis_tlast
+@22
+axis5_slave.fub_axis_tid[7:0]
+axis5_slave.fub_axis_tdest[3:0]
+@28
+axis5_slave.fub_axis_tuser[0:0]
+axis5_slave.fub_axis_tvalid
+axis5_slave.fub_axis_tready
+axis5_slave.fub_axis_twakeup
+@22
+axis5_slave.fub_axis_tdatachk[3:0]
+@28
+axis5_slave.fub_axis_tstrbchk[0:0]
+axis5_slave.fub_axis_tlastchk
+axis5_slave.fub_axis_tidchk[0:0]
+axis5_slave.fub_axis_tdestchk[0:0]
+axis5_slave.fub_axis_tuserchk[0:0]
+axis5_slave.busy
+axis5_slave.parity_error
+axis5_slave.CHKW[31:0]
+axis5_slave.TSize[31:0]
+@22
+axis5_slave.int_t_count[3:0]
+axis5_slave.int_t_pkt[50:0]
+@28
+axis5_slave.int_skid_tvalid
+axis5_slave.int_skid_tready
+@22
+axis5_slave.w_s_chk_pack[8:0]
+axis5_slave.wr_data_packed[50:0]
+@28
+axis5_slave.PARITY_OFFSET[31:0]
+@200
+-g_no_parity
+@28
+axis5_slave.g_no_parity.unused_chk_inputs
+@200
+-i_t_channel
+@28
+axis5_slave.i_t_channel.DATA_WIDTH[31:0]
+axis5_slave.i_t_channel.DEPTH[31:0]
+axis5_slave.i_t_channel.DW[31:0]
+axis5_slave.i_t_channel.axi_aclk
+axis5_slave.i_t_channel.axi_aresetn
+axis5_slave.i_t_channel.wr_valid
+axis5_slave.i_t_channel.wr_ready
+@22
+axis5_slave.i_t_channel.wr_data[50:0]
+axis5_slave.i_t_channel.count[3:0]
+@28
+axis5_slave.i_t_channel.rd_valid
+axis5_slave.i_t_channel.rd_ready
+@22
+axis5_slave.i_t_channel.rd_count[3:0]
+axis5_slave.i_t_channel.rd_data[50:0]
+axis5_slave.i_t_channel.r_data[0][50:0]
+axis5_slave.i_t_channel.r_data[1][50:0]
+axis5_slave.i_t_channel.r_data[2][50:0]
+axis5_slave.i_t_channel.r_data[3][50:0]
+axis5_slave.i_t_channel.r_data_count[3:0]
+@28
+axis5_slave.i_t_channel.w_wr_xfer
+axis5_slave.i_t_channel.w_rd_xfer

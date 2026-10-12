@@ -1,0 +1,99 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_gaxi_fifo_sync_mux_w008_d004_cl010_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/gaxi_fifo_sync.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gaxi_fifo_sync.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+gaxi_fifo_sync.axi_aclk
+@28
+gaxi_fifo_sync.axi_aresetn
+@200
+-interface
+@28
+gaxi_fifo_sync.ALMOST_RD_MARGIN
+gaxi_fifo_sync.ALMOST_WR_MARGIN
+gaxi_fifo_sync.AW
+gaxi_fifo_sync.D
+gaxi_fifo_sync.DATA_WIDTH
+gaxi_fifo_sync.DEPTH
+gaxi_fifo_sync.DW
+gaxi_fifo_sync.MEM_STYLE
+gaxi_fifo_sync.REGISTERED
+@22
+gaxi_fifo_sync.count[5:0]
+@28
+gaxi_fifo_sync.r_rd_addr
+gaxi_fifo_sync.r_rd_almost_empty
+gaxi_fifo_sync.r_rd_empty
+gaxi_fifo_sync.r_rd_ptr_bin
+@22
+gaxi_fifo_sync.r_wr_addr[8:0]
+@28
+gaxi_fifo_sync.r_wr_almost_full
+gaxi_fifo_sync.r_wr_full
+gaxi_fifo_sync.r_wr_ptr_bin
+@22
+gaxi_fifo_sync.rd_data[7:0]
+gaxi_fifo_sync.rd_ready[4:0]
+gaxi_fifo_sync.rd_valid[6:0]
+@28
+gaxi_fifo_sync.w_rd_ptr_bin_next
+gaxi_fifo_sync.w_read
+gaxi_fifo_sync.w_wr_ptr_bin_next
+gaxi_fifo_sync.w_write
+@22
+gaxi_fifo_sync.wr_data[3:0]
+gaxi_fifo_sync.wr_ready[2:0]
+gaxi_fifo_sync.wr_valid[1:0]
+@200
+-fifo_control_inst
+@28
+gaxi_fifo_sync.fifo_control_inst.ADDR_WIDTH
+gaxi_fifo_sync.fifo_control_inst.ALMOST_RD_MARGIN
+gaxi_fifo_sync.fifo_control_inst.ALMOST_WR_MARGIN
+gaxi_fifo_sync.fifo_control_inst.DEPTH
+gaxi_fifo_sync.fifo_control_inst.REGISTERED
+gaxi_fifo_sync.fifo_control_inst.rd_clk
+gaxi_fifo_sync.fifo_control_inst.wr_clk
+gaxi_fifo_sync.fifo_control_inst.wr_rst_n
+@200
+-gen_auto
+@28
+gaxi_fifo_sync.gen_auto.mem[0]
+gaxi_fifo_sync.gen_auto.mem[1]
+gaxi_fifo_sync.gen_auto.mem[2]
+gaxi_fifo_sync.gen_auto.mem[3]
+@200
+-read_pointer_inst
+@28
+gaxi_fifo_sync.read_pointer_inst.MAX
+gaxi_fifo_sync.read_pointer_inst.WIDTH
+gaxi_fifo_sync.read_pointer_inst.clk
+gaxi_fifo_sync.read_pointer_inst.counter_bin_curr
+gaxi_fifo_sync.read_pointer_inst.counter_bin_next
+gaxi_fifo_sync.read_pointer_inst.enable
+gaxi_fifo_sync.read_pointer_inst.rst_n
+gaxi_fifo_sync.read_pointer_inst.w_max_val
+@200
+-write_pointer_inst
+@28
+gaxi_fifo_sync.write_pointer_inst.MAX
+gaxi_fifo_sync.write_pointer_inst.WIDTH
+gaxi_fifo_sync.write_pointer_inst.clk
+gaxi_fifo_sync.write_pointer_inst.counter_bin_curr
+gaxi_fifo_sync.write_pointer_inst.counter_bin_next
+gaxi_fifo_sync.write_pointer_inst.enable
+gaxi_fifo_sync.write_pointer_inst.rst_n
+gaxi_fifo_sync.write_pointer_inst.w_max_val

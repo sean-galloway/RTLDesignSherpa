@@ -1,0 +1,65 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/cdc/local_sim_build/test_gw0_gaxi_async_skid_w008_d004_wr010_rd012_r1p2_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/cdc/GTKW/gaxi_skid_buffer_async.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gaxi_skid_buffer_async.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+gaxi_skid_buffer_async.axi_rd_aclk[1:0]
+gaxi_skid_buffer_async.axi_rd_aresetn[2:0]
+gaxi_skid_buffer_async.axi_wr_aclk
+@28
+gaxi_skid_buffer_async.axi_wr_aresetn
+@200
+-interface
+@28
+gaxi_skid_buffer_async.DATA_WIDTH
+gaxi_skid_buffer_async.DEPTH
+gaxi_skid_buffer_async.DW
+gaxi_skid_buffer_async.MEM_STYLE
+gaxi_skid_buffer_async.N_FLOP_CROSS
+gaxi_skid_buffer_async.REGISTERED
+gaxi_skid_buffer_async.USE_JOHNSON
+gaxi_skid_buffer_async.r_xfer_data
+gaxi_skid_buffer_async.r_xfer_ready
+gaxi_skid_buffer_async.r_xfer_valid
+@22
+gaxi_skid_buffer_async.rd_data[8:0]
+gaxi_skid_buffer_async.rd_ready[7:0]
+gaxi_skid_buffer_async.rd_valid[6:0]
+gaxi_skid_buffer_async.wr_data[5:0]
+gaxi_skid_buffer_async.wr_ready[4:0]
+gaxi_skid_buffer_async.wr_valid[3:0]
+@200
+-inst_gaxi_fifo_async
+@28
+gaxi_skid_buffer_async.inst_gaxi_fifo_async.ALMOST_RD_MARGIN
+gaxi_skid_buffer_async.inst_gaxi_fifo_async.ALMOST_WR_MARGIN
+gaxi_skid_buffer_async.inst_gaxi_fifo_async.DATA_WIDTH
+gaxi_skid_buffer_async.inst_gaxi_fifo_async.DEPTH
+gaxi_skid_buffer_async.inst_gaxi_fifo_async.MEM_STYLE
+gaxi_skid_buffer_async.inst_gaxi_fifo_async.N_FLOP_CROSS
+gaxi_skid_buffer_async.inst_gaxi_fifo_async.REGISTERED
+gaxi_skid_buffer_async.inst_gaxi_fifo_async.USE_JOHNSON
+@200
+-inst_gaxi_skid_buffer
+@28
+gaxi_skid_buffer_async.inst_gaxi_skid_buffer.DATA_WIDTH
+gaxi_skid_buffer_async.inst_gaxi_skid_buffer.DEPTH
+gaxi_skid_buffer_async.inst_gaxi_skid_buffer.DW
+gaxi_skid_buffer_async.inst_gaxi_skid_buffer.axi_aclk
+gaxi_skid_buffer_async.inst_gaxi_skid_buffer.axi_aresetn
+gaxi_skid_buffer_async.inst_gaxi_skid_buffer.wr_data
+gaxi_skid_buffer_async.inst_gaxi_skid_buffer.wr_ready
+gaxi_skid_buffer_async.inst_gaxi_skid_buffer.wr_valid

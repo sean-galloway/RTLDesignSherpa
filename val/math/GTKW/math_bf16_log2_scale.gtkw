@@ -1,0 +1,44 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_log2_scale_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_log2_scale.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_log2_scale.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_log2_scale.i_max_value
+math_bf16_log2_scale.ow_dequant_shift
+math_bf16_log2_scale.ow_is_overflow
+math_bf16_log2_scale.ow_is_zero
+math_bf16_log2_scale.ow_quant_shift
+math_bf16_log2_scale.ow_scale_bf16
+math_bf16_log2_scale.ow_scale_exp
+math_bf16_log2_scale.w_dequant_shift_raw
+math_bf16_log2_scale.w_exp
+@22
+math_bf16_log2_scale.w_exp_overflow[5:0]
+math_bf16_log2_scale.w_has_mantissa[3:0]
+math_bf16_log2_scale.w_is_inf[1:0]
+math_bf16_log2_scale.w_is_nan[2:0]
+@28
+math_bf16_log2_scale.w_is_zero
+@22
+math_bf16_log2_scale.w_mant
+math_bf16_log2_scale.w_quant_shift_raw[8:0]
+@28
+math_bf16_log2_scale.w_result_overflow
+math_bf16_log2_scale.w_scale_bf16
+@22
+math_bf16_log2_scale.w_scale_exp_clamped[6:0]
+math_bf16_log2_scale.w_scale_exp_raw[4:0]
+math_bf16_log2_scale.w_unbiased_scale[7:0]

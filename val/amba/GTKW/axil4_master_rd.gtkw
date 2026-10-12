@@ -1,0 +1,80 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axil4_master_rd_a32_d32_ard4_rd4_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil4_master_rd.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil4_master_rd.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+axil4_master_rd.aclk[7:0]
+axil4_master_rd.aresetn[8:0]
+@200
+-interface
+@22
+axil4_master_rd.ARSize[5:0]
+axil4_master_rd.AW[3:0]
+axil4_master_rd.AXIL_ADDR_WIDTH[3:0]
+axil4_master_rd.AXIL_DATA_WIDTH[3:0]
+axil4_master_rd.DW[3:0]
+axil4_master_rd.RSize[6:0]
+axil4_master_rd.SKID_DEPTH_AR[4:0]
+axil4_master_rd.SKID_DEPTH_R[4:0]
+@28
+axil4_master_rd.busy
+axil4_master_rd.fub_araddr
+axil4_master_rd.fub_arprot
+axil4_master_rd.fub_arready
+axil4_master_rd.fub_arvalid
+axil4_master_rd.fub_rdata
+axil4_master_rd.fub_rready
+axil4_master_rd.fub_rresp
+axil4_master_rd.fub_rvalid
+axil4_master_rd.int_ar_count
+axil4_master_rd.int_ar_pkt
+axil4_master_rd.int_r_count
+axil4_master_rd.int_skid_arready
+axil4_master_rd.int_skid_arvalid
+axil4_master_rd.int_skid_rready
+axil4_master_rd.int_skid_rvalid
+axil4_master_rd.m_axil_araddr
+axil4_master_rd.m_axil_arprot
+axil4_master_rd.m_axil_arready
+axil4_master_rd.m_axil_arvalid
+axil4_master_rd.m_axil_rdata
+axil4_master_rd.m_axil_rready
+axil4_master_rd.m_axil_rresp
+axil4_master_rd.m_axil_rvalid
+@200
+-ar_channel
+@22
+axil4_master_rd.ar_channel.DATA_WIDTH[5:0]
+axil4_master_rd.ar_channel.DEPTH[4:0]
+axil4_master_rd.ar_channel.DW[5:0]
+@28
+axil4_master_rd.ar_channel.axi_aclk
+axil4_master_rd.ar_channel.axi_aresetn
+axil4_master_rd.ar_channel.wr_data
+axil4_master_rd.ar_channel.wr_ready
+axil4_master_rd.ar_channel.wr_valid
+@200
+-r_channel
+@22
+axil4_master_rd.r_channel.DATA_WIDTH[6:0]
+axil4_master_rd.r_channel.DEPTH[4:0]
+axil4_master_rd.r_channel.DW[6:0]
+@28
+axil4_master_rd.r_channel.axi_aclk
+axil4_master_rd.r_channel.axi_aresetn
+axil4_master_rd.r_channel.wr_data
+axil4_master_rd.r_channel.wr_ready
+axil4_master_rd.r_channel.wr_valid

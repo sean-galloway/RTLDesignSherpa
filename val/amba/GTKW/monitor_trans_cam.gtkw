@@ -1,0 +1,93 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monitor_trans_cam_iw08_pw064_d016_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monitor_trans_cam.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monitor_trans_cam.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+monitor_trans_cam.clk
+monitor_trans_cam.data_match_first_oh
+monitor_trans_cam.rst_n
+@200
+-interface
+@28
+monitor_trans_cam.DEPTH
+monitor_trans_cam.ID_WIDTH
+monitor_trans_cam.PAYLOAD_WIDTH
+monitor_trans_cam.addr_alloc_mask
+monitor_trans_cam.addr_alloc_oh
+monitor_trans_cam.addr_match_oh
+monitor_trans_cam.addr_wants_alloc
+monitor_trans_cam.clear
+monitor_trans_cam.data_alloc_mask
+monitor_trans_cam.data_alloc_oh
+monitor_trans_cam.data_match_oh
+monitor_trans_cam.data_wants_alloc
+monitor_trans_cam.entry_id[0]
+monitor_trans_cam.entry_id[1]
+monitor_trans_cam.entry_id[2]
+monitor_trans_cam.entry_id[3]
+monitor_trans_cam.entry_id[4]
+monitor_trans_cam.entry_id_next[0]
+monitor_trans_cam.entry_id_next[10]
+monitor_trans_cam.entry_id_next[11]
+monitor_trans_cam.entry_id_next[12]
+monitor_trans_cam.entry_id_next[13]
+monitor_trans_cam.entry_id_next[14]
+monitor_trans_cam.entry_id_next[15]
+monitor_trans_cam.entry_id_next[1]
+monitor_trans_cam.entry_id_next[2]
+monitor_trans_cam.entry_id_next[3]
+monitor_trans_cam.entry_id_next[4]
+monitor_trans_cam.entry_id_next[5]
+monitor_trans_cam.entry_id_next[6]
+monitor_trans_cam.entry_id_next[7]
+monitor_trans_cam.entry_id_next[8]
+monitor_trans_cam.entry_id_next[9]
+monitor_trans_cam.entry_payload_next[0]
+monitor_trans_cam.entry_payload_next[10]
+monitor_trans_cam.entry_payload_next[11]
+monitor_trans_cam.entry_payload_next[12]
+monitor_trans_cam.entry_payload_next[13]
+monitor_trans_cam.entry_payload_next[14]
+monitor_trans_cam.entry_payload_next[15]
+monitor_trans_cam.entry_payload_next[1]
+monitor_trans_cam.entry_payload_next[2]
+monitor_trans_cam.entry_payload_next[3]
+monitor_trans_cam.entry_payload_next[4]
+monitor_trans_cam.entry_payload_next[5]
+monitor_trans_cam.entry_payload_next[6]
+monitor_trans_cam.entry_payload_next[7]
+monitor_trans_cam.entry_payload_next[8]
+monitor_trans_cam.entry_payload_next[9]
+monitor_trans_cam.entry_valid
+monitor_trans_cam.entry_valid_next
+monitor_trans_cam.entry_we
+monitor_trans_cam.free_oh
+monitor_trans_cam.lookup_addr_id
+monitor_trans_cam.lookup_data_id
+monitor_trans_cam.lookup_resp_id
+monitor_trans_cam.resp_alloc_mask
+monitor_trans_cam.resp_alloc_oh
+monitor_trans_cam.resp_match_oh
+monitor_trans_cam.resp_wants_alloc
+@200
+-unnamedblk3
+@28
+monitor_trans_cam.unnamedblk3.remaining
+monitor_trans_cam.unnamedblk3.taken
+@200
+-unnamedblk7
+@28
+monitor_trans_cam.unnamedblk7.unnamedblk8.alloc_count

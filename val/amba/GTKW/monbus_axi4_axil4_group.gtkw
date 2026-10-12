@@ -1,0 +1,83 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monbus_arbiter_grant_hold_dut_grant_hold_grant_hold_cl04_is0_os0/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monbus_axi4_axil4_group.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_arbiter_grant_hold_dut.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+monbus_arbiter_grant_hold_dut.axi_aclk[2:0]
+monbus_arbiter_grant_hold_dut.axi_aresetn[3:0]
+@200
+-interface
+@22
+monbus_arbiter_grant_hold_dut.CLIENTS
+@28
+monbus_arbiter_grant_hold_dut.INPUT_SKID_ENABLE
+@22
+monbus_arbiter_grant_hold_dut.N[1:0]
+@28
+monbus_arbiter_grant_hold_dut.OUTPUT_SKID_ENABLE
+@22
+monbus_arbiter_grant_hold_dut.block_arb[4:0]
+@28
+monbus_arbiter_grant_hold_dut.grant
+monbus_arbiter_grant_hold_dut.grant_id
+monbus_arbiter_grant_hold_dut.grant_valid
+monbus_arbiter_grant_hold_dut.last_grant
+monbus_arbiter_grant_hold_dut.monbus_packet
+@22
+monbus_arbiter_grant_hold_dut.monbus_packet_in[7:0]
+@28
+monbus_arbiter_grant_hold_dut.monbus_ready
+@22
+monbus_arbiter_grant_hold_dut.monbus_ready_in[6:0]
+@28
+monbus_arbiter_grant_hold_dut.monbus_timestamp
+@22
+monbus_arbiter_grant_hold_dut.monbus_timestamp_in[8:0]
+@28
+monbus_arbiter_grant_hold_dut.monbus_valid
+@22
+monbus_arbiter_grant_hold_dut.monbus_valid_in[5:0]
+@28
+monbus_arbiter_grant_hold_dut.w_packet_in[0]
+monbus_arbiter_grant_hold_dut.w_packet_in[1]
+monbus_arbiter_grant_hold_dut.w_packet_in[2]
+monbus_arbiter_grant_hold_dut.w_packet_in[3]
+monbus_arbiter_grant_hold_dut.w_ready_in[0]
+monbus_arbiter_grant_hold_dut.w_ready_in[1]
+monbus_arbiter_grant_hold_dut.w_ready_in[2]
+monbus_arbiter_grant_hold_dut.w_ready_in[3]
+monbus_arbiter_grant_hold_dut.w_timestamp_in[0]
+monbus_arbiter_grant_hold_dut.w_timestamp_in[1]
+monbus_arbiter_grant_hold_dut.w_timestamp_in[2]
+monbus_arbiter_grant_hold_dut.w_timestamp_in[3]
+monbus_arbiter_grant_hold_dut.w_valid_in[0]
+monbus_arbiter_grant_hold_dut.w_valid_in[1]
+monbus_arbiter_grant_hold_dut.w_valid_in[2]
+monbus_arbiter_grant_hold_dut.w_valid_in[3]
+@200
+-u_arb
+@22
+monbus_arbiter_grant_hold_dut.u_arb.CLIENTS
+monbus_arbiter_grant_hold_dut.u_arb.INPUT_SKID_DEPTH[1:0]
+@28
+monbus_arbiter_grant_hold_dut.u_arb.INPUT_SKID_ENABLE
+@22
+monbus_arbiter_grant_hold_dut.u_arb.N[1:0]
+monbus_arbiter_grant_hold_dut.u_arb.OUTPUT_SKID_DEPTH[1:0]
+@28
+monbus_arbiter_grant_hold_dut.u_arb.OUTPUT_SKID_ENABLE
+monbus_arbiter_grant_hold_dut.u_arb.SKID_DATA_WIDTH
+monbus_arbiter_grant_hold_dut.u_arb.axi_aclk

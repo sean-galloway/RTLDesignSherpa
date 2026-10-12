@@ -1,0 +1,58 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_int_to_bf16_gate_w32_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_int_to_bf16.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_int_to_bf16.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_int_to_bf16.CLZ_WIDTH
+math_int_to_bf16.EXP_BASE
+math_int_to_bf16.INT_WIDTH
+math_int_to_bf16.i_int
+math_int_to_bf16.ow_bf16
+math_int_to_bf16.ow_is_zero
+math_int_to_bf16.w_abs_value
+math_int_to_bf16.w_clz
+math_int_to_bf16.w_exp_adjusted
+math_int_to_bf16.w_exp_clamped
+math_int_to_bf16.w_exp_final
+math_int_to_bf16.w_exp_overflow
+math_int_to_bf16.w_exp_raw
+@22
+math_int_to_bf16.w_exp_underflow
+math_int_to_bf16.w_guard[3:0]
+@28
+math_int_to_bf16.w_inf_overflow
+math_int_to_bf16.w_is_zero
+math_int_to_bf16.w_mantissa_final
+@22
+math_int_to_bf16.w_mantissa_lsb[6:0]
+@28
+math_int_to_bf16.w_mantissa_overflow
+@22
+math_int_to_bf16.w_mantissa_raw[2:0]
+math_int_to_bf16.w_mantissa_rounded[8:0]
+math_int_to_bf16.w_normalized[1:0]
+math_int_to_bf16.w_round_bit[4:0]
+math_int_to_bf16.w_round_up[7:0]
+@28
+math_int_to_bf16.w_sign
+@22
+math_int_to_bf16.w_sticky[5:0]
+@200
+-u_clz
+@28
+math_int_to_bf16.u_clz.WIDTH
+math_int_to_bf16.u_clz.clz
+math_int_to_bf16.u_clz.data

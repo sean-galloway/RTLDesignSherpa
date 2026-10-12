@@ -1,0 +1,54 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/cdc/local_sim_build/test_gw0_cdc_4_phase_handshake_src10ns_dst10ns_same_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/cdc/GTKW/cdc_4_phase_handshake.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] cdc_4_phase_handshake.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+cdc_4_phase_handshake.clk_dst[3:0]
+@28
+cdc_4_phase_handshake.clk_src
+@22
+cdc_4_phase_handshake.rst_dst_n[4:0]
+cdc_4_phase_handshake.rst_src_n
+@200
+-interface
+@28
+cdc_4_phase_handshake.DATA_WIDTH
+cdc_4_phase_handshake.SYNC_STAGES
+cdc_4_phase_handshake.TIMEOUT_CW
+cdc_4_phase_handshake.TIMEOUT_CYCLES
+@22
+cdc_4_phase_handshake.dst_data[7:0]
+cdc_4_phase_handshake.dst_ready[6:0]
+cdc_4_phase_handshake.dst_valid[5:0]
+@28
+cdc_4_phase_handshake.r_ack_dst
+cdc_4_phase_handshake.r_ack_sync
+cdc_4_phase_handshake.r_dst_data
+cdc_4_phase_handshake.r_dst_state
+@22
+cdc_4_phase_handshake.r_req_src[8:0]
+@28
+cdc_4_phase_handshake.r_req_sync
+cdc_4_phase_handshake.r_src_data_hold
+cdc_4_phase_handshake.r_src_state
+@22
+cdc_4_phase_handshake.src_data[2:0]
+cdc_4_phase_handshake.src_ready[1:0]
+@28
+cdc_4_phase_handshake.src_timeout
+cdc_4_phase_handshake.src_valid
+cdc_4_phase_handshake.w_ack_sync
+cdc_4_phase_handshake.w_req_sync

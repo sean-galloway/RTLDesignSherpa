@@ -1,0 +1,91 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/common/local_sim_build/test_arbiter_token_bucket_c04_t64_r4_w0_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/common/GTKW/arbiter_token_bucket.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] arbiter_token_bucket.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+arbiter_token_bucket.clk[1:0]
+arbiter_token_bucket.rst_n[2:0]
+@200
+-interface
+@28
+arbiter_token_bucket.AW
+arbiter_token_bucket.C
+arbiter_token_bucket.CLIENTS
+arbiter_token_bucket.CXRW
+@22
+arbiter_token_bucket.CXTW
+@28
+arbiter_token_bucket.MAX_TOKENS
+arbiter_token_bucket.RATE_WIDTH
+arbiter_token_bucket.TW
+arbiter_token_bucket.WAIT_GNT_ACK
+@22
+arbiter_token_bucket.bucket_cap[5:0]
+arbiter_token_bucket.grant[7:0]
+@28
+arbiter_token_bucket.grant_ack
+@22
+arbiter_token_bucket.grant_valid[8:0]
+@28
+arbiter_token_bucket.r_tokens[0]
+arbiter_token_bucket.r_tokens[1]
+arbiter_token_bucket.r_tokens[2]
+arbiter_token_bucket.r_tokens[3]
+@22
+arbiter_token_bucket.rate[4:0]
+arbiter_token_bucket.refill_tick[3:0]
+arbiter_token_bucket.request_in[6:0]
+@28
+arbiter_token_bucket.request_out
+arbiter_token_bucket.tokens
+arbiter_token_bucket.w_bypass
+arbiter_token_bucket.w_client_cap[0]
+arbiter_token_bucket.w_client_cap[1]
+arbiter_token_bucket.w_client_cap[2]
+arbiter_token_bucket.w_client_cap[3]
+arbiter_token_bucket.w_client_rate[0]
+arbiter_token_bucket.w_client_rate[1]
+arbiter_token_bucket.w_client_rate[2]
+arbiter_token_bucket.w_client_rate[3]
+arbiter_token_bucket.w_spend
+arbiter_token_bucket.w_tokens_next[0]
+arbiter_token_bucket.w_tokens_next[1]
+arbiter_token_bucket.w_tokens_next[2]
+arbiter_token_bucket.w_tokens_next[3]
+@200
+-gen_bucket[0]
+@28
+arbiter_token_bucket.gen_bucket[0].w_after_refill
+@200
+-gen_bucket[1]
+@28
+arbiter_token_bucket.gen_bucket[1].w_after_refill
+@200
+-gen_bucket[2]
+@28
+arbiter_token_bucket.gen_bucket[2].w_after_refill
+@200
+-gen_bucket[3]
+@28
+arbiter_token_bucket.gen_bucket[3].w_after_refill
+@200
+-gen_gate[0]
+@28
+arbiter_token_bucket.gen_gate[0].w_net_tokens
+@200
+-gen_gate[1]
+@28
+arbiter_token_bucket.gen_gate[1].w_net_tokens

@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_gw0_axil4_slave_rd_monlite_cg_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil4_slave_rd_monlite_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil4_slave_rd_monlite_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil4_slave_rd_monlite_cg.ACLK_MHZ
+axil4_slave_rd_monlite_cg.aclk
+axil4_slave_rd_monlite_cg.aresetn
+axil4_slave_rd_monlite_cg.gated_aclk
+@200
+-interface
+@28
+axil4_slave_rd_monlite_cg.ACTIVE_TRANS_THRESHOLD
+axil4_slave_rd_monlite_cg.ADDR_RANGE_IS_ERROR
+axil4_slave_rd_monlite_cg.AGENT_ID
+axil4_slave_rd_monlite_cg.ARSize
+axil4_slave_rd_monlite_cg.AW
+axil4_slave_rd_monlite_cg.AXIL_ADDR_WIDTH
+axil4_slave_rd_monlite_cg.AXIL_DATA_WIDTH
+axil4_slave_rd_monlite_cg.CFI_MAX_FREQ_MHZ
+axil4_slave_rd_monlite_cg.CFI_MIN_FREQ_MHZ
+axil4_slave_rd_monlite_cg.CG_IDLE_COUNT_WIDTH
+axil4_slave_rd_monlite_cg.DW
+axil4_slave_rd_monlite_cg.MAX_TRANSACTIONS
+axil4_slave_rd_monlite_cg.N_ADDR_RANGES
+axil4_slave_rd_monlite_cg.OUT_DEPTH
+axil4_slave_rd_monlite_cg.RSize
+axil4_slave_rd_monlite_cg.SKID_DEPTH_AR
+axil4_slave_rd_monlite_cg.SKID_DEPTH_R
+axil4_slave_rd_monlite_cg.UNIT_ID
+axil4_slave_rd_monlite_cg.USE_MONITOR
+axil4_slave_rd_monlite_cg.active_transactions
+axil4_slave_rd_monlite_cg.busy
+axil4_slave_rd_monlite_cg.cam_clear
+axil4_slave_rd_monlite_cg.cfg_addr_check_enable
+axil4_slave_rd_monlite_cg.cfg_addr_match_enable
+axil4_slave_rd_monlite_cg.cfg_addr_range_enable
+axil4_slave_rd_monlite_cg.cfg_addr_range_high[0]
+axil4_slave_rd_monlite_cg.cfg_addr_range_low[0]
+axil4_slave_rd_monlite_cg.cfg_axi_pkt_mask
+axil4_slave_rd_monlite_cg.cfg_compl_enable
+axil4_slave_rd_monlite_cg.cfg_error_enable
+axil4_slave_rd_monlite_cg.cfg_freq_sel
+axil4_slave_rd_monlite_cg.cfg_latency_threshold
+axil4_slave_rd_monlite_cg.cfg_monitor_enable
+axil4_slave_rd_monlite_cg.cfg_threshold_enable
+axil4_slave_rd_monlite_cg.cfg_timeout_cycles
+axil4_slave_rd_monlite_cg.cfg_timeout_enable
+axil4_slave_rd_monlite_cg.dropped_count
+axil4_slave_rd_monlite_cg.error_count
+axil4_slave_rd_monlite_cg.fub_axil_araddr
+axil4_slave_rd_monlite_cg.fub_axil_arprot
+axil4_slave_rd_monlite_cg.fub_axil_arready
+axil4_slave_rd_monlite_cg.fub_axil_arvalid
+axil4_slave_rd_monlite_cg.fub_axil_rdata
+axil4_slave_rd_monlite_cg.fub_axil_rready
+axil4_slave_rd_monlite_cg.fub_axil_rresp
+axil4_slave_rd_monlite_cg.fub_axil_rvalid
+axil4_slave_rd_monlite_cg.i_mon_time
+axil4_slave_rd_monlite_cg.monbus_packet
+axil4_slave_rd_monlite_cg.monbus_ready
+axil4_slave_rd_monlite_cg.monbus_timestamp
+axil4_slave_rd_monlite_cg.monbus_valid
+axil4_slave_rd_monlite_cg.s_axil_araddr
+axil4_slave_rd_monlite_cg.s_axil_arprot
+axil4_slave_rd_monlite_cg.s_axil_arready
+axil4_slave_rd_monlite_cg.s_axil_arvalid
+axil4_slave_rd_monlite_cg.s_axil_rdata
+axil4_slave_rd_monlite_cg.s_axil_rready
+axil4_slave_rd_monlite_cg.s_axil_rresp
+axil4_slave_rd_monlite_cg.s_axil_rvalid
+axil4_slave_rd_monlite_cg.transaction_count
+@200
+-i_amba_clock_gate_ctrl
+@28
+axil4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+axil4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.ICW
+axil4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.aresetn
+axil4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.axi_valid
+axil4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.cfg_cg_enable
+axil4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.cfg_cg_idle_count
+axil4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.clk_in
+axil4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.user_valid
+@200
+-u_monlite
+@28
+axil4_slave_rd_monlite_cg.u_monlite.ACTIVE_TRANS_THRESHOLD
+axil4_slave_rd_monlite_cg.u_monlite.ADDR_RANGE_IS_ERROR
+axil4_slave_rd_monlite_cg.u_monlite.AGENT_ID
+axil4_slave_rd_monlite_cg.u_monlite.MAX_TRANSACTIONS
+axil4_slave_rd_monlite_cg.u_monlite.N_ADDR_RANGES
+axil4_slave_rd_monlite_cg.u_monlite.OUT_DEPTH
+axil4_slave_rd_monlite_cg.u_monlite.UNIT_ID
+axil4_slave_rd_monlite_cg.u_monlite.USE_MONITOR

@@ -1,0 +1,83 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axis_bus_meter_idle/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axis_bus_meter.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis_bus_meter.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axis_bus_meter.aclk
+axis_bus_meter.aresetn
+@200
+-interface
+@28
+axis_bus_meter.CW
+axis_bus_meter.DATA_WIDTH
+axis_bus_meter.NUM_CHANNELS
+axis_bus_meter.SW
+axis_bus_meter.TID_WIDTH
+axis_bus_meter.i_clear
+axis_bus_meter.i_freeze
+axis_bus_meter.i_tid
+axis_bus_meter.i_tlast
+axis_bus_meter.i_tready
+axis_bus_meter.i_tstrb
+axis_bus_meter.i_tvalid
+axis_bus_meter.o_agg_backpressure
+axis_bus_meter.o_agg_beats
+axis_bus_meter.o_agg_bytes
+axis_bus_meter.o_agg_idle
+axis_bus_meter.o_agg_packets
+axis_bus_meter.o_agg_productive
+axis_bus_meter.o_agg_starvation
+axis_bus_meter.o_ch_backpressure[0]
+axis_bus_meter.o_ch_backpressure[1]
+axis_bus_meter.o_ch_backpressure[2]
+axis_bus_meter.o_ch_backpressure[3]
+axis_bus_meter.o_ch_idle[0]
+axis_bus_meter.o_ch_idle[1]
+axis_bus_meter.o_ch_idle[2]
+axis_bus_meter.o_ch_idle[3]
+axis_bus_meter.o_ch_overflow
+axis_bus_meter.o_ch_productive[0]
+axis_bus_meter.o_ch_productive[1]
+axis_bus_meter.o_ch_productive[2]
+axis_bus_meter.o_ch_productive[3]
+axis_bus_meter.o_ch_starvation[0]
+axis_bus_meter.o_ch_starvation[1]
+axis_bus_meter.o_ch_starvation[2]
+axis_bus_meter.o_ch_starvation[3]
+axis_bus_meter.r_agg_beats
+axis_bus_meter.r_agg_bp
+axis_bus_meter.r_agg_bytes
+axis_bus_meter.r_agg_idle
+axis_bus_meter.r_agg_packets
+axis_bus_meter.r_agg_prod
+axis_bus_meter.r_agg_starv
+axis_bus_meter.r_ch_bp[0]
+axis_bus_meter.r_ch_bp[1]
+axis_bus_meter.r_ch_bp[2]
+axis_bus_meter.r_ch_bp[3]
+axis_bus_meter.r_ch_prod[0]
+axis_bus_meter.r_ch_prod[1]
+axis_bus_meter.r_ch_prod[2]
+axis_bus_meter.r_ch_prod[3]
+axis_bus_meter.r_ch_starv[0]
+axis_bus_meter.r_ch_starv[1]
+axis_bus_meter.r_ch_starv[2]
+axis_bus_meter.w_beat_bytes
+axis_bus_meter.w_bp
+axis_bus_meter.w_ch
+axis_bus_meter.w_idle
+axis_bus_meter.w_prod
+axis_bus_meter.w_starv

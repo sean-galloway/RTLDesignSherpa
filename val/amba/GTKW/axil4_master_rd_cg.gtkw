@@ -1,0 +1,84 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axil4_master_rd_cg_a32_d32_ar2_r4_full_comprehensive/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axil4_master_rd_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil4_master_rd_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axil4_master_rd_cg.aclk
+axil4_master_rd_cg.aresetn
+axil4_master_rd_cg.gated_aclk
+@200
+-interface
+@22
+axil4_master_rd_cg.AW[6:0]
+axil4_master_rd_cg.AXIL_ADDR_WIDTH[6:0]
+axil4_master_rd_cg.AXIL_DATA_WIDTH[6:0]
+@28
+axil4_master_rd_cg.CG_IDLE_COUNT_WIDTH
+@22
+axil4_master_rd_cg.DW[6:0]
+axil4_master_rd_cg.SKID_DEPTH_AR[7:0]
+axil4_master_rd_cg.SKID_DEPTH_R[8:0]
+@28
+axil4_master_rd_cg.axi_valid
+axil4_master_rd_cg.cfg_cg_enable
+axil4_master_rd_cg.cfg_cg_idle_count
+axil4_master_rd_cg.cg_gating
+axil4_master_rd_cg.cg_idle
+axil4_master_rd_cg.fub_araddr
+axil4_master_rd_cg.fub_arprot
+axil4_master_rd_cg.fub_arready
+axil4_master_rd_cg.fub_arvalid
+axil4_master_rd_cg.fub_rdata
+axil4_master_rd_cg.fub_rready
+axil4_master_rd_cg.fub_rresp
+axil4_master_rd_cg.fub_rvalid
+axil4_master_rd_cg.int_arready
+axil4_master_rd_cg.int_busy
+axil4_master_rd_cg.int_rready
+axil4_master_rd_cg.m_axil_araddr
+axil4_master_rd_cg.m_axil_arprot
+axil4_master_rd_cg.m_axil_arready
+axil4_master_rd_cg.m_axil_arvalid
+axil4_master_rd_cg.m_axil_rdata
+axil4_master_rd_cg.m_axil_rready
+axil4_master_rd_cg.m_axil_rresp
+axil4_master_rd_cg.m_axil_rvalid
+axil4_master_rd_cg.user_valid
+@200
+-i_amba_clock_gate_ctrl
+@28
+axil4_master_rd_cg.i_amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+axil4_master_rd_cg.i_amba_clock_gate_ctrl.ICW
+axil4_master_rd_cg.i_amba_clock_gate_ctrl.aresetn
+axil4_master_rd_cg.i_amba_clock_gate_ctrl.axi_valid
+axil4_master_rd_cg.i_amba_clock_gate_ctrl.cfg_cg_enable
+axil4_master_rd_cg.i_amba_clock_gate_ctrl.cfg_cg_idle_count
+axil4_master_rd_cg.i_amba_clock_gate_ctrl.clk_in
+axil4_master_rd_cg.i_amba_clock_gate_ctrl.user_valid
+@200
+-i_axil_master_rd
+@28
+axil4_master_rd_cg.i_axil_master_rd.ARSize
+@22
+axil4_master_rd_cg.i_axil_master_rd.AW[6:0]
+axil4_master_rd_cg.i_axil_master_rd.AXIL_ADDR_WIDTH[6:0]
+axil4_master_rd_cg.i_axil_master_rd.AXIL_DATA_WIDTH[6:0]
+axil4_master_rd_cg.i_axil_master_rd.DW[6:0]
+@28
+axil4_master_rd_cg.i_axil_master_rd.RSize
+@22
+axil4_master_rd_cg.i_axil_master_rd.SKID_DEPTH_AR[7:0]
+axil4_master_rd_cg.i_axil_master_rd.SKID_DEPTH_R[8:0]

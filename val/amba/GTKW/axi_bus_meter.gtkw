@@ -1,0 +1,80 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi_bus_meter_idle/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi_bus_meter.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_bus_meter.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi_bus_meter.aclk
+axi_bus_meter.aresetn
+@200
+-interface
+@28
+axi_bus_meter.CW
+axi_bus_meter.NUM_CHANNELS
+axi_bus_meter.i_channel_id
+axi_bus_meter.i_channel_valid
+axi_bus_meter.i_clear
+axi_bus_meter.i_freeze
+axi_bus_meter.i_ready
+axi_bus_meter.i_valid
+axi_bus_meter.o_agg_backpressure
+axi_bus_meter.o_agg_idle
+axi_bus_meter.o_agg_productive
+axi_bus_meter.o_agg_starvation
+axi_bus_meter.o_ch_backpressure[0]
+axi_bus_meter.o_ch_backpressure[1]
+axi_bus_meter.o_ch_backpressure[2]
+axi_bus_meter.o_ch_backpressure[3]
+axi_bus_meter.o_ch_idle[0]
+axi_bus_meter.o_ch_idle[1]
+axi_bus_meter.o_ch_idle[2]
+axi_bus_meter.o_ch_idle[3]
+axi_bus_meter.o_ch_overflow
+axi_bus_meter.o_ch_productive[0]
+axi_bus_meter.o_ch_productive[1]
+axi_bus_meter.o_ch_productive[2]
+axi_bus_meter.o_ch_productive[3]
+axi_bus_meter.o_ch_starvation[0]
+axi_bus_meter.o_ch_starvation[1]
+axi_bus_meter.o_ch_starvation[2]
+axi_bus_meter.o_ch_starvation[3]
+axi_bus_meter.r_agg_bp
+axi_bus_meter.r_agg_idle
+axi_bus_meter.r_agg_prod
+axi_bus_meter.r_agg_starv
+axi_bus_meter.r_ch_bp[0]
+axi_bus_meter.r_ch_bp[1]
+axi_bus_meter.r_ch_bp[2]
+axi_bus_meter.r_ch_bp[3]
+axi_bus_meter.r_ch_idle[0]
+axi_bus_meter.r_ch_idle[1]
+axi_bus_meter.r_ch_idle[2]
+axi_bus_meter.r_ch_idle[3]
+axi_bus_meter.r_ch_overflow[0]
+axi_bus_meter.r_ch_overflow[1]
+axi_bus_meter.r_ch_overflow[2]
+axi_bus_meter.r_ch_overflow[3]
+axi_bus_meter.r_ch_prod[0]
+axi_bus_meter.r_ch_prod[1]
+axi_bus_meter.r_ch_prod[2]
+axi_bus_meter.r_ch_prod[3]
+axi_bus_meter.r_ch_starv[0]
+axi_bus_meter.r_ch_starv[1]
+axi_bus_meter.r_ch_starv[2]
+axi_bus_meter.r_ch_starv[3]
+axi_bus_meter.w_bp
+axi_bus_meter.w_idle
+axi_bus_meter.w_prod
+axi_bus_meter.w_starv

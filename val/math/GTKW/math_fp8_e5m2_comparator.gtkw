@@ -1,0 +1,52 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp8_e5m2_comparator_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp8_e5m2_comparator.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp8_e5m2_comparator.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@22
+math_fp8_e5m2_comparator.i_a
+math_fp8_e5m2_comparator.i_b
+@28
+math_fp8_e5m2_comparator.ow_eq
+math_fp8_e5m2_comparator.ow_ne
+math_fp8_e5m2_comparator.ow_lt
+math_fp8_e5m2_comparator.ow_le
+math_fp8_e5m2_comparator.ow_gt
+math_fp8_e5m2_comparator.ow_ge
+math_fp8_e5m2_comparator.ow_unord
+@200
+-internals
+@28
+math_fp8_e5m2_comparator.w_sign_a
+math_fp8_e5m2_comparator.w_sign_b
+@22
+math_fp8_e5m2_comparator.w_exp_a
+math_fp8_e5m2_comparator.w_exp_b
+math_fp8_e5m2_comparator.w_mant_a
+math_fp8_e5m2_comparator.w_mant_b
+math_fp8_e5m2_comparator.w_mag_a
+math_fp8_e5m2_comparator.w_mag_b
+@28
+math_fp8_e5m2_comparator.w_a_is_zero
+math_fp8_e5m2_comparator.w_b_is_zero
+math_fp8_e5m2_comparator.w_both_zero
+math_fp8_e5m2_comparator.w_a_is_nan
+math_fp8_e5m2_comparator.w_b_is_nan
+math_fp8_e5m2_comparator.w_either_nan
+math_fp8_e5m2_comparator.w_mag_eq
+math_fp8_e5m2_comparator.w_mag_a_lt_b
+math_fp8_e5m2_comparator.w_mag_a_gt_b
+math_fp8_e5m2_comparator.w_a_less_than_b
+math_fp8_e5m2_comparator.w_a_equal_b

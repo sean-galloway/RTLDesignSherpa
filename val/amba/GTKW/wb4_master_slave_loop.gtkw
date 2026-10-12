@@ -1,0 +1,110 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_wb4_master_slave_loop_aw032_dw032_md4_sd2_mo16_pipe_nohints_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/wb4_master_slave_loop.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wb4_master_slave_loop.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+wb4_master_slave_loop.USE_BURST_HINTS
+wb4_master_slave_loop.aresetn
+wb4_master_slave_loop.clk
+@200
+-interface
+@28
+wb4_master_slave_loop.ADDR_WIDTH
+wb4_master_slave_loop.AW
+wb4_master_slave_loop.BTW
+wb4_master_slave_loop.CLASSIC
+wb4_master_slave_loop.CTW
+wb4_master_slave_loop.DATA_WIDTH
+wb4_master_slave_loop.DW
+wb4_master_slave_loop.MAX_OUTSTANDING
+wb4_master_slave_loop.M_CMD_DEPTH
+wb4_master_slave_loop.M_RSP_DEPTH
+wb4_master_slave_loop.STW
+wb4_master_slave_loop.SW
+wb4_master_slave_loop.S_CMD_DEPTH
+wb4_master_slave_loop.S_RSP_DEPTH
+wb4_master_slave_loop.accepted
+wb4_master_slave_loop.m_cmd_adr
+wb4_master_slave_loop.m_cmd_bte
+wb4_master_slave_loop.m_cmd_cti
+wb4_master_slave_loop.m_cmd_dat
+wb4_master_slave_loop.m_cmd_ready
+wb4_master_slave_loop.m_cmd_sel
+wb4_master_slave_loop.m_cmd_valid
+wb4_master_slave_loop.m_cmd_we
+wb4_master_slave_loop.m_rsp_dat
+wb4_master_slave_loop.m_rsp_ready
+wb4_master_slave_loop.m_rsp_status
+wb4_master_slave_loop.m_rsp_valid
+wb4_master_slave_loop.r_adr_q
+wb4_master_slave_loop.r_cyc_q
+wb4_master_slave_loop.r_dat_q
+wb4_master_slave_loop.r_sel_q
+wb4_master_slave_loop.r_stall_q
+wb4_master_slave_loop.r_stb_q
+wb4_master_slave_loop.r_term_q
+wb4_master_slave_loop.r_we_q
+wb4_master_slave_loop.s_cmd_adr
+@22
+wb4_master_slave_loop.s_cmd_bte[5:0]
+wb4_master_slave_loop.s_cmd_cti[4:0]
+@28
+wb4_master_slave_loop.s_cmd_dat
+wb4_master_slave_loop.s_cmd_ready
+wb4_master_slave_loop.s_cmd_sel
+wb4_master_slave_loop.s_cmd_valid
+wb4_master_slave_loop.s_cmd_we
+wb4_master_slave_loop.s_rsp_dat
+wb4_master_slave_loop.s_rsp_ready
+wb4_master_slave_loop.s_rsp_status
+wb4_master_slave_loop.s_rsp_valid
+wb4_master_slave_loop.wb_ACK
+wb4_master_slave_loop.wb_ADR
+@22
+wb4_master_slave_loop.wb_BTE[5:0]
+wb4_master_slave_loop.wb_CTI[4:0]
+@28
+wb4_master_slave_loop.wb_CYC
+wb4_master_slave_loop.wb_DAT_R
+wb4_master_slave_loop.wb_DAT_W
+wb4_master_slave_loop.wb_ERR
+wb4_master_slave_loop.wb_RTY
+wb4_master_slave_loop.wb_SEL
+wb4_master_slave_loop.wb_STALL
+wb4_master_slave_loop.wb_STB
+wb4_master_slave_loop.wb_WE
+@200
+-u_master
+@28
+wb4_master_slave_loop.u_master.ADDR_WIDTH
+wb4_master_slave_loop.u_master.AW
+wb4_master_slave_loop.u_master.CLASSIC
+wb4_master_slave_loop.u_master.CMD_DEPTH
+wb4_master_slave_loop.u_master.DATA_WIDTH
+wb4_master_slave_loop.u_master.RSP_DEPTH
+wb4_master_slave_loop.u_master.SEL_WIDTH
+wb4_master_slave_loop.u_master.USE_BURST_HINTS
+@200
+-u_slave
+@28
+wb4_master_slave_loop.u_slave.ADDR_WIDTH
+wb4_master_slave_loop.u_slave.CLASSIC
+wb4_master_slave_loop.u_slave.CMD_DEPTH
+wb4_master_slave_loop.u_slave.DATA_WIDTH
+wb4_master_slave_loop.u_slave.MAX_OUTSTANDING
+wb4_master_slave_loop.u_slave.RSP_DEPTH
+wb4_master_slave_loop.u_slave.SEL_WIDTH
+wb4_master_slave_loop.u_slave.USE_BURST_HINTS

@@ -1,0 +1,98 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monbus_pkt_tally_a07_c08_n064_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monbus_pkt_tally.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_pkt_tally.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+monbus_pkt_tally.clk
+monbus_pkt_tally.rst_n
+@200
+-interface
+@28
+monbus_pkt_tally.ADDR_BITS
+monbus_pkt_tally.CIDX_W
+monbus_pkt_tally.COUNT_MAX
+monbus_pkt_tally.COUNT_WIDTH
+monbus_pkt_tally.LFILL_WIDTH
+monbus_pkt_tally.LSEL_WIDTH
+monbus_pkt_tally.NUM_LATCH
+monbus_pkt_tally.N_PROFILE
+@22
+monbus_pkt_tally.PKT_WIDTH[8:0]
+@28
+monbus_pkt_tally.PROF_IDX_W
+monbus_pkt_tally.PROF_KEY_W
+@22
+monbus_pkt_tally.SRAM_DEPTH[8:0]
+@28
+monbus_pkt_tally.ST_CLEAR
+monbus_pkt_tally.ST_RUN
+monbus_pkt_tally.ST_WR
+monbus_pkt_tally.TS_WIDTH
+monbus_pkt_tally.UNEXPECTED_BIN
+monbus_pkt_tally.i_clear
+monbus_pkt_tally.i_flush
+monbus_pkt_tally.i_freeze
+monbus_pkt_tally.i_watch_arm
+monbus_pkt_tally.i_watch_pkttype_mask
+monbus_pkt_tally.in_packet
+monbus_pkt_tally.in_ready
+monbus_pkt_tally.in_ts
+monbus_pkt_tally.in_valid
+monbus_pkt_tally.latch_fill
+monbus_pkt_tally.latch_packet
+monbus_pkt_tally.latch_sel
+monbus_pkt_tally.latch_ts
+monbus_pkt_tally.latch_valid
+monbus_pkt_tally.o_flush_busy
+monbus_pkt_tally.profile_clear
+monbus_pkt_tally.profile_waddr
+monbus_pkt_tally.profile_we
+monbus_pkt_tally.profile_wkey
+monbus_pkt_tally.profile_wvalid
+monbus_pkt_tally.r_clear_idx
+monbus_pkt_tally.r_clear_pend
+monbus_pkt_tally.r_latch_pkt[0]
+monbus_pkt_tally.r_latch_pkt[1]
+monbus_pkt_tally.r_latch_pkt[2]
+monbus_pkt_tally.r_sram_rdata
+monbus_pkt_tally.r_st
+monbus_pkt_tally.r_wr_bin
+monbus_pkt_tally.rd_addr
+monbus_pkt_tally.rd_count
+monbus_pkt_tally.w_accept
+monbus_pkt_tally.w_agent_id
+monbus_pkt_tally.w_bin_addr
+monbus_pkt_tally.w_event_code
+monbus_pkt_tally.w_hit
+monbus_pkt_tally.w_hit_idx
+monbus_pkt_tally.w_in_key
+monbus_pkt_tally.w_pkt_type
+monbus_pkt_tally.w_prof_miss
+monbus_pkt_tally.w_protocol
+monbus_pkt_tally.w_sram_addr
+monbus_pkt_tally.w_sram_wdata
+monbus_pkt_tally.w_sram_we
+@200
+-u_legal_cam
+@28
+monbus_pkt_tally.u_legal_cam.IDX_WIDTH
+monbus_pkt_tally.u_legal_cam.KEY_WIDTH
+monbus_pkt_tally.u_legal_cam.N_ENTRIES
+monbus_pkt_tally.u_legal_cam.clk
+monbus_pkt_tally.u_legal_cam.load_addr
+monbus_pkt_tally.u_legal_cam.load_clear
+monbus_pkt_tally.u_legal_cam.load_we
+monbus_pkt_tally.u_legal_cam.rst_n

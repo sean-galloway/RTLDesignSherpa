@@ -1,0 +1,47 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_fp32_clamp_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_fp32_clamp.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_fp32_clamp.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_fp32_clamp.i_max
+math_fp32_clamp.i_min
+math_fp32_clamp.i_x
+math_fp32_clamp.ow_result
+@22
+math_fp32_clamp.w_any_nan[4:0]
+math_fp32_clamp.w_exp_max
+@28
+math_fp32_clamp.w_exp_min
+math_fp32_clamp.w_exp_x
+@22
+math_fp32_clamp.w_mag_max[7:0]
+math_fp32_clamp.w_mag_min[6:0]
+math_fp32_clamp.w_mag_x[5:0]
+@28
+math_fp32_clamp.w_mant_max
+math_fp32_clamp.w_mant_min
+math_fp32_clamp.w_mant_x
+@22
+math_fp32_clamp.w_max_is_nan[3:0]
+math_fp32_clamp.w_min_is_nan[2:0]
+@28
+math_fp32_clamp.w_sign_max
+math_fp32_clamp.w_sign_min
+math_fp32_clamp.w_sign_x
+math_fp32_clamp.w_x_gt_max
+@22
+math_fp32_clamp.w_x_is_nan[1:0]
+math_fp32_clamp.w_x_lt_min[8:0]

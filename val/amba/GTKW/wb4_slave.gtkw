@@ -1,0 +1,110 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_wb4_slave_aw032_dw032_cd2_rd2_mo16_pipe_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/wb4_slave.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wb4_slave.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+wb4_slave.USE_BURST_HINTS
+wb4_slave.aresetn
+wb4_slave.clk
+@200
+-interface
+@28
+wb4_slave.ABW
+wb4_slave.AB_MAX
+wb4_slave.ADDR_WIDTH
+wb4_slave.AW
+wb4_slave.BTW
+wb4_slave.CLASSIC
+wb4_slave.CMD_DEPTH
+wb4_slave.CPW
+wb4_slave.CTW
+wb4_slave.DATA_WIDTH
+wb4_slave.DW
+wb4_slave.MAX_OUTSTANDING
+wb4_slave.OW
+wb4_slave.RPW
+wb4_slave.RSP_DEPTH
+wb4_slave.SEL_WIDTH
+wb4_slave.STW
+wb4_slave.SW
+wb4_slave.cmd_adr
+@22
+wb4_slave.cmd_bte[6:0]
+wb4_slave.cmd_cti[5:0]
+@28
+wb4_slave.cmd_dat
+wb4_slave.cmd_ready
+wb4_slave.cmd_sel
+wb4_slave.cmd_valid
+wb4_slave.cmd_we
+wb4_slave.r_abandoned
+wb4_slave.r_cmd_data_out
+wb4_slave.r_outstanding
+wb4_slave.r_rsp_dat
+wb4_slave.r_rsp_data_out
+wb4_slave.r_rsp_status
+wb4_slave.r_rsp_valid
+wb4_slave.rsp_dat
+wb4_slave.rsp_ready
+wb4_slave.rsp_status
+wb4_slave.rsp_valid
+wb4_slave.s_wb_ACK
+wb4_slave.s_wb_ADR
+wb4_slave.s_wb_BTE
+wb4_slave.s_wb_CTI
+wb4_slave.s_wb_CYC
+wb4_slave.s_wb_DAT_R
+wb4_slave.s_wb_DAT_W
+wb4_slave.s_wb_ERR
+wb4_slave.s_wb_RTY
+wb4_slave.s_wb_SEL
+wb4_slave.s_wb_STALL
+wb4_slave.s_wb_STB
+wb4_slave.s_wb_WE
+wb4_slave.w_accept
+wb4_slave.w_cmd_data_in
+wb4_slave.w_cmd_room
+wb4_slave.w_drop_abandoned
+wb4_slave.w_orphan
+wb4_slave.w_rsp_data_in
+wb4_slave.w_rsp_pop
+wb4_slave.w_term
+@200
+-g_no_hints
+@28
+wb4_slave.g_no_hints.w_unused_hints
+@200
+-u_cmd_skid
+@28
+wb4_slave.u_cmd_skid.DATA_WIDTH
+wb4_slave.u_cmd_skid.DEPTH
+wb4_slave.u_cmd_skid.DW
+wb4_slave.u_cmd_skid.axi_aclk
+wb4_slave.u_cmd_skid.axi_aresetn
+wb4_slave.u_cmd_skid.wr_data
+wb4_slave.u_cmd_skid.wr_ready
+wb4_slave.u_cmd_skid.wr_valid
+@200
+-u_rsp_skid
+@28
+wb4_slave.u_rsp_skid.DATA_WIDTH
+wb4_slave.u_rsp_skid.DEPTH
+wb4_slave.u_rsp_skid.DW
+wb4_slave.u_rsp_skid.axi_aclk
+wb4_slave.u_rsp_skid.axi_aresetn
+wb4_slave.u_rsp_skid.wr_data
+wb4_slave.u_rsp_skid.wr_ready
+wb4_slave.u_rsp_skid.wr_valid

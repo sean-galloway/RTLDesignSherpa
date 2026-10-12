@@ -1,0 +1,50 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/common/local_sim_build/test_arbiter_matrix_c02_w0_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/common/GTKW/arbiter_matrix.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] arbiter_matrix.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+arbiter_matrix.clk
+arbiter_matrix.rst_n
+@200
+-interface
+@28
+arbiter_matrix.CLIENTS
+arbiter_matrix.N
+arbiter_matrix.WAIT_GNT_ACK
+arbiter_matrix.block_arb
+@22
+arbiter_matrix.grant[2:0]
+@28
+arbiter_matrix.grant_ack
+@22
+arbiter_matrix.grant_id[3:0]
+arbiter_matrix.grant_valid[1:0]
+arbiter_matrix.last_grant[4:0]
+arbiter_matrix.request
+@200
+-gen_multi_client
+@28
+arbiter_matrix.gen_multi_client.MATRIX_BITS
+@22
+arbiter_matrix.gen_multi_client.r_grant_id[8:0]
+arbiter_matrix.gen_multi_client.r_matrix[5:0]
+arbiter_matrix.gen_multi_client.w_any_requests[7:0]
+@28
+arbiter_matrix.gen_multi_client.w_grant_current_id
+arbiter_matrix.gen_multi_client.w_grant_current_valid
+arbiter_matrix.gen_multi_client.w_grant_current_vec
+@22
+arbiter_matrix.gen_multi_client.w_requests_gated[6:0]

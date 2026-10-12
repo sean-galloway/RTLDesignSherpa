@@ -1,0 +1,180 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi4_cdc_wr_dw32_s10_m3_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_cdc_wr.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_cdc_wr.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@200
+-interface
+@22
+axi4_cdc_wr.AW [31:0]
+axi4_cdc_wr.AWPW [31:0]
+axi4_cdc_wr.AXI_ADDR_WIDTH [31:0]
+axi4_cdc_wr.AXI_DATA_WIDTH [31:0]
+axi4_cdc_wr.AXI_ID_WIDTH [31:0]
+axi4_cdc_wr.AXI_USER_WIDTH [31:0]
+axi4_cdc_wr.BPW [31:0]
+axi4_cdc_wr.CDC_DEPTH [31:0]
+axi4_cdc_wr.DW [31:0]
+axi4_cdc_wr.IW [31:0]
+axi4_cdc_wr.N_FLOP_CROSS [31:0]
+axi4_cdc_wr.SW [31:0]
+axi4_cdc_wr.USE_JOHNSON [31:0]
+axi4_cdc_wr.UW [31:0]
+axi4_cdc_wr.WPW [31:0]
+@28
+axi4_cdc_wr.m_aclk
+axi4_cdc_wr.m_aresetn
+@22
+axi4_cdc_wr.m_axi_awaddr [31:0]
+axi4_cdc_wr.m_axi_awburst [1:0]
+axi4_cdc_wr.m_axi_awcache [3:0]
+axi4_cdc_wr.m_axi_awid [3:0]
+axi4_cdc_wr.m_axi_awlen [7:0]
+@28
+axi4_cdc_wr.m_axi_awlock
+@22
+axi4_cdc_wr.m_axi_awprot [2:0]
+axi4_cdc_wr.m_axi_awqos [3:0]
+@28
+axi4_cdc_wr.m_axi_awready
+@22
+axi4_cdc_wr.m_axi_awregion [3:0]
+axi4_cdc_wr.m_axi_awsize [2:0]
+@28
+axi4_cdc_wr.m_axi_awuser [0:0]
+axi4_cdc_wr.m_axi_awvalid
+@22
+axi4_cdc_wr.m_axi_bid [3:0]
+@28
+axi4_cdc_wr.m_axi_bready
+@22
+axi4_cdc_wr.m_axi_bresp [1:0]
+@28
+axi4_cdc_wr.m_axi_buser [0:0]
+axi4_cdc_wr.m_axi_bvalid
+@22
+axi4_cdc_wr.m_axi_wdata [31:0]
+@28
+axi4_cdc_wr.m_axi_wlast
+axi4_cdc_wr.m_axi_wready
+@22
+axi4_cdc_wr.m_axi_wstrb [3:0]
+@28
+axi4_cdc_wr.m_axi_wuser [0:0]
+axi4_cdc_wr.m_axi_wvalid
+axi4_cdc_wr.s_aclk
+axi4_cdc_wr.s_aresetn
+@22
+axi4_cdc_wr.s_axi_awaddr [31:0]
+axi4_cdc_wr.s_axi_awburst [1:0]
+axi4_cdc_wr.s_axi_awcache [3:0]
+axi4_cdc_wr.s_axi_awid [3:0]
+axi4_cdc_wr.s_axi_awlen [7:0]
+@28
+axi4_cdc_wr.s_axi_awlock
+@22
+axi4_cdc_wr.s_axi_awprot [2:0]
+axi4_cdc_wr.s_axi_awqos [3:0]
+@28
+axi4_cdc_wr.s_axi_awready
+@22
+axi4_cdc_wr.s_axi_awregion [3:0]
+axi4_cdc_wr.s_axi_awsize [2:0]
+@28
+axi4_cdc_wr.s_axi_awuser [0:0]
+axi4_cdc_wr.s_axi_awvalid
+@22
+axi4_cdc_wr.s_axi_bid [3:0]
+@28
+axi4_cdc_wr.s_axi_bready
+@22
+axi4_cdc_wr.s_axi_bresp [1:0]
+@28
+axi4_cdc_wr.s_axi_buser [0:0]
+axi4_cdc_wr.s_axi_bvalid
+@22
+axi4_cdc_wr.s_axi_wdata [31:0]
+@28
+axi4_cdc_wr.s_axi_wlast
+axi4_cdc_wr.s_axi_wready
+@22
+axi4_cdc_wr.s_axi_wstrb [3:0]
+@28
+axi4_cdc_wr.s_axi_wuser [0:0]
+axi4_cdc_wr.s_axi_wvalid
+@22
+axi4_cdc_wr.u_aw.ALMOST_RD_MARGIN [31:0]
+axi4_cdc_wr.u_aw.ALMOST_WR_MARGIN [31:0]
+axi4_cdc_wr.u_aw.AW [31:0]
+axi4_cdc_wr.u_aw.D [31:0]
+axi4_cdc_wr.u_aw.DATA_WIDTH [31:0]
+axi4_cdc_wr.u_aw.DEPTH [31:0]
+axi4_cdc_wr.u_aw.DW [31:0]
+axi4_cdc_wr.u_aw.JCW [31:0]
+axi4_cdc_wr.u_aw.MEM_STYLE [31:0]
+axi4_cdc_wr.u_aw.N [31:0]
+axi4_cdc_wr.u_aw.N_FLOP_CROSS [31:0]
+axi4_cdc_wr.u_aw.PTRW [31:0]
+axi4_cdc_wr.u_aw.REGISTERED [31:0]
+axi4_cdc_wr.u_aw.USE_JOHNSON [31:0]
+@28
+axi4_cdc_wr.u_aw.axi_rd_aclk
+axi4_cdc_wr.u_aw.axi_rd_aresetn
+axi4_cdc_wr.u_aw.axi_wr_aclk
+axi4_cdc_wr.u_aw.axi_wr_aresetn
+@22
+axi4_cdc_wr.u_aw.fifo_control_inst.ADDR_WIDTH [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.AEMPTY [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.AET [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.AFT [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.AFULL [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.ALMOST_RD_MARGIN [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.ALMOST_WR_MARGIN [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.AW [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.D [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.DEPTH [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.REGISTERED [31:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.count [3:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.r_count [3:0]
+@28
+axi4_cdc_wr.u_aw.fifo_control_inst.rd_almost_empty
+axi4_cdc_wr.u_aw.fifo_control_inst.rd_clk
+axi4_cdc_wr.u_aw.fifo_control_inst.rd_empty
+@22
+axi4_cdc_wr.u_aw.fifo_control_inst.rd_ptr_bin [3:0]
+@28
+axi4_cdc_wr.u_aw.fifo_control_inst.rd_rst_n
+@22
+axi4_cdc_wr.u_aw.fifo_control_inst.rdom_wr_ptr_bin [3:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.w_almost_empty_count [3:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.w_almost_full_count [3:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.w_count [3:0]
+@28
+axi4_cdc_wr.u_aw.fifo_control_inst.w_rd_almost_empty_d
+axi4_cdc_wr.u_aw.fifo_control_inst.w_rd_empty_d
+axi4_cdc_wr.u_aw.fifo_control_inst.w_rdom_ptr_xor
+axi4_cdc_wr.u_aw.fifo_control_inst.w_rdom_ptr_xor_for_empty
+axi4_cdc_wr.u_aw.fifo_control_inst.w_wdom_ptr_xor
+axi4_cdc_wr.u_aw.fifo_control_inst.w_wr_almost_full_d
+axi4_cdc_wr.u_aw.fifo_control_inst.w_wr_full_d
+@22
+axi4_cdc_wr.u_aw.fifo_control_inst.w_wr_ptr_for_empty [3:0]
+axi4_cdc_wr.u_aw.fifo_control_inst.wdom_rd_ptr_bin [3:0]
+@28
+axi4_cdc_wr.u_aw.fifo_control_inst.wr_almost_full
+axi4_cdc_wr.u_aw.fifo_control_inst.wr_clk
+axi4_cdc_wr.u_aw.fifo_control_inst.wr_full
+@22
+axi4_cdc_wr.u_aw.fifo_control_inst.wr_ptr_bin [3:0]

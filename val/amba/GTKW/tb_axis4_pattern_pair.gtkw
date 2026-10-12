@@ -1,0 +1,111 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axis4_pattern_pair_ch1_dw128_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/tb_axis4_pattern_pair.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_axis4_pattern_pair.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+tb_axis4_pattern_pair.clk
+tb_axis4_pattern_pair.rst_n
+@200
+-params
+@28
+tb_axis4_pattern_pair.NUM_CHANNELS
+tb_axis4_pattern_pair.AXIS_DATA_WIDTH
+tb_axis4_pattern_pair.AXIS_ID_WIDTH
+tb_axis4_pattern_pair.AXIS_DEST_WIDTH
+tb_axis4_pattern_pair.AXIS_USER_WIDTH
+tb_axis4_pattern_pair.LFSR_WIDTH
+tb_axis4_pattern_pair.BEAT_COUNT_WIDTH
+tb_axis4_pattern_pair.STRB_WIDTH
+@200
+-cfg
+@28
+tb_axis4_pattern_pair.cfg_start_gen
+tb_axis4_pattern_pair.cfg_start_chk
+tb_axis4_pattern_pair.cfg_channel_mask
+tb_axis4_pattern_pair.cfg_interleave
+@22
+tb_axis4_pattern_pair.cfg_lfsr_seed
+tb_axis4_pattern_pair.cfg_num_beats
+tb_axis4_pattern_pair.cfg_beats_per_pkt
+@28
+tb_axis4_pattern_pair.cfg_tdest
+tb_axis4_pattern_pair.chk_backpressure
+tb_axis4_pattern_pair.w_ready_en
+@200
+-axis-stream
+@28
+tb_axis4_pattern_pair.axis_tvalid
+tb_axis4_pattern_pair.axis_tready
+tb_axis4_pattern_pair.axis_tlast
+tb_axis4_pattern_pair.axis_tuser
+@22
+tb_axis4_pattern_pair.axis_tdata
+tb_axis4_pattern_pair.axis_tstrb
+tb_axis4_pattern_pair.axis_tid
+tb_axis4_pattern_pair.axis_tdest
+@200
+-generator
+@28
+tb_axis4_pattern_pair.gen_busy
+tb_axis4_pattern_pair.gen_done
+tb_axis4_pattern_pair.gen_expected_crc_valid
+@22
+tb_axis4_pattern_pair.gen_expected_crc[0]
+tb_axis4_pattern_pair.gen_beat_count[0]
+tb_axis4_pattern_pair.gen_beat_count_total
+@200
+-checker
+@28
+tb_axis4_pattern_pair.chk_actual_crc_valid
+tb_axis4_pattern_pair.o_data_error
+@22
+tb_axis4_pattern_pair.chk_actual_crc[0]
+tb_axis4_pattern_pair.chk_beat_count[0]
+tb_axis4_pattern_pair.chk_beat_count_total
+tb_axis4_pattern_pair.o_pkt_count
+@28
+tb_axis4_pattern_pair.o_axis_hs
+@22
+tb_axis4_pattern_pair.o_axis_tid
+@200
+-checker-internals
+@28
+tb_axis4_pattern_pair.u_chk.cfg_start
+tb_axis4_pattern_pair.u_chk.ready_en
+tb_axis4_pattern_pair.u_chk.s_axis_tvalid
+tb_axis4_pattern_pair.u_chk.s_axis_tready
+tb_axis4_pattern_pair.u_chk.s_axis_tlast
+tb_axis4_pattern_pair.u_chk.s_axis_tuser
+tb_axis4_pattern_pair.u_chk.w_load
+tb_axis4_pattern_pair.u_chk.w_beat
+tb_axis4_pattern_pair.u_chk.w_ch
+tb_axis4_pattern_pair.u_chk.w_data_mismatch
+tb_axis4_pattern_pair.u_chk.r_bc_busy
+@22
+tb_axis4_pattern_pair.u_chk.s_axis_tdata
+tb_axis4_pattern_pair.u_chk.s_axis_tstrb
+tb_axis4_pattern_pair.u_chk.s_axis_tid
+tb_axis4_pattern_pair.u_chk.s_axis_tdest
+tb_axis4_pattern_pair.u_chk.o_actual_crc[0]
+tb_axis4_pattern_pair.u_chk.o_beat_count[0]
+tb_axis4_pattern_pair.u_chk.o_beat_count_total
+tb_axis4_pattern_pair.u_chk.w_seed
+tb_axis4_pattern_pair.u_chk.lfsr_out_per_ch[0]
+tb_axis4_pattern_pair.u_chk.crc_out_per_ch[0]
+tb_axis4_pattern_pair.u_chk.expected_data_per_ch[0]
+tb_axis4_pattern_pair.u_chk.r_bc_data
+tb_axis4_pattern_pair.u_chk.r_bc_left
+tb_axis4_pattern_pair.u_chk.r_bc_ch

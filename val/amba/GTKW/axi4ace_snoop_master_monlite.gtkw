@@ -1,0 +1,130 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_gw0_axi4ace_snoop_master_monlite_a32_d032_ac2_cr4_cd4_mt08_od4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4ace_snoop_master_monlite.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4ace_snoop_master_monlite.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-parameters
+@28
+axi4ace_snoop_master_monlite.USE_MONITOR
+@22
+axi4ace_snoop_master_monlite.ACLK_MHZ
+axi4ace_snoop_master_monlite.ACSize
+axi4ace_snoop_master_monlite.ADDR_WIDTH
+axi4ace_snoop_master_monlite.AGENT_ID
+axi4ace_snoop_master_monlite.AW
+axi4ace_snoop_master_monlite.CDSize
+axi4ace_snoop_master_monlite.CFI_MAX_FREQ_MHZ
+axi4ace_snoop_master_monlite.CFI_MIN_FREQ_MHZ
+axi4ace_snoop_master_monlite.CRSize
+axi4ace_snoop_master_monlite.DATA_WIDTH
+axi4ace_snoop_master_monlite.DW
+axi4ace_snoop_master_monlite.MAX_TRANSACTIONS
+axi4ace_snoop_master_monlite.OUT_DEPTH
+axi4ace_snoop_master_monlite.SKID_DEPTH_AC
+axi4ace_snoop_master_monlite.SKID_DEPTH_CD
+axi4ace_snoop_master_monlite.SKID_DEPTH_CR
+axi4ace_snoop_master_monlite.UNIT_ID
+@200
+-clk-rst
+@28
+axi4ace_snoop_master_monlite.aclk
+axi4ace_snoop_master_monlite.aresetn
+@200
+-fub
+@28
+axi4ace_snoop_master_monlite.fub_acready
+axi4ace_snoop_master_monlite.fub_acvalid
+axi4ace_snoop_master_monlite.fub_cdlast
+axi4ace_snoop_master_monlite.fub_cdready
+axi4ace_snoop_master_monlite.fub_cdvalid
+axi4ace_snoop_master_monlite.fub_crready
+axi4ace_snoop_master_monlite.fub_crvalid
+@22
+axi4ace_snoop_master_monlite.fub_acaddr
+axi4ace_snoop_master_monlite.fub_acprot
+axi4ace_snoop_master_monlite.fub_acsnoop
+axi4ace_snoop_master_monlite.fub_cddata
+axi4ace_snoop_master_monlite.fub_crresp
+@200
+-m_axi
+@28
+axi4ace_snoop_master_monlite.m_axi_acready
+axi4ace_snoop_master_monlite.m_axi_acvalid
+axi4ace_snoop_master_monlite.m_axi_cdlast
+axi4ace_snoop_master_monlite.m_axi_cdready
+axi4ace_snoop_master_monlite.m_axi_cdvalid
+axi4ace_snoop_master_monlite.m_axi_crready
+axi4ace_snoop_master_monlite.m_axi_crvalid
+@22
+axi4ace_snoop_master_monlite.m_axi_acaddr
+axi4ace_snoop_master_monlite.m_axi_acprot
+axi4ace_snoop_master_monlite.m_axi_acsnoop
+axi4ace_snoop_master_monlite.m_axi_cddata
+axi4ace_snoop_master_monlite.m_axi_crresp
+@200
+-cfg
+@28
+axi4ace_snoop_master_monlite.cfg_compl_enable
+axi4ace_snoop_master_monlite.cfg_error_enable
+axi4ace_snoop_master_monlite.cfg_monitor_enable
+axi4ace_snoop_master_monlite.cfg_timeout_enable
+@22
+axi4ace_snoop_master_monlite.cfg_freq_sel
+axi4ace_snoop_master_monlite.cfg_timeout_cycles
+@200
+-monbus
+@28
+axi4ace_snoop_master_monlite.monbus_ready
+axi4ace_snoop_master_monlite.monbus_valid
+@22
+axi4ace_snoop_master_monlite.monbus_packet
+axi4ace_snoop_master_monlite.monbus_timestamp
+@200
+-ctrl
+@28
+axi4ace_snoop_master_monlite.busy
+axi4ace_snoop_master_monlite.clear
+@22
+axi4ace_snoop_master_monlite.i_mon_time
+@200
+-counters
+@22
+axi4ace_snoop_master_monlite.active_transactions
+axi4ace_snoop_master_monlite.dropped_count
+axi4ace_snoop_master_monlite.error_count
+axi4ace_snoop_master_monlite.transaction_count
+@200
+-mon_internal
+@28
+axi4ace_snoop_master_monlite.w_mon_ac_valid
+axi4ace_snoop_master_monlite.w_mon_cd_valid
+axi4ace_snoop_master_monlite.w_mon_cr_valid
+@22
+axi4ace_snoop_master_monlite.w_timeout_cnt
+@200
+-core_internals
+@28
+axi4ace_snoop_master_monlite.u_core.int_skid_acready
+axi4ace_snoop_master_monlite.u_core.int_skid_acvalid
+axi4ace_snoop_master_monlite.u_core.int_skid_cdready
+axi4ace_snoop_master_monlite.u_core.int_skid_cdvalid
+axi4ace_snoop_master_monlite.u_core.int_skid_crready
+axi4ace_snoop_master_monlite.u_core.int_skid_crvalid
+@22
+axi4ace_snoop_master_monlite.u_core.int_ac_count
+axi4ace_snoop_master_monlite.u_core.int_ac_pkt
+axi4ace_snoop_master_monlite.u_core.int_cd_count
+axi4ace_snoop_master_monlite.u_core.int_cd_pkt
+axi4ace_snoop_master_monlite.u_core.int_cr_count
+axi4ace_snoop_master_monlite.u_core.int_cr_pkt

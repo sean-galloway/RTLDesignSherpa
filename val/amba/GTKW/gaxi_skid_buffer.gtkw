@@ -1,0 +1,47 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_gaxi_skid_buffer_w008_d004_cl010_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/gaxi_skid_buffer.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gaxi_skid_buffer.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+gaxi_skid_buffer.axi_aclk
+gaxi_skid_buffer.axi_aresetn
+@200
+-interface
+@28
+gaxi_skid_buffer.DATA_WIDTH
+gaxi_skid_buffer.DEPTH
+gaxi_skid_buffer.DW
+@22
+gaxi_skid_buffer.count[1:0]
+gaxi_skid_buffer.r_data[0][6:0]
+gaxi_skid_buffer.r_data[1][7:0]
+gaxi_skid_buffer.r_data[2][8:0]
+@28
+gaxi_skid_buffer.r_data[3]
+gaxi_skid_buffer.r_data_count
+@22
+gaxi_skid_buffer.rd_count[4:0]
+gaxi_skid_buffer.rd_data[5:0]
+gaxi_skid_buffer.rd_ready[3:0]
+gaxi_skid_buffer.rd_valid[2:0]
+@28
+gaxi_skid_buffer.w_rd_xfer
+gaxi_skid_buffer.w_wr_xfer
+gaxi_skid_buffer.wr_data
+@22
+gaxi_skid_buffer.wr_ready
+@28
+gaxi_skid_buffer.wr_valid

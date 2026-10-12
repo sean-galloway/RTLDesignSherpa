@@ -1,0 +1,118 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_apb5_slave_cdc_aw12_dw32_au4_np/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/apb5_slave_cdc.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb5_slave_cdc.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+apb5_slave_cdc.aclk
+apb5_slave_cdc.aresetn
+apb5_slave_cdc.pclk
+apb5_slave_cdc.presetn
+@200
+-interface
+@28
+apb5_slave_cdc.ACW
+apb5_slave_cdc.ADDR_WIDTH
+apb5_slave_cdc.AUCW
+apb5_slave_cdc.AUSER_WIDTH
+apb5_slave_cdc.AUW
+apb5_slave_cdc.AW
+apb5_slave_cdc.BUCW
+apb5_slave_cdc.BUSER_WIDTH
+apb5_slave_cdc.BUW
+apb5_slave_cdc.CPW
+apb5_slave_cdc.DATA_WIDTH
+apb5_slave_cdc.DCW
+apb5_slave_cdc.DEPTH
+apb5_slave_cdc.DW
+apb5_slave_cdc.ENABLE_PARITY
+apb5_slave_cdc.PROT_WIDTH
+apb5_slave_cdc.PW
+apb5_slave_cdc.RPW
+apb5_slave_cdc.RUCW
+apb5_slave_cdc.RUSER_WIDTH
+apb5_slave_cdc.RUW
+apb5_slave_cdc.STRB_WIDTH
+apb5_slave_cdc.SW
+apb5_slave_cdc.USE_2_PHASE_CDC
+apb5_slave_cdc.USE_JOHNSON
+apb5_slave_cdc.WUCW
+apb5_slave_cdc.WUSER_WIDTH
+apb5_slave_cdc.WUW
+apb5_slave_cdc.cmd_pwrite
+apb5_slave_cdc.cmd_ready
+apb5_slave_cdc.cmd_valid
+apb5_slave_cdc.s_apb_PADDR
+apb5_slave_cdc.s_apb_PADDRCHK
+apb5_slave_cdc.s_apb_PAUSER
+apb5_slave_cdc.s_apb_PAUSERCHK
+apb5_slave_cdc.s_apb_PBUSER
+apb5_slave_cdc.s_apb_PBUSERCHK
+apb5_slave_cdc.s_apb_PCTRLCHK
+apb5_slave_cdc.s_apb_PENABLE
+apb5_slave_cdc.s_apb_PENABLECHK
+apb5_slave_cdc.s_apb_PPROT
+apb5_slave_cdc.s_apb_PRDATA
+apb5_slave_cdc.s_apb_PRDATACHK
+apb5_slave_cdc.s_apb_PREADY
+apb5_slave_cdc.s_apb_PREADYCHK
+apb5_slave_cdc.s_apb_PRUSER
+apb5_slave_cdc.s_apb_PRUSERCHK
+apb5_slave_cdc.s_apb_PSEL
+apb5_slave_cdc.s_apb_PSELCHK
+apb5_slave_cdc.s_apb_PSLVERR
+apb5_slave_cdc.s_apb_PSLVERRCHK
+apb5_slave_cdc.s_apb_PSTRB
+apb5_slave_cdc.s_apb_PSTRBCHK
+apb5_slave_cdc.s_apb_PWAKEUP
+apb5_slave_cdc.s_apb_PWAKEUPCHK
+apb5_slave_cdc.s_apb_PWDATA
+apb5_slave_cdc.s_apb_PWDATACHK
+apb5_slave_cdc.s_apb_PWRITE
+apb5_slave_cdc.s_apb_PWUSER
+apb5_slave_cdc.s_apb_PWUSERCHK
+@200
+-u_apb5_slave
+@28
+apb5_slave_cdc.u_apb5_slave.ADDR_WIDTH
+apb5_slave_cdc.u_apb5_slave.AUSER_WIDTH
+apb5_slave_cdc.u_apb5_slave.BUSER_WIDTH
+apb5_slave_cdc.u_apb5_slave.DATA_WIDTH
+apb5_slave_cdc.u_apb5_slave.PROT_WIDTH
+apb5_slave_cdc.u_apb5_slave.RUSER_WIDTH
+apb5_slave_cdc.u_apb5_slave.STRB_WIDTH
+apb5_slave_cdc.u_apb5_slave.WUSER_WIDTH
+@200
+-u_cmd_cdc_fifo
+@28
+apb5_slave_cdc.u_cmd_cdc_fifo.ALMOST_RD_MARGIN
+apb5_slave_cdc.u_cmd_cdc_fifo.ALMOST_WR_MARGIN
+apb5_slave_cdc.u_cmd_cdc_fifo.DATA_WIDTH
+apb5_slave_cdc.u_cmd_cdc_fifo.DEPTH
+apb5_slave_cdc.u_cmd_cdc_fifo.MEM_STYLE
+apb5_slave_cdc.u_cmd_cdc_fifo.N_FLOP_CROSS
+apb5_slave_cdc.u_cmd_cdc_fifo.REGISTERED
+apb5_slave_cdc.u_cmd_cdc_fifo.USE_JOHNSON
+@200
+-u_rsp_cdc_fifo
+@28
+apb5_slave_cdc.u_rsp_cdc_fifo.ALMOST_RD_MARGIN
+apb5_slave_cdc.u_rsp_cdc_fifo.ALMOST_WR_MARGIN
+apb5_slave_cdc.u_rsp_cdc_fifo.DATA_WIDTH
+apb5_slave_cdc.u_rsp_cdc_fifo.DEPTH
+apb5_slave_cdc.u_rsp_cdc_fifo.MEM_STYLE
+apb5_slave_cdc.u_rsp_cdc_fifo.N_FLOP_CROSS
+apb5_slave_cdc.u_rsp_cdc_fifo.REGISTERED
+apb5_slave_cdc.u_rsp_cdc_fifo.USE_JOHNSON

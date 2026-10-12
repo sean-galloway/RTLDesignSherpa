@@ -1,0 +1,122 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_apb5_master_aw12_dw32_au4_wu4_ru4_bu4_np/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/apb5_master.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb5_master.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+apb5_master.pclk
+apb5_master.presetn
+@200
+-interface
+@28
+apb5_master.ACW
+apb5_master.ADDR_WIDTH
+apb5_master.AUCW
+apb5_master.AUSER_WIDTH
+apb5_master.AUW
+apb5_master.AW
+apb5_master.BUCW
+apb5_master.BUSER_WIDTH
+apb5_master.BUW
+apb5_master.CMD_DEPTH
+apb5_master.CPW
+apb5_master.DATA_WIDTH
+apb5_master.DCW
+apb5_master.DW
+apb5_master.ENABLE_PARITY
+apb5_master.PROT_WIDTH
+apb5_master.PW
+apb5_master.RPW
+apb5_master.RSP_DEPTH
+apb5_master.RUCW
+apb5_master.RUSER_WIDTH
+apb5_master.RUW
+apb5_master.STRB_WIDTH
+apb5_master.SW
+apb5_master.WUCW
+apb5_master.WUSER_WIDTH
+apb5_master.WUW
+apb5_master.cmd_paddr
+apb5_master.cmd_pwrite
+apb5_master.cmd_ready
+apb5_master.cmd_valid
+apb5_master.m_apb_PADDR
+@22
+apb5_master.m_apb_PADDRCHK[1:0]
+@28
+apb5_master.m_apb_PAUSER
+@22
+apb5_master.m_apb_PAUSERCHK[4:0]
+@28
+apb5_master.m_apb_PBUSER
+apb5_master.m_apb_PBUSERCHK
+@22
+apb5_master.m_apb_PCTRLCHK[2:0]
+@28
+apb5_master.m_apb_PENABLE
+@22
+apb5_master.m_apb_PENABLECHK[2:0]
+@28
+apb5_master.m_apb_PPROT
+apb5_master.m_apb_PRDATA
+apb5_master.m_apb_PRDATACHK
+apb5_master.m_apb_PREADY
+apb5_master.m_apb_PREADYCHK
+apb5_master.m_apb_PRUSER
+apb5_master.m_apb_PRUSERCHK
+apb5_master.m_apb_PSEL
+@22
+apb5_master.m_apb_PSELCHK[2:0]
+@28
+apb5_master.m_apb_PSLVERR
+apb5_master.m_apb_PSLVERRCHK
+apb5_master.m_apb_PSTRB
+@22
+apb5_master.m_apb_PSTRBCHK[2:0]
+@28
+apb5_master.m_apb_PWAKEUP
+@22
+apb5_master.m_apb_PWAKEUPCHK[2:0]
+@28
+apb5_master.m_apb_PWDATA
+@22
+apb5_master.m_apb_PWDATACHK[3:0]
+@28
+apb5_master.m_apb_PWRITE
+apb5_master.m_apb_PWUSER
+@22
+apb5_master.m_apb_PWUSERCHK[4:0]
+@200
+-cmd_fifo_inst
+@28
+apb5_master.cmd_fifo_inst.DATA_WIDTH
+apb5_master.cmd_fifo_inst.DEPTH
+apb5_master.cmd_fifo_inst.DW
+apb5_master.cmd_fifo_inst.axi_aclk
+apb5_master.cmd_fifo_inst.axi_aresetn
+apb5_master.cmd_fifo_inst.wr_data
+apb5_master.cmd_fifo_inst.wr_ready
+apb5_master.cmd_fifo_inst.wr_valid
+@200
+-resp_fifo_inst
+@28
+apb5_master.resp_fifo_inst.DATA_WIDTH
+apb5_master.resp_fifo_inst.DEPTH
+apb5_master.resp_fifo_inst.DW
+apb5_master.resp_fifo_inst.axi_aclk
+apb5_master.resp_fifo_inst.axi_aresetn
+apb5_master.resp_fifo_inst.wr_data
+apb5_master.resp_fifo_inst.wr_ready
+apb5_master.resp_fifo_inst.wr_valid

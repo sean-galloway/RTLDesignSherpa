@@ -1,0 +1,47 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi_gen_addr_aw032_dw032_odw032_len08_full/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi_gen_addr.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_gen_addr.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi_gen_addr.burst
+@200
+-interface
+@28
+axi_gen_addr.AW
+axi_gen_addr.DW
+axi_gen_addr.LEN
+axi_gen_addr.ODW
+axi_gen_addr.ODWBYTES
+@22
+axi_gen_addr.aligned_addr[2:0]
+@28
+axi_gen_addr.curr_addr
+axi_gen_addr.increment
+@22
+axi_gen_addr.increment_pre
+@28
+axi_gen_addr.len
+@22
+axi_gen_addr.len_log2[5:0]
+axi_gen_addr.len_plus1[4:0]
+@28
+axi_gen_addr.next_addr
+axi_gen_addr.next_addr_align
+axi_gen_addr.size
+@22
+axi_gen_addr.w_alignment_mask[6:0]
+axi_gen_addr.wrap_addr[3:0]
+axi_gen_addr.wrap_mask[1:0]

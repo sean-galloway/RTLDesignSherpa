@@ -1,0 +1,89 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monbus_cam_kw49_dw64_d032_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monbus_cam.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_cam.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+monbus_cam.clk
+monbus_cam.rst_n
+@200
+-interface
+@28
+monbus_cam.ACTION_INSTALL
+monbus_cam.ACTION_NONE
+monbus_cam.ACTION_TOUCH
+monbus_cam.CNT_WIDTH
+@22
+monbus_cam.DATA_WIDTH[5:0]
+monbus_cam.DEPTH[7:0]
+monbus_cam.IDX_WIDTH[8:0]
+monbus_cam.KEY_WIDTH[4:0]
+monbus_cam.TS_WIDTH[6:0]
+@28
+monbus_cam.access_action
+monbus_cam.access_hit
+monbus_cam.access_idx
+monbus_cam.access_key
+monbus_cam.access_new_data
+monbus_cam.access_new_ts
+monbus_cam.access_old_data
+monbus_cam.access_old_ts
+monbus_cam.cam_count
+monbus_cam.cam_full
+monbus_cam.dump_data
+monbus_cam.dump_idx
+monbus_cam.dump_key
+monbus_cam.dump_valid
+monbus_cam.evict_data
+monbus_cam.evict_key
+monbus_cam.evicted
+monbus_cam.r_key[0]
+monbus_cam.r_valid[0]
+monbus_cam.r_valid[10]
+monbus_cam.r_valid[11]
+monbus_cam.r_valid[12]
+monbus_cam.r_valid[13]
+monbus_cam.r_valid[14]
+monbus_cam.r_valid[15]
+monbus_cam.r_valid[16]
+monbus_cam.r_valid[17]
+monbus_cam.r_valid[18]
+monbus_cam.r_valid[19]
+monbus_cam.r_valid[1]
+monbus_cam.r_valid[20]
+monbus_cam.r_valid[21]
+monbus_cam.r_valid[22]
+monbus_cam.r_valid[23]
+monbus_cam.r_valid[24]
+monbus_cam.r_valid[25]
+monbus_cam.r_valid[26]
+monbus_cam.r_valid[27]
+monbus_cam.r_valid[28]
+monbus_cam.r_valid[29]
+monbus_cam.r_valid[2]
+monbus_cam.r_valid[30]
+monbus_cam.r_valid[31]
+monbus_cam.r_valid[3]
+monbus_cam.r_valid[4]
+monbus_cam.r_valid[5]
+monbus_cam.r_valid[6]
+monbus_cam.r_valid[7]
+monbus_cam.r_valid[8]
+monbus_cam.r_valid[9]
+monbus_cam.soft_clear
+@200
+-unnamedblk6
+@28
+monbus_cam.unnamedblk6.match_count

@@ -1,0 +1,67 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_log2_gate_lut32_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_log2.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_log2.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@22
+math_bf16_log2.BF16_NAN[1:0]
+@28
+math_bf16_log2.BF16_NEG_INF
+@22
+math_bf16_log2.BF16_POS_INF
+@28
+math_bf16_log2.BF16_ZERO
+math_bf16_log2.LUT_ADDR_BITS
+math_bf16_log2.LUT_DEPTH
+math_bf16_log2.i_bf16
+math_bf16_log2.ow_is_inf
+math_bf16_log2.ow_is_nan
+math_bf16_log2.ow_is_neg
+math_bf16_log2.ow_is_zero
+math_bf16_log2.ow_log2
+math_bf16_log2.w_abs_int
+math_bf16_log2.w_adj_frac
+math_bf16_log2.w_adj_int
+@22
+math_bf16_log2.w_exp[3:0]
+@28
+math_bf16_log2.w_frac_lut
+math_bf16_log2.w_frac_next
+math_bf16_log2.w_frac_part
+@22
+math_bf16_log2.w_int_part[8:0]
+math_bf16_log2.w_is_inf[6:0]
+math_bf16_log2.w_is_nan_input[7:0]
+math_bf16_log2.w_is_zero_or_subnormal[5:0]
+@28
+math_bf16_log2.w_lut_addr
+@22
+math_bf16_log2.w_mant[4:0]
+@28
+math_bf16_log2.w_result
+@22
+math_bf16_log2.w_sign[2:0]
+@200
+-gen_interp
+@28
+math_bf16_log2.gen_interp.FRAC_BITS
+math_bf16_log2.gen_interp.FRAC_HALF
+math_bf16_log2.gen_interp.w_scaled
+math_bf16_log2.gen_interp.w_step
+math_bf16_log2.gen_interp.w_sub
+@200
+-gen_lut_32
+@28
+math_bf16_log2.gen_lut_32.w_lut_this_32

@@ -1,0 +1,130 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/cdc/local_sim_build/test_gw0_gaxi_async_fifo_mux_w008_d004_wr010_rd012_r1p2_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/cdc/GTKW/gaxi_fifo_async.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gaxi_fifo_async.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+gaxi_fifo_async.axi_rd_aclk[3:0]
+gaxi_fifo_async.axi_rd_aresetn[4:0]
+gaxi_fifo_async.axi_wr_aclk[1:0]
+gaxi_fifo_async.axi_wr_aresetn[2:0]
+@200
+-interface
+@22
+gaxi_fifo_async.ALMOST_RD_MARGIN
+gaxi_fifo_async.ALMOST_WR_MARGIN
+@28
+gaxi_fifo_async.AW
+gaxi_fifo_async.D
+gaxi_fifo_async.DATA_WIDTH
+gaxi_fifo_async.DEPTH
+gaxi_fifo_async.DW
+gaxi_fifo_async.JCW
+gaxi_fifo_async.MEM_STYLE
+gaxi_fifo_async.N
+gaxi_fifo_async.N_FLOP_CROSS
+gaxi_fifo_async.PTRW
+gaxi_fifo_async.REGISTERED
+gaxi_fifo_async.USE_JOHNSON
+gaxi_fifo_async.r_rd_addr
+gaxi_fifo_async.r_rd_almost_empty
+gaxi_fifo_async.r_rd_empty
+gaxi_fifo_async.r_rd_ptr_bin
+gaxi_fifo_async.r_rd_ptr_gray
+gaxi_fifo_async.r_rdom_wr_ptr_gray
+gaxi_fifo_async.r_wdom_rd_ptr_gray
+gaxi_fifo_async.r_wr_addr
+gaxi_fifo_async.r_wr_almost_full
+gaxi_fifo_async.r_wr_full
+gaxi_fifo_async.r_wr_ptr_bin
+gaxi_fifo_async.r_wr_ptr_gray
+gaxi_fifo_async.rd_data
+@22
+gaxi_fifo_async.rd_ready[8:0]
+@28
+gaxi_fifo_async.rd_valid
+gaxi_fifo_async.w_count
+gaxi_fifo_async.w_rd_ptr_bin_next
+gaxi_fifo_async.w_rdom_wr_ptr_bin
+gaxi_fifo_async.w_read
+gaxi_fifo_async.w_wdom_rd_ptr_bin
+gaxi_fifo_async.w_wr_ptr_bin_next
+gaxi_fifo_async.w_write
+@22
+gaxi_fifo_async.wr_data[7:0]
+gaxi_fifo_async.wr_ready[6:0]
+gaxi_fifo_async.wr_valid[5:0]
+@200
+-fifo_control_inst
+@28
+gaxi_fifo_async.fifo_control_inst.ADDR_WIDTH
+@22
+gaxi_fifo_async.fifo_control_inst.ALMOST_RD_MARGIN
+gaxi_fifo_async.fifo_control_inst.ALMOST_WR_MARGIN
+@28
+gaxi_fifo_async.fifo_control_inst.DEPTH
+gaxi_fifo_async.fifo_control_inst.REGISTERED
+gaxi_fifo_async.fifo_control_inst.rd_clk
+gaxi_fifo_async.fifo_control_inst.wr_clk
+gaxi_fifo_async.fifo_control_inst.wr_rst_n
+@200
+-g_cvt_gray
+@28
+gaxi_fifo_async.g_cvt_gray.rd_ptr_gray2bin_inst.WIDTH
+gaxi_fifo_async.g_cvt_gray.rd_ptr_gray2bin_inst.binary
+gaxi_fifo_async.g_cvt_gray.rd_ptr_gray2bin_inst.gray
+gaxi_fifo_async.g_cvt_gray.wr_ptr_gray2bin_inst.WIDTH
+gaxi_fifo_async.g_cvt_gray.wr_ptr_gray2bin_inst.binary
+gaxi_fifo_async.g_cvt_gray.wr_ptr_gray2bin_inst.gray
+@200
+-g_ptr_gray
+@28
+gaxi_fifo_async.g_ptr_gray.rd_ptr_counter_bingray.WIDTH
+gaxi_fifo_async.g_ptr_gray.rd_ptr_counter_bingray.clk
+gaxi_fifo_async.g_ptr_gray.rd_ptr_counter_bingray.counter_bin
+gaxi_fifo_async.g_ptr_gray.rd_ptr_counter_bingray.counter_bin_next
+gaxi_fifo_async.g_ptr_gray.rd_ptr_counter_bingray.counter_gray
+gaxi_fifo_async.g_ptr_gray.rd_ptr_counter_bingray.enable
+gaxi_fifo_async.g_ptr_gray.rd_ptr_counter_bingray.rst_n
+gaxi_fifo_async.g_ptr_gray.rd_ptr_counter_bingray.w_counter_bin
+@200
+-gen_auto
+@28
+gaxi_fifo_async.gen_auto.mem[0]
+gaxi_fifo_async.gen_auto.mem[1]
+gaxi_fifo_async.gen_auto.mem[2]
+gaxi_fifo_async.gen_auto.mem[3]
+@200
+-rd_ptr_gray_cross_inst
+@28
+gaxi_fifo_async.rd_ptr_gray_cross_inst.DW
+gaxi_fifo_async.rd_ptr_gray_cross_inst.FC
+gaxi_fifo_async.rd_ptr_gray_cross_inst.FLOP_COUNT
+gaxi_fifo_async.rd_ptr_gray_cross_inst.WIDTH
+gaxi_fifo_async.rd_ptr_gray_cross_inst.clk
+gaxi_fifo_async.rd_ptr_gray_cross_inst.d
+gaxi_fifo_async.rd_ptr_gray_cross_inst.q
+gaxi_fifo_async.rd_ptr_gray_cross_inst.rst_n
+@200
+-wr_ptr_gray_cross_inst
+@28
+gaxi_fifo_async.wr_ptr_gray_cross_inst.DW
+gaxi_fifo_async.wr_ptr_gray_cross_inst.FC
+gaxi_fifo_async.wr_ptr_gray_cross_inst.FLOP_COUNT
+gaxi_fifo_async.wr_ptr_gray_cross_inst.WIDTH
+gaxi_fifo_async.wr_ptr_gray_cross_inst.clk
+gaxi_fifo_async.wr_ptr_gray_cross_inst.d
+gaxi_fifo_async.wr_ptr_gray_cross_inst.q
+gaxi_fifo_async.wr_ptr_gray_cross_inst.rst_n

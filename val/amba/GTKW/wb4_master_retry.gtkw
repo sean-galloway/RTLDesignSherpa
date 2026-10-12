@@ -1,0 +1,99 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_wb4_master_retry_aw032_dw032_if1_pipe_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/wb4_master_retry.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wb4_master_retry.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+wb4_master_retry.USE_BURST_HINTS
+wb4_master_retry.aresetn
+wb4_master_retry.clk
+@200
+-interface
+@28
+wb4_master_retry.ADDR_WIDTH
+wb4_master_retry.AW
+wb4_master_retry.BTW
+wb4_master_retry.CLASSIC
+wb4_master_retry.CMD_DEPTH
+wb4_master_retry.CTW
+wb4_master_retry.DATA_WIDTH
+wb4_master_retry.DW
+wb4_master_retry.INFLIGHT
+wb4_master_retry.RSP_DEPTH
+wb4_master_retry.STW
+wb4_master_retry.SW
+wb4_master_retry.active_count
+wb4_master_retry.cfg_max_retries
+wb4_master_retry.cfg_retry_delay
+wb4_master_retry.cmd_adr
+wb4_master_retry.cmd_bte
+wb4_master_retry.cmd_cti
+wb4_master_retry.cmd_dat
+wb4_master_retry.cmd_ready
+wb4_master_retry.cmd_sel
+wb4_master_retry.cmd_valid
+wb4_master_retry.cmd_we
+wb4_master_retry.m_wb_ACK
+wb4_master_retry.m_wb_ADR
+wb4_master_retry.m_wb_BTE
+wb4_master_retry.m_wb_CTI
+wb4_master_retry.m_wb_CYC
+wb4_master_retry.m_wb_DAT_R
+wb4_master_retry.m_wb_DAT_W
+wb4_master_retry.m_wb_ERR
+wb4_master_retry.m_wb_RTY
+wb4_master_retry.m_wb_SEL
+wb4_master_retry.m_wb_STALL
+wb4_master_retry.m_wb_STB
+wb4_master_retry.m_wb_WE
+wb4_master_retry.retry_count
+wb4_master_retry.rsp_dat
+wb4_master_retry.rsp_ready
+wb4_master_retry.rsp_status
+wb4_master_retry.rsp_valid
+wb4_master_retry.w_cmd_adr
+wb4_master_retry.w_cmd_bte
+wb4_master_retry.w_cmd_cti
+wb4_master_retry.w_cmd_dat
+wb4_master_retry.w_cmd_ready
+wb4_master_retry.w_cmd_sel
+wb4_master_retry.w_cmd_valid
+wb4_master_retry.w_cmd_we
+wb4_master_retry.w_rsp_dat
+wb4_master_retry.w_rsp_ready
+wb4_master_retry.w_rsp_status
+wb4_master_retry.w_rsp_valid
+@200
+-u_master
+@28
+wb4_master_retry.u_master.ADDR_WIDTH
+wb4_master_retry.u_master.AW
+wb4_master_retry.u_master.CLASSIC
+wb4_master_retry.u_master.CMD_DEPTH
+wb4_master_retry.u_master.DATA_WIDTH
+wb4_master_retry.u_master.RSP_DEPTH
+wb4_master_retry.u_master.SEL_WIDTH
+wb4_master_retry.u_master.USE_BURST_HINTS
+@200
+-u_retry
+@28
+wb4_master_retry.u_retry.ADDR_WIDTH
+wb4_master_retry.u_retry.AW
+wb4_master_retry.u_retry.CTW
+wb4_master_retry.u_retry.DATA_WIDTH
+wb4_master_retry.u_retry.DW
+wb4_master_retry.u_retry.INFLIGHT
+wb4_master_retry.u_retry.STW
+wb4_master_retry.u_retry.SW

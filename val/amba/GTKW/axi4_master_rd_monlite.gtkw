@@ -1,0 +1,108 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_gw0_axi4_master_rd_monlite_iw8_aw32_dw32_mt16_sk2x4_nb1_wq0_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_master_rd_monlite.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_master_rd_monlite.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_master_rd_monlite.ACLK_MHZ
+axi4_master_rd_monlite.aclk
+axi4_master_rd_monlite.aresetn
+axi4_master_rd_monlite.fub_axi_arburst
+axi4_master_rd_monlite.m_axi_arburst
+@200
+-interface
+@28
+axi4_master_rd_monlite.ACTIVE_TRANS_THRESHOLD
+axi4_master_rd_monlite.ADDR_RANGE_IS_ERROR
+axi4_master_rd_monlite.AGENT_ID
+axi4_master_rd_monlite.ARSize
+axi4_master_rd_monlite.AW
+axi4_master_rd_monlite.AXI_ADDR_WIDTH
+axi4_master_rd_monlite.AXI_DATA_WIDTH
+axi4_master_rd_monlite.AXI_ID_WIDTH
+axi4_master_rd_monlite.AXI_USER_WIDTH
+axi4_master_rd_monlite.AXI_WSTRB_WIDTH
+axi4_master_rd_monlite.CFI_MAX_FREQ_MHZ
+axi4_master_rd_monlite.CFI_MIN_FREQ_MHZ
+axi4_master_rd_monlite.DW
+axi4_master_rd_monlite.IW
+axi4_master_rd_monlite.MAX_TRANSACTIONS
+axi4_master_rd_monlite.N_ADDR_RANGES
+axi4_master_rd_monlite.OUT_DEPTH
+axi4_master_rd_monlite.RSize
+axi4_master_rd_monlite.SKID_DEPTH_AR
+axi4_master_rd_monlite.SKID_DEPTH_R
+axi4_master_rd_monlite.SW
+axi4_master_rd_monlite.UNIT_ID
+axi4_master_rd_monlite.USE_MONITOR
+axi4_master_rd_monlite.UW
+axi4_master_rd_monlite.fub_axi_araddr
+axi4_master_rd_monlite.fub_axi_arcache
+axi4_master_rd_monlite.fub_axi_arid
+axi4_master_rd_monlite.fub_axi_arlen
+axi4_master_rd_monlite.fub_axi_arlock
+axi4_master_rd_monlite.fub_axi_arprot
+axi4_master_rd_monlite.fub_axi_arqos
+axi4_master_rd_monlite.fub_axi_arready
+axi4_master_rd_monlite.fub_axi_arregion
+axi4_master_rd_monlite.fub_axi_arsize
+axi4_master_rd_monlite.fub_axi_aruser
+axi4_master_rd_monlite.fub_axi_arvalid
+axi4_master_rd_monlite.fub_axi_rdata
+axi4_master_rd_monlite.fub_axi_rid
+axi4_master_rd_monlite.fub_axi_rlast
+axi4_master_rd_monlite.fub_axi_rready
+axi4_master_rd_monlite.fub_axi_rresp
+axi4_master_rd_monlite.fub_axi_ruser
+axi4_master_rd_monlite.fub_axi_rvalid
+axi4_master_rd_monlite.m_axi_araddr
+axi4_master_rd_monlite.m_axi_arcache
+axi4_master_rd_monlite.m_axi_arid
+axi4_master_rd_monlite.m_axi_arlen
+axi4_master_rd_monlite.m_axi_arlock
+axi4_master_rd_monlite.m_axi_arprot
+axi4_master_rd_monlite.m_axi_arqos
+axi4_master_rd_monlite.m_axi_arready
+axi4_master_rd_monlite.m_axi_arregion
+axi4_master_rd_monlite.m_axi_arsize
+axi4_master_rd_monlite.m_axi_aruser
+axi4_master_rd_monlite.m_axi_arvalid
+axi4_master_rd_monlite.m_axi_rdata
+axi4_master_rd_monlite.m_axi_rid
+axi4_master_rd_monlite.m_axi_rlast
+axi4_master_rd_monlite.m_axi_rresp
+axi4_master_rd_monlite.m_axi_ruser
+@200
+-gen_monitor_lite
+@28
+axi4_master_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.ADDR_WIDTH
+axi4_master_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.AGENT_ID
+axi4_master_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.ID_WIDTH
+axi4_master_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.IS_AXI
+axi4_master_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.IS_READ
+axi4_master_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.MAX_TRANSACTIONS
+axi4_master_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.TS_WIDTH
+axi4_master_rd_monlite.gen_monitor_lite.axi_monitor_lite_inst.UNIT_ID
+@200
+-u_core
+@28
+axi4_master_rd_monlite.u_core.AW
+axi4_master_rd_monlite.u_core.AXI_ADDR_WIDTH
+axi4_master_rd_monlite.u_core.AXI_DATA_WIDTH
+axi4_master_rd_monlite.u_core.AXI_ID_WIDTH
+axi4_master_rd_monlite.u_core.AXI_USER_WIDTH
+axi4_master_rd_monlite.u_core.AXI_WSTRB_WIDTH
+axi4_master_rd_monlite.u_core.SKID_DEPTH_AR
+axi4_master_rd_monlite.u_core.SKID_DEPTH_R

@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi4ace_master_rd_i08_a32_d032_u1_ard2_rd4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4ace_master_rd.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4ace_master_rd.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4ace_master_rd.aclk
+axi4ace_master_rd.aresetn
+axi4ace_master_rd.fub_axi_arburst
+axi4ace_master_rd.m_axi_arburst
+@200
+-interface
+@28
+axi4ace_master_rd.ARSize
+axi4ace_master_rd.AW
+axi4ace_master_rd.AXI_ADDR_WIDTH
+axi4ace_master_rd.AXI_DATA_WIDTH
+axi4ace_master_rd.AXI_ID_WIDTH
+axi4ace_master_rd.AXI_USER_WIDTH
+axi4ace_master_rd.DW
+axi4ace_master_rd.IW
+axi4ace_master_rd.RSize
+axi4ace_master_rd.SKID_DEPTH_AR
+axi4ace_master_rd.SKID_DEPTH_R
+axi4ace_master_rd.UW
+axi4ace_master_rd.busy
+axi4ace_master_rd.fub_axi_araddr
+axi4ace_master_rd.fub_axi_arbar
+axi4ace_master_rd.fub_axi_arcache
+axi4ace_master_rd.fub_axi_ardomain
+axi4ace_master_rd.fub_axi_arid
+axi4ace_master_rd.fub_axi_arlen
+axi4ace_master_rd.fub_axi_arlock
+axi4ace_master_rd.fub_axi_arprot
+axi4ace_master_rd.fub_axi_arqos
+axi4ace_master_rd.fub_axi_arready
+axi4ace_master_rd.fub_axi_arregion
+axi4ace_master_rd.fub_axi_arsize
+axi4ace_master_rd.fub_axi_arsnoop
+axi4ace_master_rd.fub_axi_aruser
+axi4ace_master_rd.fub_axi_arvalid
+axi4ace_master_rd.fub_axi_rdata
+axi4ace_master_rd.fub_axi_rid
+axi4ace_master_rd.fub_axi_rlast
+axi4ace_master_rd.fub_axi_rready
+axi4ace_master_rd.fub_axi_rresp
+axi4ace_master_rd.fub_axi_ruser
+axi4ace_master_rd.fub_axi_rvalid
+axi4ace_master_rd.int_ar_count
+axi4ace_master_rd.int_ar_pkt
+axi4ace_master_rd.m_axi_araddr
+axi4ace_master_rd.m_axi_arbar
+axi4ace_master_rd.m_axi_arcache
+axi4ace_master_rd.m_axi_ardomain
+axi4ace_master_rd.m_axi_arid
+axi4ace_master_rd.m_axi_arlen
+axi4ace_master_rd.m_axi_arlock
+axi4ace_master_rd.m_axi_arprot
+axi4ace_master_rd.m_axi_arqos
+axi4ace_master_rd.m_axi_arready
+axi4ace_master_rd.m_axi_arregion
+axi4ace_master_rd.m_axi_arsize
+axi4ace_master_rd.m_axi_arsnoop
+axi4ace_master_rd.m_axi_aruser
+axi4ace_master_rd.m_axi_arvalid
+axi4ace_master_rd.m_axi_rack
+axi4ace_master_rd.m_axi_rdata
+axi4ace_master_rd.m_axi_rid
+axi4ace_master_rd.m_axi_rlast
+axi4ace_master_rd.m_axi_rready
+axi4ace_master_rd.m_axi_rresp
+axi4ace_master_rd.m_axi_ruser
+axi4ace_master_rd.m_axi_rvalid
+@200
+-ar_channel
+@28
+axi4ace_master_rd.ar_channel.DATA_WIDTH
+axi4ace_master_rd.ar_channel.DEPTH
+axi4ace_master_rd.ar_channel.DW
+axi4ace_master_rd.ar_channel.axi_aclk
+axi4ace_master_rd.ar_channel.axi_aresetn
+axi4ace_master_rd.ar_channel.wr_data
+axi4ace_master_rd.ar_channel.wr_ready
+axi4ace_master_rd.ar_channel.wr_valid
+@200
+-r_channel
+@28
+axi4ace_master_rd.r_channel.DATA_WIDTH
+axi4ace_master_rd.r_channel.DEPTH
+axi4ace_master_rd.r_channel.DW
+axi4ace_master_rd.r_channel.axi_aclk
+axi4ace_master_rd.r_channel.axi_aresetn
+axi4ace_master_rd.r_channel.wr_data
+axi4ace_master_rd.r_channel.wr_ready
+axi4ace_master_rd.r_channel.wr_valid

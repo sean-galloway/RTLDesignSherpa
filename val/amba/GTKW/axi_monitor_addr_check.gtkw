@@ -1,0 +1,147 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi_monitor_addr_check_n4/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi_monitor_addr_check.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_monitor_addr_check.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi_monitor_addr_check.clk
+axi_monitor_addr_check.aresetn
+@200
+-params
+@28
+axi_monitor_addr_check.N_ADDR_RANGES
+axi_monitor_addr_check.ADDR_WIDTH
+axi_monitor_addr_check.ID_WIDTH
+axi_monitor_addr_check.UNIT_ID
+axi_monitor_addr_check.AGENT_ID
+axi_monitor_addr_check.IS_READ
+axi_monitor_addr_check.ADDR_RANGE_IS_ERROR
+axi_monitor_addr_check.M
+axi_monitor_addr_check.IW
+axi_monitor_addr_check.MISS_RANGE_SENTINEL
+@200
+-cfg
+@28
+axi_monitor_addr_check.cfg_addr_check_enable
+axi_monitor_addr_check.cfg_debug_enable
+axi_monitor_addr_check.cfg_error_enable
+axi_monitor_addr_check.cfg_addr_range_enable
+@22
+axi_monitor_addr_check.cfg_addr_range_low[0]
+axi_monitor_addr_check.cfg_addr_range_low[1]
+axi_monitor_addr_check.cfg_addr_range_low[2]
+axi_monitor_addr_check.cfg_addr_range_low[3]
+axi_monitor_addr_check.cfg_addr_range_high[0]
+axi_monitor_addr_check.cfg_addr_range_high[1]
+axi_monitor_addr_check.cfg_addr_range_high[2]
+axi_monitor_addr_check.cfg_addr_range_high[3]
+@200
+-cmd-in
+@22
+axi_monitor_addr_check.cmd_addr
+axi_monitor_addr_check.cmd_id
+@28
+axi_monitor_addr_check.cmd_valid
+axi_monitor_addr_check.cmd_ready
+axi_monitor_addr_check.cmd_fire
+@200
+-addr-pkt-out
+@28
+axi_monitor_addr_check.addr_pkt_valid
+axi_monitor_addr_check.addr_pkt_ready
+@22
+axi_monitor_addr_check.addr_pkt_data
+axi_monitor_addr_check.addr_pkt_timestamp
+@200
+-emit
+@28
+axi_monitor_addr_check.emit_is_miss
+axi_monitor_addr_check.accept
+axi_monitor_addr_check.w_miss_presented
+axi_monitor_addr_check.w_miss_accept
+@22
+axi_monitor_addr_check.emit_idx
+axi_monitor_addr_check.emit_addr
+axi_monitor_addr_check.emit_id
+axi_monitor_addr_check.channel_id_field
+axi_monitor_addr_check.event_code_field
+axi_monitor_addr_check.event_data_field
+axi_monitor_addr_check.addr_payload
+@200
+-hit-flags
+@28
+axi_monitor_addr_check.raw_hit
+axi_monitor_addr_check.debug_hit
+axi_monitor_addr_check.err_hit
+axi_monitor_addr_check.err_ranges_exist
+axi_monitor_addr_check.err_range_en
+@22
+axi_monitor_addr_check.match_set
+axi_monitor_addr_check.miss_set
+@28
+axi_monitor_addr_check.match_emit_any
+@22
+axi_monitor_addr_check.match_emit_oh
+axi_monitor_addr_check.match_emit_idx
+axi_monitor_addr_check.w_match_pick
+@200
+-match-state
+@28
+axi_monitor_addr_check.r_match_pending
+@22
+axi_monitor_addr_check.r_match_addr[0]
+axi_monitor_addr_check.r_match_addr[1]
+axi_monitor_addr_check.r_match_addr[2]
+axi_monitor_addr_check.r_match_addr[3]
+axi_monitor_addr_check.r_match_id[0]
+axi_monitor_addr_check.r_match_id[1]
+axi_monitor_addr_check.r_match_id[2]
+axi_monitor_addr_check.r_match_id[3]
+@200
+-miss-state
+@28
+axi_monitor_addr_check.r_miss_pending
+@22
+axi_monitor_addr_check.r_miss_addr
+axi_monitor_addr_check.r_miss_id
+@200
+-shadow-state
+@28
+axi_monitor_addr_check.r_shadow_valid
+axi_monitor_addr_check.r_miss_shadow_valid
+@22
+axi_monitor_addr_check.r_shadow_addr[0]
+axi_monitor_addr_check.r_shadow_addr[1]
+axi_monitor_addr_check.r_shadow_addr[2]
+axi_monitor_addr_check.r_shadow_addr[3]
+axi_monitor_addr_check.r_shadow_id[0]
+axi_monitor_addr_check.r_shadow_id[1]
+axi_monitor_addr_check.r_shadow_id[2]
+axi_monitor_addr_check.r_shadow_id[3]
+axi_monitor_addr_check.r_miss_shadow_addr
+axi_monitor_addr_check.r_miss_shadow_id
+@200
+-emit-hold
+@28
+axi_monitor_addr_check.r_emit_held
+axi_monitor_addr_check.r_emit_hold_miss
+@22
+axi_monitor_addr_check.r_emit_hold
+axi_monitor_addr_check.w_presented
+axi_monitor_addr_check.w_range_accept
+@200
+-time
+@22
+axi_monitor_addr_check.i_mon_time

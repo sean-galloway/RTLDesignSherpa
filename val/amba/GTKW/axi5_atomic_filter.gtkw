@@ -1,0 +1,83 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi5_atomic_filter/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi5_atomic_filter.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi5_atomic_filter.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi5_atomic_filter.aclk
+axi5_atomic_filter.aresetn
+@200
+-interface
+@28
+axi5_atomic_filter.ATOP_COMPARE
+axi5_atomic_filter.AXI_ATOP_WIDTH
+axi5_atomic_filter.AXI_ID_WIDTH
+axi5_atomic_filter.DEPTH
+axi5_atomic_filter.DEPTH_LG2
+axi5_atomic_filter.IW
+axi5_atomic_filter.m_awready
+axi5_atomic_filter.m_awvalid
+axi5_atomic_filter.m_bid
+axi5_atomic_filter.m_bready
+axi5_atomic_filter.m_bresp
+axi5_atomic_filter.m_bvalid
+axi5_atomic_filter.m_rid
+axi5_atomic_filter.m_rlast
+axi5_atomic_filter.m_rready
+axi5_atomic_filter.m_rresp
+axi5_atomic_filter.m_rvalid
+axi5_atomic_filter.m_wready
+axi5_atomic_filter.m_wvalid
+axi5_atomic_filter.r_resp_cptr
+axi5_atomic_filter.r_resp_mem[0]
+axi5_atomic_filter.r_resp_mem[1]
+axi5_atomic_filter.r_resp_mem[2]
+axi5_atomic_filter.r_resp_mem[3]
+axi5_atomic_filter.r_resp_mem[4]
+axi5_atomic_filter.r_resp_mem[5]
+axi5_atomic_filter.r_resp_mem[6]
+axi5_atomic_filter.r_resp_mem[7]
+axi5_atomic_filter.r_resp_rptr
+axi5_atomic_filter.r_resp_wptr
+axi5_atomic_filter.r_route_mem
+axi5_atomic_filter.r_route_rptr
+axi5_atomic_filter.r_route_wptr
+axi5_atomic_filter.r_rq_id_mem[0]
+axi5_atomic_filter.r_rq_id_mem[1]
+axi5_atomic_filter.s_awatop
+axi5_atomic_filter.s_awid
+axi5_atomic_filter.s_awlen
+axi5_atomic_filter.s_awready
+axi5_atomic_filter.s_awvalid
+axi5_atomic_filter.s_bid
+axi5_atomic_filter.s_bready
+axi5_atomic_filter.s_bresp
+axi5_atomic_filter.s_bvalid
+axi5_atomic_filter.s_rid
+axi5_atomic_filter.s_rlast
+axi5_atomic_filter.s_rready
+axi5_atomic_filter.s_rresp
+axi5_atomic_filter.s_rvalid
+axi5_atomic_filter.s_wlast
+axi5_atomic_filter.s_wready
+axi5_atomic_filter.s_wvalid
+axi5_atomic_filter.w_r_beats_m1
+axi5_atomic_filter.w_resp_empty
+axi5_atomic_filter.w_resp_full
+axi5_atomic_filter.w_resp_head
+axi5_atomic_filter.w_route_empty
+axi5_atomic_filter.w_route_full
+axi5_atomic_filter.w_route_head
+axi5_atomic_filter.w_swallow

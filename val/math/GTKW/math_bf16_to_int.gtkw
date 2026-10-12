@@ -1,0 +1,75 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_to_int_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_to_int.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_to_int.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_to_int.i_bf16
+math_bf16_to_int.ow_int8
+math_bf16_to_int.ow_is_zero
+math_bf16_to_int.ow_overflow
+math_bf16_to_int.ow_underflow
+math_bf16_to_int.w_any_overflow
+math_bf16_to_int.w_base_value
+math_bf16_to_int.w_exp
+@22
+math_bf16_to_int.w_exp_overflow[5:0]
+@28
+math_bf16_to_int.w_exp_ovf_negative
+math_bf16_to_int.w_exp_ovf_positive
+@22
+math_bf16_to_int.w_exp_underflow[6:0]
+@28
+math_bf16_to_int.w_ext_mant
+math_bf16_to_int.w_frac_part
+@22
+math_bf16_to_int.w_full_shift[7:0]
+@28
+math_bf16_to_int.w_guard
+math_bf16_to_int.w_guard_bit
+@22
+math_bf16_to_int.w_int_part[8:0]
+@28
+math_bf16_to_int.w_is_inf
+@22
+math_bf16_to_int.w_is_nan
+@28
+math_bf16_to_int.w_is_zero
+math_bf16_to_int.w_lsb
+math_bf16_to_int.w_magnitude_raw
+math_bf16_to_int.w_magnitude_rounded
+math_bf16_to_int.w_magnitude_sat
+math_bf16_to_int.w_mant
+math_bf16_to_int.w_mant_shifted
+@22
+math_bf16_to_int.w_positioned[2:0]
+@28
+math_bf16_to_int.w_raw_shifted
+math_bf16_to_int.w_result_signed
+math_bf16_to_int.w_round_bit
+math_bf16_to_int.w_round_rne
+math_bf16_to_int.w_round_up
+@22
+math_bf16_to_int.w_shift_clamped[4:0]
+math_bf16_to_int.w_shift_raw[3:0]
+@28
+math_bf16_to_int.w_shifted_value
+math_bf16_to_int.w_sign
+math_bf16_to_int.w_sticky
+math_bf16_to_int.w_sticky_rne
+math_bf16_to_int.w_too_large_negative
+math_bf16_to_int.w_too_large_positive
+@22
+math_bf16_to_int.w_unbiased_exp[1:0]

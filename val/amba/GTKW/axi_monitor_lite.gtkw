@@ -1,0 +1,110 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi_monitor_lite_table_iw4_aw32_mt2_axi4_rd/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi_monitor_lite.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_monitor_lite.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi_monitor_lite.aclk
+axi_monitor_lite.aresetn
+@200
+-interface
+@28
+axi_monitor_lite.ADDR_RANGE_IS_ERROR
+axi_monitor_lite.ADDR_WIDTH
+axi_monitor_lite.AGENT_ID
+axi_monitor_lite.AGE_WIDTH
+axi_monitor_lite.AW
+axi_monitor_lite.CFI_FREQ_STRATEGY
+axi_monitor_lite.CFI_MAX_FREQ_MHZ
+axi_monitor_lite.CFI_MIN_FREQ_MHZ
+axi_monitor_lite.CFI_NUM_FREQ_ENTRIES
+axi_monitor_lite.CW
+axi_monitor_lite.ID_WIDTH
+axi_monitor_lite.IS_AXI
+axi_monitor_lite.IS_READ
+axi_monitor_lite.IW
+axi_monitor_lite.MAX_TRANSACTIONS
+axi_monitor_lite.N
+axi_monitor_lite.NAR
+axi_monitor_lite.N_ADDR_RANGES
+axi_monitor_lite.OUT_DEPTH
+axi_monitor_lite.SELW
+axi_monitor_lite.SW
+axi_monitor_lite.TS_WIDTH
+axi_monitor_lite.UNIT_ID
+axi_monitor_lite.WSEQ_WIDTH
+axi_monitor_lite.active_count
+axi_monitor_lite.busy
+axi_monitor_lite.cfg_active_trans_threshold
+axi_monitor_lite.cfg_addr_check_enable
+axi_monitor_lite.cfg_addr_match_enable
+axi_monitor_lite.cfg_addr_range_enable
+axi_monitor_lite.cfg_addr_range_high[0]
+axi_monitor_lite.cfg_addr_range_low[0]
+axi_monitor_lite.cfg_axi_pkt_mask
+axi_monitor_lite.cfg_compl_enable
+axi_monitor_lite.cfg_error_enable
+axi_monitor_lite.cfg_freq_sel
+axi_monitor_lite.cfg_latency_threshold
+axi_monitor_lite.cfg_threshold_enable
+axi_monitor_lite.cfg_timeout_cnt
+axi_monitor_lite.cfg_timeout_enable
+axi_monitor_lite.clear
+axi_monitor_lite.cmd_addr
+axi_monitor_lite.cmd_id
+axi_monitor_lite.cmd_len
+axi_monitor_lite.cmd_ready
+axi_monitor_lite.cmd_valid
+axi_monitor_lite.data_id
+axi_monitor_lite.data_last
+axi_monitor_lite.data_ready
+axi_monitor_lite.data_resp
+axi_monitor_lite.data_valid
+axi_monitor_lite.i_mon_time
+axi_monitor_lite.monbus_packet
+axi_monitor_lite.monbus_ready
+axi_monitor_lite.monbus_timestamp
+axi_monitor_lite.monbus_valid
+axi_monitor_lite.resp_code
+axi_monitor_lite.resp_id
+axi_monitor_lite.resp_ready
+axi_monitor_lite.resp_valid
+@200
+-u_tick
+@28
+axi_monitor_lite.u_tick.COUNTER_WIDTH
+axi_monitor_lite.u_tick.DEBUG_LUT
+axi_monitor_lite.u_tick.DIV_WIDTH
+axi_monitor_lite.u_tick.FREQ_STRATEGY
+axi_monitor_lite.u_tick.MAX_FREQ_MHZ
+axi_monitor_lite.u_tick.MIN_FREQ_MHZ
+axi_monitor_lite.u_tick.NUM_FREQ_ENTRIES
+axi_monitor_lite.u_tick.SEL_WIDTH
+@200
+-w_entry_in
+@28
+axi_monitor_lite.w_entry_in.addr
+axi_monitor_lite.w_entry_in.chan
+axi_monitor_lite.w_entry_in.code
+axi_monitor_lite.w_entry_in.hi
+axi_monitor_lite.w_entry_in.ptype
+@200
+-w_entry_out
+@28
+axi_monitor_lite.w_entry_out.addr
+axi_monitor_lite.w_entry_out.chan
+axi_monitor_lite.w_entry_out.code
+axi_monitor_lite.w_entry_out.hi
+axi_monitor_lite.w_entry_out.ptype

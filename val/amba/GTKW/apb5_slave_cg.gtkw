@@ -1,0 +1,106 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_apb5_slave_cg_aw12_dw32_au4_np/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/apb5_slave_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb5_slave_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+apb5_slave_cg.gated_pclk
+apb5_slave_cg.pclk
+apb5_slave_cg.presetn
+@200
+-interface
+@28
+apb5_slave_cg.ACW
+apb5_slave_cg.ADDR_WIDTH
+apb5_slave_cg.AUCW
+apb5_slave_cg.AUSER_WIDTH
+apb5_slave_cg.AUW
+apb5_slave_cg.AW
+apb5_slave_cg.BUCW
+apb5_slave_cg.BUSER_WIDTH
+apb5_slave_cg.BUW
+apb5_slave_cg.CG_IDLE_COUNT_WIDTH
+apb5_slave_cg.CPW
+apb5_slave_cg.DATA_WIDTH
+apb5_slave_cg.DCW
+apb5_slave_cg.DEPTH
+apb5_slave_cg.DW
+apb5_slave_cg.ENABLE_PARITY
+apb5_slave_cg.ICW
+apb5_slave_cg.PROT_WIDTH
+apb5_slave_cg.PW
+apb5_slave_cg.RPW
+apb5_slave_cg.RUCW
+apb5_slave_cg.RUSER_WIDTH
+apb5_slave_cg.RUW
+apb5_slave_cg.STRB_WIDTH
+apb5_slave_cg.SW
+apb5_slave_cg.WUCW
+apb5_slave_cg.WUSER_WIDTH
+apb5_slave_cg.WUW
+apb5_slave_cg.cfg_cg_enable
+apb5_slave_cg.cfg_cg_idle_count
+apb5_slave_cg.cmd_valid
+apb5_slave_cg.s_apb_PADDR
+apb5_slave_cg.s_apb_PADDRCHK
+apb5_slave_cg.s_apb_PAUSER
+apb5_slave_cg.s_apb_PAUSERCHK
+apb5_slave_cg.s_apb_PBUSER
+apb5_slave_cg.s_apb_PBUSERCHK
+apb5_slave_cg.s_apb_PCTRLCHK
+apb5_slave_cg.s_apb_PENABLE
+apb5_slave_cg.s_apb_PENABLECHK
+apb5_slave_cg.s_apb_PPROT
+apb5_slave_cg.s_apb_PRDATA
+apb5_slave_cg.s_apb_PRDATACHK
+apb5_slave_cg.s_apb_PREADY
+apb5_slave_cg.s_apb_PREADYCHK
+apb5_slave_cg.s_apb_PRUSER
+apb5_slave_cg.s_apb_PRUSERCHK
+apb5_slave_cg.s_apb_PSEL
+apb5_slave_cg.s_apb_PSELCHK
+apb5_slave_cg.s_apb_PSLVERR
+apb5_slave_cg.s_apb_PSLVERRCHK
+apb5_slave_cg.s_apb_PSTRB
+apb5_slave_cg.s_apb_PSTRBCHK
+apb5_slave_cg.s_apb_PWAKEUP
+apb5_slave_cg.s_apb_PWAKEUPCHK
+apb5_slave_cg.s_apb_PWDATA
+apb5_slave_cg.s_apb_PWDATACHK
+apb5_slave_cg.s_apb_PWRITE
+apb5_slave_cg.s_apb_PWUSER
+apb5_slave_cg.s_apb_PWUSERCHK
+@200
+-amba_clock_gate_ctrl
+@28
+apb5_slave_cg.amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+apb5_slave_cg.amba_clock_gate_ctrl.ICW
+apb5_slave_cg.amba_clock_gate_ctrl.aresetn
+apb5_slave_cg.amba_clock_gate_ctrl.axi_valid
+apb5_slave_cg.amba_clock_gate_ctrl.cfg_cg_enable
+apb5_slave_cg.amba_clock_gate_ctrl.cfg_cg_idle_count
+apb5_slave_cg.amba_clock_gate_ctrl.clk_in
+apb5_slave_cg.amba_clock_gate_ctrl.user_valid
+@200
+-u_apb5_slave
+@28
+apb5_slave_cg.u_apb5_slave.ADDR_WIDTH
+apb5_slave_cg.u_apb5_slave.AUSER_WIDTH
+apb5_slave_cg.u_apb5_slave.BUSER_WIDTH
+apb5_slave_cg.u_apb5_slave.DATA_WIDTH
+apb5_slave_cg.u_apb5_slave.PROT_WIDTH
+apb5_slave_cg.u_apb5_slave.RUSER_WIDTH
+apb5_slave_cg.u_apb5_slave.STRB_WIDTH
+apb5_slave_cg.u_apb5_slave.WUSER_WIDTH

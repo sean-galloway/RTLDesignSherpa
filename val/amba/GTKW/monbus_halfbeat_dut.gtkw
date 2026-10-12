@@ -1,0 +1,86 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monbus_halfbeat_dut_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monbus_halfbeat_dut.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_halfbeat_dut.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+monbus_halfbeat_dut.clk[1:0]
+monbus_halfbeat_dut.rst_n[2:0]
+@200
+-interface
+@28
+monbus_halfbeat_dut.CW
+monbus_halfbeat_dut.c_half_slot
+monbus_halfbeat_dut.c_half_valid
+monbus_halfbeat_dut.c_in_packet
+monbus_halfbeat_dut.c_in_source_ts
+monbus_halfbeat_dut.c_out_ready
+monbus_halfbeat_dut.c_out_slot
+monbus_halfbeat_dut.c_out_valid
+@22
+monbus_halfbeat_dut.in_packet[5:0]
+monbus_halfbeat_dut.in_ready[4:0]
+monbus_halfbeat_dut.in_source_ts[6:0]
+monbus_halfbeat_dut.in_valid[3:0]
+monbus_halfbeat_dut.out_ready[8:0]
+@28
+monbus_halfbeat_dut.out_slot
+@22
+monbus_halfbeat_dut.out_valid[7:0]
+@28
+monbus_halfbeat_dut.sk_rd_data
+monbus_halfbeat_dut.sk_rd_ready
+monbus_halfbeat_dut.sk_rd_valid
+monbus_halfbeat_dut.stat_cam_miss
+monbus_halfbeat_dut.stat_delta_ts_ovf
+monbus_halfbeat_dut.stat_ed_delta_ovf
+monbus_halfbeat_dut.stat_event_data_ovf
+monbus_halfbeat_dut.stat_tier0
+monbus_halfbeat_dut.stat_tier1_a
+monbus_halfbeat_dut.stat_tier1_b
+monbus_halfbeat_dut.stat_tier1_c
+@200
+-u_compressor
+@28
+monbus_halfbeat_dut.u_compressor.HALF_BEAT_EN
+monbus_halfbeat_dut.u_compressor.clear
+monbus_halfbeat_dut.u_compressor.clk
+monbus_halfbeat_dut.u_compressor.in_packet
+monbus_halfbeat_dut.u_compressor.in_ready
+monbus_halfbeat_dut.u_compressor.in_source_ts
+monbus_halfbeat_dut.u_compressor.in_valid
+monbus_halfbeat_dut.u_compressor.rst_n
+@200
+-u_in_skid
+@28
+monbus_halfbeat_dut.u_in_skid.DATA_WIDTH
+monbus_halfbeat_dut.u_in_skid.DEPTH
+monbus_halfbeat_dut.u_in_skid.DW
+monbus_halfbeat_dut.u_in_skid.axi_aclk
+monbus_halfbeat_dut.u_in_skid.axi_aresetn
+monbus_halfbeat_dut.u_in_skid.wr_data
+monbus_halfbeat_dut.u_in_skid.wr_ready
+monbus_halfbeat_dut.u_in_skid.wr_valid
+@200
+-u_packer
+@28
+monbus_halfbeat_dut.u_packer.clk
+monbus_halfbeat_dut.u_packer.in_half_slot
+monbus_halfbeat_dut.u_packer.in_half_valid
+monbus_halfbeat_dut.u_packer.in_ready
+monbus_halfbeat_dut.u_packer.in_slot
+monbus_halfbeat_dut.u_packer.in_valid
+monbus_halfbeat_dut.u_packer.out_valid
+monbus_halfbeat_dut.u_packer.rst_n

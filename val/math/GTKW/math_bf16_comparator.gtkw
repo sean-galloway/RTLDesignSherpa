@@ -1,0 +1,55 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_comparator_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_comparator.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_comparator.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_comparator.i_a
+math_bf16_comparator.i_b
+math_bf16_comparator.ow_eq
+@22
+math_bf16_comparator.ow_ge
+@28
+math_bf16_comparator.ow_gt
+math_bf16_comparator.ow_le
+math_bf16_comparator.ow_lt
+math_bf16_comparator.ow_ne
+@22
+math_bf16_comparator.ow_unord[1:0]
+@28
+math_bf16_comparator.w_a_equal_b
+math_bf16_comparator.w_a_is_nan
+@22
+math_bf16_comparator.w_a_is_zero[8:0]
+@28
+math_bf16_comparator.w_a_less_than_b
+math_bf16_comparator.w_b_is_nan
+math_bf16_comparator.w_b_is_zero
+math_bf16_comparator.w_both_zero
+math_bf16_comparator.w_either_nan
+@22
+math_bf16_comparator.w_exp_a[3:0]
+math_bf16_comparator.w_exp_b[6:0]
+@28
+math_bf16_comparator.w_mag_a
+math_bf16_comparator.w_mag_a_gt_b
+math_bf16_comparator.w_mag_a_lt_b
+math_bf16_comparator.w_mag_b
+math_bf16_comparator.w_mag_eq
+@22
+math_bf16_comparator.w_mant_a[4:0]
+math_bf16_comparator.w_mant_b[7:0]
+math_bf16_comparator.w_sign_a[2:0]
+math_bf16_comparator.w_sign_b[5:0]

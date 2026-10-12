@@ -1,0 +1,134 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi4_master_rd_crc_check_kb4_fast/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_master_rd_crc_check.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_master_rd_crc_check.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_master_rd_crc_check.BURST_LEN_MULTIPLE
+axi4_master_rd_crc_check.aclk
+axi4_master_rd_crc_check.aresetn
+axi4_master_rd_crc_check.cfg_axi_burst
+axi4_master_rd_crc_check.cfg_burst_len
+axi4_master_rd_crc_check.m_axi_arburst
+axi4_master_rd_crc_check.r_axi_burst
+axi4_master_rd_crc_check.r_beats_in_burst
+axi4_master_rd_crc_check.r_burst_len
+axi4_master_rd_crc_check.r_bursts_done
+@200
+-interface
+@28
+axi4_master_rd_crc_check.AW
+axi4_master_rd_crc_check.AXI_ADDR_WIDTH
+axi4_master_rd_crc_check.AXI_DATA_WIDTH
+axi4_master_rd_crc_check.AXI_ID_WIDTH
+axi4_master_rd_crc_check.AXI_USER_WIDTH
+axi4_master_rd_crc_check.CRC_DATA_WIDTH
+axi4_master_rd_crc_check.CRC_POLY
+axi4_master_rd_crc_check.CRC_POLY_INIT
+axi4_master_rd_crc_check.CRC_REFIN
+axi4_master_rd_crc_check.CRC_REFOUT
+axi4_master_rd_crc_check.CRC_WIDTH
+axi4_master_rd_crc_check.CRC_XOROUT
+axi4_master_rd_crc_check.DBG_FIFO_DEPTH
+axi4_master_rd_crc_check.DW
+axi4_master_rd_crc_check.INDEX_WIDTH
+axi4_master_rd_crc_check.IW
+axi4_master_rd_crc_check.LFSR_SEED
+axi4_master_rd_crc_check.LFSR_TAPS
+axi4_master_rd_crc_check.LFSR_WIDTH
+axi4_master_rd_crc_check.MAX_OUTSTANDING
+axi4_master_rd_crc_check.OSW
+axi4_master_rd_crc_check.SKID_DEPTH_AR
+axi4_master_rd_crc_check.SKID_DEPTH_R
+axi4_master_rd_crc_check.STRIDE_WIDTH
+axi4_master_rd_crc_check.TXN_COUNT_WIDTH
+axi4_master_rd_crc_check.UW
+axi4_master_rd_crc_check.cfg_addr_stride_0
+axi4_master_rd_crc_check.cfg_addr_stride_1
+axi4_master_rd_crc_check.cfg_addr_wrap_mask_0
+axi4_master_rd_crc_check.cfg_addr_wrap_mask_1
+axi4_master_rd_crc_check.cfg_axi_id
+axi4_master_rd_crc_check.cfg_axi_size
+axi4_master_rd_crc_check.cfg_hammer_en
+axi4_master_rd_crc_check.cfg_id_mode
+axi4_master_rd_crc_check.cfg_lfsr_seed
+axi4_master_rd_crc_check.cfg_start_addr
+axi4_master_rd_crc_check.cfg_txn_count
+@200
+-u_addr_gen_ar
+@28
+axi4_master_rd_crc_check.u_addr_gen_ar.ADDR_WIDTH
+axi4_master_rd_crc_check.u_addr_gen_ar.INDEX_WIDTH
+axi4_master_rd_crc_check.u_addr_gen_ar.STRIDE_WIDTH
+axi4_master_rd_crc_check.u_addr_gen_ar.TAG_WIDTH
+axi4_master_rd_crc_check.u_addr_gen_ar.i_cfg_base_addr
+axi4_master_rd_crc_check.u_addr_gen_ar.i_cfg_stride_0
+axi4_master_rd_crc_check.u_addr_gen_ar.i_clk
+axi4_master_rd_crc_check.u_addr_gen_ar.i_rst_n
+@200
+-u_addr_gen_r
+@28
+axi4_master_rd_crc_check.u_addr_gen_r.ADDR_WIDTH
+axi4_master_rd_crc_check.u_addr_gen_r.INDEX_WIDTH
+axi4_master_rd_crc_check.u_addr_gen_r.STRIDE_WIDTH
+axi4_master_rd_crc_check.u_addr_gen_r.TAG_WIDTH
+axi4_master_rd_crc_check.u_addr_gen_r.i_cfg_base_addr
+axi4_master_rd_crc_check.u_addr_gen_r.i_cfg_stride_0
+axi4_master_rd_crc_check.u_addr_gen_r.i_clk
+axi4_master_rd_crc_check.u_addr_gen_r.i_rst_n
+@200
+-u_crc
+@28
+axi4_master_rd_crc_check.u_crc.CHUNKS
+axi4_master_rd_crc_check.u_crc.CRC_WIDTH
+axi4_master_rd_crc_check.u_crc.DATA_WIDTH
+axi4_master_rd_crc_check.u_crc.POLY
+axi4_master_rd_crc_check.u_crc.POLY_INIT
+axi4_master_rd_crc_check.u_crc.REFIN
+axi4_master_rd_crc_check.u_crc.REFOUT
+axi4_master_rd_crc_check.u_crc.XOROUT
+@200
+-u_id_lfsr
+@28
+axi4_master_rd_crc_check.u_id_lfsr.TAP_COUNT
+axi4_master_rd_crc_check.u_id_lfsr.TAP_INDEX_WIDTH
+axi4_master_rd_crc_check.u_id_lfsr.TIW
+axi4_master_rd_crc_check.u_id_lfsr.WIDTH
+axi4_master_rd_crc_check.u_id_lfsr.clk
+axi4_master_rd_crc_check.u_id_lfsr.enable
+axi4_master_rd_crc_check.u_id_lfsr.rst_n
+axi4_master_rd_crc_check.u_id_lfsr.seed_load
+@200
+-u_lfsr
+@28
+axi4_master_rd_crc_check.u_lfsr.TAP_COUNT
+axi4_master_rd_crc_check.u_lfsr.TAP_INDEX_WIDTH
+axi4_master_rd_crc_check.u_lfsr.TIW
+axi4_master_rd_crc_check.u_lfsr.WIDTH
+axi4_master_rd_crc_check.u_lfsr.clk
+axi4_master_rd_crc_check.u_lfsr.enable
+axi4_master_rd_crc_check.u_lfsr.rst_n
+axi4_master_rd_crc_check.u_lfsr.seed_load
+@200
+-u_master_rd
+@28
+axi4_master_rd_crc_check.u_master_rd.AW
+axi4_master_rd_crc_check.u_master_rd.AXI_ADDR_WIDTH
+axi4_master_rd_crc_check.u_master_rd.AXI_DATA_WIDTH
+axi4_master_rd_crc_check.u_master_rd.AXI_ID_WIDTH
+axi4_master_rd_crc_check.u_master_rd.AXI_USER_WIDTH
+axi4_master_rd_crc_check.u_master_rd.AXI_WSTRB_WIDTH
+axi4_master_rd_crc_check.u_master_rd.SKID_DEPTH_AR
+axi4_master_rd_crc_check.u_master_rd.SKID_DEPTH_R

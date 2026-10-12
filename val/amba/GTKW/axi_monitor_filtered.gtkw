@@ -1,0 +1,134 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_axi_monitor_base_table_iw4_aw32_mt2_axi4_rd/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi_monitor_filtered.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_monitor_base.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi_monitor_base.aclk
+axi_monitor_base.aresetn
+axi_monitor_base.cmd_burst
+axi_monitor_base.perf_burst_count
+axi_monitor_base.r_burst_count
+@200
+-interface
+@28
+axi_monitor_base.ADDR_BITS
+axi_monitor_base.ADDR_BITS_IN_PKT
+axi_monitor_base.ADDR_FILTER_ENABLE
+axi_monitor_base.ADDR_RANGE_IS_ERROR
+axi_monitor_base.ADDR_WIDTH
+axi_monitor_base.AGENT_ID
+axi_monitor_base.AW
+axi_monitor_base.CFI_FREQ_STRATEGY
+axi_monitor_base.CFI_MAX_FREQ_MHZ
+axi_monitor_base.CFI_MIN_FREQ_MHZ
+axi_monitor_base.CFI_NUM_FREQ_ENTRIES
+axi_monitor_base.DEBUG_FIFO_DEPTH
+axi_monitor_base.ENABLE_COMPL_LOGIC
+axi_monitor_base.ENABLE_DEBUG_LOGIC
+axi_monitor_base.ENABLE_DEBUG_MODULE
+axi_monitor_base.ENABLE_ERROR_LOGIC
+axi_monitor_base.ENABLE_PERF_LOGIC
+axi_monitor_base.ENABLE_PERF_PACKETS
+axi_monitor_base.ENABLE_THRESHOLD_LOGIC
+axi_monitor_base.ENABLE_TIMEOUT_LOGIC
+axi_monitor_base.ID_FILTER_ENABLE
+axi_monitor_base.ID_MATCH_BASE
+axi_monitor_base.ID_MATCH_COUNT
+axi_monitor_base.ID_WIDTH
+axi_monitor_base.INTR_FIFO_DEPTH
+axi_monitor_base.IS_AXI
+axi_monitor_base.IS_READ
+axi_monitor_base.IW
+axi_monitor_base.MAX_TRANSACTIONS
+axi_monitor_base.NUM_BANKS
+axi_monitor_base.N_ADDR_RANGES
+axi_monitor_base.UNIT_ID
+axi_monitor_base.USE_WDATA_ORDER_Q
+axi_monitor_base.cfg_addr_filter_enable
+axi_monitor_base.cfg_addr_filter_high
+axi_monitor_base.cfg_addr_filter_low
+axi_monitor_base.cfg_id_filter_enable
+axi_monitor_base.cfg_id_match_base
+axi_monitor_base.cfg_id_match_count
+axi_monitor_base.clear
+axi_monitor_base.cmd_addr
+axi_monitor_base.cmd_id
+@200
+-gen_timeout
+@28
+axi_monitor_base.gen_timeout.timeout.ADDR_WIDTH
+axi_monitor_base.gen_timeout.timeout.IS_READ
+axi_monitor_base.gen_timeout.timeout.MAX_TRANSACTIONS
+axi_monitor_base.gen_timeout.timeout.aclk
+axi_monitor_base.gen_timeout.timeout.aresetn
+axi_monitor_base.gen_timeout.timeout.trans_table[0].cmd_received
+axi_monitor_base.gen_timeout.timeout.trans_table[0].data_started
+axi_monitor_base.gen_timeout.timeout.trans_table[0].valid
+@200
+-reporter
+@28
+axi_monitor_base.reporter.ADDR_WIDTH
+axi_monitor_base.reporter.AGENT_ID
+axi_monitor_base.reporter.ENABLE_ERROR_LOGIC
+axi_monitor_base.reporter.ENABLE_PERF_PACKETS
+axi_monitor_base.reporter.INTR_FIFO_DEPTH
+axi_monitor_base.reporter.IS_READ
+axi_monitor_base.reporter.MAX_TRANSACTIONS
+axi_monitor_base.reporter.UNIT_ID
+@200
+-timer
+@28
+axi_monitor_base.timer.CFI_FREQ_STRATEGY
+axi_monitor_base.timer.CFI_MAX_FREQ_MHZ
+axi_monitor_base.timer.CFI_MIN_FREQ_MHZ
+axi_monitor_base.timer.CFI_NUM_FREQ_ENTRIES
+axi_monitor_base.timer.SEL_WIDTH
+axi_monitor_base.timer.aclk
+axi_monitor_base.timer.aresetn
+axi_monitor_base.timer.cfg_freq_sel
+@200
+-trans_mgr
+@28
+axi_monitor_base.trans_mgr.ADDR_WIDTH
+axi_monitor_base.trans_mgr.ENABLE_PERF_PACKETS
+axi_monitor_base.trans_mgr.ID_WIDTH
+axi_monitor_base.trans_mgr.IS_AXI
+axi_monitor_base.trans_mgr.IS_READ
+axi_monitor_base.trans_mgr.MAX_TRANSACTIONS
+axi_monitor_base.trans_mgr.NUM_BANKS
+axi_monitor_base.trans_mgr.USE_WDATA_ORDER_Q
+@200
+-w_trans_table[0]
+@28
+axi_monitor_base.w_trans_table[0].cmd_received
+axi_monitor_base.w_trans_table[0].data_completed
+axi_monitor_base.w_trans_table[0].data_started
+axi_monitor_base.w_trans_table[0].eos_seen
+axi_monitor_base.w_trans_table[0].event_reported
+axi_monitor_base.w_trans_table[0].resp_received
+axi_monitor_base.w_trans_table[0].state
+axi_monitor_base.w_trans_table[0].valid
+@200
+-w_trans_table[1]
+@28
+axi_monitor_base.w_trans_table[1].cmd_received
+axi_monitor_base.w_trans_table[1].data_completed
+axi_monitor_base.w_trans_table[1].data_started
+axi_monitor_base.w_trans_table[1].eos_seen
+axi_monitor_base.w_trans_table[1].event_reported
+axi_monitor_base.w_trans_table[1].resp_received
+axi_monitor_base.w_trans_table[1].state
+axi_monitor_base.w_trans_table[1].valid

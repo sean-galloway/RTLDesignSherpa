@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_adder_hybrid_ripple_prefix_032_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_adder_hybrid_ripple_prefix_064.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_adder_hybrid_ripple_prefix_032.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_adder_hybrid_ripple_prefix_032.N
+math_adder_hybrid_ripple_prefix_032.RIPPLE_BITS
+math_adder_hybrid_ripple_prefix_032.i_a
+math_adder_hybrid_ripple_prefix_032.i_b
+math_adder_hybrid_ripple_prefix_032.i_c
+math_adder_hybrid_ripple_prefix_032.ow_carry
+math_adder_hybrid_ripple_prefix_032.ow_sum
+@200
+-u_core
+@28
+math_adder_hybrid_ripple_prefix_032.u_core.N
+math_adder_hybrid_ripple_prefix_032.u_core.RIPPLE_BITS
+@22
+math_adder_hybrid_ripple_prefix_032.u_core.gen_valid_params.M[1:0]
+@28
+math_adder_hybrid_ripple_prefix_032.u_core.i_a
+math_adder_hybrid_ripple_prefix_032.u_core.i_b
+math_adder_hybrid_ripple_prefix_032.u_core.i_c
+math_adder_hybrid_ripple_prefix_032.u_core.ow_carry
+@22
+math_adder_hybrid_ripple_prefix_032.u_core.ow_sum

@@ -1,0 +1,43 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monbus_arbiter_grant_hold_dut_grant_hold_grant_hold_cl04_is0_os0/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monbus_arbiter_grant_hold_dut.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_arbiter_grant_hold_dut.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+monbus_arbiter_grant_hold_dut.axi_aclk
+monbus_arbiter_grant_hold_dut.axi_aresetn
+@200
+-interface
+monbus_arbiter_grant_hold_dut.CLIENTS
+monbus_arbiter_grant_hold_dut.INPUT_SKID_ENABLE
+monbus_arbiter_grant_hold_dut.OUTPUT_SKID_ENABLE
+monbus_arbiter_grant_hold_dut.monbus_valid
+monbus_arbiter_grant_hold_dut.monbus_ready
+monbus_arbiter_grant_hold_dut.monbus_packet
+monbus_arbiter_grant_hold_dut.monbus_valid_in
+monbus_arbiter_grant_hold_dut.monbus_ready_in
+monbus_arbiter_grant_hold_dut.monbus_packet_in
+monbus_arbiter_grant_hold_dut.grant
+monbus_arbiter_grant_hold_dut.grant_valid
+monbus_arbiter_grant_hold_dut.grant_id
+monbus_arbiter_grant_hold_dut.last_grant
+monbus_arbiter_grant_hold_dut.block_arb
+@200
+-u_arb
+monbus_arbiter_grant_hold_dut.u_arb.grant
+monbus_arbiter_grant_hold_dut.u_arb.grant_valid
+monbus_arbiter_grant_hold_dut.u_arb.grant_ack
+monbus_arbiter_grant_hold_dut.u_arb.request
+monbus_arbiter_grant_hold_dut.u_arb.int_monbus_valid
+monbus_arbiter_grant_hold_dut.u_arb.int_monbus_ready

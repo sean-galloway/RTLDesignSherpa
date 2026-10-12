@@ -1,0 +1,114 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi4_slave_wr_crc_check_smoke_gate_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_slave_wr_crc_check.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_slave_wr_crc_check.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_slave_wr_crc_check.aclk
+axi4_slave_wr_crc_check.aresetn
+axi4_slave_wr_crc_check.crc_reset
+axi4_slave_wr_crc_check.fub_axi_awburst
+axi4_slave_wr_crc_check.s_axi_awburst
+axi4_slave_wr_crc_check.w_first_lane
+@200
+-interface
+@28
+axi4_slave_wr_crc_check.AXI_ADDR_WIDTH
+axi4_slave_wr_crc_check.AXI_DATA_WIDTH
+axi4_slave_wr_crc_check.AXI_ID_WIDTH
+axi4_slave_wr_crc_check.AXI_USER_WIDTH
+axi4_slave_wr_crc_check.BYTE_CRC
+axi4_slave_wr_crc_check.CIW
+axi4_slave_wr_crc_check.CRC_DATA_WIDTH
+axi4_slave_wr_crc_check.CRC_INIT
+axi4_slave_wr_crc_check.CRC_POLY
+axi4_slave_wr_crc_check.CRC_REFIN
+axi4_slave_wr_crc_check.CRC_REFOUT
+axi4_slave_wr_crc_check.CRC_SLICE_OFFSET
+axi4_slave_wr_crc_check.CRC_WIDTH
+axi4_slave_wr_crc_check.CRC_XOROUT
+axi4_slave_wr_crc_check.ERR_INJECT
+axi4_slave_wr_crc_check.NUM_CHANNELS
+axi4_slave_wr_crc_check.SKID_DEPTH_AW
+axi4_slave_wr_crc_check.SKID_DEPTH_B
+axi4_slave_wr_crc_check.SKID_DEPTH_W
+axi4_slave_wr_crc_check.busy
+axi4_slave_wr_crc_check.cfg_err_channel
+axi4_slave_wr_crc_check.cfg_err_enable
+axi4_slave_wr_crc_check.cfg_err_oneshot
+axi4_slave_wr_crc_check.cfg_err_resp
+axi4_slave_wr_crc_check.cfg_err_skip
+axi4_slave_wr_crc_check.err_injected
+axi4_slave_wr_crc_check.fub_axi_awaddr
+axi4_slave_wr_crc_check.fub_axi_awcache
+axi4_slave_wr_crc_check.fub_axi_awid
+axi4_slave_wr_crc_check.fub_axi_awlen
+axi4_slave_wr_crc_check.fub_axi_awlock
+axi4_slave_wr_crc_check.fub_axi_awprot
+axi4_slave_wr_crc_check.fub_axi_awsize
+axi4_slave_wr_crc_check.s_axi_awaddr
+axi4_slave_wr_crc_check.s_axi_awcache
+axi4_slave_wr_crc_check.s_axi_awid
+axi4_slave_wr_crc_check.s_axi_awlen
+axi4_slave_wr_crc_check.s_axi_awlock
+axi4_slave_wr_crc_check.s_axi_awprot
+axi4_slave_wr_crc_check.s_axi_awqos
+axi4_slave_wr_crc_check.s_axi_awready
+axi4_slave_wr_crc_check.s_axi_awregion
+axi4_slave_wr_crc_check.s_axi_awsize
+axi4_slave_wr_crc_check.s_axi_awuser
+axi4_slave_wr_crc_check.s_axi_awvalid
+axi4_slave_wr_crc_check.s_axi_bid
+axi4_slave_wr_crc_check.s_axi_bready
+axi4_slave_wr_crc_check.s_axi_bresp
+axi4_slave_wr_crc_check.s_axi_buser
+axi4_slave_wr_crc_check.s_axi_bvalid
+axi4_slave_wr_crc_check.s_axi_wdata
+axi4_slave_wr_crc_check.s_axi_wlast
+axi4_slave_wr_crc_check.s_axi_wready
+axi4_slave_wr_crc_check.s_axi_wstrb
+axi4_slave_wr_crc_check.s_axi_wuser
+axi4_slave_wr_crc_check.s_axi_wvalid
+axi4_slave_wr_crc_check.write_beat_count[0]
+axi4_slave_wr_crc_check.write_beat_count_total
+axi4_slave_wr_crc_check.write_crc_valid
+axi4_slave_wr_crc_check.write_crc_value[0]
+@200
+-gen_crc[0]
+@28
+axi4_slave_wr_crc_check.gen_crc[0].ch_load_from_cascade
+axi4_slave_wr_crc_check.gen_crc[0].r_ch_beat_count
+axi4_slave_wr_crc_check.gen_crc[0].r_ch_crc_valid
+axi4_slave_wr_crc_check.gen_crc[0].u_crc.CHUNKS
+axi4_slave_wr_crc_check.gen_crc[0].u_crc.CRC_WIDTH
+axi4_slave_wr_crc_check.gen_crc[0].u_crc.DATA_WIDTH
+axi4_slave_wr_crc_check.gen_crc[0].u_crc.REFIN
+axi4_slave_wr_crc_check.gen_crc[0].u_crc.REFOUT
+@200
+-gen_slice
+@28
+axi4_slave_wr_crc_check.gen_slice.SLICE_LSB
+axi4_slave_wr_crc_check.gen_slice.SLICE_MSB
+@200
+-u_axi4_slave_wr
+@28
+axi4_slave_wr_crc_check.u_axi4_slave_wr.AXI_ADDR_WIDTH
+axi4_slave_wr_crc_check.u_axi4_slave_wr.AXI_DATA_WIDTH
+axi4_slave_wr_crc_check.u_axi4_slave_wr.AXI_ID_WIDTH
+axi4_slave_wr_crc_check.u_axi4_slave_wr.AXI_USER_WIDTH
+axi4_slave_wr_crc_check.u_axi4_slave_wr.AXI_WSTRB_WIDTH
+axi4_slave_wr_crc_check.u_axi4_slave_wr.SKID_DEPTH_AW
+axi4_slave_wr_crc_check.u_axi4_slave_wr.SKID_DEPTH_B
+axi4_slave_wr_crc_check.u_axi4_slave_wr.SKID_DEPTH_W

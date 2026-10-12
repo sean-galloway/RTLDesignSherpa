@@ -1,0 +1,125 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_apb5_master_cg_aw12_dw32_au4_np/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/apb5_master_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb5_master_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+apb5_master_cg.gated_pclk
+apb5_master_cg.pclk
+apb5_master_cg.presetn
+@200
+-interface
+@28
+apb5_master_cg.ACW
+apb5_master_cg.ADDR_WIDTH
+apb5_master_cg.AUCW
+apb5_master_cg.AUSER_WIDTH
+apb5_master_cg.AUW
+apb5_master_cg.AW
+apb5_master_cg.BUCW
+apb5_master_cg.BUSER_WIDTH
+apb5_master_cg.BUW
+apb5_master_cg.CG_IDLE_COUNT_WIDTH
+apb5_master_cg.CMD_DEPTH
+apb5_master_cg.CPW
+apb5_master_cg.DATA_WIDTH
+apb5_master_cg.DCW
+apb5_master_cg.DW
+apb5_master_cg.ENABLE_PARITY
+apb5_master_cg.ICW
+apb5_master_cg.PROT_WIDTH
+apb5_master_cg.PW
+apb5_master_cg.RPW
+apb5_master_cg.RSP_DEPTH
+apb5_master_cg.RUCW
+apb5_master_cg.RUSER_WIDTH
+apb5_master_cg.RUW
+apb5_master_cg.STRB_WIDTH
+apb5_master_cg.SW
+apb5_master_cg.WUCW
+apb5_master_cg.WUSER_WIDTH
+apb5_master_cg.WUW
+apb5_master_cg.cfg_cg_enable
+apb5_master_cg.cfg_cg_idle_count
+apb5_master_cg.m_apb_PADDR
+@22
+apb5_master_cg.m_apb_PADDRCHK[3:0]
+@28
+apb5_master_cg.m_apb_PAUSER
+@22
+apb5_master_cg.m_apb_PAUSERCHK[6:0]
+@28
+apb5_master_cg.m_apb_PBUSER
+apb5_master_cg.m_apb_PBUSERCHK
+@22
+apb5_master_cg.m_apb_PCTRLCHK[4:0]
+@28
+apb5_master_cg.m_apb_PENABLE
+@22
+apb5_master_cg.m_apb_PENABLECHK[4:0]
+@28
+apb5_master_cg.m_apb_PPROT
+apb5_master_cg.m_apb_PRDATA
+apb5_master_cg.m_apb_PRDATACHK
+apb5_master_cg.m_apb_PREADY
+apb5_master_cg.m_apb_PREADYCHK
+apb5_master_cg.m_apb_PRUSER
+apb5_master_cg.m_apb_PRUSERCHK
+apb5_master_cg.m_apb_PSEL
+@22
+apb5_master_cg.m_apb_PSELCHK[4:0]
+@28
+apb5_master_cg.m_apb_PSLVERR
+apb5_master_cg.m_apb_PSLVERRCHK
+apb5_master_cg.m_apb_PSTRB
+@22
+apb5_master_cg.m_apb_PSTRBCHK[4:0]
+@28
+apb5_master_cg.m_apb_PWAKEUP
+@22
+apb5_master_cg.m_apb_PWAKEUPCHK[4:0]
+@28
+apb5_master_cg.m_apb_PWDATA
+@22
+apb5_master_cg.m_apb_PWDATACHK[5:0]
+@28
+apb5_master_cg.m_apb_PWRITE
+apb5_master_cg.m_apb_PWUSER
+@22
+apb5_master_cg.m_apb_PWUSERCHK[6:0]
+@200
+-amba_clock_gate_ctrl
+@28
+apb5_master_cg.amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+apb5_master_cg.amba_clock_gate_ctrl.ICW
+apb5_master_cg.amba_clock_gate_ctrl.aresetn
+@22
+apb5_master_cg.amba_clock_gate_ctrl.axi_valid[4:0]
+@28
+apb5_master_cg.amba_clock_gate_ctrl.cfg_cg_enable
+apb5_master_cg.amba_clock_gate_ctrl.cfg_cg_idle_count
+apb5_master_cg.amba_clock_gate_ctrl.clk_in
+apb5_master_cg.amba_clock_gate_ctrl.user_valid
+@200
+-u_apb5_master
+@28
+apb5_master_cg.u_apb5_master.ADDR_WIDTH
+apb5_master_cg.u_apb5_master.AUSER_WIDTH
+apb5_master_cg.u_apb5_master.BUSER_WIDTH
+apb5_master_cg.u_apb5_master.CMD_DEPTH
+apb5_master_cg.u_apb5_master.DATA_WIDTH
+apb5_master_cg.u_apb5_master.PROT_WIDTH
+apb5_master_cg.u_apb5_master.RUSER_WIDTH
+apb5_master_cg.u_apb5_master.WUSER_WIDTH

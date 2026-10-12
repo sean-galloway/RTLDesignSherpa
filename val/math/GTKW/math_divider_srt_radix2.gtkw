@@ -1,0 +1,66 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_divider_srt_radix2_W8_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_divider_srt_radix2.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_divider_srt_radix2.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+math_divider_srt_radix2.i_clk
+math_divider_srt_radix2.i_rst_n
+@200
+-interface
+@28
+math_divider_srt_radix2.i_valid
+@22
+math_divider_srt_radix2.i_dividend
+math_divider_srt_radix2.i_divisor
+@28
+math_divider_srt_radix2.ow_busy
+math_divider_srt_radix2.ow_dbz
+math_divider_srt_radix2.ow_done
+@22
+math_divider_srt_radix2.ow_quotient
+math_divider_srt_radix2.ow_remainder
+@200
+-parameters
+@22
+math_divider_srt_radix2.DATA_WIDTH
+math_divider_srt_radix2.COUNT_W
+math_divider_srt_radix2.C_ONE
+math_divider_srt_radix2.S_IDLE
+math_divider_srt_radix2.S_RUN
+math_divider_srt_radix2.S_DONE
+@200
+-internals
+@22
+math_divider_srt_radix2.r_state
+math_divider_srt_radix2.r_count
+@28
+math_divider_srt_radix2.r_busy
+math_divider_srt_radix2.r_dbz
+math_divider_srt_radix2.r_done
+@22
+math_divider_srt_radix2.r_d
+math_divider_srt_radix2.r_x_shift
+math_divider_srt_radix2.r_Q
+math_divider_srt_radix2.r_QM
+math_divider_srt_radix2.r_R
+math_divider_srt_radix2.w_q
+math_divider_srt_radix2.w_Q_next
+math_divider_srt_radix2.w_QM_next
+math_divider_srt_radix2.w_d_pos
+math_divider_srt_radix2.w_d_neg
+math_divider_srt_radix2.w_t
+math_divider_srt_radix2.w_t2
+math_divider_srt_radix2.w_rem_out

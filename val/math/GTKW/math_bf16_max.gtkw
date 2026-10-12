@@ -1,0 +1,41 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_min_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_max.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_min.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_min.i_a
+math_bf16_min.i_b
+math_bf16_min.ow_result
+@22
+math_bf16_min.w_a_is_nan
+@28
+math_bf16_min.w_a_is_zero
+@22
+math_bf16_min.w_a_less[3:0]
+@28
+math_bf16_min.w_b_is_nan
+math_bf16_min.w_b_is_zero
+math_bf16_min.w_both_zero
+math_bf16_min.w_exp_a
+math_bf16_min.w_exp_b
+@22
+math_bf16_min.w_mag_a[1:0]
+math_bf16_min.w_mag_b[2:0]
+@28
+math_bf16_min.w_mant_a
+math_bf16_min.w_mant_b
+math_bf16_min.w_sign_a
+math_bf16_min.w_sign_b

@@ -1,0 +1,134 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi4_master_wr_injector_kb4_fast/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_master_wr_injector.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_master_wr_injector.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_master_wr_injector.BURST_LEN_MULTIPLE
+axi4_master_wr_injector.aclk
+axi4_master_wr_injector.aresetn
+axi4_master_wr_injector.cfg_axi_burst
+axi4_master_wr_injector.cfg_burst_len
+axi4_master_wr_injector.m_axi_awburst
+axi4_master_wr_injector.r_axi_burst
+axi4_master_wr_injector.r_burst_len
+axi4_master_wr_injector.r_w_bursts_done
+@200
+-interface
+@28
+axi4_master_wr_injector.AW
+axi4_master_wr_injector.AXI_ADDR_WIDTH
+axi4_master_wr_injector.AXI_DATA_WIDTH
+axi4_master_wr_injector.AXI_ID_WIDTH
+axi4_master_wr_injector.AXI_USER_WIDTH
+axi4_master_wr_injector.AXI_WSTRB_WIDTH
+axi4_master_wr_injector.CRC_DATA_WIDTH
+axi4_master_wr_injector.CRC_POLY
+axi4_master_wr_injector.CRC_POLY_INIT
+axi4_master_wr_injector.CRC_REFIN
+axi4_master_wr_injector.CRC_REFOUT
+axi4_master_wr_injector.CRC_WIDTH
+axi4_master_wr_injector.CRC_XOROUT
+axi4_master_wr_injector.DW
+axi4_master_wr_injector.INDEX_WIDTH
+axi4_master_wr_injector.IW
+axi4_master_wr_injector.LFSR_SEED
+axi4_master_wr_injector.LFSR_TAPS
+axi4_master_wr_injector.LFSR_WIDTH
+axi4_master_wr_injector.MAX_OUTSTANDING
+axi4_master_wr_injector.OSW
+axi4_master_wr_injector.SKID_DEPTH_AW
+axi4_master_wr_injector.SKID_DEPTH_B
+axi4_master_wr_injector.SKID_DEPTH_W
+axi4_master_wr_injector.STRIDE_WIDTH
+axi4_master_wr_injector.SW
+axi4_master_wr_injector.TXN_COUNT_WIDTH
+axi4_master_wr_injector.UW
+axi4_master_wr_injector.cfg_addr_stride_0
+axi4_master_wr_injector.cfg_addr_stride_1
+axi4_master_wr_injector.cfg_addr_wrap_mask_0
+axi4_master_wr_injector.cfg_addr_wrap_mask_1
+axi4_master_wr_injector.cfg_axi_id
+axi4_master_wr_injector.cfg_axi_size
+axi4_master_wr_injector.cfg_id_mode
+axi4_master_wr_injector.cfg_lfsr_seed
+axi4_master_wr_injector.cfg_start_addr
+axi4_master_wr_injector.cfg_txn_count
+@200
+-u_addr_gen_aw
+@28
+axi4_master_wr_injector.u_addr_gen_aw.ADDR_WIDTH
+axi4_master_wr_injector.u_addr_gen_aw.INDEX_WIDTH
+axi4_master_wr_injector.u_addr_gen_aw.STRIDE_WIDTH
+axi4_master_wr_injector.u_addr_gen_aw.TAG_WIDTH
+axi4_master_wr_injector.u_addr_gen_aw.i_cfg_base_addr
+axi4_master_wr_injector.u_addr_gen_aw.i_cfg_stride_0
+axi4_master_wr_injector.u_addr_gen_aw.i_clk
+axi4_master_wr_injector.u_addr_gen_aw.i_rst_n
+@200
+-u_addr_gen_w
+@28
+axi4_master_wr_injector.u_addr_gen_w.ADDR_WIDTH
+axi4_master_wr_injector.u_addr_gen_w.INDEX_WIDTH
+axi4_master_wr_injector.u_addr_gen_w.STRIDE_WIDTH
+axi4_master_wr_injector.u_addr_gen_w.TAG_WIDTH
+axi4_master_wr_injector.u_addr_gen_w.i_cfg_base_addr
+axi4_master_wr_injector.u_addr_gen_w.i_cfg_stride_0
+axi4_master_wr_injector.u_addr_gen_w.i_clk
+axi4_master_wr_injector.u_addr_gen_w.i_rst_n
+@200
+-u_crc
+@28
+axi4_master_wr_injector.u_crc.CHUNKS
+axi4_master_wr_injector.u_crc.CRC_WIDTH
+axi4_master_wr_injector.u_crc.DATA_WIDTH
+axi4_master_wr_injector.u_crc.POLY
+axi4_master_wr_injector.u_crc.POLY_INIT
+axi4_master_wr_injector.u_crc.REFIN
+axi4_master_wr_injector.u_crc.REFOUT
+axi4_master_wr_injector.u_crc.XOROUT
+@200
+-u_id_lfsr
+@28
+axi4_master_wr_injector.u_id_lfsr.TAP_COUNT
+axi4_master_wr_injector.u_id_lfsr.TAP_INDEX_WIDTH
+axi4_master_wr_injector.u_id_lfsr.TIW
+axi4_master_wr_injector.u_id_lfsr.WIDTH
+axi4_master_wr_injector.u_id_lfsr.clk
+axi4_master_wr_injector.u_id_lfsr.enable
+axi4_master_wr_injector.u_id_lfsr.rst_n
+axi4_master_wr_injector.u_id_lfsr.seed_load
+@200
+-u_lfsr
+@28
+axi4_master_wr_injector.u_lfsr.TAP_COUNT
+axi4_master_wr_injector.u_lfsr.TAP_INDEX_WIDTH
+axi4_master_wr_injector.u_lfsr.TIW
+axi4_master_wr_injector.u_lfsr.WIDTH
+axi4_master_wr_injector.u_lfsr.clk
+axi4_master_wr_injector.u_lfsr.enable
+axi4_master_wr_injector.u_lfsr.rst_n
+axi4_master_wr_injector.u_lfsr.seed_load
+@200
+-u_master_wr
+@28
+axi4_master_wr_injector.u_master_wr.AXI_ADDR_WIDTH
+axi4_master_wr_injector.u_master_wr.AXI_DATA_WIDTH
+axi4_master_wr_injector.u_master_wr.AXI_ID_WIDTH
+axi4_master_wr_injector.u_master_wr.AXI_USER_WIDTH
+axi4_master_wr_injector.u_master_wr.AXI_WSTRB_WIDTH
+axi4_master_wr_injector.u_master_wr.SKID_DEPTH_AW
+axi4_master_wr_injector.u_master_wr.SKID_DEPTH_B
+axi4_master_wr_injector.u_master_wr.SKID_DEPTH_W

@@ -1,0 +1,80 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_monbus_cam_pipe_dut_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/monbus_cam_pipe_dut.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_cam_pipe_dut.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+monbus_cam_pipe_dut.clk[5:0]
+monbus_cam_pipe_dut.rst_n[6:0]
+@200
+-interface
+@28
+monbus_cam_pipe_dut.ACTION_INSTALL
+monbus_cam_pipe_dut.ACTION_NONE
+monbus_cam_pipe_dut.ACTION_TOUCH
+@22
+monbus_cam_pipe_dut.CNT_WIDTH[4:0]
+@28
+monbus_cam_pipe_dut.DATA_WIDTH
+@22
+monbus_cam_pipe_dut.DEPTH[2:0]
+monbus_cam_pipe_dut.IDX_WIDTH[3:0]
+monbus_cam_pipe_dut.KEY_WIDTH
+monbus_cam_pipe_dut.TS_WIDTH[1:0]
+@28
+monbus_cam_pipe_dut.action
+@22
+monbus_cam_pipe_dut.en[7:0]
+monbus_cam_pipe_dut.key[8:0]
+@28
+monbus_cam_pipe_dut.new_data
+monbus_cam_pipe_dut.new_ts
+monbus_cam_pipe_dut.pipe_hit
+monbus_cam_pipe_dut.pipe_idx
+monbus_cam_pipe_dut.pipe_old_data
+monbus_cam_pipe_dut.pipe_old_ts
+monbus_cam_pipe_dut.pipe_valid
+monbus_cam_pipe_dut.ref_hit
+monbus_cam_pipe_dut.ref_idx
+monbus_cam_pipe_dut.ref_old_data
+monbus_cam_pipe_dut.ref_old_ts
+@200
+-u_pipe
+@22
+monbus_cam_pipe_dut.u_pipe.CNT_WIDTH[4:0]
+@28
+monbus_cam_pipe_dut.u_pipe.DATA_WIDTH
+@22
+monbus_cam_pipe_dut.u_pipe.DEPTH[2:0]
+monbus_cam_pipe_dut.u_pipe.IDX_WIDTH[3:0]
+monbus_cam_pipe_dut.u_pipe.KEY_WIDTH
+monbus_cam_pipe_dut.u_pipe.TS_WIDTH[1:0]
+@28
+monbus_cam_pipe_dut.u_pipe.clk
+monbus_cam_pipe_dut.u_pipe.rst_n
+@200
+-u_ref
+@22
+monbus_cam_pipe_dut.u_ref.CNT_WIDTH[4:0]
+@28
+monbus_cam_pipe_dut.u_ref.DATA_WIDTH
+@22
+monbus_cam_pipe_dut.u_ref.DEPTH[2:0]
+monbus_cam_pipe_dut.u_ref.IDX_WIDTH[3:0]
+monbus_cam_pipe_dut.u_ref.KEY_WIDTH
+monbus_cam_pipe_dut.u_ref.TS_WIDTH[1:0]
+@28
+monbus_cam_pipe_dut.u_ref.clk
+monbus_cam_pipe_dut.u_ref.rst_n

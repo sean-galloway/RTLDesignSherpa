@@ -1,0 +1,119 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_axi4_slave_rd_injector_smoke_gate_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_slave_rd_injector.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_slave_rd_injector.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_slave_rd_injector.aclk
+axi4_slave_rd_injector.aresetn
+axi4_slave_rd_injector.crc_lfsr_reset
+axi4_slave_rd_injector.fub_axi_arburst
+axi4_slave_rd_injector.s_axi_arburst
+@200
+-interface
+@28
+axi4_slave_rd_injector.AXI_ADDR_WIDTH
+axi4_slave_rd_injector.AXI_DATA_WIDTH
+axi4_slave_rd_injector.AXI_ID_WIDTH
+axi4_slave_rd_injector.AXI_USER_WIDTH
+axi4_slave_rd_injector.CIW
+axi4_slave_rd_injector.CRC_DATA_WIDTH
+axi4_slave_rd_injector.CRC_INIT
+axi4_slave_rd_injector.CRC_POLY
+axi4_slave_rd_injector.CRC_REFIN
+axi4_slave_rd_injector.CRC_REFOUT
+axi4_slave_rd_injector.CRC_WIDTH
+axi4_slave_rd_injector.CRC_XOROUT
+axi4_slave_rd_injector.ERR_INJECT
+axi4_slave_rd_injector.LFSR_SEED
+axi4_slave_rd_injector.LFSR_TAPS
+axi4_slave_rd_injector.LFSR_TAP_COUNT
+axi4_slave_rd_injector.LFSR_TAP_INDEX_WIDTH
+axi4_slave_rd_injector.LFSR_WIDTH
+axi4_slave_rd_injector.NUM_CHANNELS
+axi4_slave_rd_injector.REPLICATION_FACTOR
+axi4_slave_rd_injector.SKID_DEPTH_AR
+axi4_slave_rd_injector.SKID_DEPTH_R
+axi4_slave_rd_injector.busy
+axi4_slave_rd_injector.cfg_err_channel
+axi4_slave_rd_injector.cfg_err_enable
+axi4_slave_rd_injector.cfg_err_oneshot
+axi4_slave_rd_injector.cfg_err_resp
+axi4_slave_rd_injector.cfg_err_skip
+axi4_slave_rd_injector.err_injected
+axi4_slave_rd_injector.fub_axi_araddr
+axi4_slave_rd_injector.fub_axi_arcache
+axi4_slave_rd_injector.fub_axi_arid
+axi4_slave_rd_injector.fub_axi_arlen
+axi4_slave_rd_injector.fub_axi_arlock
+axi4_slave_rd_injector.fub_axi_arprot
+axi4_slave_rd_injector.fub_axi_arqos
+axi4_slave_rd_injector.fub_axi_arsize
+axi4_slave_rd_injector.read_beat_count[0]
+axi4_slave_rd_injector.read_beat_count_total
+axi4_slave_rd_injector.read_crc_valid
+axi4_slave_rd_injector.read_crc_value[0]
+axi4_slave_rd_injector.s_axi_araddr
+axi4_slave_rd_injector.s_axi_arcache
+axi4_slave_rd_injector.s_axi_arid
+axi4_slave_rd_injector.s_axi_arlen
+axi4_slave_rd_injector.s_axi_arlock
+axi4_slave_rd_injector.s_axi_arprot
+axi4_slave_rd_injector.s_axi_arqos
+axi4_slave_rd_injector.s_axi_arready
+axi4_slave_rd_injector.s_axi_arregion
+axi4_slave_rd_injector.s_axi_arsize
+axi4_slave_rd_injector.s_axi_aruser
+axi4_slave_rd_injector.s_axi_arvalid
+axi4_slave_rd_injector.s_axi_rdata
+axi4_slave_rd_injector.s_axi_rid
+axi4_slave_rd_injector.s_axi_rlast
+axi4_slave_rd_injector.s_axi_rready
+axi4_slave_rd_injector.s_axi_rresp
+axi4_slave_rd_injector.s_axi_ruser
+axi4_slave_rd_injector.s_axi_rvalid
+@200
+-gen_crc[0]
+@28
+axi4_slave_rd_injector.gen_crc[0].ch_load_from_cascade
+axi4_slave_rd_injector.gen_crc[0].r_ch_beat_count
+axi4_slave_rd_injector.gen_crc[0].r_ch_crc_valid
+axi4_slave_rd_injector.gen_crc[0].u_crc.CHUNKS
+axi4_slave_rd_injector.gen_crc[0].u_crc.CRC_WIDTH
+axi4_slave_rd_injector.gen_crc[0].u_crc.DATA_WIDTH
+axi4_slave_rd_injector.gen_crc[0].u_crc.REFIN
+axi4_slave_rd_injector.gen_crc[0].u_crc.REFOUT
+@200
+-gen_lfsr[0]
+@28
+axi4_slave_rd_injector.gen_lfsr[0].ch_enable
+axi4_slave_rd_injector.gen_lfsr[0].u_lfsr.TAP_COUNT
+axi4_slave_rd_injector.gen_lfsr[0].u_lfsr.TAP_INDEX_WIDTH
+axi4_slave_rd_injector.gen_lfsr[0].u_lfsr.TIW
+axi4_slave_rd_injector.gen_lfsr[0].u_lfsr.WIDTH
+axi4_slave_rd_injector.gen_lfsr[0].u_lfsr.clk
+axi4_slave_rd_injector.gen_lfsr[0].u_lfsr.enable
+axi4_slave_rd_injector.gen_lfsr[0].u_lfsr.rst_n
+@200
+-u_axi4_slave_rd
+@28
+axi4_slave_rd_injector.u_axi4_slave_rd.AW
+axi4_slave_rd_injector.u_axi4_slave_rd.AXI_ADDR_WIDTH
+axi4_slave_rd_injector.u_axi4_slave_rd.AXI_DATA_WIDTH
+axi4_slave_rd_injector.u_axi4_slave_rd.AXI_ID_WIDTH
+axi4_slave_rd_injector.u_axi4_slave_rd.AXI_USER_WIDTH
+axi4_slave_rd_injector.u_axi4_slave_rd.AXI_WSTRB_WIDTH
+axi4_slave_rd_injector.u_axi4_slave_rd.SKID_DEPTH_AR
+axi4_slave_rd_injector.u_axi4_slave_rd.SKID_DEPTH_R

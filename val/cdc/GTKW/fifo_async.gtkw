@@ -1,0 +1,129 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/cdc/local_sim_build/test_fifo_async_w008_d004_wcl010_rcl008_fifo_mux_gray_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/cdc/GTKW/fifo_async.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] fifo_async.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+fifo_async.rd_clk[4:0]
+fifo_async.rd_rst_n[5:0]
+fifo_async.wr_clk[2:0]
+fifo_async.wr_rst_n[3:0]
+@200
+-interface
+@22
+fifo_async.ALMOST_RD_MARGIN[1:0]
+fifo_async.ALMOST_WR_MARGIN[1:0]
+@28
+fifo_async.AW
+@22
+fifo_async.D
+@28
+fifo_async.DATA_WIDTH
+@22
+fifo_async.DEPTH
+@28
+fifo_async.DW
+@22
+fifo_async.JCW
+@28
+fifo_async.MEM_STYLE
+fifo_async.N
+fifo_async.N_FLOP_CROSS
+fifo_async.PTRW
+fifo_async.REGISTERED
+fifo_async.USE_JOHNSON
+fifo_async.r_rd_addr
+fifo_async.r_rd_ptr_bin
+fifo_async.r_rd_ptr_gray
+fifo_async.r_rdom_wr_ptr_gray
+fifo_async.r_wdom_rd_ptr_gray
+fifo_async.r_wr_addr
+fifo_async.r_wr_ptr_bin
+fifo_async.r_wr_ptr_gray
+fifo_async.rd_almost_empty
+fifo_async.rd_data
+fifo_async.rd_empty
+fifo_async.read
+fifo_async.w_rd_ptr_bin_next
+fifo_async.w_rdom_wr_ptr_bin
+fifo_async.w_wdom_rd_ptr_bin
+fifo_async.w_wr_ptr_bin_next
+fifo_async.wr_almost_full
+@22
+fifo_async.wr_data[7:0]
+fifo_async.wr_full[8:0]
+fifo_async.write[6:0]
+@200
+-fifo_control_inst
+@28
+fifo_async.fifo_control_inst.ADDR_WIDTH
+@22
+fifo_async.fifo_control_inst.ALMOST_RD_MARGIN[1:0]
+fifo_async.fifo_control_inst.ALMOST_WR_MARGIN[1:0]
+fifo_async.fifo_control_inst.DEPTH
+@28
+fifo_async.fifo_control_inst.REGISTERED
+fifo_async.fifo_control_inst.rd_clk
+fifo_async.fifo_control_inst.wr_clk
+fifo_async.fifo_control_inst.wr_rst_n
+@200
+-g_cvt_gray
+@28
+fifo_async.g_cvt_gray.rd_ptr_gray2bin_inst.WIDTH
+fifo_async.g_cvt_gray.rd_ptr_gray2bin_inst.binary
+fifo_async.g_cvt_gray.rd_ptr_gray2bin_inst.gray
+fifo_async.g_cvt_gray.wr_ptr_gray2bin_inst.WIDTH
+fifo_async.g_cvt_gray.wr_ptr_gray2bin_inst.binary
+fifo_async.g_cvt_gray.wr_ptr_gray2bin_inst.gray
+@200
+-g_ptr_gray
+@28
+fifo_async.g_ptr_gray.rd_ptr_counter_gray.WIDTH
+fifo_async.g_ptr_gray.rd_ptr_counter_gray.clk
+fifo_async.g_ptr_gray.rd_ptr_counter_gray.counter_bin
+fifo_async.g_ptr_gray.rd_ptr_counter_gray.counter_bin_next
+fifo_async.g_ptr_gray.rd_ptr_counter_gray.counter_gray
+fifo_async.g_ptr_gray.rd_ptr_counter_gray.enable
+fifo_async.g_ptr_gray.rd_ptr_counter_gray.rst_n
+fifo_async.g_ptr_gray.rd_ptr_counter_gray.w_counter_bin
+@200
+-gen_auto
+@28
+fifo_async.gen_auto.mem[0]
+fifo_async.gen_auto.mem[1]
+fifo_async.gen_auto.mem[2]
+fifo_async.gen_auto.mem[3]
+@200
+-rd_ptr_gray_cross_inst
+@28
+fifo_async.rd_ptr_gray_cross_inst.DW
+fifo_async.rd_ptr_gray_cross_inst.FC
+fifo_async.rd_ptr_gray_cross_inst.FLOP_COUNT
+fifo_async.rd_ptr_gray_cross_inst.WIDTH
+fifo_async.rd_ptr_gray_cross_inst.clk
+fifo_async.rd_ptr_gray_cross_inst.d
+fifo_async.rd_ptr_gray_cross_inst.q
+fifo_async.rd_ptr_gray_cross_inst.rst_n
+@200
+-wr_ptr_gray_cross_inst
+@28
+fifo_async.wr_ptr_gray_cross_inst.DW
+fifo_async.wr_ptr_gray_cross_inst.FC
+fifo_async.wr_ptr_gray_cross_inst.FLOP_COUNT
+fifo_async.wr_ptr_gray_cross_inst.WIDTH
+fifo_async.wr_ptr_gray_cross_inst.clk
+fifo_async.wr_ptr_gray_cross_inst.d
+fifo_async.wr_ptr_gray_cross_inst.q
+fifo_async.wr_ptr_gray_cross_inst.rst_n

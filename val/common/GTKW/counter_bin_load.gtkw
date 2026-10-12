@@ -1,0 +1,40 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/common/local_sim_build/test_counter_bin_load_w4_max8_smoke_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/common/GTKW/counter_bin_load.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] counter_bin_load.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+counter_bin_load.clk
+counter_bin_load.rst_n
+@200
+-interface
+@28
+counter_bin_load.MAX
+counter_bin_load.WIDTH
+@22
+counter_bin_load.WRAP_BOUNDARY[4:0]
+@28
+counter_bin_load.add_enable
+@22
+counter_bin_load.add_value
+counter_bin_load.counter_bin_curr[2:0]
+counter_bin_load.counter_bin_next[3:0]
+@28
+counter_bin_load.enable
+counter_bin_load.load
+@22
+counter_bin_load.load_value[1:0]
+counter_bin_load.w_max_val[5:0]
+counter_bin_load.w_sum_ext[6:0]

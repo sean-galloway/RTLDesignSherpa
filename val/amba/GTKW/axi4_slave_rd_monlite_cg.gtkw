@@ -1,0 +1,109 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_gw0_axi4_slave_rd_monlite_cg_iw8_aw32_dw32_mt16_sk2x4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axi4_slave_rd_monlite_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi4_slave_rd_monlite_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+axi4_slave_rd_monlite_cg.ACLK_MHZ
+axi4_slave_rd_monlite_cg.aclk
+axi4_slave_rd_monlite_cg.aresetn
+axi4_slave_rd_monlite_cg.fub_axi_arburst
+axi4_slave_rd_monlite_cg.gated_aclk
+axi4_slave_rd_monlite_cg.s_axi_arburst
+@200
+-interface
+@28
+axi4_slave_rd_monlite_cg.ACTIVE_TRANS_THRESHOLD
+axi4_slave_rd_monlite_cg.ADDR_RANGE_IS_ERROR
+axi4_slave_rd_monlite_cg.AGENT_ID
+axi4_slave_rd_monlite_cg.ARSize
+axi4_slave_rd_monlite_cg.AW
+axi4_slave_rd_monlite_cg.AXI_ADDR_WIDTH
+axi4_slave_rd_monlite_cg.AXI_DATA_WIDTH
+axi4_slave_rd_monlite_cg.AXI_ID_WIDTH
+axi4_slave_rd_monlite_cg.AXI_USER_WIDTH
+axi4_slave_rd_monlite_cg.AXI_WSTRB_WIDTH
+axi4_slave_rd_monlite_cg.CFI_MAX_FREQ_MHZ
+axi4_slave_rd_monlite_cg.CFI_MIN_FREQ_MHZ
+axi4_slave_rd_monlite_cg.CG_IDLE_COUNT_WIDTH
+axi4_slave_rd_monlite_cg.DW
+axi4_slave_rd_monlite_cg.IW
+axi4_slave_rd_monlite_cg.MAX_TRANSACTIONS
+axi4_slave_rd_monlite_cg.N_ADDR_RANGES
+axi4_slave_rd_monlite_cg.OUT_DEPTH
+axi4_slave_rd_monlite_cg.RSize
+axi4_slave_rd_monlite_cg.SKID_DEPTH_AR
+axi4_slave_rd_monlite_cg.SKID_DEPTH_R
+axi4_slave_rd_monlite_cg.SW
+axi4_slave_rd_monlite_cg.UNIT_ID
+axi4_slave_rd_monlite_cg.USE_MONITOR
+axi4_slave_rd_monlite_cg.UW
+axi4_slave_rd_monlite_cg.fub_axi_araddr
+axi4_slave_rd_monlite_cg.fub_axi_arcache
+axi4_slave_rd_monlite_cg.fub_axi_arid
+axi4_slave_rd_monlite_cg.fub_axi_arlen
+axi4_slave_rd_monlite_cg.fub_axi_arlock
+axi4_slave_rd_monlite_cg.fub_axi_arprot
+axi4_slave_rd_monlite_cg.fub_axi_arqos
+axi4_slave_rd_monlite_cg.fub_axi_arready
+axi4_slave_rd_monlite_cg.fub_axi_arregion
+axi4_slave_rd_monlite_cg.fub_axi_arsize
+axi4_slave_rd_monlite_cg.fub_axi_aruser
+axi4_slave_rd_monlite_cg.fub_axi_arvalid
+axi4_slave_rd_monlite_cg.fub_axi_rdata
+axi4_slave_rd_monlite_cg.fub_axi_rid
+axi4_slave_rd_monlite_cg.fub_axi_rlast
+axi4_slave_rd_monlite_cg.fub_axi_rresp
+axi4_slave_rd_monlite_cg.s_axi_araddr
+axi4_slave_rd_monlite_cg.s_axi_arcache
+axi4_slave_rd_monlite_cg.s_axi_arid
+axi4_slave_rd_monlite_cg.s_axi_arlen
+axi4_slave_rd_monlite_cg.s_axi_arlock
+axi4_slave_rd_monlite_cg.s_axi_arprot
+axi4_slave_rd_monlite_cg.s_axi_arqos
+axi4_slave_rd_monlite_cg.s_axi_arready
+axi4_slave_rd_monlite_cg.s_axi_arregion
+axi4_slave_rd_monlite_cg.s_axi_arsize
+axi4_slave_rd_monlite_cg.s_axi_aruser
+axi4_slave_rd_monlite_cg.s_axi_arvalid
+axi4_slave_rd_monlite_cg.s_axi_rdata
+axi4_slave_rd_monlite_cg.s_axi_rid
+axi4_slave_rd_monlite_cg.s_axi_rlast
+axi4_slave_rd_monlite_cg.s_axi_rready
+axi4_slave_rd_monlite_cg.s_axi_rresp
+axi4_slave_rd_monlite_cg.s_axi_ruser
+axi4_slave_rd_monlite_cg.s_axi_rvalid
+@200
+-i_amba_clock_gate_ctrl
+@28
+axi4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.CG_IDLE_COUNT_WIDTH
+axi4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.ICW
+axi4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.aresetn
+axi4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.axi_valid
+axi4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.cfg_cg_enable
+axi4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.cfg_cg_idle_count
+axi4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.clk_in
+axi4_slave_rd_monlite_cg.i_amba_clock_gate_ctrl.user_valid
+@200
+-u_monlite
+@28
+axi4_slave_rd_monlite_cg.u_monlite.ACTIVE_TRANS_THRESHOLD
+axi4_slave_rd_monlite_cg.u_monlite.ADDR_RANGE_IS_ERROR
+axi4_slave_rd_monlite_cg.u_monlite.AGENT_ID
+axi4_slave_rd_monlite_cg.u_monlite.MAX_TRANSACTIONS
+axi4_slave_rd_monlite_cg.u_monlite.N_ADDR_RANGES
+axi4_slave_rd_monlite_cg.u_monlite.OUT_DEPTH
+axi4_slave_rd_monlite_cg.u_monlite.UNIT_ID
+axi4_slave_rd_monlite_cg.u_monlite.USE_MONITOR

@@ -1,0 +1,96 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_adder_han_carlson_016_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_adder_hybrid_ripple_prefix.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_adder_han_carlson_016.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_adder_han_carlson_016.N
+math_adder_han_carlson_016.i_a
+math_adder_han_carlson_016.i_b
+math_adder_han_carlson_016.i_cin
+math_adder_han_carlson_016.ow_cout
+math_adder_han_carlson_016.ow_sum
+math_adder_han_carlson_016.w_g0
+math_adder_han_carlson_016.w_g1
+math_adder_han_carlson_016.w_g2
+@22
+math_adder_han_carlson_016.w_g3[2:0]
+math_adder_han_carlson_016.w_g4[4:0]
+math_adder_han_carlson_016.w_g5[6:0]
+@28
+math_adder_han_carlson_016.w_p0
+math_adder_han_carlson_016.w_p1
+@22
+math_adder_han_carlson_016.w_p2
+math_adder_han_carlson_016.w_p3[1:0]
+math_adder_han_carlson_016.w_p4[3:0]
+math_adder_han_carlson_016.w_p5[5:0]
+@200
+-gen_stage1[10]
+@22
+math_adder_han_carlson_016.gen_stage1[10].gen_s1_even.u_pf_s1.i_g_hi[7:0]
+@28
+math_adder_han_carlson_016.gen_stage1[10].gen_s1_even.u_pf_s1.i_g_lo
+@22
+math_adder_han_carlson_016.gen_stage1[10].gen_s1_even.u_pf_s1.i_p_hi[8:0]
+@28
+math_adder_han_carlson_016.gen_stage1[10].gen_s1_even.u_pf_s1.i_p_lo
+math_adder_han_carlson_016.gen_stage1[10].gen_s1_even.u_pf_s1.ow_g
+math_adder_han_carlson_016.gen_stage1[10].gen_s1_even.u_pf_s1.ow_p
+@200
+-gen_stage1[12]
+@28
+math_adder_han_carlson_016.gen_stage1[12].gen_s1_even.u_pf_s1.i_g_hi
+math_adder_han_carlson_016.gen_stage1[12].gen_s1_even.u_pf_s1.i_g_lo
+math_adder_han_carlson_016.gen_stage1[12].gen_s1_even.u_pf_s1.i_p_hi
+math_adder_han_carlson_016.gen_stage1[12].gen_s1_even.u_pf_s1.i_p_lo
+math_adder_han_carlson_016.gen_stage1[12].gen_s1_even.u_pf_s1.ow_g
+math_adder_han_carlson_016.gen_stage1[12].gen_s1_even.u_pf_s1.ow_p
+@200
+-gen_stage1[14]
+@28
+math_adder_han_carlson_016.gen_stage1[14].gen_s1_even.u_pf_s1.i_g_hi
+math_adder_han_carlson_016.gen_stage1[14].gen_s1_even.u_pf_s1.i_g_lo
+math_adder_han_carlson_016.gen_stage1[14].gen_s1_even.u_pf_s1.i_p_hi
+math_adder_han_carlson_016.gen_stage1[14].gen_s1_even.u_pf_s1.i_p_lo
+math_adder_han_carlson_016.gen_stage1[14].gen_s1_even.u_pf_s1.ow_g
+math_adder_han_carlson_016.gen_stage1[14].gen_s1_even.u_pf_s1.ow_p
+@200
+-gen_stage1[2]
+@28
+math_adder_han_carlson_016.gen_stage1[2].gen_s1_even.u_pf_s1.i_g_hi
+math_adder_han_carlson_016.gen_stage1[2].gen_s1_even.u_pf_s1.i_g_lo
+math_adder_han_carlson_016.gen_stage1[2].gen_s1_even.u_pf_s1.i_p_hi
+math_adder_han_carlson_016.gen_stage1[2].gen_s1_even.u_pf_s1.i_p_lo
+math_adder_han_carlson_016.gen_stage1[2].gen_s1_even.u_pf_s1.ow_g
+math_adder_han_carlson_016.gen_stage1[2].gen_s1_even.u_pf_s1.ow_p
+@200
+-gen_stage1[4]
+@28
+math_adder_han_carlson_016.gen_stage1[4].gen_s1_even.u_pf_s1.i_g_hi
+math_adder_han_carlson_016.gen_stage1[4].gen_s1_even.u_pf_s1.i_g_lo
+math_adder_han_carlson_016.gen_stage1[4].gen_s1_even.u_pf_s1.i_p_hi
+math_adder_han_carlson_016.gen_stage1[4].gen_s1_even.u_pf_s1.i_p_lo
+math_adder_han_carlson_016.gen_stage1[4].gen_s1_even.u_pf_s1.ow_g
+math_adder_han_carlson_016.gen_stage1[4].gen_s1_even.u_pf_s1.ow_p
+@200
+-gen_stage1[6]
+@28
+math_adder_han_carlson_016.gen_stage1[6].gen_s1_even.u_pf_s1.i_g_hi
+math_adder_han_carlson_016.gen_stage1[6].gen_s1_even.u_pf_s1.i_g_lo
+math_adder_han_carlson_016.gen_stage1[6].gen_s1_even.u_pf_s1.i_p_hi
+math_adder_han_carlson_016.gen_stage1[6].gen_s1_even.u_pf_s1.i_p_lo
+math_adder_han_carlson_016.gen_stage1[6].gen_s1_even.u_pf_s1.ow_g
+math_adder_han_carlson_016.gen_stage1[6].gen_s1_even.u_pf_s1.ow_p

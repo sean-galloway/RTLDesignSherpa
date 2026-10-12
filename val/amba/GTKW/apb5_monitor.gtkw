@@ -1,0 +1,94 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_apb5_monitor_backtoback/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/apb5_monitor.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb5_monitor.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+apb5_monitor.aclk
+apb5_monitor.aresetn
+@200
+-interface
+@28
+apb5_monitor.ADDR_WIDTH
+apb5_monitor.AGENT_ID
+apb5_monitor.AUSER_WIDTH
+apb5_monitor.AUW
+apb5_monitor.AW
+apb5_monitor.BUSER_WIDTH
+apb5_monitor.BUW
+apb5_monitor.DATA_WIDTH
+apb5_monitor.DW
+apb5_monitor.ENABLE_PARITY_MON
+apb5_monitor.MAX_TRANSACTIONS
+apb5_monitor.MONITOR_FIFO_DEPTH
+apb5_monitor.N_ADDR_RANGES
+apb5_monitor.RUSER_WIDTH
+apb5_monitor.RUW
+apb5_monitor.SW
+apb5_monitor.UNIT_ID
+apb5_monitor.USE_MONITOR
+apb5_monitor.WUSER_WIDTH
+apb5_monitor.WUW
+apb5_monitor.apb5_pwakeup
+apb5_monitor.cfg_addr_check_enable
+apb5_monitor.cfg_addr_range_enable
+apb5_monitor.cfg_addr_range_high[0]
+apb5_monitor.cfg_addr_range_low[0]
+apb5_monitor.cfg_cmd_timeout_cnt
+apb5_monitor.cfg_error_enable
+apb5_monitor.cfg_latency_enable
+apb5_monitor.cfg_latency_threshold
+apb5_monitor.cfg_parity_enable
+apb5_monitor.cfg_perf_enable
+apb5_monitor.cfg_protocol_enable
+apb5_monitor.cfg_rsp_timeout_cnt
+apb5_monitor.cfg_slverr_enable
+apb5_monitor.cfg_timeout_enable
+apb5_monitor.cfg_user_enable
+apb5_monitor.cfg_wakeup_enable
+apb5_monitor.cfg_wakeup_timeout_cnt
+apb5_monitor.cmd_paddr
+apb5_monitor.cmd_pauser
+apb5_monitor.cmd_pprot
+apb5_monitor.cmd_pstrb
+apb5_monitor.cmd_pwdata
+apb5_monitor.cmd_pwrite
+apb5_monitor.cmd_pwuser
+apb5_monitor.cmd_ready
+apb5_monitor.cmd_valid
+apb5_monitor.i_mon_time
+apb5_monitor.monbus_packet
+apb5_monitor.monbus_ready
+apb5_monitor.monbus_valid
+apb5_monitor.parity_error_ctrl
+apb5_monitor.parity_error_rdata
+apb5_monitor.parity_error_wdata
+apb5_monitor.rsp_pbuser
+apb5_monitor.rsp_prdata
+apb5_monitor.rsp_pruser
+apb5_monitor.rsp_pslverr
+apb5_monitor.rsp_ready
+apb5_monitor.rsp_valid
+@200
+-gen_monitor
+@28
+apb5_monitor.gen_monitor.r_trans_table[0].cmd_received
+apb5_monitor.gen_monitor.r_trans_table[0].data_completed
+apb5_monitor.gen_monitor.r_trans_table[0].data_started
+apb5_monitor.gen_monitor.r_trans_table[0].eos_seen
+apb5_monitor.gen_monitor.r_trans_table[0].event_reported
+apb5_monitor.gen_monitor.r_trans_table[0].resp_received
+apb5_monitor.gen_monitor.r_trans_table[0].state
+apb5_monitor.gen_monitor.r_trans_table[0].valid

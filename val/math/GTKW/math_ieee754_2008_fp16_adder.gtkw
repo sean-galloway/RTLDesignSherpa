@@ -1,0 +1,99 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_ieee754_2008_fp16_adder_gate_GATE_sn0/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_ieee754_2008_fp16_adder.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_ieee754_2008_fp16_adder.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+math_ieee754_2008_fp16_adder.i_clk
+math_ieee754_2008_fp16_adder.i_rst_n
+@200
+-interface
+@28
+math_ieee754_2008_fp16_adder.PIPE_STAGE_1
+math_ieee754_2008_fp16_adder.PIPE_STAGE_2
+math_ieee754_2008_fp16_adder.PIPE_STAGE_3
+math_ieee754_2008_fp16_adder.PIPE_STAGE_4
+math_ieee754_2008_fp16_adder.SUBNORMAL_SUPPORT
+math_ieee754_2008_fp16_adder.i_a
+math_ieee754_2008_fp16_adder.i_b
+@22
+math_ieee754_2008_fp16_adder.i_valid
+math_ieee754_2008_fp16_adder.ow_invalid[3:0]
+math_ieee754_2008_fp16_adder.ow_overflow[1:0]
+@28
+math_ieee754_2008_fp16_adder.ow_result
+@22
+math_ieee754_2008_fp16_adder.ow_underflow[2:0]
+math_ieee754_2008_fp16_adder.ow_valid[4:0]
+@28
+math_ieee754_2008_fp16_adder.w_a_eff_zero
+math_ieee754_2008_fp16_adder.w_a_exp_larger
+math_ieee754_2008_fp16_adder.w_a_h1
+math_ieee754_2008_fp16_adder.w_a_is_inf
+math_ieee754_2008_fp16_adder.w_a_is_nan
+math_ieee754_2008_fp16_adder.w_a_is_normal
+math_ieee754_2008_fp16_adder.w_a_is_subnormal
+math_ieee754_2008_fp16_adder.w_a_is_zero
+math_ieee754_2008_fp16_adder.w_b_eff_zero
+math_ieee754_2008_fp16_adder.w_b_h1
+math_ieee754_2008_fp16_adder.w_b_is_inf
+math_ieee754_2008_fp16_adder.w_b_is_nan
+math_ieee754_2008_fp16_adder.w_b_is_normal
+math_ieee754_2008_fp16_adder.w_b_is_subnormal
+math_ieee754_2008_fp16_adder.w_b_is_zero
+math_ieee754_2008_fp16_adder.w_effective_sub
+@22
+math_ieee754_2008_fp16_adder.w_exp_a[6:0]
+@28
+math_ieee754_2008_fp16_adder.w_exp_a_adj
+math_ieee754_2008_fp16_adder.w_exp_b
+math_ieee754_2008_fp16_adder.w_exp_b_adj
+math_ieee754_2008_fp16_adder.w_exp_diff
+math_ieee754_2008_fp16_adder.w_exp_larger
+math_ieee754_2008_fp16_adder.w_exp_smaller
+math_ieee754_2008_fp16_adder.w_larger_h1
+math_ieee754_2008_fp16_adder.w_larger_sub
+@22
+math_ieee754_2008_fp16_adder.w_mant_a[7:0]
+@28
+math_ieee754_2008_fp16_adder.w_mant_b
+math_ieee754_2008_fp16_adder.w_mant_larger
+math_ieee754_2008_fp16_adder.w_mant_larger_15
+math_ieee754_2008_fp16_adder.w_mant_larger_ext
+math_ieee754_2008_fp16_adder.w_mant_smaller
+math_ieee754_2008_fp16_adder.w_mant_smaller_15
+math_ieee754_2008_fp16_adder.w_mant_smaller_ext
+math_ieee754_2008_fp16_adder.w_mant_smaller_shifted
+math_ieee754_2008_fp16_adder.w_mant_sum_abs
+math_ieee754_2008_fp16_adder.w_mant_sum_raw
+math_ieee754_2008_fp16_adder.w_result_sign
+math_ieee754_2008_fp16_adder.w_shift_amt
+math_ieee754_2008_fp16_adder.w_shift_mask
+@22
+math_ieee754_2008_fp16_adder.w_sign_a[5:0]
+math_ieee754_2008_fp16_adder.w_sign_b[8:0]
+@28
+math_ieee754_2008_fp16_adder.w_sign_larger
+math_ieee754_2008_fp16_adder.w_sign_smaller
+math_ieee754_2008_fp16_adder.w_smaller_h1
+math_ieee754_2008_fp16_adder.w_smaller_sub
+math_ieee754_2008_fp16_adder.w_sticky_from_shift
+math_ieee754_2008_fp16_adder.w_sum_negative
+@200
+-u_clz
+@28
+math_ieee754_2008_fp16_adder.u_clz.WIDTH
+math_ieee754_2008_fp16_adder.u_clz.clz
+math_ieee754_2008_fp16_adder.u_clz.data

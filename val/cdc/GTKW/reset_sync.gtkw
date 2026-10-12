@@ -1,0 +1,35 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/cdc/local_sim_build/test_reset_sync_n3_typical_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/cdc/GTKW/reset_sync.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] reset_sync.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+reset_sync.clk
+reset_sync.rst_in_h
+reset_sync.rst_n
+reset_sync.sync_rst_n
+@200
+-interface
+@28
+reset_sync.ASYNC_ASSERT
+reset_sync.IN_ACTIVE_LOW
+reset_sync.KEEP_ATTRS
+reset_sync.N
+reset_sync.OUT_ACTIVE_LOW
+@200
+-g_async_assert
+@28
+reset_sync.g_async_assert.g_attrd.r_sync_reg
+reset_sync.g_async_assert.g_attrd.sync_rst_h

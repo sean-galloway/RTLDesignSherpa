@@ -1,0 +1,119 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/math_mod_3_compress_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_mod_3_compress.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_mod_3_compress.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@22
+math_mod_3_compress.d_in
+math_mod_3_compress.rem_out
+@200
+-params
+@28
+math_mod_3_compress.BITS
+@200
+-groups
+@22
+math_mod_3_compress.w_g0
+math_mod_3_compress.w_g1
+math_mod_3_compress.w_g2
+math_mod_3_compress.w_g3
+math_mod_3_compress.w_g4
+math_mod_3_compress.w_g5
+math_mod_3_compress.w_g6
+math_mod_3_compress.w_g7
+@200
+-stage-1
+@22
+math_mod_3_compress.w_sumA1
+math_mod_3_compress.w_carryA1
+math_mod_3_compress.w_sumB1
+math_mod_3_compress.w_carryB1
+math_mod_3_compress.w_sumC1
+math_mod_3_compress.w_carryC1
+@200
+-stage-2
+@22
+math_mod_3_compress.w_sumD2
+math_mod_3_compress.w_carryD2
+math_mod_3_compress.w_sumE2
+math_mod_3_compress.w_carryE2
+@200
+-stage-3-4
+@22
+math_mod_3_compress.w_sumF3
+math_mod_3_compress.w_carryF3
+math_mod_3_compress.w_sumG4
+math_mod_3_compress.w_carryG4
+@200
+-final
+@22
+math_mod_3_compress.w_grp_sum
+math_mod_3_compress.w_fold
+@200
+-comp1
+@22
+math_mod_3_compress.comp1.i_a
+math_mod_3_compress.comp1.i_b
+math_mod_3_compress.comp1.i_c
+math_mod_3_compress.comp1.ow_sum
+math_mod_3_compress.comp1.ow_carry
+@200
+-comp2
+@22
+math_mod_3_compress.comp2.i_a
+math_mod_3_compress.comp2.i_b
+math_mod_3_compress.comp2.i_c
+math_mod_3_compress.comp2.ow_sum
+math_mod_3_compress.comp2.ow_carry
+@200
+-comp3
+@22
+math_mod_3_compress.comp3.i_a
+math_mod_3_compress.comp3.i_b
+math_mod_3_compress.comp3.i_c
+math_mod_3_compress.comp3.ow_sum
+math_mod_3_compress.comp3.ow_carry
+@200
+-comp4
+@22
+math_mod_3_compress.comp4.i_a
+math_mod_3_compress.comp4.i_b
+math_mod_3_compress.comp4.i_c
+math_mod_3_compress.comp4.ow_sum
+math_mod_3_compress.comp4.ow_carry
+@200
+-comp5
+@22
+math_mod_3_compress.comp5.i_a
+math_mod_3_compress.comp5.i_b
+math_mod_3_compress.comp5.i_c
+math_mod_3_compress.comp5.ow_sum
+math_mod_3_compress.comp5.ow_carry
+@200
+-comp6
+@22
+math_mod_3_compress.comp6.i_a
+math_mod_3_compress.comp6.i_b
+math_mod_3_compress.comp6.i_c
+math_mod_3_compress.comp6.ow_sum
+math_mod_3_compress.comp6.ow_carry
+@200
+-comp7
+@22
+math_mod_3_compress.comp7.i_a
+math_mod_3_compress.comp7.i_b
+math_mod_3_compress.comp7.i_c
+math_mod_3_compress.comp7.ow_sum
+math_mod_3_compress.comp7.ow_carry

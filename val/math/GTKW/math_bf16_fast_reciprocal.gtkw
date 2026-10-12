@@ -1,0 +1,64 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_fast_reciprocal_gate_lut32_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_fast_reciprocal.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_fast_reciprocal.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_bf16_fast_reciprocal.BF16_NEG_INF
+math_bf16_fast_reciprocal.BF16_NEG_ZERO
+math_bf16_fast_reciprocal.BF16_POS_INF
+math_bf16_fast_reciprocal.BF16_POS_ZERO
+math_bf16_fast_reciprocal.BF16_QNAN
+math_bf16_fast_reciprocal.LUT_ADDR_BITS
+math_bf16_fast_reciprocal.LUT_DEPTH
+math_bf16_fast_reciprocal.i_bf16
+math_bf16_fast_reciprocal.ow_is_inf
+math_bf16_fast_reciprocal.ow_is_nan
+math_bf16_fast_reciprocal.ow_is_zero
+math_bf16_fast_reciprocal.ow_mant_approx
+@22
+math_bf16_fast_reciprocal.ow_mant_interp[1:0]
+@28
+math_bf16_fast_reciprocal.ow_reciprocal
+@22
+math_bf16_fast_reciprocal.ow_underflow
+math_bf16_fast_reciprocal.w_exp[3:0]
+math_bf16_fast_reciprocal.w_is_inf[6:0]
+math_bf16_fast_reciprocal.w_is_nan[7:0]
+math_bf16_fast_reciprocal.w_is_zero_or_subnormal[5:0]
+@28
+math_bf16_fast_reciprocal.w_lut_addr
+math_bf16_fast_reciprocal.w_lut_addr_nxt
+@22
+math_bf16_fast_reciprocal.w_mant[4:0]
+@28
+math_bf16_fast_reciprocal.w_mant_nonzero
+math_bf16_fast_reciprocal.w_recip_exp
+math_bf16_fast_reciprocal.w_recip_mant
+@22
+math_bf16_fast_reciprocal.w_recip_mant_lut[8:0]
+@28
+math_bf16_fast_reciprocal.w_recip_mant_nxt
+math_bf16_fast_reciprocal.w_recip_underflow
+@22
+math_bf16_fast_reciprocal.w_sign[2:0]
+@200
+-gen_interp
+@28
+math_bf16_fast_reciprocal.gen_interp.FRAC_BITS
+math_bf16_fast_reciprocal.gen_interp.FRAC_HALF
+math_bf16_fast_reciprocal.gen_interp.w_frac
+math_bf16_fast_reciprocal.gen_interp.w_scaled
+math_bf16_fast_reciprocal.gen_interp.w_step

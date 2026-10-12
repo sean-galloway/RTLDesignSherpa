@@ -1,0 +1,71 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_axi4ace_snoop_monitor_lite_uid1_aid10_ms8_od4_aw32_dw32_mhz100_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/tb_axi4ace_snoop_monitor_lite.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_axi4ace_snoop_monitor_lite.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+tb_axi4ace_snoop_monitor_lite.ACLK_MHZ
+tb_axi4ace_snoop_monitor_lite.aclk
+tb_axi4ace_snoop_monitor_lite.aresetn
+@200
+-interface
+@28
+tb_axi4ace_snoop_monitor_lite.ADDR_WIDTH
+tb_axi4ace_snoop_monitor_lite.AGENT_ID
+tb_axi4ace_snoop_monitor_lite.AW
+tb_axi4ace_snoop_monitor_lite.DATA_WIDTH
+tb_axi4ace_snoop_monitor_lite.DW
+tb_axi4ace_snoop_monitor_lite.MAX_SNOOPS
+tb_axi4ace_snoop_monitor_lite.OUT_DEPTH
+tb_axi4ace_snoop_monitor_lite.UNIT_ID
+tb_axi4ace_snoop_monitor_lite.active_transactions
+tb_axi4ace_snoop_monitor_lite.cfg_compl_enable
+tb_axi4ace_snoop_monitor_lite.cfg_error_enable
+tb_axi4ace_snoop_monitor_lite.cfg_freq_sel
+tb_axi4ace_snoop_monitor_lite.cfg_monitor_enable
+tb_axi4ace_snoop_monitor_lite.cfg_timeout_cycles
+tb_axi4ace_snoop_monitor_lite.cfg_timeout_enable
+tb_axi4ace_snoop_monitor_lite.clear
+tb_axi4ace_snoop_monitor_lite.dropped_count
+tb_axi4ace_snoop_monitor_lite.error_count
+tb_axi4ace_snoop_monitor_lite.i_mon_time
+tb_axi4ace_snoop_monitor_lite.m_axi_acaddr
+tb_axi4ace_snoop_monitor_lite.m_axi_acprot
+tb_axi4ace_snoop_monitor_lite.m_axi_acready
+tb_axi4ace_snoop_monitor_lite.m_axi_acsnoop
+tb_axi4ace_snoop_monitor_lite.m_axi_acvalid
+tb_axi4ace_snoop_monitor_lite.m_axi_cddata
+tb_axi4ace_snoop_monitor_lite.m_axi_cdlast
+tb_axi4ace_snoop_monitor_lite.m_axi_cdready
+tb_axi4ace_snoop_monitor_lite.m_axi_cdvalid
+tb_axi4ace_snoop_monitor_lite.m_axi_crready
+tb_axi4ace_snoop_monitor_lite.m_axi_crresp
+tb_axi4ace_snoop_monitor_lite.m_axi_crvalid
+tb_axi4ace_snoop_monitor_lite.monbus_packet
+tb_axi4ace_snoop_monitor_lite.monbus_ready
+tb_axi4ace_snoop_monitor_lite.monbus_timestamp
+tb_axi4ace_snoop_monitor_lite.monbus_valid
+tb_axi4ace_snoop_monitor_lite.transaction_count
+@200
+-u_mon
+@28
+tb_axi4ace_snoop_monitor_lite.u_mon.ACLK_MHZ
+tb_axi4ace_snoop_monitor_lite.u_mon.AGENT_ID
+tb_axi4ace_snoop_monitor_lite.u_mon.CFI_MAX_FREQ_MHZ
+tb_axi4ace_snoop_monitor_lite.u_mon.CFI_MIN_FREQ_MHZ
+tb_axi4ace_snoop_monitor_lite.u_mon.CFI_NUM_FREQ_ENTRIES
+tb_axi4ace_snoop_monitor_lite.u_mon.MAX_SNOOPS
+tb_axi4ace_snoop_monitor_lite.u_mon.OUT_DEPTH
+tb_axi4ace_snoop_monitor_lite.u_mon.UNIT_ID

@@ -1,0 +1,108 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/monitor-lite/local_sim_build/test_axis4_slave_monlite_cg_dw32_iw8_destw4_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/axis4_slave_monlite_cg.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis4_slave_monlite_cg.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-parameters
+@28
+axis4_slave_monlite_cg.USE_MONITOR
+@22
+axis4_slave_monlite_cg.ACLK_MHZ
+axis4_slave_monlite_cg.AGENT_ID
+axis4_slave_monlite_cg.AXIS_DATA_WIDTH
+axis4_slave_monlite_cg.AXIS_DEST_WIDTH
+axis4_slave_monlite_cg.AXIS_ID_WIDTH
+axis4_slave_monlite_cg.AXIS_USER_WIDTH
+axis4_slave_monlite_cg.CFI_MAX_FREQ_MHZ
+axis4_slave_monlite_cg.CFI_MIN_FREQ_MHZ
+axis4_slave_monlite_cg.CG_IDLE_COUNT_WIDTH
+axis4_slave_monlite_cg.DESTW
+axis4_slave_monlite_cg.DESTW_WIDTH
+axis4_slave_monlite_cg.DW
+axis4_slave_monlite_cg.IW
+axis4_slave_monlite_cg.IW_WIDTH
+axis4_slave_monlite_cg.OUT_DEPTH
+axis4_slave_monlite_cg.SKID_DEPTH
+axis4_slave_monlite_cg.SW
+axis4_slave_monlite_cg.UNIT_ID
+axis4_slave_monlite_cg.UW
+axis4_slave_monlite_cg.UW_WIDTH
+@200
+-clk-rst
+@28
+axis4_slave_monlite_cg.aclk
+axis4_slave_monlite_cg.aresetn
+@200
+-fub
+@28
+axis4_slave_monlite_cg.fub_axis_tlast
+axis4_slave_monlite_cg.fub_axis_tready
+axis4_slave_monlite_cg.fub_axis_tuser
+axis4_slave_monlite_cg.fub_axis_tvalid
+@22
+axis4_slave_monlite_cg.fub_axis_tdata
+axis4_slave_monlite_cg.fub_axis_tdest
+axis4_slave_monlite_cg.fub_axis_tid
+axis4_slave_monlite_cg.fub_axis_tstrb
+@200
+-s_axis
+@28
+axis4_slave_monlite_cg.s_axis_tlast
+axis4_slave_monlite_cg.s_axis_tready
+axis4_slave_monlite_cg.s_axis_tuser
+axis4_slave_monlite_cg.s_axis_tvalid
+@22
+axis4_slave_monlite_cg.s_axis_tdata
+axis4_slave_monlite_cg.s_axis_tdest
+axis4_slave_monlite_cg.s_axis_tid
+axis4_slave_monlite_cg.s_axis_tstrb
+@200
+-cfg
+@28
+axis4_slave_monlite_cg.cfg_cg_enable
+axis4_slave_monlite_cg.cfg_channel_enable
+axis4_slave_monlite_cg.cfg_compl_enable
+axis4_slave_monlite_cg.cfg_credit_enable
+axis4_slave_monlite_cg.cfg_error_enable
+axis4_slave_monlite_cg.cfg_monitor_enable
+axis4_slave_monlite_cg.cfg_strb_check_enable
+axis4_slave_monlite_cg.cfg_stream_enable
+axis4_slave_monlite_cg.cfg_timeout_enable
+@22
+axis4_slave_monlite_cg.cfg_axis_pkt_mask
+axis4_slave_monlite_cg.cfg_cg_idle_count
+axis4_slave_monlite_cg.cfg_freq_sel
+axis4_slave_monlite_cg.cfg_stall_threshold
+axis4_slave_monlite_cg.cfg_timeout_cycles
+@200
+-monbus
+@28
+axis4_slave_monlite_cg.monbus_ready
+axis4_slave_monlite_cg.monbus_valid
+@22
+axis4_slave_monlite_cg.monbus_packet
+axis4_slave_monlite_cg.monbus_timestamp
+@200
+-ctrl
+@28
+axis4_slave_monlite_cg.busy
+axis4_slave_monlite_cg.in_packet
+@22
+axis4_slave_monlite_cg.i_mon_time
+axis4_slave_monlite_cg.packet_count
+@200
+-counters
+@22
+axis4_slave_monlite_cg.dropped_count
+axis4_slave_monlite_cg.error_count

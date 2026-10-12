@@ -1,0 +1,61 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/common/local_sim_build/test_ecc_secded_w08_byte_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/common/GTKW/ecc_seced_wrapper.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] ecc_secded_wrapper.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+ecc_secded_wrapper.clk
+ecc_secded_wrapper.rst_n
+@200
+-interface
+@28
+ecc_secded_wrapper.WIDTH
+ecc_secded_wrapper.data
+ecc_secded_wrapper.decoded_data
+@22
+ecc_secded_wrapper.double_error_detected[2:0]
+@28
+ecc_secded_wrapper.enable
+ecc_secded_wrapper.encoded_data
+@22
+ecc_secded_wrapper.error_detected[1:0]
+ecc_secded_wrapper.hamming_data
+@200
+-u_decoder
+@22
+ecc_secded_wrapper.u_decoder.DEBUG[3:0]
+ecc_secded_wrapper.u_decoder.ParityBits[4:0]
+ecc_secded_wrapper.u_decoder.TotalWidth[5:0]
+@28
+ecc_secded_wrapper.u_decoder.WIDTH
+@22
+ecc_secded_wrapper.u_decoder.clk[6:0]
+ecc_secded_wrapper.u_decoder.enable[8:0]
+@28
+ecc_secded_wrapper.u_decoder.hamming_data
+@22
+ecc_secded_wrapper.u_decoder.rst_n[7:0]
+@200
+-u_encoder
+@22
+ecc_secded_wrapper.u_encoder.DEBUG[3:0]
+ecc_secded_wrapper.u_encoder.ParityBits[4:0]
+ecc_secded_wrapper.u_encoder.TotalWidth[5:0]
+@28
+ecc_secded_wrapper.u_encoder.WIDTH
+ecc_secded_wrapper.u_encoder.data
+ecc_secded_wrapper.u_encoder.encoded_data
+ecc_secded_wrapper.u_encoder.i
+ecc_secded_wrapper.u_encoder.w_data_with_parity

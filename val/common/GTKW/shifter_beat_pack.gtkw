@@ -1,0 +1,53 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/common/local_sim_build/test_shifter_beat_pack_smoke_c128_b16_cfg8_slow/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/common/GTKW/shifter_beat_pack.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] shifter_beat_pack.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@22
+shifter_beat_pack.clk[1:0]
+shifter_beat_pack.rst_n[2:0]
+@200
+-interface
+@28
+shifter_beat_pack.BEAT_BITS_W
+shifter_beat_pack.CFG_BITS
+shifter_beat_pack.CHUNK_BITS
+shifter_beat_pack.CMP_W
+shifter_beat_pack.COUNT_BITS
+shifter_beat_pack.DEPTH_CHUNKS
+shifter_beat_pack.IDX_BITS
+shifter_beat_pack.MAX_BEAT_BITS
+shifter_beat_pack.MAX_BEAT_BYTES
+@22
+shifter_beat_pack.STORAGE_BITS
+shifter_beat_pack.cfg_beat_bytes_m1[3:0]
+@28
+shifter_beat_pack.count_bits_o
+shifter_beat_pack.empty
+shifter_beat_pack.pop_data
+@22
+shifter_beat_pack.pop_ready[8:0]
+shifter_beat_pack.pop_valid[7:0]
+shifter_beat_pack.push_data[6:0]
+shifter_beat_pack.push_ready[5:0]
+shifter_beat_pack.push_valid[4:0]
+@28
+shifter_beat_pack.r_count
+shifter_beat_pack.r_data
+shifter_beat_pack.w_beat_bits
+shifter_beat_pack.w_beat_cmp
+shifter_beat_pack.w_count_cmp
+shifter_beat_pack.w_v_count
+shifter_beat_pack.w_v_data

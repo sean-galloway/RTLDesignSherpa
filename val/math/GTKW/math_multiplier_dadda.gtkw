@@ -1,0 +1,130 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_multiplier_dadda_tree_008_func_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_multiplier_dadda.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_multiplier_dadda_tree_008.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@28
+math_multiplier_dadda_tree_008.N
+math_multiplier_dadda_tree_008.i_multiplicand
+math_multiplier_dadda_tree_008.i_multiplier
+math_multiplier_dadda_tree_008.ow_product
+math_multiplier_dadda_tree_008.w_pp_0_0
+math_multiplier_dadda_tree_008.w_pp_0_1
+math_multiplier_dadda_tree_008.w_pp_0_2
+math_multiplier_dadda_tree_008.w_pp_0_3
+math_multiplier_dadda_tree_008.w_pp_0_4
+math_multiplier_dadda_tree_008.w_pp_0_5
+math_multiplier_dadda_tree_008.w_pp_0_6
+math_multiplier_dadda_tree_008.w_pp_0_7
+@22
+math_multiplier_dadda_tree_008.w_pp_1_0
+@28
+math_multiplier_dadda_tree_008.w_pp_1_1
+@22
+math_multiplier_dadda_tree_008.w_pp_1_2[1:0]
+math_multiplier_dadda_tree_008.w_pp_1_3[2:0]
+math_multiplier_dadda_tree_008.w_pp_1_4[3:0]
+math_multiplier_dadda_tree_008.w_pp_1_5[4:0]
+math_multiplier_dadda_tree_008.w_pp_1_6[5:0]
+math_multiplier_dadda_tree_008.w_pp_1_7[6:0]
+math_multiplier_dadda_tree_008.w_pp_2_0[7:0]
+math_multiplier_dadda_tree_008.w_pp_2_1[8:0]
+@28
+math_multiplier_dadda_tree_008.w_pp_2_2
+math_multiplier_dadda_tree_008.w_pp_2_3
+math_multiplier_dadda_tree_008.w_pp_2_4
+math_multiplier_dadda_tree_008.w_pp_2_5
+math_multiplier_dadda_tree_008.w_pp_2_6
+math_multiplier_dadda_tree_008.w_pp_2_7
+math_multiplier_dadda_tree_008.w_pp_3_0
+math_multiplier_dadda_tree_008.w_pp_3_1
+math_multiplier_dadda_tree_008.w_pp_3_2
+math_multiplier_dadda_tree_008.w_pp_3_3
+math_multiplier_dadda_tree_008.w_pp_3_4
+math_multiplier_dadda_tree_008.w_pp_3_5
+math_multiplier_dadda_tree_008.w_pp_3_6
+math_multiplier_dadda_tree_008.w_pp_3_7
+math_multiplier_dadda_tree_008.w_pp_4_0
+math_multiplier_dadda_tree_008.w_pp_4_1
+math_multiplier_dadda_tree_008.w_pp_4_2
+math_multiplier_dadda_tree_008.w_pp_4_3
+math_multiplier_dadda_tree_008.w_pp_4_4
+math_multiplier_dadda_tree_008.w_pp_4_5
+math_multiplier_dadda_tree_008.w_pp_4_6
+math_multiplier_dadda_tree_008.w_pp_4_7
+math_multiplier_dadda_tree_008.w_pp_5_0
+math_multiplier_dadda_tree_008.w_pp_5_1
+math_multiplier_dadda_tree_008.w_pp_5_2
+math_multiplier_dadda_tree_008.w_pp_5_3
+math_multiplier_dadda_tree_008.w_pp_5_4
+math_multiplier_dadda_tree_008.w_pp_5_5
+math_multiplier_dadda_tree_008.w_pp_5_6
+math_multiplier_dadda_tree_008.w_pp_5_7
+math_multiplier_dadda_tree_008.w_pp_6_0
+math_multiplier_dadda_tree_008.w_pp_6_1
+math_multiplier_dadda_tree_008.w_pp_6_2
+math_multiplier_dadda_tree_008.w_pp_6_3
+math_multiplier_dadda_tree_008.w_pp_6_4
+math_multiplier_dadda_tree_008.w_pp_6_5
+math_multiplier_dadda_tree_008.w_pp_6_6
+math_multiplier_dadda_tree_008.w_pp_6_7
+@200
+-CSA_03_02
+@28
+math_multiplier_dadda_tree_008.CSA_03_02.i_a
+math_multiplier_dadda_tree_008.CSA_03_02.i_b
+math_multiplier_dadda_tree_008.CSA_03_02.i_c
+math_multiplier_dadda_tree_008.CSA_03_02.ow_carry
+math_multiplier_dadda_tree_008.CSA_03_02.ow_sum
+@200
+-CSA_04_02
+@28
+math_multiplier_dadda_tree_008.CSA_04_02.i_a
+math_multiplier_dadda_tree_008.CSA_04_02.i_b
+math_multiplier_dadda_tree_008.CSA_04_02.i_c
+math_multiplier_dadda_tree_008.CSA_04_02.ow_carry
+math_multiplier_dadda_tree_008.CSA_04_02.ow_sum
+@200
+-CSA_04_03
+@28
+math_multiplier_dadda_tree_008.CSA_04_03.i_a
+math_multiplier_dadda_tree_008.CSA_04_03.i_b
+math_multiplier_dadda_tree_008.CSA_04_03.i_c
+math_multiplier_dadda_tree_008.CSA_04_03.ow_carry
+math_multiplier_dadda_tree_008.CSA_04_03.ow_sum
+@200
+-CSA_05_01
+@28
+math_multiplier_dadda_tree_008.CSA_05_01.i_a
+math_multiplier_dadda_tree_008.CSA_05_01.i_b
+math_multiplier_dadda_tree_008.CSA_05_01.i_c
+math_multiplier_dadda_tree_008.CSA_05_01.ow_carry
+math_multiplier_dadda_tree_008.CSA_05_01.ow_sum
+@200
+-CSA_05_03
+@28
+math_multiplier_dadda_tree_008.CSA_05_03.i_a
+math_multiplier_dadda_tree_008.CSA_05_03.i_b
+math_multiplier_dadda_tree_008.CSA_05_03.i_c
+math_multiplier_dadda_tree_008.CSA_05_03.ow_carry
+math_multiplier_dadda_tree_008.CSA_05_03.ow_sum
+@200
+-CSA_05_04
+@28
+math_multiplier_dadda_tree_008.CSA_05_04.i_a
+math_multiplier_dadda_tree_008.CSA_05_04.i_b
+math_multiplier_dadda_tree_008.CSA_05_04.i_c
+math_multiplier_dadda_tree_008.CSA_05_04.ow_carry
+math_multiplier_dadda_tree_008.CSA_05_04.ow_sum

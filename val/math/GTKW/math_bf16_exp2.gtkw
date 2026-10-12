@@ -1,0 +1,54 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/math/local_sim_build/test_math_bf16_exp2_gate_lut32_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/math/GTKW/math_bf16_exp2.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] math_bf16_exp2.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-interface
+@22
+math_bf16_exp2.BF16_NAN
+@28
+math_bf16_exp2.BF16_ONE
+math_bf16_exp2.BF16_POS_INF
+math_bf16_exp2.BF16_ZERO
+math_bf16_exp2.LUT_ADDR_BITS
+math_bf16_exp2.LUT_DEPTH
+math_bf16_exp2.i_bf16
+math_bf16_exp2.ow_exp2
+math_bf16_exp2.ow_is_inf
+math_bf16_exp2.ow_is_nan
+math_bf16_exp2.ow_is_zero
+math_bf16_exp2.w_adj_frac_part
+math_bf16_exp2.w_adj_int_part
+math_bf16_exp2.w_adj_lut_addr
+math_bf16_exp2.w_adj_result_mant
+@22
+math_bf16_exp2.w_exp[1:0]
+@28
+math_bf16_exp2.w_final_mant
+@22
+math_bf16_exp2.w_frac_part[7:0]
+math_bf16_exp2.w_int_part[6:0]
+math_bf16_exp2.w_is_inf_input[4:0]
+math_bf16_exp2.w_is_nan_input[5:0]
+math_bf16_exp2.w_is_zero_input[3:0]
+math_bf16_exp2.w_lut_addr[8:0]
+math_bf16_exp2.w_mant[2:0]
+@28
+math_bf16_exp2.w_overflow
+math_bf16_exp2.w_result
+math_bf16_exp2.w_result_exp
+math_bf16_exp2.w_result_exp_signed
+math_bf16_exp2.w_result_mant
+math_bf16_exp2.w_sign
+math_bf16_exp2.w_underflow

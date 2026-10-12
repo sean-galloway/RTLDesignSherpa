@@ -1,0 +1,106 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_arbiter_wrr_pwm_monbus_c04_ml08_ack0_a10_u0_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/arbiter_wrr_pwm_monbus.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] arbiter_wrr_pwm_monbus.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+arbiter_wrr_pwm_monbus.cfg_pwm_sync_rst_n
+arbiter_wrr_pwm_monbus.clk
+arbiter_wrr_pwm_monbus.rst_n
+@200
+-interface
+@28
+arbiter_wrr_pwm_monbus.CLIENTS
+arbiter_wrr_pwm_monbus.CXMTW
+arbiter_wrr_pwm_monbus.FAIRNESS_REPORT_CYCLES
+arbiter_wrr_pwm_monbus.MAX_LEVELS
+arbiter_wrr_pwm_monbus.MAX_LEVELS_WIDTH
+arbiter_wrr_pwm_monbus.MIN_GRANTS_FOR_FAIRNESS
+arbiter_wrr_pwm_monbus.MON_AGENT_ID
+arbiter_wrr_pwm_monbus.MON_FIFO_ALMOST_MARGIN
+arbiter_wrr_pwm_monbus.MON_FIFO_DEPTH
+arbiter_wrr_pwm_monbus.MON_UNIT_ID
+arbiter_wrr_pwm_monbus.N
+arbiter_wrr_pwm_monbus.PWM_WIDTH
+arbiter_wrr_pwm_monbus.USE_MONITOR
+arbiter_wrr_pwm_monbus.WAIT_GNT_ACK
+arbiter_wrr_pwm_monbus.block_arb_internal
+arbiter_wrr_pwm_monbus.cfg_arb_max_thresh
+arbiter_wrr_pwm_monbus.cfg_mon_ack_timeout_thresh
+arbiter_wrr_pwm_monbus.cfg_mon_active_thresh
+arbiter_wrr_pwm_monbus.cfg_mon_efficiency_thresh
+arbiter_wrr_pwm_monbus.cfg_mon_enable
+arbiter_wrr_pwm_monbus.cfg_mon_fairness_thresh
+arbiter_wrr_pwm_monbus.cfg_mon_latency_thresh
+arbiter_wrr_pwm_monbus.cfg_mon_pkt_type_enable
+arbiter_wrr_pwm_monbus.cfg_mon_sample_period
+arbiter_wrr_pwm_monbus.cfg_mon_starvation_thresh
+arbiter_wrr_pwm_monbus.cfg_pwm_duty
+arbiter_wrr_pwm_monbus.cfg_pwm_period
+arbiter_wrr_pwm_monbus.cfg_pwm_repeat_count
+arbiter_wrr_pwm_monbus.cfg_pwm_start
+arbiter_wrr_pwm_monbus.cfg_pwm_sts_done
+arbiter_wrr_pwm_monbus.debug_ack_timeout
+arbiter_wrr_pwm_monbus.debug_client_starvation
+arbiter_wrr_pwm_monbus.debug_fairness_deviation
+arbiter_wrr_pwm_monbus.debug_fifo_count
+arbiter_wrr_pwm_monbus.debug_grant_efficiency
+arbiter_wrr_pwm_monbus.debug_monitor_state
+arbiter_wrr_pwm_monbus.debug_packet_count
+arbiter_wrr_pwm_monbus.debug_protocol_violations
+arbiter_wrr_pwm_monbus.grant
+arbiter_wrr_pwm_monbus.grant_ack
+arbiter_wrr_pwm_monbus.grant_id
+arbiter_wrr_pwm_monbus.grant_valid
+arbiter_wrr_pwm_monbus.i_mon_time
+arbiter_wrr_pwm_monbus.monbus_packet
+arbiter_wrr_pwm_monbus.monbus_ready
+arbiter_wrr_pwm_monbus.monbus_timestamp
+arbiter_wrr_pwm_monbus.monbus_valid
+arbiter_wrr_pwm_monbus.pwm_out
+arbiter_wrr_pwm_monbus.request
+@200
+-gen_monitor
+@28
+arbiter_wrr_pwm_monbus.gen_monitor.u_monitor.CLIENTS
+arbiter_wrr_pwm_monbus.gen_monitor.u_monitor.FAIRNESS_REPORT_CYCLES
+arbiter_wrr_pwm_monbus.gen_monitor.u_monitor.MON_AGENT_ID
+arbiter_wrr_pwm_monbus.gen_monitor.u_monitor.MON_FIFO_ALMOST_MARGIN
+arbiter_wrr_pwm_monbus.gen_monitor.u_monitor.MON_FIFO_DEPTH
+arbiter_wrr_pwm_monbus.gen_monitor.u_monitor.MON_UNIT_ID
+arbiter_wrr_pwm_monbus.gen_monitor.u_monitor.WAIT_GNT_ACK
+arbiter_wrr_pwm_monbus.gen_monitor.u_monitor.WEIGHTED_MODE
+@200
+-u_arbiter
+@28
+arbiter_wrr_pwm_monbus.u_arbiter.C
+arbiter_wrr_pwm_monbus.u_arbiter.CLIENTS
+arbiter_wrr_pwm_monbus.u_arbiter.CXMTW
+arbiter_wrr_pwm_monbus.u_arbiter.MAX_LEVELS
+arbiter_wrr_pwm_monbus.u_arbiter.MAX_LEVELS_WIDTH
+arbiter_wrr_pwm_monbus.u_arbiter.MTW
+arbiter_wrr_pwm_monbus.u_arbiter.N
+arbiter_wrr_pwm_monbus.u_arbiter.WAIT_GNT_ACK
+@200
+-u_pwm
+@28
+arbiter_wrr_pwm_monbus.u_pwm.CHANNELS
+arbiter_wrr_pwm_monbus.u_pwm.WIDTH
+arbiter_wrr_pwm_monbus.u_pwm.clk
+arbiter_wrr_pwm_monbus.u_pwm.duty
+arbiter_wrr_pwm_monbus.u_pwm.period
+arbiter_wrr_pwm_monbus.u_pwm.rst_n
+arbiter_wrr_pwm_monbus.u_pwm.start
+arbiter_wrr_pwm_monbus.u_pwm.sync_rst_n

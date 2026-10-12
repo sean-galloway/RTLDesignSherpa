@@ -1,0 +1,30 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/cdc/local_sim_build/test_counter_bingray_w4_gate_GATE/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/cdc/GTKW/gray2bin.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] counter_bingray.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+counter_bingray.clk
+counter_bingray.rst_n
+@200
+-interface
+@28
+counter_bingray.WIDTH
+counter_bingray.counter_bin
+counter_bingray.counter_bin_next
+counter_bingray.counter_gray
+counter_bingray.enable
+counter_bingray.w_counter_bin
+counter_bingray.w_counter_gray

@@ -1,0 +1,105 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/val/amba/local_sim_build/test_gw0_apb5_slave_stub_aw12_dw32_au4_np/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/val/amba/GTKW/apb5_slave_stub.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+-1 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb5_slave_stub.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@200
+-clk-rst
+@28
+apb5_slave_stub.pclk
+apb5_slave_stub.presetn
+@200
+-interface
+@28
+apb5_slave_stub.ACW
+apb5_slave_stub.ADDR_WIDTH
+apb5_slave_stub.AUCW
+apb5_slave_stub.AUSER_WIDTH
+apb5_slave_stub.AUW
+apb5_slave_stub.AW
+apb5_slave_stub.BUCW
+apb5_slave_stub.BUSER_WIDTH
+apb5_slave_stub.BUW
+apb5_slave_stub.CMD_PACKET_WIDTH
+apb5_slave_stub.CPW
+apb5_slave_stub.DATA_WIDTH
+apb5_slave_stub.DCW
+apb5_slave_stub.DEPTH
+apb5_slave_stub.DW
+apb5_slave_stub.ENABLE_PARITY
+apb5_slave_stub.PROT_WIDTH
+apb5_slave_stub.PW
+apb5_slave_stub.RESP_PACKET_WIDTH
+apb5_slave_stub.RPW
+apb5_slave_stub.RUCW
+apb5_slave_stub.RUSER_WIDTH
+apb5_slave_stub.RUW
+apb5_slave_stub.STRB_WIDTH
+apb5_slave_stub.SW
+apb5_slave_stub.WUCW
+apb5_slave_stub.WUSER_WIDTH
+apb5_slave_stub.WUW
+apb5_slave_stub.cmd_data
+apb5_slave_stub.cmd_ready
+apb5_slave_stub.cmd_valid
+apb5_slave_stub.s_apb_PADDR
+apb5_slave_stub.s_apb_PADDRCHK
+apb5_slave_stub.s_apb_PAUSER
+apb5_slave_stub.s_apb_PAUSERCHK
+apb5_slave_stub.s_apb_PBUSER
+apb5_slave_stub.s_apb_PBUSERCHK
+apb5_slave_stub.s_apb_PCTRLCHK
+apb5_slave_stub.s_apb_PENABLE
+apb5_slave_stub.s_apb_PENABLECHK
+apb5_slave_stub.s_apb_PPROT
+apb5_slave_stub.s_apb_PRDATA
+apb5_slave_stub.s_apb_PRDATACHK
+apb5_slave_stub.s_apb_PREADY
+apb5_slave_stub.s_apb_PREADYCHK
+apb5_slave_stub.s_apb_PRUSER
+apb5_slave_stub.s_apb_PRUSERCHK
+apb5_slave_stub.s_apb_PSEL
+apb5_slave_stub.s_apb_PSELCHK
+apb5_slave_stub.s_apb_PSLVERR
+apb5_slave_stub.s_apb_PSLVERRCHK
+apb5_slave_stub.s_apb_PSTRB
+apb5_slave_stub.s_apb_PSTRBCHK
+apb5_slave_stub.s_apb_PWAKEUP
+apb5_slave_stub.s_apb_PWAKEUPCHK
+apb5_slave_stub.s_apb_PWDATA
+apb5_slave_stub.s_apb_PWDATACHK
+apb5_slave_stub.s_apb_PWRITE
+apb5_slave_stub.s_apb_PWUSER
+apb5_slave_stub.s_apb_PWUSERCHK
+@200
+-cmd_skid_buffer_inst
+@28
+apb5_slave_stub.cmd_skid_buffer_inst.DATA_WIDTH
+apb5_slave_stub.cmd_skid_buffer_inst.DEPTH
+apb5_slave_stub.cmd_skid_buffer_inst.DW
+apb5_slave_stub.cmd_skid_buffer_inst.axi_aclk
+apb5_slave_stub.cmd_skid_buffer_inst.axi_aresetn
+apb5_slave_stub.cmd_skid_buffer_inst.wr_data
+apb5_slave_stub.cmd_skid_buffer_inst.wr_ready
+apb5_slave_stub.cmd_skid_buffer_inst.wr_valid
+@200
+-resp_skid_buffer_inst
+@28
+apb5_slave_stub.resp_skid_buffer_inst.DATA_WIDTH
+apb5_slave_stub.resp_skid_buffer_inst.DEPTH
+apb5_slave_stub.resp_skid_buffer_inst.DW
+apb5_slave_stub.resp_skid_buffer_inst.axi_aclk
+apb5_slave_stub.resp_skid_buffer_inst.axi_aresetn
+apb5_slave_stub.resp_skid_buffer_inst.wr_data
+apb5_slave_stub.resp_skid_buffer_inst.wr_ready
+apb5_slave_stub.resp_skid_buffer_inst.wr_valid
