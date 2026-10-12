@@ -458,7 +458,7 @@ class AmberFrontendTB(TBBase):
                     self.n_accept, n_accept + 1)
         self._score(f"{label} exactly one response", len(self.rsp_log),
                     n_rsp + 1)
-        accept_cyc, _, accept_p = self.last_accept
+        accept_cyc, accept_p = self.last_accept
         rsp_cyc, rsp_data = self.rsp_log[-1]
         self._score(f"{label} accept payload addr", accept_p['addr'], addr)
         self._score(f"{label} accept payload we", accept_p['we'], we)
