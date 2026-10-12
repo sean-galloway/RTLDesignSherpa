@@ -347,4 +347,7 @@ def test_granite_core(request, test_level):
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_granite_core",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
-        compile_args=["+define+USE_ASYNC_RESET", "--assert"], waves=False, keep_files=True, timescale="1ns/1ps")
+        compile_args=["+define+USE_ASYNC_RESET", "--assert"],
+        waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        keep_files=True, timescale="1ns/1ps")

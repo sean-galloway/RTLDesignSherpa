@@ -155,6 +155,7 @@ def test_pumice_axi4_plane(request, test_level):
         parameters=params,
         compile_args=compile_args,
         waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
         keep_files=True,
         timescale="1ns/1ps",
     )

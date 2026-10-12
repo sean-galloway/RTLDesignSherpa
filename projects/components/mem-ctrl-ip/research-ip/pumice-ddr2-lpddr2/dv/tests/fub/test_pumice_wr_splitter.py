@@ -299,6 +299,7 @@ def _run(request, testcase, test_level='gate'):
         sim_build=sim_build, simulator="verilator", extra_env=extra_env,
         parameters=params, compile_args=compile_args,
         waves=bool(int(os.environ.get("WAVES", "0"))), keep_files=True,
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
         timescale="1ns/1ps")
 
 

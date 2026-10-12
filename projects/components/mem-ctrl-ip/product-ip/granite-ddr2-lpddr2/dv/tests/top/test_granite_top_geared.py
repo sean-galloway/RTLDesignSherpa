@@ -309,4 +309,6 @@ def test_granite_top_geared(request, test_level):
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--assert", "--public-flat-rw",
                       "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
-        waves=False, keep_files=True, timescale="1ns/1ps")
+        waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        keep_files=True, timescale="1ns/1ps")
