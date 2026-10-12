@@ -46,3 +46,10 @@ subsystem, and on the full byte a single bus, with no change to the RTL.
 The cost is nothing: the fields exist in every packet regardless.
 
 ![Identity allocation: one unit per subsystem, or a subsystem nibble and a sub-bus nibble](../../assets/rtl-amba/monitor_wp_identity.png)
+
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). -- §5.2: the SRC field identifying the client that sent a message, comparable to `unit_id`/`agent_id`.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`)

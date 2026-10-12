@@ -379,8 +379,16 @@ pytest val/amba/test_apb5_monitor.py -v
 ## References
 
 ### Specifications
-- ARM AMBA 5 APB Protocol Specification
-- ARM AMBA APB Protocol Specification v2.0 (APB4)
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) -- §3.7 "Wake-up signaling", §3.8 "User signaling", ch. 5 "Interface parity protection" (Issue D numbers the first two §3.6/§3.7). The spec requires odd parity on `*CHK` signals; this family generates even parity on `*PARITY` ports, so check signals interoperate only within this library. Citation only.
+- Arm. *AMBA APB Protocol Specification*, Version 2.0, ARM IHI 0024C, Apr. 2010. [developer.arm.com/documentation/ihi0024/c](https://developer.arm.com/documentation/ihi0024/c/) -- the APB4 base protocol (ch. 3 "Transfers", ch. 4 "Operating States"). Citation only.
+
+### Papers and textbooks
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 -- the Gray-pointer async FIFO (`gaxi_fifo_async`) that carries the command and response across the two clocks.
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- the fixed-timeout policy `amba_clock_gate_ctrl` implements: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", section "ARM AMBA interconnect protocols suite" (APB bus protocol overview) -- textbook treatment (secondary source).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (valid-ready protocol and valid-ready slices) -- textbook treatment of the skid buffer (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `rtl/cdc/references/AsyncFifoGrayPointers__Cummings2002.pdf`, `rtl/common/references/DynamicPowerManagementTimeout__Benini2000.pdf`)
 
 ### Source Code
 - RTL: `rtl/amba/apb5/`

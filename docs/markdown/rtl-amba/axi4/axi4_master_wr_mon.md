@@ -608,8 +608,13 @@ pytest val/amba/test_axi4_master_wr_mon.py -v
 ## References
 
 ### Specifications
-- ARM IHI 0022E: AMBA AXI Protocol Specification (AXI4)
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §A3.4.5 "Read and write response structure" (the SLVERR/DECERR codes the monitor reports), ch. A5 "Transaction Identifiers" (per-ID tracking of outstanding transactions), §A3.3.1 "Dependencies between channel handshake signals" (the orderings a monitor timeout watches). Issue H is the last issue that defines the AXI4 interface.
 - Monitor Bus Packet Format: [monitor_package_spec.md](../includes/monitor_package_spec.md)
+
+### Papers and textbooks
+- The monitor's own techniques (transaction table, timeouts, packet filtering) are cited on the [AXI Monitor Base](../monitor/axi_monitor_base.md) page and in the monitor family of the archive.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects" ("AXI bus protocol overview") -- textbook overview of AXI responses and ID ordering (secondary source).
+- Indexed in `rtl/amba/references/README.md` (protocol specifications are citation only)
 
 ### Source Code
 - RTL: `rtl/amba/axi4/axi4_master_wr_mon.sv`

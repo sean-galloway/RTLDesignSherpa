@@ -100,3 +100,11 @@ its drain switched to Wishbone through the shared `MonbusGroupHarness`,
 which gained a `drain_proto="wb4"` path for it. Records decode correctly at
 both the 64-bit and 32-bit drain widths. A mutation rotating the shim's read
 data fails the test.
+
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Herveille, R. (ed.). *Wishbone B4: WISHBONE System-on-Chip (SoC) Interconnection Architecture for Portable IP Cores*, OpenCores, 2010. -- ch. 3 classic and pipelined bus cycles, the slave port these wrappers present.
+- Hopkins, A.B.T., McDonald-Maier, K.D. "Debug Support for Complex Systems On-Chip: A Review." *IEE Proc. Computers and Digital Techniques*, 153(4):197-207, 2006. DOI: [10.1049/ip-cdt:20050194](https://doi.org/10.1049/ip-cdt:20050194). -- related work: on-chip trace buffers versus trace ports.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `WishboneB4Spec__OpenCores2010.pdf`)

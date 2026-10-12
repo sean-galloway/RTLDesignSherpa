@@ -381,3 +381,15 @@ not see.
 `axi_monitor_base` (the full monitor), the sixteen `*_monlite` wrappers
 (one per `*_mon`, e.g. `axi4_slave_rd_monlite`), `monbus_arbiter` and `monbus_group` (unchanged
 consumers), `vault/Tasks/amba` amba/monitor-lite TASK-001 (the review that sized this).
+
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Tamir, Y., Frazier, G.L. "High-Performance Multi-Queue Buffers for VLSI Communication Switches." *Proc. 15th Annual Int. Symp. Computer Architecture (ISCA 1988)*, pp. 343-354, May 1988. DOI: [10.1109/ISCA.1988.5245](https://doi.org/10.1109/ISCA.1988.5245). -- a comparable structure: per-queue linked lists through one shared buffer pool, here per-ID lists through the shared slot pool.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 17 "Router Datapath Components", §17.1.2 "Input Buffer Data Structures". -- textbook treatment (secondary source): head/tail pointers, next pointers and a free list.
+- IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). -- §4.4.3 and §4.5.3: trace overrun reported to the tool with an Error Message, comparable to `refused_count` and `Error/EVENT_DROPPED`.
+- Goossens, K., Vermeulen, B., van Steeden, R., Bennebroek, M. "Transaction-Based Communication-Centric Debug." *Proc. 1st Int. Symp. Networks-on-Chip (NOCS 2007)*, pp. 95-106, May 2007. DOI: [10.1109/NOCS.2007.46](https://doi.org/10.1109/NOCS.2007.46). -- related work: monitoring at transaction granularity.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). -- §A5.1 transaction identifiers, §A5.5 and §A5.6 response ordering (same-ID responses in order, which the per-ID list relies on).
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", sec. "ARM AMBA interconnect protocols suite". -- textbook background on the AXI protocol family (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LinkedListMultiQueueBuffer__Tamir1988.pdf`, `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`)

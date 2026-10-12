@@ -381,7 +381,7 @@ module <module_name> #(
 - Cite books, papers, standards
 - Provide chapter/section if applicable
 - Only include if truly relevant
-- `rtl/math`, `rtl/cdc` and `rtl/common` each keep a peer-paper archive at
+- `rtl/math`, `rtl/cdc`, `rtl/common` and `rtl/amba` each keep a peer-paper archive at
   `rtl/<area>/references/README.md` (technique -> module -> seminal paper, plus
   open-access PDFs). Cite from that index. The docs/markdown page ends with a
   `## References` section just before `## Navigation`: peer papers first, then
@@ -390,6 +390,10 @@ module <module_name> #(
   module is called: `dataint_checksum` is a plain sum (not Fletcher), the SECDED
   pair is extended Hamming (not Hsiao), and `glitch_free_n_dff_arn` is a
   synchronizer (not a clock switch).
+  For `rtl/amba` the primary cite is the Arm spec section (citation only; AXI4,
+  AXI4-Lite and ACE from IHI 0022 Issue H, AXI5 from Issue L, never mixed in one
+  cite). The monitor subsystem is original, so its pages cite RELATED WORK only:
+  "Related work:", "comparable to", never "based on" or "derived from".
 
 ### 13. Version History (OPTIONAL)
 

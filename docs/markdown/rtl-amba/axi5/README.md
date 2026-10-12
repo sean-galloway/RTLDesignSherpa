@@ -403,8 +403,13 @@ pytest val/amba/test_axi5_slave_wr.py -v
 ## References
 
 ### Specifications
-- ARM AMBA 5 AXI Protocol Specification
-- ARM AMBA AXI and ACE Protocol Specification (AXI4)
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) — the current AXI5 definition: §A2.3 "Valid-Ready transport", §A6.4 "Atomic transactions", §A12.2 "Memory Tagging Extension (MTE)", §A16.1 "Data protection using Poison", §A5.2 "Unique ID indicator", §A5.6.2 "Read data chunking", §A4.6 "Memory Encryption Contexts".
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) — ch. C1 "AMBA AXI5" and ch. E1 "Additional Features in AMBA 5" / E2 "Interface and data protection", and the AXI4 base interface the AXI5 family extends.
+
+### Papers and textbooks
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — register slices as relay stations.
+- Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conference (DAC '06)*, July 2006, pp. 657-662. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) — the elastic (skid) buffer under every wrapper.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `ElasticBuffer__Cortadella2006.pdf`)
 
 ### Source Code
 - RTL: `rtl/amba/axi5/`

@@ -267,6 +267,13 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 
 ## References
 
+- Könemann, B., Mucha, J., Zwiehoff, G. "Built-in Test for Complex Digital Integrated Circuits." *IEEE J. Solid-State Circuits*, 15(3):315–319, June 1980. DOI: [10.1109/JSSC.1980.1051391](https://doi.org/10.1109/JSSC.1980.1051391) — pattern generator plus signature compactor; the slave regenerates the LFSR stream and accumulates a CRC-32 signature in place of a MISR.
+- Koopman, P. "32-Bit Cyclic Redundancy Codes for Internet Applications." *Proc. Int. Conf. Dependable Systems and Networks (DSN 2002)*, pp. 459–468, 2002. DOI: [10.1109/DSN.2002.1028931](https://doi.org/10.1109/DSN.2002.1028931) — error-detection properties of the CRC-32 polynomial (0x04C11DB7).
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A5.1 "AXI transaction identifiers" — the per-ID ordering that makes per-channel LFSR/CRC contexts demuxed by ID well defined.
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 4 "Basic Sequential Circuits", sec. 4.5 "Pseudo Noise Sequence Generator" — textbook treatment (secondary source).
+- Moon, T.K. *Error Correction Coding*, 2nd ed., Wiley, 2021, ch. 4 "Cyclic Codes, Rings, and Polynomials", sec. 4.13 "Binary CRC Codes" — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `Crc32InternetApplications__Koopman2002.pdf`)
+
 ### Source Code
 - RTL: `rtl/amba/shared/axi4_slave_rd_injector.sv`
 - Protocol Handler: `rtl/amba/axi4/axi4_slave_rd.sv`

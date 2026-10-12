@@ -250,6 +250,10 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 
 ## References
 
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.2.1 "Handshake process" — the four valid/ready combinations that define the productive, backpressure, starvation and idle buckets. No paper: the classification is a standard technique.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 13 "Buffered Flow Control", sec. 13.3 "Buffer Management and Backpressure" — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md`
+
 ### Source Code
 - RTL: `rtl/amba/shared/axi_bus_meter.sv`
 

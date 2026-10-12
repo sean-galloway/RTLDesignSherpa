@@ -250,3 +250,11 @@ framework's Wishbone BFMs (`CocoTBFramework.components.wb4`), with the
 GAXI BFMs on the queues; `val/amba/test_wb4_master_slave_loop.py` runs it
 back to back with its counterpart. See the [family README](README.md).
 Formal: `formal/amba/wb4_slave/`.
+
+## References
+
+- Herveille, R. (ed.). *Wishbone B4: WISHBONE System-on-Chip (SoC) Interconnection Architecture for Portable IP Cores*. OpenCores, 2010 — ch. 3 "WISHBONE Classic Bus Cycles" (§3.1.3 handshaking protocol, §3.1.5 `ACK`/`ERR`/`RTY` termination, §3.2.2 and §3.2.4 classic pipelined single read and write with `STALL`), ch. 4 "WISHBONE Registered Feedback Bus Cycles" (`CTI`/`BTE`, §4.3), ch. 5 "Interfacing standard and pipelined peripherals".
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 22 "Buses", §22.1 "Bus Basics" and §22.2 "Bus Arbitration" — textbook treatment of the shared-bus model (secondary source).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (valid-ready protocol and valid-ready slices) — textbook treatment of the skid buffer (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `WishboneB4Spec__OpenCores2010.pdf`, `LatencyInsensitiveDesign__Carloni2001.pdf`)

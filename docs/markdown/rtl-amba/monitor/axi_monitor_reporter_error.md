@@ -212,13 +212,22 @@ Treat any behaviour described on this page as unverified by simulation.
 
 ## References
 
+### Related work and specifications
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). — §A3.3.1 write response and §A3.3.2 read response (SLVERR, DECERR): the error codes this cone reports.
+- Boulé, M., Zilic, Z. "Efficient Automata-Based Assertion-Checker Synthesis of SEREs for Hardware Emulation." *Proc. Asia and South Pacific Design Automation Conf. (ASP-DAC 2007)*, pp. 324-329, Jan. 2007. DOI: [10.1109/ASPDAC.2007.358006](https://doi.org/10.1109/ASPDAC.2007.358006). — related work: protocol checkers built as hardware.
+- Abramovici, M., Bradley, P., Dwarakanath, K., Levin, P., Memmi, G., Miller, D. "A Reconfigurable Design-for-Debug Infrastructure for SoCs." *Proc. 43rd Design Automation Conf. (DAC 2006)*, pp. 7-12, July 2006. DOI: [10.1145/1146909.1146916](https://doi.org/10.1145/1146909.1146916). — related work: assertion checkers and transaction identifiers in a debug fabric.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `HardwareAssertionCheckers__Boule2007.pdf`)
+
 ### Source Code
 - RTL: `rtl/amba/monitor/axi_monitor_reporter_error.sv`
 
 ### Documentation
 - Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 - Monitor base: `docs/markdown/rtl-amba/monitor/axi_monitor_base.md`
-- Known issues: `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md`
+- Known issues: `rtl/amba/KNOWN_ISSUES/`
 
 ---
 

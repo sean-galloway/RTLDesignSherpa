@@ -47,3 +47,12 @@ full against lite, on both parts, from one repeatable flow -- is
 Its headline: at default parameters the full AXI monitor is about 7,000
 LUTs and the lite about 1,100, and the lite meets 150 MHz on the Kintex-7
 with 0.8 ns or more to spare where the 16-slot full monitor does not.
+
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). -- for comparison: probe area at 17-24% of NoC area.
+- Goossens, K., Vermeulen, B., van Steeden, R., Bennebroek, M. "Transaction-Based Communication-Centric Debug." *Proc. 1st Int. Symp. Networks-on-Chip (NOCS 2007)*, pp. 95-106, May 2007. DOI: [10.1109/NOCS.2007.46](https://doi.org/10.1109/NOCS.2007.46). -- for comparison: monitors plus event interconnect at 4.5% of NoC area.
+- Ciordas, C., Goossens, K., Basten, T., Rădulescu, A., Boon, A. "Transaction Monitoring in Networks on Chip: The On-Chip Run-Time Perspective." *Proc. IEEE Int. Symp. Industrial Embedded Systems (IES 2006)*, pp. 1-10, Oct. 2006. DOI: [10.1109/IES.2006.357464](https://doi.org/10.1109/IES.2006.357464). -- for comparison: transaction monitoring at about 5% of NoC area.
+- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)

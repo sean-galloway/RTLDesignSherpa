@@ -239,3 +239,13 @@ them only as a ratio between variants on the same part.
 `rtl/amba/fpga/tcl/monitor_synth.tcl` (the recipe), `bin/monitor_synth_sweep.sh`
 (the matrix), `bin/summary_table.py` (these tables), `reports/<module>__<part>/`
 (utilization, timing, power per run) and `reports/summary.csv` (one row per run).
+
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). -- for comparison: probe area reported at 17-24% of NoC area.
+- Goossens, K., Vermeulen, B., van Steeden, R., Bennebroek, M. "Transaction-Based Communication-Centric Debug." *Proc. 1st Int. Symp. Networks-on-Chip (NOCS 2007)*, pp. 95-106, May 2007. DOI: [10.1109/NOCS.2007.46](https://doi.org/10.1109/NOCS.2007.46). -- for comparison: monitors plus event interconnect at 4.5% of NoC area.
+- Ciordas, C., Goossens, K., Basten, T., Rădulescu, A., Boon, A. "Transaction Monitoring in Networks on Chip: The On-Chip Run-Time Perspective." *Proc. IEEE Int. Symp. Industrial Embedded Systems (IES 2006)*, pp. 1-10, Oct. 2006. DOI: [10.1109/IES.2006.357464](https://doi.org/10.1109/IES.2006.357464). -- for comparison: transaction monitoring at about 5% of NoC area.
+- Fiorin, L., Palermo, G., Silvano, C. "MPSoCs Run-Time Monitoring through Networks-on-Chip." *Proc. Design, Automation & Test in Europe (DATE 2009)*, pp. 558-561, Apr. 2009. DOI: [10.1109/DATE.2009.5090726](https://doi.org/10.1109/DATE.2009.5090726). -- for comparison: ASIC overhead and added traffic of a run-time monitoring system.
+- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)

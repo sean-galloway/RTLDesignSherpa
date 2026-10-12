@@ -359,10 +359,21 @@ Generated waveforms are stored in:
 ## References
 
 ### Specifications
-- ARM IHI 0024C -- AMBA APB Protocol Specification, Version 2.0 (defines APB4:
-  adds `PSTRB` and `PPROT`). This is the specification these modules implement.
-- ARM IHI 0024E -- AMBA APB Protocol Specification, Issue E (APB5: `PWAKEUP`,
-  `P*USER` sidebands, parity). Applies to `rtl/amba/apb5/`, not to this family.
+- ARM IHI 0024C -- AMBA APB Protocol Specification, Version 2.0, Apr. 2010 (defines APB4:
+  adds `PSTRB` and `PPROT`). This is the specification these modules implement:
+  ch. 3 "Transfers" and ch. 4 "Operating States".
+  [developer.arm.com/documentation/ihi0024/c](https://developer.arm.com/documentation/ihi0024/c/)
+- ARM IHI 0024E -- AMBA APB Protocol Specification, Issue E, Feb. 2023 (APB5: `PWAKEUP`,
+  `P*USER` sidebands, parity; APB5 first appeared in Issue D, Apr. 2021). Applies to `rtl/amba/apb5/`, not to this family.
+
+### Papers and textbooks
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- the fixed-timeout policy `amba_clock_gate_ctrl` implements: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", section "ARM AMBA interconnect protocols suite" (APB bus protocol overview) -- textbook treatment (secondary source).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 1 ch. 7 "Common On-Chip Bus Protocols" -- APB and AXI in the on-chip bus family (secondary source).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (valid-ready protocol and valid-ready slices) -- textbook treatment of the skid buffer (secondary source).
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 22 "Buses", §22.1 "Bus Basics" and §22.2 "Bus Arbitration" -- textbook treatment of the shared-bus model (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `rtl/common/references/DynamicPowerManagementTimeout__Benini2000.pdf`)
 
 **Naming caution:** ARM's *document* version 2.0 (IHI 0024C) is the APB4
 specification. The older APB3 protocol is IHI 0024B. Citing "APB Protocol

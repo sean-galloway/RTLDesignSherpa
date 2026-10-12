@@ -510,6 +510,13 @@ For gating-specific tests, drive `cfg_cg_enable` high and:
    [Ready Forcing While Gated](#ready-forcing-while-gated).
 4. Confirm `cfg_cg_enable = 0` reproduces base-module timing exactly.
 
+## References
+
+- Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design*, 15(6):630–643, June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) — the latch-based glitch-free clock gate inside the wrapped `clock_gate_ctrl` (`icg`).
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3):299–316, June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) — fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, ch. 3 "Sequential Logic Design", sec. 3.2.5 (clock gating) and 3.5 (skew from gated clocks) — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
+
 ---
 
 ## Navigation

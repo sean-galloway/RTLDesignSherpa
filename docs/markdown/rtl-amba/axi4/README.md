@@ -401,8 +401,14 @@ pytest val/amba/test_axi4_master_rd.py --vcd=waves.vcd -v
 ## References
 
 ### Protocol Specifications
-- ARM IHI 0022E: AMBA AXI Protocol Specification (AXI4)
-- ARM IHI 0022D: AMBA AXI and ACE Protocol Specification (AXI3/AXI4/AXI5)
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- the AXI4 interface: §A3.2 "Basic read and write transactions", §A3.3 "Relationships between the channels", §A3.4 "Transaction structure" (burst types, the 4KB rule, responses), ch. A5 "Transaction Identifiers", §A7.2 "Exclusive accesses". Issue H is the last issue that defines AXI4; Issue J onward removed AXI3/AXI4 content.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- the current issue, for the AXI5 features the sibling family carries.
+
+### Papers and textbooks
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- register slices as relay stations.
+- Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conference (DAC '06)*, July 2006, pp. 657-662. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) -- the elastic (skid) buffer under every wrapper.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects" ("AXI bus protocol overview") -- textbook overview (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `ElasticBuffer__Cortadella2006.pdf`)
 
 ---
 

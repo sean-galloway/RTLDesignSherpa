@@ -551,12 +551,16 @@ The back-to-back scenario in the testbench mutation-proves the RLAST consolidati
 
 ## References
 
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.4.1 "Address structure" ("A burst must not cross a 4KB address boundary"), A3.3.1 "Dependencies between channel handshake signals", and A3.4.5 "Read and write response structure" — the boundary rule the splitter enforces and the response it consolidates.
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, ch. 7 "Common On-Chip Bus Protocols" (AXI burst length, size and type) — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md`
+
 ### Source Code
 - RTL: `rtl/amba/shared/axi_master_rd_splitter.sv`
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
-- AXI Specification: AMBA AXI4 Protocol Specification (ARM IHI 0022E)
+- AXI Specification: AMBA AXI and ACE Protocol Specification, ARM IHI 0022, Issue H (sec. A3.4.1, 4KB boundary)
 - Design Guide: `docs/markdown/rtl-amba/index.md`
 
 ---

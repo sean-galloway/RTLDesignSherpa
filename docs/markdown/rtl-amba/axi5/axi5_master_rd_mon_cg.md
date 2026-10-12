@@ -588,6 +588,15 @@ source env_python
 pytest val/amba/test_axi5_master_rd_mon_cg.py -v
 ```
 
+## References
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A3.3.1 "Write response" and §A3.3.2 "Read response" (the SLVERR/DECERR codes the monitor reports), §A5.1 "Transaction identifiers" and §A5.3 "Request ordering" (per-ID tracking of outstanding transactions), §A2.3.2 "Dependencies between channel handshake signals" (the orderings a monitor timeout watches); the AXI5 payload is carried as on the base module.
+- Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based clock-gating cell (`icg`, via `amba_clock_gate_ctrl` and `clock_gate_ctrl`) that gates this wrapper's clock.
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A14.1.1 "AWAKEUP rules and recommendations" in Issue L (§E1.7 "Wake-up Signaling" in Issue H) defines AWAKEUP, which lets a manager restart a gated interface before VALID. This wrapper does not use it: it wakes on the flopped OR of the VALIDs and holds READY low while gated.
+- The monitor's own techniques are cited on the [AXI Monitor Base](../monitor/axi_monitor_base.md) page and in the monitor family of the archive.
+- Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/common/references/`: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
+
 ---
 
 ## Navigation

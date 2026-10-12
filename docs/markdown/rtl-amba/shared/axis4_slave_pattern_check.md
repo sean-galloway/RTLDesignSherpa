@@ -237,6 +237,13 @@ Treat any behaviour described on this page as unverified by simulation.
 
 ## References
 
+- Könemann, B., Mucha, J., Zwiehoff, G. "Built-in Test for Complex Digital Integrated Circuits." *IEEE J. Solid-State Circuits*, 15(3):315–319, June 1980. DOI: [10.1109/JSSC.1980.1051391](https://doi.org/10.1109/JSSC.1980.1051391) — pattern generator plus signature compactor; a CRC-32 replaces the MISR.
+- Koopman, P. "32-Bit Cyclic Redundancy Codes for Internet Applications." *Proc. Int. Conf. Dependable Systems and Networks (DSN 2002)*, pp. 459–468, 2002. DOI: [10.1109/DSN.2002.1028931](https://doi.org/10.1109/DSN.2002.1028931) — error-detection properties of the CRC-32 polynomial (0x04C11DB7).
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051, Issue B, 2021. [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b), sec. 2.2 "Handshake signaling", 2.6 "Packet boundaries" (TLAST) and 2.7 "Source and destination signaling" (TID, the per-channel demux key).
+- Bruno, F., Eschemann, G. *The FPGA Programming Handbook*, 2nd ed., Packt, 2024, ch. 8 "Introduction to AXI" — textbook treatment (secondary source).
+- Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 4 "Basic Sequential Circuits", sec. 4.5 "Pseudo Noise Sequence Generator" — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `Crc32InternetApplications__Koopman2002.pdf`)
+
 ### Source Code
 - RTL: `rtl/amba/shared/axis4_slave_pattern_check.sv`
 

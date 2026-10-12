@@ -204,6 +204,18 @@ assign busy = (int_ac_count > 0) || (int_cr_count > 0) || (int_cd_count > 0) ||
 - **axi4ace_snoop_monitor_lite**: ACE-aware monitor core for the snoop channels
 - **gaxi_skid_buffer**: Underlying buffer infrastructure
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022H.c, Jan. 2021, Part D "AMBA ACE and ACE-Lite Protocol Specification". [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §D2.2 "Additional channels defined by ACE", §D3.6 snoop address (AC), §D3.7 snoop response (CR, `CRRESP`), §D3.8 snoop data (CD) channel signaling, §D3.9 "Snoop channel dependencies", ch. D5 "Snoop Transactions". The base valid/ready handshake is Part A §A3.2. Citation only.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
+- Papamarcos, M.S., Patel, J.H. "A Low-Overhead Coherence Solution for Multiprocessors with Private Cache Memories." *Proc. 11th Int. Symp. Computer Architecture (ISCA)*, 1984, pp. 348-354. DOI: [10.1145/800015.808204](https://doi.org/10.1145/800015.808204) -- the snoopy write-back protocol with an exclusive-clean state (MESI) that the snoop channels serve; background only, since this module holds no coherence state.
+- Sweazey, P., Smith, A.J. "A Class of Compatible Cache Consistency Protocols and their Support by the IEEE Futurebus." *Proc. 13th ISCA*, 1986; *ACM SIGARCH Computer Architecture News*, 14(2), May 1986, pp. 414-423. DOI: [10.1145/17356.17404](https://doi.org/10.1145/17356.17404) -- the MOESI state class (the Owned state, `PassDirty` ownership transfer); background only.
+- Nagarajan, V., Sorin, D.J., Hill, M.D., Wood, D.A. *A Primer on Memory Consistency and Cache Coherence*, 2nd ed. Synthesis Lectures on Computer Architecture, Morgan & Claypool, 2020. DOI: [10.1007/978-3-031-01764-3](https://doi.org/10.1007/978-3-031-01764-3) -- ch. 7 "Snooping Coherence Protocols" (§7.3 Exclusive state, §7.4 Owned state, §7.5 non-atomic bus): what a snoop request and response mean to the caches at each end.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", sections "ARM AMBA interconnect protocols suite" (ACE) and "Data sharing and coherency challenges" -- textbook treatment (secondary source).
+- Handy, J. *The Cache Memory Book*, 2nd ed., 1998, ch. 4 "Maintaining Coherency in Cached Systems", §4.3.1 "The MESI Protocol" and §4.3.3 "The MOESI Protocol" -- textbook treatment (secondary source).
+- Hennessy, J.L., Patterson, D.A. *Computer Architecture: A Quantitative Approach*, 6th ed., Morgan Kaufmann, 2019, ch. 5 "Thread-Level Parallelism", §5.2 "Centralized Shared-Memory Architectures" -- snooping coherence and the MESI/MOESI extensions (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `MoesiCoherenceClass__Sweazey1986.pdf`, `projects/components/cache-ip/References/Papamarcos_Patel_1984_ISCA_Snoopy_Coherence.pdf`, `projects/components/cache-ip/References/Sorin_Hill_Wood_2020_Primer_Memory_Consistency_Cache_Coherence_2ed.pdf`)
+
 ---
 
 ## Navigation

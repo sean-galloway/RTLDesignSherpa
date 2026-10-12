@@ -451,6 +451,14 @@ See [apb4_master_cg.md](apb4_master_cg.md) for the full interface.
 - Verify FIFO efficiency
 - Check latency under various loads
 
+## References
+
+- Arm. *AMBA APB Protocol Specification*, Version 2.0, ARM IHI 0024C, Apr. 2010. [developer.arm.com/documentation/ihi0024/c](https://developer.arm.com/documentation/ihi0024/c/) — ch. 4 "Operating States" (the IDLE, SETUP, ACCESS sequence this Requester drives) and ch. 3 "Transfers" (§3.1 write and §3.3 read transfers with `PREADY` wait states, §3.2 `PSTRB`, §3.4 `PSLVERR`, §3.5 `PPROT`). Citation only.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", section "ARM AMBA interconnect protocols suite" (APB bus protocol overview) — textbook treatment (secondary source).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (valid-ready protocol and valid-ready slices) — textbook treatment of the skid buffer (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`)
+
 ---
 
 ## Navigation

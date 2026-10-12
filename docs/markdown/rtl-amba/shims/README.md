@@ -519,9 +519,12 @@ gtkwave bridge.vcd
 
 ### Protocol Specifications
 
-- ARM AMBA 4 AXI4 Specification
-- ARM AMBA 3 APB Protocol Specification v2.0
-- SystemRDL 2.0 Specification (PeakRDL)
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022H.c, Jan. 2021, Part A (AXI4: §A3.2 "Basic read and write transactions", §A3.4 "Transaction structure"). [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- the AXI4 side of the bridge. Citation only.
+- Arm. *AMBA APB Protocol Specification*, Version 2.0, ARM IHI 0024C, Apr. 2010. [developer.arm.com/documentation/ihi0024/c](https://developer.arm.com/documentation/ihi0024/c/) -- the APB4 side (ch. 3 "Transfers", ch. 4 "Operating States"). The earlier listing "AMBA 3 APB v2.0" was wrong: AMBA 3 APB is Version 1.0 (IHI 0024B); Version 2.0 is APB4. Citation only.
+- Accellera. *SystemRDL 2.0 Register Description Language*, Jan. 2018 -- the register description language PeakRDL compiles. Citation only.
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 -- the Gray-pointer async FIFO (`gaxi_fifo_async`) that carries the command and response across the two clocks in the bridge (`u_cmd_cdc_fifo` / `u_rsp_cdc_fifo`).
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", section "ARM AMBA interconnect protocols suite" (APB bus protocol overview) -- textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/cdc/references/AsyncFifoGrayPointers__Cummings2002.pdf`)
 
 ### External Resources
 

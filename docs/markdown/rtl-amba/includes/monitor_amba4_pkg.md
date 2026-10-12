@@ -452,6 +452,13 @@ parents elaborate. A parameter or mode no parent uses is untested.
 
 Treat any behaviour described on this page as unverified by simulation.
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.4.1 "Address structure" (burst length/size/type and 4KB rules), A3.4.5 "Read and write response structure" (OKAY/EXOKAY/SLVERR/DECERR) and A7.2 "Exclusive accesses" — the conditions the AXI error, timeout and completion codes classify.
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024, Issue E, 2023. [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e), sec. 3.4 "Error response" (PSLVERR).
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051, Issue B, 2021. [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b), sec. 2.6 "Packet boundaries" (TLAST).
+- Indexed in `rtl/amba/references/README.md`
+
 ---
 
 ## Navigation

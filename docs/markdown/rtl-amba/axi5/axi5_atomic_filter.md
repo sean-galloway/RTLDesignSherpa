@@ -232,6 +232,14 @@ side-effect checks) is covered by
   filter in bridge master adapters
 - [AXI5 index](README.md) — scope statement for the AXI5 family
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §E1.1.8 "Response signaling": an error response is permitted from a component that does not support atomics, but for AtomicLoad, AtomicSwap and AtomicCompare "a slave must send the correct number of read data beats, even if the write response is DECERR or SLVERR". This filter returns B only, which is correct only where the upstream has no R path for these classes (Issue L §A6.4.8).
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §E1.1.4 "ID use for Atomic transactions" (Issue L §A6.4.4, "unique-in-flight"): why a local DECERR passing a same-ID B is invisible to a compliant master; §A3.3.1 "Dependencies between channel handshake signals": B only after the last W beat, which is why the local DECERR is committed at WLAST.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A6.4.2 "Atomic transaction operations" and §A6.4.6 "Atomic transaction signaling" (the AWATOP encodings; bit 5 set marks the read-return classes).
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 -- the wrap-bit full/empty test used by the route and response queues.
+- Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/cdc/references/`: `AsyncFifoGrayPointers__Cummings2002.pdf`)
+
 ---
 
 ## Navigation

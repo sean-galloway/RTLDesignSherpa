@@ -391,8 +391,9 @@ pytest val/amba/test_apb4_monitor.py -v
 ## References
 
 - **Monitor Packet Specification**: [monitor_package_spec.md](../includes/monitor_package_spec.md)
-- **APB Protocol**: AMBA APB Protocol Specification v2.0
+- Arm. *AMBA APB Protocol Specification*, Version 2.0, ARM IHI 0024C, Apr. 2010. [developer.arm.com/documentation/ihi0024/c](https://developer.arm.com/documentation/ihi0024/c/) -- ch. 3 "Transfers" (§3.4 "Error response": the `PSLVERR` the monitor reports as error events) and ch. 4 "Operating States" (the SETUP/ACCESS sequence its command and response timeouts measure); the timeouts themselves are repo monitoring policy with no spec or paper behind them. Citation only.
 - **Verification Guide**: See testbench in `val/amba/test_apb4_monitor.py`
+- Indexed in `rtl/amba/references/README.md`
 
 ---
 

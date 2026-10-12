@@ -384,6 +384,15 @@ REG_LEVEL parameter sweep:
 - **FUNC:** 2 configs (+ 4/32/8)
 - **FULL:** 7 configs (depth 4/8/16/32, id 4/6/8, payload 32/64/128/256)
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Pagiamtzis, K., Sheikholeslami, A. "Content-Addressable Memory (CAM) Circuits and Architectures: A Tutorial and Survey." *IEEE J. Solid-State Circuits*, 41(3):712-727, Mar. 2006. DOI: [10.1109/JSSC.2005.864128](https://doi.org/10.1109/JSSC.2005.864128). — for the CAM structure.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). — §A5.1 transaction identifiers (the key this CAM matches).
+- Goossens, K., Vermeulen, B., van Steeden, R., Bennebroek, M. "Transaction-Based Communication-Centric Debug." *Proc. 1st Int. Symp. Networks-on-Chip (NOCS 2007)*, pp. 95-106, May 2007. DOI: [10.1109/NOCS.2007.46](https://doi.org/10.1109/NOCS.2007.46). — related work: transaction-level monitoring.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/common/references/ContentAddressableMemory__Pagiamtzis2006.pdf`)
+
 ---
 
 ## Navigation

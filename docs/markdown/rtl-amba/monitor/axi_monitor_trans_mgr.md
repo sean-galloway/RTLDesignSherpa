@@ -591,6 +591,17 @@ Run the directed suite to validate trans_mgr changes:
 pytest val/amba/test_axi_monitor_trans_mgr.py -v
 ```
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). — §A5.1 transaction identifiers, §A5.3 request ordering, §A5.5 and §A5.6 response ordering: the lifecycle and same-ID ordering this table tracks.
+- Pagiamtzis, K., Sheikholeslami, A. "Content-Addressable Memory (CAM) Circuits and Architectures: A Tutorial and Survey." *IEEE J. Solid-State Circuits*, 41(3):712-727, Mar. 2006. DOI: [10.1109/JSSC.2005.864128](https://doi.org/10.1109/JSSC.2005.864128). — for the CAM structure (`monitor_trans_cam`).
+- Goossens, K., Vermeulen, B., van Steeden, R., Bennebroek, M. "Transaction-Based Communication-Centric Debug." *Proc. 1st Int. Symp. Networks-on-Chip (NOCS 2007)*, pp. 95-106, May 2007. DOI: [10.1109/NOCS.2007.46](https://doi.org/10.1109/NOCS.2007.46). — related work: transaction-level monitoring.
+- Ciordas, C., Goossens, K., Basten, T., Rădulescu, A., Boon, A. "Transaction Monitoring in Networks on Chip: The On-Chip Run-Time Perspective." *Proc. IEEE Int. Symp. Industrial Embedded Systems (IES 2006)*, pp. 1-10, Oct. 2006. DOI: [10.1109/IES.2006.357464](https://doi.org/10.1109/IES.2006.357464). — related work: reconstructing transactions at run time in hardware.
+- Abramovici, M., Bradley, P., Dwarakanath, K., Levin, P., Memmi, G., Miller, D. "A Reconfigurable Design-for-Debug Infrastructure for SoCs." *Proc. 43rd Design Automation Conf. (DAC 2006)*, pp. 7-12, July 2006. DOI: [10.1145/1146909.1146916](https://doi.org/10.1145/1146909.1146916). — related work: transaction identifiers in a debug fabric.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/common/references/ContentAddressableMemory__Pagiamtzis2006.pdf`)
+
 ---
 
 ## Navigation

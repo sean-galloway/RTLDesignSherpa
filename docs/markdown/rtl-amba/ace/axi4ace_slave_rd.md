@@ -235,6 +235,13 @@ assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
 - **axi4_slave_rd**: AXI4-only base module
 - **gaxi_skid_buffer**: Underlying buffer infrastructure
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022H.c, Jan. 2021, Part D "AMBA ACE and ACE-Lite Protocol Specification". [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §D2.1 "Changes to existing AXI channels" (`ARSNOOP`), §D3.2 read data channel signaling, §D3.3 "Read acknowledge signaling" (`RACK`). §D2.1 also widens `RRESP` to 4 bits (PassDirty, IsShared); this module carries the 2-bit AXI4 `RRESP`. The base valid/ready handshake is Part A §A3.2. Citation only.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", sections "ARM AMBA interconnect protocols suite" (ACE) and "Data sharing and coherency challenges" -- textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`)
+
 ---
 
 ## Navigation

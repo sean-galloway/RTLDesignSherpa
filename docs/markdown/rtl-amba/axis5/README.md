@@ -396,8 +396,15 @@ Treat the figures below as design targets, not measured silicon or post-route re
 ## References
 
 ### Specifications
-- ARM AMBA 5 AXI-Stream Protocol Specification
-- ARM AMBA AXI4-Stream Protocol Specification
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051B, Apr. 2021 (defines AXI4-Stream and AXI5-Stream). [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b/) -- §2.2 "Handshake signaling", §2.3 "Wake-up signaling" (`TWAKEUP`), ch. 5 "Interface parity protection" (odd parity on `TDATACHK`, §5.3). This RTL computes even parity (`^tdata`) on a port named `TPARITY`, so it interoperates with this library but not with a spec-conforming checker. Citation only.
+- Arm. *AMBA 4 AXI4-Stream Protocol Specification*, Version 1.0, ARM IHI 0051A, Mar. 2010. [developer.arm.com/documentation/ihi0051/a](https://developer.arm.com/documentation/ihi0051/a/) -- the AXI4-Stream base (ch. 2 "Interface Signals"). Citation only.
+
+### Papers and textbooks
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- the fixed-timeout policy `amba_clock_gate_ctrl` implements: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", section "ARM AMBA interconnect protocols suite" (AXI Stream bus protocol overview) -- textbook treatment (secondary source).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (valid-ready protocol and valid-ready slices) -- textbook treatment of the skid buffer (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `rtl/common/references/DynamicPowerManagementTimeout__Benini2000.pdf`)
 
 ### Source Code
 - RTL: `rtl/amba/axis5/`

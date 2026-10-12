@@ -243,6 +243,15 @@ credit firing every stall cycle (stall phase), the change detector comparing
 against the packet's first beat (channel phase), and the second queue push
 disabled (packets phase, START lost on one-beat packets).
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051B, Apr. 2021. [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b). -- §2.2 handshake signaling, §2.6 packet boundaries (TLAST), §4.2 transfer ordering.
+- IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). -- §4.4.3 and §4.5.3: overrun reported rather than stalling, comparable to the dropped-event count.
+- Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). -- related work: event-based hardware monitoring.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`)
+
 ## Navigation
 
 - [rtl-amba index](../index.md)

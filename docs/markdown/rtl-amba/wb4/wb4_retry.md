@@ -190,3 +190,8 @@ of times, retry forever, or error, so every FUB response, the number of
 re-issues (`retry_count`, the monitor's transfer count, the slave's `RTY`
 count) and the read data follow from the model. Formal:
 `formal/amba/wb4_retry/`.
+
+## References
+
+- Herveille, R. (ed.). *Wishbone B4: WISHBONE System-on-Chip (SoC) Interconnection Architecture for Portable IP Cores*. OpenCores, 2010 — §3.1.5 "Use of [ACK_O], [ERR_O] and [RTY_O]": the retry termination this block re-issues. The retry budget and the in-order completion buffer are repo design with no paper behind them.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `WishboneB4Spec__OpenCores2010.pdf`)

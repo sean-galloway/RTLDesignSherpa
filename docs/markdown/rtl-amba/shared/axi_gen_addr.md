@@ -190,8 +190,12 @@ Covered from `val/amba/` with the rest of the shared area — run everything wit
 
 ## References
 
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.4.1 "Address structure" (FIXED/INCR/WRAP burst addressing, wrapping-burst rules, 4KB boundary) and A3.4.2 "Pseudocode description of the transfers" — the address sequence this block computes.
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, ch. 7 "Common On-Chip Bus Protocols" (FIXED, INCR and WRAP bursts) — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md`
+
 ### Specifications
-- ARM IHI 0022E: AMBA AXI4 Protocol Specification (Section A3.4 - Address Structure)
+- ARM IHI 0022, Issue H: AMBA AXI and ACE Protocol Specification (sec. A3.4.1 "Address structure")
 - Internal: docs/markdown/rtl-amba/index.md
 
 ### Source Code

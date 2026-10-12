@@ -413,3 +413,11 @@ assert property (p_keep_prefix_on_last);
 * Back‑to‑back packets: ensure `TLAST` can assert on cycle N and a new packet can start on cycle N+1 without a bubble (FIFO design allows it).
 * Underflow/overflow: deassert `wr_ready` on full; deassert `m_axis_tvalid` on empty. Never drop beats silently—add error flags if overflow is possible in your environment.
   ``
+
+## References
+
+- Arm. *AMBA 4 AXI4-Stream Protocol Specification*, Version 1.0, ARM IHI 0051A, Mar. 2010. [developer.arm.com/documentation/ihi0051/a](https://developer.arm.com/documentation/ihi0051/a/) — §2.2 "Transfer signaling" (`TVALID`/`TREADY`), §2.4 "Byte qualifiers" (`TSTRB`/`TKEEP`), §2.5 "Packet boundaries" (`TLAST`), §2.6 "Source and destination signaling" (`TID`/`TDEST`), ch. 3 "Default Signaling Requirements". Citation only.
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051B, Apr. 2021 (defines AXI4-Stream and AXI5-Stream). [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b/) — §2.3 "Wake-up signaling" and ch. 5 "Interface parity protection", the AXI5-Stream additions. Citation only.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", section "ARM AMBA interconnect protocols suite" (AXI Stream bus protocol overview) — textbook treatment (secondary source).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (valid-ready protocol and valid-ready slices) — textbook treatment of the skid buffer (secondary source).
+- Indexed in `rtl/amba/references/README.md`

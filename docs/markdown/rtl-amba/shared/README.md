@@ -48,6 +48,13 @@ Recorded here because more than one page used to contradict them:
 
 Every module here is covered from `val/amba/` (the characterization masters carry an independent software CRC cross-check in their TBs). Run the area with `make -C val/amba clean-all && make -C val/amba run-all-func-parallel`.
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h) — burst addressing and the 4KB rule (A3.4.1), response structure (A3.4.5), transaction IDs (A5.1).
+- Könemann, B., Mucha, J., Zwiehoff, G. "Built-in Test for Complex Digital Integrated Circuits." *IEEE J. Solid-State Circuits*, 15(3):315–319, June 1980. DOI: [10.1109/JSSC.1980.1051391](https://doi.org/10.1109/JSSC.1980.1051391) — lineage of the LFSR-source / signature-sink characterization blocks.
+- Koopman, P. "32-Bit Cyclic Redundancy Codes for Internet Applications." *Proc. Int. Conf. Dependable Systems and Networks (DSN 2002)*, pp. 459–468, 2002. DOI: [10.1109/DSN.2002.1028931](https://doi.org/10.1109/DSN.2002.1028931) — the CRC-32 polynomial used for end-to-end signatures.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `Crc32InternetApplications__Koopman2002.pdf`); clock-gating and LFSR/CRC references in `rtl/common/references/README.md`
+
 ## Navigation
 
 [Back to rtl-amba index](../index.md) · [Monitor infrastructure](../monitor/monbus_group.md) · [rtl-cdc book](../../rtl-cdc/overview.md)

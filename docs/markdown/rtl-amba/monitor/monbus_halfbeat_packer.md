@@ -217,9 +217,16 @@ Treat any behaviour described on this page as unverified by simulation.
 
 ## References
 
+### Related work and specifications
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Anis, E., Nicolici, N. "On Using Lossless Compression of Debug Data in Embedded Logic Analysis." *Proc. IEEE Int. Test Conf. (ITC 2007)*, pp. 1-10, Oct. 2007. DOI: [10.1109/TEST.2007.4437613](https://doi.org/10.1109/TEST.2007.4437613). — related work: compressing debug data to extend an on-chip trace buffer. The pairing of two half-slots in one beat is standard bit packing with no paper.
+- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
+
 ### Source Code
 - RTL: `rtl/amba/monitor/monbus_halfbeat_packer.sv`
-- Golden model: `monbus_compressor.py` (`Encoder(half_beat=True)`)
+- Golden model: `bin/TBClasses/monbus/monbus_compressor.py` (`Encoder(half_beat=True)`)
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`

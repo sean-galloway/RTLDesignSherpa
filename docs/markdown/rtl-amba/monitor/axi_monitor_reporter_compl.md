@@ -201,13 +201,22 @@ Treat any behaviour described on this page as unverified by simulation.
 
 ## References
 
+### Related work and specifications
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). — §A3.3 transaction response: the completion this cone reports.
+- Goossens, K., Vermeulen, B., van Steeden, R., Bennebroek, M. "Transaction-Based Communication-Centric Debug." *Proc. 1st Int. Symp. Networks-on-Chip (NOCS 2007)*, pp. 95-106, May 2007. DOI: [10.1109/NOCS.2007.46](https://doi.org/10.1109/NOCS.2007.46). — related work: transaction-level monitoring.
+- Ciordas, C., Goossens, K., Basten, T., Rădulescu, A., Boon, A. "Transaction Monitoring in Networks on Chip: The On-Chip Run-Time Perspective." *Proc. IEEE Int. Symp. Industrial Embedded Systems (IES 2006)*, pp. 1-10, Oct. 2006. DOI: [10.1109/IES.2006.357464](https://doi.org/10.1109/IES.2006.357464). — related work: reconstructing transactions at run time in hardware.
+- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
+
 ### Source Code
 - RTL: `rtl/amba/monitor/axi_monitor_reporter_compl.sv`
 
 ### Documentation
 - Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 - Monitor base: `docs/markdown/rtl-amba/monitor/axi_monitor_base.md`
-- Known issues: `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md`
+- Known issues: `rtl/amba/KNOWN_ISSUES/`
 
 ---
 

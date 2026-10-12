@@ -84,3 +84,8 @@ inner block ignores them and the bus reads CLASSIC/LINEAR.
 directions and with the burst hints on and off. Two mutations fail it:
 swapping `dat`/`sel` in the master's unpack, and reversing the slave's
 response unpack.
+
+## References
+
+- Herveille, R. (ed.). *Wishbone B4: WISHBONE System-on-Chip (SoC) Interconnection Architecture for Portable IP Cores*. OpenCores, 2010 — ch. 3 "WISHBONE Classic Bus Cycles", the protocol of the wrapped Wishbone block.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `WishboneB4Spec__OpenCores2010.pdf`)

@@ -145,3 +145,8 @@ separate event codes the monitor emits.
 No test of its own, and none expected. A package has no behaviour to
 simulate. It is verified by every module that imports it failing to
 elaborate if a declaration is wrong.
+
+## References
+
+- Herveille, R. (ed.). *Wishbone B4: WISHBONE System-on-Chip (SoC) Interconnection Architecture for Portable IP Cores*. OpenCores, 2010 — ch. 4 "WISHBONE Registered Feedback Bus Cycles", §4.3 "Signal Description": the `CTI` cycle-type and `BTE` burst-type encodings this package defines.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `WishboneB4Spec__OpenCores2010.pdf`)

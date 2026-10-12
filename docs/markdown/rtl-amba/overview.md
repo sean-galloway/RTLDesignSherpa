@@ -705,3 +705,7 @@ endmodule
 ---
 
 The RTL AMBA library provides a complete, high-performance solution for AMBA-based system design, combining standards compliance with advanced optimization techniques for modern SoC implementations across both AMBA 4 and AMBA 5 specifications.
+
+## References
+
+- Protocol specifications (Arm IHI 0022 Issues H and L, IHI 0024, IHI 0051, Wishbone B4), the papers behind the shared infrastructure (latency-insensitive and elastic channels, CRC-32, async FIFOs, clock gating), textbook chapters, and related work for the monitor subsystem (an original design) are indexed in `rtl/amba/references/README.md`, with open-access PDFs archived beside it. Per-module pages carry the citations that apply to them.

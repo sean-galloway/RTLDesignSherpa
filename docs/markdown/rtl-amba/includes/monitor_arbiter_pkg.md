@@ -372,6 +372,12 @@ parents elaborate. A parameter or mode no parent uses is untested.
 
 Treat any behaviour described on this page as unverified by simulation.
 
+## References
+
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration" — the round-robin, weighted and grant-hold arbiters whose starvation, fairness and grant/ACK events this package encodes (secondary source).
+- No paper: the event taxonomy is a repo choice. The arbiters themselves are indexed in `rtl/common/references/README.md`.
+- Indexed in `rtl/amba/references/README.md`
+
 ---
 
 ## Navigation

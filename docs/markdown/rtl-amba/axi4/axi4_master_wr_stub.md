@@ -437,6 +437,15 @@ top on every run, which is the coverage that applies.
 
 Treat any behaviour described on this page as unverified by simulation.
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) — §A3.2.1 "Handshake process" and §A3.3.1 "Dependencies between channel handshake signals" (the per-channel VALID/READY contract each skid buffer preserves); §A1.2.3 "Register slices" and §A3.1.1 "Clock" (a register stage may sit in any channel for one cycle of latency, and an interface must have no combinational input-to-output path, which a slice breaks). Issue H is the last issue that defines the AXI4 interface.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — relay stations: a channel can be pipelined by any number of back-pressured stages without changing its behavior, which is why a skid buffer per channel is transparent to both ends.
+- Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conference (DAC '06)*, July 2006, pp. 657-662. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) — the elastic buffer with valid/stop back-pressure, the structure a skid buffer implements.
+- Chipressian. *Crack the Hardware Interview: from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (forward and backward register slices) — textbook treatment of the valid/ready slice; the backward slice's extra data register is the skid entry (secondary source).
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects" ("AXI bus protocol overview") — textbook overview of the AXI channels, bursts and ID ordering (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `ElasticBuffer__Cortadella2006.pdf`)
+
 ---
 
 ## Navigation

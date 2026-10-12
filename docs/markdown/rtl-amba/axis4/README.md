@@ -548,6 +548,15 @@ pytest val/amba/test_axis4_slave_cg.py -v
 pytest val/amba/test_axis4_master.py --vcd=waves.vcd -v
 ```
 
+## References
+
+- Arm. *AMBA 4 AXI4-Stream Protocol Specification*, Version 1.0, ARM IHI 0051A, Mar. 2010. [developer.arm.com/documentation/ihi0051/a](https://developer.arm.com/documentation/ihi0051/a/) — §2.2 "Transfer signaling" (`TVALID`/`TREADY`), §2.4 "Byte qualifiers" (`TSTRB`; the ports carry no `TKEEP`), §2.5 "Packet boundaries" (`TLAST`), §2.6 "Source and destination signaling" (`TID`/`TDEST`), ch. 3 "Default Signaling Requirements". Citation only.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) — the fixed-timeout policy `amba_clock_gate_ctrl` implements: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", section "ARM AMBA interconnect protocols suite" (AXI Stream bus protocol overview) — textbook treatment (secondary source).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (valid-ready protocol and valid-ready slices) — textbook treatment of the skid buffer (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `rtl/common/references/DynamicPowerManagementTimeout__Benini2000.pdf`)
+
 ---
 
 **Last Updated:** 2025-10-20

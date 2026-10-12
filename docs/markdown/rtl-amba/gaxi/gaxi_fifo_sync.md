@@ -245,6 +245,13 @@ pytest val/amba/test_gaxi_fifo_sync.py -k "fifo_flop" -v  # Flop mode
 **Version:** 1.0
 **Last Updated:** 2025-10-06
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.2.1 "Handshake process" and A3.3.1 "Dependencies between channel handshake signals" — the valid/ready contract on both ports.
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 — the (AW+1)-bit pointer scheme whose wrap bit separates full from empty, implemented here by `counter_bin` + `fifo_control` (indexed in `rtl/common/references/README.md`).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, ch. 3 "FIFO" — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/cdc/references/AsyncFifoGrayPointers__Cummings2002.pdf`)
+
 ---
 
 ## Navigation

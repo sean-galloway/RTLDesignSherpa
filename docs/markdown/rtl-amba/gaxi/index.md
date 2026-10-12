@@ -322,6 +322,12 @@ cd val/amba && bash wd_cmd.sh  # Generate PNG/SVG
 
 ## References
 
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.2.1 "Handshake process" and A3.3.1 "Dependencies between channel handshake signals" — the valid/ready contract on both ports.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9):1059–1076, Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — relay stations (Sec. IV-B): the registered stage that lets a valid/ready channel be cut without changing behaviour.
+- Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conference (DAC)*, pp. 657–662, 2006. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) — Property 3.1 (capacity >= forward + backward latency) is why a buffer with registered `rd_valid` and registered `wr_ready` needs `DEPTH >= 2` for one transfer per clock.
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 — the (AW+1)-bit pointer scheme whose wrap bit separates full from empty, implemented here by `counter_bin` + `fifo_control` (indexed in `rtl/common/references/README.md`).
+- Indexed in `rtl/amba/references/README.md`
+
 - **Tutorial:** [GAXI WaveDrom Tutorial](../../TestTutorial/wavedrom_gaxi_example.md)
 - **Source:** `rtl/amba/gaxi/`
 - **Tests:** `val/amba/test_gaxi_*.py`

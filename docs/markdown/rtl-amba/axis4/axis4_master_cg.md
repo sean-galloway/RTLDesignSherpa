@@ -319,6 +319,14 @@ source env_python
 pytest val/amba/test_axis4_master_cg.py -v
 ```
 
+## References
+
+- Arm. *AMBA 4 AXI4-Stream Protocol Specification*, Version 1.0, ARM IHI 0051A, Mar. 2010. [developer.arm.com/documentation/ihi0051/a](https://developer.arm.com/documentation/ihi0051/a/) -- ch. 2 "Interface Signals", the protocol of the wrapped AXI4-Stream block. Citation only.
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- the fixed-timeout policy `amba_clock_gate_ctrl` implements: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
+- Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. CAD*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based gated clock (`icg`) at the bottom of the gating chain.
+- Roy, S. *Advanced Digital System Design*, Springer, ch. 15 "Low-Power Digital System Design", §15.5.5 "Logic Level Power Down" -- textbook treatment of clock gating (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/common/references/DynamicPowerManagementTimeout__Benini2000.pdf`, `rtl/common/references/LatchBasedClockGating__Benini1996.pdf`)
+
 ---
 
 ## Navigation

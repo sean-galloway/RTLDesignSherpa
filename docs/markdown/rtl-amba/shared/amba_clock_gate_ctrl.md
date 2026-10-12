@@ -466,6 +466,11 @@ The module is also covered from `val/amba/` with the rest of the shared area —
 
 ## References
 
+- Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design*, 15(6):630–643, June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) — the latch-based glitch-free clock gate inside the wrapped `clock_gate_ctrl` (`icg`).
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3):299–316, June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) — fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, ch. 3 "Sequential Logic Design", sec. 3.2.5 (clock gating) and 3.5 (skew from gated clocks) — textbook treatment (secondary source).
+- Indexed in `rtl/common/references/README.md` (local PDF: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
+
 ### Source Code
 - RTL: `rtl/amba/shared/amba_clock_gate_ctrl.sv`
 - Base Controller: `rtl/common/clock_gate_ctrl.sv`
@@ -477,7 +482,7 @@ The module is also covered from `val/amba/` with the rest of the shared area —
 
 ### Industry Standards
 - IEEE 1801 (UPF) — Unified Power Format for power-aware design
-- ARM AMBA specifications — clock gating recommendations
+- Arm AMBA Low Power Interface Specification (Q-Channel / P-Channel), ARM IHI 0068 — the AMBA clock-quiescence handshake; this wrapper does not implement it and gates on local valid activity instead
 
 ---
 

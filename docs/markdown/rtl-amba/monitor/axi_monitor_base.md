@@ -625,6 +625,19 @@ Key test scenarios:
    - Verify latency calculations
    - Check throughput tracking
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). — §A2.3.1 handshake, §A3.3 transaction response (BRESP/RRESP), §A5.1 transaction identifiers, §A5.5 and §A5.6 response ordering: the rules the monitor tracks and checks.
+- Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). — related work: hardware probes that generate events and send them as monitoring traffic.
+- Goossens, K., Vermeulen, B., van Steeden, R., Bennebroek, M. "Transaction-Based Communication-Centric Debug." *Proc. 1st Int. Symp. Networks-on-Chip (NOCS 2007)*, pp. 95-106, May 2007. DOI: [10.1109/NOCS.2007.46](https://doi.org/10.1109/NOCS.2007.46). — related work: transaction-level monitors with a separate event interconnect.
+- Abramovici, M., Bradley, P., Dwarakanath, K., Levin, P., Memmi, G., Miller, D. "A Reconfigurable Design-for-Debug Infrastructure for SoCs." *Proc. 43rd Design Automation Conf. (DAC 2006)*, pp. 7-12, July 2006. DOI: [10.1145/1146909.1146916](https://doi.org/10.1145/1146909.1146916). — related work: a debug fabric hosting checkers, transaction identifiers, triggers and event counters.
+- Pagiamtzis, K., Sheikholeslami, A. "Content-Addressable Memory (CAM) Circuits and Architectures: A Tutorial and Survey." *IEEE J. Solid-State Circuits*, 41(3):712-727, Mar. 2006. DOI: [10.1109/JSSC.2005.864128](https://doi.org/10.1109/JSSC.2005.864128). — for the CAM structure behind the outstanding-transaction table.
+- Hopkins, A.B.T., McDonald-Maier, K.D. "Debug Support for Complex Systems On-Chip: A Review." *IEE Proc. Computers and Digital Techniques*, 153(4):197-207, 2006. DOI: [10.1049/ip-cdt:20050194](https://doi.org/10.1049/ip-cdt:20050194). — survey of on-chip debug support, for context.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", sec. "ARM AMBA interconnect protocols suite". — textbook background on the AXI protocol family (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/common/references/ContentAddressableMemory__Pagiamtzis2006.pdf`)
+
 ---
 
 ## Navigation

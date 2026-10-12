@@ -365,6 +365,14 @@ source env_python
 pytest val/amba/test_apb5_slave_cdc.py -v
 ```
 
+## References
+
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) — ch. 3 "Transfers", ch. 4 "Operating States", §3.7 "Wake-up signaling" and §3.8 "User signaling": the protocol of the wrapped APB5 block. Citation only.
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 — the Gray-pointer async FIFO (`gaxi_fifo_async`) that carries the command and response across the two clocks.
+- Ginosar, R. "Metastability and Synchronizers: A Tutorial." *IEEE Design & Test of Computers*, 28(5), Sept./Oct. 2011. DOI: [10.1109/MDT.2011.113](https://doi.org/10.1109/MDT.2011.113) — synchronizer depth versus MTBF for the pointer crossings and the `cdc_synchronizer` on `PWAKEUP`.
+- Deschamps, J.-P., Sutter, G.D., Cantó, E. *Guide to FPGA Implementation of Arithmetic Functions*, Springer (LNEE 149), 2012, ch. 5 "Electronic Aspects of Digital Design", §5.3.5.3 "Asynchronous FIFO" — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/cdc/references/AsyncFifoGrayPointers__Cummings2002.pdf`, `rtl/cdc/references/MetastabilitySynchronizers__Ginosar2011.pdf`)
+
 ---
 
 ## Navigation

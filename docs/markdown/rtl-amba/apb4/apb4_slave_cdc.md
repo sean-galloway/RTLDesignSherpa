@@ -397,6 +397,11 @@ pytest val/amba/test_apb4_slave_cdc.py -v
 - **Source:** `rtl/amba/apb4/apb4_slave_cdc.sv`
 - **Tests:** `val/amba/test_apb4_slave_cdc.py`
 - **WaveDrom Test:** `val/amba/test_apb4_slave_cdc.py::test_apb4_slave_cdc_wavedrom`
+- Arm. *AMBA APB Protocol Specification*, Version 2.0, ARM IHI 0024C, Apr. 2010. [developer.arm.com/documentation/ihi0024/c](https://developer.arm.com/documentation/ihi0024/c/) -- ch. 3 "Transfers": the Completer side of §3.1 write and §3.3 read transfers (extending ACCESS with `PREADY` low), §3.2 `PSTRB`, §3.4 error response (`PSLVERR`), §3.5 `PPROT`; ch. 4 "Operating States". Citation only.
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 -- the Gray-pointer async FIFO (`gaxi_fifo_async`) that carries the command and response across the two clocks.
+- Ginosar, R. "Metastability and Synchronizers: A Tutorial." *IEEE Design & Test of Computers*, 28(5), Sept./Oct. 2011. DOI: [10.1109/MDT.2011.113](https://doi.org/10.1109/MDT.2011.113) -- synchronizer depth versus MTBF for the pointer crossings.
+- Deschamps, J.-P., Sutter, G.D., Cantó, E. *Guide to FPGA Implementation of Arithmetic Functions*, Springer (LNEE 149), 2012, ch. 5 "Electronic Aspects of Digital Design", §5.3.5.3 "Asynchronous FIFO" -- textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/cdc/references/AsyncFifoGrayPointers__Cummings2002.pdf`, `rtl/cdc/references/MetastabilitySynchronizers__Ginosar2011.pdf`)
 
 ---
 

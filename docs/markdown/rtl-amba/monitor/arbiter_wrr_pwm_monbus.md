@@ -424,10 +424,16 @@ pytest val/amba/test_arbiter_wrr_pwm_monbus.py -v
 
 ## References
 
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Katevenis, M., Sidiropoulos, S., Courcoubetis, C. "Weighted Round-Robin Cell Multiplexing in a General-Purpose ATM Switch Chip." *IEEE J. Selected Areas in Communications*, 9(8):1265-1279, Oct. 1991. DOI: [10.1109/49.105173](https://doi.org/10.1109/49.105173). — interleaved weighted round robin, the credit scheme of the `arbiter_round_robin_weighted` core (indexed in `rtl/common/references/README.md`).
+- Gupta, P., McKeown, N. "Designing and Implementing a Fast Crossbar Scheduler." *IEEE Micro*, 19(1):20-28, Jan./Feb. 1999. DOI: [10.1109/40.748793](https://doi.org/10.1109/40.748793). — the round-robin core underneath the weighting layer.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.2 "Round-Robin Arbiter" and §18.4.4 "Weighted Round-Robin Arbiter". — textbook treatment (secondary source).
 - Internal: docs/markdown/rtl-amba/index.md (AMBA subsystem requirements)
-- Internal: docs/markdown/rtl-amba/arbiter_monbus_common.md (monitoring details)
+- Internal: docs/markdown/rtl-amba/monitor/arbiter_monbus_common.md (monitoring details)
 - RTL: `rtl/amba/monitor/arbiter_wrr_pwm_monbus.sv`
 - Tests: `val/amba/test_arbiter_wrr_pwm_monbus.py`
+- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
 
 ---
 

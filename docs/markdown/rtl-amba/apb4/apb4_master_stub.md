@@ -275,10 +275,12 @@ Treat any behaviour described on this page as unverified by simulation.
 
 ## References
 
-- **APB Protocol**: ARM IHI 0024C -- AMBA APB Protocol Specification, Version 2.0 (APB4)
+- Arm. *AMBA APB Protocol Specification*, Version 2.0, ARM IHI 0024C, Apr. 2010. [developer.arm.com/documentation/ihi0024/c](https://developer.arm.com/documentation/ihi0024/c/) -- ch. 3 "Transfers" and ch. 4 "Operating States", the protocol of the wrapped APB4 block. Citation only.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
 - **Full APB Master**: [apb4_master.md](apb4_master.md)
 - **APB Slave Stub**: [apb4_slave_stub.md](apb4_slave_stub.md)
 - **APB5 Equivalent**: [apb5_master_stub.md](../apb5/apb5_master_stub.md)
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`)
 
 ---
 

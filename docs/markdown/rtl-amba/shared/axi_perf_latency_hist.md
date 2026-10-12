@@ -282,6 +282,10 @@ pytest val/amba/test_axi_perf_latency_hist.py -v
 
 ## References
 
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A5.1 "AXI transaction identifiers" and ch. A6 "AXI ordering model" — same-ID responses return in request order, which is what lets a per-ID FIFO of issue timestamps match each completion to its command. Log2 binning has no paper (standard technique).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, ch. 7 "Common On-Chip Bus Protocols" (AXI IDs and out-of-order completion) — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md`
+
 ### Source Code
 - RTL: `rtl/amba/shared/axi_perf_latency_hist.sv`
 

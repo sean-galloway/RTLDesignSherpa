@@ -344,6 +344,14 @@ TEST_LEVEL=full pytest val/amba/test_gaxi_regslice.py -v
 **Version:** 1.0
 **Last Updated:** 2025-10-23
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.2.1 "Handshake process" and A3.3.1 "Dependencies between channel handshake signals" — the valid/ready contract on both ports.
+- Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conference (DAC)*, pp. 657–662, 2006. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) — the Lf = 1, Lb = 0 elastic stage: valid/data registered, ready combinational, one entry. The paper notes Lb = 0 is legal locally but leaves the ready path combinational, which is the trade this slice makes.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9):1059–1076, Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — relay stations, the fully registered alternative (`gaxi_skid_buffer`).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, ch. 2 "Handshake Protocols" (forward register slice) — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `ElasticBuffer__Cortadella2006.pdf`, `LatencyInsensitiveDesign__Carloni2001.pdf`)
+
 ---
 
 ## Navigation

@@ -621,6 +621,13 @@ source env_python
 pytest val/amba/test_axi5_slave_rd_mon.py -v
 ```
 
+## References
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A3.3.1 "Write response" and §A3.3.2 "Read response" (the SLVERR/DECERR codes the monitor reports), §A5.1 "Transaction identifiers" and §A5.3 "Request ordering" (per-ID tracking of outstanding transactions), §A2.3.2 "Dependencies between channel handshake signals" (the orderings a monitor timeout watches); the AXI5 payload is carried as on the base module.
+- The monitor's own techniques (transaction table, timeouts, packet filtering) are cited on the [AXI Monitor Base](../monitor/axi_monitor_base.md) page and in the monitor family of the archive.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects" ("AXI bus protocol overview") -- textbook overview of AXI responses and ID ordering (secondary source).
+- Indexed in `rtl/amba/references/README.md` (protocol specifications are citation only)
+
 ---
 
 ## Navigation

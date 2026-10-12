@@ -68,3 +68,12 @@ What you give up, and when it matters:
 
 The rest of this paper assumes the lite at the ports. Every axis below is
 the same for both monitors; the numbers are the lite's.
+
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Tamir, Y., Frazier, G.L. "High-Performance Multi-Queue Buffers for VLSI Communication Switches." *Proc. 15th Annual Int. Symp. Computer Architecture (ISCA 1988)*, pp. 343-354, May 1988. DOI: [10.1109/ISCA.1988.5245](https://doi.org/10.1109/ISCA.1988.5245). -- a comparable structure to the lite's per-ID linked lists in a shared slot pool.
+- Pagiamtzis, K., Sheikholeslami, A. "Content-Addressable Memory (CAM) Circuits and Architectures: A Tutorial and Survey." *IEEE J. Solid-State Circuits*, 41(3):712-727, Mar. 2006. DOI: [10.1109/JSSC.2005.864128](https://doi.org/10.1109/JSSC.2005.864128). -- for the CAM behind the full monitor's table.
+- IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). -- §4.4.3 and §4.5.3: lost trace reported rather than stalling, comparable to the lite's refuse and drop counts.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LinkedListMultiQueueBuffer__Tamir1988.pdf`, `rtl/common/references/ContentAddressableMemory__Pagiamtzis2006.pdf`, `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`)

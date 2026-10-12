@@ -426,6 +426,10 @@ axi5_slave_wr      #(.AXI_DATA_WIDTH(64)) u_wr_slave  (...);
 
 ---
 
+## References
+
+- Protocol specifications (Arm IHI 0022 Issues H and L, IHI 0024, IHI 0051, Wishbone B4), the papers behind the shared infrastructure (latency-insensitive and elastic channels, CRC-32, async FIFOs, clock gating), textbook chapters, and related work for the monitor subsystem (an original design) are indexed in `rtl/amba/references/README.md`, with open-access PDFs archived beside it. Per-module pages carry the citations that apply to them.
+
 ## Navigation
 
 - **[Back to RTL Documentation](../index.md)** - Return to main RTL documentation index

@@ -711,6 +711,18 @@ pytest val/amba/test_monbus_cam.py \
 | [`sdpram_slave_axil_axil`](../shared/sdpram_slave_axil_axil.md) | Typical SRAM-ring backend for the compressed slot stream |
 | `bin/TBClasses/monbus/monbus_compressor.py` | Python golden encoder/decoder — the format spec |
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Bentley, J.L., Sleator, D.D., Tarjan, R.E., Wei, V.K. "A Locally Adaptive Data Compression Scheme." *Communications of the ACM*, 29(4):320-330, Apr. 1986. DOI: [10.1145/5684.5688](https://doi.org/10.1145/5684.5688). — move-to-front list coding, comparable to sending a template's LRU index instead of the template.
+- Uzelac, V., Milenković, A. "A Real-Time Program Trace Compressor Utilizing Double Move-to-Front Method." *Proc. 46th Design Automation Conf. (DAC 2009)*, pp. 738-743, July 2009. DOI: [10.1145/1629911.1630102](https://doi.org/10.1145/1629911.1630102). — related work: a real-time hardware trace compressor built on move-to-front.
+- Kao, C.-F., Huang, S.-M., Huang, I.-J. "A Hardware Approach to Real-Time Program Trace Compression for Embedded Processors." *IEEE Trans. Circuits and Systems I*, 54(3):530-543, Mar. 2007. DOI: [10.1109/TCSI.2006.887613](https://doi.org/10.1109/TCSI.2006.887613). — related work: real-time hardware trace compression (LZ-based) for processors.
+- Anis, E., Nicolici, N. "On Using Lossless Compression of Debug Data in Embedded Logic Analysis." *Proc. IEEE Int. Test Conf. (ITC 2007)*, pp. 1-10, Oct. 2007. DOI: [10.1109/TEST.2007.4437613](https://doi.org/10.1109/TEST.2007.4437613). — related work: lossless compression to extend an on-chip trace buffer's observation window.
+- Yang, F.-C., Lin, Y., Kao, C.-F., Huang, I.-J. "An On-Chip AHB Bus Tracer With Real-Time Compression and Dynamic Multiresolution Supports for SoC." *IEEE Trans. VLSI Systems*, 19(4):571-584, Apr. 2011. DOI: [10.1109/TVLSI.2009.2039811](https://doi.org/10.1109/TVLSI.2009.2039811). — related work: real-time compression in an on-chip bus tracer.
+- IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). — §5.2 "address threads": addresses coded relative to the last one of the same kind, comparable to the per-template delta timestamp.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `MoveToFrontCoding__Bentley1986.pdf`, `TraceCompressionMoveToFront__Uzelac2009.pdf`, `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`)
+
 ---
 
 ## Navigation

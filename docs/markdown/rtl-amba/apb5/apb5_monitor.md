@@ -524,6 +524,11 @@ source env_python
 pytest val/amba/test_apb5_monitor.py -v
 ```
 
+## References
+
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) — §3.4 "Error response" (`PSLVERR`, reported as error events), §3.7 "Wake-up signaling" and ch. 5 "Interface parity protection"; the transaction timeouts are repo monitoring policy with no spec or paper behind them. Citation only.
+- Indexed in `rtl/amba/references/README.md`
+
 ---
 
 ## Navigation

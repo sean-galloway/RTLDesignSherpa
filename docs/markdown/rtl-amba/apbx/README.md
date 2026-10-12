@@ -78,6 +78,14 @@ Formal proofs are separate again, under `formal/apbx_xbar/`.
 - [../apb4/README.md](../apb4/README.md) — the APB4 primitives an all-APB4 build is made of
 - [../apb5/README.md](../apb5/README.md) — the APB5 primitives used on APB5 ports
 
+## References
+
+- Arm. *AMBA APB Protocol Specification*, Version 2.0, ARM IHI 0024C, Apr. 2010. [developer.arm.com/documentation/ihi0024/c](https://developer.arm.com/documentation/ihi0024/c/) — the APB4 ports of the generated crossbars. Citation only.
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) — the APB5 ports. Citation only.
+- Gupta, P., McKeown, N. "Designing and Implementing a Fast Crossbar Scheduler." *IEEE Micro*, 19(1), Jan.-Feb. 1999. DOI: [10.1109/40.748793](https://doi.org/10.1109/40.748793) — the masked/unmasked priority-encoder round-robin core (`arbiter_round_robin`) the generator instantiates per slave port; indexed in `rtl/common/references/README.md`.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 22 "Buses", §22.1 "Bus Basics" and §22.2 "Bus Arbitration" — textbook treatment of the shared-bus model (secondary source).
+- Indexed in `rtl/amba/references/README.md`
+
 ## Navigation
 
 - **[← Back to rtl-amba Index](../index.md)**

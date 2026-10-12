@@ -329,3 +329,8 @@ path. Phases: ACK/ERR/RTY mix in command order, several transfers open
 tracking overflow, debug edges, and address range on the `N_ADDR_RANGES=2`
 build. Four RTL mutations (timeout re-fire, swapped read/write codes,
 pairing off by one, orphan not reported) all fail the test.
+
+## References
+
+- Herveille, R. (ed.). *Wishbone B4: WISHBONE System-on-Chip (SoC) Interconnection Architecture for Portable IP Cores*. OpenCores, 2010 — §3.1.5 (`ERR` and `RTY` terminations, reported as error and retry events) and ch. 4 (`CTI`/`BTE`, carried as burst hints); the timeouts are repo monitoring policy with no spec or paper behind them.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `WishboneB4Spec__OpenCores2010.pdf`)

@@ -314,10 +314,16 @@ All properties proven via formal verification (see `formal/amba/axi_monitor_addr
 
 ## References
 
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). — §A2.3.1 handshake (the AR/AW acceptance this checker samples).
+- Boulé, M., Zilic, Z. "Efficient Automata-Based Assertion-Checker Synthesis of SEREs for Hardware Emulation." *Proc. Asia and South Pacific Design Automation Conf. (ASP-DAC 2007)*, pp. 324-329, Jan. 2007. DOI: [10.1109/ASPDAC.2007.358006](https://doi.org/10.1109/ASPDAC.2007.358006). — related work: hardware checker circuits; this block is a hand-written parallel range compare, formally verified in `formal/amba/axi_monitor_addr_check/`.
+- IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). — §4.8 "Breakpoints/Watchpoints": a comparable address-match event in a processor debug standard.
 - **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
 - **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
 - **Packet Format Specification:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 - **Formal Verification:** `formal/amba/axi_monitor_addr_check/`
+- Indexed in `rtl/amba/references/README.md` (local PDF: `HardwareAssertionCheckers__Boule2007.pdf`, `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`)
 
 ---
 

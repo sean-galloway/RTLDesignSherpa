@@ -159,6 +159,14 @@ profile-mode config): a legal set is loaded, matching and deliberately-illegal
 packets are driven, and the dense bins + UNEXPECTED are cross-checked against a
 Python golden.
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Pagiamtzis, K., Sheikholeslami, A. "Content-Addressable Memory (CAM) Circuits and Architectures: A Tutorial and Survey." *IEEE J. Solid-State Circuits*, 41(3):712-727, Mar. 2006. DOI: [10.1109/JSSC.2005.864128](https://doi.org/10.1109/JSSC.2005.864128). — for the CAM structure.
+- Sprunt, B. "The Basics of Performance-Monitoring Hardware." *IEEE Micro*, 22(4):64-71, July/Aug. 2002. DOI: [10.1109/MM.2002.1028477](https://doi.org/10.1109/MM.2002.1028477). — related work: counting events in hardware (the tally this CAM feeds).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/common/references/ContentAddressableMemory__Pagiamtzis2006.pdf`)
+
 ---
 
 ## Navigation

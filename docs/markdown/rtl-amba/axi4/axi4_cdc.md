@@ -85,3 +85,12 @@ of the completer's memory, W beats contiguous and in order at the completer,
 WLAST on the last crossed beat, R beats in order at the requester), many
 bursts in flight at once with rotating IDs, and an out-of-range access whose
 SLVERR must come back through the response crossing with nothing written.
+
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §A3.1.1 "Clock" (an AXI interface has a single ACLK, so two clock domains need a bridge) and §A3.3 "Relationships between the channels" with §A1.2.3 "Register slices" (the channels are independent, so one in-order FIFO per channel with no protocol state preserves the protocol).
+- Cummings, C.E. "Simulation and Synthesis Techniques for Asynchronous FIFO Design." *SNUG San Jose*, 2002 -- the Gray-pointer async FIFO (`gaxi_fifo_async`, `USE_JOHNSON=0`) used once per channel.
+- Ginosar, R. "Metastability and Synchronizers: A Tutorial." *IEEE Design & Test of Computers*, 28(5), Sept./Oct. 2011. DOI: [10.1109/MDT.2011.113](https://doi.org/10.1109/MDT.2011.113) -- synchronizer depth (`N_FLOP_CROSS`) versus MTBF.
+- Deschamps, J.-P., Sutter, G.D., Cantó, E. *Guide to FPGA Implementation of Arithmetic Functions*, Springer (LNEE 149), 2012, ch. 5 "Electronic Aspects of Digital Design" -- sec. 5.3.5.3 "Asynchronous FIFO" and sec. 5.2.3 metastability/MTBF -- textbook treatment (secondary source).
+- Chinnakonda, M. *Designing a Multiprocessor Cache Subsystem*, ch. 7 "Multi-processing", §7.23 "Asynchronous Bridges" -- why a CPU-to-interconnect path needs an asynchronous bridge (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/cdc/references/`: `AsyncFifoGrayPointers__Cummings2002.pdf`, `MetastabilitySynchronizers__Ginosar2011.pdf`)

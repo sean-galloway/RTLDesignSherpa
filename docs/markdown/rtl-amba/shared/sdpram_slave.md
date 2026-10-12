@@ -232,6 +232,13 @@ port-shape variants over the same core. Sub-tests cover:
 pytest val/amba/test_sdpram_slave.py -v
 ```
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.4.1 "Address structure" (burst addressing via `axi_gen_addr`) and Part B, ch. B1 "AMBA AXI4-Lite" (the single-beat defaults the AXIL wrappers supply). The dual-port RAM itself is a standard technique with no paper.
+- Harris, S.L., Harris, D. *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022, ch. 5 "Digital Building Blocks", sec. 5.5 "Memory Arrays" (multiported memories) — textbook treatment (secondary source).
+- Bruno, F., Eschemann, G. *The FPGA Programming Handbook*, 2nd ed., Packt, 2024, ch. 8 "Introduction to AXI" — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md`
+
 ---
 
 ## Navigation

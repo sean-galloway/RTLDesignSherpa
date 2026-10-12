@@ -379,6 +379,16 @@ a gating phase (idle gates, a packet wakes the clock and is reported exactly,
 idle re-gates). `val/amba/monitor-lite/test_axis{4,5}_{master,slave}_monlite[_cg].py`:
 9 cells each at FULL; with the core's 12, 84/84 from a clean build, 2026-09-27.
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). -- AXI4/AXI5 channels, §A2.3.1 handshake, §A5.1 transaction identifiers.
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022H.c, Jan. 2021. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h). -- Part B ch. B1 (AXI4-Lite), Part D §D3.6-§D3.8 (ACE snoop channels) for the Lite and ACE wrappers.
+- Tamir, Y., Frazier, G.L. "High-Performance Multi-Queue Buffers for VLSI Communication Switches." *Proc. 15th Annual Int. Symp. Computer Architecture (ISCA 1988)*, pp. 343-354, May 1988. DOI: [10.1109/ISCA.1988.5245](https://doi.org/10.1109/ISCA.1988.5245). -- related to the per-ID linked lists inside the lite core.
+- Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). -- related work: one hardware probe per observed port, emitting events.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LinkedListMultiQueueBuffer__Tamir1988.pdf`)
+
 ## Navigation
 
 - **[← Back to Monitor Index](../_book_monitor_index.md)**

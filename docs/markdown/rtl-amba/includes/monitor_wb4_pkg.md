@@ -141,3 +141,10 @@ slave asking for the transfer again, not a failure, and
 - [`wb4_monitor`](../wb4/wb4_monitor.md) - the only module that imports this package
 - [`monitor_package_spec.md`](./monitor_package_spec.md) - packet layout and the `protocol` enum, including `PROTOCOL_WB` (`4'h5`)
 - [`monitor_amba4_pkg.md`](./monitor_amba4_pkg.md) - the AMBA4 equivalent, whose `8'h08` address-range code this package matches
+
+---
+
+## References
+
+- OpenCores. *Wishbone B4: WISHBONE System-on-Chip (SoC) Interconnection Architecture for Portable IP Cores*, 2010, sec. 3.1.3 "Handshaking Protocol" and 3.1.5 "Use of [ACK_O], [ERR_O] and [RTY_O]" — the normal, error and retry terminations the `WB_ERR_*` and `WB_COMPL_*` codes report.
+- Indexed in `rtl/amba/references/README.md`

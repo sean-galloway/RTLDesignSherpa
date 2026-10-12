@@ -572,8 +572,7 @@ converter's MAS 2.6.9 for the design.
 ## References
 
 ### Specifications
-- ARM IHI 0022E: AMBA AXI Protocol Specification (AXI4)
-- Chapter 11: Data Width Conversion
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §A3.4.4 "Data read and write structure" (write strobes, narrow transfers, byte lanes) and §A3.4.1 "Address structure" (burst length and size, the 4KB rule a converter must preserve when it reshapes bursts). Issue L: §A3.2.3 "Narrow transfers", §A3.1 "Transaction request".
 
 ### Source Code
 - RTL: none -- this page describes a PLANNED combined converter; the real modules are `projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_{rd,wr}.sv`

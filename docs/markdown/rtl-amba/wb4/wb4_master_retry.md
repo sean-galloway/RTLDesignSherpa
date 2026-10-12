@@ -87,3 +87,8 @@ wb4_master_retry #(
 ## Testing
 
 `val/amba/test_wb4_master_retry.py`; see [wb4_retry](wb4_retry.md).
+
+## References
+
+- Herveille, R. (ed.). *Wishbone B4: WISHBONE System-on-Chip (SoC) Interconnection Architecture for Portable IP Cores*. OpenCores, 2010 -- §3.1.5 "Use of [ACK_O], [ERR_O] and [RTY_O]": the retry termination the wrapped `wb4_retry` re-issues. The retry budget and the in-order completion buffer are repo design with no paper behind them.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `WishboneB4Spec__OpenCores2010.pdf`)

@@ -335,6 +335,15 @@ source env_python
 pytest val/amba/test_axi4_slave_rd_mon_cg.py -v
 ```
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §A3.4.5 "Read and write response structure" (the SLVERR/DECERR codes the monitor reports), ch. A5 "Transaction Identifiers" (per-ID tracking of outstanding transactions), §A3.3.1 "Dependencies between channel handshake signals" (the orderings a monitor timeout watches). Issue H is the last issue that defines the AXI4 interface.
+- Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based clock-gating cell (`icg`, via `amba_clock_gate_ctrl` and `clock_gate_ctrl`) that gates this wrapper's clock.
+- Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on activity.
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- AXI4 has no wake-up signal. AXI5 adds AWAKEUP (Issue H §E1.7 "Wake-up Signaling"; Issue L §A14.1.1), which lets a manager restart a gated interface before VALID. This wrapper wakes on the flopped OR of the VALIDs and holds READY low while gated.
+- The monitor's own techniques are cited on the [AXI Monitor Base](../monitor/axi_monitor_base.md) page and in the monitor family of the archive.
+- Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/common/references/`: `LatchBasedClockGating__Benini1996.pdf`, `DynamicPowerManagementTimeout__Benini2000.pdf`)
+
 ---
 
 ## Navigation

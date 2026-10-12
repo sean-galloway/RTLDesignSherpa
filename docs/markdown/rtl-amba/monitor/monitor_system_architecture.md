@@ -621,6 +621,19 @@ Two that have bitten before:
 | Arbiter instrumentation | [arbiter_monbus_common](arbiter_monbus_common.md) |
 | A protocol wrapper | [axi4_master_rd_mon](../axi4/axi4_master_rd_mon.md) |
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). -- related work: an event-based monitoring service built from hardware probes.
+- Goossens, K., Vermeulen, B., van Steeden, R., Bennebroek, M. "Transaction-Based Communication-Centric Debug." *Proc. 1st Int. Symp. Networks-on-Chip (NOCS 2007)*, pp. 95-106, May 2007. DOI: [10.1109/NOCS.2007.46](https://doi.org/10.1109/NOCS.2007.46). -- related work: monitors plus a dedicated event-distribution interconnect.
+- IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). -- a defining non-peer standard for message-based trace: typed messages, source IDs, overrun reports, timestamps (§5.2, §4.4.3, §4.11). The monitor bus is not Nexus-compatible.
+- Abramovici, M., Bradley, P., Dwarakanath, K., Levin, P., Memmi, G., Miller, D. "A Reconfigurable Design-for-Debug Infrastructure for SoCs." *Proc. 43rd Design Automation Conf. (DAC 2006)*, pp. 7-12, July 2006. DOI: [10.1145/1146909.1146916](https://doi.org/10.1145/1146909.1146916). -- related work: checkers, triggers and event counters in a debug fabric.
+- Hopkins, A.B.T., McDonald-Maier, K.D. "Debug Support for Complex Systems On-Chip: A Review." *IEE Proc. Computers and Digital Techniques*, 153(4):197-207, 2006. DOI: [10.1049/ip-cdt:20050194](https://doi.org/10.1049/ip-cdt:20050194). -- survey of on-chip debug support.
+- Vermeulen, B. "Functional Debug Techniques for Embedded Systems." *IEEE Design & Test of Computers*, 25(3):208-215, May/June 2008. DOI: [10.1109/MDT.2008.66](https://doi.org/10.1109/MDT.2008.66). -- survey of functional silicon debug.
+- Lamport, L. "Time, Clocks, and the Ordering of Events in a Distributed System." *Communications of the ACM*, 21(7):558-565, July 1978. DOI: [10.1145/359545.359563](https://doi.org/10.1145/359545.359563). -- for ordering events without a shared clock.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`, `LogicalClocksEventOrdering__Lamport1978.pdf`)
+
 ---
 
 ## Navigation

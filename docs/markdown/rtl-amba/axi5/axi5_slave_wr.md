@@ -322,6 +322,15 @@ source env_python
 pytest val/amba/test_axi5_slave_wr.py -v
 ```
 
+## References
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A2.3.1 "Valid-Ready signals", §A2.3.2 "Dependencies between channel handshake signals" and §A2.5 "Pipelining and register stages" (the transport this module buffers per channel), and the AXI5 signals it carries unchanged: §A6.4 "Atomic transactions" (AWATOP), §A16.1 "Data protection using Poison" (WPOISON), §A12.2 "Memory Tagging Extension (MTE)" (AWTAGOP, WTAG, WTAGUPDATE, BTAGMATCH), §A5.2 "Unique ID indicator", §A12.3 "Trace signals", §A10.1 "Non-secure Access Identifiers (NSAID)", §A12.1 "Memory System Resource Partitioning and Monitoring (MPAM)" and §A4.6 "Memory Encryption Contexts" (AWMECID). The specification defines BTAGMATCH as 2 bits and has no BTAG signal, and names the Unique ID indicator AWIDUNQ; see the Notes in the archive README for how this module's ports differ.
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- the same AMBA 5 features as first numbered: ch. C1 "AMBA AXI5", §E1.1 "Atomic transactions", §E1.15 "Memory tagging", §E2.1 "Poison", §E1.13 "Unique ID indicator". MECID is not in Issue H.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- relay stations: a channel can be pipelined by any number of back-pressured stages without changing its behavior, which is why a skid buffer per channel is transparent to both ends.
+- Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conference (DAC '06)*, July 2006, pp. 657-662. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) -- the elastic buffer with valid/stop back-pressure, the structure a skid buffer implements.
+- Chipressian. *Crack the Hardware Interview: from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (forward and backward register slices) -- textbook treatment of the valid/ready slice (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `ElasticBuffer__Cortadella2006.pdf`)
+
 ---
 
 ## Navigation

@@ -370,6 +370,17 @@ Indirect coverage exercises this module only in the configurations its parents e
 
 ## References
 
+### Related work and specifications
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Hopkins, A.B.T., McDonald-Maier, K.D. "Debug Support for Complex Systems On-Chip: A Review." *IEE Proc. Computers and Digital Techniques*, 153(4):197-207, 2006. DOI: [10.1049/ip-cdt:20050194](https://doi.org/10.1049/ip-cdt:20050194). — related work: on-chip trace buffers versus trace ports.
+- Yang, F.-C., Lin, Y., Kao, C.-F., Huang, I.-J. "An On-Chip AHB Bus Tracer With Real-Time Compression and Dynamic Multiresolution Supports for SoC." *IEEE Trans. VLSI Systems*, 19(4):571-584, Apr. 2011. DOI: [10.1109/TVLSI.2009.2039811](https://doi.org/10.1109/TVLSI.2009.2039811). — related work: a bus tracer that records into an on-chip circular buffer.
+- Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). — related work: run-time configurable selection of monitoring events.
+- IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). — §4.11: absolute or relative timestamps, comparable to the group's free-running counter.
+- Lamport, L. "Time, Clocks, and the Ordering of Events in a Distributed System." *Communications of the ACM*, 21(7):558-565, July 1978. DOI: [10.1145/359545.359563](https://doi.org/10.1145/359545.359563). — for ordering events from several groups without a shared clock.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`, `LogicalClocksEventOrdering__Lamport1978.pdf`)
+
 ### Source Code
 - RTL: `rtl/amba/monitor/monbus_group_core.sv`
 - Package: `rtl/amba/includes/monitor_common_pkg.sv`

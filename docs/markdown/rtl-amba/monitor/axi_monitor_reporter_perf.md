@@ -270,6 +270,14 @@ Treat any behaviour described on this page as unverified by simulation.
 
 ## References
 
+### Related work and specifications
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Sprunt, B. "The Basics of Performance-Monitoring Hardware." *IEEE Micro*, 22(4):64-71, July/Aug. 2002. DOI: [10.1109/MM.2002.1028477](https://doi.org/10.1109/MM.2002.1028477). — related work: on-chip event counters for performance monitoring, in processors.
+- Abramovici, M., Bradley, P., Dwarakanath, K., Levin, P., Memmi, G., Miller, D. "A Reconfigurable Design-for-Debug Infrastructure for SoCs." *Proc. 43rd Design Automation Conf. (DAC 2006)*, pp. 7-12, July 2006. DOI: [10.1145/1146909.1146916](https://doi.org/10.1145/1146909.1146916). — related work: event counters in a reconfigurable debug fabric.
+- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
+
 ### Source Code
 - RTL: `rtl/amba/monitor/axi_monitor_reporter_perf.sv`
 - Parent: `rtl/amba/monitor/axi_monitor_reporter.sv`

@@ -441,6 +441,15 @@ REG_LEVEL parameter sweep (`gate` / `func` / `full`):
 | `bin/TBClasses/monbus/monbus_compressor.py` (`Cam` class) | Python golden mirror |
 | [`monitor_trans_cam`](monitor_trans_cam.md) | Sister CAM, different use case (AXI ID matching, multi-port, no LRU) |
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Bentley, J.L., Sleator, D.D., Tarjan, R.E., Wei, V.K. "A Locally Adaptive Data Compression Scheme." *Communications of the ACM*, 29(4):320-330, Apr. 1986. DOI: [10.1145/5684.5688](https://doi.org/10.1145/5684.5688). — move-to-front list coding; the true-LRU order with the most recent entry at slot 0 is a move-to-front list kept in a CAM (comparison, not the source).
+- Uzelac, V., Milenković, A. "A Real-Time Program Trace Compressor Utilizing Double Move-to-Front Method." *Proc. 46th Design Automation Conf. (DAC 2009)*, pp. 738-743, July 2009. DOI: [10.1145/1629911.1630102](https://doi.org/10.1145/1629911.1630102). — related work: move-to-front in a hardware trace compressor.
+- Pagiamtzis, K., Sheikholeslami, A. "Content-Addressable Memory (CAM) Circuits and Architectures: A Tutorial and Survey." *IEEE J. Solid-State Circuits*, 41(3):712-727, Mar. 2006. DOI: [10.1109/JSSC.2005.864128](https://doi.org/10.1109/JSSC.2005.864128). — for the CAM structure.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `MoveToFrontCoding__Bentley1986.pdf`, `TraceCompressionMoveToFront__Uzelac2009.pdf`, `rtl/common/references/ContentAddressableMemory__Pagiamtzis2006.pdf`)
+
 ---
 
 ## Navigation

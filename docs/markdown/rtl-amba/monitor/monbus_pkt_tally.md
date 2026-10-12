@@ -260,6 +260,14 @@ Each accepted packet is a read-modify-write on the count SRAM (read the bin, sat
 
 The acceptance criterion is an **exact** cross-check: after a freeze/flush, the hardware bin counts must equal a pure-Python golden count of the same accepted `(protocol, pkt_type, event_code)` stream. A lost increment shows up as a per-bin mismatch. Phases: random count + readback, back-to-back same-bin accepts (the RMW hazard the two-cycle accept sequence exists to cover), saturation (a bin pegs and never wraps), first-event latch, and clear. (Earlier revisions of this section described eviction-stress phases against an LRU write-combining cache; that cache was removed -- every accept is now a direct SRAM read-modify-write.)
 
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Sprunt, B. "The Basics of Performance-Monitoring Hardware." *IEEE Micro*, 22(4):64-71, July/Aug. 2002. DOI: [10.1109/MM.2002.1028477](https://doi.org/10.1109/MM.2002.1028477). — related work: on-chip event counters; a packet-coverage histogram has no peer source.
+- Pagiamtzis, K., Sheikholeslami, A. "Content-Addressable Memory (CAM) Circuits and Architectures: A Tutorial and Survey." *IEEE J. Solid-State Circuits*, 41(3):712-727, Mar. 2006. DOI: [10.1109/JSSC.2005.864128](https://doi.org/10.1109/JSSC.2005.864128). — for the legal-set CAM lookup.
+- Indexed in `rtl/amba/references/README.md` (local PDF: `rtl/common/references/ContentAddressableMemory__Pagiamtzis2006.pdf`)
+
 ---
 
 ## Navigation

@@ -61,6 +61,14 @@ to compile. New code should import the specific package it needs — see
 the [Backward Compatibility](./monitor_package_spec.md#backward-compatibility)
 section of the spec.
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.4.5 "Read and write response structure", A7.2 "Exclusive accesses", and Part E (AMBA 5 features).
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024, Issue E, 2023. [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e), sec. 3.4 "Error response", 3.7 "Wake-up signaling", ch. 5 (parity).
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051, Issue B, 2021. [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b), sec. 2.3 "Wake-up signaling", 2.6 "Packet boundaries", ch. 5 (parity).
+- OpenCores. *Wishbone B4: WISHBONE System-on-Chip (SoC) Interconnection Architecture for Portable IP Cores*, 2010, sec. 3.1.5 "Use of [ACK_O], [ERR_O] and [RTY_O]".
+- Indexed in `rtl/amba/references/README.md`
+
 ---
 
 ## Navigation

@@ -246,6 +246,13 @@ parents elaborate. A parameter or mode no parent uses is untested.
 
 Treat any behaviour described on this page as unverified by simulation.
 
+## References
+
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), Part E: E1.1 "Atomic transactions", E1.4 "Trace signals", E1.7 "Wake-up Signaling", E1.14 "Memory Partitioning and Monitoring (MPAM)", E2.1 "Poison", E2.2 "Parity use in AMBA"; and A8.1 "QoS signaling".
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024, Issue E, 2023. [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e), sec. 3.7 "Wake-up signaling", 3.8 "User signaling", and ch. 5 (5.1–5.5, parity protection).
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051, Issue B, 2021. [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b), sec. 2.3 "Wake-up signaling" and ch. 5 (parity protection).
+- Indexed in `rtl/amba/references/README.md`
+
 ---
 
 ## Navigation

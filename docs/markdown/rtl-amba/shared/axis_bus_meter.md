@@ -271,6 +271,10 @@ pytest val/amba/test_axis_bus_meter.py -v
 
 ## References
 
+- Arm. *AMBA AXI-Stream Protocol Specification*, ARM IHI 0051, Issue B, 2021. [developer.arm.com/documentation/ihi0051/b](https://developer.arm.com/documentation/ihi0051/b), sec. 2.2 "Handshake signaling", 2.5 "Byte qualifiers" (TSTRB byte counts) and 2.6 "Packet boundaries" (TLAST packet counts). No paper: the four-bucket classification is a standard technique.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 13 "Buffered Flow Control", sec. 13.3 "Buffer Management and Backpressure" — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md`
+
 ### Source Code
 - RTL: `rtl/amba/shared/axis_bus_meter.sv`
 

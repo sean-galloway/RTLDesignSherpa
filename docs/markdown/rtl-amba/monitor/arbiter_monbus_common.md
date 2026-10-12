@@ -306,9 +306,15 @@ Coverage targets:
 
 ## References
 
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Sprunt, B. "The Basics of Performance-Monitoring Hardware." *IEEE Micro*, 22(4):64-71, July/Aug. 2002. DOI: [10.1109/MM.2002.1028477](https://doi.org/10.1109/MM.2002.1028477). — related work: on-chip event counters for performance monitoring; the grant and fairness counters here report the same kind of data for an arbiter.
+- Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). — related work: probes that turn observed activity into event packets sent over the interconnect.
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.2 "Round-Robin Arbiter" and §18.4.4 "Weighted Round-Robin Arbiter". — textbook treatment (secondary source) of the arbiters this block observes.
 - **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
 - **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
 - **Packet Format Specification:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
 
 ---
 

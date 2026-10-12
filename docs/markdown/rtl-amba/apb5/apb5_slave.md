@@ -431,6 +431,14 @@ source env_python
 pytest val/amba/test_apb5_slave.py -v
 ```
 
+## References
+
+- Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023 (APB5 first published in Issue D, Apr. 2021). [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e/) -- §3.7 "Wake-up signaling" (`PWAKEUP`), §3.8 "User signaling" (`PAUSER`/`PWUSER`/`PRUSER`/`PBUSER`), ch. 5 "Interface parity protection" (`ENABLE_PARITY`); transfers and operating states (ch. 3-4) are as in APB4. The spec requires odd parity on `*CHK` signals (§5.3); this RTL generates even parity (`^data`) on `*PARITY` ports and folds `PSTRB` into the control parity, so it interoperates with this library but not with a spec-conforming checker. Citation only.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9), Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) -- the valid/ready channel discipline behind the `gaxi_skid_buffer` queues: a buffered stage may stall or add latency without changing what the endpoints compute.
+- Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", section "ARM AMBA interconnect protocols suite" (APB bus protocol overview) -- textbook treatment (secondary source).
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, Part 2 ch. 2 "Handshake Protocols" (valid-ready protocol and valid-ready slices) -- textbook treatment of the skid buffer (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`)
+
 ---
 
 ## Navigation

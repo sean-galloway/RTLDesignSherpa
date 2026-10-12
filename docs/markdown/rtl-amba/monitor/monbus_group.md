@@ -389,3 +389,13 @@ pytest val/amba/test_monbus_axil4_axil4_group.py \
 ```
 
 `monbus_axi4_axi4_group` does not yet have a dedicated test; its master-write path is covered by `test_monbus_axil4_axi4_group.py` (same master leaf) and its AXI4-burst slave-read drain is covered by `test_monbus_axi4_axil4_group.py` Phase 2 (same slave leaf). Adding a direct test for the pure-AXI4 wrapper is a future-work item.
+
+## References
+
+The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+
+- Hopkins, A.B.T., McDonald-Maier, K.D. "Debug Support for Complex Systems On-Chip: A Review." *IEE Proc. Computers and Digital Techniques*, 153(4):197-207, 2006. DOI: [10.1049/ip-cdt:20050194](https://doi.org/10.1049/ip-cdt:20050194). — related work: on-chip trace buffers versus trace ports.
+- Yang, F.-C., Lin, Y., Kao, C.-F., Huang, I.-J. "An On-Chip AHB Bus Tracer With Real-Time Compression and Dynamic Multiresolution Supports for SoC." *IEEE Trans. VLSI Systems*, 19(4):571-584, Apr. 2011. DOI: [10.1109/TVLSI.2009.2039811](https://doi.org/10.1109/TVLSI.2009.2039811). — related work: a bus tracer that records into an on-chip circular buffer.
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). — AXI4 burst ports of the `axi4` wrappers.
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022H.c, Jan. 2021. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h). — Part B ch. B1 (AXI4-Lite) for the `axil4` ports.
+- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)

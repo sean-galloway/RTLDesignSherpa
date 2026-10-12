@@ -247,6 +247,13 @@ pytest val/amba/test_gaxi_skid_buffer_dbldrn.py -v
 
 ## References
 
+- Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h), sec. A3.2.1 "Handshake process" and A3.3.1 "Dependencies between channel handshake signals" — the valid/ready contract on both ports.
+- Carloni, L.P., McMillan, K.L., Sangiovanni-Vincentelli, A.L. "Theory of Latency-Insensitive Design." *IEEE Trans. Computer-Aided Design of Integrated Circuits and Systems*, 20(9):1059–1076, Sept. 2001. DOI: [10.1109/43.945302](https://doi.org/10.1109/43.945302) — relay stations (Sec. IV-B): the registered stage that lets a valid/ready channel be cut without changing behaviour.
+- Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conference (DAC)*, pp. 657–662, 2006. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) — Property 3.1 (capacity >= forward + backward latency) is why a buffer with registered `rd_valid` and registered `wr_ready` needs `DEPTH >= 2` for one transfer per clock.
+- Chipressian. *Crack the Hardware Interview - from RTL Designers' Perspective*, ch. 2 "Handshake Protocols" (forward and backward register slices) — textbook treatment (secondary source).
+- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 13 "Buffered Flow Control", sec. 13.3 "Buffer Management and Backpressure" — textbook treatment (secondary source).
+- Indexed in `rtl/amba/references/README.md` (local PDF: `LatencyInsensitiveDesign__Carloni2001.pdf`, `ElasticBuffer__Cortadella2006.pdf`)
+
 - **Source:** `rtl/amba/gaxi/gaxi_skid_buffer_dbldrn.sv`
 - **Base variant:** `rtl/amba/gaxi/gaxi_skid_buffer.sv`
 - **Documentation:** `docs/markdown/rtl-amba/index.md`

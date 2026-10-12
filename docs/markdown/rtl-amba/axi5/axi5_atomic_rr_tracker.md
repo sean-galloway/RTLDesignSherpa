@@ -159,3 +159,9 @@ its hand-written `test_bridge_1x2_rw_axi5a_atomics.py`.
 - [`axi5_atomic_filter`](axi5_atomic_filter.md): the other half of the story,
   for a boundary that has no read path and must refuse the classes instead
 - Bridge MAS, AMBA5 boundary chapter (bridge TASK-002 (was BRIDGE-002) A5-3b)
+
+## References
+
+- Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/latest](https://developer.arm.com/documentation/ihi0022/latest/) -- §A6.4.4 "ID use for Atomic transactions": one ID for the request, write response and read data, and the ID unique-in-flight, which is what makes an ID-only key sound; §A6.4.8 "Response signaling" (the read-return classes answer on R). Issue H: §E1.1.4 and §E1.1.8.
+- Pagiamtzis, K., Sheikholeslami, A. "Content-Addressable Memory (CAM) Circuits and Architectures: A Tutorial and Survey." *IEEE J. Solid-State Circuits*, 41(3), Mar. 2006. DOI: [10.1109/JSSC.2005.864128](https://doi.org/10.1109/JSSC.2005.864128) -- the parallel compare of every valid entry against the presented RID.
+- Indexed in `rtl/amba/references/README.md` (local PDF, archived under `rtl/common/references/`: `ContentAddressableMemory__Pagiamtzis2006.pdf`)
