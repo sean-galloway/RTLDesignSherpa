@@ -50,10 +50,12 @@ digraph whole_unit {
             shape=invtrapezium, width=5.2, fillcolor="#BFD7EE", fontsize=11];
     tctl   [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(tRCD/tRP/tRAS/tFAW/tRRD/... next-state)"];
 
-    // ---- return merge + data path: mc_dfi_NpM_layer ----
-    mlog  [label="Merge Logic\nmc_rd_return_ring reorder\n(AXI ID order)"];
-    wr_dp [label="Write Data Path Control\nmc_dfi_2p1_layer - mc_dfi_wr_serializer", width=2.8, height=1.15];
-    rd_dp [label="Read Data Path Control\nmc_dfi_2p1_layer - mc_dfi_rd_aligner", width=2.8, height=1.15];
+    // ---- return merge: mc_axi4_layer side of the return path ----
+    mlog [label="Merge Logic\nmc_rd_return_ring reorder\n(AXI ID order)"];
+
+    // ---- the DFI layer as ONE container: command + write + read + CDC ----
+    dfi [label="mc_dfi_2p1_layer (DFI 2.1 data path)\nmc_dfi_cmd_path + mc_dfi_wr_serializer + mc_dfi_rd_aligner + CDC\nwrite data in at the left, read data out at the right, command through the center",
+         width=10.5, height=1.7, fontsize=10];
 
     // ---- return path: mc_axi4_layer ----
     rbuf [label="Read Data\nReorder Buffer\nmc_axi4_layer -\nmc_rd_return_ring",
@@ -68,18 +70,16 @@ digraph whole_unit {
     wr_pool -> wr_arb;
     wr_pool -> merge_b;
     wr_pool -> fwd_b;
-    merge_b -> wr_dp;
-    fwd_b   -> wr_dp;
+    merge_b -> dfi;
+    fwd_b   -> dfi;
     wr_arb -> sched [label="WR / RMW"];
-    wr_dp -> phy [label="Write to DDR"];
 
     // ---- read flow (command down the center, data back up the right) ----
     rd_pkt -> rd_pool;
     rd_pool -> rd_arb;
     rd_arb -> sched [label="RD"];
     rd_pool -> rbuf [style=dashed, arrowhead=none, label="ticket at insert", tailport=e];
-    rd_dp -> phy [dir=back, label="Read from DDR"];
-    mlog -> rd_dp [dir=back];
+    mlog -> dfi [dir=back];
     rbuf -> mlog [dir=back];
     rbuf -> axi_rd [constraint=false];
 
@@ -87,8 +87,27 @@ digraph whole_unit {
     maint -> sched [label="REF / ZQ"];
     tctl -> sched [xlabel="timer window"];
 
-    // ---- scheduler to PHY ----
-    sched -> phy [label="DDR Command", penwidth=1.8];
+    // ---- scheduler into the DFI layer ----
+    sched -> dfi [penwidth=1.8];
+
+    // ---- three PHY crossings via invisible port scaffolding (distinct node
+    //      pairs per crossing => deterministic direction + label placement) ----
+    p_wr  [shape=point, width=0.01];
+    p_cmd [shape=point, width=0.01];
+    p_rd  [shape=point, width=0.01];
+    sp1   [style=invis, fixedsize=true, width=1.6, height=0.02];
+    sp2   [style=invis, fixedsize=true, width=1.6, height=0.02];
+    dfi -> p_wr  [arrowhead=none, headclip=false];
+    dfi -> p_cmd [arrowhead=none, headclip=false, penwidth=1.8];
+    p_wr  -> phy [label="Write to DDR", tailclip=false];
+    p_cmd -> phy [label="DDR Command", penwidth=1.8, tailclip=false];
+    phy -> p_rd  [arrowhead=none, headclip=false, constraint=false];
+    p_rd  -> dfi [label="Read from DDR", tailclip=false, constraint=false];
+    { rank=same; p_wr; sp1; p_cmd; sp2; p_rd; }
+    p_wr -> sp1 [style=invis];
+    sp1 -> p_cmd [style=invis];
+    p_cmd -> sp2 [style=invis];
+    sp2 -> p_rd [style=invis];
 
     // ---- rank pinning (mirrors the reference layout) ----
     { rank=same; axi_wr; axi_rd; }
@@ -105,6 +124,5 @@ digraph whole_unit {
     rd_arb  -> rbuf   [style=invis];
     { rank=same; sched; tctl; }
     sched -> tctl [style=invis];
-    { rank=same; wr_dp; rd_dp; }
-    wr_dp -> rd_dp [style=invis];
+    { rank=same; dfi; }
 }

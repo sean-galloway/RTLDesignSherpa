@@ -78,6 +78,14 @@ re-enters at the bottom and leaves at the top or side on its own route.
    midpoint and gets overdrawn by the node fill (the "timer window" arrow
    into the trapezium was the example).
 
+- Multiple crossings between the same node pair (e.g. three flows across
+  the PHY bar) shuffle channels and flip directions unpredictably. Route
+  each crossing through its own invisible `shape=point` scaffold node in a
+  pinned rank (`{ rank=same; ... }` + invisible spacer chain for order);
+  then every crossing is a distinct node pair with deterministic direction
+  and label placement. Legs through a point node leave a hairline gap
+  (ortho ignores `headclip`/`tailclip`); it is invisible at print scale.
+
 ## Labels
 
 Every block label: reference-style name on line 1, owning RTL
