@@ -107,6 +107,10 @@ async def cocotb_test_granite_top_geared(dut):
             break
     assert st & STATUS_INIT_DONE, f"init never completed (STATUS={st:#x})"
 
+    # Mirror the char engines: N back-to-back host bursts, write then read.
+    # A single BFM burst cannot reproduce the engines' multi-outstanding
+    # pipelining (the board wedge needed ~6 bursts in flight).
+    many = int(os.environ.get("GRANITE_MANY", "0"))
     rng = random.Random(int(os.environ.get("SEED", "1")))
     roundtrips = _profile_depth('core_roundtrips')
     dut._log.info("depth: TEST_LEVEL=%s core_roundtrips=%d",
@@ -117,27 +121,42 @@ async def cocotb_test_granite_top_geared(dut):
         captured.clear()
 
         try:
-            await with_timeout(bfm.write(addr, data, wid=1), _PHASE_TIMEOUT_US, "us")
+            if many:
+                reqs = [(addr + i * 0x100, [rng.randrange(1 << DW) for _ in range(BL_WORDS)])
+                        for i in range(many)]
+                await with_timeout(bfm.write_many(reqs), _PHASE_TIMEOUT_US, "us")
+            else:
+                await with_timeout(bfm.write(addr, data, wid=1), _PHASE_TIMEOUT_US, "us")
         except SimTimeoutError:
             await _dump_probes(dut, "WRITE")
             raise AssertionError(f"round {rnd}: AXI write never returned B")
 
+        n_wr = many * BL_WORDS if many else BL_WORDS
         async def _wait_wrdma():
-            while len(captured) < BL_WORDS:
+            while len(captured) < n_wr:
                 await RisingEdge(dut.dfi_clk)
         await with_timeout(_wait_wrdma(), _PHASE_TIMEOUT_US, "us")
 
-        assert captured[:BL_WORDS] == data, \
-            f"round {rnd}: DFI write burst {[hex(x) for x in captured[:BL_WORDS]]} != {[hex(x) for x in data]}"
+        exp_wr = [beat for _, beats in reqs for beat in beats] if many else data
+        assert captured[:len(exp_wr)] == exp_wr, \
+            f"round {rnd}: DFI write burst {[hex(x) for x in captured[:len(exp_wr)]]} != {[hex(x) for x in exp_wr]}"
 
         try:
-            rd = await with_timeout(bfm.read(addr, rid=1), _PHASE_TIMEOUT_US, "us")
+            if many:
+                results = await with_timeout(
+                    bfm.read_many([a for a, _ in reqs]), _PHASE_TIMEOUT_US, "us")
+                rd = [beat for _, beats in results for beat in beats]
+                exp = [beat for _, beats in reqs for beat in beats]
+            else:
+                rd = await with_timeout(bfm.read(addr, rid=1), _PHASE_TIMEOUT_US, "us")
+                exp = data
         except SimTimeoutError:
             await _dump_probes(dut, "READ")
             raise AssertionError(f"round {rnd}: AXI read never returned R data")
 
-        assert rd[:BL_WORDS] == data, \
-            f"round {rnd}: AXI read-back {[hex(x) for x in rd[:BL_WORDS]]} != {[hex(x) for x in data]}"
+        n_exp = len(exp) if many else BL_WORDS
+        assert rd[:n_exp] == exp[:n_exp], \
+            f"round {rnd}: AXI read-back {[hex(x) for x in rd[:n_exp]]} != {[hex(x) for x in exp[:n_exp]]}"
     dut._log.info("PASS: CSR init; AXI write burst -> DFI -> read burst back == written data, x%d",
                   roundtrips)
 
