@@ -128,7 +128,7 @@ async def cocotb_test_granite_uart_smoke(dut):
         drv.set_dfi_cmd_delay(int(os.environ.get("TEST_CMD_DELAY", "0")))
         drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
                                t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "0")),
-                               t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "6")),
+                               t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
                                rd_in_order=True)
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
@@ -196,7 +196,7 @@ def test_granite_uart_smoke(request):
         "TEST_READ_LATENCY": os.environ.get("TEST_READ_LATENCY", "8"),
         "TEST_RD_PHASE": os.environ.get("TEST_RD_PHASE", "0"),
         "TEST_WR_PHASE": os.environ.get("TEST_WR_PHASE", "0"),
-        "TEST_T_RDDATA_EN": os.environ.get("TEST_T_RDDATA_EN", "6"),
+        "TEST_T_RDDATA_EN": os.environ.get("TEST_T_RDDATA_EN", "4"),
     }
     params = {"FPGA_CLK_HZ": str(FPGA_CLK_HZ),
               "UART_BAUD": str(UART_BAUD),

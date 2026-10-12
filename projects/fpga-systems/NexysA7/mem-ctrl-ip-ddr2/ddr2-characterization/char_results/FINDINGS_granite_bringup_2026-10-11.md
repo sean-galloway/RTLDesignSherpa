@@ -139,6 +139,24 @@ crack: same VCD flow, dump wr aw_push_{bank,row,col} vs rd
 ar_push_{bank,row,col} per sub-burst and the ring fill/drain ticket order —
 the tooling is proven, the window is ~10 cycles.
 
+## Read defect CLOSED (2026-10-12): sim-model misalignment, not RTL
+
+The read 15/16-mismatch was the DFISlavePHY model's read-valid LEADING the
+controller's rddata_en window by one cycle: the rd_aligner's enable-window
+credit gate (which exists to reject PHY preamble valids) discarded the very
+first real return (`RD_ALIGNER probe: blocked_real=1, first_valid one cycle
+before first_en`). Later returns back-filled the ring slots one position off
+(`rd[k] = wr[k+1]`, 15 returns for 16 sub-reads, last read stranded). The
+controller is correct here — on silicon the a7ddrphy drives data inside the
+programmed window (the read_en_gated model), and the board trains
+t_rddata_en. The granite smoke had t_rddata_en=6 vs the model's latency;
+aligning to t_rddata_en=4 (the proven pumice whole-harness value) makes the
+smoke PASS end-to-end: write engine done, read engine done, CRC match,
+mism=0. Whole-harness UART sim is GREEN at the exact A7 geometry with the
+real engines — the granite stack is functionally complete in the most
+faithful sim available. Next: bitstream with the B-consolidation fix, A7
+re-run, char matrix.
+
 ## Working hypothesis for the open defect (updated)
 
 blen>=2 (split) sub-bursts at the 1-deep entry store: sub-entries neither
