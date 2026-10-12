@@ -444,7 +444,7 @@ class AXI4ToAXI3ReadTB(TBBase):
         return True
 
     async def lock_map(self):
-        """AXI4 arlock=1 maps to AXI3 arlock=2'b10 (exclusive)."""
+        """AXI4 arlock=1 (exclusive) maps to AXI3 arlock=2'b01 (exclusive)."""
         self.log.info("TEST: lock_map")
         address = 0x4000
         axid = 9
@@ -477,8 +477,8 @@ class AXI4ToAXI3ReadTB(TBBase):
             return False
 
         txn = self.axi3_transactions[initial_count]
-        if txn[3] != 2:
-            self.log.error(f"lock_map: arlock mismatch got {txn[3]}, expected 2 (2'b10)")
+        if txn[3] != 1:
+            self.log.error(f"lock_map: arlock mismatch got {txn[3]}, expected 1 (2'b01)")
             self.stats['lock_errors'] += 1
             self.stats['errors'] += 1
             return False

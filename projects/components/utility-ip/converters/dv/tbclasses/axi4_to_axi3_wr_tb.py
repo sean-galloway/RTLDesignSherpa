@@ -761,7 +761,7 @@ class AXI4ToAXI3WriteTB(TBBase):
         return True
 
     async def lock_map(self):
-        """AXI4 awlock=1 maps to AXI3 awlock=2'b10 (exclusive)."""
+        """AXI4 awlock=1 (exclusive) maps to AXI3 awlock=2'b01 (exclusive)."""
         self.log.info("TEST: lock_map")
         address = 0x7000
         axid = 17
@@ -784,8 +784,8 @@ class AXI4ToAXI3WriteTB(TBBase):
             return False
 
         aw = self.axi3_aw_transactions[initial_aw]
-        if aw['lock'] != 2:
-            self.log.error(f"lock_map: AWLOCK mismatch got {aw['lock']}, expected 2 (2'b10)")
+        if aw['lock'] != 1:
+            self.log.error(f"lock_map: AWLOCK mismatch got {aw['lock']}, expected 1 (2'b01)")
             self.stats['errors'] += 1
             return False
 

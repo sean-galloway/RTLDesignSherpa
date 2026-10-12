@@ -1009,9 +1009,11 @@ Converter-sourced obligations (for full wording see converters MAS §3.15
 3. `QoS` and `REGION` are absent on AXI3 pins.
 4. The converters are same-width only; width adaptation is the bridge's
    internal concern.
-5. Lock mapping is exactly as the converter documents:
-   - `axi4_to_axi3`: `1'b0 → 2'b00`, `1'b1 → 2'b10`.
-   - `axi3_to_axi4`: `2'b10 → 1'b1`, all other values → `1'b0`.
+5. Lock mapping follows the ARM AXI3 encoding (ARM IHI 0022: `00` normal,
+   `01` exclusive, `10` locked), as fixed by bridge GitHub #98:
+   - `axi4_to_axi3`: `1'b0 → 2'b00`, `1'b1 → 2'b01`.
+   - `axi3_to_axi4`: `2'b01 → 1'b1`; `2'b00`, `2'b10` (locked — AXI4 dropped
+     locked accesses), and the reserved `2'b11` → `1'b0`.
 
 Validation fixtures: `bridge_1x2_axi3`, `bridge_2x2_axi3_masters`,
 `bridge_2x2_axi3_slaves`, `bridge_mix_e`.

@@ -40,7 +40,7 @@ Read and write are split into independent modules so a user can instantiate only
 | Aspect | AXI4 (slave side) | AXI3 (master side) | Converter action |
 | --- | --- | --- | --- |
 | `AxLEN` width | 8 bits (1–256 beats) | 4 bits (1–16 beats) | Chop long bursts into ≤16-beat chunks; truncate `AxLEN` per chunk. |
-| `AxLOCK` | 1 bit (normal / exclusive) | 2 bits (`2'b00` normal, `2'b10` exclusive) | Map `1'b0 → 2'b00`, `1'b1 → 2'b10`. |
+| `AxLOCK` | 1 bit (normal / exclusive) | 2 bits (`2'b00` normal, `2'b01` exclusive, `2'b10` locked) | Map `1'b0 → 2'b00`, `1'b1 → 2'b01`. AXI4 cannot express locked; none is generated. |
 | Write data ID | None | `WID` per beat | Stamp every AXI3 W beat with the owning AWID. |
 | `QoS` / `REGION` | Present on AW/AR | Absent | Drop silently. |
 | Data width | Must match | Must match | No width conversion. |
@@ -49,7 +49,7 @@ Read and write are split into independent modules so a user can instantiate only
 
 ### Exclusive-access caveat
 
-The DE10 leg-bridge `f2h` seam is not expected to exercise AXI exclusive accesses. The converter still maps an AXI4 exclusive request (`AxLOCK = 1'b1`) to the AXI3 encoding (`2'b10`), but the upstream system does not implement exclusive-monitor semantics at this boundary. If a legacy AXI3 locked (`2'b01`) transaction arrives on a downstream return path, it is treated as a normal access.
+The DE10 leg-bridge `f2h` seam is not expected to exercise AXI exclusive accesses. The converter still maps an AXI4 exclusive request (`AxLOCK = 1'b1`) to the AXI3 exclusive encoding (`2'b01`, per ARM IHI 0022), but the upstream system does not implement exclusive-monitor semantics at this boundary. If a legacy AXI3 locked (`2'b10`) transaction arrives on a downstream return path, it is treated as a normal access. (The encoding was swapped — exclusive emitted as `2'b10` — until bridge GitHub #98; the RTL, this table, and the directed lock-map DV now agree with the ARM encoding.)
 
 ## 3.15.3 Read Path (axi4_to_axi3_rd)
 

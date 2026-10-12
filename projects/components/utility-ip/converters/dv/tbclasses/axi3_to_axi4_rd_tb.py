@@ -14,7 +14,8 @@ Tests AXI3 -> AXI4 protocol upgrade for read path with pass-through semantics
 and qualifier mapping:
 - AXI3 ARLEN (4 bits) is zero-extended to AXI4 ARLEN (8 bits)
 - AXI3 ARLOCK (2 bits) is mapped to AXI4 ARLOCK (1 bit)
-  (2'b00 -> 1'b0, 2'b01 -> 1'b0, 2'b10 -> 1'b1)
+  (2'b00 -> 1'b0, 2'b01 -> 1'b1 exclusive, 2'b10 -> 1'b0; AXI4 has
+  no locked accesses, so AXI3 locked is demoted to normal)
 - ID, data, response, and user information are preserved
 - No burst chopping in this direction (4-bit ARLEN is inherently <= 16)
 """
@@ -366,8 +367,8 @@ class AXI3ToAXI4ReadTB(TBBase):
         # (AXI3 lock value, expected AXI4 lock value)
         test_cases = [
             (0, 0),  # 2'b00 normal -> normal
-            (1, 0),  # 2'b01 locked -> normal
-            (2, 1),  # 2'b10 exclusive -> exclusive
+            (1, 1),  # 2'b01 exclusive -> exclusive
+            (2, 0),  # 2'b10 locked -> normal (AXI4 has no locked accesses)
         ]
 
         initial_count = len(self.axi4_transactions)

@@ -11,7 +11,7 @@
 //   - Truncating AXI4 AWLEN (8 bits) to AXI3 AWLEN (4 bits) per chunk
 //   - Dropping AXI4-specific signals (QOS, REGION)
 //   - Mapping AXI4 1-bit AWLOCK to AXI3 2-bit AWLOCK
-//     (normal -> 2'b00, exclusive -> 2'b10)
+//     (normal -> 2'b00, exclusive -> 2'b01)
 //   - Stamping each W beat with the owning AWID on m_axi3_wid
 //   - Forwarding WDATA, WSTRB, WUSER unchanged and forcing WLAST at each
 //     chunk boundary
@@ -248,7 +248,7 @@ module axi4_to_axi3_wr #(
     assign m_axi3_awlen   = active_valid ? (4'(chunk_beats - 5'd1)) : '0;
     assign m_axi3_awsize  = active_valid ? active_aw.size  : '0;
     assign m_axi3_awburst = active_valid ? active_aw.burst : '0;
-    assign m_axi3_awlock  = active_valid ? (active_aw.lock ? 2'b10 : 2'b00) : '0;
+    assign m_axi3_awlock  = active_valid ? (active_aw.lock ? 2'b01 : 2'b00) : '0;
     assign m_axi3_awcache = active_valid ? active_aw.cache : '0;
     assign m_axi3_awprot  = active_valid ? active_aw.prot  : '0;
     assign m_axi3_awuser  = active_valid ? active_aw.user  : '0;

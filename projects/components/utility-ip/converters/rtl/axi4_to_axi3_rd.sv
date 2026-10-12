@@ -11,7 +11,7 @@
 //   - Truncating AXI4 ARLEN (8 bits) to AXI3 ARLEN (4 bits) per chunk
 //   - Dropping AXI4-specific signals (QOS, REGION)
 //   - Mapping AXI4 1-bit ARLOCK to AXI3 2-bit ARLOCK
-//     (normal -> 2'b00, exclusive -> 2'b10)
+//     (normal -> 2'b00, exclusive -> 2'b01)
 //   - Preserving ID, data, and user information
 //   - Merging per-chunk RRESP using worst-rank order and suppressing
 //     intermediate RLAST beats so the AXI4 master sees a single burst.
@@ -192,7 +192,7 @@ module axi4_to_axi3_rd #(
     assign m_axi3_arlen   = active_valid ? (4'(chunk_beats - 5'd1)) : '0;
     assign m_axi3_arsize  = active_valid ? active_req.size  : '0;
     assign m_axi3_arburst = active_valid ? active_req.burst : '0;
-    assign m_axi3_arlock  = active_valid ? (active_req.lock ? 2'b10 : 2'b00) : '0;
+    assign m_axi3_arlock  = active_valid ? (active_req.lock ? 2'b01 : 2'b00) : '0;
     assign m_axi3_arcache = active_valid ? active_req.cache : '0;
     assign m_axi3_arprot  = active_valid ? active_req.prot  : '0;
     assign m_axi3_aruser  = active_valid ? active_req.user  : '0;

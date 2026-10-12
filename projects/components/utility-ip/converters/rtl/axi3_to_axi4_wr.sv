@@ -151,7 +151,7 @@ module axi3_to_axi4_wr #(
     assign m_axi_awlen    = {4'b0, s_axi3_awlen};
     assign m_axi_awsize   = s_axi3_awsize;
     assign m_axi_awburst  = s_axi3_awburst;
-    assign m_axi_awlock   = (s_axi3_awlock == 2'b10) ? 1'b1 : 1'b0;
+    assign m_axi_awlock   = (s_axi3_awlock == 2'b01) ? 1'b1 : 1'b0;
     assign m_axi_awcache  = s_axi3_awcache;
     assign m_axi_awprot   = s_axi3_awprot;
     assign m_axi_awqos    = 4'b0;

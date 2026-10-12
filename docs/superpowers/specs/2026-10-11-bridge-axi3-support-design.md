@@ -68,7 +68,8 @@ now attach to a generated bridge without hand-built shims.
   documented in the HAS as a master-side obligation. The known customer
   (Cyclone V `h2f_axi_master`) does not interleave.
 - **LOCK:** 2-bit external. Mapping is the converter's documented one
-  (`00`→normal, `10`→exclusive, `01`→locked→normal + note). The bridge
+  (`00`→normal, `01`→exclusive, `10`→locked→normal + note; ARM IHI 0022,
+  corrected by GitHub #98). The bridge
   generates no locked or exclusive transfers itself.
 - **QoS/REGION:** absent on AXI3 pins; not configurable.
 - **Burst length:** AXI3 masters present ≤16-beat bursts (4-bit LEN),
@@ -81,6 +82,9 @@ now attach to a generated bridge without hand-built shims.
 ## 5. Validation rules (config time, `config_validator.py`)
 
 - `id_width > 0` required for AXI3 masters (same check AXI4 masters get).
+- AXI3 requester `addr_width` must be 32: the adapter front end hardcodes
+  32-bit internal address nets, so this extends the existing apb/wb4
+  requester rule (GitHub #99).
 - Port data width must be in the converter-supported set {32, 64, 128, 256}.
 - `axi5_features` on an AXI3 port is rejected (extends the existing
   non-AXI5 rejection at `config_loader.py:205`).

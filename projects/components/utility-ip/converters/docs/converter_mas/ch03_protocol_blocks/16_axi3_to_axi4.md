@@ -40,7 +40,7 @@ As with the opposite direction, read and write are independent modules for selec
 | Aspect | AXI3 (slave side) | AXI4 (master side) | Converter action |
 | --- | --- | --- | --- |
 | `AxLEN` width | 4 bits (1–16 beats) | 8 bits (1–256 beats) | Zero-extend `AxLEN` (`{4'b0, s_axi3_axlen}`). No chopping needed. |
-| `AxLOCK` | 2 bits (`2'b00` normal, `2'b10` exclusive) | 1 bit (normal / exclusive) | Map `2'b10 → 1'b1`, all other values → `1'b0`. |
+| `AxLOCK` | 2 bits (`2'b00` normal, `2'b01` exclusive, `2'b10` locked) | 1 bit (normal / exclusive) | Map `2'b01 → 1'b1`; `2'b00`, `2'b10` (locked, which AXI4 dropped), and the reserved `2'b11` → `1'b0`. |
 | Write data ID | `WID` per beat | None | Strip `WID`; AXI4 W has no ID concept. |
 | `QoS` / `REGION` | Absent | Present on AW/AR | Drive to zero. |
 | Data width | Must match | Must match | No width conversion. |
@@ -49,7 +49,7 @@ As with the opposite direction, read and write are independent modules for selec
 
 ### Exclusive-access caveat
 
-The DE10 leg-bridge `h2f_axi_master` seam does not support AXI exclusive accesses. The converter maps an AXI3 exclusive request (`AxLOCK = 2'b10`) to the AXI4 encoding (`AxLOCK = 1'b1`), but an AXI3 locked transaction (`AxLOCK = 2'b01`) is collapsed to normal (`AxLOCK = 1'b0`) because the HPS interface does not implement locked-transaction semantics.
+The DE10 leg-bridge `h2f_axi_master` seam does not support AXI exclusive accesses. The converter maps an AXI3 exclusive request (`AxLOCK = 2'b01`, per ARM IHI 0022) to the AXI4 encoding (`AxLOCK = 1'b1`), but an AXI3 locked transaction (`AxLOCK = 2'b10`) is collapsed to normal (`AxLOCK = 1'b0`) because AXI4 dropped locked accesses and the HPS interface does not implement locked-transaction semantics. (The encoding was swapped — `2'b10` treated as exclusive — until bridge GitHub #98; the RTL, this table, and the directed lock-map DV now agree with the ARM encoding.)
 
 ## 3.16.3 Read Path (axi3_to_axi4_rd)
 

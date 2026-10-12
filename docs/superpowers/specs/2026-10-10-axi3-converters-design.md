@@ -50,7 +50,7 @@ these converters are the price of reaching it from our fabric.
      chunk's B) with `BRESP` = worst across chunks. `WID = AWID` on every W
      beat (legal: AXI4 already orders W per AW, so no interleave is created).
    - **Qualifier mapping:** drop `QoS`/`AxREGION`; `AxLOCK` 1→2 bits
-     (normal→`00`, exclusive→`10`; locked is never generated); `CACHE`/`PROT`/
+     (normal→`00`, exclusive→`01`; locked is never generated); `CACHE`/`PROT`/
      `USER` pass through.
 4. **`axi3_to_axi4` (upgrade, h2f-facing):**
    - Bursts pass through (≤16 beats is legal AXI4); no repacking.
@@ -59,9 +59,12 @@ these converters are the price of reaching it from our fabric.
      next ID (checked by assertion). The known customer (Cyclone V
      `h2f_axi_master`) does not interleave; full interleave support is a
      documented deferral (6.4).
-   - **LOCK mapping:** `00`→normal, `10` (exclusive)→1-bit exclusive, `01`
+   - **LOCK mapping:** `00`→normal, `01` (exclusive)→1-bit exclusive, `10`
      (locked)→normal + documented note (no known master issues locked; f2h/h2f
-     do not support exclusive — flagged in docs).
+     do not support exclusive — flagged in docs). *(Superseded by GitHub #98:
+     the original spec wrote the AXI3 encoding swapped — `10` exclusive —
+     and the RTL baked it in; the fix restores the ARM IHI 0022 encoding
+     `01`=exclusive / `10`=locked everywhere.)*
    - `CACHE`/`PROT`/`USER` pass through.
 5. **Verification** is co-located cocotb (`dv/tests/`, `dv/tbclasses/`)
    against the new RDS-DV AXI3 BFMs (`AXI3MasterRead/Write`,
@@ -106,7 +109,7 @@ MC stays constant across legs.
 |---|---|
 | B/R response-merge bug under per-chunk errors | Worst-of merge is centralized in one function per direction; DV injects per-chunk SLVERR/DECERR explicitly |
 | Multi-chunk merge relies on AXI same-ID ordering | Guaranteed by the protocol; DV covers with multi-outstanding IDs and stall patterns |
-| Exclusive-access semantics mismatch (f2h/h2f don't support exclusive) | Documented; LOCK mapped conservatively; no exclusive traffic in our systems |
+| Exclusive-access semantics mismatch (f2h/h2f don't support exclusive) | Documented; LOCK mapped conservatively per the ARM encoding (`01`=exclusive); no exclusive traffic in our systems. The original spec's swapped encoding (`10`=exclusive) shipped in RTL and was corrected by GitHub #98 |
 | `axi3_to_axi4` v1 interleave restriction bites a future master | Assertion + documented contract; interleave support is a scoped follow-up, not a rewrite |
 
 ## 7. Success criteria

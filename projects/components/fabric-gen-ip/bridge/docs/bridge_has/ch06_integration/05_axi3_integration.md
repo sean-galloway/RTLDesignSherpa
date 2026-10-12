@@ -61,10 +61,11 @@ the converters MAS:
 4. **Same-width converters only.** `AXI_DATA_WIDTH` must be identical on both
    sides; the bridge places its existing width-adaptation logic behind the
    converter when the external AXI3 width differs from a target slave width.
-5. **Lock mapping as documented by the converter.** The converters define the
-   encoding translation:
-   - `axi4_to_axi3`: `1'b0 → 2'b00`, `1'b1 → 2'b10`.
-   - `axi3_to_axi4`: `2'b10 → 1'b1`, all other values → `1'b0`.
+5. **Lock mapping per the ARM AXI3 encoding** (ARM IHI 0022: `00` normal,
+   `01` exclusive, `10` locked), as fixed by bridge GitHub #98:
+   - `axi4_to_axi3`: `1'b0 → 2'b00`, `1'b1 → 2'b01`.
+   - `axi3_to_axi4`: `2'b01 → 1'b1`; `2'b00`, `2'b10` (locked — AXI4 dropped
+     locked accesses), and the reserved `2'b11` → `1'b0`.
 
 See converters MAS §3.15 *AXI4 to AXI3 Converter*
 ([`15_axi4_to_axi3.md`](../../../../../../components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/15_axi4_to_axi3.md))

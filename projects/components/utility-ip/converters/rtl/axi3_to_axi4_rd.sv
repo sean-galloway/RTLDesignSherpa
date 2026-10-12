@@ -109,7 +109,7 @@ module axi3_to_axi4_rd #(
     assign m_axi_arlen   = {4'b0, s_axi3_arlen};
     assign m_axi_arsize  = s_axi3_arsize;
     assign m_axi_arburst = s_axi3_arburst;
-    assign m_axi_arlock  = (s_axi3_arlock == 2'b10) ? 1'b1 : 1'b0;
+    assign m_axi_arlock  = (s_axi3_arlock == 2'b01) ? 1'b1 : 1'b0;
     assign m_axi_arcache = s_axi3_arcache;
     assign m_axi_arprot  = s_axi3_arprot;
     assign m_axi_aruser  = s_axi3_aruser;

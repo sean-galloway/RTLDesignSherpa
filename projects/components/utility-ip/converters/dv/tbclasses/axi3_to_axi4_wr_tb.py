@@ -16,7 +16,8 @@ contract:
 - AW, W data/strb/last, and B response are passed through
 - AWLEN is zero-extended from 4-bit AXI3 to 8-bit AXI4
 - AWLOCK is mapped from AXI3 2-bit to AXI4 1-bit
-  (2'b00 -> 1'b0, 2'b01 -> 1'b0, 2'b10 -> 1'b1)
+  (2'b00 -> 1'b0, 2'b01 -> 1'b1 exclusive, 2'b10 -> 1'b0; AXI4 has
+  no locked accesses, so AXI3 locked is demoted to normal)
 - Only one write transaction is active at a time (AW -> W run -> B -> next AW)
 """
 
@@ -795,8 +796,8 @@ class AXI3ToAXI4WriteTB(TBBase):
         # (AXI3 lock value, expected AXI4 lock value)
         test_cases = [
             (0, 0),  # 2'b00 normal -> normal
-            (1, 0),  # 2'b01 locked -> normal
-            (2, 1),  # 2'b10 exclusive -> exclusive
+            (1, 1),  # 2'b01 exclusive -> exclusive
+            (2, 0),  # 2'b10 locked -> normal (AXI4 has no locked accesses)
         ]
 
         initial_aw = len(self.axi4_aw_transactions)
