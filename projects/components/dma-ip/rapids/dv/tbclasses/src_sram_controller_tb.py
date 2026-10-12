@@ -72,7 +72,7 @@ class SrcSRAMControllerTB(TBBase):
         # Setup clock and reset signals
         self.clk = clk if clk is not None else dut.clk
         self.clk_name = self.clk._name if hasattr(self.clk, '_name') else 'clk'
-        self.rst_n = rst_n if rst_n else dut.rst_n
+        self.rst_n = rst_n if rst_n is not None else dut.rst_n
 
         # Calculated parameters
         self.chan_id_width = (self.TEST_NUM_CHANNELS - 1).bit_length() if self.TEST_NUM_CHANNELS > 1 else 1

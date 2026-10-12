@@ -58,11 +58,11 @@ module counter_freq_invariant (
 	output reg tick;
 	initial begin : param_check
 		if (MIN_FREQ_MHZ < 1)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:128:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MIN_FREQ_MHZ must be >= 1 (got %0d)", MIN_FREQ_MHZ);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:128:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MIN_FREQ_MHZ must be >= 1 (got %0d)", MIN_FREQ_MHZ);
 		if (MAX_FREQ_MHZ < MIN_FREQ_MHZ)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:130:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MAX_FREQ_MHZ (%0d) < MIN_FREQ_MHZ (%0d)", MAX_FREQ_MHZ, MIN_FREQ_MHZ);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:130:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MAX_FREQ_MHZ (%0d) < MIN_FREQ_MHZ (%0d)", MAX_FREQ_MHZ, MIN_FREQ_MHZ);
 		if (NUM_FREQ_ENTRIES < 1)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:133:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: NUM_FREQ_ENTRIES must be >= 1 (got %0d)", NUM_FREQ_ENTRIES);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:133:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: NUM_FREQ_ENTRIES must be >= 1 (got %0d)", NUM_FREQ_ENTRIES);
 	end
 	function automatic signed [31:0] linear_freq;
 		input reg signed [31:0] idx;
@@ -560,6 +560,7 @@ module axi_monitor_lite (
 	parameter signed [31:0] TS_WIDTH = 16;
 	parameter signed [31:0] AGE_WIDTH = 16;
 	parameter signed [31:0] OUT_DEPTH = 4;
+	parameter signed [31:0] WSEQ_WIDTH = 8;
 	parameter signed [31:0] N_ADDR_RANGES = 0;
 	parameter [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	parameter signed [31:0] CFI_MIN_FREQ_MHZ = 5;
@@ -711,6 +712,17 @@ module axi_monitor_lite (
 	reg [CW - 1:0] r_wq_cnt;
 	wire w_wq_empty = r_wq_cnt == {CW {1'sb0}};
 	wire [SW - 1:0] w_wq_head = r_wq[r_wq_rp * SW+:SW];
+	wire [SW - 1:0] w_wq_wp_next = (r_wq_wp == sv2v_cast_6C2E3_signed(N - 1) ? {SW {1'sb0}} : r_wq_wp + 1'b1);
+	wire [SW - 1:0] w_wq_rp_next = (r_wq_rp == sv2v_cast_6C2E3_signed(N - 1) ? {SW {1'sb0}} : r_wq_rp + 1'b1);
+	localparam signed [31:0] QW = (WSEQ_WIDTH > 1 ? WSEQ_WIDTH : 2);
+	reg [(N * QW) - 1:0] r_wq_seq;
+	reg [QW - 1:0] r_aw_seq;
+	reg [QW - 1:0] r_w_seq;
+	wire [QW - 1:0] w_seq_gap = r_aw_seq - r_w_seq;
+	wire w_aw_ahead = (w_seq_gap != {QW {1'sb0}}) && !w_seq_gap[QW - 1];
+	wire w_w_next = w_seq_gap == {QW {1'sb0}};
+	wire w_w_after = w_seq_gap == {QW {1'sb1}};
+	wire w_w_past = w_seq_gap[QW - 1];
 	reg [7:0] r_early_beats;
 	reg r_early_last;
 	reg r_early_any;
@@ -720,7 +732,7 @@ module axi_monitor_lite (
 			assign w_dslot = onehot_idx(w_dmatch);
 		end
 		else begin : g_wr_attr
-			assign w_dhit = !w_wq_empty && r_valid[w_wq_head];
+			assign w_dhit = (!w_wq_empty && r_valid[w_wq_head]) && (r_wq_seq[r_wq_rp * QW+:QW] == r_w_seq);
 			assign w_dslot = w_wq_head;
 		end
 	endgenerate
@@ -751,12 +763,15 @@ module axi_monitor_lite (
 	wire w_dbeats_zero = w_beats_zero[w_dslot];
 	wire w_data_err = (((data_hs && w_dhit) && IS_READ) && data_resp[1]) && !r_err[w_dslot];
 	wire w_data_orph = (data_hs && !w_dhit) && IS_READ;
-	wire w_same_w = ((((cmd_hs && w_have_free) && data_hs) && !w_dhit) && !IS_READ) && !r_early_any;
-	wire w_last_early = data_hs && (((w_dhit && data_last) && !w_dbeats_zero) || ((w_same_w && data_last) && (cmd_len != 8'd0)));
+	wire w_w_at_cmd = (((cmd_hs && data_hs) && !w_dhit) && !IS_READ) && w_w_next;
+	wire w_same_w = w_w_at_cmd && w_have_free;
+	wire w_same_skip = w_w_at_cmd && !w_have_free;
+	wire [7:0] w_early_seen = (r_early_any ? r_early_beats : 8'd0);
+	wire w_last_early = data_hs && (((w_dhit && data_last) && !w_dbeats_zero) || ((w_same_w && data_last) && (cmd_len != w_early_seen)));
 	wire w_last_late = ((data_hs && w_dhit) && !data_last) && w_dbeats_zero;
 	wire w_data_done = (data_hs && w_dhit) && data_last;
-	wire w_early_w = ((data_hs && !w_dhit) && !IS_READ) && !w_same_w;
-	wire w_early_ovf = (w_early_w && r_early_last) && !(cmd_hs && w_have_free);
+	wire w_early_w = ((data_hs && !w_dhit) && !IS_READ) && ((w_w_next && !cmd_hs) || (w_w_after && cmd_hs));
+	wire w_early_ovf = (((((data_hs && !w_dhit) && !IS_READ) && !w_aw_ahead) && !w_same_w) && !w_same_skip) && !w_early_w;
 	wire w_resp_err = ((resp_hs && w_bhit) && resp_code[1]) && !r_err[w_bslot];
 	wire w_resp_orph = resp_hs && !w_bhit;
 	wire w_resp_done = resp_hs && w_bhit;
@@ -799,8 +814,8 @@ module axi_monitor_lite (
 	wire w_over_thresh = (sv2v_cast_16(w_occupancy) >= cfg_active_trans_threshold) && (cfg_active_trans_threshold != 16'd0);
 	wire w_thresh_evt = (cfg_threshold_enable && w_over_thresh) && !r_over_thresh;
 	wire w_alloc = cmd_hs && w_have_free;
-	wire [7:0] w_alloc_beats = (!IS_READ && r_early_any ? cmd_len - r_early_beats : (w_same_w && (cmd_len != 8'd0) ? cmd_len - 8'd1 : cmd_len));
-	wire w_alloc_done = ((!IS_READ && r_early_any) && r_early_last) || (w_same_w && data_last);
+	wire [7:0] w_alloc_beats = (w_same_w && (cmd_len != w_early_seen) ? (cmd_len - w_early_seen) - 8'd1 : (!IS_READ && r_early_any ? cmd_len - r_early_beats : cmd_len));
+	wire w_alloc_done = (!IS_READ && w_w_past) || (w_same_w && data_last);
 	wire w_dprogress = data_hs && w_dhit;
 	reg [N - 1:0] w_same_tail;
 	always @(*) begin
@@ -834,6 +849,9 @@ module axi_monitor_lite (
 			r_wq_wp <= 1'sb0;
 			r_wq_rp <= 1'sb0;
 			r_wq_cnt <= 1'sb0;
+			r_wq_seq <= 1'sb0;
+			r_aw_seq <= 1'sb0;
+			r_w_seq <= 1'sb0;
 			r_early_beats <= 1'sb0;
 			r_early_last <= 1'b0;
 			r_early_any <= 1'b0;
@@ -850,6 +868,8 @@ module axi_monitor_lite (
 			r_wq_wp <= 1'sb0;
 			r_wq_rp <= 1'sb0;
 			r_wq_cnt <= 1'sb0;
+			r_aw_seq <= 1'sb0;
+			r_w_seq <= 1'sb0;
 			r_early_beats <= 1'sb0;
 			r_early_last <= 1'b0;
 			r_early_any <= 1'b0;
@@ -880,12 +900,24 @@ module axi_monitor_lite (
 				if (!IS_READ) begin
 					if (!w_alloc_done) begin
 						r_wq[r_wq_wp * SW+:SW] <= w_free_idx;
-						r_wq_wp <= r_wq_wp + 1'b1;
+						r_wq_seq[r_wq_wp * QW+:QW] <= r_aw_seq;
+						r_wq_wp <= w_wq_wp_next;
 					end
 					r_early_beats <= 1'sb0;
 					r_early_last <= 1'b0;
 					r_early_any <= 1'b0;
 				end
+			end
+			if (w_refused && !IS_READ) begin
+				r_early_beats <= 1'sb0;
+				r_early_last <= 1'b0;
+				r_early_any <= 1'b0;
+			end
+			if (!IS_READ) begin
+				if (cmd_hs)
+					r_aw_seq <= r_aw_seq + 1'b1;
+				if (data_hs && data_last)
+					r_w_seq <= r_w_seq + 1'b1;
 			end
 			if (w_dprogress) begin
 				r_us0[w_dslot * AGE_WIDTH+:AGE_WIDTH] <= r_us;
@@ -898,14 +930,14 @@ module axi_monitor_lite (
 						r_valid[w_dslot] <= 1'b0;
 					else begin
 						r_phase[w_dslot] <= 1'b1;
-						r_wq_rp <= r_wq_rp + 1'b1;
+						r_wq_rp <= w_wq_rp_next;
 					end
 				end
 			end
 			if (w_early_w && !w_early_ovf) begin
 				r_early_any <= 1'b1;
-				r_early_beats <= (w_alloc ? 8'd0 : r_early_beats) + 8'd1;
-				r_early_last <= data_last || (r_early_last && !w_alloc);
+				r_early_beats <= (cmd_hs ? 8'd0 : r_early_beats) + 8'd1;
+				r_early_last <= data_last || (r_early_last && !cmd_hs);
 			end
 			if (resp_hs && w_bhit)
 				r_valid[w_bslot] <= 1'b0;

@@ -102,7 +102,7 @@ class DescriptorEngineTB(TBBase):
         # Clock and reset
         self.clk = clk if clk is not None else dut.clk
         self.clk_name = self.clk._name if hasattr(self.clk, '_name') else 'clk'
-        self.rst_n = rst_n if rst_n else dut.rst_n
+        self.rst_n = rst_n if rst_n is not None else dut.rst_n
 
         self.MAX_ADDR = (2**self.TEST_ADDR_WIDTH) - 1
 

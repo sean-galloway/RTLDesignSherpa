@@ -146,7 +146,7 @@ async def axi4ace_read_master_test(dut):
         else:
             tb.log.info(f"Burst read sequence passed with '{profile}' timing")
 
-    # Test 4: ACE snoop-type matrix (single + burst for every ACETransactionType)
+    # Test 4: ACE snoop-type matrix (single + burst for every ARSnoop encoding, IHI 0022H.c Table D3-7)
     tb.log.info("=== Scenario AXI4ACE-MR-10: Snoop-type passthrough matrix ===")
     tb.set_timing_profile('normal')
 

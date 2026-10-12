@@ -392,7 +392,8 @@ def test_axi4_slave_rd_mon(id_width, addr_width, data_width, user_width, max_tra
             verilog_sources=verilog_sources,
             includes=includes + [rtl_dict['rtl_common'], sim_build],
             toplevel=dut_name,
-            module="test_axi4_slave_rd_mon",
+            module=module,  # this file; it named the val/amba _mon module (wrong tests, or import failure)
+            testcase="axi4_slave_rd_mon_test",  # one exact name: the module also holds a wavedrom test
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,

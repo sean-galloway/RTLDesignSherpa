@@ -74,6 +74,11 @@ module axi_monitor_lite
     parameter int          TS_WIDTH         = 16,    // cycle timestamp: ordering + latency
     parameter int          AGE_WIDTH        = 16,    // microsecond age: timeout (cfg is 16 bits)
     parameter int          OUT_DEPTH        = 4,     // output queue of event entries, a power of two; deeper absorbs longer stalls
+    // Write monitors: width of the AW/W burst sequence numbers that let the W
+    // stream skip the bursts of REFUSED AWs (amba #105). AW may lead W by up
+    // to 2**(WSEQ_WIDTH-1)-1 bursts, refused ones included (minimum width 2);
+    // unused on reads.
+    parameter int          WSEQ_WIDTH       = 8,
     // Address-range checker (axi_monitor_addr_check, the full monitor's): built
     // when N_ADDR_RANGES > 0, zero area otherwise. Per range, ADDR_RANGE_IS_ERROR
     // = 1 makes a MISS an Error/ADDR_RANGE packet, 0 makes a HIT an AddrMatch packet.
@@ -273,12 +278,49 @@ module axi_monitor_lite
     logic [SW-1:0] w_dslot;
 
     // AW-order FIFO of slot indices (writes only). Depth N: there can never be
-    // more AWs awaiting W than table entries.
+    // more TRACKED AWs awaiting W than table entries.
     logic [N-1:0][SW-1:0] r_wq;
     logic [SW-1:0] r_wq_wp, r_wq_rp;
     logic [CW-1:0] r_wq_cnt;
     wire           w_wq_empty = (r_wq_cnt == '0);
     wire [SW-1:0]  w_wq_head  = r_wq[r_wq_rp];
+    // The pointers wrap at N, not at 2**SW: with a table that is not a power
+    // of two (MAX_TRANSACTIONS=12) a plain increment walked them onto indices
+    // 12..15, which do not exist -- the slot index written there was lost and
+    // the read returned slot 0, so entries waited for W beats that went
+    // elsewhere and the table wedged full (amba #105).
+    wire [SW-1:0]  w_wq_wp_next = (r_wq_wp == SW'(N-1)) ? '0 : r_wq_wp + 1'b1;
+    wire [SW-1:0]  w_wq_rp_next = (r_wq_rp == SW'(N-1)) ? '0 : r_wq_rp + 1'b1;
+
+    // Burst sequence numbers (writes only, amba #105). W carries no ID and
+    // follows AW order, so the W stream is a sequence of bursts numbered by
+    // the AW they belong to -- and that includes the AWs that found no free
+    // slot. Those are refused and never enter the FIFO above, so without a
+    // number their W bursts went to the FIFO head (a LATER AW's entry) or into
+    // the early-burst register, every attribution after them shifted by one,
+    // and entries starved of W sat in the table for good: at depth 12 under
+    // load the table wedged full after a few refusals and refused nearly every
+    // command from then on. Now:
+    //   r_aw_seq  the number of the NEXT AW (every handshake, tracked or not)
+    //   r_w_seq   the number of the burst the next W beat belongs to (every
+    //             W burst whose last beat was taken, INCLUDING one lost to an
+    //             early-burst overflow -- skip it and every later burst is
+    //             numbered one short, so every entry's W is skipped)
+    //   r_wq_seq  the AW number of each FIFO entry
+    // A W beat goes to the FIFO head only when the head's number is r_w_seq;
+    // a beat whose AW has been seen (r_aw_seq ahead of r_w_seq) but is not at
+    // the head belongs to a refused AW and is consumed silently -- its B then
+    // reports as an orphan, which names it. A beat whose AW has not been seen
+    // is early: the burst of the NEXT AW is kept in the one early-burst
+    // register, any later one overflows (reported) but is still counted.
+    localparam int QW = (WSEQ_WIDTH > 1) ? WSEQ_WIDTH : 2;
+    logic [N-1:0][QW-1:0] r_wq_seq;
+    logic [QW-1:0] r_aw_seq, r_w_seq;
+    wire  [QW-1:0] w_seq_gap  = r_aw_seq - r_w_seq;                  // AWs seen whose W has not finished
+    wire           w_aw_ahead = (w_seq_gap != '0) && !w_seq_gap[QW-1]; // this beat's AW has been seen
+    wire           w_w_next   = (w_seq_gap == '0);                    // this beat is the next AW's burst
+    wire           w_w_after  = (w_seq_gap == '1);                    // ...the one after it
+    wire           w_w_past   = w_seq_gap[QW-1];                      // the next AW's burst has fully passed
 
     // One early write burst (W before its AW), kept as a count.
     logic [7:0] r_early_beats;
@@ -290,7 +332,7 @@ module axi_monitor_lite
             assign w_dhit  = |w_dmatch;
             assign w_dslot = onehot_idx(w_dmatch);
         end else begin : g_wr_attr
-            assign w_dhit  = !w_wq_empty && r_valid[w_wq_head];
+            assign w_dhit  = !w_wq_empty && r_valid[w_wq_head] && (r_wq_seq[r_wq_rp] == r_w_seq);
             assign w_dslot = w_wq_head;
         end
     endgenerate
@@ -331,15 +373,29 @@ module axi_monitor_lite
     // report a response orphan (found by the inherited same-cycle suite,
     // amba/monitor-lite TASK-002). While an EARLIER early burst is pending
     // the same-cycle beat is a later transaction's and is queued as early.
-    wire w_same_w     = cmd_hs && w_have_free && data_hs && !w_dhit && !IS_READ && !r_early_any;
+    // A W beat whose AW was seen (w_aw_ahead) but is not at the FIFO head
+    // belongs to a refused AW (amba #105): it falls through every class below
+    // and is consumed, attributed to nobody.
+    // A beat of the next AW's burst during that AW's handshake belongs to
+    // THAT AW: absorbed by the entry if one is free, consumed silently if the
+    // AW is refused. That includes the next beat of a partial early burst the
+    // AW is taking this cycle -- same burst, so it goes where the burst goes.
+    wire w_w_at_cmd   = cmd_hs && data_hs && !w_dhit && !IS_READ && w_w_next;
+    wire w_same_w     = w_w_at_cmd &&  w_have_free;
+    wire w_same_skip  = w_w_at_cmd && !w_have_free;
+    wire [7:0] w_early_seen = r_early_any ? r_early_beats : 8'd0;     // beats of this AW's burst already counted
     wire w_last_early = data_hs && ((w_dhit && data_last && !w_dbeats_zero) ||
-                                    (w_same_w && data_last && (cmd_len != 8'd0)));
+                                    (w_same_w && data_last && (cmd_len != w_early_seen)));
     wire w_last_late  = data_hs &&  w_dhit && !data_last &&  w_dbeats_zero;
     wire w_data_done  = data_hs &&  w_dhit && data_last;
-    wire w_early_w    = data_hs && !w_dhit && !IS_READ && !w_same_w;    // W ahead of its AW
-    // a second early burst -- unless the pending one is being absorbed by an
-    // AW this very cycle, in which case this beat simply starts the next one
-    wire w_early_ovf  = w_early_w && r_early_last && !(cmd_hs && w_have_free);
+    // W ahead of its AW, kept: the next AW's burst, or -- while an AW takes
+    // the pending one this cycle (absorbed if tracked, discarded if refused)
+    // -- the burst after it, which starts the register afresh
+    wire w_early_w    = data_hs && !w_dhit && !IS_READ &&
+                        ((w_w_next && !cmd_hs) || (w_w_after && cmd_hs));
+    // W further ahead than that: not kept, reported, still counted
+    wire w_early_ovf  = data_hs && !w_dhit && !IS_READ && !w_aw_ahead &&
+                        !w_same_w && !w_same_skip && !w_early_w;
     wire w_resp_err   = resp_hs &&  w_bhit && resp_code[1] && !r_err[w_bslot];
     wire w_resp_orph  = resp_hs && !w_bhit;
     wire w_resp_done  = resp_hs &&  w_bhit;
@@ -397,9 +453,11 @@ module axi_monitor_lite
     // beats has len+1-e beats left, so len-e after the next; a write taking
     // its first beat this same cycle has len left, so len-1 after the next
     // (0 when that beat was the last -- the entry goes straight to phase 1).
-    wire [7:0] w_alloc_beats = (!IS_READ && r_early_any) ? (cmd_len - r_early_beats) :
-                               (w_same_w && (cmd_len != 8'd0)) ? (cmd_len - 8'd1) : cmd_len;
-    wire       w_alloc_done  = (!IS_READ && r_early_any && r_early_last)     // early burst was complete
+    // A same-cycle beat may also follow a partial early burst (amba #105): the
+    // beats already seen are then the early count plus this one.
+    wire [7:0] w_alloc_beats = (w_same_w && (cmd_len != w_early_seen)) ? (cmd_len - w_early_seen - 8'd1) :
+                               (!IS_READ && r_early_any)               ? (cmd_len - r_early_beats) : cmd_len;
+    wire       w_alloc_done  = (!IS_READ && w_w_past)                         // its burst already passed: kept early, or overflowed (amba #105)
                             || (w_same_w && data_last);                        // single-beat AW+W together
     wire       w_dprogress   = data_hs && w_dhit;
 
@@ -421,11 +479,13 @@ module axi_monitor_lite
             r_id <= '0; r_addr <= '0; r_beats <= '0; r_ts0 <= '0; r_us0 <= '0;
             r_head <= '0; r_tail <= '0; r_has_next <= '0; r_next <= '0;
             r_wq <= '0; r_wq_wp <= '0; r_wq_rp <= '0; r_wq_cnt <= '0;
+            r_wq_seq <= '0; r_aw_seq <= '0; r_w_seq <= '0;
             r_early_beats <= '0; r_early_last <= 1'b0; r_early_any <= 1'b0;
             r_scan <= '0; r_cmd_stall_us0 <= '0; r_cmd_stalling <= 1'b0; r_cmd_stall_rpt <= 1'b0; r_over_thresh <= 1'b0;
         end else if (clear) begin
             r_valid <= '0; r_err <= '0; r_tmo <= '0;
             r_wq_wp <= '0; r_wq_rp <= '0; r_wq_cnt <= '0;
+            r_aw_seq <= '0; r_w_seq <= '0;
             r_early_beats <= '0; r_early_last <= 1'b0; r_early_any <= 1'b0;
             r_scan <= '0; r_cmd_stalling <= 1'b0; r_cmd_stall_rpt <= 1'b0; r_over_thresh <= 1'b0;
         end else begin
@@ -451,11 +511,24 @@ module axi_monitor_lite
                 end
                 if (!IS_READ) begin
                     if (!w_alloc_done) begin
-                        r_wq[r_wq_wp] <= w_free_idx;
-                        r_wq_wp       <= r_wq_wp + 1'b1;
+                        r_wq[r_wq_wp]     <= w_free_idx;
+                        r_wq_seq[r_wq_wp] <= r_aw_seq;            // this AW's burst number
+                        r_wq_wp           <= w_wq_wp_next;
                     end
                     r_early_beats <= '0; r_early_last <= 1'b0; r_early_any <= 1'b0;
                 end
+            end
+            // a refused AW owned any pending early burst: discard it, so the
+            // next AW does not absorb beats that were never its own (amba #105)
+            if (w_refused && !IS_READ) begin
+                r_early_beats <= '0; r_early_last <= 1'b0; r_early_any <= 1'b0;
+            end
+            // burst numbering: every AW, tracked or refused, takes the next
+            // number; every W burst whose last beat was taken -- owned,
+            // skipped, absorbed, kept early or overflowed -- advances the W side.
+            if (!IS_READ) begin
+                if (cmd_hs)                                 r_aw_seq <= r_aw_seq + 1'b1;
+                if (data_hs && data_last)                   r_w_seq  <= r_w_seq + 1'b1;
             end
 
             // data beat on an owned entry: one shared next value into one slot
@@ -468,17 +541,18 @@ module axi_monitor_lite
                         r_valid[w_dslot] <= 1'b0;                // read done
                     end else begin
                         r_phase[w_dslot] <= 1'b1;                // wait for B
-                        r_wq_rp          <= r_wq_rp + 1'b1;
+                        r_wq_rp          <= w_wq_rp_next;
                     end
                 end
             end
-            // early write data (no AW yet). If an AW is absorbing the pending
-            // burst this cycle, this beat starts a fresh one (the allocate
-            // branch above cleared the registers; do not add to the stale count).
+            // early write data (no AW yet). If an AW is consuming the pending
+            // burst this cycle -- absorbing it, or discarding it as refused --
+            // this beat starts a fresh one (the branches above cleared the
+            // registers; do not add to the stale count).
             if (w_early_w && !w_early_ovf) begin
                 r_early_any   <= 1'b1;
-                r_early_beats <= (w_alloc ? 8'd0 : r_early_beats) + 8'd1;
-                r_early_last  <= data_last || (r_early_last && !w_alloc);
+                r_early_beats <= (cmd_hs ? 8'd0 : r_early_beats) + 8'd1;
+                r_early_last  <= data_last || (r_early_last && !cmd_hs);
             end
 
             // response on an owned entry

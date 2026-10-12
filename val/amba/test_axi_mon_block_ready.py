@@ -346,6 +346,7 @@ async def cocotb_test_block_ready(dut):
     chk.assert_saturation_reached()
     if is_lite:
         chk.assert_refuse_accounting()
+        chk.assert_drained()                 # amba #105: a leak balances the identity
         chk.assert_no_overflow(depth=depth)
     else:
         chk.assert_gating_contract()

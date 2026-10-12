@@ -89,6 +89,15 @@ def generate_guard_params():
         ('axil5_master_rd', {'ID_WIDTH': 0}, None),
         ('axil5_master_wr', {'ID_WIDTH': 0}, None),
         ('axil4_slave_rd', {'AXIL_DATA_WIDTH': 64}, None),
+        # amba #104: the full monitor now sees the AXI5-Lite ID and keys on at
+        # most 8 bits, so a wider ID is refused on _mon and still fine on the
+        # lite; ID_WIDTH=0 on a Manager-side monitor must still build.
+        ('axil5_master_wr_mon', {'ID_WIDTH': 12},
+         "axil5_master_wr_mon: ID_WIDTH=12 -- the full monitor tracks at most 8 ID bits"),
+        ('axil5_slave_rd_mon', {'ID_WIDTH': 9},
+         "axil5_slave_rd_mon: ID_WIDTH=9 -- the full monitor tracks at most 8 ID bits"),
+        ('axil5_master_rd_mon', {'ID_WIDTH': 0}, None),
+        ('axil5_slave_wr_monlite', {'ID_WIDTH': 12}, None),
     ]
     return params
 

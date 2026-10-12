@@ -222,7 +222,7 @@ until it learns to ask; that is the tool, not the monitor.
 |---|---|---|---|
 | `UNIT_ID` | logic [7:0] | 8'h09 | Unit id in every packet |
 | `AGENT_ID` | logic [15:0] | 16'h0063 | Agent id in every packet |
-| `MAX_TRANSACTIONS` | int | 8 | Table slots. A command that finds none free is counted (`refused_count`), not tracked; its beats then report as orphans |
+| `MAX_TRANSACTIONS` | int | 8 | Table slots. A command that finds none free is counted (`refused_count`), not tracked; its R beats or its B then report as orphans (a refused write's W beats are consumed silently) |
 | `ADDR_WIDTH` | int | 32 | Address width stored per entry and reported |
 | `ID_WIDTH` | int | 8 | Transaction ID width; 0 for AXI-Lite (one bit is kept) |
 | `IS_READ` | bit | 1 | 1 = AR/R monitor, 0 = AW/W/B monitor |
@@ -230,6 +230,7 @@ until it learns to ask; that is the tool, not the monitor.
 | `TS_WIDTH` | int | 16 | Cycle stamp width: ordering and latency (latency saturates at 2^16 cycles) |
 | `AGE_WIDTH` | int | 16 | Microsecond age width for the timeout (`cfg_timeout_cnt` is 16 bits) |
 | `OUT_DEPTH` | int | 4 | Output queue depth in 66-bit entries; a power of two |
+| `WSEQ_WIDTH` | int | 8 | Write monitors: width of the AW/W burst sequence numbers (amba #105). AW may lead W by up to 2^(WSEQ_WIDTH-1)-1 bursts, refused AWs included (minimum width 2); unused on reads |
 | `N_ADDR_RANGES` | int | 0 | Address-range checker windows (`axi_monitor_addr_check`, the full monitor's); 0 = not built, zero area |
 | `ADDR_RANGE_IS_ERROR` | logic [N-1:0] | '0 | Per range: 1 = a MISS is an `Error/ADDR_RANGE` packet, 0 = a HIT is an `AddrMatch` packet |
 | `CFI_*` | | as `axi_monitor_timer` | Frequency-invariant microsecond tick (`counter_freq_invariant`) |
@@ -259,12 +260,33 @@ head of the AW-order FIFO, because AXI4 W beats carry no ID and follow AW
 issue order; the FIFO pops on `WLAST`. A B belongs to the oldest matching
 entry that has finished its data phase.
 
+**Refused AWs and burst numbering (amba #105).** An AW that finds no free
+entry is refused and never enters the AW-order FIFO, but its W burst is still
+on the W channel in AW order. Every AW therefore takes a sequence number
+(`r_aw_seq`, tracked or refused), every finished W burst advances `r_w_seq`,
+and each FIFO entry carries its AW's number. A beat goes to the FIFO head only
+when the head's number is the burst now on W; a beat whose AW was seen but is
+not at the head belongs to a refused AW and is consumed silently (its B then
+reports as `RESP_ORPHAN`, naming the ID). A refused AW also discards any early
+burst pending for it. Before this, a refused AW's W went to the next tracked
+entry or into the early-burst register, every later attribution shifted by
+one, and entries that never saw their own W stayed in the table: under load
+at `MAX_TRANSACTIONS=12` the table wedged full and refused almost every
+command after (`test_axi_mon_block_ready`, 1024 admitted = 16 completed + 996
+refused + 12 live). The FIFO pointers also wrap at `MAX_TRANSACTIONS` now:
+they were `$clog2(N)` bits and wrapped at 16, so at N=12 they walked onto
+entries 12..15, which do not exist.
+
 A write burst that arrives before its AW (legal on a slave-side monitor) is
 buffered as a beat count and applied when the AW allocates: with `e` beats
 already seen, the entry expects `len + 1 - e` more. A second early burst
-before that AW is an `Error/WRITE_BEFORE_ADDR` and is dropped -- unless the
-AW absorbing the first burst arrives in that same cycle, in which case the
-new beat simply starts the next early burst.
+before that AW is an `Error/WRITE_BEFORE_ADDR` and is dropped -- unless an
+AW takes the first burst in that same cycle (absorbing it, or discarding it
+as refused), in which case the new beat simply starts the next early burst.
+A dropped burst is still counted in `r_w_seq`, so its AW, when it arrives,
+goes straight to its response phase and attribution stays aligned. Traffic that keeps W two or more bursts ahead of AW (legal, A2.6) therefore
+produces a `WRITE_BEFORE_ADDR` report for every burst past the first: lossy and
+reported, with the completions still correct.
 
 A W beat in the same cycle as an AW, with no AW already awaiting data,
 belongs to the AW being allocated (AXI4 write data is in AW order) and is
@@ -272,7 +294,9 @@ absorbed at allocation: a single-beat write goes straight to its response
 phase; a longer burst expects `len` more beats; a LAST on that first beat of
 a longer burst is an `Error/BURST_LENGTH` on the new entry. While an earlier
 early burst is still pending the same-cycle beat is a later transaction's and
-is counted as early instead. Until 2026-09-28 the same-cycle beat was counted
+is counted as early instead. A same-cycle beat that continues a partial early
+burst the AW is absorbing is that burst's next beat and is absorbed with it;
+a same-cycle beat for a refused AW is consumed. Until 2026-09-28 the same-cycle beat was counted
 as early while its own AW queued for beats that had already passed, and the B
 then reported `RESP_ORPHAN`; the inherited same-cycle suite found it
 (amba/monitor-lite TASK-002), along with an off-by-one in the absorbed count
@@ -350,14 +374,20 @@ not see.
   exact packets for singles and bursts (address, id, non-zero latency), one
   `RESP_SLVERR` and no completion for an out-of-range access, one timeout naming
   the stuck phase, one active-count threshold, and a held monbus that drops
-  events and then reports the count. 8 cells at full.
+  events and then reports the count. A refused-command phase (amba #105) puts
+  more transactions than entries in flight on distinct IDs, twice so the AW
+  queue wraps: completions + orphan reports must split the IDs exactly, nothing
+  else may come out, and the table must be empty after. FUNC adds a
+  `MAX_TRANSACTIONS=12` cell, the non-power-of-two depth. 12 cells at full.
 - `val/amba/monitor-lite/test_<wrapper>_monlite.py`, sixteen tests derived from
   the `_mon` wrapper tests on the existing monitor TB classes: the same
   scenarios with the `_monlite` DUT. 105 cells at full with the above.
 - `formal/amba/axi_monitor_lite`: under unconstrained taps, `active_count`
   never exceeds the table, `clear` empties it, and an offered packet is held
   unchanged until taken; covers reach a completion, an error, a timeout, a
-  threshold and a full table (the proof is not vacuous).
+  threshold and a full table (the proof is not vacuous). A second, write
+  instance with a 3-entry table is built for the cover task only and reaches a
+  write completion, including one after a refused command.
 - The bridge's generated monitor stress tests run unchanged on
   `bridge_1x2_rd_lite_mon` (`mon_preset = "lite"`).
 - The full monitor's own suites in `val/amba`, each with lite cells in its
@@ -370,7 +400,7 @@ not see.
   | `test_axi4_monitor` | 6 (`axi_monitor_lite` core: AXI4/AXI-Lite x rd/wr, small table, 256 IDs) | all six phases: basic, bursts, response errors, orphans, sustained, zero-delay |
   | `test_axi_monitor_wr_same_cycle` | 2 | same-cycle AW+W single and first-of-burst, control, AW during an open burst, a partial early burst (phase 5, new for both cores) |
   | `test_axi_monitor_runtime_disable` | 1 | table drains with a class runtime-disabled and under backpressure; `refused_count` stays 0 (no `block_ready` to wedge) |
-  | `test_axi_mon_block_ready` | 16 cells on 11 wrappers (`LiteRefuseCheck`) | the table filled and refused, `admitted == transaction_count + refused_count + live` exactly, occupancy never above the depth. Depth follows the TB's bus-measured concurrency (the AXI-Lite and AXI5 read BFMs hold at most 4 in flight, the AXI-Lite write BFM 2), and `axil4_master_wr_monlite` is not claimed: its core taps behind the write skid and never sees two outstanding |
+  | `test_axi_mon_block_ready` | 16 cells on 11 wrappers (`LiteRefuseCheck`) | the table filled and refused, `admitted == transaction_count + refused_count + live` exactly, the table EMPTY once the bus is idle (amba #105: the identity alone balanced against leaked entries), occupancy never above the depth. Depth follows the TB's bus-measured concurrency (the AXI-Lite and AXI5 read BFMs hold at most 4 in flight, the AXI-Lite write BFM 2), and `axil4_master_wr_monlite` is not claimed: its core taps behind the write skid and never sees two outstanding |
   | `test_axi_monitor_soak` | 1 (`monitor_soak_monlite`) | 60k-200k cycles of random reads with errors, stalls and 15 % consumer backpressure: generated completions + errors + timeouts == delivered + drops reported + drops pending, exactly (60k cycles: 10,655 = 7,648 + 1,909 + 965 + 133) |
   | `test_axi_monitor_pktgen` | 2 (timeout starvation) + 1 (BUG-039 completion hold) | one stalled read against an SLVERR flood: accounting exact; the victim's timeout is delivered at a 1-in-2 error duty and LOST (counted) at 1-per-cycle -- see amba/monitor-lite TASK-004. Plus: five clean completions fired into a consumer-stalled depth-4 queue are all delivered with zero drop reports -- the completion that finds the queue full is held, not dropped (amba BUG-039) |
 

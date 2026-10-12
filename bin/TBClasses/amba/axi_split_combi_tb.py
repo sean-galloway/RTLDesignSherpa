@@ -226,6 +226,31 @@ class RealisticAxiSplitTB(TBBase):
             'transaction_end_addr': transaction_end_addr
         }
 
+    def auto_crossing_address(self, length, mask):
+        """Base address for an "auto" edge case that crosses a mask boundary.
+
+        Up to 4 beats are placed before a random boundary, the rest after it.
+        A fixed 4 beats used to underflow below address 0 whenever 4 beats
+        spanned more than one boundary window (DW=512, mask 0x07F: 4 x 64 B
+        = 256 B > 128 B, so boundary #1 gave 0x-0000080), and never crossed
+        at all for a 4-beat transaction (it ended exactly AT the boundary).
+        Clamping to the window size and to length keeps the start at or above
+        the previous boundary and leaves at least one beat past the next one.
+
+        Returns None when no crossing is possible: a single beat (length 0),
+        or a window smaller than one beat.
+        """
+        boundary_size = mask + 1
+        beats_before_boundary = min(4, length, boundary_size // self.BYTES_PER_BEAT)
+        if beats_before_boundary < 1:
+            return None
+        target_boundary = random.randint(1, 100) * boundary_size
+        base_addr = target_boundary - beats_before_boundary * self.BYTES_PER_BEAT
+        end_addr = base_addr + (length + 1) * self.BYTES_PER_BEAT - 1
+        assert base_addr >= 0 and base_addr // boundary_size != end_addr // boundary_size, \
+            f"auto edge-case address 0x{base_addr:X} does not cross mask 0x{mask:03X}"
+        return base_addr
+
     async def test_realistic_edge_cases(self):
         """
         Test realistic edge cases that can actually occur in systems
@@ -275,11 +300,12 @@ class RealisticAxiSplitTB(TBBase):
 
             # Auto-generate safe address if needed
             if base_addr == "auto":
-                boundary_size = mask + 1
-                # Position transaction to cross boundaries
-                beats_before_boundary = 4
-                target_boundary = random.randint(1, 100) * boundary_size
-                base_addr = target_boundary - (beats_before_boundary * self.BYTES_PER_BEAT)
+                base_addr = self.auto_crossing_address(length, mask)
+                if base_addr is None:
+                    self.log.error(f"EDGE CASE CANNOT CROSS: {desc} (len={length}, "
+                                   f"DW={self.DW}, mask=0x{mask:03X})")
+                    all_passed = False
+                    continue
 
             # Ensure address is safe
             aligned_addr = self.align_address_to_data_width(base_addr)

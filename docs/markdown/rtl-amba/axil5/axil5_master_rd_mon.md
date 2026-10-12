@@ -63,9 +63,9 @@ AXI5-Lite is AXI4-Lite plus the transaction ID and a few optional signal groups.
 | `MAX_TRANSACTIONS` | int | `8` | Maximum outstanding transactions (reduced for AXIL) |
 | `USE_WDATA_ORDER_Q` | bit | `1'b0` |  |
 | `NUM_BANKS` | int | `1` |  |
-| `ID_FILTER_ENABLE` | bit | `1'b0` | Per-instance ID-slice filter, inherited from the shared monitor core. **Leave at 0 on AXI4-Lite.** The wrapper hardwires `cmd_id`/`data_id`/`resp_id` to `1'b0`, so enabling this with `ID_MATCH_BASE` above 0 makes `id_owned(0)` false for every transaction and drops ALL monitoring. |
+| `ID_FILTER_ENABLE` | bit | `1'b0` | Per-instance ID-slice filter, inherited from the shared monitor core. Since amba #104 the wrapper feeds the AXI5-Lite ID, so the slice selects on AxID as on the AXI4 wrappers. |
 | `ADDR_FILTER_ENABLE` | bit | `1'b0` |  |
-| `ID_MATCH_BASE` | int | `0` | First ID this instance owns when `ID_FILTER_ENABLE=1`. Must stay 0 on AXI4-Lite -- every transaction reports ID 0. |
+| `ID_MATCH_BASE` | int | `0` | First ID this instance owns when `ID_FILTER_ENABLE=1`. Compared against the AXI5-Lite AxID. |
 | `ID_MATCH_COUNT` | int | `0` | Number of IDs owned from `ID_MATCH_BASE`. 0 = all IDs (the filter passes everything). |
 | `ACTIVE_TRANS_THRESHOLD` | int | `MAX_TRANSACTIONS / 2` |  |
 | `ENABLE_FILTERING` | bit | `1` | Enable packet filtering |
@@ -233,7 +233,7 @@ A disabled group's output is driven to zero rather than left dangling, so an int
 
 Four things worth knowing before you trust what comes out of the monitor:
 
-**The monitor does not observe the ID or the optional groups.** The wrapper ties `axi_monitor_filtered`'s ID inputs to zero and it has no ports for TRACE, USER or POISON, so it sees exactly what it sees on AXI4-Lite: handshakes, addresses, responses and timing, tracked in issue order. A Subordinate that reorders responses across IDs (permitted on AXI5-Lite, IHI 0022L B2.1.5) is mis-attributed by it. It does not validate POISON.
+**The monitor observes the ID, not the optional groups.** Since amba #104 the wrapper feeds AxID and BID/RID to `axi_monitor_filtered`, so a Subordinate that reorders responses across IDs (permitted on AXI5-Lite, IHI 0022L B2.1.5) has each response paired with its own transaction, and a completion packet carries the ID as its channel. W carries no ID and is attributed in AW order (A5.5), including W that arrives ahead of its AW (A2.6). The full monitor keys on at most 8 ID bits, so `ID_WIDTH` > 8 is refused at elaboration here (the `_monlite` wrappers take any width). There are no ports for TRACE, USER or POISON, and POISON is not validated.
 
 **`ACLK_MHZ` is not decoration.** It builds the microsecond tick LUT in `counter_freq_invariant`. Leave it at the 100 MHz default on a 90 MHz part and every microsecond-denominated timeout is wrong, silently.
 
@@ -360,7 +360,7 @@ The testbench class is the AXI4-Lite one with the component factories swapped, s
 - Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l) -- §B2.1.5 "AXI5-Lite" and Table B2.2 signal matrix; carried groups per §A12.5 User defined signaling, §A12.3 Trace signals, §A5.1.1 transaction ID signals, §A16.1 Poison; handshake on the AR and R channels per §A2.3.1/§A2.3.2; register stages per §A2.5. Table B2.2 marks AxLOCK, AxMPAM, AxMECID, AxNSAID and xLOOP not present on AXI5-Lite and AxID/BID/RID mandatory on a Subordinate (YS): this module carries the ID (`ID_WIDTH`) and none of the not-present signals (issue #102). Data width per Table A3.19 (any AXI DATA_WIDTH; Table B2.4 adds no AXI5-Lite constraint).
 - Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h) -- Part C ch. C2 "AMBA AXI5-Lite", §C2.2 comparison with AXI4-Lite and §C2.5/§C2.6 upgrading an AXI4-Lite master/slave: the `ID_WIDTH=0`, every-group-disabled Manager-side build is the AXI4-Lite-equivalent port.
 - Cortadella, J., Kishinevsky, M., Grundmann, B. "Synthesis of Synchronous Elastic Architectures." *Proc. 43rd Design Automation Conf. (DAC '06)*, pp. 657-662, 2006. DOI: [10.1145/1146909.1147077](https://doi.org/10.1145/1146909.1147077) -- the elastic buffer; its Property 3.1 (capacity C >= 2 for full throughput) is the depth-2 floor of each channel's `gaxi_skid_buffer`.
-- The monitor itself (`axi_monitor_filtered`) is referenced in the [monitor pages](../monitor/axi_monitor_base.md); on this port it sees single-beat transactions with its ID inputs tied to 0, as on AXI4-Lite (IHI 0022H §B1.1.4); the AXI5-Lite ID is carried by the transport but not fed to the monitor.
+- The monitor itself (`axi_monitor_filtered`) is referenced in the [monitor pages](../monitor/axi_monitor_base.md); on this port it sees single-beat transactions carrying the AXI5-Lite ID (IHI 0022L B2.1.5; W in AW order, A5.5).
 - Chipressian. *Crack the Hardware Interview -- from RTL Designers' Perspective: Architecture and Micro-architecture Design*, ch. 2 "Handshake Protocols", Q8 valid-ready protocol and Q9 valid-ready slices -- textbook treatment of register slices (secondary source).
 - Indexed in `rtl/amba/references/README.md` (local PDF: `ElasticBuffer__Cortadella2006.pdf`)
 

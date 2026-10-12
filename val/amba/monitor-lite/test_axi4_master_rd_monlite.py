@@ -253,7 +253,8 @@ def test_axi4_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
             verilog_sources=verilog_sources,
             includes=includes + [rtl_dict['rtl_common'], sim_build],
             toplevel=dut_name,
-            module="test_axi4_master_rd_mon",
+            module=module,  # this file; it named the val/amba _mon module (wrong tests, or import failure)
+            testcase="axi4_master_rd_mon_test",  # one exact name: the module also holds a wavedrom test
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
@@ -547,7 +548,7 @@ def test_axi4_master_rd_mon_wavedrom(id_width, addr_width, data_width):
             verilog_sources=verilog_sources,
             includes=includes + [rtl_dict['rtl_common'], sim_build],
             toplevel=dut_name,
-            module="test_axi4_master_rd_mon",
+            module=module,  # this file; it named the val/amba _mon module (wrong tests, or import failure)
             testcase="axi4_master_rd_mon_wavedrom_test",  # ← Run wavedrom test specifically!
             parameters=rtl_parameters,
             sim_build=sim_build,

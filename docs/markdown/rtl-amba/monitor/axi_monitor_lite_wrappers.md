@@ -272,6 +272,15 @@ hit is an `AddrMatch` packet (gated by `cfg_addr_match_enable`).
 transactions, nothing queued (see the
 [architecture page](monitor_system_architecture.md), Configuration cautions).
 
+**IDs.** The command and response IDs are the bus's own (AxID, BID/RID), so
+the lite pairs each response with the oldest outstanding command of that ID.
+On the AXI5-Lite wrappers they were tied to 0 until amba #104, and every
+response was paired with the oldest command outstanding whichever it
+answered; a Subordinate may reorder responses across IDs (IHI 0022L B2.1.5).
+W carries no ID on AXI4 or AXI5-Lite and the write wrappers tie `data_id` to
+0: the lite attributes W in AW order (A5.5) from its own AW-order queue, which
+also covers W that arrives ahead of its AW (A2.6).
+
 The lite's own behaviour -- per-ID linked-list attribution, stamps instead of
 counters, the registered event stage, the output queue and drop-and-count -- is
 on the [axi_monitor_lite](axi_monitor_lite.md) page.
@@ -358,6 +367,15 @@ TB (`test_axi4ace_snoop_monitor_lite.py`), and `test_monlite_cg_gating.py`,
 the six-phase BFM-driven structural gating test over all sixteen clock-gated
 wrappers at two idle counts and two shared delay profiles.
 
+Two `val/amba` suites cover the wrappers as a family. `test_axi_mon_block_ready.py`
+saturates each AXI wrapper's table and checks that every admitted command is
+completed, refused or still live, and (since amba #105) that the table is
+empty once the bus is idle. `test_axil5_mon_reorder.py` puts every AXI5-Lite
+`_mon`/`_mon_cg`/`_monlite`/`_monlite_cg` wrapper behind a Subordinate that
+returns responses in reverse order across distinct IDs (and, on the write
+wrappers, holds AWREADY so W leads AW). Each completion must name its own
+(address, ID), in the bus's response order, and the table must drain (amba #104).
+
 ```bash
 source env_python
 make -C val/amba/monitor-lite run-all-full-parallel
@@ -365,7 +383,7 @@ make -C val/amba/monitor-lite run-all-full-parallel
 
 ---
 
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-12
 
 ---
 

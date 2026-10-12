@@ -284,3 +284,17 @@ wb4 variant tests were written:
   (`request.fspath`), and a run whose per-test log does not exist did not run.
   The tell is the same as [[running-regressions]]'s: a suite that finishes
   faster than it possibly could.
+
+## Never truth-test a simulator handle (cocotb 2.x)
+
+Under cocotb 2.x (the venv runs 2.1.0 since 2026-10-08) `SimHandleBase.__bool__`
+raises `TypeError: This object cannot be cast to bool`. So `if handle`, `not
+handle`, `handle or dut.x`, `x if handle else y` and `bool(handle)` all fail
+the moment the handle exists. Test a handle only with `is None` /
+`is not None`; for a first-match lookup use
+`next(h for h in candidates if h is not None)`.
+
+*Case (#107, 2026-10-12):* `amba_cg_ctrl.py`'s `if not self.clock_signal:` failed
+both `test_apb4_slave_cdc_cg_robust` cells; a sweep found the same shape latent
+in ~20 more TBs (`rst_n if rst_n else dut.<rst>`, `axi_aclk or dut.axi_aclk`),
+silent only because no caller had yet passed a handle. Same class as #100.

@@ -669,9 +669,11 @@ class GAXIWaveDromTemplate:
 
         # Auto-detect clock if not provided
         if clock_signal is None:
-            clock_signal = (getattr(dut, 'axi_aclk', None) or
-                          getattr(dut, 'i_clk', None) or
-                          getattr(dut, 'clk', None))
+            # A cocotb 2.x handle cannot be truth-tested (TypeError), so
+            # pick the first name that RESOLVES, by `is not None`.
+            clock_signal = next((h for h in (getattr(dut, n, None) for n in
+                                             ('axi_aclk', 'i_clk', 'clk'))
+                                 if h is not None), None)
 
         if clock_signal is None:
             raise ValueError("Could not auto-detect clock signal. Please provide clock_signal parameter.")

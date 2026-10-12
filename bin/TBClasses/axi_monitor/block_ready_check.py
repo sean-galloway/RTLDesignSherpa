@@ -444,6 +444,28 @@ class LiteRefuseCheck:
                       f"per-cycle admitted_while_full={self.admitted_while_full} "
                       f"(informational: the port count lags the allocator by a cycle)")
 
+    def assert_drained(self):
+        """Layer 2b: once the bus has nothing outstanding, the table is empty.
+
+        The identity above cannot see a LEAK: an entry the lite never frees is
+        "still live" and balances the books. That is exactly how amba #105 hid
+        on every write cell -- the axi4 cells reported 1024 = 16 completed +
+        996 refused + 12 live with the table wedged full, and passed. When
+        every command on the bus has its response, every tracked entry has
+        been answered, so a live entry is one the lite lost track of.
+        """
+        live = int(self.occupancy.value)
+        if self.rsp_valid is None:
+            self.log.info("LiteRefuseCheck: no response handshake bound -- drain not checked")
+            return
+        assert self.bus_outstanding != 0 or live == 0, (
+            f"the bus has nothing outstanding ({self.accepted} commands, "
+            f"{self.completed} responses) but the lite still holds {live} "
+            "entries: they leaked. Each one is a slot lost for good -- the "
+            "table fills with them and refuses every command after.")
+        self.log.info(f"LiteRefuseCheck: drained -- bus outstanding "
+                      f"{self.bus_outstanding}, table holds {live}")
+
     def assert_no_overflow(self, depth=None):
         """Layer 3: the table never held more than its depth."""
         depth = depth or self.depth

@@ -256,9 +256,10 @@ port broke.
 
 **The ID is AXI5-Lite's, not the monitor's.** AXI5-Lite carries AWID/BID and
 ARID/RID (IHI 0022L Table B2.2, code YS: optional on a Manager, mandatory on
-a Subordinate) and this family carries them through. The `_mon`/`_monlite`
-wrappers still tie the shared monitor core's ID inputs to zero, so the
-monitor tracks transactions in issue order and does not observe the ID.
+a Subordinate) and this family carries them through. The `_mon`/`_monlite` wrappers feed it to the shared monitor core (amba #104),
+so each response is paired with the oldest outstanding command of its own ID
+and a Subordinate may reorder across IDs (B2.1.5); W carries no ID and is
+attributed in AW order (A5.5).
 
 **The skid buffer is not a bypass.** `gaxi_skid_buffer` registers both
 `rd_valid` and its storage, so every transfer costs one cycle even unstalled.

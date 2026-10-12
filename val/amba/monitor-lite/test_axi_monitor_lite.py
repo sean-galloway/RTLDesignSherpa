@@ -24,9 +24,11 @@ def generate_test_params():
     reg = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg == 'GATE':
         return [(ch, 4, 8, 'gate') for ch in ('rd', 'wr')]
+    # MAX_TRANSACTIONS=12 is not a power of two: the write monitor's AW-order
+    # queue pointers used to wrap at 16 there and wedge the table (amba #105).
     if reg == 'FUNC':
-        return [(ch, iw, 8, 'func') for ch in ('rd', 'wr') for iw in (4, 8)]
-    return [(ch, iw, mt, 'full') for ch in ('rd', 'wr') for iw in (4, 8) for mt in (8, 16)]
+        return [(ch, iw, mt, 'func') for ch in ('rd', 'wr') for iw, mt in ((4, 8), (8, 8), (8, 12))]
+    return [(ch, iw, mt, 'full') for ch in ('rd', 'wr') for iw in (4, 8) for mt in (8, 12, 16)]
 
 
 @pytest.mark.parametrize("channel, id_width, max_trans, test_level", generate_test_params())

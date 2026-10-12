@@ -214,7 +214,7 @@ class AxiClockGateCtrl(TBBase):
         start_time = cocotb.utils.get_sim_time(units)
         end_time = start_time + duration
 
-        if not self.clock_signal:
+        if self.clock_signal is None:
             self.log.error(f"Clock signal not found: {self.clock_signal_name}")
             return stats
 
@@ -326,11 +326,11 @@ class AxiClockGateCtrl(TBBase):
         start_time = cocotb.utils.get_sim_time(units)
         end_time = start_time + timeout
 
-        if not self.idle_signal:
+        if self.idle_signal is None:
             self.log.error(f"Idle signal not found: {self.idle_signal_name}")
             return False
 
-        if not self.clock_signal:
+        if self.clock_signal is None:
             self.log.error(f"Clock signal not found: {self.clock_signal_name}")
             return False
 
@@ -361,11 +361,11 @@ class AxiClockGateCtrl(TBBase):
         start_time = cocotb.utils.get_sim_time(units)
         end_time = start_time + timeout
 
-        if not self.gating_signal:
+        if self.gating_signal is None:
             self.log.error(f"Gating signal not found: {self.gating_signal_name}")
             return False
 
-        if not self.clock_signal:
+        if self.clock_signal is None:
             self.log.error(f"Clock signal not found: {self.clock_signal_name}")
             return False
 

@@ -31,7 +31,7 @@
  *
  * Key Simplifications vs AXI4:
  * - No burst support (all transactions are single-beat)
- * - Monitor ID tied to 0 (transactions tracked in issue order)
+ * - Monitor sees the AXI5-Lite ID (same-ID responses in order, other IDs may reorder)
  * - Reduced MAX_TRANSACTIONS (typically 4-8 vs 16-32)
  *
  * AXI5-Lite variant. Derived from the AXI4-Lite wrapper of the same name: the
@@ -41,11 +41,12 @@
  * module. AxLOCK, AxMPAM, AxMECID, AxNSAID and xLOOP are not present on
  * AXI5-Lite (IHI 0022L Table B2.2) and are not carried.
  *
- * The monitor sees exactly what it sees on AXI4-Lite: handshakes, addresses,
- * responses and timing. Its ID ports stay tied to 0, so it tracks
- * transactions in issue order and does not observe AxID/xID; a Subordinate
- * that reorders responses across IDs (permitted on AXI5-Lite, B2.1.5) would
- * be mis-attributed by it. It does not validate POISON.
+ * The monitor sees handshakes, addresses, responses and timing, and -- since
+ * amba #104 -- the AXI5-Lite ID: AxID/BID/RID drive its command and response
+ * IDs, so a Subordinate that reorders responses across IDs (permitted on
+ * AXI5-Lite, IHI 0022L B2.1.5) has each response paired with its own
+ * transaction. W carries no ID and is attributed in AW order (A5.5). It
+ * does not validate POISON.
  *
  * Port names match the AXI4-Lite wrapper exactly, including the `_axil_`
  * infix, so the AXIL5 BFMs -- which are the AXIL4 BFMs with the component
@@ -286,6 +287,11 @@ module axil5_master_rd_mon
         if (ID_WIDTH < 0 || ID_WIDTH > 32)
             $fatal(1, "axil5_master_rd_mon: ID_WIDTH=%0d out of range 0..32 (IHI 0022L Table A5.2)",
                    ID_WIDTH);
+        // The full monitor keys its table on at most 8 ID bits
+        // (axi_monitor_trans_mgr); since amba #104 it sees the real ID.
+        if (USE_MONITOR && ID_WIDTH > 8)
+            $fatal(1, "axil5_master_rd_mon: ID_WIDTH=%0d -- the full monitor tracks at most 8 ID bits (axi_monitor_trans_mgr); use ID_WIDTH <= 8, or the _monlite wrapper",
+                   ID_WIDTH);
     end
 `endif
 
@@ -412,6 +418,19 @@ module axil5_master_rd_mon
     // the saturation of everything else down to 4 bits.
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
+    // AXI5-Lite IDs to the monitor (amba #104). ARID/RID exist on AXI5-Lite
+    // and a Subordinate may return read data out of order across IDs (IHI
+    // 0022L B2.1.5), so the monitor matches each R to the oldest command of
+    // the SAME ID, as on AXI4 -- with the ID tied 0 it paired every R with the
+    // oldest command outstanding, whichever one the R answered.
+    // ID_WIDTH = 0 (legal on a Manager, Table B2.2 YS): the IDs read 0.
+    // The full monitor keys on at most 8 ID bits: wider builds are rejected by
+    // param_check above, and the clamp only lets elaboration reach that guard.
+    localparam int MON_IW = (IW > 8) ? 8 : IW;
+    logic [MON_IW-1:0] w_mon_cmd_id, w_mon_data_id;
+    assign w_mon_cmd_id  = (ID_WIDTH > 0) ? MON_IW'(m_axil_arid) : '0;
+    assign w_mon_data_id = (ID_WIDTH > 0) ? MON_IW'(m_axil_rid) : '0;
+
     if (USE_MONITOR) begin : gen_monitor
         axi_monitor_filtered #(
             .CFI_MIN_FREQ_MHZ        (CFI_MIN_FREQ_MHZ),
@@ -425,7 +444,7 @@ module axil5_master_rd_mon
             .ID_MATCH_BASE           (ID_MATCH_BASE),
             .ID_MATCH_COUNT          (ID_MATCH_COUNT),
             .ADDR_WIDTH              (AW),
-            .ID_WIDTH                (32'd1),            // Fixed ID width for AXIL
+            .ID_WIDTH                (MON_IW),
             .IS_READ                 (1'b1),             // This is a read monitor
             .IS_AXI                  (1'b1),             // AXI protocol (AXIL is subset)
             .ENABLE_PERF_PACKETS     (1'b1),
@@ -447,7 +466,7 @@ module axil5_master_rd_mon
 
             // Command interface (AR channel) - AXIL simplified
             .cmd_addr                (m_axil_araddr),
-            .cmd_id                  (1'b0),             // Fixed ID=0 for AXIL
+            .cmd_id                  (w_mon_cmd_id),
             .cmd_len                 (8'h00),            // Single-beat: len=0
             // AxSIZE for the single Lite beat, DERIVED from the bus width.
             // This was hardwired 3'b010 (4 bytes). axi_monitor_base computes
@@ -461,14 +480,14 @@ module axil5_master_rd_mon
             .cmd_ready               (m_axil_arready),
 
             // Data interface (R channel) - AXIL simplified
-            .data_id                 (1'b0),             // Fixed ID=0 for AXIL
+            .data_id                 (w_mon_data_id),
             .data_last               (1'b1),             // Always last for AXIL
             .data_resp               (m_axil_rresp),
             .data_valid              (w_mon_data_valid),
             .data_ready              (m_axil_rready),
 
             // Response interface (same as data for AXIL reads)
-            .resp_id                 (1'b0),             // Fixed ID=0 for AXIL
+            .resp_id                 (w_mon_data_id),
             .resp_code               (m_axil_rresp),
             .resp_valid              (w_mon_resp_valid),    // Every data is also completion for AXIL
             .resp_ready              (m_axil_rready),
@@ -510,9 +529,7 @@ module axil5_master_rd_mon
             .cfg_addr_range_low      (cfg_addr_range_low),
             .cfg_addr_range_high     (cfg_addr_range_high),
 
-            // The monitor ID ports are tied to 0 (see header), so the runtime ID filter is
-
-            // meaningless here and is tied off rather than exposed.
+            // The runtime ID filter is not exposed on the AXI-Lite wrappers; tied off.
 
             .cfg_id_filter_enable    (1'b0),
 

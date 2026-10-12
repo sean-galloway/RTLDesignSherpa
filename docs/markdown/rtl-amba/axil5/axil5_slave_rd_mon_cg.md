@@ -234,7 +234,7 @@ A disabled group's output is driven to zero rather than left dangling, so an int
 
 Four things worth knowing before you trust what comes out of the monitor:
 
-**The monitor does not observe the ID or the optional groups.** The wrapper ties `axi_monitor_filtered`'s ID inputs to zero and it has no ports for TRACE, USER or POISON, so it sees exactly what it sees on AXI4-Lite: handshakes, addresses, responses and timing, tracked in issue order. A Subordinate that reorders responses across IDs (permitted on AXI5-Lite, IHI 0022L B2.1.5) is mis-attributed by it. It does not validate POISON.
+**The monitor observes the ID, not the optional groups.** Since amba #104 the wrapper feeds AxID and BID/RID to `axi_monitor_filtered`, so a Subordinate that reorders responses across IDs (permitted on AXI5-Lite, IHI 0022L B2.1.5) has each response paired with its own transaction, and a completion packet carries the ID as its channel. W carries no ID and is attributed in AW order (A5.5), including W that arrives ahead of its AW (A2.6). The full monitor keys on at most 8 ID bits, so `ID_WIDTH` > 8 is refused at elaboration here (the `_monlite` wrappers take any width). There are no ports for TRACE, USER or POISON, and POISON is not validated.
 
 **`ACLK_MHZ` is not decoration.** It builds the microsecond tick LUT in `counter_freq_invariant`. Leave it at the 100 MHz default on a 90 MHz part and every microsecond-denominated timeout is wrong, silently.
 
@@ -361,7 +361,7 @@ The testbench class is the AXI4-Lite one with the component factories swapped, s
 - Benini, L., Bogliolo, A., De Micheli, G. "A Survey of Design Techniques for System-Level Dynamic Power Management." *IEEE Trans. VLSI Systems*, 8(3), June 2000. DOI: [10.1109/92.845896](https://doi.org/10.1109/92.845896) -- fixed-timeout shutdown: gate after `cfg_cg_idle_count` idle cycles, wake on any VALID.
 - Benini, L., De Micheli, G. "Automatic Synthesis of Low-Power Gated-Clock Finite-State Machines." *IEEE Trans. CAD*, 15(6), June 1996. DOI: [10.1109/43.503933](https://doi.org/10.1109/43.503933) -- the latch-based glitch-free clock gate under `clock_gate_ctrl`.
 - READY held LOW while gated is legal: a receiver may keep READY LOW until it chooses to accept (IHI 0022H §A3.2.1; IHI 0022L §A2.3.1). No paper (standard technique).
-- The monitor itself (`axi_monitor_filtered`) is referenced in the [monitor pages](../monitor/axi_monitor_base.md); on this port it sees single-beat transactions with its ID inputs tied to 0, as on AXI4-Lite (IHI 0022H §B1.1.4); the AXI5-Lite ID is carried by the transport but not fed to the monitor.
+- The monitor itself (`axi_monitor_filtered`) is referenced in the [monitor pages](../monitor/axi_monitor_base.md); on this port it sees single-beat transactions carrying the AXI5-Lite ID (IHI 0022L B2.1.5; W in AW order, A5.5).
 - Roy, S. *Advanced Digital System Design*, Springer, 2024, ch. 15 "Low-Power Digital System Design", §15.5.5 "Logic Level Power Down" -- textbook treatment of disabling the clock to idle units (secondary source).
 - Indexed in `rtl/amba/references/README.md`; the clock-gating papers are archived in `rtl/common/references/` (local PDF: `DynamicPowerManagementTimeout__Benini2000.pdf`, `LatchBasedClockGating__Benini1996.pdf`)
 

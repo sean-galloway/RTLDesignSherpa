@@ -39,7 +39,7 @@ from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 # ACE specific imports
 from CocoTBFramework.components.ace.ace_factories import create_axi4ace_master_rd, create_axi4ace_slave_rd
 from CocoTBFramework.components.ace.ace_field_configs import AXI4ACEFieldConfigHelper
-from CocoTBFramework.components.ace.ace_transaction import ACETransactionType
+from CocoTBFramework.components.ace.ace_transaction import ARSnoop
 from TBClasses.ace.ace_signal_checks import (
     AR_DOMAIN_BAR_CASES, domain_bar_sweep, rresp_coherence_sweep,
 )
@@ -331,7 +331,7 @@ class AXI4ACEMasterReadTB(TBBase):
     # Core test methods
 
     async def single_read_test(self, addr, expected_data=None, arid=None,
-                               snoop_type=ACETransactionType.READ_SHARED):
+                               snoop_type=ARSnoop.READ_SHARED):
         """
         Perform a single AXI4-ACE read transaction.
 
@@ -401,7 +401,7 @@ class AXI4ACEMasterReadTB(TBBase):
             return False, 0, {'error': str(e)}
 
     async def burst_read_test(self, addr, burst_len, arid=None,
-                              snoop_type=ACETransactionType.READ_SHARED):
+                              snoop_type=ARSnoop.READ_SHARED):
         """
         Perform a burst AXI4-ACE read transaction.
 
@@ -592,7 +592,7 @@ class AXI4ACEMasterReadTB(TBBase):
 
     async def snoop_type_matrix_test(self):
         """
-        Issue single and burst reads for every ACETransactionType member and
+        Issue single and burst reads for every ARSnoop (Table D3-7) member and
         verify AR field passthrough (including ARSNOOP) and data integrity.
         """
         self.log.info("=== ACE Snoop-Type Matrix Test ===")
@@ -601,7 +601,7 @@ class AXI4ACEMasterReadTB(TBBase):
         success_count = 0
         total_count = 0
 
-        for snoop_type in ACETransactionType:
+        for snoop_type in ARSnoop:
             total_count += 1
             addr = 0x1000 + (total_count * bytes_per_word)
             arid = total_count % (self.MAX_ID + 1)
@@ -628,8 +628,8 @@ class AXI4ACEMasterReadTB(TBBase):
 
             success_count += 1
 
-        self.log.info(f"Snoop-type matrix result: {success_count}/{len(ACETransactionType)} types passed")
-        return success_count == len(ACETransactionType)
+        self.log.info(f"Snoop-type matrix result: {success_count}/{len(ARSnoop)} types passed")
+        return success_count == len(ARSnoop)
 
     async def rack_check_test(self):
         """
@@ -642,7 +642,7 @@ class AXI4ACEMasterReadTB(TBBase):
         addr = 0x4000
         burst_len = 4
         arid = 0x55 & self.MAX_ID
-        snoop_type = ACETransactionType.READ_SHARED
+        snoop_type = ARSnoop.READ_SHARED
 
         # Pre-charge memory at the burst address
         bytes_per_word = self.TEST_DATA_WIDTH // 8
@@ -750,7 +750,7 @@ class AXI4ACEMasterReadTB(TBBase):
         async def read(pair):
             await self.ace_master.read_transaction(
                 address=base_addr, burst_len=burst_len, id=pair & self.MAX_ID,
-                size=arsize, burst_type=1, snoop_type=ACETransactionType.READ_SHARED)
+                size=arsize, burst_type=1, snoop_type=ARSnoop.READ_SHARED)
             self._drain_output_ar_packets()
             return self.ace_master.last_rresp
 

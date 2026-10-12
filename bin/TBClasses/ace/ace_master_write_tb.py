@@ -36,7 +36,7 @@ from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 
 from CocoTBFramework.components.ace.ace_factories import create_axi4ace_master_wr
 from CocoTBFramework.components.ace.ace_field_configs import AXI4ACEFieldConfigHelper
-from CocoTBFramework.components.ace.ace_transaction import ACETransactionType
+from CocoTBFramework.components.ace.ace_transaction import AWSnoop
 from TBClasses.ace.ace_signal_checks import (
     AW_DOMAIN_BAR_CASES, domain_bar_sweep,
 )
@@ -328,7 +328,7 @@ class AXI4ACEMasterWriteTB(TBBase):
 
     async def single_write_test(self, address: int, data: int,
                                 transaction_id: Optional[int] = None,
-                                snoop_type: ACETransactionType = ACETransactionType.WRITE_UNIQUE) -> Tuple[bool, Dict[str, Any]]:
+                                snoop_type: AWSnoop = AWSnoop.WRITE_UNIQUE) -> Tuple[bool, Dict[str, Any]]:
         """Perform a single ACE write transaction."""
         try:
             self.stats['total_writes'] += 1
@@ -392,7 +392,7 @@ class AXI4ACEMasterWriteTB(TBBase):
 
     async def burst_write_test(self, address: int, data_list: List[int],
                                transaction_id: Optional[int] = None,
-                               snoop_type: ACETransactionType = ACETransactionType.WRITE_UNIQUE) -> Tuple[bool, Dict[str, Any]]:
+                               snoop_type: AWSnoop = AWSnoop.WRITE_UNIQUE) -> Tuple[bool, Dict[str, Any]]:
         """Perform a burst ACE write transaction."""
         try:
             burst_len = len(data_list)
@@ -688,24 +688,22 @@ class AXI4ACEMasterWriteTB(TBBase):
 
     async def awsnoop_matrix_test(self) -> None:
         """
-        Issue every AWSNOOP-applicable ACETransactionType value and verify that
+        Issue every AWSnoop (Table D3-8) value and verify that
         the output AW packet preserves snoop, id, addr and len.
         """
         self.log.info("=== AWSNOOP Matrix Test ===")
 
-        # Build the set of 3-bit AWSNOOP values present in ACETransactionType
+        # Every AWSNOOP[2:0] encoding of IHI 0022H.c Table D3-8
         snoop_values = {}
-        for member in ACETransactionType:
-            value = int(member)
-            if value <= 0x7:
-                snoop_values.setdefault(value, member.name)
+        for member in AWSnoop:
+            snoop_values[int(member)] = member.name
 
         base_addr = 0x5000
         txn_id = 0x5
         bytes_per_word = self.TEST_DATA_WIDTH // 8
 
         for idx, (snoop_value, representative_name) in enumerate(sorted(snoop_values.items())):
-            snoop_type = ACETransactionType(snoop_value)
+            snoop_type = AWSnoop(snoop_value)
             addr = base_addr + (idx * 0x100)
             data = 0xAABB0000 + idx
 

@@ -102,8 +102,8 @@ class MonbusAxilAxilGroupTB(TBBase):
         random.seed(self.SEED)
 
         # Setup clock and reset signals
-        self.axi_aclk = axi_aclk or dut.axi_aclk
-        self.axi_aresetn = axi_aresetn or dut.axi_aresetn
+        self.axi_aclk = axi_aclk if axi_aclk is not None else dut.axi_aclk
+        self.axi_aresetn = axi_aresetn if axi_aresetn is not None else dut.axi_aresetn
         self.clk_name = self.axi_aclk._name if hasattr(self.axi_aclk, '_name') else 'axi_aclk'
         self.rst_n = self.axi_aresetn
 

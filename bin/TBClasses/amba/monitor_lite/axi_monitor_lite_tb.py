@@ -12,8 +12,9 @@ and for completions the latency in the top 16 bits) -- and exact counts, not
 Phases (every level; the counts scale): completions for singles and bursts,
 a SLVERR read/write that yields one error and no completion, a stalled slave
 that yields one timeout naming the phase, a pile of outstanding transactions
-that trips the active-count threshold, and a held monbus that drops events
-and then reports the count.
+that trips the active-count threshold, more transactions than the table holds
+(the refused ones must not disturb the tracked ones, amba #105), and a held
+monbus that drops events and then reports the count.
 """
 import os
 import cocotb
@@ -35,6 +36,8 @@ PKT_COMPL   = PktType.PktTypeCompletion
 PKT_THRESH  = PktType.PktTypeThreshold
 PKT_TIMEOUT = PktType.PktTypeTimeout
 ERR_SLVERR        = AXIErrorCode.AXI_ERR_RESP_SLVERR
+ERR_RESP_ORPHAN   = AXIErrorCode.AXI_ERR_RESP_ORPHAN
+ERR_DATA_ORPHAN   = AXIErrorCode.AXI_ERR_DATA_ORPHAN
 ERR_EVENT_DROPPED = AXIErrorCode.AXI_ERR_EVENT_DROPPED
 TMO_DATA = AXITimeoutCode.AXI_TIMEOUT_DATA
 TMO_RESP = AXITimeoutCode.AXI_TIMEOUT_RESP
@@ -294,6 +297,76 @@ class AxiMonitorLiteTB:
         slave.response_delay_cycles = saved
         self.log.info(f"phase threshold: {n} outstanding, {len(thr)} threshold packet(s), count {thr[0].data if thr else '-'}")
 
+    async def phase_refused(self):
+        """More transactions than table entries, all outstanding at once, each
+        on its own ID (amba #105). A command that finds no free entry is
+        refused and counted; its beats must then go NOWHERE -- not to a later
+        transaction's entry, not into the early-write register -- and its
+        response reports as an orphan naming its ID. Every tracked transaction
+        completes cleanly, and once the bus is idle the table is EMPTY.
+
+        Two rounds, so the AW-order queue wraps: with a table that is not a
+        power of two its pointers used to walk past the last entry. Before the
+        fix the write monitor attributed a refused AW's W burst to the next
+        tracked AW, leaked entries that never saw their own W, and at
+        MAX_TRANSACTIONS=12 wedged the table full."""
+        n = min(self.max_trans + 4, 1 << self.id_width)
+        if n <= self.max_trans:
+            self.log.info(f"phase refused: skipped ({1 << self.id_width} ids cannot exceed {self.max_trans} entries)")
+            return
+        slave = self._slave_bfm()
+        saved = slave.response_delay_cycles
+        slave.response_delay_cycles = 200            # every command outstanding at once
+        orphan_code = ERR_RESP_ORPHAN if self.is_write else ERR_DATA_ORPHAN
+        for rnd in range(2):
+            self.take()
+            refused0 = int(self.dut.refused_count.value)
+            done = []
+
+            async def _one(i):
+                await self.xfer(0x7000 + rnd * 0x1000 + i * 0x40, 1, i)
+                done.append(i)
+
+            for i in range(n):
+                cocotb.start_soon(_one(i))
+            for _ in range(800):
+                if len(done) == n:
+                    break
+                await ClockCycles(self.dut.aclk, 10)
+            await self.settle(100)
+            refused = int(self.dut.refused_count.value) - refused0
+            live = int(self.dut.active_transactions.value)
+            got = self.take()
+            where = f"refused[round {rnd}]"
+            if len(done) != n:
+                self._fail(f"{where}: only {len(done)} of {n} transactions finished on the bus")
+            if refused <= 0:
+                self._fail(f"{where}: refused_count did not move with {n} outstanding on {self.max_trans} entries -- the phase proved nothing")
+            if live != 0:
+                self._fail(f"{where}: the bus is idle but the table still holds {live} entries (leaked)")
+            compl = find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))
+            orph = find_packets_by_criteria(got, pkt_type=int(PKT_ERROR), event_code=int(orphan_code))
+            others = [p for p in got if not (p.is_completion_packet() or p.pkt_type == int(PKT_THRESH) or
+                                             (p.is_error_packet() and p.event_code == int(orphan_code)))]
+            if others:
+                self._fail(f"{where}: unexpected packets {[(p.pkt_type, p.event_code, p.channel_id) for p in others[:6]]}")
+            if len(compl) != n - refused:
+                self._fail(f"{where}: {len(compl)} completions for {n - refused} tracked ({n} issued, {refused} refused)")
+            if len(orph) != refused:
+                self._fail(f"{where}: {len(orph)} orphan reports for {refused} refused transactions")
+            c_ids = {p.channel_id for p in compl}
+            o_ids = {p.channel_id for p in orph}
+            if c_ids & o_ids or (c_ids | o_ids) != set(range(n)):
+                self._fail(f"{where}: completion ids {sorted(c_ids)} and orphan ids {sorted(o_ids)} "
+                           f"must split ids 0..{n - 1} exactly")
+            for p in compl:
+                want = 0x7000 + rnd * 0x1000 + p.channel_id * 0x40
+                if compl_addr(p) != want:
+                    self._fail(f"{where}: completion for id {p.channel_id} names 0x{compl_addr(p):08X}, expected 0x{want:08X}")
+            self.log.info(f"phase refused round {rnd}: {n} issued on {self.max_trans} entries, "
+                          f"{len(compl)} completed, {refused} refused ({len(orph)} orphan reports), table {live}")
+        slave.response_delay_cycles = saved
+
     async def phase_drop(self):
         n = self.cfg['held']
         self.take()
@@ -425,6 +498,7 @@ class AxiMonitorLiteTB:
         await self.phase_slverr()
         await self.phase_timeout()
         await self.phase_threshold()
+        await self.phase_refused()
         await self.phase_drop()
         await self.phase_latency()
         await self.phase_addr_range()

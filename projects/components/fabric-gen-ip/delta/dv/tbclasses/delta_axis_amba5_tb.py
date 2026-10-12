@@ -136,9 +136,6 @@ class DeltaAxisAmba5TB(TBBase):
             'enable_wakeup': True, 'enable_parity': True,
             # one pin per field (tdata, tdatachk, ...), not one packed bus
             'multi_sig': True,
-            # 'parity_error' is the AXIS5 packet's pin-less status field
-            # (0 = no error); nothing on the bus to bind it to
-            'optional_fields': ('parity_error',),
             'log': self.log,
         }
         # Timing axis: gate runs back-to-back (no valid or ready gaps); func
@@ -157,11 +154,9 @@ class DeltaAxisAmba5TB(TBBase):
             slave = create_axis5_slave(
                 dut=self.dut, prefix=f"m{s}_axis_", randomizer=timing('ready_delay'),
                 **common)['slave']
-            # The AXIS slave registers its own frame callback, and a cocotb
-            # Monitor with callbacks does not also fill _recvQ -- collect here.
-            got = []
-            slave.add_callback(got.append)
-            self.received.append(got)
+            # No callbacks registered, so the slave queues every beat on
+            # _recvQ (the cocotb Monitor contract, RDS-DV#89).
+            self.received.append(slave._recvQ)
             self.slaves.append(slave)
 
     # ------------------------------------------------------------------

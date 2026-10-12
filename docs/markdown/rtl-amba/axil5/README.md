@@ -98,7 +98,7 @@ axil5_slave_rd #(
 
 Known limitations:
 
-- No protocol checking of the ID or the optional groups. The monitored variants observe handshakes, addresses, responses and timing; their monitor ID inputs are tied to 0 (transactions tracked in issue order), and `axi_monitor_filtered` has no ports for USER, TRACE or POISON. A Subordinate that reorders responses across IDs is mis-attributed by the monitor.
+- No protocol checking of the ID or the optional groups. The monitored variants observe handshakes, addresses, responses and timing; since amba #104 their monitor also sees AxID and BID/RID, so responses a Subordinate reorders across IDs are paired with their own transactions (W in AW order). `axi_monitor_filtered` has no ports for USER, TRACE or POISON.
 - No poison generation or checking.
 - Timing diagrams are not yet drawn for this family.
 

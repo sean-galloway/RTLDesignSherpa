@@ -14,6 +14,7 @@ cover: smtbmc z3
 
 [script]
 read_verilog -formal -sv axi_monitor_lite_flat.v
+cover: read -define WR_COVER
 read -formal -sv -Iincludes formal_axi_monitor_lite.sv
 prep -top formal_axi_monitor_lite
 

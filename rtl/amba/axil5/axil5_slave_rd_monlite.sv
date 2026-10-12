@@ -255,6 +255,15 @@ module axil5_slave_rd_monlite
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
 
+    // AXI5-Lite IDs to the monitor (amba #104). ARID/RID exist on AXI5-Lite
+    // and a Subordinate may return read data out of order across IDs (IHI
+    // 0022L B2.1.5), so the monitor matches each R to the oldest command of
+    // the SAME ID, as on AXI4 -- with the ID tied 0 it paired every R with the
+    // oldest command outstanding, whichever one the R answered.
+    logic [IW-1:0] w_mon_cmd_id, w_mon_data_id;
+    assign w_mon_cmd_id  = s_axil_arid;
+    assign w_mon_data_id = s_axil_rid;
+
     if (USE_MONITOR) begin : gen_monitor_lite
         axi_monitor_lite #(
         .UNIT_ID              (UNIT_ID),
@@ -264,7 +273,7 @@ module axil5_slave_rd_monlite
         .N_ADDR_RANGES (N_ADDR_RANGES),
         .ADDR_RANGE_IS_ERROR (ADDR_RANGE_IS_ERROR),
         .ADDR_WIDTH           (AW),
-        .ID_WIDTH             (32'd1),
+        .ID_WIDTH             (IW),
         .IS_READ              (1'b1),
         .IS_AXI               (1'b1),
         .CFI_MIN_FREQ_MHZ     (CFI_MIN_FREQ_MHZ),
@@ -275,16 +284,16 @@ module axil5_slave_rd_monlite
         .clear                      (cam_clear | ~cfg_monitor_enable),
         .i_mon_time                 (i_mon_time),
         .cmd_addr                   (s_axil_araddr),
-        .cmd_id                     (1'b0),
+        .cmd_id                     (w_mon_cmd_id),
         .cmd_len                    (8'h00),
         .cmd_valid                  (w_mon_cmd_valid),
         .cmd_ready                  (s_axil_arready),
-        .data_id                    (1'b0),
+        .data_id                    (w_mon_data_id),
         .data_last                  (1'b1),
         .data_resp                  (s_axil_rresp),
         .data_valid                 (w_mon_data_valid),
         .data_ready                 (s_axil_rready),
-        .resp_id                    (1'b0),
+        .resp_id                    (w_mon_data_id),
         .resp_code                  (s_axil_rresp),
         .resp_valid                 (w_mon_resp_valid),
         .resp_ready                 (s_axil_rready),

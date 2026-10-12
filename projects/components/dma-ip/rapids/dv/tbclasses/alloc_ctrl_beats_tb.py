@@ -62,7 +62,7 @@ class AllocCtrlBeatsTB(TBBase):
         # Setup clock and reset signals
         self.clk = clk if clk is not None else dut.axi_aclk
         self.clk_name = self.clk._name if hasattr(self.clk, '_name') else 'axi_aclk'
-        self.rst_n = rst_n if rst_n else dut.axi_aresetn
+        self.rst_n = rst_n if rst_n is not None else dut.axi_aresetn
 
         # Calculate address width from DEPTH
         self.addr_width = (self.TEST_DEPTH - 1).bit_length()
