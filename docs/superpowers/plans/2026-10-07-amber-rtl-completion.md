@@ -400,6 +400,18 @@ Source: [`projects/components/cache-ip/docs/amber-jet-improvement-plan.md`](../.
 
 **Explicitly not scheduled:** A1/A4 (exclusive-monitor boundary documentation and the temporary snoop-stall hook) remain future hooks. Consumer update 2026-10-11: gyrfalcon extends to RV32IMA (falcon suite design spec amendment) — a gyrfalcon-A core on a coherent onyx rig would issue LR/SC through amber, activating onyx N2 (AxLock/PoS monitor) plus these hooks. Until such a rig is designed they stay unscheduled.
 
+### Task 18: TB hygiene — wall-clock safety limit that actually fires
+
+**Files:**
+- Modify: `bin/TBClasses/shared/tbbase.py` (safety monitor), or the per-area Makefiles / grid runner
+
+**Spec:** 2026-10-11 FULL-grid post-mortem. `max_test_duration_minutes` never fired on runs that sat stuck for hours, because `_async_safety_monitor` sleeps in SIM time (`sim_timer(interval)`): a crawling sim checks wall time only when sim time advances, so the wall limit is unenforceable exactly when needed. The thread monitor only checks memory/CPU and cannot raise into the sim. Operationally closed by wrapping grid legs in wall-clock `timeout` (full_grid_v2.sh), but the TB-level contract remains broken. Fix options: thread monitor escalates to process kill after the wall limit, or per-test wall timeout wired at the pytest level. Also fold in: pair-rig TB still carries the per-poll `self.events` scans this plan's TB fix removed elsewhere (amber_pair_rig_tb.py `_txn_begin`/`_txn_end` paths) — same medicine when that file is next touched.
+
+- [ ] **Step 1:** decide kill mechanism (thread-escalation vs pytest timeout); wire `max_test_duration_minutes` enforcement to wall time
+- [ ] **Step 2:** demonstrate on a deliberately slowed sim that the limit aborts within ~1 interval
+- [ ] **Step 3:** pair-rig TB per-poll scans -> counters (same pattern as fc39ddd71)
+- [ ] **Step 4: Commit** (`tb: wall-clock safety limit + pair-rig scan cleanup`)
+
 ---
 
 ## Self-Review
