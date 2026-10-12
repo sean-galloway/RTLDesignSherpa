@@ -1,0 +1,978 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2026 sean galloway
+//
+// granite DDR2/LPDDR2 Product CSR Register Map (PeakRDL source)
+//
+// Derived from research-ip/pumice-ddr2-lpddr2/rtl/macro/pumice_csr.rdl.
+// granite and pumice share ONE CSR base: every pumice address is kept, and
+// features absent in the granite SKU are marked RESERVED at their addresses
+// (owner ruling 2026-10-11). Do not delete or move registers.
+//
+// Reserved in this SKU:
+//   - RAS/ECC surface: absent structurally in granite (mc_ras_plane omitted;
+//     no scrub). The listed pumice RAS/ECC registers (csr_ecc_en,
+//     csr_ecc_mode, csr_ecc_stat, scrub-related) do not exist in the pumice
+//     RDL source, so no CSR addresses are present to reserve.
+//   - Command-history window registers (CMD_HISTORY*): the pumice RDL does not
+//     expose these; only the mc_cmd_history_checker module exists, and it is
+//     omitted in granite.
+//   - Telemetry/sweep research instrumentation: PAGE_STATS_*, SCHED_STATS_*,
+//     REF_STATS_*, STALL_*, and OBS_ROW_HIT are reserved (read-zero, hw=na).
+//   - Refresh advanced options tied off in granite: REF_CTRL.mode and all
+//     REFpb/postpone/pull-in fields are reserved; only tREFI (TIMINGS_RFC_REFI)
+//     and REFab dispatch (PHY_TIMING.refresh_burst) remain live.
+//
+// Granite parameters surfaced as read-only CSR fields:
+//   - SCHED_WR_WM.wr_batch_max is read-only at GRANITE_WR_DATA_BUF_WORDS (=16).
+//   - DFI_PHASE.gear_ratio is read-only at log2(GRANITE_DFI_MHZ/GRANITE_ACLK_MHZ)
+//     (=2 for the placeholder 300/75 MHz plan).
+//   Other GRANITE_* package parameters (SEAM_N, ENTRY_STORE_DEPTH, ACLK_MHZ)
+//   do not have direct CSR field mappings in this map.
+//
+// Live page policy: PAGE_POLICY_CFG.policy_mode stays live and resets to 3
+// (fixed_open), identical to pumice. PAGE_TIMEOUT_CFG.tr_init stays live.
+//
+// Address Space: 4 KB (12-bit paddr), 32-bit registers, little-endian.
+
+addrmap granite_csr {
+    name = "DDR2/LPDDR2 Memory Controller CSR (granite SKU)";
+    desc = "Configuration and observation registers for the granite DDR2/LPDDR2 product SKU. Address-for-address derived from pumice_csr.rdl; absent features are reserved rather than removed.";
+
+    default regwidth = 32;
+    default accesswidth = 32;
+    default alignment = 4;
+
+    //=========================================================================
+    // Control and Status (0x000 – 0x00F)
+    //=========================================================================
+
+    reg {
+        name = "Control Register";
+        desc = "Init / power / soft-reset request bits";
+
+        field {
+            desc = "Write 1 to start init";
+            sw = rw; hw = r; swmod;
+        } init_start = 1'b0;
+
+        field {
+            desc = "Write 1 to force re-init even mid-sequence";
+            sw = rw; hw = r; swmod;
+        } init_force_restart = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_3_2[3:2] = 2'h0;
+
+        field {
+            desc = "Request power-down state";
+            sw = rw; hw = r;
+        } pwr_req_low_power = 1'b0;
+
+        field {
+            desc = "Request DPD (LPDDR2 only)";
+            sw = rw; hw = r;
+        } pwr_req_dpd = 1'b0;
+
+        field {
+            desc = "Request return to ACTIVE";
+            sw = rw; hw = r;
+        } pwr_req_active = 1'b0;
+
+        field {
+            desc = "Request self-refresh";
+            sw = rw; hw = r;
+        } pwr_req_self_refresh = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_30_8[30:8] = 23'h0;
+
+        field {
+            desc = "Write 1 to assert internal soft reset (self-clearing)";
+            sw = rw; hw = r; swmod;
+        } soft_reset = 1'b0;
+
+    } CTRL @ 0x000;
+
+    reg {
+        name = "Status Register";
+        desc = "Init / power / version status";
+
+        field {
+            desc = "Init complete";
+            sw = r; hw = w;
+        } init_done;
+
+        field {
+            desc = "Init error";
+            sw = r; hw = w;
+        } init_error;
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_3_2[3:2] = 2'h0;
+
+        field {
+            desc = "Current power-state FSM state (encoded)";
+            sw = r; hw = w;
+        } power_state[7:4];
+
+        field {
+            desc = "LPDDR2: PASR mask is non-zero";
+            sw = r; hw = w;
+        } pasr_active;
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_15_9[15:9] = 7'h0;
+
+        field {
+            desc = "Current init step number (for bring-up)";
+            sw = r; hw = w;
+        } init_step_dbg[23:16];
+
+        field {
+            desc = "Reserved";
+            sw = r; hw = na;
+        } RSVD_30_24[30:24] = 7'h0;
+
+        field {
+            desc = "Build matches expected version";
+            sw = r; hw = w;
+        } version_match;
+
+    } STATUS @ 0x004;
+
+    reg {
+        name = "Status History";
+        desc = "Last 8 power-state transitions, 4 bits each. Most recent in [3:0].";
+
+        field {
+            desc = "8 x 4-bit power-state history";
+            sw = r; hw = w;
+        } history[31:0];
+
+    } STATUS_HISTORY @ 0x008;
+
+    //=========================================================================
+    // Timing Parameters (0x010 – 0x01F)
+    //=========================================================================
+
+    reg {
+        name = "Timings: tRC / tRCD / tRP / tRAS";
+        desc = "Packed core per-bank JEDEC windows, in MC (controller) cycles.
+                EVERY JEDEC timing field in this map is a count of cycles to
+                BLOCK, so a window programmed to N is enforced as N+1 cycles of
+                command spacing -- the counter is loaded with N on the event and
+                the gate opens the cycle after it would reach zero. Measured and
+                bounded tight in formal/pumice/{bank_timer,global_timers}
+                (a_*_bound_n1). Program the JEDEC value from the part datasheet;
+                do NOT subtract one to compensate, or the register stops reading
+                as the part's timing. pumice TASK-034 tracks whether to recover
+                that cycle -- it is a board measurement, because the empirical
+                rtw_guard in the host's tRTW derivation was tuned with it
+                present.";
+
+        field { sw = rw; hw = r; desc = "tRC -- MC cycles to block; spacing enforced is N+1";  } tRC[7:0]    = 8'd60;
+        field { sw = rw; hw = r; desc = "tRCD -- MC cycles to block; spacing enforced is N+1"; } tRCD[15:8]  = 8'd15;
+        field { sw = rw; hw = r; desc = "tRP -- MC cycles to block; spacing enforced is N+1";  } tRP[23:16]  = 8'd15;
+        field { sw = rw; hw = r; desc = "tRAS -- MC cycles to block; spacing enforced is N+1"; } tRAS[31:24] = 8'd40;
+
+    } TIMINGS_RC_RCD_RP_RAS @ 0x010;
+
+    reg {
+        name = "Timings: tRFC / tREFI";
+        desc = "Refresh interval and recovery";
+
+        // Mission-mode REF->ACT/REF recovery, MC cycles (consumed by the
+        // arbiter's r_rfc_cnt; init-time refreshes use INIT_TIMING1.t_rfc_wait).
+        // 16 covers DDR2 127.5ns up to ~125MHz MC clock.
+        field { sw = rw; hw = r; desc = "tRFC (or tRFCab)"; } tRFC[15:0]  = 16'd16;
+        field { sw = rw; hw = r; desc = "tREFI";            } tREFI[31:16] = 16'd1950;
+
+    } TIMINGS_RFC_REFI @ 0x014;
+
+    reg {
+        name = "Timings: tRRD / tFAW / tWTR / tCCD";
+        desc = "Inter-bank + bus turn-around";
+
+        field { sw = rw; hw = r; desc = "tRRD -- MC cycles to block; spacing enforced is N+1"; } tRRD[7:0]    = 8'd6;
+        field { sw = rw; hw = r; desc = "tFAW -- MC cycles; at most 4 ACTs per rank in the window"; } tFAW[15:8]   = 8'd35;
+        field { sw = rw; hw = r; desc = "tWTR -- MC cycles to block; spacing enforced is N+1"; } tWTR[23:16]  = 8'd4;
+        field { sw = rw; hw = r; desc = "tCCD -- MC cycles to block; spacing enforced is N+1"; } tCCD[31:24]  = 8'd4;
+
+    } TIMINGS_RRD_FAW_WTR_CCD @ 0x018;
+
+    reg {
+        name = "Timings: CL / CWL / tWR / tRFCpb";
+        desc = "CAS latencies + write recovery + LPDDR2 per-bank tRFC";
+
+        field { sw = rw; hw = r; desc = "CAS latency";        } CL[7:0]        = 8'd6;
+        field { sw = rw; hw = r; desc = "CAS write latency";  } CWL[15:8]      = 8'd4;
+        field { sw = rw; hw = r; desc = "Write recovery (tWR, from end of burst) -- MC cycles to block; spacing enforced is N+1"; } tWR[23:16]     = 8'd15;
+        field { sw = rw; hw = r; desc = "LPDDR2 per-bank tRFC"; } tRFCpb[31:24] = 8'd70;
+
+    } TIMINGS_CL_CWL_WR @ 0x01C;
+
+    reg {
+        name = "Timings: tRTP / tRTW";
+        desc = "Read-to-precharge and read-to-write turn-around (JEDEC), in MC
+                cycles. Previously tRTP was hardcoded (8'd4, 'not yet in CSR map')
+                and tRTW was tied to tRTP; now both are independent configs.";
+
+        field { sw = rw; hw = r; desc = "Read to precharge (tRTP) -- MC cycles to block; spacing enforced is N+1"; } tRTP[7:0]  = 8'd4;
+        field { sw = rw; hw = r; desc = "Read to write (tRTW) -- MC cycles to block; spacing enforced is N+1"; } tRTW[15:8] = 8'd6;
+        field { sw = r;  hw = na; desc = "Reserved";         } RSVD[31:16] = 16'h0;
+
+    } TIMINGS_RTP_RTW @ 0x054;
+
+    reg {
+        name = "DFI Command Phase Placement";
+        desc = "Which DFI sub-phase carries the READ vs WRITE command, to match
+                the PHY's rdphase/wrphase contract. For the Nexys A7 a7ddrphy
+                (DDR2/CL3/nphases=2) the on-silicon ILA showed the READ burst is
+                delivered aligned to rdphase=1 (wrphase=0): issuing RD on phase 0
+                misaligns the returned burst (1st DFI cycle good, tail corrupt).
+                Defaults 0/0 preserve the legacy all-on-phase-0 behavior. Fields
+                are sliced to clog2(DFI_RATE) bits downstream; upper bits ignored
+                when DFI_RATE < the field width.";
+
+        field { sw = rw; hw = r; desc = "READ command DFI sub-phase";  } rd_phase[2:0]   = 3'd0;
+        field { sw = rw; hw = r; desc = "WRITE command DFI sub-phase"; } wr_phase[6:4]   = 3'd0;
+        // gear_ratio = log2(active DFI_RATE): 0=1:1, 1=1:2, 2=1:4, 3=1:8. The
+        // controller datapath is BUILT for MAX_DFI_RATE (this build = 4); this
+        // register selects how many of those phases are ACTIVE at runtime and
+        // MUST equal the PHY's gear (nphases). On this board the a7ddrphy is
+        // fixed nphases=4, so reset = 2 (1:4). Prep for a variable-gear PHY
+        // (task #144/#145) -- gear is NEVER inferred, always this fixed register.
+        field { sw = r; hw = na; desc = "gear_ratio = log2(active DFI_RATE). Read-only in granite at log2(GRANITE_DFI_MHZ/GRANITE_ACLK_MHZ) = log2(300/75) = 2; the product frequency plan is the single source of truth."; } gear_ratio[8:7] = 2'd2;
+        // JEDEC burst length (MR0 device beats): 4, 8, or 16. The SINGLE source
+        // of truth for the burst geometry (task #146). Combined with gear_ratio
+        // it selects the ACTIVE sub-DFI-word framing at runtime: when one DFI
+        // word packs N = DFI_RATE/(bl>>BL_SHIFT) JEDEC bursts. The controller
+        // datapath is BUILT for MAX, so a wrong value here is BAD CONFIG
+        // PROGRAMMING, never a synth mismatch. Reset = 8 matches the board (DDR2
+        // BL8): at nphases=4/x16 a BL8 read fills one full 128b DFI word in one
+        // 8-slot PHY event (N=1, no sub-word packing) — BL4 filled only half the
+        // window (stale) = the on-silicon read-fail root cause. It also carries
+        // the burst length that MR0 encodes, so software programs one value.
+        field { sw = rw; hw = r; desc = "JEDEC burst length (MR0 device beats): 4/8/16"; } bl[12:9] = 4'd8;
+        field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:13]      = 19'h0;
+
+    } DFI_PHASE @ 0x060;
+
+    reg {
+        name = "PHY / DFI data timing + memory config";
+        desc = "t_phy_wrlat: WRITE command -> dfi_wrdata_en. t_rddata_en:
+                RD command -> dfi_rddata_en window.
+                t_phy_wrlat resets to 1 because BOTH board host paths program 1,
+                and the old reset of 0 agreed with neither (TASK-015 plane 0).
+                t_rddata_en resets to 6 -- what `init` programs
+                (pumice_master.SimpleTest: the ILA-validated tuple wrlat=1,
+                rden=6, rddata_delay=7). pumice_char.ControllerConfig programs 1
+                with rddata_delay=2 instead, a DIFFERENT valid point on the
+                measured diagonal rddata_delay = t_rddata_en + 1 (the a7ddrphy
+                data-vs-valid offset is a fixed 1 cycle). Two host paths
+                programming two points is pumice ISSUE-015; the reset follows
+                `init`, the bring-up authority. Do NOT pin a stale tuple here:
+                overriding these to 0/6 on 2026-09-21 corrupted data on all four
+                cells while still reporting healthy bandwidth.
+                memtype: 0=DDR2, 1=LPDDR2. refresh_burst: 1..8 REFs drained per
+                request. All hw-readable so they drive the controller core.";
+
+        field { sw = rw; hw = r; desc = "t_phy_wrlat (WR cmd -> wrdata_en)"; } t_phy_wrlat[7:0]   = 8'd1;
+        field { sw = rw; hw = r; desc = "t_rddata_en (RD cmd -> rddata_en)";  } t_rddata_en[15:8]  = 8'd6;
+        field { sw = rw; hw = r; desc = "0=DDR2, 1=LPDDR2";                    } memtype[16:16]     = 1'b0;
+        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD0[19:17]      = 3'h0;
+        field { sw = rw; hw = r; desc = "REFs drained per request (1..8)";     } refresh_burst[23:20] = 4'd1;
+        // (deskew_lo/hi [27:24] removed: the per-beat read-deskew experiment was
+        // a disproven dead-end — the board read fix was rddata_delay alignment.)
+        field { sw = r;  hw = na; desc = "Reserved";                           } RSVD1[31:24]      = 8'h0;
+
+    } PHY_TIMING @ 0x064;
+
+    //=========================================================================
+    // Mode Register Values (0x020 – 0x02F)
+    //=========================================================================
+
+    reg {
+        name = "Mode Register 0";
+        desc = "MR0 base value loaded during the init MRS chain (low 16 bits).
+                Default 0x433 is DDR2 BL8/CL3/tWR3. The init FSM ORs in the DLL
+                reset bit for the first MR0 load. Runtime-writable so software can
+                retune the mode register AND sweep the value to defeat an
+                arbitrary board A-lane mapping on MRS commands: write MRx.VAL then
+                pulse CTRL.init_force_restart.";
+
+        field { sw = rw; hw = r; reset = 16'h0433; desc = "MR0 value, DDR2 BL8/CL3/tWR3 default"; } VAL[15:0];
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+
+    } MR0 @ 0x020;
+
+    reg {
+        name = "Mode Register 1";
+        desc = "MR1 value loaded during init (low 16 bits)";
+
+        field { sw = rw; hw = r; desc = "MR1 value"; } VAL[15:0] = 16'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+
+    } MR1 @ 0x024;
+
+    reg {
+        name = "Mode Register 2";
+        desc = "MR2 value loaded during init (low 16 bits)";
+
+        field { sw = rw; hw = r; desc = "MR2 value"; } VAL[15:0] = 16'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+
+    } MR2 @ 0x028;
+
+    reg {
+        name = "Mode Register 3";
+        desc = "MR3 value loaded during init (low 16 bits)";
+
+        field { sw = rw; hw = r; desc = "MR3 value"; } VAL[15:0] = 16'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+
+    } MR3 @ 0x02C;
+
+    //=========================================================================
+    // LPDDR2-Specific (0x030 – 0x03F)
+    //=========================================================================
+
+    reg {
+        name = "PASR Bank Mask Rank 0";
+        desc = "LPDDR2 PASR per-bank mask for rank 0 (MR16). Bit N=1 masks bank N.";
+
+        field { sw = rw; hw = r; desc = "Bank mask"; } pasr_banks[7:0] = 8'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:8] = 24'h0;
+
+    } PASR_BANK_MASK_RANK0 @ 0x030;
+
+    reg {
+        name = "PASR Segment Mask Rank 0";
+        desc = "LPDDR2 PASR segment mask for rank 0";
+
+        field { sw = rw; hw = r; desc = "Segment mask"; } pasr_segs[7:0] = 8'h0;
+        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:8] = 24'h0;
+
+    } PASR_SEG_MASK_RANK0 @ 0x034;
+
+    reg {
+        name = "Temperature Derate Rank 0";
+        desc = "LPDDR2 MR4 temperature class for rank 0";
+
+        field {
+            sw = r; hw = w;
+            desc = "00 = nominal, 01 = 2x refresh, 10 = 4x refresh";
+        } temp_class[1:0];
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:2] = 30'h0;
+
+    } TEMP_DERATE_RANK0 @ 0x038;
+
+    //=========================================================================
+    // Scheduler / Refresh / Page / Addr / Init Tuning (0x040 – 0x05F)
+    //=========================================================================
+
+    reg {
+        name = "Scheduler Tuning";
+        desc = "RETIRED 2026-09-09. lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water / lookahead_max_obs belonged to the pre-rearchitecture scheduler; nothing has consumed them since the CAM+arbiter scheduler (pumice_scheduler_plane) landed, so a write here was a silent no-op. Scheduling is SCHED_POLICY (order_mode selects in_order / age_threshold; FR-FCFS is the default and reorders across the whole CAM, so there is no lookahead window to size). The address is kept so the map does not shift.";
+
+        field { sw = r; hw = na; desc = "Reserved (retired scheduler knobs)"; } RSVD[31:0] = 32'h0;
+
+    } SCHED_TUNING @ 0x040;
+
+    // 0x044 (was PAGE_PRED_TUNING) -- retired with the HAPPY predictor. The
+    // adaptive-paging knobs live in PAGE_POLICY_CFG / PAGE_TIMEOUT_CFG /
+    // PAGE_ADAPT_CFG. Address intentionally left unmapped.
+
+    reg {
+        name = "Refresh Tuning";
+        desc = "Page-policy override. The refresh fields that lived here (refpb_policy_or, refresh_defer_active, zqcs_freq_hz) were retired 2026-09-09: refresh mode and the JEDEC postpone/pull-in credits are REF_CTRL, and no ZQCS engine consumed the interval. The address is kept so the map does not shift.";
+
+        field { sw = r; hw = na; desc = "Reserved (was refpb_policy_or; see REF_CTRL.mode)"; } RSVD_1_0[1:0] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "00=build-time, 01=OPEN, 10=CLOSE, 11=reserved (was HYBRID; maps to build default)";
+        } page_policy_or[3:2] = 2'h0;
+
+        field { sw = r; hw = na; desc = "Reserved (was refresh_defer_active; see REF_CTRL.postpone_limit)"; } RSVD_15_4[15:4] = 12'h0;
+
+        field { sw = r; hw = na; desc = "Reserved (was zqcs_freq_hz; no ZQCS engine)"; } RSVD_31_16[31:16] = 16'h0;
+
+    } REFRESH_TUNING @ 0x048;
+
+    reg {
+        name = "Address Map";
+        desc = "AXI-address -> {rank,row,bank,col} mapping. bank_lsb is where the
+                bank field sits in the (byte-offset-stripped) word address; the
+                column fills below (col_lo) and above (col_hi) it, row/rank stack
+                above. ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH are just settings of
+                this register (no separate scheme selector). See addr_mapper.sv.";
+
+        // Bank LSB = # of low column bits kept BELOW the bank field. A DRAM burst
+        // lives in those low bits, so it stays within one bank.
+        //   = COL_WIDTH          -> bank above whole column  = ROW_MAJOR
+        //   = log2(DRAM_BL)      -> minimal col_lo           = max BANK_INTERLEAVE
+        //   in between           -> partial interleave (burst locality preserved)
+        // Constraint: log2(DRAM_BL) <= bank_lsb <= COL_WIDTH (RTL clamps).
+        //
+        // DRAM_BL, not DRAM_BL/DFI_RATE, and the difference is unsafe rather
+        // than cosmetic. This block indexes DEVICE WORDS -- BYTE_OFFSET_WIDTH
+        // is log2(device bytes) -- and pumice_core derives SUB_COL_STRIDE =
+        // DRAM_BL in exactly those units, calling it "one JEDEC burst". So a
+        // burst spans DRAM_BL columns here and the bank field has to sit above
+        // all of them. The old text said log2(BL/DFI_RATE), which is
+        // log2(DFI_RATE) bits too permissive: at the shipping point (BL4 over
+        // a 1:2 gear) it reads 1 where the truth is 2, and at bank_lsb=1 a
+        // 4-word burst spans banks 0,0,1,1 -- a single DRAM burst split across
+        // two banks. Nothing has ever programmed it -- every build ships
+        // bank_lsb=10 (= COL_WIDTH, ROW_MAJOR) -- so this was a trap for the
+        // first person to enable interleaving, not a live defect (BUG-022).
+        //
+        // MEASURED, not derived:
+        // dv/tests/fub/test_addr_mapper.py::minimum_bank_lsb_is_measured
+        // finds the smallest bank_lsb that keeps an aligned burst in one bank
+        // and reports 2 / 3 / 4 for bursts of 4 / 8 / 16 words. Filed as
+        // pumice BUG-022; scoria's inherited copy carried the same text and
+        // was corrected first, with the same measurement.
+        field {
+            sw = rw; hw = r;
+            desc = "Bank field LSB in the word address (=COL_WIDTH -> ROW_MAJOR)";
+        } bank_lsb[4:0] = 5'd10;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_7_5[7:5] = 3'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Enable bank XOR-hash: bank ^= fold(row) ^ hash_seed";
+        } hash_en[8:8] = 1'b0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_9[15:9] = 7'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "XOR-hash seed (bank ^= fold(row) ^ seed[BW-1:0])";
+        } hash_seed[23:16] = 8'h00;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_24[31:24] = 8'h0;
+
+    } ADDR_MAP @ 0x04C;
+
+    reg {
+        name = "Init Tuning";
+        desc = "ZQ retries + per-step init timeout";
+
+        field { sw = rw; hw = r; desc = "ZQ retries (1..8)";     } zq_retries[3:0]     = 4'd3;
+        field { sw = r;  hw = na; desc = "Reserved";              } RSVD_7_4[7:4] = 4'h0;
+        field { sw = rw; hw = r; desc = "Init timeout ms (1..255)"; } init_timeout_ms[15:8] = 8'd10;
+        field { sw = r;  hw = na; desc = "Reserved";              } RSVD_31_16[31:16] = 16'h0;
+
+    } INIT_TUNING @ 0x050;
+
+    reg {
+        name = "Init Timing 0: tINIT / tDLLK";
+        desc = "JEDEC init-sequence waits (MC cycles): CKE/tINIT settle and DLL
+                lock. Previously hardcoded in init_sequencer.";
+
+        field { sw = rw; hw = r; desc = "CKE/tINIT settle"; } t_init_wait[15:0]  = 16'd512;
+        field { sw = rw; hw = r; desc = "DLL lock (tDLLK)"; } t_dll_wait[31:16]  = 16'd256;
+
+    } INIT_TIMING0 @ 0x058;
+
+    reg {
+        name = "Init Timing 1: tMRD / tRP / tRFC (init)";
+        desc = "JEDEC init-sequence waits (MC cycles): post-MRS (tMRD),
+                post-precharge (tRP), post-refresh (tRFC). Previously hardcoded.";
+
+        field { sw = rw; hw = r; desc = "tMRD (post mode-reg)"; } t_mrd_wait[7:0]  = 8'd8;
+        field { sw = rw; hw = r; desc = "tRP (post precharge)"; } t_rp_wait[15:8]  = 8'd8;
+        field { sw = rw; hw = r; desc = "tRFC (post refresh)";  } t_rfc_wait[23:16]= 8'd16;
+        field { sw = r;  hw = na; desc = "Reserved";            } RSVD[31:24] = 8'h0;
+
+    } INIT_TIMING1 @ 0x05C;
+
+    //=========================================================================
+    // Per-Bank Observation (0x080 – 0x09F) — NUM_BANKS=8, rank 0
+    //=========================================================================
+
+    regfile {
+        name = "Per-Bank Row Hit Observation";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+
+        reg {
+            field { sw = r; hw = na; desc = "Reserved (was row-hit count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+        } ROW_HIT @ 0x0;
+
+    } OBS_ROW_HIT[8] @ 0x080 += 0x4;
+
+    //=========================================================================
+    // LPDDR2 Calibration / Training (0x0A0 – 0x0EF)
+    //=========================================================================
+
+    reg {
+        name = "Calibration Control";
+        desc = "ZQ + DQ calibration control strobes and enables";
+
+        field { sw = rw; hw = r; desc = "Enable periodic ZQCS/ZQCL"; } zq_en[0:0] = 1'b0;
+        field { sw = rw; hw = r; desc = "Mode-C deferral: hold ZQ under demand"; } zq_defer_en[1:1] = 1'b0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_3_2[3:2] = 2'h0;
+        field { sw = rw; hw = r; swmod; desc = "Write 1 to start a DQ-cal sequence (self-clearing command)"; } cal_start[4:4] = 1'b0;
+        field { sw = rw; hw = r; swmod; desc = "Write 1 to abort the current DQ-cal sequence"; } cal_abort[5:5] = 1'b0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_6[15:6] = 10'h0;
+        field { sw = rw; hw = r; desc = "Max ZQ deferral cycles before overdue (0 = no cap)"; } zq_overdue_max[28:16] = 13'h0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_29[31:29] = 3'h0;
+
+    } CAL_CTRL @ 0x0A0;
+
+    reg {
+        name = "ZQ Interval";
+        desc = "ZQCS interval in MC cycles, 0 = disabled";
+
+        field { sw = rw; hw = r; desc = "ZQCS interval"; } VAL[31:0] = 32'h0;
+
+    } CAL_ZQ_INTERVAL @ 0x0A4;
+
+    reg {
+        name = "ZQ Post-Grant Hold";
+        desc = "Bus-quiet window after a ZQCS/ZQCL MRW grant";
+
+        field { sw = rw; hw = r; desc = "ZQCS post-grant hold"; } t_zqcs[15:0]  = 16'h0;
+        field { sw = rw; hw = r; desc = "ZQCL post-grant hold"; } t_zqcl[31:16] = 16'h0;
+
+    } CAL_ZQ_TIMING @ 0x0A8;
+
+    reg {
+        name = "Training Timing";
+        desc = "MRR spacing and readout timeout for DQ calibration";
+
+        field { sw = rw; hw = r; desc = "MRR-to-MRR spacing (MC cycles)"; } t_mrr[15:0]  = 16'h2;
+        field { sw = rw; hw = r; desc = "MRR issue -> data timeout"; } t_readout[31:16] = 16'h0;
+
+    } CAL_TRAIN_TIMING @ 0x0AC;
+
+    regfile {
+        name = "MRR32 Captured Data";
+        desc = "First captured DFI read-data beat for MRR MR32 (pattern A).";
+
+        reg {
+            field { sw = r; hw = w; desc = "32-bit slice of captured MRR32 data"; } VAL[31:0];
+        } VAL @ 0x0;
+
+    } CAL_MRR32_DATA[4] @ 0x0B0 += 0x4;
+
+    regfile {
+        name = "MRR40 Captured Data";
+        desc = "First captured DFI read-data beat for MRR MR40 (pattern B).";
+
+        reg {
+            field { sw = r; hw = w; desc = "32-bit slice of captured MRR40 data"; } VAL[31:0];
+        } VAL @ 0x0;
+
+    } CAL_MRR40_DATA[4] @ 0x0E0 += 0x4;
+
+    reg {
+        name = "Calibration Status";
+        desc = "Training plane telemetry; sticky done/err, cleared by soft reset";
+
+        field { sw = r; hw = w; desc = "ZQ calibration busy"; } zq_busy[0:0];
+        field { sw = r; hw = w; desc = "DQ calibration busy"; } cal_busy[1:1];
+        field { sw = r; hw = w; desc = "DQ calibration done (sticky)"; } cal_done[2:2];
+        field { sw = r; hw = w; desc = "DQ calibration error (sticky)"; } cal_err[3:3];
+        field { sw = r; hw = w; desc = "ZQ interval expired without grant"; } zq_overdue[4:4];
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_5[15:5] = 11'h0;
+        field { sw = r; hw = w; desc = "ZQCS/ZQCL commands issued since reset"; } zqcs_total[31:16] = 16'h0;
+
+    } CAL_STATUS @ 0x0F0;
+
+    //=========================================================================
+    // System Observation (0x100 – 0x1FF)
+    //=========================================================================
+
+    //=========================================================================
+    // RETIRED 2026-09-28 (pumice BUG-020). These registers were in the map, in
+    // the MAS and in the generated docs, and NOTHING drove them -- pumice_top
+    // carried zero hwif_in.OBS_* assignments, so every one read zero forever.
+    // They were removed rather than wired, for the reason recorded per group.
+    // ADDRESSES ARE LEFT AS HOLES so the rest of the map does not shift.
+    //
+    //   0x0C0-0x0DC  OBS_REF_LATENCY[8]            no consumer, ever
+    //   0x100        OBS_TXN_QUEUE_DEPTH_MAX       } AXI-side: duplicates
+    //   0x104        OBS_TXN_QUEUE_DEPTH_AVG       } axi_bus_meter and
+    //   0x130        OBS_AXI_R_LATENCY_AVG         } axi_perf_latency_hist,
+    //   0x134        OBS_AXI_R_LATENCY_P99         } which the char harness
+    //   0x138        OBS_AXI_W_LATENCY_AVG         } already instantiates at
+    //                                              } char_engine_block.sv:608.
+    //     Measuring AXI latency and occupancy from inside the controller is the
+    //     wrong side of the interface; an external meter sees what the system
+    //     sees. pumice TASK-025 was dropped on the same reasoning.
+    //   0x108        OBS_REFRESH_PENDING_MAX       no consumer, ever
+    //   0x10C-0x118  OBS_REFRESH_DEFER_HIST_0..3   no consumer, ever
+    //   0x120        (already a hole: OBS_PAGE_PRED_ACCURACY, HAPPY predictor)
+    //   0x1C0-0x1E0  OBS_WORDS[9]                  its aggregator was deleted in
+    //     e8908eebf (2026-07-21, "retire three dead code trees"); `obs_words`
+    //     appears nowhere in rtl/, not even rtl/OLD/. The window outlived its
+    //     source by two months and nobody noticed, because nothing read it.
+    //
+    // Granite: the remaining telemetry instrumentation (OBS_ROW_HIT at 0x080,
+    // PAGE_STATS_*, SCHED_STATS_*, REF_STATS_*, STALL_* at 0x148-0x17C) is
+    // reserved as a research/sweep surface, not part of the product SKU.
+    //=========================================================================
+
+    //=========================================================================
+    // Advanced-mode select CSRs (0x068 – 0x078, 0x140 – 0x15C) — TASK-001
+    //
+    // The characterization surface from design-requirements.md "Advanced
+    // modes": every mechanism is a config-bit-selectable MODE, added serially
+    // behind its own enable, reset = the build default (bit-identical to the
+    // pre-TASK-001 controller). These registers land FIRST, before any
+    // consuming logic, so the software surface is stable while the modes
+    // arrive one red->green step at a time. Encodings with value 0 always
+    // mean "build default / current behavior".
+    //
+    // The legacy knobs (SCHED_TUNING.force_inorder / lookahead,
+    // REFRESH_TUNING.page_policy_or / refpb_policy_or / refresh_defer_active)
+    // remain live and authoritative until the corresponding mode consumes its
+    // NEW field here; each mode's landing commit retires or aliases the old
+    // knob explicitly. Until then hardware ignores these fields.
+    //=========================================================================
+
+    reg {
+        name = "Scheduler Policy";
+        desc = "Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.";
+
+        field {
+            sw = rw; hw = r;
+            desc = "0=build default, 1=in_order, 2=fr_fcfs, 3=age_threshold";
+        } order_mode[1:0] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Priority sub-policy: 0=default, 1=none, 2=load_over_store, 3=age_boost";
+        } prio_sub[3:2] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Row-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending";
+        } row_sel[5:4] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Column-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending";
+        } col_sel[7:6] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first";
+        } access_pref[9:8] = 2'h0;
+
+        field { sw = r; hw = na; desc = "Reserved (was auto_precharge_en, never consumed: auto-precharge is driven by PAGE_POLICY_CFG.policy_mode -- static_close and the modes 5..7 predictors)"; } RSVD_10[10:10] = 1'b0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "1 = factor AxQOS into the pick (highest ready first, age tie-break)";
+        } qos_en[11:11] = 1'b0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_12[15:12] = 4'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "age_threshold mode: age (MC cycles/16) above which a reference is boosted";
+        } age_thresh[23:16] = 8'h0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_24[31:24] = 8'h0;
+
+    } SCHED_POLICY @ 0x068;
+
+    reg {
+        name = "Scheduler Write Watermarks";
+        desc = "Write-batching drain hysteresis. 0/0 disables it; default
+                2/1 = ON.
+
+                Amortises tWTR/tRTW over a drain instead of paying it per
+                direction switch. Worth +11.9%..+30.5% bus on the Nexys A7 at
+                1+1 across gaps 4..15, and never below +0% -- at gap 0 and with
+                2+2 generators there is no turnaround left to amortise, so it is
+                a no-op there, not a cost.
+
+                Shipped disabled until 2026-09-18 because it corrupted. Three
+                defects, all fixed (TASK-007): tRFC compression from DFI-side
+                pacing, tRTW classify-time staleness, and a one-cycle turnaround
+                seam. Evidence for this default:
+
+                    210 concurrent runs at open_page      0 failures
+                    4 x full 14-config matrix (1008 cells) 1 mismatched beat
+
+                That one beat was seen once and never reproduced in the 756
+                cells after it; it is unattributed (BUG-001), NOT a known
+                batching defect. 2/1 over 8/4 because it wins at gaps 12 and 15,
+                ties at 4, and a shallower drain parks reads behind a shorter
+                write run. Still a runtime CSR: this is only the reset value.";
+
+        field {
+            sw = rw; hw = r;
+            desc = "Start back-to-back write drain when the write buffer crosses this";
+        } wr_high_wm[7:0] = 8'h2;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Stop the drain when occupancy falls to this";
+        } wr_low_wm[15:8] = 8'h1;
+
+        field {
+            sw = r; hw = na;
+            desc = "Maximum consecutive write columns in one batch drain before
+                    the arbiter yields a slot to reads. Read-only in granite at
+                    GRANITE_WR_DATA_BUF_WORDS (=16); the product write-data
+                    staging size is the single source of truth.";
+        } wr_batch_max[23:16] = 8'h10;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:24] = 8'h0;
+
+    } SCHED_WR_WM @ 0x06C;
+
+    reg {
+        name = "Page Policy Config";
+        desc = "Axis 2 mode select + adapt_access counter shape. 0 = build default. Resets to 3 (fixed_open) -- see policy_mode.";
+
+        field {
+            sw = rw; hw = r;
+            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open. 4/5 RETIRED 2026-09-27 (were adapt_time/adapt_access) and 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn) -- a write of 4..7 falls through to the build default. RESET IS 0. Mode 3 (fixed_open) is the RECOMMENDED default and is measured strictly dominant over open page on the board across every scenario -- +41.2% col_major_interleaved, +8.6..11.6% col_major, and EXACTLY flat on incremental/row_major, with no scenario regressing. The win is the background precharge gated on bank idle (timeout_pre_req_o), not a predictor. Mode 4 was measured to BE fixed_open(tr_min): moving only tr_min moved the result onto the matching fixed point every time, because its mistake counter is dominated by the held-too-long case so TR decayed to the floor and stayed. Mode 5 drove auto-precharge, which costs 4.9x the activations of a background precharge and double the read latency, and AP commits at the column op before it is known whether more same-row requests are coming -- it fights the FR-FCFS reordering that justifies this design. See TASK-013 and TASK-014.";
+        } policy_mode[2:0] = 3'h3;
+
+        field { sw = r; hw = na; desc = "Reserved (was policy_scope, 0=per-bank / 1=global decision state). RETIRED 2026-09-27 with adapt_time: the mistake counter was a single GLOBAL register driving all eight per-bank TR registers from one decision, so per-bank scope could not diverge from global and the field selected between two identical behaviours."; } RSVD_3[3:3] = 1'b0;
+
+        field { sw = r; hw = na; desc = "Reserved (was ctr_width; the adapt_access counter is the 2-bit saturating counter of the paper, not selectable)"; } RSVD_5_4[5:4] = 2'h0;
+
+        field { sw = r; hw = na; desc = "Reserved (was ctr_open_max, the adapt_access close threshold). RETIRED 2026-09-27 with mode 5."; } RSVD_9_6[9:6] = 4'h0;
+
+        field { sw = r; hw = na; desc = "Reserved (was ctr_init, the adapt_access counter init). RETIRED 2026-09-27 with mode 5."; } RSVD_13_10[13:10] = 4'h0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:14] = 18'h0;
+
+    } PAGE_POLICY_CFG @ 0x070;
+
+    reg {
+        name = "Page Timeout Config";
+        desc = "fixed_open idle-timeout register (MC cycles). tr_init is the only live field; the adapt_time clamps and step retired 2026-09-27 with mode 4.";
+
+        field { sw = rw; hw = r; desc = "TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open (policy_mode=3) uses this alone. RESET IS 2, the measured optimum, changed from 0 on 2026-09-27 together with policy_mode. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so a reset of 0 silently disabled mode 3 and is why these two resets must move together. MEASURED ON THE BOARD 2026-09-27 at 75 MHz BL4 x16 against a 600 MB/s peak, 24 cells over four scenario families, all integrity-clean: TR=1 and TR=2 identical, and TR=2 gives +9.1% col_major (195.2 -> 212.9 MB/s) and +35.1% col_major_interleaved (262.1 -> 354.1), exactly flat on incremental (561.1) and row_major (572.0), with no scenario regressing. The cliff is between 2 and 3 on col_major, which is why 2 and not 4. This change was made and REVERTED on 2026-09-26 because BUG-003 let a short timeout push a rejected pick to the DRAM; BUG-003 was fixed 2026-09-27 and the board run above is post-fix with mismatched=0 on every cell."; } tr_init[7:0]  = 8'h2;
+        field { sw = r; hw = na; desc = "Reserved (was tr_min, the adapt_time TR lower clamp). RETIRED 2026-09-27 with mode 4 -- fixed_open uses tr_init alone. Bit position held so tr_init does not move."; } RSVD_15_8[15:8]  = 8'h0;
+        field { sw = r; hw = na; desc = "Reserved (was tr_max, the adapt_time TR upper clamp). RETIRED 2026-09-27 with mode 4."; } RSVD_23_16[23:16] = 8'h0;
+        field { sw = r; hw = na; desc = "Reserved (was tr_step, the adapt_time TR adjustment step). RETIRED 2026-09-27 with mode 4."; } RSVD_31_24[31:24] = 8'h0;
+
+    } PAGE_TIMEOUT_CFG @ 0x074;
+
+    // 0x078 was PAGE_ADAPT_CFG (the adapt_time mistake-counter thresholds:
+    // mc_high_thr, mc_low_thr, mc_init, check_interval). RETIRED 2026-09-27
+    // with paging mode 4 itself. adapt_time was measured to BE
+    // fixed_open(tr_min) -- moving only tr_min moved the result onto the
+    // matching fixed point every time (2 -> 436.8 MB/s, 8 -> 338.5,
+    // 16 -> 327.7), because the mistake counter is dominated by the
+    // held-too-long case so TR decays monotonically to the floor and stays
+    // there. Mode 3 is already its close path, so nothing functional was lost.
+    //
+    // As with 0x07C, the address is left a HOLE rather than reused: every
+    // register in this map carries an explicit absolute @ offset, so removing
+    // this one shifts nothing, and an old host reading 0x078 gets nothing back
+    // instead of some other register's meaning.
+
+    // 0x07C was PAGE_RBL_CFG (the RBLA/Yoon miss-counter table shape for
+    // paging modes 6/7). RETIRED 2026-09-26 with the modes themselves --
+    // measured on silicon at txn_scale=1000 on a workload built specifically
+    // to suit them (TASK-011): mode 6 lost 26% of bandwidth by paying +22,827
+    // ACTs to save precharges that never materialised, and mode 7 hill-climbed
+    // its threshold to "never close early", landing bit-identical to plain
+    // open page. The address is left a hole rather than reused so the rest of
+    // the map does not shift and an old host reading 0x07C gets nothing
+    // instead of something else's meaning.
+
+    reg {
+        name = "Refresh Mode Control";
+        desc = "Granite: refresh advanced options reserved. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated). Only REFab is supported; postpone/pull-in and per-bank refresh are structurally tied off.";
+
+        field {
+            sw = r; hw = na;
+            desc = "Reserved (was refresh mode). Forced to 1 (REFab) in granite; REFpb is not supported.";
+        } RSVD_MODE[1:0] = 2'h1;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_3_2[3:2] = 2'h0;
+
+        field {
+            sw = r; hw = na;
+            desc = "Reserved (was postpone_limit). Busy-side postpone credit is disabled in granite (HAS_POSTPONE=0).";
+        } RSVD_POSTPONE[7:4] = 4'h0;
+
+        field {
+            sw = r; hw = na;
+            desc = "Reserved (was pullin_limit). Idle pull-ahead credit is disabled in granite (HAS_PULLIN=0).";
+        } RSVD_PULLIN[11:8] = 4'h0;
+
+        field {
+            sw = r; hw = na;
+            desc = "Reserved (was perbank_supported). Per-bank refresh is disabled in granite (HAS_REFPB=0).";
+        } RSVD_PERBANK[12:12] = 1'b0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_13[31:13] = 19'h0;
+
+    } REF_CTRL @ 0x140;
+
+    reg {
+        name = "Per-Bank Refresh Timing";
+        desc = "Granite: per-bank refresh is not supported. Address kept so the map does not shift.";
+
+        field { sw = r; hw = na; desc = "Reserved (was tREFIpb). Per-bank refresh is disabled in granite (HAS_REFPB=0)."; } RSVD_TREFI_PB[15:0] = 16'h0;
+        field { sw = r; hw = na; desc = "Reserved (was tRFCpb). Per-bank refresh is disabled in granite (HAS_REFPB=0)."; } RSVD_TRFC_PB[23:16] = 8'h0;
+        field { sw = r; hw = na; desc = "Reserved";                                                                      } RSVD[31:24] = 8'h0;
+
+    } REF_TIMING_PB @ 0x144;
+
+    //-------------------------------------------------------------------------
+    // Mode telemetry (read-only). Complements the existing OBS_* set:
+    // OBS_ROW_HIT[8] (per-bank hits) and OBS_REFRESH_DEFER_HIST_0..3 already
+    // exist; these add the GLOBAL page-outcome and command-class counters the
+    // in-system sweeps compare across modes. Per-bank TR readback lands with
+    // adapt_time.
+    //
+    // IMPLEMENTED since 2026-08-25 (caf9d55fa) -- this block previously said
+    // "All are tied to 0 until the counting logic lands", which was true for
+    // one commit and then wrong for a month. They are real free-running
+    // counters in pumice_page_policy.sv, cleared only by aresetn (so a host
+    // reads them as a BEFORE/AFTER DELTA around a measurement window; there
+    // is no clear-on-read and no clear bit).
+    //
+    // SCALE: these count DRAM-level commands, not AXI transactions. One AXI
+    // burst spans several column ops, so hit-vs-total is floored by the burst
+    // geometry -- compare ACT counts, not a ratio, when grading page modes.
+    //-------------------------------------------------------------------------
+
+    reg {
+        name = "Page Stats: Column Ops";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was column-op count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } PAGE_STATS_HIT @ 0x148;
+
+    reg {
+        name = "Page Stats: Misses";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was miss count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } PAGE_STATS_MISS @ 0x14C;
+
+    reg {
+        name = "Page Stats: Empties";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was empty count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } PAGE_STATS_EMPTY @ 0x150;
+
+    reg {
+        name = "Sched Stats: Activates";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was ACT command count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } SCHED_STATS_ACT @ 0x154;
+
+    reg {
+        name = "Sched Stats: Precharges";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was PRE/PREA command count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } SCHED_STATS_PRE @ 0x158;
+
+    reg {
+        name = "Refresh Stats: Refreshes";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was REF command count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } REF_STATS_REF @ 0x15C;
+
+    //-------------------------------------------------------------------------
+    // Stall-cause attribution (TASK-006). The bus meters say a cycle was not
+    // productive; these say WHY, so the missing percent in a bandwidth report
+    // can be split instead of the table being left out.
+    //
+    // Every stalled cycle lands in EXACTLY ONE bucket, so the seven sum to the
+    // stalled-cycle count. That is what makes a missing cause visible: it
+    // inflates a neighbour rather than vanishing. Priority is causal -- a
+    // command the DFI refused is not a scheduling stall; refresh outranks the
+    // timers it is about to reset; a GLOBAL timer outranks the per-bank ones
+    // because it blocks every bank at once; and "nothing pending" is only
+    // claimed when both CAMs are empty, so a requester-bound verdict can never
+    // absorb a timer stall.
+    //
+    // Free-running like the PAGE/SCHED/REF counters: no clear bit, cleared
+    // only by aresetn, so a host reads them as a BEFORE/AFTER DELTA around a
+    // measurement window.
+    //-------------------------------------------------------------------------
+
+    reg {
+        name = "Stall: DFI backpressure";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was DFI backpressure stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } STALL_BP @ 0x160;
+
+    reg {
+        name = "Stall: refresh";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was refresh stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } STALL_REFRESH @ 0x164;
+
+    reg {
+        name = "Stall: bus turnaround";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was turnaround stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } STALL_TURNAROUND @ 0x168;
+
+    reg {
+        name = "Stall: column spacing";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was tCCD stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } STALL_TCCD @ 0x16C;
+
+    reg {
+        name = "Stall: activate rate limit";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was tFAW/tRRD stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } STALL_ACTLIMIT @ 0x170;
+
+    reg {
+        name = "Stall: per-bank timer";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was per-bank timer stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } STALL_BANKTIMER @ 0x174;
+
+    reg {
+        name = "Stall: nothing pending";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was no-request stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } STALL_NOREQ @ 0x178;
+
+    reg {
+        name = "Refresh Stats: Refreshes with demand";
+        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
+        field { sw = r; hw = na; desc = "Reserved (was REF-with-demand count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
+    } REF_STATS_REF_BUSY @ 0x17C;
+
+    //=========================================================================
+    // Module Identification (0xFF0 – 0xFFC)
+    //=========================================================================
+
+    reg {
+        name = "Module ID";
+
+        field { sw = r; hw = na; desc = "Build version";          } version[7:0]    = 8'h01;
+        field { sw = r; hw = na; desc = "0=DDR2, 1=LPDDR2";        } memtype[15:8]   = 8'h00;
+        field { sw = r; hw = na; desc = "Gear ratio (1, 2, or 4)"; } n_phases[23:16] = 8'h02;
+        field { sw = r; hw = na; desc = "Fixed 0xD2";              } module_id[31:24] = 8'hD2;
+
+    } ID @ 0xFF0;
+
+    reg {
+        name = "Build Hash";
+        field { sw = r; hw = na; desc = "Build hash word"; } VAL[31:0] = 32'h0;
+    } BUILD @ 0xFF4;
+
+};

@@ -61,9 +61,13 @@ timer CSR values, ODT behavior (v2 boards wire it statically).
 
 ## CSR baseline
 
-TBD: derived from the pumice CSR surface narrowed to this SKU — no RAS
-surface beyond the reserved decode, no research-harness knobs (command
-history, telemetry sweep). PeakRDL `regs/` lands with the first build.
+`regs/granite_csr.rdl` — derived address-for-address from `pumice_csr.rdl`
+(owner ruling: one CSR base for the family; absent features stay RESERVED
+at their addresses, never deleted). Telemetry/stats instrumentation and the
+refresh advanced options (postpone/pull-in/REFpb) are reserved; knobs that
+are granite parameters (`wr_batch_max`, `gear_ratio`) are read-only at the
+`granite_pkg` values. Generated artifacts (regblock + docs + regmap, 66
+regs / 170 fields) live in `regs/generated/`.
 
 ## Board
 
