@@ -5,7 +5,7 @@ A campaign is an **init sequence** followed by one or more **test sequences**.
 
 ```python
 runner = SequenceRunner(ctx)
-runner.discover("projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/bin")
+runner.discover("projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/bin")
 report = runner.run(["init", "write_read"])
 ```
 

@@ -40,10 +40,11 @@ package granite_pkg;
     // ------------------------------------------------------------------
     // Frequency plan. Every timer CSR is an mc_clk cycle count derived
     // from these - a frequency change invalidates the whole CSR set
-    // (common HAS frequency warning). Commit values only with a board.
+    // (common HAS frequency warning). Granite A7 plan: 75 MHz sys / 300 MT/s
+    // DDR2-300. Define GRANITE_SYS_66 selects 66.67 MHz / DDR2-266 fallback.
     // ------------------------------------------------------------------
-    parameter int GRANITE_ACLK_MHZ = 75;   // TBD at bring-up; 75 = pumice-proven Nexys A7 class
-    parameter int GRANITE_DFI_MHZ  = 300;  // TBD at bring-up
+    parameter int GRANITE_ACLK_MHZ = 75;   // Granite A7 sys clock (mc_clk)
+    parameter int GRANITE_DFI_MHZ  = 300;  // DFI/DRAM data rate (2x sys_clk)
 
     // Training clients: the LPDDR2 set lives in common-ip
     // (mc_lpddr2_zq_ctrl, mc_lpddr2_dq_cal) and is composed by

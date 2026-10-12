@@ -53,8 +53,8 @@ Committed in `granite_pkg.sv`: `GRANITE_SEAM_N`, `GRANITE_ENTRY_STORE_DEPTH`,
 `GRANITE_WR_DATA_BUF_WORDS`, `GRANITE_ACLK_MHZ`, `GRANITE_DFI_MHZ`.
 **Every timer CSR is an mc_clk cycle count derived from the
 frequency plan — a frequency change invalidates the whole set** (common HAS
-frequency warning); the MHz values are placeholders until a board commits
-them (75 MHz is the pumice-proven Nexys A7-class point).
+frequency warning). Granite A7 plan: 75 MHz sys / 300 MT/s DDR2-300, with
+`GRANITE_SYS_66` selectable at build time for the 66.67 MHz / DDR2-266 fallback.
 
 Open at bring-up: AXI data/ID widths, pool depths beyond the lite floor,
 timer CSR values, ODT behavior (v2 boards wire it statically).

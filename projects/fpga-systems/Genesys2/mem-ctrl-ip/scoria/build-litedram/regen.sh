@@ -42,7 +42,7 @@ WITH_BIOS=0
 [ -x "$GEN" ] || {
     echo "no litedram_gen in $VENV"
     echo "set LITEX_VENV, or build one from GIT (recipe:"
-    echo "  projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/flows-litedram-uart/2026-09-10_tooling_notes.md)"
+    echo "  projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2-characterization/flows-litedram-uart/2026-09-10_tooling_notes.md)"
     exit 1
 }
 

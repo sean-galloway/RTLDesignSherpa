@@ -83,7 +83,7 @@ def main() -> int:
     except ImportError as e:
         print(f"ERROR: {e}\n\nRun under the LiteX venv built FROM GIT:\n"
               f"  $LITEX_VENV/bin/python {sys.argv[0]} ...\n"
-              f"Recipe: projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/"
+              f"Recipe: projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/"
               f"ddr2-characterization/flows-litedram-uart/"
               f"2026-09-10_tooling_notes.md", file=sys.stderr)
         return 1
