@@ -40,3 +40,8 @@ analysis says all are wrong for their locations:
 - [ ] all eight generate scripts resolve repo-root tools correctly
 - [ ] at least one regeneration per area (bridge done; apbx-xbar,
       timing_characterization) verified
+
+**Progress 2026-10-12:** apbx-xbar pair fixed (4 `..` -> 5 `..` in both
+`generate_has_pdf.sh` and `generate_mas_pdf.sh`) as part of the fabric-gen-ip
+docs batch (docs-review TASK-016); verified by successful v1.1 builds.
+Remainder: timing_characterization (4 scripts) still open.

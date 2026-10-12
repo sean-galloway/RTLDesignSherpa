@@ -27,7 +27,7 @@
 
 **Bridge** is a Python-based multi-protocol crossbar generator. You describe the interconnect in human-readable configuration files; it hands you back parameterized SystemVerilog RTL. The generated AXI4 crossbars come with automatic support for:
 
-- **Protocol conversion** - AXI4, AXI4-Lite, and APB slave interfaces
+- **Protocol conversion** - AXI3, AXI4, AXI5, AXI4-Lite, AXI5-Lite, APB, APB5, and Wishbone B4 interfaces, on slave or master ports (selected per port in the TOML; ACE coherency is NOT supported)
 - **Width conversion** - Automatic upsize/downsize for data width mismatches
 - **Channel-specific masters** - Write-only, read-only, or full AXI4 masters
 
@@ -40,7 +40,7 @@
 3. Routing responses by in-order bridge_id FIFO position (out-of-order is not supported)
 4. Handling burst locking and interleaving constraints
 5. Inserting width converters for data width mismatches
-6. Inserting protocol converters for APB/AXI4-Lite mixed systems
+6. Inserting protocol converters for mixed systems — APB/APB5, AXI4-Lite/AXI5-Lite, AXI3, or Wishbone B4 peripherals behind an AXI4 fabric (and vice versa)
 7. Wiring hundreds of signals with consistent naming
 
 Every item on that list is a place a bug can sit quietly until integration. I've chased most of them at least once.

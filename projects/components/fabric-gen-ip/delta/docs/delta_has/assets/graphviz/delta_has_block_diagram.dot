@@ -1,0 +1,65 @@
+digraph delta_has_block_diagram {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.45", ranksep="0.75", splines=ortho];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+         fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+  edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+  // External interfaces
+  MASTERS [label="Masters\n(s_axis)", fillcolor="white", width=1.3, height=0.6];
+  SLAVES  [label="Slaves\n(m_axis)", fillcolor="white", width=1.3, height=0.6];
+
+  // Center request/control column
+  DECODE [label="TDEST\nDecode", shape=box];
+  ARB [label="Per-Slave\nRound-Robin\nArbiter", shape=invtrapezium,
+       width=1.9, height=0.55, fillcolor="#D6E4F0"];
+  MUX [label="Crossbar\nMux", shape=box];
+
+  // Boundary bar
+  BOUNDARY [label="Slave / m_axis Boundary", shape=box,
+            fillcolor="#B0B0B0", color="#404040", fontcolor="white",
+            width=2.4, height=0.25, style=filled, margin="0.05,0.02"];
+
+  // Left payload column
+  PAYLOAD [label="Payload\nPass-Through", shape=box,
+           style="dashed,filled", fillcolor="#F5F5F5"];
+
+  // Right backpressure column
+  READY [label="TREADY\nSteering", shape=box, fillcolor="#D6E4F0"];
+
+  // Optional sideband
+  WAKEUP [label="TWAKEUP\nSteering\n(AMBA5)", shape=box,
+          style="dashed,filled", fillcolor="#F5F5F5"];
+
+  // Rank pinning: keep request column centered and in order
+  { rank=same; MASTERS; }
+  { rank=same; PAYLOAD; DECODE; WAKEUP; }
+  { rank=same; ARB; }
+  { rank=same; MUX; READY; }
+  { rank=same; BOUNDARY; }
+  { rank=same; SLAVES; }
+
+  // Request flow (center, top-down)
+  MASTERS -> DECODE [label="TVALID + TDEST"];
+  DECODE -> ARB      [label="REQ M0..M{m-1}", weight=2];
+  ARB -> MUX         [label="Grant", penwidth=1.8, weight=2];
+  MUX -> BOUNDARY    [label="TVALID + ctrl", weight=2];
+  BOUNDARY -> SLAVES [label=" packet", weight=2];
+
+  // Payload flow (left, top-down, own route)
+  MASTERS -> PAYLOAD [xlabel="TDATA / TLAST / TDEST / TID / TUSER"];
+  PAYLOAD -> MUX     [label="payload"];
+
+  // Backpressure flow (right, bottom-up as a dashed sideband)
+  BOUNDARY -> READY [style=dashed, label="m_axis_tready"];
+  READY -> MASTERS  [style=dashed, label="s_axis_tready"];
+
+  // AMBA5 wakeup sideband (dashed, direct route)
+  MASTERS -> WAKEUP [xlabel="s_axis_twakeup"];
+  WAKEUP -> SLAVES  [xlabel="m_axis_twakeup"];
+
+  // Invisible ordering edges to keep columns straight
+  MASTERS -> PAYLOAD [style=invis, weight=1];
+  PAYLOAD -> READY   [style=invis, weight=1];
+  DECODE -> WAKEUP   [style=invis, weight=1];
+}

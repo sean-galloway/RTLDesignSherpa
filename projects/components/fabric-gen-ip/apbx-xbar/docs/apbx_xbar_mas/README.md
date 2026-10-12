@@ -24,9 +24,9 @@
 # APB Crossbar Visual Documentation
 
 **Component:** APB Crossbar (MxN Interconnect)
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Production Ready
-**Last Updated:** 2025-10-25
+**Last Updated:** 2026-10-12
 
 ---
 
@@ -218,6 +218,7 @@ python generate_xbars.py --masters 3 --slaves 6
 1 master, 4 slaves → apbx_xbar_1to4 (address decode only)
 2 masters, 1 slave → apbx_xbar_2to1 (arbitration only)
 2 masters, 4 slaves → apbx_xbar_2to4 (full crossbar)
+2 masters, 2 slaves (mixed APB4/APB5) → apbx_xbar_2to2_mixed
 Other MxN          → Generate with generate_xbars.py
 ```
 
@@ -317,6 +318,10 @@ wavedrom-cli -i arbitration_round_robin.json -p arbitration_round_robin.png
 - 1 WaveJSON timing diagram
 - RTL generator documentation
 
+**Version 1.1 (2026-10-12):**
+- Refreshed against current RTL, generator, and DV
+- Added mixed-variant and timing-test guidance
+
 ---
 
 ## Maintainers
@@ -331,6 +336,6 @@ wavedrom-cli -i arbitration_round_robin.json -p arbitration_round_robin.png
 
 ---
 
-**Last Updated:** 2025-10-25
-**Version:** 1.0
+**Last Updated:** 2026-10-12
+**Version:** 1.1
 **Status:** Production Ready

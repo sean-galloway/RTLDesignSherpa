@@ -23,8 +23,8 @@
 
 # APB Crossbar Hardware Architecture Specification Index
 
-**Version:** 1.0
-**Date:** 2026-01-03
+**Version:** 1.1
+**Date:** 2026-10-12
 **Purpose:** High-level hardware architecture specification for APB Crossbar component
 
 ---
@@ -83,5 +83,5 @@
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-10-12
 **Maintained By:** RTL Design Sherpa Project

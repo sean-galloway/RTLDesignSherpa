@@ -193,6 +193,15 @@ Only AR, R channels active:
 - No write arbitration for this master
 - Reduced signal count and logic
 
+## ACE and Coherency — Explicitly Out of Scope
+
+The bridge implements AMBA 5 **AXI5** interop and sideband features, but it is
+**not a coherence interconnect**: there are no ACE snoop channels (AC/CR/CD),
+no `ACVALID/ACREADY/CRVALID/CRREADY/CDVALID/CDREADY` signals anywhere in the
+generated RTL, and cache-coherent masters are not supported. Coherent systems
+belong to the cache-ip domain (see the amber/jet/onxy work). This mirrors
+`PRD.md`: "No ACE protocol extensions (cache coherency)."
+
 ## References
 
 * Eschemann, *The FPGA Programming Handbook*, Packt 2023 — educational secondary source for AXI4 full and AXI4-Lite channel structure and handshake rules (ch8 §8.3). ([Reference archive](../../../references/README.md))

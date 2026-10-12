@@ -24,7 +24,7 @@
 # Address Decode and Arbitration
 
 **Component:** APB Crossbar (MxN Interconnect)
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Production Ready
 
 ---
@@ -505,6 +505,6 @@ checklist referenced one.
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-10-25
+**Version:** 1.1
+**Last Updated:** 2026-10-12
 **Maintained By:** RTL Design Sherpa Project

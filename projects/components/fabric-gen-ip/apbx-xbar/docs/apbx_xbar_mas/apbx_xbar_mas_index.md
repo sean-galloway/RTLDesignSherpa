@@ -24,8 +24,8 @@
 # APB Crossbar Micro-Architecture Specification Index
 
 **Component:** APB Crossbar (MxN Interconnect)
-**Version:** 1.0
-**Date:** 2026-01-03
+**Version:** 1.1
+**Date:** 2026-10-12
 **Purpose:** Detailed micro-architecture specification for APB Crossbar component
 
 ---
@@ -125,7 +125,7 @@ Every diagram in this specification is checked in as both source and rendered ou
 | apbx_xbar_2to1 | 2×1 | Multi-master arbitration |
 | apbx_xbar_1to4 | 1×4 | Simple SoC peripheral bus |
 | apbx_xbar_2to4 | 2×4 | Typical SoC with CPU+DMA |
-| apbx_xbar_2to2_mixed | 2×2 | Mixed APB4/APB5 (s0 APB5) |
+| apbx_xbar_2to2_mixed | 2×2 | Mixed APB4/APB5 (m0=APB4, m1=APB5; s0=APB5, s1=APB4) |
 
 ### Design Philosophy
 
@@ -161,7 +161,7 @@ Every diagram in this specification is checked in as both source and rendered ou
 ### Test Infrastructure
 
 - **Test Directory:** `../../dv/tests/` - CocoTB + pytest test suite
-- **Test Results:** All pre-generated variants 100% passing
+- **Test Results:** 100% passing (9/9) — all pre-generated variants plus the dedicated timing test; `apbx_xbar_2to2_mixed` additionally has a formal harness
 
 ### RTL
 
@@ -179,7 +179,13 @@ Every diagram in this specification is checked in as both source and rendered ou
 - Generator documentation
 - All pre-generated variants verified (100% passing)
 
+**Version 1.1 (2026-10-12):**
+- Refreshed against current RTL, generator, and DV
+- Updated verification status (9/9 tests passing, mixed-variant formal harness)
+- Added `--slave-size` CLI option to generator table
+- Updated line-of-code counts (single source of truth remains HAS ch05_performance/03_resources.md)
+
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-10-12
 **Maintained By:** RTL Design Sherpa Project

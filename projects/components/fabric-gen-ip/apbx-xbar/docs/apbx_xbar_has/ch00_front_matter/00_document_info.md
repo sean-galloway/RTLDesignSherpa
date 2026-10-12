@@ -26,7 +26,7 @@
 ## APB Crossbar Hardware Architecture Specification
 
 **Document Number:** APB-XBAR-HAS-001
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Production Ready
 **Classification:** Open Source - MIT License (matches the SPDX tags on every RTL file)
 
@@ -52,7 +52,7 @@ This Hardware Architecture Specification (HAS) is the high-level architectural v
 
 | ID | Document | Description |
 |----|----------|-------------|
-| [REF-1] | APB Crossbar MAS v1.0 | Micro-Architecture Specification |
+| [REF-1] | APB Crossbar MAS v1.1 | Micro-Architecture Specification |
 | [REF-2] | APB Crossbar PRD | Product Requirements Document |
 | [REF-3] | ARM AMBA APB | APB Protocol Specification (IHI 0024C) |
 
@@ -83,9 +83,10 @@ This Hardware Architecture Specification (HAS) is the high-level architectural v
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0 | 2026-01-03 | seang | Initial HAS release |
+| 1.1 | 2026-10-12 | seang | Refresh: update LOC counts, verification status, and generator CLI options |
 
 : Document Revision History
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-10-12

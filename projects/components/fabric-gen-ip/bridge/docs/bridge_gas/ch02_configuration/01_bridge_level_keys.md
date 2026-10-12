@@ -1,0 +1,82 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# Bridge-Level TOML Keys
+
+The TOML `[bridge]` table configures the bridge as a whole. It is parsed by `bridge_pkg.config_loader.load_config()` into the `BridgeConfig` dataclass (`bridge_pkg/config.py`).
+
+## `[bridge]` scalar keys
+
+| Key | Type | Default | Dataclass field | Description |
+|-----|------|---------|-----------------|-------------|
+| `name` | string | `""` | `BridgeConfig.name` | Output base name. If empty, the generator auto-names from topology (`bridge_<M>x<S>_<channels>`). |
+| `variants` | list of strings | `["no"]` | `BridgeConfig.variants` | Build variants to emit. Each entry must be `"no"` or `"mon"`. At least one entry is required in TOML. |
+| `description` | string | `""` | ignored | Human-readable comment; copied into generated header only. |
+
+## `[bridge.clock]` table
+
+| Key | Type | Default | Used by | Description |
+|-----|------|---------|---------|-------------|
+| `name` | string | `"aclk"` | header comment | Clock signal name (informational). |
+| `frequency_mhz` | int | none | header comment | Clock frequency (informational). |
+
+## Crossbar and arbitration keys
+
+| Key | Type | Default | Dataclass field | Description |
+|-----|------|---------|-----------------|-------------|
+| `xbar_pipeline` | boolean | `false` | `BridgeConfig.xbar_pipeline` | Add skid register stage on every slave-side channel inside the crossbar. |
+| `arbitration` | string | `"rr"` | `BridgeConfig.arbitration` | Per-slave arbitration policy. `"rr"` = round-robin; `"qos"` = QoS + aging. |
+| `qos_aging_shift` | int | `4` | `BridgeConfig.qos_aging_shift` | For `"qos"`, a waiting request gains one priority level every `2**shift` cycles. |
+
+## Monitor and cfg subsystem keys
+
+| Key | Type | Default | Dataclass field | Description |
+|-----|------|---------|-----------------|-------------|
+| `mon_preset` | string | `"lite"` | `BridgeConfig.mon_preset` | Baseline monitor reporter enables. Accepted aliases: `"all"`, `"error_only"`, `"functional"`, `"none"`, `"lite"`. Since 2026-09-26 every monitored port uses `axi_monitor_lite`, so the preset resolves to the lite set regardless. |
+| `use_all_monitors` | boolean | `false` | `BridgeConfig.use_all_monitors` | Force `USE_MONITOR=1` on every port. Mutually exclusive with `use_no_monitors`. |
+| `use_no_monitors` | boolean | `false` | `BridgeConfig.use_no_monitors` | Force `USE_MONITOR=0` on every port. Mutually exclusive with `use_all_monitors`. |
+| `internal_axil_group` | boolean | `true` | `BridgeConfig.internal_axil_group` | For `"mon"` variants, instantiate the internal `monbus_axil4_axil4_group`. When `false`, expose the aggregated monbus stream at the top. |
+| `use_cfg_regblock` | boolean | `false` | `BridgeConfig.use_cfg_regblock` | Replace the 350+ individual `cfg_*` top-level pins with a PeakRDL-generated cfg register block. |
+
+## `[bridge.mon_group]` table
+
+| Key | Type | Default | Dataclass field | Description |
+|-----|------|---------|-----------------|-------------|
+| `slave_protocol` | string | `"axil4"` | `MonGroupConfig.slave_protocol` | Protocol of the monbus group slave-read port. `"axil4"` or `"axi4"`. Deprecated spelling `"axil"` is normalized to `"axil4"`. |
+| `master_protocol` | string | `"axil4"` | `MonGroupConfig.master_protocol` | Protocol of the monbus group master-write port. `"axil4"` or `"axi4"`. |
+| `axi_id_width` | int | `8` | `MonGroupConfig.axi_id_width` | AXI ID width when either side is `axi4`. |
+| `max_burst_beats` | int | `64` | `MonGroupConfig.max_burst_beats` | Max write burst when master side is `axi4`. |
+| `fifo_depth_err` | int | `64` | `MonGroupConfig.fifo_depth_err` | Error FIFO depth. |
+| `fifo_depth_write` | int | `96` | `MonGroupConfig.fifo_depth_write` | Write-data FIFO depth in beats. |
+| `flush_timeout_cycles` | int | `1024` | `MonGroupConfig.flush_timeout_cycles` | Flush timeout. |
+| `use_compression` | int | `0` | `MonGroupConfig.use_compression` | Compression enable. |
+
+## `[bridge.defaults]` table
+
+The `defaults.skid_depths` sub-table provides default skid depths for interface wrappers:
+
+```toml
+[bridge.defaults]
+skid_depths = {ar = 2, r = 4, aw = 2, w = 4, b = 2}
+```
+
+Per-port `interface.skid_depths` overrides these defaults. Valid per-channel depths are integers in the range `2..8` inclusive.

@@ -1,0 +1,92 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# Delta Micro-Architecture Specification Index
+
+**Component:** Delta (AXI4-Stream Crossbar Generator)
+**Version:** 1.0
+**Date:** 2026-10-12
+**Purpose:** Detailed micro-architecture specification for the generated Delta RTL
+
+---
+
+## Overview
+
+Delta is a Python generator that emits a single self-contained SystemVerilog module per configuration — a flat M×N AXI4-Stream crossbar routing `s_axis_*` masters to `m_axis_*` slaves. This is the internals document: the one you open when you need to know what the generated RTL actually does, block by block, rather than what the high-level spec says.
+
+### Key Features
+
+- **Flat crossbar only:** Tree generation was retired on 2026-10-12.
+- **TDEST-based routing:** No address map; the destination slave is taken directly from `s_axis_tdest`.
+- **Packet-atomic round-robin arbitration:** A granted master holds the slave until `TLAST`.
+- **Combinational data mux:** The grant is the registered stage; payload passes through combinatorially.
+- **Optional richness:** `TSTRB` byte qualifiers and AMBA 5 `TWAKEUP`/`TPARITY` sidebands (default off).
+- **Optional counters:** Per-master and per-slave packet counters (disable with `--no-counters`).
+- **Formal assertions:** `ifdef FORMAL` checks for one-hot grants and in-range TDEST.
+
+### Companion Specifications
+
+- **[Delta HAS](../delta_has/delta_has_index.md)** - Hardware Architecture Specification (high-level)
+- **[PRD.md](../../PRD.md)** - Product requirements and overview
+- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
+
+---
+
+## Navigation
+
+### Front Matter
+
+- [Document Information](ch00_front_matter/00_document_info.md)
+
+### Chapter 1: Introduction
+
+- [Overview](ch01_introduction/01_overview.md)
+
+### Chapter 2: Block Descriptions
+
+- [Request Decode](ch02_blocks/01_request_decode.md)
+- [Per-Slave Round-Robin Arbiter](ch02_blocks/02_arbitration.md)
+- [Crossbar Multiplexer](ch02_blocks/03_crossbar_mux.md)
+- [TREADY Steering](ch02_blocks/04_backpressure.md)
+- [TWAKEUP Steering (AMBA5)](ch02_blocks/05_wakeup.md)
+- [Packet Counters](ch02_blocks/06_counters.md)
+- [Assertions](ch02_blocks/07_assertions.md)
+
+### Chapter 3: Cycle-Level Behavior
+
+- [Multi-Master Contention](ch03_cycle_behavior/01_arbitration_examples.md)
+- [Packet Interleave Prevention](ch03_cycle_behavior/02_interleave_prevention.md)
+
+### Chapter 4: Generated RTL
+
+- [Module Structure](ch04_generated_rtl/01_module_structure.md)
+- [Parameters and Logic Implications](ch04_generated_rtl/02_parameters.md)
+
+### Chapter 5: Verification
+
+- [Test Strategy](ch05_verification/01_test_strategy.md)
+
+---
+
+**Last Updated:** 2026-10-12
+**Maintained By:** RTL Design Sherpa Project

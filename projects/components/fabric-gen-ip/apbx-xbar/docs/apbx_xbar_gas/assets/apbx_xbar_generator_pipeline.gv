@@ -1,0 +1,34 @@
+digraph apbx_xbar_pipeline {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    args   [label="CLI args / API call\n--masters --slaves --base-addr"];
+    valid  [label="Validation\ncounts, versions, slave_size"];
+    header [label="Emit module header\nbanner, ports, parameters, address map"];
+    mside  [label="Master-side boundary modules\napb4_slave / apb5_slave"];
+    decode [label="Request decode\noffset = PADDR - BASE_ADDR"];
+    arb    [label="Arbitration & routing\nper-slave round-robin"];
+    sside  [label="Slave-side boundary modules\napb4_master / apb5_master"];
+    emit   [shape=invtrapezium, width=2.2, height=0.45, label="apbx_xbar_generator\nemitter funnel", fillcolor="#E8F4E8"];
+    rtl    [label="apbx_xbar_<M>to<N>.sv"];
+    batch  [label="generate_xbars.py\nbatch wrapper"];
+
+    {rank=same; args; batch}
+    {rank=same; mside; decode; arb}
+
+    args -> valid [label="scalar config"];
+    batch -> args [label="variant table", style=dashed];
+    valid -> header [label="validated parameters"];
+    header -> emit [label="module skeleton"];
+    emit -> mside [label="instantiate"];
+    emit -> decode [label="address logic"];
+    emit -> arb [label="arbitrate & route"];
+    emit -> sside [label="instantiate"];
+    mside -> arb [label="cmd/rsp"];
+    decode -> arb [label="slave_sel"];
+    arb -> sside [label="cmd/rsp"];
+    emit -> rtl [label="complete module"];
+}

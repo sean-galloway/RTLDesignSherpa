@@ -27,12 +27,18 @@
 
 The APB Crossbar is pre-verified:
 
-| Variant | Test Transactions | Status |
-|---------|-------------------|--------|
-| apbx_xbar_1to1 | 100+ | Pass |
-| apbx_xbar_2to1 | 130+ | Pass |
-| apbx_xbar_1to4 | 200+ | Pass |
-| apbx_xbar_2to4 | 350+ | Pass |
+| Test / Variant | Transactions | Status | Coverage |
+|----------------|--------------|--------|----------|
+| apbx_xbar_1to1 | 100+ | Pass | Basic connectivity |
+| apbx_xbar_2to1 | 130+ | Pass | Arbitration stress |
+| apbx_xbar_1to4 | 200+ | Pass | Address decode |
+| apbx_xbar_2to4 | 350+ | Pass | Full crossbar stress |
+| apbx_xbar_2to2_mixed | 8 directed | Pass | All four APB4/APB5 pairings, sideband gating, decode miss, structural pin check |
+| apbx_xbar_timing | 2 variants | Pass | Published latency/cadence figures, both variant classes |
+
+**Overall:** 100% passing (9/9), >750 transactions plus the directed
+mixed-version and timing checks. `apbx_xbar_2to2_mixed` also has a formal
+harness (`formal/apbx_xbar/apbx_xbar_2to2_mixed/`).
 
 : Pre-Verification Status
 
@@ -68,6 +74,22 @@ High-intensity scenarios:
 - Random delays
 - Mixed read/write patterns
 - Concurrent multi-master access
+
+### APB5 Sideband Gating (mixed variant)
+
+For `apbx_xbar_2to2_mixed`:
+- All four APB4/APB5 master/slave pairings exercised
+- Sideband signals flow only where both ends are APB5
+- APB4 ports carry no sideband pins (structural check)
+- Decode-miss completes with `PSLVERR`
+
+### Timing and Protocol Compliance
+
+`test_apbx_xbar_timing` asserts the published figures against the RTL:
+- Single-transfer latency for single-master and arbitrated classes
+- Back-to-back cadence (PREADY-to-PREADY)
+- Forward-path and response-path breakdown
+- Downstream setup-phase count (`[1,1,1,1,1]`)
 
 ## Integration Testing Recommendations
 
@@ -109,25 +131,31 @@ High-intensity scenarios:
 |------|----------|-------------|
 | CocoTB tests | `dv/tests/` | Python testbenches |
 | Wave configs | `dv/tests/GTKW/` | GTKWave configurations |
-| Coverage | (implicit) | Functional coverage |
+| Coverage | `dv/tests/coverage_reports/` | Merged functional coverage reports |
+| Build orchestration | `dv/tests/Makefile` | Area Makefile delegating to `make/tests.mk` |
+| Formal harness (mixed variant) | `formal/apbx_xbar/apbx_xbar_2to2_mixed/` | Sideband-gating proofs |
 
 : Test Infrastructure
 
 ### Running Verification
 
+Tests are run through the area `Makefile` (which delegates to the shared
+`make/tests.mk` infrastructure); bare `pytest` is not the supported entry
+point because the Makefile supplies filelists, levels, and coverage
+options.
+
 ```bash
-# Run all crossbar tests
 cd projects/components/fabric-gen-ip/apbx-xbar/dv/tests/
-pytest test_apbx_xbar_*.py -v
+
+# Run all crossbar tests -- clean-all first for a run you intend to trust
+make clean-all && make run-all-gate
 
 # Run specific variant
-pytest test_apbx_xbar_2to4.py -v
+make run-apbx_xbar_2to4-gate
 
-# Generate waveforms
-pytest test_apbx_xbar_2to4.py --vcd=debug.vcd
-
-# View waveforms
-gtkwave debug.vcd
+# Run with waveforms (WAVES=1 via the target)
+make run-apbx_xbar_2to4-gate-waves
+# create_view_cmd() writes the gtkwave command beside the log
 ```
 
 ## Known Limitations

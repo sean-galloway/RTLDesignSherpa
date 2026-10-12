@@ -2,7 +2,7 @@
 
 # docs-review — tasks
 
-**Next ID: TASK-016** — never recycle a number, even when its item closed.
+**Next ID: TASK-017** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [closed/](closed/) | 15 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,6 +22,7 @@ by construction rather than by discipline.
 
 
 ## Closed
+- **TASK-016** — GAS family created (bridge/apbx-xbar/delta generator specs), apbx HAS/MAS refreshed, stale renders purged (2026-10-12)
 
 - **TASK-001** — fix ALL broken links, whenever they were introduced
 - **TASK-002** — emoji sweep: 309 glyphs in 13 tracked .md (843 in 72 files counting code)

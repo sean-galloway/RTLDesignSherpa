@@ -24,7 +24,7 @@
 # APB Crossbar RTL Generator
 
 **Component:** APB Crossbar (MxN Interconnect)
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Production Ready
 
 ---
@@ -147,6 +147,7 @@ python generate_xbars.py [OPTIONS]
 | `--masters` | `-m` | int | None | Number of master interfaces (1-16) |
 | `--slaves` | `-s` | int | None | Number of slave interfaces (1-16) |
 | `--base-addr` | `-b` | hex | 0x10000000 | Base address for slave address map |
+| `--slave-size` | - | hex | 0x10000 | Address space per slave: 0x1000=4KB, 0x10000=64KB (matches shipped variants) |
 | `--help` | `-h` | - | - | Show help message |
 
 : Command Line Options
@@ -702,12 +703,13 @@ verilator --lint-only apbx_xbar_2to4.sv
 **3. Run Functional Tests**
 ```bash
 cd ../../dv/tests/
-pytest test_apbx_xbar_2to4.py -v
+make run-apbx_xbar_2to4-gate
 ```
 
 **4. View Waveforms (If Test Fails)**
 ```bash
-gtkwave waves.vcd
+make run-apbx_xbar_2to4-gate-waves
+# create_view_cmd() writes the gtkwave command beside the log
 ```
 
 ### Recommended Test Cases
@@ -715,9 +717,11 @@ gtkwave waves.vcd
 1. **Single Master Access** - Verify basic routing
 2. **Multi-Master Contention** - Verify arbitration
 3. **Back-to-Back Transactions** - Verify consecutive transfers complete
-   at the expected ~10-cycle cadence
+   at the expected 10/11-cycle cadence
 4. **Address Decode Boundary** - Verify slave selection at boundaries
 5. **Error Response Propagation** - Verify PSLVERR routing
+6. **APB5 Sideband Gating** - Verify `apbx_xbar_2to2_mixed` sideband behavior
+7. **Timing Compliance** - Verify published latency/cadence with `test_apbx_xbar_timing`
 
 ---
 
@@ -825,8 +829,8 @@ python generate_xbars.py
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-10-25
+**Version:** 1.1
+**Last Updated:** 2026-10-12
 **Maintained By:** RTL Design Sherpa Project
 
 

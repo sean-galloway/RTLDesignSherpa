@@ -24,19 +24,19 @@
 # Bridge Micro-Architecture Specification Index
 
 **Component:** Bridge (Multi-Protocol Crossbar Generator)
-**Version:** 1.2
-**Date:** 2026-09-07
+**Version:** 2.0
+**Date:** 2026-10-12
 **Purpose:** Detailed micro-architecture specification for Bridge component
 
 ---
 
 ## Overview
 
-Bridge is a CSV-driven generator that produces AXI4 crossbars with automatic width conversion, protocol conversion (AXI4, AXI4-Lite, APB), and channel-specific masters (read-only, write-only, or full). This is the internals document — the one you open when you need to know what the generated RTL actually does, block by block, rather than what the brochure says.
+Bridge is a TOML-driven generator that produces AXI4 crossbars with automatic width conversion, protocol conversion (AXI3, AXI4, AXI5, AXI4-Lite, AXI5-Lite, APB, APB5, Wishbone B4 — per-port, on slave or master sides; ACE coherency is NOT supported), and channel-specific masters (read-only, write-only, or full). This is the internals document — the one you open when you need to know what the generated RTL actually does, block by block, rather than what the brochure says.
 
 ### Key Features
 
-- **Multi-Protocol Support:** AXI4, AXI3, AXI4-Lite, and APB slave conversion
+- **Multi-Protocol Support:** AXI4, AXI3, AXI5, AXI4-Lite, AXI5-Lite, APB, APB5, and Wishbone B4 conversion, on slave or master ports (ACE coherency NOT supported)
 - **CSV-Driven Configuration:** Human-readable port and connectivity definitions
 - **Channel-Specific Masters:** Write-only (wr), read-only (rd), or full (rw) support
 - **Automatic Width Conversion:** Upsize/downsize for data width mismatches

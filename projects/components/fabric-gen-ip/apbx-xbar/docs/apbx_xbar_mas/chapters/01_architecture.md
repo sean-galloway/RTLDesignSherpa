@@ -24,7 +24,7 @@
 # APB Crossbar Architecture
 
 **Component:** APB Crossbar (MxN Interconnect)
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Production Ready
 
 ---
@@ -229,7 +229,7 @@ thin core answered does not arise when the port has no parity pins.
 | `apbx_xbar_2to1` | 2×1 | Multi-master arbitration |
 | `apbx_xbar_1to4` | 1×4 | Simple SoC peripheral bus |
 | `apbx_xbar_2to4` | 2×4 | Typical SoC with CPU+DMA |
-| `apbx_xbar_2to2_mixed` | 2×2 | Mixed APB4/APB5 ports, version gating |
+| `apbx_xbar_2to2_mixed` | 2×2 | Mixed APB4/APB5 (m0=APB4, m1=APB5; s0=APB5, s1=APB4), per-port version gating |
 
 LOC per variant is in HAS ch05_performance/03_resources.md, which is the
 single source of truth for it. The column that used to sit here went stale
@@ -270,6 +270,6 @@ within two days of being reconciled.
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-10-25
+**Version:** 1.1
+**Last Updated:** 2026-10-12
 **Maintained By:** RTL Design Sherpa Project

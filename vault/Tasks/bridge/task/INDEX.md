@@ -2,7 +2,7 @@
 
 # bridge — tasks
 
-**Next ID: TASK-017** — never recycle a number, even when its item closed.
+**Next ID: TASK-018** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 9 | done (kept for history) |
+| [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -32,6 +32,7 @@ by construction rather than by discipline.
 - **TASK-001** — trim method from `bridge/CLAUDE.md`; dropped, the file was already compliant and every row of its removal table was falsified by reading the text.
 
 ## Closed
+- **TASK-017** — bridge HAS/MAS v2.0: full 8-protocol summaries + explicit ACE-out-of-scope + version alignment (2026-10-12)
 
 - **TASK-013** — bin/GENERATOR_ARCHITECTURE.md: reconcile the 2025-11 walkthroughs against the generator -- CLOSED 2026-09-29: GENERATOR_ARCHITECTURE.md rewritten from the code, 434 lines, every path/symbol checked; no 64-bit-internal or YAML claims, no line numbers
 - **TASK-012** — bridge placement pass: 9 loose markdown files (generator design notes beside bin/, a bug write-up at the root) -- CLOSED 2026-09-29: 9 loose files placed: BUG-015 filed, GENERATOR_ARCHITECTURE to bin/ (rewritten where wrong), SIGNAL_NAMING collapsed, 5 stale pages deleted; TASK-013 filed for the rest

@@ -64,17 +64,17 @@ Source code metrics for pre-generated variants:
 
 | Variant | Lines of Code | Complexity |
 |---------|---------------|------------|
-| apbx_xbar_1to1 | 167 | Low |
-| apbx_xbar_2to1 | 316 | Medium |
-| apbx_xbar_1to4 | 418 | Medium |
-| apbx_xbar_2to2_mixed | 610 | Medium |
-| apbx_xbar_2to4 | 792 | Medium-High |
+| apbx_xbar_1to1 | 165 | Low |
+| apbx_xbar_2to1 | 314 | Medium |
+| apbx_xbar_1to4 | 417 | Medium |
+| apbx_xbar_2to2_mixed | 625 | Medium |
+| apbx_xbar_2to4 | 806 | Medium-High |
 
 : Source Code Metrics
 
 **This table is the single source of truth for LOC**, as it already is for
 the LUT/FF estimates above. Exact `wc -l` of `rtl/*.sv`, measured
-2026-08-29; the PRD and the key-features page point here rather than
+2026-10-12; the PRD and the key-features page point here rather than
 carrying their own copies.
 
 Three tables disagreed before that -- by up to 33% on the same file

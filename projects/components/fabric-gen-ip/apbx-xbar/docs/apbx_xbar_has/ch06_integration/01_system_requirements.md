@@ -42,7 +42,7 @@ The crossbar requires APB-compliant masters and slaves:
 
 | Requirement | Description |
 |-------------|-------------|
-| Protocol version | APB4 (with PSTRB, PPROT) |
+| Protocol version | APB4 (with PSTRB, PPROT); APB5 sideband supported only on mixed-version variants such as `apbx_xbar_2to2_mixed` |
 | Wait states | Supported (PREADY-based) |
 | Error response | Supported (PSLVERR) |
 | Slave timeout | Not handled internally |

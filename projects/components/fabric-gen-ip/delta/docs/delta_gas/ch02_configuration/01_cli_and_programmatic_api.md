@@ -1,0 +1,80 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# CLI and Programmatic API
+
+## `delta_generator.py` CLI
+
+```bash
+python3 delta_generator.py --masters 2 --slaves 4 --data-width 64 --output-dir ../rtl
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--topology` | `flat` | `flat`, `tree`, or `both`. Tree is not fully implemented in the framework version. |
+| `--masters` | required | Number of master interfaces. |
+| `--slaves` | required | Number of slave interfaces. |
+| `--data-width` | 64 | `TDATA` width in bits. |
+| `--user-width` | 1 | `TUSER` width. |
+| `--strb-width` | 0 | `TSTRB` width; 0 omits `TSTRB` ports. |
+| `--amba5` | False | Emit AMBA 5 `TWAKEUP` and `TPARITY` sidebands. |
+| `--parity-width` | 0 | Override `TPARITY` width (requires `--amba5`; default is `DATA_WIDTH/8`). |
+| `--output-dir` | `../rtl` | Destination directory. |
+| `--nodes` | False | Also emit the `delta_split_1to2` primitive. |
+| `--no-counters` | False | Disable the optional performance counters. |
+
+## `complete_tree_generator.py` CLI
+
+| Flag | Description |
+|------|-------------|
+| `--type` | `merger`, `fanout`, or `fanin`. |
+| `--size` | Number of inputs/outputs for fan-out/fan-in. |
+| `--output` | Output directory (default `../rtl`). |
+
+## Programmatic API
+
+The preferred programmatic entry point is the `DeltaConfig` dataclass plus `DeltaFlatCrossbar`:
+
+```python
+from delta_generator import DeltaConfig, DeltaFlatCrossbar
+
+cfg = DeltaConfig(
+    topology="flat",
+    num_masters=2,
+    num_slaves=4,
+    data_width=64,
+    dest_width=2,
+    id_width=1,
+    user_width=1,
+    strb_width=8,
+    amba5=True,
+    parity_width=8,
+    registered_outputs=True,
+    arbiter_type="round_robin",
+    add_performance_counters=True,
+)
+
+gen = DeltaFlatCrossbar(cfg)
+gen.verilog("../rtl")
+```
+
+`dest_width` and `id_width` are normally calculated from `num_slaves` and `num_masters` but may be overridden if the caller supplies them explicitly.
