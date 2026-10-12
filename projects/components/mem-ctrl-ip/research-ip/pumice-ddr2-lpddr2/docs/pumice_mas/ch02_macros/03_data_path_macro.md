@@ -26,12 +26,12 @@
 **Module:** `mc_storage_layer` (common IP)  
 **Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_storage_layer.sv`  
 **Category:** Layer-1b macro in `pumice_core`  
-**Instance:** `u_storage` (`rtl/top/pumice_core.sv:504-596`)  
+**Instance:** `u_store_layer` (`rtl/top/pumice_core.sv:504-596`)  
 **Child FUBs:** `mc_wr_data_cam`, `mc_rd_cmd_cam`, `mc_addr_mapper`
 
 ## Purpose
 
-"Schedulable entry pools and data buffers for writes and reads." `pumice_core` instantiates the common `mc_storage_layer` on `aclk` between `u_ifc` (`mc_axi4_layer`) and `u_sched` (`pumice_scheduler_layer`). It holds the write-data CAM / write buffer and the read-command scheduling window, exposes the per-entry scheduler vectors, and streams committed write data toward the DFI layer.
+"Schedulable entry pools and data buffers for writes and reads." `pumice_core` instantiates the common `mc_storage_layer` on `aclk` between `u_axi_layer` (`mc_axi4_layer`) and `u_sched_layer` (`pumice_scheduler_layer`). It holds the write-data CAM / write buffer and the read-command scheduling window, exposes the per-entry scheduler vectors, and streams committed write data toward the DFI layer.
 
 Until 2026-10-09 the write-data and read-command CAMs lived inside the pumice-local `pumice_axi4_layer` and were documented as part of the AXI front-end macro; Phase-2 moved them into the common `mc_storage_layer`, and the old `data_path_macro` (`wr_beat_sequencer` + `rd_cl_aligner`) is retired.
 
@@ -54,9 +54,9 @@ Until 2026-10-09 the write-data and read-command CAMs lived inside the pumice-lo
 
 ## External boundaries
 
-- **From `mc_axi4_layer` (`u_ifc`):** the storage seam — `aw_push_*` + `wd_*` for writes, `snarf_probe_*` for read-your-write probes, `ar_push_*` for reads, and the return-ring ticket handshake (`rt_alloc_*`, `rd_iss_*`, `rd_cam_ins_ready_*`).
-- **To `pumice_scheduler_layer` (`u_sched`):** per-entry scheduling vectors (`wr_sch_*`, `rd_sch_*`), plus the write `commit` and read `issue` handshakes.
-- **To `mc_dfi_2p1_layer` (`u_dfi`):** committed write-data stream `wr_cm_rd_*` (`valid/ready/data/strb/last`).
+- **From `mc_axi4_layer` (`u_axi_layer`):** the storage seam — `aw_push_*` + `wd_*` for writes, `snarf_probe_*` for read-your-write probes, `ar_push_*` for reads, and the return-ring ticket handshake (`rt_alloc_*`, `rd_iss_*`, `rd_cam_ins_ready_*`).
+- **To `pumice_scheduler_layer` (`u_sched_layer`):** per-entry scheduling vectors (`wr_sch_*`, `rd_sch_*`), plus the write `commit` and read `issue` handshakes.
+- **To `mc_dfi_2p1_layer` (`u_dfi_layer`):** committed write-data stream `wr_cm_rd_*` (`valid/ready/data/strb/last`).
 - **Status:** `busy_o` is left unconnected in `pumice_core` (`pumice_core.sv:595`).
 
 ## Pumice-specific integration notes

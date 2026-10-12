@@ -413,7 +413,7 @@ module andesite_core
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .N_SCHED_LU       (N_LU),
         .AGE_WIDTH        (AGE_WIDTH)
-    ) u_ifc (
+    ) u_axi_layer (
         .aclk          (aclk),
         .aresetn       (aresetn),
         .bank_lsb_i    (bank_lsb_i),
@@ -533,7 +533,7 @@ module andesite_core
         .N_SCHED_LU    (N_LU),
         .AGE_WIDTH     (AGE_WIDTH),
         .RD_RET_DEPTH  (RD_RET_DEPTH)
-    ) u_storage (
+    ) u_store_layer (
         .aclk               (aclk),
         .aresetn            (aresetn),
         // WR intake push
@@ -640,7 +640,7 @@ module andesite_core
         .HIST_T_WTR    (HIST_T_WTR_CORE),
         .CMD_DELAY     (CMD_DELAY_EFF),
         .N_LU          (N_LU)
-    ) u_sched (
+    ) u_sched_layer (
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
@@ -797,7 +797,7 @@ module andesite_core
     // ======================================================================
     andesite_training_layer #(
         .NUM_CS(NUM_CS)
-    ) u_training (
+    ) u_train_layer (
         .mc_clk             (aclk),
         .mc_rst_n           (aresetn),
         .wrlvl_en_i         (w_wrlvl_en),
@@ -895,7 +895,7 @@ module andesite_core
         .RD_MAX_OUTSTANDING(RD_RET_DEPTH),
         .RD_FIFO_DEPTH   (RD_RET_DEPTH * BURST_WORDS),
         .WD_FIFO_DEPTH   (32)
-    ) u_dfi (
+    ) u_dfi_layer (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
         .cmd_valid_i        (w_cmd_v),

@@ -42,23 +42,23 @@ live inside those layers; pumice does not instantiate them directly.
 | Common block | common_mas chapter | Pumice instantiation site |
 |---|---|---|
 | `mc_common_pkg` | [ch01 — package](../../../../../common-ip/docs/common_mas/ch01_package/01_mc_common_pkg.md) | imported in [`pumice_core.sv:30`](../../../rtl/top/pumice_core.sv) and the common macros that compose it |
-| `mc_axi4_layer` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | [`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv) (`u_ifc`) |
+| `mc_axi4_layer` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | [`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv) (`u_axi_layer`) |
 | `mc_axi_burst_chopper` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
 | `mc_wr_splitter` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
 | `mc_wr_intake` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
 | `mc_rd_intake` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
 | `mc_rd_return_ring` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
 | `mc_addr_mapper` | [ch02 — host-side layer](../../../../../common-ip/docs/common_mas/ch02_axi4_layer/01_mc_axi4_layer.md) | inside `mc_wr_intake`/`mc_rd_intake` of `mc_axi4_layer` ([`pumice_core.sv:376`](../../../rtl/top/pumice_core.sv)) |
-| `mc_storage_layer` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | [`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv) (`u_storage`) |
+| `mc_storage_layer` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | [`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv) (`u_store_layer`) |
 | `mc_wr_data_cam` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | inside `mc_storage_layer` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)) |
 | `mc_rd_cmd_cam` | [ch03 — entry-pool layer](../../../../../common-ip/docs/common_mas/ch03_storage_layer/01_mc_storage_layer.md) | inside `mc_storage_layer` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)) |
-| `mc_scheduler_layer` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | [`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv) (`u_sched`) |
+| `mc_scheduler_layer` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | [`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv) (`u_sched_layer`) |
 | `mc_bank_timers` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` |
 | `mc_bank_timer` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_bank_timers` inside `mc_scheduler_layer` |
 | `mc_global_timers` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` |
 | `mc_cmd_arbiter` | [ch04 — scheduler layer](../../../../../common-ip/docs/common_mas/ch04_scheduler_layer/01_mc_scheduler_layer.md) | inside `mc_scheduler_layer` |
-| `mc_training_layer` | [ch05 — training layer](../../../../../common-ip/docs/common_mas/ch05_training_layer/01_mc_training_layer.md) | [`pumice_core.sv:725`](../../../rtl/top/pumice_core.sv) (`u_training`) |
-| `mc_dfi_2p1_layer` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | [`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv) (`u_dfi`) |
+| `mc_training_layer` | [ch05 — training layer](../../../../../common-ip/docs/common_mas/ch05_training_layer/01_mc_training_layer.md) | [`pumice_core.sv:725`](../../../rtl/top/pumice_core.sv) (`u_train_layer`) |
+| `mc_dfi_2p1_layer` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | [`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv) (`u_dfi_layer`) |
 | `mc_dfi_cdc` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | inside `mc_dfi_2p1_layer` ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)) |
 | `mc_dfi_cmd_path` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | inside `mc_dfi_2p1_layer` ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)) |
 | `mc_dfi_wr_serializer` | [ch07 — DFI 2.1 layer](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_layer/01_mc_dfi_2p1_layer.md) | inside `mc_dfi_2p1_layer` ([`pumice_core.sv:766`](../../../rtl/top/pumice_core.sv)) |

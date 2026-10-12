@@ -63,10 +63,10 @@ them. There is no FSM, no CSR decode, and no arithmetic beyond the packed-bus
 
 ```
 pumice_core
-├── u_ifc       : pumice_axi4_layer          (host AXI + wr/rd CAMs)          [aclk]
-├── u_sched     : pumice_scheduler_layer (arbiter + timers + refresh/init)[aclk]
-├── u_training  : pumice_training_layer    (ZQ + lp_cal + trn_cmd mux + CDC)[aclk→dfi_clk]
-└── u_dfi       : mc_dfi_2p1_layer         (single async CDC + DFI datapath)[aclk→dfi_clk]
+├── u_axi_layer       : pumice_axi4_layer          (host AXI + wr/rd CAMs)          [aclk]
+├── u_sched_layer     : pumice_scheduler_layer (arbiter + timers + refresh/init)[aclk]
+├── u_train_layer  : pumice_training_layer    (ZQ + lp_cal + trn_cmd mux + CDC)[aclk→dfi_clk]
+└── u_dfi_layer       : mc_dfi_2p1_layer         (single async CDC + DFI datapath)[aclk→dfi_clk]
 ```
 
 - Host AXI, the scheduler, and both CAMs run on **`aclk`** (`aresetn`).
@@ -87,9 +87,9 @@ edge concern — the core does not gear internally).
 
 | Instance   | Module                        | Count | Clock              | Role                                            |
 |------------|-------------------------------|-------|--------------------|-------------------------------------------------|
-| `u_ifc`    | `mc_axi4_layer`             | 1     | `aclk`             | Host AXI4 face; wr-data CAM + rd-cmd CAM        |
-| `u_sched`  | `pumice_scheduler_layer`    | 1     | `aclk`             | Command arbiter + bank/global timers + refresh + init + mode-register shadow |
-| `u_dfi`    | `mc_dfi_2p1_layer`            | 1     | `aclk` → `dfi_clk` | Single async CDC + DFI cmd/wr/rd datapath       |
+| `u_axi_layer`    | `mc_axi4_layer`             | 1     | `aclk`             | Host AXI4 face; wr-data CAM + rd-cmd CAM        |
+| `u_sched_layer`  | `pumice_scheduler_layer`    | 1     | `aclk`             | Command arbiter + bank/global timers + refresh + init + mode-register shadow |
+| `u_dfi_layer`    | `mc_dfi_2p1_layer`            | 1     | `aclk` → `dfi_clk` | Single async CDC + DFI cmd/wr/rd datapath       |
 
 There are **no** `generate` fan-out blocks in `pumice_core`. Per-(rank, bank)
 fan-out (the bank timers) happens one level down, inside

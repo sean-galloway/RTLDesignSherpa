@@ -26,7 +26,7 @@
 **Module:** `mc_axi4_layer` (common IP)  
 **Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_axi4_layer.sv`  
 **Category:** Layer-1 macro in `pumice_core`  
-**Instance:** `u_ifc` (`rtl/top/pumice_core.sv:376-499`)  
+**Instance:** `u_axi_layer` (`rtl/top/pumice_core.sv:376-499`)  
 **Child FUBs:** `mc_wr_splitter`, `mc_axi_burst_chopper`, `mc_wr_intake`, `mc_rd_intake`, `mc_rd_return_ring`
 
 ## Purpose
@@ -59,8 +59,8 @@ Until 2026-10-09 the pumice MAS described a pumice-local `pumice_axi4_layer` mac
 ## External boundaries
 
 - **Upstream:** the host AXI4 slave port (`s_axi_*`), the only SoC-facing interface.
-- **To `mc_storage_layer` (`u_storage`):** the storage seam — `aw_push_*` + `wd_*` for writes, `snarf_probe_*` / `snarf_rd_*` for read-your-write, `ar_push_*` for reads, and the return-ring ticket ports (`rt_alloc_*`, `rd_iss_*`, `rd_cam_ins_ready_*`).
-- **From `mc_dfi_2p1_layer` (`u_dfi`):** the read-return stream `rd_dfi_ret_*` (`valid/ready/data/resp/last`).
+- **To `mc_storage_layer` (`u_store_layer`):** the storage seam — `aw_push_*` + `wd_*` for writes, `snarf_probe_*` / `snarf_rd_*` for read-your-write, `ar_push_*` for reads, and the return-ring ticket ports (`rt_alloc_*`, `rd_iss_*`, `rd_cam_ins_ready_*`).
+- **From `mc_dfi_2p1_layer` (`u_dfi_layer`):** the read-return stream `rd_dfi_ret_*` (`valid/ready/data/resp/last`).
 - **Status:** `busy_o` is left unconnected in `pumice_core` (`pumice_core.sv:498`).
 
 ## Pumice-specific integration notes

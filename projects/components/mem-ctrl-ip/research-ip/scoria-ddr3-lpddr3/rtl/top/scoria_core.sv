@@ -470,7 +470,7 @@ module scoria_core
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .N_SCHED_LU       (N_LU),
         .AGE_WIDTH        (AGE_WIDTH)
-    ) u_ifc (
+    ) u_axi_layer (
         .aclk          (aclk),
         .aresetn       (aresetn),
         .bank_lsb_i    (bank_lsb_i),
@@ -590,7 +590,7 @@ module scoria_core
         .N_SCHED_LU    (N_LU),
         .AGE_WIDTH     (AGE_WIDTH),
         .RD_RET_DEPTH  (RD_RET_DEPTH)
-    ) u_storage (
+    ) u_store_layer (
         .aclk               (aclk),
         .aresetn            (aresetn),
         // WR intake push
@@ -685,7 +685,7 @@ module scoria_core
         .AGE_WIDTH     (AGE_WIDTH),
         .CMD_HISTORY_EN(CMD_HISTORY_EN),
         .CMD_DELAY     (CMD_DELAY_EFF)
-    ) u_sched (
+    ) u_sched_layer (
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
@@ -814,7 +814,7 @@ module scoria_core
     scoria_training_layer #(
         .NUM_CS(NUM_CS),
         .CSW   ((NUM_CS > 1) ? $clog2(NUM_CS) : 1)
-    ) u_training (
+    ) u_train_layer (
         .mc_clk             (aclk),
         .mc_rst_n           (aresetn),
         .init_done_i        (init_done_o),
@@ -894,7 +894,7 @@ module scoria_core
         .HIST_T_RFC      (HIST_T_RFC_CORE),
         .HIST_T_RTW      (HIST_T_RTW_CORE),
         .HIST_T_WTR      (HIST_T_WTR_CORE)
-    ) u_dfi (
+    ) u_dfi_layer (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
         .cmd_valid_i        (w_cmd_v),

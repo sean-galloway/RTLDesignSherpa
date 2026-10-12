@@ -39,7 +39,7 @@ The common DFI 2.1 microarchitecture is documented in [Chapter 7 of the common M
 
 ### Instantiation in `pumice_core`
 
-`pumice_core` instantiates `mc_dfi_2p1_layer` as `u_dfi` (`rtl/top/pumice_core.sv:766-836`). The parameters pumice supplies are:
+`pumice_core` instantiates `mc_dfi_2p1_layer` as `u_dfi_layer` (`rtl/top/pumice_core.sv:766-836`). The parameters pumice supplies are:
 
 | Parameter | Pumice value / source | Purpose |
 |---|---|---|
