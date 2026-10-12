@@ -286,6 +286,11 @@ class AmberCoreTB(TBBase):
 
         # observation log + scorekeeping
         self.events = []
+        # incremental accept tracking: _txn_begin polls these instead of
+        # re-scanning self.events per poll cycle (O(len) each -- quadratic
+        # at FULL soak lengths)
+        self.n_accept = 0
+        self.last_accept = None
         self.cyc = 0
         self.rsp_log = []
         self.checks = 0
@@ -539,6 +544,9 @@ class AmberCoreTB(TBBase):
                 we = (packed >> (self.BUS_WIDTH + self.STRB_W)) & 1
                 addr = (packed >> (self.BUS_WIDTH + self.STRB_W + 1)) \
                     & ((1 << self.ADDR_WIDTH) - 1)
+                self.n_accept += 1
+                self.last_accept = (self.cyc, {
+                    'addr': addr, 'we': we, 'be': be, 'wdata': wdata})
                 self.events.append((self.cyc, 'accept',
                                     {'addr': addr, 'we': we, 'be': be,
                                      'wdata': wdata}))
@@ -840,18 +848,17 @@ class AmberCoreTB(TBBase):
                'victim_done': False, 'fill_modeled': False}
         self.cur_txn = txn
         txn['n_rsp'] = len(self.rsp_log)
-        n_accept = len([1 for _, k, _ in self.events if k == 'accept'])
+        n_accept = self.n_accept
         pkt = self.master.create_packet(data=self._pack_req(addr, we, be, wdata))
         await self.master.send(pkt)
         for _ in range(self.RSP_TIMEOUT_CYCLES):
-            accepts = [e for e in self.events if e[1] == 'accept']
-            if len(accepts) >= n_accept + 1:
+            if self.n_accept >= n_accept + 1:
                 break
             await self._negedge_settled()
         else:
             raise RuntimeError(f"{label}: request never accepted; state="
                                f"{int(self.dut.ctrl_state.value):#x}")
-        txn['accept_cyc'] = accepts[-1][0]
+        txn['accept_cyc'] = self.last_accept[0]
         return txn
 
     async def _txn_end(self, txn):
@@ -920,8 +927,7 @@ class AmberCoreTB(TBBase):
                 self._score("init: cpu_req_wr_ready low while init busy",
                             int(d.cpu_req_wr_ready.value), 0)
                 self._score("init: no accept while init busy",
-                            any(e[1] == 'accept' for e in self.events),
-                            False)
+                            self.n_accept > 0, False)
             else:
                 if int(d.cpu_req_wr_ready.value):
                     break

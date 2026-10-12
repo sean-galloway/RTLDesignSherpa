@@ -83,6 +83,8 @@ Created: 2026-10-07
 
 import os
 import random
+from bisect import bisect_left, bisect_right
+from collections import deque
 
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
@@ -197,6 +199,10 @@ class AmberControlTB(TBBase):
 
         # observation log: (cyc, kind, payload); cyc ticks at negedge
         self.events = []
+        # responses alone also land here (FIFO): _req_await_rsp polls this
+        # queue instead of re-scanning self.events every poll cycle, which
+        # is O(len(events)) per cycle and crawls at FULL soak lengths
+        self._rsp_q = deque()
         self.cyc = 0
         self.stub_victim_way = 0
 
@@ -344,7 +350,10 @@ class AmberControlTB(TBBase):
                 self.events.append((self.cyc, 'state', st))
                 prev_state = st
             if int(d.ctrl_rsp_valid.value):
-                self.events.append((self.cyc, 'rsp', int(d.ctrl_rsp_data.value)))
+                self.events.append((self.cyc, 'rsp',
+                                    int(d.ctrl_rsp_data.value)))
+                self._rsp_q.append((self.cyc,
+                                    int(d.ctrl_rsp_data.value)))
             if int(d.tag_wr_en.value):
                 self.events.append((self.cyc, 'tag_wr', {
                     'way_oh': int(d.tag_wr_way_onehot.value),
@@ -574,11 +583,15 @@ class AmberControlTB(TBBase):
         # Event-driven: the monitor records every response pulse, so a
         # response raised while the TB is busy elsewhere (e.g. draining a
         # snoop) is still observed. Exactly one response belongs to the
-        # accepted request (blocking pipeline).
+        # accepted request (blocking pipeline). Drains stale entries from
+        # the FIFO each poll -- O(1) per cycle; the events-list scan this
+        # replaced was O(len(events)) per cycle and crawled at FULL.
         for _ in range(self.RSP_TIMEOUT_CYCLES):
-            for cyc, kind, p in self.events:
-                if kind == 'rsp' and cyc > accept_cyc:
-                    return accept_cyc, cyc, p
+            while self._rsp_q and self._rsp_q[0][0] <= accept_cyc:
+                self._rsp_q.popleft()
+            if self._rsp_q:
+                cyc, p = self._rsp_q.popleft()
+                return accept_cyc, cyc, p
             await self._negedge_settled()
         recent = [e for e in self.events[-40:]]
         raise RuntimeError(
@@ -616,7 +629,12 @@ class AmberControlTB(TBBase):
         return self.cyc - start
 
     def _slice(self, accept_cyc, rsp_cyc):
-        return [e for e in self.events if accept_cyc < e[0] <= rsp_cyc]
+        # events append in non-decreasing cyc order (monitor stamps one cyc
+        # per negedge), so bisect the window instead of scanning -- the
+        # linear scan was O(len(events)) per soak transaction
+        lo = bisect_left(self.events, accept_cyc + 1, key=lambda e: e[0])
+        hi = bisect_right(self.events, rsp_cyc, key=lambda e: e[0])
+        return self.events[lo:hi]
 
     def _replay_models(self, sl, set_idx, merge_line, merge_be=None,
                        merge_wdata=None, label=''):

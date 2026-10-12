@@ -122,6 +122,10 @@ class AmberFrontendTB(TBBase):
 
         # observation log: (cyc, kind, payload); cyc ticks at negedge
         self.events = []
+        # incremental accept tracking (see AmberCoreTB._txn_begin -- avoids
+        # per-poll O(len(events)) scans)
+        self.n_accept = 0
+        self.last_accept = None
         self.cyc = 0
         self.stub_victim_way = 0
 
@@ -302,6 +306,9 @@ class AmberFrontendTB(TBBase):
                 we = (packed >> (self.DATA_WIDTH + self.STRB_W)) & 1
                 addr = (packed >> (self.DATA_WIDTH + self.STRB_W + 1)) \
                     & ((1 << self.ADDR_WIDTH) - 1)
+                self.n_accept += 1
+                self.last_accept = (self.cyc, {
+                    'addr': addr, 'we': we, 'be': be, 'wdata': wdata})
                 self.events.append((self.cyc, 'accept',
                                     {'addr': addr, 'we': we, 'be': be,
                                      'wdata': wdata}))
@@ -434,7 +441,7 @@ class AmberFrontendTB(TBBase):
         line = self._line_of(addr)
         beat = (addr >> (self.STRB_W.bit_length() - 1)) & (self.FILL_BEATS - 1)
 
-        n_accept = len([1 for _, k, _ in self.events if k == 'accept'])
+        n_accept = self.n_accept
         n_rsp = len(self.rsp_log)
 
         pkt = self.master.create_packet(
@@ -443,16 +450,15 @@ class AmberFrontendTB(TBBase):
 
         # blocking pipeline: exactly one new accept and one new response
         for _ in range(self.RSP_TIMEOUT_CYCLES):
-            accepts = [e for e in self.events if e[1] == 'accept']
-            if len(accepts) >= n_accept + 1 and len(self.rsp_log) >= n_rsp + 1:
+            if self.n_accept >= n_accept + 1 \
+                    and len(self.rsp_log) >= n_rsp + 1:
                 break
             await self._negedge_settled()
-        accepts = [e for e in self.events if e[1] == 'accept']
         self._score(f"{label} exactly one GAXI accept",
-                    len(accepts), n_accept + 1)
+                    self.n_accept, n_accept + 1)
         self._score(f"{label} exactly one response", len(self.rsp_log),
                     n_rsp + 1)
-        accept_cyc, _, accept_p = accepts[-1]
+        accept_cyc, _, accept_p = self.last_accept
         rsp_cyc, rsp_data = self.rsp_log[-1]
         self._score(f"{label} accept payload addr", accept_p['addr'], addr)
         self._score(f"{label} accept payload we", accept_p['we'], we)
@@ -840,6 +846,8 @@ class AmberFrontendTB(TBBase):
         await self.deassert_reset()
         self.mem = {}
         self.events = []
+        self.n_accept = 0
+        self.last_accept = None
         self.rsp_log = []
         self.txns = 0
         self.snoops = 0
