@@ -1,0 +1,121 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/top/local_sim_build/test_rapids_top_source_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/top/GTKW/rapids_top_axi_rd_engine.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rapids_top.
+[treeopen] rapids_top.u_core.
+[treeopen] rapids_top.u_core.u_src.
+[treeopen] rapids_top.u_core.u_src.u_scheduler_group_array.
+[treeopen] rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].
+[treeopen] rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.
+[treeopen] rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.
+[treeopen] rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.
+[treeopen] rapids_top.u_core.u_src.u_source_data_path.
+[treeopen] rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.
+[treeopen] rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@22
+rapids_top.NUM_CHANNELS[31:0]
+rapids_top.DATA_WIDTH[31:0]
+rapids_top.ADDR_WIDTH[31:0]
+rapids_top.SRAM_DEPTH[31:0]
+@28
+rapids_top.aclk
+rapids_top.aresetn
+@200
+-apb
+@28
+rapids_top.s_apb_psel
+rapids_top.s_apb_penable
+rapids_top.s_apb_pready
+rapids_top.s_apb_pwrite
+@22
+rapids_top.s_apb_paddr[12:0]
+rapids_top.s_apb_pwdata[31:0]
+@28
+rapids_top.s_apb_pslverr
+@22
+rapids_top.s_apb_prdata[31:0]
+@200
+-apb-cmd-rsp
+@28
+rapids_top.apb_cmd_valid
+rapids_top.apb_cmd_ready
+rapids_top.apb_cmd_pwrite
+@22
+rapids_top.apb_cmd_paddr[12:0]
+rapids_top.apb_cmd_pwdata[31:0]
+@28
+rapids_top.apb_rsp_valid
+rapids_top.apb_rsp_ready
+rapids_top.apb_rsp_pslverr
+@22
+rapids_top.apb_rsp_prdata[31:0]
+@200
+-descriptor
+@28
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.apb_valid
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.apb_ready
+@22
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.apb_addr[63:0]
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_packet[255:0]
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_ext_packet[255:0]
+@28
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_valid
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_ready
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_error
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_engine_idle
+@22
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+@200
+-scheduler
+@28
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.scheduler_idle
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.descriptor_ready
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.descriptor_valid
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_rd_valid
+@22
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.scheduler_state[6:0]
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_rd_addr[63:0]
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_rd_beats[31:0]
+@28
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_rd_done_strobe
+@22
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_rd_beats_done[31:0]
+@28
+rapids_top.u_core.u_src.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_error
+@200
+-axi-read-engine
+@28
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.m_axi_arvalid
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.m_axi_arready
+@22
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.m_axi_araddr[63:0]
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.m_axi_arlen[7:0]
+@28
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.m_axi_rvalid
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.m_axi_rready
+@22
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.m_axi_rdata[511:0]
+@28
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.m_axi_rlast
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.m_axi_rresp[1:0]
+@22
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.sched_rd_addr[0][63:0]
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.sched_rd_beats[0][31:0]
+@28
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.sched_rd_valid[7:0]
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.sched_rd_done_strobe[7:0]
+@22
+rapids_top.u_core.u_src.u_source_data_path.u_source_data_path.u_axi_read_engine.sched_rd_beats_done[0][31:0]
+[pattern_trace] 1
+[pattern_trace] 0

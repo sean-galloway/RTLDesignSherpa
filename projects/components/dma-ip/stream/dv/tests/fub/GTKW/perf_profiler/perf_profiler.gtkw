@@ -1,0 +1,67 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/dv/tests/fub/local_sim_build/test_perf_profiler_single_channel_timestamp_mode_nc08_tw32_fd256/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/dv/tests/fub/GTKW/perf_profiler/perf_profiler.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] perf_profiler.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+perf_profiler.NUM_CHANNELS[31:0]
+perf_profiler.TIMESTAMP_WIDTH[31:0]
+perf_profiler.FIFO_DEPTH[31:0]
+@28
+perf_profiler.clk
+perf_profiler.rst_n
+perf_profiler.channel_idle[7:0]
+@200
+-config
+@28
+perf_profiler.cfg_enable
+perf_profiler.cfg_mode
+perf_profiler.cfg_clear
+@200
+-fifo-read
+@28
+perf_profiler.perf_fifo_rd
+perf_profiler.perf_fifo_empty
+perf_profiler.perf_fifo_full
+@22
+perf_profiler.perf_fifo_data_low[31:0]
+perf_profiler.perf_fifo_data_high[31:0]
+perf_profiler.perf_fifo_count[15:0]
+@200
+-internals
+@22
+perf_profiler.r_timestamp_counter[31:0]
+perf_profiler.r_idle_prev[7:0]
+perf_profiler.w_idle_rising[7:0]
+perf_profiler.w_idle_falling[7:0]
+perf_profiler.r_channel_active[7:0]
+perf_profiler.w_active_channel[2:0]
+@28
+perf_profiler.w_channel_event
+perf_profiler.w_fifo_wr
+perf_profiler.w_fifo_full_internal
+@22
+perf_profiler.w_fifo_wr_data[35:0]
+perf_profiler.w_elapsed_time[31:0]
+perf_profiler.w_fifo_count_internal[8:0]
+@200
+-perf-fifo
+@28
+perf_profiler.u_perf_fifo.wr_valid
+perf_profiler.u_perf_fifo.wr_ready
+perf_profiler.u_perf_fifo.rd_valid
+perf_profiler.u_perf_fifo.rd_ready
+@22
+perf_profiler.u_perf_fifo.count[8:0]
+[pattern_trace] 1
+[pattern_trace] 0

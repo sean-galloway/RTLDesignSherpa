@@ -1,0 +1,83 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/macro/local_sim_build/test_src_data_path_axis_test_basic_descriptor_flow_nc08_aw64_dw256_id08_sd4096_default_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/macro/GTKW/src_data_path_axis_test/src_data_path_axis_test.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] src_data_path_axis_test.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+src_data_path_axis_test.NUM_CHANNELS[31:0]
+src_data_path_axis_test.ADDR_WIDTH[31:0]
+src_data_path_axis_test.DATA_WIDTH[31:0]
+src_data_path_axis_test.AXI_ID_WIDTH[31:0]
+src_data_path_axis_test.SRAM_DEPTH[31:0]
+@28
+src_data_path_axis_test.clk
+src_data_path_axis_test.rst_n
+@200
+-config
+@28
+src_data_path_axis_test.cfg_axi_rd_xfer_beats[7:0]
+src_data_path_axis_test.cfg_drain_size[7:0]
+src_data_path_axis_test.cfg_channel_reset[7:0]
+@200
+-descriptors-aggregate
+@22
+src_data_path_axis_test.desc_valid[7:0]
+src_data_path_axis_test.desc_ready[7:0]
+src_data_path_axis_test.descriptor_0_packet[255:0]
+@200
+-axi-read-master
+@28
+src_data_path_axis_test.m_axi_arvalid
+src_data_path_axis_test.m_axi_arready
+@22
+src_data_path_axis_test.m_axi_araddr[63:0]
+src_data_path_axis_test.m_axi_arlen[7:0]
+src_data_path_axis_test.m_axi_arid[7:0]
+@28
+src_data_path_axis_test.m_axi_rvalid
+src_data_path_axis_test.m_axi_rready
+src_data_path_axis_test.m_axi_rlast
+@22
+src_data_path_axis_test.m_axi_rdata[255:0]
+@28
+src_data_path_axis_test.m_axi_rresp[1:0]
+@200
+-axis-master
+@28
+src_data_path_axis_test.m_axis_tvalid
+src_data_path_axis_test.m_axis_tready
+src_data_path_axis_test.m_axis_tlast
+@22
+src_data_path_axis_test.m_axis_tdata[255:0]
+src_data_path_axis_test.m_axis_tstrb[31:0]
+@200
+-scheduler-status
+@22
+src_data_path_axis_test.sched_idle[7:0]
+src_data_path_axis_test.sched_error[7:0]
+@200
+-debug
+@22
+src_data_path_axis_test.dbg_r_beats_rcvd[31:0]
+src_data_path_axis_test.dbg_axis_beats_sent[31:0]
+src_data_path_axis_test.dbg_axis_packets_sent[31:0]
+src_data_path_axis_test.dbg_sram_bridge_pending[7:0]
+src_data_path_axis_test.dbg_sram_bridge_out_valid[7:0]
+@200
+-internals
+@28
+src_data_path_axis_test.r_wr_done_strobe[7:0]
+@22
+src_data_path_axis_test.r_wr_beats_done[0][31:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,0 +1,50 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/local_sim_build/test_latency_bridge_occupancy_dw0256_default_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/GTKW/latency_bridge/latency_bridge.gtkw"
+[treeopen] latency_bridge_tb_top.
+[treeopen] latency_bridge_tb_top.u_dut.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+latency_bridge_tb_top.u_dut.DATA_WIDTH[31:0]
+latency_bridge_tb_top.u_dut.SKID_DEPTH[31:0]
+@28
+latency_bridge_tb_top.u_dut.clk
+latency_bridge_tb_top.u_dut.rst_n
+@200
+-upstream
+@28
+latency_bridge_tb_top.u_dut.s_valid
+latency_bridge_tb_top.u_dut.s_ready
+@22
+latency_bridge_tb_top.u_dut.s_data[255:0]
+@200
+-downstream
+@28
+latency_bridge_tb_top.u_dut.m_valid
+latency_bridge_tb_top.u_dut.m_ready
+@22
+latency_bridge_tb_top.u_dut.m_data[255:0]
+@200
+-status
+@22
+latency_bridge_tb_top.u_dut.occupancy[2:0]
+latency_bridge_tb_top.u_dut.skid_count[2:0]
+@28
+latency_bridge_tb_top.u_dut.dbg_r_pending
+latency_bridge_tb_top.u_dut.dbg_r_out_valid
+@200
+-internals
+@28
+latency_bridge_tb_top.u_dut.r_drain_ip
+latency_bridge_tb_top.u_dut.skid_wr_valid
+latency_bridge_tb_top.u_dut.skid_wr_ready
+@22
+latency_bridge_tb_top.u_dut.skid_wr_data[255:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,0 +1,80 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/local_sim_build/test_ctrlwr_engine_basic_write_cid00_nc08_aw64_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/GTKW/ctrlwr_engine/ctrlwr_engine.gtkw"
+[treeopen] ctrlwr_engine.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+ctrlwr_engine.CHANNEL_ID[31:0]
+ctrlwr_engine.NUM_CHANNELS[31:0]
+ctrlwr_engine.CHAN_WIDTH[31:0]
+ctrlwr_engine.ADDR_WIDTH[31:0]
+ctrlwr_engine.AXI_ID_WIDTH[31:0]
+@28
+ctrlwr_engine.clk
+ctrlwr_engine.rst_n
+@200
+-ctrlwr-interface
+@28
+ctrlwr_engine.ctrlwr_valid
+ctrlwr_engine.ctrlwr_ready
+ctrlwr_engine.ctrlwr_error
+@22
+ctrlwr_engine.ctrlwr_pkt_addr[63:0]
+ctrlwr_engine.ctrlwr_pkt_data[31:0]
+@200
+-axi-write-address
+@28
+ctrlwr_engine.aw_valid
+ctrlwr_engine.aw_ready
+@22
+ctrlwr_engine.aw_addr[63:0]
+ctrlwr_engine.aw_id[7:0]
+ctrlwr_engine.aw_len[7:0]
+ctrlwr_engine.aw_size[2:0]
+@28
+ctrlwr_engine.aw_burst[1:0]
+@200
+-axi-write-data
+@28
+ctrlwr_engine.w_valid
+ctrlwr_engine.w_ready
+ctrlwr_engine.w_last
+@22
+ctrlwr_engine.w_data[31:0]
+ctrlwr_engine.w_strb[3:0]
+@200
+-axi-write-response
+@28
+ctrlwr_engine.b_valid
+ctrlwr_engine.b_ready
+@22
+ctrlwr_engine.b_id[7:0]
+@28
+ctrlwr_engine.b_resp[1:0]
+@200
+-status
+@28
+ctrlwr_engine.cfg_channel_reset
+ctrlwr_engine.ctrlwr_engine_idle
+@200
+-internals
+@22
+ctrlwr_engine.r_current_state[2:0]
+ctrlwr_engine.w_next_state[2:0]
+@28
+ctrlwr_engine.r_addr_issued
+ctrlwr_engine.r_data_issued
+ctrlwr_engine.r_ctrlwr_error
+ctrlwr_engine.w_null_address
+ctrlwr_engine.w_address_error
+ctrlwr_engine.w_axi_response_error
+ctrlwr_engine.w_draining
+ctrlwr_engine.r_channel_reset_active
+[pattern_trace] 1
+[pattern_trace] 0

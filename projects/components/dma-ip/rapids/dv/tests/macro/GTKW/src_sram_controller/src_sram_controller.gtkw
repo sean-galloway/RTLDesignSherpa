@@ -1,0 +1,80 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/macro/local_sim_build/test_src_sram_controller_basic_fill_drain_nc04_dw512_sd0256_default_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/macro/GTKW/src_sram_controller/src_sram_controller.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] src_sram_controller.
+[treeopen] src_sram_controller.gen_channel[0].u_sram_controller.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+src_sram_controller.NUM_CHANNELS[31:0]
+src_sram_controller.DATA_WIDTH[31:0]
+src_sram_controller.SRAM_DEPTH[31:0]
+@28
+src_sram_controller.clk
+src_sram_controller.rst_n
+src_sram_controller.cfg_channel_reset[3:0]
+@200
+-fill-allocation
+@28
+src_sram_controller.fill_alloc_req
+src_sram_controller.fill_alloc_size[7:0]
+src_sram_controller.fill_alloc_id[1:0]
+@22
+src_sram_controller.fill_space_free[0][8:0]
+src_sram_controller.fill_space_free[1][8:0]
+src_sram_controller.fill_space_free[2][8:0]
+src_sram_controller.fill_space_free[3][8:0]
+@200
+-fill-data
+@28
+src_sram_controller.fill_valid
+src_sram_controller.fill_ready
+src_sram_controller.fill_id[1:0]
+@22
+src_sram_controller.fill_data[511:0]
+@200
+-drain-flow-control
+@22
+src_sram_controller.drain_data_avail[0][8:0]
+src_sram_controller.drain_data_avail[1][8:0]
+src_sram_controller.drain_data_avail[2][8:0]
+src_sram_controller.drain_data_avail[3][8:0]
+@28
+src_sram_controller.drain_req[3:0]
+@22
+src_sram_controller.drain_size[0][7:0]
+src_sram_controller.drain_size[1][7:0]
+src_sram_controller.drain_size[2][7:0]
+src_sram_controller.drain_size[3][7:0]
+@200
+-drain-data
+@28
+src_sram_controller.drain_valid[3:0]
+src_sram_controller.drain_valid_comb[3:0]
+src_sram_controller.drain_read
+src_sram_controller.drain_id[1:0]
+@22
+src_sram_controller.drain_data[511:0]
+@200
+-debug
+@28
+src_sram_controller.dbg_bridge_pending[3:0]
+src_sram_controller.dbg_bridge_out_valid[3:0]
+@200
+-internals
+@28
+src_sram_controller.r_ch_rst_n[3:0]
+src_sram_controller.w_fill_ready_ch[3:0]
+@22
+src_sram_controller.w_drain_data_ch[0][511:0]
+[pattern_trace] 1
+[pattern_trace] 0

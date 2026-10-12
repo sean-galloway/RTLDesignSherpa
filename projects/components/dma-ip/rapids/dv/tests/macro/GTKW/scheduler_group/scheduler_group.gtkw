@@ -1,0 +1,130 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/macro/local_sim_build/test_scheduler_group_idle_state_ch00_aw64_dw256_id08_default_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/macro/GTKW/scheduler_group/scheduler_group.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] scheduler_group.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+scheduler_group.CHANNEL_ID[31:0]
+scheduler_group.NUM_CHANNELS[31:0]
+scheduler_group.ADDR_WIDTH[31:0]
+scheduler_group.DATA_WIDTH[31:0]
+scheduler_group.AXI_ID_WIDTH[31:0]
+@28
+scheduler_group.clk
+scheduler_group.rst_n
+@200
+-apb-kick
+@28
+scheduler_group.apb_valid
+scheduler_group.apb_ready
+@22
+scheduler_group.apb_addr[63:0]
+@200
+-config
+@28
+scheduler_group.cfg_channel_enable
+scheduler_group.cfg_channel_reset
+scheduler_group.cfg_sched_timeout_enable
+scheduler_group.cfg_sched_err_enable
+scheduler_group.cfg_sched_compl_enable
+scheduler_group.cfg_sched_perf_enable
+scheduler_group.cfg_desceng_prefetch
+@22
+scheduler_group.cfg_sched_timeout_cycles[31:0]
+scheduler_group.cfg_sched_timeout_limit[7:0]
+scheduler_group.cfg_ctrlrd_max_try[8:0]
+scheduler_group.cfg_desceng_fifo_thresh[3:0]
+scheduler_group.cfg_desceng_addr0_base[63:0]
+scheduler_group.cfg_desceng_addr0_limit[63:0]
+@200
+-descriptor-axi-read
+@28
+scheduler_group.desc_ar_valid
+scheduler_group.desc_ar_ready
+@22
+scheduler_group.desc_ar_addr[63:0]
+scheduler_group.desc_ar_len[7:0]
+scheduler_group.desc_ar_id[7:0]
+@28
+scheduler_group.desc_r_valid
+scheduler_group.desc_r_ready
+@22
+scheduler_group.desc_r_data[255:0]
+@28
+scheduler_group.desc_r_last
+@200
+-scheduler-data-read
+@28
+scheduler_group.sched_rd_valid
+@22
+scheduler_group.sched_rd_addr[63:0]
+scheduler_group.sched_rd_beats[31:0]
+scheduler_group.sched_rd_pkt_bytes[31:0]
+scheduler_group.sched_rd_pkt_offset[4:0]
+@28
+scheduler_group.sched_rd_pkt_valid
+scheduler_group.sched_rd_pkt_ready
+@200
+-scheduler-data-write
+@28
+scheduler_group.sched_wr_valid
+scheduler_group.sched_wr_ready
+@22
+scheduler_group.sched_wr_addr[63:0]
+scheduler_group.sched_wr_beats[31:0]
+scheduler_group.sched_wr_pkt_bytes[31:0]
+scheduler_group.sched_wr_pkt_offset[4:0]
+@28
+scheduler_group.sched_wr_pkt_valid
+scheduler_group.sched_wr_pkt_ready
+@200
+-completion-strobes
+@28
+scheduler_group.sched_rd_done_strobe
+scheduler_group.sched_wr_done_strobe
+scheduler_group.sched_wr_commit_strobe
+@200
+-status
+@28
+scheduler_group.descriptor_engine_idle
+scheduler_group.scheduler_idle
+@22
+scheduler_group.scheduler_state[6:0]
+@28
+scheduler_group.sched_error
+@200
+-monitor-bus
+@28
+scheduler_group.mon_valid
+scheduler_group.mon_ready
+@22
+scheduler_group.mon_packet[127:0]
+scheduler_group.mon_timestamp[63:0]
+@200
+-internals
+@28
+scheduler_group.desceng_to_sched_valid
+scheduler_group.desceng_to_sched_ready
+scheduler_group.desceng_to_sched_error
+@22
+scheduler_group.desceng_to_sched_packet[255:0]
+@28
+scheduler_group.u_scheduler.w_next_state
+@22
+scheduler_group.u_scheduler.scheduler_state[6:0]
+@28
+scheduler_group.u_scheduler.w_is_data
+scheduler_group.u_scheduler.w_is_ctrlrd
+scheduler_group.u_scheduler.w_is_ctrlwr
+[pattern_trace] 1
+[pattern_trace] 0

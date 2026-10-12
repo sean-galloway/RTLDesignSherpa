@@ -1,0 +1,106 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/local_sim_build/test_axi_read_engine_single_nc4_dw0256_p1_x7_default/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/GTKW/axi_read_engine/axi_read_engine.gtkw"
+[treeopen] axi_read_engine.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+axi_read_engine.NUM_CHANNELS[31:0]
+axi_read_engine.ADDR_WIDTH[31:0]
+axi_read_engine.DATA_WIDTH[31:0]
+axi_read_engine.ID_WIDTH[31:0]
+axi_read_engine.SEG_COUNT_WIDTH[31:0]
+axi_read_engine.PIPELINE[31:0]
+@28
+axi_read_engine.clk
+axi_read_engine.rst_n
+@200
+-scheduler-interface
+@28
+axi_read_engine.sched_rd_valid[3:0]
+@22
+axi_read_engine.sched_rd_beats[0][31:0]
+axi_read_engine.sched_rd_beats[1][31:0]
+axi_read_engine.sched_rd_beats[2][31:0]
+axi_read_engine.sched_rd_beats[3][31:0]
+@28
+axi_read_engine.cfg_channel_reset[3:0]
+@200
+-axi-read-address
+@28
+axi_read_engine.m_axi_arvalid
+axi_read_engine.m_axi_arready
+@22
+axi_read_engine.m_axi_araddr[63:0]
+axi_read_engine.m_axi_arid[7:0]
+axi_read_engine.m_axi_arlen[7:0]
+axi_read_engine.m_axi_arsize[2:0]
+@28
+axi_read_engine.m_axi_arburst[1:0]
+@200
+-axi-read-data
+@28
+axi_read_engine.m_axi_rvalid
+axi_read_engine.m_axi_rready
+axi_read_engine.m_axi_rlast
+@22
+axi_read_engine.m_axi_rdata[255:0]
+axi_read_engine.m_axi_rid[7:0]
+@28
+axi_read_engine.m_axi_rresp[1:0]
+@200
+-sram-allocation
+@28
+axi_read_engine.axi_rd_alloc_req
+@22
+axi_read_engine.axi_rd_alloc_size[7:0]
+axi_read_engine.axi_rd_alloc_id[7:0]
+axi_read_engine.axi_rd_alloc_space_free[0][9:0]
+axi_read_engine.axi_rd_alloc_space_free[1][9:0]
+axi_read_engine.axi_rd_alloc_space_free[2][9:0]
+axi_read_engine.axi_rd_alloc_space_free[3][9:0]
+@200
+-sram-data
+@28
+axi_read_engine.axi_rd_sram_valid
+axi_read_engine.axi_rd_sram_ready
+@22
+axi_read_engine.axi_rd_sram_data[255:0]
+axi_read_engine.axi_rd_sram_id[7:0]
+@200
+-completion-and-status
+@28
+axi_read_engine.sched_rd_done_strobe[3:0]
+@22
+axi_read_engine.sched_rd_beats_done[0][31:0]
+axi_read_engine.sched_rd_beats_done[1][31:0]
+axi_read_engine.sched_rd_beats_done[2][31:0]
+axi_read_engine.sched_rd_beats_done[3][31:0]
+@28
+axi_read_engine.sched_rd_error[3:0]
+axi_read_engine.dbg_rd_all_complete[3:0]
+@200
+-internals
+@28
+axi_read_engine.w_arb_request[3:0]
+@22
+axi_read_engine.w_arb_grant_id[1:0]
+axi_read_engine.w_effective_space[0][9:0]
+axi_read_engine.w_effective_space[1][9:0]
+axi_read_engine.w_effective_space[2][9:0]
+axi_read_engine.w_effective_space[3][9:0]
+axi_read_engine.w_pending_alloc[0][9:0]
+axi_read_engine.w_pending_alloc[1][9:0]
+axi_read_engine.w_pending_alloc[2][9:0]
+axi_read_engine.w_pending_alloc[3][9:0]
+@28
+axi_read_engine.w_arb_grant_valid
+axi_read_engine.r_rd_flush[3:0]
+axi_read_engine.w_rd_discard
+[pattern_trace] 1
+[pattern_trace] 0

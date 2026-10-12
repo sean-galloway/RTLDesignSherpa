@@ -1,0 +1,53 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/local_sim_build/test_drain_ctrl_tb_top_basic_write_drain_d0512_aw01_ar01_default_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/GTKW/drain_ctrl/drain_ctrl.gtkw"
+[treeopen] drain_ctrl_tb_top.
+[treeopen] drain_ctrl_tb_top.u_dut.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+drain_ctrl_tb_top.u_dut.DEPTH[31:0]
+drain_ctrl_tb_top.u_dut.ALMOST_WR_MARGIN[31:0]
+drain_ctrl_tb_top.u_dut.ALMOST_RD_MARGIN[31:0]
+@28
+drain_ctrl_tb_top.u_dut.axi_aclk
+drain_ctrl_tb_top.u_dut.axi_aresetn
+@200
+-write-interface
+@28
+drain_ctrl_tb_top.u_dut.wr_valid
+drain_ctrl_tb_top.u_dut.wr_ready
+@200
+-drain-interface
+@28
+drain_ctrl_tb_top.u_dut.rd_valid
+drain_ctrl_tb_top.u_dut.rd_ready
+@22
+drain_ctrl_tb_top.u_dut.rd_size[7:0]
+@200
+-status
+@22
+drain_ctrl_tb_top.u_dut.data_available[9:0]
+@28
+drain_ctrl_tb_top.u_dut.wr_full
+drain_ctrl_tb_top.u_dut.wr_almost_full
+drain_ctrl_tb_top.u_dut.rd_empty
+drain_ctrl_tb_top.u_dut.rd_almost_empty
+@200
+-internals
+@22
+drain_ctrl_tb_top.u_dut.r_wr_ptr_bin[9:0]
+drain_ctrl_tb_top.u_dut.r_rd_ptr_bin[9:0]
+drain_ctrl_tb_top.u_dut.w_wr_ptr_bin_next[9:0]
+drain_ctrl_tb_top.u_dut.w_rd_ptr_bin_next[9:0]
+drain_ctrl_tb_top.u_dut.w_count[9:0]
+@28
+drain_ctrl_tb_top.u_dut.w_write
+drain_ctrl_tb_top.u_dut.w_read
+[pattern_trace] 1
+[pattern_trace] 0

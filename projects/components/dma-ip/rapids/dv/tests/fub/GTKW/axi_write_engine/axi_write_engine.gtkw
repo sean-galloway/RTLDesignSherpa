@@ -1,0 +1,105 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/local_sim_build/test_axi_write_engine_single_nc4_dw0256_p1_x7_default/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/GTKW/axi_write_engine/axi_write_engine.gtkw"
+[treeopen] axi_write_engine.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+axi_write_engine.NUM_CHANNELS[31:0]
+axi_write_engine.ADDR_WIDTH[31:0]
+axi_write_engine.DATA_WIDTH[31:0]
+axi_write_engine.ID_WIDTH[31:0]
+axi_write_engine.SEG_COUNT_WIDTH[31:0]
+axi_write_engine.PIPELINE[31:0]
+@28
+axi_write_engine.clk
+axi_write_engine.rst_n
+@200
+-scheduler-interface
+@28
+axi_write_engine.sched_wr_valid[3:0]
+axi_write_engine.sched_wr_ready[3:0]
+@22
+axi_write_engine.sched_wr_beats[0][31:0]
+axi_write_engine.sched_wr_beats[1][31:0]
+axi_write_engine.sched_wr_beats[2][31:0]
+axi_write_engine.sched_wr_beats[3][31:0]
+@28
+axi_write_engine.cfg_channel_reset[3:0]
+@200
+-axi-write-address
+@28
+axi_write_engine.m_axi_awvalid
+axi_write_engine.m_axi_awready
+@22
+axi_write_engine.m_axi_awaddr[63:0]
+axi_write_engine.m_axi_awid[7:0]
+axi_write_engine.m_axi_awlen[7:0]
+axi_write_engine.m_axi_awsize[2:0]
+@28
+axi_write_engine.m_axi_awburst[1:0]
+@200
+-axi-write-data
+@28
+axi_write_engine.m_axi_wvalid
+axi_write_engine.m_axi_wready
+axi_write_engine.m_axi_wlast
+@22
+axi_write_engine.m_axi_wdata[255:0]
+axi_write_engine.m_axi_wstrb[31:0]
+@200
+-axi-write-response
+@28
+axi_write_engine.m_axi_bvalid
+axi_write_engine.m_axi_bready
+@22
+axi_write_engine.m_axi_bid[7:0]
+@28
+axi_write_engine.m_axi_bresp[1:0]
+@200
+-sram-drain
+@28
+axi_write_engine.axi_wr_sram_drain
+@22
+axi_write_engine.axi_wr_sram_id[1:0]
+axi_write_engine.axi_wr_drain_data_avail[0][9:0]
+axi_write_engine.axi_wr_drain_data_avail[1][9:0]
+axi_write_engine.axi_wr_drain_data_avail[2][9:0]
+axi_write_engine.axi_wr_drain_data_avail[3][9:0]
+@200
+-completion-and-status
+@28
+axi_write_engine.sched_wr_done_strobe[3:0]
+axi_write_engine.sched_wr_commit_strobe[3:0]
+@22
+axi_write_engine.sched_wr_beats_done[0][31:0]
+axi_write_engine.sched_wr_beats_done[1][31:0]
+axi_write_engine.sched_wr_beats_done[2][31:0]
+axi_write_engine.sched_wr_beats_done[3][31:0]
+@28
+axi_write_engine.sched_wr_error[3:0]
+axi_write_engine.dbg_wr_all_complete[3:0]
+@200
+-internals
+@28
+axi_write_engine.w_arb_request[3:0]
+axi_write_engine.w_arb_grant_valid
+@22
+axi_write_engine.w_arb_grant_id[1:0]
+axi_write_engine.w_effective_avail[0][9:0]
+axi_write_engine.w_effective_avail[1][9:0]
+axi_write_engine.w_effective_avail[2][9:0]
+axi_write_engine.w_effective_avail[3][9:0]
+@28
+axi_write_engine.r_aw_valid
+axi_write_engine.r_wr_flush[3:0]
+axi_write_engine.o_active_channel_valid
+@22
+axi_write_engine.o_active_channel_id[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

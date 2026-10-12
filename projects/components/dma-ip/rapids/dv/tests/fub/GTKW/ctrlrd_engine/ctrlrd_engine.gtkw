@@ -1,0 +1,77 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/local_sim_build/test_ctrlrd_engine_basic_read_match_cid00_nc08_aw64_dw64_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/GTKW/ctrlrd_engine/ctrlrd_engine.gtkw"
+[treeopen] ctrlrd_engine.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+ctrlrd_engine.CHANNEL_ID[31:0]
+ctrlrd_engine.NUM_CHANNELS[31:0]
+ctrlrd_engine.CHAN_WIDTH[31:0]
+ctrlrd_engine.ADDR_WIDTH[31:0]
+ctrlrd_engine.AXI_DATA_WIDTH[31:0]
+ctrlrd_engine.AXI_ID_WIDTH[31:0]
+@28
+ctrlrd_engine.clk
+ctrlrd_engine.rst_n
+@200
+-ctrlrd-interface
+@28
+ctrlrd_engine.ctrlrd_valid
+ctrlrd_engine.ctrlrd_ready
+ctrlrd_engine.ctrlrd_error
+@22
+ctrlrd_engine.ctrlrd_pkt_addr[63:0]
+ctrlrd_engine.ctrlrd_pkt_data[31:0]
+ctrlrd_engine.ctrlrd_pkt_mask[31:0]
+ctrlrd_engine.ctrlrd_result[31:0]
+@200
+-axi-read-address
+@28
+ctrlrd_engine.ar_valid
+ctrlrd_engine.ar_ready
+@22
+ctrlrd_engine.ar_addr[63:0]
+ctrlrd_engine.ar_id[7:0]
+ctrlrd_engine.ar_len[7:0]
+ctrlrd_engine.ar_size[2:0]
+@28
+ctrlrd_engine.ar_burst[1:0]
+@200
+-axi-read-data
+@28
+ctrlrd_engine.r_valid
+ctrlrd_engine.r_ready
+@22
+ctrlrd_engine.r_data[63:0]
+ctrlrd_engine.r_id[7:0]
+@28
+ctrlrd_engine.r_last
+ctrlrd_engine.r_resp[1:0]
+@200
+-status
+@28
+ctrlrd_engine.cfg_channel_reset
+ctrlrd_engine.cfg_ctrlrd_max_try[8:0]
+ctrlrd_engine.tick_1us
+ctrlrd_engine.ctrlrd_engine_idle
+@200
+-internals
+@22
+ctrlrd_engine.r_current_state[2:0]
+ctrlrd_engine.w_next_state[2:0]
+ctrlrd_engine.r_retry_counter[8:0]
+@28
+ctrlrd_engine.r_addr_issued
+ctrlrd_engine.r_ctrlrd_error
+ctrlrd_engine.w_data_match
+ctrlrd_engine.w_null_address
+ctrlrd_engine.r_channel_reset_active
+ctrlrd_engine.w_draining
+[pattern_trace] 1
+[pattern_trace] 0

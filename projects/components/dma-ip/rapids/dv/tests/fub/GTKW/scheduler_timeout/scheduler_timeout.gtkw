@@ -1,0 +1,122 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/local_sim_build/test_scheduler_timeout_t1000_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/fub/GTKW/scheduler_timeout/scheduler_timeout.gtkw"
+[treeopen] scheduler.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+scheduler.CHANNEL_ID[31:0]
+scheduler.NUM_CHANNELS[31:0]
+scheduler.CHAN_WIDTH[31:0]
+scheduler.ADDR_WIDTH[31:0]
+scheduler.DATA_WIDTH[31:0]
+scheduler.BEAT_BYTES[31:0]
+scheduler.BYTE_LANES[31:0]
+@28
+scheduler.clk
+scheduler.rst_n
+@200
+-config
+@28
+scheduler.cfg_channel_enable
+scheduler.cfg_sched_timeout_enable
+@24
+scheduler.cfg_sched_timeout_cycles[31:0]
+scheduler.cfg_sched_timeout_limit[7:0]
+@200
+-descriptor-in
+@28
+scheduler.descriptor_valid
+scheduler.descriptor_ready
+scheduler.descriptor_error
+@22
+scheduler.descriptor_packet[255:0]
+scheduler.descriptor_ext_packet[255:0]
+@200
+-read-engine
+@28
+scheduler.sched_rd_valid
+scheduler.sched_rd_pkt_valid
+scheduler.sched_rd_pkt_ready
+scheduler.sched_rd_done_strobe
+scheduler.sched_rd_error
+@22
+scheduler.sched_rd_addr[63:0]
+scheduler.sched_rd_beats[31:0]
+scheduler.sched_rd_beats_done[31:0]
+scheduler.sched_rd_pkt_bytes[31:0]
+scheduler.sched_rd_pkt_offset[5:0]
+@200
+-write-engine
+@28
+scheduler.sched_wr_valid
+scheduler.sched_wr_ready
+scheduler.sched_wr_pkt_valid
+scheduler.sched_wr_pkt_ready
+scheduler.sched_wr_done_strobe
+scheduler.sched_wr_commit_strobe
+scheduler.sched_wr_error
+@22
+scheduler.sched_wr_addr[63:0]
+scheduler.sched_wr_beats[31:0]
+scheduler.sched_wr_beats_done[31:0]
+scheduler.sched_wr_commit_beats[31:0]
+scheduler.sched_wr_pkt_bytes[31:0]
+scheduler.sched_wr_pkt_offset[5:0]
+@200
+-timeout
+@28
+scheduler.w_timeout_expired
+scheduler.w_timeout_escalate
+scheduler.dbg_timeout_expired
+@22
+scheduler.r_timeout_counter[31:0]
+scheduler.r_timeout_strikes[7:0]
+@200
+-debug
+@28
+scheduler.scheduler_idle
+scheduler.scheduler_state[6:0]
+scheduler.sched_error
+scheduler.dbg_descriptor_error
+scheduler.dbg_read_error_sticky
+scheduler.dbg_write_error_sticky
+@200
+-state
+@28
+scheduler.r_current_state[6:0]
+scheduler.w_next_state[6:0]
+scheduler.w_state_idle
+scheduler.w_state_fetch_desc
+scheduler.w_state_xfer_data
+scheduler.w_state_complete
+scheduler.w_state_next_desc
+scheduler.w_state_error
+@200
+-counters
+@22
+scheduler.r_read_beats_remaining[31:0]
+scheduler.r_write_beats_remaining[31:0]
+scheduler.r_write_beats_to_commit[31:0]
+scheduler.r_rd_run_remaining[31:0]
+scheduler.r_wr_run_remaining[31:0]
+@200
+-packet
+@28
+scheduler.w_pkt_valid
+scheduler.w_pkt_error
+scheduler.w_pkt_last
+scheduler.w_pkt_gen_irq
+scheduler.w_pkt_ok
+@22
+scheduler.w_pkt_src_addr[63:0]
+scheduler.w_pkt_dst_addr[63:0]
+scheduler.w_pkt_length[31:0]
+scheduler.w_pkt_next_descriptor_ptr[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

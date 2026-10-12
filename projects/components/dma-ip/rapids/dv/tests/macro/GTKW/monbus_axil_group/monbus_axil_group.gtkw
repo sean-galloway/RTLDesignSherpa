@@ -1,0 +1,96 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/macro/local_sim_build/test_monbus_axil_group_2in_test_basic_flow_fde064_fdw032_aw32_dw64_np3_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/rapids/dv/tests/macro/GTKW/monbus_axil_group/monbus_axil_group.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] monbus_axil_group_2in.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@24
+monbus_axil_group_2in.FIFO_DEPTH_ERR[31:0]
+monbus_axil_group_2in.FIFO_DEPTH_WRITE[31:0]
+monbus_axil_group_2in.ADDR_WIDTH[31:0]
+monbus_axil_group_2in.NUM_PROTOCOLS[31:0]
+@28
+monbus_axil_group_2in.axi_aclk
+monbus_axil_group_2in.axi_aresetn
+monbus_axil_group_2in.cam_clear
+@200
+-source-monitor-bus
+@28
+monbus_axil_group_2in.source_monbus_valid
+monbus_axil_group_2in.source_monbus_ready
+@22
+monbus_axil_group_2in.source_monbus_packet[127:0]
+monbus_axil_group_2in.source_monbus_timestamp[63:0]
+@200
+-sink-monitor-bus
+@28
+monbus_axil_group_2in.sink_monbus_valid
+monbus_axil_group_2in.sink_monbus_ready
+@22
+monbus_axil_group_2in.sink_monbus_packet[127:0]
+monbus_axil_group_2in.sink_monbus_timestamp[63:0]
+@200
+-slave-axil-read
+@28
+monbus_axil_group_2in.s_axil_arvalid
+monbus_axil_group_2in.s_axil_arready
+@22
+monbus_axil_group_2in.s_axil_araddr[31:0]
+@28
+monbus_axil_group_2in.s_axil_rvalid
+monbus_axil_group_2in.s_axil_rready
+@22
+monbus_axil_group_2in.s_axil_rdata[63:0]
+@28
+monbus_axil_group_2in.s_axil_rresp[1:0]
+@200
+-master-axil-write
+@28
+monbus_axil_group_2in.m_axil_awvalid
+monbus_axil_group_2in.m_axil_awready
+@22
+monbus_axil_group_2in.m_axil_awaddr[31:0]
+@28
+monbus_axil_group_2in.m_axil_wvalid
+monbus_axil_group_2in.m_axil_wready
+@22
+monbus_axil_group_2in.m_axil_wdata[63:0]
+monbus_axil_group_2in.m_axil_wstrb[7:0]
+@28
+monbus_axil_group_2in.m_axil_bvalid
+monbus_axil_group_2in.m_axil_bready
+monbus_axil_group_2in.m_axil_bresp[1:0]
+@200
+-status
+@28
+monbus_axil_group_2in.irq_out
+monbus_axil_group_2in.err_fifo_full
+monbus_axil_group_2in.write_fifo_full
+@22
+monbus_axil_group_2in.err_fifo_count[15:0]
+monbus_axil_group_2in.write_fifo_count[15:0]
+@200
+-internals
+@22
+monbus_axil_group_2in.mon_time_out[63:0]
+@28
+monbus_axil_group_2in.arb_monbus_valid
+monbus_axil_group_2in.arb_monbus_ready
+@22
+monbus_axil_group_2in.arb_monbus_packet[127:0]
+monbus_axil_group_2in.arb_monbus_source_ts[63:0]
+@28
+monbus_axil_group_2in.u_arbiter.grant_valid
+@22
+monbus_axil_group_2in.u_arbiter.grant[1:0]
+[pattern_trace] 1
+[pattern_trace] 0
