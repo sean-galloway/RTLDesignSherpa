@@ -785,3 +785,26 @@ LESSONS (two near-misses, both caught by gates/verification):
 Also: relative links in a moved tree need depth fixes (dropped level);
 check_broken_links resolves FILE-RELATIVE ONLY + disk existence, and the
 vault repo-wide INDEX resolves through the knowledge-note MIRROR tree.
+
+## 2026-10-11 (night) — A7 board session: pumice green, granite target built
+
+Board back online (Nexys A7-100T serial 210292BFA3EE; UART = Digilent if01 =
+ttyUSB3; ttyUSB1 = a DIFFERENT bench board, Genesys 2 demo — do not confuse).
+
+- Latent bug found: host driver PUMICE_REGMAP used split-string paths missing
+  research-ip/ (stale since the Oct 9 reorg); driver constructor raised inside
+  the UART autodetect, reported as 'no harness responded'. Fixed a805e3b8a.
+- Pumice post-rename bring-up: init PASS (301s; read leveling eye 0..9,
+  bitslip 0, tap 4; 75MHz BL4 identified) + write_read PASS (64 txn,
+  0 mismatches). Post-rename silicon confirmed good.
+- Granite A7 target: agent-90 built granite_top_geared (regblock + gearing +
+  core; 3 elaboration fixes) + targets/granite (top/macro/harness/Makefile).
+  Lint clean w/ repo waivers; flists zero research-ip. COMMIT ATTRIBUTION
+  NOTE: the work landed inside 8bfe75f2d (a DE10 agent's commit swept the
+  staged index — multi-agent main hazard; content verified intact, message
+  attribution wrong, left as-is to avoid rewriting shared history).
+- Granite bitstream build + pumice 'char' perf matrix launched in parallel.
+- Area question closed: 35.3k LUT = controller 7.8k (22%) + char engines
+  18k (51%) + bridge 3.1k + debug RAMs 2.5k; growth vs Sep-17 baseline is
+  the shared mem_char_framework (10 commits incl rowhammer generators),
+  not the controller or tonight's refactor.
