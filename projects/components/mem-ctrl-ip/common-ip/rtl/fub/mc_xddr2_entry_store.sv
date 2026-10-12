@@ -192,7 +192,14 @@ module mc_xddr2_entry_store
     assign w_cm_fire    = wr_cm_rd_valid_o && wr_cm_rd_ready_i;
 
     assign aw_push_ready_o = !r_wr_valid;
-    assign wd_ready_o      = r_wr_valid && w_wdfifo_wr_ready;
+    // Beats are accepted only while the current entry is incomplete. Without
+    // the !r_wr_fdone term, a pipelined master (the engines, or any AXI master
+    // allowed W-before-accept) stuffs the NEXT sub-burst's beats into the
+    // staging FIFO while this entry drains; the early wd_last sets fdone, the
+    // new AW clears it, and fdone can never rise again -- a silent deadlock
+    // with the scheduler empty and zero DFI commands (granite A7 bring-up,
+    // dev=16 1-beat DRAM bursts make it deterministic).
+    assign wd_ready_o      = r_wr_valid && !r_wr_fdone && w_wdfifo_wr_ready;
     assign wr_commit_ready_o = r_wr_valid && r_wr_fdone && !r_wr_sched;
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
