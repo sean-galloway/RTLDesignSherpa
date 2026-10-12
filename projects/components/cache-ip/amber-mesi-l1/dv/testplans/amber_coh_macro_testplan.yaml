@@ -48,7 +48,8 @@ scenarios:
     status: covered
   - name: EWriteHitPromotes
     level: gate
-    what: TASK-7 FOUND-AND-FIXED PIN, travels with this promotion:
+    what: >
+      TASK-7 FOUND-AND-FIXED PIN, travels with this promotion:
       HIT_WR's E->M promotion one-hot (amber_control.sv:944, found as an
       all-zeros way one-hot silent drop). Backdoor-seed E, CPU write
       hit, tag-array readback proves M, a snoop decodes at M with the
@@ -87,7 +88,8 @@ scenarios:
     status: covered
   - name: real_control_loop
     level: func/full
-    what: TASK-7 PROMOTED HEADLINER: randomized snoops against an amber
+    what: >
+      TASK-7 PROMOTED HEADLINER: randomized snoops against an amber
       simultaneously serving random CPU traffic -- both ports live.
       Each iteration issues a random request and, while the miss/fill/
       drain machinery is in flight, up to two snoops at classified
@@ -129,7 +131,8 @@ coverage_points:
     note: "the promoted amber_snoop_resp_th wiring carried verbatim"
 
 gaps:
-  - Carried from the Task 7 suite (unchanged by the promotion): illegal
+  - >
+    Carried from the Task 7 suite (unchanged by the promotion): illegal
     ACSNOOP codes are not driveable through the framework enum; reset
     mid-transaction needs BFM abort tolerance; AC skid overflow (3+
     snoops while busy) exceeds the one-closed-response contract;
@@ -141,7 +144,8 @@ gaps:
     the directed compositions' pool-free set discipline falls back to a
     fixed set (the compositions are set-content independent by
     construction); the 128/4 geometry keeps the original discipline.
-  - Tiny-geometry model bookkeeping: the control suite's plain-
+  - >
+    Tiny-geometry model bookkeeping: the control suite's plain-
     transaction scorer retires a victim slot's old line unconditionally,
     which over-retires the line-level state when the set holds a
     snoop-invalidate corpse of that line beside a live re-installed
@@ -150,7 +154,8 @@ gaps:
     _retire_line_at); only the over-retired signature is repaired,
     every other drift class still scores loudly. Not a DUT gap -- the
     RTL provably keeps the live copy.
-  - real_control_loop 'oth'-snoop stability at 2 ways: the inherited
+  - >
+    real_control_loop 'oth'-snoop stability at 2 ways: the inherited
     target rule excludes the PLANNED victim, but a mid-fill kill re-
     fetches through a RE-SELECTED victim drawn from the transaction's
     own set; the macro excludes every set-mate from the 'oth' pool (the

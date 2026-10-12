@@ -54,12 +54,14 @@ scenarios:
     status: covered
   - name: BeZeroWrite
     level: func
-    what: be == 0 merges nothing (MINOR 2 pin): write miss installs M
+    what: >
+      be == 0 merges nothing (MINOR 2 pin): write miss installs M
       with raw fill data; be-0 write hit leaves the line untouched.
     status: covered
   - name: LookupSoakLockstep
     level: func/full
-    what: SEED-pinned randomized pure-transaction soak (no snoops -- the
+    what: >
+      SEED-pinned randomized pure-transaction soak (no snoops -- the
       snoop loop is group 4's cell) over a bounded working set that
       forces evictions at every geometry: hit/miss decode, multi-way
       compare, promotion, victim selection, data-integrity vs the
@@ -93,13 +95,15 @@ coverage_points:
     covered: true
 
 gaps:
-  - The E-state rows (write-hit E->M promotion one-hot) are NOT pinned
+  - >
+    The E-state rows (write-hit E->M promotion one-hot) are NOT pinned
     here: E never occurs without the TB backdoor, and the backdoor +
     EWriteHitPromotes pin travel with the coherence macro (group 4).
     The datapath-reachable promotion (S->M upgrade, M merge) is covered
     by HitSequence / MissSequence.
   - Partner timing is stubbed per D-12 by design -- the REAL fill/drain
     engine compositions are group 2 / group 3's cells.
-  - IllegalStateError (sticky CTRL_ERROR) stays with the control unit
+  - >
+    IllegalStateError (sticky CTRL_ERROR) stays with the control unit
     suite: its only drive is an LHS hierarchical force of the FSM state
     vector, and the macro wrappers keep to read-only taps.

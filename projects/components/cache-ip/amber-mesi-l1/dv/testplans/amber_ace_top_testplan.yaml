@@ -57,10 +57,12 @@ parameters:
     description: >
       geometry per amber_pkg (HAS Table 5.0). Grid: tiny formal config
       (16/2/64/64) + pkg default (128/4/64/64).
+    status: covered
   - name: REPL_POLICY
     default: 0 (LRU)
     description: replacement policy (amber_repl_t). The TB carries an
       independent LRU model for victim prediction.
+    status: covered
   - name: USE_MONITOR
     default: 1
     description: >
@@ -68,9 +70,11 @@ parameters:
       monlites) off. A USE_MONITOR=0 cell per geometry re-runs the gate
       suite asserting functional equivalence + observer silence.
 
+    status: covered
 scenarios:
   - name: InitWalk
     level: gate
+    status: covered
     description: >
       Inherited core integration contract: cpu_req_wr_ready stays low
       until init_busy falls; a request presented mid-walk is held. The
@@ -78,11 +82,13 @@ scenarios:
       installs the line.
   - name: FirstHitLatency
     level: gate
+    status: covered
     description: >
       Cold access misses through the real ACE read path; warm hits are
       constant-latency.
   - name: AceTableRows
     level: gate
+    status: covered
     description: >
       The Table 2.8.1 rows end-to-end on the master pins. (a) cold read ->
       ARSNOOP=ReadShared at the line base, whole-line burst. (b) cold write
@@ -97,12 +103,14 @@ scenarios:
       rows).
   - name: DirectedSequence
     level: gate
+    status: covered
     description: >
       Inherited directed sequence through the ACE transports: miss/hit/
       upgrade/merge/dirty-eviction with the memory-model audit; every
       coherence launch now closes through the ACE master pins.
   - name: SnoopSequence
     level: gate
+    status: covered
     description: >
       Directed snoops (ReadShared / MakeInvalid / ReadUnique) against
       installed lines: CRRESP + CD beats scored bit-for-bit at the grant
@@ -110,6 +118,7 @@ scenarios:
       compliance checker fed from the responder pins.
   - name: RandomOracleLockstep
     level: func
+    status: covered
     description: >
       Seeded random CPU traffic against the observation-driven 1-cache
       oracle (AmberCoreTB machinery) with mid-miss + idle snoops, responder
@@ -120,11 +129,13 @@ scenarios:
       as write-back victim data); ACE compliance violations == 0.
   - name: MonbusCongestion
     level: func
+    status: covered
     description: >
       Inherited congestion phase: monbus stall forces observer
       drop-and-count without perturbing the cache; dropped_count clears.
   - name: MonbusPresentVsAbsent
     level: gate
+    status: covered
     description: >
       USE_MONITOR=0 elaboration re-runs the gate suite: every functional/
       coherence check stays green with identical seeding and the MonBus is
@@ -132,6 +143,7 @@ scenarios:
       measured path.
   - name: IssueTableRows
     level: gate
+    status: covered
     description: >
       Unit-side (amber_ace_issue_th): per Table 2.8.1 row, drive the cache
       event and capture ARSNOOP/AWSNOOP + address + burst on the wrapper
@@ -141,6 +153,7 @@ scenarios:
       AWONLY_ID BID mux while engine B responses pass through.
   - name: FullSoak
     level: full
+    status: covered
     description: >
       Long randomized soak (5k transactions, mid-miss snoops, all directed
       families re-run first), final pin accounting + memory audit +

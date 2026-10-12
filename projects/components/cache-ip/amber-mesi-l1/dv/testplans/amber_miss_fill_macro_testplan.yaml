@@ -65,7 +65,8 @@ scenarios:
     status: covered
   - name: SnoopPendingFillBypass
     level: func
-    what: the inherited Task-4 pin against the real R channel: pre-RLAST
+    what: >
+      the inherited Task-4 pin against the real R channel: pre-RLAST
       snoop for the pending line answered at the post-fill state with
       received beats only (cd_hold backpressure on beat 0), the RS
       downgrade applies post-commit (commit S, replayed write re-upgrades
@@ -73,7 +74,8 @@ scenarios:
     status: covered
   - name: SnoopPendingReadSharedFill
     level: func
-    what: the S-reference polarity: bypass armed with S, READ_SHARED
+    what: >
+      the S-reference polarity: bypass armed with S, READ_SHARED
       mid-fill decodes at S (IsShared, no transfer), commit installs S,
       no post-commit effect, response = fill beat.
     status: covered
@@ -98,7 +100,8 @@ scenarios:
     status: covered
   - name: KilledFillRefetch
     level: func
-    what: an invalidating snoop (READ_UNIQUE) mid-fill kills the pending
+    what: >
+      an invalidating snoop (READ_UNIQUE) mid-fill kills the pending
       write miss: commit installs Invalid, the replayed write re-observes
       the miss and the REAL fill RE-ISSUES a second AR burst
       (READ_UNIQUE) -- two fills, both READ_UNIQUE, commit-I then

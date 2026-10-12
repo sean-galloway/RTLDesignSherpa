@@ -49,30 +49,36 @@ parameters:
     description: >
       geometry per amber_pkg (HAS Table 5.0). Grid: tiny formal config
       (16/2/64/64) + pkg default (128/4/64/64).
+    status: covered
   - name: REPL_POLICY
     default: 0 (LRU)
     description: replacement policy (amber_repl_t). The TB carries an
       independent per-cache LRU model for victim prediction.
+    status: covered
   - name: USE_MONITOR
     default: 1
     description: >
       0 ties all three MonBus observers (amber_monlite + rd/wr monlites) off.
       A USE_MONITOR=0 cell per geometry re-runs the whole suite asserting
       functional equivalence + observer silence (scenario g).
+    status: covered
   - name: MEM_DEPTH
     default: 16384 words
     description: >
       sdpram word depth, sized by the runner to the TB working set
       (SPAN lines x FILL_BEATS words); the TB only touches backed lines.
 
+    status: covered
 scenarios:
   - name: InitWalk
     level: gate
+    status: covered
     description: >
       Both caches' init walks complete before their first accepts; requests
       presented mid-walk are held. The model mirrors both walks.
   - name: PassDirtyForwarding
     level: gate
+    status: covered
     description: >
       (a) cache1 writes line X (read-unique fill, merge, M). Memory X is then
       poisoned with a byte-distinct stale pattern (sdpram r_mem backdoor).
@@ -84,6 +90,7 @@ scenarios:
       shows cache1's bytes (point-of-coherence pin).
   - name: UpgradeInvalidatesPeer
     level: gate
+    status: covered
     description: >
       (b) Both caches hold X Shared. cache0 CPU-writes X (CLEAN_UNIQUE
       upgrade): the fabric drives MakeInvalid to cache1, which drops its
@@ -92,6 +99,7 @@ scenarios:
       bytes. cache0 ends Shared, cache1 Shared, memory absorbed.
   - name: DirtyEvictionWriteback
     level: gate
+    status: covered
     description: >
       (c) cache0 writes X (M), then the set is filled to force the dirty
       eviction: the WRITE_BACK pulse passes through the fabric write port
@@ -100,6 +108,7 @@ scenarios:
       bytes from the shared memory -- the write-back is visible to peers.
   - name: EDowngradeReadShared
     level: gate
+    status: covered
     description: >
       (d) cache0 fills X (installs S), then the TB promotes cache0's tag
       word to E (quiescent hierarchical deposit -- the CPU path never
@@ -109,6 +118,7 @@ scenarios:
       S, cache0 downgrades to S (tag-array readback).
   - name: SimultaneousSameLineMisses
     level: gate
+    status: covered
     description: >
       (e) N iterations drive BOTH CPUs at the SAME line in the same cycle
       (read/read, write/write, read/write mixes across iterations): the
@@ -119,6 +129,7 @@ scenarios:
       set (round-robin, not winner-take-all).
   - name: RandomDualCpuLockstep
     level: func
+    status: covered
     description: >
       (f) Two concurrent seeded random CPU drivers (read/write, random be,
       bounded working set spanning both caches' sets) with the 2-cache
@@ -135,6 +146,7 @@ scenarios:
       macros stay exercised through the real cache pipeline).
   - name: MonbusPresentVsAbsent
     level: func
+    status: covered
     description: >
       (g) USE_MONITOR=0 elaboration re-runs the whole suite: every
       functional/coherence check stays green with identical seeding, and
@@ -143,6 +155,7 @@ scenarios:
       level per the plan; T8 pinned the unit-level equivalence).
   - name: FullSoak
     level: full
+    status: covered
     description: >
       Long dual-CPU soak (both drivers, deeper transaction counts, all
       directed families re-run at the end), final quiescence (no dangling

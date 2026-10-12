@@ -95,5 +95,6 @@ coverage_points:
 
 gaps:
   - gen_unknown is intentionally unexercised (elaboration $error).
-  - hit-to-current-MRU-way no-op boundary: implicitly covered by the
+  - >
+    hit-to-current-MRU-way no-op boundary: implicitly covered by the
     hit-run pattern but not named; acceptable.

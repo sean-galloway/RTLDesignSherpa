@@ -85,7 +85,8 @@ scenarios:
     status: covered
   - name: reset_recovery
     level: func/full
-    what: aresetn taken low mid-soak (while idle) and the FSM confirmed
+    what: >
+      aresetn taken low mid-soak (while idle) and the FSM confirmed
       to return to IDLE (init walk verified, arrays read back Invalid)
       and keep responding correctly. NOTE: the stub-era model-survives-
       reset fiction is gone -- the cache-side model resets with the
@@ -93,7 +94,8 @@ scenarios:
     status: covered
   - name: SnoopVictimLineDuringGather
     level: func/full
-    what: T5-review composition (both halves were pinned separately
+    what: >
+      T5-review composition (both halves were pinned separately
       before). The ACE snoop for the dirty VICTIM line is raised during
       the multi-cycle gather: it stalls (never granted in a MISS_VICTIM
       cycle), grants at MISS_DRAIN after the victim_load strobe, and is
@@ -103,7 +105,8 @@ scenarios:
     status: covered
   - name: real_control_loop
     level: func/full
-    what: NEW (Task 7). Randomized snoops against an amber
+    what: >
+      NEW (Task 7). Randomized snoops against an amber
       simultaneously serving random CPU traffic -- both ports live.
       Each iteration issues a random request and, while the miss/fill/
       drain machinery is in flight, up to two snoops at classified
@@ -155,11 +158,13 @@ coverage_points:
       false-stale) by the real_control_loop; fixed"
 
 gaps:
-  - Illegal ACSNOOP codes (0x2-0x6, 0xA/0xB, 0xD-0xF) map to the safe
+  - >
+    Illegal ACSNOOP codes (0x2-0x6, 0xA/0xB, 0xD-0xF) map to the safe
     default in RTL but are NOT driven: the framework issue_snoop takes the
     SnoopType enum, which has no values for them. Needs raw AC driving or a
     framework extension; recorded, not silently skipped.
-  - Reset MID-TRANSACTION (a snoop in flight when aresetn falls) is not
+  - >
+    Reset MID-TRANSACTION (a snoop in flight when aresetn falls) is not
     exercised; recovery from idle-phase reset is the reset_recovery
     scenario. Amber's global reset contract assumes quiescence; a true
     mid-flight abort scenario needs the BFM to tolerate a dropped
@@ -167,7 +172,8 @@ gaps:
   - AC skid overflow (3+ snoops presented while busy) exceeds the designed
     two-deep skid; protocol-legal but outside amber's one-closed-response
     contract. Not tested by design.
-  - Mid-transaction snoop timing: the window-sensitive cases (pending
+  - >
+    Mid-transaction snoop timing: the window-sensitive cases (pending
     line, draining victim) require the grant and every CD beat inside a
     handful of cycles. The TB drives the AC + CD channels with the fast
     profile for those snoops (CR keeps the level backpressure) and orders

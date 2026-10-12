@@ -36,12 +36,14 @@ parameters:
     description: >
       geometry per amber_pkg.  Grid: pkg default (128/4/64/64) and the tiny
       formal config (16/2/64/64).
+    status: covered
   - name: REPL_POLICY
     default: 0 (LRU)
     description: >
       replacement policy (amber_repl_t): 0=lru, 2=fifo, 3=random.  1
       (tree_plru) has no cache_sim golden (PRD D7 caveat) and is not in the
       grid.  RANDOM cells use the recorded LFSR extension (D-9).
+    status: covered
   - name: PARITY_TRACE / PARITY_EXPECT / PARITY_OUT
     default: dv/traces/<name>.txt
     description: >
@@ -49,9 +51,11 @@ parameters:
       JSON (computed pytest-side, re-compared after the sim), and the TB
       report JSON the wrapper re-reads for the defense-in-depth comparison.
 
+    status: covered
 scenarios:
   - name: GoldenRunnerValidation
     level: gate
+    status: covered
     description: >
       No RTL.  The app's own node suite (bin/apps/cache_sim/test/
       run_tests.js) is green in this environment; its hand-computed
@@ -64,6 +68,7 @@ scenarios:
       comparator is checked non-vacuous.
   - name: TraceReplayParity
     level: gate
+    status: covered
     description: >
       Smoke cell: seq_1k replayed through amber_core at both geometries,
       all three policies, exact count parity vs cache_sim.  Streaming
@@ -75,6 +80,7 @@ scenarios:
       classifies compulsory/capacity/conflict.
   - name: TraceReplayParityGrid
     level: func
+    status: covered
     description: >
       Full grid: 5 traces (seq_1k / strided_8k / walk_16k / thrash_32k /
       mix_100k, 1k-100k accesses) x {LRU, FIFO, RANDOM} x {128/4/64/64,

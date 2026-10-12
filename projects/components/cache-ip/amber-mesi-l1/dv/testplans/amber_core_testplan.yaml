@@ -48,22 +48,27 @@ parameters:
     description: >
       geometry per amber_pkg (HAS Table 5.0). Grid: bring-up smoke
       (4/2/32/32, FIFO), tiny (16/2/64/64), default (128/4/64/64).
+    status: covered
   - name: REPL_POLICY
     default: 0 (LRU)
     description: >
       replacement policy (amber_repl_t): 0=lru, 1=tree_plru, 2=fifo, 3=random.
       The bring-up cell runs FIFO per the Task 9 brief; the TB carries an
       independent LRU/FIFO model for victim prediction.
+    status: covered
   - name: AXI_ID_WIDTH / AXI_USER_WIDTH
     default: 8 / 1
     description: fub_axi id/user field widths, matching the engines
+    status: covered
   - name: USE_MONITOR
     default: 1
     description: 0 ties the MonBus observer outputs off (house idiom)
 
+    status: covered
 scenarios:
   - name: InitWalk
     level: gate
+    status: covered
     description: >
       Post-reset walk writes STATE_I to every way before the first lookup
       (MAS ch03 option 1; the arrays carry no reset). cpu_req_wr_ready stays
@@ -72,12 +77,14 @@ scenarios:
       model mirrors the walk: every line Invalid until init_busy falls.
   - name: FirstHitLatency
     level: gate
+    status: covered
     description: >
       First access to a cold line misses (whole-line fill through the real
       AXI4 read path); the immediate re-access hits in a constant number of
       cycles, bounded and identical across subsequent hits.
   - name: DirectedSequence
     level: gate
+    status: covered
     description: >
       Read miss / read hit / write hit (E->M promotion) / upgrade (S write,
       CLEAN_UNIQUE, no fill data) / dirty eviction (write-back lands in the
@@ -85,6 +92,7 @@ scenarios:
       all scored against the golden models with the Task 2 oracle lockstep.
   - name: SnoopSequence
     level: gate
+    status: covered
     description: >
       ACE snoops (all six IHI0022 types the core translates) against
       installed M/E/S lines through the real snoop port: CRRESP bit-for-bit
@@ -92,6 +100,7 @@ scenarios:
       post-snoop state re-verified by a following CPU access.
   - name: RandomOracleLockstep
     level: func
+    status: covered
     description: >
       SEED-pinned randomized CPU traffic (read/write, random be, bounded
       working set) with snoops interleaved while misses are in flight
@@ -101,6 +110,7 @@ scenarios:
       detection). Responder timing profiles switched mid-stream.
   - name: MonliteTallyCrossCheck
     level: func
+    status: covered
     description: >
       The monlite packet stream is counted per event class and compared
       against the event counts derived from the oracle/model transaction
@@ -110,12 +120,14 @@ scenarios:
       zero drops expected.
   - name: MonbusCongestion
     level: func
+    status: covered
     description: >
       monbus_ready held low across a traffic burst: packets drop-and-count
       (never backpressure the cache), a DROPPED report re-emerges once the
       bus frees, the live dropped_count returns to zero, no deadlock.
   - name: FullSoak
     level: full
+    status: covered
     description: >
       Long randomized soak (5k transactions, snoops on most miss windows,
       all responder profiles, mid-stream profile switches) -- the oracle

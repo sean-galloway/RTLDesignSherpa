@@ -57,7 +57,8 @@ scenarios:
     status: covered
   - name: VictimBufferHandshake
     level: func
-    what: the inherited directed window-endpoint pin: valid sets the
+    what: >
+      the inherited directed window-endpoint pin: valid sets the
       cycle after victim_load, payload held stable, clear after
       drain_done -- now with the REAL engine holding the window open for
       the whole B round trip. The EVERY-CYCLE VictimLoadWhileBusyNever
@@ -65,7 +66,8 @@ scenarios:
     status: covered
   - name: SnoopDrainingVictim
     level: func
-    what: the inherited composition: a snoop for the dirty victim line
+    what: >
+      the inherited composition: a snoop for the dirty victim line
       while the drain is outstanding is served from the staged buffer at
       M (SINK_WB_ACK) -- the buffer owns the line until the REAL B
       returns; drain completes after the snoop; refetch proves the
@@ -73,14 +75,16 @@ scenarios:
     status: covered
   - name: SnoopStaleVictimMidFill
     level: func
-    what: the inherited composition: after the drain completed (B <
+    what: >
+      the inherited composition: after the drain completed (B <
       fill launch), the victim line belongs to the memory side; a snoop
       for it during the fill is answered Invalid, no transfer; the
       refetch proves the writeback payload survived the race.
     status: covered
   - name: DrainBackpressureDrain
     level: func
-    what: a dirty eviction under the slow responder profile (AW/W ready
+    what: >
+      a dirty eviction under the slow responder profile (AW/W ready
       stalls 1-10 cycles, B latency 2-12): the W payload is byte-equal
       the staged line regardless of the backpressure, drain_done still
       strictly after B, victim retired to memory.
@@ -120,7 +124,8 @@ coverage_points:
     covered: true
 
 gaps:
-  - Mid-drain snoop window control: with the stub the TB widened
+  - >
+    Mid-drain snoop window control: with the stub the TB widened
     self.drain_latency; the real engine has no such knob, so the delayed-
     B responder profile (24-40 cycles, safely past a full snoop service)
     keeps the drain outstanding. B-backpressure coverage beyond that
