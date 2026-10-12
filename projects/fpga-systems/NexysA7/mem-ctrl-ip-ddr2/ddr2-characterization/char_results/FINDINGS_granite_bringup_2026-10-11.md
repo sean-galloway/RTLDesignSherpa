@@ -103,6 +103,42 @@ host program byte-identical to the board's.
   u_axi4_plane/u_wr_intake (u_slave_wr skid, u_aw_meta_fifo, aw_push_*) +
   u_entry_store — the owner pre-authorized ILA for this.
 
+## ROOT CAUSE (2026-10-12, whole-harness UART sim + VCD)
+
+The split-burst hang is a **B-response consolidation defect**, fixed in
+`361d6cd56`. VCD of the whole-harness sim (write path, `WAVES=1` + fst2vcd +
+`/tmp/granite-bringup/vcd_extract.py`) shows the write path worked end-to-end
+all along: all 16 sub-bursts (4 host bursts x 4 chops at x16) pushed into the
+entry store, scheduled, committed, and WR commands issued. The defect:
+`mc_xddr2_entry_store` emitted `wr_done` for EVERY chopped sub-burst. The
+AXI slave returned one B per sub-burst — 16 B's for 4 host AWs — the engine's
+outstanding count desynced, and the run hung with the controller fully
+drained, zero DFI-pin command activity, `crc_valid` set, `done` never. Pumice
+never sees this because its storage plane's wr data CAM aggregates sub-burst
+B's; the storage-less SKU must do the same at the seam. blen=1 escaped
+because unsplit bursts are exactly one sub (agg=0/last=1).
+
+Fix: `wr_done_valid_o` qualified by the captured `aw_push_last_i` (final
+chunk of a split; unsplit bursts carry last=1). Together with the earlier
+fdone gate (3d690ab3f) the write path now completes in the whole-harness sim
+(`wr=True, done=1`) for the first time; granite core + top_geared
+regressions (incl. dev16) PASS.
+
+## Open: read data mismatch (the remaining defect)
+
+With writes fixed, the READ engine fails independently: framing is correct
+(4 bursts x 4 beats + RLAST at the engine; the intake's collapse
+`w_sub_last && (!w_head_agg || w_head_last)` works — ar_agg_i=1,
+w_head_last=1 on final subs, chopper w_total=4), but 15 of 16 beats mismatch
+and `valid` never sets. Writes provably land at the right addresses (the
+BFM top_geared readback passes at dev16), so the read return stream is
+data-wrong: either the read sub-addresses differ from the write sub-addresses
+(chopper vs splitter column stride) or the ring's ticket->data pairing is
+shifted (15 returns were observed for 16 sub-reads in one window). Next
+crack: same VCD flow, dump wr aw_push_{bank,row,col} vs rd
+ar_push_{bank,row,col} per sub-burst and the ring fill/drain ticket order —
+the tooling is proven, the window is ~10 cycles.
+
 ## Working hypothesis for the open defect (updated)
 
 blen>=2 (split) sub-bursts at the 1-deep entry store: sub-entries neither
