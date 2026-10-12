@@ -1,6 +1,6 @@
 # TASK-031: delta re-home — noc-ip/delta → fabric-gen-ip/delta (component/spec split)
 
-**Status:** CLOSED 2026-10-12, in the re-home commit. Owner directive ("make it
+**Status:** CLOSED 2026-10-12 (commit ca62a9925). Owner directive ("make it
 so number one"): delta the **AXI4-Stream crossbar generator** never belonged in
 the NoC lane; it is a live interconnect generator and now sits with its
 siblings at `projects/components/fabric-gen-ip/delta/` (apbx-xbar, bridge,
