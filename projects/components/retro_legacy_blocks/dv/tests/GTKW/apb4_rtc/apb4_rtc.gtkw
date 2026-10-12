@@ -1,0 +1,87 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_rtc_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/GTKW/apb4_rtc/apb4_rtc.gtkw"
+[timestart] 0
+[size] 2451 1735
+[pos] -1 -1
+*-20.882263 386000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb4_rtc.
+[sst_width] 285
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 560
+@24
+apb4_rtc.COMMIT_TIMEOUT_CYCLES[31:0]
+@28
+apb4_rtc.pclk
+apb4_rtc.presetn
+apb4_rtc.rtc_clk
+apb4_rtc.rtc_resetn
+@200
+-apb
+@28
+apb4_rtc.s_apb_PSEL
+apb4_rtc.s_apb_PENABLE
+apb4_rtc.s_apb_PREADY
+apb4_rtc.s_apb_PWRITE
+@22
+apb4_rtc.s_apb_PADDR[11:0]
+apb4_rtc.s_apb_PWDATA[31:0]
+apb4_rtc.s_apb_PSTRB[3:0]
+apb4_rtc.s_apb_PRDATA[31:0]
+@28
+apb4_rtc.s_apb_PSLVERR
+@200
+-interface
+@28
+apb4_rtc.rtc_alarm_irq
+apb4_rtc.rtc_second_irq
+@200
+-internals
+@28
+apb4_rtc.u_rtc_core.cfg_rtc_enable
+apb4_rtc.u_rtc_core.cfg_valid
+apb4_rtc.u_rtc_core.cfg_clock_select
+apb4_rtc.u_rtc_core.cfg_time_set_mode
+apb4_rtc.u_rtc_core.cfg_bcd_mode
+apb4_rtc.u_rtc_core.cfg_hour_mode_12
+apb4_rtc.u_rtc_core.cfg_alarm_enable
+apb4_rtc.u_rtc_core.cfg_alarm_int_enable
+apb4_rtc.u_rtc_core.cfg_second_int_enable
+@22
+apb4_rtc.u_rtc_core.r_clk_div_counter[15:0]
+@28
+apb4_rtc.u_rtc_core.selected_clk
+apb4_rtc.u_rtc_core.w_div_rollover
+apb4_rtc.u_rtc_core.w_time_update
+apb4_rtc.u_rtc_core.r_second_tick
+@22
+apb4_rtc.u_rtc_core.time_seconds_in[7:0]
+apb4_rtc.u_rtc_core.time_minutes_in[7:0]
+apb4_rtc.u_rtc_core.time_hours_in[7:0]
+apb4_rtc.u_rtc_core.time_day_in[7:0]
+apb4_rtc.u_rtc_core.time_month_in[7:0]
+apb4_rtc.u_rtc_core.time_year_in[7:0]
+@28
+apb4_rtc.u_rtc_core.time_set_commit
+apb4_rtc.u_rtc_core.time_commit_busy
+@22
+apb4_rtc.u_rtc_core.r_seconds[7:0]
+apb4_rtc.u_rtc_core.r_minutes[7:0]
+apb4_rtc.u_rtc_core.r_hours[7:0]
+apb4_rtc.u_rtc_core.r_day[7:0]
+apb4_rtc.u_rtc_core.r_month[7:0]
+apb4_rtc.u_rtc_core.r_year[7:0]
+@28
+apb4_rtc.u_rtc_core.r_time_valid
+apb4_rtc.u_rtc_core.r_alarm_match
+apb4_rtc.u_rtc_core.w_alarm_hit
+apb4_rtc.u_rtc_core.status_alarm_flag
+apb4_rtc.u_rtc_core.status_second_tick
+apb4_rtc.u_rtc_core.status_time_valid
+apb4_rtc.u_rtc_core.status_commit_timeout
+[pattern_trace] 1
+[pattern_trace] 0

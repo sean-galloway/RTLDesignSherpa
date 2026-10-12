@@ -1,0 +1,110 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_uart_16550_nocdc_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/GTKW/apb4_uart_16550/apb4_uart_16550.gtkw"
+[timestart] 0
+[size] 2451 1735
+[pos] -1 -1
+*-20.882263 386000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb4_uart_16550.
+[sst_width] 285
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 560
+@24
+apb4_uart_16550.FIFO_DEPTH[31:0]
+apb4_uart_16550.CDC_ENABLE
+@28
+apb4_uart_16550.pclk
+apb4_uart_16550.presetn
+apb4_uart_16550.uart_clk
+apb4_uart_16550.uart_rstn
+@200
+-apb
+@28
+apb4_uart_16550.s_apb_PSEL
+apb4_uart_16550.s_apb_PENABLE
+apb4_uart_16550.s_apb_PREADY
+apb4_uart_16550.s_apb_PWRITE
+@22
+apb4_uart_16550.s_apb_PADDR[11:0]
+apb4_uart_16550.s_apb_PWDATA[31:0]
+apb4_uart_16550.s_apb_PSTRB[3:0]
+apb4_uart_16550.s_apb_PRDATA[31:0]
+@28
+apb4_uart_16550.s_apb_PSLVERR
+@200
+-interface
+@28
+apb4_uart_16550.uart_rx
+apb4_uart_16550.uart_tx
+apb4_uart_16550.irq
+apb4_uart_16550.cts_n
+apb4_uart_16550.rts_n
+apb4_uart_16550.dsr_n
+apb4_uart_16550.dtr_n
+apb4_uart_16550.dcd_n
+apb4_uart_16550.ri_n
+apb4_uart_16550.out1_n
+apb4_uart_16550.out2_n
+apb4_uart_16550.rxrdy_n
+apb4_uart_16550.txrdy_n
+@200
+-internals
+@22
+apb4_uart_16550.u_uart_config_regs.u_uart_core.cfg_divisor[15:0]
+@28
+apb4_uart_16550.u_uart_config_regs.u_uart_core.cfg_word_length[1:0]
+apb4_uart_16550.u_uart_config_regs.u_uart_core.cfg_stop_bits
+apb4_uart_16550.u_uart_config_regs.u_uart_core.cfg_parity_enable
+apb4_uart_16550.u_uart_config_regs.u_uart_core.cfg_even_parity
+apb4_uart_16550.u_uart_config_regs.u_uart_core.cfg_fifo_enable
+apb4_uart_16550.u_uart_config_regs.u_uart_core.cfg_rx_trigger[1:0]
+@22
+apb4_uart_16550.u_uart_config_regs.u_uart_core.r_baud_count[15:0]
+@28
+apb4_uart_16550.u_uart_config_regs.u_uart_core.w_baud_tick
+@22
+apb4_uart_16550.u_uart_config_regs.u_uart_core.r_tx_state[2:0]
+@28
+apb4_uart_16550.u_uart_config_regs.u_uart_core.tx_write
+apb4_uart_16550.u_uart_config_regs.u_uart_core.sts_tx_holding_empty
+apb4_uart_16550.u_uart_config_regs.u_uart_core.sts_tx_empty
+apb4_uart_16550.u_uart_config_regs.u_uart_core.w_tx_fifo_empty
+apb4_uart_16550.u_uart_config_regs.u_uart_core.w_tx_fifo_full
+@22
+apb4_uart_16550.u_uart_config_regs.u_uart_core.w_tx_fifo_count[4:0]
+@22
+apb4_uart_16550.u_uart_config_regs.u_uart_core.r_rx_state[2:0]
+@28
+apb4_uart_16550.u_uart_config_regs.u_uart_core.rx_read
+apb4_uart_16550.u_uart_config_regs.u_uart_core.sts_data_ready
+apb4_uart_16550.u_uart_config_regs.u_uart_core.sts_overrun_error
+apb4_uart_16550.u_uart_config_regs.u_uart_core.sts_parity_error
+apb4_uart_16550.u_uart_config_regs.u_uart_core.sts_framing_error
+apb4_uart_16550.u_uart_config_regs.u_uart_core.sts_break_interrupt
+apb4_uart_16550.u_uart_config_regs.u_uart_core.sts_rx_fifo_error
+apb4_uart_16550.u_uart_config_regs.u_uart_core.w_rx_fifo_empty
+apb4_uart_16550.u_uart_config_regs.u_uart_core.w_rx_fifo_full
+@22
+apb4_uart_16550.u_uart_config_regs.u_uart_core.w_rx_fifo_count[4:0]
+@28
+apb4_uart_16550.u_uart_config_regs.u_uart_core.int_not_pending
+apb4_uart_16550.u_uart_config_regs.u_uart_core.int_id[1:0]
+apb4_uart_16550.u_uart_config_regs.u_uart_core.int_timeout
+apb4_uart_16550.u_uart_config_regs.u_uart_core.irq
+@200
+-modem
+@28
+apb4_uart_16550.u_uart_config_regs.u_uart_core.u_modem.sts_cts
+apb4_uart_16550.u_uart_config_regs.u_uart_core.u_modem.sts_dsr
+apb4_uart_16550.u_uart_config_regs.u_uart_core.u_modem.sts_ri
+apb4_uart_16550.u_uart_config_regs.u_uart_core.u_modem.sts_dcd
+apb4_uart_16550.u_uart_config_regs.u_uart_core.u_modem.sts_delta_cts
+apb4_uart_16550.u_uart_config_regs.u_uart_core.u_modem.sts_delta_dsr
+apb4_uart_16550.u_uart_config_regs.u_uart_core.u_modem.sts_trailing_ri
+apb4_uart_16550.u_uart_config_regs.u_uart_core.u_modem.sts_delta_dcd
+[pattern_trace] 1
+[pattern_trace] 0

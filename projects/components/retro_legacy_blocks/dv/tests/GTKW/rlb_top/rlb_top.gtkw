@@ -1,0 +1,190 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_rlb_top_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/GTKW/rlb_top/rlb_top.gtkw"
+[timestart] 0
+[size] 3268 1344
+[pos] -1 -1
+*-15.655873 386000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rlb_top.
+[treeopen] rlb_top.u_apbx_xbar.
+[treeopen] rlb_top.u_hpet.
+[treeopen] rlb_top.u_pic.
+[treeopen] rlb_top.u_pic_slave.
+[treeopen] rlb_top.u_pit.
+[treeopen] rlb_top.u_rtc.
+[treeopen] rlb_top.u_smbus.
+[treeopen] rlb_top.u_pm_acpi.
+[treeopen] rlb_top.u_ioapic.
+[treeopen] rlb_top.u_gpio.
+[treeopen] rlb_top.u_uart.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@22
+rlb_top.ADDR_WIDTH[31:0]
+rlb_top.DATA_WIDTH[31:0]
+rlb_top.STRB_WIDTH[31:0]
+rlb_top.BASE_ADDR[31:0]
+rlb_top.HPET_NUM_TIMERS[31:0]
+rlb_top.PIT_NUM_COUNTERS[31:0]
+rlb_top.IOAPIC_NUM_IRQS[31:0]
+rlb_top.GPIO_WIDTH[31:0]
+@28
+rlb_top.pclk
+rlb_top.presetn
+@200
+-master-apb
+@28
+rlb_top.s_apb_PSEL
+rlb_top.s_apb_PENABLE
+rlb_top.s_apb_PREADY
+rlb_top.s_apb_PWRITE
+@22
+rlb_top.s_apb_PADDR[31:0]
+rlb_top.s_apb_PWDATA[31:0]
+rlb_top.s_apb_PRDATA[31:0]
+@28
+rlb_top.s_apb_PSLVERR
+@200
+-aggregated-irq
+@28
+rlb_top.rlb_irq_out
+rlb_top.pic_int_out
+rlb_top.w_fabric_irq[15:0]
+@200
+-xbar
+@28
+rlb_top.u_apbx_xbar.pclk
+rlb_top.u_apbx_xbar.presetn
+@22
+rlb_top.u_apbx_xbar.m0_apb_PADDR[31:0]
+rlb_top.u_apbx_xbar.m0_slave_sel[3:0]
+@28
+rlb_top.u_apbx_xbar.m0_apb_PSEL
+rlb_top.u_apbx_xbar.m0_apb_PENABLE
+rlb_top.u_apbx_xbar.m0_apb_PREADY
+rlb_top.u_apbx_xbar.r_m0_decerr_pending
+@200
+-pit
+@28
+rlb_top.u_pit.pclk
+rlb_top.u_pit.presetn
+rlb_top.u_pit.pit_clk
+rlb_top.u_pit.pit_resetn
+rlb_top.u_pit.timer_irq[2:0]
+rlb_top.u_pit.w_pit_enable
+rlb_top.u_pit.w_control_wr
+@22
+rlb_top.u_pit.w_counter0_reg_out[15:0]
+@200
+-pic
+@28
+rlb_top.u_pic.pclk
+rlb_top.u_pic.presetn
+rlb_top.u_pic.int_out
+rlb_top.u_pic.w_init_complete
+@22
+rlb_top.u_pic.irq_in[7:0]
+rlb_top.u_pic.w_irr[7:0]
+rlb_top.u_pic.w_isr[7:0]
+rlb_top.u_pic.w_imr[7:0]
+@200
+-pic-slave
+@28
+rlb_top.u_pic_slave.pclk
+rlb_top.u_pic_slave.presetn
+rlb_top.u_pic_slave.int_out
+rlb_top.u_pic_slave.w_init_complete
+@22
+rlb_top.u_pic_slave.irq_in[7:0]
+rlb_top.u_pic_slave.w_irr[7:0]
+rlb_top.u_pic_slave.w_isr[7:0]
+rlb_top.u_pic_slave.w_imr[7:0]
+@200
+-ioapic
+@28
+rlb_top.u_ioapic.pclk
+rlb_top.u_ioapic.presetn
+rlb_top.u_ioapic.irq_out_valid
+rlb_top.u_ioapic.cfg_boot_intx_en
+@22
+rlb_top.u_ioapic.irq_out_vector[7:0]
+rlb_top.u_ioapic.irq_in[23:0]
+rlb_top.u_ioapic.cfg_mask_vec[23:0]
+@200
+-hpet
+@28
+rlb_top.u_hpet.pclk
+rlb_top.u_hpet.presetn
+rlb_top.u_hpet.hpet_clk
+rlb_top.u_hpet.hpet_resetn
+rlb_top.u_hpet.timer_irq[1:0]
+rlb_top.u_hpet.w_hpet_enable
+rlb_top.u_hpet.w_legacy_replacement
+@22
+rlb_top.u_hpet.w_timer_int_status[1:0]
+@200
+-rtc
+@28
+rlb_top.u_rtc.pclk
+rlb_top.u_rtc.presetn
+rlb_top.u_rtc.rtc_clk
+rlb_top.u_rtc.rtc_resetn
+rlb_top.u_rtc.rtc_alarm_irq
+rlb_top.u_rtc.rtc_second_irq
+rlb_top.u_rtc.w_cfg_rtc_enable
+rlb_top.u_rtc.w_status_alarm_flag
+rlb_top.u_rtc.w_status_second_tick
+@200
+-pm-acpi
+@28
+rlb_top.u_pm_acpi.pclk
+rlb_top.u_pm_acpi.presetn
+rlb_top.u_pm_acpi.pm_clk
+rlb_top.u_pm_acpi.pm_resetn
+rlb_top.u_pm_acpi.pm_interrupt
+rlb_top.u_pm_acpi.w_cfg_acpi_enable
+@22
+rlb_top.u_pm_acpi.w_status_acpi_int[6:0]
+rlb_top.u_pm_acpi.w_status_pm1[4:0]
+@200
+-uart
+@28
+rlb_top.u_uart.pclk
+rlb_top.u_uart.presetn
+rlb_top.u_uart.uart_clk
+rlb_top.u_uart.uart_rstn
+rlb_top.u_uart.irq
+rlb_top.u_uart.uart_rx
+rlb_top.u_uart.uart_tx
+@200
+-smbus
+@28
+rlb_top.u_smbus.pclk
+rlb_top.u_smbus.presetn
+rlb_top.u_smbus.smbus_clk
+rlb_top.u_smbus.smbus_resetn
+rlb_top.u_smbus.smb_interrupt
+rlb_top.u_smbus.w_cfg_master_en
+rlb_top.u_smbus.w_status_busy
+rlb_top.u_smbus.w_status_complete
+@22
+rlb_top.u_smbus.w_int_status[7:0]
+@200
+-gpio
+@28
+rlb_top.u_gpio.pclk
+rlb_top.u_gpio.presetn
+rlb_top.u_gpio.gpio_clk
+rlb_top.u_gpio.gpio_rstn
+rlb_top.u_gpio.irq
+@22
+rlb_top.u_gpio.gpio_in[31:0]
+rlb_top.u_gpio.gpio_out[31:0]
+rlb_top.u_gpio.gpio_oe[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

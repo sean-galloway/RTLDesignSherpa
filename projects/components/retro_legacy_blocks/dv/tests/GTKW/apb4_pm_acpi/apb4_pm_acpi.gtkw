@@ -1,0 +1,73 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_pm_acpi_nocdc_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/GTKW/apb4_pm_acpi/apb4_pm_acpi.gtkw"
+[timestart] 0
+[size] 2451 1735
+[pos] -1 -1
+*-15.655873 386000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apb4_pm_acpi.
+[sst_width] 278
+[signals_width] 285
+[sst_expanded] 1
+[sst_vpaned_height] 560
+@24
+apb4_pm_acpi.CDC_ENABLE[31:0]
+apb4_pm_acpi.SYNC_STAGES[31:0]
+apb4_pm_acpi.USE_JOHNSON[31:0]
+@28
+apb4_pm_acpi.pclk
+apb4_pm_acpi.presetn
+apb4_pm_acpi.pm_clk
+apb4_pm_acpi.pm_resetn
+@200
+-apb
+@28
+apb4_pm_acpi.s_apb_PSEL
+apb4_pm_acpi.s_apb_PENABLE
+apb4_pm_acpi.s_apb_PREADY
+apb4_pm_acpi.s_apb_PWRITE
+@22
+apb4_pm_acpi.s_apb_PADDR[11:0]
+apb4_pm_acpi.s_apb_PWDATA[31:0]
+apb4_pm_acpi.s_apb_PSTRB[3:0]
+apb4_pm_acpi.s_apb_PRDATA[31:0]
+@28
+apb4_pm_acpi.s_apb_PSLVERR
+@200
+-pm-pins
+@22
+apb4_pm_acpi.gpe_events[31:0]
+apb4_pm_acpi.gpe1_events[31:0]
+@28
+apb4_pm_acpi.power_button_n
+apb4_pm_acpi.sleep_button_n
+apb4_pm_acpi.rtc_alarm
+apb4_pm_acpi.ext_wake_n
+apb4_pm_acpi.wdt_reset_n
+apb4_pm_acpi.ext_reset_n
+@200
+-pm-outputs
+@22
+apb4_pm_acpi.clock_gate_en[31:0]
+apb4_pm_acpi.power_domain_en[7:0]
+apb4_pm_acpi.power_domain_ack[7:0]
+@28
+apb4_pm_acpi.sys_reset_req
+apb4_pm_acpi.periph_reset_req
+apb4_pm_acpi.pm_interrupt
+@200
+-internals
+@28
+apb4_pm_acpi.u_pm_acpi_core.cfg_acpi_enable
+apb4_pm_acpi.u_pm_acpi_core.w_sleep_req
+apb4_pm_acpi.u_pm_acpi_core.w_any_wake_event
+apb4_pm_acpi.u_pm_acpi_core.pm_interrupt
+@22
+apb4_pm_acpi.u_pm_acpi_core.r_pwr_state[2:0]
+apb4_pm_acpi.u_pm_acpi_core.status_current_state[1:0]
+apb4_pm_acpi.u_pm_acpi_core.r_pm_timer_count[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
