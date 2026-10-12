@@ -73,7 +73,10 @@ re-enters at the bottom and leaves at the top or side on its own route.
    fan of selects with no visible exit is exactly the "mux with nothing
    coming out" failure. **The command output leaves the narrow edge with a
    heavier pen** (`penwidth=1.8`) and its label (`DDR Command`) so the
-   funnel's exit reads at a glance.
+   funnel's exit reads at a glance. Same-rank (horizontal) edge labels
+   need `xlabel`, not `label` — a plain label is drawn at the edge
+   midpoint and gets overdrawn by the node fill (the "timer window" arrow
+   into the trapezium was the example).
 
 ## Labels
 

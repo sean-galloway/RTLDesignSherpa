@@ -52,8 +52,8 @@ digraph whole_unit {
 
     // ---- return merge + data path: mc_dfi_NpM_layer ----
     mlog  [label="Merge Logic\nmc_rd_return_ring reorder\n(AXI ID order)"];
-    wr_dp [label="Write Data Path Control\nmc_dfi_2p1_layer - mc_dfi_wr_serializer"];
-    rd_dp [label="Read Data Path Control\nmc_dfi_2p1_layer - mc_dfi_rd_aligner"];
+    wr_dp [label="Write Data Path Control\nmc_dfi_2p1_layer - mc_dfi_wr_serializer", width=2.8, height=1.15];
+    rd_dp [label="Read Data Path Control\nmc_dfi_2p1_layer - mc_dfi_rd_aligner", width=2.8, height=1.15];
 
     // ---- return path: mc_axi4_layer ----
     rbuf [label="Read Data\nReorder Buffer\nmc_axi4_layer -\nmc_rd_return_ring",
@@ -85,7 +85,7 @@ digraph whole_unit {
 
     // ---- maintenance + timing into the pick ----
     maint -> sched [label="REF / ZQ"];
-    tctl -> sched [label="timer window"];
+    tctl -> sched [xlabel="timer window"];
 
     // ---- scheduler to PHY ----
     sched -> phy [label="DDR Command", penwidth=1.8];
