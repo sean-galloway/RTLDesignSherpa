@@ -4,18 +4,26 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
-## Open
+## Closed
 
 - **MC-002** — GTKWave debug views for every mem-ctrl fub/macro + top
-  wr/rd DFI paths: one validated `.gtkw` per tested common-ip fub/macro in
-  its tests area, and per-core top views for the write path to DFI and the
-  read path to/from DFI (pumice/scoria/andesite/granite).
+  wr/rd DFI paths. Landed 2026-10-12: generator
+  (`common-ip/dv/tools/gen_gtkw.py`, fst->vcd, house format, every emitted
+  path validated 0-missing against a real dump) + curated specs
+  (`gtkw_curated_{fubs,macros,tops}.py`). 24 views: 14 fub (22-50 signals),
+  2 macro (dfi_plane, axi4_plane), 9 top (granite_core, granite_top_geared,
+  pumice_core x {wr_engine_path, rd_engine_path, planes_axi_to_dfi}).
+  16 test files gained WAVES/--trace support (7 pumice fubs, 3 pumice macro,
+  3 tops incl. granite's two). Skips, documented: test_pumice_config_array +
+  test_pumice_telemetry_invariants (multi-DUT, no wave support),
+  pumice_scheduler_plane macro (filelist absent), scoria/andesite macros (out
+  of scope). Commits 8f30b80b6, a3d52c706, 270fb791f, ae1c0c9a1.
 
 ## Closed
 
