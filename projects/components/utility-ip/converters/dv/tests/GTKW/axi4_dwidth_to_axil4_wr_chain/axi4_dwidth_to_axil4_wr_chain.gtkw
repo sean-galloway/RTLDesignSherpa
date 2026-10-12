@@ -1,0 +1,108 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/local_sim_build/test_axi4_dwidth_to_axil4_wr_chain_s64_m32_id8_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/GTKW/axi4_dwidth_to_axil4_wr_chain/axi4_dwidth_to_axil4_wr_chain.gtkw"
+[treeopen] axi4_dwidth_to_axil4_wr_chain.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+axi4_dwidth_to_axil4_wr_chain.S_AXI_DATA_WIDTH[31:0]
+axi4_dwidth_to_axil4_wr_chain.M_AXIL_DATA_WIDTH[31:0]
+axi4_dwidth_to_axil4_wr_chain.AXI_ID_WIDTH[31:0]
+axi4_dwidth_to_axil4_wr_chain.AXI_ADDR_WIDTH[31:0]
+axi4_dwidth_to_axil4_wr_chain.AXI_USER_WIDTH[31:0]
+@28
+axi4_dwidth_to_axil4_wr_chain.aclk
+axi4_dwidth_to_axil4_wr_chain.aresetn
+@200
+-in-axi-aw
+@28
+axi4_dwidth_to_axil4_wr_chain.s_axi_awvalid
+axi4_dwidth_to_axil4_wr_chain.s_axi_awready
+@22
+axi4_dwidth_to_axil4_wr_chain.s_axi_awid[7:0]
+axi4_dwidth_to_axil4_wr_chain.s_axi_awaddr[31:0]
+axi4_dwidth_to_axil4_wr_chain.s_axi_awlen[7:0]
+@200
+-in-axi-w
+@28
+axi4_dwidth_to_axil4_wr_chain.s_axi_wvalid
+axi4_dwidth_to_axil4_wr_chain.s_axi_wready
+axi4_dwidth_to_axil4_wr_chain.s_axi_wlast
+@22
+axi4_dwidth_to_axil4_wr_chain.s_axi_wdata[63:0]
+axi4_dwidth_to_axil4_wr_chain.s_axi_wstrb[7:0]
+@200
+-in-axi-b
+@28
+axi4_dwidth_to_axil4_wr_chain.s_axi_bvalid
+axi4_dwidth_to_axil4_wr_chain.s_axi_bready
+@22
+axi4_dwidth_to_axil4_wr_chain.s_axi_bid[7:0]
+axi4_dwidth_to_axil4_wr_chain.s_axi_bresp[1:0]
+@200
+-out-axil
+@28
+axi4_dwidth_to_axil4_wr_chain.m_axil_awvalid
+axi4_dwidth_to_axil4_wr_chain.m_axil_awready
+axi4_dwidth_to_axil4_wr_chain.m_axil_wvalid
+axi4_dwidth_to_axil4_wr_chain.m_axil_wready
+axi4_dwidth_to_axil4_wr_chain.m_axil_bvalid
+axi4_dwidth_to_axil4_wr_chain.m_axil_bready
+@22
+axi4_dwidth_to_axil4_wr_chain.m_axil_awaddr[31:0]
+axi4_dwidth_to_axil4_wr_chain.m_axil_wdata[31:0]
+axi4_dwidth_to_axil4_wr_chain.m_axil_wstrb[3:0]
+axi4_dwidth_to_axil4_wr_chain.m_axil_bresp[1:0]
+@200
+-narrow-axi-between
+@28
+axi4_dwidth_to_axil4_wr_chain.int_awvalid
+axi4_dwidth_to_axil4_wr_chain.int_awready
+axi4_dwidth_to_axil4_wr_chain.int_wvalid
+axi4_dwidth_to_axil4_wr_chain.int_wready
+axi4_dwidth_to_axil4_wr_chain.int_wlast
+axi4_dwidth_to_axil4_wr_chain.int_bvalid
+axi4_dwidth_to_axil4_wr_chain.int_bready
+@22
+axi4_dwidth_to_axil4_wr_chain.int_awid[7:0]
+axi4_dwidth_to_axil4_wr_chain.int_awaddr[31:0]
+axi4_dwidth_to_axil4_wr_chain.int_awlen[7:0]
+axi4_dwidth_to_axil4_wr_chain.int_wdata[31:0]
+axi4_dwidth_to_axil4_wr_chain.int_wstrb[3:0]
+axi4_dwidth_to_axil4_wr_chain.int_bid[7:0]
+axi4_dwidth_to_axil4_wr_chain.int_bresp[1:0]
+@200
+-internals
+@28
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.w_aw_issue
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.w_this_last
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.split_w_avail
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.split_w_pop
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.w_b_cam_slot_free
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.gen_w_downsize.w_dnsize_valid
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.gen_w_downsize.w_dnsize_ready
+@22
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.gen_aw_downsize.r_split_remaining[10:0]
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.gen_aw_downsize.splitq_wptr[4:0]
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.gen_aw_downsize.splitq_rptr_w[4:0]
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.gen_w_downsize.r_w_beats_left[8:0]
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.gen_b_fold.b_cam_valid[15:0]
+axi4_dwidth_to_axil4_wr_chain.u_dwidth_wr.gen_b_fold.r_b_open_count[7:0]
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.r_wr_state[2:0]
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.w_wr_next_state[2:0]
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.r_aw_beat_count[7:0]
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.r_b_beat_count[7:0]
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.r_wr_outstanding[7:0]
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.r_aw_addr[31:0]
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.w_aw_next_addr[31:0]
+@28
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.r_aw_active
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.w_b_all_beats_done
+axi4_dwidth_to_axil4_wr_chain.u_to_axil_wr.w_burst_capture
+[pattern_trace] 1
+[pattern_trace] 0

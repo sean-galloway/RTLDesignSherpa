@@ -1,0 +1,59 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/local_sim_build/test_axi_data_upsize_32to128_wstrb_concat_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/GTKW/axi_data_upsize/axi_data_upsize.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_data_upsize.
+[sst_width] 300
+[signals_width] 260
+[sst_expanded] 1
+[sst_vpaned_height] 500
+@24
+axi_data_upsize.NARROW_WIDTH[31:0]
+axi_data_upsize.WIDE_WIDTH[31:0]
+axi_data_upsize.NARROW_SB_WIDTH[31:0]
+axi_data_upsize.WIDE_SB_WIDTH[31:0]
+axi_data_upsize.SB_OR_MODE
+axi_data_upsize.WIDTH_RATIO[31:0]
+@28
+axi_data_upsize.aclk
+axi_data_upsize.aresetn
+@200
+-in-narrow
+@28
+axi_data_upsize.narrow_valid
+axi_data_upsize.narrow_ready
+axi_data_upsize.narrow_last
+@22
+axi_data_upsize.narrow_data[31:0]
+axi_data_upsize.narrow_sideband[3:0]
+axi_data_upsize.start_lane[1:0]
+@200
+-out-wide
+@28
+axi_data_upsize.wide_valid
+axi_data_upsize.wide_ready
+axi_data_upsize.wide_last
+@22
+axi_data_upsize.wide_data[127:0]
+axi_data_upsize.wide_sideband[15:0]
+@200
+-internals
+@22
+axi_data_upsize.r_beat_ptr[1:0]
+axi_data_upsize.w_lane[1:0]
+axi_data_upsize.r_data_accumulator[127:0]
+axi_data_upsize.r_sideband_accumulator[15:0]
+@28
+axi_data_upsize.r_wide_valid
+axi_data_upsize.r_last_buffered
+axi_data_upsize.r_burst_fresh
+axi_data_upsize.narrow_completes_group
+axi_data_upsize.wide_accept
+[pattern_trace] 1
+[pattern_trace] 0

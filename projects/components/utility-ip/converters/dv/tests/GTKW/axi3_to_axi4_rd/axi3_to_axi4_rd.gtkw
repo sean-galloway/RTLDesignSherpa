@@ -1,0 +1,69 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/local_sim_build/test_axi3_to_axi4_rd_dw32_aw32_id8_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/GTKW/axi3_to_axi4_rd/axi3_to_axi4_rd.gtkw"
+[treeopen] axi3_to_axi4_rd.
+@24
+axi3_to_axi4_rd.AXI_ID_WIDTH[31:0]
+axi3_to_axi4_rd.AXI_ADDR_WIDTH[31:0]
+axi3_to_axi4_rd.AXI_DATA_WIDTH[31:0]
+axi3_to_axi4_rd.AXI_USER_WIDTH[31:0]
+@28
+axi3_to_axi4_rd.aclk
+axi3_to_axi4_rd.aresetn
+@200
+-in-axi3-ar
+@28
+axi3_to_axi4_rd.s_axi3_arvalid
+axi3_to_axi4_rd.s_axi3_arready
+@22
+axi3_to_axi4_rd.s_axi3_arid[7:0]
+axi3_to_axi4_rd.s_axi3_araddr[31:0]
+axi3_to_axi4_rd.s_axi3_arlen[3:0]
+axi3_to_axi4_rd.s_axi3_arsize[2:0]
+axi3_to_axi4_rd.s_axi3_arburst[1:0]
+axi3_to_axi4_rd.s_axi3_arlock[1:0]
+axi3_to_axi4_rd.s_axi3_arcache[3:0]
+axi3_to_axi4_rd.s_axi3_arprot[2:0]
+@200
+-in-axi3-r
+@28
+axi3_to_axi4_rd.s_axi3_rvalid
+axi3_to_axi4_rd.s_axi3_rready
+@22
+axi3_to_axi4_rd.s_axi3_rid[7:0]
+axi3_to_axi4_rd.s_axi3_rdata[31:0]
+axi3_to_axi4_rd.s_axi3_rresp[1:0]
+@28
+axi3_to_axi4_rd.s_axi3_rlast
+@200
+-out-axi4-ar
+@28
+axi3_to_axi4_rd.m_axi_arvalid
+axi3_to_axi4_rd.m_axi_arready
+@22
+axi3_to_axi4_rd.m_axi_arid[7:0]
+axi3_to_axi4_rd.m_axi_araddr[31:0]
+axi3_to_axi4_rd.m_axi_arlen[7:0]
+axi3_to_axi4_rd.m_axi_arsize[2:0]
+axi3_to_axi4_rd.m_axi_arburst[1:0]
+@28
+axi3_to_axi4_rd.m_axi_arlock
+@22
+axi3_to_axi4_rd.m_axi_arcache[3:0]
+axi3_to_axi4_rd.m_axi_arprot[2:0]
+@200
+-out-axi4-r
+@28
+axi3_to_axi4_rd.m_axi_rvalid
+axi3_to_axi4_rd.m_axi_rready
+@22
+axi3_to_axi4_rd.m_axi_rid[7:0]
+axi3_to_axi4_rd.m_axi_rdata[31:0]
+axi3_to_axi4_rd.m_axi_rresp[1:0]
+@28
+axi3_to_axi4_rd.m_axi_rlast
+[pattern_trace] 1
+[pattern_trace] 0

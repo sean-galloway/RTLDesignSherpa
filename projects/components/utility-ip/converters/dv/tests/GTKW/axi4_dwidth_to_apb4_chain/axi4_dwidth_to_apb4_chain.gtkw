@@ -1,0 +1,95 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/local_sim_build/test_axi4_dwidth_to_apb4_chain_s64_apb32_id8_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/GTKW/axi4_dwidth_to_apb4_chain/axi4_dwidth_to_apb4_chain.gtkw"
+[treeopen] axi4_dwidth_to_apb4_chain.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+axi4_dwidth_to_apb4_chain.S_AXI_DATA_WIDTH[31:0]
+axi4_dwidth_to_apb4_chain.APB_DATA_WIDTH[31:0]
+axi4_dwidth_to_apb4_chain.AXI_ID_WIDTH[31:0]
+axi4_dwidth_to_apb4_chain.AXI_ADDR_WIDTH[31:0]
+axi4_dwidth_to_apb4_chain.APB_ADDR_WIDTH[31:0]
+axi4_dwidth_to_apb4_chain.AXI_USER_WIDTH[31:0]
+@28
+axi4_dwidth_to_apb4_chain.aclk
+axi4_dwidth_to_apb4_chain.aresetn
+axi4_dwidth_to_apb4_chain.pclk
+axi4_dwidth_to_apb4_chain.presetn
+@200
+-in-axi-ar
+@28
+axi4_dwidth_to_apb4_chain.s_axi_arvalid
+axi4_dwidth_to_apb4_chain.s_axi_arready
+@22
+axi4_dwidth_to_apb4_chain.s_axi_arid[7:0]
+axi4_dwidth_to_apb4_chain.s_axi_araddr[31:0]
+axi4_dwidth_to_apb4_chain.s_axi_arlen[7:0]
+@200
+-in-axi-r
+@28
+axi4_dwidth_to_apb4_chain.s_axi_rvalid
+axi4_dwidth_to_apb4_chain.s_axi_rready
+axi4_dwidth_to_apb4_chain.s_axi_rlast
+@22
+axi4_dwidth_to_apb4_chain.s_axi_rid[7:0]
+axi4_dwidth_to_apb4_chain.s_axi_rdata[63:0]
+axi4_dwidth_to_apb4_chain.s_axi_rresp[1:0]
+@200
+-out-apb
+@28
+axi4_dwidth_to_apb4_chain.m_apb_PSEL
+axi4_dwidth_to_apb4_chain.m_apb_PENABLE
+axi4_dwidth_to_apb4_chain.m_apb_PWRITE
+axi4_dwidth_to_apb4_chain.m_apb_PREADY
+axi4_dwidth_to_apb4_chain.m_apb_PSLVERR
+@22
+axi4_dwidth_to_apb4_chain.m_apb_PADDR[31:0]
+axi4_dwidth_to_apb4_chain.m_apb_PRDATA[31:0]
+axi4_dwidth_to_apb4_chain.m_apb_PWDATA[31:0]
+@200
+-narrow-axi-between
+@28
+axi4_dwidth_to_apb4_chain.int_arvalid
+axi4_dwidth_to_apb4_chain.int_arready
+axi4_dwidth_to_apb4_chain.int_rvalid
+axi4_dwidth_to_apb4_chain.int_rready
+axi4_dwidth_to_apb4_chain.int_rlast
+@22
+axi4_dwidth_to_apb4_chain.int_arid[7:0]
+axi4_dwidth_to_apb4_chain.int_araddr[31:0]
+axi4_dwidth_to_apb4_chain.int_arlen[7:0]
+axi4_dwidth_to_apb4_chain.int_rid[7:0]
+axi4_dwidth_to_apb4_chain.int_rdata[31:0]
+@200
+-internals
+@28
+axi4_dwidth_to_apb4_chain.u_axi2apb4.w_cmd_valid
+axi4_dwidth_to_apb4_chain.u_axi2apb4.r_cmd_ready
+axi4_dwidth_to_apb4_chain.u_axi2apb4.r_rsp_valid
+axi4_dwidth_to_apb4_chain.u_axi2apb4.w_rsp_ready
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.w_side_in_valid
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.r_side_in_ready
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.r_side_out_valid
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.w_side_out_ready
+@22
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.r_apb_state[2:0]
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.w_apb_next_state[2:0]
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.r_rsp_state[2:0]
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.w_rsp_next_state[2:0]
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.r_burst_count[7:0]
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.w_burst_count[7:0]
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.r_apb_paddr[31:0]
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.r_axi_rd_data_pointer[2:0]
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.w_axi_rd_data_pointer[2:0]
+@28
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.w_apb_cmd_pkt_last
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.w_apb_cmd_pkt_first
+axi4_dwidth_to_apb4_chain.u_axi2apb4.axi4_to_apb4_convert_inst.w_apb_cmd_pkt_pwrite
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,0 +1,105 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/local_sim_build/test_axi4_dwidth_converter_wr_32to128_upsize_4x_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/GTKW/axi4_dwidth_converter_wr/axi4_dwidth_converter_wr.gtkw"
+[treeopen] axi4_dwidth_converter_wr.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+axi4_dwidth_converter_wr.S_AXI_DATA_WIDTH[31:0]
+axi4_dwidth_converter_wr.M_AXI_DATA_WIDTH[31:0]
+axi4_dwidth_converter_wr.AXI_ID_WIDTH[31:0]
+axi4_dwidth_converter_wr.AXI_ADDR_WIDTH[31:0]
+axi4_dwidth_converter_wr.AXI_USER_WIDTH[31:0]
+@28
+axi4_dwidth_converter_wr.aclk
+axi4_dwidth_converter_wr.aresetn
+@200
+-in-axi-aw
+@28
+axi4_dwidth_converter_wr.s_axi_awvalid
+axi4_dwidth_converter_wr.s_axi_awready
+@22
+axi4_dwidth_converter_wr.s_axi_awid[7:0]
+axi4_dwidth_converter_wr.s_axi_awaddr[31:0]
+axi4_dwidth_converter_wr.s_axi_awlen[7:0]
+@28
+axi4_dwidth_converter_wr.s_axi_awsize[2:0]
+axi4_dwidth_converter_wr.s_axi_awburst[1:0]
+@200
+-in-axi-w
+@28
+axi4_dwidth_converter_wr.s_axi_wvalid
+axi4_dwidth_converter_wr.s_axi_wready
+axi4_dwidth_converter_wr.s_axi_wlast
+@22
+axi4_dwidth_converter_wr.s_axi_wdata[31:0]
+axi4_dwidth_converter_wr.s_axi_wstrb[3:0]
+@200
+-in-axi-b
+@28
+axi4_dwidth_converter_wr.s_axi_bvalid
+axi4_dwidth_converter_wr.s_axi_bready
+@22
+axi4_dwidth_converter_wr.s_axi_bid[7:0]
+axi4_dwidth_converter_wr.s_axi_bresp[1:0]
+@200
+-out-axi-aw
+@28
+axi4_dwidth_converter_wr.m_axi_awvalid
+axi4_dwidth_converter_wr.m_axi_awready
+@22
+axi4_dwidth_converter_wr.m_axi_awid[7:0]
+axi4_dwidth_converter_wr.m_axi_awaddr[31:0]
+axi4_dwidth_converter_wr.m_axi_awlen[7:0]
+@28
+axi4_dwidth_converter_wr.m_axi_awsize[2:0]
+axi4_dwidth_converter_wr.m_axi_awburst[1:0]
+@200
+-out-axi-w
+@28
+axi4_dwidth_converter_wr.m_axi_wvalid
+axi4_dwidth_converter_wr.m_axi_wready
+axi4_dwidth_converter_wr.m_axi_wlast
+@22
+axi4_dwidth_converter_wr.m_axi_wdata[127:0]
+axi4_dwidth_converter_wr.m_axi_wstrb[15:0]
+@200
+-out-axi-b
+@28
+axi4_dwidth_converter_wr.m_axi_bvalid
+axi4_dwidth_converter_wr.m_axi_bready
+@22
+axi4_dwidth_converter_wr.m_axi_bid[7:0]
+axi4_dwidth_converter_wr.m_axi_bresp[1:0]
+@200
+-internals
+@28
+axi4_dwidth_converter_wr.int_aw_valid
+axi4_dwidth_converter_wr.int_aw_ready
+axi4_dwidth_converter_wr.int_w_valid
+axi4_dwidth_converter_wr.int_w_ready
+axi4_dwidth_converter_wr.int_b_valid
+axi4_dwidth_converter_wr.int_b_ready
+axi4_dwidth_converter_wr.w_aw_issue
+axi4_dwidth_converter_wr.w_this_last
+axi4_dwidth_converter_wr.w_upsize_w_gate
+@22
+axi4_dwidth_converter_wr.w_upsize_start_lane[7:0]
+axi4_dwidth_converter_wr.gen_aw_upsize.wlane_wptr[4:0]
+axi4_dwidth_converter_wr.gen_aw_upsize.wlane_rptr[4:0]
+axi4_dwidth_converter_wr.gen_aw_upsize.w_aw_lane[1:0]
+axi4_dwidth_converter_wr.gen_w_upsize.u_w_upsize.r_beat_ptr[1:0]
+axi4_dwidth_converter_wr.gen_w_upsize.u_w_upsize.w_lane[1:0]
+axi4_dwidth_converter_wr.gen_w_upsize.u_w_upsize.start_lane[1:0]
+@28
+axi4_dwidth_converter_wr.gen_w_upsize.u_w_upsize.narrow_completes_group
+axi4_dwidth_converter_wr.gen_w_upsize.u_w_upsize.r_burst_fresh
+axi4_dwidth_converter_wr.gen_w_upsize.u_w_upsize.r_wide_valid
+axi4_dwidth_converter_wr.gen_w_upsize.u_w_upsize.wide_last
+[pattern_trace] 1
+[pattern_trace] 0

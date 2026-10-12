@@ -1,0 +1,71 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/local_sim_build/test_axil4_to_axi4_rd_dw32_aw32_id8_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/GTKW/axil4_to_axi4_rd/axil4_to_axi4_rd.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axil4_to_axi4_rd.
+[sst_width] 300
+[signals_width] 260
+[sst_expanded] 1
+[sst_vpaned_height] 500
+@24
+axil4_to_axi4_rd.AXI_ID_WIDTH[31:0]
+axil4_to_axi4_rd.AXI_ADDR_WIDTH[31:0]
+axil4_to_axi4_rd.AXI_DATA_WIDTH[31:0]
+axil4_to_axi4_rd.AXI_USER_WIDTH[31:0]
+axil4_to_axi4_rd.DEFAULT_ID[31:0]
+axil4_to_axi4_rd.DEFAULT_REGION[31:0]
+axil4_to_axi4_rd.DEFAULT_QOS[31:0]
+axil4_to_axi4_rd.SIZE_VAL[31:0]
+@28
+axil4_to_axi4_rd.aclk
+axil4_to_axi4_rd.aresetn
+@200
+-in-axil-ar
+@28
+axil4_to_axi4_rd.s_axil_arvalid
+axil4_to_axi4_rd.s_axil_arready
+@22
+axil4_to_axi4_rd.s_axil_araddr[31:0]
+axil4_to_axi4_rd.s_axil_arprot[2:0]
+@200
+-in-axil-r
+@28
+axil4_to_axi4_rd.s_axil_rvalid
+axil4_to_axi4_rd.s_axil_rready
+@22
+axil4_to_axi4_rd.s_axil_rdata[31:0]
+axil4_to_axi4_rd.s_axil_rresp[1:0]
+@200
+-out-axi-ar
+@28
+axil4_to_axi4_rd.m_axi_arvalid
+axil4_to_axi4_rd.m_axi_arready
+axil4_to_axi4_rd.m_axi_arlock
+@22
+axil4_to_axi4_rd.m_axi_arid[7:0]
+axil4_to_axi4_rd.m_axi_araddr[31:0]
+axil4_to_axi4_rd.m_axi_arlen[7:0]
+axil4_to_axi4_rd.m_axi_arsize[2:0]
+axil4_to_axi4_rd.m_axi_arburst[1:0]
+axil4_to_axi4_rd.m_axi_arcache[3:0]
+axil4_to_axi4_rd.m_axi_arprot[2:0]
+axil4_to_axi4_rd.m_axi_arqos[3:0]
+axil4_to_axi4_rd.m_axi_arregion[3:0]
+@200
+-out-axi-r
+@28
+axil4_to_axi4_rd.m_axi_rvalid
+axil4_to_axi4_rd.m_axi_rready
+axil4_to_axi4_rd.m_axi_rlast
+@22
+axil4_to_axi4_rd.m_axi_rid[7:0]
+axil4_to_axi4_rd.m_axi_rdata[31:0]
+axil4_to_axi4_rd.m_axi_rresp[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

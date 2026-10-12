@@ -1,0 +1,78 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/local_sim_build/test_axi4_to_axi3_rd_dw32_aw32_id8_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/GTKW/axi4_to_axi3_rd/axi4_to_axi3_rd.gtkw"
+[treeopen] axi4_to_axi3_rd.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@24
+axi4_to_axi3_rd.AXI_DATA_WIDTH[31:0]
+axi4_to_axi3_rd.AXI_ADDR_WIDTH[31:0]
+axi4_to_axi3_rd.AXI_ID_WIDTH[31:0]
+axi4_to_axi3_rd.AXI_USER_WIDTH[31:0]
+@28
+axi4_to_axi3_rd.aclk
+axi4_to_axi3_rd.aresetn
+@200
+-in-axi4-ar
+@28
+axi4_to_axi3_rd.s_axi_arvalid
+axi4_to_axi3_rd.s_axi_arready
+@22
+axi4_to_axi3_rd.s_axi_arid[7:0]
+axi4_to_axi3_rd.s_axi_araddr[31:0]
+axi4_to_axi3_rd.s_axi_arlen[7:0]
+@28
+axi4_to_axi3_rd.s_axi_arsize[2:0]
+axi4_to_axi3_rd.s_axi_arburst[1:0]
+axi4_to_axi3_rd.s_axi_arlock
+@200
+-in-axi4-r
+@28
+axi4_to_axi3_rd.s_axi_rvalid
+axi4_to_axi3_rd.s_axi_rready
+axi4_to_axi3_rd.s_axi_rlast
+@22
+axi4_to_axi3_rd.s_axi_rid[7:0]
+axi4_to_axi3_rd.s_axi_rdata[31:0]
+axi4_to_axi3_rd.s_axi_rresp[1:0]
+@200
+-out-axi3-ar
+@28
+axi4_to_axi3_rd.m_axi3_arvalid
+axi4_to_axi3_rd.m_axi3_arready
+@22
+axi4_to_axi3_rd.m_axi3_arid[7:0]
+axi4_to_axi3_rd.m_axi3_araddr[31:0]
+axi4_to_axi3_rd.m_axi3_arlen[3:0]
+@200
+-out-axi3-r
+@28
+axi4_to_axi3_rd.m_axi3_rvalid
+axi4_to_axi3_rd.m_axi3_rready
+axi4_to_axi3_rd.m_axi3_rlast
+@22
+axi4_to_axi3_rd.m_axi3_rid[7:0]
+axi4_to_axi3_rd.m_axi3_rdata[31:0]
+axi4_to_axi3_rd.m_axi3_rresp[1:0]
+@200
+-internals
+@28
+axi4_to_axi3_rd.active_valid
+@22
+axi4_to_axi3_rd.active_req.id[7:0]
+axi4_to_axi3_rd.active_req.addr[31:0]
+axi4_to_axi3_rd.active_req.len[7:0]
+axi4_to_axi3_rd.active_remaining[8:0]
+axi4_to_axi3_rd.active_addr[31:0]
+axi4_to_axi3_rd.active_chunks_total[7:0]
+axi4_to_axi3_rd.active_chunks_issued[7:0]
+axi4_to_axi3_rd.chunk_beats[4:0]
+axi4_to_axi3_rd.r_id[7:0]
+axi4_to_axi3_rd.merged_final_resp[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

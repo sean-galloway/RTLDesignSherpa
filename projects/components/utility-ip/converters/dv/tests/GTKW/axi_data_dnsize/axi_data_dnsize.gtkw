@@ -1,0 +1,64 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Oct 12 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/local_sim_build/test_axi_data_dnsize_128to32_wstrb_slice_simple_gate/dump.vcd"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/dv/tests/GTKW/axi_data_dnsize/axi_data_dnsize.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] 0 0
+*0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_data_dnsize.
+[sst_width] 300
+[signals_width] 260
+[sst_expanded] 1
+[sst_vpaned_height] 500
+@24
+axi_data_dnsize.WIDE_WIDTH[31:0]
+axi_data_dnsize.NARROW_WIDTH[31:0]
+axi_data_dnsize.WIDE_SB_WIDTH[31:0]
+axi_data_dnsize.NARROW_SB_WIDTH[31:0]
+axi_data_dnsize.SB_BROADCAST
+axi_data_dnsize.TRACK_BURSTS
+axi_data_dnsize.BURST_LEN_WIDTH[31:0]
+axi_data_dnsize.WIDTH_RATIO[31:0]
+@28
+axi_data_dnsize.aclk
+axi_data_dnsize.aresetn
+@200
+-in-wide
+@28
+axi_data_dnsize.burst_start
+axi_data_dnsize.wide_valid
+axi_data_dnsize.wide_ready
+axi_data_dnsize.wide_last
+@22
+axi_data_dnsize.burst_len[7:0]
+axi_data_dnsize.start_lane[1:0]
+axi_data_dnsize.wide_data[127:0]
+axi_data_dnsize.wide_sideband[15:0]
+@200
+-out-narrow
+@28
+axi_data_dnsize.narrow_valid
+axi_data_dnsize.narrow_ready
+axi_data_dnsize.narrow_last
+@22
+axi_data_dnsize.narrow_data[31:0]
+axi_data_dnsize.narrow_sideband[3:0]
+@200
+-internals
+@22
+axi_data_dnsize.r_beat_ptr[1:0]
+axi_data_dnsize.r_slave_beat_count[7:0]
+axi_data_dnsize.r_slave_total_beats[7:0]
+axi_data_dnsize.w_last_narrow_beat
+axi_data_dnsize.gen_single_buffer.r_data_buffer[127:0]
+@28
+axi_data_dnsize.r_burst_active
+axi_data_dnsize.r_first_wide_of_burst
+axi_data_dnsize.w_burst_opening
+axi_data_dnsize.gen_single_buffer.r_wide_buffered
+axi_data_dnsize.gen_single_buffer.r_last_buffered
+[pattern_trace] 1
+[pattern_trace] 0
