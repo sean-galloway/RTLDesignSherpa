@@ -60,7 +60,7 @@ class AllocCtrlTB(TBBase):
         random.seed(self.SEED)
 
         # Setup clock and reset signals
-        self.clk = clk if clk else dut.axi_aclk
+        self.clk = clk if clk is not None else dut.axi_aclk
         self.clk_name = self.clk._name if hasattr(self.clk, '_name') else 'axi_aclk'
         self.rst_n = rst_n if rst_n else dut.axi_aresetn
 

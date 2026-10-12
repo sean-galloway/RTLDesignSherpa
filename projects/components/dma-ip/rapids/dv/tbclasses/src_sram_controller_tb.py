@@ -70,7 +70,7 @@ class SrcSRAMControllerTB(TBBase):
         random.seed(self.SEED)
 
         # Setup clock and reset signals
-        self.clk = clk if clk else dut.clk
+        self.clk = clk if clk is not None else dut.clk
         self.clk_name = self.clk._name if hasattr(self.clk, '_name') else 'clk'
         self.rst_n = rst_n if rst_n else dut.rst_n
 

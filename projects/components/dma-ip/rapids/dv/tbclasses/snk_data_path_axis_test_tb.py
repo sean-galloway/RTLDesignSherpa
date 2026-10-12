@@ -80,7 +80,7 @@ class SnkDataPathAxisTestTB(TBBase):
 
         # Clock and reset
         self.clk = clk
-        self.clk_name = clk._name if clk else 'clk'
+        self.clk_name = clk._name if clk is not None else 'clk'
         self.rst_n = rst_n
 
         # Derived parameters
