@@ -138,34 +138,46 @@ module l1_data_array
             $error("l1_data_array: WAYS must be >= 2");
     end
 
-    // Flat storage (GLOBAL_REQUIREMENTS 1.3); index
-    // way * (SETS * FILL_BEATS) + {set, beat} -- the {set, beat} address
-    // is already the intra-way offset by construction.
-`ifdef XILINX
-    (* ram_style = "auto" *)
-`elsif SYNTH_PRAGMA
-    /* synthesis ramstyle = "AUTO" */
-`endif
-    logic [BUS_WIDTH-1:0] mem [SETS * FILL_BEATS * WAYS];
+    // Per-way storage (GLOBAL_REQUIREMENTS 1.3).  Each way is a separate
+    // inferred dual-port array so synthesis sees exactly one write address
+    // per process; the one-hot way select picks the array, and the byte
+    // enables pick the lanes within the beat.  This is the same logical
+    // layout as the old flat index (way * (SETS * FILL_BEATS) + {set,beat}).
+    // The combinational read maps to distributed RAM, matching the cache
+    // single-cycle hit path; the restructure avoids the "multiple writes in
+    // one process" pattern that made Vivado dissolve the flat array.
+    logic [BUS_WIDTH-1:0] a_rdata_per_way [WAYS];
+    logic [BUS_WIDTH-1:0] b_rdata_per_way [WAYS];
 
-    always_ff @(posedge clk) begin
-        if (wr_en) begin
-            for (int w = 0; w < WAYS; w++) begin
-                if (wr_way_onehot[w]) begin
+    generate
+        for (genvar w = 0; w < WAYS; w++) begin : g_way
+`ifdef XILINX
+            (* ram_style = "auto" *)
+`elsif SYNTH_PRAGMA
+            /* synthesis ramstyle = "AUTO" */
+`endif
+            logic [BUS_WIDTH-1:0] mem [SETS * FILL_BEATS];
+
+            always_ff @(posedge clk) begin
+                if (wr_en && wr_way_onehot[w]) begin
                     for (int b = 0; b < STRB_W; b++) begin
                         if (wr_be[b]) begin
-                            mem[w * SETS * FILL_BEATS + 32'(wr_addr)][8*b +: 8]
-                                <= wr_wdata[8*b +: 8];
+                            mem[wr_addr][8*b +: 8] <= wr_wdata[8*b +: 8];
                         end
                     end
                 end
             end
+
+            always_comb begin
+                a_rdata_per_way[w] = mem[a_addr];
+                b_rdata_per_way[w] = mem[b_addr];
+            end
         end
-    end
+    endgenerate
 
     always_comb begin
-        a_rdata = mem[32'(a_way) * SETS * FILL_BEATS + 32'(a_addr)];
-        b_rdata = mem[32'(b_way) * SETS * FILL_BEATS + 32'(b_addr)];
+        a_rdata = a_rdata_per_way[a_way];
+        b_rdata = b_rdata_per_way[b_way];
     end
 
 endmodule : l1_data_array

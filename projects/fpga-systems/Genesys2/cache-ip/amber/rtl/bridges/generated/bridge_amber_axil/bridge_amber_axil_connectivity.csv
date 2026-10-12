@@ -1,0 +1,2 @@
+master\slave,harness_csr,traffic_gen0,traffic_gen1,tally_cnt,tally_cfgw,tally_cfgr
+host,1,1,1,1,1,1
