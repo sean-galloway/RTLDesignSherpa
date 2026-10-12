@@ -14,6 +14,20 @@ The `md_to_docx.py` tool parses the markdown and expects specific patterns to de
 
 ---
 
+## Block Diagrams (binding, highest priority)
+
+All block / microarchitecture figures MUST follow the diagram house style
+fixed by the owner's reference (the classic DDR-MC course diagram). The
+binding rules and recipes — three traceable flows, the flat wide-edge-up
+trapezium, transaction-class labels on every arrow, one boundary bar,
+`xlabel` for same-rank labels, the point-node scaffold for multi-crossing
+node pairs, render-then-read verification — live in
+[STYLE.md](../projects/components/mem-ctrl-ip/common-ip/docs/common_has/assets/graphviz/STYLE.md),
+and the repo-root `AGENTS.md` restates them for every agent. The reference
+implementation is the family whole-unit diagram in `common_has`.
+
+---
+
 ## Table Captions
 
 Tables must use Pandoc's table caption syntax. Add a caption line starting with `: ` immediately after the table.
