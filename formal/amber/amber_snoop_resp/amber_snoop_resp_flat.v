@@ -245,6 +245,7 @@ module amber_snoop_resp (
 	ctrl_snoop_addr,
 	ctrl_snoop_type,
 	ctrl_snoop_ready,
+	ctrl_snoop_safe,
 	ctrl_crresp,
 	ctrl_cddata,
 	ctrl_cdlast,
@@ -273,6 +274,7 @@ module amber_snoop_resp (
 	output wire [32 - 1:0] ctrl_snoop_addr;
 	output wire [2:0] ctrl_snoop_type;
 	input wire ctrl_snoop_ready;
+	input wire ctrl_snoop_safe;
 	input wire [4:0] ctrl_crresp;
 	input wire [64 - 1:0] ctrl_cddata;
 	input wire ctrl_cdlast;
@@ -341,10 +343,11 @@ module amber_snoop_resp (
 	reg [4:0] r_crresp;
 	reg [32 - 1:0] r_snoop_addr;
 	reg [2:0] r_snoop_type;
-	assign ctrl_snoop_req = r_state == 2'd1;
-	assign ctrl_snoop_addr = r_snoop_addr;
-	assign ctrl_snoop_type = r_snoop_type;
-	assign fub_acready = r_state == 2'd0;
+	wire w_ac_accept = (fub_acvalid && (r_state == 2'd0)) && ctrl_snoop_safe;
+	assign ctrl_snoop_req = w_ac_accept;
+	assign ctrl_snoop_addr = (w_ac_accept ? fub_acaddr : r_snoop_addr);
+	assign ctrl_snoop_type = (w_ac_accept ? w_snoop_type : r_snoop_type);
+	assign fub_acready = (r_state == 2'd0) && ctrl_snoop_safe;
 	assign fub_crresp = r_crresp;
 	assign fub_crvalid = r_state == 2'd3;
 	assign fub_cddata = ctrl_cddata;
@@ -366,7 +369,8 @@ module amber_snoop_resp (
 					if (fub_acvalid && fub_acready) begin
 						r_snoop_addr <= fub_acaddr;
 						r_snoop_type <= w_snoop_type;
-						r_state <= 2'd1;
+						r_crresp <= ctrl_crresp;
+						r_state <= (ctrl_crresp[amber_pkg_AMBER_CRRESP_DT] ? 2'd2 : 2'd3);
 					end
 				2'd1:
 					if (ctrl_snoop_req && ctrl_snoop_ready) begin

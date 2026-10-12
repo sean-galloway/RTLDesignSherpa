@@ -436,18 +436,34 @@ module amber_pair_fabric
     wire g_valid = g_take[0] || g_take[1];
     wire g_peer  = 1 - g_dir;
 
-    // kill rule (evaluated at AC-ISSUE time, not at grant): the peer
-    // holds a same-line request it cannot serve data for -- either an
-    // ungranted request (fill in flight, AR held by this fabric) or a
-    // just-completed transaction still landing beats at the cache
-    // (pf-gated bypass either way). Evaluating combinationally at issue
-    // closes the skew where the peer's fill launched in the cycle before
-    // the grant -- a same-cycle pulse is visible here, so the snoop
-    // converts to MakeInvalid exactly when it must. g_kill below is the
-    // grant-time PREDICTION (debug tap); the issue-time value selects the
-    // actual ACSNOOP and the AC valid gating.
-    wire g_kill = (pend_cnt_q[1'(g_peer)] != 3'd0)
-        && (pend_line_q[1'(g_peer)][0] == pend_line_q[1'(g_dir)][0]);
+    // Kill rule (evaluated at AC-ISSUE time, not at grant): the peer
+    // holds a same-line TRUE MISS it cannot serve data for -- either an
+    // ungranted fill request (AR held by this fabric) or a just-completed
+    // transaction still landing beats at the cache (pf-gated bypass either
+    // way). Upgrades do NOT arm the bypass, so a snoop to an upgrade-
+    // pending line is serviced from the installed state and must not be
+    // killed. Evaluating combinationally at issue closes the skew where
+    // the peer's fill launched in the cycle before the grant -- a same-
+    // cycle pulse is visible here, so the snoop converts to MakeInvalid
+    // exactly when it must. g_kill below is the grant-time PREDICTION
+    // (debug tap); the issue-time value selects the actual ACSNOOP and
+    // the AC valid gating.
+    function automatic logic peer_pending_true_miss_match(
+        input logic [0:0]               dir,
+        input logic [ADDR_WIDTH-1:0]    addr
+    );
+        peer_pending_true_miss_match = 1'b0;
+        for (int k = 0; k < PEND_DEPTH; k++) begin
+            if (k < pend_cnt_q[dir]
+                && (pend_line_q[dir][k] == addr)
+                && ((pend_type_q[dir][k] == 3'(AMBER_ACE_READ_SHARED))
+                    || (pend_type_q[dir][k] == 3'(AMBER_ACE_READ_UNIQUE))))
+                peer_pending_true_miss_match = 1'b1;
+        end
+    endfunction
+
+    wire g_kill = peer_pending_true_miss_match(1'(g_peer),
+                                               pend_line_q[1'(g_dir)][0]);
 
     // ------------------------------------------------------------------
     // Coherence FSM: one transaction at a time
@@ -569,11 +585,15 @@ module amber_pair_fabric
     endfunction
 
     // ------------------------------------------------------------------
-    // Safe-peer wait: the AC may only be presented when the peer's FSM
-    // cannot arm a same-line bypass under a data-expecting snoop (not in
-    // INIT / miss states / FILL_WRITE / REPLAY), or when the peer has an
-    // ungranted request (the kill-rule case: its fill is fabric-held and
-    // the kill snoop needs no data).
+    // Safe-peer wait: the AC may only be presented when the peer's FSM can
+    // grant the snoop immediately (IDLE), or when the peer is in a miss
+    // state with an ungranted request that the kill rule has converted to
+    // MakeInvalid. LOOKUP / HIT_RD / HIT_WR are treated as unsafe because
+    // the ACE snoop transport skids the AC handshake: a peer that misses
+    // in LOOKUP can reach MISS_FILL with the bypass armed before the
+    // skidded snoop is granted, deadlocking a data-expecting snoop on the
+    // same line. The pending override is therefore restricted to the
+    // miss states where the kill rule is evaluated.
     // ------------------------------------------------------------------
     logic [3:0] peer_state_now;
     logic       peer_pend_now;
@@ -588,27 +608,36 @@ module amber_pair_fabric
     end
 
     function automatic logic peer_unsafe(input logic [3:0] st);
-        return (st == ST_INIT) || (st == ST_MISS_VICTIM)
-            || (st == ST_MISS_DRAIN) || (st == ST_MISS_FILL)
-            || (st == ST_FILL_WRITE) || (st == ST_REPLAY);
+        return (st == ST_INIT) || (st == ST_LOOKUP)
+            || (st == ST_HIT_RD) || (st == ST_HIT_WR)
+            || (st == ST_MISS_VICTIM) || (st == ST_MISS_DRAIN)
+            || (st == ST_MISS_FILL) || (st == ST_FILL_WRITE)
+            || (st == ST_REPLAY);
     endfunction
 
     // the peer-pending bypass lets the AC fire while the peer parks in
-    // MISS_FILL with a fabric-held AR -- but NOT during the drain window
-    // on this very line (that fill's beats are flowing; a data-expecting
-    // snoop must wait for the commit)
+    // MISS_FILL or MISS_DRAIN with a fabric-held AR -- but NOT during the
+    // drain window on this very line (that fill's beats are flowing; a
+    // data-expecting snoop must wait for the commit)
     wire peer_drain_grant = drain_vld_q[1'(1 - grant_q)]
         && (drain_line_q[1'(1 - grant_q)] == grant_addr_q);
     wire peer_safe_data = !peer_unsafe(peer_state_now)
-        || (peer_pend_now && !peer_drain_grant);
+        || (peer_pend_now && !peer_drain_grant
+            && ((peer_state_now == ST_MISS_FILL)
+                || (peer_state_now == ST_MISS_DRAIN)));
     // issue-time kill: same rule against the CURRENT queue/drain state,
     // including a same-cycle sideband pulse (the fabric sees it live;
-    // the registered queue lags it by a cycle)
+    // the registered queue lags it by a cycle). Only true misses trigger
+    // a kill; upgrades are answered from the installed state.
     wire [1:0] issue_pulse = coh_pulse_vld;
     wire issue_peer_pulse_same
         = issue_pulse[1'(1 - grant_q)]
           && ((1 - grant_q) == 1'b0 ? c0_coh_req_addr : c1_coh_req_addr)
-             == grant_addr_q;
+             == grant_addr_q
+          && (((1 - grant_q) == 1'b0 ? c0_coh_req_type : c1_coh_req_type)
+              == 3'(AMBER_ACE_READ_SHARED)
+              || ((1 - grant_q) == 1'b0 ? c0_coh_req_type : c1_coh_req_type)
+                 == 3'(AMBER_ACE_READ_UNIQUE));
     // NB: the DRAIN window is deliberately NOT a kill condition. A kill
     // is only sound while the peer's fill cannot commit (its AR held by
     // this fabric); during the drain the fill completes independently,
@@ -616,8 +645,7 @@ module amber_pair_fabric
     // a MakeInvalid serviced against a COMMITTED line would discard
     // installed dirty data. Drain-same-line instead waits (peer_safe).
     wire issue_kill
-        = ((pend_cnt_q[1'(1 - grant_q)] != 3'd0)
-           && (pend_line_q[1'(1 - grant_q)][0] == grant_addr_q))
+        = peer_pending_true_miss_match(1'(1 - grant_q), grant_addr_q)
           || issue_peer_pulse_same;
     wire [3:0] issue_acsnoop = issue_kill ? ACSNOOP_MAKE_INVALID
                               : map_snoop(grant_type_q);

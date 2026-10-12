@@ -28,4 +28,16 @@ Full assumption/abstraction inventory, soundness derivations (including the
 12-cycle fill-window structural minimum), the vacuity hazard the cover task
 caught, engine measurements, and Step-4 sim evidence:
 `.superpowers/sdd/2026-10-07-amber-rtl-completion/task-13-report.md`.
-No RTL changes were made by this task.
+No RTL changes were made by that task.
+
+Post-pair-rig-deadlock-fix status (2026-10-12, fix unblocks FULL pair-rig
+seed 41316): the safety depth was re-derived against the fix and is
+UNCHANGED at 126 — the fix's only control-side delta is the additive
+`ctrl_snoop_safe` output, which no assumption, assertion, or expose entry
+references (verified by grep), so the recorded 2026-10-09 non-vacuous
+PASS carries over by a conservative-extension argument. A fresh full-depth
+re-prove was started as hygiene; both boolector (5 h to step ~57) and
+bitwuzla hit the same post-step-45 store-chain wall, so per-step cost is
+model-bound, not solver-bound. The behaviorally changed module
+(`amber_snoop_resp`: AC acceptance gated on `ctrl_snoop_safe`, atomic
+grant with CRRESP latched at accept) was re-proven green at depth 80.

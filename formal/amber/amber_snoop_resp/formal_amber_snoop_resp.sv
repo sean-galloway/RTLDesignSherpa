@@ -103,6 +103,12 @@ module formal_amber_snoop_resp (
         .ctrl_snoop_addr (ctrl_snoop_addr),
         .ctrl_snoop_type (ctrl_snoop_type),
         .ctrl_snoop_ready(ctrl_snoop_ready),
+        // environment model: control always indicates a grantable (safe)
+        // state. Restores the pre-2026-10-11 acceptance surface (IDLE
+        // grants unconditionally) so the response-protocol obligations are
+        // re-proven unchanged; the safe-gating itself is integration-
+        // level and covered by the pair-rig sim suite.
+        .ctrl_snoop_safe (1'b1),
         .ctrl_crresp     (ctrl_crresp),
         .ctrl_cddata     (64'd0), // tied: CD payload values are never claimed (ordering + payload-of-CR only)
         .ctrl_cdlast     (ctrl_cdlast),
@@ -245,6 +251,14 @@ module amber_snoop_resp_props (
         if (aresetn) begin
             as_fair_ready: assume (!(r_state == SR_LOOKUP && !ctrl_snoop_ready)
                                    || (f_ready_wait < 2) || ctrl_snoop_ready);
+            // Atomic-grant fairness (2026-10-11): ctrl_snoop_req is now
+            // also asserted combinationally at AC accept. In the real
+            // closure ctrl_snoop_safe guarantees control grants in the
+            // same cycle (ctrl_snoop_ready = snoop_gnt in the safe
+            // states), and the DUT latches CRRESP at accept regardless
+            // of ready -- so the environment must not stall the grant
+            // while req is raised.
+            as_atomic_grant: assume (!ctrl_snoop_req || ctrl_snoop_ready);
             as_fair_cdvalid: assume (!(r_state == SR_DATA && !ctrl_cdvalid)
                                      || (f_cdv_wait < 2) || ctrl_cdvalid);
             as_fair_crready: assume (!(m_axi_crvalid && !m_axi_crready)
@@ -371,8 +385,24 @@ module amber_snoop_resp_props (
                     end
                 end
                 2'b11: begin   // simultaneous: head drains, new entry lands
+                               // at the tail (count unchanged: one out,
+                               // one in). The shift must come first --
+                               // the tail write below deliberately wins
+                               // the NBA conflict on its slot.
                     if (f_cr_n != 0) begin
-                        f_cr_q[f_cr_n - 3'd1] <= fub_crresp;
+                        f_cr_q[0] <= f_cr_q[1];
+                        f_cr_q[1] <= f_cr_q[2];
+                        f_cr_q[2] <= f_cr_q[3];
+                        f_cr_q[3] <= 5'b0;
+                        if (f_cr_n != 3'd4)
+                            f_cr_q[f_cr_n - 3'd1] <= fub_crresp;
+                        else
+                            f_cr_q[3] <= fub_crresp;
+                    end else begin
+                        // cannot happen (a pin CR implies a live entry);
+                        // treat as a plain push and stay sound
+                        f_cr_q[0] <= fub_crresp;
+                        f_cr_n    <= 3'd1;
                     end
                 end
                 default: ;
@@ -402,12 +432,18 @@ module amber_snoop_resp_props (
     end
 
     // R5 FSM/transport coherence: the FUB CR is only presented in SR_RESP,
-    // the FUB CD only in SR_DATA, the control request only in SR_LOOKUP.
+    // the FUB CD only in SR_DATA, and the control request is raised either
+    // in SR_LOOKUP (legacy skid-separated grant) or combinationally in the
+    // AC-accept cycle (2026-10-11 atomic grant: req/addr/type present the
+    // accepting AC so control grants in the same cycle and CRRESP is
+    // latched at acceptance).
     always @(posedge aclk) begin
         if (aresetn) begin
             ap_cr_in_resp: assert (!fub_crvalid || (r_state == SR_RESP));
             ap_cd_in_data: assert (!fub_cdvalid || (r_state == SR_DATA));
-            ap_req_in_lookup: assert (!ctrl_snoop_req || (r_state == SR_LOOKUP));
+            ap_req_in_lookup: assert (!ctrl_snoop_req
+                || (r_state == SR_LOOKUP)
+                || ((r_state == SR_IDLE) && f_fub_ac_hs));
         end
     end
 

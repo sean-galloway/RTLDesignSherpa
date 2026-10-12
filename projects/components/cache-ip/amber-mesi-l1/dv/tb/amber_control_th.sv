@@ -168,6 +168,7 @@ module amber_control_th
     logic [SET_INDEX_WIDTH-1:0]            ctrl_repl_set;
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_way;
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_hit_way;
+    logic                                  ctrl_snoop_safe_nc;
 
     amber_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
@@ -225,6 +226,7 @@ module amber_control_th
         .ctrl_drain_done         (drain_done),
         .ctrl_snoop_req          (snoop_req),
         .ctrl_snoop_ready        (snoop_ready),
+        .ctrl_snoop_safe         (ctrl_snoop_safe_nc),
         .ctrl_snoop_type         (snoop_type),
         .ctrl_snoop_addr         (snoop_addr),
         .ctrl_crresp             (ctrl_crresp),

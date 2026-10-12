@@ -358,6 +358,7 @@ module amber_core
 
     logic                                  ctrl_snoop_req;
     logic                                  ctrl_snoop_ready;
+    logic                                  ctrl_snoop_safe;
     logic [2:0]                            ctrl_snoop_type;
     logic [ADDR_WIDTH-1:0]                 ctrl_snoop_addr;
     logic [AMBER_CRRESP_WIDTH-1:0]         ctrl_crresp;
@@ -422,6 +423,7 @@ module amber_core
         .ctrl_drain_done         (ctrl_drain_done),
         .ctrl_snoop_req          (ctrl_snoop_req),
         .ctrl_snoop_ready        (ctrl_snoop_ready),
+        .ctrl_snoop_safe         (ctrl_snoop_safe),
         .ctrl_snoop_type         (ctrl_snoop_type),
         .ctrl_snoop_addr         (ctrl_snoop_addr),
         .ctrl_crresp             (ctrl_crresp),
@@ -647,6 +649,7 @@ module amber_core
         .ctrl_snoop_addr   (ctrl_snoop_addr),
         .ctrl_snoop_type   (ctrl_snoop_type),
         .ctrl_snoop_ready  (ctrl_snoop_ready),
+        .ctrl_snoop_safe   (ctrl_snoop_safe),
         .ctrl_crresp       (ctrl_crresp),
         .ctrl_cddata       (ctrl_cddata),
         .ctrl_cdlast       (ctrl_cdlast),

@@ -204,6 +204,7 @@ module amber_control (
 	ctrl_drain_done,
 	ctrl_snoop_req,
 	ctrl_snoop_ready,
+	ctrl_snoop_safe,
 	ctrl_snoop_type,
 	ctrl_snoop_addr,
 	ctrl_crresp,
@@ -280,6 +281,7 @@ module amber_control (
 	input wire ctrl_drain_done;
 	input wire ctrl_snoop_req;
 	output wire ctrl_snoop_ready;
+	output wire ctrl_snoop_safe;
 	input wire [2:0] ctrl_snoop_type;
 	input wire [32 - 1:0] ctrl_snoop_addr;
 	localparam signed [31:0] amber_pkg_AMBER_CRRESP_WIDTH = 5;
@@ -293,15 +295,15 @@ module amber_control (
 	output reg [3:0] ctrl_state;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:242:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 16 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:243:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:244:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 64 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:245:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:246:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:247:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:248:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 64 must be a multiple of 8");
+			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:249:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:250:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 2 must be >= 2");
+			$display("Error [%0t] /tmp/formal_amber_control/amber_control.sv:251:13 - amber_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "amber_control: 2 must be >= 2");
 	end
 	localparam signed [31:0] CTRL_BITS = 12;
 	localparam [11:0] OH_IDLE = 12'b000000000001;
@@ -512,6 +514,7 @@ module amber_control (
 	assign sn_drain_ok = state_q == OH_MISS_DRAIN;
 	assign snoop_gnt = ctrl_snoop_req && ((sn_idle_ok || sn_fill_ok) || sn_drain_ok);
 	assign ctrl_snoop_ready = snoop_gnt;
+	assign ctrl_snoop_safe = (sn_idle_ok || sn_fill_ok) || sn_drain_ok;
 	assign ctrl_tag_b_req = snoop_gnt || (state_q == OH_SNOOP);
 	assign ctrl_tag_b_set = (state_q == 12'b010000000000 ? sn_set_q : sn_set_grant);
 	wire [2:0] mv_victim_state;

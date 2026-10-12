@@ -102,6 +102,7 @@ module amber_snoop_resp
     output logic [ADDR_WIDTH-1:0]   ctrl_snoop_addr,
     output logic [2:0]              ctrl_snoop_type,
     input  logic                    ctrl_snoop_ready,
+    input  logic                    ctrl_snoop_safe,
     input  logic [4:0]              ctrl_crresp,
     input  logic [DATA_WIDTH-1:0]   ctrl_cddata,
     input  logic                    ctrl_cdlast,
@@ -190,13 +191,29 @@ module amber_snoop_resp
     logic [ADDR_WIDTH-1:0]   r_snoop_addr;
     logic [2:0]              r_snoop_type;
 
-    assign ctrl_snoop_req  = (r_state == SR_LOOKUP);
-    assign ctrl_snoop_addr = r_snoop_addr;
-    assign ctrl_snoop_type = r_snoop_type;
+    // Accept the AC only when amber_control is in a snoop-grantable state
+    // (IDLE, MISS_FILL with the bypass armed / an upgrade in flight, or
+    // MISS_DRAIN). The ACE snoop transport's skid buffer otherwise
+    // decouples the AC handshake from the control FSM, allowing the peer
+    // to enter MISS_FILL with the bypass armed before the skidded snoop
+    // is granted -- a data-expecting snoop on that line then deadlocks
+    // waiting for bypass data the fabric is holding. Asserting
+    // ctrl_snoop_req in the acceptance cycle makes the grant atomic:
+    // control sees the request, gives it priority over any pending CPU
+    // transaction, and presents the grant-cycle CRRESP combinationally.
+    // The FSM then steps straight to the data/response phase, so it never
+    // needs ctrl_snoop_ready in a state where the peer is no longer safe.
+    // ctrl_snoop_safe is independent of ctrl_snoop_req to avoid a
+    // combinational loop.
+    wire w_ac_accept = fub_acvalid && (r_state == SR_IDLE) && ctrl_snoop_safe;
+
+    assign ctrl_snoop_req  = w_ac_accept;
+    assign ctrl_snoop_addr = w_ac_accept ? fub_acaddr   : r_snoop_addr;
+    assign ctrl_snoop_type = w_ac_accept ? w_snoop_type : r_snoop_type;
 
     // FUB-side drives (combinational on state; the transport skids absorb
     // the protocol timing)
-    assign fub_acready     = (r_state == SR_IDLE);
+    assign fub_acready     = (r_state == SR_IDLE) && ctrl_snoop_safe;
     assign fub_crresp      = r_crresp;
     assign fub_crvalid     = (r_state == SR_RESP);
     assign fub_cddata      = ctrl_cddata;
@@ -216,14 +233,22 @@ module amber_snoop_resp
                     if (fub_acvalid && fub_acready) begin
                         r_snoop_addr <= fub_acaddr;
                         r_snoop_type <= w_snoop_type;
-                        r_state      <= SR_LOOKUP;
+                        // Latch the grant-cycle CRRESP from control and
+                        // move straight to the data/response phase. The
+                        // grant happens in this same cycle, so control
+                        // is still in a safe state and ctrl_crresp is
+                        // valid for the newly accepted snoop.
+                        r_crresp     <= ctrl_crresp;
+                        r_state      <= ctrl_crresp[AMBER_CRRESP_DT]
+                                        ? SR_DATA : SR_RESP;
                     end
                 end
                 SR_LOOKUP: begin
+                    // Unused in the atomic grant path; kept for protocol
+                    // robustness in case a future consumer re-introduces
+                    // a skid-separated grant cycle.
                     if (ctrl_snoop_req && ctrl_snoop_ready) begin
                         r_crresp <= ctrl_crresp;
-                        // DT decision uses the CRRESP being latched this
-                        // cycle, not the registered one.
                         r_state  <= ctrl_crresp[AMBER_CRRESP_DT] ? SR_DATA
                                                                  : SR_RESP;
                     end

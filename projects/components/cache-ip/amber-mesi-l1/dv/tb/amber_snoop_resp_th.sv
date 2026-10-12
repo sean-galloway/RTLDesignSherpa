@@ -209,6 +209,7 @@ module amber_snoop_resp_th
     // snoop responder <-> control handshake (internal; tapped at the top)
     logic                                  snoop_req_int;
     logic                                  snoop_ready_int;
+    logic                                  ctrl_snoop_safe_int;
     logic [4:0]                            ctrl_crresp_int;
     logic [DATA_WIDTH-1:0]                 ctrl_cddata_int;
     logic                                  ctrl_cdlast_int;
@@ -285,6 +286,7 @@ module amber_snoop_resp_th
         .ctrl_drain_done         (drain_done),
         .ctrl_snoop_req          (snoop_req_int),
         .ctrl_snoop_ready        (snoop_ready_int),
+        .ctrl_snoop_safe         (ctrl_snoop_safe_int),
         .ctrl_snoop_type         (w_snoop_type),
         .ctrl_snoop_addr         (w_snoop_addr),
         .ctrl_crresp             (ctrl_crresp_int),
@@ -325,6 +327,7 @@ module amber_snoop_resp_th
         .ctrl_snoop_addr(w_snoop_addr),
         .ctrl_snoop_type(w_snoop_type),
         .ctrl_snoop_ready(snoop_ready_int),
+        .ctrl_snoop_safe(ctrl_snoop_safe_int),
         .ctrl_crresp    (ctrl_crresp_int),
         .ctrl_cddata    (ctrl_cddata_int),
         .ctrl_cdlast    (ctrl_cdlast_int),

@@ -220,6 +220,7 @@ module amber_control
     // cdvalid && cdready; CR is presented by the adapter after CDLAST)
     input  logic                        ctrl_snoop_req,
     output logic                        ctrl_snoop_ready,
+    output logic                        ctrl_snoop_safe,
     input  logic [2:0]                  ctrl_snoop_type,
     input  logic [ADDR_WIDTH-1:0]       ctrl_snoop_addr,
     output logic [AMBER_CRRESP_WIDTH-1:0] ctrl_crresp,
@@ -581,6 +582,11 @@ module amber_control
                                             || sn_drain_ok);
 
     assign ctrl_snoop_ready = snoop_gnt;
+    // snoop-safe: the states in which a newly accepted AC can be granted
+    // immediately (no skid-delayed state change that could arm a same-line
+    // bypass before the grant). Independent of ctrl_snoop_req to avoid a
+    // combinational loop with the snoop responder.
+    assign ctrl_snoop_safe  = sn_idle_ok || sn_fill_ok || sn_drain_ok;
     assign ctrl_tag_b_req   = snoop_gnt || (state_q == OH_SNOOP);
     assign ctrl_tag_b_set   = (state_q == OH_SNOOP) ? sn_set_q
                                                     : sn_set_grant;

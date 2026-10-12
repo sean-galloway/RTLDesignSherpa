@@ -296,6 +296,7 @@ class AmberSnoopRespTB(AmberControlTB):
                 prev_state = st
             if int(d.ctrl_rsp_valid.value):
                 self.events.append((self.cyc, 'rsp', int(d.ctrl_rsp_data.value)))
+                self._rsp_q.append((self.cyc, int(d.ctrl_rsp_data.value)))
             if int(d.tag_wr_en.value):
                 self.events.append((self.cyc, 'tag_wr', {
                     'way_oh': int(d.tag_wr_way_onehot.value),
