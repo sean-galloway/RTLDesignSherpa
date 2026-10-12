@@ -7,12 +7,14 @@
 #
 # Architecture:
 #   - Masters use protocol-specific BFMs (AXI4MasterRead/Write,
-#     AXIL4MasterRead/Write, APBMaster). NEVER bare GAXI — reaching past
+#     AXI3MasterRead/Write, AXI5MasterRead/Write, AXIL4MasterRead/Write,
+#     APBMaster). NEVER bare GAXI — reaching past
 #     the protocol BFM bypasses the framework's memory model, ID tracking,
 #     response generation, and compliance checking, forcing the test to
 #     reimplement protocol semantics by hand.
 #   - Slaves use protocol-specific BFMs (AXI4SlaveRead/Write,
-#     AXIL4SlaveRead/Write, APBSlave), each backed by its own MemoryModel
+#     AXI3SlaveRead/Write, AXI5SlaveRead/Write, AXIL4SlaveRead/Write,
+#     APBSlave), each backed by its own MemoryModel
 #     pre-seeded with a distinct per-slave pattern. The slave BFM auto-
 #     responds from memory honoring whatever ARSIZE/ARLEN/ARADDR the
 #     bridge forwards, so the same TB works across direct, width-converted,
@@ -45,6 +47,14 @@ from CocoTBFramework.components.axi4.axi4_interfaces import (
 )
 from CocoTBFramework.components.axil4.axil4_interfaces import (
     AXIL4MasterRead, AXIL4MasterWrite, AXIL4SlaveRead, AXIL4SlaveWrite,
+)
+# AXI3 ports ride the AXI3 BFMs, not the AXI4 ones: the AXI3 write master
+# drives WID from AWID on every W beat (the pin an AXI4 BFM leaves undriven,
+# bridge GitHub #99) and the AXI3 BFMs clamp bursts to the 16-beat ceiling
+# the 4-bit AXI3 ARLEN/AWLEN encoding allows, instead of truncating an
+# 8-bit AXI4 length onto the 4-bit pin.
+from CocoTBFramework.components.axi3.axi3_interfaces import (
+    AXI3MasterRead, AXI3MasterWrite, AXI3SlaveRead, AXI3SlaveWrite,
 )
 from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
 
@@ -122,6 +132,15 @@ class Bridge2x2Axi3MastersTB(TBBase):
         self.level_cfg = PROFILE[self.level]
         self.seed, self.rng = seeded_rng(self.log)
         self.log.info(f"TEST_LEVEL={self.level}: {self.level_cfg}")
+
+        # Slave-side BFM ID width, emitted from xbar_id_width(masters): inside
+        # the fabric every transaction ID is {master index, master id}, so the
+        # slave BFMs must bind at that width or they mis-decode every ID
+        # (bridge TASK-005, was BRIDGE-016). Every AXI slave BFM below takes
+        # id_width from this knob. Hand-synced copies of this TB: keep the BFM
+        # id_widths equal to this value — do not re-derive or hand-edit them
+        # at the call sites (bridge GitHub #99).
+        self.XBAR_ID_WIDTH = 5
 
         # Per-slave metadata used by misroute checks and pattern computation.
         # slave_info[i] = (protocol, base_addr, addr_range, data_width)
@@ -394,7 +413,11 @@ class Bridge2x2Axi3MastersTB(TBBase):
 
     def _setup_master_0_cpu(self):
         """Set up protocol BFMs for master 0: cpu (protocol: axi3)"""
-        self.master_rd[0] = AXI4MasterRead(
+        # AXI3 requester port: the AXI3 BFM drives WID from AWID on every W
+        # beat — an AXI4 BFM leaves cpu_axi_wid undriven — and it
+        # rejects bursts past the 16-beat AXI3 ceiling rather than letting an
+        # 8-bit AXI4 length truncate onto the 4-bit pin (bridge GitHub #99).
+        self.master_rd[0] = AXI3MasterRead(
             self.dut, self.clock,
             prefix="cpu_axi_",
             log=self.log,
@@ -404,7 +427,7 @@ class Bridge2x2Axi3MastersTB(TBBase):
             user_width=1,
             multi_sig=True,
         )
-        self.master_wr[0] = AXI4MasterWrite(
+        self.master_wr[0] = AXI3MasterWrite(
             self.dut, self.clock,
             prefix="cpu_axi_",
             log=self.log,
@@ -416,7 +439,11 @@ class Bridge2x2Axi3MastersTB(TBBase):
         )
     def _setup_master_1_dma(self):
         """Set up protocol BFMs for master 1: dma (protocol: axi3)"""
-        self.master_rd[1] = AXI4MasterRead(
+        # AXI3 requester port: the AXI3 BFM drives WID from AWID on every W
+        # beat — an AXI4 BFM leaves dma_axi_wid undriven — and it
+        # rejects bursts past the 16-beat AXI3 ceiling rather than letting an
+        # 8-bit AXI4 length truncate onto the 4-bit pin (bridge GitHub #99).
+        self.master_rd[1] = AXI3MasterRead(
             self.dut, self.clock,
             prefix="dma_axi_",
             log=self.log,
@@ -426,7 +453,7 @@ class Bridge2x2Axi3MastersTB(TBBase):
             user_width=1,
             multi_sig=True,
         )
-        self.master_wr[1] = AXI4MasterWrite(
+        self.master_wr[1] = AXI3MasterWrite(
             self.dut, self.clock,
             prefix="dma_axi_",
             log=self.log,
@@ -443,7 +470,7 @@ class Bridge2x2Axi3MastersTB(TBBase):
 
     def _setup_slave_0_ddr(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 0: ddr (protocol: axi4)"""
-        # AXI4 slave — full memory-backed BFM.
+        # AXI-family slave (axi3/axi4/axi5) — full memory-backed BFM.
         bytes_per_line = 64 // 8
         addr_range = 0x80000000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
@@ -461,7 +488,7 @@ class Bridge2x2Axi3MastersTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=5,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -473,7 +500,7 @@ class Bridge2x2Axi3MastersTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=5,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -481,7 +508,7 @@ class Bridge2x2Axi3MastersTB(TBBase):
         )
     def _setup_slave_1_sram(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 1: sram (protocol: axi4)"""
-        # AXI4 slave — full memory-backed BFM.
+        # AXI-family slave (axi3/axi4/axi5) — full memory-backed BFM.
         bytes_per_line = 64 // 8
         addr_range = 0x80000000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
@@ -499,7 +526,7 @@ class Bridge2x2Axi3MastersTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=5,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[1],
@@ -511,7 +538,7 @@ class Bridge2x2Axi3MastersTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=5,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[1],

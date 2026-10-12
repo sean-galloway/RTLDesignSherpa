@@ -7,12 +7,14 @@
 #
 # Architecture:
 #   - Masters use protocol-specific BFMs (AXI4MasterRead/Write,
-#     AXIL4MasterRead/Write, APBMaster). NEVER bare GAXI — reaching past
+#     AXI3MasterRead/Write, AXI5MasterRead/Write, AXIL4MasterRead/Write,
+#     APBMaster). NEVER bare GAXI — reaching past
 #     the protocol BFM bypasses the framework's memory model, ID tracking,
 #     response generation, and compliance checking, forcing the test to
 #     reimplement protocol semantics by hand.
 #   - Slaves use protocol-specific BFMs (AXI4SlaveRead/Write,
-#     AXIL4SlaveRead/Write, APBSlave), each backed by its own MemoryModel
+#     AXI3SlaveRead/Write, AXI5SlaveRead/Write, AXIL4SlaveRead/Write,
+#     APBSlave), each backed by its own MemoryModel
 #     pre-seeded with a distinct per-slave pattern. The slave BFM auto-
 #     responds from memory honoring whatever ARSIZE/ARLEN/ARADDR the
 #     bridge forwards, so the same TB works across direct, width-converted,
@@ -126,6 +128,15 @@ class BridgeMixBMonTB(TBBase):
         self.level_cfg = PROFILE[self.level]
         self.seed, self.rng = seeded_rng(self.log)
         self.log.info(f"TEST_LEVEL={self.level}: {self.level_cfg}")
+
+        # Slave-side BFM ID width, emitted from xbar_id_width(masters): inside
+        # the fabric every transaction ID is {master index, master id}, so the
+        # slave BFMs must bind at that width or they mis-decode every ID
+        # (bridge TASK-005, was BRIDGE-016). Every AXI slave BFM below takes
+        # id_width from this knob. Hand-synced copies of this TB: keep the BFM
+        # id_widths equal to this value — do not re-derive or hand-edit them
+        # at the call sites (bridge GitHub #99).
+        self.XBAR_ID_WIDTH = 6
 
         # Per-slave metadata used by misroute checks and pattern computation.
         # slave_info[i] = (protocol, base_addr, addr_range, data_width)
@@ -493,7 +504,7 @@ class BridgeMixBMonTB(TBBase):
 
     def _setup_slave_0_ddr(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 0: ddr (protocol: axi4)"""
-        # AXI4 slave — full memory-backed BFM.
+        # AXI-family slave (axi3/axi4/axi5) — full memory-backed BFM.
         bytes_per_line = 128 // 8
         addr_range = 0x40000000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
@@ -511,7 +522,7 @@ class BridgeMixBMonTB(TBBase):
             log=self.log,
             data_width=128,
             addr_width=32,
-            id_width=6,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -523,7 +534,7 @@ class BridgeMixBMonTB(TBBase):
             log=self.log,
             data_width=128,
             addr_width=32,
-            id_width=6,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -531,7 +542,7 @@ class BridgeMixBMonTB(TBBase):
         )
     def _setup_slave_1_scratch(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 1: scratch (protocol: axi4)"""
-        # AXI4 slave — full memory-backed BFM.
+        # AXI-family slave (axi3/axi4/axi5) — full memory-backed BFM.
         bytes_per_line = 64 // 8
         addr_range = 0x00100000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
@@ -549,7 +560,7 @@ class BridgeMixBMonTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=6,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[1],
@@ -561,7 +572,7 @@ class BridgeMixBMonTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=6,  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[1],

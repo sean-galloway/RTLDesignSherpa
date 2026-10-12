@@ -672,7 +672,10 @@ def validate_required_fields(port: PortSpec) -> None:
     # An APB requester supplies the full fabric address: PADDR is the
     # 32-bit AXI address, not a window offset the way an APB slave port's
     # PADDR is. (APB slave ports are windowed by base_addr; masters are not.)
-    if port.direction == 'master' and port.protocol in ('apb', 'apb5', 'wb4'):
+    # WB4 and AXI3 requester front ends hardcode 32-bit internal address
+    # nets, so they share the requirement: a narrower requester would
+    # silently truncate (bridge GitHub #99).
+    if port.direction == 'master' and port.protocol in ('apb', 'apb5', 'wb4', 'axi3'):
         if port.addr_width != 32:
             raise ValidationError(
                 f"{port.protocol.upper()} master '{port.port_name}' must have "

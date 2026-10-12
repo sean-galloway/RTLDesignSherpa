@@ -877,6 +877,69 @@ def test_axi3_master_generation_smoke(tmp_path):
         f"declaration-order issues in generated AXI3 RTL:\n{chk.stdout}")
 
 
+def test_pure_axi4_filelist_has_no_axi3_converters(tmp_path):
+    """#99 negative half of the axi3 smoke's positive check: a bridge with
+    no axi3 ports must not pull either axi3 converter filelist."""
+    _generate(tmp_path, "bridge_1x2_rd_matched")
+    filelists = list((tmp_path.parent / "filelists").glob("bridge_1x2_rd_matched*.f"))
+    assert filelists, "no filelist emitted"
+    text = "\n".join(p.read_text() for p in filelists)
+    assert "axi3_to_axi4.f" not in text, (
+        "pure-AXI4 bridge pulled the AXI3 requester converter filelist")
+    assert "axi4_to_axi3.f" not in text, (
+        "pure-AXI4 bridge pulled the AXI3 completer converter filelist")
+
+
+def test_axi3_tb_dispatches_axi3_bfms(tmp_path):
+    """#99: the generated TB must instantiate AXI3 BFMs on axi3 ports — the
+    AXI3 write master drives WID from AWID and the BFM clamps bursts to the
+    AXI3 16-beat ceiling — not AXI4 BFMs with wid left undriven and 8-bit
+    len silently truncated onto 4-bit pins."""
+    tb_dir = tmp_path / "tb"
+    test_dir = tmp_path / "tests"
+    rtl_dir = tmp_path / "rtl"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_1x2_axi3.toml"),
+         "--connectivity", _fixture("bridge_1x2_axi3_connectivity.csv"),
+         "--name", "bridge_1x2_axi3",
+         "--output-dir", str(rtl_dir),
+         "--generate-tests",
+         "--output-tb", str(tb_dir),
+         "--output-test", str(test_dir)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+
+    tb_files = list(tb_dir.glob("*_tb.py"))
+    assert tb_files, "no TB class emitted"
+    tb = tb_files[0].read_text()
+
+    # The only master (cpu) is axi3, so it must be driven by the WID-driving,
+    # len-clamping AXI3 master BFMs — never an AXI4 master BFM.
+    assert "self.master_rd[0] = AXI3MasterRead(" in tb, (
+        "axi3 master read not driven by AXI3MasterRead")
+    assert "self.master_wr[0] = AXI3MasterWrite(" in tb, (
+        "axi3 master write not driven by AXI3MasterWrite")
+    assert "AXI4MasterRead(" not in tb and "AXI4MasterWrite(" not in tb, (
+        "AXI4 master BFM instantiated on the axi3 master port")
+    # Slave 0 (s0) is axi3, slave 1 (s1) is axi4: each must get its own
+    # protocol's slave BFM.
+    assert "self.slave_rd[0] = AXI3SlaveRead(" in tb, (
+        "axi3 slave s0 read not driven by AXI3SlaveRead")
+    assert "self.slave_wr[0] = AXI3SlaveWrite(" in tb, (
+        "axi3 slave s0 write not driven by AXI3SlaveWrite")
+    assert "self.slave_rd[1] = AXI4SlaveRead(" in tb, (
+        "axi4 slave s1 read must keep AXI4SlaveRead")
+    assert "self.slave_wr[1] = AXI4SlaveWrite(" in tb, (
+        "axi4 slave s1 write must keep AXI4SlaveWrite")
+    # Generator-emitted knob so hand-synced copies can check their BFM
+    # id_widths against the fabric width without re-deriving it.
+    assert "XBAR_ID_WIDTH" in tb, "generated TB missing the XBAR_ID_WIDTH knob"
+
+
 def _write_axi3_channel_toml(tmp_path, master_channels=None, slave_channels=None):
     """Write a minimal TOML + CSV pair with an optional AXI3 master and/or
     AXI3 slave. When supplied, a channel string makes that port AXI3 with the
@@ -1245,6 +1308,46 @@ addr_range = "0x0001_0000"
         load_config(str(toml), str(conn))
 
 
+def test_axi3_slave_too_narrow_rejected(tmp_path):
+    """#99: validate_slave_id_widths covers AXI3 slaves directly. Two 4-bit
+    masters give 5-bit IDs at every slave; an axi3 slave declaring 4 would
+    truncate the master index and let two masters alias again."""
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text("""
+[bridge]
+name = "b"
+variants = ["no"]
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 64
+id_width = 4
+channels = "rw"
+[[bridge.masters]]
+name = "m1"
+prefix = "m1_"
+addr_width = 32
+data_width = 64
+id_width = 4
+channels = "rw"
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 64
+id_width = 4
+channels = "rw"
+protocol = "axi3"
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+""")
+    conn.write_text("master,s0\nm0,1\nm1,1\n")
+    with pytest.raises(ValidationError, match="carries 5-bit IDs"):
+        load_config(str(toml), str(conn))
+
+
 def test_id_prefix_generated_on_multi_master(tmp_path):
     """The master adapter forms {BRIDGE_ID, id} on its fabric-facing nets,
     the package exports the widths, and the slave ports carry them."""
@@ -1413,6 +1516,21 @@ data_width = 32
 id_width = 0
 channels = "rw"
 protocol = "apb5"
+""")
+    with pytest.raises(ValidationError, match="must have addr_width=32"):
+        load_config(toml, conn)
+
+
+def test_axi3_master_addr_width_rejected(tmp_path):
+    """#99: the AXI3 requester front end hardcodes 32-bit internal address
+    nets, so a non-32-bit axi3 master must fail validation the same way
+    apb/wb4 masters already do."""
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 16
+data_width = 64
+id_width = 4
+channels = "rw"
+protocol = "axi3"
 """)
     with pytest.raises(ValidationError, match="must have addr_width=32"):
         load_config(toml, conn)

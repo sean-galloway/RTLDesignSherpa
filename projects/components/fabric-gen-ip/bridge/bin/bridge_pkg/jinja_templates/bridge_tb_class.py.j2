@@ -7,12 +7,14 @@
 #
 # Architecture:
 #   - Masters use protocol-specific BFMs (AXI4MasterRead/Write,
-#     AXIL4MasterRead/Write, APBMaster). NEVER bare GAXI — reaching past
+#     AXI3MasterRead/Write, AXI5MasterRead/Write, AXIL4MasterRead/Write,
+#     APBMaster). NEVER bare GAXI — reaching past
 #     the protocol BFM bypasses the framework's memory model, ID tracking,
 #     response generation, and compliance checking, forcing the test to
 #     reimplement protocol semantics by hand.
 #   - Slaves use protocol-specific BFMs (AXI4SlaveRead/Write,
-#     AXIL4SlaveRead/Write, APBSlave), each backed by its own MemoryModel
+#     AXI3SlaveRead/Write, AXI5SlaveRead/Write, AXIL4SlaveRead/Write,
+#     APBSlave), each backed by its own MemoryModel
 #     pre-seeded with a distinct per-slave pattern. The slave BFM auto-
 #     responds from memory honoring whatever ARSIZE/ARLEN/ARADDR the
 #     bridge forwards, so the same TB works across direct, width-converted,
@@ -76,6 +78,16 @@ from CocoTBFramework.components.axi5.axi5_interfaces import (
     AXI5MasterRead, AXI5MasterWrite, AXI5SlaveRead, AXI5SlaveWrite,
 )
 from CocoTBFramework.components.axi5.axi5_compliance_checker import AXI5ComplianceChecker
+{% endif %}
+{% if (masters + slaves) | selectattr('protocol', 'equalto', 'axi3') | list %}
+# AXI3 ports ride the AXI3 BFMs, not the AXI4 ones: the AXI3 write master
+# drives WID from AWID on every W beat (the pin an AXI4 BFM leaves undriven,
+# bridge GitHub #99) and the AXI3 BFMs clamp bursts to the 16-beat ceiling
+# the 4-bit AXI3 ARLEN/AWLEN encoding allows, instead of truncating an
+# 8-bit AXI4 length onto the 4-bit pin.
+from CocoTBFramework.components.axi3.axi3_interfaces import (
+    AXI3MasterRead, AXI3MasterWrite, AXI3SlaveRead, AXI3SlaveWrite,
+)
 {% endif %}
 from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
 {% if slaves | selectattr('protocol', 'equalto', 'apb5') | list %}
@@ -168,6 +180,15 @@ class {{ tb_class_name }}(TBBase):
         self.level_cfg = PROFILE[self.level]
         self.seed, self.rng = seeded_rng(self.log)
         self.log.info(f"TEST_LEVEL={self.level}: {self.level_cfg}")
+
+        # Slave-side BFM ID width, emitted from xbar_id_width(masters): inside
+        # the fabric every transaction ID is {master index, master id}, so the
+        # slave BFMs must bind at that width or they mis-decode every ID
+        # (bridge TASK-005, was BRIDGE-016). Every AXI slave BFM below takes
+        # id_width from this knob. Hand-synced copies of this TB: keep the BFM
+        # id_widths equal to this value — do not re-derive or hand-edit them
+        # at the call sites (bridge GitHub #99).
+        self.XBAR_ID_WIDTH = {{ slave_id_width }}
 
         # Per-slave metadata used by misroute checks and pattern computation.
         # slave_info[i] = (protocol, base_addr, addr_range, data_width)
@@ -505,8 +526,15 @@ class {{ tb_class_name }}(TBBase):
 {% endif %}
 {% else %}
 {% set is_axi5 = master.protocol.lower() == 'axi5' %}
+{% set is_axi3 = master.protocol.lower() == 'axi3' %}
+{% if is_axi3 %}
+        # AXI3 requester port: the AXI3 BFM drives WID from AWID on every W
+        # beat — an AXI4 BFM leaves {{ master.prefix }}wid undriven — and it
+        # rejects bursts past the 16-beat AXI3 ceiling rather than letting an
+        # 8-bit AXI4 length truncate onto the 4-bit pin (bridge GitHub #99).
+{% endif %}
 {% if master.has_read_channels() %}
-        self.master_rd[{{ loop.index0 }}] = {{ 'AXI5MasterRead' if is_axi5 else 'AXI4MasterRead' }}(
+        self.master_rd[{{ loop.index0 }}] = {{ 'AXI3MasterRead' if is_axi3 else ('AXI5MasterRead' if is_axi5 else 'AXI4MasterRead') }}(
             self.dut, self.clock,
             prefix="{{ master.prefix }}",
             log=self.log,
@@ -518,7 +546,7 @@ class {{ tb_class_name }}(TBBase):
         )
 {% endif %}
 {% if master.has_write_channels() %}
-        self.master_wr[{{ loop.index0 }}] = {{ 'AXI5MasterWrite' if is_axi5 else 'AXI4MasterWrite' }}(
+        self.master_wr[{{ loop.index0 }}] = {{ 'AXI3MasterWrite' if is_axi3 else ('AXI5MasterWrite' if is_axi5 else 'AXI4MasterWrite') }}(
             self.dut, self.clock,
             prefix="{{ master.prefix }}",
             log=self.log,
@@ -684,7 +712,7 @@ class {{ tb_class_name }}(TBBase):
         )
 {% endif %}
 {% else %}
-        # AXI4 slave — full memory-backed BFM.
+        # AXI-family slave (axi3/axi4/axi5) — full memory-backed BFM.
         bytes_per_line = {{ slave.data_width }} // 8
         addr_range = {{ '0x%08x' % slave.addr_range }}
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
@@ -697,14 +725,20 @@ class {{ tb_class_name }}(TBBase):
             log=self.log,
         )
 {% set s_axi5 = slave.protocol.lower() == 'axi5' %}
+{% set s_axi3 = slave.protocol.lower() == 'axi3' %}
+{% if s_axi3 %}
+        # AXI3 completer port: the AXI3 slave BFMs demux interleaved W beats
+        # by WID and answer the 4-bit AXI3 burst length directly (bridge
+        # GitHub #99).
+{% endif %}
 {% if slave.has_read_channels() %}
-        self.slave_rd[{{ loop.index0 }}] = {{ 'AXI5SlaveRead' if s_axi5 else 'AXI4SlaveRead' }}(
+        self.slave_rd[{{ loop.index0 }}] = {{ 'AXI3SlaveRead' if s_axi3 else ('AXI5SlaveRead' if s_axi5 else 'AXI4SlaveRead') }}(
             self.dut, {{ slave_clock }},
             prefix="{{ slave.prefix }}",
             log=self.log,
             data_width={{ slave.data_width }},
             addr_width={{ slave.addr_width }},
-            id_width={{ slave_id_width }},  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
@@ -718,13 +752,13 @@ class {{ tb_class_name }}(TBBase):
         )
 {% endif %}
 {% if slave.has_write_channels() %}
-        self.slave_wr[{{ loop.index0 }}] = {{ 'AXI5SlaveWrite' if s_axi5 else 'AXI4SlaveWrite' }}(
+        self.slave_wr[{{ loop.index0 }}] = {{ 'AXI3SlaveWrite' if s_axi3 else ('AXI5SlaveWrite' if s_axi5 else 'AXI4SlaveWrite') }}(
             self.dut, {{ slave_clock }},
             prefix="{{ slave.prefix }}",
             log=self.log,
             data_width={{ slave.data_width }},
             addr_width={{ slave.addr_width }},
-            id_width={{ slave_id_width }},  # {master index, master id} (bridge TASK-005, was BRIDGE-016)
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
