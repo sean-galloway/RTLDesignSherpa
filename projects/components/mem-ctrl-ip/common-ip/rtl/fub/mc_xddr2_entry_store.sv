@@ -168,7 +168,6 @@ module mc_xddr2_entry_store
     logic [COL_WIDTH-1:0]r_wr_col;
     logic [IW-1:0]       r_wr_id;
     logic [3:0]          r_wr_qos;
-    logic                r_wr_agg;
     logic                r_wr_last;
 
     logic                w_aw_fire;
@@ -230,14 +229,13 @@ module mc_xddr2_entry_store
         if (`RST_ASSERTED(aresetn)) begin
             r_wr_bank <= '0; r_wr_row <= '0; r_wr_col <= '0;
             r_wr_id   <= '0; r_wr_qos <= '0;
-            r_wr_agg  <= 1'b0; r_wr_last <= 1'b0;
+            r_wr_last <= 1'b0;
         end else if (w_aw_fire) begin
             r_wr_bank <= aw_push_bank_i;
             r_wr_row  <= aw_push_row_i;
             r_wr_col  <= aw_push_col_i;
             r_wr_id   <= aw_push_id_i;
             r_wr_qos  <= aw_push_qos_i;
-            r_wr_agg  <= aw_push_agg_i;
             r_wr_last <= aw_push_last_i;
         end
     end)
@@ -269,7 +267,15 @@ module mc_xddr2_entry_store
     assign wr_cm_rd_strb_o  = w_wdfifo_rd_strb;
     assign wr_cm_rd_last_o  = w_wdfifo_rd_last;
 
-    assign wr_done_valid_o  = w_cm_fire && w_last_beat;
+    // B consolidation: the host burst AW was chopped by mc_wr_splitter into
+    // AXI_BEATS_PER_BURST-sized sub-bursts (agg=1, last=1 only on the final
+    // chunk; an unsplit burst arrives as agg=0, last=1). The AXI slave owes
+    // the host exactly ONE B per host AW -- emitting wr_done per sub-burst
+    // returns N B's for one AW, the engine's outstanding count desyncs, and
+    // the run hangs with everything drained (granite A7 bring-up, 2026-10-12;
+    // the pumice storage plane's wr data CAM aggregates instead, which is why
+    // only the storage-less SKU saw it).
+    assign wr_done_valid_o  = w_cm_fire && w_last_beat && r_wr_last;
     assign wr_done_id_o     = r_wr_id;
 
     // ======================================================================
@@ -330,7 +336,7 @@ module mc_xddr2_entry_store
         end
     end)
 
-    wire _unused_age = &{1'b0, sched_age_thresh_i};
+    wire _unused_age = &{1'b0, sched_age_thresh_i, aw_push_agg_i};
     wire _unused_wr_slot = &{1'b0, wr_commit_slot_i};
     wire _unused_rd_slot = &{1'b0, rd_issue_slot_i};
 

@@ -218,4 +218,6 @@ def test_granite_uart_smoke(request):
         sim_build=sim_build, simulator="verilator", extra_env=extra_env,
         parameters=params,
         compile_args=compile_args,
-        waves=False, keep_files=True, timescale="1ns/1ps")
+        waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        keep_files=True, timescale="1ns/1ps")
