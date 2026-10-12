@@ -50,7 +50,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.golden.amber_fsm_oracle impor
 )
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_oracle_tb import AmberOracleTB
 
-FILELIST_DIR = 'projects/components/cache-ip/amber-mesi-l1/rtl/filelists'
+FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 
 # ---------------------------------------------------------------------------
 # CRRESP wire-order constants ({WU[4],IS[3],PD[2],Err[1],DT[0]}), the same

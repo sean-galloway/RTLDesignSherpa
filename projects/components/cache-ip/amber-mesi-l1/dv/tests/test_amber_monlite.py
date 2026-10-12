@@ -38,7 +38,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_monlite_tb import AmberMonliteTB
 
-FILELIST_DIR = 'projects/components/cache-ip/amber-mesi-l1/rtl/filelists'
+FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 # test-side harness wrappers (pure wiring + observer taps; live with the
 # test, not in an RTL filelist -- the same sanctioned pattern as
 # amber_control_th.sv). amber_frontend_th is the closure under

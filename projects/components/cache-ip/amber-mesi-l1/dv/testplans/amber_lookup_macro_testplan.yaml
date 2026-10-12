@@ -8,10 +8,10 @@
 module: amber_lookup_macro
 rtl_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_lookup_macro_test.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_control.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_control.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_tag_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_data_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_repl.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_lookup_macro.py
 

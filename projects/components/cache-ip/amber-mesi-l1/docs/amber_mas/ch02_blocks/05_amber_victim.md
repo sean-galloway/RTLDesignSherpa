@@ -24,7 +24,7 @@
 # amber_victim: Depth-1 Victim Buffer
 
 **Module:** `amber_victim.sv`
-**Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
+**Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** Pre-RTL micro-architecture contract
 
 ---

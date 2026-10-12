@@ -10,13 +10,13 @@
 module: amber_coh_macro
 rtl_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_coh_macro_test.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_resp.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_control.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_pending_fill_bypass.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_victim.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_tag_array.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_data_array.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_repl.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_snoop_resp.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_control.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_pending_fill_bypass.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_victim.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_tag_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_data_array.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_repl.sv
   - rtl/amba/ace/axi4ace_snoop_slave.sv   # transport (cross-area, -f'd)
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_coh_macro.py

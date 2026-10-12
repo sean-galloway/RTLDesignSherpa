@@ -9,7 +9,7 @@
 
 module: amber_fill
 rtl_files:
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_fill.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_fill.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_fill_drain.py
 

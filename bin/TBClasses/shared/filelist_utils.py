@@ -182,6 +182,7 @@ def get_sources_from_filelist(repo_root, filelist_path=None, *, module=None):
         'CONVERTERS_ROOT': os.path.join(components_root, 'utility-ip', 'converters'),
         'DELTA_ROOT': os.path.join(components_root, 'noc-ip', 'delta'),
         'AMBER_ROOT': os.path.join(components_root, 'cache-ip', 'amber-mesi-l1'),
+        'CACHE_COMMON_ROOT': os.path.join(components_root, 'cache-ip', 'common-ip'),
         'KESTREL_ROOT': os.path.join(components_root, 'riscv-ip', 'kestrel-rv32i'),
         'MISC_ROOT': os.path.join(components_root, 'utility-ip', 'misc'),
         'RAPIDS_ROOT': os.path.join(components_root, 'dma-ip', 'rapids'),

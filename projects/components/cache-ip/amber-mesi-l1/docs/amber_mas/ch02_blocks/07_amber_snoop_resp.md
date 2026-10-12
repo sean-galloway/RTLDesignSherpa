@@ -24,7 +24,7 @@
 # amber_snoop_resp: Snoop Responder Adapter
 
 **Module:** `amber_snoop_resp.sv`
-**Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
+**Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed 2026-10-06; this chapter is the contract the RTL
 implements. Wraps the house `axi4ace_snoop_slave` transport (which exists in
 `rtl/amba/ace` — confirmed). DV: `dv/tests/fub/test_amber_snoop_resp.py`,

@@ -63,7 +63,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.golden import (
 )
 
 
-FILELIST_DIR = 'projects/components/cache-ip/amber-mesi-l1/rtl/filelists'
+FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 DUT_TOP = 'amber_core'
 TEST_PREFIX = 'amber_parity'
 TRACES_DIR = os.path.join(repo_root,

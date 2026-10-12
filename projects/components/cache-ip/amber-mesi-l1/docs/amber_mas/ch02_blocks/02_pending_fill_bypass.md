@@ -24,7 +24,7 @@
 # Pending-Fill Bypass Register
 
 **Module:** `amber_pending_fill_bypass.sv` (leaf, instantiated by `amber_control`)
-**Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
+**Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed (Task 4); built as a leaf (DECISION D-2) so Task 13
 proves it standalone. Integration scenarios:
 `dv/testplans/amber_pending_fill_bypass_testplan.yaml` (via the

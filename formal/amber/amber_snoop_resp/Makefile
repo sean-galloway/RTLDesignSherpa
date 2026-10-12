@@ -10,10 +10,10 @@
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := $(REPO_ROOT)/projects/components/cache-ip/amber-mesi-l1/rtl/includes/amber_pkg.sv
+PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/amber_pkg.sv
 SRCS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/ace/axi4ace_snoop_slave.sv \
-        $(REPO_ROOT)/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_resp.sv
+        $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/amber_snoop_resp.sv
 TMPDIR := /tmp/formal_amber_snoop_resp
 
 .PHONY: prove cover all clean

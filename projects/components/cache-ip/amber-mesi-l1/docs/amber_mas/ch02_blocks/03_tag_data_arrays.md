@@ -24,7 +24,7 @@
 # amber_tag_array and amber_data_array
 
 **Modules:** `amber_tag_array.sv`, `amber_data_array.sv`
-**Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
+**Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed 2026-10-06; this chapter is the micro-architecture
 contract the RTL implements. DV: `dv/tests/fub/test_amber_{tag,data}_array.py`,
 green at gate/func/full across the default and tiny-formal geometries.

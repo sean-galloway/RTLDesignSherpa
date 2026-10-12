@@ -1,5 +1,5 @@
 # Filelist for amber_fill
-# Location: projects/components/cache-ip/amber-mesi-l1/rtl/filelists/amber_fill.f
+# Location: projects/components/cache-ip/common-ip/rtl/filelists/amber_fill.f
 #
 # Fill path: AXI4 read-master sequencing engine (MAS ch02_blocks/06) driving
 # the fub_axi_* upstream side of the house axi4_master_rd wrapper (DECISION
@@ -9,7 +9,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
 # Shared amber package
--f $AMBER_ROOT/rtl/filelists/amber_pkg.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/amber_pkg.f
 
 # R-beat staging queue (DECISION D-6)
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
@@ -17,4 +17,4 @@
 # AXI4 read-master transport (complete closure; no rtl/amba sources hand-listed)
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
-$AMBER_ROOT/rtl/fub/amber_fill.sv
+$CACHE_COMMON_ROOT/rtl/fub/amber_fill.sv

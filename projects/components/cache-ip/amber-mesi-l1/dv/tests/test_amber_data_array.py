@@ -27,7 +27,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_data_array_tb import AmberDataArrayTB
 
-FILELIST_DIR = 'projects/components/cache-ip/amber-mesi-l1/rtl/filelists'
+FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 
 # (sets, ways, line_bytes, bus_width): proposed geometry + narrow config
 GEOMS = [

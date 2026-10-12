@@ -11,7 +11,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
 # Shared amber package (amber_ace_req_t)
--f $AMBER_ROOT/rtl/filelists/amber_pkg.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/amber_pkg.f
 
 # The combinational map itself
 $AMBER_ROOT/rtl/fub/amber_ace_issue.sv

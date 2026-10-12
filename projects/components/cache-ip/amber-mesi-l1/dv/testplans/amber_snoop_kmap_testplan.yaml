@@ -3,8 +3,8 @@
 
 module: amber_snoop_kmap
 rtl_files:
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_snoop_kmap.sv
-  - projects/components/cache-ip/amber-mesi-l1/rtl/includes/amber_pkg.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_snoop_kmap.sv
+  - projects/components/cache-ip/common-ip/rtl/includes/amber_pkg.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_snoop_kmap.py
 

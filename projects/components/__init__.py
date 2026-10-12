@@ -26,7 +26,7 @@ _ALIASES = {
     "noc_ip": "noc-ip",                # delta
     "compute_eng_ip": "compute-eng-ip",  # hive
     "ecc_ip": "ecc-ip",                # reed-solomon, bch
-    "cache_ip": "cache-ip",            # amber-mesi-l1, onyx-ace-ccu
+    "cache_ip": "cache-ip",            # amber-mesi-l1, jet-mesi-l1, onyx-ace-ccu, basalt-moesi-l2, common-ip
     "fabric_gen_ip": "fabric-gen-ip",  # apbx-xbar, bridge
     "mem_ctrl_ip": "mem-ctrl-ip",      # pumice, scoria, andesite
 }

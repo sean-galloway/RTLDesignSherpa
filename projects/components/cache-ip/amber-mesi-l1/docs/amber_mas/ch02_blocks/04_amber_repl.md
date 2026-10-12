@@ -24,7 +24,7 @@
 # amber_repl: Replacement Policy Engine
 
 **Module:** `amber_repl.sv`
-**Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
+**Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed 2026-10-06; this chapter is the micro-architecture
 contract the RTL implements. DV: `dv/tests/fub/test_amber_repl.py`, green at
 gate/func/full across all four policies x {128/4, 16/2, 64/8} geometries.

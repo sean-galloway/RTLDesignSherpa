@@ -6,7 +6,7 @@
 # the shared amber package.
 
 # Shared amber package
--f $AMBER_ROOT/rtl/filelists/amber_pkg.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/amber_pkg.f
 
 # The fabric
 $AMBER_ROOT/rtl/top/amber_pair_fabric.sv

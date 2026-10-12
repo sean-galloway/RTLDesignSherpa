@@ -26,7 +26,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_snoop_kmap_tb import AmberSnoopKmapTB
 
-FILELIST_DIR = 'projects/components/cache-ip/amber-mesi-l1/rtl/filelists'
+FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")

@@ -38,7 +38,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_fill_drain_tb import AmberFillDrainTB
 
-FILELIST_DIR = 'projects/components/cache-ip/amber-mesi-l1/rtl/filelists'
+FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 # test-side harness wrapper (pure wiring; lives with the test, not in an RTL
 # filelist -- the same sanctioned pattern as other tb_*.sv harnesses)
 HARNESS = 'projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_fill_drain_th.sv'

@@ -1,5 +1,5 @@
 # Filelist for amber_control
-# Location: projects/components/cache-ip/amber-mesi-l1/rtl/filelists/amber_control.f
+# Location: projects/components/cache-ip/common-ip/rtl/filelists/amber_control.f
 #
 # Blocking-pipeline control FSM (MAS ch02_blocks/01). Flops with reset, so
 # the reset macro header comes first, then the package, then the module.
@@ -10,12 +10,12 @@
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
 # Shared amber package
--f $AMBER_ROOT/rtl/filelists/amber_pkg.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/amber_pkg.f
 
 # Pending-fill bypass register (instantiated by amber_control)
--f $AMBER_ROOT/rtl/filelists/amber_pending_fill_bypass.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/amber_pending_fill_bypass.f
 
 # Depth-1 victim buffer (instantiated by amber_control)
--f $AMBER_ROOT/rtl/filelists/amber_victim.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/amber_victim.f
 
-$AMBER_ROOT/rtl/fub/amber_control.sv
+$CACHE_COMMON_ROOT/rtl/fub/amber_control.sv

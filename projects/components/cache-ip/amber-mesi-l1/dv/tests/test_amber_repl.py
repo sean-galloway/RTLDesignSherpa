@@ -26,7 +26,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_repl_tb import AmberReplTB
 
-FILELIST_DIR = 'projects/components/cache-ip/amber-mesi-l1/rtl/filelists'
+FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 
 # (policy_name, policy_int): ints are the amber_repl_t encodings in amber_pkg
 POLICIES = [

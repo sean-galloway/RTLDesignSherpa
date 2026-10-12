@@ -1,5 +1,5 @@
 # Filelist for amber_monlite
-# Location: projects/components/cache-ip/amber-mesi-l1/rtl/filelists/amber_monlite.f
+# Location: projects/components/cache-ip/common-ip/rtl/filelists/amber_monlite.f
 #
 # Drop-and-count MonBus observer (MAS ch04): emits 128-bit house-format
 # packets for the Table 4.1.1 event classes, PROTOCOL_CORE + house
@@ -15,9 +15,9 @@
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 
 # Shared amber package (AMBER_EV_* event codes, geometry)
--f $AMBER_ROOT/rtl/filelists/amber_pkg.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/amber_pkg.f
 
 # MonBus output queue (DECISION D11 shared storage primitive)
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 
-$AMBER_ROOT/rtl/fub/amber_monlite.sv
+$CACHE_COMMON_ROOT/rtl/fub/amber_monlite.sv

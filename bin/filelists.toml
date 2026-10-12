@@ -86,6 +86,20 @@ rtl_roots = ["projects/components/cache-ip/amber-mesi-l1/rtl"]
 filelist_dirs = ["projects/components/cache-ip/amber-mesi-l1/rtl/filelists"]
 
 [[area]]
+name = "cache-common"
+kind = "library"
+# cache-ip family shared home, created 2026-10-11 (owner directive): the MESI
+# L1 core that amber and jet both inherit -- amber_pkg, the amber_core leaf
+# FUBs, and amber_core itself, with their filelists. Module names keep the
+# amber_ prefix (a rename, if ever wanted, is its own task). The integration
+# tops that differ per IP (amber_top, amber_ace_top, amber_ace_issue,
+# amber_pair_fabric) stay in their owning component dirs. Same library posture
+# as the cdc area: shared deps other areas USE stay here and are reached by
+# -f include.
+rtl_roots = ["projects/components/cache-ip/common-ip/rtl"]
+filelist_dirs = ["projects/components/cache-ip/common-ip/rtl/filelists"]
+
+[[area]]
 name = "misc"
 kind = "component"
 # Small shared oddments (dma_address_gen, simple_rom, axi4_slave_rom). It had no

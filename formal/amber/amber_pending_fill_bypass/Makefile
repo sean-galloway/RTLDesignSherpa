@@ -10,8 +10,8 @@
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := $(REPO_ROOT)/projects/components/cache-ip/amber-mesi-l1/rtl/includes/amber_pkg.sv
-SRCS := $(REPO_ROOT)/projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_pending_fill_bypass.sv
+PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/amber_pkg.sv
+SRCS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/amber_pending_fill_bypass.sv
 TMPDIR := /tmp/formal_amber_pending_fill_bypass
 
 .PHONY: prove cover all clean

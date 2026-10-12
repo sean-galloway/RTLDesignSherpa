@@ -92,15 +92,24 @@ filelists registry, Pattern-B cocotb tests) and the mandatory rules in
 [`../../CLAUDE.md`](../../CLAUDE.md) (reset macros, shared `sdpram_core` /
 FIFO primitives, array syntax).
 
-RTL layout as landed (Sean, 2026-10-06 conventions):
+RTL layout as landed (Sean, 2026-10-06 conventions; core moved to
+`../common-ip/` 2026-10-11 so jet can inherit it — see
+[`../common-ip/README.md`](../common-ip/README.md)):
 
-- `rtl/includes/` — `amber_pkg.sv`: the shared package (geometry defaults,
-  state/snoop encodings, Table 3.0 decode). Packages live here, not in `fub/`.
-- `rtl/fub/` — the leaf blocks (snoop kmap, tag/data arrays, repl,
-  snoop responder).
-- `rtl/top/` — the top-level wrappers, named `<ip>_top.sv`. amber has two
+- `rtl/includes/`, `rtl/fub/` (12 leaf blocks), `rtl/top/amber_core.sv` —
+  now live in `../common-ip/rtl/`. The MESI L1 core — package, arrays,
+  replacement, snoop responder, control/fill/drain/frontend/monlite/victim —
+  is shared IP; amber and jet both instantiate `amber_core` from there.
+- `rtl/fub/amber_ace_issue.sv` — the coherent-transaction issuer stays
+  here: per the jet inheritance contract it is top-wrapping amber owns
+  (the Table 2.8.1 event-to-transaction map).
+- `rtl/top/` — the integration tops, named `<ip>_top.sv`. amber has two
   rigs sharing `amber_core`: `amber_top.sv` (pair rig, plain AXI4) and
-  `amber_ace_top.sv` (onyx rig, ACE) land here when they exist.
-- `rtl/filelists/` — hand-maintained per-module lists plus `amber_all.f`.
+  `amber_ace_top.sv` (onyx rig, ACE).
+- `rtl/filelists/` — amber's integration lists (`amber_top.f`,
+  `amber_ace_top.f`, `amber_pair_fabric.f`, `amber_ace_issue.f`) plus
+  `amber_all.f`, the whole-closure list. The core/fub lists moved with
+  the RTL to `../common-ip/rtl/filelists/` and resolve there through
+  `$CACHE_COMMON_ROOT`.
 - `dv/tests/fub/`, `dv/tbclasses/` — Pattern-B grids (fine for a block this
   size; larger IPs split dv/tests into fub/macro/top sub-areas).

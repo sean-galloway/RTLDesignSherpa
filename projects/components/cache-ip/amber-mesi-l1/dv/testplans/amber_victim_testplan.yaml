@@ -7,7 +7,7 @@
 
 module: amber_victim
 rtl_files:
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_victim.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/amber_victim.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_control.py
 

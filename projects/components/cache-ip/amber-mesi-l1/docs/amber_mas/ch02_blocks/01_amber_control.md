@@ -24,7 +24,7 @@
 # amber_control: Blocking Pipeline FSM
 
 **Module:** `amber_control.sv`
-**Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
+**Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** Landed (Task 3: CPU path; Task 4: snoop-during-fill service +
 pending-fill bypass leaf); scored against the Task 2 gem5-derived oracle at
 gate/func/full, geometries s16w2 + s128w4

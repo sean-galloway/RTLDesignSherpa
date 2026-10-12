@@ -10,10 +10,10 @@
 # sources only via their own filelists.
 
 # Shared amber package
--f $AMBER_ROOT/rtl/filelists/amber_pkg.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/amber_pkg.f
 
 # The core closure (nine landed FUBs + their house deps)
--f $AMBER_ROOT/rtl/filelists/amber_core.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/amber_core.f
 
 # The Table 2.8.1 event->transaction map (own RTL; pkg-only closure)
 -f $AMBER_ROOT/rtl/filelists/amber_ace_issue.f

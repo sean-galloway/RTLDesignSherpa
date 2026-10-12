@@ -1,9 +1,9 @@
 # Filelist for amber_pkg
-# Location: projects/components/cache-ip/amber-mesi-l1/rtl/filelists/amber_pkg.f
+# Location: projects/components/cache-ip/common-ip/rtl/filelists/amber_pkg.f
 #
 # Shared package for the amber MESI L1: geometry parameter defaults (HAS
 # Table 5.0), derived quantities, MESI state encodings, snoop encodings,
 # policy enums, and the HAS Table 3.0 snoop CRRESP / next-state decode.
 # Listed FIRST by every other amber filelist -- nothing here elaborates alone.
 
-$AMBER_ROOT/rtl/includes/amber_pkg.sv
+$CACHE_COMMON_ROOT/rtl/includes/amber_pkg.sv

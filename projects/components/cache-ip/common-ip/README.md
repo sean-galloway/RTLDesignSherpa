@@ -1,0 +1,56 @@
+# common-ip — the cache-ip shared home
+
+The MESI L1 core that more than one cache IP instantiates. Created
+2026-10-11 (owner directive) when jet-mesi-l1's inheritance contract made
+"amber's core lives in amber's directory" the wrong home: anything two IPs
+compile against belongs to neither of them.
+
+## What lives here
+
+- `rtl/includes/amber_pkg.sv` — the shared package (geometry defaults,
+  state/snoop encodings, Table 3.0 decode).
+- `rtl/fub/` — the twelve core leaf blocks: snoop kmap, tag/data arrays,
+  replacement engine, snoop responder, control, pending-fill bypass, fill,
+  drain, CPU frontend, monlite, victim.
+- `rtl/top/amber_core.sv` — the core itself: pure structural integration of
+  the twelve FUBs (MAS ch01 hierarchy).
+- `rtl/filelists/` — the per-module closure lists for everything above.
+  They resolve through `$CACHE_COMMON_ROOT` (exported by
+  [`env_python`](../../../../env_python), mirrored in
+  [`bin/TBClasses/shared/filelist_utils.py`](../../../../bin/TBClasses/shared/filelist_utils.py)
+  and [`bin/filelist_registry.py`](../../../../bin/filelist_registry.py)).
+
+## The sharing contract
+
+Inherited by every consumer, as recorded in
+[`../jet-mesi-l1/README.md`](../jet-mesi-l1/README.md) and its HAS: the
+CPU-side front end, tag/data arrays, replacement engine, and snoop responder
+come from here whole. What differs per IP — the fabric master stack and the
+coherent-transaction issuer — lives in the consumer's own top wrapper
+(amber's `amber_ace_issue`, tops, and fabric stay in
+[`../amber-mesi-l1/`](../amber-mesi-l1/)). A consumer that needs to modify a
+block here inherits the obligation to re-run the whole verification baseline
+(proofs and golden-model parity), not assume it.
+
+Module names keep the `amber_` prefix: a rename to a neutral prefix (if ever
+wanted) is its own task with its own re-validation, and the jet documents
+already cite `amber_core` by name.
+
+## What deliberately does not live here (yet)
+
+- Integration tops and IP-specific issuers — owned by each IP dir.
+- The `cache_sim` golden model — currently in
+  [`../amber-mesi-l1/dv/golden/`](../amber-mesi-l1/dv/golden/); it moves here
+  when jet's DV starts extending it (its consumer arrives with it).
+- onyx/basalt RTL — onyx is a coherency manager, not a cache; basalt is
+  penciled only. Neither shares RTL with the L1 core today.
+
+## References
+
+- [`../amber-mesi-l1/`](../amber-mesi-l1/) — the proving IP: every block
+  here was designed, verified, and documented in amber first (amber MAS ch01
+  block hierarchy, ch05 verification).
+- [`../jet-mesi-l1/`](../jet-mesi-l1/) — the inheriting IP: the contract
+  above is its documented starting position.
+- ACE coherency contract the snoop responder implements:
+  [`../References/AMBA_ACE_Interface_Definition.md`](../References/AMBA_ACE_Interface_Definition.md).

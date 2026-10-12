@@ -26,7 +26,7 @@
 
 module: amber_parity
 rtl_files:
-  - projects/components/cache-ip/amber-mesi-l1/rtl/top/amber_core.sv
+  - projects/components/cache-ip/common-ip/rtl/top/amber_core.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_parity.py
 

@@ -44,7 +44,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_miss_fill_mac
     AmberMissFillMacroTB,
 )
 
-FILELIST_DIR = 'projects/components/cache-ip/amber-mesi-l1/rtl/filelists'
+FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 # test-side wrapper (pure wiring; lives with the test, not in an RTL
 # filelist -- the same sanctioned pattern as the other tb_* harnesses)
 HARNESS = 'projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_miss_fill_macro_test.sv'
