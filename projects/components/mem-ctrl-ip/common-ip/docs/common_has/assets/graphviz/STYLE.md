@@ -67,7 +67,13 @@ re-enters at the bottom and leaves at the top or side on its own route.
    graphviz this is `shape=invtrapezium`: graphviz's plain `trapezium` is
    narrow-edge-up and renders as an upside-down mux. Draw it flat and wide
    (the reference's shallow sliver), not tall — set `width` generously and
-   keep the label short.
+   keep the label short. **Every arrow that enters the trapezium carries a
+   transaction-class label** (`WR / RMW`, `RD`, `REF / ZQ`, `timer window`)
+   — an unlabeled arrow into the funnel reads as a mux select line, and a
+   fan of selects with no visible exit is exactly the "mux with nothing
+   coming out" failure. **The command output leaves the narrow edge with a
+   heavier pen** (`penwidth=1.8`) and its label (`DDR Command`) so the
+   funnel's exit reads at a glance.
 
 ## Labels
 

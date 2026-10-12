@@ -84,11 +84,11 @@ digraph whole_unit {
     rbuf -> axi_rd [constraint=false];
 
     // ---- maintenance + timing into the pick ----
-    maint -> sched;
-    tctl -> sched;
+    maint -> sched [label="REF / ZQ"];
+    tctl -> sched [label="timer window"];
 
     // ---- scheduler to PHY ----
-    sched -> phy [label="DDR Command"];
+    sched -> phy [label="DDR Command", penwidth=1.8];
 
     // ---- rank pinning (mirrors the reference layout) ----
     { rank=same; axi_wr; axi_rd; }

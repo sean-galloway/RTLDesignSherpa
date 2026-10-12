@@ -30,8 +30,8 @@ digraph mc_scheduler_layer {
     wr_arb -> sched [label="WR"];
     rd_arb -> sched [label="RD"];
     maint  -> sched [label="REF"];
-    tctl   -> sched;
-    sched  -> cmd_out [label="DDR Command"];
+    tctl   -> sched [label="timer window"];
+    sched  -> cmd_out [label="DDR Command", penwidth=1.8];
 
     // ---- rank pinning ----
     { rank=same; sch_in; }
