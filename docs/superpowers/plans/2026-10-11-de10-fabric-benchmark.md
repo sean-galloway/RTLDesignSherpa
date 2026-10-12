@@ -192,6 +192,6 @@
 - **Review Focus:** (1) covered by `check_ddr3_ready` in Task 5 Step 1 + fail-fast in every seq; (2) covered by W2-vs-W1 attribution note in Task 9 Step 1 and the loopback latency datapoint in Task 5 Step 2; (3) Task 9 Step 1; (4) Task 7 Step 1 mirrors `legb_topology.txt` exactly; (5) Task 7 Step 2.
 - **Proportion:** PRD is ~300 lines; this plan is ~250 — within proportion. The heavy lifting (qsys TCL bodies, harness RTL) is deliberately left to the implementer with only interfaces fixed.
 
-## Open dependency
+## Merge interpretation (owner-confirmed 2026-10-11)
 
-The stream/pumice merge interpretation (structure above) is the recommended reading of the owner's note; if the intent was "pumice as an additional benchmark leg" or "pumice generators as the PRBS source", Tasks 6 and 8 change scope and the plan will be revised before execution.
+The owner's "combine the stream and the pumice builds" note is resolved as **harness-structure merge**: stream contributes the block cast, register-map, and obs conventions; pumice contributes board lifecycle (registry/lock/sequences/CSV). Both source flows are Vivado; the Quartus flow layer is new (Task 3).
