@@ -1,0 +1,9 @@
+config,scenario,ok,blen,gap,id,wr_MB_s,rd_MB_s,peak,rd_pct_pk,wr_util,rd_util,rd_lat,hit_pct,ACT_per_txn,ACT
+close_page,incremental_bl8,Y,8,0,fix,40.0,46.1,600,7.7%,0.3%,0.2%,383.9,0.0%,8.01,64061
+close_page,col_major_bl8,Y,8,0,fix,38.9,45.0,600,7.5%,0.3%,0.2%,383.9,0.0%,8.00,64000
+bank_interleave,incremental_bl8,Y,8,0,fix,151.5,151.5,600,25.3%,0.3%,0.2%,192.0,0.0%,8.16,65294
+bank_interleave,col_major_bl8,Y,8,0,fix,151.5,151.5,600,25.2%,0.3%,0.2%,111.6,0.0%,8.16,65300
+open_page,incremental_bl8,Y,8,0,fix,555.5,561.2,600,93.5%,0.3%,0.2%,50.4,99.5%,0.05,367
+open_page,col_major_bl8,Y,8,0,fix,192.5,195.2,600,32.5%,0.3%,0.2%,112.1,87.4%,1.01,8055
+inorder,incremental_bl8,Y,8,0,fix,39.0,44.8,600,7.5%,0.3%,0.2%,383.9,0.0%,8.07,64565
+inorder,col_major_bl8,Y,8,0,fix,38.9,45.0,600,7.5%,0.3%,0.2%,383.9,0.0%,8.00,64000
