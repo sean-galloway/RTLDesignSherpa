@@ -170,7 +170,7 @@ The snoop-side `_monlite` wrappers instantiate `axi4ace_snoop_monitor_lite`. See
 
 ## References
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022H.c, Jan. 2021. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h). — Part D: §D3.6 snoop address channel, §D3.7 snoop response channel ("all snoop transactions are ordered"), §D3.8 snoop data channel (data in snoop-address order). The in-order attribution this monitor uses is that rule; no paper is needed for it.
 - Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). — related work: event-based hardware monitoring of an interconnect.

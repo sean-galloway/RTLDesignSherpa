@@ -215,7 +215,7 @@ Treat any behaviour described on this page as unverified by simulation.
 
 ### Related work and specifications
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). — the specification defines no transaction timeout, so the timeout window is a monitor policy; per-transaction watchdogs are a standard technique with no paper.
 - Vermeulen, B. "Functional Debug Techniques for Embedded Systems." *IEEE Design & Test of Computers*, 25(3):208-215, May/June 2008. DOI: [10.1109/MDT.2008.66](https://doi.org/10.1109/MDT.2008.66). — survey of functional silicon debug, for context on detecting hangs.

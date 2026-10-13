@@ -399,7 +399,7 @@ idle re-gates). `val/amba/monitor-lite/test_axis{4,5}_{master,slave}_monlite[_cg
 
 ## References
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). -- AXI4/AXI5 channels, §A2.3.1 handshake, §A5.1 transaction identifiers.
 - Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022H.c, Jan. 2021. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h). -- Part B ch. B1 (AXI4-Lite), Part D §D3.6-§D3.8 (ACE snoop channels) for the Lite and ACE wrappers.

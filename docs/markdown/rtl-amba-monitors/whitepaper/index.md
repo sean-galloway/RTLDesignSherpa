@@ -21,19 +21,20 @@
 
 <!-- End Header -->
 
-# The Monitor System as a Design Surface
+# Ocelus as a Design Surface
 
-The monitor system white paper, as a book: one chapter per file, in reading
-order, built to `docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf` by
+The Ocelus white paper — Ocelus, branded Ocelus — as a book: one
+chapter per file, in reading order, built to
+`docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf` by
 `docs/markdown/generate_rtl_pdfs.sh monitor-wp` -- the same flow as every RTL
-library book. Revision 1.1 (2026-09-28); the revision is read from the front
+library book. Revision 1.2 (2026-10-12); the revision is read from the front
 matter, so bump it there.
 
 This list is the build order: every `.md` link on this page is inlined into
 the PDF in sequence, which is why orientation lives in `overview.md` beside
 this file rather than here.
 
-0. [The Monitor System as a Design Surface](00_front_matter.md)
+0. [The Ocelus as a Design Surface](00_front_matter.md)
 1. [The spine](01_the_spine.md)
 2. [Which monitor: the lite, unless you can say why not](02_which_monitor.md)
 3. [Identity space allocation](03_identity_space_allocation.md)
@@ -45,6 +46,7 @@ this file rather than here.
 9. [What it costs](09_what_it_costs.md)
 10. [Validating a tweak in simulation](10_validating_a_tweak_in_simulation.md)
 11. [Out of scope](11_out_of_scope.md)
+12. [Relationship to Nexus (IEEE-ISTO 5001)](12_relationship_to_nexus.md)
 
 Figures are the shared `../../assets/rtl-amba/monitor_wp_*.png` (mermaid
 sources beside them under `assets/mermaid/`). The per-module pages the paper

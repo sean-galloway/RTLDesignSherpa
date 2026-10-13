@@ -21,9 +21,10 @@
 
 <!-- End Header -->
 
-# The Monitor System
+# The Ocelus Architecture
 
-**What it is:** on-chip observability that emits a fixed 128-bit packet whenever
+**What it is:** Ocelus -- from the Latin ocellus, "little eye"; a bee's
+simple always-on eye -- on-chip observability that emits a fixed 128-bit packet whenever
 something worth knowing about happens -- an error, a timeout, a completion, a
 performance sample, a debug trace point -- and a set of transports that get
 those packets off the chip.
@@ -623,7 +624,7 @@ Two that have bitten before:
 
 ## References
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). -- related work: an event-based monitoring service built from hardware probes.
 - Goossens, K., Vermeulen, B., van Steeden, R., Bennebroek, M. "Transaction-Based Communication-Centric Debug." *Proc. 1st Int. Symp. Networks-on-Chip (NOCS 2007)*, pp. 95-106, May 2007. DOI: [10.1109/NOCS.2007.46](https://doi.org/10.1109/NOCS.2007.46). -- related work: monitors plus a dedicated event-distribution interconnect.

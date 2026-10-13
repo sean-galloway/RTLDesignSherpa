@@ -46,7 +46,7 @@ when it is, because it needs no new field and no host-side re-basing.
 
 ## References
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Lamport, L. "Time, Clocks, and the Ordering of Events in a Distributed System." *Communications of the ACM*, 21(7):558-565, July 1978. DOI: [10.1145/359545.359563](https://doi.org/10.1145/359545.359563). -- for ordering events across groups that share no clock.
 - IEEE Std 1588-2008. *IEEE Standard for a Precision Clock Synchronization Protocol for Networked Measurement and Control Systems*, IEEE, July 2008. DOI: [10.1109/IEEESTD.2008.4579760](https://doi.org/10.1109/IEEESTD.2008.4579760). -- the precision time protocol named here as an external time source.

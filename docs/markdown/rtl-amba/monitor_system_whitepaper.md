@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# The Monitor System as a Design Surface
+# The Ocelus as a Design Surface
 
 **Moved 2026-09-29.** The white paper is now a book with one chapter per file,
 so it renders through the same PDF flow as the module references:

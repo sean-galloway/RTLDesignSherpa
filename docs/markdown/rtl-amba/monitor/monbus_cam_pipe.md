@@ -300,7 +300,7 @@ Additional coverage:
 
 ## References
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Bentley, J.L., Sleator, D.D., Tarjan, R.E., Wei, V.K. "A Locally Adaptive Data Compression Scheme." *Communications of the ACM*, 29(4):320-330, Apr. 1986. DOI: [10.1145/5684.5688](https://doi.org/10.1145/5684.5688). — move-to-front list coding, comparable to the MRU-at-slot-0 order.
 - Uzelac, V., Milenković, A. "A Real-Time Program Trace Compressor Utilizing Double Move-to-Front Method." *Proc. 46th Design Automation Conf. (DAC 2009)*, pp. 738-743, July 2009. DOI: [10.1145/1629911.1630102](https://doi.org/10.1145/1629911.1630102). — related work: move-to-front in a hardware trace compressor.

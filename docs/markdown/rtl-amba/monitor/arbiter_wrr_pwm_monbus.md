@@ -424,7 +424,7 @@ pytest val/amba/test_arbiter_wrr_pwm_monbus.py -v
 
 ## References
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Katevenis, M., Sidiropoulos, S., Courcoubetis, C. "Weighted Round-Robin Cell Multiplexing in a General-Purpose ATM Switch Chip." *IEEE J. Selected Areas in Communications*, 9(8):1265-1279, Oct. 1991. DOI: [10.1109/49.105173](https://doi.org/10.1109/49.105173). — interleaved weighted round robin, the credit scheme of the `arbiter_round_robin_weighted` core (indexed in `rtl/common/references/README.md`).
 - Gupta, P., McKeown, N. "Designing and Implementing a Fast Crossbar Scheduler." *IEEE Micro*, 19(1):20-28, Jan./Feb. 1999. DOI: [10.1109/40.748793](https://doi.org/10.1109/40.748793). — the round-robin core underneath the weighting layer.

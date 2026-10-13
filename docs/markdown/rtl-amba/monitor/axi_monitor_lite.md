@@ -414,7 +414,7 @@ consumers), `vault/Tasks/amba` amba/monitor-lite TASK-001 (the review that sized
 
 ## References
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Tamir, Y., Frazier, G.L. "High-Performance Multi-Queue Buffers for VLSI Communication Switches." *Proc. 15th Annual Int. Symp. Computer Architecture (ISCA 1988)*, pp. 343-354, May 1988. DOI: [10.1109/ISCA.1988.5245](https://doi.org/10.1109/ISCA.1988.5245). -- a comparable structure: per-queue linked lists through one shared buffer pool, here per-ID lists through the shared slot pool.
 - Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 17 "Router Datapath Components", §17.1.2 "Input Buffer Data Structures". -- textbook treatment (secondary source): head/tail pointers, next pointers and a free list.

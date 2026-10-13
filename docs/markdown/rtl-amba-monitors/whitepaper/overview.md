@@ -21,9 +21,10 @@
 
 <!-- End Header -->
 
-# Monitor System White Paper -- Orientation
+# Ocelus White Paper -- Orientation
 
-**What it is:** the monitor system seen from one level up -- for an SoC
+**What it is:** Ocelus -- from the Latin ocellus, "little eye"; a bee's
+simple always-on eye -- seen from one level up, for an SoC
 integrator deciding how to instrument a design, not for someone looking up a
 port. It names the spine (ports, arbiter tree, group, two drains), the six
 axes the integrator owns (identity allocation, insertion points, timestamp

@@ -372,7 +372,7 @@ the ACK or ready logic.
 
 ### Related work and specifications
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Gupta, P., McKeown, N. "Designing and Implementing a Fast Crossbar Scheduler." *IEEE Micro*, 19(1):20-28, Jan./Feb. 1999. DOI: [10.1109/40.748793](https://doi.org/10.1109/40.748793). — the round-robin core (`arbiter_round_robin`) this arbiter uses (indexed in `rtl/common/references/README.md`).
 - Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). — related work: monitoring traffic from many probes merged onto shared links.

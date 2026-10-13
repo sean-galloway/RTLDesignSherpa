@@ -490,7 +490,7 @@ Treat any behaviour described on this page as unverified by simulation.
 
 ### Related work and specifications
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). — §4.11 timestamping: a comparable optional timestamp in a debug standard. The 1 us prescaler (`counter_freq_invariant`) is a standard technique, indexed as such in `rtl/common/references/README.md`.
 - Indexed in `rtl/amba/references/README.md` (local PDF: `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`)

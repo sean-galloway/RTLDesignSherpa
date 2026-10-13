@@ -274,7 +274,7 @@ pytest val/amba/test_apb_monitor_addr_check.py -v
 
 ## References
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Arm. *AMBA APB Protocol Specification*, ARM IHI 0024E, Feb. 2023. [developer.arm.com/documentation/ihi0024/e](https://developer.arm.com/documentation/ihi0024/e). — §3.4 "Error response" (PSLVERR); the range check here is a monitor policy on PADDR, not a rule of the specification.
 - Boulé, M., Zilic, Z. "Efficient Automata-Based Assertion-Checker Synthesis of SEREs for Hardware Emulation." *Proc. Asia and South Pacific Design Automation Conf. (ASP-DAC 2007)*, pp. 324-329, Jan. 2007. DOI: [10.1109/ASPDAC.2007.358006](https://doi.org/10.1109/ASPDAC.2007.358006). — related work: checker circuits built in hardware for emulation and silicon; this checker is a hand-written parallel range compare.

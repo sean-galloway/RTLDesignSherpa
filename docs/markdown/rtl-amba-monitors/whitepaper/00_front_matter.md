@@ -21,18 +21,18 @@
 
 <!-- End Header -->
 
-# The Monitor System as a Design Surface
+# Ocelus as a Design Surface
 
 **Audience:** SoC integrators deciding how to instrument a design with the
-RTL Design Sherpa monitor system. **Not** a status snapshot of what is in the
+RTL Design Sherpa monitor system -- branded Ocelus. **Not** a status snapshot of what is in the
 tree (that is [overview.md](../../rtl-amba/overview.md)) and not a port list (those are the
 per-module pages under [monitor/](../../rtl-amba/monitor/)). This paper sits one level up:
 here is the spine, here are the six axes the integrator owns, and here is
 what each choice costs.
 
-**Version:** 1.1, 2026-09-28. Numbers are from the tree at that date;
+**Version:** 1.2, 2026-10-12. Numbers are from the tree at that date;
 each is cited to the page or report it comes from. Revision 1.1 makes the
 recommendation explicit: the lite monitor is the realistic choice on every
-port, and the full monitor is the exception you justify.
+port, and the full monitor is the exception you justify. Revision 1.2 (2026-10-12) brands the monitor system Ocelus and adds chapter 12, the standing comparison against Nexus (IEEE-ISTO 5001).
 
 ---

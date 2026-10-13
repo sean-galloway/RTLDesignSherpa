@@ -314,7 +314,7 @@ All properties proven via formal verification (see `formal/amba/axi_monitor_addr
 
 ## References
 
-The monitor system is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
+The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
 
 - Arm. *AMBA AXI Protocol Specification*, ARM IHI 0022, Issue L, Aug. 2025. [developer.arm.com/documentation/ihi0022/l](https://developer.arm.com/documentation/ihi0022/l). — §A2.3.1 handshake (the AR/AW acceptance this checker samples).
 - Boulé, M., Zilic, Z. "Efficient Automata-Based Assertion-Checker Synthesis of SEREs for Hardware Emulation." *Proc. Asia and South Pacific Design Automation Conf. (ASP-DAC 2007)*, pp. 324-329, Jan. 2007. DOI: [10.1109/ASPDAC.2007.358006](https://doi.org/10.1109/ASPDAC.2007.358006). — related work: hardware checker circuits; this block is a hand-written parallel range compare, formally verified in `formal/amba/axi_monitor_addr_check/`.

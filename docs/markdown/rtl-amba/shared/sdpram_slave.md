@@ -194,7 +194,7 @@ the port list shape and signal names differ.
 
 ## Related Modules
 
-### Use in the Monitor System
+### Use in Ocelus
 
 The `sdpram_slave_axil_axil` wrapper is the canonical SRAM-ring backend
 for the [`monbus_axil4_axil4_group`](../monitor/monbus_group.md) master writer —

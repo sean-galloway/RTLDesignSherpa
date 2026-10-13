@@ -304,7 +304,7 @@ explicit at the file level.
 ---
 
 ## Related Modules
-- **[The Monitor System](../monitor/monitor_system_architecture.md)** — architecture and capabilities: drain paths, capture strategies (bulk / compressed / counting), and the aggregation topology.
+- **[The Ocelus](../monitor/monitor_system_architecture.md)** — architecture and capabilities: drain paths, capture strategies (bulk / compressed / counting), and the aggregation topology.
 - **[`../monitor/axi_monitor_base.md`](../monitor/axi_monitor_base.md)** — Core monitor that emits packets.
 - **[`../monitor/axi_monitor_reporter.md`](../monitor/axi_monitor_reporter.md)** — Packet formatting logic (where `create_monitor_packet` is invoked).
 - **[`../monitor/axi_monitor_addr_check.md`](../monitor/axi_monitor_addr_check.md)** — Address-range checker, canonical example of structured `event_data`.
