@@ -183,6 +183,9 @@ class A7Leveling:
         # state, and must be re-applied after every soft_reset.
         self.lanes = lane_mask          # x16 -> both byte lanes together (0b11)
         self.verbose = verbose
+        # Marks the driver "inside a leveling sweep" so the start_rd
+        # unleveled-read warning stays quiet on our own test reads.
+        self.drv._leveling_active = True
 
     def _log(self, msg: str) -> None:
         if self.verbose:
@@ -289,6 +292,8 @@ class A7Leveling:
         res.ok = self._test()
         if not res.ok:
             res.notes.append("final verify at centred (bitslip, tap) failed")
+        else:
+            self.drv._phy_leveled_result = res   # ensure_leveled idempotency flag
         return res
 
     # ---- save / restore a known-good read window --------------------------
@@ -316,6 +321,8 @@ class A7Leveling:
                   f"-> verify {'OK' if res.ok else 'FAILED (re-level needed)'}")
         if not res.ok:
             res.notes.append("restored (bitslip,tap) failed verify — re-level")
+        else:
+            self.drv._phy_leveled_result = res   # ensure_leveled idempotency flag
         return res
 
     @staticmethod
@@ -332,6 +339,51 @@ class A7Leveling:
         return LevelingResult(ok=bool(d.get("ok", True)), bitslip=int(d["bitslip"]),
                               rd_tap=int(d["rd_tap"]),
                               rd_window=tuple(d.get("rd_window", (-1, -1))))
+
+
+def ensure_leveled(drv, level_cache: Optional[str] = None, *, hard: bool = False,
+                   verbose: bool = True, **lv_kw) -> "LevelingResult":
+    """Make the a7ddrphy read eye valid before ANY read traffic.
+
+    PHY leveling state (DQ IDELAY taps + bitslip windows) is volatile: every
+    FPGA reprogram / power cycle resets it, and the power-on state is
+    out-of-eye on this board -- reads before leveling return 100% garbage
+    (FINDINGS_granite_bringup_2026-10-11.md, 2026-10-12 resolution). Policy
+    mirrors LiteDRAM's BIOS: restore the cached (bitslip, tap) and verify
+    one write+read; on verify failure run the full A7Leveling sweep and
+    refresh the cache.
+
+    Idempotent per connection: A7Leveling.run/restore record their result on
+    the driver (``drv._phy_leveled_result``) and a later call returns it
+    without re-sweeping. ``hard=True`` raises instead of returning a failed
+    result -- run_matrix uses that so a matrix can never measure an
+    unleveled PHY. Callers on drivers without an a7ddrphy passthrough
+    (loopback sim, non-A7 targets) must gate on ``hasattr(drv, "phy_poke")``.
+    """
+    prev = getattr(drv, "_phy_leveled_result", None)
+    if prev is not None:
+        return prev
+    if level_cache is None:
+        level_cache = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "level_cache.json")
+    lv = A7Leveling(drv, verbose=verbose, **lv_kw)
+    if level_cache and os.path.exists(level_cache):
+        res = lv.restore(A7Leveling.load_level(level_cache))
+        if not res.ok:                             # stale cache -> full re-level
+            res = lv.run()
+    else:
+        res = lv.run()
+    if res.ok and level_cache:
+        A7Leveling.save_level(level_cache, res)
+        if verbose:
+            print(f"[ensure_leveled] cached -> {level_cache}")
+    if not res.ok:
+        msg = ("a7ddrphy read leveling found no (bitslip, tap) eye: "
+               + "; ".join(res.notes or ["final verify failed"]))
+        if hard:
+            raise RuntimeError(msg)
+        print(f"[ensure_leveled] WARNING: {msg}")
+    return res
 
 
 # =============================================================================
@@ -395,24 +447,12 @@ class SimpleTest:
         # they are always programmed explicitly rather than rmw-preserved.
         program_geometry(d, rd_phase=self.rd_phase, wr_phase=0)
         if do_leveling:
-            lv = A7Leveling(d, base_addr=self.base,
-                            t_phy_wrlat=self.t_phy_wrlat,
-                            t_rddata_en=self.t_rddata_en,
-                            rddata_delay=self.rddata_delay,
-                            rd_phase=self.rd_phase)
-            import os as _os
-            if self.level_cache and _os.path.exists(self.level_cache):
-                self.level = lv.restore(A7Leveling.load_level(self.level_cache))
-                if not self.level.ok:                     # stale -> re-level
-                    print("[simple] cached leveling failed verify; re-leveling")
-                    self.level = lv.run()
-                    if self.level.ok:
-                        A7Leveling.save_level(self.level_cache, self.level)
-            else:
-                self.level = lv.run()
-                if self.level.ok and self.level_cache:
-                    A7Leveling.save_level(self.level_cache, self.level)
-                    print(f"[simple] saved leveling -> {self.level_cache}")
+            self.level = ensure_leveled(d, level_cache=self.level_cache,
+                                        verbose=False, base_addr=self.base,
+                                        t_phy_wrlat=self.t_phy_wrlat,
+                                        t_rddata_en=self.t_rddata_en,
+                                        rddata_delay=self.rddata_delay,
+                                        rd_phase=self.rd_phase)
             if not self.level.ok:
                 print(f"[simple] WARNING: leveling not clean: {self.level.notes}")
 

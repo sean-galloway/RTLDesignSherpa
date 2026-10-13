@@ -72,7 +72,7 @@ from ddr2_char import DDR2CharDriver
 # wait-on-one-engine helper (write-then-read is phased). Imported from the
 # master program so there is exactly one implementation; pumice_master imports
 # this module lazily (in main), so there is no import cycle.
-from pumice_master import wait_engine
+from pumice_master import ensure_leveled, wait_engine
 
 
 # =============================================================================
@@ -1928,6 +1928,7 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                n_hot: Optional[int] = None,
                bank_spread: int = 1,
                cold_blen: int = 2,
+               do_leveling: bool = True, level_cache: Optional[str] = None,
                ) -> List[CharRecord]:
     """Run the scenario suite under EACH controller config -- the full
     (config x generator) matrix. Returns a flat list, each record tagged with
@@ -1936,7 +1937,17 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
     restricts the access patterns (default: all four).
 
     `txn_scale` multiplies every scenario's workload (cycles): 1 for a quick
-    sim-sized pass, ~1000 for a long FPGA soak (see build_suite)."""
+    sim-sized pass, ~1000 for a long FPGA soak (see build_suite).
+
+    `do_leveling` (default True) applies a7ddrphy read leveling before the
+    first measurement: the PHY tap/bitslip state is volatile (lost on every
+    reprogram / power cycle) and its power-on state is out-of-eye on this
+    board, so measuring before leveling returns garbage. No-op when the
+    driver was already leveled this connection (SimpleTest.init or a prior
+    ensure_leveled) or has no PHY passthrough (loopback sim / non-A7)."""
+    if do_leveling and callable(getattr(drv, "phy_poke", None)):
+        ensure_leveled(drv, level_cache=level_cache, hard=True, verbose=False)
+
     # clk_mhz=None means READ IT FROM THE BITSTREAM (BUILD_CLK_HZ).
     # Never default to a constant: bandwidth is (bytes/cycles)*clk_mhz,
     # so a wrong frequency silently rescales every number in the run.

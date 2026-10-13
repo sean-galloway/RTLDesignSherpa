@@ -71,6 +71,7 @@ class MockBridge:
     def __init__(self, dev: MockDevice):
         self.dev = dev
         self.regs = {}                       # keyed by register NAME
+        self._txn_count = {}                 # "<WR|RD>_GENn_BLEN_TXN" -> txn_count
         self._rm = UartRegisterMap(self, HARNESS_CSR_BASE,
                                    regmap_file=HARNESS_REGMAP)
         self._name = {self._rm.addr(rn): rn for rn in self._rm.registers}
@@ -88,6 +89,15 @@ class MockBridge:
         name = self._reg(addr)
         if name is not None:
             self.regs[name] = val
+        if name is not None and name.endswith("_BLEN_TXN"):
+            # Stash txn_count so the rd-phase GO can answer OBS_HIST_TOTAL
+            # with exactly what was programmed -- measure() 1:1-audits the
+            # read histogram against it.
+            try:
+                lo, w = self._cg._field_lo_width(name, "TXN_COUNT")
+                self._txn_count[name] = (val >> lo) & ((1 << w) - 1)
+            except Exception:                  # noqa: BLE001
+                pass
         if name == "PHY_CSR_ADDR":
             self.dev.phy_addr = val
         elif name == "PHY_CSR_WDATA":
@@ -114,6 +124,9 @@ class MockBridge:
                 self.regs["DONE"] = self.regs.get("DONE", 0) | (rd_mask << 8)
                 self.regs["CRC_MATCH"] = 1 if ok else 0
                 self.regs["ERRORS"] = 0 if ok else (rd_mask << 8)
+                g0 = (rd_mask & -rd_mask).bit_length() - 1
+                self.regs["OBS_HIST_TOTAL"] = self._txn_count.get(
+                    f"RD_GEN{g0}_BLEN_TXN", self.regs.get("OBS_HIST_TOTAL", 0))
                 for g in range(8):
                     if rd_mask >> g & 1:
                         self.regs[f"RD_GEN{g}_STATUS"] = 0b011 if ok else 0b111
@@ -155,9 +168,11 @@ class MockBridge:
                     "OBS_RD_IDLE", "OBS_WR_IDLE"):
             return 50
         if name == "OBS_HIST_COUNT":
-            return 7
+            return self.regs.get("OBS_HIST_COUNT", 7)
         if name == "OBS_HIST_TOTAL":
-            return 100
+            # Default models a busy histogram; the rd-phase GO rewrites it to
+            # the programmed txn_count so measure()'s 1:1 audit can pass.
+            return self.regs.get("OBS_HIST_TOTAL", 100)
         return self.regs.get(name, 0)
 
 
@@ -234,3 +249,48 @@ def test_full_characterization_sweep():
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# --------------------------------------------------------------------------
+# ensure_leveled -- the "never measure an unleveled PHY" policy
+# --------------------------------------------------------------------------
+class TestEnsureLeveled:
+    def test_idempotent_returns_prior_result(self):
+        """A driver already leveled this connection is not re-swept."""
+        dev = MockDevice(good_bitslip=2, eye=(8, 22))
+        drv = _mk_driver(dev)
+        res = pm.A7Leveling(drv, verbose=False).run()
+        assert res.ok
+        again = pm.ensure_leveled(drv, verbose=False)
+        assert again is res
+
+    def test_restore_from_cache_and_verify(self, tmp_path):
+        dev = MockDevice(good_bitslip=2, eye=(8, 22))
+        drv = _mk_driver(dev)
+        cache = tmp_path / "level_cache.json"
+        pm.A7Leveling.save_level(
+            str(cache), pm.LevelingResult(ok=True, bitslip=2, rd_tap=15,
+                                          rd_window=(8, 22)))
+        res = pm.ensure_leveled(drv, level_cache=str(cache), verbose=False)
+        assert res.ok and res.bitslip == 2 and res.rd_tap == 15
+
+    def test_hard_raises_when_no_eye(self, tmp_path):
+        dev = MockDevice(has_eye=False)
+        drv = _mk_driver(dev)
+        with pytest.raises(RuntimeError, match=r"no \(bitslip, tap\) eye"):
+            pm.ensure_leveled(drv, level_cache=str(tmp_path / "missing.json"),
+                              hard=True, verbose=False)
+
+    def test_run_matrix_auto_levels_mock_driver(self, tmp_path):
+        """run_matrix on a PHY-capable driver levels first (hard-gated)."""
+        import pumice_char as pc
+        dev = MockDevice(good_bitslip=2, eye=(8, 22))
+        drv = _mk_driver(dev)
+        # Hermetic cache (nonexistent -> full sweep) + a pinned clock so the
+        # mock never falls into the wall-clock meter measurement.
+        drv.build_info = lambda: {"clk_hz": 75_000_000}
+        recs = pc.run_matrix(drv, configs=[pc.CLOSE_PAGE], level="basic",
+                             families=("incremental",), clk_mhz=75.0,
+                             level_cache=str(tmp_path / "level_cache.json"))
+        assert recs and all(r.ok for r in recs)
+        assert getattr(drv, "_phy_leveled_result", None) is not None

@@ -757,6 +757,19 @@ class DDR2CharDriver:
         self.go(wr_mask=mask)
 
     def start_rd(self, mask: int = 0x01) -> None:
+        # Reads before a7ddrphy read leveling are garbage on hardware: the PHY
+        # power-on tap/bitslip state is out-of-eye and leveling is volatile
+        # (lost on every reprogram / power cycle). Leveling's own test reads
+        # suppress this via _leveling_active; a finished leveling records
+        # _phy_leveled_result on the driver. Warn once per connection.
+        if (callable(getattr(self, "phy_poke", None))
+                and getattr(self, "_phy_leveled_result", None) is None
+                and not getattr(self, "_leveling_active", False)
+                and not getattr(self, "_rd_unleveled_warned", False)):
+            self._rd_unleveled_warned = True
+            print("WARNING: start_rd before a7ddrphy read leveling -- read "
+                  "data will be invalid on hardware (run pumice_master.py "
+                  "--level-only, or ensure_leveled(), first)", file=sys.stderr)
         self.go(rd_mask=mask)
 
     def start_both(self, wr_mask: int = 0x01, rd_mask: int = 0x01) -> None:
