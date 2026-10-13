@@ -219,6 +219,16 @@ class MeterCounts:
 # Driver
 # =============================================================================
 class DDR2CharDriver:
+    """UART-bridge host driver for the ddr2-char harness (pumice/granite).
+
+    Class attribute ``phy_leveling`` declares whether this driver's PHY needs
+    (and accepts) the pumice a7ddrphy read-leveling sequence. True for the
+    RDS controllers; subclasses for self-training stacks (LiteDRAM, whose
+    BIOS levels per boot) must set it False so run_matrix / start_rd skip
+    poking PHY CSRs that either don't exist or are owned by that stack's own
+    firmware.
+    """
+    phy_leveling: bool = True
     """Host-side driver for the DDR2 characterization harness.
 
     All 32-bit accesses go through the UART bridge to the harness_csr
@@ -763,6 +773,7 @@ class DDR2CharDriver:
         # suppress this via _leveling_active; a finished leveling records
         # _phy_leveled_result on the driver. Warn once per connection.
         if (callable(getattr(self, "phy_poke", None))
+                and getattr(self, "phy_leveling", True)
                 and getattr(self, "_phy_leveled_result", None) is None
                 and not getattr(self, "_leveling_active", False)
                 and not getattr(self, "_rd_unleveled_warned", False)):

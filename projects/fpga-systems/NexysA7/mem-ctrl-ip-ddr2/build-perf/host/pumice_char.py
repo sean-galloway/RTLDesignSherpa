@@ -1949,7 +1949,7 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
     board, so measuring before leveling returns garbage. No-op when the
     driver was already leveled this connection (SimpleTest.init or a prior
     ensure_leveled) or has no PHY passthrough (loopback sim / non-A7)."""
-    if do_leveling and callable(getattr(drv, "phy_poke", None)):
+    if do_leveling and getattr(drv, "phy_leveling", False):
         ensure_leveled(drv, level_cache=level_cache or DEFAULT_LEVEL_CACHE,
                        hard=True, verbose=False)
 

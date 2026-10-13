@@ -43,6 +43,10 @@ LITEDRAM_CLK_MHZ = 75.0
 
 
 class LiteDRAMCharDriver(DDR2CharDriver):
+    # The LiteDRAM BIOS runs full read leveling at every boot (its own PHY
+    # CSRs on the SoC CSR bus) -- the pumice A7Leveling strobe sequence must
+    # NOT be poked at this harness (wrong PHY, wrong registers).
+    phy_leveling = False
     """DDR2CharDriver with the pumice-controller surface neutralised.
 
     The bridge's ddr2_apb window is terminated in the LiteDRAM harness
