@@ -693,9 +693,10 @@ def get_wavejson_dir(module_name: str, tests_dir: str = None) -> str:
     never be the tracked directory.
 
     Set WAVEJSON_DIR to publish directly instead of staging, e.g. when you
-    intend to refresh the committed diagrams:
+    intend to refresh the committed diagrams. Point it at the area's waves
+    directory (rtl-cdc moved out of the shared WAVES/ tree 2026-10-12):
 
-        WAVEJSON_DIR=docs/markdown/assets/WAVES pytest val/cdc/test_fifo_async_wavedrom.py
+        WAVEJSON_DIR=docs/markdown/assets/rtl-cdc/waves pytest val/cdc/test_fifo_async_wavedrom.py
 
     The module name is appended to WAVEJSON_DIR, matching the committed
     layout. `tests_dir` is accepted for backward compatibility and ignored.

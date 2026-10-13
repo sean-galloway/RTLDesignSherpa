@@ -7,7 +7,7 @@
 # Module: SMBusRegisterMap, SMBusTB
 # Purpose: SMBus 2.0 Controller Testbench
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/smbus/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/smbus/README.md
 # Subsystem: retro_legacy_blocks/smbus
 #
 # Created: 2025-11-29

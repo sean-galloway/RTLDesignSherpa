@@ -7,7 +7,7 @@
 # Module: PITRegisterMap, PITTB
 # Purpose: 8254 PIT (Programmable Interval Timer) Testbench
 #
-# Documentation: projects/components/retro_legacy_blocks/docs/pit_8254_spec/
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/pit_8254_spec/
 # Subsystem: retro_legacy_blocks/pit_8254
 #
 # Created: 2025-11-06

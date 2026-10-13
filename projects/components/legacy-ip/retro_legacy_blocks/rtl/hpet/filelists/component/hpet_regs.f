@@ -1,5 +1,5 @@
 # HPET PeakRDL-Generated Register Block File List
-# Location: projects/components/retro_legacy_blocks/rtl/hpet/filelists/component/hpet_regs.f
+# Location: projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/component/hpet_regs.f
 # Purpose: PeakRDL-generated register block (hpet_regs.sv) and package
 
 # Include directories

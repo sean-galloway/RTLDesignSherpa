@@ -7,7 +7,7 @@
 # Module: test_apb4_pic_8259
 # Purpose: PIC 8259 Test Runner - Updated Scalable Version
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/pic_8259/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pic_8259/README.md
 # Subsystem: retro_legacy_blocks/pic_8259
 #
 # Created: 2025-11-16
@@ -45,9 +45,9 @@ import sys
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import PIC8259TB, PIC8259RegisterMap
-from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tests_basic import PIC8259BasicTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tests_medium import PIC8259MediumTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import PIC8259TB, PIC8259RegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tests_basic import PIC8259BasicTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tests_medium import PIC8259MediumTests
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -203,7 +203,7 @@ def test_pic_8259(request, test_level, description):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/pic_8259/filelists/apb4_pic_8259.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/pic_8259/filelists/apb4_pic_8259.f'
     )
 
     # No RTL parameters for PIC 8259 (fixed configuration)

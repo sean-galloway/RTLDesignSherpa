@@ -7,7 +7,7 @@
 # Module: PMACPIGH54Tests
 # Purpose: PM_ACPI GitHub #54 defect-encoding test suite
 #
-# Documentation: projects/components/retro_legacy_blocks/docs/pm_acpi_mas/
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/pm_acpi_mas/
 # Subsystem: retro_legacy_blocks/pm_acpi
 #
 # Created: 2026-09-09
@@ -118,10 +118,10 @@ clearable.
 import cocotb
 from cocotb.triggers import ClockCycles, RisingEdge
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import (
     PMACPITB, PMACPIRegisterMap
 )
-from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_basic import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_basic import (
     PMACPIBasicTests
 )
 

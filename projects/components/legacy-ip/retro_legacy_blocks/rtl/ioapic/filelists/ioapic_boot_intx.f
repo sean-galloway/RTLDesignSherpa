@@ -22,4 +22,4 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # The companion.
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv

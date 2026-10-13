@@ -49,7 +49,7 @@
 //     so a wider port truncates silently and a zero/negative width has no
 //     legal slice. Nothing in the RTL rejects an out-of-range override.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/README.md
 // Created: 2025-11-29
 // Updated: 2025-11-30 - Changed to 32-bit APB and s_apb_* naming
 // Updated: 2026-09-08 - issue #44: synchronize irq into pclk when CDC_ENABLE=1

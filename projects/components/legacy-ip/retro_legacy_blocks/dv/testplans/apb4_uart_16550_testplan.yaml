@@ -3,8 +3,8 @@
 # STATUS: 100% COMPLETE - All test levels implemented and passing
 
 module: apb4_uart_16550
-rtl_file: projects/components/retro_legacy_blocks/rtl/uart_16550/apb4_uart_16550.sv
-test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_uart_16550.py
+rtl_file: projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/apb4_uart_16550.sv
+test_file: projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_uart_16550.py
 
 # Module description:
 # APB interface to 16550-compatible UART with 16-byte TX/RX FIFOs, programmable

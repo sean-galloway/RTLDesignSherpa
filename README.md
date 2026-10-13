@@ -67,7 +67,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/ocelus/) · [Shared observation](rtl/amba/shared/)
-- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Delta](projects/components/fabric-gen-ip/delta/) · [Memory controllers](projects/components/mem-ctrl-ip/) · [Reed-Solomon](projects/components/ecc-ip/reed-solomon/) · [BCH](projects/components/ecc-ip/bch/) · [kestrel](projects/components/riscv-ip/kestrel-rv32i/) · [amber](projects/components/cache-ip/amber-mesi-l1/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Converters](projects/components/utility-ip/converters/)
+- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Delta](projects/components/fabric-gen-ip/delta/) · [Memory controllers](projects/components/mem-ctrl-ip/) · [Reed-Solomon](projects/components/ecc-ip/reed-solomon/) · [BCH](projects/components/ecc-ip/bch/) · [kestrel](projects/components/riscv-ip/kestrel-rv32i/) · [amber](projects/components/cache-ip/amber-mesi-l1/) · [Retro legacy](projects/components/legacy-ip/retro_legacy_blocks/) · [Converters](projects/components/utility-ip/converters/)
 - **Level 4 — [FPGA Projects](projects/fpga-systems/)** · Nexys A7: [cdc_counter_display](projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/) · [pumice](projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/) · [bch loopback (small profile)](projects/fpga-systems/NexysA7/ecc-ip/bch/) · [reed-solomon loopback (small profile)](projects/fpga-systems/NexysA7/ecc-ip/reed-solomon/) · Genesys 2: [bch loopback](projects/fpga-systems/Genesys2/ecc-ip/bch/) · [reed-solomon loopback](projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/) · [stream](projects/fpga-systems/Genesys2/dma-ip/stream/) · [rapids](projects/fpga-systems/Genesys2/dma-ip/rapids/) · [scoria](projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/) · [asic-trials](projects/asic-trials/timing_characterization/) — the ECC loopbacks share one harness per codec; the Nexys A7 entry points forward to it with the small profile preset (`BCH_PROFILE=small` → BCH(248,224) t=3, `RS_PROFILE=small` → RS(64,56) t=4, both at 50 MHz)
 
 <details>
@@ -221,7 +221,7 @@ Production-shaped reusable IP, ordered by IP type. Each has its own README + dv/
 | amber cache | In progress | Blocking MESI snoopy L1 — first of the cache-ip gemstone family (HAS/MAS v1.0; RTL landing) | [`projects/components/cache-ip/amber-mesi-l1/`](projects/components/cache-ip/amber-mesi-l1/) |
 | jet / basalt / onyx | Planned | Lockup-free MESI L1 (MSHR) · MOESI L2 · ACE coherence manager (CCU) | [`projects/components/cache-ip/`](projects/components/cache-ip/) |
 | dfx-ip debug port | Planned | House debug port: jtag-tap transport, jtag-axil-agent config poke, riscv-debug override plane (scaffolds) | [`projects/components/dfx-ip/`](projects/components/dfx-ip/) |
-| Retro legacy blocks | Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
+| Retro legacy blocks | Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/legacy-ip/retro_legacy_blocks/`](projects/components/legacy-ip/retro_legacy_blocks/) |
 | Converters | Ready | UART↔AXIL, protocol conversion | [`projects/components/utility-ip/converters/`](projects/components/utility-ip/converters/) |
 | Misc | — | Mixed building blocks | [`projects/components/utility-ip/misc/`](projects/components/utility-ip/misc/) |
 
@@ -485,7 +485,7 @@ Build complete, production-ready peripherals for FPGA deployment (**25+ componen
 
 #### Retro Legacy Blocks
 
-**Status:** Production Ready | **Location:** [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/)
+**Status:** Production Ready | **Location:** [`projects/components/legacy-ip/retro_legacy_blocks/`](projects/components/legacy-ip/retro_legacy_blocks/)
 
 Collection of 9 legacy/retro peripherals with full APB interfaces:
 
@@ -501,7 +501,7 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 | **PM/ACPI** | Power Management / ACPI support |
 | **IOAPIC** | I/O Advanced PIC |
 
-**Documentation:** [PRD](projects/components/retro_legacy_blocks/PRD.md)
+**Documentation:** [PRD](projects/components/legacy-ip/retro_legacy_blocks/PRD.md)
 
 ---
 
@@ -574,7 +574,7 @@ pytest val/amba/ -v -m medium     # Medium tests only
 pytest val/amba/ -v -m full       # Full tests only
 
 # Run component tests (example: Retro Legacy Blocks HPET)
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ---
@@ -751,7 +751,7 @@ pytest projects/components/fabric-gen-ip/apbx-xbar/dv/tests/test_apbx_xbar_2to4.
 #### Level 4: Test Retro Legacy Block Component
 ```bash
 # Run HPET tests from Retro Legacy Blocks collection
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ---
@@ -773,8 +773,8 @@ pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 **Level 3 - Components:**
 - [Component Index](docs/markdown/projects/index.md) - All components
 - [Component Overview](docs/markdown/projects/overview.md) - Design patterns
-- [Retro Legacy Blocks](projects/components/retro_legacy_blocks/README.md) - Legacy peripheral collection
-- [HPET Specification](projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) - Complete HPET guide
+- [Retro Legacy Blocks](projects/components/legacy-ip/retro_legacy_blocks/README.md) - Legacy peripheral collection
+- [HPET Specification](projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) - Complete HPET guide
 
 ### External References
 

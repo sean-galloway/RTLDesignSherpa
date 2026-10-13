@@ -7,7 +7,7 @@
 // Module: smbus_slave_engine
 // Purpose: Bit-level SMBus/I2C target engine - the half that ANSWERS.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/smbus/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/smbus/README.md
 // Created: 2026-09-10
 //
 //==============================================================================

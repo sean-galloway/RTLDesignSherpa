@@ -137,7 +137,7 @@ ROOT_VARS = {
     "KESTREL_ROOT": "projects/components/riscv-ip/kestrel-rv32i",
     "MISC_ROOT": "projects/components/utility-ip/misc",
     "RAPIDS_ROOT": "projects/components/dma-ip/rapids",
-    "RETRO_ROOT": "projects/components/retro_legacy_blocks",
+    "RETRO_ROOT": "projects/components/legacy-ip/retro_legacy_blocks",
     "STREAM_ROOT": "projects/components/dma-ip/stream",
     # The Nexys stream_characterization area was deleted 2026-08-30 and its
     # collateral consolidated into the Genesys 2 flow, which is where every

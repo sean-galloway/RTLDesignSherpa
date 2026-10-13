@@ -7,7 +7,7 @@
 # Module: test_apb4_pm_acpi
 # Purpose: PM_ACPI Test Runner - Scalable Version with CDC Variations
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/pm_acpi/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pm_acpi/README.md
 # Subsystem: retro_legacy_blocks/pm_acpi
 #
 # Created: 2025-11-29
@@ -48,11 +48,11 @@ import sys
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import PMACPITB, PMACPIRegisterMap
-from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_basic import PMACPIBasicTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_medium import PMACPIMediumTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_full import PMACPIFullTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_gh54 import PMACPIGH54Tests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import PMACPITB, PMACPIRegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_basic import PMACPIBasicTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_medium import PMACPIMediumTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_full import PMACPIFullTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_gh54 import PMACPIGH54Tests
 
 
 @cocotb.test(timeout_time=10000, timeout_unit="us")
@@ -244,7 +244,7 @@ def test_pm_acpi(request, cdc_enable, test_level, description):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/pm_acpi/filelists/apb4_pm_acpi.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/pm_acpi/filelists/apb4_pm_acpi.f'
     )
 
     # GH#54: give the CDC arm a non-unity, non-integer clock ratio (10ns:7ns)

@@ -27,7 +27,7 @@ to transactions initiated by the DUT master.
 import cocotb
 from cocotb.triggers import ClockCycles, Timer
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tb import SMBusRegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tb import SMBusRegisterMap
 
 
 class SMBusBasicTests:

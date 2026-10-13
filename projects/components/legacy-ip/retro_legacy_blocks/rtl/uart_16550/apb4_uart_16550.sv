@@ -32,7 +32,7 @@
 //   APB -> apb4_slave[_cdc] -> CMD/RSP -> peakrdl_to_cmdrsp ->
 //     -> uart_16550_regs (PeakRDL) -> hwif -> uart_16550_core
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2025-11-29
 // Updated: 2025-11-30 - Changed to 32-bit data width, s_apb_* naming
 // Updated: 2026-09-10 - GH#60: RBR/THR split, LSR/MSR read-clear, IER gating,

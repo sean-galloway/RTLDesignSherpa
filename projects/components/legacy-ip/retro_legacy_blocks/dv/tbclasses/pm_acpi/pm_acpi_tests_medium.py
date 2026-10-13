@@ -7,7 +7,7 @@
 # Module: PMACPIMediumTests
 # Purpose: PM_ACPI Medium Test Suite
 #
-# Documentation: projects/components/retro_legacy_blocks/docs/pm_acpi_spec/
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/pm_acpi_spec/
 # Subsystem: retro_legacy_blocks/pm_acpi
 #
 # Created: 2025-11-29
@@ -27,7 +27,7 @@ Extended test coverage beyond basic tests including:
 import cocotb
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import (
     PMACPITB, PMACPIRegisterMap
 )
 

@@ -7,7 +7,7 @@
 # Module: test_apb4_smbus
 # Purpose: SMBus 2.0 Controller Test Runner
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/smbus/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/smbus/README.md
 # Subsystem: retro_legacy_blocks/smbus
 #
 # Created: 2025-11-29
@@ -46,13 +46,13 @@ import sys
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tb import SMBusTB, SMBusRegisterMap
-from projects.components.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tests_basic import SMBusBasicTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tb import SMBusTB, SMBusRegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tests_basic import SMBusBasicTests
 # GH#58 RED regression tests (coordinator-directed, written against the
 # unfixed RTL - see smbus_tests_medium.py's module docstring for the
 # full per-item defect writeup). Registered at medium/full level below,
 # alongside the existing (untouched) medium_test_methods.
-from projects.components.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tests_medium import SMBusMediumTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tests_medium import SMBusMediumTests
 
 
 @cocotb.test(timeout_time=20000, timeout_unit="us")
@@ -271,7 +271,7 @@ def test_smbus(request, cdc_enable, test_level, description):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/smbus/filelists/apb4_smbus.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/smbus/filelists/apb4_smbus.f'
     )
 
     # RTL parameters

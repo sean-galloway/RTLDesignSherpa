@@ -176,7 +176,7 @@ jobs:
       # check is unprotected. Imports only the extracted pure module -- no
       # cocotb, no TB, no DUT.
       - name: rlb_top per-IR-line verdict (simulator-free)
-        run: python3 -m pytest projects/components/retro_legacy_blocks/dv/tbclasses/rlb_top/tests/ -q
+        run: python3 -m pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tbclasses/rlb_top/tests/ -q
 
       # tooling TASK-015 criterion 3: the tracker gate above must FAIL on a
       # wrong count, an unlisted item, a stale Next ID and a filename/H1

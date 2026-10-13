@@ -3,8 +3,8 @@
 # NOTE: Currently only basic tests implemented - medium and full tests needed
 
 module: apb4_ioapic
-rtl_file: projects/components/retro_legacy_blocks/rtl/ioapic/apb4_ioapic.sv
-test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_ioapic.py
+rtl_file: projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/apb4_ioapic.sv
+test_file: projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_ioapic.py
 
 # Module description:
 # APB I/O Advanced Programmable Interrupt Controller (IOAPIC) with multiple

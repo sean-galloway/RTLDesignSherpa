@@ -7,7 +7,7 @@
 # Module: test_apb4_rtc
 # Purpose: RTC Test Runner - Updated Scalable Version
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/rtc/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/rtc/README.md
 # Subsystem: retro_legacy_blocks/rtc
 #
 # Created: 2025-11-15
@@ -45,9 +45,9 @@ import sys
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tb import RTCTB, RTCRegisterMap
-from projects.components.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tests_basic import RTCBasicTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tests_medium import RTCMediumTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tb import RTCTB, RTCRegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tests_basic import RTCBasicTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tests_medium import RTCMediumTests
 
 
 @cocotb.test(timeout_time=10000, timeout_unit="us")
@@ -290,7 +290,7 @@ def test_rtc(request, test_level, description):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/rtc/filelists/apb4_rtc.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/rtc/filelists/apb4_rtc.f'
     )
 
     # No RTL parameters for RTC (fixed configuration)
@@ -508,7 +508,7 @@ def test_rtc_gh56_timeout_sweep(request, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/rtc/filelists/apb4_rtc.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/rtc/filelists/apb4_rtc.f'
     )
 
     commit_timeout_cycles = int(os.environ.get('TEST_COMMIT_TIMEOUT_CYCLES',

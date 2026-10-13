@@ -23,7 +23,7 @@
 //   - DLAB=1: 0x00=DLL, 0x04=DLM
 //   This implementation exposes all registers at unique addresses.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2025-11-29
 // Updated: 2025-11-30 - Changed to 32-bit register width
 

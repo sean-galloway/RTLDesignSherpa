@@ -37,7 +37,7 @@ export AMBER_ROOT=$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1
 export CACHE_COMMON_ROOT=$REPO_ROOT/projects/components/cache-ip/common-ip
 export KESTREL_ROOT=$REPO_ROOT/projects/components/riscv-ip/kestrel-rv32i
 export RAPIDS_ROOT=$REPO_ROOT/projects/components/dma-ip/rapids
-export RETRO_ROOT=$REPO_ROOT/projects/components/retro_legacy_blocks
+export RETRO_ROOT=$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks
 export STREAM_ROOT=$REPO_ROOT/projects/components/dma-ip/stream
 
 # NexysA7 characterization roots. These are referenced by .f filelists, so they
@@ -122,7 +122,7 @@ export PYTHONPATH="$REPO_ROOT/projects/components/utility-ip/converters/dv:$PYTH
 export PYTHONPATH="$REPO_ROOT/projects/components/fabric-gen-ip/delta/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/utility-ip/misc/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/dma-ip/rapids/dv:$PYTHONPATH"
-export PYTHONPATH="$REPO_ROOT/projects/components/retro_legacy_blocks/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/dma-ip/stream/dv:$PYTHONPATH"
 
 # Where install_tools.sh put the toolchain. Override with RTLDS_TOOLS_PREFIX

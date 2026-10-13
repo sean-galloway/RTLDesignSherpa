@@ -92,7 +92,7 @@
 //     0x000 fallback. Guarded by
 //     ioapic_tests_medium.py::test_ioregsel_invalid_selector_readback.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/README.md
 // Subsystem: ioapic
 //
 // Created: 2025-11-16

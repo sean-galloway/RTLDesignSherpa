@@ -7,7 +7,7 @@
 # Module: test_apb4_hpet
 # Purpose: HPET Test Runner - Updated Scalable Version
 #
-# Documentation: projects/components/retro_legacy_blocks/PRD.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/PRD.md
 # Subsystem: retro_legacy_blocks/hpet
 #
 # Author: sean galloway
@@ -49,11 +49,11 @@ import sys
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tb import HPETTB, HPETRegisterMap
-from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_basic import HPETBasicTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_medium import HPETMediumTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_full import HPETFullTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_legacy import HPETLegacyTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tb import HPETTB, HPETRegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_basic import HPETBasicTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_medium import HPETMediumTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_full import HPETFullTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_legacy import HPETLegacyTests
 
 
 # Sim-time budget scales with the configuration (set by the pytest wrapper
@@ -243,7 +243,7 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f'
     )
 
     # RTL parameters - NUM_TIMERS, VENDOR_ID, REVISION_ID, CDC_ENABLE are parameterized

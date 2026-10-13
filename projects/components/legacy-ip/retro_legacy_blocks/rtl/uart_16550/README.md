@@ -339,7 +339,7 @@ was instantiated anywhere in the resolved closure.
 
 ## Test Plan
 
-Tests located in: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_uart_16550.py`
+Tests located in: `projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_uart_16550.py`
 
 | Test Level | Description |
 |------------|-------------|

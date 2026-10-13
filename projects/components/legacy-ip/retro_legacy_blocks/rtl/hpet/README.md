@@ -152,11 +152,11 @@ hpet_regs.rdl (SystemRDL)
 
 To modify the register map:
 
-1. Edit `projects/components/retro_legacy_blocks/rdl/hpet/hpet_regs.rdl`
+1. Edit `projects/components/legacy-ip/retro_legacy_blocks/rdl/hpet/hpet_regs.rdl`
 2. Regenerate:
    ```bash
    source $REPO_ROOT/env_python
-   cd $REPO_ROOT/projects/components/retro_legacy_blocks/rdl/hpet
+   cd $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rdl/hpet
    python3 $REPO_ROOT/bin/peakrdl_generate.py hpet_regs.rdl \
        --copy-rtl ../../rtl/hpet --no-html
    ```
@@ -578,13 +578,13 @@ The test suite validates all parameter combinations:
 
 ```bash
 # Run all HPET tests
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 # Run specific configuration
-pytest 'projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py::test_hpet[2-18247-1-0-full-2-timer v4747]' -v
+pytest 'projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py::test_hpet[2-18247-1-0-full-2-timer v4747]' -v
 
 # Run CDC tests only
-pytest -k "CDC" projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+pytest -k "CDC" projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ### Test Coverage
@@ -598,7 +598,7 @@ All configurations pass **4/4 basic tests**:
 ## File Structure
 
 ```
-projects/components/retro_legacy_blocks/rtl/hpet/
+projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/
 ├── README.md                          (This file)
 ├── apb4_hpet.sv                        (Top-level module)
 ├── hpet_core.sv                       (Timer core logic)
@@ -711,7 +711,7 @@ Allows single PeakRDL generation (NUM_TIMERS=8) to correctly report timer count 
 - **PeakRDL**: https://github.com/SystemRDL/PeakRDL-regblock
 - **SystemRDL**: https://github.com/SystemRDL/systemrdl-compiler
 - **HPET Spec**: IA-PC HPET Specification (for reference, not strictly compliant)
-- **Test Documentation**: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py` docstrings
+- **Test Documentation**: `projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py` docstrings
 
 ## Contributing
 

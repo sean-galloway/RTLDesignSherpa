@@ -7,7 +7,7 @@
 // Module: apb4_pm_acpi
 // Purpose: APB PM_ACPI Top Level Integration
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/pm_acpi/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pm_acpi/README.md
 // Subsystem: pm_acpi
 //
 // Author: sean galloway

@@ -2,8 +2,8 @@
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
 [*] Mon Oct 12 00:00:00 2026
 [*]
-[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_rlb_top_gate/dump.fst"
-[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/retro_legacy_blocks/dv/tests/GTKW/rlb_top/rlb_top.gtkw"
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/legacy-ip/retro_legacy_blocks/dv/tests/local_sim_build/test_rlb_top_gate/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/legacy-ip/retro_legacy_blocks/dv/tests/GTKW/rlb_top/rlb_top.gtkw"
 [timestart] 0
 [size] 3268 1344
 [pos] -1 -1

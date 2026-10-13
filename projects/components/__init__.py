@@ -22,6 +22,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ALIASES = {
     "dma_ip": "dma-ip",
     # 2026-09-29 (Sean): the rest of the family directories, same rule
+    "legacy_ip": "legacy-ip",          # retro_legacy_blocks
     "utility_ip": "utility-ip",        # converters, misc
     "noc_ip": "noc-ip",                # delta
     "compute_eng_ip": "compute-eng-ip",  # hive

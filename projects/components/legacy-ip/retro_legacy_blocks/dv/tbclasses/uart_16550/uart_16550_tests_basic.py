@@ -7,7 +7,7 @@
 # Module: UART16550BasicTests
 # Purpose: UART 16550 Basic Test Suite
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/README.md
 # Subsystem: retro_legacy_blocks/uart_16550
 #
 # Created: 2025-11-30

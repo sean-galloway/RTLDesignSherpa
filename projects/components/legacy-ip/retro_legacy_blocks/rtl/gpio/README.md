@@ -144,7 +144,7 @@ gpio/
 
 ## Test Plan
 
-Tests located in: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_gpio.py`
+Tests located in: `projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_gpio.py`
 
 | Test Level | Description |
 |------------|-------------|

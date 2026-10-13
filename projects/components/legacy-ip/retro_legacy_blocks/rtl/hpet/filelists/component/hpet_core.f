@@ -1,5 +1,5 @@
 # HPET Core Logic File List
-# Location: projects/components/retro_legacy_blocks/rtl/hpet/filelists/component/hpet_core.f
+# Location: projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/component/hpet_core.f
 # Purpose: HPET timer functionality and core logic
 
 # Include directories

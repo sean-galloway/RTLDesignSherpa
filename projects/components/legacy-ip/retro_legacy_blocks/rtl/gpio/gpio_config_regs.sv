@@ -92,7 +92,7 @@
 //     test_atomic_toggle_repeated_same_mask and
 //     ::test_atomic_set_clear_set_same_mask.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/README.md
 // Created: 2025-11-29
 // Updated: 2025-11-30 - Changed to 32-bit data width
 // Updated: 2026-09-08 - issue #44: strobe-driven atomics and direct writes,

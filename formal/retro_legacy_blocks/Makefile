@@ -1,5 +1,5 @@
 # ==============================================================================
-# Formal Verification - Retro Legacy Blocks (projects/components/retro_legacy_blocks)
+# Formal Verification - Retro Legacy Blocks (projects/components/legacy-ip/retro_legacy_blocks)
 # ==============================================================================
 # Usage:
 #   make prove-all             Prove ALL blocks

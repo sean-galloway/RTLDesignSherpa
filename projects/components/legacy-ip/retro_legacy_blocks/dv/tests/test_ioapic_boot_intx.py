@@ -7,7 +7,7 @@
 # Module: test_ioapic_boot_intx
 # Purpose: Runner for the boot-interrupt companion on a real IOAPIC (RLB TASK-008, was RLB-008).
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/README.md
 # Subsystem: retro_legacy_blocks/ioapic
 #
 # Created: 2026-09-14
@@ -44,8 +44,8 @@ from cov_utils.conftest_coverage import get_coverage_compile_args
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import IOAPICTB
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_boot_intx_tests import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import IOAPICTB
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_boot_intx_tests import (
     IOAPICBootIntxTests,
 )
 
@@ -139,7 +139,7 @@ def test_ioapic_boot_intx(request, test_level, description):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
-        filelist_path='projects/components/retro_legacy_blocks/dv/filelists/ioapic_boot_intx_tb_top.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/dv/filelists/ioapic_boot_intx_tb_top.f'
     )
 
     rtl_parameters = {

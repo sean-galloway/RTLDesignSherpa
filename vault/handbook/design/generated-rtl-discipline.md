@@ -262,7 +262,7 @@ then delay the pulse ONE flop so it lines up with the field storage the
 write landed in. Read the strobe's data from the field value in that aligned
 cycle, or from `regblk_wr_data & regblk_wr_biten` in the level cycle if the
 consumer needs the pre-storage value. The gpio wrapper
-(`projects/components/retro_legacy_blocks/rtl/gpio/gpio_config_regs.sv`) is
+(`projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/gpio_config_regs.sv`) is
 the reference; its header explains the alignment.
 
 Two things this rule is NOT: it is not a reason to shorten the bridge's

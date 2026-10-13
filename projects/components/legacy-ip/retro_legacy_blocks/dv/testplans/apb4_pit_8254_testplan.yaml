@@ -3,8 +3,8 @@
 # NOTE: Currently only basic tests implemented - medium and full tests needed
 
 module: apb4_pit_8254
-rtl_file: projects/components/retro_legacy_blocks/rtl/pit_8254/apb4_pit_8254.sv
-test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_pit_8254.py
+rtl_file: projects/components/legacy-ip/retro_legacy_blocks/rtl/pit_8254/apb4_pit_8254.sv
+test_file: projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_pit_8254.py
 
 # Module description:
 # APB interface to 8254-compatible Programmable Interval Timer (PIT)

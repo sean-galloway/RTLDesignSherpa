@@ -156,7 +156,7 @@
 //     !r_count_latched next cycle, and count_reg_wr does too. Guarded by
 //     pit_tests_medium.py::test_gh52_latch_cleared_by_reprogram.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/pit_8254/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pit_8254/README.md
 // Subsystem: retro_legacy_blocks/pit_8254
 //
 // Updated: 2026-09-09 - GitHub #52: GATE pause/resume, count 0 = 65536,

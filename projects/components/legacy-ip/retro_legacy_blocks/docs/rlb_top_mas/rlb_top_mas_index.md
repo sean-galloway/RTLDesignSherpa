@@ -144,7 +144,7 @@ Run it through the area Makefile, which supplies the level and cleans first:
 
 ```bash
 source env_python
-cd projects/components/retro_legacy_blocks/dv/tests
+cd projects/components/legacy-ip/retro_legacy_blocks/dv/tests
 make clean-all && make run-rlb_top-full
 ```
 

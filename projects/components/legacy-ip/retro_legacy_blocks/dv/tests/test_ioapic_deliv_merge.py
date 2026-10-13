@@ -8,7 +8,7 @@
 # Purpose: Runner for the multi-IOAPIC delivery merge on two real IOAPIC
 #          channels (RLB TASK-008, was RLB-008).
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/README.md
 # Subsystem: retro_legacy_blocks/ioapic
 #
 # Created: 2026-09-14
@@ -41,8 +41,8 @@ from cov_utils.conftest_coverage import get_coverage_compile_args
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_merge_tb import IOAPICMergeTB
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_merge_tests import IOAPICMergeTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_merge_tb import IOAPICMergeTB
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_merge_tests import IOAPICMergeTests
 
 NUM_SRC = 2
 
@@ -131,7 +131,7 @@ def test_ioapic_deliv_merge(request, test_level, description):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
-        filelist_path='projects/components/retro_legacy_blocks/dv/filelists/ioapic_deliv_merge_tb_top.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/dv/filelists/ioapic_deliv_merge_tb_top.f'
     )
 
     rtl_parameters = {

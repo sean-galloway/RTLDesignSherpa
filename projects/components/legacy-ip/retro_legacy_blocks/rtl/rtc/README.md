@@ -395,7 +395,7 @@ result into the directory the filelist reads (`rtc_regs.sv/`):
 
 ```bash
 python3 bin/peakrdl_generate.py \
-    projects/components/retro_legacy_blocks/rdl/rtc/rtc_regs.rdl \
+    projects/components/legacy-ip/retro_legacy_blocks/rdl/rtc/rtc_regs.rdl \
     -o <scratch-dir> --no-html --no-markdown \
     --regmap-output <scratch-dir>/rtc_regmap.py
 ```
@@ -449,7 +449,7 @@ RTL and `rtc_regmap.py` are generated from.
 ## Running the tests
 
 ```bash
-cd projects/components/retro_legacy_blocks/dv/tests
+cd projects/components/legacy-ip/retro_legacy_blocks/dv/tests
 make clean-all && make run-apb4_rtc-full
 ```
 

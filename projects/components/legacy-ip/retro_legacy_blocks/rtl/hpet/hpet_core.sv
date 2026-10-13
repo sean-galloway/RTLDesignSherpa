@@ -7,7 +7,7 @@
 // Module: hpet_core
 // Purpose: Hpet Core module
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/hpet/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/README.md
 // Subsystem: hpet
 //
 // Author: sean galloway

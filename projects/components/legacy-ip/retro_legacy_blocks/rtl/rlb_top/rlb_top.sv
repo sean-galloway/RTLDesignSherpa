@@ -49,7 +49,7 @@
 // rlb_irq_out is the aggregated output PRD.md:515 asks for: one line asserted
 // while ANY block interrupt is, including pic_int_out.
 //
-// Documentation: projects/components/retro_legacy_blocks/docs/
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/
 // Created: 2025-11-30
 
 `timescale 1ns / 1ps

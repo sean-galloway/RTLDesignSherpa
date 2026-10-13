@@ -242,10 +242,10 @@ notes: |
 
 ## References
 
-- **Master PRD:** `projects/components/retro_legacy_blocks/PRD.md`
-- **Component README:** `projects/components/retro_legacy_blocks/README.md`
+- **Master PRD:** `projects/components/legacy-ip/retro_legacy_blocks/PRD.md`
+- **Component README:** `projects/components/legacy-ip/retro_legacy_blocks/README.md`
 - **Global Requirements:** `/GLOBAL_REQUIREMENTS.md`
-- **Component CLAUDE.md:** `projects/components/retro_legacy_blocks/CLAUDE.md`
+- **Component CLAUDE.md:** `projects/components/legacy-ip/retro_legacy_blocks/CLAUDE.md`
 - **Format Reference:** `val/amba/testplans/axil4_slave_wr_testplan.yaml`
 
 ---

@@ -3,8 +3,8 @@
 # STATUS: 100% COMPLETE - All test levels implemented and passing
 
 module: apb4_pm_acpi
-rtl_file: projects/components/retro_legacy_blocks/rtl/pm_acpi/apb4_pm_acpi.sv
-test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_pm_acpi.py
+rtl_file: projects/components/legacy-ip/retro_legacy_blocks/rtl/pm_acpi/apb4_pm_acpi.sv
+test_file: projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_pm_acpi.py
 
 # Module description:
 # APB Power Management ACPI controller with PM Timer, GPE (General Purpose Event)

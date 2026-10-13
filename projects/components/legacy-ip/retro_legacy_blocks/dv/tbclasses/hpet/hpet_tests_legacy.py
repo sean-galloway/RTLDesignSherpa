@@ -7,7 +7,7 @@
 # Module: HPETLegacyTests
 # Purpose: HPET LegacyReplacement Route tests (RLB/hpet TASK-003)
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/hpet/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/README.md
 # Subsystem: hpet
 #
 # Author: sean galloway

@@ -7,7 +7,7 @@
 # Module: PMACPIRegisterMap, PMACPITB
 # Purpose: PM_ACPI (Power Management ACPI) Testbench
 #
-# Documentation: projects/components/retro_legacy_blocks/docs/pm_acpi_spec/
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/pm_acpi_spec/
 # Subsystem: retro_legacy_blocks/pm_acpi
 #
 # Created: 2025-11-29

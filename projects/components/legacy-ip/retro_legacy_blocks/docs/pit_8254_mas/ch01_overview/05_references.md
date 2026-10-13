@@ -47,17 +47,17 @@
 ### Related RTL Design Sherpa Documentation
 
 **APB HPET Specification**
-- **Location**: `projects/components/retro_legacy_blocks/docs/hpet_mas/`
+- **Location**: `projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/`
 - **Relevance**: Similar APB timer peripheral, shares architectural patterns and testbench infrastructure
 - **See**: HPET specification for examples of APB timer implementation
 
 **Retro Legacy Blocks PRD**
-- **Location**: `projects/components/retro_legacy_blocks/PRD.md`
+- **Location**: `projects/components/legacy-ip/retro_legacy_blocks/PRD.md`
 - **Relevance**: Master requirements for all RLB peripherals
 - **See**: Section on address map, integration strategy, and block priorities
 
 **Retro Legacy Blocks README**
-- **Location**: `projects/components/retro_legacy_blocks/README.md`
+- **Location**: `projects/components/legacy-ip/retro_legacy_blocks/README.md`
 - **Relevance**: Component overview, status table, and integration examples
 
 **Repository Root CLAUDE.md**
@@ -183,7 +183,7 @@
 **Repository**
 - **URL**: https://github.com/sean-galloway/rtldesignsherpa (if public)
 - **Branch**: main
-- **Component Path**: `projects/components/retro_legacy_blocks/`
+- **Component Path**: `projects/components/legacy-ip/retro_legacy_blocks/`
 
 **Related Issues**
 - Implementation tracked in `vault/Tasks/RLB/` (per-block sub-areas as needed)
@@ -195,8 +195,8 @@ This specification is version-controlled with the RTL implementation. See git hi
 
 ```bash
 # View PIT 8254 commit history
-git log --follow -- projects/components/retro_legacy_blocks/rtl/pit_8254/
-git log --follow -- projects/components/retro_legacy_blocks/docs/pit_8254_mas/
+git log --follow -- projects/components/legacy-ip/retro_legacy_blocks/rtl/pit_8254/
+git log --follow -- projects/components/legacy-ip/retro_legacy_blocks/docs/pit_8254_mas/
 ```
 
 ### Related Components

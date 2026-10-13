@@ -485,7 +485,7 @@ Components provide estimated resource usage in PRD.md:
 
 ### Internal Documentation
 - [Component Index](index.md) - All components
-- [Retro Legacy Blocks](../../../projects/components/retro_legacy_blocks/README.md) - HPET, PIC, PIT, RTC, etc.
+- [Retro Legacy Blocks](../../../projects/components/legacy-ip/retro_legacy_blocks/README.md) - HPET, PIC, PIT, RTC, etc.
 - [Master PRD](../../../PRD.md) - Project requirements
 - [Repository Guide](../../../CLAUDE.md) - Repository overview
 

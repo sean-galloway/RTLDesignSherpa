@@ -8,7 +8,7 @@
 # Purpose: The rlb_top subsystem bring-up as an executable host program,
 #          transcribed from docs/rlb_top_mas/ch04_programming/01_initialization.md.
 #
-# Documentation: projects/components/retro_legacy_blocks/docs/rlb_top_mas/
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/rlb_top_mas/
 # Subsystem: retro_legacy_blocks/rlb_top
 #
 # Created: 2026-10-03

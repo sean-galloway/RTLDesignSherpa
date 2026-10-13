@@ -18,7 +18,7 @@ considered feature-complete for its declared scope.
 | RAPIDS | `projects/components/dma-ip/rapids` |
 | APBx xbar | `projects/components/fabric-gen-ip/apbx-xbar` |
 | bridge | `projects/components/fabric-gen-ip/bridge` |
-| retro legacy blocks | `projects/components/retro_legacy_blocks` |
+| retro legacy blocks | `projects/components/legacy-ip/retro_legacy_blocks` |
 | rtl/common | `rtl/common` |
 | rtl/cdc | `rtl/cdc` |
 | rtl/math | `rtl/math` |

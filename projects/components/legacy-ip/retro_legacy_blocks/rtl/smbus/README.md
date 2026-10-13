@@ -612,7 +612,7 @@ longer answering.
 - **I2C:** I²C-bus specification and user manual UM10204
 
 ### Project References
-- **RTC Implementation:** `projects/components/retro_legacy_blocks/rtl/rtc/`
+- **RTC Implementation:** `projects/components/legacy-ip/retro_legacy_blocks/rtl/rtc/`
 - **CDC rules:** `vault/handbook/design/cdc.md`
 - **FIFO Infrastructure:** `rtl/common/fifo_sync.sv`
 - **APB Infrastructure:** `rtl/amba/apb4/apb4_slave.sv`
@@ -623,11 +623,11 @@ longer answering.
 
 ## Verification
 
-`projects/components/retro_legacy_blocks/dv/tests/test_apb4_smbus.py`, run with
+`projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_smbus.py`, run with
 
 ```bash
 source env_python
-cd projects/components/retro_legacy_blocks/dv/tests
+cd projects/components/legacy-ip/retro_legacy_blocks/dv/tests
 make clean-all && make run-apb4_smbus-full
 ```
 

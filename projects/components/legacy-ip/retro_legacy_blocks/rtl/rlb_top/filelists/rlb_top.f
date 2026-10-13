@@ -1,5 +1,5 @@
 # RLB Top Integration File List
-# Location: projects/components/retro_legacy_blocks/rtl/rlb_top/filelists/rlb_top.f
+# Location: projects/components/legacy-ip/retro_legacy_blocks/rtl/rlb_top/filelists/rlb_top.f
 # Purpose: Complete Retro Legacy Block peripheral subsystem with APB crossbar
 #
 # Address Map (4KB windows from BASE_ADDR 0xFEC00000):
@@ -36,44 +36,44 @@
 #                      addr_width=32, data_width=32, slave_size=0x1000)
 # Do not hand-edit. The generator owns the decode-miss (subtractive) path;
 # the hand-rolled apbx_xbar_rlb_1to10.sv it replaced had lost that fix.
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/apbx_xbar/apbx_xbar_1to10.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/apbx_xbar/apbx_xbar_1to10.sv
 
 # ============================================================================
 # Peripheral Filelists (include all peripheral dependencies)
 # ============================================================================
 
 # HPET
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f
 
 # 8259 PIC
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/pic_8259/filelists/apb4_pic_8259.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/pic_8259/filelists/apb4_pic_8259.f
 
 # 8254 PIT
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/pit_8254/filelists/apb4_pit_8254.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/pit_8254/filelists/apb4_pit_8254.f
 
 # RTC
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/rtc/filelists/apb4_rtc.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/rtc/filelists/apb4_rtc.f
 
 # SMBus
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/smbus/filelists/apb4_smbus.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/smbus/filelists/apb4_smbus.f
 
 # PM/ACPI
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/pm_acpi/filelists/apb4_pm_acpi.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/pm_acpi/filelists/apb4_pm_acpi.f
 
 # IOAPIC
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/apb4_ioapic.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/filelists/apb4_ioapic.f
 # Boot-interrupt rerouting companion (RLB TASK-008, was RLB-008). apb4_ioapic.f does NOT
 # reference it -- it is not part of the block's closure -- so rlb_top,
 # which instantiates it, pulls it here.
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/ioapic_boot_intx.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/filelists/ioapic_boot_intx.f
 
 # GPIO
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/gpio/filelists/apb4_gpio.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/filelists/apb4_gpio.f
 
 # UART 16550
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/uart_16550/filelists/apb4_uart_16550.f
+-f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/filelists/apb4_uart_16550.f
 
 # ============================================================================
 # Top-Level Integration
 # ============================================================================
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/rlb_top/rlb_top.sv

@@ -29,7 +29,7 @@ Each test counts its comparisons and refuses to pass on zero.
 
 from cocotb.triggers import ClockCycles
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import (
     IOAPICRegisterMap,
 )
 

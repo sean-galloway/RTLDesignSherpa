@@ -44,7 +44,7 @@
 //   - Connect gpio_oe to IOBUF/OBUFT tristate control
 //   - Connect gpio_in from IOBUF/IBUF output
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/README.md
 // Created: 2025-11-29
 // Updated: 2026-09-08 - issue #44: strobe-driven direct write, unconnected
 //                       irq output removed

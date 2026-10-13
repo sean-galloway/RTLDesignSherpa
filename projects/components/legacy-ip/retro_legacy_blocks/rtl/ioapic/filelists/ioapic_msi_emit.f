@@ -28,4 +28,4 @@
 -f $REPO_ROOT/rtl/amba/filelists/apb4_master_stub.f
 
 # The emitter.
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_msi_emit.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_msi_emit.sv

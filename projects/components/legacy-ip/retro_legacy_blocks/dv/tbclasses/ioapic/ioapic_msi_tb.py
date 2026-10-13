@@ -9,7 +9,7 @@
 #          a real apb4_ioapic delivery channel and a real apb4_master_stub
 #          (RLB TASK-008, was RLB-008).
 #
-# Documentation: projects/components/retro_legacy_blocks/docs/ioapic_mas/
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/ioapic_mas/
 # Subsystem: retro_legacy_blocks/ioapic
 #
 # Created: 2026-09-14
@@ -67,10 +67,10 @@ from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
 
 import sys
 from pathlib import Path
-repo_root = Path(__file__).resolve().parents[6]
+repo_root = Path(__file__).resolve().parents[7]
 sys.path.insert(0, str(repo_root))
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import (
     IOAPICTB, IOAPICRegisterMap,
 )
 

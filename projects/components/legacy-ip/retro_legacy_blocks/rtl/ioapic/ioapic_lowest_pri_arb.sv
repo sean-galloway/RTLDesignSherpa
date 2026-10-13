@@ -7,7 +7,7 @@
 // Module: ioapic_lowest_pri_arb
 // Purpose: The consumer half of LowestPriority delivery (RLB TASK-008, was RLB-008).
 //
-// Documentation: projects/components/retro_legacy_blocks/docs/ioapic_mas/
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/ioapic_mas/
 // Subsystem: retro_legacy_blocks/ioapic
 //
 // Created: 2026-09-14

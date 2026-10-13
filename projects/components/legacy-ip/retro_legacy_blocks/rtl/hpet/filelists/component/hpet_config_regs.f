@@ -1,5 +1,5 @@
 # HPET Configuration Register Wrapper File List
-# Location: projects/components/retro_legacy_blocks/rtl/hpet/filelists/component/hpet_config_regs.f
+# Location: projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/component/hpet_config_regs.f
 # Purpose: Wrapper that connects PeakRDL register block to HPET core
 
 # Header files with macros (MUST be compiled first)

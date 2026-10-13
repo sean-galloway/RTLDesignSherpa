@@ -7,7 +7,7 @@
 # Module: GPIOBasicTests
 # Purpose: GPIO Basic Test Suite
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/README.md
 # Subsystem: retro_legacy_blocks/gpio
 #
 # Created: 2025-11-29

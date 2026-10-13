@@ -820,7 +820,7 @@ for why this template used to say the opposite.
 Each component has detailed documentation:
 - `projects/components/dma-ip/stream/CLAUDE.md` and `PRD.md`
 - `projects/components/dma-ip/rapids/CLAUDE.md` and `PRD.md`
-- `projects/components/retro_legacy_blocks/CLAUDE.md` and `PRD.md` (includes the former apb4_hpet)
+- `projects/components/legacy-ip/retro_legacy_blocks/CLAUDE.md` and `PRD.md` (includes the former apb4_hpet)
 - `projects/components/fabric-gen-ip/bridge/CLAUDE.md` and `PRD.md`
 
 ---

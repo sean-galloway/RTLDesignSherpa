@@ -601,52 +601,52 @@ coverage-apb-xbar:
 .PHONY: test-retro-legacy
 test-retro-legacy:
 	@echo "=== retro-legacy FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-func-parallel
 
 .PHONY: test-retro-legacy-gate
 test-retro-legacy-gate:
 	@echo "=== retro-legacy GATE (parallel) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-gate-parallel
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-gate-parallel
 
 .PHONY: test-retro-legacy-func
 test-retro-legacy-func:
 	@echo "=== retro-legacy FUNC (parallel) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-func-parallel
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-func-parallel
 
 .PHONY: test-retro-legacy-full
 test-retro-legacy-full:
 	@echo "=== retro-legacy FULL (parallel) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-full-parallel
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-full-parallel
 
 .PHONY: test-retro-legacy-gate-waves
 test-retro-legacy-gate-waves:
 	@echo "=== retro-legacy GATE (parallel + waves) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-gate-parallel-waves
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-gate-parallel-waves
 
 .PHONY: test-retro-legacy-func-waves
 test-retro-legacy-func-waves:
 	@echo "=== retro-legacy FUNC (parallel + waves) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-func-parallel-waves
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-func-parallel-waves
 
 .PHONY: test-retro-legacy-full-waves
 test-retro-legacy-full-waves:
 	@echo "=== retro-legacy FULL (parallel + waves) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-full-parallel-waves
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-full-parallel-waves
 
 .PHONY: test-retro-legacy-gate-serial
 test-retro-legacy-gate-serial:
 	@echo "=== retro-legacy GATE (serial) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-gate-serial
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-gate-serial
 
 .PHONY: test-retro-legacy-func-serial
 test-retro-legacy-func-serial:
 	@echo "=== retro-legacy FUNC (serial) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-func-serial
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-func-serial
 
 .PHONY: test-retro-legacy-full-serial
 test-retro-legacy-full-serial:
 	@echo "=== retro-legacy FULL (serial) ==="
-	@$(MAKE) -C projects/components/retro_legacy_blocks/dv/tests run-all-full-serial
+	@$(MAKE) -C projects/components/legacy-ip/retro_legacy_blocks/dv/tests run-all-full-serial
 
 # --- timing-char: Timing characterization ---
 

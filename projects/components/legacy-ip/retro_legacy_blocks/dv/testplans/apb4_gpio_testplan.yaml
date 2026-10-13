@@ -3,8 +3,8 @@
 # NOTE: Currently only basic tests implemented - medium and full tests needed
 
 module: apb4_gpio
-rtl_file: projects/components/retro_legacy_blocks/rtl/gpio/apb4_gpio.sv
-test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_gpio.py
+rtl_file: projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/apb4_gpio.sv
+test_file: projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_gpio.py
 
 # Module description:
 # APB-accessible GPIO controller with 32-bit port, per-bit direction control,

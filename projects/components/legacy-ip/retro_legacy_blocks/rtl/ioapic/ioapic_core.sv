@@ -7,7 +7,7 @@
 // Module: ioapic_core
 // Purpose: Core I/O APIC interrupt controller logic
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/README.md
 // Subsystem: ioapic
 //
 // Author: sean galloway

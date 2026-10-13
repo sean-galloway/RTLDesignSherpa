@@ -53,7 +53,7 @@
 //   - SYNC_STAGES must be >= 2. A single-stage "synchronizer" is not one; the
 //     design point is 2. Nothing in the RTL rejects a smaller value.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/pit_8254/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pit_8254/README.md
 // Subsystem: retro_legacy_blocks/pit_8254
 //
 // Updated: 2026-09-09 - GitHub #52: gate_in synchronizer, latch-vs-program

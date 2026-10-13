@@ -23,7 +23,7 @@ Collection of basic test cases for RTC validation:
 import cocotb
 from cocotb.triggers import ClockCycles
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tb import RTCRegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tb import RTCRegisterMap
 
 
 class RTCBasicTests:

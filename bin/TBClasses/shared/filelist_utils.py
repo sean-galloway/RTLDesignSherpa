@@ -186,7 +186,7 @@ def get_sources_from_filelist(repo_root, filelist_path=None, *, module=None):
         'KESTREL_ROOT': os.path.join(components_root, 'riscv-ip', 'kestrel-rv32i'),
         'MISC_ROOT': os.path.join(components_root, 'utility-ip', 'misc'),
         'RAPIDS_ROOT': os.path.join(components_root, 'dma-ip', 'rapids'),
-        'RETRO_ROOT': os.path.join(components_root, 'retro_legacy_blocks'),
+        'RETRO_ROOT': os.path.join(components_root, 'legacy-ip', 'retro_legacy_blocks'),
         'STREAM_ROOT': os.path.join(components_root, 'dma-ip', 'stream'),
         # Nexys stream_characterization deleted 2026-08-30; both now point at
         # the Genesys 2 flow that absorbed the collateral.

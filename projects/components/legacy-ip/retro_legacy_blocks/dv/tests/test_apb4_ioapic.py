@@ -7,7 +7,7 @@
 # Module: test_apb4_ioapic
 # Purpose: IOAPIC Test Runner - Updated Scalable Version
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/README.md
 # Subsystem: retro_legacy_blocks/ioapic
 #
 # Created: 2025-11-16
@@ -46,9 +46,9 @@ import sys
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import IOAPICTB, IOAPICRegisterMap
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tests_basic import IOAPICBasicTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tests_medium import IOAPICMediumTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import IOAPICTB, IOAPICRegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tests_basic import IOAPICBasicTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tests_medium import IOAPICMediumTests
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -234,7 +234,7 @@ def test_ioapic(request, cdc_enable, test_level, description):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/ioapic/filelists/apb4_ioapic.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/filelists/apb4_ioapic.f'
     )
 
     # RTL parameters - only CDC_ENABLE is parameterized

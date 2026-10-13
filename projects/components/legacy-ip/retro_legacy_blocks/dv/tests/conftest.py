@@ -22,7 +22,7 @@ import sys
 # Repo root + bin for the shared conftest base. env_python already exports these
 # on PYTHONPATH -- added here too so a bare pytest invocation still resolves them.
 _here = os.path.dirname(os.path.abspath(__file__))
-_repo_root = os.path.abspath(os.path.join(_here, '../../../../..'))
+_repo_root = os.path.abspath(os.path.join(_here, '../../../../../..'))
 for _p in (_repo_root, os.path.join(_repo_root, 'bin')):
     if _p in sys.path:
         sys.path.remove(_p)

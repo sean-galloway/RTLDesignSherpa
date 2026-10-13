@@ -70,7 +70,7 @@ The index is the authoritative table of contents.
 ### Document Generation
 
 ```bash
-cd projects/components/retro_legacy_blocks/docs
+cd projects/components/legacy-ip/retro_legacy_blocks/docs
 ./generate_mas_pdf.sh --component rlb_top
 ```
 

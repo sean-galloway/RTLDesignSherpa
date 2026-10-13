@@ -31,7 +31,7 @@ The `hpet_regs` module is auto-generated from the SystemRDL specification (`rdl/
 
 **Generation Command:**
 ```bash
-cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
+cd projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/peakrdl
 peakrdl regblock hpet_regs.rdl --cpuif passthrough -o ../
 ```
 
@@ -586,7 +586,7 @@ through `hwif_in` from the wrapper's parameters at instantiation.
 
 **Steps:**
 ```bash
-cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
+cd projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/peakrdl
 
 # 1. Edit SystemRDL specification
 vim hpet_regs.rdl
@@ -601,7 +601,7 @@ ls -l ../hpet_regs.sv ../hpet_regs_pkg.sv
 git diff ../hpet_regs.sv ../hpet_regs_pkg.sv
 
 # 5. Run tests to verify
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 Caveat: Do not manually edit generated files! All changes must be made in `hpet_regs.rdl` and regenerated.

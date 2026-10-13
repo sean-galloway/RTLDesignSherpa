@@ -7,7 +7,7 @@
 # Module: test_apb4_pit_8254
 # Purpose: PIT 8254 Test Runner - Updated Scalable Version
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/pit_8254/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pit_8254/README.md
 # Subsystem: retro_legacy_blocks/pit_8254
 #
 # Created: 2025-11-06
@@ -46,9 +46,9 @@ import sys
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.pit_8254.pit_tb import PITTB, PITRegisterMap
-from projects.components.retro_legacy_blocks.dv.tbclasses.pit_8254.pit_tests_basic import PITBasicTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.pit_8254.pit_tests_medium import PITMediumTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pit_8254.pit_tb import PITTB, PITRegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pit_8254.pit_tests_basic import PITBasicTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pit_8254.pit_tests_medium import PITMediumTests
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -218,7 +218,7 @@ def test_pit(request, cdc_enable, test_level, description):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/pit_8254/filelists/apb4_pit_8254.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/pit_8254/filelists/apb4_pit_8254.f'
     )
 
     # RTL parameters - only CDC_ENABLE is parameterized

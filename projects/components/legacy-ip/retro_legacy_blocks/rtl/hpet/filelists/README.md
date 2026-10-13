@@ -50,7 +50,7 @@ export REPO_ROOT=/path/to/rtldesignsherpa
 
 # Compile complete APB HPET
 verilator -cc \
-  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f \
+  -f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f \
   --top-module apb4_hpet \
   -GNUM_TIMERS=8 \
   -GVENDOR_ID=0x4747 \
@@ -69,7 +69,7 @@ repo_root = os.environ.get('REPO_ROOT', os.path.abspath('../../../'))
 run(
     verilog_sources=[
         '-f',
-        os.path.join(repo_root, 'projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f')
+        os.path.join(repo_root, 'projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f')
     ],
     toplevel='apb4_hpet',
     parameters={
@@ -86,7 +86,7 @@ run(
 ```bash
 # View all files in dependency order
 export REPO_ROOT=/path/to/rtldesignsherpa
-verilator -E -f projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f
+verilator -E -f projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f
 ```
 
 ## File List Hierarchy
@@ -222,7 +222,7 @@ module apb4_hpet #(
 ### Register Generation
 
 ```bash
-cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
+cd projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/peakrdl
 python ../../../../../../bin/peakrdl_generate.py hpet_regs.rdl --copy-rtl ..
 ```
 
@@ -266,12 +266,12 @@ export REPO_ROOT=/path/to/rtldesignsherpa
 
 # Test component-level file list
 verilator --lint-only \
-  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/component/hpet_core.f \
+  -f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/component/hpet_core.f \
   --top-module hpet_core
 
 # Test integration-level file list
 verilator --lint-only \
-  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f \
+  -f $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f \
   --top-module apb4_hpet \
   -GNUM_TIMERS=8
 ```
@@ -280,7 +280,7 @@ verilator --lint-only \
 
 - **PeakRDL Specification:** `../../../rdl/hpet/hpet_regs.rdl`
 - **Integration Status:** `../../../docs/IMPLEMENTATION_STATUS.md` (PeakRDL HPET integration final status)
-- **Test Examples:** `projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py`
+- **Test Examples:** `projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py`
 - **RAPIDS File Lists:** `projects/components/dma-ip/rapids/rtl/filelists/` (reference methodology)
 
 ---

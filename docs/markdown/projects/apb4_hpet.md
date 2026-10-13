@@ -31,7 +31,7 @@
 
 The APB HPET is now part of the **Retro Legacy Blocks** collection, which consolidates legacy and retro-computing peripherals for historical SoC designs.
 
-**New Location:** `projects/components/retro_legacy_blocks/`
+**New Location:** `projects/components/legacy-ip/retro_legacy_blocks/`
 
 ---
 
@@ -39,25 +39,25 @@ The APB HPET is now part of the **Retro Legacy Blocks** collection, which consol
 
 The complete APB HPET documentation is now maintained in the retro_legacy_blocks project directory:
 
-**[HPET Complete Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)**
+**[HPET Complete Specification](../../../projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)**
 
 ---
 
 ## Quick Links
 
 ### Component Documentation
-- **Specification Index:** [hpet_mas/hpet_mas_index.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
-- **Overview:** [ch01_overview/01_overview.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch01_overview/01_overview.md)
-- **Architecture:** [ch01_overview/02_architecture.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch01_overview/02_architecture.md)
-- **Block Descriptions:** [ch02_blocks/](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch02_blocks/)
-- **Register Map:** [ch05_registers/01_register_map.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch05_registers/01_register_map.md)
+- **Specification Index:** [hpet_mas/hpet_mas_index.md](../../../projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
+- **Overview:** [ch01_overview/01_overview.md](../../../projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/ch01_overview/01_overview.md)
+- **Architecture:** [ch01_overview/02_architecture.md](../../../projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/ch01_overview/02_architecture.md)
+- **Block Descriptions:** [ch02_blocks/](../../../projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/ch02_blocks/)
+- **Register Map:** [ch05_registers/01_register_map.md](../../../projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/ch05_registers/01_register_map.md)
 
 ### Project Files
-- **Product Requirements:** [PRD.md](../../../projects/components/retro_legacy_blocks/PRD.md)
-- **AI Guide:** [CLAUDE.md](../../../projects/components/retro_legacy_blocks/CLAUDE.md)
-- **Implementation Status:** [docs/IMPLEMENTATION_STATUS.md](../../../projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md)
-- **Source Code:** [rtl/hpet/](../../../projects/components/retro_legacy_blocks/rtl/hpet/)
-- **Tests:** [dv/tests/](../../../projects/components/retro_legacy_blocks/dv/tests/)
+- **Product Requirements:** [PRD.md](../../../projects/components/legacy-ip/retro_legacy_blocks/PRD.md)
+- **AI Guide:** [CLAUDE.md](../../../projects/components/legacy-ip/retro_legacy_blocks/CLAUDE.md)
+- **Implementation Status:** [docs/IMPLEMENTATION_STATUS.md](../../../projects/components/legacy-ip/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md)
+- **Source Code:** [rtl/hpet/](../../../projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/)
+- **Tests:** [dv/tests/](../../../projects/components/legacy-ip/retro_legacy_blocks/dv/tests/)
 
 ---
 
@@ -73,7 +73,7 @@ The HPET is now part of a collection that includes:
 - **PM/ACPI** - Power Management / Advanced Configuration and Power Interface
 - **IOAPIC** - I/O Advanced Programmable Interrupt Controller
 
-**[View Complete Collection](../../../projects/components/retro_legacy_blocks/README.md)**
+**[View Complete Collection](../../../projects/components/legacy-ip/retro_legacy_blocks/README.md)**
 
 ---
 
@@ -100,7 +100,7 @@ Multi-timer peripheral with 64-bit counter, one-shot/periodic modes, and optiona
 ---
 
 **For complete documentation, please visit:**
-**[projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)**
+**[projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md](../../../projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)**
 
 ---
 

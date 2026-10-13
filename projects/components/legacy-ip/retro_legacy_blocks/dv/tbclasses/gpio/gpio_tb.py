@@ -7,7 +7,7 @@
 # Module: GPIORegisterMap, GPIOTB
 # Purpose: GPIO (General Purpose I/O) Testbench
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/README.md
 # Subsystem: retro_legacy_blocks/gpio
 #
 # Created: 2025-11-29

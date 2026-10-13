@@ -7,7 +7,7 @@
 // Module: hpet_config_regs
 // Purpose: HPET Configuration Registers - PeakRDL wrapper
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/hpet/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/README.md
 // Subsystem: hpet
 //
 // Author: sean galloway

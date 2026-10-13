@@ -10,8 +10,8 @@ state (`open/`, `active/`, `closed/`, `dropped/`). Moving an item between states
 is `git mv`, so an item is in exactly one state by construction.
 
 Block: the GPIO. RTL under
-`projects/components/retro_legacy_blocks/rtl/gpio/`; MAS spec under
-`projects/components/retro_legacy_blocks/docs/gpio_mas/`.
+`projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/`; MAS spec under
+`projects/components/legacy-ip/retro_legacy_blocks/docs/gpio_mas/`.
 
 ## Lanes
 

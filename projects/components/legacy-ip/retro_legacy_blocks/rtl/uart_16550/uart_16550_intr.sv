@@ -21,7 +21,7 @@
 //     the source it shares with, and exists only in FIFO mode.
 //   - No assertions live in this module; properties belong in formal/.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2026-09-10
 
 `timescale 1ns / 1ps

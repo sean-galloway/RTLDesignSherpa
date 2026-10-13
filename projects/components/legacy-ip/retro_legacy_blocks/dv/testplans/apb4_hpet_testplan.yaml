@@ -3,8 +3,8 @@
 # STATUS: 100% COMPLETE - All test levels implemented and passing
 
 module: apb4_hpet
-rtl_file: projects/components/retro_legacy_blocks/rtl/hpet/apb4_hpet.sv
-test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py
+rtl_file: projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/apb4_hpet.sv
+test_file: projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py
 
 # Module description:
 # APB High Precision Event Timer (HPET) with configurable timers, 64-bit counter,

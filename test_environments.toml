@@ -135,7 +135,7 @@ coverage = true
 # --- Retro Legacy Blocks ---
 [env.retro-legacy]
 description = "Retro legacy blocks"
-directory = "projects/components/retro_legacy_blocks/dv/tests"
+directory = "projects/components/legacy-ip/retro_legacy_blocks/dv/tests"
 coverage = false
 
 # --- Timing Characterization ---

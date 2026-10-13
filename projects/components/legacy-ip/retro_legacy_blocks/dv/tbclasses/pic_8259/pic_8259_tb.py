@@ -7,7 +7,7 @@
 # Module: PIC8259TB
 # Purpose: Testbench class for APB PIC 8259 module
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/pic_8259/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pic_8259/README.md
 # Subsystem: retro_legacy_blocks/pic_8259
 #
 # Created: 2025-11-16
@@ -47,7 +47,7 @@ from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
 # Import project-specific helper
 import sys
 from pathlib import Path
-repo_root = Path(__file__).resolve().parents[6]
+repo_root = Path(__file__).resolve().parents[7]
 sys.path.insert(0, str(repo_root))
 
 

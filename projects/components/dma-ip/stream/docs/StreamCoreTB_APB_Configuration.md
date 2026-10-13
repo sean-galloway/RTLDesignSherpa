@@ -336,6 +336,6 @@ When creating stream_top tests:
 
 ## See Also
 
-- `projects/components/retro_legacy_blocks/dv/tbclasses/hpet/hpet_tb.py` - Reference implementation
+- `projects/components/legacy-ip/retro_legacy_blocks/dv/tbclasses/hpet/hpet_tb.py` - Reference implementation
 - `projects/components/dma-ip/stream/rtl/macro/stream_regs.rdl` - Register definitions
 - `projects/components/dma-ip/stream/dv/tbclasses/stream_core_tb.py` - Implementation

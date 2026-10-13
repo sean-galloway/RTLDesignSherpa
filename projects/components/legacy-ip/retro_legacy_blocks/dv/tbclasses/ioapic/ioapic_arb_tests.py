@@ -33,7 +33,7 @@ asserts it observed something before it is allowed to pass.
 
 from cocotb.triggers import ClockCycles
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import (
     IOAPICRegisterMap,
 )
 

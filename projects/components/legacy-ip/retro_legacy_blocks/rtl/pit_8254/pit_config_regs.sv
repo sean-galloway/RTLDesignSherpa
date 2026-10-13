@@ -105,7 +105,7 @@
 //     Guarded by pit_tests_medium.py::test_gh52_address_decode_aliasing, which
 //     would time out rather than fail if the ack were lost.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/pit_8254/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pit_8254/README.md
 // Subsystem: retro_legacy_blocks/pit_8254
 //
 // Updated: 2026-09-09 - GitHub #52: strict decode with PSLVERR, one-cycle

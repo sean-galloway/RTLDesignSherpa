@@ -22,11 +22,11 @@
 
 # Lint waiver for the arbiter's pre-existing UNUSEDSIGNAL (see the .vlt for
 # why it is waived here rather than fixed in shared rtl/common).
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.vlt
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.vlt
 
 # Round-robin arbiter, in ACK mode so a grant is held across the delivery
 # handshake. Pulled by its own sub-block filelist rather than hand-listed.
 -f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
 
 # The merge itself.
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.sv

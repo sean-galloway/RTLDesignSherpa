@@ -26,7 +26,7 @@
 //     character - the one in the shifter always finishes - and rts_n is
 //     driven from the RX FIFO level rather than from MCR[1].
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2026-09-10
 
 `timescale 1ns / 1ps

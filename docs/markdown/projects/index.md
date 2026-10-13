@@ -263,7 +263,7 @@ RISC-V override plane (riscv-debug).
 
 #### Retro Legacy Peripheral Collection
 **Status:** Stable (Collection of legacy/retro peripherals)
-**Location:** [`projects/components/retro_legacy_blocks/`](../../../projects/components/retro_legacy_blocks/)
+**Location:** [`projects/components/legacy-ip/retro_legacy_blocks/`](../../../projects/components/legacy-ip/retro_legacy_blocks/)
 
 Collection of legacy and retro-computing peripherals for historical SoC designs.
 
@@ -279,10 +279,10 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 - **IOAPIC** - I/O Advanced Programmable Interrupt Controller
 
 **Documentation:**
-- [Collection Overview](../../../projects/components/retro_legacy_blocks/README.md)
-- [HPET Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
-- [Requirements](../../../projects/components/retro_legacy_blocks/PRD.md)
-- [AI Guide](../../../projects/components/retro_legacy_blocks/CLAUDE.md)
+- [Collection Overview](../../../projects/components/legacy-ip/retro_legacy_blocks/README.md)
+- [HPET Specification](../../../projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
+- [Requirements](../../../projects/components/legacy-ip/retro_legacy_blocks/PRD.md)
+- [AI Guide](../../../projects/components/legacy-ip/retro_legacy_blocks/CLAUDE.md)
 
 ---
 

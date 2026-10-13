@@ -253,7 +253,7 @@ All dependencies are listed in `apbx_xbar_legacy_1to8.f`.
 
 - Main APB Crossbar Component: `/projects/components/fabric-gen-ip/apbx-xbar/`
 - APB Crossbar PRD: `/projects/components/fabric-gen-ip/apbx-xbar/PRD.md`
-- Retro Legacy Blocks: `/projects/components/retro_legacy_blocks/`
+- Retro Legacy Blocks: `/projects/components/legacy-ip/retro_legacy_blocks/`
 
 ### Testing
 

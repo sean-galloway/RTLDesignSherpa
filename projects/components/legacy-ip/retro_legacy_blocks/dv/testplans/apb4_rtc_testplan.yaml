@@ -3,8 +3,8 @@
 # NOTE: Currently only basic tests implemented - medium and full tests needed
 
 module: apb4_rtc
-rtl_file: projects/components/retro_legacy_blocks/rtl/rtc/apb4_rtc.sv
-test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_rtc.py
+rtl_file: projects/components/legacy-ip/retro_legacy_blocks/rtl/rtc/apb4_rtc.sv
+test_file: projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_rtc.py
 
 # Module description:
 # APB Real-Time Clock (RTC) with seconds/minutes/hours/day/month/year counters,

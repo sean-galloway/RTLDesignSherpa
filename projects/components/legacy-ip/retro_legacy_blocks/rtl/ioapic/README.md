@@ -183,18 +183,18 @@ owe in that arrangement.
 
 ## Verification
 
-`projects/components/retro_legacy_blocks/dv/tests/test_apb4_ioapic.py`, six
+`projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_ioapic.py`, six
 configurations (CDC off/on x gate/func/full). The defect-regression suite for
 GitHub issue #48 is `dv/tbclasses/ioapic/ioapic_tests_medium.py`.
 
 ```bash
-cd projects/components/retro_legacy_blocks/dv/tests
+cd projects/components/legacy-ip/retro_legacy_blocks/dv/tests
 make clean-all && make run-apb4_ioapic-full
 ```
 
 ## Specification
 
-`projects/components/retro_legacy_blocks/docs/ioapic_mas/`
+`projects/components/legacy-ip/retro_legacy_blocks/docs/ioapic_mas/`
 
 ---
 

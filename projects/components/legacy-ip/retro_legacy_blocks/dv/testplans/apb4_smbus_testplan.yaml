@@ -3,8 +3,8 @@
 # NOTE: Currently only basic tests implemented - medium and full tests needed
 
 module: apb4_smbus
-rtl_file: projects/components/retro_legacy_blocks/rtl/smbus/apb4_smbus.sv
-test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb4_smbus.py
+rtl_file: projects/components/legacy-ip/retro_legacy_blocks/rtl/smbus/apb4_smbus.sv
+test_file: projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_smbus.py
 
 # Module description:
 # APB SMBus (System Management Bus) controller with master/slave modes,

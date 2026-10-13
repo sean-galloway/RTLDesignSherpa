@@ -7,7 +7,7 @@
 # Module: PMACPIFullTests
 # Purpose: PM_ACPI Full Test Suite
 #
-# Documentation: projects/components/retro_legacy_blocks/docs/pm_acpi_spec/
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/pm_acpi_spec/
 # Subsystem: retro_legacy_blocks/pm_acpi
 #
 # Created: 2025-11-29
@@ -26,7 +26,7 @@ Comprehensive stress tests and edge case coverage including:
 
 from cocotb.triggers import ClockCycles, Timer
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import (
     PMACPITB, PMACPIRegisterMap
 )
 

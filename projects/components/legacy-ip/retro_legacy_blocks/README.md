@@ -247,13 +247,13 @@ apb4_hpet #(
 
 ```bash
 # Run all tests for a block (test runners are flat under dv/tests/)
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 # Run specific test level
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v -k "basic"
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v -k "basic"
 
 # With waveforms
-WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+WAVES=1 pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ---
@@ -274,8 +274,8 @@ WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.p
 
 - `/CLAUDE.md` - Repository AI guide
 - `/PRD.md` - Master requirements
-- `projects/components/retro_legacy_blocks/PRD.md` - Component requirements
-- `projects/components/retro_legacy_blocks/CLAUDE.md` - Component AI guide
+- `projects/components/legacy-ip/retro_legacy_blocks/PRD.md` - Component requirements
+- `projects/components/legacy-ip/retro_legacy_blocks/CLAUDE.md` - Component AI guide
 
 ---
 
@@ -283,17 +283,17 @@ WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.p
 
 ```bash
 # Run all HPET tests
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 # Lint HPET RTL
-verilator --lint-only projects/components/retro_legacy_blocks/rtl/hpet/apb4_hpet.sv
+verilator --lint-only projects/components/legacy-ip/retro_legacy_blocks/rtl/hpet/apb4_hpet.sv
 
 # Generate HPET specification PDF
-cd projects/components/retro_legacy_blocks/docs
+cd projects/components/legacy-ip/retro_legacy_blocks/docs
 ./generate_pdf.sh
 
 # View HPET documentation
-cat projects/components/retro_legacy_blocks/PRD.md
+cat projects/components/legacy-ip/retro_legacy_blocks/PRD.md
 ```
 
 ---

@@ -8,7 +8,7 @@
 # Purpose: Light integration smoke tests for rlb_top -- every peripheral
 #          present, decoded and answering on its own 4KB window.
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/rlb_top/
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/rlb_top/
 # Subsystem: retro_legacy_blocks/rlb_top
 #
 # Created: 2026-09-14
@@ -45,8 +45,8 @@ from cov_utils.conftest_coverage import get_coverage_compile_args
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.rlb_top.rlb_top_tb import RLBTopTB
-from projects.components.retro_legacy_blocks.dv.tbclasses.rlb_top.rlb_top_tests import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rlb_top.rlb_top_tb import RLBTopTB
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rlb_top.rlb_top_tests import (
     RLBTopTests,
 )
 
@@ -179,7 +179,7 @@ def test_rlb_top(request, test_level, description):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/rlb_top/filelists/rlb_top.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/rlb_top/filelists/rlb_top.f'
     )
 
     rtl_parameters = {

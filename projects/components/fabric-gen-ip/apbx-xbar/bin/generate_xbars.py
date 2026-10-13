@@ -119,7 +119,7 @@ def generate_all_standard():
     # generate_custom() comment below gives.
     external = [
         dict(masters=1, slaves=10, base_addr=0xFEC00000, slave_size=0x1000,
-             path=(Path(__file__).resolve().parents[3] / 'retro_legacy_blocks'
+             path=(Path(__file__).resolve().parents[3] / 'legacy-ip' / 'retro_legacy_blocks'
                    / 'rtl' / 'apbx_xbar' / 'apbx_xbar_1to10.sv')),
     ]
 

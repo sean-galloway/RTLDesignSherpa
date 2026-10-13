@@ -2,10 +2,10 @@
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
 [*] Mon Nov 17 17:33:17 2025
 [*]
-[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_apb4_pic_8259_test_pic_8259_basic_gw0/dump.vcd"
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/legacy-ip/retro_legacy_blocks/dv/tests/local_sim_build/test_apb4_pic_8259_test_pic_8259_basic_gw0/dump.vcd"
 [dumpfile_mtime] "Mon Nov 17 03:20:05 2025"
 [dumpfile_size] 234706
-[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/GTKW/pic_8259.gtkw"
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/legacy-ip/retro_legacy_blocks/dv/tests/GTKW/pic_8259.gtkw"
 [timestart] 4116900
 [size] 3200 1838
 [pos] 463 24

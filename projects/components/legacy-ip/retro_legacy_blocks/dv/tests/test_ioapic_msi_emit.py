@@ -7,7 +7,7 @@
 # Module: test_ioapic_msi_emit
 # Purpose: Runner for the MSI companion on a real IOAPIC channel (RLB TASK-008, was RLB-008).
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/README.md
 # Subsystem: retro_legacy_blocks/ioapic
 #
 # Created: 2026-09-14
@@ -40,8 +40,8 @@ from cov_utils.conftest_coverage import get_coverage_compile_args
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_msi_tb import IOAPICMsiTB
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_msi_tests import IOAPICMsiTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_msi_tb import IOAPICMsiTB
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_msi_tests import IOAPICMsiTests
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -137,7 +137,7 @@ def test_ioapic_msi_emit(request, test_level, description):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
-        filelist_path='projects/components/retro_legacy_blocks/dv/filelists/ioapic_msi_emit_tb_top.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/dv/filelists/ioapic_msi_emit_tb_top.f'
     )
 
     rtl_parameters = {

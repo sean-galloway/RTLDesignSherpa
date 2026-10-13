@@ -22,4 +22,4 @@
 
 # The arbiter itself. No AMBA or CDC dependencies: it is combinational
 # decision logic on an already-synchronous delivery channel.
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_lowest_pri_arb.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_lowest_pri_arb.sv

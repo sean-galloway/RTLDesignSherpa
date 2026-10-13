@@ -7,7 +7,7 @@
 # Module: test_pic_8259_cascade
 # Purpose: Runner for the 8259 PC/AT cascade pair (RLB/pic_8259 TASK-001).
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/pic_8259/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pic_8259/README.md
 # Subsystem: retro_legacy_blocks/pic_8259
 #
 # Created: 2026-09-28
@@ -47,8 +47,8 @@ from cov_utils.conftest_coverage import get_coverage_compile_args
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import PIC8259TB
-from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_cascade_tests import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import PIC8259TB
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_cascade_tests import (
     PIC8259CascadeTests,
 )
 
@@ -149,7 +149,7 @@ def test_pic_8259_cascade(request, test_level, description):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
-        filelist_path='projects/components/retro_legacy_blocks/dv/filelists/pic_8259_cascade_tb_top.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/dv/filelists/pic_8259_cascade_tb_top.f'
     )
 
     rtl_parameters = {

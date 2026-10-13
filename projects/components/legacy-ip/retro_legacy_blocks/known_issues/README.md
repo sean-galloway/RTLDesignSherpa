@@ -26,8 +26,8 @@
 **Last Updated:** 2025-10-17
 
 > Status (2026-07-22): The standalone `projects/components/apb4_hpet/` component was absorbed
-> into `projects/components/retro_legacy_blocks/`; this directory is now
-> `projects/components/retro_legacy_blocks/known_issues/`. The old `resolved/` and `active/`
+> into `projects/components/legacy-ip/retro_legacy_blocks/`; this directory is now
+> `projects/components/legacy-ip/retro_legacy_blocks/known_issues/`. The old `resolved/` and `active/`
 > subdirectories (including `resolved/timer_cleanup_issue.md`) were not carried over -
 > the timer-cleanup fix is documented as TASK-001 in [RLB/hpet TASK-001](../../../../vault/Tasks/RLB/hpet/INDEX.md).
 > Subdirectories are recreated on demand when new issues are filed. Paths below have been
@@ -97,7 +97,7 @@ Create a new markdown file in `active/` when:
 Clear description of the issue...
 
 ## Location
-**File**: `projects/components/retro_legacy_blocks/path/to/file.sv`
+**File**: `projects/components/legacy-ip/retro_legacy_blocks/path/to/file.sv`
 **Lines**: Line numbers
 
 ## Current Code (Problematic/Incomplete)
@@ -154,10 +154,10 @@ Even resolved issues remain in `resolved/` permanently for reference.
 
 ```bash
 # List all active issues (directory created when the first issue is filed)
-ls projects/components/retro_legacy_blocks/known_issues/active/
+ls projects/components/legacy-ip/retro_legacy_blocks/known_issues/active/
 
 # List all resolved issues (directory created when the first issue is resolved)
-ls projects/components/retro_legacy_blocks/known_issues/resolved/
+ls projects/components/legacy-ip/retro_legacy_blocks/known_issues/resolved/
 
 # View the timer-cleanup fix write-up (TASK-001)
 cat vault/Tasks/RLB/hpet/task/closed/TASK-001.md
@@ -167,13 +167,13 @@ cat vault/Tasks/RLB/hpet/task/closed/TASK-001.md
 
 ```bash
 # Search for specific component
-grep -r "Timer" projects/components/retro_legacy_blocks/known_issues/
+grep -r "Timer" projects/components/legacy-ip/retro_legacy_blocks/known_issues/
 
 # Search for specific bug type
-grep -r "timeout" projects/components/retro_legacy_blocks/known_issues/
+grep -r "timeout" projects/components/legacy-ip/retro_legacy_blocks/known_issues/
 
 # Find all high-severity issues
-grep -r "Severity.*High" projects/components/retro_legacy_blocks/known_issues/active/
+grep -r "Severity.*High" projects/components/legacy-ip/retro_legacy_blocks/known_issues/active/
 ```
 
 ---
@@ -250,14 +250,14 @@ grep -r "Severity.*High" projects/components/retro_legacy_blocks/known_issues/ac
 ## References
 
 **APB HPET Documentation:**
-- `projects/components/retro_legacy_blocks/PRD.md` - Complete specification
-- `projects/components/retro_legacy_blocks/CLAUDE.md` - AI assistant guide
+- `projects/components/legacy-ip/retro_legacy_blocks/PRD.md` - Complete specification
+- `projects/components/legacy-ip/retro_legacy_blocks/CLAUDE.md` - AI assistant guide
 - `vault/Tasks/RLB/hpet/` - current HPET work items; `vault/Tasks/RLB/` cross-block
-- `projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md` - Test results
+- `projects/components/legacy-ip/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md` - Test results
 
 **Test Infrastructure:**
-- `projects/components/retro_legacy_blocks/dv/tests/` - Test files (`test_apb4_hpet.py`)
-- `projects/components/retro_legacy_blocks/dv/tbclasses/hpet/` - Reusable testbench classes
+- `projects/components/legacy-ip/retro_legacy_blocks/dv/tests/` - Test files (`test_apb4_hpet.py`)
+- `projects/components/legacy-ip/retro_legacy_blocks/dv/tbclasses/hpet/` - Reusable testbench classes
 
 ---
 

@@ -108,7 +108,7 @@
 //     EOI executed twice retires a second in-service level) and
 //     pic_8259_tests_medium.py::test_c3_isr_set_by_acknowledge.
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/pic_8259/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/pic_8259/README.md
 // Subsystem: retro_legacy_blocks/pic_8259
 //
 // Created: 2025-11-16

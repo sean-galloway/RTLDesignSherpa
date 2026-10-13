@@ -28,7 +28,7 @@
 //   - Character timeout interrupt (RLB TASK-012, was RLB-013): IIR reads 0x0C after four
 //     character times with a non-empty RX FIFO and no activity
 //
-// Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2025-11-29
 
 `timescale 1ns / 1ps

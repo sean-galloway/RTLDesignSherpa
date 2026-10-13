@@ -35,12 +35,12 @@
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # PeakRDL generated package and register block
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_regs_pkg.sv
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_regs.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_regs_pkg.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_regs.sv
 
 # IOAPIC core modules
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_core.sv
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_config_regs.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_core.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_config_regs.sv
 
 # APB top-level wrapper
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/apb4_ioapic.sv
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/apb4_ioapic.sv

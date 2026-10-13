@@ -6,7 +6,7 @@ REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
-DUT := $(REPO_ROOT)/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_lowest_pri_arb.sv
+DUT := $(REPO_ROOT)/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_lowest_pri_arb.sv
 
 .PHONY: prove cover all clean
 

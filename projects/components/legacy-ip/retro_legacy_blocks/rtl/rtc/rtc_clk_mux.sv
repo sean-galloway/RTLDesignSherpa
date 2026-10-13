@@ -8,7 +8,7 @@
 // Purpose: The counter-clock source mux for rtc_core, with a device-specific
 //          glitchless cell where one is available (RLB TASK-010, was RLB-010).
 //
-// Documentation: projects/components/retro_legacy_blocks/docs/rtc_mas/
+// Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/rtc_mas/
 // Subsystem: retro_legacy_blocks/rtc
 //
 // Created: 2026-09-14

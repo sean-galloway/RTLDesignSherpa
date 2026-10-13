@@ -53,12 +53,12 @@ from cocotb.triggers import ClockCycles
 
 # RLB TASK-015: the fabric tests acknowledge through the 8259, so they need
 # the register map the TB already uses.
-from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import (
     PIC8259RegisterMap,
 )
 # RLB TASK-018: the per-IR-line verdict is a PURE function so it can be tested
 # without a simulator -- see rlb_top/tests/test_ir_lines.py.
-from projects.components.retro_legacy_blocks.dv.tbclasses.rlb_top.ir_lines import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rlb_top.ir_lines import (
     ir_lines_verdict,
     source_irq_consistent,
 )

@@ -7,7 +7,7 @@
 # Module: RTCRegisterMap, RTCTB
 # Purpose: Real-Time Clock (RTC) Testbench
 #
-# Documentation: projects/components/retro_legacy_blocks/docs/rtc_spec/
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/docs/rtc_spec/
 # Subsystem: retro_legacy_blocks/rtc
 #
 # Created: 2025-11-15

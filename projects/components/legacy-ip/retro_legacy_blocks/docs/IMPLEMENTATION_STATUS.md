@@ -155,7 +155,7 @@ The All Timers Stress test likely has a similar short timeout that prevents Time
 ## Test Execution Summary
 
 ```
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 test_hpet[2-18247-1-0-full-2-timer v4747]      PASSED
 test_hpet[3-4130-2-0-full-3-timer AMD-like]         PASSED

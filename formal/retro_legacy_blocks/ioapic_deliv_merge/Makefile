@@ -34,7 +34,7 @@ DEPS := $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
         $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv
 
 # Device under test
-DUT := $(REPO_ROOT)/projects/components/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.sv
+DUT := $(REPO_ROOT)/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_deliv_merge.sv
 
 .PHONY: prove cover all clean
 

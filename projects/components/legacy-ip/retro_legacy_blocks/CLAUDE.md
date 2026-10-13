@@ -36,8 +36,8 @@
 **Your Role:** Help users develop new legacy blocks, integrate existing blocks, understand RLB architecture
 
 **Complete Documentation:**
-- `projects/components/retro_legacy_blocks/PRD.md` ← Master requirements for all blocks
-- `projects/components/retro_legacy_blocks/README.md` ← Component overview and usage guide
+- `projects/components/legacy-ip/retro_legacy_blocks/PRD.md` ← Master requirements for all blocks
+- `projects/components/legacy-ip/retro_legacy_blocks/README.md` ← Component overview and usage guide
 - `docs/hpet_mas/hpet_mas_index.md` ← HPET complete specification
 
 **RLB Address Map:** Single APB entry point at `0xFEC0_0000` (the `BASE_ADDR`
@@ -71,7 +71,7 @@ A TB class never lives in a test runner; `/GLOBAL_REQUIREMENTS.md` 2.1 is the
 authority. What is specific to this component is the layout and the tier names:
 
 ```
-projects/components/retro_legacy_blocks/dv/
+projects/components/legacy-ip/retro_legacy_blocks/dv/
 ├── tbclasses/{block}/             # block-specific TB classes
 │   ├── {block}_tb.py
 │   ├── {block}_tests_basic.py     # runs at TEST_LEVEL=gate
@@ -125,7 +125,7 @@ See `rdl/hpet/` for a complete example.
 
 **1. Directory structure:**
 ```bash
-cd projects/components/retro_legacy_blocks
+cd projects/components/legacy-ip/retro_legacy_blocks
 mkdir -p rdl/{block}                 # SystemRDL: the source of truth
 mkdir -p rtl/{block}/filelists       # component + integration filelists
 mkdir -p dv/tbclasses/{block}        # TB classes; runners stay flat in dv/tests/
@@ -361,7 +361,7 @@ Not experimental - production-ready implementations of time-tested designs.
 ```bash
 # Always through the area Makefile -- a bare pytest drops the level, the derived
 # worker count and the reruns, and skips clean-all.
-cd projects/components/retro_legacy_blocks/dv/tests
+cd projects/components/legacy-ip/retro_legacy_blocks/dv/tests
 make list                          # the roots discovered by glob
 make clean-all && make run-all-full-parallel
 make run-apb4_hpet-gate            # one block, one level
@@ -376,13 +376,13 @@ Grammar and rationale: `vault/handbook/dv/running-regressions.md`.
 
 **IMPORTANT: PDF files should be generated in the docs directory:**
 ```
-$REPO_ROOT/projects/components/retro_legacy_blocks/docs/
+$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/docs/
 ```
 
 **Quick Command:** Use the MAS script. The books live in `*_mas/` directories
 and `generate_mas_pdf.sh` is what knows about them:
 ```bash
-cd $REPO_ROOT/projects/components/retro_legacy_blocks/docs
+cd $REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks/docs
 ./generate_mas_pdf.sh                      # every book
 ./generate_mas_pdf.sh --component smbus    # one book
 ```

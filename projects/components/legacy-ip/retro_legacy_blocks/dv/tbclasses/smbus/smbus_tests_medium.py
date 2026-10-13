@@ -160,7 +160,7 @@ into a DUT pass/fail assertion.
 import cocotb
 from cocotb.triggers import ClockCycles, RisingEdge, FallingEdge
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tb import SMBusRegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tb import SMBusRegisterMap
 from CocoTBFramework.components.smbus import SMBusCRC, SMBusTransactionType
 from CocoTBFramework.components.apb.apb_packet import APBPacket
 

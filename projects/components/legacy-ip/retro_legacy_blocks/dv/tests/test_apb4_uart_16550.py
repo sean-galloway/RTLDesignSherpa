@@ -7,7 +7,7 @@
 # Module: test_apb4_uart_16550
 # Purpose: UART 16550 Test Runner - Scalable Version with CDC Variations
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/README.md
 # Subsystem: retro_legacy_blocks/uart_16550
 #
 # Created: 2025-11-30
@@ -48,16 +48,16 @@ import sys
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.uart_16550.uart_16550_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.uart_16550.uart_16550_tb import (
     UART16550TB, UART16550RegisterMap
 )
-from projects.components.retro_legacy_blocks.dv.tbclasses.uart_16550.uart_16550_tests_basic import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.uart_16550.uart_16550_tests_basic import (
     UART16550BasicTests
 )
-from projects.components.retro_legacy_blocks.dv.tbclasses.uart_16550.uart_16550_tests_medium import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.uart_16550.uart_16550_tests_medium import (
     UART16550MediumTests
 )
-from projects.components.retro_legacy_blocks.dv.tbclasses.uart_16550.uart_16550_tests_full import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.uart_16550.uart_16550_tests_full import (
     UART16550FullTests
 )
 
@@ -184,7 +184,7 @@ def test_uart_16550(request, cdc_enable, test_level, description):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/uart_16550/filelists/apb4_uart_16550.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/uart_16550/filelists/apb4_uart_16550.f'
     )
 
     # RTL parameters - CDC_ENABLE is parameterized

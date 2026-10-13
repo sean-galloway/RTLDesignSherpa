@@ -7,7 +7,7 @@
 # Module: test_apb4_gpio
 # Purpose: GPIO Test Runner - Scalable Version with CDC Variations
 #
-# Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
+# Documentation: projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/README.md
 # Subsystem: retro_legacy_blocks/gpio
 #
 # Created: 2025-11-29
@@ -47,10 +47,10 @@ import sys
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
-from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tb import GPIOTB, GPIORegisterMap
-from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tests_basic import GPIOBasicTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tests_medium import GPIOMediumTests
-from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tests_full import GPIOFullTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tb import GPIOTB, GPIORegisterMap
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tests_basic import GPIOBasicTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tests_medium import GPIOMediumTests
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tests_full import GPIOFullTests
 
 
 @cocotb.test(timeout_time=10000, timeout_unit="us")
@@ -221,7 +221,7 @@ def test_gpio(request, cdc_enable, test_level, description):
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/retro_legacy_blocks/rtl/gpio/filelists/apb4_gpio.f'
+        filelist_path='projects/components/legacy-ip/retro_legacy_blocks/rtl/gpio/filelists/apb4_gpio.f'
     )
 
     # RTL parameters - CDC_ENABLE is parameterized

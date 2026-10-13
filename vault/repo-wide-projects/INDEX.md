@@ -46,7 +46,7 @@ note — it belongs to that block and nowhere else.
 - [mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/INDEX.md)
 - [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/INDEX.md)
 - [misc](projects/components/utility-ip/misc/INDEX.md)
-- [retro_legacy_blocks](projects/components/retro_legacy_blocks/INDEX.md) — PIC, PIT, HPET, IOAPIC, SMBus, UART, RTC, GPIO, PM/ACPI; v1.0 (2026-10-06)
+- [retro_legacy_blocks](projects/components/legacy-ip/retro_legacy_blocks/INDEX.md) — PIC, PIT, HPET, IOAPIC, SMBus, UART, RTC, GPIO, PM/ACPI; v1.0 (2026-10-06)
 
 ## projects/fpga-systems/
 

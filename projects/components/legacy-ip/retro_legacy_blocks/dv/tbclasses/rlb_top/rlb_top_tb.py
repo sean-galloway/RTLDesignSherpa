@@ -41,16 +41,16 @@ from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
 
 import sys
 from pathlib import Path
-repo_root = Path(__file__).resolve().parents[6]
+repo_root = Path(__file__).resolve().parents[7]
 sys.path.insert(0, str(repo_root))
 
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_monitor
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 
-from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import (
     IOAPICRegisterMap,
 )
-from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import (
+from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import (
     PIC8259RegisterMap,
 )
 

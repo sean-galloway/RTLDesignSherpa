@@ -111,7 +111,7 @@ graph TD
 | **[amber](../../projects/components/cache-ip/amber-mesi-l1)** | In progress | Blocking MESI snoopy L1 (gemstone family) |
 | **[cache-ip rungs](../../projects/components/cache-ip)** | Planned | jet (MSHR L1) · basalt (MOESI L2) · onyx (ACE CCU) |
 | **[dfx-ip](../../projects/components/dfx-ip)** | Planned | House debug port: jtag-tap, jtag-axil-agent, riscv-debug |
-| **[Retro Legacy](../../projects/components/retro_legacy_blocks)** | Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
+| **[Retro Legacy](../../projects/components/legacy-ip/retro_legacy_blocks)** | Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
 | **[Converters](../../projects/components/utility-ip/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion |
 
 ### Verification
@@ -313,7 +313,7 @@ Build complete, production-ready peripherals for FPGA deployment (**25+ componen
 
 #### Retro Legacy Blocks
 
-**Status:** Production Ready | **Location:** [`projects/components/retro_legacy_blocks/`](../../projects/components/retro_legacy_blocks)
+**Status:** Production Ready | **Location:** [`projects/components/legacy-ip/retro_legacy_blocks/`](../../projects/components/legacy-ip/retro_legacy_blocks)
 
 Collection of 9 legacy/retro peripherals with full APB interfaces:
 
@@ -329,7 +329,7 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 | **PM/ACPI** | Power Management / ACPI support |
 | **IOAPIC** | I/O Advanced PIC |
 
-**Documentation:** [PRD](../../projects/components/retro_legacy_blocks/PRD.md)
+**Documentation:** [PRD](../../projects/components/legacy-ip/retro_legacy_blocks/PRD.md)
 
 ---
 
@@ -402,7 +402,7 @@ pytest val/amba/ -v -m medium     # Medium tests only
 pytest val/amba/ -v -m full       # Full tests only
 
 # Run component tests (example: Retro Legacy Blocks)
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/hpet/ -v
 ```
 
 ---
@@ -576,10 +576,10 @@ pytest projects/components/fabric-gen-ip/apbx-xbar/dv/tests/test_apbx_xbar_2to4.
 #### Level 4: Test Retro Legacy Block Component
 ```bash
 # Run HPET tests from Retro Legacy Blocks collection
-pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/hpet/ -v
 
 # Run specific test
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
+pytest projects/components/legacy-ip/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ---
@@ -601,8 +601,8 @@ pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 **Level 3 - Components:**
 - [Component Index](projects/index.md) - All components
 - [Component Overview](projects/overview.md) - Design patterns
-- [Retro Legacy Blocks](../../projects/components/retro_legacy_blocks/README.md) - Legacy peripheral collection
-- [HPET Specification](../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) - Complete HPET guide
+- [Retro Legacy Blocks](../../projects/components/legacy-ip/retro_legacy_blocks/README.md) - Legacy peripheral collection
+- [HPET Specification](../../projects/components/legacy-ip/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) - Complete HPET guide
 
 ### External References
 
