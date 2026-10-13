@@ -1,0 +1,68 @@
+// math_bf16_adder block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Five datapath stages (A..E) down the center column. Between them sit the
+// four optional register banks PIPE_STAGE_1..4, drawn dashed (each exists
+// only when its parameter is 1; all 0 makes the adder combinational). The
+// special-case flags, signs and i_valid ride beside the datapath through the
+// same banks (the dashed lane on the right) to the final select.
+// Source of truth: rtl/math/math_bf16_adder.sv.
+digraph math_bf16_adder {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.42", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_bf16_adder - BF16 add / subtract, RNE, flush-to-zero, optional pipeline";
+
+    // ---- legends and ports (white) ----
+    prm  [label="Parameters (fixed at build)\lPIPE_STAGE_1..4: 1 = a register bank after stage A, B, C, D\l    (latency = the number set; all 0 = combinational,\l    ow_valid follows i_valid in the same cycle)\l", fillcolor="white"];
+    ops  [group=M, label="Operands\ni_a[15:0], i_b[15:0], i_valid", fillcolor="white"];
+    clk  [label="Clock / Reset\ni_clk, i_rst_n\n(used only by enabled banks)", fillcolor="white"];
+
+    // ---- datapath stages ----
+    sa  [group=M, width=5.8, label="Stage A: Unpack, Classify, Compare + Swap (combinational)\nzero / subnormal (flushed to zero) / inf / NaN; inf - inf\nlarger magnitude becomes L, smaller S; exp_diff = |exp_a - exp_b|\neffective subtract = sign_L ^ sign_S"];
+    r1  [group=M, style="filled,dashed", label="PIPE_STAGE_1 bank (flops, optional)"];
+    sb  [group=M, width=5.8, label="Stage B: Align (combinational)\nshifter_barrel - u_align_shifter: S >> exp_diff\nsticky = OR of the bits shifted out"];
+    r2  [group=M, style="filled,dashed", label="PIPE_STAGE_2 bank (flops, optional)"];
+    sc  [group=M, width=5.8, label="Stage C: Add / Subtract (combinational, 12 bits)\nL + S, or L - S (L >= S, so never negative)\ncarry out = sum >= 2.0; exact-zero detect"];
+    r3  [group=M, style="filled,dashed", label="PIPE_STAGE_3 bank (flops, optional)"];
+    sd  [group=M, width=5.8, label="Stage D: Normalize (combinational)\ncount_leading_zeros - u_clz + shifter_barrel - u_norm_shifter\ncarry: shift right 1, exp + 1; else shift left by LZC, exp - LZC\nexponent overflow / underflow"];
+    r4  [group=M, style="filled,dashed", label="PIPE_STAGE_4 bank (flops, optional)"];
+    se  [group=M, width=5.8, label="Stage E: Round + Special Select (combinational)\nRNE: round up = G & (R | S | LSB); carry-out -> exp + 1\npriority: NaN or inf - inf -> quiet NaN (invalid) > inf > zero operands\n> exact zero (+0) > overflow -> inf > underflow -> 0 > rounded sum"];
+
+    bar [label="Outputs\now_result[15:0]   |   ow_overflow, ow_underflow, ow_invalid   |   ow_valid",
+         fillcolor="white", width=7.5];
+
+    // ---- main datapath ----
+    ops -> sa [xlabel="i_a, i_b"];
+    sa -> r1  [xlabel="L, S, exp_diff, eff_sub", penwidth=1.8];
+    r1 -> sb  [penwidth=1.8];
+    sb -> r2  [xlabel="L, aligned S, sticky", penwidth=1.8];
+    r2 -> sc  [penwidth=1.8];
+    sc -> r3  [xlabel="sum[11:0], carry", penwidth=1.8];
+    r3 -> sd  [penwidth=1.8];
+    sd -> r4  [xlabel="normalized mant + GRS, exp", penwidth=1.8];
+    r4 -> se  [penwidth=1.8];
+    se -> bar [xlabel="result, flags", penwidth=1.8];
+
+    // ---- side lane: flags, signs and valid travel through the same banks ----
+    p0 [shape=point, width=0.01, group=F];
+    p4 [shape=point, width=0.01, group=F];
+    ops -> p0 [arrowhead=none, headclip=false, style=dashed];
+    p0 -> p4  [arrowhead=none, headclip=false, tailclip=false, style=dashed,
+               xlabel="i_valid, special flags, signs\n(through the same banks)"];
+    p4 -> se  [style=dashed, tailclip=false];
+
+    // ---- clock to the optional banks (one representative edge) ----
+    clk -> r1 [style=dashed, xlabel="i_clk, i_rst_n\n(all enabled banks)"];
+
+    // ---- rank pinning ----
+    { rank=same; prm; clk; ops; }
+    { rank=same; sa; p0; }
+    { rank=same; se; p4; }
+    prm -> clk [style=invis];
+    clk -> ops [style=invis, minlen=2];
+    sa -> p0 [style=invis, minlen=2];
+    se -> p4 [style=invis];
+}

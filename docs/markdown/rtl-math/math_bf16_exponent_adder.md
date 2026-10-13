@@ -76,6 +76,16 @@ module math_bf16_exponent_adder(
 
 ## Functional Description
 
+### Block diagram
+
+![math_bf16_exponent_adder block diagram](../assets/rtl-math/graphviz/math_bf16_exponent_adder.png)
+
+Two checks run side by side on the raw exponents. The special detector
+flags the 0x00 and 0xFF classes (the caller separates zero from subnormal
+and infinity from NaN using the mantissa). The 10-bit biased sum feeds a
+range check that is masked when either operand is special, and the
+saturating select forces 0xFF on overflow and 0x00 on underflow.
+
 ### BF16 Exponent Background
 
 The encoding recap, because everything else in this module follows from it:

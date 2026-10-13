@@ -122,6 +122,18 @@ that exact width. Pick the variant that matches your width instead.
 
 ## Functional Description
 
+### Block diagram
+
+![math_adder_han_carlson block diagram](../assets/rtl-math/graphviz/math_adder_han_carlson.png)
+
+After the bitwise PG stage, stage 1 merges each even bit with its odd neighbour
+and folds the carry in at bit 0. Stages 2 onward run a Kogge-Stone tree over the
+even bits only, with spans of 2, 4, 8, while the odd bits pass straight through.
+A final level of gray cells resolves each odd bit from its even neighbour, which
+costs one extra level and roughly halves the cells compared to Kogge-Stone. The
+original propagate bits bypass the tree down the left, and the carry in reaches
+sum bit 0 down the right.
+
 ### Han-Carlson Structure
 
 Han-Carlson uses a "sparsity-2" approach:

@@ -170,6 +170,19 @@ module math_subtractor_carry_lookahead #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_subtractor_full_nbit block diagram](../assets/rtl-math/graphviz/math_subtractor_full_nbit.png)
+
+The N-bit ripple-borrow subtractor chains `N` full subtractors. The borrow is
+the main flow, drawn heavy: `i_b_in` enters bit 0, each stage's borrow out is
+the next stage's borrow in, and the last becomes `ow_b`, which is 1 when
+`A < B` for unsigned operands with no borrow in. Operand bits enter on the
+left trunk and difference bits leave on the right.
+`math_subtractor_ripple_carry` has the same structure under different port
+names. The carry-lookahead variant is drawn in its own section below.
+
+
 ### Half Subtractor
 
 Subtracts one bit from another, with no borrow input:
@@ -239,6 +252,13 @@ Bit N-1: FS(A[N-1], B[N-1], B[N-2]) → D[N-1], Bout
 ### N-bit Carry Lookahead Subtractor
 
 Uses lookahead logic to compute borrows faster (similar to CLA adder):
+
+![math_subtractor_carry_lookahead block diagram](../assets/rtl-math/graphviz/math_subtractor_carry_lookahead.png)
+
+Each bit computes a borrow generate (`~a & b`) and a borrow propagate
+(`~a | b`). The borrow recurrence combines them with the borrow in, and the
+difference XOR uses each bit's borrow. The recurrence is written as a loop
+over bits, which is why the delay is still given as O(N) below.
 
 **Timing:** O(N) delay (simplified lookahead)
 

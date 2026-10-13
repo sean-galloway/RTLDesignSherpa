@@ -1,0 +1,56 @@
+// math_bf16_mantissa_mult block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Fully combinational. The two 7-bit mantissas get their hidden bit, go
+// through the 8x8 Dadda multiplier, and the 16-bit product is examined:
+// bit 15 says whether the product is in [2, 4) (needs a normalize shift),
+// and that bit selects which window becomes the 7-bit mantissa and which bits
+// are guard, round and sticky. The raw product also leaves as an output,
+// down the left lane.
+// Source of truth: rtl/math/math_bf16_mantissa_mult.sv (generated).
+digraph math_bf16_mantissa_mult {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_bf16_mantissa_mult - 8x8 mantissa product with RNE bits (combinational)";
+
+    // ---- inputs (white) ----
+    m_in [label="Mantissas\ni_mant_a[6:0], i_mant_b[6:0]", fillcolor="white"];
+    n_in [label="Operand Class\ni_a_is_normal, i_b_is_normal", fillcolor="white"];
+
+    // ---- datapath ----
+    ext  [group=M, label="Hidden-Bit Extend (combinational)\n{is_normal, mant}: 1.mmmmmmm for a normal operand,\n0 for a zero / flushed subnormal"];
+    mul  [group=M, label="8x8 Multiply\nmath_multiplier_dadda_4to2_008 - u_mult\nDadda tree with 4:2 compressors\nproduct in [0, 4): 16 bits"];
+    nrm  [group=N, label="Normalize Detect (combinational)\nneeds_norm = product[15]\n(product >= 2.0)"];
+    sel  [group=M, label="Window Select (combinational)\nneeds_norm = 1: mant = [14:8], G = [7], R = [6], S = |[5:0]\nneeds_norm = 0: mant = [13:7], G = [6], R = [5], S = |[4:0]\nS is the true sticky (not folded with G)"];
+
+    // ---- outputs ----
+    bar  [label="Outputs\now_product[15:0]   |   ow_needs_norm   |   ow_mant_out[6:0]   |   ow_guard_bit, ow_round_bit, ow_sticky_bit",
+          fillcolor="white", width=8.5];
+
+    // ---- flows ----
+    m_in -> ext [xlabel="mant_a, mant_b"];
+    n_in -> ext [xlabel="hidden bits"];
+    ext  -> mul [xlabel="8-bit significands"];
+    mul  -> sel [xlabel="product[15:0]", penwidth=1.8];
+    mul  -> nrm [xlabel="product[15]"];
+    nrm  -> sel [xlabel="needs_norm"];
+    p_pr [shape=point, width=0.01, group=L];
+    mul  -> p_pr [arrowhead=none, headclip=false];
+    p_pr -> bar [xlabel="product", tailclip=false];
+    p_nn [shape=point, width=0.01, group=N];
+    nrm  -> p_nn [arrowhead=none, headclip=false];
+    p_nn -> bar [xlabel="needs_norm", tailclip=false];
+    sel  -> bar [xlabel="mant_out, G, R, S", penwidth=1.8];
+
+    // ---- rank pinning ----
+    { rank=same; m_in; n_in; }
+    { rank=same; mul; }
+    { rank=same; nrm; }
+    { rank=same; p_pr; sel; p_nn; }
+    p_pr -> sel [style=invis, minlen=2];
+    sel -> p_nn [style=invis, minlen=2];
+    m_in -> n_in [style=invis, minlen=2];
+}

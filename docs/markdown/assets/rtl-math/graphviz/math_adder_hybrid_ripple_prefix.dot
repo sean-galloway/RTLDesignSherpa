@@ -1,0 +1,38 @@
+// math_adder_hybrid_ripple_prefix block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). Two sections side by side:
+// the low RIPPLE_BITS ripple on the left, the upper N - RIPPLE_BITS run a
+// Kogge-Stone tree on the right, in parallel. The ripple carry-out crosses
+// into the upper section's boundary combine. Width wrappers _008/_016/_032/_064
+// instantiate the core with RIPPLE_BITS 2 / 4 / 8 / 16.
+// Source of truth: rtl/math/math_adder_hybrid_ripple_prefix*.sv.
+digraph math_adder_hybrid_ripple_prefix {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_adder_hybrid_ripple_prefix - ripple low bits, prefix tree high bits (combinational)";
+
+    prm  [label="Parameters (fixed at build)\lRIPPLE_BITS: how many low bits ripple; the other\l    N - RIPPLE_BITS bits use one Kogge-Stone tree\l    (wrappers _008 / _016 / _032 / _064 use 2 / 4 / 8 / 16)\l    1 <= RIPPLE_BITS < N, else elaboration fails\l", fillcolor="white"];
+    lo   [label="Low Operands + Carry In\ni_a, i_b[RIPPLE_BITS-1:0], i_c", fillcolor="white"];
+    hi   [label="High Operands\ni_a, i_b[N-1:RIPPLE_BITS]", fillcolor="white"];
+
+    rip  [label="Ripple Chain (combinational)\nRIPPLE_BITS full-adder steps\nsum[b] = a ^ b ^ c, c = majority(a, b, c)"];
+    hpg  [label="Bitwise PG (combinational)\np = a ^ b,  g = a & b per upper bit"];
+    ks   [label="Kogge-Stone Tree (combinational)\nLEVELS = ceil(log2(N - RIPPLE_BITS)), spans 1, 2, 4 ..\ngroup G, P per upper bit, as if its carry-in were 0"];
+    comb [label="Boundary Combine (combinational)\ncarry_i = G[i-1] | (P[i-1] & c_lo): one 2:1 select per bit\nsum = a ^ b ^ carry_i;  ow_carry = G[M-1] | (P[M-1] & c_lo)"];
+    out  [label="Outputs\now_sum[RIPPLE_BITS-1:0] (ripple)   |   ow_sum[N-1:RIPPLE_BITS] (prefix)   |   ow_carry", fillcolor="white"];
+
+    lo  -> rip  [xlabel="low bits, i_c"];
+    hi  -> hpg  [xlabel="high bits"];
+    hpg -> ks   [xlabel="g, p"];
+    ks  -> comb [xlabel="group G, P"];
+    rip -> comb [xlabel="c_lo (ripple carry-out)", penwidth=1.8];
+    rip -> out  [xlabel="low sum"];
+    comb -> out [xlabel="high sum, ow_carry"];
+
+    { rank=same; prm; lo; hi; }
+    prm -> lo [style=invis]; lo -> hi [style=invis, minlen=2];
+    { rank=same; rip; ks; }
+}

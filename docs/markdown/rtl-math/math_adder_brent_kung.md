@@ -89,6 +89,19 @@ module math_adder_brent_kung_032 #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_adder_brent_kung block diagram](../assets/rtl-math/graphviz/math_adder_brent_kung.png)
+
+The two operands enter at the top and the bitwise PG stage turns each bit into a
+generate and a propagate, with the carry in placed in slot 0 as `g[0]`. The group
+PG network (`math_adder_brent_kung_grouppg_<N>`, one per width) first sweeps up,
+merging spans of 2, 4, 8 bits, then sweeps down to fill in the carries the up-sweep
+skipped, leaving one finished carry `gg[k]` per bit. The per-bit propagate skips
+the tree down the left and meets those carries in the sum stage, where each sum
+bit is one XOR. Gray cells appear wherever a merged span reaches bit 0, because
+their result is already a carry.
+
 ### Parallel Prefix Addition Theory
 
 Parallel prefix adders compute all carries in parallel using **propagate (P)** and **generate (G)** signals:

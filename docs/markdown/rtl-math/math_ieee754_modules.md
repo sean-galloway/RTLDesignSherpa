@@ -246,51 +246,42 @@ FSM latencies pinned exactly by their testbenches (accept edge to `ow_valid`):
 
 ### Architecture
 
-#### FP32 Multiplier Pipeline
+#### FP32 Multiplier Architecture
 
-```
-Stage 1: Field extraction + special case detection
-         sign_a, exp_a[7:0], mant_a[22:0]
-         sign_b, exp_b[7:0], mant_b[22:0]
-              |
-Stage 2: Sign computation (XOR)
-         24x24 Dadda tree multiplication -> 48-bit product
-              |
-Stage 3: Exponent computation
-         exp_sum = exp_a + exp_b - 127 + norm_adjust
-              |
-Stage 4: Normalization + RNE rounding
-         Shift product, apply round-to-nearest-even
-              |
-Stage 5: Special case priority selection
-         NaN > Inf > Overflow > Underflow > Zero > Normal
-              |
-         Result assembly
-```
+![math_ieee754_2008_fp32_multiplier block diagram](../assets/rtl-math/graphviz/math_ieee754_2008_fp32_multiplier.png)
+
+The multiplier is combinational. Field extraction splits each operand into
+sign, exponent and mantissa and classifies it as zero, subnormal, infinity or
+NaN. The mantissas meet in the shared 24x24 Dadda multiplier and the exponents
+in the exponent adder. With `SUBNORMAL_SUPPORT=1`, a product below 1.0 is left-
+normalized, or a tiny result is shifted onto the subnormal grid with a true
+sticky. The RNE stage rounds, and the result select applies the special-case
+priority shown in the figure. The classification flags reach the select on the
+dashed lane.
 
 #### FP32 FMA Architecture
 
-```mermaid
-flowchart TB
-    subgraph FMA["FP32 FMA (a*b + c)"]
-        ia["i_a[31:0]"] --> mult["24x24 Multiplier"]
-        ib["i_b[31:0]"] --> mult
-        mult --> prod["48-bit product"]
+![math_ieee754_2008_fp32_fma block diagram](../assets/rtl-math/graphviz/math_ieee754_2008_fp32_fma.png)
 
-        ic["i_c[31:0]"] --> align["Alignment Shifter"]
-        align --> aligned["72-bit aligned"]
-
-        prod --> adder["72-bit Wide Adder<br/>(Han-Carlson prefix adder)"]
-        aligned --> adder
-
-        adder --> norm["72-bit CLZ + Normalization"]
-        norm --> round["RNE Rounding to FP32"]
-    end
-
-    round --> result["ow_result[31:0]"]
-```
+The product `a x b` (48 bits, from a 24x24 Dadda tree) and the addend `c` meet
+in a 72-bit frame. The smaller-exponent operand is right-shifted to align,
+keeping an alignment sticky, and a 72-bit Han-Carlson adder forms the sum or
+difference. A second Han-Carlson instance takes the magnitude when a
+difference goes negative. One leading-zero count normalizes the result, an
+optional gradual-underflow path shifts a tiny result onto the subnormal grid,
+and a single RNE rounding produces the result. That single rounding is what
+makes it a fused operation. Special cases are applied last, in the priority
+order shown.
 
 #### FP32 Divider Architecture
+
+![math_ieee754_2008_fp32_divider block diagram](../assets/rtl-math/graphviz/math_ieee754_2008_fp32_divider.png)
+
+The divider is iterative around one shared 24x24 mantissa multiplier. Each
+FSM state selects one operand pair, and the product climbs the right edge back
+into the iteration registers. Those hold the reciprocal seed and its two Newton
+refinements, then the quotient and the exact residual. Special cases
+short-circuit to the output registers in one cycle, on the dashed lane.
 
 Goldschmidt-class multiplicative divide, one shared `fp32_mantissa_mult`
 multiply per FSM cycle:

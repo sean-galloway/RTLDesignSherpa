@@ -59,6 +59,17 @@ module math_adder_full #(parameter int N=1) (
 
 ## Functional Description
 
+### Block diagram
+
+![math_adder_full block diagram](../assets/rtl-math/graphviz/math_adder_full.png)
+
+The two operand bits enter at the top-left and the carry in at the top-right.
+The propagate XOR `p = i_a ^ i_b` is computed once and shared: it feeds the
+sum XOR (`ow_sum = p ^ i_c`) and the propagate AND (`p & i_c`). The generate
+AND (`i_a & i_b`) and the propagate AND meet in the carry OR, so `ow_carry`
+is set when this bit generates a carry or passes the incoming one on.
+
+
 ### Full Adder Logic
 
 The full adder implements the following Boolean functions:
@@ -103,52 +114,9 @@ This can be broken down as:
 
 ### Logic Gate Implementation
 
-**Traditional Gate-Level View**
-
-```mermaid
-flowchart LR
-    subgraph SumPath["Sum Path"]
-        a1["i_a"] --> xor1["XOR"]
-        b1["i_b"] --> xor1
-        xor1 --> xor2["XOR"]
-        c1["i_c"] --> xor2
-        xor2 --> sum["ow_sum"]
-    end
-
-    subgraph CarryPath["Carry Path"]
-        a2["i_a"] --> and1["AND"]
-        b2["i_b"] --> and1
-        and1 --> or1["OR"]
-        a3["i_a"] --> xor3["XOR"]
-        b3["i_b"] --> xor3
-        xor3 --> and2["AND"]
-        c2["i_c"] --> and2
-        and2 --> or1
-        or1 --> carry["ow_carry"]
-    end
-```
-
-**Optimized Implementation**
-
-The actual implementation uses shared XOR logic for efficiency:
-
-```mermaid
-flowchart LR
-    a["i_a"] --> xor1["XOR<br/>(a^b)"]
-    b["i_b"] --> xor1
-    xor1 --> xor2["XOR"]
-    c["i_c"] --> xor2
-    xor2 --> sum["ow_sum"]
-
-    a --> and1["AND<br/>(a&b)"]
-    b --> and1
-    and1 --> or1["OR"]
-
-    xor1 --> and2["AND<br/>((a^b)&c)"]
-    c --> and2
-    and2 --> or1
-    or1 --> carry["ow_carry"]
-```
+The block diagram above is the gate-level structure: the RTL writes the carry
+as `(i_a & i_b) | (i_c & (i_a ^ i_b))`, so the `i_a ^ i_b` term is the same
+signal the sum path uses.
 
 **Key optimization:** The `a^b` XOR result is shared between sum calculation and carry propagation. One gate, two jobs.
 

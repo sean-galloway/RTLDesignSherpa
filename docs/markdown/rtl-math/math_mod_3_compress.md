@@ -65,6 +65,17 @@ This module has no parameters. The operand width is fixed at 16 bits and the res
 
 ## Functional Description
 
+### Block diagram
+
+![math_mod_3_compress block diagram](../assets/rtl-math/graphviz/math_mod_3_compress.png)
+
+Because 4 = 1 (mod 3), `d_in mod 3` equals the sum of its eight base-4
+digits mod 3. The 16-bit operand is split into those eight 2-bit digits, a
+seven-instance tree of 6-bit `math_adder_carry_save_nbit` 3:2 compressors
+reduces them over four levels, and one carry-propagate add gives the digit
+sum (0 to 24). A base-4 fold brings that down to 0 to 7, and a conditional
+subtract of 3 or 6 leaves the 2-bit remainder.
+
 ### Base-4 Digit-Sum Method
 
 The trick rests on one identity: `4^k ≡ 1 (mod 3)`. Split `d_in` into 2-bit groups and each group is a base-4 digit with weight `4^k`; since every weight is `1 (mod 3)`, the **sum of the eight digits is congruent to `d_in (mod 3)`**. The problem therefore collapses to summing eight small digits and taking that sum mod 3.

@@ -62,6 +62,15 @@ module math_prefix_cell (
 
 ## Functional Description
 
+### Block diagram
+
+![math_prefix_cell block diagram](../assets/rtl-math/graphviz/math_prefix_cell.png)
+
+A black cell takes the generate and propagate of two adjacent spans, the higher
+`[i:k]` and the lower `[k-1:j]`, and produces the G and P of the merged span
+`[i:j]`. Both outputs are needed because the merged span will itself be merged
+again further down the prefix tree.
+
 ### Parallel Prefix Theory
 
 In parallel prefix adders, carries are computed from generate (G) and propagate (P) signals:

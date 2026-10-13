@@ -69,6 +69,18 @@ module math_adder_ripple_carry #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_adder_ripple_carry block diagram](../assets/rtl-math/graphviz/math_adder_ripple_carry.png)
+
+The carry chain is the main flow, drawn heavy: the carry in `i_c` enters bit 0
+(`fa0`), and each full adder's carry out is the next one's carry in, through
+`w_c[0]` up to `w_c[N-1]`, which leaves as `ow_carry`. Operand bits arrive on
+the trunk at the left, one bit per stage, and each stage's sum bit leaves on
+the right. Because every stage waits for the carry from the one before it,
+delay grows linearly with `N`.
+
+
 ### Algorithm: Sequential Carry Propagation
 
 The ripple carry adder computes addition bit-by-bit from LSB to MSB, with each bit's carry output feeding the next bit's carry input:

@@ -64,23 +64,19 @@ module math_compressor_4to2 (
 
 ## Functional Description
 
+### Block diagram
+
+![math_compressor_4to2 block diagram](../assets/rtl-math/graphviz/math_compressor_4to2.png)
+
+Three bits of one column go into the first full adder `u_fa1`. Its sum
+drops into the second full adder `u_fa2` with the fourth bit and `i_cin`,
+which produces `ow_sum` for this column and `ow_carry` for the next. The
+first adder's carry leaves directly as `ow_cout`, down the left edge,
+without ever seeing `i_cin`.
+
 ### Architecture
 
-The 4:2 compressor is implemented as two cascaded full adders:
-
-```mermaid
-flowchart LR
-    x1["i_x1"] --> FA1["FA1"]
-    x2["i_x2"] --> FA1
-    x3["i_x3"] --> FA1
-    FA1 --> isum["int_sum"]
-    FA1 --> cout["ow_cout"]
-    isum --> FA2["FA2"]
-    x4["i_x4"] --> FA2
-    cin["i_cin"] --> FA2
-    FA2 --> sum["ow_sum"]
-    FA2 --> carry["ow_carry"]
-```
+The 4:2 compressor is implemented as two cascaded full adders.
 
 **Stage 1 (FA1):** Compresses X1, X2, X3
 - Sum goes to Stage 2
@@ -115,6 +111,11 @@ ow_cout = (i_x1 & i_x2) | (i_x2 & i_x3) | (i_x1 & i_x3);
 ```
 
 This allows multiple 4:2 compressors to be chained with their cout signals forming independent carry chains, reducing the critical path compared to implementations where all carries depend on cin.
+
+In this repository's generated Dadda 4:2 multipliers
+(`math_multiplier_dadda_4to2_008/011/024`) every `i_cin` is tied to `1'b0`;
+`ow_carry` and `ow_cout` feed the next column as ordinary bits, so the
+cout-to-cin chaining described here is not used there.
 
 ## Timing Characteristics
 | Metric | Value | Description |

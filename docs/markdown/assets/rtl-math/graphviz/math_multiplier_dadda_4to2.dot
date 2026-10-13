@@ -1,0 +1,39 @@
+// math_multiplier_dadda_4to2 block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Combinational, generated per width. One column top-down: operands ->
+// AND partial-product array -> reduction (first stage in full, the rest as
+// one counted box) -> two rows packed for the final carry-propagate adder ->
+// product bar. The variant legend carries the per-width stage/cell counts.
+// Reduction cell is math_compressor_4to2; final CPA is Han-Carlson.
+// Source of truth: rtl/math/math_multiplier_dadda_4to2_{008,011,024}.sv.
+digraph math_multiplier_dadda_4to2 {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_multiplier_dadda_4to2 - Dadda-reduced N x N multiplier built from 4:2 compressors (combinational)";
+
+    node [group=M];
+    ops  [label="Operands\ni_multiplier[N-1:0], i_multiplicand[N-1:0]", fillcolor="white"];
+    pp   [label="Partial-Product Array (combinational)\nN x N ANDs: w_pp_i_j = i_multiplier[i] & i_multiplicand[j]\n2N-1 columns, heights 1, 2 .. N .. 2, 1"];
+    s1   [label="Dadda Stage 1 (combinational)\nreduce columns taller than the target (8-bit: 8 -> 6)\nmath_compressor_4to2 (4 bits in -> sum, carry, cout)"];
+    sr   [label="Dadda Stages 2 .. S (combinational)\nevery i_cin tied to 0; carry and cout leave as two more\nbits of the next column; math_adder_full for a 3:2 step"];
+    pack [label="Row Pack (wiring)\nw_cpa_a, w_cpa_b [2N-1:0]\nthe two bits left in every column"];
+    cpa  [label="Final Carry-Propagate Adder (combinational)\nmath_adder_han_carlson_{2N} - u_final_cpa\nw_cpa_a + w_cpa_b"];
+    bar  [label="Output\now_product[2N-1:0]", fillcolor="white", width=5.0];
+    node [group=""];
+
+    var  [label="Generated Variants (N fixed per file)\lmath_multiplier_dadda_4to2_008: 4 stages (8->6->4->3->2),\l    39 compressors + 2 full adders, han_carlson_016\lmath_multiplier_dadda_4to2_011: 5 stages,\l    87 compressors + 2 full adders, han_carlson_022\lmath_multiplier_dadda_4to2_024: 7 stages,\l    503 compressors + 2 full adders, han_carlson_048\l", fillcolor="white"];
+
+    ops  -> pp   [xlabel="operand bits"];
+    pp   -> s1   [xlabel="N x N partial-product bits"];
+    s1   -> sr   [xlabel="shorter columns"];
+    sr   -> pack [xlabel="every column at height 2"];
+    pack -> cpa  [xlabel="two rows"];
+    cpa  -> bar  [xlabel="product", penwidth=1.8];
+
+    { rank=same; var; ops; }
+    var -> ops [style=invis];
+}

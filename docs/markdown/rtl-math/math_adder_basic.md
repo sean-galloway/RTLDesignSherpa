@@ -126,7 +126,21 @@ module math_adder_full_nbit #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_adder_full_nbit block diagram](../assets/rtl-math/graphviz/math_adder_full_nbit.png)
+
+`math_adder_full_nbit` chains `N` full adders. The carry in `i_c` becomes
+`w_c[0]`, each full adder passes its carry to the next (heavy), and `w_c[N]`
+leaves as `ow_carry`. Operand bits enter on the left trunk and sum bits leave
+on the right. This is the same structure as `math_adder_ripple_carry`. The
+half adder and full adder it is built from are drawn in their own sections
+below.
+
+
 ### Half Adder
+
+![math_adder_half block diagram](../assets/rtl-math/graphviz/math_adder_half.png)
 
 The half adder adds two single-bit inputs without a carry input:
 
@@ -157,6 +171,10 @@ assign ow_carry = i_a & i_b;    // AND for carry
 - Detecting when both inputs are 1 (carry output)
 
 ### Full Adder
+
+![math_adder_full block diagram](../assets/rtl-math/graphviz/math_adder_full.png)
+
+The full adder's gate structure is described on the [full adder page](math_adder_full.md).
 
 The full adder adds three single-bit inputs (A, B, Cin):
 

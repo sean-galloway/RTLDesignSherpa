@@ -1,0 +1,22 @@
+// math_prefix_cell_gray block diagram - house style.
+// Used where the merged span reaches bit 0: its G is a finished carry, so the
+// group P has no consumer and is not built. Source: rtl/math/math_prefix_cell_gray.sv.
+digraph math_prefix_cell_gray {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_prefix_cell_gray - gray prefix cell: G only, for spans that reach bit 0 (combinational)";
+
+    hi   [label="Higher Span  [i:k]\ni_g_hi, i_p_hi", fillcolor="white"];
+    lo   [label="Lower Span  [k-1:0]\ni_g_lo  (no P needed)", fillcolor="white"];
+    cell [label="Carry Merge (combinational)\now_g = i_g_hi | (i_p_hi & i_g_lo)\nno P output: the span ends at bit 0, so no later stage needs it"];
+    out  [label="Finished Carry  [i:0]\now_g", fillcolor="white", width=3.5];
+
+    hi -> cell [xlabel="g_hi, p_hi"];
+    lo -> cell [xlabel="g_lo"];
+    cell -> out [xlabel="carry into bit i+1", penwidth=1.8];
+    { rank=same; hi; lo; }
+}

@@ -1,0 +1,55 @@
+// math_subtractor_full_nbit block diagram - house style.
+// Dedicated subtraction: N full subtractors with the BORROW rippling LSB to
+// MSB (the heavy chain). math_subtractor_ripple_carry is the same structure
+// with different port names (i_borrow_in, ow_difference, ow_carry_out).
+// Source of truth: rtl/math/math_subtractor_full_nbit.sv.
+digraph math_subtractor_full_nbit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_subtractor_full_nbit - N-bit ripple-borrow subtractor (combinational)";
+
+    ops  [group=L, label="Operands\ni_a[N-1:0] (minuend), i_b[N-1:0] (subtrahend)", fillcolor="white"];
+    bin  [group=C, label="Borrow In\ni_b_in", fillcolor="white"];
+    p0 [group=L, shape=point, width=0.01];
+    p1 [group=L, shape=point, width=0.01];
+    p2 [group=L, shape=point, width=0.01];
+
+    fs0 [group=C, label="Bit 0 Full Subtractor\nmath_subtractor_full\nd = a ^ b ^ bin;  bout = (~a & b) | (~(a ^ b) & bin)"];
+    fsm [group=C, label="Bits 1 .. N-2\n(N-2) x math_subtractor_full - gen_subtractor_loop"];
+    fsl [group=C, label="Bit N-1 Full Subtractor\nmath_subtractor_full"];
+
+    outs [label="Outputs\now_d[N-1:0] (difference)   |   ow_b (borrow out: 1 = A < B unsigned)", fillcolor="white", width=6.5];
+
+    ops -> p0 [arrowhead=none, headclip=false, xlabel="operand bits, LSB first"];
+    p0  -> p1 [arrowhead=none, tailclip=false, headclip=false];
+    p1  -> p2 [arrowhead=none, tailclip=false, headclip=false];
+    p0  -> fs0 [tailclip=false, headlabel="[0]", labeldistance=2.2, labelangle=25];
+    p1  -> fsm [tailclip=false, headlabel="[N-2:1]", labeldistance=2.6, labelangle=25];
+    p2  -> fsl [tailclip=false, headlabel="[N-1]", labeldistance=2.4, labelangle=25];
+
+    bin -> fs0 [xlabel="w_b_in[0] = i_b_in", penwidth=1.8];
+    fs0 -> fsm [xlabel="borrow", penwidth=1.8];
+    fsm -> fsl [xlabel="borrow", penwidth=1.8];
+    fsl -> outs [xlabel="ow_b = w_b_out[N-1]", penwidth=1.8];
+
+    fs0 -> s0 [arrowhead=none, headclip=false, xlabel="ow_d[0]"];
+    fsm -> s1 [arrowhead=none, headclip=false, xlabel="ow_d[N-2:1]"];
+    fsl -> s2 [arrowhead=none, headclip=false, xlabel="ow_d[N-1]"];
+    s0 [group=R, shape=point, width=0.01];
+    s1 [group=R, shape=point, width=0.01];
+    s2 [group=R, shape=point, width=0.01];
+    s0 -> s1 [arrowhead=none, tailclip=false, headclip=false];
+    s1 -> s2 [arrowhead=none, tailclip=false, headclip=false];
+    s2 -> outs [tailclip=false];
+
+    { rank=same; ops; bin; }
+    { rank=same; p0; fs0; s0; }
+    { rank=same; p1; fsm; s1; }
+    { rank=same; p2; fsl; s2; }
+    p0 -> fs0 [style=invis]; fs0 -> s0 [style=invis, minlen=2];
+    ops -> bin [style=invis, minlen=2];
+}

@@ -62,7 +62,24 @@ module math_multiplier_dadda_4to2_008 #(
 
 ## Functional Description
 
-### Three-Stage Pipeline
+### Block diagram
+
+![math_multiplier_dadda_4to2 block diagram](../assets/rtl-math/graphviz/math_multiplier_dadda_4to2.png)
+
+The operands form an N x N AND array of partial products, giving 2N-1
+columns of height up to N. Dadda reduction then shrinks only the columns
+taller than each stage target, using `math_compressor_4to2` cells (every
+`i_cin` tied to 0, so `carry` and `cout` simply become two more bits of the
+next column) plus two full adders where a column needs a 3:2 step. Once
+every column is at height 2, the two remaining rows are packed into
+`w_cpa_a` / `w_cpa_b` and summed by the `math_adder_han_carlson_{2N}`
+instance `u_final_cpa`. Everything is combinational; the legend lists the
+three generated widths.
+
+### Three Phases (combinational)
+
+The phases are logic levels, not pipeline stages: the module has no flops,
+so the product settles in the same cycle as the operands.
 
 1. **Partial Product Generation** - 64 AND gates create 8x8 bit matrix
 2. **Dadda Reduction** - 4:2 compressors reduce columns to 2 rows

@@ -1,0 +1,37 @@
+// math_mod_3_compress block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Combinational. 4 = 1 (mod 3), so d_in mod 3 equals the sum of its eight
+// base-4 digits mod 3. The eight 2-bit digits go through a 7-instance tree
+// of 6-bit math_adder_carry_save_nbit 3:2 compressors (4 levels), one
+// carry-propagate add, a base-4 fold of the 6-bit sum, and a conditional
+// subtract of 3 or 6.
+// Source of truth: rtl/math/math_mod_3_compress.sv.
+digraph math_mod_3_compress {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=line, newrank=true,  // ortho asserts (trapezoid overflow) on this chain; every edge is vertical
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_mod_3_compress - 16-bit d_in mod 3 by base-4 digit sum (combinational)";
+
+    node [group=M];
+    din  [label="Operand In\nd_in[15:0]", fillcolor="white"];
+
+    split [label="Base-4 Digit Split (wiring)\nw_g0 .. w_g7 = d_in[1:0], d_in[3:2], ... d_in[15:14]\neach zero-extended to 6 bits (4 = 1 mod 3, so digits add)"];
+    l1   [label="Level 1 - three 3:2 compressors\nmath_adder_carry_save_nbit #(N=6) - comp1, comp2, comp3\n(comp3 takes w_g6, w_g7 and zero)"];
+    l24  [label="Levels 2 .. 4 - four more 3:2 compressors\ncomp4, comp5 (level 2), comp6 (level 3), comp7 (level 4)\ncarries shifted left one place before each level"];
+    cpa  [label="Carry-Propagate Add (combinational)\nw_grp_sum = w_sumG4 + (w_carryG4 << 1)\ndigit sum of d_in, 0 .. 24"];
+    fold [label="Base-4 Fold (combinational)\nw_fold = w_grp_sum[1:0] + w_grp_sum[3:2] + w_grp_sum[4]\n0 .. 7, same value mod 3"];
+    sub  [label="Conditional Subtract (combinational)\nw_fold >= 6: - 6   |   >= 3: - 3   |   else pass"];
+
+    bar  [label="Output\nrem_out[1:0] = d_in mod 3  (0 .. 2)", fillcolor="white", width=4.5];
+
+    din   -> split [xlabel="d_in[15:0]"];
+    split -> l1    [xlabel="eight 2-bit digits"];
+    l1    -> l24   [xlabel="three sum / carry pairs"];
+    l24   -> cpa   [xlabel="w_sumG4, w_carryG4"];
+    cpa   -> fold  [xlabel="w_grp_sum[5:0]"];
+    fold  -> sub   [xlabel="w_fold[3:0]"];
+    sub   -> bar   [xlabel="remainder"];
+}

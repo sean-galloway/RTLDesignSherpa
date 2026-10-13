@@ -1,0 +1,21 @@
+// math_prefix_cell (black cell) block diagram - house style.
+// Two spans in at the top, one merged span out. Source: rtl/math/math_prefix_cell.sv.
+digraph math_prefix_cell {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_prefix_cell - black prefix cell: merge two spans (combinational)";
+
+    hi   [label="Higher Span  [i:k]\ni_g_hi, i_p_hi", fillcolor="white"];
+    lo   [label="Lower Span  [k-1:j]\ni_g_lo, i_p_lo", fillcolor="white"];
+    cell [label="Span Merge (combinational)\now_g = i_g_hi | (i_p_hi & i_g_lo)   the merged span generates a carry\now_p = i_p_hi & i_p_lo   the merged span passes a carry through"];
+    out  [label="Merged Span  [i:j]\now_g, ow_p", fillcolor="white", width=4.0];
+
+    hi -> cell [xlabel="g_hi, p_hi"];
+    lo -> cell [xlabel="g_lo, p_lo"];
+    cell -> out [xlabel="group G, P", penwidth=1.8];
+    { rank=same; hi; lo; }
+}

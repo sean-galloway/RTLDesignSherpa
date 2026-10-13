@@ -104,6 +104,19 @@ module math_multiplier_dadda_tree_032 #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_multiplier_dadda_tree block diagram](../assets/rtl-math/graphviz/math_multiplier_dadda_tree.png)
+
+The operands form an N x N AND array of partial products, giving 2N-1
+columns of height up to N. Each Dadda stage then compresses only the columns
+taller than its target (8-bit: 6, 4, 3, 2), with `math_adder_carry_save`
+3:2 cells and `math_adder_half`. When every column is down to two bits, they
+are packed into `w_cpa_row0` / `w_cpa_row1` and summed by the
+`math_adder_brent_kung_{2N}` instance `u_final_cpa`. Everything is
+combinational; the legend lists the three generated widths with their stage
+and cell counts.
+
 ### Dadda Reduction Algorithm
 
 The Dadda tree uses an **optimized reduction schedule** rather than immediate reduction:

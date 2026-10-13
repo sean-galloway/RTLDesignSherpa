@@ -96,6 +96,18 @@ module math_multiplier_carry_save #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_multiplier_basic block diagram](../assets/rtl-math/graphviz/math_multiplier_basic.png)
+
+The two operand words enter at the top. Row 0 of the array multiplies
+multiplier bit 0 by every multiplicand bit, with its carry and sum inputs
+tied to 0. Each later row multiplies the next multiplier bit and adds it to
+the carries from the row above and the sums from above and one column left.
+Every row's column-0 sum drops down the left edge as one low product bit,
+and the last row's carries and sums meet in an inline N-bit add that forms
+the high half. The box at the top left is the basic cell every position uses.
+
 ### Basic Multiplier Cell
 
 The basic cell implements a single position in the multiplication array:

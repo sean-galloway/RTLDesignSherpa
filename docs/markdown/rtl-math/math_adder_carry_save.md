@@ -110,6 +110,20 @@ No parameters (fixed single-bit operation).
 
 ## Functional Description
 
+### Block diagram
+
+![math_adder_carry_save_nbit block diagram](../assets/rtl-math/graphviz/math_adder_carry_save_nbit.png)
+
+The N-bit carry-save adder is `N` independent 3:2 compressors side by side,
+with no edge between them: no carry passes from one bit position to the
+next, so the logic depth stays constant whatever `N` is. Bit `i` of each of
+the three operands enters its own compressor, which produces a sum bit and a
+carry bit. The two output vectors are not yet one number. The carry from
+bit `i` has weight `2^(i+1)`, so the final result is
+`ow_sum + (ow_carry << 1)`. The single-bit `math_adder_carry_save` is the
+same compressor on its own.
+
+
 ### Single-bit Carry-Save Adder (3:2 Compressor)
 
 The CSA compresses 3 bits into 2 bits (sum and carry):

@@ -88,6 +88,18 @@ module math_bf16_adder #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_bf16_adder block diagram](../assets/rtl-math/graphviz/math_bf16_adder.png)
+
+The datapath runs down five stages: unpack and swap (the larger magnitude
+becomes L), align the smaller operand with `shifter_barrel`, add or
+subtract, normalize with `count_leading_zeros` and a second
+`shifter_barrel`, then RNE rounding and the special-case select. Each of the
+four dashed register banks exists only when its `PIPE_STAGE_n` parameter is
+1. The special-case flags, signs and `i_valid` travel beside the datapath
+through the same banks, so `ow_valid` lines up with `ow_result`.
+
 ### BF16 Format
 
 ```
@@ -99,63 +111,6 @@ Special values:
   +inf:  0x7F80 (sign=0, exp=255, mant=0)
   -inf:  0xFF80 (sign=1, exp=255, mant=0)
   NaN:   0x7FC0 (exp=255, mant!=0, canonical quiet NaN)
-```
-
-### Architecture
-
-```
-                    +-----------------------------------------------------+
-                    |              math_bf16_adder                        |
-                    |                                                     |
-    i_a[15:0] ------+--+-- sign_a, exp_a, mant_a                         |
-                    |  |                                                  |
-    i_b[15:0] ------+--+-- sign_b, exp_b, mant_b                         |
-                    |  |                                                  |
-    i_valid --------+--+                                                  |
-                    |  |                                                  |
-                    |  v                                                  |
-                    | +--------------------------------------------------+|
-                    | | Stage A: Unpack + Special Cases + Compare + Swap ||
-                    | |   - Exponent difference calculation              ||
-                    | |   - Magnitude comparison and operand swap        ||
-                    | |   - Effective operation determination            ||
-                    | +--------------------------------------------------+|
-                    |                     | [PIPE_STAGE_1]                |
-                    |                     v                               |
-                    | +--------------------------------------------------+|
-                    | | Stage B: Mantissa Alignment                      ||
-                    | |   - shifter_barrel (right shift smaller operand) ||
-                    | |   - Sticky bit computation                       ||
-                    | +--------------------------------------------------+|
-                    |                     | [PIPE_STAGE_2]                |
-                    |                     v                               |
-                    | +--------------------------------------------------+|
-                    | | Stage C: Mantissa Add/Subtract                   ||
-                    | |   - 12-bit addition or subtraction               ||
-                    | |   - Overflow detection                           ||
-                    | +--------------------------------------------------+|
-                    |                     | [PIPE_STAGE_3]                |
-                    |                     v                               |
-                    | +--------------------------------------------------+|
-                    | | Stage D: Normalization                           ||
-                    | |   - count_leading_zeros for shift amount         ||
-                    | |   - shifter_barrel for normalization             ||
-                    | |   - Exponent adjustment                          ||
-                    | +--------------------------------------------------+|
-                    |                     | [PIPE_STAGE_4]                |
-                    |                     v                               |
-                    | +--------------------------------------------------+|
-                    | | Stage E: Rounding + Result Assembly              ||
-                    | |   - RNE rounding with guard/round/sticky         ||
-                    | |   - Special case priority selection              ||
-                    | +--------------------------------------------------+|
-                    |                                                     |
-    ow_result[15:0] <-----------------------------------------------------+
-    ow_overflow <---------------------------------------------------------+
-    ow_underflow <--------------------------------------------------------+
-    ow_invalid <----------------------------------------------------------+
-    ow_valid <------------------------------------------------------------+
-                    +-----------------------------------------------------+
 ```
 
 ### Processing Pipeline

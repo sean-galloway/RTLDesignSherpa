@@ -1,0 +1,62 @@
+// math_dividers family block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). One digit-recurrence
+// structure shared by all five math_divider_<algo> modules; the per-variant
+// differences live in the block labels (digit set, remainder form, quotient
+// accumulation). Source of truth: rtl/math/math_divider_*.sv.
+digraph math_dividers {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           label="math_divider_<algo> - digit-recurrence integer divide, one (radix-4: two) quotient bits per clock",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    vin  [label="Start\ni_valid (idle only)", fillcolor="white"];
+    opin [label="Operands\ni_dividend, i_divisor", fillcolor="white"];
+    clk  [label="Clock / Reset\ni_clk, i_rst_n", fillcolor="white"];
+    var  [label="Variant (one module each)\lrestoring: digit {0,1}, compare + conditional subtract\lnonrestoring: digit {+1,-1}, sign only, final correction\lsrt_radix2: digit {-1,0,+1}, exact 2t vs +/-D/2\lsrt_radix2_csa[_structural]: carry-save (S,C) remainder,\l    estimate + threshold table\lsrt_radix4: digit {-3..+3}, two bits per clock\l", fillcolor="white"];
+
+    fsm  [label="Control FSM (flop)\nS_IDLE > S_RUN > S_DONE\nr_count: W iterations (radix-4: ceil(W/2))\nr_busy, r_done, r_dbz\nenables shift + count (dashed)"];
+    opr  [label="Operand Registers (flop)\nr_x_shift: dividend, one bit\n(radix-4: two) shifted out per clock\nr_divisor / r_d: divisor, held"];
+    sel  [label="Quotient-Digit Selection (combinational)\npicks the next digit q from the\npartial remainder (variant rule)"];
+    upd  [label="Remainder Update (combinational)\nR_next = 2R + next dividend bit - q x D\n(R from the register; radix-4: 4R + two bits - q x D)"];
+    rem  [label="Partial Remainder Register (flop)\nr_rem / r_R (SRT csa: sum + carry pair)"];
+    qac  [label="Quotient Accumulate (flop)\nrestoring: r_quot shifts in q\nnonrestoring: r_qacc\nSRT: on-the-fly r_Q / r_QM pair"];
+    fix  [label="Final Correction (combinational)\nnegative remainder: add D back, quotient - 1\ngives 0 <= remainder < divisor"];
+    outs [label="Outputs\now_quotient, ow_remainder   |   ow_done (one-cycle pulse), ow_dbz   |   ow_busy",
+          fillcolor="white", width=7.5];
+
+    vin  -> fsm  [xlabel="start"];
+    opin -> opr  [xlabel="load on start"];
+    clk  -> opr  [style=dashed, xlabel="clk, rst_n"];
+    fsm  -> opr  [style=dashed];
+    opr  -> sel  [xlabel="divisor D"];
+    sel  -> upd  [xlabel="digit q"];
+    opr  -> upd  [xlabel="next dividend bit(s), D"];
+    upd  -> rem  [xlabel="R_next"];
+    sel  -> qac  [xlabel="digit q"];
+    rem  -> fix  [xlabel="final R"];
+    qac  -> fix  [xlabel="Q (and QM)"];
+    fix  -> outs [xlabel="quotient, remainder"];
+    fsm  -> outs [xlabel="done, dbz, busy"];
+
+    // partial remainder back up into selection: right-edge lane, both
+    // scaffolds in one column group so the lane runs straight
+    p_fb1 [shape=point, width=0.01, group=FB];
+    p_fb2 [shape=point, width=0.01, group=FB];
+    rem -> p_fb1 [arrowhead=none, headclip=false, constraint=false];
+    p_fb2 -> p_fb1 [dir=back, arrowtail=none, tailclip=false, headclip=false, xlabel="partial remainder R"];
+    p_fb2 -> sel [tailclip=false, constraint=false];
+
+    { rank=same; vin; opin; clk; var; }
+    { rank=same; fsm; opr; }
+    { rank=same; sel; p_fb2; }
+    { rank=same; upd; qac; }
+    { rank=same; rem; p_fb1; }
+    sel -> p_fb2 [style=invis, minlen=4];
+    rem -> p_fb1 [style=invis, minlen=5];
+    vin -> opin [style=invis]; opin -> clk [style=invis]; clk -> var [style=invis];
+    fsm -> opr [style=invis, minlen=2];
+    upd -> qac [style=invis];
+}

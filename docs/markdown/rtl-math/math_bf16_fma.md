@@ -67,6 +67,19 @@ module math_bf16_fma(
 
 ## Functional Description
 
+### Block diagram
+
+![math_bf16_fma block diagram](../assets/rtl-math/graphviz/math_bf16_fma.png)
+
+The BF16 product (Dadda multiply, signed product exponent with an underflow
+check) runs down the left; the FP32 addend gets its hidden bit on the right.
+They meet at the align block, which shifts the smaller-exponent operand right.
+From there one column does the 48-bit add or subtract
+(`math_adder_han_carlson_048`), takes the absolute value with a second
+Han-Carlson adder, normalizes with `count_leading_zeros`, rounds once to
+FP32 with RNE, and applies the special-case priority, including passing
+`i_c` straight through when the product is zero.
+
 ### Format Specifications
 
 #### BF16 Format
@@ -93,71 +106,6 @@ Special values:
   +inf:  0x7F800000
   -inf:  0xFF800000
   qNaN:  0x7FC00000 (canonical quiet NaN)
-```
-
-### Architecture
-
-```
-                    +----------------------------------------------------------+
-                    |                    math_bf16_fma                         |
-                    |                                                          |
-    i_a[15:0] ------+--+-- sign_a ----+                                        |
-    (BF16)          |  +-- exp_a -----+---------+                              |
-                    |  +-- mant_a ---+|         |                              |
-                    |                ||         |                              |
-    i_b[15:0] ------+--+-- sign_b ---++-XOR-----+---- prod_sign                |
-    (BF16)          |  +-- exp_b ----+|         |                              |
-                    |  +-- mant_b --+||         |                              |
-                    |               |||         |                              |
-                    |   +-----------+||         |                              |
-                    |   | 8x8 Dadda  ||         |                              |
-                    |   | Multiplier ||         |    +-----------+             |
-                    |   +-----------+||         +--->| Exponent  |             |
-                    |        |      ||              | Compare & |             |
-                    |        v      ||              | Alignment |             |
-                    |   [15:0] prod ||              +-----------+             |
-                    |        |      ||                    |                    |
-                    |        v      ||                    v                    |
-                    |   Extend to   ++----> exp_diff --> Shift smaller        |
-                    |   48-bit      |                     operand              |
-                    |        |      |                       |                  |
-    i_c[31:0] ------+--------+------+                       |                  |
-    (FP32)          |        |                              |                  |
-                    |        v                              v                  |
-                    |   +-------------------------------------------+          |
-                    |   |      48-bit Han-Carlson Adder              |          |
-                    |   |  (Structural, handles add/subtract)       |          |
-                    |   +-------------------------------------------+          |
-                    |                       |                                  |
-                    |                       v                                  |
-                    |   +-------------------------------------------+          |
-                    |   |     Absolute Value (conditional negate)   |          |
-                    |   |         (48-bit Han-Carlson)              |          |
-                    |   +-------------------------------------------+          |
-                    |                       |                                  |
-                    |                       v                                  |
-                    |   +-------------------------------------------+          |
-                    |   |    Count Leading Zeros (Normalization)    |          |
-                    |   |          (MSB-down CLZ scan)              |          |
-                    |   +-------------------------------------------+          |
-                    |                       |                                  |
-                    |                       v                                  |
-                    |   +-------------------------------------------+          |
-                    |   |    Round-to-Nearest-Even (RNE)            |          |
-                    |   |    Guard, Round, Sticky extraction        |          |
-                    |   +-------------------------------------------+          |
-                    |                       |                                  |
-                    |                       v                                  |
-                    |   +-------------------------------------------+          |
-                    |   |        Special Case Priority MUX          |          |
-                    |   |   NaN > Inf > Zero > Overflow > Normal    |          |
-                    |   +-------------------------------------------+          |
-                    |                       |                                  |
-    ow_result[31:0] <-----------------------+                                  |
-    ow_overflow <--------------------------------------------------------------|
-    ow_underflow <-------------------------------------------------------------|
-    ow_invalid <---------------------------------------------------------------|
-                    +----------------------------------------------------------+
 ```
 
 ### Processing Pipeline

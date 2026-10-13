@@ -64,6 +64,19 @@ module math_bf16_multiplier(
 
 ## Functional Description
 
+### Block diagram
+
+![math_bf16_multiplier block diagram](../assets/rtl-math/graphviz/math_bf16_multiplier.png)
+
+Operands are unpacked and classified first: subnormals flush to zero, and
+normal operands get their hidden 1. The sign path is a single XOR. The
+mantissa path is `math_bf16_mantissa_mult`, an 8x8 Dadda multiply that also
+picks the result window and the guard, round and sticky bits; its
+`needs_norm` bit feeds the exponent path (`math_bf16_exponent_adder`), which
+removes the bias and flags overflow and underflow. RNE rounding joins the
+two, and the special-case select applies the priority before the result is
+packed.
+
 ### BF16 Format
 
 ```
@@ -75,65 +88,6 @@ Special values:
   +inf:  0x7F80 (sign=0, exp=255, mant=0)
   -inf:  0xFF80 (sign=1, exp=255, mant=0)
   NaN:   0x7FC0 (exp=255, mant!=0, canonical quiet NaN)
-```
-
-### Architecture
-
-```mermaid
-flowchart TB
-    subgraph Inputs["Inputs"]
-        ia["i_a[15:0]"]
-        ib["i_b[15:0]"]
-    end
-
-    subgraph BF16Mult["math_bf16_multiplier"]
-        subgraph Extract["Field Extraction"]
-            ia --> signa["sign_a"]
-            ia --> expa["exp_a[7:0]"]
-            ia --> manta["mant_a[6:0]"]
-            ib --> signb["sign_b"]
-            ib --> expb["exp_b[7:0]"]
-            ib --> mantb["mant_b[6:0]"]
-        end
-
-        signa --> xor["XOR"]
-        signb --> xor
-
-        subgraph Special["Special Case Detection"]
-            scd["Zero, Subnormal,<br/>Infinity, NaN"]
-        end
-
-        subgraph MantMult["math_bf16_mantissa_mult"]
-            mm["8x8 Dadda multiply<br/>Normalization det.<br/>Round/sticky bits"]
-        end
-
-        subgraph ExpAdd["math_bf16_exponent_adder"]
-            ea["Bias subtraction<br/>Overflow/underflow"]
-        end
-
-        subgraph Round["Rounding (RNE)"]
-            rnd["Apply rounding<br/>Handle overflow"]
-        end
-
-        subgraph Assembly["Result Assembly"]
-            asm["Special case priority<br/>Final packing"]
-        end
-
-        manta --> mm
-        mantb --> mm
-        expa --> ea
-        expb --> ea
-        mm --> rnd
-        ea --> rnd
-        xor --> asm
-        rnd --> asm
-        Special --> asm
-    end
-
-    asm --> result["ow_result[15:0]"]
-    asm --> overflow["ow_overflow"]
-    asm --> underflow["ow_underflow"]
-    asm --> invalid["ow_invalid"]
 ```
 
 ### Processing Pipeline

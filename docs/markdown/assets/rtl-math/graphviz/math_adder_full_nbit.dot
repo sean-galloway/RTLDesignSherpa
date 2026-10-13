@@ -1,0 +1,56 @@
+// math_adder_full_nbit block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The carry chain is the main flow (heavy), LSB at the top: each full adder's
+// carry out is the next one's carry in, so delay grows with N. Operand bits
+// arrive on one trunk down the left; sum bits leave on the right.
+// Source of truth: rtl/math/math_adder_full_nbit.sv.
+digraph math_adder_full_nbit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_adder_full_nbit - N-bit full-adder array, carry rippled (combinational)";
+
+    ops  [group=L, label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white"];
+    cin  [group=C, label="Carry In\ni_c", fillcolor="white"];
+
+    p0 [group=L, shape=point, width=0.01];
+    p1 [group=L, shape=point, width=0.01];
+    p2 [group=L, shape=point, width=0.01];
+
+    fa0  [group=C, label="Bit 0 Full Adder\nmath_adder_full - gen_full_adders[0]"];
+    fam  [group=C, label="Bits 1 .. N-2\n(N-2) x math_adder_full"];
+    fal  [group=C, label="Bit N-1 Full Adder\nmath_adder_full - gen_full_adders[N-1]"];
+
+    outs [label="Outputs\now_sum[N-1:0]   |   ow_carry", fillcolor="white", width=6.0];
+
+    ops -> p0 [arrowhead=none, headclip=false, xlabel="operand bits, LSB first"];
+    p0  -> p1 [arrowhead=none, tailclip=false, headclip=false];
+    p1  -> p2 [arrowhead=none, tailclip=false, headclip=false];
+    p0  -> fa0 [tailclip=false, headlabel="[0]", labeldistance=2.2, labelangle=25];
+    p1  -> fam [tailclip=false, headlabel="[N-2:1]", labeldistance=2.6, labelangle=25];
+    p2  -> fal [tailclip=false, headlabel="[N-1]", labeldistance=2.4, labelangle=25];
+
+    cin -> fa0 [xlabel="w_c[0] = i_c", penwidth=1.8];
+    fa0 -> fam [xlabel="w_c[1]", penwidth=1.8];
+    fam -> fal [xlabel="w_c[N-1]", penwidth=1.8];
+    fal -> outs [xlabel="ow_carry = w_c[N]", penwidth=1.8];
+
+    fa0 -> s0 [arrowhead=none, headclip=false, xlabel="ow_sum[0]"];
+    fam -> s1 [arrowhead=none, headclip=false, xlabel="ow_sum[N-2:1]"];
+    fal -> s2 [arrowhead=none, headclip=false, xlabel="ow_sum[N-1]"];
+    s0 [group=R, shape=point, width=0.01];
+    s1 [group=R, shape=point, width=0.01];
+    s2 [group=R, shape=point, width=0.01];
+    s0 -> s1 [arrowhead=none, tailclip=false, headclip=false];
+    s1 -> s2 [arrowhead=none, tailclip=false, headclip=false];
+    s2 -> outs [tailclip=false];
+
+    { rank=same; ops; cin; }
+    { rank=same; p0; fa0; s0; }
+    { rank=same; p1; fam; s1; }
+    { rank=same; p2; fal; s2; }
+    p0 -> fa0 [style=invis]; fa0 -> s0 [style=invis, minlen=2];
+    ops -> cin [style=invis, minlen=2];
+}

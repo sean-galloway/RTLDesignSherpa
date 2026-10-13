@@ -1,0 +1,35 @@
+// math_subtractor_carry_lookahead block diagram - house style.
+// Per-bit borrow generate / propagate, then a borrow recurrence evaluated as
+// a loop over bits, then the difference XOR. The recurrence is still serial
+// in form, which is why the page gives O(N) delay. ow_d / ow_b are aliases
+// of ow_difference / ow_borrow_out.
+// Source of truth: rtl/math/math_subtractor_carry_lookahead.sv.
+digraph math_subtractor_carry_lookahead {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_subtractor_carry_lookahead - N-bit subtractor, generate / propagate borrows (combinational)";
+
+    ops  [label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white"];
+    bin  [label="Borrow In\ni_borrow_in", fillcolor="white"];
+
+    gp   [label="Borrow Generate / Propagate (combinational, per bit)\nw_g[i] = ~a[i] & b[i]   (this bit borrows)\nw_p[i] = ~a[i] | b[i]   (this bit passes a borrow on)"];
+    rec  [label="Borrow Recurrence (always_comb loop over bits)\nb[0] = i_borrow_in\nb[i] = w_g[i-1] | (w_p[i-1] & b[i-1]),  i = 1 .. N"];
+    dif  [label="Difference XOR (combinational, per bit)\now_difference[i] = a[i] ^ b[i] ^ borrow[i]"];
+
+    outs [label="Outputs\now_difference[N-1:0] (= ow_d)   |   ow_borrow_out = borrow[N] (= ow_b)", fillcolor="white", width=6.5];
+
+    ops -> gp  [xlabel="a, b"];
+    ops -> dif [xlabel="a, b"];
+    gp  -> rec [xlabel="w_g, w_p"];
+    bin -> rec [xlabel="borrow[0]"];
+    rec -> dif [xlabel="borrow[N-1:0]", penwidth=1.8];
+    rec -> outs [xlabel="borrow[N]"];
+    dif -> outs [xlabel="difference"];
+
+    { rank=same; ops; bin; }
+    ops -> bin [style=invis, minlen=3];
+}

@@ -71,6 +71,19 @@ module math_addsub_full_nbit #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_addsub_full_nbit block diagram](../assets/rtl-math/graphviz/math_addsub_full_nbit.png)
+
+The mode bit `i_c` does two jobs, splitting at the point below the Mode port.
+It drives the conditional invert (dashed), where `N` XORs pass `i_b` through
+unchanged for addition or invert it to `~B` for subtraction. It is also the
+adder's carry in, supplying the `+1` that completes the two's complement.
+Operand A and the possibly inverted B then go through one ripple-carry adder
+of `N` full adders, drawn as one box here; its internal structure is the
+`math_adder_full_nbit` diagram on the basic adders page.
+
+
 ### Two's Complement Subtraction
 
 The module implements subtraction using two's complement arithmetic:
@@ -85,22 +98,6 @@ A - B = A + (~B) + 1
    - If i_c = 1 (sub): w_ip = ~B (one's complement)
 2. **Feed i_c as carry input**: Completes two's complement (+1)
 3. **Use standard adder**: A + w_ip + i_c
-
-### Logic Diagram
-
-```mermaid
-flowchart LR
-    ic["i_c<br/>(control)"] --> xor["XOR"]
-    ib["i_b[i]"] --> xor
-    xor --> wip["w_ip[i]"]
-    wip --> fa["Full Adder"]
-    ia["i_a[i]"] --> fa
-    ic --> cin["carry_in"]
-    cin --> fa
-    cprev["carry[i-1]"] --> fa
-    fa --> sum["ow_sum[i]"]
-    fa --> cout["carry[i]"]
-```
 
 ### Implementation
 

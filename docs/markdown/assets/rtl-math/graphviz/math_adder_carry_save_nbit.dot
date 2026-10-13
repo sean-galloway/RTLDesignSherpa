@@ -1,0 +1,36 @@
+// math_adder_carry_save_nbit block diagram - house style.
+// The point of a carry-save adder: N independent 3:2 compressors side by
+// side with NO edge between them -- no carry passes between bit positions,
+// so depth is constant in N. Each bit's carry has weight 2^(i+1): the
+// consumer must add sum + (carry << 1).
+// Source of truth: rtl/math/math_adder_carry_save_nbit.sv (inline per bit;
+// same equations as the single-bit math_adder_carry_save).
+digraph math_adder_carry_save_nbit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_adder_carry_save_nbit - N parallel 3:2 compressors, no carry chain (combinational)";
+
+    ops [label="Three Operands\ni_a[N-1:0], i_b[N-1:0], i_c[N-1:0]", fillcolor="white"];
+    p_t [shape=point, width=0.01];
+
+    b0  [label="Bit 0  3:2 Compressor\now_sum[0]   = a ^ b ^ c\now_carry[0] = majority(a, b, c)"];
+    bm  [label="Bits 1 .. N-2\n(N-2) x the same 3:2 compressor"];
+    bl  [label="Bit N-1  3:2 Compressor\nsame equations"];
+
+    outs [label="Outputs (two vectors, not yet one number)\now_sum[N-1:0]   |   ow_carry[N-1:0]\ncarry[i] has weight 2^(i+1): result = ow_sum + (ow_carry << 1)", fillcolor="white", width=7.5];
+
+    ops -> p_t [arrowhead=none, headclip=false, xlabel="bit i of each operand"];
+    p_t -> b0 [tailclip=false, xlabel="[0]"];
+    p_t -> bm [tailclip=false, xlabel="[N-2:1]"];
+    p_t -> bl [tailclip=false, xlabel="[N-1]"];
+    b0 -> outs [xlabel="sum[0], carry[0]"];
+    bm -> outs [xlabel="sum[N-2:1], carry[N-2:1]"];
+    bl -> outs [xlabel="sum[N-1], carry[N-1]"];
+
+    { rank=same; b0; bm; bl; }
+    b0 -> bm [style=invis, minlen=3]; bm -> bl [style=invis, minlen=3];
+}

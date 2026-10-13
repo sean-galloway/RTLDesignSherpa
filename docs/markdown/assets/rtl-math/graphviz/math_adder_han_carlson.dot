@@ -1,0 +1,58 @@
+// math_adder_han_carlson block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// One flow top-down: operands -> bitwise PG -> even-bit pairing -> Kogge-Stone
+// levels over the even bits -> one gray-cell level for the odd bits -> sum.
+// Per-bit propagate bypasses the tree down the left lane; the carry in folds in
+// at bit 0 of stage 1 and again at sum bit 0 (right lane).
+// Generated per width: _016 / _022 / _032 / _044 / _048 / _072.
+// Source of truth: rtl/math/math_adder_han_carlson_*.sv.
+digraph math_adder_han_carlson {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_adder_han_carlson_<N> - Han-Carlson prefix adder, N = 16 / 22 / 32 / 44 / 48 / 72 (combinational)";
+
+    ops  [label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white"];
+    cin  [label="Carry In\ni_cin", fillcolor="white"];
+    cells [label="Prefix cell types\l  black cell: G = Ghi | (Phi & Glo),  P = Phi & Plo\l      merges two spans; the group P is still needed later\l  gray cell: G only\l      used where the merged span reaches bit 0, so its G\l      is a finished carry and no group P is needed\l", fillcolor="white"];
+    pg   [label="Bitwise PG (combinational, inline)\np0[i] = a[i] ^ b[i],  g0[i] = a[i] & b[i]"];
+    s1   [label="Stage 1 - Pair Even Bits (combinational)\nmath_prefix_cell (black) at each even bit i: spans (i, i-1)\nbit 0 folds the carry in: g = g0 | (p0 & i_cin)"];
+    ks   [label="Stages 2 .. ceil(log2 N) - Kogge-Stone on Even Bits\nmath_prefix_cell (black), spans 2, 4, 8 ..\nodd bits pass straight through"];
+    fin  [label="Final Stage - Odd Bits (combinational)\nmath_prefix_cell_gray at each odd bit i: (i, i-1)\none level more than Kogge-Stone, about half the cells"];
+    sum  [label="Sum (combinational, inline)\now_sum[0] = p0[0] ^ i_cin\now_sum[i] = p0[i] ^ g[i-1],  ow_cout = g[N-1]"];
+    out  [label="Outputs\now_sum[N-1:0]   |   ow_cout", fillcolor="white", width=4.5];
+
+    p_b1 [shape=point, width=0.01];
+    p_b2 [shape=point, width=0.01];
+    p_b3 [shape=point, width=0.01];
+    c_b1 [shape=point, width=0.01];
+    c_b2 [shape=point, width=0.01];
+    c_b3 [shape=point, width=0.01];
+
+    ops -> pg  [xlabel="a, b"];
+    pg  -> s1  [xlabel="g0, p0"];
+    cin -> s1  [xlabel="i_cin (bit 0)"];
+    s1  -> ks  [xlabel="even-bit spans"];
+    ks  -> fin [xlabel="even-bit carries"];
+    fin -> sum [xlabel="carries g[N-1:0]"];
+    sum -> out [xlabel="sum, cout", penwidth=1.8];
+    pg   -> p_b1 [arrowhead=none, headclip=false];
+    p_b1 -> p_b2 [arrowhead=none, headclip=false, tailclip=false];
+    p_b2 -> p_b3 [arrowhead=none, headclip=false, tailclip=false];
+    p_b3 -> sum  [xlabel="p0 (bypass)", tailclip=false];
+    cin  -> c_b1 [arrowhead=none, headclip=false];
+    c_b1 -> c_b2 [arrowhead=none, headclip=false, tailclip=false];
+    c_b2 -> c_b3 [arrowhead=none, headclip=false, tailclip=false];
+    c_b3 -> sum  [xlabel="i_cin (sum bit 0)", tailclip=false];
+
+    { rank=same; cells; ops; cin; }
+    cells -> ops [style=invis]; ops -> cin [style=invis];
+    { rank=same; p_b1; s1; c_b1; }
+    { rank=same; p_b2; ks; c_b2; }
+    { rank=same; p_b3; fin; c_b3; }
+    p_b1 -> s1 -> c_b1 [style=invis];
+    p_b2 -> ks -> c_b2 [style=invis];
+    p_b3 -> fin -> c_b3 [style=invis];
+}

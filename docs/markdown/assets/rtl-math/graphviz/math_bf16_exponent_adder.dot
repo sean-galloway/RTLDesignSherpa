@@ -1,0 +1,52 @@
+// math_bf16_exponent_adder block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Fully combinational. Two parallel checks on the raw exponents: a special
+// detector (exp == 0x00 or 0xFF; the caller tells zero from subnormal and
+// inf from NaN with the mantissa) and the 10-bit biased sum. The range check
+// on the sum is masked when either operand is special; the saturating select
+// then forces 0xFF on overflow and 0x00 on underflow.
+// Source of truth: rtl/math/math_bf16_exponent_adder.sv (generated).
+digraph math_bf16_exponent_adder {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_bf16_exponent_adder - product exponent with bias, range check and saturation (combinational)";
+
+    // ---- inputs (white) ----
+    e_in [label="Exponents\ni_exp_a[7:0], i_exp_b[7:0]", fillcolor="white"];
+    n_in [label="Normalize Adjust\ni_norm_adjust (product >= 2.0)", fillcolor="white"];
+
+    // ---- parallel checks ----
+    spc  [group=S, label="Special Detect (combinational)\nexp == 0x00: zero class\nexp == 0xFF: inf / NaN class\n(the caller checks the mantissa)"];
+    sum  [group=M, label="Biased Sum (combinational, 10 bits)\nexp_a + exp_b + norm_adjust - 127"];
+
+    // ---- range check + saturation ----
+    rng  [group=M, label="Range Check (combinational)\nunderflow: sum <= 0 (bit 9 set or zero)\noverflow: sum > 254 (255 is reserved for inf / NaN)\nboth masked when either operand is special"];
+    sat  [group=M, label="Saturate (combinational)\noverflow -> 0xFF   |   underflow -> 0x00   |   else sum[7:0]"];
+
+    // ---- outputs ----
+    bar  [label="Outputs\now_exp_out[7:0]   |   ow_overflow, ow_underflow   |   ow_a/b_is_zero, ow_a/b_is_inf, ow_a/b_is_nan",
+          fillcolor="white", width=8.5];
+
+    // ---- flows ----
+    e_in -> sum [xlabel="exp_a, exp_b"];
+    n_in -> sum [xlabel="+1 if set"];
+    e_in -> spc [xlabel="exp_a, exp_b"];
+    sum  -> rng [xlabel="sum[9:0]", penwidth=1.8];
+    spc  -> rng [style=dashed, xlabel="either special\n(mask)"];
+    rng  -> sat [xlabel="sum, overflow,\nunderflow", penwidth=1.8];
+    sat  -> bar [xlabel="exp_out, overflow,\nunderflow", penwidth=1.8];
+    p_sp [shape=point, width=0.01, group=S];
+    spc  -> p_sp [arrowhead=none, headclip=false];
+    p_sp -> bar [xlabel="class flags", tailclip=false];
+
+    // ---- rank pinning ----
+    { rank=same; e_in; n_in; }
+    { rank=same; spc; sum; }
+    { rank=same; p_sp; sat; }
+    spc -> sum [style=invis, minlen=2];
+    e_in -> n_in [style=invis, minlen=2];
+}

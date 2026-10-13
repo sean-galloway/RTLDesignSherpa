@@ -1,0 +1,49 @@
+// math_multiplier_basic block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Combinational. math_multiplier_carry_save is an N x N array of
+// math_multiplier_basic_cell (each: AND for the partial product, then a full
+// add with the carry from the row above and the sum from the row above and
+// one column left). Row 0 starts with carries and sums tied to 0. Each row's
+// column-0 sum drops out as one low product bit (down the left edge); the
+// last row's carries and sums meet in an inline N-bit add for the high half.
+// Source of truth: rtl/math/math_multiplier_carry_save.sv,
+// rtl/math/math_multiplier_basic_cell.sv.
+digraph math_multiplier_basic {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_multiplier_carry_save - N x N carry-save array of math_multiplier_basic_cell (combinational)";
+
+    ops  [group=M, label="Operands\ni_multiplier[N-1:0], i_multiplicand[N-1:0]", fillcolor="white"];
+    cell [label="One Cell: math_multiplier_basic_cell\lw_p = i_i & i_j  (partial-product bit)\low_p = i_c ^ i_p ^ w_p  (sum down-left)\low_c = majority(i_c, i_p, w_p)  (carry down)\l", fillcolor="white"];
+
+    r0   [group=M, label="Row 0 (combinational)\nN cells, multiplier bit 0 x every multiplicand bit\ncarry and sum inputs tied to 0"];
+    rn   [group=M, label="Rows 1 .. N-1 (combinational, N-1 x N cells)\nrow i: multiplier bit i x every multiplicand bit\ncarry from the row above, sum from above and one column left"];
+    fin  [group=M, label="Final Row Add (combinational, inline +)\nfinal_sum = last row's carries + last row's sums >> 1\nN bits"];
+    bar  [label="Output\now_product[2N-1:0] = { final_sum, w_product[N-1:0] }", fillcolor="white", width=6.0];
+
+    ops -> r0  [xlabel="i_multiplier[0], i_multiplicand"];
+    r0  -> rn  [xlabel="w_cout, w_pout of row 0"];
+    rn  -> fin [xlabel="row N-1 carries, sums"];
+    fin -> bar [xlabel="product[2N-1:N]", penwidth=1.8];
+
+    // operand bits for the other rows: one trunk down the right edge
+    p_op [shape=point, width=0.01];
+    ops  -> p_op [arrowhead=none, headclip=false];
+    p_op -> rn   [xlabel="i_multiplier[1 .. N-1],\ni_multiplicand", tailclip=false];
+
+    // low product bits: column 0 of every row, down the left edge
+    p_lo [shape=point, width=0.01];
+    rn   -> p_lo [arrowhead=none, headclip=false];
+    p_lo -> bar  [xlabel="w_product[N-1:0]\n(column-0 sum of rows 0 .. N-1)", tailclip=false];
+
+    { rank=same; cell; ops; }
+    cell -> ops [style=invis];
+    { rank=same; p_op; r0; }
+    r0 -> p_op [style=invis, minlen=2];
+    { rank=same; p_lo; fin; }
+    p_lo -> fin [style=invis, minlen=2];
+}

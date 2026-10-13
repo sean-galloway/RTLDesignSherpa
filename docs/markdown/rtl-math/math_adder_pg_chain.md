@@ -73,6 +73,16 @@ module math_adder_pg_chain #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_adder_pg_chain block diagram](../assets/rtl-math/graphviz/math_adder_pg_chain.png)
+
+Each operand bit pair becomes a generate (`a & b`) and a propagate (`a ^ b`).
+The carry chain then walks those N bits in series from the carry in, one
+`g | (p & c)` step per bit, which is what makes this the ripple form. The
+propagate bits skip the chain down the left and meet the carries in the sum
+stage, where each sum bit is one XOR; the last carry is `ow_carry`.
+
 ### Algorithm Overview
 
 The carry lookahead adder uses **propagate (P)** and **generate (G)** signals to compute carries more efficiently than ripple carry:

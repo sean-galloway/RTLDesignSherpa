@@ -1,0 +1,23 @@
+// math_adder_half block diagram - house style. Leaf cell: one XOR, one AND.
+// Source of truth: rtl/math/math_adder_half.sv (parameter N is unused).
+digraph math_adder_half {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_adder_half - one-bit half adder, no carry in (combinational)";
+
+    ops  [label="Operand Bits\ni_a, i_b", fillcolor="white"];
+    sxor [label="Sum XOR\now_sum = i_a ^ i_b"];
+    cand [label="Carry AND\now_carry = i_a & i_b"];
+    outs [label="Outputs\now_sum   |   ow_carry", fillcolor="white", width=3.6];
+
+    ops  -> sxor [xlabel="i_a, i_b"];
+    ops  -> cand [xlabel="i_a, i_b"];
+    sxor -> outs [xlabel="ow_sum"];
+    cand -> outs [xlabel="ow_carry"];
+    { rank=same; sxor; cand; }
+    sxor -> cand [style=invis, minlen=2];
+}

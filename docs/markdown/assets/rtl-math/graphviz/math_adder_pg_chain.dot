@@ -1,0 +1,35 @@
+// math_adder_pg_chain block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// One flow top-down: operands -> per-bit G/P -> serial carry chain -> sum.
+// The per-bit propagate also bypasses the chain down the left lane into the sum.
+// Source of truth: rtl/math/math_adder_pg_chain.sv.
+digraph math_adder_pg_chain {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_adder_pg_chain - ripple adder in generate/propagate form (combinational)";
+
+    ops  [label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white"];
+    cin  [label="Carry In\ni_c", fillcolor="white"];
+    pg   [label="Bitwise G / P (combinational)\nw_g[i] = a[i] & b[i]   (this bit makes a carry)\nw_p[i] = a[i] ^ b[i]   (this bit passes a carry on)"];
+    chn  [label="Carry Chain (combinational, N serial steps)\nw_c[0] = i_c\nw_c[i+1] = w_g[i] | (w_p[i] & w_c[i])"];
+    sum  [label="Sum (combinational)\now_sum[i] = w_p[i] ^ w_c[i]\now_carry = w_c[N]"];
+    out  [label="Outputs\now_sum[N-1:0]   |   ow_carry", fillcolor="white", width=4.5];
+
+    p_byp [shape=point, width=0.01];
+
+    ops -> pg  [xlabel="a, b"];
+    pg  -> chn [xlabel="w_g, w_p"];
+    cin -> chn [xlabel="i_c = w_c[0]"];
+    chn -> sum [xlabel="carries w_c[N:0]"];
+    sum -> out [xlabel="sum, carry", penwidth=1.8];
+    pg  -> p_byp [arrowhead=none, headclip=false];
+    p_byp -> sum [xlabel="w_p (bypass)", tailclip=false];
+
+    { rank=same; ops; cin; }
+    { rank=same; chn; p_byp; }
+    p_byp -> chn [style=invis];
+    ops -> cin [style=invis];
+}

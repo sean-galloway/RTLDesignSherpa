@@ -7,6 +7,17 @@ tree over *all* bits is not" compromise.
 
 ## Architecture
 
+### Block diagram
+
+![math_adder_hybrid_ripple_prefix block diagram](../assets/rtl-math/graphviz/math_adder_hybrid_ripple_prefix.png)
+
+The low `RIPPLE_BITS` bits run down the left through a ripple chain, while the
+upper bits run down the right through bitwise PG and one Kogge-Stone tree, both at
+the same time. The tree produces each upper bit's group G and P as if its
+carry-in were 0. When the ripple's carry-out `c_lo` arrives (the heavy edge),
+the boundary combine turns each upper bit into a carry with one 2:1 select, and
+the sums from both sections meet in the output bar.
+
 The lower `RIPPLE_BITS` bits ripple (on FPGAs this maps onto the dedicated
 carry-chain logic; on ASICs short ripples are a handful of gates per bit).
 The upper `N - RIPPLE_BITS` bits are covered by **one** Kogge-Stone prefix

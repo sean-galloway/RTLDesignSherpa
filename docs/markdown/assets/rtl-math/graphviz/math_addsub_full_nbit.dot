@@ -1,0 +1,38 @@
+// math_addsub_full_nbit block diagram - house style.
+// Two's complement: A - B = A + ~B + 1. The mode bit i_c does two jobs:
+// it inverts B (N XORs) and it is the adder's carry in (the +1). It splits
+// at a labeled point. The ripple adder is drawn as one counted box; its
+// structure is the math_adder_full_nbit diagram.
+// Source of truth: rtl/math/math_addsub_full_nbit.sv.
+digraph math_addsub_full_nbit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_addsub_full_nbit - N-bit add / subtract on one adder (combinational)";
+
+    opa  [label="Operand A\ni_a[N-1:0]", fillcolor="white"];
+    opb  [label="Operand B\ni_b[N-1:0]", fillcolor="white"];
+    mode [label="Mode\ni_c: 0 = add (A + B)\n1 = subtract (A - B)", fillcolor="white"];
+    p_m  [shape=point, width=0.01];
+
+    inv  [label="Conditional Invert (combinational)\nw_ip[i] = i_b[i] ^ i_c  (N XORs)\ni_c = 1: one's complement of B"];
+    add  [label="Ripple-Carry Adder (combinational)\nN x math_adder_full - gen_full_adders\nw_c[0] = i_c supplies the +1"];
+
+    outs [label="Outputs\now_sum[N-1:0] (A + B or A - B)   |   ow_carry (add: carry out;  subtract: 1 = no borrow, A >= B)", fillcolor="white", width=7.5];
+
+    opb  -> inv [xlabel="i_b"];
+    mode -> p_m [arrowhead=none, headclip=false, xlabel="i_c"];
+    p_m  -> inv [tailclip=false, style=dashed, xlabel="invert B"];
+    p_m  -> add [tailclip=false, xlabel="carry in (+1)"];
+    opa  -> add [xlabel="i_a"];
+    inv  -> add [xlabel="w_ip (B or ~B)"];
+    add  -> outs [xlabel="ow_sum, ow_carry", penwidth=1.8];
+
+    { rank=same; opa; mode; opb; }
+    { rank=same; inv; p_m; }
+    opa -> mode [style=invis, minlen=2]; mode -> opb [style=invis, minlen=2];
+    p_m -> inv [style=invis];
+}

@@ -1,0 +1,39 @@
+// math_multiplier_dadda_tree block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Combinational, generated per width. One column top-down: operands ->
+// AND partial-product array -> reduction (first stage in full, the rest as
+// one counted box) -> two rows packed for the final carry-propagate adder ->
+// product bar. The variant legend carries the per-width stage/cell counts.
+// Dadda reduces a column only when it exceeds the stage target.
+// Source of truth: rtl/math/math_multiplier_dadda_tree_{008,016,032}.sv.
+digraph math_multiplier_dadda_tree {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_multiplier_dadda_tree - Dadda-reduced N x N unsigned multiplier (combinational)";
+
+    node [group=M];
+    ops  [label="Operands\ni_multiplier[N-1:0], i_multiplicand[N-1:0]", fillcolor="white"];
+    pp   [label="Partial-Product Array (combinational)\nN x N ANDs: w_pp_i_j = i_multiplier[i] & i_multiplicand[j]\n2N-1 columns, heights 1, 2 .. N .. 2, 1"];
+    s1   [label="Dadda Stage 1 (combinational)\nreduce only columns taller than the target (8-bit: 6)\nmath_adder_carry_save (3:2) + math_adder_half"];
+    sr   [label="Dadda Stages 2 .. S (combinational)\ntargets follow 2, 3, 4, 6, 9, 13, 19, 28 downward\n(8-bit: 4 -> 3 -> 2); Dadda waits, spending the fewest cells"];
+    pack [label="Row Pack (wiring)\nw_cpa_row0, w_cpa_row1 [2N-1:0]\nthe two bits left in every column"];
+    cpa  [label="Final Carry-Propagate Adder (combinational)\nmath_adder_brent_kung_{2N} - u_final_cpa\nw_cpa_row0 + w_cpa_row1"];
+    bar  [label="Output\now_product[2N-1:0]", fillcolor="white", width=5.0];
+    node [group=""];
+
+    var  [label="Generated Variants (N fixed per file)\lmath_multiplier_dadda_tree_008: 4 stages,\l    35 carry-save + 7 half adders, brent_kung_016\lmath_multiplier_dadda_tree_016: 6 stages,\l    195 carry-save + 15 half adders, brent_kung_032\lmath_multiplier_dadda_tree_032: 8 stages,\l    899 carry-save + 31 half adders, brent_kung_064\l", fillcolor="white"];
+
+    ops  -> pp   [xlabel="operand bits"];
+    pp   -> s1   [xlabel="N x N partial-product bits"];
+    s1   -> sr   [xlabel="shorter columns"];
+    sr   -> pack [xlabel="every column at height 2"];
+    pack -> cpa  [xlabel="two rows"];
+    cpa  -> bar  [xlabel="product", penwidth=1.8];
+
+    { rank=same; var; ops; }
+    var -> ops [style=invis];
+}

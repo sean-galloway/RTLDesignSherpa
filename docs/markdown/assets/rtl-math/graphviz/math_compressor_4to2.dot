@@ -1,0 +1,45 @@
+// math_compressor_4to2 block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Combinational. Two cascaded math_adder_full instances: FA1 compresses
+// x1/x2/x3, its sum drops into FA2 with x4 and cin. FA1's carry leaves as
+// ow_cout and never sees cin -- the property that lets a column of 4:2
+// compressors chain cout -> cin without a ripple. Outputs as the bottom bar.
+// Source of truth: rtl/math/math_compressor_4to2.sv.
+digraph math_compressor_4to2 {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="math_compressor_4to2 - five bits of one column in, sum + two carries out (combinational)";
+
+    // ---- inputs (white) ----
+    xin  [label="Three Column Bits\ni_x1, i_x2, i_x3", fillcolor="white"];
+    x4   [label="Fourth Column Bit\ni_x4", fillcolor="white"];
+    cin  [label="Carry In (from the column to the right)\ni_cin", fillcolor="white"];
+
+    // ---- the two full adders ----
+    fa1  [label="FA1 (combinational)\nmath_adder_full - u_fa1\nadds i_x1 + i_x2 + i_x3"];
+    fa2  [label="FA2 (combinational)\nmath_adder_full - u_fa2\nadds int_sum + i_x4 + i_cin"];
+
+    // ---- outputs (white bar) ----
+    bar  [label="Outputs  (i_x1 + i_x2 + i_x3 + i_x4 + i_cin = ow_sum + 2 x (ow_carry + ow_cout))\now_sum (this column)   |   ow_carry (next column)   |   ow_cout (next column's i_cin, independent of i_cin)",
+          fillcolor="white", width=9.0];
+
+    xin -> fa1 [xlabel="i_x1, i_x2, i_x3"];
+    fa1 -> fa2 [xlabel="w_int_sum"];
+    x4  -> fa2 [xlabel="i_x4"];
+    cin -> fa2 [xlabel="i_cin"];
+    fa2 -> bar [xlabel="ow_sum, ow_carry"];
+
+    // FA1's carry skips FA2 and leaves directly: down the left edge
+    p_co [shape=point, width=0.01];
+    fa1 -> p_co [arrowhead=none, headclip=false];
+    p_co -> bar [xlabel="ow_cout (carry of FA1)", tailclip=false];
+
+    { rank=same; xin; x4; cin; }
+    xin -> x4 -> cin [style=invis];
+    { rank=same; p_co; fa2; }
+    p_co -> fa2 [style=invis, minlen=2];
+}

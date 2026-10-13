@@ -108,6 +108,19 @@ module math_multiplier_wallace_tree_032 #(
 
 ## Functional Description
 
+### Block diagram
+
+![math_multiplier_wallace_tree block diagram](../assets/rtl-math/graphviz/math_multiplier_wallace_tree.png)
+
+The operands form an N x N AND array of partial products, giving 2N-1
+columns of height up to N. Each Wallace layer compresses every group of
+three bits in every column at once, with `math_adder_full` (or
+`math_adder_carry_save` in the `_csa_` variants) and `math_adder_half`, and
+the layers repeat until every column is at height 2. The two remaining rows
+are packed into `w_cpa_row0` / `w_cpa_row1` and summed by the
+`math_adder_brent_kung_{2N}` instance `u_final_cpa`. Everything is
+combinational; the legend lists the generated widths and layer counts.
+
 ### Wallace Tree Algorithm
 
 The Wallace tree plays an aggressive reduction game:

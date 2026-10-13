@@ -34,6 +34,21 @@ non-restoring `W+1` (final correction), SRT radix-2 and radix-2-CSA `W`,
 SRT radix-4 `ceil(W/2)`. Divide-by-zero and (radix-4 only) divide-by-one
 complete in one cycle.
 
+## Block diagram
+
+![math_divider family block diagram](../assets/rtl-math/graphviz/math_dividers.png)
+
+All five dividers share one digit-recurrence structure. On `i_valid` the
+operand registers load the dividend and divisor, and the control FSM runs
+`W` iterations (`ceil(W/2)` for radix-4). Each clock the quotient-digit
+selection reads the partial remainder, which climbs the right edge from its
+register, and picks the next digit `q`. The remainder update forms
+`2R + next dividend bit - q x D` back into the register, while the quotient
+accumulator records `q`. That is a plain shift-in for restoring, and the
+on-the-fly `Q`/`QM` pair for SRT. A final correction makes
+`0 <= remainder < divisor`. The variant legend lists what each module changes:
+its digit set, its selection rule, and its remainder form.
+
 ## The five algorithms
 
 | Module | Digit set | Bits/cycle | Remainder form | Selection |

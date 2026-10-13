@@ -265,6 +265,9 @@ Start a new diagram from them, not from a blank file:
   the register so the two don't cross.
 - **When parallel path blocks fed by one input force crossings, merge them**
   into one block that describes each path in its label (`shifter_barrel`).
+- **graphviz 2.43 `splines=ortho` can crash** with "Trapezoid-table
+  overflow", even on a plain vertical chain (`math_mod_3_compress`). For an
+  all-vertical chain, `splines=line` renders the same picture.
 - **Shorten node labels before fighting the aspect ratio.** Long third lines
   widened every column and pushed the drawing past 2.5:1.
 
@@ -464,6 +467,64 @@ the full pass, on top of the approved samples above.
   heavy (`clock_divider`).
 - **When a Clock / Reset box garbles a layout,** drop it and write "(flop on
   clk)" in the register's label.
+
+### rtl-math (2026-10-13)
+
+The 31 content pages hold 29 diagrams. The catalog pages (`math_fp8/16/32_modules`,
+`math_bf16_extended`, `math_library`) list many small independent functions
+with no shared datapath, so they get none. A catalog does not get a forced
+diagram.
+
+- **A generated per-width family gets one diagram per page.** The widths
+  go in the title (`<N> = 8 / 16 / 32 / 64`) or in a white "Generated
+  Variants" legend giving each width's stage counts, cell counts and final
+  adder. An algorithm family (the five integer dividers) draws the shared
+  recurrence once, with a "Variant (one module each)" legend for the
+  differences.
+- **Leaf arithmetic cells are drawn as gates** (full adder, half adder,
+  black and gray prefix cells), because the gates are the real structure.
+  Prefix cells carry their span ranges (`[i:k]`, `[k-1:j]`, `[i:j]`).
+- **A ripple chain makes the carry or borrow the heavy main column**, LSB
+  at the top. Operand bits arrive on a left trunk with headlabel indices,
+  and result bits leave on a right trunk.
+- **A carry-save array draws its bit cells side by side with no edge
+  between them,** so the missing carry chain is visible. The output bar
+  states the `<< 1` weighting the consumer applies.
+- **A prefix adder is pg, then the prefix network's stages in order as
+  plain boxes, then sum.** Nothing picks, so there is no trapezium. A
+  "Prefix cell types" legend explains black and gray cells. The per-bit
+  propagate is a bypass lane down the left into the sum.
+- **A reduction tree shows its first stage in full, then one counted box.**
+  The Dadda versus Wallace difference (reduce only above the target, versus
+  compress early) goes in the labels. A regular cell array draws its cell
+  as a legend with equations, then row 0 and rows 1 .. N-1.
+- **A floating-point datapath reads operands, then Unpack + Classify, then
+  the field paths side by side** (sign as a thin left column, mantissa in
+  the center, exponent on the right), then normalize, round, special-case
+  select, and the output bar.
+  - Classification flags ride a dashed right lane into the select.
+  - An exponent that depends on the mantissa's normalize bit sits one rank
+    below the mantissa block.
+  - A two-format module (FMA) gives each operand format its own column,
+    merging at the align block.
+- **A priority select among candidate results is a plain box,** with the
+  order as a `>` chain in its label. It is not a trapezium: special cases
+  override a result rather than compete for a grant.
+- **Optional pipeline banks** (`PIPE_STAGE_n`) are thin dashed boxes between
+  stages, explained once in a Parameters legend. One dashed clock edge
+  covers all banks, and signals carried alongside (valid, flags) share one
+  dashed side lane labeled "(through the same banks)".
+- **A mode bit with two jobs splits at a point node:** the mode branch is
+  dashed and the data branch solid (add/subtract `i_c`: invert B, and the
+  +1 carry-in).
+- **A shared unit time-multiplexed by an FSM** puts the loop on the right:
+  operand select over the unit, with the product returning up the right
+  edge. The FSM's select is dashed, and a one-cycle special-case shortcut
+  runs dashed down the left into the output registers.
+- **A trivial path** (an XOR'd result sign) folds into the label of the
+  block that consumes it.
+- **A sub-module drawn on another page is one counted box,** and one figure
+  may appear on two pages.
 
 ### Decision trees
 

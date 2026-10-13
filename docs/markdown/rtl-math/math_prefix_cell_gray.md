@@ -62,6 +62,15 @@ module math_prefix_cell_gray (
 
 ## Functional Description
 
+### Block diagram
+
+![math_prefix_cell_gray block diagram](../assets/rtl-math/graphviz/math_prefix_cell_gray.png)
+
+A gray cell merges a higher span with a lower span that already reaches bit 0.
+The merged generate is therefore a finished carry, and no later stage needs a
+group propagate, so the cell drops the `i_p_lo` input and the P output.
+Compare it with the [black cell](math_prefix_cell.md).
+
 ### Implementation
 
 ```systemverilog
@@ -85,28 +94,12 @@ The sum computation uses the **original** single-bit propagate P[i], not the gro
 
 ### Visual Comparison
 
-```mermaid
-flowchart LR
-    subgraph BlackCell["Black Cell"]
-        ghi1["i_g_hi"] --> owg1["ow_g"]
-        phi1["i_p_hi"] --> and1["AND"]
-        glo1["i_g_lo"] --> and1
-        and1 --> or1["OR"]
-        or1 --> owg1
-        plo1["i_p_lo"] --> and2["AND"]
-        phi1 --> and2
-        and2 --> owp1["ow_p"]
-    end
+The two cells side by side. The black cell builds both G and P; the gray cell
+builds G only.
 
-    subgraph GrayCell["Gray Cell"]
-        ghi2["i_g_hi"] --> owg2["ow_g"]
-        phi2["i_p_hi"] --> and3["AND"]
-        glo2["i_g_lo"] --> and3
-        and3 --> or2["OR"]
-        or2 --> owg2
-        nop["(no P output)"]
-    end
-```
+![math_prefix_cell black cell](../assets/rtl-math/graphviz/math_prefix_cell.png)
+
+![math_prefix_cell_gray gray cell](../assets/rtl-math/graphviz/math_prefix_cell_gray.png)
 
 ## Timing Characteristics
 | Metric | Value | Description |

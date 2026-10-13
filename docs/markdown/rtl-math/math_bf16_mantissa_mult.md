@@ -72,6 +72,16 @@ module math_bf16_mantissa_mult(
 
 ## Functional Description
 
+### Block diagram
+
+![math_bf16_mantissa_mult block diagram](../assets/rtl-math/graphviz/math_bf16_mantissa_mult.png)
+
+The two 7-bit mantissas get their hidden bit and go through the 8x8 Dadda
+multiplier. Bit 15 of the 16-bit product says whether the product is in
+[2, 4); that bit selects which 7-bit window becomes the mantissa and which
+bits are guard, round and sticky. The raw product and `needs_norm` also
+leave as outputs for the caller.
+
 ### BF16 Structure
 
 ```
