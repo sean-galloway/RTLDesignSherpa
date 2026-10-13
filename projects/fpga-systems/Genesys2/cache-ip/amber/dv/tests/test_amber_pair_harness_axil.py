@@ -3,9 +3,10 @@
 #
 # Module: test_amber_pair_harness_axil
 # Purpose: Drive amber_pair_harness's direct AXIL4-Lite host interface with the
-#   house AXIL4 master BFM, bypassing the UART bridge. Reproduces and diagnoses
-#   the Genesys2 bring-up hang where AXIL writes to cycle_injector0 and all reads
-#   hang.
+#   house AXIL4 master BFM, bypassing the UART bridge. This is the FAST low-level
+#   path for exercising the DUT; it is NOT the UART equivalence evidence. The
+#   equivalence evidence is test_amber_pair_harness_uart, which imports and runs
+#   the same host sequences through the real uart_axil_bridge.
 
 import os
 import sys

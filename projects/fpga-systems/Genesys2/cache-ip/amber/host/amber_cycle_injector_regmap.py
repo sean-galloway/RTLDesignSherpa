@@ -1,0 +1,147 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 sean galloway
+#
+# Hand-authored register map for amber_cycle_injector.
+# Matches the CSR map in rtl/amber_cycle_injector.sv.
+
+"""
+Register map dictionary for amber_cycle_injector
+
+Compatible with bin/TBClasses/apb/register_map.py and the UART-aware
+TBClasses.harness.uart_register_map.UartRegisterMap wrapper.
+"""
+
+top_block = {
+    'CTRL': {
+        'address': '0x000',
+        'default': '0x00000000',
+        'name': 'CTRL',
+        'offset': '0x000',
+        'run': {'default': '0x0', 'offset': '0', 'sw': 'rw', 'type': 'field'},
+        'size': 4,
+        'sw': 'rw',
+        'type': 'reg',
+        'we_mix': {'default': '0x00', 'offset': '15:8', 'sw': 'rw', 'type': 'field'},
+    },
+    'SEED': {
+        'address': '0x004',
+        'default': '0x00000000',
+        'name': 'SEED',
+        'offset': '0x004',
+        'size': 4,
+        'sw': 'rw',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
+    },
+    'ADDR_BASE': {
+        'address': '0x008',
+        'default': '0x00000000',
+        'name': 'ADDR_BASE',
+        'offset': '0x008',
+        'size': 4,
+        'sw': 'rw',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
+    },
+    'ADDR_MASK': {
+        'address': '0x00C',
+        'default': '0x00000000',
+        'name': 'ADDR_MASK',
+        'offset': '0x00C',
+        'size': 4,
+        'sw': 'rw',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
+    },
+    'TRANS_COUNT': {
+        'address': '0x010',
+        'default': '0x00000000',
+        'name': 'TRANS_COUNT',
+        'offset': '0x010',
+        'size': 4,
+        'sw': 'rw',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
+    },
+    'STATUS': {
+        'address': '0x014',
+        'busy': {'default': '0x0', 'offset': '1', 'sw': 'r', 'type': 'field'},
+        'default': '0x00000000',
+        'done': {'default': '0x0', 'offset': '0', 'sw': 'r', 'type': 'field'},
+        'name': 'STATUS',
+        'offset': '0x014',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+    },
+    'ACC_COUNT': {
+        'address': '0x018',
+        'default': '0x00000000',
+        'name': 'ACC_COUNT',
+        'offset': '0x018',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'RSP_COUNT': {
+        'address': '0x01C',
+        'default': '0x00000000',
+        'name': 'RSP_COUNT',
+        'offset': '0x01C',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'ERR_FLAG': {
+        'address': '0x020',
+        'default': '0x00000000',
+        'name': 'ERR_FLAG',
+        'offset': '0x020',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '0', 'sw': 'r', 'type': 'field'},
+    },
+    'RSP_CRC_LO': {
+        'address': '0x030',
+        'default': '0x00000000',
+        'name': 'RSP_CRC_LO',
+        'offset': '0x030',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'RSP_CRC_HI': {
+        'address': '0x034',
+        'default': '0x00000000',
+        'name': 'RSP_CRC_HI',
+        'offset': '0x034',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'WDATA_CRC_LO': {
+        'address': '0x038',
+        'default': '0x00000000',
+        'name': 'WDATA_CRC_LO',
+        'offset': '0x038',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'WDATA_CRC_HI': {
+        'address': '0x03C',
+        'default': '0x00000000',
+        'name': 'WDATA_CRC_HI',
+        'offset': '0x03C',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+}

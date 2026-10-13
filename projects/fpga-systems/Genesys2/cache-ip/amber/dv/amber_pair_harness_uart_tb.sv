@@ -7,7 +7,10 @@
 
 `timescale 1ns / 1ps
 
-module amber_pair_harness_uart_tb (
+module amber_pair_harness_uart_tb #(
+    parameter int FPGA_CLK_HZ   = 90_000_000,
+    parameter int UART_BAUD     = 115_200
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -42,8 +45,8 @@ module amber_pair_harness_uart_tb (
 
     amber_pair_harness #(
         .USE_DIRECT_HOST(1'b0),
-        .FPGA_CLK_HZ   (90_000_000),
-        .UART_BAUD     (115_200)
+        .FPGA_CLK_HZ   (FPGA_CLK_HZ),
+        .UART_BAUD     (UART_BAUD)
     ) u_dut (
         .aclk    (aclk),
         .aresetn (aresetn),

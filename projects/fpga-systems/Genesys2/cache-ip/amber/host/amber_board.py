@@ -1,339 +1,349 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Host driver for the amber pair-rig Genesys2 bring-up harness.
+"""Host driver for the amber Genesys2 pair-rig bring-up harness.
 
-Talks to the board over the UART->AXIL bridge installed in amber_pair_harness.
-The bridge command protocol is:
+This is the named-register API that both the board CLI and the cocotb cosim
+import. The transport is injected (a UARTAxiBridge over pyserial in board
+mode, or over a CocotbUartChannel in sim), so the SAME code drives silicon
+and simulation.
 
-    W <addr_hex> <data_hex>\n  -> OK\n
-    R <addr_hex>\n             -> 0x<data_hex>\n
-Addresses are 32-bit byte offsets; data is 32-bit little-endian as emitted by
-uart_axil_bridge.
+Marginal-UART hardening is supplied by MarginalUartChannel, a ByteChannel
+decorator that lives in this file's directory and is used only on the real
+board -- the FT232R on Genesys2 drops whole transactions, and the retry/junk
+logic belongs below the ASCII command interpreter, not inside the bridge
+protocol.
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
 import time
-from typing import Optional
+from typing import List, Optional, Tuple
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "bin"))
-
-import serial
+import amber_env  # noqa: F401  (path setup before shared-layer imports)
 
 from boards import get_board
+from marginal_uart_channel import MarginalUartChannel
+from TBClasses.harness.device import Device, DeviceBus
+from uart_axi_bridge import UARTAxiBridge
+from uart_link import UartLink, find_port, scratch_probe
 
 
-# Bridge address map (matches bridge_amber_axil.toml / harness CSR map)
-ADDR_HARNESS_CSR = 0x0001_0000
-ADDR_CYCLE_INJECTOR0 = 0x0002_0000
-ADDR_CYCLE_INJECTOR1 = 0x0003_0000
-ADDR_TALLY_CNT = 0x0004_0000
-ADDR_TALLY_CFGW = 0x0005_0000
-ADDR_TALLY_CFGR = 0x0006_0000
-
-# Cycle-injector CSR word offsets (32-bit)
-CI_CTRL = 0x00
-CI_SEED = 0x04
-CI_ADDR_BASE = 0x08
-CI_ADDR_MASK = 0x0C
-CI_TRANS_COUNT = 0x10
-CI_STATUS = 0x14
-CI_ACC_COUNT = 0x18
-CI_RSP_COUNT = 0x1C
-CI_ERR_FLAG = 0x20
-CI_RSP_CRC_LO = 0x30
-CI_RSP_CRC_HI = 0x34
-CI_WDATA_CRC_LO = 0x38
-CI_WDATA_CRC_HI = 0x3C
-
-# Harness CSR word offsets
-HCSR_CTRL = 0x00
-HCSR_STATUS = 0x04
-HCSR_CYCLE_LO = 0x08
-HCSR_CYCLE_HI = 0x0C
-HCSR_FABRIC_DBG = 0x10
-
-# Tally config register offsets (64-bit stride)
-TALLY_CAM_CLEAR = 0x100
-TALLY_CAM_KEY = 0x108
-TALLY_CAM_LOAD = 0x110
+# Apertures exported by bridge_amber_axil (matches bridge_amber_axil.toml).
+HARNESS_CSR_BASE = 0x0001_0000
+CYCLE_INJECTOR0_BASE = 0x0002_0000
+CYCLE_INJECTOR1_BASE = 0x0003_0000
+TALLY_CNT_BASE = 0x0004_0000
+TALLY_CFGW_BASE = 0x0005_0000
+TALLY_CFGR_BASE = 0x0006_0000
 
 
-class AmberBoard:
-    """UART-connected amber pair-rig board."""
+def _here_dir() -> str:
+    return os.path.dirname(os.path.abspath(__file__))
 
-    def __init__(self, port: str, baud: int = 115200, timeout: float = 1.0) -> None:
-        self.ser = serial.Serial(port, baud, timeout=timeout)
-        # Drain any stale input.
-        self.ser.reset_input_buffer()
-        # Host-side shadow of each cycle injector's CTRL register
-        # (set by config_gen) so start_gen never needs a read.
-        self._ctrl_shadow: dict[int, int] = {}
 
-    @classmethod
-    def auto(cls, board_name: str = "genesys2", baud: int = 115200) -> "AmberBoard":
-        """Open the board UART using the board registry."""
-        board = get_board(board_name)
-        ports = board.find_uart_ports()
-        if not ports:
-            raise RuntimeError(f"no UART port found for {board_name}")
-        return cls(ports[0], baud)
+def _regmap_path(name: str) -> str:
+    """Absolute path to a hand-authored regmap in this directory."""
+    return os.path.join(_here_dir(), name)
 
-    def close(self) -> None:
-        self.ser.close()
 
-    def _cmd(self, cmd: str) -> str:
-        """Send a command and return the response line.
+HARNESS_CSR_REGMAP = _regmap_path("amber_harness_csr_regmap.py")
+CYCLE_INJECTOR_REGMAP = _regmap_path("amber_cycle_injector_regmap.py")
+TALLY_CNT_REGMAP = _regmap_path("amber_tally_cnt_regmap.py")
+TALLY_CFGW_REGMAP = _regmap_path(
+    os.path.join("..", "..", "..", "..", "..", "components",
+                 "utility-ip", "misc", "rtl", "regs", "generated",
+                 "tally_regs_top_regmap.py")
+)
 
-        Tolerates stray boot/programming bytes (NULs, dots) that the
-        freshly-configured board emits on the UART before the bridge's
-        first response: skip lines with no alphanumeric payload. Also
-        retries the command a few times with an input purge - the live
-        board's UART link is electrically marginal and drops individual
-        transactions (CSR writes are idempotent, reads are harmless).
+
+def harness_probe():
+    """Return a UartLink probe that round-trips the harness CSR CTRL register.
+
+    The amber harness has no BUILD_ID constant, but CTRL is a plain RW storage
+    register, so a scratch round-trip is safe and proves the bridge is alive.
+    """
+    return scratch_probe(HARNESS_CSR_BASE, magic=0xC0FFEE5A)
+
+
+class CycleInjector(Device):
+    """One amber_cycle_injector instance, addressed entirely by name."""
+
+    def configure(self, *, seed: int, addr_base: int, addr_mask: int,
+                  count: int, we_mix: int) -> int:
+        """Program configuration registers with run held low.
+
+        Returns the CTRL word that was staged, so the caller can start the
+        injector later without a read-modify-write.
         """
-        last_resp = ""
-        for _attempt in range(4):
-            self.ser.reset_input_buffer()
-            self.ser.write((cmd + "\n").encode())
-            for _ in range(4):
-                resp = self.ser.readline().decode(errors="replace").strip().strip("\x00").lstrip(".")
-                if resp:
-                    break
-            else:
-                continue
-            last_resp = resp
-            if resp == "ERR":
-                raise RuntimeError(f"bridge ERR for command: {cmd}")
-            return resp
-        raise RuntimeError(f"no response to command: {cmd!r} (last: {last_resp!r})")
+        # Marginal-UART hardening: run=0 goes down FIRST, then config, then
+        # TRANS_COUNT twice (a dropped first write could otherwise leave 0,
+        # which some injector semantics treat as "run forever").
+        self.write("CTRL", run=0, we_mix=we_mix)
+        self.write_word("SEED", seed)
+        self.write_word("ADDR_BASE", addr_base)
+        self.write_word("ADDR_MASK", addr_mask)
+        self.write_word("TRANS_COUNT", count)
+        self.write_word("TRANS_COUNT", count)
+        self.write("CTRL", run=0, we_mix=we_mix)
+        return (we_mix & 0xFF) << 8
 
-    def write(self, addr: int, data: int) -> None:
-        """Write a 32-bit word over AXIL."""
-        resp = self._cmd(f"W {addr:08x} {data:08x}")
-        if resp != "OK":
-            raise RuntimeError(f"unexpected write response: {resp!r}")
+    def start(self, ctrl_shadow: int) -> None:
+        """Set the run bit using the config-time CTRL shadow."""
+        self.write_word("CTRL", ctrl_shadow | 1)
 
-    def read(self, addr: int) -> int:
-        """Read a 32-bit word over AXIL."""
-        resp = self._cmd(f"R {addr:08x}")
-        if not resp.startswith("0x"):
-            raise RuntimeError(f"unexpected read response: {resp!r}")
-        return int(resp[2:], 16)
-
-    def config_gen(self, base: int, seed: int, addr_base: int, addr_mask: int,
-                   count: int, we_mix: int) -> None:
-        """Program a cycle injector's configuration registers.
-
-        Marginal-UART hardening: CTRL (run=0) goes down FIRST so a dropped
-        mid-block write can never leave a running injector with stale config,
-        and TRANS_COUNT is written twice (a 0 from a dropped first write
-        can mean "run forever" depending on injector semantics).
-        """
-        ctrl = ((we_mix & 0xFF) << 8) | 0x00  # run bit clear
-        self.write(base + CI_CTRL, ctrl)
-        self.write(base + CI_SEED, seed & 0xFFFF_FFFF)
-        self.write(base + CI_ADDR_BASE, addr_base & 0xFFFF_FFFF)
-        self.write(base + CI_ADDR_MASK, addr_mask & 0xFFFF_FFFF)
-        self.write(base + CI_TRANS_COUNT, count & 0xFFFF_FFFF)
-        self.write(base + CI_TRANS_COUNT, count & 0xFFFF_FFFF)
-        self.write(base + CI_CTRL, ctrl)
-        self._ctrl_shadow[base] = ctrl
-
-    def start_gen(self, base: int) -> None:
-        """Set the run bit on a cycle injector.
-
-        Blind-safe: uses the config_gen ctrl shadow instead of a
-        read-modify-write (the board read path can hang while writes
-        work, and we_mix is host-owned state anyway).
-        """
-        ctrl = self._ctrl_shadow.get(base)
-        if ctrl is None:
-            ctrl = self.read(base + CI_CTRL)
-        self.write(base + CI_CTRL, ctrl | 1)
-
-    def gen_status(self, base: int) -> dict:
-        """Read a cycle injector's status counters."""
+    def status(self) -> dict:
         return {
-            "status": self.read(base + CI_STATUS),
-            "acc_count": self.read(base + CI_ACC_COUNT),
-            "rsp_count": self.read(base + CI_RSP_COUNT),
-            "err_flag": self.read(base + CI_ERR_FLAG),
+            "status": self.read("STATUS"),
+            "acc_count": self.read("ACC_COUNT"),
+            "rsp_count": self.read("RSP_COUNT"),
+            "err_flag": self.read("ERR_FLAG"),
         }
 
-    def gen_crcs(self, base: int) -> dict:
-        """Read a cycle injector's response and issued-write-data CRC-32 values."""
-        return {
-            "rsp_crc": self.read64(base + CI_RSP_CRC_LO),
-            "wdata_crc": self.read64(base + CI_WDATA_CRC_LO),
-        }
+    def crcs(self) -> dict:
+        lo = self.read("RSP_CRC_LO")
+        hi = self.read("RSP_CRC_HI")
+        rsp_crc = (hi << 32) | lo
+        lo = self.read("WDATA_CRC_LO")
+        hi = self.read("WDATA_CRC_HI")
+        wdata_crc = (hi << 32) | lo
+        return {"rsp_crc": rsp_crc, "wdata_crc": wdata_crc}
+
+
+class AmberDriver:
+    """Unified named-register driver for the amber pair-rig harness."""
+
+    def __init__(self, bridge, *, log: Optional[logging.Logger] = None):
+        self.bridge = bridge
+        self.log = log or logging.getLogger("amber_driver")
+        self.bus = self._build_bus()
+        self._ctrl_shadow: dict[str, int] = {}
+
+    def _build_bus(self) -> DeviceBus:
+        bus = DeviceBus(self.bridge, log=self.log)
+        bus.add("harness", base=HARNESS_CSR_BASE,
+                regmap_file=HARNESS_CSR_REGMAP)
+        bus.add("ci0", base=CYCLE_INJECTOR0_BASE,
+                regmap_file=CYCLE_INJECTOR_REGMAP, cls=CycleInjector)
+        bus.add("ci1", base=CYCLE_INJECTOR1_BASE,
+                regmap_file=CYCLE_INJECTOR_REGMAP, cls=CycleInjector)
+        bus.add("tally_cnt", base=TALLY_CNT_BASE,
+                regmap_file=TALLY_CNT_REGMAP)
+        bus.add("tally_cfgw", base=TALLY_CFGW_BASE,
+                regmap_file=TALLY_CFGW_REGMAP)
+        bus.add("tally_cfgr", base=TALLY_CFGR_BASE,
+                regmap_file=TALLY_CFGW_REGMAP)
+        return bus
+
+    # ------------------------------------------------------------------
+    # Tally
+    # ------------------------------------------------------------------
+    def clear_and_load_profile(self, profile: List[Tuple[int, int]]) -> None:
+        cfgw = self.bus["tally_cfgw"]
+        cfgw.write("CAM_CLEAR", CLEAR=1)
+        for key, idx in profile:
+            cfgw.write_word("CAM_KEY", key & 0xFFFF_FFFF)
+            cfgw.write("CAM_LOAD", VALID=1, INDEX=idx & 0xFF)
+
+    # ------------------------------------------------------------------
+    # Cycle injectors
+    # ------------------------------------------------------------------
+    def configure_ci(self, name: str, *, seed: int, addr_base: int,
+                     addr_mask: int, count: int, we_mix: int) -> None:
+        shadow = self.bus[name].configure(
+            seed=seed, addr_base=addr_base, addr_mask=addr_mask,
+            count=count, we_mix=we_mix)
+        self._ctrl_shadow[name] = shadow
+
+    def start_ci(self, name: str) -> None:
+        self.bus[name].start(self._ctrl_shadow[name])
 
     def start_all(self) -> None:
-        """Start both cycle injectors."""
-        self.start_gen(ADDR_CYCLE_INJECTOR0)
-        self.start_gen(ADDR_CYCLE_INJECTOR1)
+        self.start_ci("ci0")
+        self.start_ci("ci1")
 
-    def wait_done(self, timeout: float = 60.0, poll: float = 0.1) -> bool:
+    def wait_done(self, timeout: float = 120.0, poll: float = 0.1,
+                  sleep_fn=None) -> bool:
         """Poll harness STATUS until both injectors report done."""
+        sleep_fn = sleep_fn or time.sleep
         deadline = time.time() + timeout
+        harness = self.bus["harness"]
         while time.time() < deadline:
-            status = self.read(ADDR_HARNESS_CSR + HCSR_STATUS)
-            done0 = bool(status & 0x01)
-            done1 = bool(status & 0x02)
-            if done0 and done1:
+            status = harness.read("STATUS")
+            if harness.field("STATUS", "ci0_done", status) and \
+               harness.field("STATUS", "ci1_done", status):
                 return True
-            time.sleep(poll)
+            sleep_fn(poll)
         return False
 
-    def tally_clear_profile(self) -> None:
-        """Clear the tally legal-set CAM."""
-        self.write64(ADDR_TALLY_CFGW + TALLY_CAM_CLEAR, 0)
+    def ci_status(self, name: str) -> dict:
+        return self.bus[name].status()
 
-    def tally_load_key(self, key: int) -> None:
-        """Load the current CAM key value (precedes CAM_LOAD)."""
-        self.write64(ADDR_TALLY_CFGW + TALLY_CAM_KEY, key & 0xFFFF_FFFF)
-
-    def tally_load_entry(self, index: int, key: int) -> None:
-        """Load one legal-set entry: key -> dense bin index."""
-        self.write64(ADDR_TALLY_CFGW + TALLY_CAM_KEY, key & 0xFFFF_FFFF)
-        valid_index = (1 << 16) | (index & 0xFFFF)
-        self.write64(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, valid_index)
-
-    def tally_read_count(self, bin_index: int) -> int:
-        """Read a 32-bit tally bin count (8-byte stride)."""
-        return self.read(ADDR_TALLY_CNT + bin_index * 8)
-
-    def tally_read_all(self, n_bins: int) -> list[int]:
-        """Sweep and return the first n_bins counts."""
-        return [self.tally_read_count(i) for i in range(n_bins)]
-
-    def write64(self, addr: int, data: int) -> None:
-        """Write a 64-bit word as two 32-bit writes (low then high)."""
-        self.write(addr, data & 0xFFFF_FFFF)
-        self.write(addr + 4, (data >> 32) & 0xFFFF_FFFF)
-
-    def read64(self, addr: int) -> int:
-        """Read a 64-bit word as two 32-bit reads (low then high)."""
-        lo = self.read(addr)
-        hi = self.read(addr + 4)
-        return (hi << 32) | lo
+    def ci_crcs(self, name: str) -> dict:
+        return self.bus[name].crcs()
 
 
-def build_default_profile() -> list[tuple[int, int]]:
-    """A minimal legal-set profile for amber pair-rig smoke runs.
+# ----------------------------------------------------------------------
+# Default legal-set profile
+# ----------------------------------------------------------------------
+def _key(agent: int, protocol: int, pkt_type: int, event: int) -> int:
+    return ((agent & 0xFFFF) << 16) | ((protocol & 0xF) << 12) | \
+           ((pkt_type & 0xF) << 8) | (event & 0xFF)
+
+
+def _amber_agent(unit: int) -> int:
+    return (unit << 8) | 0xA0
+
+
+def build_default_profile() -> List[Tuple[int, int]]:
+    """Minimal legal-set profile for amber pair-rig smoke runs.
 
     Keys are {agent_id[15:0], protocol[3:0], pkt_type[3:0], event_code[7:0]}.
-    These map the CORE protocol (4) events from the l1_monlite observer and
-    the AXI protocol (0) events from the rd/wr monlite observers to a handful
-    of dense bins. Everything else lands in the UNEXPECTED bin.
     """
-    def key(agent: int, protocol: int, pkt_type: int, event: int) -> int:
-        return ((agent & 0xFFFF) << 16) | ((protocol & 0xF) << 12) | \
-               ((pkt_type & 0xF) << 8) | (event & 0xFF)
-
-    # amber_top unit IDs: 0x01=l1 core, 0x02=rd monlite, 0x03=wr monlite.
-    # Agent ID in the packet is 16'h00A0 combined with unit_id in the upper byte.
-    def amber_agent(unit: int) -> int:
-        return (unit << 8) | 0xA0
-
     return [
-        (key(amber_agent(0x01), 4, 0, 0x00), 0),  # l1 hit
-        (key(amber_agent(0x01), 4, 0, 0x01), 1),  # l1 miss
-        (key(amber_agent(0x01), 4, 0, 0x02), 2),  # l1 snoop
-        (key(amber_agent(0x02), 0, 0, 0x00), 3),  # rd monlite event
-        (key(amber_agent(0x03), 0, 0, 0x00), 4),  # wr monlite event
+        (_key(_amber_agent(0x01), 4, 0, 0x00), 0),  # l1 hit
+        (_key(_amber_agent(0x01), 4, 0, 0x01), 1),  # l1 miss
+        (_key(_amber_agent(0x01), 4, 0, 0x02), 2),  # l1 snoop
+        (_key(_amber_agent(0x02), 0, 0, 0x00), 3),  # rd monlite event
+        (_key(_amber_agent(0x03), 0, 0, 0x00), 4),  # wr monlite event
     ]
 
 
-def smoke(board: AmberBoard, count: int = 20000, blind: bool = False) -> None:
-    """Both injectors hammer the same 4KB region (forces coherence), then dump tallies.
+# ----------------------------------------------------------------------
+# Smoke campaign (used by both board CLI and cocotb cosim)
+# ----------------------------------------------------------------------
+def smoke(driver: AmberDriver, *, count: int = 20000, blind: bool = False,
+          sleep_fn=None, say=print) -> dict:
+    """Both injectors hammer the same 4KB region, then dump tallies.
 
     blind=True is write-only: for boards whose read path is still being
-    debugged. The run/done evidence is LED LD7 (busy): on while the injectors
-    run, off when both are done.
+    debugged. The run/done evidence is LED LD7 (busy).
     """
-    print(f"[smoke] configuring both cycle injectors for {count} transactions each")
+    sleep_fn = sleep_fn or time.sleep
 
-    board.tally_clear_profile()
-    for key, idx in build_default_profile():
-        board.tally_load_entry(idx, key)
+    say(f"[smoke] configuring both cycle injectors for {count} "
+        f"transactions each")
 
-    # Both injectors target the same 4 KB region.
+    driver.clear_and_load_profile(build_default_profile())
+
     mask = 0x0000_0FFF
     base = 0x0000_0000
-    board.config_gen(ADDR_CYCLE_INJECTOR0, seed=0x1234_5678,
-                     addr_base=base, addr_mask=mask,
-                     count=count, we_mix=64)
-    board.config_gen(ADDR_CYCLE_INJECTOR1, seed=0xDEAD_BEEF,
-                     addr_base=base, addr_mask=mask,
-                     count=count, we_mix=64)
+    driver.configure_ci("ci0", seed=0x1234_5678, addr_base=base,
+                        addr_mask=mask, count=count, we_mix=64)
+    driver.configure_ci("ci1", seed=0xDEAD_BEEF, addr_base=base,
+                        addr_mask=mask, count=count, we_mix=64)
 
-    print("[smoke] starting cycle injectors")
-    board.start_all()
+    say("[smoke] starting cycle injectors")
+    driver.start_all()
+
     if blind:
-        # No reads: give the injectors wall-clock time, then report by LED.
-        print("[smoke] BLIND mode (write-only): watch LED LD7 (busy) - lit while")
-        print("[smoke] the injectors run, OFF when both are done. Status/tally dumps")
-        print("[smoke] require the read path and are skipped.")
-        time.sleep(30.0)
-        print("[smoke] run window elapsed - LD7 should be OFF now.")
-        return
-    if not board.wait_done(timeout=120.0):
-        print("[smoke] ERROR: timed out waiting for done")
-        return
+        # Sim-friendly: if no real wall-clock sleep is available, just return
+        # after starting; the caller is responsible for not using blind mode
+        # in a cosim that cannot wall-clock sleep.
+        if sleep_fn is not None:
+            say("[smoke] BLIND mode (write-only): watch LED LD7 (busy) - "
+                "lit while the injectors run, OFF when both are done. "
+                "Status/tally dumps require the read path and are skipped.")
+            sleep_fn(30.0)
+            say("[smoke] run window elapsed - LD7 should be OFF now.")
+        else:
+            say("[smoke] BLIND mode requested but no sleep function; "
+                "skipping wall-clock wait.")
+        return {"blind": True}
 
-    print("[smoke] dumping cycle injector status")
-    print("  ci0:", board.gen_status(ADDR_CYCLE_INJECTOR0))
-    print("  ci1:", board.gen_status(ADDR_CYCLE_INJECTOR1))
+    if not driver.wait_done(timeout=120.0, sleep_fn=sleep_fn):
+        say("[smoke] ERROR: timed out waiting for done")
+        return {"ok": False, "reason": "timeout"}
 
-    print("[smoke] dumping cycle injector CRCs")
-    crc0 = board.gen_crcs(ADDR_CYCLE_INJECTOR0)
-    crc1 = board.gen_crcs(ADDR_CYCLE_INJECTOR1)
-    print(f"  ci0: {crc0}")
-    print(f"  ci1: {crc1}")
+    say("[smoke] dumping cycle injector status")
+    say(f"  ci0: {driver.ci_status('ci0')}")
+    say(f"  ci1: {driver.ci_status('ci1')}")
+
+    say("[smoke] dumping cycle injector CRCs")
+    crc0 = driver.ci_crcs("ci0")
+    crc1 = driver.ci_crcs("ci1")
+    say(f"  ci0: {crc0}")
+    say(f"  ci1: {crc1}")
     if crc0["rsp_crc"] == crc1["rsp_crc"]:
-        print("[smoke] ci0/ci1 read CRCs MATCH")
+        say("[smoke] ci0/ci1 read CRCs MATCH")
     else:
-        print("[smoke] ci0/ci1 read CRCs MISMATCH (expected; interleaving is racy)")
+        say("[smoke] ci0/ci1 read CRCs MISMATCH "
+            "(expected; interleaving is racy)")
 
-    print("[smoke] dumping tally bins")
-    bins = board.tally_read_all(8)
+    say("[smoke] dumping tally bins")
+    tally = driver.bus["tally_cnt"]
+    bins = [tally.read(f"COUNT{i}") for i in range(8)]
     for i, c in enumerate(bins):
-        print(f"  bin[{i}] = {c}")
-    unexpected = board.tally_read_count(32)
-    print(f"  UNEXPECTED = {unexpected}")
+        say(f"  bin[{i}] = {c}")
+    unexpected = tally.read("UNEXPECTED")
+    say(f"  UNEXPECTED = {unexpected}")
+
+    return {
+        "ok": True,
+        "crc0": crc0,
+        "crc1": crc1,
+        "bins": bins,
+        "unexpected": unexpected,
+    }
 
 
+# ----------------------------------------------------------------------
+# Board transport construction
+# ----------------------------------------------------------------------
+def open_amber_link(port: Optional[str] = None, *, board_name: str = "genesys2",
+                    baudrate: int = 115200, timeout: float = 1.0) -> UartLink:
+    """Open a UartLink to the amber harness, with optional port discovery."""
+    board = get_board(board_name)
+    if port and port != "auto":
+        return UartLink(port, baudrate=baudrate, timeout=timeout)
+    port = board.find_uart_port(probe=harness_probe(), want=port,
+                                baudrate=baudrate, timeout=0.4,
+                                label="amber Genesys2 harness")
+    return UartLink(port, baudrate=baudrate, timeout=timeout)
+
+
+def build_amber_bridge(link: UartLink) -> UARTAxiBridge:
+    """Wrap a UartLink with the marginal-UART decorator and build the bridge."""
+    channel = MarginalUartChannel(link, log=logging.getLogger("amber_bridge"))
+    return UARTAxiBridge(channel=channel)
+
+
+# ----------------------------------------------------------------------
+# CLI
+# ----------------------------------------------------------------------
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
-    ap.add_argument("--port", default=None, help="UART device path")
-    ap.add_argument("--baud", type=int, default=115200, help="UART baud rate")
-    ap.add_argument("--board", default="genesys2", help="board registry name")
+    ap = argparse.ArgumentParser(
+        description="Host driver for the amber Genesys2 pair-rig harness")
+    ap.add_argument("--port", default=None,
+                    help="UART device path; omit to auto-detect")
+    ap.add_argument("--baud", type=int, default=115200)
+    ap.add_argument("--board", default="genesys2")
     ap.add_argument("--smoke", action="store_true",
                     help="run coherence smoke test and dump tallies")
-    ap.add_argument("--count", type=int, default=20000,
-                    help="transactions per generator in smoke mode")
+    ap.add_argument("--count", type=int, default=20000)
     ap.add_argument("--blind", action="store_true",
-                    help="write-only smoke (no reads); watch LED LD7 for run/done")
+                    help="write-only smoke (no reads); watch LED LD7")
 
     args = ap.parse_args(argv)
 
-    if args.port:
-        board = AmberBoard(args.port, baud=args.baud)
-    else:
-        board = AmberBoard.auto(args.board, baud=args.baud)
+    link = open_amber_link(args.port, board_name=args.board,
+                           baudrate=args.baud)
+    bridge = build_amber_bridge(link)
+    driver = AmberDriver(bridge)
 
     try:
         if args.smoke:
-            smoke(board, count=args.count, blind=args.blind)
+            result = smoke(driver, count=args.count, blind=args.blind,
+                           sleep_fn=time.sleep)
+            return 0 if result.get("ok") or result.get("blind") else 1
         else:
             print("Use --smoke to run the board smoke test.")
     finally:
-        board.close()
+        bridge.close()
 
     return 0
 

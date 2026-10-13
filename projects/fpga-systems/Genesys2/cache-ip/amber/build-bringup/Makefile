@@ -29,6 +29,8 @@ TOP       := amber_pair_genesys2_top
 FILELIST  := $(FRAMEWORK_ROOT)/rtl/filelists/amber_pair_genesys2_top.f
 
 HOST_DIR  := $(SELF_DIR)/../host
+SEQ_DIR   := $(FRAMEWORK_ROOT)/bin
+SIM_TESTS := $(FRAMEWORK_ROOT)/dv/tests
 
 # amber geometry is fixed at the FULL pair-rig configuration.
 export AMBER_USE_MONITOR ?= 1
