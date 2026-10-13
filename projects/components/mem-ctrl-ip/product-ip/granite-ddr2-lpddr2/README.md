@@ -39,8 +39,9 @@ the v2 generation will never see
 
 ## Configuration intent (ch5.2 defaults for v2)
 
-- **Storage plane, lite configuration** — N=1 in-order seam; the entry
-  store shrinks toward one entry, never to zero.
+- **Storage plane, lite configuration** — N=8 in-order seam (entry store
+  allocates in-order: FIFO-per-direction semantics under the scheduler's
+  existing argmax pick); storage "off" shrinks toward one, never to zero.
 - **RAS plane absent** — true bypass: no transform pair instantiated, no
   scrub; only the reserved CSR decode.
 - **Write-data buffer at SKU minimum** — sized by the product burst
@@ -56,7 +57,7 @@ none appear in this SKU.
 - [`config/product_config.md`](config/product_config.md) — the chosen
   configuration (plane selection, reasoning, open values).
 - [`rtl/includes/granite_pkg.sv`](rtl/includes/granite_pkg.sv) — the SKU
-  parameter package (lite storage N=1, SKU write-data staging, frequency
+  parameter package (lite storage N=8, SKU write-data staging, frequency
   plan placeholders).
 - [`rtl/filelists/top/granite.f`](rtl/filelists/top/granite.f) — the
   plane selection as a filelist: common-ip only, by construction. There is

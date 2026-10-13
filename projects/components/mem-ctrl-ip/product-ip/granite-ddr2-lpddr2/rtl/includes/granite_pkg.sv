@@ -17,12 +17,16 @@ package granite_pkg;
 
     // ------------------------------------------------------------------
     // Storage plane, lite configuration (ch5.2 v2 default)
-    // N=1 in-order seam: the scheduler's pick machinery still argmaxes over
-    // schedulable-entry vectors, so the entry store shrinks toward one and
-    // never reaches zero.
+    // N-deep in-order seam (N=8, matching pumice's NUM_ENTRIES): the entry
+    // store allocates in-order, so the seam behaves as an N-deep FIFO per
+    // direction, while the scheduler's pick machinery argmaxes over the
+    // schedulable-entry vectors exactly as it does at any depth. Storage
+    // "off" shrinks toward one, never reaches zero -- and at 8 the seam
+    // hides the read round-trip latency (~5 outstanding needed to sustain
+    // the port at BL8; 8 gives margin).
     // ------------------------------------------------------------------
-    parameter int GRANITE_SEAM_N          = 1;
-    parameter int GRANITE_ENTRY_STORE_DEPTH = 1;
+    parameter int GRANITE_SEAM_N          = 8;
+    parameter int GRANITE_ENTRY_STORE_DEPTH = 8;
 
     // ------------------------------------------------------------------
     // Write-data staging at the SKU minimum (ch5.2: never zero). Sized by
