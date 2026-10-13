@@ -337,13 +337,18 @@ Use when:
 - Clients and downstream have matched latencies
 - Minimum latency required for event ordering
 
-### Assertions
+### Formal properties
 
-The module includes comprehensive assertions:
+The module carries no assertions (repository rule: no assertions in RTL). Three
+contracts are proved in the formal harness `formal/amba/monbus_arbiter/`
+(`make prove`, `make cover`), each mutation-checked:
 
-**Grant One-Hot**: Verifies grant vector is one-hot when valid
-**Grant ID Consistency**: Verifies grant_id corresponds to asserted grant bit
-**Ready Exclusivity**: Verifies only granted client receives ready signal
+**Grant One-Hot**: the grant vector is one-hot whenever `grant_valid`.
+**Grant ID Consistency**: `grant[grant_id]` is set whenever `grant_valid`.
+**Ready Exclusivity**: a client that is not granted never sees ready.
+
+The harness builds the arbiter with the input skids disabled, so the ready
+property is checked directly on the `monbus_ready_in` port.
 
 ---
 
