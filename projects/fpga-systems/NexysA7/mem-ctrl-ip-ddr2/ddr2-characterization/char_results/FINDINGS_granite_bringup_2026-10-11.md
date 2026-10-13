@@ -216,6 +216,35 @@ less product SKU meets its area goal. BRAM: both RDS stacks use ~1-2 RAMB36
   resolve its read eye). The whole-harness sim stays green, so the defect is
   board-PHY-interface integration, not controller logic.
 
+## BENCH-WIDE read rotation (2026-10-12 late): NOT granite-specific
+
+Answering "does pumice still run ok" flipped the read-defect story. With
+LAST NIGHT's known-good pumice bit (Oct 11 20:29, the 561 MB/s matrix build)
+on the same bench, TONIGHT:
+
+- Pumice WR: blen=1/2/8 all DONE instantly (board is healthy; writes of
+  every burst shape work on both controllers).
+- Pumice RD (blen=8): DONE in 0.1s with THE IDENTICAL signature granite
+  showed: CRC "match" (generator-based actual-CRC — not meaningful) and
+  per-beat mism ~504-512.
+- The constant-pattern canary isolates it: RD in FILL mode gives mism=0
+  (a constant is rotation-invariant) while the LFSR pattern gives all-mismatch
+  — the read stream is the write stream ROTATED BY ONE BEAT, exactly the
+  blocked-first-return signature seen in the granite sim (first return eaten
+  -> ring back-fills one slot off -> every beat mismatches a shifting
+  pattern). On the board it now affects BOTH controllers, so it is a
+  bench/PHY-interface condition that appeared after last night's clean
+  matrix (thermal drift of the read-eye is the leading suspect), not a
+  granite regression and not caused by the B-fix.
+- The concurrent-kick smoke (host_ddr2_smoke) HANGS on both controllers
+  tonight; sequential WR/RD completes. Concurrent wr+rd is collateral of the
+  same read condition (or a second, to be re-tested after reads are clean).
+
+Next: joint t_rddata_en x rddata_delay sweep running (the measured clean
+diagonal was rddata_delay=7 @ rden=6 last month; if the eye drifted, the
+diagonal moved). If no (rden, delay) gives mism=0, power-cycle the board
+(cold state) and re-test — thermal hypothesis check — before any ILA work.
+
 ## Working hypothesis for the open defect (updated)
 
 blen>=2 (split) sub-bursts at the 1-deep entry store: sub-entries neither
