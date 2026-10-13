@@ -70,6 +70,16 @@ A 1-stage Johnson counter has no use anyway.
 
 ## Functional Description
 
+### Block diagram
+
+![counter_johnson block diagram](../assets/rtl-cdc/graphviz/counter_johnson.png)
+
+`enable` gates the next-state logic, which shifts the register left and feeds
+the inverted MSB into bit 0 (it holds the value when `enable` is 0). The
+Johnson register drives `counter_gray`. Its current value feeds back up the
+right edge into the shift logic. `clk` and `rst_n` are sideband to the
+register.
+
 A Johnson counter is a shift register with inverted feedback:
 
 - **Normal operation**: bits shift left (or right) each clock cycle
@@ -194,9 +204,9 @@ Four scenarios demonstrate the unique properties of Johnson counters:
 
 ### Scenario 1: Walking Ones and Walking Zeros Pattern
 
-![Johnson Walking Pattern](../assets/WAVES/counter_johnson/johnson_counter_walking_pattern.png)
+![Johnson Walking Pattern](../assets/rtl-cdc/waves/counter_johnson/johnson_counter_walking_pattern.png)
 
-**WaveJSON:** [johnson_counter_walking_pattern.json](../assets/WAVES/counter_johnson/johnson_counter_walking_pattern.json)
+**WaveJSON:** [johnson_counter_walking_pattern.json](../assets/rtl-cdc/waves/counter_johnson/johnson_counter_walking_pattern.json)
 
 Complete 2×WIDTH state cycle (8 states for WIDTH=4):
 - Walking ones: 0000 → 0001 → 0011 → 0111 → 1111
@@ -205,9 +215,9 @@ Complete 2×WIDTH state cycle (8 states for WIDTH=4):
 
 ### Scenario 2: Single-Bit Transitions (CDC Safety) **KEY FEATURE**
 
-![Johnson Single-Bit Transitions](../assets/WAVES/counter_johnson/johnson_counter_single_bit_transitions.png)
+![Johnson Single-Bit Transitions](../assets/rtl-cdc/waves/counter_johnson/johnson_counter_single_bit_transitions.png)
 
-**WaveJSON:** [johnson_counter_single_bit_transitions.json](../assets/WAVES/counter_johnson/johnson_counter_single_bit_transitions.json)
+**WaveJSON:** [johnson_counter_single_bit_transitions.json](../assets/rtl-cdc/waves/counter_johnson/johnson_counter_single_bit_transitions.json)
 
 Each transition changes only ONE bit:
 - CDC-safe like Gray codes
@@ -217,9 +227,9 @@ Each transition changes only ONE bit:
 
 ### Scenario 3: Enable Control
 
-![Johnson Enable Control](../assets/WAVES/counter_johnson/johnson_counter_enable_control.png)
+![Johnson Enable Control](../assets/rtl-cdc/waves/counter_johnson/johnson_counter_enable_control.png)
 
-**WaveJSON:** [johnson_counter_enable_control.json](../assets/WAVES/counter_johnson/johnson_counter_enable_control.json)
+**WaveJSON:** [johnson_counter_enable_control.json](../assets/rtl-cdc/waves/counter_johnson/johnson_counter_enable_control.json)
 
 Enable control and state holding:
 - Counter advances when enable=1
@@ -229,9 +239,9 @@ Enable control and state holding:
 
 ### Scenario 4: Reset Behavior
 
-![Johnson Reset Behavior](../assets/WAVES/counter_johnson/johnson_counter_reset_behavior.png)
+![Johnson Reset Behavior](../assets/rtl-cdc/waves/counter_johnson/johnson_counter_reset_behavior.png)
 
-**WaveJSON:** [johnson_counter_reset_behavior.json](../assets/WAVES/counter_johnson/johnson_counter_reset_behavior.json)
+**WaveJSON:** [johnson_counter_reset_behavior.json](../assets/rtl-cdc/waves/counter_johnson/johnson_counter_reset_behavior.json)
 
 Reset and initialization:
 - Asynchronous reset to all zeros (0000)
@@ -245,7 +255,7 @@ Reset and initialization:
 ```bash
 pytest val/cdc/test_counter_johnson_wavedrom.py -v
 # Then convert JSON to PNG:
-cd docs/markdown/assets/WAVES/counter_johnson
+cd docs/markdown/assets/rtl-cdc/waves/counter_johnson
 for f in *.json; do wavedrom-cli -i "$f" -p "${f%.json}.png"; done
 ```
 

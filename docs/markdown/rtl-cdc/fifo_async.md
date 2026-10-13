@@ -66,21 +66,22 @@ it.
 
 ## Functional Description
 
+### Block diagram
+
+![fifo_async block diagram](../assets/rtl-cdc/graphviz/fifo_async.png)
+
+Write data drops down the left into the dual-port storage on `wr_clk`; read
+data comes back up the right on `rd_clk`. The storage array is the one
+structure both clocks touch. The only signals that cross between the two
+domains are the two pointers, Gray coded (Johnson coded when
+`USE_JOHNSON=1`). Each one is synchronized in the destination domain by an
+N-flop `glitch_free_n_dff_arn` and decoded back to binary. Each flag block
+compares its own domain's local pointer against the synchronized remote one:
+full on the write side, empty on the read side.
+
 ### Clock domain crossing strategy
 
-The FIFO uses **Gray code pointers** for safe clock domain crossing:
-
-```mermaid
-flowchart LR
-    subgraph WriteDomain["Write Domain"]
-        BC["Binary<br/>Counter"]
-    end
-    BC --> GC["Gray<br/>Code"]
-    GC --> SC["Sync<br/>Chain"]
-    subgraph ReadDomain["Read Domain"]
-        SC --> G2B["Gray2Bin"]
-    end
-```
+The FIFO uses **Gray code pointers** for safe clock domain crossing.
 
 ### Core components
 

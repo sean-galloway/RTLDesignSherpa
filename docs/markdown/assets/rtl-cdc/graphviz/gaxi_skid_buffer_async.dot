@@ -1,0 +1,74 @@
+// gaxi_skid_buffer_async block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md), CDC mapping per fifo_async.dot:
+//   ports at the top (write left, read right), the crossing structure as the
+//   bottom bar.
+// Flows:
+//   write data   - down the LEFT: Write Port -> gaxi_skid_buffer (axi_wr_aclk)
+//                  -> gaxi_fifo_async write side
+//   read data    - back UP the RIGHT edge: gaxi_fifo_async read side -> Read Port
+//   ready        - dashed flow-control returns (wr_ready from the skid buffer,
+//                  the FIFO's not-full back to the skid buffer); rd_ready drops
+//                  from the Read Port into the FIFO's read side.
+// The only clock-domain crossing is inside gaxi_fifo_async (Gray pointers);
+// that block has its own diagram, so it is drawn here as the bar.
+// Source of truth: rtl/cdc/gaxi_skid_buffer_async.sv.
+digraph gaxi_skid_buffer_async {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.75", splines=ortho, newrank=true,
+           label="gaxi_skid_buffer_async - write-side skid buffer in front of a dual-clock FIFO",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external interfaces (white) ----
+    wr_port [group=WO, label="Write Port (valid/ready)\naxi_wr_aclk domain", fillcolor="white"];
+    rd_port [group=RO, label="Read Port (valid/ready)\naxi_rd_aclk domain", fillcolor="white"];
+
+    subgraph cluster_wr {
+        label="axi_wr_aclk domain"; labelloc=b; style=dashed; fontsize=10;
+        skid [group=WO, label="Skid Buffer\ngaxi_skid_buffer - inst_gaxi_skid_buffer\n(default DEPTH=2; the wrapper DEPTH sizes the FIFO)"];
+    }
+
+    // ---- the boundary bar: the dual-clock FIFO ----
+    fifo [group=C, label="Dual-Clock FIFO  gaxi_fifo_async - inst_gaxi_fifo_async\nwritten on axi_wr_aclk at the left, read on axi_rd_aclk at the right\n(DEPTH, USE_JOHNSON, N_FLOP_CROSS, MEM_STYLE, REGISTERED passed through;\nGray-pointer crossing inside - see the gaxi_fifo_async diagram)",
+          width=8.0, height=1.1];
+
+    // ---- write side: data down the left, ready back up (dashed). Each
+    //      leg into the bar goes through its own point scaffold (one node
+    //      pair per crossing; never two parallel edges skid<->fifo) ----
+    wr_port -> skid [xlabel="wr_valid / wr_data"];
+    skid -> wr_port [style=dashed, constraint=false, xlabel="wr_ready", tailport=ne];
+    p_xd [shape=point, width=0.01, group=WO];
+    p_xr [shape=point, width=0.01];
+    skid -> p_xd [arrowhead=none, headclip=false];
+    p_xd -> fifo [xlabel="xfer valid / data", tailclip=false];
+    p_xr -> fifo [dir=none, style=dashed, xlabel="xfer ready (= !full)", tailclip=false];
+    p_xr -> skid [style=dashed, tailclip=false, constraint=false];
+
+    // ---- read side: rd_ready down, rd_valid / rd_data back UP the right edge ----
+    p_rr  [shape=point, width=0.01, group=RO];
+    p_rdd [shape=point, width=0.01];
+    rd_port -> p_rr [arrowhead=none, headclip=false];
+    p_rr -> fifo [xlabel="rd_ready", tailclip=false];
+    p_rdd -> fifo [dir=none, xlabel="rd_valid / rd_data", tailclip=false];
+    p_rdd -> rd_port [tailclip=false, constraint=false];
+
+    // ---- invisible center spine (group C) centers the bar ----
+    node [style=invis, shape=point, width=0.01, group=C];
+    c0; c1; c2;
+    node [style=filled, shape=box, width=0.75, group=""];
+    c0 -> c1 -> c2 -> fifo [style=invis, weight=10];
+
+    // ---- rank pinning ----
+    { rank=same; wr_port; c0; rd_port; }
+    { rank=same; skid; c1; }
+    { rank=same; p_xd; p_xr; c2; p_rr; sp_r; p_rdd; }
+    { rank=max; fifo; }
+    wr_port -> c0 -> rd_port [style=invis, minlen=2];
+    skid -> c1 [style=invis];
+    p_xd -> p_xr [style=invis];
+    p_xr -> c2 -> p_rr [style=invis];
+    sp_r [label="", style=invis, fixedsize=true, width=1.3, height=0.02];
+    p_rr -> sp_r -> p_rdd [style=invis];
+}

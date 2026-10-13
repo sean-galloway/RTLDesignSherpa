@@ -6,7 +6,8 @@
 #
 # PNG, not SVG: markdown must reference .png -- see
 # vault/handbook/authoring/doc-pipeline.md. Rendered at 150 dpi, then
-# palette-encoded (PNG8, 64 colours): the diagrams are flat line art, so the
+# palette-encoded (PNG8, 64 colours; alpha flattened first -- quantizing the
+# transparent border paints a grey line on the right/bottom edge): the diagrams are flat line art, so the
 # bytes drop by 3-5x with no visible change. -define png:exclude-chunk=tIME
 # keeps an unchanged source re-rendering byte-identical rather than dirtying
 # git.
@@ -23,7 +24,7 @@ for src in *.dot; do
     png="${src%.dot}.png"
     echo -n "Generating $png ... "
     if dot -Tpng -Gdpi="$DPI" "$src" -o "$png" 2>/tmp/dot_err.log && [[ -f "$png" ]]; then
-        command -v convert >/dev/null && convert "$png" -colors 64 -define png:exclude-chunk=tIME PNG8:"$png"
+        command -v convert >/dev/null && convert "$png" -background white -alpha remove -alpha off -colors 64 -define png:exclude-chunk=tIME PNG8:"$png"
         echo "OK ($(stat -c%s "$png") bytes, $(identify -format '%wx%h' "$png" 2>/dev/null))"
     else
         echo "FAILED"; head -5 /tmp/dot_err.log; fail=1

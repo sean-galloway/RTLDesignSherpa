@@ -1,0 +1,27 @@
+// bin2gray block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Purely combinational. One flow, top-down: binary in at the top, gray out at
+// the bottom bar. The MSB passes straight through; every other bit is the XOR
+// of itself and its upper neighbour.
+// Source of truth: rtl/cdc/bin2gray.sv.
+digraph bin2gray {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="bin2gray - binary to Gray code (combinational)";
+
+    bin_in  [label="Binary Input\nbinary[WIDTH-1:0]", fillcolor="white"];
+    msb     [label="MSB Pass-Through\ngray[WIDTH-1] = binary[WIDTH-1]"];
+    xornet  [label="Adjacent-Bit XOR Network\ngray[i] = binary[i] ^ binary[i+1]\n(WIDTH-1 XOR gates, i = 0 .. WIDTH-2)"];
+    gray_out[label="Gray Output\ngray[WIDTH-1:0]", fillcolor="white", width=4.5];
+
+    bin_in -> msb    [xlabel="binary[WIDTH-1]"];
+    bin_in -> xornet [xlabel="binary[WIDTH-1:0]"];
+    msb    -> gray_out [xlabel="gray[WIDTH-1]"];
+    xornet -> gray_out [xlabel="gray[WIDTH-2:0]"];
+
+    { rank=same; msb; xornet; }
+    msb -> xornet [style=invis];
+}

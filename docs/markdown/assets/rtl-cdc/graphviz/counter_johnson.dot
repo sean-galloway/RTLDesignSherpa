@@ -1,0 +1,35 @@
+// counter_johnson block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// One flow, top-down: enable -> shift-with-inverted-feedback -> Johnson
+// register -> output. The register feeds back UP into the shift logic on its
+// own route. clk/rst_n are dashed sideband.
+// Source of truth: rtl/cdc/counter_johnson.sv.
+digraph counter_johnson {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="counter_johnson - Johnson (twisted-ring) counter";
+
+    en_in  [label="Enable Input\nenable", fillcolor="white"];
+    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+
+    shift  [label="Shift + Inverted Feedback (next state)\n{counter_gray[WIDTH-2:0], ~counter_gray[WIDTH-1]}\nheld when enable = 0"];
+    jreg   [label="Johnson Register\ncounter_gray (WIDTH flops, reset 0)\n2 x WIDTH states, one bit changes per step"];
+    out    [label="Output\ncounter_gray[WIDTH-1:0]", fillcolor="white", width=4.5];
+
+    p_fb   [shape=point, width=0.01];
+
+    en_in -> shift [xlabel="enable"];
+    shift -> jreg  [xlabel="next state"];
+    jreg  -> out   [xlabel="counter_gray"];
+
+    jreg -> p_fb  [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> shift [xlabel="counter_gray\n(current)", tailclip=false, constraint=false];
+
+    clk_in -> jreg [style=dashed, xlabel="clk, rst_n"];
+
+    { rank=same; clk_in; shift; }
+    clk_in -> shift [style=invis, minlen=2];
+}

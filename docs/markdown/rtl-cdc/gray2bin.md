@@ -50,6 +50,15 @@ plenty of other CDC paths too.
 
 ## Functional Description
 
+### Block diagram
+
+![gray2bin block diagram](../assets/rtl-cdc/graphviz/gray2bin.png)
+
+The Gray input feeds a prefix XOR reduction. Each binary bit is the XOR of
+every Gray bit at and above it, so `binary[WIDTH-1]` equals `gray[WIDTH-1]`
+and each lower bit adds one more term. The result drives the binary output.
+The module is purely combinational, and its depth grows toward bit 0.
+
 Gray code is a binary numeral system where **only one bit changes** between
 consecutive values:
 

@@ -1,0 +1,43 @@
+// "Choosing a technique" decision tree for docs/markdown/rtl-cdc/cdc.md.
+// Not a block diagram (no flows), but drawn in the house vocabulary:
+// questions are white boxes, answers are blue module boxes, every arrow
+// carries its answer, right angles, top-down. Replaces the ASCII tree.
+digraph cdc_choosing {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           label="Choosing a CDC technique", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    start  [label="What crosses the clock boundary?", fillcolor="white"];
+
+    // ---- multi-bit data ----
+    q_strm [label="Multi-bit data:\nstreaming / continuous?", fillcolor="white"];
+    q_bp   [label="Occasional transfers:\ndoes the source need backpressure?", fillcolor="white"];
+    fifo   [label="Async FIFO\nfifo_async or\ngaxi_fifo_async\n1 per clock, buffered"];
+    hs     [label="Closed-loop handshake\ncdc_2_phase_handshake or\ncdc_4_phase_handshake\n(check the reset rule)"];
+    ol     [label="Open loop\ncdc_open_loop\nsimplest, lowest area, no ack"];
+
+    // ---- single bit ----
+    q_kind [label="Single bit:\nwhat kind of signal?", fillcolor="white"];
+    sync   [label="Level / quasi-static\ncdc_synchronizer or\nglitch_free_n_dff_arn"];
+    pulse  [label="Single-cycle pulse\nsync_pulse"];
+    rst    [label="Reset\nreset_sync"];
+
+    start  -> q_strm [xlabel="multi-bit data"];
+    start  -> q_kind [xlabel="single bit"];
+    q_strm -> fifo   [xlabel="yes"];
+    q_strm -> q_bp   [xlabel="no"];
+    q_bp   -> hs     [xlabel="yes"];
+    q_bp   -> ol     [xlabel="no: source can\nguarantee hold time"];
+    q_kind -> sync   [xlabel="level"];
+    q_kind -> pulse  [xlabel="pulse"];
+    q_kind -> rst    [xlabel="reset"];
+
+    { rank=same; q_strm; q_kind; }
+    { rank=same; fifo; q_bp; sync; pulse; rst; }
+    { rank=same; hs; ol; }
+    q_strm -> q_kind [style=invis, minlen=4];
+    fifo -> q_bp -> sync -> pulse -> rst [style=invis];
+}

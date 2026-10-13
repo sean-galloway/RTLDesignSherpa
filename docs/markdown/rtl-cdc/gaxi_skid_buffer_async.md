@@ -100,26 +100,17 @@ module gaxi_skid_buffer_async #(
 
 ## Functional Description
 
-### Architecture
+### Block diagram
 
-```mermaid
-flowchart LR
-    subgraph WR["Write Domain"]
-        wr["wr_valid/data"] --> skid
-        subgraph skid["gaxi_skid_buffer<br/>(sync)"]
-            sb["Elastic Buffer"]
-        end
-    end
+![gaxi_skid_buffer_async block diagram](../assets/rtl-cdc/graphviz/gaxi_skid_buffer_async.png)
 
-    skid --> cdc
-
-    subgraph RD["Read Domain"]
-        subgraph cdc["gaxi_fifo_async"]
-            async["Gray Code CDC<br/>Synchronizers"]
-        end
-        cdc --> rd["rd_valid/data"]
-    end
-```
+Write traffic enters a `gaxi_skid_buffer` on `axi_wr_aclk`, which registers
+the write handshake and returns `wr_ready` to the source. The skid buffer
+feeds the write side of a `gaxi_fifo_async`, whose not-full flag is the skid
+buffer's downstream ready. Read data leaves the FIFO on `axi_rd_aclk` and
+climbs back up to the read port, with `rd_ready` dropping in from that port.
+The only clock-domain crossing is inside `gaxi_fifo_async`; see its page for
+the pointer synchronization.
 
 ### Internal Components
 

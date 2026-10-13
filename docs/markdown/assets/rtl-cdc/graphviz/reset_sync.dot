@@ -1,0 +1,42 @@
+// reset_sync block diagram - house style (vault/handbook/authoring/block-diagrams.md),
+// CDC mapping per the fifo_async template: the asynchronous reset enters
+// top-left (white), crosses into the clk domain heavy - asserting the whole
+// chain at once - and the synchronized reset climbs the right edge to the
+// output. Deassertion is the part that is synchronized: zeros shift in on clk.
+// Source of truth: rtl/cdc/reset_sync.sv.
+digraph reset_sync {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="reset_sync - asynchronous assert, synchronous deassert",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external interfaces (white) ----
+    rst_port [label="Asynchronous Reset In\nrst_n", fillcolor="white"];
+    clk_port [label="clk", fillcolor="white"];
+    out_port [label="Synchronized Reset Out\nsync_rst_n on clk", fillcolor="white"];
+
+    // ---- input polarity (asynchronous, outside the domain) ----
+    pin [label="Input Polarity\nIN_ACTIVE_LOW: rst_in_h = ~rst_n"];
+
+    subgraph cluster_clk {
+        label="clk domain"; style=dashed; fontsize=10;
+        chain [label="Synchronizer Chain\nr_sync_reg[N]  (N >= 2)\nset to all 1s on reset; shifts in 0 on clk\n(ASYNC_ASSERT=0: set on clk too)"];
+        pout  [label="Output Polarity\nOUT_ACTIVE_LOW: sync_rst_n =\n~r_sync_reg[N-1]"];
+    }
+
+    // ---- flows ----
+    rst_port -> pin [label="rst_n"];
+    pin -> chain [xlabel="rst_in_h (async assert)", penwidth=1.8];
+    clk_port -> chain [xlabel="clk (deassert\nshifts in 0)"];
+    chain -> pout [xlabel="r_sync_reg[N-1]", minlen=3];
+    pout -> out_port [xlabel="sync_rst_n"];
+
+    // ---- rank pinning ----
+    { rank=same; rst_port; clk_port; out_port; }
+    rst_port -> clk_port -> out_port [style=invis];
+    { rank=same; pin; }
+    { rank=same; chain; pout; }
+}

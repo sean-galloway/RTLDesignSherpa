@@ -1,0 +1,48 @@
+// cdc_synchronizer block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md, "Dual-clock / CDC blocks";
+// fifo_async.dot is the approved template).
+// The module has only the DESTINATION clock: the source side is upstream
+// logic, drawn dashed (not in this module). The one crossing is async_in into
+// the first flop of the chain; the value then settles down the chain and
+// climbs the RIGHT edge to the output. No bar: nothing here is written in one
+// domain and read in the other except the crossing wire itself.
+// Source of truth: rtl/cdc/cdc_synchronizer.sv, rtl/cdc/glitch_free_n_dff_arn.sv
+digraph cdc_synchronizer {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.75", splines=ortho, newrank=true,
+           label="cdc_synchronizer - FLOP_COUNT-deep flop chain for quasi-static values",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external interfaces (white); the input sits in a dashed source
+    //      region because its driver is upstream, outside this module ----
+    subgraph cluster_src {
+        label="source domain (upstream, not in this module)"; style=dashed; fontsize=10;
+        src_port [label="Input Port  async_in [WIDTH]\nfrom a source-domain flop, quasi-static\nmulti-bit: Gray coded or all bits at once", fillcolor="white"];
+    }
+    dst_port [label="Output Port\nsync_out [WIDTH]  (clk domain)", fillcolor="white"];
+
+    subgraph cluster_dst {
+        label="clk domain (destination)"; style=dashed; fontsize=10;
+        cap    [group=DI, label="Capture Stage  r_q_array[0]\nglitch_free_n_dff_arn - u_sync\nmay go metastable"];
+        settle [group=DI, label="Settling Stages\nr_q_array[1 .. FLOP_COUNT-1]\nresolve to a clean level"];
+    }
+
+    // ---- the one crossing ----
+    src_port -> cap [xlabel="async_in", penwidth=1.8];
+
+    // ---- down the chain, then up the right edge to the output ----
+    cap -> settle [xlabel="stage 0"];
+    p_out [shape=point, width=0.01];
+    settle -> p_out [arrowhead=none, headclip=false];
+    p_out -> dst_port [xlabel="sync_out", tailclip=false, constraint=false];
+
+    // ---- rank pinning ----
+    { rank=same; src_port; dst_port; }
+    { rank=same; settle; p_out; }
+    src_port -> dst_port [style=invis, minlen=3];
+    settle -> p_out [style=invis, minlen=2];
+    dst_port -> p_out [style=invis];
+}

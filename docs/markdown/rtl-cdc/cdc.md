@@ -52,32 +52,7 @@ you, and the least likely to show up in simulation.
 
 Start with the shape of the traffic, not the protocol:
 
-```
-Need to cross clock domains with multi-bit data?
-|
-+-- Is data streaming / continuous?
-|   |
-|   +-- YES --> Async FIFO (fifo_async or gaxi_fifo_async)
-|   |           Sustained 1-per-clock throughput, buffered
-|   |
-|   +-- NO, occasional transfers -->
-|       |
-|       +-- Does the source need backpressure (flow control)?
-|           |
-|           +-- YES --> Closed-loop handshake
-|           |           (cdc_2_phase_handshake or cdc_4_phase_handshake)
-|           |
-|           +-- NO, source can guarantee hold time -->
-|               |
-|               +-- Open-loop (cdc_open_loop)
-|                   Simplest, lowest area, no ack needed
-|
-Single-bit signal?
-|
-+-- Level / quasi-static --> cdc_synchronizer or glitch_free_n_dff_arn
-+-- Single-cycle pulse   --> sync_pulse
-+-- Reset signal          --> reset_sync
-```
+![Choosing a CDC technique](../assets/rtl-cdc/graphviz/cdc_choosing.png)
 
 **Then check the [reset rule](#reset-considerations) before committing to a
 handshake.** It eliminates one of the two handshake variants outright in a
@@ -153,9 +128,9 @@ destination observing `req = 0` correctly concludes nothing is pending.
 
 #### Waveform 1.1: 2-Phase Normal Transfer
 
-![2-phase normal transfer](../assets/WAVES/cdc_2_phase_handshake/cdc2_normal_transfer.png)
+![2-phase normal transfer](../assets/rtl-cdc/waves/cdc_2_phase_handshake/cdc2_normal_transfer.png)
 
-**Source:** [cdc2_normal_transfer.json](../assets/WAVES/cdc_2_phase_handshake/cdc2_normal_transfer.json)
+**Source:** [cdc2_normal_transfer.json](../assets/rtl-cdc/waves/cdc_2_phase_handshake/cdc2_normal_transfer.json)
 
 One `src_valid` toggles `r_req_tog` 0 -> 1. Three synchronizer stages later the
 destination sees the new value, `w_req_event` pulses for one cycle, `dst_valid`
@@ -163,9 +138,9 @@ asserts. Parity now agrees at 1 on both ends.
 
 #### Waveform 1.2: 2-Phase Hazard - Destination Reset Alone
 
-![2-phase asymmetric reset hazard](../assets/WAVES/cdc_2_phase_handshake/cdc2_asymmetric_reset_hazard.png)
+![2-phase asymmetric reset hazard](../assets/rtl-cdc/waves/cdc_2_phase_handshake/cdc2_asymmetric_reset_hazard.png)
 
-**Source:** [cdc2_asymmetric_reset_hazard.json](../assets/WAVES/cdc_2_phase_handshake/cdc2_asymmetric_reset_hazard.json)
+**Source:** [cdc2_asymmetric_reset_hazard.json](../assets/rtl-cdc/waves/cdc_2_phase_handshake/cdc2_asymmetric_reset_hazard.json)
 
 `rst_dst_n` asserts while `rst_src_n` stays high:
 
@@ -193,18 +168,18 @@ corrupted for the rest of the session.
 
 #### Waveform 1.3: 4-Phase Normal Transfer
 
-![4-phase normal transfer](../assets/WAVES/cdc_4_phase_handshake/cdc4_normal_transfer.png)
+![4-phase normal transfer](../assets/rtl-cdc/waves/cdc_4_phase_handshake/cdc4_normal_transfer.png)
 
-**Source:** [cdc4_normal_transfer.json](../assets/WAVES/cdc_4_phase_handshake/cdc4_normal_transfer.json)
+**Source:** [cdc4_normal_transfer.json](../assets/rtl-cdc/waves/cdc_4_phase_handshake/cdc4_normal_transfer.json)
 
 Four crossings: `r_req_src` rises, `r_ack_dst` rises, `r_req_src` falls,
 `r_ack_dst` falls. Both ends finish at the 0 idle level.
 
 #### Waveform 1.4: 4-Phase One-Sided Reset Is Safe
 
-![4-phase one-sided reset is safe](../assets/WAVES/cdc_4_phase_handshake/cdc4_asymmetric_reset_safe.png)
+![4-phase one-sided reset is safe](../assets/rtl-cdc/waves/cdc_4_phase_handshake/cdc4_asymmetric_reset_safe.png)
 
-**Source:** [cdc4_asymmetric_reset_safe.json](../assets/WAVES/cdc_4_phase_handshake/cdc4_asymmetric_reset_safe.json)
+**Source:** [cdc4_asymmetric_reset_safe.json](../assets/rtl-cdc/waves/cdc_4_phase_handshake/cdc4_asymmetric_reset_safe.json)
 
 `rst_dst_n` asserts mid-transfer while the source runs:
 
@@ -334,6 +309,14 @@ If any box is unchecked, choose a level-encoded or pointer-encoded crossing.
 Multi-flop synchronizer for **quasi-static** signals. Not a handshake -- there is
 no flow control and no guarantee the destination sees every value.
 
+![cdc_synchronizer block diagram](../assets/rtl-cdc/graphviz/cdc_synchronizer.png)
+
+The module owns only the destination clock. `async_in` arrives from a
+register upstream in the source domain and makes the one crossing into the
+first flop of a `glitch_free_n_dff_arn` chain, which may go metastable. The
+remaining `FLOP_COUNT - 1` stages let it resolve, and `sync_out` leaves the
+last stage as a clean level in the `clk` domain.
+
 ```systemverilog
 module cdc_synchronizer #(
     parameter int WIDTH      = 1,   // Bus width to synchronize
@@ -386,6 +369,15 @@ Source holds `valid` + data stable for a stretch window long enough that the
 destination cannot miss it. No acknowledge, so the lowest area and latency of the
 data-carrying crossings -- at the cost of no backpressure.
 
+![cdc_open_loop block diagram](../assets/rtl-cdc/graphviz/cdc_open_loop.png)
+
+`src_data` drops down the left into the held data register, which loads on an
+accepted `src_valid`. The stretch control then holds the valid high for the
+stretch window, and that stretched valid is the only synchronized crossing.
+In the destination domain a rise detector turns it into a one-cycle
+`dst_valid` and captures the held bus, whose value climbs the right edge as
+`dst_data`. Nothing crosses back: `src_busy` is the source's only protection.
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `DATA_WIDTH` | 8 | Width of the data bus |
@@ -425,6 +417,17 @@ instead of four.
 > **Read [Reset Considerations](#reset-considerations) before choosing this
 > module.** It is pin-compatible with the 4-phase variant but not behaviorally
 > equivalent under independent resets.
+
+![cdc_2_phase_handshake block diagram](../assets/rtl-cdc/graphviz/cdc_2_phase_handshake.png)
+
+Data drops down the left into the held data bus and climbs the right edge as
+`dst_data`; the bus crosses unsynchronized because the handshake keeps it
+stable. The only synchronized crossings are the two toggles, which form an X in
+the center. The source flips `r_req_tog` to start a transfer. The
+destination's synchronizer and edge detector turn that flip into a request
+event, which captures the bus and raises `dst_valid`. On `dst_ready` the
+destination flips `r_ack_tog` back across, and the resulting ack event
+returns the source to idle.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -486,6 +489,15 @@ Edge detection
 
 Level (RZ) closed-loop handshake: `req` rises, `ack` rises, `req` falls, `ack`
 falls. Slower than 2-phase, and tolerant of independent domain resets.
+
+![cdc_4_phase_handshake block diagram](../assets/rtl-cdc/graphviz/cdc_4_phase_handshake.png)
+
+Same geometry as the 2-phase diagram: data down the left into the held bus,
+`dst_data` up the right, and the control crossings in the center. The
+crossings carry levels, not toggles, so each one crosses twice per transfer:
+`r_req_src` rises and later falls, and `r_ack_dst` follows it. The plain level
+synchronizers need no edge detector, and the third state in each FSM waits for
+the return to zero.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|

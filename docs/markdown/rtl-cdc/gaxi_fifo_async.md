@@ -132,44 +132,18 @@ This prevents glitches during synchronization across clock domains.
 - `counter_bingray.sv` / `gray2bin.sv` - Gray pointer path (combinational decode), used when `USE_JOHNSON=0`
 - `fifo_control.sv` - Full/empty flag generation
 
-### Implementation
+### Block diagram
 
-```mermaid
-flowchart TB
-    subgraph WriteDomain["Write Domain"]
-        wrbin["wr_ptr (bin)"]
-        wrgray["wr_ptr (Gray)"]
-        wrbin --> wrgray
-    end
+![gaxi_fifo_async block diagram](../assets/rtl-cdc/graphviz/gaxi_fifo_async.png)
 
-    subgraph ReadDomain["Read Domain"]
-        rdbin["rd_ptr (bin)"]
-        rdgray["rd_ptr (Gray)"]
-        rdbin --> rdgray
-    end
-
-    subgraph Sync["Gray Code Synchronizers<br/>(N_FLOP_CROSS)"]
-        sync["CDC Sync"]
-    end
-
-    wrgray --> sync
-    rdgray --> sync
-
-    subgraph WrLogic["Write Domain Logic"]
-        rdsync["rd_ptr_sync<br/>(in wr_clk)"]
-        full["Full Logic"]
-        rdsync --> full
-    end
-
-    subgraph RdLogic["Read Domain Logic"]
-        wrsync["wr_ptr_sync<br/>(in rd_clk)"]
-        empty["Empty Logic"]
-        wrsync --> empty
-    end
-
-    sync --> rdsync
-    sync --> wrsync
-```
+Write data drops down the left into the dual-port storage on `axi_wr_aclk`;
+read data comes back up the right on `axi_rd_aclk`. The only signals that
+cross between the domains are the two pointers, Gray coded (Johnson coded
+when `USE_JOHNSON=1`), each synchronized by `glitch_free_n_dff_arn` in the
+destination domain and decoded to binary. The write half of `fifo_control`
+compares the local write pointer with the synchronized read pointer to drive
+`wr_ready` (not full); the read half does the mirror image to drive
+`rd_valid` (not empty).
 
 Each domain keeps its own binary pointer for arithmetic, converts it to Gray
 for the crossing, and decodes the synchronized remote pointer for flag

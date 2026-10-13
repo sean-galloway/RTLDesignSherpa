@@ -80,7 +80,8 @@ build_book() {
     --mainfont "Noto Serif" --monofont "Noto Sans Mono" \
     --sansfont "Noto Sans" --mathfont "Noto Serif" \
     --assets-dir "assets" --assets-dir "assets/rtl-common" \
-    --assets-dir "assets/rtl-amba" --assets-dir "assets/WAVES" \
+    --assets-dir "assets/rtl-amba" --assets-dir "assets/rtl-cdc" \
+    --assets-dir "assets/WAVES" \
     --quiet
   rm -f "${tmpstyle}" "${outbase}.docx"      # keep only the PDF in docs/pdfs/
 }

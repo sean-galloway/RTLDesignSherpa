@@ -76,6 +76,17 @@ The names stick around for compatibility, which means a `reset_sync` with
 
 ## Functional Description
 
+### Block diagram
+
+![reset_sync block diagram](../assets/rtl-cdc/graphviz/reset_sync.png)
+
+`rst_n` arrives asynchronously on the left and is normalized to active-high
+`rst_in_h` by `IN_ACTIVE_LOW`. Asserting it sets the whole `r_sync_reg[N]`
+chain to ones at once, so reset assertion needs no clock. Release is the
+synchronized part: on each `clk` edge a zero shifts in, so the last stage
+clears `N` cycles later. The `OUT_ACTIVE_LOW` polarity stage then drives
+`sync_rst_n` up the right side to the output.
+
 ### The Reset Problem
 Reset release is where synchronous designs get hurt. Mishandle it and you're
 looking at:

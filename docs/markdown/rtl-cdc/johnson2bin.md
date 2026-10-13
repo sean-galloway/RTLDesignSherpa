@@ -52,6 +52,17 @@ and decoding it takes position detection rather than XOR reduction.
 
 ## Functional Description
 
+### Block diagram
+
+![johnson2bin block diagram](../assets/rtl-cdc/graphviz/johnson2bin.png)
+
+The Johnson input drives `leading_one_trailing_one`, which finds the boundary
+between the run of ones and the run of zeros. The position select picks the
+answer: zero for the all-zeros and all-ones codes, the trailing-one index when
+the MSB is 1, and the leading-one index plus one when the MSB is 0. Separately,
+the MSB passes straight through as `binary[WIDTH-1]`, the wrap bit. The module
+is combinational; its `clk` and `rst_n` ports are unused.
+
 ### The Johnson sequence
 
 Johnson counters are **shift registers with inverted feedback**:

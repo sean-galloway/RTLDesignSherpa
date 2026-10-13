@@ -85,6 +85,16 @@ module sync_pulse #(
 
 ## Functional Description
 
+### Block diagram
+
+![sync_pulse block diagram](../assets/rtl-cdc/graphviz/sync_pulse.png)
+
+The input pulse enters on the left in the `i_src_clk` domain, where it flips
+`r_src_toggle`. That toggle level is the only signal that crosses into the
+`i_dst_clk` domain. There it passes through `SYNC_STAGES` flops, and an edge
+detector (the last stage XOR `r_sync_prev`) turns each change back into a
+one-cycle `o_pulse`, which climbs to the output on the right.
+
 ### Toggle-Based Pulse Synchronization
 
 The module uses a four-stage process to safely transfer pulses:

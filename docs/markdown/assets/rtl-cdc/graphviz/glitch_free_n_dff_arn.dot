@@ -1,0 +1,39 @@
+// glitch_free_n_dff_arn block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md), CDC mapping per the fifo_async
+// template. This is the DESTINATION-side half of a crossing: d arrives from
+// any other clock domain (top-left, white), crosses the boundary heavy into
+// the first flop - the one that may go metastable - settles through the rest
+// of the chain on clk, and q climbs the right edge to the output port.
+// Source of truth: rtl/cdc/glitch_free_n_dff_arn.sv.
+digraph glitch_free_n_dff_arn {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.90", splines=ortho, newrank=true,
+           label="glitch_free_n_dff_arn - N-flop synchronizer",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external interfaces (white) ----
+    d_port [label="Asynchronous Input\nd[WIDTH] from any clock domain", fillcolor="white"];
+    q_port [label="Synchronized Output\nq[WIDTH] on clk", fillcolor="white"];
+    rst    [label="Reset\nrst_n (asynchronous)", fillcolor="white"];
+
+    subgraph cluster_clk {
+        label="clk domain"; style=dashed; fontsize=10;
+        st0  [label="Capture Stage\nr_q_array[0]\n(may go metastable)"];
+        stn  [label="Settling Stages\nr_q_array[1 .. FLOP_COUNT-1]\n(each adds a clk period to resolve)"];
+    }
+
+    // ---- flows: capture stage over the settling stages (left column),
+    //      q climbs the right edge to the output ----
+    d_port -> st0 [xlabel="d (asynchronous)", penwidth=1.8];
+    st0 -> stn [xlabel="stage 0"];
+    stn -> q_port [xlabel="q (last stage)", tailport=e];
+    rst -> st0 [style=dashed, xlabel="clears every stage"];
+
+    // ---- rank pinning ----
+    { rank=same; rst; d_port; q_port; }
+    rst -> d_port [style=invis];
+    d_port -> q_port [style=invis, minlen=3];
+}

@@ -1,0 +1,33 @@
+// johnson2bin block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Combinational (clk/rst_n ports exist for interface compatibility and are
+// unused). One flow, top-down: Johnson code in, binary out. The leading/
+// trailing-one finder locates the 1/0 boundary; the select picks which index
+// gives the position from the MSB (which half of the cycle); the MSB rides
+// straight through as the wrap bit.
+// Source of truth: rtl/cdc/johnson2bin.sv.
+digraph johnson2bin {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="johnson2bin - Johnson code to binary (combinational)";
+
+    j_in   [label="Johnson Input\ngray[JCW-1:0]\n(clk, rst_n present but unused)", fillcolor="white"];
+    loto   [label="Leading / Trailing One Finder\nleading_one_trailing_one - u_leading_one_trailing_one"];
+    sel    [label="Position Select (always_comb)\nall-zeroes or all-ones: 0\nMSB = 1: trailing-one index\nMSB = 0: leading-one index + 1"];
+    b_out  [label="Binary Output\nbinary[WIDTH-1:0]", fillcolor="white", width=5.0];
+
+    p_msb  [shape=point, width=0.01];
+
+    j_in -> loto  [xlabel="gray[JCW-1:0]"];
+    loto -> sel   [xlabel="lead / trail index,\nall-zeroes / all-ones"];
+    j_in -> p_msb [arrowhead=none, headclip=false];
+    p_msb -> sel  [xlabel="gray[JCW-1]\n(half select)", tailclip=false];
+    p_msb -> b_out [xlabel="gray[JCW-1]\n= binary[WIDTH-1] (wrap)", tailclip=false];
+    sel  -> b_out [xlabel="binary[WIDTH-2:0]"];
+
+    { rank=same; loto; p_msb; }
+    loto -> p_msb [style=invis, minlen=2];
+}

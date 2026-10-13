@@ -65,21 +65,13 @@ Metastability effects:
 
 ### Multi-Stage Synchronizer Solution
 
-```mermaid
-flowchart LR
-    subgraph Source["Source Domain"]
-        d["d"]
-    end
-    subgraph Dest["Destination Domain"]
-        d --> FF1["FF1"]
-        FF1 --> FF2["FF2"]
-        FF2 --> FF3["FF3"]
-        FF3 --> q["q"]
-        clk["clk"] -.-> FF1
-        clk -.-> FF2
-        clk -.-> FF3
-    end
-```
+![glitch_free_n_dff_arn block diagram](../assets/rtl-cdc/graphviz/glitch_free_n_dff_arn.png)
+
+`d` comes from any other clock domain and crosses into the `clk` domain at the
+capture stage `r_q_array[0]`, the one flop that may go metastable. The
+settling stages `r_q_array[1 .. FLOP_COUNT-1]` each give it another clock
+period to resolve, and `q` is taken from the last stage. `rst_n` clears every
+stage asynchronously.
 
 Stage by stage:
 

@@ -72,6 +72,16 @@ module bin2gray #(
 
 ## Functional Description
 
+### Block diagram
+
+![bin2gray block diagram](../assets/rtl-cdc/graphviz/bin2gray.png)
+
+The binary input fans out two ways. The MSB passes straight through to
+`gray[WIDTH-1]`. The full input also feeds a bank of WIDTH-1 XOR gates, where
+each lower Gray bit is its binary bit XORed with the bit above it. Both results
+merge into the Gray output. The module is purely combinational: one level of
+XOR logic, no clock.
+
 ### Mathematical definition
 
 The conversion follows one simple relationship:
@@ -141,21 +151,7 @@ What the RTL builds is a bank of XOR gates: each lower Gray bit is the XOR of
 the current and next binary bits, the MSB comes straight across, and everything
 evaluates in parallel -- a single level of logic.
 
-For WIDTH = 4, gate level:
-
-```mermaid
-flowchart LR
-    b3["binary[3]"] --> g3["gray[3]"]
-    b2["binary[2]"] --> xor2["XOR"]
-    b3 --> xor2
-    xor2 --> g2["gray[2]"]
-    b1["binary[1]"] --> xor1["XOR"]
-    b2 --> xor1
-    xor1 --> g1["gray[1]"]
-    b0["binary[0]"] --> xor0["XOR"]
-    b1 --> xor0
-    xor0 --> g0["gray[0]"]
-```
+The [block diagram](#block-diagram) shows the same structure for any WIDTH.
 
 ### Companion converter: gray2bin
 
