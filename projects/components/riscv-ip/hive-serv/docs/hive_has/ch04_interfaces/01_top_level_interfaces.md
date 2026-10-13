@@ -40,6 +40,26 @@ should treat the *classes* here as the contract.
 
 : External interface summary
 
+## Communication Protocol Rule (owner, 2026-10-13)
+
+**Everything that crosses a block boundary toward the fabric is a stream;
+only register files are memory-mapped.**
+
+- **AXI4-Stream** carries all packet traffic: CDA injection, SERV
+  PKT_CONFIG/PKT_STATUS, and the status return path. AXIS is delta's
+  native interface, and the `tuser`/`tdest`/`tid` packet classification
+  (§4.2) with the ~10-20 cycle inband latency target only exist on the
+  stream path.
+- **AXI4-Lite** is used exclusively for register windows: the host
+  interface and HIVE-C's AXIL master window to RAPIDS/Delta/SERV
+  configuration.
+- **No AXI4 full anywhere in HIVE.** HIVE never touches DDR and moves no
+  burst traffic; the full protocol buys nothing here.
+- The internal control network is **AXIS-shaped** too (32-bit frames on
+  `tvalid/tready/tlast`, `tuser[0]` = urgent flag) so the repo stream BFMs
+  and the Ocelus monitor system cover it without bespoke protocol work
+  (MAS §2.4).
+
 ## Host Interface
 
 Two physical options, one command set:
@@ -100,4 +120,4 @@ normal injection path, never through the tap.
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

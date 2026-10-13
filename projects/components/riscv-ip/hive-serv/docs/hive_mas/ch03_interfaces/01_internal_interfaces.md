@@ -49,8 +49,10 @@ firmware writes a `descriptor_t` record; `descriptor_gen` pulses `done` on
 handshake and raises `stall` while the injection queue is full.
 
 **Control network frame** (§2.4): the 32-bit frame is the only
-master-to-slave and slave-to-master payload; widening to 64-bit is an open
-area item if the statistics payload overflows 16 bits regularly.
+master-to-slave and slave-to-master payload, carried on AXIS handshake
+signals (`tvalid/tready/tlast`, `tuser[0]` = urgent) per the
+everything-is-a-stream rule (§1.1); widening to 64-bit is an open area
+item if the statistics payload overflows 16 bits regularly.
 
 **Config-manager injection request**: `switch_controller` raises
 `inject_req` with a completed PKT_CONFIG record; the HIVE-C injection path
@@ -72,4 +74,4 @@ concatenated, not arbitrated (fixed layout in `hive_obs_pkg`).
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

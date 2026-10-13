@@ -27,7 +27,11 @@ The star between HIVE-C and the sixteen monitors. Low bandwidth, hard
 latency and fairness requirements: commands in < 10 cycles, uplink
 aggregation across all 16 < 20 cycles, no slave starves. The block spans
 two clock domains — master side in `hive_c_clk`, slave side in `serv_clk` —
-with the CDC FIFOs below as the only crossing.
+with the CDC FIFOs below as the only crossing. Per the everything-is-a-stream
+rule (§1.1), all ports are AXIS-shaped: 32-bit data beats with
+`tvalid/tready/tlast`, and `tuser[0]` carrying the urgent flag — the repo
+stream BFMs and Ocelus monitors cover this block exactly like the fabric
+streams.
 
 ```
 control_network
@@ -41,7 +45,9 @@ control_network
 
 ## Submodules
 
-**`control_packetizer`.** Frames are 32-bit (HAS §4.1 contract):
+**`control_packetizer`.** Frames are 32-bit (HAS §4.1 contract), carried
+as the `tdata` payload of an AXIS beat (one frame per beat, `tlast` on
+every beat):
 
 ```
 Bits [31:24]: Command / status opcode
@@ -59,10 +65,10 @@ ports, address-decoded, no buffering beyond the CDC FIFOs. In-order per
 slave; commands to different slaves may be in flight simultaneously.
 
 **`control_arbiter`.** Round-robin over the sixteen uplink FIFOs,
-non-preemptive per frame, urgent flag honored as next-grant priority (an
-alert frame marked urgent wins the grant after the current frame). Fairness
-is structural: equal weights, one frame per grant; starvation is
-impossible by construction and asserted formally.
+non-preemptive per frame; `tuser[0]` (urgent) is honored as next-grant
+priority (an alert frame marked urgent wins the grant after the current
+frame). Fairness is structural: equal weights, one frame per grant;
+starvation is impossible by construction and asserted formally.
 
 ## Performance Verification Hooks
 
@@ -72,4 +78,4 @@ by a cocotb scoreboard counting grant cycles across a full round.
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

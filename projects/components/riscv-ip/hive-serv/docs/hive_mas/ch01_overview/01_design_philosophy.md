@@ -43,6 +43,22 @@ HIVE's micro-architecture follows three rules, in priority order:
    and the cocotb testbenches need, on dedicated observation ports that are
    part of the module interface — never tapped ad hoc from internals.
 
+4. **Everything that leaves a block is a stream** (owner, 2026-10-13).
+   All fabric-facing traffic is AXI4-Stream; the internal control network
+   is AXIS-shaped (32-bit frames on `tvalid/tready/tlast`, `tuser[0]` =
+   urgent flag). Only register files are memory-mapped (AXI4-Lite). No
+   AXI4 full anywhere in HIVE — it never touches DDR and moves no burst
+   traffic. Rationale: delta speaks AXIS natively; inband descriptor
+   injection only exists on the stream path; and the repo's stream
+   verification stack (GAXI BFMs, Ocelus monitors, CDC FIFOs) attaches
+   everywhere without bespoke protocol work.
+
+> **Delta relationship (owner, 2026-10-13):** delta is the AXIS fabric
+> generator and is the fabric; the archived NoC-mesh draft describes the
+> same fabric (the re-home to `fabric-gen-ip/` was organizational). HIVE
+> RTL implements against delta's AXIS interfaces exactly as the HAS
+> specifies.
+
 ## Machine Organization
 
 ```
@@ -72,4 +88,4 @@ constrains several block interfaces, so it comes first.
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

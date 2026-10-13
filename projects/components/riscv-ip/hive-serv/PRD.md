@@ -426,7 +426,7 @@ repo's `bin/md_to_docx.py`.
 ### 14.2 Related Subsystems
 
 - **RAPIDS:** `projects/components/dma-ip/rapids/` - DMA engine controlled by HIVE-C
-- **Delta Network:** `projects/components/fabric-gen-ip/delta/` - 4×4 mesh NoC
+- **Delta Network:** `projects/components/fabric-gen-ip/delta/` - AXIS fabric generator (the HIVE fabric; owner: same fabric as the archived NoC draft)
 - **AMBA/Ocelus:** `rtl/amba/ocelus/` - Monitor infrastructure for observability
 - **Common:** `rtl/common/` - Building blocks
 

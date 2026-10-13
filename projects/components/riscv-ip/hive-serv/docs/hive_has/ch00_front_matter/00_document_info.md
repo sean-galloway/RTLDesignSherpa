@@ -104,7 +104,7 @@ hook plan live in the companion Micro-Architecture Specification (MAS).
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-12 | seang | Initial HAS release. Migrates and supersedes the v0.3 `hive_spec/` + `hive_specification.md` drafts; resource-budget table corrected (HIVE-only vs. system subtotals disambiguated); delta references repointed to `fabric-gen-ip/delta` |
-| 0.2 | 2026-10-13 | seang | Owner decisions recorded: fabric IDLE status register (PeakRDL bank) is the quiesce check; kestrel loader pattern for firmware load; descriptor mailbox parameter-controlled with dedicated register file default (custom-instruction alternative rejected) |
+| 0.2 | 2026-10-13 | seang | Owner decisions recorded: fabric IDLE status register (PeakRDL bank) is the quiesce check; kestrel loader pattern for firmware load; descriptor mailbox parameter-controlled with dedicated register file default (custom-instruction alternative rejected). Addendum: delta relationship closed — the AXIS fabric generator is the fabric (same fabric as the archived NoC draft); AXIS-only communication rule — all block-boundary traffic is AXI4-Stream, control network AXIS-shaped, AXI4-Lite for registers only, no AXI4 full |
 
 : Document Revision History
 

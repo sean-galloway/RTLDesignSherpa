@@ -97,6 +97,14 @@ monitors, the Control Network, and the Configuration Manager.
 
 ## Position in the RAPIDS / Delta / HIVE Ecosystem
 
+> **Delta relationship (owner, 2026-10-13):** the delta component
+> (`projects/components/fabric-gen-ip/delta/`) — the AXIS fabric
+> generator — *is* the fabric HIVE communicates with. The archived
+> NoC-mesh draft (`noc-ip/delta_spec/`) and the generator describe the
+> same fabric; the 2026-10-12 re-home from `noc-ip/` was organizational.
+> HIVE's architecture stands as specified against delta, and HIVE talks
+> to it exclusively over AXI4-Stream (§4.1).
+
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                      Host System                         │
@@ -246,4 +254,4 @@ the Delta data plane and the RAPIDS AXI4 path never traverse HIVE logic.
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13
