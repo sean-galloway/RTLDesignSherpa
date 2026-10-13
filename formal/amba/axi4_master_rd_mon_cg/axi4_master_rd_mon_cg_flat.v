@@ -2511,7 +2511,7 @@ module axi_monitor_trans_mgr (
 			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon_cg/axi_monitor_trans_mgr.sv:231:9 - axi_monitor_trans_mgr.gen_ragged_banks\n msg: ", "axi_monitor_trans_mgr: MAX_TRANSACTIONS=%0d is not divisible by NUM_BANKS=%0d.", MAX_TRANSACTIONS, NUM_BANKS);
 		end
 		if (((NUM_BANKS > 1) && !IS_READ) && !USE_WDATA_ORDER_Q) begin : gen_banked_wr_needs_widq
-			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon_cg/axi_monitor_trans_mgr.sv:247:9 - axi_monitor_trans_mgr.gen_banked_wr_needs_widq\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d on a write monitor requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).", NUM_BANKS);
+			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon_cg/axi_monitor_trans_mgr.sv:247:9 - axi_monitor_trans_mgr.gen_banked_wr_needs_widq\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d on a write ocelus requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).", NUM_BANKS);
 		end
 		if (ID_WIDTH > 8) begin : gen_id_width_unsupported
 			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon_cg/axi_monitor_trans_mgr.sv:284:9 - axi_monitor_trans_mgr.gen_id_width_unsupported\n msg: ", "axi_monitor_trans_mgr: ID_WIDTH=%0d exceeds the 8-bit id field in bus_transaction_t; the table and the CAM key would disagree. Widen bus_transaction_t.id or reduce ID_WIDTH.", ID_WIDTH);
@@ -4569,9 +4569,9 @@ module axi4_master_rd_mon (
 	wire [15:0] w_timeout_cnt;
 	wire [15:0] w_perf_completed_count;
 	wire [15:0] w_perf_error_count;
-	assign w_mon_cmd_valid = m_axi_arvalid & cfg_monitor_enable;
-	assign w_mon_data_valid = m_axi_rvalid & cfg_monitor_enable;
-	assign w_mon_resp_valid = (m_axi_rvalid && m_axi_rlast) & cfg_monitor_enable;
+	assign w_mon_cmd_valid = fub_axi_arvalid & cfg_monitor_enable;
+	assign w_mon_data_valid = fub_axi_rvalid & cfg_monitor_enable;
+	assign w_mon_resp_valid = (fub_axi_rvalid && fub_axi_rlast) & cfg_monitor_enable;
 	assign w_timeout_cnt = (cfg_timeout_cycles == 16'h0000 ? 16'hffff : cfg_timeout_cycles);
 	function automatic signed [15:0] sv2v_cast_16_signed;
 		input reg signed [15:0] inp;
@@ -4612,22 +4612,22 @@ module axi4_master_rd_mon (
 				.aresetn(aresetn),
 				.clear(cam_clear | ~cfg_monitor_enable),
 				.i_mon_time(i_mon_time),
-				.cmd_addr(m_axi_araddr),
-				.cmd_id(m_axi_arid),
-				.cmd_len(m_axi_arlen),
-				.cmd_size(m_axi_arsize),
-				.cmd_burst(m_axi_arburst),
+				.cmd_addr(fub_axi_araddr),
+				.cmd_id(fub_axi_arid),
+				.cmd_len(fub_axi_arlen),
+				.cmd_size(fub_axi_arsize),
+				.cmd_burst(fub_axi_arburst),
 				.cmd_valid(w_mon_cmd_valid),
-				.cmd_ready(m_axi_arready),
-				.data_id(m_axi_rid),
-				.data_last(m_axi_rlast),
-				.data_resp(m_axi_rresp),
+				.cmd_ready(fub_axi_arready),
+				.data_id(fub_axi_rid),
+				.data_last(fub_axi_rlast),
+				.data_resp(fub_axi_rresp),
 				.data_valid(w_mon_data_valid),
-				.data_ready(m_axi_rready),
-				.resp_id(m_axi_rid),
-				.resp_code(m_axi_rresp),
+				.data_ready(fub_axi_rready),
+				.resp_id(fub_axi_rid),
+				.resp_code(fub_axi_rresp),
 				.resp_valid(w_mon_resp_valid),
-				.resp_ready(m_axi_rready),
+				.resp_ready(fub_axi_rready),
 				.cfg_freq_sel(cfg_freq_sel),
 				.cfg_addr_cnt(w_timeout_cnt),
 				.cfg_data_cnt(w_timeout_cnt),

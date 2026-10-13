@@ -186,7 +186,7 @@ There is no `cfg_axi_full_mask` port.
 
 ![axil4_master_rd_mon block diagram](../../assets/rtl-amba/graphviz/axil4_master_rd_mon.png)
 
-The core `axil4_master_rd` is one box; its own diagram shows the skid buffers. An ocelus `axi_monitor_filtered` (present when `USE_MONITOR=1`) taps the handshakes on the `m_axil` side (bottom), tracks up to `MAX_TRANSACTIONS` in flight, and emits monitor-bus packets. When its table is full it drops `block_ready`, and the AR handshake gate masks BOTH the incoming valid and the outgoing ready by it, so a stalled command is held rather than replayed. With `cfg_monitor_enable = 0` the taps are off and the gate never stalls.
+The core `axil4_master_rd` is one box; its own diagram shows the skid buffers. An ocelus `axi_monitor_filtered` (present when `USE_MONITOR=1`) taps the handshakes on the FUB side (`fub_axil_*`, top; monitors always tap the FUB side, for timing), tracks up to `MAX_TRANSACTIONS` in flight, and emits monitor-bus packets. When its table is full it drops `block_ready`, and the AR handshake gate masks BOTH the incoming valid and the outgoing ready by it, so a stalled command is held rather than replayed. With `cfg_monitor_enable = 0` the taps are off and the gate never stalls.
 
 ### Performance Monitoring
 

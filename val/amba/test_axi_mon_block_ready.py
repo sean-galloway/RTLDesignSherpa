@@ -425,21 +425,25 @@ def _cases():
     # write cell saturates only at depth 1. Claiming 8 there would fail layer
     # 1 honestly and prove nothing; the small depths prove the same refuse
     # accounting (admitted == completed + refused + live) the AXI cells do.
-    # axil4_master_wr_monlite cannot be saturated at any depth: its core taps
-    # the DOWNSTREAM (m_axil) side behind the write master's skid buffers, and
-    # the AXI-Lite slave BFM takes the next AW only after the previous B, so the
-    # core never sees two writes outstanding (upstream peak 2, core view 1;
-    # 1024 admitted = 1024 completed + 0 refused at depth 1, 2026-09-28). The
-    # accounting identity holds there but layer 1 cannot, so it is not claimed.
+    # Monitors tap the FUB side (owner rule, 2026-10-13), which moved where each
+    # lite cell measures concurrency:
+    #   axil4_slave_wr_monlite now taps the BACKEND (fub_axil) side behind the
+    #   slave's skid buffers, and the AXI-Lite completer BFM takes the next AW
+    #   only after the previous B, so the core never sees two writes
+    #   outstanding: the table fills (depth 1) but nothing is ever refused. The
+    #   accounting identity holds there but layer 1 cannot, so it is not claimed
+    #   (this is what axil4_master_wr_monlite measured when it tapped m_axil).
+    #   axil4_master_wr_monlite now taps the UPSTREAM (fub_axil) side, where the
+    #   write requester holds up to 2 in flight, so it saturates at depth 1.
     # Depth per lite wrapper follows the bus-measured concurrency of its TB
     # (LiteRefuseCheck.bus_peak_outstanding, 2026-09-28): a cell must be able
     # to put MORE than `depth` in flight or it cannot refuse.
     #     axi4_master_rd 84   axi4_slave_rd 4    axi4_*_wr 46-68
     #     axi5_*_rd      4    axi5_*_wr 50-68    axil4_*_rd 4    axil4_slave_wr 2
     for w in LITE_WRAPPERS:
-        if w == "axil4_master_wr_monlite":
-            continue
         if w == "axil4_slave_wr_monlite":
+            continue
+        if w == "axil4_master_wr_monlite":
             depths = [1]
         elif w == "axi4_master_rd_monlite" or "_wr_" in w:
             depths = [8, 12]

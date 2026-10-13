@@ -46,7 +46,7 @@
 //   per-template last_ts -- each CAM entry stores its own last timestamp
 //                           (low TS_STORE_BITS); delta_ts is measured per
 //                           template, so interleaved sources don't escape
-//   monbus_cam            -- 32-entry LRU CAM (sub-instance)
+//   monbus_cam_pipe       -- 32-entry LRU CAM, compare/commit over two cycles (sub-instance u_cam_pipe)
 //   FSM                   -- 3 states: IDLE / RAW1 / RAW2
 //
 // Pipeline (3 stages)

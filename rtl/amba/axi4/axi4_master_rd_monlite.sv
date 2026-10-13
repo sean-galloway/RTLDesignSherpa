@@ -229,9 +229,11 @@ module axi4_master_rd_monlite
     logic [15:0] w_timeout_cnt;
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
-    assign w_mon_cmd_valid  = m_axi_arvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = m_axi_rvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = (m_axi_rvalid && m_axi_rlast) & cfg_monitor_enable;
+    // Monitor taps the FUB side (owner rule: monitors always tap the FUB side,
+    // for timing).
+    assign w_mon_cmd_valid  = fub_axi_arvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axi_rvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = (fub_axi_rvalid && fub_axi_rlast) & cfg_monitor_enable;
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
 
@@ -254,20 +256,20 @@ module axi4_master_rd_monlite
         .aresetn (aresetn),
         .clear (cam_clear | ~cfg_monitor_enable),
         .i_mon_time (i_mon_time),
-        .cmd_addr (m_axi_araddr),
-        .cmd_id (m_axi_arid),
-        .cmd_len (m_axi_arlen),
+        .cmd_addr (fub_axi_araddr),
+        .cmd_id (fub_axi_arid),
+        .cmd_len (fub_axi_arlen),
         .cmd_valid (w_mon_cmd_valid),
-        .cmd_ready (m_axi_arready),
-        .data_id (m_axi_rid),
-        .data_last (m_axi_rlast),
-        .data_resp (m_axi_rresp),
+        .cmd_ready (fub_axi_arready),
+        .data_id (fub_axi_rid),
+        .data_last (fub_axi_rlast),
+        .data_resp (fub_axi_rresp),
         .data_valid (w_mon_data_valid),
-        .data_ready (m_axi_rready),
-        .resp_id (m_axi_rid),
-        .resp_code (m_axi_rresp),
+        .data_ready (fub_axi_rready),
+        .resp_id (fub_axi_rid),
+        .resp_code (fub_axi_rresp),
         .resp_valid (w_mon_resp_valid),
-        .resp_ready (m_axi_rready),
+        .resp_ready (fub_axi_rready),
         .cfg_freq_sel (cfg_freq_sel),
         .cfg_timeout_cnt (w_timeout_cnt),
         .cfg_error_enable (cfg_error_enable),

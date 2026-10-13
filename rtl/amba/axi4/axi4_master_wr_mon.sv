@@ -399,9 +399,9 @@ module axi4_master_wr_mon
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
 
-    assign w_mon_cmd_valid  = m_axi_awvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = m_axi_wvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = m_axi_bvalid & cfg_monitor_enable;
+    assign w_mon_cmd_valid  = fub_axi_awvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axi_wvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = fub_axi_bvalid & cfg_monitor_enable;
     // cfg_timeout_cycles is a MICROSECOND count (timer_tick = 1 us from
     // counter_freq_invariant), passed through at full width. It used to be
     // squashed into 4 bits here:
@@ -451,26 +451,26 @@ module axi4_master_wr_mon
             .i_mon_time              (i_mon_time),
 
             // Command interface (AW channel)
-            .cmd_addr                (m_axi_awaddr),
-            .cmd_id                  (m_axi_awid),
-            .cmd_len                 (m_axi_awlen),
-            .cmd_size                (m_axi_awsize),
-            .cmd_burst               (m_axi_awburst),
+            .cmd_addr                (fub_axi_awaddr),
+            .cmd_id                  (fub_axi_awid),
+            .cmd_len                 (fub_axi_awlen),
+            .cmd_size                (fub_axi_awsize),
+            .cmd_burst               (fub_axi_awburst),
             .cmd_valid               (w_mon_cmd_valid),
-            .cmd_ready               (m_axi_awready),
+            .cmd_ready               (fub_axi_awready),
 
             // Data interface (W channel)
-            .data_id                 (m_axi_awid),       // Use AW ID for write data
-            .data_last               (m_axi_wlast),
+            .data_id                 (fub_axi_awid),       // Use AW ID for write data
+            .data_last               (fub_axi_wlast),
             .data_resp               (2'b00),            // No response in W channel
             .data_valid              (w_mon_data_valid),
-            .data_ready              (m_axi_wready),
+            .data_ready              (fub_axi_wready),
 
             // Response interface (B channel)
-            .resp_id                 (m_axi_bid),
-            .resp_code               (m_axi_bresp),
+            .resp_id                 (fub_axi_bid),
+            .resp_code               (fub_axi_bresp),
             .resp_valid              (w_mon_resp_valid),
-            .resp_ready              (m_axi_bready),
+            .resp_ready              (fub_axi_bready),
 
             // Configuration
             // cfg_freq_sel selects the counter_freq_invariant LUT entry. With the
@@ -536,6 +536,9 @@ module axi4_master_wr_mon
             // Status outputs
             // block_ready stalls new AWs at fub_axi_awready when the ocelus
             // FIFO is full (wire ANDed into the wrapper output below).
+            // The monitor taps the FUB side (owner rule: monitors always tap the
+            // FUB side, for timing), which is also where this gate sits, so the
+            // watched handshake and the stalled handshake are the same one.
             .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
             .busy                    (),                    // Unused (using master busy)

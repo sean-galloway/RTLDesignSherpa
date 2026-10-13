@@ -301,6 +301,7 @@ module axil5_master_rd
     end
 
     assign busy = (w_ar_count > 0) ||
-                  (w_r_count > 0);
+                  (w_r_count > 0) ||
+                  fub_arvalid || m_axil_rvalid;
 
 endmodule : axil5_master_rd

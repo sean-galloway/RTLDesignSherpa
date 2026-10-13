@@ -1,7 +1,7 @@
 // axi4_master_rd_mon block diagram - house style (vault/handbook/authoring/block-diagrams.md).
 // Monitored wrapper: the base axi4_master_rd is one child box (see its own diagram).
 // AXI traffic runs down the left column through the AR stall gate; the monitor taps the
-// m_axi side and emits monitor-bus packets (the heavy edge). A full transaction table
+// FUB side (owner rule: monitors always tap the FUB side, for timing) and emits monitor-bus packets (the heavy edge). A full transaction table
 // pushes back on the AR gate through block_ready.
 // Source of truth: rtl/amba/axi4/axi4_master_rd_mon.sv.
 digraph axi4_master_rd_mon {
@@ -19,23 +19,25 @@ digraph axi4_master_rd_mon {
 
     gate [label="AR Stall Gate (combinational)\narvalid and arready both ANDed with\nblock_ready (or monitor disabled)"];
     base [label="AXI4 Read Master\naxi4_master_rd - axi4_master_rd_inst\n(see its diagram)"];
-    taps [label="Bus Taps (combinational)\ncmd = m_axi_arvalid, data = rvalid,\nresp = rvalid & rlast; each AND\ncfg_monitor_enable"];
+    taps [label="Bus Taps (combinational)\ncmd = fub_axi_arvalid, data = rvalid,\nresp = rvalid & rlast; each AND\ncfg_monitor_enable"];
     mon  [label="Transaction Monitor (USE_MONITOR=1 only)\naxi_monitor_filtered - axi_monitor_inst\ntransaction table, timeouts, perf window,\npacket filter", style="filled,dashed"];
 
     bar  [label="Module Boundary\lm_axi_ar* out / m_axi_r* in  |  monbus_valid, packet, timestamp (monbus_ready in)\lbusy, active_transactions, perf_* counters, cfg_conflict_error\l",
           fillcolor="white", width=8.0];
 
-    // AXI path: down the left (requests down, responses back up on the same pair)
-    fub  -> gate [dir=both, xlabel="AR / R"];
-    gate -> base [dir=both, xlabel="AR (gated) / R"];
+    // AXI path: down the left (requests down, responses back up on the same pair).
+    // The tap point sits on the FUB side, between the requester port and the gate:
+    // the monitor watches the same (gated) handshake the requester sees.
     p_ax [shape=point, width=0.01];
-    base -> p_ax [dir=back, headclip=false];
-    p_ax -> bar  [dir=forward, tailclip=false, xlabel="AR down / R up"];
+    fub  -> p_ax [dir=back, headclip=false];
+    p_ax -> gate [dir=forward, tailclip=false, xlabel="AR down / R up"];
+    gate -> base [dir=both, xlabel="AR (gated) / R"];
+    base -> bar  [dir=both, minlen=2, xlabel="AR / R"];
     // observation and packets
-    p_ax -> taps [style=dashed, tailclip=false, xlabel="tap: m_axi valids,\nfields"];
-    taps -> mon  [xlabel="cmd / data / resp"];
+    p_ax -> taps [style=dashed, tailclip=false, xlabel="tap: fub_axi valids,\nfields"];
+    taps -> mon  [minlen=2, xlabel="cmd / data / resp"];
     mon  -> bar  [penwidth=1.8, xlabel="monitor-bus packets,\ncounters"];
-    gate -> mon  [style=dashed, dir=back, constraint=false, taillabel="block_ready\n(table not full)", labelangle=0, labeldistance=6];
+    gate -> mon  [style=dashed, dir=back, constraint=false, xlabel="block_ready\n(table not full)"];
     cfg  -> mon  [style=dashed, xlabel="config"];
 
     { rank=same; prm; fub; cfg; }

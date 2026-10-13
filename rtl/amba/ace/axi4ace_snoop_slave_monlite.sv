@@ -160,10 +160,14 @@ module axi4ace_snoop_slave_monlite
     logic        w_mon_cr_valid;
     logic        w_mon_cd_valid;
     logic [15:0] w_timeout_cnt;
+    // Monitor tap: the FUB-side handshake (owner rule: monitors always tap the
+    // FUB side, for timing -- the tap then never sits on the external bus I/O).
+    // monitor-lite has no block_ready: a command that finds no free slot is
+    // counted in refused_count, never stalled.
 
-    assign w_mon_ac_valid = m_axi_acvalid & cfg_monitor_enable;
-    assign w_mon_cr_valid = m_axi_crvalid & cfg_monitor_enable;
-    assign w_mon_cd_valid = m_axi_cdvalid & cfg_monitor_enable;
+    assign w_mon_ac_valid = fub_acvalid & cfg_monitor_enable;
+    assign w_mon_cr_valid = fub_crvalid & cfg_monitor_enable;
+    assign w_mon_cd_valid = fub_cdvalid & cfg_monitor_enable;
     assign w_timeout_cnt  = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                                                         : cfg_timeout_cycles;
 
@@ -197,16 +201,16 @@ module axi4ace_snoop_slave_monlite
             .error_count        (error_count),
             .transaction_count  (transaction_count),
             .dropped_count      (dropped_count),
-            .ac_addr            (m_axi_acaddr),
-            .ac_snoop           (m_axi_acsnoop),
+            .ac_addr            (fub_acaddr),
+            .ac_snoop           (fub_acsnoop),
             .ac_valid           (w_mon_ac_valid),
-            .ac_ready           (m_axi_acready),
-            .cr_resp            (m_axi_crresp),
+            .ac_ready           (fub_acready),
+            .cr_resp            (fub_crresp),
             .cr_valid           (w_mon_cr_valid),
-            .cr_ready           (m_axi_crready),
-            .cd_last            (m_axi_cdlast),
+            .cr_ready           (fub_crready),
+            .cd_last            (fub_cdlast),
             .cd_valid           (w_mon_cd_valid),
-            .cd_ready           (m_axi_cdready)
+            .cd_ready           (fub_cdready)
         );
     end else begin : gen_no_monitor
         assign monbus_valid        = 1'b0;

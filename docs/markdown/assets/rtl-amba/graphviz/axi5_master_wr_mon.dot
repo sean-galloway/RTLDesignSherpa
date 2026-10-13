@@ -1,7 +1,7 @@
 // axi5_master_wr_mon block diagram - house style (vault/handbook/authoring/block-diagrams.md).
 // Monitored wrapper: the base axi5_master_wr is one child box (see its own diagram).
 // AXI traffic runs down the left column through the AW stall gate; the monitor taps the
-// m_axi side and emits monitor-bus packets (the heavy edge). A full transaction table
+// FUB side at the stall gate (owner rule: monitors tap the FUB side, for timing) and emits monitor-bus packets (the heavy edge). A full transaction table
 // pushes back on the AR gate through block_ready.
 // Source of truth: rtl/amba/axi5/axi5_master_wr_mon.sv.
 digraph axi5_master_wr_mon {
@@ -19,7 +19,7 @@ digraph axi5_master_wr_mon {
 
     gate [label="AW Stall Gate (combinational)\nawvalid and awready both ANDed with\nblock_ready (or monitor disabled)"];
     base [label="AXI5 Write Master\naxi5_master_wr - axi5_master_wr_inst\n(see its diagram)"];
-    taps [label="Bus Taps (combinational)\ncmd = m_axi_awvalid, data = wvalid,\nresp = bvalid; each AND\ncfg_monitor_enable"];
+    taps [label="FUB Taps (combinational)\ncmd = fub_axi_awvalid, data = fub_axi_wvalid,\nresp = fub_axi_bvalid; each AND\ncfg_monitor_enable"];
     mon  [label="Transaction Monitor (USE_MONITOR=1 only)\naxi_monitor_filtered - axi_monitor_inst\ntransaction table, timeouts, perf window,\npacket filter", style="filled,dashed"];
 
     bar  [label="Module Boundary\lm_axi_aw* / m_axi_w* out / m_axi_b* in  |  monbus_valid, packet, timestamp (monbus_ready in)\lbusy, active_transactions, perf_* counters, cfg_conflict_error\l",
@@ -28,17 +28,14 @@ digraph axi5_master_wr_mon {
     // AXI path: down the left (requests down, responses back up on the same pair)
     fub  -> gate [dir=both, xlabel="AW / W / B"];
     gate -> base [dir=both, xlabel="AW (gated) / W / B"];
-    p_ax [shape=point, width=0.01];
-    base -> p_ax [dir=back, headclip=false];
-    p_ax -> bar  [dir=forward, tailclip=false, xlabel="AW, W down / B up"];
+    base -> bar  [dir=both, xlabel="AW, W down / B up"];
     // observation and packets
-    p_ax -> taps [style=dashed, tailclip=false, xlabel="tap: m_axi valids,\nfields"];
+    gate -> taps [style=dashed, xlabel="tap: fub_axi handshakes,\nfields (FUB side)"];
     taps -> mon  [xlabel="cmd / data / resp"];
     mon  -> bar  [penwidth=1.8, xlabel="monitor-bus packets,\ncounters"];
-    gate -> mon  [style=dashed, dir=back, constraint=false, taillabel="block_ready\n(table not full)", labelangle=0, labeldistance=6];
+    gate -> mon  [style=dashed, dir=back, constraint=false, xlabel="block_ready\n(table not full)"];
     cfg  -> mon  [style=dashed, xlabel="config"];
 
     { rank=same; prm; fub; cfg; }
-    { rank=same; taps; p_ax; }
     prm -> fub [style=invis]; fub -> cfg [style=invis];
 }

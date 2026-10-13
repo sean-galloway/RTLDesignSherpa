@@ -57,7 +57,7 @@ def test_axis4_master_monlite(request, data_width, id_width, dest_width, test_le
         'TEST_DATA_WIDTH': str(data_width), 'TEST_ID_WIDTH': str(id_width),
         'TEST_DEST_WIDTH': str(dest_width), 'TEST_USER_WIDTH': '1', 'TEST_CLK_PERIOD': '10',
         'MONLITE_MASTER_PREFIX': 'fub_axis_', 'MONLITE_SLAVE_PREFIX': 'm_axis_',
-        'MONLITE_VIA_SKID': '1', 'MONLITE_TAP_SIDE': 'out', 'MONLITE_SKID_DEPTH': '4', 'MONLITE_CG': '0',
+        'MONLITE_VIA_SKID': '1', 'MONLITE_TAP_SIDE': 'in', 'MONLITE_SKID_DEPTH': '4', 'MONLITE_CG': '0',
     }
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
     print(f"\n{'='*80}\naxis4_master_monlite: {test_level.upper()} DW={data_width} IW={id_width} DESTW={dest_width}\n{'='*80}")

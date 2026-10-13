@@ -373,9 +373,9 @@ module axi4_slave_rd_mon
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
 
-    assign w_mon_cmd_valid  = s_axi_arvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = s_axi_rvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = (s_axi_rvalid && s_axi_rlast) & cfg_monitor_enable;
+    assign w_mon_cmd_valid  = fub_axi_arvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axi_rvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = (fub_axi_rvalid && fub_axi_rlast) & cfg_monitor_enable;
     // cfg_timeout_cycles is a MICROSECOND count (timer_tick = 1 us from
     // counter_freq_invariant), passed through at full width. It used to be
     // squashed into 4 bits here:
@@ -425,26 +425,26 @@ module axi4_slave_rd_mon
             .i_mon_time              (i_mon_time),
 
             // Command interface (AR channel - monitoring slave side)
-            .cmd_addr                (s_axi_araddr),
-            .cmd_id                  (s_axi_arid),
-            .cmd_len                 (s_axi_arlen),
-            .cmd_size                (s_axi_arsize),
-            .cmd_burst               (s_axi_arburst),
+            .cmd_addr                (fub_axi_araddr),
+            .cmd_id                  (fub_axi_arid),
+            .cmd_len                 (fub_axi_arlen),
+            .cmd_size                (fub_axi_arsize),
+            .cmd_burst               (fub_axi_arburst),
             .cmd_valid               (w_mon_cmd_valid),
-            .cmd_ready               (s_axi_arready),
+            .cmd_ready               (fub_axi_arready),
 
             // Data interface (R channel - monitoring slave side)
-            .data_id                 (s_axi_rid),
-            .data_last               (s_axi_rlast),
-            .data_resp               (s_axi_rresp),
+            .data_id                 (fub_axi_rid),
+            .data_last               (fub_axi_rlast),
+            .data_resp               (fub_axi_rresp),
             .data_valid              (w_mon_data_valid),
-            .data_ready              (s_axi_rready),
+            .data_ready              (fub_axi_rready),
 
             // Response interface (same as data for reads)
-            .resp_id                 (s_axi_rid),
-            .resp_code               (s_axi_rresp),
+            .resp_id                 (fub_axi_rid),
+            .resp_code               (fub_axi_rresp),
             .resp_valid              (w_mon_resp_valid),
-            .resp_ready              (s_axi_rready),
+            .resp_ready              (fub_axi_rready),
 
             // Configuration
             // cfg_freq_sel selects the counter_freq_invariant LUT entry. With the
@@ -510,6 +510,10 @@ module axi4_slave_rd_mon
             // Status outputs
             // block_ready stalls new ARs at s_axi_arready when the ocelus
             // FIFO is full (wire ANDed into the wrapper output below).
+            // The monitor taps the FUB (backend) side (owner rule: monitors always
+            // tap the FUB side, for timing), while this gate stalls the upstream
+            // request; the two points are separated by the slave core's skid
+            // buffer (SKID_DEPTH beats of lag), as in axi5_slave_*_mon.
             .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
             .busy                    (),                    // Unused (using slave busy)

@@ -363,6 +363,7 @@ module axil5_master_wr
 
     assign busy = (w_aw_count > 0) ||
                   (w_w_count > 0) ||
-                  (w_b_count > 0);
+                  (w_b_count > 0) ||
+                  fub_awvalid || fub_wvalid || m_axil_bvalid;
 
 endmodule : axil5_master_wr

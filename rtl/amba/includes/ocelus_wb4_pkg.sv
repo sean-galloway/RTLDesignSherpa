@@ -18,7 +18,12 @@
 
 `timescale 1ns / 1ps
 
+// The file carries the Ocelus brand name; the package keeps its original
+// name (monitor_wb4_pkg) so the ~600 import sites stay valid. The mismatch
+// is intentional -- tell Verilator's -Wall so (DECLFILENAME).
+/* verilator lint_off DECLFILENAME */
 package monitor_wb4_pkg;
+/* verilator lint_on DECLFILENAME */
 
     // Error events (packet_type = PktTypeError, protocol = PROTOCOL_WB)
     typedef enum logic [7:0] {

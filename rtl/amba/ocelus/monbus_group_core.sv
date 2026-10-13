@@ -857,9 +857,9 @@ module monbus_group_core
     logic                        w_epoch_roll;       // epoch complete: restart at the boundary
     logic                        w_geo_blocked;      // no whole record fits from r_wr_addr
     logic                        w_stub_at_base;     // ...but base sits in a too-short stub
-    logic [3:0]                  w_win_rem3;
-    logic [3:0]                  w_4kb_rem3;
-    logic [3:0]                  w_epoch_rem3;
+    logic [1:0]                  w_win_rem3;   // math_mod_3_compress rem_out is 2 bits (0..2)
+    logic [1:0]                  w_4kb_rem3;   // math_mod_3_compress rem_out is 2 bits (0..2)
+    logic [1:0]                  w_epoch_rem3;   // math_mod_3_compress rem_out is 2 bits (0..2)
     // flush triggers
     logic                        flush_trigger_watermark;
     logic                        flush_trigger_timeout;
@@ -898,7 +898,7 @@ module monbus_group_core
 
     // Beats to the next 4KB boundary from the running pointer.  13-bit off
     // the registered r_wr_addr[11:0] -- the only per-AW geometry left.
-    assign w_4kb_beats = 16'((13'h1000 - {1'b0, r_wr_addr[11:0]}) >> 3);
+    assign w_4kb_beats = (16'h1000 - {4'b0, r_wr_addr[11:0]}) >> 3;  // 16-bit throughout: 1 .. 0x1000 bytes
 
     // Strobes of the continuous writer (declared before the epoch logic
     // that references them).

@@ -359,6 +359,7 @@ module axil5_slave_wr
 
     assign busy = (w_aw_count > 0) ||
                   (w_w_count > 0) ||
-                  (w_b_count > 0);
+                  (w_b_count > 0) ||
+                  s_axil_awvalid || s_axil_wvalid || fub_bvalid;
 
 endmodule : axil5_slave_wr

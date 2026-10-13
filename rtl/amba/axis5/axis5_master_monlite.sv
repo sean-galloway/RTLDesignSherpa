@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axis5_master_monlite
-// Purpose: AXI5-Stream Master with the lite stream ocelus (axis_monitor_lite) -- axis5_master plus a tap on its m_axis_* port
+// Purpose: AXI5-Stream Master with the lite stream ocelus (axis_monitor_lite) -- axis5_master plus a tap on its fub_axis_* (FUB-side) port
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
@@ -195,7 +195,11 @@ module axis5_master_monlite
     logic        w_mon_tvalid;
     logic [15:0] w_timeout_cnt;
     logic        w_mon_busy;
-    assign w_mon_tvalid  = m_axis_tvalid & cfg_monitor_enable;
+    // Monitor tap: the FUB-side handshake (owner rule: monitors always tap the
+    // FUB side, for timing -- the tap then never sits on the external bus I/O).
+    // monitor-lite has no block_ready: a command that finds no free slot is
+    // counted in refused_count, never stalled.
+    assign w_mon_tvalid  = fub_axis_tvalid & cfg_monitor_enable;
     assign w_timeout_cnt = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF : cfg_timeout_cycles;
 
     if (USE_MONITOR) begin : gen_monitor_lite
@@ -214,11 +218,11 @@ module axis5_master_monlite
             .clear                 (cam_clear | ~cfg_monitor_enable),
             .i_mon_time            (i_mon_time),
             .axis_tvalid           (w_mon_tvalid),
-            .axis_tready           (m_axis_tready),
-            .axis_tlast            (m_axis_tlast),
-            .axis_tid              (m_axis_tid),
-            .axis_tdest            (m_axis_tdest),
-            .axis_tstrb            (m_axis_tstrb),
+            .axis_tready           (fub_axis_tready),
+            .axis_tlast            (fub_axis_tlast),
+            .axis_tid              (fub_axis_tid),
+            .axis_tdest            (fub_axis_tdest),
+            .axis_tstrb            (fub_axis_tstrb),
             .cfg_freq_sel          (cfg_freq_sel),
             .cfg_timeout_cnt       (w_timeout_cnt),
             .cfg_error_enable      (cfg_error_enable),

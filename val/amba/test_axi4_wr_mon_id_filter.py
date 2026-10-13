@@ -12,7 +12,8 @@
 """TASK-073 regression: write monitors ID-filter W beats against the live AWID.
 
 AXI4 dropped WID, so a W beat carries no ID and the four write monitors hand
-`axi_monitor_base` the LIVE `m_axi_awid` as `data_id`. With more than one write
+`axi_monitor_base` the LIVE AWID on the tapped side as `data_id`. Monitors tap
+the FUB side (owner rule, for timing), so on this master that is `fub_axi_awid`. With more than one write
 outstanding the AW on the bus belongs to a LATER transaction than the W beats in
 flight, so `id_owned(data_id)` is evaluated against the wrong ID: an OWNED
 transaction's W beats are refused, its data phase never closes, and it never
@@ -123,9 +124,11 @@ async def axi4_wr_mon_id_filter_test(dut):
         while True:
             await RisingEdge(dut.aclk)
             try:
-                wv = int(dut.m_axi_wvalid.value)
-                wr = int(dut.m_axi_wready.value)
-                awid = int(dut.m_axi_awid.value)
+                # Sample the side the monitor taps (FUB side): the TASK-073
+                # condition only matters where the monitor reads data_id.
+                wv = int(dut.fub_axi_wvalid.value)
+                wr = int(dut.fub_axi_wready.value)
+                awid = int(dut.fub_axi_awid.value)
             except ValueError:
                 continue                    # X/Z during reset
             if wv and wr:
@@ -154,7 +157,7 @@ async def axi4_wr_mon_id_filter_test(dut):
         f"enabling the ID filter cost owned-ID write(s) {lost} their "
         f"completion: completed with the filter off {sorted(owned_off)}, with "
         f"it on {sorted(owned_on)}. The monitor filters W beats against the "
-        f"LIVE m_axi_awid, so while an owned transaction's W beats stream a "
+        f"LIVE tapped AWID (fub_axi_awid), so while an owned transaction's W beats stream a "
         f"later AW (id={FOREIGN_ID}) is on the bus and id_owned() refuses "
         f"them; the data phase never closes. "
         f"{overlap['w_xfers_foreign_awid']} of {overlap['w_xfers']} W "

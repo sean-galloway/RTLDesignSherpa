@@ -21,7 +21,12 @@
  * - ARB (Arbiter) event codes for arbitration monitoring
  * - CORE event codes for internal accelerator/DMA engine monitoring
  */
+// The file carries the Ocelus brand name; the package keeps its original
+// name (monitor_arbiter_pkg) so the ~600 import sites stay valid. The mismatch
+// is intentional -- tell Verilator's -Wall so (DECLFILENAME).
+/* verilator lint_off DECLFILENAME */
 package monitor_arbiter_pkg;
+/* verilator lint_on DECLFILENAME */
 
     import monitor_common_pkg::*;
 

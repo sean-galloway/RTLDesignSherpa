@@ -201,7 +201,7 @@ The window is half-open: `[base, base + count)`.
 
 ![axi4_master_wr_mon block diagram](../../assets/rtl-amba/graphviz/axi4_master_wr_mon.png)
 
-AXI traffic runs down the left column: through the AW stall gate, into the base `axi4_master_wr` (one child box, see its own diagram), and out through the bar. The monitor taps the m_axi side, below the base, gates each valid with `cfg_monitor_enable`, and `axi_monitor_filtered` turns the transactions into monitor-bus packets (the heavy edge). When its transaction table is full, `block_ready` drops and the stall gate holds both awvalid and awready low, so a full table stalls the bus instead of losing events. With `USE_MONITOR=0` the monitor is omitted, its outputs are tied off, and the gate never stalls.
+AXI traffic runs down the left column: through the AW stall gate, into the base `axi4_master_wr` (one child box, see its own diagram), and out through the bar. The monitor taps the FUB side (the requester handshake, between the port and the stall gate; monitors always tap the FUB side, for timing), gates each valid with `cfg_monitor_enable`, and `axi_monitor_filtered` turns the transactions into monitor-bus packets (the heavy edge). When its transaction table is full, `block_ready` drops and the stall gate holds both awvalid and awready low, so a full table stalls the bus instead of losing events. With `USE_MONITOR=0` the monitor is omitted, its outputs are tied off, and the gate never stalls.
 
 The module instantiates two sub-modules:
 1. **axi4_master_wr** - Core AXI4 write functionality with buffering

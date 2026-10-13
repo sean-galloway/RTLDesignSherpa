@@ -339,9 +339,9 @@ module axil4_master_wr_mon
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
 
-    assign w_mon_cmd_valid  = m_axil_awvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = m_axil_wvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = m_axil_bvalid & cfg_monitor_enable;
+    assign w_mon_cmd_valid  = fub_axil_awvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axil_wvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = fub_axil_bvalid & cfg_monitor_enable;
     // cfg_timeout_cycles is a MICROSECOND count (timer_tick = 1 us from
     // counter_freq_invariant), passed through at full width. It used to be
     // squashed into 4 bits here:
@@ -389,7 +389,7 @@ module axil4_master_wr_mon
             .i_mon_time              (i_mon_time),
 
             // Command interface (AW channel) - AXIL simplified
-            .cmd_addr                (m_axil_awaddr),
+            .cmd_addr                (fub_axil_awaddr),
             .cmd_id                  (1'b0),             // Fixed ID=0 for AXIL
             .cmd_len                 (8'h00),            // Single-beat: len=0
             // AxSIZE for the single Lite beat, DERIVED from the bus width.
@@ -401,20 +401,20 @@ module axil4_master_wr_mon
             .cmd_size                (3'($clog2(AXIL_DATA_WIDTH/8))),
             .cmd_burst               (2'b01),            // INCR burst type
             .cmd_valid               (w_mon_cmd_valid),
-            .cmd_ready               (m_axil_awready),
+            .cmd_ready               (fub_axil_awready),
 
             // Data interface (W channel) - AXIL simplified
             .data_id                 (1'b0),             // Fixed ID=0 for AXIL
             .data_last               (1'b1),             // Always last for AXIL
             .data_resp               (2'b00),            // No response in W channel
             .data_valid              (w_mon_data_valid),
-            .data_ready              (m_axil_wready),
+            .data_ready              (fub_axil_wready),
 
             // Response interface (B channel)
             .resp_id                 (1'b0),             // Fixed ID=0 for AXIL
-            .resp_code               (m_axil_bresp),
+            .resp_code               (fub_axil_bresp),
             .resp_valid              (w_mon_resp_valid),
-            .resp_ready              (m_axil_bready),
+            .resp_ready              (fub_axil_bready),
 
             // Configuration
             // cfg_freq_sel selects the counter_freq_invariant LUT entry. With the
@@ -475,6 +475,9 @@ module axil4_master_wr_mon
             // Status outputs
             // block_ready stalls new AWs at fub_axil_awready when the ocelus
             // FIFO is full (wire ANDed into the wrapper output below).
+            // The monitor taps the FUB side (owner rule: monitors always tap the
+            // FUB side, for timing), which is also where this gate sits, so the
+            // watched handshake and the stalled handshake are the same one.
             .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
             .busy                    (),                 // Unused (using master busy)

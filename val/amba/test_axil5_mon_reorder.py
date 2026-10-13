@@ -27,9 +27,12 @@
 # data follows AW order (A5.5) and may arrive BEFORE its AW (A2.6). The
 # Subordinate's AWREADY is held so each W crosses the monitor's tap first;
 # every completion must still name its own (address, ID), with no error and
-# an empty table after. On a slave wrapper the tap is the Manager-facing port,
-# where the Manager BFM always sends AW first, so the lead cannot be produced
-# there; the phase logs that and checks only the attribution.
+# an empty table after. Every monitor taps the FUB side (owner rule, for
+# timing), so the log below watches fub_axil_* on every wrapper. On a slave
+# that is the backend port, where the Subordinate BFM's held AWREADY makes W
+# lead AW at the tap. On a master it is the requester port, where the Manager
+# BFM always sends AW first, so the lead cannot be produced there; the phase
+# logs that and checks only the attribution.
 
 import os
 import random
@@ -180,14 +183,14 @@ async def cocotb_test_reorder(dut):
     level = os.environ.get("TEST_LEVEL", "func").lower()
     n, rounds = DEPTH.get(level, DEPTH['func'])
     is_write = "_wr_" in dut_name
-    is_slave = "_slave_" in dut_name
     rng = random.Random(int(os.environ.get("SEED", "1")))
 
     tb = _monitor_tb(dut_name)(dut, is_write=is_write, aclk=dut.aclk, aresetn=dut.aresetn)
     await tb.initialize()
     tb.mon_slave.set_ready_randomizer(FlexRandomizer({'ready_delay': ([(0, 0)], [1])}))
     sub = install_reorder(tb.slave_components['interface'], dut.aclk, tb.log)
-    bus = _BusLog(dut, 's_axil_' if is_slave else 'm_axil_', is_write)
+    # The port the monitor taps: the FUB side on every wrapper (masters and slaves).
+    bus = _BusLog(dut, 'fub_axil_', is_write)
     cocotb.start_soon(bus.run())
 
     fails = []
@@ -206,9 +209,10 @@ async def cocotb_test_reorder(dut):
         fails += await _round(tb, bus, sub, is_write, ids, 0x3000,
                               hold=False, sequential=True, where="w_leads")
         if bus.w_leads == 0:
-            if is_slave:
-                tb.log.info("w_leads: no W crossed the s_axil tap before its AW (the "
-                            "Manager BFM sends AW first); attribution checked only")
+            if "_master_" in dut_name:
+                tb.log.info("w_leads: no W crossed the fub_axil tap before its AW (on a "
+                            "master that is the requester port, where the Manager BFM "
+                            "sends AW first); attribution checked only")
             else:
                 fails.append("w_leads: no W crossed the tap before its AW -- the phase "
                              "proves nothing")

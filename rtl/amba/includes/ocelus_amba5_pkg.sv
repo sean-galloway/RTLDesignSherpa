@@ -25,7 +25,12 @@
  * These event codes use the reserved slots in AMBA4 enums where possible,
  * or define new protocol-specific event types.
  */
+// The file carries the Ocelus brand name; the package keeps its original
+// name (monitor_amba5_pkg) so the ~600 import sites stay valid. The mismatch
+// is intentional -- tell Verilator's -Wall so (DECLFILENAME).
+/* verilator lint_off DECLFILENAME */
 package monitor_amba5_pkg;
+/* verilator lint_on DECLFILENAME */
 
     import monitor_common_pkg::*;
     import monitor_amba4_pkg::*;

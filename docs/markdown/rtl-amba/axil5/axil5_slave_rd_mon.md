@@ -192,7 +192,7 @@ The `s_axil_*` side faces the bus; your backend drives the `fub_axil_*` side. Th
 
 ![axil5_slave_rd_mon block diagram](../../assets/rtl-amba/graphviz/axil5_slave_rd_mon.png)
 
-`axil5_slave_rd` is one child box (see its own diagram). The AR request first passes a handshake gate that masks valid and ready with `block_ready`, so a full monitor table stalls new requests instead of losing them. The optional ocelus monitor (`axi_monitor_filtered`, dashed because `USE_MONITOR=0` removes it) taps the bus on the `s_axil` side, above the handshake gate, including the transaction IDs, and emits monitor-bus packets as the heavy edge. With `USE_MONITOR=1` the build requires `ID_WIDTH <= 8`; the `_monlite` wrapper takes wider IDs.
+`axil5_slave_rd` is one child box (see its own diagram). The AR request first passes a handshake gate that masks valid and ready with `block_ready`, so a full monitor table stalls new requests instead of losing them. The optional ocelus monitor (`axi_monitor_filtered`, dashed because `USE_MONITOR=0` removes it) taps the FUB-side (`fub_axil`) backend handshake below the core (every monitor taps the FUB side, for timing) while `block_ready` still gates the `s_axil` handshake, so the watchpoint trails the gate by the skid depth that the reserve margin covers; it carries the transaction IDs and emits monitor-bus packets as the heavy edge. With `USE_MONITOR=1` the build requires `ID_WIDTH <= 8`; the `_monlite` wrapper takes wider IDs.
 
 ### Optional signal groups
 

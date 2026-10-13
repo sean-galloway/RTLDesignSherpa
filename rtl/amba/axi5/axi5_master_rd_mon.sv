@@ -448,10 +448,14 @@ module axi5_master_rd_mon
     logic [15:0] w_timeout_cnt;
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
+    // Monitor tap: the FUB-side handshake (owner rule: monitors always tap the
+    // FUB side, for timing -- the tap then never sits on the external bus I/O).
+    // On a master the FUB side is also where block_ready gates, so the
+    // watchpoint and the gating point coincide (no skid-buffer lag).
 
-    assign w_mon_cmd_valid  = m_axi_arvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = m_axi_rvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = (m_axi_rvalid && m_axi_rlast) & cfg_monitor_enable;
+    assign w_mon_cmd_valid  = fub_axi_arvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axi_rvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = (fub_axi_rvalid && fub_axi_rlast) & cfg_monitor_enable;
     // cfg_timeout_cycles is a MICROSECOND count (timer_tick = 1 us from
     // counter_freq_invariant), passed through at full width. It used to be
     // squashed into 4 bits here:
@@ -499,24 +503,24 @@ module axi5_master_rd_mon
             .clear                   (cam_clear | ~cfg_monitor_enable),
             .i_mon_time              (i_mon_time),
 
-            .cmd_addr            (m_axi_araddr),
-            .cmd_id              (m_axi_arid),
-            .cmd_len             (m_axi_arlen),
-            .cmd_size            (m_axi_arsize),
-            .cmd_burst           (m_axi_arburst),
+            .cmd_addr            (fub_axi_araddr),
+            .cmd_id              (fub_axi_arid),
+            .cmd_len             (fub_axi_arlen),
+            .cmd_size            (fub_axi_arsize),
+            .cmd_burst           (fub_axi_arburst),
             .cmd_valid           (w_mon_cmd_valid),
-            .cmd_ready           (m_axi_arready),
+            .cmd_ready           (fub_axi_arready),
 
-            .data_id             (m_axi_rid),
-            .data_last           (m_axi_rlast),
-            .data_resp           (m_axi_rresp),
+            .data_id             (fub_axi_rid),
+            .data_last           (fub_axi_rlast),
+            .data_resp           (fub_axi_rresp),
             .data_valid          (w_mon_data_valid),
-            .data_ready          (m_axi_rready),
+            .data_ready          (fub_axi_rready),
 
-            .resp_id             (m_axi_rid),
-            .resp_code           (m_axi_rresp),
+            .resp_id             (fub_axi_rid),
+            .resp_code           (fub_axi_rresp),
             .resp_valid          (w_mon_resp_valid),
-            .resp_ready          (m_axi_rready),
+            .resp_ready          (fub_axi_rready),
 
             // cfg_freq_sel selects the counter_freq_invariant LUT entry. With the
             // default CFI_MIN==CFI_MAX==ACLK_MHZ every entry equals ACLK_MHZ, so any

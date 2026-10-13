@@ -185,9 +185,11 @@ module axil4_master_rd_monlite
     logic [15:0] w_timeout_cnt;
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
-    assign w_mon_cmd_valid  = m_axil_arvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = m_axil_rvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = m_axil_rvalid & cfg_monitor_enable;
+    // Monitor taps the FUB side (owner rule: monitors always tap the FUB side,
+    // for timing).
+    assign w_mon_cmd_valid  = fub_axil_arvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axil_rvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = fub_axil_rvalid & cfg_monitor_enable;
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
 
@@ -210,20 +212,20 @@ module axil4_master_rd_monlite
         .aresetn                    (aresetn),
         .clear                      (cam_clear | ~cfg_monitor_enable),
         .i_mon_time                 (i_mon_time),
-        .cmd_addr                   (m_axil_araddr),
+        .cmd_addr                   (fub_axil_araddr),
         .cmd_id                     (1'b0),
         .cmd_len                    (8'h00),
         .cmd_valid                  (w_mon_cmd_valid),
-        .cmd_ready                  (m_axil_arready),
+        .cmd_ready                  (fub_axil_arready),
         .data_id                    (1'b0),
         .data_last                  (1'b1),
-        .data_resp                  (m_axil_rresp),
+        .data_resp                  (fub_axil_rresp),
         .data_valid                 (w_mon_data_valid),
-        .data_ready                 (m_axil_rready),
+        .data_ready                 (fub_axil_rready),
         .resp_id                    (1'b0),
-        .resp_code                  (m_axil_rresp),
+        .resp_code                  (fub_axil_rresp),
         .resp_valid                 (w_mon_resp_valid),
-        .resp_ready                 (m_axil_rready),
+        .resp_ready                 (fub_axil_rready),
         .cfg_freq_sel               (cfg_freq_sel),
         .cfg_timeout_cnt            (w_timeout_cnt),
         .cfg_error_enable           (cfg_error_enable),

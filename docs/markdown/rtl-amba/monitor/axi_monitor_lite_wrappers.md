@@ -77,15 +77,15 @@ and the per-wrapper facts fit in three tables.
 The stream families never had a `_mon` sibling to twin: the AXI monitor cores
 are transaction trackers and a stream has no transaction. These wrap
 [`axis_monitor_lite`](axis_monitor_lite.md), the stream monitor built for
-them (amba/monitor-lite TASK-003). The monitor TAPS the endpoint's external
-port and drives nothing.
+them (amba/monitor-lite TASK-003). The monitor TAPS the endpoint's FUB-side
+port (every monitor taps the FUB side, for timing) and drives nothing.
 
 | Family | Role | Lite wrapper | Clock-gated lite wrapper | Wraps | Tapped port |
 |---|---|---|---|---|---|
-| AXI4-Stream | master | `axis4_master_monlite` | `axis4_master_monlite_cg` | `axis4_master` | `m_axis_*` (downstream of the skid) |
-| AXI4-Stream | slave | `axis4_slave_monlite` | `axis4_slave_monlite_cg` | `axis4_slave` | `s_axis_*` (upstream of the skid) |
-| AXI5-Stream | master | `axis5_master_monlite` | `axis5_master_monlite_cg` | `axis5_master` | `m_axis_*` |
-| AXI5-Stream | slave | `axis5_slave_monlite` | `axis5_slave_monlite_cg` | `axis5_slave` | `s_axis_*` |
+| AXI4-Stream | master | `axis4_master_monlite` | `axis4_master_monlite_cg` | `axis4_master` | `fub_axis_*` (upstream of the skid) |
+| AXI4-Stream | slave | `axis4_slave_monlite` | `axis4_slave_monlite_cg` | `axis4_slave` | `fub_axis_*` (downstream of the skid) |
+| AXI5-Stream | master | `axis5_master_monlite` | `axis5_master_monlite_cg` | `axis5_master` | `fub_axis_*` (upstream of the skid) |
+| AXI5-Stream | slave | `axis5_slave_monlite` | `axis5_slave_monlite_cg` | `axis5_slave` | `fub_axis_*` (downstream of the skid) |
 
 : Table 2: The eight AXIS wrappers
 
@@ -95,12 +95,12 @@ The ACE family adds AXI Coherency Extensions to the AXI4 movers (`AxSNOOP`, `AxD
 
 | Family | Role | Channel | Lite wrapper | Wraps | Monitor core | Tapped port |
 |---|---|---|---|---|---|---|
-| ACE | master | read | `axi4ace_master_rd_monlite` | `axi4ace_master_rd` | `axi_monitor_lite` | `m_axi_*` read channels |
-| ACE | master | write | `axi4ace_master_wr_monlite` | `axi4ace_master_wr` | `axi_monitor_lite` | `m_axi_*` write channels |
-| ACE | slave | read | `axi4ace_slave_rd_monlite` | `axi4ace_slave_rd` | `axi_monitor_lite` | `s_axi_*` read channels |
-| ACE | slave | write | `axi4ace_slave_wr_monlite` | `axi4ace_slave_wr` | `axi_monitor_lite` | `s_axi_*` write channels |
-| ACE | snoop | slave (cache side) | `axi4ace_snoop_slave_monlite` | `axi4ace_snoop_slave` | `axi4ace_snoop_monitor_lite` | `m_axi_ac*` / `m_axi_cr*` / `m_axi_cd*` |
-| ACE | snoop | master (CCU side) | `axi4ace_snoop_master_monlite` | `axi4ace_snoop_master` | `axi4ace_snoop_monitor_lite` | `m_axi_ac*` / `m_axi_cr*` / `m_axi_cd*` |
+| ACE | master | read | `axi4ace_master_rd_monlite` | `axi4ace_master_rd` | `axi_monitor_lite` | `fub_axi_*` read channels |
+| ACE | master | write | `axi4ace_master_wr_monlite` | `axi4ace_master_wr` | `axi_monitor_lite` | `fub_axi_*` write channels |
+| ACE | slave | read | `axi4ace_slave_rd_monlite` | `axi4ace_slave_rd` | `axi_monitor_lite` | `fub_axi_*` read channels |
+| ACE | slave | write | `axi4ace_slave_wr_monlite` | `axi4ace_slave_wr` | `axi_monitor_lite` | `fub_axi_*` write channels |
+| ACE | snoop | slave (cache side) | `axi4ace_snoop_slave_monlite` | `axi4ace_snoop_slave` | `axi4ace_snoop_monitor_lite` | `fub_ac*` / `fub_cr*` / `fub_cd*` |
+| ACE | snoop | master (CCU side) | `axi4ace_snoop_master_monlite` | `axi4ace_snoop_master` | `axi4ace_snoop_monitor_lite` | `fub_ac*` / `fub_cr*` / `fub_cd*` |
 
 : Table 3: The eight ACE wrappers
 
@@ -123,11 +123,12 @@ AXIS5 `_cg` wrappers keep the `fub_axis_` / `m_axis_` / `s_axis_` names of
 their `_monlite`, not `axis5_master_cg`'s `axis5_` spelling, so each pair is
 pin-compatible with itself.
 
-Which port is tapped matters for what a stall looks like. A master wrapper
-taps downstream of the skid, so a slow consumer stalls the tap directly. A
-slave wrapper taps upstream, so a slow consumer is invisible there until the
-skid (default depth 4) is full; a single beat never stalls an upstream tap.
-The wrapper tests fill the skid before expecting a stall on a slave wrapper.
+Which port is tapped matters for what a stall looks like. Every wrapper taps
+its FUB side. On a master that is upstream of the skid, so a slow consumer is
+invisible at the tap until the skid (default depth 4) is full; a single beat
+never stalls it. On a slave the FUB side is downstream of the skid, so a slow
+backend stalls the tap directly. The wrapper tests fill the skid before
+expecting a stall on a master wrapper.
 
 ### What is not here
 

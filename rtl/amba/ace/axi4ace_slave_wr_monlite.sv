@@ -270,14 +270,25 @@ module axi4ace_slave_wr_monlite
     logic [15:0] w_timeout_cnt;
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
-    assign w_mon_cmd_valid  = s_axi_awvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = s_axi_wvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = s_axi_bvalid & cfg_monitor_enable;
+    // Monitor tap: the FUB-side handshake (owner rule: monitors always tap the
+    // FUB side, for timing -- the tap then never sits on the external bus I/O).
+    // monitor-lite has no block_ready: a command that finds no free slot is
+    // counted in refused_count, never stalled.
+    assign w_mon_cmd_valid  = fub_axi_awvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axi_wvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = fub_axi_bvalid & cfg_monitor_enable;
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
 
+    // W can lead AW at the FUB-side tap by up to SKID_DEPTH_AW bursts (the AW
+    // skid holds an address while W passes its own): keep that many early bursts,
+    // rounded up to a power of two, so legal backend ordering is tracked rather
+    // than reported.
+    localparam int MON_EARLY_BURSTS = (SKID_DEPTH_AW + 1 <= 1) ? 1 : (1 << $clog2(SKID_DEPTH_AW + 1));
+
     if (USE_MONITOR) begin : gen_monitor_lite
         axi_monitor_lite #(
+            .EARLY_BURSTS (MON_EARLY_BURSTS),
         .UNIT_ID (UNIT_ID),
         .AGENT_ID (AGENT_ID),
         .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
@@ -295,20 +306,20 @@ module axi4ace_slave_wr_monlite
         .aresetn (aresetn),
         .clear (cam_clear | ~cfg_monitor_enable),
         .i_mon_time (i_mon_time),
-        .cmd_addr (s_axi_awaddr),
-        .cmd_id (s_axi_awid),
-        .cmd_len (s_axi_awlen),
+        .cmd_addr (fub_axi_awaddr),
+        .cmd_id (fub_axi_awid),
+        .cmd_len (fub_axi_awlen),
         .cmd_valid (w_mon_cmd_valid),
-        .cmd_ready (s_axi_awready),
-        .data_id (s_axi_awid),
-        .data_last (s_axi_wlast),
+        .cmd_ready (fub_axi_awready),
+        .data_id (fub_axi_awid),
+        .data_last (fub_axi_wlast),
         .data_resp (2'b00),
         .data_valid (w_mon_data_valid),
-        .data_ready (s_axi_wready),
-        .resp_id (s_axi_bid),
-        .resp_code (s_axi_bresp),
+        .data_ready (fub_axi_wready),
+        .resp_id (fub_axi_bid),
+        .resp_code (fub_axi_bresp),
         .resp_valid (w_mon_resp_valid),
-        .resp_ready (s_axi_bready),
+        .resp_ready (fub_axi_bready),
         .cfg_freq_sel (cfg_freq_sel),
         .cfg_timeout_cnt (w_timeout_cnt),
         .cfg_error_enable (cfg_error_enable),

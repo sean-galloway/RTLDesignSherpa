@@ -297,6 +297,7 @@ module axil5_slave_rd
     end
 
     assign busy = (w_ar_count > 0) ||
-                  (w_r_count > 0);
+                  (w_r_count > 0) ||
+                  s_axil_arvalid || fub_rvalid;
 
 endmodule : axil5_slave_rd

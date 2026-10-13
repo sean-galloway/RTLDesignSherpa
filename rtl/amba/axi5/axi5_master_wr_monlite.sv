@@ -383,9 +383,13 @@ module axi5_master_wr_monlite
     logic [15:0] w_timeout_cnt;
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
-    assign w_mon_cmd_valid  = m_axi_awvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = m_axi_wvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = m_axi_bvalid & cfg_monitor_enable;
+    // Monitor tap: the FUB-side handshake (owner rule: monitors always tap the
+    // FUB side, for timing -- the tap then never sits on the external bus I/O).
+    // monitor-lite has no block_ready: a command that finds no free slot is
+    // counted in refused_count, never stalled.
+    assign w_mon_cmd_valid  = fub_axi_awvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axi_wvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = fub_axi_bvalid & cfg_monitor_enable;
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
 
@@ -408,20 +412,20 @@ module axi5_master_wr_monlite
         .aresetn                    (aresetn),
         .clear                      (cam_clear | ~cfg_monitor_enable),
         .i_mon_time                 (i_mon_time),
-        .cmd_addr                   (m_axi_awaddr),
-        .cmd_id                     (m_axi_awid),
-        .cmd_len                    (m_axi_awlen),
+        .cmd_addr                   (fub_axi_awaddr),
+        .cmd_id                     (fub_axi_awid),
+        .cmd_len                    (fub_axi_awlen),
         .cmd_valid                  (w_mon_cmd_valid),
-        .cmd_ready                  (m_axi_awready),
-        .data_id                    (m_axi_awid),
-        .data_last                  (m_axi_wlast),
+        .cmd_ready                  (fub_axi_awready),
+        .data_id                    (fub_axi_awid),
+        .data_last                  (fub_axi_wlast),
         .data_resp                  (2'b00),
         .data_valid                 (w_mon_data_valid),
-        .data_ready                 (m_axi_wready),
-        .resp_id                    (m_axi_bid),
-        .resp_code                  (m_axi_bresp),
+        .data_ready                 (fub_axi_wready),
+        .resp_id                    (fub_axi_bid),
+        .resp_code                  (fub_axi_bresp),
         .resp_valid                 (w_mon_resp_valid),
-        .resp_ready                 (m_axi_bready),
+        .resp_ready                 (fub_axi_bready),
         .cfg_freq_sel               (cfg_freq_sel),
         .cfg_timeout_cnt            (w_timeout_cnt),
         .cfg_error_enable           (cfg_error_enable),

@@ -6,7 +6,7 @@
 digraph axil5_master_wr_mon {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.45", ranksep="0.80", splines=ortho, newrank=true,
-           label="axil5_master_wr_mon - axil5_master_wr with an ocelus transaction monitor on the m_axil side\n(aclk, aresetn)",
+           label="axil5_master_wr_mon - axil5_master_wr with an ocelus transaction monitor on the fub_axil (FUB) side\n(aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
@@ -17,11 +17,11 @@ digraph axil5_master_wr_mon {
     bot   [label="AXI5-Lite Bus, master side (m_axil_*)", fillcolor="white", width=4.4];
 
     mcfg  [label="Monitor Config (runtime input ports)\lcfg_monitor_enable: 0 = taps off, never stalls\lcfg_*_enable: error / timeout / compl /\l    threshold / perf / debug packet classes\lcfg_axi_*_mask: per-event drop masks\lcfg_timeout_cycles (us), cfg_freq_sel,\l    cfg_latency_threshold, address ranges\li_mon_time (timestamp in), cam_clear\l", fillcolor="white"];
-    mon   [label="Ocelus Monitor (USE_MONITOR=1 only)\naxi_monitor_filtered - axi_monitor_inst\ntaps AW (cmd, ID), W (data), B (resp, ID) on the m_axil side\ntracks up to MAX_TRANSACTIONS (default 8)\nraises block_ready low when its table is full\nUSE_MONITOR=1 requires ID_WIDTH <= 8 (keys 8 ID bits;\nelaboration check -- use _monlite for wider IDs)", style="filled,dashed"];
+    mon   [label="Ocelus Monitor (USE_MONITOR=1 only)\naxi_monitor_filtered - axi_monitor_inst\ntaps AW (cmd, ID), W (data), B (resp, ID) on the fub_axil (FUB) side\ntracks up to MAX_TRANSACTIONS (default 8)\nraises block_ready low when its table is full\nUSE_MONITOR=1 requires ID_WIDTH <= 8 (keys 8 ID bits;\nelaboration check -- use _monlite for wider IDs)", style="filled,dashed"];
     gate  [label="AW Handshake Gate (combinational)\nfub_axil_awvalid AND fub_axil_awready\nboth masked by block_ready\n(unless cfg_monitor_enable = 0)"];
     mout  [label="Monitor Outputs\lmonbus_packet / monbus_valid / monbus_ready,\l    monbus_timestamp (ocelus monitor bus)\lbusy, active_transactions, error_count,\l    transaction_count, perf_* window counters\l", fillcolor="white"];
     mcfg -> mon [style=dashed, xlabel="config"];
-    mon  -> gate [style=dashed, xlabel="block_ready"];
+    mon  -> gate [style=dashed, dir=both, xlabel="block_ready down /\ntap (FUB handshake) up"];
     mon  -> mout [xlabel="ocelus packets", penwidth=1.8];
 
     top  -> gate  [xlabel="AW + W (awid, awaddr, ... / wdata, wstrb, ...)", penwidth=1.8];
@@ -29,7 +29,6 @@ digraph axil5_master_wr_mon {
     child -> bot  [dir=both, xlabel="AW + W (awid, awaddr, ... / wdata, wstrb, ...) out /\nB (bid, bresp, ...) in", penwidth=1.8];
 
     top -> child [dir=back, xlabel="B (bid, bresp, ...)", constraint=false];
-    mon -> bot [dir=back, style=dashed, xlabel="tap"];
 
     { rank=same; gate; mcfg; }
     { rank=same; child; mon; }

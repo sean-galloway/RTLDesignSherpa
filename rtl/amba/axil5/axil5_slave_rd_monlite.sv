@@ -249,9 +249,13 @@ module axil5_slave_rd_monlite
     logic [15:0] w_timeout_cnt;
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
-    assign w_mon_cmd_valid  = s_axil_arvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = s_axil_rvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = s_axil_rvalid & cfg_monitor_enable;
+    // Monitor tap: the FUB-side handshake (owner rule: monitors always tap the
+    // FUB side, for timing -- the tap then never sits on the external bus I/O).
+    // monitor-lite has no block_ready: a command that finds no free slot is
+    // counted in refused_count, never stalled.
+    assign w_mon_cmd_valid  = fub_axil_arvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axil_rvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = fub_axil_rvalid & cfg_monitor_enable;
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
 
@@ -261,8 +265,8 @@ module axil5_slave_rd_monlite
     // the SAME ID, as on AXI4 -- with the ID tied 0 it paired every R with the
     // oldest command outstanding, whichever one the R answered.
     logic [IW-1:0] w_mon_cmd_id, w_mon_data_id;
-    assign w_mon_cmd_id  = s_axil_arid;
-    assign w_mon_data_id = s_axil_rid;
+    assign w_mon_cmd_id  = fub_axil_arid;
+    assign w_mon_data_id = fub_axil_rid;
 
     if (USE_MONITOR) begin : gen_monitor_lite
         axi_monitor_lite #(
@@ -283,20 +287,20 @@ module axil5_slave_rd_monlite
         .aresetn                    (aresetn),
         .clear                      (cam_clear | ~cfg_monitor_enable),
         .i_mon_time                 (i_mon_time),
-        .cmd_addr                   (s_axil_araddr),
+        .cmd_addr                   (fub_axil_araddr),
         .cmd_id                     (w_mon_cmd_id),
         .cmd_len                    (8'h00),
         .cmd_valid                  (w_mon_cmd_valid),
-        .cmd_ready                  (s_axil_arready),
+        .cmd_ready                  (fub_axil_arready),
         .data_id                    (w_mon_data_id),
         .data_last                  (1'b1),
-        .data_resp                  (s_axil_rresp),
+        .data_resp                  (fub_axil_rresp),
         .data_valid                 (w_mon_data_valid),
-        .data_ready                 (s_axil_rready),
+        .data_ready                 (fub_axil_rready),
         .resp_id                    (w_mon_data_id),
-        .resp_code                  (s_axil_rresp),
+        .resp_code                  (fub_axil_rresp),
         .resp_valid                 (w_mon_resp_valid),
-        .resp_ready                 (s_axil_rready),
+        .resp_ready                 (fub_axil_rready),
         .cfg_freq_sel               (cfg_freq_sel),
         .cfg_timeout_cnt            (w_timeout_cnt),
         .cfg_error_enable           (cfg_error_enable),

@@ -426,10 +426,14 @@ module axil5_master_wr_mon
     logic [15:0] w_timeout_cnt;
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
+    // Monitor tap: the FUB-side handshake (owner rule: monitors always tap the
+    // FUB side, for timing -- the tap then never sits on the external bus I/O).
+    // On a master the FUB side is also where block_ready gates, so the
+    // watchpoint and the gating point coincide (no skid-buffer lag).
 
-    assign w_mon_cmd_valid  = m_axil_awvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = m_axil_wvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = m_axil_bvalid & cfg_monitor_enable;
+    assign w_mon_cmd_valid  = fub_axil_awvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axil_wvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = fub_axil_bvalid & cfg_monitor_enable;
     // cfg_timeout_cycles is a MICROSECOND count (timer_tick = 1 us from
     // counter_freq_invariant), passed through at full width. It used to be
     // squashed into 4 bits here:
@@ -459,8 +463,8 @@ module axil5_master_wr_mon
     // param_check above, and the clamp only lets elaboration reach that guard.
     localparam int MON_IW = (IW > 8) ? 8 : IW;
     logic [MON_IW-1:0] w_mon_cmd_id, w_mon_resp_id;
-    assign w_mon_cmd_id  = (ID_WIDTH > 0) ? MON_IW'(m_axil_awid) : '0;
-    assign w_mon_resp_id = (ID_WIDTH > 0) ? MON_IW'(m_axil_bid) : '0;
+    assign w_mon_cmd_id  = (ID_WIDTH > 0) ? MON_IW'(fub_axil_awid) : '0;
+    assign w_mon_resp_id = (ID_WIDTH > 0) ? MON_IW'(fub_axil_bid) : '0;
 
     if (USE_MONITOR) begin : gen_monitor
         axi_monitor_filtered #(
@@ -496,7 +500,7 @@ module axil5_master_wr_mon
             .i_mon_time              (i_mon_time),
 
             // Command interface (AW channel) - AXIL simplified
-            .cmd_addr                (m_axil_awaddr),
+            .cmd_addr                (fub_axil_awaddr),
             .cmd_id                  (w_mon_cmd_id),
             .cmd_len                 (8'h00),            // Single-beat: len=0
             // AxSIZE for the single Lite beat, DERIVED from the bus width.
@@ -508,20 +512,20 @@ module axil5_master_wr_mon
             .cmd_size                (3'($clog2(AXIL_DATA_WIDTH/8))),
             .cmd_burst               (2'b01),            // INCR burst type
             .cmd_valid               (w_mon_cmd_valid),
-            .cmd_ready               (m_axil_awready),
+            .cmd_ready               (fub_axil_awready),
 
             // Data interface (W channel) - AXIL simplified
             .data_id                 ('0),
             .data_last               (1'b1),             // Always last for AXIL
             .data_resp               (2'b00),            // No response in W channel
             .data_valid              (w_mon_data_valid),
-            .data_ready              (m_axil_wready),
+            .data_ready              (fub_axil_wready),
 
             // Response interface (B channel)
             .resp_id                 (w_mon_resp_id),
-            .resp_code               (m_axil_bresp),
+            .resp_code               (fub_axil_bresp),
             .resp_valid              (w_mon_resp_valid),
-            .resp_ready              (m_axil_bready),
+            .resp_ready              (fub_axil_bready),
 
             // Configuration
             // cfg_freq_sel selects the counter_freq_invariant LUT entry. With the

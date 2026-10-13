@@ -379,8 +379,15 @@ module axi5_slave_wr_monlite
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
 
+    // W can lead AW at the FUB-side tap by up to SKID_DEPTH_AW bursts (the AW
+    // skid holds an address while W passes its own): keep that many early bursts,
+    // rounded up to a power of two, so legal backend ordering is tracked rather
+    // than reported.
+    localparam int MON_EARLY_BURSTS = (SKID_DEPTH_AW + 1 <= 1) ? 1 : (1 << $clog2(SKID_DEPTH_AW + 1));
+
     if (USE_MONITOR) begin : gen_monitor_lite
         axi_monitor_lite #(
+            .EARLY_BURSTS (MON_EARLY_BURSTS),
         .UNIT_ID              (UNIT_ID),
         .AGENT_ID             (AGENT_ID),
         .MAX_TRANSACTIONS (MAX_TRANSACTIONS),

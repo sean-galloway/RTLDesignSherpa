@@ -20,9 +20,9 @@ test, and the only place a pin is touched.
 
 Wrappers (axis4/axis5 master/slave _monlite and _monlite_cg) reuse this class:
 the environment names the BFM prefixes (MONLITE_MASTER_PREFIX / MONLITE_SLAVE_PREFIX,
-default axis_/axis_ for the bare-core fixture), MONLITE_VIA_SKID=1 says a skid
-buffer sits between the master BFM and the tap (so the pin-driven TVALID-drop
-phase is skipped: the skid's output is always compliant), and MONLITE_CG=1 adds
+default axis_/axis_ for the bare-core fixture), MONLITE_VIA_SKID=1 says the test
+runs through a wrapper whose skid buffer sits on the tapped path (so the
+pin-driven TVALID-drop phase is skipped and drains wait for the skid), and MONLITE_CG=1 adds
 the clock-gating phase. Pin names differ between core and wrappers (clear vs
 cam_clear, cfg_timeout_cnt vs cfg_timeout_cycles); the helpers below map them.
 """
@@ -102,10 +102,12 @@ class AxisMonitorLiteTB(TBBase):
         self.slave_prefix = os.environ.get('MONLITE_SLAVE_PREFIX', 'axis_')
         self.via_skid = os.environ.get('MONLITE_VIA_SKID', '0') == '1'
         self.has_cg = os.environ.get('MONLITE_CG', '0') == '1'
-        # Where the tap sits relative to the endpoint's skid buffer: 'out' (a
-        # master wrapper taps m_axis_*, downstream of the skid) sees a slave
-        # stall directly; 'in' (a slave wrapper taps s_axis_*, upstream) sees it
-        # only once the skid is full, so the stall phase fills it first.
+        # Where the tap sits relative to the endpoint's skid buffer. Every
+        # monitor taps the FUB side (owner rule, for timing): a master wrapper
+        # taps fub_axis_*, UPSTREAM of its skid ('in': a slave stall reaches the
+        # tap only once the skid is full, so the stall phase fills it first); a
+        # slave wrapper taps fub_axis_*, DOWNSTREAM of its skid ('out': the
+        # backend's stall reaches the tap directly).
         self.tap_side = os.environ.get('MONLITE_TAP_SIDE', 'direct')
         self.skid_depth = int(os.environ.get('MONLITE_SKID_DEPTH', '4'))
         self.errors = []
@@ -426,7 +428,7 @@ class AxisMonitorLiteTB(TBBase):
         TVALID asserted, no TREADY, TVALID withdrawn -> one Error/VALID_TIMING."""
         d = self.dut
         if self.via_skid:
-            self.log.info("phase valid_drop: skipped -- the tapped port is a skid buffer's output, which a pin cannot violate")
+            self.log.info("phase valid_drop: skipped -- through a wrapper the skid buffer on the tapped path keeps the stream compliant")
             return
         self.take()
         # park the slave so it will not take the beat: 'stall' holds tready low

@@ -35,7 +35,12 @@
  * - protocol [59:57] defines which protocol (AXI, AXIS, APB, ARB, CORE)
  * - event_code [56:53] defines the specific event within that category
  */
+// The file carries the Ocelus brand name; the package keeps its original
+// name (monitor_pkg) so the ~600 import sites stay valid. The mismatch
+// is intentional -- tell Verilator's -Wall so (DECLFILENAME).
+/* verilator lint_off DECLFILENAME */
 package monitor_pkg;
+/* verilator lint_on DECLFILENAME */
 
     // Import all protocol-specific packages
     import monitor_common_pkg::*;

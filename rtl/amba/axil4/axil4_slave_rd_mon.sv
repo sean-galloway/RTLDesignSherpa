@@ -322,9 +322,9 @@ module axil4_slave_rd_mon
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
 
-    assign w_mon_cmd_valid  = s_axil_arvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = s_axil_rvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = s_axil_rvalid & cfg_monitor_enable;
+    assign w_mon_cmd_valid  = fub_axil_arvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axil_rvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = fub_axil_rvalid & cfg_monitor_enable;
     // cfg_timeout_cycles is a MICROSECOND count (timer_tick = 1 us from
     // counter_freq_invariant), passed through at full width. It used to be
     // squashed into 4 bits here:
@@ -372,7 +372,7 @@ module axil4_slave_rd_mon
             .i_mon_time              (i_mon_time),
 
             // Command interface (AR channel - monitoring slave side) - AXIL simplified
-            .cmd_addr                (s_axil_araddr),
+            .cmd_addr                (fub_axil_araddr),
             .cmd_id                  (1'b0),             // Fixed ID=0 for AXIL
             .cmd_len                 (8'h00),            // Single-beat: len=0
             // AxSIZE for the single Lite beat, DERIVED from the bus width.
@@ -384,20 +384,20 @@ module axil4_slave_rd_mon
             .cmd_size                (3'($clog2(AXIL_DATA_WIDTH/8))),
             .cmd_burst               (2'b01),            // INCR burst type
             .cmd_valid               (w_mon_cmd_valid),
-            .cmd_ready               (s_axil_arready),
+            .cmd_ready               (fub_axil_arready),
 
             // Data interface (R channel - monitoring slave side) - AXIL simplified
             .data_id                 (1'b0),             // Fixed ID=0 for AXIL
             .data_last               (1'b1),             // Always last for AXIL
-            .data_resp               (s_axil_rresp),
+            .data_resp               (fub_axil_rresp),
             .data_valid              (w_mon_data_valid),
-            .data_ready              (s_axil_rready),
+            .data_ready              (fub_axil_rready),
 
             // Response interface (same as data for AXIL reads)
             .resp_id                 (1'b0),             // Fixed ID=0 for AXIL
-            .resp_code               (s_axil_rresp),
+            .resp_code               (fub_axil_rresp),
             .resp_valid              (w_mon_resp_valid),    // Every data is also completion for AXIL
-            .resp_ready              (s_axil_rready),
+            .resp_ready              (fub_axil_rready),
 
             // Configuration
             // cfg_freq_sel selects the counter_freq_invariant LUT entry. With the
@@ -458,6 +458,10 @@ module axil4_slave_rd_mon
             // Status outputs
             // block_ready stalls new ARs at s_axil_arready when the ocelus
             // FIFO is full (wire ANDed into the wrapper output below).
+            // The monitor taps the FUB (backend) side (owner rule: monitors always
+            // tap the FUB side, for timing), while this gate stalls the upstream
+            // request; the two points are separated by the slave core's skid
+            // buffer (SKID_DEPTH beats of lag), as in axi5_slave_*_mon.
             .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
             .busy                    (),                 // Unused (using slave busy)

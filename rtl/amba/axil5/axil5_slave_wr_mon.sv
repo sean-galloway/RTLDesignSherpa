@@ -428,10 +428,15 @@ module axil5_slave_wr_mon
     logic [15:0] w_timeout_cnt;
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
+    // Monitor tap: the FUB-side (backend) handshake (owner rule: monitors always
+    // tap the FUB side, for timing -- same as axi5_slave_rd_mon). block_ready
+    // still gates the upstream bus handshake, so a full table stalls the bus;
+    // the watchpoint trails the gate by the skid depth, which the monitor's
+    // CMD_ENTRY_RESERVE admission margin covers.
 
-    assign w_mon_cmd_valid  = s_axil_awvalid & cfg_monitor_enable;
-    assign w_mon_data_valid = s_axil_wvalid & cfg_monitor_enable;
-    assign w_mon_resp_valid = s_axil_bvalid & cfg_monitor_enable;
+    assign w_mon_cmd_valid  = fub_axil_awvalid & cfg_monitor_enable;
+    assign w_mon_data_valid = fub_axil_wvalid & cfg_monitor_enable;
+    assign w_mon_resp_valid = fub_axil_bvalid & cfg_monitor_enable;
     // cfg_timeout_cycles is a MICROSECOND count (timer_tick = 1 us from
     // counter_freq_invariant), passed through at full width. It used to be
     // squashed into 4 bits here:
@@ -460,8 +465,8 @@ module axil5_slave_wr_mon
     // param_check above, and the clamp only lets elaboration reach that guard.
     localparam int MON_IW = (IW > 8) ? 8 : IW;
     logic [MON_IW-1:0] w_mon_cmd_id, w_mon_resp_id;
-    assign w_mon_cmd_id  = MON_IW'(s_axil_awid);
-    assign w_mon_resp_id = MON_IW'(s_axil_bid);
+    assign w_mon_cmd_id  = MON_IW'(fub_axil_awid);
+    assign w_mon_resp_id = MON_IW'(fub_axil_bid);
 
     if (USE_MONITOR) begin : gen_monitor
         axi_monitor_filtered #(
@@ -497,7 +502,7 @@ module axil5_slave_wr_mon
             .i_mon_time              (i_mon_time),
 
             // Command interface (AW channel - monitoring slave side) - AXIL simplified
-            .cmd_addr                (s_axil_awaddr),
+            .cmd_addr                (fub_axil_awaddr),
             .cmd_id                  (w_mon_cmd_id),
             .cmd_len                 (8'h00),            // Single-beat: len=0
             // AxSIZE for the single Lite beat, DERIVED from the bus width.
@@ -509,20 +514,20 @@ module axil5_slave_wr_mon
             .cmd_size                (3'($clog2(AXIL_DATA_WIDTH/8))),
             .cmd_burst               (2'b01),            // INCR burst type
             .cmd_valid               (w_mon_cmd_valid),
-            .cmd_ready               (s_axil_awready),
+            .cmd_ready               (fub_axil_awready),
 
             // Data interface (W channel - monitoring slave side) - AXIL simplified
             .data_id                 ('0),
             .data_last               (1'b1),             // Always last for AXIL
             .data_resp               (2'b00),            // Write data doesn't have response
             .data_valid              (w_mon_data_valid),
-            .data_ready              (s_axil_wready),
+            .data_ready              (fub_axil_wready),
 
             // Response interface (B channel - monitoring slave side)
             .resp_id                 (w_mon_resp_id),
-            .resp_code               (s_axil_bresp),
+            .resp_code               (fub_axil_bresp),
             .resp_valid              (w_mon_resp_valid),
-            .resp_ready              (s_axil_bready),
+            .resp_ready              (fub_axil_bready),
 
             // Configuration
             // cfg_freq_sel selects the counter_freq_invariant LUT entry. With the
@@ -579,7 +584,7 @@ module axil5_slave_wr_mon
             .monbus_timestamp        (monbus_timestamp),
 
             // Status outputs
-            // block_ready stalls new AWs at s_axil_awready when the ocelus
+            // block_ready stalls new AWs at fub_axil_awready when the ocelus
             // FIFO is full (wire ANDed into the wrapper output below).
             .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */

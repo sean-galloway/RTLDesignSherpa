@@ -26,7 +26,12 @@
  * Neither is exposed as a per-module parameter — there's exactly one
  * packet format and one timestamp format in the codebase.
  */
+// The file carries the Ocelus brand name; the package keeps its original
+// name (monitor_common_pkg) so the ~600 import sites stay valid. The mismatch
+// is intentional -- tell Verilator's -Wall so (DECLFILENAME).
+/* verilator lint_off DECLFILENAME */
 package monitor_common_pkg;
+/* verilator lint_on DECLFILENAME */
 
     // -------------------------------------------------------------------------
     // Single source of truth: ocelus bus packet + timestamp widths

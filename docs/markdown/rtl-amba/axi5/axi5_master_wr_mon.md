@@ -59,7 +59,7 @@ The AXI5 Master Write with Monitor module wraps the standard `axi5_master_wr` co
 
 ![axi5_master_wr_mon block diagram](../../assets/rtl-amba/graphviz/axi5_master_wr_mon.png)
 
-The base `axi5_master_wr` is one box (see its own diagram). Traffic runs down the left through the AW stall gate, which ANDs `fub_axi_awvalid` and its ready with the `block_ready` the monitor raises while its transaction table has room. The bus taps watch the `m_axi` side below the base and feed `axi_monitor_filtered`, which is built only when `USE_MONITOR=1`; its monitor-bus packets are the heavy edge out. With `cfg_monitor_enable` low the monitor is inert and never stalls the bus.
+The base `axi5_master_wr` is one box (see its own diagram). Traffic runs down the left through the AW stall gate, which ANDs `fub_axi_awvalid` and its ready with the `block_ready` the monitor raises while its transaction table has room. The taps watch the FUB-side (`fub_axi`) handshake -- the same point the stall gate acts on, so a falling `block_ready` stops new events with no skid lag -- and feed `axi_monitor_filtered`, which is built only when `USE_MONITOR=1`; its monitor-bus packets are the heavy edge out. With `cfg_monitor_enable` low the monitor is inert and never stalls the bus.
 
 ---
 
@@ -300,7 +300,7 @@ Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 - **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (the AXI4 monitors assert this as an in-RTL formal property,
   `ap_disabled_never_stalls`; this module has no `ifdef FORMAL` block of its
   own, so here the guarantee rests on the gate expression above, not a proof).
-- The monitor's command tap sits across the AW SKID from the block_ready gate (this master monitor mirrors the slave variant's structure), so there is a `SKID_DEPTH_AW` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
+- The monitor taps the FUB-side handshake (every monitor taps the FUB side, for timing), which on a master is also where block_ready gates: the watchpoint and the gate coincide, so new events stop the cycle block_ready goes low, with no skid-depth lag.
 
 Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 4 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
 
