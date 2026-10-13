@@ -23,8 +23,8 @@
 
 # Claude Code Guide: HIVE Component
 
-**Version:** 0.1
-**Last Updated:** 2025-10-19
+**Version:** 0.2
+**Last Updated:** 2026-10-12
 **Purpose:** AI-specific guidance for working with HIVE subsystem
 
 ---
@@ -32,32 +32,33 @@
 ## Quick Context
 
 **What:** HIVE (Hierarchical Intelligent Vector Environment) - Distributed control and monitoring subsystem for RAPIDS/Delta Network
-**Status:** Early Specification Phase (v0.1)
+**Status:** Specification phase — HAS/MAS v0.1 published 2026-10-12; no RTL yet
 **Your Role:** Help users understand hierarchical RISC-V architecture, distributed monitoring, and network reconfiguration
 
-**Complete Specification:** `projects/components/riscv-ip/hive-serv/docs/hive_spec/` ← **Always reference this for technical details**
+**Primary Specifications:**
+- HAS (`projects/components/riscv-ip/hive-serv/docs/hive_has/`) — external contract
+- MAS (`projects/components/riscv-ip/hive-serv/docs/hive_mas/`) — block-level implementation intent
 
 ---
 
 ## Critical Rules for This Component
 
-### Rule #2: Always Reference Complete Specification
+### Rule #2: Always Reference the Specifications
 
-**This subsystem has extensive documentation in** `projects/components/riscv-ip/hive-serv/docs/hive_spec/`
+**This subsystem's technical documentation lives in:**
+- `projects/components/riscv-ip/hive-serv/docs/hive_has/` — architecture, interfaces, packet formats, programming model
+- `projects/components/riscv-ip/hive-serv/docs/hive_mas/` — module trees, clocking/reset, cycle-level behavior, verification hooks
 
 **Before answering technical questions:**
 ```bash
-# Check complete specification
-ls projects/components/riscv-ip/hive-serv/docs/hive_spec/
-cat projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md
-cat projects/components/riscv-ip/hive-serv/docs/hive_spec/ch02_blocks/00_overview.md
-# Full single-file spec (block/interface/programming detail):
-cat projects/components/riscv-ip/hive-serv/docs/hive_specification.md
+ls projects/components/riscv-ip/hive-serv/docs/hive_has/
+ls projects/components/riscv-ip/hive-serv/docs/hive_mas/
+cat projects/components/riscv-ip/hive-serv/docs/hive_has/hive_has_index.md
 ```
 
 **Your answer should:**
 1. Provide direct answer/code
-2. **Then link to detailed spec:** "See `projects/components/riscv-ip/hive-serv/docs/hive_spec/{file}.md` for complete specification"
+2. **Then link to the spec:** "See `projects/components/riscv-ip/hive-serv/docs/hive_has/{file}.md` (or `hive_mas/`) for the full specification"
 
 ### Rule #3: HIVE System Context
 
@@ -67,7 +68,7 @@ cat projects/components/riscv-ip/hive-serv/docs/hive_specification.md
    - Virtual Tile 16 in Delta Network
    - Controlled by HIVE-C via CDA packets
 
-2. **Delta Network** - 4×4 mesh Network-on-Chip
+2. **Delta Network** - 4×4 mesh Network-on-Chip (`projects/components/fabric-gen-ip/delta/`)
    - 16 physical compute tiles (0-15)
    - 2 virtual tiles (16=RAPIDS, 17=HIVE-C)
    - Four packet types (PKT_DATA, CDA, PKT_CONFIG, PKT_STATUS)
@@ -119,7 +120,9 @@ HIVE System Architecture
     └── Atomic topology switching protocol
 ```
 
-**See:** `docs/hive_spec/ch02_blocks/00_overview.md`
+**See:**
+- `docs/hive_has/ch03_architecture/01_subsystem_architecture.md` (block specs)
+- `docs/hive_mas/ch02_blocks/` (module trees)
 
 ---
 
@@ -140,8 +143,8 @@ HIVE System Architecture
 **Key Point:** HIVE-C is the master controller, SERV monitors are lightweight per-tile agents.
 
 **See:**
-- `docs/hive_spec/ch02_blocks/00_overview.md`
-- `docs/hive_specification.md` sections 5-6 (the per-block chapter files 2.1-2.4 are not yet written)
+- `docs/hive_has/ch03_architecture/01_subsystem_architecture.md`
+- `docs/hive_mas/ch02_blocks/02_hive_c_controller.md` and `03_serv_monitor.md`
 
 ### Q: "How does HIVE-C send descriptors to RAPIDS?"
 
@@ -154,7 +157,7 @@ HIVE System Architecture
    - TUSER = 2'b01 (CDA packet type)
    - TDEST = 16 (RAPIDS virtual tile)
    ↓
-3. Delta Network routes to Router 12 south port
+3. Delta Network routes to RAPIDS (virtual tile 16)
    ↓
 4. RAPIDS receives CDA packet
    - Descriptor engine processes
@@ -166,7 +169,9 @@ HIVE System Architecture
 - No memory bus contention
 - Inband delivery through existing network
 
-**See:** `docs/hive_specification.md` section 6 (HIVE-C control software; chapter file 2.1 not yet written)
+**See:**
+- `docs/hive_has/ch04_interfaces/02_packet_formats.md` (descriptor format)
+- `docs/hive_mas/ch04_behavior/01_descriptor_injection_cycle.md` (cycle-by-cycle)
 
 ### Q: "How does network reconfiguration work?"
 
@@ -194,7 +199,9 @@ Switching Sequence:
 - Context 2: Tree Reduction (hierarchical aggregation)
 - Context 3: Custom/Debug (user-programmable)
 
-**See:** `docs/hive_specification.md` section 4 (network reconfiguration; chapter file 2.4 not yet written)
+**See:**
+- `docs/hive_has/ch05_programming_model/04_network_reconfiguration.md` (workflow)
+- `docs/hive_mas/ch04_behavior/03_context_switch_sequence.md` (FSM/cycles)
 
 ### Q: "What do SERV monitors track?"
 
@@ -217,132 +224,70 @@ Switching Sequence:
 - Periodic status to HIVE-C (every 1000 cycles, configurable)
 - Immediate alerts on congestion/errors via PKT_STATUS packets
 
-**See:** `docs/hive_specification.md` section 5 (SERV monitor functionality; chapter file 2.2 not yet written)
+**See:**
+- `docs/hive_has/ch03_architecture/01_subsystem_architecture.md` (Block 2)
+- `docs/hive_mas/ch02_blocks/03_serv_monitor.md` (counter/tap design)
 
 ---
 
 ## Key Documentation Links
 
-### Primary Technical Specification
+### Primary Technical Specifications
 
-- `docs/hive_spec/hive_index.md` - Complete specification index
-- `docs/hive_spec/ch01_overview/` - Architecture overview
-- `docs/hive_spec/ch02_blocks/` - Block specifications (only 00_overview.md written so far)
-- `docs/hive_specification.md` - Full single-file specification (interfaces, programming
-  models, and performance content; the ch03-ch05 chapter files are not yet written)
+- `docs/hive_has/hive_has_index.md` - Hardware Architecture Specification index
+- `docs/hive_mas/hive_mas_index.md` - Micro-Architecture Specification index
+- `docs/hive_has/ch04_interfaces/` - Interfaces, packet formats, register maps
+- `docs/hive_mas/ch04_behavior/` - Cycle-level behavior of key operations
 
 ### Related Component Specifications
 
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` and `rapids_beats_mas/` - RAPIDS DMA specification (Beats architecture)
-- `projects/components/noc-ip/delta_spec/` - Delta Network specification
+- `projects/components/fabric-gen-ip/delta/docs/delta_has/` and `delta_mas/` - Delta Network specification
 
 ---
 
 ## Documentation Generation
 
-### Generating PDF/DOCX from Specification
+### Generating PDF/DOCX from the Specifications
 
-**Tool:** `bin/md_to_docx.py` (repo root)
+**Tool:** `bin/md_to_docx.py` (repo root) via the wrapper scripts:
 
-Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file. The preferred entry point is the wrapper script `projects/components/riscv-ip/hive-serv/docs/generate_pdf.sh`. Note: no built HIVE_Specification docx/pdf is checked in - generate it on demand.
-
-**Basic Usage:**
-
-```bash
-# Preferred: use the wrapper script (from the docs/ directory)
-cd projects/components/riscv-ip/hive-serv/docs
-./generate_pdf.sh --rev 0.25
-# Outputs: HIVE_Specification_v0.25.docx and HIVE_Specification_v0.25.pdf
-
-# Direct md_to_docx.py invocation (from repo root)
-python bin/md_to_docx.py \
-    projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md \
-    -o projects/components/riscv-ip/hive-serv/docs/HIVE_Specification_v0.25.docx \
-    --toc \
-    --title-page \
-    --pdf
-```
-
-**Key Features:**
-- **Recursive Collection:** Follows all markdown links in the index file
-- **Heading Demotion:** Automatically adjusts heading levels for included files
-- **Table of Contents:** `--toc` flag generates automatic ToC
-- **Title Page:** `--title-page` flag creates title page from first heading
-- **PDF Export:** `--pdf` flag generates both DOCX and PDF
-- **Image Support:** Resolves images relative to source directory
-- **Template Support:** Optional custom DOCX/DOTX template via `-t` flag
-
-**Common Workflow:**
-
-```bash
-# 1. Update version number in index file (hive_index.md)
-# 2. Generate documentation (from repo root)
-python bin/md_to_docx.py \
-    projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md \
-    -o projects/components/riscv-ip/hive-serv/docs/HIVE_Specification_v0.25.docx \
-    --toc --title-page --pdf
-
-# 3. Output files created:
-#    - HIVE_Specification_v0.25.docx
-#    - HIVE_Specification_v0.25.pdf (if --pdf used)
-```
-
-**Debug Mode:**
-
-```bash
-# Generate debug markdown to see combined output
-python bin/md_to_docx.py \
-    projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md \
-    -o output.docx \
-    --debug-md
-
-# This creates debug.md showing the complete merged content
-```
-
-**Tool Requirements:**
-- Python 3.6+
-- Pandoc installed and in PATH
-- For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
-
-**See:** `bin/md_to_docx.py` (repo root) for complete implementation details
-
----
-
-## PDF Generation Location
-
-**IMPORTANT: PDF files should be generated in the docs directory:**
-```
-projects/components/riscv-ip/hive-serv/docs/
-```
-
-**Quick Command:** Use the provided shell script:
 ```bash
 cd projects/components/riscv-ip/hive-serv/docs
-./generate_pdf.sh
+./generate_has_pdf.sh            # HIVE_HAS_v0.1.docx / .pdf
+./generate_mas_pdf.sh            # HIVE_MAS_v0.1.docx / .pdf
 ```
 
-The shell script will automatically:
-1. Use the md_to_docx.py tool from bin/
-2. Process the hive_spec index file
-3. Generate both DOCX and PDF files in the docs/ directory
-4. Create table of contents and title page
+The scripts check dependencies (python-docx, PyYAML, pandoc, LibreOffice),
+then invoke `md_to_docx.py` with the book's index, styles yaml, title page,
+ToC, and page breaks. Built books are checked in alongside their sources.
 
-**See:** `bin/md_to_docx.py` for complete implementation details
+**Requirements:** Python 3.6+, pandoc, LibreOffice (PDF export), and the
+repo's `bin/md_to_docx.py`.
+
+**Debug mode** (merged markdown inspection):
+
+```bash
+python bin/md_to_docx.py \
+    projects/components/riscv-ip/hive-serv/docs/hive_has/hive_has_index.md \
+    -o output.docx --debug-md
+```
 
 ---
 
 ## Remember
 
-1. **Link to detailed spec** - `docs/hive_spec/` has complete architecture
+1. **Link to the specs** - `docs/hive_has/` (architecture) and `docs/hive_mas/` (implementation intent)
 2. **Hierarchical architecture** - HIVE-C (master) + 16 SERV monitors (agents)
 3. **Virtual tiles** - RAPIDS=16, HIVE-C=17 in Delta Network topology
-4. **Four packet types** - PKT_DATA, CDA, PKT_CONFIG, PKT_STATUS
+4. **Four packet types** - PKT_DATA, CDA, PKT_CONFIG, PKT_STATUS (TUSER[1:0])
 5. **Configuration contexts** - 4 virtual routing modes with atomic switching
 6. **Control network** - Separate star topology for HIVE-C ↔ SERV communication
 7. **Monitoring** - Per-tile traffic stats, congestion detection, error reporting
+8. **Pre-RTL** - everything is specification; the MAS marks open items explicitly
 
 ---
 
-**Version:** 0.1
-**Last Updated:** 2025-10-19
+**Version:** 0.2
+**Last Updated:** 2026-10-12
 **Maintained By:** RTL Design Sherpa Project

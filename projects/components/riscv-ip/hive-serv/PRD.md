@@ -24,9 +24,9 @@
 # Product Requirements Document (PRD)
 ## HIVE - Hierarchical Intelligent Vector Environment
 
-**Version:** 0.1
-**Date:** 2025-10-19
-**Status:** Early Specification Phase
+**Version:** 0.2
+**Date:** 2026-10-12
+**Status:** Specification phase — HAS/MAS v0.1 published; no RTL yet
 **Owner:** RTL Design Sherpa Project
 **Parent Document:** `/PRD.md`
 
@@ -41,8 +41,8 @@ The Hierarchical Intelligent Vector Environment (HIVE) is a distributed control 
 - **Architecture:** 4 major blocks (HIVE-C, SERV monitors, Control network, Config manager)
 - **Processors:** 1 VexRiscv (master) + 16 SERV (monitors) = 17 RISC-V cores
 - **Interfaces:** Control Network (internal), AXIS (to Delta Network)
-- **Resource Budget:** 22% LUTs, 46% BRAM on NexysA7 100T
-- **Status:** Early specification phase
+- **Resource Budget:** 6,100 LUTs HIVE control plane (14,100 including the Delta NoC), 30 BRAM on NexysA7 100T
+- **Status:** Specification phase; HAS/MAS v0.1 published 2026-10-12
 
 ### 1.2 Subsystem Goals
 
@@ -56,29 +56,19 @@ The Hierarchical Intelligent Vector Environment (HIVE) is a distributed control 
 
 This PRD provides a high-level overview. **Detailed specifications are maintained separately:**
 
-### Complete HIVE Specification
-**Location:** `projects/components/riscv-ip/hive-serv/docs/hive_spec/`
+### HIVE Hardware Architecture Specification (HAS) — external contract
+**Location:** `projects/components/riscv-ip/hive-serv/docs/hive_has/`
 
-- **[Index](docs/hive_spec/hive_index.md)** - Complete specification structure
+- **[Index](docs/hive_has/hive_has_index.md)** - HAS structure
+- System overview, subsystem architecture (4 blocks), interfaces & packet
+  formats, programming model, performance targets, integration & verification
 
-#### Chapter 1: Overview
-- [Overview](docs/hive_spec/ch01_overview/01_overview.md)
-- [Architecture Requirements](docs/hive_spec/ch01_overview/02_architectural_requirements.md)
-- [Clocking and Reset](docs/hive_spec/ch01_overview/03_clocks_and_reset.md)
-- [Acronyms](docs/hive_spec/ch01_overview/04_acronyms.md)
-- [References](docs/hive_spec/ch01_overview/05_references.md)
+### HIVE Micro-Architecture Specification (MAS) — implementation intent
+**Location:** `projects/components/riscv-ip/hive-serv/docs/hive_mas/`
 
-#### Chapter 2: Block Specifications
-- [Blocks Overview](docs/hive_spec/ch02_blocks/00_overview.md)
-- HIVE-C Controller (VexRiscv master), SERV Monitor (per-tile monitoring),
-  Control Network (HIVE-C ↔ SERV), Configuration Manager (topology switching) -
-  chapter files 2.1-2.4 are planned; content currently lives in
-  [hive_specification.md](docs/hive_specification.md) sections 2 and 4-6
-
-#### Chapters 3-5: Interfaces, Programming, and Performance
-- Chapter files are planned but not yet written; see
-  [hive_specification.md](docs/hive_specification.md) sections 2-3 (interfaces),
-  6 (programming), and 7 (performance)
+- **[Index](docs/hive_mas/hive_mas_index.md)** - MAS structure
+- Block-level module trees, clocking/reset, internal interfaces, cycle-level
+  behavior of the key operations, verification hooks, parameters/filelists
 
 ### Other Documentation
 - **README** - Quick start and integration guide (to be created)
@@ -86,6 +76,10 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 - **Tasks** - none tracked. The vault area was deleted 2026-09-27: hive has no .sv,
   no tests and no filelists, so its 24 open items described work that had not begun.
   They are in git history at `vault/Tasks/projects/components/riscv-ip/hive-serv/`.
+
+> **History note:** the earlier `docs/hive_spec/` + `docs/hive_specification.md`
+> drafts (v0.3) were migrated into the HAS/MAS and retired 2026-10-12; they remain
+> in git history.
 
 ---
 
@@ -122,7 +116,9 @@ HIVE System Architecture
     Delta Network (4×4 Mesh) + RAPIDS DMA Engine
 ```
 
-**See:** `docs/hive_spec/ch02_blocks/00_overview.md` for detailed architecture
+**See:** `docs/hive_has/ch02_system_overview/01_system_overview.md` and
+`docs/hive_has/ch03_architecture/01_subsystem_architecture.md` for the
+architecture; `docs/hive_mas/` for block internals.
 
 ### 3.2 Resource Budget (NexysA7 100T)
 
@@ -134,14 +130,23 @@ HIVE System Architecture
 | **Block 2: SERV Monitors (16×)** | 2,000 | 2,624 | 0 | 16 | 125 LUTs per SERV |
 | **Block 3: Control Network** | 1,200 | 800 | 0 | 4 | HIVE-C ↔ SERV comm |
 | **Block 4: Configuration Manager** | 1,500 | 1,200 | 0 | 2 | Virtual contexts |
-| **HIVE Subtotal** | **14,100** | **11,524** | **0** | **62** | 22% LUT, 46% BRAM |
+| **HIVE control plane subtotal** | **6,100** | **5,524** | **0** | **30** | 9.6% LUT, 22% BRAM |
+| Delta Network 4×4 mesh (16 routers) | 8,000 | 6,000 | 0 | 32 | Delta-owned; see Delta HAS |
+| **HIVE + NoC total** | **14,100** | **11,524** | **0** | **62** | 22% LUT, 46% BRAM |
 | **Available for Compute/RAPIDS** | 49,300 | 115,276 | 240 | 73 | Remaining resources |
 | **Total Budget** | **63,400** | **126,800** | **240** | **135** | 100% |
 
+> **Correction note (2026-10-12):** earlier tables presented 14,100 LUTs as
+> the "HIVE subtotal" while omitting the Delta NoC row; the NoC's 8,000 LUTs
+> were silently included. The table now separates the HIVE control plane from
+> the Delta NoC. The 22%-LUT / 46%-BRAM occupancy figures refer to the
+> combined total.
+
 **Key Design Constraints:**
 - HIVE consumes **zero DSP blocks** (all 240 DSPs available for compute)
-- HIVE uses **46% of BRAM** (memory-intensive for instruction/data storage)
-- HIVE uses **22% of LUTs** (control logic overhead acceptable)
+- HIVE's own memory footprint is 30 BRAM blocks (22%); combined with the NoC
+  it is 62 (46%)
+- HIVE uses **9.6% of LUTs** on its own (22% combined with the NoC)
 - Leaves **78% of logic resources** for RAPIDS and Delta Network compute elements
 
 ---
@@ -199,14 +204,15 @@ HIVE System Architecture
 | **AXIS (HIVE-C RX)** | Slave | 128-bit | PKT_STATUS from network |
 | **Control Network** | Internal | 32-bit | HIVE-C ↔ SERV communication |
 
-**See:** `docs/hive_specification.md` sections 2-3 for complete interface specs (the `docs/hive_spec/ch03_interfaces/` chapter files are not yet written)
+**See:** `docs/hive_has/ch04_interfaces/` for the complete interface,
+packet-format, and register-map specifications.
 
 ### 5.2 Virtual Tile Mapping
 
 | Virtual Tile | Entity | Connection |
 |--------------|--------|------------|
-| **Tile 16** | RAPIDS DMA | Router 12 south port |
-| **Tile 17** | HIVE-C Controller | Router 3 north port |
+| **Tile 16** | RAPIDS DMA | Edge-attached to the 4×4 mesh |
+| **Tile 17** | HIVE-C Controller | Edge-attached to the 4×4 mesh |
 
 ---
 
@@ -255,15 +261,15 @@ HIVE System Architecture
 
 ### 7.1 Current Status
 
-**Overall:** Early specification phase - implementation pending
+**Overall:** Specification phase - implementation pending
 
 | Component | Spec Status | Implementation Status |
 |-----------|-------------|----------------------|
-| HIVE-C Controller | Complete | Pending |
-| SERV Monitors | Complete | Pending |
-| Control Network | Complete | Pending |
-| Configuration Manager | Complete | Pending |
-| Integration | In progress | Pending |
+| HIVE-C Controller | HAS/MAS v0.1 | Pending |
+| SERV Monitors | HAS/MAS v0.1 | Pending |
+| Control Network | HAS/MAS v0.1 | Pending |
+| Configuration Manager | HAS/MAS v0.1 | Pending |
+| Integration | HAS/MAS v0.1 | Pending |
 
 ---
 
@@ -282,6 +288,9 @@ HIVE System Architecture
 - **Congestion Detection Latency:** < 10 cycles
 - **Periodic Reporting Interval:** 1000 cycles (configurable)
 
+**See:** `docs/hive_has/ch06_performance/01_performance.md` for the full
+target set and the tradeoff tables behind them.
+
 ---
 
 ## 9. Integration Guidelines
@@ -289,7 +298,7 @@ HIVE System Architecture
 ### 9.1 HIVE + RAPIDS + Delta Integration
 
 ```systemverilog
-// Top-level integration example
+// Top-level integration example (architectural port names)
 module system_top (
     input  logic        clk_100mhz,
     input  logic        rst_n,
@@ -329,19 +338,20 @@ module system_top (
 endmodule
 ```
 
+**See:** `docs/hive_has/ch07_integration/01_integration_and_verification.md`
+for the full integration and verification strategy.
+
 ---
 
 ## 10. Development Status
 
 ### 10.1 Current Phase
 
-**Phase: Specification** (In Progress)
+**Phase: Specification** (HAS/MAS v0.1 complete, 2026-10-12)
 
-- Chapter 1 (Overview) complete
-- Chapter 2 (Blocks) in progress
-- Chapter 3 (Interfaces) pending
-- Chapter 4 (Programming) pending
-- Chapter 5 (Performance) pending
+- Hardware Architecture Specification: complete (7 chapters)
+- Micro-Architecture Specification: complete (6 chapters)
+- RTL: pending (roadmap in the HAS, Chapter 7)
 
 **See:** nothing tracked -- the vault area was deleted 2026-09-27 (unstarted); the
 former items are in git history.
@@ -349,8 +359,7 @@ former items are in git history.
 ### 10.2 Roadmap
 
 **Near-Term (Q4 2025):**
-- Complete specification chapters
-- HIVE-C RTL implementation
+- HIVE-C RTL implementation (Phase 1, per HAS ch.7 roadmap)
 - SERV monitor wrapper implementation
 - Control network implementation
 
@@ -384,94 +393,24 @@ HIVE demonstrates:
 
 ## 13. Documentation Generation
 
-### 13.1 Generating PDF/DOCX from Specification
+### 13.1 Generating PDF/DOCX from the Specifications
 
-**Tool:** `bin/md_to_docx.py` (repo root)
+**Tool:** `bin/md_to_docx.py` (repo root) via the wrapper scripts:
 
-Use this tool to convert the linked specification index into a single all-inclusive PDF or DOCX file. The preferred entry point is the wrapper script `projects/components/riscv-ip/hive-serv/docs/generate_pdf.sh`. Note: no built HIVE_Specification docx/pdf is checked in - generate it on demand.
-
-**Basic Usage:**
-
-```bash
-# Preferred: use the wrapper script (from the docs/ directory)
-cd projects/components/riscv-ip/hive-serv/docs
-./generate_pdf.sh --rev 0.25
-# Outputs: HIVE_Specification_v0.25.docx and HIVE_Specification_v0.25.pdf
-
-# Direct md_to_docx.py invocation (from repo root)
-python bin/md_to_docx.py \
-    projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md \
-    -o projects/components/riscv-ip/hive-serv/docs/HIVE_Specification_v0.25.docx \
-    --toc \
-    --title-page \
-    --pdf
-```
-
-**Key Features:**
-- **Recursive Collection:** Follows all markdown links in the index file
-- **Heading Demotion:** Automatically adjusts heading levels for included files
-- **Table of Contents:** `--toc` flag generates automatic ToC
-- **Title Page:** `--title-page` flag creates title page from first heading
-- **PDF Export:** `--pdf` flag generates both DOCX and PDF
-- **Image Support:** Resolves images relative to source directory
-- **Template Support:** Optional custom DOCX/DOTX template via `-t` flag
-
-**Common Workflow:**
-
-```bash
-# 1. Update version number in index file (hive_index.md)
-# 2. Generate documentation (from repo root)
-python bin/md_to_docx.py \
-    projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md \
-    -o projects/components/riscv-ip/hive-serv/docs/HIVE_Specification_v0.25.docx \
-    --toc --title-page --pdf
-
-# 3. Output files created:
-#    - HIVE_Specification_v0.25.docx
-#    - HIVE_Specification_v0.25.pdf (if --pdf used)
-```
-
-**Debug Mode:**
-
-```bash
-# Generate debug markdown to see combined output
-python bin/md_to_docx.py \
-    projects/components/riscv-ip/hive-serv/docs/hive_spec/hive_index.md \
-    -o output.docx \
-    --debug-md
-
-# This creates debug.md showing the complete merged content
-```
-
-**Tool Requirements:**
-- Python 3.6+
-- Pandoc installed and in PATH
-- For PDF generation: LaTeX (e.g., texlive) or use Pandoc's built-in PDF writer
-
-**See:** `bin/md_to_docx.py` (repo root) for complete implementation details
-
----
-
-## 13.2 PDF Generation Location
-
-**IMPORTANT: PDF files should be generated in the docs directory:**
-```
-projects/components/riscv-ip/hive-serv/docs/
-```
-
-**Quick Command:** Use the provided shell script:
 ```bash
 cd projects/components/riscv-ip/hive-serv/docs
-./generate_pdf.sh
+./generate_has_pdf.sh            # HIVE_HAS_v0.1.docx / .pdf
+./generate_mas_pdf.sh            # HIVE_MAS_v0.1.docx / .pdf
+# Optional revision override:
+./generate_has_pdf.sh --rev 0.2
 ```
 
-The shell script will automatically:
-1. Use the md_to_docx.py tool from bin/
-2. Process the hive_spec index file
-3. Generate both DOCX and PDF files in the docs/ directory
-4. Create table of contents and title page
+The scripts check dependencies (python-docx, PyYAML, pandoc, LibreOffice),
+then invoke `md_to_docx.py` with the book's index, styles yaml, title page,
+ToC, and page breaks. Built books are checked in alongside their sources.
 
-**See:** `bin/md_to_docx.py` for complete implementation details
+**Requirements:** Python 3.6+, pandoc, LibreOffice (PDF export), and the
+repo's `bin/md_to_docx.py`.
 
 ---
 
@@ -479,7 +418,8 @@ The shell script will automatically:
 
 ### 14.1 Internal Documentation
 
-- **Complete Spec:** `docs/hive_spec/` ← **Primary technical reference**
+- **HIVE HAS:** `docs/hive_has/` ← **Primary external-contract reference**
+- **HIVE MAS:** `docs/hive_mas/` ← **Primary implementation-intent reference**
 - **Master PRD:** `/PRD.md`
 - **Repository Guide:** `/CLAUDE.md`
 
@@ -487,7 +427,7 @@ The shell script will automatically:
 
 - **RAPIDS:** `projects/components/dma-ip/rapids/` - DMA engine controlled by HIVE-C
 - **Delta Network:** `projects/components/fabric-gen-ip/delta/` - 4×4 mesh NoC
-- **AMBA:** `rtl/amba/` - Monitor infrastructure
+- **AMBA/Ocelus:** `rtl/amba/ocelus/` - Monitor infrastructure for observability
 - **Common:** `rtl/common/` - Building blocks
 
 ### 14.3 External References
@@ -499,10 +439,9 @@ The shell script will automatically:
 
 ---
 
-**Document Version:** 0.1
-**Last Updated:** 2025-10-19
+**Document Version:** 0.2
+**Last Updated:** 2026-10-12
 **Review Cycle:** Monthly during active development
-**Next Review:** 2025-11-19
 **Owner:** RTL Design Sherpa Project
 
 ---
@@ -510,7 +449,8 @@ The shell script will automatically:
 ## Navigation
 
 - **← Back to Root:** `/PRD.md`
-- **Complete Specification:** `docs/hive_spec/hive_index.md`
+- **Hardware Architecture Specification:** `docs/hive_has/hive_has_index.md`
+- **Micro-Architecture Specification:** `docs/hive_mas/hive_mas_index.md`
 - **Quick Start:** `README.md` (to be created)
 - **AI Guidance:** `CLAUDE.md`
 - **Tasks:** none tracked (vault area deleted 2026-09-27, unstarted)

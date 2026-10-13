@@ -228,7 +228,7 @@ When adding new projects:
 | [ecc-ip bch](components/ecc-ip/bch/) | Done — 1.0 | [README](components/ecc-ip/bch/README.md) |
 | [riscv-ip kestrel](components/riscv-ip/kestrel-rv32i/) | Done | [docs](components/riscv-ip/kestrel-rv32i/docs/) |
 | [riscv-ip falcon suite](components/riscv-ip/) | Planned | [README](components/riscv-ip/README.md) |
-| [hive-serv](components/riscv-ip/hive-serv/) | Re-homed 2026-10-10 (retired 2026-09-27, revived) | [PRD](components/riscv-ip/hive-serv/PRD.md) · [spec](components/riscv-ip/hive-serv/docs/hive_spec/) |
+| [hive-serv](components/riscv-ip/hive-serv/) | Re-homed 2026-10-10 (retired 2026-09-27, revived) | [PRD](components/riscv-ip/hive-serv/PRD.md) · [HAS](components/riscv-ip/hive-serv/docs/hive_has/hive_has_index.md) · [MAS](components/riscv-ip/hive-serv/docs/hive_mas/hive_mas_index.md) |
 | [cache-ip amber](components/cache-ip/amber-mesi-l1/) | In progress | [README](components/cache-ip/amber-mesi-l1/README.md) · [PRD](components/cache-ip/amber-mesi-l1/PRD.md) |
 | [dfx-ip](components/dfx-ip/) | Scaffold | [HAS](components/dfx-ip/docs/dfx_has/dfx_has_index.md) |
 | [legacy-ip/retro_legacy_blocks](components/legacy-ip/retro_legacy_blocks/) | Active | [PRD](components/legacy-ip/retro_legacy_blocks/PRD.md) |

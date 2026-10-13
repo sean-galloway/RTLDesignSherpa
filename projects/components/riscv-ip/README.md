@@ -62,7 +62,8 @@ plane + 16 SERV monitor cores). Not a falcon-ladder rung: it *uses* RISC-V
 cores rather than teaching one, so it lives beside the ladder rather than on
 it. Re-homed from `compute-eng-ip/hive` 2026-10-10 (it was retired
 2026-09-27 as an unstarted component; the re-home revives it under the
-falcon suite). Spec pages only — no RTL yet.
+falcon suite). HAS/MAS v0.1 published 2026-10-12 (`hive-serv/docs/hive_has/`,
+`hive-serv/docs/hive_mas/`) — no RTL yet.
 
 ## Goals per rung
 
