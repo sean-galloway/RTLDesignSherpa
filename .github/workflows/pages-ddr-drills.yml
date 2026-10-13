@@ -97,7 +97,7 @@ jobs:
           cp -r bin/apps/crc_calc/* _site/crc_calc/
           cp -r bin/apps/cache_sim/* _site/cache_sim/
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
