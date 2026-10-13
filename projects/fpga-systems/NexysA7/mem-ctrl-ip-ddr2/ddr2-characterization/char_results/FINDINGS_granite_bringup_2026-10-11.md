@@ -157,6 +157,43 @@ real engines — the granite stack is functionally complete in the most
 faithful sim available. Next: bitstream with the B-consolidation fix, A7
 re-run, char matrix.
 
+## Board re-run with the B-fix (2026-10-12): WRITE PATH FIXED ON SILICON
+
+Bitstream rebuilt with `361d6cd56` (30,446 LUT / 48.0%, WNS +9.2 ns class).
+`blen=8 x64` engine run — the exact shape that hung before:
+
+- **WR: DONE, PROD=512** (all beats produced, BP=1867 backpressure — the
+  fdone gate visibly working). First multi-beat write completion on silicon.
+- RD: engines reach DONE, CRC exp==act (0xce53ec12, match, valid), but the
+  engine's per-beat comparator latched BEATS_MISM=512 / data_error with
+  STRAY_BEATS=0. Per-beat comparator vs aggregate CRC disagreeing is the
+  untrained-read-capture signature: the board read-leveling sweep
+  (rddata_delay / bitslip / IDELAY taps via host_bringup_75.py) has NEVER
+  run on granite; this probe only wrote controller timing CSRs. Next board
+  step is the leveling flow, then the char matrix.
+
+## Utilization: pumice vs granite vs LiteDRAM (A7-100T, post-route)
+
+Whole design (controller + char harness, 75 MHz):
+  pumice   35,316 LUT (55.7%)  30,427 FF  2 BRAM
+  granite  30,446 LUT (48.0%)  28,109 FF  (harness-dominated)
+
+Controller only (hierarchical, the honest comparison):
+  | block                | LUT   | FF    | BRAM36 |
+  |----------------------|-------|-------|--------|
+  | litedram_core        | 4,356 | 3,348 | 13+9   |
+  | granite (top_geared) | 3,666 | 3,655 | 1      |
+  | pumice (top_geared)  | 7,811 | 5,923 | 2      |
+
+Granite plane split (u_core 3,465): axi 1,306 / entry_store **140** /
+sched 1,394 / train 226 / dfi 403. Pumice plane split (u_core 7,541): axi
+1,380 / **storage 2,020** / sched 3,520 / train 224 / dfi 403.
+Takeaways: the storage plane (2,020 LUT) is 93% replaced by a 140-LUT entry
+store; granite's scheduler is 1,394 vs pumice's 3,520 (research knobs off);
+granite's controller is ~16% BELOW LiteDRAM's core in LUTs — the storage-
+less product SKU meets its area goal. BRAM: both RDS stacks use ~1-2 RAMB36
+(ring + staging) vs LiteDRAM's 13+9 (its datapath/FIFOs live in BRAM).
+
 ## Working hypothesis for the open defect (updated)
 
 blen>=2 (split) sub-bursts at the 1-deep entry store: sub-entries neither

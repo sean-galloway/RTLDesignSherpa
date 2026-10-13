@@ -70,6 +70,9 @@ class AmberBoard:
         self.ser = serial.Serial(port, baud, timeout=timeout)
         # Drain any stale input.
         self.ser.reset_input_buffer()
+        # Host-side shadow of each traffic generator's CTRL register
+        # (set by config_gen) so start_gen never needs a read.
+        self._ctrl_shadow: dict[int, int] = {}
 
     @classmethod
     def auto(cls, board_name: str = "genesys2", baud: int = 115200) -> "AmberBoard":
@@ -123,10 +126,18 @@ class AmberBoard:
         self.write(base + TG_TRANS_COUNT, count & 0xFFFF_FFFF)
         ctrl = ((we_mix & 0xFF) << 8) | 0x00  # run bit clear for now
         self.write(base + TG_CTRL, ctrl)
+        self._ctrl_shadow[base] = ctrl
 
     def start_gen(self, base: int) -> None:
-        """Set the run bit on a traffic generator."""
-        ctrl = self.read(base + TG_CTRL)
+        """Set the run bit on a traffic generator.
+
+        Blind-safe: uses the config_gen ctrl shadow instead of a
+        read-modify-write (the board read path can hang while writes
+        work, and we_mix is host-owned state anyway).
+        """
+        ctrl = self._ctrl_shadow.get(base)
+        if ctrl is None:
+            ctrl = self.read(base + TG_CTRL)
         self.write(base + TG_CTRL, ctrl | 1)
 
     def gen_status(self, base: int) -> dict:
@@ -222,8 +233,13 @@ def build_default_profile() -> list[tuple[int, int]]:
     ]
 
 
-def smoke(board: AmberBoard, count: int = 20000) -> None:
-    """Both gens hammer the same 4KB region (forces coherence), then dump tallies."""
+def smoke(board: AmberBoard, count: int = 20000, blind: bool = False) -> None:
+    """Both gens hammer the same 4KB region (forces coherence), then dump tallies.
+
+    blind=True is write-only: for boards whose read path is still being
+    debugged. The run/done evidence is LED LD7 (busy): on while the gens
+    run, off when both are done.
+    """
     print(f"[smoke] configuring both generators for {count} transactions each")
 
     board.tally_clear_profile()
@@ -242,6 +258,14 @@ def smoke(board: AmberBoard, count: int = 20000) -> None:
 
     print("[smoke] starting generators")
     board.start_all()
+    if blind:
+        # No reads: give the gens wall-clock time, then report by LED.
+        print("[smoke] BLIND mode (write-only): watch LED LD7 (busy) - lit while")
+        print("[smoke] the gens run, OFF when both are done. Status/tally dumps")
+        print("[smoke] require the read path and are skipped.")
+        time.sleep(30.0)
+        print("[smoke] run window elapsed - LD7 should be OFF now.")
+        return
     if not board.wait_done(timeout=120.0):
         print("[smoke] ERROR: timed out waiting for done")
         return
@@ -277,6 +301,8 @@ def main(argv=None) -> int:
                     help="run coherence smoke test and dump tallies")
     ap.add_argument("--count", type=int, default=20000,
                     help="transactions per generator in smoke mode")
+    ap.add_argument("--blind", action="store_true",
+                    help="write-only smoke (no reads); watch LED LD7 for run/done")
 
     args = ap.parse_args(argv)
 
