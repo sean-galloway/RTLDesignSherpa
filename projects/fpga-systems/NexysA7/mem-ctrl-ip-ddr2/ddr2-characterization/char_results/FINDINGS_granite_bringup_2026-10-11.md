@@ -342,3 +342,62 @@ source (splitter) and pace (back-to-back). Next diagnostic, in order:
 - Pumice post-rename reference: `char_post_rename_2026-10-11.csv`
   (matrix ALL PASS; anchor 561.2 MB/s vs in-book 561.1).
 - Board probes live in `/tmp/granite-bringup/probe*.py` (diagnostic only).
+
+## RESOLUTION (2026-10-12): the strobes are ALIVE — word 2 was the dead one
+
+The "dead strobes / no-re bus" conclusion above is **retracted**. The full
+generated-Verilog trace of `a7ddrphy_generated.v` plus a pumice whole-harness
+sim wave measurement and a bench re-test show the opposite:
+
+**PHY anatomy (corrected, line-cited into build-perf/rtl-vivado/a7ddrphy/
+a7ddrphy_generated.v):**
+- `rddata_valid` = `(dfi_p0_rddata_en | dfi_p1_rddata_en)` through an 8-deep
+  tapped delay line (`:2369-2376` → `:556-559`). Fixed **en+8 sys cycle**
+  return latency. `rddata_en` does NOT gate DQ capture — all ISERDESE2 run
+  free-running (`CE1=1`, `:3168`); there is no DQS gate. This PHY relies on
+  `sys2x_clk` being phase-aligned to the returned data.
+- **CSR word 2 (`half_sys8x_taps`) is READ-BACK ONLY** (`:99`, `:2108`,
+  `:2389`). It drives no IDELAYE2. All 16 DQ IDELAYE2s are controlled
+  exclusively by `dly_sel[lane] & rdly_dq_{rst,inc}_re` (`:3195/3198`,
+  `:3803/3806`). Same for word 11 `rdphase` and word 12 `wrphase` — storage
+  + readback, no logic consumers. The bitslip "values" are post-ISERDES
+  barrel-shifter windows (ISERDES BITSLIP pins tied 0, `:3167`); they are
+  settable via words 1+7/8 with dly_sel bracketing (`:2152/2155`).
+- The `_re <= we; _we <= re` decode (`:1906+`) is functional: `re` is an
+  internal tie-0 (`:353`), so `_re` (bus-write-activated) is the LIVE strobe
+  family. Words 5/6/7/8 + dly_sel(1) are the real training path — exactly
+  what `pumice_master.A7Leveling._strobe()` already does.
+
+**Why last night's sweeps found "no eye at any of 32 taps":** the sweep wrote
+word 2 directly — a shadow register. Nothing analog moved; reading back word
+2 only echoed the shadow, which is also why the strobe path "never moved
+taps" in the readback check. The strobe path was never actually exercised.
+
+**Bench proof (2026-10-12):** reflashed the Oct-11 20:29 pumice bit via
+`make program` (BUILD_ID 0x44445232), then
+`pumice_master.py --level-only --level-cache level_cache.json`:
+`restored bitslip 0, tap 8 -> verify OK` (July eye, window 0..16, still
+valid — the eye has NOT moved). `--simple`: **PASS, 0 mismatched beats**.
+Reads are perfect the moment the trained level is applied.
+
+**Corrected root cause of the whole cliff:** the PHY's power-on state is
+IDELAY tap 0 + read-bitslip barrel at its reset value — out-of-eye today
+(July window started at tap 0; it no longer does). Leveling state is
+VOLATILE (lost on every reprogram/power cycle). Every flow that restored the
+cached level passed; every raw probe after a power cycle failed. Same-bit
+pass(21:26)/fail(later) on Oct 11 was purely "leveled vs not leveled".
+LiteDRAM is immune because its BIOS re-levels every boot. **No RTL
+regression, no config regression, no board fault.**
+
+**Controller A/B from the sim waves (pumice whole-harness sim, FST measured;
+LiteDRAM reference from litedram source + generated gateware — the LiteX sim
+tree is unwired):** pumice RD→rddata_en = +4 sys cyc (both phases, 2-cyc
+pulse); LiteDRAM = same-phase-as-RD-cmd, single phase. Benign here (valid is
+self-timed en+8). ODT: pumice 0 vs LiteDRAM tied 1 — margin note, not
+correctness. The consequential difference is training, not protocol.
+
+Next: (1) boot-time auto-level (restore-with-relevel-fallback) wired into
+the standard char flow so no post-power-cycle run can skip it; (2) granite
+B-fix bit gets the same restore+verify, then the granite-vs-pumice perf
+matrix; (3) ILA plan cancelled — read path is healthy analog that was simply
+never retrained.
