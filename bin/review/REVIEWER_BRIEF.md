@@ -25,8 +25,8 @@ Each directory under `books/` is one self-contained review unit:
 | `axis4` | RTL AMBA AXI4-Stream | 6 | 4 | ~32k | 1 |
 | `axis5` | RTL AMBA AXI5-Stream | 5 | 4 | ~36k | 1 |
 | `gaxi` | RTL AMBA GAXI Modules | 7 | 5 | ~40k | 1 |
-| `apbx_xbar_mas` | APB Crossbar Micro-Architecture Specification Index | 5 | 14 | ~65k | 1 |
-| `apbx_xbar_has` | APB Crossbar Hardware Architecture Specification Index | 20 | 9 | ~65k | 1 |
+| `lattice_mas` | Lattice Micro-Architecture Specification Index | 5 | 14 | ~65k | 1 |
+| `lattice_has` | Lattice Hardware Architecture Specification Index | 20 | 9 | ~65k | 1 |
 | `gpio_mas` | APB GPIO Micro-Architecture Specification | 23 | 9 | ~82k | 1 |
 | `rtc_mas` | APB RTC Specification - Table of Contents | 4 | 11 | ~82k | 1 |
 | `wb4` | RTL AMBA Wishbone B4 | 13 | 12 | ~88k | 1 |

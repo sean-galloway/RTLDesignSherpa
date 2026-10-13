@@ -33,7 +33,12 @@
 # Verilator-only Xilinx primitive stubs for lint.
 -f $MISC_ROOT/rtl/filelists/verilator_xilinx_stubs.f
 
+# House modules used by amber_cycle_injector (family-alignment)
+-f $MISC_ROOT/rtl/filelists/dma_address_gen.f
+-f $REPO_ROOT/rtl/common/filelists/shifter_lfsr_fibonacci.f
+-f $REPO_ROOT/rtl/common/filelists/dataint_crc.f
+
 # New area RTL
-$AMBER_FRAMEWORK_ROOT/rtl/amber_traffic_gen.sv
+$AMBER_FRAMEWORK_ROOT/rtl/amber_cycle_injector.sv
 $AMBER_FRAMEWORK_ROOT/rtl/amber_pair_harness.sv
 $AMBER_FRAMEWORK_ROOT/rtl/amber_pair_genesys2_top.sv

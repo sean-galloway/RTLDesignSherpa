@@ -21,6 +21,20 @@ The rule applies to the OBS modules: `axi4_intf_master_observer` / `axi4_intf_sl
 observer split that replaces it. Those hang off a bus as parallel snoops, and
 for them any handshake gating is the defect.
 
+## Where a `*_mon` wrapper taps: always the FUB side
+
+**Owner ruling, 2026-10-13: every `*_mon` / `*_monlite` wrapper taps the FUB
+side of its base module, for timing.** The monitor's command, data and
+response taps come from the `fub_*` signals (the requester side of a master,
+the backend side of a slave), never from the external `m_axi*` / `s_axi*`
+bus. `block_ready` still gates the request entering the wrapper.
+
+*Case:* the 2026-10-13 block-diagram pass found the families split: only the
+AXI5 slave wrappers tapped `fub_axi_*`, and every other wrapper (AXI4, AXI4-Lite,
+AXI5 masters, AXI5-Lite, ACE, AXIS) tapped the external bus. They were all moved
+to the FUB side. The reference implementation is
+`rtl/amba/axi5/axi5_slave_rd_mon.sv`.
+
 ## The failure that taught it
 
 `dma_slave_monitors` was built by splicing in-path `*_mon` wrappers onto the

@@ -15,13 +15,13 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/b
 $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/host_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/bridge_amber_axil.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/bridge_amber_axil_xbar.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/cycle_injector0_adapter.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/cycle_injector1_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/harness_csr_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/subtractive_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/tally_cfgr_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/tally_cfgw_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/tally_cnt_adapter.sv
-$REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/traffic_gen0_adapter.sv
-$REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/bridge_amber_axil/traffic_gen1_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 #

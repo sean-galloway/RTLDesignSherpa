@@ -65,49 +65,49 @@ module bridge_amber_axil
     input  logic                  harness_csr_axi_rvalid,
     output logic                  harness_csr_axi_rready,
 
-    // Slave 1: traffic_gen0
-    // AXI4-Lite Slave: traffic_gen0
-    output logic [31:0] traffic_gen0_axi_awaddr,
-    output logic [2:0]            traffic_gen0_axi_awprot,
-    output logic                  traffic_gen0_axi_awvalid,
-    input  logic                  traffic_gen0_axi_awready,
-    output logic [31:0] traffic_gen0_axi_wdata,
-    output logic [3:0] traffic_gen0_axi_wstrb,
-    output logic                  traffic_gen0_axi_wvalid,
-    input  logic                  traffic_gen0_axi_wready,
-    input  logic [1:0]            traffic_gen0_axi_bresp,
-    input  logic                  traffic_gen0_axi_bvalid,
-    output logic                  traffic_gen0_axi_bready,
-    output logic [31:0] traffic_gen0_axi_araddr,
-    output logic [2:0]            traffic_gen0_axi_arprot,
-    output logic                  traffic_gen0_axi_arvalid,
-    input  logic                  traffic_gen0_axi_arready,
-    input  logic [31:0] traffic_gen0_axi_rdata,
-    input  logic [1:0]            traffic_gen0_axi_rresp,
-    input  logic                  traffic_gen0_axi_rvalid,
-    output logic                  traffic_gen0_axi_rready,
+    // Slave 1: cycle_injector0
+    // AXI4-Lite Slave: cycle_injector0
+    output logic [31:0] cycle_injector0_axi_awaddr,
+    output logic [2:0]            cycle_injector0_axi_awprot,
+    output logic                  cycle_injector0_axi_awvalid,
+    input  logic                  cycle_injector0_axi_awready,
+    output logic [31:0] cycle_injector0_axi_wdata,
+    output logic [3:0] cycle_injector0_axi_wstrb,
+    output logic                  cycle_injector0_axi_wvalid,
+    input  logic                  cycle_injector0_axi_wready,
+    input  logic [1:0]            cycle_injector0_axi_bresp,
+    input  logic                  cycle_injector0_axi_bvalid,
+    output logic                  cycle_injector0_axi_bready,
+    output logic [31:0] cycle_injector0_axi_araddr,
+    output logic [2:0]            cycle_injector0_axi_arprot,
+    output logic                  cycle_injector0_axi_arvalid,
+    input  logic                  cycle_injector0_axi_arready,
+    input  logic [31:0] cycle_injector0_axi_rdata,
+    input  logic [1:0]            cycle_injector0_axi_rresp,
+    input  logic                  cycle_injector0_axi_rvalid,
+    output logic                  cycle_injector0_axi_rready,
 
-    // Slave 2: traffic_gen1
-    // AXI4-Lite Slave: traffic_gen1
-    output logic [31:0] traffic_gen1_axi_awaddr,
-    output logic [2:0]            traffic_gen1_axi_awprot,
-    output logic                  traffic_gen1_axi_awvalid,
-    input  logic                  traffic_gen1_axi_awready,
-    output logic [31:0] traffic_gen1_axi_wdata,
-    output logic [3:0] traffic_gen1_axi_wstrb,
-    output logic                  traffic_gen1_axi_wvalid,
-    input  logic                  traffic_gen1_axi_wready,
-    input  logic [1:0]            traffic_gen1_axi_bresp,
-    input  logic                  traffic_gen1_axi_bvalid,
-    output logic                  traffic_gen1_axi_bready,
-    output logic [31:0] traffic_gen1_axi_araddr,
-    output logic [2:0]            traffic_gen1_axi_arprot,
-    output logic                  traffic_gen1_axi_arvalid,
-    input  logic                  traffic_gen1_axi_arready,
-    input  logic [31:0] traffic_gen1_axi_rdata,
-    input  logic [1:0]            traffic_gen1_axi_rresp,
-    input  logic                  traffic_gen1_axi_rvalid,
-    output logic                  traffic_gen1_axi_rready,
+    // Slave 2: cycle_injector1
+    // AXI4-Lite Slave: cycle_injector1
+    output logic [31:0] cycle_injector1_axi_awaddr,
+    output logic [2:0]            cycle_injector1_axi_awprot,
+    output logic                  cycle_injector1_axi_awvalid,
+    input  logic                  cycle_injector1_axi_awready,
+    output logic [31:0] cycle_injector1_axi_wdata,
+    output logic [3:0] cycle_injector1_axi_wstrb,
+    output logic                  cycle_injector1_axi_wvalid,
+    input  logic                  cycle_injector1_axi_wready,
+    input  logic [1:0]            cycle_injector1_axi_bresp,
+    input  logic                  cycle_injector1_axi_bvalid,
+    output logic                  cycle_injector1_axi_bready,
+    output logic [31:0] cycle_injector1_axi_araddr,
+    output logic [2:0]            cycle_injector1_axi_arprot,
+    output logic                  cycle_injector1_axi_arvalid,
+    input  logic                  cycle_injector1_axi_arready,
+    input  logic [31:0] cycle_injector1_axi_rdata,
+    input  logic [1:0]            cycle_injector1_axi_rresp,
+    input  logic                  cycle_injector1_axi_rvalid,
+    output logic                  cycle_injector1_axi_rready,
 
     // Slave 3: tally_cnt
     // AXI4-Lite Slave: tally_cnt
@@ -280,109 +280,109 @@ module bridge_amber_axil
     logic [BRIDGE_ID_WIDTH-1:0] harness_csr_axi_rid_bridge_id;
     logic                       harness_csr_axi_rid_valid;
 
-    // traffic_gen0 (AXIL, 32b AXI4 interface)
-    logic [0:0]            xbar_traffic_gen0_axi_awid;
-    logic [31:0]               xbar_traffic_gen0_axi_awaddr;
-    logic [7:0]                xbar_traffic_gen0_axi_awlen;
-    logic [2:0]                xbar_traffic_gen0_axi_awsize;
-    logic [1:0]                xbar_traffic_gen0_axi_awburst;
-    logic                      xbar_traffic_gen0_axi_awlock;
-    logic [3:0]                xbar_traffic_gen0_axi_awcache;
-    logic [2:0]                xbar_traffic_gen0_axi_awprot;
-    logic [3:0]                xbar_traffic_gen0_axi_awqos;
-    logic [3:0]                xbar_traffic_gen0_axi_awregion;
-    logic                      xbar_traffic_gen0_axi_awuser;
-    logic                      xbar_traffic_gen0_axi_awvalid;
-    logic                      xbar_traffic_gen0_axi_awready;
-    logic [31:0] xbar_traffic_gen0_axi_wdata;
-    logic [3:0] xbar_traffic_gen0_axi_wstrb;
-    logic                      xbar_traffic_gen0_axi_wlast;
-    logic                      xbar_traffic_gen0_axi_wuser;
-    logic                      xbar_traffic_gen0_axi_wvalid;
-    logic                      xbar_traffic_gen0_axi_wready;
-    logic [0:0]            xbar_traffic_gen0_axi_bid;
-    logic [1:0]                xbar_traffic_gen0_axi_bresp;
-    logic                      xbar_traffic_gen0_axi_buser;
-    logic                      xbar_traffic_gen0_axi_bvalid;
-    logic                      xbar_traffic_gen0_axi_bready;
-    logic [0:0]            xbar_traffic_gen0_axi_arid;
-    logic [31:0]               xbar_traffic_gen0_axi_araddr;
-    logic [7:0]                xbar_traffic_gen0_axi_arlen;
-    logic [2:0]                xbar_traffic_gen0_axi_arsize;
-    logic [1:0]                xbar_traffic_gen0_axi_arburst;
-    logic                      xbar_traffic_gen0_axi_arlock;
-    logic [3:0]                xbar_traffic_gen0_axi_arcache;
-    logic [2:0]                xbar_traffic_gen0_axi_arprot;
-    logic [3:0]                xbar_traffic_gen0_axi_arqos;
-    logic [3:0]                xbar_traffic_gen0_axi_arregion;
-    logic                      xbar_traffic_gen0_axi_aruser;
-    logic                      xbar_traffic_gen0_axi_arvalid;
-    logic                      xbar_traffic_gen0_axi_arready;
-    logic [0:0]            xbar_traffic_gen0_axi_rid;
-    logic [31:0] xbar_traffic_gen0_axi_rdata;
-    logic [1:0]                xbar_traffic_gen0_axi_rresp;
-    logic                      xbar_traffic_gen0_axi_rlast;
-    logic                      xbar_traffic_gen0_axi_ruser;
-    logic                      xbar_traffic_gen0_axi_rvalid;
-    logic                      xbar_traffic_gen0_axi_rready;
-    logic [BRIDGE_ID_WIDTH-1:0] traffic_gen0_axi_bridge_id_aw;
-    logic [BRIDGE_ID_WIDTH-1:0] traffic_gen0_axi_bid_bridge_id;
-    logic                       traffic_gen0_axi_bid_valid;
-    logic [BRIDGE_ID_WIDTH-1:0] traffic_gen0_axi_bridge_id_ar;
-    logic [BRIDGE_ID_WIDTH-1:0] traffic_gen0_axi_rid_bridge_id;
-    logic                       traffic_gen0_axi_rid_valid;
+    // cycle_injector0 (AXIL, 32b AXI4 interface)
+    logic [0:0]            xbar_cycle_injector0_axi_awid;
+    logic [31:0]               xbar_cycle_injector0_axi_awaddr;
+    logic [7:0]                xbar_cycle_injector0_axi_awlen;
+    logic [2:0]                xbar_cycle_injector0_axi_awsize;
+    logic [1:0]                xbar_cycle_injector0_axi_awburst;
+    logic                      xbar_cycle_injector0_axi_awlock;
+    logic [3:0]                xbar_cycle_injector0_axi_awcache;
+    logic [2:0]                xbar_cycle_injector0_axi_awprot;
+    logic [3:0]                xbar_cycle_injector0_axi_awqos;
+    logic [3:0]                xbar_cycle_injector0_axi_awregion;
+    logic                      xbar_cycle_injector0_axi_awuser;
+    logic                      xbar_cycle_injector0_axi_awvalid;
+    logic                      xbar_cycle_injector0_axi_awready;
+    logic [31:0] xbar_cycle_injector0_axi_wdata;
+    logic [3:0] xbar_cycle_injector0_axi_wstrb;
+    logic                      xbar_cycle_injector0_axi_wlast;
+    logic                      xbar_cycle_injector0_axi_wuser;
+    logic                      xbar_cycle_injector0_axi_wvalid;
+    logic                      xbar_cycle_injector0_axi_wready;
+    logic [0:0]            xbar_cycle_injector0_axi_bid;
+    logic [1:0]                xbar_cycle_injector0_axi_bresp;
+    logic                      xbar_cycle_injector0_axi_buser;
+    logic                      xbar_cycle_injector0_axi_bvalid;
+    logic                      xbar_cycle_injector0_axi_bready;
+    logic [0:0]            xbar_cycle_injector0_axi_arid;
+    logic [31:0]               xbar_cycle_injector0_axi_araddr;
+    logic [7:0]                xbar_cycle_injector0_axi_arlen;
+    logic [2:0]                xbar_cycle_injector0_axi_arsize;
+    logic [1:0]                xbar_cycle_injector0_axi_arburst;
+    logic                      xbar_cycle_injector0_axi_arlock;
+    logic [3:0]                xbar_cycle_injector0_axi_arcache;
+    logic [2:0]                xbar_cycle_injector0_axi_arprot;
+    logic [3:0]                xbar_cycle_injector0_axi_arqos;
+    logic [3:0]                xbar_cycle_injector0_axi_arregion;
+    logic                      xbar_cycle_injector0_axi_aruser;
+    logic                      xbar_cycle_injector0_axi_arvalid;
+    logic                      xbar_cycle_injector0_axi_arready;
+    logic [0:0]            xbar_cycle_injector0_axi_rid;
+    logic [31:0] xbar_cycle_injector0_axi_rdata;
+    logic [1:0]                xbar_cycle_injector0_axi_rresp;
+    logic                      xbar_cycle_injector0_axi_rlast;
+    logic                      xbar_cycle_injector0_axi_ruser;
+    logic                      xbar_cycle_injector0_axi_rvalid;
+    logic                      xbar_cycle_injector0_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] cycle_injector0_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] cycle_injector0_axi_bid_bridge_id;
+    logic                       cycle_injector0_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] cycle_injector0_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] cycle_injector0_axi_rid_bridge_id;
+    logic                       cycle_injector0_axi_rid_valid;
 
-    // traffic_gen1 (AXIL, 32b AXI4 interface)
-    logic [0:0]            xbar_traffic_gen1_axi_awid;
-    logic [31:0]               xbar_traffic_gen1_axi_awaddr;
-    logic [7:0]                xbar_traffic_gen1_axi_awlen;
-    logic [2:0]                xbar_traffic_gen1_axi_awsize;
-    logic [1:0]                xbar_traffic_gen1_axi_awburst;
-    logic                      xbar_traffic_gen1_axi_awlock;
-    logic [3:0]                xbar_traffic_gen1_axi_awcache;
-    logic [2:0]                xbar_traffic_gen1_axi_awprot;
-    logic [3:0]                xbar_traffic_gen1_axi_awqos;
-    logic [3:0]                xbar_traffic_gen1_axi_awregion;
-    logic                      xbar_traffic_gen1_axi_awuser;
-    logic                      xbar_traffic_gen1_axi_awvalid;
-    logic                      xbar_traffic_gen1_axi_awready;
-    logic [31:0] xbar_traffic_gen1_axi_wdata;
-    logic [3:0] xbar_traffic_gen1_axi_wstrb;
-    logic                      xbar_traffic_gen1_axi_wlast;
-    logic                      xbar_traffic_gen1_axi_wuser;
-    logic                      xbar_traffic_gen1_axi_wvalid;
-    logic                      xbar_traffic_gen1_axi_wready;
-    logic [0:0]            xbar_traffic_gen1_axi_bid;
-    logic [1:0]                xbar_traffic_gen1_axi_bresp;
-    logic                      xbar_traffic_gen1_axi_buser;
-    logic                      xbar_traffic_gen1_axi_bvalid;
-    logic                      xbar_traffic_gen1_axi_bready;
-    logic [0:0]            xbar_traffic_gen1_axi_arid;
-    logic [31:0]               xbar_traffic_gen1_axi_araddr;
-    logic [7:0]                xbar_traffic_gen1_axi_arlen;
-    logic [2:0]                xbar_traffic_gen1_axi_arsize;
-    logic [1:0]                xbar_traffic_gen1_axi_arburst;
-    logic                      xbar_traffic_gen1_axi_arlock;
-    logic [3:0]                xbar_traffic_gen1_axi_arcache;
-    logic [2:0]                xbar_traffic_gen1_axi_arprot;
-    logic [3:0]                xbar_traffic_gen1_axi_arqos;
-    logic [3:0]                xbar_traffic_gen1_axi_arregion;
-    logic                      xbar_traffic_gen1_axi_aruser;
-    logic                      xbar_traffic_gen1_axi_arvalid;
-    logic                      xbar_traffic_gen1_axi_arready;
-    logic [0:0]            xbar_traffic_gen1_axi_rid;
-    logic [31:0] xbar_traffic_gen1_axi_rdata;
-    logic [1:0]                xbar_traffic_gen1_axi_rresp;
-    logic                      xbar_traffic_gen1_axi_rlast;
-    logic                      xbar_traffic_gen1_axi_ruser;
-    logic                      xbar_traffic_gen1_axi_rvalid;
-    logic                      xbar_traffic_gen1_axi_rready;
-    logic [BRIDGE_ID_WIDTH-1:0] traffic_gen1_axi_bridge_id_aw;
-    logic [BRIDGE_ID_WIDTH-1:0] traffic_gen1_axi_bid_bridge_id;
-    logic                       traffic_gen1_axi_bid_valid;
-    logic [BRIDGE_ID_WIDTH-1:0] traffic_gen1_axi_bridge_id_ar;
-    logic [BRIDGE_ID_WIDTH-1:0] traffic_gen1_axi_rid_bridge_id;
-    logic                       traffic_gen1_axi_rid_valid;
+    // cycle_injector1 (AXIL, 32b AXI4 interface)
+    logic [0:0]            xbar_cycle_injector1_axi_awid;
+    logic [31:0]               xbar_cycle_injector1_axi_awaddr;
+    logic [7:0]                xbar_cycle_injector1_axi_awlen;
+    logic [2:0]                xbar_cycle_injector1_axi_awsize;
+    logic [1:0]                xbar_cycle_injector1_axi_awburst;
+    logic                      xbar_cycle_injector1_axi_awlock;
+    logic [3:0]                xbar_cycle_injector1_axi_awcache;
+    logic [2:0]                xbar_cycle_injector1_axi_awprot;
+    logic [3:0]                xbar_cycle_injector1_axi_awqos;
+    logic [3:0]                xbar_cycle_injector1_axi_awregion;
+    logic                      xbar_cycle_injector1_axi_awuser;
+    logic                      xbar_cycle_injector1_axi_awvalid;
+    logic                      xbar_cycle_injector1_axi_awready;
+    logic [31:0] xbar_cycle_injector1_axi_wdata;
+    logic [3:0] xbar_cycle_injector1_axi_wstrb;
+    logic                      xbar_cycle_injector1_axi_wlast;
+    logic                      xbar_cycle_injector1_axi_wuser;
+    logic                      xbar_cycle_injector1_axi_wvalid;
+    logic                      xbar_cycle_injector1_axi_wready;
+    logic [0:0]            xbar_cycle_injector1_axi_bid;
+    logic [1:0]                xbar_cycle_injector1_axi_bresp;
+    logic                      xbar_cycle_injector1_axi_buser;
+    logic                      xbar_cycle_injector1_axi_bvalid;
+    logic                      xbar_cycle_injector1_axi_bready;
+    logic [0:0]            xbar_cycle_injector1_axi_arid;
+    logic [31:0]               xbar_cycle_injector1_axi_araddr;
+    logic [7:0]                xbar_cycle_injector1_axi_arlen;
+    logic [2:0]                xbar_cycle_injector1_axi_arsize;
+    logic [1:0]                xbar_cycle_injector1_axi_arburst;
+    logic                      xbar_cycle_injector1_axi_arlock;
+    logic [3:0]                xbar_cycle_injector1_axi_arcache;
+    logic [2:0]                xbar_cycle_injector1_axi_arprot;
+    logic [3:0]                xbar_cycle_injector1_axi_arqos;
+    logic [3:0]                xbar_cycle_injector1_axi_arregion;
+    logic                      xbar_cycle_injector1_axi_aruser;
+    logic                      xbar_cycle_injector1_axi_arvalid;
+    logic                      xbar_cycle_injector1_axi_arready;
+    logic [0:0]            xbar_cycle_injector1_axi_rid;
+    logic [31:0] xbar_cycle_injector1_axi_rdata;
+    logic [1:0]                xbar_cycle_injector1_axi_rresp;
+    logic                      xbar_cycle_injector1_axi_rlast;
+    logic                      xbar_cycle_injector1_axi_ruser;
+    logic                      xbar_cycle_injector1_axi_rvalid;
+    logic                      xbar_cycle_injector1_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] cycle_injector1_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] cycle_injector1_axi_bid_bridge_id;
+    logic                       cycle_injector1_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] cycle_injector1_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] cycle_injector1_axi_rid_bridge_id;
+    logic                       cycle_injector1_axi_rid_valid;
 
     // tally_cnt (AXIL, 64b AXI4 interface)
     logic [0:0]            xbar_tally_cnt_axi_awid;
@@ -888,111 +888,111 @@ module bridge_amber_axil
         .harness_csr_axi_rid_bridge_id(harness_csr_axi_rid_bridge_id),
         .harness_csr_axi_rid_valid(harness_csr_axi_rid_valid),
 
-        // Slave 1: traffic_gen0
-        .traffic_gen0_axi_awid(xbar_traffic_gen0_axi_awid),
-        .traffic_gen0_axi_awaddr(xbar_traffic_gen0_axi_awaddr),
-        .traffic_gen0_axi_awlen(xbar_traffic_gen0_axi_awlen),
-        .traffic_gen0_axi_awsize(xbar_traffic_gen0_axi_awsize),
-        .traffic_gen0_axi_awburst(xbar_traffic_gen0_axi_awburst),
-        .traffic_gen0_axi_awlock(xbar_traffic_gen0_axi_awlock),
-        .traffic_gen0_axi_awcache(xbar_traffic_gen0_axi_awcache),
-        .traffic_gen0_axi_awprot(xbar_traffic_gen0_axi_awprot),
-        .traffic_gen0_axi_awqos(xbar_traffic_gen0_axi_awqos),
-        .traffic_gen0_axi_awregion(xbar_traffic_gen0_axi_awregion),
-        .traffic_gen0_axi_awuser(xbar_traffic_gen0_axi_awuser),
-        .traffic_gen0_axi_awvalid(xbar_traffic_gen0_axi_awvalid),
-        .traffic_gen0_axi_awready(xbar_traffic_gen0_axi_awready),
-        .traffic_gen0_axi_wdata(xbar_traffic_gen0_axi_wdata),
-        .traffic_gen0_axi_wstrb(xbar_traffic_gen0_axi_wstrb),
-        .traffic_gen0_axi_wlast(xbar_traffic_gen0_axi_wlast),
-        .traffic_gen0_axi_wuser(xbar_traffic_gen0_axi_wuser),
-        .traffic_gen0_axi_wvalid(xbar_traffic_gen0_axi_wvalid),
-        .traffic_gen0_axi_wready(xbar_traffic_gen0_axi_wready),
-        .traffic_gen0_axi_bid(xbar_traffic_gen0_axi_bid),
-        .traffic_gen0_axi_bresp(xbar_traffic_gen0_axi_bresp),
-        .traffic_gen0_axi_buser(xbar_traffic_gen0_axi_buser),
-        .traffic_gen0_axi_bvalid(xbar_traffic_gen0_axi_bvalid),
-        .traffic_gen0_axi_bready(xbar_traffic_gen0_axi_bready),
-        .traffic_gen0_axi_arid(xbar_traffic_gen0_axi_arid),
-        .traffic_gen0_axi_araddr(xbar_traffic_gen0_axi_araddr),
-        .traffic_gen0_axi_arlen(xbar_traffic_gen0_axi_arlen),
-        .traffic_gen0_axi_arsize(xbar_traffic_gen0_axi_arsize),
-        .traffic_gen0_axi_arburst(xbar_traffic_gen0_axi_arburst),
-        .traffic_gen0_axi_arlock(xbar_traffic_gen0_axi_arlock),
-        .traffic_gen0_axi_arcache(xbar_traffic_gen0_axi_arcache),
-        .traffic_gen0_axi_arprot(xbar_traffic_gen0_axi_arprot),
-        .traffic_gen0_axi_arqos(xbar_traffic_gen0_axi_arqos),
-        .traffic_gen0_axi_arregion(xbar_traffic_gen0_axi_arregion),
-        .traffic_gen0_axi_aruser(xbar_traffic_gen0_axi_aruser),
-        .traffic_gen0_axi_arvalid(xbar_traffic_gen0_axi_arvalid),
-        .traffic_gen0_axi_arready(xbar_traffic_gen0_axi_arready),
-        .traffic_gen0_axi_rid(xbar_traffic_gen0_axi_rid),
-        .traffic_gen0_axi_rdata(xbar_traffic_gen0_axi_rdata),
-        .traffic_gen0_axi_rresp(xbar_traffic_gen0_axi_rresp),
-        .traffic_gen0_axi_rlast(xbar_traffic_gen0_axi_rlast),
-        .traffic_gen0_axi_ruser(xbar_traffic_gen0_axi_ruser),
-        .traffic_gen0_axi_rvalid(xbar_traffic_gen0_axi_rvalid),
-        .traffic_gen0_axi_rready(xbar_traffic_gen0_axi_rready),
-        .traffic_gen0_axi_bridge_id_aw(traffic_gen0_axi_bridge_id_aw),
-        .traffic_gen0_axi_bid_bridge_id(traffic_gen0_axi_bid_bridge_id),
-        .traffic_gen0_axi_bid_valid(traffic_gen0_axi_bid_valid),
+        // Slave 1: cycle_injector0
+        .cycle_injector0_axi_awid(xbar_cycle_injector0_axi_awid),
+        .cycle_injector0_axi_awaddr(xbar_cycle_injector0_axi_awaddr),
+        .cycle_injector0_axi_awlen(xbar_cycle_injector0_axi_awlen),
+        .cycle_injector0_axi_awsize(xbar_cycle_injector0_axi_awsize),
+        .cycle_injector0_axi_awburst(xbar_cycle_injector0_axi_awburst),
+        .cycle_injector0_axi_awlock(xbar_cycle_injector0_axi_awlock),
+        .cycle_injector0_axi_awcache(xbar_cycle_injector0_axi_awcache),
+        .cycle_injector0_axi_awprot(xbar_cycle_injector0_axi_awprot),
+        .cycle_injector0_axi_awqos(xbar_cycle_injector0_axi_awqos),
+        .cycle_injector0_axi_awregion(xbar_cycle_injector0_axi_awregion),
+        .cycle_injector0_axi_awuser(xbar_cycle_injector0_axi_awuser),
+        .cycle_injector0_axi_awvalid(xbar_cycle_injector0_axi_awvalid),
+        .cycle_injector0_axi_awready(xbar_cycle_injector0_axi_awready),
+        .cycle_injector0_axi_wdata(xbar_cycle_injector0_axi_wdata),
+        .cycle_injector0_axi_wstrb(xbar_cycle_injector0_axi_wstrb),
+        .cycle_injector0_axi_wlast(xbar_cycle_injector0_axi_wlast),
+        .cycle_injector0_axi_wuser(xbar_cycle_injector0_axi_wuser),
+        .cycle_injector0_axi_wvalid(xbar_cycle_injector0_axi_wvalid),
+        .cycle_injector0_axi_wready(xbar_cycle_injector0_axi_wready),
+        .cycle_injector0_axi_bid(xbar_cycle_injector0_axi_bid),
+        .cycle_injector0_axi_bresp(xbar_cycle_injector0_axi_bresp),
+        .cycle_injector0_axi_buser(xbar_cycle_injector0_axi_buser),
+        .cycle_injector0_axi_bvalid(xbar_cycle_injector0_axi_bvalid),
+        .cycle_injector0_axi_bready(xbar_cycle_injector0_axi_bready),
+        .cycle_injector0_axi_arid(xbar_cycle_injector0_axi_arid),
+        .cycle_injector0_axi_araddr(xbar_cycle_injector0_axi_araddr),
+        .cycle_injector0_axi_arlen(xbar_cycle_injector0_axi_arlen),
+        .cycle_injector0_axi_arsize(xbar_cycle_injector0_axi_arsize),
+        .cycle_injector0_axi_arburst(xbar_cycle_injector0_axi_arburst),
+        .cycle_injector0_axi_arlock(xbar_cycle_injector0_axi_arlock),
+        .cycle_injector0_axi_arcache(xbar_cycle_injector0_axi_arcache),
+        .cycle_injector0_axi_arprot(xbar_cycle_injector0_axi_arprot),
+        .cycle_injector0_axi_arqos(xbar_cycle_injector0_axi_arqos),
+        .cycle_injector0_axi_arregion(xbar_cycle_injector0_axi_arregion),
+        .cycle_injector0_axi_aruser(xbar_cycle_injector0_axi_aruser),
+        .cycle_injector0_axi_arvalid(xbar_cycle_injector0_axi_arvalid),
+        .cycle_injector0_axi_arready(xbar_cycle_injector0_axi_arready),
+        .cycle_injector0_axi_rid(xbar_cycle_injector0_axi_rid),
+        .cycle_injector0_axi_rdata(xbar_cycle_injector0_axi_rdata),
+        .cycle_injector0_axi_rresp(xbar_cycle_injector0_axi_rresp),
+        .cycle_injector0_axi_rlast(xbar_cycle_injector0_axi_rlast),
+        .cycle_injector0_axi_ruser(xbar_cycle_injector0_axi_ruser),
+        .cycle_injector0_axi_rvalid(xbar_cycle_injector0_axi_rvalid),
+        .cycle_injector0_axi_rready(xbar_cycle_injector0_axi_rready),
+        .cycle_injector0_axi_bridge_id_aw(cycle_injector0_axi_bridge_id_aw),
+        .cycle_injector0_axi_bid_bridge_id(cycle_injector0_axi_bid_bridge_id),
+        .cycle_injector0_axi_bid_valid(cycle_injector0_axi_bid_valid),
 
-        .traffic_gen0_axi_bridge_id_ar(traffic_gen0_axi_bridge_id_ar),
-        .traffic_gen0_axi_rid_bridge_id(traffic_gen0_axi_rid_bridge_id),
-        .traffic_gen0_axi_rid_valid(traffic_gen0_axi_rid_valid),
+        .cycle_injector0_axi_bridge_id_ar(cycle_injector0_axi_bridge_id_ar),
+        .cycle_injector0_axi_rid_bridge_id(cycle_injector0_axi_rid_bridge_id),
+        .cycle_injector0_axi_rid_valid(cycle_injector0_axi_rid_valid),
 
-        // Slave 2: traffic_gen1
-        .traffic_gen1_axi_awid(xbar_traffic_gen1_axi_awid),
-        .traffic_gen1_axi_awaddr(xbar_traffic_gen1_axi_awaddr),
-        .traffic_gen1_axi_awlen(xbar_traffic_gen1_axi_awlen),
-        .traffic_gen1_axi_awsize(xbar_traffic_gen1_axi_awsize),
-        .traffic_gen1_axi_awburst(xbar_traffic_gen1_axi_awburst),
-        .traffic_gen1_axi_awlock(xbar_traffic_gen1_axi_awlock),
-        .traffic_gen1_axi_awcache(xbar_traffic_gen1_axi_awcache),
-        .traffic_gen1_axi_awprot(xbar_traffic_gen1_axi_awprot),
-        .traffic_gen1_axi_awqos(xbar_traffic_gen1_axi_awqos),
-        .traffic_gen1_axi_awregion(xbar_traffic_gen1_axi_awregion),
-        .traffic_gen1_axi_awuser(xbar_traffic_gen1_axi_awuser),
-        .traffic_gen1_axi_awvalid(xbar_traffic_gen1_axi_awvalid),
-        .traffic_gen1_axi_awready(xbar_traffic_gen1_axi_awready),
-        .traffic_gen1_axi_wdata(xbar_traffic_gen1_axi_wdata),
-        .traffic_gen1_axi_wstrb(xbar_traffic_gen1_axi_wstrb),
-        .traffic_gen1_axi_wlast(xbar_traffic_gen1_axi_wlast),
-        .traffic_gen1_axi_wuser(xbar_traffic_gen1_axi_wuser),
-        .traffic_gen1_axi_wvalid(xbar_traffic_gen1_axi_wvalid),
-        .traffic_gen1_axi_wready(xbar_traffic_gen1_axi_wready),
-        .traffic_gen1_axi_bid(xbar_traffic_gen1_axi_bid),
-        .traffic_gen1_axi_bresp(xbar_traffic_gen1_axi_bresp),
-        .traffic_gen1_axi_buser(xbar_traffic_gen1_axi_buser),
-        .traffic_gen1_axi_bvalid(xbar_traffic_gen1_axi_bvalid),
-        .traffic_gen1_axi_bready(xbar_traffic_gen1_axi_bready),
-        .traffic_gen1_axi_arid(xbar_traffic_gen1_axi_arid),
-        .traffic_gen1_axi_araddr(xbar_traffic_gen1_axi_araddr),
-        .traffic_gen1_axi_arlen(xbar_traffic_gen1_axi_arlen),
-        .traffic_gen1_axi_arsize(xbar_traffic_gen1_axi_arsize),
-        .traffic_gen1_axi_arburst(xbar_traffic_gen1_axi_arburst),
-        .traffic_gen1_axi_arlock(xbar_traffic_gen1_axi_arlock),
-        .traffic_gen1_axi_arcache(xbar_traffic_gen1_axi_arcache),
-        .traffic_gen1_axi_arprot(xbar_traffic_gen1_axi_arprot),
-        .traffic_gen1_axi_arqos(xbar_traffic_gen1_axi_arqos),
-        .traffic_gen1_axi_arregion(xbar_traffic_gen1_axi_arregion),
-        .traffic_gen1_axi_aruser(xbar_traffic_gen1_axi_aruser),
-        .traffic_gen1_axi_arvalid(xbar_traffic_gen1_axi_arvalid),
-        .traffic_gen1_axi_arready(xbar_traffic_gen1_axi_arready),
-        .traffic_gen1_axi_rid(xbar_traffic_gen1_axi_rid),
-        .traffic_gen1_axi_rdata(xbar_traffic_gen1_axi_rdata),
-        .traffic_gen1_axi_rresp(xbar_traffic_gen1_axi_rresp),
-        .traffic_gen1_axi_rlast(xbar_traffic_gen1_axi_rlast),
-        .traffic_gen1_axi_ruser(xbar_traffic_gen1_axi_ruser),
-        .traffic_gen1_axi_rvalid(xbar_traffic_gen1_axi_rvalid),
-        .traffic_gen1_axi_rready(xbar_traffic_gen1_axi_rready),
-        .traffic_gen1_axi_bridge_id_aw(traffic_gen1_axi_bridge_id_aw),
-        .traffic_gen1_axi_bid_bridge_id(traffic_gen1_axi_bid_bridge_id),
-        .traffic_gen1_axi_bid_valid(traffic_gen1_axi_bid_valid),
+        // Slave 2: cycle_injector1
+        .cycle_injector1_axi_awid(xbar_cycle_injector1_axi_awid),
+        .cycle_injector1_axi_awaddr(xbar_cycle_injector1_axi_awaddr),
+        .cycle_injector1_axi_awlen(xbar_cycle_injector1_axi_awlen),
+        .cycle_injector1_axi_awsize(xbar_cycle_injector1_axi_awsize),
+        .cycle_injector1_axi_awburst(xbar_cycle_injector1_axi_awburst),
+        .cycle_injector1_axi_awlock(xbar_cycle_injector1_axi_awlock),
+        .cycle_injector1_axi_awcache(xbar_cycle_injector1_axi_awcache),
+        .cycle_injector1_axi_awprot(xbar_cycle_injector1_axi_awprot),
+        .cycle_injector1_axi_awqos(xbar_cycle_injector1_axi_awqos),
+        .cycle_injector1_axi_awregion(xbar_cycle_injector1_axi_awregion),
+        .cycle_injector1_axi_awuser(xbar_cycle_injector1_axi_awuser),
+        .cycle_injector1_axi_awvalid(xbar_cycle_injector1_axi_awvalid),
+        .cycle_injector1_axi_awready(xbar_cycle_injector1_axi_awready),
+        .cycle_injector1_axi_wdata(xbar_cycle_injector1_axi_wdata),
+        .cycle_injector1_axi_wstrb(xbar_cycle_injector1_axi_wstrb),
+        .cycle_injector1_axi_wlast(xbar_cycle_injector1_axi_wlast),
+        .cycle_injector1_axi_wuser(xbar_cycle_injector1_axi_wuser),
+        .cycle_injector1_axi_wvalid(xbar_cycle_injector1_axi_wvalid),
+        .cycle_injector1_axi_wready(xbar_cycle_injector1_axi_wready),
+        .cycle_injector1_axi_bid(xbar_cycle_injector1_axi_bid),
+        .cycle_injector1_axi_bresp(xbar_cycle_injector1_axi_bresp),
+        .cycle_injector1_axi_buser(xbar_cycle_injector1_axi_buser),
+        .cycle_injector1_axi_bvalid(xbar_cycle_injector1_axi_bvalid),
+        .cycle_injector1_axi_bready(xbar_cycle_injector1_axi_bready),
+        .cycle_injector1_axi_arid(xbar_cycle_injector1_axi_arid),
+        .cycle_injector1_axi_araddr(xbar_cycle_injector1_axi_araddr),
+        .cycle_injector1_axi_arlen(xbar_cycle_injector1_axi_arlen),
+        .cycle_injector1_axi_arsize(xbar_cycle_injector1_axi_arsize),
+        .cycle_injector1_axi_arburst(xbar_cycle_injector1_axi_arburst),
+        .cycle_injector1_axi_arlock(xbar_cycle_injector1_axi_arlock),
+        .cycle_injector1_axi_arcache(xbar_cycle_injector1_axi_arcache),
+        .cycle_injector1_axi_arprot(xbar_cycle_injector1_axi_arprot),
+        .cycle_injector1_axi_arqos(xbar_cycle_injector1_axi_arqos),
+        .cycle_injector1_axi_arregion(xbar_cycle_injector1_axi_arregion),
+        .cycle_injector1_axi_aruser(xbar_cycle_injector1_axi_aruser),
+        .cycle_injector1_axi_arvalid(xbar_cycle_injector1_axi_arvalid),
+        .cycle_injector1_axi_arready(xbar_cycle_injector1_axi_arready),
+        .cycle_injector1_axi_rid(xbar_cycle_injector1_axi_rid),
+        .cycle_injector1_axi_rdata(xbar_cycle_injector1_axi_rdata),
+        .cycle_injector1_axi_rresp(xbar_cycle_injector1_axi_rresp),
+        .cycle_injector1_axi_rlast(xbar_cycle_injector1_axi_rlast),
+        .cycle_injector1_axi_ruser(xbar_cycle_injector1_axi_ruser),
+        .cycle_injector1_axi_rvalid(xbar_cycle_injector1_axi_rvalid),
+        .cycle_injector1_axi_rready(xbar_cycle_injector1_axi_rready),
+        .cycle_injector1_axi_bridge_id_aw(cycle_injector1_axi_bridge_id_aw),
+        .cycle_injector1_axi_bid_bridge_id(cycle_injector1_axi_bid_bridge_id),
+        .cycle_injector1_axi_bid_valid(cycle_injector1_axi_bid_valid),
 
-        .traffic_gen1_axi_bridge_id_ar(traffic_gen1_axi_bridge_id_ar),
-        .traffic_gen1_axi_rid_bridge_id(traffic_gen1_axi_rid_bridge_id),
-        .traffic_gen1_axi_rid_valid(traffic_gen1_axi_rid_valid),
+        .cycle_injector1_axi_bridge_id_ar(cycle_injector1_axi_bridge_id_ar),
+        .cycle_injector1_axi_rid_bridge_id(cycle_injector1_axi_rid_bridge_id),
+        .cycle_injector1_axi_rid_valid(cycle_injector1_axi_rid_valid),
 
         // Slave 3: tally_cnt
         .tally_cnt_axi_awid(xbar_tally_cnt_axi_awid),
@@ -1295,166 +1295,166 @@ module bridge_amber_axil
         .rid_valid(harness_csr_axi_rid_valid)
     );
 
-    // traffic_gen0 adapter (AXIL, crossbar → external slave)
-    traffic_gen0_adapter u_traffic_gen0_adapter (
+    // cycle_injector0 adapter (AXIL, crossbar → external slave)
+    cycle_injector0_adapter u_cycle_injector0_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (xbar_traffic_gen0_axi_*)
-        .xbar_traffic_gen0_axi_awid(xbar_traffic_gen0_axi_awid),
-        .xbar_traffic_gen0_axi_awaddr(xbar_traffic_gen0_axi_awaddr),
-        .xbar_traffic_gen0_axi_awlen(xbar_traffic_gen0_axi_awlen),
-        .xbar_traffic_gen0_axi_awsize(xbar_traffic_gen0_axi_awsize),
-        .xbar_traffic_gen0_axi_awburst(xbar_traffic_gen0_axi_awburst),
-        .xbar_traffic_gen0_axi_awlock(xbar_traffic_gen0_axi_awlock),
-        .xbar_traffic_gen0_axi_awcache(xbar_traffic_gen0_axi_awcache),
-        .xbar_traffic_gen0_axi_awprot(xbar_traffic_gen0_axi_awprot),
-        .xbar_traffic_gen0_axi_awqos(xbar_traffic_gen0_axi_awqos),
-        .xbar_traffic_gen0_axi_awregion(xbar_traffic_gen0_axi_awregion),
-        .xbar_traffic_gen0_axi_awuser(xbar_traffic_gen0_axi_awuser),
-        .xbar_traffic_gen0_axi_awvalid(xbar_traffic_gen0_axi_awvalid),
-        .xbar_traffic_gen0_axi_awready(xbar_traffic_gen0_axi_awready),
-        .xbar_traffic_gen0_axi_wdata(xbar_traffic_gen0_axi_wdata),
-        .xbar_traffic_gen0_axi_wstrb(xbar_traffic_gen0_axi_wstrb),
-        .xbar_traffic_gen0_axi_wlast(xbar_traffic_gen0_axi_wlast),
-        .xbar_traffic_gen0_axi_wuser(xbar_traffic_gen0_axi_wuser),
-        .xbar_traffic_gen0_axi_wvalid(xbar_traffic_gen0_axi_wvalid),
-        .xbar_traffic_gen0_axi_wready(xbar_traffic_gen0_axi_wready),
-        .xbar_traffic_gen0_axi_bid(xbar_traffic_gen0_axi_bid),
-        .xbar_traffic_gen0_axi_bresp(xbar_traffic_gen0_axi_bresp),
-        .xbar_traffic_gen0_axi_buser(xbar_traffic_gen0_axi_buser),
-        .xbar_traffic_gen0_axi_bvalid(xbar_traffic_gen0_axi_bvalid),
-        .xbar_traffic_gen0_axi_bready(xbar_traffic_gen0_axi_bready),
-        .xbar_traffic_gen0_axi_arid(xbar_traffic_gen0_axi_arid),
-        .xbar_traffic_gen0_axi_araddr(xbar_traffic_gen0_axi_araddr),
-        .xbar_traffic_gen0_axi_arlen(xbar_traffic_gen0_axi_arlen),
-        .xbar_traffic_gen0_axi_arsize(xbar_traffic_gen0_axi_arsize),
-        .xbar_traffic_gen0_axi_arburst(xbar_traffic_gen0_axi_arburst),
-        .xbar_traffic_gen0_axi_arlock(xbar_traffic_gen0_axi_arlock),
-        .xbar_traffic_gen0_axi_arcache(xbar_traffic_gen0_axi_arcache),
-        .xbar_traffic_gen0_axi_arprot(xbar_traffic_gen0_axi_arprot),
-        .xbar_traffic_gen0_axi_arqos(xbar_traffic_gen0_axi_arqos),
-        .xbar_traffic_gen0_axi_arregion(xbar_traffic_gen0_axi_arregion),
-        .xbar_traffic_gen0_axi_aruser(xbar_traffic_gen0_axi_aruser),
-        .xbar_traffic_gen0_axi_arvalid(xbar_traffic_gen0_axi_arvalid),
-        .xbar_traffic_gen0_axi_arready(xbar_traffic_gen0_axi_arready),
-        .xbar_traffic_gen0_axi_rid(xbar_traffic_gen0_axi_rid),
-        .xbar_traffic_gen0_axi_rdata(xbar_traffic_gen0_axi_rdata),
-        .xbar_traffic_gen0_axi_rresp(xbar_traffic_gen0_axi_rresp),
-        .xbar_traffic_gen0_axi_rlast(xbar_traffic_gen0_axi_rlast),
-        .xbar_traffic_gen0_axi_ruser(xbar_traffic_gen0_axi_ruser),
-        .xbar_traffic_gen0_axi_rvalid(xbar_traffic_gen0_axi_rvalid),
-        .xbar_traffic_gen0_axi_rready(xbar_traffic_gen0_axi_rready),
+        // Crossbar interface (xbar_cycle_injector0_axi_*)
+        .xbar_cycle_injector0_axi_awid(xbar_cycle_injector0_axi_awid),
+        .xbar_cycle_injector0_axi_awaddr(xbar_cycle_injector0_axi_awaddr),
+        .xbar_cycle_injector0_axi_awlen(xbar_cycle_injector0_axi_awlen),
+        .xbar_cycle_injector0_axi_awsize(xbar_cycle_injector0_axi_awsize),
+        .xbar_cycle_injector0_axi_awburst(xbar_cycle_injector0_axi_awburst),
+        .xbar_cycle_injector0_axi_awlock(xbar_cycle_injector0_axi_awlock),
+        .xbar_cycle_injector0_axi_awcache(xbar_cycle_injector0_axi_awcache),
+        .xbar_cycle_injector0_axi_awprot(xbar_cycle_injector0_axi_awprot),
+        .xbar_cycle_injector0_axi_awqos(xbar_cycle_injector0_axi_awqos),
+        .xbar_cycle_injector0_axi_awregion(xbar_cycle_injector0_axi_awregion),
+        .xbar_cycle_injector0_axi_awuser(xbar_cycle_injector0_axi_awuser),
+        .xbar_cycle_injector0_axi_awvalid(xbar_cycle_injector0_axi_awvalid),
+        .xbar_cycle_injector0_axi_awready(xbar_cycle_injector0_axi_awready),
+        .xbar_cycle_injector0_axi_wdata(xbar_cycle_injector0_axi_wdata),
+        .xbar_cycle_injector0_axi_wstrb(xbar_cycle_injector0_axi_wstrb),
+        .xbar_cycle_injector0_axi_wlast(xbar_cycle_injector0_axi_wlast),
+        .xbar_cycle_injector0_axi_wuser(xbar_cycle_injector0_axi_wuser),
+        .xbar_cycle_injector0_axi_wvalid(xbar_cycle_injector0_axi_wvalid),
+        .xbar_cycle_injector0_axi_wready(xbar_cycle_injector0_axi_wready),
+        .xbar_cycle_injector0_axi_bid(xbar_cycle_injector0_axi_bid),
+        .xbar_cycle_injector0_axi_bresp(xbar_cycle_injector0_axi_bresp),
+        .xbar_cycle_injector0_axi_buser(xbar_cycle_injector0_axi_buser),
+        .xbar_cycle_injector0_axi_bvalid(xbar_cycle_injector0_axi_bvalid),
+        .xbar_cycle_injector0_axi_bready(xbar_cycle_injector0_axi_bready),
+        .xbar_cycle_injector0_axi_arid(xbar_cycle_injector0_axi_arid),
+        .xbar_cycle_injector0_axi_araddr(xbar_cycle_injector0_axi_araddr),
+        .xbar_cycle_injector0_axi_arlen(xbar_cycle_injector0_axi_arlen),
+        .xbar_cycle_injector0_axi_arsize(xbar_cycle_injector0_axi_arsize),
+        .xbar_cycle_injector0_axi_arburst(xbar_cycle_injector0_axi_arburst),
+        .xbar_cycle_injector0_axi_arlock(xbar_cycle_injector0_axi_arlock),
+        .xbar_cycle_injector0_axi_arcache(xbar_cycle_injector0_axi_arcache),
+        .xbar_cycle_injector0_axi_arprot(xbar_cycle_injector0_axi_arprot),
+        .xbar_cycle_injector0_axi_arqos(xbar_cycle_injector0_axi_arqos),
+        .xbar_cycle_injector0_axi_arregion(xbar_cycle_injector0_axi_arregion),
+        .xbar_cycle_injector0_axi_aruser(xbar_cycle_injector0_axi_aruser),
+        .xbar_cycle_injector0_axi_arvalid(xbar_cycle_injector0_axi_arvalid),
+        .xbar_cycle_injector0_axi_arready(xbar_cycle_injector0_axi_arready),
+        .xbar_cycle_injector0_axi_rid(xbar_cycle_injector0_axi_rid),
+        .xbar_cycle_injector0_axi_rdata(xbar_cycle_injector0_axi_rdata),
+        .xbar_cycle_injector0_axi_rresp(xbar_cycle_injector0_axi_rresp),
+        .xbar_cycle_injector0_axi_rlast(xbar_cycle_injector0_axi_rlast),
+        .xbar_cycle_injector0_axi_ruser(xbar_cycle_injector0_axi_ruser),
+        .xbar_cycle_injector0_axi_rvalid(xbar_cycle_injector0_axi_rvalid),
+        .xbar_cycle_injector0_axi_rready(xbar_cycle_injector0_axi_rready),
 
-        // External AXI4-Lite interface (traffic_gen0_axi_*)
-        .traffic_gen0_axi_awaddr(traffic_gen0_axi_awaddr),
-        .traffic_gen0_axi_awprot(traffic_gen0_axi_awprot),
-        .traffic_gen0_axi_awvalid(traffic_gen0_axi_awvalid),
-        .traffic_gen0_axi_awready(traffic_gen0_axi_awready),
-        .traffic_gen0_axi_wdata(traffic_gen0_axi_wdata),
-        .traffic_gen0_axi_wstrb(traffic_gen0_axi_wstrb),
-        .traffic_gen0_axi_wvalid(traffic_gen0_axi_wvalid),
-        .traffic_gen0_axi_wready(traffic_gen0_axi_wready),
-        .traffic_gen0_axi_bresp(traffic_gen0_axi_bresp),
-        .traffic_gen0_axi_bvalid(traffic_gen0_axi_bvalid),
-        .traffic_gen0_axi_bready(traffic_gen0_axi_bready),
-        .traffic_gen0_axi_araddr(traffic_gen0_axi_araddr),
-        .traffic_gen0_axi_arprot(traffic_gen0_axi_arprot),
-        .traffic_gen0_axi_arvalid(traffic_gen0_axi_arvalid),
-        .traffic_gen0_axi_arready(traffic_gen0_axi_arready),
-        .traffic_gen0_axi_rdata(traffic_gen0_axi_rdata),
-        .traffic_gen0_axi_rresp(traffic_gen0_axi_rresp),
-        .traffic_gen0_axi_rvalid(traffic_gen0_axi_rvalid),
-        .traffic_gen0_axi_rready(traffic_gen0_axi_rready),
+        // External AXI4-Lite interface (cycle_injector0_axi_*)
+        .cycle_injector0_axi_awaddr(cycle_injector0_axi_awaddr),
+        .cycle_injector0_axi_awprot(cycle_injector0_axi_awprot),
+        .cycle_injector0_axi_awvalid(cycle_injector0_axi_awvalid),
+        .cycle_injector0_axi_awready(cycle_injector0_axi_awready),
+        .cycle_injector0_axi_wdata(cycle_injector0_axi_wdata),
+        .cycle_injector0_axi_wstrb(cycle_injector0_axi_wstrb),
+        .cycle_injector0_axi_wvalid(cycle_injector0_axi_wvalid),
+        .cycle_injector0_axi_wready(cycle_injector0_axi_wready),
+        .cycle_injector0_axi_bresp(cycle_injector0_axi_bresp),
+        .cycle_injector0_axi_bvalid(cycle_injector0_axi_bvalid),
+        .cycle_injector0_axi_bready(cycle_injector0_axi_bready),
+        .cycle_injector0_axi_araddr(cycle_injector0_axi_araddr),
+        .cycle_injector0_axi_arprot(cycle_injector0_axi_arprot),
+        .cycle_injector0_axi_arvalid(cycle_injector0_axi_arvalid),
+        .cycle_injector0_axi_arready(cycle_injector0_axi_arready),
+        .cycle_injector0_axi_rdata(cycle_injector0_axi_rdata),
+        .cycle_injector0_axi_rresp(cycle_injector0_axi_rresp),
+        .cycle_injector0_axi_rvalid(cycle_injector0_axi_rvalid),
+        .cycle_injector0_axi_rready(cycle_injector0_axi_rready),
 
         // Bridge ID tracking
-        .xbar_bridge_id_aw(traffic_gen0_axi_bridge_id_aw),
-        .bid_bridge_id(traffic_gen0_axi_bid_bridge_id),
-        .bid_valid(traffic_gen0_axi_bid_valid),
-        .xbar_bridge_id_ar(traffic_gen0_axi_bridge_id_ar),
-        .rid_bridge_id(traffic_gen0_axi_rid_bridge_id),
-        .rid_valid(traffic_gen0_axi_rid_valid)
+        .xbar_bridge_id_aw(cycle_injector0_axi_bridge_id_aw),
+        .bid_bridge_id(cycle_injector0_axi_bid_bridge_id),
+        .bid_valid(cycle_injector0_axi_bid_valid),
+        .xbar_bridge_id_ar(cycle_injector0_axi_bridge_id_ar),
+        .rid_bridge_id(cycle_injector0_axi_rid_bridge_id),
+        .rid_valid(cycle_injector0_axi_rid_valid)
     );
 
-    // traffic_gen1 adapter (AXIL, crossbar → external slave)
-    traffic_gen1_adapter u_traffic_gen1_adapter (
+    // cycle_injector1 adapter (AXIL, crossbar → external slave)
+    cycle_injector1_adapter u_cycle_injector1_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (xbar_traffic_gen1_axi_*)
-        .xbar_traffic_gen1_axi_awid(xbar_traffic_gen1_axi_awid),
-        .xbar_traffic_gen1_axi_awaddr(xbar_traffic_gen1_axi_awaddr),
-        .xbar_traffic_gen1_axi_awlen(xbar_traffic_gen1_axi_awlen),
-        .xbar_traffic_gen1_axi_awsize(xbar_traffic_gen1_axi_awsize),
-        .xbar_traffic_gen1_axi_awburst(xbar_traffic_gen1_axi_awburst),
-        .xbar_traffic_gen1_axi_awlock(xbar_traffic_gen1_axi_awlock),
-        .xbar_traffic_gen1_axi_awcache(xbar_traffic_gen1_axi_awcache),
-        .xbar_traffic_gen1_axi_awprot(xbar_traffic_gen1_axi_awprot),
-        .xbar_traffic_gen1_axi_awqos(xbar_traffic_gen1_axi_awqos),
-        .xbar_traffic_gen1_axi_awregion(xbar_traffic_gen1_axi_awregion),
-        .xbar_traffic_gen1_axi_awuser(xbar_traffic_gen1_axi_awuser),
-        .xbar_traffic_gen1_axi_awvalid(xbar_traffic_gen1_axi_awvalid),
-        .xbar_traffic_gen1_axi_awready(xbar_traffic_gen1_axi_awready),
-        .xbar_traffic_gen1_axi_wdata(xbar_traffic_gen1_axi_wdata),
-        .xbar_traffic_gen1_axi_wstrb(xbar_traffic_gen1_axi_wstrb),
-        .xbar_traffic_gen1_axi_wlast(xbar_traffic_gen1_axi_wlast),
-        .xbar_traffic_gen1_axi_wuser(xbar_traffic_gen1_axi_wuser),
-        .xbar_traffic_gen1_axi_wvalid(xbar_traffic_gen1_axi_wvalid),
-        .xbar_traffic_gen1_axi_wready(xbar_traffic_gen1_axi_wready),
-        .xbar_traffic_gen1_axi_bid(xbar_traffic_gen1_axi_bid),
-        .xbar_traffic_gen1_axi_bresp(xbar_traffic_gen1_axi_bresp),
-        .xbar_traffic_gen1_axi_buser(xbar_traffic_gen1_axi_buser),
-        .xbar_traffic_gen1_axi_bvalid(xbar_traffic_gen1_axi_bvalid),
-        .xbar_traffic_gen1_axi_bready(xbar_traffic_gen1_axi_bready),
-        .xbar_traffic_gen1_axi_arid(xbar_traffic_gen1_axi_arid),
-        .xbar_traffic_gen1_axi_araddr(xbar_traffic_gen1_axi_araddr),
-        .xbar_traffic_gen1_axi_arlen(xbar_traffic_gen1_axi_arlen),
-        .xbar_traffic_gen1_axi_arsize(xbar_traffic_gen1_axi_arsize),
-        .xbar_traffic_gen1_axi_arburst(xbar_traffic_gen1_axi_arburst),
-        .xbar_traffic_gen1_axi_arlock(xbar_traffic_gen1_axi_arlock),
-        .xbar_traffic_gen1_axi_arcache(xbar_traffic_gen1_axi_arcache),
-        .xbar_traffic_gen1_axi_arprot(xbar_traffic_gen1_axi_arprot),
-        .xbar_traffic_gen1_axi_arqos(xbar_traffic_gen1_axi_arqos),
-        .xbar_traffic_gen1_axi_arregion(xbar_traffic_gen1_axi_arregion),
-        .xbar_traffic_gen1_axi_aruser(xbar_traffic_gen1_axi_aruser),
-        .xbar_traffic_gen1_axi_arvalid(xbar_traffic_gen1_axi_arvalid),
-        .xbar_traffic_gen1_axi_arready(xbar_traffic_gen1_axi_arready),
-        .xbar_traffic_gen1_axi_rid(xbar_traffic_gen1_axi_rid),
-        .xbar_traffic_gen1_axi_rdata(xbar_traffic_gen1_axi_rdata),
-        .xbar_traffic_gen1_axi_rresp(xbar_traffic_gen1_axi_rresp),
-        .xbar_traffic_gen1_axi_rlast(xbar_traffic_gen1_axi_rlast),
-        .xbar_traffic_gen1_axi_ruser(xbar_traffic_gen1_axi_ruser),
-        .xbar_traffic_gen1_axi_rvalid(xbar_traffic_gen1_axi_rvalid),
-        .xbar_traffic_gen1_axi_rready(xbar_traffic_gen1_axi_rready),
+        // Crossbar interface (xbar_cycle_injector1_axi_*)
+        .xbar_cycle_injector1_axi_awid(xbar_cycle_injector1_axi_awid),
+        .xbar_cycle_injector1_axi_awaddr(xbar_cycle_injector1_axi_awaddr),
+        .xbar_cycle_injector1_axi_awlen(xbar_cycle_injector1_axi_awlen),
+        .xbar_cycle_injector1_axi_awsize(xbar_cycle_injector1_axi_awsize),
+        .xbar_cycle_injector1_axi_awburst(xbar_cycle_injector1_axi_awburst),
+        .xbar_cycle_injector1_axi_awlock(xbar_cycle_injector1_axi_awlock),
+        .xbar_cycle_injector1_axi_awcache(xbar_cycle_injector1_axi_awcache),
+        .xbar_cycle_injector1_axi_awprot(xbar_cycle_injector1_axi_awprot),
+        .xbar_cycle_injector1_axi_awqos(xbar_cycle_injector1_axi_awqos),
+        .xbar_cycle_injector1_axi_awregion(xbar_cycle_injector1_axi_awregion),
+        .xbar_cycle_injector1_axi_awuser(xbar_cycle_injector1_axi_awuser),
+        .xbar_cycle_injector1_axi_awvalid(xbar_cycle_injector1_axi_awvalid),
+        .xbar_cycle_injector1_axi_awready(xbar_cycle_injector1_axi_awready),
+        .xbar_cycle_injector1_axi_wdata(xbar_cycle_injector1_axi_wdata),
+        .xbar_cycle_injector1_axi_wstrb(xbar_cycle_injector1_axi_wstrb),
+        .xbar_cycle_injector1_axi_wlast(xbar_cycle_injector1_axi_wlast),
+        .xbar_cycle_injector1_axi_wuser(xbar_cycle_injector1_axi_wuser),
+        .xbar_cycle_injector1_axi_wvalid(xbar_cycle_injector1_axi_wvalid),
+        .xbar_cycle_injector1_axi_wready(xbar_cycle_injector1_axi_wready),
+        .xbar_cycle_injector1_axi_bid(xbar_cycle_injector1_axi_bid),
+        .xbar_cycle_injector1_axi_bresp(xbar_cycle_injector1_axi_bresp),
+        .xbar_cycle_injector1_axi_buser(xbar_cycle_injector1_axi_buser),
+        .xbar_cycle_injector1_axi_bvalid(xbar_cycle_injector1_axi_bvalid),
+        .xbar_cycle_injector1_axi_bready(xbar_cycle_injector1_axi_bready),
+        .xbar_cycle_injector1_axi_arid(xbar_cycle_injector1_axi_arid),
+        .xbar_cycle_injector1_axi_araddr(xbar_cycle_injector1_axi_araddr),
+        .xbar_cycle_injector1_axi_arlen(xbar_cycle_injector1_axi_arlen),
+        .xbar_cycle_injector1_axi_arsize(xbar_cycle_injector1_axi_arsize),
+        .xbar_cycle_injector1_axi_arburst(xbar_cycle_injector1_axi_arburst),
+        .xbar_cycle_injector1_axi_arlock(xbar_cycle_injector1_axi_arlock),
+        .xbar_cycle_injector1_axi_arcache(xbar_cycle_injector1_axi_arcache),
+        .xbar_cycle_injector1_axi_arprot(xbar_cycle_injector1_axi_arprot),
+        .xbar_cycle_injector1_axi_arqos(xbar_cycle_injector1_axi_arqos),
+        .xbar_cycle_injector1_axi_arregion(xbar_cycle_injector1_axi_arregion),
+        .xbar_cycle_injector1_axi_aruser(xbar_cycle_injector1_axi_aruser),
+        .xbar_cycle_injector1_axi_arvalid(xbar_cycle_injector1_axi_arvalid),
+        .xbar_cycle_injector1_axi_arready(xbar_cycle_injector1_axi_arready),
+        .xbar_cycle_injector1_axi_rid(xbar_cycle_injector1_axi_rid),
+        .xbar_cycle_injector1_axi_rdata(xbar_cycle_injector1_axi_rdata),
+        .xbar_cycle_injector1_axi_rresp(xbar_cycle_injector1_axi_rresp),
+        .xbar_cycle_injector1_axi_rlast(xbar_cycle_injector1_axi_rlast),
+        .xbar_cycle_injector1_axi_ruser(xbar_cycle_injector1_axi_ruser),
+        .xbar_cycle_injector1_axi_rvalid(xbar_cycle_injector1_axi_rvalid),
+        .xbar_cycle_injector1_axi_rready(xbar_cycle_injector1_axi_rready),
 
-        // External AXI4-Lite interface (traffic_gen1_axi_*)
-        .traffic_gen1_axi_awaddr(traffic_gen1_axi_awaddr),
-        .traffic_gen1_axi_awprot(traffic_gen1_axi_awprot),
-        .traffic_gen1_axi_awvalid(traffic_gen1_axi_awvalid),
-        .traffic_gen1_axi_awready(traffic_gen1_axi_awready),
-        .traffic_gen1_axi_wdata(traffic_gen1_axi_wdata),
-        .traffic_gen1_axi_wstrb(traffic_gen1_axi_wstrb),
-        .traffic_gen1_axi_wvalid(traffic_gen1_axi_wvalid),
-        .traffic_gen1_axi_wready(traffic_gen1_axi_wready),
-        .traffic_gen1_axi_bresp(traffic_gen1_axi_bresp),
-        .traffic_gen1_axi_bvalid(traffic_gen1_axi_bvalid),
-        .traffic_gen1_axi_bready(traffic_gen1_axi_bready),
-        .traffic_gen1_axi_araddr(traffic_gen1_axi_araddr),
-        .traffic_gen1_axi_arprot(traffic_gen1_axi_arprot),
-        .traffic_gen1_axi_arvalid(traffic_gen1_axi_arvalid),
-        .traffic_gen1_axi_arready(traffic_gen1_axi_arready),
-        .traffic_gen1_axi_rdata(traffic_gen1_axi_rdata),
-        .traffic_gen1_axi_rresp(traffic_gen1_axi_rresp),
-        .traffic_gen1_axi_rvalid(traffic_gen1_axi_rvalid),
-        .traffic_gen1_axi_rready(traffic_gen1_axi_rready),
+        // External AXI4-Lite interface (cycle_injector1_axi_*)
+        .cycle_injector1_axi_awaddr(cycle_injector1_axi_awaddr),
+        .cycle_injector1_axi_awprot(cycle_injector1_axi_awprot),
+        .cycle_injector1_axi_awvalid(cycle_injector1_axi_awvalid),
+        .cycle_injector1_axi_awready(cycle_injector1_axi_awready),
+        .cycle_injector1_axi_wdata(cycle_injector1_axi_wdata),
+        .cycle_injector1_axi_wstrb(cycle_injector1_axi_wstrb),
+        .cycle_injector1_axi_wvalid(cycle_injector1_axi_wvalid),
+        .cycle_injector1_axi_wready(cycle_injector1_axi_wready),
+        .cycle_injector1_axi_bresp(cycle_injector1_axi_bresp),
+        .cycle_injector1_axi_bvalid(cycle_injector1_axi_bvalid),
+        .cycle_injector1_axi_bready(cycle_injector1_axi_bready),
+        .cycle_injector1_axi_araddr(cycle_injector1_axi_araddr),
+        .cycle_injector1_axi_arprot(cycle_injector1_axi_arprot),
+        .cycle_injector1_axi_arvalid(cycle_injector1_axi_arvalid),
+        .cycle_injector1_axi_arready(cycle_injector1_axi_arready),
+        .cycle_injector1_axi_rdata(cycle_injector1_axi_rdata),
+        .cycle_injector1_axi_rresp(cycle_injector1_axi_rresp),
+        .cycle_injector1_axi_rvalid(cycle_injector1_axi_rvalid),
+        .cycle_injector1_axi_rready(cycle_injector1_axi_rready),
 
         // Bridge ID tracking
-        .xbar_bridge_id_aw(traffic_gen1_axi_bridge_id_aw),
-        .bid_bridge_id(traffic_gen1_axi_bid_bridge_id),
-        .bid_valid(traffic_gen1_axi_bid_valid),
-        .xbar_bridge_id_ar(traffic_gen1_axi_bridge_id_ar),
-        .rid_bridge_id(traffic_gen1_axi_rid_bridge_id),
-        .rid_valid(traffic_gen1_axi_rid_valid)
+        .xbar_bridge_id_aw(cycle_injector1_axi_bridge_id_aw),
+        .bid_bridge_id(cycle_injector1_axi_bid_bridge_id),
+        .bid_valid(cycle_injector1_axi_bid_valid),
+        .xbar_bridge_id_ar(cycle_injector1_axi_bridge_id_ar),
+        .rid_bridge_id(cycle_injector1_axi_rid_bridge_id),
+        .rid_valid(cycle_injector1_axi_rid_valid)
     );
 
     // tally_cnt adapter (AXIL, crossbar → external slave)

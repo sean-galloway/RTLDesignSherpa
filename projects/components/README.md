@@ -55,7 +55,7 @@ tracker. Nothing here is a second copy of either.
 
 | Component | Entry point |
 |---|---|
-| apbx-xbar (generated APB crossbars) | [fabric-gen-ip/apbx-xbar/README.md](fabric-gen-ip/apbx-xbar/README.md) |
+| lattice — generated APB crossbars | [fabric-gen-ip/lattice-apbx-xbar/README.md](fabric-gen-ip/lattice-apbx-xbar/README.md) |
 | bridge (generated AMBA 3/4/5 + Wishbone-4 protocol bridges, RDL registers) | [fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md](fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md), [fabric-gen-ip/bridge/CLAUDE.md](fabric-gen-ip/bridge/CLAUDE.md) |
 | delta (AXI-Stream crossbar generator, all AXIS4/5 flavors; re-homed from noc-ip 2026-10-12 — its NoC draft spec stayed at noc-ip/delta_spec) | [fabric-gen-ip/delta/README.md](fabric-gen-ip/delta/README.md) |
 | converters (width and protocol converters) | [utility-ip/converters/README.md](utility-ip/converters/README.md) |

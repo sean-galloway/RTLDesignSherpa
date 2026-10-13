@@ -2809,7 +2809,7 @@ components
 │               ├── rs_encoder_axi4.sv
 │               └── rs_encoder_axis4.sv
 ├── fabric-gen-ip
-│   ├── apbx-xbar
+│   ├── lattice-apbx-xbar
 │   │   ├── CLAUDE.md
 │   │   ├── PRD.md
 │   │   ├── README.md

@@ -19,7 +19,7 @@ digraph axil5_slave_wr {
     aw   [label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\nSKID_DEPTH_AW (default 2)"];
     w    [label="W Skid Buffer\ngaxi_skid_buffer - w_channel\nSKID_DEPTH_W (default 4)"];
     b    [label="B Skid Buffer\ngaxi_skid_buffer - b_channel\nSKID_DEPTH_B (default 2)"];
-    busyo [label="Status Output: busy (combinational)\nhigh while any skid buffer\nholds a beat", fillcolor="white"];
+    busyo [label="Status Output: busy (combinational)\nhigh while a skid buffer holds a beat,\nor s_axil_awvalid / s_axil_wvalid / fub_bvalid arriving", fillcolor="white"];
     bot  [label="Write Completer (fub_*)\nbackend serving writes: AW and W in at the left, B out at the right", fillcolor="white", width=5.6];
 
     top -> aw  [xlabel="AW: awid, awaddr, awprot,\nawuser, awtrace\n(valid down, ready up)", penwidth=1.8];

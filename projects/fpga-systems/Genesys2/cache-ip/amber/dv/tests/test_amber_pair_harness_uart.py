@@ -34,8 +34,8 @@ AMBER_FRAMEWORK_ROOT = os.path.join(
 
 # Bridge address map
 ADDR_HARNESS_CSR = 0x0001_0000
-ADDR_TRAFFIC_GEN0 = 0x0002_0000
-ADDR_TRAFFIC_GEN1 = 0x0003_0000
+ADDR_CYCLE_INJECTOR0 = 0x0002_0000
+ADDR_CYCLE_INJECTOR1 = 0x0003_0000
 ADDR_TALLY_CNT = 0x0004_0000
 
 # Harness CSR word offsets
@@ -210,7 +210,7 @@ async def uart_write_then_read_hang_probe(dut):
     assert cyc1 > cyc0, f"cycle counter did not advance: {cyc0} -> {cyc1}"
 
     # Probe reads from every aperture to exercise both 32b and 64b paths.
-    for addr in [ADDR_TRAFFIC_GEN0, ADDR_TRAFFIC_GEN1, ADDR_TALLY_CNT]:
+    for addr in [ADDR_CYCLE_INJECTOR0, ADDR_CYCLE_INJECTOR1, ADDR_TALLY_CNT]:
         await tb.read32(addr)
 
 
@@ -224,8 +224,8 @@ async def uart_read_only_stress_probe(dut):
     for addr in [ADDR_HARNESS_CSR + HCSR_CTRL,
                  ADDR_HARNESS_CSR + HCSR_STATUS,
                  ADDR_HARNESS_CSR + HCSR_CYCLE_LO,
-                 ADDR_TRAFFIC_GEN0,
-                 ADDR_TRAFFIC_GEN1,
+                 ADDR_CYCLE_INJECTOR0,
+                 ADDR_CYCLE_INJECTOR1,
                  ADDR_TALLY_CNT]:
         await tb.read32(addr)
 

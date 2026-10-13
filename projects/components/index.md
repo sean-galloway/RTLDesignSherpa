@@ -40,7 +40,7 @@ This directory contains production-ready and in-development component projects f
 | Component | Status | Location | Documentation |
 |-----------|--------|----------|---------------|
 | **Retro Legacy Blocks (HPET, PIT, ...)** | Production | [legacy-ip/retro_legacy_blocks/](legacy-ip/retro_legacy_blocks/) | [HPET Specification](legacy-ip/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) |
-| **APB Crossbar** | Production | [fabric-gen-ip/apbx-xbar/](fabric-gen-ip/apbx-xbar/) | [HAS](fabric-gen-ip/apbx-xbar/docs/apbx_xbar_has/apbx_xbar_has_index.md) · [MAS](fabric-gen-ip/apbx-xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) · [GAS](fabric-gen-ip/apbx-xbar/docs/apbx_xbar_gas/apbx_xbar_gas_index.md) |
+| **lattice** (APB crossbar) | Production | [fabric-gen-ip/lattice-apbx-xbar/](fabric-gen-ip/lattice-apbx-xbar/) | [HAS](fabric-gen-ip/lattice-apbx-xbar/docs/lattice_has/lattice_has_index.md) · [MAS](fabric-gen-ip/lattice-apbx-xbar/docs/lattice_mas/lattice_mas_index.md) · [GAS](fabric-gen-ip/lattice-apbx-xbar/docs/lattice_gas/lattice_gas_index.md) |
 | **STREAM** | Production | [dma-ip/stream/](dma-ip/stream/) | [Specification](dma-ip/stream/docs/stream_mas/stream_index.md) |
 | **RAPIDS** | Production (owner-confirmed Done 2026-10-11) | [dma-ip/rapids/](dma-ip/rapids/) | [Specification](dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
 | **Bridge** | Production (Done 2026-10-11) | [fabric-gen-ip/bridge/](fabric-gen-ip/bridge/) | [HAS](fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md) · [MAS](fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md) · [GAS](fabric-gen-ip/bridge/docs/bridge_gas/bridge_gas_index.md) |
@@ -76,7 +76,7 @@ This directory contains production-ready and in-development component projects f
 - [RAPIDS](dma-ip/rapids/) - Advanced DMA with network (Done 2026-10-11)
 
 **Interconnect:**
-- [APB Crossbar](fabric-gen-ip/apbx-xbar/) - MxN APB interconnect
+- [lattice](fabric-gen-ip/lattice-apbx-xbar/) - MxN APB crossbar; codename alongside bridge and delta
 - [Bridge](fabric-gen-ip/bridge/) - generated AMBA 3/4/5 + Wishbone-4 protocol bridges
 - [Delta](fabric-gen-ip/delta/) - AXI-Stream crossbar generator (fabric family); its aspirational NoC draft lives at [noc-ip/delta_spec/](noc-ip/delta_spec/)
 

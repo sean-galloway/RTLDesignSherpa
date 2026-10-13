@@ -67,7 +67,7 @@ Guided progression from primitives to systems. Each level links to the correspon
 
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
 - **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/ocelus/) · [Shared observation](rtl/amba/shared/)
-- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Delta](projects/components/fabric-gen-ip/delta/) · [Memory controllers](projects/components/mem-ctrl-ip/) · [Reed-Solomon](projects/components/ecc-ip/reed-solomon/) · [BCH](projects/components/ecc-ip/bch/) · [kestrel](projects/components/riscv-ip/kestrel-rv32i/) · [amber](projects/components/cache-ip/amber-mesi-l1/) · [Retro legacy](projects/components/legacy-ip/retro_legacy_blocks/) · [Converters](projects/components/utility-ip/converters/)
+- **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [APB xbar](projects/components/fabric-gen-ip/lattice-apbx-xbar/) · [Delta](projects/components/fabric-gen-ip/delta/) · [Memory controllers](projects/components/mem-ctrl-ip/) · [Reed-Solomon](projects/components/ecc-ip/reed-solomon/) · [BCH](projects/components/ecc-ip/bch/) · [kestrel](projects/components/riscv-ip/kestrel-rv32i/) · [amber](projects/components/cache-ip/amber-mesi-l1/) · [Retro legacy](projects/components/legacy-ip/retro_legacy_blocks/) · [Converters](projects/components/utility-ip/converters/)
 - **Level 4 — [FPGA Projects](projects/fpga-systems/)** · Nexys A7: [cdc_counter_display](projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/) · [pumice](projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/) · [bch loopback (small profile)](projects/fpga-systems/NexysA7/ecc-ip/bch/) · [reed-solomon loopback (small profile)](projects/fpga-systems/NexysA7/ecc-ip/reed-solomon/) · Genesys 2: [bch loopback](projects/fpga-systems/Genesys2/ecc-ip/bch/) · [reed-solomon loopback](projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/) · [stream](projects/fpga-systems/Genesys2/dma-ip/stream/) · [rapids](projects/fpga-systems/Genesys2/dma-ip/rapids/) · [scoria](projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/) · [asic-trials](projects/asic-trials/timing_characterization/) — the ECC loopbacks share one harness per codec; the Nexys A7 entry points forward to it with the small profile preset (`BCH_PROFILE=small` → BCH(248,224) t=3, `RS_PROFILE=small` → RS(64,56) t=4, both at 50 MHz)
 
 <details>
@@ -207,7 +207,7 @@ Production-shaped reusable IP, ordered by IP type. Each has its own README + dv/
 | STREAM | Ready | Tutorial DMA + scatter-gather; kick-burst multi-channel start + optional 2-D/transpose addressing | [`projects/components/dma-ip/stream/`](projects/components/dma-ip/stream/) |
 | RAPIDS | Ready | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System); qualified 2026-10-11 | [`projects/components/dma-ip/rapids/`](projects/components/dma-ip/rapids/) |
 | Bridge | Ready | Generated AMBA 3/4/5 + Wishbone-4 protocol bridges (8 protocol flavors) + RDL-generated cfg | [`projects/components/fabric-gen-ip/bridge/`](projects/components/fabric-gen-ip/bridge/) |
-| APB Crossbar | Ready | M×N APB interconnect generator | [`projects/components/fabric-gen-ip/apbx-xbar/`](projects/components/fabric-gen-ip/apbx-xbar/) |
+| APB Crossbar | Ready | M×N APB interconnect generator | [`projects/components/fabric-gen-ip/lattice-apbx-xbar/`](projects/components/fabric-gen-ip/lattice-apbx-xbar/) |
 | Delta | In progress | AXI-Stream crossbar generator — flat M×N crossbars in all AXIS4/5 flavors (TSTRB + AMBA5 sidebands) | [`projects/components/fabric-gen-ip/delta/`](projects/components/fabric-gen-ip/delta/) |
 | pumice memory controller | Ready (at rest) | DDR2 / LPDDR2 controller (board-validated bring-up on Nexys A7) | [`projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/`](projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/) |
 | scoria memory controller | In progress | DDR3 / LPDDR3 controller (simulation-verified; board bring-up ongoing) | [`projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/`](projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/) |
@@ -441,7 +441,7 @@ Build complete, production-ready peripherals for FPGA deployment (**25+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[APB Crossbar](projects/components/fabric-gen-ip/apbx-xbar/)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[APB Crossbar](projects/components/fabric-gen-ip/lattice-apbx-xbar/)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
 | **[Bridge](projects/components/fabric-gen-ip/bridge/)** | Ready | Generated AMBA 3/4/5 + Wishbone-4 protocol bridges (8 flavors), width converters, CDC |
 | **[Delta](projects/components/fabric-gen-ip/delta/)** | In progress | AXI-Stream crossbar generator — Python-generated flat M×N crossbars in all AXIS4/5 flavors |
 | **[Converters](projects/components/utility-ip/converters/)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
@@ -745,7 +745,7 @@ pytest val/amba/test_apb4_slave.py -v -m basic
 #### Level 3: Test APB Crossbar
 ```bash
 # Run 2-to-4 crossbar test
-pytest projects/components/fabric-gen-ip/apbx-xbar/dv/tests/test_apbx_xbar_2to4.py -v
+pytest projects/components/fabric-gen-ip/lattice-apbx-xbar/dv/tests/test_apbx_xbar_2to4.py -v
 ```
 
 #### Level 4: Test Retro Legacy Block Component

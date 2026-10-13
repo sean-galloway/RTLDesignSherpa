@@ -98,7 +98,7 @@ graph TD
 | **[RAPIDS](../../projects/components/dma-ip/rapids)** | Ready | Advanced DMA with network interfaces (qualified 2026-10-11) |
 | **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | Generated AMBA 3/4/5 + Wishbone-4 protocol bridges, RDL registers |
 | **[Delta](../../projects/components/fabric-gen-ip/delta)** | In progress | AXI-Stream crossbar generator (all AXIS4/5 flavors) |
-| **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | M×N APB interconnect |
+| **[APB Crossbar](../../projects/components/fabric-gen-ip/lattice-apbx-xbar)** | Ready | M×N APB interconnect |
 | **[pumice](../../projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2)** | Ready (at rest) | DDR2/LPDDR2 controller, board-validated on Nexys A7 |
 | **[scoria](../../projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3)** | In progress | DDR3/LPDDR3 controller, simulation-verified, board campaign ongoing |
 | **[andesite](../../projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4)** | Planned | DDR4/LPDDR4 controller (directory baseline) |
@@ -187,7 +187,7 @@ Apply common building blocks to implement industry-standard protocols (**124 mod
 #### APB (Advanced Peripheral Bus)
 - **[APB Masters](../../rtl/amba/apb4)** - Command/response interfaces with FIFO buffering
 - **[APB Slaves](../../rtl/amba/apb4)** - Register interfaces with address decoding
-- **APB Interconnect** - Multi-master/multi-slave crossbar (the `rtl/integ_*` examples were retired in `41e587b1`; see `projects/components/fabric-gen-ip/apbx-xbar/`)
+- **APB Interconnect** - Multi-master/multi-slave crossbar (the `rtl/integ_*` examples were retired in `41e587b1`; see `projects/components/fabric-gen-ip/lattice-apbx-xbar/`)
 - **[APB Bridges](../../rtl/amba/apb4)** - Protocol conversion, CDC
 
 **Example:** APB register slave demonstrates parameter-driven design
@@ -228,7 +228,7 @@ apb4_slave #(
 
 ### Level 3: Integration Examples
 
-**Locations:** retired in `41e587b1` — the integration examples are gone; the crossbar lives in `projects/components/fabric-gen-ip/apbx-xbar/`
+**Locations:** retired in `41e587b1` — the integration examples are gone; the crossbar lives in `projects/components/fabric-gen-ip/lattice-apbx-xbar/`
 
 Practice integrating multiple modules into working systems:
 
@@ -269,7 +269,7 @@ Build complete, production-ready peripherals for FPGA deployment (**25+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[APB Crossbar](../../projects/components/fabric-gen-ip/apbx-xbar)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[APB Crossbar](../../projects/components/fabric-gen-ip/lattice-apbx-xbar)** | Ready | Parametric M×N APB interconnect with round-robin arbitration |
 | **[Bridge](../../projects/components/fabric-gen-ip/bridge)** | Ready | Generated AMBA 3/4/5 + Wishbone-4 protocol bridges, width converters, CDC |
 | **[Delta](../../projects/components/fabric-gen-ip/delta)** | In progress | AXI-Stream crossbar generator — Python-generated flat M×N crossbars in all AXIS4/5 flavors |
 | **[Converters](../../projects/components/utility-ip/converters)** | Ready | UART-to-AXI4-Lite, protocol conversion bridges |
@@ -570,7 +570,7 @@ pytest val/amba/test_apb4_slave.py -v -m basic
 #### Level 3: Test APB Crossbar Integration
 ```bash
 # Run 2-to-4 crossbar test
-pytest projects/components/fabric-gen-ip/apbx-xbar/dv/tests/test_apbx_xbar_2to4.py -v -k "2to4"
+pytest projects/components/fabric-gen-ip/lattice-apbx-xbar/dv/tests/test_apbx_xbar_2to4.py -v -k "2to4"
 ```
 
 #### Level 4: Test Retro Legacy Block Component

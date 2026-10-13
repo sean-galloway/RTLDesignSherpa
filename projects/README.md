@@ -218,7 +218,7 @@ When adding new projects:
 | Component | Status | Docs |
 |-----------|--------|------|
 | [converters](components/utility-ip/converters/) | Production Ready | [README](components/utility-ip/converters/README.md) |
-| [apbx_xbar](components/fabric-gen-ip/apbx-xbar/) | Production Ready | [PRD](components/fabric-gen-ip/apbx-xbar/PRD.md) |
+| [lattice](components/fabric-gen-ip/lattice-apbx-xbar/) | Production Ready | [PRD](components/fabric-gen-ip/lattice-apbx-xbar/PRD.md) · [HAS](components/fabric-gen-ip/lattice-apbx-xbar/docs/lattice_has/lattice_has_index.md) · [MAS](components/fabric-gen-ip/lattice-apbx-xbar/docs/lattice_mas/lattice_mas_index.md) · [GAS](components/fabric-gen-ip/lattice-apbx-xbar/docs/lattice_gas/lattice_gas_index.md) |
 | [stream](components/dma-ip/stream/) | Done (2026-10-11) | [PRD](components/dma-ip/stream/PRD.md) |
 | [rapids](components/dma-ip/rapids/) | Done (2026-10-11) | [PRD](components/dma-ip/rapids/PRD.md) · [spec](components/dma-ip/rapids/docs/) · char: [report](fpga-systems/Genesys2/dma-ip/rapids_beats/docs/rapids_beats_findings.md) |
 | [bridge](components/fabric-gen-ip/bridge/) | Done (2026-10-11) | [PRD](components/fabric-gen-ip/bridge/PRD.md) · [HAS](components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md) |

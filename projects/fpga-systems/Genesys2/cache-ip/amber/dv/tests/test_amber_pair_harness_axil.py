@@ -4,7 +4,7 @@
 # Module: test_amber_pair_harness_axil
 # Purpose: Drive amber_pair_harness's direct AXIL4-Lite host interface with the
 #   house AXIL4 master BFM, bypassing the UART bridge. Reproduces and diagnoses
-#   the Genesys2 bring-up hang where AXIL writes to traffic_gen0 and all reads
+#   the Genesys2 bring-up hang where AXIL writes to cycle_injector0 and all reads
 #   hang.
 
 import os
@@ -36,26 +36,26 @@ AMBER_FRAMEWORK_ROOT = os.path.join(
 
 # Bridge address map (matches bridge_amber_axil.toml)
 ADDR_HARNESS_CSR = 0x0001_0000
-ADDR_TRAFFIC_GEN0 = 0x0002_0000
-ADDR_TRAFFIC_GEN1 = 0x0003_0000
+ADDR_CYCLE_INJECTOR0 = 0x0002_0000
+ADDR_CYCLE_INJECTOR1 = 0x0003_0000
 ADDR_TALLY_CNT = 0x0004_0000
 ADDR_TALLY_CFGW = 0x0005_0000
 ADDR_TALLY_CFGR = 0x0006_0000
 
-# Traffic-gen CSR word offsets (32-bit)
-TG_CTRL = 0x00
-TG_SEED = 0x04
-TG_ADDR_BASE = 0x08
-TG_ADDR_MASK = 0x0C
-TG_TRANS_COUNT = 0x10
-TG_STATUS = 0x14
-TG_ACC_COUNT = 0x18
-TG_RSP_COUNT = 0x1C
-TG_ERR_FLAG = 0x20
-TG_RSP_CKSUM_LO = 0x30
-TG_RSP_CKSUM_HI = 0x34
-TG_WDATA_CKSUM_LO = 0x38
-TG_WDATA_CKSUM_HI = 0x3C
+# Cycle-injector CSR word offsets (32-bit)
+CI_CTRL = 0x00
+CI_SEED = 0x04
+CI_ADDR_BASE = 0x08
+CI_ADDR_MASK = 0x0C
+CI_TRANS_COUNT = 0x10
+CI_STATUS = 0x14
+CI_ACC_COUNT = 0x18
+CI_RSP_COUNT = 0x1C
+CI_ERR_FLAG = 0x20
+CI_RSP_CRC_LO = 0x30
+CI_RSP_CRC_HI = 0x34
+CI_WDATA_CRC_LO = 0x38
+CI_WDATA_CRC_HI = 0x3C
 
 # Harness CSR word offsets
 HCSR_CTRL = 0x00
@@ -173,23 +173,23 @@ async def aperture_probe_test(dut):
     except Exception as e:
         failures.append(f"harness_csr cycle counter read failed: {e}")
 
-    # traffic_gen0: write/read a config register
+    # cycle_injector0: write/read a config register
     try:
-        await tb.write32(ADDR_TRAFFIC_GEN0 + TG_SEED, 0x1234_5678)
-        seed = await tb.read32(ADDR_TRAFFIC_GEN0 + TG_SEED)
+        await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_SEED, 0x1234_5678)
+        seed = await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_SEED)
         if seed != 0x1234_5678:
-            failures.append(f"traffic_gen0 SEED readback mismatch: 0x{seed:08x}")
+            failures.append(f"cycle_injector0 SEED readback mismatch: 0x{seed:08x}")
     except Exception as e:
-        failures.append(f"traffic_gen0 access failed: {e}")
+        failures.append(f"cycle_injector0 access failed: {e}")
 
-    # traffic_gen1: write/read a config register
+    # cycle_injector1: write/read a config register
     try:
-        await tb.write32(ADDR_TRAFFIC_GEN1 + TG_SEED, 0xDEAD_BEEF)
-        seed = await tb.read32(ADDR_TRAFFIC_GEN1 + TG_SEED)
+        await tb.write32(ADDR_CYCLE_INJECTOR1 + CI_SEED, 0xDEAD_BEEF)
+        seed = await tb.read32(ADDR_CYCLE_INJECTOR1 + CI_SEED)
         if seed != 0xDEAD_BEEF:
-            failures.append(f"traffic_gen1 SEED readback mismatch: 0x{seed:08x}")
+            failures.append(f"cycle_injector1 SEED readback mismatch: 0x{seed:08x}")
     except Exception as e:
-        failures.append(f"traffic_gen1 access failed: {e}")
+        failures.append(f"cycle_injector1 access failed: {e}")
 
     # tally_cfgw: write the CAM clear/key/load aperture (64-bit AXIL).
     # We verify the write completes (no hang); the exact readback of CAM_KEY
@@ -224,23 +224,23 @@ async def smoke_test(dut):
         await tb.write64(ADDR_TALLY_CFGW + TALLY_CAM_KEY, key)
         await tb.write64(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, (1 << 16) | (idx & 0xFFFF))
 
-    # Both gens target the same 4 KB region
+    # Both injectors target the same 4 KB region
     mask = 0x0000_0FFF
     base = 0x0000_0000
     count = int(os.environ.get('AMBER_SMOKE_COUNT', '200'))
 
-    for gen_base, seed in [(ADDR_TRAFFIC_GEN0, 0x1234_5678),
-                           (ADDR_TRAFFIC_GEN1, 0xDEAD_BEEF)]:
-        await tb.write32(gen_base + TG_SEED, seed)
-        await tb.write32(gen_base + TG_ADDR_BASE, base)
-        await tb.write32(gen_base + TG_ADDR_MASK, mask)
-        await tb.write32(gen_base + TG_TRANS_COUNT, count)
+    for ci_base, seed in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678),
+                          (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF)]:
+        await tb.write32(ci_base + CI_SEED, seed)
+        await tb.write32(ci_base + CI_ADDR_BASE, base)
+        await tb.write32(ci_base + CI_ADDR_MASK, mask)
+        await tb.write32(ci_base + CI_TRANS_COUNT, count)
         ctrl = (64 << 8) | 0x00
-        await tb.write32(gen_base + TG_CTRL, ctrl)
+        await tb.write32(ci_base + CI_CTRL, ctrl)
 
-    # Start both generators
-    await tb.write32(ADDR_TRAFFIC_GEN0 + TG_CTRL, (64 << 8) | 0x01)
-    await tb.write32(ADDR_TRAFFIC_GEN1 + TG_CTRL, (64 << 8) | 0x01)
+    # Start both injectors
+    await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_CTRL, (64 << 8) | 0x01)
+    await tb.write32(ADDR_CYCLE_INJECTOR1 + CI_CTRL, (64 << 8) | 0x01)
 
     # Poll for done with a generous but bounded timeout.
     max_cycles = 500_000
@@ -252,26 +252,26 @@ async def smoke_test(dut):
         if done0 and done1:
             done = True
             break
-    assert done, f"generators did not finish within {max_cycles} cycles"
+    assert done, f"cycle injectors did not finish within {max_cycles} cycles"
 
-    # Read generator status and checksums
-    status0 = await tb.read32(ADDR_TRAFFIC_GEN0 + TG_STATUS)
-    status1 = await tb.read32(ADDR_TRAFFIC_GEN1 + TG_STATUS)
-    err0 = await tb.read32(ADDR_TRAFFIC_GEN0 + TG_ERR_FLAG)
-    err1 = await tb.read32(ADDR_TRAFFIC_GEN1 + TG_ERR_FLAG)
+    # Read injector status and CRCs
+    status0 = await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_STATUS)
+    status1 = await tb.read32(ADDR_CYCLE_INJECTOR1 + CI_STATUS)
+    err0 = await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_ERR_FLAG)
+    err1 = await tb.read32(ADDR_CYCLE_INJECTOR1 + CI_ERR_FLAG)
 
-    assert err0 == 0, f"gen0 error flag: 0x{err0:08x}"
-    assert err1 == 0, f"gen1 error flag: 0x{err1:08x}"
+    assert err0 == 0, f"ci0 error flag: 0x{err0:08x}"
+    assert err1 == 0, f"ci1 error flag: 0x{err1:08x}"
 
-    rsp_lo0 = await tb.read32(ADDR_TRAFFIC_GEN0 + TG_RSP_CKSUM_LO)
-    rsp_hi0 = await tb.read32(ADDR_TRAFFIC_GEN0 + TG_RSP_CKSUM_HI)
-    rsp_lo1 = await tb.read32(ADDR_TRAFFIC_GEN1 + TG_RSP_CKSUM_LO)
-    rsp_hi1 = await tb.read32(ADDR_TRAFFIC_GEN1 + TG_RSP_CKSUM_HI)
-    rsp_cksum0 = (rsp_hi0 << 32) | rsp_lo0
-    rsp_cksum1 = (rsp_hi1 << 32) | rsp_lo1
+    rsp_lo0 = await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_RSP_CRC_LO)
+    rsp_hi0 = await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_RSP_CRC_HI)
+    rsp_lo1 = await tb.read32(ADDR_CYCLE_INJECTOR1 + CI_RSP_CRC_LO)
+    rsp_hi1 = await tb.read32(ADDR_CYCLE_INJECTOR1 + CI_RSP_CRC_HI)
+    rsp_crc0 = (rsp_hi0 << 32) | rsp_lo0
+    rsp_crc1 = (rsp_hi1 << 32) | rsp_lo1
 
-    dut._log.info(f"gen0 status=0x{status0:08x} err=0x{err0:08x} rsp_cksum=0x{rsp_cksum0:016x}")
-    dut._log.info(f"gen1 status=0x{status1:08x} err=0x{err1:08x} rsp_cksum=0x{rsp_cksum1:016x}")
+    dut._log.info(f"ci0 status=0x{status0:08x} err=0x{err0:08x} rsp_crc=0x{rsp_crc0:016x}")
+    dut._log.info(f"ci1 status=0x{status1:08x} err=0x{err1:08x} rsp_crc=0x{rsp_crc1:016x}")
 
     # Read a few tally bins
     for i in range(8):

@@ -580,9 +580,8 @@ and ACE pages were derived from them so the families look alike.
   in the controller's label, not on edges.
 - **`_mon`:**
   - The `USE_MONITOR`-only monitor is a dashed box.
-  - Its tap is a short dashed edge from the side the RTL actually taps
-    (masters on `m_axi`; AXI4 slaves on `s_axi`; AXI5 slaves on
-    `fub_axi`).
+  - Its tap is a short dashed edge from the FUB side, which is where every
+    wrapper taps (owner ruling, 2026-10-13; see [[observers-do-not-drive]]).
   - `block_ready` is dashed into a handshake-gate box on the request lane.
   - Monitor packets are the heavy edge to a white outputs box.
 - **`_mon_cg`** is the `_cg` drawing wrapped around the `_mon` child. A full

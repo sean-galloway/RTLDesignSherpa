@@ -99,5 +99,19 @@ sides of the block. Each rule below was paid for with a real bug in the
   The shape to look for in review: a `user_valid` expression naming signals
   from two clocks with no synchroniser between them.
 
+## One `busy` definition for every AMBA base module
+
+**Owner ruling, 2026-10-13: `busy` must be consistent.** Every AMBA base
+module defines it the same way: any skid buffer holds a beat, **or** a valid is
+arriving on a channel the module accepts (`fub_*valid` from the requester,
+or the response valid from the far side). For example, `axil4_master_rd`
+uses `(ar_count > 0) || (r_count > 0) || fub_arvalid || m_axil_rvalid`.
+
+Occupancy alone misses the cycle a request arrives into an empty block. The
+`_cg` wrappers count those valids separately, so the gate was safe, but a
+second consumer of `busy` would see a block that is about to work as idle.
+*Case: the four `axil5_*` bases were occupancy-only until 2026-10-13; the
+block-diagram pass found the split against axil4.*
+
 Related: [[reset-and-clocking]], [[cdc]]. The wrappers: rtl/amba/{axi4,axi5,axil4}/
 `*_mon_cg.sv`; the directed test: `val/amba/test_mon_cg_gating.py`.

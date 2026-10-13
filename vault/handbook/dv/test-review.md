@@ -119,7 +119,7 @@ interface headers are enough for "does the test drive real ports".
    `depth:never-read`. The bridge audit's 0 of 40 was right for the wrong
    reason and would have stayed 0 of 41 after the fix. It now follows
    `projects....` imports as well, one level plus their own. Re-measured
-   with that: **bridge 41 of 41**, stream fub 2 of 7, apbx-xbar 0 of 6 --
+   with that: **bridge 41 of 41**, stream fub 2 of 7, lattice-apbx-xbar 0 of 6 --
    those two are real, and unmeasured before.
 
    **The grid is per file, not per area.** The house form (every val/common

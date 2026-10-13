@@ -38,7 +38,7 @@ patched.
 ## Generation
 
 Produced by
-`projects/components/fabric-gen-ip/apbx-xbar/bin/apbx_xbar_generator.py`:
+`projects/components/fabric-gen-ip/lattice-apbx-xbar/bin/apbx_xbar_generator.py`:
 
 ```python
 generate_apbx_xbar(num_masters=1, num_slaves=10, base_addr=0xFEC00000,

@@ -104,7 +104,7 @@ Parameters on the generated module: `DATA_WIDTH`, `DEST_WIDTH`, `ID_WIDTH`,
    `rtl_test/` variants are generator outputs. Fix `bin/delta_generator.py`
    and re-emit; note `--topology tree` was retired — regenerate with `flat`.
 3. **AXIS only.** No AXI4/AXI4-Lite/APB conversion here (PRD non-goal). For
-   memory-mapped fabrics see siblings `../bridge/` and `../apbx-xbar/`.
+   memory-mapped fabrics see siblings `../bridge/` and `../lattice-apbx-xbar/`.
 4. **Filelist paths** in `rtl/filelists/*.f` are `$REPO_ROOT`-relative — keep
    them working from any cwd.
 5. **Do not resurrect the NoC** (`noc-ip/delta_spec/`) unless the owner

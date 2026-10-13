@@ -5,7 +5,7 @@
 // Purpose: Internal integration for the amber pair-rig Genesys2 board bring-up.
 //   Host (UART) -> uart_axil_bridge -> bridge_amber_axil -> {
 //      harness_csr, traffic_gen0, traffic_gen1, tally_cnt/cfgw/cfgr }
-//   Two traffic gens drive two amber_top caches; caches connect through
+//   Two cycle injectors drive two amber_top caches; caches connect through
 //   amber_pair_fabric to a shared sdpram_slave_axi4_axi4 memory. Cache
 //   MonBus streams merge and feed a monbus_tally_axil for host read-out.
 
@@ -257,47 +257,47 @@ module amber_pair_harness
         .harness_csr_axi_rvalid (s0_rvalid),
         .harness_csr_axi_rready (s0_rready),
 
-        // Slave 1: traffic_gen0
-        .traffic_gen0_axi_awaddr (s1_awaddr),
-        .traffic_gen0_axi_awprot (s1_awprot),
-        .traffic_gen0_axi_awvalid(s1_awvalid),
-        .traffic_gen0_axi_awready(s1_awready),
-        .traffic_gen0_axi_wdata  (s1_wdata),
-        .traffic_gen0_axi_wstrb  (s1_wstrb),
-        .traffic_gen0_axi_wvalid (s1_wvalid),
-        .traffic_gen0_axi_wready (s1_wready),
-        .traffic_gen0_axi_bresp  (s1_bresp),
-        .traffic_gen0_axi_bvalid (s1_bvalid),
-        .traffic_gen0_axi_bready (s1_bready),
-        .traffic_gen0_axi_araddr (s1_araddr),
-        .traffic_gen0_axi_arprot (s1_arprot),
-        .traffic_gen0_axi_arvalid(s1_arvalid),
-        .traffic_gen0_axi_arready(s1_arready),
-        .traffic_gen0_axi_rdata  (s1_rdata),
-        .traffic_gen0_axi_rresp  (s1_rresp),
-        .traffic_gen0_axi_rvalid (s1_rvalid),
-        .traffic_gen0_axi_rready (s1_rready),
+        // Slave 1: cycle_injector0
+        .cycle_injector0_axi_awaddr (s1_awaddr),
+        .cycle_injector0_axi_awprot (s1_awprot),
+        .cycle_injector0_axi_awvalid(s1_awvalid),
+        .cycle_injector0_axi_awready(s1_awready),
+        .cycle_injector0_axi_wdata  (s1_wdata),
+        .cycle_injector0_axi_wstrb  (s1_wstrb),
+        .cycle_injector0_axi_wvalid (s1_wvalid),
+        .cycle_injector0_axi_wready (s1_wready),
+        .cycle_injector0_axi_bresp  (s1_bresp),
+        .cycle_injector0_axi_bvalid (s1_bvalid),
+        .cycle_injector0_axi_bready (s1_bready),
+        .cycle_injector0_axi_araddr (s1_araddr),
+        .cycle_injector0_axi_arprot (s1_arprot),
+        .cycle_injector0_axi_arvalid(s1_arvalid),
+        .cycle_injector0_axi_arready(s1_arready),
+        .cycle_injector0_axi_rdata  (s1_rdata),
+        .cycle_injector0_axi_rresp  (s1_rresp),
+        .cycle_injector0_axi_rvalid (s1_rvalid),
+        .cycle_injector0_axi_rready (s1_rready),
 
-        // Slave 2: traffic_gen1
-        .traffic_gen1_axi_awaddr (s2_awaddr),
-        .traffic_gen1_axi_awprot (s2_awprot),
-        .traffic_gen1_axi_awvalid(s2_awvalid),
-        .traffic_gen1_axi_awready(s2_awready),
-        .traffic_gen1_axi_wdata  (s2_wdata),
-        .traffic_gen1_axi_wstrb  (s2_wstrb),
-        .traffic_gen1_axi_wvalid (s2_wvalid),
-        .traffic_gen1_axi_wready (s2_wready),
-        .traffic_gen1_axi_bresp  (s2_bresp),
-        .traffic_gen1_axi_bvalid (s2_bvalid),
-        .traffic_gen1_axi_bready (s2_bready),
-        .traffic_gen1_axi_araddr (s2_araddr),
-        .traffic_gen1_axi_arprot (s2_arprot),
-        .traffic_gen1_axi_arvalid(s2_arvalid),
-        .traffic_gen1_axi_arready(s2_arready),
-        .traffic_gen1_axi_rdata  (s2_rdata),
-        .traffic_gen1_axi_rresp  (s2_rresp),
-        .traffic_gen1_axi_rvalid (s2_rvalid),
-        .traffic_gen1_axi_rready (s2_rready),
+        // Slave 2: cycle_injector1
+        .cycle_injector1_axi_awaddr (s2_awaddr),
+        .cycle_injector1_axi_awprot (s2_awprot),
+        .cycle_injector1_axi_awvalid(s2_awvalid),
+        .cycle_injector1_axi_awready(s2_awready),
+        .cycle_injector1_axi_wdata  (s2_wdata),
+        .cycle_injector1_axi_wstrb  (s2_wstrb),
+        .cycle_injector1_axi_wvalid (s2_wvalid),
+        .cycle_injector1_axi_wready (s2_wready),
+        .cycle_injector1_axi_bresp  (s2_bresp),
+        .cycle_injector1_axi_bvalid (s2_bvalid),
+        .cycle_injector1_axi_bready (s2_bready),
+        .cycle_injector1_axi_araddr (s2_araddr),
+        .cycle_injector1_axi_arprot (s2_arprot),
+        .cycle_injector1_axi_arvalid(s2_arvalid),
+        .cycle_injector1_axi_arready(s2_arready),
+        .cycle_injector1_axi_rdata  (s2_rdata),
+        .cycle_injector1_axi_rresp  (s2_rresp),
+        .cycle_injector1_axi_rvalid (s2_rvalid),
+        .cycle_injector1_axi_rready (s2_rready),
 
         // Slave 3: tally_cnt (read-only count readback)
         .tally_cnt_axi_awaddr (s3_awaddr),
@@ -382,14 +382,14 @@ module amber_pair_harness
     logic [31:0] hcsr_ctrl, hcsr_status;
     logic [63:0] r_cycle_ctr;
 
-    // Aggregate traffic-gen status
-    logic gen0_done, gen0_busy, gen0_err;
-    logic gen1_done, gen1_busy, gen1_err;
+    // Aggregate cycle-injector status
+    logic ci0_done, ci0_busy, ci0_err;
+    logic ci1_done, ci1_busy, ci1_err;
 
     assign hcsr_status = {26'b0,
-                          gen1_err, gen0_err,
-                          gen1_busy, gen0_busy,
-                          gen1_done, gen0_done};
+                          ci1_err, ci0_err,
+                          ci1_busy, ci0_busy,
+                          ci1_done, ci0_done};
 
     // Free-running cycle counter
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -431,21 +431,21 @@ module amber_pair_harness
     );
 
     // ------------------------------------------------------------------
-    // Traffic generators
+    // Cycle injectors
     // ------------------------------------------------------------------
-    logic gen0_req_valid, gen0_req_ready, gen0_rsp_valid, gen0_rsp_ready;
-    logic [CPU_REQ_W-1:0] gen0_req_data;
-    logic [CPU_RSP_W-1:0] gen0_rsp_data;
+    logic ci0_req_valid, ci0_req_ready, ci0_rsp_valid, ci0_rsp_ready;
+    logic [CPU_REQ_W-1:0] ci0_req_data;
+    logic [CPU_RSP_W-1:0] ci0_rsp_data;
 
-    logic gen1_req_valid, gen1_req_ready, gen1_rsp_valid, gen1_rsp_ready;
-    logic [CPU_REQ_W-1:0] gen1_req_data;
-    logic [CPU_RSP_W-1:0] gen1_rsp_data;
+    logic ci1_req_valid, ci1_req_ready, ci1_rsp_valid, ci1_rsp_ready;
+    logic [CPU_REQ_W-1:0] ci1_req_data;
+    logic [CPU_RSP_W-1:0] ci1_rsp_data;
 
-    amber_traffic_gen #(
+    amber_cycle_injector #(
         .ADDR_WIDTH  (ADDR_WIDTH),
         .BUS_WIDTH   (BUS_WIDTH),
         .USE_MONITOR (USE_MONITOR)
-    ) u_gen0 (
+    ) u_ci0 (
         .aclk            (aclk),
         .aresetn         (aresetn),
         .s_axil_awaddr   (s1_awaddr),
@@ -467,22 +467,22 @@ module amber_pair_harness
         .s_axil_rresp    (s1_rresp),
         .s_axil_rvalid   (s1_rvalid),
         .s_axil_rready   (s1_rready),
-        .cpu_req_wr_valid(gen0_req_valid),
-        .cpu_req_wr_ready(gen0_req_ready),
-        .cpu_req_wr_data (gen0_req_data),
-        .cpu_rsp_rd_valid(gen0_rsp_valid),
-        .cpu_rsp_rd_ready(gen0_rsp_ready),
-        .cpu_rsp_rd_data (gen0_rsp_data),
-        .o_done          (gen0_done),
-        .o_busy          (gen0_busy),
-        .o_err_flag      (gen0_err)
+        .cpu_req_wr_valid(ci0_req_valid),
+        .cpu_req_wr_ready(ci0_req_ready),
+        .cpu_req_wr_data (ci0_req_data),
+        .cpu_rsp_rd_valid(ci0_rsp_valid),
+        .cpu_rsp_rd_ready(ci0_rsp_ready),
+        .cpu_rsp_rd_data (ci0_rsp_data),
+        .o_done          (ci0_done),
+        .o_busy          (ci0_busy),
+        .o_err_flag      (ci0_err)
     );
 
-    amber_traffic_gen #(
+    amber_cycle_injector #(
         .ADDR_WIDTH  (ADDR_WIDTH),
         .BUS_WIDTH   (BUS_WIDTH),
         .USE_MONITOR (USE_MONITOR)
-    ) u_gen1 (
+    ) u_ci1 (
         .aclk            (aclk),
         .aresetn         (aresetn),
         .s_axil_awaddr   (s2_awaddr),
@@ -504,15 +504,15 @@ module amber_pair_harness
         .s_axil_rresp    (s2_rresp),
         .s_axil_rvalid   (s2_rvalid),
         .s_axil_rready   (s2_rready),
-        .cpu_req_wr_valid(gen1_req_valid),
-        .cpu_req_wr_ready(gen1_req_ready),
-        .cpu_req_wr_data (gen1_req_data),
-        .cpu_rsp_rd_valid(gen1_rsp_valid),
-        .cpu_rsp_rd_ready(gen1_rsp_ready),
-        .cpu_rsp_rd_data (gen1_rsp_data),
-        .o_done          (gen1_done),
-        .o_busy          (gen1_busy),
-        .o_err_flag      (gen1_err)
+        .cpu_req_wr_valid(ci1_req_valid),
+        .cpu_req_wr_ready(ci1_req_ready),
+        .cpu_req_wr_data (ci1_req_data),
+        .cpu_rsp_rd_valid(ci1_rsp_valid),
+        .cpu_rsp_rd_ready(ci1_rsp_ready),
+        .cpu_rsp_rd_data (ci1_rsp_data),
+        .o_done          (ci1_done),
+        .o_busy          (ci1_busy),
+        .o_err_flag      (ci1_err)
     );
 
     // ------------------------------------------------------------------
@@ -602,12 +602,12 @@ module amber_pair_harness
     ) u_amber0 (
         .aclk            (aclk),
         .aresetn         (aresetn),
-        .cpu_req_wr_valid(gen0_req_valid),
-        .cpu_req_wr_ready(gen0_req_ready),
-        .cpu_req_wr_data (gen0_req_data),
-        .cpu_rsp_rd_valid(gen0_rsp_valid),
-        .cpu_rsp_rd_ready(gen0_rsp_ready),
-        .cpu_rsp_rd_data (gen0_rsp_data),
+        .cpu_req_wr_valid(ci0_req_valid),
+        .cpu_req_wr_ready(ci0_req_ready),
+        .cpu_req_wr_data (ci0_req_data),
+        .cpu_rsp_rd_valid(ci0_rsp_valid),
+        .cpu_rsp_rd_ready(ci0_rsp_ready),
+        .cpu_rsp_rd_data (ci0_rsp_data),
         .m_axi_arid      (m0_arid),
         .m_axi_araddr    (m0_araddr),
         .m_axi_arlen     (m0_arlen),
@@ -689,12 +689,12 @@ module amber_pair_harness
     ) u_amber1 (
         .aclk            (aclk),
         .aresetn         (aresetn),
-        .cpu_req_wr_valid(gen1_req_valid),
-        .cpu_req_wr_ready(gen1_req_ready),
-        .cpu_req_wr_data (gen1_req_data),
-        .cpu_rsp_rd_valid(gen1_rsp_valid),
-        .cpu_rsp_rd_ready(gen1_rsp_ready),
-        .cpu_rsp_rd_data (gen1_rsp_data),
+        .cpu_req_wr_valid(ci1_req_valid),
+        .cpu_req_wr_ready(ci1_req_ready),
+        .cpu_req_wr_data (ci1_req_data),
+        .cpu_rsp_rd_valid(ci1_rsp_valid),
+        .cpu_rsp_rd_ready(ci1_rsp_ready),
+        .cpu_rsp_rd_data (ci1_rsp_data),
         .m_axi_arid      (m1_arid),
         .m_axi_araddr    (m1_araddr),
         .m_axi_arlen     (m1_arlen),
@@ -1250,9 +1250,9 @@ module amber_pair_harness
     // ------------------------------------------------------------------
     // Top-level status aggregation
     // ------------------------------------------------------------------
-    assign o_done  = gen0_done && gen1_done;
-    assign o_busy  = gen0_busy || gen1_busy;
-    assign o_error = gen0_err  || gen1_err;
+    assign o_done  = ci0_done && ci1_done;
+    assign o_busy  = ci0_busy || ci1_busy;
+    assign o_error = ci0_err  || ci1_err;
 
     // ------------------------------------------------------------------
     // harness_csr sub-module

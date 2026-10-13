@@ -128,7 +128,7 @@ Your logic drives the `fub_*` side; the `m_axil_*` side faces the bus.
 
 ![axil5_master_wr block diagram](../../assets/rtl-amba/graphviz/axil5_master_wr.png)
 
-The requester (`fub_*`) sits at the top and the AXI5-Lite bus (`m_axil_*`) is the bar at the bottom. AW and W run down through their own `gaxi_skid_buffer`s, and the B response climbs back up its own lane on the right through a third, so every channel crosses exactly one buffer. This is the axil4 structure; AXI5-Lite only adds carried fields -- the ID on every channel and the optional USER, TRACE and POISON groups, each dropped from the skid payload (outputs driven 0) when its `ENABLE_*` parameter is 0, as the Parameters legend states. `busy` is high while any skid buffer holds a beat.
+The requester (`fub_*`) sits at the top and the AXI5-Lite bus (`m_axil_*`) is the bar at the bottom. AW and W run down through their own `gaxi_skid_buffer`s, and the B response climbs back up its own lane on the right through a third, so every channel crosses exactly one buffer. This is the axil4 structure; AXI5-Lite only adds carried fields -- the ID on every channel and the optional USER, TRACE and POISON groups, each dropped from the skid payload (outputs driven 0) when its `ENABLE_*` parameter is 0, as the Parameters legend states. `busy` is high while any skid buffer holds a beat or a valid is arriving (fub_awvalid, fub_wvalid, m_axil_bvalid), the same definition as every other AMBA base module.
 
 ### Optional signal groups
 

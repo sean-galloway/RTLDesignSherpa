@@ -1,0 +1,93 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# Document Information
+
+## Lattice Hardware Architecture Specification
+
+**Document Number:** LATTICE-HAS-001
+**Version:** 1.2
+**Status:** Production Ready
+**Classification:** Open Source - MIT License (matches the SPDX tags on every RTL file)
+
+---
+
+## Document Purpose
+
+This Hardware Architecture Specification (HAS) is the high-level architectural view of the Lattice: system-level design, external interfaces, performance characteristics, and integration requirements. Internal implementation specifics are deliberately left to the MAS.
+
+**Target Audience:**
+- System architects evaluating Lattice for SoC integration
+- Hardware engineers planning peripheral interconnect design
+- Software engineers developing drivers and firmware
+- Verification engineers planning system-level testing
+
+**Companion Documents:**
+- Lattice Micro-Architecture Specification (MAS) - Detailed block-level implementation
+- Lattice Product Requirements Document (PRD) - Requirements and rationale
+
+---
+
+## References
+
+| ID | Document | Description |
+|----|----------|-------------|
+| [REF-1] | Lattice MAS v1.2 | Micro-Architecture Specification |
+| [REF-2] | Lattice PRD | Product Requirements Document |
+| [REF-3] | ARM AMBA APB | APB Protocol Specification (IHI 0024C) |
+
+: Reference Documents
+
+---
+
+## Terminology
+
+| Term | Definition |
+|------|------------|
+| APB | Advanced Peripheral Bus - ARM AMBA low-power peripheral bus |
+| Arbiter | Logic that selects between competing requests using round-robin |
+| Crossbar | NxM interconnect fabric connecting multiple masters to multiple slaves |
+| Master | APB initiator device that initiates read/write transactions |
+| PSEL | APB peripheral select signal indicating slave selection |
+| PENABLE | APB enable signal indicating data phase of transaction |
+| PREADY | APB ready signal indicating slave response completion |
+| Slave | APB target device that responds to master transactions |
+| Transaction | Complete APB read or write operation (setup + data phase) |
+
+: Terminology and Definitions
+
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 1.0 | 2026-01-03 | seang | Initial HAS release |
+| 1.1 | 2026-10-12 | seang | Refresh: update LOC counts, verification status, and generator CLI options |
+| 1.2 | 2026-10-13 | seang | Rebrand: component codename **lattice**, directory `lattice-apbx-xbar`; book titles and document number (LATTICE-HAS-001) updated; RTL module names unchanged (`apbx_xbar_*`) |
+
+: Document Revision History
+
+---
+
+**Last Updated:** 2026-10-13

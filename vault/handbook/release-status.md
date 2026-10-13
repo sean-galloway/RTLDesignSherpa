@@ -16,7 +16,7 @@ considered feature-complete for its declared scope.
 | STREAM DMA | `projects/components/dma-ip/stream` |
 | RAPIDS beats (board characterization) | `projects/fpga-systems/Genesys2/dma-ip/rapids_beats` |
 | RAPIDS | `projects/components/dma-ip/rapids` |
-| APBx xbar | `projects/components/fabric-gen-ip/apbx-xbar` |
+| APBx xbar | `projects/components/fabric-gen-ip/lattice-apbx-xbar` |
 | bridge | `projects/components/fabric-gen-ip/bridge` |
 | retro legacy blocks | `projects/components/legacy-ip/retro_legacy_blocks` |
 | rtl/common | `rtl/common` |

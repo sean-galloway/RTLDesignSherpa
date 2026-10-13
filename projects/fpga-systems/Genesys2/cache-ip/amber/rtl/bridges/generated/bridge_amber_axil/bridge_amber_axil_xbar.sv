@@ -113,121 +113,121 @@ module bridge_amber_axil_xbar
     input  logic         harness_csr_axi_rvalid,
     output  logic         harness_csr_axi_rready,
 
-    // Slave 1: traffic_gen0
-    output logic [BRIDGE_ID_WIDTH-1:0] traffic_gen0_axi_bridge_id_aw,
-    input  logic [BRIDGE_ID_WIDTH-1:0] traffic_gen0_axi_bid_bridge_id,
-    input  logic                       traffic_gen0_axi_bid_valid,
+    // Slave 1: cycle_injector0
+    output logic [BRIDGE_ID_WIDTH-1:0] cycle_injector0_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] cycle_injector0_axi_bid_bridge_id,
+    input  logic                       cycle_injector0_axi_bid_valid,
 
-    output logic [BRIDGE_ID_WIDTH-1:0] traffic_gen0_axi_bridge_id_ar,
-    input  logic [BRIDGE_ID_WIDTH-1:0] traffic_gen0_axi_rid_bridge_id,
-    input  logic                       traffic_gen0_axi_rid_valid,
+    output logic [BRIDGE_ID_WIDTH-1:0] cycle_injector0_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] cycle_injector0_axi_rid_bridge_id,
+    input  logic                       cycle_injector0_axi_rid_valid,
 
-    output  logic         traffic_gen0_axi_awid,
-    output  logic [31:0]  traffic_gen0_axi_awaddr,
-    output  logic [7:0]  traffic_gen0_axi_awlen,
-    output  logic [2:0]  traffic_gen0_axi_awsize,
-    output  logic [1:0]  traffic_gen0_axi_awburst,
-    output  logic         traffic_gen0_axi_awlock,
-    output  logic [3:0]  traffic_gen0_axi_awcache,
-    output  logic [2:0]  traffic_gen0_axi_awprot,
-    output  logic [3:0]  traffic_gen0_axi_awqos,
-    output  logic [3:0]  traffic_gen0_axi_awregion,
-    output  logic         traffic_gen0_axi_awuser,
-    output  logic         traffic_gen0_axi_awvalid,
-    input  logic         traffic_gen0_axi_awready,
+    output  logic         cycle_injector0_axi_awid,
+    output  logic [31:0]  cycle_injector0_axi_awaddr,
+    output  logic [7:0]  cycle_injector0_axi_awlen,
+    output  logic [2:0]  cycle_injector0_axi_awsize,
+    output  logic [1:0]  cycle_injector0_axi_awburst,
+    output  logic         cycle_injector0_axi_awlock,
+    output  logic [3:0]  cycle_injector0_axi_awcache,
+    output  logic [2:0]  cycle_injector0_axi_awprot,
+    output  logic [3:0]  cycle_injector0_axi_awqos,
+    output  logic [3:0]  cycle_injector0_axi_awregion,
+    output  logic         cycle_injector0_axi_awuser,
+    output  logic         cycle_injector0_axi_awvalid,
+    input  logic         cycle_injector0_axi_awready,
 
-    output  logic [31:0]  traffic_gen0_axi_wdata,
-    output  logic [3:0]  traffic_gen0_axi_wstrb,
-    output  logic         traffic_gen0_axi_wlast,
-    output  logic         traffic_gen0_axi_wuser,
-    output  logic         traffic_gen0_axi_wvalid,
-    input  logic         traffic_gen0_axi_wready,
+    output  logic [31:0]  cycle_injector0_axi_wdata,
+    output  logic [3:0]  cycle_injector0_axi_wstrb,
+    output  logic         cycle_injector0_axi_wlast,
+    output  logic         cycle_injector0_axi_wuser,
+    output  logic         cycle_injector0_axi_wvalid,
+    input  logic         cycle_injector0_axi_wready,
 
-    input  logic         traffic_gen0_axi_bid,
-    input  logic [1:0]  traffic_gen0_axi_bresp,
-    input  logic         traffic_gen0_axi_buser,
-    input  logic         traffic_gen0_axi_bvalid,
-    output  logic         traffic_gen0_axi_bready,
+    input  logic         cycle_injector0_axi_bid,
+    input  logic [1:0]  cycle_injector0_axi_bresp,
+    input  logic         cycle_injector0_axi_buser,
+    input  logic         cycle_injector0_axi_bvalid,
+    output  logic         cycle_injector0_axi_bready,
 
-    output  logic         traffic_gen0_axi_arid,
-    output  logic [31:0]  traffic_gen0_axi_araddr,
-    output  logic [7:0]  traffic_gen0_axi_arlen,
-    output  logic [2:0]  traffic_gen0_axi_arsize,
-    output  logic [1:0]  traffic_gen0_axi_arburst,
-    output  logic         traffic_gen0_axi_arlock,
-    output  logic [3:0]  traffic_gen0_axi_arcache,
-    output  logic [2:0]  traffic_gen0_axi_arprot,
-    output  logic [3:0]  traffic_gen0_axi_arqos,
-    output  logic [3:0]  traffic_gen0_axi_arregion,
-    output  logic         traffic_gen0_axi_aruser,
-    output  logic         traffic_gen0_axi_arvalid,
-    input  logic         traffic_gen0_axi_arready,
+    output  logic         cycle_injector0_axi_arid,
+    output  logic [31:0]  cycle_injector0_axi_araddr,
+    output  logic [7:0]  cycle_injector0_axi_arlen,
+    output  logic [2:0]  cycle_injector0_axi_arsize,
+    output  logic [1:0]  cycle_injector0_axi_arburst,
+    output  logic         cycle_injector0_axi_arlock,
+    output  logic [3:0]  cycle_injector0_axi_arcache,
+    output  logic [2:0]  cycle_injector0_axi_arprot,
+    output  logic [3:0]  cycle_injector0_axi_arqos,
+    output  logic [3:0]  cycle_injector0_axi_arregion,
+    output  logic         cycle_injector0_axi_aruser,
+    output  logic         cycle_injector0_axi_arvalid,
+    input  logic         cycle_injector0_axi_arready,
 
-    input  logic         traffic_gen0_axi_rid,
-    input  logic [31:0]  traffic_gen0_axi_rdata,
-    input  logic [1:0]  traffic_gen0_axi_rresp,
-    input  logic         traffic_gen0_axi_rlast,
-    input  logic         traffic_gen0_axi_ruser,
-    input  logic         traffic_gen0_axi_rvalid,
-    output  logic         traffic_gen0_axi_rready,
+    input  logic         cycle_injector0_axi_rid,
+    input  logic [31:0]  cycle_injector0_axi_rdata,
+    input  logic [1:0]  cycle_injector0_axi_rresp,
+    input  logic         cycle_injector0_axi_rlast,
+    input  logic         cycle_injector0_axi_ruser,
+    input  logic         cycle_injector0_axi_rvalid,
+    output  logic         cycle_injector0_axi_rready,
 
-    // Slave 2: traffic_gen1
-    output logic [BRIDGE_ID_WIDTH-1:0] traffic_gen1_axi_bridge_id_aw,
-    input  logic [BRIDGE_ID_WIDTH-1:0] traffic_gen1_axi_bid_bridge_id,
-    input  logic                       traffic_gen1_axi_bid_valid,
+    // Slave 2: cycle_injector1
+    output logic [BRIDGE_ID_WIDTH-1:0] cycle_injector1_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] cycle_injector1_axi_bid_bridge_id,
+    input  logic                       cycle_injector1_axi_bid_valid,
 
-    output logic [BRIDGE_ID_WIDTH-1:0] traffic_gen1_axi_bridge_id_ar,
-    input  logic [BRIDGE_ID_WIDTH-1:0] traffic_gen1_axi_rid_bridge_id,
-    input  logic                       traffic_gen1_axi_rid_valid,
+    output logic [BRIDGE_ID_WIDTH-1:0] cycle_injector1_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] cycle_injector1_axi_rid_bridge_id,
+    input  logic                       cycle_injector1_axi_rid_valid,
 
-    output  logic         traffic_gen1_axi_awid,
-    output  logic [31:0]  traffic_gen1_axi_awaddr,
-    output  logic [7:0]  traffic_gen1_axi_awlen,
-    output  logic [2:0]  traffic_gen1_axi_awsize,
-    output  logic [1:0]  traffic_gen1_axi_awburst,
-    output  logic         traffic_gen1_axi_awlock,
-    output  logic [3:0]  traffic_gen1_axi_awcache,
-    output  logic [2:0]  traffic_gen1_axi_awprot,
-    output  logic [3:0]  traffic_gen1_axi_awqos,
-    output  logic [3:0]  traffic_gen1_axi_awregion,
-    output  logic         traffic_gen1_axi_awuser,
-    output  logic         traffic_gen1_axi_awvalid,
-    input  logic         traffic_gen1_axi_awready,
+    output  logic         cycle_injector1_axi_awid,
+    output  logic [31:0]  cycle_injector1_axi_awaddr,
+    output  logic [7:0]  cycle_injector1_axi_awlen,
+    output  logic [2:0]  cycle_injector1_axi_awsize,
+    output  logic [1:0]  cycle_injector1_axi_awburst,
+    output  logic         cycle_injector1_axi_awlock,
+    output  logic [3:0]  cycle_injector1_axi_awcache,
+    output  logic [2:0]  cycle_injector1_axi_awprot,
+    output  logic [3:0]  cycle_injector1_axi_awqos,
+    output  logic [3:0]  cycle_injector1_axi_awregion,
+    output  logic         cycle_injector1_axi_awuser,
+    output  logic         cycle_injector1_axi_awvalid,
+    input  logic         cycle_injector1_axi_awready,
 
-    output  logic [31:0]  traffic_gen1_axi_wdata,
-    output  logic [3:0]  traffic_gen1_axi_wstrb,
-    output  logic         traffic_gen1_axi_wlast,
-    output  logic         traffic_gen1_axi_wuser,
-    output  logic         traffic_gen1_axi_wvalid,
-    input  logic         traffic_gen1_axi_wready,
+    output  logic [31:0]  cycle_injector1_axi_wdata,
+    output  logic [3:0]  cycle_injector1_axi_wstrb,
+    output  logic         cycle_injector1_axi_wlast,
+    output  logic         cycle_injector1_axi_wuser,
+    output  logic         cycle_injector1_axi_wvalid,
+    input  logic         cycle_injector1_axi_wready,
 
-    input  logic         traffic_gen1_axi_bid,
-    input  logic [1:0]  traffic_gen1_axi_bresp,
-    input  logic         traffic_gen1_axi_buser,
-    input  logic         traffic_gen1_axi_bvalid,
-    output  logic         traffic_gen1_axi_bready,
+    input  logic         cycle_injector1_axi_bid,
+    input  logic [1:0]  cycle_injector1_axi_bresp,
+    input  logic         cycle_injector1_axi_buser,
+    input  logic         cycle_injector1_axi_bvalid,
+    output  logic         cycle_injector1_axi_bready,
 
-    output  logic         traffic_gen1_axi_arid,
-    output  logic [31:0]  traffic_gen1_axi_araddr,
-    output  logic [7:0]  traffic_gen1_axi_arlen,
-    output  logic [2:0]  traffic_gen1_axi_arsize,
-    output  logic [1:0]  traffic_gen1_axi_arburst,
-    output  logic         traffic_gen1_axi_arlock,
-    output  logic [3:0]  traffic_gen1_axi_arcache,
-    output  logic [2:0]  traffic_gen1_axi_arprot,
-    output  logic [3:0]  traffic_gen1_axi_arqos,
-    output  logic [3:0]  traffic_gen1_axi_arregion,
-    output  logic         traffic_gen1_axi_aruser,
-    output  logic         traffic_gen1_axi_arvalid,
-    input  logic         traffic_gen1_axi_arready,
+    output  logic         cycle_injector1_axi_arid,
+    output  logic [31:0]  cycle_injector1_axi_araddr,
+    output  logic [7:0]  cycle_injector1_axi_arlen,
+    output  logic [2:0]  cycle_injector1_axi_arsize,
+    output  logic [1:0]  cycle_injector1_axi_arburst,
+    output  logic         cycle_injector1_axi_arlock,
+    output  logic [3:0]  cycle_injector1_axi_arcache,
+    output  logic [2:0]  cycle_injector1_axi_arprot,
+    output  logic [3:0]  cycle_injector1_axi_arqos,
+    output  logic [3:0]  cycle_injector1_axi_arregion,
+    output  logic         cycle_injector1_axi_aruser,
+    output  logic         cycle_injector1_axi_arvalid,
+    input  logic         cycle_injector1_axi_arready,
 
-    input  logic         traffic_gen1_axi_rid,
-    input  logic [31:0]  traffic_gen1_axi_rdata,
-    input  logic [1:0]  traffic_gen1_axi_rresp,
-    input  logic         traffic_gen1_axi_rlast,
-    input  logic         traffic_gen1_axi_ruser,
-    input  logic         traffic_gen1_axi_rvalid,
-    output  logic         traffic_gen1_axi_rready,
+    input  logic         cycle_injector1_axi_rid,
+    input  logic [31:0]  cycle_injector1_axi_rdata,
+    input  logic [1:0]  cycle_injector1_axi_rresp,
+    input  logic         cycle_injector1_axi_rlast,
+    input  logic         cycle_injector1_axi_ruser,
+    input  logic         cycle_injector1_axi_rvalid,
+    output  logic         cycle_injector1_axi_rready,
 
     // Slave 3: tally_cnt
     output logic [BRIDGE_ID_WIDTH-1:0] tally_cnt_axi_bridge_id_aw,
@@ -469,10 +469,10 @@ module bridge_amber_axil_xbar
     // W-follow declarations (assigned below)
     logic host_32b_w_to_harness_csr;
     logic host_32b_w_sel_harness_csr;
-    logic host_32b_w_to_traffic_gen0;
-    logic host_32b_w_sel_traffic_gen0;
-    logic host_32b_w_to_traffic_gen1;
-    logic host_32b_w_sel_traffic_gen1;
+    logic host_32b_w_to_cycle_injector0;
+    logic host_32b_w_sel_cycle_injector0;
+    logic host_32b_w_to_cycle_injector1;
+    logic host_32b_w_sel_cycle_injector1;
     logic host_64b_w_to_tally_cnt;
     logic host_64b_w_sel_tally_cnt;
     logic host_64b_w_to_tally_cfgw;
@@ -546,129 +546,129 @@ module bridge_amber_axil_xbar
 
 
     // ================================================================
-    // Slave 1: traffic_gen0 (32b)
+    // Slave 1: cycle_injector0 (32b)
     // ================================================================
-    // Single master: host → traffic_gen0
+    // Single master: host → cycle_injector0
     // Master width: 32b, Slave width: 32b
     // Using 32b path from adapter
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_aw_to_traffic_gen0 = ((host_32b_aw.addr >= 32'h00020000) && (host_32b_aw.addr <= 32'h00020fff));
-    wire host_32b_aw_gnt_traffic_gen0 = host_32b_aw_to_traffic_gen0;
-    assign traffic_gen0_axi_awid     = host_32b_aw_to_traffic_gen0 ? host_32b_aw.id : '0;
-    assign traffic_gen0_axi_awaddr   = host_32b_aw_to_traffic_gen0 ? host_32b_aw.addr : '0;
-    assign traffic_gen0_axi_awlen    = host_32b_aw_to_traffic_gen0 ? host_32b_aw.len : '0;
-    assign traffic_gen0_axi_awsize   = host_32b_aw_to_traffic_gen0 ? host_32b_aw.size : '0;
-    assign traffic_gen0_axi_awburst  = host_32b_aw_to_traffic_gen0 ? host_32b_aw.burst : '0;
-    assign traffic_gen0_axi_awlock   = host_32b_aw_to_traffic_gen0 ? host_32b_aw.lock : '0;
-    assign traffic_gen0_axi_awcache  = host_32b_aw_to_traffic_gen0 ? host_32b_aw.cache : '0;
-    assign traffic_gen0_axi_awprot   = host_32b_aw_to_traffic_gen0 ? host_32b_aw.prot : '0;
-    assign traffic_gen0_axi_awqos    = host_32b_aw_to_traffic_gen0 ? host_32b_aw.qos : '0;
-    assign traffic_gen0_axi_awregion = host_32b_aw_to_traffic_gen0 ? host_32b_aw.region : '0;
-    assign traffic_gen0_axi_awuser   = host_32b_aw_to_traffic_gen0 ? host_32b_aw.user : '0;
-    assign traffic_gen0_axi_awvalid  = host_32b_aw_to_traffic_gen0 && host_32b_awvalid;
+    wire host_32b_aw_to_cycle_injector0 = ((host_32b_aw.addr >= 32'h00020000) && (host_32b_aw.addr <= 32'h00020fff));
+    wire host_32b_aw_gnt_cycle_injector0 = host_32b_aw_to_cycle_injector0;
+    assign cycle_injector0_axi_awid     = host_32b_aw_to_cycle_injector0 ? host_32b_aw.id : '0;
+    assign cycle_injector0_axi_awaddr   = host_32b_aw_to_cycle_injector0 ? host_32b_aw.addr : '0;
+    assign cycle_injector0_axi_awlen    = host_32b_aw_to_cycle_injector0 ? host_32b_aw.len : '0;
+    assign cycle_injector0_axi_awsize   = host_32b_aw_to_cycle_injector0 ? host_32b_aw.size : '0;
+    assign cycle_injector0_axi_awburst  = host_32b_aw_to_cycle_injector0 ? host_32b_aw.burst : '0;
+    assign cycle_injector0_axi_awlock   = host_32b_aw_to_cycle_injector0 ? host_32b_aw.lock : '0;
+    assign cycle_injector0_axi_awcache  = host_32b_aw_to_cycle_injector0 ? host_32b_aw.cache : '0;
+    assign cycle_injector0_axi_awprot   = host_32b_aw_to_cycle_injector0 ? host_32b_aw.prot : '0;
+    assign cycle_injector0_axi_awqos    = host_32b_aw_to_cycle_injector0 ? host_32b_aw.qos : '0;
+    assign cycle_injector0_axi_awregion = host_32b_aw_to_cycle_injector0 ? host_32b_aw.region : '0;
+    assign cycle_injector0_axi_awuser   = host_32b_aw_to_cycle_injector0 ? host_32b_aw.user : '0;
+    assign cycle_injector0_axi_awvalid  = host_32b_aw_to_cycle_injector0 && host_32b_awvalid;
 
-    assign host_32b_w_sel_traffic_gen0 = host_32b_w_to_traffic_gen0;
+    assign host_32b_w_sel_cycle_injector0 = host_32b_w_to_cycle_injector0;
 
     // W channel (gated by the W destination FIFO head)
-    assign traffic_gen0_axi_wdata  = host_32b_w_to_traffic_gen0 ? host_32b_w.data : '0;
-    assign traffic_gen0_axi_wstrb  = host_32b_w_to_traffic_gen0 ? host_32b_w.strb : '0;
-    assign traffic_gen0_axi_wlast  = host_32b_w_to_traffic_gen0 ? host_32b_w.last : '0;
-    assign traffic_gen0_axi_wuser  = host_32b_w_to_traffic_gen0 ? host_32b_w.user : '0;
-    assign traffic_gen0_axi_wvalid = host_32b_w_to_traffic_gen0 && host_32b_wvalid;
+    assign cycle_injector0_axi_wdata  = host_32b_w_to_cycle_injector0 ? host_32b_w.data : '0;
+    assign cycle_injector0_axi_wstrb  = host_32b_w_to_cycle_injector0 ? host_32b_w.strb : '0;
+    assign cycle_injector0_axi_wlast  = host_32b_w_to_cycle_injector0 ? host_32b_w.last : '0;
+    assign cycle_injector0_axi_wuser  = host_32b_w_to_cycle_injector0 ? host_32b_w.user : '0;
+    assign cycle_injector0_axi_wvalid = host_32b_w_to_cycle_injector0 && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign traffic_gen0_axi_bready = ((traffic_gen0_axi_bid_bridge_id == 0) && traffic_gen0_axi_bid_valid) ? host_32b_bready : '0;
+    assign cycle_injector0_axi_bready = ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid) ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign traffic_gen0_axi_bridge_id_aw = host_32b_aw_to_traffic_gen0 ? host_bridge_id_aw : '0;
+    assign cycle_injector0_axi_bridge_id_aw = host_32b_aw_to_cycle_injector0 ? host_bridge_id_aw : '0;
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_ar_to_traffic_gen0 = ((host_32b_ar.addr >= 32'h00020000) && (host_32b_ar.addr <= 32'h00020fff));
-    wire host_32b_ar_gnt_traffic_gen0 = host_32b_ar_to_traffic_gen0;
-    assign traffic_gen0_axi_arid     = host_32b_ar_to_traffic_gen0 ? host_32b_ar.id : '0;
-    assign traffic_gen0_axi_araddr   = host_32b_ar_to_traffic_gen0 ? host_32b_ar.addr : '0;
-    assign traffic_gen0_axi_arlen    = host_32b_ar_to_traffic_gen0 ? host_32b_ar.len : '0;
-    assign traffic_gen0_axi_arsize   = host_32b_ar_to_traffic_gen0 ? host_32b_ar.size : '0;
-    assign traffic_gen0_axi_arburst  = host_32b_ar_to_traffic_gen0 ? host_32b_ar.burst : '0;
-    assign traffic_gen0_axi_arlock   = host_32b_ar_to_traffic_gen0 ? host_32b_ar.lock : '0;
-    assign traffic_gen0_axi_arcache  = host_32b_ar_to_traffic_gen0 ? host_32b_ar.cache : '0;
-    assign traffic_gen0_axi_arprot   = host_32b_ar_to_traffic_gen0 ? host_32b_ar.prot : '0;
-    assign traffic_gen0_axi_arqos    = host_32b_ar_to_traffic_gen0 ? host_32b_ar.qos : '0;
-    assign traffic_gen0_axi_arregion = host_32b_ar_to_traffic_gen0 ? host_32b_ar.region : '0;
-    assign traffic_gen0_axi_aruser   = host_32b_ar_to_traffic_gen0 ? host_32b_ar.user : '0;
-    assign traffic_gen0_axi_arvalid  = host_32b_ar_to_traffic_gen0 && host_32b_arvalid;
+    wire host_32b_ar_to_cycle_injector0 = ((host_32b_ar.addr >= 32'h00020000) && (host_32b_ar.addr <= 32'h00020fff));
+    wire host_32b_ar_gnt_cycle_injector0 = host_32b_ar_to_cycle_injector0;
+    assign cycle_injector0_axi_arid     = host_32b_ar_to_cycle_injector0 ? host_32b_ar.id : '0;
+    assign cycle_injector0_axi_araddr   = host_32b_ar_to_cycle_injector0 ? host_32b_ar.addr : '0;
+    assign cycle_injector0_axi_arlen    = host_32b_ar_to_cycle_injector0 ? host_32b_ar.len : '0;
+    assign cycle_injector0_axi_arsize   = host_32b_ar_to_cycle_injector0 ? host_32b_ar.size : '0;
+    assign cycle_injector0_axi_arburst  = host_32b_ar_to_cycle_injector0 ? host_32b_ar.burst : '0;
+    assign cycle_injector0_axi_arlock   = host_32b_ar_to_cycle_injector0 ? host_32b_ar.lock : '0;
+    assign cycle_injector0_axi_arcache  = host_32b_ar_to_cycle_injector0 ? host_32b_ar.cache : '0;
+    assign cycle_injector0_axi_arprot   = host_32b_ar_to_cycle_injector0 ? host_32b_ar.prot : '0;
+    assign cycle_injector0_axi_arqos    = host_32b_ar_to_cycle_injector0 ? host_32b_ar.qos : '0;
+    assign cycle_injector0_axi_arregion = host_32b_ar_to_cycle_injector0 ? host_32b_ar.region : '0;
+    assign cycle_injector0_axi_aruser   = host_32b_ar_to_cycle_injector0 ? host_32b_ar.user : '0;
+    assign cycle_injector0_axi_arvalid  = host_32b_ar_to_cycle_injector0 && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign traffic_gen0_axi_rready = ((traffic_gen0_axi_rid_bridge_id == 0) && traffic_gen0_axi_rid_valid) ? host_32b_rready : '0;
+    assign cycle_injector0_axi_rready = ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid) ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign traffic_gen0_axi_bridge_id_ar = host_32b_ar_to_traffic_gen0 ? host_bridge_id_ar : '0;
+    assign cycle_injector0_axi_bridge_id_ar = host_32b_ar_to_cycle_injector0 ? host_bridge_id_ar : '0;
 
 
     // ================================================================
-    // Slave 2: traffic_gen1 (32b)
+    // Slave 2: cycle_injector1 (32b)
     // ================================================================
-    // Single master: host → traffic_gen1
+    // Single master: host → cycle_injector1
     // Master width: 32b, Slave width: 32b
     // Using 32b path from adapter
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_aw_to_traffic_gen1 = ((host_32b_aw.addr >= 32'h00030000) && (host_32b_aw.addr <= 32'h00030fff));
-    wire host_32b_aw_gnt_traffic_gen1 = host_32b_aw_to_traffic_gen1;
-    assign traffic_gen1_axi_awid     = host_32b_aw_to_traffic_gen1 ? host_32b_aw.id : '0;
-    assign traffic_gen1_axi_awaddr   = host_32b_aw_to_traffic_gen1 ? host_32b_aw.addr : '0;
-    assign traffic_gen1_axi_awlen    = host_32b_aw_to_traffic_gen1 ? host_32b_aw.len : '0;
-    assign traffic_gen1_axi_awsize   = host_32b_aw_to_traffic_gen1 ? host_32b_aw.size : '0;
-    assign traffic_gen1_axi_awburst  = host_32b_aw_to_traffic_gen1 ? host_32b_aw.burst : '0;
-    assign traffic_gen1_axi_awlock   = host_32b_aw_to_traffic_gen1 ? host_32b_aw.lock : '0;
-    assign traffic_gen1_axi_awcache  = host_32b_aw_to_traffic_gen1 ? host_32b_aw.cache : '0;
-    assign traffic_gen1_axi_awprot   = host_32b_aw_to_traffic_gen1 ? host_32b_aw.prot : '0;
-    assign traffic_gen1_axi_awqos    = host_32b_aw_to_traffic_gen1 ? host_32b_aw.qos : '0;
-    assign traffic_gen1_axi_awregion = host_32b_aw_to_traffic_gen1 ? host_32b_aw.region : '0;
-    assign traffic_gen1_axi_awuser   = host_32b_aw_to_traffic_gen1 ? host_32b_aw.user : '0;
-    assign traffic_gen1_axi_awvalid  = host_32b_aw_to_traffic_gen1 && host_32b_awvalid;
+    wire host_32b_aw_to_cycle_injector1 = ((host_32b_aw.addr >= 32'h00030000) && (host_32b_aw.addr <= 32'h00030fff));
+    wire host_32b_aw_gnt_cycle_injector1 = host_32b_aw_to_cycle_injector1;
+    assign cycle_injector1_axi_awid     = host_32b_aw_to_cycle_injector1 ? host_32b_aw.id : '0;
+    assign cycle_injector1_axi_awaddr   = host_32b_aw_to_cycle_injector1 ? host_32b_aw.addr : '0;
+    assign cycle_injector1_axi_awlen    = host_32b_aw_to_cycle_injector1 ? host_32b_aw.len : '0;
+    assign cycle_injector1_axi_awsize   = host_32b_aw_to_cycle_injector1 ? host_32b_aw.size : '0;
+    assign cycle_injector1_axi_awburst  = host_32b_aw_to_cycle_injector1 ? host_32b_aw.burst : '0;
+    assign cycle_injector1_axi_awlock   = host_32b_aw_to_cycle_injector1 ? host_32b_aw.lock : '0;
+    assign cycle_injector1_axi_awcache  = host_32b_aw_to_cycle_injector1 ? host_32b_aw.cache : '0;
+    assign cycle_injector1_axi_awprot   = host_32b_aw_to_cycle_injector1 ? host_32b_aw.prot : '0;
+    assign cycle_injector1_axi_awqos    = host_32b_aw_to_cycle_injector1 ? host_32b_aw.qos : '0;
+    assign cycle_injector1_axi_awregion = host_32b_aw_to_cycle_injector1 ? host_32b_aw.region : '0;
+    assign cycle_injector1_axi_awuser   = host_32b_aw_to_cycle_injector1 ? host_32b_aw.user : '0;
+    assign cycle_injector1_axi_awvalid  = host_32b_aw_to_cycle_injector1 && host_32b_awvalid;
 
-    assign host_32b_w_sel_traffic_gen1 = host_32b_w_to_traffic_gen1;
+    assign host_32b_w_sel_cycle_injector1 = host_32b_w_to_cycle_injector1;
 
     // W channel (gated by the W destination FIFO head)
-    assign traffic_gen1_axi_wdata  = host_32b_w_to_traffic_gen1 ? host_32b_w.data : '0;
-    assign traffic_gen1_axi_wstrb  = host_32b_w_to_traffic_gen1 ? host_32b_w.strb : '0;
-    assign traffic_gen1_axi_wlast  = host_32b_w_to_traffic_gen1 ? host_32b_w.last : '0;
-    assign traffic_gen1_axi_wuser  = host_32b_w_to_traffic_gen1 ? host_32b_w.user : '0;
-    assign traffic_gen1_axi_wvalid = host_32b_w_to_traffic_gen1 && host_32b_wvalid;
+    assign cycle_injector1_axi_wdata  = host_32b_w_to_cycle_injector1 ? host_32b_w.data : '0;
+    assign cycle_injector1_axi_wstrb  = host_32b_w_to_cycle_injector1 ? host_32b_w.strb : '0;
+    assign cycle_injector1_axi_wlast  = host_32b_w_to_cycle_injector1 ? host_32b_w.last : '0;
+    assign cycle_injector1_axi_wuser  = host_32b_w_to_cycle_injector1 ? host_32b_w.user : '0;
+    assign cycle_injector1_axi_wvalid = host_32b_w_to_cycle_injector1 && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign traffic_gen1_axi_bready = ((traffic_gen1_axi_bid_bridge_id == 0) && traffic_gen1_axi_bid_valid) ? host_32b_bready : '0;
+    assign cycle_injector1_axi_bready = ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid) ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign traffic_gen1_axi_bridge_id_aw = host_32b_aw_to_traffic_gen1 ? host_bridge_id_aw : '0;
+    assign cycle_injector1_axi_bridge_id_aw = host_32b_aw_to_cycle_injector1 ? host_bridge_id_aw : '0;
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_ar_to_traffic_gen1 = ((host_32b_ar.addr >= 32'h00030000) && (host_32b_ar.addr <= 32'h00030fff));
-    wire host_32b_ar_gnt_traffic_gen1 = host_32b_ar_to_traffic_gen1;
-    assign traffic_gen1_axi_arid     = host_32b_ar_to_traffic_gen1 ? host_32b_ar.id : '0;
-    assign traffic_gen1_axi_araddr   = host_32b_ar_to_traffic_gen1 ? host_32b_ar.addr : '0;
-    assign traffic_gen1_axi_arlen    = host_32b_ar_to_traffic_gen1 ? host_32b_ar.len : '0;
-    assign traffic_gen1_axi_arsize   = host_32b_ar_to_traffic_gen1 ? host_32b_ar.size : '0;
-    assign traffic_gen1_axi_arburst  = host_32b_ar_to_traffic_gen1 ? host_32b_ar.burst : '0;
-    assign traffic_gen1_axi_arlock   = host_32b_ar_to_traffic_gen1 ? host_32b_ar.lock : '0;
-    assign traffic_gen1_axi_arcache  = host_32b_ar_to_traffic_gen1 ? host_32b_ar.cache : '0;
-    assign traffic_gen1_axi_arprot   = host_32b_ar_to_traffic_gen1 ? host_32b_ar.prot : '0;
-    assign traffic_gen1_axi_arqos    = host_32b_ar_to_traffic_gen1 ? host_32b_ar.qos : '0;
-    assign traffic_gen1_axi_arregion = host_32b_ar_to_traffic_gen1 ? host_32b_ar.region : '0;
-    assign traffic_gen1_axi_aruser   = host_32b_ar_to_traffic_gen1 ? host_32b_ar.user : '0;
-    assign traffic_gen1_axi_arvalid  = host_32b_ar_to_traffic_gen1 && host_32b_arvalid;
+    wire host_32b_ar_to_cycle_injector1 = ((host_32b_ar.addr >= 32'h00030000) && (host_32b_ar.addr <= 32'h00030fff));
+    wire host_32b_ar_gnt_cycle_injector1 = host_32b_ar_to_cycle_injector1;
+    assign cycle_injector1_axi_arid     = host_32b_ar_to_cycle_injector1 ? host_32b_ar.id : '0;
+    assign cycle_injector1_axi_araddr   = host_32b_ar_to_cycle_injector1 ? host_32b_ar.addr : '0;
+    assign cycle_injector1_axi_arlen    = host_32b_ar_to_cycle_injector1 ? host_32b_ar.len : '0;
+    assign cycle_injector1_axi_arsize   = host_32b_ar_to_cycle_injector1 ? host_32b_ar.size : '0;
+    assign cycle_injector1_axi_arburst  = host_32b_ar_to_cycle_injector1 ? host_32b_ar.burst : '0;
+    assign cycle_injector1_axi_arlock   = host_32b_ar_to_cycle_injector1 ? host_32b_ar.lock : '0;
+    assign cycle_injector1_axi_arcache  = host_32b_ar_to_cycle_injector1 ? host_32b_ar.cache : '0;
+    assign cycle_injector1_axi_arprot   = host_32b_ar_to_cycle_injector1 ? host_32b_ar.prot : '0;
+    assign cycle_injector1_axi_arqos    = host_32b_ar_to_cycle_injector1 ? host_32b_ar.qos : '0;
+    assign cycle_injector1_axi_arregion = host_32b_ar_to_cycle_injector1 ? host_32b_ar.region : '0;
+    assign cycle_injector1_axi_aruser   = host_32b_ar_to_cycle_injector1 ? host_32b_ar.user : '0;
+    assign cycle_injector1_axi_arvalid  = host_32b_ar_to_cycle_injector1 && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign traffic_gen1_axi_rready = ((traffic_gen1_axi_rid_bridge_id == 0) && traffic_gen1_axi_rid_valid) ? host_32b_rready : '0;
+    assign cycle_injector1_axi_rready = ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid) ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign traffic_gen1_axi_bridge_id_ar = host_32b_ar_to_traffic_gen1 ? host_bridge_id_ar : '0;
+    assign cycle_injector1_axi_bridge_id_ar = host_32b_ar_to_cycle_injector1 ? host_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -926,10 +926,10 @@ module bridge_amber_axil_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> harness_csr, traffic_gen0, traffic_gen1
+    // host 32b path -> harness_csr, cycle_injector0, cycle_injector1
     logic [1:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
-    wire [1:0] host_32b_wdest_enc = host_32b_aw_to_traffic_gen0 ? 2'd1 : host_32b_aw_to_traffic_gen1 ? 2'd2 : 2'd0;
+    wire [1:0] host_32b_wdest_enc = host_32b_aw_to_cycle_injector0 ? 2'd1 : host_32b_aw_to_cycle_injector1 ? 2'd2 : 2'd0;
     wire host_32b_wdest_push = host_32b_awvalid && host_32b_awready;
     wire host_32b_wdest_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -949,8 +949,8 @@ module bridge_amber_axil_xbar
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
     wire [1:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
     assign host_32b_w_to_harness_csr = host_32b_wdest_valid && (host_32b_wdest_head == 2'd0);
-    assign host_32b_w_to_traffic_gen0 = host_32b_wdest_valid && (host_32b_wdest_head == 2'd1);
-    assign host_32b_w_to_traffic_gen1 = host_32b_wdest_valid && (host_32b_wdest_head == 2'd2);
+    assign host_32b_w_to_cycle_injector0 = host_32b_wdest_valid && (host_32b_wdest_head == 2'd1);
+    assign host_32b_w_to_cycle_injector1 = host_32b_wdest_valid && (host_32b_wdest_head == 2'd2);
 
     // host 64b path -> tally_cnt, tally_cfgw, tally_cfgr, subtractive
     logic [1:0] host_64b_wdest_mem [16];
@@ -986,76 +986,76 @@ module bridge_amber_axil_xbar
     // Master: host, Width path: 32b
     assign host_32b_awready = 
         (host_32b_aw_gnt_harness_csr ? harness_csr_axi_awready : '0) |
-        (host_32b_aw_gnt_traffic_gen0 ? traffic_gen0_axi_awready : '0) |
-        (host_32b_aw_gnt_traffic_gen1 ? traffic_gen1_axi_awready : '0);
+        (host_32b_aw_gnt_cycle_injector0 ? cycle_injector0_axi_awready : '0) |
+        (host_32b_aw_gnt_cycle_injector1 ? cycle_injector1_axi_awready : '0);
 
     assign host_32b_wready = 
         (host_32b_w_sel_harness_csr ? harness_csr_axi_wready : '0) |
-        (host_32b_w_sel_traffic_gen0 ? traffic_gen0_axi_wready : '0) |
-        (host_32b_w_sel_traffic_gen1 ? traffic_gen1_axi_wready : '0);
+        (host_32b_w_sel_cycle_injector0 ? cycle_injector0_axi_wready : '0) |
+        (host_32b_w_sel_cycle_injector1 ? cycle_injector1_axi_wready : '0);
 
     assign host_32b_b.id = 
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bid : '0) |
-        ((traffic_gen0_axi_bid_bridge_id == 0) && traffic_gen0_axi_bid_valid ? traffic_gen0_axi_bid : '0) |
-        ((traffic_gen1_axi_bid_bridge_id == 0) && traffic_gen1_axi_bid_valid ? traffic_gen1_axi_bid : '0);
+        ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid ? cycle_injector0_axi_bid : '0) |
+        ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid ? cycle_injector1_axi_bid : '0);
 
     assign host_32b_b.resp = 
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bresp : '0) |
-        ((traffic_gen0_axi_bid_bridge_id == 0) && traffic_gen0_axi_bid_valid ? traffic_gen0_axi_bresp : '0) |
-        ((traffic_gen1_axi_bid_bridge_id == 0) && traffic_gen1_axi_bid_valid ? traffic_gen1_axi_bresp : '0);
+        ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid ? cycle_injector0_axi_bresp : '0) |
+        ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid ? cycle_injector1_axi_bresp : '0);
 
     assign host_32b_b.user = 
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_buser : '0) |
-        ((traffic_gen0_axi_bid_bridge_id == 0) && traffic_gen0_axi_bid_valid ? traffic_gen0_axi_buser : '0) |
-        ((traffic_gen1_axi_bid_bridge_id == 0) && traffic_gen1_axi_bid_valid ? traffic_gen1_axi_buser : '0);
+        ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid ? cycle_injector0_axi_buser : '0) |
+        ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid ? cycle_injector1_axi_buser : '0);
 
     assign host_32b_bvalid = 
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bvalid : '0) |
-        ((traffic_gen0_axi_bid_bridge_id == 0) && traffic_gen0_axi_bid_valid ? traffic_gen0_axi_bvalid : '0) |
-        ((traffic_gen1_axi_bid_bridge_id == 0) && traffic_gen1_axi_bid_valid ? traffic_gen1_axi_bvalid : '0);
+        ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid ? cycle_injector0_axi_bvalid : '0) |
+        ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid ? cycle_injector1_axi_bvalid : '0);
 
     assign host_32b_arready = 
         (host_32b_ar_gnt_harness_csr ? harness_csr_axi_arready : '0) |
-        (host_32b_ar_gnt_traffic_gen0 ? traffic_gen0_axi_arready : '0) |
-        (host_32b_ar_gnt_traffic_gen1 ? traffic_gen1_axi_arready : '0);
+        (host_32b_ar_gnt_cycle_injector0 ? cycle_injector0_axi_arready : '0) |
+        (host_32b_ar_gnt_cycle_injector1 ? cycle_injector1_axi_arready : '0);
 
     assign host_32b_r.id = 
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rid : '0) |
-        ((traffic_gen0_axi_rid_bridge_id == 0) && traffic_gen0_axi_rid_valid ? traffic_gen0_axi_rid : '0) |
-        ((traffic_gen1_axi_rid_bridge_id == 0) && traffic_gen1_axi_rid_valid ? traffic_gen1_axi_rid : '0);
+        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rid : '0) |
+        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rid : '0);
 
     assign host_32b_r.data = 
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rdata : 32'b0) |
-        ((traffic_gen0_axi_rid_bridge_id == 0) && traffic_gen0_axi_rid_valid ? traffic_gen0_axi_rdata : 32'b0) |
-        ((traffic_gen1_axi_rid_bridge_id == 0) && traffic_gen1_axi_rid_valid ? traffic_gen1_axi_rdata : 32'b0);
+        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rdata : 32'b0) |
+        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rdata : 32'b0);
 
     assign host_32b_r.resp = 
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rresp : '0) |
-        ((traffic_gen0_axi_rid_bridge_id == 0) && traffic_gen0_axi_rid_valid ? traffic_gen0_axi_rresp : '0) |
-        ((traffic_gen1_axi_rid_bridge_id == 0) && traffic_gen1_axi_rid_valid ? traffic_gen1_axi_rresp : '0);
+        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rresp : '0) |
+        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rresp : '0);
 
     assign host_32b_r.last = 
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rlast : '0) |
-        ((traffic_gen0_axi_rid_bridge_id == 0) && traffic_gen0_axi_rid_valid ? traffic_gen0_axi_rlast : '0) |
-        ((traffic_gen1_axi_rid_bridge_id == 0) && traffic_gen1_axi_rid_valid ? traffic_gen1_axi_rlast : '0);
+        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rlast : '0) |
+        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rlast : '0);
 
     assign host_32b_r.user = 
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_ruser : '0) |
-        ((traffic_gen0_axi_rid_bridge_id == 0) && traffic_gen0_axi_rid_valid ? traffic_gen0_axi_ruser : '0) |
-        ((traffic_gen1_axi_rid_bridge_id == 0) && traffic_gen1_axi_rid_valid ? traffic_gen1_axi_ruser : '0);
+        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_ruser : '0) |
+        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_ruser : '0);
 
     assign host_32b_rvalid = 
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rvalid : '0) |
-        ((traffic_gen0_axi_rid_bridge_id == 0) && traffic_gen0_axi_rid_valid ? traffic_gen0_axi_rvalid : '0) |
-        ((traffic_gen1_axi_rid_bridge_id == 0) && traffic_gen1_axi_rid_valid ? traffic_gen1_axi_rvalid : '0);
+        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rvalid : '0) |
+        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rvalid : '0);
 
 `ifndef SYNTHESIS
     // synthesis translate_off
     always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((traffic_gen0_axi_rid_bridge_id == 0) && traffic_gen0_axi_rid_valid), ((traffic_gen1_axi_rid_bridge_id == 0) && traffic_gen1_axi_rid_valid)}) > 1) begin
+        if (aresetn && $countones({((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid), ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid)}) > 1) begin
             $error("%m: response mux for master host (32b) has %0d slaves selected at once; ",
                    "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((traffic_gen0_axi_rid_bridge_id == 0) && traffic_gen0_axi_rid_valid), ((traffic_gen1_axi_rid_bridge_id == 0) && traffic_gen1_axi_rid_valid)}));
+                   $countones({((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid), ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid)}));
         end
     end
     // synthesis translate_on

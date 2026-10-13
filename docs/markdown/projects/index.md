@@ -88,7 +88,7 @@ Advanced descriptor-based DMA with network interfaces and complex features.
 
 #### APB Crossbar
 **Status:** Production Ready (All tests passing at 100%)
-**Location:** [`projects/components/fabric-gen-ip/apbx-xbar/`](../../../projects/components/fabric-gen-ip/apbx-xbar/)
+**Location:** [`projects/components/fabric-gen-ip/lattice-apbx-xbar/`](../../../projects/components/fabric-gen-ip/lattice-apbx-xbar/)
 
 Parametric MxN APB interconnect connecting multiple masters to multiple slaves with automatic address-based routing and round-robin arbitration.
 
@@ -100,9 +100,9 @@ Parametric MxN APB interconnect connecting multiple masters to multiple slaves w
 - RTL generator for custom configurations
 
 **Documentation:**
-- [Complete Specification](../../../projects/components/fabric-gen-ip/apbx-xbar/docs/apbx_xbar_has/apbx_xbar_has_index.md)
-- [Product Requirements](../../../projects/components/fabric-gen-ip/apbx-xbar/PRD.md)
-- [AI Guide](../../../projects/components/fabric-gen-ip/apbx-xbar/CLAUDE.md)
+- [Complete Specification](../../../projects/components/fabric-gen-ip/lattice-apbx-xbar/docs/lattice_has/lattice_has_index.md)
+- [Product Requirements](../../../projects/components/fabric-gen-ip/lattice-apbx-xbar/PRD.md)
+- [AI Guide](../../../projects/components/fabric-gen-ip/lattice-apbx-xbar/CLAUDE.md)
 
 ---
 

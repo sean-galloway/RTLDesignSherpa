@@ -60,7 +60,7 @@ Delta is intentionally AXI4-Stream only. It does **not** support:
 - Burst lengths, address phases, or memory attributes.
 - Dynamic reconfiguration of the crossbar dimensions.
 
-For memory-mapped fabrics, use the sibling `bridge` or `apbx-xbar` components.
+For memory-mapped fabrics, use the sibling `bridge` or `lattice-apbx-xbar` components.
 
 ## Protocol Compliance Summary
 

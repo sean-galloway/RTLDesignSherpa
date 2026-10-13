@@ -325,8 +325,8 @@ module host_adapter
     // ================================================================
     // Address decode (slave selection) - Write
     // Slave 0 (harness_csr): 0x00010000 - 0x00010FFF
-    // Slave 1 (traffic_gen0): 0x00020000 - 0x00020FFF
-    // Slave 2 (traffic_gen1): 0x00030000 - 0x00030FFF
+    // Slave 1 (cycle_injector0): 0x00020000 - 0x00020FFF
+    // Slave 2 (cycle_injector1): 0x00030000 - 0x00030FFF
     // Slave 3 (tally_cnt): 0x00040000 - 0x00040FFF
     // Slave 4 (tally_cfgw): 0x00050000 - 0x00050FFF
     // Slave 5 (tally_cfgr): 0x00060000 - 0x00060FFF
@@ -339,10 +339,10 @@ module host_adapter
             comb_slave_select_aw[0] = 1'b1;  // harness_csr
         end
         else if (fub_axi_awaddr >= 32'h00020000 && fub_axi_awaddr <= 32'h00020FFF) begin
-            comb_slave_select_aw[1] = 1'b1;  // traffic_gen0
+            comb_slave_select_aw[1] = 1'b1;  // cycle_injector0
         end
         else if (fub_axi_awaddr >= 32'h00030000 && fub_axi_awaddr <= 32'h00030FFF) begin
-            comb_slave_select_aw[2] = 1'b1;  // traffic_gen1
+            comb_slave_select_aw[2] = 1'b1;  // cycle_injector1
         end
         else if (fub_axi_awaddr >= 32'h00040000 && fub_axi_awaddr <= 32'h00040FFF) begin
             comb_slave_select_aw[3] = 1'b1;  // tally_cnt
@@ -364,8 +364,8 @@ module host_adapter
     // ================================================================
     // Address decode (slave selection) - Read
     // Slave 0 (harness_csr): 0x00010000 - 0x00010FFF
-    // Slave 1 (traffic_gen0): 0x00020000 - 0x00020FFF
-    // Slave 2 (traffic_gen1): 0x00030000 - 0x00030FFF
+    // Slave 1 (cycle_injector0): 0x00020000 - 0x00020FFF
+    // Slave 2 (cycle_injector1): 0x00030000 - 0x00030FFF
     // Slave 3 (tally_cnt): 0x00040000 - 0x00040FFF
     // Slave 4 (tally_cfgw): 0x00050000 - 0x00050FFF
     // Slave 5 (tally_cfgr): 0x00060000 - 0x00060FFF
@@ -378,10 +378,10 @@ module host_adapter
             comb_slave_select_ar[0] = 1'b1;  // harness_csr
         end
         else if (fub_axi_araddr >= 32'h00020000 && fub_axi_araddr <= 32'h00020FFF) begin
-            comb_slave_select_ar[1] = 1'b1;  // traffic_gen0
+            comb_slave_select_ar[1] = 1'b1;  // cycle_injector0
         end
         else if (fub_axi_araddr >= 32'h00030000 && fub_axi_araddr <= 32'h00030FFF) begin
-            comb_slave_select_ar[2] = 1'b1;  // traffic_gen1
+            comb_slave_select_ar[2] = 1'b1;  // cycle_injector1
         end
         else if (fub_axi_araddr >= 32'h00040000 && fub_axi_araddr <= 32'h00040FFF) begin
             comb_slave_select_ar[3] = 1'b1;  // tally_cnt

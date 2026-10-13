@@ -18,7 +18,7 @@ digraph axil5_master_rd {
     top  [label="Read Requester (fub_*)\nuser logic issuing reads", fillcolor="white", width=4.2];
     ar   [label="AR Skid Buffer\ngaxi_skid_buffer - ar_channel\nSKID_DEPTH_AR (default 2)"];
     r    [label="R Skid Buffer\ngaxi_skid_buffer - r_channel\nSKID_DEPTH_R (default 4)"];
-    busyo [label="Status Output: busy (combinational)\nhigh while either skid buffer\nholds a beat", fillcolor="white"];
+    busyo [label="Status Output: busy (combinational)\nhigh while a skid buffer holds a beat,\nor fub_arvalid / m_axil_rvalid arriving", fillcolor="white"];
     bot  [label="AXI5-Lite Bus, master side (m_axil_*)\nAR out at the left, R in at the right", fillcolor="white", width=5.2];
 
     top -> ar  [xlabel="AR: arid, araddr, arprot,\naruser, artrace\n(valid down, ready up)", penwidth=1.8];

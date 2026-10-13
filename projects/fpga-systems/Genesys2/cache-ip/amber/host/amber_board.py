@@ -29,26 +29,26 @@ from boards import get_board
 
 # Bridge address map (matches bridge_amber_axil.toml / harness CSR map)
 ADDR_HARNESS_CSR = 0x0001_0000
-ADDR_TRAFFIC_GEN0 = 0x0002_0000
-ADDR_TRAFFIC_GEN1 = 0x0003_0000
+ADDR_CYCLE_INJECTOR0 = 0x0002_0000
+ADDR_CYCLE_INJECTOR1 = 0x0003_0000
 ADDR_TALLY_CNT = 0x0004_0000
 ADDR_TALLY_CFGW = 0x0005_0000
 ADDR_TALLY_CFGR = 0x0006_0000
 
-# Traffic-gen CSR word offsets (32-bit)
-TG_CTRL = 0x00
-TG_SEED = 0x04
-TG_ADDR_BASE = 0x08
-TG_ADDR_MASK = 0x0C
-TG_TRANS_COUNT = 0x10
-TG_STATUS = 0x14
-TG_ACC_COUNT = 0x18
-TG_RSP_COUNT = 0x1C
-TG_ERR_FLAG = 0x20
-TG_RSP_CKSUM_LO = 0x30
-TG_RSP_CKSUM_HI = 0x34
-TG_WDATA_CKSUM_LO = 0x38
-TG_WDATA_CKSUM_HI = 0x3C
+# Cycle-injector CSR word offsets (32-bit)
+CI_CTRL = 0x00
+CI_SEED = 0x04
+CI_ADDR_BASE = 0x08
+CI_ADDR_MASK = 0x0C
+CI_TRANS_COUNT = 0x10
+CI_STATUS = 0x14
+CI_ACC_COUNT = 0x18
+CI_RSP_COUNT = 0x1C
+CI_ERR_FLAG = 0x20
+CI_RSP_CRC_LO = 0x30
+CI_RSP_CRC_HI = 0x34
+CI_WDATA_CRC_LO = 0x38
+CI_WDATA_CRC_HI = 0x3C
 
 # Harness CSR word offsets
 HCSR_CTRL = 0x00
@@ -70,7 +70,7 @@ class AmberBoard:
         self.ser = serial.Serial(port, baud, timeout=timeout)
         # Drain any stale input.
         self.ser.reset_input_buffer()
-        # Host-side shadow of each traffic generator's CTRL register
+        # Host-side shadow of each cycle injector's CTRL register
         # (set by config_gen) so start_gen never needs a read.
         self._ctrl_shadow: dict[int, int] = {}
 
@@ -127,25 +127,25 @@ class AmberBoard:
 
     def config_gen(self, base: int, seed: int, addr_base: int, addr_mask: int,
                    count: int, we_mix: int) -> None:
-        """Program a traffic generator's configuration registers.
+        """Program a cycle injector's configuration registers.
 
         Marginal-UART hardening: CTRL (run=0) goes down FIRST so a dropped
-        mid-block write can never leave a running gen with stale config,
+        mid-block write can never leave a running injector with stale config,
         and TRANS_COUNT is written twice (a 0 from a dropped first write
-        can mean "run forever" depending on gen semantics).
+        can mean "run forever" depending on injector semantics).
         """
         ctrl = ((we_mix & 0xFF) << 8) | 0x00  # run bit clear
-        self.write(base + TG_CTRL, ctrl)
-        self.write(base + TG_SEED, seed & 0xFFFF_FFFF)
-        self.write(base + TG_ADDR_BASE, addr_base & 0xFFFF_FFFF)
-        self.write(base + TG_ADDR_MASK, addr_mask & 0xFFFF_FFFF)
-        self.write(base + TG_TRANS_COUNT, count & 0xFFFF_FFFF)
-        self.write(base + TG_TRANS_COUNT, count & 0xFFFF_FFFF)
-        self.write(base + TG_CTRL, ctrl)
+        self.write(base + CI_CTRL, ctrl)
+        self.write(base + CI_SEED, seed & 0xFFFF_FFFF)
+        self.write(base + CI_ADDR_BASE, addr_base & 0xFFFF_FFFF)
+        self.write(base + CI_ADDR_MASK, addr_mask & 0xFFFF_FFFF)
+        self.write(base + CI_TRANS_COUNT, count & 0xFFFF_FFFF)
+        self.write(base + CI_TRANS_COUNT, count & 0xFFFF_FFFF)
+        self.write(base + CI_CTRL, ctrl)
         self._ctrl_shadow[base] = ctrl
 
     def start_gen(self, base: int) -> None:
-        """Set the run bit on a traffic generator.
+        """Set the run bit on a cycle injector.
 
         Blind-safe: uses the config_gen ctrl shadow instead of a
         read-modify-write (the board read path can hang while writes
@@ -153,32 +153,32 @@ class AmberBoard:
         """
         ctrl = self._ctrl_shadow.get(base)
         if ctrl is None:
-            ctrl = self.read(base + TG_CTRL)
-        self.write(base + TG_CTRL, ctrl | 1)
+            ctrl = self.read(base + CI_CTRL)
+        self.write(base + CI_CTRL, ctrl | 1)
 
     def gen_status(self, base: int) -> dict:
-        """Read a traffic generator's status counters."""
+        """Read a cycle injector's status counters."""
         return {
-            "status": self.read(base + TG_STATUS),
-            "acc_count": self.read(base + TG_ACC_COUNT),
-            "rsp_count": self.read(base + TG_RSP_COUNT),
-            "err_flag": self.read(base + TG_ERR_FLAG),
+            "status": self.read(base + CI_STATUS),
+            "acc_count": self.read(base + CI_ACC_COUNT),
+            "rsp_count": self.read(base + CI_RSP_COUNT),
+            "err_flag": self.read(base + CI_ERR_FLAG),
         }
 
-    def gen_checksums(self, base: int) -> dict:
-        """Read a traffic generator's response and issued-write-data XOR checksums."""
+    def gen_crcs(self, base: int) -> dict:
+        """Read a cycle injector's response and issued-write-data CRC-32 values."""
         return {
-            "rsp_cksum": self.read64(base + TG_RSP_CKSUM_LO),
-            "wdata_cksum": self.read64(base + TG_WDATA_CKSUM_LO),
+            "rsp_crc": self.read64(base + CI_RSP_CRC_LO),
+            "wdata_crc": self.read64(base + CI_WDATA_CRC_LO),
         }
 
     def start_all(self) -> None:
-        """Start both traffic generators."""
-        self.start_gen(ADDR_TRAFFIC_GEN0)
-        self.start_gen(ADDR_TRAFFIC_GEN1)
+        """Start both cycle injectors."""
+        self.start_gen(ADDR_CYCLE_INJECTOR0)
+        self.start_gen(ADDR_CYCLE_INJECTOR1)
 
     def wait_done(self, timeout: float = 60.0, poll: float = 0.1) -> bool:
-        """Poll harness STATUS until both generators report done."""
+        """Poll harness STATUS until both injectors report done."""
         deadline = time.time() + timeout
         while time.time() < deadline:
             status = self.read(ADDR_HARNESS_CSR + HCSR_STATUS)
@@ -250,34 +250,34 @@ def build_default_profile() -> list[tuple[int, int]]:
 
 
 def smoke(board: AmberBoard, count: int = 20000, blind: bool = False) -> None:
-    """Both gens hammer the same 4KB region (forces coherence), then dump tallies.
+    """Both injectors hammer the same 4KB region (forces coherence), then dump tallies.
 
     blind=True is write-only: for boards whose read path is still being
-    debugged. The run/done evidence is LED LD7 (busy): on while the gens
+    debugged. The run/done evidence is LED LD7 (busy): on while the injectors
     run, off when both are done.
     """
-    print(f"[smoke] configuring both generators for {count} transactions each")
+    print(f"[smoke] configuring both cycle injectors for {count} transactions each")
 
     board.tally_clear_profile()
     for key, idx in build_default_profile():
         board.tally_load_entry(idx, key)
 
-    # Both gens target the same 4 KB region.
+    # Both injectors target the same 4 KB region.
     mask = 0x0000_0FFF
     base = 0x0000_0000
-    board.config_gen(ADDR_TRAFFIC_GEN0, seed=0x1234_5678,
+    board.config_gen(ADDR_CYCLE_INJECTOR0, seed=0x1234_5678,
                      addr_base=base, addr_mask=mask,
                      count=count, we_mix=64)
-    board.config_gen(ADDR_TRAFFIC_GEN1, seed=0xDEAD_BEEF,
+    board.config_gen(ADDR_CYCLE_INJECTOR1, seed=0xDEAD_BEEF,
                      addr_base=base, addr_mask=mask,
                      count=count, we_mix=64)
 
-    print("[smoke] starting generators")
+    print("[smoke] starting cycle injectors")
     board.start_all()
     if blind:
-        # No reads: give the gens wall-clock time, then report by LED.
+        # No reads: give the injectors wall-clock time, then report by LED.
         print("[smoke] BLIND mode (write-only): watch LED LD7 (busy) - lit while")
-        print("[smoke] the gens run, OFF when both are done. Status/tally dumps")
+        print("[smoke] the injectors run, OFF when both are done. Status/tally dumps")
         print("[smoke] require the read path and are skipped.")
         time.sleep(30.0)
         print("[smoke] run window elapsed - LD7 should be OFF now.")
@@ -286,19 +286,19 @@ def smoke(board: AmberBoard, count: int = 20000, blind: bool = False) -> None:
         print("[smoke] ERROR: timed out waiting for done")
         return
 
-    print("[smoke] dumping generator status")
-    print("  gen0:", board.gen_status(ADDR_TRAFFIC_GEN0))
-    print("  gen1:", board.gen_status(ADDR_TRAFFIC_GEN1))
+    print("[smoke] dumping cycle injector status")
+    print("  ci0:", board.gen_status(ADDR_CYCLE_INJECTOR0))
+    print("  ci1:", board.gen_status(ADDR_CYCLE_INJECTOR1))
 
-    print("[smoke] dumping generator checksums")
-    cksum0 = board.gen_checksums(ADDR_TRAFFIC_GEN0)
-    cksum1 = board.gen_checksums(ADDR_TRAFFIC_GEN1)
-    print(f"  gen0: {cksum0}")
-    print(f"  gen1: {cksum1}")
-    if cksum0["rsp_cksum"] == cksum1["rsp_cksum"]:
-        print("[smoke] gen0/gen1 read checksums MATCH")
+    print("[smoke] dumping cycle injector CRCs")
+    crc0 = board.gen_crcs(ADDR_CYCLE_INJECTOR0)
+    crc1 = board.gen_crcs(ADDR_CYCLE_INJECTOR1)
+    print(f"  ci0: {crc0}")
+    print(f"  ci1: {crc1}")
+    if crc0["rsp_crc"] == crc1["rsp_crc"]:
+        print("[smoke] ci0/ci1 read CRCs MATCH")
     else:
-        print("[smoke] gen0/gen1 read checksums MISMATCH (expected; interleaving is racy)")
+        print("[smoke] ci0/ci1 read CRCs MISMATCH (expected; interleaving is racy)")
 
     print("[smoke] dumping tally bins")
     bins = board.tally_read_all(8)

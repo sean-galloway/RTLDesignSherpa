@@ -59,4 +59,4 @@ These live in the companion MAS or are deliberate non-goals:
 
 ## Non-Goal: Memory-Mapped Protocol Conversion
 
-Delta is **AXI4-Stream only**. It does not convert to or from AXI4, AXI4-Lite, or APB. If you need address-mapped fabrics, use the sibling `bridge` or `apbx-xbar` components.
+Delta is **AXI4-Stream only**. It does not convert to or from AXI4, AXI4-Lite, or APB. If you need address-mapped fabrics, use the sibling `bridge` or `lattice-apbx-xbar` components.

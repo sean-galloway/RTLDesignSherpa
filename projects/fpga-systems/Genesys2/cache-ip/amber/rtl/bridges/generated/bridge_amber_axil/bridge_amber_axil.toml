@@ -6,20 +6,20 @@
 #
 # The single master is the host's UART -> AXIL bridge. The six slaves are:
 #   harness_csr    global control/status + free-running cycle counter
-#   traffic_gen0   per-core stimulus engine 0 config/status
-#   traffic_gen1   per-core stimulus engine 1 config/status
-#   tally_cnt      monbus_tally_axil count readback
-#   tally_cfgw     monbus_tally_axil config write (CAM legal-set load)
-#   tally_cfgr     monbus_tally_axil config/status readback
+#   cycle_injector0   per-core stimulus engine 0 config/status
+#   cycle_injector1   per-core stimulus engine 1 config/status
+#   tally_cnt         monbus_tally_axil count readback
+#   tally_cfgw        monbus_tally_axil config write (CAM legal-set load)
+#   tally_cfgr        monbus_tally_axil config/status readback
 #
 # Address map. Every slave occupies a whole 4 KB page (enforced by the bridge
 # generator's config validator).
-#   harness_csr    0x0001_0000  4 KB   AXIL
-#   traffic_gen0   0x0002_0000  4 KB   AXIL
-#   traffic_gen1   0x0003_0000  4 KB   AXIL
-#   tally_cnt      0x0004_0000  4 KB   AXIL
-#   tally_cfgw     0x0005_0000  4 KB   AXIL
-#   tally_cfgr     0x0006_0000  4 KB   AXIL
+#   harness_csr       0x0001_0000  4 KB   AXIL
+#   cycle_injector0   0x0002_0000  4 KB   AXIL
+#   cycle_injector1   0x0003_0000  4 KB   AXIL
+#   tally_cnt         0x0004_0000  4 KB   AXIL
+#   tally_cfgw        0x0005_0000  4 KB   AXIL
+#   tally_cfgr        0x0006_0000  4 KB   AXIL
 #==============================================================================
 
 [bridge]
@@ -58,8 +58,8 @@ base_addr   = "0x00010000"
 addr_range  = "0x00001000"     # 4 KB
 
 [[bridge.slaves]]
-name        = "traffic_gen0"
-prefix      = "traffic_gen0_axi_"
+name        = "cycle_injector0"
+prefix      = "cycle_injector0_axi_"
 protocol    = "axil"
 channels    = "rw"
 id_width    = 8
@@ -70,8 +70,8 @@ base_addr   = "0x00020000"
 addr_range  = "0x00001000"     # 4 KB
 
 [[bridge.slaves]]
-name        = "traffic_gen1"
-prefix      = "traffic_gen1_axi_"
+name        = "cycle_injector1"
+prefix      = "cycle_injector1_axi_"
 protocol    = "axil"
 channels    = "rw"
 id_width    = 8

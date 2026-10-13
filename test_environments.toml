@@ -68,7 +68,7 @@ description = "AMBA protocol modules (AXI4, APB, AXIS monitors)"
 directory = "val/amba"
 coverage = true
 
-# rtl/amba/monitor/axi_monitor_lite.sv has its own test area (Sean, 2026-09-25): own Makefile
+# rtl/amba/ocelus/axi_monitor_lite.sv has its own test area (Sean, 2026-09-25): own Makefile
 # on make/tests.mk, own conftest, own TB package. Not a sub_area of val-amba --
 # sub_areas REPLACE the root entry, and val/amba's own tests must keep running.
 [env.val-amba-monitor-lite]
@@ -129,7 +129,7 @@ coverage_report_target = "coverage-report"
 # --- APB Crossbar ---
 [env.apb-xbar]
 description = "APB crossbar"
-directory = "projects/components/fabric-gen-ip/apbx-xbar/dv/tests"
+directory = "projects/components/fabric-gen-ip/lattice-apbx-xbar/dv/tests"
 coverage = true
 
 # --- Retro Legacy Blocks ---

@@ -2,10 +2,10 @@
 // classic DDR-MC course style (vault/handbook/authoring/block-diagrams.md).
 //
 // Flow geography:
-//   requests (cpu_req, AR/AW)  top-down the center: gens -> caches ->
+//   requests (cpu_req, AR/AW)  top-down the center: injectors -> caches ->
 //                              grant pick (fabric trapezium) -> memory bar
 //   return data                R beats leave the bar and climb back up the
-//                              side columns to the caches, cpu_rsp to gens
+//                              side columns to the caches, cpu_rsp to injectors
 //   sideband (dashed)          host AXIL cfg, coh_req probes / peer_state,
 //                              monbus observation -> tally -> host readback
 digraph amber_pair_genesys2_harness {
@@ -22,11 +22,11 @@ digraph amber_pair_genesys2_harness {
 
     // ---- host link ----
     ubridge [label="UART to AXIL Bridge\nuart_axil_bridge\n(text W/R cmds -> AXIL master, 115200 8N1)"];
-    xbar    [label="AXIL Address Decode\nbridge_amber_axil - 1 master x 6 slaves\n(gen cfg x2, tally cnt/cfgw/cfgr, harness CSR)"];
+    xbar    [label="AXIL Address Decode\nbridge_amber_axil - 1 master x 6 slaves\n(ci cfg x2, tally cnt/cfgw/cfgr, harness CSR)"];
 
     // ---- per-core request channels ----
-    gen0 [label="Traffic Generator 0\namber_traffic_gen\nLFSR addr/we, count-limited, rsp/wdata checksums", group="L"];
-    gen1 [label="Traffic Generator 1\namber_traffic_gen\n(seed cfg makes the stream deterministic)", group="R"];
+    ci0 [label="Cycle Injector 0\namber_cycle_injector\nLFSR addr/we, count-limited, rsp/wdata CRC-32", group="L"];
+    ci1 [label="Cycle Injector 1\namber_cycle_injector\n(seed cfg makes the stream deterministic)", group="R"];
 
     top0 [label="Cache 0 (MESI L1)\namber_top - l1_core + axi4_master_rd/wr\n+ monbus_arbiter observer, s128w4l64b64", group="L"];
     top1 [label="Cache 1 (MESI L1)\namber_top - l1_core + axi4_master_rd/wr\n+ monbus_arbiter observer, s128w4l64b64", group="R"];
@@ -61,13 +61,13 @@ AXCACHE: 4'b1111 cacheable write-back (post #106)\l",
     host -> ubridge [dir=both, label="UART 115200: W/R cmds, OK / 0x resp"];
     ubridge -> xbar [label="AXIL rd/wr"];
 
-    { rank=same; gen0; gen1; }
+    { rank=same; ci0; ci1; }
     { rank=same; top0; top1; }
-    gen0 -> gen1 [style=invis];
+    ci0 -> ci1 [style=invis];
 
     // ---- request flow (top-down, one edge per hop) ----
-    gen0 -> top0 [label="cpu_req RD / WR addr + WR data (packed)"];
-    gen1 -> top1 [label="cpu_req RD / WR addr + WR data (packed)"];
+    ci0 -> top0 [label="cpu_req RD / WR addr + WR data (packed)"];
+    ci1 -> top1 [label="cpu_req RD / WR addr + WR data (packed)"];
     top0 -> fabric [label="RD miss / upgrade + WR/WB victim"];
     top1 -> fabric [label="RD miss / upgrade + WR/WB victim"];
 
@@ -81,12 +81,12 @@ AXCACHE: 4'b1111 cacheable write-back (post #106)\l",
     bar -> fabric [constraint=false, label="R beats (line data)"];
     fabric -> top0 [constraint=false, label="R beats"];
     fabric -> top1 [constraint=false, label="R beats"];
-    top0 -> gen0 [constraint=false, label="cpu_rsp rdata"];
-    top1 -> gen1 [constraint=false, label="cpu_rsp rdata"];
+    top0 -> ci0 [constraint=false, label="cpu_rsp rdata"];
+    top1 -> ci1 [constraint=false, label="cpu_rsp rdata"];
 
     // ---- config sideband (dashed) ----
-    xbar -> gen0   [style=dashed, xlabel="cfg seed/base/mask/count 0x0002_0000"];
-    xbar -> gen1   [style=dashed, xlabel="cfg seed/base/mask/count 0x0003_0000"];
+    xbar -> ci0   [style=dashed, xlabel="cfg seed/base/mask/count 0x0002_0000"];
+    xbar -> ci1   [style=dashed, xlabel="cfg seed/base/mask/count 0x0003_0000"];
     xbar -> csr    [style=dashed, label="status 0x0001_0000"];
 
     // ---- observation sideband: merges off-flow, readback climbs to host ----

@@ -192,8 +192,8 @@ filelist_dirs = [
 [[area]]
 name = "apbx_xbar"
 kind = "component"
-rtl_roots = ["projects/components/fabric-gen-ip/apbx-xbar/rtl"]
-filelist_dirs = ["projects/components/fabric-gen-ip/apbx-xbar/rtl/filelists"]
+rtl_roots = ["projects/components/fabric-gen-ip/lattice-apbx-xbar/rtl"]
+filelist_dirs = ["projects/components/fabric-gen-ip/lattice-apbx-xbar/rtl/filelists"]
 
 [[area]]
 name = "mc_common"
