@@ -83,13 +83,25 @@ External: host interface, CDA AXIS master (into CDC), control-network
 master, AXIL master. Internal: memory buses (core-local), mailbox from
 firmware view, interrupt lines in.
 
+## Decisions (owner, 2026-10-13)
+
+- **Firmware load transport: kestrel loader pattern.** HIVE-C adopts the
+  rung-1 board-loader approach — an AXIL-slave loader with on-chip memories
+  and load-then-run control, in the style of `kestrel_mem_loader` (see the
+  kestrel MAS, `ch02_blocks/06_kestrel_mem_loader.md`). JTAG and
+  preloaded-BRAM options are dropped.
+- **Descriptor mailbox: parameter-controlled, dedicated register file is
+  the default.** A synthesis parameter selects between a dedicated
+  descriptor-register file and a data-memory aperture; RTL implements the
+  register-file path first. The legacy spec's "custom instruction for
+  atomic descriptor injection" alternative was considered and rejected —
+  the mailbox + `descriptor_gen` model stands (policy stays in firmware;
+  no VexRiscv plugin surgery).
+
 ## Open Items
 
-- Firmware load transport (JTAG vs. UART vs. preloaded BRAM image) —
-  decision deferred to Phase 1; kestrel loader precedent preferred.
-- Whether the descriptor mailbox lives in data-mem address space or a
-  dedicated register file — implementation choice pending area numbers.
+None in this block.
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

@@ -58,18 +58,23 @@ IDLE ──CONFIG_PREPARE──► DRAIN ──quiesce_confirmed──► SWITCH
                                               ACTIVE ◄── CONFIG_ACTIVATE
 ```
 
-- `DRAIN`: broadcasts prepare, then polls router `STATUS` registers
-  (or receives SERV tap confirmation) until all participating routers
-  report `active_packets == 0`. Timeout → error sticky, abort.
+- Quiesce status via IDLE register (decided 2026-10-13): an **IDLE signal**
+  from the fabric — an aggregated quiescent indication covering the
+  participating routers — is routed into a **PeakRDL-managed configuration
+  register** for reading by HIVE-C firmware (and the host). Firmware
+  verifies IDLE before issuing `SET_ROUTING_MODE`. The register bank
+  follows the repo's PeakRDL convention (`rdl/` sources generating regmap,
+  decode, and docs, as in `projects/components/legacy-ip/retro_legacy_blocks/rdl/`).
+  A hard interlock that refuses the mode update in hardware remains
+  optional future hardening, not a Phase-3 gate.
+- `DRAIN`: broadcasts prepare, then polls the IDLE register until all
+  participating routers report idle. Timeout → error sticky, abort.
 - `SWITCH`: emits one PKT_CONFIG broadcast (command 0x0000_0001, payload =
   context id, tile mask = all). The broadcast is a single packet consumed
   by all routers in the same cycle — that simultaneity is what makes the
   switch atomic.
-- Hardware interlock (open item): the HAS requires firmware to verify
-  quiesce before `SET_ROUTING_MODE`; a hardware interlock in
-  `switch_controller` that refuses the mode update until
-  `active_packets == 0` everywhere is the preferred hardening and should be
-  added before Phase 3 bring-up.
+- Injection request path remains **TBD** (owner, 2026-10-13): whether
+  PKT_CONFIG broadcasts ride the HIVE-C injection path or a SERV flood.
 
 ## Interfaces
 
@@ -80,4 +85,4 @@ implementation decision in Phase 2), observation bus out.
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

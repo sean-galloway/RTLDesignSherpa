@@ -50,11 +50,12 @@ hold different contexts — the switch is a single point in time (cycle 11
 above), not an interval. This is the property the formal inventory asserts
 as "context switch atomicity."
 
-**Quiesce verification:** the FSM polls `active_packets == 0` per router;
-with the §2.5 hardware interlock installed, `SET_ROUTING_MODE` is refused
-by hardware until the condition holds, making the protocol safe even
-against buggy firmware.
+**Quiesce verification:** the FSM and firmware read the aggregated IDLE
+signal through the PeakRDL config register (§2.5) — all participating
+routers report idle before `SET_ROUTING_MODE` issues. The check is a
+readable status, not a hardware refusal: correct switching is firmware
+discipline, with a hard interlock left as optional future hardening.
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

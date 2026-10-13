@@ -110,8 +110,8 @@ title_page:
   logo_width: 2.5
   company: "RTL Design Sherpa"
   title: "HIVE"
-  subtitle: "Micro-Architecture Specification 0.1"
-  date: "October 12, 2026"
+  subtitle: "Micro-Architecture Specification 0.2"
+  date: "October 13, 2026"
   # Colors reference the colors section above
   company_color: primary
   title_color: secondary

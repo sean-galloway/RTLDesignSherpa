@@ -26,7 +26,7 @@
 ## HIVE Micro-Architecture Specification
 
 **Document Number:** HIVE-MAS-001
-**Version:** 0.1
+**Version:** 0.2
 **Status:** Draft (pre-RTL — implementation intent)
 **Classification:** Open Source - MIT License
 
@@ -55,7 +55,7 @@ open, it is marked as an open item rather than resolved silently.
 
 | ID | Document | Description |
 |----|----------|-------------|
-| [REF-1] | HIVE HAS v0.1 (`docs/hive_has/`) | Hardware Architecture Specification (external contract) |
+| [REF-1] | HIVE HAS v0.2 (`docs/hive_has/`) | Hardware Architecture Specification (external contract) |
 | [REF-2] | HIVE PRD (`PRD.md`) | Product requirements and roadmap |
 | [REF-3] | VexRiscv documentation (https://github.com/SpinalHDL/VexRiscv) | HIVE-C core generator; plugin/config reference |
 | [REF-4] | SERV documentation (https://github.com/olofk/serv) | Monitor core; RF/WB interfaces |
@@ -86,9 +86,10 @@ open, it is marked as an open item rather than resolved silently.
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-12 | seang | Initial MAS release; migrates the implementation content of the retired v0.3 `hive_specification.md` into block-level implementation intent |
+| 0.2 | 2026-10-13 | seang | Owner decisions: quiesce status via fabric IDLE signal into a PeakRDL config register (hard interlock demoted to optional hardening); kestrel loader pattern; dual-flop tap synchronizers; descriptor mailbox parameter-controlled, dedicated register file default, custom-instruction alternative rejected; PKT_CONFIG injection path still TBD |
 
 : Document Revision History
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

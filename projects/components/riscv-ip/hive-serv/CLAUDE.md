@@ -32,7 +32,7 @@
 ## Quick Context
 
 **What:** HIVE (Hierarchical Intelligent Vector Environment) - Distributed control and monitoring subsystem for RAPIDS/Delta Network
-**Status:** Specification phase — HAS/MAS v0.1 published 2026-10-12; no RTL yet
+**Status:** Specification phase — HAS/MAS v0.2 published 2026-10-13; no RTL yet
 **Your Role:** Help users understand hierarchical RISC-V architecture, distributed monitoring, and network reconfiguration
 
 **Primary Specifications:**
@@ -254,8 +254,8 @@ Switching Sequence:
 
 ```bash
 cd projects/components/riscv-ip/hive-serv/docs
-./generate_has_pdf.sh            # HIVE_HAS_v0.1.docx / .pdf
-./generate_mas_pdf.sh            # HIVE_MAS_v0.1.docx / .pdf
+./generate_has_pdf.sh            # HIVE_HAS_v0.2.docx / .pdf
+./generate_mas_pdf.sh            # HIVE_MAS_v0.2.docx / .pdf
 ```
 
 The scripts check dependencies (python-docx, PyYAML, pandoc, LibreOffice),

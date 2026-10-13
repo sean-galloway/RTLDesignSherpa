@@ -81,12 +81,12 @@ control-network slave port, AXIS TX into CDC, observation port out.
 
 ## Open Items
 
-- Tap synchronization: per-direction dual-flop sync vs. async capture — to
-  be settled with Delta's tap definition (Delta MAS).
+- Tap synchronization (decided 2026-10-13): **dual-flop synchronizers** per
+  direction at the tap boundary inside `traffic_counter`.
 - Whether `trigger_logic` also owns the periodic-report timer or the core
   does (core timer saves logic, hardware timer saves instruction budget —
   Phase 1 experiment).
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

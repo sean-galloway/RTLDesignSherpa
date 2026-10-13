@@ -89,6 +89,18 @@ clock domain and follow the reset sequencing rules in the MAS clocking
 chapter. Use cases: SERV hang recovery without system disruption, clearing
 Delta state during reconfiguration, and component-level debug.
 
+## Fabric IDLE Status Register
+
+A read-only status register in the HIVE configuration region carries the
+aggregated **fabric IDLE** signal — the quiescent indication from the Delta
+fabric covering all participating routers (and the SERV injection paths).
+HIVE-C firmware reads it to verify quiesce before issuing
+`SET_ROUTING_MODE` (§5.4), and the host may read it for bring-up
+diagnostics. The register is part of the PeakRDL-managed HIVE register
+bank (generated from `rdl/` sources per the repo convention, see MAS
+§2.5): bit [0] = fabric idle, bits [16:1] reserved (per-router idle
+granularity is a possible future extension).
+
 ## Register Access Rules
 
 - **Host → HIVE-C:** host interface only; the host has no path to RAPIDS,
@@ -101,4 +113,4 @@ Delta state during reconfiguration, and component-level debug.
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13

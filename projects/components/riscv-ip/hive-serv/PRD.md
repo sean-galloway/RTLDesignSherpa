@@ -26,7 +26,7 @@
 
 **Version:** 0.2
 **Date:** 2026-10-12
-**Status:** Specification phase — HAS/MAS v0.1 published; no RTL yet
+**Status:** Specification phase — HAS/MAS v0.2 published; no RTL yet
 **Owner:** RTL Design Sherpa Project
 **Parent Document:** `/PRD.md`
 
@@ -42,7 +42,7 @@ The Hierarchical Intelligent Vector Environment (HIVE) is a distributed control 
 - **Processors:** 1 VexRiscv (master) + 16 SERV (monitors) = 17 RISC-V cores
 - **Interfaces:** Control Network (internal), AXIS (to Delta Network)
 - **Resource Budget:** 6,100 LUTs HIVE control plane (14,100 including the Delta NoC), 30 BRAM on NexysA7 100T
-- **Status:** Specification phase; HAS/MAS v0.1 published 2026-10-12
+- **Status:** Specification phase; HAS/MAS v0.2 published 2026-10-12
 
 ### 1.2 Subsystem Goals
 
@@ -265,11 +265,11 @@ packet-format, and register-map specifications.
 
 | Component | Spec Status | Implementation Status |
 |-----------|-------------|----------------------|
-| HIVE-C Controller | HAS/MAS v0.1 | Pending |
-| SERV Monitors | HAS/MAS v0.1 | Pending |
-| Control Network | HAS/MAS v0.1 | Pending |
-| Configuration Manager | HAS/MAS v0.1 | Pending |
-| Integration | HAS/MAS v0.1 | Pending |
+| HIVE-C Controller | HAS/MAS v0.2 | Pending |
+| SERV Monitors | HAS/MAS v0.2 | Pending |
+| Control Network | HAS/MAS v0.2 | Pending |
+| Configuration Manager | HAS/MAS v0.2 | Pending |
+| Integration | HAS/MAS v0.2 | Pending |
 
 ---
 
@@ -347,7 +347,7 @@ for the full integration and verification strategy.
 
 ### 10.1 Current Phase
 
-**Phase: Specification** (HAS/MAS v0.1 complete, 2026-10-12)
+**Phase: Specification** (HAS/MAS v0.2 complete, 2026-10-12)
 
 - Hardware Architecture Specification: complete (7 chapters)
 - Micro-Architecture Specification: complete (6 chapters)
@@ -399,8 +399,8 @@ HIVE demonstrates:
 
 ```bash
 cd projects/components/riscv-ip/hive-serv/docs
-./generate_has_pdf.sh            # HIVE_HAS_v0.1.docx / .pdf
-./generate_mas_pdf.sh            # HIVE_MAS_v0.1.docx / .pdf
+./generate_has_pdf.sh            # HIVE_HAS_v0.2.docx / .pdf
+./generate_mas_pdf.sh            # HIVE_MAS_v0.2.docx / .pdf
 # Optional revision override:
 ./generate_has_pdf.sh --rev 0.2
 ```

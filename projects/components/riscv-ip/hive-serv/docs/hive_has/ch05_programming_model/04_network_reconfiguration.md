@@ -63,9 +63,9 @@ quiesce. Overhead target < 1% for workloads whose phases run 1000+ cycles.
 
 - **Never switch without quiesce.** A `SET_ROUTING_MODE` issued while
   packets are in flight is a protocol violation; the Configuration Manager
-  does not hardware-enforce the drain, so firmware must verify `STATUS`
-  shows quiescent routers before step 2. (A hardware interlock is a MAS
-  open item — see MAS Chapter 4.)
+  does not hardware-enforce the drain, so firmware must verify the fabric
+  IDLE status register (below) before step 2. A hardware interlock is
+  optional future hardening (MAS §2.5).
 - **Context 3 tables must be loaded before activation.** Custom routing
   entries are written via `Update Router Table Entry` (0x0000_0002) packets
   while the router is quiescent.
@@ -75,4 +75,4 @@ quiesce. Overhead target < 1% for workloads whose phases run 1000+ cycles.
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-13
