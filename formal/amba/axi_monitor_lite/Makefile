@@ -3,12 +3,12 @@
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 INC := -I$(REPO_ROOT)/rtl/amba/includes
-DEPS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
+DEPS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
         $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
         $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_addr_check.sv
-DUT  := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_lite.sv
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_addr_check.sv
+DUT  := $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_lite.sv
 .PHONY: prove cover all clean
 all: prove cover
 prove: axi_monitor_lite_flat.v

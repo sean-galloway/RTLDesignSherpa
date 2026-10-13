@@ -24,7 +24,7 @@
 # monbus_halfbeat_packer
 
 **Module:** `monbus_halfbeat_packer.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
 ---
@@ -225,7 +225,7 @@ The Ocelus is an original design of this repository. The papers and standards be
 - Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
 
 ### Source Code
-- RTL: `rtl/amba/monitor/monbus_halfbeat_packer.sv`
+- RTL: `rtl/amba/ocelus/monbus_halfbeat_packer.sv`
 - Golden model: `bin/TBClasses/monbus/monbus_compressor.py` (`Encoder(half_beat=True)`)
 
 ### Documentation

@@ -36,7 +36,7 @@ Combines **[axil4_master_rd](../axil4/axil4_master_rd.md)** with the core **axi_
 ### Key Features
 
 - All features of base **axil4_master_rd** module
-- **Integrated Monitoring:** Uses shared axi_monitor_filtered (rtl/amba/monitor/)
+- **Integrated Monitoring:** Uses shared axi_monitor_filtered (rtl/amba/ocelus/)
 - **2-Level Filtering:** packet-type masks, then per-event-code masks. `err_select` is RESERVED -- it feeds only the conflict check and routes nothing.
 - **Error Detection:** SLVERR/DECERR, timeouts, orphaned read data
   (protocol-violation events are write-monitor only)
@@ -378,7 +378,7 @@ width. `axi_monitor_filtered` computes
 `pkt_drop = cfg_axi_pkt_mask[pkt_type]`, so a set bit **drops** that type. To
 pass only `PktTypeError` (4'h0) and `PktTypeTimeout` (4'h3), clear bits 0 and 3
 and set the rest: `16'b1111_1111_1111_0110`. See the
-[Monitor Packet Specification](../includes/monitor_package_spec.md) for the
+[Monitor Packet Specification](../includes/ocelus_package_spec.md) for the
 full packet-type enum.
 
 ---
@@ -423,7 +423,7 @@ Legal depth range is 2..8 inclusive, odd values included.
 
 ### Monitor Infrastructure
 - **[AXI4 Master Read Mon](../axi4/axi4_master_rd_mon.md)** - Full AXI4 monitoring (detailed reference)
-- **[axi_monitor_filtered](../monitor/axi_monitor_filtered.md)** - Core monitor engine (`rtl/amba/monitor/`)
+- **[axi_monitor_filtered](../monitor/axi_monitor_filtered.md)** - Core monitor engine (`rtl/amba/ocelus/`)
 - **[Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Configuration strategies
 
 ### Related Modules

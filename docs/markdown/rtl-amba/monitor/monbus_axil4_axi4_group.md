@@ -24,7 +24,7 @@
 # Monitor Bus Group — AXIL Slave-Read / AXI4 Master-Write
 
 **Module:** `monbus_axil4_axi4_group.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
 ---
@@ -373,14 +373,14 @@ The Ocelus is an original design of this repository. The papers and standards be
 
 ### Source Code
 
-- RTL: `rtl/amba/monitor/monbus_axil4_axi4_group.sv`
-- Core: `rtl/amba/monitor/monbus_group_core.sv`
+- RTL: `rtl/amba/ocelus/monbus_axil4_axi4_group.sv`
+- Core: `rtl/amba/ocelus/monbus_group_core.sv`
 
 ### Documentation
 
 - Family spec: `docs/markdown/rtl-amba/monitor/monbus_group.md`
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
-- Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- Packet format: `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 
 ---
 

@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Purpose: Acceptance test for the half-beat packing path
-#          (rtl/amba/monitor/monbus_compressor.sv HALF_BEAT_EN=1 +
+#          (rtl/amba/ocelus/monbus_compressor.sv HALF_BEAT_EN=1 +
 #           monbus_halfbeat_packer.sv) against the Python golden
 #           Encoder(half_beat=True) in monbus_compressor.py.
 #
@@ -106,7 +106,7 @@ async def monbus_halfbeat_test(dut):
 def test_monbus_halfbeat(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_includes': 'rtl/amba/includes',
         'val_amba':     'val/amba',
     })

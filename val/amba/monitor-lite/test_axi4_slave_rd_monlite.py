@@ -306,7 +306,7 @@ def test_axi4_slave_rd_mon(id_width, addr_width, data_width, user_width, max_tra
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axi4_slave_rd_monlite"

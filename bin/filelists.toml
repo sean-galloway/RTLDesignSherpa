@@ -181,12 +181,12 @@ filelist_dirs = [
 ]
 
 [[area]]
-name = "retro_legacy_blocks"
+name = "legacy-ip/retro_legacy_blocks"
 kind = "component"
-rtl_roots = ["projects/components/retro_legacy_blocks/rtl"]
+rtl_roots = ["projects/components/legacy-ip/retro_legacy_blocks/rtl"]
 filelist_dirs = [
-    "projects/components/retro_legacy_blocks/rtl",
-    "projects/components/retro_legacy_blocks/dv/filelists",
+    "projects/components/legacy-ip/retro_legacy_blocks/rtl",
+    "projects/components/legacy-ip/retro_legacy_blocks/dv/filelists",
 ]
 
 [[area]]

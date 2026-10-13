@@ -23,6 +23,6 @@
 
 # Out of scope
 
-Packet bit layout ([monitor_package_spec.md](../../rtl-amba/includes/monitor_package_spec.md)),
+Packet bit layout ([monitor_package_spec.md](../../rtl-amba/includes/ocelus_package_spec.md)),
 per-module ports and timing ([monitor/](../../rtl-amba/monitor/)), and test recipes (the
 test sources).

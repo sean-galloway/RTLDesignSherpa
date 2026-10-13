@@ -24,7 +24,7 @@
 # monbus_pkt_tally
 
 **Module:** `monbus_pkt_tally.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Coverage / Observability
 **Status:** Production Ready
 

@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: monitor_trans_cam
-// Purpose: Multi-port ID CAM with payload storage for the AXI monitor
+// Purpose: Multi-port ID CAM with payload storage for the AXI ocelus
 //          transaction manager family (axi_monitor_trans_mgr et al).
 //
 // Documentation: docs/markdown/rtl-amba/monitor/monitor_trans_cam.md  (TBD)

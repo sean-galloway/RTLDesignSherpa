@@ -17,31 +17,31 @@ SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
         monitor_pkg_stub.sv
 
 DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_addr_check.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_compl.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_debug.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_error.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_perf.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_threshold.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_timeout.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_addr_check.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_compl.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_debug.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_error.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_perf.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_threshold.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_timeout.sv \
         $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_timeout.sv \
         $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
         $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monitor_trans_cam.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_filtered.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_timer.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/monitor_trans_cam.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_trans_mgr.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_base.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_filtered.sv \
         $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr_mon.sv \
         $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
         $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv

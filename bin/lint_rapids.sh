@@ -26,7 +26,7 @@ INCLUDES="-I$RAPIDS_RTL/includes \
           -I$RAPIDS_RTL/rapids_fub"
 
 # Package files (needed for most modules)
-MON_PKG="$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv"
+MON_PKG="$REPO_ROOT/rtl/amba/includes/ocelus_pkg.sv"
 RAPIDS_PKG="$RAPIDS_RTL/includes/rapids_pkg.sv"
 PACKAGES="$MON_PKG $RAPIDS_PKG"
 

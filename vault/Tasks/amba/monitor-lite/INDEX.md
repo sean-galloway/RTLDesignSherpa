@@ -1,6 +1,6 @@
 ---
 title: amba/monitor-lite tasks
-summary: Task rollup for rtl/amba/monitor/axi_monitor_lite.sv (axi_monitor_lite), the AXI monitor at a fifth of the gates.
+summary: Task rollup for rtl/amba/ocelus/axi_monitor_lite.sv (axi_monitor_lite), the AXI monitor at a fifth of the gates.
 ---
 
 # amba/monitor-lite — task rollup
@@ -21,7 +21,7 @@ Open counts include the reserved `-000` template, which is never a real item.
 
 ## What lives here (Sean, 2026-09-25)
 
-`rtl/amba/monitor/axi_monitor_lite.sv` is its own sub-area of amba, the way each RLB block
+`rtl/amba/ocelus/axi_monitor_lite.sv` is its own sub-area of amba, the way each RLB block
 is a sub-area of RLB: the block's own features, defects and questions file
 here; work on the monbus, the full monitor family or the wrappers files under
 `amba/`. Its collateral is likewise its own: tests in `val/amba/monitor-lite/`

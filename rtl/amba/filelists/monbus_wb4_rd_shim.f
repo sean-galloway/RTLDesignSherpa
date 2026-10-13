@@ -4,4 +4,4 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 -f $REPO_ROOT/rtl/amba/filelists/wb4_slave.f
-$REPO_ROOT/rtl/amba/monitor/monbus_wb4_rd_shim.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_wb4_rd_shim.sv

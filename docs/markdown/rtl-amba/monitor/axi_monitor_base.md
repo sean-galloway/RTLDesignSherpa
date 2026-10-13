@@ -24,7 +24,7 @@
 # AXI Monitor Base
 
 **Module:** `axi_monitor_base.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Core Infrastructure
 **Status:** Production Ready
 
@@ -370,7 +370,7 @@ a port on the wrappers.
 
 The contract (single source of truth:
 `monitor_common_pkg::cmd_entry_reserve()` in
-`rtl/amba/includes/monitor_common_pkg.sv`):
+`rtl/amba/includes/ocelus_common_pkg.sv`):
 
 - **Command-entry cap.** The transaction manager caps command-originated
   entries (allocated by AW/AR activity) at
@@ -597,7 +597,7 @@ Verilator's default of 64 in sim builds.
 
 - **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
 - **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
-- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 
 ---
 

@@ -72,11 +72,14 @@ and the cross-reference web depend on these being byte-identical:
 10. **Admonition markers** — lines beginning `> **HISTORICAL`,
     `> **Note`, etc. keep their marker word; the sentence after it is
     fair game.
-11. **Diagrams are Mermaid, never ASCII art — but directory trees
-    stay ASCII.** The pipeline renders ```mermaid fences to PNG.
+11. **Diagrams are never ASCII art — but directory trees stay ASCII.**
+    Block diagrams are graphviz assets (`.dot` + rendered `.png`) in the
+    house style of `vault/handbook/authoring/block-diagrams.md`; other
+    figures may be ```mermaid fences, which the pipeline renders to PNG.
     Box-drawing DIAGRAMS (block/dataflow/pipeline art) don't belong in
-    these docs; if you find one, flag it — conversion to Mermaid is an
-    authoring change, not a voice change. Directory trees and pure
+    these docs; if you find one, flag it — conversion is an authoring
+    change, not a voice change. A voice pass never edits a `.dot` file
+    or a diagram label. Directory trees and pure
     containment listings in box-drawing form are fine and stay exactly
     as written. Waveforms/timing figures are ```wavedrom fences —
     never ASCII waveform art. Never introduce new ASCII diagram art.

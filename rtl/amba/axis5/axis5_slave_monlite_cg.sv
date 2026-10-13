@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axis5_slave_monlite_cg
-// Purpose: AXI5-Stream Slave with the lite stream monitor, clock gated -- axis5_slave_monlite behind one amba_clock_gate_ctrl
+// Purpose: AXI5-Stream Slave with the lite stream ocelus, clock gated -- axis5_slave_monlite behind one amba_clock_gate_ctrl
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
@@ -14,11 +14,11 @@
 // Created: 2026-09-27
 //
 // ============================================================================
-// The clock-gated twin of axis5_slave_monlite (amba/monitor-lite TASK-003). One
-// amba_clock_gate_ctrl gates the whole inner wrapper -- endpoint and monitor.
+// The clock-gated twin of axis5_slave_monlite (amba/ocelus-lite TASK-003). One
+// amba_clock_gate_ctrl gates the whole inner wrapper -- endpoint and ocelus.
 // Gating terms are axis5_slave_cg's verbatim -- ONE registered wakeup term
 // (s_axis_tvalid | core busy | fub_axis_tvalid | s_axis_twakeup), axi_valid tied 0 --
-// plus the monitor's own activity: a packet queued on the monbus or a packet
+// plus the ocelus's own activity: a packet queued on the monbus or a packet
 // open on the tapped port keeps the clock alive. Port names stay the
 // _monlite's (fub_axis_/m_axis_ or s_axis_/fub_axis_), not axis5_slave_cg's
 // `axis5_` spelling, so the pair is pin-compatible with each other.
@@ -33,8 +33,8 @@
 `include "reset_defs.svh"
 module axis5_slave_monlite_cg
 #(
-    // ---- Monitor parameters ----
-    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the monitor, tie its outputs
+    // ---- Ocelus parameters ----
+    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the ocelus, tie its outputs
     parameter logic [7:0]  UNIT_ID                = 8'h09,
     parameter logic [15:0] AGENT_ID               = 16'h0064,
     parameter int          OUT_DEPTH              = 4,      // monbus output queue, a power of two
@@ -101,9 +101,9 @@ module axis5_slave_monlite_cg
     output logic [TUSERCHK_W-1:0]      fub_axis_tuserchk,
     output logic                      busy,
     output logic                      parity_error,  // Parity error detected
-    // ---- Monitor control (the lite's own set: nothing here it cannot honour) ----
-    input  logic                                  cam_clear,           // sync clear of the monitor's state (named as on the AXI lite wrappers). Legal only while idle
-    input  logic                                  cfg_monitor_enable,  // 0 = monitor inert, state held clear
+    // ---- Ocelus control (the lite's own set: nothing here it cannot honour) ----
+    input  logic                                  cam_clear,           // sync clear of the ocelus's state (named as on the AXI lite wrappers). Legal only while idle
+    input  logic                                  cfg_monitor_enable,  // 0 = ocelus inert, state held clear
     input  logic                                  cfg_error_enable,
     input  logic                                  cfg_timeout_enable,
     input  logic                                  cfg_compl_enable,
@@ -116,7 +116,7 @@ module axis5_slave_monlite_cg
     input  logic [15:0]                           cfg_axis_pkt_mask,   // drop mask by packet type
     input  logic [31:0]                           cfg_stall_threshold, // stall CYCLES above which Credit/BACKPRESSURE reports; 0 = off
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
-    // ---- Monitor bus ----
+    // ---- Ocelus bus ----
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
     output monitor_common_pkg::monitor_packet_t   monbus_packet,
@@ -133,7 +133,7 @@ module axis5_slave_monlite_cg
     output logic                                  cg_idle              // no activity observed
 );
     // ------------------------------------------------------------------------
-    // Clock gating (axis5_slave_cg's registered wakeup term, plus the monitor's activity)
+    // Clock gating (axis5_slave_cg's registered wakeup term, plus the ocelus's activity)
     // ------------------------------------------------------------------------
     logic gated_aclk;
     logic r_wakeup;

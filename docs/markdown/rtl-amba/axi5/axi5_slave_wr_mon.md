@@ -24,7 +24,7 @@
 # AXI5 Slave Write Monitor
 
 **Module:** `axi5_slave_wr_mon.sv`
-**Location:** `rtl/amba/axi5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
+**Location:** `rtl/amba/axi5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/ocelus/`)
 **Status:** Production Ready
 
 ---
@@ -647,7 +647,7 @@ attribution; that defect is fixed.
 - **[AXI5 Slave Write Monitor CG](axi5_slave_wr_mon_cg.md)** - Clock-gated variant
 - **[AXI5 Slave Read Monitor](axi5_slave_rd_mon.md)** - Read monitor
 - **[AXI Monitor Filtered](../monitor/axi_monitor_filtered.md)** - Monitor core
-- **[Monitor Package Spec](../includes/monitor_package_spec.md)** - Packet format details
+- **[Monitor Package Spec](../includes/ocelus_package_spec.md)** - Packet format details
 
 ---
 

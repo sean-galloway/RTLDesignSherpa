@@ -39,10 +39,10 @@ The RTL splits monitor type definitions across four SystemVerilog packages:
 
 | Package | File | Purpose |
 |---|---|---|
-| `monitor_common_pkg`  | `rtl/amba/includes/monitor_common_pkg.sv`  | Universal types: packet structure, timestamp, protocol enum, packet-type enum, helper functions. **This doc.** |
-| `monitor_amba4_pkg`   | `rtl/amba/includes/monitor_amba4_pkg.sv`   | AXI4 / APB4 / AXIS4 event-code enums (error / timeout / completion / threshold / perf / addr-match / debug). |
-| `monitor_amba5_pkg`   | `rtl/amba/includes/monitor_amba5_pkg.sv`   | AXI5 / APB5 / AXIS5 extended event-code enums (atomic, trace, wakeup, parity, user). |
-| `monitor_arbiter_pkg` | `rtl/amba/includes/monitor_arbiter_pkg.sv` | ARB and CORE event codes for arbiter monitors and custom subsystems. |
+| `monitor_common_pkg`  | `rtl/amba/includes/ocelus_common_pkg.sv`  | Universal types: packet structure, timestamp, protocol enum, packet-type enum, helper functions. **This doc.** |
+| `monitor_amba4_pkg`   | `rtl/amba/includes/ocelus_amba4_pkg.sv`   | AXI4 / APB4 / AXIS4 event-code enums (error / timeout / completion / threshold / perf / addr-match / debug). |
+| `monitor_amba5_pkg`   | `rtl/amba/includes/ocelus_amba5_pkg.sv`   | AXI5 / APB5 / AXIS5 extended event-code enums (atomic, trace, wakeup, parity, user). |
+| `monitor_arbiter_pkg` | `rtl/amba/includes/ocelus_arbiter_pkg.sv` | ARB and CORE event codes for arbiter monitors and custom subsystems. |
 
 A wrapper `monitor_pkg` re-exports all four for back-compatibility — code that
 imports `monitor_pkg::*;` continues to compile unchanged.

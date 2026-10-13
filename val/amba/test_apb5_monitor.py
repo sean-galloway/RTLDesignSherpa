@@ -497,7 +497,7 @@ def test_apb5_monitor(request, addr_width, data_width, auser_width, wuser_width,
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_apb5': 'rtl/amba/apb5',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_cmn': 'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes'
@@ -594,7 +594,7 @@ def test_apb5_monitor_timeout_edge(request):
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_apb5': 'rtl/amba/apb5',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_cmn': 'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes'
@@ -677,7 +677,7 @@ def test_apb5_monitor_addr_range(request, addr_width, n_addr_ranges):
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_apb5': 'rtl/amba/apb5',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_cmn': 'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes'
@@ -759,7 +759,7 @@ def test_apb5_monitor_backtoback(request):
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_apb5': 'rtl/amba/apb5',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_cmn': 'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes'

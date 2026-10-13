@@ -17,7 +17,7 @@
 // Description:
 //   monbus_axil4_axi4_group with its read-only CSR port presented as a Wishbone
 //   B4 slave instead of an AXI4-Lite one, so a Wishbone host can own a
-//   monitor group without an AXI bridge in front of it.
+//   ocelus group without an AXI bridge in front of it.
 //
 //   This is a THIN wrapper on purpose. The group's drain path, compressor,
 //   FIFOs and statistics are the proven ones; only the host read port

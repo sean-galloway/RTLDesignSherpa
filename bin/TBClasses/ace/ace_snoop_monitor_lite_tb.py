@@ -10,7 +10,7 @@ Drives a shared m_axi_* snoop bus with AXI4ACESnoopMaster (issue) and
 AXI4ACESnoopSlave (responder) both bound with prefix='m_axi_'.  A MonbusSlave
 collects every packet and the TB checks completion/error/timeout packets
 against the ACE issue order and the CRRESP/ACSNOOP encodings documented in
-rtl/amba/monitor/axi4ace_snoop_monitor_lite.sv.
+rtl/amba/ocelus/axi4ace_snoop_monitor_lite.sv.
 """
 import os
 import cocotb

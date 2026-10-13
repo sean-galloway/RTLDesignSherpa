@@ -52,7 +52,7 @@ This CLAUDE.md provides AMBA-specific guidance. Also review:
 - Root `/CLAUDE.md` - Repository-wide patterns
 - RDS-DV framework docs: `../RTLDesignSherpa-DV/docs/components/<family>/`
   (published at sean-galloway.github.io/RTLDesignSherpa-DV) - per-protocol BFM
-  and monitor usage. `docs/markdown/TBClasses/` does not exist.
+  and ocelus usage. `docs/markdown/TBClasses/` does not exist.
 - `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
 
 ---
@@ -73,9 +73,9 @@ rather than restating a port list here.
 
 ---
 
-### Rule #1: Avoid Enabling All Monitor Packet Types
+### Rule #1: Avoid Enabling All Ocelus Packet Types
 
-**This is the #1 integration mistake!** The monitor bus sustains at most
+**This is the #1 integration mistake!** The ocelus bus sustains at most
 1 packet per 2 cycles (reporter output register), so enabling every
 packet class under heavy traffic congests it.
 
@@ -114,8 +114,8 @@ suppressing emission, use `cfg_axi_pkt_mask` (drop mask, 1 = drop, in
 - Event reported feedback bug FIXED (2025-09-30)
 - Multi-channel saturation wedge FIXED (`cb29e226`)
 - Runtime-disable leak / same-cycle AW+W / wrapper API / AXI5 W wiring FIXED (`95c9490a`)
-- val/amba regression fully green (679 passed / 0 failed); monitor formal 10/10
-- Open (framework): axil4 monitor TB drain-window race — seeds pinned; proper fix in RDS-DV
+- val/amba regression fully green (679 passed / 0 failed); ocelus formal 10/10
+- Open (framework): axil4 ocelus TB drain-window race — seeds pinned; proper fix in RDS-DV
 
 **Always check:** `rtl/amba/KNOWN_ISSUES/` before diagnosing bugs
 
@@ -129,7 +129,7 @@ ls rtl/amba/KNOWN_ISSUES/   # 4 pages: active_count underflow, block_ready hang,
 **Complete integration requires:**
 1. Module instantiation with correct parameters
 2. Configuration signals (cfg_*_enable)
-3. **Downstream monitor bus handling** (FIFO, arbiter, or consumer)
+3. **Downstream ocelus bus handling** (FIFO, arbiter, or consumer)
 
 **Incomplete example:**
 ```systemverilog
@@ -145,7 +145,7 @@ axi4_master_rd_mon u_mon (
 **Complete example:**
 ```systemverilog
 COMPLETE:
-// Monitor
+// Ocelus
 axi4_master_rd_mon u_mon (
     // ... AXI signals ...
     .monbus_valid (mon_valid),
@@ -193,17 +193,17 @@ gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `axis_monitor_lite.sv` (`rtl/amba/monitor/`) | Stream monitor in the lite discipline: packets, stalls, bubbles, TID/TDEST changes as Stream/Credit/Channel/Error/Timeout/Completion monbus packets. A TAP -- drives nothing | DATA_WIDTH, ID_WIDTH, DEST_WIDTH, OUT_DEPTH | `docs/markdown/rtl-amba/monitor/axis_monitor_lite.md` |
+| `axis_monitor_lite.sv` (`rtl/amba/ocelus/`) | Stream ocelus in the lite discipline: packets, stalls, bubbles, TID/TDEST changes as Stream/Credit/Channel/Error/Timeout/Completion monbus packets. A TAP -- drives nothing | DATA_WIDTH, ID_WIDTH, DEST_WIDTH, OUT_DEPTH | `docs/markdown/rtl-amba/monitor/axis_monitor_lite.md` |
 | `axis_bus_meter.sv` | Stream throughput / backpressure counters (the perf path; no packets) | DATA_WIDTH, NUM_CHANNELS | `docs/markdown/rtl-amba/shared/axis_bus_meter.md` |
 
 | `axis{4,5}_{master,slave}_monlite[_cg].sv` (`rtl/amba/axis4/`, `axis5/`) | The stream endpoints with `axis_monitor_lite` tapping the external port (`m_axis_*` on a master, `s_axis_*` on a slave); `_cg` = behind one `amba_clock_gate_ctrl` | the endpoint's params + UNIT_ID, AGENT_ID, OUT_DEPTH, ACLK_MHZ | `docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md` (Table 2) |
 
-> Until 2026-09-27 there was no AXIS monbus monitor at all: `axis4_master.sv`
+> Until 2026-09-27 there was no AXIS monbus ocelus at all: `axis4_master.sv`
 > and `axis4_slave.sv` are skid-buffered stream endpoints (`AXIS_DATA_WIDTH`,
 > `AXIS_ID_WIDTH`, `AXIS_DEST_WIDTH`) with zero monbus ports, and this table
 > called them "AXIS transmit/receive monitoring" for months. There is NO
-> `axis*_mon` (full-monitor) variant and there never will be: the AXIS family
-> went straight to the lite (amba/monitor-lite TASK-003).
+> `axis*_mon` (full-ocelus) variant and there never will be: the AXIS family
+> went straight to the lite (amba/ocelus-lite TASK-003).
 
 ### AXI4-Lite Monitors
 
@@ -232,14 +232,14 @@ The snoop movers are new channels (AC/CR/CD), not variants. Only base +
 | `axi4ace_slave_rd.sv` / `axi4ace_slave_wr.sv` | ACE slave channel movers (s_axi→fub) with snoop-type fields | `docs/markdown/rtl-amba/ace/axi4ace_slave_rd.md`, `docs/markdown/rtl-amba/ace/axi4ace_slave_wr.md` |
 | `axi4ace_snoop_slave.sv` | Cache-side snoop responder transport: AC in, CR/CD out (amber/jet adapter plumbing) | `docs/markdown/rtl-amba/ace/axi4ace_snoop_slave.md` |
 | `axi4ace_snoop_master.sv` | CCU-side snoop initiator transport: AC out, CR/CD in (onyx fanout plumbing) | `docs/markdown/rtl-amba/ace/axi4ace_snoop_master.md` |
-| `axi4ace_*_monlite.sv` (8) | Each mover wrapped with the lite monitor; front-side taps reuse `axi_monitor_lite` | `docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md` |
-| `monitor/axi4ace_snoop_monitor_lite.sv` | ACE-aware lite monitor core: snoops have no ID — CR/CD correlate to ACs in issue order; COMPL/ERROR/TIMEOUT packets, drop-and-count, never stalls | `docs/markdown/rtl-amba/monitor/axi4ace_snoop_monitor_lite.md` |
+| `axi4ace_*_monlite.sv` (8) | Each mover wrapped with the lite ocelus; front-side taps reuse `axi_monitor_lite` | `docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md` |
+| `ocelus/axi4ace_snoop_monitor_lite.sv` | ACE-aware lite ocelus core: snoops have no ID — CR/CD correlate to ACs in issue order; COMPL/ERROR/TIMEOUT packets, drop-and-count, never stalls | `docs/markdown/rtl-amba/monitor/axi4ace_snoop_monitor_lite.md` |
 
-### Supporting Infrastructure — `rtl/amba/monitor/` + `rtl/amba/shared/`
+### Supporting Infrastructure — `rtl/amba/ocelus/` + `rtl/amba/shared/`
 
-All protocol-agnostic. The monitor core, monbus infrastructure and monbus arbiters live in `rtl/amba/monitor/`. The protocol `*_mon` wrappers do NOT -- each lives with the protocol it wraps (`axi4/`, `axi5/`, `axil4/`, `apb/`, `apb5/`), because a wrapper pairs one protocol block with the shared core and belongs to the protocol, not to the core; observation/storage/test helpers live in `rtl/amba/shared/`; CDC helpers moved OUT to the top-level `rtl/cdc/` area (AMBA-CDC-REORG) -- see `rtl/cdc/CLAUDE.md`. The wrappers instantiate the monitor-core pieces below.
+All protocol-agnostic. The ocelus core, monbus infrastructure and monbus arbiters live in `rtl/amba/ocelus/`. The protocol `*_mon` wrappers do NOT -- each lives with the protocol it wraps (`axi4/`, `axi5/`, `axil4/`, `apb/`, `apb5/`), because a wrapper pairs one protocol block with the shared core and belongs to the protocol, not to the core; observation/storage/test helpers live in `rtl/amba/shared/`; CDC helpers moved OUT to the top-level `rtl/cdc/` area (AMBA-CDC-REORG) -- see `rtl/cdc/CLAUDE.md`. The wrappers instantiate the ocelus-core pieces below.
 
-**Monitor core (13):**
+**Ocelus core (13):**
 
 | Module | Purpose |
 |---|---|
@@ -260,7 +260,7 @@ All protocol-agnostic. The monitor core, monbus infrastructure and monbus arbite
 | `axi_perf_latency_hist.sv` | Per-channel 16-bucket log2 latency histogram |
 | `axi_bus_meter.sv` | 4-bucket bus meter (productive / backpressure / starvation / idle) — see `DMA_UTILIZATION_MEASUREMENT.md` for window semantics |
 
-**Monitor Bus (monbus) infrastructure (10):**
+**Ocelus Bus (monbus) infrastructure (10):**
 
 | Module | Purpose |
 |---|---|
@@ -278,7 +278,7 @@ All protocol-agnostic. The monitor core, monbus infrastructure and monbus arbite
 
 **CDC (moved):** `cdc_2_phase_handshake.sv`, `cdc_4_phase_handshake.sv`, `cdc_open_loop.sv` and `cdc_synchronizer.sv` now live in `rtl/cdc/`, along with `gaxi_fifo_async.sv` and `gaxi_skid_buffer_async.sv` that used to sit under `rtl/amba/gaxi/`. Docs: `docs/markdown/rtl-cdc/`.
 
-**Storage helpers (5)** — used by harnesses, not the monitor path itself: `sdpram_core.sv` (shared core) + `sdpram_slave_{axi4,axil}_{axi4,axil}.sv` (4 protocol-pair wrappers). Replaces the deleted unified `sdpram_slave.sv`.
+**Storage helpers (5)** — used by harnesses, not the ocelus path itself: `sdpram_core.sv` (shared core) + `sdpram_slave_{axi4,axil}_{axi4,axil}.sv` (4 protocol-pair wrappers). Replaces the deleted unified `sdpram_slave.sv`.
 
 **Test infrastructure helpers:** `axi4_dma_slaves.sv`, `axi4_slave_rd_injector.sv`, `axi4_slave_wr_crc_check.sv`, `axi_master_{rd,wr}_splitter.sv`, `axi_split_combi.sv`, `axi_gen_addr.sv`, `amba_clock_gate_ctrl.sv`, `apb_monitor_addr_check.sv`
 
@@ -288,7 +288,7 @@ All protocol-agnostic. The monitor core, monbus infrastructure and monbus arbite
 
 ## Common User Questions and Responses
 
-### Q: "How do I monitor my AXI4 master?"
+### Q: "How do I ocelus my AXI4 master?"
 
 **A: Direct answer with code:**
 ```systemverilog
@@ -358,7 +358,7 @@ gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 **See:** `docs/user-guides/AXI_Monitor_Configuration_Guide.md` (comprehensive guide)
 
-### Q: "Monitor packets format?"
+### Q: "Ocelus packets format?"
 
 **A: 128-bit standardized `monitor_packet_t` + 64-bit side-band timestamp**
 (`monitor_common_pkg.sv`; widths locked, not parameters):
@@ -383,7 +383,7 @@ logic [63:0] event_data = monbus_packet[63:0];
 // or use monitor_common_pkg::get_packet_type() etc.
 ```
 
-**See:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md` (complete spec)
+**See:** `docs/markdown/rtl-amba/includes/ocelus_package_spec.md` (complete spec)
 
 ### Q: "How to handle multiple monitors?"
 
@@ -454,7 +454,7 @@ cd val/amba && make run-axi4_monitor-gate
 **Current Known Issues:**
 - **Event reported bug:** FIXED (2025-09-30)
 - **Saturation wedge / runtime-disable leak:** FIXED (`cb29e226`, `95c9490a`)
-- val/amba is fully green; if a monitor test fails, suspect the change under test or the framework, not a documented known issue
+- val/amba is fully green; if a ocelus test fails, suspect the change under test or the framework, not a documented known issue
 
 **If user reports test failure:**
 1. Check `rtl/amba/KNOWN_ISSUES/` for documented issues
@@ -467,7 +467,7 @@ cd val/amba && make run-axi4_monitor-gate
 
 ## Integration Patterns
 
-### Pattern 1: Basic AXI Monitor
+### Pattern 1: Basic AXI Ocelus
 
 ```systemverilog
 axi4_master_rd_mon #(
@@ -493,7 +493,7 @@ axi4_master_rd_mon #(
     .m_axi_rid(m_axi_rid), .m_axi_rdata(m_axi_rdata),
     .m_axi_rresp(m_axi_rresp), .m_axi_rlast(m_axi_rlast),
     .m_axi_rvalid(m_axi_rvalid), .m_axi_rready(m_axi_rready),
-    // Monitor bus
+    // Ocelus bus
     .monbus_valid(mon_valid),
     .monbus_ready(mon_ready),
     .monbus_packet(mon_data),
@@ -503,7 +503,7 @@ axi4_master_rd_mon #(
 );
 ```
 
-### Pattern 2: APB Monitor
+### Pattern 2: APB Ocelus
 
 ```systemverilog
 apb4_monitor #(
@@ -511,7 +511,7 @@ apb4_monitor #(
     .DATA_WIDTH(32),
     .MAX_TRANSACTIONS(8)
 ) u_apb_mon (
-    // NOT raw APB pins: this monitor watches the converted cmd/rsp interface
+    // NOT raw APB pins: this ocelus watches the converted cmd/rsp interface
     // in the aclk domain, which is what apb4_slave/apb4_master_stub present.
     .aclk(aclk), .aresetn(aresetn),
     .cmd_valid(cmd_valid), .cmd_ready(cmd_ready),
@@ -534,7 +534,7 @@ For EVENTS on a stream (stalls past a threshold, in-packet gaps, TVALID
 withdrawn, packet ends, TID/TDEST changes) tap it with `axis_monitor_lite`
 (`docs/markdown/rtl-amba/monitor/axis_monitor_lite.md`; both tvalid and tready
 are inputs, it drives nothing). For THROUGHPUT and backpressure counters, snoop
-it with `axis_bus_meter`; the monitor emits no perf packets by design:
+it with `axis_bus_meter`; the ocelus emits no perf packets by design:
 
 ```systemverilog
 axis_bus_meter #(
@@ -557,7 +557,7 @@ axis_bus_meter #(
 
 Worked instance: `rapids_char_harness.sv`. Test: `val/amba/test_axis_bus_meter.py`.
 
-### Pattern 4: Monitor with Downstream FIFO
+### Pattern 4: Ocelus with Downstream FIFO
 
 ```systemverilog
 // Always add FIFO for robustness
@@ -580,7 +580,7 @@ gaxi_fifo_sync #(
 );
 ```
 
-### Pattern 5: Clock-Gated Monitor (Power)
+### Pattern 5: Clock-Gated Ocelus (Power)
 
 ```systemverilog
 axi4_master_rd_mon_cg #(
@@ -666,11 +666,11 @@ CORRECTED:
 
 ## Debugging Workflow
 
-### Issue: No Monitor Packets
+### Issue: No Ocelus Packets
 
 **Check in order:**
 1. Configuration enables correct packet types?
-2. Monitor bus ready signal asserted?
+2. Ocelus bus ready signal asserted?
 3. AXI/APB transactions actually occurring?
 4. Reset properly deasserted?
 5. Downstream path not stalled?
@@ -698,7 +698,7 @@ ls rtl/amba/KNOWN_ISSUES/   # 4 pages: active_count underflow, block_ready hang,
 ### Issue: Transaction Table Exhaustion
 
 **Symptoms:**
-- Monitor stops generating packets
+- Ocelus stops generating packets
 - Logs show "MAX_TRANSACTIONS reached"
 
 **Fixes:**
@@ -721,7 +721,7 @@ parallel, and `clean-all` first is not optional. Full grammar and the reasons:
 
 ### Test Status (Current)
 
-**AXI Monitor (as of `95c9490a`):** val/amba fully green — 679 passed / 0 failed
+**AXI Ocelus (as of `95c9490a`):** val/amba fully green — 679 passed / 0 failed
 - Basic / Burst / Outstanding / ID reorder / Backpressure / Timeout
 - Error response / Orphan
 - Saturation recovery (`test_axi_monitor_trans_mgr.py`)
@@ -736,10 +736,10 @@ parallel, and `clean-all` first is not optional. Full grammar and the reasons:
 ### Always Reference These
 
 - `docs/markdown/rtl-amba/` -- module specs, one page per module
-  (`index.md`, `overview.md`, then `axi4/`, `apb4/`, `axis4/`, `monitor/`)
-- `docs/markdown/rtl-amba/includes/monitor_package_spec.md` -- packet format
+  (`index.md`, `overview.md`, then `axi4/`, `apb4/`, `axis4/`, `ocelus/`)
+- `docs/markdown/rtl-amba/includes/ocelus_package_spec.md` -- packet format
 - `docs/user-guides/AXI_Monitor_Configuration_Guide.md` -- **read before
-  configuring a monitor**; the packet-class rule above is why
+  configuring a ocelus**; the packet-class rule above is why
 - `rtl/amba/KNOWN_ISSUES/` -- open bugs, check before diagnosing
 - `/vault/Tasks/amba/` -- current work
 - `/GLOBAL_REQUIREMENTS.md` -- enforcement authority

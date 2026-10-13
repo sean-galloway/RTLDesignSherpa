@@ -18,7 +18,7 @@
 """
 MonBus AXIL/AXIL Group Integration Test
 
-Test suite for `rtl/amba/monitor/monbus_axil4_axil4_group.sv` -- the
+Test suite for `rtl/amba/ocelus/monbus_axil4_axil4_group.sv` -- the
 AXIL/AXIL member of the monbus_<p1>_<p2>_group family. Drives the
 single-input monitor bus, drains the error FIFO via the AXIL slave-read
 interface, and lets the master-write side flush into a synthetic sink
@@ -53,7 +53,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import the shared TB from bin/TBClasses (colocated with the shared
-# rtl/amba/monitor/monbus_axil4_axil4_group.sv module the test targets).
+# rtl/amba/ocelus/monbus_axil4_axil4_group.sv module the test targets).
 from TBClasses.amba.monbus_axil4_axil4_group.monbus_axil4_axil4_group_tb import MonbusAxilAxilGroupTB
 
 # Coverage integration - optional import. Lives in the STREAM project
@@ -168,7 +168,7 @@ def test_monbus_axil4_axil4_group(request, test_type, fifo_depth_err, fifo_depth
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_axil4':    'rtl/amba/axil4',
         'rtl_gaxi':     'rtl/amba/gaxi',
         'rtl_common':   'rtl/common',

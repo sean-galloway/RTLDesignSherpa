@@ -172,7 +172,7 @@ class AxiMonitorTransMgrWrBankTB(TBBase):
             f"bus_transaction_t is {rtl_width} bits but this test decodes "
             f"{TRANS_WIDTH}. Update TRANS_FIELDS in "
             f"val/amba/test_axi_monitor_trans_mgr.py to match "
-            f"rtl/amba/includes/monitor_amba4_pkg.sv."
+            f"rtl/amba/includes/ocelus_amba4_pkg.sv."
         )
 
     # -- observation ---------------------------------------------------
@@ -319,7 +319,7 @@ def test_axi_monitor_trans_mgr_wr_bank(max_transactions, num_banks, use_wq):
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'rtl/common',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
@@ -411,7 +411,7 @@ def test_banked_write_without_widq_is_refused():
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'rtl/common',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 

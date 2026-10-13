@@ -30,7 +30,7 @@
 - `monbus_axi4_axil4_group.sv` — wrapper: AXI4-burst slave-read + AXIL master-write
 - `monbus_axi4_axi4_group.sv` — wrapper: AXI4-burst slave-read + AXI4-burst master-write
 
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Monitor Bus → AXI / AXIL Aggregation
 **Status:** Production Ready
 

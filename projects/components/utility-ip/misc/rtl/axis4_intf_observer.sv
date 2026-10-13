@@ -22,7 +22,7 @@
 //       filter (AXIS_PKT_MASK / AXIS_MASK1..3) decides what reaches the err
 //       FIFO (s_axil_* drain + irq_out) or the bulk dump (m_axi_* / m_axil_*).
 //
-//   The tap is the shared axis_monitor_lite core (rtl/amba/monitor), one
+//   The tap is the shared axis_monitor_lite core (rtl/amba/ocelus), one
 //   instance per port -- the AXI observers wrap axi4_*_monlite; this one
 //   wraps the AXIS lite (utility-ip/misc TASK-003 retired the inline tap
 //   the core's event set was lifted from). Same discipline: no CAM, no
@@ -507,7 +507,7 @@ module axis4_intf_observer
     // =================================================================
     // Per-port AXIS event taps
     // =================================================================
-    // One axis_monitor_lite core per port (rtl/amba/monitor). The core's
+    // One axis_monitor_lite core per port (rtl/amba/ocelus). The core's
     // event set and payload layouts were lifted from this module's inline
     // tap, which TASK-003 retired; deliberate core differences: up to two
     // coincident events per cycle queue into a 4-deep FIFO (a RESUME that

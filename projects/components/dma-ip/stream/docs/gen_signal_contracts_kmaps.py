@@ -66,8 +66,8 @@ CORE = "projects/components/dma-ip/stream/rtl/macro/stream_core.sv"
 ADDRGEN = "projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv"
 RD_MON = "rtl/amba/axi4/axi4_master_rd_monlite.sv"
 WR_MON = "rtl/amba/axi4/axi4_master_wr_monlite.sv"
-MON_LITE = "rtl/amba/monitor/axi_monitor_lite.sv"
-MON_PKG = "rtl/amba/includes/monitor_common_pkg.sv"
+MON_LITE = "rtl/amba/ocelus/axi_monitor_lite.sv"
+MON_PKG = "rtl/amba/includes/ocelus_common_pkg.sv"
 
 KI_WLAST = ("projects/components/dma-ip/stream/known_issues/resolved/"
             "axi_write_engine_wlast_drain.md")

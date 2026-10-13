@@ -108,7 +108,7 @@ module ioapic_deliv_merge #(
     // ------------------------------------------------------------------
     // Grant acknowledge
     // ------------------------------------------------------------------
-    // The ready term is load-bearing. rtl/amba/monitor/monbus_arbiter.sv
+    // The ready term is load-bearing. rtl/amba/ocelus/monbus_arbiter.sv
     // records what happens without it: `grant && valid` alone acks every
     // cycle while the sink backpressures, so the grant rotates continuously
     // with ZERO transfers, which breaks the arbiter's grant-hold contract and

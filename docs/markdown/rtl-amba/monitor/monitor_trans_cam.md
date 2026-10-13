@@ -24,7 +24,7 @@
 # monitor_trans_cam
 
 **Module:** `monitor_trans_cam.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** AXI Monitor Infrastructure
 **Status:** Production Ready
 

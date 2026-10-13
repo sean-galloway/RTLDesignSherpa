@@ -5,8 +5,8 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: wb4_monitor
-// Purpose: Wishbone B4 transaction monitor on the cmd/rsp queue contract,
-//          reporting errors, timeouts, latency and completions as monitor
+// Purpose: Wishbone B4 transaction ocelus on the cmd/rsp queue contract,
+//          reporting errors, timeouts, latency and completions as ocelus
 //          bus packets (protocol = PROTOCOL_WB).
 //
 // Documentation: docs/markdown/rtl-amba/wb4/wb4_monitor.md
@@ -19,7 +19,7 @@
 // Description:
 //   Watches the cmd_*/rsp_* queues of a wb4_master or wb4_slave (the
 //   timing-convenient proxy for the Wishbone wires, the same place
-//   apb4_monitor attaches) and emits one 128-bit monitor packet per event:
+//   apb4_monitor attaches) and emits one 128-bit ocelus packet per event:
 //   a completion (ACK/RTY) or error (ERR) per transfer, timeouts on a stuck
 //   request or a stuck oldest termination, a latency-threshold crossing per
 //   transfer, optional queue debug events, and address-range violations
@@ -151,10 +151,10 @@ module wb4_monitor
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_high,
 
-    // Free-running monitor-time broadcast
+    // Free-running ocelus-time broadcast
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Monitor bus
+    // Ocelus bus
     output logic                                    monbus_valid,
     input  logic                                    monbus_ready,
     output monitor_common_pkg::monitor_packet_t     monbus_packet,
@@ -493,7 +493,7 @@ module wb4_monitor
     assign monbus_packet    = w_skid_rd_data[MONBUS_TOTAL_W-1 -: monitor_common_pkg::MONBUS_PKT_WIDTH];
     assign monbus_timestamp = w_skid_rd_data[monitor_common_pkg::MONBUS_TS_WIDTH-1 : 0];
 
-    // Ports kept for family uniformity that this monitor does not act on yet.
+    // Ports kept for family uniformity that this ocelus does not act on yet.
     /* verilator lint_off UNUSEDSIGNAL */
     logic w_unused;
     assign w_unused = ^{cfg_throughput_enable, cfg_debug_level, cfg_throughput_threshold,

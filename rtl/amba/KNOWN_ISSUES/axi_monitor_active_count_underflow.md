@@ -28,8 +28,8 @@ CAM-occupancy pop-count (structurally `[0, N]`, cannot underflow).
 **Severity:** MEDIUM–HIGH — corrupted `active_count`, `busy`, and `block_ready`
 **Date Reported:** 2026-07-18 (found by formal proof during amba TASK-039, then numbered TASK-025)
 **Date Fixed:** 2026-07-18
-**Affects:** `rtl/amba/monitor/axi_monitor_trans_mgr.sv` (`r_active_count`), and by
-propagation `rtl/amba/monitor/axi_monitor_base.sv` (`busy`, `block_ready`,
+**Affects:** `rtl/amba/ocelus/axi_monitor_trans_mgr.sv` (`r_active_count`), and by
+propagation `rtl/amba/ocelus/axi_monitor_base.sv` (`busy`, `block_ready`,
 `active_count` outputs)
 **Found by:** `formal/amba/axi_monitor_trans_mgr` and `formal/amba/axi_monitor_base`
 SymbiYosys BMC proofs (`ap_count_bounded` / `ap_no_overflow`).
@@ -56,7 +56,7 @@ single cycle (absorbed by `block_ready`'s margin — since `cb29e226` derived fr
 flat 3 below).  An intermediate
 saturate-at-0 attempt made `ap_count_bounded` pass but a formal accuracy probe
 showed the count still drifted (under-reported), so the pop-count derivation was
-adopted.  Verified: all 12 monitor formal proofs pass, and the
+adopted.  Verified: all 12 ocelus formal proofs pass, and the
 `axi4_master_rd_mon` cocotb integration test passes at `MAX_TRANSACTIONS=16`.
 
 The historical analysis below is retained for reference.
@@ -163,7 +163,7 @@ accumulator is 8-bit free-running with no floor at 0, it wraps to 0xFF.
 
 ## Formal-proof status (after fix)
 
-All 12 monitor formal proofs pass, including `ap_count_bounded` / `ap_no_overflow`
+All 12 ocelus formal proofs pass, including `ap_count_bounded` / `ap_no_overflow`
 in `formal/amba/axi_monitor_trans_mgr` and `formal/amba/axi_monitor_base`.  The
 trans_mgr proof also gained a port-only `ap_clear_zeroes_count` property (the
 synchronous CAM clear zeroes `active_count` next cycle).  The stale DEPS,

@@ -24,7 +24,7 @@
 # AXI Monitor Reporter — Error Cone
 
 **Module:** `axi_monitor_reporter_error.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
 ---
@@ -222,10 +222,10 @@ The Ocelus is an original design of this repository. The papers and standards be
 - Indexed in `rtl/amba/references/README.md` (local PDF: `HardwareAssertionCheckers__Boule2007.pdf`)
 
 ### Source Code
-- RTL: `rtl/amba/monitor/axi_monitor_reporter_error.sv`
+- RTL: `rtl/amba/ocelus/axi_monitor_reporter_error.sv`
 
 ### Documentation
-- Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- Packet format: `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 - Monitor base: `docs/markdown/rtl-amba/monitor/axi_monitor_base.md`
 - Known issues: `rtl/amba/KNOWN_ISSUES/`
 

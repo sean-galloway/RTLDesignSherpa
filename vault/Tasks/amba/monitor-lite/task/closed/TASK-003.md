@@ -6,7 +6,7 @@
 
 ## Why
 
-There has never been an AXIS monitor in `rtl/amba/monitor`. The `_mon` family
+There has never been an AXIS monitor in `rtl/amba/ocelus`. The `_mon` family
 and its `_monlite` twin cover AXI4/AXI5/AXI-Lite4/AXI-Lite5 only, because
 `axi_monitor_base` and `axi_monitor_lite` are TRANSACTION trackers (command
 handshake, per-ID outstanding table, latency and timeout from command to last
@@ -20,7 +20,7 @@ the per-port tap inside `projects/components/utility-ip/misc/rtl/axis4_intf_obse
 written in the lite discipline when the AXIS observer was built, not
 reusable.
 
-## The core: `rtl/amba/monitor/axis_monitor_lite.sv`
+## The core: `rtl/amba/ocelus/axis_monitor_lite.sv`
 
 One stream, tapped (never gated) at TVALID/TREADY/TLAST/TID/TDEST/TSTRB, the
 same 128-bit `monitor_packet_t` + side-band timestamp on the same monbus
@@ -75,7 +75,7 @@ as a second family table plus its own core page.
 
 ## Core done 2026-09-27
 
-- `rtl/amba/monitor/axis_monitor_lite.sv` + `rtl/amba/filelists/axis_monitor_lite.f`;
+- `rtl/amba/ocelus/axis_monitor_lite.sv` + `rtl/amba/filelists/axis_monitor_lite.f`;
   Verilator -Wall clean inside the module.
 - Test: `val/amba/monitor-lite/test_axis_monitor_lite.py` on the fixture
   `tb_axis_monitor_lite.sv` (the core between the framework AXIS master and

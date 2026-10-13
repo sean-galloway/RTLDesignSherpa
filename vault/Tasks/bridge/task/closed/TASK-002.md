@@ -343,7 +343,7 @@ cause and is closed: an internal slave no longer gets a monitor built and
 left unconnected. Re-measured after the fix, same day: 38 of 38 variants
 elaborate with zero errors and zero warnings, the `mon` variants included,
 so the WIDTHEXPAND/UNDRIVEN noise this note attributed to
-`rtl/amba/monitor/*` went with them. Nothing owed here.
+`rtl/amba/ocelus/*` went with them. Nothing owed here.
 
 **A5-2 design note (2026-08-09):** two slices.
 

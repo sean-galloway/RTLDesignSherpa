@@ -30,11 +30,11 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
 # Package files (order matters: dependencies first), same set as the sink
 # closure (rapids_imports.svh wildcard-imports monitor_common/monitor_amba4/
 # monitor_arbiter/rapids_pkg; monitor_pkg flattens clean for this closure).
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba5_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_pkg.sv \
         $(RAPIDS)/rtl/includes/rapids_pkg.sv
 
 # RTL dependencies, in compile order. arbiter_single_client is used by the

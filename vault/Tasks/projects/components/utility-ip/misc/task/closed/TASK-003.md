@@ -22,7 +22,7 @@ sys.path hardening).
 event set instead of two; no behaviour change intended.
 
 Filed from amba/monitor-lite TASK-003 when it closed (Sean's rule: a shared
-mechanism's per-unit remainder is the unit's own item). `rtl/amba/monitor/
+mechanism's per-unit remainder is the unit's own item). `rtl/amba/ocelus/
 axis_monitor_lite.sv` exists now, and its event set and payload layouts were
 lifted VERBATIM from this observer's per-port tap (`gen_tap` in
 `projects/components/utility-ip/misc/rtl/axis4_intf_observer.sv`) so that the observer

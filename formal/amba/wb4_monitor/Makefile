@@ -9,13 +9,13 @@ SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_wb4_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_wb4_pkg.sv \
         $(REPO_ROOT)/rtl/amba/wb4/wb4_pkg.sv
 
 # RTL dependencies (transitive closure of wb4_monitor, leaves first)
-DEPS := $(REPO_ROOT)/rtl/amba/monitor/apb_monitor_addr_check.sv \
+DEPS := $(REPO_ROOT)/rtl/amba/ocelus/apb_monitor_addr_check.sv \
         $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \

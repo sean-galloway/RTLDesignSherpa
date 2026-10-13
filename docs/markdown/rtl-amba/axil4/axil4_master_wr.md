@@ -453,7 +453,7 @@ oscillate.
 - **[axil4_slave_wr](axil4_slave_wr.md)** - Slave write interface
 
 ### Monitor Modules
-- **[axil4_master_wr_mon](../axil4/axil4_master_wr_mon.md)** - Master write with monitoring (`rtl/amba/monitor/`)
+- **[axil4_master_wr_mon](../axil4/axil4_master_wr_mon.md)** - Master write with monitoring (`rtl/amba/ocelus/`)
 
 ### Clock-Gated Variants
 - **[axil4_master_wr_cg](axil4_clock_gating_guide.md)** - Clock-gated version

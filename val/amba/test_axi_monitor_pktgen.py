@@ -582,7 +582,7 @@ def _run_pktgen(request, testcase, n_slots=N_SLOTS):
         'rtl_gaxi':          'rtl/amba/gaxi',
         'rtl_includes':      'rtl/amba/includes',
         'rtl_common':        'rtl/common',
-        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_monitor':       'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
@@ -1062,7 +1062,7 @@ async def cocotb_test_timeout_starvation_monlite(dut):
 def _run_lite(request, testcase, extra=None, n_slots=4):
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_monitor': 'rtl/amba/monitor', 'rtl_amba_includes': 'rtl/amba/includes',
+        'rtl_monitor': 'rtl/amba/ocelus', 'rtl_amba_includes': 'rtl/amba/includes',
     })
     dut_name = "axi_monitor_lite"
     tag = "_".join(f"{k}{v}" for k, v in sorted((extra or {}).items()))

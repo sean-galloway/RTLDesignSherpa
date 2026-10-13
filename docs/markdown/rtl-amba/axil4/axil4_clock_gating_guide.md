@@ -45,7 +45,7 @@ All AXIL4 modules have clock-gated (`_cg`) variants that add power management th
 | `axil4_slave_rd_mon_cg` | [axil4_slave_rd_mon](../axil4/axil4_slave_rd_mon.md) | Clock-gated read slave + monitor |
 | `axil4_slave_wr_mon_cg` | [axil4_slave_wr_mon](../axil4/axil4_slave_wr_mon.md) | Clock-gated write slave + monitor |
 
-The four `*_mon_cg` modules live in `rtl/amba/monitor/`; the four plain
+The four `*_mon_cg` modules live in `rtl/amba/ocelus/`; the four plain
 `*_cg` modules live in `rtl/amba/axil4/`.
 
 ### Key Features

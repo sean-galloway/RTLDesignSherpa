@@ -2,11 +2,11 @@
 
 <!-- Auto-generated link index for PDF build. Regenerate via generate_rtl_pdfs.sh -->
 
-- [AMBA4 Event Code Reference](includes/monitor_amba4_pkg.md)
-- [AMBA5 Extended Event Code Reference](includes/monitor_amba5_pkg.md)
-- [ARB and CORE Event Code Reference](includes/monitor_arbiter_pkg.md)
-- [Monitor Package Specification](includes/monitor_package_spec.md)
-- [Wishbone B4 Event Code Reference](includes/monitor_wb4_pkg.md)
+- [AMBA4 Event Code Reference](includes/ocelus_amba4_pkg.md)
+- [AMBA5 Extended Event Code Reference](includes/ocelus_amba5_pkg.md)
+- [ARB and CORE Event Code Reference](includes/ocelus_arbiter_pkg.md)
+- [Monitor Package Specification](includes/ocelus_package_spec.md)
+- [Wishbone B4 Event Code Reference](includes/ocelus_wb4_pkg.md)
 - [apb_monitor_addr_check](monitor/apb_monitor_addr_check.md)
 - [arbiter_monbus_common](monitor/arbiter_monbus_common.md)
 - [arbiter_rr_pwm_monbus](monitor/arbiter_rr_pwm_monbus.md)

@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axis4_slave_monlite
-// Purpose: AXI4-Stream Slave with the lite stream monitor (axis_monitor_lite) -- axis4_slave plus a tap on its s_axis_* port
+// Purpose: AXI4-Stream Slave with the lite stream ocelus (axis_monitor_lite) -- axis4_slave plus a tap on its s_axis_* port
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
@@ -14,25 +14,25 @@
 // Created: 2026-09-27
 //
 // ============================================================================
-// The lite-monitor sibling of axis4_slave (amba/monitor-lite TASK-003). The
+// The lite-ocelus sibling of axis4_slave (amba/ocelus-lite TASK-003). The
 // stream endpoint is passed through untouched; axis_monitor_lite TAPS the
 // upstream (s_axis_*) port -- the external one -- and emits the AXIS packet
 // classes (Stream, Credit, Channel) plus Error / Timeout / Completion on the
 // same monbus handshake, UNIT/AGENT ids and 128-bit packet as every other
-// monitor, so the arbiter, group and host tooling see one more producer.
-// The monitor drives nothing: both tvalid and tready of the tapped port are
+// ocelus, so the arbiter, group and host tooling see one more producer.
+// The ocelus drives nothing: both tvalid and tready of the tapped port are
 // inputs to it, and an event the monbus will not take is dropped and COUNTED.
 //
 // Every core parameter and port is declared here verbatim from axis4_slave
 // and passed through by name. cfg_monitor_enable gates the tap and holds the
-// monitor clear; cfg_timeout_cycles is MICROSECONDS, 0 = never.
+// ocelus clear; cfg_timeout_cycles is MICROSECONDS, 0 = never.
 // ============================================================================
 `timescale 1ns / 1ps
 `include "reset_defs.svh"
 module axis4_slave_monlite
 #(
-    // ---- Monitor parameters ----
-    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the monitor, tie its outputs
+    // ---- Ocelus parameters ----
+    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the ocelus, tie its outputs
     parameter logic [7:0]  UNIT_ID                = 8'h09,
     parameter logic [15:0] AGENT_ID               = 16'h0064,
     parameter int          OUT_DEPTH              = 4,      // monbus output queue, a power of two
@@ -74,9 +74,9 @@ module axis4_slave_monlite
     output logic                      fub_axis_tvalid,
     input  logic                      fub_axis_tready,
     output logic                      busy,
-    // ---- Monitor control (the lite's own set: nothing here it cannot honour) ----
-    input  logic                                  cam_clear,           // sync clear of the monitor's state (named as on the AXI lite wrappers). Legal only while idle
-    input  logic                                  cfg_monitor_enable,  // 0 = monitor inert, state held clear
+    // ---- Ocelus control (the lite's own set: nothing here it cannot honour) ----
+    input  logic                                  cam_clear,           // sync clear of the ocelus's state (named as on the AXI lite wrappers). Legal only while idle
+    input  logic                                  cfg_monitor_enable,  // 0 = ocelus inert, state held clear
     input  logic                                  cfg_error_enable,
     input  logic                                  cfg_timeout_enable,
     input  logic                                  cfg_compl_enable,
@@ -89,7 +89,7 @@ module axis4_slave_monlite
     input  logic [15:0]                           cfg_axis_pkt_mask,   // drop mask by packet type
     input  logic [31:0]                           cfg_stall_threshold, // stall CYCLES above which Credit/BACKPRESSURE reports; 0 = off
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
-    // ---- Monitor bus ----
+    // ---- Ocelus bus ----
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
     output monitor_common_pkg::monitor_packet_t   monbus_packet,
@@ -141,7 +141,7 @@ module axis4_slave_monlite
     );
 
     // ------------------------------------------------------------------------
-    // The tap. cfg_monitor_enable gates tvalid into the monitor and holds it
+    // The tap. cfg_monitor_enable gates tvalid into the ocelus and holds it
     // clear; cfg_timeout_cycles == 0 maps to the lite's "never" (16'hFFFF).
     // ------------------------------------------------------------------------
     logic        w_mon_tvalid;

@@ -31,11 +31,11 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
 
 # Package files (order matters: dependencies first). Real monitor_pkg flattens
 # clean for this closure (measured); the ctrlrd_engine stub is the fallback.
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba5_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_pkg.sv \
         $(RAPIDS)/rtl/includes/rapids_pkg.sv
 
 # RTL dependencies, in compile order. arbiter_single_client is used by the

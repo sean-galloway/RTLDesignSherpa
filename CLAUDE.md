@@ -442,7 +442,7 @@ demand rather than every session; invoke it before writing or changing a test.
 **Version History:**
 - v1.0 (2025-09-30): Initial creation
 - v1.1 (2026-07-22): Path refresh - dmas relocation (projects/components/dma-ip/), RAPIDS beats
-  rearchitecture, monitor move to rtl/amba/monitor/, math split to rtl/math/, TBClasses layout
+  rearchitecture, monitor move to rtl/amba/ocelus/, math split to rtl/math/, TBClasses layout
 - v1.2 (2026-08-31): Trimmed to what a session cannot derive. Removed the directory
   tree, subsystem module inventories, quick-reference tables, generic SystemVerilog
   patterns, standard tool invocations and the reference/FAQ tails - all reconstructible

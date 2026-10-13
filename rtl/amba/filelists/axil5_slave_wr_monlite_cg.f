@@ -2,7 +2,7 @@
 # Location: rtl/amba/filelists/axil5_slave_wr_monlite_cg.f
 #
 # The lite wrapper's closure plus the clock-gate controller; nothing from the
-# full monitor family.
+# full ocelus family.
 
 -f $REPO_ROOT/rtl/amba/filelists/axil5_slave_wr_monlite.f
 -f $REPO_ROOT/rtl/amba/filelists/amba_clock_gate_ctrl.f

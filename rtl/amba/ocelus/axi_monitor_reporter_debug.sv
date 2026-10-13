@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/github/RTLDesignSherpa
 //
 // Module: axi_monitor_reporter_debug
-// Purpose: Per-transaction state-change emitter for the 0.9 monitor
+// Purpose: Per-transaction state-change emitter for the 0.9 ocelus
 //          reporter. Sixth sub-block alongside error/timeout/compl/
 //          threshold/perf. Gives integrators (and compression analysis)
 //          a packet stream that mirrors the live trans_table FSM:

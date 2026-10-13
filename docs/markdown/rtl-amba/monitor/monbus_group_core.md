@@ -24,7 +24,7 @@
 # monbus_group_core
 
 **Module:** `monbus_group_core.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
 ---
@@ -382,13 +382,13 @@ The Ocelus is an original design of this repository. The papers and standards be
 - Indexed in `rtl/amba/references/README.md` (local PDF: `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`, `LogicalClocksEventOrdering__Lamport1978.pdf`)
 
 ### Source Code
-- RTL: `rtl/amba/monitor/monbus_group_core.sv`
-- Package: `rtl/amba/includes/monitor_common_pkg.sv`
+- RTL: `rtl/amba/ocelus/monbus_group_core.sv`
+- Package: `rtl/amba/includes/ocelus_common_pkg.sv`
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Compressor: `docs/markdown/rtl-amba/monitor/monbus_compressor.md`
-- Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- Packet Format: `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 
 ---
 

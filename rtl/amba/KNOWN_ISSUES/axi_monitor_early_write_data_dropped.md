@@ -23,7 +23,7 @@
 
 # Known Issue: Write Data Before Its Address Was Dropped (FIXED)
 
-**Module:** `axi_monitor_trans_mgr.sv` (every AXI write monitor: `axi4_*_wr_mon`, `axi5_*_wr_mon`, and their `_cg` twins)
+**Module:** `axi_monitor_trans_mgr.sv` (every AXI write ocelus: `axi4_*_wr_mon`, `axi5_*_wr_mon`, and their `_cg` twins)
 **Tracker:** amba BUG-037 (closed 2026-09-28); the visible symptom was filed against the ID filter, TASK-073
 **Status:** FIXED 2026-09-28
 
@@ -48,7 +48,7 @@ behaviour (the excess is dropped). One or two is what real masters do.
 ## Summary
 
 AXI4 lets a master present W beats before the AW they belong to. On an AXI
-write monitor, a W beat that found no entry awaiting data was silently
+write ocelus, a W beat that found no entry awaiting data was silently
 dropped: `data_wants_alloc` is gated with `!IS_AXI` (an AXI4 W beat has no ID
 to key an orphan entry on), so nothing recorded it. When the AW then arrived,
 its entry waited for beats that had already passed, and the B response closed

@@ -5,14 +5,15 @@
 Every block / microarchitecture diagram in this repo — HAS/MAS books,
 README figures, vault notes, fpga docs, anything — MUST follow the diagram
 house style, fixed by the owner's reference (the classic DDR-MC course
-diagram):
+diagram), and is drawn in graphviz `dot`. The canonical rules live in the
+handbook:
 
-`projects/components/mem-ctrl-ip/common-ip/docs/common_has/assets/graphviz/STYLE.md`
+`vault/handbook/authoring/block-diagrams.md`
 
 The reference implementation is the family whole-unit diagram
 (`common_has/assets/graphviz/01_whole_unit.png`) — mirror it.
 
-Non-negotiables (rationale + recipes in STYLE.md):
+Non-negotiables (rationale + recipes in the handbook note):
 
 - **Three flows traceable at a glance**: command top-down the center;
   write data on its own route; read data back UP its own route (the
@@ -29,7 +30,7 @@ Non-negotiables (rationale + recipes in STYLE.md):
   scale). No long same-rank edges. Never two parallel edges between one
   node pair for two classes (one edge, combined label). Never multiple
   mixed-direction crossings on one node pair — use the point-node scaffold
-  pattern (STYLE.md).
+  pattern (handbook note).
 - **Render, then READ THE RENDERED PNG AT FULL RESOLUTION and trace the
   three flows before committing.** Never commit an unseen diagram; if a
   flow cannot be traced with a finger, fix the ranks — not the colors.

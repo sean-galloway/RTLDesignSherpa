@@ -1,8 +1,8 @@
 # Filelist for axi5_master_rd_monlite (rtl/amba/axi5)
 # Location: rtl/amba/filelists/axi5_master_rd_monlite.f
 #
-# The core wrapper's closure plus the lite monitor's; nothing from the full
-# monitor family.
+# The core wrapper's closure plus the lite ocelus's; nothing from the full
+# ocelus family.
 
 -f $REPO_ROOT/rtl/amba/filelists/axi5_master_rd.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_monitor_lite.f

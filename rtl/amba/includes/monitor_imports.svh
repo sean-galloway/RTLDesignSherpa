@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: monitor_imports
-// Purpose: Monitor Imports module
+// Purpose: Ocelus Imports module
 //
 // Documentation: rtl/amba/PRD.md
 // Subsystem: amba
@@ -16,7 +16,7 @@
 `ifndef MONITOR_PKG_IMPORTED
 `define MONITOR_PKG_IMPORTED
 
-// Import all monitor packages for complete access to types and enum members
+// Import all ocelus packages for complete access to types and enum members
 // Due to SystemVerilog package import semantics, enum member values need
 // direct package import - they don't get re-exported via typedef.
 import monitor_common_pkg::*;   // Common types, PROTOCOL_*, PktType*, transaction states

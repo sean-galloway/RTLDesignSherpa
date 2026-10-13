@@ -31,7 +31,7 @@ considered feature-complete for its declared scope.
 | amba axis4 | `rtl/amba/axis4` |
 | amba axis5 | `rtl/amba/axis5` |
 | amba gaxi | `rtl/amba/gaxi` |
-| amba monitor | `rtl/amba/monitor` |
+| amba monitor | `rtl/amba/ocelus` |
 | amba shared | `rtl/amba/shared` |
 | amba wb4 | `rtl/amba/wb4` |
 

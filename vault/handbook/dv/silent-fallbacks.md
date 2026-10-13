@@ -95,7 +95,7 @@ describes nothing. Build masks from fields.
 ### 9. A gate must run the flags its consumer runs
 A gate reports on the invocation it makes, not on the design. `make lint` ran
 `verilator --lint-only` and reported clean for weeks while a combinational loop
-in `rtl/amba/monitor` broke the build of every monitor-variant bridge. Even a
+in `rtl/amba/ocelus` broke the build of every monitor-variant bridge. Even a
 real `-cc` model build reported nothing -- Verilator optimises across the loop
 and it disappears. It takes `--public-flat-rw`, which cocotb always passes, for
 the cycle to exist at all:

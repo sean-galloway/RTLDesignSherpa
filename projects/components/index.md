@@ -39,7 +39,7 @@ This directory contains production-ready and in-development component projects f
 
 | Component | Status | Location | Documentation |
 |-----------|--------|----------|---------------|
-| **Retro Legacy Blocks (HPET, PIT, ...)** | Production | [retro_legacy_blocks/](retro_legacy_blocks/) | [HPET Specification](retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) |
+| **Retro Legacy Blocks (HPET, PIT, ...)** | Production | [legacy-ip/retro_legacy_blocks/](legacy-ip/retro_legacy_blocks/) | [HPET Specification](legacy-ip/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) |
 | **APB Crossbar** | Production | [fabric-gen-ip/apbx-xbar/](fabric-gen-ip/apbx-xbar/) | [HAS](fabric-gen-ip/apbx-xbar/docs/apbx_xbar_has/apbx_xbar_has_index.md) · [MAS](fabric-gen-ip/apbx-xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) · [GAS](fabric-gen-ip/apbx-xbar/docs/apbx_xbar_gas/apbx_xbar_gas_index.md) |
 | **STREAM** | Production | [dma-ip/stream/](dma-ip/stream/) | [Specification](dma-ip/stream/docs/stream_mas/stream_index.md) |
 | **RAPIDS** | Production (owner-confirmed Done 2026-10-11) | [dma-ip/rapids/](dma-ip/rapids/) | [Specification](dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md) |
@@ -69,7 +69,7 @@ This directory contains production-ready and in-development component projects f
 ### By Category
 
 **Timing and Control:**
-- [Retro Legacy Blocks](retro_legacy_blocks/) - HPET, 8254 PIT, and other legacy timers/peripherals (absorbed the old apb4_hpet)
+- [Retro Legacy Blocks](legacy-ip/retro_legacy_blocks/) - HPET, 8254 PIT, and other legacy timers/peripherals (absorbed the old apb4_hpet)
 
 **DMA and Data Transfer:**
 - [STREAM](dma-ip/stream/) - Tutorial DMA engine

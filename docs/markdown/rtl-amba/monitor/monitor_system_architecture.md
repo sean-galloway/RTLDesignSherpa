@@ -36,7 +36,7 @@ which is not a bus protocol at all -- rides the same infrastructure as AXI4.
 
 **Scope of this document.** The architecture and what it can do. Per-module
 detail lives in the module pages; the packet field map and event-code
-assignments live in [monitor_package_spec](../includes/monitor_package_spec.md).
+assignments live in [monitor_package_spec](../includes/ocelus_package_spec.md).
 
 ---
 
@@ -353,7 +353,7 @@ A **protocol wrapper** pairs one protocol block with the shared monitor core.
 `axi4_master_rd_mon` instantiates `axi4_master_rd` and `axi_monitor_filtered`;
 the wrapper's whole job is to present protocol signals to a core that does not
 know what AXI is. These live with their protocols (`rtl/amba/axi4/`, `axi5/`,
-`axil4/`, `apb/`, `apb5/`), not in `rtl/amba/monitor/`.
+`axil4/`, `apb/`, `apb5/`), not in `rtl/amba/ocelus/`.
 
 For AXI-shaped traffic the core tracks outstanding transactions in
 `monitor_trans_cam`, a multi-port ID CAM with payload storage, managed by
@@ -613,7 +613,7 @@ Two that have bitten before:
 ## Related Modules
 | For | Read |
 |---|---|
-| Packet fields, event-code assignments | [monitor_package_spec](../includes/monitor_package_spec.md) |
+| Packet fields, event-code assignments | [monitor_package_spec](../includes/ocelus_package_spec.md) |
 | The monitor core | [axi_monitor_base](axi_monitor_base.md) |
 | Filtering | [axi_monitor_filtered](axi_monitor_filtered.md) |
 | Capture back end | [monbus_group_core](monbus_group_core.md) |

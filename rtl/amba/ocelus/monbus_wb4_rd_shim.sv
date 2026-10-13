@@ -18,7 +18,7 @@
 // Description:
 //   A monbus group presents a read-only AXI4-Lite slave: a host reads the
 //   drained records and the statistics, and writes nothing. This shim lets a
-//   Wishbone host do the same, so a Wishbone-based system can own a monitor
+//   Wishbone host do the same, so a Wishbone-based system can own a ocelus
 //   group without an AXI bridge in the path.
 //
 //   Read-only is enforced, not assumed. A Wishbone WRITE to this space is

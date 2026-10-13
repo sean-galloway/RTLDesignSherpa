@@ -68,7 +68,7 @@ from TBClasses.monbus.monbus_types import PktType
 RESP_OKAY = 0b00
 BURST_INCR = 0b01
 
-# transaction_state_t (rtl/amba/includes/monitor_common_pkg.sv)
+# transaction_state_t (rtl/amba/includes/ocelus_common_pkg.sv)
 TRANS_IDLE = 0
 TRANS_ADDR_PHASE = 1
 TRANS_DATA_PHASE = 2
@@ -77,7 +77,7 @@ TRANS_ERROR = 4
 TRANS_ORPHANED = 5
 
 # bus_transaction_t layout, MSB field first
-# (rtl/amba/includes/monitor_amba4_pkg.sv). Total width is asserted against
+# (rtl/amba/includes/ocelus_amba4_pkg.sv). Total width is asserted against
 # the elaborated RTL in AxiMonitorTransMgrTB._check_struct_width().
 TRANS_FIELDS = [
     ('valid', 1),
@@ -251,7 +251,7 @@ class AxiMonitorTransMgrTB(TBBase):
         assert rtl_width == TRANS_WIDTH, (
             f"bus_transaction_t is {rtl_width} bits but this test decodes "
             f"{TRANS_WIDTH}. Update TRANS_FIELDS in {__file__} to match "
-            f"rtl/amba/includes/monitor_amba4_pkg.sv."
+            f"rtl/amba/includes/ocelus_amba4_pkg.sv."
         )
 
     # -- observation ---------------------------------------------------
@@ -897,7 +897,7 @@ def test_axi_monitor_trans_mgr(iw, aw, max_transactions, seed):
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'rtl/common',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 

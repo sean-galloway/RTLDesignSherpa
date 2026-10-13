@@ -241,7 +241,7 @@ async def monitor_soak(dut):
 def test_axi_monitor_soak(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor':  'rtl/amba/monitor',
+        'rtl_monitor':  'rtl/amba/ocelus',
         'rtl_includes': 'rtl/amba/includes',
     })
     dut_name = "axi_monitor_pktgen_dut"
@@ -457,7 +457,7 @@ async def monitor_soak_monlite(dut):
 
 def test_axi_monitor_soak_monlite(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_monitor':  'rtl/amba/monitor',
+        'rtl_monitor':  'rtl/amba/ocelus',
         'rtl_includes': 'rtl/amba/includes',
     })
     dut_name = "axi_monitor_lite"

@@ -24,7 +24,7 @@
 # AXI5 Master Read with Monitor
 
 **Module:** `axi5_master_rd_mon.sv`
-**Location:** `rtl/amba/axi5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
+**Location:** `rtl/amba/axi5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/ocelus/`)
 **Status:** Production Ready
 
 ---
@@ -746,7 +746,7 @@ The monitor respects `monbus_ready` backpressure:
 - **[AXI5 Master Read CG](../axi5/axi5_master_rd_cg.md)** - With clock gating only
 - **[AXI5 Master Read Monitor CG](axi5_master_rd_mon_cg.md)** - Monitor + clock gating
 - **[AXI Monitor Filtered](../monitor/axi_monitor_filtered.md)** - Monitor core specification
-- **[Monitor Package Spec](../includes/monitor_package_spec.md)** - Packet format details
+- **[Monitor Package Spec](../includes/ocelus_package_spec.md)** - Packet format details
 - **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Complete configuration reference
 
 ---

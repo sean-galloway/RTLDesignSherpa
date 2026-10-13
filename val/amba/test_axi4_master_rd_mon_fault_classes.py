@@ -203,7 +203,7 @@ def test_axi4_master_rd_mon_fault_classes(case, txn_count):
         "rtl_includes":      "rtl/amba/includes",
         "rtl_common":        "rtl/common",
         "rtl_shared":        "rtl/amba/shared",
-        "rtl_monitor":       "rtl/amba/monitor",
+        "rtl_monitor":       "rtl/amba/ocelus",
         "rtl_amba_includes": "rtl/amba/includes",
     })
 

@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axis_monitor_lite
-// Purpose: the AXI4-Stream monitor in the lite discipline (amba/monitor-lite TASK-003).
+// Purpose: the AXI4-Stream ocelus in the lite discipline (amba/ocelus-lite TASK-003).
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axis_monitor_lite.md
 // Subsystem: amba
@@ -14,7 +14,7 @@
 // Created: 2026-09-27
 //
 // ============================================================================
-// There has never been an AXIS monitor in rtl/amba/monitor. axi_monitor_base
+// There has never been an AXIS ocelus in rtl/amba/ocelus. axi_monitor_base
 // and axi_monitor_lite are TRANSACTION trackers -- a command handshake opens
 // a table entry, data beats and a response close it -- and a stream has no
 // command, no response and no outstanding-transaction notion. What a stream
@@ -71,7 +71,7 @@ module axis_monitor_lite
 #(
     parameter logic [7:0]  UNIT_ID      = 8'h09,
     parameter logic [15:0] AGENT_ID     = 16'h0064,
-    parameter int          DATA_WIDTH   = 32,     // sizes TSTRB only; the monitor never sees TDATA
+    parameter int          DATA_WIDTH   = 32,     // sizes TSTRB only; the ocelus never sees TDATA
     parameter int          ID_WIDTH     = 8,      // 0 legal: tid is then a 1-bit tie-off
     parameter int          DEST_WIDTH   = 4,      // 0 legal: tdest is then a 1-bit tie-off
     parameter int          AGE_WIDTH    = 16,     // microsecond age (cfg_timeout_cnt is 16 bits)
@@ -115,7 +115,7 @@ module axis_monitor_lite
     input  logic [31:0]           cfg_stall_threshold,      // stall length in CYCLES above which Credit/BACKPRESSURE reports; 0 = off
     input  logic [15:0]           cfg_axis_pkt_mask,        // bit[type] = 1 drops that packet type
 
-    // Monitor bus
+    // Ocelus bus
     output logic                  monbus_valid,
     input  logic                  monbus_ready,
     output monitor_packet_t       monbus_packet,
@@ -266,7 +266,7 @@ module axis_monitor_lite
     // payload muxes, the queue writes and the drop count all run from these
     // flops a cycle later. Deciding and queueing in one cycle chained the
     // compares into the pick, the 85-bit mux and the drop-count adder -- 16
-    // to 19 logic levels, 10.4 ns on an Artix-7 -1 (monitor-lite ISSUE-003);
+    // to 19 logic levels, 10.4 ns on an Artix-7 -1 (ocelus-lite ISSUE-003);
     // the AXI lite made the same split under ISSUE-002. A clear in either
     // cycle discards the event.
     // ------------------------------------------------------------------

@@ -122,7 +122,7 @@ RTL AMBA Library Architecture (148 modules under rtl/amba/)
     AXI5-Stream (4 modules) -- rtl/amba/axis5/
 
  Shared Infrastructure (56 modules)
-     Monitor subsystem (30 modules) -- rtl/amba/monitor/
+     Monitor subsystem (30 modules) -- rtl/amba/ocelus/
        (integrator's view: ../rtl-amba-monitors/whitepaper/index.md)
        Transaction monitors, the six reporter sub-blocks, the monbus
        CAM/compressor/group path, and the monbus-instrumented arbiters

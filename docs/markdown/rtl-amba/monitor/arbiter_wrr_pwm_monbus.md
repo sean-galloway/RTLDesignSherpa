@@ -24,7 +24,7 @@
 # arbiter_wrr_pwm_monbus
 
 **Module:** `arbiter_wrr_pwm_monbus.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
 ---
@@ -431,7 +431,7 @@ The Ocelus is an original design of this repository. The papers and standards be
 - Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.2 "Round-Robin Arbiter" and §18.4.4 "Weighted Round-Robin Arbiter". — textbook treatment (secondary source).
 - Internal: docs/markdown/rtl-amba/index.md (AMBA subsystem requirements)
 - Internal: docs/markdown/rtl-amba/monitor/arbiter_monbus_common.md (monitoring details)
-- RTL: `rtl/amba/monitor/arbiter_wrr_pwm_monbus.sv`
+- RTL: `rtl/amba/ocelus/arbiter_wrr_pwm_monbus.sv`
 - Tests: `val/amba/test_arbiter_wrr_pwm_monbus.py`
 - Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
 

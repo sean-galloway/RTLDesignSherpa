@@ -14,7 +14,7 @@ projects/
 │   ├── dma-ip/  fabric-gen-ip/  ecc-ip/  mem-ctrl-ip/
 │   ├── riscv-ip/  cache-ip/  dfx-ip/
 │   ├── noc-ip/  utility-ip/  (compute-eng-ip retired, empty)
-│   ├── retro_legacy_blocks/
+│   ├── legacy-ip/  (retro_legacy_blocks)
 │   └── ...
 ├── fpga-systems/      # Board harnesses: <board>/<ip-area>/<ip>
 │   ├── NexysA7/misc-ip/cdc_counter_display/   # CDC teaching demo
@@ -231,7 +231,7 @@ When adding new projects:
 | [hive-serv](components/riscv-ip/hive-serv/) | Re-homed 2026-10-10 (retired 2026-09-27, revived) | [PRD](components/riscv-ip/hive-serv/PRD.md) · [spec](components/riscv-ip/hive-serv/docs/hive_spec/) |
 | [cache-ip amber](components/cache-ip/amber-mesi-l1/) | In progress | [README](components/cache-ip/amber-mesi-l1/README.md) · [PRD](components/cache-ip/amber-mesi-l1/PRD.md) |
 | [dfx-ip](components/dfx-ip/) | Scaffold | [HAS](components/dfx-ip/docs/dfx_has/dfx_has_index.md) |
-| [retro_legacy_blocks](components/retro_legacy_blocks/) | Active | [PRD](components/retro_legacy_blocks/PRD.md) |
+| [legacy-ip/retro_legacy_blocks](components/legacy-ip/retro_legacy_blocks/) | Active | [PRD](components/legacy-ip/retro_legacy_blocks/PRD.md) |
 | [misc](components/utility-ip/misc/) | — | [README](components/utility-ip/misc/README.md) |
 
 ### Characterization reports (Nexys A7-100T)

@@ -44,7 +44,7 @@ module axi5_slave_rd_mon
     parameter bit ENABLE_WAKEUP     = 1,      // AWAKEUP (A14.1.1)
 
     // aclk frequency in MHz -- picks the counter_freq_invariant LUT entry that
-    // yields a ~1 us tick, which is the unit monitor timeouts are expressed in.
+    // yields a ~1 us tick, which is the unit ocelus timeouts are expressed in.
     // Was hardwired to index 1 (19 MHz) with the comment "use aclk frequency";
     // on a 100 MHz design that made every timeout ~5x shorter than requested.
     parameter int ACLK_MHZ          = 100,
@@ -53,7 +53,7 @@ module axi5_slave_rd_mon
     // these a real MIN..MAX range to make cfg_freq_sel actually select.
     parameter int CFI_MIN_FREQ_MHZ  = ACLK_MHZ,
     parameter int CFI_MAX_FREQ_MHZ  = ACLK_MHZ,
-    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit ocelus, tie outputs
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter logic [7:0]  UNIT_ID  = 8'h01,
     parameter logic [15:0] AGENT_ID = 16'h000C,
@@ -104,7 +104,7 @@ module axi5_slave_rd_mon
 (
     input  logic aclk,
     input  logic aresetn,
-    input  logic cam_clear,  // sync clear of the monitor trans CAM
+    input  logic cam_clear,  // sync clear of the ocelus trans CAM
 
     // Slave interface signals (all AXI5 AR and R channel signals)
     input  logic [IW-1:0]                s_axi_arid,
@@ -180,7 +180,7 @@ module axi5_slave_rd_mon
     input  logic [CHUNK_STRB_WIDTH-1:0]  fub_axi_rchunkstrb,
     input  logic [TW-1:0]                fub_axi_rtag,
 
-    // Monitor configuration and output
+    // Ocelus configuration and output
     input  logic                       cfg_monitor_enable,
     input  logic                       cfg_error_enable,
     input  logic                       cfg_timeout_enable,
@@ -221,19 +221,19 @@ module axi5_slave_rd_mon
     input  logic                                                   cfg_addr_filter_enable,
     input  logic [AW-1:0]                                          cfg_addr_filter_low,
     input  logic [AW-1:0]                                          cfg_addr_filter_high,
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Monitor Bus Output
-    output logic                                    monbus_valid,            // Monitor bus valid
-    input  logic                                    monbus_ready,            // Monitor bus ready
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Monitor packet (128-bit)
+    // Ocelus Bus Output
+    output logic                                    monbus_valid,            // Ocelus bus valid
+    input  logic                                    monbus_ready,            // Ocelus bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
     output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
     output logic                       busy,
     output logic [7:0]                 active_transactions,
     output logic [15:0]                error_count,
     output logic [31:0]                transaction_count,
-    // Monitor backpressure, brought out for observability. This is the SAME
+    // Ocelus backpressure, brought out for observability. This is the SAME
     // net that gates the upstream command handshake below -- not a copy, not a
     // re-derivation. It is a port and not an internal signal because a
     // hierarchical reference to it is not reliably observable: the sby harness
@@ -267,7 +267,7 @@ module axi5_slave_rd_mon
     output logic [31:0]                perf_burst_count
 );
 
-    // Monitor backpressure plumbing (see axi4_master_rd_mon for full rationale)
+    // Ocelus backpressure plumbing (see axi4_master_rd_mon for full rationale)
     logic w_core_s_axi_arready;
     logic w_block_ready;
 
@@ -331,11 +331,11 @@ module axi5_slave_rd_mon
 
     // -------------------------------------------------------------------------
     // cfg_monitor_enable -- master runtime gate.
-    // When 0 the monitor is inert: command/data/response valids are gated off
+    // When 0 the ocelus is inert: command/data/response valids are gated off
     // (no allocation, no perf windows), the transaction CAM is held cleared
     // through the cam_clear path (so a re-enable starts from an empty table),
     // and block_ready is forced high at the wrapper gate below so a disabled
-    // monitor can never stall the datapath. When 1: normal operation.
+    // ocelus can never stall the datapath. When 1: normal operation.
     //
     // cfg_timeout_cycles -- unified coarse timeout control: a MICROSECOND
     // count passed through at FULL 16-bit width (see the assign below and
@@ -423,8 +423,8 @@ module axi5_slave_rd_mon
             .cfg_addr_filter_high    (cfg_addr_filter_high),
             .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
             .monbus_timestamp(monbus_timestamp),
-            // block_ready stalls new ARs at s_axi_arready when monitor FIFO is
-            // full. Note: monitor here watches the FUB-side handshake, so the
+            // block_ready stalls new ARs at s_axi_arready when ocelus FIFO is
+            // full. Note: ocelus here watches the FUB-side handshake, so the
             // gating point and watchpoint are separated by the slave_rd core's
             // pipeline (SKID_DEPTH_AR beats of lag).
             .block_ready(w_block_ready),
@@ -462,7 +462,7 @@ module axi5_slave_rd_mon
         assign w_perf_completed_count = 16'h0;
         assign w_perf_error_count     = 16'h0;
 
-        // Stage A/B perfmon outputs — tied to 0 when monitor disabled.
+        // Stage A/B perfmon outputs — tied to 0 when ocelus disabled.
         assign window_active       = 1'b0;
         assign window_cycles       = 32'h0;
         assign perf_prod_cycles    = 32'h0;
@@ -474,11 +474,11 @@ module axi5_slave_rd_mon
         assign perf_burst_count    = 32'h0;
     end
 
-    // Gate the upstream AR handshake on monitor block_ready.
+    // Gate the upstream AR handshake on ocelus block_ready.
     assign s_axi_arready = w_core_s_axi_arready &
-           (w_block_ready | ~cfg_monitor_enable);  // disabled monitor never stalls
+           (w_block_ready | ~cfg_monitor_enable);  // disabled ocelus never stalls
 
-    // error_count / transaction_count: driven from the base monitor's
+    // error_count / transaction_count: driven from the base ocelus's
     // lifetime reporter counters (axi_monitor_reporter_perf). They count
     // packets actually EMITTED (marked into the reporter FIFO): error_count
     // covers error+timeout packets, transaction_count covers completion

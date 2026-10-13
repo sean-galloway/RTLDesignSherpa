@@ -98,7 +98,7 @@ sink shares the defect. That overlaps item 5's territory.
   defect.** Two distinct gaps:
   - *No AXI transaction timeout in the engine* -- **BY DESIGN, not a gap.**
     Owner's decision 2026-09-25: "the monitor code takes care of timeouts."
-    Detection lives in `rtl/amba/monitor/axi_monitor_timer.sv` and
+    Detection lives in `rtl/amba/ocelus/axi_monitor_timer.sv` and
     `axi_monitor_reporter_timeout.sv` (gated by `cfg_timeout_enable`), and
     RAPIDS instantiates a monitor at `scheduler_group_array_beats.sv:841` with
     `USE_AXI_MONITORS` defaulting to 1. An earlier note of mine filed this as

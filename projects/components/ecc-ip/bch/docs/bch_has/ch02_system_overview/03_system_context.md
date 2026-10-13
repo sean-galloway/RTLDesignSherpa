@@ -77,7 +77,7 @@ monitor bus.
 | `rtl/common`: `counter_bin`, `shifter_beat_pack`, `shifter_lfsr_galois` | positions and iterations; bit packing; any boundary LFSR |
 | `rtl/amba/axis4`: `axis4_slave`, `axis4_master` (+ `_monlite`) | AXIS adapters |
 | `rtl/amba/axi4`: `axi4_master_rd`, `axi4_master_wr` | AXI4 adapters' timing wrappers |
-| `rtl/amba/monitor`: `axis_monitor_lite` | boundary observation onto monbus |
+| `rtl/amba/ocelus`: `axis_monitor_lite` | boundary observation onto monbus |
 | `bin/peakrdl_generate.py` + `utility-ip/converters` APB-to-cpuif path | the register block and its APB attachment |
 | `dma-ip/stream/rtl/fub`: `axi_read_engine`, `axi_write_engine` | the model for the AXI4 job engines |
 | `galois`, `aff3ct` (PyPI / standalone, MIT) | DV golden model and cross-check |

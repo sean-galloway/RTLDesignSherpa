@@ -62,7 +62,7 @@ AXIL flavour). One host decoder and one generated regmap serve all three.
   same bit for the cone each enable gates, so host code that already walks an
   AXI observer needs only the class names changed.
 
-No AXIS monitor exists in `rtl/amba/monitor` -- the AXI observers wrap
+No AXIS monitor exists in `rtl/amba/ocelus` -- the AXI observers wrap
 `axi4_*_monlite`, but there was never an `axis4_*` counterpart -- so the tap is
 written in this module rather than wrapped.
 
@@ -305,7 +305,7 @@ than through the BFM: a compliant master cannot produce it.
 - `axi4_intf_master_observer.sv`, `axi4_intf_slave_observer.sv` -- the AXI
   siblings, same map and egress.
 - `rtl/amba/shared/axis_bus_meter.sv` -- the meter this wraps.
-- `rtl/amba/includes/monitor_amba4_pkg.sv` -- the AXIS event vocabulary.
+- `rtl/amba/includes/ocelus_amba4_pkg.sv` -- the AXIS event vocabulary.
 - `docs/markdown/rtl-amba/monitor/axi_monitor_lite.md` -- the discipline the
   tap follows.
 - `vault/handbook/design/observers-do-not-drive.md`.

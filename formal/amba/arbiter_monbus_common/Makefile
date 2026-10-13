@@ -4,7 +4,7 @@
 #
 # THIS TASK USED TO PROVE A FORK. The directory held arbiter_monbus_common_formal.sv --
 # a hand-copied variant of the RTL, 287 lines divergent from
-# rtl/amba/monitor/arbiter_monbus_common.sv -- because yosys's own SystemVerilog
+# rtl/amba/ocelus/arbiter_monbus_common.sv -- because yosys's own SystemVerilog
 # frontend cannot resolve package-typed ports (it DROPS the port, then reports
 # it as missing). A proof about a copy proves nothing about the design, and
 # this one could not run either way.
@@ -19,14 +19,14 @@ SV2V      ?= sv2v
 
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
 
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv
 
 DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
-DUT  := $(REPO_ROOT)/rtl/amba/monitor/arbiter_monbus_common.sv
+DUT  := $(REPO_ROOT)/rtl/amba/ocelus/arbiter_monbus_common.sv
 
 TMPDIR := /tmp/formal_arbiter_monbus_common
 

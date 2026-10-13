@@ -370,7 +370,7 @@ class BridgeModuleGenerator:
     # per-port wrapper cfg). Surfaced as `cfg_mon_group_<base>` at the
     # bridge top so the SoC integrator drives the post-arbiter filter
     # behaviour. Mirrors monbus_axil4_axil4_group's port list in
-    # rtl/amba/monitor/monbus_axil4_axil4_group.sv (unified location).
+    # rtl/amba/ocelus/monbus_axil4_axil4_group.sv (unified location).
     _MON_GROUP_CFG = (
         # Address window for the master write region
         ('base_addr',           32),

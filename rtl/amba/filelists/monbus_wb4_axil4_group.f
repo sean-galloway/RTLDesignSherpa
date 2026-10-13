@@ -6,5 +6,5 @@
 
 -f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 -f $REPO_ROOT/rtl/amba/filelists/wb4_slave.f
-$REPO_ROOT/rtl/amba/monitor/monbus_wb4_rd_shim.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_wb4_axil4_group.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_wb4_rd_shim.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_wb4_axil4_group.sv

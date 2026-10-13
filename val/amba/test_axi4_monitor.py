@@ -564,7 +564,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode, dut
         'rtl_gaxi':          'rtl/amba/gaxi',
         'rtl_common':        'rtl/common',
         'rtl_shared':        'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 

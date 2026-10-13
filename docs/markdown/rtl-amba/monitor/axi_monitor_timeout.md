@@ -24,7 +24,7 @@
 # AXI Monitor Timeout
 
 **Module:** `axi_monitor_timeout.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Core Infrastructure
 **Status:** Production Ready
 
@@ -209,7 +209,7 @@ any value >= 16 became 15 and the entire configurable range collapsed onto
 
 - **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
 - **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
-- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 
 ---
 

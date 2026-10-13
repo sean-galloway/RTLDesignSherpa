@@ -48,7 +48,7 @@ blocker below.
 
 Worth reading before trusting anything this proof said. The prep pattern rule
 sourced the monitor files from `rtl/amba/shared/%.sv`, but the monitors moved
-to `rtl/amba/monitor/` -- `MON_ORIG` was updated for that move and the PATTERN
+to `rtl/amba/ocelus/` -- `MON_ORIG` was updated for that move and the PATTERN
 RULE that actually rebuilds the copies was not. Half a migration.
 
 Nothing complained, because the tracked `.sv2v_prep/*.sv` snapshots already
@@ -58,7 +58,7 @@ existed and make treated them as up to date. So the flatten kept consuming
 parameters that the snapshot knew nothing about. The breakage only surfaced
 when the prep directory was deleted and make had to rebuild it.
 
-Fixed by repointing the pattern rule at `rtl/amba/monitor/%.sv` and
+Fixed by repointing the pattern rule at `rtl/amba/ocelus/%.sv` and
 regenerating; the flatten now tracks current RTL. The blocker below is
 unchanged and unrelated.
 

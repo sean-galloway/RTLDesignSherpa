@@ -49,7 +49,7 @@ package monitor_amba4_pkg;
         AXI_ERR_LAST_MISSING        = 8'hB,  // Missing LAST signal
         AXI_ERR_STROBE_ERROR        = 8'hC,  // Write strobe error
         AXI_ERR_ADDR_RANGE          = 8'hD,  // Address-range violation (from axi_monitor_addr_check)
-        AXI_ERR_EVENT_DROPPED       = 8'hE,  // monitor-lite: events lost to monbus backpressure (event_data = count)
+        AXI_ERR_EVENT_DROPPED       = 8'hE,  // ocelus-lite: events lost to monbus backpressure (event_data = count)
         AXI_ERR_USER_DEFINED        = 8'hF   // User-defined error
     } axi_error_code_t;
 
@@ -379,7 +379,7 @@ package monitor_amba4_pkg;
         AXIS_ERR_RESERVED_B      = 8'hB,  // Reserved
         AXIS_ERR_RESERVED_C      = 8'hC,  // Reserved
         AXIS_ERR_RESERVED_D      = 8'hD,  // Reserved
-        AXIS_ERR_EVENT_DROPPED   = 8'hE,  // monitor-lite: events lost to monbus backpressure (event_data = count); same value as AXI_ERR_EVENT_DROPPED
+        AXIS_ERR_EVENT_DROPPED   = 8'hE,  // ocelus-lite: events lost to monbus backpressure (event_data = count); same value as AXI_ERR_EVENT_DROPPED
         AXIS_ERR_USER_DEFINED    = 8'hF   // User-defined error
     } axis_error_code_t;
 
@@ -639,7 +639,7 @@ package monitor_amba4_pkg;
     endfunction
 
     // =============================================================================
-    // AXI MONITOR TRANSACTION STRUCTURE
+    // AXI OCELUS TRANSACTION STRUCTURE
     // =============================================================================
 
     // Event code union for AXI transactions
@@ -659,7 +659,7 @@ package monitor_amba4_pkg;
         logic        data_started;       // Data phase started
         logic        data_completed;     // Data phase completed
         logic        resp_received;      // Response phase completed
-        logic        event_reported;     // Event has been reported to monitor bus
+        logic        event_reported;     // Event has been reported to ocelus bus
         logic        eos_seen;           // End of stream seen (last beat)
 
         transaction_state_t state;       // Current transaction state

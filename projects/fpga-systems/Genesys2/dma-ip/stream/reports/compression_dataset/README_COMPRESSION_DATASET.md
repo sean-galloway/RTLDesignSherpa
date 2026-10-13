@@ -306,7 +306,7 @@ python3 per_source_capture.py \
 | `bin/TBClasses/monbus/monbus_compressor.py` | The locked format spec + Python encoder/decoder/reporter |
 | `bin/TBClasses/monbus/sniffer.py` | Live cocotb sniffer + `load_capture()` for these JSON files |
 | `bin/TBClasses/monbus/tests/test_monbus_compressor.py` | 24 model tests — extend for RTL bit-exact harness |
-| `rtl/amba/monitor/monbus_axil4_axil4_group.sv` | The tag/ts scaffolding (commit `4e00aafb`; module since renamed from `shared/monbus_axil_group.sv`) — wire-side beat-order swap; the compressor (`rtl/amba/monitor/monbus_halfbeat_packer.sv`) has since replaced the `tag=0x0` hardwire |
+| `rtl/amba/ocelus/monbus_axil4_axil4_group.sv` | The tag/ts scaffolding (commit `4e00aafb`; module since renamed from `shared/monbus_axil_group.sv`) — wire-side beat-order swap; the compressor (`rtl/amba/ocelus/monbus_halfbeat_packer.sv`) has since replaced the `tag=0x0` hardwire |
 | `projects/fpga-systems/Genesys2/dma-ip/stream/bin/per_source_capture.py` | The orchestrator that produced this dataset |
 | `projects/fpga-systems/Genesys2/dma-ip/stream/bin/dump_monbus_sram.py` | UART-side SRAM drain + JSON serializer |
 

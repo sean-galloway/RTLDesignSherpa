@@ -54,7 +54,7 @@ module monbus_axil4_axil4_group
     input  logic                          axi_aresetn,
     input  logic                          cam_clear,   // sync clear: compressor CAM + stats
 
-    // ----- Monitor-bus input + timestamp -----
+    // ----- Ocelus-bus input + timestamp -----
     input  logic                          monbus_valid,
     output logic                          monbus_ready,
     input  monitor_packet_t               monbus_packet,

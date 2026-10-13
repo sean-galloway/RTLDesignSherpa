@@ -15,7 +15,7 @@
 `include "reset_defs.svh"
 
 /**
- * AXI Monitor — Address-Range Allowlist Checker
+ * AXI Ocelus — Address-Range Allowlist Checker
  *
  * Watches the cmd_addr / cmd_valid / cmd_ready handshake already snooped by
  * axi_monitor_base. The N user-configured [low, high] inclusive ranges are
@@ -46,11 +46,11 @@
  * split below, which is the authority.
  * The is_read flag is dropped from the encoding — read vs. write is recovered
  * from the IS_READ build parameter and the (unit_id, agent_id) of the
- * emitting monitor. Range index occupies 4 bits (up to 16 ranges); if
+ * emitting ocelus. Range index occupies 4 bits (up to 16 ranges); if
  * N_ADDR_RANGES grows beyond 16, widen the index field by chopping address
  * bits.
  *
- * Coalescing (lossy-but-honest, matching the monitor's trans_mgr philosophy):
+ * Coalescing (lossy-but-honest, matching the ocelus's trans_mgr philosophy):
  *   MATCH events coalesce per range (one pending slot + latched address each,
  *   latest hit per range wins). MISS events coalesce into a single pending
  *   slot (latest miss wins). One packet drains per cycle; MISS (error) has
@@ -72,9 +72,9 @@ module axi_monitor_addr_check
     parameter int N_ADDR_RANGES = 4,             // number of independent ranges (>=1)
     parameter int ADDR_WIDTH    = 32,            // address width
     parameter int ID_WIDTH      = 6,             // cmd_id width (clipped to 9 bits for channel_id)
-    parameter logic [7:0]  UNIT_ID  = 8'h00,     // 8-bit Unit ID in monitor packets
-    parameter logic [15:0] AGENT_ID = 16'h0000,  // 16-bit Agent ID in monitor packets
-    parameter bit IS_READ       = 1'b1,          // 1 if this monitor watches reads (AR), 0 if writes (AW)
+    parameter logic [7:0]  UNIT_ID  = 8'h00,     // 8-bit Unit ID in ocelus packets
+    parameter logic [15:0] AGENT_ID = 16'h0000,  // 16-bit Agent ID in ocelus packets
+    parameter bit IS_READ       = 1'b1,          // 1 if this ocelus watches reads (AR), 0 if writes (AW)
 
     // Per-range flavor selector: bit i picks how range i behaves.
     //   0 = DEBUG range  -> a hit emits an AddrMatch packet (cfg_debug_enable)
@@ -417,7 +417,7 @@ module axi_monitor_addr_check
         event_data_field                 // [ 63:  0] event_data
     );
 
-    // Sample the broadcast monitor time on the cycle the packet asserts valid
+    // Sample the broadcast ocelus time on the cycle the packet asserts valid
     // (purely combinational pass-through — packet/timestamp move together).
     assign addr_pkt_timestamp = i_mon_time;
 

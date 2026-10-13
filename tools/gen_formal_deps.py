@@ -2,7 +2,7 @@
 """Regenerate a formal/amba/<top>/Makefile with the correct RTL dependency
 closure and a single-source-of-truth flatten recipe.
 
-The AMBA monitor RTL was refactored (moved to rtl/amba/monitor/, the reporter
+The AMBA monitor RTL was refactored (moved to rtl/amba/ocelus/, the reporter
 split into six axi_monitor_reporter_* sub-modules, and the trans CAM extracted
 into monitor_trans_cam).  The hand-maintained DEPS lists in the formal Makefiles
 drifted -- they were missing the new sub-modules, so yosys failed to elaborate.
@@ -83,7 +83,7 @@ TEMPLATE = """# SPDX-License-Identifier: MIT
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 #
 # DEPS is the transitive module closure of {name} (leaves first), regenerated
-# by tools/gen_formal_deps.py after the rtl/amba/monitor/ move, the reporter
+# by tools/gen_formal_deps.py after the rtl/amba/ocelus/ move, the reporter
 # split (axi_monitor_reporter_*), and the monitor_trans_cam extraction.  The
 # sv2v file list is derived from $(DEPS) so the two cannot drift.
 

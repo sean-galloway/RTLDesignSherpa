@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi5_master_rd_mon_cg
-// Purpose: AXI5 Master Read with Monitor and Clock Gating
+// Purpose: AXI5 Master Read with Ocelus and Clock Gating
 //
 // This module wraps axi5_master_rd_mon with clock gating support.
 //
@@ -45,10 +45,10 @@ module axi5_master_rd_mon_cg
     parameter bit ENABLE_POISON     = 1,
     parameter bit ENABLE_WAKEUP     = 1,      // AWAKEUP (A14.1.1)
 
-    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit ocelus in inner mon; outputs tied
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter bit ADDR_FILTER_ENABLE = 1'b0,  // 0 = address filter inert
-    // Timer calibration, forwarded to the inner monitor. These were MISSING on
+    // Timer calibration, forwarded to the inner ocelus. These were MISSING on
     // every _cg wrapper: not merely unforwarded but undeclared, so a clock-gated
     // build had no way to state its clock frequency and the inner
     // counter_freq_invariant LUT was always built at the 100 MHz default. Every
@@ -58,9 +58,9 @@ module axi5_master_rd_mon_cg
     parameter int ACLK_MHZ           = 100,
     parameter int CFI_MIN_FREQ_MHZ   = ACLK_MHZ,
     parameter int CFI_MAX_FREQ_MHZ   = ACLK_MHZ,
-    // Write-monitor table shaping. NUM_BANKS > 1 on a write monitor REQUIRES
+    // Write-ocelus table shaping. NUM_BANKS > 1 on a write ocelus REQUIRES
     // USE_WDATA_ORDER_Q=1 (the inner module fails elaboration otherwise), so a
-    // banked write monitor was simply not buildable through a _cg wrapper.
+    // banked write ocelus was simply not buildable through a _cg wrapper.
     parameter bit USE_WDATA_ORDER_Q  = 1'b0,
     parameter int NUM_BANKS          = 1,
     parameter bit ID_FILTER_ENABLE   = 1'b0,  // 0 = ID filter inert
@@ -95,7 +95,7 @@ module axi5_master_rd_mon_cg
 (
     input  logic aclk,
     input  logic aresetn,
-    input  logic                       cam_clear,  // sync clear of the monitor trans CAM
+    input  logic                       cam_clear,  // sync clear of the ocelus trans CAM
 
     input  logic                           cfg_cg_enable,
     input  logic [CG_IDLE_COUNT_WIDTH-1:0] cfg_cg_idle_count,
@@ -173,7 +173,7 @@ module axi5_master_rd_mon_cg
     input  logic [CHUNK_STRB_WIDTH-1:0] m_axi_rchunkstrb,
     input  logic [TW-1:0]              m_axi_rtag,
 
-    // Monitor configuration
+    // Ocelus configuration
     input  logic                       cfg_monitor_enable,
     input  logic                       cfg_error_enable,
     input  logic                       cfg_timeout_enable,
@@ -214,13 +214,13 @@ module axi5_master_rd_mon_cg
     input  logic [IW-1:0]                                              cfg_id_match_base,
     input  logic [IW:0]                                                cfg_id_match_count,
 
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Monitor Bus Output
-    output logic                                    monbus_valid,            // Monitor bus valid
-    input  logic                                    monbus_ready,            // Monitor bus ready
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Monitor packet (128-bit)
+    // Ocelus Bus Output
+    output logic                                    monbus_valid,            // Ocelus bus valid
+    input  logic                                    monbus_ready,            // Ocelus bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
     output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
     output logic                       busy,
     output logic [7:0]                 active_transactions,
@@ -419,13 +419,13 @@ module axi5_master_rd_mon_cg
 
     );
 
-    // Monitor liveness terms (TASK-070):
-    //   w_monbus_valid -- a packet parked on the monitor bus is outstanding
+    // Ocelus liveness terms (TASK-070):
+    //   w_monbus_valid -- a packet parked on the ocelus bus is outstanding
     //     work; it holds the block awake (and re-wakes it) so the reporter
     //     can retire the handshake. Without it the clock stops with valid
     //     frozen high and an ungated consumer re-accepts the SAME packet
     //     every cycle.
-    //   |active_transactions -- the monitor CAM's occupancy. An entry stays
+    //   |active_transactions -- the ocelus CAM's occupancy. An entry stays
     //     valid until its packet is marked into the reporter FIFO, and the
     //     registered count lags one cycle past that, meeting monbus_valid's
     //     assertion; without this term the clock can stop inside the

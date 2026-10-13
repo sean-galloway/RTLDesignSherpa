@@ -66,7 +66,7 @@ tracker. Nothing here is a second copy of either.
 | riscv-ip (falcon suite: kestrel Done — rv32ui/riscv-formal 42/42; merlin/peregrine/gyrfalcon/garuda planned; hive-serv spec) | [riscv-ip/README.md](riscv-ip/README.md) |
 | cache-ip (gemstone family: amber in progress with RTL landing; jet/basalt/onyx planned) | [cache-ip/amber-mesi-l1/README.md](cache-ip/amber-mesi-l1/README.md) |
 | dfx-ip (house debug port: jtag-tap, jtag-axil-agent, riscv-debug scaffolds) | [dfx-ip/docs/dfx_has/dfx_has_index.md](dfx-ip/docs/dfx_has/dfx_has_index.md) |
-| retro_legacy_blocks (HPET, 8259, 8254, RTC, SMBus, PM/ACPI, IOAPIC, GPIO, UART) | [retro_legacy_blocks/README.md](retro_legacy_blocks/README.md) |
+| legacy-ip (retro_legacy_blocks: HPET, 8259, 8254, RTC, SMBus, PM/ACPI, IOAPIC, GPIO, UART) | [legacy-ip/retro_legacy_blocks/README.md](legacy-ip/retro_legacy_blocks/README.md) |
 | misc (ROM/RAM wrappers and utilities) | [utility-ip/misc/README.md](utility-ip/misc/README.md) |
 | compute-eng-ip/hive | retired 2026-09-27; re-homed to riscv-ip/hive-serv 2026-10-10 (SERV-based, belongs in the falcon suite area) |
 

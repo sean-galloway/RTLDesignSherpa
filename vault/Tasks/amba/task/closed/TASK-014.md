@@ -107,7 +107,7 @@ same shape and the tracker had drifted there too:
 
 * address-range filtering -- `ADDR_FILTER_ENABLE` parameter plus
   `cfg_addr_filter_enable` / `cfg_addr_filter_low` / `cfg_addr_filter_high`
-  ports in `rtl/amba/monitor/axi_monitor_base.sv`, with the TASK-015
+  ports in `rtl/amba/ocelus/axi_monitor_base.sv`, with the TASK-015
   rationale comment still in place at the declaration.
 * ID filtering -- `ID_FILTER_ENABLE` / `ID_MATCH_BASE` / `ID_MATCH_COUNT`
   and the `id_owned()` gate.

@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: apb5_monitor
-// Purpose: APB5 Monitor with AMBA5 extension monitoring
+// Purpose: APB5 Ocelus with AMBA5 extension monitoring
 //
 // APB5 Extensions Monitored:
 // - PWAKEUP: Wake-up signal events (rising/falling edge + wake-up timeout)
@@ -15,7 +15,7 @@
 // - PAUSER/PWUSER/PRUSER/PBUSER. The user-signal ports and cfg_user_enable are
 //   accepted so the interface is stable for integrators, but no logic reads them
 //   and no APB5_USER_* event code is ever produced. Emitting a user-signal event
-//   per transaction would flood the monitor bus, so the feature is deliberately
+//   per transaction would flood the ocelus bus, so the feature is deliberately
 //   deferred rather than half-wired. Do not document it as implemented.
 //   Tracked by rtl/amba issue #41.
 //
@@ -40,7 +40,7 @@ module apb5_monitor
     import monitor_amba4_pkg::*;
     import monitor_amba5_pkg::*;
 #(
-    parameter bit USE_MONITOR         = 1'b1,  // 0 = omit monitor body, tie outputs
+    parameter bit USE_MONITOR         = 1'b1,  // 0 = omit ocelus body, tie outputs
     parameter int N_ADDR_RANGES       = 0,     // 0 = address-range checker disabled
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,
@@ -51,7 +51,7 @@ module apb5_monitor
     parameter logic [7:0]  UNIT_ID    = 8'h01,     // 8-bit Unit ID
     parameter logic [15:0] AGENT_ID   = 16'h000A,  // 16-bit Agent ID
     parameter int MAX_TRANSACTIONS    = 4,     // APB is typically single outstanding
-    parameter int MONITOR_FIFO_DEPTH  = 8,     // Monitor packet FIFO depth
+    parameter int MONITOR_FIFO_DEPTH  = 8,     // Ocelus packet FIFO depth
     parameter bit ENABLE_PARITY_MON   = 0,     // Enable parity monitoring
 
     // Short params
@@ -122,10 +122,10 @@ module apb5_monitor
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_high,
 
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Consolidated 128-bit event packet interface (monitor bus)
+    // Consolidated 128-bit event packet interface (ocelus bus)
     output logic                                    monbus_valid,
     input  logic                                    monbus_ready,
     output monitor_common_pkg::monitor_packet_t     monbus_packet,      // 128-bit packet
@@ -139,10 +139,10 @@ module apb5_monitor
 );
 
     // -------------------------------------------------------------------------
-    // Monitor body (optional, USE_MONITOR)
+    // Ocelus body (optional, USE_MONITOR)
     // -------------------------------------------------------------------------
-    // USE_MONITOR=1: full APB5 monitor pipeline synthesised below.
-    // USE_MONITOR=0: monitor omitted; outputs tied. See gen_no_monitor block.
+    // USE_MONITOR=1: full APB5 ocelus pipeline synthesised below.
+    // USE_MONITOR=0: ocelus omitted; outputs tied. See gen_no_monitor block.
     if (USE_MONITOR) begin : gen_monitor
 
     // -------------------------------------------------------------------------
@@ -235,7 +235,7 @@ module apb5_monitor
     apb5_wakeup_code_t w_wakeup_event_code;
     apb5_parity_code_t w_parity_event_code;
 
-    // Monitor packet FIFO — event_code is 8 bits to match the 128-bit packet
+    // Ocelus packet FIFO — event_code is 8 bits to match the 128-bit packet
     // layout in monitor_package_spec.md (and the APB*_ code enums).
     typedef struct packed {
         logic [3:0]  packet_type;
@@ -462,7 +462,7 @@ module apb5_monitor
             // as apb4_monitor: the packet's only chance was the transition
             // pulse; gating the mark on a successful FIFO write leaked the
             // slot on drop (FIFO full) or disabled event class, wedging the
-            // monitor after MAX_TRANSACTIONS losses.
+            // ocelus after MAX_TRANSACTIONS losses.
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 if (r_trans_table[i].valid &&
                     (r_trans_table[i].state == TRANS_COMPLETE ||
@@ -660,7 +660,7 @@ module apb5_monitor
     end
 
     // -------------------------------------------------------------------------
-    // Monitor Packet FIFO
+    // Ocelus Packet FIFO
     // -------------------------------------------------------------------------
     gaxi_fifo_sync #(
         // Mux read: rd_data is valid IN the clock of the rd_valid/rd_ready
@@ -738,7 +738,7 @@ module apb5_monitor
     end
 
     // -------------------------------------------------------------------------
-    // Monitor Bus Packet Construction
+    // Ocelus Bus Packet Construction
     // -------------------------------------------------------------------------
     logic                                    w_monbus_pkt_valid;
     logic                                    w_monbus_pkt_ready;
@@ -817,7 +817,7 @@ module apb5_monitor
     assign w_fifo_rd_ready  = w_monbus_pkt_ready && w_fifo_rd_valid;
     assign w_addr_pkt_ready = w_monbus_pkt_ready && !w_fifo_rd_valid;
 
-    // Monitor bus output skid buffer — carries {packet[128], timestamp[64]}.
+    // Ocelus bus output skid buffer — carries {packet[128], timestamp[64]}.
     localparam int MONBUS_TOTAL_W =
         monitor_common_pkg::MONBUS_PKT_WIDTH + monitor_common_pkg::MONBUS_TS_WIDTH;
 
@@ -847,7 +847,7 @@ module apb5_monitor
     assign monbus_timestamp = w_skid_rd_data[monitor_common_pkg::MONBUS_TS_WIDTH-1 : 0];
 
     end else begin : gen_no_monitor
-        // Monitor omitted: tie outputs to non-blocking defaults.
+        // Ocelus omitted: tie outputs to non-blocking defaults.
         assign monbus_valid      = 1'b0;
         assign monbus_packet     = '0;
         assign monbus_timestamp  = '0;

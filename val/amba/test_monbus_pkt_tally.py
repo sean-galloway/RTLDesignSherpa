@@ -432,7 +432,7 @@ def get_params():
 def test_monbus_pkt_tally(request, addr_bits, count_width, num_latch, n_profile):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor':  'rtl/amba/monitor',
+        'rtl_monitor':  'rtl/amba/ocelus',
         'rtl_includes': 'rtl/amba/includes',
     })
 

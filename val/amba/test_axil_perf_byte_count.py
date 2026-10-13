@@ -143,7 +143,7 @@ def test_axil_perf_byte_count(request, dut_name, data_width):
         'rtl_gaxi': 'rtl/amba/gaxi',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes'})
 
     test_name = f"test_{worker_id}_{dut_name}_bytecount_d{data_width}"

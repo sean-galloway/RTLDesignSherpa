@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_monitor_base
-// Purpose: Axi Monitor Base module
+// Purpose: Axi Ocelus Base module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -17,10 +17,10 @@
 
 `include "reset_defs.svh"
 /**
- * AXI Monitor Bus Base Module - Updated for Generic Monitor Package
+ * AXI Ocelus Bus Base Module - Updated for Generic Ocelus Package
  *
  * This module provides a robust implementation for tracking AXI/AXI-Lite
- * transactions and reporting events and errors through the monitor bus.
+ * transactions and reporting events and errors through the ocelus bus.
  * Updated to work with the enhanced monitor_pkg that supports multiple protocols.
  *
  * Features:
@@ -30,7 +30,7 @@
  * - Complete protocol compliance
  * - Consolidated 64-bit event packet output for system event bus
  * - Optional performance metrics tracking
- * - Updated for multi-protocol monitor package
+ * - Updated for multi-protocol ocelus package
  */
 module axi_monitor_base
     import monitor_common_pkg::*;
@@ -47,11 +47,11 @@ module axi_monitor_base
     // EVERY transaction -- so N monitors each need the full concurrency and N
     // instances buy nothing. Filtering allocation by ID lets each instance own
     // a slice: 8 channels x 8 outstanding needs a 72-entry table in one
-    // monitor, which does not close timing here (measured 16 entries at
+    // ocelus, which does not close timing here (measured 16 entries at
     // WNS +1.018 ns, 40 entries at WNS -25.183 ns), while four monitors of two
     // channels each need 16 -- the size that is known to close.
     //
-    // This gates the MONITOR's observation inputs only. cmd_valid/data_valid/
+    // This gates the OCELUS's observation inputs only. cmd_valid/data_valid/
     // resp_valid here are observation feeds, separate from the datapath the
     // wrapper's core drives, so filtering changes what is TRACKED and never
     // what flows. A filtered instance is transparent on the bus, which is what
@@ -78,7 +78,7 @@ module axi_monitor_base
     // General parameters
     // ---- Timer LUT sizing (counter_freq_invariant) -------------------------
     // The divisor IS the frequency in MHz, so a table built for THIS design's
-    // clock gives an exact 1 us tick -- which is the unit monitor timeouts are
+    // clock gives an exact 1 us tick -- which is the unit ocelus timeouts are
     // expressed in. Defaults below set every entry to ACLK_MHZ, so the tick is
     // exact regardless of cfg_freq_sel. Override to a real MIN..MAX range only
     // if the design switches aclk at runtime.
@@ -135,7 +135,7 @@ module axi_monitor_base
     // Global Clock and Reset
     input  logic                     aclk,
     input  logic                     aresetn,
-    input  logic                     clear,   // sync clear: empty the trans CAM + active_count. Legal ONLY while the monitor is idle (no outstanding transactions, no packet in flight); a clear during traffic is a contract violation, not a corner case (amba ISSUE-002)
+    input  logic                     clear,   // sync clear: empty the trans CAM + active_count. Legal ONLY while the ocelus is idle (no outstanding transactions, no packet in flight); a clear during traffic is a contract violation, not a corner case (amba ISSUE-002)
 
     // Address-range packet filter configuration (active when
     // ADDR_FILTER_ENABLE=1). Inclusive [low, high]; a transaction whose
@@ -227,10 +227,10 @@ module axi_monitor_base
     input  logic                     cfg_end_trigger,
     input  logic                     cfg_window_force_close, // software override
 
-    // Free-running monitor-time counter, broadcast from the monbus_group family
+    // Free-running ocelus-time counter, broadcast from the monbus_group family
     input  monbus_timestamp_t        i_mon_time,
 
-    // Consolidated 128-bit event packet interface (monitor bus)
+    // Consolidated 128-bit event packet interface (ocelus bus)
     output logic                     monbus_valid,      // Interrupt valid
     input  logic                     monbus_ready,      // Interrupt ready
     output monitor_packet_t          monbus_packet,     // Consolidated interrupt packet
@@ -238,7 +238,7 @@ module axi_monitor_base
 
     // Flow control and status
     output logic                     block_ready,    // Flow control signal
-    output logic                     busy,           // Monitor is busy
+    output logic                     busy,           // Ocelus is busy
     output logic [7:0]               active_count,   // Number of active transactions
 
     // Performance window status (Stage A of perfmon RFC).
@@ -287,7 +287,7 @@ module axi_monitor_base
     output logic [15:0]              perf_error_count
 );
 
-    // Import standard monitor types and constants
+    // Import standard ocelus types and constants
     // (monitor_common_pkg already imported at module-header level for the typedefs
     // used in the port list)
     import monitor_amba4_pkg::*;
@@ -376,7 +376,7 @@ module axi_monitor_base
     logic w_cmd_valid_f, w_data_valid_f, w_resp_valid_f;
     assign w_cmd_valid_f  = cmd_valid  && id_owned(cmd_id);
     // TASK-073: do NOT ID-filter the write data channel. AXI4 dropped WID,
-    // so a W beat carries no ID and a WRITE monitor is handed the LIVE
+    // so a W beat carries no ID and a WRITE ocelus is handed the LIVE
     // m_axi_awid as data_id -- with more than one write outstanding that is a
     // LATER transaction's ID than the beats in flight, so an OWNED
     // transaction's beats get refused and its data phase never closes.
@@ -546,7 +546,7 @@ module axi_monitor_base
     end
 
     // -------------------------------------------------------------------------
-    // Monitor Bus Arbitration
+    // Ocelus Bus Arbitration
     // -------------------------------------------------------------------------
 
     // Priority: reporter > debug > addr_check.
@@ -620,7 +620,7 @@ module axi_monitor_base
     // Flow control: positive-enable, 1 = upstream may proceed, 0 = stall.
     // Polarity must match the wrapper gating
     //   <port>_ready = w_core_<port>_ready & w_block_ready;
-    // (the no-monitor branches tie w_block_ready=1'b1 to allow). The
+    // (the no-ocelus branches tie w_block_ready=1'b1 to allow). The
     // pre-fix expression set block_ready=1 only when the transaction
     // table was nearly full, which inverted the polarity and stalled
     // every upstream handshake immediately after reset (count=0,
@@ -641,7 +641,7 @@ module axi_monitor_base
     // reporting, so only command entries can be durable occupants. With the
     // old flat MAX-3 margin equal to the effective command occupancy at
     // saturation, the table parked exactly AT the threshold and block_ready
-    // never re-asserted: the monitor stalled the monitored command channel
+    // never re-asserted: the ocelus stalled the monitored command channel
     // for ever (stream_core multi-channel wedge; reproduced by
     // val/amba/test_axi_monitor_trans_mgr.py phase_saturation_recovers).
     //
@@ -679,7 +679,7 @@ module axi_monitor_base
     //   * With the old reserve of 2 the margin derived to 1, and a command
     //     could be ADMITTED against stale occupancy and then find no free
     //     slot. Its data beats arrived with nothing to match, and data/resp
-    //     allocation cannot be backpressured (a monitor must never stall
+    //     allocation cannot be backpressured (a ocelus must never stall
     //     returning data), so those beats were silently discarded. Measured:
     //     obs_equiv observer 4096 vs in-core 3073, identical at 2,000 and
     //     200,000 clocks of drain (loss, not backlog).

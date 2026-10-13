@@ -263,7 +263,7 @@ def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed, dut):
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'rtl/common',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 

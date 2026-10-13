@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi4ace_slave_wr_monlite
-// Purpose: AXI4 ACE Slave Write with the lite monitor (axi_monitor_lite) -- axi4ace_slave_wr plus a fifth of the monitor gates
+// Purpose: AXI4 ACE Slave Write with the lite ocelus (axi_monitor_lite) -- axi4ace_slave_wr plus a fifth of the ocelus gates
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
@@ -15,30 +15,30 @@
 //
 // ============================================================================
 // The ACE slave-side front-end variant of axi4_slave_wr_monlite. Same
-// lite-monitor sibling relationship, same core, same taps, same 128-bit
+// lite-ocelus sibling relationship, same core, same taps, same 128-bit
 // packets on the same monbus with the same UNIT/AGENT ids, so the arbiter,
 // group and host tooling cannot tell the two apart. Different interface: the
 // AW channel carries the ACE snoop field (AWSNOOP[2:0]) straight through to
-// the core, but the lite monitor has no snoop concept -- the taps remain
+// the core, but the lite ocelus has no snoop concept -- the taps remain
 // exactly as on the AXI4 wrapper. Only what the lite can honour is on the
 // port list -- no perf window, no debug, no address-range checker, no
 // ID/address filters, no per-event masks -- and two status outputs the full
-// monitor does not have (dropped_count, refused_count). The lite never stalls
+// ocelus does not have (dropped_count, refused_count). The lite never stalls
 // the port: an event it cannot deliver is dropped and counted, and a command
 // that finds no free table entry is counted and left untracked (its beats
 // then report as ORPHAN errors). There is no block_ready and no gating of
 // the command handshake; the core's ready goes straight to the port.
 //
 // Every core parameter and port is declared here verbatim from axi4ace_slave_wr
-// and passed through by name; the monitor section is the same lite tap
+// and passed through by name; the ocelus section is the same lite tap
 // wiring the _mon wrapper carries.
 // ============================================================================
 `timescale 1ns / 1ps
 
 module axi4ace_slave_wr_monlite
 #(
-    // ---- Monitor parameters ----
-    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the monitor, tie its outputs
+    // ---- Ocelus parameters ----
+    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the ocelus, tie its outputs
     parameter logic [7:0]  UNIT_ID                = 8'h02,
     parameter logic [15:0] AGENT_ID               = 16'h0015,
     parameter int          MAX_TRANSACTIONS       = 8,      // table entries; a command finding none is counted, not tracked
@@ -147,9 +147,9 @@ module axi4ace_slave_wr_monlite
     // Status outputs for clock gating
     output logic                       busy,
 
-    // ---- Monitor control (the lite's own set: nothing here it cannot honour) ----
-    input  logic                                  cam_clear,           // sync clear of the monitor's table (named as on the _mon wrapper: pin-compatible)
-    input  logic                                  cfg_monitor_enable,  // 0 = monitor inert, table held clear
+    // ---- Ocelus control (the lite's own set: nothing here it cannot honour) ----
+    input  logic                                  cam_clear,           // sync clear of the ocelus's table (named as on the _mon wrapper: pin-compatible)
+    input  logic                                  cfg_monitor_enable,  // 0 = ocelus inert, table held clear
     input  logic                                  cfg_error_enable,
     input  logic                                  cfg_timeout_enable,
     input  logic                                  cfg_compl_enable,
@@ -165,7 +165,7 @@ module axi4ace_slave_wr_monlite
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
-    // ---- Monitor bus ----
+    // ---- Ocelus bus ----
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
     output monitor_common_pkg::monitor_packet_t   monbus_packet,
@@ -179,7 +179,7 @@ module axi4ace_slave_wr_monlite
 );
 
     // ------------------------------------------------------------------------
-    // The core, passed through untouched (no monitor gating on any handshake)
+    // The core, passed through untouched (no ocelus gating on any handshake)
     // ------------------------------------------------------------------------
     axi4ace_slave_wr #(
         .SKID_DEPTH_AW               (SKID_DEPTH_AW),
@@ -261,7 +261,7 @@ module axi4ace_slave_wr_monlite
     );
 
     // ------------------------------------------------------------------------
-    // Monitor taps. cfg_monitor_enable gates every tap and holds the table
+    // Ocelus taps. cfg_monitor_enable gates every tap and holds the table
     // clear; cfg_timeout_cycles is MICROSECONDS at full width, 0 = never.
     // ------------------------------------------------------------------------
     logic        w_mon_cmd_valid;

@@ -24,7 +24,7 @@
 # Monitor Bus Legal-Set CAM
 
 **Module:** `monbus_legal_cam.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Coverage / Observability
 **Status:** Production Ready
 

@@ -84,7 +84,7 @@ def test_apb4_monitor():
         'rtl_gaxi':          'rtl/amba/gaxi',
         'rtl_apb':           'rtl/amba/apb4',
         'rtl_amba_shared':   'rtl/amba/shared',
-        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_monitor':       'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
@@ -419,7 +419,7 @@ def test_apb4_monitor_addr_range():
         'rtl_gaxi':          'rtl/amba/gaxi',
         'rtl_apb':           'rtl/amba/apb4',
         'rtl_amba_shared':   'rtl/amba/shared',
-        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_monitor':       'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
@@ -571,7 +571,7 @@ def test_apb4_monitor_slot_retire():
         'rtl_gaxi':          'rtl/amba/gaxi',
         'rtl_apb':           'rtl/amba/apb4',
         'rtl_amba_shared':   'rtl/amba/shared',
-        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_monitor':       'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
@@ -659,7 +659,7 @@ def test_apb4_monitor_backtoback(registered):
         'rtl_gaxi':          'rtl/amba/gaxi',
         'rtl_apb':           'rtl/amba/apb4',
         'rtl_amba_shared':   'rtl/amba/shared',
-        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_monitor':       'rtl/amba/ocelus',
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 

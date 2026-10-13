@@ -26,7 +26,7 @@
 The per-protocol event-code reference for Wishbone B4. The 8-bit
 `event_code` field of every monbus packet sourced by
 [`wb4_monitor`](../wb4/wb4_monitor.md) takes its value from one of the enums
-declared in `rtl/amba/includes/monitor_wb4_pkg.sv` and listed below. For the
+declared in `rtl/amba/includes/ocelus_wb4_pkg.sv` and listed below. For the
 universal packet layout, the `protocol` and `packet_type` enums and the
 helper functions, see [`monitor_package_spec.md`](./monitor_package_spec.md).
 

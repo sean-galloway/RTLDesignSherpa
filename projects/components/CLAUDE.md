@@ -39,7 +39,7 @@
 - **STREAM** - Streaming datapath engine with AXI and SRAM control (`dma-ip/stream/`)
 - **RAPIDS** - Rapid AXI Programmable In-band Descriptor System (`dma-ip/rapids/`)
 - **Bridge** - Protocol bridges and converters
-- **Retro Legacy Blocks** - Legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...) in `retro_legacy_blocks/` (absorbed the old apb4_hpet component)
+- **Retro Legacy Blocks** - Legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...) in `legacy-ip/retro_legacy_blocks/` (absorbed the old apb4_hpet component)
 
 **Complete Documentation:** See individual project CLAUDE.md and PRD.md files in each component directory
 
@@ -261,7 +261,7 @@ area you are in. Paths relative to `projects/components/`.
 |---|---|---|
 | STREAM | `dma-ip/stream/` | streaming datapath engines, AXI masters, SRAM control |
 | RAPIDS | `dma-ip/rapids/` | descriptor-driven accelerators, scheduler groups |
-| Retro Legacy Blocks | `retro_legacy_blocks/` | legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...), APB register maps |
+| Retro Legacy Blocks | `legacy-ip/retro_legacy_blocks/` | legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...), APB register maps |
 | Bridge | `bridge/` | protocol converters, clock domain crossing |
 | misc | `utility-ip/misc/` | reusable utility components: ROM/RAM wrappers, pattern generators |
 | ecc-ip / Reed-Solomon | `ecc-ip/reed-solomon/` | RS codec (GF(2^m), BM/Euclid, Chien/Forney); stand-up only -- PRD decisions pending, References/ populated |

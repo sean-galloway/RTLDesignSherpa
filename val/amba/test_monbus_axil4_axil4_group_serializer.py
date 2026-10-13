@@ -19,7 +19,7 @@
 MonBus AXIL/AXIL Group -- 32-bit Err-Drain Serializer, Master-Shape Regression
 
 Targets the `g_drain_2to1` block in
-`rtl/amba/monitor/monbus_axil4_axil4_group.sv` (the identical construct in
+`rtl/amba/ocelus/monbus_axil4_axil4_group.sv` (the identical construct in
 `monbus_axil4_axi4_group.sv` is exercised by the same drivers when
 TEST_DUT=axil_axi4).
 
@@ -314,7 +314,7 @@ async def cocotb_test_monbus_axil4_axil4_group_serializer(dut):
     await tb.initialize()
 
     # Build `nrecords` distinguishable ERROR packets. Packet layout per
-    # docs/markdown/rtl-amba/includes/monitor_package_spec.md; the exact field
+    # docs/markdown/rtl-amba/includes/ocelus_package_spec.md; the exact field
     # split does not matter here -- what matters is that every record is
     # unique so a desynchronized drain is detectable.
     records = []
@@ -420,7 +420,7 @@ def test_monbus_axil4_axil4_group_serializer(request, test_type, fifo_depth_err,
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor':  'rtl/amba/monitor',
+        'rtl_monitor':  'rtl/amba/ocelus',
         'rtl_axil4':    'rtl/amba/axil4',
         'rtl_gaxi':     'rtl/amba/gaxi',
         'rtl_common':   'rtl/common',

@@ -4,7 +4,7 @@
 #
 # THIS TASK USED TO PROVE A FORK. The directory held
 # arbiter_rr_pwm_monbus_formal.sv -- a hand-copied variant of the RTL, 251
-# lines divergent from rtl/amba/monitor/arbiter_rr_pwm_monbus.sv -- plus a
+# lines divergent from rtl/amba/ocelus/arbiter_rr_pwm_monbus.sv -- plus a
 # monitor_pkg_stub.sv, because yosys's own SystemVerilog frontend cannot
 # resolve package-typed ports (it DROPS the port and then reports it as
 # missing). A proof about a copy proves nothing about the design, and this
@@ -18,9 +18,9 @@ SV2V      ?= sv2v
 
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
 
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv
 
 DEPS := $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
         $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
@@ -28,8 +28,8 @@ DEPS := $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
         $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/arbiter_monbus_common.sv
-DUT  := $(REPO_ROOT)/rtl/amba/monitor/arbiter_rr_pwm_monbus.sv
+        $(REPO_ROOT)/rtl/amba/ocelus/arbiter_monbus_common.sv
+DUT  := $(REPO_ROOT)/rtl/amba/ocelus/arbiter_rr_pwm_monbus.sv
 
 .PHONY: prove cover all clean
 

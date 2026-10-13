@@ -24,7 +24,7 @@
 # MonBus Group — AXI4 / AXI4
 
 **Module:** `monbus_axi4_axi4_group.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
 ---
@@ -325,14 +325,14 @@ The Ocelus is an original design of this repository. The papers and standards be
 
 ### Source Code
 
-- RTL: `rtl/amba/monitor/monbus_axi4_axi4_group.sv`
-- Core: `rtl/amba/monitor/monbus_group_core.sv`
+- RTL: `rtl/amba/ocelus/monbus_axi4_axi4_group.sv`
+- Core: `rtl/amba/ocelus/monbus_group_core.sv`
 
 ### Documentation
 
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Group Core: `docs/markdown/rtl-amba/monitor/monbus_group_core.md`
-- Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- Packet Format: `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 
 ---
 

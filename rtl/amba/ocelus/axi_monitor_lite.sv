@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_monitor_lite
-// Purpose: the AXI transaction monitor at a fifth of the gates (amba/monitor-lite TASK-001).
+// Purpose: the AXI transaction ocelus at a fifth of the gates (amba/ocelus-lite TASK-001).
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite.md
 // Subsystem: amba
@@ -32,7 +32,7 @@
 // errors, which name it), and a table
 // of data-before-address transactions (ONE early write burst is buffered
 // as a beat count). The address-range checker is KEPT as an option: the full
-// monitor's axi_monitor_addr_check, built only when N_ADDR_RANGES > 0, its
+// ocelus's axi_monitor_addr_check, built only when N_ADDR_RANGES > 0, its
 // Error/ADDR_RANGE and AddrMatch packets muxed onto the same monbus
 // (Sean, 2026-09-26: STREAM's data ports use it).
 //
@@ -43,7 +43,7 @@
 // indices, so they need no lookup at all. Every event is computed at the
 // handshake that causes it and goes into a 4-deep queue of 66-bit event
 // entries, formatted into the 128-bit packet on the way out (the full
-// monitor keeps an 8-deep FIFO of the same entries plus a copy of the table).
+// ocelus keeps an 8-deep FIFO of the same entries plus a copy of the table).
 // An entry holds stamps, not counters: a cycle stamp (latency) and a
 // microsecond stamp (timeout), each a copy of a shared counter; every
 // subtraction happens once after the read mux. Same-ID entries form a
@@ -54,7 +54,7 @@
 // one. No per-entry state machine, no CAM ports, no reporter-side table
 // copy.
 //
-// Measured against the full monitor in the same fixture, same flow
+// Measured against the full ocelus in the same fixture, same flow
 // (bridge_1x2_rd_mon, Artix-7 100T -1, error+compl): see the module page.
 // ============================================================================
 `timescale 1ns / 1ps
@@ -69,7 +69,7 @@ module axi_monitor_lite
     parameter int          MAX_TRANSACTIONS = 8,     // table slots (outstanding transactions tracked)
     parameter int          ADDR_WIDTH       = 32,
     parameter int          ID_WIDTH         = 8,     // 0 for AXI-Lite
-    parameter bit          IS_READ          = 1'b1,  // 1: AR/R monitor, 0: AW/W/B monitor
+    parameter bit          IS_READ          = 1'b1,  // 1: AR/R ocelus, 0: AW/W/B ocelus
     parameter bit          IS_AXI           = 1'b1,  // 0: AXI-Lite (single beat, no ID)
     parameter int          TS_WIDTH         = 16,    // cycle timestamp: ordering + latency
     parameter int          AGE_WIDTH        = 16,    // microsecond age: timeout (cfg is 16 bits)
@@ -79,7 +79,7 @@ module axi_monitor_lite
     // to 2**(WSEQ_WIDTH-1)-1 bursts, refused ones included (minimum width 2);
     // unused on reads.
     parameter int          WSEQ_WIDTH       = 8,
-    // Address-range checker (axi_monitor_addr_check, the full monitor's): built
+    // Address-range checker (axi_monitor_addr_check, the full ocelus's): built
     // when N_ADDR_RANGES > 0, zero area otherwise. Per range, ADDR_RANGE_IS_ERROR
     // = 1 makes a MISS an Error/ADDR_RANGE packet, 0 makes a HIT an AddrMatch packet.
     parameter int          N_ADDR_RANGES    = 0,
@@ -119,7 +119,7 @@ module axi_monitor_lite
     input  logic                  data_valid,
     input  logic                  data_ready,
 
-    // Response channel tap (B; wrappers tie the R signals here on a read monitor)
+    // Response channel tap (B; wrappers tie the R signals here on a read ocelus)
     input  logic [IW-1:0]         resp_id,
     input  logic [1:0]            resp_code,
     input  logic                  resp_valid,
@@ -134,7 +134,7 @@ module axi_monitor_lite
     input  logic                  cfg_timeout_enable,
     input  logic                  cfg_threshold_enable,
     input  logic [15:0]           cfg_active_trans_threshold,
-    input  logic [31:0]           cfg_latency_threshold,   // completion latency (cycles) above this -> Threshold/LATENCY; the full monitor's knob
+    input  logic [31:0]           cfg_latency_threshold,   // completion latency (cycles) above this -> Threshold/LATENCY; the full ocelus's knob
     input  logic [15:0]           cfg_axi_pkt_mask,   // bit[type] = 1 drops that packet type
     // Address-range checker config (used only when N_ADDR_RANGES > 0)
     input  logic                  cfg_addr_check_enable,
@@ -143,7 +143,7 @@ module axi_monitor_lite
     input  logic [NAR-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [NAR-1:0][AW-1:0] cfg_addr_range_high,
 
-    // Monitor bus
+    // Ocelus bus
     output logic                  monbus_valid,
     input  logic                  monbus_ready,
     output monitor_packet_t       monbus_packet,
@@ -371,7 +371,7 @@ module axi_monitor_lite
     // sit in the early-burst register while its own entry waited in the
     // AW-order queue for beats that had already passed, and the B would then
     // report a response orphan (found by the inherited same-cycle suite,
-    // amba/monitor-lite TASK-002). While an EARLIER early burst is pending
+    // amba/ocelus-lite TASK-002). While an EARLIER early burst is pending
     // the same-cycle beat is a later transaction's and is queued as early.
     // A W beat whose AW was seen (w_aw_ahead) but is not at the FIFO head
     // belongs to a refused AW (amba #105): it falls through every class below
@@ -407,14 +407,14 @@ module axi_monitor_lite
     wire           w_compl_clean = w_compl && !r_err[w_compl_slot] &&
                                    !(IS_READ ? (data_resp[1] || w_last_early) : resp_code[1]);
     wire [TS_WIDTH-1:0] w_latency = r_now - r_ts0[w_compl_slot];   // the one latency subtractor
-    // Latency threshold (the full monitor's second Threshold flavour): a clean
+    // Latency threshold (the full ocelus's second Threshold flavour): a clean
     // completion whose latency crossed cfg_latency_threshold. Gated by the same
     // runtime enable as the active-count threshold; STREAM arms it per port.
     // The threshold compare itself is taken a cycle later, from the registered
     // completion (r_e_compl / r_e_latency) -- see w_lat_hit in the event stage.
     // Done here, it chained the RRESP decode, the slot pick, this subtract, a
     // 32-bit compare and the drop-count adder into one cycle: 21 logic levels,
-    // 11.7 ns on an Artix-7 -1 (amba/monitor-lite ISSUE-002).
+    // 11.7 ns on an Artix-7 -1 (amba/ocelus-lite ISSUE-002).
     // the freed head hands its flag to the next entry of its ID, if any
     wire           w_free_has_next = r_has_next[w_compl_slot];
     wire [SW-1:0]  w_free_next     = r_next[w_compl_slot];
@@ -616,7 +616,7 @@ module axi_monitor_lite
     // A timeout is a one-cycle pulse from the rotating scan (or the command
     // stall detector), and an Error fired in the same cycle outranks it. Under
     // a sustained error stream it was lost and counted every time (the
-    // inherited starvation suite, monitor-lite TASK-004). One fired timeout the
+    // inherited starvation suite, ocelus-lite TASK-004). One fired timeout the
     // pick could not take is HELD here with its payload (code, id, address)
     // and offered on the following cycles, oldest first; a second one arriving
     // while the hold is full is still lost and counted.
@@ -952,7 +952,7 @@ module axi_monitor_lite
 
     // ------------------------------------------------------------------
     // Address-range checker and the monbus mux. The checker is the full
-    // monitor's axi_monitor_addr_check, unchanged: it snoops the command
+    // ocelus's axi_monitor_addr_check, unchanged: it snoops the command
     // handshake and builds its own Error/ADDR_RANGE or AddrMatch packets
     // (same UNIT/AGENT ids). Two sources share the monbus; whichever is
     // presented first holds the bus until taken, so a presented packet never

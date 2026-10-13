@@ -24,7 +24,7 @@
 # arbiter_monbus_common
 
 **Module:** `arbiter_monbus_common.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Core Infrastructure
 **Status:** Production Ready
 
@@ -107,7 +107,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Ports
 
-All ports, from `rtl/amba/monitor/arbiter_monbus_common.sv`. Every arbiter-facing
+All ports, from `rtl/amba/ocelus/arbiter_monbus_common.sv`. Every arbiter-facing
 signal is an INPUT: this module snoops and never drives the arbiter.
 
 **Clock and reset**
@@ -313,7 +313,7 @@ The Ocelus is an original design of this repository. The papers and standards be
 - Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.2 "Round-Robin Arbiter" and §18.4.4 "Weighted Round-Robin Arbiter". — textbook treatment (secondary source) of the arbiters this block observes.
 - **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
 - **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
-- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 - Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
 
 ---

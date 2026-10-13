@@ -37,14 +37,14 @@ spine, here are the axes, here are the tweaks."
    skewed traffic, protocol-partitioned groups.
 
 **Out of scope** for the whitepaper (covered elsewhere):
-- Packet bit-layout (in `docs/markdown/rtl-amba/includes/monitor_package_spec.md`)
+- Packet bit-layout (in `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`)
 - Per-module port lists / timing (in `docs/markdown/rtl-amba/monitor/{module}.md`)
 - Specific test recipes (in the relevant test source).
 
 **Completion checklist** (already mirrored at the bottom of the stub):
 - [x] Deployment numbers: the bridge fixture's measured table (full vs lite, both parts) in "What it costs", and the per-variant characterization page linked from it (TASK-034). The Nexys A7 stream_char figures were not used: that board carries no monbus group.
 - [x] One diagram per section, as-built beside the tweak (seven mermaid sources under `docs/markdown/assets/mermaid/monitor_wp_*.mmd`, rendered to `assets/rtl-amba/`).
-- [x] Each section links its module page (`monitor/monbus_group.md`, `monitor/axi_monitor_lite.md`, `includes/monitor_package_spec.md`, the observer, the arbiters).
+- [x] Each section links its module page (`monitor/monbus_group.md`, `monitor/axi_monitor_lite.md`, `includes/ocelus_package_spec.md`, the observer, the arbiters).
 - [ ] Expand the timestamp section into an appendix once the hybrid-global scheme is prototyped -- still future; the section states the recommendation and that neither variant is prototyped.
 - [x] Verification section added. The named error-injection test is not in the tree; it points at the block-ready suite, the lite soak's accounting identity and the group-core formal harness instead, and says so.
 

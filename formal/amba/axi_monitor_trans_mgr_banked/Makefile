@@ -3,7 +3,7 @@
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 #
 # DEPS is the transitive module closure of axi_monitor_trans_mgr (leaves first), regenerated
-# by tools/gen_formal_deps.py after the rtl/amba/monitor/ move, the reporter
+# by tools/gen_formal_deps.py after the rtl/amba/ocelus/ move, the reporter
 # split (axi_monitor_reporter_*), and the monitor_trans_cam extraction.  The
 # sv2v file list is derived from $(DEPS) so the two cannot drift.
 
@@ -12,13 +12,13 @@ SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv
 
 # RTL dependencies (transitive closure of axi_monitor_trans_mgr, leaves first)
-DEPS := $(REPO_ROOT)/rtl/amba/monitor/monitor_trans_cam.sv
+DEPS := $(REPO_ROOT)/rtl/amba/ocelus/monitor_trans_cam.sv
 
-DUT := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv
+DUT := $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_trans_mgr.sv
 
 TMPDIR := /tmp/formal_axi_monitor_trans_mgr_banked
 

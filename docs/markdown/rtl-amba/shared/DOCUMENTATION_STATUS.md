@@ -325,7 +325,7 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 - Configurable idle countdown
 - Generates gated clock output
 
-**Monitor-family pages** (monbus_group, monbus_compressor, monbus_cam, monitor_trans_cam) are NOT tracked here anymore — they live in `../monitor/` with the monitor RTL (`rtl/amba/monitor/`).
+**Monitor-family pages** (monbus_group, monbus_compressor, monbus_cam, monitor_trans_cam) are NOT tracked here anymore — they live in `../monitor/` with the monitor RTL (`rtl/amba/ocelus/`).
 
 ## Next Steps
 

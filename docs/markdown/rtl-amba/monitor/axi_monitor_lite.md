@@ -23,7 +23,7 @@
 # AXI Monitor Lite
 
 **Module:** `axi_monitor_lite.sv`
-**Location:** `rtl/amba/monitor/axi_monitor_lite.sv`
+**Location:** `rtl/amba/ocelus/axi_monitor_lite.sv`
 **Category:** Monitor Infrastructure
 **Status:** Production Ready (amba/monitor-lite TASK-001, 2026-09-25); adopted by every consumer, measured in three board builds and validated on silicon, 2026-09-27
 

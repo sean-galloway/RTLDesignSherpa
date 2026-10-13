@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_monitor_filtered
-// Purpose: Axi Monitor Filtered module
+// Purpose: Axi Ocelus Filtered module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -16,7 +16,7 @@
 `timescale 1ns / 1ps
 
 /**
- * AXI Monitor with Integrated Filtering
+ * AXI Ocelus with Integrated Filtering
  *
  * This module wraps the standard axi_monitor_base with configurable packet filtering
  * based on the filtering architecture from the monbus_group family. TWO of the
@@ -43,12 +43,12 @@ module axi_monitor_filtered
     // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
     // Vivado flags the duplicates as ambiguous under wildcard imports.
 #(
-    // Monitor parameters (passed through to axi_monitor_base)
+    // Ocelus parameters (passed through to axi_monitor_base)
     parameter logic [7:0]  UNIT_ID       = 8'h01,
     parameter logic [15:0] AGENT_ID      = 16'h000A,
     // ---- Timer LUT sizing (counter_freq_invariant) -------------------------
     // The divisor IS the frequency in MHz, so a table built for THIS design's
-    // clock gives an exact 1 us tick -- which is the unit monitor timeouts are
+    // clock gives an exact 1 us tick -- which is the unit ocelus timeouts are
     // expressed in. Defaults below set every entry to ACLK_MHZ, so the tick is
     // exact regardless of cfg_freq_sel. Override to a real MIN..MAX range only
     // if the design switches aclk at runtime.
@@ -127,7 +127,7 @@ module axi_monitor_filtered
     input  logic                        resp_valid,
     input  logic                        resp_ready,
 
-    // Configuration (passed through to base monitor)
+    // Configuration (passed through to base ocelus)
     input  logic [3:0]                  cfg_freq_sel,
     input  logic [15:0]              cfg_addr_cnt,
     input  logic [15:0]              cfg_data_cnt,
@@ -183,10 +183,10 @@ module axi_monitor_filtered
     input  logic                        cfg_end_trigger,
     input  logic                        cfg_window_force_close,
 
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Monitor bus output (filtered, 128-bit packet)
+    // Ocelus bus output (filtered, 128-bit packet)
     output logic                                    monbus_valid,
     input  logic                                    monbus_ready,
     output monitor_common_pkg::monitor_packet_t     monbus_packet,
@@ -224,7 +224,7 @@ module axi_monitor_filtered
     // Internal Signals
     // =========================================================================
 
-    // Unfiltered monitor bus from base monitor (128-bit packet + 64-bit ts)
+    // Unfiltered ocelus bus from base ocelus (128-bit packet + 64-bit ts)
     logic                                            base_monbus_valid;
     logic                                            base_monbus_ready;
     monitor_common_pkg::monitor_packet_t             base_monbus_packet;
@@ -255,7 +255,7 @@ module axi_monitor_filtered
     assign cfg_conflict_error = |(cfg_axi_pkt_mask & cfg_axi_err_select);
 
     // =========================================================================
-    // AXI Monitor Base Instance
+    // AXI Ocelus Base Instance
     // =========================================================================
 
     axi_monitor_base #(
@@ -352,7 +352,7 @@ module axi_monitor_filtered
         .cfg_end_trigger         (cfg_end_trigger),
         .cfg_window_force_close  (cfg_window_force_close),
 
-        // Monitor bus output (unfiltered, 128-bit + side-band ts)
+        // Ocelus bus output (unfiltered, 128-bit + side-band ts)
         .monbus_valid            (base_monbus_valid),
         .monbus_ready            (base_monbus_ready),
         .monbus_packet           (base_monbus_packet),
@@ -432,13 +432,13 @@ module axi_monitor_filtered
                 end
 
             end else begin
-                // Drop non-AXI protocol packets (should not happen in AXI monitor)
+                // Drop non-AXI protocol packets (should not happen in AXI ocelus)
                 pkt_drop = 1'b1;
             end
         end
     end
 
-    // Base monitor ready control - always ready if packet will be dropped,
+    // Base ocelus ready control - always ready if packet will be dropped,
     // otherwise depends on downstream ready
     assign base_monbus_ready = pkt_drop ||
                               (ADD_PIPELINE_STAGE ? pipe_ready : monbus_ready);
@@ -497,7 +497,7 @@ module axi_monitor_filtered
             // With the parameter 0 the ternary constant-folds to monbus_ready,
             // so the value cannot reach anything -- but the net stays alive
             // and undriven, which is an X source in tools that fold less
-            // eagerly and an UNDRIVEN on every monitor-variant build here.
+            // eagerly and an UNDRIVEN on every ocelus-variant build here.
             // Driven, not left dangling. The other pipe_* signals are already
             // dead in this branch (nothing reads them) so they need no tie.
             assign pipe_ready       = 1'b1;

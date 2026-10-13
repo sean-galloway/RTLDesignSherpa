@@ -5,9 +5,9 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_monbus_cam
-# Purpose: FUB cocotb tests for rtl/amba/monitor/monbus_cam.sv
+# Purpose: FUB cocotb tests for rtl/amba/ocelus/monbus_cam.sv
 #
-# Documentation: rtl/amba/monitor/monbus_cam.sv (header comment)
+# Documentation: rtl/amba/ocelus/monbus_cam.sv (header comment)
 # Subsystem: tests
 #
 # Author: sean galloway
@@ -531,7 +531,7 @@ def test_monbus_cam(request, key_width, data_width, depth):
     """Pytest wrapper — runs the cocotb test under a single parameter combo."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_includes': 'rtl/amba/includes',
     })
 

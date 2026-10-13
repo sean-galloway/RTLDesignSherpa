@@ -274,7 +274,7 @@ def test_monbus_axil4_axil4_group_master_write(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_axil4':    'rtl/amba/axil4',
         'rtl_gaxi':     'rtl/amba/gaxi',
         'rtl_common':   'rtl/common',

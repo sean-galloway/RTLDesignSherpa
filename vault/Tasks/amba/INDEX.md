@@ -17,7 +17,7 @@ Pick the lane before filing:
 | [bug/](bug/INDEX.md) | 0 | 0 | 39 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 2 | 0 | 2 | 0 | 0 |
 
-**Sub-area:** [monitor-lite](monitor-lite/INDEX.md) -- `rtl/amba/monitor/axi_monitor_lite.sv`
+**Sub-area:** [monitor-lite](monitor-lite/INDEX.md) -- `rtl/amba/ocelus/axi_monitor_lite.sv`
 has its own task/bug/issue lanes (Sean, 2026-09-25), the way each RLB block
 does under RLB. The block's own work files there; the monbus, the full monitor
 family and the wrappers file here. Cite its items as "amba/monitor-lite

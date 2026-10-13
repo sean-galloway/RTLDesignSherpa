@@ -1,6 +1,6 @@
 # TASK-001: monitor-lite -- three quarters of the AXI monitor for a fifth of the gates
 **Status:** CLOSED 2026-09-28 -- every item landed (core, 16 + 16 wrappers, bridge/STREAM/RAPIDS/observers swapped, three system builds measured, board-validated); nothing was left open but the state. Was: active (2026-09-25) -- built the same day the review was filed (Sean: "create a monitor-lite area please, follow all of your recommendations").
-**Was:** open 2026-09-25 (Sean: "review `rtl/amba/monitor` with the eye of
+**Was:** open 2026-09-25 (Sean: "review `rtl/amba/ocelus` with the eye of
 making a new version of some or all to get 75% of the functionality with ~20%
 of the gates; the solution space runs from a simpler `axi_monitor_trans_mgr`
 to a new `monitor-lite` directory built for gate count and timing")
@@ -122,8 +122,8 @@ LUTs a slot.
 
 ### 4. The lite design (proposal)
 
-`rtl/amba/monitor/axi_monitor_lite.sv` (+ `_pkg` reuse from
-`rtl/amba/includes/monitor_*_pkg.sv`; same packet builder). One module per
+`rtl/amba/ocelus/axi_monitor_lite.sv` (+ `_pkg` reuse from
+`rtl/amba/includes/ocelus_*_pkg.sv`; same packet builder). One module per
 direction. As proposed it was selected inside the existing
 `axi4/axi5/axil*_{master,slave}_{rd,wr}_mon` wrappers by a `MONITOR_LITE`
 parameter; as built (2026-09-26, Sean: "make monlite versions of the various
@@ -223,7 +223,7 @@ flow, and meet 10 ns on the Artix-7 with margin.
 
 ### Definition of done
 
-`rtl/amba/monitor/axi_monitor_lite.sv` with filelist, `docs/markdown/rtl-amba/monitor/`
+`rtl/amba/ocelus/axi_monitor_lite.sv` with filelist, `docs/markdown/rtl-amba/monitor/`
 pages, the wrapper parameter, the bridge preset, the contract tests green at
 gate/func/full, the formal harness non-vacuous, and the synthesis row that
 shows the number. Then the observers and STREAM decide per instance.
@@ -276,7 +276,7 @@ root gate/func/full targets (Sean, 2026-09-25).
 ### 9. The `_monlite` wrappers (2026-09-26)
 
 Sean: "if it is only one file it doesn't need its own directory" (the lite
-moved to `rtl/amba/monitor/axi_monitor_lite.sv`), then "make monlite versions
+moved to `rtl/amba/ocelus/axi_monitor_lite.sv`), then "make monlite versions
 of the various axi wrappers". Sixteen new wrappers,
 `{axi4,axi5,axil4,axil5}_{slave,master}_{rd,wr}_monlite`, each derived from its
 core module's own parameter and port block (declared verbatim, passed through

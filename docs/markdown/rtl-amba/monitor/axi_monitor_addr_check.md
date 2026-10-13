@@ -24,7 +24,7 @@
 # axi_monitor_addr_check
 
 **Module:** `axi_monitor_addr_check.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Core Infrastructure
 **Status:** Production Ready (Formally Verified)
 
@@ -321,7 +321,7 @@ The Ocelus is an original design of this repository. The papers and standards be
 - IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). — §4.8 "Breakpoints/Watchpoints": a comparable address-match event in a processor debug standard.
 - **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
 - **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
-- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 - **Formal Verification:** `formal/amba/axi_monitor_addr_check/`
 - Indexed in `rtl/amba/references/README.md` (local PDF: `HardwareAssertionCheckers__Boule2007.pdf`, `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`)
 

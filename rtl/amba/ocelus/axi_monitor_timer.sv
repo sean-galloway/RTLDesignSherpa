@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_monitor_timer
-// Purpose: Axi Monitor Timer module
+// Purpose: Axi Ocelus Timer module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -15,10 +15,10 @@
 
 `timescale 1ns / 1ps
 /**
- * AXI Monitor Bus Frequency Invariant Timer
+ * AXI Ocelus Bus Frequency Invariant Timer
  *
  * Provides a configurable timer for timeout detection in the AXI Error
- * Monitor. Uses counter_freq_invariant to generate timing ticks based on
+ * Ocelus. Uses counter_freq_invariant to generate timing ticks based on
  * the frequency selection provided, so timeout thresholds remain consistent
  * across different clock frequencies.
  *

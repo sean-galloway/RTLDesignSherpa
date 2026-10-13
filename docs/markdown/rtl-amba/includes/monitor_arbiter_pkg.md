@@ -32,7 +32,7 @@ sets follow the same packet layout as the AMBA monitors; only the
 layout and helper functions see
 [`monitor_package_spec.md`](./monitor_package_spec.md).
 
-Source: `rtl/amba/includes/monitor_arbiter_pkg.sv`. Each enum is 8 bits
+Source: `rtl/amba/includes/ocelus_arbiter_pkg.sv`. Each enum is 8 bits
 wide; slot `8'hF` is the `*_USER_DEFINED` escape hatch. ARB codes carry
 `PROTOCOL_ARB` (4'h3); CORE codes carry `PROTOCOL_CORE` (4'h4).
 

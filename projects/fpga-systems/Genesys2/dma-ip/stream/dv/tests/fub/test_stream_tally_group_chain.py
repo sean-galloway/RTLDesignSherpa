@@ -220,7 +220,7 @@ async def group_chain_sustained_rate(dut):
 # ----------------------------------------------------------------------------
 def test_stream_tally_group_chain(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_monitor':  'rtl/amba/monitor',
+        'rtl_monitor':  'rtl/amba/ocelus',
         'rtl_axil4':    'rtl/amba/axil4/',
         'rtl_gaxi':     'rtl/amba/gaxi',
         'rtl_common':   'rtl/common',
@@ -374,7 +374,7 @@ endmodule
         repo_root=repo_root, module='monbus_pkt_tally')
     tally_src += [
         os.path.join(repo_root, p) for p in (
-            "rtl/amba/includes/monitor_common_pkg.sv",
+            "rtl/amba/includes/ocelus_common_pkg.sv",
             "projects/components/utility-ip/misc/rtl/regs/generated/rtl/tally_regs_top_pkg.sv",
             "projects/components/utility-ip/misc/rtl/regs/generated/rtl/tally_regs_top.sv",
             "projects/components/utility-ip/misc/rtl/monbus_tally_axil.sv",

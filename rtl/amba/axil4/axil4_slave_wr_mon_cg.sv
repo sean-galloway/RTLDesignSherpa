@@ -19,12 +19,12 @@
  * AXIL4 Slave Write with Integrated Filtered Monitoring and Clock Gating
  *
  * This module extends axil4_slave_wr_mon with comprehensive clock gating capabilities
- * for power optimization: an ICG stops the monitor clock after a configurable
+ * for power optimization: an ICG stops the ocelus clock after a configurable
  * idle period and the request-side readys are masked while gated.
  *
  * Features:
  * - Instantiates axil4_slave_wr_mon for core functionality with filtering
- * - Activity-based clock gating for the monitor subsystem
+ * - Activity-based clock gating for the ocelus subsystem
  * - Simplified for AXIL4-Lite (lower activity than full AXI4)
  * - Fine-grained power management controls
  */
@@ -40,11 +40,11 @@ module axil4_slave_wr_mon_cg
     parameter int AXIL_ADDR_WIDTH   = 32,
     parameter int AXIL_DATA_WIDTH   = 32,
 
-    // Monitor parameters
-    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
+    // Ocelus parameters
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit ocelus in inner mon; outputs tied
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter bit ADDR_FILTER_ENABLE = 1'b0,  // 0 = address filter inert
-    // Timer calibration, forwarded to the inner monitor. These were MISSING on
+    // Timer calibration, forwarded to the inner ocelus. These were MISSING on
     // every _cg wrapper: not merely unforwarded but undeclared, so a clock-gated
     // build had no way to state its clock frequency and the inner
     // counter_freq_invariant LUT was always built at the 100 MHz default. Every
@@ -54,13 +54,13 @@ module axil4_slave_wr_mon_cg
     parameter int ACLK_MHZ           = 100,
     parameter int CFI_MIN_FREQ_MHZ   = ACLK_MHZ,
     parameter int CFI_MAX_FREQ_MHZ   = ACLK_MHZ,
-    // Write-monitor table shaping. NUM_BANKS > 1 on a write monitor REQUIRES
+    // Write-ocelus table shaping. NUM_BANKS > 1 on a write ocelus REQUIRES
     // USE_WDATA_ORDER_Q=1 (the inner module fails elaboration otherwise), so a
-    // banked write monitor was simply not buildable through a _cg wrapper.
+    // banked write ocelus was simply not buildable through a _cg wrapper.
     parameter bit USE_WDATA_ORDER_Q  = 1'b0,
     parameter int NUM_BANKS          = 1,
-    parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for monitor packets
-    parameter logic [15:0] AGENT_ID = 16'h0015,    // 16-bit Agent ID for monitor packets
+    parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for ocelus packets
+    parameter logic [15:0] AGENT_ID = 16'h0015,    // 16-bit Agent ID for ocelus packets
     parameter int MAX_TRANSACTIONS  = 8,     // Maximum outstanding transactions (reduced for AXIL)
 
     // Filtering parameters
@@ -87,7 +87,7 @@ module axil4_slave_wr_mon_cg
     // Global Clock and Reset
     input  logic                       aclk,
     input  logic                       aresetn,
-    input  logic                       cam_clear,  // sync clear of the monitor trans CAM
+    input  logic                       cam_clear,  // sync clear of the ocelus trans CAM
 
     // Slave AXIL Interface (Input Side)
     // Write address channel (AW)
@@ -125,7 +125,7 @@ module axil4_slave_wr_mon_cg
     input  logic                       fub_axil_bvalid,
     output logic                       fub_axil_bready,
 
-    // Monitor Configuration
+    // Ocelus Configuration
     input  logic                       cfg_monitor_enable,      // Enable monitoring
     input  logic                       cfg_error_enable,        // Enable error detection
     input  logic                       cfg_timeout_enable,      // Enable timeout detection
@@ -165,13 +165,13 @@ module axil4_slave_wr_mon_cg
     input  logic [AW-1:0]                                              cfg_addr_filter_low,
     input  logic [AW-1:0]                                              cfg_addr_filter_high,
 
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Monitor Bus Output
-    output logic                                    monbus_valid,            // Monitor bus valid
-    input  logic                                    monbus_ready,            // Monitor bus ready
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Monitor packet (128-bit)
+    // Ocelus Bus Output
+    output logic                                    monbus_valid,            // Ocelus bus valid
+    input  logic                                    monbus_ready,            // Ocelus bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
     output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     // Status outputs for clock gating and monitoring
@@ -263,7 +263,7 @@ module axil4_slave_wr_mon_cg
     );
 
     // -------------------------------------------------------------------------
-    // Instantiate the monitor, clocked from the gated clock
+    // Instantiate the ocelus, clocked from the gated clock
     // -------------------------------------------------------------------------
     axil4_slave_wr_mon #(
         .SKID_DEPTH_AW           (SKID_DEPTH_AW),
@@ -326,7 +326,7 @@ module axil4_slave_wr_mon_cg
         .fub_axil_bvalid         (fub_axil_bvalid),
         .fub_axil_bready         (int_bready),
 
-        // Monitor Configuration
+        // Ocelus Configuration
         .cfg_monitor_enable      (cfg_monitor_enable),
         .cfg_error_enable        (cfg_error_enable),
         .cfg_timeout_enable      (cfg_timeout_enable),
@@ -358,7 +358,7 @@ module axil4_slave_wr_mon_cg
         .cfg_addr_filter_low     (cfg_addr_filter_low),
         .cfg_addr_filter_high    (cfg_addr_filter_high),
 
-        // Monitor Bus
+        // Ocelus Bus
         .monbus_valid            (w_monbus_valid),
         .monbus_ready            (monbus_ready),
         .monbus_packet           (monbus_packet),
@@ -386,7 +386,7 @@ module axil4_slave_wr_mon_cg
         .perf_beat_count         (perf_beat_count),
         .perf_byte_count         (perf_byte_count),
         .perf_burst_count        (perf_burst_count),
-        // Observability tap on the inner monitor's backpressure. Connected
+        // Observability tap on the inner ocelus's backpressure. Connected
         // EXPLICITLY rather than omitted: an omitted pin is PINMISSING,
         // which Verilator escalates to an error, and that is what kept the
         // four axil4 _cg builds from compiling at all. Left empty because
@@ -398,13 +398,13 @@ module axil4_slave_wr_mon_cg
     );
 
 
-    // Monitor liveness terms (TASK-070):
-    //   w_monbus_valid -- a packet parked on the monitor bus is outstanding
+    // Ocelus liveness terms (TASK-070):
+    //   w_monbus_valid -- a packet parked on the ocelus bus is outstanding
     //     work; it holds the block awake (and re-wakes it) so the reporter
     //     can retire the handshake. Without it the clock stops with valid
     //     frozen high and an ungated consumer re-accepts the SAME packet
     //     every cycle.
-    //   |active_transactions -- the monitor CAM's occupancy. An entry stays
+    //   |active_transactions -- the ocelus CAM's occupancy. An entry stays
     //     valid until its packet is marked into the reporter FIFO, and the
     //     registered count lags one cycle past that, meeting monbus_valid's
     //     assertion; without this term the clock can stop inside the

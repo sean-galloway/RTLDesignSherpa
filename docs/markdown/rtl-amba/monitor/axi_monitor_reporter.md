@@ -32,7 +32,7 @@
 - `axi_monitor_reporter_perf.sv` — legacy perf-rollup packets (completion/error lifetime counters + 5-state FSM)
 - `axi_monitor_reporter_debug.sv` — debug-packet generation
 
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Core Infrastructure
 **Status:** Production Ready (refactored to sub-blocks 2026-06-06)
 
@@ -116,7 +116,7 @@ What the dispatcher actually provides:
 
 ## Ports
 
-All ports, from `rtl/amba/monitor/axi_monitor_reporter.sv`.
+All ports, from `rtl/amba/ocelus/axi_monitor_reporter.sv`.
 
 **Clock and reset**
 
@@ -335,7 +335,7 @@ marking and counting.
 
 - **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
 - **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
-- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 
 ---
 

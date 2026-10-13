@@ -77,7 +77,7 @@ design.
 | ecc-ip/reed-solomon | Owner-confirmed 1.0; Genesys-2 board validation complete | README has stale "no RTL yet" line — see note 1 |
 | fabric-gen-ip/apbx-xbar | README/PRD "Production Ready" v1.0; formal harnesses; 9/9 tests, >750 transactions | apbx HAS/MAS |
 | fabric-gen-ip/bridge | Owner-confirmed Done 2026-10-11; 1.0 + AXI3 support; HAS/MAS v1.9 | Follow-ups #98/#99 + TASK-014/015/016 tracked as issues — see note 2 |
-| retro_legacy_blocks | README "Version: 1.0", 10 shipped address windows | RLB TOP MAS v1.0 + per-block MAS |
+| legacy-ip/retro_legacy_blocks | README "Version: 1.0", 10 shipped address windows | RLB TOP MAS v1.0 + per-block MAS |
 | riscv-ip/kestrel-rv32i | rv32ui battery 42/42 spike lockstep; riscv-formal 42/42; doc book v0.1 | KESTREL HAS/MAS v0.1 |
 | utility-ip/converters | README "Production Ready" v1.2; converter MAS v1.9; AXI3 suite landed | AxLOCK fix tracked as #98 — see note 2 |
 | utility-ip/misc | README "Five complete utility modules" v1.2 | Includes the error injector |

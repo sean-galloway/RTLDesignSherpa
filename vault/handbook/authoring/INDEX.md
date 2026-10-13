@@ -11,8 +11,11 @@ summary: Documentation practice - external review rounds, voice, and the generat
 - [[doc-placement]] - what kind of doc lives where; a beside-code README is a
   link, not a second copy; methodology never in the RTL tree
 - [[spec-doc-standards]] - HAS/MAS book formatting: section page breaks,
-  build-stamped title pages, mermaid diagrams, ASCII trees, wavedrom
+  build-stamped title pages, graphviz block diagrams, ASCII trees, wavedrom
   waveforms, caption encoding
+- [[block-diagrams]] - BINDING repo-wide diagram house style (owner,
+  2026-10-11): graphviz dot, every flow traceable at a glance, labeled
+  arrows, one boundary bar, wide-edge-up trapezium, render-then-read
 - [[module-doc-template]] - the standard section structure for a per-module
   docs/markdown/*.md page (moved out of the RTL tree 2026-07-24)
 - [[commit-messages]] - no attribution trailer, ever; the rule lived outside

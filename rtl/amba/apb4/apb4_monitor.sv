@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: apb4_monitor
-// Purpose: Apb Monitor module
+// Purpose: Apb Ocelus module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -16,10 +16,10 @@
 `timescale 1ns / 1ps
 
 /**
- * APB Monitor - Configurable Performance, Debug and Error Monitoring
+ * APB Ocelus - Configurable Performance, Debug and Error Monitoring
  *
  * This module monitors APB transactions via cmd/rsp interfaces for errors,
- * performance metrics, and debug events. It integrates with the monitor bus
+ * performance metrics, and debug events. It integrates with the ocelus bus
  * system and supports configurable event reporting.
  *
  * Designed to attach to the cmd/rsp interfaces which are timing-convenient
@@ -34,14 +34,14 @@ module apb4_monitor
     // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
     // Vivado flags the duplicates as ambiguous under wildcard imports.
 #(
-    parameter bit USE_MONITOR         = 1'b1,  // 0 = omit monitor body, tie outputs
+    parameter bit USE_MONITOR         = 1'b1,  // 0 = omit ocelus body, tie outputs
     parameter int N_ADDR_RANGES       = 0,     // 0 = address-range checker disabled
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,
     parameter logic [7:0]  UNIT_ID    = 8'h01,     // 8-bit Unit ID
     parameter logic [15:0] AGENT_ID   = 16'h000A,  // 16-bit Agent ID
     parameter int MAX_TRANSACTIONS    = 4,     // APB is typically single outstanding
-    parameter int MONITOR_FIFO_DEPTH  = 8,    // Monitor packet FIFO depth
+    parameter int MONITOR_FIFO_DEPTH  = 8,    // Ocelus packet FIFO depth
 
     // Short params
     parameter int AW                  = ADDR_WIDTH,
@@ -96,13 +96,13 @@ module apb4_monitor
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_high,
 
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Consolidated 128-bit event packet interface (monitor bus)
-    output logic                                    monbus_valid,            // Monitor bus valid
-    input  logic                                    monbus_ready,            // Monitor bus ready
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Consolidated monitor packet (128-bit)
+    // Consolidated 128-bit event packet interface (ocelus bus)
+    output logic                                    monbus_valid,            // Ocelus bus valid
+    input  logic                                    monbus_ready,            // Ocelus bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Consolidated ocelus packet (128-bit)
     output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     // Status outputs
@@ -112,10 +112,10 @@ module apb4_monitor
 );
 
     // -------------------------------------------------------------------------
-    // Monitor body (optional, USE_MONITOR)
+    // Ocelus body (optional, USE_MONITOR)
     // -------------------------------------------------------------------------
-    // USE_MONITOR=1: full monitor pipeline synthesised below.
-    // USE_MONITOR=0: monitor omitted; outputs tied to safe non-blocking
+    // USE_MONITOR=1: full ocelus pipeline synthesised below.
+    // USE_MONITOR=0: ocelus omitted; outputs tied to safe non-blocking
     //   defaults so the rest of the system runs at full APB throughput.
     //   See gen_no_monitor block near the endmodule.
     if (USE_MONITOR) begin : gen_monitor
@@ -180,7 +180,7 @@ module apb4_monitor
     apb_error_code_t w_error_event_code;
     apb_timeout_code_t w_timeout_event_code;
 
-    // Monitor packet FIFO
+    // Ocelus packet FIFO
     typedef struct packed {
         logic [3:0]  packet_type;
         logic [3:0]  event_code;
@@ -386,7 +386,7 @@ module apb4_monitor
             // reads terminal one cycle later -- so gating this mark on
             // w_fifo_wr_valid && w_fifo_wr_ready leaked the slot whenever
             // the packet was dropped (FIFO full) or never generated (event
-            // class disabled), wedging the monitor after MAX_TRANSACTIONS
+            // class disabled), wedging the ocelus after MAX_TRANSACTIONS
             // losses. Whether the packet made it or not, it will never fire
             // again: free the slot (lossy-but-honest, the AXI family's
             // auto-retire shape).
@@ -462,7 +462,7 @@ module apb4_monitor
             // Orphan response: a response with NO tracked transaction open.
             // Checked against the TABLE, not the 2-state cmd/rsp FSM -- the
             // old FSM-based checks fired on ordinary pipelined traffic
-            // (command N+1 while response N pending), which this monitor's
+            // (command N+1 while response N pending), which this ocelus's
             // own MAX_TRANSACTIONS table explicitly supports (TASK-069).
             if (rsp_valid && !w_has_active_trans) begin
                 w_protocol_violation = 1'b1;
@@ -557,7 +557,7 @@ module apb4_monitor
     end
 
     // -------------------------------------------------------------------------
-    // Monitor Packet FIFO
+    // Ocelus Packet FIFO
     // -------------------------------------------------------------------------
     gaxi_fifo_sync #(
         // Mux read: rd_data is valid IN the clock of the rd_valid/rd_ready
@@ -630,10 +630,10 @@ module apb4_monitor
 
 
     // -------------------------------------------------------------------------
-    // Monitor Bus Packet Construction and Skid Buffer Output
+    // Ocelus Bus Packet Construction and Skid Buffer Output
     // -------------------------------------------------------------------------
 
-    // Monitor bus packet construction and buffering (128-bit packet + 64-bit ts)
+    // Ocelus bus packet construction and buffering (128-bit packet + 64-bit ts)
     logic                                    w_monbus_pkt_valid;
     logic                                    w_monbus_pkt_ready;
     monitor_common_pkg::monitor_packet_t     w_monbus_pkt_data;
@@ -711,7 +711,7 @@ module apb4_monitor
     assign w_fifo_rd_ready   = w_monbus_pkt_ready && w_fifo_rd_valid;
     assign w_addr_pkt_ready  = w_monbus_pkt_ready && !w_fifo_rd_valid;
 
-    // Monitor bus output skid buffer — carries {packet[128], timestamp[64]}.
+    // Ocelus bus output skid buffer — carries {packet[128], timestamp[64]}.
     localparam int MONBUS_TOTAL_W =
         monitor_common_pkg::MONBUS_PKT_WIDTH + monitor_common_pkg::MONBUS_TS_WIDTH;
 
@@ -741,7 +741,7 @@ module apb4_monitor
     assign monbus_timestamp = w_skid_rd_data[monitor_common_pkg::MONBUS_TS_WIDTH-1 : 0];
 
     end else begin : gen_no_monitor
-        // Monitor omitted: tie outputs to non-blocking defaults.
+        // Ocelus omitted: tie outputs to non-blocking defaults.
         assign monbus_valid      = 1'b0;
         assign monbus_packet     = '0;
         assign monbus_timestamp  = '0;

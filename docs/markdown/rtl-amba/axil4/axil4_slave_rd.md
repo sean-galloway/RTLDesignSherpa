@@ -190,7 +190,7 @@ Legal depth range is 2..8 inclusive, odd values included.
 
 - **[axil4_slave_wr](axil4_slave_wr.md)** - Slave write counterpart
 - **[axil4_master_rd](axil4_master_rd.md)** - Master read interface
-- **[axil4_slave_rd_mon](../axil4/axil4_slave_rd_mon.md)** - Slave read with monitoring (`rtl/amba/monitor/`)
+- **[axil4_slave_rd_mon](../axil4/axil4_slave_rd_mon.md)** - Slave read with monitoring (`rtl/amba/ocelus/`)
 - **[axil4_slave_rd_cg](axil4_clock_gating_guide.md)** - Clock-gated version
 
 ---

@@ -23,7 +23,7 @@
 # AXIS Monitor Lite
 
 **Module:** `axis_monitor_lite.sv`
-**Location:** `rtl/amba/monitor/axis_monitor_lite.sv`
+**Location:** `rtl/amba/ocelus/axis_monitor_lite.sv`
 **Category:** Monitor Infrastructure
 **Status:** Built, formally checked and verified in simulation, with the eight `axis{4,5}_{master,slave}_monlite[_cg]` wrappers (amba/monitor-lite TASK-003, closed 2026-09-27). Standalone area from yosys only; no Vivado fixture build yet.
 
@@ -31,7 +31,7 @@
 
 ## Overview
 
-The first AXI4-Stream monitor in `rtl/amba/monitor`. The `_mon` family and
+The first AXI4-Stream monitor in `rtl/amba/ocelus`. The `_mon` family and
 its `_monlite` twin cover AXI4, AXI5 and both AXI-Lite generations because
 `axi_monitor_base` and `axi_monitor_lite` are transaction trackers: a command
 handshake opens a table entry, data beats and a response close it. A stream

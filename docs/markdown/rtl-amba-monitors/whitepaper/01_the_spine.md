@@ -29,7 +29,7 @@ sinks that stream into two paths: an error FIFO the host reads over
 AXI-Lite behind an interrupt, and a write FIFO the group flushes as AXI
 bursts into a memory ring. Filtering happens at the group, per protocol and
 per packet type. The packet layout is fixed
-([monitor_package_spec.md](../../rtl-amba/includes/monitor_package_spec.md)); everything
+([monitor_package_spec.md](../../rtl-amba/includes/ocelus_package_spec.md)); everything
 else on this page is a knob.
 
 ![Monitor system spine: ports, arbiter tree, group, two drains](../../assets/rtl-amba/monitor_wp_spine.png)

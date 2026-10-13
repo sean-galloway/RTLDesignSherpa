@@ -17,16 +17,16 @@
 
 /*
 ================================================================================
-Arbiter Monitor Bus Common - Silicon Debug Monitor
+Arbiter Ocelus Bus Common - Silicon Debug Ocelus
 ================================================================================
 
-This arbiter monitor provides comprehensive monitoring and debug capabilities
+This arbiter ocelus provides comprehensive monitoring and debug capabilities
 for both RR and WRR arbiters with optional ACK protocol support using the
 PROTOCOL_ARB event definitions.
 
 It SNOOPS an external arbiter (request / grant_valid / grant / grant_id /
 grant_ack / block_arb are all inputs) and emits its own telemetry packets --
-it performs NO arbitration and has no stream-merge inputs. The N:1 monitor-bus
+it performs NO arbitration and has no stream-merge inputs. The N:1 ocelus-bus
 merge is a different module, monbus_arbiter.
 
 PACKET FORMAT: the emitted packet is monitor_common_pkg::monitor_packet_t --
@@ -37,7 +37,7 @@ here. This banner previously carried a hand-copied 60-bit layout
 obsolete for two format revisions, and the docs were written from it -- so the
 layout lives in exactly one place now (qc round_24).
 
-Monitor Events Generated:
+Ocelus Events Generated:
 1. ARB Error Events: Starvation, ACK timeout, protocol violations, etc.
 2. ARB Timeout Events: Grant ACK timeout, request hold timeout, etc.
 3. ARB Completion Events: Grant issued, ACK received, transactions complete
@@ -92,7 +92,7 @@ module arbiter_monbus_common #(
     input  logic [CLIENTS-1:0]            grant_ack,         // Grant ACK signals
     input  logic                          block_arb,         // Arbiter is blocked (optional)
 
-    // Monitor bus configuration
+    // Ocelus bus configuration
     input  logic                          cfg_mon_enable,
     input  logic [15:0]                   cfg_mon_pkt_type_enable,
     input  logic [15:0]                   cfg_mon_latency_thresh,
@@ -103,10 +103,10 @@ module arbiter_monbus_common #(
     input  logic [15:0]                   cfg_mon_efficiency_thresh,    // Grant efficiency threshold
     input  logic [7:0]                    cfg_mon_sample_period,
 
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
 
-    // Monitor bus output - 128-bit event packet + side-band timestamp
+    // Ocelus bus output - 128-bit event packet + side-band timestamp
     output logic                          monbus_valid,
     input  logic                          monbus_ready,
     output monitor_common_pkg::monitor_packet_t   monbus_packet,
@@ -120,10 +120,10 @@ module arbiter_monbus_common #(
     output logic [15:0]                     debug_grant_efficiency,    // Grant efficiency percentage
     output logic [CLIENTS-1:0]              debug_client_starvation,   // Per-client starvation flags
     output logic [15:0]                     debug_fairness_deviation,  // Fairness deviation metric
-    output logic [2:0]                      debug_monitor_state        // Monitor internal state
+    output logic [2:0]                      debug_monitor_state        // Ocelus internal state
 );
 
-    // Import monitor package for event types and helper functions
+    // Import ocelus package for event types and helper functions
     import monitor_common_pkg::*;
     import monitor_amba4_pkg::*;
     import monitor_arbiter_pkg::*;
@@ -216,7 +216,7 @@ module arbiter_monbus_common #(
     endgenerate
 
     // =========================================================================
-    // Monitor State and Counters (Registered)
+    // Ocelus State and Counters (Registered)
     // =========================================================================
 
     // Original counters
@@ -242,7 +242,7 @@ module arbiter_monbus_common #(
     logic [CLIENTS-1:0]                   r_ack_pending;
     logic [CLIENTS-1:0]                   r_ack_timeout_detected;
 
-    // Monitor state machine
+    // Ocelus state machine
     typedef enum logic [2:0] {
         MON_IDLE      = 3'b000,  // Monitoring disabled
         MON_ACTIVE    = 3'b001,  // Normal monitoring
@@ -271,7 +271,7 @@ module arbiter_monbus_common #(
     logic [N-1:0]                         r_completion_client;
 
     // =========================================================================
-    // Event Detection Combinational Logic - WITH MONITOR ENABLE GATING
+    // Event Detection Combinational Logic - WITH OCELUS ENABLE GATING
     // =========================================================================
 
     // Initialize the padding to zero
@@ -347,7 +347,7 @@ module arbiter_monbus_common #(
     // Grant without request detection
     assign w_grant_without_request = grant_valid && ((grant & request) != grant);
 
-    // Combined protocol violation with monitor enable gating
+    // Combined protocol violation with ocelus enable gating
     assign w_protocol_violation_detected = cfg_mon_enable &&
                             (w_multiple_grants || w_spurious_ack || w_grant_without_request);
 
@@ -366,7 +366,7 @@ module arbiter_monbus_common #(
 
     assign w_efficiency_threshold_detected = cfg_mon_enable && (w_current_efficiency < cfg_mon_efficiency_thresh);
 
-    // Completion event detection with monitor enable gating
+    // Completion event detection with ocelus enable gating
     assign w_completion_event_detected = cfg_mon_enable &&
                                         ((WAIT_GNT_ACK == 0) ? (grant_valid && (|grant)) : (|grant_ack));
 
@@ -438,7 +438,7 @@ module arbiter_monbus_common #(
     endgenerate
 
     // =========================================================================
-    // Monitor State Machine
+    // Ocelus State Machine
     // =========================================================================
 
     `ALWAYS_FF_RST(clk, rst_n,
@@ -766,7 +766,7 @@ module arbiter_monbus_common #(
     always_comb begin
         // Default values
         w_packet_pkt_type    = 4'h0;
-        w_packet_protocol    = PROTOCOL_ARB;  // Always ARB protocol for this monitor
+        w_packet_protocol    = PROTOCOL_ARB;  // Always ARB protocol for this ocelus
         w_packet_event_code  = 8'h0;
         w_packet_channel_id  = 9'h0;
         w_packet_unit_id     = MON_UNIT_ID;   // Always use module's unit ID
@@ -879,7 +879,7 @@ module arbiter_monbus_common #(
 
     gaxi_fifo_sync #(
         .REGISTERED         (0),                    // 0 = mux mode
-        .DATA_WIDTH         (MONBUS_PKT_WIDTH),     // 128-bit monitor packets
+        .DATA_WIDTH         (MONBUS_PKT_WIDTH),     // 128-bit ocelus packets
         .DEPTH              (MON_FIFO_DEPTH),       // Configurable FIFO depth
         .ALMOST_WR_MARGIN   (MON_FIFO_ALMOST_MARGIN),
         .ALMOST_RD_MARGIN   (MON_FIFO_ALMOST_MARGIN)
@@ -896,7 +896,7 @@ module arbiter_monbus_common #(
     );
 
     // =========================================================================
-    // Monitor Bus Output Interface
+    // Ocelus Bus Output Interface
     // =========================================================================
 
     // Packet rides out of the FIFO; timestamp is sampled fresh on emission.

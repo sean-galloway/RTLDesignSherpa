@@ -526,7 +526,7 @@ def test_mon_cg_gating(dut_key, idle_count, profile):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'rtl/common',
         'rtl_includes': 'rtl/amba/includes',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_shared': 'rtl/amba/shared',
     })
 

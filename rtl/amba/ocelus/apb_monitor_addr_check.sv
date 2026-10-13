@@ -15,9 +15,9 @@
 `include "reset_defs.svh"
 
 /**
- * APB Monitor — Address-Range Violation Checker
+ * APB Ocelus — Address-Range Violation Checker
  *
- * Mirror of axi_monitor_addr_check for the APB monitor pipeline. Watches
+ * Mirror of axi_monitor_addr_check for the APB ocelus pipeline. Watches
  * the cmd_valid/cmd_ready handshake the apb4_monitor already snoops and
  * emits a PktTypeError packet with event code APB_ERR_ADDR_RANGE (8'h08)
  * when an accepted command's paddr falls within any of N configured
@@ -32,10 +32,10 @@
  *   - event_data[58: 0] = cmd_paddr (zero-padded if narrower than 59 bits)
  *
  * The is_read bit is preserved here (carve-out from the 60-bit address
- * slot) because APB has no separate AR/AW channels — the same monitor
+ * slot) because APB has no separate AR/AW channels — the same ocelus
  * sees both directions and consumers need a way to disambiguate. The
  * AXI variant drops this bit since direction is implied by which
- * monitor (AR vs AW) emitted the packet.
+ * ocelus (AR vs AW) emitted the packet.
  *
  * Side-band timestamp: same scheme as the AXI variant — sample
  * `i_mon_time` on emission, drive on `addr_pkt_timestamp`.

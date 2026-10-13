@@ -167,7 +167,7 @@ def test_axi4_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axi4_master_rd_monlite"
@@ -492,7 +492,7 @@ def test_axi4_master_rd_mon_wavedrom(id_width, addr_width, data_width):
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axi4_master_rd_monlite"

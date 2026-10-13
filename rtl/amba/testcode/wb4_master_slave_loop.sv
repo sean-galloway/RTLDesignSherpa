@@ -126,7 +126,7 @@ module wb4_master_slave_loop
 
     // ------------------------------------------------------------------------
     // Wishbone B4 pipelined protocol checks on the wires between the two.
-    // These are what a Wishbone BFM monitor would check; until one exists in
+    // These are what a Wishbone BFM ocelus would check; until one exists in
     // the framework they live here, in test collateral, not in the blocks.
     // ------------------------------------------------------------------------
     logic           r_stb_q, r_stall_q, r_cyc_q, r_we_q, r_term_q;

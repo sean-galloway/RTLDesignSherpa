@@ -38,7 +38,7 @@ transaction table saturated).
 ## Resolution (2026-07-21)
 
 The "suspected mechanism" below was correct in outline: the wedge was the
-monitor's `block_ready` latching low permanently once the transaction table
+ocelus's `block_ready` latching low permanently once the transaction table
 saturated. Two independent slot-leak mechanisms fed the saturation, both
 fixed:
 
@@ -62,13 +62,13 @@ fixed:
 This explains the observed signature: state accumulated across many mixed
 runs (each leak is permanent until reprogram), the `debug-compl` preset was
 implicated (enable toggling), and the per-run soft reset did not clear the
-monitor's transaction CAM. Regression: `val/amba/test_axi_monitor_trans_mgr.py`
+ocelus's transaction CAM. Regression: `val/amba/test_axi_monitor_trans_mgr.py`
 (`phase_saturation_recovers`), `val/amba/test_axi_monitor_runtime_disable.py`,
 and the 100-seed deliberately-undersized `test_stream_core_mon_backpressure`
 sweep.
 
 Note: a separate 8-channel STREAM **engine-side** wedge (params 7/9/11 of
-the multi-channel stress family) was later fixed and is NOT a monitor issue.
+the multi-channel stress family) was later fixed and is NOT a ocelus issue.
 8-channel STREAM builds are supported; there is no channel-count boundary.
 
 The original write-up is retained below for history.
@@ -141,7 +141,7 @@ data. So done-detection is *not* the problem — the transfer never starts.
 | fresh reprogram | **all 1–8 channel configs pass** (CRC=ok; `8desc_4ch` 8/8 consecutive; `hb_measure` 1–8ch sweep all ok) |
 | after a long mixed-run session (wedged) | some configs hang (observed 4–7 active ch under `debug-compl`); cleared only by reprogram |
 
-- Monitor preset of the *observed* wedged failures: `debug-compl`. Default
+- Ocelus preset of the *observed* wedged failures: `debug-compl`. Default
   preset never showed it.
 - The 4–7-fail / 1-2-3-8-pass pattern is a snapshot of the **wedged** state,
   not a clean-state property — it does not reproduce after reprogram.

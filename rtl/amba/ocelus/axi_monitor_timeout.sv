@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_monitor_timeout
-// Purpose: Axi Monitor Timeout module
+// Purpose: Axi Ocelus Timeout module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -16,7 +16,7 @@
 `timescale 1ns / 1ps
 
 /**
- * AXI Monitor Bus Timeout Detector
+ * AXI Ocelus Bus Timeout Detector
  *
  * This module monitors the transaction tracking table for potential timeout
  * conditions in each phase of AXI transactions (address, data, response).
@@ -213,8 +213,8 @@ module axi_monitor_timeout
     // (packets DO arrive, just not many); throughput of the class is not.
     //
     // Scope note: this file is shared rtl/amba, consumed by every *_mon variant
-    // and by pumice. Any change here needs the full monitor formal set plus the
-    // val/amba monitor subset, not just the Genesys 2 campaign.
+    // and by pumice. Any change here needs the full ocelus formal set plus the
+    // val/amba ocelus subset, not just the Genesys 2 campaign.
     // -------------------------------------------------------------------------
 
     // -------------------------------------------------------------------------

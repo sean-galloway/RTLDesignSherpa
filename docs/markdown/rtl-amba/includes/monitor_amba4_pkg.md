@@ -26,7 +26,7 @@
 This is the per-protocol event-code reference for the AMBA4 family — AXI4 /
 AXI4-Lite, APB4, and AXI4-Stream. The 8-bit `event_code` field of every
 monbus packet sourced by an AMBA4 monitor takes its value from one of the
-enums defined in `rtl/amba/includes/monitor_amba4_pkg.sv` and listed below.
+enums defined in `rtl/amba/includes/ocelus_amba4_pkg.sv` and listed below.
 For the universal packet layout, `protocol` / `packet_type` enums, and
 helper functions see
 [`monitor_package_spec.md`](./monitor_package_spec.md).

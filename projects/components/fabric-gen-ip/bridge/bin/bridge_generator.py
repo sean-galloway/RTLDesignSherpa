@@ -1289,7 +1289,7 @@ def _emit_bridge_variant(
             # protocol wrapper itself. Pulling the wrapper .sv in by hand
             # here is how this filelist ended up pointing at the pre-move
             # rtl/amba/shared/ path after the wrapper moved to
-            # rtl/amba/monitor/ -- the component filelist tracks its own
+            # rtl/amba/ocelus/ -- the component filelist tracks its own
             # files, so that class of drift cannot recur.
             group_fl = f"-f $REPO_ROOT/rtl/amba/filelists/{module_name}.f"
             if group_fl not in filelist_lines:

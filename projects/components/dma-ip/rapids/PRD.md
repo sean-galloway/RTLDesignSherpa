@@ -1073,7 +1073,7 @@ The shell scripts will automatically:
 
 ### 16.2 Related Subsystems
 
-- **AMBA:** `rtl/amba/` - Monitor infrastructure used in RAPIDS (monitors in `rtl/amba/monitor/`)
+- **AMBA:** `rtl/amba/` - Monitor infrastructure used in RAPIDS (monitors in `rtl/amba/ocelus/`)
 - **Common:** `rtl/common/` - Building blocks (counters, FIFOs, etc.)
 - **CocoTB Framework:** `bin/TBClasses/` (shared) + `projects/components/dma-ip/rapids/dv/tbclasses/` (RAPIDS)
 

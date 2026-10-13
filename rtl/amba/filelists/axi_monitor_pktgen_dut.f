@@ -7,17 +7,17 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
+$REPO_ROOT/rtl/amba/includes/ocelus_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/ocelus_amba4_pkg.sv
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_timeout.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_error.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_timeout.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_compl.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_threshold.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_perf.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_debug.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_timeout.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_error.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_timeout.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_compl.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_threshold.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_perf.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_debug.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter.sv
 $REPO_ROOT/val/amba/axi_monitor_pktgen_dut.sv

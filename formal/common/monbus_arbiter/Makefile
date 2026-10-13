@@ -10,11 +10,11 @@
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv
 SRCS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
         $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv
+        $(REPO_ROOT)/rtl/amba/ocelus/monbus_arbiter.sv
 TMPDIR := /tmp/formal_monbus_arbiter
 
 .PHONY: prove cover all clean

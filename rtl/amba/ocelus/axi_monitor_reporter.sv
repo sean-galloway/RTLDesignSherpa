@@ -466,7 +466,7 @@ module axi_monitor_reporter
     //
     // "Reported" means "nothing further is owed for this entry", so an entry
     // that no enabled sub-block can ever emit is reported the moment it
-    // reaches a terminal state. This keeps the monitor passive, which is what
+    // reaches a terminal state. This keeps the ocelus passive, which is what
     // a perf-only build is documented to be.
     //
     // This mask deliberately does NOT feed w_error_events / w_completion_events
@@ -737,7 +737,7 @@ module axi_monitor_reporter
                           !thresh_valid && !perf_valid;
 
     // -------------------------------------------------------------------------
-    // Construct the 128-bit monitor bus packet via package helper.
+    // Construct the 128-bit ocelus bus packet via package helper.
     // -------------------------------------------------------------------------
     always_comb begin
         monbus_packet = create_monitor_packet(

@@ -19,15 +19,15 @@
 # =============================================================================
 # PACKAGES (MUST BE FIRST - ORDER MATTERS FOR DEPENDENCIES)
 # =============================================================================
-# Monitor packages - must be in dependency order
-$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
+# Ocelus packages - must be in dependency order
+$REPO_ROOT/rtl/amba/includes/ocelus_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/ocelus_arbiter_pkg.sv
+$REPO_ROOT/rtl/amba/includes/ocelus_amba4_pkg.sv
+$REPO_ROOT/rtl/amba/includes/ocelus_amba5_pkg.sv
+$REPO_ROOT/rtl/amba/includes/ocelus_pkg.sv
 # monitor_wb4_pkg is NOT re-exported by monitor_pkg (only wb4_monitor imports
 # it), but the lint gate needs it declared before that module is elaborated.
-$REPO_ROOT/rtl/amba/includes/monitor_wb4_pkg.sv
+$REPO_ROOT/rtl/amba/includes/ocelus_wb4_pkg.sv
 # Protocol packages
 $REPO_ROOT/rtl/amba/wb4/wb4_pkg.sv
 
@@ -54,26 +54,26 @@ $REPO_ROOT/rtl/amba/shared/sdpram_slave_axil_axil.sv
 
 # =============================================================================
 $REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv
-$REPO_ROOT/rtl/amba/monitor/arbiter_monbus_common.sv
-$REPO_ROOT/rtl/amba/monitor/arbiter_rr_pwm_monbus.sv
-$REPO_ROOT/rtl/amba/monitor/arbiter_wrr_pwm_monbus.sv
+$REPO_ROOT/rtl/amba/ocelus/arbiter_monbus_common.sv
+$REPO_ROOT/rtl/amba/ocelus/arbiter_rr_pwm_monbus.sv
+$REPO_ROOT/rtl/amba/ocelus/arbiter_wrr_pwm_monbus.sv
 $REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv
 $REPO_ROOT/rtl/amba/shared/axi_master_rd_splitter.sv
 $REPO_ROOT/rtl/amba/shared/axi_master_wr_splitter.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_base.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_filtered.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_compl.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_debug.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_error.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_perf.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_threshold.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_timeout.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_timeout.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_timer.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_trans_mgr.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_base.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_filtered.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_compl.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_debug.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_error.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_perf.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_threshold.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_reporter_timeout.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_timeout.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_timer.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_trans_mgr.sv
 $REPO_ROOT/rtl/amba/shared/axi_split_combi.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_arbiter.sv
 
 # =============================================================================
 # GAXI - Generic AXI Utilities (FIFOs, Skid Buffers)
@@ -263,7 +263,7 @@ $REPO_ROOT/rtl/amba/ace/axi4ace_snoop_master.sv
 $REPO_ROOT/rtl/amba/ace/axi4ace_snoop_master_monlite.sv
 $REPO_ROOT/rtl/amba/ace/axi4ace_snoop_slave.sv
 $REPO_ROOT/rtl/amba/ace/axi4ace_snoop_slave_monlite.sv
-$REPO_ROOT/rtl/amba/monitor/axi4ace_snoop_monitor_lite.sv
+$REPO_ROOT/rtl/amba/ocelus/axi4ace_snoop_monitor_lite.sv
 
 # =============================================================================
 # AXIS5 - AXI Stream v5
@@ -282,10 +282,10 @@ $REPO_ROOT/rtl/amba/axis5/axis5_slave_cg.sv
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
 
 # =============================================================================
-# MONITOR SUBSYSTEM (protocol monitors, monbus, CAM)
+# OCELUS SUBSYSTEM (protocol monitors, monbus, CAM)
 # =============================================================================
 $REPO_ROOT/rtl/amba/apb5/apb5_monitor.sv
-$REPO_ROOT/rtl/amba/monitor/apb_monitor_addr_check.sv
+$REPO_ROOT/rtl/amba/ocelus/apb_monitor_addr_check.sv
 $REPO_ROOT/rtl/amba/axi5/axi5_master_rd_mon.sv
 $REPO_ROOT/rtl/amba/axi5/axi5_master_rd_mon_cg.sv
 $REPO_ROOT/rtl/amba/axi5/axi5_master_wr_mon.sv
@@ -294,20 +294,20 @@ $REPO_ROOT/rtl/amba/axi5/axi5_slave_rd_mon.sv
 $REPO_ROOT/rtl/amba/axi5/axi5_slave_rd_mon_cg.sv
 $REPO_ROOT/rtl/amba/axi5/axi5_slave_wr_mon.sv
 $REPO_ROOT/rtl/amba/axi5/axi5_slave_wr_mon_cg.sv
-$REPO_ROOT/rtl/amba/monitor/axi_monitor_addr_check.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_axi4_axi4_group.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_axi4_axil4_group.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_axil4_axi4_group.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_axil4_axil4_group.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_wb4_axi4_group.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_wb4_axil4_group.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_wb4_rd_shim.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_cam_pipe.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_group_core.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_halfbeat_packer.sv
-$REPO_ROOT/rtl/amba/monitor/monitor_trans_cam.sv
+$REPO_ROOT/rtl/amba/ocelus/axi_monitor_addr_check.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_axi4_axi4_group.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_axi4_axil4_group.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_axil4_axi4_group.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_axil4_axil4_group.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_wb4_axi4_group.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_wb4_axil4_group.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_wb4_rd_shim.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_cam.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_cam_pipe.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_compressor.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_group_core.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_halfbeat_packer.sv
+$REPO_ROOT/rtl/amba/ocelus/monitor_trans_cam.sv
 
 # End of filelist
 # ==============================================================================

@@ -11,8 +11,8 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
        -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies (full transitive closure)
@@ -25,7 +25,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/monbus_arbiter.sv \
         $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/dma_address_gen.sv \
         $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv \

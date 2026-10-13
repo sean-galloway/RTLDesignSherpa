@@ -17,7 +17,7 @@
 """
 MonBus Arbiter Grant-Hold Regression
 
-Targets `rtl/amba/monitor/monbus_arbiter.sv`.
+Targets `rtl/amba/ocelus/monbus_arbiter.sv`.
 
 WHY THIS TEST EXISTS
 --------------------
@@ -174,7 +174,7 @@ def test_monbus_arbiter_grant_hold(request, test_type, clients,
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
-        'rtl_monitor':  'rtl/amba/monitor',
+        'rtl_monitor':  'rtl/amba/ocelus',
         'rtl_gaxi':     'rtl/amba/gaxi',
         'rtl_common':   'rtl/common',
     })

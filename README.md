@@ -66,7 +66,7 @@ build understanding from the ground up.
 Guided progression from primitives to systems. Each level links to the corresponding section in [Browse by Class](#browse-by-class) below — every entry is a real link (works on mobile and desktop alike).
 
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
-- **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
+- **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/ocelus/) · [Shared observation](rtl/amba/shared/)
 - **Level 3 — [Production Components](projects/components/)** · [STREAM](projects/components/dma-ip/stream/) · [RAPIDS](projects/components/dma-ip/rapids/) · [Bridge](projects/components/fabric-gen-ip/bridge/) · [APB xbar](projects/components/fabric-gen-ip/apbx-xbar/) · [Delta](projects/components/fabric-gen-ip/delta/) · [Memory controllers](projects/components/mem-ctrl-ip/) · [Reed-Solomon](projects/components/ecc-ip/reed-solomon/) · [BCH](projects/components/ecc-ip/bch/) · [kestrel](projects/components/riscv-ip/kestrel-rv32i/) · [amber](projects/components/cache-ip/amber-mesi-l1/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Converters](projects/components/utility-ip/converters/)
 - **Level 4 — [FPGA Projects](projects/fpga-systems/)** · Nexys A7: [cdc_counter_display](projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display/) · [pumice](projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/) · [bch loopback (small profile)](projects/fpga-systems/NexysA7/ecc-ip/bch/) · [reed-solomon loopback (small profile)](projects/fpga-systems/NexysA7/ecc-ip/reed-solomon/) · Genesys 2: [bch loopback](projects/fpga-systems/Genesys2/ecc-ip/bch/) · [reed-solomon loopback](projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/) · [stream](projects/fpga-systems/Genesys2/dma-ip/stream/) · [rapids](projects/fpga-systems/Genesys2/dma-ip/rapids/) · [scoria](projects/fpga-systems/Genesys2/mem-ctrl-ip/scoria/) · [asic-trials](projects/asic-trials/timing_characterization/) — the ECC loopbacks share one harness per codec; the Nexys A7 entry points forward to it with the small profile preset (`BCH_PROFILE=small` → BCH(248,224) t=3, `RS_PROFILE=small` → RS(64,56) t=4, both at 50 MHz)
 
@@ -158,7 +158,7 @@ stalls the port.
 
 | Building block | Where |
 |---|---|
-| Monitor cores, reporters, addr-check CAMs, MonBus arbiters | [`rtl/amba/monitor/`](rtl/amba/monitor/) |
+| Monitor cores, reporters, addr-check CAMs, MonBus arbiters | [`rtl/amba/ocelus/`](rtl/amba/ocelus/) |
 | Lite-monitor wrappers (`*_monlite`, `*_monlite_cg`) — ~1/5 the monitor gates, same MonBus packets, never stall | [`rtl/amba/axi4/`](rtl/amba/axi4/) · [`rtl/amba/axil4/`](rtl/amba/axil4/) · [`rtl/amba/axis4/`](rtl/amba/axis4/) ([wrapper doc](docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md)) |
 | Interface observers (master/slave), MonBus capture groups (AXIL/AXI4), shared observation utilities | [`rtl/amba/shared/`](rtl/amba/shared/) |
 | Tally / CAM agents (`monbus_tally_axil`, `axi4_intf_*_observer`) | [`projects/components/utility-ip/misc/`](projects/components/utility-ip/misc/) |
@@ -415,8 +415,8 @@ apb4_slave #(
 
 #### Shared Infrastructure
 - **[GAXI Buffers](rtl/amba/gaxi/)** - Generic skid buffers, FIFOs, CDC
-- **[Monitors](rtl/amba/monitor/)** - Transaction monitoring, performance analysis
-- **[Arbiters](rtl/amba/monitor/)** - Advanced arbitration for monitor buses
+- **[Monitors](rtl/amba/ocelus/)** - Transaction monitoring, performance analysis
+- **[Arbiters](rtl/amba/ocelus/)** - Advanced arbitration for monitor buses
 
 **Tests:** [`val/amba/`](val/amba/) - Protocol compliance and integration tests
 

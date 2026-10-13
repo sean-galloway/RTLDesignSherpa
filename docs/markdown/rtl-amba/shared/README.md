@@ -34,7 +34,7 @@ inventory with RTL-extracted notes is
 ## What is NOT here
 
 - **CDC.** `cdc_2_phase_handshake`, `cdc_4_phase_handshake`, `cdc_open_loop` and `cdc_synchronizer` live in `rtl/cdc/`, documented in the [rtl-cdc book](../../rtl-cdc/overview.md). Nothing in this directory documents them anymore.
-- **Monitor internals.** `monbus_arbiter`, `monbus_group_core`, `monbus_compressor` and the monitor taps live in `rtl/amba/monitor/`, documented under [../monitor/](../monitor/monbus_group.md). One width fact worth pinning because the old copy here got it wrong twice: the monitor packet is **128 bits** with a **64-bit side-band timestamp** (192 bits per client through the arbiter skids).
+- **Monitor internals.** `monbus_arbiter`, `monbus_group_core`, `monbus_compressor` and the monitor taps live in `rtl/amba/ocelus/`, documented under [../monitor/](../monitor/monbus_group.md). One width fact worth pinning because the old copy here got it wrong twice: the monitor packet is **128 bits** with a **64-bit side-band timestamp** (192 bits per client through the arbiter skids).
 
 ## Known sharp edges
 

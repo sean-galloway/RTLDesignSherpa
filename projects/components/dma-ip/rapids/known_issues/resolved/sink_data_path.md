@@ -124,8 +124,8 @@ Implementation" list asks for.
 
 Where that machinery lives:
 
-- `rtl/amba/monitor/axi_monitor_timer.sv` -- per-transaction duration timing.
-- `rtl/amba/monitor/axi_monitor_reporter_timeout.sv` -- "Timeout-packet
+- `rtl/amba/ocelus/axi_monitor_timer.sv` -- per-transaction duration timing.
+- `rtl/amba/ocelus/axi_monitor_reporter_timeout.sv` -- "Timeout-packet
   detection cone (split out of axi_monitor_reporter so integrators can drop it
   with ENABLE_TIMEOUT_LOGIC=0)". It scans for unreported ERROR slots the timer
   flagged via `timeout_detected[idx]`, priority-encodes the first match, and

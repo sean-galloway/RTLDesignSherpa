@@ -17,7 +17,7 @@
 
 /*
 ================================================================================
-WEIGHTED ROUND-ROBIN ARBITER WITH PWM AND MONITOR BUS (VERSION 2 - STANDARDIZED)
+WEIGHTED ROUND-ROBIN ARBITER WITH PWM AND OCELUS BUS (VERSION 2 - STANDARDIZED)
 ================================================================================
 
 This module combines a weighted round-robin arbiter with PWM control and
@@ -35,20 +35,20 @@ USER-CONFIGURABLE PARAMETERS:
 - MAX_LEVELS: Maximum weight levels per client (1-64)
 - CLIENTS: Number of arbitration clients (1-64)
 - WAIT_GNT_ACK: Acknowledge protocol enable (0 or 1)
-- MON_AGENT_ID: Monitor agent identifier (8-bit, default 8'h10)
-- MON_UNIT_ID: Monitor unit identifier (4-bit, default 4'h0)
+- MON_AGENT_ID: Ocelus agent identifier (8-bit, default 8'h10)
+- MON_UNIT_ID: Ocelus unit identifier (4-bit, default 4'h0)
 
 Key Features:
 - Weighted round-robin arbitration with configurable client priorities
 - PWM-based arbiter blocking for periodic control (16-bit resolution)
-- Comprehensive monitoring via shared monitor bus component
+- Comprehensive monitoring via shared ocelus bus component
 - Configurable weight thresholds per client
 - Real-time performance and fairness tracking
 - Fixed internal sizing for consistency and predictability
 
 Architecture:
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Weighted RR    │    │  PWM Generator  │    │  Monitor Bus    │
+│  Weighted RR    │    │  PWM Generator  │    │  Ocelus Bus    │
 │  Arbiter        │    │                 │    │  Common         │
 │                 │◄───│  block_arb      │    │                 │
 │  • Weight-based │    │  • 16-bit res   │    │  • Event detect │
@@ -59,7 +59,7 @@ Architecture:
          └───────────────────────┼───────────────────────┘
                                  │
                         ┌─────────────────┐
-                        │ 128-bit Monitor │
+                        │ 128-bit Ocelus │
                         │  Bus Output     │
                         └─────────────────┘
 
@@ -71,7 +71,7 @@ Weight Configuration:
 */
 
 module arbiter_wrr_pwm_monbus #(
-    // Monitor enable: 1 = telemetry on, 0 = omit monbus block (arbiter+PWM stay).
+    // Ocelus enable: 1 = telemetry on, 0 = omit monbus block (arbiter+PWM stay).
     parameter bit USE_MONITOR = 1'b1,
 
     // User-configurable arbiter parameters
@@ -79,16 +79,16 @@ module arbiter_wrr_pwm_monbus #(
     parameter int CLIENTS = 4,                      // Number of arbitration clients (1-64)
     parameter int WAIT_GNT_ACK = 0,                 // Acknowledge protocol: 0=disable, 1=enable
 
-    // User-configurable monitor identification (widened for 128-bit packet)
+    // User-configurable ocelus identification (widened for 128-bit packet)
     /* verilator lint_off WIDTHTRUNC */
-    parameter logic [15:0] MON_AGENT_ID = 16'h0010, // Agent ID (16-bit per monitor bus protocol)
-    parameter logic [7:0]  MON_UNIT_ID  = 8'h00,    // Unit ID (8-bit per monitor bus protocol)
+    parameter logic [15:0] MON_AGENT_ID = 16'h0010, // Agent ID (16-bit per ocelus bus protocol)
+    parameter logic [7:0]  MON_UNIT_ID  = 8'h00,    // Unit ID (8-bit per ocelus bus protocol)
     /* verilator lint_on WIDTHTRUNC */
 
     // STANDARDIZED FIXED INTERNAL CONFIGURATION (not user-configurable)
     // These are set to optimal values based on documentation and analysis
     localparam int PWM_WIDTH = 16,                  // 16-bit PWM resolution (standardized)
-    localparam int MON_FIFO_DEPTH = 16,             // Monitor FIFO depth (power-of-2, standardized)
+    localparam int MON_FIFO_DEPTH = 16,             // Ocelus FIFO depth (power-of-2, standardized)
     localparam int MON_FIFO_ALMOST_MARGIN = 2,      // FIFO safety margin (standardized)
     localparam int FAIRNESS_REPORT_CYCLES = 256,    // Fairness reporting interval (standardized)
     localparam int MIN_GRANTS_FOR_FAIRNESS = 64,    // Minimum grants for fairness calc (standardized)
@@ -118,7 +118,7 @@ module arbiter_wrr_pwm_monbus #(
     output logic                          cfg_pwm_sts_done,
     output logic                          pwm_out,
 
-    // Monitor bus configuration (updated to match modern interface)
+    // Ocelus bus configuration (updated to match modern interface)
     input  logic                          cfg_mon_enable,
     input  logic [15:0]                   cfg_mon_pkt_type_enable,
     input  logic [15:0]                   cfg_mon_latency_thresh,
@@ -129,10 +129,10 @@ module arbiter_wrr_pwm_monbus #(
     input  logic [15:0]                   cfg_mon_efficiency_thresh,
     input  logic [7:0]                    cfg_mon_sample_period,
 
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Monitor bus output - 128-bit packet + 64-bit side-band timestamp
+    // Ocelus bus output - 128-bit packet + 64-bit side-band timestamp
     output logic                                    monbus_valid,
     input  logic                                    monbus_ready,
     output monitor_common_pkg::monitor_packet_t     monbus_packet,
@@ -198,10 +198,10 @@ module arbiter_wrr_pwm_monbus #(
     );
 
     // =========================================================================
-    // Common Monitor Bus Instance (Standardized Fixed Configuration, optional)
+    // Common Ocelus Bus Instance (Standardized Fixed Configuration, optional)
     // =========================================================================
     // USE_MONITOR=1: arbiter_monbus_common synthesised. USE_MONITOR=0: omitted;
-    //   arbiter+PWM unchanged (monitor is pure snooper; block_arb is PWM-driven
+    //   arbiter+PWM unchanged (ocelus is pure snooper; block_arb is PWM-driven
     //   only). Telemetry and debug outputs tied to non-blocking defaults.
     if (USE_MONITOR) begin : gen_monitor
         arbiter_monbus_common #(
@@ -228,7 +228,7 @@ module arbiter_wrr_pwm_monbus #(
             .grant_ack               (grant_ack),                 // ACK signals
             .block_arb               (block_arb_internal),
 
-            // Monitor configuration - modern interface names
+            // Ocelus configuration - modern interface names
             .cfg_mon_enable          (cfg_mon_enable),
             .cfg_mon_pkt_type_enable (cfg_mon_pkt_type_enable),
             .cfg_mon_latency_thresh  (cfg_mon_latency_thresh),
@@ -239,7 +239,7 @@ module arbiter_wrr_pwm_monbus #(
             .cfg_mon_efficiency_thresh (cfg_mon_efficiency_thresh),
             .cfg_mon_sample_period   (cfg_mon_sample_period),
 
-            // Time + Monitor bus output (128-bit packet + 64-bit side-band)
+            // Time + Ocelus bus output (128-bit packet + 64-bit side-band)
             .i_mon_time              (i_mon_time),
             .monbus_valid            (monbus_valid),
             .monbus_ready            (monbus_ready),

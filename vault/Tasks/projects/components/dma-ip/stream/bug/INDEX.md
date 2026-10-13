@@ -21,7 +21,7 @@ by construction rather than by discipline.
 ## Open
 
 (none — BUG-020 moved to the amba lane as **amba BUG-039** on 2026-10-08: the
-monlite err_en queue loss is a defect in rtl/amba/monitor/axi_monitor_lite.sv,
+monlite err_en queue loss is a defect in rtl/amba/ocelus/axi_monitor_lite.sv,
 not in stream. Next ID stays BUG-021 so the number is never recycled.)
 
 ## Active

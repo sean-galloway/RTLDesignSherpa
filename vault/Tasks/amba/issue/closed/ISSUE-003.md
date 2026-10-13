@@ -35,7 +35,7 @@ registry `--check` PASS; no dangling reference to any of the four anywhere in
 **Found while verifying, and it is the bigger catch:**
 `formal/stream/stream_core` had been flattening FIVE-WEEK-STALE monitor RTL.
 Its prep pattern rule still sourced `rtl/amba/shared/%.sv` after the monitors
-moved to `rtl/amba/monitor/` -- `MON_ORIG` was updated for the move, the
+moved to `rtl/amba/ocelus/` -- `MON_ORIG` was updated for the move, the
 pattern rule was not. It never failed because the tracked `.sv2v_prep/*.sv`
 snapshots satisfied make's dependency, so the broken rule never ran. Repointed
 and regenerated; the flatten now tracks current RTL. That proof remains

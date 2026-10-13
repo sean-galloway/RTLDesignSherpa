@@ -6,7 +6,7 @@
 **Status:** CLOSED 2026-09-28 -- all 12 monitor proofs pass (last runs 2026-09-27/28), the four pending boxes are each done or rejected with a reason below. Was: in progress since 2026-07-18.
 
 **Context:** The monitor modules moved from `rtl/amba/shared/` (and the per-protocol
-dirs) to **`rtl/amba/monitor/`**, and the monitor RTL gained new logic since the
+dirs) to **`rtl/amba/ocelus/`**, and the monitor RTL gained new logic since the
 formal proofs were last exercised (perfmon window/counters, `cam_clear`, the
 `cfg_compl/threshold/debug` enables, `ENABLE_*_LOGIC` synthesis cones, always-on
 CAM pipelining). The `formal/amba/*` Makefiles + `.sby` files were path-updated to
@@ -45,7 +45,7 @@ CAM pipelining). The `formal/amba/*` Makefiles + `.sby` files were path-updated 
       — whose 2 joined paths both resolve to files that exist. Zero tests
       string-reference the old `shared/<monitor>` path, `rtl/amba/shared/` holds
       **no** monitor sources, and all 31 monitor modules live in
-      `rtl/amba/monitor/`. Checked by resolving each test's own `rtl_dict` keys
+      `rtl/amba/ocelus/`. Checked by resolving each test's own `rtl_dict` keys
       and testing the joined path for existence, not by grepping one line.
 - [x] Perfmon window proofs -- REJECTED with a reason: the perf window is the one
       cone no shipped build carries (the lite has no perf cone by design; STREAM and
@@ -65,7 +65,7 @@ CAM pipelining). The `formal/amba/*` Makefiles + `.sby` files were path-updated 
       has its Makefile, .sby and `formal_axi_monitor_timer.sv`; prove and cover PASS,
       last run 2026-09-27.
 - [x] Update any formal filelist/`.sby` that still assumes the old `shared/` layout —
-      all Makefiles regenerated against `rtl/amba/monitor/`; all 12 flatten cleanly.
+      all Makefiles regenerated against `rtl/amba/ocelus/`; all 12 flatten cleanly.
 
 ---
 

@@ -11,8 +11,8 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
        -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies (write engine uses gaxi_fifo_sync which needs counter_bin + fifo_control)

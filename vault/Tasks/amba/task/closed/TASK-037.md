@@ -58,7 +58,7 @@ N=72 that is ~20,500 flops, and the board build's LUT count fell 138,996 ->
 
 ### The storage is dominated by ONE struct
 
-`bus_transaction_t` (in `rtl/amba/includes/monitor_amba4_pkg.sv`) is ~285 bits
+`bus_transaction_t` (in `rtl/amba/includes/ocelus_amba4_pkg.sv`) is ~285 bits
 and the transaction table is N of them. Six 32-bit fields are 192 of those
 bits. Everything below is a consequence of that.
 

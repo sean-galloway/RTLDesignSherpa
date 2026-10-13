@@ -7,6 +7,6 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
-$REPO_ROOT/rtl/amba/monitor/apb_monitor_addr_check.sv
+$REPO_ROOT/rtl/amba/includes/ocelus_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/ocelus_amba4_pkg.sv
+$REPO_ROOT/rtl/amba/ocelus/apb_monitor_addr_check.sv

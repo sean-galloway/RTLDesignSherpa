@@ -551,7 +551,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
         'rtl_cmn':           'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes',
         'rtl_amba_shared':   'rtl/amba/shared',
-        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_monitor':       'rtl/amba/ocelus',
         'rtl_gaxi':          'rtl/amba/gaxi',
     })
 

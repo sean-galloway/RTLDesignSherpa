@@ -137,7 +137,7 @@ separate event codes the monitor emits.
 
 - [Wishbone B4 family README](README.md) — the protocol scope and the
   mode rules
-- [`monitor_wb4_pkg`](../includes/monitor_wb4_pkg.md) — the monitor's
+- [`monitor_wb4_pkg`](../includes/ocelus_wb4_pkg.md) — the monitor's
   event codes, a different package
 
 ## Testing

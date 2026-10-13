@@ -22,9 +22,9 @@
  * for power optimization. Features include:
  *
  * - Instantiates axi4_slave_rd_mon for core functionality with filtering
- * - Activity-based clock gating for the monitor subsystem
+ * - Activity-based clock gating for the ocelus subsystem
  * - Configurable clock gating policies and thresholds
- * - Independent gating for different monitor functions
+ * - Independent gating for different ocelus functions
  * - Performance monitoring with clock gating statistics
  * - Fine-grained power management controls
  */
@@ -42,15 +42,15 @@ module axi4_slave_rd_mon_cg
     parameter int AXI_USER_WIDTH    = 1,
     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
 
-    // Monitor parameters
-    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
+    // Ocelus parameters
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit ocelus in inner mon; outputs tied
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     // Per-range DEBUG/ERROR flavor. Also missing on every _cg wrapper: a
     // clock-gated build could configure HOW MANY address ranges but not what
     // any of them MEANT, so every range silently stayed a DEBUG range.
     parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,
     parameter bit ADDR_FILTER_ENABLE = 1'b0,  // 0 = address filter inert
-    // Timer calibration, forwarded to the inner monitor. These were MISSING on
+    // Timer calibration, forwarded to the inner ocelus. These were MISSING on
     // every _cg wrapper: not merely unforwarded but undeclared, so a clock-gated
     // build had no way to state its clock frequency and the inner
     // counter_freq_invariant LUT was always built at the 100 MHz default. Every
@@ -60,17 +60,17 @@ module axi4_slave_rd_mon_cg
     parameter int ACLK_MHZ           = 100,
     parameter int CFI_MIN_FREQ_MHZ   = ACLK_MHZ,
     parameter int CFI_MAX_FREQ_MHZ   = ACLK_MHZ,
-    // Write-monitor table shaping. NUM_BANKS > 1 on a write monitor REQUIRES
+    // Write-ocelus table shaping. NUM_BANKS > 1 on a write ocelus REQUIRES
     // USE_WDATA_ORDER_Q=1 (the inner module fails elaboration otherwise), so a
-    // banked write monitor was simply not buildable through a _cg wrapper.
+    // banked write ocelus was simply not buildable through a _cg wrapper.
     parameter bit USE_WDATA_ORDER_Q  = 1'b0,
     parameter int NUM_BANKS          = 1,
     parameter bit ID_FILTER_ENABLE   = 1'b0,  // 0 = ID filter inert
     parameter int ID_MATCH_BASE      = 0,
     parameter int ID_MATCH_COUNT     = 0,     // 0 = all IDs
-    parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for monitor packets
-    parameter logic [15:0] AGENT_ID = 16'h0014,    // 16-bit Agent ID for monitor packets
-    parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to monitor
+    parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for ocelus packets
+    parameter logic [15:0] AGENT_ID = 16'h0014,    // 16-bit Agent ID for ocelus packets
+    parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to ocelus
 
     // Filtering parameters
     parameter bit ENABLE_FILTERING  = 1,     // Enable packet filtering
@@ -99,7 +99,7 @@ module axi4_slave_rd_mon_cg
     // Global Clock and Reset
     input  logic                       aclk,
     input  logic                       aresetn,
-    input  logic                       cam_clear,  // sync clear of the monitor trans CAM
+    input  logic                       cam_clear,  // sync clear of the ocelus trans CAM
 
     // Slave AXI Interface (Input Side)
     // Read address channel (AR)
@@ -151,7 +151,7 @@ module axi4_slave_rd_mon_cg
     input  logic                       fub_axi_rvalid,
     output logic                       fub_axi_rready,
 
-    // Monitor Configuration
+    // Ocelus Configuration
     input  logic                       cfg_monitor_enable,      // Enable monitoring
     input  logic                       cfg_error_enable,        // Enable error detection
     input  logic                       cfg_timeout_enable,      // Enable timeout detection
@@ -198,13 +198,13 @@ module axi4_slave_rd_mon_cg
     input  logic [IW-1:0]                                              cfg_id_match_base,
     input  logic [IW:0]                                                cfg_id_match_count,
 
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Monitor Bus Output
-    output logic                                    monbus_valid,            // Monitor bus valid
-    input  logic                                    monbus_ready,            // Monitor bus ready
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Monitor packet (128-bit)
+    // Ocelus Bus Output
+    output logic                                    monbus_valid,            // Ocelus bus valid
+    input  logic                                    monbus_ready,            // Ocelus bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
     output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     // Status outputs for clock gating and monitoring
@@ -239,7 +239,7 @@ module axi4_slave_rd_mon_cg
 
 
     // =========================================================================
-    // Instantiate AXI4 Slave Read Monitor with Filtering
+    // Instantiate AXI4 Slave Read Ocelus with Filtering
     // =========================================================================
     // -------------------------------------------------------------------------
     // Clock gating
@@ -368,7 +368,7 @@ module axi4_slave_rd_mon_cg
         .fub_axi_rvalid          (fub_axi_rvalid),
         .fub_axi_rready          (int_rready),
 
-        // Monitor Configuration
+        // Ocelus Configuration
         .cfg_monitor_enable      (cfg_monitor_enable),
         .cfg_error_enable        (cfg_error_enable),
         .cfg_timeout_enable      (cfg_timeout_enable),
@@ -403,7 +403,7 @@ module axi4_slave_rd_mon_cg
         .cfg_id_match_base       (cfg_id_match_base),
         .cfg_id_match_count      (cfg_id_match_count),
 
-        // Monitor Bus Output
+        // Ocelus Bus Output
         .monbus_valid            (w_monbus_valid),
         .monbus_ready            (monbus_ready),
         .monbus_packet           (monbus_packet),
@@ -433,7 +433,7 @@ module axi4_slave_rd_mon_cg
         .perf_beat_count         (perf_beat_count),
         .perf_byte_count         (perf_byte_count),
         .perf_burst_count        (perf_burst_count),
-        // Observability tap on the inner monitor's backpressure. Connected
+        // Observability tap on the inner ocelus's backpressure. Connected
         // EXPLICITLY rather than omitted: an omitted pin is PINMISSING,
         // which Verilator escalates to an error, and that is what kept the
         // four axil4 _cg builds from compiling at all. Left empty because
@@ -444,13 +444,13 @@ module axi4_slave_rd_mon_cg
 
     );
 
-    // Monitor liveness terms (TASK-070):
-    //   w_monbus_valid -- a packet parked on the monitor bus is outstanding
+    // Ocelus liveness terms (TASK-070):
+    //   w_monbus_valid -- a packet parked on the ocelus bus is outstanding
     //     work; it holds the block awake (and re-wakes it) so the reporter
     //     can retire the handshake. Without it the clock stops with valid
     //     frozen high and an ungated consumer re-accepts the SAME packet
     //     every cycle.
-    //   |active_transactions -- the monitor CAM's occupancy. An entry stays
+    //   |active_transactions -- the ocelus CAM's occupancy. An entry stays
     //     valid until its packet is marked into the reporter FIFO, and the
     //     registered count lags one cycle past that, meeting monbus_valid's
     //     assertion; without this term the clock can stop inside the

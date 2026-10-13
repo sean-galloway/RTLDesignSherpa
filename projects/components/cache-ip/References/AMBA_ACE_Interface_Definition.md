@@ -166,7 +166,7 @@ Transport for this contract exists in `rtl/amba/ace/` (added 2026-10-05):
 `ARSNOOP`/`AWSNOOP`; auto-pulsed `RACK`/`WACK` on the house master
 wrappers is deprecated per ruling 2026-10-11), the
 `axi4ace_snoop_slave` / `axi4ace_snoop_master` AC/CR/CD movers, and
-`rtl/amba/monitor/axi4ace_snoop_monitor_lite` for snoop-side observation.
+`rtl/amba/ocelus/axi4ace_snoop_monitor_lite` for snoop-side observation.
 
 Out of scope, recorded as decisions and not accidents (onyx D8): DVM
 (distributed virtual memory) messages, barrier ordering, multiple

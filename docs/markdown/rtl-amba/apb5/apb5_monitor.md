@@ -24,7 +24,7 @@
 # APB5 Monitor
 
 **Module:** `apb5_monitor.sv`
-**Location:** `rtl/amba/apb5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
+**Location:** `rtl/amba/apb5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/ocelus/`)
 **Status:** Production Ready
 
 ---
@@ -240,7 +240,7 @@ flowchart TB
 The APB5 monitor drives the standard 128-bit packet built by
 `monitor_common_pkg::create_monitor_packet`, paired with the 64-bit side-band
 `monbus_timestamp`. See
-[monitor_package_spec.md](../includes/monitor_package_spec.md) for the canonical
+[monitor_package_spec.md](../includes/ocelus_package_spec.md) for the canonical
 definition.
 
 ```
@@ -511,7 +511,7 @@ apb5_monitor #(
 
 - **[APB5 Master](../apb5/apb5_master.md)** - APB5 master interface
 - **[APB5 Slave](../apb5/apb5_slave.md)** - APB5 slave interface
-- **[Monitor Packet Format](../includes/monitor_package_spec.md)** - Standard packet format
+- **[Monitor Packet Format](../includes/ocelus_package_spec.md)** - Standard packet format
 
 ---
 

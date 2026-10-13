@@ -40,7 +40,7 @@ These modules are **channel movers with skid buffers**, not protocol controllers
   - Front-side read/write masters and slaves (`axi4ace_master_rd/wr`, `axi4ace_slave_rd/wr`)
   - Snoop-side cache responder and CCU initiator (`axi4ace_snoop_slave/master`)
 - Eight `_monlite` wrappers in `rtl/amba/ace/` that wrap the base movers with the lite-monitor discipline.
-- One new ACE-aware monitor core in `rtl/amba/monitor/axi4ace_snoop_monitor_lite.sv` that tracks snoops in AC-issue order because snoop channels have no ID.
+- One new ACE-aware monitor core in `rtl/amba/ocelus/axi4ace_snoop_monitor_lite.sv` that tracks snoops in AC-issue order because snoop channels have no ID.
 
 ### Key Features
 

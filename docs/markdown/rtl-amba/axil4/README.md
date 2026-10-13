@@ -54,7 +54,7 @@ The AXIL4 subsystem is a complete implementation of the ARM AMBA AXI4-Lite proto
 
 ### Monitor Modules (Verification)
 
-**Monitor wrappers live in `rtl/amba/monitor/`** (not `rtl/amba/axil4/`). They are dedicated AXIL4 wrappers — there is no `IS_AXI`-style parameter overload of the AXI4 wrappers — and they share `axi_monitor_base` and the 128-bit packet format with the AXI4 wrappers.
+**Monitor wrappers live in `rtl/amba/ocelus/`** (not `rtl/amba/axil4/`). They are dedicated AXIL4 wrappers — there is no `IS_AXI`-style parameter overload of the AXI4 wrappers — and they share `axi_monitor_base` and the 128-bit packet format with the AXI4 wrappers.
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
@@ -233,7 +233,7 @@ per packet type — not by the 128-bit packet width. A **set bit drops** that
 packet type (`pkt_drop = cfg_axi_pkt_mask[pkt_type]` in `axi_monitor_filtered`).
 So `16'b1111_1111_1111_0110` clears bit 0 (`PktTypeError`) and bit 3
 (`PktTypeTimeout`) to let those through and drops everything else. See the
-[Monitor Packet Specification](../includes/monitor_package_spec.md) for the
+[Monitor Packet Specification](../includes/ocelus_package_spec.md) for the
 packet-type enum.
 
 ---
@@ -331,7 +331,7 @@ All core modules use `gaxi_skid_buffer`:
 #### Pattern 2: Monitor Integration
 
 Monitor modules combine functional core with verification:
-- Uses shared **axi_monitor_filtered** (rtl/amba/monitor/)
+- Uses shared **axi_monitor_filtered** (rtl/amba/ocelus/)
 - 2-level filtering (packet-type masks, then per-event-code masks; `err_select` is reserved and routes nothing)
 - 128-bit monitor bus + 64-bit side-band timestamp
 - Simplified for AXIL (MAX_TRANSACTIONS=8, vs 16 for the AXI4 wrappers)
@@ -411,14 +411,14 @@ pytest val/amba/test_axil4_master_rd.py --vcd=waves.vcd -v
 
 ### Configuration and Integration
 - **[AXI Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Monitor setup strategies
-- **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 128-bit packet plus 64-bit side-band timestamp
+- **[Monitor Packet Specification](../includes/ocelus_package_spec.md)** - 128-bit packet plus 64-bit side-band timestamp
 
 ### Source Code
 - RTL: `rtl/amba/axil4/`
-- Monitor wrappers: `rtl/amba/monitor/`
+- Monitor wrappers: `rtl/amba/ocelus/`
 - Tests: `val/amba/test_axil4*.py`
 - Framework: `bin/TBClasses/components/axil4/`
-- Shared Infrastructure: `rtl/amba/monitor/` (monitor base and filter),
+- Shared Infrastructure: `rtl/amba/ocelus/` (monitor base and filter),
   `rtl/amba/gaxi/` (gaxi_skid_buffer)
 
 ---

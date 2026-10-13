@@ -67,7 +67,7 @@ async def monbus_cam_pipe_test(dut):
 def test_monbus_cam_pipe(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_includes': 'rtl/amba/includes',
         'val_amba':     'val/amba',
     })

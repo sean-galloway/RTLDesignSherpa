@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: monitor_common_pkg
-// Purpose: Common monitor bus types and functions shared across all protocols
+// Purpose: Common ocelus bus types and functions shared across all protocols
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -15,7 +15,7 @@
 
 `timescale 1ns / 1ps
 /**
- * Monitor Bus Common Type Definitions
+ * Ocelus Bus Common Type Definitions
  *
  * This package defines common type definitions used across all monitoring
  * protocols including protocol type enumeration, packet type constants,
@@ -29,7 +29,7 @@
 package monitor_common_pkg;
 
     // -------------------------------------------------------------------------
-    // Single source of truth: monitor bus packet + timestamp widths
+    // Single source of truth: ocelus bus packet + timestamp widths
     // -------------------------------------------------------------------------
     // ANY consumer that declares a bus or FIFO holding a packet MUST reference
     // these localparams, not hard-code 128 / 64. See MON-PKT-64-to-128-plan.md.
@@ -47,7 +47,7 @@ package monitor_common_pkg;
         PROTOCOL_WB     = 4'h5   // Wishbone B4 (event codes: monitor_wb4_pkg)
     } protocol_type_t;
 
-    // Monitor bus packet types (used in packet_type field [127:124])
+    // Ocelus bus packet types (used in packet_type field [127:124])
     localparam logic [3:0] PktTypeError      = 4'h0;  // Error event
     localparam logic [3:0] PktTypeCompletion = 4'h1;  // Transaction completion
     localparam logic [3:0] PktTypeThreshold  = 4'h2;  // Threshold crossed
@@ -73,10 +73,10 @@ package monitor_common_pkg;
     localparam logic [3:0] PktTypeDebug      = 4'hF;  // Debug/trace event
 
     // =============================================================================
-    // MONITOR PACKET STRUCTURE AND HELPER FUNCTIONS
+    // OCELUS PACKET STRUCTURE AND HELPER FUNCTIONS
     // =============================================================================
 
-    // 128-bit monitor packet format:
+    // 128-bit ocelus packet format:
     // [127:124] - packet_type:  4 bits (error, timeout, completion, etc.)
     // [123:109] - reserved:    15 bits (forward-compat slack)
     // [108:105] - protocol:     4 bits (AXI/AXIS/APB/ARB/CORE)
@@ -131,7 +131,7 @@ package monitor_common_pkg;
         return (max_transactions >= 16) ? 4 : 0;
     endfunction
 
-    // Helper functions for monitor packet manipulation
+    // Helper functions for ocelus packet manipulation
     function automatic logic [3:0] get_packet_type(monitor_packet_t pkt);
         return pkt[127:124];
     endfunction
@@ -291,11 +291,11 @@ package monitor_common_pkg;
     // counter_freq_invariant divides aclk to produce a 1 us tick, and the
     // divisor IS the clock frequency in MHz -- so the LUT index whose entry is
     // nearest the real aclk gives the tick closest to a true microsecond.
-    // Monitor timeouts are expressed in microseconds precisely so they mean the
+    // Ocelus timeouts are expressed in microseconds precisely so they mean the
     // same wall-clock thing at any frequency; picking the wrong index breaks
     // that contract silently.
     //
-    // This exists because every monitor wrapper hardwired `cfg_freq_sel =
+    // This exists because every ocelus wrapper hardwired `cfg_freq_sel =
     // 4'b0001` with the comment "use aclk frequency". Index 1 of the default
     // LUT is 19 MHz, so on a 100 MHz design every timeout was ~5x shorter than
     // the number the host wrote.

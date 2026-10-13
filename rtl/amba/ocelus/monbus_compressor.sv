@@ -191,7 +191,7 @@ module monbus_compressor
     //
     // delta_ts is measured against the matched template's OWN last timestamp
     // (stored per CAM entry), NOT a single global last_ts. With multiple
-    // interleaved monitor sources (e.g. N channels) a global delta hops
+    // interleaved ocelus sources (e.g. N channels) a global delta hops
     // between sources and wraps negative, forcing ~1/3 of records to RAW;
     // each source's own stream is monotonic, so a per-template delta stays
     // small and positive and fits Tier-1. Only the low TS_STORE_BITS of the

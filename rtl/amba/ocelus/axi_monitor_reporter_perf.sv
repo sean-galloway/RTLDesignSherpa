@@ -18,7 +18,7 @@
 // NOTE: This sub-block runs in parallel with Stage A/B perfmon counters
 // in axi_monitor_base; those are window-buckets emitted via PktTypePerfWin/
 // PerfHist, while this one emits the legacy PktTypePerf packets that
-// roll up completion/error counts over the lifetime of the monitor.
+// roll up completion/error counts over the lifetime of the ocelus.
 //
 // Sequential. Author: sean galloway. Created: 2026-06-06.
 

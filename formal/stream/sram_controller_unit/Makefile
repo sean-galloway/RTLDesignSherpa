@@ -10,7 +10,7 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
        -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
 
 # RTL dependencies

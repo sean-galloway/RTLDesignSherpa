@@ -24,7 +24,7 @@
 # Monitor Bus Compressor
 
 **Module:** `monbus_compressor.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Bulk-Trace Compression
 **Status:** Production Ready
 
@@ -368,7 +368,7 @@ immediately whether to read 0 more beats (Tier-1) or 2 more beats
 ### CAM Design
 
 The 32-entry caching CAM lives in
-[`rtl/amba/monitor/monbus_cam_pipe.sv`](monbus_cam_pipe.md). It is a **true LRU**
+[`rtl/amba/ocelus/monbus_cam_pipe.sv`](monbus_cam_pipe.md). It is a **true LRU**
 CAM with position-indexed storage — the position rank IS the `tmpl_idx`. This
 matters because both encoder and decoder must agree on the rank assignment
 when they install or touch a template, and position-indexed storage makes

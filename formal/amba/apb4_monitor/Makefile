@@ -3,7 +3,7 @@
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 #
 # DEPS is the transitive module closure of apb4_monitor (leaves first), regenerated
-# by tools/gen_formal_deps.py after the rtl/amba/monitor/ move, the reporter
+# by tools/gen_formal_deps.py after the rtl/amba/ocelus/ move, the reporter
 # split (axi_monitor_reporter_*), and the monitor_trans_cam extraction.  The
 # sv2v file list is derived from $(DEPS) so the two cannot drift.
 
@@ -12,14 +12,14 @@ SV2V      ?= sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba5_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
         monitor_pkg_stub.sv
 
 # RTL dependencies (transitive closure of apb4_monitor, leaves first)
-DEPS := $(REPO_ROOT)/rtl/amba/monitor/apb_monitor_addr_check.sv \
+DEPS := $(REPO_ROOT)/rtl/amba/ocelus/apb_monitor_addr_check.sv \
         $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \

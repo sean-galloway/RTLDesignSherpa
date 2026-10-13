@@ -15,7 +15,7 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 
 DEPS := $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
         $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv
-DUT  := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv
+DUT  := $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_timer.sv
 
 .PHONY: prove cover all clean
 

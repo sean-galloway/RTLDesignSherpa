@@ -473,7 +473,7 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
         'rtl_cmn':           'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes',
         'rtl_amba_shared':   'rtl/amba/shared',
-        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_monitor':       'rtl/amba/ocelus',
         'rtl_gaxi':          'rtl/amba/gaxi',
     })
 

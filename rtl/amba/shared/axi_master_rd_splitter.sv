@@ -457,7 +457,7 @@ module axi_master_rd_splitter
         // never completed and the FSM never captured -- so the SAME AR was
         // re-presented and re-accepted every cycle. That is duplicated
         // downstream transactions, not blocked ones: the exact "gate one half
-        // of the handshake" defect that turned monitor backpressure into
+        // of the handshake" defect that turned ocelus backpressure into
         // replay elsewhere in this repo.
         case (r_split_state)
             // r_rbeats_active is the ACCEPTANCE FENCE: the owed-beat RLAST

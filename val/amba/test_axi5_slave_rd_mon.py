@@ -96,7 +96,7 @@ def test_axi5_slave_rd_mon(id_width, addr_width, data_width, user_width, max_tra
         'rtl_includes': 'rtl/amba/includes',
         'rtl_common': 'rtl/common',
         'rtl_shared': 'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
     })
 
     dut_name = "axi5_slave_rd_mon"

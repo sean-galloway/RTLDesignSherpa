@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi4ace_snoop_monitor_lite
-// Purpose: ACE snoop-channel lite monitor (AC/CR/CD) for cache-ip.
+// Purpose: ACE snoop-channel lite ocelus (AC/CR/CD) for cache-ip.
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axi4ace_snoop_monitor_lite.md
 // Subsystem: amba
@@ -19,7 +19,7 @@
 //   CR  -- snoop response            :  CRRESP
 //   CD  -- snoop data                :  CDDATA, CDLAST
 //
-// This monitor tracks outstanding snoops in AC-issue order.  CR and CDLAST
+// This ocelus tracks outstanding snoops in AC-issue order.  CR and CDLAST
 // are correlated with the OLDEST outstanding snoop, matching ACE's per-channel
 // ordering rules.  Multiple outstanding snoops are allowed.
 //
@@ -45,7 +45,7 @@
 // When CRRESP[1] is set and cfg_error_enable is high, an ERROR packet is
 // emitted and the COMPLETION packet is suppressed for that snoop.
 //
-// The monitor never stalls the observed channels.  Events that cannot be
+// The ocelus never stalls the observed channels.  Events that cannot be
 // queued are dropped and counted; the count is emitted as an
 // AXI_ERR_EVENT_DROPPED packet when the queue has room and nothing else
 // wants the bus.  A snoop that arrives when the table is full is counted
@@ -127,7 +127,7 @@ module axi4ace_snoop_monitor_lite
 );
 
     // ------------------------------------------------------------------
-    // Gating and handshakes: the monitor NEVER drives these channels.
+    // Gating and handshakes: the ocelus NEVER drives these channels.
     // ------------------------------------------------------------------
     wire        w_ac_hs = ac_valid  && ac_ready  && cfg_monitor_enable;
     wire        w_cr_hs = cr_valid  && cr_ready  && cfg_monitor_enable;

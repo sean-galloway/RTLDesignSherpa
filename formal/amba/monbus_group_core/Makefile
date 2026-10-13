@@ -13,12 +13,12 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/math/math_adder_carry_save_nbit.sv \
         $(REPO_ROOT)/rtl/math/math_mod_3_compress.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monbus_cam.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monbus_cam_pipe.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monbus_compressor.sv \
-        $(REPO_ROOT)/rtl/amba/monitor/monbus_halfbeat_packer.sv
-DUT  := $(REPO_ROOT)/rtl/amba/monitor/monbus_group_core.sv
+        $(REPO_ROOT)/rtl/amba/ocelus/monbus_cam.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/monbus_cam_pipe.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/monbus_compressor.sv \
+        $(REPO_ROOT)/rtl/amba/ocelus/monbus_halfbeat_packer.sv
+DUT  := $(REPO_ROOT)/rtl/amba/ocelus/monbus_group_core.sv
 .PHONY: prove cover all clean
 all: prove cover
 prove: monbus_group_core_flat.v

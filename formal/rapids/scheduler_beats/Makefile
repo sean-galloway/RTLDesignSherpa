@@ -13,10 +13,10 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
 # NOTE: monitor_pkg.sv re-exports create_monitor_packet from monitor_common_pkg,
 # causing sv2v ambiguity. We use a local empty stub (monitor_pkg_stub.sv) instead,
 # which satisfies the import without re-exporting duplicate symbols.
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba5_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
         $(CURDIR)/monitor_pkg_stub.sv \
         $(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/includes/rapids_pkg.sv
 

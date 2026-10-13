@@ -18,7 +18,7 @@
 """
 MonBus AXIL/AXIL Group testbench — covers the AXIL-slave-read +
 AXIL-master-write member of the monbus_<p1>_<p2>_group family
-(`rtl/amba/monitor/monbus_wb4_axil4_group.sv`). The other family
+(`rtl/amba/ocelus/monbus_wb4_axil4_group.sv`). The other family
 members (axil_axi4, axi4_axil, axi4_axi4) have separate TBs / tests
 because their port surfaces differ.
 
@@ -136,7 +136,7 @@ class MonbusWb4AxilGroupTB(TBBase):
             drain_data_width=self.TEST_S_AXIL_DATA_WIDTH,
             group_node=self.dut, irq_sig=self.dut.irq_out, log=self.log,
             # Drain + trace both emit {tag,ts}, packet[127:64], packet[63:0]
-            # per docs/markdown/rtl-amba/includes/monitor_package_spec.md.
+            # per docs/markdown/rtl-amba/includes/ocelus_package_spec.md.
             layout_drain=BeatLayout(order=BeatOrder.TS_HI_LO),
             layout_trace=BeatLayout(order=BeatOrder.TS_HI_LO),
         )

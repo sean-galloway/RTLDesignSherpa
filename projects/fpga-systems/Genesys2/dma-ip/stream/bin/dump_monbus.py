@@ -12,7 +12,7 @@
 #
 # Each error-FIFO record drains as three 64-bit beats per the
 # monbus_axil4_axil4_group slice-counter read path (and the monitor package
-# spec, docs/markdown/rtl-amba/includes/monitor_package_spec.md) -- TS, HI, LO:
+# spec, docs/markdown/rtl-amba/includes/ocelus_package_spec.md) -- TS, HI, LO:
 #
 #     beat 0:  {tag[3:0], source_ts[59:0]}   (timestamp slice, tag=0 raw)
 #     beat 1:  packet[127:64]                (high half of the monbus packet)
@@ -101,7 +101,7 @@ def words32_to_beats64(words32: Iterable[int]) -> List[int]:
 def beats_to_packet(beats_64: List[int]) -> Tuple[MonitorPacket, int]:
     """Reassemble three 64-bit beats into a parsed packet + source
     timestamp. Beat ordering matches the slicer in
-    rtl/amba/monitor/monbus_axil4_axil4_group.sv (TS, HI, LO):
+    rtl/amba/ocelus/monbus_axil4_axil4_group.sv (TS, HI, LO):
         beats_64[0] = {tag[3:0], source_ts[59:0]}   (timestamp slice)
         beats_64[1] = packet[127:64]                (high half)
         beats_64[2] = packet[63:0]                  (low half)

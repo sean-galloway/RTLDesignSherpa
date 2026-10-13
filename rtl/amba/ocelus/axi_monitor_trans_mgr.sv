@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_monitor_trans_mgr
-// Purpose: AXI Monitor Transaction Manager (CAM-backed).
+// Purpose: AXI Ocelus Transaction Manager (CAM-backed).
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -232,7 +232,7 @@ module axi_monitor_trans_mgr
                MAX_TRANSACTIONS, NUM_BANKS);
     end
 
-    // A BANKED WRITE MONITOR REQUIRES THE AWID FIFO. Without it the WID-less
+    // A BANKED WRITE OCELUS REQUIRES THE AWID FIFO. Without it the WID-less
     // write select falls back to a state predicate over the whole table, which
     // is not ID-matched -- and pick_oldest compares same-bank only, so the
     // select returns one winner per bank and one W beat advances one
@@ -244,14 +244,14 @@ module axi_monitor_trans_mgr
     if ((NUM_BANKS > 1) && !IS_READ && !USE_WDATA_ORDER_Q) begin : gen_banked_wr_needs_widq
         // ONE string literal: a {"a","b"} concatenation is a bit-vector concat,
         // not a format string, and renders the message as a 1000-digit number.
-        $error("axi_monitor_trans_mgr: NUM_BANKS=%0d on a write monitor requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).",
+        $error("axi_monitor_trans_mgr: NUM_BANKS=%0d on a write ocelus requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).",
                NUM_BANKS);
     end
 
     // ------------------------------------------------------------------------
     // Parameter width limits (issue #41 "width truncation").
     //
-    // bus_transaction_t (rtl/amba/includes/monitor_amba4_pkg.sv) stores the
+    // bus_transaction_t (rtl/amba/includes/ocelus_amba4_pkg.sv) stores the
     // address in a 32-bit field and the ID in an 8-bit field. Neither width
     // is derived from this module's parameters, so wide configurations lose
     // bits. The two cases have very different severity and are handled
@@ -463,7 +463,7 @@ module axi_monitor_trans_mgr
     // addr_match_oh look like a function of addr_alloc_oh -- and hence of
     // addr_wants_alloc, which is computed FROM addr_hit_any, which is computed
     // from addr_match_oh. Verilator reported that false cycle as UNOPTFLAT and
-    // it failed every monitor build that cannot optimise across it (cocotb
+    // it failed every ocelus build that cannot optimise across it (cocotb
     // passes --public-flat-rw, so nothing is flattened and the cycle stands).
     //
     // The true dependency is acyclic: an allocation pick never feeds a match
@@ -826,7 +826,7 @@ module axi_monitor_trans_mgr
     //     adoption keeps its legacy behavior: pre-handshake beats are
     //     strays and are dropped.
     // The two terms are mutually exclusive by construction (alloc fires
-    // only when no pending entry exists). This keeps monitor state
+    // only when no pending entry exists). This keeps ocelus state
     // cycle-accurate -- cmd + first beat in one cycle records both, with no
     // side buffer.
     // ------------------------------------------------------------------------
@@ -932,7 +932,7 @@ module axi_monitor_trans_mgr
     // The bypass is computed from w_addr_alloc_mirror_oh, which is computed
     // from addr_wants_alloc, which is computed from addr_hit_any = the addr
     // reduction: a false cycle, reported as UNOPTFLAT, failing every write
-    // monitor build that cannot optimise across it.
+    // ocelus build that cannot optimise across it.
     //
     // Acyclic in truth: addr_hit_any reads ONLY the addr-pend term, and the
     // bypass terms feed data_hit_any alone. The split is what lets the
@@ -1121,7 +1121,7 @@ module axi_monitor_trans_mgr
 
     // ------------------------------------------------------------------------
     // EARLY WRITE DATA (amba BUG-037). AXI4 lets a master present W beats
-    // before their AW, and W carries no ID. On an AXI write monitor a beat that
+    // before their AW, and W carries no ID. On an AXI write ocelus a beat that
     // found no entry awaiting data used to be DROPPED: data_wants_alloc is
     // gated with !IS_AXI, so no orphan was allocated either. The AW then
     // arrived to a table that had never seen its data, waited for beats that

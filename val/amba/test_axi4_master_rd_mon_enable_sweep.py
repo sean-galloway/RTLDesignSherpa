@@ -286,7 +286,7 @@ def test_axi4_master_rd_mon_enable_sweep(
         "rtl_includes": "rtl/amba/includes",
         "rtl_common":   "rtl/common",
         "rtl_shared":   "rtl/amba/shared",
-        "rtl_monitor":   "rtl/amba/monitor",
+        "rtl_monitor":   "rtl/amba/ocelus",
         "rtl_amba_includes": "rtl/amba/includes",
     })
 

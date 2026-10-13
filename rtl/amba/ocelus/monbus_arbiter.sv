@@ -17,10 +17,10 @@
 
 /*
 ================================================================================
-Monitor Bus Round Robin Arbiter with Optional Skid Buffers
+Ocelus Bus Round Robin Arbiter with Optional Skid Buffers
 ================================================================================
 
-This module implements a round-robin arbiter for monitor bus interfaces with
+This module implements a round-robin arbiter for ocelus bus interfaces with
 optional input and output skid buffers. The arbiter operates in ACK mode,
 where grants are held until both request and grant_ack are asserted.
 
@@ -29,7 +29,7 @@ Key Features:
 - ACK mode operation (grants held until acknowledged)
 - Optional input skid buffers per client
 - Optional output skid buffer
-- 128-bit monitor bus packet + 64-bit side-band timestamp interface.
+- 128-bit ocelus bus packet + 64-bit side-band timestamp interface.
   Both fields ride the same grant cycle via a single skid buffer with
   DATA_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH (192 bits per client).
 - Parameterizable number of clients
@@ -41,7 +41,7 @@ Interface Mapping:
         passed to output
 
 Parameters:
-- CLIENTS: Number of monitor bus clients
+- CLIENTS: Number of ocelus bus clients
 - INPUT_SKID_ENABLE: Enable skid buffers on input interfaces
 - OUTPUT_SKID_ENABLE: Enable skid buffer on output interface
 - INPUT_SKID_DEPTH: Depth of input skid buffers (2..8 inclusive)
@@ -72,13 +72,13 @@ module monbus_arbiter
     // Optional block arbitration
     input  logic                    block_arb,
 
-    // Monitor bus inputs from clients (packet + side-band timestamp)
+    // Ocelus bus inputs from clients (packet + side-band timestamp)
     input  logic                    monbus_valid_in     [CLIENTS],
     output logic                    monbus_ready_in     [CLIENTS],
     input  monitor_packet_t         monbus_packet_in    [CLIENTS],
     input  monbus_timestamp_t       monbus_timestamp_in [CLIENTS],
 
-    // Monitor bus output - arbitrated result (packet + side-band timestamp)
+    // Ocelus bus output - arbitrated result (packet + side-band timestamp)
     output logic                    monbus_valid,
     input  logic                    monbus_ready,
     output monitor_packet_t         monbus_packet,
@@ -165,7 +165,7 @@ module monbus_arbiter
     logic [CLIENTS-1:0] request;
     logic [CLIENTS-1:0] grant_ack;
 
-    // Map monitor bus valid signals to arbiter requests
+    // Map ocelus bus valid signals to arbiter requests
     always_comb begin
         for (int i = 0; i < CLIENTS; i++) begin
             request[i] = int_monbus_valid_in[i];

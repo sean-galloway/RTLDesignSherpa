@@ -24,7 +24,7 @@
 # AXI Monitor Transaction Manager
 
 **Module:** `axi_monitor_trans_mgr.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Category:** Core Infrastructure
 **Status:** Production Ready (CAM-backed revision, 2026-06-08)
 
@@ -572,7 +572,7 @@ Further reading:
 
 - **Monitor Architecture:** [`docs/markdown/rtl-amba/overview.md`](../overview.md)
 - **Monitor Configuration Guide:** [`axi_monitor_base.md`](./axi_monitor_base.md)
-- **Packet Format Specification:** [`monitor_package_spec.md`](../includes/monitor_package_spec.md)
+- **Packet Format Specification:** [`monitor_package_spec.md`](../includes/ocelus_package_spec.md)
 - **Saturation-recovery contract:** [`axi_monitor_base.md`](./axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) and `monitor_common_pkg::cmd_entry_reserve()`
 
 ---

@@ -63,7 +63,7 @@ The modules in this book fall into four groups.
 
 **Note:** `apb4_monitor.sv` lives HERE in `rtl/amba/apb4/` — the protocol
 monitors stay with the protocol they wrap; only the monitor CORE pieces
-live in `rtl/amba/monitor/`. Its specification is
+live in `rtl/amba/ocelus/`. Its specification is
 [apb4_monitor.md](apb4_monitor.md) in this book.
 
 ### Testbench Utilities

@@ -145,7 +145,7 @@ When monitor collection is enabled (via the bridge TOML `variants` list includin
 
 Per-port collection comes from the `axi4_master_{rd,wr}_monlite` and `axi4_slave_{rd,wr}_monlite` wrappers (`axi_monitor_lite`; the full `_mon` wrappers are no longer used in generated bridges, 2026-09-26).
 
-**Packet Format:** the canonical 128-bit packet layout and field definitions live in `docs/markdown/rtl-amba/includes/monitor_package_spec.md` — see that reference for bit-field descriptions, protocol-type enumerations, and packet-type codes.
+**Packet Format:** the canonical 128-bit packet layout and field definitions live in `docs/markdown/rtl-amba/includes/ocelus_package_spec.md` — see that reference for bit-field descriptions, protocol-type enumerations, and packet-type codes.
 
 ## Handshake Protocol
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Monitor characterization sweep (amba TASK-034): every monitor variant, the
+# Ocelus characterization sweep (amba TASK-034): every ocelus variant, the
 # plain master/slave it wraps (to subtract), and the aggregation blocks, each
 # synthesized and routed out of context with tcl/monitor_synth.tcl -- the
 # bridge fixture's recipe (projects/components/fabric-gen-ip/bridge/fpga) plus report_power.

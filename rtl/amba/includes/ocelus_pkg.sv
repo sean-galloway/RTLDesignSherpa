@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: monitor_pkg
-// Purpose: Unified monitor package - backward compatibility wrapper
+// Purpose: Unified ocelus package - backward compatibility wrapper
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -16,7 +16,7 @@
 
 `timescale 1ns / 1ps
 /**
- * Monitor Bus Type Definitions - Unified Package
+ * Ocelus Bus Type Definitions - Unified Package
  *
  * This package provides backward compatibility by importing and re-exporting
  * all types from the split protocol-specific packages:
@@ -53,7 +53,7 @@ package monitor_pkg;
     // NOTE: Packet type constants are available via `import monitor_common_pkg::*;`
     // in consuming modules. The wildcard import brings PktTypeError, PktTypeCompletion, etc.
 
-    // Monitor packet type + side-band timestamp
+    // Ocelus packet type + side-band timestamp
     typedef monitor_common_pkg::monitor_packet_t monitor_packet_t;
     typedef monitor_common_pkg::monbus_timestamp_t monbus_timestamp_t;
 

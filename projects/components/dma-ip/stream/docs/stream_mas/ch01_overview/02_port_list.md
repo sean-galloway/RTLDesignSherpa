@@ -554,7 +554,7 @@ gaxi_fifo_sync #(
 **Notes:**
 - Standard AMBA monitor bus protocol
 - Always buffer with FIFO to prevent backpressure to STREAM
-- Packet format documented in `rtl/amba/includes/monitor_pkg.sv`
+- Packet format documented in `rtl/amba/includes/ocelus_pkg.sv`
 - Event codes defined in STREAM package
 
 ---

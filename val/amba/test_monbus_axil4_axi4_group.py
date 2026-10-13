@@ -11,7 +11,7 @@
 # Created: 2026-06-11
 
 """
-Burst-coverage test for `rtl/amba/monitor/monbus_axil4_axi4_group.sv`.
+Burst-coverage test for `rtl/amba/ocelus/monbus_axil4_axi4_group.sv`.
 
 The AXIL/AXIL family member exercises the master-write path one beat
 at a time, so it doesn't catch bugs in AXI4 burst behavior. This test
@@ -378,7 +378,7 @@ def test_monbus_axil4_axi4_group(request, s_axil_data_width):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_axil4':    'rtl/amba/axil4',
         'rtl_axi4':     'rtl/amba/axi4',
         'rtl_gaxi':     'rtl/amba/gaxi',

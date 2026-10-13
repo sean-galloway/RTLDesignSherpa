@@ -32,7 +32,7 @@ wake-up, parity, and CRC on AXIS5. For the AMBA4 baseline see
 layout and helper functions see
 [`monitor_package_spec.md`](./monitor_package_spec.md).
 
-Source: `rtl/amba/includes/monitor_amba5_pkg.sv`. Each enum is 8 bits
+Source: `rtl/amba/includes/ocelus_amba5_pkg.sv`. Each enum is 8 bits
 wide; slot `8'hF` is the `*_USER_DEFINED` escape hatch. AMBA5 codes reuse
 the AMBA4 `protocol` values (`PROTOCOL_AXI` / `PROTOCOL_APB` /
 `PROTOCOL_AXIS`); the distinguishing field is the chosen `event_code`

@@ -28,7 +28,7 @@
  * - 2-level filtering: packet-type masks, then per-event-code masks.
  *   (err_select is RESERVED -- it feeds only the conflict check, no routing
  *   is implemented. See axi_monitor_filtered's banner.)
- * - Monitor bus output for system-level monitoring
+ * - Ocelus bus output for system-level monitoring
  * - Configurable monitoring and filtering parameters
  * - Error detection and timeout monitoring
  * - Performance metrics collection
@@ -46,9 +46,9 @@ module axi4_slave_rd_mon
     parameter int AXI_USER_WIDTH    = 1,
     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
 
-    // Monitor parameters (literals sized to 32 bits for Verilator int-parameter width check)
+    // Ocelus parameters (literals sized to 32 bits for Verilator int-parameter width check)
     // aclk frequency in MHz -- picks the counter_freq_invariant LUT entry that
-    // yields a ~1 us tick, which is the unit monitor timeouts are expressed in.
+    // yields a ~1 us tick, which is the unit ocelus timeouts are expressed in.
     // Was hardwired to index 1 (19 MHz) with the comment "use aclk frequency";
     // on a 100 MHz design that made every timeout ~5x shorter than requested.
     parameter int ACLK_MHZ          = 100,
@@ -57,12 +57,12 @@ module axi4_slave_rd_mon
     // these a real MIN..MAX range to make cfg_freq_sel actually select.
     parameter int CFI_MIN_FREQ_MHZ  = ACLK_MHZ,
     parameter int CFI_MAX_FREQ_MHZ  = ACLK_MHZ,
-    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit ocelus, tie outputs
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,  // per-range flavor: 0=debug/match, 1=error/allowlist-miss
-    parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for monitor packets
-    parameter logic [15:0] AGENT_ID = 16'h0014,    // 16-bit Agent ID for monitor packets
-    parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to monitor
+    parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for ocelus packets
+    parameter logic [15:0] AGENT_ID = 16'h0014,    // 16-bit Agent ID for ocelus packets
+    parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to ocelus
     // ID-range filter, passed through to axi_monitor_base. Default OFF ->
     // bit-identical to before. See axi_monitor_base for why this exists:
     // several monitors snooping one ID-multiplexed bus, each owning a slice,
@@ -109,7 +109,7 @@ module axi4_slave_rd_mon
     // Global Clock and Reset
     input  logic                       aclk,
     input  logic                       aresetn,
-    input  logic                       cam_clear,  // sync clear of the monitor trans CAM
+    input  logic                       cam_clear,  // sync clear of the ocelus trans CAM
 
     // Slave AXI Interface (Input Side)
     // Read address channel (AR)
@@ -161,7 +161,7 @@ module axi4_slave_rd_mon
     input  logic                       fub_axi_rvalid,
     output logic                       fub_axi_rready,
 
-    // Monitor Configuration
+    // Ocelus Configuration
     input  logic                       cfg_monitor_enable,      // Enable monitoring
     input  logic                       cfg_error_enable,        // Enable error detection
     input  logic                       cfg_timeout_enable,      // Enable timeout detection
@@ -213,21 +213,21 @@ module axi4_slave_rd_mon
     input  logic                                    cfg_end_trigger,
     input  logic                                    cfg_window_force_close,
 
-    // Free-running monitor-time broadcast from the monbus_group family
+    // Free-running ocelus-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
-    // Monitor Bus Output
-    output logic                                    monbus_valid,            // Monitor bus valid
-    input  logic                                    monbus_ready,            // Monitor bus ready
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Monitor packet (128-bit)
+    // Ocelus Bus Output
+    output logic                                    monbus_valid,            // Ocelus bus valid
+    input  logic                                    monbus_ready,            // Ocelus bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
     output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     // Status outputs for clock gating and monitoring
     output logic                       busy,
     output logic [7:0]                 active_transactions,     // Number of active transactions
-    output logic [15:0]                error_count,             // Total error count (not available from base monitor)
-    output logic [31:0]                transaction_count,       // Total transaction count (not available from base monitor)
-    // Monitor backpressure, brought out for observability. This is the SAME
+    output logic [15:0]                error_count,             // Total error count (not available from base ocelus)
+    output logic [31:0]                transaction_count,       // Total transaction count (not available from base ocelus)
+    // Ocelus backpressure, brought out for observability. This is the SAME
     // net that gates the upstream command handshake below -- not a copy, not a
     // re-derivation. It is a port and not an internal signal because a
     // hierarchical reference to it is not reliably observable: the sby harness
@@ -260,7 +260,7 @@ module axi4_slave_rd_mon
 );
 
     // -------------------------------------------------------------------------
-    // Monitor backpressure plumbing (see axi4_master_rd_mon for full rationale)
+    // Ocelus backpressure plumbing (see axi4_master_rd_mon for full rationale)
     // -------------------------------------------------------------------------
     logic w_core_s_axi_arready;
     logic w_block_ready;
@@ -348,17 +348,17 @@ module axi4_slave_rd_mon
     );
 
     // -------------------------------------------------------------------------
-    // Instantiate AXI Monitor with Filtering (Monitoring slave side - s_axi_* interface)
+    // Instantiate AXI Ocelus with Filtering (Monitoring slave side - s_axi_* interface)
     // -------------------------------------------------------------------------
-    // USE_MONITOR=1: filtered monitor is instantiated. USE_MONITOR=0: omitted
+    // USE_MONITOR=1: filtered ocelus is instantiated. USE_MONITOR=0: omitted
     // and outputs tied to non-blocking defaults.
     // -------------------------------------------------------------------------
     // cfg_monitor_enable -- master runtime gate.
-    // When 0 the monitor is inert: command/data/response valids are gated off
+    // When 0 the ocelus is inert: command/data/response valids are gated off
     // (no allocation, no perf windows), the transaction CAM is held cleared
     // through the cam_clear path (so a re-enable starts from an empty table),
     // and block_ready is forced high at the wrapper gate below so a disabled
-    // monitor can never stall the datapath. When 1: normal operation.
+    // ocelus can never stall the datapath. When 1: normal operation.
     //
     // cfg_timeout_cycles -- unified coarse timeout control: a MICROSECOND
     // count passed through at FULL 16-bit width (see the assign below and
@@ -404,7 +404,7 @@ module axi4_slave_rd_mon
             .ID_MATCH_COUNT          (ID_MATCH_COUNT),
             .ADDR_WIDTH              (AW),
             .ID_WIDTH                (IW),
-            .IS_READ                 (1'b1),             // This is a read monitor
+            .IS_READ                 (1'b1),             // This is a read ocelus
             .IS_AXI                  (1'b1),             // AXI4 protocol
             .ENABLE_PERF_PACKETS     (1'b1),
             .ENABLE_ERROR_LOGIC      (ENABLE_ERROR_LOGIC),
@@ -501,14 +501,14 @@ module axi4_slave_rd_mon
             .cfg_end_trigger         (cfg_end_trigger),
             .cfg_window_force_close  (cfg_window_force_close),
 
-            // Monitor bus output
+            // Ocelus bus output
             .monbus_valid            (monbus_valid),
             .monbus_ready            (monbus_ready),
             .monbus_packet           (monbus_packet),
             .monbus_timestamp        (monbus_timestamp),
 
             // Status outputs
-            // block_ready stalls new ARs at s_axi_arready when the monitor
+            // block_ready stalls new ARs at s_axi_arready when the ocelus
             // FIFO is full (wire ANDed into the wrapper output below).
             .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
@@ -551,11 +551,11 @@ module axi4_slave_rd_mon
         assign perf_burst_count    = 32'h0;
     end
 
-    // Gate the upstream AR handshake on monitor block_ready.
+    // Gate the upstream AR handshake on ocelus block_ready.
     assign s_axi_arready = w_core_s_axi_arready &
-           (w_block_ready | ~cfg_monitor_enable);  // disabled monitor never stalls
+           (w_block_ready | ~cfg_monitor_enable);  // disabled ocelus never stalls
 
-    // error_count / transaction_count: driven from the base monitor's
+    // error_count / transaction_count: driven from the base ocelus's
     // lifetime reporter counters (axi_monitor_reporter_perf). They count
     // packets actually EMITTED (marked into the reporter FIFO): error_count
     // covers error+timeout packets, transaction_count covers completion
@@ -574,7 +574,7 @@ module axi4_slave_rd_mon
     // visible and the contract is enforceable:
     //   * enabled + blocked -> upstream ready is forced low
     //   * disabled          -> the wrapper is transparent (a disabled
-    //                          monitor must never stall the datapath)
+    //                          ocelus must never stall the datapath)
     // ------------------------------------------------------------------------
     always @(*) begin
         if (aresetn && cfg_monitor_enable && !w_block_ready)

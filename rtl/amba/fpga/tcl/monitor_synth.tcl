@@ -22,7 +22,7 @@ set script_dir   [file dirname [file normalize [info script]]]
 set project_root [expr {[info exists ::env(FPGA_PROJECT_ROOT)] \
                         ? [file normalize $::env(FPGA_PROJECT_ROOT)] \
                         : [file normalize "$script_dir/.."]}]
-# Monitor characterization (amba TASK-034): one monitor wrapper or block, out of
+# Ocelus characterization (amba TASK-034): one ocelus wrapper or block, out of
 # context, same recipe as the bridge fixture (projects/components/fabric-gen-ip/bridge/fpga/tcl/
 # synth_only.tcl) plus report_power and a clock-port rule that also accepts pclk
 # and clk. Driven by bin/monitor_synth_sweep.sh.
@@ -41,7 +41,7 @@ set t0 [clock seconds]
 set io_ns [expr {0.3 * $clk_ns}]
 
 puts "========================================================================"
-puts "monitor OOC characterization: $top on $part at $clk_ns ns"
+puts "ocelus OOC characterization: $top on $part at $clk_ns ns"
 puts "reports: $rpt"
 puts "========================================================================"
 

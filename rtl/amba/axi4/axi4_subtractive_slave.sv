@@ -7,7 +7,7 @@
 // Module: axi4_subtractive_slave
 // Purpose: Catch-all slave for addresses no positively-decoded slave claims.
 //          Completes the transaction with an ERROR response instead of
-//          leaving it unanswered, and reports the hit on the monitor bus.
+//          leaving it unanswered, and reports the hit on the ocelus bus.
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -37,7 +37,7 @@
 //     zeros are indistinguishable from real memory and DEADBEEF is not
 //   * emits one monbus ERROR packet per offending AW/AR, carrying the
 //     address, so the hit raises the fabric's existing interrupt and lands
-//     in the same CSR path as every other monitor event
+//     in the same CSR path as every other ocelus event
 //
 // The response is ALWAYS an error. There is no OKAY mode and no parameter
 // to select one: a mode switch here would be a place for lint, simulation
@@ -60,7 +60,7 @@ module axi4_subtractive_slave
     // Read data returned for every beat. Replicated to AXI_DATA_WIDTH.
     parameter logic [31:0] READ_FILL = 32'hDEAD_BEEF,
 
-    // Monitor identity, as elsewhere in the fabric.
+    // Ocelus identity, as elsewhere in the fabric.
     parameter logic [7:0]  UNIT_ID   = 8'h0,
     parameter logic [15:0] AGENT_ID  = 16'h0,
     parameter bit          ENABLE_MONBUS = 1'b1,
@@ -106,7 +106,7 @@ module axi4_subtractive_slave
     output logic            s_axi_rvalid,
     input  logic            s_axi_rready,
 
-    // ---- monitor bus -----------------------------------------------------
+    // ---- ocelus bus -----------------------------------------------------
     output logic            monbus_valid,
     input  logic            monbus_ready,
     output monitor_packet_t monbus_packet,
@@ -234,7 +234,7 @@ module axi4_subtractive_slave
     )
 
     // ---------------------------------------------------------------------
-    // MONITOR REPORT
+    // OCELUS REPORT
     //
     // One ERROR packet per offending address phase, carrying the address so
     // software can see WHICH access was unmapped rather than merely that one

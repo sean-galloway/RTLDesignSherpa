@@ -24,7 +24,7 @@
 # Monitor Bus Round-Robin Arbiter
 
 **Module:** `monbus_arbiter.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
 ---
@@ -382,11 +382,11 @@ The Ocelus is an original design of this repository. The papers and standards be
 ### Specifications
 
 - Internal: docs/markdown/rtl-amba/index.md (AMBA subsystem requirements)
-- Internal: docs/markdown/rtl-amba/includes/monitor_package_spec.md (monitor bus protocol)
+- Internal: docs/markdown/rtl-amba/includes/ocelus_package_spec.md (monitor bus protocol)
 
 ### Source Code
 
-- RTL: `rtl/amba/monitor/monbus_arbiter.sv`
+- RTL: `rtl/amba/ocelus/monbus_arbiter.sv`
 - Tests: `val/amba/test_monbus_arbiter_grant_hold.py` (if exists)
 
 ---

@@ -17,14 +17,14 @@ The `md_to_docx.py` tool parses the markdown and expects specific patterns to de
 ## Block Diagrams (binding, highest priority)
 
 All block / microarchitecture figures MUST follow the diagram house style
-fixed by the owner's reference (the classic DDR-MC course diagram). The
-binding rules and recipes — three traceable flows, the flat wide-edge-up
-trapezium, transaction-class labels on every arrow, one boundary bar,
-`xlabel` for same-rank labels, the point-node scaffold for multi-crossing
-node pairs, render-then-read verification — live in
-[STYLE.md](../projects/components/mem-ctrl-ip/common-ip/docs/common_has/assets/graphviz/STYLE.md),
-and the repo-root `AGENTS.md` restates them for every agent. The reference
-implementation is the family whole-unit diagram in `common_has`.
+fixed by the owner's reference (the classic DDR-MC course diagram), drawn in
+graphviz `dot`. The binding rules and recipes — traceable flows, the flat
+wide-edge-up trapezium, transaction-class labels on every arrow, one boundary
+bar, `xlabel` for same-rank labels, the point-node scaffold for multi-crossing
+node pairs, render-then-read verification — live in the handbook note
+[block-diagrams](../vault/handbook/authoring/block-diagrams.md), and the
+repo-root `AGENTS.md` restates the non-negotiables for every agent. The
+reference implementation is the family whole-unit diagram in `common_has`.
 
 ---
 

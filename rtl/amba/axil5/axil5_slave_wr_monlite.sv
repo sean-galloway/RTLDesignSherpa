@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axil5_slave_wr_monlite
-// Purpose: AXIL5 Slave Write with the lite monitor (axi_monitor_lite) -- axil5_slave_wr plus a fifth of the monitor gates
+// Purpose: AXIL5 Slave Write with the lite ocelus (axi_monitor_lite) -- axil5_slave_wr plus a fifth of the ocelus gates
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
@@ -14,12 +14,12 @@
 // Created: 2026-09-26
 //
 // ============================================================================
-// The lite-monitor sibling of axil5_slave_wr_mon (amba/monitor-lite TASK-001). Same
+// The lite-ocelus sibling of axil5_slave_wr_mon (amba/ocelus-lite TASK-001). Same
 // core, same taps, same 128-bit packets on the same monbus with the same
 // UNIT/AGENT ids, so the arbiter, group and host tooling cannot tell the two
 // apart. Different interface: only what the lite can honour is on the port
 // list -- no perf window, no debug, no address-range checker, no ID/address
-// filters, no per-event masks -- and two status outputs the full monitor
+// filters, no per-event masks -- and two status outputs the full ocelus
 // does not have (dropped_count, refused_count). The lite never stalls the
 // port: an event it cannot deliver is dropped and counted, and a command
 // that finds no free table entry is counted and left untracked (its beats
@@ -27,7 +27,7 @@
 // the command handshake; the core's ready goes straight to the port.
 //
 // Every core parameter and port is declared here verbatim from axil5_slave_wr
-// and passed through by name; the monitor section is the same lite tap
+// and passed through by name; the ocelus section is the same lite tap
 // wiring the _mon wrapper carries. Sean, 2026-09-26: "make monlite versions
 // of the various axi wrappers".
 // ============================================================================
@@ -35,8 +35,8 @@
 
 module axil5_slave_wr_monlite
 #(
-    // ---- Monitor parameters ----
-    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the monitor, tie its outputs
+    // ---- Ocelus parameters ----
+    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the ocelus, tie its outputs
     parameter logic [7:0]  UNIT_ID                = 8'h02,
     parameter logic [15:0] AGENT_ID               = 16'h0015,
     parameter int          MAX_TRANSACTIONS       = 8,      // table entries; a command finding none is counted, not tracked
@@ -145,9 +145,9 @@ module axil5_slave_wr_monlite
     // Status output for clock gating
     output logic                       busy,
 
-    // ---- Monitor control (the lite's own set: nothing here it cannot honour) ----
-    input  logic                                  cam_clear,           // sync clear of the monitor's table (named as on the _mon wrapper: pin-compatible)
-    input  logic                                  cfg_monitor_enable,  // 0 = monitor inert, table held clear
+    // ---- Ocelus control (the lite's own set: nothing here it cannot honour) ----
+    input  logic                                  cam_clear,           // sync clear of the ocelus's table (named as on the _mon wrapper: pin-compatible)
+    input  logic                                  cfg_monitor_enable,  // 0 = ocelus inert, table held clear
     input  logic                                  cfg_error_enable,
     input  logic                                  cfg_timeout_enable,
     input  logic                                  cfg_compl_enable,
@@ -163,7 +163,7 @@ module axil5_slave_wr_monlite
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
-    // ---- Monitor bus ----
+    // ---- Ocelus bus ----
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
     output monitor_common_pkg::monitor_packet_t   monbus_packet,
@@ -200,7 +200,7 @@ module axil5_slave_wr_monlite
 `endif
 
     // ------------------------------------------------------------------------
-    // The core, passed through untouched (no monitor gating on any handshake)
+    // The core, passed through untouched (no ocelus gating on any handshake)
     // ------------------------------------------------------------------------
     axil5_slave_wr #(
         .AXIL_ADDR_WIDTH             (AXIL_ADDR_WIDTH),
@@ -266,7 +266,7 @@ module axil5_slave_wr_monlite
     );
 
     // ------------------------------------------------------------------------
-    // Monitor taps. cfg_monitor_enable gates every tap and holds the table
+    // Ocelus taps. cfg_monitor_enable gates every tap and holds the table
     // clear; cfg_timeout_cycles is MICROSECONDS at full width, 0 = never.
     // ------------------------------------------------------------------------
     logic        w_mon_cmd_valid;
@@ -281,9 +281,9 @@ module axil5_slave_wr_monlite
     assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
                             : cfg_timeout_cycles;
 
-    // AXI5-Lite IDs to the monitor (amba #104). AWID/BID exist on AXI5-Lite
+    // AXI5-Lite IDs to the ocelus (amba #104). AWID/BID exist on AXI5-Lite
     // and a Subordinate may return responses out of order across IDs (IHI
-    // 0022L B2.1.5), so the monitor pairs each B with the oldest command of
+    // 0022L B2.1.5), so the ocelus pairs each B with the oldest command of
     // the SAME ID, as on AXI4 -- with the ID tied 0 it paired every B with the
     // oldest command outstanding, whichever one the B answered.
     // W carries no ID (Table B2.2). It needs none: write data follows AW order

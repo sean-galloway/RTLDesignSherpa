@@ -6,4 +6,4 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/rtl/amba/monitor/monitor_trans_cam.sv
+$REPO_ROOT/rtl/amba/ocelus/monitor_trans_cam.sv

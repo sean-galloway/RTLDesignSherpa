@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi5_slave_wr_monlite_cg
-// Purpose: AXI5 Slave Write with the lite monitor, clock gated -- axi5_slave_wr_monlite behind one amba_clock_gate_ctrl
+// Purpose: AXI5 Slave Write with the lite ocelus, clock gated -- axi5_slave_wr_monlite behind one amba_clock_gate_ctrl
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
@@ -15,17 +15,17 @@
 //
 // ============================================================================
 // The clock-gated sibling of axi5_slave_wr_monlite, built exactly as axi5_slave_wr_mon_cg is built
-// around axi5_slave_wr_mon (amba/monitor-lite TASK-001, Sean 2026-09-26: "build the
+// around axi5_slave_wr_mon (amba/ocelus-lite TASK-001, Sean 2026-09-26: "build the
 // monlite_cg wrappers"). One amba_clock_gate_ctrl gates the whole inner
 // wrapper; the activity term, the ready masks and the monbus liveness terms
 // are the axi5_slave_wr_mon_cg ones verbatim, so val/amba/test_mon_cg_gating.py's six
-// phases hold here too (val/amba/monitor-lite/test_monlite_cg_gating.py).
+// phases hold here too (val/amba/ocelus-lite/test_monlite_cg_gating.py).
 //
 // Activity is derived from VALID signals and outstanding work ONLY, never a
 // peer's READY (a consumer parking its response-ready high while idle would
 // otherwise pin the block awake). Request-side readys are masked to 0 while
 // gated, so nothing is accepted with the clock stopped. A packet parked on
-// the monitor bus, and any occupied table entry, hold the block awake so the
+// the ocelus bus, and any occupied table entry, hold the block awake so the
 // lite can retire the handshake; the external monbus_valid is masked by
 // !cg_gating so the consumer never sees a valid a stopped lite could not
 // retire (TASK-070 liveness terms, as on axi5_slave_wr_mon_cg).
@@ -40,8 +40,8 @@ module axi5_slave_wr_monlite_cg
     // ---- Clock gating ----
     parameter int          CG_IDLE_COUNT_WIDTH    = 4,      // width of the idle countdown (sizes cfg_cg_idle_count)
 
-    // ---- Monitor parameters ----
-    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the monitor, tie its outputs
+    // ---- Ocelus parameters ----
+    parameter bit          USE_MONITOR            = 1'b1,   // 0 = omit the ocelus, tie its outputs
     parameter logic [7:0]  UNIT_ID                = 8'h01,
     parameter logic [15:0] AGENT_ID               = 16'h000D,
     parameter int          MAX_TRANSACTIONS       = 8,      // table entries; a command finding none is counted, not tracked
@@ -226,9 +226,9 @@ module axi5_slave_wr_monlite_cg
     // Status outputs for clock gating
     output logic                       busy,
 
-    // ---- Monitor control (the lite's own set: nothing here it cannot honour) ----
-    input  logic                                  cam_clear,           // sync clear of the monitor's table (named as on the _mon wrapper: pin-compatible)
-    input  logic                                  cfg_monitor_enable,  // 0 = monitor inert, table held clear
+    // ---- Ocelus control (the lite's own set: nothing here it cannot honour) ----
+    input  logic                                  cam_clear,           // sync clear of the ocelus's table (named as on the _mon wrapper: pin-compatible)
+    input  logic                                  cfg_monitor_enable,  // 0 = ocelus inert, table held clear
     input  logic                                  cfg_error_enable,
     input  logic                                  cfg_timeout_enable,
     input  logic                                  cfg_compl_enable,
@@ -244,7 +244,7 @@ module axi5_slave_wr_monlite_cg
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
-    // ---- Monitor bus ----
+    // ---- Ocelus bus ----
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
     output monitor_common_pkg::monitor_packet_t   monbus_packet,

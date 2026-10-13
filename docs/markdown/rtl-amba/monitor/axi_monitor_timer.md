@@ -24,7 +24,7 @@
 # AXI Monitor Timer
 
 **Module:** `axi_monitor_timer.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
 ---
@@ -501,7 +501,7 @@ The Ocelus is an original design of this repository. The papers and standards be
 - Transaction Manager: [axi_monitor_trans_mgr.md](axi_monitor_trans_mgr.md)
 
 ### Source Code
-- RTL: `rtl/amba/monitor/axi_monitor_timer.sv`
+- RTL: `rtl/amba/ocelus/axi_monitor_timer.sv`
 - Counter: `rtl/common/counter_freq_invariant.sv`
 - Documentation: `docs/markdown/rtl-common/counter_freq_invariant.md`
 - Tests: `val/amba/test_axi4_master_rd_mon.py` (integration)

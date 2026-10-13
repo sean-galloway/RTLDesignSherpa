@@ -9,7 +9,7 @@
 # must be on the include path and compiled before it.
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
-# monitor packages -- create_monitor_packet, PktTypeError, AXI_ERR_ADDR_RANGE
+# ocelus packages -- create_monitor_packet, PktTypeError, AXI_ERR_ADDR_RANGE
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 
 +incdir+$REPO_ROOT/rtl/amba/includes

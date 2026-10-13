@@ -11,7 +11,7 @@
 # Created: 2026-06-11
 
 """
-Test for `rtl/amba/monitor/monbus_axi4_axil4_group.sv` — the AXI4-burst
+Test for `rtl/amba/ocelus/monbus_axi4_axil4_group.sv` — the AXI4-burst
 slave-read + AXIL master-write member of the family. This file member
 had no dedicated test before
 [MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md](../../MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md)
@@ -272,7 +272,7 @@ def test_monbus_axi4_axil4_group(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_axil4':    'rtl/amba/axil4',
         'rtl_axi4':     'rtl/amba/axi4',
         'rtl_gaxi':     'rtl/amba/gaxi',

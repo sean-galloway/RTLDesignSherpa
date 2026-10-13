@@ -102,7 +102,7 @@ though its entry had always been in the script) and the monitor book (424pp)
 were checked this way -- every wb4 module named in the first, and the new
 Wishbone monitor pages down to individual event codes in the second. The
 monitor book needed no script change, because its generator globs
-`rtl-amba/monitor/*.md` and `rtl-amba/includes/monitor_*.md` and so picks up
+`rtl-amba/monitor/*.md` and `rtl-amba/includes/ocelus_*.md` and so picks up
 new pages on its own.*
 
 ## Diagrams: the PDF eats PNG, not SVG

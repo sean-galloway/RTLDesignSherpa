@@ -24,7 +24,7 @@
 # AXI Monitor Reporter — Performance Packets
 
 **Module:** `axi_monitor_reporter_perf.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
 ---
@@ -279,15 +279,15 @@ The Ocelus is an original design of this repository. The papers and standards be
 - Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
 
 ### Source Code
-- RTL: `rtl/amba/monitor/axi_monitor_reporter_perf.sv`
-- Parent: `rtl/amba/monitor/axi_monitor_reporter.sv`
-- Packages: `rtl/amba/includes/monitor_common_pkg.sv`, `rtl/amba/includes/monitor_amba4_pkg.sv`
+- RTL: `rtl/amba/ocelus/axi_monitor_reporter_perf.sv`
+- Parent: `rtl/amba/ocelus/axi_monitor_reporter.sv`
+- Packages: `rtl/amba/includes/ocelus_common_pkg.sv`, `rtl/amba/includes/ocelus_amba4_pkg.sv`
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Monitor Base: `docs/markdown/rtl-amba/monitor/axi_monitor_base.md`
 - Configuration: `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
-- Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
+- Packet Format: `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
 
 ---
 

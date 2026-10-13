@@ -479,7 +479,7 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
         'rtl_cmn':           'rtl/common',
         'rtl_amba_includes': 'rtl/amba/includes',
         'rtl_amba_shared':   'rtl/amba/shared',
-        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_monitor':       'rtl/amba/ocelus',
         'rtl_gaxi':          'rtl/amba/gaxi',
     })
 

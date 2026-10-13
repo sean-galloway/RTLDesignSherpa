@@ -207,7 +207,7 @@ STREAM Architecture (as implemented)
     └── stream_config_block.sv      # Configuration block
 ```
 
-Monitoring uses the shared monbus group modules from `rtl/amba/monitor/` (e.g. `monbus_axil4_axil4_group.sv`) rather than a STREAM-local reporter.
+Monitoring uses the shared monbus group modules from `rtl/amba/ocelus/` (e.g. `monbus_axil4_axil4_group.sv`) rather than a STREAM-local reporter.
 
 ---
 

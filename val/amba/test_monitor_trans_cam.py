@@ -5,9 +5,9 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_monitor_trans_cam
-# Purpose: FUB cocotb tests for rtl/amba/monitor/monitor_trans_cam.sv
+# Purpose: FUB cocotb tests for rtl/amba/ocelus/monitor_trans_cam.sv
 #
-# Documentation: rtl/amba/monitor/monitor_trans_cam.sv (header comment)
+# Documentation: rtl/amba/ocelus/monitor_trans_cam.sv (header comment)
 # Subsystem: tests
 #
 # Author: sean galloway
@@ -910,7 +910,7 @@ def get_trans_cam_params():
 def test_monitor_trans_cam(request, id_width, payload_width, depth):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
-        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_monitor': 'rtl/amba/ocelus',
         'rtl_includes': 'rtl/amba/includes',
     })
 

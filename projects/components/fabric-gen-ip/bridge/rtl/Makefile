@@ -38,7 +38,7 @@ LINT_WAIVERS = -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-VARHIDDEN \
 # combinational logic, and a plain `-cc` build optimises across such a loop and
 # reports nothing either. It takes --public-flat-rw -- which cocotb always
 # passes, so every signal stays addressable and nothing is flattened -- to make
-# the cycle real. A UNOPTFLAT in rtl/amba/monitor went unseen that way and
+# the cycle real. A UNOPTFLAT in rtl/amba/ocelus went unseen that way and
 # broke every *_mon variant's build; see TASK-081.
 BUILD_FLAGS = -cc --public-flat-rw --trace --trace-structs
 # WIDTH* and MULTIDRIVEN are lint's job (above); this pass exists for the

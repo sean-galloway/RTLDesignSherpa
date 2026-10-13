@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi4ace_snoop_slave_monlite
-// Purpose: axi4ace_snoop_slave with the lite snoop monitor (axi4ace_snoop_monitor_lite).
+// Purpose: axi4ace_snoop_slave with the lite snoop ocelus (axi4ace_snoop_monitor_lite).
 //
 // Documentation: docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md
 // Subsystem: amba
@@ -14,20 +14,20 @@
 // Created: 2026-10-05
 //
 // ============================================================================
-// The lite-monitor sibling of the full monitor wrapper.  Same core, same taps,
+// The lite-ocelus sibling of the full ocelus wrapper.  Same core, same taps,
 // same 128-bit packets on the same monbus with the same UNIT/AGENT ids, but
-// only the lite control subset is exposed.  The monitor never stalls the snoop
+// only the lite control subset is exposed.  The ocelus never stalls the snoop
 // channels: events it cannot deliver are dropped and counted.
 // ============================================================================
 `timescale 1ns / 1ps
 
 module axi4ace_snoop_slave_monlite
 #(
-    // ---- Monitor parameters ----
+    // ---- Ocelus parameters ----
     parameter bit          USE_MONITOR      = 1'b1,
     parameter logic [7:0]  UNIT_ID          = 8'h01,
     parameter logic [15:0] AGENT_ID         = 16'h000A,
-    parameter int          MAX_TRANSACTIONS = 8,      // maps to monitor MAX_SNOOPS
+    parameter int          MAX_TRANSACTIONS = 8,      // maps to ocelus MAX_SNOOPS
     parameter int          OUT_DEPTH        = 4,
     parameter int          ACLK_MHZ         = 100,
     parameter int          CFI_MIN_FREQ_MHZ = ACLK_MHZ,
@@ -85,7 +85,7 @@ module axi4ace_snoop_slave_monlite
     // Status outputs for clock gating
     output logic                       busy,
 
-    // ---- Monitor control ----
+    // ---- Ocelus control ----
     input  logic                       clear,
     input  logic                       cfg_monitor_enable,
     input  logic                       cfg_error_enable,
@@ -95,7 +95,7 @@ module axi4ace_snoop_slave_monlite
     input  logic [3:0]                 cfg_freq_sel,
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
 
-    // ---- Monitor bus ----
+    // ---- Ocelus bus ----
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
     output monitor_common_pkg::monitor_packet_t   monbus_packet,
@@ -109,7 +109,7 @@ module axi4ace_snoop_slave_monlite
 );
 
     // ------------------------------------------------------------------------
-    // The core, passed through untouched (no monitor gating on any handshake)
+    // The core, passed through untouched (no ocelus gating on any handshake)
     // ------------------------------------------------------------------------
     axi4ace_snoop_slave #(
         .SKID_DEPTH_AC (SKID_DEPTH_AC),
@@ -153,7 +153,7 @@ module axi4ace_snoop_slave_monlite
     );
 
     // ------------------------------------------------------------------------
-    // Monitor taps. cfg_monitor_enable gates every tap and holds the table
+    // Ocelus taps. cfg_monitor_enable gates every tap and holds the table
     // clear; cfg_timeout_cycles is MICROSECONDS at full width, 0 = never.
     // ------------------------------------------------------------------------
     logic        w_mon_ac_valid;

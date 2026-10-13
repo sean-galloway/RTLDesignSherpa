@@ -472,7 +472,7 @@ Every module below instantiates `amba_clock_gate_ctrl` and takes `CG_IDLE_COUNT_
 | AXI4-Lite | `rtl/amba/axil4/` | `axil4_master_rd_mon_cg`, `axil4_master_wr_mon_cg`, `axil4_slave_rd_mon_cg`, `axil4_slave_wr_mon_cg` | Yes |
 
 The `_mon_cg` wrappers live beside the protocol they wrap, not in
-`rtl/amba/monitor/` -- that directory holds the monitor cores themselves and
+`rtl/amba/ocelus/` -- that directory holds the monitor cores themselves and
 contains no `_cg` module at all.
 
 **Total:** 34 `_cg` modules, all 34 of which implement clock gating.

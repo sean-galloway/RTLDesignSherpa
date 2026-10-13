@@ -24,7 +24,7 @@
 # Known Issue: Orphan Error Packet Flood
 
 **Status:** FIXED (2025-10-03)
-**Severity:** HIGH - Blocks monitor operation
+**Severity:** HIGH - Blocks ocelus operation
 **Date Reported:** 2025-10-02
 **Date Fixed:** 2025-10-03
 **Affects:** `axi_monitor_base.sv` (specifically `axi_monitor_reporter.sv`)
@@ -37,14 +37,14 @@
 
 ## Summary
 
-The AXI monitor generates duplicate orphan error packets continuously (every clock cycle) after detecting an orphan data transaction, flooding the monitor bus and preventing legitimate completion packets from being generated.
+The AXI ocelus generates duplicate orphan error packets continuously (every clock cycle) after detecting an orphan data transaction, flooding the ocelus bus and preventing legitimate completion packets from being generated.
 
 ---
 
 ## Symptoms
 
-1. **Continuous packet generation**: After detecting an orphan data beat, the monitor generates identical error packets every clock cycle
-2. **Monitor bus saturation**: Orphan error packets dominate the monitor bus output
+1. **Continuous packet generation**: After detecting an orphan data beat, the ocelus generates identical error packets every clock cycle
+2. **Ocelus bus saturation**: Orphan error packets dominate the ocelus bus output
 3. **Completion packet starvation**: Legitimate transaction completion packets are blocked or delayed
 4. **Test failures**: Zero-delay stress tests fail because expected completion packets are not generated
 
@@ -127,7 +127,7 @@ The orphan detection logic in `axi_monitor_trans_mgr.sv` or `axi_monitor_reporte
 
 ### Likely Location
 
-**File:** `rtl/amba/monitor/axi_monitor_reporter.sv` or `rtl/amba/monitor/axi_monitor_trans_mgr.sv`
+**File:** `rtl/amba/ocelus/axi_monitor_reporter.sv` or `rtl/amba/ocelus/axi_monitor_trans_mgr.sv`
 
 **Look for:**
 - Orphan detection logic (likely checks for data_valid without matching cmd)
@@ -165,7 +165,7 @@ grep -n "event_reported" rtl/amba/shared/axi_monitor_*.sv
 
 ### System Impact
 
-- **Monitor bus congestion**: Prevents legitimate event reporting
+- **Ocelus bus congestion**: Prevents legitimate event reporting
 - **Performance monitoring failure**: Can't track completion events
 - **Error analysis corruption**: Real errors masked by orphan flood
 - **Downstream processing overload**: Consumer must filter flood
@@ -227,7 +227,7 @@ def filter_orphan_duplicates(packet):
 3. **Add orphan error rate limiting**:
    - Track reported orphan IDs
    - Only report each unique orphan once
-   - Reset tracking on monitor disable/reset
+   - Reset tracking on ocelus disable/reset
 
 ---
 
@@ -263,7 +263,7 @@ def filter_orphan_duplicates(packet):
 
 ### Changes Made (2025-10-03)
 
-**File:** `rtl/amba/monitor/axi_monitor_reporter.sv`
+**File:** `rtl/amba/ocelus/axi_monitor_reporter.sv`
 **Lines:** 295-307
 
 **Root Cause Confirmed:**

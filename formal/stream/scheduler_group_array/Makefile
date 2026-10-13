@@ -22,9 +22,9 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
 
 # Package files (order matters: dependencies first)
 # monitor_pkg_stub.sv provides an empty monitor_pkg so sv2v resolves the import
-PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
+PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
         monitor_pkg_stub.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
 
@@ -32,8 +32,8 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
 # (axi4_master_rd_mon and its monitor infrastructure)
 # The array carries axi4_master_rd_monlite since amba/monitor-lite TASK-001
 # (2026-09-28: the list used to name the retired full-monitor stack).
-MON_DEPS := $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_addr_check.sv \
-            $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_lite.sv \
+MON_DEPS := $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_addr_check.sv \
+            $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_lite.sv \
             $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd.sv \
             $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd_monlite.sv
 
@@ -46,7 +46,7 @@ CLEAN_DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
               $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
               $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
               $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-              $(REPO_ROOT)/rtl/amba/monitor/monbus_arbiter.sv \
+              $(REPO_ROOT)/rtl/amba/ocelus/monbus_arbiter.sv \
               $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/dma_address_gen.sv \
               $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv \
               $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv \

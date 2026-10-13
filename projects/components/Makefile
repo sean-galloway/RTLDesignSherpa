@@ -37,7 +37,7 @@ COMPONENTS = utility-ip/converters \
              mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3 \
              utility-ip/misc \
              ecc-ip/reed-solomon \
-             retro_legacy_blocks
+             legacy-ip/retro_legacy_blocks
 
 # Components that exist but don't yet expose run-all-* test targets (for reference):
 # - fabric-gen-ip/delta, compute-eng-ip/hive - no dv/tests Makefile (delta re-homed from noc-ip 2026-10-12)
@@ -118,7 +118,7 @@ help:
 	@echo "  make lint-fabric-gen-ip/bridge     Lint Bridge RTL"
 	@echo "  make lint-fabric-gen-ip/apbx-xbar  Lint APB Crossbar RTL"
 	@echo "  make lint-converters      Lint Converters RTL"
-	@echo "  make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL"
+	@echo "  make lint-legacy-ip/retro_legacy_blocks  Lint Retro Legacy Blocks RTL"
 	@echo "  make lint-misc                 Lint misc RTL"
 	@echo "  make lint-ecc-ip/reed-solomon  Lint Reed-Solomon RTL"
 	@echo "  make lint-mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2"

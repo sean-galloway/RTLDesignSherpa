@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
 // Module: monbus_group_core
-// Purpose: Protocol-agnostic monitor-bus capture core.
+// Purpose: Protocol-agnostic ocelus-bus capture core.
 //
 //   Receives a single monbus stream + side-band timestamp, applies
 //   per-protocol filter masks, and routes accepted packets to either:
@@ -68,7 +68,7 @@ module monbus_group_core
     input  logic                          cam_clear,
 
     // ------------------------------------------------------------------
-    // Monitor-bus input (single stream; upstream arbitration if any)
+    // Ocelus-bus input (single stream; upstream arbitration if any)
     // ------------------------------------------------------------------
     input  logic                          monbus_valid,
     output logic                          monbus_ready,
@@ -96,7 +96,7 @@ module monbus_group_core
 
     // Runtime compression enable. Only meaningful when USE_COMPRESSION==1
     // (the compressor hardware is present). 1 = compress, 0 = raw 3-beat
-    // records. MUST be held stable while the monitor write path is active:
+    // records. MUST be held stable while the ocelus write path is active:
     // switching it mid-stream would mix formats in the write FIFO and
     // change the burst record size (BEATS_PER_UNIT) mid-burst. Program it
     // once before monitoring starts. Tied to a constant (or unused) in

@@ -223,7 +223,7 @@ Main AXI4 master/slave interfaces.
 | index.md | rtl-amba main index | Low | [ ] Pending |
 | overview.md | Architecture overview | High | [ ] Pending |
 | axis.md | AXI-Stream overview | Medium | [ ] Pending |
-| includes/monitor_package_spec.md | Packet format spec | Medium | [ ] Pending |
+| includes/ocelus_package_spec.md | Packet format spec | Medium | [ ] Pending |
 
 ---
 

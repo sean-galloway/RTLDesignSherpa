@@ -24,7 +24,7 @@
 # AXI4 Slave Write Monitor
 
 **Module:** `axi4_slave_wr_mon.sv`
-**Location:** `rtl/amba/axi4/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
+**Location:** `rtl/amba/axi4/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/ocelus/`)
 **Status:** Production Ready
 
 ---
@@ -664,7 +664,7 @@ The unit testbench lives at `val/amba/test_axi4_slave_wr_mon.py`, built on the s
 
 ### Specifications
 - Arm. *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022, Issue H, Mar. 2020. [developer.arm.com/documentation/ihi0022/h](https://developer.arm.com/documentation/ihi0022/h/) -- §A3.4.5 "Read and write response structure" (the SLVERR/DECERR codes the monitor reports), ch. A5 "Transaction Identifiers" (per-ID tracking of outstanding transactions), §A3.3.1 "Dependencies between channel handshake signals" (the orderings a monitor timeout watches). Issue H is the last issue that defines the AXI4 interface.
-- Monitor Bus Packet Format: [monitor_package_spec.md](../includes/monitor_package_spec.md)
+- Monitor Bus Packet Format: [monitor_package_spec.md](../includes/ocelus_package_spec.md)
 
 ### Papers and textbooks
 - The monitor's own techniques (transaction table, timeouts, packet filtering) are cited on the [AXI Monitor Base](../monitor/axi_monitor_base.md) page and in the monitor family of the archive.
