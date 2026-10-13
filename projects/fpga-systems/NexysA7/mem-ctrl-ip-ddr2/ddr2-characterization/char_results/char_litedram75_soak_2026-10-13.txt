@@ -1,0 +1,30 @@
+[litedram] build: build_id=1279545906 version=1 dfi_rate=2 gear_ratio=1 dram_bl=4 row_width=13 bank_width=6 axi_data_width=64 dram_beat_width=32 dram_device_width=16 clk_hz=75000000
+[litedram] init_done=True init_fail=False
+[litedram] generators: num_wr_gen=4 num_rd_gen=4 num_banks=8
+[char 1/4] litedram/incremental_bl8
+[char 2/4] litedram/row_major_bl8
+[char 3/4] litedram/col_major_bl8
+[char 4/4] litedram/col_major_interleaved_bl8
+[autodetect] LiteDRAM char harness found on /dev/ttyUSB3
+Connected to /dev/ttyUSB3 at 115200 baud
+
+config           scenario                  ok blen gap   id   wr_MB/s   rd_MB/s    peak  rd%pk wr_util rd_util  rd_lat   hit%  ACT/txn     ACT     PRE  REF~win  thrash    limiter  blk_cyc
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+litedram         incremental_bl8            Y    8   0  fix     553.8     563.8     600  94.0%    0.3%    0.2%    48.0      -        -       -       -        -      -          -        -
+litedram         row_major_bl8              Y    8   0  fix     569.1     579.3     600  96.6%    0.3%    0.2%    48.0      -        -       -       -        -      -          -        -
+litedram         col_major_bl8              Y    8   0  fix     304.0     386.3     600  64.4%    0.3%    0.2%    52.6      -        -       -       -        -      -          -        -
+litedram         col_major_interleaved_bl8   Y    8   0  fix     276.8     280.1     600  46.7%    0.3%    0.2%    86.1      -        -       -       -        -      -          -        -
+
+=== characterization summary (clk=75 MHz, 1 config(s)) ===
+[config: litedram]
+  bl=8   rd BW  inc=   563.8  row=   579.3  col=   386.3  col_ilv=   280.1 MB/s  | page-penalty(col/inc)=68.5%  bank-recovery(ilv/col)=0.73x
+  bl=8   wr BW  inc=   553.8  row=   569.1  col=   304.0  col_ilv=   276.8 MB/s  | page-penalty(col/inc)=54.9%  bank-recovery(ilv/col)=0.91x
+    [FLAG] bl8 col: wr is 21% below the other direction (rd=386.3 wr=304.0) -- same addresses, so this is a recovery-path asymmetry, not the access pattern
+    [FLAG] bl8: bank interleave gives no gain over same-bank thrash -- activates not pipelined across banks
+    [FLAG] bl8: col_major STARVATION dominates (0.2% util) -- command-bound (ACT/PRE), not data-bound
+[NOTE] utilization is observation-latency-dominated at this run size (meter window >> timer run) -- treat rd/wr util as unreliable; bandwidth (timer-based) is fine. Raise --char-scale (~1000 on the board) for meaningful util.
+[FLAG] NO controller telemetry on any point -- hit%/ACT/PRE/REF are all unreadable. The paging/scheduling comparison this table exists for CANNOT be made from this run; bandwidth numbers are still valid.
+
+4/4 points passed integrity
+
+wrote 4 records to /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2-characterization/char_results/char_litedram75_soak_2026-10-13.csv

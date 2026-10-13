@@ -1,0 +1,43 @@
+================================================================================
+Apples-to-apples 75 MHz DDR2 controller comparison
+================================================================================
+
+Read MB/s (best config per controller)
+------------------------------------------------------------
+scenario                       pumice    granite litedram75
+------------------------------------------------------------
+incremental                     561.5       95.9      563.8
+row_major                       571.8       96.2      579.3
+col_major                       195.2       78.2      386.3
+col_major_interleaved           262.1       83.9      280.1
+
+Write MB/s (best config per controller)
+------------------------------------------------------------
+scenario                       pumice    granite litedram75
+------------------------------------------------------------
+incremental                     555.5       82.0      553.8
+row_major                       570.3       82.4      569.1
+col_major                       192.5       69.2      304.0
+col_major_interleaved           236.0       73.7      276.8
+
+Per-cycle headline: best read/write bytes/cycle across scenarios
+------------------------------------------------------------
+controller        best rd B/c                   scenario
+controller        best wr B/c                   scenario
+------------------------------------------------------------
+pumice                  7.624                  row_major
+pumice                  7.604                  row_major
+
+granite                 1.283                  row_major
+granite                 1.099                  row_major
+
+litedram75              7.724                  row_major
+litedram75              7.588                  row_major
+
+Summary
+------------------------------------------------------------
+Best read:  pumice=571.8 MB/s, granite=96.2 MB/s, litedram75=579.3 MB/s
+Best write: pumice=570.3 MB/s, granite=82.4 MB/s, litedram75=569.1 MB/s
+
+At 75 MHz, LiteDRAM best read is 1.01x pumice best read (+7.5 MB/s).
+At 75 MHz, LiteDRAM best write is 1.00x pumice best write (-1.2 MB/s).

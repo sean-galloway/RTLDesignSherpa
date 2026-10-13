@@ -433,6 +433,7 @@ module char_engine_harness
         .BURST_LEN_WIDTH (BURST_LEN_WIDTH),
         .BUILD_ID          (BUILD_ID),
         .BUILD_VERSION     (BUILD_VERSION),
+        .CFG_CLK_HZ        (FPGA_CLK_HZ),
         .CFG_DFI_RATE      (CFG_DFI_RATE),
         .CFG_DRAM_BL       (CFG_DRAM_BL),
         .CFG_ROW_WIDTH     (CFG_ROW_WIDTH),
