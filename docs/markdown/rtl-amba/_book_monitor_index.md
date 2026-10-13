@@ -43,5 +43,5 @@
 - [monbus_pkt_tally](monitor/monbus_pkt_tally.md)
 - [monbus_wb4_axil4_group / monbus_wb4_axi4_group](monitor/monbus_wb4_groups.md)
 - [Monitor Characterization](monitor/monitor_characterization.md)
-- [The Ocelus](monitor/monitor_system_architecture.md)
+- [The Ocelus Architecture](monitor/monitor_system_architecture.md)
 - [monitor_trans_cam](monitor/monitor_trans_cam.md)
