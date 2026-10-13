@@ -188,32 +188,14 @@ unchanged and pass straight through to the wrapped core.
 
 ## Functional Description
 
-```mermaid
-flowchart TB
-    subgraph CG["Clock Gating Control"]
-        wake["Activity Flop<br/>r_wakeup"]
-        idle["Idle<br/>Counter"]
-        gate["ICG<br/>Clock Gate"]
-    end
+### Block diagram
 
-    subgraph CORE["APB5 Master Core"]
-        master["apb5_master"]
-    end
+![apb5_master_cg block diagram](../../assets/rtl-amba/graphviz/apb5_master_cg.png)
 
-    pclk["pclk"] --> gate
-    gate -->|gated_pclk| master
-    idle --> gate
-    wake --> gate
-
-    cmd_valid --> wake
-    wake --> idle
-    master --> m_apb
-
-    cfg_cg_enable --> gate
-    cfg_cg_idle_count --> idle
-
-    gate -->|cg_gating| status
-```
+The wrapped `apb5_master` is one box (see its diagram). The variant adds the clock
+path (heavy): a wakeup flop on the ungated `pclk` watches `cmd_valid`, `rsp_valid`,
+PSEL, PENABLE and PWAKEUP, and `amba_clock_gate_ctrl` stops the core's clock after
+`cfg_cg_idle_count` quiet clocks when `cfg_cg_enable` is set.
 
 ### Clock Gating Behavior
 

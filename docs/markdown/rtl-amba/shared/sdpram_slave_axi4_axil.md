@@ -143,6 +143,17 @@ The AXIL read side has no burst or ID fields, so the wrapper supplies the missin
 
 ## Functional Description
 
+### Block diagram
+
+![sdpram_slave_axi4_axil block diagram](../../assets/rtl-amba/graphviz/sdpram_slave_axi4_axil.png)
+
+The write leaf (AXI4) and read leaf (AXI-Lite) each sit between their bus port and
+`sdpram_core`, which is drawn as the bottom bar (its queues, burst trackers
+and BRAM are in its own diagram). Requests go down each side and responses
+come back up the same edge: AW and W down and B up on the left, AR down and R
+up on the right. The leaves supply the skid buffers; on the FUB side, the AXI4 write carries real id, len, size and burst; the AXI-Lite read is tied to single beats (id 0, len 0, INCR).
+The bulk-clear handshake goes straight to the core.
+
 ### Structure
 
 Three instances: `axi4_slave_wr` (write), `axil4_slave_rd` (read), and `sdpram_core` (backend). The write leaf's FUB carries full AXI4 write fields into the core. The read leaf's AXIL FUB carries only address and data; the wrapper supplies the burst/ID fields the core expects.

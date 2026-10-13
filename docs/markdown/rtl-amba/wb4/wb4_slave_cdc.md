@@ -54,6 +54,12 @@ In addition to all `wb4_slave` parameters:
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_slave_cdc block diagram](../../assets/rtl-amba/graphviz/wb4_slave_cdc.png)
+
+The Wishbone domain (`wb_clk`) sits above the FUB domain (`aclk`). `wb4_slave` runs on `wb_clk`, and two `gaxi_fifo_async` children (see their diagram) straddle the boundary: commands cross down the left (`wb_clk` to `aclk`) and responses climb the right (`aclk` to `wb_clk`). Both are FIFOs, so the n-th response still terminates the n-th request. `wb_busy` is built from `wb_clk` signals only, which is what lets `wb4_slave_cdc_cg` use it as its wake term.
+
 ### Clock Domains
 
 The slave itself, its skid buffers, the `STALL` logic and the registered

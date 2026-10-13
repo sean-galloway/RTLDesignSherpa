@@ -142,6 +142,20 @@ Bringing up a memory controller means driving it with realistic, deterministic w
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_master_wr_injector block diagram](../../assets/rtl-amba/graphviz/axi4_master_wr_injector.png)
+
+This block is a write master; the memory under test is the bottom bar. The AW
+address generator walks the programmed descriptor, and AW issue applies the
+outstanding cap, the inter-burst gap and the ID mode. A second address
+generator walks the same descriptor in lockstep, so the data source (LFSR
+phase, address hash or fill pattern) emits one word per W beat. `dataint_crc`
+rolls those words into `o_expected_crc`. AW and W go out through
+`axi4_master_wr`. B responses come back up into completion tracking, which
+raises `cfg_done` when every burst has answered and latches any non-OKAY
+`bresp`.
+
 ### Workload FSM
 
 A four-state FSM (`S_IDLE`, `S_RUN`, `S_GAP`, `S_DONE`) sequences a run. On `cfg_start` the CSR program is latched (so software can change the `cfg_*` inputs on the next cycle without disturbing the run) and the block enters `S_RUN` (or `S_DONE` immediately if `cfg_txn_count == 0`). In `S_RUN` the AW and W paths run concurrently; `S_GAP` inserts `cfg_wr_gap` idle cycles between bursts; `S_DONE` awaits the final B responses. `S_DONE` also accepts a fresh `cfg_start` for a direct re-arm without passing back through `S_IDLE`.

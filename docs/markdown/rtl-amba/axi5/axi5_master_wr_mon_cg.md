@@ -53,57 +53,9 @@ Take the monitored write master and add power management. This module combines `
 
 ### Module Architecture
 
-```mermaid
-flowchart TB
-    subgraph FUB["FUB Interface"]
-        direction LR
-        fub_aw["AW Channel"]
-        fub_w["W Channel"]
-        fub_b["B Channel"]
-    end
+![axi5_master_wr_mon_cg block diagram](../../assets/rtl-amba/graphviz/axi5_master_wr_mon_cg.png)
 
-    subgraph CG["Clock Gating Controller"]
-        direction TB
-        activity["Activity<br/>Detection<br/>(AW/W/B)"]
-        idle_cnt["Idle Counter"]
-        gate_ctrl["Gate Control"]
-
-        activity --> idle_cnt
-        idle_cnt --> gate_ctrl
-    end
-
-    subgraph MON_CORE["AXI5 Master Write Monitor"]
-        direction TB
-        axi5_core["AXI5 Master<br/>+ SKID Buffers<br/>(AW/W/B)"]
-        monitor["AXI Monitor<br/>Filtered"]
-
-        axi5_core -->|Taps| monitor
-    end
-
-    subgraph OUTPUTS["Outputs"]
-        direction TB
-        m_axi["AXI5 Master<br/>Interface<br/>(AW/W/B)"]
-        monbus["Monitor Bus<br/>Packets"]
-        status["Status:<br/>busy, active_trans<br/>cg_gating, cg_idle"]
-    end
-
-    fub_aw --> activity
-    fub_w --> activity
-    fub_b --> activity
-    m_axi --> activity
-
-    activity --> idle_cnt
-    gate_ctrl -->|gated_aclk| axi5_core
-
-    fub_aw --> axi5_core
-    fub_w --> axi5_core
-    axi5_core --> fub_b
-    axi5_core --> m_axi
-
-    monitor --> monbus
-    axi5_core --> status
-    gate_ctrl --> status
-```
+The base `axi5_master_wr_mon` is one box (see its own diagram). The clock is the heavy main column: `aclk` enters `amba_clock_gate_ctrl`, which counts down idle cycles and drives `gated_aclk` into the child. AXI traffic passes straight through; while the clock is gated the wrapper forces the incoming readies to 0 so no handshake is lost. Activity is `fub_axi` valids, the child's busy, and `fub_axi_awakeup` when `ENABLE_WAKEUP=1`, on the upstream side, plus the `m_axi` valids. The monitored child's `monbus_valid` and active-transaction count also count as activity, so the clock never stops under a pending packet.
 
 ---
 

@@ -90,6 +90,17 @@ In addition to all [apb4_master](./apb4_master.md) ports:
 
 ## Functional Description
 
+### Block diagram
+
+![apb4_master_cg block diagram](../../assets/rtl-amba/graphviz/apb4_master_cg.png)
+
+The wrapped `apb4_master` is one box here; its own diagram shows the inside. What
+the variant adds is the clock path (heavy): `pclk` feeds `amba_clock_gate_ctrl`,
+whose gated clock runs the core. A wakeup flop on the ungated clock watches
+`cmd_valid`, `rsp_valid`, PSEL and PENABLE; when all have been quiet for
+`cfg_cg_idle_count` clocks and `cfg_cg_enable` is set, the clock stops.
+`cg_gating` and `cg_idle` report the state.
+
 ### Wake-Up Condition
 
 The wrapper holds the clock ungated while any of the following is true, sampled

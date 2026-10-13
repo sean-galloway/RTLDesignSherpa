@@ -1,0 +1,35 @@
+// axi4_slave_rd_stub block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Slave port (s_axi) at the top, the module boundary bar at the bottom.
+// AR goes down the left lane through its skid buffer; R comes back up the right
+// sits between the lanes and leaves through the bar.
+// Source of truth: rtl/amba/axi4/axi4_slave_rd_stub.sv.
+digraph axi4_slave_rd_stub {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.90", splines=ortho, newrank=true,
+           label="axi4_slave_rd_stub - AXI4 read slave: packed-packet stub, one skid buffer per channel (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AR: AR entries buffered (default 2)\lSKID_DEPTH_R: R beats buffered (default 4)\l    deeper = more decoupling, more flops\l", fillcolor="white"];
+    fub  [label="AXI4 Slave Port (s_axi_*) - from the interconnect / master\ns_axi_ar* in  /  s_axi_r* out", fillcolor="white", width=4.0];
+
+    ar   [group=L, label="AR Skid Buffer\ngaxi_skid_buffer - inst_ar_phase\n(DEPTH = SKID_DEPTH_AR)\nrd_count drives fub_axi_ar_count"];
+    r    [group=R, label="R Skid Buffer\ngaxi_skid_buffer - inst_r_phase\n(DEPTH = SKID_DEPTH_R)"];
+
+    mport [label="Module Boundary (packed packets to the backend)\nfub_axi_ar_pkt + fub_axi_ar_count out  |  fub_axi_r_pkt in",
+           fillcolor="white", width=7.6];
+
+    // request: down the left lane
+    fub -> ar    [xlabel="AR: id, addr, len, size,\nburst, ... (arvalid / arready)"];
+    ar  -> mport [xlabel="AR packet;\nar_count"];
+    // response: back up the right lane (dir=back keeps the ranks top-down)
+    r   -> mport [dir=back, xlabel="R packet"];
+    fub -> r     [dir=back, xlabel="R (rvalid / rready)"];
+
+    { rank=same; prm; fub; }
+    { rank=same; ar; r; }
+    prm -> fub [style=invis];
+    ar -> r [style=invis, minlen=1];
+}

@@ -268,6 +268,17 @@ Start a new diagram from them, not from a blank file:
 - **graphviz 2.43 `splines=ortho` can crash** with "Trapezoid-table
   overflow", even on a plain vertical chain (`math_mod_3_compress`). For an
   all-vertical chain, `splines=line` renders the same picture.
+- **A labeled edge between blocks in the same rank lands its label on the
+  boxes.** Put the two blocks one rank apart and let the edge run
+  diagonally.
+- **The lower leg of a scaffolded return lane must be `dir=none`;**
+  otherwise a stray arrowhead appears mid-lane.
+- **The graphviz 2.43 ortho router also asserts in `maze.c chkSgraph`** on
+  some small layouts. Nudging `nodesep` (0.40 to 0.45) cleared it; width
+  tweaks did not.
+- **A family of near-identical diagrams is best generated from one
+  parameterized script** (`gen_base.py` / `gen_var.py` per family), so
+  layout stays identical across master/slave and rd/wr.
 - **Shorten node labels before fighting the aspect ratio.** Long third lines
   widened every column and pushed the drawing past 2.5:1.
 
@@ -525,6 +536,89 @@ diagram.
   block that consumes it.
 - **A sub-module drawn on another page is one counted box,** and one figure
   may appear on two pages.
+
+### rtl-amba (2026-10-13)
+
+171 diagrams cover every `rtl/amba` module page (`wb4_pkg` defines types
+only). Templates: `axi4_*`, `axil4_*` and `apb4_*` in
+`docs/markdown/assets/rtl-amba/graphviz/`. The AXI5, AXI5-Lite, APB5, WB4
+and ACE pages were derived from them so the families look alike.
+
+**Bus interfaces**
+- **Ports and lanes:**
+  - The requester side is a white port box on top; the completer side
+    (the module boundary) is the bottom bar.
+  - Each channel gets its own lane: write data (W) on the left, address
+    in the center, responses (R, B) climbing the right lane via
+    `dir=back`.
+  - A channel hop is one edge per node pair, labeled with the channel and
+    what it carries: "AR: id, addr, len ... (valid down, ready up)".
+- **APB and Wishbone follow the same lane rules.** The command goes down
+  the left. The response (PREADY/PRDATA, or ACK/ERR/RTY plus DAT_R)
+  climbs the right. STALL is a dashed return.
+- **The skid buffers and FIFOs the RTL instantiates are named boxes on
+  their channel's lane** (`gaxi_skid_buffer - ar_channel`).
+- **A status output computed from many counts** (`busy`) sits between the
+  lanes and leaves through the bar, which names its destination ("busy (to
+  the clock-gate wrapper)").
+- **Optional protocol fields** (`ENABLE_*`) are one "+ AXI5 ... fields when
+  enabled" line in each skid box plus one Parameters entry. Optional
+  parity is one dashed block beside the beat path. A wakeup hold is a
+  dashed block beside busy.
+- **ACE is the axi4 diagram plus its additions.** RACK/WACK is a flop
+  beside the response lane on a master, and a plain dashed wire on a
+  slave. The snoop channels (AC down, CR and CD back up) get their own
+  lanes.
+
+**Variants: one rule for every family**
+- **A `_cg`, `_mon` or `_mon_cg` page draws the base module as one child
+  box** ("see its diagram"). Each side of it is a single `dir=both` edge
+  with a combined label ("AR out / R in"). Two parallel edges between the
+  same pair break rule 1.
+- **`_cg`:** the clock-gate controller and the heavy clock and gated-clock
+  column sit on the left. The activity terms and the forced-ready rule go
+  in the controller's label, not on edges.
+- **`_mon`:**
+  - The `USE_MONITOR`-only monitor is a dashed box.
+  - Its tap is a short dashed edge from the side the RTL actually taps
+    (masters on `m_axi`; AXI4 slaves on `s_axi`; AXI5 slaves on
+    `fub_axi`).
+  - `block_ready` is dashed into a handshake-gate box on the request lane.
+  - Monitor packets are the heavy edge to a white outputs box.
+- **`_mon_cg`** is the `_cg` drawing wrapped around the `_mon` child. A full
+  stub is two child boxes (write stub and read stub).
+- **A signal the wrapper itself computes** gets its own output box, not a
+  line in the child's label.
+
+**Monitors and observers**
+- **A pure observer** (bus meters, latency histogram, every monitor) draws
+  its taps as a white input labeled "(observed, nothing driven back)",
+  with no edge back to the bus.
+- **Several packet sources competing for one output bus is a real pick,**
+  so it gets a trapezium. So does a lowest-matching-entry scan over a
+  transaction table, and a 2:1 packet merge. A packet-type select where
+  special cases override, or an allocator that works in issue order, is a
+  plain box.
+- **Several inputs onto a wide trapezium edge:** put the feeding blocks in
+  the same rank directly above it and widen the trapezium to span them.
+  Scaffold nodes drift.
+- **A pick on an upward (response) path uses `shape=trapezium`,** with the
+  wide edge down, so the wide edge still faces the contenders. Example:
+  the atomic filter's B and R merges.
+- **A CAM read by its owner:** storage goes near the top under the write
+  port, dropping into the compares and onto the pick. Storage drawn as
+  the bottom bar fed the pick's narrow edge and pushed the aspect past
+  4:1. A manager wrapped around a CAM child draws the child as the bar,
+  read straight up.
+- **A two-cycle CAM labels its stages** "Cycle T" and "Cycle T+1".
+- **A composite with two routing destinations** (`monbus_group_core`) gets
+  one column per destination, with both endpoints sharing the bar.
+- **A master-side test block** draws the memory under test as the bottom
+  bar, with a Results box top-right. This is the reverse of a slave.
+
+**Clock domains stacked vertically** (`*_slave_cdc`): the dashed regions
+collided with the crossing labels, so name each block's domain in its label
+instead and point at the cdc FIFO's own diagram.
 
 ### Decision trees
 

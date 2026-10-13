@@ -127,6 +127,12 @@ number of commands accepted from the FUB and not yet answered, at most
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_retry block diagram](../../assets/rtl-amba/graphviz/wb4_retry.png)
+
+New FUB commands drop down the left lane into the issue select and are allocated an entry in the in-order completion buffer as they issue. The master's terminations climb the right lane into the response steer, which updates the issue-log head entry: ACK, ERR, or an RTY with the budget spent marks it DONE; an RTY under budget puts it back in WAIT with `cfg_retry_delay` loaded. The retry pick (the trapezium) chooses the oldest WAIT entry whose delay has run out, and a re-issue takes priority over a new command. Responses leave from the buffer head only once it is DONE, so the FUB sees them in command order.
+
 Each entry of the completion buffer holds the command (`we`, `adr`,
 `dat`, `sel`), a retry count, a delay timer and, once answered, the
 status and read data. Entries are allocated at the tail when a command is

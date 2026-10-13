@@ -125,6 +125,18 @@ The block is instantiated one per AXIS bus to be measured, snooping the stream s
 
 ## Functional Description
 
+### Block diagram
+
+![axis_bus_meter block diagram](../../assets/rtl-amba/graphviz/axis_bus_meter.png)
+
+The meter only observes. The same four-bucket cycle classification as
+`axi_bus_meter` feeds the aggregate cycle counters and, binned by `tid`, the
+per-channel counters (idle cycles are not binned). On every productive beat
+the throughput counters add the payload bytes (the popcount of `tstrb`), one
+beat, and one packet if `tlast` is set. These counts do not depend on how
+long the window stays open. `i_clear` zeroes everything and `i_freeze`
+holds it.
+
 ### Bucket Classification
 
 Identical to `axi_bus_meter`: the handshake pair decodes combinationally into four mutually-exclusive buckets.

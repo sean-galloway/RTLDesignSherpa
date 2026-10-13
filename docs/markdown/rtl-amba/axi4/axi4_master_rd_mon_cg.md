@@ -264,6 +264,12 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_master_rd_mon_cg block diagram](../../assets/rtl-amba/graphviz/axi4_master_rd_mon_cg.png)
+
+This is the `_cg` pattern wrapped around `axi4_master_rd_mon` (one child box, see its own diagram): the heavy `aclk` column runs through `amba_clock_gate_ctrl` into the monitored child as `gated_aclk`. The activity term adds `monbus_valid` and any active transactions to the usual valids and `busy`, so the clock cannot stop with a monitor packet or an open transaction in flight. The `cfg_monitor_*` and `cfg_axi_*` ports pass straight through to the child; the outward readies are forced to 0 while gating.
+
 ### Clock Gating Architecture
 
 ONE `amba_clock_gate_ctrl` gates the whole inner monitor module. The wake

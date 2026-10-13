@@ -118,28 +118,9 @@ module gaxi_fifo_sync #(
 
 ### Architecture
 
-```mermaid
-flowchart LR
-    subgraph Inputs["Write Interface"]
-        wrv["wr_valid"] --> fifo
-        wrd["wr_data"] --> fifo
-    end
+![gaxi_fifo_sync block diagram](../../assets/rtl-amba/graphviz/gaxi_fifo_sync.png)
 
-    subgraph fifo["Sync FIFO"]
-        ctr["Binary Counters<br/>(wr_ptr, rd_ptr)"]
-        mem["Memory Array<br/>[DEPTH-1:0]"]
-        ctrl["FIFO Control<br/>(full/empty)"]
-    end
-
-    subgraph Outputs["Read Interface"]
-        fifo --> rdd["rd_data<br/>(mux or flop)"]
-        fifo --> rdv["rd_valid"]
-        fifo --> cnt["count"]
-    end
-
-    fifo --> wrr["wr_ready"]
-    rdr["rd_ready"] --> fifo
-```
+Write data drops down the left into the storage bar and read data comes back up the right. Two `counter_bin` pointers address the storage and both feed one `fifo_control`, which returns `wr_ready` (not full) and `rd_valid` (not empty) as dashed feedback to the ports. It is the valid/ready face of `fifo_sync`, with the same counters and flag block.
 
 ### Dependencies
 

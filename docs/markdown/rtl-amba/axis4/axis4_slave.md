@@ -132,6 +132,12 @@ module axis4_slave #(
 
 ## Functional Description
 
+### Block diagram
+
+![axis4_slave block diagram](../../assets/rtl-amba/graphviz/axis4_slave.png)
+
+The mirror of `axis4_master`: an AXI4-Stream beat from the bus drops down the center, packed, through one `gaxi_skid_buffer` (`i_t_channel`) and unpacked onto `fub_axis_t*`. `fub_axis_tready` drains the skid buffer, and its registered `wr_ready` is `s_axis_tready`.
+
 The slave accepts an AXI4-Stream on `s_axis_*` and
 presents it on the FUB-facing `fub_axis_*` side through a `gaxi_skid_buffer`. The
 buffer registers both `rd_valid` and its storage, so every beat costs one cycle even

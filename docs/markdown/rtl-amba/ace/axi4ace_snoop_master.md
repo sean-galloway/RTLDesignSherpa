@@ -175,6 +175,12 @@ module axi4ace_snoop_master #(
 
 ## Functional Description
 
+### Block diagram
+
+![axi4ace_snoop_master block diagram](../../assets/rtl-amba/graphviz/axi4ace_snoop_master.png)
+
+The snoop-channel initiator, on the CCU / coherency-manager side. The snoop request (AC: `acaddr`, `acsnoop`, `acprot`) drops down the left lane through its skid buffer to the cached master. The snoop response (CR, `crresp[4:0]`) and snoop data (CD, `cddata`, `cdlast`) climb their own lanes on the right through their own skid buffers. It is pure transport: no snoop decode and no ordering logic.
+
 ### Triple Buffer Design
 
 The module buffers all three snoop channels independently:

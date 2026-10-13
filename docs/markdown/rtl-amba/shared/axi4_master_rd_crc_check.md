@@ -153,6 +153,21 @@ The read half of a memory-controller integrity loop has to know what it *should*
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_master_rd_crc_check block diagram](../../assets/rtl-amba/graphviz/axi4_master_rd_crc_check.png)
+
+This block is a read master; the memory under test is the bottom bar. The AR
+address generator walks the programmed descriptor, and AR issue applies the
+outstanding cap, the inter-burst gap and the ID mode before
+`axi4_master_rd` sends each burst. R beats come back up into the beat
+checker. A second address generator walks the same descriptor in lockstep so
+the expected-data source (LFSR phase, address hash or fill pattern) produces
+each beat's expected word. Each beat is compared, mismatches are counted and
+optionally captured, and `dataint_crc` rolls up the expected stream.
+`o_actual_crc` therefore matches the writer's `o_expected_crc` when the
+memory returned what was written.
+
 ### Workload FSM
 
 A four-state FSM (`S_IDLE`, `S_RUN`, `S_GAP`, `S_DONE`) mirrors the write generator. `cfg_start` latches the CSR program and enters `S_RUN` (or `S_DONE` if `cfg_txn_count == 0`). `S_RUN` runs the AR and R paths concurrently; `S_GAP` inserts `cfg_rd_gap` idle cycles between bursts (pausing both AR and R together); `S_DONE` holds until re-armed. Because the config shape is identical to the writer, one harness CSR word drives both blocks.

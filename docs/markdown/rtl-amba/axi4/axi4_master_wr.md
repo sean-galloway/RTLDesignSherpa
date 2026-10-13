@@ -220,34 +220,15 @@ Mirrors the frontend interface but in the opposite direction (output on AW/W, in
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_master_wr block diagram](../../assets/rtl-amba/graphviz/axi4_master_wr.png)
+
+Write data (W) takes its own lane down the left and AW goes down the center, each through its own `gaxi_skid_buffer` from the requester (FUB) side to the m_axi master port; the write response (B) comes back up the right lane through a third skid buffer. Busy Detect reads all three occupancies plus the incoming valids and drives `busy` for the `_cg` clock-gated wrapper. The `SKID_DEPTH_*` parameters size each buffer.
+
 ### Architecture
 
-Three independent `gaxi_skid_buffer` instances provide the elastic buffering, one per write channel:
-
-```mermaid
-flowchart LR
-    subgraph FE["Frontend<br/>(fub_axi_*)"]
-        faw["aw*"]
-        fw["w*"]
-        fb["b*"]
-    end
-
-    subgraph BUF["Skid Buffers"]
-        awb["AW Buffer<br/>(depth=2)"]
-        wb["W Buffer<br/>(depth=4)"]
-        bb["B Buffer<br/>(depth=2)"]
-    end
-
-    subgraph BE["Master<br/>(m_axi_*)"]
-        maw["aw*"]
-        mw["w*"]
-        mb["b*"]
-    end
-
-    faw --> awb --> maw
-    fw --> wb --> mw
-    mb --> bb --> fb
-```
+Three independent `gaxi_skid_buffer` instances provide the elastic buffering, one per write channel (see the block diagram above).
 
 ### Channel Operations
 

@@ -126,6 +126,18 @@ module apb4_master_stub #(
 
 ## Functional Description
 
+### Block diagram
+
+![apb4_master_stub block diagram](../../assets/rtl-amba/graphviz/apb4_master_stub.png)
+
+A packed-port wrapper around `apb4_master` (one box; see its diagram). The packed
+command is unpacked: the APB fields go to the core, and its `{last, first}`
+framing bits go into a side FIFO (`gaxi_fifo_sync`, depth
+`CMD_DEPTH + RSP_DEPTH + 2`, the true outstanding bound). When the core returns
+a response, the side FIFO pops the framing of that same command and Pack builds
+`rsp_data`, which climbs the right edge to the response port. This pairs each
+response with its own command even when the next command is already presented.
+
 ### Packet Interface
 
 The stub uses packed interfaces to simplify testbench integration:

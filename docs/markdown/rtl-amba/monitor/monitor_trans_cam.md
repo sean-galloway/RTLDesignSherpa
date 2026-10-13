@@ -130,62 +130,18 @@ module monitor_trans_cam #(
 
 ## Functional Description
 
+### Block diagram
+
+![monitor_trans_cam block diagram](../../assets/rtl-amba/graphviz/monitor_trans_cam.png)
+
+The slot flops sit under the write port, through which the owner
+(`axi_monitor_trans_mgr`) loads each slot's next contents. Their valid and ID
+state drops into the three ID compares (address, data and response lookups),
+and as the free vector onto the allocation pick, which grants the lowest free
+slot to address, then data, then response requests. All results, and the raw
+slot contents, go back to the owner.
+
 ### Architecture
-
-![monitor_trans_cam block diagram](../../assets/rtl-amba/monitor_trans_cam.png)
-
-Source: [`monitor_trans_cam.mmd`](../../assets/rtl-amba/monitor_trans_cam.mmd)
-
-```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
-flowchart TB
-    subgraph LookupPorts["Lookup Ports (combinational, 3-way parallel)"]
-        LU_AID["lookup_addr_id"]
-        LU_DID["lookup_data_id"]
-        LU_RID["lookup_resp_id"]
-    end
-
-    subgraph WritePort["Write Port (per-slot, one-hot)"]
-        WE["entry_we[DEPTH]"]
-        WVN["entry_valid_next[DEPTH]"]
-        WIN["entry_id_next[DEPTH]"]
-        WPN["entry_payload_next[DEPTH]"]
-    end
-
-    subgraph monitor_trans_cam["monitor_trans_cam"]
-        subgraph Storage["Registered Storage (generate-loop per slot)"]
-            R_VALID["r_valid[DEPTH]"]
-            R_ID["r_id[DEPTH]"]
-            R_PAYLOAD["r_payload[DEPTH]"]
-        end
-        MATCH["Parallel one-hot match<br/>(* keep = 'true' *)<br/>1 LUT/bit/port"]
-        FREE["free_oh = ~r_valid"]
-        ALLOC["3-way mutex<br/>priority encoder<br/>(addr → data → resp)"]
-    end
-
-    subgraph Outputs["Outputs"]
-        AMATCH["addr_match_oh / data_match_oh /<br/>resp_match_oh / data_match_first_oh"]
-        FREEOUT["free_oh"]
-        ALLOCOUT["addr_alloc_oh / data_alloc_oh /<br/>resp_alloc_oh"]
-        ENTRY["entry_valid / entry_id /<br/>entry_payload (per slot)"]
-    end
-
-    LU_AID --> MATCH
-    LU_DID --> MATCH
-    LU_RID --> MATCH
-    R_VALID --> MATCH
-    R_ID --> MATCH
-    R_VALID --> FREE
-    FREE --> ALLOC
-    MATCH --> AMATCH
-    FREE --> FREEOUT
-    ALLOC --> ALLOCOUT
-    Storage --> ENTRY
-    WE --> Storage
-    WVN --> Storage
-    WIN --> Storage
-    WPN --> Storage
-```
 
 ### Why Three Lookup Ports?
 

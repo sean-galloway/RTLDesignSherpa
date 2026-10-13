@@ -332,22 +332,22 @@ sample a completed window's totals after `window_active` deasserts.
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_base block diagram](../../assets/rtl-amba/graphviz/axi_monitor_base.png)
+
+The observed command, data and response channels enter at the top; nothing
+is driven back onto the bus. The ID filter keeps only this instance's slice of
+IDs, and the owned handshakes update the transaction manager's table, stamped
+by the timer. The timeout scanner and the reporter both read the table, and
+each feeds back into it: a timeout forces an entry terminal, and a reported
+event lets the manager free the entry. The reporter's event packets and the
+optional address checker's packets compete for the one monitor-bus output; the
+reporter wins, except that an address packet already presented and stalled
+holds the bus until it is accepted. The perf window counts handshake cycles on
+its own path to the outputs.
+
 ### Architecture
-
-```mermaid
-flowchart TB
-    cmd["Command<br/>Channel"] --> tm
-    data["Data<br/>Channel"] --> tm
-    resp["Response<br/>Channel"] --> tm
-
-    subgraph Monitor["AXI Monitor Base"]
-        tm["Transaction Manager<br/>- ID-based tracking<br/>- Beat counting<br/>- Latency calculation"]
-        tm --> to["Timeout Monitor<br/>- Per-phase timeouts<br/>- Configurable thresholds"]
-        to --> rpt["Reporter<br/>- Packet formatting<br/>- Event queuing"]
-    end
-
-    rpt --> bus["Monitor Bus<br/>(128b packet + 64b timestamp)"]
-```
 
 The module coordinates four sub-components:
 

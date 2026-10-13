@@ -148,6 +148,12 @@ parameter proliferation.
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_rr_pwm_monbus block diagram](../../assets/rtl-amba/graphviz/arbiter_rr_pwm_monbus.png)
+
+Requests go straight down the center into the round-robin pick, and its heavy grant goes to the outputs. On the left, a single-channel pwm drives block_arb, so the PWM duty cycle sets how often arbitration is held off. On the right, when USE_MONITOR=1, arbiter_monbus_common taps the arbiter's signals and sends its own ocelus packets to the outputs. The monitor sees every client with weight 1.
+
 The module integrates three key components.
 
 ### Round-Robin Arbiter

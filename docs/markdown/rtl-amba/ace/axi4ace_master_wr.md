@@ -259,6 +259,12 @@ module axi4ace_master_wr #(
 
 ## Functional Description
 
+### Block diagram
+
+![axi4ace_master_wr block diagram](../../assets/rtl-amba/graphviz/axi4ace_master_wr.png)
+
+The axi4 write master's layout (see `axi4_master_wr`) plus what ACE adds. W drops down the left lane and AW down the center, carrying `awsnoop`, `awdomain` and `awbar`. B climbs the right lane. The WACK flop beside the B lane pulses `m_axi_wack` for one clock after the B handshake on the `m_axi` side.
+
 ### Triple Buffer Design
 
 The module buffers all three write channels independently:

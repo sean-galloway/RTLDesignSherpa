@@ -197,35 +197,18 @@ module axi4_master_rd #(
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_master_rd block diagram](../../assets/rtl-amba/graphviz/axi4_master_rd.png)
+
+AR travels down the left lane from the requester (FUB) side through its own `gaxi_skid_buffer` to the m_axi master port; read data (R) comes back up the right lane through a second skid buffer. Busy Detect sits between the lanes: it watches both buffers' occupancy and the incoming valids, and drives `busy`, the activity input the `_cg` clock-gated wrapper uses. `SKID_DEPTH_AR` and `SKID_DEPTH_R` set how many entries each buffer holds.
+
 ### Dual Buffer Design
 
 The module employs a dual skid buffer architecture:
 
 1. **AR Channel Buffer**: Buffers read address transactions
 2. **R Channel Buffer**: Buffers read data responses
-
-### Data Flow
-
-```mermaid
-flowchart LR
-    subgraph FE["FUB AXI"]
-        far["AR Channel"]
-        fr["R Channel"]
-    end
-
-    subgraph BUF["Skid Buffers"]
-        arb["AR Buffer"]
-        rb["R Buffer"]
-    end
-
-    subgraph BE["Master AXI → Memory"]
-        mar["AR Out"]
-        mr["R In"]
-    end
-
-    far --> arb --> mar
-    mr --> rb --> fr
-```
 
 ### Key Features
 

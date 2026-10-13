@@ -223,6 +223,12 @@ module axi4ace_master_rd #(
 
 ## Functional Description
 
+### Block diagram
+
+![axi4ace_master_rd block diagram](../../assets/rtl-amba/graphviz/axi4ace_master_rd.png)
+
+The axi4 read master's layout (see `axi4_master_rd`) plus what ACE adds. AR drops down the left through its skid buffer, carrying `arsnoop`, `ardomain` and `arbar` with the AXI4 fields. R climbs the right through its skid buffer with the 4-bit `rresp`, where bit 3 is IsShared and bit 2 is PassDirty. The RACK flop pulses `m_axi_rack` for one clock after the last R beat is accepted on the `m_axi` side. Busy detect feeds the clock-gate wrapper.
+
 ### Dual Buffer Design
 
 The module employs the same dual skid buffer architecture as `axi4_master_rd`:

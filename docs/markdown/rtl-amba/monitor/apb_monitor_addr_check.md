@@ -121,6 +121,16 @@ read/write direction bit.
 
 ## Functional Description
 
+### Block diagram
+
+![apb_monitor_addr_check block diagram](../../assets/rtl-amba/graphviz/apb_monitor_addr_check.png)
+
+Each accepted APB address is compared against every range at once; a hit in
+any enabled range is a violation. Each range has a pending slot where the
+latest hit wins. One packet drains per cycle, lowest range first, held stable
+while the bus stalls; the packet carries the range index, the direction and
+the address.
+
 ### Combinational Range Hits
 
 A command "fires" when `cmd_valid && cmd_ready && cfg_addr_check_enable`. For each range `i`, a one-hot hit is asserted when the range is enabled, the command fires, and `cmd_paddr` lies within `[cfg_addr_range_low[i], cfg_addr_range_high[i]]` inclusive. Setting a range's low and high equal yields exact-match (watchpoint) semantics.

@@ -1,0 +1,26 @@
+// axi4_master_stub block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Full AXI4 master stub: one write stub and one read stub side by side, each a child
+// box with its own diagram. Packed packets at the top (FUB side); AXI4 fields at the bottom (m_axi).
+// Source of truth: rtl/amba/axi4/stubs/axi4_master_stub.sv.
+digraph axi4_master_stub {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="axi4_master_stub - full AXI4 master stub: write stub + read stub (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    top  [label="FUB Side (packed packets)\nfub_axi_aw_pkt, w_pkt, ar_pkt in  /  b_pkt, r_pkt, aw_count, ar_count out", fillcolor="white", width=6.0];
+    wr   [label="Write Stub\naxi4_master_wr_stub - inst_wr_stub\n(see its diagram)"];
+    rd   [label="Read Stub\naxi4_master_rd_stub - inst_rd_stub\n(see its diagram)"];
+    bar  [label="Module Boundary\nm_axi_aw* / w* / ar* out  |  m_axi_b* / r* in", fillcolor="white", width=6.0];
+
+    top -> wr  [dir=both, xlabel="AW, W packets down;\nB packet up"];
+    top -> rd  [dir=both, xlabel="AR packet down;\nR packet up"];
+    wr  -> bar [dir=both, xlabel="AW, W down / B up"];
+    rd  -> bar [dir=both, xlabel="AR down / R up"];
+
+    { rank=same; wr; rd; }
+    wr -> rd [style=invis, minlen=3];
+}

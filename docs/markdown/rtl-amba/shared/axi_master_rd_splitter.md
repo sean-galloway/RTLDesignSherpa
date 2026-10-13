@@ -176,6 +176,21 @@ In modern SoC designs, memory systems are often partitioned across multiple addr
 
 ## Functional Description
 
+### Block diagram
+
+![axi_master_rd_splitter block diagram](../../assets/rtl-amba/graphviz/axi_master_rd_splitter.png)
+
+The original AR comes down the center into split control, which holds its
+fields and steps `r_current_addr`/len through the pieces. Each step asks
+`axi_split_combi` where the alignment boundary falls, and the AR drive sends
+one downstream AR per piece. A new AR is accepted only when the control is
+idle, `block_ready` is low, and the previous burst's R beats have drained. R
+beats come back up the right lane and pass through unchanged, except that
+`fub_rlast` is regenerated from a beat count so the upstream master sees one
+burst. One split-info record {addr, id, piece count} per original burst goes
+out through the split-info FIFO. If that FIFO overflows, the sticky
+`o_split_fifo_overflow` flag reports it.
+
 ### Transaction Splitting Overview
 
 The module operates as a transparent pass-through for non-split transactions and as an intelligent splitter for boundary-crossing ones.

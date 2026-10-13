@@ -1,0 +1,46 @@
+// axi5_slave_rd block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Slave port (s_axi) at the top, the module boundary bar at the bottom.
+// AR goes down the left lane through its skid buffer; R comes back up the right
+// lane through its own skid buffer. busy (sideband for the clock-gate wrapper)
+// sits between the lanes and leaves through the bar.
+// Source of truth: rtl/amba/axi5/axi5_slave_rd.sv.
+digraph axi5_slave_rd {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="axi5_slave_rd - AXI5 read slave: one skid buffer per channel, AXI5 fields ride in the payload (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AR: AR entries buffered (default 2)\lSKID_DEPTH_R: R beats buffered (default 4)\l    deeper = more decoupling, more flops\lENABLE_NSAID / TRACE / MPAM / MECID / UNIQUE /\l    CHUNKING / MTE / POISON: 1 = that AXI5 field\l    rides in its channel's skid payload; 0 = the\l    output is tied 0\lENABLE_WAKEUP: 0 = AWAKEUP absent, tied 0\l", fillcolor="white"];
+    fub  [label="AXI5 Slave Port (s_axi_*) - from the interconnect / master\ns_axi_ar* in  /  s_axi_r* out", fillcolor="white", width=4.0];
+
+    ar   [group=L, label="AR Skid Buffer\ngaxi_skid_buffer - i_ar_channel\n(DEPTH = SKID_DEPTH_AR)\n+ AXI5 AR fields when enabled: nsaid,\ntrace, mpam, mecid, idunq, chunken, tagop"];
+    r    [group=R, label="R Skid Buffer\ngaxi_skid_buffer - i_r_channel\n(DEPTH = SKID_DEPTH_R)\n+ AXI5 R fields when enabled: trace,\nidunq, poison, chunkv / num / strb, tag"];
+    busy [group=C, label="Busy Detect (combinational)\nany AR or R entry held,\nor arvalid / rvalid arriving"];
+
+    mport [label="Module Boundary\nfub_axi_ar* out (to the backend)  |  busy (to the clock-gate wrapper)  |  fub_axi_awakeup  |  fub_axi_r* in",
+           fillcolor="white", width=7.6];
+
+    // request: down the left lane
+    fub -> ar    [xlabel="AR: id, addr, len, size,\nburst, ... (arvalid / arready)"];
+    ar  -> mport [xlabel="AR"];
+    // response: back up the right lane (dir=back keeps the ranks top-down)
+    r   -> mport [dir=back, xlabel="R: id, data,\nresp, last"];
+    fub -> r     [dir=back, xlabel="R (rvalid / rready)"];
+    // sideband between the lanes
+    ar  -> busy  [style=dashed, xlabel="ar count"];
+    r   -> busy  [style=dashed, xlabel="r count"];
+    busy -> mport [style=dashed, xlabel="busy"];
+    // AWAKEUP hold (IHI 0022L A14.1.1): upstream wake OR an accepted AR not yet handed on
+    wake [group=C, label="Wakeup Hold (combinational)\nfub_axi_awakeup = s_axi_awakeup\n| AR held in the skid buffer\n(ENABLE_WAKEUP=1 only)", style="filled,dashed"];
+    fub  -> wake  [style=dashed, xlabel="s_axi_awakeup"];
+    ar   -> wake  [style=dashed, xlabel="AR held"];
+    wake -> mport [style=dashed, xlabel="fub_axi_awakeup"];
+
+    { rank=same; prm; fub; }
+    { rank=same; ar; r; }
+    prm -> fub [style=invis];
+    ar -> r [style=invis, minlen=4];
+}

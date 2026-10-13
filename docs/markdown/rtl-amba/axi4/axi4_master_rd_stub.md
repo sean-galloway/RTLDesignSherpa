@@ -124,33 +124,13 @@ Drive AXI4 read transactions without writing an AXI4 master into your testbench.
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_master_rd_stub block diagram](../../assets/rtl-amba/graphviz/axi4_master_rd_stub.png)
+
+This stub is `axi4_master_rd` with a packed-packet interface at the top (FUB side): each channel's fields travel as one packet (`*_pkt`) through its own `gaxi_skid_buffer` (`inst_*_phase`), and are unpacked onto, or packed from, the AXI4 fields at the other side. The AR buffer's occupancy is exported as `fub_axi_ar_count`. There is no busy output and no clock gating.
+
 Two skid buffers do all the real work here. The AR buffer unpacks your packet onto the AXI4 AR channel; the R buffer packs the returning read data back into a packet. Everything else is wiring.
-
-### Architecture
-
-```mermaid
-flowchart LR
-    subgraph PACKED["Packed Interface"]
-        ar_pkt["AR Packet<br/>(Address Request)"]
-        r_pkt["R Packet<br/>(Read Data)"]
-    end
-
-    subgraph STUB["AXI4 Master Read Stub"]
-        ar_skid["AR Skid<br/>Buffer"]
-        r_skid["R Skid<br/>Buffer"]
-    end
-
-    subgraph AXI4["AXI4 Interface"]
-        m_ar["AXI4<br/>AR Channel"]
-        m_r["AXI4<br/>R Channel"]
-    end
-
-    ar_pkt --> ar_skid
-    ar_skid --> m_ar
-
-    m_r --> r_skid
-    r_skid --> r_pkt
-```
 
 ### Packet Formats
 

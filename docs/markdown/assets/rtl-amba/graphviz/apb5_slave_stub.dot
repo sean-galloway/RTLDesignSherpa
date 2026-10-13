@@ -1,0 +1,57 @@
+// apb5_slave_stub block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Standalone (does not instantiate apb5_slave), like apb4_slave_stub: a two-
+// state completer FSM with combinational outputs and packed backend ports,
+// plus what APB5 adds - user fields through the skids, and (ENABLE_PARITY) odd check-bit
+// checking on the bus inputs and generation on the outputs (dashed: build-
+// dependent). PWAKEUP is only checked here (it wakes the _cg wrappers).
+// Source of truth: rtl/amba/apb5/apb5_slave_stub.sv.
+digraph apb5_slave_stub {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb5_slave_stub - APB5 completer to packed command / response ports (single clock: pclk, presetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm [label="Parameters (fixed at build)\lENABLE_PARITY: 1 = check the *CHK inputs and\l    generate the *CHK outputs; 0 = CHK tied 0\l", fillcolor="white"];
+    bus [label="APB5 Completer Bus  s_apb_*\nin: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT,\nPAUSER, PWUSER, PWAKEUP + their *CHK\nout: PREADY, PRDATA, PSLVERR, PRUSER, PBUSER + their *CHK",
+         fillcolor="white"];
+
+    pchk [label="Check-Bit Check
+(ENABLE_PARITY = 1)
+dataint_parity, odd,
+one bit per 8 bits of each
+APB input and PWAKEUP", style="filled,dashed"];
+    perr [label="Parity Status\nparity_error_wdata, parity_error_ctrl", fillcolor="white"];
+
+    fsm  [label="Completer FSM (state flop; outputs combinational)\nIDLE > XFER_DATA\nIDLE: push the command on PSEL & PENABLE\n(if the skid has room)\nXFER_DATA: on a response, PREADY, PRDATA,\nPSLVERR and user the same clock"];
+    pgen [label="Check-Bit Generate
+(ENABLE_PARITY = 1)
+dataint_parity, odd:
+PRDATA, PRUSER, PBUSER,
+PREADY, PSLVERR", style="filled,dashed"];
+
+    cmdq [label="Command Skid Buffer\ngaxi_skid_buffer - cmd_skid_buffer_inst\nDEPTH entries (APB4 fields + pauser, pwuser)"];
+    rspq [label="Response Skid Buffer\ngaxi_skid_buffer - resp_skid_buffer_inst\nDEPTH entries of {pslverr, prdata, pruser, pbuser}"];
+
+    be [label="Packed Backend Interface\ncmd_valid / cmd_ready, cmd_data = {pwrite, pprot, pstrb, paddr, pwdata, pauser, pwuser}\nrsp_valid / rsp_ready, rsp_data = {pslverr, prdata, pruser, pbuser}",
+        fillcolor="white"];
+
+    bus -> fsm [dir=both, penwidth=1.8, xlabel="transfer / PREADY, PRDATA,\nPSLVERR, user"];
+    bus -> pchk [style=dashed, xlabel="*CHK in"];
+    pchk -> perr [style=dashed];
+    fsm -> pgen [style=dashed];
+    pgen -> bus [style=dashed, xlabel="*CHK out", constraint=false];
+    fsm -> cmdq [dir=both, xlabel="command / space"];
+    cmdq -> be [dir=both, xlabel="cmd_valid + cmd_data / cmd_ready"];
+    rspq -> be [dir=both, xlabel="rsp_valid + rsp_data / rsp_ready"];
+    fsm -> rspq [dir=both, xlabel="response / pop"];
+
+    { rank=same; prm; be; }
+    { rank=same; pchk; fsm; pgen; }
+    { rank=same; perr; cmdq; rspq; }
+    prm -> be [style=invis];
+    pchk -> fsm [style=invis]; fsm -> pgen [style=invis];
+    perr -> cmdq [style=invis]; cmdq -> rspq [style=invis, minlen=2];
+}

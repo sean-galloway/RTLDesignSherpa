@@ -1,0 +1,39 @@
+// axi4_master_wr_stub block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Requester (FUB) side at the top, the module boundary bar at the bottom.
+// W (write data) takes its own lane down the left, AW goes down the center, and B
+// (sideband for the clock-gate wrapper) leaves through the bar.
+// Source of truth: rtl/amba/axi4/axi4_master_wr_stub.sv.
+digraph axi4_master_wr_stub {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.90", splines=ortho, newrank=true,
+           label="axi4_master_wr_stub - AXI4 write master: packed-packet stub, one skid buffer per channel (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW: AW entries buffered (default 2)\lSKID_DEPTH_W: W beats buffered (default 4)\lSKID_DEPTH_B: B responses buffered (default 2)\l    deeper = more decoupling, more flops\l", fillcolor="white"];
+    fub  [label="FUB Side (packed packets)\nfub_axi_aw_pkt, fub_axi_w_pkt in\nfub_axi_b_pkt, fub_axi_aw_count out", fillcolor="white", width=3.0];
+
+    w    [label="W Skid Buffer\ngaxi_skid_buffer - inst_w_phase\n(DEPTH = SKID_DEPTH_W)"];
+    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - inst_aw_phase\n(DEPTH = SKID_DEPTH_AW)\nrd_count drives fub_axi_aw_count"];
+    b    [label="B Skid Buffer\ngaxi_skid_buffer - inst_b_phase\n(DEPTH = SKID_DEPTH_B)"];
+
+    mport [label="Module Boundary\nm_axi_aw* / m_axi_w* out (fields unpacked)  |  m_axi_b* in (fields packed)",
+           fillcolor="white", width=9.0];
+
+    // write data: its own lane down the left
+    fub -> w     [xlabel="W packet\n(wvalid / wready)"];
+    w   -> mport [xlabel="W"];
+    // address: down the center
+    fub -> aw    [xlabel="AW packet;\naw_count up"];
+    aw  -> mport [xlabel="AW"];
+    // response: back up the right lane (dir=back keeps the ranks top-down)
+    b   -> mport [dir=back, xlabel="B: id, resp"];
+    fub -> b     [dir=back, xlabel="B packet\n(bvalid / bready)"];
+
+    { rank=same; prm; fub; }
+    { rank=same; w; aw; b; }
+    prm -> fub [style=invis];
+    w -> aw [style=invis]; aw -> b [style=invis, minlen=1];
+}

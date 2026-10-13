@@ -193,45 +193,18 @@ emission-cycle time, not a match-cycle latch.
 
 ## Functional Description
 
-```mermaid
-flowchart TB
-    subgraph INPUTS["Monitored Interfaces"]
-        cmd["Command<br/>Interface"]
-        rsp["Response<br/>Interface"]
-        wake["PWAKEUP<br/>Signal"]
-        parity["Parity<br/>Errors"]
-    end
+### Block diagram
 
-    subgraph MONITOR["APB5 Monitor Core"]
-        trans_track["Transaction<br/>Tracker"]
-        timeout["Timeout<br/>Detection"]
-        perf["Performance<br/>Metrics"]
-        wake_track["Wake-up<br/>Tracker"]
-        parity_track["Parity<br/>Monitor"]
-        event_gen["Event<br/>Generator"]
-    end
+![apb5_monitor block diagram](../../assets/rtl-amba/graphviz/apb5_monitor.png)
 
-    subgraph OUTPUT["Monitor Bus"]
-        fifo["Monitor<br/>FIFO"]
-        skid["Output<br/>Skid Buffer"]
-        monbus["128-bit<br/>Packet + TS"]
-    end
-
-    cmd --> trans_track
-    rsp --> trans_track
-    wake --> wake_track
-    parity --> parity_track
-
-    trans_track --> event_gen
-    timeout --> event_gen
-    perf --> event_gen
-    wake_track --> event_gen
-    parity_track --> event_gen
-
-    event_gen --> fifo
-    fifo --> skid
-    skid --> monbus
-```
+`apb4_monitor` plus the APB5 event sources. The transaction tracker, timeout,
+error and performance checks work as in `apb4_monitor`; a wake-up detector watches
+`apb5_pwakeup` (rise, fall and a wake timeout) and a parity monitor
+(`ENABLE_PARITY_MON = 1`) watches the `parity_error_*` inputs. The event select
+emits one packet per event in priority order error > parity > timeout > wake-up >
+performance > completion. The address-range checker is a separate packet source
+that a 2:1 priority merge (event FIFO first) combines with the FIFO stream ahead
+of the output skid. User-signal events are never produced.
 
 ### Monitor Packet Format
 

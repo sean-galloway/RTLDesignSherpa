@@ -1,0 +1,48 @@
+// apb4_master block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Local command/response ports at the top; the APB bus it drives is the
+// bottom bar. Commands drop down the left lane through the command skid into
+// the transfer FSM and out onto the bus; PRDATA / PSLVERR climb the right
+// lane through the response skid back to the response port.
+// Source of truth: rtl/amba/apb4/apb4_master.sv.
+digraph apb4_master {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.70", splines=ortho, newrank=true,
+           label="apb4_master - queued command / response ports to one APB4 requester (single clock: pclk, presetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    cmd_port [group=L, label="Command Port\ncmd_valid / cmd_ready\ncmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot", fillcolor="white"];
+    rsp_port [group=R, label="Response Port\nrsp_valid / rsp_ready\nrsp_prdata, rsp_pslverr", fillcolor="white"];
+
+    cmdq [group=L, label="Command Skid Buffer\ngaxi_skid_buffer - cmd_fifo_inst\nCMD_DEPTH entries of {pwrite, pprot, pstrb, paddr, pwdata}"];
+    rspq [group=R, label="Response Skid Buffer\ngaxi_skid_buffer - resp_fifo_inst\nRSP_DEPTH entries of {pslverr, prdata}"];
+    fsm  [group=L, label="APB Transfer FSM (flop)\nr_apb_state: IDLE > SETUP > ACCESS\nlaunches only when the response skid has space;\nback-to-back SETUP when another command waits"];
+
+    bus [label="APB4 Requester Bus  m_apb_*\nout: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT   |   in: PRDATA, PSLVERR, PREADY",
+         fillcolor="white", width=10.9];
+
+    // ---- request flow: down the left ----
+    cmd_port -> cmdq [dir=both, xlabel="cmd_valid + fields / cmd_ready"];
+    cmdq -> fsm [dir=both, xlabel="queued command / pop on PREADY"];
+    fsm -> bus [penwidth=1.8, xlabel="PSEL, PENABLE,\naddress, data, strobes, prot"];
+    p_ry [shape=point, width=0.01];
+    p_ry -> bus [dir=none, style=dashed];
+    p_ry -> fsm [style=dashed, xlabel="PREADY", constraint=false];
+
+    // ---- response flow: back up the right ----
+    p_rd [shape=point, width=0.01, group=R];
+    p_rd -> bus [dir=back, xlabel="PRDATA, PSLVERR"];
+    p_rd -> rspq [dir=none];
+    rsp_port -> rspq [dir=back, xlabel="rsp_valid + prdata, pslverr\n/ rsp_ready"];
+    rspq -> fsm [dir=both, style=dashed, xlabel="space (launch gate)\n/ enqueue on PREADY"];
+
+    { rank=same; cmd_port; rsp_port; }
+    { rank=same; cmdq; rspq; }
+    { rank=same; p_ry; fsm; p_rd; }
+    p_ry -> fsm [style=invis, minlen=1];
+    fsm -> p_rd [style=invis, minlen=2];
+    cmd_port -> rsp_port [style=invis, minlen=3];
+    cmdq -> rspq [style=invis, minlen=3];
+}

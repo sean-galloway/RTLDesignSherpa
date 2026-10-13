@@ -53,28 +53,9 @@ The AXI5 Slave Read module is the slave-side AR/R channel transport block. It re
 
 ### Module Architecture
 
-```mermaid
-flowchart LR
-    subgraph SLAVE["Slave AXI5<br/>(External Master)"]
-        s_ar["AR Channel"]
-        s_r["R Channel"]
-    end
+![axi5_slave_rd block diagram](../../assets/rtl-amba/graphviz/axi5_slave_rd.png)
 
-    subgraph SKID["SKID Buffers"]
-        ar_skid["AR SKID<br/>Depth=2"]
-        r_skid["R SKID<br/>Depth=4"]
-    end
-
-    subgraph FUB["FUB Interface<br/>(Backend)"]
-        fub_ar["AR Channel"]
-        fub_r["R Channel"]
-    end
-
-    s_ar --> ar_skid
-    ar_skid --> fub_ar
-    fub_r --> r_skid
-    r_skid --> s_r
-```
+The slave port (`s_axi_*`) is at the top and the module boundary is the bar. AR goes down the left lane through its skid buffer and R comes back up the right lane through its own. The AXI5 fields each channel carries (NSAID, trace, MPAM, MECID, unique-ID, MTE tags, poison, chunking) ride in that channel's skid payload when their `ENABLE_*` parameter is set; a disabled field's output is tied to 0. The busy detect feeds the clock-gate wrapper, and the wakeup hold keeps `fub_axi_awakeup` asserted while an accepted request is still waiting in a skid buffer, not only while `s_axi_awakeup` is high (IHI 0022L A14.1.1).
 
 ---
 

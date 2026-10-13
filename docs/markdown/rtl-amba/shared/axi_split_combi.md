@@ -110,6 +110,19 @@ This module packs all of that arithmetic into one reusable combinational block, 
 
 ## Functional Description
 
+### Block diagram
+
+![axi_split_combi block diagram](../../assets/rtl-amba/graphviz/axi_split_combi.png)
+
+Everything is combinational; `aclk` and `aresetn` feed only simulation
+checks. The burst's extent gives its last byte address. The alignment mask
+gives the next boundary above `current_addr` and how many beats fit before
+it. A split is required when the burst crosses that boundary and at least one
+beat, but not the whole burst, fits before it. The length split then gives
+the first piece's `split_len` and the `remaining_len_after_split`, both in
+AXI len encoding. `new_split_needed` flags the first split of a new
+transaction (idle and valid).
+
 ### Boundary Crossing Detection Algorithm
 
 The module implements a simplified boundary detection algorithm based on key AXI assumptions:

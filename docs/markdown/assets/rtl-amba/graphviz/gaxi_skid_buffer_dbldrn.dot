@@ -1,0 +1,59 @@
+// gaxi_skid_buffer_dbldrn block diagram (derived from gaxi_skid_buffer.dot) - house style (vault/handbook/authoring/block-diagrams.md).
+// Same geography as the approved fifo_sync / gaxi_fifo_sync: write port top
+// left, read port top right, write data down the LEFT edge into the storage
+// bar, read data (always slot 0) back UP the RIGHT edge. The storage is a
+// shift register, not an addressed RAM: a write lands at the tail
+// (index == count), a read shifts every slot down by one.
+// The center block holds the slot count and the REGISTERED ready/valid, so
+// both handshake returns are flops (dashed feedback to their ports).
+// Adds a double drain: rd_ready2 pops slots 0 and 1 together (rd_data, rd_data2).
+// Source of truth: rtl/amba/gaxi/gaxi_skid_buffer_dbldrn.sv.
+digraph gaxi_skid_buffer_dbldrn {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.85", splines=ortho, newrank=true,
+           label="gaxi_skid_buffer_dbldrn - skid buffer with a two-entry (double) drain\n(single clock: axi_aclk, axi_aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm [label="Parameters (fixed at build)\lDEPTH: 2 .. 8 slots (default 4; elaboration\l    $error outside that range)\l", fillcolor="white"];
+
+    wr_port [group=WO, label="Write Port (valid/ready)\nwr_valid, wr_data / wr_ready", fillcolor="white"];
+    rd_port [group=RO, label="Read Port (valid/ready, double drain)\nrd_valid, rd_data, rd_data2 / rd_ready, rd_ready2\n(rd_ready2 legal only when rd_count >= 2)", fillcolor="white"];
+
+    ctl [group=C, label="Count + Handshake Registers (flops)\nr_data_count: +1 write, -1 single drain,\n-2 double drain (double wins over single)\nwr_ready / rd_valid are flops, set one cycle ahead\nfrom count and this cycle's transfers"];
+
+    mem [group=C, label="Packed Slot Register  r_data[DW*DEPTH]  (flops)\nwrite: wr_data lands at slot [count] (after any shift)\nsingle drain: shift down one slot   |   double drain: shift down two\nrd_data = slot [0]   |   rd_data2 = slot [1]",
+         width=12.0, height=0.9];
+
+    wr_port -> ctl [dir=both, xlabel="wr_valid /\nwr_ready"];
+    rd_port -> ctl [dir=both, xlabel="rd_ready, rd_ready2 /\nrd_valid,\ncount, rd_count"];
+    ctl -> mem [xlabel="tail index (count),\nshift-by-1 / shift-by-2\nselect"];
+
+    aw    [group=WD, shape=point, width=0.01, style=invis];
+    ar    [group=RD, shape=point, width=0.01, style=invis];
+    p_wd  [group=WD, shape=point, width=0.01];
+    p_rdd [group=RD, shape=point, width=0.01];
+    wr_port -> p_wd [arrowhead=none, headclip=false];
+    p_wd -> mem [xlabel="wr_data", tailclip=false];
+    p_rdd -> mem [dir=none, tailclip=false, xlabel="rd_data,\nrd_data2"];
+    p_rdd -> rd_port [tailclip=false, constraint=false];
+    aw -> p_wd [style=invis, weight=10];
+    ar -> p_rdd [style=invis, weight=10];
+
+    node [style=invis, shape=point, width=0.01, group=C];
+    c0; c3;
+    node [style=filled, shape=box, width=0.75, group=""];
+    c0 -> ctl -> c3 -> mem [style=invis, weight=10];
+
+    { rank=same; aw; wr_port; c0; rd_port; ar; }
+    { rank=min; prm; }
+    prm -> wr_port [style=invis];
+    { rank=same; p_wd; c3; p_rdd; }
+    { rank=max; mem; }
+    aw -> wr_port [style=invis, minlen=4];
+    wr_port -> c0 -> rd_port [style=invis, minlen=3];
+    rd_port -> ar [style=invis, minlen=4];
+    p_wd -> c3 -> p_rdd [style=invis];
+}

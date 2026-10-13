@@ -172,6 +172,12 @@ Internally, the core is instantiated with `AXI_ID_WIDTH_M=1`, `AXI_ID_WIDTH_S=AX
 
 ## Functional Description
 
+### Block diagram
+
+![monbus_axi4_axil4_group block diagram](../../assets/rtl-amba/graphviz/monbus_axi4_axil4_group.png)
+
+A structural wrapper over monbus_group_core, drawn as one box. Error records are read over AXI4 (axi4_slave_rd, bursts), and the log is written over AXI4-Lite (axil4_master_wr), so the core's MAX_BURST_BEATS is forced to 1 and every log write is a single beat.
+
 ### S-Side Error Drain (AXI4 slave read)
 
 Identical to the AXI4/AXI4 variant on the read side: the `axi4_slave_rd` leaf terminates the AXI4 read channel and hands a clean read FUB to the core, whose slicer serves each 192-bit error record as three 64-bit beats. Full AXI4 bursts can request multiple records at once. The AXI4-only AR sideband fields (`arlock`/`arcache`/`arqos`/`arregion`/`aruser`) are dropped at the wrapper boundary; `s_axi_ruser` is tied to 0.

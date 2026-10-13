@@ -1,0 +1,65 @@
+// axi5_atomic_filter block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Upstream (s_*) port at the top, downstream (m_*) bar at the bottom.
+// Requests flow down: W on the left lane through the W steer, AW down the center through the
+// classifier. A read-return atomic (AWATOP[5] = 1) is swallowed: its AW is not forwarded, its
+// W burst is discarded, and three queues owe the master a local DECERR B and the A6.4.7 read
+// beats. Responses climb the right: two merges pick downstream first, else the local DECERR.
+// The merges are picks on an UPWARD flow, so their wide edge faces the contenders below.
+// Payload (address, data, RDATA, user, AXI5 sidebands) routes around the filter.
+// Source of truth: rtl/amba/axi5/axi5_atomic_filter.sv.
+digraph axi5_atomic_filter {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="axi5_atomic_filter - terminate read-return atomics locally, owe their B and R (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lDEPTH_LG2: every queue holds 2^DEPTH_LG2\l    swallowed / in-flight transactions\lPayload (addr, data, RDATA, user, AXI5\l    sidebands) routes AROUND the filter:\l    only handshakes, ID, ATOP, LEN, LAST\l    and RESP pass through it\l", fillcolor="white"];
+    up   [label="Upstream Port (s_*) - from the boundary wrapper\nAW, W in  /  B, R out", fillcolor="white", width=6.0];
+
+    cls  [group=C, label="AW Classify (combinational)\nswallow = AWATOP[5] (AtomicLoad / Swap / Compare)\npass: forward AW  |  swallow: accept here, push queues"];
+    rte  [group=Q, label="Route Queue (flops)\none swallow flag per accepted AW,\npopped at its WLAST"];
+    wst  [group=W, label="W Steer (combinational)\nhead flag 0: forward W  |  1: consume, discard\nW stalls until its AW is accepted"];
+    rsq  [group=B, label="Response Queue (flops)\nBID per swallowed AW, committed\nonce its W burst (WLAST) is consumed"];
+    rrq  [group=R, label="Read-Return Queue (flops)\nRID + beats owed per swallowed AW\n(A6.4.7: AWLEN+1; Compare: (AWLEN+1)/2)"];
+    bmg  [group=B, shape=trapezium, fixedsize=true, width=3.0, height=0.75, fillcolor="#BFD7EE",
+          label="B Merge\ndownstream first, else local DECERR"];
+    rmg  [group=R, shape=trapezium, fixedsize=true, width=3.0, height=0.75, fillcolor="#BFD7EE",
+          label="R Merge\nsource held until RLAST"];
+
+    dn   [label="Downstream Port (m_*) - to the write-path fabric\nAW (non-swallowed), W (passed bursts) out  /  B, R in", fillcolor="white", width=9.0];
+
+    // requests: down
+    up  -> cls [xlabel="AW: valid, id, atop, len"];
+    cls -> dn  [xlabel="AW (AWATOP[5] = 0)"];
+    cls -> rte [xlabel="swallow flag"];
+    p_w [shape=point, width=0.01, group=W];
+    up  -> p_w [arrowhead=none, headclip=false];
+    p_w -> wst [tailclip=false, xlabel="W: valid, last"];
+    rte -> wst [style=dashed, xlabel="head flag"];
+    wst -> dn  [xlabel="W (passed bursts)"];
+    cls -> rsq [xlabel="AW id (swallowed)"];
+    cls -> rrq [headlabel="AW id,\nbeats owed", labelangle=-40, labeldistance=4];
+    // responses: up the right, two picks
+    bmg -> rsq [dir=back, xlabel="local DECERR\n(BID = AWID)"];
+    rmg -> rrq [dir=back, xlabel="local DECERR beats\n(RID = AWID, RLAST last)"];
+    p_b [shape=point, width=0.01];
+    p_r [shape=point, width=0.01];
+    p_b -> dn  [dir=back, arrowtail=none, tailclip=false];
+    p_r -> dn  [dir=back, arrowtail=none, tailclip=false];
+    bmg -> p_b [dir=back, headclip=false, xlabel="downstream B"];
+    rmg -> p_r [dir=back, headclip=false, xlabel="downstream R"];
+    up  -> bmg [dir=back, penwidth=1.8, xlabel="B"];
+    up  -> rmg [dir=back, penwidth=1.8, xlabel="R"];
+
+    { rank=same; prm; up; }
+    { rank=same; p_w; cls; bmg; rmg; }
+    p_w -> cls [style=invis, minlen=2];
+    { rank=same; wst; rsq; p_b; rrq; p_r; }
+    prm -> up [style=invis];
+    cls -> bmg [style=invis, minlen=2]; bmg -> rmg [style=invis];
+    wst -> rsq [style=invis, minlen=4]; rsq -> p_b [style=invis]; p_b -> rrq [style=invis]; rrq -> p_r [style=invis];
+    cls -> rte [style=invis];
+}

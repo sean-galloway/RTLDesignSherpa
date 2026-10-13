@@ -58,6 +58,12 @@ leaves packed and the response arrives packed:
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_slave_stub block diagram](../../assets/rtl-amba/graphviz/wb4_slave_stub.png)
+
+A packing wrapper: `wb4_slave` is one child box (see its diagram). The pack/unpack stage is wiring only: it joins the command fields into `cmd_data` for the backend and splits `rsp_data` back into `{status, dat}`.
+
 ### Packing
 
 Most significant field first. Both stubs use the same order, so a

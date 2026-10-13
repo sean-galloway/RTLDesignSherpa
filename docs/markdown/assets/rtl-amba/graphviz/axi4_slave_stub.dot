@@ -1,0 +1,26 @@
+// axi4_slave_stub block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Full AXI4 slave stub: one write stub and one read stub side by side, each a child
+// box with its own diagram. Packed packets at the bottom (to the backend); AXI4 fields at the top (s_axi).
+// Source of truth: rtl/amba/axi4/stubs/axi4_slave_stub.sv.
+digraph axi4_slave_stub {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="axi4_slave_stub - full AXI4 slave stub: write stub + read stub (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    top  [label="AXI4 Slave Port (s_axi_*)\ns_axi_aw* / w* / ar* in  /  s_axi_b* / r* out", fillcolor="white", width=6.0];
+    wr   [label="Write Stub\naxi4_slave_wr_stub - inst_wr_stub\n(see its diagram)"];
+    rd   [label="Read Stub\naxi4_slave_rd_stub - inst_rd_stub\n(see its diagram)"];
+    bar  [label="Module Boundary (packed packets to the backend)\nfub_axi_aw_pkt, w_pkt, ar_pkt, aw_count, ar_count out  |  b_pkt, r_pkt in", fillcolor="white", width=6.0];
+
+    top -> wr  [dir=both, xlabel="AW, W down;\nB up"];
+    top -> rd  [dir=both, xlabel="AR down;\nR up"];
+    wr  -> bar [dir=both, xlabel="AW, W packets down;\nB packet up"];
+    rd  -> bar [dir=both, xlabel="AR packet down;\nR packet up"];
+
+    { rank=same; wr; rd; }
+    wr -> rd [style=invis, minlen=3];
+}

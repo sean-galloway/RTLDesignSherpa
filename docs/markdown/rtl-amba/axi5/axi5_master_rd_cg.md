@@ -191,51 +191,9 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 
 ### Architecture
 
-```mermaid
-flowchart LR
-    subgraph FUB["FUB Interface"]
-        direction TB
-        fub_ar["AR Channel<br/>Address/Control"]
-        fub_r["R Channel<br/>Read Data"]
-    end
+![axi5_master_rd_cg block diagram](../../assets/rtl-amba/graphviz/axi5_master_rd_cg.png)
 
-    subgraph CG["Clock Gating Controller"]
-        direction TB
-        activity["Activity<br/>Detection"]
-        idle_cnt["Idle Counter<br/>(Configurable)"]
-        gate_ctrl["Clock<br/>Gate Control"]
-    end
-
-    subgraph CORE["AXI5 Master Read Core"]
-        direction TB
-        ar_skid["AR SKID<br/>Depth=2"]
-        r_skid["R SKID<br/>Depth=4"]
-        axi5_core["AXI5 Protocol<br/>Logic"]
-    end
-
-    subgraph AXI["AXI5 Master"]
-        direction TB
-        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/IDUNQ<br/>CHUNKEN/TAGOP"]
-        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/IDUNQ/TAG"]
-    end
-
-    fub_ar --> activity
-    fub_r --> activity
-    m_ar --> activity
-    m_r --> activity
-
-    activity --> idle_cnt
-    idle_cnt --> gate_ctrl
-    gate_ctrl -->|gated_aclk| axi5_core
-
-    fub_ar --> ar_pack
-    ar_skid --> axi5_core
-    axi5_core --> m_ar
-
-    m_r --> r_skid
-    r_skid --> r_unpack["R Unpacker"]
-    r_unpack --> fub_r
-```
+The base `axi5_master_rd` is one box (see its own diagram). The clock is the heavy main column: `aclk` enters `amba_clock_gate_ctrl`, which counts down idle cycles and drives `gated_aclk` into the child. AXI traffic passes straight through; while the clock is gated the wrapper forces the incoming readies to 0 so no handshake is lost. Activity is `fub_axi` valids, the child's busy, and `fub_axi_awakeup` when `ENABLE_WAKEUP=1`, on the upstream side, plus the `m_axi` valids.
 
 ### Clock Gating Operation
 

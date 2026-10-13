@@ -54,33 +54,9 @@ The AXI5 Slave Write module implements a complete AMBA AXI5 slave write interfac
 
 ### Module Architecture
 
-```mermaid
-flowchart LR
-    subgraph SLAVE["Slave AXI5<br/>(External Master)"]
-        s_aw["AW Channel"]
-        s_w["W Channel"]
-        s_b["B Channel"]
-    end
+![axi5_slave_wr block diagram](../../assets/rtl-amba/graphviz/axi5_slave_wr.png)
 
-    subgraph SKID["SKID Buffers"]
-        aw_skid["AW SKID<br/>Depth=2"]
-        w_skid["W SKID<br/>Depth=4"]
-        b_skid["B SKID<br/>Depth=2"]
-    end
-
-    subgraph FUB["FUB Interface<br/>(Backend)"]
-        fub_aw["AW Channel"]
-        fub_w["W Channel"]
-        fub_b["B Channel"]
-    end
-
-    s_aw --> aw_skid
-    aw_skid --> fub_aw
-    s_w --> w_skid
-    w_skid --> fub_w
-    fub_b --> b_skid
-    b_skid --> s_b
-```
+The slave port (`s_axi_*`) is at the top and the module boundary is the bar. W takes its own lane down the left, AW goes down the center, and B comes back up the right lane, each through its own skid buffer. The AXI5 fields each channel carries (NSAID, trace, MPAM, MECID, unique-ID, MTE tags, poison, and AWATOP for atomics) ride in that channel's skid payload when their `ENABLE_*` parameter is set; a disabled field's output is tied to 0. The busy detect feeds the clock-gate wrapper, and the wakeup hold keeps `fub_axi_awakeup` asserted while an accepted request is still waiting in a skid buffer, not only while `s_axi_awakeup` is high (IHI 0022L A14.1.1).
 
 ---
 

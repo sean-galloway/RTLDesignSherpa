@@ -57,64 +57,9 @@ The AXI5 Master Write with Monitor module wraps the standard `axi5_master_wr` co
 
 ### Module Architecture
 
-```mermaid
-flowchart TB
-    subgraph FUB["FUB Interface"]
-        direction LR
-        fub_aw["AW Channel<br/>Address/Control"]
-        fub_w["W Channel<br/>Write Data"]
-        fub_b["B Channel<br/>Write Response"]
-    end
+![axi5_master_wr_mon block diagram](../../assets/rtl-amba/graphviz/axi5_master_wr_mon.png)
 
-    subgraph CORE["AXI5 Master Write Core"]
-        direction TB
-        aw_skid["AW SKID<br/>Depth=2"]
-        w_skid["W SKID<br/>Depth=4"]
-        b_skid["B SKID<br/>Depth=2"]
-        axi5_logic["AXI5 Protocol<br/>Logic"]
-        aw_skid --> axi5_logic
-        w_skid --> axi5_logic
-        axi5_logic --> b_skid
-    end
-
-    subgraph MONITOR["AXI Monitor Filtered"]
-        direction TB
-        trans_mgr["Transaction<br/>Manager"]
-        reporter["Event<br/>Reporter"]
-        filter["Packet<br/>Filter"]
-
-        trans_mgr --> reporter
-        reporter --> filter
-    end
-
-    subgraph MONBUS["Monitor Bus"]
-        direction LR
-        pkt_valid["monbus_valid"]
-        pkt_data["monbus_packet<br/>[127:0]"]
-        pkt_ready["monbus_ready"]
-    end
-
-    fub_aw --> aw_skid
-    fub_w --> w_skid
-    b_skid --> fub_b
-
-    axi5_logic -->|Monitor Taps| trans_mgr
-
-    filter --> pkt_valid
-    filter --> pkt_data
-    pkt_ready --> filter
-
-    subgraph AXI["AXI5 Master"]
-        direction LR
-        m_aw["AW Channel"]
-        m_w["W Channel"]
-        m_b["B Channel"]
-    end
-
-    axi5_logic --> m_aw
-    axi5_logic --> m_w
-    m_b --> axi5_logic
-```
+The base `axi5_master_wr` is one box (see its own diagram). Traffic runs down the left through the AW stall gate, which ANDs `fub_axi_awvalid` and its ready with the `block_ready` the monitor raises while its transaction table has room. The bus taps watch the `m_axi` side below the base and feed `axi_monitor_filtered`, which is built only when `USE_MONITOR=1`; its monitor-bus packets are the heavy edge out. With `cfg_monitor_enable` low the monitor is inert and never stalls the bus.
 
 ---
 

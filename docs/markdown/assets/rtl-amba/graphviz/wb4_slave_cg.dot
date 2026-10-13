@@ -1,0 +1,32 @@
+// wb4_slave_cg block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Variant of wb4_slave: the wrapped module is ONE child box; only the clock gate is drawn.
+// Source of truth: rtl/amba/wb4/wb4_slave_cg.sv.
+digraph wb4_slave_cg {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.80", splines=ortho, newrank=true,
+           label="wb4_slave_cg - wb4_slave on a gated clock (idle-timeout clock gating)\n(clk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    top   [label="Wishbone B4 Completer Bus (s_wb_*)", fillcolor="white", width=4.4];
+    child [label="wb4_slave\nu_wb4_slave\n(see its diagram: accept gate, skids, in-order termination)", width=3.6, height=1.0];
+    bot   [label="Backend Queues\ncmd_* out  /  rsp_* in", fillcolor="white", width=3.8];
+    cgc   [label="Clock-Gate Controller\namba_clock_gate_ctrl - u_clock_gate_ctrl\nidle countdown on activity:\nuser_valid = s_wb_CYC | rsp_valid | child cmd_valid\n(axi_valid tied 0)\nwhile gating: STALL forced high;\ncmd_valid, rsp_ready forced low"];
+    clk   [label="Clock In\nclk, aresetn", fillcolor="white"];
+    cfg   [label="Clock-Gate Config (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle cycles before the\l    clock stops (CG_IDLE_COUNT_WIDTH bits)\l", fillcolor="white"];
+    cgo   [label="Status Outputs\ncg_gating (clock stopped), cg_idle", fillcolor="white"];
+    clk -> cgc  [xlabel="clk", penwidth=1.8];
+    cfg -> cgc  [style=dashed, xlabel="enable, idle count"];
+    cgc -> child [xlabel="gated_clk", penwidth=1.8];
+    cgc -> cgo  [style=dashed, xlabel="cg_gating, cg_idle"];
+    top   -> child [dir=both, xlabel="CYC, STB, ... in /\nSTALL, ACK / ERR / RTY, DAT_R out", penwidth=1.8];
+    child -> bot   [dir=both, xlabel="command out /\nresponse in", penwidth=1.8];
+    { rank=same; clk; cfg; top; }
+    cfg -> clk [style=invis]; clk -> top [style=invis];
+    { rank=same; cgc; }
+    { rank=same; child; }
+    cgc -> child [style=invis];
+    { rank=same; bot; cgo; }
+    cgo -> bot [style=invis];
+}

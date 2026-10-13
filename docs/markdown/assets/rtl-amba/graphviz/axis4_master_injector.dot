@@ -1,0 +1,41 @@
+// axis4_master_injector block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// AXIS master source: a run scheduler picks the active channel each beat (sequential or
+// round-robin); that channel's LFSR word, replicated across the bus, is the beat; the same
+// channel's CRC accumulates it. The stream leaves at the bottom bar; results at top right.
+// Source of truth: rtl/amba/shared/axis4_master_injector.sv.
+digraph axis4_master_injector {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.70", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axis4_master_injector - per-channel LFSR stream source with expected CRCs (clk)";
+
+    prm  [label="Parameters (fixed at build)\lNUM_CHANNELS: independent LFSR + CRC contexts,\l    seed ^ channel, as in axi4_slave_rd_injector\lLFSR_* / CRC_*: CRC-32 Ethernet by default; matches\l    axi4_slave_wr_crc_check bit for bit\l", fillcolor="white"];
+    cfg  [group=A, label="Run Configuration\ncfg_start, cfg_lfsr_seed, cfg_channel_mask (0 = all),\ncfg_num_beats (per channel), cfg_beats_per_pkt,\ncfg_interleave, cfg_last_bytes, cfg_tdest", fillcolor="white"];
+    res  [group=C, label="Results\ncfg_busy, cfg_done (pulse)\no_expected_crc / _valid [ch]\no_beat_count [ch], o_beat_count_total", fillcolor="white"];
+
+    sch  [group=A, label="Run Scheduler (flops)\npicks the active channel per beat:\nsequential (one channel's beats, then the next)\nor round-robin when cfg_interleave;\ntlast every cfg_beats_per_pkt and on the last beat"];
+    lfsr [group=A, label="Per-Channel Pattern (flops)\nNUM_CHANNELS x shifter_lfsr_fibonacci - u_lfsr\nonly the active channel advances, on an accepted beat\ntdata = the 32-bit word replicated across the bus"];
+    crc  [group=C, label="Per-Channel CRC (flops)\nNUM_CHANNELS x dataint_crc - u_crc\naccumulates the same words"];
+    beat [group=A, label="Beat Drive (combinational)\ntid = channel, tdest = cfg_tdest\ntstrb: all lanes, or cfg_last_bytes\nfrom lane 0 on a tlast beat"];
+
+    bar  [label="AXIS Master Port\nm_axis_tvalid, tdata, tstrb, tlast, tid, tdest, tuser out   |   m_axis_tready in",
+          fillcolor="white", width=8.5];
+
+    cfg  -> sch  [xlabel="run setup, cfg_start"];
+    sch  -> lfsr [xlabel="active channel,\naccepted beat"];
+    lfsr -> crc  [xlabel="pattern word"];
+    lfsr -> beat [xlabel="tdata"];
+    sch  -> beat [style=dashed, xlabel="tid, tlast"];
+    beat -> bar  [xlabel="AXIS beat"];
+    bar  -> sch  [style=dashed, constraint=false, xlabel="tready"];
+    crc  -> res  [xlabel="expected CRCs, counts"];
+    sch  -> res  [xlabel="busy, done"];
+
+    { rank=same; prm; cfg; res; }
+    prm -> cfg [style=invis];
+    cfg -> res [style=invis];
+    { rank=same; beat; crc; }
+}

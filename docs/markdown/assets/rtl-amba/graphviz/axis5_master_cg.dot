@@ -1,0 +1,44 @@
+// axis5_master_cg block diagram (derived from axis4_master_cg.dot) - house style (vault/handbook/authoring/block-diagrams.md).
+// Variant rule: the base axis5_master is ONE child box (see its own diagram);
+// this diagram shows only what the _cg wrapper adds - an amba_clock_gate_ctrl
+// whose gated clock drives the base (heavy: the output is a clock), and a
+// ready gate that holds fub_axis5_tready low while the clock is gated.
+// AXIS5: the activity term is REGISTERED (r_wakeup, which also includes
+// tWAKEUP) and feeds user_valid only (axi_valid tied 0).
+// Source of truth: rtl/amba/axis5/axis5_master_cg.sv.
+digraph axis5_master_cg {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.65", splines=ortho, newrank=true,
+           label="axis5_master_cg - axis5_master behind an idle-timeout clock gate\n(clock in: aclk; the base runs on gated_aclk)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    clk  [label="Clock In\naclk, aresetn", fillcolor="white"];
+    cfg  [label="Clock-Gate Config (runtime ports)\ncfg_cg_enable: 1 = gating allowed\ncfg_cg_idle_count: idle cycles before gating", fillcolor="white"];
+    fub  [label="FUB Stream Port (upstream)\nfub_axis5_tvalid + T fields, twakeup, *chk / fub_axis5_tready", fillcolor="white"];
+
+    cgc  [label="Clock-Gate Controller\namba_clock_gate_ctrl - u_clock_gate_ctrl\nuser_valid = r_wakeup (flop): fub_axis5_tvalid | core busy\n| m_axis5_tvalid | fub_axis5_twakeup\naxi_valid tied 0; gates after the idle count"];
+    rdyg [label="Ready Gate (combinational)\nfub_axis5_tready = cg_gating ? 0 : core tready"];
+    base [label="Base Stream Master\naxis5_master - u_axis5_master\n(see the axis5_master diagram)", width=3.6];
+
+    bus  [label="AXI5-Stream Master Bus + status\nm_axis5_tvalid + T fields, twakeup, *chk / m_axis5_tready, treadychk   |   busy, parity_error, cg_gating, cg_idle",
+          fillcolor="white", width=7.5];
+
+    clk  -> cgc  [xlabel="aclk", penwidth=1.8];
+    cfg  -> cgc  [style=dashed, xlabel="enable, idle count"];
+    cgc  -> base [xlabel="gated_aclk", penwidth=1.8];
+    fub  -> base [xlabel="T beat"];
+    base -> bus  [xlabel="m_axis5 T beat"];
+    bus  -> base [style=dashed, constraint=false, xlabel="m_axis5_tready,\ntreadychk"];
+    base -> rdyg [style=dashed, xlabel="int_tready"];
+    cgc  -> rdyg [style=dashed, xlabel="cg_gating"];
+    rdyg -> fub  [style=dashed, constraint=false, xlabel="fub_axis5_tready"];
+    cgc  -> bus  [style=dashed, xlabel="cg_gating, cg_idle"];
+
+    { rank=same; clk; cfg; fub; }
+    { rank=same; cgc; rdyg; }
+    clk -> cfg -> fub [style=invis];
+    cgc -> rdyg [style=invis, minlen=3];
+}

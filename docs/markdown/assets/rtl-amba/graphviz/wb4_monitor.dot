@@ -1,0 +1,56 @@
+// wb4_monitor block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Same family shape as apb4_monitor (its template): observed handshakes at
+// the top, the Ocelus monitor bus as the bottom bar. Wishbone terminates in
+// issue order, so transfers are tracked in an IN-ORDER queue (the response
+// always pairs with the oldest open request), not a slot table.
+// Source of truth: rtl/amba/wb4/wb4_monitor.sv.
+digraph wb4_monitor {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="wb4_monitor - Wishbone B4 command / response observer emitting Ocelus monitor packets, protocol = PROTOCOL_WB (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lUSE_MONITOR: 0 = no monitor body; outputs tied off\lN_ADDR_RANGES: 0 = no address-range checker\lMAX_TRANSACTIONS: tracking-queue depth\lUSE_BURST_HINTS: 1 = CTI reported in aux_data[7:5]\lUNIT_ID / AGENT_ID: stamped into every packet\l", fillcolor="white"];
+    taps [label="Observed Handshakes (inputs only; wb4_master / wb4_slave queues)\ncmd_valid / cmd_ready, cmd_we, cmd_adr, cmd_dat, cmd_sel (, cmd_cti)\nrsp_valid / rsp_ready, rsp_status (ACK / ERR / RTY), rsp_dat", fillcolor="white"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_*_enable: one enable per packet class\l    (error, timeout, protocol, slverr, perf,\l    latency, debug, trans_debug; throughput\l    kept for family uniformity, no packet)\lcfg_cmd / rsp_timeout_cnt, latency threshold,\l    debug level; cfg_addr_*: range bounds\l", fillcolor="white"];
+
+    trk  [label="In-Order Tracking Queue (flop)\nr_q[MAX_TRANSACTIONS], r_head / r_tail\npush on a cmd handshake, pop on a rsp handshake\nentry keeps issue time, we, adr (, cti)"];
+
+    tmo  [label="Timeout Detect\ncmd: request offered, not taken\nrsp: oldest open request unterminated\n(each fires once)"];
+    err  [label="Error / Protocol Detect\nERR termination (cfg_slverr_enable)\norphan response: nothing open"];
+    perf [label="Latency\nhead entry: completion time\nminus issue time vs threshold"];
+
+    evt  [label="Event Select (combinational, priority)\nerror > timeout > perf > debug > completion (ACK / RTY)\none packet per clock, gated by its cfg enable"];
+    fifo [label="Packet FIFO\ngaxi_fifo_sync - monitor_fifo\nMONITOR_FIFO_DEPTH entries (mux read)"];
+    addr [label="Address-Range Check  (N_ADDR_RANGES > 0 only)\napb_monitor_addr_check - addr_check\nreads the cmd handshake and cmd_adr;\nrange-miss packets with their own timestamp", style="filled,dashed"];
+
+    merge [label="Packet Merge (2:1 priority)\nevent FIFO first, then range misses", shape=invtrapezium, fillcolor="#BFD7EE", width=4.6, height=0.7, fixedsize=true];
+    skid [label="Output Skid Buffer\ngaxi_skid_buffer - monbus_skid_buffer, DEPTH 2"];
+
+    out  [label="Ocelus Monitor Bus   monbus_valid / monbus_ready, monbus_packet (128-bit), monbus_timestamp\nstatistics: active_count, error_count, transaction_count",
+          fillcolor="white", width=10.0];
+
+    taps -> trk [penwidth=1.8, xlabel="cmd / rsp handshakes"];
+    taps -> addr [style=dashed];
+    trk -> tmo [xlabel="head entry, cmd wait"];
+    trk -> err [xlabel="terminations"];
+    trk -> perf [xlabel="issue / completion times"];
+    tmo -> evt [xlabel="timeout"];
+    err -> evt [xlabel="error"];
+    perf -> evt [xlabel="latency"];
+    evt -> fifo [penwidth=1.8, xlabel="packet"];
+    fifo -> merge [xlabel="event packets\n(i_mon_time)"];
+    addr -> merge [style=dashed, xlabel="range-miss packets"];
+    merge -> skid [penwidth=1.8, xlabel="packet + timestamp"];
+    skid -> out [penwidth=1.8, xlabel="monbus packet / ready"];
+
+    { rank=same; prm; taps; cfg; }
+    { rank=same; tmo; err; perf; }
+    { rank=same; fifo; addr; }
+    prm -> taps [style=invis]; taps -> cfg [style=invis];
+    tmo -> err [style=invis]; err -> perf [style=invis];
+    fifo -> addr [style=invis, minlen=2];
+}

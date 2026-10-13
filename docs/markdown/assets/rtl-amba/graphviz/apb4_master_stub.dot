@@ -1,0 +1,44 @@
+// apb4_master_stub block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Packed-port wrapper: the base apb4_master is ONE child box (own diagram).
+// The variant adds the {last, first} framing side FIFO that pairs each
+// response with the command that produced it.
+// Source of truth: rtl/amba/apb4/apb4_master_stub.sv.
+digraph apb4_master_stub {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb4_master_stub - packed command / response ports with first / last framing (single clock: pclk, presetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    cmd_port [label="Command Port (packed)\ncmd_valid / cmd_ready\ncmd_data = {last, first, pwrite,\npprot, pstrb, paddr, pwdata}", fillcolor="white"];
+    rsp_port [label="Response Port (packed)\nrsp_valid / rsp_ready\nrsp_data = {last, first, pslverr, prdata}", fillcolor="white"];
+
+    unpk [label="Unpack (wiring)\nAPB fields to the core;\n{last, first} to the side FIFO"];
+    flq  [label="First / Last Side FIFO\ngaxi_fifo_sync - u_first_last_fifo\nDEPTH = CMD_DEPTH + RSP_DEPTH + 2\n(the true outstanding bound)\npush on cmd, pop on rsp handshake"];
+    core [label="APB4 Master Core\napb4_master - u_apb4_master (see its diagram)\ncommand skid, transfer FSM, response skid"];
+    pack [label="Pack (wiring)\n{fifo last, first, core pslverr, prdata}"];
+
+    bus [label="APB4 Requester Bus  m_apb_*\nout: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT\nin: PRDATA, PSLVERR, PREADY",
+         fillcolor="white"];
+
+    cmd_port -> unpk [dir=both, xlabel="cmd_valid + cmd_data / cmd_ready"];
+    unpk -> core [penwidth=1.8, xlabel="cmd_pwrite, paddr,\npwdata, pstrb, pprot"];
+    unpk -> flq [xlabel="{last, first}"];
+    core -> bus [dir=both, xlabel="APB transfer / PREADY, PRDATA, PSLVERR"];
+    core -> pack [xlabel="rsp_prdata, rsp_pslverr"];
+    flq -> pack [xlabel="{last, first}\nof this response"];
+    p_up [shape=point, width=0.01];
+    pack -> p_up [dir=back, arrowtail=normal, arrowhead=none, xlabel="rsp_valid + rsp_data\n/ rsp_ready", constraint=false];
+    p_up -> rsp_port [dir=both, constraint=false];
+
+    { rank=same; cmd_port; rsp_port; }
+    { rank=same; core; flq; }
+    { rank=same; pack; bus; }
+    { rank=same; flq; p_up; }
+    cmd_port -> rsp_port [style=invis, minlen=3];
+    core -> flq [style=invis, minlen=2];
+    flq -> p_up [style=invis];
+    unpk -> rsp_port [style=invis, constraint=false];
+}

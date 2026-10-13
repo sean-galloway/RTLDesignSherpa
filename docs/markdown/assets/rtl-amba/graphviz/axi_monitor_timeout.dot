@@ -1,0 +1,33 @@
+// axi_monitor_timeout block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Per table entry, three phase counters (address, data, response) advance on the
+// timer tick while that phase is pending; a counter that reaches its limit sets
+// the entry's sticky timeout flag, which clears when the entry retires.
+// Source of truth: rtl/amba/ocelus/axi_monitor_timeout.sv.
+digraph axi_monitor_timeout {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c,
+           label="axi_monitor_timeout - per-entry phase timeouts (single clock: aclk, aresetn)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    prm  [label="Parameters (fixed at build)\lIS_READ: 0 adds the response-phase counter\l    (writes wait for B; reads have none)\l", fillcolor="white"];
+    tin  [group=C, label="From the Transaction Manager\ntrans_table[MAX_TRANSACTIONS]\n(entry valid, state, phase progress)", fillcolor="white"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_timeout_enable: 0 = counters held at 0, no flags\lcfg_addr / data / resp_cnt: ticks each phase may wait\l", fillcolor="white"];
+    tick [label="Timer (input)\ntimer_tick from axi_monitor_timer", fillcolor="white"];
+    pend [group=C, label="Phase Pending (combinational, per entry)\naddress, data, response phase still open;\nretired = entry invalid or finished"];
+    ctr  [group=C, label="Phase Counters (flops, MAX_TRANSACTIONS x 3)\nr_addr / r_data / r_resp_timer[i]: +1 per tick while\nthat phase is pending, cleared when it is not"];
+    det  [group=C, label="Timeout Flags (flops)\nr_timeout_detected[i]: set when a pending phase's counter\nreaches its limit; sticky until the entry retires"];
+    out  [group=C, label="Output\ntimeout_detected[MAX_TRANSACTIONS] (to the transaction manager and the reporter;\nforced to 0 while cfg_timeout_enable = 0)", fillcolor="white", width=8.0];
+
+    tin  -> pend [xlabel="entry state", penwidth=1.8];
+    pend -> ctr  [xlabel="pending phases", penwidth=1.8];
+    tick -> ctr  [xlabel="timer_tick"];
+    cfg  -> det  [style=dashed, xlabel="limits, enable"];
+    ctr  -> det  [xlabel="counts", penwidth=1.8];
+    pend -> det  [xlabel="retired"];
+    det  -> out  [xlabel="timeout_detected", penwidth=1.8];
+    { rank=same; prm; tin; cfg; }
+    prm -> tin [style=invis]; tin -> cfg [style=invis];
+    { rank=same; pend; tick; }
+    pend -> tick [style=invis];
+}

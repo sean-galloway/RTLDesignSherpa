@@ -152,52 +152,11 @@ These are declared in the parameter list so they can be used in port widths, but
 
 ## Functional Description
 
-```mermaid
-flowchart TB
-    subgraph INPUT["FUB Interface (Input)"]
-        fub_tdata["fub_axis_tdata"]
-        fub_tvalid["fub_axis_tvalid"]
-        fub_tready["fub_axis_tready"]
-        fub_twakeup["fub_axis_twakeup"]
-        fub_tchk["fub_axis_t*chk"]
-    end
+### Block diagram
 
-    subgraph PACK["Packet Packing"]
-        pack["Pack signals based on<br/>ENABLE_WAKEUP/ENABLE_PARITY"]
-    end
+![axis5_master block diagram](../../assets/rtl-amba/graphviz/axis5_master.png)
 
-    subgraph SKID["Skid Buffer"]
-        sb["gaxi_skid_buffer<br/>Depth: SKID_DEPTH"]
-    end
-
-    subgraph UNPACK["Packet Unpacking"]
-        unpack["Unpack to AXIS5 signals"]
-    end
-
-    subgraph PARITY["Check-signal Check (ENABLE_PARITY)"]
-        calc["dataint_parity per 8-bit piece<br/>(odd, CHUNKS=1)"]
-        cmp["Compare with carried T*CHK<br/>and m_axis_treadychk"]
-        err["parity_error<br/>flag"]
-    end
-
-    subgraph OUTPUT["Master AXIS5 Interface"]
-        m_tdata["m_axis_tdata"]
-        m_tvalid["m_axis_tvalid"]
-        m_tready["m_axis_tready"]
-        m_twakeup["m_axis_twakeup"]
-        m_tchk["m_axis_t*chk<br/>tvalidchk / twakeupchk"]
-    end
-
-    INPUT --> PACK
-    PACK --> SKID
-    SKID --> UNPACK
-    UNPACK --> OUTPUT
-    OUTPUT --> PARITY
-    PARITY --> err
-
-    style PARITY fill:#fff4e6
-    style err fill:#ffe6e6
-```
+The `axis4_master` path with the AXI5-Stream additions riding the skid word: `twakeup` (`ENABLE_WAKEUP`) and, with `ENABLE_PARITY=1`, the payload check bits. The dashed parity block checks the carried check bits against the outgoing beat with `dataint_parity` (odd, one instance per byte piece), generates `m_axis_tvalidchk` and `m_axis_twakeupchk`, checks `m_axis_treadychk`, and sets the sticky `parity_error` on any mismatch.
 
 ### Skid Buffer Operation
 

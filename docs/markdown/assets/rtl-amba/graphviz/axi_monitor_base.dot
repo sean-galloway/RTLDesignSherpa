@@ -1,0 +1,56 @@
+// axi_monitor_base block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The Ocelus transaction-monitor core. Observed channel taps enter at the top
+// (nothing is driven back onto the bus), pass the ID filter, and are tracked in
+// the transaction manager's table. The timeout scanner and the reporter read the
+// table; the reporter's packets and the optional address checker's packets
+// compete for the one monitor-bus output (a real many-to-one pick: trapezium).
+// The reporter and the timeout scanner feed back into the table manager.
+// Source of truth: rtl/amba/ocelus/axi_monitor_base.sv.
+digraph axi_monitor_base {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="axi_monitor_base - transaction monitor core, one AXI / AXI-Lite direction (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lIS_READ: 1 = read monitor (data = R), 0 = write (W + B)\lIS_AXI: 0 = AXI-Lite (no len / size / burst)\lMAX_TRANSACTIONS: table entries tracked at once\lENABLE_*_LOGIC: which packet classes are built\lN_ADDR_RANGES: 0 omits the address checker\lID_FILTER_ENABLE / ID_MATCH_*: own an ID slice\l    of a shared bus (default off)\l", fillcolor="white"];
+    taps [group=C, label="Observed Channels (taps, nothing driven back)\ncmd: AR or AW (valid, ready, id, addr, len, size, burst)\ndata: R or W (valid, ready, id, last, resp)  |  resp: B (write only)", fillcolor="white"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_*_enable: per-class packet enables\lcfg_freq_sel: timer tick rate\lcfg_addr / data / resp_cnt: timeout limits\lcfg_active_trans / latency_threshold\lcfg_id_* / cfg_addr_filter_*: what is tracked\lcfg_addr_range_*: address-check windows\l", fillcolor="white"];
+
+    filt [group=C, label="ID Filter (combinational)\nid_owned(id): keeps only the owned ID slice\n(all IDs when filtering is off); gates the three valids"];
+    tmr  [group=R, label="Timer\naxi_monitor_timer - timer_inst\ntimer_tick at cfg_freq_sel, r_timestamp"];
+    tm   [group=C, label="Transaction Manager (flops)\naxi_monitor_trans_mgr - trans_mgr_inst\ntrans_table[MAX_TRANSACTIONS]: one entry per\noutstanding transaction (id, addr, beats, state, times)\nactive_count (to busy, block_ready); address-filter mask", height=1.0];
+    tmo  [group=R, label="Timeout Scanner (ENABLE_TIMEOUT_LOGIC=1 only)\naxi_monitor_timeout - timeout_inst\nper-entry addr / data / resp counters on timer_tick", style="filled,dashed"];
+    rep  [group=C, label="Reporter\naxi_monitor_reporter - reporter_inst\nscans the table for error, completion, timeout,\nthreshold and perf events; formats 128-bit packets\n(internal event FIFO, INTR_FIFO_DEPTH)"];
+    adc  [group=L, label="Address Checker (N_ADDR_RANGES > 0 only)\naxi_monitor_addr_check - addr_check_inst\nMATCH packet: hit in a debug watch range;\nMISS (error) packet: outside every error-allowlist range", style="filled,dashed"];
+    pick [group=C, label="Monitor-Bus Output Pick\nreporter first; an address packet\nthat stalled holds the bus until accepted",
+          shape=invtrapezium, width=8.2, height=0.8, fixedsize=true, fillcolor="#BFD7EE"];
+    perf [group=L, label="Perf Window + Counters (flops)\nwindow FSM on start / end events;\nproductive / backpressure / starvation / idle\ncycles, beats, bytes, bursts while open"];
+    out  [group=C, label="Outputs\nmonbus_valid, monbus_packet, monbus_timestamp (monbus_ready in)  |  block_ready (table nearly full), busy, active_count\nwindow_active, window_cycles, perf_* counters", fillcolor="white", width=11.0];
+
+    taps -> filt [label="cmd / data / resp\nvalids + fields"];
+    filt -> tm   [xlabel="owned cmd, data, resp", penwidth=1.8];
+    tmr  -> tm   [xlabel="timestamp"];
+    tmr  -> tmo  [label="timer_tick"];
+    tm   -> tmo  [dir=both, xlabel="trans_table down /\ntimeout_detected up\n(terminal state)"];
+    tm   -> rep  [dir=both, penwidth=1.8, xlabel="trans_table, filtered_mask down /\nevent_reported_flags up (marks entries done)"];
+    tmo  -> rep  [label="timeout_detected"];
+    filt -> adc  [xlabel="owned cmd"];
+    rep  -> pick [xlabel="event packets", penwidth=1.8];
+    adc  -> pick [xlabel="address packets"];
+    pick -> out  [xlabel="monbus packet", penwidth=1.8];
+    taps -> perf [xlabel="data valid / ready,\ncmd handshake"];
+    perf -> out  [xlabel="window + perf counts"];
+    cfg  -> tmr  [style=dashed, xlabel="cfg_freq_sel"];
+
+    { rank=same; prm; taps; cfg; }
+    prm -> taps [style=invis]; taps -> cfg [style=invis];
+    { rank=same; perf; filt; tmr; }
+    perf -> filt [style=invis]; filt -> tmr [style=invis];
+    { rank=same; tmo; }
+    { rank=same; adc; rep; }
+    adc -> rep [style=invis];
+    { rank=same; out; }
+}

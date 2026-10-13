@@ -140,6 +140,17 @@ That shape fits a common characterization pattern: a host CPU populates a memory
 
 ## Functional Description
 
+### Block diagram
+
+![sdpram_slave_axil_axi4 block diagram](../../assets/rtl-amba/graphviz/sdpram_slave_axil_axi4.png)
+
+The write leaf (AXI-Lite) and read leaf (AXI4) each sit between their bus port and
+`sdpram_core`, which is drawn as the bottom bar (its queues, burst trackers
+and BRAM are in its own diagram). Requests go down each side and responses
+come back up the same edge: AW and W down and B up on the left, AR down and R
+up on the right. The leaves supply the skid buffers; on the FUB side, the AXI-Lite write is tied to single beats (id 0, len 0, INCR); the AXI4 read carries real id, len, size and burst.
+The bulk-clear handshake goes straight to the core.
+
 ### Structure
 
 Three instances: `axil4_slave_wr` (write), `axi4_slave_rd` (read), and `sdpram_core` (backend). The read leaf's FUB carries full AXI4 read fields into the core. The write leaf's AXIL FUB carries only address and data — the wrapper supplies the burst/ID fields the core expects.

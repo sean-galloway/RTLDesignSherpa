@@ -198,6 +198,12 @@ Your logic drives the `fub_axil_*` side; the `m_axil_*` side faces the bus. The 
 
 ## Functional Description
 
+### Block diagram
+
+![axil5_master_wr_mon_cg block diagram](../../assets/rtl-amba/graphviz/axil5_master_wr_mon_cg.png)
+
+`axil5_master_wr_mon` (core plus ocelus monitor) is one child box (see its own diagram), clocked by `gated_aclk` from `amba_clock_gate_ctrl`. The controller's label lists the activity terms, which add `monbus_valid` and `active_transactions` so the clock keeps running while the monitor still has packets or open transactions. Monitor-bus packets and the monitor configuration pass straight through to the child.
+
 ### Optional signal groups
 
 The ID plus three optional groups -- the ones IHI 0022L Table B2.2 allows on AXI5-Lite. The ID has no enable (it is sized by `ID_WIDTH`); each group is gated by its own `ENABLE_*` parameter and contributes to the packed SKID payload only when enabled.

@@ -235,6 +235,12 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_slave_wr_mon_cg block diagram](../../assets/rtl-amba/graphviz/axi4_slave_wr_mon_cg.png)
+
+This is the `_cg` pattern wrapped around `axi4_slave_wr_mon` (one child box, see its own diagram): the heavy `aclk` column runs through `amba_clock_gate_ctrl` into the monitored child as `gated_aclk`. The activity term adds `monbus_valid` and any active transactions to the usual valids and `busy`, so the clock cannot stop with a monitor packet or an open transaction in flight. The `cfg_monitor_*` and `cfg_axi_*` ports pass straight through to the child; the outward readies are forced to 0 while gating.
+
 ### Performance Monitoring
 
 The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi4_slave_wr_mon`. The measurement-window state machine, the four W-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module -- see [Performance Monitoring in axi4_slave_wr_mon](./axi4_slave_wr_mon.md#performance-monitoring) for the full narrative and per-bit semantics.

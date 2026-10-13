@@ -125,6 +125,12 @@ axil4_master_wr_cg #(
 
 ## Functional Description
 
+### Block diagram
+
+![axil4_master_wr_cg block diagram](../../assets/rtl-amba/graphviz/axil4_master_wr_cg.png)
+
+The core `axil4_master_wr` is one box here; its own diagram shows the skid buffers. `amba_clock_gate_ctrl` watches activity on both sides and, once nothing has moved for `cfg_cg_idle_count` cycles with `cfg_cg_enable` set, stops the clock it feeds the core (`gated_aclk`, the heavy clock column). While the clock is stopped the wrapper forces the outward readies low so no handshake completes against a frozen core. `cg_gating` and `cg_idle` report the state.
+
 This wrapper is the base module plus one `amba_clock_gate_ctrl` instance. The
 transport datapath is untouched -- every channel signal is forwarded verbatim
 -- so functional behaviour is identical to `axil4_master_wr` and the wrapper adds no

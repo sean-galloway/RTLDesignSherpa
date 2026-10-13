@@ -1,0 +1,44 @@
+// axis4_slave_pattern_check block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// AXIS slave sink: the stream enters at the top; each accepted beat is demuxed by tid to its
+// channel, compared with that channel's regenerated LFSR pattern, and folded into the channel's
+// CRC. The results leave at the bottom bar. ready_en drives tready (backpressure modelling).
+// Source of truth: rtl/amba/shared/axis4_slave_pattern_check.sv.
+digraph axis4_slave_pattern_check {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axis4_slave_pattern_check - per-channel LFSR pattern checker with actual CRCs (clk)";
+
+    prm  [label="Parameters (fixed at build)\lNUM_CHANNELS: independent contexts, channel = tid[CIW-1:0]\lBYTE_CRC: 1 = CRC the strobed bytes, four per cycle\l    (tready held while a beat is fed); the word compare\l    becomes a tstrb-contiguity check\lLFSR_* / CRC_*: matches axi4_slave_rd_injector bit for bit\l", fillcolor="white"];
+    port [group=A, label="AXIS Slave Port\ns_axis_tvalid, tdata, tstrb, tlast, tid in   |   s_axis_tready out", fillcolor="white"];
+    cfg  [group=C, label="Control\ncfg_start (seed every channel: seed ^ ch)\ncfg_lfsr_seed, ready_en (tready)", fillcolor="white"];
+
+    dmx  [group=A, label="Channel Demux (combinational)\naccepted beat -> channel tid[CIW-1:0]\ntready = ready_en (held while a BYTE_CRC feed runs)"];
+    lfsr [group=C, label="Per-Channel Expected Pattern (flops)\nNUM_CHANNELS x shifter_lfsr_fibonacci - u_lfsr\nonly the beat's channel advances"];
+    cmp  [group=A, label="Compare (combinational) + error flag (flop)\ntdata vs the 32-bit word replicated across the bus;\nany mismatch sets o_data_error (sticky)"];
+    crc  [group=C, label="Per-Channel CRC (flops)\nNUM_CHANNELS x dataint_crc - u_crc\nover the expected words (or strobed bytes)"];
+
+    out  [label="Outputs\no_actual_crc / _valid [ch]   |   o_data_error   |   o_beat_count [ch], o_beat_count_total, o_pkt_count",
+          fillcolor="white", width=9.0];
+
+    port -> dmx  [dir=both, xlabel="AXIS beat  /  tready"];
+    cfg  -> lfsr [style=dashed, xlabel="cfg_start (seed)"];
+    dmx  -> lfsr [xlabel="channel, accepted"];
+    dmx  -> cmp  [xlabel="tdata"];
+    lfsr -> cmp  [xlabel="expected word"];
+    lfsr -> crc  [xlabel="expected word"];
+    cmp  -> out  [xlabel="o_data_error, counts"];
+    crc  -> out  [xlabel="actual CRCs"];
+
+    { rank=same; port; cfg; }
+    port -> cfg [style=invis, minlen=2];
+    dmx -> lfsr [style=invis];
+    lfsr -> cmp [style=invis];
+    { rank=same; cmp; crc; }
+    cmp -> crc [style=invis];
+    { rank=same; prm; dmx; }
+    prm -> dmx [style=invis];
+}

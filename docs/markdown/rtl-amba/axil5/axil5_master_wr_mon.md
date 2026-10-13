@@ -197,6 +197,12 @@ Your logic drives the `fub_axil_*` side; the `m_axil_*` side faces the bus. The 
 
 ## Functional Description
 
+### Block diagram
+
+![axil5_master_wr_mon block diagram](../../assets/rtl-amba/graphviz/axil5_master_wr_mon.png)
+
+`axil5_master_wr` is one child box (see its own diagram). The AW request first passes a handshake gate that masks valid and ready with `block_ready`, so a full monitor table stalls new requests instead of losing them. The optional ocelus monitor (`axi_monitor_filtered`, dashed because `USE_MONITOR=0` removes it) taps the bus on the `m_axil` side, below the core, including the transaction IDs, and emits monitor-bus packets as the heavy edge. With `USE_MONITOR=1` the build requires `ID_WIDTH <= 8`; the `_monlite` wrapper takes wider IDs.
+
 ### Optional signal groups
 
 The ID plus three optional groups -- the ones IHI 0022L Table B2.2 allows on AXI5-Lite. The ID has no enable (it is sized by `ID_WIDTH`); each group is gated by its own `ENABLE_*` parameter and contributes to the packed SKID payload only when enabled.

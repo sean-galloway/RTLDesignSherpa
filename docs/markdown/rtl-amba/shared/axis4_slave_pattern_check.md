@@ -127,6 +127,19 @@ Characterizing a stream-*producing* engine (a "source") needs a checker that kno
 
 ## Functional Description
 
+### Block diagram
+
+![axis4_slave_pattern_check block diagram](../../assets/rtl-amba/graphviz/axis4_slave_pattern_check.png)
+
+Each accepted beat is routed by `tid` to its channel's context. That
+channel's LFSR, seeded at `cfg_start` exactly as the generator seeds it,
+regenerates the expected word; the received `tdata` is compared with it
+replicated across the bus, and any mismatch sets the sticky `o_data_error`.
+The channel's CRC accumulates the expected words and matches
+`axi4_slave_rd_injector` bit for bit. With `BYTE_CRC=1` it CRCs the strobed
+bytes instead. `tready` follows `ready_en`, so a test can model
+backpressure.
+
 ### Readiness and Beat Handshake
 
 `s_axis_tready` is driven directly from `ready_en` — tie it high for a pure, always-ready sink, or deassert it to model downstream backpressure. An accepted beat is `w_beat = tvalid && tready`. Because the same handshake gates both the compare and the LFSR/CRC advance, the checker and the upstream generator advance in lockstep. The active channel for a beat is `s_axis_tid[CIW-1:0]`.

@@ -1,0 +1,35 @@
+// axis4_master block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// AXI4-Stream channel geometry: the upstream (FUB) side is the white port at
+// the top, the AXI4-Stream bus the white bar at the bottom. Transfers (valid
+// + payload) flow straight down the center through ONE gaxi_skid_buffer;
+// tready returns dashed up the right, one hop at a time.
+// Source of truth: rtl/amba/axis4/axis4_master.sv.
+digraph axis4_master {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="axis4_master - FUB stream to AXI4-Stream master, one skid buffer\n(single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH: slots in the T skid buffer (2 .. 8)\lAXIS_ID/DEST/USER_WIDTH: 0 drops the field\l    (the port stays 1 bit wide, driven 0)\l", fillcolor="white"];
+
+    fub  [label="FUB Stream Port (upstream)\nfub_axis_tvalid, tdata, tstrb, tlast, tid, tdest, tuser\n/ fub_axis_tready", fillcolor="white"];
+    pack [label="Pack (wiring)\n{tdata, tstrb, tlast, tid, tdest, tuser}\none TSize-bit word per beat"];
+    skid [label="T Skid Buffer\ngaxi_skid_buffer - t_channel\nDEPTH = SKID_DEPTH, registered ready / valid"];
+    unp  [label="Unpack (wiring)\nper-field slices back to m_axis_t*"];
+    bus  [label="AXI4-Stream Master Bus\nm_axis_tvalid, tdata, tstrb, tlast, tid, tdest, tuser  /  m_axis_tready\nbusy = (rd_count > 0) | fub_axis_tvalid",
+          fillcolor="white", width=6.5];
+
+    fub  -> pack [xlabel="T beat (valid + payload)"];
+    pack -> skid [xlabel="wr_valid, wr_data"];
+    skid -> unp  [xlabel="rd_valid, rd_data"];
+    unp  -> bus  [xlabel="m_axis_tvalid + T fields"];
+
+    bus  -> skid [style=dashed, constraint=false, xlabel="m_axis_tready\n(= rd_ready)"];
+    skid -> fub  [style=dashed, constraint=false, xlabel="fub_axis_tready\n(= wr_ready)"];
+
+    { rank=min; prm; }
+    prm -> fub [style=invis];
+}

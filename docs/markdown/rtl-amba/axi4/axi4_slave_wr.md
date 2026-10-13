@@ -216,34 +216,15 @@ Mirrors the slave interface but in the opposite direction (output on AW/W, input
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_slave_wr block diagram](../../assets/rtl-amba/graphviz/axi4_slave_wr.png)
+
+Write data (W) takes its own lane down the left and AW goes down the center, each through its own `gaxi_skid_buffer` from the s_axi slave port to the backend (fub_axi); the write response (B) comes back up the right lane through a third skid buffer. Busy Detect reads all three occupancies plus the incoming valids and drives `busy` for the `_cg` clock-gated wrapper. The `SKID_DEPTH_*` parameters size each buffer.
+
 ### Architecture
 
-Three independent `gaxi_skid_buffer` instances do the heavy lifting, one per write channel:
-
-```mermaid
-flowchart LR
-    subgraph SL["Slave<br/>(s_axi_*)"]
-        saw["aw*"]
-        sw["w*"]
-        sb["b*"]
-    end
-
-    subgraph BUF["Skid Buffers"]
-        awb["AW Buffer<br/>(depth=2)"]
-        wb["W Buffer<br/>(depth=4)"]
-        bb["B Buffer<br/>(depth=2)"]
-    end
-
-    subgraph BE["Backend<br/>(fub_axi_*)"]
-        baw["aw*"]
-        bw["w*"]
-        bb2["b*"]
-    end
-
-    saw --> awb --> baw
-    sw --> wb --> bw
-    bb2 --> bb --> sb
-```
+Three independent `gaxi_skid_buffer` instances do the heavy lifting, one per write channel (see the block diagram above).
 
 ### Channel Operations
 

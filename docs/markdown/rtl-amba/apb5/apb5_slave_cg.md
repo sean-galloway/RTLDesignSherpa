@@ -187,32 +187,14 @@ unchanged and pass straight through to the wrapped core.
 
 ## Functional Description
 
-```mermaid
-flowchart TB
-    subgraph CG["Clock Gating Control"]
-        wake["Activity Flop<br/>r_wakeup"]
-        idle["Idle<br/>Counter"]
-        gate["ICG<br/>Clock Gate"]
-    end
+### Block diagram
 
-    subgraph CORE["APB5 Slave Core"]
-        slave["apb5_slave"]
-    end
+![apb5_slave_cg block diagram](../../assets/rtl-amba/graphviz/apb5_slave_cg.png)
 
-    pclk["pclk"] --> gate
-    gate -->|gated_pclk| slave
-
-    s_apb_PSEL --> wake
-    wake --> idle
-    idle --> gate
-    wake --> gate
-
-    slave --> s_apb_PREADY
-    slave --> s_apb_PRDATA
-
-    cfg_cg_enable --> gate
-    cfg_cg_idle_count --> idle
-```
+The wrapped `apb5_slave` is one box (see its diagram). The variant adds the clock
+path (heavy): a wakeup flop on the ungated `pclk` watches PWAKEUP, PSEL, PENABLE,
+`cmd_valid` and `rsp_valid`, and `amba_clock_gate_ctrl` stops the core's clock after
+`cfg_cg_idle_count` quiet clocks when `cfg_cg_enable` is set.
 
 ### Clock Gating Behavior
 

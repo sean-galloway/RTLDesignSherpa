@@ -1,0 +1,44 @@
+// monbus_halfbeat_packer block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Flows:
+//   beats   - top-down the center: compressor beats -> case decode ->
+//             output select -> packed-beat bar
+//   pending - a first half-slot is held in the pending register; it climbs
+//             the RIGHT edge back into the decode and the output select
+//   ready   - in_ready is decided by the case decode: dashed back up
+// Source of truth: rtl/amba/ocelus/monbus_halfbeat_packer.sv.
+digraph monbus_halfbeat_packer {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="monbus_halfbeat_packer - two 30-bit half slots packed into one 64-bit beat, record order kept\n(single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- input (white) ----
+    inp  [group=C, label="Compressor Beats (from monbus_compressor)\nin_valid, in_slot[63:0], in_half_valid, in_half_slot[29:0] / in_ready", fillcolor="white"];
+
+    // ---- logic ----
+    dec  [group=C, label="Case Decode (combinational)\nhalf + one pending: pair them\nhalf, none pending: buffer it, emit nothing\nfull beat, none pending: forward it\nfull beat with one pending: flush the half first, hold the beat\ninput idle with one pending: flush the half\nin_ready: 1 on buffer, out_ready on pair / forward, else 0"];
+    sel  [group=C, label="Output Select (combinational)\npair: {tag 0x4, pending half, this half}\nflush: {tag 0x4, pending half, NOP half}\nforward: in_slot unchanged"];
+    pend [group=R, label="Pending Half Register (flops)\nr_pend_valid, r_pend_slot\nload on buffer; clear when\nthe pair or flush beat is taken"];
+
+    // ---- output bar ----
+    outs [group=C, label="Packed Beats (to the write FIFO)\nout_valid, out_slot[63:0] / out_ready", fillcolor="white", width=6.5];
+
+    // ---- main flow ----
+    inp  -> dec  [xlabel="beat + half sideband"];
+    dec  -> sel  [xlabel="case: pair / buffer /\nforward / flush"];
+    sel  -> outs [xlabel="out_slot", penwidth=1.8];
+    dec  -> inp  [style=dashed, xlabel="in_ready", constraint=false];
+
+    // ---- pending loop on the right ----
+    dec  -> pend [dir=both, xlabel="load half /\npending valid", constraint=false];
+    pend -> sel  [xlabel="pending half"];
+    outs -> pend [style=dashed, xlabel="out_ready\n(clear)", constraint=false];
+
+    // ---- rank pinning ----
+    { rank=same; dec; pend; }
+    dec -> pend [style=invis, minlen=3];
+}

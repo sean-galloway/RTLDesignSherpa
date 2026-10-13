@@ -203,58 +203,9 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 
 ### Architecture
 
-```mermaid
-flowchart LR
-    subgraph FUB["FUB Interface"]
-        direction TB
-        fub_aw["AW Channel<br/>Address/Control"]
-        fub_w["W Channel<br/>Write Data"]
-        fub_b["B Channel<br/>Write Response"]
-    end
+![axi5_master_wr_cg block diagram](../../assets/rtl-amba/graphviz/axi5_master_wr_cg.png)
 
-    subgraph CG["Clock Gating Controller"]
-        direction TB
-        activity["Activity<br/>Detection"]
-        idle_cnt["Idle Counter<br/>(Configurable)"]
-        gate_ctrl["Clock<br/>Gate Control"]
-    end
-
-    subgraph CORE["AXI5 Master Write Core"]
-        direction TB
-        aw_skid["AW SKID<br/>Depth=2"]
-        w_skid["W SKID<br/>Depth=4"]
-        b_skid["B SKID<br/>Depth=2"]
-        axi5_core["AXI5 Protocol<br/>Logic"]
-    end
-
-    subgraph AXI["AXI5 Master"]
-        direction TB
-        m_aw["AW Channel<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>IDUNQ/TAGOP"]
-        m_w["W Channel<br/>POISON/TAG<br/>TAGUPDATE"]
-        m_b["B Channel<br/>TRACE/IDUNQ<br/>TAGMATCH[1:0]"]
-    end
-
-    fub_aw --> activity
-    fub_w --> activity
-    fub_b --> activity
-    m_aw --> activity
-    m_w --> activity
-    m_b --> activity
-
-    activity --> idle_cnt
-    idle_cnt --> gate_ctrl
-    gate_ctrl -->|gated_aclk| axi5_core
-
-    fub_aw --> aw_skid
-    fub_w --> w_skid
-    aw_skid --> axi5_core
-    w_skid --> axi5_core
-    axi5_core --> m_aw
-    axi5_core --> m_w
-
-    m_b --> b_skid
-    b_skid --> fub_b
-```
+The base `axi5_master_wr` is one box (see its own diagram). The clock is the heavy main column: `aclk` enters `amba_clock_gate_ctrl`, which counts down idle cycles and drives `gated_aclk` into the child. AXI traffic passes straight through; while the clock is gated the wrapper forces the incoming readies to 0 so no handshake is lost. Activity is `fub_axi` valids, the child's busy, and `fub_axi_awakeup` when `ENABLE_WAKEUP=1`, on the upstream side, plus the `m_axi` valids.
 
 ### Clock Gating Operation
 

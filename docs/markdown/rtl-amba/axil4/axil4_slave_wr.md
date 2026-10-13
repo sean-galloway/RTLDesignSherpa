@@ -139,6 +139,12 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Functional Description
 
+### Block diagram
+
+![axil4_slave_wr block diagram](../../assets/rtl-amba/graphviz/axil4_slave_wr.png)
+
+The AXI4-Lite bus (`s_axil_*`) sits at the top and the completer backend (`fub_*`) is the bar at the bottom. AW and W run down through their own `gaxi_skid_buffer` instances to the bottom, and the B response climbs back up its own lane on the right through another skid buffer, so every channel crosses exactly one buffer. `busy` is a status output that is high while any buffer holds a beat or a new command or response is arriving.
+
 Signal flow runs Interconnect → AW/W Buffers → Backend → B Buffer →
 Interconnect. Each channel crosses its own buffer, so the backend can respond
 at its own pace without stalling the interconnect — that decoupling is the

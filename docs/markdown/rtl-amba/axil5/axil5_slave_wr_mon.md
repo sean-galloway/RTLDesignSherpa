@@ -197,6 +197,13 @@ The derived parameters (`AW`, `DW`, `UW`, ... and the `*Size` payload widths) ar
 
 ## Functional Description
 
+### Block diagram
+
+![axil5_slave_wr_mon block diagram](../../assets/rtl-amba/graphviz/axil5_slave_wr_mon.png)
+
+`axil5_slave_wr` is one child box (see its own diagram). The AW request first passes a handshake gate that masks valid and ready with `block_ready`, so a full monitor table stalls new requests instead of losing them. The optional ocelus monitor (`axi_monitor_filtered`, dashed because `USE_MONITOR=0` removes it) taps the bus on the `s_axil` side, above the handshake gate, including the transaction IDs, and emits monitor-bus packets as the heavy edge. With `USE_MONITOR=1` the build requires `ID_WIDTH <= 8`; the `_monlite` wrapper takes wider IDs.
+
+
 AXI5-Lite adds the transaction ID (`ID_WIDTH`, no enable; mandatory on this Subordinate-side module) and three optional signal groups -- USER, TRACE and POISON, the ones IHI 0022L Table B2.2 allows -- each gated by its own `ENABLE_*` parameter. A group contributes to the packed SKID payload only when it's enabled — turn it off and those bits simply aren't in the vector.
 
 | Group | Parameter | Signals on this module | Width |

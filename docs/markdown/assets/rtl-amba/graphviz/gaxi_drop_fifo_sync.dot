@@ -1,0 +1,97 @@
+// gaxi_drop_fifo_sync block diagram (derived from gaxi_fifo_sync.dot) - house style (vault/handbook/authoring/block-diagrams.md).
+// Adds a drop port and a 4-state drop FSM in the center column: the FSM
+// advances the read pointer by drop_count (or loads it with the write
+// pointer for drop_all) and freezes both handshakes while it works.
+// Same geography as rtl-common fifo_sync (identical counters + fifo_control),
+// with valid/ready ports: wr_ready = !full, rd_valid = !empty.
+// Geography mirrors fifo_async (rtl-cdc), minus the clock crossing:
+//   ports at the top (write left, read right) -> pointer counters -> one
+//   shared flag block in the center -> the storage bar at the bottom.
+// Flows:
+//   write data  - down the LEFT edge into storage
+//   read data   - back UP the RIGHT edge from storage
+//   pointers    - both counters feed fifo_control directly (one clock, no
+//                 synchronizer, no X): the center column holds the compare.
+//   flags       - dashed feedback to the port they gate.
+// One clock, so no dashed domain region: the title names the clock.
+// Column grid (group=): WD lane | WO write counter | C flags + bar | RO read
+// counter | RD lane. The lane anchors (aw/ar) are invisible nodes in the port
+// rank, so the data lanes drop straight instead of jogging at the bar.
+// Source of truth: rtl/amba/gaxi/gaxi_drop_fifo_sync.sv (instance names quoted in labels).
+digraph gaxi_drop_fifo_sync {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.95", splines=ortho, newrank=true,
+           label="gaxi_drop_fifo_sync - valid/ready FIFO that can discard entries from the read side\n(single clock: axi_aclk, axi_aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external interfaces (white) ----
+    wr_port [group=WO, label="Write Port (valid/ready)\nwr_valid, wr_data / wr_ready", fillcolor="white"];
+    rd_port [group=RO, label="Read Port (valid/ready)\nrd_valid, rd_data / rd_ready", fillcolor="white"];
+
+    wr_cnt [group=WO, label="Write Pointer Counter\ncounter_bin_load - write_pointer_inst\n(AW+1 bits, wraps at DEPTH)"];
+    rd_cnt [group=RO, label="Read Pointer Counter\ncounter_bin_load - read_pointer_inst\n(AW+1 bits, wraps at DEPTH;\nadd drop_count or load the write pointer)"];
+    drp    [group=C, label="Drop Port\ndrop_valid, drop_count,\ndrop_all / drop_ready", fillcolor="white"];
+    fsm    [group=C, label="Drop FSM (flop)\nr_drop_state: IDLE > DROP_ACTIVE\n> DROP_SETTLE > DROP_DONE\n(drop_ready) > IDLE\nDROP_ACTIVE: rd ptr += drop_count,\nor rd ptr = wr ptr (drop_all)"];
+    flags  [group=C, label="Full / Empty Flags + count\nfifo_control - fifo_control_inst\n(REGISTERED=1: flags flopped;\nwr_ready / rd_valid forced low during a drop)"];
+
+    // ---- the boundary bar: storage, written and read on clk ----
+    mem [group=C, label="Storage  mem[DEPTH]  (MEM_STYLE: SRL / BRAM / AUTO)\nwritten at the left, read at the right, both on axi_aclk\n(REGISTERED=0: rd_data muxed off the array; REGISTERED=1: rd_data flopped)",
+         width=14.0, height=0.9];
+
+    // ---- push / pop into the counters ----
+    wr_port -> wr_cnt [xlabel="wr_valid & wr_ready"];
+    rd_port -> rd_cnt [xlabel="rd_valid & rd_ready"];
+
+    // ---- drop control (center column) ----
+    drp -> fsm [dir=both, xlabel="drop request /\ndrop_ready"];
+    fsm -> rd_cnt [style=dashed, headlabel="adjust", labelangle=-60, labeldistance=3];
+    fsm -> flags [style=dashed, xlabel="drop active\n(freeze I/O)", weight=10];
+
+    // ---- both pointers into the one flag block (no crossing) ----
+    wr_cnt -> flags [xlabel="wr ptr next", penwidth=1.8];
+    rd_cnt -> flags [xlabel="rd ptr next", penwidth=1.8];
+
+    // ---- flags back to the ports (feedback: dashed) ----
+    flags -> wr_port [style=dashed, constraint=false, xlabel="wr_ready\n(= !full)"];
+    flags -> rd_port [style=dashed, constraint=false, xlabel="rd_valid\n(= !empty), count"];
+
+    // ---- outer lane anchors + storage scaffolds ----
+    aw    [group=WD, shape=point, width=0.01, style=invis];
+    ar    [group=RD, shape=point, width=0.01, style=invis];
+    p_wd  [group=WD, shape=point, width=0.01];
+    p_wa  [group=WO, shape=point, width=0.01];
+    p_ra  [group=RO, shape=point, width=0.01];
+    p_rdd [group=RD, shape=point, width=0.01];
+
+    wr_port -> p_wd [arrowhead=none, headclip=false];
+    p_wd -> mem [xlabel="wr_data", tailclip=false];
+    wr_cnt -> p_wa [arrowhead=none, headclip=false];
+    p_wa -> mem [xlabel="write address", tailclip=false];
+    rd_cnt -> p_ra [arrowhead=none, headclip=false];
+    p_ra -> mem [xlabel="read address", tailclip=false];
+    p_rdd -> mem [dir=none, tailclip=false];
+    p_rdd -> rd_port [xlabel="rd_data", tailclip=false, constraint=false];
+    aw -> p_wd [style=invis, weight=10];
+    ar -> p_rdd [style=invis, weight=10];
+
+    // ---- invisible center spine (group C) keeps the bar centered ----
+    node [style=invis, shape=point, width=0.01, group=C];
+    c3;
+    node [style=filled, shape=box, width=0.75, group=""];
+    flags -> c3 -> mem [style=invis, weight=10];
+
+    // ---- rank pinning ----
+    { rank=same; aw; wr_port; drp; rd_port; ar; }
+    { rank=same; wr_cnt; fsm; rd_cnt; }
+    { rank=same; p_wd; p_wa; c3; p_ra; p_rdd; }
+    { rank=max; mem; }
+    aw -> wr_port [style=invis, minlen=2];
+    wr_port -> drp -> rd_port [style=invis, minlen=3];
+    rd_port -> ar [style=invis, minlen=2];
+    wr_cnt -> fsm [style=invis, minlen=2];
+    fsm -> rd_cnt [style=invis, minlen=4];
+    p_wd -> p_wa -> c3 -> p_ra -> p_rdd [style=invis];
+}

@@ -197,36 +197,11 @@ The window is half-open: `[base, base + count)`.
 
 ## Functional Description
 
-### Architecture
+### Block diagram
 
-```mermaid
-flowchart LR
-    subgraph SL["Slave<br/>(s_axi)"]
-        ar["ar* →"]
-        r["← r*"]
-    end
+![axi4_slave_rd_mon block diagram](../../assets/rtl-amba/graphviz/axi4_slave_rd_mon.png)
 
-    subgraph CORE["Slave Core"]
-        sc["axi4_slave_rd<br/>(buffered)"]
-    end
-
-    subgraph MON["Monitor"]
-        mf["axi_monitor<br/>_filtered"]
-        features["•error<br/>•timeout<br/>•perf"]
-    end
-
-    subgraph MB["Monitor Bus"]
-        mbv["monbus_valid"]
-        mbp["monbus_packet"]
-    end
-
-    ar --> sc
-    sc --> r
-    sc --> mf
-    mf --> mbv
-    mf --> mbp
-    sc --> fub["Backend (fub_axi)"]
-```
+AXI traffic runs down the left column: through the AR stall gate, into the base `axi4_slave_rd` (one child box, see its own diagram), and out through the bar. The monitor taps the s_axi side, above the stall gate, gates each valid with `cfg_monitor_enable`, and `axi_monitor_filtered` turns the transactions into monitor-bus packets (the heavy edge). When its transaction table is full, `block_ready` drops and the stall gate holds both arvalid and arready low, so a full table stalls the bus instead of losing events. With `USE_MONITOR=0` the monitor is omitted, its outputs are tied off, and the gate never stalls.
 
 The module instantiates two sub-modules:
 1. **axi4_slave_rd** - Core AXI4 slave read functionality with buffering

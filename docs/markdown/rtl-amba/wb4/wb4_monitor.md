@@ -169,6 +169,12 @@ responses and tracking overflows.
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_monitor block diagram](../../assets/rtl-amba/graphviz/wb4_monitor.png)
+
+Same family shape as `apb4_monitor`. The command and response handshakes feed an in-order tracking queue: Wishbone terminates in issue order, so each response pairs with the oldest open request. The timeout, error/protocol and latency detectors feed a priority event select, which writes at most one packet per clock into the packet FIFO. An optional address-range checker (dashed, `N_ADDR_RANGES > 0`) produces its own range-miss packets. A 2:1 priority merge (the trapezium) feeds the output skid buffer onto the Ocelus monitor bus.
+
 ### Transaction Tracking
 
 A command handshake pushes `{we, adr, sel[3:0], cti, timestamp}` at the

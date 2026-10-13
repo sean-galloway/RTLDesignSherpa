@@ -1,0 +1,42 @@
+// apb4_slave_cg block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Variant rule: the base apb4_slave is ONE child box (it has its own diagram);
+// this diagram shows what the variant adds - the activity wakeup flop and
+// amba_clock_gate_ctrl, whose gated clock (heavy column) clocks the core.
+// Source of truth: rtl/amba/apb4/apb4_slave_cg.sv.
+digraph apb4_slave_cg {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb4_slave_cg - apb4_slave behind an idle-timeout clock gate",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    clk  [label="Clock In\npclk, presetn", fillcolor="white"];
+    cfg  [label="Clock-Gate Configuration (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle clocks to wait\l    before gating\l", fillcolor="white"];
+    bus  [label="APB4 Completer Bus  s_apb_*\nin: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT\nout: PREADY, PRDATA, PSLVERR", fillcolor="white"];
+
+    wake [label="Wakeup (flop on ungated pclk)\nr_wakeup <= PSEL | PENABLE | cmd_valid | rsp_valid\n(reset: 1, so the clock runs out of reset)"];
+    cgc  [label="Clock-Gate Controller\namba_clock_gate_ctrl - amba_clock_gate_ctrl\nidle countdown; gates when enabled and quiet"];
+    stat [label="Clock-Gate Status\ncg_gating, cg_idle", fillcolor="white"];
+
+    core [label="APB4 Slave Core  apb4_slave - u_apb4_slave  (see its diagram)\ncompleter FSM, command skid, response skid; clocked by gated_pclk",
+          width=7.5];
+
+    be [label="Backend Interface\ncmd_valid / cmd_ready + cmd_* fields   |   rsp_valid / rsp_ready, rsp_prdata, rsp_pslverr",
+        fillcolor="white", width=10.0];
+
+    clk -> wake [xlabel="pclk"];
+    clk -> cgc [penwidth=1.8, xlabel="pclk"];
+    wake -> cgc [xlabel="user_valid (wake)"];
+    cfg -> cgc [style=dashed, xlabel="enable, idle count"];
+    cgc -> stat [style=dashed];
+    cgc -> core [penwidth=1.8, xlabel="gated_pclk"];
+    bus -> core [dir=both, xlabel="APB transfer / PREADY, PRDATA, PSLVERR"];
+    core -> be [dir=both, xlabel="command / response (valid-ready each)"];
+
+    { rank=same; clk; cfg; bus; }
+    { rank=same; cgc; stat; }
+    clk -> cfg [style=invis]; cfg -> bus [style=invis];
+    cgc -> stat [style=invis];
+}

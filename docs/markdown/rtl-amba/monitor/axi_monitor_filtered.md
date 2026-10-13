@@ -227,19 +227,17 @@ software reads them after the close edge.
 
 ## Functional Description
 
-### Architecture
+### Block diagram
 
-```mermaid
-flowchart TB
-    ch["AXI/AXIL cmd / data / resp channels"] --> base["axi_monitor_base<br/>(tracking, timeout,<br/>threshold, perfmon)"]
-    base -->|"128b packet + 64b ts"| filt
-    subgraph filt["Filter (ENABLE_FILTERING)"]
-        l1["Level 1<br/>cfg_axi_pkt_mask<br/>(drop by type)"]
-        l1 --> l3["Level 3<br/>per-type event masks<br/>(drop by event code)"]
-    end
-    l3 --> pipe["Optional pipeline<br/>(ADD_PIPELINE_STAGE)"]
-    pipe --> out["monbus_valid / packet / timestamp"]
-```
+![axi_monitor_filtered block diagram](../../assets/rtl-amba/graphviz/axi_monitor_filtered.png)
+
+The base monitor (see its own diagram) does all tracking and packet
+generation. Its monitor-bus output passes through a two-level filter: a whole
+packet type can be dropped, or a single event code within a type. A dropped
+packet is still acknowledged back to the base, so the base never stalls on it.
+Passed packets go out directly, or through one optional register stage.
+
+### Architecture
 
 The base monitor generates every packet; the filter then drops unwanted ones. A
 dropped packet is acknowledged back to the base (`base_monbus_ready`) so the base

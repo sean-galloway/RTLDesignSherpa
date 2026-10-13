@@ -88,6 +88,15 @@ The transaction manager tracks every outstanding AXI transaction and marks a slo
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_reporter_compl block diagram](../../assets/rtl-amba/graphviz/axi_monitor_reporter_compl.png)
+
+Every table entry is checked in parallel for a completed transaction that has
+not been reported yet. The lowest matching entry is picked, and its channel
+and address become a completion packet for the reporter's class pick;
+`sel_idx` tells the reporter which entry to mark.
+
 ### Completion Scan
 
 For every slot in `trans_table`, the slot qualifies as a completion event when it is `valid`, its `event_reported` bit is clear, its `state == TRANS_COMPLETE`, and `cfg_compl_enable` is set. All qualifying slots are collected into a one-hot-per-bit `w_events` vector.

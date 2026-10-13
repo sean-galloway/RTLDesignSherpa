@@ -1,0 +1,19 @@
+// wb4_slave_stub block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Packing wrapper: wb4_slave as ONE child box; the backend sees packed cmd_data / rsp_data.
+// Source of truth: rtl/amba/wb4/wb4_slave_stub.sv.
+digraph wb4_slave_stub {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.80", splines=ortho, newrank=true,
+           label="wb4_slave_stub - wb4_slave with packed command / response words (single clock: clk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    top   [label="Wishbone B4 Completer Bus (s_wb_*)", fillcolor="white", width=4.4];
+    child [label="wb4_slave\nu_wb4_slave\n(see its diagram)", width=3.2, height=0.9];
+    pk    [label="Pack / Unpack (wiring)\njoins command fields into cmd_data,\nsplits rsp_data into {status, dat}"];
+    bot   [label="Backend Side (packed words)\ncmd_valid / cmd_ready, cmd_data = {we, adr, dat, sel, cti, bte}\nrsp_valid / rsp_ready, rsp_data = {status, dat}", fillcolor="white"];
+    top -> child [dir=both, xlabel="CYC, STB, ... in /\nSTALL, ACK / ERR / RTY, DAT_R out", penwidth=1.8];
+    child -> pk  [dir=both, xlabel="cmd_* fields down /\nrsp_status, rsp_dat up"];
+    pk -> bot    [dir=both, xlabel="cmd_data down /\nrsp_data up"];
+}

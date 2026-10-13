@@ -167,20 +167,19 @@ All ports, from `rtl/amba/ocelus/axi_monitor_reporter.sv`.
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_reporter block diagram](../../assets/rtl-amba/graphviz/axi_monitor_reporter.png)
+
+The reporter takes a one-cycle snapshot of the table. Three emitters each
+find the lowest entry with an error, a timeout or a completion; a round-robin
+class pick chooses one per cycle and writes it into the event FIFO. That write
+marks the entry reported, which is what lets the transaction manager free it.
+The output pick then takes the FIFO head first, then threshold, perf and debug
+packets, which do not queue. The chosen packet is registered and assembled
+with the unit and agent IDs.
+
 ### Architecture
-
-```mermaid
-flowchart LR
-    ed["Event Data"] --> fmt
-    ec["Event Code"] --> fmt
-    pr["Protocol"] --> fmt
-    uid["Unit ID"] --> fmt
-    aid["Agent ID"] --> fmt
-    pt["Packet Type"] --> fmt
-
-    fmt["Packet<br/>Formatter"] --> fifo["FIFO<br/>Queue"]
-    fifo --> out["monbus_*"]
-```
 
 **Packet Format (128-bit `monitor_packet_t`):**
 

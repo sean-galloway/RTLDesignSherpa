@@ -69,6 +69,18 @@ The AXI burst address generator calculates the next address for AXI burst transa
 
 ## Functional Description
 
+### Block diagram
+
+![axi_gen_addr block diagram](../../assets/rtl-amba/graphviz/axi_gen_addr.png)
+
+Everything is combinational. `size` sets the byte increment, which is clamped
+to ODW/8 bytes when the internal and output widths differ. `size` and `len`
+together set the WRAP mask. From these the block forms all three candidate
+next addresses, and `burst` selects one: FIXED holds the address, INCR adds
+the increment, and WRAP keeps the high bits and wraps the low bits inside the
+mask. The result is also aligned down to the output data width as
+`next_addr_align`.
+
 ### Increment Calculation
 
 The address increment comes from the size field:

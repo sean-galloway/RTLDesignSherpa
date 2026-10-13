@@ -1,0 +1,27 @@
+// wb4_master_retry block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// wb4_retry on the FUB side of wb4_master: both are ONE child box each (see their diagrams).
+// Source of truth: rtl/amba/wb4/wb4_master_retry.sv.
+digraph wb4_master_retry {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.80", splines=ortho, newrank=true,
+           label="wb4_master_retry - wb4_master with RTY retry on its FUB side (single clock: clk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    top   [label="FUB Queues\ncmd_* in  /  rsp_* out (RTY only once the budget is spent)", fillcolor="white"];
+    cfg   [label="Retry Config (runtime input ports)\lcfg_max_retries: re-issues per command;\l    0 = pass every RTY through\lcfg_retry_delay: clocks from RTY to re-issue\l", fillcolor="white"];
+    rty   [label="Retry Block\nwb4_retry - u_retry\n(see its diagram: in-order completion buffer of INFLIGHT entries)", width=4.2, height=0.9];
+    child [label="wb4_master\nu_master\n(see its diagram)", width=3.2, height=0.9];
+    bot   [label="Wishbone B4 Requester Bus (m_wb_*)", fillcolor="white", width=4.4];
+    sts   [label="Status Outputs\nretry_count (re-issues since reset), active_count", fillcolor="white"];
+    top -> rty   [dir=both, xlabel="command down /\nresponse up"];
+    cfg -> rty   [style=dashed, xlabel="max retries, delay"];
+    rty -> child [dir=both, xlabel="command or re-issue down /\nACK / ERR / RTY response up", penwidth=1.8];
+    child -> bot [dir=both, xlabel="CYC, STB, ... out /\nSTALL, ACK / ERR / RTY, DAT_R in", penwidth=1.8];
+    rty -> sts   [style=dashed, xlabel="counts"];
+    { rank=same; cfg; top; }
+    cfg -> top [style=invis];
+    { rank=same; bot; sts; }
+    sts -> bot [style=invis];
+}

@@ -170,31 +170,17 @@ identical to [apb5_master](apb5_master.md#parity-implementation).
 
 ## Functional Description
 
-```mermaid
-flowchart LR
-    subgraph PACKED["Packed Interface"]
-        cmd_pkt["Command<br/>Packet"]
-        rsp_pkt["Response<br/>Packet"]
-    end
+### Block diagram
 
-    subgraph STUB["APB5 Master Stub"]
-        unpack["Unpack<br/>Command"]
-        pack["Pack<br/>Response"]
-        master["apb5_master<br/>(Core)"]
-    end
+![apb5_master_stub block diagram](../../assets/rtl-amba/graphviz/apb5_master_stub.png)
 
-    subgraph APB5["APB5 Bus"]
-        m_apb["APB5<br/>Master IF"]
-    end
-
-    cmd_pkt --> unpack
-    unpack --> master
-    master --> m_apb
-
-    m_apb --> master
-    master --> pack
-    pack --> rsp_pkt
-```
+A packed-port wrapper around `apb5_master` (one box; see its diagram). Unpack
+sends the APB fields to the core; Pack builds `rsp_data` from the core's response
+and `{last, first}`. Unlike `apb4_master_stub` there is **no framing side FIFO**:
+`{last, first}` come from the `cmd_data` presented at that moment, so a response
+is paired with the framing of whatever command is currently on the port, not the
+one that produced it, once commands are pipelined ahead of responses. The
+`apb4_master_stub` side FIFO (TASK-067) exists to prevent exactly this.
 
 ### Packet Formats
 

@@ -94,6 +94,12 @@ handshake and answers the R beat's routing question from its ID.
 
 ## Functional Description
 
+### Block diagram
+
+![axi5_atomic_rr_tracker block diagram](../../assets/rtl-amba/graphviz/axi5_atomic_rr_tracker.png)
+
+A small CAM with three request flows, one column each. Allocate takes the lowest free slot (the trapezium) and stores the atomic's AW ID and its routing tag; `full` goes back to the caller, which gates the AW on it. Lookup compares the RID being presented against every live entry in parallel; live IDs are unique by the AXI5 atomic rule, so the match is at most one-hot and returns `hit` and `hit_data` the same cycle. Release clears the hit slot on the R handshake of the last beat. Allocate and release can share a cycle but never a slot.
+
 At a slave-side boundary the adapter connects `alloc` to the AW handshake
 qualified by `AWATOP[5]`, `alloc_id` to `AWID`, and `alloc_data` to the
 bridge's requester index for that AW. On the read side it presents `RID` on

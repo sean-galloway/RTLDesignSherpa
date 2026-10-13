@@ -56,6 +56,12 @@ tolerates a retried transfer completing behind later ones.
 [15:0]`, `retry_count [31:0]` and `active_count [7:0]` from the retry
 block.
 
+## Block Diagram
+
+![wb4_master_retry block diagram](../../assets/rtl-amba/graphviz/wb4_master_retry.png)
+
+`wb4_retry` and `wb4_master` are one child box each (see their diagrams). FUB commands pass through the retry block, which re-issues RTY terminations up to `cfg_max_retries` times, `cfg_retry_delay` clocks apart, before the FUB sees one; the master drives the Wishbone bus. `retry_count` and `active_count` come from the retry block.
+
 ## Usage Example
 
 ```systemverilog

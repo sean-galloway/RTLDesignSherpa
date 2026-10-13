@@ -1,0 +1,51 @@
+// axis_monitor_lite block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// A pure observer of one AXI4-Stream port (taps are inputs only). Sibling of
+// axi_monitor_lite with the same delivery back end (event pick, unreset
+// output queue, drop-and-count), but no transaction table: a stream has
+// packets, stalls and bubbles instead.
+// Flows:
+//   watch  - stream tap -> packet / stall state -> event detect -> event
+//            pick (trapezium, two per cycle) -> output queue -> monbus bar
+//   stamp  - the microsecond tick ages stalls and in-packet gaps (timeouts)
+// Source of truth: rtl/amba/ocelus/axis_monitor_lite.sv.
+digraph axis_monitor_lite {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="axis_monitor_lite - AXI4-Stream monitor: protocol errors, timeouts, packet ends, backpressure, ID / dest changes\n(single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- inputs (white) ----
+    tap  [group=C, label="Stream Tap (observed, nothing driven back)\naxis_tvalid, axis_tready, axis_tlast,\naxis_tid, axis_tdest, axis_tstrb (TDATA unseen)", fillcolor="white"];
+    cfg  [label="Config (runtime input ports)\lcfg_*_enable: error / timeout / completion /\l    credit / channel / stream classes\lcfg_strb_check_enable: all-zero TSTRB is an error\lcfg_timeout_cnt (us), cfg_freq_sel (clock MHz)\lcfg_stall_threshold (cycles; 0 = off)\lcfg_axis_pkt_mask; i_mon_time; clear (idle only)\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lID_WIDTH / DEST_WIDTH: 0 = that field tied off\lOUT_DEPTH: event queue entries (power of two)\l", fillcolor="white"];
+
+    // ---- logic ----
+    tick [label="Microsecond Tick\ncounter_freq_invariant - u_tick"];
+    st   [group=C, label="Packet + Stall State (flops)\nin_packet, beat count, previous tid / tdest;\nstall length (cycles), stall and gap ages (us)"];
+    det  [group=C, label="Event Detect (combinational)\nTVALID withdrawn early, all-zero TSTRB (errors);\nstall or in-packet gap past cfg_timeout_cnt (timeouts);\nTLAST beat (completion: tid, tdest, beats);\nstall past the threshold (credit); TID / TDEST change (channel);\npacket start, pause, resume (stream)"];
+    epk  [group=C, label="Event Pick\ntwo per cycle: Error > Timeout > Completion\n> Credit > Channel > Stream; the rest counted",
+          shape=invtrapezium, width=6.0, height=0.85, fixedsize=true, fillcolor="#BFD7EE"];
+    oq   [group=C, label="Output Queue (unreset array, OUT_DEPTH entries)\nfull: event dropped and counted; the drop count is sent as\nError/EVENT_DROPPED once the queue has drained"];
+
+    // ---- the bar ----
+    outs [group=C, label="Ocelus Bus + Status\nmonbus_valid, monbus_packet, monbus_timestamp / monbus_ready   |   busy, in_packet,\npacket_count, error_count, dropped_count",
+          fillcolor="white", width=8.0];
+
+    // ---- flow ----
+    tap  -> st   [xlabel="handshakes, last, id, dest, strb"];
+    tick -> st   [xlabel="microsecond tick"];
+    st   -> det  [xlabel="state + this beat"];
+    det  -> epk  [xlabel="events"];
+    epk  -> oq   [xlabel="up to two entries per cycle", penwidth=1.8];
+    oq   -> outs [xlabel="monbus_*", penwidth=1.8];
+    cfg  -> det  [style=dashed, xlabel="enables, limits"];
+
+    // ---- rank pinning ----
+    { rank=same; prm; tap; cfg; }
+    { rank=same; tick; st; }
+    prm -> tap -> cfg [style=invis];
+    tick -> st [style=invis, minlen=4];
+}

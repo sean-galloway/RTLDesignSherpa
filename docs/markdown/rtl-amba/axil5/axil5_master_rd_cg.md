@@ -116,6 +116,12 @@ Your logic drives the `fub_*` side; the `m_axil_*` side faces the bus. The `cfg_
 
 ## Functional Description
 
+### Block diagram
+
+![axil5_master_rd_cg block diagram](../../assets/rtl-amba/graphviz/axil5_master_rd_cg.png)
+
+`axil5_master_rd` is one child box (see its own diagram), clocked by `gated_aclk`. The heavy clock column runs from `aclk` through `amba_clock_gate_ctrl`, which counts down an idle window and stops the clock when nothing is active; its label lists the exact `user_valid` and `axi_valid` activity terms and the readies it forces low while gating, so no transfer is accepted on a stopped clock. `cg_gating` and `cg_idle` leave as status outputs.
+
 ### Optional signal groups
 
 The ID plus three optional groups -- the ones IHI 0022L Table B2.2 allows on AXI5-Lite. The ID has no enable (it is sized by `ID_WIDTH`); each group is gated by its own `ENABLE_*` parameter and contributes to the packed SKID payload only when enabled.

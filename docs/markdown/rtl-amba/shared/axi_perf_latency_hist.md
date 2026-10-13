@@ -128,6 +128,20 @@ Average latency hides the distribution that actually matters for QoS analysis �
 
 ## Functional Description
 
+### Block diagram
+
+![axi_perf_latency_hist block diagram](../../assets/rtl-amba/graphviz/axi_perf_latency_hist.png)
+
+Every command handshake pushes the free-running timestamp into the FIFO for
+the command's channel (`id[CW-1:0]`). The matching completion pops the
+oldest entry; AXI keeps same-ID responses in order, so the oldest is the
+right one. A four-stage pipeline captures the start and completion times,
+subtracts them, bins the latency by log2, and increments that bin and the
+metric's total. Reads track two metrics (first R beat and RLAST) and writes
+one (B). Readout is a combinational select by metric and bin. When a
+channel's FIFO is full, `o_cmd_block` lets the caller hold commands instead
+of losing the sample.
+
 ### Metrics
 
 - **`IS_READ=1` (read build), `NUM_METRICS=2`:** metric 0 = AR handshake → first R beat; metric 1 = AR handshake → RLAST beat.

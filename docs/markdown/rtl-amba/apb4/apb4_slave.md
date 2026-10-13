@@ -143,6 +143,17 @@ module apb4_slave #(
 
 ## Functional Description
 
+### Block diagram
+
+![apb4_slave block diagram](../../assets/rtl-amba/graphviz/apb4_slave.png)
+
+The APB bus enters at the top. The completer FSM (IDLE > BUSY > WAIT) captures
+one command on the rising edge of PENABLE and pushes it down the left through the
+command skid to the backend. The backend's response climbs the right lane through
+the response skid; in BUSY the FSM pops it and drives PREADY, PRDATA and PSLVERR
+for one clock. A response that arrives with nothing outstanding is popped and
+dropped in IDLE (the orphan-response guard).
+
 ### APB Protocol Implementation
 
 The module implements the complete APB slave protocol with a three-state finite

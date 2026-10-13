@@ -1,0 +1,49 @@
+// axi4ace_master_wr block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Built from the owner-reviewed axi4_master_wr diagram; adds what ACE carries
+// (IHI 0022H part D): the AW snoop / domain / barrier fields and WACK.
+// Lanes: W down the left, AW down the center, B back up the right; the WACK
+// flop sits beside the B lane, triggered by the B handshake on the m_axi side.
+// Source of truth: rtl/amba/ace/axi4ace_master_wr.sv.
+digraph axi4ace_master_wr {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.85", splines=ortho, newrank=true,
+           label="axi4ace_master_wr - ACE write master: AXI4 write + ACE fields and WACK (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW / _W / _B: entries\l    per skid (default 2 / 4 / 2);\l    deeper = more decoupling\l", fillcolor="white"];
+    fub  [label="FUB Side (requester)\nfub_axi_aw* / fub_axi_w* in  /  fub_axi_b* out\nACE on AW: awsnoop[2:0], awdomain, awbar", fillcolor="white"];
+
+    w    [group=W, label="W Skid Buffer\ngaxi_skid_buffer - w_channel\n(DEPTH = SKID_DEPTH_W)"];
+    aw   [group=A, label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\n(DEPTH = SKID_DEPTH_AW)"];
+    b    [group=B, label="B Skid Buffer\ngaxi_skid_buffer - b_channel\n(DEPTH = SKID_DEPTH_B)"];
+    busy [label="Busy Detect (combinational)\nany AW, W or B entry held, or\nawvalid / wvalid / bvalid arriving"];
+    p_b  [group=B, shape=point, width=0.01];
+    wack [label="WACK Pulse (flop) r_wack\none clock after the B handshake\n(m_axi_bvalid & bready)"];
+
+    mport [label="Module Boundary\nm_axi_aw* / m_axi_w* out (to the interconnect)   |   busy (to the clock-gate wrapper)\nm_axi_b* in, m_axi_wack out",
+           fillcolor="white", width=9.6];
+
+    fub -> w     [xlabel="W: data, strb, last\n(wvalid / wready)"];
+    w   -> mport [xlabel="W"];
+    fub -> aw    [xlabel="AW + ACE fields\n(awvalid / awready)"];
+    aw  -> mport [xlabel="AW"];
+    p_b -> mport [dir=none, tailclip=false];
+    b   -> p_b   [dir=back, headclip=false, xlabel="B: id, resp"];
+    fub -> b     [dir=back, xlabel="B (bvalid / bready)"];
+    w   -> busy  [style=dashed, xlabel="w count"];
+    aw  -> busy  [style=dashed, xlabel="aw count"];
+    b   -> busy  [style=dashed, xlabel="b count"];
+    busy -> mport [style=dashed, xlabel="busy"];
+    b   -> wack  [style=dashed, headlabel="trigger", labelangle=-30, labeldistance=3];
+    wack -> mport [xlabel="m_axi_wack"];
+
+    { rank=same; prm; fub; }
+    { rank=same; w; aw; b; }
+    { rank=same; busy; p_b; wack; }
+    prm -> fub [style=invis];
+    w -> aw [style=invis]; aw -> b [style=invis, minlen=3];
+    busy -> p_b [style=invis, minlen=2]; p_b -> wack [style=invis];
+}

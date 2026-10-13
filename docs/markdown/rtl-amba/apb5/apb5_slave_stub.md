@@ -175,34 +175,15 @@ identical to [apb5_slave](apb5_slave.md#parity-implementation).
 
 ## Functional Description
 
-```mermaid
-flowchart LR
-    subgraph APB5["APB5 Bus"]
-        s_apb["APB5<br/>Slave IF"]
-    end
+### Block diagram
 
-    subgraph STUB["APB5 Slave Stub"]
-        fsm["APB5<br/>FSM"]
-        cmd_skid["Command<br/>Skid Buffer"]
-        rsp_skid["Response<br/>Skid Buffer"]
-        parity["Parity<br/>Logic"]
-    end
+![apb5_slave_stub block diagram](../../assets/rtl-amba/graphviz/apb5_slave_stub.png)
 
-    subgraph PACKED["Packed Interface"]
-        cmd_pkt["Command<br/>Packet"]
-        rsp_pkt["Response<br/>Packet"]
-    end
-
-    s_apb --> fsm
-    fsm --> cmd_skid
-    cmd_skid --> cmd_pkt
-
-    rsp_pkt --> rsp_skid
-    rsp_skid --> fsm
-    fsm --> s_apb
-
-    s_apb <--> parity
-```
+A standalone completer, like `apb4_slave_stub`, with the user fields and the
+APB5 check bits added. A two-state FSM (IDLE > XFER_DATA) pushes the command into
+the command skid and, on a response, drives PREADY, PRDATA, PSLVERR and the user
+fields combinationally the same clock. With `ENABLE_PARITY = 1` the input *CHK are
+checked and the output *CHK generated.
 
 ### Packet Formats
 

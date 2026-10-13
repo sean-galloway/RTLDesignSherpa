@@ -1,0 +1,41 @@
+// axi4_master_rd_cg block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Clock-gated wrapper: the base axi4_master_rd is one child box (see its own diagram).
+// The clock is the heavy main column: aclk -> amba_clock_gate_ctrl -> gated_aclk -> base.
+// AXI traffic passes through on the left; activity wakes the gate.
+// Source of truth: rtl/amba/axi4/axi4_master_rd_cg.sv.
+digraph axi4_master_rd_cg {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="axi4_master_rd_cg - axi4_master_rd behind an idle-timeout clock gate",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    fub  [label="FUB Side (requester)\nfub_axi_ar* in  /  fub_axi_r* out", fillcolor="white"];
+    clk  [label="Clock In\naclk, aresetn", fillcolor="white"];
+    cfg  [label="Gate Configuration (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle clocks before\l    the clock stops\l", fillcolor="white"];
+
+    act  [label="Activity Detect (combinational)\nuser_valid = fub arvalid | rvalid | base busy\naxi_valid = m_axi arvalid | rvalid"];
+    ctrl [label="Clock Gate Controller\namba_clock_gate_ctrl - i_amba_clock_gate_ctrl\nidle countdown; gates aclk when idle"];
+    base [label="AXI4 Read Master\naxi4_master_rd - i_axi_master_rd\n(see its diagram; runs on gated_aclk)", width=3.6];
+
+    bar  [label="Module Boundary\nm_axi_ar* out  /  m_axi_r* in  |  cg_gating, cg_idle (gate status)",
+          fillcolor="white", width=7.0];
+
+    // AXI pass-through (requests down, responses up on the same pair)
+    fub  -> base [dir=both, xlabel="AR / R\n(fub_axi_arready forced 0\nwhile gating)"];
+    base -> bar  [dir=both, minlen=2, xlabel="AR / R\n(m_axi_rready forced 0\nwhile gating)"];
+    // the clock: heavy main column
+    clk  -> ctrl [penwidth=1.8, xlabel="aclk"];
+    ctrl -> base [penwidth=1.8, xlabel="gated_aclk"];
+    // wake-up and configuration
+    fub  -> act  [style=dashed, xlabel="valids"];
+    act  -> ctrl [xlabel="user_valid,\naxi_valid"];
+    cfg  -> ctrl [style=dashed, xlabel="enable,\nidle count"];
+    base -> act  [style=dashed, constraint=false, xlabel="busy"];
+    ctrl -> bar  [style=dashed, xlabel="cg_gating,\ncg_idle"];
+
+    { rank=same; fub; clk; cfg; }
+    fub -> clk [style=invis, minlen=2]; clk -> cfg [style=invis];
+}

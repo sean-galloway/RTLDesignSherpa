@@ -168,55 +168,11 @@ low and leave the new outputs open. (The compressor no longer instantiates
 
 ## Functional Description
 
-### Architecture
+### Block diagram
 
-![monbus_cam block diagram](../../assets/rtl-amba/monbus_cam.png)
+![monbus_cam block diagram](../../assets/rtl-amba/graphviz/monbus_cam.png)
 
-Source: [`monbus_cam.mmd`](../../assets/rtl-amba/monbus_cam.mmd)
-
-```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
-flowchart TB
-    subgraph Access["Access Port (1 lookup + 1 commit per cycle)"]
-        KEY["access_key[KEY_WIDTH-1:0]"]
-        ACTION["access_action[1:0]<br/>NONE / TOUCH / INSTALL"]
-        NEWDATA["access_new_data[DATA_WIDTH-1:0]"]
-    end
-
-    subgraph monbus_cam["monbus_cam (position-indexed LRU)"]
-        subgraph Storage["Storage (slot 0 = MRU)"]
-            S0["r_entry[0] = MRU"]
-            S1["r_entry[1]"]
-            SD["r_entry[2..DEPTH-2]"]
-            SE["r_entry[DEPTH-1] = LRU"]
-        end
-        MATCH["Parallel match:<br/>w_match_oh[i] =<br/>r_valid[i] && (r_key[i] == access_key)"]
-        SHIFT["Per-slot shift logic:<br/>TOUCH: shift down 0..idx<br/>INSTALL: shift down 0..count or 0..DEPTH-1<br/>(LRU evicted if full)"]
-    end
-
-    subgraph Outputs["Outputs"]
-        HIT["access_hit"]
-        IDX["access_idx<br/>(position rank == tmpl_idx)"]
-        OLD["access_old_data"]
-        FULL["cam_full"]
-        COUNT["cam_count"]
-        EVICTED["evicted (pulses<br/>on full-CAM INSTALL)"]
-    end
-
-    KEY --> MATCH
-    Storage --> MATCH
-    MATCH --> HIT
-    MATCH --> IDX
-    MATCH --> OLD
-    ACTION --> SHIFT
-    NEWDATA --> SHIFT
-    MATCH --> SHIFT
-    SHIFT --> Storage
-    Storage --> COUNT
-    COUNT --> FULL
-    ACTION --> EVICTED
-    FULL --> EVICTED
-```
+The access key enters the center column, is compared against every valid entry at once, and the single match is encoded into its LRU position. Hit, position and the entry's old data and timestamp return to the caller in the same cycle. On the left, the commit applies the access on the next clock edge. A TOUCH moves the matched entry to position 0, and an INSTALL puts a new entry at position 0 and evicts the least recently used one when the CAM is full. The entry array is the bottom bar: the compares, the commit and the dump/status read on the right all work on it directly.
 
 ### Storage Model: Position-Indexed LRU
 

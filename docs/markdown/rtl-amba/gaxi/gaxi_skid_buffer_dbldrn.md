@@ -104,6 +104,12 @@ Like the base skid buffer, storage is a shift register of `DEPTH` entries and th
 
 ## Functional Description
 
+### Block diagram
+
+![gaxi_skid_buffer_dbldrn block diagram](../../assets/rtl-amba/graphviz/gaxi_skid_buffer_dbldrn.png)
+
+The same shift-register skid buffer as `gaxi_skid_buffer`, with a second drain. `rd_ready2` pops slots 0 and 1 together (`rd_data`, `rd_data2`) and shifts the packed register down by two; it is legal only when `rd_count >= 2`. The count register takes +1 for a write, -1 for a single drain and -2 for a double drain, and both handshake outputs stay registered.
+
 ### Transfer Detection
 
 Three transfer conditions are decoded combinationally. A single read is only recognized when `rd_ready2` is **not** asserted, and a double read additionally requires two entries present:

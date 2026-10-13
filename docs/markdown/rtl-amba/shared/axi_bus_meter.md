@@ -114,6 +114,17 @@ The block is instantiated one per bus to be measured. On a read engine it drops 
 
 ## Functional Description
 
+### Block diagram
+
+![axi_bus_meter block diagram](../../assets/rtl-amba/graphviz/axi_bus_meter.png)
+
+The meter only observes; it drives nothing back onto the bus. Each cycle's
+valid/ready pair picks one of four buckets: productive, backpressure,
+starvation or idle. The four 32-bit aggregate counters count every cycle. The
+16-bit per-channel counters count only while `i_channel_valid` names the
+channel that owns the cycle, and a sticky bit per counter records any wrap.
+`i_clear` zeroes everything and `i_freeze` holds the window closed.
+
 ### Bucket Classification
 
 The four buckets decode combinationally from the handshake pair and are mutually exclusive — exactly one asserts every cycle:

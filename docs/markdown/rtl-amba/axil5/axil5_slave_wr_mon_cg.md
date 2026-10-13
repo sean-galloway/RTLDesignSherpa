@@ -198,6 +198,13 @@ The derived parameters (`AW`, `DW`, `UW`, ... and the `*Size` payload widths) ar
 
 ## Functional Description
 
+### Block diagram
+
+![axil5_slave_wr_mon_cg block diagram](../../assets/rtl-amba/graphviz/axil5_slave_wr_mon_cg.png)
+
+`axil5_slave_wr_mon` (core plus ocelus monitor) is one child box (see its own diagram), clocked by `gated_aclk` from `amba_clock_gate_ctrl`. The controller's label lists the activity terms, which add `monbus_valid` and `active_transactions` so the clock keeps running while the monitor still has packets or open transactions. Monitor-bus packets and the monitor configuration pass straight through to the child.
+
+
 AXI5-Lite adds the transaction ID (`ID_WIDTH`, no enable; mandatory on this Subordinate-side module) and three optional signal groups -- USER, TRACE and POISON, the ones IHI 0022L Table B2.2 allows -- each gated by its own `ENABLE_*` parameter. A group contributes to the packed SKID payload only when it's enabled — turn it off and those bits simply aren't in the vector.
 
 | Group | Parameter | Signals on this module | Width |

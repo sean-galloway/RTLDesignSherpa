@@ -1,0 +1,38 @@
+// axil5_slave_wr block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Generated from the axil4 family template so axil4 and axil5 bases look alike.
+// The requester side is the top port, the completer side the bottom bar.
+// Requests run top-down through their skid buffers; the response climbs its own
+// lane on the right. Each hop is one edge: valid + payload one way, ready the other.
+// AXI5-Lite adds carried fields only (ID, USER, TRACE, POISON) -- see the legend.
+// Source of truth: rtl/amba/axil5/axil5_slave_wr.sv.
+digraph axil5_slave_wr {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="1.1", splines=ortho, newrank=true,
+           label="axil5_slave_wr - AXI5-Lite write slave, one skid buffer per channel\n(single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lID_WIDTH: 0 = no ID (ID outputs driven 0,\l    ID inputs ignored); IDs carried, not remapped\lENABLE_USER / _TRACE / _POISON: 0 = that\l    group leaves the skid payload and its\l    outputs are driven 0\lPOISON: carried only, never generated or checked\l", fillcolor="white"];
+    top  [label="AXI5-Lite Bus, slave side (s_axil_*)\nfrom the interconnect / master", fillcolor="white", width=5.0];
+    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\nSKID_DEPTH_AW (default 2)"];
+    w    [label="W Skid Buffer\ngaxi_skid_buffer - w_channel\nSKID_DEPTH_W (default 4)"];
+    b    [label="B Skid Buffer\ngaxi_skid_buffer - b_channel\nSKID_DEPTH_B (default 2)"];
+    busyo [label="Status Output: busy (combinational)\nhigh while any skid buffer\nholds a beat", fillcolor="white"];
+    bot  [label="Write Completer (fub_*)\nbackend serving writes: AW and W in at the left, B out at the right", fillcolor="white", width=5.6];
+
+    top -> aw  [xlabel="AW: awid, awaddr, awprot,\nawuser, awtrace\n(valid down, ready up)", penwidth=1.8];
+    aw  -> bot [xlabel="fub_aw*", penwidth=1.8];
+    top -> w   [xlabel="W: wdata, wstrb,\nwuser, wpoison", penwidth=1.8];
+    w   -> bot [xlabel="fub_w*", penwidth=1.8];
+    b   -> bot [dir=back, xlabel="B: bid, bresp,\nbuser, btrace\n(valid up, ready down)"];
+    top -> b   [dir=back, xlabel="s_axil_b*"];
+
+    { rank=same; aw; w; b; }
+    aw -> w [style=invis]; w -> b [style=invis, minlen=2];
+    { rank=same; busyo; top; }
+    busyo -> top [style=invis];
+    { rank=same; prm; bot; }
+    prm -> bot [style=invis];
+}

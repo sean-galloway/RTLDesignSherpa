@@ -142,34 +142,11 @@ signals concatenated into that buffer.
 
 ## Functional Description
 
-### Module Architecture
+### Block diagram
 
-```mermaid
-flowchart LR
-    subgraph FE["Frontend<br/>(CPU/Logic)"]
-        faw["fub_aw*"]
-        fw["fub_w*"]
-        fb["fub_b*"]
-    end
+![axil4_master_wr block diagram](../../assets/rtl-amba/graphviz/axil4_master_wr.png)
 
-    subgraph BUF["AW/W/B Skid Buffers"]
-        aw["AW Channel<br/>gaxi_skid_buffer<br/>DEPTH=2"]
-        w["W Channel<br/>gaxi_skid_buffer<br/>DEPTH=2"]
-        b["B Channel<br/>gaxi_skid_buffer<br/>DEPTH=2"]
-    end
-
-    subgraph BE["Backend<br/>(Memory/Periph)"]
-        maw["m_axil_aw*"]
-        mw["m_axil_w*"]
-        mb["m_axil_b*"]
-    end
-
-    faw --> aw --> maw
-    fw --> w --> mw
-    mb --> b --> fb
-
-    BUF --> busy["busy"]
-```
+The requester (`fub_*`) sits at the top and the AXI4-Lite bus (`m_axil_*`) is the bar at the bottom. AW and W run down through their own `gaxi_skid_buffer` instances to the bottom, and the B response climbs back up its own lane on the right through another skid buffer, so every channel crosses exactly one buffer. `busy` is a status output that is high while any buffer holds a beat or a new request or response is arriving.
 
 ### Write Transaction Sequence
 

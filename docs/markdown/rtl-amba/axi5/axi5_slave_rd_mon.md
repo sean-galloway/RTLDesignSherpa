@@ -49,47 +49,9 @@ The AXI5 Slave Read Monitor module combines the `axi5_slave_rd` interface with i
 
 ### Module Architecture
 
-```mermaid
-flowchart TB
-    subgraph SLAVE["Slave AXI5 Interface"]
-        s_ar["AR Channel"]
-        s_r["R Channel"]
-    end
+![axi5_slave_rd_mon block diagram](../../assets/rtl-amba/graphviz/axi5_slave_rd_mon.png)
 
-    subgraph CORE["axi5_slave_rd"]
-        slave["Slave Core Logic"]
-    end
-
-    subgraph MONITOR["axi_monitor_filtered"]
-        tracker["Transaction<br/>Tracker"]
-        detector["Error<br/>Detector"]
-        perf["Performance<br/>Counters"]
-        filter["Packet<br/>Filter"]
-    end
-
-    subgraph FUB["FUB Interface"]
-        fub_ar["AR Channel"]
-        fub_r["R Channel"]
-    end
-
-    subgraph MONBUS["Monitor Bus"]
-        mon_valid["monbus_valid"]
-        mon_packet["monbus_packet[127:0]"]
-    end
-
-    s_ar --> slave
-    s_r --> slave
-    slave --> fub_ar
-    slave --> fub_r
-    fub_ar --> tracker
-    fub_r --> tracker
-    tracker --> detector
-    tracker --> perf
-    detector --> filter
-    perf --> filter
-    filter --> mon_valid
-    filter --> mon_packet
-```
+The base `axi5_slave_rd` is one box (see its own diagram). Traffic runs down the left through the AR stall gate, which ANDs `s_axi_arvalid` and its ready with the `block_ready` the monitor raises while its transaction table has room. The bus taps watch the `fub_axi` (backend) side below the base, unlike the AXI4 slave monitors, which tap `s_axi` and feed `axi_monitor_filtered`, which is built only when `USE_MONITOR=1`; its monitor-bus packets are the heavy edge out. With `cfg_monitor_enable` low the monitor is inert and never stalls the bus.
 
 ---
 

@@ -107,17 +107,18 @@ Each threshold is a count of `timer_tick` pulses for one phase of a transaction.
 
 ## Functional Description
 
-### Architecture
+### Block diagram
 
-```mermaid
-flowchart TB
-    tx["Active Transactions"] --> ctr
-    subgraph Counters["Timeout Counter Array [0..MAX-1]"]
-        ctr["[AR/AW] [R/W] [B]"]
-    end
-    ctr --> cmp["Threshold<br/>Comparator"]
-    cmp --> evt["Timeout Event"]
-```
+![axi_monitor_timeout block diagram](../../assets/rtl-amba/graphviz/axi_monitor_timeout.png)
+
+For every table entry, three phase counters (address, data and, for writes,
+response) advance on each timer tick while that phase is still open, and
+clear when it is not. When a pending phase's counter reaches its configured
+limit, the entry's timeout flag sets and stays set until the entry retires.
+The flags go to the transaction manager, which makes the entry terminal, and
+to the reporter, which turns it into a timeout packet.
+
+### Architecture
 
 Each transaction has 3 independent timeout counters for different phases. The
 timers are dedicated per-slot state owned by this module (`r_addr_timer` /

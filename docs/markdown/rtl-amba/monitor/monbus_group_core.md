@@ -203,6 +203,12 @@ Three protocol groups (AXI = protocol 0, AXIS = protocol 1, CORE = protocol 4), 
 
 ## Functional Description
 
+### Block diagram
+
+![monbus_group_core block diagram](../../assets/rtl-amba/graphviz/monbus_group_core.png)
+
+The monitor bus enters at the top and the protocol filter drops or routes each packet using the per-protocol masks. Packets selected as errors go down the left into the error FIFO, as 192-bit records. The record slicer serves them to the CPU as three 64-bit beats each over the slave-read FUB, and irq_out stays high while the FIFO is not empty. Everything else goes down the right to be logged: as raw 3-beat records, or through the compressor when it is built and enabled. Those beats go into the write FIFO, and the FSM-free burst writer flushes them to memory over the master-write FUB on a watermark or a timeout, wrapping inside the configured window.
+
 ### Free-Running Timestamp
 
 A counter (`r_ts_counter`) increments every clock and is exposed as `mon_time_out`. Every monitor wrapper drives its `i_mon_time` from this output, so all packets across the group share one time base.

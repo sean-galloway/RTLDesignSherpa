@@ -211,6 +211,21 @@ module apb4_monitor
 
 ## Functional Description
 
+### Block diagram
+
+![apb4_monitor block diagram](../../assets/rtl-amba/graphviz/apb4_monitor.png)
+
+A passive observer of the command / response handshakes. The transaction tracker
+follows each transfer (IDLE > CMD_SENT > COMPLETE) in a `MAX_TRANSACTIONS`-entry
+table with start timestamps. Timeout, error and performance checks run in
+parallel and feed the event select, which emits one packet per event in priority
+order (error, timeout, performance, debug, completion), each gated by its
+`cfg_*_enable`; packets queue in a `MONITOR_FIFO_DEPTH` FIFO. With
+`N_ADDR_RANGES > 0`, the address-range checker watches the command handshake
+directly and produces its own range-miss packets; a 2:1 priority merge (event FIFO
+first) chooses between the two streams, and a 2-entry skid buffer drives the
+Ocelus monitor bus.
+
 ### Transaction Monitoring
 
 The APB monitor tracks transactions through the command/response pipeline:

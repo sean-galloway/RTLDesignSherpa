@@ -143,6 +143,20 @@ The core speaks exactly one wire format. AXI4 wrappers pass the real `awlen / aw
 
 ## Functional Description
 
+### Block diagram
+
+![sdpram_core block diagram](../../assets/rtl-amba/graphviz/sdpram_core.png)
+
+Commands go down the middle of each side; data uses the outer lanes. On the
+write side, AW commands go through the AW queue into the write tracker, which
+generates each beat's port-A address through `axi_gen_addr`. W data drops down
+the far-left lane into BRAM port A, and each finished burst returns a B
+response up through the B queue. On the read side, AR commands go through the
+AR queue into the read tracker, which drives port B. Read data returns up the
+far-right lane through the inflight register, which holds the beat's id,
+resp and last for the one-cycle BRAM read. The clear FSM borrows port A for a
+zero fill, but only once every queue and tracker is idle.
+
 ### FUB Interface Contract
 
 The core speaks a single wire format — a FUB-shaped AXI superset — and nothing else. On the address channels it carries `id / addr / len / size / burst`; on the response channels it carries `id / resp / last`. Wrappers translate their protocol into this shape:

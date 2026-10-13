@@ -124,31 +124,11 @@ The other end of the read transaction. The AXI4 Slave Read Stub receives AXI4 re
 
 ## Functional Description
 
-### Architecture
+### Block diagram
 
-```mermaid
-flowchart LR
-    subgraph AXI4["AXI4 Interface"]
-        s_ar["AXI4<br/>AR Channel"]
-        s_r["AXI4<br/>R Channel"]
-    end
+![axi4_slave_rd_stub block diagram](../../assets/rtl-amba/graphviz/axi4_slave_rd_stub.png)
 
-    subgraph STUB["AXI4 Slave Read Stub"]
-        ar_skid["AR Skid<br/>Buffer"]
-        r_skid["R Skid<br/>Buffer"]
-    end
-
-    subgraph PACKED["Packed Interface"]
-        ar_pkt["AR Packet<br/>(Address Request)"]
-        r_pkt["R Packet<br/>(Read Data)"]
-    end
-
-    s_ar --> ar_skid
-    ar_skid --> ar_pkt
-
-    r_pkt --> r_skid
-    r_skid --> s_r
-```
+This stub is `axi4_slave_rd` with a packed-packet interface at the bottom, toward the backend: each channel's fields travel as one packet (`*_pkt`) through its own `gaxi_skid_buffer` (`inst_*_phase`), and are unpacked onto, or packed from, the AXI4 fields at the other side. The AR buffer's occupancy is exported as `fub_axi_ar_count`. There is no busy output and no clock gating.
 
 ### Packet Formats
 

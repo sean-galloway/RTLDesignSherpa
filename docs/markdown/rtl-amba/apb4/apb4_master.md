@@ -143,6 +143,18 @@ module apb4_master #(
 
 ## Functional Description
 
+### Block diagram
+
+![apb4_master block diagram](../../assets/rtl-amba/graphviz/apb4_master.png)
+
+Commands drop down the left: the command port feeds the `CMD_DEPTH` command skid
+(`gaxi_skid_buffer`), and the transfer FSM pops one entry per transfer and drives
+PSEL, PENABLE and the address, data, strobe and protection fields onto the bus
+(IDLE > SETUP > ACCESS). PRDATA and PSLVERR climb the right lane into the
+`RSP_DEPTH` response skid and out the response port. The FSM launches a transfer
+only when the response skid has room, so a completed transfer can always be
+enqueued; PREADY, returned from the bus, completes ACCESS.
+
 ### APB Protocol Implementation
 
 The module implements the complete APB protocol state machine:

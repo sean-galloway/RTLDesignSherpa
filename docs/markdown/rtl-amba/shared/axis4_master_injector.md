@@ -132,6 +132,20 @@ Characterizing a stream-consuming engine (a "sink") needs a deterministic source
 
 ## Functional Description
 
+### Block diagram
+
+![axis4_master_injector block diagram](../../assets/rtl-amba/graphviz/axis4_master_injector.png)
+
+After `cfg_start`, the run scheduler picks the active channel for each beat.
+It runs either sequentially (all of one channel's beats, then the next) or
+round-robin when `cfg_interleave` is set, and it places tlast. Only that
+channel's LFSR advances, and only on an accepted beat, so beat N of channel C
+depends only on the seed, C and N, not on stalls or scheduling order. The
+32-bit word, replicated across the bus, becomes `tdata`, with `tid` = channel
+and a short `tstrb` on tlast beats when `cfg_last_bytes` is set. The
+channel's CRC accumulates the same words and matches
+`axi4_slave_wr_crc_check` bit for bit.
+
 ### Scheduling FSM
 
 A three-state FSM (`IDLE`, `RUN`, `DONE`) sequences a run. On `cfg_start` the effective channel mask, beats-per-channel, and `tlast` cadence are latched; if there are no beats or no active channel it drops straight to `DONE`, otherwise it selects the first active channel and enters `RUN`. `DONE` pulses `cfg_done` for one cycle and returns to `IDLE`. `m_axis_tvalid` is asserted exactly in `RUN`.

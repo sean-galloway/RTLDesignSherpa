@@ -1,0 +1,57 @@
+// axi4_master_rd_crc_check block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// A CSR-programmed AXI4 read MASTER: the memory under test is the bottom bar. AR requests
+// are generated down the LEFT column; R data climbs back UP the RIGHT column into the
+// checker, which regenerates the expected data in lockstep and compares each beat, rolling
+// a CRC over the expected stream. Results leave at the top right.
+// Source of truth: rtl/amba/shared/axi4_master_rd_crc_check.sv.
+digraph axi4_master_rd_crc_check {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.70", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi4_master_rd_crc_check - read driver + per-beat integrity checker (aclk)";
+
+    prm  [label="Parameters (fixed at build)\lMAX_OUTSTANDING: AR bursts in flight (ceiling);\l    cfg_max_outstanding dials it down at run time\lLFSR_* / CRC_*: must match axi4_master_wr_injector,\l    or the compare and the CRC are meaningless\lDBG_FIFO_DEPTH: > 0 builds the mismatch capture FIFO\l", fillcolor="white"];
+    cfg  [group=A, label="Run Configuration (CSR inputs)\ncfg_start_addr, cfg_addr_stride_0/1, cfg_addr_wrap_mask_0/1,\ncfg_burst_len, cfg_txn_count, cfg_axi_size / _burst,\ncfg_id_mode (FIXED / COUNTER / LFSR), cfg_hammer_en,\ncfg_rd_gap, cfg_max_outstanding;  cfg_start", fillcolor="white"];
+    dsrc [group=C, label="Data Source Config\ncfg_data_mode: 0 LFSR phase, 1 address hash,\n2 fill pattern; cfg_lfsr_seed, cfg_hash_seed0..2,\ncfg_fill_pattern (must match the writer)", fillcolor="white"];
+    res  [group=R, label="Results\ncfg_done, o_actual_crc (+ valid)\no_data_error, o_rresp_error, o_stray_beat_error\no_beats_mismatched, o_err_bits, o_stray_beats\ndbg_* (actual / expected / mismatch)", fillcolor="white"];
+
+    agar [group=A, label="AR Address Generator\ndma_address_gen - u_addr_gen_ar\nindex 0 .. cfg_txn_count-1 -> address\n(hammer: alternate base / base + stride_0)"];
+    iss  [group=A, label="AR Issue (flops)\nburst count, outstanding cap, rd gap;\nid per cfg_id_mode (u_id_lfsr for LFSR ids)"];
+    leaf [label="AXI4 Master Read Leaf\naxi4_master_rd - u_master_rd\nskid buffers on AR / R"];
+
+    agr  [group=R, label="R Address Generator\ndma_address_gen - u_addr_gen_r\nwalks the same descriptor in lockstep"];
+    exp  [group=R, label="Expected Data (flops)\nshifter_lfsr_fibonacci - u_lfsr (LFSR mode),\naddress hash, or fill pattern"];
+    chk  [group=R, label="Beat Check + CRC (flops)\ncompare rdata with expected: sticky errors, counts;\ndataint_crc - u_crc over the EXPECTED stream;\nstray beats (no AR owed) flagged"];
+    dbg  [group=R, label="Mismatch Capture (DBG_FIFO_DEPTH > 0)\ngaxi_fifo_sync - u_dbg_fifo", style="filled,dashed"];
+
+    bar  [label="Memory Under Test (m_axi master port)\nm_axi_ar out   |   m_axi_r in",
+          fillcolor="white", width=9.0];
+
+    cfg  -> agar [xlabel="descriptor, cfg_start"];
+    agar -> iss  [xlabel="AR address"];
+    iss  -> leaf [xlabel="fub AR (addr, len, id)"];
+    leaf -> bar  [dir=both, xlabel="AR  /  R"];
+    chk -> leaf [dir=back, xlabel="fub R (rdata,\nrresp, rlast)"];
+    agr  -> exp  [xlabel="beat address"];
+    exp  -> chk  [xlabel="expected word"];
+    dsrc -> exp  [style=dashed, xlabel="mode, seeds"];
+    dbg -> chk [dir=back, style=dashed, xlabel="mismatching\nbeats"];
+    chk  -> res  [xlabel="CRC, errors, counts"];
+    dbg  -> res  [style=dashed, xlabel="dbg_*"];
+
+    { rank=same; cfg; dsrc; res; }
+    cfg -> dsrc [style=invis];
+    dsrc -> res [style=invis];
+    { rank=same; agar; agr; }
+    { rank=same; iss; exp; dbg; }
+    exp -> dbg [style=invis];
+    { rank=same; chk; }
+    { rank=same; prm; leaf; }
+    prm -> leaf [style=invis];
+    iss -> leaf [style=invis];
+    exp -> chk [style=invis];
+    chk -> leaf [style=invis];
+}

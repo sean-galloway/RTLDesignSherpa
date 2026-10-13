@@ -145,6 +145,17 @@ while that domain's readys are still masked.
 
 ## Functional Description
 
+### Block diagram
+
+![apb4_slave_cdc_cg block diagram](../../assets/rtl-amba/graphviz/apb4_slave_cdc_cg.png)
+
+`apb4_slave_cdc` with a clock gate in each domain. The pclk gate's gated clock
+(heavy) runs the `apb4_slave` core and the pclk sides of both CDC FIFOs; the aclk
+gate's gated clock runs their aclk sides. Each gate wakes on its own domain's
+activity (the aclk gate sees PSEL through a two-flop synchronizer). While a domain
+is gated, the ready signals it drives are forced to 0 (the Gating Mask legend),
+and `cg_gating` / `cg_idle` are the AND of both domains.
+
 This wrapper is the base module plus one `amba_clock_gate_ctrl` instance. The
 datapath is untouched -- every channel signal is forwarded verbatim -- so
 functional behaviour is identical to the base module and the wrapper adds no

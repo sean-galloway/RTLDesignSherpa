@@ -1,0 +1,62 @@
+// monbus_compressor block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Flows:
+//   record - top-down the center: record input -> key build -> template CAM
+//            (monbus_cam_pipe, lookup + commit) -> per-template delta ->
+//            result skid -> encode register (format select + slot pack) ->
+//            output FSM -> slot output bar
+//   credit - records in flight are counted against the skid depth; in_ready
+//            returns dashed up the left
+//   stats  - per-tier counters down the right to the bar
+// Source of truth: rtl/amba/ocelus/monbus_compressor.sv.
+digraph monbus_compressor {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="monbus_compressor - ocelus records to 64-bit compressed trace slots (template hits in one slot, misses as a 3-slot RAW escape)\n(single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- inputs (white) ----
+    prm  [label="Parameters (fixed at build)\lHALF_BEAT_EN: 1 = small template hits also\l    leave as a 30-bit half slot (out_half_*)\l    for monbus_halfbeat_packer; 0 = tied off\l", fillcolor="white"];
+    rin  [group=C, label="Record Input\nin_valid, in_packet (128 bits), in_source_ts / in_ready\nclear (flush the CAM and the pipeline)", fillcolor="white"];
+
+    // ---- logic ----
+    crd  [group=L, label="Credit Gate (flop count)\nrecords in flight < SKID_DEPTH (3)\nin_ready = credit free and not clear"];
+    key  [group=C, label="Key Build (combinational)\n49-bit template key: pkt_type, protocol,\nevent_code, channel_id, agent_id, unit_id"];
+    cam  [group=C, label="Template CAM (stage 1, lookup + commit)\nmonbus_cam_pipe - u_cam_pipe, 32 entries, true LRU\nhit: TOUCH, miss: INSTALL; each entry keeps its\nlast event data and last timestamp (24 bits)"];
+    dlt  [group=C, label="Per-Template Delta (combinational)\ndelta_ts = this timestamp - the entry's last timestamp\nrecord fields registered to line up with the result"];
+    skd  [group=C, label="Result Skid\ngaxi_skid_buffer - u_res_skid (SKID_DEPTH 3)"];
+    enc  [group=C, label="Encode Register (stage 2a, flop)\nformat select by width tier: A > B > C, else RAW\nA: small delta_ts + event data   B: big delta_ts\nC: event-data delta   |   slot pack: 4-bit tag + payload"];
+    ofsm [group=C, label="Output FSM (stage 2b): IDLE / RAW1 / RAW2\ntemplate hit: one slot; RAW escape: timestamp,\npacket high, packet low (three slots)"];
+    sta  [group=R, label="Statistics (flops)\ntier-1 A / B / C hits, tier-0 escapes,\nCAM misses, overflow reasons"];
+
+    // ---- the output bar ----
+    outs [group=C, label="Slot Output + Statistics\nout_valid, out_slot[63:0] / out_ready   |   out_half_valid, out_half_slot[29:0] (HALF_BEAT_EN=1)\nstat_tier1_a / _b / _c, stat_tier0, stat_cam_miss, stat_*_ovf",
+          fillcolor="white", width=9.5];
+
+    // ---- main flow ----
+    rin  -> key  [xlabel="in_packet"];
+    key  -> cam  [xlabel="template key, event data, ts"];
+    cam  -> dlt  [xlabel="hit, idx, old data / ts (next clock)"];
+    dlt  -> skd  [xlabel="stage-1 result"];
+    skd  -> enc  [xlabel="result (valid down, pop up)"];
+    enc  -> ofsm [xlabel="tag + payload"];
+    ofsm -> outs [xlabel="slots", penwidth=1.8];
+
+    // ---- credit (left) ----
+    crd  -> rin  [style=dashed, dir=both, xlabel="in_valid /\nin_ready"];
+    skd  -> crd  [style=dashed, xlabel="pop (credit back)", constraint=false];
+
+    // ---- statistics (right) ----
+    enc  -> sta  [xlabel="tier, escape\nreason", constraint=false];
+    sta  -> outs [xlabel="stat_*"];
+
+    // ---- rank pinning ----
+    { rank=same; prm; rin; }
+    { rank=same; crd; key; }
+    { rank=same; enc; sta; }
+    prm -> rin [style=invis];
+    crd -> key [style=invis, minlen=2];
+    enc -> sta [style=invis, minlen=4];
+}

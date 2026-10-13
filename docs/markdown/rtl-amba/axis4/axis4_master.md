@@ -139,6 +139,12 @@ module axis4_master #(
 
 ## Functional Description
 
+### Block diagram
+
+![axis4_master block diagram](../../assets/rtl-amba/graphviz/axis4_master.png)
+
+A FUB beat drops straight down the center: packed into one word, through a single `gaxi_skid_buffer` (`t_channel`), and unpacked onto `m_axis_t*`. `tready` returns dashed up the side one hop at a time: `m_axis_tready` drains the skid buffer, and the skid buffer's registered `wr_ready` is `fub_axis_tready`.
+
 ### Skid Buffer Design
 
 The module employs a single GAXI skid buffer to manage streaming data flow:

@@ -1,0 +1,36 @@
+// sdpram_slave_axil_axil block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Thin wrapper: a AXIL slave-write leaf and a AXIL slave-read leaf bridge their
+// FUB sides onto sdpram_core (drawn as the bottom bar; see its own diagram).
+// Each side shares ONE dir=both edge per node pair: requests down, responses up.
+// Source of truth: rtl/amba/shared/sdpram_slave_axil_axil.sv.
+digraph sdpram_slave_axil_axil {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.70", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="sdpram_slave_axil_axil - AXI-Lite write and read over the shared BRAM core";
+
+    wport [group=W, label="AXIL Write Port (slave)\ns_axi_aw / s_axi_w in,  s_axi_b out", fillcolor="white"];
+    cport [group=C, label="Bulk Clear and Debug\ni_cfg_start_clear / o_cfg_done_clear,\ndebug taps", fillcolor="white"];
+    rport [group=R, label="AXIL Read Port (slave)\ns_axi_ar in,  s_axi_r out", fillcolor="white"];
+
+    wleaf [group=W, label="AXIL Slave Write Leaf\naxil4_slave_wr - u_axil_wr\nskid buffers on AW / W / B\nFUB tied: id 0, len 0, INCR"];
+    rleaf [group=R, label="AXIL Slave Read Leaf\naxil4_slave_rd - u_axil_rd\nskid buffers on AR / R\nFUB tied: id 0, len 0, INCR"];
+
+    core  [group=C, label="BRAM Backend\nsdpram_core - u_core   (see its diagram)\nAW / AR queues, burst trackers, BRAM, clear FSM",
+           width=8.5, height=0.8];
+
+    wport -> wleaf [dir=both, xlabel="AW, W  /  B"];
+    rport -> rleaf [dir=both, xlabel="AR  /  R"];
+    wleaf -> core  [dir=both, xlabel="fub AW, W  /  fub B"];
+    rleaf -> core  [dir=both, xlabel="fub AR  /  fub R"];
+    cport -> core  [style=dashed, dir=both, xlabel="start / done"];
+
+    { rank=same; wport; cport; rport; }
+    wport -> cport [style=invis, minlen=2];
+    cport -> rport [style=invis, minlen=2];
+    { rank=same; wleaf; rleaf; }
+    wleaf -> rleaf [style=invis, minlen=4];
+}

@@ -125,30 +125,11 @@ signals concatenated into that buffer.
 
 ## Functional Description
 
-### Module Architecture
+### Block diagram
 
-```mermaid
-flowchart LR
-    subgraph FE["Frontend<br/>(CPU/Logic)"]
-        far["fub_ar*"]
-        fr["fub_r*"]
-    end
+![axil4_master_rd block diagram](../../assets/rtl-amba/graphviz/axil4_master_rd.png)
 
-    subgraph BUF["AR/R Skid Buffers"]
-        ar["AR Channel<br/>gaxi_skid_buffer<br/>DEPTH=2"]
-        r["R Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
-    end
-
-    subgraph BE["Backend<br/>(Memory/Periph)"]
-        mar["m_axil_ar*"]
-        mr["m_axil_r*"]
-    end
-
-    far --> ar --> mar
-    mr --> r --> fr
-
-    BUF --> busy["busy"]
-```
+The requester (`fub_*`) sits at the top and the AXI4-Lite bus (`m_axil_*`) is the bar at the bottom. AR runs down through its `gaxi_skid_buffer` to the bottom, and the R response climbs back up its own lane on the right through another skid buffer, so every channel crosses exactly one buffer. `busy` is a status output that is high while any buffer holds a beat or a new request or response is arriving.
 
 ### Read Transaction Sequence
 

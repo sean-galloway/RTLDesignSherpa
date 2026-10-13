@@ -55,6 +55,12 @@ Every `wb4_slave_cdc` parameter, plus `CG_IDLE_COUNT_WIDTH`:
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_slave_cdc_cg block diagram](../../assets/rtl-amba/graphviz/wb4_slave_cdc_cg.png)
+
+`wb4_slave_cdc` is one child box (see its diagram); this wrapper gates only the Wishbone clock. The controller wakes on the child's `wb_busy` and holds STALL high while the clock is stopped. The FUB domain (`aclk`) keeps running, so a consumer can drain commands and post responses while the bus sleeps; the async FIFOs inside the child make that safe.
+
 ### The Wake Term Has to Be Single-Domain
 
 This is the one thing worth reading before changing it. The wake term is

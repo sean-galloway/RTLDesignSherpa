@@ -147,6 +147,18 @@ Characterizing a DMA needs a memory model on both its read and write ports. Rath
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_dma_slaves block diagram](../../assets/rtl-amba/graphviz/axi4_dma_slaves.png)
+
+The master's write side plugs into the CRC-checking sink on the left, and its
+read side into the synthetic LFSR source on the right; both are drawn in
+their own diagrams. Both sides share one CRC standard. A master that reads
+the pattern and writes it back unchanged therefore ends with matching read
+and write CRCs. The two resets are separate, so either side can re-arm
+without disturbing the other. Error injection is not built here: the
+children's `cfg_err_*` inputs are tied low.
+
 ### Structural Composition
 
 The module is a thin structural wrapper: it instantiates one `axi4_slave_rd_injector` (`u_rd_injector`) and one `axi4_slave_wr_crc_check` (`u_wr_crc_check`) and fans the top-level ports out to them. There is no additional logic — all behavior lives in the two children, documented separately.

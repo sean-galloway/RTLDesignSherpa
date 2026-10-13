@@ -1,0 +1,61 @@
+// axi_monitor_reporter block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Two picks, both genuine many-to-one: (1) the per-transaction event classes
+// (error / timeout / completion) round-robin into the event FIFO; (2) the output
+// register takes the FIFO first, then threshold, perf and debug packets.
+// An accepted FIFO write marks the transaction reported, which is the flag the
+// transaction manager waits for before it frees the entry.
+// Source of truth: rtl/amba/ocelus/axi_monitor_reporter.sv.
+digraph axi_monitor_reporter {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="axi_monitor_reporter - turns transaction-table state into monitor-bus packets (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lENABLE_ERROR / TIMEOUT / COMPL /\l    THRESHOLD / PERF / DEBUG_LOGIC:\l    0 omits that emitter (its packets never occur)\lINTR_FIFO_DEPTH: event FIFO entries\lUNIT_ID, AGENT_ID: stamped into every packet\l", fillcolor="white"];
+    tin  [label="From the Transaction Manager\ntrans_table[MAX_TRANSACTIONS], filtered_mask\n+ timeout_detected (timeout scanner)", fillcolor="white"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_error / timeout / compl / threshold /\l    perf / debug_enable: per-class gates\lactive_trans_threshold, latency_threshold\l", fillcolor="white"];
+
+    snap [group=C, label="Table Snapshot (flops)\nr_trans_table_local: one-cycle copy\nthe emitters scan"];
+    err  [label="Error Emitter\naxi_monitor_reporter_error - u_err\n(ENABLE_ERROR_LOGIC)", style="filled,dashed"];
+    to   [group=C, label="Timeout Emitter\naxi_monitor_reporter_timeout - u_to\n(ENABLE_TIMEOUT_LOGIC)", style="filled,dashed"];
+    cmpl [label="Completion Emitter\naxi_monitor_reporter_compl - u_compl\n(ENABLE_COMPL_LOGIC)", style="filled,dashed"];
+    cls  [group=C, label="Class Pick\nround-robin over error / timeout / completion\n(rotating r_grant_ptr)",
+          shape=invtrapezium, width=6.6, height=0.8, fixedsize=true, fillcolor="#BFD7EE"];
+    fifo [group=C, label="Event FIFO\ngaxi_fifo_sync - intr_fifo\nINTR_FIFO_DEPTH, mux read"];
+    flag [label="Reported Flags (flops)\nr_event_reported[MAX_TRANSACTIONS]: set on an\naccepted FIFO write (or auto-retire), cleared when\nthe entry frees; emitters skip reported entries"];
+    thr  [label="Threshold Emitter\nreporter_threshold - u_thresh\nactive-count / latency\n(ENABLE_THRESHOLD_LOGIC)", style="filled,dashed"];
+    prf  [label="Perf Emitter\nreporter_perf - u_perf\ncompleted / error counts\n(ENABLE_PERF_LOGIC)", style="filled,dashed"];
+    dbg  [label="Debug Emitter\nreporter_debug - u_debug\n(ENABLE_DEBUG_LOGIC)", style="filled,dashed"];
+    opk  [group=C, label="Output Pick\nevent FIFO first, then threshold, perf, debug",
+          shape=invtrapezium, width=10.6, height=0.7, fixedsize=true, fillcolor="#BFD7EE"];
+    oreg [group=C, label="Output Register (flops)\nmonbus_valid + type / code / channel / data;\nmonbus_packet = create_monitor_packet(..., UNIT_ID, AGENT_ID)"];
+    out  [group=C, label="Outputs\nmonbus_valid, monbus_packet (monbus_ready in)  |  event_reported_flags (to the transaction manager)\nevent_count, perf_completed_count, perf_error_count", fillcolor="white", width=10.0];
+
+    tin  -> snap [xlabel="trans_table", penwidth=1.8];
+    snap -> err  [xlabel="table"];
+    snap -> to   [xlabel="table"];
+    snap -> cmpl [xlabel="table"];
+    err  -> cls  [xlabel="error"];
+    to   -> cls  [xlabel="timeout", penwidth=1.0];
+    cmpl -> cls  [xlabel="completion"];
+    cls  -> fifo [xlabel="granted event", penwidth=1.8];
+    cls  -> flag [xlabel="accepted grant\n(marks the entry)"];
+    fifo -> opk  [xlabel="FIFO head"];
+    snap -> thr  [xlabel="table"];
+    thr  -> opk  [xlabel="threshold"];
+    prf  -> opk  [xlabel="perf"];
+    dbg  -> opk  [xlabel="debug"];
+    opk  -> oreg [xlabel="selected packet", penwidth=1.8];
+    oreg -> out  [xlabel="monbus packet", penwidth=1.8];
+    flag -> out  [xlabel="event_reported_flags"];
+
+    { rank=same; prm; tin; cfg; }
+    prm -> tin [style=invis]; tin -> cfg [style=invis];
+    { rank=same; err; to; cmpl; }
+    err -> to [style=invis]; to -> cmpl [style=invis];
+    { rank=same; prf; thr; fifo; dbg; flag; }
+    prf -> thr [style=invis]; thr -> fifo [style=invis]; fifo -> dbg [style=invis]; dbg -> flag [style=invis, minlen=2];
+}

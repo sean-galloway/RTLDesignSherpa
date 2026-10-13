@@ -1,0 +1,55 @@
+// apb5_master block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Derived from apb4_master.dot: same command / response lanes, plus what APB5
+// adds - user fields through the skids, the PWAKEUP flop, and (ENABLE_PARITY)
+// odd check-bit generation on outputs and checking on inputs (dashed: build-
+// dependent).
+// Source of truth: rtl/amba/apb5/apb5_master.sv.
+digraph apb5_master {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb5_master - queued command / response ports to one APB5 requester (single clock: pclk, presetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm [label="Parameters (fixed at build)\lENABLE_PARITY: 1 = generate the *CHK outputs\l    and check the *CHK inputs; 0 = CHK tied 0\l", fillcolor="white"];
+    cmd_port [label="Command Port\ncmd_valid / cmd_ready\ncmd_pwrite, paddr, pwdata, pstrb, pprot, pauser, pwuser", fillcolor="white"];
+    rsp_port [label="Response Port\nrsp_valid / rsp_ready\nrsp_prdata, pslverr, pruser, pbuser", fillcolor="white"];
+
+    cmdq [label="Command Skid Buffer\ngaxi_skid_buffer - cmd_fifo_inst\nCMD_DEPTH entries (APB4 fields + pauser, pwuser)"];
+    rspq [label="Response Skid Buffer\ngaxi_skid_buffer - resp_fifo_inst\nRSP_DEPTH entries of {pslverr, prdata, pruser, pbuser}"];
+    fsm  [label="APB Transfer FSM (flop)\nIDLE > SETUP > ACCESS; ACCESS ends on PREADY\nlaunches only when the response skid has space"];
+    wake [label="PWAKEUP (flop)\nr_pwakeup <= cmd_valid | queued command | FSM busy\nleads PSEL by one clock"];
+    pgen [label="Check-Bit Generate (ENABLE_PARITY = 1)\ndataint_parity, odd, one bit per 8 bits\nPADDR, PWDATA, PAUSER, PWUSER, PCTRL, PSTRB,\nPSEL, PENABLE, PWAKEUP", style="filled,dashed"];
+    pchk [label="Check-Bit Check (ENABLE_PARITY = 1)\ndataint_parity, odd\nPRDATA, PRUSER, PBUSER, PREADY, PSLVERR", style="filled,dashed"];
+    perr [label="Parity Status\nparity_error_rdata, parity_error_ctrl", fillcolor="white"];
+
+    bus [label="APB5 Requester Bus  m_apb_*\nout: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB,\nPPROT, PAUSER, PWUSER, PWAKEUP + their *CHK\nin: PRDATA, PSLVERR, PREADY, PRUSER, PBUSER + their *CHK",
+         fillcolor="white"];
+
+    cmd_port -> cmdq [dir=both, xlabel="cmd_valid + fields / cmd_ready"];
+    cmdq -> fsm [dir=both, xlabel="queued command / pop"];
+    fsm -> bus [penwidth=1.8, xlabel="PSEL, PENABLE,\naddress, data, user"];
+    wake -> bus [xlabel="PWAKEUP"];
+    fsm -> pgen [style=dashed, xlabel="driven fields"];
+    pgen -> bus [style=dashed, xlabel="*CHK out"];
+
+    p_rd [shape=point, width=0.01];
+    p_rd -> bus [dir=back];
+    p_rd -> rspq [dir=none, xlabel="PRDATA, PSLVERR,\nPRUSER, PBUSER"];
+    rsp_port -> rspq [dir=both, xlabel="rsp_valid + fields\n/ rsp_ready"];
+    rspq -> fsm [dir=both, style=dashed, xlabel="space / enqueue"];
+    pchk -> bus [dir=back, style=dashed, xlabel="*CHK in"];
+    pchk -> perr [style=dashed];
+
+    { rank=same; prm; cmd_port; rsp_port; }
+    { rank=same; cmdq; rspq; }
+    { rank=same; fsm; p_rd; }
+    { rank=same; wake; pgen; pchk; }
+    prm -> cmd_port [style=invis]; cmd_port -> rsp_port [style=invis, minlen=3];
+    cmdq -> rspq [style=invis, minlen=3];
+    fsm -> p_rd [style=invis, minlen=2];
+    wake -> pgen [style=invis]; pgen -> pchk [style=invis, minlen=2];
+    pchk -> perr [style=invis];
+}

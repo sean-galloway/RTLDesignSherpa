@@ -101,22 +101,9 @@ module gaxi_regslice #(
 
 The register slice implements a single-entry elastic buffer with simultaneous push/pop capability:
 
-```mermaid
-flowchart LR
-    wrv["wr_valid"] --> rs
-    wrd["wr_data"] --> rs
-    rdr["rd_ready"] --> rs
+![gaxi_regslice block diagram](../../assets/rtl-amba/graphviz/gaxi_regslice.png)
 
-    subgraph rs["Register Slice"]
-        storage["1-Entry Storage<br/>- r_valid (1-bit)<br/>- r_data (DW-bit)"]
-        logic["Handshake Logic<br/>- Accept when<br/>  empty OR pop"]
-    end
-
-    rs --> wrr["wr_ready"]
-    rs --> rdd["rd_data<br/>(registered)"]
-    rs --> rdv["rd_valid"]
-    rs --> cnt["count<br/>(0 or 1)"]
-```
+Write data drops down the left into the one-slot register and read data comes back up the right, one cycle later. Unlike the skid buffers, `wr_ready` is combinational: the slice accepts when it is empty or when the held beat leaves this cycle, which is what sustains one beat per clock.
 
 ### Ready/Valid Protocol
 

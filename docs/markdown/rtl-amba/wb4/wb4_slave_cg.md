@@ -55,6 +55,12 @@ In addition to all `wb4_slave` parameters:
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_slave_cg block diagram](../../assets/rtl-amba/graphviz/wb4_slave_cg.png)
+
+`wb4_slave` is one child box (see its diagram); this wrapper adds only the clock gate. The controller wakes on `s_wb_CYC`, `rsp_valid` or the child's `cmd_valid`. While the clock is stopped it holds STALL high on the bus and forces `cmd_valid` and `rsp_ready` low on the backend side.
+
 ### Wake-Up Terms
 
 | Term | Why |

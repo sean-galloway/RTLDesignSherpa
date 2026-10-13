@@ -134,6 +134,12 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_slave_rd_cg block diagram](../../assets/rtl-amba/graphviz/axi4_slave_rd_cg.png)
+
+The base `axi4_slave_rd` is one child box (see its own diagram), clocked by `gated_aclk`. The clock is the heavy center column: `aclk` enters `amba_clock_gate_ctrl`, which stops it after `cfg_cg_idle_count` idle clocks. Activity Detect ORs this side's valids with the base's `busy` (`user_valid`) and the far side's valids (`axi_valid`) to wake the clock. While gating, the outward ready signals are forced to 0, so no handshake is lost; `cg_gating` and `cg_idle` report the gate's state.
+
 This wrapper is the base module plus one `amba_clock_gate_ctrl` instance. The
 datapath is untouched -- every channel signal is forwarded verbatim -- so
 functional behaviour is identical to the base module and the wrapper adds no

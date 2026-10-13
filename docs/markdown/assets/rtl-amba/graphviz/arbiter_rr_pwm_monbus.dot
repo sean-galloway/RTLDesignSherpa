@@ -1,0 +1,67 @@
+// arbiter_rr_pwm_monbus block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). Wrapper: a PWM duty-cycles the
+// arbiter's block_arb, and an optional observer watches the arbiter.
+// Flows:
+//   requests - top-down the center: requests -> the round-robin pick (trapezium)
+//              -> grant outputs bar
+//   throttle - PWM config -> pwm -> pwm_out = block_arb, dashed into the pick
+//   observe  - arbiter signals tapped (dashed) into arbiter_monbus_common
+//              (USE_MONITOR=1 only, dashed box); its packets are the heavy
+//              edge to the bar
+// Source of truth: rtl/amba/ocelus/arbiter_rr_pwm_monbus.sv.
+digraph arbiter_rr_pwm_monbus {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="arbiter_rr_pwm_monbus - round-robin arbiter, PWM throttle, optional ocelus observer\n(single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external inputs (white) ----
+    prm  [label="Parameters (fixed at build)\lUSE_MONITOR: 1 = the arbiter observer is built;\l    0 = monbus and debug outputs tied to 0\lWAIT_GNT_ACK: 1 = a grant holds until grant_ack\lMON_AGENT_ID / MON_UNIT_ID: stamped in packets\l", fillcolor="white"];
+    pcfg [group=P, label="PWM Config (runtime input ports)\lcfg_pwm_duty / period / repeat_count:\l    clocks blocked per period, period length,\l    periods to run (0 = until sync reset)\lcfg_pwm_start, cfg_pwm_sync_rst_n\l", fillcolor="white"];
+    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white"];
+    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white"];
+    mcfg [group=M, label="Monitor Config (runtime input ports)\lcfg_mon_enable, cfg_mon_pkt_type_enable,\lcfg_mon_* thresholds, sample period;\li_mon_time timestamps the packets\l", fillcolor="white"];
+
+    // ---- logic ----
+    pwm  [group=P, label="Throttle PWM\npwm - u_pwm (16-bit, one channel)\npwm_out high = arbitration blocked"];
+    pick [group=C, label="Round-Robin Pick\narbiter_round_robin - u_arbiter",
+          shape=invtrapezium, width=7.6, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
+    mon  [group=M, label="Arbiter Observer (USE_MONITOR=1 only)\narbiter_monbus_common - u_monitor\nclient weights fixed at 1 (equal shares)\n(see its diagram: trackers, event detect, event FIFO)", style="filled,dashed"];
+
+    // ---- the boundary bar ----
+    outs [group=C, label="Outputs\ngrant_valid, grant, grant_id   |   pwm_out, cfg_pwm_sts_done\nmonbus_valid, monbus_packet, monbus_timestamp / monbus_ready   |   debug_*",
+          fillcolor="white", width=7.5];
+
+    // ---- main flow ----
+    req  -> pick [xlabel="requests"];
+    pick -> outs [xlabel="grant, grant_id, grant_valid", penwidth=1.8];
+
+    // ---- throttle ----
+    pcfg -> pwm  [style=dashed, xlabel="duty, period, repeat"];
+    pwm  -> pick [style=dashed, xlabel="block_arb = pwm_out"];
+    p_pw [group=P, shape=point, width=0.01];
+    pwm  -> p_pw [arrowhead=none, headclip=false];
+    p_pw -> outs [xlabel="pwm_out, done", tailclip=false];
+
+    // ---- sideband ----
+    ack  -> pick [style=dashed, xlabel="grant_ack"];
+
+    // ---- observer: one rank below the pick ----
+    pick -> mon  [style=dashed, xlabel="tap: request, grant,\ngrant_ack, block_arb"];
+    mcfg -> mon  [style=dashed, xlabel="config, i_mon_time"];
+    mon  -> outs [xlabel="ocelus packets, debug", penwidth=1.8];
+
+    // ---- rank pinning ----
+    { rank=same; pcfg; req; ack; }
+    { rank=same; pwm; }
+    { rank=same; pick; mcfg; }
+    { rank=same; p_pw; mon; }
+    { rank=same; prm; outs; }
+    pcfg -> req -> ack [style=invis];
+    pick -> mcfg [style=invis, minlen=2];
+    p_pw -> mon [style=invis, minlen=6];
+    prm -> outs [style=invis];
+}

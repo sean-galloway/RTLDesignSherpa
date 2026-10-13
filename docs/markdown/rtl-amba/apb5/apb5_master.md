@@ -173,75 +173,16 @@ and 42 respectively.
 
 ## Functional Description
 
-```mermaid
-flowchart LR
-    subgraph CMD["Command Interface"]
-        cv["cmd_valid"]
-        cr["cmd_ready"]
-        cd["cmd_data"]
-    end
+### Block diagram
 
-    subgraph FIFO["Internal FIFOs"]
-        cf["Command<br/>FIFO"]
-        rf["Response<br/>FIFO"]
-    end
+![apb5_master block diagram](../../assets/rtl-amba/graphviz/apb5_master.png)
 
-    subgraph FSM["APB5 FSM"]
-        idle["IDLE"]
-        setup["SETUP"]
-        access["ACCESS"]
-    end
-
-    subgraph APB5["APB5 Master Interface"]
-        psel["PSEL"]
-        pen["PENABLE"]
-        paddr["PADDR"]
-        pwrite["PWRITE"]
-        pwdata["PWDATA"]
-        pstrb["PSTRB"]
-        pprot["PPROT"]
-        pauser["PAUSER"]
-        pwuser["PWUSER"]
-        prdata["PRDATA"]
-        pslverr["PSLVERR"]
-        pready["PREADY"]
-        pwakeup["PWAKEUP"]
-        pruser["PRUSER"]
-        pbuser["PBUSER"]
-    end
-
-    subgraph RSP["Response Interface"]
-        rv["rsp_valid"]
-        rr["rsp_ready"]
-        rd["rsp_data"]
-    end
-
-    cv --> cf
-    cd --> cf
-    cf --> cr
-
-    cf --> FSM
-    FSM --> psel
-    FSM --> pen
-    FSM --> paddr
-    FSM --> pwrite
-    FSM --> pwdata
-    FSM --> pstrb
-    FSM --> pprot
-    FSM --> pauser
-    FSM --> pwuser
-
-    prdata --> rf
-    pslverr --> rf
-    pready --> FSM
-    FSM --> pwakeup
-    pruser --> rf
-    pbuser --> rf
-
-    rf --> rv
-    rf --> rd
-    rr --> rf
-```
+Same command / response lanes as `apb4_master`, plus what APB5 adds. The user
+fields (PAUSER, PWUSER out; PRUSER, PBUSER back) ride through both skids. A PWAKEUP
+flop rises on `cmd_valid`, a queued command or a busy FSM, so it leads PSEL by one
+clock. With `ENABLE_PARITY = 1`, `dataint_parity` generates an odd check bit per 8
+bits on every driven field and checks the returning *CHK inputs, reporting
+`parity_error_rdata` and `parity_error_ctrl`; with 0 the CHK outputs are tied low.
 
 ### APB5 Protocol State Machine
 

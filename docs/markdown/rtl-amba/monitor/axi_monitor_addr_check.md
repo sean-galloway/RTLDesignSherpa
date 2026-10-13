@@ -141,6 +141,16 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_addr_check block diagram](../../assets/rtl-amba/graphviz/axi_monitor_addr_check.png)
+
+Each accepted command address is compared against every range at once.
+Debug (watch) ranges that hit raise MATCH events. An address outside every
+enabled error-allowlist range raises one MISS event. Events wait in pending
+slots, where the latest event wins. One packet drains per cycle: MISS first,
+then the lowest pending range, held stable while the bus stalls.
+
 ### Internal Architecture
 
 The module instantiates N parallel comparators and splits them by flavor:

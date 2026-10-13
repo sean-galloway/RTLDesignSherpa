@@ -1,0 +1,32 @@
+// apb_monitor_addr_check block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The APB mirror of axi_monitor_addr_check: a hit in any enabled range is a
+// violation and raises an error event for that range; one packet drains per
+// cycle, lowest pending range first, held stable while the bus stalls.
+// Source of truth: rtl/amba/ocelus/apb_monitor_addr_check.sv.
+digraph apb_monitor_addr_check {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c,
+           label="apb_monitor_addr_check - address-range violation packets for an APB monitor (clk, aresetn)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    prm  [label="Parameters (fixed at build)\lN_ADDR_RANGES: ranges compared in parallel (<= 16)\lPROTOCOL: protocol field stamped (default APB)\l", fillcolor="white"];
+    cmd  [group=C, label="Observed Command (from the APB monitor)\ncmd_paddr, cmd_pwrite, cmd_valid, cmd_ready\n(fires on the accepted handshake)", fillcolor="white"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_addr_check_enable: 0 = fully quiet\lcfg_addr_range_enable / low / high[i]\l    (inclusive; low = high for one address)\l", fillcolor="white"];
+    cmp  [group=C, label="Range Compare (combinational, N_ADDR_RANGES in parallel)\nhit[i] = range enabled & low[i] <= paddr <= high[i]"];
+    pend [group=C, label="Pending Slots (flops)\nper range: pending + latched paddr, is_read;\nlatest hit wins; shadow registers keep a\npresented packet stable"];
+    pk   [group=C, label="Emit Pick\nlowest pending range;\nheld until the presented packet is accepted",
+          shape=invtrapezium, width=5.0, height=0.8, fixedsize=true, fillcolor="#BFD7EE"];
+    pkt  [group=C, label="Packet Build (combinational)\nPktTypeError, APB_ERR_ADDR_RANGE, channel 0;\ndata = {range index, is_read, paddr}\nUNIT_ID / AGENT_ID stamped; timestamp = i_mon_time"];
+    out  [group=C, label="Outputs (to the APB monitor's packet path)\naddr_pkt_valid, addr_pkt_data, addr_pkt_timestamp  (addr_pkt_ready in)", fillcolor="white", width=7.0];
+
+    cmd  -> cmp  [xlabel="accepted paddr, pwrite", penwidth=1.8];
+    cfg  -> cmp  [style=dashed, xlabel="ranges, enable"];
+    cmp  -> pend [xlabel="range hits", penwidth=1.8];
+    pend -> pk   [xlabel="pending slots", penwidth=1.8];
+    pk   -> pkt  [xlabel="emit one-hot", penwidth=1.8];
+    pkt  -> out  [xlabel="violation packet", penwidth=1.8];
+    out  -> pend [style=dashed, constraint=false, xlabel="addr_pkt_ready\n(clears the slot)"];
+    { rank=same; prm; cmd; cfg; }
+    prm -> cmd [style=invis]; cmd -> cfg [style=invis];
+}

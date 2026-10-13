@@ -111,6 +111,12 @@ backpressure handling, packets don't get lost on the way through.
 
 ## Functional Description
 
+### Block diagram
+
+![monbus_arbiter block diagram](../../assets/rtl-amba/graphviz/monbus_arbiter.png)
+
+Each client's monitor bus enters at the top and, when INPUT_SKID_ENABLE=1, lands in its own gaxi_skid_buffer. The skid valids are the requests into the round-robin pick (arbiter_round_robin in ACK mode). The heavy grant drives the output mux, which forwards the granted client's packet and timestamp through the optional output skid to the merged bus at the bottom. The client beats bypass the pick down the left lane. On the right, the ack/ready logic acknowledges a grant only when the beat is actually consumed (grant, valid and downstream ready), so a grant holds under backpressure. The same logic returns each client's ready.
+
 ### Arbiter Request and Grant ACK Logic
 
 The module maps monitor bus protocol onto arbiter protocol.

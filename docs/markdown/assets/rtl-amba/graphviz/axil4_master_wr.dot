@@ -1,0 +1,36 @@
+// axil4_master_wr block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Generated from one family template so the four axil4 bases look alike.
+// The requester side is the top port, the completer side the bottom bar.
+// Requests run top-down through their skid buffers; the response climbs its own
+// lane on the right. Each hop is one edge: valid + payload one way, ready the other.
+// busy is a status output computed from the buffers' occupancy; its equation is in
+// its own white box in the port row rather than drawn as edges from every buffer.
+// Source of truth: rtl/amba/axil4/axil4_master_wr.sv.
+digraph axil4_master_wr {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="1.1", splines=ortho, newrank=true,
+           label="axil4_master_wr - AXI4-Lite write master, one skid buffer per channel\n(single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    top  [label="Write Requester (fub_*)\nuser logic issuing writes", fillcolor="white", width=5.0];
+    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\nSKID_DEPTH_AW (default 2)"];
+    w    [label="W Skid Buffer\ngaxi_skid_buffer - w_channel\nSKID_DEPTH_W (default 2)"];
+    b    [label="B Skid Buffer\ngaxi_skid_buffer - b_channel\nSKID_DEPTH_B (default 2)"];
+    busyo [label="Status Output: busy (combinational)\nhigh while a skid buffer holds a beat,\nor fub_awvalid / fub_wvalid / m_axil_bvalid", fillcolor="white"];
+    bot  [label="AXI4-Lite Bus, master side (m_axil_*)\nAW and W out at the left, B in at the right", fillcolor="white", width=5.6];
+
+    top -> aw  [xlabel="AW: awaddr, awprot\n(valid down, ready up)", penwidth=1.8];
+    aw  -> bot [xlabel="m_axil_aw*", penwidth=1.8];
+    top -> w   [xlabel="W: wdata, wstrb", penwidth=1.8];
+    w   -> bot [xlabel="m_axil_w*", penwidth=1.8];
+    b   -> bot [dir=back, xlabel="B: bresp\n(valid up, ready down)"];
+    top -> b   [dir=back, xlabel="fub_bresp"];
+
+    { rank=same; aw; w; b; }
+    aw -> w [style=invis]; w -> b [style=invis, minlen=2];
+    { rank=same; busyo; top; }
+    busyo -> top [style=invis];
+}

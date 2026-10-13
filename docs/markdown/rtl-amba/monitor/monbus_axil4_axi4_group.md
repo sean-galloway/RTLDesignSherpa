@@ -203,6 +203,12 @@ Three protocols (AXI, AXIS, CORE), each with a packet-type mask, an err-select m
 
 ## Functional Description
 
+### Block diagram
+
+![monbus_axil4_axi4_group block diagram](../../assets/rtl-amba/graphviz/monbus_axil4_axi4_group.png)
+
+A structural wrapper over monbus_group_core, drawn as one box. Error records are read over AXI4-Lite (axil4_slave_rd). The wrapper supplies arid 0, arlen 0, arsize 3 and INCR to the core's read FUB, and with S_AXIL_DATA_WIDTH=32 the dashed splitter serves each 64-bit record beat as two 32-bit reads. The log is written in AXI4 bursts through axi4_master_wr.
+
 ### S-Side Err-Drain Read Protocol
 
 Each monbus err record is three 64-bit slices — `{tag, source_ts}`, `packet[127:64]`, `packet[63:0]`. A 64-bit `axil4_slave_rd` leaf bridges the external AXIL read onto the core's 64-bit read FUB, and the core's slice counter returns the three slices in sequence; the err-FIFO record is popped only after the packet-low slice is read.

@@ -146,46 +146,11 @@ pipeline, FIFOs, and AXI skids). Drive it low at all other times.
 
 ## Functional Description
 
-### Architecture
+### Block diagram
 
-![monbus_compressor block diagram](../../assets/rtl-amba/monbus_compressor.png)
+![monbus_compressor block diagram](../../assets/rtl-amba/graphviz/monbus_compressor.png)
 
-Source: [`monbus_compressor.mmd`](../../assets/rtl-amba/monbus_compressor.mmd)
-
-```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
-flowchart TB
-    subgraph Inputs["Inputs (one valid/ready handshake per record)"]
-        IN_PKT["in_packet[127:0]<br/>monitor_packet_t"]
-        IN_TS["in_source_ts[63:0]<br/>monbus_timestamp_t"]
-    end
-
-    subgraph monbus_compressor["monbus_compressor"]
-        KEY["Build 49-bit key:<br/>(pkt_type, protocol,<br/>event_code, channel_id,<br/>agent_id, unit_id)"]
-        DELTA["delta_ts =<br/>(source_ts - cam_entry.last_ts)<br/>mod 2^24, per template"]
-        CAM["monbus_cam<br/>(32-entry true LRU)<br/>access_hit / access_idx /<br/>access_old_data"]
-        FMT_SEL["Format selector:<br/>A → B → C priority<br/>(width-tiered)"]
-        FSM["3-state FSM<br/>IDLE / RAW1 / RAW2"]
-        PACK["Slot packer<br/>(4-bit tag + payload)"]
-        STATS["Statistics:<br/>tier1_a/b/c, tier0,<br/>cam_miss, *_ovf"]
-    end
-
-    subgraph Output["Output (1 slot/cycle Tier-1, 3 slots/cycle Tier-0)"]
-        OUT_SLOT["out_slot[63:0]<br/>4-bit tag + payload"]
-    end
-
-    IN_PKT --> KEY
-    IN_PKT --> CAM
-    IN_TS --> DELTA
-    KEY --> CAM
-    CAM --> FMT_SEL
-    DELTA --> FMT_SEL
-    FMT_SEL --> FSM
-    FSM --> PACK
-    CAM -.payload feedback.-> FMT_SEL
-    PACK --> OUT_SLOT
-    FSM --> STATS
-```
+Records enter at the top and run down one column. A 49-bit template key is built from the packet's identifying fields. The template CAM (monbus_cam_pipe) looks the key up and commits it, and the per-template delta timestamp is formed against the entry's last timestamp. A credit-gated skid decouples that stage from the encode register, which picks the narrowest format that fits (A, B, C, else a RAW escape) and packs the slot. The output FSM sends one slot for a template hit and three for a RAW record. In-flight credits gate in_ready on the left, and the per-tier statistics run down the right.
 
 ### Compression Techniques
 

@@ -58,6 +58,12 @@ arrives packed and the response leaves packed:
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_master_stub block diagram](../../assets/rtl-amba/graphviz/wb4_master_stub.png)
+
+A packing wrapper: `wb4_master` is one child box (see its diagram). The FUB side carries one packed command word and one packed response word; the pack/unpack stage is wiring only, splitting `cmd_data` into its fields and joining `{rsp_status, rsp_dat}` into `rsp_data`.
+
 ### Packing
 
 Most significant field first. Both stubs use the same order, so a

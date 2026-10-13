@@ -91,6 +91,16 @@ The transaction manager marks a slot `TRANS_ERROR` when a transaction returns SL
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_reporter_error block diagram](../../assets/rtl-amba/graphviz/axi_monitor_reporter_error.png)
+
+Every table entry is checked in parallel for an error, or an orphaned
+transaction, that has not been reported. Errors that also timed out are left
+to the timeout emitter. The lowest matching entry is picked, and its event
+code, channel and address become an error packet; `sel_idx` tells the reporter
+which entry to mark.
+
 ### Error / Orphan Scan
 
 For every slot, the slot qualifies as an error event when it is `valid`, its `event_reported` bit is clear, `cfg_error_enable` is set, and **either**:

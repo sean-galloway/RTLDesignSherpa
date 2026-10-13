@@ -1,0 +1,52 @@
+// gaxi_regslice block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The one-slot member of the gaxi buffer family: same geography as
+// gaxi_skid_buffer (write data down the LEFT into the storage bar, read data
+// back UP the RIGHT), but the storage is a single register and wr_ready is
+// COMBINATIONAL (empty, or being popped this cycle) - the property that gives
+// one beat per clock with one cycle of latency.
+// Source of truth: rtl/amba/gaxi/gaxi_regslice.sv.
+digraph gaxi_regslice {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.80", splines=ortho, newrank=true,
+           label="gaxi_regslice - one-slot register slice, 1-cycle latency, 1 beat per clock\n(single clock: axi_aclk, axi_aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    wr_port [group=WO, label="Write Port (valid/ready)\nwr_valid, wr_data / wr_ready", fillcolor="white"];
+    rd_port [group=RO, label="Read Port (valid/ready)\nrd_valid, rd_data / rd_ready", fillcolor="white"];
+
+    rdy [group=C, label="Ready Logic (combinational)\nwr_ready = !r_valid | rd_ready\n(empty, or the held beat leaves this cycle)"];
+
+    reg [group=C, label="Slice Register (flops)  r_valid, r_data\nwrite (with or without a read): load wr_data, r_valid = 1\nread only: r_valid = 0   |   idle: hold\nrd_valid = r_valid, rd_data = r_data;  count / rd_count = 0 or 1",
+         width=8.0, height=0.9];
+
+    rd_port -> rdy [xlabel="rd_ready"];
+    rdy -> wr_port [style=dashed, constraint=false, xlabel="wr_ready"];
+    rdy -> reg [xlabel="wr xfer / rd xfer\n(load / clear select)"];
+
+    aw    [group=WD, shape=point, width=0.01, style=invis];
+    ar    [group=RD, shape=point, width=0.01, style=invis];
+    p_wd  [group=WD, shape=point, width=0.01];
+    p_rdd [group=RD, shape=point, width=0.01];
+    wr_port -> p_wd [arrowhead=none, headclip=false];
+    p_wd -> reg [xlabel="wr_valid, wr_data", tailclip=false];
+    p_rdd -> reg [dir=none, tailclip=false, xlabel="rd_valid, rd_data"];
+    p_rdd -> rd_port [tailclip=false, constraint=false];
+    aw -> p_wd [style=invis, weight=10];
+    ar -> p_rdd [style=invis, weight=10];
+
+    node [style=invis, shape=point, width=0.01, group=C];
+    c0; c3;
+    node [style=filled, shape=box, width=0.75, group=""];
+    c0 -> rdy -> c3 -> reg [style=invis, weight=10];
+
+    { rank=same; aw; wr_port; c0; rd_port; ar; }
+    { rank=same; p_wd; c3; p_rdd; }
+    { rank=max; reg; }
+    aw -> wr_port [style=invis, minlen=2];
+    wr_port -> c0 -> rd_port [style=invis, minlen=2];
+    rd_port -> ar [style=invis, minlen=2];
+    p_wd -> c3 -> p_rdd [style=invis];
+}

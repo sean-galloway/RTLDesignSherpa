@@ -1,0 +1,30 @@
+// axi_monitor_reporter_error block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// One reporter emitter: N parallel per-entry matches, a lowest-index pick over
+// the matching entries (a genuine many-to-one pick: trapezium), then the picked
+// entry's fields become the packet. Purely combinational.
+// Source of truth: rtl/amba/ocelus/axi_monitor_reporter_error.sv.
+digraph axi_monitor_reporter_error {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="axi_monitor_reporter_error - error event emitter (combinational)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    tin  [group=C, label="From the Reporter\ntrans_table[MAX_TRANSACTIONS] (snapshot)\nevent_reported, timeout_detected", fillcolor="white"];
+    en   [label="Enable (input port)\ncfg_error_enable: 0 = no error packets", fillcolor="white"];
+    mt   [group=C, label="Per-Entry Match (combinational, MAX_TRANSACTIONS in parallel)\nw_events[i] = valid & !event_reported[i]\n& ((state == TRANS_ERROR & !timeout_detected[i])\n   | state == TRANS_ORPHANED)\n(errors that timed out are left to the timeout emitter)"];
+    pk   [group=C, label="First-Match Pick\nlowest matching index wins (w_sel)",
+          shape=invtrapezium, width=5.2, height=0.7, fixedsize=true, fillcolor="#BFD7EE"];
+    fs   [group=C, label="Field Select (combinational, reads trans_table[w_sel])\npkt_type = PktTypeError; event_code = entry event_code\nchannel = entry channel[5:0]; data = entry addr (zero-padded)"];
+    out  [group=C, label="Outputs (to the reporter's class pick)\npkt_valid (any match), pkt_type, pkt_event_code, pkt_channel, pkt_data  |  sel_idx (entry to mark reported)", fillcolor="white", width=9.0];
+
+    tin -> mt [xlabel="table + flags", penwidth=1.8];
+    en  -> mt [style=dashed, xlabel="cfg_error_enable"];
+    mt  -> pk [xlabel="w_events[MAX_TRANSACTIONS]", penwidth=1.8];
+    pk  -> fs [xlabel="w_sel", penwidth=1.8];
+    fs  -> out [xlabel="packet fields, sel_idx", penwidth=1.8];
+    { rank=same; tin; en; }
+    tin -> en [style=invis];
+}

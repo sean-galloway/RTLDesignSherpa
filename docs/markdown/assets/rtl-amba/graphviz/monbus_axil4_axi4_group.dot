@@ -1,0 +1,57 @@
+// monbus_axil4_axi4_group block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Wrapper over monbus_group_core (drawn as one child box): it adds the protocol
+// leaves that turn the core's AXI4-shaped FUBs into real bus ports.
+// Flows:
+//   capture - monitor bus in at the top -> the core
+//   err     - the CPU's read port (top left) -> axil4_slave_rd (via the 32-bit splitter when S_AXIL_DATA_WIDTH=32) -> the core's
+//             read FUB, R beats back up the same path (one two-way edge per hop)
+//   log     - core -> axi4_master_wr -> the memory write port (bottom bar)
+// Source of truth: rtl/amba/ocelus/monbus_axil4_axi4_group.sv.
+digraph monbus_axil4_axi4_group {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="monbus_axil4_axi4_group - capture core behind an AXI4-Lite read port and an AXI4 burst-write port\n(single clock: axi_aclk, axi_aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- ports (white) ----
+    rport [group=L, label="Error-Record Read Port (from the CPU)\ns_axil_ar* in / s_axil_r* out", fillcolor="white"];
+    min   [group=C, label="Monitor Bus In\nmonbus_valid, monbus_packet,\nmonbus_timestamp / monbus_ready", fillcolor="white"];
+    cfg   [label="Config (runtime input ports)\lcfg_* filter masks and log window,\l    passed straight to the core\l", fillcolor="white"];
+    prm   [label="Parameters (fixed at build)\lS_AXIL_DATA_WIDTH: 64 = read port wired straight\l    through; 32 = each record beat read as two halves\lMAX_BURST_BEATS: master-write burst cap (default 64)\lUSE_COMPRESSION / HALF_BEAT_EN: see the core\lSKID_DEPTH_*: leaf buffering\l", fillcolor="white"];
+
+    // ---- leaves + core ----
+    split [group=L, label="32-bit Read Splitter (S_AXIL_DATA_WIDTH=32 only)\neach 64-bit core beat served as a low then a high\n32-bit read: the low read goes to the leaf, the\nhigh read is answered from a latch", style="filled,dashed"];
+    rleaf [group=L, label="Read Leaf\naxil4_slave_rd - u_axil_rd (single beat)\nskid buffers on AR / R\ncore FUB gets arid 0, arlen 0, arsize 3, INCR"];
+    core  [group=C, label="Capture Core\nmonbus_group_core - u_core\n(see its diagram: filter, error FIFO,\ncompressor, write FIFO, burst writer)\nMAX_BURST_BEATS up to 256 (default 64)", width=4.6];
+    wleaf [group=R, label="Write Leaf\naxi4_master_wr - u_axi4_wr (bursts)\nskid buffers on AW / W / B\nawlock / cache / qos / region / user\ntied to safe defaults"];
+
+    // ---- the boundary bar ----
+    outs  [group=C, label="Log Write Port (to memory)\nm_axi_aw*, m_axi_w* out / m_axi_b* in   |   irq_out, FIFO counts, mon_time_out, mon_compressor_stat_*",
+           fillcolor="white", width=9.0];
+
+    // ---- capture ----
+    min   -> core  [xlabel="monitor packets\n(valid down, ready up)"];
+    cfg   -> core  [style=dashed, xlabel="cfg_*"];
+
+    // ---- error-record reads ----
+    rport -> split [dir=both, xlabel="AR / R\n(32-bit)"];
+    split -> rleaf [dir=both, xlabel="AR / R\n(64-bit)"];
+    rleaf -> core  [dir=both, xlabel="FUB AR /\nR beats"];
+
+    // ---- log writes ----
+    core  -> wleaf [dir=both, xlabel="FUB AW, W /\nB", penwidth=1.8];
+    wleaf -> outs  [dir=both, xlabel="AW, W out / B in", penwidth=1.8];
+
+    // ---- status ----
+    core  -> outs  [xlabel="irq_out, status"];
+
+    // ---- rank pinning ----
+    { rank=same; prm; rport; min; cfg; }
+    { rank=same; split;  }
+    { rank=same; core; }
+    { rank=same; wleaf; }
+    prm -> rport -> min -> cfg [style=invis];
+}

@@ -40,6 +40,12 @@ ACE snoop channels differ from AXI4 channels in two ways that break per-ID track
 
 Therefore the monitor cannot use a CAM or linked-list keyed by ID. It uses a circular FIFO of outstanding snoops in AC-issue order, with CR and CDLAST always attributed to the head entry.
 
+## Block Diagram
+
+![axi4ace_snoop_monitor_lite block diagram](../../assets/rtl-amba/graphviz/axi4ace_snoop_monitor_lite.png)
+
+The monitor only observes the snoop channels. Each AC handshake adds an entry at the tail of the snoop table in issue order, with no slot pick. CR and CDLAST always belong to the oldest outstanding snoop, so the head correlate retires the head entry, and a CR or CD with nothing pending is an orphan. Completions, errors and head timeouts go through the event pick (errors first) into the output queue and onto the ocelus bus.
+
 ## Parameters
 
 | Parameter | Type | Default | Description |

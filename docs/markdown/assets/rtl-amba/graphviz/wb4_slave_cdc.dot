@@ -1,0 +1,42 @@
+// wb4_slave_cdc block diagram - house style (vault/handbook/authoring/block-diagrams.md),
+// CDC mapping per the rtl-cdc set, stacked as in apb4_slave_cdc: the Wishbone
+// domain (wb_clk) above, the FUB domain (aclk) below, each named in its block
+// label. Each crossing is a gaxi_fifo_async child box (it has its own diagram)
+// straddling the boundary: the command drops down the left (wb_clk -> aclk),
+// the response climbs the right (aclk -> wb_clk).
+// Source of truth: rtl/amba/wb4/wb4_slave_cdc.sv.
+digraph wb4_slave_cdc {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.70", splines=ortho, newrank=true,
+           label="wb4_slave_cdc - Wishbone B4 completer on wb_clk, command / response queues on aclk",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    bus [label="Wishbone B4 Completer Bus  s_wb_*  (wb_clk, wb_resetn)\nin: CYC, STB, WE, ADR, DAT_W, SEL, CTI, BTE\nout: STALL, ACK, ERR, RTY, DAT_R",
+         fillcolor="white"];
+    busy [label="Status Output  (wb_clk domain, combinational)\nwb_busy = s_wb_CYC | a command waiting to cross\n| a crossed response not yet driven\n(the wake term for wb4_slave_cdc_cg)", fillcolor="white"];
+    rst [label="Reset caution\lone-sided reset while transfers sit in the\lFIFOs is not safe: quiesce the bus first\l", fillcolor="white"];
+
+    core [label="Wishbone B4 Slave Core  (wb_clk domain)\nwb4_slave - u_wb4_slave (see its diagram)\naccept gate, skids, in-order termination"];
+
+    cmdf [label="Command CDC FIFO  (wb_clk -> aclk)\ngaxi_fifo_async - u_cmd_cdc_fifo (see its diagram)\nCDC_DEPTH entries (default 4), Gray pointers\n(USE_JOHNSON = 1: Johnson, any depth)"];
+    rspf [label="Response CDC FIFO  (aclk -> wb_clk)\ngaxi_fifo_async - u_rsp_cdc_fifo (see its diagram)\nCDC_DEPTH entries (default 4), Gray pointers\n(USE_JOHNSON = 1: Johnson, any depth)"];
+
+    be [label="Backend Interface  (aclk domain: aclk, aresetn)\ncmd_valid / cmd_ready + cmd_* fields\nrsp_valid / rsp_ready, rsp_status, rsp_dat",
+        fillcolor="white"];
+
+    bus -> core [dir=both, xlabel="request / STALL,\nACK / ERR / RTY, DAT_R"];
+    core -> cmdf [dir=both, penwidth=1.8, xlabel="command (wb_clk side)\n/ ready"];
+    cmdf -> be [dir=both, xlabel="cmd_valid + fields / cmd_ready\n(aclk side)"];
+    rspf -> be [dir=both, xlabel="rsp_valid + status, dat\n/ rsp_ready (aclk side)"];
+    core -> rspf [dir=both, penwidth=1.8, xlabel="response (wb_clk side)\n/ pop"];
+
+    { rank=same; bus; rst; }
+    bus -> rst [style=invis];
+    { rank=same; busy; be; }
+    busy -> be [style=invis];
+    { rank=same; cmdf; rspf; }
+    cmdf -> rspf [style=invis, minlen=3];
+}

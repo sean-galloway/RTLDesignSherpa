@@ -1,0 +1,45 @@
+// wb4_slave block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The Wishbone B4 completer bus is the top port; the queued command / response
+// backend is the bottom bar. Accepted requests drop down the left into the
+// command skid; responses climb the right through the response skid and come
+// back up as one registered ACK / ERR / RTY. No FSM: an accept gate and two
+// counters (outstanding, abandoned) keep terminations in order.
+// Source of truth: rtl/amba/wb4/wb4_slave.sv.
+digraph wb4_slave {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.70", splines=ortho, newrank=true,
+           label="wb4_slave - one Wishbone B4 completer to queued command / response ports (single clock: clk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm [label="Parameters (fixed at build)\lCLASSIC: 1 = B4 standard mode: one request at a\l    time, STALL tied 0; 0 = pipelined (STALL)\lMAX_OUTSTANDING: accepted, unterminated limit\lUSE_BURST_HINTS: 1 = CTI / BTE queued with\l    the command; 0 = cmd_cti / cmd_bte constant\l", fillcolor="white"];
+
+    bus [label="Wishbone B4 Completer Bus  s_wb_*\nin: CYC, STB, WE, ADR, DAT_W, SEL, CTI, BTE   |   out: STALL, ACK, ERR, RTY, DAT_R",
+         fillcolor="white", width=8.0];
+
+    acc  [group=L, label="Accept Gate (combinational)\naccept = CYC & STB & room\npipelined: STALL = !room | outstanding >= MAX\nCLASSIC: accept only with nothing outstanding"];
+    term [group=R, label="Termination (flops, no FSM)\nr_outstanding, r_abandoned counters\none registered ACK / ERR / RTY + DAT_R per response\ndrops responses for aborted cycles and orphans"];
+
+    cmdq [group=L, label="Command Skid Buffer\ngaxi_skid_buffer - u_cmd_skid\nCMD_DEPTH entries of {we, adr, dat, sel (, cti, bte)}"];
+    rspq [group=R, label="Response Skid Buffer\ngaxi_skid_buffer - u_rsp_skid\nRSP_DEPTH entries of {status, dat}"];
+
+    be [label="Backend Interface\nout: cmd_valid, cmd_we, cmd_adr, cmd_dat, cmd_sel (, cmd_cti, cmd_bte) / in: cmd_ready\nin: rsp_valid, rsp_status, rsp_dat / out: rsp_ready",
+        fillcolor="white", width=8.0];
+
+    bus -> acc  [dir=both, penwidth=1.8, xlabel="request (CYC, STB, WE, ADR,\nDAT_W, SEL) / STALL"];
+    acc -> cmdq [xlabel="accepted request"];
+    cmdq -> be  [dir=both, xlabel="cmd_valid + fields / cmd_ready"];
+    rspq -> be  [dir=both, xlabel="rsp_valid + status, dat\n/ rsp_ready"];
+    term -> rspq [dir=back, xlabel="response / pop"];
+    bus -> term [dir=back, xlabel="ACK / ERR / RTY, DAT_R\n(registered, in order)"];
+    acc -> term [style=dashed, headlabel="accept\n(+1 outstanding)", labelangle=-35, labeldistance=6];
+
+    { rank=same; prm; bus; }
+    { rank=same; acc; term; }
+    { rank=same; cmdq; rspq; }
+    prm -> bus [style=invis];
+    acc -> term [style=invis, minlen=3];
+    cmdq -> rspq [style=invis, minlen=3];
+}

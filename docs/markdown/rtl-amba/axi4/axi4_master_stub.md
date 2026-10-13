@@ -165,46 +165,11 @@ Why instantiate two stubs when one will do? The AXI4 Master Stub combines the re
 
 ## Functional Description
 
-### Architecture
+### Block diagram
 
-```mermaid
-flowchart LR
-    subgraph PACKED["Packed Interfaces"]
-        direction TB
-        aw_pkt["AW Packet"]
-        w_pkt["W Packet"]
-        b_pkt["B Packet"]
-        ar_pkt["AR Packet"]
-        r_pkt["R Packet"]
-    end
+![axi4_master_stub block diagram](../../assets/rtl-amba/graphviz/axi4_master_stub.png)
 
-    subgraph STUB["AXI4 Master Stub"]
-        wr_stub["axi4_master_wr_stub<br/>(Write Channels)"]
-        rd_stub["axi4_master_rd_stub<br/>(Read Channels)"]
-    end
-
-    subgraph AXI4["AXI4 Master Interface"]
-        m_aw["AW Channel"]
-        m_w["W Channel"]
-        m_b["B Channel"]
-        m_ar["AR Channel"]
-        m_r["R Channel"]
-    end
-
-    aw_pkt --> wr_stub
-    w_pkt --> wr_stub
-    wr_stub --> b_pkt
-
-    ar_pkt --> rd_stub
-    rd_stub --> r_pkt
-
-    wr_stub --> m_aw
-    wr_stub --> m_w
-    m_b --> wr_stub
-
-    rd_stub --> m_ar
-    m_r --> rd_stub
-```
+The full master stub is two child boxes: `axi4_master_wr_stub` (AW, W, B) and `axi4_master_rd_stub` (AR, R), each with its own diagram. The packed packets and the AW/AR occupancy counts are at the FUB side on top; the AXI4 master fields are at the bar. The two halves share only the clock and reset.
 
 ### Packet Formats
 

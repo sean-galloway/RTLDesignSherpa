@@ -179,43 +179,11 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 
 ### Architecture
 
-Two channels, two SKID buffers, conditional packing in between:
+Two channels, two SKID buffers, conditional packing in between.
 
-```mermaid
-flowchart LR
-    subgraph FUB["FUB Interface"]
-        direction TB
-        fub_ar["AR Channel<br/>Address/Control"]
-        fub_r["R Channel<br/>Read Data"]
-    end
+![axi5_master_rd block diagram](../../assets/rtl-amba/graphviz/axi5_master_rd.png)
 
-    subgraph SKID["SKID Buffers"]
-        direction TB
-        ar_skid["AR SKID<br/>Depth=2"]
-        r_skid["R SKID<br/>Depth=4"]
-    end
-
-    subgraph PACK["Signal Packing"]
-        direction TB
-        ar_pack["AR Packer<br/>Conditional AXI5"]
-        r_pack["R Unpacker<br/>Conditional AXI5"]
-    end
-
-    subgraph AXI["AXI5 Master"]
-        direction TB
-        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/IDUNQ<br/>CHUNKEN/TAGOP"]
-        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/IDUNQ/TAG"]
-    end
-
-    fub_ar --> ar_pack
-    ar_pack --> ar_skid
-    ar_skid --> m_ar
-
-    m_r --> r_skid
-
-    r_skid --> r_unpack["R Unpacker"]
-    r_unpack --> fub_r
-```
+The requester (FUB) side is at the top and the module boundary is the bar. AR goes down the left lane through its skid buffer and R comes back up the right lane through its own. The AXI5 fields each channel carries (NSAID, trace, MPAM, MECID, unique-ID, MTE tags, poison, chunking) ride in that channel's skid payload when their `ENABLE_*` parameter is set; a disabled field's output is tied to 0. The busy detect feeds the clock-gate wrapper, and the wakeup hold keeps `m_axi_awakeup` asserted while an accepted request is still waiting in a skid buffer, not only while `fub_axi_awakeup` is high (IHI 0022L A14.1.1).
 
 ### AXI5 Enhancements Over AXI4
 

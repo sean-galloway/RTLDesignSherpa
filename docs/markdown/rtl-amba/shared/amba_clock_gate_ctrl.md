@@ -109,6 +109,18 @@ AMBA interfaces idle a lot in real systems, and an always-on clock burns power t
 
 ## Functional Description
 
+### Block diagram
+
+![amba_clock_gate_ctrl block diagram](../../assets/rtl-amba/graphviz/amba_clock_gate_ctrl.png)
+
+The clock runs straight down the left column, from `clk_in` through the base
+`clock_gate_ctrl` to `clk_out`. The two activity valids are ORed and flopped
+into `r_wakeup`, which resets to 1 so the block starts ungated. `r_wakeup`
+drives the base controller's wakeup input, and its inverse is the `idle`
+output. The base controller's idle countdown and ICG are drawn in its own
+diagram (rtl-common `clock_gate_ctrl`); the configuration enables gating and
+sets the countdown.
+
 ### Activity Detection Logic
 
 The module ORs the activity signals from both interfaces into one wakeup:

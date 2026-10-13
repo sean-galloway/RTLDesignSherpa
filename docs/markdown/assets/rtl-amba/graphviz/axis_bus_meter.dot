@@ -1,0 +1,40 @@
+// axis_bus_meter block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The AXIS analogue of axi_bus_meter: four-bucket cycle accounting plus window-independent
+// byte / beat / packet counters on productive beats. Per-channel buckets are binned by tid.
+// Source of truth: rtl/amba/shared/axis_bus_meter.sv.
+digraph axis_bus_meter {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.65", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axis_bus_meter - cycle buckets plus byte / beat / packet counts on one AXIS channel (observer, aclk)";
+
+    win  [group=W, label="Window Control\ni_clear (one-cycle: zero all)\ni_freeze (hold every counter)", fillcolor="white"];
+    bus  [group=A, label="Stream Snoop (observed, nothing driven back)\ni_tvalid, i_tready, i_tlast, i_tstrb, i_tid", fillcolor="white"];
+
+    cls  [group=A, label="Cycle Classify (combinational)\n11 productive   10 backpressure\n01 starvation   00 idle;\nchannel = i_tid[CW-1:0]"];
+    agg  [group=W, label="Aggregate Cycle Counters (flops)\nfour 32-bit buckets, every cycle"];
+    thr  [group=A, label="Throughput Counters (flops)\non productive beats only:\nbytes += popcount(tstrb) (64-bit),\nbeats += 1, packets += tlast"];
+    pch  [group=B, label="Per-Channel Counters (flops)\nNUM_CHANNELS x four 16-bit buckets by tid\n(idle cycles not binned);\n4-bit overflow sticky per channel"];
+
+    out  [label="Outputs\no_agg_* cycle buckets   |   o_agg_bytes, o_agg_beats, o_agg_packets   |   o_ch_* [NUM_CHANNELS], o_ch_overflow",
+          fillcolor="white", width=9.5];
+
+    bus -> cls [xlabel="tvalid, tready, tid"];
+    bus -> thr [xlabel="tstrb, tlast"];
+    cls -> agg [xlabel="bucket"];
+    cls -> thr [xlabel="productive"];
+    cls -> pch [xlabel="bucket, channel"];
+    win -> agg [style=dashed, xlabel="clear / freeze"];
+    agg -> out [xlabel="cycle buckets"];
+    thr -> out [xlabel="bytes, beats, packets"];
+    pch -> out [xlabel="per-channel"];
+
+    { rank=same; win; bus; }
+    win -> bus [style=invis, minlen=2];
+    { rank=same; agg; thr; pch; }
+    agg -> thr [style=invis];
+    thr -> pch [style=invis];
+}

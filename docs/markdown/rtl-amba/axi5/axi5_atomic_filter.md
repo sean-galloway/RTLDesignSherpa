@@ -146,6 +146,12 @@ The ports added for the R path (GitHub #102 item 2):
 
 ## Functional Description
 
+### Block diagram
+
+![axi5_atomic_filter block diagram](../../assets/rtl-amba/graphviz/axi5_atomic_filter.png)
+
+The upstream port is at the top and the downstream (write-path fabric) port is the bar. W runs down the left through the W steer; AW comes down the center into the classifier. A read-return atomic (`AWATOP[5]` = 1: AtomicLoad, AtomicSwap, AtomicCompare) is swallowed: its AW is accepted but not forwarded, the route queue marks its W burst to be consumed and discarded, and two queues record what is owed -- a DECERR B response (committed only once the W burst has been consumed) and the A6.4.7 read beats. Responses climb the right through two merges, which are the picks: downstream first, else the local DECERR, with the source held until the beat is accepted (B) or until RLAST (R). Their wide edge faces down because the contenders arrive from below. Address and data payload route around the filter.
+
 The filter sits on the write path and decides, per AW,
 whether the burst is forwarded downstream or swallowed. An unsupported atomic
 (`AWATOP` naming a load, swap or compare) is swallowed: its W beats are discarded,

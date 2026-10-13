@@ -1,0 +1,55 @@
+// axi4ace_snoop_monitor_lite block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). A pure observer of the ACE
+// snoop channels (AC request, CR response, CD data); taps are inputs only.
+// Flows:
+//   track  - AC handshake -> snoop table in AC-issue order (a FIFO: no pick)
+//   close  - CR and CDLAST close the OLDEST outstanding snoop (ACE orders each
+//            snoop channel), latency and beat count read from the head
+//   events - error / timeout / completion -> event pick (trapezium) -> output
+//            queue -> monbus bar
+// Source of truth: rtl/amba/ocelus/axi4ace_snoop_monitor_lite.sv.
+digraph axi4ace_snoop_monitor_lite {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="axi4ace_snoop_monitor_lite - ACE snoop-channel monitor (AC / CR / CD): completions with latency, errors, timeouts\n(single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- inputs (white) ----
+    act  [group=C, label="AC Tap (snoop request, observed)\nac_addr, ac_snoop, ac_valid & ac_ready", fillcolor="white"];
+    crt  [group=D, label="CR + CD Taps (observed)\ncr_resp, cr_valid & cr_ready;\ncd_last, cd_valid & cd_ready", fillcolor="white"];
+    cfg  [label="Config (runtime input ports)\lcfg_monitor_enable (0 also clears)\lcfg_error / compl / timeout_enable\lcfg_timeout_cycles (us; 0 = never)\lcfg_freq_sel; i_mon_time; clear\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lMAX_SNOOPS: outstanding snoops tracked\lOUT_DEPTH: event queue entries\l", fillcolor="white"];
+
+    // ---- logic ----
+    tbl  [group=C, label="Snoop Table (flops), AC-issue order, MAX_SNOOPS entries\naddress, snoop type, issue time, CD beat count;\ntable full: the snoop is refused and counted, left untracked"];
+    cor  [group=D, label="Head Correlate (combinational)\nCR and CDLAST belong to the OLDEST snoop;\nCR or CD with nothing pending: orphan"];
+    tick [label="Microsecond Tick\ncounter_freq_invariant - u_tick\nhead age vs cfg_timeout_cycles"];
+    epk  [group=C, label="Event Pick\nError > Timeout > Completion\n(an error suppresses that snoop's completion)",
+          shape=invtrapezium, width=5.6, height=0.85, fixedsize=true, fillcolor="#BFD7EE"];
+    oq   [group=C, label="Output Queue (OUT_DEPTH entries)\nfull: event dropped and counted; the count is sent as\nError/EVENT_DROPPED when the queue has room and is idle"];
+
+    // ---- the bar ----
+    outs [group=C, label="Ocelus Bus + Status\nmonbus_valid, monbus_packet, monbus_timestamp / monbus_ready   |\nactive_transactions, error_count, transaction_count, dropped_count",
+          fillcolor="white", width=7.5];
+
+    // ---- flow ----
+    act  -> tbl  [xlabel="AC handshake: allocate at the tail"];
+    crt  -> cor  [xlabel="CR, CDLAST handshakes"];
+    cor  -> tbl  [dir=both, xlabel="head entry /\nretire"];
+    tbl  -> epk  [xlabel="completion: CRRESP + snoop type,\nlatency, address, beat count"];
+    cor  -> epk  [xlabel="CRRESP error, orphans"];
+    tick -> epk  [xlabel="head timeout"];
+    epk  -> oq   [xlabel="one entry", penwidth=1.8];
+    oq   -> outs [xlabel="monbus_*", penwidth=1.8];
+    cfg  -> tick [style=dashed, xlabel="timeout, freq"];
+
+    // ---- rank pinning ----
+    { rank=same; prm; act; crt; cfg; }
+    { rank=same; tbl; cor; tick; }
+    prm -> act -> crt -> cfg [style=invis];
+    tbl -> cor [style=invis, minlen=4];
+    cor -> tick [style=invis];
+}

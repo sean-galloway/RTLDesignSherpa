@@ -166,67 +166,16 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Functional Description
 
-```mermaid
-flowchart LR
-    subgraph APB5["APB5 Slave Interface"]
-        psel["PSEL"]
-        pen["PENABLE"]
-        paddr["PADDR"]
-        pwrite["PWRITE"]
-        pwdata["PWDATA"]
-        pstrb["PSTRB"]
-        pprot["PPROT"]
-        pauser["PAUSER"]
-        pwuser["PWUSER"]
-        pready["PREADY"]
-        prdata["PRDATA"]
-        pslverr["PSLVERR"]
-        pwakeup["PWAKEUP"]
-        pruser["PRUSER"]
-        pbuser["PBUSER"]
-    end
+### Block diagram
 
-    subgraph CTRL["Control Logic"]
-        fsm["APB5<br/>FSM"]
-        buf["Skid<br/>Buffer"]
-    end
+![apb5_slave block diagram](../../assets/rtl-amba/graphviz/apb5_slave.png)
 
-    subgraph CMD["Command Interface"]
-        cv["cmd_valid"]
-        cr["cmd_ready"]
-        cd["cmd_data"]
-    end
-
-    subgraph RSP["Response Interface"]
-        rv["rsp_valid"]
-        rr["rsp_ready"]
-        rd["rsp_data"]
-    end
-
-    psel --> fsm
-    pen --> fsm
-    paddr --> buf
-    pwrite --> buf
-    pwdata --> buf
-    pstrb --> buf
-    pprot --> buf
-    pauser --> buf
-    pwuser --> buf
-
-    fsm --> pready
-    buf --> cv
-    buf --> cd
-    cr --> buf
-
-    rv --> fsm
-    rd --> prdata
-    rd --> pslverr
-    rd --> pruser
-    rd --> pbuser
-    rr --> fsm
-
-    pwakeup --> fsm
-```
+Same transfer / response lanes as `apb4_slave`, with the user fields carried
+through both skids. With `ENABLE_PARITY = 1`, the check-bit check covers every APB
+input (and PWAKEUP) and reports `parity_error_wdata` / `parity_error_ctrl`, while
+the check-bit generate block drives the *CHK outputs for PRDATA, PRUSER, PBUSER,
+PREADY and PSLVERR. PWAKEUP itself is only checked here; this completer does not
+wait for it.
 
 ### APB5 Slave Protocol
 

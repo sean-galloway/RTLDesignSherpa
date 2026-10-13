@@ -234,6 +234,12 @@ module axi4ace_slave_rd #(
 
 ## Functional Description
 
+### Block diagram
+
+![axi4ace_slave_rd block diagram](../../assets/rtl-amba/graphviz/axi4ace_slave_rd.png)
+
+The axi4 read slave's layout (see `axi4_slave_rd`) plus what ACE adds. AR, with `arsnoop`, `ardomain` and `arbar`, drops down the left through its skid buffer to the backend. R, with the 4-bit `rresp` (IsShared, PassDirty), climbs the right. RACK has no payload and no handshake: it is a wire from `s_axi_rack` to `fub_axi_rack`, drawn dashed down the far right.
+
 ### Dual Buffer Design
 
 The module buffers AR from the slave side to the backend and R from the backend back to the slave side:

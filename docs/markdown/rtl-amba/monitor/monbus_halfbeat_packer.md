@@ -91,6 +91,12 @@ This module has no parameters.
 
 ## Functional Description
 
+### Block diagram
+
+![monbus_halfbeat_packer block diagram](../../assets/rtl-amba/graphviz/monbus_halfbeat_packer.png)
+
+Beats from monbus_compressor enter at the top with their half-slot sideband. The case decode chooses one of five cases each cycle: pair, buffer, forward, flush-then-forward, or idle flush. The output select builds the 64-bit beat. A first half-slot waits in the pending register on the right until a second arrives to pair with it. Any full beat, or an idle input, flushes it first with a NOP partner, so record order is never broken.
+
 ### Beat Layout
 
 The paired beat matches `monbus_compressor.py`:

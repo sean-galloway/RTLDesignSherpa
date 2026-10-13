@@ -183,64 +183,21 @@ Total: 285 bits per entry. With `MAX_TRANSACTIONS=16`, the trans_table is
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_trans_mgr block diagram](../../assets/rtl-amba/graphviz/axi_monitor_trans_mgr.png)
+
+The entries live in `monitor_trans_cam`, drawn as the storage bar; the three
+ID lookups and the free-slot vector read it straight up. Slot Resolve maps
+each handshake to an entry: the CAM hit for its ID, or a newly allocated slot,
+since a data or response phase may arrive before its address. Write data
+carries no ID, so W beats go to the oldest open write entry, or to the head of
+the AW-order queue when `USE_WDATA_ORDER_Q=1`. Every slot computes its next
+payload in parallel and writes it back. An entry is freed once it is terminal
+and the reporter has reported its event, and the table climbs the right edge
+to the outputs.
+
 ### Architecture
-
-![axi_monitor_trans_mgr block diagram](../../assets/rtl-amba/axi_monitor_trans_mgr.png)
-
-Source: [`axi_monitor_trans_mgr.mmd`](../../assets/rtl-amba/axi_monitor_trans_mgr.mmd)
-
-```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
-flowchart TB
-    subgraph Inputs["Monitored Channel Inputs"]
-        CMD["cmd_valid/ready/id/<br/>addr/len/size/burst"]
-        DATA["data_valid/ready/id/<br/>last/resp"]
-        RESP["resp_valid/ready/id/<br/>code (writes only)"]
-        TS["timestamp[31:0]"]
-        EVT_FB["i_event_reported_flags<br/>(from reporter)"]
-        TO_FB["i_timeout_detected<br/>(from timeout block)"]
-    end
-
-    subgraph axi_monitor_trans_mgr["axi_monitor_trans_mgr (CAM-backed)"]
-        WID_MATCH["WID-less write<br/>data-channel match<br/>(state predicate, oldest-first)"]
-        AGE["Per-slot age ranks (r_age)<br/>+ pick_oldest"]
-        WANTS["wants_alloc derivation<br/>(hit suppression + cmd-entry cap)"]
-        CAM_INST["monitor_trans_cam<br/>(3 lookup + alloc + storage)"]
-        NEXT_STATE["Per-slot next-payload<br/>combinational<br/>(generate loop)"]
-        CLEANUP["Cleanup +<br/>event_reported feedback"]
-        COUNT_PIPE["active_count<br/>registered pop-count"]
-    end
-
-    subgraph Outputs["Outputs"]
-        TT["trans_table[N]<br/>bus_transaction_t"]
-        AC["active_count[7:0]"]
-    end
-
-    CMD --> WANTS
-    DATA --> WANTS
-    RESP --> WANTS
-    CMD --> CAM_INST
-    DATA --> CAM_INST
-    RESP --> CAM_INST
-    WANTS --> CAM_INST
-    DATA --> WID_MATCH
-    CAM_INST --> WID_MATCH
-    AGE --> WID_MATCH
-    CAM_INST --> AGE
-    CAM_INST --> NEXT_STATE
-    WID_MATCH --> NEXT_STATE
-    CMD --> NEXT_STATE
-    DATA --> NEXT_STATE
-    RESP --> NEXT_STATE
-    TS --> NEXT_STATE
-    EVT_FB --> NEXT_STATE
-    TO_FB --> NEXT_STATE
-    CLEANUP --> NEXT_STATE
-    NEXT_STATE -.write port.-> CAM_INST
-    CAM_INST --> TT
-    CAM_INST --> COUNT_PIPE
-    COUNT_PIPE --> AC
-```
 
 The split of responsibilities is the whole story here. The trans_mgr owns:
 

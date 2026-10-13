@@ -1,0 +1,31 @@
+// axi_monitor_reporter_perf block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Two counters fed by the reporter's marked masks, and a small sequencer that
+// offers one count packet at a time when the output is idle. Sequencer states
+// 0..2 are placeholders that emit nothing.
+// Source of truth: rtl/amba/ocelus/axi_monitor_reporter_perf.sv.
+digraph axi_monitor_reporter_perf {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c,
+           label="axi_monitor_reporter_perf - completed / error count packets (single clock: aclk, aresetn)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    tin  [label="From the Reporter\nerror_marked_mask, compl_marked_mask\n(entries marked reported this cycle)", fillcolor="white"];
+    hs   [label="Handshake (from the reporter)\noutput_busy, pkt_taken", fillcolor="white"];
+    cfg  [label="Enable (input port)\ncfg_perf_enable: 0 = no perf packets", fillcolor="white"];
+    cnt  [label="Count Registers (flops)\nr_completed_count, r_error_count (16-bit)\n+1 for each marked entry"];
+    seq  [label="Packet Sequencer (flops, r_state)\nsteps while enabled and the output is idle:\n0, 1, 2 (placeholders, no packet) > 3: completed > 4: errors;\nholds while its packet waits to be taken"];
+    pkt  [label="Packet Build (combinational)\nstate 3, count > 0: AXI_PERF_COMPLETED_COUNT\nstate 4, count > 0: AXI_PERF_ERROR_COUNT\ndata = the count"];
+    out  [label="Outputs\npkt_valid, pkt_type = PktTypePerf, pkt_event_code, pkt_data (to the output pick)\nperf_completed_count, perf_error_count (to the monitor's outputs)", fillcolor="white", width=7.5];
+
+    tin -> cnt [xlabel="marked masks", penwidth=1.8];
+    cfg -> seq [style=dashed, xlabel="enable"];
+    hs  -> seq [style=dashed, xlabel="busy, taken"];
+    cnt -> pkt [xlabel="counts", penwidth=1.8];
+    seq -> pkt [xlabel="state"];
+    pkt -> out [xlabel="perf packet, counts", penwidth=1.8];
+    { rank=same; tin; hs; cfg; }
+    tin -> hs [style=invis]; hs -> cfg [style=invis];
+    { rank=same; cnt; seq; }
+    cnt -> seq [style=invis];
+}

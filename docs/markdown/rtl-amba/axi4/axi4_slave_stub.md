@@ -165,48 +165,15 @@ The AXI4 Slave Stub gives you a simplified packed-data interface for receiving b
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_slave_stub block diagram](../../assets/rtl-amba/graphviz/axi4_slave_stub.png)
+
+The full slave stub is two child boxes: `axi4_slave_wr_stub` (AW, W, B) and `axi4_slave_rd_stub` (AR, R), each with its own diagram. The AXI4 slave fields are on top; the packed packets and the AW/AR occupancy counts leave through the bar toward the backend. The two halves share only the clock and reset.
+
 ### Architecture
 
-The combined stub is a thin wrapper -- the channel-specific stubs do the real work, and the packed packet interfaces are what your testbench talks to:
-
-```mermaid
-flowchart LR
-    subgraph AXI4["AXI4 Slave Interface"]
-        s_aw["AW Channel"]
-        s_w["W Channel"]
-        s_b["B Channel"]
-        s_ar["AR Channel"]
-        s_r["R Channel"]
-    end
-
-    subgraph STUB["AXI4 Slave Stub"]
-        wr_stub["axi4_slave_wr_stub<br/>(Write Channels)"]
-        rd_stub["axi4_slave_rd_stub<br/>(Read Channels)"]
-    end
-
-    subgraph PACKED["Packed Interfaces"]
-        direction TB
-        aw_pkt["AW Packet"]
-        w_pkt["W Packet"]
-        b_pkt["B Packet"]
-        ar_pkt["AR Packet"]
-        r_pkt["R Packet"]
-    end
-
-    s_aw --> wr_stub
-    s_w --> wr_stub
-    wr_stub --> s_b
-
-    s_ar --> rd_stub
-    rd_stub --> s_r
-
-    wr_stub --> aw_pkt
-    wr_stub --> w_pkt
-    b_pkt --> wr_stub
-
-    rd_stub --> ar_pkt
-    r_pkt --> rd_stub
-```
+The combined stub is a thin wrapper -- the channel-specific stubs do the real work, and the packed packet interfaces are what your testbench talks to (see the block diagram above).
 
 ### Packet Formats
 

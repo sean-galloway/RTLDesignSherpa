@@ -121,6 +121,12 @@ module gaxi_skid_buffer #(
 
 ## Functional Description
 
+### Block diagram
+
+![gaxi_skid_buffer block diagram](../../assets/rtl-amba/graphviz/gaxi_skid_buffer.png)
+
+Write beats drop down the left into the slot shift register; the head slot (slot 0) goes back up the right as `rd_data`. A write lands at the tail (slot `count`), a read shifts every slot down by one, and a simultaneous write and read shifts and loads slot `count-1`. The center block holds the slot count and computes `wr_ready` and `rd_valid` one cycle ahead, so both handshake outputs are registered.
+
 ### Operation Modes
 
 The skid buffer operates in different modes based on occupancy:

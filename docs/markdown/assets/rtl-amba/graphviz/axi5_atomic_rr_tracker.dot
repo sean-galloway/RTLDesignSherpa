@@ -1,0 +1,54 @@
+// axi5_atomic_rr_tracker block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// A small CAM, laid out like the approved rtl-common cam_tag: three request flows, one column
+// and one white port each (allocate, lookup, release), over the entry array bar. Allocation
+// takes the lowest free slot (a genuine many-to-one pick: the trapezium). Lookup compares the
+// presented RID against every live entry; live IDs are unique by the AXI5 atomic rule, so the
+// match is at most one-hot and its encode is a plain box, not a pick.
+// No protocol state machine: a valid vector, two arrays and two priority encodes.
+// Source of truth: rtl/amba/axi5/axi5_atomic_rr_tracker.sv.
+digraph axi5_atomic_rr_tracker {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.75", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi5_atomic_rr_tracker - per-ID return routing for read-return atomics (single clock: aclk, aresetn)";
+
+    prm    [label="Parameters (fixed at build)\lDEPTH: read-return atomics tracked at once\lDATA_WIDTH: routing tag stored per entry\l    (where the R beats must go)\l", fillcolor="white"];
+    al_in  [group=A, label="Allocate Port\nalloc, alloc_id, alloc_data  /  full\n(an accepted read-return atomic AW;\ncaller gates the AW on !full)", fillcolor="white"];
+    lk_in  [group=C, label="Lookup Port\nlookup_id (the RID presented)\n/  hit, hit_data", fillcolor="white"];
+    rl_in  [group=R, label="Release Port\nrelease_beat (R handshake\non the last beat)", fillcolor="white"];
+
+    free   [group=A, label="Free-Slot Pick\nlowest slot with r_valid == 0",
+            shape=invtrapezium, width=3.0, height=0.55, fixedsize=true, fillcolor="#BFD7EE"];
+    full   [group=F, label="Full Flag (combinational)\nfull = &r_valid"];
+    match  [group=C, label="Lookup Match (combinational)\nDEPTH parallel compares:\nr_valid & r_id == lookup_id\nhit = |match"];
+    enc    [group=C, label="Match Encode + Read\nhit slot (one-hot by the AXI5\nunique-ID rule); hit_data = r_data[slot]"];
+    upd    [group=A, label="Entry Update (flops on aclk)\nalloc & !full: set slot, store id + data\nrelease_beat & hit: clear the hit slot\n(same cycle, never the same slot)"];
+
+    arr    [label="Entry Array  (DEPTH entries, flops)\nr_valid[DEPTH]  +  r_id[DEPTH][IW]  +  r_data[DEPTH][DW]",
+            width=10.0, height=0.7];
+
+    // allocate: down the left column
+    al_in -> free  [xlabel="alloc"];
+    free  -> upd   [penwidth=1.8, xlabel="free slot"];
+    upd   -> arr   [xlabel="write / clear"];
+    // lookup: the center column reads the array straight up, answers its port
+    match -> arr   [dir=back, xlabel="ids + valid"];
+    lk_in -> match [dir=both, xlabel="lookup_id / hit"];
+    match -> enc   [xlabel="match vector"];
+    enc   -> lk_in [constraint=false, xlabel="hit_data"];
+    // release: needs the hit slot from the lookup
+    rl_in -> upd   [style=dashed, constraint=false, xlabel="release_beat"];
+    enc   -> upd   [xlabel="hit slot"];
+    // occupancy
+    free  -> arr   [dir=back, xlabel="r_valid"];
+    full  -> arr   [dir=back, xlabel="r_valid"];
+    full  -> al_in [style=dashed, constraint=false, xlabel="full"];
+
+    { rank=same; prm; al_in; lk_in; rl_in; }
+    prm -> al_in [style=invis]; al_in -> lk_in [style=invis]; lk_in -> rl_in [style=invis];
+    { rank=same; full; free; match; }
+    full -> free [style=invis]; free -> match [style=invis, minlen=2];
+}

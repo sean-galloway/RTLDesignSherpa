@@ -123,6 +123,16 @@ module apb4_slave_stub #(
 
 ## Functional Description
 
+### Block diagram
+
+![apb4_slave_stub block diagram](../../assets/rtl-amba/graphviz/apb4_slave_stub.png)
+
+A standalone completer (it does not instantiate `apb4_slave`). The APB bus enters
+at the top; a two-state FSM (IDLE > XFER_DATA) pushes the command on PSEL and
+PENABLE into the command skid, which feeds the packed backend interface. The
+response climbs the right lane through the response skid, and in XFER_DATA the FSM
+drives PREADY, PRDATA and PSLVERR combinationally in the same clock it pops it.
+
 ### Packet Interface
 
 The stub uses packed interfaces to simplify testbench integration:

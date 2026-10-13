@@ -1,0 +1,38 @@
+// axi_bus_meter block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Pure observer on one AXI data channel: each cycle's valid/ready pair picks one of four
+// buckets; aggregate and per-channel counters increment. Window control is dashed sideband.
+// Source of truth: rtl/amba/shared/axi_bus_meter.sv.
+digraph axi_bus_meter {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.65", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi_bus_meter - four-bucket cycle accounting on one AXI data channel (observer, one clock: aclk)";
+
+    bus  [group=A, label="Bus Snoop (observed, nothing driven back)\ni_valid, i_ready", fillcolor="white"];
+    chn  [group=B, label="Channel Attribution\ni_channel_id, i_channel_valid\n(caller drives valid while a channel owns the cycle)", fillcolor="white"];
+    win  [group=W, label="Window Control\ni_clear (one-cycle: zero all)\ni_freeze (hold every counter)", fillcolor="white"];
+
+    cls  [group=A, label="Cycle Classify (combinational)\n11 productive   10 backpressure\n01 starvation   00 idle"];
+    agg  [group=A, label="Aggregate Counters (flops)\nfour 32-bit buckets, every cycle"];
+    pch  [group=B, label="Per-Channel Counters (flops)\nNUM_CHANNELS x four 16-bit buckets,\nonly while i_channel_valid;\na 4-bit overflow sticky per channel"];
+
+    out  [label="Outputs\no_agg_productive / _backpressure / _starvation / _idle   |   o_ch_* [NUM_CHANNELS]   |   o_ch_overflow",
+          fillcolor="white", width=9.0];
+
+    bus -> cls [xlabel="valid, ready"];
+    cls -> agg [xlabel="bucket"];
+    cls -> pch [xlabel="bucket"];
+    chn -> pch [xlabel="channel id, valid"];
+    win -> agg [style=dashed, xlabel="clear / freeze"];
+    win -> pch [style=dashed, xlabel="clear / freeze"];
+    agg -> out [xlabel="aggregate counts"];
+    pch -> out [xlabel="per-channel counts,\noverflow"];
+
+    { rank=same; win; bus; chn; }
+    win -> bus [style=invis];
+    bus -> chn [style=invis, minlen=2];
+    { rank=same; agg; pch; }
+}

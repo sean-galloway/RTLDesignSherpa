@@ -124,6 +124,12 @@ The `s_axil_*` side faces the bus; your backend drives the `fub_*` side.
 
 ## Functional Description
 
+### Block diagram
+
+![axil5_slave_wr block diagram](../../assets/rtl-amba/graphviz/axil5_slave_wr.png)
+
+The AXI5-Lite bus (`s_axil_*`) sits at the top and the completer (`fub_*`) is the bar at the bottom. AW and W run down through their own `gaxi_skid_buffer`s, and the B response climbs back up its own lane on the right through a third, so every channel crosses exactly one buffer. This is the axil4 structure; AXI5-Lite only adds carried fields -- the ID on every channel and the optional USER, TRACE and POISON groups, each dropped from the skid payload (outputs driven 0) when its `ENABLE_*` parameter is 0, as the Parameters legend states. `busy` is high while any skid buffer holds a beat.
+
 ### Optional signal groups
 
 The ID plus three optional groups -- the ones IHI 0022L Table B2.2 allows on AXI5-Lite. The ID has no enable (it is sized by `ID_WIDTH`); each group is gated by its own `ENABLE_*` parameter and contributes to the packed SKID payload only when enabled.

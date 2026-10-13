@@ -193,48 +193,9 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 
 ### Architecture
 
-```mermaid
-flowchart LR
-    subgraph FUB["FUB Interface"]
-        direction TB
-        fub_aw["AW Channel<br/>Address/Control"]
-        fub_w["W Channel<br/>Write Data"]
-        fub_b["B Channel<br/>Response"]
-    end
+![axi5_master_wr block diagram](../../assets/rtl-amba/graphviz/axi5_master_wr.png)
 
-    subgraph SKID["SKID Buffers"]
-        direction TB
-        aw_skid["AW SKID<br/>Depth=2"]
-        w_skid["W SKID<br/>Depth=4"]
-        b_skid["B SKID<br/>Depth=2"]
-    end
-
-    subgraph PACK["Signal Packing"]
-        direction TB
-        aw_pack["AW Packer<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>IDUNQ/TAGOP"]
-        w_pack["W Packer<br/>POISON/TAG<br/>TAGUPDATE"]
-        b_unpack["B Unpacker<br/>TRACE/IDUNQ<br/>TAGMATCH[1:0]"]
-    end
-
-    subgraph AXI["AXI5 Master"]
-        direction TB
-        m_aw["AW Channel"]
-        m_w["W Channel"]
-        m_b["B Channel"]
-    end
-
-    fub_aw --> aw_pack
-    aw_pack --> aw_skid
-    aw_skid --> m_aw
-
-    fub_w --> w_pack
-    w_pack --> w_skid
-    w_skid --> m_w
-
-    m_b --> b_skid
-    b_skid --> b_unpack
-    b_unpack --> fub_b
-```
+The requester (FUB) side is at the top and the module boundary is the bar. W takes its own lane down the left, AW goes down the center, and B comes back up the right lane, each through its own skid buffer. The AXI5 fields each channel carries (NSAID, trace, MPAM, MECID, unique-ID, MTE tags, poison, and AWATOP for atomics) ride in that channel's skid payload when their `ENABLE_*` parameter is set; a disabled field's output is tied to 0. The busy detect feeds the clock-gate wrapper, and the wakeup hold keeps `m_axi_awakeup` asserted while an accepted request is still waiting in a skid buffer, not only while `fub_axi_awakeup` is high (IHI 0022L A14.1.1).
 
 ### AXI5 Enhancements Over AXI4
 

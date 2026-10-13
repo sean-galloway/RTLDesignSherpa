@@ -1,0 +1,38 @@
+// axi_monitor_reporter_threshold block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Two threshold checks side by side: the active-transaction count, and per-entry
+// latency (flopped) with a lowest-index pick over the entries that crossed.
+// Each check has a "crossed" flop so one crossing sends one packet. Active count
+// has priority in the packet select.
+// Source of truth: rtl/amba/ocelus/axi_monitor_reporter_threshold.sv.
+digraph axi_monitor_reporter_threshold {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c,
+           label="axi_monitor_reporter_threshold - active-count and latency threshold packets (single clock: aclk, aresetn)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    prm  [label="Parameters (fixed at build)\lIS_READ: 1 = latency is data - addr timestamp,\l    0 = resp - addr timestamp\l", fillcolor="white"];
+    tin  [label="From the Reporter\ntrans_table[MAX_TRANSACTIONS] (snapshot)\noutput_busy, pkt_taken (handshake)", fillcolor="white"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_threshold_enable: 0 = no threshold packets\lactive_trans_threshold: in-flight count limit\llatency_threshold: per-transaction latency limit\l", fillcolor="white"];
+    act  [label="Active Count (combinational)\nw_active_count = entries valid and not\nCOMPLETE / ERROR; detect when it exceeds\nthe limit, not yet reported, output not busy"];
+    lat  [label="Per-Entry Latency (flops)\nr_latency[i] = end - addr timestamp;\nr_latency_over_thresh[i] = COMPLETE entry\nwith latency above the limit"];
+    lpk  [label="Latency Pick\nlowest over-threshold entry (w_lat_sel)", shape=invtrapezium, width=3.8, height=0.7, fixedsize=true, fillcolor="#BFD7EE"];
+    hys  [label="Crossed Flags (flops)\nr_active_crossed: set when the count packet is taken,\ncleared once the count falls back to the limit;\nr_latency_crossed: set when taken, cleared when none over"];
+    sel  [label="Packet Select (combinational)\nactive-count packet first (data = count);\nelse latency packet (data = latency, entry channel)"];
+    out  [label="Outputs (to the reporter's output pick)\npkt_valid, pkt_type = PktTypeThreshold, pkt_event_code\n(AXI_THRESH_ACTIVE_COUNT or AXI_THRESH_LATENCY), pkt_channel, pkt_data", fillcolor="white", width=7.5];
+
+    tin -> act [xlabel="table states"];
+    tin -> lat [xlabel="table timestamps"];
+    cfg -> lat [style=dashed, xlabel="latency_threshold"];
+    lat -> lpk [xlabel="over-threshold mask", penwidth=1.8];
+    act -> sel [xlabel="count crossed", penwidth=1.8];
+    lpk -> sel [xlabel="w_lat_sel, latency", penwidth=1.8];
+    hys -> sel [style=dashed, xlabel="already reported"];
+    sel -> out [xlabel="threshold packet", penwidth=1.8];
+    { rank=same; prm; tin; cfg; }
+    prm -> tin [style=invis]; tin -> cfg [style=invis];
+    { rank=same; act; lat; }
+    act -> lat [style=invis];
+    { rank=same; hys; lpk; }
+    hys -> lpk [style=invis];
+}

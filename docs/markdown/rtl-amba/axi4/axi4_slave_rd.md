@@ -197,30 +197,15 @@ Mirrors the slave interface but in the opposite direction (output on AR, input o
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_slave_rd block diagram](../../assets/rtl-amba/graphviz/axi4_slave_rd.png)
+
+AR travels down the left lane from the s_axi slave port through its own `gaxi_skid_buffer` to the backend (fub_axi); read data (R) comes back up the right lane through a second skid buffer. Busy Detect sits between the lanes: it watches both buffers' occupancy and the incoming valids, and drives `busy`, the activity input the `_cg` clock-gated wrapper uses. `SKID_DEPTH_AR` and `SKID_DEPTH_R` set how many entries each buffer holds.
+
 ### Architecture
 
-Two independent `gaxi_skid_buffer` instances provide the elastic buffering, one per read channel:
-
-```mermaid
-flowchart LR
-    subgraph SL["Slave<br/>(s_axi_*)"]
-        sar["ar*"]
-        sr["r*"]
-    end
-
-    subgraph BUF["Skid Buffers"]
-        arb["AR Buffer<br/>(depth=2)"]
-        rb["R Buffer<br/>(depth=4)"]
-    end
-
-    subgraph BE["Backend<br/>(fub_axi_*)"]
-        bar["ar*"]
-        br["r*"]
-    end
-
-    sar --> arb --> bar
-    br --> rb --> sr
-```
+Two independent `gaxi_skid_buffer` instances provide the elastic buffering, one per read channel (see the block diagram above).
 
 ### Channel Operations
 

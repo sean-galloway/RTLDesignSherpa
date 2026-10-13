@@ -133,34 +133,13 @@ them yourself before using them in `aclk`.
 
 ### Architecture
 
-```mermaid
-flowchart LR
-    subgraph APB_CLK["APB Clock Domain"]
-        apb_if["APB5<br/>Interface"]
-        cmd_sync["Command<br/>Sync"]
-    end
+![apb5_slave_cdc block diagram](../../assets/rtl-amba/graphviz/apb5_slave_cdc.png)
 
-    subgraph CDC["Clock Domain Crossing"]
-        cmd_fifo["Async<br/>CMD FIFO"]
-        rsp_fifo["Async<br/>RSP FIFO"]
-    end
-
-    subgraph BACKEND_CLK["Backend Clock Domain"]
-        rsp_sync["Response<br/>Sync"]
-        backend["Backend<br/>Interface"]
-    end
-
-    apb_if --> cmd_sync
-    cmd_sync --> cmd_fifo
-    cmd_fifo --> backend
-
-    backend --> rsp_sync
-    rsp_sync --> rsp_fifo
-    rsp_fifo --> apb_if
-
-    pclk["pclk"] --> APB_CLK
-    aclk["aclk"] --> BACKEND_CLK
-```
+The APB side runs on `pclk`: the bus feeds the wrapped `apb5_slave` (one box; see
+its diagram). Each direction crosses to the `aclk` backend through its own
+`gaxi_fifo_async` (`max(DEPTH, 4)` entries): the command drops down the left lane
+(pclk to aclk), the response climbs the right lane (aclk to pclk). The Gray-pointer
+crossings are inside the async FIFOs.
 
 ### CDC Mechanism
 

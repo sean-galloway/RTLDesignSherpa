@@ -128,6 +128,12 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Functional Description
 
+### Block diagram
+
+![gaxi_drop_fifo_sync block diagram](../../assets/rtl-amba/graphviz/gaxi_drop_fifo_sync.png)
+
+The `gaxi_fifo_sync` structure with a drop port in the center column. A drop request starts the 4-state drop FSM; in `DROP_ACTIVE` it advances the read pointer by `drop_count` (or loads it with the write pointer for `drop_all`), and while the drop is in progress `wr_ready` and `rd_valid` are forced low. `drop_ready` returns once the pointers have settled.
+
 ### Drop by Count
 
 When `drop_valid=1` and `drop_all=0`, the FIFO removes `drop_count` oldest entries:

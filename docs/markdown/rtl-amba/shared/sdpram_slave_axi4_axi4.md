@@ -166,6 +166,17 @@ This is the pure-AXI4 permutation of the family. When both the producer and cons
 
 ## Functional Description
 
+### Block diagram
+
+![sdpram_slave_axi4_axi4 block diagram](../../assets/rtl-amba/graphviz/sdpram_slave_axi4_axi4.png)
+
+The write leaf (AXI4) and read leaf (AXI4) each sit between their bus port and
+`sdpram_core`, which is drawn as the bottom bar (its queues, burst trackers
+and BRAM are in its own diagram). Requests go down each side and responses
+come back up the same edge: AW and W down and B up on the left, AR down and R
+up on the right. The leaves supply the skid buffers; on the FUB side, both carry real id, len, size and burst.
+The bulk-clear handshake goes straight to the core.
+
 ### Structure
 
 The wrapper is three instances and a little glue:

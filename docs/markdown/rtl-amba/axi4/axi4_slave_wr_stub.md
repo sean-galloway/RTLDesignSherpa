@@ -143,39 +143,15 @@ The AXI4 Slave Write Stub gives you a simplified packed-data interface on the re
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_slave_wr_stub block diagram](../../assets/rtl-amba/graphviz/axi4_slave_wr_stub.png)
+
+This stub is `axi4_slave_wr` with a packed-packet interface at the bottom, toward the backend: each channel's fields travel as one packet (`*_pkt`) through its own `gaxi_skid_buffer` (`inst_*_phase`), and are unpacked onto, or packed from, the AXI4 fields at the other side. The AW buffer's occupancy is exported as `fub_axi_aw_count`. There is no busy output and no clock gating.
+
 ### Architecture
 
-One skid buffer per channel, packets in and out the other side -- that's the whole trick:
-
-```mermaid
-flowchart LR
-    subgraph AXI4["AXI4 Interface"]
-        s_aw["AXI4<br/>AW Channel"]
-        s_w["AXI4<br/>W Channel"]
-        s_b["AXI4<br/>B Channel"]
-    end
-
-    subgraph STUB["AXI4 Slave Write Stub"]
-        aw_skid["AW Skid<br/>Buffer"]
-        w_skid["W Skid<br/>Buffer"]
-        b_skid["B Skid<br/>Buffer"]
-    end
-
-    subgraph PACKED["Packed Interface"]
-        aw_pkt["AW Packet<br/>(Address)"]
-        w_pkt["W Packet<br/>(Data)"]
-        b_pkt["B Packet<br/>(Response)"]
-    end
-
-    s_aw --> aw_skid
-    aw_skid --> aw_pkt
-
-    s_w --> w_skid
-    w_skid --> w_pkt
-
-    b_pkt --> b_skid
-    b_skid --> s_b
-```
+One skid buffer per channel, packets in and out the other side -- that's the whole trick (see the block diagram above).
 
 ### Packet Formats
 

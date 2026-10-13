@@ -1,0 +1,38 @@
+// axil4_slave_wr_mon block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Variant of axil4_slave_wr: the wrapped module is ONE child box (see its own diagram);
+// only what this wrapper adds is drawn. Generated from the axil4 variant template.
+// Source of truth: rtl/amba/axil4/axil4_slave_wr_mon.sv.
+digraph axil4_slave_wr_mon {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.80", splines=ortho, newrank=true,
+           label="axil4_slave_wr_mon - axil4_slave_wr with an ocelus transaction monitor on the s_axil side\n(aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    top   [label="AXI4-Lite Bus, slave side (s_axil_*)\nfrom the interconnect / master", fillcolor="white", width=3.8];
+    child [label="axil4_slave_wr\naxil4_slave_wr_inst\n(see its diagram: one skid buffer per channel)", width=3.4, height=1.0];
+    bot   [label="Write Completer (fub_axil_*)\nbackend serving writes", fillcolor="white", width=4.4];
+
+    mcfg  [label="Monitor Config (runtime input ports)\lcfg_monitor_enable: 0 = taps off, never stalls\lcfg_*_enable: error / timeout / compl /\l    threshold / perf / debug packet classes\lcfg_axi_*_mask: per-event drop masks\lcfg_timeout_cycles (us), cfg_freq_sel,\l    cfg_latency_threshold, address ranges\li_mon_time (timestamp in), cam_clear\l", fillcolor="white"];
+    mon   [label="Ocelus Monitor (USE_MONITOR=1 only)\naxi_monitor_filtered - axi_monitor_inst\ntaps AW (cmd), W (data), B (resp) on the s_axil side\ntracks up to MAX_TRANSACTIONS (default 8)\nraises block_ready low when its table is full", style="filled,dashed"];
+    gate  [label="AW Handshake Gate (combinational)\ns_axil_awvalid AND s_axil_awready\nboth masked by block_ready\n(unless cfg_monitor_enable = 0)"];
+    mout  [label="Monitor Outputs\lmonbus_packet / monbus_valid / monbus_ready,\l    monbus_timestamp (ocelus monitor bus)\lbusy, active_transactions, error_count,\l    transaction_count, perf_* window counters\l", fillcolor="white"];
+    mcfg -> mon [style=dashed, xlabel="config"];
+    mon  -> gate [style=dashed, xlabel="block_ready"];
+    mon  -> mout [xlabel="ocelus packets", penwidth=1.8];
+
+    top  -> gate  [xlabel="AW + W (awaddr, awprot / wdata, wstrb)", penwidth=1.8];
+    gate -> child [xlabel="gated valid", penwidth=1.8];
+    child -> bot  [dir=both, xlabel="AW + W (awaddr, awprot / wdata, wstrb) out /\nB (bresp) in", penwidth=1.8];
+
+    top -> child [dir=back, xlabel="B (bresp)", constraint=false];
+    top -> mon [style=dashed, xlabel="tap"];
+
+    { rank=same; gate; mcfg; }
+    { rank=same; child; mon; }
+    child -> mon [style=invis, minlen=2];
+    { rank=same; bot; mout; }
+    bot -> mout [style=invis];
+}

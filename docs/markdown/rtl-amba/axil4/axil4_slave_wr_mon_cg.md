@@ -139,6 +139,12 @@ The base module's `busy` output remains available on this wrapper.
 
 ## Functional Description
 
+### Block diagram
+
+![axil4_slave_wr_mon_cg block diagram](../../assets/rtl-amba/graphviz/axil4_slave_wr_mon_cg.png)
+
+This is `axil4_slave_wr_mon` (core plus ocelus monitor, one box; see its diagram) on a gated clock. `amba_clock_gate_ctrl` counts idle cycles - activity includes the monitor's own `monbus_valid` and outstanding transactions, so the clock never stops under a pending packet - and once `cfg_cg_idle_count` cycles pass with `cfg_cg_enable` set it stops `gated_aclk` and forces the outward readies low. Monitor packets and counters pass straight through to the wrapper's outputs.
+
 ### Performance Monitoring
 
 The wrapper forwards the base module's full performance-monitoring interface to

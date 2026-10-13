@@ -1,0 +1,44 @@
+// axi_split_combi block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Combinational: does this burst cross the alignment boundary, and if so how many beats
+// go before it. aclk / aresetn feed only simulation checks, so no clock box is drawn.
+// Source of truth: rtl/amba/shared/axi_split_combi.sv.
+digraph axi_split_combi {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi_split_combi - boundary split calculation for one AXI burst (combinational)";
+
+    txn   [group=A, label="Current Burst\ncurrent_addr, current_len, ax_size", fillcolor="white"];
+    bnd   [group=B, label="Boundary\nalignment_mask[11:0]\n(e.g. 0xFFF = 4 KB)", fillcolor="white"];
+    st    [group=C, label="State\nis_idle_state, transaction_valid", fillcolor="white"];
+
+    ext   [group=A, label="Burst Extent (combinational)\ntotal_bytes = (len + 1) << size\nend_addr = addr + total_bytes - 1"];
+    nxt   [group=B, label="Next Boundary (combinational)\nnext = (addr | alignment_mask) + 1\nbeats_to_boundary = (next - addr) >> size"];
+    dec   [group=A, label="Split Decision (combinational)\nsplit_required = end_addr crosses next\n& beats before it > 0 & they fit in the burst"];
+    lens  [group=A, label="Length Split (combinational)\nsplit: split_len = beats_to_boundary - 1,\nremaining = the rest (AXI len encoding)\nno split: split_len = current_len, remaining = 0"];
+    first [group=C, label="First-Split Flag (combinational)\nnew_split_needed = split_required\n& is_idle_state & transaction_valid"];
+
+    out   [label="Outputs\nsplit_required   |   split_len   |   remaining_len_after_split   |   next_boundary_addr   |   new_split_needed",
+           fillcolor="white", width=9.0];
+
+    txn -> ext  [xlabel="addr, len, size"];
+    txn -> nxt  [xlabel="addr, size"];
+    bnd -> nxt  [xlabel="alignment_mask"];
+    ext -> dec  [xlabel="end_addr"];
+    nxt -> dec  [xlabel="next boundary,\nbeats to it"];
+    dec -> lens [xlabel="split_required"];
+    dec -> first [xlabel="split_required"];
+    st  -> first [xlabel="idle, valid"];
+    lens -> out [xlabel="split_required,\nsplit_len, remaining"];
+    nxt  -> out [xlabel="next_boundary_addr"];
+    first -> out [xlabel="new_split_needed"];
+
+    { rank=same; txn; bnd; st; }
+    txn -> bnd [style=invis, minlen=2];
+    bnd -> st [style=invis, minlen=2];
+    { rank=same; ext; nxt; }
+    { rank=same; lens; first; }
+}

@@ -100,6 +100,15 @@ Deep debugging and compression research both benefit from a packet stream that r
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_reporter_debug block diagram](../../assets/rtl-amba/graphviz/axi_monitor_reporter_debug.png)
+
+Each entry's previous state is held in flops. An entry whose state changed
+is flagged, the lowest changed entry is picked, and a state-change packet
+carrying the old state, the new state and the address goes out when the
+output is idle.
+
 ### Change Detection
 
 When `cfg_debug_enable` is set, the block scans every slot: a slot is flagged changed when it is `valid` and its live `state` differs from the captured `r_prev_state[idx]`. All changed slots collect into `w_changed`, and a first-match priority encoder selects the lowest-index changed slot into `w_sel` (asserting `w_has_event`). When `cfg_debug_enable` is low, no slot is flagged, so no packets are produced.

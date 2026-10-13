@@ -205,6 +205,20 @@ Write transactions couple three channels — address (AW), data (W), and respons
 
 ## Functional Description
 
+### Block diagram
+
+![axi_master_wr_splitter block diagram](../../assets/rtl-amba/graphviz/axi_master_wr_splitter.png)
+
+The original AW comes down the center into split control, which uses
+`axi_split_combi` to issue one downstream AW per piece and holds
+`fub_awready` low until the final piece issues. W beats go through the beat
+counter, which raises `m_axi_wlast` at the end of every piece. `fub_wready`
+follows `m_axi_wready`, but only once the current AW has been issued. B
+responses come back up the right lane into the consolidation logic. It counts
+one response per piece, keeps the worst `bresp`, and sends a single `fub_b`
+for the original burst. One split-info record per original burst goes out
+through the split-info FIFO, with a sticky overflow flag.
+
 ### Write Transaction Splitting Overview
 
 Write splitting is a juggling act: three independent AXI channels with different timing characteristics, one transaction that has to stay coherent. The module has two paths through it.

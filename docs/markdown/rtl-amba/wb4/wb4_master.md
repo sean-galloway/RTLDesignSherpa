@@ -170,6 +170,12 @@ module wb4_master
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_master block diagram](../../assets/rtl-amba/graphviz/wb4_master.png)
+
+Commands drop down the left lane: the FUB's command port feeds the command skid buffer, and the issue-credit logic puts the head on the bus as CYC/STB with its address, data and select. Terminations climb the right lane: ACK, ERR or RTY with DAT_R is pushed into the response skid and handed back on the response port. There is no FSM. Two counters gate issue (`r_reserved < RSP_DEPTH`), so a response slot is reserved before a transfer reaches the bus; Wishbone gives a master no way to refuse a termination. `CLASSIC` selects B4 standard mode, where STB is held until the termination and STALL is ignored.
+
 Two counters and three wires do the work an APB master needs an FSM for:
 
 ```

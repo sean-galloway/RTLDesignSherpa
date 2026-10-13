@@ -1,0 +1,38 @@
+// axil5_master_rd_cg block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Variant of axil5_master_rd: the wrapped module is ONE child box (see its own diagram);
+// only what this wrapper adds is drawn. Generated from the axil4 variant template
+// with AXI5-Lite names (IDs on every channel, i_axil5_* instances).
+// Source of truth: rtl/amba/axil5/axil5_master_rd_cg.sv.
+digraph axil5_master_rd_cg {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.80", splines=ortho, newrank=true,
+           label="axil5_master_rd_cg - axil5_master_rd on a gated clock (idle-timeout clock gating)\n(aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    top   [label="Read Requester (fub_*)\nuser logic issuing reads", fillcolor="white", width=3.8];
+    child [label="axil5_master_rd\ni_axil5_master_rd\n(see its diagram: one skid buffer per channel)", width=3.4, height=1.0];
+    bot   [label="AXI5-Lite Bus, master side (m_axil_*)", fillcolor="white", width=4.4];
+
+    clk   [label="Clock In\naclk, aresetn", fillcolor="white"];
+    cfg   [label="Clock-Gate Config (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle cycles before the\l    clock stops (CG_IDLE_COUNT_WIDTH bits)\l", fillcolor="white"];
+    cgc   [label="Clock-Gate Controller\namba_clock_gate_ctrl - i_amba_clock_gate_ctrl\nidle countdown on activity:\nuser_valid: fub_arvalid or child busy\naxi_valid: m_axil_arvalid, m_axil_rvalid, fub_rvalid\nwhile gating, forces low: fub_arready, m_axil_rready"];
+    cgo   [label="Status Outputs\ncg_gating (clock stopped), cg_idle", fillcolor="white"];
+    clk -> cgc  [xlabel="aclk", penwidth=1.8];
+    cfg -> cgc  [style=dashed, xlabel="enable, idle count"];
+    cgc -> child [xlabel="gated_aclk", penwidth=1.8];
+    cgc -> cgo  [style=dashed, xlabel="cg_gating, cg_idle"];
+
+    top   -> child [dir=both, xlabel="AR (arid, araddr, ...) down /\nR (rid, rdata, rresp, ...) up", penwidth=1.8];
+    child -> bot   [dir=both, xlabel="AR (arid, araddr, ...) out /\nR (rid, rdata, rresp, ...) in", penwidth=1.8];
+
+    { rank=same; clk; cfg; top; }
+    cfg -> clk [style=invis]; clk -> top [style=invis];
+    { rank=same; cgc; }
+    { rank=same; child; }
+    cgc -> child [style=invis];
+    { rank=same; bot; cgo; }
+    cgo -> bot [style=invis];
+}

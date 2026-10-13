@@ -161,53 +161,11 @@ These are declared in the parameter list so they can be used in port widths, but
 
 ## Functional Description
 
-```mermaid
-flowchart TB
-    subgraph CONFIG["Clock Gate Configuration"]
-        cg_en["cfg_cg_enable"]
-        cg_cnt["cfg_cg_idle_count"]
-    end
+### Block diagram
 
-    subgraph WAKEUP["Wake-up Detection"]
-        s_valid["s_axis_tvalid"]
-        core_busy["core_busy"]
-        fub_valid["fub_axis5_tvalid"]
-        twakeup["s_axis_twakeup"]
-        r_wakeup["r_wakeup (OR gate)"]
-    end
+![axis5_slave_cg block diagram](../../assets/rtl-amba/graphviz/axis5_slave_cg.png)
 
-    subgraph CG_CTRL["Clock Gate Controller"]
-        ctrl["amba_clock_gate_ctrl"]
-        gated_clk["gated_clk"]
-        gating_status["cg_gating"]
-    end
-
-    subgraph CORE["AXIS5 Slave Core"]
-        slave["axis5_slave<br/>(operates on gated_clk)"]
-    end
-
-    subgraph INPUT["Slave AXIS5 Interface"]
-        s_in["s_axis_t*"]
-    end
-
-    subgraph OUTPUT["FUB Interface"]
-        fub_out["fub_axis5_t*"]
-    end
-
-    CONFIG --> CG_CTRL
-    WAKEUP --> r_wakeup
-    r_wakeup --> CG_CTRL
-    CG_CTRL --> gated_clk
-    CG_CTRL --> gating_status
-    gated_clk --> CORE
-    INPUT --> CORE
-    CORE --> OUTPUT
-    OUTPUT --> WAKEUP
-
-    style CG_CTRL fill:#e6f3ff
-    style WAKEUP fill:#fff4e6
-    style gating_status fill:#e6ffe6
-```
+The base `axis5_slave` is one box here (see its own diagram). The wrapper's `amba_clock_gate_ctrl` is kept awake by the registered `r_wakeup` = `s_axis_tvalid | core busy | fub_axis5_tvalid | s_axis_twakeup`. A ready gate holds `s_axis_tready` low while the clock is gated, and `s_axis_treadychk` is regenerated from that masked ready so the check covers what the transmitter actually sees.
 
 ### Clock Gating Control
 

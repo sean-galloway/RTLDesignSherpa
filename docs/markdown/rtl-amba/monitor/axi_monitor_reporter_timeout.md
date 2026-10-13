@@ -94,6 +94,15 @@ When a transaction stalls, the `axi_monitor_timeout` block asserts a per-slot `t
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_reporter_timeout block diagram](../../assets/rtl-amba/graphviz/axi_monitor_reporter_timeout.png)
+
+Every table entry is checked in parallel for an error state caused by a
+timeout that has not been reported. The lowest matching entry is picked, and
+its event code, channel and address become a timeout packet; `sel_idx` tells
+the reporter which entry to mark.
+
 ### Candidate Detection
 
 A combinational loop builds a one-hot-eligible mask `w_events`: a slot qualifies when it is `valid`, its `event_reported` bit is clear, its state is `TRANS_ERROR`, timeout reporting is enabled (`cfg_timeout_enable`), and the slot's `timeout_detected` bit is set. This intersection ensures only genuinely-timed-out, not-yet-reported error slots are candidates.

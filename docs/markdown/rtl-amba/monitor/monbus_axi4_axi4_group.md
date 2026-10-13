@@ -183,6 +183,12 @@ Feature summary:
 
 ## Functional Description
 
+### Block diagram
+
+![monbus_axi4_axi4_group block diagram](../../assets/rtl-amba/graphviz/monbus_axi4_axi4_group.png)
+
+A structural wrapper over monbus_group_core, drawn as one box. The CPU's AXI4 read port at the top left reaches the core's error-record read FUB through an axi4_slave_rd leaf (bursts). The core's log writes leave through an axi4_master_wr leaf (bursts up to MAX_BURST_BEATS) to the memory port at the bottom, with the AXI4 fields the core does not produce tied to safe defaults.
+
 ### S-Side Error Drain (AXI4 slave read)
 
 The `axi4_slave_rd` leaf terminates the incoming AXI4 read channel and presents a clean FUB read interface (`fub_axi_ar*` / `fub_axi_r*`) to the core. The core's slave-read slicer serves each 192-bit error record as three 64-bit beats (timestamp, packet-hi, packet-lo). Because the leaf is full AXI4, a single AR burst can request several records at once. The AXI4-only AR sideband fields (`arlock`/`arcache`/`arqos`/`arregion`/`aruser`) are consumed by the leaf and not forwarded to the core; `s_axi_ruser` is tied to 0.

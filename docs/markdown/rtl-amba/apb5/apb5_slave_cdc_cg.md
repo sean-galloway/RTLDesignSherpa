@@ -127,69 +127,17 @@ Same command/response interface as [apb5_slave_cdc](apb5_slave_cdc.md) - operate
 
 ### Architecture
 
-```mermaid
-flowchart TB
-    subgraph APB_CLK["APB Clock Domain (pclk)"]
-        cg_ctrl["Clock Gate<br/>Controller"]
-        apb_if["APB5<br/>Interface"]
-    end
+![apb5_slave_cdc_cg block diagram](../../assets/rtl-amba/graphviz/apb5_slave_cdc_cg.png)
 
-    subgraph GATED["Gated Clock Domain"]
-        cdc_core["apb5_slave_cdc<br/>(CDC Core)"]
-    end
-
-    subgraph USER_CLK["User Clock Domain (aclk)"]
-        cmd_if["Command<br/>Interface"]
-        rsp_if["Response<br/>Interface"]
-    end
-
-    pclk["pclk"] --> cg_ctrl
-    cg_ctrl -->|gated_pclk| cdc_core
-    aclk["aclk"] --> cdc_core
-
-    apb_if --> cdc_core
-    cdc_core --> cmd_if
-    rsp_if --> cdc_core
-    cdc_core --> apb_if
-
-    cfg_cg_enable --> cg_ctrl
-    apb_if -->|activity| cg_ctrl
-    cg_ctrl -->|cg_gating| status
-```
+The whole `apb5_slave_cdc` is one box (see its diagram). One clock gate, on
+`pclk` only: its wakeup flop ORs PWAKEUP, PSEL and PENABLE with the `aclk`-side
+activity (`cmd_valid | rsp_valid`), which is brought onto `pclk` through a two-flop
+synchronizer first. The gated clock (heavy) runs the pclk side; the aclk side is
+never gated.
 
 ### Wake-up Logic
 
-```mermaid
-flowchart TD
-    subgraph PCLK_TRIG["Wake-up Triggers (pclk domain)"]
-        pwakeup["PWAKEUP<br/>(from Requester)"]
-        psel["PSEL"]
-        penable["PENABLE"]
-    end
-
-    subgraph ACLK_TRIG["Wake-up Triggers (aclk domain)"]
-        cmd_valid["cmd_valid"]
-        rsp_valid["rsp_valid"]
-    end
-
-    subgraph CG["Clock Gate Control (pclk domain)"]
-        sync["2-FF Synchronizer<br/>r_aclk_activity_sync1/2"]
-        wakeup["r_wakeup<br/>(OR of all triggers)"]
-        gate["amba_clock_gate_ctrl<br/>(+1 flop, then ICG)"]
-    end
-
-    pwakeup --> wakeup
-    psel --> wakeup
-    penable --> wakeup
-    cmd_valid --> sync
-    rsp_valid --> sync
-    sync --> wakeup
-
-    wakeup -->|user_valid| gate
-    gate --> gated_pclk
-```
-
-The `aclk`-domain activity terms are ORed together and passed through a two-flop
+The wakeup terms are in the block diagram's Wakeup box. The `aclk`-domain activity terms are ORed together and passed through a two-flop
 synchronizer before being combined with the `pclk`-domain terms. Without that
 synchronizer, these signals would cross domains unsynchronized.
 

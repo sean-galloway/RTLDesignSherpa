@@ -1,0 +1,33 @@
+// axil4_master_rd block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Generated from one family template so the four axil4 bases look alike.
+// The requester side is the top port, the completer side the bottom bar.
+// Requests run top-down through their skid buffers; the response climbs its own
+// lane on the right. Each hop is one edge: valid + payload one way, ready the other.
+// busy is a status output computed from the buffers' occupancy; its equation is in
+// its own white box in the port row rather than drawn as edges from every buffer.
+// Source of truth: rtl/amba/axil4/axil4_master_rd.sv.
+digraph axil4_master_rd {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="1.1", splines=ortho, newrank=true,
+           label="axil4_master_rd - AXI4-Lite read master, one skid buffer per channel\n(single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    top  [label="Read Requester (fub_*)\nuser logic issuing reads", fillcolor="white", width=4.2];
+    ar   [label="AR Skid Buffer\ngaxi_skid_buffer - ar_channel\nSKID_DEPTH_AR (default 2)"];
+    r    [label="R Skid Buffer\ngaxi_skid_buffer - r_channel\nSKID_DEPTH_R (default 4)"];
+    busyo [label="Status Output: busy (combinational)\nhigh while a skid buffer holds a beat,\nor fub_arvalid / m_axil_rvalid", fillcolor="white"];
+    bot  [label="AXI4-Lite Bus, master side (m_axil_*)\nAR out at the left, R in at the right", fillcolor="white", width=5.2];
+
+    top -> ar  [xlabel="AR: araddr, arprot\n(valid down, ready up)", penwidth=1.8];
+    ar  -> bot [xlabel="m_axil_ar*", penwidth=1.8];
+    r   -> bot [dir=back, xlabel="R: rdata, rresp\n(valid up, ready down)"];
+    top -> r   [dir=back, xlabel="fub_rdata, fub_rresp"];
+
+    { rank=same; ar; r; }
+    ar -> r [style=invis, minlen=2];
+    { rank=same; busyo; top; }
+    busyo -> top [style=invis];
+}

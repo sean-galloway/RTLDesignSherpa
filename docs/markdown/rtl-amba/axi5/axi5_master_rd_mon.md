@@ -238,59 +238,9 @@ The window is half-open: `[base, base + count)`.
 
 ### Architecture
 
-```mermaid
-flowchart TB
-    subgraph FUB["FUB Interface"]
-        direction LR
-        fub_ar["AR Channel<br/>Address/Control"]
-        fub_r["R Channel<br/>Read Data"]
-    end
+![axi5_master_rd_mon block diagram](../../assets/rtl-amba/graphviz/axi5_master_rd_mon.png)
 
-    subgraph CORE["AXI5 Master Read Core"]
-        direction TB
-        ar_skid["AR SKID<br/>Depth=2"]
-        r_skid["R SKID<br/>Depth=4"]
-        axi5_logic["AXI5 Protocol<br/>Logic"]
-        ar_skid --> axi5_logic
-        axi5_logic --> r_skid
-    end
-
-    subgraph MONITOR["AXI Monitor Filtered"]
-        direction TB
-        trans_mgr["Transaction<br/>Manager"]
-        reporter["Event<br/>Reporter"]
-        filter["Packet<br/>Filter"]
-
-        trans_mgr --> reporter
-        reporter --> filter
-    end
-
-    subgraph MONBUS["Monitor Bus"]
-        direction LR
-        pkt_valid["monbus_valid"]
-        pkt_data["monbus_packet<br/>[127:0]"]
-        pkt_ready["monbus_ready"]
-    end
-
-    fub_ar --> ar_pack
-    r_skid --> r_unpack["R Unpacker"]
-    r_unpack --> fub_r
-
-    axi5_logic -->|Monitor Taps| trans_mgr
-
-    filter --> pkt_valid
-    filter --> pkt_data
-    pkt_ready --> filter
-
-    subgraph AXI["AXI5 Master"]
-        direction LR
-        m_ar["AR Channel"]
-        m_r["R Channel"]
-    end
-
-    axi5_logic --> m_ar
-    m_r --> axi5_logic
-```
+The base `axi5_master_rd` is one box (see its own diagram). Traffic runs down the left through the AR stall gate, which ANDs `fub_axi_arvalid` and its ready with the `block_ready` the monitor raises while its transaction table has room. The bus taps watch the `m_axi` side below the base and feed `axi_monitor_filtered`, which is built only when `USE_MONITOR=1`; its monitor-bus packets are the heavy edge out. With `cfg_monitor_enable` low the monitor is inert and never stalls the bus.
 
 ### Monitor Backpressure (block_ready)
 

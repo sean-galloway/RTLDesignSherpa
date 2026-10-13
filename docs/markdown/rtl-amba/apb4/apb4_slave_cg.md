@@ -105,6 +105,17 @@ In addition to all ports from [apb4_slave](./apb4_slave.md):
 
 ## Functional Description
 
+### Block diagram
+
+![apb4_slave_cg block diagram](../../assets/rtl-amba/graphviz/apb4_slave_cg.png)
+
+The wrapped `apb4_slave` is one box here; its own diagram shows the inside. The
+variant adds the clock path (heavy): `pclk` feeds `amba_clock_gate_ctrl`, whose
+gated clock runs the core. A wakeup flop on the ungated clock watches PSEL,
+PENABLE, `cmd_valid` and `rsp_valid`; after `cfg_cg_idle_count` quiet clocks
+(with `cfg_cg_enable` set) the clock stops. `cg_gating` and `cg_idle` report the
+state.
+
 ### Single Gating Domain
 
 There is one `amba_clock_gate_ctrl` instance producing one gated clock, which

@@ -91,6 +91,15 @@ Runtime frequency selection is via `cfg_freq_sel`. The module also exposes elabo
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_timer block diagram](../../assets/rtl-amba/graphviz/axi_monitor_timer.png)
+
+Two independent outputs. The timestamp is a 32-bit register that counts
+every `aclk`. The tick comes from `counter_freq_invariant` (see its diagram),
+which uses `cfg_freq_sel` to pick the divider that makes the tick a fixed real
+time apart whatever the clock frequency; the timeout counters advance on it.
+
 The Timer module implements two independent timing functions that work together to support the monitor infrastructure.
 
 ### Global Timestamp Counter

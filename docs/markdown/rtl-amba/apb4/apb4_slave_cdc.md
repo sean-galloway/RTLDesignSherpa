@@ -121,6 +121,17 @@ module apb4_slave_cdc #(
 
 ## Functional Description
 
+### Block diagram
+
+![apb4_slave_cdc block diagram](../../assets/rtl-amba/graphviz/apb4_slave_cdc.png)
+
+The APB side runs on `pclk`: the bus feeds the wrapped `apb4_slave` (one box; see
+its diagram). Each direction crosses to the `aclk` backend through its own
+`gaxi_fifo_async`: the command drops down the left lane (pclk to aclk), the
+response climbs the right lane (aclk to pclk). The crossings themselves -- Gray
+pointers through two-flop synchronizers -- are inside the async FIFOs and drawn
+in the `gaxi_fifo_async` diagram. Both FIFOs are `max(DEPTH, 4)` entries deep.
+
 ### Clock Domains
 
 **APB domain (pclk):**

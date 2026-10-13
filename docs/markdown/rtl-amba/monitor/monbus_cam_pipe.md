@@ -112,19 +112,11 @@ module monbus_cam_pipe #(
 
 ## Functional Description
 
-### Pipeline Diagram
+### Block diagram
 
-```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
-flowchart LR
-    AIN["access_en /<br/>access_key/data/ts<br/>(cycle T)"] --> COMP["32-way 49-bit<br/>combinational match<br/>(vs PRE-commit r_*)"]
-    COMP --> RAW["raw_hit /<br/>raw_idx /<br/>raw_old_data /<br/>raw_old_ts"]
-    PEND[/"s1_* (pending commit<br/>from cycle T-1)"/] -.forward.-> RAW
-    RAW --> EFF["eff_* = post-pending-<br/>commit corrected hit/idx"]
-    EFF --> S1REG["register as s1_*<br/>+ result_*<br/>(cycle T+1)"]
-    S1REG -.next-cycle commit.-> ARR["r_valid / r_key /<br/>r_data / r_ts<br/>(move-to-front shift)"]
-    S1REG --> OUT["result_valid /<br/>result_hit /<br/>result_idx /<br/>result_old_data /<br/>result_old_ts"]
-```
+![monbus_cam_pipe block diagram](../../assets/rtl-amba/graphviz/monbus_cam_pipe.png)
+
+The compare and the commit run in different cycles. In cycle T the key is compared against the array as it stands before the pending commit. The forward-adjust block then corrects that raw result for the commit landing this same cycle: a repeat of the same key, the evicted entry, or a shift. The result is registered and leaves on the right one clock later, and the same access becomes the pending commit that writes the array in cycle T+1. Throughput stays one access per clock, and the result sequence matches monbus_cam.
 
 The two registered stages are:
 

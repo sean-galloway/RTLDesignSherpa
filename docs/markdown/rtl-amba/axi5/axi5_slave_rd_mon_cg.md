@@ -50,49 +50,9 @@ The AXI5 Slave Read Monitor with Clock Gating module puts both power management 
 
 ### Module Architecture
 
-```mermaid
-flowchart TB
-    subgraph SLAVE["Slave AXI5 Interface"]
-        s_ar["AR Channel"]
-        s_r["R Channel"]
-    end
+![axi5_slave_rd_mon_cg block diagram](../../assets/rtl-amba/graphviz/axi5_slave_rd_mon_cg.png)
 
-    subgraph CG["Clock Gating Logic"]
-        user_v["user_valid<br/>(activity detect)"]
-        axi_v["axi_valid<br/>(activity detect)"]
-        cg_ctrl["amba_clock_gate_ctrl"]
-        gated_clk["gated_aclk"]
-    end
-
-    subgraph CORE["axi5_slave_rd_mon"]
-        slave["Slave Core"]
-        monitor["Monitor Core"]
-    end
-
-    subgraph FUB["FUB Interface"]
-        fub_ar["AR Channel"]
-        fub_r["R Channel"]
-    end
-
-    subgraph MONBUS["Monitor Bus"]
-        mon_valid["monbus_valid"]
-        mon_packet["monbus_packet[127:0]"]
-    end
-
-    s_ar --> user_v
-    s_r --> user_v
-    fub_ar --> axi_v
-    fub_r --> axi_v
-    user_v --> cg_ctrl
-    axi_v --> cg_ctrl
-    cg_ctrl --> gated_clk
-    gated_clk --> slave
-    gated_clk --> monitor
-    slave --> fub_ar
-    slave --> fub_r
-    monitor --> mon_valid
-    monitor --> mon_packet
-```
+The base `axi5_slave_rd_mon` is one box (see its own diagram). The clock is the heavy main column: `aclk` enters `amba_clock_gate_ctrl`, which counts down idle cycles and drives `gated_aclk` into the child. AXI traffic passes straight through; while the clock is gated the wrapper forces the incoming readies to 0 so no handshake is lost. Activity is `s_axi` valids, the child's busy, and `s_axi_awakeup` when `ENABLE_WAKEUP=1`, on the upstream side, plus the `fub_axi` valids. The monitored child's `monbus_valid` and active-transaction count also count as activity, so the clock never stops under a pending packet.
 
 ---
 

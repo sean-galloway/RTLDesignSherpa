@@ -86,6 +86,12 @@ Same as **[axil4_master_rd_mon](axil4_master_rd_mon.md)**:
 
 ## Functional Description
 
+### Block diagram
+
+![axil4_master_wr_mon block diagram](../../assets/rtl-amba/graphviz/axil4_master_wr_mon.png)
+
+The core `axil4_master_wr` is one box; its own diagram shows the skid buffers. An ocelus `axi_monitor_filtered` (present when `USE_MONITOR=1`) taps the handshakes on the `m_axil` side (bottom), tracks up to `MAX_TRANSACTIONS` in flight, and emits monitor-bus packets. When its table is full it drops `block_ready`, and the AW handshake gate masks BOTH the incoming valid and the outgoing ready by it, so a stalled command is held rather than replayed. With `cfg_monitor_enable = 0` the taps are off and the gate never stalls.
+
 ### Performance Monitoring
 
 When performance monitoring is enabled, the wrapper forwards a **measurement-window state machine** plus a bank of W-channel (write-data) utilization counters to `axi_monitor_base`. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows so the host can read a completed window's totals. `cfg_perf_enable` does NOT gate them: it selects the window start/end event (it is edge-detected for `cfg_start_event_sel` modes 010/011) and enables the perf PACKET class. The counters themselves advance whenever a window is open, enabled or not. `ENABLE_PERF_LOGIC = 0` does NOT drop them: the window FSM and its counters are unconditional `always_ff` blocks in `axi_monitor_base`, outside every generate. That parameter gates only `g_perf` in the reporter -- the legacy perf-packet cone and the two lifetime counters. `USE_MONITOR = 0` is what ties the perfmon outputs off.

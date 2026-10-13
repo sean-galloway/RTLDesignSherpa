@@ -154,6 +154,19 @@ The write half of a DMA characterization loop needs a slave that accepts write t
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_slave_wr_crc_check block diagram](../../assets/rtl-amba/graphviz/axi4_slave_wr_crc_check.png)
+
+`axi4_slave_wr` handles the AW/W/B protocol and its skid buffers. The burst
+FSM accepts one AW at a time, and the low bits of `awid` pick the channel.
+Each accepted W beat feeds that channel's CRC: one 32-bit lane of `wdata`,
+or, with `BYTE_CRC=1`, the strobed bytes in address order, four per cycle,
+while W is held. Every WLAST pushes the burst's {user, id} into a 16-deep B
+FIFO, which returns responses up to the port, so back-to-back bursts never
+drop a B. `crc_reset` clears the CRCs and counts. With `ERR_INJECT=1`, a
+chosen burst answers `cfg_err_resp`.
+
 ### Data Slice Extraction
 
 A wide AXI bus carries several 32-bit lanes; only one is CRC'd so the CRC stays interchangeable with the 32-bit read generator. A generate block assigns `data_slice` directly when the bus is 32 bits wide, and otherwise selects `wdata[CRC_SLICE_OFFSET*32 +: 32]`. A compile-time assertion rejects a `CRC_SLICE_OFFSET` that would read past the end of the bus.

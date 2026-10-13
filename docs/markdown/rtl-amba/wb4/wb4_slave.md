@@ -163,6 +163,12 @@ module wb4_slave
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_slave block diagram](../../assets/rtl-amba/graphviz/wb4_slave.png)
+
+The Wishbone completer bus is at the top and the queued backend at the bottom. An accepted request (CYC, STB and room) drops down the left lane into the command skid; in pipelined mode STALL is the only backpressure. Responses climb the right lane through the response skid into the termination logic, which drives exactly one registered ACK, ERR or RTY with DAT_R per response, in order. The outstanding and abandoned counters drop responses that belong to an aborted cycle, or that arrive with nothing open.
+
 ```
 STALL  = !cmd queue room || r_outstanding == MAX_OUTSTANDING
 accept = CYC && STB && !STALL     -> push {we, adr, dat, sel}, r_outstanding++

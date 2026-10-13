@@ -1,0 +1,66 @@
+// monbus_cam_pipe block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Sibling of monbus_cam (same storage model, entry array as the bottom bar);
+// the compare and the commit run in different cycles, with depth-1 forwarding
+// so the result sequence matches monbus_cam exactly, one clock later.
+// Flows:
+//   access - key -> DEPTH compares vs the PRE-commit array -> forward adjust
+//            (corrects for the commit landing this cycle) -> result register
+//            -> result port (one clock later)
+//   commit - the same access is captured as the pending commit, and next
+//            cycle the move-to-front commit writes the array; the pending
+//            commit also feeds the forward adjust (right lane)
+// Source of truth: rtl/amba/ocelus/monbus_cam_pipe.sv.
+digraph monbus_cam_pipe {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="monbus_cam_pipe - monbus_cam split over two cycles: compare, then commit; one access per clock, result one clock later\n(single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- ports (white) ----
+    acc  [group=K, label="Access Port\naccess_en, access_key,\naccess_new_data, access_new_ts\nclear (empty the CAM, flush the pipe)", fillcolor="white"];
+    res  [group=R, label="Result Port (registered, one clock later)\nresult_valid, result_hit, result_idx,\nresult_old_data, result_old_ts\n|  cam_full, cam_count\n(combinational, from the array)", fillcolor="white"];
+
+    // ---- logic ----
+    cmp  [group=K, label="Cycle T: DEPTH Parallel Compares\n(combinational, against the PRE-commit array)\nvalid[i] & key[i] == access_key"];
+    fwd  [group=K, label="Forward Adjust (combinational)\nsame key as the pending commit: hit at 0, its new data\nmatched the entry being evicted: miss\nmatched above the pending shift point: idx + 1\nelse unchanged"];
+    reg1 [group=K, label="Result Register + Pending Commit (flops)\nthe (forwarded) result for next cycle;\nthis access becomes the pending commit:\nTOUCH on a hit, else INSTALL"];
+    mtf  [group=K, label="Cycle T+1: Move-to-Front Commit (next clock edge)\nTOUCH: matched entry to position 0, entries above shift down\nINSTALL: new entry at 0, all shift down, LRU evicted when full"];
+
+    // ---- the storage bar ----
+    arr  [label="Entry Array (flops), indexed by LRU position rank (as in monbus_cam)\nr_entry[0] = most recently used .. r_entry[count-1] = least recently used  |  key, data, ts, valid",
+          width=8.5];
+
+    // ---- access flow ----
+    acc  -> cmp  [xlabel="access_key"];
+    cmp  -> fwd  [xlabel="raw match, idx"];
+    fwd  -> reg1 [xlabel="effective hit, idx, old data / ts"];
+    mtf  -> arr  [xlabel="shifted array", penwidth=1.8];
+    reg1 -> mtf  [xlabel="pending commit\n(action, key, data, ts)"];
+
+    // ---- result up the right lane ----
+    p_r1 [group=R, shape=point, width=0.01];
+    reg1 -> p_r1 [arrowhead=none, headclip=false];
+    p_r1 -> res  [xlabel="result_* (registered)", tailclip=false];
+
+    // ---- compares read the array; forwarding reads the pending commit ----
+    p_a1 [group=L, shape=point, width=0.01];
+    arr  -> p_a1 [arrowhead=none, headclip=false, constraint=false];
+    p_a1 -> cmp  [xlabel="keys + valids", tailclip=false, constraint=false];
+    p_f1 [group=R2, shape=point, width=0.01];
+    mtf  -> p_f1 [arrowhead=none, headclip=false, constraint=false];
+    p_f1 -> fwd  [headlabel="pending commit geometry\n(shift point, full install)", labelangle=20, labeldistance=9, tailclip=false, constraint=false];
+
+    // ---- rank pinning ----
+    { rank=same; acc; res; }
+    { rank=same; p_a1; cmp; }
+    { rank=same; fwd; p_f1; }
+    { rank=same; reg1; p_r1; }
+    { rank=max; arr; }
+    acc -> res [style=invis, minlen=3];
+    p_a1 -> cmp [style=invis, minlen=2];
+    fwd -> p_f1 [style=invis, minlen=2];
+    reg1 -> p_r1 [style=invis, minlen=3];
+}

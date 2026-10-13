@@ -143,6 +143,12 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Functional Description
 
+### Block diagram
+
+![axis4_slave_cg block diagram](../../assets/rtl-amba/graphviz/axis4_slave_cg.png)
+
+The base `axis4_slave` is one box here (see its own diagram). The wrapper adds an `amba_clock_gate_ctrl` whose gated clock (heavy) drives the base, kept awake by `s_axis_tvalid`, the base's busy and `fub_axis_tvalid`. A ready gate holds `s_axis_tready` low while the clock is gated.
+
 This wrapper is the base module plus one `amba_clock_gate_ctrl` instance. The
 datapath is untouched -- every channel signal is forwarded verbatim -- so
 functional behaviour is identical to the base module and the wrapper adds no

@@ -170,29 +170,11 @@ signal is an INPUT: this module snoops and never drives the arbiter.
 
 ## Functional Description
 
-```mermaid
-flowchart LR
-    subgraph Snoop["Arbiter signals (all INPUTS)"]
-        rq["request[CLIENTS-1:0]"]
-        gv["grant_valid"]
-        gr["grant[CLIENTS-1:0]"]
-        gid["grant_id"]
-        gack["grant_ack[CLIENTS-1:0]"]
-        blk["block_arb"]
-    end
+### Block diagram
 
-    rq --> det["Event detection<br/>starvation / ACK timeout<br/>protocol violation<br/>fairness / efficiency"]
-    gv --> det
-    gr --> det
-    gid --> det
-    gack --> det
-    blk --> det
+![arbiter_monbus_common block diagram](../../assets/rtl-amba/graphviz/arbiter_monbus_common.png)
 
-    det --> pkt["Packet format<br/>(monitor_packet_t)"]
-    pkt --> fifo["gaxi_fifo_sync<br/>MON_FIFO_DEPTH"]
-    fifo --> out["monbus_valid / monbus_packet<br/>+ monbus_timestamp"]
-    det --> dbg["debug_* status outputs"]
-```
+This module only observes: the arbiter's request, grant, ack and block signals come in at the top and nothing goes back. Per-client trackers count waiting time and grants and run the grant-to-ack timers. The sample timer and monitor FSM judge fairness against the client weights and grant efficiency once per window. The event register compares all of it against the thresholds. A priority select turns the highest-priority enabled event into one ocelus packet per cycle, and the event FIFO holds packets until the bus takes them. The timestamp is sampled from i_mon_time when a packet leaves, and the debug counters run down the left lane.
 
 The single monitor-bus output carries this module's **own** event packets. It
 is not a merge of upstream streams — there are none.

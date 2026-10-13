@@ -147,6 +147,19 @@ Characterizing a DMA read path needs a slave that is both *fast* (never the bott
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_slave_rd_injector block diagram](../../assets/rtl-amba/graphviz/axi4_slave_rd_injector.png)
+
+`axi4_slave_rd` handles the AR/R protocol and its skid buffers. The burst FSM
+serves one AR at a time, and the low bits of `arid` pick the channel. On each
+R beat only that channel's LFSR advances, and its 32-bit word, replicated
+across the bus, becomes the R data that returns up to the port. The same
+channel's CRC accumulates that word, so `read_crc_value` is the CRC of what
+was actually sent. `crc_lfsr_reset` reloads every seed and clears the CRCs.
+With `ERR_INJECT=1`, a chosen burst on a chosen channel answers
+`cfg_err_resp` on every beat.
+
 ### LFSR Pattern Generation
 
 Each channel owns a `shifter_lfsr_fibonacci` instance (32-bit, taps `{23,3,2,1}`) seeded with `LFSR_SEED ^ channel_index`. XOR-ing the channel index into the seed guarantees each channel produces a distinct stream, so channel interleave at the shared AXI port cannot corrupt any one channel's sequence. Only the channel currently being served advances on a given R-beat handshake; all other channel LFSRs hold their state. On the global `crc_lfsr_reset` pulse every channel reloads its seed simultaneously.

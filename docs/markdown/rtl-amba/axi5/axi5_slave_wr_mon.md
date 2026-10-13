@@ -49,52 +49,9 @@ Most designs don't want a separate monitor bolted onto the bus — you want the 
 
 ### Block Diagram
 
-```mermaid
-flowchart TB
-    subgraph SLAVE["Slave AXI5 Interface"]
-        s_aw["AW Channel"]
-        s_w["W Channel"]
-        s_b["B Channel"]
-    end
+![axi5_slave_wr_mon block diagram](../../assets/rtl-amba/graphviz/axi5_slave_wr_mon.png)
 
-    subgraph CORE["axi5_slave_wr"]
-        slave["Slave Core Logic"]
-    end
-
-    subgraph MONITOR["axi_monitor_filtered"]
-        tracker["Transaction<br/>Tracker"]
-        detector["Error<br/>Detector"]
-        perf["Performance<br/>Counters"]
-        filter["Packet<br/>Filter"]
-    end
-
-    subgraph FUB["FUB Interface"]
-        fub_aw["AW Channel"]
-        fub_w["W Channel"]
-        fub_b["B Channel"]
-    end
-
-    subgraph MONBUS["Monitor Bus"]
-        mon_valid["monbus_valid"]
-        mon_packet["monbus_packet[127:0]"]
-    end
-
-    s_aw --> slave
-    s_w --> slave
-    s_b --> slave
-    slave --> fub_aw
-    slave --> fub_w
-    slave --> fub_b
-    fub_aw --> tracker
-    fub_w --> tracker
-    fub_b --> tracker
-    tracker --> detector
-    tracker --> perf
-    detector --> filter
-    perf --> filter
-    filter --> mon_valid
-    filter --> mon_packet
-```
+The base `axi5_slave_wr` is one box (see its own diagram). Traffic runs down the left through the AW stall gate, which ANDs `s_axi_awvalid` and its ready with the `block_ready` the monitor raises while its transaction table has room. The bus taps watch the `fub_axi` (backend) side below the base, unlike the AXI4 slave monitors, which tap `s_axi` and feed `axi_monitor_filtered`, which is built only when `USE_MONITOR=1`; its monitor-bus packets are the heavy edge out. With `cfg_monitor_enable` low the monitor is inert and never stalls the bus.
 
 ---
 

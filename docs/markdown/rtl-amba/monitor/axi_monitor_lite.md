@@ -251,6 +251,12 @@ no slot).
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_lite block diagram](../../assets/rtl-amba/graphviz/axi_monitor_lite.png)
+
+The monitor only observes: the command, data and response taps enter at the top and nothing is driven back. A command handshake takes the lowest free table slot and records the address, ID, length and two stamps. Same-ID entries are linked in allocation order, so a data beat or response goes straight to the head of its ID's list; writes follow the AW-order FIFO instead. Attribution, the rotating timeout scan and the threshold compares register their events, the event pick takes one per cycle (errors first), and the output queue formats each into a 128-bit packet. When N_ADDR_RANGES > 0, the address checker shares the bus through the hold mux.
+
 ### Attribution
 
 A read beat belongs to the oldest live entry whose ID matches `RID`; AXI

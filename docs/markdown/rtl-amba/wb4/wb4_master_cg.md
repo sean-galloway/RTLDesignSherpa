@@ -55,6 +55,12 @@ In addition to all `wb4_master` parameters:
 
 ## Functional Description
 
+### Block diagram
+
+![wb4_master_cg block diagram](../../assets/rtl-amba/graphviz/wb4_master_cg.png)
+
+`wb4_master` is one child box (see its diagram); this wrapper adds only the clock gate. The heavy clock column runs from `clk` through `amba_clock_gate_ctrl` to the child's `gated_clk`. The controller wakes on `cmd_valid`, the child's `rsp_valid` or an open `m_wb_CYC`, and while the clock is stopped it forces `cmd_ready` and `rsp_valid` low so no handshake completes against a sleeping core.
+
 ### Wake-Up Terms
 
 The registered wake term follows the family rule — peer VALIDs and every

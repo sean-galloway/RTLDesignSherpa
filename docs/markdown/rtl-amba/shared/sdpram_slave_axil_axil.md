@@ -131,6 +131,17 @@ Sometimes you just need a lightweight memory shared between two AXIL agents — 
 
 ## Functional Description
 
+### Block diagram
+
+![sdpram_slave_axil_axil block diagram](../../assets/rtl-amba/graphviz/sdpram_slave_axil_axil.png)
+
+The write leaf (AXI-Lite) and read leaf (AXI-Lite) each sit between their bus port and
+`sdpram_core`, which is drawn as the bottom bar (its queues, burst trackers
+and BRAM are in its own diagram). Requests go down each side and responses
+come back up the same edge: AW and W down and B up on the left, AR down and R
+up on the right. The leaves supply the skid buffers; on the FUB side, both sides are tied to single beats (id 0, len 0, INCR), so the core's burst trackers degenerate to one beat per command.
+The bulk-clear handshake goes straight to the core.
+
 ### Structure
 
 Three instances: `axil4_slave_wr` (write), `axil4_slave_rd` (read), and `sdpram_core` (backend, parameterized with `AXI_ID_WIDTH = CORE_ID_WIDTH = 1`). Both AXIL FUBs carry only address and data; the wrapper supplies the burst/ID fields the core expects.

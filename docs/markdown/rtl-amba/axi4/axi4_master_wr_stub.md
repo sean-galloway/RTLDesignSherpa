@@ -143,37 +143,11 @@ The write-side counterpart to the read stub. The AXI4 Master Write Stub packs th
 
 ## Functional Description
 
-### Architecture
+### Block diagram
 
-```mermaid
-flowchart LR
-    subgraph PACKED["Packed Interface"]
-        aw_pkt["AW Packet<br/>(Address)"]
-        w_pkt["W Packet<br/>(Data)"]
-        b_pkt["B Packet<br/>(Response)"]
-    end
+![axi4_master_wr_stub block diagram](../../assets/rtl-amba/graphviz/axi4_master_wr_stub.png)
 
-    subgraph STUB["AXI4 Master Write Stub"]
-        aw_skid["AW Skid<br/>Buffer"]
-        w_skid["W Skid<br/>Buffer"]
-        b_skid["B Skid<br/>Buffer"]
-    end
-
-    subgraph AXI4["AXI4 Interface"]
-        m_aw["AXI4<br/>AW Channel"]
-        m_w["AXI4<br/>W Channel"]
-        m_b["AXI4<br/>B Channel"]
-    end
-
-    aw_pkt --> aw_skid
-    aw_skid --> m_aw
-
-    w_pkt --> w_skid
-    w_skid --> m_w
-
-    m_b --> b_skid
-    b_skid --> b_pkt
-```
+This stub is `axi4_master_wr` with a packed-packet interface at the top (FUB side): each channel's fields travel as one packet (`*_pkt`) through its own `gaxi_skid_buffer` (`inst_*_phase`), and are unpacked onto, or packed from, the AXI4 fields at the other side. The AW buffer's occupancy is exported as `fub_axi_aw_count`. There is no busy output and no clock gating.
 
 ### Packet Formats
 

@@ -106,6 +106,15 @@ Performance analysis of an AXI interface needs a periodic summary of how many tr
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_reporter_perf block diagram](../../assets/rtl-amba/graphviz/axi_monitor_reporter_perf.png)
+
+Two counters tally completed and errored transactions from the reporter's
+marked masks. A small sequencer steps while the output is idle and offers one
+count packet at a time: completed, then errors. Its first three states are
+placeholders that emit nothing.
+
 ### Lifetime Counters
 
 Two 16-bit registers, `r_completed_count` and `r_error_count`, accumulate over the life of the monitor. On every clock, the block scans the `error_marked_mask` and `compl_marked_mask` inputs across all `MAX_TRANSACTIONS` slots and increments the relevant counter for each asserted bit. Because the counters advance directly from the mark masks (not from `pkt_taken`), they track every event the top reporter accepted into its FIFO regardless of whether a rollup packet is emitted. Entries **auto-retired** because their packet class is disabled do NOT feed the mark masks, so these counters count packets actually emitted, not transactions observed. Timeout packets roll up into `r_error_count` (timeout slots sit in `TRANS_ERROR`).

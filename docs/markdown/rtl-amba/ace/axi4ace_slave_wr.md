@@ -263,6 +263,12 @@ module axi4ace_slave_wr #(
 
 ## Functional Description
 
+### Block diagram
+
+![axi4ace_slave_wr block diagram](../../assets/rtl-amba/graphviz/axi4ace_slave_wr.png)
+
+The axi4 write slave's layout (see `axi4_slave_wr`) plus what ACE adds. W and AW, with `awsnoop`, `awdomain` and `awbar`, drop down through their skid buffers to the backend, and B climbs the right lane. WACK is a wire from `s_axi_wack` to `fub_axi_wack`, drawn dashed down the far right.
+
 ### Triple Buffer Design
 
 The module buffers all three write channels:

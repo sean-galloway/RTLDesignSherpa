@@ -165,6 +165,12 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_wrr_pwm_monbus block diagram](../../assets/rtl-amba/graphviz/arbiter_wrr_pwm_monbus.png)
+
+The same structure as arbiter_rr_pwm_monbus, with the weighted pick: requests and the per-client weights (cfg_arb_max_thresh) enter arbiter_round_robin_weighted from the top, and the heavy grant goes to the outputs. The pwm on the left throttles arbitration through block_arb. The optional observer on the right (arbiter_monbus_common, WEIGHTED_MODE=1) judges each client's share against the same weights.
+
 The module integrates four key components.
 
 ### Weighted Round-Robin Arbiter

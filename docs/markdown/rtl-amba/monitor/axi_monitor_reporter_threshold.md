@@ -109,6 +109,16 @@ Monitoring a bus for congestion and latency outliers requires two distinct check
 
 ## Functional Description
 
+### Block diagram
+
+![axi_monitor_reporter_threshold block diagram](../../assets/rtl-amba/graphviz/axi_monitor_reporter_threshold.png)
+
+Two checks run side by side. The active count tallies entries still in
+flight and compares the total with its limit. The latency path registers each
+completed entry's latency and flags those over the limit, and a pick chooses
+the lowest one. A crossed flag per check makes one crossing send one packet;
+the active-count packet goes first.
+
 ### Active-Count Detection
 
 A combinational loop scans `trans_table` and counts slots that are `valid` and in a state other than `TRANS_COMPLETE` or `TRANS_ERROR` — that is, transactions genuinely in flight. `w_active_detect` asserts when threshold detection is enabled, the count strictly exceeds `active_trans_threshold`, the edge flag `r_active_crossed` is not already set, and the output is not busy. Because this reflects an instantaneous condition, it takes priority in the output mux.
