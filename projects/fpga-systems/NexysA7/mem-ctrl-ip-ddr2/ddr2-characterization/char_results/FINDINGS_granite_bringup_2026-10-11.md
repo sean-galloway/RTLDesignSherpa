@@ -290,6 +290,35 @@ boot-time PHY recalibration in the RDS flows (LiteDRAM's model), plus fixing
 the strobe path to read-trigger (or poke+peek) so retraining actually
 works.
 
+## Month-ago bisect + cold test (2026-10-12 late night): repo exonerated
+
+- **Cold test after owner power cycle: still mism=512.** Thermal theory dead.
+- **Month-ago bit (worktree /tmp/rds-2026-09-12 @ f99f0a57a, fresh build):
+  also mism=512.** The "reads worked a month ago" theory is falsified as a
+  repo regression — a clean month-old build fails identically on today's
+  board. gen_k7ddrphy.py byte-identical then and now; pumice_csr.rdl
+  byte-identical for a month; host driver strobe code unchanged.
+- **a7ddrphy CSR bus anatomy (verified on the bench):** the PHY has a 3-wire
+  bus (adr/we/dat_w; dat_r combinational). NO re. The rdly_dq_inc/bitslip
+  STROBES ARE DEAD — they never move taps by write OR read. What works:
+  direct storage writes (word 2 half_sys8x_taps0 with word 1 dly_sel lane
+  mask). The driver's entire poke-based training path was always a no-op;
+  months of clean reads ran on a wide enough eye that taps never mattered.
+- **Direct tap sweep (0..31, dly_sel=3, rden=6/delay=7): all 128/128
+  mismatch — no eye in the tap dimension.** With bitslip unsettable, the
+  remaining search space is rden x delay x tap jointly, and a fully-off
+  capture (all-128) points at the rddata_en/valid relationship or DQS
+  gating rather than a fraction-of-UI offset.
+- Net: the read cliff is NOT in the repo (month-ago A/B), NOT the config
+  space (byte-identical RDL), NOT the host tuple (matrix's own apply fails),
+  NOT temperature (cold fails). LiteDRAM passes because it self-calibrates
+  per boot. The a7ddrphy-based flows cannot currently retrain (dead strobes,
+  no-re bus, and no eye found by the only working knob). Next: (1) ILA on
+  the a7ddrphy interface per the standing authorization — DQS gating /
+  rddata_valid vs data at the pins; (2) the durable software fix regardless:
+  direct-storage tap/bitslip control (add a bitslip storage or fix the
+  strobe path) + boot-time retrain, LiteDRAM-style.
+
 ## Working hypothesis for the open defect (updated)
 
 blen>=2 (split) sub-bursts at the 1-deep entry store: sub-entries neither
