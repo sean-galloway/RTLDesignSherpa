@@ -74,6 +74,10 @@ from ddr2_char import DDR2CharDriver
 # this module lazily (in main), so there is no import cycle.
 from pumice_master import ensure_leveled, wait_engine
 
+# Shared bench leveling cache (bitslip/tap eye), refreshed by any re-level.
+DEFAULT_LEVEL_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "level_cache.json")
+
 
 # =============================================================================
 # DRAM geometry (byte-address space, ROW_MAJOR scheme)
@@ -1946,7 +1950,8 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
     driver was already leveled this connection (SimpleTest.init or a prior
     ensure_leveled) or has no PHY passthrough (loopback sim / non-A7)."""
     if do_leveling and callable(getattr(drv, "phy_poke", None)):
-        ensure_leveled(drv, level_cache=level_cache, hard=True, verbose=False)
+        ensure_leveled(drv, level_cache=level_cache or DEFAULT_LEVEL_CACHE,
+                       hard=True, verbose=False)
 
     # clk_mhz=None means READ IT FROM THE BITSTREAM (BUILD_CLK_HZ).
     # Never default to a constant: bandwidth is (bytes/cycles)*clk_mhz,

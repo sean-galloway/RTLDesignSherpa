@@ -357,15 +357,14 @@ def ensure_leveled(drv, level_cache: Optional[str] = None, *, hard: bool = False
     the driver (``drv._phy_leveled_result``) and a later call returns it
     without re-sweeping. ``hard=True`` raises instead of returning a failed
     result -- run_matrix uses that so a matrix can never measure an
-    unleveled PHY. Callers on drivers without an a7ddrphy passthrough
-    (loopback sim, non-A7 targets) must gate on ``hasattr(drv, "phy_poke")``.
+    unleveled PHY. ``level_cache=None`` means NO cache file: pure sweep, no
+    restore, no save (callers wanting the shared bench cache pass the path
+    explicitly). Drivers without an a7ddrphy passthrough (loopback sim,
+    non-A7 targets) must gate on ``hasattr(drv, "phy_poke")``.
     """
     prev = getattr(drv, "_phy_leveled_result", None)
     if prev is not None:
         return prev
-    if level_cache is None:
-        level_cache = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                   "level_cache.json")
     lv = A7Leveling(drv, verbose=verbose, **lv_kw)
     if level_cache and os.path.exists(level_cache):
         res = lv.restore(A7Leveling.load_level(level_cache))
