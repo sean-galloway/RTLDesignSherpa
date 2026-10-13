@@ -4,7 +4,7 @@
 // Module: amber_pair_harness
 // Purpose: Internal integration for the amber pair-rig Genesys2 board bring-up.
 //   Host (UART) -> uart_axil_bridge -> bridge_amber_axil -> {
-//      harness_csr, traffic_gen0, traffic_gen1, tally_cnt/cfgw/cfgr }
+//      harness_csr, cycle_injector0, cycle_injector1, tally_cnt/cfgw/cfgr }
 //   Two cycle injectors drive two amber_top caches; caches connect through
 //   amber_pair_fabric to a shared sdpram_slave_axi4_axi4 memory. Cache
 //   MonBus streams merge and feed a monbus_tally_axil for host read-out.

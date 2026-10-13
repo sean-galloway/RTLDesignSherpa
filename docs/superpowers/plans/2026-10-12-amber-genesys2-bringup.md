@@ -10,13 +10,13 @@ the pumice/kestrel/stream board-wrapper pattern.
 
 ```
 uart (host) → uart_axil_bridge → bridge_amber_axil (generated decoder)
-   ├─ harness_csr     (ctrl/status: per-gen run/kick, done/busy, cycle ctr)
-   ├─ traffic_gen0 cfg/status   (per-core stimulus engine)
-   ├─ traffic_gen1 cfg/status
-   ├─ tally cnt_*     (monbus_tally_axil count readback)
-   └─ tally cfgr_*    (tally config/status)
+   ├─ harness_csr        (ctrl/status: per-injector run/kick, done/busy, cycle ctr)
+   ├─ cycle_injector0 cfg/status   (per-core stimulus engine)
+   ├─ cycle_injector1 cfg/status
+   ├─ tally cnt_*        (monbus_tally_axil count readback)
+   └─ tally cfgr_*       (tally config/status)
 
-traffic_gen0/1 → cpu_req GAXI (packed {addr,we,be,wdata}) →
+cycle_injector0/1 → cpu_req GAXI (packed {addr,we,be,wdata}) →
    u_amber0/u_amber1 (amber_top = l1_core + axi4_master_rd/wr + monbus_arb)
    → amber_pair_fabric (c0/c1 masters, coh sidebands, peer_state)
    → mem_* AXI4 → u_mem (sdpram_slave_axi4_axi4, BRAM)
@@ -27,7 +27,7 @@ amber0/1 monbus → rig merge arbiter → monbus_axil4_axil4_group
 
 - Geometry: s128w4l64b64 (the pair-rig FULL geometry).
 - Memory: 512 KB sdpram (MEM_DEPTH param); working set region configured
-  via the traffic-gen address mask.
+  via the cycle-injector address mask.
 - Clock: 90 MHz (MMCM pattern from stream_genesys2_top); board 200 MHz
   differential oscillator via IBUFDS.
 - Reset: board pushbutton → two-flop sync (stream pattern).
@@ -38,7 +38,7 @@ amber0/1 monbus → rig merge arbiter → monbus_axil4_axil4_group
 |---|---|
 | `rtl/amber_pair_genesys2_top.sv` | copy of `dma-ip/stream/rtl/stream_genesys2_top.sv` clock/reset shell |
 | `rtl/amber_pair_harness.sv` | stream_harness.sv integration template |
-| `rtl/amber_traffic_gen.sv` | new: AXIL-CSR-driven cpu_req GAXI master (LFSR addr within masked region, R/W mix, TRANS_COUNT stop, accepted/rsp counters) |
+| `rtl/amber_cycle_injector.sv` | new: AXIL-CSR-driven cpu_req GAXI master (dma_address_gen + shifter_lfsr_fibonacci + dataint_crc; R/W mix, TRANS_COUNT stop, accepted/rsp counters) |
 | `rtl/bridges/configs/bridge_amber_axil.toml` | copy `bridge_stream_char_axil.toml` |
 | `rtl/bridges/generated/bridge_amber_axil/` | generated (house bridge generator) |
 | `fpga/constraints/amber_pair_genesys2_top.xdc` | copy stream xdc, adapt pins unchanged (same board) |
@@ -63,7 +63,7 @@ amber0/1 monbus → rig merge arbiter → monbus_axil4_axil4_group
 
 ## Decisions pinned
 
-- D1: stimulus = bespoke RTL traffic gens (no soft-core CPU; kestrel
+- D1: stimulus = bespoke RTL cycle injectors (no soft-core CPU; kestrel
   integration is a later milestone). Deterministic LFSR seeds →
   reproducible tally counts.
 - D2: on-board data correctness is NOT deeply checked (no golden model on
