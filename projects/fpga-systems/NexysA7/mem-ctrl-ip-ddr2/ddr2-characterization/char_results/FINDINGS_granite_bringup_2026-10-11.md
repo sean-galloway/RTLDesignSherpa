@@ -245,6 +245,29 @@ diagonal was rddata_delay=7 @ rden=6 last month; if the eye drifted, the
 diagonal moved). If no (rden, delay) gives mism=0, power-cycle the board
 (cold state) and re-test — thermal hypothesis check — before any ILA work.
 
+## DECISIVE A/B (2026-10-12 evening): bench hardware is healthy
+
+- **Pumice config space is unchanged**: nothing touched today; since Oct 1 only
+  the layer->plane rename and the research-ip dir reorg (both verified
+  address-preserving). The bit on the bench is Oct 11 20:29 -- the same one
+  that ran the clean 561 MB/s matrix hours earlier.
+- **LiteDRAM reads are clean RIGHT NOW on this bench**: full char basic
+  matrix, 4/4 integrity PASS, rd 469.7-575.3 / wr 568.9-581.8 MB/s. Same
+  DRAM, wires, bench. Its BIOS re-runs full PHY calibration at EVERY boot.
+- Pumice + granite (a7ddrphy-based) reads: rotated stream at every setting,
+  joint rden x rddata_delay sweep (80 pts) best 248/256 mismatch -- and the
+  a7ddrphy leveling sweep found no eye tonight either.
+
+Conclusion: the DRAM/board/wiring are fine; the failure is isolated to the
+a7ddrphy-based read capture UNDER CURRENT BOARD CONDITIONS, and it appeared
+hours after a clean run of the SAME pumice bit. LiteDRAM adapts per-boot
+(recalibrates); the RDS flows carry static calibration from whenever the
+leveling was last trained. IDELAY/temperature drift out of the static
+window is the leading mechanism. Cool-down + retrain is the next step;
+boot-time PHY recalibration in the RDS flows is the durable fix (LiteDRAM
+is the model). Granite perf remains blocked on this; granite write-side
+conclusions are unaffected.
+
 ## Working hypothesis for the open defect (updated)
 
 blen>=2 (split) sub-bursts at the 1-deep entry store: sub-entries neither
