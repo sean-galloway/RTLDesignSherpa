@@ -1,0 +1,36 @@
+// debounce block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Single clock (clk, rst_n). Per button: on each long_tick the (polarity-
+// normalized) input shifts into a DEBOUNCE_DELAY-deep history register; the
+// output goes high only when the whole history agrees (AND reduction), and is
+// registered. N identical channels collapse into one counted column.
+// Source of truth: rtl/common/debounce.sv.
+digraph debounce {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
+           label="debounce - N buttons, sampled on long_tick (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm   [label="Parameters (fixed at build)\lPRESSED_STATE: 1 = pressed reads high\l    (normally open); 0 = pressed reads low\l    (normally closed), input inverted\lDEBOUNCE_DELAY: ticks the input must hold\l", fillcolor="white"];
+    btn   [label="Button Inputs\nbutton_in[N-1:0] (raw, bouncing)", fillcolor="white"];
+    tick  [label="Sample Tick\nlong_tick (~10 ms strobe)", fillcolor="white"];
+
+    pol   [label="Polarity Normalize (combinational)\nPRESSED_STATE ? button_in : ~button_in"];
+    hist  [label="Sample History  (N x, flop)\nr_shift_regs[i][DEBOUNCE_DELAY-1:0]\nshift in one sample per long_tick"];
+    agree [label="Stable Decision (combinational)\nw_debounced_signals[i] = &r_shift_regs[i]\n(high only after DEBOUNCE_DELAY pressed samples)"];
+    oreg  [label="Output Register (flop)\nbutton_out"];
+    out   [label="Debounced Outputs\nbutton_out[N-1:0]", fillcolor="white", width=4.0];
+
+    btn -> pol [xlabel="button_in"];
+    pol -> hist [xlabel="pressed = 1", penwidth=1.8];
+    tick -> hist [style=dashed, xlabel="shift enable"];
+    hist -> agree [xlabel="sample history"];
+    agree -> oreg [xlabel="debounced"];
+    oreg -> out [xlabel="button_out", penwidth=1.8];
+
+    { rank=same; prm; btn; tick; }
+    prm -> btn [style=invis];
+    btn -> tick [style=invis, minlen=2];
+}

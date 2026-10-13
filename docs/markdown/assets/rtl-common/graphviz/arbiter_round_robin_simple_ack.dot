@@ -1,0 +1,65 @@
+// arbiter_round_robin_simple_ack block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). A TEACHING module: the
+// arbiter_round_robin_simple pick with the grant HELD in a register until
+// the granted agent acknowledges it.
+// Flows:
+//   requests  - top-down the center: Requests -> win-mask -> trapezium pick
+//               (masked first, else all) -> index encode -> Grant Register ->
+//               outputs bar. The unmasked copy runs down the left of the mask.
+//   last grant - r_last_grant climbs the RIGHT edge back into the win-mask.
+//   handshake - grant_ack is a dashed return into the Handshake Control in
+//               the left column, which tells the register to load, hold or
+//               clear; the held grant comes back to it to qualify the ack.
+// Outputs are registered (one cycle after the pick).
+// Source of truth: rtl/common/arbiter_round_robin_simple_ack.sv.
+digraph arbiter_round_robin_simple_ack {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="arbiter_round_robin_simple_ack - teaching round-robin, grant held until acknowledged",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    ack  [group=L, label="Grant Acknowledge\ngrant_ack[N]", fillcolor="white"];
+    req  [group=C, label="Requests\nrequest[N]", fillcolor="white"];
+    clk  [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+
+    mask [group=C, label="Win-Mask (combinational)\nw_req_masked = request & mask[r_last_grant]\nonly agents above the last winner stay eligible"];
+    pick [group=C, label="Pick (combinational)\nmasked first, else all; keep the lowest set bit",
+          shape=invtrapezium, width=7.0, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
+    enc  [group=C, label="One-Hot to Index (combinational)\nw_nxt_grant_id = position of the set bit"];
+    hs   [group=L, label="Handshake Control (combinational)\nw_ack = grant_ack of the held agent\nw_other_req = anyone else requesting"];
+    greg [group=C, label="Grant Register (flop)\nr_grant, r_grant_valid, r_last_grant\nidle: load next | acked + others: load next\nacked, no others: clear | else: hold"];
+
+    outs [group=C, label="Outputs (registered)\ngrant[N] (one-hot, held)   |   grant_valid   |   grant_id",
+          fillcolor="white", width=6.6];
+
+    p_un [shape=point, width=0.01];
+    req  -> mask [xlabel="request"];
+    req  -> p_un [arrowhead=none, headclip=false];
+    p_un -> pick [xlabel="unmasked requests", tailclip=false];
+    mask -> pick [xlabel="masked requests"];
+    pick -> enc  [xlabel="next grant (one-hot)", penwidth=1.8];
+    enc  -> greg [xlabel="next grant + id"];
+    greg -> outs [xlabel="grant, grant_valid, grant_id"];
+
+    // the held state climbs the right edge back into the mask
+    greg -> mask [xlabel="r_last_grant", constraint=false];
+
+    // handshake (dashed return path)
+    ack  -> hs   [style=dashed, xlabel="grant_ack"];
+    hs   -> greg [style=dashed, xlabel="load / hold / clear"];
+    clk  -> greg [style=dashed, xlabel="clk, rst_n"];
+
+    { rank=same; ack; req; }
+    { rank=same; p_un; mask; }
+    { rank=same; pick; }
+    { rank=same; hs; enc; clk; }
+    { rank=same; greg; }
+    { rank=max; outs; }
+    ack -> req [style=invis, minlen=3];
+    p_un -> mask [style=invis, minlen=2];
+    hs -> enc [style=invis, minlen=2];
+    enc -> clk [style=invis, minlen=3];
+}

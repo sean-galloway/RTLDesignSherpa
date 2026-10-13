@@ -51,6 +51,16 @@ This module has no parameters.
 
 ## Functional Description
 
+### Block diagram
+
+![icg block diagram](../assets/rtl-common/graphviz/icg.png)
+
+The clock is the main flow: `clk` goes straight through the AND gate to
+`gclk`. The enable latch is transparent while `clk` is low and holds while it
+is high, so `en_out` can only change while `clk` is low, and the AND never
+cuts a high phase short or adds a glitch. There is no test-enable input.
+
+
 ### Clock Gating Operation
 
 The ICG does clock gating the safe way:

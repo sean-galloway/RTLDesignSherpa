@@ -68,6 +68,15 @@ generates WIDTH unique states, with a single '1' bit rotating through WIDTH posi
 
 ## Functional Description
 
+### Block diagram
+
+![counter_ring block diagram](../assets/rtl-common/graphviz/counter_ring.png)
+
+A single 1 rotates one place right on each enabled clock. Reset sets bit 0,
+so exactly one bit is high from the first cycle. The register feeds back up
+the right edge into the rotate logic, and `ring_out` leaves as a one-hot
+vector cycling through `WIDTH` states.
+
 ### Ring Counter Principle
 
 A ring counter is just a circular shift register:

@@ -1,0 +1,54 @@
+// bin_to_bcd block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Single clock (clk, rst_n). Sequential double-dabble: the binary shift
+// register feeds its MSB into the BCD register one bit per SHIFT; between
+// shifts the add-3 corrector walks the digits and writes each corrected
+// digit back (feedback up the right edge). A one-hot control FSM sequences
+// load / shift / add / done. Source of truth: rtl/common/bin_to_bcd.sv.
+digraph bin_to_bcd {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
+           label="bin_to_bcd - sequential double-dabble (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    start_in [group=L, label="Start Input\nstart", fillcolor="white"];
+    bin_in   [label="Binary Input\nbinary[WIDTH-1:0]", fillcolor="white"];
+
+    fsm  [group=L, label="Control FSM (one-hot, flop)\nIDLE > SHIFT > CK_S_IDX > ADD > CK_D_IDX\n> ... > BCD_DONE\nr_loop_count (WIDTH shifts), r_digit_index"];
+    rbin [group=C, label="Binary Shift Register\nr_binary (flop)\nload on start; shift left each SHIFT"];
+    rbcd [group=C, label="BCD Register\nr_bcd[DIGITS*4-1:0] (flop)\nclear on start; shift in r_binary MSB"];
+    add3 [group=R, label="Add-3 Corrector (combinational select)\nw_bcd_digit = r_bcd[r_digit_index]\ndigit > 4: write back digit + 3"];
+
+    out [label="Outputs\nbcd[DIGITS*4-1:0] (= r_bcd)   |   done (one-cycle pulse)", fillcolor="white", width=6.5];
+
+    start_in -> fsm  [xlabel="start"];
+    bin_in   -> rbin [xlabel="binary"];
+    rbin -> rbcd [xlabel="r_binary[WIDTH-1]\n(MSB, one bit per shift)", penwidth=1.8];
+
+    // add-3 loop on the right: digit out, corrected digit back up the right edge
+    rbcd -> add3 [xlabel="current digit"];
+    p_fb [shape=point, width=0.01, group=R];
+    add3 -> p_fb [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> rbcd [xlabel="corrected digit", tailclip=false, constraint=false];
+
+    // control (dashed sideband)
+    fsm -> rbin [style=dashed, xlabel="load, shift"];
+    fsm -> rbcd [style=dashed, xlabel="clear, shift"];
+    fsm -> add3 [style=dashed, xlabel="r_digit_index"];
+
+    // outputs: bcd straight down the center, done straight down the FSM column
+    p_c [shape=point, width=0.01, group=C];
+    rbcd -> p_c [arrowhead=none, headclip=false, penwidth=1.8];
+    p_c -> out [xlabel="bcd", tailclip=false, penwidth=1.8];
+    fsm -> out [xlabel="done (r_dv)"];
+
+    { rank=same; start_in; bin_in; }
+    { rank=same; fsm; rbin; }
+    { rank=same; p_c; add3; p_fb; }
+    p_c -> add3 [style=invis, minlen=2];
+    add3 -> p_fb [style=invis];
+    start_in -> bin_in [style=invis, minlen=3];
+    fsm -> rbin [style=invis, minlen=3];
+}

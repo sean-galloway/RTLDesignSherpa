@@ -106,6 +106,19 @@ same pattern.)
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_round_robin_weighted block diagram](../assets/rtl-common/graphviz/arbiter_round_robin_weighted.png)
+
+Requests drop down the center through the `block_arb` gate into the
+eligibility and fairness mask, which passes clients that still hold credit (or
+that a replenish round is about to refill). The masked requests feed the base
+`arbiter_round_robin` (the trapezium), whose registered grant goes straight to
+the outputs. The credit counters sit on the right: each completed grant climbs
+the right edge to spend one credit, and when no requester has credit left all
+counters reload from their weights. A change on `max_thresh` goes through the
+change sequencer, which holds the pick until the new weights are loaded.
+
 ### Credit-Based Weighting
 
 Weighted bandwidth allocation here runs on a credit system:

@@ -1,0 +1,41 @@
+// leading_one_trailing_one block diagram - house style.
+// Purely combinational. Two child pickers run side by side on the same data:
+// find_last_set gives the leading (highest) one, find_first_set the trailing
+// (lowest) one. Each child's own diagram shows its trapezium; here they are
+// instance boxes. Each index is expanded back to a one-hot vector, gated by
+// |data. The reductions (all ones / all zeroes / valid) run in the centre.
+// Source of truth: rtl/common/leading_one_trailing_one.sv.
+digraph leading_one_trailing_one {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="leading_one_trailing_one - highest and lowest set bit (combinational)";
+
+    din  [label="Data Input\ndata[WIDTH-1:0]", fillcolor="white"];
+
+    fls  [group=L, label="Leading One\nfind_last_set - u_find_last_set\n(highest set bit; see its diagram)"];
+    red  [group=C, label="Reductions\nall_ones = &data\nall_zeroes = ~|data\nvalid = |data"];
+    ffs  [group=R, label="Trailing One\nfind_first_set - u_find_first_set\n(lowest set bit; see its diagram)"];
+
+    lv   [group=L, label="Index to One-Hot\nleadingone_vector[leadingone] = 1\n(all zero when data == 0)"];
+    tv   [group=R, label="Index to One-Hot\ntrailingone_vector[trailingone] = 1\n(all zero when data == 0)"];
+
+    dout [label="Outputs\nleadingone, leadingone_vector   |   all_ones, all_zeroes, valid   |   trailingone, trailingone_vector",
+          fillcolor="white", width=9.0];
+
+    din -> fls [xlabel="data"];
+    din -> red [xlabel="data"];
+    din -> ffs [xlabel="data"];
+    fls -> lv  [xlabel="leadingone"];
+    ffs -> tv  [xlabel="trailingone"];
+    lv  -> dout [xlabel="leadingone,\nleadingone_vector"];
+    red -> dout [xlabel="flags"];
+    tv  -> dout [xlabel="trailingone,\ntrailingone_vector"];
+
+    { rank=same; fls; red; ffs; }
+    { rank=same; lv; tv; }
+    fls -> red -> ffs [style=invis];
+}

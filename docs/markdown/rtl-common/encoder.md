@@ -42,6 +42,16 @@ Converts a one-hot N-bit input back into its binary index — the inverse of a d
 
 ## Functional Description
 
+### Block diagram
+
+![encoder block diagram](../assets/rtl-common/graphviz/encoder.png)
+
+The one-hot `decoded` input enters at the top and the encoder returns the
+index of its set bit as `data`. It is drawn as a plain block, not a pick: the
+input is meant to be one-hot. With no bit set the output is 0, and with
+several bits set the loop leaves the highest index, so a multi-hot input
+needs `encoder_priority_enable` instead.
+
 ### Operation Principle
 
 - Scans the input vector from LSB to MSB

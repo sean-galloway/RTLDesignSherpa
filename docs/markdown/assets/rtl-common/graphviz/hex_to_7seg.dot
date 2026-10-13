@@ -1,0 +1,19 @@
+// hex_to_7seg block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Purely combinational: one 16-entry case statement maps a hex nibble to an
+// active-low seven-segment pattern. Source of truth: rtl/common/hex_to_7seg.sv.
+digraph hex_to_7seg {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
+           label="hex_to_7seg - hex digit to 7-segment (combinational)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    hex_in [label="Hex Input\nhex[3:0]  (0 .. F)", fillcolor="white"];
+    lut    [label="Segment Decode (combinational)\n16-entry case: one fixed pattern per hex value\n0-9 and A, b, C, d, E, F"];
+    seg    [label="Segment Output\nseg[6:0] = {g, f, e, d, c, b, a}\nactive-low: 0 lights the segment (common anode)", fillcolor="white"];
+
+    hex_in -> lut [xlabel="hex[3:0]"];
+    lut -> seg [xlabel="seg[6:0]"];
+}

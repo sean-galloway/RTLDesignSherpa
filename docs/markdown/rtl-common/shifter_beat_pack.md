@@ -94,6 +94,18 @@ Grouped by direction:
 
 ## Functional Description
 
+### Block diagram
+
+![shifter_beat_pack block diagram](../assets/rtl-common/graphviz/shifter_beat_pack.png)
+
+Fixed `CHUNK_BITS` chunks enter down the left, and runtime-sized beats
+leave from the low bits of the bit buffer up the right edge. The beat size
+comes from `cfg_beat_bytes_m1` (legend at the top). The next-state merge
+reads the buffer and count straight up its own column, applies a pop
+(shift right by the beat width) and then a push (write the chunk at bit
+`r_count`), all in one clock. The handshake flags read `r_count` and return
+`push_ready` and `pop_valid` dashed to their ports.
+
 ### Runtime Beat Width
 
 The runtime beat width in bits comes from the byte-minus-one config field, widened by 4 bits so the counter math can represent the largest beat any `CFG_BITS`-wide value can encode:

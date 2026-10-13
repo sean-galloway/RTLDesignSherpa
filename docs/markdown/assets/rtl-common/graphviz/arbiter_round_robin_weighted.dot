@@ -1,0 +1,71 @@
+// arbiter_round_robin_weighted block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). Template: arbiter_round_robin;
+// sibling layout: arbiter_deficit_round_robin.
+// Flows:
+//   requests  - top-down the center: Requests -> gate -> eligibility/fairness
+//               mask -> base round-robin pick (trapezium) -> outputs bar
+//   credits   - credit counters in the right column feed eligibility;
+//               completed grants climb the RIGHT edge back to spend them
+//   weights   - max_thresh port -> change sequencer -> active weights (dashed)
+//   sideband  - block_arb, grant_ack, sequencer hold: dashed
+// Source of truth: rtl/common/arbiter_round_robin_weighted.sv.
+digraph arbiter_round_robin_weighted {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.65", splines=ortho, newrank=true,
+           label="arbiter_round_robin_weighted - credit-weighted round robin over the base round-robin pick",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external inputs (white) ----
+    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = a grant holds until grant_ack,\l    and the credit is spent on the ack;\l    0 = every grant completes in its cycle\l", fillcolor="white"];
+    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white"];
+    blk  [label="Block Input\nblock_arb", fillcolor="white"];
+    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white"];
+    wprt [group=Q, label="Weights (runtime port)\nmax_thresh per client: grants per\nreplenish round; 0 disables the client", fillcolor="white"];
+
+    // ---- logic ----
+    gate [group=C, label="Request Gate\nrequests forced to 0 while block_arb"];
+    seq  [group=Q, label="Weight Change Sequencer (FSM)\nIDLE > BLOCK > DRAIN > UPDATE > STABILIZE\nloads r_safe_max_thresh; reloads credits"];
+    crd  [group=Q, label="Credit Counters\nr_credit_counter per client (flop)\ncompleted grant: - 1\nno requester has credit: reload all (replenish)"];
+    elig [group=C, label="Eligibility + Fairness Mask\neligible = request & weight > 0 & (credit > 0 or replenish)\nseveral eligible: current holder excluded\none eligible: kept while credit > 1"];
+    pick [group=C, label="Base Round-Robin Pick\narbiter_round_robin - u_base_arbiter",
+          shape=invtrapezium, width=7.2, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
+
+    // ---- the boundary bar: outputs ----
+    outs [group=C, label="Grant Outputs\ngrant[CLIENTS] (one-hot)   |   grant_id   |   grant_valid",
+          fillcolor="white", width=7.0];
+
+    // ---- main flow ----
+    req  -> gate [xlabel="request"];
+    gate -> elig [xlabel="gated requests"];
+    elig -> pick [xlabel="eligible, masked requests"];
+    pick -> outs [xlabel="grant, grant_id, grant_valid", penwidth=1.8];
+
+    // ---- weights ----
+    wprt -> seq  [xlabel="max_thresh"];
+    seq  -> crd  [style=dashed, xlabel="active weights"];
+    crd  -> elig [xlabel="credit"];
+
+    // ---- completed-grant feedback up the right edge ----
+    p_fb [group=R, shape=point, width=0.01];
+    outs -> p_fb [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> crd [xlabel="completed grant (spend)", tailclip=false, constraint=false];
+
+    // ---- sideband (dashed) ----
+    blk -> gate [style=dashed, xlabel="block_arb"];
+    ack -> pick [style=dashed, xlabel="grant_ack"];
+    seq -> pick [style=dashed, xlabel="hold while not IDLE"];
+
+    // ---- rank pinning ----
+    { rank=same; prm; ack; blk; req; wprt; }
+    { rank=same; gate; seq; }
+    { rank=same; crd; }
+    { rank=same; elig; p_fb; }
+    { rank=same; pick; }
+    { rank=max; outs; }
+    prm -> ack -> blk -> req -> wprt [style=invis];
+    gate -> seq [style=invis, minlen=2];
+    elig -> p_fb [style=invis, minlen=3];
+}

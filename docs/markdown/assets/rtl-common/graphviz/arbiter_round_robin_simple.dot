@@ -1,0 +1,57 @@
+// arbiter_round_robin_simple block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). A TEACHING module: the same
+// win-mask round-robin as arbiter_round_robin with nothing else around it
+// (no block_arb, no grant_ack, no registered grant).
+// Flows:
+//   requests  - top-down the center: Requests -> win-mask (masked copy) and
+//               the raw vector -> the trapezium pick -> outputs bar
+//   grant_id  - the one-hot winner is encoded to an index beside the pick
+//   last grant - the only state: r_last_grant, loaded with the winner's
+//               index, climbs the RIGHT edge back into the win-mask LUT
+// The pick and the outputs are combinational: grant appears in the same
+// cycle as request. Source of truth: rtl/common/arbiter_round_robin_simple.sv.
+digraph arbiter_round_robin_simple {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.65", splines=ortho, newrank=true,
+           label="arbiter_round_robin_simple - teaching round-robin (combinational grant, one state register)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    req  [group=C, label="Requests\nrequest[N]", fillcolor="white"];
+    clk  [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+
+    mask [group=C, label="Win-Mask (combinational)\nw_req_masked = request & mask[r_last_grant]\nonly agents above the last winner stay eligible"];
+    pick [group=C, label="Pick (combinational)\nmasked first, else all; keep the lowest set bit",
+          shape=invtrapezium, width=7.0, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
+    enc  [label="One-Hot to Index (combinational)\ngrant_id = position of the set bit"];
+    last [group=R, label="Last-Winner Register (flop)\nr_last_grant <= grant_id when grant_valid\n(reset N-1: first pass starts at agent 0)"];
+
+    outs [group=C, label="Outputs (same cycle as request)\ngrant[N] (one-hot)   |   grant_valid   |   grant_id",
+          fillcolor="white", width=6.4];
+
+    p_un [shape=point, width=0.01];
+    req  -> p_un [arrowhead=none, headclip=false];
+    p_un -> pick [xlabel="unmasked requests", tailclip=false];
+    req  -> mask [xlabel="request"];
+    mask -> pick [xlabel="masked requests"];
+    pick -> outs [xlabel="grant, grant_valid", penwidth=1.8];
+    pick -> enc  [xlabel="grant (one-hot)"];
+    enc  -> outs [xlabel="grant_id"];
+    enc  -> last [xlabel="grant_id"];
+
+    // the only state climbs the right edge back into the mask
+    last -> mask [xlabel="r_last_grant", constraint=false];
+
+    clk -> last [style=dashed, xlabel="clk, rst_n"];
+
+    { rank=same; req; }
+    { rank=same; p_un; mask; }
+    p_un -> mask [style=invis, minlen=2];
+    { rank=same; pick; }
+    { rank=same; enc; clk; }
+    { rank=same; outs; last; }
+    enc -> clk [style=invis, minlen=4];
+    outs -> last [style=invis, minlen=2];
+}

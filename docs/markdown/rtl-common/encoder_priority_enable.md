@@ -43,6 +43,15 @@ Encodes the highest priority (highest index) asserted bit in the input vector, w
 
 ## Functional Description
 
+### Block diagram
+
+![encoder_priority_enable block diagram](../assets/rtl-common/graphviz/encoder_priority_enable.png)
+
+`priority_in` enters at the top and the highest set bit wins. That is a
+genuine many-to-one pick, so it is drawn as the trapezium, with the winning
+index leaving its narrow edge as `encode`. `enable` is sideband: when it is
+low the output is forced to 0, which is also the result when no bit is set.
+
 ### Operation Principle
 
 - **True priority encoding**: Searches from MSB (highest priority) to LSB

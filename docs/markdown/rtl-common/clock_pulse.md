@@ -56,6 +56,14 @@ module clock_pulse #(
 
 ## Functional Description
 
+### Block diagram
+
+![clock_pulse block diagram](../assets/rtl-common/graphviz/clock_pulse.png)
+
+A period counter runs 0 to `WIDTH-1` and wraps, feeding back up the right
+edge into its increment logic. The pulse register samples the compare
+`r_counter == WIDTH-1`, so `pulse` is high for one clock in every `WIDTH`.
+
 ### Internal Counter
 
 ```systemverilog

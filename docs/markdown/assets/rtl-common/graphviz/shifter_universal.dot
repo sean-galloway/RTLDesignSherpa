@@ -1,0 +1,45 @@
+// shifter_universal block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Single clock. Main flow top-down: parallel / serial inputs -> mode-select
+// next state (a plain mux box: the select is an external port, not an
+// arbitration) -> register (parallel word + the two registered serial-out
+// bits) -> output bar. The parallel register climbs the right edge back into
+// the mode select (hold and both shifts read it).
+// Source of truth: rtl/common/shifter_universal.sv.
+digraph shifter_universal {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="shifter_universal - hold / shift right / shift left / parallel load register";
+
+    sel   [label="Operation Select (runtime input port)\lselect[1:0]:\l    00 = hold\l    01 = shift right: i_sdata_rt enters the MSB,\l           bit 0 leaves on o_sdata_rt\l    10 = shift left: i_sdata_lt enters bit 0,\l           the MSB leaves on o_sdata_lt\l    11 = parallel load i_pdata\l", fillcolor="white"];
+    pin   [label="Parallel Input\ni_pdata[WIDTH-1:0]", fillcolor="white"];
+    sin   [label="Serial Inputs\ni_sdata_rt (enters on right shift)\ni_sdata_lt (enters on left shift)", fillcolor="white"];
+    clk   [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+
+    mux   [label="Mode Select (combinational, case on select)\nw_pdata: hold / {i_sdata_rt, o_pdata[WIDTH-1:1]} /\n{o_pdata[WIDTH-2:0], i_sdata_lt} / i_pdata\nw_sdata_rt, w_sdata_lt: the bit shifted out, else 0"];
+    reg   [label="Shift Register (flops, reset 0)\no_pdata[WIDTH-1:0]\n+ o_sdata_rt, o_sdata_lt (registered serial outs)"];
+    out   [label="Outputs\no_pdata[WIDTH-1:0]   |   o_sdata_rt   |   o_sdata_lt", fillcolor="white", width=6.0];
+
+    p_fb  [shape=point, width=0.01];
+
+    pin  -> mux [xlabel="i_pdata (load)"];
+    sin  -> mux [xlabel="serial in bits"];
+    sel  -> mux [style=dashed, xlabel="select"];
+    mux  -> reg [xlabel="w_pdata, w_sdata_rt, w_sdata_lt"];
+    reg  -> out [xlabel="o_pdata, serial outs"];
+
+    reg  -> p_fb [arrowhead=none, headclip=false, constraint=false, xlabel="o_pdata (current)"];
+    p_fb -> mux  [tailclip=false, constraint=false];
+
+    clk  -> reg  [style=dashed, xlabel="clk, rst_n"];
+
+    { rank=same; sel; pin; sin; }
+    { rank=same; clk; mux; p_fb; }
+    sel -> pin [style=invis, minlen=2];
+    pin -> sin [style=invis, minlen=2];
+    clk -> mux [style=invis, minlen=2];
+    mux -> p_fb [style=invis, minlen=3];
+}

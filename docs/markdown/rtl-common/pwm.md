@@ -57,6 +57,18 @@ Generates multiple independent pulse width modulation signals with configurable 
 
 ## Functional Description
 
+### Block diagram
+
+![pwm block diagram](../assets/rtl-common/graphviz/pwm.png)
+
+Each of the `CHANNELS` channels is independent; the figure shows one. A rising
+edge on `start[i]` moves the channel FSM to RUNNING, and the period counter
+counts 0 to `period-1` and wraps. While running, `pwm_out` is high when the
+count is below `duty`. Each wrap increments the repeat counter, and when
+`repeat_count` periods have run (never, if `repeat_count` is 0) the FSM moves to
+DONE, which drives `done[i]` and waits for the next start edge.
+
+
 ### State Machine
 
 Each PWM channel runs a 3-state finite state machine:

@@ -58,6 +58,17 @@ pass-through, all selected by a 3-bit control signal.
 
 ## Functional Description
 
+### Block diagram
+
+![shifter_barrel block diagram](../assets/rtl-common/graphviz/shifter_barrel.png)
+
+Data and shift amount enter at the top and feed one candidate network
+that computes every result at once: rotates come from taps on the doubled
+word `{data, data}` (rotate amount reduced mod `WIDTH`), and plain shifts use
+`>>`, `<<` and `>>>`. The mode select picks one candidate, or the unshifted
+data, according to `ctrl`; the legend at the top right gives each `ctrl` code.
+Everything is combinational.
+
 ### Control Signal Encoding
 
 The 3-bit `ctrl` signal determines the shift operation:

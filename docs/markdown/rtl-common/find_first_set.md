@@ -42,6 +42,15 @@ Finds the index of the least significant bit (LSB) that's set to '1' in the inpu
 
 ## Functional Description
 
+### Block diagram
+
+![find_first_set block diagram](../assets/rtl-common/graphviz/find_first_set.png)
+
+`data` enters at the top and its lowest set bit wins. That is a genuine
+many-to-one pick, so it is drawn as the trapezium, with the winning index
+leaving its narrow edge as `index`. There is no valid output: no bit set and
+bit 0 set both give 0. `leading_one_trailing_one` adds the `valid` flag.
+
 ### Search Strategy
 
 - **Direction**: LSB to MSB (left to right, ascending index)

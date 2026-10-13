@@ -1,0 +1,31 @@
+// icg block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The output is a clock, so the clock is the heavy main column
+// (see clock_gate_ctrl). Enable is captured by a latch that is transparent
+// while clk is low, then ANDed with clk: the enable can only change while
+// clk is low, so gclk never glitches. No test-enable input.
+// Source of truth: rtl/common/icg.sv.
+digraph icg {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
+           label="icg - latch-based integrated clock gate (no test enable)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    clk_in [group=C, label="Clock In\nclk", fillcolor="white"];
+    en_in  [label="Enable In\nen", fillcolor="white"];
+
+    latch [label="Enable Latch (always_latch)\nen_out follows en while clk is low,\nholds while clk is high"];
+    andg  [group=C, label="Clock AND (combinational)\ngclk = en_out & clk", width=4.2];
+    out   [group=C, label="Gated Clock Out\ngclk", fillcolor="white", width=3.0];
+
+    clk_in -> andg [xlabel="clk", penwidth=1.8];
+    clk_in -> latch [style=dashed, xlabel="clk"];
+    en_in -> latch [xlabel="en"];
+    latch -> andg [xlabel="en_out"];
+    andg -> out [xlabel="gclk", penwidth=1.8];
+
+    { rank=same; clk_in; en_in; }
+    clk_in -> en_in [style=invis, minlen=4];
+}

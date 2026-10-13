@@ -253,6 +253,18 @@ Start a new diagram from them, not from a blank file:
 - **A spacer node does not always widen a same-rank gap.** Moving a third
   node to the other side of the lane removed the crossing
   (`dataint_ecc_hamming_decode_secded`).
+- **Feedback into a block that has ports above it** needs two pinned point
+  scaffolds, one in the register's rank and one in the next-state block's
+  rank. Alternatively, draw `upper -> lower [dir=back]`, which is
+  constrained. A single `constraint=false` scaffold loops over the top.
+- **One input feeding two blocks splits at a labeled point node.** A shared
+  input trunk gets one label on its long leg, and short `headlabel`
+  indices (`[7]`, `[6:1]`, `[0]`) at each arrowhead.
+- **A combinational output tapped off next-state logic** runs down the left
+  edge to the output bar. Place the Clock / Reset box between that lane and
+  the register so the two don't cross.
+- **When parallel path blocks fed by one input force crossings, merge them**
+  into one block that describes each path in its label (`shifter_barrel`).
 - **Shorten node labels before fighting the aspect ratio.** Long third lines
   widened every column and pushed the drawing past 2.5:1.
 
@@ -373,6 +385,85 @@ the template for every CDC block.
   the same registers.
 - **One heavy edge per diagram where possible:** the main flow, or the
   trapezium's exit.
+
+### rtl-common, full area (2026-10-12)
+
+All 50 `rtl/common` modules now have a diagram. These rulings came out of
+the full pass, on top of the approved samples above.
+
+**Picks and the trapezium**
+- **Only a genuine many-to-one pick gets the trapezium:** priority encoders,
+  find-first and find-last set, every arbiter's grant.
+- **These are plain boxes:**
+  - a one-hot encoder (its input is not a set of contenders);
+  - leading/trailing-zero counts;
+  - a mux or mode select driven by a port.
+- **No pick, no trapezium.** A one-client arbiter and a token-bucket rate
+  shaper in front of an arbiter have none, and the title says so.
+- **A wrapper over a base arbiter draws the base instance as the trapezium**
+  (`u_base_arbiter` in the weighted and deficit round-robin). Its
+  registered grant goes straight to the output bar.
+- **Both class inputs land on the wide edge.** Put the mask in the center
+  column, run the unmasked bypass down a point scaffold on the left, and
+  keep the right edge for the last-winner feedback. Ortho can't land an
+  edge on the slanted side; make the trapezium wide enough that sideband
+  from above lands on the wide edge.
+- **A stored-state input to the pick** (the priority matrix) sits beside
+  the request gate and drops onto the wide edge.
+- **An enable that forces the pick's output to zero** is dashed sideband
+  into it, labeled with its effect.
+
+**Ports, legends and labels**
+- **A runtime operation code** (`ctrl`, `select`) gets a white legend box
+  listing every code and what it does, dashed into a plain "Mode Select" box.
+- **A broadcast configuration input** (`poly` into eight stages) is a
+  legend box with no edges, rather than N identical edges.
+- **A runtime port that feeds a sequencer FSM** (`max_thresh`, `quantum`) is
+  a white port with a solid edge into it.
+- **A runtime mode bit** (`parity_type`) is dashed sideband; its meaning is
+  stated in the port box.
+- **Size-like parameters that set behavior** (`MAX`, a period `WIDTH`) go in
+  the title. Behavior-switch parameters go in the Parameters legend.
+- **Put edge cases in the output label:**
+  - a missing valid ("no bit set: 0 - no valid flag");
+  - parameter corner cases (`decoder` with `N < 2^M`);
+  - a comparison against an input port, when drawing it would cross a
+    feedback lane.
+- **Register update rules may be a case list in the register's label**
+  ("idle: load next | acked + others: load next | ...") instead of several
+  control edges.
+- **Combinational and registered outputs are named in the bar title:**
+  "Outputs (same cycle as request)" versus "Outputs (registered)".
+
+**Structure**
+- **Multi-channel modules draw one channel.** The title says "one of
+  CHANNELS identical channels", or a box label carries "N x".
+- **A control FSM that sequences a datapath** sits in its own left column,
+  with dashed control edges into the registers. Its status output (`done`)
+  runs straight down that column.
+- **A pipelined chain shows its first one or two stages in full**, then one
+  counted box. A parallel valid pipeline gets its own column.
+- **First, middle and last may replace a counted box** when the order
+  matters (MSB-first stages in the CRC cascade).
+- **A parent that wraps child modules draws them as instance boxes**
+  pointing at their own diagrams (`leading_one_trailing_one`).
+- **Two state loops go on opposite sides of the main column**
+  (`arbiter_matrix_weighted`: credits left, matrix right).
+- **Fibonacci versus Galois is shown by where the XOR sits:** an external
+  feedback block beside the shift path, or in-chain tap XORs in series in
+  the main column.
+- **Shared flag logic** (`fifo_control`) keeps `fifo_async`'s mirrored
+  domain regions without the X; its remote pointers are labeled "(remote,
+  synchronized)".
+- **An optional register that changes behavior is dashed,** with its
+  condition in its label (the `REGISTERED=1` pointer delay).
+- **Handshake flags that read storage** sit in their own column, reading the
+  storage bar straight up.
+- **A clock-gate primitive's clock** drives the latch dashed and runs heavy
+  straight through the AND (`icg`). A divided clock's output column is
+  heavy (`clock_divider`).
+- **When a Clock / Reset box garbles a layout,** drop it and write "(flop on
+  clk)" in the register's label.
 
 ### Decision trees
 

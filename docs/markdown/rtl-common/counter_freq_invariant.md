@@ -116,6 +116,18 @@ Bad combinations get caught early: the three `$error` checks in the
 One naming gotcha: the output is `o_counter`, not `counter`.
 
 ## Functional Description
+
+### Block diagram
+
+![counter_freq_invariant block diagram](../assets/rtl-common/graphviz/counter_freq_invariant.png)
+
+`freq_sel` picks an entry from a divide-factor table built at elaboration,
+where each entry is the clock frequency in MHz, which equals clocks per
+microsecond. The prescaler (`counter_load_clear`) counts that many clocks and
+pulses `done` once per microsecond, and each `done` advances `o_counter` and
+fires `tick`. A change of `freq_sel`, or `sync_reset_n` low, raises the clear
+pulse, which restarts both the prescaler and the microsecond counter. The
+parameters legend says how the table entries are spaced.
 ```
         freq_sel ---> [ LUT mux ] ---> division_factor
                             |

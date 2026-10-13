@@ -84,6 +84,18 @@ module bin_to_bcd #(
 
 ## Functional Description
 
+### Block diagram
+
+![bin_to_bcd block diagram](../assets/rtl-common/graphviz/bin_to_bcd.png)
+
+The control FSM loads `binary` into the binary shift register on `start` and
+clears the BCD register. Each SHIFT moves the binary register's MSB into the
+bottom of the BCD register. Between shifts, the FSM steps `r_digit_index`
+across the digits, and the add-3 corrector writes `digit + 3` back into any
+digit above 4 (the loop on the right edge). After `WIDTH` shifts the FSM
+pulses `done` for one cycle, and `bcd` holds the result.
+
+
 ### The Double-Dabble Algorithm
 
 The Double-Dabble algorithm converts binary to BCD through iterative shifting and adjustment:
@@ -124,21 +136,18 @@ typedef enum logic [5:0] {
 
 ### State Transition Diagram
 
-```
-    IDLE start→ SHIFT
-     ↑                ↓
-                     ↓
-BCD_DONE            CK_S_IDX
-     ↑
-             all bits     more bits
-             shifted        ↓
-                  ↓        ADD
-             BCD_DONE      ↓
-                        CK_D_IDX
-
-                  all digits   more digits
-                  processed      ↓
-     →   SHIFT
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> IDLE : no start
+    IDLE --> SHIFT : start
+    SHIFT --> CK_S_IDX
+    CK_S_IDX --> BCD_DONE : all WIDTH bits shifted
+    CK_S_IDX --> ADD : more bits
+    ADD --> CK_D_IDX
+    CK_D_IDX --> ADD : more digits
+    CK_D_IDX --> SHIFT : all digits checked
+    BCD_DONE --> IDLE : done pulse
 ```
 
 ### State Descriptions

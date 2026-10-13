@@ -82,6 +82,17 @@ module dataint_ecc_hamming_encode_secded #(
 
 ## Functional Description
 
+### Block diagram
+
+![dataint_ecc_hamming_encode_secded block diagram](../assets/rtl-common/graphviz/dataint_ecc_hamming_encode_secded.png)
+
+The mirror of the SECDED decoder, all combinational. The data bits are first
+placed into every codeword position that is not a power of two, leaving the
+power-of-two positions empty. Each Hamming check bit at position 2^i - 1 is
+then the XOR of every position whose (index + 1) has bit i set. Finally, the
+overall parity of all those bits is appended as the MSB, which is what lets the
+decoder tell a single error from a double error.
+
 ### Hamming Code Structure
 
 The encoded word carries three things:

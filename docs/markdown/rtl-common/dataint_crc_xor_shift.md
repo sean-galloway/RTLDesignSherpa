@@ -62,6 +62,16 @@ module dataint_crc_xor_shift #(
 
 ## Functional Description
 
+### Block diagram
+
+![dataint_crc_xor_shift block diagram](../assets/rtl-common/graphviz/dataint_crc_xor_shift.png)
+
+One bit-step of a CRC, all combinational. The feedback bit is the incoming
+`new_bit` XORed with the MSB of the CRC state. The state shifts left one place,
+the feedback bit becomes the new bit 0, and when the feedback bit is 1 the
+polynomial taps `poly[N-1:1]` are XORed into the shifted state.
+`dataint_crc_xor_shift_cascade` chains eight of these to fold in a byte.
+
 ### Core CRC Operation
 
 This is the classic CRC shift-and-XOR, broken into three moves:

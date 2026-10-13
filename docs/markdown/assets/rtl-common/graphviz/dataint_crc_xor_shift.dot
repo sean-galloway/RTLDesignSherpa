@@ -1,0 +1,33 @@
+// dataint_crc_xor_shift block diagram - house style.
+// Purely combinational: one bit-step of a Galois-form CRC. The feedback bit is
+// the new data bit XOR the CRC MSB; the state shifts left one place and, when
+// the feedback bit is 1, the polynomial taps are XORed in.
+// Source of truth: rtl/common/dataint_crc_xor_shift.sv.
+digraph dataint_crc_xor_shift {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="dataint_crc_xor_shift - one CRC bit-step (combinational)";
+
+    st_in [label="CRC State In\nstage_input[CRC_WIDTH-1:0]", fillcolor="white"];
+    nb_in [label="Data Bit In\nnew_bit", fillcolor="white"];
+    poly  [label="Polynomial In\npoly[CRC_WIDTH-1:0]: generator polynomial,\nthe taps XORed in when feedback = 1", fillcolor="white"];
+
+    fb    [label="Feedback Bit (combinational)\nw_feedback_bit = new_bit ^ stage_input[MSB]"];
+    sx    [label="Shift and Conditional XOR (combinational)\nstage_output[0] = w_feedback_bit\nstage_output[N-1:1] = stage_input[N-2:0]\n    ^ (w_feedback_bit ? poly[N-1:1] : 0)"];
+    bar   [label="CRC State Out\nstage_output[CRC_WIDTH-1:0]", fillcolor="white", width=4.5];
+
+    nb_in -> fb [xlabel="new_bit"];
+    st_in -> fb [xlabel="stage_input[MSB]"];
+    st_in -> sx [xlabel="stage_input[N-2:0]\n(shifted left one)"];
+    fb    -> sx [xlabel="w_feedback_bit"];
+    poly  -> sx [xlabel="poly[N-1:1]\n(taps)"];
+    sx    -> bar [xlabel="stage_output", penwidth=1.8];
+
+    { rank=same; nb_in; st_in; poly; }
+    nb_in -> st_in [style=invis, minlen=2];
+    st_in -> poly [style=invis, minlen=5];
+}

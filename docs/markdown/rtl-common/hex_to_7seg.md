@@ -40,6 +40,15 @@ This module has no parameters — fixed functionality for standard 7-segment dis
 
 ## Functional Description
 
+### Block diagram
+
+![hex_to_7seg block diagram](../assets/rtl-common/graphviz/hex_to_7seg.png)
+
+A single combinational case statement maps the 4-bit `hex` value to a fixed
+7-bit pattern. The output is ordered `{g, f, e, d, c, b, a}` and is
+active-low, so a 0 lights the segment on a common-anode display.
+
+
 ### Segment Naming Convention
 
 ```

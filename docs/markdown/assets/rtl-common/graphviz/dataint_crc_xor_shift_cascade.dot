@@ -1,0 +1,46 @@
+// dataint_crc_xor_shift_cascade block diagram - house style.
+// Purely combinational: eight dataint_crc_xor_shift bit-steps chained, folding
+// one data byte into the CRC, MSB (data_input[7]) first. The CRC state is the
+// main column; the data bits enter from the left, one per stage group. poly is
+// broadcast to all eight stages and is described in its legend, not drawn.
+// Source of truth: rtl/common/dataint_crc_xor_shift_cascade.sv.
+digraph dataint_crc_xor_shift_cascade {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="dataint_crc_xor_shift_cascade - one byte into the CRC (combinational)";
+
+    bi   [label="CRC State In\nblock_input[CRC_WIDTH-1:0]", fillcolor="white"];
+    di   [label="Data Byte In\ndata_input[7:0]", fillcolor="white"];
+    leg  [label="Polynomial (input port)\lpoly[CRC_WIDTH-1:0]: generator polynomial -\l    the feedback taps; broadcast unchanged\l    to all eight stages\l", fillcolor="white"];
+
+    s0   [group=M, label="Stage 0\ndataint_crc_xor_shift\nfolds data_input[7] (MSB first)"];
+    s16  [group=M, label="Stages 1 .. 6\n6 x dataint_crc_xor_shift\nstage i folds data_input[7-i]"];
+    s7   [group=M, label="Stage 7\ndataint_crc_xor_shift\nfolds data_input[0]"];
+    bar  [label="CRC State Out\nblock_output = w_cascade[7]", fillcolor="white", width=4.5];
+
+    bi  -> s0  [xlabel="block_input", penwidth=1.8];
+    s0  -> s16 [xlabel="w_cascade[0]", penwidth=1.8];
+    s16 -> s7  [xlabel="w_cascade[6]", penwidth=1.8];
+    s7  -> bar [xlabel="block_output", penwidth=1.8];
+
+    p_d0 [shape=point, width=0.01];
+    p_d1 [shape=point, width=0.01];
+    p_d7 [shape=point, width=0.01];
+    di -> p_d0 [arrowhead=none, headclip=false, xlabel="data bits,\nMSB first"];
+    p_d0 -> s0 [headlabel="[7]", labelangle=30, labeldistance=2.2, tailclip=false, minlen=4];
+    p_d0 -> p_d1 [arrowhead=none, headclip=false, tailclip=false];
+    p_d1 -> s16 [headlabel="[6:1]", labelangle=30, labeldistance=2.6, tailclip=false, minlen=4];
+    p_d1 -> p_d7 [arrowhead=none, headclip=false, tailclip=false];
+    p_d7 -> s7 [headlabel="[0]", labelangle=30, labeldistance=2.2, tailclip=false, minlen=4];
+
+    { rank=same; di; bi; leg; }
+    di -> bi [style=invis, minlen=2];
+    bi -> leg [style=invis, minlen=2];
+    { rank=same; p_d0; s0; }
+    { rank=same; p_d1; s16; }
+    { rank=same; p_d7; s7; }
+}

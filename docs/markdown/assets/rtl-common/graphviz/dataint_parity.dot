@@ -1,0 +1,38 @@
+// dataint_parity block diagram - house style.
+// Purely combinational. data_in is split into CHUNKS chunks; each chunk is
+// XOR-reduced (even) or XNOR-reduced (odd) per parity_type, giving the
+// generated parity; each generated bit is compared with the supplied
+// parity_in bit to flag an error. The same block generates and checks.
+// Source of truth: rtl/common/dataint_parity.sv.
+digraph dataint_parity {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="dataint_parity - per-chunk parity generate and check (combinational)";
+
+    din  [label="Data Input\ndata_in[WIDTH-1:0]", fillcolor="white"];
+    pty  [label="Parity Sense (input port)\nparity_type: 1 = even, 0 = odd", fillcolor="white"];
+    pin  [label="Parity To Check\nparity_in[CHUNKS-1:0]", fillcolor="white"];
+
+    red  [label="Chunk Parity (combinational)\nCHUNKS parallel reductions, chunk i = WIDTH/CHUNKS bits\n(the last chunk also takes the WIDTH % CHUNKS leftover bits)\neven: ^chunk   odd: ~^chunk"];
+    cmp  [label="Compare (combinational)\nparity_err[i] = parity[i] != parity_in[i]"];
+    bar  [label="Outputs\nparity[CHUNKS-1:0] (generated)   |   parity_err[CHUNKS-1:0] (check result)", fillcolor="white", width=7.0];
+
+    din -> red [xlabel="data_in"];
+    pty -> red [style=dashed, xlabel="parity_type"];
+    red -> cmp [xlabel="parity (generated)"];
+    pin -> cmp [xlabel="parity_in"];
+    cmp -> bar [xlabel="parity_err"];
+    p_par [shape=point, width=0.01];
+    red -> p_par [arrowhead=none, headclip=false];
+    p_par -> bar [xlabel="parity", tailclip=false];
+
+    { rank=same; pty; din; pin; }
+    pty -> din [style=invis, minlen=2];
+    din -> pin [style=invis, minlen=2];
+    { rank=same; p_par; cmp; }
+    p_par -> cmp [style=invis, minlen=2];
+}

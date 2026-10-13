@@ -1,0 +1,68 @@
+// arbiter_token_bucket block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). A per-client request SHAPER
+// that sits in front of an arbiter. It never picks between clients (the
+// arbiter behind it does), so there is no trapezium.
+// Flows:
+//   requests - top-down the center: request_in -> pass gate -> request_out
+//              (to the downstream arbiter) in the outputs bar.
+//   tokens   - refill (rate on refill_tick, clamped to the cap) and spend
+//              (one token per completed grant) update the per-client token
+//              register; its value climbs the RIGHT edge back into the update
+//              and feeds the pass gate.
+//   grants   - the downstream arbiter's grant comes back at the top left as a
+//              dashed return; WAIT_GNT_ACK picks whether a grant spends on
+//              grant or on grant_ack.
+// Source of truth: rtl/common/arbiter_token_bucket.sv.
+digraph arbiter_token_bucket {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="arbiter_token_bucket - per-client token-bucket request shaper (in front of any arbiter)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    grt  [group=L, label="Downstream Grant (from the arbiter)\ngrant[C], grant_valid, grant_ack[C]", fillcolor="white"];
+    req  [group=C, label="Raw Requests\nrequest_in[C]", fillcolor="white"];
+    cfg  [group=R, label="Refill Control (runtime input ports)\lrefill_tick: one-cycle pulse that adds tokens;\l    pace it with counter_freq_invariant\lrate: tokens each client gains per tick\lbucket_cap: most tokens a client may bank\l    (its burst); cap 0 = unshaped bypass\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: must match the downstream arbiter\l    1 = a grant spends a token on grant_ack\l    0 = a grant spends as soon as it is granted\l", fillcolor="white"];
+
+    spend [group=L, label="Spend Detect (combinational)\nw_spend[i] = completed grant to client i"];
+    upd   [group=R, label="Bucket Update (combinational)\nadd rate on refill_tick, clamp to cap,\nthen subtract 1 on spend"];
+    tok   [group=R, label="Token Buckets (flop on clk)\nr_tokens[C], reset to 0 on rst_n"];
+    gate  [group=C, label="Pass Gate (combinational)\nrequest_out[i] = request_in[i] &\n(cap 0 | tokens left after this cycle's spend)"];
+
+    outs  [group=C, label="Outputs\nrequest_out[C] (to the arbiter)   |   tokens[C] (balances)",
+           fillcolor="white", width=10.5];
+
+    req   -> gate  [xlabel="request_in", penwidth=1.8];
+    gate  -> outs  [xlabel="request_out", penwidth=1.8];
+
+    grt   -> spend [style=dashed, xlabel="grant, grant_ack"];
+    spend -> upd   [xlabel="spend"];
+    spend -> gate  [xlabel="spend (net)"];
+    cfg   -> upd   [xlabel="refill_tick, rate, cap"];
+    upd   -> tok   [xlabel="next tokens"];
+    tok   -> gate  [xlabel="balance"];
+    p_tk  [group=R, shape=point, width=0.01];
+    tok   -> p_tk  [arrowhead=none, headclip=false];
+    p_tk  -> outs  [xlabel="tokens", tailclip=false];
+
+    // token balance climbs the right edge back into the update
+    p_fb [shape=point, width=0.01];
+    tok  -> p_fb [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> upd  [xlabel="r_tokens", tailclip=false, constraint=false];
+
+
+    { rank=same; prm; req; grt; cfg; }
+    { rank=same; spend; upd; }
+    { rank=same; tok; p_fb; }
+    { rank=same; gate; p_tk; }
+    { rank=max; outs; }
+    prm -> req [style=invis, minlen=2];
+    req -> grt [style=invis, minlen=2];
+    grt -> cfg [style=invis, minlen=2];
+    spend -> upd [style=invis, minlen=2];
+    tok -> p_fb [style=invis, minlen=2];
+    gate -> p_tk [style=invis, minlen=6];
+}

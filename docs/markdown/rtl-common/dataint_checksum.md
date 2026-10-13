@@ -61,6 +61,17 @@ module dataint_checksum #(
 
 ## Functional Description
 
+### Block diagram
+
+![dataint_checksum block diagram](../assets/rtl-common/graphviz/dataint_checksum.png)
+
+Data enters at the top and, on each cycle `valid` is high, the adder sums it
+with the running total in `r_count`. The register loads the new total, and the
+total climbs the right edge back into the adder. The sum is `WIDTH` bits wide
+with the carry out dropped, so the checksum is the sum modulo 2^WIDTH. The
+synchronous `reset` and the asynchronous `rst_n` both clear the total to 0, and
+`chksum` is the register itself.
+
 ### Operation
 
 The module keeps an internal counter (`r_count`) that accumulates incoming data:

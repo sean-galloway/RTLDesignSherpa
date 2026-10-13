@@ -1,0 +1,50 @@
+// shifter_lfsr_galois block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Single clock. Galois form: the XORs sit INSIDE the shift chain. The register
+// shifts right; the bit leaving at bit 0 is the feedback, and when it is 1 it
+// toggles every tap position of the shifted value (one XOR per tap, between
+// stages). Contrast shifter_lfsr_fibonacci, whose one XOR tree sits outside
+// the chain and feeds only the MSB.
+// Source of truth: rtl/common/shifter_lfsr_galois.sv.
+digraph shifter_lfsr_galois {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="shifter_lfsr_galois - XORs inside the chain, toggled by the bit shifted out";
+
+    seed  [label="Seed Input\nseed_load, seed_data[WIDTH-1:0]", fillcolor="white"];
+    taps  [label="Feedback Taps (runtime input port)\ltaps[TAP_COUNT*TAP_INDEX_WIDTH-1:0]:\l    TAP_COUNT tap positions, 1-based -- the\l    stages that get an in-chain XOR; a 0 or\l    out-of-range field is an unused slot\l", fillcolor="white"];
+    clk   [label="Clock / Reset / Enable\nclk, rst_n, enable", fillcolor="white"];
+
+    shr   [label="Shift Right (combinational)\n{1'b0, r_lfsr[WIDTH-1:1]}\nbit 0 leaves the chain as w_feedback"];
+    txor  [label="In-Chain Tap XORs (combinational)\nw_feedback = 1: flip bit [tap-1] for each tap\n(one XOR per tap, between stages)"];
+    nxt   [label="Next State (combinational)\nseed_load: seed_data\nelse w_next_lfsr"];
+    reg   [label="LFSR Register\nr_lfsr (WIDTH flops, reset all 1s)\nloads only when enable = 1"];
+    done  [label="Wrap Detect (combinational)\nlfsr_done = (lfsr_out == seed_data)\n(compares with the seed_data input)"];
+    out   [label="Outputs\nlfsr_out[WIDTH-1:0]   |   lfsr_done", fillcolor="white", width=5.5];
+
+    p_fb  [shape=point, width=0.01];
+
+    shr  -> txor [xlabel="shifted value"];
+    taps -> txor [xlabel="tap positions"];
+    txor -> nxt  [xlabel="w_next_lfsr"];
+    seed -> nxt  [xlabel="seed_data\n(seed_load)"];
+    nxt  -> reg  [xlabel="next r_lfsr"];
+    reg  -> out  [xlabel="lfsr_out"];
+    reg  -> done [xlabel="lfsr_out"];
+    done -> out  [xlabel="lfsr_done"];
+
+    reg  -> p_fb [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> shr  [xlabel="r_lfsr (current)", tailclip=false, constraint=false];
+
+    clk  -> reg  [style=dashed, xlabel="clk, rst_n, enable"];
+
+    { rank=same; seed; taps; shr; p_fb; }
+    { rank=same; clk; nxt; }
+    seed -> taps [style=invis, minlen=2];
+    taps -> shr [style=invis, minlen=2];
+    shr -> p_fb [style=invis, minlen=3];
+    clk -> nxt [style=invis, minlen=2];
+}

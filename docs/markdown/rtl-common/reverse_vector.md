@@ -55,6 +55,14 @@ about ordering.
 
 ## Functional Description
 
+### Block diagram
+
+![reverse_vector block diagram](../assets/rtl-common/graphviz/reverse_vector.png)
+
+The input vector drops straight through one wiring-only block into the
+output: bit `i` lands on bit `WIDTH-1-i`. There are no gates, so the block
+adds no logic depth; it costs only routing.
+
 ### Bit Reversal Logic
 ```systemverilog
 always_comb begin

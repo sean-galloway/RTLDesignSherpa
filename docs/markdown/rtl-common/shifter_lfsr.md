@@ -65,6 +65,17 @@ when the deterministic sequence has wrapped.
 
 ## Functional Description
 
+### Block diagram
+
+![shifter_lfsr block diagram](../assets/rtl-common/graphviz/shifter_lfsr.png)
+
+The `taps` port (legend at the top right) lists the tap positions; tap
+decode turns them into a one-hot mask. One XNOR tree outside the shift
+chain folds every tapped bit of the current register into a single
+feedback bit, which enters bit 0 as the register shifts left. `seed_load`
+overrides with `seed_data`, and the wrap detector raises `lfsr_done` when
+the register comes back to the seed.
+
 ### Feedback Polynomial
 The LFSR implements a linear feedback shift register based on a primitive
 polynomial. The feedback is calculated by XORing bits at specified tap positions.

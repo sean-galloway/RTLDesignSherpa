@@ -86,6 +86,16 @@ Each po[i] (PO_WIDTH bits): Counter bit index to sample for output i
 
 ## Functional Description
 
+### Block diagram
+
+![clock_divider block diagram](../assets/rtl-common/graphviz/clock_divider.png)
+
+The divided clocks are the main flow, drawn heavy. One free-running counter
+increments every clock and feeds back up the right edge. For each of the `N`
+outputs, a pick-off select takes counter bit `pickoff_points[i]`, which
+toggles at `clk / 2^(p+1)`, and an output flop retimes it onto `clk`. The
+pick-off configuration enters from the side as sideband.
+
 ### Counter Operation
 
 - Free-running binary counter increments every input clock cycle

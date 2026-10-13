@@ -83,6 +83,17 @@ The module provides a drop-in single-client arbiter so that a design parameteriz
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_single_client block diagram](../assets/rtl-common/graphviz/arbiter_single_client.png)
+
+With one client there is nothing to pick between, so the diagram has no
+trapezium. The request passes the `block_arb` gate and loads the single grant
+flop, one cycle later. When `WAIT_GNT_ACK=1`, the ACK tracker (dashed, because
+it exists only in that build) holds the grant until `grant_ack` arrives and then
+lets it drop for a cycle; the parameter legend gives both modes. `grant` is
+`grant_valid` and `grant_id` is always 0.
+
 ### Request Qualification
 
 The incoming request is masked by `block_arb` first:

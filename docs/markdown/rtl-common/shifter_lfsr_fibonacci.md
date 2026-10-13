@@ -63,6 +63,17 @@ The `shifter_lfsr_fibonacci` module is a Fibonacci Linear Feedback Shift Registe
 
 ## Functional Description
 
+### Block diagram
+
+![shifter_lfsr_fibonacci block diagram](../assets/rtl-common/graphviz/shifter_lfsr_fibonacci.png)
+
+This is the Fibonacci form: one XOR tree OUTSIDE the shift chain folds the
+tapped bits of the current register into a single feedback bit, which
+enters the MSB as the register shifts right. An all-zero register is the
+lock-up state and is held rather than shifted, so seed a non-zero value.
+Compare the [Galois diagram](shifter_lfsr_galois.md), where the XORs sit
+inside the chain instead.
+
 ### Fibonacci LFSR Characteristics
 - **Feedback Location**: Single XOR gate feeding MSB
 - **Data Path**: Simple right-shift with external feedback
@@ -71,24 +82,13 @@ The `shifter_lfsr_fibonacci` module is a Fibonacci Linear Feedback Shift Registe
 
 ### Fibonacci vs Galois at a Glance
 
-```mermaid
-flowchart TB
-    subgraph Fibonacci["Fibonacci (this module)"]
-        direction TB
-        taps1["Tapped Bits"] --> xor1["XOR"]
-        xor1 --> msb1["MSB"]
-        msb1 --> shift1["Shift Right"]
-        shift1 --> lsb1["LSB"]
-    end
+| | Fibonacci (this module) | Galois (`shifter_lfsr_galois`) |
+|---|---|---|
+| Where the XOR sits | one XOR tree outside the chain | one XOR per tap, inside the chain |
+| Feedback bit | XOR of all tapped bits, into the MSB | bit 0 shifted out, toggles each tap |
+| Critical path | through the XOR tree | one XOR between stages |
 
-    subgraph Galois["Galois LFSR"]
-        direction TB
-        xor2["XOR gates at<br/>tap points"]
-        dist["distributed<br/>throughout"]
-        sr["shift register"]
-        fb["LSB → feedback"]
-    end
-```
+: Fibonacci vs Galois LFSR structure
 
 ### Tap Processing (Same as Standard LFSR)
 ```systemverilog

@@ -1,0 +1,50 @@
+// pwm block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Single clock (clk, rst_n). CHANNELS identical, independent channels; one is
+// drawn. A start rising edge runs the channel: the period counter wraps at
+// period-1, the duty compare drives pwm_out, and the repeat counter ends the
+// run after repeat_count periods (0 = run forever). Source of truth:
+// rtl/common/pwm.sv.
+digraph pwm {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
+           label="pwm - one of CHANNELS identical channels (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    start_in [group=C, label="Start Input\nstart[i]", fillcolor="white"];
+    cfg [label="Channel Settings (runtime input ports, per channel)\lperiod[i]: clocks per PWM cycle (0 = never starts)\lduty[i]: clocks pwm_out stays high each cycle\l    (0 = always low; >= period = always high)\lrepeat_count[i]: cycles to run, then DONE\l    (0 = run until sync_rst_n)\lsync_rst_n: synchronous clear of every register\l", fillcolor="white"];
+
+    edge_d [group=C, label="Start Edge Detect\nr_start_prev (flop)\nstart[i] & !r_start_prev"];
+    fsm    [group=C, label="Channel FSM (flop)\nr_state: IDLE / RUNNING / DONE\nDONE re-arms on the next start edge"];
+    cnt    [group=C, label="Period Counter (flop)\nr_count: 0 .. period-1, then wraps"];
+    rep    [group=R, label="Repeat Counter (flop)\nr_repeat_value: +1 per wrap\nall done = r_repeat_value >= repeat_count-1"];
+    cmp    [group=C, label="Duty Compare (combinational)\nRUNNING: pwm_out = r_count < duty\nelse 0"];
+
+    out [label="Outputs\npwm_out[i]   |   done[i] (r_state == DONE)", fillcolor="white", width=5.0];
+
+    start_in -> edge_d [xlabel="start[i]"];
+    edge_d -> fsm [xlabel="start edge"];
+    fsm -> cnt [xlabel="RUNNING"];
+    cnt -> cmp [xlabel="r_count"];
+    cmp -> out [xlabel="pwm_out[i]", penwidth=1.8];
+    cnt -> rep [xlabel="period complete"];
+
+    // run-end feedback up the right edge
+    p_fb [shape=point, width=0.01, group=R];
+    rep -> p_fb [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> fsm [xlabel="all repeats done", tailclip=false, constraint=false];
+
+    // done down the left lane
+    p_dn [shape=point, width=0.01, group=L];
+    fsm -> p_dn [arrowhead=none, headclip=false];
+    p_dn -> out [xlabel="done[i]", tailclip=false];
+
+    { rank=same; start_in; cfg; }
+    start_in -> cfg [style=invis, minlen=2];
+    { rank=same; p_dn; cmp; rep; p_fb; }
+    p_dn -> cmp [style=invis, minlen=2];
+    cmp -> rep [style=invis];
+    rep -> p_fb [style=invis];
+}

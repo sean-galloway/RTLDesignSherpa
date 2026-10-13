@@ -1,0 +1,78 @@
+// arbiter_matrix_weighted block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). Template: arbiter_matrix.
+// Flows:
+//   requests  - top-down the center: Requests -> gate -> credit eligibility
+//               -> matrix pick (trapezium) -> grant register -> outputs bar
+//   credits   - LEFT loop: max_thresh weights load the credit counters; a
+//               completed grant climbs the left edge to spend one credit
+//   priority  - RIGHT loop: matrix register feeds the pick; winner id ->
+//               matrix update -> register. The update fires only when the
+//               winner spends its last credit (stated in the update label
+//               rather than drawn, to keep the two loops apart), so a client
+//               keeps top priority for `weight` consecutive grants
+//   sideband  - block_arb, grant_ack: dashed
+// CLIENTS=1 collapses to a credit-gated single grant; noted in the title.
+// Source of truth: rtl/common/arbiter_matrix_weighted.sv.
+digraph arbiter_matrix_weighted {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.65", splines=ortho, newrank=true,
+           label="arbiter_matrix_weighted - priority-matrix pick with per-client credit bursts (CLIENTS=1: credit-gated single grant)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external inputs (white) ----
+    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = a grant holds until grant_ack;\l    credits are spent and the matrix updates\l    on the ack\l    0 = a new pick every cycle\l", fillcolor="white"];
+    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white"];
+    blk  [label="Block Input\nblock_arb", fillcolor="white"];
+    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white"];
+    wprt [group=K, label="Weights (runtime port)\nmax_thresh per client:\nconsecutive grants before\ndropping to lowest priority;\n0 disables the client", fillcolor="white"];
+
+    // ---- logic ----
+    gate [group=C, label="Request Gate\nrequests forced to 0 while block_arb"];
+    mreg [group=M, label="Priority Matrix\nr_matrix (flop), CLIENTS x (CLIENTS-1) / 2 bits\nbit [i][j] = 1: client i outranks client j\nreset all 1s (lower index first)"];
+    elig [group=C, label="Credit Eligibility\neligible = gated request & credit > 0 & weight > 0"];
+    crd  [group=K, label="Credit Counters\nr_credit_counter per client (flop)\ncompleted grant: - 1\nlast credit: reload weight"];
+    pick [group=C, label="Matrix Pick (combinational)\nclient i wins if no eligible requester outranks it",
+          shape=invtrapezium, width=7.4, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
+    mupd [group=M, label="Matrix Update (next state)\nonly when the winner spends its last credit:\nwinner's row cleared, its column set"];
+    greg [group=C, label="Grant Register\ngrant, grant_id, grant_valid (flop)\nlast_grant = previous grant"];
+
+    // ---- the boundary bar: outputs ----
+    outs [group=C, label="Grant Outputs\ngrant[CLIENTS] (one-hot)   |   grant_id   |   grant_valid   |   last_grant",
+          fillcolor="white", width=7.5];
+
+    // ---- main flow ----
+    req  -> gate [xlabel="request"];
+    gate -> elig [xlabel="gated requests"];
+    elig -> pick [xlabel="eligible requests"];
+    mreg -> pick [xlabel="priority order"];
+    pick -> greg [xlabel="winner (one-hot), winner id", penwidth=1.8];
+    greg -> outs [xlabel="grant, grant_id, grant_valid, last_grant"];
+
+    // ---- credits ----
+    wprt -> crd  [xlabel="max_thresh"];
+    crd  -> elig [xlabel="credit > 0"];
+
+    // ---- feedback from the grant register, up the right edge ----
+    crd  -> greg [dir=back, xlabel="completed grant"];
+    greg -> mupd [xlabel="winner id"];
+    mupd -> mreg [xlabel="next matrix"];
+
+    // ---- sideband (dashed) ----
+    blk -> gate [style=dashed, xlabel="block_arb"];
+    ack -> greg [style=dashed, xlabel="grant_ack (hold / release)"];
+
+    // ---- rank pinning ----
+    { rank=same; prm; ack; wprt; blk; req; }
+    { rank=same; gate; mreg; }
+    { rank=same; elig; crd; }
+    { rank=same; pick; mupd; }
+    { rank=same; greg; }
+    { rank=max; outs; }
+    prm -> ack -> wprt -> blk -> req [style=invis];
+    gate -> mreg [style=invis, minlen=1];
+    crd -> elig [style=invis, minlen=2];
+    pick -> mupd [style=invis, minlen=1];
+}

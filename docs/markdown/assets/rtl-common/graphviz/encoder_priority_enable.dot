@@ -1,0 +1,27 @@
+// encoder_priority_enable block diagram - house style.
+// Purely combinational. The highest set bit wins: a genuine many-to-one pick,
+// so it is the wide-edge-up trapezium (handbook rule 9, rtl-common ruling).
+// enable is sideband: when low the output is forced to 0.
+// Source of truth: rtl/common/encoder_priority_enable.sv.
+digraph encoder_priority_enable {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="encoder_priority_enable - highest set bit wins (combinational)";
+
+    din  [label="Priority Input\npriority_in[WIDTH-1:0]", fillcolor="white"];
+    en   [label="Enable Input\nenable", fillcolor="white"];
+    pick [label="Highest-Index Pick\nscan from WIDTH-1 down; first set bit wins",
+          shape=invtrapezium, fillcolor="#BFD7EE", width=4.6, height=0.75, fixedsize=true];
+    dout [label="Encoded Output\nencode[$clog2(WIDTH)-1:0]\n(enable = 0 or no bit set: 0)", fillcolor="white", width=4.6];
+
+    din  -> pick [xlabel="requests (priority_in bits)"];
+    en   -> pick [style=dashed, xlabel="enable\n(0 forces encode = 0)"];
+    pick -> dout [penwidth=1.8, xlabel="winning index"];
+
+    { rank=same; din; en; }
+    din -> en [style=invis, minlen=2];
+}

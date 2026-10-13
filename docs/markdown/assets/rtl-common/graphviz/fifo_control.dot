@@ -1,0 +1,55 @@
+// fifo_control block diagram - house style.
+// The flag logic shared by fifo_sync and fifo_async. Two clock domains, as in
+// fifo_async: the write side computes full / almost-full on wr_clk, the read
+// side computes empty / almost-empty / count on rd_clk. The caller hands in
+// each domain's local pointer and its copy of the remote pointer (already
+// synchronized by fifo_async; the same counter in fifo_sync), so nothing
+// crosses inside this block. REGISTERED=1 adds the dashed write-pointer delay.
+// Source of truth: rtl/common/fifo_control.sv.
+digraph fifo_control {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="fifo_control - FIFO full / empty / count flags";
+
+    wptr [label="Write-Domain Pointers\nwr_ptr_bin (local)\nwdom_rd_ptr_bin (remote, synchronized)", fillcolor="white"];
+    rptr [label="Read-Domain Pointers\nrd_ptr_bin (local)\nrdom_wr_ptr_bin (remote, synchronized)", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lALMOST_WR_MARGIN: almost-full asserts when\l    occupancy >= DEPTH - ALMOST_WR_MARGIN\lALMOST_RD_MARGIN: almost-empty asserts when\l    occupancy <= ALMOST_RD_MARGIN\lREGISTERED: 1 = empty compares against a\l    one-cycle-delayed write pointer (matches a\l    flopped read-data path) and count is the\l    flopped r_count; 0 = current pointer, count\l    combinational\l", fillcolor="white"];
+
+    subgraph cluster_wr {
+        label="wr_clk domain"; style=dashed; fontsize=10;
+        wsp  [style=invis, shape=point, width=0.01];
+        fcmp [label="Full / Occupancy Compare (combinational)\nfull: MSBs differ and low bits equal\noccupancy = wr_ptr - wdom_rd_ptr (wrap-corrected)"];
+        wreg [label="Write Flag Registers\nwr_full, wr_almost_full (flops on wr_clk)"];
+    }
+    subgraph cluster_rd {
+        label="rd_clk domain"; style=dashed; fontsize=10;
+        rsp  [style=invis, shape=point, width=0.01];
+        dly  [style="filled,dashed", label="Write Pointer Delay (REGISTERED=1 only)\nr_rdom_wr_ptr_bin_delayed (flop on rd_clk)"];
+        ecmp [label="Empty / Occupancy Compare (combinational)\nempty: pointers equal\nw_count = rdom_wr_ptr - rd_ptr (wrap-corrected)"];
+        rreg [label="Read Flag Registers\nrd_empty (resets to 1), rd_almost_empty,\nr_count (flops on rd_clk)"];
+    }
+    bar [label="Outputs\nwr_full, wr_almost_full (wr_clk)   |   rd_empty, rd_almost_empty, count (rd_clk)", fillcolor="white", width=9.0];
+
+    wptr -> wsp [arrowhead=none, headclip=false, minlen=2];
+    wsp  -> fcmp [xlabel="wr_ptr_bin,\nwdom_rd_ptr_bin", tailclip=false];
+    fcmp -> wreg [xlabel="full, almost-full\n(next)", minlen=2];
+    wreg -> bar  [xlabel="wr_full,\nwr_almost_full"];
+
+    rptr -> dly  [style=dashed, xlabel="rdom_wr_ptr_bin\n(to delay)", minlen=2];
+    rptr -> rsp [arrowhead=none, headclip=false, minlen=2];
+    rsp  -> ecmp [tailclip=false, xlabel="rd_ptr_bin,\nrdom_wr_ptr_bin"];
+    dly  -> ecmp [style=dashed, xlabel="delayed wr ptr\n(empty only)"];
+    ecmp -> rreg [xlabel="empty, almost-empty,\nw_count (next)", minlen=2];
+    rreg -> bar  [xlabel="rd_empty, rd_almost_empty,\ncount"];
+
+    { rank=same; wptr; prm; rptr; }
+    wptr -> prm [style=invis]; prm -> rptr [style=invis];
+    { rank=same; wsp; dly; rsp; }
+    dly -> rsp [style=invis, minlen=2];
+    { rank=same; fcmp; ecmp; }
+    { rank=same; wreg; rreg; }
+}

@@ -57,6 +57,17 @@ module dataint_crc_xor_shift_cascade #(
 
 ## Functional Description
 
+### Block diagram
+
+![dataint_crc_xor_shift_cascade block diagram](../assets/rtl-common/graphviz/dataint_crc_xor_shift_cascade.png)
+
+The CRC state runs straight down the center through eight chained
+`dataint_crc_xor_shift` bit-steps, drawn as the first stage, the six middle
+stages and the last stage. The data byte enters from the left, most significant
+bit first: stage 0 folds `data_input[7]` and stage 7 folds `data_input[0]`.
+The polynomial goes unchanged to all eight stages, as its legend says. The last
+stage's state is `block_output`.
+
 ### Cascade Operation
 
 Eight CRC calculation stages, chained end to end:

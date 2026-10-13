@@ -1,0 +1,30 @@
+// counter block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Free-running modulo-(MAX+1) counter with a terminal tick. One flow top-down:
+// next-state -> count register -> terminal compare -> tick. The register feeds
+// back UP the right edge into the next-state logic.
+// Source of truth: rtl/common/counter.sv.
+digraph counter {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="counter - free-running modulo-(MAX+1) counter, one tick per MAX+1 clocks";
+
+    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+    nxt    [label="Increment / Wrap (combinational)\nr_count == MAX ? 0 : r_count + 1"];
+    creg   [label="Count Register\nr_count (flop, reset 0)\n$clog2(MAX+1) bits"];
+    cmp    [label="Terminal Compare (combinational)\ntick = (r_count == MAX)"];
+    out    [label="Output\ntick (high for one clock per wrap)", fillcolor="white", width=4.0];
+    p_fb   [shape=point, width=0.01];
+
+    nxt  -> creg [xlabel="next count"];
+    creg -> cmp  [xlabel="r_count"];
+    cmp  -> out  [xlabel="tick"];
+    creg -> p_fb [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> nxt  [xlabel="r_count\n(current)", tailclip=false, constraint=false];
+    clk_in -> creg [style=dashed, xlabel="clk, rst_n"];
+    { rank=same; clk_in; nxt; }
+    clk_in -> nxt [style=invis, minlen=2];
+}

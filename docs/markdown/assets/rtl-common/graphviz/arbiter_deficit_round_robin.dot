@@ -1,0 +1,79 @@
+// arbiter_deficit_round_robin block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). Template: arbiter_round_robin.
+// Flows:
+//   requests  - top-down the center: Requests -> gate -> eligibility/fairness
+//               mask -> base round-robin pick (trapezium) -> outputs bar
+//   cost      - req_cost feeds affordability directly and, one cycle later
+//               (r_cost_arb), the debit of the deficit counters
+//   deficit   - deficit counters in the right column feed eligibility;
+//               completed grants climb the RIGHT edge back to debit them
+//   quantum   - quantum port -> change sequencer -> active quanta (dashed)
+//   sideband  - block_arb, grant_ack, sequencer hold: dashed
+// Source of truth: rtl/common/arbiter_deficit_round_robin.sv.
+digraph arbiter_deficit_round_robin {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.65", splines=ortho, newrank=true,
+           label="arbiter_deficit_round_robin - deficit round robin (DRR) over the base round-robin pick",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external inputs (white) ----
+    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = a grant holds until grant_ack,\l    and the deficit is debited on the ack;\l    0 = every grant completes in its cycle\l", fillcolor="white"];
+    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white"];
+    blk  [label="Block Input\nblock_arb", fillcolor="white"];
+    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white"];
+    cost [group=K, label="Request Cost\nreq_cost per client: size of the\nhead request (0 is served as 1)", fillcolor="white"];
+    qprt [group=Q, label="Quantum (runtime port)\nquantum per client: deficit added\neach replenish round; 0 disables", fillcolor="white"];
+
+    // ---- logic ----
+    gate [group=C, label="Request Gate\nrequests forced to 0 while block_arb"];
+    cpip [group=K, label="Cost Pipeline\nr_cost_arb (flop)\ncost from the arbitration cycle"];
+    seq  [group=Q, label="Quantum Change Sequencer (FSM)\nIDLE > BLOCK > DRAIN > UPDATE > STABILIZE\nloads r_safe_quantum; clears deficits"];
+    defc [group=Q, label="Deficit Counters\nr_deficit per client (flop)\nrequest gone: clear | completed: - cost\nnobody affordable: + quantum (replenish)"];
+    elig [group=C, label="Eligibility + Fairness Mask\neligible = request & quantum > 0 & deficit >= cost\nseveral eligible: current holder excluded\none eligible: kept while deficit >= 2 x cost"];
+    pick [group=C, label="Base Round-Robin Pick\narbiter_round_robin - u_base_arbiter",
+          shape=invtrapezium, width=7.2, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
+
+    // ---- the boundary bar: outputs ----
+    outs [group=C, label="Grant Outputs\ngrant[CLIENTS] (one-hot)   |   grant_id   |   grant_valid",
+          fillcolor="white", width=7.0];
+
+    // ---- main flow ----
+    req  -> gate [xlabel="request"];
+    gate -> elig [xlabel="gated requests"];
+    elig -> pick [xlabel="eligible, masked requests"];
+    pick -> outs [xlabel="grant, grant_id, grant_valid", penwidth=1.8];
+
+    // ---- cost ----
+    cost -> cpip [xlabel="req_cost"];
+    cost -> elig [xlabel="cost (affordability)"];
+    cpip -> defc [xlabel="debit cost"];
+
+    // ---- quantum ----
+    qprt -> seq  [xlabel="quantum"];
+    seq  -> defc [style=dashed, xlabel="active quanta"];
+    defc -> elig [xlabel="deficit"];
+
+    // ---- completed-grant feedback up the right edge ----
+    p_fb [group=R, shape=point, width=0.01];
+    outs -> p_fb [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> defc [xlabel="completed grant (debit)", tailclip=false, constraint=false];
+
+    // ---- sideband (dashed) ----
+    blk -> gate [style=dashed, xlabel="block_arb"];
+    ack -> pick [style=dashed, xlabel="grant_ack"];
+    seq -> pick [style=dashed, xlabel="hold while not IDLE"];
+
+    // ---- rank pinning ----
+    { rank=same; prm; ack; blk; req; cost; qprt; }
+    { rank=same; gate; cpip; seq; }
+    { rank=same; defc; p_fb; }
+    { rank=same; elig; }
+    { rank=same; pick; }
+    { rank=max; outs; }
+    prm -> ack -> blk -> req -> cost -> qprt [style=invis];
+    gate -> cpip -> seq [style=invis];
+    defc -> p_fb [style=invis];
+}

@@ -73,6 +73,19 @@ module sort #(
 
 ## Functional Description
 
+### Block diagram
+
+![sort block diagram](../assets/rtl-common/graphviz/sort.png)
+
+`data` enters as `NUM_VALS` packed values and passes through `NUM_VALS`
+registered stages. Odd-numbered stages compare-swap the pairs (0,1), (2,3), and
+so on; even-numbered stages compare-swap (1,2), (3,4), and so on. Each swap puts
+the larger value at the lower index, so the output is descending. `valid_in`
+rides a parallel shift register of the same depth and comes out as `done`, so
+a result appears `NUM_VALS` clocks after its input. A new input can enter every
+clock.
+
+
 ### Data Format
 
 **Input/Output Packing**: Arrays are packed into a single wide bus where:
@@ -160,26 +173,7 @@ The module implements a `NUM_VALS`-stage pipeline where:
 - **Stage 0**: Input capture (combinational)
 - **Stages 1 to NUM_VALS**: Pipeline registers with compare-swap logic
 
-```
-Stage:    0 -----> 1 -----> 2 -----> 3 -----> ... -----> NUM_VALS
-         Input   Odd Pass  Even Pass Odd Pass          Final Output
-         (Comb)   (FF)      (FF)      (FF)              (FF)
-```
-
-### Signal Flow
-
-```mermaid
-flowchart LR
-    data["data[...]"] --> s0
-    valid["valid_in"] --> s0
-    subgraph Pipeline["Pipeline Stages"]
-        s0["Stage 0<br/>(Wire Logic)"] --> s1["Stage 1<br/>(Odd Pass)"]
-        s1 --> s2["Stage 2<br/>(Even Pass)"]
-        s2 --> more["..."]
-    end
-    s1 --> rd1["r_stage_data[1]<br/>r_stage_valid[1]"]
-    s2 --> rd2["r_stage_data[2]<br/>r_stage_valid[2]"]
-```
+The block diagram above shows the stages.
 
 ### Naming Conventions
 

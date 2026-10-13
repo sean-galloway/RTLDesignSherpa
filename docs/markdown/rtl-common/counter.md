@@ -63,6 +63,15 @@ module counter #(
 
 ## Functional Description
 
+### Block diagram
+
+![counter block diagram](../assets/rtl-common/graphviz/counter.png)
+
+The register `r_count` counts up by one every clock and wraps to 0 after
+it reaches `MAX`, so it repeats every `MAX+1` clocks. Its current value climbs
+the right edge back into the increment logic. A terminal compare raises `tick`
+for the one clock in each cycle where `r_count == MAX`.
+
 ### Counter Register
 
 ```systemverilog

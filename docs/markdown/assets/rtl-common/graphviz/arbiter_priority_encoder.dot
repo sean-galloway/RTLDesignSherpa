@@ -1,0 +1,42 @@
+// arbiter_priority_encoder block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). Purely combinational.
+// Flows:
+//   requests - two request vectors enter at the top; a select (driven by the
+//              caller's any_masked_requests, so a plain box, not the
+//              trapezium) passes one of them; the fixed-priority pick
+//              (lowest index wins) is the trapezium; winner + winner_valid
+//              leave the narrow edge into the outputs bar.
+//   select   - any_masked_requests is dashed sideband into the select.
+// CLIENTS picks the implementation (unrolled casez for 4/8/16/32, a loop
+// otherwise), not the behavior; that goes in the pick's label.
+// Source of truth: rtl/common/arbiter_priority_encoder.sv.
+digraph arbiter_priority_encoder {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           label="arbiter_priority_encoder - fixed-priority pick, lowest index wins (combinational)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    rm   [label="Masked Requests\nrequests_masked[CLIENTS]", fillcolor="white"];
+    anym [label="Select Input\nany_masked_requests", fillcolor="white"];
+    ru   [label="Unmasked Requests\nrequests_unmasked[CLIENTS]", fillcolor="white"];
+
+    sel  [group=C, label="Request Select (combinational)\nw_priority_requests = any_masked_requests\n? requests_masked : requests_unmasked"];
+    pick [group=C, label="Fixed-Priority Pick (combinational)\nclient 0 > client 1 > ... > client CLIENTS-1\n(CLIENTS 4/8/16/32: unrolled casez; others: loop)",
+          shape=invtrapezium, width=6.2, height=0.95, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
+
+    outs [group=C, label="Outputs\nwinner[N] (index)   |   winner_valid (any selected request)",
+          fillcolor="white", width=5.6];
+
+    rm   -> sel  [xlabel="masked"];
+    ru   -> sel  [xlabel="unmasked"];
+    anym -> sel  [style=dashed, xlabel="select"];
+    sel  -> pick [xlabel="w_priority_requests"];
+    pick -> outs [xlabel="winner, winner_valid", penwidth=1.8];
+
+    { rank=same; rm; anym; ru; }
+    rm -> anym -> ru [style=invis, minlen=2];
+    anym -> sel [style=invis];
+}

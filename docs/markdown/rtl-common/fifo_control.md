@@ -57,6 +57,19 @@ This is the shared brain that generates full/empty status flags for both FIFO va
 
 ## Functional Description
 
+### Block diagram
+
+![fifo_control block diagram](../assets/rtl-common/graphviz/fifo_control.png)
+
+The flag logic shared by `fifo_sync` and `fifo_async`, drawn with the same two
+clock domains as `fifo_async`. Each side takes its own local pointer and its
+copy of the remote pointer. That copy is already synchronized by the caller, so
+nothing crosses inside this block. The write side compares them for full and
+almost-full and registers both on `wr_clk`. The read side compares for empty,
+almost-empty and the occupancy count, and registers them on `rd_clk`.
+`REGISTERED=1` adds the dashed write-pointer delay, so empty lines up with a
+flopped read-data path, and makes `count` the flopped `r_count`.
+
 ### Dual-Domain Design
 
 The module straddles two clock domains:

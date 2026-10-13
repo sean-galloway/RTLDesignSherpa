@@ -111,6 +111,21 @@ localparam.
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_deficit_round_robin block diagram](../assets/rtl-common/graphviz/arbiter_deficit_round_robin.png)
+
+Requests drop down the center through the `block_arb` gate into the
+eligibility and fairness mask, which passes only clients whose deficit covers
+the cost of their head request. The masked requests feed the base
+`arbiter_round_robin` (the trapezium), whose registered grant goes straight to
+the outputs. The deficit counters sit on the right. `req_cost` feeds
+affordability directly and, one cycle later through `r_cost_arb`, the debit;
+each completed grant climbs the right edge to debit its client, and when
+nobody can afford service every enabled client gains its quantum. A change on
+the `quantum` port goes through the change sequencer, which holds the pick
+until the new quanta are loaded.
+
 ### The Deficit Discipline
 
 Each client holds a deficit counter (reset 0). A requester is **eligible**

@@ -101,6 +101,20 @@ Declared as `parameter` so the elaborator can size the packed ports, not so call
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_token_bucket block diagram](../assets/rtl-common/graphviz/arbiter_token_bucket.png)
+
+The shaper never picks between clients; the arbiter behind it does, so there
+is no trapezium. Raw requests run down the left through the Pass Gate to
+`request_out`. A client passes only while it holds tokens (or its cap is 0,
+which bypasses shaping), counted net of a spend completing this cycle. The
+downstream arbiter's grant comes back as a dashed return into Spend Detect.
+Bucket Update adds `rate` on each `refill_tick`, clamps to `bucket_cap`, and
+subtracts one per spend; the balance climbs the right edge back into the update
+and feeds the gate. The two legends describe the build parameter and the
+runtime refill controls.
+
 - **`refill_tick` is external.** Pair it with
   [counter_freq_invariant](counter_freq_invariant.md)'s microsecond tick so
   rates carry real-time meaning across clock frequencies, or with any pulse

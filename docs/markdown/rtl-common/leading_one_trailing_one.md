@@ -54,6 +54,17 @@ Finds both ends of your set bits at once: the position of the most significant b
 
 ## Functional Description
 
+### Block diagram
+
+![leading_one_trailing_one block diagram](../assets/rtl-common/graphviz/leading_one_trailing_one.png)
+
+The same `data` feeds three columns. On the left, a `find_last_set` instance
+finds the leading (highest) one; on the right, a `find_first_set` instance
+finds the trailing (lowest) one. Each index is expanded back into a one-hot
+vector, which is all zero when `data` is zero. In the centre, the reductions
+produce `all_ones`, `all_zeroes` and `valid`. The two pickers are drawn as
+instance boxes; their own diagrams show the pick.
+
 ### Submodules
 
 Internally it's two specialized finder modules working opposite ends:

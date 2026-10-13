@@ -81,6 +81,19 @@ module arbiter_round_robin_simple_ack #(
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_round_robin_simple_ack block diagram](../assets/rtl-common/graphviz/arbiter_round_robin_simple_ack.png)
+
+This is the teaching round-robin pick with the grant held in a register until
+the granted agent acknowledges it. The request path is the same as in
+`arbiter_round_robin_simple`: win-mask, then the pick (masked first, else all,
+lowest set bit), then the index encoder. The winner goes into the Grant Register
+instead of straight out, so the outputs are registered. `grant_ack` comes back
+as a dashed return into the Handshake Control, which tells the register to load
+the next winner, hold, or clear (the four rules are in the register's label).
+`r_last_grant` climbs the right edge back into the mask.
+
 ### Priority Selection
 
 The priority path is entirely combinational and is evaluated every cycle. It is only loaded into the grant flops when the arbiter is idle or on an ack:

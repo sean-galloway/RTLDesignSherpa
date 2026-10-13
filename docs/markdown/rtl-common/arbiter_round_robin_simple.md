@@ -72,6 +72,19 @@ module arbiter_round_robin_simple #(
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_round_robin_simple block diagram](../assets/rtl-common/graphviz/arbiter_round_robin_simple.png)
+
+This is the teaching version of `arbiter_round_robin`, with nothing around the
+pick. Requests enter at the top and split two ways: the raw vector runs down the
+left as the unmasked requests, and the win-mask keeps only the agents above the
+last winner. The pick takes the masked set if it has any bit set, otherwise the
+whole vector, and keeps the lowest set bit. `grant` and `grant_valid` leave
+straight into the outputs, in the same cycle as the request, and the index
+encoder produces `grant_id`. The only state is `r_last_grant`, which loads the
+winner's index and climbs the right edge back into the mask.
+
 ### Round-Robin Algorithm
 
 The arbiter implements a rotating priority scheme with a mask rather than a rotation:

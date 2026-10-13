@@ -47,6 +47,19 @@ Kills mechanical switch bounce by sampling button inputs on a regular tick and r
 
 ## Functional Description
 
+### Block diagram
+
+![debounce block diagram](../assets/rtl-common/graphviz/debounce.png)
+
+Each button is first normalized by `PRESSED_STATE`, so a press always reads as
+1. On every `long_tick`, that sample shifts into the button's
+`DEBOUNCE_DELAY`-deep history register. The stable decision is an AND of the
+whole history, so the output goes high only after `DEBOUNCE_DELAY` consecutive
+pressed samples, and drops on the first released one. The result is
+registered as `button_out`. The `N` buttons are identical, independent
+channels.
+
+
 ### Core Algorithm
 
 The module tracks each button's recent history in a shift register:

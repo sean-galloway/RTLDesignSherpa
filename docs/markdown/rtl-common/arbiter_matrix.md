@@ -70,6 +70,18 @@ One naming note so the parameter tables don't trip you: `N` is the bit width of 
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_matrix block diagram](../assets/rtl-common/graphviz/arbiter_matrix.png)
+
+Requests drop down the center through the `block_arb` gate into the matrix
+pick (the trapezium): a client wins when no other requester outranks it in the
+priority matrix. The winner is registered as the grant. Its id runs out to the
+right into the matrix update, which moves the winner to lowest priority, and
+the next matrix is loaded back into `r_matrix`, so the least recently granted
+requester always wins. With `WAIT_GNT_ACK=1` the grant holds until `grant_ack`,
+and the update happens on the ack.
+
 ### Matrix Representation
 
 The stored state is the upper triangle of `M`, packed into `CLIENTS*(CLIENTS-1)/2` bits. Out of reset every stored bit is 1, so power-on priority is the plain total order:

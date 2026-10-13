@@ -1,0 +1,50 @@
+// shifter_lfsr block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Single clock. Main flow top-down: tap decode -> XNOR feedback (one gate tree,
+// OUTSIDE the shift chain) -> shift-left next state -> register -> output bar.
+// The register climbs the right edge back into the feedback/shift logic.
+// seed_load/seed_data load the register; lfsr_done compares the register with
+// seed_data. clk/rst_n/enable are dashed sideband.
+// Source of truth: rtl/common/shifter_lfsr.sv.
+digraph shifter_lfsr {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="shifter_lfsr - Fibonacci-form LFSR, XNOR feedback, shifts left";
+
+    taps  [label="Feedback Taps (runtime input port)\ltaps[TAP_COUNT*TAP_INDEX_WIDTH-1:0]:\l    TAP_COUNT tap positions, 1-based -- the\l    exponents of the feedback polynomial;\l    a 0 field is an unused slot\l", fillcolor="white"];
+    seed  [label="Seed Input\nseed_load, seed_data[WIDTH-1:0]", fillcolor="white"];
+    clk   [label="Clock / Reset / Enable\nclk, rst_n, enable", fillcolor="white"];
+
+    tdec  [label="Tap Decode (combinational)\nw_taps[pos-1] = 1 for each nonzero tap\n(one-hot tap mask)"];
+    fb    [label="XNOR Feedback (combinational)\nw_feedback = ~^(r_lfsr & w_taps)\none bit from all tapped stages"];
+    nxt   [label="Next State (combinational)\nseed_load: seed_data\nelse shift left: {r_lfsr[WIDTH-2:0], w_feedback}"];
+    reg   [label="LFSR Register\nr_lfsr (WIDTH flops, reset 0)\nloads only when enable = 1"];
+    done  [label="Wrap Detect (combinational)\nlfsr_done = (lfsr_out == seed_data)\n(compares with the seed_data input)"];
+    out   [label="Outputs\nlfsr_out[WIDTH-1:0]   |   lfsr_done", fillcolor="white", width=5.5];
+
+    p_fb  [shape=point, width=0.01];
+
+    taps -> tdec [xlabel="taps"];
+    tdec -> fb   [xlabel="w_taps (mask)"];
+    fb   -> nxt  [xlabel="w_feedback (into bit 0)", penwidth=1.8];
+    seed -> nxt  [xlabel="seed_data\n(seed_load)"];
+    nxt  -> reg  [xlabel="next r_lfsr"];
+    reg  -> out  [xlabel="lfsr_out"];
+    reg  -> done [xlabel="lfsr_out"];
+    done -> out  [xlabel="lfsr_done"];
+
+    reg  -> p_fb [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> fb   [xlabel="r_lfsr (current)", tailclip=false, constraint=false];
+
+    clk  -> reg  [style=dashed, xlabel="clk, rst_n, enable"];
+
+    { rank=same; seed; taps; }
+    { rank=same; clk; nxt; }
+    { rank=same; fb; p_fb; }
+    seed -> taps [style=invis, minlen=2];
+    clk -> nxt [style=invis, minlen=2];
+    fb -> p_fb [style=invis, minlen=3];
+}

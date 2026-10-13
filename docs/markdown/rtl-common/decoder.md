@@ -43,6 +43,15 @@ Converts an M-bit binary encoded input to a one-hot N-bit output where N = 2^M. 
 
 ## Functional Description
 
+### Block diagram
+
+![decoder block diagram](../assets/rtl-common/graphviz/decoder.png)
+
+The binary `encoded` input fans out to `N` parallel equality compares, one
+per output bit, and `data[i]` is high when `encoded == i`. With the default
+`N = 2^M` exactly one output bit is high; if `N` is set smaller, an
+`encoded` value of `N` or more leaves every output bit low.
+
 ### Operation Principle
 
 - Each output bit maps to one possible input value

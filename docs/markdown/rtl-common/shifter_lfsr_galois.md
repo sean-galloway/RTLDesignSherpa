@@ -67,6 +67,17 @@ usually why you're reaching for it.
 
 ## Functional Description
 
+### Block diagram
+
+![shifter_lfsr_galois block diagram](../assets/rtl-common/graphviz/shifter_lfsr_galois.png)
+
+This is the Galois form: the register shifts right, and the bit leaving
+at bit 0 is the feedback. When it is 1, the in-chain XORs flip every tap
+position of the shifted value, one XOR per tap between stages, so there is
+no wide XOR tree on the critical path. Compare the
+[Fibonacci diagram](shifter_lfsr_fibonacci.md), whose single XOR tree sits
+outside the chain. The register resets to all ones.
+
 ### Key Architectural Differences
 ```
 Fibonacci LFSR:                    Galois LFSR:

@@ -86,6 +86,15 @@ The output width `$clog2(WIDTH)+1` ensures the port can represent all possible c
 
 ## Functional Description
 
+### Block diagram
+
+![count_leading_zeros block diagram](../assets/rtl-common/graphviz/count_leading_zeros.png)
+
+`data` enters at the top and is scanned from bit `WIDTH-1` down, counting
+zeros until the first 1. This is a count, not a pick, so it is a plain block.
+The `clz` output is one bit wider than an index so that an all-zero input can
+report `WIDTH`.
+
 ### Function-Based Approach
 
 ```systemverilog

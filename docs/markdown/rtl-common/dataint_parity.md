@@ -68,6 +68,16 @@ module dataint_parity #(
 
 ## Functional Description
 
+### Block diagram
+
+![dataint_parity block diagram](../assets/rtl-common/graphviz/dataint_parity.png)
+
+All combinational. `data_in` is split into `CHUNKS` chunks, and each chunk is
+reduced to one parity bit, XOR for even parity or XNOR for odd, as
+`parity_type` selects at run time. The generated bits leave as `parity`, which
+is the generate use. The same bits are compared with the supplied `parity_in`
+to produce `parity_err`, which is the check use.
+
 ### Dual Operation Modes
 
 The module does both jobs at once:

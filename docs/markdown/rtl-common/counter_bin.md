@@ -76,6 +76,16 @@ exactly at `MAX = 2^(WIDTH-1)`. The one hard constraint: `MAX-1` must fit within
 
 ## Functional Description
 
+### Block diagram
+
+![counter_bin block diagram](../assets/rtl-common/graphviz/counter_bin.png)
+
+`enable` drives the next-state logic, which holds, increments, or wraps the
+low `WIDTH-1` bits to 0 at `MAX-1` while inverting the MSB. That MSB is the
+lap bit a FIFO compares to tell full from empty. The next value loads
+`counter_bin_curr`, which climbs the right edge back into the logic. The next
+value also leaves directly as the combinational `counter_bin_next`.
+
 ### Internal Signals
 
 ```systemverilog

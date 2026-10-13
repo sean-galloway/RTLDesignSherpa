@@ -82,6 +82,18 @@ instantiation. It is declared that way so it can size the `winner` port;
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_priority_encoder block diagram](../assets/rtl-common/graphviz/arbiter_priority_encoder.png)
+
+The block is purely combinational. Two request vectors enter at the top, and
+the caller's `any_masked_requests` selects one of them; because the caller
+drives the select, it is a plain box, not a pick. The fixed-priority pick is the
+trapezium: the lowest-numbered requesting client wins. `winner` and
+`winner_valid` leave its narrow edge into the outputs. `CLIENTS` changes only
+the implementation (unrolled `casez` for 4, 8, 16 and 32, a loop otherwise),
+not the behavior.
+
 ### Priority Order
 
 The module implements **fixed priority** arbitration:

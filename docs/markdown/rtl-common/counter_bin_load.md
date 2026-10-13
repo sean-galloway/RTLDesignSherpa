@@ -98,6 +98,17 @@ module counter_bin_load #(
 
 ## Functional Description
 
+### Block diagram
+
+![counter_bin_load block diagram](../assets/rtl-common/graphviz/counter_bin_load.png)
+
+Three request ports feed one next-state select, and the first match wins:
+`load` takes `load_value`, `add_enable` adds `add_value` (wrapping by
+subtracting `2*MAX`), and `enable` increments with the same lap-bit wrap as
+`counter_bin`. With none asserted the register holds. The register value
+climbs the right edge back into the select, and the next value also leaves
+combinationally as `counter_bin_next`.
+
 ### Operation Priority
 
 The module implements a three-level priority hierarchy:

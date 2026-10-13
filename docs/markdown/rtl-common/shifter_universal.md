@@ -64,6 +64,17 @@ you reach for.
 
 ## Functional Description
 
+### Block diagram
+
+![shifter_universal block diagram](../assets/rtl-common/graphviz/shifter_universal.png)
+
+The parallel and serial inputs enter at the top. The mode select, a plain
+case on the `select` port (legend at the top left), forms the next word:
+hold, shift right with `i_sdata_rt` entering the MSB, shift left with
+`i_sdata_lt` entering bit 0, or a parallel load. The register holds the word
+and the two serial-out bits, all flopped, and its current word climbs the
+right edge back into the mode select.
+
 ### Operation Control
 
 The 2-bit `select` signal controls the shifter operation:

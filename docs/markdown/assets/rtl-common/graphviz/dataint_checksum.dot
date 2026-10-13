@@ -1,0 +1,29 @@
+// dataint_checksum block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// One clock. Data enters at the top, the adder sums it with the running total,
+// the register holds the total; the total climbs the right edge back into the
+// adder (register feedback). clk/rst_n/reset are dashed sideband.
+// Source of truth: rtl/common/dataint_checksum.sv.
+digraph dataint_checksum {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="dataint_checksum - running modular-sum checksum";
+
+    din  [label="Data Input\nvalid, data[WIDTH-1:0]", fillcolor="white"];
+    add  [label="Accumulate (combinational)\nr_count + data\n(WIDTH bits, carry out dropped: sum mod 2^WIDTH)"];
+    clk  [label="Clock / Reset\nclk, rst_n (async),\nreset (synchronous clear)", fillcolor="white"];
+    reg  [label="Checksum Register\nr_count (flop)\nloads the sum when valid; reset clears to 0"];
+    bar  [label="Checksum Output\nchksum[WIDTH-1:0] = r_count", fillcolor="white", width=4.5];
+
+    din -> add [xlabel="data (when valid)"];
+    add -> reg [xlabel="next total"];
+    reg -> bar [xlabel="chksum"];
+    reg -> add [xlabel="r_count\n(running total)", constraint=false];
+    clk -> reg [style=dashed, xlabel="clk, rst_n, reset"];
+
+    { rank=same; clk; add; }
+    clk -> add [style=invis, minlen=2];
+}

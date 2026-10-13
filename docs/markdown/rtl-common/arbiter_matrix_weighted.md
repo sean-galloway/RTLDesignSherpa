@@ -73,6 +73,19 @@ One naming note, same as the unweighted page: `N` is the bit width of `grant_id`
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_matrix_weighted block diagram](../assets/rtl-common/graphviz/arbiter_matrix_weighted.png)
+
+Requests drop down the center through the `block_arb` gate and the credit
+eligibility check into the matrix pick (the trapezium). The credit loop is on
+the left: `max_thresh` sets each client's weight, and each completed grant
+returns up the left edge to spend one credit. The priority loop is on the
+right: the winner id goes to the matrix update, which moves the winner to
+lowest priority only when it spends its last credit. A client therefore keeps
+top priority for `weight` consecutive grants before the others get their
+turn.
+
 ### Matrix Representation
 
 The stored state is the upper triangle of `M`, packed into `CLIENTS*(CLIENTS-1)/2` bits. Out of reset every stored bit is 1, so power-on priority is the plain total order:
