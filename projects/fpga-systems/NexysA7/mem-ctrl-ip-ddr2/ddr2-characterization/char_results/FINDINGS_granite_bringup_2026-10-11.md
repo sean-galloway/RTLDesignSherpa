@@ -268,6 +268,28 @@ boot-time PHY recalibration in the RDS flows is the durable fix (LiteDRAM
 is the model). Granite perf remains blocked on this; granite write-side
 conclusions are unaffected.
 
+## Root-cause hunt summary (2026-10-12 night) — read cliff is bench+a7ddrphy, not granite, not config
+
+Eliminated, with evidence: (1) granite-specific RTL (LiteDRAM reads clean on
+the same bench, same night, 4/4 integrity, full BW); (2) board hardware
+(LiteDRAM + all write shapes on both controllers); (3) pumice config space
+(nothing committed today; rename/reorg verified address-preserving; level
+cache intact); (4) host tuple (matrix's own ControllerConfig.apply incl.
+set_jedec_timings tRTW=20/tCCD=1 run tonight -- reads still fail); (5) PHY
+tap training as the active ingredient (a7ddrphy taps0 stuck at 21: storage
+CSR writes land, but rdly_dq_inc/bitslip strobes do NOT move taps -- the
+generated PHY fires strobes on bus READ (`_we <= re`), the driver pokes
+(writes) them; months of clean reads imply the eye was historically wide
+enough that taps never mattered). Surviving hypothesis: the a7ddrphy DQ/DQS
+capture drifted out of the static calibration window (temperature after the
+long soak) and the one knob that could re-center it (per-lane tap retrain)
+is ineffectual through the current strobe path. Next: power-cycle + cold
+retest (needs the owner; no software power control without root), then ILA
+on the a7ddrphy interface if cold doesn't restore it. The durable fix:
+boot-time PHY recalibration in the RDS flows (LiteDRAM's model), plus fixing
+the strobe path to read-trigger (or poke+peek) so retraining actually
+works.
+
 ## Working hypothesis for the open defect (updated)
 
 blen>=2 (split) sub-bursts at the 1-deep entry store: sub-entries neither
