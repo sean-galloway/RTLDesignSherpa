@@ -52,6 +52,7 @@ module formal_amber_control (
 
     // fill / drain partners (free with fair constraints, see props)
     input  logic        fill_done,
+    input  logic        fill_pass_dirty,
     input  logic        fill_beat_valid,
     input  logic [2:0]  fill_beat_idx,
     input  logic        drain_done,
@@ -257,6 +258,7 @@ module formal_amber_control (
         .ctrl_fill_addr          (ctrl_fill_addr),
         .ctrl_req_class          (ctrl_req_class),
         .ctrl_fill_done          (fill_done),
+        .ctrl_fill_pass_dirty    (fill_pass_dirty),
         .ctrl_fill_beat_valid    (fill_beat_valid),
         .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (ctrl_drain_start),
@@ -409,6 +411,7 @@ module formal_amber_control (
         .ctrl_data_a_wr_wdata     (ctrl_data_a_wr_wdata),
         .ctrl_fill_start          (ctrl_fill_start),
         .ctrl_fill_done           (fill_done),
+        .ctrl_fill_pass_dirty     (fill_pass_dirty),
         .ctrl_fill_beat_valid     (fill_beat_valid),
         .ctrl_fill_beat_idx       (fill_beat_idx),
         .ctrl_drain_start         (ctrl_drain_start),
@@ -515,8 +518,10 @@ module amber_control_props (
     input  logic [63:0] ctrl_data_a_wr_wdata,
     input  logic        ctrl_fill_start,
     input  logic        ctrl_fill_done,
+    input  logic        ctrl_fill_pass_dirty,
     input  logic        ctrl_fill_beat_valid,
     input  logic [2:0]  ctrl_fill_beat_idx,
+    input  logic [2:0]  ctrl_req_class,
     input  logic        ctrl_drain_start,
     input  logic        ctrl_drain_done,
     input  logic        snoop_req,
@@ -585,6 +590,15 @@ module amber_control_props (
     localparam TAGW       = 22;
     localparam TAGSW      = 25;
     localparam FILL_BEATS = 8;
+
+    // amber_ace_req_t encodings (l1_pkg)
+    localparam [2:0] ACE_READ_SHARED          = 3'd0;
+    localparam [2:0] ACE_READ_UNIQUE          = 3'd1;
+    localparam [2:0] ACE_CLEAN_UNIQUE         = 3'd2;
+    localparam [2:0] ACE_MAKE_UNIQUE          = 3'd3;
+    localparam [2:0] ACE_WRITE_BACK           = 3'd4;
+    localparam [2:0] ACE_EVICT                = 3'd5;
+    localparam [2:0] ACE_READ_NOT_SHARED_DIRTY= 3'd6;
 
     // ctrl_state_t encodings (l1_pkg)
     localparam [3:0] CS_IDLE        = 4'd0;
@@ -665,6 +679,8 @@ module amber_control_props (
     // =========================================================================
 
     // ---- fill partner ----
+    wire f_no_data_fill = (ctrl_req_class == ACE_CLEAN_UNIQUE)
+                       || (ctrl_req_class == ACE_MAKE_UNIQUE);
     reg f_fill_start_seen, f_fill_done_seen;
     reg [3:0] f_fill_wait;
     reg [3:0] f_beat_count;
@@ -694,20 +710,22 @@ module amber_control_props (
         if (rst_n) begin
             as_fill_done_after_start: assume (!ctrl_fill_done || f_fill_start_seen);
             as_fill_done_once: assume (!ctrl_fill_done || !f_fill_done_seen);
-            // Structural minimum: 8 in-order beat strobes, one per cycle,
-            // all BEFORE done (as_fill_done_is_rlast + as_beat_order), so
-            // the earliest legal done is start+9. The fair window must
-            // exceed that or the assumption set is UNSATISFIABLE and the
-            // whole proof vacates past the fill (caught by the cover task:
-            // no completing trace existed). 12 = smallest value with
-            // margin; DV full soaks complete fills in ~12-20 cycles.
+            // Structural minimum: 8 in-order beat strobes for true fills,
+            // or 0 beats for no-data AR CleanUnique/MakeUnique, all BEFORE
+            // done. The fair window must exceed the longest path or the
+            // assumption set is UNSATISFIABLE.
             as_fill_done_fair: assume (!(f_fill_start_seen && !f_fill_done_seen)
                                        || (f_fill_wait < 12) || ctrl_fill_done);
             as_fill_done_is_rlast: assume (!ctrl_fill_done
-                                           || (f_beat_count == FILL_BEATS));
+                || (f_no_data_fill ? (f_beat_count == 4'd0)
+                                   : (f_beat_count == FILL_BEATS)));
+            as_no_data_no_beats: assume (!ctrl_fill_beat_valid || !f_no_data_fill);
             as_beat_order: assume (!ctrl_fill_beat_valid
-                || (f_fill_start_seen && !f_fill_done_seen
+                || (f_fill_start_seen && !f_fill_done_seen && !f_no_data_fill
                     && (ctrl_fill_beat_idx == f_beat_count[2:0])));
+            // PassDirty is only meaningful for READ_NOT_SHARED_DIRTY fills.
+            as_pass_dirty_scope: assume (!ctrl_fill_pass_dirty
+                || (ctrl_req_class == ACE_READ_NOT_SHARED_DIRTY));
         end
     end
 

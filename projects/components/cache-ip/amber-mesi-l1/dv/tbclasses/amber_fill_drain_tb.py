@@ -44,9 +44,18 @@ from CocoTBFramework.components.axi4.axi4_factories import (
 )
 
 # l1_pkg ace_req_t encodings
-ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
-ACE_NAMES = {ACE_READ_SHARED: 'READ_SHARED', ACE_READ_UNIQUE: 'READ_UNIQUE',
-             ACE_CLEAN_UNIQUE: 'CLEAN_UNIQUE'}
+ACE_READ_SHARED = 0
+ACE_READ_UNIQUE = 1
+ACE_CLEAN_UNIQUE = 2
+ACE_MAKE_UNIQUE = 3
+ACE_READ_NOT_SHARED_DIRTY = 6
+ACE_NAMES = {
+    ACE_READ_SHARED: 'READ_SHARED',
+    ACE_READ_UNIQUE: 'READ_UNIQUE',
+    ACE_CLEAN_UNIQUE: 'CLEAN_UNIQUE',
+    ACE_MAKE_UNIQUE: 'MAKE_UNIQUE',
+    ACE_READ_NOT_SHARED_DIRTY: 'READ_NOT_SHARED_DIRTY',
+}
 
 # AXI encodings checked at the pins
 AXBURST_INCR = 0b01
@@ -268,7 +277,8 @@ class AmberFillDrainTB(TBBase):
             ar = {'addr': self._sig(rd.fub_axi_araddr),
                   'len': self._sig(rd.fub_axi_arlen),
                   'size': self._sig(rd.fub_axi_arsize),
-                  'burst': self._sig(rd.fub_axi_arburst)}
+                  'burst': self._sig(rd.fub_axi_arburst),
+                  'cache': self._sig(rd.fub_axi_arcache)}
             self._hold_check('ar', arv, arr, ar)
             if arv and arr:
                 self.events.append((self.cyc, 'fub_ar', ar))
@@ -295,7 +305,8 @@ class AmberFillDrainTB(TBBase):
             aw = {'addr': self._sig(wr.fub_axi_awaddr),
                   'len': self._sig(wr.fub_axi_awlen),
                   'size': self._sig(wr.fub_axi_awsize),
-                  'burst': self._sig(wr.fub_axi_awburst)}
+                  'burst': self._sig(wr.fub_axi_awburst),
+                  'cache': self._sig(wr.fub_axi_awcache)}
             self._hold_check('aw', awv, awr, aw)
             if awv and awr:
                 self.events.append((self.cyc, 'fub_aw', aw))
@@ -328,7 +339,8 @@ class AmberFillDrainTB(TBBase):
                     'addr': self._sig(d.m_axi_araddr),
                     'len': self._sig(d.m_axi_arlen),
                     'size': self._sig(d.m_axi_arsize),
-                    'burst': self._sig(d.m_axi_arburst)}))
+                    'burst': self._sig(d.m_axi_arburst),
+                    'cache': self._sig(d.m_axi_arcache)}))
             if self._sig(d.m_axi_rvalid) and self._sig(d.m_axi_rready):
                 self.events.append((self.cyc, 'mx_r', {
                     'data': self._sig(d.m_axi_rdata),
@@ -338,7 +350,8 @@ class AmberFillDrainTB(TBBase):
                     'addr': self._sig(d.m_axi_awaddr),
                     'len': self._sig(d.m_axi_awlen),
                     'size': self._sig(d.m_axi_awsize),
-                    'burst': self._sig(d.m_axi_awburst)}))
+                    'burst': self._sig(d.m_axi_awburst),
+                    'cache': self._sig(d.m_axi_awcache)}))
             if self._sig(d.m_axi_wvalid) and self._sig(d.m_axi_wready):
                 self.events.append((self.cyc, 'mx_w', {
                     'data': self._sig(d.m_axi_wdata),
@@ -437,15 +450,26 @@ class AmberFillDrainTB(TBBase):
         mx_r = [p for _, k, p in sl if k == 'mx_r']
         beats = [p for _, k, p in sl if k == 'beat']
 
-        if cls == ACE_CLEAN_UNIQUE:
-            # the upgrade: no AR, no beats, done exactly one cycle after
-            # the start was presented
-            self._score(f"{label}: upgrade issues no fub AR", fub_ar, [])
-            self._score(f"{label}: upgrade issues no m_axi AR", mx_ar, [])
-            self._score(f"{label}: upgrade pulses no beats", beats, [])
-            start_cyc = next(c for c, k, _ in sl if k == 'fill_start')
-            self._score(f"{label}: upgrade done one cycle after start",
-                        done_cyc, start_cyc + 1)
+        if cls in (ACE_CLEAN_UNIQUE, ACE_MAKE_UNIQUE):
+            # no-data AR transactions: single ARLEN=0 AR, one RLAST beat,
+            # no fill beats staged to the data array
+            self._score(f"{label}: no-data AR issues exactly one fub AR",
+                        len(fub_ar), 1)
+            if fub_ar:
+                self._score(f"{label}: fub araddr", fub_ar[0]['addr'], addr)
+                self._score(f"{label}: fub arlen=0", fub_ar[0]['len'], 0)
+                self._score(f"{label}: fub arcache", fub_ar[0].get('cache'),
+                            0xF)
+            self._score(f"{label}: no-data AR issues exactly one m_axi AR",
+                        len(mx_ar), 1)
+            if mx_ar:
+                self._score(f"{label}: m_axi arlen=0", mx_ar[0]['len'], 0)
+            self._score(f"{label}: no-data AR pulses no beats", beats, [])
+            rlast_cyc = next((c for c, k, p in sl
+                              if k == 'fub_r' and p['last']), None)
+            self._score(f"{label}: fill_done one cycle after fub RLAST",
+                        done_cyc, None if rlast_cyc is None
+                        else rlast_cyc + 1)
         else:
             if exp_line is None:
                 exp_line = self._model_line(addr)
@@ -458,6 +482,7 @@ class AmberFillDrainTB(TBBase):
                             self.AXSIZE)
                 self._score(f"{label}: fub arburst", fub_ar[0]['burst'],
                             AXBURST_INCR)
+                self._score(f"{label}: fub arcache", fub_ar[0]['cache'], 0xF)
             self._score(f"{label}: exactly one m_axi AR", len(mx_ar), 1)
             if mx_ar:
                 self._score(f"{label}: m_axi araddr", mx_ar[0]['addr'], addr)
@@ -467,6 +492,7 @@ class AmberFillDrainTB(TBBase):
                             self.AXSIZE)
                 self._score(f"{label}: m_axi arburst", mx_ar[0]['burst'],
                             AXBURST_INCR)
+                self._score(f"{label}: m_axi arcache", mx_ar[0]['cache'], 0xF)
             self._score(f"{label}: fub R beat count", len(fub_r),
                         self.FILL_BEATS)
             self._score(f"{label}: m_axi R beat count", len(mx_r),
@@ -517,11 +543,13 @@ class AmberFillDrainTB(TBBase):
             self._score(f"{label}: fub awsize", fub_aw[0]['size'], self.AXSIZE)
             self._score(f"{label}: fub awburst", fub_aw[0]['burst'],
                         AXBURST_INCR)
+            self._score(f"{label}: fub awcache", fub_aw[0]['cache'], 0xF)
         self._score(f"{label}: exactly one m_axi AW", len(mx_aw), 1)
         if mx_aw:
             self._score(f"{label}: m_axi awaddr", mx_aw[0]['addr'], addr)
             self._score(f"{label}: m_axi awlen", mx_aw[0]['len'],
                         self.FILL_BEATS - 1)
+            self._score(f"{label}: m_axi awcache", mx_aw[0]['cache'], 0xF)
         self._score(f"{label}: fub W beat count", len(fub_w), self.FILL_BEATS)
         self._score(f"{label}: m_axi W beat count", len(mx_w),
                     self.FILL_BEATS)
@@ -574,9 +602,12 @@ class AmberFillDrainTB(TBBase):
         self.log.info("FillBurstWaveform directed done")
 
     async def _upgrade_no_fetch(self):
-        # UpgradeNoFetch (gate): CLEAN_UNIQUE -- no AR at all
+        # UpgradeNoFetch (gate): CLEAN_UNIQUE / MAKE_UNIQUE -- single
+        # ARLEN=0 AR, no data beats
         addr = 0x0000_5000
-        await self.do_fill(addr, ACE_CLEAN_UNIQUE, 'upgr')
+        await self.do_fill(addr, ACE_CLEAN_UNIQUE, 'upgr_clean')
+        addr = 0x0000_5800
+        await self.do_fill(addr, ACE_MAKE_UNIQUE, 'upgr_make')
         self.log.info("UpgradeNoFetch directed done")
 
     async def _drain_waveform(self):
@@ -698,8 +729,9 @@ class AmberFillDrainTB(TBBase):
             line_no = base + random.randrange(span_lines)
             addr = line_no * self.LINE_BYTES
             cls = random.choice([ACE_READ_SHARED, ACE_READ_UNIQUE,
-                                 ACE_CLEAN_UNIQUE])
-            if cls != ACE_CLEAN_UNIQUE:
+                                 ACE_READ_NOT_SHARED_DIRTY,
+                                 ACE_CLEAN_UNIQUE, ACE_MAKE_UNIQUE])
+            if cls not in (ACE_CLEAN_UNIQUE, ACE_MAKE_UNIQUE):
                 seed = random.randrange(2 ** 31)
                 line = self._line_bytes(addr, seed)
                 self.memory_model.write(addr, bytearray(line))

@@ -80,7 +80,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.golden.amber_fsm_oracle impor
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_control_tb import (
     AmberControlTB,
     STATE_CODE,
-    ACE_READ_SHARED,
+    ACE_READ_NOT_SHARED_DIRTY,
     ACE_READ_UNIQUE,
     ACE_CLEAN_UNIQUE,
     ORACLE_REQ_TO_ACE,
@@ -262,6 +262,7 @@ class AmberSnoopRespTB(AmberControlTB):
         d.fillbeat_wr_be.value = 0
         d.fill_beat_valid.value = 0
         d.fill_beat_idx.value = 0
+        d.fill_pass_dirty.value = 0
         d.tb_tag_wr_en.value = 0
         d.tb_tag_wr_way_onehot.value = 0
         d.tb_tag_wr_set.value = 0
@@ -838,7 +839,7 @@ class AmberSnoopRespTB(AmberControlTB):
                 'cls': ORACLE_REQ_TO_ACE.get(res.req),
                 'victim': victim_line, 'victim_dirty': victim_dirty,
                 'victim_way': victim_way,
-                'post_fill': 'S' if res.req == 'READ_SHARED' else 'M',
+                'post_fill': 'S' if res.req == 'READ_NOT_SHARED_DIRTY' else 'M',
                 'pend': None,
             }
             self._tap_pos = len(self.events)
@@ -1039,11 +1040,11 @@ class AmberSnoopRespTB(AmberControlTB):
         if miss:
             exp_classes.append(ORACLE_REQ_TO_ACE[res.req])
             committed = self.cur_txn['pend'] or \
-                ('S' if res.req == 'READ_SHARED' else 'M')
+                ('S' if res.req == 'READ_NOT_SHARED_DIRTY' else 'M')
             r1 = oracle_step(committed, 'CPU_WR' if we else 'CPU_RD')
             if r1.result == 'MISS':
                 exp_classes.append(ORACLE_REQ_TO_ACE[r1.req])
-                committed = 'S' if r1.req == 'READ_SHARED' else 'M'
+                committed = 'S' if r1.req == 'READ_NOT_SHARED_DIRTY' else 'M'
         fills = [p for _, k, p in sl if k == 'fill_start'
                  and (p['addr'] >> self.OFFSET_BITS) == line]
         self._score(f"{label} fill classes", [p['class'] for p in fills],
@@ -1114,7 +1115,7 @@ class AmberSnoopRespTB(AmberControlTB):
                         exp_st = (pend if install_i == 0 and pend else
                                   ('S' if fills[min(install_i,
                                                     len(fills) - 1)]['class']
-                                   == ACE_READ_SHARED else 'M'))
+                                   == ACE_READ_NOT_SHARED_DIRTY else 'M'))
                         self._score(f"{label} install state[{install_i}]",
                                     wr_state, STATE_CODE[exp_st])
                         way = p['way_oh'].bit_length() - 1

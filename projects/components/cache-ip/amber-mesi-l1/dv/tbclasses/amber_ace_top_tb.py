@@ -11,17 +11,17 @@ the house GAXI BFM pair. What this suite pins ON TOP of the l1_core
 integration contract (the model machinery is inherited from AmberCoreTB):
 
   * Table 2.8.1 row-by-row on the master pins: a read miss drives AR with
-    ARSNOOP=ReadShared; a write miss drives AR with ARSNOOP=ReadUnique; an
-    S->M upgrade originates an AW-only CleanUnique (no W beats, B returned
-    and swallowed by the ace_issue BID mux); a dirty eviction drives AW
-    with AWSNOOP=WriteBack and a W burst carrying the victim bytes; every
+    ARSNOOP=ReadNotSharedDirty; a write miss drives AR with
+    ARSNOOP=ReadUnique; an S->M upgrade originates a no-data AR
+    CleanUnique (no W beats, one RLAST beat returned); a MakeUnique is the
+    same no-data AR shape; a dirty eviction drives AW with
+    AWSNOOP=WriteBack and a W burst carrying the victim bytes; every
     AWSNOOP/ARSNOOP value and the address/burst pairing is captured per
     handshake and cross-checked against the model's transaction ledger.
-    (MakeUnique/Evict rows: the control never emits those events -- it
-    maps whole-line write misses to ReadUnique+merge and clean evictions
-    are silent drops -- so their pin-level evidence is the
+    (Evict rows: the control never emits Evict at rig level -- clean
+    evictions are silent drops -- so its pin-level evidence is the
     test_amber_ace_issue_rows unit suite; this suite asserts the rig never
-    issues them.)
+    issues it.)
   * AW-only B responses never reach the drain engine (the AWONLY_ID BID
     mux), so WriteBack B credits always retire the right drain.
   * RACK/WACK auto-pulse accounting: one RACK per R burst one cycle after
@@ -73,16 +73,18 @@ from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_core_tb impor
 )
 
 # Table 2.8.1 snoop-field encodings (amber_ace_issue localparams, mirrored
-# as the golden)
+# as the golden). CleanUnique/MakeUnique now ride the AR channel.
 ARSNOOP_READ_SHARED = 0x1
+ARSNOOP_READ_NOT_SHARED_DIRTY = 0x3
 ARSNOOP_READ_UNIQUE = 0x7
-AWSNOOP_CLEAN_UNIQUE = 0x6
-AWSNOOP_MAKE_UNIQUE = 0x4
+ARSNOOP_CLEAN_UNIQUE = 0xB
+ARSNOOP_MAKE_UNIQUE = 0xC
 AWSNOOP_WRITE_BACK = 0x3
 AWSNOOP_EVICT = 0x5
-AWSNOOP_LEGAL = {AWSNOOP_CLEAN_UNIQUE, AWSNOOP_MAKE_UNIQUE,
-                 AWSNOOP_WRITE_BACK, AWSNOOP_EVICT}
-ARSNOOP_LEGAL = {ARSNOOP_READ_SHARED, ARSNOOP_READ_UNIQUE}
+AWSNOOP_LEGAL = {AWSNOOP_WRITE_BACK, AWSNOOP_EVICT}
+ARSNOOP_LEGAL = {ARSNOOP_READ_SHARED, ARSNOOP_READ_NOT_SHARED_DIRTY,
+                 ARSNOOP_READ_UNIQUE, ARSNOOP_CLEAN_UNIQUE,
+                 ARSNOOP_MAKE_UNIQUE}
 
 # amber_ace_top ties AxDOMAIN to Outer Shareable and AxBAR to "normal access,
 # respecting barriers" on both address channels (IHI 0022H D2.1.1-2, Table
@@ -91,16 +93,21 @@ ACE_DOMAIN_OUTER = 0b10
 ACE_BAR_NORMAL = 0b00
 
 # RRESP[3:2] = {IsShared, PassDirty} the manager model returns (Table D3-15).
-# ReadShared alternates IsShared with PassDirty LOW -- the only ReadShared
-# answers a MESI requester can honour (amber installs S for both). ReadUnique
-# alternates PassDirty with IsShared LOW (IsShared must be LOW, D3.2.1);
-# amber installs M, which carries dirty responsibility either way.
+# ReadNotSharedDirty alternates IsShared and PassDirty; amber installs S on
+# IsShared and M on PassDirty. ReadUnique alternates PassDirty with IsShared
+# LOW (IsShared must be LOW, D3.2.1); amber installs M either way. CleanUnique
+# / MakeUnique are no-data AR transactions and return zero RRESP.
 RRESP_IS_SHARED = 0b1000
 RRESP_PASS_DIRTY = 0b0100
 
 # amber_ace_req_t (l1_pkg) on the coh_req sideband
-ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE, ACE_MAKE_UNIQUE, \
-    ACE_WRITE_BACK, ACE_EVICT = range(6)
+ACE_READ_SHARED = 0
+ACE_READ_UNIQUE = 1
+ACE_CLEAN_UNIQUE = 2
+ACE_MAKE_UNIQUE = 3
+ACE_WRITE_BACK = 4
+ACE_EVICT = 5
+ACE_READ_NOT_SHARED_DIRTY = 6
 
 # the ace_issue AWONLY_ID parameter (the AW-only BID tag)
 AWONLY_ID = 0x01
@@ -280,22 +287,32 @@ class AmberAceTopTB(AmberCoreTB):
                     ACE_BAR_NORMAL)
         self._score("AR: line-aligned address", addr & (self.LINE_BYTES - 1),
                     0)
-        self._score("AR: whole-line burst", length, self.FILL_BEATS)
+        if snoop in (ARSNOOP_CLEAN_UNIQUE, ARSNOOP_MAKE_UNIQUE):
+            self._score("AR: no-data burst length", length, 1)
+        else:
+            self._score("AR: whole-line burst", length, self.FILL_BEATS)
         self._score("AR: snoop is a D2 read type", snoop in ARSNOOP_LEGAL,
                     True)
         cocotb.start_soon(self._serve_read(rid, addr, length, snoop))
 
     def _coherence_resp(self, snoop):
         """RRESP for this read: OKAY plus a legal {IsShared, PassDirty}
-        pair, alternating per read so both values of the bit reach amber."""
-        flip = len(self.ar_log) & 1
+        pair, alternating per class so both values reach amber.
+        No-data AR transactions (CleanUnique/MakeUnique) return zero RRESP."""
+        self._rresp_flip = getattr(self, '_rresp_flip', {})
+        self._rresp_flip[snoop] = self._rresp_flip.get(snoop, 0) + 1
+        flip = self._rresp_flip[snoop] & 1
         if snoop == ARSNOOP_READ_UNIQUE:
             return RRESP_PASS_DIRTY if flip else 0
-        return RRESP_IS_SHARED if flip else 0
+        if snoop == ARSNOOP_READ_NOT_SHARED_DIRTY:
+            return RRESP_PASS_DIRTY if flip else RRESP_IS_SHARED
+        return 0
 
     async def _serve_read(self, rid, addr, length, snoop):
         resp = self._coherence_resp(snoop)
         self.rresp_upper_sent.add((snoop, resp >> 2))
+        if snoop == ARSNOOP_READ_NOT_SHARED_DIRTY and (resp & RRESP_PASS_DIRTY):
+            self._fill_pass_dirty = True
         packets = []
         for i in range(length):
             data = self.memory_model.read(addr + i * self.STRB_W,
@@ -304,6 +321,7 @@ class AmberAceTopTB(AmberCoreTB):
                 id=rid, data=int.from_bytes(bytes(data), 'little'),
                 resp=resp, last=1 if i == length - 1 else 0, user=0))
         await self.r_master.send_burst(packets)
+
 
     def _on_aw_accept(self, packet):
         f = self._fields(packet)
@@ -330,8 +348,9 @@ class AmberAceTopTB(AmberCoreTB):
             self._open_wbs.append({'addr': addr, 'len': length, 'id': awid})
             self._pair_wb_burst()
         else:
-            # AW-only transaction (CleanUnique / MakeUnique / Evict): the
-            # manager answers B straight off the AW; no W data follows.
+            # AW-only transaction (Evict): the manager answers B straight
+            # off the AW; no W data follows. CleanUnique/MakeUnique now ride
+            # the AR channel and never appear here.
             cocotb.start_soon(self._send_b(awid))
 
     def _on_w_beat(self, packet):
@@ -498,7 +517,7 @@ class AmberAceTopTB(AmberCoreTB):
     # Table 2.8.1 pin-level cross-check against the coherence ledger
     # ------------------------------------------------------------------
     def _coh_req_counts(self):
-        counts = {t: 0 for t in range(6)}
+        counts = {t: 0 for t in range(7)}
         for _, kind, p in self.events:
             if kind == 'coh_req':
                 counts[p['type']] += 1
@@ -508,47 +527,53 @@ class AmberAceTopTB(AmberCoreTB):
         cr = self._coh_req_counts()
         rs_ars = [e for e in self.ar_log
                   if e['snoop'] == ARSNOOP_READ_SHARED]
+        rnd_ars = [e for e in self.ar_log
+                   if e['snoop'] == ARSNOOP_READ_NOT_SHARED_DIRTY]
         ru_ars = [e for e in self.ar_log
                   if e['snoop'] == ARSNOOP_READ_UNIQUE]
+        cu_ars = [e for e in self.ar_log
+                  if e['snoop'] == ARSNOOP_CLEAN_UNIQUE]
+        mu_ars = [e for e in self.ar_log
+                  if e['snoop'] == ARSNOOP_MAKE_UNIQUE]
         wb_aws = [e for e in self.aw_log
                   if e['snoop'] == AWSNOOP_WRITE_BACK]
-        cu_aws = [e for e in self.aw_log
-                  if e['snoop'] == AWSNOOP_CLEAN_UNIQUE]
-        mu_aws = [e for e in self.aw_log
-                  if e['snoop'] == AWSNOOP_MAKE_UNIQUE]
         ev_aws = [e for e in self.aw_log
                   if e['snoop'] == AWSNOOP_EVICT]
 
         # one AR per fill launch, snoop matching the launch class
         self._score("pins: ReadShared ARs == READ_SHARED launches",
                     len(rs_ars), cr[ACE_READ_SHARED])
+        self._score("pins: ReadNotSharedDirty ARs == READ_NOT_SHARED_DIRTY launches",
+                    len(rnd_ars), cr[ACE_READ_NOT_SHARED_DIRTY])
         self._score("pins: ReadUnique ARs == READ_UNIQUE launches",
                     len(ru_ars), cr[ACE_READ_UNIQUE])
+        self._score("pins: CleanUnique ARs == CLEAN_UNIQUE launches",
+                    len(cu_ars), cr[ACE_CLEAN_UNIQUE])
+        self._score("pins: MakeUnique ARs == MAKE_UNIQUE launches",
+                    len(mu_ars), cr[ACE_MAKE_UNIQUE])
         self._score("pins: one AR per fill launch",
                     len(self.ar_log),
-                    cr[ACE_READ_SHARED] + cr[ACE_READ_UNIQUE])
+                    cr[ACE_READ_SHARED] + cr[ACE_READ_NOT_SHARED_DIRTY]
+                    + cr[ACE_READ_UNIQUE] + cr[ACE_CLEAN_UNIQUE]
+                    + cr[ACE_MAKE_UNIQUE])
         # one WriteBack AW per drain launch
         self._score("pins: WriteBack AWs == WRITE_BACK launches",
                     len(wb_aws), cr[ACE_WRITE_BACK])
-        # one AW-only CleanUnique per upgrade launch
-        self._score("pins: CleanUnique AWs == CLEAN_UNIQUE launches",
-                    len(cu_aws), cr[ACE_CLEAN_UNIQUE])
-        # MakeUnique / Evict: the control never emits them at rig level
-        self._score("pins: no MakeUnique at rig level", len(mu_aws), 0)
+        # Evict: the control never emits it at rig level
         self._score("pins: no Evict at rig level", len(ev_aws), 0)
-        # the manager answered every AW (WB + AW-only) with a B, and every
+        # the manager answered every AW (WriteBack) with a B, and every
         # B earned exactly one WACK
         self._score("pins: one B per AW", self.b_count, len(self.aw_log))
         self._score("pins: one WACK per B", self.wack_count, self.b_count)
-        # one RACK per AR burst
+        # one RACK per AR burst (including no-data AR CleanUnique/MakeUnique)
         self._score("pins: one RACK per AR", self.rack_count, len(self.ar_log))
         # RRESP[3:2] coverage: with two or more reads of a class, the
-        # manager model returned both values of its coherence bit, and amber
-        # (whose install state ignores RRESP[3:2]) kept every scoreboard
-        # check above green across them
-        if len(rs_ars) >= 2:
-            self._score("pins: ReadShared answered with IsShared 0 and 1",
-                        {(ARSNOOP_READ_SHARED, 0b00), (ARSNOOP_READ_SHARED, 0b10)}
+        # manager model returned both values of its coherence bit.
+        # amber now honors PassDirty on ReadNotSharedDirty (installs M).
+        if len(rnd_ars) >= 2:
+            self._score("pins: ReadNotSharedDirty answered with IsShared/PassDirty",
+                        {(ARSNOOP_READ_NOT_SHARED_DIRTY, 0b10),
+                         (ARSNOOP_READ_NOT_SHARED_DIRTY, 0b01)}
                         <= self.rresp_upper_sent, True)
         if len(ru_ars) >= 2:
             self._score("pins: ReadUnique answered with PassDirty 0 and 1",
@@ -557,8 +582,7 @@ class AmberAceTopTB(AmberCoreTB):
         # W bursts pair only with WriteBack AWs
         self._score("pins: one W burst per WriteBack",
                     len(self.w_log), len(wb_aws))
-        # AW-only CleanUnique: W beats exist only as write-back victim
-        # data -- the total beat count is exactly WB count x whole line
+        # W beats exist only as write-back victim data
         total_beats = sum(len(b['beats']) for b in self.w_log)
         self._score("pins: W beats only carry write-backs",
                     total_beats, len(wb_aws) * self.FILL_BEATS)
@@ -576,14 +600,15 @@ class AmberAceTopTB(AmberCoreTB):
     # ------------------------------------------------------------------
     async def _s_ace_table_rows(self):
         sset = 3 % self.SETS
-        # (a) read miss, shared intent -> ReadShared
+        # (a) read miss, shared intent -> ReadNotSharedDirty
         t = self._dtag()
         base = self._compose_addr(t, sset)
         n_ar = len(self.ar_log)
-        await self._txn(base, 0, label='t_rs')
+        await self._txn(base, 0, label='t_rnsd')
         e = self.ar_log[n_ar]
-        self._score("t_rs: arsnoop", e['snoop'], ARSNOOP_READ_SHARED)
-        self._score("t_rs: araddr line base", e['addr'],
+        self._score("t_rnsd: arsnoop", e['snoop'],
+                    ARSNOOP_READ_NOT_SHARED_DIRTY)
+        self._score("t_rnsd: araddr line base", e['addr'],
                     self._base_of(self._line_of(base)))
 
         # (b) write miss, exclusive intent -> ReadUnique (fetch + merge)
@@ -597,37 +622,44 @@ class AmberAceTopTB(AmberCoreTB):
         self._score("t_ru: arsnoop", e['snoop'], ARSNOOP_READ_UNIQUE)
         await self._txn(base, 0, label='t_ru_rb')
 
-        # (c) write to Shared line -> AW-only CleanUnique, no W beats
+        # (c) write to Shared line -> no-data AR CleanUnique, one RLAST beat
         t = self._dtag()
         base = self._compose_addr(t, sset)
         line = self._line_of(base)
         await self._txn(base, 0, label='t_cu_rd')
+        n_ar = len(self.ar_log)
         n_aw = len(self.aw_log)
         n_w = sum(len(b['beats']) for b in self.w_log)
-        n_b = self.b_count
-        n_wack = self.wack_count
         await self._txn(base, 1, be=0x9,
                         wdata=0x00C7_0000_0000_0000
                         & ((1 << self.BUS_WIDTH) - 1), label='t_cu')
-        e = self.aw_log[n_aw]
-        self._score("t_cu: awsnoop", e['snoop'], AWSNOOP_CLEAN_UNIQUE)
-        self._score("t_cu: awaddr line base", e['addr'],
+        e = self.ar_log[n_ar]
+        self._score("t_cu: arsnoop", e['snoop'], ARSNOOP_CLEAN_UNIQUE)
+        self._score("t_cu: araddr line base", e['addr'],
                     self._base_of(line))
-        self._score("t_cu: AW carries the AW-only id", e['id'], AWONLY_ID)
-        self._score("t_cu: no W beats with the AW-only",
+        self._score("t_cu: arlen=0 for no-data AR", e['len'], 1)
+        self._score("t_cu: no AW originated",
+                    len(self.aw_log), n_aw)
+        self._score("t_cu: no W beats with the upgrade",
                     sum(len(b['beats']) for b in self.w_log), n_w)
-        # the manager's B and the auto-pulsed WACK follow asynchronously
-        # (the cache never waits for them): poll, then score
-        for _ in range(self.RSP_TIMEOUT_CYCLES):
-            if self.b_count >= n_b + 1 and self.wack_count >= n_wack + 1:
-                break
-            await self._negedge_settled()
-        self._score("t_cu: manager returned B", self.b_count, n_b + 1)
-        self._score("t_cu: WACK auto-pulsed for the AW-only B",
-                    self.wack_count, n_wack + 1)
         await self._txn(base, 0, label='t_cu_rb')
 
-        # (d) dirty eviction -> WriteBack carrying the victim line
+        # (d) read miss with PassDirty -> installs M (visible on later snoop)
+        t = self._dtag()
+        base = self._compose_addr(t, sset)
+        line = self._line_of(base)
+        # force PassDirty on the next READ_NOT_SHARED_DIRTY by making it the
+        # second AR of that class (flip pattern in _coherence_resp)
+        n_ar = len(self.ar_log)
+        await self._txn(base, 0, label='t_pd')
+        e = self.ar_log[n_ar]
+        self._score("t_pd: arsnoop", e['snoop'],
+                    ARSNOOP_READ_NOT_SHARED_DIRTY)
+        # the line must end M because PassDirty was returned
+        self._score("t_pd: PassDirty installed M",
+                    self._installed_state(line), 'M')
+
+        # (e) dirty eviction -> WriteBack carrying the victim line
         vtags = [self._dtag() for _ in range(self.WAYS)]
         for w, tag in enumerate(vtags):
             a = self._compose_addr(tag, sset)

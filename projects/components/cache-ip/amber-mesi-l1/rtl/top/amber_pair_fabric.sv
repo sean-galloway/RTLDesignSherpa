@@ -28,7 +28,7 @@
 //==============================================================================
 // Description:
 //   Per direction, the fabric takes the cache's D-8 coherence sideband
-//   (coh_req_valid/addr/type: one pulse per fill launch -- READ_SHARED /
+//   (coh_req_valid/addr/type: one pulse per fill launch -- READ_NOT_SHARED_DIRTY /
 //   READ_UNIQUE on a miss, CLEAN_UNIQUE on an upgrade -- and per dirty
 //   write-back launch, WRITE_BACK) and:
 //
@@ -42,9 +42,9 @@
 //     write-back     : pure write-port pass-through (AW/W/B), arbitrated
 //                      onto the single memory write port.
 //
-//   Snoop map (IHI0022 ACSNOOP[3:0]): READ_SHARED -> SNOOP_READ_SHARED
-//   (4'h1), READ_UNIQUE -> SNOOP_READ_UNIQUE (4'h7), CLEAN_UNIQUE ->
-//   SNOOP_MAKE_INVALID (4'hC).
+//   Snoop map (IHI0022 ACSNOOP[3:0]): READ_SHARED /
+//   READ_NOT_SHARED_DIRTY -> SNOOP_READ_SHARED (4'h1), READ_UNIQUE ->
+//   SNOOP_READ_UNIQUE (4'h7), CLEAN_UNIQUE -> SNOOP_MAKE_INVALID (4'hC).
 //
 //   Kill rule: while a coherence transaction is in flight the peer's own
 //   same-line fill request stays pending (its AR is held). A data-expecting
@@ -350,6 +350,10 @@ module amber_pair_fabric
     localparam logic [3:0] ACSNOOP_READ_SHARED  = 4'h1;   // IHI0022
     localparam logic [3:0] ACSNOOP_READ_UNIQUE  = 4'h7;
     localparam logic [3:0] ACSNOOP_MAKE_INVALID = 4'hC;
+    // ReadNotSharedDirty is issued on the upstream AR channel, but the
+    // fabric still probes the peer with a READ_SHARED snoop (the two
+    // request classes differ only in upstream ARSNOOP; peer resolution
+    // and PassDirty handling are identical for this 2-cache fabric).
 
     localparam logic [3:0] ST_IDLE        = 4'h0;
     localparam logic [3:0] ST_LOOKUP      = 4'h2;
@@ -364,9 +368,10 @@ module amber_pair_fabric
 
     function automatic logic [3:0] map_snoop(input logic [2:0] req_type);
         case (req_type)
-            AMBER_ACE_READ_SHARED:  return ACSNOOP_READ_SHARED;
-            AMBER_ACE_READ_UNIQUE:  return ACSNOOP_READ_UNIQUE;
-            default:                return ACSNOOP_MAKE_INVALID;
+            AMBER_ACE_READ_SHARED,
+            AMBER_ACE_READ_NOT_SHARED_DIRTY: return ACSNOOP_READ_SHARED;
+            AMBER_ACE_READ_UNIQUE:           return ACSNOOP_READ_UNIQUE;
+            default:                         return ACSNOOP_MAKE_INVALID;
         endcase
     endfunction
 
@@ -457,6 +462,7 @@ module amber_pair_fabric
             if (k < pend_cnt_q[dir]
                 && (pend_line_q[dir][k] == addr)
                 && ((pend_type_q[dir][k] == 3'(AMBER_ACE_READ_SHARED))
+                    || (pend_type_q[dir][k] == 3'(AMBER_ACE_READ_NOT_SHARED_DIRTY))
                     || (pend_type_q[dir][k] == 3'(AMBER_ACE_READ_UNIQUE))))
                 peer_pending_true_miss_match = 1'b1;
         end
@@ -476,11 +482,14 @@ module amber_pair_fabric
     localparam logic [3:0] F_PASS_AR   = 4'd5;
     localparam logic [3:0] F_PASS_R    = 4'd6;
     localparam logic [3:0] F_DONE      = 4'd7;
+    localparam logic [3:0] F_NODATA_AR = 4'd8;   // accept no-data AR
+    localparam logic [3:0] F_NODATA_R  = 4'd9;   // return single RLAST beat
 
     logic [3:0]                  state_q;
     logic                       grant_q;          // requester cache (0/1)
     logic [ADDR_WIDTH-1:0]      grant_addr_q;     // line-aligned request line
     logic [2:0]                 grant_type_q;     // amber_ace_req_t class
+    logic                       no_data_txn_q;    // CleanUnique / MakeUnique
     logic                       kill_q;           // MakeInvalid (kill rule)
     logic [3:0]                 acsnoop_q;
     logic [LINE_BYTES*8-1:0]    line_buf_q [2];
@@ -637,6 +646,8 @@ module amber_pair_fabric
           && (((1 - grant_q) == 1'b0 ? c0_coh_req_type : c1_coh_req_type)
               == 3'(AMBER_ACE_READ_SHARED)
               || ((1 - grant_q) == 1'b0 ? c0_coh_req_type : c1_coh_req_type)
+                 == 3'(AMBER_ACE_READ_NOT_SHARED_DIRTY)
+              || ((1 - grant_q) == 1'b0 ? c0_coh_req_type : c1_coh_req_type)
                  == 3'(AMBER_ACE_READ_UNIQUE));
     // NB: the DRAIN window is deliberately NOT a kill condition. A kill
     // is only sound while the peer's fill cannot commit (its AR held by
@@ -697,10 +708,12 @@ module amber_pair_fabric
     // ------------------------------------------------------------------
     assign c_arready[0] = ((state_q == F_REPLAY_AR) && (grant_q == 1'b0))
                        || ((state_q == F_PASS_AR) && (grant_q == 1'b0)
-                           && !abs_match(c0_araddr));
+                           && !abs_match(c0_araddr))
+                       || ((state_q == F_NODATA_AR) && (grant_q == 1'b0));
     assign c_arready[1] = ((state_q == F_REPLAY_AR) && (grant_q == 1'b1))
                        || ((state_q == F_PASS_AR) && (grant_q == 1'b1)
-                           && !abs_match(c1_araddr));
+                           && !abs_match(c1_araddr))
+                       || ((state_q == F_NODATA_AR) && (grant_q == 1'b1));
     assign c0_arready = c_arready[0];
     assign c1_arready = c_arready[1];
 
@@ -741,6 +754,14 @@ module amber_pair_fabric
             r_rlast  = mem_rlast;
             r_ruser  = mem_ruser;
             r_rvalid = mem_rvalid;
+        end else if (state_q == F_NODATA_R) begin
+            // CleanUnique / MakeUnique: one no-data R beat with RLAST
+            r_rid    = replay_rid_q;
+            r_rdata  = '0;
+            r_rresp  = 2'b00;
+            r_rlast  = 1'b1;
+            r_ruser  = '0;
+            r_rvalid = 1'b1;
         end else begin
             r_rid    = '0;
             r_rdata  = '0;
@@ -857,6 +878,7 @@ module amber_pair_fabric
             grant_q            <= 1'b0;
             grant_addr_q       <= '0;
             grant_type_q       <= '0;
+            no_data_txn_q      <= 1'b0;
             kill_q             <= 1'b0;
             acsnoop_q          <= '0;
             rr_q               <= 1'b0;
@@ -967,15 +989,19 @@ module amber_pair_fabric
             unique case (state_q)
                 F_IDLE: begin
                     if (g_valid) begin
-                        grant_q      <= g_dir;
-                        grant_addr_q <= pend_line_q[1'(g_dir)][0];
-                        grant_type_q <= pend_type_q[1'(g_dir)][0];
-                        kill_q       <= g_kill;
-                        acsnoop_q    <= g_kill ? ACSNOOP_MAKE_INVALID
-                                     : map_snoop(pend_type_q[1'(g_dir)][0]);
-                        rr_q         <= 1 - rr_q;
-                        beat_count_q <= '0;
-                        state_q      <= F_AC;
+                        grant_q       <= g_dir;
+                        grant_addr_q  <= pend_line_q[1'(g_dir)][0];
+                        grant_type_q  <= pend_type_q[1'(g_dir)][0];
+                        no_data_txn_q <= (pend_type_q[1'(g_dir)][0]
+                                            == 3'(AMBER_ACE_CLEAN_UNIQUE))
+                                       || (pend_type_q[1'(g_dir)][0]
+                                            == 3'(AMBER_ACE_MAKE_UNIQUE));
+                        kill_q        <= g_kill;
+                        acsnoop_q     <= g_kill ? ACSNOOP_MAKE_INVALID
+                                      : map_snoop(pend_type_q[1'(g_dir)][0]);
+                        rr_q          <= 1 - rr_q;
+                        beat_count_q  <= '0;
+                        state_q       <= F_AC;
                     end
                 end
 
@@ -998,29 +1024,20 @@ module amber_pair_fabric
                     end
                     if (snoop_cr_accept) begin
                         crresp_q <= crresp_w[1'(1 - grant_q)];
-                        if (crresp_w[1'(1 - grant_q)][AMBER_CRRESP_DT]) begin
+                        if (no_data_txn_q) begin
+                            // CleanUnique / MakeUnique are no-data AR
+                            // transactions: accept the AR and return a
+                            // single RLAST beat, then finish.
+                            state_q <= F_NODATA_AR;
+                        end else if (crresp_w[1'(1 - grant_q)][AMBER_CRRESP_DT]) begin
                             if (crresp_w[1'(1 - grant_q)][AMBER_CRRESP_PD]) begin
                                 abs_req_q[1'(grant_q)]       <= 1'b1;
                                 abs_pend_vld_q[1'(grant_q)]  <= 1'b1;
                                 abs_pend_addr_q[1'(grant_q)] <= grant_addr_q;
                             end
-                            if (grant_type_q
-                                == 3'(AMBER_ACE_CLEAN_UNIQUE)) begin
-                                // upgrades carry no data and raise no AR:
-                                // the CR completes the transaction (a DT
-                                // here would be a protocol error; finish
-                                // anyway rather than wait a phantom AR)
-                                state_q <= F_DONE;
-                            end else begin
-                                state_q <= F_REPLAY_AR;
-                            end
+                            state_q <= F_REPLAY_AR;
                         end else begin
-                            if (grant_type_q
-                                == 3'(AMBER_ACE_CLEAN_UNIQUE)) begin
-                                state_q <= F_DONE;
-                            end else begin
-                                state_q <= F_PASS_AR;
-                            end
+                            state_q <= F_PASS_AR;
                         end
                     end
                 end
@@ -1056,6 +1073,19 @@ module amber_pair_fabric
 
                 F_PASS_R: begin
                     if (mem_rvalid && c_rready[1'(r_owner_q)] && mem_rlast) begin
+                        state_q <= F_DONE;
+                    end
+                end
+
+                F_NODATA_AR: begin
+                    if (c_arvalid[1'(grant_q)]) begin
+                        replay_rid_q <= c_arid[1'(grant_q)];
+                        state_q      <= F_NODATA_R;
+                    end
+                end
+
+                F_NODATA_R: begin
+                    if (c_rready[1'(grant_q)]) begin
                         state_q <= F_DONE;
                     end
                 end

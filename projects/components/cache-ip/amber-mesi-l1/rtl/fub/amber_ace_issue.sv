@@ -34,38 +34,37 @@
 //   pure combinational map from the register to the pin (MAS "Timing":
 //   no pipeline stage between control and the transport skid).
 //
-//   AW (drain + upgrades): two producers share the wrapper AW channel,
-//   never concurrently (the blocking control FSM visits MISS_DRAIN and
-//   the upgrade's MISS_FILL in separate transactions):
+//   AW (drain + evict): two producers share the wrapper AW channel, never
+//   concurrently (the blocking control FSM visits MISS_DRAIN and the
+//   upgrade's MISS_FILL in separate transactions):
 //     * l1_drain's WriteBack AW passes through with
 //       fub_axi_awsnoop = WriteBack (drain only ever launches for dirty
 //       victims -- the control never drains a clean line).
-//     * CleanUnique / MakeUnique / Evict are AW-only transactions the
-//       engines never generate: this block originates the AW itself from
-//       the ace_wr_req pulse and holds fub_axi_awvalid under backpressure
-//       until the transport skid accepts it. The generated AW carries
-//       AWONLY_ID (the engines drive ID 0) so the B response -- which the
-//       manager returns per the ACE contract even though no W data
-//       exists -- can be retired by this block's BID mux instead of
-//       leaking onto the drain engine's B channel (its bready is a D_B
-//       state output; a stray AW-only credit would otherwise misretire
-//       the next WriteBack by one transaction).
+//     * Evict is an AW-only transaction the engine never generates: this
+//       block originates the AW itself from the ace_wr_req pulse and holds
+//       fub_axi_awvalid under backpressure until the transport skid accepts
+//       it. The generated AW carries AWONLY_ID (the engines drive ID 0) so
+//       the B response -- which the manager returns per the ACE contract
+//       even though no W data exists -- can be retired by this block's BID
+//       mux instead of leaking onto the drain engine's B channel (its
+//       bready is a D_B state output; a stray AW-only credit would
+//       otherwise misretire the next WriteBack by one transaction).
 //
 //   B (drain): fub_axi_bvalid/bready pass through except responses whose
 //   ID equals AWONLY_ID, which are consumed here (fub_bready forced,
 //   eng_bvalid suppressed). Engine responses (ID 0) reach the drain
 //   engine unmodified, in skid order.
 //
-//   Table 2.8.1 maps (snoop-field encodings):
-//     ReadShared  arsnoop[3:0] = 4'h1     ReadUnique arsnoop[3:0] = 4'h7
-//     CleanUnique awsnoop[2:0] = 3'h6     MakeUnique awsnoop[2:0] = 3'h4
-//     WriteBack   awsnoop[2:0] = 3'h3     Evict      awsnoop[2:0] = 3'h5
-//   The values are the framework ACETransactionType encodings where they
-//   fit the wire width (ReadShared 0x1, ReadUnique 0x7, WriteBack 0x3,
-//   Evict 0x5, MakeUnique 0xC -> low-3 0x4); CleanUnique's framework value
-//   (0xB) collides with WriteBack under 3-bit truncation, so the family
-//   AWSNOOP assigns the next free code 0x6. RACK/WACK are auto-pulsed by
-//   the wrapper transports, not here.
+//   Table 2.8.1 maps (snoop-field encodings, IHI0022H D3):
+//     ReadShared         arsnoop[3:0] = 4'h1
+//     ReadNotSharedDirty arsnoop[3:0] = 4'h3
+//     ReadUnique         arsnoop[3:0] = 4'h7
+//     CleanUnique        arsnoop[3:0] = 4'hB
+//     MakeUnique         arsnoop[3:0] = 4'hC
+//     WriteBack          awsnoop[2:0] = 3'h3
+//     Evict              awsnoop[2:0] = 3'h5
+//   All read classes ride the AR channel; only WriteBack and Evict use AW.
+//   RACK/WACK are auto-pulsed by the wrapper transports, not here.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -214,12 +213,13 @@ module amber_ace_issue
     // ------------------------------------------------------------------
     // Table 2.8.1 snoop-field encodings (see header for the authority)
     // ------------------------------------------------------------------
-    localparam logic [3:0] ARSNOOP_READ_SHARED  = 4'h1;
-    localparam logic [3:0] ARSNOOP_READ_UNIQUE  = 4'h7;
-    localparam logic [2:0] AWSNOOP_CLEAN_UNIQUE = 3'h6;
-    localparam logic [2:0] AWSNOOP_MAKE_UNIQUE  = 3'h4;
-    localparam logic [2:0] AWSNOOP_WRITE_BACK   = 3'h3;
-    localparam logic [2:0] AWSNOOP_EVICT        = 3'h5;
+    localparam logic [3:0] ARSNOOP_READ_SHARED          = 4'h1;
+    localparam logic [3:0] ARSNOOP_READ_NOT_SHARED_DIRTY = 4'h3;
+    localparam logic [3:0] ARSNOOP_READ_UNIQUE          = 4'h7;
+    localparam logic [3:0] ARSNOOP_CLEAN_UNIQUE         = 4'hB;
+    localparam logic [3:0] ARSNOOP_MAKE_UNIQUE          = 4'hC;
+    localparam logic [2:0] AWSNOOP_WRITE_BACK           = 3'h3;
+    localparam logic [2:0] AWSNOOP_EVICT                = 3'h5;
 
     // ------------------------------------------------------------------
     // Elaboration-time checks
@@ -254,8 +254,11 @@ module amber_ace_issue
 
     always_comb begin
         unique case (rd_class_q)
-            AMBER_ACE_READ_UNIQUE: fub_arsnoop = ARSNOOP_READ_UNIQUE;
-            default:               fub_arsnoop = ARSNOOP_READ_SHARED;
+            AMBER_ACE_READ_UNIQUE:           fub_arsnoop = ARSNOOP_READ_UNIQUE;
+            AMBER_ACE_READ_NOT_SHARED_DIRTY: fub_arsnoop = ARSNOOP_READ_NOT_SHARED_DIRTY;
+            AMBER_ACE_CLEAN_UNIQUE:          fub_arsnoop = ARSNOOP_CLEAN_UNIQUE;
+            AMBER_ACE_MAKE_UNIQUE:           fub_arsnoop = ARSNOOP_MAKE_UNIQUE;
+            default:                         fub_arsnoop = ARSNOOP_READ_SHARED;
         endcase
     end
 
@@ -274,10 +277,10 @@ module amber_ace_issue
     assign eng_arready   = fub_arready;
 
     // ------------------------------------------------------------------
-    // AW-only generator: CleanUnique / MakeUnique / Evict carry no engine
-    // transaction -- the engines never generate them -- so this block
-    // originates the AW and holds it until the transport skid accepts it.
-    // Burst fields mirror the engines' constants (whole-line INCR).
+    // AW-only generator: Evict carries no engine transaction -- the engine
+    // never generates it -- so this block originates the AW and holds it
+    // until the transport skid accepts it. Burst fields mirror the engines'
+    // constants (whole-line INCR); awcache is the coherent write-back value.
     // ------------------------------------------------------------------
     logic                  awonly_valid_q;
     logic [ADDR_WIDTH-1:0] awonly_addr_q;
@@ -286,9 +289,7 @@ module amber_ace_issue
 
     logic awonly_req;
     assign awonly_req = ace_wr_req
-        && (ace_wr_type == 3'(AMBER_ACE_CLEAN_UNIQUE)
-            || ace_wr_type == 3'(AMBER_ACE_MAKE_UNIQUE)
-            || ace_wr_type == 3'(AMBER_ACE_EVICT));
+        && (ace_wr_type == 3'(AMBER_ACE_EVICT));
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -324,7 +325,7 @@ module amber_ace_issue
                                       : 3'($clog2(STRB_W));
     assign fub_awburst  = eng_awvalid ? eng_awburst : 2'b01;  // INCR
     assign fub_awlock   = eng_awvalid ? eng_awlock  : 1'b0;
-    assign fub_awcache  = eng_awvalid ? eng_awcache : 4'b0;
+    assign fub_awcache  = eng_awvalid ? eng_awcache : AMBER_ACE_AX_CACHE;
     assign fub_awprot   = eng_awvalid ? eng_awprot  : 3'b0;
     assign fub_awqos    = eng_awvalid ? eng_awqos   : 4'b0;
     assign fub_awregion = eng_awvalid ? eng_awregion : 4'b0;
@@ -336,11 +337,8 @@ module amber_ace_issue
             // 2.8.1: dirty eviction -> WriteBack)
             fub_awsnoop = AWSNOOP_WRITE_BACK;
         end else begin
-            unique case (awonly_type_q)
-                AMBER_ACE_MAKE_UNIQUE: fub_awsnoop = AWSNOOP_MAKE_UNIQUE;
-                AMBER_ACE_EVICT:       fub_awsnoop = AWSNOOP_EVICT;
-                default:               fub_awsnoop = AWSNOOP_CLEAN_UNIQUE;
-            endcase
+            // only Evict uses the AW-only generator
+            fub_awsnoop = AWSNOOP_EVICT;
         end
     end
 

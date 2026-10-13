@@ -198,6 +198,7 @@ module l1_control (
 	ctrl_fill_addr,
 	ctrl_req_class,
 	ctrl_fill_done,
+	ctrl_fill_pass_dirty,
 	ctrl_fill_beat_valid,
 	ctrl_fill_beat_idx,
 	ctrl_drain_start,
@@ -275,6 +276,7 @@ module l1_control (
 	output reg [32 - 1:0] ctrl_fill_addr;
 	output wire [2:0] ctrl_req_class;
 	input wire ctrl_fill_done;
+	input wire ctrl_fill_pass_dirty;
 	input wire ctrl_fill_beat_valid;
 	input wire [BEAT_INDEX_WIDTH - 1:0] ctrl_fill_beat_idx;
 	output reg ctrl_drain_start;
@@ -295,15 +297,15 @@ module l1_control (
 	output reg [3:0] ctrl_state;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:243:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:246:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:245:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:248:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:247:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:250:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:249:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:252:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:251:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:254:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
 	end
 	localparam signed [31:0] CTRL_BITS = 12;
 	localparam [11:0] OH_IDLE = 12'b000000000001;
@@ -337,6 +339,7 @@ module l1_control (
 	reg fill_done_q;
 	reg drain_seen_q;
 	reg drain_done_q;
+	reg fill_pass_dirty_q;
 	reg rsp_valid_q;
 	reg [64 - 1:0] rsp_data_q;
 	reg [SET_INDEX_WIDTH - 1:0] init_cnt_q;
@@ -424,7 +427,7 @@ module l1_control (
 	wire pf_clear;
 	wire [2:0] install_state;
 	wire [2:0] install_state_eff;
-	assign install_state = (req_class_q == 3'b000 ? 3'b001 : 3'b011);
+	assign install_state = ((req_class_q == 3'b110) && !fill_pass_dirty_q ? 3'b001 : 3'b011);
 	assign install_state_eff = (pend_vld_q ? pend_state_q : install_state);
 	assign pf_load = ((state_q == OH_MISS_FILL) && !upgr_q) && !pf_active;
 	assign pf_clear = state_q == OH_FILL_WRITE;
@@ -723,6 +726,7 @@ module l1_control (
 			mv_cnt_q <= 1'sb0;
 			fill_seen_q <= 1'b0;
 			fill_done_q <= 1'b0;
+			fill_pass_dirty_q <= 1'b0;
 			drain_seen_q <= 1'b0;
 			drain_done_q <= 1'b0;
 			rsp_valid_q <= 1'b0;
@@ -805,7 +809,7 @@ module l1_control (
 						upgr_q <= 1'b1;
 					end
 					else if (!hit_any)
-						req_class_q <= (req_we_q ? 3'b001 : 3'b000);
+						req_class_q <= (req_we_q ? 3'b001 : 3'b110);
 				end
 				OH_HIT_RD: begin
 					rsp_valid_q <= 1'b1;
@@ -829,12 +833,17 @@ module l1_control (
 					end
 					else
 						mv_cnt_q <= 1'sb0;
-				OH_MISS_FILL: fill_seen_q <= 1'b1;
+				OH_MISS_FILL: begin
+					fill_seen_q <= 1'b1;
+					if (fill_seen_q && ctrl_fill_pass_dirty)
+						fill_pass_dirty_q <= 1'b1;
+				end
 				OH_MISS_DRAIN: drain_seen_q <= 1'b1;
 				OH_FILL_WRITE: begin
 					mv_cnt_q <= 1'sb0;
 					fill_seen_q <= 1'b0;
 					fill_done_q <= 1'b0;
+					fill_pass_dirty_q <= 1'b0;
 					drain_seen_q <= 1'b0;
 					drain_done_q <= 1'b0;
 					pend_vld_q <= 1'b0;

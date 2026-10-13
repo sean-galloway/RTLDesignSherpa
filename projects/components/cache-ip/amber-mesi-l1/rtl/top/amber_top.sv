@@ -224,10 +224,13 @@ module amber_top
     logic [UW-1:0]        fub_aruser;
     logic                 fub_arvalid, fub_arready;
     logic [BUS_WIDTH-1:0] fub_rdata;
-    logic [1:0]           fub_rresp;
+    logic [1:0]           fub_rresp_raw;
+    logic [3:0]           fub_rresp;
     logic                 fub_rlast;
     logic [UW-1:0]        fub_ruser;
     logic                 fub_rvalid, fub_rready;
+
+    assign fub_rresp = {2'b0, fub_rresp_raw};
 
     logic [IW-1:0]        fub_awid, fub_bid;
     logic [ADDR_WIDTH-1:0] fub_awaddr;
@@ -383,7 +386,7 @@ module amber_top
         .fub_axi_arready         (fub_arready),
         .fub_axi_rid             (fub_rid),
         .fub_axi_rdata           (fub_rdata),
-        .fub_axi_rresp           (fub_rresp),
+        .fub_axi_rresp           (fub_rresp_raw),
         .fub_axi_rlast           (fub_rlast),
         .fub_axi_ruser           (fub_ruser),
         .fub_axi_rvalid          (fub_rvalid),

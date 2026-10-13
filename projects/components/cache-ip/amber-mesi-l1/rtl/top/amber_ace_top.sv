@@ -347,7 +347,7 @@ module amber_ace_top
         .fub_axi_arready   (fub_arready),
         .fub_axi_rid       (fub_rid),
         .fub_axi_rdata     (fub_rdata),
-        .fub_axi_rresp     (fub_rresp[1:0]),
+        .fub_axi_rresp     (fub_rresp),
         .fub_axi_rlast     (fub_rlast),
         .fub_axi_ruser     (fub_ruser),
         .fub_axi_rvalid    (fub_rvalid),
@@ -409,9 +409,9 @@ module amber_ace_top
     // ------------------------------------------------------------------
     // amber_ace_issue: the Table 2.8.1 map between the engines and the
     // ACE transports. The coh_req launch stream is its event input:
-    // READ_SHARED / READ_UNIQUE latch the AR snoop class; CLEAN_UNIQUE
-    // (the upgrade) / MAKE_UNIQUE / EVICT originate the AW-only
-    // transactions; WRITE_BACK rides the drain engine's AW. Write-side
+    // READ_SHARED / READ_NOT_SHARED_DIRTY / READ_UNIQUE / CLEAN_UNIQUE /
+    // MAKE_UNIQUE latch the AR snoop class; EVICT originates the AW-only
+    // transaction; WRITE_BACK rides the drain engine's AW. Write-side
     // event wiring is class-gated so the WriteBack launch (which the
     // drain engine itself carries) never double-fires the generator.
     // ------------------------------------------------------------------
@@ -424,15 +424,15 @@ module amber_ace_top
         .aclk          (aclk),
         .aresetn       (aresetn),
         .ace_rd_req    (coh_req_valid
-                        && (coh_req_type == 3'(AMBER_ACE_READ_SHARED)
-                            || coh_req_type == 3'(AMBER_ACE_READ_UNIQUE))),
+                        && (coh_req_type == 3'(AMBER_ACE_READ_NOT_SHARED_DIRTY)
+                            || coh_req_type == 3'(AMBER_ACE_READ_UNIQUE)
+                            || coh_req_type == 3'(AMBER_ACE_CLEAN_UNIQUE)
+                            || coh_req_type == 3'(AMBER_ACE_MAKE_UNIQUE))),
         .ace_rd_type   (coh_req_type),
         .ace_rd_addr   (coh_req_addr),
         .ace_rd_len    (8'(FILL_BEATS - 1)),
         .ace_wr_req    (coh_req_valid
-                        && (coh_req_type == 3'(AMBER_ACE_CLEAN_UNIQUE)
-                            || coh_req_type == 3'(AMBER_ACE_MAKE_UNIQUE)
-                            || coh_req_type == 3'(AMBER_ACE_EVICT))),
+                        && (coh_req_type == 3'(AMBER_ACE_EVICT))),
         .ace_wr_type   (coh_req_type),
         .ace_wr_addr   (coh_req_addr),
         .ace_wr_len    (8'(FILL_BEATS - 1)),
@@ -513,16 +513,10 @@ module amber_ace_top
     // AxBAR is 0b00, normal access respecting barriers.
     //
     // RRESP[3:2] (IsShared, PassDirty) is carried to fub_rresp and observed
-    // by the read transport's monitor, but the core does not consume it: the
-    // install state comes from the request class (l1_control: ReadShared ->
-    // S, ReadUnique -> M). S is a legal outcome for every IsShared value, and
-    // M already carries dirty responsibility, so the only response amber
-    // cannot honour is PassDirty=1 on a ReadShared: it would install a
-    // clean S and drop the write-back. amber therefore needs its manager
-    // to keep PassDirty LOW on ReadShared (onyx HAS ch04/02 plans to write
-    // memory itself when the requester does not absorb dirty data, but no
-    // port contract states it yet; IHI 0022H gives a MESI cache
-    // ReadNotSharedDirty for exactly this). Open item, not a silent tie.
+    // by the read transport's monitor. The core now consumes RRESP[2]
+    // (PassDirty) for read-miss fills: a read-miss with PassDirty installs
+    // as M, otherwise it installs as S for ReadNotSharedDirty or E for
+    // ReadUnique (l1_control). IsShared is still observational only.
     // ------------------------------------------------------------------
     localparam logic [1:0] ACE_DOMAIN = 2'b10;   // Outer Shareable
     localparam logic [1:0] ACE_BAR    = 2'b00;   // normal access, respecting barriers

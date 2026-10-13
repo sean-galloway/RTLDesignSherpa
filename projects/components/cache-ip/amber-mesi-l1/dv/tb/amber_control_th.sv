@@ -88,6 +88,7 @@ module amber_control_th
 
     // fill / drain / victim stub handshakes
     input  logic                      fill_done,
+    input  logic                      fill_pass_dirty,
     input  logic                      drain_done,
     output logic                      fill_start,
     output logic [ADDR_WIDTH-1:0]     fill_addr,
@@ -220,6 +221,7 @@ module amber_control_th
         .ctrl_fill_addr          (fill_addr),
         .ctrl_req_class          (fill_req_class),
         .ctrl_fill_done          (fill_done),
+        .ctrl_fill_pass_dirty    (fill_pass_dirty),
         .ctrl_fill_beat_valid    (fill_beat_valid),
         .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (drain_start),

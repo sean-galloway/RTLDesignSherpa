@@ -64,9 +64,9 @@ CR_E_RU = 0b10001   # DT+WU:    clean out, invalidate
 CR_E_CS = 0b11000   # IS+WU:    no transfer, stays Exclusive per Table 3.0
 CR_S_RS = 0b01000   # IS:       no transfer, shared
 
-MISS_REQ_READ_SHARED  = 'READ_SHARED'   # cpu read miss   (gem5 GETS)
-MISS_REQ_READ_UNIQUE  = 'READ_UNIQUE'   # cpu write miss  (gem5 GETX)
-MISS_REQ_CLEAN_UNIQUE = 'CLEAN_UNIQUE'  # S-line upgrade  (gem5 UPGRADE)
+MISS_REQ_READ_SHARED  = 'READ_NOT_SHARED_DIRTY'  # cpu read miss (gem5 GETS)
+MISS_REQ_READ_UNIQUE  = 'READ_UNIQUE'            # cpu write miss (gem5 GETX)
+MISS_REQ_CLEAN_UNIQUE = 'CLEAN_UNIQUE'           # S-line upgrade (gem5 UPGRADE)
 
 SM = 'MESI_Two_Level-L1cache.sm'
 

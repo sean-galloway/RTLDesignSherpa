@@ -104,7 +104,7 @@ CRRESP_WIDTH = 5   # {WU[4], IS[3], PD[2], Err[1], DT[0]}, amber_pkg order
 # CPU-miss request classes issued to the fabric/memory side (gem5
 # GETS/GETX/UPGRADE; MAS ch02/08 Table 2.8.1 names for Task 12's
 # amber_ace_issue).
-REQ_READ_SHARED = 'READ_SHARED'
+REQ_READ_SHARED = 'READ_NOT_SHARED_DIRTY'
 REQ_READ_UNIQUE = 'READ_UNIQUE'
 REQ_CLEAN_UNIQUE = 'CLEAN_UNIQUE'
 

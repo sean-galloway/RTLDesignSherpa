@@ -250,6 +250,7 @@ class AmberFrontendTB(TBBase):
         d.fillbeat_wr_be.value = 0
         d.fill_beat_valid.value = 0
         d.fill_beat_idx.value = 0
+        d.fill_pass_dirty.value = 0
         d.snoop_req.value = 0
         d.snoop_type.value = 0
         d.snoop_addr.value = 0

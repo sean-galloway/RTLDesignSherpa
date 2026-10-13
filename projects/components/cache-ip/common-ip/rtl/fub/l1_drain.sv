@@ -241,7 +241,7 @@ module l1_drain
     assign fub_axi_awsize   = 3'($clog2(STRB_W));
     assign fub_axi_awburst  = 2'b01;             // INCR
     assign fub_axi_awlock   = 1'b0;
-    assign fub_axi_awcache  = 4'b0;
+    assign fub_axi_awcache  = AMBER_ACE_AX_CACHE;
     assign fub_axi_awprot   = 3'b0;
     assign fub_axi_awqos    = 4'b0;
     assign fub_axi_awregion = 4'b0;

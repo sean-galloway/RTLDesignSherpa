@@ -32,18 +32,19 @@
 //   Four-state engine, single outstanding (the blocking pipeline launches a
 //   fill only from CTRL_MISS_FILL and waits fill_done, MAS ch03/02):
 //
-//     F_IDLE  sample fill_start; latch fill_addr. fill_req_class ==
-//             AMBER_ACE_CLEAN_UNIQUE (the S->M upgrade, MAS ch02/02) carries
-//             NO fill data: no AR is issued and the handshake completes
-//             through F_DONE with zero beats -- the same contract the
-//             control suite pins as UpgradeNoBypassArm. Otherwise -> F_AR.
+//     F_IDLE  sample fill_start; latch fill_addr / fill_req_class. All
+//             coherent read classes issue an AR; CleanUnique / MakeUnique
+//             are no-data AR transactions (ARLEN = 0) and complete through
+//             F_R after a single RLAST beat. Otherwise -> F_AR for a true
+//             fill.
 //     F_AR    assert fub_axi_arvalid with the latched line address and the
-//             burst parameters (ARLEN = FILL_BEATS-1, ARSIZE =
-//             log2(BUS_WIDTH/8), ARBURST = INCR); on the AR handshake -> F_R.
-//     F_R     accept R beats into the staging FIFO. fub_axi_rready is the
-//             FIFO's wr_ready: it never drops on beat-output-side stalls,
-//             only at a genuinely full FIFO (DECISION D-6). The burst ends
-//             on RLAST (AXI-defined); -> F_DONE.
+//             burst parameters (ARLEN = FILL_BEATS-1 for true fills,
+//             ARLEN = 0 for no-data ARs, ARSIZE = log2(BUS_WIDTH/8),
+//             ARBURST = INCR); on the AR handshake -> F_R.
+//     F_R     accept R beats into the staging FIFO (true fills only).
+//             fub_axi_rready is the FIFO's wr_ready: it never drops on
+//             beat-output-side stalls, only at a genuinely full FIFO
+//             (DECISION D-6). The burst ends on RLAST (AXI-defined); -> F_DONE.
 //     F_DONE  fill_done pulses one cycle (MAS ch03/02: one cycle after
 //             RLAST acceptance) -> F_IDLE.
 //
@@ -78,9 +79,11 @@
 //
 //------------------------------------------------------------------------------
 // Notes:
-//   - RRESP is accepted but not acted on: the pair-rig memory responder is
-//     always OKAY (plain AXI4 memory per MAS ch03/02); error responses are
+//   - RRESP[1:0] is accepted but not acted on: the pair-rig memory responder
+//     is always OKAY (plain AXI4 memory per MAS ch03/02); error responses are
 //     a rig-integration concern, recorded for Task 14.
+//   - RRESP[2] (PassDirty) is captured across the burst and reported on
+//     fill_pass_dirty so l1_control can install a dirty line as M.
 //   - Illegal/unmapped state encodings recover to F_IDLE (defensive: the
 //     cache pipeline stays live; there is no error-state contract for the
 //     sequencing engines in MAS ch02).
@@ -128,6 +131,7 @@ module l1_fill
     output logic [BUS_WIDTH-1:0]        fill_beat_data,
     output logic [BEAT_INDEX_WIDTH-1:0] fill_beat_idx,
     output logic                        fill_last,
+    output logic                        fill_pass_dirty,
 
     // fub_axi upstream side of axi4_master_rd (DECISION D3)
     output logic [IW-1:0]   fub_axi_arid,
@@ -145,7 +149,7 @@ module l1_fill
     input  logic            fub_axi_arready,
     input  logic [IW-1:0]   fub_axi_rid,
     input  logic [BUS_WIDTH-1:0] fub_axi_rdata,
-    input  logic [1:0]      fub_axi_rresp,
+    input  logic [3:0]      fub_axi_rresp,
     input  logic            fub_axi_rlast,
     input  logic [UW-1:0]   fub_axi_ruser,
     input  logic            fub_axi_rvalid,
@@ -177,6 +181,9 @@ module l1_fill
 
     logic [1:0]              state_q, state_d;
     logic [ADDR_WIDTH-1:0]   addr_q;
+    logic [2:0]              class_q;
+    logic                    no_data_class_q;
+    logic                    pass_dirty_q;
 
     // ------------------------------------------------------------------
     // R-beat staging queue (DECISION D-6 / D11 queue inventory)
@@ -203,16 +210,22 @@ module l1_fill
     );
 
     // ------------------------------------------------------------------
+    // No-data AR classes: CleanUnique and MakeUnique complete with a single
+    // R response beat that carries no data (IHI0022 no-data AR transactions).
+    // ------------------------------------------------------------------
+    always_comb begin
+        no_data_class_q = (class_q == AMBER_ACE_CLEAN_UNIQUE)
+                       || (class_q == AMBER_ACE_MAKE_UNIQUE);
+    end
+
+    // ------------------------------------------------------------------
     // Next-state logic
     // ------------------------------------------------------------------
     always_comb begin
         state_d = state_q;
         unique case (state_q)
             F_IDLE: begin
-                if (fill_start) begin
-                    state_d = (fill_req_class == AMBER_ACE_CLEAN_UNIQUE)
-                              ? F_DONE : F_AR;
-                end
+                if (fill_start) state_d = F_AR;
             end
             F_AR: begin
                 if (fub_axi_arvalid && fub_axi_arready) state_d = F_R;
@@ -231,13 +244,20 @@ module l1_fill
     // ------------------------------------------------------------------
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            state_q   <= F_IDLE;
-            addr_q    <= '0;
-            pop_cnt_q <= '0;
+            state_q        <= F_IDLE;
+            addr_q         <= '0;
+            class_q        <= AMBER_ACE_READ_NOT_SHARED_DIRTY;
+            pass_dirty_q   <= 1'b0;
+            pop_cnt_q      <= '0;
         end else begin
             state_q <= state_d;
             if (state_q == F_IDLE && fill_start) begin
-                addr_q <= fill_addr;
+                addr_q  <= fill_addr;
+                class_q <= fill_req_class;
+                pass_dirty_q <= 1'b0;
+            end
+            if (state_q == F_R && fub_axi_rvalid && fub_axi_rready) begin
+                pass_dirty_q <= pass_dirty_q | fub_axi_rresp[2];
             end
             // beat presentation counter: wraps at FILL_BEATS, which equals
             // a per-fill reset because the FIFO always drains before the
@@ -255,23 +275,28 @@ module l1_fill
     // AR channel: burst parameters per MAS ch03/02
     assign fub_axi_arid     = '0;
     assign fub_axi_araddr   = addr_q;
-    assign fub_axi_arlen    = 8'(FILL_BEATS - 1);
+    assign fub_axi_arlen    = no_data_class_q ? 8'h0
+                                              : 8'(FILL_BEATS - 1);
     assign fub_axi_arsize   = 3'($clog2(STRB_W));
     assign fub_axi_arburst  = 2'b01;             // INCR
     assign fub_axi_arlock   = 1'b0;
-    assign fub_axi_arcache  = 4'b0;
+    assign fub_axi_arcache  = AMBER_ACE_AX_CACHE;
     assign fub_axi_arprot   = 3'b0;
     assign fub_axi_arqos    = 4'b0;
     assign fub_axi_arregion = 4'b0;
     assign fub_axi_aruser   = '0;
     assign fub_axi_arvalid  = (state_q == F_AR);
 
-    // R channel: the FIFO absorbs beats without dropping rready (D-6)
+    // R channel: the FIFO absorbs beats without dropping rready (D-6).
+    // No-data AR transactions consume the single RLAST beat but do not
+    // push it into the staging FIFO, so the data array sees no fill beats.
     assign fub_axi_rready   = (state_q == F_R) && stage_wr_ready;
-    assign stage_wr_valid   = (state_q == F_R) && fub_axi_rvalid;
+    assign stage_wr_valid   = (state_q == F_R) && fub_axi_rvalid
+                              && !no_data_class_q;
 
     // control side
     assign fill_done        = (state_q == F_DONE);
+    assign fill_pass_dirty  = pass_dirty_q;
     assign fill_beat_valid  = stage_rd_valid;
     assign fill_beat_data   = stage_rd_data;
     assign fill_beat_idx    = pop_cnt_q;

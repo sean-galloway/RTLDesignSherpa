@@ -104,6 +104,7 @@ module amber_frontend_th
     input  logic [STRB_W-1:0]          fillbeat_wr_be,
     input  logic                       fill_beat_valid,
     input  logic [BEAT_INDEX_WIDTH-1:0] fill_beat_idx,
+    input  logic                       fill_pass_dirty,
 
     // snoop responder core-facing handshake (l1_snoop_resp timing model)
     input  logic                      snoop_req,
@@ -264,6 +265,7 @@ module amber_frontend_th
         .ctrl_fill_addr          (fill_addr),
         .ctrl_req_class          (fill_req_class),
         .ctrl_fill_done          (fill_done),
+        .ctrl_fill_pass_dirty    (fill_pass_dirty),
         .ctrl_fill_beat_valid    (fill_beat_valid),
         .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (drain_start),

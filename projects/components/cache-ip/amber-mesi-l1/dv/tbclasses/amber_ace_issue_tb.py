@@ -22,21 +22,24 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from TBClasses.shared.tbbase import TBBase
 
 # Table 2.8.1 snoop-field encodings (the block's localparams, mirrored here
-# as the golden). ARSNOOP[3:0] / AWSNOOP[2:0]; framework ACETransactionType
-# values where they fit the wire width (READ_SHARED=0x1, READ_UNIQUE=0x7,
-# WRITE_BACK=0x3, EVICT=0x5, MAKE_UNIQUE=0xC -> low-3 0x4); CleanUnique's
-# framework value (0xB) collides with WriteBack under 3-bit truncation so
-# the family AWSNOOP assigns the next free code 0x6.
+# as the golden). ARSNOOP[3:0] per IHI0022H D3; AWSNOOP[2:0] for WriteBack
+# and Evict (CleanUnique/MakeUnique now ride the AR channel).
 ARSNOOP_READ_SHARED = 0x1
+ARSNOOP_READ_NOT_SHARED_DIRTY = 0x3
 ARSNOOP_READ_UNIQUE = 0x7
-AWSNOOP_CLEAN_UNIQUE = 0x6
-AWSNOOP_MAKE_UNIQUE = 0x4
+ARSNOOP_CLEAN_UNIQUE = 0xB
+ARSNOOP_MAKE_UNIQUE = 0xC
 AWSNOOP_WRITE_BACK = 0x3
 AWSNOOP_EVICT = 0x5
 
 # amber_ace_req_t (l1_pkg)
-ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE, ACE_MAKE_UNIQUE, \
-    ACE_WRITE_BACK, ACE_EVICT = range(6)
+ACE_READ_SHARED = 0
+ACE_READ_UNIQUE = 1
+ACE_CLEAN_UNIQUE = 2
+ACE_MAKE_UNIQUE = 3
+ACE_WRITE_BACK = 4
+ACE_EVICT = 5
+ACE_READ_NOT_SHARED_DIRTY = 6
 
 # the block's default AW-only AWID (parameter AWONLY_ID)
 AWONLY_ID = 0x01
@@ -85,7 +88,7 @@ class AmberAceIssueTB(TBBase):
         d.eng_arsize.value = 0
         d.eng_arburst.value = 0
         d.eng_arlock.value = 0
-        d.eng_arcache.value = 0
+        d.eng_arcache.value = 0xF
         d.eng_arprot.value = 0
         d.eng_arqos.value = 0
         d.eng_arregion.value = 0
@@ -151,6 +154,8 @@ class AmberAceIssueTB(TBBase):
                         int(d.fub_araddr.value), addr)
             self._score(f"{name}: arlen passthrough",
                         int(d.fub_arlen.value), arlen)
+            self._score(f"{name}: arcache passthrough",
+                        int(d.fub_arcache.value), int(d.eng_arcache.value))
             self._score(f"{name}: arid passthrough", int(d.fub_arid.value),
                         int(d.eng_arid.value))
         d.fub_arready.value = 1
@@ -161,7 +166,7 @@ class AmberAceIssueTB(TBBase):
         await self._negedge_settled()
 
     # ------------------------------------------------------------------
-    # AW-only rows: CleanUnique / MakeUnique / Evict on awsnoop[2:0]
+    # AW-only rows: Evict on awsnoop[2:0]
     # ------------------------------------------------------------------
     async def _awonly_row(self, name, req_type, exp_snoop):
         d = self.dut
@@ -184,6 +189,8 @@ class AmberAceIssueTB(TBBase):
                         exp_snoop)
             self._score(f"{name}: awaddr", int(d.fub_awaddr.value), addr)
             self._score(f"{name}: awlen", int(d.fub_awlen.value), awlen)
+            self._score(f"{name}: awcache write-back",
+                        int(d.fub_awcache.value), 0xF)
             self._score(f"{name}: awid is the AW-only tag",
                         int(d.fub_awid.value), AWONLY_ID)
             self._score(f"{name}: INCR burst", int(d.fub_awburst.value), 1)
@@ -271,12 +278,14 @@ class AmberAceIssueTB(TBBase):
     async def run(self):
         await self._read_row('ReadShared', ACE_READ_SHARED,
                              ARSNOOP_READ_SHARED)
+        await self._read_row('ReadNotSharedDirty', ACE_READ_NOT_SHARED_DIRTY,
+                             ARSNOOP_READ_NOT_SHARED_DIRTY)
         await self._read_row('ReadUnique', ACE_READ_UNIQUE,
                              ARSNOOP_READ_UNIQUE)
-        await self._awonly_row('CleanUnique', ACE_CLEAN_UNIQUE,
-                               AWSNOOP_CLEAN_UNIQUE)
-        await self._awonly_row('MakeUnique', ACE_MAKE_UNIQUE,
-                               AWSNOOP_MAKE_UNIQUE)
+        await self._read_row('CleanUnique', ACE_CLEAN_UNIQUE,
+                             ARSNOOP_CLEAN_UNIQUE)
+        await self._read_row('MakeUnique', ACE_MAKE_UNIQUE,
+                             ARSNOOP_MAKE_UNIQUE)
         await self._writeback_row()
         await self._awonly_row('Evict', ACE_EVICT, AWSNOOP_EVICT)
         return self.mismatches == 0

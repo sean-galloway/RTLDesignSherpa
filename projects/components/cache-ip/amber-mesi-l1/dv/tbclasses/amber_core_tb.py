@@ -121,6 +121,8 @@ EV_NAMES = {EV_HIT: 'HIT', EV_MISS: 'MISS', EV_SNOOP: 'SNOOP',
 
 # amber_ace_req_t encodings (l1_pkg): coherence sideband types
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
+ACE_MAKE_UNIQUE = 3
+ACE_READ_NOT_SHARED_DIRTY = 6
 ACE_WRITE_BACK = 4
 
 # oracle snoop name -> framework ACE snoop type (IHI0022 ACSNOOP encodings);
@@ -305,6 +307,11 @@ class AmberCoreTB(TBBase):
         self.pkt_counts = {ev: 0 for ev in EV_NAMES}
         self._drop_reports = 0
         self.mon_mode = 'free'   # free / stall / random
+
+        # PassDirty flag: set by ACE-rig subclasses when a read-miss RRESP
+        # carries PassDirty; consumed by the base model at FILL_WRITE to
+        # install M instead of S.
+        self._fill_pass_dirty = False
 
         # snoop grant observations: the monitor records (and model-steps)
         # each grant; the driver scores the BFM result against it (snoops
@@ -716,8 +723,12 @@ class AmberCoreTB(TBBase):
             transient = self.obs.get(line, 'IM')
             if transient == 'IS_I':
                 committed = 'I'
+                # a killed PassDirty fill never committed; drop its flag
+                # so the replay (or next transaction) starts clean.
+                self._fill_pass_dirty = False
             elif transient in ('IS', 'SM'):
-                committed = pend or 'S'
+                committed = pend or ('M' if self._fill_pass_dirty else 'S')
+                self._fill_pass_dirty = False
             else:                       # IM installs M
                 committed = pend or 'M'
             victim = txn['victim']
@@ -935,9 +946,10 @@ class AmberCoreTB(TBBase):
         self._score("init: ready observed low during walk", saw_low, True)
         self._score("init: walk bounded", cycles <= self.SETS + 20, True)
         # fold the probe transaction into the models: it read a cold line
-        # (a miss), installed it Shared at the predicted victim way; the
-        # observed-state hooks stayed inert (cur_txn was None), so this is
-        # a manual replay of the same bookkeeping
+        # (a miss), installed at the predicted victim way; the ACE rig may
+        # have returned PassDirty (install M) while the pair-rig is always
+        # clean (install S). Consume the PassDirty flag left by the rig's
+        # manager model.
         n_rsp = len(self.rsp_log)
         for _ in range(self.RSP_TIMEOUT_CYCLES):
             if len(self.rsp_log) >= n_rsp + 1:
@@ -946,8 +958,10 @@ class AmberCoreTB(TBBase):
         line = self._line_of(self._compose_addr(0, 0))
         set_idx = self._set_of_line(line)
         way = self.repl.victim(set_idx)
+        init_state = 'M' if self._fill_pass_dirty else 'S'
+        self._fill_pass_dirty = False
         self.tags[(set_idx, way)] = line
-        self.slot_state[(set_idx, way)] = 'S'
+        self.slot_state[(set_idx, way)] = init_state
         self.cache_data[line] = bytearray(self._mem_line(line))
         self.repl.update(set_idx, way)
         # the probe's observable events (monlite packets fired for real):
@@ -1195,8 +1209,9 @@ class AmberCoreTB(TBBase):
             self._score("coh_req: line-aligned addr",
                         p['addr'] & (self.LINE_BYTES - 1), 0)
             self._score("coh_req: known type",
-                        p['type'] in (ACE_READ_SHARED, ACE_READ_UNIQUE,
-                                      ACE_CLEAN_UNIQUE, ACE_WRITE_BACK),
+                        p['type'] in (ACE_READ_SHARED, ACE_READ_NOT_SHARED_DIRTY,
+                                      ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE,
+                                      ACE_MAKE_UNIQUE, ACE_WRITE_BACK),
                         True)
 
     # ------------------------------------------------------------------

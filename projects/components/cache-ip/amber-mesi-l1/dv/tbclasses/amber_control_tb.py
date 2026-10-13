@@ -117,6 +117,8 @@ STATE_CODE = {'I': 0x0, 'S': 0x1, 'E': 0x2, 'M': 0x3}
 
 # amber_ace_req_t encodings (l1_pkg): fill request classes
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
+ACE_MAKE_UNIQUE = 3
+ACE_READ_NOT_SHARED_DIRTY = 6
 
 # partner stub timing knobs (handshake timing only, D-12)
 FILL_DONE_DELAY = 6          # cycles between last beat and fill_done
@@ -124,7 +126,7 @@ DRAIN_LATENCY = None         # set per-geometry: FILL_BEATS + 2
 
 # request classes the oracle emits, mapped to the pkg encoding
 ORACLE_REQ_TO_ACE = {
-    'READ_SHARED': ACE_READ_SHARED,
+    'READ_NOT_SHARED_DIRTY': ACE_READ_NOT_SHARED_DIRTY,
     'READ_UNIQUE': ACE_READ_UNIQUE,
     'CLEAN_UNIQUE': ACE_CLEAN_UNIQUE,
 }
@@ -214,6 +216,8 @@ class AmberControlTB(TBBase):
         self.inv_pf_active = False
         self.inv_pf_line = None
         self.inv_pf_state = None
+        self._fill_pass_dirty = False
+        self._force_pass_dirty = False
         self.inv_pf_beats = set()
         self.inv_sn_open = False
         self.inv_sn_line = None
@@ -299,6 +303,7 @@ class AmberControlTB(TBBase):
         d.req_be.value = 0
         d.req_wdata.value = 0
         d.fill_done.value = 0
+        d.fill_pass_dirty.value = 0
         d.drain_done.value = 0
         d.fillbeat_wr_en.value = 0
         d.fillbeat_wr_addr.value = 0
@@ -408,9 +413,10 @@ class AmberControlTB(TBBase):
         """BypassNeverAnswersInvalid: asserted EVERY cycle.
 
         Tracks the pending fill from the tap events (fill_start arms for
-        READ_SHARED/READ_UNIQUE only -- an upgrade carries no fill data and
-        must NOT arm the bypass, MAS ch02/02). While a snoop targeting the
-        pending line is open (req raised through the final CD beat):
+        READ_NOT_SHARED_DIRTY/READ_UNIQUE only -- an upgrade carries no fill
+        data and must NOT arm the bypass, MAS ch02/02). While a snoop
+        targeting the pending line is open (req raised through the final CD
+        beat):
           - at the grant cycle the CRRESP must be the Table 3.0 decode at
             the POST-FILL state (never the pre-fill Invalid row);
           - the bypass's post-fill state is never STATE_I;
@@ -422,9 +428,13 @@ class AmberControlTB(TBBase):
             if int(d.fill_start.value):
                 cls = int(d.fill_req_class.value)
                 self.inv_pf_line = int(d.fill_addr.value) >> self.OFFSET_BITS
-                self.inv_pf_state = 'S' if cls == ACE_READ_SHARED else 'M'
+                pass_dirty = (cls == ACE_READ_NOT_SHARED_DIRTY
+                              and self._force_pass_dirty)
+                self.inv_pf_state = 'S' if cls == ACE_READ_NOT_SHARED_DIRTY \
+                                      and not pass_dirty else 'M'
                 self.inv_pf_beats = set()
-                self.inv_pf_active = cls != ACE_CLEAN_UNIQUE
+                self.inv_pf_active = cls not in (ACE_CLEAN_UNIQUE,
+                                                 ACE_MAKE_UNIQUE)
             if int(d.data_wr_en.value) and not int(d.ctrl_data_wr_en.value) \
                     and not self._suppress_fill_wr:
                 self.inv_pf_beats.add(int(d.data_wr_addr.value)
@@ -502,11 +512,13 @@ class AmberControlTB(TBBase):
 
     async def _fill_stub(self):
         """l1_fill timing model: on fill_start, deliver FILL_BEATS beats
-        into the data array (read-data class only -- CLEAN_UNIQUE carries no
-        data), strobing each beat index to control (pf_data_valid update,
-        MAS ch02/06), then fill_done after FILL_DONE_DELAY cycles. Drives
-        land on the falling edge so the pulse is visible to the DUT's next
-        sampling posedge and to the negedge monitor in the same cycle."""
+        into the data array (read-data class only -- CLEAN_UNIQUE/MAKE_UNIQUE
+        carry no data), strobing each beat index to control (pf_data_valid
+        update, MAS ch02/06), then fill_done after FILL_DONE_DELAY cycles.
+        fill_pass_dirty is driven high for the second half of the burst so
+        the DUT can exercise the PassDirty -> M install path.
+        Drives land on the falling edge so the pulse is visible to the DUT's
+        next sampling posedge and to the negedge monitor in the same cycle."""
         d = self.dut
         full_be = (1 << self.STRB_W) - 1
         while True:
@@ -516,7 +528,10 @@ class AmberControlTB(TBBase):
             addr = int(d.fill_addr.value)
             cls = int(d.fill_req_class.value)
             set_idx = (addr >> self.OFFSET_BITS) & self.SET_MASK
-            if cls != ACE_CLEAN_UNIQUE:
+            pass_dirty = (cls == ACE_READ_NOT_SHARED_DIRTY
+                          and self._force_pass_dirty)
+            self._fill_pass_dirty = pass_dirty
+            if cls not in (ACE_CLEAN_UNIQUE, ACE_MAKE_UNIQUE):
                 line = self._line_of(addr)
                 line_data = bytes(self._mem_line(line))
                 for b in range(self.FILL_BEATS):
@@ -528,15 +543,20 @@ class AmberControlTB(TBBase):
                     d.fillbeat_wr_be.value = full_be
                     d.fill_beat_valid.value = 1
                     d.fill_beat_idx.value = b
+                    # raise PassDirty mid-burst for the read-miss class
+                    if b >= self.FILL_BEATS // 2 and pass_dirty:
+                        d.fill_pass_dirty.value = 1
                 await self._negedge()
                 d.fillbeat_wr_en.value = 0
                 d.fill_beat_valid.value = 0
                 d.fill_beat_idx.value = 0
+                d.fill_pass_dirty.value = 0
             for _ in range(FILL_DONE_DELAY):
                 await self._negedge()
             d.fill_done.value = 1
             await self._negedge()
             d.fill_done.value = 0
+            # _fill_pass_dirty is consumed by _score_slice; do not clear here
 
     async def _drain_stub(self):
         """l1_drain timing model: drain_start -> fixed-latency burst ->
@@ -944,7 +964,10 @@ class AmberControlTB(TBBase):
         # ---- model replay of the slice (chronological) -----------------
         tag_low = 3
         exp_class = ORACLE_REQ_TO_ACE[res.req] if res.req else None
-        install_state = 'S' if res.req == 'READ_SHARED' else 'M'
+        if res.req == 'READ_NOT_SHARED_DIRTY':
+            install_state = 'M' if self._fill_pass_dirty else 'S'
+        else:
+            install_state = 'M'
         pending_victim = None
         installed_way = None
         n_fill_start = 0
@@ -1115,6 +1138,9 @@ class AmberControlTB(TBBase):
         else:
             self.line_state[line] = res.next_state
 
+        # consume the PassDirty flag now that the transaction is scored
+        self._fill_pass_dirty = False
+
     def _reset_models(self):
         """Reset-side golden state: the DUT's arrays and repl policy reset
         to the all-Invalid / rank-identity state, so the per-cache models
@@ -1270,6 +1296,21 @@ class AmberControlTB(TBBase):
                         label='error:post_recover')
         self.log.info("IllegalStateError directed done")
 
+    async def _pass_dirty_installs_m(self):
+        # PassDirty on a READ_NOT_SHARED_DIRTY fill installs the line as M
+        # instead of S (IHI0022 RRESP[2]). The stub raises fill_pass_dirty
+        # mid-burst; the commit tag write must show M.
+        sp = min(19, self.SETS - 3)
+        line_x = self._line_of(self._compose_addr(0x80, sp))
+        self._force_pass_dirty = True
+        try:
+            await self._txn(self._compose_addr(0x80, sp), 0,
+                            label='pd:rd_miss')
+        finally:
+            self._force_pass_dirty = False
+        self._score("pd: final line state M", self.line_state.get(line_x), 'M')
+        self.log.info("PassDirtyInstallsM directed done")
+
     async def _be_zero_write(self):
         # MINOR 2: be == 0 merges nothing. Write miss with be=0 installs M
         # with the raw fill data intact; a be=0 write hit leaves the line
@@ -1369,7 +1410,7 @@ class AmberControlTB(TBBase):
         line_x = self._line_of(self._compose_addr(0x7C, sr))
         accept, p = await self._start_miss(self._compose_addr(0x7C, sr), 0,
                                            label='prs:rd_miss', wait_beats=2)
-        self._score("prs: read miss class", p['class'], ACE_READ_SHARED)
+        self._score("prs: read miss class", p['class'], ACE_READ_NOT_SHARED_DIRTY)
         self._score("prs: bypass armed with S", self.inv_pf_state, 'S')
         await self._snoop(line_x, 'SNOOP_READ_SHARED', 'prs:rs_mid_fill',
                           exp_ref='S')
@@ -1378,8 +1419,8 @@ class AmberControlTB(TBBase):
         sl = self._slice(accept, rsp_cyc)
         fills = [q for _, k, q in sl if k == 'fill_start']
         self._score("prs: exactly one fill", len(fills), 1)
-        self._score("prs: fill class READ_SHARED", fills[0]['class'],
-                    ACE_READ_SHARED)
+        self._score("prs: fill class READ_NOT_SHARED_DIRTY", fills[0]['class'],
+                    ACE_READ_NOT_SHARED_DIRTY)
         wr = self._tag_wr_for(sl, line_x)
         self._score("prs: commit installs S", wr['tag_state'] & 0x7,
                     STATE_CODE['S'])
@@ -1437,7 +1478,7 @@ class AmberControlTB(TBBase):
         sl = self._slice(accept_cyc, rsp_cyc)
         fills = [q for _, k, q in sl if k == 'fill_start']
         self._score("igl: Z filled once", len(fills), 1)
-        self._score("igl: Z fill class", fills[0]['class'], ACE_READ_SHARED)
+        self._score("igl: Z fill class", fills[0]['class'], ACE_READ_NOT_SHARED_DIRTY)
         self._score("igl: rsp = Z fill beat", rsp_data,
                     self._beat_of_line(self._mem_line(line_z), 0))
         self._replay_models(sl, si, line_z, label='igl')
@@ -1477,7 +1518,7 @@ class AmberControlTB(TBBase):
                         label='oth:rd_y')                    # Y -> S
         accept, p = await self._start_miss(self._compose_addr(0x74, s2), 0,
                                            label='oth:rd_z', wait_beats=2)
-        self._score("oth: read miss class", p['class'], ACE_READ_SHARED)
+        self._score("oth: read miss class", p['class'], ACE_READ_NOT_SHARED_DIRTY)
         await self._snoop(line_x, 'SNOOP_READ_UNIQUE', 'oth:ru_x')
         await self._snoop(line_y, 'SNOOP_READ_SHARED', 'oth:rs_y')
         line_w = self._line_of(self._compose_addr(0x75, s2))
@@ -1487,7 +1528,7 @@ class AmberControlTB(TBBase):
         sl = self._slice(accept, rsp_cyc)
         fills = [q for _, k, q in sl if k == 'fill_start']
         self._score("oth: fill unaffected", len(fills), 1)
-        self._score("oth: fill class", fills[0]['class'], ACE_READ_SHARED)
+        self._score("oth: fill class", fills[0]['class'], ACE_READ_NOT_SHARED_DIRTY)
         wr = self._tag_wr_for(sl, line_z)
         self._score("oth: Z installed S", wr['tag_state'] & 0x7,
                     STATE_CODE['S'])
@@ -1953,6 +1994,8 @@ class AmberControlTB(TBBase):
             self.scenarios['IllegalStateError'] = True
             await self._be_zero_write()
             self.scenarios['BeZeroWrite'] = True
+            await self._pass_dirty_installs_m()
+            self.scenarios['PassDirtyInstallsM'] = True
             await self._snoop_pending_fill()
             self.scenarios['SnoopPendingFillBypass'] = True
             await self._snoop_pending_read_shared_fill()

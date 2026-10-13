@@ -100,7 +100,9 @@ EV_NAMES = {EV_HIT: 'HIT', EV_MISS: 'MISS', EV_SNOOP: 'SNOOP',
 
 # amber_ace_req_t encodings (l1_pkg)
 ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
+ACE_MAKE_UNIQUE = 3
 ACE_WRITE_BACK = 4
+ACE_READ_NOT_SHARED_DIRTY = 6
 
 # fabric ACSNOOP encodings (IHI0022 4-bit, framework SnoopType)
 FAB_SNOOP_RS = 0x1   # SnoopType.READ_SHARED
@@ -111,7 +113,9 @@ SNOOP_NAME_BY_FAB = {FAB_SNOOP_RS: 'SNOOP_READ_SHARED',
                      FAB_SNOOP_MI: 'SNOOP_MAKE_INVALID'}
 FAB_SNOOP_BY_TYPE = {ACE_READ_SHARED: FAB_SNOOP_RS,
                      ACE_READ_UNIQUE: FAB_SNOOP_RU,
-                     ACE_CLEAN_UNIQUE: FAB_SNOOP_MI}
+                     ACE_CLEAN_UNIQUE: FAB_SNOOP_MI,
+                     ACE_MAKE_UNIQUE: FAB_SNOOP_MI,
+                     ACE_READ_NOT_SHARED_DIRTY: FAB_SNOOP_RS}
 
 CRRESP_DT = 0
 CRRESP_PD = 2
@@ -621,7 +625,8 @@ class AmberPairRigTB(TBBase):
                     self.stats['kill_pred_dbg'] = \
                         self.stats.get('kill_pred_dbg', 0) + 1
                 # CLEAN_UNIQUE maps to MakeInvalid by construction; only
-                # READ_SHARED / READ_UNIQUE snoops carry kill-rule info
+                # READ_SHARED / READ_NOT_SHARED_DIRTY / READ_UNIQUE snoops
+                # carry kill-rule info
                 if self.cur_ft['type'] == ACE_CLEAN_UNIQUE:
                     self.cur_ft['kill_actual'] = True
                     self.cur_ft['kill_pred_ok'] = True
@@ -1231,6 +1236,8 @@ class AmberPairRigTB(TBBase):
         tag_word.value = ((line >> self.SET_BITS) << 3) | 2   # 2 = E
         cm0.slot_state[(set_idx, way)] = 'E'
         # cache1 misses the line: fabric READ_SHARED snoop hits E
+        # (the upstream request is READ_NOT_SHARED_DIRTY, but the fabric
+        # still probes the peer with READ_SHARED in this 2-cache design)
         t = await self._txn(1, addr, 0, label='d_r1')
         exp = self._beat_of_line(cm0.cache_data[line], 0)
         self._score("d: cache1 got E line data", t['rsp_data'], exp)

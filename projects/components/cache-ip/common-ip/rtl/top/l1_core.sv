@@ -180,7 +180,7 @@ module l1_core
     input  logic                        fub_axi_arready,
     input  logic [IW-1:0]               fub_axi_rid,
     input  logic [BUS_WIDTH-1:0]        fub_axi_rdata,
-    input  logic [1:0]                  fub_axi_rresp,
+    input  logic [3:0]                  fub_axi_rresp,
     input  logic                        fub_axi_rlast,
     input  logic [UW-1:0]               fub_axi_ruser,
     input  logic                        fub_axi_rvalid,
@@ -349,6 +349,7 @@ module l1_core
     logic [ADDR_WIDTH-1:0]                 ctrl_fill_addr;
     logic [2:0]                            ctrl_req_class;
     logic                                  ctrl_fill_done;
+    logic                                  ctrl_fill_pass_dirty;
     logic                                  ctrl_fill_beat_valid;
     logic [BEAT_INDEX_WIDTH-1:0]           ctrl_fill_beat_idx;
     logic [BUS_WIDTH-1:0]                  fill_beat_data;
@@ -417,6 +418,7 @@ module l1_core
         .ctrl_fill_addr          (ctrl_fill_addr),
         .ctrl_req_class          (ctrl_req_class),
         .ctrl_fill_done          (ctrl_fill_done),
+        .ctrl_fill_pass_dirty    (ctrl_fill_pass_dirty),
         .ctrl_fill_beat_valid    (ctrl_fill_beat_valid),
         .ctrl_fill_beat_idx      (ctrl_fill_beat_idx),
         .ctrl_drain_start        (ctrl_drain_start),
@@ -554,6 +556,7 @@ module l1_core
         .fill_addr         (ctrl_fill_addr),
         .fill_req_class    (ctrl_req_class),
         .fill_done         (ctrl_fill_done),
+        .fill_pass_dirty   (ctrl_fill_pass_dirty),
         .fill_beat_valid   (ctrl_fill_beat_valid),
         .fill_beat_data    (fill_beat_data),
         .fill_beat_idx     (ctrl_fill_beat_idx),
@@ -659,7 +662,8 @@ module l1_core
 
     // ------------------------------------------------------------------
     // Pair-rig coherence sideband (DECISION D-8): one pulse per coherence
-    // request -- fill launches (class on ctrl_req_class) and dirty
+    // request -- fill launches (READ_NOT_SHARED_DIRTY / READ_UNIQUE on a miss,
+    // CLEAN_UNIQUE on an upgrade; the class rides ctrl_req_class) and dirty
     // write-back launches (WRITE_BACK, the staged victim address). Clean
     // evictions are silent. Pure observation output.
     // ------------------------------------------------------------------

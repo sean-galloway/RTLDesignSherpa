@@ -218,6 +218,7 @@ module amber_miss_fill_macro_test
     // fill datapath: engine -> control (pf beat accounting) and engine ->
     // data array (beat payload, muxed against control's CPU merge)
     logic [BUS_WIDTH-1:0]                  fill_beat_data;
+    logic                                  fill_pass_dirty;
 
     l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
@@ -269,6 +270,7 @@ module amber_miss_fill_macro_test
         .ctrl_fill_addr          (fill_addr),
         .ctrl_req_class          (fill_req_class),
         .ctrl_fill_done          (fill_done),
+        .ctrl_fill_pass_dirty    (fill_pass_dirty),
         .ctrl_fill_beat_valid    (fill_beat_valid),
         .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (drain_start),
@@ -307,10 +309,13 @@ module amber_miss_fill_macro_test
     logic [7:0]          fill_rid;
     logic [BUS_WIDTH-1:0] fill_rdata;
     logic [1:0]          fill_rresp;
+    logic [3:0]          fill_rresp_4;
     logic                fill_rlast;
     logic [0:0]          fill_ruser;
     logic                fill_rvalid;
     logic                fill_rready;
+
+    assign fill_rresp_4 = {2'b0, fill_rresp};
 
     l1_fill #(
         .ADDR_WIDTH (ADDR_WIDTH),
@@ -324,6 +329,7 @@ module amber_miss_fill_macro_test
         .fill_addr         (fill_addr),
         .fill_req_class    (fill_req_class),
         .fill_done         (fill_done),
+        .fill_pass_dirty   (fill_pass_dirty),
         .fill_beat_valid   (fill_beat_valid),
         .fill_beat_data    (fill_beat_data),
         .fill_beat_idx     (fill_beat_idx),
@@ -343,7 +349,7 @@ module amber_miss_fill_macro_test
         .fub_axi_arready   (fill_arready),
         .fub_axi_rid       (fill_rid),
         .fub_axi_rdata     (fill_rdata),
-        .fub_axi_rresp     (fill_rresp),
+        .fub_axi_rresp     (fill_rresp_4),
         .fub_axi_rlast     (fill_rlast),
         .fub_axi_ruser     (fill_ruser),
         .fub_axi_rvalid    (fill_rvalid),

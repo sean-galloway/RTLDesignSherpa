@@ -20,9 +20,9 @@ Macro-specific pins (what the stub could not check):
     channel -- araddr/arlen/arsize/arburst observed at m_axi, R beats
     gathered through the engine into the data array, response data vs
     the MemoryModel;
-  * UpgradeNoFetchEngine (gate): a CLEAN_UNIQUE upgrade raises NO AR
-    transaction at all (the stub suppressed beats by construction; the
-    engine must not issue one);
+  * UpgradeNoFetchEngine (gate): a CLEAN_UNIQUE upgrade issues a single
+    no-data AR (ARLEN=0) and stages no fill beats; the response completes
+    the upgrade locally;
   * KilledFillRefetch (func): the inherited snoop-killed-fill scenarios
     (ImStepPendingClearCorner, UpgradeKilledByInvalidatingSnoop) now
     re-issue a REAL AR burst for the re-fetch;
@@ -226,7 +226,7 @@ class AmberMissFillMacroTB(AmberControlTB):
         self.log.info("FillOrchestration directed done (real AR/R burst)")
 
     # ------------------------------------------------------------------
-    # gate pin: an upgrade raises NO AR transaction at all
+    # gate pin: an upgrade issues one no-data AR (ARLEN=0) and no beats
     # ------------------------------------------------------------------
     async def _upgrade_no_fetch_engine(self):
         su = 6 % self.SETS
@@ -241,12 +241,17 @@ class AmberMissFillMacroTB(AmberControlTB):
                                                               'unf:rsp')
         await self._negedge_settled()
         ar_during = self._count_ar() - ar_start
-        self._score("unf: CLEAN_UNIQUE issued no AR", ar_during, 0)
         sl = self._slice(accept, rsp_cyc)
         fills = [p for _, k, p in sl if k == 'fill_start']
+        ars = [p for _, k, p in sl if k == 'ar']
+        self._score("unf: CLEAN_UNIQUE issued exactly one AR", len(ars), 1)
+        if ars:
+            self._score("unf: upgrade AR len is 0", ars[0]['len'], 0)
         self._score("unf: one upgrade fill", len(fills), 1)
         self._score("unf: upgrade class", fills[0]['class'],
                     ACE_CLEAN_UNIQUE)
+        n_beats = sum(1 for _, k, _ in sl if k == 'fill_wr')
+        self._score("unf: no fill beats staged", n_beats, 0)
         line = self._line_of(addr)
         set_idx = self._set_of_line(line)
         res = oracle_step('S', 'CPU_WR')
@@ -254,7 +259,7 @@ class AmberMissFillMacroTB(AmberControlTB):
                           (1 << self.STRB_W) - 1, wdata,
                           res, rsp_data, sl, 'unf')
         self.txns += 1
-        self.log.info("UpgradeNoFetchEngine directed done (no AR raised)")
+        self.log.info("UpgradeNoFetchEngine directed done (single no-data AR)")
 
     def _count_ar(self):
         return sum(1 for _, k, _ in self.events if k == 'ar')

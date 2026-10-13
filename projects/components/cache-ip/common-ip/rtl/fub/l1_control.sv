@@ -37,7 +37,7 @@
 //                 -- a pending snoop has priority and detours through
 //                 CTRL_SNOOP first (one pipeline stall at the boundary)
 //     LOOKUP      combinational tag/state compare on port A; hit service or
-//                 miss classification (I-read -> READ_SHARED, I-write ->
+//                 miss classification (I-read -> READ_NOT_SHARED_DIRTY, I-write ->
 //                 READ_UNIQUE, S-write -> CLEAN_UNIQUE upgrade straight to
 //                 MISS_FILL -- an upgrade installs no data and evicts no
 //                 victim; MAS ch02_blocks/06)
@@ -51,15 +51,17 @@
 //                 then victim_load; clean victim: straight to the fill
 //     MISS_DRAIN  drain_start pulse, wait drain_done
 //     MISS_FILL   fill_start pulse + line address + request class, wait
-//                 fill_done; the pending-fill bypass register arms here on
-//                 TRUE FILLS ONLY (an upgrade carries no fill data and does
-//                 NOT arm it -- MAS ch02/02, MINOR-1 decision)
+//                 fill_done / fill_pass_dirty; the pending-fill bypass
+//                 register arms here on TRUE FILLS ONLY (an upgrade carries
+//                 no fill data and does NOT arm it -- MAS ch02/02, MINOR-1
+//                 decision)
 //     FILL_WRITE  install {tag, state} at the victim way (the fill FUB has
 //                 already written the raw beats into the data array); S for
-//                 READ_SHARED, M otherwise -- unless a snoop's post-commit
-//                 effect is pending (downgrade S / invalidation I), which
-//                 is applied here instead (invalidation-sticks; gem5 IS_I
-//                 .sm:1390, mapping-notes divergences 3/8)
+//                 ReadNotSharedDirty fills unless PassDirty is returned,
+//                 M otherwise -- unless a snoop's post-commit effect is
+//                 pending (downgrade S / invalidation I), which is applied
+//                 here instead (invalidation-sticks; gem5 IS_I .sm:1390,
+//                 mapping-notes divergences 3/8)
 //     REPLAY      re-present the latched request; the next LOOKUP hits and
 //                 the replayed write merges the CPU bytes via be (DECISION
 //                 D-4: the GAXI slave sees one request, one response)
@@ -210,6 +212,7 @@ module l1_control
     output logic [ADDR_WIDTH-1:0]       ctrl_fill_addr,
     output logic [2:0]                  ctrl_req_class,
     input  logic                        ctrl_fill_done,
+    input  logic                        ctrl_fill_pass_dirty,
     input  logic                        ctrl_fill_beat_valid,
     input  logic [BEAT_INDEX_WIDTH-1:0] ctrl_fill_beat_idx,
     output logic                        ctrl_drain_start,
@@ -296,6 +299,9 @@ module l1_control
     // done may only be honoured after the start has been presented; the
     // done pulses are latched so a CTRL_SNOOP detour cannot miss them)
     logic fill_seen_q, fill_done_q, drain_seen_q, drain_done_q;
+    // PassDirty is carried on the RRESP beat(s); the fill stub pulses it
+    // during the burst, so capture it once seen and hold until commit.
+    logic fill_pass_dirty_q;
 
     // response register (one-cycle pulse, Moore: presented in IDLE)
     logic                   rsp_valid_q;
@@ -412,15 +418,18 @@ module l1_control
     logic                        pf_beat_valid;
     logic                        pf_load, pf_clear;
 
-    // install state at FILL_WRITE / bypass load: read-shared fills install
-    // Shared, write and upgrade transactions install Modified (MAS
-    // ch02_blocks/02) -- unless a snoop's post-commit effect (downgrade S
-    // / invalidation I) is pending; an armed I is never overwritten by a
-    // later S
+    // install state at FILL_WRITE / bypass load: ReadNotSharedDirty fills
+    // install Shared unless the interconnect returned PassDirty (RRESP[2]),
+    // in which case the cache owns the dirty data and must install Modified
+    // so the write-back responsibility is not lost. All write, upgrade, and
+    // MakeUnique transactions install Modified (MAS ch02_blocks/02) -- unless
+    // a snoop's post-commit effect (downgrade S / invalidation I) is pending;
+    // an armed I is never overwritten by a later S.
     logic [2:0] install_state, install_state_eff;
 
-    assign install_state = (req_class_q == AMBER_ACE_READ_SHARED)
-                           ? AMBER_STATE_S : AMBER_STATE_M;
+    assign install_state =
+        (req_class_q == AMBER_ACE_READ_NOT_SHARED_DIRTY && !fill_pass_dirty_q)
+            ? AMBER_STATE_S : AMBER_STATE_M;
     assign install_state_eff = pend_vld_q ? pend_state_q : install_state;
 
     assign pf_load = (state_q == OH_MISS_FILL) && !upgr_q && !pf_active;
@@ -730,6 +739,7 @@ module l1_control
             mv_cnt_q       <= '0;
             fill_seen_q    <= 1'b0;
             fill_done_q    <= 1'b0;
+            fill_pass_dirty_q <= 1'b0;
             drain_seen_q   <= 1'b0;
             drain_done_q   <= 1'b0;
             rsp_valid_q    <= 1'b0;
@@ -827,7 +837,7 @@ module l1_control
                     end else if (!hit_any) begin
                         // true miss (I, or no tag match)
                         req_class_q <= req_we_q ? AMBER_ACE_READ_UNIQUE
-                                                : AMBER_ACE_READ_SHARED;
+                                                : AMBER_ACE_READ_NOT_SHARED_DIRTY;
                     end
                 end
                 OH_HIT_RD: begin
@@ -857,6 +867,13 @@ module l1_control
                 end
                 OH_MISS_FILL: begin
                     fill_seen_q <= 1'b1;
+                    // Gate the PassDirty capture with fill_seen_q: the
+                    // first cycle of MISS_FILL is entered while l1_fill is
+                    // still in F_IDLE and its pass_dirty_q still carries the
+                    // previous transaction's value; wait one cycle for
+                    // l1_fill to latch the new class and reset pass_dirty_q.
+                    if (fill_seen_q && ctrl_fill_pass_dirty)
+                        fill_pass_dirty_q <= 1'b1;
                 end
                 OH_MISS_DRAIN: begin
                     drain_seen_q <= 1'b1;
@@ -865,6 +882,7 @@ module l1_control
                     mv_cnt_q     <= '0;
                     fill_seen_q  <= 1'b0;
                     fill_done_q  <= 1'b0;
+                    fill_pass_dirty_q <= 1'b0;
                     drain_seen_q <= 1'b0;
                     drain_done_q <= 1'b0;
                     pend_vld_q   <= 1'b0;

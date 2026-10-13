@@ -70,6 +70,7 @@ module amber_fill_drain_th
     input  logic [ADDR_WIDTH-1:0]       fill_addr,
     input  logic [2:0]                  fill_req_class,
     output logic                        fill_done,
+    output logic                        fill_pass_dirty,
     output logic                        fill_beat_valid,
     output logic [BUS_WIDTH-1:0]        fill_beat_data,
     output logic [BEAT_INDEX_WIDTH-1:0] fill_beat_idx,
@@ -162,8 +163,11 @@ module amber_fill_drain_th
     logic                fill_arready;
     logic [7:0]          fill_rid;
     logic [BUS_WIDTH-1:0] fill_rdata;
-    logic [1:0]          fill_rresp;
+    logic [1:0]          fill_rresp_raw;
+    logic [3:0]          fill_rresp;
     logic                fill_rlast;
+
+    assign fill_rresp = {2'b0, fill_rresp_raw};
     logic [0:0]          fill_ruser;
     logic                fill_rvalid;
     logic                fill_rready;
@@ -180,6 +184,7 @@ module amber_fill_drain_th
         .fill_addr         (fill_addr),
         .fill_req_class    (fill_req_class),
         .fill_done         (fill_done),
+        .fill_pass_dirty   (fill_pass_dirty),
         .fill_beat_valid   (fill_beat_valid),
         .fill_beat_data    (fill_beat_data),
         .fill_beat_idx     (fill_beat_idx),
@@ -229,7 +234,7 @@ module amber_fill_drain_th
         .fub_axi_arready   (fill_arready),
         .fub_axi_rid       (fill_rid),
         .fub_axi_rdata     (fill_rdata),
-        .fub_axi_rresp     (fill_rresp),
+        .fub_axi_rresp     (fill_rresp_raw),
         .fub_axi_rlast     (fill_rlast),
         .fub_axi_ruser     (fill_ruser),
         .fub_axi_rvalid    (fill_rvalid),

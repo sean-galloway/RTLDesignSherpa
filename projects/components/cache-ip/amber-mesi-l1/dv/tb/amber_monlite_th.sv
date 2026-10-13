@@ -105,6 +105,7 @@ module amber_monlite_th
     input  logic [STRB_W-1:0]          fillbeat_wr_be,
     input  logic                       fill_beat_valid,
     input  logic [BEAT_INDEX_WIDTH-1:0] fill_beat_idx,
+    input  logic                       fill_pass_dirty,
 
     // snoop responder core-facing handshake
     input  logic                      snoop_req,
@@ -192,6 +193,7 @@ module amber_monlite_th
         .fillbeat_wr_be    (fillbeat_wr_be),
         .fill_beat_valid   (fill_beat_valid),
         .fill_beat_idx     (fill_beat_idx),
+        .fill_pass_dirty    (fill_pass_dirty),
         .snoop_req         (snoop_req),
         .snoop_type        (snoop_type),
         .snoop_addr        (snoop_addr),

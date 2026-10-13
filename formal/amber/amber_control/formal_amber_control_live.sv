@@ -49,6 +49,7 @@ module formal_amber_control_live (
 
     // fill / drain partners (free with fair constraints)
     input  logic        fill_done,
+    input  logic        fill_pass_dirty,
     input  logic        fill_beat_valid,
     input  logic [2:0]  fill_beat_idx,
     input  logic        drain_done,
@@ -62,6 +63,7 @@ module formal_amber_control_live (
     logic        ctrl_req_ready;
     logic        ctrl_rsp_valid;
     logic        ctrl_fill_start;
+    logic [2:0]  ctrl_req_class;
     logic        ctrl_drain_start;
     logic        ctrl_snoop_ready;
     logic        ctrl_cdvalid;
@@ -109,8 +111,9 @@ module formal_amber_control_live (
         .ctrl_victim_data_in     (),
         .ctrl_fill_start         (ctrl_fill_start),
         .ctrl_fill_addr          (),
-        .ctrl_req_class          (),
+        .ctrl_req_class          (ctrl_req_class),
         .ctrl_fill_done          (fill_done),
+        .ctrl_fill_pass_dirty    (fill_pass_dirty),
         .ctrl_fill_beat_valid    (fill_beat_valid),
         .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (ctrl_drain_start),
@@ -150,7 +153,14 @@ module formal_amber_control_live (
     localparam [3:0] CS_MISS_FILL   = 4'd7;
     localparam [3:0] CS_SNOOP       = 4'd10;
 
+    // amber_ace_req_t encodings (l1_pkg)
+    localparam [2:0] ACE_CLEAN_UNIQUE  = 3'd2;
+    localparam [2:0] ACE_MAKE_UNIQUE   = 3'd3;
+    localparam [2:0] ACE_READ_NOT_SHARED_DIRTY = 3'd6;
+
     // fill partner
+    wire f_no_data_fill = (ctrl_req_class == ACE_CLEAN_UNIQUE)
+                       || (ctrl_req_class == ACE_MAKE_UNIQUE);
     reg f_fill_start_seen, f_fill_done_seen;
     reg [3:0] f_fill_wait;
     reg [3:0] f_beat_count;
@@ -183,10 +193,14 @@ module formal_amber_control_live (
             as_fill_done_fair: assume (!(f_fill_start_seen && !f_fill_done_seen)
                                        || (f_fill_wait < 12) || fill_done);
             as_fill_done_is_rlast: assume (!fill_done
-                                           || (f_beat_count == 4'd8));
+                || (f_no_data_fill ? (f_beat_count == 4'd0)
+                                   : (f_beat_count == 4'd8)));
+            as_no_data_no_beats: assume (!fill_beat_valid || !f_no_data_fill);
             as_beat_order: assume (!fill_beat_valid
-                || (f_fill_start_seen && !f_fill_done_seen
+                || (f_fill_start_seen && !f_fill_done_seen && !f_no_data_fill
                     && (fill_beat_idx == f_beat_count[2:0])));
+            as_pass_dirty_scope: assume (!fill_pass_dirty
+                || (ctrl_req_class == ACE_READ_NOT_SHARED_DIRTY));
         end
     end
 

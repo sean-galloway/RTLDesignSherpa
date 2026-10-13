@@ -145,19 +145,29 @@ package l1_pkg;
     // ------------------------------------------------------------------
     // Coherent request classes, the onyx D2 subset amber issues (MAS ch02/08
     // Table 2.8.1): what a cpu miss / upgrade / eviction asks the
-    // interconnect for. ReadShared/ReadUnique ride the read (AR) channel;
-    // CleanUnique/MakeUnique/WriteBack/Evict ride the write (AW) channel.
+    // interconnect for. ReadNotSharedDirty/ReadUnique/CleanUnique/MakeUnique
+    // ride the read (AR) channel; WriteBack/Evict ride the write (AW) channel.
     // The Task 2 FSM oracle emits the first three as its miss-request
     // classes; WriteBack/Evict come from the victim path (Task 5/12).
     // ------------------------------------------------------------------
     typedef enum logic [2:0] {
-        AMBER_ACE_READ_SHARED  = 3'b000,   // read miss, shared intent
-        AMBER_ACE_READ_UNIQUE  = 3'b001,   // read miss, exclusive intent
-        AMBER_ACE_CLEAN_UNIQUE = 3'b010,   // upgrade S -> M, no data
-        AMBER_ACE_MAKE_UNIQUE  = 3'b011,   // whole-line write, no fetch
-        AMBER_ACE_WRITE_BACK   = 3'b100,   // dirty eviction with data
-        AMBER_ACE_EVICT        = 3'b101    // clean eviction, no data
+        AMBER_ACE_READ_SHARED          = 3'b000,   // reserved legacy code
+        AMBER_ACE_READ_UNIQUE          = 3'b001,   // read miss, exclusive intent
+        AMBER_ACE_CLEAN_UNIQUE         = 3'b010,   // upgrade S -> M, no data
+        AMBER_ACE_MAKE_UNIQUE          = 3'b011,   // whole-line write, no fetch
+        AMBER_ACE_WRITE_BACK           = 3'b100,   // dirty eviction with data
+        AMBER_ACE_EVICT                = 3'b101,   // clean eviction, no data
+        AMBER_ACE_READ_NOT_SHARED_DIRTY= 3'b110    // read miss, shared intent (IHI0022 D3)
     } amber_ace_req_t;
+
+    // ------------------------------------------------------------------
+    // ACE AxCACHE value for every coherent transaction amber issues.
+    // IHI0022H D3.1.1 requires cacheable write-back for ReadShared,
+    // ReadUnique, CleanUnique, MakeUnique, WriteBack, and Evict in a
+    // shareable domain; 4'b1111 is Normal, Cacheable, Bufferable, Read and
+    // Write allocate (the canonical write-back value).
+    // ------------------------------------------------------------------
+    localparam logic [3:0] AMBER_ACE_AX_CACHE = 4'b1111;
 
     // ------------------------------------------------------------------
     // Miss classification (MAS ch04 Miss-Class Encoding), following the
