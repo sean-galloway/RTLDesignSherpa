@@ -91,18 +91,26 @@ class AmberBoard:
 
         Tolerates stray boot/programming bytes (NULs, dots) that the
         freshly-configured board emits on the UART before the bridge's
-        first response: skip lines with no alphanumeric payload.
+        first response: skip lines with no alphanumeric payload. Also
+        retries the command a few times with an input purge - the live
+        board's UART link is electrically marginal and drops individual
+        transactions (CSR writes are idempotent, reads are harmless).
         """
-        self.ser.write((cmd + "\n").encode())
-        for _ in range(4):
-            resp = self.ser.readline().decode(errors="replace").strip().strip("\x00").lstrip(".")
-            if resp:
-                break
-        else:
-            raise RuntimeError(f"no response to command: {cmd}")
-        if resp == "ERR":
-            raise RuntimeError(f"bridge ERR for command: {cmd}")
-        return resp
+        last_resp = ""
+        for _attempt in range(4):
+            self.ser.reset_input_buffer()
+            self.ser.write((cmd + "\n").encode())
+            for _ in range(4):
+                resp = self.ser.readline().decode(errors="replace").strip().strip("\x00").lstrip(".")
+                if resp:
+                    break
+            else:
+                continue
+            last_resp = resp
+            if resp == "ERR":
+                raise RuntimeError(f"bridge ERR for command: {cmd}")
+            return resp
+        raise RuntimeError(f"no response to command: {cmd!r} (last: {last_resp!r})")
 
     def write(self, addr: int, data: int) -> None:
         """Write a 32-bit word over AXIL."""
@@ -119,12 +127,20 @@ class AmberBoard:
 
     def config_gen(self, base: int, seed: int, addr_base: int, addr_mask: int,
                    count: int, we_mix: int) -> None:
-        """Program a traffic generator's configuration registers."""
+        """Program a traffic generator's configuration registers.
+
+        Marginal-UART hardening: CTRL (run=0) goes down FIRST so a dropped
+        mid-block write can never leave a running gen with stale config,
+        and TRANS_COUNT is written twice (a 0 from a dropped first write
+        can mean "run forever" depending on gen semantics).
+        """
+        ctrl = ((we_mix & 0xFF) << 8) | 0x00  # run bit clear
+        self.write(base + TG_CTRL, ctrl)
         self.write(base + TG_SEED, seed & 0xFFFF_FFFF)
         self.write(base + TG_ADDR_BASE, addr_base & 0xFFFF_FFFF)
         self.write(base + TG_ADDR_MASK, addr_mask & 0xFFFF_FFFF)
         self.write(base + TG_TRANS_COUNT, count & 0xFFFF_FFFF)
-        ctrl = ((we_mix & 0xFF) << 8) | 0x00  # run bit clear for now
+        self.write(base + TG_TRANS_COUNT, count & 0xFFFF_FFFF)
         self.write(base + TG_CTRL, ctrl)
         self._ctrl_shadow[base] = ctrl
 
@@ -313,7 +329,7 @@ def main(argv=None) -> int:
 
     try:
         if args.smoke:
-            smoke(board, count=args.count)
+            smoke(board, count=args.count, blind=args.blind)
         else:
             print("Use --smoke to run the board smoke test.")
     finally:

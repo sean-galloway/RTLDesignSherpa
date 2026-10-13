@@ -194,6 +194,28 @@ granite's controller is ~16% BELOW LiteDRAM's core in LUTs — the storage-
 less product SKU meets its area goal. BRAM: both RDS stacks use ~1-2 RAMB36
 (ring + staging) vs LiteDRAM's 13+9 (its datapath/FIFOs live in BRAM).
 
+## Read training attempts (2026-10-12): no clean setting found
+
+- `host_sweep_rddata_delay.py` (wrlat=1, rden=6): beats_mismatched=16 at
+  EVERY rddata_delay 0..15 — not a pure data/valid alignment offset.
+- `host_bringup_75.py` (full flow: read eye leveling + write-phase sweep):
+  every readback-based check fails 16/16 at every (cmd_delay, wr_phase,
+  wrlat) cell; BEST=min=16. Note the write sweep verifies by reading back,
+  so broken reads contaminate it — write COMMAND/data correctness on silicon
+  is not yet independently proven.
+- The probe's "CRC match" is explained: the rd engine's actual-CRC appears
+  generator-based (always equals expected); the per-beat comparator is the
+  real check and it fails on every beat.
+- Perf sweep was NOT run: with reads unclean it would report
+  corrupted-data bandwidth — the tool itself warns this is a false-pass
+  mode (pumice ISSUE-015). No trustworthy granite-vs-pumice-vs-LiteDRAM
+  perf numbers exist yet.
+- Next: ILA on the granite read path (owner pre-authorized) — DFI cmd vs
+  dfi_rddata_valid/dfi_rddata at the pins, plus the aligner capture, to find
+  the phase/lane failure (the pumice bringup needed exactly this ILA to
+  resolve its read eye). The whole-harness sim stays green, so the defect is
+  board-PHY-interface integration, not controller logic.
+
 ## Working hypothesis for the open defect (updated)
 
 blen>=2 (split) sub-bursts at the 1-deep entry store: sub-entries neither
