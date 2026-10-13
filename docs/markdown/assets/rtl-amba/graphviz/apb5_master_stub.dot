@@ -1,7 +1,7 @@
 // apb5_master_stub block diagram - house style (vault/handbook/authoring/block-diagrams.md).
 // Packed-port wrapper: the base apb5_master is ONE child box (own diagram).
-// Unlike apb4_master_stub there is NO framing side FIFO: Pack takes {last,
-// first} from the cmd_data presented at that moment (drawn as it is).
+// The {last, first} framing side FIFO (issue #111, ported from
+// apb4_master_stub TASK-067) pairs each response with its own command's framing.
 // Source of truth: rtl/amba/apb5/apb5_master_stub.sv.
 digraph apb5_master_stub {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
@@ -15,22 +15,24 @@ digraph apb5_master_stub {
     cmd_port [label="Command Port (packed)\ncmd_valid / cmd_ready\ncmd_data = {last, first, pwrite, pprot,\npstrb, paddr, pwdata, pauser, pwuser}", fillcolor="white"];
     rsp_port [label="Response Port (packed)\nrsp_valid / rsp_ready\nrsp_data = {last, first, pslverr,\nprdata, pruser, pbuser}", fillcolor="white"];
 
-    unpk [label="Unpack (wiring)\nAPB fields to the core;\n{last, first} straight to Pack"];
+    unpk [label="Unpack (wiring)\nAPB fields to the core;\n{last, first} to the side FIFO"];
+    flq  [label="First / Last Side FIFO\ngaxi_fifo_sync - u_first_last_fifo\nDEPTH = CMD_DEPTH + RSP_DEPTH + 2\n(the true outstanding bound)\npush on cmd, pop on rsp handshake"];
     core [label="APB5 Master Core\napb5_master - u_apb5_master (see its diagram)\nskids, transfer FSM, PWAKEUP, check bits"];
-    pack [label="Pack (wiring)\n{live cmd last, first, core pslverr,\nprdata, pruser, pbuser}"];
+    pack [label="Pack (wiring)\n{fifo last, first, core pslverr,\nprdata, pruser, pbuser}"];
 
     bus [label="APB5 Requester Bus  m_apb_* (+ *CHK)\nout: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB,\nPPROT, PAUSER, PWUSER, PWAKEUP\nin: PRDATA, PSLVERR, PREADY, PRUSER, PBUSER",
          fillcolor="white"];
 
     cmd_port -> unpk [dir=both, xlabel="cmd_valid + cmd_data / cmd_ready"];
     unpk -> core [penwidth=1.8, xlabel="APB fields\n(incl. pauser, pwuser)"];
-    unpk -> pack [xlabel="{last, first}\n(live cmd_data)"];
+    unpk -> flq [xlabel="{last, first}"];
+    flq -> pack [xlabel="{last, first}\nof this response"];
     core -> bus [dir=both, xlabel="APB transfer / PREADY, PRDATA, PSLVERR"];
     core -> pack [xlabel="rsp_prdata, pslverr,\npruser, pbuser"];
     rsp_port -> pack [dir=both, xlabel="rsp_valid +\nrsp_data\n/ rsp_ready"];
 
     { rank=same; cmd_port; rsp_port; }
-    { rank=same; core; pack; }
+    { rank=same; core; flq; }
     cmd_port -> rsp_port [style=invis, minlen=3];
-    core -> pack [style=invis, minlen=3];
+    core -> flq [style=invis, minlen=2];
 }

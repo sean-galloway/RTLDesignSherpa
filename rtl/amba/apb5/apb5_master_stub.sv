@@ -14,6 +14,16 @@
 // - Optional interface parity protection (IHI 0024E ch. 5: *CHK signals,
 //   odd parity, one check bit per 8 payload bits)
 //
+// Response framing: {last, first} for each response comes from a side FIFO
+// written on every command handshake and read on every response handshake,
+// so a response carries ITS command's framing even when later commands are
+// already accepted (issue #111; the apb4_master_stub TASK-067 fix, ported).
+//
+// CHECK BY INSPECTION: the side FIFO never overflows. Accepted-but-undrained
+// commands are bounded by CMD_DEPTH (command skid) + 1 (APB FSM in flight)
+// + RSP_DEPTH (response skid), and the FIFO is CMD_DEPTH + RSP_DEPTH + 2
+// deep. A change to apb5_master's buffering must re-derive this bound.
+//
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
 //
@@ -131,8 +141,47 @@ module apb5_master_stub #(
     logic [RUW-1:0]      rsp_pruser;
     logic [BUW-1:0]      rsp_pbuser;
 
-    // Pack response packet (include first/last from command)
-    assign rsp_data = {cmd_last, cmd_first, rsp_pslverr, rsp_prdata,
+    // -----------------------------------------------------------------
+    // first/last flag side FIFO (issue #111, ported from apb4_master_stub
+    // TASK-067). apb5_master does not carry first/last through its
+    // command -> response pipeline. Packing them from the LIVE cmd_data is
+    // correct only while cmd_data still holds the command whose response is
+    // leaving; once apb5_master accepts command N+1, cmd_data moves on and
+    // response N would take command N+1's framing. Enqueue {last, first} on
+    // every command handshake, dequeue on every response handshake, and pack
+    // the response from the FIFO output. Depth: see the header contract.
+    // -----------------------------------------------------------------
+    logic [1:0]          w_fl_in_data;
+    logic [1:0]          w_fl_out_data;
+    logic                w_fl_out_cmd_last;
+    logic                w_fl_out_cmd_first;
+
+    assign w_fl_in_data = {cmd_last, cmd_first};
+    assign {w_fl_out_cmd_last, w_fl_out_cmd_first} = w_fl_out_data;
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH (2),
+        .DEPTH      (CMD_DEPTH + RSP_DEPTH + 2)
+    ) u_first_last_fifo (
+        .axi_aclk    (pclk),
+        .axi_aresetn (presetn),
+        .wr_valid    (cmd_valid && cmd_ready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .wr_ready    (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .wr_data     (w_fl_in_data),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .rd_valid    (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_ready    (rsp_valid && rsp_ready),
+        .rd_data     (w_fl_out_data),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       ()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
+    // Pack the response with the framing of the command it answers.
+    assign rsp_data = {w_fl_out_cmd_last, w_fl_out_cmd_first, rsp_pslverr, rsp_prdata,
                        rsp_pruser, rsp_pbuser};
 
     // Instantiate fully-tested apb5_master

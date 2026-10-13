@@ -176,11 +176,14 @@ identical to [apb5_master](apb5_master.md#parity-implementation).
 
 A packed-port wrapper around `apb5_master` (one box; see its diagram). Unpack
 sends the APB fields to the core; Pack builds `rsp_data` from the core's response
-and `{last, first}`. Unlike `apb4_master_stub` there is **no framing side FIFO**:
-`{last, first}` come from the `cmd_data` presented at that moment, so a response
-is paired with the framing of whatever command is currently on the port, not the
-one that produced it, once commands are pipelined ahead of responses. The
-`apb4_master_stub` side FIFO (TASK-067) exists to prevent exactly this.
+and `{last, first}`. `{last, first}` do not come from the live `cmd_data`: a
+framing side FIFO (`gaxi_fifo_sync`, `u_first_last_fifo`) pushes them on every
+command handshake and pops them on every response handshake, so each response
+carries the framing of the command that produced it even when later commands
+are already accepted. Its depth, `CMD_DEPTH + RSP_DEPTH + 2`, is the true
+outstanding bound (command skid, the transfer in flight, response skid), so it
+never overflows. This is the `apb4_master_stub` fix (TASK-067), ported for
+issue #111; `test_apb5_master_stub_framing` pins it.
 
 ### Packet Formats
 
