@@ -64,6 +64,19 @@ to LUTRAM instead. Use `REGISTERED=1` when you actually want block RAM.
 
 ## Functional Description
 
+### Block diagram
+
+![fifo_sync block diagram](../assets/rtl-common/graphviz/fifo_sync.png)
+
+Everything runs on one clock. Write data drops down the left into the
+storage array, at the address held by the write pointer counter; read data
+comes back up the right, from the read pointer's address. Both pointers go
+straight into the one `fifo_control` instance in the center, with no
+synchronizer and no crossing. It drives the full flags back to the write
+port and the empty flags back to the read port. `REGISTERED` selects whether
+`rd_data` is muxed straight off the array or flopped, and `MEM_STYLE` picks
+the storage resource.
+
 ### Core Components
 
 1. **Binary counters** for the read/write pointers

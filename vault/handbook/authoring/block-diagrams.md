@@ -110,6 +110,30 @@ Every block label has two lines:
 
 A label answers "what does it do?" before "what is it called?".
 
+### Parameters and configuration values
+
+**Case:** `docs/markdown/assets/rtl-common/graphviz/dataint_crc.dot` (owner,
+2026-10-12).
+
+- **Most parameters go unmentioned.** Sizes such as `AW`, `DW`, `DEPTH` and
+  `WIDTH` explain themselves, or don't matter at diagram level.
+- **A parameter that changes behavior is named, with what it does.** For
+  example, `REFIN` and `REFOUT` decide whether bits are reflected. Put such
+  parameters in a white "Parameters (fixed at build)" legend box with no
+  edges, one line per parameter in the form `NAME: 1 = what happens`. The
+  block where the parameter acts also states it (for example "REFIN=1:
+  bit-reverse each byte").
+- **Configuration values are described, not just listed.** A runtime value
+  that defines the algorithm (for example `POLY`, `POLY_INIT`, `XOROUT` on a
+  CRC) is explained in its legend: what it is ("generator polynomial - the
+  feedback taps") and where it acts. A bare list of names tells a reader
+  nothing they couldn't get from the port table.
+- **Say what kind of value it is in the legend title:** "Parameters (fixed at
+  build)" versus "runtime input ports". The reader needs to know whether the
+  value can change without re-synthesis.
+- **Use left-justified lines (`\l`) for a legend box,** with a hanging indent
+  on wrapped lines, so each name heads its own line.
+
 ## Palette: your choice
 
 The default is white boxes for external interfaces and `#D6E4F0` functional
@@ -217,6 +241,18 @@ Start a new diagram from them, not from a blank file:
   (`gaxi_skid_buffer_async`); moving the scaffolds to their own rank fixed it.
 - **A spacer needs `label=""` and a fixed width.** `minlen` between point
   nodes in the same rank has no effect.
+- **`tailport`/`headport` break edges under `splines=ortho`.** The port is
+  ignored and the edge starts at the node center, drawn across its label
+  (`fifo_sync`). Leave ports off; spread edges with columns or scaffolds.
+- **A scaffold needs at least one constraining edge.** Point nodes placed
+  only with `constraint=false` edges drift and drag lanes through the center.
+- **Labels on ortho corners drift between renders.** Fix the geometry so the
+  labeled leg is straight. For example, widen a block so a drop lands
+  vertically. Put an `xlabel` on the long leg of a scaffolded lane and leave
+  the short final leg unlabeled.
+- **A spacer node does not always widen a same-rank gap.** Moving a third
+  node to the other side of the lane removed the crossing
+  (`dataint_ecc_hamming_decode_secded`).
 - **Shorten node labels before fighting the aspect ratio.** Long third lines
   widened every column and pushed the drawing past 2.5:1.
 
@@ -300,6 +336,43 @@ the template for every CDC block.
   says "(combinational)".
 - **Three to six blocks.** Show the real structure (next-state logic,
   register, decode), not individual gates.
+
+### rtl-common samples (owner-approved 2026-10-12)
+
+**Cases:** `docs/markdown/assets/rtl-common/graphviz/` -- `arbiter_round_robin`,
+`fifo_sync`, `dataint_crc`, `dataint_ecc_hamming_decode_secded`, `cam_tag`,
+`clock_gate_ctrl`. The owner reviewed all six: "all are great".
+
+- **The trapezium marks any genuine many-to-one pick:** an arbiter's grant
+  (`arbiter_round_robin`, with masked and unmasked requests as the class
+  labels into the wide edge) or a lowest-free-slot finder (`cam_tag`). A
+  mux driven by an external select is a plain box.
+- **A single-clock storage block** uses the `fifo_async` geography with no
+  clock regions and no crossing X. Both pointers converge on one flag block
+  (`fifo_sync`), and the title names the clock.
+- **Independent request flows get one column and one white port each**
+  (`cam_tag`: insert, invalidate, lookup). A search reads the storage bar
+  straight up its own column (`dir=back`), rather than feedback fanning out
+  across the ports.
+- **When the output is a clock, the clock is the main flow:** a heavy,
+  straight column from the clock input through the gate cell to the output
+  bar. Control logic joins the gate from the side (`clock_gate_ctrl`). A
+  clock that only clocks control flops is not drawn; "(on clk_in)" goes in
+  the block label.
+- **N identical combinational stages collapse into one box** labeled with
+  the count (`CHUNKS x dataint_crc_xor_shift_cascade`).
+- **Mark the timing in labels:** registers say "(flop)", logic says
+  "(combinational)", and next-state logic sits above the register it loads.
+- **Parallel independent checks share one rank** and fan into the decision
+  that combines them (syndrome and overall parity into the SECDED
+  classifier).
+- **A build-dependent block is dashed, with its condition in its label**
+  (the ACK tracker, "WAIT_GNT_ACK=1 only"). A degenerate configuration
+  (`CLIENTS=1`) goes in the title, not a second diagram.
+- **Load strobes and enables share the Clock / Reset box** when they drive
+  the same registers.
+- **One heavy edge per diagram where possible:** the main flow, or the
+  trapezium's exit.
 
 ### Decision trees
 

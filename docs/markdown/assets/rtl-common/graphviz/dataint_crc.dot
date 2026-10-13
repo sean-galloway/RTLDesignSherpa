@@ -1,0 +1,61 @@
+// dataint_crc block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// One clock. Main flow top-down: data -> per-byte input reflect -> the
+// CHUNKS-long XOR-shift cascade -> one-hot tap select -> CRC register ->
+// output stage (reflect, xor-out, flop) -> the output bar. The running CRC
+// climbs the right edge back into cascade stage 0. Controls and clock are
+// dashed sideband from the left; the static configuration inputs sit as a
+// sideband box with no edge, its role stated in the label.
+// Source of truth: rtl/common/dataint_crc.sv.
+digraph dataint_crc {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="dataint_crc - parallel CRC, CHUNKS bytes per clock";
+
+    // ---- inputs (white) ----
+    din  [label="Data Input\ndata[DATA_WIDTH-1:0]  (CHUNKS bytes)", fillcolor="white", group=M];
+    cfg  [label="CRC Definition (runtime input ports, hold static)\lPOLY: generator polynomial - the feedback taps\l    every cascade stage XORs in\lPOLY_INIT: seed - loaded into the CRC register\l    on load_crc_start; also the select default\lXOROUT: mask XORed onto the finished CRC\l    in the output stage\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lREFIN: 1 = reverse the bits within each\l    input byte before the cascade (for\l    LSB-first protocols such as Ethernet)\lREFOUT: 1 = reverse the whole CRC before\l    the XOROUT mask is applied\l", fillcolor="white"];
+    ctl  [label="Tap Select\ncascade_sel[CHUNKS-1:0]\n(one-hot)", fillcolor="white"];
+    clk  [label="Clock / Reset / Load\nclk, rst_n,\nload_crc_start, load_from_cascade", fillcolor="white"];
+
+    // ---- main column ----
+    refl [group=M, label="Input Reflect\nREFIN=1: bit-reverse each byte\n(REFIN=0: bytes pass straight)"];
+    casc [group=M, label="XOR-Shift Cascade\nCHUNKS x dataint_crc_xor_shift_cascade\n(8 bit-steps each; stage i folds byte i\ninto stage i-1's CRC)"];
+    sel  [group=M, label="Cascade Select\none-hot cascade_sel taps stage i\n(no bit set: POLY_INIT)"];
+    creg [group=M, label="CRC Register\nr_crc_value (flop)\nload_crc_start: POLY_INIT, load_from_cascade: tap"];
+    outs [group=M, label="Output Stage\nREFOUT=1: bit-reverse, then ^ XOROUT\ncrc (flop; load_crc_start: POLY_INIT)"];
+    bar  [group=M, label="CRC Output\ncrc[CRC_WIDTH-1:0]", fillcolor="white", width=5.5];
+
+    // ---- main flow ----
+    din  -> refl [xlabel="data (CHUNKS bytes)"];
+    refl -> casc [xlabel="w_block_data[i]\n(byte i to stage i)"];
+    casc -> sel  [xlabel="w_cascade[0 .. CHUNKS-1]\n(every stage's CRC)"];
+    sel  -> creg [xlabel="selected CRC"];
+    creg -> outs [xlabel="r_crc_value"];
+    outs -> bar  [xlabel="crc"];
+
+    // ---- feedback: running CRC back UP the right edge into stage 0 ----
+    p_fb [shape=point, width=0.01];
+    creg -> p_fb [arrowhead=none, headclip=false, constraint=false];
+    p_fb -> casc [xlabel="r_crc_value\n(stage 0 input)", tailclip=false, constraint=false];
+
+    // ---- sideband from the left ----
+    ctl -> sel  [style=dashed, headlabel="cascade_sel", labelangle=-8, labeldistance=6, minlen=3];
+    clk -> creg [style=dashed, xlabel="clk, rst_n,\nload_crc_start,\nload_from_cascade", minlen=3];
+    p_ck [shape=point, width=0.01];
+    clk -> p_ck [style=dashed, arrowhead=none, headclip=false];
+    p_ck -> outs [style=dashed, headlabel="clk, rst_n, load_crc_start", labelangle=-6, labeldistance=7, tailclip=false, minlen=4];
+
+    // ---- rank pinning ----
+    { rank=same; prm; din; cfg; }
+    prm -> din [style=invis, minlen=2];
+    { rank=same; ctl; sel; p_fb; }
+    { rank=same; clk; creg; }
+    { rank=same; p_ck; outs; }
+    din -> cfg [style=invis, minlen=2];
+    sel -> p_fb [style=invis, minlen=3];
+}

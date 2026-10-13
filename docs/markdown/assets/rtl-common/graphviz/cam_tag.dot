@@ -1,0 +1,71 @@
+// cam_tag block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Three request flows enter at the top, one column each:
+//   insert (left)     - free-slot pick -> write select -> entry array
+//   invalidate (mid)  - DEPTH parallel compares -> write select -> entry array
+//   lookup (right)    - DEPTH parallel compares; tag_status back UP to its port
+// The entry array (tags + valid bits) is the bottom bar. Every search reads it
+// straight UP its own column (a CAM's compares sit beside its entries), so the
+// register feedback never crosses another flow. The valid vector also feeds
+// the occupancy flags (far-left column), which return to the insert port as
+// dashed feedback: tags_full blocks an insert.
+// The free-slot finder is a genuine many-to-one pick (lowest free index of
+// DEPTH), so it is the wide-edge-up trapezium (rule 9).
+// Columns, left to right: O occupancy | A insert (free pick over write
+// select, the pick output dropping out of the narrow edge) | B invalidate |
+// C lookup.
+// Source of truth: rtl/common/cam_tag.sv.
+digraph cam_tag {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.85", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="cam_tag - DEPTH-entry tag CAM (single clock)";
+
+    // ---- request ports (white) ----
+    ins_in [group=A, label="Insert Port\nmark_valid, tag_in_valid\n/ tags_full, tags_empty", fillcolor="white"];
+    inv_in [group=B, label="Invalidate Port\nmark_invalid, tag_in_invalid", fillcolor="white"];
+    lkp_in [group=C, label="Lookup Port\ntag_in_status / tag_status", fillcolor="white"];
+
+    // ---- searches over the current array (combinational) ----
+    free   [group=A, label="Free-Slot Pick\nlowest index with r_valid == 0",
+            shape=invtrapezium, width=3.2, height=0.55, fixedsize=true, fillcolor="#BFD7EE"];
+    inv_m  [group=B, label="Invalidate Match\nDEPTH parallel compares\nvalid & tag == tag_in_invalid"];
+    lkp_m  [group=C, label="Lookup Match\nDEPTH parallel compares\nvalid & tag == tag_in_status"];
+
+    // ---- update and status ----
+    wsel   [group=A, label="Write Select\none update per clk;\ninsert wins over invalidate"];
+    occ    [group=O, label="Occupancy Flags\ntags_empty = ~|r_valid\ntags_full = &r_valid"];
+
+    // ---- the bar: entry storage ----
+    arr    [label="Entry Array  (DEPTH entries, flops)\nr_tag_array[DEPTH][N]  +  r_valid[DEPTH]",
+            width=11.0, height=0.7];
+
+    // insert flow (insert also needs !tags_full and ENABLE != 0)
+    ins_in -> free [xlabel="insert"];
+    free   -> wsel [xlabel="free index", penwidth=1.8, tailport=s];
+    // invalidate flow
+    inv_in -> inv_m [xlabel="tag_in_invalid"];
+    inv_m  -> wsel  [xlabel="match index"];
+    // the one write into the array
+    wsel   -> arr   [xlabel="write: index,\ntag, valid"];
+
+    // lookup: request down, hit back up on the same pair (one edge, both ways)
+    lkp_in -> lkp_m [dir=both, xlabel="tag_in_status /\ntag_status (hit)"];
+
+    // array state straight UP each search's column (X -> arr, dir=back:
+    // ranks X above the bar, arrowhead lands on X)
+    free  -> arr [dir=back, xlabel="r_valid"];
+    inv_m -> arr [dir=back, xlabel="tags + valid"];
+    lkp_m -> arr [dir=back, xlabel="tags + valid"];
+    occ   -> arr [dir=back, xlabel="r_valid"];
+
+    // occupancy back to the insert port (feedback: dashed)
+    occ -> ins_in [style=dashed, constraint=false, xlabel="tags_full,\ntags_empty"];
+
+    { rank=same; ins_in; inv_in; lkp_in; }
+    ins_in -> inv_in [style=invis]; inv_in -> lkp_in [style=invis];
+    { rank=same; occ; free; inv_m; lkp_m; }
+    occ -> free [style=invis]; free -> inv_m [style=invis]; inv_m -> lkp_m [style=invis];
+}

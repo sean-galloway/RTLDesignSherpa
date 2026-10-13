@@ -97,6 +97,24 @@ default alone.
 
 ## Functional Description
 
+### Block diagram
+
+![dataint_crc block diagram](../assets/rtl-common/graphviz/dataint_crc.png)
+
+Data enters at the top and is split into `CHUNKS` bytes, each optionally
+bit-reversed when `REFIN=1`. The bytes feed a chain of `CHUNKS`
+`dataint_crc_xor_shift_cascade` stages. Stage 0 starts from the running CRC
+in `r_crc_value`, which climbs the right edge from the register, and each
+later stage folds one more byte into the previous stage's result. The
+one-hot `cascade_sel` taps the stage that matches the number of valid bytes,
+and `load_from_cascade` writes that tap into `r_crc_value`. The output stage
+reflects the register when `REFOUT=1`, XORs in `XOROUT`, and registers the
+result as `crc`. `load_crc_start` returns both registers to `POLY_INIT`.
+The two boxes at the top are legends. The build-time parameters `REFIN` and
+`REFOUT` select bit reflection; the runtime ports `POLY`, `POLY_INIT` and
+`XOROUT` define which CRC standard is computed, and each is described where it
+acts.
+
 ### CRC Algorithm Implementation
 
 The CRC calculation is parallel and runs through four stages:

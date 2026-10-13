@@ -1,0 +1,58 @@
+// clock_gate_ctrl block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Main flow (heavy): clk_in straight down the LEFT column, through the ICG, out as
+// clk_out in the bottom bar. Control flow down the left: wakeup reloads the
+// idle countdown (center column); when it reaches zero (and gating is enabled, and no wakeup)
+// the gate decision asserts and the ICG holds clk_out low. Config is dashed
+// sideband from the right, beside the counter it loads. The counter runs on
+// clk_in; that is stated in its label rather than drawn as a second clock edge. The counter's current value climbs back into its
+// own reload/decrement logic (drawn inside the counter box: single register).
+// Source of truth: rtl/common/clock_gate_ctrl.sv, rtl/common/icg.sv.
+digraph clock_gate_ctrl {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="clock_gate_ctrl - idle-timeout clock gating";
+
+    // ---- inputs (white) ----
+    wake_in [group=CT, label="Wakeup Input\nwakeup (activity)", fillcolor="white"];
+    clk_in  [group=CK, label="Clock In\nclk_in, aresetn", fillcolor="white"];
+    cfg_in  [group=CF, label="Configuration\ncfg_cg_enable,\ncfg_cg_idle_count[N-1:0]", fillcolor="white"];
+
+    // ---- control path ----
+    idle    [group=CT, label="Idle Countdown (on clk_in)\nr_idle_counter (N = IDLE_CNTR_WIDTH)\nreload on wakeup or !cfg_cg_enable,\nelse count down to 0 and hold"];
+    decide  [group=CT, label="Gate Decision\nw_gate_enable = cfg_cg_enable\n& !wakeup & (r_idle_counter == 0)"];
+
+    // ---- clock path ----
+    icg     [group=CK, label="Integrated Clock Gate\nicg - u_icg\nlatch en while clk low, gclk = en & clk"];
+
+    // ---- outputs (the boundary bar) ----
+    out     [label="Outputs\nclk_out (gated clock)   |   gating (= w_gate_enable)",
+             fillcolor="white", width=6.5];
+
+    // control flow
+    wake_in -> idle   [xlabel="wakeup (reload)"];
+    idle    -> decide [xlabel="count == 0"];
+    wake_in -> decide [xlabel="wakeup (override)", tailport=sw, headport=nw];
+    decide  -> icg    [xlabel="en = ~w_gate_enable"];
+
+    // main flow: the clock
+    clk_in -> icg [xlabel="clk_in", penwidth=1.8];
+    icg    -> out [xlabel="clk_out", penwidth=1.8];
+
+    // config sideband
+    cfg_in -> idle   [style=dashed, xlabel="idle count,\nenable", constraint=false];
+    cfg_in -> decide [style=dashed, xlabel="cfg_cg_enable"];
+
+    p_g [shape=point, width=0.01, group=CT];
+    decide -> p_g [arrowhead=none, headclip=false];
+    p_g -> out [xlabel="gating", tailclip=false];
+    { rank=same; clk_in; wake_in; }
+    clk_in -> wake_in [style=invis, minlen=3];
+    { rank=same; idle; cfg_in; }
+    idle -> cfg_in [style=invis, minlen=3];
+    { rank=same; icg; p_g; }
+    icg -> p_g [style=invis, minlen=3];
+}

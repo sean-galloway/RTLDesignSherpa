@@ -83,6 +83,18 @@ module clock_gate_ctrl #(
 
 ## Functional Description
 
+### Block diagram
+
+![clock_gate_ctrl block diagram](../assets/rtl-common/graphviz/clock_gate_ctrl.png)
+
+The clock is the main flow, drawn heavy: `clk_in` runs straight down the left
+through the ICG and leaves as `clk_out`. Control runs down the center. A
+`wakeup` reloads the idle countdown, which otherwise counts down to zero and
+holds. The gate decision asserts `w_gate_enable` when gating is enabled, there
+is no wakeup, and the count has reached zero. The ICG then holds `clk_out`
+low, and `gating` reports the same decision. Configuration enters from the
+right as dashed sideband: the reload value and the enable.
+
 ### Why Clock Gating?
 
 Clock gating is one of the most effective power reduction techniques we have:

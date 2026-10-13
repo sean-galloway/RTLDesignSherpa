@@ -63,6 +63,20 @@ The `cam_tag` module implements a Content Addressable Memory (CAM) for tag stora
 
 ## Functional Description
 
+### Block diagram
+
+![cam_tag block diagram](../assets/rtl-common/graphviz/cam_tag.png)
+
+Three requests enter at the top, one column each. An insert goes through the
+free-slot pick, the lowest-index entry whose valid bit is clear, and into the
+write select. An invalidate goes through DEPTH parallel compares and into the
+same write select. The write select applies one update per clock, and an
+insert wins over an invalidate. A lookup runs its own DEPTH parallel compares
+and returns `tag_status` straight back to its port. Every search reads the
+entry array straight up its own column. The occupancy flags reduce the valid
+vector and return `tags_full` and `tags_empty` to the insert side, where
+`tags_full` blocks an insert.
+
 ### Tag Lookup
 
 Continuously compares `tag_in_status` against all valid entries:

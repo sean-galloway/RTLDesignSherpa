@@ -1,0 +1,72 @@
+// dataint_ecc_hamming_decode_secded block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// One clock, one register stage. The codeword drops straight down the left
+// column into the correction register; two combinational checks (syndrome,
+// overall parity) feed the classifier, which decides the flip and the flags.
+// The flops are the correction register and the two flag registers, all
+// loaded only when enable is high. Data extract after the register is
+// combinational. clk/rst_n/enable are dashed sideband rising from below
+// into both register boxes.
+// Source of truth: rtl/common/dataint_ecc_hamming_decode_secded.sv.
+digraph dataint_ecc_hamming_decode_secded {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="dataint_ecc_hamming_decode_secded - SECDED decode, one register stage";
+
+    // ---- input (white) ----
+    cw_in [label="Codeword Input\nhamming_data[WIDTH+ParityBits:0]\n(data + Hamming check bits + overall parity MSB)", fillcolor="white"];
+
+    // ---- combinational checks ----
+    syn [label="Syndrome Compute (combinational)\nw_syndrome[ParityBits-1:0]: each check group\nXORed with its stored check bit"];
+    par [label="Overall Parity Check (combinational)\n^hamming_data[TotalWidth-2:0]\nvs stored hamming_data[TotalWidth-1]"];
+
+    // ---- decision (next-state logic of the register stage) ----
+    cls [group=C, width=8.2, label="Error Classifier (next-state logic)\nparity mismatch: single error, flip if syndrome != 0\nparity match, syndrome != 0: double error, no flip\nboth clean: no error"];
+
+    // ---- the register stage (flops) ----
+    creg [group=C, label="Correction Register\nr_data_with_parity (flop, loads on enable)\ncodeword with bit [syndrome-1] flipped"];
+    clk  [label="Clock / Reset / Enable\nclk, rst_n, enable", fillcolor="white"];
+    freg [label="Error Flag Registers\nerror_detected, double_error_detected\n(flops, load on enable)"];
+
+    // ---- after the register ----
+    ext [group=C, label="Data Extract (combinational)\ndata[j] = r_data_with_parity[bit_position(j)]\n(drops the check-bit positions)"];
+    bar [label="Outputs\ndata[WIDTH-1:0]   |   error_detected   |   double_error_detected",
+         fillcolor="white", width=8.0];
+
+    // ---- main flow: the codeword straight down the left column ----
+    p_cw [shape=point, width=0.01, group=A];
+    cw_in -> p_cw [arrowhead=none, headclip=false, xlabel="codeword\n(captured as-is)"];
+    p_cw -> creg [tailclip=false];
+    creg  -> ext  [xlabel="r_data_with_parity\n(corrected)"];
+    ext   -> bar  [xlabel="data"];
+
+    // ---- checks -> classifier ----
+    cw_in -> syn  [xlabel="codeword"];
+    cw_in -> par  [xlabel="codeword"];
+    syn   -> cls  [xlabel="syndrome\n(error position + 1)"];
+    par   -> cls  [xlabel="parity mismatch"];
+
+    // ---- classifier -> register stage ----
+    cls -> creg [xlabel="flip bit [syndrome-1]\n(single error only)"];
+    cls -> freg [xlabel="next error flags"];
+    p_fo [shape=point, width=0.01];
+    freg -> p_fo [arrowhead=none, headclip=false];
+    p_fo -> bar [xlabel="error_detected,\ndouble_error_detected", tailclip=false];
+
+    // ---- sideband: clock/reset/enable rising from below to both registers ----
+    clk -> creg [style=dashed, constraint=false, xlabel="clk, rst_n, enable"];
+    clk -> freg [style=dashed, constraint=false, xlabel="clk, rst_n, enable"];
+
+    // ---- rank pinning ----
+    { rank=same; syn; par; }
+    { rank=same; p_cw; creg; freg; }
+    { rank=same; ext; p_fo; clk; }
+    creg -> freg [style=invis];
+    ext -> clk [style=invis, minlen=2];
+    clk -> p_fo [style=invis, minlen=2];
+    syn -> par [style=invis, minlen=2];
+}

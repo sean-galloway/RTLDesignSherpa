@@ -72,6 +72,21 @@ module dataint_ecc_hamming_decode_secded #(
 
 ## Functional Description
 
+### Block diagram
+
+![dataint_ecc_hamming_decode_secded block diagram](../assets/rtl-common/graphviz/dataint_ecc_hamming_decode_secded.png)
+
+The codeword drops down the left edge into the correction register, the one
+register stage, which loads only when `enable` is high. Two combinational
+checks run on the same codeword: the syndrome (each Hamming check group XORed
+with its stored check bit) and the overall parity against the stored SECDED
+bit. The classifier combines them. A parity mismatch is a single error:
+with a non-zero syndrome, bit `[syndrome-1]` is flipped as the codeword is
+captured; with a zero syndrome, the overall parity bit itself was hit and
+nothing is flipped. A parity match with a non-zero syndrome is a double
+error, flagged but not corrected. The flags are registered alongside the codeword, and a
+combinational extract drops the check-bit positions to produce `data`.
+
 ### Decoding Process
 
 1. **Syndrome Generation**: Calculate the parity check syndrome

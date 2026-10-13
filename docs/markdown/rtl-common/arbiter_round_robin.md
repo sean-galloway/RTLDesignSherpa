@@ -62,6 +62,19 @@ The `arbiter_round_robin` module cycles through requesting clients in order, so 
 
 ## Functional Description
 
+### Block diagram
+
+![arbiter_round_robin block diagram](../assets/rtl-common/graphviz/arbiter_round_robin.png)
+
+Requests come down the center. `block_arb` gates them all to zero, and the
+gated set reaches the priority encoder twice: unmasked, and through the
+round-robin mask, which keeps only the clients above the last winner. The
+encoder (`arbiter_priority_encoder`) picks the lowest masked request, or the
+lowest unmasked one if no masked request is left. The grant register flops
+`grant`, `grant_id` and `grant_valid` together, and the last winner climbs
+back up the right edge to select the next mask. With `WAIT_GNT_ACK=1`, the
+dashed ACK tracker holds each grant until its `grant_ack` arrives.
+
 ### Fair Round-Robin Operation
 
 The rotation order is `0 → 1 → 2 → ... → (CLIENTS-1) → 0` (see the RTL header).
