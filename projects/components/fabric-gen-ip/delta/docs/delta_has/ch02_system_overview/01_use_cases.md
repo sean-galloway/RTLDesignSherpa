@@ -86,3 +86,22 @@
 - Hands-on learning with working RTL.
 - Clear performance comparisons.
 - Demonstrates specification-driven design and Python-based RTL generation.
+
+## Mesh-Mode: Monitored Manycore Fabric
+
+**Scenario:** A 3-D manycore fabric of SERV cores and CGRA compute cells exchanges stream traffic while ocelus observers collect statistics and rapids DMA feeds the boundary.
+
+**Configuration:**
+
+- `--topology mesh` with fabric dimensions `cells-x`, `cells-y`, `cells-z`.
+- One `delta_mesh_cell` at every fabric coordinate; rapids attaches at boundary cells' local ports.
+- ocelus observers tap cell ports for flit/packet/stall/latency counters.
+- Cell contents (SERV, CGRA, ocelus) are out of scope — delta sees only the AXI4-Stream at the local port.
+
+> **PLANNED** — The mesh cell RTL is not yet implemented. The design described here is per the owner-approved delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). The flat crossbar remains the implemented default.
+
+**Benefits:**
+
+- Table-routed 3-D mesh scales without the all-to-all wiring of a flat crossbar.
+- Per-cell routing tables and broadcast mode-switches let the same physical fabric run different communication patterns.
+- Built-in observability gives software-visible performance data from the fabric.

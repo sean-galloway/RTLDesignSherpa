@@ -69,7 +69,7 @@ dma,1,0
 | any | Wishbone B4 | `axi4_to_wb4`: one Wishbone transfer per AXI4 beat, ERR/RTY fold to SLVERR |
 | Wishbone B4 | any | `wb4_to_axi4` front end: single-beat AXI4 inside, SLVERR/DECERR terminate ERR |
 
-: Table 2.1: Supported Protocols
+: Supported Protocols
 
 AMBA5 ports are declared per port (`protocol = "axi5"` / `"axil5"` /
 `"apb5"` with an optional `axi5_features` list); the fabric stays AXI4
@@ -117,7 +117,7 @@ Generate all five channels for complete read/write capability.
 | Read-only (rd) | 2 of 5 | 60% fewer channels (~52% fewer wires at DW=64) |
 | Full (rw) | 5 of 5 | Baseline |
 
-: Table 2.2: Channel-Specific Resource Savings
+: Channel-Specific Resource Savings
 
 ## Automatic Converters
 

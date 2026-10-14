@@ -61,7 +61,7 @@ Each slave occupies a configurable address region:
 | Slave 1 | `base_addr` from its own TOML entry | `addr_range` | Variable |
 | Slave N | `base_addr` from its own TOML entry | `addr_range` | Variable |
 
-: Table 2.3: Address Map Organization
+: Address Map Organization
 
 **Windows are not derived from a single BASE and are not contiguous.** Each
 slave carries its own `base_addr`, subject only to 4 KB alignment and

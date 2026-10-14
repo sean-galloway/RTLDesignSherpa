@@ -39,6 +39,8 @@
 | LUT | Look-up table (FPGA logic resource) |
 | FF | Flip-flop (FPGA register resource) |
 
+: Acronyms and Definitions
+
 ## Key Terms
 
 **Base flavor**

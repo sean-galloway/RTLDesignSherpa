@@ -103,7 +103,7 @@ margins:
 lists:
   lot: true    # List of Tables
   lof: true    # List of Figures
-  low: true    # List of Waveforms (MAS has detailed timing)
+  low: false   # List of Waveforms (MAS has no wavedrom content)
 
 # Title page configuration
 title_page:

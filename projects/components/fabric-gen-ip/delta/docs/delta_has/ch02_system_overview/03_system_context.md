@@ -59,4 +59,12 @@ Delta uses a single clock (`aclk`) and an active-low asynchronous reset (`areset
 | APB Crossbar | APB-only crossbar | Low-bandwidth register-mapped peripherals |
 | RAPIDS | DMA subsystem | Descriptor-based memory transfers |
 
+: Delta Component Context
+
 Delta is intentionally narrow in scope: it does one thing (streaming crossbars) and does it without protocol conversion.
+
+## Mesh-Mode Context
+
+Mesh mode extends the same `bin/delta_generator.py` with a `--topology mesh` option. Instead of a flat M×N crossbar it emits a 3-D grid of `delta_mesh_cell` instances with rapids DMA at the boundary and ocelus observers on the links. Cell contents (SERV, CGRA, observers) are outside delta's scope; delta only carries the AXI4-Stream traffic between them.
+
+> **PLANNED** — Mesh mode RTL is not yet implemented; the design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). The flat crossbar shown in Figure 2.1 is the current implementation.

@@ -118,6 +118,8 @@ Track burst beat count for responses spanning multiple cycles.
 | IDLE | No burst in progress |
 | COUNTING | Tracking burst beats |
 
+: Transaction tracking states
+
 ### Implementation
 
 ```systemverilog

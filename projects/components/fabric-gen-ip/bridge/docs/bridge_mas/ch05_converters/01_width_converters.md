@@ -103,7 +103,7 @@ The burst math follows directly — eight narrow beats pack into one wide beat:
 | 15 (16 beats) | 16 × 64b | 1 (2 beats) | 2 × 512b |
 | 255 (256 beats) | 256 × 64b | 31 (32 beats) | 32 × 512b |
 
-: Table 5.3: Burst Length Conversion Examples
+: Burst Length Conversion Examples
 
 ### Downsize Converter
 

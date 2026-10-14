@@ -36,7 +36,7 @@ Delta is a Python generator that emits a single self-contained SystemVerilog mod
 
 ### Key Features
 
-- **Flat crossbar only:** Tree generation was retired on 2026-10-12.
+- **Flat crossbar (implemented); mesh cell (planned):** The checked-in RTL remains the flat TDEST crossbar. The `delta_mesh_cell` microarchitecture is a planned generator mode per the 2026-10-13 mesh design spec; no RTL exists yet. Tree generation was retired on 2026-10-12.
 - **TDEST-based routing:** No address map; the destination slave is taken directly from `s_axis_tdest`.
 - **Packet-atomic round-robin arbitration:** A granted master holds the slave until `TLAST`.
 - **Combinational data mux:** The grant is the registered stage; payload passes through combinatorially.
@@ -46,9 +46,9 @@ Delta is a Python generator that emits a single self-contained SystemVerilog mod
 
 ### Companion Specifications
 
-- **[Delta HAS](../delta_has/delta_has_index.md)** - Hardware Architecture Specification (high-level)
-- **[PRD.md](../../PRD.md)** - Product requirements and overview
-- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
+- **[Delta HAS](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/delta/docs/delta_has/delta_has_index.md)** - Hardware Architecture Specification (high-level)
+- **[PRD.md](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/PRD.md)** - Product requirements and overview
+- **[CLAUDE.md](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/CLAUDE.md)** - AI development guide
 
 ---
 
@@ -87,7 +87,20 @@ Delta is a Python generator that emits a single self-contained SystemVerilog mod
 
 - [Test Strategy](ch05_verification/01_test_strategy.md)
 
+### Chapter 6: Planned Mesh Cell Microarchitecture
+
+> **PLANNED:** The `delta_mesh_cell` microarchitecture described in this chapter is a design target per the 2026-10-13 mesh design spec. No RTL exists yet.
+
+- [Buffers and Virtual Channels](ch06_mesh_cell/01_buffers_and_vcs.md)
+- [Pipeline Stages](ch06_mesh_cell/02_pipeline.md)
+- [Routing Table](ch06_mesh_cell/03_routing_table.md)
+- [Allocators](ch06_mesh_cell/04_allocators.md)
+- [QoS Mechanisms](ch06_mesh_cell/05_qos_mechanisms.md)
+- [Multicast Path](ch06_mesh_cell/06_multicast_path.md)
+- [Observability Counters and DFT](ch06_mesh_cell/07_counters_and_dft.md)
+- [Verification Targets](ch06_mesh_cell/08_verification_targets.md)
+
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-14
 **Maintained By:** RTL Design Sherpa Project

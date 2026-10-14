@@ -34,12 +34,16 @@ The generator validates inputs early and raises `ValueError` before emitting any
 | `len(slave_versions) == num_slaves` | "version list length mismatch" |
 | Each version is `'apb4'` or `'apb5'` | "unknown port version '...'" |
 
+: Generator Structural Validation Rules
+
 ## Address-map checks
 
 | Rule | Rationale |
 |------|-----------|
 | `slave_size` must be a power of two. | Slave selection uses bit slicing after subtracting `BASE_ADDR`. |
 | `slave_size >= 256` (0x100). | Keeps the stride above the smallest practical APB register region. |
+
+: Generator Address-Map Validation Rules
 
 The generator does **not** check whether the full span (`num_slaves * slave_size`) overflows the address width; that is the caller's responsibility.
 

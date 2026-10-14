@@ -55,3 +55,5 @@ Configuration enters at the top and passes down the center column: load, validat
 | Emit filelist | `bridge_generator.py` | `_emit_bridge_variant()` writes the `.f` filelist. |
 | Emit tests | `bridge_generator.py` | `generate_tests()` / `generate_monitor_tests()` write cocotb files. |
 | Emit cfg | `bridge_pkg/generators/cfg_rdl_generator.py` | `CfgRdlGenerator` emits the PeakRDL register block. |
+
+: Key files by stage

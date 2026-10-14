@@ -33,6 +33,8 @@ The flat crossbar is the production artifact. It is a single module that connect
 | `last_grant[NUM_SLAVES]` | Round-robin pointer per slave. |
 | `packet_active[NUM_SLAVES]` | Lock grant until `TLAST`. |
 
+: Flat Crossbar Internal Structures
+
 ## Optional features
 
 ### Performance counters

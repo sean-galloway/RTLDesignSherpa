@@ -51,7 +51,7 @@ reports.
 | `PART` | `xc7a100tcsg324-1` | the Artix-7 on the Nexys A7; `xc7k325tffg900-2` is the Kintex-7 on the Genesys 2 |
 | `CLK_NS` | `10.0` | the period every clock is constrained to |
 
-: Table 6.24: Synthesis flow knobs
+: Synthesis flow knobs
 
 ```bash
 cd projects/components/fabric-gen-ip/bridge/fpga
@@ -104,7 +104,7 @@ needs nothing written by hand:
 | `worst_logic_levels` | LUT depth of the worst internal path |
 | `unrouted_nets` | must be 0; anything else is a failed run, not a slow one |
 
-: Table 6.25: `summary.csv` columns
+: `summary.csv` columns
 
 The Fmax column is an estimate at the period you constrained. Vivado stops
 optimizing a path once it has margin, so a bridge that shows +2 ns of slack
@@ -138,7 +138,7 @@ the same bridge meets 10 ns.
 | Worst logic levels | 40 | 9 |
 | Fmax estimate (MHz) | 31 | 101 |
 
-: Table 6.26: The CAM ordering-count scan, before and after (2026-09-11)
+: The CAM ordering-count scan, before and after (2026-09-11)
 
 No simulation, formal proof or lint had a view of this: the block was
 correct and its depth was invisible until synthesis. It is why the flow
@@ -168,7 +168,7 @@ block RAM and zero DSPs.
 | `bridge_5x3_channels` | 19,243 | 16,932 | 0 | -2.66 | 79.0 | 16 |
 | `bridge_mix_a` | 6,456 | 5,697 | 0 | -0.29 | 97.1 | 16 |
 
-: Table 6.27: Reference set on the Artix-7 100T -1 (Nexys A7), constrained at 10 ns
+: Reference set on the Artix-7 100T -1 (Nexys A7), constrained at 10 ns
 
 | Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
 |---|---:|---:|---:|---:|---:|---:|
@@ -183,7 +183,7 @@ block RAM and zero DSPs.
 | `bridge_5x3_channels` | 19,035 | 16,932 | 0 | -0.13 | 147.1 | 17 |
 | `bridge_mix_a` | 6,375 | 5,697 | 0 | +0.53 | 162.9 | 8 |
 
-: Table 6.28: Reference set on the Kintex-7 325T -2 (Genesys 2), constrained at 6.667 ns
+: Reference set on the Kintex-7 325T -2 (Genesys 2), constrained at 6.667 ns
 
 ### Reading the rows
 

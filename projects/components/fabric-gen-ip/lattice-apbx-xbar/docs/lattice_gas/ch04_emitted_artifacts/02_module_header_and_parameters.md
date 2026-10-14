@@ -64,4 +64,6 @@ This comment is derived from `base_addr` and `slave_size` and is the authoritati
 | Slave-side outputs | `s<N>_apb_<signal>` |
 | Slave-side inputs | `s<N>_apb_<signal>` |
 
+: Generated Port Naming Convention
+
 Parity error outputs (APB5 with parity) use `m<N>_parity_error_wdata` / `m<N>_parity_error_ctrl` on the master side and `s<N>_parity_error_rdata` / `s<N>_parity_error_ctrl` on the slave side.

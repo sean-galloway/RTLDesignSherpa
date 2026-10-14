@@ -178,7 +178,7 @@ Each slave has an **independent arbiter** that implements round-robin scheduling
 
 Two masters (M0, M1) competing for access to Slave 0:
 
-### Waveform 2.1: Round-Robin Arbitration Timing
+#### Waveform 2.1: Round-Robin Arbitration Timing
 
 ![Round-Robin Arbitration Timing](../assets/wavedrom/arbitration_round_robin.png)
 

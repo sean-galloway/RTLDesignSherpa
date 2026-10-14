@@ -42,6 +42,8 @@ Between the APB boundary modules, the generated module implements a command/resp
 | `rsp_pruser` | fabric → master | 1 | APB5 sideband (only on APB5 master). |
 | `rsp_pbuser` | fabric → master | 1 | APB5 sideband (only on APB5 master). |
 
+: cmd/rsp Fabric Signals
+
 The slave-side cmd/rsp signals have the same names and directions reversed relative to the slave-side APB master modules.
 
 ## Fabric width invariance

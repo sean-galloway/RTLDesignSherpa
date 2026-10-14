@@ -27,16 +27,16 @@
 
 **Version:** 1.0
 **Date:** 2026-10-12
-**Purpose:** High-level hardware architecture specification for the Delta AXI4-Stream crossbar generator
+**Purpose:** High-level hardware architecture specification for the Delta AXI4-Stream crossbar generator, including the planned mesh network mode
 
 ---
 
 ## Related Modules
 
-- **[Delta MAS](../delta_mas/delta_mas_index.md)** - Micro-Architecture Specification (detailed block-level)
-- **[PRD.md](../../PRD.md)** - Product requirements and overview
-- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
-- **[QUICK_START.md](../../QUICK_START.md)** - Hands-on generator guide
+- **[Delta MAS](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/delta/docs/delta_mas/delta_mas_index.md)** - Micro-Architecture Specification (detailed block-level)
+- **[PRD.md](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/PRD.md)** - Product requirements and overview
+- **[CLAUDE.md](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/CLAUDE.md)** - AI development guide
+- **[QUICK_START.md](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/QUICK_START.md)** - Hands-on generator guide
 
 ---
 
@@ -85,7 +85,20 @@
 - [Verification Strategy](ch06_integration/03_verification.md)
 - [Synthesis and Implementation](ch06_integration/04_synthesis.md)
 
+### Chapter 7: Mesh Network
+
+- [Hierarchy](ch07_mesh_network/01_hierarchy.md)
+- [Cell and Flit](ch07_mesh_network/02_cell_and_flit.md)
+- [Routing and Configuration](ch07_mesh_network/03_routing_and_config.md)
+- [Flow Control and Deadlock](ch07_mesh_network/04_flow_control_and_deadlock.md)
+- [Quality of Service](ch07_mesh_network/05_qos.md)
+- [Multicast](ch07_mesh_network/06_multicast.md)
+- [Systolic Support and Fabric Modes](ch07_mesh_network/07_systolic_and_modes.md)
+- [Observability and DFT](ch07_mesh_network/08_observability_and_dft.md)
+- [Performance and Verification](ch07_mesh_network/09_performance_and_verification.md)
+- [Deferred Items](ch07_mesh_network/10_deferred_items.md)
+
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-14
 **Maintained By:** RTL Design Sherpa Project

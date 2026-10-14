@@ -30,6 +30,8 @@ Any change to the files listed below must be followed by regeneration of the aff
 | `bin/complete_tree_generator.py` | All tree primitive output comes from this file. |
 | `bin/rtl_generators/verilog/module.py` | Framework changes affect header/footer formatting. |
 
+: Sources That Force Regeneration
+
 ## Regeneration command
 
 ```bash

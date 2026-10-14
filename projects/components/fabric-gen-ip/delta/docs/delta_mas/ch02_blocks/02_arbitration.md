@@ -32,7 +32,7 @@ Each slave `s` maintains three registered variables:
 | `last_grant[s]` | `clog2(NUM_MASTERS)` bits | Pointer to the most recently granted master. |
 | `packet_active[s]` | 1 bit | Set while a packet is in progress on this slave. |
 
-: Table 2.1: Arbiter State Variables
+: Arbiter State Variables
 
 ## FSM Behavior
 

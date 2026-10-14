@@ -50,7 +50,7 @@ has synthesized yet, and the flow takes minutes to answer for it.
 | `bridge_5x3_channels` | 19,243 | 16,932 | 0 | -2.66 | 79.0 | 16 |
 | `bridge_mix_a` | 6,456 | 5,697 | 0 | -0.29 | 97.1 | 16 |
 
-: Table 5.11: Measured utilization and timing, Artix-7 100T -1 at 10 ns (HAS 6.4 flow)
+: Measured utilization and timing, Artix-7 100T -1 at 10 ns (HAS 6.4 flow)
 
 | Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
 |---|---:|---:|---:|---:|---:|---:|
@@ -65,7 +65,7 @@ has synthesized yet, and the flow takes minutes to answer for it.
 | `bridge_5x3_channels` | 19,035 | 16,932 | 0 | -0.13 | 147.1 | 17 |
 | `bridge_mix_a` | 6,375 | 5,697 | 0 | +0.53 | 162.9 | 8 |
 
-: Table 5.12: Measured utilization and timing, Kintex-7 325T -2 at 6.667 ns
+: Measured utilization and timing, Kintex-7 325T -2 at 6.667 ns
 
 Fmax is an estimate from the register-to-register slack at the constrained
 period; the I/O budget and the reading of each row are in HAS 6.4. The
@@ -85,7 +85,7 @@ is the register that splits it: `bridge_2x2_rw_qos` at -2.91 ns becomes
 | Registered crossbar (`xbar_pipeline`) | one 2-deep skid per slave-side channel |
 | CDC slave port (`cdc`) | one async FIFO per channel of that port |
 
-: Table 5.13: Resource Scaling
+: Resource Scaling
 
 Block RAM and DSP usage are zero in every configuration measured: the
 per-slave bridge_id FIFOs and the CAM are LUT arrays, and there is no
@@ -115,7 +115,7 @@ across adversarial patterns is tracked as bridge vault TASK-014.
 | Pipeline stages | +registers | +frequency |
 | Wider data paths | +routing | +throughput |
 
-: Table 5.14: Performance/Resource Trade-offs
+: Performance/Resource Trade-offs
 
 ## References
 

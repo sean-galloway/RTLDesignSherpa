@@ -239,6 +239,8 @@ its tracker:
 | AXI4 / AXI5, multi-master (or `enable_ooo`) | `bridge_cam`, 16 deep, duplicates allowed | by the returned BID / RID, same cycle |
 | single master, apb / axil / wb shim, subtractive | in-order FIFO, 16 deep | FIFO head |
 
+: Bridge ID and Response Routing
+
 There is no timestamp or transaction-type field in the CAM, no timeout and
 no registered lookup.
 

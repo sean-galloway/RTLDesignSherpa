@@ -50,6 +50,8 @@ Every validator raises `ValidationError(message)` on failure. `bridge_generator.
 | Overlapping slave windows | `validate_address_map` | `Address overlap detected` |
 | `wr` master to `rd` slave | `validate_master_slave_compatibility` | `cannot connect to read-only slave` |
 
+: Examples of validation failures
+
 ## Adding a new validation rule
 
 To add a rule:

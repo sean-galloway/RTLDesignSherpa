@@ -37,7 +37,7 @@ Bridge presents **slave interfaces** to upstream masters. Each master port inclu
 | AR | ARVALID, ARREADY, ARADDR, ARID, ARLEN, ARSIZE, ARBURST, ... | Input |
 | R | RVALID, RREADY, RDATA, RID, RRESP, RLAST | Output |
 
-: Table 4.9: Master-Side Interface Channels
+: Master-Side Interface Channels
 
 ### Slave-Side Interfaces
 
@@ -51,7 +51,7 @@ Bridge presents **master interfaces** to downstream slaves. Each slave port incl
 | AR | ARVALID, ARREADY, ARADDR, ARID, ARLEN, ARSIZE, ARBURST, ... | Output |
 | R | RVALID, RREADY, RDATA, RID, RRESP, RLAST | Input |
 
-: Table 4.10: Slave-Side Interface Channels
+: Slave-Side Interface Channels
 
 ## Signal Naming Convention
 
@@ -147,6 +147,8 @@ When monitor collection is enabled (via the bridge TOML `variants` list includin
 | `m_axil_mon_*` | AXIL Master | 32-bit addr, 64-bit data | Output | Monitor packet write interface for bulk trace capture |
 | `stream_irq` | logic | 1-bit | Output | Interrupt signal (asserted when error FIFO has records) |
 
+: Monitor Bus Output
+
 Per-port collection comes from the `axi4_master_{rd,wr}_monlite` and `axi4_slave_{rd,wr}_monlite` wrappers (`axi_monitor_lite`; the full `_mon` wrappers are no longer used in generated bridges, 2026-09-26).
 
 **Packet Format:** the canonical 128-bit packet layout and field definitions live in `docs/markdown/rtl-amba/includes/ocelus_package_spec.md` — see that reference for bit-field descriptions, protocol-type enumerations, and packet-type codes.
@@ -178,7 +180,7 @@ Transfer occurs when: VALID && READY
 | 2'b10 | WRAP | Wrapping at boundary |
 | 2'b11 | Reserved | Not used |
 
-: Table 4.11: Supported Burst Types
+: Supported Burst Types
 
 ### Burst Length
 

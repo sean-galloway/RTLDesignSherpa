@@ -1,0 +1,46 @@
+// Delta mesh cell internal data path, micro-architecture (MAS 1.0 planned).
+// Drawn for one input port p and one output port q; all 7 ports repeat.
+// House style: vault/handbook/authoring/block-diagrams.md
+digraph delta_mesh_cell_block {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
+           label="delta_mesh_cell internal data path - one of 7 input ports (neighbor ±X/Y/Z + local); 2 VCs per port; credits and grants are dashed sideband"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    in_port [label="Input port p\n(one of 7)", fillcolor="white", group=P];
+    vc0 [label="VC0 buffer\nescape / DOR", group=P];
+    vc1 [label="VC1 buffer\nadaptive / QoS", group=P];
+    { rank=same; in_port; vc0; vc1; }
+    in_port -> vc0 [xlabel="flit (VC0)"];
+    in_port -> vc1 [xlabel="flit (VC1)"];
+
+    route [label="Route Compute\n table lookup or\nsource-route decode", group=P];
+    vc0 -> route [xlabel="head flit TUSER"];
+    vc1 -> route [xlabel="head flit TUSER"];
+
+    vc_alloc [label="VC Allocator\narbiter_matrix per output",
+              shape=invtrapezium, width=4.0, height=0.7, group=P];
+    route -> vc_alloc [xlabel="route request\n(output, VC)"];
+
+    sw_alloc [label="Switch Allocator\niSLIP / round-robin",
+              shape=invtrapezium, width=4.0, height=0.7, group=P];
+    vc_alloc -> sw_alloc [xlabel="VC grant"];
+
+    xb [label="Crossbar\n7 x 7 (input ports to outputs)", group=P];
+    sw_alloc -> xb [xlabel="switch grant"];
+
+    bar [label="Output port q\n(one of 7)\nm_axis_tdata/valid/ready + header sideband",
+         fillcolor="white", width=11];
+    xb -> bar [xlabel="flit + sideband", penwidth=1.8];
+
+    cred_in  [label="credit in\nfrom downstream", fillcolor="white", style=dashed, group=C];
+    cred_ctr [label="Credit Counter\nper VC", style=dashed, group=C];
+    cred_out [label="credit out\nto upstream", fillcolor="white", style=dashed, group=C];
+    { rank=same; cred_in; cred_ctr; cred_out; }
+    cred_in -> cred_ctr [style=dashed, xlabel="returned"];
+    cred_ctr -> vc0 [style=dashed, constraint=false, xlabel="VC0 credits"];
+    cred_ctr -> vc1 [style=dashed, constraint=false, xlabel="VC1 credits"];
+    cred_ctr -> cred_out [style=dashed, xlabel="consumed"];
+}

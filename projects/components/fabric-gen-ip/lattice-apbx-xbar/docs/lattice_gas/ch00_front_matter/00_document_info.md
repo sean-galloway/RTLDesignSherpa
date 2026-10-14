@@ -32,12 +32,16 @@
 | Status | Released |
 | Classification | Open Source - MIT License |
 
+: Document Properties
+
 ## Revision History
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0 | 2026-10-12 | RTL Design Sherpa | Initial GAS release — verified against `apbx_xbar_generator.py`, `generate_xbars.py`, and emitted fixtures in `rtl/`. |
 | 1.2 | 2026-10-13 | seang | Rebrand: component codename **lattice**, directory `lattice-apbx-xbar`; book titles and document number (LATTICE-GAS-001) updated; RTL module names unchanged (`apbx_xbar_*`) |
+
+: Document Revision History
 
 ## Document Purpose
 

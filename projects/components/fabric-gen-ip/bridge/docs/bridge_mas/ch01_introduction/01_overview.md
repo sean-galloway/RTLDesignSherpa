@@ -39,7 +39,7 @@ Bridge supports three AMBA protocols:
 | AXI4-Lite | Register access | Protocol downgrade |
 | APB | Low-speed peripherals | Full conversion |
 
-: Table 1.1: Supported Protocols
+: Supported Protocols
 
 ### Channel-Specific Masters
 
@@ -51,7 +51,7 @@ Masters that only read or only write don't pay for the channels they never use:
 | Write-only (wr) | AW, W, B | ~60% | DMA write engine |
 | Read-only (rd) | AR, R | ~40% | DMA read engine |
 
-: Table 1.2: Channel-Specific Master Types
+: Channel-Specific Master Types
 
 ### Automatic Converters
 
@@ -115,4 +115,4 @@ One master's path to one slave; every master and every slave repeats it. Write d
 | Ch 6 | Generated RTL |
 | Ch 7 | Verification |
 
-: Table 1.3: Document Organization
+: Document Organization

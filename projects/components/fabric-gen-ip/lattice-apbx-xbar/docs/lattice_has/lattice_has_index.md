@@ -77,9 +77,9 @@
 
 ## Related Documentation
 
-- **[Lattice MAS](../lattice_mas/lattice_mas_index.md)** - Micro-Architecture Specification (detailed block-level)
-- **[PRD.md](../../PRD.md)** - Product requirements and overview
-- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
+- **[Lattice MAS](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/docs/lattice_mas/lattice_mas_index.md)** - Micro-Architecture Specification (detailed block-level)
+- **[PRD.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/PRD.md)** - Product requirements and overview
+- **[CLAUDE.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/CLAUDE.md)** - AI development guide
 
 ---
 

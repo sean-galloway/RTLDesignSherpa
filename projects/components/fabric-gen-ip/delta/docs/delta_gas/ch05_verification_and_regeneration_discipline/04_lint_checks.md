@@ -33,6 +33,8 @@ The generated RTL must pass the project's lint flow.
 | Latch inference | All `always_comb` blocks assign all outputs; no incomplete cases. |
 | Uninitialized logic | Default assignments precede conditional overrides in every mux. |
 
+: Lint Concerns and Mitigations
+
 ## Synthesis smoke test
 
 Run a synthesis tool on the 2×4 variant after any generator change. The expected result is clean elaboration with no combinational loops and no latch inference.

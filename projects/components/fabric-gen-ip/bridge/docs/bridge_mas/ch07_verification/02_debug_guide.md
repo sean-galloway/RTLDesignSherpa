@@ -59,6 +59,10 @@ Waveform Signal Groups:
 
 ### Timing Analysis
 
+#### Waveform 7.1: Expected Transaction Timing
+
+The timing diagram below illustrates a basic write-transaction handshake.
+
 ```wavedrom
 { "signal": [
   { "name": "aclk",    "wave": "p....." },
@@ -109,7 +113,7 @@ async def test_with_debug(dut):
 | Outstanding tracking | `aw_trk_wptr` / `aw_trk_rptr`, `ar_trk_*` (in the master adapter) | Depth of the in-order tracking FIFO |
 | Target gating | `aw_gate_ok` / `ar_gate_ok`, `r_aw_active_target` (adapter) | Why a new AW/AR to a different slave is being held off |
 
-: Table 7.3: Debug Signals That Exist
+: Debug Signals That Exist
 
 There is no outstanding-count output and no FSM state vector -- the arbiters
 are two-state (`locked` / not) rather than an encoded FSM, so `_locked` plus

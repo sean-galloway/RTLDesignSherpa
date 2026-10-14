@@ -38,6 +38,8 @@ A complete Delta DV suite should cover:
 | Out-of-range TDEST | Formal assertion fires; simulation drops the request. |
 | Performance counters | Counters increment on `valid && ready && tlast`. |
 
+: DV Test Scenarios
+
 ## Running the suite
 
 ```bash

@@ -95,6 +95,8 @@ Derived, not configured (emitted into `<bridge>_pkg.sv`):
 | `ID_PREFIX_WIDTH` | `$clog2(NUM_MASTERS)`, 0 for one master | 1 |
 | `XBAR_ID_WIDTH` | `MASTER_ID_WIDTH + ID_PREFIX_WIDTH` | 5 |
 
+: Parameters
+
 The tracker choice is fixed by the generator (`SlaveAdapterGenerator.use_cam`):
 `bridge_cam` when the slave sets `enable_ooo`, or when the bridge has more
 than one master and the slave is a real `axi4` / `axi5` port; an in-order
@@ -188,6 +190,8 @@ The master adapter then returns the low `MASTER_ID_WIDTH` bits
 | `DEPTH` | 16 |
 | `ALLOW_DUPLICATES` | 1 (same ID may be outstanding more than once; oldest freed first) |
 | `PIPELINE_EVICT` | 0 (lookup result in the same cycle) |
+
+: Content Addressable Memory: bridge_cam
 
 Operation:
 

@@ -33,11 +33,15 @@
 | Status | Released |
 | Classification | Open Source - MIT License |
 
+: Document information
+
 ## Revision History
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0 | 2026-10-12 | RTL Design Sherpa | Initial GAS release — generator code paths verified against `bridge_generator.py`, `bridge_pkg/config.py`, `bridge_pkg/config_validator.py`, `bridge_pkg/config_loader.py`, and emitted artifacts in `rtl/generated/bridge_mix_e/`. |
+
+: Revision history
 
 ## Document Purpose
 

@@ -167,6 +167,8 @@ list for themselves**, and each needed telling:
 | crossbar | its own per-slave `_to_` terms, from address RANGES | the term must be `!(other ranges)`; a full-span slave otherwise reduces to `1'b1` |
 | cfg regblock | per-slave configuration registers | exclusion -- it has no monitor wrapper to configure |
 
+: Address decoder responsibilities
+
 The crossbar case is the instructive one. Its decode is derived from each
 slave's address range independently of the adapter's chain, so a full-span
 catch-all became `wire cpu_32b_aw_to_subtractive = 1'b1;` -- matching every

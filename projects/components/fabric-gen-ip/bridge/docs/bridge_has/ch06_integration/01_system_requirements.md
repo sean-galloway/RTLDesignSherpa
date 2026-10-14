@@ -35,7 +35,7 @@ Everything your system owes the bridge before it will do its job: one clean cloc
 | Clock quality | Low jitter, stable frequency |
 | Clock distribution | Must reach all Bridge ports |
 
-: Table 6.1: Clock Requirements
+: Clock Requirements
 
 ### Reset Infrastructure
 
@@ -45,7 +45,7 @@ Everything your system owes the bridge before it will do its job: one clean cloc
 | Reset synchronization | External synchronizer recommended |
 | Reset distribution | Must reach all Bridge ports |
 
-: Table 6.2: Reset Requirements
+: Reset Requirements
 
 ### Power
 
@@ -54,7 +54,7 @@ Everything your system owes the bridge before it will do its job: one clean cloc
 | Power domains | Single domain (no power gating) |
 | Voltage | FPGA/ASIC process-dependent |
 
-: Table 6.3: Power Requirements
+: Power Requirements
 
 ## Parameters
 
@@ -66,7 +66,7 @@ Everything your system owes the bridge before it will do its job: one clean cloc
 | Range alignment | Power-of-2 recommended |
 | Coverage | Gaps are permitted: an address in no slave range is claimed by the internal subtractive slave and answered with DECERR (see 4.5). It is still a fault -- it is reported, not tolerated. |
 
-: Table 6.4: Address Map Requirements
+: Address Map Requirements
 
 ### Connectivity
 
@@ -75,7 +75,7 @@ Everything your system owes the bridge before it will do its job: one clean cloc
 | Matrix completeness | All masters must access at least one slave |
 | Reachability | Consider traffic patterns for performance |
 
-: Table 6.5: Connectivity Requirements
+: Connectivity Requirements
 
 ## Ports
 
@@ -108,7 +108,7 @@ Slaves connecting to Bridge must:
 | Input hold | Meet FPGA/ASIC requirements |
 | Clock-to-output | Per process characterization |
 
-: Table 6.6: Timing Requirements
+: Timing Requirements
 
 ### Recommended Margins
 
@@ -118,7 +118,7 @@ Slaves connecting to Bridge must:
 | Hold margin | Positive | No hold violations |
 | Clock uncertainty | Include in constraints | PLL/MMCM jitter |
 
-: Table 6.7: Recommended Timing Margins
+: Recommended Timing Margins
 
 ## Testing
 

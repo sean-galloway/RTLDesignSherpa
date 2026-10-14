@@ -22,6 +22,8 @@
 
 # Tree Primitives
 
+> **Note** Tree generation was retired on 2026-10-12. The `delta_merge_2to1`, `delta_fanout_1toN`, and `delta_fanin_Nto1` scaffolding remains in the tree for reference but is not part of the regression baseline. Hierarchy naming going forward follows the mesh design spec: cell / tile / confluence / fabric.
+
 Delta includes scaffolding for tree topologies in addition to the flat crossbar. These primitives are generated separately and are intended for future hierarchical switches.
 
 ## `delta_split_1to2`

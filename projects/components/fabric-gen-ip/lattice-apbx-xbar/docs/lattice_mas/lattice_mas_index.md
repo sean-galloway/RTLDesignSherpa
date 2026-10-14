@@ -127,6 +127,8 @@ Every diagram in this specification is checked in as both source and rendered ou
 | apbx_xbar_2to4 | 2×4 | Typical SoC with CPU+DMA |
 | apbx_xbar_2to2_mixed | 2×2 | Mixed APB4/APB5 (m0=APB4, m1=APB5; s0=APB5, s1=APB4) |
 
+: Pre-Generated Variants
+
 ### Design Philosophy
 
 **Proven Building Blocks:**
@@ -150,13 +152,13 @@ Every diagram in this specification is checked in as both source and rendered ou
 
 ### Companion Specifications
 
-- **[Lattice HAS](../lattice_has/lattice_has_index.md)** - Hardware Architecture Specification (high-level)
+- **[Lattice HAS](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/docs/lattice_has/lattice_has_index.md)** - Hardware Architecture Specification (high-level)
 
 ### Project-Level
 
-- **PRD.md:** [../../PRD.md](../../PRD.md) - Complete product requirements document
-- **CLAUDE.md:** [../../CLAUDE.md](../../CLAUDE.md) - AI assistant integration guide
-- **README.md:** [../../README.md](../../README.md) - Quick start guide
+- **PRD.md:** [../../PRD.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/PRD.md) - Complete product requirements document
+- **CLAUDE.md:** [../../CLAUDE.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/CLAUDE.md) - AI assistant integration guide
+- **README.md:** [../../README.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/README.md) - Quick start guide
 
 ### Test Infrastructure
 

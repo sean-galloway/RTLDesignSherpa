@@ -44,7 +44,7 @@ APB is where the slow things live: UARTs, GPIO, configuration registers. This pa
 | PSLVERR | 1 | Input | Slave error |
 | PREADY | 1 | Input | Slave ready |
 
-: Table 4.1: APB Signal Definitions
+: APB Signal Definitions
 
 ### Signal Naming
 
@@ -83,7 +83,7 @@ When an AXI4 master accesses an APB slave, the bridge:
 | 1 (2 beats) | 2 transfers |
 | N (N+1 beats) | N+1 transfers |
 
-: Table 4.2: AXI4 to APB Burst Conversion
+: AXI4 to APB Burst Conversion
 
 ### Error Mapping
 
@@ -92,7 +92,7 @@ When an AXI4 master accesses an APB slave, the bridge:
 | 0 (OK) | 2'b00 (OKAY) |
 | 1 (Error) | 2'b10 (SLVERR) |
 
-: Table 4.3: APB to AXI4 Error Mapping
+: APB to AXI4 Error Mapping
 
 ## Timing
 

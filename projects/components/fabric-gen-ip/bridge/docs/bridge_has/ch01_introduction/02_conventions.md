@@ -33,7 +33,7 @@
 | Channel | AXI4 communication path (AW, W, B, AR, R) |
 | Converter | Logic that transforms width or protocol |
 
-: Table 1.1: Common Terminology
+: Common Terminology
 
 ## Signal Naming
 
@@ -48,7 +48,7 @@ Bridge uses consistent signal prefixes — learn them once and every generated i
 | `cfg_*` | Configuration signals |
 | `dbg_*` | Debug signals |
 
-: Table 1.2: Signal Naming Prefixes
+: Signal Naming Prefixes
 
 ## Diagrams
 
@@ -66,7 +66,7 @@ Block diagrams in this specification use these symbols:
 | Dashed box | Optional or build-dependent block |
 | Trapezium, wide edge up | A many-to-one pick (the per-slave arbiter): contenders enter the wide edge |
 
-: Table 1.3: Block Diagram Symbols
+: Block Diagram Symbols
 
 ## Code Examples
 
@@ -90,4 +90,4 @@ Parameter tables throughout the spec use this format:
 | NUM_MASTERS | int | 1-32 | 2 | Number of master ports |
 | NUM_SLAVES | int | 1-256 | 2 | Number of slave ports |
 
-: Table 1.4: Parameter Format Example
+: Parameter Format Example

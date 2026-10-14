@@ -1,0 +1,19 @@
+// Delta mesh placement hierarchy (HAS 7.1). House style: vault/handbook/authoring/block-diagrams.md
+// Topology/containment map: undirected, splines=line.
+digraph delta_mesh_hierarchy {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.80", splines=line, labelloc=t,
+           label="Delta mesh placement hierarchy\nnames group cells and bound table size; no wrapper RTL between levels"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.15,0.08"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    fabric [label="Fabric\n4×4×K confluences\nstacked in Z", fillcolor="white", width=2.6];
+    conf   [label="Confluence\n4×4×1 = 16 cells\n(rapids at boundary local ports)", fillcolor="white", width=2.6];
+    tile   [label="Tile\n2×2×1 = 4 cells\n(routing/config grouping)", fillcolor="white", width=2.6];
+    cell   [label="Cell\ndelta_mesh_cell\n6 neighbor + 1 local port", fillcolor="white", width=2.6];
+
+    fabric -> conf [label="4×4×K"];
+    conf   -> tile [label="4 tiles"];
+    tile   -> cell [label="4 cells"];
+}

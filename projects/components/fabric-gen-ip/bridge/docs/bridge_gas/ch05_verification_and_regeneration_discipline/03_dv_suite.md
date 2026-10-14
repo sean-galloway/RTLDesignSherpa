@@ -70,6 +70,8 @@ Each generated wrapper exports `REG_LEVEL` cells:
 | FUNC | 144 | Functional depth |
 | FULL | 216 | Stress depth |
 
+: Test levels
+
 The TB reads the depth profile from `dv/tbclasses/bridge_levels.py`.
 
 ## Verification coverage

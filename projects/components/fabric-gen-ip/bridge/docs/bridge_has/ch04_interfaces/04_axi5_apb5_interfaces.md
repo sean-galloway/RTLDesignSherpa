@@ -87,6 +87,8 @@ off internally.
 | `mte` | `aw/artagop[1:0]`, `wtag`, `wtagupdate`, `btagmatch[1:0]`, `rtag` (tag buses are 4 bits per 16 bytes of data, `wtagupdate` one bit per 16 bytes; IHI 0022L A12.2 has no `AWTAG`, `BTAG` or `RTAGMATCH`, and `BTAGMATCH` encodes Table A12.14: `00` none, `01` separate, `10` fail, `11` pass) | **Connectivity-gated**; 128-bit ports or wider (bridge TASK-007, was BRIDGE-018) |
 | `chunking` | `archunken`, `rchunkv`, `rchunknum[3:0]`, `rchunkstrb` (one bit per 128 bits of data) | Droppable sideband; 128-bit ports or wider (bridge TASK-007, was BRIDGE-018) |
 
+: AXI5 Port Surface
+
 ### APB5 Slave Surface
 
 An `apb5` slave exposes the APB4 requester surface plus the APB5 sideband,
@@ -96,6 +98,8 @@ mirroring `rtl/amba/apb5/apb5_slave.sv` pin-for-pin:
 |---|---|
 | Requester → completer | APB4 set + `PAUSER`, `PWUSER` (driven `'0` — nothing upstream sources them) + `PWAKEUP` (below) |
 | Completer → requester | APB4 set + `PRUSER`, `PBUSER` (accepted and terminated) |
+
+: APB5 Slave Surface
 
 `PWAKEUP` is a **requester output** (IHI 0024E 3.7.2, Table 3-7). The bridge
 port used to take it as an input, following a library convention that had the
@@ -282,5 +286,7 @@ B's `AWUSER`.
 | axi5 | sideband drops (warning) | **native sideband** when width-matched | sideband drops (warning) | forwarded where AXI4-expressible |
 | axil / axil5 | single-beat AXI4 | single-beat AXI4 | via shim | ID and `user` forwarded end to end (axil5 master); rest tied |
 | apb / apb5 | single-beat AXI4 | single-beat AXI4 | via shim (APB in, APB out) | `PAUSER[0]` visible as `awuser` (apb5 master) |
+
+: Interop Matrix
 
 Connectivity-gated features tighten the axi5→axi5 cell: they *require* it.

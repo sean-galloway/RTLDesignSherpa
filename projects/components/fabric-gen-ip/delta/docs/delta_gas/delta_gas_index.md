@@ -26,16 +26,16 @@
 
 **Version:** 1.0
 **Date:** 2026-10-12
-**Purpose:** Detailed documentation of the Delta AXI-Stream crossbar code generator — how to invoke it, how to configure it, how it emits RTL, and how to extend it safely.
+**Purpose:** Detailed documentation of the Delta AXI-Stream fabric generator — flat mode is implemented, mesh mode is planned per the 2026-10-13 design spec, and tree mode is retired — covering how to invoke it, how to configure it, how it emits RTL, and how to extend it safely.
 
 ---
 
 ## Related Modules
 
-- **[Delta HAS](../delta_has/delta_has_index.md)** - Hardware Architecture Specification
-- **[Delta MAS](../delta_mas/delta_mas_index.md)** - Micro-Architecture Specification
-- **[PRD.md](../../PRD.md)** - Product requirements
-- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
+- **[Delta HAS](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/delta/docs/delta_has/delta_has_index.md)** - Hardware Architecture Specification
+- **[Delta MAS](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/delta/docs/delta_mas/delta_mas_index.md)** - Micro-Architecture Specification
+- **[PRD.md](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/PRD.md)** - Product requirements
+- **[CLAUDE.md](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/CLAUDE.md)** - AI development guide
 
 ---
 
@@ -90,5 +90,5 @@
 
 ---
 
-**Last Updated:** 2026-10-12
+**Last Updated:** 2026-10-14
 **Maintained By:** RTL Design Sherpa Project

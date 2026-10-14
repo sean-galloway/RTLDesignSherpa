@@ -41,7 +41,7 @@ One master driving one slave — no contention, no conversion:
 | 256-bit | 100 MHz | 3.2 GB/s |
 | 512-bit | 100 MHz | 6.4 GB/s |
 
-: Table 5.1: Peak Throughput by Data Width
+: Peak Throughput by Data Width
 
 ### Formula
 
@@ -65,7 +65,7 @@ so a change that costs bandwidth fails there instead of ageing this table.
 | -- per-master share of the contended window | W at each master port | **0.499 / 0.501** | 128 bursts each (0.475 / 0.525 at 8 bursts: round-robin, window-length effects only) |
 | Two masters to two different slaves | W at both slave ports | **1.78-1.80** | two independent paths; neither slows the other |
 
-: Table 5.1a: Measured throughput, direct 32-bit AXI4 paths
+: Measured throughput, direct 32-bit AXI4 paths
 
 So the formula above holds for this fabric: a saturated port moves one beat
 per cycle, two masters on one port split it evenly, and paths to different
@@ -85,7 +85,7 @@ vs. offered load) is tracked as bridge vault TASK-014.
 | Protocol conversion | 2+ cycles for APB | Use AXI4 for high-bandwidth |
 | Response routing | Minimal (pipelined) | N/A |
 
-: Table 5.2: Factors Affecting Throughput
+: Factors Affecting Throughput
 
 > **The width-conversion figure is not measured.** "1-cycle penalty per
 > direction" has no source: the converters (`axi_data_upsize`,
@@ -128,7 +128,7 @@ All 4 masters accessing Slave 0:
 | 16-beat burst | 1 cycle address + 16 cycle data | 94% |
 | 256-beat burst | 1 cycle address + 256 cycle data | 99.6% |
 
-: Table 5.3: Burst Efficiency Comparison
+: Burst Efficiency Comparison
 
 ### Width Conversion Impact
 
@@ -163,7 +163,7 @@ Latency: +7 cycles (sequential output)
 | Pipeline depth | 1+ | 1 |
 | Peak throughput | DATA_WIDTH/cycle | DATA_WIDTH/2 cycles |
 
-: Table 5.4: AXI4 vs APB Protocol Impact
+: AXI4 vs APB Protocol Impact
 
 ## Design Notes
 

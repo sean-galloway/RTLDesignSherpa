@@ -73,6 +73,8 @@ Each arbiter is a simple 2-state FSM. Round-robin access keeps any master from s
 | IDLE | GRANT_ACTIVE | `\|aw_request_matrix[s]\| > 0` | At least one master requesting access |
 | GRANT_ACTIVE | IDLE | `m_axi_awvalid[s] && m_axi_awready[s]` | AW handshake complete |
 
+: AW arbiter FSM transitions
+
 ## AR Channel Arbiter FSM
 
 **Purpose:** Arbitrate read address requests from multiple masters to a single slave
@@ -111,6 +113,8 @@ Each arbiter is a simple 2-state FSM. Round-robin access keeps any master from s
 |---|---|---|---|
 | IDLE | GRANT_ACTIVE | `\|ar_request_matrix[s]\| > 0` | At least one master requesting read |
 | GRANT_ACTIVE | IDLE | `m_axi_arvalid[s] && m_axi_arready[s]` | AR handshake complete |
+
+: AR arbiter FSM transitions
 
 ## Round-Robin Arbitration Algorithm
 
@@ -301,6 +305,8 @@ Result: Read and write happen in parallel - no blocking
 | **Read/Write Indep** | Yes (2 FSMs/slave) | N/A | Yes |
 | **Complexity** | Low | Minimal | High |
 | **Predictability** | High (round-robin) | N/A | Medium (priority-based) |
+
+: Arbiter comparison
 
 **Simplicity Trade-off:**
 

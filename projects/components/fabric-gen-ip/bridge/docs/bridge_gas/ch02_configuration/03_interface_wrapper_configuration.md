@@ -33,6 +33,8 @@ The optional per-port `interface` table selects a timing-isolation wrapper and i
 | `axi4_master_mon` | `_monlite` variant of the master wrapper |
 | `axi4_slave_mon` | `_monlite` variant of the slave wrapper |
 
+: interface.type values
+
 The `_monlite` wrappers are used unconditionally since 2026-09-26; the old non-lite wrappers were retired.
 
 ## `interface.skid_depths` table
@@ -44,6 +46,8 @@ The `_monlite` wrappers are used unconditionally since 2026-09-26; the old non-l
 | `aw` | int | from defaults | 2..8 | Write address skid depth. |
 | `w` | int | from defaults | 2..8 | Write data skid depth. |
 | `b` | int | from defaults | 2..8 | Write response skid depth. |
+
+: interface.skid_depths table
 
 Example:
 

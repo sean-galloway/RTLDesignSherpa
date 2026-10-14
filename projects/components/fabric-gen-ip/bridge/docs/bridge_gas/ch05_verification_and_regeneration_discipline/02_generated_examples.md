@@ -36,6 +36,8 @@ The checked-in `rtl/generated/` directory contains a variety of fixtures that se
 | `bridge_1x2_rd_regblock_mon` | 1 | 2 | `use_cfg_regblock=true`, `"mon"` variant. |
 | `bridge_2x2_rw_qos_pipe` | 2 | 2 | `arbitration="qos"`, `xbar_pipeline=true`. |
 
+: Representative fixtures
+
 ## How to verify a regeneration
 
 After `make all`, every fixture in `rtl/generated/` should be byte-identical to the checked-in version **if** the generator and inputs have not changed. Because the generated files carry a generation-date-free header, a clean regeneration should not introduce spurious diffs.

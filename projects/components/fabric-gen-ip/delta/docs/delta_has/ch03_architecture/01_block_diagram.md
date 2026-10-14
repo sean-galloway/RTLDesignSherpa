@@ -71,7 +71,7 @@ With `--amba5`, each master's payload check bits (`TDATACHK` ... `TUSERCHK`) are
 | DEST_WIDTH | auto (`clog2(NUM_SLAVES)`) | Sets TDEST width |
 | ID_WIDTH | auto (`clog2(NUM_MASTERS)`) | Sets TID width |
 
-: Table 3.1: Topology Parameter Scaling
+: Topology Parameter Scaling
 
 ### Resource Scaling
 

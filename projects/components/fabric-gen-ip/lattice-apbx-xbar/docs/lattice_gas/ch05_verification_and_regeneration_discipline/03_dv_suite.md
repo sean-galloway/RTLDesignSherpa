@@ -35,6 +35,8 @@ The component-level DV suite lives in `dv/tests/` and uses cocotb.
 | `test_apbx_xbar_2to2_mixed.py` | APB4/APB5 sideband conversion. |
 | `test_apbx_xbar_timing.py` | PREADY backpressure and timing. |
 
+: DV Test List
+
 ## Running the suite
 
 ```bash

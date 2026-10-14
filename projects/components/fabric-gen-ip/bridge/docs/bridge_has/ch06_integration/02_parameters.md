@@ -40,7 +40,7 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 | ID_WIDTH | int | 1-16 | 4 | Master ID width |
 | USER_WIDTH | int | 1-16 | 1 | User signal width |
 
-: Table 6.8: Bridge Core Parameters
+: Bridge Core Parameters
 
 ### Registered Crossbar (`xbar_pipeline`)
 
@@ -50,19 +50,19 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 | `arbitration` | `"rr"` / `"qos"` | `"rr"` | Per-slave arbitration policy. `"qos"` grants the highest `AxQOS` plus aging (MAS 2.3, Per-Slave Request Arbitration); it decides among requests pending at the arbiter, so it shows at a slave that backpressures AW, not at one that accepts every AW on arrival; equals share round-robin. |
 | `qos_aging_shift` | int 0..7 | 4 | With `"qos"`: a waiting request gains one priority level every `2**shift` cycles, so the worst wait for a QoS-0 request is `15 * 2**shift` cycles. |
 
-: Table 6.8a: Crossbar options (bridge TASK-006, was BRIDGE-017)
+: Crossbar options (bridge TASK-006, was BRIDGE-017)
 
 | TOML key (`[[bridge.slaves]]`) | Type | Default | Effect |
 |---|---|---|---|
 | `cdc` | bool | `false` | `true` gives this AXI4 slave port its own clock: `<name>_aclk` / `<name>_aresetn` on the top, `axi4_cdc_{wr,rd}` between the adapter's timing wrapper and the port (HAS 4.5a). Slave ports, `protocol = "axi4"` only. |
 
-: Table 6.8b: CDC slave port option (bridge TASK-006, was BRIDGE-017)
+: CDC slave port option (bridge TASK-006, was BRIDGE-017)
 
 | TOML key (`[bridge]`) | Type | Default | Effect |
 |---|---|---|---|
 | `mon_preset` | `"lite"` (also accepted: `"error_only"` / `"functional"` / `"all"` / `"none"`) | `"lite"` | Accepted for compatibility; since 2026-09-26 every monitored port builds `axi_monitor_lite` through the `*_monlite` wrapper (error, timeout, completion and active-count threshold packets, same monbus, about a fifth of the full monitor's LUTs), so the cone presets no longer select hardware. Which packets a port emits is the runtime `cfg_*_enable` pins. To remove a monitor use `use_monitor = false` on the port or `use_no_monitors = true` on the bridge. `mon_add` / `mon_remove` are validated and ignored. |
 
-: Table 6.8c: Monitor preset
+: Monitor preset
 
 ### Derived Parameters
 
@@ -76,7 +76,7 @@ The generator works these out from the core set — you never write them yoursel
 | XBAR_ID_WIDTH | MASTER_ID_WIDTH + ID_PREFIX_WIDTH | 4 + 2 = 6 bits |
 | STRB_WIDTH | DATA_WIDTH / 8 | 64b = 8 strobes |
 
-: Table 6.9: Derived Parameters
+: Derived Parameters
 
 > `BRIDGE_ID_WIDTH` sizes the sideband master index stored in each slave
 > adapter's response tracker. `XBAR_ID_WIDTH` is the AXI ID width inside the
@@ -99,7 +99,7 @@ Each master and slave port carries its own field set in the configuration file.
 | id_width | int | Port ID width |
 | use_monitor | bool | Optional, defaults to `true`. Per-port monitor wrappers. Only meaningful on a `mon` variant; on a `no` variant there is nothing to disable. |
 
-: Table 6.10: Master Port Configuration
+: Master Port Configuration
 
 #### Slave Port Configuration
 
@@ -114,7 +114,7 @@ Each master and slave port carries its own field set in the configuration file.
 | addr_range | hex | Address range size (must be multiple of 4K) |
 | use_monitor | bool | Optional, defaults to `true`. Per-port monitor wrappers. Only meaningful on a `mon` variant; on a `no` variant there is nothing to disable. |
 
-: Table 6.11: Slave Port Configuration
+: Slave Port Configuration
 
 #### Slave Address Window Rules (MANDATORY)
 
@@ -157,6 +157,8 @@ When monitor collection is desired, the bridge TOML configuration includes:
 |-------|------|-------------|
 | variants | list | List of bridge variants to generate. Supported: `["no"]` (no monitor), `["mon"]` (monitor only), `["no", "mon"]` (both). Default: `["no"]` |
 
+: Top-Level Monitor Configuration
+
 #### Monitor Identifiers
 
 Each monitored port gets a unique `(UNIT_ID, AGENT_ID)` pair for identification in monitor packets:
@@ -191,7 +193,7 @@ The generator checks every configuration against these rules:
 | Connectivity | Master with no slaves |
 | ID width | Insufficient for masters |
 
-: Table 6.12: Generator Validation Checks
+: Generator Validation Checks
 
 #### Runtime Validation
 

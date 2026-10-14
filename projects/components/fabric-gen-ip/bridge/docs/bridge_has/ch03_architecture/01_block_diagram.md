@@ -80,7 +80,7 @@ One per slave (`<slave>_adapter`), delivers transactions to the downstream slave
 | DATA_WIDTH | 32-512 | Linear data path growth |
 | ID_WIDTH | 1-16 | Scales the ID wires (slave side carries {BRIDGE_ID, id}) and the tracker CAM tags |
 
-: Table 3.1: Topology Parameter Scaling
+: Topology Parameter Scaling
 
 ### Resource Scaling
 

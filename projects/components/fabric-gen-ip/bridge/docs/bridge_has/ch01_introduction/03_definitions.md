@@ -57,7 +57,7 @@
 | TOML | Tom's Obvious Minimal Language |
 | W | AXI4 Write Data channel |
 
-: Table 1.5: Acronyms and Abbreviations
+: Acronyms and Abbreviations
 
 ## Definitions
 

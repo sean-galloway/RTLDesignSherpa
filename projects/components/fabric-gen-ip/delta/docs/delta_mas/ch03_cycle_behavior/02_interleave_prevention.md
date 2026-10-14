@@ -51,7 +51,7 @@ Suppose M0 and M1 both target S0 and both have multi-beat packets:
 | 2 | M0 beat 1 | M0 beat 2 (TLAST) |
 | 3 | M1 beat 1 (TLAST) | M1 beat 0 |
 
-: Table 3.2: Interleave Prevention
+: Interleave Prevention
 
 Delta prevents the interleaved case by holding M0's grant until its `TLAST`.
 

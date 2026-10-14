@@ -37,7 +37,7 @@ One clock, one reset. The AXI fabric runs in a single synchronous domain — the
 | Frequency | Operating frequency | Design-dependent |
 | Duty cycle | Clock duty cycle | 40-60% typical |
 
-: Table 4.4: Clock Requirements
+: Clock Requirements
 
 ### Reset
 
@@ -45,7 +45,7 @@ One clock, one reset. The AXI fabric runs in a single synchronous domain — the
 |--------|-------------|----------|
 | aresetn | Async reset | Active-low |
 
-: Table 4.5: Reset Signal
+: Reset Signal
 
 ## Functional Description
 
@@ -75,7 +75,7 @@ runs entirely on its own clock, at one beat per cycle of the slower domain.
 | `<slave>_aclk` | Input | the CDC slave port's clock |
 | `<slave>_aresetn` | Input | its active-low reset; release together with `aresetn` (a one-sided reset is not safe on the async FIFOs -- handbook `design/cdc.md`) |
 
-: Table 4.5a: CDC slave port clock pins (`cdc = true`)
+: CDC slave port clock pins (`cdc = true`)
 
 Limits: slave ports only, `protocol = "axi4"` (the crossing carries the AXI4
 signal set; AXI5 sideband and the APB/AXIL/WB4 shims have no crossing yet --
@@ -115,7 +115,7 @@ During reset (aresetn = 0):
 | FIFOs | Emptied |
 | Outputs | Deasserted (VALID = 0) |
 
-: Table 4.6: Reset Effects
+: Reset Effects
 
 ### Outstanding Transactions
 
@@ -144,7 +144,7 @@ All inputs must meet setup/hold relative to aclk:
 | Setup time | Process-dependent |
 | Hold time | Process-dependent |
 
-: Table 4.7: Timing Constraints
+: Timing Constraints
 
 ### Clock-to-Output
 
@@ -156,7 +156,7 @@ All outputs appear after aclk rising edge:
 | aclk to READY | 1 cycle (registered) |
 | aclk to DATA | 1 cycle (registered) |
 
-: Table 4.8: Clock-to-Output Delays
+: Clock-to-Output Delays
 
 READY is registered like the rest, which an earlier revision of this table gave
 as "Combinational". Every external port terminates in a `gaxi_skid_buffer`

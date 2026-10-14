@@ -38,6 +38,8 @@ These are fixed in the emitted module name and structure.
 | `arbiter_type` | Reserved for future arbiter selection; currently only round-robin is emitted. |
 | `add_performance_counters` | Adds 32-bit packet counters per master and slave. |
 
+: Generation-Time Parameters
+
 ## Elaboration-time parameters
 
 The generated flat crossbar exposes the following parameters:
@@ -61,5 +63,7 @@ When `strb_width > 0`, `STRB_WIDTH` is added. When `amba5=True`, `TDATACHK_W`, `
 | `DEST_WIDTH` | Wide enough to encode `NUM_SLAVES - 1`. |
 | `ID_WIDTH` | Wide enough to encode `NUM_MASTERS - 1`. |
 | `USER_WIDTH` | Carry sideband metadata alongside each beat. |
+
+: Elaboration-Time Parameters
 
 The master and slave counts are **not** elaboration-time parameters. A 2×4 module cannot be instantiated as 2×8. Generate a new module instead.

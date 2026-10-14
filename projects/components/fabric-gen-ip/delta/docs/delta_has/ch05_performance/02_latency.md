@@ -32,7 +32,7 @@ The generated flat crossbar has a fixed two-cycle latency from master input to s
 | 1 | TDEST decode produces `request_matrix`; arbiter registers the grant. |
 | 2 | Crossbar mux drives `m_axis_tdata`, `m_axis_tvalid`, etc. to the slave. |
 
-: Table 5.2: Latency Cycle Breakdown
+: Latency Cycle Breakdown
 
 ## Arbitration Delay
 
@@ -49,7 +49,7 @@ If the target slave is idle when the request arrives, the grant is registered on
 | Flat crossbar, idle slave | 2 cycles | Arbitration + registered grant. |
 | Flat crossbar, contended slave | 2 + wait cycles | Wait depends on current packet length. |
 
-: Table 5.3: Latency Targets
+: Latency Targets
 
 ## Frequency Target
 

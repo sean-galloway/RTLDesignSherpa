@@ -57,6 +57,8 @@ What happens to a transaction depends on the master/slave protocol pairing:
 | AXI4 | AXI4-Lite | Protocol downgrade |
 | AXI4 | APB | Full protocol conversion |
 
+: Protocol Conversion Matrix
+
 ### Design Philosophy
 
 **Efficient Multi-Width Routing:**
@@ -128,12 +130,12 @@ Diagram sources and their renders live in two directories:
 
 ### Companion Specifications
 
-- **[Bridge HAS](../bridge_has/bridge_has_index.md)** - Hardware Architecture Specification (high-level)
+- **[Bridge HAS](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md)** - Hardware Architecture Specification (high-level)
 
 ### Project-Level
 
-- **PRD.md:** [../../PRD.md](../../PRD.md) - Complete product requirements document
-- **CLAUDE.md:** [../../CLAUDE.md](../../CLAUDE.md) - AI assistant integration guide
+- **PRD.md:** [../../PRD.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/PRD.md) - Complete product requirements document
+- **CLAUDE.md:** [../../CLAUDE.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/CLAUDE.md) - AI assistant integration guide
 
 ### Generator
 

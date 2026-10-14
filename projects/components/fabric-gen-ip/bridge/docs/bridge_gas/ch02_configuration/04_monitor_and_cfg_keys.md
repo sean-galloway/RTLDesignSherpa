@@ -36,6 +36,8 @@ The `"mon"` variant wraps each enabled port with a `_monlite` timing wrapper. Th
 | `use_all_monitors` | boolean | `false` | Override every port's `use_monitor` to `true`. |
 | `use_no_monitors` | boolean | `false` | Override every port's `use_monitor` to `false`. Mutually exclusive with `use_all_monitors`. |
 
+: Bridge-level monitor keys
+
 ### Per-port monitor keys
 
 | Key | Type | Default | Description |
@@ -43,6 +45,8 @@ The `"mon"` variant wraps each enabled port with a `_monlite` timing wrapper. Th
 | `use_monitor` | boolean | `true` | Include the `_monlite` wrapper on this port in a `"mon"` variant. |
 | `mon_add` | list | `[]` | Extra reporter cones to enable beyond the preset. |
 | `mon_remove` | list | `[]` | Reporter cones to disable from the preset. |
+
+: Per-port monitor keys
 
 `MON_CONES` in `bridge_pkg/config.py` defines the valid cone names: `error`, `timeout`, `compl`, `threshold`, `perf`, `debug`.
 
@@ -81,5 +85,7 @@ Setting `use_cfg_regblock = true` replaces the 350+ individual `cfg_<port>_<idx>
 | `perfmon_enabled` | Whether perf counters exist for this port |
 | `n_addr_ranges` | Number of address ranges (currently 0) |
 | `addr_width` | Address width for this adapter |
+
+: Per-port cfg fields
 
 The subtractive catch-all slave is deliberately excluded from the cfg map so that adding or removing it does not shift register offsets.

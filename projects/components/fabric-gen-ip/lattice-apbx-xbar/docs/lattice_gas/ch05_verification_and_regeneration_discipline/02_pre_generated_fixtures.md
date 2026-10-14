@@ -32,6 +32,8 @@ The component ships with five pre-generated fixtures:
 | `apbx_xbar_2to4.sv` | 2 | 4 | Full crossbar: decode + arbitration. |
 | `apbx_xbar_2to2_mixed.sv` | 2 | 2 | APB4/APB5 mixed-port boundary test. |
 
+: Pre-Generated Fixtures
+
 These fixtures are the regression baseline. They are generated with:
 
 - `base_addr = 0x10000000`

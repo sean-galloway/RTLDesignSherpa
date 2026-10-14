@@ -34,6 +34,8 @@
 | `m` | Master index | `for (int m = 0; m < NUM_MASTERS; m++)` |
 | `s` | Slave index | `for (int s = 0; s < NUM_SLAVES; s++)` |
 
+: Naming Conventions
+
 ## Signal Direction Conventions
 
 All directions are stated from the crossbar's point of view:

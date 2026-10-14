@@ -45,6 +45,8 @@ After validation, `bridge_generator.py` calls `_emit_bridge_variant()` for each 
 | `enable_ooo` | — | bool |
 | `internal` | — | bool |
 
+: Translation to emitter structs
+
 ## `BridgeModuleGenerator` construction
 
 `_emit_bridge_variant()` instantiates `BridgeModuleGenerator` with:
@@ -77,6 +79,8 @@ Then it calls `gen.add_master(master)` and `gen.add_slave(slave)` for every port
 | `slave_adapter_<name>` | `SlaveAdapterGenerator` | `<name>_adapter.sv` |
 | `bridge` | `BridgeModuleGenerator` itself | `<bridge>.sv` |
 | `crossbar` | `CrossbarGenerator` | `<bridge>_xbar.sv` |
+
+: Sub-generators
 
 The package is always emitted first so later modules can `import` it. Adapter file names are based on the port `name`, not the prefix.
 

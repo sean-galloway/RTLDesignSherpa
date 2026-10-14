@@ -37,12 +37,16 @@ Each master and slave is described by a TOML table under `[[bridge.masters]]` or
 | `id_width` | int | `0` | `id_width` | AXI ID width. Required > 0 for `axi4`/`axi5` masters; must be 0 for APB, AXI-Lite, and Wishbone. |
 | `user_width` | int | `0` | (passed to wrapper) | AXI4 user signal width. |
 
+: Common port fields
+
 ## Slave-only fields
 
 | Field | Type | Default | `PortSpec` attribute | Description |
 |-------|------|---------|----------------------|-------------|
 | `base_addr` | hex string/int | required for slaves | `base_addr` | Start of the slave address window. Must be 4 KiB-aligned. |
 | `addr_range` | hex string/int | required for slaves | `addr_range` | Size of the slave window. Must be a non-zero multiple of 4 KiB. |
+
+: Slave-only fields
 
 ## Optional behavior fields
 
@@ -56,6 +60,8 @@ Each master and slave is described by a TOML table under `[[bridge.masters]]` or
 | `mon_remove` | list of strings | `[]` | `mon_remove` | Reporter cones to remove from the preset. |
 | `axi5_features` | list of strings | `[]` | `axi5_features` | AXI5 sideband feature list. Legal only on `axi5` or `axil5` ports. |
 | `internal` | boolean | `false` | `internal` | Port has no top-level pins. Used automatically for the subtractive catch-all. |
+
+: Optional behavior fields
 
 ## `axi5_features` values
 
@@ -73,6 +79,8 @@ On `axil5` ports, only `user` and `exclusive` are forwardable; `trace`, `loop`, 
 | `rw` | AW, W, B, AR, R | AW, W, B, AR, R |
 | `wr` | AW, W, B only | AW, W, B |
 | `rd` | AR, R only | AR, R |
+
+: Channel semantics
 
 A `wr` master may connect to a `wr` or `rw` slave; a `rd` master may connect to a `rd` or `rw` slave. A `wr` master cannot connect to a `rd` slave, and vice versa.
 

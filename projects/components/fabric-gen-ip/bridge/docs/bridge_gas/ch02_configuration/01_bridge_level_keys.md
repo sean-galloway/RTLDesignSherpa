@@ -32,12 +32,16 @@ The TOML `[bridge]` table configures the bridge as a whole. It is parsed by `bri
 | `variants` | list of strings | `["no"]` | `BridgeConfig.variants` | Build variants to emit. Each entry must be `"no"` or `"mon"`. At least one entry is required in TOML. |
 | `description` | string | `""` | ignored | Human-readable comment; copied into generated header only. |
 
+: [bridge] scalar keys
+
 ## `[bridge.clock]` table
 
 | Key | Type | Default | Used by | Description |
 |-----|------|---------|---------|-------------|
 | `name` | string | `"aclk"` | header comment | Clock signal name (informational). |
 | `frequency_mhz` | int | none | header comment | Clock frequency (informational). |
+
+: [bridge.clock] table
 
 ## Crossbar and arbitration keys
 
@@ -46,6 +50,8 @@ The TOML `[bridge]` table configures the bridge as a whole. It is parsed by `bri
 | `xbar_pipeline` | boolean | `false` | `BridgeConfig.xbar_pipeline` | Add skid register stage on every slave-side channel inside the crossbar. |
 | `arbitration` | string | `"rr"` | `BridgeConfig.arbitration` | Per-slave arbitration policy. `"rr"` = round-robin; `"qos"` = QoS + aging. |
 | `qos_aging_shift` | int | `4` | `BridgeConfig.qos_aging_shift` | For `"qos"`, a waiting request gains one priority level every `2**shift` cycles. |
+
+: Crossbar and arbitration keys
 
 ## Monitor and cfg subsystem keys
 
@@ -56,6 +62,8 @@ The TOML `[bridge]` table configures the bridge as a whole. It is parsed by `bri
 | `use_no_monitors` | boolean | `false` | `BridgeConfig.use_no_monitors` | Force `USE_MONITOR=0` on every port. Mutually exclusive with `use_all_monitors`. |
 | `internal_axil_group` | boolean | `true` | `BridgeConfig.internal_axil_group` | For `"mon"` variants, instantiate the internal `monbus_axil4_axil4_group`. When `false`, expose the aggregated monbus stream at the top. |
 | `use_cfg_regblock` | boolean | `false` | `BridgeConfig.use_cfg_regblock` | Replace the 350+ individual `cfg_*` top-level pins with a PeakRDL-generated cfg register block. |
+
+: Monitor and cfg subsystem keys
 
 ## `[bridge.mon_group]` table
 
@@ -69,6 +77,8 @@ The TOML `[bridge]` table configures the bridge as a whole. It is parsed by `bri
 | `fifo_depth_write` | int | `96` | `MonGroupConfig.fifo_depth_write` | Write-data FIFO depth in beats. |
 | `flush_timeout_cycles` | int | `1024` | `MonGroupConfig.flush_timeout_cycles` | Flush timeout. |
 | `use_compression` | int | `0` | `MonGroupConfig.use_compression` | Compression enable. |
+
+: [bridge.mon_group] table
 
 ## `[bridge.defaults]` table
 

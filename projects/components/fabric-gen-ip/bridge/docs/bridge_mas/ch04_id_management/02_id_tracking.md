@@ -47,6 +47,8 @@ The tracker comes in two forms, chosen at generation:
 | any slave with `enable_ooo = true` | `bridge_cam` | any order across IDs |
 | single-master bridge, apb / axil / wb shim slave, subtractive slave | in-order `bridge_id` FIFO | request order across all IDs |
 
+: Slave response tracker selection
+
 ```systemverilog
 // FIFO form
 wr_fifo[wr_ptr[...]] <= xbar_bridge_id_aw;      // push on AW accept
@@ -115,6 +117,8 @@ fub_axi_bid = cpu_32b_b.id[3:0];   // bridge_2x2_rw: drop the 1-bit prefix
 | B handshake | deallocate by BID, return master index | pop head |
 | R handshake with RLAST | deallocate by RID, return master index | pop head |
 | full | `tags_full` holds AWREADY / ARREADY low | not-full gate holds AWREADY / ARREADY low |
+
+: Tracker operations by event
 
 ### Multi-ID Considerations
 

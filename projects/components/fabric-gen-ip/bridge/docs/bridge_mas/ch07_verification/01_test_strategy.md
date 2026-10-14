@@ -94,7 +94,7 @@ Which parameters get swept, and why:
 | ID_WIDTH | 4, 6, 8 | ID space |
 | OUTSTANDING | 4, 8, 16 | Depth stress |
 
-: Table 7.1: Test Parameter Matrix
+: Test Parameter Matrix
 
 #### Protocol Combinations
 
@@ -133,7 +133,7 @@ tests and TB class:
 | `bridge_1x2_rd_axi5c` | 128-bit AXI5 chunking master, one AXI5 chunking slave and one AXI4 slave | generated suite plus `test_bridge_1x2_rd_axi5c_chunk` (bridge TASK-007, was BRIDGE-018): the chunk enable reaches the AXI5 port and its beats come back chunked; to the AXI4 slave the enable terminates and the same read returns ordered data with RCHUNKV low |
 | `bridge_2x2_rw_cdc` | as `bridge_2x2_rw`, `ddr` on its own clock (`cdc = true`), `sram` same-clock | generated suite on the CDC port at `BRIDGE_CDC_PERIOD_NS` (7 ns); `test_bridge_2x2_rw_cdc_ratio` (bridge TASK-006, was BRIDGE-017) sweeps 3/10/23 ns: both masters' streams land and read back, the port's beats are counted on the slave clock, the rate follows the slower clock (>= 0.85 beat/cycle), the same-clock neighbour is unaffected (HAS 4.5a) |
 
-: Table 7.1a: AMBA5 Fixtures
+: AMBA5 Fixtures
 
 ### Protocol-BFM-Only Testing with Memory-Backed Slaves
 
@@ -339,7 +339,7 @@ the suite is read from here; nothing hardcodes one.
 | func | 4 offsets/pair | boundary pages, low/mid/high | 8 txn/master | 256 reads/phase | prompt |
 | full | 16 offsets/pair | every seeded page, low/mid/high | 24 txn/master | 512 reads/phase | 24-cycle response delay |
 
-: Table 7.2: Test Level Depth Profile
+: Test Level Depth Profile
 
 Measured on the 4x4 boundary probe: 4 s, 5 s and 40 s per cell. The FULL
 run's monitor stress count of 128 at gate is deliberate -- the monbus err

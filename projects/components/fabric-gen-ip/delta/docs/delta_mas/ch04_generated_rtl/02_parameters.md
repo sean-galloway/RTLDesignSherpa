@@ -35,7 +35,7 @@
 | `STRB_WIDTH` | `--strb-width` | Width of `TSTRB`; adds mux ports when > 0. |
 | `TDATACHK_W`, `TSTRBCHK_W`, `TIDCHK_W`, `TDESTCHK_W`, `TUSERCHK_W` | derived in the header from the payload widths (IHI 0051B Table 5-1) | Check-signal widths with `--amba5`. Each sizes one carried `*CHK` mux field and one bank of `dataint_parity` checkers per master. `TSTRBCHK_W` appears only with `--strb-width`. |
 
-: Table 4.1: Parameter-to-Logic Mapping
+: Parameter-to-Logic Mapping
 
 ## Width Calculations
 

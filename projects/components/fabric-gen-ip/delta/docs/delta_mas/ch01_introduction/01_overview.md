@@ -48,7 +48,7 @@ The generator emits a single module named `delta_axis_flat_MxN` where `M` is `NU
 | Packet-atomic grant | Preserves AXI4-Stream packet semantics; prevents interleaving. |
 | Optional sidebands default off | Keeps base output byte-identical to earlier versions. |
 
-: Table 1.1: Key Micro-Architectural Decisions
+: Key Micro-Architectural Decisions
 
 ## Block Diagram
 

@@ -39,7 +39,7 @@
 | `TDESTCHK_W` | `(DEST_WIDTH + 7) / 8` | Width of `TDESTCHK` (only with `--amba5`). |
 | `TUSERCHK_W` | `(USER_WIDTH + 7) / 8` | Width of `TUSERCHK` (only with `--amba5`). |
 
-: Table 6.1: Generated Module Parameters
+: Generated Module Parameters
 
 ## Generator CLI Options
 
@@ -55,7 +55,7 @@
 | `--no-counters` | flag | off | Disable packet counters. |
 | `--output-dir` | path | `../rtl` | Output directory for generated SystemVerilog. |
 
-: Table 6.2: Generator Command-Line Options
+: Generator Command-Line Options
 
 ## Example Configurations
 

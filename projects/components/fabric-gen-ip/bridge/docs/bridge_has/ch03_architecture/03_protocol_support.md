@@ -83,7 +83,7 @@ Low-power peripheral protocol:
 | AXI4 | AXI3 | Protocol convert | `axi4_to_axi3` slave boundary; same data width only |
 | AXI3 | AXI4 | Protocol convert | `axi3_to_axi4` master boundary; same data width only |
 
-: Table 3.3: Protocol Conversion Matrix
+: Protocol Conversion Matrix
 
 ## Automatic Conversion Shims at Slave Boundary
 
@@ -107,7 +107,7 @@ error, so spelling matters:
 | `apb5` | APB5 | `axi4_to_apb5_shim` |
 | `wb4` | Wishbone B4 (pipelined) | `axi4_to_wb4` |
 
-: Table 3.4: Slave-port protocol values
+: Slave-port protocol values
 
 Note the spelling: it is `axil`, not `axi4lite`. Earlier revisions of this
 page used the latter, which the generator rejects.
@@ -132,7 +132,7 @@ and the master adapter converts to the AXI4 the crossbar speaks:
 | `apb5` | APB5 completer (+ `PAUSER/PWUSER/PWAKEUP` in -- all requester-driven, IHI 0024E 3.7.2 -- `PRUSER/PBUSER` out) | `apb5_to_axi4` (`PAUSER[0]`/`PWUSER[0]` -> USER), then the AXI4 timing wrapper |
 | `wb4` | Wishbone B4 completer (pipelined) | `wb4_to_axi4`, then the AXI4 timing wrapper; SLVERR/DECERR terminate ERR |
 
-: Table 3.5: Master-port protocol values
+: Master-port protocol values
 
 Rules the validator enforces on these ports: AXI4-Lite masters have `id_width = 0`
 (no ID pins exist; the fabric ID is the master index, bridge TASK-005 (was BRIDGE-016)),

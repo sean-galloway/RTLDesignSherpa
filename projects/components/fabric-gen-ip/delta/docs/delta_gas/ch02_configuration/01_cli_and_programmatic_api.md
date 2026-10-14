@@ -30,7 +30,7 @@ python3 delta_generator.py --masters 2 --slaves 4 --data-width 64 --output-dir .
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--topology` | `flat` | `flat`, `tree`, or `both`. Tree is not fully implemented in the framework version. |
+| `--topology` | `flat` | `flat` (implemented), `tree` (retired scaffolding), `both` (legacy alias; retired), or `mesh` (planned). |
 | `--masters` | required | Number of master interfaces. |
 | `--slaves` | required | Number of slave interfaces. |
 | `--data-width` | 64 | `TDATA` width in bits. |
@@ -41,6 +41,8 @@ python3 delta_generator.py --masters 2 --slaves 4 --data-width 64 --output-dir .
 | `--nodes` | False | Also emit the `delta_split_1to2` primitive. |
 | `--no-counters` | False | Disable the optional performance counters. |
 
+: delta_generator.py CLI Flags
+
 ## `complete_tree_generator.py` CLI
 
 | Flag | Description |
@@ -48,6 +50,19 @@ python3 delta_generator.py --masters 2 --slaves 4 --data-width 64 --output-dir .
 | `--type` | `merger`, `fanout`, or `fanin`. |
 | `--size` | Number of inputs/outputs for fan-out/fan-in. |
 | `--output` | Output directory (default `../rtl`). |
+
+: complete_tree_generator.py CLI Flags
+
+> **PLANNED** The mesh CLI below is the interface proposed by the [2026-10-13 mesh design spec](../../../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md). It is not implemented yet and is subject to change when implementation starts.
+>
+> ```bash
+> delta_generator.py --topology mesh \
+>   --cells-x 4 --cells-y 4 --cells-z K \
+>   [--torus=x,y,z] [--source-route] [--speculation] \
+>   [--data-width N] [--user-width N] [--amba5] [--no-counters] ...
+> ```
+>
+> Mesh mode emits one cell module, `delta_mesh_cell`, and a fabric top that instantiates the `cells-x` × `cells-y` × `cells-z` grid. The hierarchy names (cell, tile, confluence, fabric) are for placement and documentation; the generator does not emit wrapper RTL for each level. The cell input buffers will expose a FIFO implementation knob (register file vs. SRAM).
 
 ## Programmatic API
 

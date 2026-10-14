@@ -42,7 +42,7 @@ The two protocols differ in ways that force real work on the converter:
 | Pipelining | Yes | No |
 | Min cycles | 1 per beat | 2 per transfer |
 
-: Table 5.1: AXI4 vs APB Protocol Comparison
+: AXI4 vs APB Protocol Comparison
 
 #### Conversion Strategy
 
@@ -179,7 +179,7 @@ One error bit in, one of two response codes out:
 | 0 (OK) | OKAY (2'b00) |
 | 1 (Error) | SLVERR (2'b10) |
 
-: Table 5.2: APB to AXI4 Error Mapping
+: APB to AXI4 Error Mapping
 
 #### Error Propagation
 

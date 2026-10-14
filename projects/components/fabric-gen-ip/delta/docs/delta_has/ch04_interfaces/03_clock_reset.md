@@ -29,6 +29,8 @@
 |--------|-------|-----------|-------------|
 | `aclk` | 1 | Input | Positive-edge clock for all registered state. |
 
+: Clock Signal
+
 All registered logic (grants, `last_grant`, packet-active flags, counters) is clocked on the rising edge of `aclk`. Combinational decode and mux logic is not registered.
 
 ## Reset
@@ -36,6 +38,8 @@ All registered logic (grants, `last_grant`, packet-active flags, counters) is cl
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
 | `aresetn` | 1 | Input | Active-low asynchronous reset. |
+
+: Reset Signal
 
 `aresetn` resets all registered state:
 

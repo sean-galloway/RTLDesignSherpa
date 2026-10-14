@@ -43,7 +43,7 @@ as bridge vault TASK-014.
 | Slave Router | 1 | Pipeline registration |
 | **Total Address** | **2-3** | Best/worst case |
 
-: Table 5.5: Address Path Latency
+: Address Path Latency
 
 ### Data Path Latency
 
@@ -54,7 +54,7 @@ as bridge vault TASK-014.
 | Protocol conversion | 0-2+ | 0 for AXI4, 2+ for APB |
 | **Total Data** | **0-3+** | Best/worst case |
 
-: Table 5.6: Data Path Latency
+: Data Path Latency
 
 ### Response Path Latency
 
@@ -65,7 +65,7 @@ as bridge vault TASK-014.
 | Response routing + master delivery | 2 | Registered; NOT a direct connection |
 | **Total Response** | **2 + slave** | Plus slave latency |
 
-: Table 5.7: Response Path Latency
+: Response Path Latency
 
 > **Measured.** `bridge_2x2_rw`, cpu master to ddr slave, idle bridge:
 >
@@ -114,7 +114,7 @@ pairs the k-th AW accepted at the master port with the k-th BVALID there:
 | First burst, fabric empty | **23** = 16 W beats + the 2 + 2 skid stages + the slave's turnaround |
 | k bursts queued ahead | about 16 k + 7; maximum 323 at a 20-deep queue |
 
-: Table 5.7a: Write latency under load, `bridge_2x2_rw`, 32-bit direct path
+: Write latency under load, `bridge_2x2_rw`, 32-bit direct path
 
 The queue exists because the bridge accepts AWs ahead of their W data --
 the master adapter's AW skid, the slave adapter's 16-entry response-tracking
@@ -173,7 +173,7 @@ Example: 4 masters requesting same slave
 | 4:1 | 0 | Pack on fly |
 | 8:1 | 0-1 | May need accumulation |
 
-: Table 5.8: Upsize Latency by Ratio
+: Upsize Latency by Ratio
 
 #### Downsize Latency
 
@@ -184,7 +184,7 @@ Example: 4 masters requesting same slave
 | 1:4 | +3 | 4 output beats |
 | 1:8 | +7 | 8 output beats |
 
-: Table 5.9: Downsize Latency by Ratio
+: Downsize Latency by Ratio
 
 ### Protocol Conversion Latency
 
@@ -196,7 +196,7 @@ Example: 4 masters requesting same slave
 | B generation | 1 |
 | **Total** | **4+ cycles** |
 
-: Table 5.10: AXI4 to APB Conversion Latency
+: AXI4 to APB Conversion Latency
 
 #### APB Wait States
 

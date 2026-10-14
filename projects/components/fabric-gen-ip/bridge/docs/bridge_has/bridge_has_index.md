@@ -33,9 +33,9 @@
 
 ## Related Modules
 
-- **[Bridge MAS](../bridge_mas/bridge_mas_index.md)** - Micro-Architecture Specification (detailed block-level)
-- **[PRD.md](../../PRD.md)** - Product requirements and overview
-- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
+- **[Bridge MAS](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md)** - Micro-Architecture Specification (detailed block-level)
+- **[PRD.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/PRD.md)** - Product requirements and overview
+- **[CLAUDE.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/CLAUDE.md)** - AI development guide
 
 ---
 

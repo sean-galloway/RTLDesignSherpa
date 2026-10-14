@@ -42,6 +42,8 @@ points a different way on each:
 | `m<i>_apb_PWAKEUP` (APB5 requester port) | Input | Driven by the external requester. Parity-checked by the `apb5_slave` boundary IP when parity is on. |
 | `s<j>_apb_PWAKEUP` (APB5 completer port) | Output | Driven by the crossbar, which is the Requester on this interface. |
 
+: PWAKEUP Direction at the Crossbar
+
 Each APB5 completer port drives
 
 ```
@@ -108,6 +110,8 @@ signal.
 | `PSLVERRCHK` | 1 | `PSLVERR` | output, regenerated | input, checked |
 | `PRUSERCHK` | 1 | `PRUSER` | output, regenerated | input, checked |
 | `PBUSERCHK` | 1 | `PBUSER` | output, regenerated | input, checked |
+
+: APB5 Parity Check Signals
 
 The user signals are 1 bit on the crossbar surface, so each user check signal
 is 1 bit. A completer port's `PWAKEUPCHK` is computed by the crossbar over the

@@ -43,7 +43,7 @@ A master blocked on one slave does not block traffic to other slaves. Each slave
 | Aggregate throughput | Up to NUM_MASTERS transfers/cycle | When all masters target different ready slaves. |
 | Mixed-traffic throughput | ≥ 0.7 transfers/cycle per active master | Under moderate contention in the performance model. |
 
-: Table 5.1: Throughput Targets
+: Throughput Targets
 
 ## Factors That Reduce Throughput
 

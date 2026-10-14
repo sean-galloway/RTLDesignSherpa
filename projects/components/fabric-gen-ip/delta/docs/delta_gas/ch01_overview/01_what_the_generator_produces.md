@@ -33,6 +33,10 @@ The Delta generator (`bin/delta_generator.py`) emits a parameterized AXI-Stream 
 | `delta_merge_2to1.sv` | 2:1 merger primitive from `complete_tree_generator.py`. |
 | `delta_fanout_1to<N>.sv` | Fan-out tree scaffold (partial implementation). |
 | `delta_fanin_<N>to1.sv` | Fan-in tree scaffold (partial implementation). |
+| `delta_mesh_cell.sv` | Planned mesh cell module. |
+| `delta_mesh_fabric_<X>x<Y>x<Z>.sv` | Planned fabric top that instantiates the cell grid. |
+
+: Generator Output Artifacts
 
 ## Architecture in the generated flat module
 
@@ -46,4 +50,14 @@ The generated `delta_axis_flat_<M>x<N>` module contains:
 6. **Optional performance counters** — packet counts per master and per slave.
 7. **Optional assertions** — one-hot grant and TDEST-range checks under `FORMAL`.
 
-Tree generation is currently a scaffold; the flat crossbar is the production-ready artifact.
+## Topology status
+
+`--topology` has three conceptual values:
+
+- `flat` (default, implemented) — emits `delta_axis_flat_<M>x<N>.sv`; this is the production artifact.
+- `tree` (retired 2026-10-12) — scaffolding only, in `complete_tree_generator.py`; not in regression.
+- `mesh` (planned) — per the 2026-10-13 design spec; will emit `delta_mesh_cell` plus a fabric top. The hierarchy (cell / tile / confluence / fabric) is placement and documentation, not wrapper RTL.
+
+> **PLANNED** Mesh mode is designed but not implemented. See the [mesh design spec](../../../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md) (2026-10-13) for routing, VCs, QoS, and the generator interface.
+
+The flat crossbar is the production-ready artifact; the tree scaffolding is retired and remains only for reference.

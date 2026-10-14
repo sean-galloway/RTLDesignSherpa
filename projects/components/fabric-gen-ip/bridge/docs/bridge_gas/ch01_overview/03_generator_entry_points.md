@@ -50,6 +50,8 @@ CLI flags:
 | `--output-tb` | `../dv/tbclasses` | TB class output directory |
 | `--output-test` | `../dv/tests` | Test runner output directory |
 
+: Single-Bridge Mode
+
 ## Bulk Mode
 
 ```bash
@@ -73,6 +75,8 @@ The `bin/Makefile` wraps the bulk path:
 | `make all` | `bridge_generator.py --bulk bridge_batch.csv` |
 | `make clean` | remove `rtl/generated/` and `rtl/filelists/` |
 | `make regen` | alias for `make clean && make all` |
+
+: Makefile Targets
 
 ## Return Value
 

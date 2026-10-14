@@ -76,3 +76,5 @@ python3 bin/delta_generator.py --topology flat --masters 4 --slaves 16 \
     --data-width 64 --output-dir rtl/
 verilator --lint-only rtl/delta_axis_flat_4x16.sv
 ```
+
+The planned mesh cell verification suites are summarized in [Chapter 6, Section 8](../ch06_mesh_cell/08_verification_targets.md).

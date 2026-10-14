@@ -42,4 +42,6 @@ When `--nodes` is passed, `delta_split_1to2.sv` is emitted by the same generator
 | `delta_fanout_1to<N>` | Schematic fan-out tree using splitters (partial implementation). |
 | `delta_fanin_<N>to1` | Schematic fan-in tree using mergers (partial implementation). |
 
+: Tree Primitives
+
 The tree primitives are not yet production-complete; they exist as building blocks and documentation of the intended topology.

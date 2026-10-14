@@ -36,11 +36,12 @@ The Lattice is pre-verified:
 | apbx_xbar_2to2_mixed | 8 directed | Pass | All four APB4/APB5 pairings, sideband gating, decode miss, structural pin check |
 | apbx_xbar_timing | 2 variants | Pass | Published latency/cadence figures, both variant classes |
 
+: Pre-Verification Status
+
 **Overall:** 100% passing (9/9), >750 transactions plus the directed
 mixed-version and timing checks. `apbx_xbar_2to2_mixed` also has a formal
 harness (`formal/apbx_xbar/apbx_xbar_2to2_mixed/`).
 
-: Pre-Verification Status
 
 ## Test Categories
 

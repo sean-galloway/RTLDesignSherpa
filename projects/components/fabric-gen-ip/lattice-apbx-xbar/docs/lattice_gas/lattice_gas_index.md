@@ -32,10 +32,10 @@
 
 ## Related Modules
 
-- **[Lattice HAS](../lattice_has/lattice_has_index.md)** - Hardware Architecture Specification
-- **[Lattice MAS](../lattice_mas/lattice_mas_index.md)** - Micro-Architecture Specification
-- **[PRD.md](../../PRD.md)** - Product requirements
-- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
+- **[Lattice HAS](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/docs/lattice_has/lattice_has_index.md)** - Hardware Architecture Specification
+- **[Lattice MAS](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/docs/lattice_mas/lattice_mas_index.md)** - Micro-Architecture Specification
+- **[PRD.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/PRD.md)** - Product requirements
+- **[CLAUDE.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/lattice-apbx-xbar/CLAUDE.md)** - AI development guide
 
 ---
 

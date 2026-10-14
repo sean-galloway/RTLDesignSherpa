@@ -59,4 +59,6 @@ Both functions use Jinja2 templates from `bin/bridge_pkg/jinja_templates/`:
 | `bridge_test_file.py.j2` | `dv/tests/test_<bridge>.py` |
 | `bridge_monitor_test.py.j2` | `dv/tests/test_<bridge>_monitor.py` |
 
+: Test generation
+
 The TB class name is derived from the bridge name by `build_tb_class_name()`. The import block is selected by `_tb_import_block()`; if the output path is not dotted-importable (for example, because of the hyphen in `fabric-gen-ip`), the generated test falls back to a `sys.path` insertion.

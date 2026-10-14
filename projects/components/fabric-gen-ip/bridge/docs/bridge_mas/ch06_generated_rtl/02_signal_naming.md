@@ -45,6 +45,8 @@ Signal names in generated RTL follow one convention, which is what makes pattern
 | channel | AXI4 channel code | aw, w, b, ar, r |
 | signal | Signal within channel | valid, ready, addr, data |
 
+: External Port Naming
+
 ### Master Port Examples
 
 ```systemverilog

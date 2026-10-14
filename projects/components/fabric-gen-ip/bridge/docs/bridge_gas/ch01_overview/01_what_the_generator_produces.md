@@ -41,6 +41,8 @@ For each requested variant (`no` or `mon`), the generator writes a directory und
 | `<bridge_name>_connectivity.csv` | copied connectivity matrix |
 | `__cfg_*_pkg.sv` / `<bridge_name>_cfg.sv` | `CfgRdlGenerator` (only when `use_cfg_regblock = true`) |
 
+: Generated Artifact Family
+
 The header comment in each `.sv` file names the generator class that produced it. This is the fastest way to tell whether a file is generated and which part of the pipeline owns it.
 
 ## What Each Variant Means

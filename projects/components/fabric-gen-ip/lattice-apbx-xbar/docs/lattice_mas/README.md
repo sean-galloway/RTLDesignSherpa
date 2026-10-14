@@ -48,6 +48,8 @@ This directory holds the Lattice's documentation set: the architecture chapters,
 | [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md) | Address Decode & Arbitration | Address map structure, decode algorithm, round-robin timing |
 | [03_rtl_generator.md](chapters/03_rtl_generator.md) | RTL Generator Guide | Generator architecture, usage, customization, advanced topics |
 
+: Main Documentation Files
+
 ### Supporting Documentation
 
 | Document | Location | Description |
@@ -55,6 +57,8 @@ This directory holds the Lattice's documentation set: the architecture chapters,
 | PRD.md | [../../PRD.md](../../PRD.md) | Complete product requirements document |
 | CLAUDE.md | [../../CLAUDE.md](../../CLAUDE.md) | AI assistant integration guide |
 | README.md | [../../README.md](../../README.md) | Quick start guide |
+
+: Supporting Documentation
 
 ---
 
@@ -67,6 +71,8 @@ This directory holds the Lattice's documentation set: the architecture chapters,
 | [apbx_xbar_architecture](assets/graphviz/apbx_xbar_architecture.dot) | Graphviz | 2x4 crossbar showing master-side slaves, arbitration, slave-side masters |
 | [address_decode_flow](assets/graphviz/address_decode_flow.dot) | Graphviz | Step-by-step address decode example (0x10023456 to Slave 2) |
 
+: Architecture Diagram Assets
+
 **Rendered Format:** PNG beside each source in `assets/graphviz/` (what the chapters embed).
 
 ### Timing Diagrams
@@ -74,6 +80,8 @@ This directory holds the Lattice's documentation set: the architecture chapters,
 | Diagram | Format | Description |
 |---------|--------|-------------|
 | [arbitration_round_robin](assets/wavedrom/arbitration_round_robin.json) | WaveJSON | 2 masters competing for Slave 0 with round-robin arbitration |
+
+: Timing Diagram Assets
 
 **Rendered Format:**
 - PNG: `assets/wavedrom/arbitration_round_robin.png`

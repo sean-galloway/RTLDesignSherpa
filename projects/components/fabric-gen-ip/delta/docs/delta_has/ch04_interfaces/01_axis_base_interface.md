@@ -37,7 +37,7 @@ Each master port is indexed by `m` in the range `0` to `NUM_MASTERS-1`.
 | `s_axis_tid[m]` | `ID_WIDTH` | Input | Transaction ID. Pass-through to `m_axis_tid`. |
 | `s_axis_tuser[m]` | `USER_WIDTH` | Input | User sideband. Pass-through to `m_axis_tuser`. |
 
-: Table 4.1: Base Master Interface Signals
+: Base Master Interface Signals
 
 ## Slave Interface (M_AXIS)
 
@@ -53,7 +53,7 @@ Each slave port is indexed by `s` in the range `0` to `NUM_SLAVES-1`.
 | `m_axis_tid[s]` | `ID_WIDTH` | Output | Transaction ID. Pass-through from the granted master. |
 | `m_axis_tuser[s]` | `USER_WIDTH` | Output | User sideband. Pass-through from the granted master. |
 
-: Table 4.2: Base Slave Interface Signals
+: Base Slave Interface Signals
 
 ## Signal Semantics
 

@@ -226,6 +226,8 @@ come from `<bridge>_pkg.sv`:
 | `ID_PREFIX_WIDTH` | master-index bits prepended, `$clog2(NUM_MASTERS)` | 1 |
 | `XBAR_ID_WIDTH` | fabric and slave-port ID width | 5 |
 
+: Bridge ID Management
+
 A single-master bridge prepends nothing (`ID_PREFIX_WIDTH = 0`;
 `bridge_1x2_rd` is 4 bits on both sides). A slave's declared `id_width`
 must be at least `XBAR_ID_WIDTH`, or the config validator rejects the

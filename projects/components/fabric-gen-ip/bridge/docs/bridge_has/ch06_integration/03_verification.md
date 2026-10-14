@@ -43,7 +43,7 @@ Test individual Bridge components:
 | Protocol Converter | AXI4 to APB timing |
 | Response Router | ID extraction, routing |
 
-: Table 6.13: Unit Level Test Focus
+: Unit Level Test Focus
 
 #### Integration Level
 
@@ -57,7 +57,7 @@ Test complete Bridge functionality:
 | Error handling | OOR, timeouts |
 | Performance | Throughput, latency |
 
-: Table 6.14: Integration Test Coverage
+: Integration Test Coverage
 
 #### System Level
 
@@ -70,7 +70,7 @@ Test Bridge in target system:
 | Mixed protocol | AXI4 + APB |
 | Stress | Maximum traffic |
 
-: Table 6.15: System Level Tests
+: System Level Tests
 
 ### Test Infrastructure
 
@@ -113,7 +113,7 @@ async def cocotb_test_basic_write(dut):
 | Error | Error conditions | SLVERR injection, timeout |
 | Monitor | Monitor packet collection | Packet capture, IRQ assertion |
 
-: Table 6.16: Test Categories
+: Test Categories
 
 ### Test Execution Model
 
@@ -157,7 +157,7 @@ for slave_idx, (base, window_size) in enumerate(slave_windows):
 | Monitor modes | Enabled and disabled |
 | ID values | Full ID range (representative) |
 
-: Table 6.17: Functional Coverage Goals
+: Functional Coverage Goals
 
 #### Code Coverage
 
@@ -168,7 +168,7 @@ for slave_idx, (base, window_size) in enumerate(slave_windows):
 | FSM coverage | 100% state transitions |
 | Toggle coverage | >80% signals |
 
-: Table 6.18: Code Coverage Goals
+: Code Coverage Goals
 
 ### Debug Features
 
@@ -192,7 +192,7 @@ Bridge includes optional debug signals:
 | dbg_outstanding | Outstanding transaction count |
 | dbg_state | FSM states |
 
-: Table 6.19: Debug Signals
+: Debug Signals
 
 ### Regression Testing
 
@@ -204,7 +204,7 @@ Bridge includes optional debug signals:
 | Nightly | Full regression | Daily |
 | Weekly | Performance | Weekly |
 
-: Table 6.20: CI Test Schedule
+: CI Test Schedule
 
 #### Test Matrix
 
@@ -216,7 +216,7 @@ Bridge includes optional debug signals:
 | 2x2 | 64 | AXI4+APB | Yes |
 | RAPIDS | 512 | AXI4+APB | Yes |
 
-: Table 6.21: Configuration Test Matrix
+: Configuration Test Matrix
 
 ### Known Limitations
 
@@ -228,7 +228,7 @@ Bridge includes optional debug signals:
 | Width downsize stress | Partial | Planned |
 | 32-master config | Not tested | Low priority |
 
-: Table 6.22: Known Test Gaps
+: Known Test Gaps
 
 #### Simulator Support
 
@@ -238,4 +238,4 @@ Bridge includes optional debug signals:
 | Icarus Verilog | Supported |
 | Commercial (VCS, Questa) | Not tested |
 
-: Table 6.23: Simulator Support Status
+: Simulator Support Status

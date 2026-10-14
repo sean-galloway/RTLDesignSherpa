@@ -38,6 +38,8 @@ These are baked into the module name, the instance names, and the address map co
 | `enable_parity` | Adds APB5 parity ports when the corresponding port is APB5. |
 | `name_suffix` | Appended to the module and file names (e.g., `_mixed`). |
 
+: Generation-Time Parameters
+
 ## Elaboration-time parameters
 
 The generated module exposes three parameters:
@@ -57,5 +59,7 @@ module apbx_xbar_2to4 #(
 | `DATA_WIDTH` | 32 for standard APB; 64 for wide APB variants. |
 | `STRB_WIDTH` | Always `DATA_WIDTH / 8`; kept as a derived parameter for readability. |
 | `BASE_ADDR` | Override the base address at instantiation time without regenerating the module. The address-map comment still reflects the generator's default. |
+
+: Elaboration-Time Parameters
 
 The number of masters and slaves is **not** parameterized: a 2×4 module cannot be instantiated as 2×8. Generate a new module instead.

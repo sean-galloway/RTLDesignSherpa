@@ -32,6 +32,8 @@ The catch-all latches its status. Every bridge exposes:
 | `unmapped_count[7:0]` | out | number of unmapped accesses, saturating at 255 |
 | `unmapped_clear` | in | pulse to clear the flag and the count |
 
+: Unmapped-address status and interrupt ports
+
 Three choices worth knowing about:
 
 * **Sticky, not a pulse.** A one-cycle pulse is gone before software can look,
@@ -52,6 +54,8 @@ Three choices worth knowing about:
 | Read | `AxLEN+1` beats, `RLAST` on the last |
 | Response | **`DECERR`** on both, always |
 | Read data | `0xDEADBEEF`, replicated to the bus width |
+
+: Subtractive-slave response behaviour
 
 `DECERR` rather than `SLVERR` is the AXI4 code for "no slave at this address":
 nothing failed to service the request, there was nothing there to service it.

@@ -40,6 +40,8 @@ python3 apbx_xbar_generator.py --masters 2 --slaves 4 --output apbx_xbar_2to4.sv
 | `--data-width` | `-d` | 32 | APB PWDATA/PRDATA width. |
 | `--output` | `-o` | `apbx_xbar_<M>to<N>.sv` | Output filename. |
 
+: Core Generator CLI Options
+
 The CLI does **not** expose per-port APB5 or parity knobs; those are controlled by the programmatic API and the batch script.
 
 ## `generate_xbars.py`
@@ -56,6 +58,8 @@ python3 generate_xbars.py --masters 4 --slaves 8 --base-addr 0x80000000 --slave-
 | `--slaves` | `-s` | (all) | Slaves for a custom variant. |
 | `--base-addr` | `-b` | `0x10000000` | Base address for custom variant. |
 | `--slave-size` | | `0x10000` | Stride for custom variant (default matches the shipped family). |
+
+: Batch Generator CLI Options
 
 The batch script explicitly passes `slave_size=0x10000` to the generator so the shipped family uses 64KB windows. Omitting the flag would silently fall back to the generator's 4KB default, which is why the batch script always passes it.
 

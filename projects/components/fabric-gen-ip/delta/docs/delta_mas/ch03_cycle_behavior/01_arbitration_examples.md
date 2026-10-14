@@ -39,7 +39,7 @@ Assumption: `last_grant[S0]` was 1 before the trace begins.
 | 4 | Arbiter picks M1 | `2'b10` | `2'b10` | 1 | M1 now granted. |
 | 5 | M1 beat 0 (TLAST) accepted | `2'b00` | `2'b00` | 0 | Both packets complete. |
 
-: Table 3.1: Contention Trace
+: Contention Trace
 
 ## Observations
 

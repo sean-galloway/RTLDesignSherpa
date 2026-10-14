@@ -266,11 +266,12 @@ proves the forwarding (`ap_pwakeup_forwarded`), the wake under every PSEL
 | `apbx_xbar_2to4` | 2×4 | Typical SoC with CPU+DMA |
 | `apbx_xbar_2to2_mixed` | 2×2 | Mixed APB4/APB5 (m0=APB4, m1=APB5; s0=APB5, s1=APB4), per-port version gating |
 
+: Pre-Generated Crossbar Variants
+
 LOC per variant is in HAS ch05_performance/03_resources.md, which is the
 single source of truth for it. The column that used to sit here went stale
 within two days of being reconciled.
 
-: Pre-Generated Crossbar Variants
 
 **Custom Variants:** Generated on-demand via Python script
 

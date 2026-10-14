@@ -59,7 +59,7 @@ Each AXI4 channel operates independently:
 | AR | Master to Slave | Read address | Per-slave |
 | R | Slave to Master | Read data | ID-based routing |
 
-: Table 3.2: AXI4 Channel Summary
+: AXI4 Channel Summary
 
 ### Parallel Operation
 
@@ -107,6 +107,8 @@ on that. Which store a slave gets is fixed at generation:
 | AXI4 / AXI5 slave, more than one master | `bridge_cam` (`u_wr_cam` / `u_rd_cam`), tag = AXI ID, data = `bridge_id`, 16 deep | any order across IDs |
 | any slave with `enable_ooo = true` | `bridge_cam` | any order across IDs |
 | single-master bridge, apb / axil / wb shim slaves, internal subtractive slave | in-order `bridge_id` FIFO, 16 deep | request order across all IDs |
+
+: Response Routing
 
 ```systemverilog
 // CAM form (multi-master AXI4 slave)

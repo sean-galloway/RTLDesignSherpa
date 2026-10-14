@@ -58,7 +58,7 @@ one bus, so a classic peer needs a classic bridge build.
 | RTY | 1 | Input | Output | Retry termination (never driven by the bridge) |
 | DAT_R | DATA_WIDTH | Input | Output | Read data (the spec's DAT_I at the requester) |
 
-: Table 4.7: Wishbone B4 Signal Definitions
+: Wishbone B4 Signal Definitions
 
 ### Signal Naming
 
@@ -99,7 +99,7 @@ beat, and `axil4_to_wb4` turns those into Wishbone transfers, in order.
 | ERR | SLVERR |
 | RTY | SLVERR (`RTY_RESP`; AXI has no retry) |
 
-: Table 4.8: Wishbone termination to AXI4 response
+: Wishbone termination to AXI4 response
 
 The monitored (`mon`) variant places the `axi4_master_*_monlite` wrappers
 between the crossbar and the converter, exactly as for APB slave ports.

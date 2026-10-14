@@ -33,10 +33,10 @@
 
 ## Related Modules
 
-- **[Bridge HAS](../bridge_has/bridge_has_index.md)** - Hardware Architecture Specification
-- **[Bridge MAS](../bridge_mas/bridge_mas_index.md)** - Micro-Architecture Specification
-- **[PRD.md](../../PRD.md)** - Product requirements
-- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
+- **[Bridge HAS](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md)** - Hardware Architecture Specification
+- **[Bridge MAS](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md)** - Micro-Architecture Specification
+- **[PRD.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/PRD.md)** - Product requirements
+- **[CLAUDE.md](https://github.com/seang-galloway/RTLDesignSherpa/blob/main/projects/components/fabric-gen-ip/bridge/CLAUDE.md)** - AI development guide
 
 ---
 

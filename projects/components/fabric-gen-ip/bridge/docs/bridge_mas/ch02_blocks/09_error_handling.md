@@ -390,6 +390,8 @@ behaviours, which is why other pages disagree:
 | `[bridge.defaults]` | WARNS: "`[bridge.defaults]` is not implemented -- section ignored" |
 | anywhere else | SILENTLY ACCEPTED and ignored; nothing warns |
 
+: Timeout Configuration
+
 So a TOML written from the block this section used to contain loads fine and
 does nothing. An earlier revision of this paragraph claimed `config_validator`
 rejects unknown keys and the config "does not load at all"; that is true only
@@ -420,6 +422,8 @@ The register as originally proposed (read/clear), kept for reference:
 | 7 | ID Match Error |
 | 15:8 | Reserved |
 | 31:16 | Error Count (saturating) |
+
+: Error Status Register
 
 ### Error History Buffer
 

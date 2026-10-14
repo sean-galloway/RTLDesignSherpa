@@ -32,7 +32,7 @@ The `bin/delta_performance_model.py` script provides empirical resource estimate
 | 2×4 @ 32-bit | ~200 | ~150 | Small test configuration. |
 | 4×16 @ 64-bit, no counters | ~1,400 | ~1,200 | `--no-counters` saves FF area. |
 
-: Table 5.4: Resource Estimates
+: Resource Estimates
 
 ## Scaling Laws
 
@@ -49,4 +49,4 @@ The `bin/delta_performance_model.py` script provides empirical resource estimate
 | Smaller `DATA_WIDTH` | Linear reduction in data mux area. |
 | Disable richness options | Removes `TSTRB` muxing, and with `--amba5` off removes the `TWAKEUP` decode, the check-signal mux and the per-port `dataint_parity` checkers. |
 
-: Table 5.5: Area Optimization Options
+: Area Optimization Options

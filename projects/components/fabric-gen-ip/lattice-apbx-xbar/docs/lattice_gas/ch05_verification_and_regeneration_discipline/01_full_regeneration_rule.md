@@ -32,6 +32,8 @@ Any change to the files listed below must be followed by a full regeneration of 
 | `rtl/common/apb4_master.sv` / `apb5_master.sv` | Same for slave-side instances. |
 | `rtl/common/arbiter_round_robin.sv` | Arbitration timing or fairness changes affect every multi-master variant. |
 
+: Sources Requiring Full Regeneration
+
 ## Regeneration command
 
 ```bash

@@ -35,6 +35,8 @@
 | Status | Released |
 | Classification | Open Source - MIT License |
 
+: Document information
+
 ### Document Purpose
 
 This Micro-Architecture Specification (MAS) documents how the Bridge component is built:
@@ -70,6 +72,8 @@ Yes, the CAM gets called out in its own bullet — it was documented, never buil
 | 1.6 | 2026-09-13 | RTL Design Sherpa | bridge TASK-007 (was BRIDGE-018): native AXI5 fabric -- Memory Tagging and read-data chunking through the structs |
 | 1.7 | 2026-09-13 | RTL Design Sherpa | Document sync: one fabric clock plus CDC ports throughout, Wishbone best-effort stance, out-of-order chunk proof |
 | 2.0 | 2026-10-12 | RTL Design Sherpa | Protocol-set correction: overview/summary bullets now state the full eight-protocol support (axi3/axi4/axi5/axil/axil5/apb/apb5/wb4 — per-port, slave or master side; ACE coherency NOT supported) verified against `bin/bridge_pkg/config_validator.py`. Version strings aligned across index/front-matter/renders. |
+
+: Revision history
 
 ## References
 

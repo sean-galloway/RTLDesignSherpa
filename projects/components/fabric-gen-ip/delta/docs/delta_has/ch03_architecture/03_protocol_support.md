@@ -74,4 +74,4 @@ For memory-mapped fabrics, use the sibling `bridge` or `lattice-apbx-xbar` compo
 | TWAKEUP | No | Yes | `--amba5` |
 | T*CHK interface parity (IHI 0051B ch. 5, odd) | No | Yes | `--amba5` |
 
-: Table 3.2: Protocol Support Matrix
+: Protocol Support Matrix
