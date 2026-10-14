@@ -13,6 +13,17 @@
 
 `include "reset_defs.svh"
 
+// ILA observation taps: with AMBER_ILA_DBG defined (ILA debug build only) the
+// macro expands to mark_debug so synthesis preserves these nets under their
+// names; otherwise it is empty and the design is untouched. The tap names and
+// layers mirror dv/amber_pair_harness_uart_tb.sv probe_* outputs 1:1 so a
+// board ILA capture lines up with the sim golden reference (golden_probes.vcd).
+`ifdef AMBER_ILA_DBG
+  `define AMBER_DBG_NET (* mark_debug = "true" *)
+`else
+  `define AMBER_DBG_NET
+`endif
+
 module amber_pair_harness
     import l1_pkg::*;
 #(
@@ -166,7 +177,8 @@ module amber_pair_harness
     logic [2:0]  s0_awprot, s0_arprot;
     logic [1:0]  s0_bresp, s0_rresp;
     logic        s0_awvalid, s0_awready, s0_wvalid, s0_wready;
-    logic        s0_bvalid, s0_bready, s0_arvalid, s0_arready, s0_rvalid, s0_rready;
+    logic        s0_bvalid, s0_bready, s0_arvalid, s0_arready;
+    `AMBER_DBG_NET logic        s0_rvalid, s0_rready;
 
     logic [31:0] s1_awaddr, s1_wdata, s1_araddr, s1_rdata;
     logic [3:0]  s1_wstrb;
@@ -383,8 +395,8 @@ module amber_pair_harness
     logic [63:0] r_cycle_ctr;
 
     // Aggregate cycle-injector status
-    logic ci0_done, ci0_busy, ci0_err;
-    logic ci1_done, ci1_busy, ci1_err;
+    `AMBER_DBG_NET logic ci0_done, ci0_busy, ci0_err;
+    `AMBER_DBG_NET logic ci1_done, ci1_busy, ci1_err;
 
     assign hcsr_status = {26'b0,
                           ci1_err, ci0_err,
@@ -433,11 +445,11 @@ module amber_pair_harness
     // ------------------------------------------------------------------
     // Cycle injectors
     // ------------------------------------------------------------------
-    logic ci0_req_valid, ci0_req_ready, ci0_rsp_valid, ci0_rsp_ready;
+    `AMBER_DBG_NET logic ci0_req_valid, ci0_req_ready, ci0_rsp_valid, ci0_rsp_ready;
     logic [CPU_REQ_W-1:0] ci0_req_data;
     logic [CPU_RSP_W-1:0] ci0_rsp_data;
 
-    logic ci1_req_valid, ci1_req_ready, ci1_rsp_valid, ci1_rsp_ready;
+    `AMBER_DBG_NET logic ci1_req_valid, ci1_req_ready, ci1_rsp_valid, ci1_rsp_ready;
     logic [CPU_REQ_W-1:0] ci1_req_data;
     logic [CPU_RSP_W-1:0] ci1_rsp_data;
 
@@ -514,6 +526,34 @@ module amber_pair_harness
         .o_busy          (ci1_busy),
         .o_err_flag      (ci1_err)
     );
+
+    // ILA taps on bridge-internal read-path nets. Downward hierarchy
+    // references, exactly as the uart tb's probe_* outputs read them.
+`ifdef AMBER_ILA_DBG
+    `AMBER_DBG_NET logic        host_arvalid;
+    `AMBER_DBG_NET logic        host_arready;
+    `AMBER_DBG_NET logic        host_rvalid;
+    `AMBER_DBG_NET logic        host_rready;
+    `AMBER_DBG_NET logic [31:0] host_rdata;
+    `AMBER_DBG_NET logic [1:0]  host_rresp;
+    `AMBER_DBG_NET logic        host_rlast;
+    `AMBER_DBG_NET logic        fub_rvalid;
+    `AMBER_DBG_NET logic        fub_rready;
+    `AMBER_DBG_NET logic        cvr_rvalid;
+    `AMBER_DBG_NET logic        cvr_rlast;
+
+    assign host_arvalid = u_bridge.host_32b_arvalid;
+    assign host_arready = u_bridge.host_32b_arready;
+    assign host_rvalid  = u_bridge.host_32b_rvalid;
+    assign host_rready  = u_bridge.host_32b_rready;
+    assign host_rdata   = u_bridge.host_32b_r.data;
+    assign host_rresp   = u_bridge.host_32b_r.resp;
+    assign host_rlast   = u_bridge.host_32b_r.last;
+    assign fub_rvalid   = u_bridge.u_host_adapter.fub_axi_rvalid;
+    assign fub_rready   = u_bridge.u_host_adapter.fub_axi_rready;
+    assign cvr_rvalid   = u_bridge.u_harness_csr_adapter.converter_rvalid;
+    assign cvr_rlast    = u_bridge.u_harness_csr_adapter.converter_rlast;
+`endif
 
     // ------------------------------------------------------------------
     // Two amber_top caches + pair fabric + memory (mirror amber_pair_rig_tb)
@@ -1382,3 +1422,5 @@ module amber_harness_csr (
     )
 
 endmodule : amber_harness_csr
+
+`undef AMBER_DBG_NET
