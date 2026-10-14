@@ -80,7 +80,7 @@
 
 | Figure | Source | Subject |
 |---|---|---|
-| *none* | — | Figures are empty at 0.1; the block diagram is described in prose in [Chapter 2.4](ch02_overview/04_block_diagram.md) and will be drawn after J1/J5 close. |
+| 2.1 | `assets/graphviz/01_block_diagram.dot` | the planned whole unit, drawn from the prose in [Chapter 2.4](ch02_overview/04_block_diagram.md); exact modules and depths follow J1/J5 |
 
 : Table 0.0: Figures and their sources
 

@@ -23,7 +23,13 @@
 
 # Block Diagram
 
-**Stub: the block diagram is pending D1/D3/D4/D5.** This chapter records the expected manager shape in prose. No figure is drawn at 0.1.
+**Stub: the exact block diagram is pending D1/D3/D4/D5.** This chapter records the expected manager shape in prose. Figure 2.1 draws that shape and nothing more; it is marked planned because no onyx RTL exists and no module boundary is fixed.
+
+### Figure 2.1: onyx manager shape (planned)
+
+![onyx ACE CCU, planned manager shape: front-end decode, coherence decision layer, serializer, fanout / gather, memory-side AXI4 master, MonBus taps](../assets/graphviz/01_block_diagram.png)
+
+**Source:** [01_block_diagram.dot](../assets/graphviz/01_block_diagram.dot)
 
 ## Expected manager shape
 

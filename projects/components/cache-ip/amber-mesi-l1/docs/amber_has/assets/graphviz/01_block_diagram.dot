@@ -1,0 +1,81 @@
+// amber MESI L1 whole-unit block diagram -- house style per
+// vault/handbook/authoring/block-diagrams.md. Replaces the Mermaid
+// 01_block_diagram figure. CPU requests come down the center from the
+// GAXI port; misses and write-backs leave through the engines to the
+// memory-side bar; fill data returns up; snoops come in on their own column
+// at the right. Drawn for amber_top (pair rig); the amber_ace_top deltas are
+// dashed and say so.
+digraph amber_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho,
+           label="amber MESI L1 - amber_top / amber_ace_top around the shared l1_core (cache-ip/common-ip)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    cpu  [label="CPU / STREAM\nGAXI master", fillcolor="white"];
+    peer [label="Peer amber cache (pair rig) or onyx CCU (ACE rig)\nACE snoop master", fillcolor="white"];
+
+    fe   [label="CPU Front End\nl1_cpu_frontend - FUB\nGAXI slave, response staging FIFO, replay latch"];
+    ctrl [label="Cache Control\nl1_control - FUB (the only FSM, blocking)\n+ l1_pending_fill_bypass, l1_victim (depth 1) leaves"];
+    repl [label="Replacement\nl1_repl - FUB\nLRU / tree-PLRU / FIFO / random"];
+    snp  [label="Snoop Responder\nl1_snoop_resp - FUB\nAC in, CR / CD out; port B of both arrays"];
+
+    arr  [label="Tag + Data Arrays\nl1_tag_array + l1_data_array - sdpram_core each\nport A: CPU lookup / hit / write merge / fill beats   port B: snoop lookup / downgrade / CD read",
+          width=8.5];
+
+    fill  [label="Fill Engine\nl1_fill - FUB\nAXI4 read sequencing"];
+    drain [label="Drain Engine\nl1_drain - FUB\nAXI4 write sequencing"];
+    issue [label="ACE Issue Map\namber_ace_issue - FUB\nARSNOOP / AWSNOOP stamping\n(amber_ace_top only)", style="filled,dashed"];
+
+    rdt [label="Read Transport\naxi4_master_rd_monlite\n(axi4ace_master_rd_monlite in amber_ace_top)"];
+    wrt [label="Write Transport\naxi4_master_wr_monlite\n(axi4ace_master_wr_monlite in amber_ace_top)"];
+
+    mon  [label="Cache-Event Observer\nl1_monlite - FUB\n(observed, nothing driven back)", style="filled,dashed"];
+    marb [label="MonBus Merge\nmonbus_arbiter (3 clients)", shape=polygon, sides=4, distortion=0.10,
+          width=2.8, height=0.5, fillcolor="#BDD7EE"];
+
+    bar [label="Rig-top edge - m_axi_* to memory (amber_top) or to onyx as ACE (amber_ace_top)  |  MonBus out  |  coh_req sideband",
+         fillcolor="white", width=11, height=0.5, fontsize=11];
+
+    // ---- CPU request flow (center) ----
+    cpu  -> fe   [dir=both, xlabel="request / response"];
+    fe   -> ctrl [dir=both, xlabel="request / response"];
+    ctrl -> arr  [dir=both, xlabel="port A: lookup,\nhit / write merge"];
+    repl -> ctrl [style=dashed, dir=both, xlabel="victim way"];
+
+    // ---- miss and write-back ----
+    ctrl  -> fill  [xlabel="fill launch (RD_SHARED /\nRD_UNIQUE / CLEAN_UNIQUE)"];
+    arr   -> fill  [dir=back, xlabel="fill beats"];
+    ctrl  -> drain [xlabel="write-back launch"];
+    arr   -> drain [xlabel="victim beats"];
+    fill  -> rdt   [dir=both, xlabel="AR / R"];
+    drain -> wrt   [dir=both, xlabel="AW / W / B"];
+    issue -> rdt   [style=dashed, xlabel="ARSNOOP"];
+    issue -> wrt   [style=dashed, xlabel="AWSNOOP"];
+    rdt   -> bar   [dir=both, xlabel="Read (AR / R)"];
+    wrt   -> bar   [dir=both, xlabel="Write (AW / W / B)"];
+
+    // ---- snoop column ----
+    peer -> snp [dir=both, xlabel="AC / CR, CD"];
+    snp  -> arr [dir=both, xlabel="port B"];
+
+    // ---- observation ----
+    ctrl -> mon  [style=dashed, xlabel="cache events"];
+    mon  -> marb [xlabel="client 0"];
+    rdt  -> marb [style=dashed, xlabel="client 1"];
+    wrt  -> marb [style=dashed, xlabel="client 2"];
+    marb -> bar  [penwidth=1.8, xlabel="MonBus packets"];
+
+    { rank=same; cpu; peer; }
+    { rank=same; fe; snp; }
+    { rank=same; repl; ctrl; mon; }
+    { rank=same; fill; drain; }
+    { rank=same; rdt; issue; wrt; }
+    cpu -> peer [style=invis];
+    fe -> snp [style=invis];
+    repl -> ctrl -> mon [style=invis];
+    fill -> drain [style=invis];
+    rdt -> issue -> wrt [style=invis];
+}

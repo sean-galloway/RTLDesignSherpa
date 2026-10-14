@@ -87,7 +87,7 @@
 
 | Figure | Source | Subject |
 |---|---|---|
-| 2.1 | `assets/mermaid/01_block_diagram.mmd` | amber shared core, the two rig tops, and the peer/onyx snoop boundary |
+| 2.1 | `assets/graphviz/01_block_diagram.dot` | amber shared core, the two rig tops, and the peer/onyx snoop boundary |
 | 3.1 | `assets/mermaid/02_miss_flow.mmd` | miss-to-fill-to-replay data flow, with victim drain |
 | 3.2 | `assets/mermaid/03_snoop_flow.mmd` | probe path through tag port B and the pending-fill bypass |
 
