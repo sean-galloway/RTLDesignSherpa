@@ -52,40 +52,9 @@ HIVE and Delta meet at three seams:
 
 The tile internals (NI, router, compute element) are Delta's architecture:
 
-```
-┌─────────────────────────────────────┐
-│         Compute Tile N              │
-│  ┌──────────────────────────────┐  │
-│  │   SERV Monitor (HIVE Block 2)│  │
-│  │  - Traffic counters          │  │
-│  │  - Trigger logic             │  │
-│  │  - AXIS TX injector          │  │
-│  └──────────┬───────────────────┘  │
-│             │ Control signals      │
-│  ┌──────────▼───────────────────┐  │
-│  │   Network Interface (Delta)  │  │
-│  │  - AXIS packetizer           │  │
-│  │  - Credit flow control       │  │
-│  │  - TID override (CE traffic) │  │
-│  └──────────┬───────────────────┘  │
-│             │                      │
-│  ┌──────────▼───────────────────┐  │
-│  │   Router (Delta, 5-port)     │  │
-│  │  - N/S/E/W + Local           │  │
-│  │  - XY routing logic          │  │
-│  │  - VC buffers (8 flits ea.)  │  │
-│  └──────────┬───────────────────┘  │
-│             │ To/from mesh         │
-└─────────────┼───────────────────────┘
-              │
-   ┌──────────▼───────────┐
-   │  Compute Element     │
-   │  (Delta: DSP MACs,   │
-   │   local BRAM, PE FSM)│
-   └──────────────────────┘
-```
+### Figure 7.1: HIVE/Delta tile seam — SERV monitor above the Delta-owned NI
 
-: HIVE/Delta tile seam — SERV monitor above the Delta-owned NI
+![HIVE/Delta tile seam: SERV monitor, network interface, router, compute element](../assets/graphviz/04_tile_seam.png)
 
 ## System Top Integration
 

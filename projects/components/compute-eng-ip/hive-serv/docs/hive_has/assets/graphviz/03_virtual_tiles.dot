@@ -1,0 +1,47 @@
+// Delta 4x4 mesh with HIVE virtual tiles -- house style per
+// vault/handbook/authoring/block-diagrams.md. Converted from the ASCII figure in
+// HAS ch02 (virtual tile addressing). A topology map, not a flow: tiles are
+// boxes in their mesh position, mesh links are undirected; the two virtual
+// tiles hang off the mesh edge with the TDEST that reaches them.
+graph delta_virtual_tiles {
+    graph [compound=true, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.35", ranksep="0.35",
+           splines=line, label="Delta 4x4 physical mesh (tiles 0-15) and the two HIVE virtual tiles", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black",
+           width=0.9, height=0.5, fixedsize=true];
+    edge  [fontname="Helvetica", fontsize=9, color="black"];
+    subgraph cluster_mesh { label="Delta mesh (fabric-gen-ip/delta) - compute tiles, XY rows and columns"; style=dashed; fontsize=10;
+        { rank=same; T0 [label="T0\nrow 0"]; T1 [label="T1\nrow 0"]; T2 [label="T2\nrow 0"]; T3 [label="T3\nrow 0"]; }
+        T0 -- T1;
+        T1 -- T2;
+        T2 -- T3;
+        { rank=same; T4 [label="T4\nrow 1"]; T5 [label="T5\nrow 1"]; T6 [label="T6\nrow 1"]; T7 [label="T7\nrow 1"]; }
+        T4 -- T5;
+        T5 -- T6;
+        T6 -- T7;
+        { rank=same; T8 [label="T8\nrow 2"]; T9 [label="T9\nrow 2"]; T10 [label="T10\nrow 2"]; T11 [label="T11\nrow 2"]; }
+        T8 -- T9;
+        T9 -- T10;
+        T10 -- T11;
+        { rank=same; T12 [label="T12\nrow 3"]; T13 [label="T13\nrow 3"]; T14 [label="T14\nrow 3"]; T15 [label="T15\nrow 3"]; }
+        T12 -- T13;
+        T13 -- T14;
+        T14 -- T15;
+        T0 -- T4;
+        T1 -- T5;
+        T2 -- T6;
+        T3 -- T7;
+        T4 -- T8;
+        T5 -- T9;
+        T6 -- T10;
+        T7 -- T11;
+        T8 -- T12;
+        T9 -- T13;
+        T10 -- T14;
+        T11 -- T15;
+    }
+    v16 [label="Virtual tile 16\nRAPIDS DMA engine", width=2.1, height=0.6, fillcolor="white"];
+    v17 [label="Virtual tile 17\nHIVE-C master controller", width=2.3, height=0.6, fillcolor="white"];
+    T13 -- v16 [ltail=cluster_mesh, label="  edge-attached,\l  TDEST=16\l", minlen=2];
+    T14 -- v17 [ltail=cluster_mesh, label="  edge-attached,\l  TDEST=17\l", minlen=2];
+    { rank=same; v16; v17; }
+}

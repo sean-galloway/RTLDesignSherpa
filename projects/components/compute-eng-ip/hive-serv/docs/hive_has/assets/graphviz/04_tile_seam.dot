@@ -1,0 +1,32 @@
+// HIVE / Delta tile seam -- house style per vault/handbook/authoring/block-diagrams.md.
+// Converted from the ASCII figure in HAS ch07 (Delta integration). One compute
+// tile: the HIVE SERV monitor sits above the Delta-owned network interface
+// and router; packets go down to the mesh, which is the bar. The router is
+// observed by the monitor, never driven by it.
+digraph hive_tile_seam {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.55", splines=ortho,
+           label="HIVE / Delta tile seam - compute tile N (SERV monitor above the Delta-owned NI)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    cn   [label="Control Network\n(HIVE-C commands in / status out)", fillcolor="white"];
+    serv [label="SERV Monitor - HIVE Block 2\nserv_monitor: traffic_counter, trigger_logic, axis_injector"];
+    ce   [label="Compute Element (Delta)\nDSP MACs, local BRAM, PE FSM", fillcolor="white"];
+    ni   [label="Network Interface (Delta)\nAXIS packetizer, credit flow control,\nTID override on compute-element traffic"];
+    rtr  [label="Router (Delta, 5-port)\nN / S / E / W + local, XY routing,\nVC buffers (8 flits each)"];
+
+    bar  [label="Delta mesh links (N / S / E / W to neighbouring tiles)", fillcolor="white", width=6, height=0.5, fontsize=11];
+
+    cn   -> serv [dir=both, xlabel="commands /\nstatus"];
+    serv -> ni   [xlabel="injected packets\n(PKT_CONFIG, PKT_STATUS)"];
+    ce   -> ni   [dir=both, xlabel="CE traffic\n(PKT_DATA)"];
+    ni   -> rtr  [dir=both, xlabel="local port"];
+    rtr  -> bar  [dir=both, xlabel="to / from mesh"];
+    rtr  -> serv [style=dashed, xlabel="traffic counters\n(observed, nothing driven back)", constraint=false];
+
+    { rank=same; serv; ce; }
+    serv -> ce [style=invis];
+}

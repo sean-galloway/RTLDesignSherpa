@@ -1,0 +1,44 @@
+// HIVE system data flow -- house style per vault/handbook/authoring/block-diagrams.md.
+// Converted from the ASCII figure in HAS ch02 (position in the RAPIDS / Delta
+// / HIVE ecosystem). Descriptors go down from the host through HIVE-C into
+// Delta and on to RAPIDS; RAPIDS moves data between DDR (the bar) and the
+// compute tiles through Delta; status climbs back to HIVE-C on the right.
+digraph hive_system_flow {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.90", ranksep="0.65", splines=ortho,
+           label="HIVE in the RAPIDS / Delta / HIVE system - descriptor, data and status flows",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host  [label="Host system\n(x86 CPU, ARM SoC, ...)", fillcolor="white"];
+    hivec [label="HIVE-C Controller (virtual tile 17)\nVexRiscv firmware: parse host commands, build RAPIDS descriptors,\ninject CDA packets, aggregate SERV statistics, manage reconfiguration"];
+    serv  [label="SERV Monitors (x16)\ntraffic counters, congestion detection,\npacket injection"];
+    delta [label="Delta Network (external)\nroutes every AXIS packet by TUSER / TDEST", width=6];
+    rapids [label="RAPIDS DMA Engine (virtual tile 16, external)\ndescriptor engine: parses 256-bit CDA descriptors,\nruns MM2S / S2MM transfers;\ncompletion interrupt to HIVE-C"];
+    tiles [label="Compute Tiles 0-15 (Delta, external)\nDSP MACs, local BRAM", fillcolor="white"];
+
+    bar   [label="DDR memory (AXI4) - activations, weights, results", fillcolor="white", width=6, height=0.5, fontsize=11];
+
+    x_st [shape=point, width=0.01, height=0.01, label="", style=invis];
+
+    host  -> hivec  [dir=both, xlabel="commands (UART / AXI4-Lite)"];
+    hivec -> x_cda  [dir=none, xlabel="CDA descriptors\n(TUSER=01, TDEST=16)"];
+    x_cda -> delta;
+    x_cda [shape=point, width=0.01, height=0.01, label="", style=invis];
+    hivec -> serv   [xlabel="Control Network\ncommands"];
+    rapids -> bar   [dir=both, xlabel="AXI4 MM2S reads /\nS2MM writes"];
+    delta -> rapids [dir=both, xlabel="CDA + results in (TDEST=16) /\nPKT_DATA out (TDEST 0-15)"];
+    delta -> tiles  [dir=both, xlabel="PKT_DATA in /\nresults out (TID = tile)"];
+    serv  -> delta  [xlabel="PKT_STATUS / PKT_CONFIG"];
+    hivec -> x_st   [dir=back, xlabel="PKT_STATUS (TDEST=17)"];
+    x_st  -> delta  [dir=none];
+
+
+    { rank=same; hivec; }
+    { rank=same; serv; x_cda; x_st; }
+    serv -> x_cda -> x_st [style=invis];
+    { rank=same; rapids; tiles; }
+    rapids -> tiles [style=invis];
+}

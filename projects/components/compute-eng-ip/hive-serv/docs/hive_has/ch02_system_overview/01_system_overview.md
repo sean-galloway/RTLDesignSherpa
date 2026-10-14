@@ -48,46 +48,9 @@ injection.
 
 ## Hierarchical Organization
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     HIVE Control Plane                      │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │         VexRiscv Master Controller (HIVE-C)        │    │
-│  │  - Global RAPIDS DMA coordination                  │    │
-│  │  - Network reconfiguration management              │    │
-│  │  - Performance monitoring aggregation              │    │
-│  │  - External host interface (UART/AXI4-Lite)        │    │
-│  └──────────────────┬─────────────────────────────────┘    │
-│                     │ Control Network                       │
-│          ┌──────────┴──────────┬──────────────┐           │
-│          ▼          ▼          ▼              ▼           │
-│  ┌──────────┐ ┌──────────┐ ... ┌──────────┐ (16 tiles)   │
-│  │ SERV-0   │ │ SERV-1   │     │ SERV-15  │              │
-│  │ Monitor  │ │ Monitor  │     │ Monitor  │              │
-│  └────┬─────┘ └────┬─────┘     └────┬─────┘              │
-└───────┼────────────┼──────────────────┼───────────────────┘
-        │            │                  │
-        ▼            ▼                  ▼
-┌───────────────────────────────────────────────────────────┐
-│              Delta Network (4×4 Mesh)                     │
-│   ┌────┬────┬────┬────┐                                  │
-│   │T0  │T1  │T2  │T3  │  T = Compute Tile               │
-│   ├────┼────┼────┼────┤  Each tile has:                 │
-│   │T4  │T5  │T6  │T7  │  - SERV monitor                 │
-│   ├────┼────┼────┼────┤  - Compute elements (DSPs)      │
-│   │T8  │T9  │T10 │T11 │  - Local BRAM buffers           │
-│   ├────┼────┼────┼────┤  - Router/Network Interface     │
-│   │T12 │T13 │T14 │T15 │                                  │
-│   └────┴────┴────┴────┘                                  │
-└───────────────┬───────────────────────────────────────────┘
-                ▼
-        ┌──────────────┐
-        │    RAPIDS    │
-        │  DMA Engine  │
-        │ (Virtual     │
-        │  Tile 16)    │
-        └──────────────┘
-```
+### Figure 2.1: HIVE control plane
+
+![HIVE control plane: HIVE-C, Control Network, sixteen SERV monitors, over the Delta network](../assets/graphviz/01_control_plane.png)
 
 The compute tiles, routers, and network interfaces belong to Delta (see the
 Delta HAS). HIVE owns the control plane above them: HIVE-C, the sixteen SERV
@@ -105,56 +68,9 @@ monitors, the Control Network, and the Configuration Manager.
 > HIVE's architecture stands as specified against delta, and HIVE talks
 > to it exclusively over AXI4-Stream (§4.1).
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                      Host System                         │
-│              (x86 CPU, ARM SoC, etc.)                    │
-└────────────────┬─────────────────────────────────────────┘
-                 │ UART / AXI4-Lite
-                 ▼
-┌──────────────────────────────────────────────────────────┐
-│                    HIVE-C Controller                     │
-│             (VexRiscv RISC-V @ 100 MHz)                  │
-│  ┌────────────────────────────────────────────────┐     │
-│  │  Firmware:                                     │     │
-│  │  - Parse host commands                         │     │
-│  │  - Generate RAPIDS descriptors                 │     │
-│  │  - Inject CDA packets to Delta Network         │     │
-│  │  - Aggregate SERV statistics                   │     │
-│  │  - Manage network reconfiguration              │     │
-│  └────────────────────────────────────────────────┘     │
-└──────────┬───────────────────────────────┬───────────────┘
-           │ CDA packets (AXIS)            │ Control Network
-           │ TUSER=2'b01                   │ to SERVs
-           ▼                               ▼
-┌────────────────────────┐    ┌──────────────────────────┐
-│   Delta Network        │    │   16× SERV Monitors      │
-│   Routes CDA packets   │◄───┤   - Traffic counters     │
-│   to RAPIDS (tile 16)  │    │   - Congestion detection │
-│                        │    │   - Packet injection     │
-└──────────┬─────────────┘    └──────────────────────────┘
-           │ CDA → RAPIDS
-           │ PKT_DATA ↔ Tiles
-           ▼
-┌──────────────────────────────────────────────────────────┐
-│                    RAPIDS DMA Engine                     │
-│                    (Virtual Tile 16)                     │
-│  ┌────────────────────────────────────────────────┐     │
-│  │  Descriptor Engine:                            │     │
-│  │  - Receives CDA packets from HIVE-C            │     │
-│  │  - Parses 256-bit descriptors                  │     │
-│  │  - Executes MM2S / S2MM transfers              │     │
-│  └────────────────────────────────────────────────┘     │
-└──────────┬───────────────────────────────┬───────────────┘
-           │ AXI4                          │ AXIS PKT_DATA
-           ▼                               ▼
-   ┌──────────────┐              ┌─────────────────────┐
-   │ DDR Memory   │              │ Compute Tiles 0-15  │
-   │ (Activations,│              │ (DSP MACs, BRAM)    │
-   │  Weights,    │              │                     │
-   │  Results)    │              └─────────────────────┘
-   └──────────────┘
-```
+### Figure 2.2: HIVE in the RAPIDS / Delta / HIVE system
+
+![System data flow: host, HIVE-C, Delta network, RAPIDS, compute tiles, DDR](../assets/graphviz/02_system_data_flow.png)
 
 ---
 
@@ -185,23 +101,9 @@ The end-to-end flow that exercises every HIVE block:
 
 HIVE participates in the Delta topology as two virtual tiles:
 
-```
-Delta Network 4×4 Physical Mesh (Tiles 0-15)
-┌────┬────┬────┬────┐
-│ T0 │ T1 │ T2 │ T3 │  Row 0
-├────┼────┼────┼────┤
-│ T4 │ T5 │ T6 │ T7 │  Row 1
-├────┼────┼────┼────┤
-│ T8 │ T9 │T10 │T11 │  Row 2
-├────┼────┼────┼────┤
-│T12 │T13 │T14 │T15 │  Row 3
-└────┴────┴────┴────┘
-         │           │
-         ▼           ▼
-Virtual Tile 16   Virtual Tile 17
-   (RAPIDS)         (HIVE-C)
-    DMA Engine      Master Controller
-```
+### Figure 2.3: Delta mesh and the HIVE virtual tiles
+
+![Delta 4x4 mesh of compute tiles with virtual tile 16 (RAPIDS) and 17 (HIVE-C)](../assets/graphviz/03_virtual_tiles.png)
 
 **Routing implications:**
 - TDEST = 16 routes to the RAPIDS DMA engine
