@@ -1,0 +1,51 @@
+1.4.0 2025-10-15 Olof Kindgren
+======================================================
+
+* Zephyr BSP: Port to Zephyr 4.0.0
+* Fix mstatus[mpp] field
+* Fix misa and mstatus being triggered at the same time
+* Add documentation for extension interface
+* Add Subservient documentation
+* Add 4-bit mode (QERV)
+* Add simulation debug module
+* New servant ports: Trenz Electronic TE0802
+* Make slt, branches and shifts one cycle faster
+
+1.3.0 2024-07-05 Olof Kindgren
+======================================================
+
+* Zephyr BSP: Port to Zephyr 3.5.0 + support tickless timer
+* Make RF RAM IF work with single-port RAM
+* Add PC tracing
+* Make most modules width-independent
+* Avoid releasing trap signal too early
+* Improve timer wraparound behavior
+* Overhaul documentation
+* Add Servile convenience wrapper component
+* Base Serving and Serving on Servile
+* Add simulation cycle counter to testbench
+* Add Hello world ASM example for Servant
+* New Servant ports: Arty S7-50, PolarFire Splash Kit, Machdyne Kolibri, GMM-7550, Alchistry AU, ECP5 Evaluation board, Terasic DE1 SoC
+
+1.2.1 2022-12-25 Olof Kindgren
+======================================================
+
+* Guarantee at least 2 cycles of o_rst after ice40 PLL is locked
+* New Servant ports: ICE-V Wireless
+* Add reset input for Arty A7
+* Add Servant documentation
+* Updated RISC-V Compliance support from 2.7.4 to 3.x
+
+1.2.0 2022-07-25 Olof Kindgren
+======================================================
+
+* New Servant ports: EBAZ4205, Chameleon96, Nexys2, Alinx AX309
+* Support for M ISA extension
+* Support for C ISA extension
+* Fix occasionally wrong sign on immediates
+* Support for producing GDS with OpenLANE
+* Fix Model/QuestaSim compatibility
+* Add ViDBo support
+* Improved documentation
+* Less resource usage
+* Updated RISC-V Compliance support from 1.0 to 2.7.4
