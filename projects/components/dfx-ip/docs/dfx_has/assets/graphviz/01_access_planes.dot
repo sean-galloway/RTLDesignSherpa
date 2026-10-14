@@ -1,0 +1,44 @@
+// DFX-IP access model (planned) -- house style per
+// vault/handbook/authoring/block-diagrams.md. Converted from the ASCII figure
+// in HAS ch02 (the three planes). No DFX-IP RTL exists yet; the figure draws
+// only what the chapter states. Config plane down the left, override plane
+// down the right, one shared TAP above both; the fabric clock domain is the
+// bar. Each block names its clock domain (TCK or fabric) in its label.
+digraph dfx_access_planes {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.70", ranksep="0.55", splines=ortho,
+           label="DFX-IP access model (planned) - config plane, override plane, observation plane",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    jtag [label="JTAG pins\n(TCK domain)", fillcolor="white"];
+    tap  [label="JTAG TAP (planned)\njtag-tap - shared transport (TCK)"];
+
+    agent [label="Config Plane (planned)\njtag-axil-agent: ADDR / WDATA / RDATA / CTRL\ncommand registers behind a USER DR (TCK)"];
+    dm    [label="Override Plane (planned)\nriscv-debug: DTM + Debug Module,\nabstract commands, program buffer (TCK side)"];
+
+    cdc_a [label="TCK -> fabric crossing\nreq / ack handshake (rtl/cdc primitives)\n+ AXIL4 master FSM, one access per command (fabric)"];
+    cdc_d [label="TCK -> fabric crossing\nreq / ack handshake (rtl/cdc primitives)\ncore-side halt req / ack, resume ack (fabric)"];
+
+    obs [label="Observation Plane (existing)\n*_monlite drop-and-count monitors\nsee both planes' traffic (observed, nothing driven back)",
+         style="filled,dashed"];
+
+    bar [label="Fabric clock domain - every component's CSRs over AXIL4 (amber, jet, mem-ctrl, dma, ecc, ...)  |  RISC-V cores with debug mode (falcon rungs, hive-serv)",
+         fillcolor="white", width=10, height=0.5, fontsize=11];
+
+    jtag  -> tap   [dir=both, xlabel="TDI / TMS in, TDO out"];
+    tap   -> agent [dir=both, xlabel="DR chain\n(config registers)"];
+    tap   -> dm    [dir=both, xlabel="DMI"];
+    agent -> cdc_a [dir=both, xlabel="command / busy, error"];
+    dm    -> cdc_d [dir=both, xlabel="halt / resume, step,\nregister access"];
+    cdc_a -> bar   [dir=both, xlabel="AXIL4 read / write\n(config poke)"];
+    cdc_d -> bar   [dir=both, xlabel="core debug interface\n(override)"];
+    obs   -> bar   [dir=back, style=dashed, xlabel="monlite taps"];
+
+    { rank=same; agent; dm; }
+    { rank=same; cdc_a; obs; cdc_d; }
+    agent -> dm [style=invis];
+    cdc_a -> obs -> cdc_d [style=invis];
+}

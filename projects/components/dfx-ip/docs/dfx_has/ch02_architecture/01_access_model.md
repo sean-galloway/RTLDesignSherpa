@@ -12,29 +12,11 @@ it; everything else shares one cheap fabric master.
 
 ## The three planes
 
-```
-                 ┌───────────────────────────── JTAG (TCK domain) ─┐
-                 │                                                   │
-        ┌────────▼────────┐                                 ┌────────▼────────┐
-        │   jtag-tap      │                                 │   jtag-tap      │
-        │ (transport,     │                                 │ (transport,     │
-        │  shared)        │                                 │  shared)        │
-        └────────┬────────┘                                 └────────┬────────┘
-                 │ DR chain (config regs)                          │ DMI
-                 ▼                                                   ▼
-        ┌─────────────────┐                                 ┌─────────────────┐
-        │ jtag-axil-agent │─── AXIL4 master ──► fabric ──►   │  riscv-debug    │
-        │  CONFIG PLANE   │     every component's CSRs       │  OVERRIDE PLANE │
-        └─────────────────┘                                 └────────┬────────┘
-                 │                                                      │ halt/resume,
-                 │ poke (rd/wr)                                         │ step, reg access,
-                 ▼                                                      ▼
-        amber/jet/mem-ctrl/dma/ecc/...                          falcon rungs,
-        "access to their configs"                               hive-serv cores
-                                                                    │
-        ◄───────────────── monlite taps (already house-wide) ───────┤
-                    OBSERVATION PLANE — sees both planes' traffic   │
-```
+### Figure 2.1: The three access planes (planned)
+
+![DFX-IP access model: shared JTAG TAP feeding the config plane (jtag-axil-agent) and the override plane (riscv-debug), each crossing once into the fabric clock domain; monlite observation plane](../assets/graphviz/01_access_planes.png)
+
+**Source:** [01_access_planes.dot](../assets/graphviz/01_access_planes.dot)
 
 ### Observation plane (existing)
 
