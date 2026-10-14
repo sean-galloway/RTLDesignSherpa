@@ -1,0 +1,66 @@
+// apb4_pit_8254 whole-unit diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Geography: the APB port and the PeakRDL register block at the top center,
+// the GATE pins top-right, pit_core with its counters in the middle, the
+// timer_irq outputs at the boundary bar.
+// Flows:
+//   register access - down the center (APB -> completer -> decode -> regs);
+//                     the response rides the same dir=both edges back up
+//   commands        - regs -> strobe builder -> control-word decode -> counter
+//   GATE            - down the RIGHT: gate_in -> synchronizer -> counter
+//   OUT             - counter -> bar (timer_irq), the heavy main exit
+//   read-back       - counter -> regs, climbing the LEFT edge
+// Three identical counters: one channel is drawn (handbook, multi-channel).
+// Source of truth: rtl/pit_8254/apb4_pit_8254.sv, pit_config_regs.sv,
+// pit_core.sv, pit_counter.sv.
+digraph pit_8254_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="apb4_pit_8254 - APB 8254-compatible interval timer, Mode 0 (one of three identical counters drawn)\nCDC_ENABLE=0: all on pclk;  CDC_ENABLE=1: register block and counters on pit_clk",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)"];
+    gatep [group=R, fillcolor="white", label="Counter Gates\ngate_in[2:0] (asynchronous)"];
+
+    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or\napb4_slave_cdc (CDC_ENABLE=1, pclk -> pit_clk)"];
+    dec  [group=C, label="Adapter + Strict Decode\npit_config_regs - peakrdl_to_cmdrsp\nonly the seven mapped registers pass;\nanything else: read 0, PSLVERR"];
+    regs [group=C, label="Register Block (PeakRDL)\npit_regs inside pit_config_regs\nPIT_CONFIG, PIT_CONTROL, PIT_STATUS,\nCOUNTER0_DATA .. COUNTER2_DATA"];
+
+    stb  [group=C, label="Write / Read Strobe Builder (flop)\npit_config_regs\none-cycle strobe per write, delayed to the stored field;\none data-read strobe per counter (releases the latch)"];
+    cwd  [group=C, label="Control-Word Decode (combinational)\npit_core\nSC selects the counter;  RW != 00: program;  RW = 00: latch\nSC = 11 (read-back command): ignored\npit_enable -> count enable to all three"];
+    sync [group=R, label="GATE Synchronizer (flop)\npit_core - SYNC_STAGES flops per counter\n(unconditional, both clock configurations)"];
+
+    cnt  [group=C, width=6.0, label="Counter n - pit_counter (u_counter0 / u_counter1 / u_counter2)\n16-bit down-counter, binary or BCD; a load of 0 counts 65536\nMode 0 only: OUT low on load, high at terminal count, then parks\ncounts while enabled AND GATE high; latch freezes a copy for the read"];
+
+    bar  [group=C, fillcolor="white", width=9.0,
+          label="Module Boundary\ntimer_irq[2:0] out (= OUT0 .. OUT2, level, counting clock)"];
+
+    // ---- register access ----
+    apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv  -> dec  [dir=both, xlabel="cmd_valid + fields\n/ rsp_valid + prdata, pslverr"];
+    dec  -> regs [dir=both, xlabel="cpuif request\n/ ack, read data"];
+
+    // ---- commands ----
+    regs -> stb  [xlabel="field values + write / read decode"];
+    stb  -> cwd  [xlabel="control word, count data;\nwrite and data-read strobes"];
+    cwd  -> cnt  [xlabel="program / latch, count load,\ndata read, count enable"];
+
+    // ---- GATE ----
+    gatep -> sync [xlabel="gate_in[n]"];
+    sync  -> cnt  [xlabel="GATE n (synchronized)"];
+
+    // ---- OUT ----
+    cnt  -> bar  [penwidth=1.8, xlabel="OUT n -> timer_irq[n]"];
+
+    // ---- read-back (climbs the left, through a pinned scaffold) ----
+    p_rb [shape=point, width=0.01, group=L];
+    p_rb -> cnt  [dir=none];
+    regs -> p_rb [dir=back, xlabel="count or latched count,\nstatus byte (OUT, NULL_COUNT,\nRW, mode, BCD) via hwif_in"];
+
+    { rank=same; apb; gatep; }
+    { rank=same; p_rb; cwd; sync; }
+    p_rb -> cwd -> sync [style=invis];
+}

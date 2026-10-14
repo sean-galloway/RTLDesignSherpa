@@ -1,0 +1,34 @@
+// apb4_hpet CDC_ENABLE=1 crossings - house style
+// (vault/handbook/authoring/block-diagrams.md), CDC mapping per the rtl-amba
+// *_slave_cdc ruling: domains stacked vertically, each block names its clock.
+// Two things cross, both inside apb4_slave_cdc: the APB command
+// (pclk -> hpet_clk, left lane) and the response (hpet_clk -> pclk, right
+// lane). Replaces the old req/ack "handshake" chart, which did not match
+// the RTL: the crossing is a pair of asynchronous FIFOs.
+// Source of truth: rtl/hpet/apb4_hpet.sv; rtl/amba/apb4/apb4_slave_cdc.sv.
+digraph hpet_cdc_crossings {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
+           label="apb4_hpet, CDC_ENABLE=1 - the APB traffic crosses; registers, core and interrupts stay on hpet_clk", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    apb  [label="APB4 Completer Port  s_apb_*  (pclk, presetn)", fillcolor="white"];
+    core [label="APB Completer  (pclk)\napb4_slave inside apb4_slave_cdc\ncompleter FSM, command and response skids"];
+    cmdf [label="Command CDC FIFO  (pclk -> hpet_clk)\ngaxi_fifo_async inside apb4_slave_cdc\nDEPTH = 2 -> 4 entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)"];
+    rspf [label="Response CDC FIFO  (hpet_clk -> pclk)\ngaxi_fifo_async inside apb4_slave_cdc\nDEPTH = 2 -> 4 entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)"];
+    cfg  [label="Register Block + Strobes  (hpet_clk, hpet_resetn)\nhpet_config_regs: peakrdl_to_cmdrsp + hpet_regs"];
+    hc   [label="Timer Core  (hpet_clk, hpet_resetn)\nhpet_core - main counter ticks on hpet_clk\n(HPET_PERIOD must state hpet_clk's period)"];
+    bar  [label="Module Boundary\ntimer_irq, legacy_irq0, legacy_irq8 out - on hpet_clk, NOT synchronized to pclk", fillcolor="white", width=7.5];
+
+    apb  -> core [dir=both, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    core -> cmdf [penwidth=1.8, xlabel="command\n(write, addr, data, strb)"];
+    cmdf -> cfg  [xlabel="cmd_valid + fields"];
+    core -> rspf [dir=back, xlabel="response"];
+    rspf -> cfg  [dir=back, penwidth=1.8, xlabel="rsp_valid +\nprdata, pslverr"];
+    cfg  -> hc   [dir=both, minlen=2, xlabel="strobes, config\n/ live counter, comparators, status"];
+    hc   -> bar  [xlabel="interrupts"];
+
+    { rank=same; cmdf; rspf; }
+    cmdf -> rspf [style=invis, minlen=3];
+}

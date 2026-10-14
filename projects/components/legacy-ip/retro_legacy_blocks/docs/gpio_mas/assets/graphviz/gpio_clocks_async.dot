@@ -1,0 +1,37 @@
+// apb4_gpio clock domains with CDC_ENABLE=1 - house style
+// (vault/handbook/authoring/block-diagrams.md). Domains are stacked vertically,
+// so each block names its clock in its label (the *_slave_cdc ruling) rather
+// than sitting in a dashed region. The only crossings are inside
+// apb4_slave_cdc (register traffic) and the irq synchronizer.
+// Source of truth: rtl/gpio/apb4_gpio.sv (gen_cdc, gen_irq_sync).
+digraph gpio_clocks_async {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb4_gpio, CDC_ENABLE=1 - APB side on pclk, register block, core and pins on gpio_clk",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb [group=C, label="APB4 Completer Port  s_apb_*\n(pclk, presetn)", fillcolor="white"];
+    cdc [group=C, label="APB Clock-Domain Crossing\napb4_slave_cdc - APB side on pclk, cmd / rsp side on gpio_clk\n(SKID_DEPTH entries; USE_JOHNSON selects the pointer code)", width=6.0];
+    adp [group=C, label="Register-Block Adapter\npeakrdl_to_cmdrsp  (gpio_clk)"];
+    cfg [group=C, label="Register Block + GPIO Core\ngpio_config_regs: gpio_regs + gpio_core  (gpio_clk, gpio_rstn)\ninput pins pass SYNC_STAGES synchronizer flops on gpio_clk", width=6.0];
+    isy [group=R, label="IRQ Synchronizer\nglitch_free_n_dff_arn, 2 flops  (pclk, presetn)"];
+
+    bar [group=C, label="Module Boundary\nirq out  (pclk)   |   gpio_out, gpio_oe out  (gpio_clk)   |   gpio_in in  (asynchronous)",
+         fillcolor="white", width=9.0];
+
+    apb -> cdc [dir=both, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    cdc -> adp [dir=both, penwidth=1.8, xlabel="cmd / rsp\n(crossed to gpio_clk)"];
+    adp -> cfg [dir=both, xlabel="register read / write\n/ ack, read data"];
+
+    p_out [shape=point, width=0.01, group=L];
+    cfg -> p_out [arrowhead=none, headclip=false];
+    p_out -> bar [xlabel="gpio_out, gpio_oe", tailclip=false];
+    cfg -> bar [dir=back, xlabel="gpio_in"];
+    cfg -> isy [penwidth=1.8, xlabel="irq (gpio_clk)"];
+    isy -> bar [xlabel="irq (pclk)"];
+
+    { rank=same; p_out; isy; }
+}

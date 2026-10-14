@@ -1,0 +1,80 @@
+// apb4_ioapic whole-unit diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Geography: the APB port and the PeakRDL register block at the top, the
+// ioapic_core function in the middle, the IRQ pins and the LAPIC interface at
+// the boundary bar.
+//   register access - down the center (dir=both edges carry the response up)
+//   interrupt in    - irq_in climbs the LEFT edge: synchronizer -> polarity /
+//                     edge-level request -> eligibility
+//   delivery        - down the center: priority pick (trapezium) -> one-entry
+//                     output stage -> LAPIC crossing -> irq_out_* at the bar
+//   EOI / status    - eoi climbs the RIGHT edge to Remote IRR; per-pin status
+//                     climbs on to the register block
+// Source of truth: rtl/ioapic/apb4_ioapic.sv, ioapic_config_regs.sv,
+// ioapic_core.sv.
+digraph ioapic_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
+           label="apb4_ioapic - I/O APIC, 82093AA-style redirection table (CDC_ENABLE=1: registers and core on ioapic_clk; LAPIC interface on pclk)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb  [group=C, label="APB4 Completer Port  s_apb_*  (only 0x000 IOREGSEL and 0x004 IOWIN are mapped)", fillcolor="white"];
+    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1, pclk -> ioapic_clk)"];
+    cfg  [group=C, label="Indirect Register Access + Register Block\nioapic_config_regs: peakrdl_to_cmdrsp + IOREGSEL / IOWIN translation + ioapic_regs (PeakRDL)\nIOAPICID, IOAPICVER, IOAPICARB, IOAPICARBCFG, MSI / BOOTINTX extensions, IOREDTBL[NUM_IRQS]\nother APB address: read 0 + PSLVERR; IOWIN on an unmapped selector: read 0, no error", width=9.0];
+
+    req  [group=L, label="Pending / Eligibility (flop + combinational)\nedge pin: r_irq_pending latch; level pin: live level\neligible = request & !mask & !Remote IRR & !retiring"];
+    irr  [group=R, label="Remote IRR + Delivered Vector (flop), per pin\nset when a LEVEL delivery is accepted;\ncleared by an EOI whose vector matches"];
+
+    det  [group=L, label="Polarity + Edge Detect (flop)\nRTE polarity; rising edge of the active level\n(no edge in the cycle polarity changes)"];
+    arb  [group=C, shape=invtrapezium, width=6.0, height=0.6, fillcolor="#BFD7EE",
+          label="Priority Pick\nioapic_core - lowest IRQ, or round robin (rr_enable)"];
+
+    syn  [group=L, label="IRQ Input Synchronizer (flop)\nioapic_core - 3 flops per pin"];
+    out  [group=C, label="Delivery Output Stage (flop)\nioapic_core - one entry, valid / ready\npayload: the picked pin's RTE vector,\ndestination, dest mode, delivery mode"];
+
+    xing [group=C, style="filled,dashed", label="LAPIC Interface Crossing  (CDC_ENABLE=1 only; else wires)\napb4_ioapic - request / acknowledge through cdc_synchronizer,\npayload held quasi-static; EOI through sync_pulse"];
+
+    bar  [group=C, label="Module Boundary\nirq_in[NUM_IRQS-1:0] in (asynchronous)   |   irq_out_valid + vector, dest, modes out / irq_out_ready, irq_out_retry in   |   eoi_in, eoi_vector in\ncfg_msi_addr / data, cfg_mask_vec, cfg_boot_intx_en out (register fields, to the companion modules)",
+          fillcolor="white", width=12.0];
+
+    // ---- register access ----
+    apb -> slv [dir=both, weight=10, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv -> cfg [dir=both, weight=10, xlabel="cmd / rsp"];
+
+    // ---- interrupt in (left, climbing) ----
+    syn -> bar [dir=back, xlabel="irq_in"];
+    det -> syn [dir=back, xlabel="synchronized level"];
+    req -> det [dir=back, xlabel="edge / active level"];
+    cfg -> req [style=dashed, xlabel="RTE: polarity, trigger,\nmask (hwif_out)"];
+
+    // ---- delivery (center, down) ----
+    p_el [shape=point, width=0.01, group=C];
+    req -> p_el [arrowhead=none, headclip=false];
+    p_el -> arb [tailclip=false, xlabel="eligible pins"];
+    arb -> out [penwidth=1.8, weight=10, xlabel="winning pin"];
+    out -> xing [dir=both, weight=10, xlabel="valid + payload\n/ ready, retry"];
+    xing -> bar [dir=both, weight=10, xlabel="irq_out_* handshake\n/ eoi_in, eoi_vector"];
+
+    // ---- EOI + status (right, climbing) ----
+    irr  -> xing [dir=back, constraint=false, xlabel="EOI"];
+    cfg  -> irr [dir=back, xlabel="Remote IRR, delivery status\n(hwif_in)"];
+    irr  -> req [style=dashed, xlabel="Remote IRR\n(blocks level pins)"];
+    out  -> irr [style=dashed, constraint=false, xlabel="accept\n(not retried)"];
+
+    // ---- configuration to the companions ----
+    cfg -> bar [style=dashed, constraint=false, xlabel="cfg_* to the\ncompanions"];
+
+    // ---- center spine ----
+    c3 [shape=point, style=invis, width=0.01, group=C];
+    cfg -> c3 [style=invis, weight=10];
+
+    { rank=same; req; c3; irr; }
+    req -> c3 -> irr [style=invis, minlen=2];
+    { rank=same; det; p_el; }
+    det -> p_el [style=invis, minlen=2];
+    { rank=same; syn; arb; }
+    syn -> arb [style=invis, minlen=2];
+}

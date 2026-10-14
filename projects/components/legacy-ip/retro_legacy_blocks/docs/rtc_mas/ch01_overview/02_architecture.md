@@ -27,9 +27,9 @@
 
 ### Figure 1.2: RTC Architecture
 
-![RTC Architecture](../assets/svg/rtc_top.png)
+![RTC Architecture](../assets/graphviz/rtc_whole_unit.png)
 
-The design splits the way you'd expect: the APB slave and register wrapper up top, the timekeeping core underneath. What the figure adds is the line down the middle — the register side is on pclk, the counters are on their own clock, and the five dashed arrows are the only traffic that crosses it.
+The design splits into two clock domains, drawn side by side: the APB slave, the register wrapper, the time shadow and the sticky flags on pclk at the left, the divider, counters and alarm comparator on the counter clock at the right. The four heavy arrows between the two regions are the only traffic that crosses: the config/alarm bundle and the time-set commit going right, the time snapshot (with its filtered background refresh) and the tick/alarm events coming back.
 
 ### Module Hierarchy
 
@@ -57,37 +57,25 @@ apb4_rtc (Top Level)
 
 ### Time Update Flow
 
-```mermaid
-flowchart TD
-    A["32.768 kHz Clock"] --> B["Divider"]
-    B -->|"1 Hz pulse"| C["Seconds"]
-    C -->|"Carry"| D["Minutes"]
-    D -->|"Carry"| E["Hours, Date, Month, Year..."]
-```
+### Figure 1.3: RTC Time Update
+
+![RTC Time Update](../assets/graphviz/rtc_time_update.png)
 
 The counters advance on the divider rollover edge. The tick is raised on that same edge and marks the new second; the alarm compare is made against that new second — the time that becomes readable on the tick — so the alarm asserts at the moment the readable time equals the programmed value, and when either flag is visible on the APB side the time registers show the second the alarm was set for.
 
 ### Alarm Match Flow
 
-```mermaid
-flowchart LR
-    A["Time Registers"] --> B["Comparator"]
-    C["Alarm Registers"] --> B
-    B --> D["Match Signal"]
-    D -->|"if enabled"| E["IRQ"]
-```
+### Figure 1.4: RTC Alarm Match
+
+![RTC Alarm Match](../assets/graphviz/rtc_alarm_match.png)
 
 The comparator is held off while the counter domain sees `time_set_mode` set and for the few counter cycles of a commit, so a counter paused on the alarm value mid-programming does not raise the flag. A commit that lands exactly on the alarm value does not fire the alarm either: alarms fire on a tick, and the next evaluation compares the following second. The alarm values, mask and mode bits reach the comparator through a bit-by-bit crossing, so a change made while the RTC runs can be sampled as a value that was never programmed for one counter cycle; program the alarm and the mode bits with `alarm_enable` low (or the RTC disabled), then enable.
 
 ### Time Set Flow
 
-```mermaid
-flowchart LR
-    A["time_set_mode = 1"] --> B["Six writes stage<br/>in the register file"]
-    B --> C["time_set_mode = 0<br/>(falling edge = commit)"]
-    C --> D["cdc_4_phase_handshake<br/>48 bits, request/acknowledge"]
-    D --> E["All six counters load<br/>on one counter-clock edge"]
-```
+### Figure 1.5: RTC Time Set
+
+![RTC Time Set](../assets/graphviz/rtc_time_set.png)
 
 The pause while the time is staged is best effort at the production ratio: `time_set_mode` reaches the counter domain through the 3-flop config crossing, so the counters pause only if the bit is held long enough for the counter clock to sample it — about three counter clocks, ~90 us at 32.768 kHz. A staging window shorter than that is never seen, and the clock keeps running until the commit replaces the time. The commit does not depend on the pause: it brackets the tick, so the counters never take two updates on consecutive counter clocks, and the readable time after the commit is exactly the committed time.
 

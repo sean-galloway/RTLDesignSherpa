@@ -29,7 +29,16 @@ The design splits into four blocks plus an optional CDC wrapper. Small enough to
 
 ### Figure 2.1: APB GPIO Module Hierarchy
 
-![Module Hierarchy](../assets/mermaid/gpio_block_overview.png)
+```
+apb4_gpio                      top level
+├── apb4_slave                 APB completer (CDC_ENABLE=0)
+│   or apb4_slave_cdc          APB completer + crossing (CDC_ENABLE=1)
+├── peakrdl_to_cmdrsp          cmd/rsp to register-block adapter
+├── gpio_config_regs           write strobes, W1C merge, irq
+│   ├── gpio_regs              PeakRDL register block
+│   └── gpio_core              sync, output latch, edge/level
+└── glitch_free_n_dff_arn      irq sync to pclk (CDC_ENABLE=1)
+```
 
 ### Block Summary
 

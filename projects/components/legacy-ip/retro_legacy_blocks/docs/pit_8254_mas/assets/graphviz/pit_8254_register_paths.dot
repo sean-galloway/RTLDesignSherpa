@@ -1,0 +1,54 @@
+// apb4_pit_8254 register write and read paths - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// The APB transfer and its response share the dir=both hops down to the
+// register block. Below it the two paths split:
+//   write path - down the LEFT: field value + strobe -> control-word decode
+//                -> the counters (the bar)
+//   read path  - back UP the RIGHT: counter count / status -> status
+//                assembly -> hwif_in read-back -> register block
+// Source of truth: rtl/pit_8254/pit_config_regs.sv, pit_core.sv,
+// pit_counter.sv.
+digraph pit_8254_register_paths {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb4_pit_8254 register paths - writes down the left, read-back up the right",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*"];
+    slv  [group=C, label="APB Completer\napb4_slave or apb4_slave_cdc"];
+    adp  [group=C, label="Command / Response Adapter\npit_config_regs - peakrdl_to_cmdrsp\nholds the request until the register block acks"];
+    dec  [group=C, label="Strict Decode (combinational)\npit_config_regs\nseven mapped registers pass;\nanything else: write ignored, read 0, PSLVERR"];
+    regs [group=C, width=7.5, label="Register Block (PeakRDL)  pit_regs\nwrite: field storage merged per byte strobe (hwif_out)\nread: COUNTERn_DATA and PIT_STATUS return hwif_in.next"];
+
+    stb  [group=L, label="Write Strobe Builder (flop)\npit_config_regs\nswmod rising edge, delayed one flop so the\nstrobe lines up with the stored field value;\na COUNTERn_DATA read strobe releases its latch"];
+    cwd  [group=L, label="Control-Word Decode + Load Routing\npit_core (combinational)\nSC picks the counter; RW != 00 program, RW = 00 latch;\nCOUNTERn_DATA strobe loads counter n"];
+
+    rb1  [group=R, label="Read-Back Wiring (combinational)\npit_config_regs\nCOUNTERn_DATA.next = counter n count\nPIT_STATUS.next = three status bytes"];
+    rb2  [group=R, label="Status Assembly + Read Source (combinational)\npit_core, pit_counter\nper counter {OUT, NULL_COUNT, RW, MODE, BCD};\ncount_reg_out: the latched copy while latched,\nelse the live count, on the RW byte lane"];
+
+    bar  [group=C, fillcolor="white", width=9.5,
+          label="Counters 0 - 2  (pit_counter x 3, see Figure 1.1)\nprogram / latch / load in   |   count, OUT, NULL_COUNT, mode out"];
+
+    apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv  -> adp  [dir=both, xlabel="cmd: pwrite, paddr, pwdata, pstrb\n/ rsp: prdata, pslverr"];
+    adp  -> dec  [dir=both, xlabel="register request\n/ ack, read data, err"];
+    dec  -> regs [dir=both, xlabel="mapped request\n/ ack, read data"];
+
+    // write path (left, down)
+    regs -> stb  [xlabel="written field values (hwif_out),\nswmod per register"];
+    stb  -> cwd  [xlabel="control word, count data;\nwrite and data-read strobes"];
+    cwd  -> bar  [penwidth=1.8, xlabel="program / latch, count load,\ndata read (counter n)"];
+
+    // read path (right, up)
+    rb2  -> bar  [dir=back, xlabel="count, OUT, NULL_COUNT,\nmode / RW / BCD shadow"];
+    rb1  -> rb2  [dir=back, xlabel="count read-back,\nstatus bytes"];
+    regs -> rb1  [dir=back, xlabel="hwif_in.next"];
+
+    { rank=same; stb; rb1; }
+    { rank=same; cwd; rb2; }
+    stb -> rb1 [style=invis, minlen=3];
+    cwd -> rb2 [style=invis, minlen=3];
+}

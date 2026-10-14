@@ -31,18 +31,13 @@ The baud generator turns your input clock into the 16x oversampled clock the TX 
 
 ### Figure 2.5: Baud Generator Block
 
-![Baud Generator Block](../assets/svg/uart_baud_gen.png)
+![Baud Generator Block](../assets/graphviz/uart_baud_gen.png)
 
 ### Operation
 
 #### Clock Division
 
-```mermaid
-flowchart LR
-    A["input_clk<br/>(pclk)"] --> B["16-bit<br/>Divider"]
-    C["{DLM,DLL}"] --> B
-    B --> D["16x_baud_clk"]
-```
+Figure 2.5 shows the division: a 16-bit counter wraps at the {DLM, DLL} divisor and emits one baud tick per wrap, and each engine counts 16 ticks per bit.
 
 #### Formula
 

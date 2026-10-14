@@ -1,0 +1,82 @@
+// apb4_rtc whole-unit diagram - house style
+// (vault/handbook/authoring/block-diagrams.md), dual-clock form after
+// fifo_async: the pclk domain is the dashed region on the left, the counter
+// domain the dashed region on the right.
+// Flows:
+//   register access - down the APB column on the left (APB -> completer ->
+//                     register wrapper); response back up the same edges
+//   writes to time  - the time-set commit and the config / alarm bundle cross
+//                     LEFT -> RIGHT on heavy edges (pclk -> counter clock)
+//   time / events   - the snapshot, the background refresh and the tick /
+//                     match events cross RIGHT -> LEFT, back up on heavy edges
+//   interrupts      - sticky flags -> interrupt gate -> the boundary bar
+// Each crossing lands on the synchronizer in its DESTINATION domain.
+// Source of truth: rtl/rtc/apb4_rtc.sv, rtc_config_regs.sv, rtc_core.sv,
+// rtc_clk_mux.sv.
+digraph rtc_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
+           label="apb4_rtc - APB real-time clock: registers on pclk, timekeeping on the counter clock (rtc_clk, or pclk when clock_select=1)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+
+    subgraph cluster_p {
+        label="pclk domain"; style=dashed; fontsize=10;
+        apb  [group=LO, fillcolor="white", label="APB4 Completer Port  s_apb_*\npclk, presetn"];
+        slv  [group=LO, label="APB Completer\napb4_slave"];
+        regs [group=LM, width=5.6, label="Register Wrapper\nrtc_config_regs - peakrdl_to_cmdrsp + rtc_regs (PeakRDL)\n13-register decode, PSLVERR elsewhere;\nRTC_SECONDS read latches minutes .. year"];
+        stg  [group=LI, label="Time-Set Staging + Commit Source (flop)\nrtc_config_regs, rtc_core\nsix staged bytes; time_set_mode 1 -> 0 = commit;\nbusy until the load, COMMIT_TIMEOUT_CYCLES watchdog"];
+        shd  [group=LO, label="Time Shadow (flop)\nrtc_core - sync_pulse snapshot +\nglitch_free_n_dff_arn background, two-sample filter"];
+        flg  [group=LM, label="Sticky Flags (flop)\nrtc_core - glitch_free_n_dff_arn + edge detect\nalarm_flag, second_tick: W1C, set wins"];
+        irq  [group=LM, label="Interrupt Gate (combinational)\nrtc_core\nflag AND RTC_CONTROL int enable"];
+    }
+
+    subgraph cluster_c {
+        label="counter domain"; style=dashed; fontsize=10;
+        clkp [group=RR, fillcolor="white", label="Counter Clock / Reset\nrtc_clk (32.768 kHz), rtc_resetn"];
+        mux  [group=RR, label="Clock Select + Reset Sync\nrtc_clk_mux (rtc_clk or pclk), reset_sync\nselect flop held under rtc_resetn;\nclocks and resets every block in this region"];
+        csy  [group=RI, label="Config / Alarm Bundle Sync (flop)\nrtc_core - glitch_free_n_dff_arn, 3 flops\n+ two-sample filter (34 bits, valid-gated hold)"];
+        ld   [group=RO, label="Commit Load (flop)\nrtc_core - cdc_4_phase_handshake destination\nall six counters load on one edge"];
+        cnt  [group=RO, width=4.6, label="Divider + Time Counters (flop)\nrtc_core\n32.768 kHz -> 1 Hz tick; seconds .. year,\nbinary calendar, BCD / 12-hour at the boundary"];
+        alm  [group=RI, label="Alarm Comparator\nrtc_core\nsec / min / hour with match enables;\nheld off during time-set and commit"];
+    }
+
+    bar  [fillcolor="white", width=9.0, label="Module Boundary\nrtc_alarm_irq, rtc_second_irq out (pclk domain, level)"];
+
+    // ---- register access ----
+    apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv  -> regs [dir=both, xlabel="cmd / rsp"];
+    regs -> stg  [xlabel="time writes,\ntime_set_mode"];
+
+    // ---- pclk -> counter crossings ----
+    regs -> csy  [penwidth=1.8, xlabel="config + alarm + valid\n(quasi-static bundle)"];
+    stg  -> ld   [penwidth=1.8, xlabel="commit: 48-bit time,\nreq / ack"];
+
+    // ---- counter domain ----
+    clkp -> mux  [xlabel="rtc_clk, rtc_resetn"];
+    csy  -> ld   [style=dashed, xlabel="enable, time_set_mode\n(pause)"];
+    ld   -> cnt  [xlabel="load six counters"];
+    csy  -> alm  [style=dashed, xlabel="alarm values, mask"];
+    cnt  -> alm  [xlabel="new second (on the tick)"];
+
+    // ---- counter -> pclk crossings (return, climbing) ----
+    shd  -> cnt  [dir=back, penwidth=1.8, xlabel="time snapshot + background\n(49 bits)"];
+    flg  -> alm  [dir=back, penwidth=1.8, xlabel="tick, alarm match"];
+
+    // ---- read back and interrupts ----
+    regs -> shd  [dir=back, xlabel="time (hwif_in)"];
+    regs -> flg  [dir=both, style=dashed, xlabel="W1C clear\n/ flag status"];
+    flg  -> irq  [xlabel="flags"];
+    irq  -> bar  [penwidth=1.8, xlabel="rtc_alarm_irq,\nrtc_second_irq"];
+
+    { rank=same; apb; clkp; }
+    { rank=same; slv; mux; }
+    { rank=same; stg; csy; }
+    { rank=same; ld; }
+    { rank=same; shd; cnt; }
+    { rank=same; flg; alm; }
+    shd -> flg [style=invis];
+}

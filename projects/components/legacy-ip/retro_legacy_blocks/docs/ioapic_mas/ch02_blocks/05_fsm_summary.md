@@ -41,31 +41,26 @@ The old encoding mapped onto these as: idle = stage empty, deliver = stage full,
 
 ### State Transition Diagram
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    EMPTY: STAGE EMPTY (r_out_valid = 0)
+    FULL: STAGE FULL (r_out_valid = 1, irq_out_valid)
+    EMPTY --> FULL: arbiter has a pick (load)
+    FULL --> FULL: hold while !irq_out_ready, or reload on ready with a new pick
+    FULL --> EMPTY: irq_out_ready and no new pick
 ```
-                     w_sel_valid && (!r_out_valid || irq_out_ready)
-                     (arbiter has a pick, stage empty or emptying)
-          ┌──────────────────────────────────────────────────────┐
-          │                                                      │
-          ▼                                                      │
-  ┌───────────────┐   irq_out_ready && no new pick   ┌───────────┴───┐
-  │  STAGE EMPTY  │◄─────────────────────────────────│  STAGE FULL   │
-  │ r_out_valid=0 │                                  │ r_out_valid=1 │
-  │               │─────────────────────────────────►│ irq_out_valid │
-  └───────────────┘   load pick                      └───────┬───────┘
-                                                             │ accept =
-                                                             │ r_out_valid && irq_out_ready
-                                                             ▼
-                                   ┌─────────────────────────┴──────────────────────────┐
-                                   │ retiring pin i, this cycle:                        │
-                                   │  - edge : r_irq_pending[i] <= 0 (a new edge wins)  │
-                                   │  - level: r_remote_irr[i]  <= 1 (pin in service)   │
-                                   │  - both : r_delivered_vector[i] <= r_out_vector    │
-                                   │  - pin i masked from this cycle's arbitration      │
-                                   └────────────────────────────────────────────────────┘
 
-  Per level pin, independent of the stage:
-     r_remote_irr[i]: 0 ──(accept, level)──► 1 ──(eoi_in && eoi_vector == r_delivered_vector[i])──► 0
-```
+On the accept (`r_out_valid && irq_out_ready && !irq_out_retry`) the
+retiring pin i, in that same cycle:
+
+- edge pin: `r_irq_pending[i] <= 0` (a new edge wins)
+- level pin: `r_remote_irr[i] <= 1` (pin in service)
+- both: `r_delivered_vector[i] <= r_out_vector`
+- pin i is masked from this cycle's arbitration
+
+Per level pin, independent of the stage: `r_remote_irr[i]` goes 0 to 1 on the
+accept and back to 0 on `eoi_in && eoi_vector == r_delivered_vector[i]`.
 
 ### State Transitions
 
@@ -249,7 +244,7 @@ Cycle N+1: IRQ7 re-requests if its level is still asserted
 
 **Fairness:** with static priority, lower numbered IRQs starve higher ones if they keep requesting, and a low-numbered level pin that is EOI'd promptly can hold the stage indefinitely. That is the 82093AA scheme and it is the reset default.
 
-Setting `IOAPICARBCFG.rr_enable` starts the scan just above the pin that was last ACCEPTED, and wraps, so the pin just served is the last one the scan reaches and every eligible pin is served before any pin is served twice. Priority becomes a position in the rotation rather than an IRQ number. The pointer moves only on an accept: a pick the consumer never takes must not move it, or a stalled consumer would walk the rotation round the ring without delivering anything.
+Setting `IOAPICARBCFG.rr_enable` starts the scan just above the pin that was last ACCEPTED, and wraps, so the pin just served is the last one the scan reaches and every eligible pin is served before any pin is served twice. Priority becomes a position in the rotation rather than an IRQ number. The pointer moves on a completed handshake, accepted or retried, and never on a stall: a pick the consumer never takes must not move it, or a stalled consumer would walk the rotation round the ring without delivering anything, while moving on a retry stops a refused pin from monopolising the channel.
 
 ## Navigation
 

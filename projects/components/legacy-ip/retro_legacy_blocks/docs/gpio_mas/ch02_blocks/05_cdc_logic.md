@@ -29,7 +29,7 @@ When you need the GPIO core on its own clock, asynchronous to the APB bus, `CDC_
 
 ### Figure 2.7: CDC Logic Block Diagram
 
-![CDC Logic Block](../assets/mermaid/gpio_cdc_block.png)
+![CDC Logic Block](../assets/graphviz/gpio_cdc_crossings.png)
 
 ## Parameters
 
@@ -48,11 +48,11 @@ When you need the GPIO core on its own clock, asynchronous to the APB bus, `CDC_
 
 #### Figure 2.8: Single Clock Domain (CDC Disabled)
 
-![CDC Disabled](../assets/mermaid/gpio_cdc_disabled.png)
+![CDC Disabled](../assets/graphviz/gpio_clocks_sync.png)
 
 #### Figure 2.9: Dual Clock Domain (CDC Enabled)
 
-![CDC Enabled](../assets/mermaid/gpio_cdc_enabled.png)
+![CDC Enabled](../assets/graphviz/gpio_clocks_async.png)
 
 ### CDC Implementation
 

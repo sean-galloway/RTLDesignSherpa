@@ -29,9 +29,9 @@ The `apb4_hpet` module is the top-level system integration point. It combines th
 
 ### Figure 2.15: APB HPET Top-Level Block Diagram
 
-![APB HPET Top-Level Block Diagram](../assets/svg/apb4_hpet.png)
+![APB HPET Top-Level Block Diagram](../assets/graphviz/hpet_whole_unit.png)
 
-*Figure: APB HPET top-level integration showing dual clock domains (PCLK and HPET_CLK), optional CDC, configuration registers, HPET core, and interrupt outputs. [Source: assets/graphviz/apb4_hpet.gv](../assets/graphviz/apb4_hpet.gv) | [SVG](../assets/svg/apb4_hpet.svg)*
+*Figure: APB HPET top-level integration showing dual clock domains (PCLK and HPET_CLK), optional CDC, configuration registers, HPET core, and interrupt outputs. [Source: assets/graphviz/hpet_whole_unit.dot](../assets/graphviz/hpet_whole_unit.dot); the CDC_ENABLE=1 crossings are in [hpet_cdc_crossings](../assets/graphviz/hpet_cdc_crossings.png)*
 
 **Key Integration Features:**
 - Conditional APB slave instantiation (CDC or non-CDC)

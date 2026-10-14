@@ -53,7 +53,7 @@ Applications:
 
 ### Figure 1.1: PM/ACPI Block Diagram
 
-![PM/ACPI Block Diagram](../assets/svg/pm_acpi_top.png)
+![PM/ACPI Block Diagram](../assets/graphviz/pm_acpi_whole_unit.png)
 
 ## Parameters
 
@@ -175,13 +175,13 @@ level), each clears by its own W1C on its own, and none of it feeds the pin
 
 ### Power State FSM
 
-Four states: S0 working, S1 sleep, S3 suspend and a one-cycle TRANSITION
-state the machine passes through on the way in and on the way out.
+Five states: S0 working, S1 sleep, S3 suspend, S5 soft off and a one-cycle
+TRANSITION state the machine passes through on the way in and on the way out.
 PM1_CONTROL.sleep_enable is a one-shot request (it self-clears and the core
 edge-detects it), so one write is one sleep request: from S0, a request with
-sleep_type 1 or 3 goes through TRANSITION into S1 or S3; any other
-sleep_type stays in S0. From S1 or S3, any enabled wake source goes through
-TRANSITION back to S0.
+sleep_type 1, 3 or 5 goes through TRANSITION into S1, S3 or S5; any other
+sleep_type stays in S0. From S1, S3 or S5, any enabled wake source goes
+through TRANSITION back to S0 (leaving S5 also pulses `sys_reset_req`).
 
 The part that matters for a pulsed source: the core latches the wake request
 while it is out of S0, and in TRANSITION a latched or live wake outranks the

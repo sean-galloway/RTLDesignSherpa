@@ -1,52 +1,40 @@
-// HPET Software Initialization Flow
-// Render with: dot -Tpng software_init.dot -o software_init.png
-// Or: dot -Tsvg software_init.dot -o software_init.svg
+// HPET software initialization flow - a procedure, not a block diagram, drawn
+// in the house decision-tree vocabulary (vault/handbook/authoring/block-diagrams.md,
+// "Decision trees"): white start / question boxes, blue action boxes, every
+// arrow labeled. Two columns keep the aspect ratio inside 0.7 .. 2.5.
+// Register names and bit positions follow the published HPET map
+// (rdl/hpet/hpet_regs.rdl): TN_CONF.INT_ENB = bit 2, TN_CONF.TYPE = bit 3.
+digraph software_init {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
+           label="HPET software initialization (published HPET register map)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    start [label="Start\n(after reset: counter halted)", fillcolor="white"];
+    halt  [group=A, label="1. Halt the counter\nWRITE(HPET_CONFIG, 0x0)"];
+    zero  [group=A, label="2. Reset the main counter\nWRITE(HPET_COUNTER_LO, 0)\nWRITE(HPET_COUNTER_HI, 0)"];
+    caps  [group=A, label="3. Read capabilities\nHPET_ID[12:8] + 1 = timers\nHPET_PERIOD = femtoseconds per tick"];
 
-digraph hpet_software_init {
-    // Graph attributes
-    rankdir=TB;
-    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
-    edge [fontname="Arial"];
+    comp  [group=B, label="4. Program timer N's comparator\nWRITE(TIMERn_COMPARATOR_LO / HI, ticks)\n(halted: the write re-arms; periodic: also the period)"];
+    conf  [group=B, label="5. Program timer N's mode\nWRITE(TIMERn_CONFIG, INT_ENB | TYPE)\n0x4 = one-shot, 0xC = periodic"];
+    more  [group=B, label="More timers?", fillcolor="white"];
+    go    [group=B, label="6. Start the counter\nWRITE(HPET_CONFIG, 0x1)\n(| 0x2 for LegacyReplacement routing)"];
+    done  [group=B, label="End\n(HPET running)", fillcolor="white"];
 
-    // Start/End nodes
-    start [label="Start", shape=ellipse, fillcolor=lightgreen];
-    end [label="End\n(HPET Running)", shape=ellipse, fillcolor=lightgreen];
+    start -> halt [xlabel="begin"];
+    halt  -> zero [xlabel="halted"];
+    zero  -> caps [xlabel="counter = 0"];
+    caps  -> comp [xlabel="for each timer"];
+    comp  -> conf [xlabel="comparator set"];
+    conf  -> more [xlabel="mode set"];
+    more  -> comp [xlabel="yes: next timer", constraint=false];
+    more  -> go   [xlabel="no"];
+    go    -> done [xlabel="enabled"];
 
-    // Main flow
-    start -> disable_hpet;
-
-    disable_hpet [label="Disable HPET\nWRITE(HPET_CONFIG, 0x0)"];
-    disable_hpet -> reset_counter;
-
-    reset_counter [label="Reset Counter to 0\nWRITE(HPET_COUNTER_LO, 0x0)\nWRITE(HPET_COUNTER_HI, 0x0)"];
-    reset_counter -> check_caps;
-
-    check_caps [label="Read Identification\nREAD(HPET_ID)\nGet num_tim_cap", fillcolor=lightyellow];
-    check_caps -> config_timer0;
-
-    config_timer0 [label="Configure Timer 0\n1. Set comparator value\n2. Set mode (one-shot/periodic)\n3. Enable interrupt", fillcolor=lightcyan];
-    config_timer0 -> set_comp0;
-
-    set_comp0 [label="Set Comparator\nWRITE(TIMER0_COMPARATOR_LO, value)\nWRITE(TIMER0_COMPARATOR_HI, 0)"];
-    set_comp0 -> set_config0;
-
-    set_config0 [label="Enable Timer 0\nWRITE(TIMER0_CONFIG, 0x3)\n(enable | int_enable)"];
-    set_config0 -> more_timers;
-
-    more_timers [label="More timers\nto configure?", shape=diamond, fillcolor=lightyellow];
-    more_timers -> config_timerN [label="Yes"];
-    more_timers -> enable_hpet [label="No"];
-
-    config_timerN [label="Configure Timer N\nRepeat steps for\nadditional timers", fillcolor=lightcyan];
-    config_timerN -> more_timers;
-
-    enable_hpet [label="Enable HPET Globally\nWRITE(HPET_CONFIG, 0x1)"];
-    enable_hpet -> end;
-
-    // Notes
-    note1 [label="Note: Always disable HPET\nbefore configuration", shape=note, fillcolor=lightyellow, style=filled];
-    note2 [label="Note: Comparator values\nare in HPET clock cycles", shape=note, fillcolor=lightyellow, style=filled];
-
-    {rank=same; disable_hpet; note1;}
-    {rank=same; set_comp0; note2;}
+    { rank=same; start; comp; }
+    { rank=same; halt; conf; }
+    { rank=same; zero; more; }
+    { rank=same; caps; go; }
+    start -> comp [style=invis, minlen=4];
 }

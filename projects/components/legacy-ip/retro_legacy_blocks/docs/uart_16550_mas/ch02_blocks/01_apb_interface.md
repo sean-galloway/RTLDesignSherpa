@@ -48,14 +48,14 @@ The APB interface is the front door: it sits between the system APB bus and the 
 
 ### Figure 2.1: APB Interface Block
 
-![APB Interface Block](../assets/svg/uart_apb_interface.png)
+![APB Interface Block](../assets/graphviz/uart_apb_interface.png)
 
 ### Address Decoding
 
 #### UART Register Addresses
 
 Each register has a unique offset, and LCR[7] (DLAB) additionally remaps 0x00
-and 0x04 to DLL/DLM while it is set. Only `paddr[5:0]` is decoded.
+and 0x04 to DLL/DLM while it is set. The decode is strict: only these eleven offsets, with `paddr[11:6]` zero, reach the register block; any other address reads 0 and returns PSLVERR.
 
 | Offset | Read | Write |
 |--------|------|-------|

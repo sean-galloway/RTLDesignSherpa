@@ -1,0 +1,60 @@
+// rlb_top interrupt fabric - house style (vault/handbook/authoring/block-diagrams.md).
+// The block interrupt outputs are the port on top. They are mapped onto the
+// conventional legacy lines (w_fabric_irq), then OR-ed into the three
+// destinations' inputs, one column each: master 8259 (left), slave 8259
+// (center), IOAPIC (right). The external inputs climb from the bar into the
+// same OR stages, never replaced. The cascade joins the two 8259s; the
+// aggregate rlb_irq_out runs down the far right. All of it is combinational.
+// Source of truth: rtl/rlb_top/rlb_top.sv (w_fabric_irq, w_master_pic_irq,
+// w_ioapic_irq, rlb_irq_out, u_ioapic_boot_intx).
+digraph rlb_interrupt_fabric {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.95", splines=ortho, newrank=true,
+           label="rlb_top interrupt fabric - block IRQs on PC/AT legacy lines, into both 8259s and the IOAPIC (combinational, pclk)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.10,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    src  [label="Block Interrupt Outputs  (each also leaves on its own pin)\npit_timer_irq[0], hpet_legacy_irq0, uart_irq, rtc_alarm_irq,\nrtc_second_irq, hpet_legacy_irq8, pm_interrupt, smb_interrupt, gpio_irq\n(hpet_timer_irq has no legacy line)", fillcolor="white"];
+
+    map  [label="Legacy Line Map (combinational)\nrlb_top always_comb - w_fabric_irq[15:0]\nIRQ0 = PIT ch0 | HPET legacy 0;  IRQ4 = UART;\nIRQ8 = RTC alarm | RTC second | HPET legacy 8;  IRQ9 = PM / ACPI;\nIRQ_SMBUS (10) = SMBus;  IRQ_GPIO (11) = GPIO;  IRQ2 never driven"];
+    agg  [group=X, label="Aggregate OR (combinational)\nrlb_irq_out = any block IRQ,\npic_int_out included\n(drives no internal logic)"];
+
+    mmix [group=L, label="Master Input Mix (combinational)\n((pic_irq_in[7:0] | boot-INTx | lines 0-7)\n& 8'hFB) | slave INT on IR2"];
+    bix  [group=B, label="Boot-INTx Reroute (combinational)\nioapic_boot_intx\nmasked IOAPIC pin n -> master input n\n(n < 8) while BOOTINTX is enabled"];
+    smix [group=C, label="Slave Input OR (combinational)\npic_irq_in[15:8] | lines 8-15"];
+    imix [group=R, label="IOAPIC Input OR (combinational)\nioapic_irq_in | lines 0-15\n(zero-extended to IOAPIC_NUM_IRQS)"];
+
+    mpic [group=L, label="8259 PIC, master\napb4_pic_8259 - u_pic\nIR0-7"];
+    spic [group=C, label="8259 PIC, slave\napb4_pic_8259 - u_pic_slave\nIRQ8-15"];
+    ioa  [group=R, label="IOAPIC\napb4_ioapic - u_ioapic\npins 0-23"];
+
+    bar  [label="Module Boundary\npic_irq_in[7:0] in, pic_int_out out   |   ioapic_irq_in in (boot-INTx)   |   pic_irq_in[15:8] in   |   ioapic_irq_in in, IOAPIC LAPIC delivery / EOI   |   rlb_irq_out out",
+          fillcolor="white", width=15.0];
+
+    src  -> map  [xlabel="block IRQs"];
+    src  -> agg  [xlabel="block IRQs"];
+    map  -> mmix [xlabel="lines 0-7"];
+    map  -> smix [xlabel="lines 8-15"];
+    map  -> imix [xlabel="lines 0-15"];
+    mmix -> mpic [xlabel="irq_in"];
+    smix -> spic [xlabel="irq_in"];
+    imix -> ioa  [xlabel="irq_in"];
+    bix  -> mmix [xlabel="rerouted\npins"];
+    spic -> mpic [dir=both, xlabel="cascade: slave INT -> IR2,\nslave vector / INTA ack"];
+
+    mmix -> bar  [dir=back, xlabel="pic_irq_in[7:0]"];
+    mpic -> bar  [xlabel="pic_int_out"];
+    bix  -> bar  [dir=back, xlabel="ioapic_irq_in"];
+    smix -> bar  [dir=back, xlabel="pic_irq_in[15:8]"];
+    imix -> bar  [dir=back, xlabel="ioapic_irq_in"];
+    ioa  -> bar  [dir=both, xlabel="delivery / EOI"];
+    agg  -> bar  [penwidth=1.8, xlabel="rlb_irq_out"];
+    ioa  -> bix  [style=dashed, constraint=false, xlabel="cfg_mask_vec,\nboot_intx_en"];
+
+    { rank=same; map; agg; }
+    { rank=same; mmix; bix; smix; imix; }
+    mmix -> bix -> smix -> imix [style=invis, minlen=2];
+    { rank=same; mpic; spic; ioa; }
+}

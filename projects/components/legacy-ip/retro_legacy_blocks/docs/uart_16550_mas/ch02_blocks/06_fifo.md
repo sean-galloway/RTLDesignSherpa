@@ -25,13 +25,13 @@
 
 ## Overview
 
-Both directions get a 16-byte FIFO between software and the serial line, and the FCR register is how you manage them. One thing to internalize early: these FIFOs are always 16 deep — FCR.FE changes reporting and interrupt behavior, not the physical buffering.
+Both directions get a 16-byte FIFO between software and the serial line, and the FCR register is how you manage them. One thing to internalize early: FCR[0] changes the buffering. With FCR[0]=1 each FIFO holds FIFO_DEPTH entries; with FCR[0]=0 each side is a single holding register (16450 character mode), a second THR write overwrites the waiting byte, and a second received character is an overrun.
 
 ## Functional Description
 
 ### Figure 2.6: FIFO Block
 
-![FIFO Block](../assets/svg/uart_fifo.png)
+![FIFO Block](../assets/graphviz/uart_fifo.png)
 
 ### FIFO Configuration
 

@@ -96,17 +96,14 @@ During reset:
 #### When CDC_ENABLE = 1
 - APB interface uses `pclk`
 - GPIO core uses `gpio_clk`
-- Skid buffers handle CDC
+- `apb4_slave_cdc`'s asynchronous command and response FIFOs carry the APB traffic across; `irq` returns to pclk through a 2-flop synchronizer
 - Both resets must be asserted together at power-on
 
 ### Input Synchronization
 
 GPIO inputs are always synchronized, CDC setting or not:
 
-```mermaid
-flowchart LR
-    A["gpio_in[i]"] --> B["FF1 (clk)"] --> C["FF2 (clk)"] --> D["synchronized_input[i]"]
-```
+![Input Synchronizer](../assets/graphviz/gpio_input_sync.png)
 
 - SYNC_STAGES parameter controls depth (default: 2)
 - Prevents metastability from external signal transitions

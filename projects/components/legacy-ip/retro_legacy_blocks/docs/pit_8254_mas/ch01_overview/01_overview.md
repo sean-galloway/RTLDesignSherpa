@@ -29,7 +29,7 @@ The APB Programmable Interval Timer (PIT 8254) is an 8254-compatible timer perip
 
 ### Figure 1.1: APB PIT 8254 Block Diagram
 
-![APB PIT 8254 Block Diagram](../assets/diagrams/apb4_pit_8254_blocks.png)
+![APB PIT 8254 Block Diagram](../assets/graphviz/pit_8254_whole_unit.png)
 
 ## Functional Description
 

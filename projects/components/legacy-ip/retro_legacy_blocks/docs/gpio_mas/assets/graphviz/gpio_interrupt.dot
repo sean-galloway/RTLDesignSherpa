@@ -1,0 +1,50 @@
+// apb4_gpio interrupt path - house style (vault/handbook/authoring/block-diagrams.md).
+// One pin's event flows top-down from the asynchronous pin to the single irq
+// at the boundary bar. Edge pins go through the sticky INT_STATUS register
+// (center column); level pins bypass it on the right lane, live. The
+// configuration fields are a legend with no edges (each block names the field
+// it reads); software's W1C is dashed sideband into the status register.
+// Source of truth: rtl/gpio/gpio_core.sv, gpio_config_regs.sv.
+digraph gpio_interrupt {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="apb4_gpio interrupt path - per-pin detect, sticky status, one aggregate irq (core clock)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    pin [group=C, label="GPIO Input Pins  gpio_in[GPIO_WIDTH-1:0]\n(asynchronous)", fillcolor="white"];
+    leg [fillcolor="white", label="Configuration (gpio_regs fields, per pin unless noted)\lINT_POLARITY: 1 = rising / high, 0 = falling / low\lINT_BOTH: 1 = either edge (edge pins; overrides POLARITY)\lINT_TYPE: 1 = level, 0 = edge\lINT_ENABLE: 1 = pin may set status and drive irq\lCONTROL.int_enable (global): 1 = irq may assert (resets 0)\l"];
+    sw  [fillcolor="white", label="Software  (APB)\nread INT_STATUS, write 1 to clear"];
+
+    syn [group=C, label="Input Synchronizer (flop)\ngpio_core - SYNC_STAGES flops"];
+    det [group=C, label="Edge Detect + Level Compare (combinational)\ngpio_core - previous-value flop r_gpio_prev\nreads INT_POLARITY, INT_BOTH"];
+    sel [group=C, label="Type Select + Pin Enable (combinational)\ngpio_core - raw = INT_TYPE ? level : edge\npending = raw & INT_ENABLE"];
+    sts [group=L, label="Interrupt Status, sticky (flop)\ngpio_regs GPIO_INT_STATUS, set by gpio_config_regs\nnext = (status | pending | deferred) & ~W1C mask"];
+    eff [group=C, label="Effective Status (combinational)\ngpio_config_regs\nedge pin: INT_STATUS & INT_ENABLE\nlevel pin: live raw & INT_ENABLE"];
+    agg [group=C, label="IRQ Gate (combinational)\ngpio_config_regs\nirq = CONTROL.int_enable & OR of all pins"];
+
+    bar [group=C, label="Module Boundary\nirq out  (through a 2-flop pclk synchronizer when CDC_ENABLE=1)",
+         fillcolor="white", width=7.0];
+
+    pin -> syn [xlabel="pin levels"];
+    syn -> det [xlabel="synchronized value"];
+    det -> sel [xlabel="edge event, level match"];
+    sel -> sts [xlabel="pending (edge\nand level pins)"];
+    sts -> eff [xlabel="sticky status"];
+    p_lv [shape=point, width=0.01, group=R];
+    sel -> p_lv [arrowhead=none, headclip=false];
+    p_lv -> eff [xlabel="raw, live\n(level pins only)", tailclip=false];
+    eff -> agg [xlabel="per-pin effective status"];
+    agg -> bar [penwidth=1.8, xlabel="irq"];
+
+    sw -> sts [style=dashed, dir=both, xlabel="read / W1C"];
+
+    { rank=same; pin; leg; }
+    pin -> leg [style=invis, minlen=3];
+    { rank=same; sel; sw; }
+    sw -> sel [style=invis, minlen=3];
+    { rank=same; sts; p_lv; }
+    sts -> p_lv [style=invis, minlen=7];
+}

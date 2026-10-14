@@ -1,0 +1,44 @@
+// RTC time set - house style (vault/handbook/authoring/block-diagrams.md).
+// The six staged bytes travel down the center from the register writes to
+// the counter load, crossing pclk -> counter clock on the four-phase
+// handshake (heavy). The load evidence climbs back up the right to release
+// busy. The divider pause rides the config bundle on its own dashed lane.
+// Source of truth: rtl/rtc/rtc_config_regs.sv, rtl/rtc/rtc_core.sv.
+digraph rtc_time_set {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.55", splines=ortho, newrank=true,
+           label="RTC time set - stage on pclk, commit on time_set_mode falling, load on the counter clock",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    sw  [group=C, fillcolor="white", label="Software (APB writes)\nRTC_CONFIG.time_set_mode = 1, six time-register writes,\nthen time_set_mode = 0"];
+
+    stg [group=C, label="Staging (flop, pclk) - rtc_config_regs\nsix bytes held; reads return the staged values"];
+    src [group=C, label="Commit Source (flop, pclk) - rtc_core\ntime_set_mode 1 -> 0 is the commit; busy until the load;\nCOMMIT_TIMEOUT_CYCLES watchdog sets RTC_STATUS.commit_timeout"];
+    hs  [group=C, label="Four-Phase Handshake - cdc_4_phase_handshake\nreq up, ack up, req down, ack down; 48-bit bus held quasi-static"];
+    ld  [group=C, label="Commit Load (flop, counter clock) - rtc_core\nall six counters load on one edge, never beside a tick"];
+    pz  [group=L, style="filled,dashed", label="Divider Pause (counter clock) - rtc_core\ntime_set_mode via the 3-flop config bundle;\nbest effort: seen only if held ~3 counter clocks"];
+
+    bar [group=C, fillcolor="white", width=8.0, label="Time Counters (counter domain)\nseconds .. year now read the committed time"];
+
+    sw  -> stg [xlabel="time writes"];
+    stg -> src [xlabel="six staged bytes"];
+    src -> hs  [penwidth=1.8, xlabel="commit request + 48-bit time"];
+    hs  -> ld  [penwidth=1.8, xlabel="request seen (counter clock)"];
+    ld  -> bar [penwidth=1.8, xlabel="load"];
+    sw  -> pz  [style=dashed, xlabel="time_set_mode = 1"];
+    pz  -> bar [style=dashed, xlabel="pause the divider"];
+    p1 [shape=point, width=0.01, group=R];
+    p2 [shape=point, width=0.01, group=R];
+    src -> p1 [dir=back, xlabel="load evidence (sync_pulse):\nbusy clears"];
+    p1 -> p2 [dir=none];
+    p2 -> ld [dir=none];
+
+    { rank=same; src; p1; }
+    { rank=same; ld; p2; }
+    { rank=same; stg; pz; }
+    ld -> p2 [style=invis, minlen=2];
+    pz -> stg [style=invis];
+}

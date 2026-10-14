@@ -29,11 +29,20 @@ Two views of the same design: the top-level block diagram, and the module hierar
 
 ### Figure 1.2: APB GPIO Top-Level Architecture
 
-![APB GPIO Architecture](../assets/mermaid/gpio_block_diagram.png)
+![APB GPIO Architecture](../assets/graphviz/gpio_whole_unit.png)
 
 ### Figure 1.3: APB GPIO Module Hierarchy
 
-![APB GPIO Module Hierarchy](../assets/mermaid/gpio_module_hierarchy.png)
+```
+apb4_gpio                      top level
+├── apb4_slave                 APB completer (CDC_ENABLE=0)
+│   or apb4_slave_cdc          APB completer + crossing (CDC_ENABLE=1)
+├── peakrdl_to_cmdrsp          cmd/rsp to register-block adapter
+├── gpio_config_regs           write strobes, W1C merge, irq
+│   ├── gpio_regs              PeakRDL register block
+│   └── gpio_core              sync, output latch, edge/level
+└── glitch_free_n_dff_arn      irq sync to pclk (CDC_ENABLE=1)
+```
 
 ## Functional Description
 
@@ -57,15 +66,15 @@ Three flows matter: APB writes, APB reads, and interrupts.
 
 #### Figure 1.7: Synchronous Mode Clock Domains
 
-![Synchronous Mode](../assets/mermaid/gpio_sync_mode.png)
+![Synchronous Mode](../assets/graphviz/gpio_clocks_sync.png)
 
 With CDC_ENABLE = 0, everything runs on the APB clock (pclk). Input synchronization stays active on the external GPIO pins — metastability doesn't care that your bus fabric is synchronous.
 
 #### Figure 1.8: Asynchronous Mode Clock Domains
 
-![Asynchronous Mode](../assets/mermaid/gpio_async_mode.png)
+![Asynchronous Mode](../assets/graphviz/gpio_clocks_async.png)
 
-With CDC_ENABLE = 1, the APB clock domain handles protocol conversion while the GPIO clock domain owns the registers and I/O. Skid buffers carry the crossing safely.
+With CDC_ENABLE = 1, the APB clock domain handles protocol conversion while the GPIO clock domain owns the registers and I/O. The crossing is the pair of asynchronous FIFOs inside `apb4_slave_cdc` (command in, response out), plus a 2-flop synchronizer that brings `irq` back to pclk.
 
 ## Parameters
 

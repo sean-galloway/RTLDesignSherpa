@@ -37,12 +37,7 @@
 
 ### Output Mode (direction[i] = 1)
 
-```mermaid
-flowchart LR
-    A["gpio_output[i]"] --> B["Output Buffer"]
-    C["gpio_oe[i] = 1"] --> B
-    B --> D["External Pin"]
-```
+![One GPIO Pin](../assets/graphviz/gpio_pin_io.png)
 
 - gpio_oe[i] = 1 (output enabled)
 - gpio_out[i] = GPIO_OUTPUT register value
@@ -50,16 +45,7 @@ flowchart LR
 
 ### Input Mode (direction[i] = 0)
 
-```mermaid
-flowchart LR
-    subgraph Output Path
-        A["gpio_oe[i] = 0"] --> B["Output Buffer"]
-        B --> C["External Pin (Hi-Z)"]
-    end
-    subgraph Input Path
-        D["External Pin"] --> E["Synchronizer"] --> F["gpio_in[i]"]
-    end
-```
+The same path as the figure above with `gpio_oe[i] = 0`: the pad buffer is Hi-Z and only the input leg, through the synchronizer, is live.
 
 - gpio_oe[i] = 0 (tri-state)
 - gpio_out[i] = don't care
@@ -69,12 +55,7 @@ flowchart LR
 
 All inputs pass through a dual flip-flop synchronizer:
 
-```mermaid
-flowchart LR
-    A["gpio_in"] --> B["FF1<br/>(gpio_clk)"]
-    B --> C["FF2<br/>(gpio_clk)"]
-    C --> D["synced_input"]
-```
+![Input Synchronizer](../assets/graphviz/gpio_input_sync.png)
 
 - SYNC_STAGES parameter controls depth (default: 2)
 - Prevents metastability from asynchronous inputs

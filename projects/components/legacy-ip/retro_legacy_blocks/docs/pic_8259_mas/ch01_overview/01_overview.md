@@ -83,7 +83,7 @@ was no acknowledge path at all.
 
 ### Figure 1.1: PIC 8259 Block Diagram
 
-![PIC 8259 Block Diagram](../assets/svg/pic_8259_top.png)
+![PIC 8259 Block Diagram](../assets/graphviz/pic_8259_whole_unit.png)
 
 ### Register Summary
 

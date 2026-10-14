@@ -1,0 +1,31 @@
+// One GPIO pin, module side to pad - house style
+// (vault/handbook/authoring/block-diagrams.md). The register block is the
+// port on top, the external pin is the bar. Drive goes down the left through
+// the output latch; the pin level climbs the right through the synchronizer.
+// The tristate pad buffer is NOT in apb4_gpio (gpio_core.sv header: the
+// wrapper or FPGA top instantiates IOBUF / OBUFT / IBUF), so it is dashed.
+// Source of truth: rtl/gpio/gpio_core.sv.
+digraph gpio_pin_io {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="One GPIO pin i - output drive and input capture",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    regs [label="Register Block  (gpio_regs)\nGPIO_OUTPUT[i], GPIO_DIRECTION[i], CONTROL.gpio_enable   |   GPIO_INPUT[i]", fillcolor="white", width=7.0];
+    lat  [label="Output Latch + Direction Gate\ngpio_core - r_output_data[i]\ngpio_oe[i] = gpio_enable & DIRECTION[i]"];
+    syn  [label="Input Synchronizer (flop)\ngpio_core - SYNC_STAGES flops\non the core clock"];
+    buf  [style="filled,dashed", label="Tristate Pad Buffer  (not in apb4_gpio)\nIOBUF / OBUFT + IBUF in the wrapper or FPGA top\ngpio_oe[i] = 1: drive gpio_out[i]   |   gpio_oe[i] = 0: Hi-Z", width=7.0];
+    bar  [label="External Pin i", fillcolor="white", width=7.0];
+
+    regs -> lat [xlabel="output value,\ndirection"];
+    lat  -> buf [xlabel="gpio_out[i],\ngpio_oe[i]"];
+    buf  -> bar [dir=both, penwidth=1.8, xlabel="driven when gpio_oe[i] = 1\n/ pin level (always read)"];
+    syn  -> buf [dir=back, xlabel="gpio_in[i]\n(asynchronous)"];
+    regs -> syn [dir=back, xlabel="synchronized\nvalue"];
+
+    { rank=same; lat; syn; }
+    lat -> syn [style=invis, minlen=4];
+}

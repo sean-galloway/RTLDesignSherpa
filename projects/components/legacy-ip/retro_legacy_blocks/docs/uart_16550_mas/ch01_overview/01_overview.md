@@ -40,7 +40,7 @@ The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmi
 - 16-byte transmit FIFO
 - 16-byte receive FIFO
 - Configurable trigger levels (1, 4, 8, 14 bytes)
-- FIFOs are always 16 deep; FCR.FE only changes IIR[7:6] and the RX-data interrupt condition (there is no true FIFO-disable / single-byte 8250 mode)
+- FCR[0]=1 gives FIFO_DEPTH-entry FIFOs (16 by default); FCR[0]=0 is 16450 character mode, one holding register per side
 
 #### Interrupt System
 - Prioritized interrupts
@@ -79,7 +79,7 @@ The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmi
 
 ### Figure 1.1: UART 16550 Block Diagram
 
-![UART 16550 Block Diagram](../assets/svg/uart_top.png)
+![UART 16550 Block Diagram](../assets/graphviz/uart_whole_unit.png)
 
 ### Register Summary
 

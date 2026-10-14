@@ -89,21 +89,13 @@ Resets:
 
 #### Single Clock Domain (CDC_ENABLE = 0)
 
-```mermaid
-flowchart LR
-    A["pclk"] --> B["APB GPIO<br/>(all logic)"]
-```
+![Single Clock Domain](../assets/graphviz/gpio_clocks_sync.png)
 
 gpio_clk: Tie to pclk or leave unconnected
 
 #### Dual Clock Domain (CDC_ENABLE = 1)
 
-```mermaid
-flowchart LR
-    A["pclk"] --> B["APB Interface"]
-    B <-->|"CDC"| C["GPIO Core"]
-    D["gpio_clk"] --> C
-```
+![Dual Clock Domain](../assets/graphviz/gpio_clocks_async.png)
 
 ### Reset Sequence
 

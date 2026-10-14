@@ -1,0 +1,53 @@
+// apb4_ioapic clock domains with CDC_ENABLE=1 - house style
+// (vault/handbook/authoring/block-diagrams.md), CDC mapping per the rtl-amba
+// *_slave_cdc ruling: domains stacked vertically, each block names its clock.
+// Crossings (heavy): APB command / response inside apb4_slave_cdc; the LAPIC
+// delivery request and acknowledge through cdc_synchronizer; the EOI through
+// sync_pulse; the dropped-delivery count Gray-coded. The LAPIC interface
+// itself is presented on pclk.
+// Source of truth: rtl/ioapic/apb4_ioapic.sv (g_apb4_slave_cdc, g_lapic_cdc,
+// g_drop_count_cdc).
+digraph ioapic_clocks_async {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="apb4_ioapic, CDC_ENABLE=1 - APB and LAPIC interfaces on pclk, registers and core on ioapic_clk",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    apb  [group=C, label="APB4 Completer Port  s_apb_*  (pclk)", fillcolor="white"];
+    cdc  [group=C, label="APB Completer + Command / Response CDC FIFOs\napb4_slave_cdc - APB side on pclk, cmd / rsp side on ioapic_clk\n(gaxi_fifo_async pair; USE_JOHNSON selects the pointer code)", width=6.5];
+    cfg  [group=C, label="Register Block  (ioapic_clk)\nioapic_config_regs: peakrdl_to_cmdrsp + IOREGSEL / IOWIN + ioapic_regs"];
+    core [group=C, label="Interrupt Core  (ioapic_clk)\nioapic_core - irq_in synchronized here (3 flops)"];
+    li   [group=C, label="LAPIC Handshake, ioapic_clk Side (flop)\napb4_ioapic - r_i_req / r_i_busy four-phase request"];
+    reqs [group=L, label="Request Synchronizer\ncdc_synchronizer  (ioapic_clk -> pclk)"];
+    acks [group=C, label="Acknowledge Synchronizer\ncdc_synchronizer  (pclk -> ioapic_clk)"];
+    eois [group=R, label="EOI Pulse Synchronizer\nsync_pulse  (pclk -> ioapic_clk)\nEOIs >= 3 ioapic_clk + 2 pclk apart"];
+    drop [group=RR, label="Dropped-Delivery Count Crossing\nbin2gray + glitch_free_n_dff_arn + gray2bin\n(pclk -> ioapic_clk, to IOAPICMSIDROP)"];
+    lp   [group=C, label="LAPIC Handshake, pclk Side (flop)\napb4_ioapic - r_p_valid / r_p_ack, payload captured quasi-static,\nEOI edge detect, saturating drop counter (refusals)"];
+    bar  [group=C, label="Module Boundary\nirq_in in (asynchronous, to ioapic_core)   |   irq_out_valid + payload out / irq_out_ready, irq_out_retry in  (pclk)   |   eoi_in, eoi_vector in  (pclk)", fillcolor="white", width=11.0];
+
+    apb  -> cdc  [dir=both, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    cdc  -> cfg  [dir=both, penwidth=1.8, xlabel="cmd / rsp\n(crossed)"];
+    cfg  -> core [dir=both, xlabel="RTE config\n/ Remote IRR, status"];
+    core -> li   [dir=both, xlabel="valid + payload\n/ ready, retry"];
+    li   -> reqs [penwidth=1.8, xlabel="request"];
+    reqs -> lp   [xlabel="request (pclk)"];
+    li   -> acks [dir=back, penwidth=1.8, xlabel="acknowledge"];
+    acks -> lp   [dir=back, xlabel="acknowledge (pclk)"];
+    lp   -> bar  [dir=both, xlabel="irq_out_* handshake\n/ eoi_in, eoi_vector"];
+    core -> eois [dir=back, penwidth=1.8, xlabel="EOI strobe (+ vector,\nquasi-static)"];
+    eois -> lp   [dir=back, xlabel="EOI pulse"];
+    cfg  -> drop [dir=back, penwidth=1.8, xlabel="drop count"];
+    drop -> lp   [dir=back, xlabel="refusal count"];
+    p_irq [shape=point, width=0.01, group=LL];
+    core -> p_irq [dir=back, headclip=false, xlabel="irq_in"];
+    p_irq -> bar [dir=none, tailclip=false];
+
+    { rank=same; reqs; acks; drop; }
+    reqs -> acks -> drop [style=invis, minlen=2];
+    { rank=same; li; eois; }
+    li -> eois [style=invis, minlen=2];
+    { rank=same; p_irq; lp; }
+    p_irq -> lp [style=invis, minlen=3];
+}

@@ -29,7 +29,7 @@ The APB interface is the bridge between the system APB bus and the GPIO register
 
 ### Block Diagram
 
-![APB Interface Block](../assets/svg/gpio_interfaces.png)
+![APB Interface Block](../assets/graphviz/gpio_apb_interface.png)
 
 ## Ports
 

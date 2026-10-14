@@ -29,7 +29,7 @@ Per-pin interrupt generation with edge or level triggering and one aggregate `ir
 
 ### Figure 2.5: Interrupt Controller Block Diagram
 
-![Interrupt Controller Block](../assets/mermaid/gpio_interrupt_block.png)
+![Interrupt Controller Block](../assets/graphviz/gpio_interrupt.png)
 
 ## Functional Description
 
@@ -60,7 +60,7 @@ Per-pin interrupt generation with edge or level triggering and one aggregate `ir
 
 #### Figure 2.6: Edge Detection Logic
 
-![Edge Detection Logic](../assets/mermaid/gpio_edge_detection.png)
+![Edge Detection Logic](../assets/graphviz/gpio_edge_detect.png)
 
 ### Interrupt Status
 
@@ -80,8 +80,9 @@ Two levels of enable exist:
 
 - `GPIO_INT_ENABLE[i] = 1` enables pin i. It is sampled at EVENT time: it
   gates whether a status bit sets, and (for level pins) whether the pin
-  drives `irq`. Clearing it after an edge event has latched does NOT mask
-  that pending interrupt at `irq`.
+  drives `irq`. It is also re-applied at `irq`: clearing it after an edge
+  event has latched masks that pending interrupt (the status bit stays set
+  until W1C), as described under Aggregate IRQ Output below.
 - `GPIO_CONTROL[1]` (global INT_ENABLE) gates the final `irq` output and is
   the only control that masks everything. It resets to 0.
 

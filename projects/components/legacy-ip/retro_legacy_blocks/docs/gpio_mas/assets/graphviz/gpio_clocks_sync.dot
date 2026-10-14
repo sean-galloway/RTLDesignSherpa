@@ -1,0 +1,36 @@
+// apb4_gpio clock domains with CDC_ENABLE=0 - house style
+// (vault/handbook/authoring/block-diagrams.md). One clock: gpio_clk and
+// gpio_rstn are unused, the irq is a wire, and the only synchronizer left is
+// the one on the asynchronous input pins.
+// Source of truth: rtl/gpio/apb4_gpio.sv (gen_no_cdc, gen_irq_direct).
+digraph gpio_clocks_sync {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb4_gpio, CDC_ENABLE=0 - every block on pclk, presetn (gpio_clk, gpio_rstn unused)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb [group=C, label="APB4 Completer Port  s_apb_*\n(pclk, presetn)", fillcolor="white"];
+    slv [group=C, label="APB Completer\napb4_slave  (pclk)", width=6.0];
+    adp [group=C, label="Register-Block Adapter\npeakrdl_to_cmdrsp  (pclk)"];
+    cfg [group=C, label="Register Block + GPIO Core\ngpio_config_regs: gpio_regs + gpio_core  (pclk)\ninput pins still pass SYNC_STAGES synchronizer flops on pclk", width=6.0];
+
+    bar [group=C, label="Module Boundary\ngpio_out, gpio_oe out  (pclk)   |   irq out  (pclk, a wire from the core)   |   gpio_in in  (asynchronous)",
+         fillcolor="white", width=9.0];
+
+    apb -> slv [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv -> adp [dir=both, xlabel="cmd / rsp"];
+    adp -> cfg [dir=both, xlabel="register read / write\n/ ack, read data"];
+
+    p_out [shape=point, width=0.01, group=L];
+    p_irq [shape=point, width=0.01, group=R];
+    cfg -> p_out [arrowhead=none, headclip=false];
+    p_out -> bar [xlabel="gpio_out, gpio_oe", tailclip=false];
+    cfg -> bar [dir=back, xlabel="gpio_in"];
+    cfg -> p_irq [arrowhead=none, headclip=false];
+    p_irq -> bar [xlabel="irq", tailclip=false];
+
+    { rank=same; p_out; p_irq; }
+}

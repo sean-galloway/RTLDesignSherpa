@@ -36,7 +36,7 @@ Four external interfaces: the bus, the pins, the interrupt, and the clock/reset 
 
 ### Interface Summary Diagram
 
-![GPIO Interfaces](../assets/svg/gpio_interfaces.png)
+![GPIO Interfaces](../assets/graphviz/gpio_interfaces.png)
 
 ### In This Chapter
 

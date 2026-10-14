@@ -1,0 +1,24 @@
+// gpio_core input synchronizer, one pin - house style
+// (vault/handbook/authoring/block-diagrams.md). The chain is collapsed to the
+// capture flop and the settling flops (the CDC "long flop chain" ruling).
+// Source of truth: rtl/gpio/gpio_core.sv (r_sync_stage).
+digraph gpio_input_sync {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c, label="gpio_core input synchronizer - one pin i, SYNC_STAGES flops on the core clock"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    pin [label="gpio_in[i]  (asynchronous pin level)", fillcolor="white"];
+    ff1 [label="Capture Flop (flop)\nr_sync_stage[0] - may go metastable"];
+    ffn [label="Settling Flops (flop)\nr_sync_stage[1 .. SYNC_STAGES-1]\n(one flop at the default SYNC_STAGES = 2)"];
+    clk [label="Core Clock\npclk (CDC_ENABLE=0)\ngpio_clk (CDC_ENABLE=1)", fillcolor="white"];
+    bar [label="Synchronized Input  s[i]  (to GPIO_INPUT and the edge / level detectors)\nSYNC_STAGES core-clock cycles after the pin changes", fillcolor="white", width=6.5];
+    pin -> ff1 [xlabel="pin level"];
+    ff1 -> ffn [penwidth=1.8, xlabel="first sample"];
+    ffn -> bar [xlabel="s[i]"];
+    clk -> ff1 [style=dashed, xlabel="clock"];
+    clk -> ffn [style=dashed];
+    { rank=same; ff1; clk; }
+    ff1 -> clk [style=invis, minlen=3];
+}

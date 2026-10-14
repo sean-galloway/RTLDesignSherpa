@@ -57,7 +57,7 @@ The register block's connection to the rest of the UART core is the PeakRDL hard
 
 ### Figure 2.2: Register File Block
 
-![Register File Block](../assets/svg/uart_register_file.png)
+![Register File Block](../assets/graphviz/uart_register_file.png)
 
 ### Register Organization
 

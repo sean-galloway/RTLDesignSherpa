@@ -1,0 +1,62 @@
+// apb4_gpio whole-unit diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Geography: the APB port and the PeakRDL register block at the top, the
+// gpio_core function in the middle, the pins and irq at the boundary bar.
+// Flows:
+//   register access - down the center (APB -> completer -> adapter -> regs),
+//                     the response rides the same dir=both edges back up
+//   output drive    - down the LEFT: regs -> write strobes -> output latch -> pins
+//   input / status  - back UP the RIGHT: pins -> synchronizer + detect -> regs
+//   irq             - aggregated from status + enables, down to the bar
+// Source of truth: rtl/gpio/apb4_gpio.sv, gpio_config_regs.sv, gpio_core.sv.
+digraph gpio_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb4_gpio - APB4 GPIO controller (CDC_ENABLE=0: all on pclk; CDC_ENABLE=1: register block and core on gpio_clk)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb [group=C, label="APB4 Completer Port  s_apb_*  (12-bit address, 32-bit data)", fillcolor="white"];
+
+    slv [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1, pclk -> gpio_clk)"];
+    adp [group=C, label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp"];
+    regs [group=C, label="Register Block (PeakRDL)\ngpio_regs inside gpio_config_regs\nCONTROL, DIRECTION, OUTPUT, OUTPUT_SET / CLR / TGL, INPUT, INT_ENABLE / TYPE / POLARITY / BOTH, INT_STATUS (W1C), RAW_INT",
+          width=9.0];
+
+    stb [group=L, label="Write-Strobe Builder (flop)\ngpio_config_regs\nswmod rising edge -> one-cycle strobe per write;\nlive output written back into GPIO_OUTPUT after SET / CLR / TGL"];
+    agg [group=M, label="IRQ Aggregation (combinational)\ngpio_config_regs\nedge pin: sticky INT_STATUS & enable\nlevel pin: live raw & enable\nOR of all pins, AND CONTROL.int_enable"];
+
+    lat [group=L, label="Output Latch + Direction (flop)\ngpio_core - r_output_data\npriority: direct write > toggle > set > clear\ngpio_oe = gpio_enable ? DIRECTION : 0"];
+    isy [group=M, style="filled,dashed", label="IRQ Synchronizer to pclk\nglitch_free_n_dff_arn, 2 flops\n(CDC_ENABLE=1 only; else a wire)"];
+    syn [group=R, label="Input Synchronizer + Edge / Level Detect\ngpio_core - SYNC_STAGES flops, previous-value flop\nrising / falling / both edge, high / low level"];
+
+    bar [group=C, label="Module Boundary\ngpio_out[GPIO_WIDTH-1:0], gpio_oe[GPIO_WIDTH-1:0] out (to the pad buffers)   |   irq out (to the interrupt controller)   |   gpio_in[GPIO_WIDTH-1:0] in (asynchronous)",
+         fillcolor="white", width=13.0];
+
+    // ---- register access (center) ----
+    apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv  -> adp  [dir=both, xlabel="cmd_valid + fields\n/ rsp_valid + prdata, pslverr"];
+    adp  -> regs [dir=both, xlabel="cpuif request\n/ rd_ack, rd_data, wr_ack"];
+
+    // ---- output drive (left) ----
+    regs -> stb [xlabel="GPIO_OUTPUT, SET / CLR / TGL\nwrites (value + swmod)"];
+    stb  -> lat [xlabel="direct-write strobe,\nset / clr / tgl masks"];
+    regs -> lat [style=dashed, constraint=false, xlabel="DIRECTION,\ngpio_enable"];
+    lat  -> bar [xlabel="gpio_out, gpio_oe\n(drive pins)"];
+
+    // ---- irq ----
+    regs -> agg [xlabel="INT_STATUS, INT_ENABLE,\nINT_TYPE, int_enable"];
+    agg  -> isy [xlabel="irq (core clock)"];
+    isy  -> bar [xlabel="irq"];
+
+    // ---- input / status return (right, climbing) ----
+    syn  -> bar  [dir=back, xlabel="gpio_in (pins)"];
+    regs -> syn  [dir=back, xlabel="GPIO_INPUT, RAW_INT,\nINT_STATUS set (hwif_in)"];
+    agg  -> syn  [dir=back, constraint=false, xlabel="raw level\n(level pins)"];
+
+    { rank=same; stb; agg; }
+    { rank=same; lat; isy; syn; }
+    lat -> isy -> syn [style=invis, minlen=2];
+    stb -> agg [style=invis, minlen=2];
+}

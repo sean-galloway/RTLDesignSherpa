@@ -1,0 +1,35 @@
+// uart_16550_core FIFO subsystem - house style
+// (vault/handbook/authoring/block-diagrams.md). The register side is the port
+// on top, the serial engines the bar. Transmit data drops down the left
+// through the TX FIFO; received characters climb the right through the RX
+// FIFO. FCR controls are dashed sideband.
+// Source of truth: rtl/uart_16550/uart_16550_core.sv, uart_16550_intr.sv.
+digraph uart_fifo {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="uart_16550_core TX and RX FIFOs (core clock)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    port [group=C, label="Register Side  (uart_16550_config_regs)\nTHR write (push byte)   |   RBR read (pop), LSR status", fillcolor="white", width=6.5];
+    fcr  [fillcolor="white", label="FCR fields (register block, runtime)\lFCR[0]: 1 = FIFO_DEPTH entries, 0 = one entry\l    (16450 character mode)\lFCR[1] / FCR[2]: reset RX / TX pointers\lFCR[3]: DMA mode for rxrdy_n / txrdy_n\lFCR[7:6]: RX trigger 1 / 4 / 8 / 14\l"];
+
+    txf [group=L, label="TX FIFO (flop array)\nr_tx_fifo[FIFO_DEPTH] x 8 bits\ndepth FCR[0], reset FCR[2]\nfull in character mode: a write\noverwrites the waiting byte;  THRE = empty"];
+    rxf [group=R, label="RX FIFO (flop array)\nr_rx_fifo[FIFO_DEPTH] x {BI, FE, PE, byte}\ndepth FCR[0], reset FCR[1]\nfull: overrun sets LSR.OE (character\nmode: overwrites);  LSR[7] error count"];
+    trg [group=C, label="Level Compares (combinational)\nRX count >= FCR[7:6] trigger (uart_16550_intr)\nrxrdy_n / txrdy_n per FCR[3]"];
+
+    bar [group=C, label="Serial Engines and Pins\nTX: transmitter pops at START   |   rxrdy_n, txrdy_n out   |   RX: receiver pushes at the stop-bit sample", fillcolor="white", width=9.0];
+
+    port -> txf [xlabel="THR byte + push"];
+    txf  -> bar [xlabel="head byte (pop)"];
+    port -> rxf [dir=back, penwidth=1.8, xlabel="RBR byte + tags (pop)"];
+    rxf  -> bar [dir=back, xlabel="character + tags (push)"];
+    txf  -> trg [xlabel="TX count"];
+    rxf  -> trg [xlabel="RX count"];
+    trg  -> bar [xlabel="DMA requests (trigger also\nto IIR and AFE RTS)"];
+
+    { rank=same; port; fcr; }
+    port -> fcr [style=invis, minlen=2];
+    { rank=same; txf; rxf; }
+    txf -> rxf [style=invis, minlen=4];
+}

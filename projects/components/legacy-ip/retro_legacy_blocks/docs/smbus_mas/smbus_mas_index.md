@@ -48,7 +48,7 @@ RTL tree wins.
 
 ### Block Diagram
 
-![SMBus Block Diagram](assets/svg/smbus_top.png)
+![SMBus Block Diagram](assets/graphviz/smbus_whole_unit.png)
 
 ### Version History
 

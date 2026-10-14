@@ -1,0 +1,24 @@
+// uart_16550_core RX input synchronizer - house style
+// (vault/handbook/authoring/block-diagrams.md). Collapsed to the capture flop
+// and the settling flops (the CDC long-flop-chain ruling).
+// Source of truth: rtl/uart_16550/uart_16550_core.sv (r_rx_sync).
+digraph uart_rx_sync {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="uart_16550_core RX synchronizer - SYNC_STAGES flops on the core clock, reset to 1 (marking)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    pin [label="uart_rx  (asynchronous, idle high)", fillcolor="white"];
+    ff1 [label="Capture Flop (flop)\nr_rx_sync[0] - may go metastable"];
+    ffn [label="Settling Flops (flop)\nr_rx_sync[1 .. SYNC_STAGES-1]\n(one flop at the default SYNC_STAGES = 2)"];
+    clk [label="Core Clock\npclk (CDC_ENABLE=0)\nuart_clk (CDC_ENABLE=1)", fillcolor="white"];
+    bar [label="Synchronized RX  (to the loopback select, then the receiver)\nSYNC_STAGES core-clock cycles after the pin changes", fillcolor="white", width=6.0];
+    pin -> ff1 [xlabel="pin level"];
+    ff1 -> ffn [penwidth=1.8, xlabel="first sample"];
+    ffn -> bar [xlabel="rx"];
+    clk -> ff1 [style=dashed, xlabel="clock"];
+    clk -> ffn [style=dashed];
+    { rank=same; ff1; clk; }
+    ff1 -> clk [style=invis, minlen=3];
+}

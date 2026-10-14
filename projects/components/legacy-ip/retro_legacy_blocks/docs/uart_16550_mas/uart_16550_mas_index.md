@@ -41,7 +41,7 @@ This specification is organized into five chapters covering all aspects of the A
 
 ### Block Diagram
 
-![APB UART 16550 Block Diagram](assets/svg/uart_top.png)
+![APB UART 16550 Block Diagram](assets/graphviz/uart_whole_unit.png)
 
 ---
 

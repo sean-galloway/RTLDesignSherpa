@@ -1,0 +1,33 @@
+// HPET interrupt-status loop across modules - house style
+// (vault/handbook/authoring/block-diagrams.md). Software is the port on top;
+// the timer fire is the bar at the bottom, where the event enters. The W1C
+// clear drops down the left lane to the core's sticky status flop; the
+// status level climbs the right lane back to HPET_STATUS, which only
+// mirrors it. Replaces the Mermaid "cross-module state dependencies" chart.
+// Source of truth: rtl/hpet/hpet_config_regs.sv, hpet_core.sv.
+digraph hpet_status_loop {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="HPET_STATUS loop - hpet_core owns the sticky bit, the register block mirrors it (core clock)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    sw   [label="Software  (APB, through apb4_slave and peakrdl_to_cmdrsp)\nread HPET_STATUS   |   write 1 to clear a bit", fillcolor="white", width=6.5];
+    reg  [label="HPET_STATUS Field (PeakRDL)\nhpet_regs - timer_int_status, hw = w\na mirror: rewritten from the core every cycle", width=6.5];
+    w1c  [group=L, label="W1C Decode (flop edge detect)\nhpet_config_regs - mirrors the regblock's write decode\nmask = wr_data & wr_biten, ONE-cycle pulse"];
+    sts  [label="Interrupt Status (flop, sticky)\nhpet_core - r_interrupt_status[i]\nset on fire; cleared by the pulse; fire wins a tie", width=6.5];
+    bar  [label="Timer Fire  (hpet_core armed latch: match & armed & hpet_enable)", fillcolor="white", width=6.5];
+
+    sw   -> reg [dir=both, penwidth=1.8, xlabel="read / write\n/ read data"];
+    sw   -> w1c [xlabel="write to HPET_STATUS\n(data, byte enables)"];
+    w1c  -> sts [xlabel="timer_int_clear[i]"];
+    p_m [shape=point, width=0.01, group=R];
+    reg  -> p_m [dir=back, headclip=false, xlabel="hwif_in: status level\n(next cycle)"];
+    p_m  -> sts [dir=none, tailclip=false];
+    sts  -> bar [dir=back, xlabel="fire[i]"];
+
+    { rank=same; w1c; p_m; }
+    w1c -> p_m [style=invis, minlen=6];
+}

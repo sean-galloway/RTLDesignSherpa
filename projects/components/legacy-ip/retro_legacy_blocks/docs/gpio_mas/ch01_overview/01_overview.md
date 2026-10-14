@@ -71,7 +71,7 @@ The APB GPIO controller is a 32-bit general-purpose I/O block on the APB bus. So
 
 ### Figure 1.1: APB GPIO Block Diagram
 
-![APB GPIO Block Diagram](../assets/mermaid/gpio_block_diagram.png)
+![APB GPIO Block Diagram](../assets/graphviz/gpio_whole_unit.png)
 
 ## Parameters
 

@@ -1,0 +1,25 @@
+// apb4_gpio APB interface path - house style
+// (vault/handbook/authoring/block-diagrams.md). The bus is the port on top;
+// the PeakRDL register block's cpuif is the bottom bar. Each hop is one dir=both edge:
+// the request goes down, its acknowledge and read data come back up.
+// Source of truth: rtl/gpio/apb4_gpio.sv; converters/rtl/peakrdl_to_cmdrsp.sv.
+digraph gpio_apb_interface {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb4_gpio APB interface - APB4 transfer to the register block's cpuif",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb [label="APB4 Completer Port  s_apb_*\nin: PSEL, PENABLE, PADDR[11:0], PWRITE, PWDATA, PSTRB, PPROT   |   out: PREADY, PRDATA, PSLVERR",
+         fillcolor="white"];
+    slv [label="APB Completer (see its diagram)\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1)\ncompleter FSM: PREADY held low until the register block answers", width=6.5];
+    adp [label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp\nPSTRB -> per-bit write enables; one request per command", width=6.5];
+    bar [label="Register Block cpuif  (gpio_regs inside gpio_config_regs, address bits [5:0])\nreq, req_is_wr, addr, wr_data, wr_biten   |   rd_ack, rd_data, rd_err, wr_ack, wr_err",
+         fillcolor="white", width=9.0];
+
+    apb -> slv [dir=both, penwidth=1.8, xlabel="transfer (PSEL, PENABLE, address, data)\n/ PREADY, PRDATA, PSLVERR"];
+    slv -> adp [dir=both, xlabel="cmd_valid + pwrite, paddr, pwdata, pstrb\n/ rsp_valid + prdata, pslverr"];
+    adp -> bar [dir=both, xlabel="register request\n/ rd_ack + rd_data, wr_ack"];
+}

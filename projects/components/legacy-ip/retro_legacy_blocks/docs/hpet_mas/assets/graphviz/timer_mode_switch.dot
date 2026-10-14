@@ -1,64 +1,39 @@
-// HPET Timer Mode Switching Flow
-// Render with: dot -Tpng timer_mode_switch.dot -o timer_mode_switch.png
-
+// HPET timer mode change - a procedure in the house decision-tree vocabulary.
+// The published map has NO per-timer run enable (TN_CONF has none), so a mode
+// change halts the whole counter: a comparator write re-arms only while
+// HPET_CONFIG.enable = 0 (rtl/hpet/hpet_core.sv, rule A3). TN_CONF.TYPE is
+// bit 3; INT_ENB is bit 2.
 digraph timer_mode_switch {
-    rankdir=TB;
-    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
-    edge [fontname="Arial"];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
+           label="HPET timer mode change (one-shot <-> periodic)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    start [group=A, label="Timer i running\nwant the other mode", fillcolor="white"];
+    halt  [group=A, label="1. Halt the counter (every timer)\nWRITE(HPET_CONFIG, 0x0)"];
+    clr   [group=A, label="2. Clear a pending interrupt\nWRITE(HPET_STATUS, 1 << i)"];
+    mode  [group=A, label="New mode?", fillcolor="white"];
+    toper [group=B, label="3a. Periodic\nWRITE(TIMERi_CONFIG, 0xC)  (TYPE | INT_ENB)\ncomparator = first fire AND period"];
+    tones [group=B, label="3b. One-shot\nWRITE(TIMERi_CONFIG, 0x4)  (INT_ENB)\ncomparator = absolute fire time"];
+    comp  [group=B, label="4. Write the comparator\nWRITE(TIMERi_COMPARATOR_LO / HI, value)\n(halted, so the write re-arms the timer)"];
+    go    [group=B, label="5. Restart the counter\nWRITE(HPET_CONFIG, 0x1)"];
+    done  [group=B, label="New mode active", fillcolor="white"];
 
-    start [label="Timer Running\n(Want to change mode)", shape=ellipse, fillcolor=lightyellow];
-    end [label="New Mode Active", shape=ellipse, fillcolor=lightgreen];
+    start -> halt [xlabel="begin"];
+    halt  -> clr  [xlabel="halted"];
+    clr   -> mode [xlabel="status clear"];
+    mode  -> toper [xlabel="periodic"];
+    mode  -> tones [xlabel="one-shot"];
+    toper -> comp [xlabel="mode set"];
+    tones -> comp [xlabel="mode set"];
+    comp  -> go   [xlabel="armed"];
+    go    -> done [xlabel="running"];
 
-    start -> check_current;
-
-    check_current [label="Read Current Mode\nconfig = READ(TIMER_CONFIG)\nCheck bit[2] (type)"];
-    check_current -> current_mode;
-
-    current_mode [label="Current mode?", shape=diamond, fillcolor=lightyellow];
-    current_mode -> from_oneshot [label="One-shot (0)"];
-    current_mode -> from_periodic [label="Periodic (1)"];
-
-    // From One-Shot to Periodic
-    from_oneshot [label="Change:\nOne-shot → Periodic", fillcolor=lightcyan];
-    from_oneshot -> disable_timer1;
-
-    disable_timer1 [label="1. Disable Timer\nWRITE(TIMER_CONFIG, 0x0)"];
-    disable_timer1 -> clear_irq1;
-
-    clear_irq1 [label="2. Clear IRQ (if any)\nWRITE(HPET_STATUS, 1<<i)"];
-    clear_irq1 -> set_comparator1;
-
-    set_comparator1 [label="3. Set Comparator\nWRITE(TIMER_COMPARATOR_LO, value)\n(This becomes period)"];
-    set_comparator1 -> enable_periodic;
-
-    enable_periodic [label="4. Enable Periodic Mode\nWRITE(TIMER_CONFIG, 0x7)\n(enable|int_en|periodic)"];
-    enable_periodic -> end;
-
-    // From Periodic to One-Shot
-    from_periodic [label="Change:\nPeriodic → One-shot", fillcolor=lightcyan];
-    from_periodic -> disable_timer2;
-
-    disable_timer2 [label="1. Disable Timer\nWRITE(TIMER_CONFIG, 0x0)"];
-    disable_timer2 -> clear_irq2;
-
-    clear_irq2 [label="2. Clear IRQ (if any)\nWRITE(HPET_STATUS, 1<<i)"];
-    clear_irq2 -> reset_counter_option;
-
-    reset_counter_option [label="3. Optional: Reset Counter\nWRITE(HPET_COUNTER_LO, 0)\nWRITE(HPET_COUNTER_HI, 0)", fillcolor=lightyellow];
-    reset_counter_option -> set_comparator2;
-
-    set_comparator2 [label="4. Set Comparator\nWRITE(TIMER_COMPARATOR_LO, value)\n(Fire time, not period)"];
-    set_comparator2 -> enable_oneshot;
-
-    enable_oneshot [label="5. Enable One-Shot Mode\nWRITE(TIMER_CONFIG, 0x3)\n(enable|int_en)"];
-    enable_oneshot -> end;
-
-    // Notes
-    note1 [label="CRITICAL: Always disable\ntimer before mode change", shape=note, fillcolor=red, fontcolor=white, style=filled];
-    note2 [label="Note: Comparator meaning\nchanges with mode:\n• One-shot: Fire time\n• Periodic: Period", shape=note, fillcolor=yellow, style=filled];
-    note3 [label="Best Practice: Reset\ncounter for predictable\none-shot timing", shape=note, fillcolor=lightyellow, style=filled];
-
-    {rank=same; disable_timer1; note1;}
-    {rank=same; set_comparator1; note2;}
-    {rank=same; reset_counter_option; note3;}
+    { rank=same; start; toper; }
+    { rank=same; halt; tones; }
+    { rank=same; clr; comp; }
+    { rank=same; mode; go; }
+    start -> toper [style=invis, minlen=4];
+    toper -> tones [style=invis];
 }

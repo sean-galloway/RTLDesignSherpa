@@ -1,0 +1,54 @@
+// gpio_core block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The register-side interface (cfg_* in, sts_* out, from/to gpio_config_regs)
+// is the port on top; the pins are the bottom bar.
+//   output drive - down the LEFT: output latch -> gpio_out, direction gate -> gpio_oe
+//   input        - back UP the RIGHT: gpio_in -> synchronizer -> detect ->
+//                  type select -> sts_raw_int / sts_int_pending; the
+//                  synchronized value climbs its own outer lane to sts_input_data
+// Per-pin logic is drawn once; every block is GPIO_WIDTH bits wide.
+// Source of truth: rtl/gpio/gpio_core.sv.
+digraph gpio_core {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="gpio_core - pin logic, GPIO_WIDTH pins wide (single clock: clk, rst_n = the core clock)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    port [label="Register-Side Interface  (from / to gpio_config_regs)\nin: cfg_gpio_enable, cfg_direction, cfg_output_data + cfg_output_wr_stb, cfg_output_set / clr / tgl, cfg_int_*\nout: sts_input_data, sts_raw_int, sts_int_pending",
+          fillcolor="white", width=10.0];
+
+    lat [group=L, label="Output Latch (flop)\nr_output_data\nwr_stb: load cfg_output_data (all bits)\nelse per bit: toggle > set > clear > hold"];
+    dir [group=D, label="Direction Gate (combinational)\ngpio_oe = cfg_gpio_enable\n? cfg_direction : 0"];
+    sel [group=R, label="Type Select + Pin Enable (combinational)\nraw = INT_TYPE ? level : edge\npending = raw & INT_ENABLE"];
+    det [group=R, label="Edge Detect + Level Compare (combinational)\nrising = s & ~prev, falling = ~s & prev (prev: r_gpio_prev flop)\nedge = BOTH ? either : POLARITY ? rising : falling\nlevel = POLARITY ? s : ~s"];
+    syn [group=R, label="Input Synchronizer (flop)\nr_sync_stage[SYNC_STAGES]\nSYNC_STAGES cycles of latency"];
+
+    bar [label="Pins  (to / from the pad buffers in the wrapper or FPGA top)\ngpio_out out   |   gpio_oe out (1 = drive)   |   gpio_in in (asynchronous)",
+         fillcolor="white", width=10.0];
+
+    // ---- output drive (left) ----
+    port -> lat [xlabel="OUTPUT value + write strobe,\nset / clr / tgl masks"];
+    lat  -> bar [xlabel="gpio_out"];
+    port -> dir [xlabel="DIRECTION,\ngpio_enable"];
+    dir  -> bar [xlabel="gpio_oe"];
+
+    // ---- input return (right, climbing) ----
+    syn  -> bar  [dir=back, xlabel="gpio_in"];
+    det  -> syn  [dir=back, xlabel="s (synchronized)"];
+    sel  -> det  [dir=back, xlabel="edge, level"];
+    port -> sel  [dir=back, penwidth=1.8, xlabel="sts_raw_int,\nsts_int_pending"];
+
+    p_in [shape=point, width=0.01, group=O];
+    port -> p_in [dir=back, headclip=false, xlabel="sts_input_data"];
+    p_in -> syn [dir=none, tailclip=false];
+
+    // ---- per-pin interrupt configuration (sideband) ----
+    port -> det [style=dashed, constraint=false, xlabel="INT_POLARITY,\nINT_BOTH"];
+
+    { rank=same; lat; dir; sel; }
+    lat -> dir -> sel [style=invis, minlen=2];
+    { rank=same; det; p_in; }
+    det -> p_in [style=invis, minlen=2];
+}

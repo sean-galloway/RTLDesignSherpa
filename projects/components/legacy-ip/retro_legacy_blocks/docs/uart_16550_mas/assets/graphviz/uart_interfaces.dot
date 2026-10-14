@@ -1,0 +1,32 @@
+// apb4_uart_16550 external interfaces - house style
+// (vault/handbook/authoring/block-diagrams.md). Bus on top, unit in the
+// middle, serial / modem / interrupt / DMA pins at the bar; clocks dashed.
+// Source of truth: rtl/uart_16550/apb4_uart_16550.sv (port list).
+digraph uart_interfaces {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="apb4_uart_16550 - the five external interfaces", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    apb [label="APB4 Completer Port  s_apb_*\nconfiguration and data access\n(12-bit address, 32-bit data)", fillcolor="white"];
+    clk [label="Clocks / Resets\npclk, presetn (APB side)\nuart_clk, uart_rstn\n(core; CDC_ENABLE=1 only)", fillcolor="white"];
+    top [label="APB UART 16550\napb4_uart_16550\nregister block + uart_16550_core\n(TX, RX, baud, modem, interrupt)", width=5.0];
+    bar [label="Module Boundary\nuart_tx out   |   irq, rxrdy_n, txrdy_n out   |   dtr_n, rts_n, out1_n, out2_n out / cts_n, dsr_n, ri_n, dcd_n in   |   uart_rx in",
+         fillcolor="white", width=10.0];
+    apb -> top [dir=both, penwidth=1.8, xlabel="register read / write\n/ PREADY, PRDATA, PSLVERR"];
+    clk -> top [style=dashed, xlabel="clocks,\nresets"];
+    p_tx [shape=point, width=0.01]; p_irq [shape=point, width=0.01];
+    p_md [shape=point, width=0.01]; p_rx [shape=point, width=0.01];
+    top -> p_tx [arrowhead=none, headclip=false];
+    p_tx -> bar [xlabel="serial out", tailclip=false];
+    top -> p_irq [arrowhead=none, headclip=false];
+    p_irq -> bar [xlabel="interrupt,\nDMA requests", tailclip=false];
+    top -> p_md [dir=back, headclip=false];
+    p_md -> bar [xlabel="modem control\n/ modem status", tailclip=false];
+    top -> p_rx [dir=back, headclip=false, xlabel="serial in"];
+    p_rx -> bar [dir=none, tailclip=false];
+    { rank=same; apb; clk; }
+    { rank=same; p_tx; p_irq; p_md; p_rx; }
+    p_tx -> p_irq -> p_md -> p_rx [style=invis, minlen=3];
+}

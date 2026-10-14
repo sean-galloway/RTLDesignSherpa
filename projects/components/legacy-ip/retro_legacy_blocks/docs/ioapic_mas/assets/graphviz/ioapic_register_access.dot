@@ -1,0 +1,29 @@
+// apb4_ioapic register access path - house style
+// (vault/handbook/authoring/block-diagrams.md). Software is the port on top,
+// ioapic_core's configuration / status interface the bottom bar. Each hop is
+// one dir=both edge: the access goes down, the acknowledge and read data come
+// back up. The indirect translation (IOREGSEL / IOWIN) lives in
+// ioapic_config_regs, not in the generated register block.
+// Source of truth: rtl/ioapic/apb4_ioapic.sv, ioapic_config_regs.sv.
+digraph ioapic_register_access {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="apb4_ioapic register access - APB to the redirection table through IOREGSEL / IOWIN",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb  [label="APB4 Completer Port  s_apb_*\nwrite the selector to IOREGSEL (0x000), then read / write IOWIN (0x004)", fillcolor="white"];
+    slv  [label="APB Completer\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1)", width=6.5];
+    adp  [label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp\nholds the request until acked", width=6.5];
+    xl   [label="Indirect Translation + Strict Decode (combinational)\nioapic_config_regs\n0x000: IOREGSEL itself;  0x004: the register IOREGSEL.regsel names\nother APB address: read 0 + PSLVERR;  unmapped selector: read 0, no error\n(dropped accesses are acknowledged here)", width=6.5];
+    regs [label="Register Block (PeakRDL)\nioapic_regs - IOREGSEL, IOAPICID, IOAPICVER, IOAPICARB, IOAPICARBCFG,\nMSI address / data / drop count, BOOTINTX, IOREDTBL[n] LO / HI", width=6.5];
+    bar  [label="ioapic_core Interface\nhwif_out -> per-pin RTE (vector, delivery mode, dest mode, polarity, trigger, mask, destination), IOAPIC ID, rr_enable\nhwif_in <- Remote IRR, delivery status per pin, arbitration ID", fillcolor="white", width=9.5];
+
+    apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv  -> adp  [dir=both, xlabel="cmd / rsp"];
+    adp  -> xl   [dir=both, xlabel="cpuif request (APB address)\n/ ack, read data, err"];
+    xl   -> regs [dir=both, xlabel="request (register address)\n/ ack, read data"];
+    regs -> bar  [dir=both, xlabel="configuration (hwif_out)\n/ status (hwif_in)"];
+}

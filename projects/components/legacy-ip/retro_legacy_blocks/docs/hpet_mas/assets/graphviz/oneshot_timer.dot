@@ -1,49 +1,37 @@
-// HPET One-Shot Timer Operation
-// Render with: dot -Tpng oneshot_timer.dot -o oneshot_timer.png
-
+// HPET one-shot timer operation - a procedure in the house decision-tree
+// vocabulary (white questions, blue actions, every arrow labeled).
+// Behavior per rtl/hpet/hpet_core.sv: the status bit sets on every fire,
+// TN_CONF.INT_ENB gates only the interrupt pin, and there is no per-timer
+// run enable - only HPET_CONFIG.enable halts a timer.
 digraph oneshot_timer {
-    rankdir=TB;
-    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
-    edge [fontname="Arial"];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
+           label="HPET one-shot timer (TN_CONF.TYPE = 0)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    start [group=A, label="Timer programmed, armed\ncomparator written while halted,\nTN_CONF.TYPE = 0", fillcolor="white"];
+    run   [group=A, label="Main counter runs\n+1 per tick while HPET_CONFIG.enable = 1"];
+    match [group=A, label="counter >= comparator\n(at the 32 / 64-bit width)?", fillcolor="white"];
+    fire  [group=A, label="Timer fires\narmed latch clears;\nHPET_STATUS[i] sets (always)"];
+    ienb  [group=B, label="TN_CONF.INT_ENB = 1?", fillcolor="white"];
+    pin   [group=B, label="Interrupt pin asserts\ntimer_irq[i] (or legacy_irq0 / 8\nfor timers 0 / 1 in legacy mode)"];
+    idle  [group=B, label="Timer stays disarmed\ncomparator unchanged, no further fires\nuntil the match falls or a halted write re-arms it"];
+    clr   [group=B, label="Software clears\nWRITE(HPET_STATUS, 1 << i)\nstatus and pin drop"];
 
-    start [label="Timer Configured\n(One-Shot Mode)", shape=ellipse, fillcolor=lightgreen];
-    end [label="Timer Idle\n(Must Reconfigure)", shape=ellipse, fillcolor=orange];
+    start -> run   [xlabel="HPET_CONFIG.enable = 1"];
+    run   -> match [xlabel="every tick"];
+    match -> run   [xlabel="no", constraint=false];
+    match -> fire  [xlabel="yes"];
+    fire  -> ienb  [xlabel="status set"];
+    ienb  -> pin   [xlabel="yes"];
+    ienb  -> idle  [xlabel="no: status only\n(poll HPET_STATUS)"];
+    pin   -> idle  [xlabel="interrupt raised"];
+    idle  -> clr   [xlabel="software services it"];
 
-    start -> timer_enabled;
-
-    timer_enabled [label="Timer Enabled\nTIMER_CONFIG.enable = 1\nTIMER_CONFIG.type = 0"];
-    timer_enabled -> counter_running;
-
-    counter_running [label="Main Counter Running\nIncrements every hpet_clk", fillcolor=lightcyan];
-    counter_running -> compare;
-
-    compare [label="Compare:\ncounter >= comparator?", shape=diamond, fillcolor=lightyellow];
-    compare -> wait_cycle [label="No"];
-    compare -> fire_detect [label="Yes"];
-
-    wait_cycle [label="Wait 1 Cycle", fillcolor=white];
-    wait_cycle -> counter_running;
-
-    fire_detect [label="Timer Fires!\n• IRQ asserts\n• Match while armed\n• Armed latch clears", fillcolor=lightcoral];
-    fire_detect -> irq_check;
-
-    irq_check [label="Interrupt\nenabled?", shape=diamond, fillcolor=lightyellow];
-    irq_check -> irq_assert [label="Yes"];
-    irq_check -> timer_idle [label="No"];
-
-    irq_assert [label="Interrupt Asserted\ntimer_irq[i] = 1\nHPET_STATUS[i] = 1", fillcolor=red, fontcolor=white];
-    irq_assert -> timer_idle;
-
-    timer_idle [label="Timer Goes Idle\n• No more fires\n• IRQ stays asserted\n• Comparator unchanged", fillcolor=orange];
-    timer_idle -> sw_clear;
-
-    sw_clear [label="Software Clears IRQ\nWRITE(HPET_STATUS, 1<<i)\n(Write-1-to-Clear)", fillcolor=lightgreen];
-    sw_clear -> end;
-
-    // Notes
-    note1 [label="Note: One-shot timers\nfire ONCE then stop", shape=note, fillcolor=lightyellow, style=filled];
-    note2 [label="Note: Software must\nreconfigure for next fire", shape=note, fillcolor=lightyellow, style=filled];
-
-    {rank=same; timer_enabled; note1;}
-    {rank=same; timer_idle; note2;}
+    { rank=same; start; ienb; }
+    { rank=same; run; pin; }
+    { rank=same; match; idle; }
+    { rank=same; fire; clr; }
+    start -> ienb [style=invis, minlen=4];
 }

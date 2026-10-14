@@ -1,0 +1,66 @@
+// rlb_top whole-unit diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The single APB port and the generated crossbar sit at the top; the ten
+// peripheral windows form the middle, staggered over two rows so every
+// crossbar drop and every pin lane runs straight; each block's own pins leave
+// through the boundary bar. Register access is the request flow (responses
+// ride the same dir=both edges back up). The cascade pair is one dir=both
+// edge. The interrupt fabric is combinational glue with its own figure; here
+// it is a dashed sideband box whose only boundary output is rlb_irq_out.
+// Source of truth: rtl/rlb_top/rlb_top.sv.
+digraph rlb_top_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.22", ranksep="0.85", splines=ortho, newrank=true,
+           label="rlb_top - ten legacy PC peripherals behind one APB port (BASE_ADDR default 0xFEC0_0000, 4KB windows)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.08,0.05"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb  [label="APB4 Completer Port  s_apb_*  (32-bit address, 32-bit data, pclk)", fillcolor="white"];
+    xbar [label="APB Window Decode + Route (generated)\napbx_xbar_1to10 - u_apbx_xbar\nPADDR[15:12] selects window 0-9; each block sees PADDR[11:0];  unmapped address: PSLVERR", width=15.5];
+
+    hpet [label="HPET\napb4_hpet\nw0  0x0000"];
+    pm   [label="PM / ACPI\napb4_pm_acpi\nw5  0x5000"];
+    mpic [label="8259 PIC master\napb4_pic_8259\nw1  0x1000"];
+    ioa  [label="IOAPIC\napb4_ioapic\nw6  0x6000"];
+    pit  [label="8254 PIT\napb4_pit_8254\nw2  0x2000"];
+    gpio [label="GPIO\napb4_gpio\nw7  0x7000"];
+    rtc  [label="RTC\napb4_rtc\nw3  0x3000"];
+    uart [label="UART 16550\napb4_uart_16550\nw8  0x8000"];
+    smb  [label="SMBus\napb4_smbus\nw4  0x4000"];
+    spic [label="8259 PIC slave\napb4_pic_8259\nw9  0x9000"];
+
+    fab  [style="filled,dashed", label="Interrupt Fabric\n(combinational; see the\nInterrupt Fabric figure)\nblock IRQs -> legacy lines\n-> both 8259s, IOAPIC;\nrlb_irq_out = OR of all"];
+
+    bar  [label="Module Boundary  -  each block's own pins: HPET irqs, PIC int_out, PIT gates / irqs, RTC irqs, SMBus SCL / SDA, PM events / controls,\nIOAPIC LAPIC interface, GPIO pins, UART serial / modem;   pic_irq_in[15:0], ioapic_irq_in in (OR-ed with the fabric);   rlb_irq_out",
+          fillcolor="white", width=15.5];
+
+    apb  -> xbar [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    xbar -> hpet [dir=both, xlabel="s0"];
+    xbar -> mpic [dir=both, xlabel="s1"];
+    xbar -> pit  [dir=both, xlabel="s2"];
+    xbar -> rtc  [dir=both, xlabel="s3"];
+    xbar -> smb  [dir=both, xlabel="s4"];
+    xbar -> pm   [dir=both, xlabel="s5"];
+    xbar -> ioa  [dir=both, xlabel="s6"];
+    xbar -> gpio [dir=both, xlabel="s7"];
+    xbar -> uart [dir=both, xlabel="s8"];
+    xbar -> spic [dir=both, xlabel="s9"];
+
+    hpet -> bar [dir=both, xlabel="pins"];
+    mpic -> bar [dir=both, xlabel="pins"];
+    pit  -> bar [dir=both, xlabel="pins"];
+    rtc  -> bar [dir=both, xlabel="pins"];
+    smb  -> bar [dir=both, xlabel="pins"];
+    pm   -> bar [dir=both, xlabel="pins"];
+    ioa  -> bar [dir=both, xlabel="pins"];
+    gpio -> bar [dir=both, xlabel="pins"];
+    uart -> bar [dir=both, xlabel="pins"];
+    fab  -> bar [xlabel="rlb_irq_out"];
+
+    mpic -> spic [dir=both, constraint=false, xlabel="cascade: slave INT -> master IR2;\nINTA ack down, slave vector up"];
+
+    { rank=same; hpet; mpic; pit; rtc; smb; }
+    { rank=same; pm; ioa; gpio; uart; spic; fab; }
+    hpet -> pm -> mpic -> ioa -> pit -> gpio -> rtc -> uart -> smb -> spic -> fab [style=invis];
+}

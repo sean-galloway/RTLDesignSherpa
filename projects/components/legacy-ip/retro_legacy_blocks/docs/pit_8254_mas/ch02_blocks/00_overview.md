@@ -73,34 +73,12 @@ apb4_pit_8254 (Top Level)
 
 ### Dataflow Between Blocks
 
-**Write Path (Software → Hardware):**
+**Write Path (Software -> Hardware)** runs down the left of Figure 2.1,
+and the **Read Path (Hardware -> Software)** climbs the right.
 
-```mermaid
-flowchart TD
-    A["APB Write Transaction"] --> B["APB Slave<br/>(or CDC variant)"]
-    B -->|"CMD Interface<br/>{addr, wdata, wen}"| C["peakrdl_to_cmdrsp Adapter"]
-    C --> D["PeakRDL cpuif_apb Interface"]
-    D --> E["pit_regs Register File"]
-    E -->|"hwif_out<br/>(register values)"| F["pit_config_regs Wrapper"]
-    F -->|"edge detection for writes"| G["Control/Data Signals"]
-    G --> H["pit_core Counter Routing"]
-    H --> I["pit_counter<br/>(selected instance)"]
-    I --> J["Counter Logic<br/>(mode, counting, etc.)"]
-```
+### Figure 2.1: APB PIT 8254 Register Write and Read Paths
 
-**Read Path (Hardware → Software):**
-
-```mermaid
-flowchart TD
-    A["Counter Current Value"] --> B["count_reg_out signal"]
-    B --> C["pit_core Multiplexing"]
-    C --> D["pit_config_regs Wrapper"]
-    D -->|"hwif_in<br/>(readback values)"| E["pit_regs Register File"]
-    E --> F["PeakRDL cpuif_apb Interface"]
-    F --> G["peakrdl_to_cmdrsp Adapter"]
-    G -->|"RSP Interface<br/>{rdata, ready}"| H["APB Slave<br/>(or CDC variant)"]
-    H --> I["APB Read Data<br/>(prdata)"]
-```
+![APB PIT 8254 Register Write and Read Paths](../assets/graphviz/pit_8254_register_paths.png)
 
 ### Block Responsibilities
 

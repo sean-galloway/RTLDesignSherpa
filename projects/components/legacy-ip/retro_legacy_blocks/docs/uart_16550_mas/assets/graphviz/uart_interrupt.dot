@@ -1,0 +1,42 @@
+// uart_16550_intr - house style (vault/handbook/authoring/block-diagrams.md).
+// The raw conditions from the core are the port on top. Each source is gated
+// by its own IER bit in its own column, and the four gated sources meet on
+// the wide edge of the IIR priority pick (a genuine many-to-one priority
+// encode, so a trapezium). The single winner leaves the narrow edge, heavy.
+// Source of truth: rtl/uart_16550/uart_16550_intr.sv.
+digraph uart_interrupt {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
+           label="uart_16550_intr - IER gating, IIR priority, OUT2-gated irq (combinational except the THRE read mask)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    port [label="Raw Conditions  (from uart_16550_core; LSR / MSR report these whatever IER says)\nOE, PE, FE, BI   |   RX FIFO count / empty, character timeout   |   TX FIFO empty   |   MSR deltas (CTS, DSR, trailing RI, DCD)", fillcolor="white", width=11.0];
+
+    g_ls [label="Line Status Gate\n(OE | PE | FE | BI)\n& IER[2]"];
+    g_rx [label="RX Data Gate\nFIFO mode: count >= FCR[7:6] trigger\n(1 / 4 / 8 / 14), else not empty;\ntimeout (FIFO mode only); & IER[0]\n(the trigger compare also drives AFE RTS)"];
+    g_tx [label="THR Empty Gate\nTX FIFO empty & IER[1]\n& !r_thre_int_masked (flop: set\nby an IIR read reporting it)"];
+    g_md [label="Modem Status Gate\nany MSR delta\n& IER[3]"];
+
+    pick [shape=invtrapezium, width=9.5, height=0.7, fillcolor="#BFD7EE",
+          label="IIR Priority Encode\nuart_16550_intr - highest enabled source wins"];
+
+    enc [label="IIR Encode + IRQ Gate (combinational)\nint_not_pending, int_id, IIR[3] = timeout\nirq = pending & MCR.OUT2"];
+
+    bar [label="Outputs\nIIR fields (to the register block)   |   irq (module pin)", fillcolor="white", width=9.5];
+
+    port -> g_ls [xlabel="OE, PE, FE, BI"];
+    port -> g_rx [xlabel="RX count, timeout"];
+    port -> g_tx [xlabel="TX empty"];
+    port -> g_md [xlabel="MSR deltas"];
+
+    g_ls -> pick [xlabel="line status (1st)"];
+    g_rx -> pick [xlabel="RX data / timeout (2nd)"];
+    g_tx -> pick [xlabel="THR empty (3rd)"];
+    g_md -> pick [xlabel="modem (4th)"];
+
+    pick -> enc [penwidth=1.8, xlabel="winning source"];
+    enc -> bar [xlabel="IIR, irq"];
+
+    { rank=same; g_ls; g_rx; g_tx; g_md; }
+}

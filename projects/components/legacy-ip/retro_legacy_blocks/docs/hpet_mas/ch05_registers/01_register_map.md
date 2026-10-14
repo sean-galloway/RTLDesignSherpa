@@ -41,7 +41,7 @@ Each timer occupies a 32-byte (0x20) register block, supporting up to 8 timers.
 
 ### Figure 5.1: APB HPET Block Diagram
 
-![APB HPET Block Diagram](../assets/draw.io/apb4_hpet_blocks.png)
+![APB HPET Block Diagram](../assets/graphviz/hpet_whole_unit.png)
 
 APB HPET top-level architecture showing APB interface, configuration registers, HPET core, and timer outputs.
 
@@ -361,14 +361,14 @@ interrupt.
 
 **Common Configurations:**
 ```c
-// One-shot timer with interrupt
-WRITE(TIMER0_CONFIG, 0x0C);  // bits [3:2] = enable | int_enable
+// One-shot timer with interrupt (64-bit compare: 32MODE clear)
+WRITE(TIMER0_CONFIG, 0x004);  // bit 2 = INT_ENB
 
 // Periodic timer with interrupt
-WRITE(TIMER0_CONFIG, 0x1C);  // bits [4:3:2] = periodic | int_enable | enable
+WRITE(TIMER0_CONFIG, 0x00C);  // bits 3, 2 = TYPE (periodic) | INT_ENB
 
-// One-shot timer, 64-bit, with interrupt
-WRITE(TIMER0_CONFIG, 0x2C);  // bits [5:3:2] = 64-bit | int_enable | enable
+// One-shot timer, forced 32-bit compare, with interrupt
+WRITE(TIMER0_CONFIG, 0x104);  // bits 8, 2 = 32MODE | INT_ENB
 ```
 
 #### TIMER_COMPARATOR_LO (Timer Base + 0x04) - Comparator Low
@@ -498,15 +498,15 @@ One-shot timer operation flow showing counter increment, comparator match, and i
 1. Counter increments: 0 → 1 → 2 → ... → comparator
 2. When `counter >= comparator` and the timer is armed: Timer fires, and the armed latch clears
 3. Sets the `HPET_STATUS` bit; if `timer_int_enable=1`, also raises `timer_irq`
-4. Timer stays complete until the comparator is rewritten with the timer
-   stopped, or written above the counter while running -- disabling and
-   re-enabling it does not re-fire
+4. Timer stays complete until the comparator is rewritten with the counter
+   halted (HPET_CONFIG.enable = 0), or written above the counter while it
+   runs -- halting and restarting the counter alone does not re-fire
 
 **Comparator Behavior:**
 - Stays unchanged after fire
 - Software re-arms the timer by writing the comparator (either half, any
-  value -- even the same one) with the timer disabled, or by writing a
-  value above the counter while it runs
+  value -- even the same one) with the counter halted, or by writing a
+  value above the counter while it runs (there is no per-timer stop)
 
 **Use Cases:**
 - Single timeout events
@@ -517,7 +517,7 @@ One-shot timer operation flow showing counter increment, comparator match, and i
 ```c
 // Configure Timer 0: One-shot, 1000 cycles
 WRITE(TIMER0_COMPARATOR_LO, 1000);
-WRITE(TIMER0_CONFIG, 0x0C);  // enable | int_enable
+WRITE(TIMER0_CONFIG, 0x04);  // INT_ENB; TYPE = 0 (one-shot)
 
 // Enable HPET
 WRITE(HPET_CONFIG, 0x1);
@@ -528,15 +528,16 @@ while (!(READ(HPET_STATUS) & 0x1));
 // Clear interrupt
 WRITE(HPET_STATUS, 0x1);
 
-// Re-arm for the next fire at 2000 cycles. Disable the timer around the
-// write: a comparator write re-arms only while the timer is stopped, so
-// this works for any value, even one the counter has already passed
-// (which then fires on the first enabled cycle). Writing 2000 with the
-// timer still running would also work here -- but only because 2000 is
-// above the counter, so the match falls and the timer re-arms naturally.
-WRITE(TIMER0_CONFIG, 0x00);
+// Re-arm for the next fire at 2000 cycles. Halt the counter around the
+// write: a comparator write re-arms only while HPET_CONFIG.enable = 0 (the
+// published map has no per-timer stop), so this works for any value, even
+// one the counter has already passed (which then fires on the first enabled
+// cycle). Writing 2000 with the counter running would also work here -- but
+// only because 2000 is above the counter, so the match falls and the timer
+// re-arms naturally.
+WRITE(HPET_CONFIG, 0x0);
 WRITE(TIMER0_COMPARATOR_LO, 2000);
-WRITE(TIMER0_CONFIG, 0x0C);
+WRITE(HPET_CONFIG, 0x1);
 ```
 
 #### Periodic Mode (timer_type = 1)
@@ -612,7 +613,7 @@ Periodic timer operation flow showing counter increment, comparator match, auto-
 ```c
 // Configure Timer 1: Periodic, 2000 cycle period
 WRITE(TIMER1_COMPARATOR_LO, 2000);  // Initial comparator = period
-WRITE(TIMER1_CONFIG, 0x1C);  // periodic | int_enable | enable
+WRITE(TIMER1_CONFIG, 0x0C);  // TYPE (periodic) | INT_ENB
 
 // Enable HPET
 WRITE(HPET_CONFIG, 0x1);
@@ -794,12 +795,12 @@ WRITE(HPET_COUNTER_HI, 0x0);
 // 3. Configure Timer 0 (one-shot, 10ms @ 10MHz)
 WRITE(TIMER0_COMPARATOR_LO, 100000);  // 100,000 cycles = 10ms
 WRITE(TIMER0_COMPARATOR_HI, 0x0);
-WRITE(TIMER0_CONFIG, 0x0C);  // enable | int_enable
+WRITE(TIMER0_CONFIG, 0x04);  // INT_ENB; TYPE = 0 (one-shot)
 
 // 4. Configure Timer 1 (periodic, 1ms @ 10MHz)
 WRITE(TIMER1_COMPARATOR_LO, 10000);  // 10,000 cycles = 1ms period
 WRITE(TIMER1_COMPARATOR_HI, 0x0);
-WRITE(TIMER1_CONFIG, 0x1C);  // periodic | int_enable | enable
+WRITE(TIMER1_CONFIG, 0x0C);  // TYPE (periodic) | INT_ENB
 
 // 5. Enable HPET
 WRITE(HPET_CONFIG, 0x1);
@@ -812,13 +813,14 @@ WRITE(HPET_CONFIG, 0x1);
 uint32_t id = READ(HPET_ID);
 
 // Extract fields
-uint8_t vendor_id = (id >> 24) & 0xFF;
-uint8_t rev_id = (id >> 16) & 0xFF;
-uint8_t num_timers = ((id >> 8) & 0x1F) + 1;  // num_tim_cap + 1
-uint8_t is_64bit = (id >> 7) & 0x1;
-uint8_t leg_cap = (id >> 5) & 0x1;
+uint16_t vendor_id = (id >> 16) & 0xFFFF;      // GCAP_ID[31:16]
+uint8_t rev_id = id & 0xFF;                     // GCAP_ID[7:0]
+uint8_t num_timers = ((id >> 8) & 0x1F) + 1;    // num_tim_cap + 1
+uint8_t is_64bit = (id >> 13) & 0x1;            // count_size_cap
+uint8_t leg_cap = (id >> 15) & 0x1;             // leg_rt_cap
+uint32_t period_fs = READ(HPET_PERIOD);         // femtoseconds per tick
 
-printf("HPET: Vendor=0x%02X, Rev=%d, Timers=%d, 64-bit=%d\n",
+printf("HPET: Vendor=0x%04X, Rev=%d, Timers=%d, 64-bit=%d\n",
        vendor_id, rev_id, num_timers, is_64bit);
 ```
 
@@ -865,14 +867,14 @@ void hpet_interrupt_handler(void) {
 
 ### Additional Diagrams
 
-- [Block Diagram](../assets/draw.io/apb4_hpet_blocks.png) - Top-level architecture
+- [Block Diagram](../assets/graphviz/hpet_whole_unit.png) - Top-level architecture
 - [One-Shot Timer](../assets/graphviz/oneshot_timer.png) - One-shot mode operation
 - [Periodic Timer](../assets/graphviz/periodic_timer.png) - Periodic mode operation
 - [Software Init](../assets/graphviz/software_init.png) - Initialization sequence
 - [Interrupt Handling](../assets/graphviz/interrupt_handling.png) - Interrupt flow
 - [Timer Mode Switch](../assets/graphviz/timer_mode_switch.png) - Mode switching
 - [Multi-Timer Concurrent](../assets/graphviz/multi_timer_concurrent.png) - Concurrent operation
-- [CDC Handshake](../assets/graphviz/cdc_handshake.png) - Clock domain crossing
+- [CDC Crossings](../assets/graphviz/hpet_cdc_crossings.png) - Clock domain crossing (CDC_ENABLE=1)
 
 ---
 

@@ -1,0 +1,47 @@
+// hpet_config_regs block diagram - house style
+// (vault/handbook/authoring/block-diagrams.md). The cmd/rsp port from the APB
+// completer is on top; hpet_core's interface is the bottom bar. Writes reach
+// the core down the left (strobe alignment, W1C clear) and the center (field
+// levels); live core state climbs the right lane back into the register block
+// so reads return it.
+// Source of truth: rtl/hpet/hpet_config_regs.sv, rdl/hpet/hpet_regs.rdl.
+digraph hpet_config_regs {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="hpet_config_regs - PeakRDL register block and the strobes it hands hpet_core (core clock)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    port [label="Command / Response Port  (from apb4_slave or apb4_slave_cdc)\ncmd_valid / cmd_ready + pwrite, paddr, pwdata, pstrb   |   rsp_valid / rsp_ready, prdata, pslverr", fillcolor="white", width=8.0];
+    adp  [label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp - u_adapter\nholds the request until acked (two cycles per access)"];
+    regs [label="Register Block (PeakRDL)\nhpet_regs - published HPET map: HPET_ID, HPET_PERIOD, HPET_CONFIG,\nHPET_STATUS, HPET_COUNTER_LO / HI, TIMER[0..7] CONFIG / INT_ROUTE_CAP / COMPARATOR_LO / HI\nHPET_ID and HPET_PERIOD driven from VENDOR_ID, REVISION_ID, NUM_TIMERS, COUNTER_CLK_PERIOD_FS",
+          width=8.5];
+
+    w1c  [group=L, label="HPET_STATUS W1C Decode (flop edge detect)\nmirrors the regblock's write decode;\nmask = wr_data & wr_biten, one-cycle pulse"];
+    stb  [group=L, label="Write-Strobe Alignment (flop)\nswmod rising edge, delayed one clock:\ncounter LO / HI, comparator LO / HI\n(data read from the merged field)"];
+    map  [group=C, label="Field Mapping (combinational)\nhpet_enable, legacy_replacement,\nINT_ENB, TYPE, timer_size = ~32MODE\n(INT_TYPE, INT_ROUTE, FSB_EN, VAL_SET: storage only)"];
+
+    bar [label="hpet_core Interface\ntimer_int_clear   |   counter / comparator write strobes + data   |   hpet_enable, legacy_replacement, per-timer config   |   counter_rdata, timer_comp_rdata, timer_int_status",
+         fillcolor="white", width=13.0];
+
+    port -> adp  [dir=both, penwidth=1.8, xlabel="cmd / rsp"];
+    adp  -> regs [dir=both, xlabel="cpuif request\n/ ack, read data"];
+    adp  -> w1c  [xlabel="request (address,\nwr_data, wr_biten)"];
+    w1c  -> bar  [xlabel="timer_int_clear\n(per bit)"];
+    regs -> stb  [xlabel="swmod + field value"];
+    stb  -> bar  [xlabel="write strobes\n+ data"];
+    regs -> map  [xlabel="hwif_out fields"];
+    map  -> bar  [xlabel="config levels"];
+
+    p_rb [shape=point, width=0.01, group=R];
+    regs -> p_rb [dir=back, headclip=false, xlabel="hwif_in: live counter,\nlive comparators,\nstatus mirror"];
+    p_rb -> bar  [dir=none, tailclip=false];
+
+    { rank=same; w1c; regs; }
+    w1c -> regs [style=invis, minlen=2];
+    { rank=same; stb; map; p_rb; }
+    stb -> map [style=invis, minlen=2];
+    map -> p_rb [style=invis, minlen=2];
+}

@@ -29,7 +29,7 @@ The core is where the pins live: input synchronization, output driving, and dire
 
 ### Block Diagram
 
-![GPIO Core Block](../assets/svg/gpio_core.png)
+![GPIO Core Block](../assets/graphviz/gpio_core.png)
 
 ## Ports
 
@@ -47,10 +47,7 @@ The core is where the pins live: input synchronization, output driving, and dire
 
 External inputs pass through a dual flip-flop synchronizer:
 
-```mermaid
-flowchart LR
-    A["gpio_in[i]"] --> B["FF1 (clk)"] --> C["FF2 (clk)"] --> D["synced_input[i]"]
-```
+![Input Synchronizer](../assets/graphviz/gpio_input_sync.png)
 
 - Prevents metastability from asynchronous inputs
 - Configurable depth via `SYNC_STAGES` parameter

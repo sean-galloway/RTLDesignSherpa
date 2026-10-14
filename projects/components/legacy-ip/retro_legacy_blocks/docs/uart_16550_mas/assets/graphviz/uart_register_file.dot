@@ -1,0 +1,32 @@
+// uart_16550_regs register file - house style
+// (vault/handbook/authoring/block-diagrams.md). The cpuif is the port on
+// top, the core is the bottom bar. Configuration goes down the left lane
+// (hwif_out); status and received data climb the right lane (hwif_in). The
+// strobes the core needs (THR push, RBR pop, read-clear events) are built in
+// uart_16550_config_regs beside the block.
+// Source of truth: rdl/uart_16550, rtl/uart_16550/uart_16550_config_regs.sv.
+digraph uart_register_file {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="uart_16550_regs - PeakRDL register block and its strobe glue (core clock)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    cpu [label="CPU Interface  (after the strict decode and DLAB remap)\nreq, req_is_wr, addr[5:0], wr_data, wr_biten   |   rd_ack, rd_data, wr_ack", fillcolor="white"];
+    rf  [label="Register Block (PeakRDL)\nuart_16550_regs\nRW: IER, FCR, LCR, MCR, SCR, DLL, DLM\nRO: RBR, IIR, LSR, MSR\nWO: THR (no storage field)"];
+    stb [label="Access Strobes (flop edge detect)\nuart_16550_config_regs\nTHR push (byte-lane qualified), RBR pop,\nLSR / MSR / IIR read events (read-clear)"];
+    bar [label="uart_16550_core\nstrobes: tx_write + tx_data, rx_read, clr_*, iir_read\nhwif_out: divisor, LCR, FCR, MCR, IER   |   hwif_in: rx_data, LSR, MSR, IIR",
+         fillcolor="white", width=8.0];
+    cpu -> rf [dir=both, penwidth=1.8, xlabel="register read / write\n/ ack, read data"];
+    cpu -> stb [xlabel="request (address,\nwrite data, byte enables)"];
+    stb -> bar [xlabel="push / pop /\nread-clear strobes"];
+    p_o [shape=point, width=0.01]; p_i [shape=point, width=0.01];
+    rf -> p_o [arrowhead=none, headclip=false];
+    p_o -> bar [xlabel="hwif_out: configuration", tailclip=false];
+    rf -> p_i [dir=back, headclip=false, xlabel="hwif_in: RBR byte,\nLSR, MSR, IIR"];
+    p_i -> bar [dir=none, tailclip=false];
+    { rank=same; stb; rf; }
+    stb -> rf [style=invis, minlen=2];
+    { rank=same; p_o; p_i; }
+    p_o -> p_i [style=invis, minlen=4];
+}

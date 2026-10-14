@@ -1,0 +1,21 @@
+// Level-sensitive interrupt latency, pin to irq - house style
+// (vault/handbook/authoring/block-diagrams.md). Level pins bypass INT_STATUS
+// on the way to irq, so only the synchronizer adds cycles.
+// Source of truth: rtl/gpio/gpio_core.sv, gpio_config_regs.sv.
+digraph gpio_irq_latency_level {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c, label="Level-sensitive interrupt latency - SYNC_STAGES core-clock cycles (2 at the default)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    pin [label="External Level  (gpio_in[i] at the active level)", fillcolor="white"];
+    syn [label="Input Synchronizer (flop)\ngpio_core - adds SYNC_STAGES cycles"];
+    det [label="Level Compare + Type Select (combinational)\ngpio_core - adds 0 cycles"];
+    agg [label="Effective Status + IRQ Gate (combinational)\ngpio_config_regs - live raw & INT_ENABLE, adds 0 cycles"];
+    bar [label="irq  (CDC_ENABLE=1: + 2 pclk cycles in the irq synchronizer)", fillcolor="white", width=5.5];
+    pin -> syn [xlabel="pin level"];
+    syn -> det [xlabel="synchronized value"];
+    det -> agg [xlabel="raw, live (bypasses INT_STATUS)"];
+    agg -> bar [penwidth=1.8, xlabel="irq"];
+}

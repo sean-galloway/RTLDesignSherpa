@@ -73,7 +73,7 @@ else the register map advertises is built.
 
 #### Figure 1.1: SMBus Block Diagram
 
-![SMBus Block Diagram](../assets/svg/smbus_top.png)
+![SMBus Block Diagram](../assets/graphviz/smbus_whole_unit.png)
 
 ## Architecture
 

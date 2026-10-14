@@ -29,51 +29,9 @@
 
 The APB IOAPIC is organized as a hierarchical design with three primary layers:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ apb4_ioapic (Top Level)                                       │
-│                                                               │
-│  ┌────────────────────────┐                                 │
-│  │ APB Slave Interface    │ (APB Clock Domain: pclk)        │
-│  │ - apb4_slave (CDC=0)    │                                 │
-│  │ - apb4_slave_cdc (CDC=1)│                                 │
-│  └────────┬───────────────┘                                 │
-│           │ CMD/RSP (with optional CDC)                       │
-│           ▼                                                   │
-│  ┌────────────────────────────────────────┐                 │
-│  │ ioapic_config_regs                     │                 │
-│  │ (Register if Clock Domain: pclk or ioapic_clk)           │
-│  │                                         │                 │
-│  │  ┌──────────────────┐  ┌──────────────┐│                 │
-│  │  │peakrdl_to_cmdrsp │  │ ioapic_regs  ││                 │
-│  │  │   Adapter        │→ │ (PeakRDL Gen)││                 │
-│  │  └──────────────────┘  └──────┬───────┘│                 │
-│  │                                │ hwif    │                 │
-│  │        [Indirect Access Logic] │         │                 │
-│  │        IOREGSEL/IOWIN ←────────┘         │                 │
-│  └────────────────┬───────────────────────┘                 │
-│                   │ Config/Status Signals                     │
-│                   ▼                                           │
-│  ┌────────────────────────────────────────┐                 │
-│  │ ioapic_core                             │                 │
-│  │ (Interrupt Logic: pclk or ioapic_clk)   │                 │
-│  │                                          │                 │
-│  │  • IRQ Input Sync (3-stage)             │                 │
-│  │  • Polarity Handling                    │                 │
-│  │  • Edge/Level Detection                 │                 │
-│  │  • Priority Arbitration                 │                 │
-│  │  • Delivery Stage (valid/ready)         │                 │
-│  │  • Remote IRR Management (per pin)      │                 │
-│  └────────┬───────────────────────────────┘                 │
-│           │ LAPIC crossing (CDC_ENABLE=1 only)                │
-│  External Interfaces (pclk domain):                           │
-│  ├─ irq_in[23:0] ──────────► 24 Interrupt Inputs (async)    │
-│  ├─ irq_out_valid/ready ───► Interrupt Request to CPU       │
-│  ├─ irq_out_vector[7:0] ───► Vector Number                  │
-│  ├─ irq_out_dest[7:0] ─────► Destination APIC ID            │
-│  └─ eoi_in, eoi_vector ────► End-of-Interrupt from CPU      │
-└──────────────────────────────────────────────────────────────┘
-```
+### Figure 1.1: APB IOAPIC Block Diagram
+
+![APB IOAPIC Block Diagram](../assets/graphviz/ioapic_whole_unit.png)
 
 ## Functional Description
 
@@ -107,7 +65,8 @@ The design follows RLB architecture standards with clear functional separation:
    - Edge detection (rising edge of the polarity-adjusted signal only; there
      is no falling-edge mode and no filtering)
    - Level sensing (the live synchronized level is the request)
-   - Priority arbitration (static: lowest IRQ wins)
+   - Priority arbitration (static: lowest IRQ wins; round robin behind
+     IOAPICARBCFG.rr_enable)
    - One-entry valid/ready delivery stage (no state machine)
    - Remote IRR management (per-pin in-service tracking, EOI matched against
      the delivered vector)
@@ -122,30 +81,34 @@ The design follows RLB architecture standards with clear functional separation:
 ### Data Flow
 
 **Configuration Path (APB Write):**
-```
-Software → APB Write → apb4_slave[_cdc] → CMD → peakrdl_to_cmdrsp → 
-→ ioapic_regs → hwif_out → ioapic_config_regs mapping → ioapic_core config
-```
+Figure 1.1, down the center:
+
+1. Software writes IOREGSEL, then IOWIN, through `apb4_slave[_cdc]`.
+2. `peakrdl_to_cmdrsp` hands the access to the IOREGSEL / IOWIN translation in `ioapic_config_regs`.
+3. `ioapic_regs` stores the field; `hwif_out` carries the RTE to `ioapic_core`.
 
 **Status Readback Path (APB Read):**
-```
-ioapic_core status → ioapic_config_regs mapping → hwif_in → ioapic_regs → 
-→ peakrdl_to_cmdrsp → RSP → apb4_slave[_cdc] → APB Read Data → Software
-```
+The same edges carry the response back up:
+
+1. `ioapic_core` reports Remote IRR and delivery status through `hwif_in`.
+2. `ioapic_regs` returns the selected register through IOWIN.
+3. `peakrdl_to_cmdrsp` and `apb4_slave[_cdc]` return it as PRDATA.
 
 **Interrupt Delivery Path:**
-```
-IRQ Input → Sync → Polarity → Edge latch / live level → Eligible → Arbitration → 
-→ Output stage (valid/ready) → irq_out_valid + vector + dest → CPU/LAPIC
-→ accept retires the pin (edge: pending clear; level: Remote IRR set)
-```
+Figure 1.1, up the left edge and down the center:
+
+1. `irq_in` passes the 3-flop synchronizer and the RTE polarity.
+2. An edge pin latches its pending bit; a level pin requests while the level is active.
+3. Eligible pins (not masked, Remote IRR clear) meet at the priority pick.
+4. The winner loads the one-entry output stage, which presents `irq_out_valid` with the vector and destination.
+5. An accept (valid, ready, not retried) retires the pin: an edge pin's pending bit clears, a level pin's Remote IRR sets.
 
 **EOI Return Path (Level Interrupts):**
-```
-CPU EOI → eoi_in + eoi_vector → [pulse synchronizer if CDC_ENABLE=1] → ioapic_core → 
-→ Clear Remote IRR of EVERY pin whose DELIVERED vector matches → 
-→ Those pins re-request if still asserted; other pins were never blocked
-```
+Figure 1.1, up the right edge:
+
+1. `eoi_in` and `eoi_vector` arrive (through `sync_pulse` when CDC_ENABLE=1).
+2. Remote IRR clears on EVERY pin whose delivered vector matches.
+3. Those pins request again if still asserted; no other pin was ever blocked.
 
 ### Indirect Access Method
 
@@ -194,21 +157,9 @@ This indirect access method:
 There is none. The IOAPIC core delivers through a one-entry valid/ready
 output stage, and the only per-interrupt state is a Remote IRR bit per pin:
 
-```
-   eligible pins ──► priority ────────► ┌──────────────────┐ irq_out_valid ──►
-   (request &&        arbiter            │ output stage     │ vector/dest/mode ►
-    !mask &&                             │ r_out_valid,     │
-    !remote_irr &&                       │ registered       │ ◄── irq_out_ready
-    !retiring now)                       │ payload          │
-                                         └────────┬─────────┘
-                                                  │ accept = valid && ready
-                             ┌────────────────────┴────────────────────┐
-                             │ edge pin : pending latch cleared         │
-                             │ level pin: Remote IRR[pin] set,          │
-                             │            delivered vector latched      │
-                             └─────────────────────────────────────────┘
-   Remote IRR[pin] ◄── cleared by eoi_in && eoi_vector == delivered vector
-```
+### Figure 1.2: IOAPIC Delivery Stage
+
+![IOAPIC Delivery Stage](../assets/graphviz/ioapic_delivery.png)
 
 **Edge-triggered path:** load → present → accept clears pending, exactly once per edge.
 **Level-triggered path:** load → present → accept sets Remote IRR and frees the
@@ -249,24 +200,18 @@ parameter (a companion USE_JOHNSON parameter, default 0, selects the CDC
 FIFO pointer encoding and is forwarded to apb4_slave_cdc):
 
 **Single Clock Domain (CDC_ENABLE=0 - Default):**
-```
-pclk ────┬──► apb4_slave ───► ioapic_config_regs ───► ioapic_core
-         └──► Register domain
-         └──► Core logic domain
-```
+### Figure 1.3: Single Clock Domain (CDC_ENABLE=0)
+
+![Single Clock Domain](../assets/graphviz/ioapic_clocks_sync.png)
 - Simplest configuration
 - Lowest latency
 - Single clock timing analysis
 - Recommended for most use cases
 
 **Dual Clock Domain (CDC_ENABLE=1):**
-```
-pclk ────► apb4_slave_cdc ───┐
-                             │ CDC Handshake
-ioapic_clk ──────────────┬──┴──► ioapic_config_regs ───► ioapic_core
-                         └──────► Register domain
-                         └──────► Core logic domain
-```
+### Figure 1.4: Dual Clock Domain (CDC_ENABLE=1)
+
+![Dual Clock Domain](../assets/graphviz/ioapic_clocks_async.png)
 - Allows independent APB and IOAPIC clocks
 - Useful for always-on interrupt capture
 - ioapic_clk can run while pclk is gated: interrupts are captured (edges

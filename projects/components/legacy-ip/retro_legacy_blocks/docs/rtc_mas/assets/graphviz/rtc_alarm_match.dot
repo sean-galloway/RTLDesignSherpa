@@ -1,0 +1,36 @@
+// RTC alarm match - house style (vault/handbook/authoring/block-diagrams.md).
+// Two inputs (the counters' new second, the crossed alarm configuration)
+// meet at the comparator; the match crosses to pclk, sets the sticky flag,
+// and the interrupt gate drives rtc_alarm_irq at the bar.
+// Source of truth: rtl/rtc/rtc_core.sv (w_alarm_eval, w_alarm_hit,
+// r_alarm_match, w_alarm_event, r_alarm_flag, rtc_alarm_irq).
+digraph rtc_alarm_match {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
+           label="RTC alarm match - compare on the counter clock, flag and interrupt on pclk",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    tm  [group=L, fillcolor="white", label="Time Counters (counter clock)\nthe next second's value, on the tick"];
+    al  [group=R, fillcolor="white", label="Alarm Configuration (counter clock, via the bundle sync)\nRTC_ALARM_SEC / MIN / HOUR, per-field match enables,\nalarm_enable"];
+
+    cmp [group=C, width=6.0, label="Alarm Comparator (combinational) - rtc_core\nevery enabled field equal; evaluated only on the divider rollover,\nwith alarm_enable set, counting, and no time-set commit active"];
+    mr  [group=C, label="Match Register (flop, counter clock) - rtc_core\nr_alarm_match: one counter clock wide"];
+    es  [group=C, label="Event Sync + Edge Detect (flop, pclk) - rtc_core\nglitch_free_n_dff_arn, 3 flops, then rising edge"];
+    fl  [group=C, label="Sticky alarm_flag (flop, pclk) - rtc_core\nRTC_STATUS: W1C, a set in the clear cycle wins"];
+    gt  [group=C, label="Interrupt Gate (combinational) - rtc_core\nalarm_flag AND RTC_CONTROL.alarm_int_enable"];
+
+    bar [group=C, fillcolor="white", width=6.0, label="Module Boundary\nrtc_alarm_irq out (pclk, level)"];
+
+    tm  -> cmp [xlabel="seconds, minutes, hours"];
+    al  -> cmp [xlabel="alarm values, enables"];
+    cmp -> mr  [xlabel="hit"];
+    mr  -> es  [penwidth=1.8, xlabel="alarm match\n(counter clock -> pclk)"];
+    es  -> fl  [xlabel="alarm event"];
+    fl  -> gt  [xlabel="alarm_flag"];
+    gt  -> bar [penwidth=1.8, xlabel="rtc_alarm_irq"];
+
+    { rank=same; tm; al; }
+}

@@ -44,7 +44,7 @@ datasheet. Where the two part ways (there is no INTA pin, so the acknowledge
 is a read; there are no CAS or SP/EN pins, so a cascading master returns the
 slave's vector on that read) the text says so, plainly.
 
-![PIC 8259 Block Diagram](assets/svg/pic_8259_top.png)
+![PIC 8259 Block Diagram](assets/graphviz/pic_8259_whole_unit.png)
 
 ### Version History
 

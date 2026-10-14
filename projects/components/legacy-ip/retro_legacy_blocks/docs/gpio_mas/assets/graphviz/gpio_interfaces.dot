@@ -1,0 +1,38 @@
+// apb4_gpio external interfaces - house style
+// (vault/handbook/authoring/block-diagrams.md). The bus on top, the unit in
+// the middle, the pins and irq at the boundary bar; clocks are dashed sideband.
+// Lanes into the bar, left to right: pin drive, irq, pin input (climbing).
+// Source of truth: rtl/gpio/apb4_gpio.sv (port list).
+digraph gpio_interfaces {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb4_gpio - the four external interfaces",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb [label="APB4 Completer Port  s_apb_*\nconfiguration and status\n(12-bit address, 32-bit data)", fillcolor="white"];
+    clk [label="Clocks / Resets\npclk, presetn (APB side)\ngpio_clk, gpio_rstn\n(core; CDC_ENABLE=1 only)", fillcolor="white"];
+    top [label="APB GPIO\napb4_gpio\nregister block (gpio_config_regs, gpio_regs)\n+ pin logic (gpio_core)", width=5.0];
+    bar [label="Module Boundary\ngpio_out, gpio_oe [GPIO_WIDTH-1:0] out   |   irq out (active high)   |   gpio_in [GPIO_WIDTH-1:0] in",
+         fillcolor="white", width=7.5];
+
+    apb -> top [dir=both, penwidth=1.8, xlabel="register read / write\n/ PREADY, PRDATA, PSLVERR"];
+    clk -> top [style=dashed, xlabel="clocks,\nresets"];
+
+    p_out [shape=point, width=0.01];
+    p_irq [shape=point, width=0.01];
+    p_in  [shape=point, width=0.01];
+    top -> p_out [arrowhead=none, headclip=false];
+    p_out -> bar [xlabel="pin drive\n+ enable", tailclip=false];
+    top -> p_irq [arrowhead=none, headclip=false];
+    p_irq -> bar [xlabel="interrupt", tailclip=false];
+    top -> p_in [dir=back, headclip=false, xlabel="pin input"];
+    p_in -> bar [dir=none, tailclip=false];
+
+    { rank=same; apb; clk; }
+    { rank=same; p_out; p_irq; p_in; }
+    p_out -> p_irq [style=invis, minlen=3];
+    p_irq -> p_in [style=invis, minlen=3];
+}

@@ -29,7 +29,7 @@ The APB RTC is a real-time clock controller with an APB slave interface. It keep
 
 ### Figure 1.1: RTC Block Diagram
 
-![RTC Block Diagram](../assets/svg/rtc_top.png)
+![RTC Block Diagram](../assets/graphviz/rtc_whole_unit.png)
 
 ## Functional Description
 

@@ -87,7 +87,7 @@ The specification is organized into five chapters covering the APB RTC end to en
 
 ## Block Diagram
 
-![APB RTC Block Diagram](assets/svg/rtc_top.png)
+![APB RTC Block Diagram](assets/graphviz/rtc_whole_unit.png)
 
 ---
 

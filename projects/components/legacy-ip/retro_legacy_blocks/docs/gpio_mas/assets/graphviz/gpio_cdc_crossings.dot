@@ -1,0 +1,47 @@
+// apb4_gpio CDC_ENABLE=1 crossings - house style
+// (vault/handbook/authoring/block-diagrams.md), CDC mapping per the rtl-amba
+// *_slave_cdc ruling: domains stacked vertically, each block names its clock.
+// Three things cross: the APB command (pclk -> gpio_clk, left lane), the
+// response (gpio_clk -> pclk, climbing the right lane), both inside
+// apb4_slave_cdc, and the irq level (gpio_clk -> pclk) through a 2-flop
+// synchronizer. No register value is synchronized on its own.
+// Source of truth: rtl/gpio/apb4_gpio.sv; rtl/amba/apb4/apb4_slave_cdc.sv.
+digraph gpio_cdc_crossings {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.65", splines=ortho, newrank=true,
+           label="apb4_gpio, CDC_ENABLE=1 - the three clock-domain crossings",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb  [label="APB4 Completer Port  s_apb_*  (pclk, presetn)", fillcolor="white"];
+    core [label="APB Completer  (pclk)\napb4_slave inside apb4_slave_cdc\ncompleter FSM, command and response skids"];
+    cmdf [label="Command CDC FIFO  (pclk -> gpio_clk)\ngaxi_fifo_async inside apb4_slave_cdc\nmax(SKID_DEPTH, 4) entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)"];
+    rspf [label="Response CDC FIFO  (gpio_clk -> pclk)\ngaxi_fifo_async inside apb4_slave_cdc\nmax(SKID_DEPTH, 4) entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)"];
+    adp  [label="Register-Block Adapter  (gpio_clk)\npeakrdl_to_cmdrsp"];
+    cfg  [label="Register Block + GPIO Core  (gpio_clk, gpio_rstn)\ngpio_config_regs: gpio_regs + gpio_core\nevery register lives here; none is synchronized on its own"];
+    isy  [label="IRQ Synchronizer  (pclk, presetn)\nglitch_free_n_dff_arn, FLOP_COUNT=2\na level: hold level-mode inputs >= 2 pclk periods"];
+
+    bar [label="Module Boundary\ngpio_in in (asynchronous)   |   gpio_out, gpio_oe out (gpio_clk)   |   irq out (pclk)",
+         fillcolor="white", width=9.5];
+
+    apb  -> core [dir=both, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    core -> cmdf [penwidth=1.8, xlabel="command\n(write, addr, data, strb)"];
+    cmdf -> adp  [xlabel="cmd_valid + fields"];
+    core -> rspf [dir=back, xlabel="response"];
+    rspf -> adp  [dir=back, penwidth=1.8, xlabel="rsp_valid +\nprdata, pslverr"];
+    adp  -> cfg  [dir=both, xlabel="register read / write\n/ ack, read data"];
+
+    p_out [shape=point, width=0.01];
+    cfg -> p_out [arrowhead=none, headclip=false];
+    p_out -> bar [xlabel="gpio_out, gpio_oe", tailclip=false];
+    cfg -> bar [dir=back, xlabel="gpio_in"];
+    cfg -> isy [penwidth=1.8, xlabel="irq (gpio_clk)"];
+    isy -> bar [xlabel="irq (pclk)"];
+
+    { rank=same; cmdf; rspf; }
+    cmdf -> rspf [style=invis, minlen=3];
+    { rank=same; p_out; isy; }
+    p_out -> isy [style=invis, minlen=3];
+}

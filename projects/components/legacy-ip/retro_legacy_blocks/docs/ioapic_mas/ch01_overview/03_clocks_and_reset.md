@@ -131,11 +131,7 @@ the intended sequence is still both resets asserted at once.
 - Recommended for most applications
 
 **Clock Routing:**
-```
-pclk ──┬──► apb4_slave (APB protocol)
-       ├──► ioapic_config_regs (registers)
-       └──► ioapic_core (interrupt logic)
-```
+Every block runs on pclk; Figure 1.3 shows the single-clock structure.
 
 #### Dual Clock Domain (CDC_ENABLE=1)
 
@@ -156,14 +152,7 @@ pclk ──┬──► apb4_slave (APB protocol)
 - Useful for power-managed systems
 
 **Clock Routing:**
-```
-pclk ────► apb4_slave_cdc (APB protocol) ──┐
-                                           │ CDC
-ioapic_clk ──┬─────────────────────────────┴─► ioapic_config_regs
-             └────────────────────────────────► ioapic_core
-                                                    │
-pclk ◄── irq_out_* / irq_out_ready / eoi_* ◄── LAPIC crossing (apb4_ioapic)
-```
+Figure 1.4 shows the domains and every crossing: the APB command and response FIFOs inside `apb4_slave_cdc`, the LAPIC request and acknowledge synchronizers, the EOI pulse synchronizer and the Gray-coded drop count.
 
 **LAPIC Interface Crossing (CDC_ENABLE=1):**
 - Delivery request, ioapic_clk to pclk: classic four-phase handshake. The

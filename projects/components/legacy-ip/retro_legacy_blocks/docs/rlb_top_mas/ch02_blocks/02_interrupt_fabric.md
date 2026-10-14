@@ -37,7 +37,7 @@ so that standard driver software and either interrupt controller see a
 recognisable PC/AT wiring, without the board having to wire ten interrupt
 pins back in.
 
-![RLB Top Interrupt Fabric](../assets/mermaid/rlb_interrupt_fabric.png)
+![RLB Top Interrupt Fabric](../assets/graphviz/rlb_interrupt_fabric.png)
 
 ## The Routing Table
 

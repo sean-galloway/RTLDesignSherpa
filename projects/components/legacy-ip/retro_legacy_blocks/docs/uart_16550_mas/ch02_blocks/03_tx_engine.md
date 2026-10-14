@@ -31,17 +31,11 @@ The TX engine is the straightforward half of the UART: it buffers transmit data,
 
 ### Figure 2.3: TX Engine Block
 
-![TX Engine Block](../assets/svg/uart_tx_engine.png)
+![TX Engine Block](../assets/graphviz/uart_tx_engine.png)
 
 ### Data Path
 
-```mermaid
-flowchart LR
-    A["THR Write"] --> B["TX FIFO"]
-    B --> C["TX Shift Register"]
-    C --> D["TXD"]
-    B --> E["LSR Status<br/>(THRE, TEMT)"]
-```
+Figure 2.3 is the data path: a THR write pushes the TX FIFO, the transmitter pops it, and the output select drives TXD. THRE and TEMT go back to LSR from the FIFO and transmitter state.
 
 ### TX FIFO
 
@@ -90,7 +84,7 @@ flowchart TD
     A["IDLE"] -->|"FIFO not empty"| B["START<br/>(1 bit)"]
     B --> C["DATA<br/>(5-8 bits)"]
     C --> D["PARITY<br/>(0/1 bit, if enabled)"]
-    D --> E["STOP<br/>(1-2 bits)"]
+    D --> E["STOP<br/>(1, 1.5 or 2 bits)"]
     E --> A
 ```
 

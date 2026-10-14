@@ -1,0 +1,31 @@
+// uart_16550_core baud generator - house style
+// (vault/handbook/authoring/block-diagrams.md), single-clock mapping. The
+// divisor is the white input on top, the bit-time outputs the bar. The
+// counter's wrap feeds back (right edge) into its next-state compare.
+// Source of truth: rtl/uart_16550/uart_16550_core.sv (r_baud_count,
+// w_baud_tick, r_tx_baud_cnt, r_rx_baud_cnt).
+digraph uart_baud_gen {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="uart_16550_core baud generator - baud = core clock / (16 x divisor)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    div [label="Divisor  {DLM, DLL}  (cfg_divisor, 16 bits)\nfrom the register block; reset value 1", fillcolor="white"];
+    clk [label="Core Clock\npclk (CDC_ENABLE=0)\nuart_clk (CDC_ENABLE=1)", fillcolor="white"];
+    nxt [label="Wrap Compare (combinational)\ncount >= divisor - 1, or divisor = 0: next = 0\nelse next = count + 1"];
+    cnt [label="Baud Counter (flop)\nr_baud_count[15:0]"];
+    tck [label="Tick Decode (combinational)\nw_baud_tick = (count == 0)\none tick every divisor clocks (every clock if 0)"];
+    bit [label="Bit-Time Counters (flop, one per engine)\nr_tx_baud_cnt / r_rx_baud_cnt[3:0]\n16 ticks per bit (a 5-bit word's second stop bit: 8)"];
+    bar [label="Bit Timing  (to the transmitter and receiver FSMs)\nTX: next bit after 16 ticks   |   RX: start confirmed at tick 7, data sampled every 16", fillcolor="white", width=7.5];
+
+    div -> nxt [xlabel="divisor"];
+    nxt -> cnt [dir=both, xlabel="next count\n/ count (feedback)"];
+    cnt -> tck [xlabel="count"];
+    tck -> bit [penwidth=1.8, xlabel="baud tick (16 x baud)"];
+    bit -> bar [xlabel="bit-time phase"];
+
+    clk -> cnt [style=dashed, xlabel="clock"];
+    { rank=same; cnt; clk; }
+    clk -> cnt [style=invis, minlen=3];
+}

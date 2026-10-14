@@ -65,12 +65,7 @@ Each GPIO pin can generate interrupts independently:
 
 GPIO_INT_TYPE[i] = 0
 
-```mermaid
-flowchart TD
-    A["synced_input"] --> B["Edge Detect"]
-    C["Polarity/Both Config"] --> B
-    B --> D["Set STATUS[i]"]
-```
+![Edge Detection](../assets/graphviz/gpio_edge_detect.png)
 
 - Captures transitions on synchronized input
 - Status bit latches until cleared by software
@@ -80,12 +75,7 @@ flowchart TD
 
 GPIO_INT_TYPE[i] = 1
 
-```mermaid
-flowchart TD
-    A["synced_input"] --> B["Level Compare"]
-    C["Polarity Config"] --> B
-    B --> D["STATUS[i]"]
-```
+![Level Compare](../assets/graphviz/gpio_level_detect.png)
 
 - Continuously compares input to polarity
 - The STATUS bit is sticky: it latches on the (enabled) level event and stays
@@ -115,24 +105,13 @@ flowchart TD
 
 ### Edge-Triggered Latency
 
-```mermaid
-flowchart LR
-    A["External event"] -->|"2 cycles"| B["Synchronizer"]
-    B -->|"combinational"| C["Edge detect"]
-    C -->|"1 cycle"| D["STATUS set (sticky)"]
-    D --> E["IRQ"]
-```
+![Edge-Triggered Latency](../assets/graphviz/gpio_irq_latency_edge.png)
 
 Total: 3 clock cycles typical (SYNC_STAGES=2 + 1 sticky-flop; edge detect adds no cycle)
 
 ### Level-Sensitive Latency
 
-```mermaid
-flowchart LR
-    A["External level"] -->|"2 cycles"| B["Synchronizer"]
-    B -->|"combinational"| C["Level compare"]
-    C --> D["IRQ"]
-```
+![Level-Sensitive Latency](../assets/graphviz/gpio_irq_latency_level.png)
 
 Total: 2 clock cycles typical (level irq is combinational from the
 synchronizer output)

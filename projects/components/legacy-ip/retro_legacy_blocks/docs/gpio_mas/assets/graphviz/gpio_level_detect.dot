@@ -1,0 +1,23 @@
+// gpio_core level compare, one pin - house style
+// (vault/handbook/authoring/block-diagrams.md). Purely combinational: the
+// synchronized input on top, the level match at the output bar.
+// Source of truth: rtl/gpio/gpio_core.sv (w_level_int).
+digraph gpio_level_detect {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="gpio_core level compare - one pin i (combinational)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    s   [label="Synchronized Input  s[i]\n(last synchronizer stage)", fillcolor="white"];
+    leg [fillcolor="white", label="Configuration (gpio_regs, per pin)\lINT_POLARITY[i]:\l    1 = active high, 0 = active low\l"];
+    cmp [label="Level Compare (combinational)\nINT_POLARITY ? s : ~s"];
+    bar [label="Level Match  w_level_int[i]  (live, to the type select)", fillcolor="white", width=4.5];
+
+    s -> cmp [xlabel="s[i]"];
+    cmp -> bar [penwidth=1.8, xlabel="level match"];
+    { rank=same; s; leg; }
+    s -> leg [style=invis, minlen=2];
+}

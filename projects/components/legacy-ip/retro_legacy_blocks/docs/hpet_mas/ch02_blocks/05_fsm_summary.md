@@ -290,16 +290,7 @@ interrupt logic. From the first fire they stay asserted until W1C.
 
 #### Cross-Module State Dependencies
 
-```mermaid
-flowchart TD
-    A["APB Slave FSM<br/>(pclk)"] -->|"cmd_valid"| B["hpet_config_regs<br/>(write-strobe alignment)"]
-    B -->|"timer_enable,<br/>timer_comp_write_lo/hi"| C["HPET Core Timer FSM<br/>(hpet_clk)"]
-    C -->|"timer_int_status"| D["hpet_config_regs<br/>(status mirror)"]
-    D -->|"hwif_in.timer_int_status.next<br/>(live level)"| E["PeakRDL Registers<br/>(HPET_STATUS mirror)"]
-    E -->|"software read HPET_STATUS<br/>software write 1 to clear a bit"| F["hpet_config_regs<br/>(per-bit clear, one cycle)"]
-    F -->|"timer_int_clear"| G["HPET Core Timer FSM"]
-    G -->|"timer_int_status clears"| H["Complete"]
-```
+![HPET_STATUS loop](../assets/graphviz/hpet_status_loop.png)
 
 #### Clock Domain Considerations
 

@@ -25,11 +25,11 @@
 
 ## Overview
 
-The HPET core (`hpet_core.sv`) is where the timing actually happens: a 64-bit free-running counter, per-timer comparators, and interrupt generation. This module operates entirely in the `hpet_clk` domain and contains all timing-critical logic.
+The HPET core (`hpet_core.sv`) is where the timing actually happens: a 64-bit free-running counter, per-timer comparators, and interrupt generation. This module runs entirely on the core clock (`hpet_clk` when CDC_ENABLE=1, `pclk` otherwise) and contains all timing-critical logic.
 
 ### Figure 2.8: HPET Core Block Diagram
 
-![HPET Core Block Diagram](../assets/svg/hpet_core.png)
+![HPET Core Block Diagram](../assets/graphviz/hpet_core.png)
 
 HPET Core architecture showing main counter, timer comparators, match detection, and interrupt generation.
 

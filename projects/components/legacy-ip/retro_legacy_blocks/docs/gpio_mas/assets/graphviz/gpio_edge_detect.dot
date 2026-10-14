@@ -1,0 +1,40 @@
+// gpio_core edge detection, one pin - house style
+// (vault/handbook/authoring/block-diagrams.md), single-clock mapping:
+// the synchronized input is the white port on top, the edge event is the
+// output bar. The previous-value flop sits beside the main column; the
+// synchronized value splits at a labeled point to the flop and both gates.
+// Source of truth: rtl/gpio/gpio_core.sv (r_gpio_prev, w_rising_edge,
+// w_falling_edge, w_edge_int).
+digraph gpio_edge_detect {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="gpio_core edge detection - one pin i, on the core clock",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    s    [label="Synchronized Input  s[i]\n(last synchronizer stage)", fillcolor="white"];
+    leg  [fillcolor="white", label="Configuration (gpio_regs, per pin)\lINT_BOTH[i]: 1 = either edge\lINT_POLARITY[i]: 1 = rising, 0 = falling\l    (ignored when INT_BOTH[i] = 1)\l"];
+    prev [label="Previous-Value Flop (flop)\nr_gpio_prev[i] <= s[i]"];
+    rise [label="Rising Detect (combinational)\ns & ~prev"];
+    fall [label="Falling Detect (combinational)\n~s & prev"];
+    sel  [label="Edge Select (combinational)\nINT_BOTH ? rising | falling\n: INT_POLARITY ? rising : falling"];
+    bar  [label="Edge Event  w_edge_int[i]  (one-cycle pulse, to the type select)", fillcolor="white", width=6.0];
+
+    p_s [shape=point, width=0.03];
+    s -> p_s [arrowhead=none, headclip=false, xlabel="s[i]"];
+    p_s -> prev [tailclip=false];
+    p_s -> rise [tailclip=false];
+    p_s -> fall [tailclip=false];
+    prev -> rise [xlabel="prev"];
+    prev -> fall [xlabel="prev"];
+    rise -> sel [xlabel="rising"];
+    fall -> sel [xlabel="falling"];
+    sel -> bar [penwidth=1.8, xlabel="edge event"];
+
+    { rank=same; s; leg; }
+    s -> leg [style=invis, minlen=3];
+    { rank=same; rise; fall; }
+    rise -> fall [style=invis, minlen=3];
+}

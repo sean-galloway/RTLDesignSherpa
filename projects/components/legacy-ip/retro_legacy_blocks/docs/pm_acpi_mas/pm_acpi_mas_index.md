@@ -48,7 +48,7 @@ is closed apart from what was always out of scope.
 
 ### Block Diagram
 
-![PM/ACPI Block Diagram](assets/svg/pm_acpi_top.png)
+![PM/ACPI Block Diagram](assets/graphviz/pm_acpi_whole_unit.png)
 
 ### Version History
 

@@ -1,0 +1,78 @@
+// apb4_pm_acpi whole-unit diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Geography: APB port and PeakRDL register block top-center, the event pins
+// top-right, pm_acpi_core in the middle, the power / reset / interrupt
+// outputs at the boundary bar.
+// Flows:
+//   register access - down the center (APB -> completer -> decode -> regs);
+//                     the response rides the same dir=both edges back up
+//   events          - down the RIGHT: pins -> synchronizers -> event detect
+//                     -> sticky status -> interrupt aggregation -> pm_interrupt
+//   sleep / wake    - regs -> power state FSM -> clock-gate and rail sequencer
+//                     -> clock_gate_en / power_domain_en; wake events into the FSM
+//   reset requests  - regs -> reset request pulses -> sys / periph reset_req
+//   status          - sticky status and the PM timer value return to the regs
+// Source of truth: rtl/pm_acpi/apb4_pm_acpi.sv, pm_acpi_config_regs.sv,
+// pm_acpi_core.sv.
+digraph pm_acpi_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="apb4_pm_acpi - APB ACPI power-management controller\nCDC_ENABLE=0: all on pclk;  CDC_ENABLE=1: register block and core on pm_clk",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)"];
+    pins [group=R, fillcolor="white", label="Event and Reset-Source Pins (asynchronous)\ngpe_events[31:0], gpe1_events[31:0], power_button_n,\nsleep_button_n, rtc_alarm, ext_wake_n, wdt_reset_n, ext_reset_n"];
+
+    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or\napb4_slave_cdc (CDC_ENABLE=1, pclk -> pm_clk)"];
+    dec  [group=C, label="Adapter + Strict Decode\npm_acpi_config_regs - peakrdl_to_cmdrsp\nonly the mapped registers pass;\nanything else: read 0, PSLVERR"];
+    regs [group=C, label="Register Block (PeakRDL)\npm_acpi_regs inside pm_acpi_config_regs\ncontrol, enables, timer, sequencer, reset control;\nW1C status registers mirror the core"];
+
+    sync [group=R, label="Input Synchronizers (flop)\npm_acpi_core\nSYNC_STAGES flops; buttons: 3-flop chain,\ndebounce (BUTTON_TIMING), press edge, long press"];
+    det  [group=R, label="Event Detect (flop)\npm_acpi_core\nGPE edge or level per source (TRIGGER regs);\nrtc_alarm / ext_wake assertion edge;\nreset-source latches"];
+
+    tmr  [group=L, label="PM Timer (flop)\npm_acpi_core\nprescaler + divider -> 64-bit counter\n(~3.571 MHz tick at the default divider);\noverflow, match"];
+    fsm  [group=R, label="Power State FSM (flop)\npm_acpi_core\nS0 / S1 / S3 / S5 soft off, through TRANSITION;\nsleep_enable one-shot; latched wake wins;\nwake also from an armed, pending GPE status bit;\nlong press: override to S5"];
+    sts  [group=C, label="Sticky Status (flop)\npm_acpi_core\nACPI, PM1, WAKE, GPE0 / GPE1, reset source;\nvalue & ~W1C clear | hardware set (set wins)"];
+
+    rst  [group=L, label="Reset Requests (flop)\npm_acpi_core\none-cycle pulse per RESET_CTRL write;\nand on leaving S5 (power state FSM)"];
+    seq  [group=R, label="Clock-Gate + Rail Sequencer (flop)\npm_acpi_core\nS1: gate all but two clocks; S3 / S5: all clocks,\nall rails but domain 0; PWR_SEQ_CONFIG walk:\nclocks off then rails 7..0, rails 0..7 then clocks"];
+    irq  [group=C, label="Interrupt Aggregation (combinational)\npm_acpi_core\nOR of enabled sticky bits, gated by acpi_enable"];
+
+    bar  [group=C, fillcolor="white", width=14.0,
+          label="Module Boundary\nsys_reset_req, periph_reset_req out   |   clock_gate_en[31:0], power_domain_en[7:0] out,  power_domain_ack[7:0] in   |   pm_interrupt out (level)"];
+
+    // ---- register access ----
+    apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv  -> dec  [dir=both, xlabel="cmd_valid + fields\n/ rsp_valid + prdata, pslverr"];
+    dec  -> regs [dir=both, xlabel="cpuif request\n/ ack, read data"];
+
+    // ---- events (right) ----
+    pins -> sync [xlabel="pins"];
+    sync -> det  [xlabel="synchronized levels,\nbutton presses"];
+    p_set [shape=point, width=0.01];
+    det   -> p_set [dir=none, xlabel="hardware\nset terms"];
+    p_set -> sts;
+    sts  -> irq  [xlabel="status & enables"];
+    irq  -> bar  [penwidth=1.8, xlabel="pm_interrupt"];
+    det  -> fsm  [xlabel="wake: press,\nrtc / ext edge"];
+
+    // ---- register-driven ----
+    regs -> tmr  [dir=both, xlabel="PM_TIMER_CONFIG, match\n/ timer value"];
+    regs -> fsm  [xlabel="sleep_type, sleep_enable,\nsoft_reset, pwrbtn_ovr"];
+    regs -> sts  [dir=both, xlabel="W1C clear\nmasks\n/ status\nmirror"];
+    regs -> rst  [xlabel="RESET_CTRL write"];
+    tmr  -> sts  [xlabel="overflow, match"];
+    fsm  -> seq  [xlabel="power state"];
+    seq  -> bar  [dir=both, xlabel="clock_gate_en, power_domain_en\n/ power_domain_ack"];
+    rst  -> bar  [xlabel="sys / periph reset_req"];
+
+    { rank=same; apb; pins; }
+    { rank=same; regs; det; }
+    { rank=same; tmr; fsm; }
+    { rank=same; rst; sts; p_set; seq; }
+    tmr -> fsm [style=invis, minlen=4];
+    rst -> sts -> p_set -> seq [style=invis];
+}

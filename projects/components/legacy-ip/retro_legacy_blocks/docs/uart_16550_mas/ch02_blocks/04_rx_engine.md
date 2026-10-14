@@ -31,30 +31,17 @@ The RX engine is where the asynchronous outside world meets your clean synchrono
 
 ### Figure 2.4: RX Engine Block
 
-![RX Engine Block](../assets/svg/uart_rx_engine.png)
+![RX Engine Block](../assets/graphviz/uart_rx_engine.png)
 
 ### Data Path
 
-```mermaid
-flowchart LR
-    A["RXD"] --> B["Synchronizer"]
-    B --> C["Start Detect"]
-    C --> D["Deserializer"]
-    D --> E["RX FIFO"]
-    E --> F["RBR"]
-    D --> G["Error Flags<br/>(PE, FE, BI, OE)"]
-```
+Figure 2.4 is the data path: RXD passes the synchronizer and the loopback select, the receiver deserializes and tags each character, and the character enters the RX FIFO, where RBR reads it.
 
 ### Input Synchronizer
 
 #### Metastability Prevention
 
-```mermaid
-flowchart LR
-    A["RXD"] --> B["FF1<br/>(clk)"]
-    B --> C["FF2<br/>(clk)"]
-    C --> D["synced_rxd"]
-```
+![RX Input Synchronizer](../assets/graphviz/uart_rx_sync.png)
 
 - Two-stage synchronizer
 - Prevents metastability from asynchronous input

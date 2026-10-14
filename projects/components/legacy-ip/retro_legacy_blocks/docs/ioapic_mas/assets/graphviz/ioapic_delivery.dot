@@ -1,0 +1,45 @@
+// ioapic_core delivery stage - house style (vault/handbook/authoring/block-diagrams.md).
+// No state machine: the eligible pins are the port on top, they meet on the
+// wide edge of the priority pick (a real many-to-one pick, so a trapezium),
+// the winner loads a one-entry valid/ready output stage, and the LAPIC
+// interface is the bar. The accept and the EOI come back up the right lane
+// into the per-pin retire logic, which feeds eligibility (dashed).
+// Replaces delivery_fsm.dot, which was LR and drawn before the stage was
+// final. Source of truth: rtl/ioapic/ioapic_core.sv.
+digraph ioapic_delivery {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="ioapic_core delivery - priority pick, one-entry output stage, per-pin retire (core clock)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    port [group=C, label="Eligible Pins  (per pin)\nrequest (edge: r_irq_pending, level: live level) & !mask & !Remote IRR\n& !(pin being accepted this cycle)", fillcolor="white", width=6.5];
+
+    pick [group=C, shape=invtrapezium, width=6.5, height=0.6, fillcolor="#BFD7EE",
+          label="Priority Pick (combinational)\nlowest IRQ, or round robin from r_rr_ptr (IOAPICARBCFG.rr_enable)"];
+
+    out  [group=C, label="Delivery Output Stage (flop)\nr_out_valid, r_out_irq + the pin's RTE vector, dest, dest mode, delivery mode\nload when empty or emptying (valid & ready); empties on ready"];
+
+    ret  [group=R, label="Retire (flop), per pin\naccept = valid & ready & !retry:\nedge pin: r_irq_pending clears (a new edge wins)\nlevel pin: r_remote_irr sets; r_delivered_vector latches\ncompleted handshake (accept or retry): r_rr_ptr advances"];
+    eoi  [group=R, label="EOI Match (combinational)\nclears r_remote_irr on EVERY pin whose\ndelivered vector equals eoi_vector"];
+
+    bar  [group=C, label="LAPIC Interface  (through the crossing in apb4_ioapic when CDC_ENABLE=1)\nirq_out_valid + vector, dest, dest_mode, deliv_mode out   |   irq_out_ready, irq_out_retry in   |   eoi_in, eoi_vector in",
+          fillcolor="white", width=10.0];
+
+    port -> pick [xlabel="eligible pins"];
+    pick -> out  [penwidth=1.8, xlabel="winning pin"];
+    out  -> bar  [dir=both, xlabel="valid + payload\n/ ready, retry"];
+
+    out  -> ret  [xlabel="accept / done\n(which pin)"];
+    eoi  -> bar  [dir=back, xlabel="eoi_in, eoi_vector"];
+    ret  -> eoi  [dir=back, xlabel="Remote IRR clear"];
+    ret  -> port [style=dashed, constraint=false, xlabel="pending clear, Remote IRR\n(eligibility)"];
+
+    { rank=same; out; ret; }
+    out -> ret [style=invis, minlen=2];
+    { rank=same; eoi; p_s; }
+    p_s [shape=point, style=invis, width=0.01, group=C];
+    out -> p_s [style=invis];
+}

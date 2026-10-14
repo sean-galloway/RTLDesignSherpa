@@ -96,36 +96,17 @@ apb4_ioapic (Top Level)
 
 **Configuration Write Path:**
 
-```mermaid
-flowchart TD
-    A["APB Write Request"] --> B["apb4_slave[_cdc]<br/>(APB protocol handling)"]
-    B -->|"CMD interface"| C["peakrdl_to_cmdrsp<br/>(protocol adapter)"]
-    C -->|"Passthrough interface"| D["ioapic_regs<br/>(register storage, indirect access)"]
-    D -->|"hwif_out"| E["ioapic_config_regs<br/>(signal mapping)"]
-    E -->|"cfg_* signals"| F["ioapic_core<br/>(uses configuration)"]
-```
+### Figure 2.1: IOAPIC Register Access Path
+
+![IOAPIC Register Access Path](../assets/graphviz/ioapic_register_access.png)
 
 **Status Read Path:**
 
-```mermaid
-flowchart TD
-    A["ioapic_core<br/>(generates status)"] -->|"status_* signals"| B["ioapic_config_regs<br/>(signal mapping)"]
-    B -->|"hwif_in"| C["ioapic_regs<br/>(register readback, indirect access)"]
-    C -->|"RSP interface"| D["peakrdl_to_cmdrsp<br/>(protocol adapter)"]
-    D -->|"APB response"| E["apb4_slave[_cdc]<br/>(APB protocol)"]
-    E --> F["APB Read Data"]
-```
+Status readback rides the same edges of Figure 2.1 upward: `ioapic_core` status into `hwif_in`, the register block returns the selected register through IOWIN, and the adapter and APB completer return it as PRDATA.
 
 **Interrupt Delivery Path:**
 
-```mermaid
-flowchart TD
-    A["External IRQ assertion"] --> B["ioapic_core<br/>(sync → polarity → detect → arbitrate → output stage)"]
-    B -->|"irq_out_valid, irq_out_vector, irq_out_dest"| C["apb4_ioapic<br/>(direct, or LAPIC crossing when CDC_ENABLE=1)"]
-    C --> D["CPU/LAPIC"]
-    D -->|"irq_out_ready (accept), eoi_in + eoi_vector"| C
-    C -->|"accept strobe, EOI strobe"| B
-```
+The interrupt path is Figure 1.1: `irq_in` climbs through the synchronizer and edge / level request, the priority pick loads the output stage, and the delivery leaves through the LAPIC interface (crossed into pclk when CDC_ENABLE=1). The accept and the EOI come back the same way.
 
 ### Interface Summary
 

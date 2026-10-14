@@ -27,19 +27,16 @@
 
 The APB PIT 8254 supports two clock domain configurations controlled by the `CDC_ENABLE` parameter. Pick the single-clock variant when your timer can run off the APB clock; pick the dual-clock variant when the timer needs its own timebase.
 
-**Single Clock Configuration (CDC_ENABLE=0):**
-```
-pclk (APB clock) ──┬──► APB Slave Interface
-                   ├──► Register File
-                   └──► Counter Logic
-```
+**Single Clock Configuration (CDC_ENABLE=0):** `pclk` clocks the APB
+completer, the register file and the counters.
 
-**Dual Clock Configuration (CDC_ENABLE=1):**
-```
-pclk (APB clock) ────► APB Slave Interface ──► CDC Logic ──┐
-                                                             ├──► Register File
-pit_clk (Timer clock) ───────────────────────────────────────┴──► Counter Logic
-```
+**Dual Clock Configuration (CDC_ENABLE=1):** `pclk` clocks the APB side of
+`apb4_slave_cdc`; `pit_clk` clocks its command/response side, the register
+file and the counters.
+
+### Figure 1.5: APB PIT 8254 Clock Configuration
+
+![APB PIT 8254 Clock Configuration](../assets/graphviz/pit_8254_clock_domains.png)
 
 ## Ports
 

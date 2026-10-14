@@ -31,15 +31,17 @@ This page takes the UART apart: the module hierarchy, the paths data and interru
 
 ### Figure 1.2: UART Architecture
 
-![UART Architecture](../assets/svg/uart_top.png)
+![UART Architecture](../assets/graphviz/uart_whole_unit.png)
 
 ### Module Hierarchy
 
 ```
 apb4_uart_16550 (Top Level)
-+-- apb4_slave
++-- apb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1)
 |   +-- APB protocol handling
 |   +-- CMD/RSP interface conversion
+|
++-- peakrdl_to_cmdrsp (CMD/RSP to register-block adapter)
 |
 +-- uart_16550_config_regs (Register Wrapper)
 |   +-- uart_16550_regs (PeakRDL Generated)
@@ -87,40 +89,26 @@ apb4_uart_16550 (Top Level)
 
 #### Transmit Path
 
-```mermaid
-flowchart TD
-    A["1. Software Write to THR"] --> B["2. Data enters TX FIFO"]
-    B --> C["3. TX Engine reads from FIFO"]
-    C --> D["4. Serializer generates:<br/>- Start bit (1 bit, low)<br/>- Data bits (5-8 bits, LSB first)<br/>- Parity bit (optional)<br/>- Stop bit(s) (1 or 2 bits, high; no 1.5)"]
-    D --> E["5. TXD output to external device"]
-```
+Figure 1.2 traces it down the left column:
+
+1. Software writes THR; the access strobes push the byte into the TX FIFO.
+2. The transmitter takes the head byte when it leaves IDLE (with AFE set, only while CTS is asserted).
+3. It sends a start bit (low), 5-8 data bits LSB first, the optional parity bit, and 1, 1.5 (5-bit words) or 2 stop bits (high), one bit every 16 baud ticks.
+4. The bit leaves on `uart_tx` (held high in loopback, where it feeds the receiver instead).
 
 #### Receive Path
 
-```mermaid
-flowchart TD
-    A["1. RXD input from external device"] --> B["2. Start bit detection<br/>- Sample at 16x baud rate<br/>- Validate mid-bit"]
-    B --> C["3. Deserializer captures:<br/>- Data bits (5-8 bits)<br/>- Parity bit (if enabled)<br/>- Stop bit(s)"]
-    C --> D["4. Error detection:<br/>- Parity error<br/>- Framing error<br/>- Break detection<br/>- Overrun error"]
-    D --> E["5. Data enters RX FIFO"]
-    E --> F["6. Software reads from RBR"]
-```
+Figure 1.2 traces it back up the right column:
+
+1. `uart_rx` passes the SYNC_STAGES-flop synchronizer (the TX bit replaces it in loopback).
+2. The receiver sees the line go low, confirms the start bit at mid-bit, then samples each data bit, the parity bit and the stop bit once per bit time.
+3. Parity, framing (stop bit low) and break (all zeros with the stop bit low) are tagged on the character; a full FIFO is an overrun.
+4. The character and its three tags enter the RX FIFO at the stop-bit sample.
+5. Software reads RBR; LSR reports the tags of the character at the head.
 
 #### Interrupt Flow
 
-```mermaid
-flowchart TD
-    A["1. Event Detection"] --> B["RX FIFO reaches trigger level"]
-    A --> C["TX FIFO empty"]
-    A --> D["Line status error"]
-    A --> E["Modem status change"]
-    B --> F["2. IIR Updated<br/>(priority encoded)"]
-    C --> F
-    D --> F
-    E --> F
-    F --> G["3. IRQ Asserted<br/>(if enabled in IER)"]
-    G --> H["4. Software reads IIR<br/>- Highest priority interrupt identified<br/>- Reading IIR clears THR-empty when it is the reported source; LSR and MSR sticky bits clear when their own register is read"]
-```
+![Interrupt Flow](../assets/graphviz/uart_interrupt.png)
 
 ### Baud Rate Generation
 
@@ -137,12 +125,7 @@ Examples (48 MHz input):
 
 #### Clock Generation
 
-```mermaid
-flowchart TD
-    A["input_clk<br/>(48 MHz)"] --> B["/DIV"]
-    B -->|"16x_clk<br/>(baud x 16)"| C["/16"]
-    C --> D["bit_clk<br/>(actual baud rate)"]
-```
+![Baud Clock Generation](../assets/graphviz/uart_baud_gen.png)
 
 ### FIFO Organization
 

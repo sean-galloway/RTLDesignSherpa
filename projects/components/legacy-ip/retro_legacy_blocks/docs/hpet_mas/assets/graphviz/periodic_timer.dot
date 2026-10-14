@@ -1,64 +1,40 @@
-// HPET Periodic Timer Operation
-// Render with: dot -Tpng periodic_timer.dot -o periodic_timer.png
-
+// HPET periodic timer operation - a procedure in the house decision-tree
+// vocabulary (white questions, blue actions, every arrow labeled).
+// Behavior per rtl/hpet/hpet_core.sv: the comparator advances by the period
+// on each fire, a late timer catches up one boundary per cycle without
+// firing, and only HPET_CONFIG.enable = 0 stops it (no per-timer run enable).
 digraph periodic_timer {
-    rankdir=TB;
-    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
-    edge [fontname="Arial"];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
+           label="HPET periodic timer (TN_CONF.TYPE = 1)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    start [group=A, label="Timer programmed\ncomparator write sets the first fire\nAND the period; TN_CONF.TYPE = 1", fillcolor="white"];
+    run   [group=A, label="Main counter runs\n+1 per tick while HPET_CONFIG.enable = 1"];
+    match [group=A, label="counter >= comparator\nand armed?", fillcolor="white"];
+    fire  [group=A, label="Timer fires\nHPET_STATUS[i] sets;\npin asserts if TN_CONF.INT_ENB = 1"];
+    adv   [group=B, label="Comparator advances (hardware)\ncomparator += period; the match falls\nand the timer re-arms"];
+    late  [group=B, label="Advanced value still\nat or below the counter?", fillcolor="white"];
+    catch [group=B, label="Catch-up\nadvance one boundary per cycle,\nno fire, until ahead of the counter"];
+    clr   [group=B, label="Software clears\nWRITE(HPET_STATUS, 1 << i)\n(the timer keeps running)"];
+    stop  [group=B, label="Stop\nWRITE(HPET_CONFIG, 0x0) halts every timer;\nINT_ENB = 0 only masks the pin", fillcolor="white"];
 
-    start [label="Timer Configured\n(Periodic Mode)", shape=ellipse, fillcolor=lightgreen];
+    start -> run   [xlabel="HPET_CONFIG.enable = 1"];
+    run   -> match [xlabel="every tick"];
+    match -> run   [xlabel="no", constraint=false];
+    match -> fire  [xlabel="yes"];
+    fire  -> adv   [xlabel="same clock"];
+    adv   -> late  [xlabel="next clock"];
+    late  -> catch [xlabel="yes (missed periods\nare skipped)"];
+    late  -> clr   [xlabel="no: waiting for the\nnext boundary"];
+    catch -> clr   [xlabel="ahead: re-armed"];
+    clr   -> stop  [xlabel="to stop"];
+    clr   -> run   [xlabel="next period", constraint=false];
 
-    start -> timer_enabled;
-
-    timer_enabled [label="Timer Enabled\nTIMER_CONFIG.enable = 1\nTIMER_CONFIG.type = 1\nPeriod = initial comparator"];
-    timer_enabled -> counter_running;
-
-    counter_running [label="Main Counter Running\nIncrements every hpet_clk", fillcolor=lightcyan];
-    counter_running -> compare;
-
-    compare [label="Compare:\ncounter >= comparator?", shape=diamond, fillcolor=lightyellow];
-    compare -> wait_cycle [label="No"];
-    compare -> fire_detect [label="Yes"];
-
-    wait_cycle [label="Wait 1 Cycle", fillcolor=white];
-    wait_cycle -> counter_running;
-
-    fire_detect [label="Timer Fires!\n• IRQ asserts\n• Match while armed\n• Comparator += period", fillcolor=lightcoral];
-    fire_detect -> auto_increment;
-
-    auto_increment [label="Auto-Increment Comparator\ncomparator += period\n(Hardware automatic!)", fillcolor=lightgreen];
-    auto_increment -> irq_check;
-
-    irq_check [label="Interrupt\nenabled?", shape=diamond, fillcolor=lightyellow];
-    irq_check -> irq_assert [label="Yes"];
-    irq_check -> continue_running [label="No"];
-
-    irq_assert [label="Interrupt Asserted\ntimer_irq[i] = 1\nHPET_STATUS[i] = 1", fillcolor=red, fontcolor=white];
-    irq_assert -> sw_action;
-
-    sw_action [label="Software Handles IRQ", shape=diamond, fillcolor=lightyellow];
-    sw_action -> sw_clear [label="Clear IRQ"];
-    sw_action -> sw_disable [label="Disable Timer"];
-
-    sw_clear [label="Clear Interrupt\nWRITE(HPET_STATUS, 1<<i)\n(W1C)", fillcolor=lightgreen];
-    sw_clear -> continue_running;
-
-    sw_disable [label="Disable Timer\nWRITE(TIMER_CONFIG, 0x0)", fillcolor=orange];
-    sw_disable -> end;
-
-    continue_running [label="Timer Continues\nWaiting for next fire\nat (comparator + period)", fillcolor=lightcyan];
-    continue_running -> counter_running;
-
-    end [label="Timer Stopped\n(Software disabled)", shape=ellipse, fillcolor=orange];
-
-    // Loop annotation
-    loop [label="Repeats indefinitely\nuntil disabled", shape=note, fillcolor=yellow, style=filled];
-
-    // Notes
-    note1 [label="Note: Periodic timers\nfire REPEATEDLY", shape=note, fillcolor=lightyellow, style=filled];
-    note2 [label="Note: Comparator\nauto-increments by period", shape=note, fillcolor=lightyellow, style=filled];
-
-    {rank=same; timer_enabled; note1;}
-    {rank=same; auto_increment; note2;}
-    {rank=same; continue_running; loop;}
+    { rank=same; start; adv; }
+    { rank=same; run; late; }
+    { rank=same; match; catch; }
+    { rank=same; fire; clr; }
+    start -> adv [style=invis, minlen=4];
 }

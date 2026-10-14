@@ -1,0 +1,44 @@
+// uart_16550_core receive path - house style
+// (vault/handbook/authoring/block-diagrams.md). Receive is a return flow:
+// it enters at the bar (uart_rx) and climbs the center column to the
+// register side on top (RBR byte, LSR status). The character timeout sits
+// beside the FIFO and climbs its own lane to IIR. Baud tick and the loopback
+// TX bit are side inputs.
+// Source of truth: rtl/uart_16550/uart_16550_core.sv (RX synchronizer,
+// RX state machine, RX FIFO, character timeout).
+digraph uart_rx_engine {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="uart_16550_core receive path (core clock) - data climbs from the pin", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    port [label="Register Side  (uart_16550_config_regs)\nout: RBR byte, LSR (DR, OE, PE, FE, BI, LSR[7]), IIR timeout\nin: rx_read (RBR pop), LSR read-clear, LCR, FCR[0] / FCR[1] / FCR[7:6], MCR.loopback", fillcolor="white", width=7.5];
+
+    rxf [group=C, label="RX FIFO / RBR (flop array)\nr_rx_fifo: FIFO_DEPTH x {BI, FE, PE, byte}  (FCR[0]=0: one entry)\nfull: overrun sets LSR.OE (character mode: overwrites)\nLSR.PE / FE / BI = tags of the character at the head"];
+    tmo [group=R, label="Character Timeout (flop counter)\nr_timeout_cnt: 4 character times of baud ticks\nwhile non-empty with no push / pop"];
+    fsm [group=C, label="Receiver (flop FSM)\nr_rx_state: IDLE > START > DATA > PARITY > STOP\nstart confirmed at mid-bit (tick 7), then one sample per bit\nparity check, FE = stop bit low, BI = all-zero + stop low\n(a held break loads one character)"];
+    tick [label="Baud Tick\n(baud generator, 16 per bit)", fillcolor="white"];
+    sel [group=C, label="Loopback Select (combinational)\nMCR.loopback ? TX bit : synchronized uart_rx"];
+    lb  [label="TX Bit\n(transmitter output, loopback)", fillcolor="white"];
+    syn [group=C, label="RX Input Synchronizer (flop)\nr_rx_sync[SYNC_STAGES], resets to 1 (marking)"];
+
+    bar [group=C, label="Module Boundary\nuart_rx in (asynchronous, idle high)", fillcolor="white", width=5.0];
+
+    port -> rxf [dir=back, penwidth=1.8, xlabel="RBR byte + head tags,\nLSR status"];
+    rxf  -> fsm [dir=back, xlabel="character + {BI, FE, PE}\n(push at the stop-bit sample)"];
+    fsm  -> sel [dir=back, xlabel="rx bit"];
+    sel  -> syn [dir=back, xlabel="synchronized uart_rx"];
+    syn  -> bar [dir=back, xlabel="uart_rx"];
+
+    port -> tmo [dir=back, xlabel="IIR timeout\n(0x0C)"];
+    tick -> fsm [style=dashed, xlabel="tick"];
+    lb   -> sel [style=dashed, xlabel="loopback bit"];
+
+    { rank=same; rxf; tmo; }
+    rxf -> tmo [minlen=3, xlabel="non-empty,\npush / pop"];
+    { rank=same; fsm; tick; }
+    fsm -> tick [style=invis, minlen=3];
+    { rank=same; syn; lb; }
+    syn -> lb [style=invis, minlen=3];
+}

@@ -43,7 +43,7 @@ Five external interfaces define how this block talks to the rest of your system:
 
 ### Figure 3.1: UART Interface Summary
 
-![UART Interfaces](../assets/svg/uart_interfaces.png)
+![UART Interfaces](../assets/graphviz/uart_interfaces.png)
 
 ## Navigation
 

@@ -1,0 +1,31 @@
+// apb4_ioapic clock domains with CDC_ENABLE=0 - house style
+// (vault/handbook/authoring/block-diagrams.md). One clock: ioapic_clk and
+// ioapic_resetn are unused, the LAPIC interface is wired straight to the core,
+// and the only synchronizer left is the one on the asynchronous irq_in pins.
+// Source of truth: rtl/ioapic/apb4_ioapic.sv (g_apb4_slave_no_cdc).
+digraph ioapic_clocks_sync {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="apb4_ioapic, CDC_ENABLE=0 - every block on pclk, presetn (ioapic_clk, ioapic_resetn unused)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    apb  [label="APB4 Completer Port  s_apb_*  (pclk)", fillcolor="white"];
+    slv  [label="APB Completer\napb4_slave  (pclk)", width=6.0];
+    cfg  [label="Register Block  (pclk)\nioapic_config_regs: peakrdl_to_cmdrsp + IOREGSEL / IOWIN + ioapic_regs", width=6.0];
+    core [label="Interrupt Core  (pclk)\nioapic_core - irq_in still passes 3 synchronizer flops", width=6.0];
+    bar  [label="Module Boundary\nirq_in in (asynchronous)   |   irq_out_* handshake, eoi_in / eoi_vector  (pclk, wired to the core)", fillcolor="white", width=8.5];
+
+    apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv  -> cfg  [dir=both, xlabel="cmd / rsp"];
+    cfg  -> core [dir=both, xlabel="RTE config\n/ Remote IRR, status"];
+    p_in [shape=point, width=0.01];
+    core -> p_in [dir=back, headclip=false, xlabel="irq_in"];
+    p_in -> bar [dir=none, tailclip=false];
+    p_lp [shape=point, width=0.01];
+    core -> p_lp [dir=both, headclip=false, arrowtail=normal, arrowhead=none];
+    p_lp -> bar [dir=both, arrowtail=none, tailclip=false, xlabel="irq_out_* handshake\n/ eoi_in, eoi_vector"];
+    { rank=same; p_in; p_lp; }
+    p_in -> p_lp [style=invis, minlen=4];
+}

@@ -1,0 +1,94 @@
+// apb4_pic_8259 whole-unit diagram - house style
+// (vault/handbook/authoring/block-diagrams.md).
+// Geography: the APB port and the PeakRDL register block top-left, the
+// interrupt inputs top-right, pic_8259_core in the middle, the INT pin and the
+// cascade outputs at the boundary bar.
+// Flows:
+//   register access - down the APB column (APB -> completer -> decode -> regs);
+//                     the response rides the same dir=both edges back up
+//   commands        - from the register block out to the LEFT: ICW strobes ->
+//                     init sequencer, OCW2 / OCW3 -> command decode
+//   interrupt req   - down the RIGHT column: irq_in -> synchronizer + detect
+//                     -> IRR -> the priority resolver (the many-to-one pick)
+//   acknowledge     - a PIC_INTA read (or cas_ack_in from a master) sets the
+//                     ISR and clears an edge-mode IRR bit
+//   vector return   - the vector climbs the APB column's lane back to the
+//                     PIC_INTA register, which is what the read returns
+// Source of truth: rtl/pic_8259/apb4_pic_8259.sv, pic_8259_config_regs.sv,
+// pic_8259_core.sv.
+digraph pic_8259_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="apb4_pic_8259 - APB 8259A-compatible interrupt controller (single clock: pclk, presetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- ports (white, top) ----
+    apb  [group=B, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)"];
+    casi [group=C, fillcolor="white", label="Cascade Acknowledge In\ncas_ack_in (from a master)"];
+    irqp [group=D, fillcolor="white", label="Interrupt Requests\nirq_in[7:0] (asynchronous)"];
+
+    // ---- register access ----
+    slv  [group=B, label="APB Completer\napb4_slave"];
+    dec  [group=B, label="Adapter + Strict Decode\npic_8259_config_regs - peakrdl_to_cmdrsp\nonly 0x00 - 0x2C pass;\nanything else: read 0, PSLVERR"];
+    regs [group=B, label="Register Block (PeakRDL)\npic_8259_regs inside pic_8259_config_regs\nCONFIG, ICW1 - ICW4, OCW1 (IMR), OCW2, OCW3,\nIRR, ISR, STATUS, INTA\none-cycle ICW / OCW write strobes;\nPIC_INTA read -> one-cycle acknowledge"];
+
+    // ---- request input ----
+    sync [group=D, label="Input Synchronizer + Edge / Level Detect\npic_8259_core - SYNC_STAGES flops\nLTIM=1: level, else rising edge"];
+
+    // ---- core state ----
+    init [group=A1, label="Init Sequencer (flop FSM)\npic_8259_core\nICW1 -> ICW2 -> ICW3 (cascaded)\n-> ICW4 (IC4) -> complete\nrunning = complete AND pic_enable"];
+    cmd  [group=A2, label="Command Decode + Priority State (flop)\npic_8259_core\nOCW2: EOI, rotate, set-priority,\nrotate-on-AEOI; OCW3: special mask\nICW1: base back to 7 (IRQ0 highest)"];
+    ack  [group=C, label="Acknowledge Strobe (combinational)\napb4_pic_8259\nPIC_INTA read OR cas_ack_in"];
+
+    isr  [group=C, width=4.6, label="In-Service Register  ISR (flop)\nset: the acknowledged level\nclear: EOI, or at once in AEOI mode"];
+    irr  [group=D, label="Interrupt Request Register  IRR (flop)\nset: trigger; level mode follows the pin\nclear: acknowledge (edge mode), ICW1"];
+
+    res  [group=C, shape=invtrapezium, width=7.5, fillcolor="#BFD7EE", fontsize=11,
+          label="Priority Resolver - pic_8259_core\nscan from base+1: in service blocks itself and below"];
+
+    vec  [group=C, label="Vector + INT Output (combinational)\npic_8259_core\nint_out and the acknowledge need running;\nvector = {ICW2[7:3], level}; cascade level: the slave's vector;\nnothing eligible: spurious IRQ7 vector, valid 0;\ncas_ack = an acknowledge on an ICW3 cascade level"];
+
+    bar  [group=C, fillcolor="white", width=10.0,
+          label="Module Boundary\nint_out (to the CPU or a master's IR2)   |   cas_ack, inta_vector_o out (to a slave / master)   |   cas_vector in (from a slave)"];
+
+    // ---- register access ----
+    apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    slv  -> dec  [dir=both, xlabel="cmd_valid + fields\n/ rsp_valid + prdata, pslverr"];
+    dec  -> regs [dir=both, xlabel="cpuif request\n/ ack, read data"];
+
+    // ---- commands ----
+    regs -> init [xlabel="ICW1 - ICW4 writes"];
+    regs -> cmd  [xlabel="OCW2 / OCW3 writes,\nIMR (OCW1)"];
+    cmd  -> isr  [xlabel="EOI: clear level"];
+    cmd  -> res  [xlabel="priority base,\nIMR, special mask"];
+    init -> vec  [style=dashed, xlabel="running"];
+
+    // ---- acknowledge ----
+    regs -> ack  [xlabel="PIC_INTA read"];
+    casi -> ack  [xlabel="cas_ack_in"];
+    ack  -> isr  [xlabel="acknowledge:\nset level"];
+    ack  -> irr  [style=dashed, xlabel="acknowledge"];
+
+    // ---- interrupt requests ----
+    irqp -> sync [xlabel="irq_in (pins)"];
+    sync -> irr  [xlabel="trigger (per level)"];
+    irr  -> res  [xlabel="requests (IRR)"];
+    isr  -> res  [xlabel="in-service levels"];
+
+    // ---- winner and outputs ----
+    res  -> vec  [penwidth=1.8, xlabel="winner level, valid"];
+    vec  -> bar  [dir=both, xlabel="int_out, cas_ack, inta_vector_o\n/ cas_vector"];
+    regs -> vec  [dir=back, xlabel="vector + valid\n(PIC_INTA read data)"];
+
+    // ---- ranks ----
+    { rank=same; apb; casi; irqp; }
+    { rank=same; dec; sync; }
+    { rank=same; init; cmd; ack; }
+    { rank=same; isr; irr; }
+    init -> cmd -> ack [style=invis];
+    apb -> casi -> irqp [style=invis];
+    isr -> irr [style=invis];
+}

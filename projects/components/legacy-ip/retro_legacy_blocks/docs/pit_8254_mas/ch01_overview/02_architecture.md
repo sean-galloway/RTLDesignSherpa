@@ -25,27 +25,9 @@
 
 ## Overview
 
-### High-Level Block Diagram
+### Figure 1.2: APB PIT 8254 High-Level Block Diagram
 
-```
-                                  apb4_pit_8254 (Top Level)
-┌────────────────────────────────────────────────────────────────────────┐
-│                                                                        │
-│  ┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐  │
-│  │              │     │                  │     │                  │  │
-│  │  apb4_slave   │────▶│  pit_config_regs │────▶│    pit_core      │  │
-│  │   or         │     │                  │     │                  │  │
-│  │ apb4_slave_cdc│     │  (PeakRDL Wrap)  │     │  (3 Counters)    │  │
-│  │              │     │                  │     │                  │  │
-│  └──────────────┘     └──────────────────┘     └──────────────────┘  │
-│                                                                        │
-│  APB Domain         │  Register Interface   │  Counter Domain         │
-│  (pclk)             │                       │  (pit_clk or pclk)      │
-└────────────────────────────────────────────────────────────────────────┘
-         ▲                                              │
-         │                                              ▼
-    APB Interface                            GATE[2:0], OUT[2:0]
-```
+![APB PIT 8254 High-Level Block Diagram](../assets/graphviz/pit_8254_whole_unit.png)
 
 ### Module Hierarchy
 
@@ -91,19 +73,15 @@ Following the HPET design pattern, the PIT uses a clean three-layer architecture
 
 ### Data Flow
 
-**Write Path:**
-```
-APB Write → APB Slave → CMD Interface → PeakRDL Adapter →
-→ PeakRDL Registers → hwif_out → Config Regs Wrapper →
-→ PIT Core → Counter Instance → Counter Logic
-```
+A register write travels down the left of Figure 1.3: the PeakRDL field
+stores the byte-strobe-merged value, the strobe builder fires one aligned
+strobe, and pit_core routes it to the selected counter. A read climbs the
+right: the counter's count (or its latched copy) and status byte are wired
+into `hwif_in`, and the register block returns them on the APB response.
 
-**Read Path:**
-```
-Counter Value → count_reg_out → PIT Core → Config Regs →
-→ hwif_in → PeakRDL Registers → Read Data → RSP Interface →
-→ APB Slave → APB Read Data
-```
+### Figure 1.3: APB PIT 8254 Register Write and Read Paths
+
+![APB PIT 8254 Register Write and Read Paths](../assets/graphviz/pit_8254_register_paths.png)
 
 ### Counter Control State
 
@@ -157,18 +135,13 @@ Behavior over a Mode 0 cycle:
 
 ### Clock Domains
 
-**Single Clock Mode (CDC_ENABLE=0):**
-```
-pclk ──┬──▶ APB Slave
-       └──▶ Registers ──▶ Counters
-```
+With `CDC_ENABLE=0` everything runs on `pclk`. With `CDC_ENABLE=1` the APB
+side stays on `pclk`, `apb4_slave_cdc` carries the command/response stream
+across, and the register block and the counters run on `pit_clk`.
 
-**Dual Clock Mode (CDC_ENABLE=1):**
-```
-pclk ────▶ APB Slave ──▶ CDC ──┐
-                                ├──▶ Registers
-pit_clk ────────────────────────┴──▶ Counters
-```
+### Figure 1.4: APB PIT 8254 Clock Configuration
+
+![APB PIT 8254 Clock Configuration](../assets/graphviz/pit_8254_clock_domains.png)
 
 `gate_in` is a pin and is asynchronous to the counting clock in both modes,
 so it always passes a SYNC_STAGES-flop synchronizer (default 2) inside

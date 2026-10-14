@@ -25,7 +25,7 @@
 
 ## Overview
 
-This is the definitive register reference, and it documents what the RTL actually does — not what a 16550 datasheet says it should do. The address map is **additive**: every register has its own unique offset, AND the Divisor Latch Access Bit (LCR[7]) remaps 0x00/0x04 to DLL/DLM while it is set, as a classic 16550 does. DLL/DLM also keep their dedicated offsets (0x24/0x28), so both access styles work (RLB TASK-012, was RLB-013). Register offsets are byte offsets; only `paddr[5:0]` is decoded (see Address Calculation).
+This is the definitive register reference, and it documents what the RTL actually does — not what a 16550 datasheet says it should do. The address map is **additive**: every register has its own unique offset, AND the Divisor Latch Access Bit (LCR[7]) remaps 0x00/0x04 to DLL/DLM while it is set, as a classic 16550 does. DLL/DLM also keep their dedicated offsets (0x24/0x28), so both access styles work (RLB TASK-012, was RLB-013). Register offsets are byte offsets; the decode is strict, so an unmapped offset reads 0 with PSLVERR (see Address Calculation).
 
 ## Functional Description
 
@@ -260,8 +260,8 @@ Where:
   BASE_ADDR       = RLB/UART base address (system-integration dependent)
   Register_Offset = value from the Register Summary table above
 
-Only paddr[5:0] is decoded, so the block aliases every 0x40 bytes across
-its address window.
+Only the eleven mapped offsets decode (paddr[11:6] must be zero); every
+other address in the window reads 0 and returns PSLVERR, so nothing aliases.
 
 Example (BASE_ADDR = 0xFEC08000):
   LSR = 0xFEC08000 + 0x18 = 0xFEC08018
