@@ -24,13 +24,13 @@
 # Architecture and Datapath
 
 This chapter is the implementation-level architectural orientation: the live
-four-plane hierarchy, the read/write datapath flow, and the clocking
+five-plane hierarchy, the read/write datapath flow, and the clocking
 topology. Per-macro detail is in section 2; per-interface detail is in
 section 3.
 
 ## Plane Hierarchy
 
-The controller is a **four-plane core** wrapped by a top that adds the
+The controller is a **five-plane core** of common-ip macros wrapped by a top that adds the
 PeakRDL-generated register block. The top-of-tree is `pumice_top`
 (`rtl/top/pumice_top.sv`), with an optional host-width wrapper
 `pumice_top_geared` above it:
@@ -41,25 +41,28 @@ pumice_top_geared (rtl/top/pumice_top_geared.sv)   -- OPTIONAL host-width wrappe
   |- pumice_top (rtl/top/pumice_top.sv)
        |- pumice_csr (regs/generated/rtl/, PeakRDL passthrough cpuif)
        |- pumice_core (rtl/top/pumice_core.sv)
-            |- mc_axi4_plane            (common-ip/rtl/macro/mc_axi4_plane.sv)
-            |- mc_storage_plane         (common-ip/rtl/macro/mc_storage_plane.sv)
-            |- pumice_scheduler_plane   (rtl/macro/pumice_scheduler_plane.sv)
-            |- pumice_training_plane    (rtl/macro/pumice_training_plane.sv, LPDDR2 cal/training)
-            |- mc_dfi_2p1_plane         (common-ip/rtl/macro/mc_dfi_2p1_plane.sv)
+            |- mc_axi4_plane       (common-ip/rtl/macro/mc_axi4_plane.sv)
+            |- mc_storage_plane    (common-ip/rtl/macro/mc_storage_plane.sv)
+            |- mc_scheduler_plane  (common-ip/rtl/macro/mc_scheduler_plane.sv)
+            |- mc_training_plane   (common-ip/rtl/macro/mc_training_plane.sv, LPDDR2 cal/training)
+            |- mc_dfi_2p1_plane    (common-ip/rtl/macro/mc_dfi_2p1_plane.sv)
 ```
 
-`pumice_core` wires the five macros, built bottom-up:
+`pumice_core` instantiates all five directly; there is no pumice-local plane
+or wrapper (the interim `pumice_scheduler_plane` / `pumice_training_plane`
+wrappers were removed on 2026-10-11). Pumice's choices are parameters on the
+common planes (see [Top-Level Integration](../ch02_blocks/01_top_integration.md)).
 
 | Macro (module)             | Role                                                          | Chapter |
 |----------------------------|---------------------------------------------------------------|---------|
-| `mc_axi4_plane`          | Host AXI4 slave + burst splitters + read-return ring + snarf   | 2.1     |
+| `mc_axi4_plane`          | Host AXI4 slave + burst splitters + intakes + read-return ring + snarf probe | 2.1     |
 | `mc_storage_plane`       | Write-data CAM + read-command CAM + scheduling window          | 2.3     |
-| `pumice_scheduler_plane` | Arbiter + per-bank/global timers + refresh + init + mode reg   | 2.2     |
-| `pumice_training_plane`  | ZQ calibration + DQ-cal (MRR) sequencer + `trn_cmd` mux + cal CDC (LPDDR2 only) | 2.5 |
+| `mc_scheduler_plane`     | Arbiter + per-bank/global timers + refresh + init + mode reg + page policy | 2.2     |
+| `mc_training_plane`      | ZQ calibration + DQ-cal (MRR) sequencer + `trn_cmd` mux + cal CDC (LPDDR2 only) | 2.5 |
 | `mc_dfi_2p1_plane`         | Single async-FIFO CDC + DFI-clock command/write/read datapath  | 2.4     |
 
 The data path is **not** a standalone macro. Write and read burst buffers live
-in the CAMs inside `mc_axi4_plane` (SRAM-backed, de-FSM'd streaming readers);
+in the CAMs inside `mc_storage_plane` (SRAM-backed, de-FSM'd streaming readers);
 the DFI-clock serializer / aligner live in `mc_dfi_2p1_plane`. Section 2.3
 documents this split in place of the old `data_path_macro`.
 
@@ -71,19 +74,19 @@ cpuif -- software programs every timing/phase/policy through the register bus.
 ## Read / Write Datapath: AXI -> split -> intake -> CAM
 
 The host AXI4 face is `mc_axi4_plane`. Each host burst is first split at
-DRAM-burst-byte boundaries by the shared `axi_master_wr_splitter` /
-`axi_master_rd_splitter` (one DRAM burst per split command), then handed to the
-dumb 1:1 intakes:
+DRAM-burst-byte boundaries by `mc_wr_splitter` (write) and
+`mc_axi_burst_chopper` (read; the write splitter uses one too), one DRAM burst
+per sub-command, then handed to the dumb 1:1 intakes:
 
-- `mc_wr_intake` (`axi4_slave_wr` + AW-meta FIFO + wr-data FIFO + `addr_mapper`)
+- `mc_wr_intake` (`axi4_slave_wr` + AW-meta FIFO + wr-data FIFO + `mc_addr_mapper`)
   pushes `(bank, row, col, id)` plus write data into `mc_wr_data_cam`.
-- `mc_rd_intake` (`axi4_slave_rd` + `addr_mapper` + snarf probe) pushes
+- `mc_rd_intake` (`axi4_slave_rd` + `mc_addr_mapper` + snarf probe) pushes
   `(bank, row, col, id)` into `mc_rd_cmd_cam`, and probes the write CAM for
   read-your-write forwarding.
 
 The salient property: there is exactly **one** stage where AXI-plane concepts
 (burst, ID, write strobe) cross into DRAM-plane concepts (rank, bank, row,
-column). That stage is `addr_mapper` inside each intake. Upstream everything is
+column). That stage is `mc_addr_mapper` inside each intake. Upstream everything is
 AXI; downstream of the CAMs everything is DRAM.
 
 ### Why Two CAMs, Not One
@@ -117,19 +120,19 @@ length.
 
 ## Scheduler and Command Stream
 
-`pumice_scheduler_plane` queries both CAMs in the (bank, row) dimension via
-`N_LU = NUM_BANKS` parallel lookup ports, picks one command with
-`pumice_cmd_arbiter` (the open-page decision is **inline** in the arbiter --
+`mc_scheduler_plane` reads both CAMs' per-entry schedulable vectors
+(valid, bank, row, col, older matrix, age, qos), picks one command with
+`mc_cmd_arbiter` (the open-page decision is **inline** in the arbiter --
 there is no separate `page_predictor` in the issue path), and emits a single
-abstract DRAM command `{op, rank, bank, row, col, ap}` into an output command
+abstract DRAM command `{op, rank, bank, row, col, ap, mrr}` into an output command
 FIFO. The scheduler is single-issue, PHY/nphases-agnostic, and runs entirely on
 `aclk`. Per-bank JEDEC readiness is stamped by `mc_bank_timers` (wrapping
-the FSM-free `bank_timer`); cross-bank turnaround windows
+the FSM-free `mc_bank_timer`); cross-bank turnaround windows
 (tFAW/tRRD/tWTR/tRTW/tCCD) come from `mc_global_timers`.
 
 ## Clocking Topology
 
-Two external clocks; exactly one CDC.
+Two external clocks; exactly one datapath CDC.
 
 | Clock     | Domain members                                                          |
 |-----------|-------------------------------------------------------------------------|
@@ -138,8 +141,10 @@ Two external clocks; exactly one CDC.
 
 The single CDC lives inside `mc_dfi_2p1_plane` (`mc_dfi_cdc`) and is built
 from **async gaxi FIFOs only** -- the command, write-data, and read-data streams
-plus the init handshake cross there. No other clock crossing exists in the
-controller. If the SoC's AXI master is on a different clock than `aclk`, an
+plus the init handshake cross there. The only other crossing is the narrow
+calibration sideband inside `mc_training_plane` (`mc_training_shell`:
+`sync_pulse` / `cdc_synchronizer`, no FIFOs), which carries no datapath
+traffic. If the SoC's AXI master is on a different clock than `aclk`, an
 external clock converter is required upstream. See section 1.3 for the reset
 topology.
 

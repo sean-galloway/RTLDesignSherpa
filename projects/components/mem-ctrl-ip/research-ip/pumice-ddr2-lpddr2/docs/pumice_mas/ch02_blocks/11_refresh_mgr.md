@@ -21,21 +21,23 @@
 
 <!-- End Header -->
 
-# Refresh Controller (`refresh_ctrl`)
+> **Status (2026-10-11): this block lives in common-ip now.** The RTL is `mc_xddr2_refresh_ctrl`, a default child of `mc_scheduler_plane`; the plane that composes it is documented in [common_mas Chapter 4 — Scheduler Plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps pumice's provenance and measured history.
 
-**Module:** `refresh_ctrl.sv`
-**Location:** `rtl/fub/`
+# Refresh Controller (`mc_xddr2_refresh_ctrl`)
+
+**Module:** `mc_xddr2_refresh_ctrl.sv`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_scheduler_plane`
+**Parent macro:** `mc_scheduler_plane`
 **Status:** Implemented — FSM-free tREFI/pending/drain accumulator with a REFab/REFpb selector and REFpb bank rotor.
 
 > Refresh **recovery** (tRFC) is not this block's job: the arbiter
-> (`pumice_cmd_arbiter`) loads a down-counter from `TIMINGS_RFC_REFI.tRFC` on
+> (`mc_cmd_arbiter`) loads a down-counter from `TIMINGS_RFC_REFI.tRFC` on
 > each fired REF and blocks ACT/REF picks until it expires — see
-> [ch02/07](07_scheduler.md). `refresh_ctrl` only meters *when* refreshes are
+> [ch02/07](07_scheduler.md). `mc_xddr2_refresh_ctrl` only meters *when* refreshes are
 > owed.
 
-> Scope note: this module is `refresh_ctrl`. It is a compact, FSM-free
+> Scope note: this module is `mc_xddr2_refresh_ctrl`. It is a compact, FSM-free
 > accumulator design — three registered counter blocks plus a bank rotor,
 > all strict-flopped at the outputs. It tracks the tREFI interval, keeps a
 > JEDEC-capped count of postponed refreshes, meters how many REF commands
@@ -50,14 +52,14 @@
 > `refresh_req`/`refresh_gnt` handshake arrays. Refresh does not use a
 > bank-machine handshake: it raises a single `refresh_req_o` and wins
 > against other scheduler commands by priority inside
-> `pumice_cmd_arbiter`. Those retired features are collected under
+> `mc_cmd_arbiter`. Those retired features are collected under
 > [Open Questions / Future Work](#open-questions--future-work).
 
 ---
 
 ## Purpose
 
-`refresh_ctrl` owns DRAM refresh scheduling. It produces:
+`mc_xddr2_refresh_ctrl` owns DRAM refresh scheduling. It produces:
 
 - `refresh_req_o` — a single request line that elevates refresh to highest
   priority in the scheduler. Strict default: high while any refresh is
@@ -98,7 +100,7 @@ output stage.
 A 16-bit down-counter that measures the refresh interval in MC cycles.
 
 - Only ticks when `enable_i` is high (`enable_i` comes from
-  `init_sequencer` — refresh is gated off until init completes). While
+  `mc_xddr2_init_sequencer` — refresh is gated off until init completes). While
   `enable_i` is low, the counter is held reloaded at `t_refi_i`.
 - When it reaches 0 (`w_refi_expired`), it reloads `t_refi_i` and that
   expiry event drives one increment of the pending accumulator.
@@ -176,7 +178,7 @@ rotor and the controller can only track it).
 - `r_grants_total` (16-bit) counts total accepted grants for observability.
 
 `refresh_kind_o` is simply the registered copy of `refpb_mode_i`
-(0 = REFab, 1 = REFpb), forwarded to the scheduler / `dfi_cmd_formatter`.
+(0 = REFab, 1 = REFpb), forwarded to the scheduler / `mc_xddr2_cmd_formatter`.
 
 All final outputs are strict-flopped (registered) in a single output stage.
 
@@ -198,7 +200,7 @@ All final outputs are strict-flopped (registered) in a single output stage.
 | `t_refi_i`        | 16    | Refresh interval in MC cycles (tREFI). Reload value for `r_refi_cnt`.        |
 | `refresh_burst_i` | 4     | Desired drain count per request cycle (1..8). Loads the burst quota.        |
 | `refpb_mode_i`    | 1     | 0 = REFab, 1 = REFpb (LPDDR2). Selects `refresh_kind_o` and enables the rotor. |
-| `enable_i`        | 1     | From `init_sequencer` (init done). Gates the tREFI counter and accumulation. |
+| `enable_i`        | 1     | From `mc_xddr2_init_sequencer` (init done). Gates the tREFI counter and accumulation. |
 | `postpone_limit_i`| 4     | `REF_CTRL.postpone_limit` — defer under demand, clamped to 7. 0 = strict.    |
 | `pullin_limit_i`  | 4     | `REF_CTRL.pullin_limit` — run ahead on confirmed idle, clamped to 8. 0 = off. |
 | `demand_i`        | 1     | Scheduler CAM occupancy (any read/write waiting). Feeds the idle hysteresis. |
@@ -236,7 +238,7 @@ them yet.
   `obs_*` output reset to 0.
 - **Init gating.** With `enable_i` low, `r_refi_cnt` is held at `t_refi_i`
   and no pending refreshes accumulate — refresh is inert until
-  `init_sequencer` releases `enable_i`.
+  `mc_xddr2_init_sequencer` releases `enable_i`.
 - **Single-cycle latency.** Because there is no FSM, request/drain/bank
   outputs simply track the counter state one flop behind. When tREFI
   expires, `r_pending` rises the next cycle and `refresh_req_o` follows the
@@ -245,7 +247,7 @@ them yet.
   request and drain hint; the scheduler decides when to pulse
   `refresh_grant_i`, and the module bookkeeps against those pulses.
 - **Priority, not handshake.** Refresh wins against other scheduler
-  commands by priority in `pumice_cmd_arbiter`; there is no per-bank
+  commands by priority in `mc_cmd_arbiter`; there is no per-bank
   `refresh_req`/`refresh_gnt` array and no bank-machine handshake.
 
 ---
@@ -273,7 +275,7 @@ them yet.
 ## Open Questions / Future Work
 
 The following were described in earlier SWAG/HAS drafts but are **not
-implemented** in `refresh_ctrl`. They are recorded here as possible future
+implemented** in `mc_xddr2_refresh_ctrl`. They are recorded here as possible future
 scope, not as current behavior:
 
 - **DARP per-bank age selection.** REFpb currently uses a plain round-robin

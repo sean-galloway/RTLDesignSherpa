@@ -21,17 +21,19 @@
 
 <!-- End Header -->
 
-# Address Mapper (`addr_mapper`)
+> **Status (2026-10-11): this block lives in common-ip now.** The RTL is `mc_addr_mapper`, inside `mc_wr_intake` / `mc_rd_intake` of `mc_axi4_plane`; the plane that composes it is documented in [common_mas mc_axi4_plane](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md). This chapter keeps pumice's provenance and measured history.
 
-**Module:** `addr_mapper.sv`
-**Location:** `rtl/fub/`
+# Address Mapper (`mc_addr_mapper`)
+
+**Module:** `mc_addr_mapper.sv`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB (combinational; no clock)
 **Parent:** `mc_wr_intake` / `mc_rd_intake`
 **Status:** Implemented
 
 > **Rearchitected:** the SWAG described a three-scheme decoder
 > (ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH) selected by a runtime `scheme_active_i`
-> mux. That is retired. The live `addr_mapper` has **one** placement knob —
+> mux. That is retired. The live `mc_addr_mapper` has **one** placement knob —
 > `bank_lsb_i` — that slides the bank field through the (byte-stripped) column
 > region, plus an optional bank XOR-hash. The classic schemes are now just
 > settings of `bank_lsb`. There is no scheme selector, no `SYNTH_*` param, and
@@ -41,7 +43,7 @@
 
 ## Purpose
 
-`addr_mapper` decodes a flat `AXI_ADDR_WIDTH`-bit address into the DRAM-plane
+`mc_addr_mapper` decodes a flat `AXI_ADDR_WIDTH`-bit address into the DRAM-plane
 `(rank, bank, row, col)` tuple. It is **pure combinational** — no clock, no flop,
 no FSM. The output is valid the same cycle as the input. One instance sits at the
 head-address decode of each intake (`mc_wr_intake`, `mc_rd_intake`), so
@@ -151,7 +153,7 @@ This RTL is the bit-exact mirror of the DV-side address model; both must produce
 identical `(rank, bank, row, col)` for the same input and the same
 `bank_lsb`/`hash_en`/`hash_seed`. The mirror eliminates the class of bugs where
 the BFM decodes one way and the controller decodes another. It is exercised by
-the `addr_mapper` FUB test, which sweeps addresses and `bank_lsb` values and
+the `mc_addr_mapper` FUB test, which sweeps addresses and `bank_lsb` values and
 asserts bit-equality against the model.
 
 ## Timing

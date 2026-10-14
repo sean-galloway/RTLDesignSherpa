@@ -39,7 +39,7 @@ The common DFI 2.1 microarchitecture is documented in [Chapter 7 of the common M
 
 ### Instantiation in `pumice_core`
 
-`pumice_core` instantiates `mc_dfi_2p1_plane` as `u_dfi_plane` (`rtl/top/pumice_core.sv:766-836`). The parameters pumice supplies are:
+`pumice_core` instantiates `mc_dfi_2p1_plane` as `u_dfi_plane` (`rtl/top/pumice_core.sv:803-873`). The parameters pumice supplies are:
 
 | Parameter | Pumice value / source | Purpose |
 |---|---|---|
@@ -59,11 +59,11 @@ The common DFI 2.1 microarchitecture is documented in [Chapter 7 of the common M
 | `WD_FIFO_DEPTH` | `32` | Write-data CDC FIFO depth |
 | `CMD_HISTORY_EN` / `HIST_T_*` | top-level params | DFI-wire command-history audit |
 
-The controller-side clock and reset are wired to `aclk` and `aresetn`; the PHY side uses `dfi_clk` and `dfi_rstn`. The abstract command stream comes from `pumice_scheduler_plane`; write data comes from the write CAM, and read returns go to the read CAM.
+The controller-side clock and reset are wired to `aclk` and `aresetn`; the PHY side uses `dfi_clk` and `dfi_rstn`. The abstract command stream comes from `mc_scheduler_plane`; write data comes from the write CAM in `mc_storage_plane`, and read returns go to the return ring in `mc_axi4_plane`.
 
-### Rock FUBs feeding the plane
+### Generation FUBs inside the plane
 
-The common `mc_dfi_cmd_path` instantiates the pumice `dfi_cmd_formatter` rock FUB (`rtl/fub/dfi_cmd_formatter.sv`) to place the JEDEC command on the selected DFI phase. The `dfi_signal_pack` FUB remains in the pumice tree (`rtl/fub/dfi_signal_pack.sv`) as the legacy output-packing partner but is not currently instantiated inside `pumice_core` or the common plane.
+The common `mc_dfi_cmd_path` instantiates `mc_xddr2_cmd_formatter` (`common-ip/rtl/fub/mc_xddr2_cmd_formatter.sv`), the DDR2/LPDDR2-generation formatter that used to be pumice's `dfi_cmd_formatter`, to place the JEDEC command on the selected DFI phase. Its registered outputs drive the pins directly; the legacy `dfi_signal_pack` relatch stage was removed on 2026-10-11.
 
 ### PHY timing programming
 

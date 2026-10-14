@@ -37,7 +37,7 @@ write_latency=0.
 
 > **Corrected 2026-09-10.** These diagrams previously declared tCCD=2 and drew a
 > column every *other* cycle while captioned "~100% bus util", which cannot both
-> be true. `pumice_core.sv:255` clamps `t_ccd_i` up to `BURST_WORDS`, which is 1
+> be true. `pumice_core.sv:281-282` clamps `t_ccd_i` up to `BURST_WORDS`, which is 1
 > here, and the board sustains ~572 MB/s read (571.3 on the 2026-09-10/14
 > images, 572.3 re-measured on the post-sdpram-fix image of 2026-10-03 —
 > `docs/char_results/FINDINGS_litedram_ab_2026-10-03.md`). A column every cycle

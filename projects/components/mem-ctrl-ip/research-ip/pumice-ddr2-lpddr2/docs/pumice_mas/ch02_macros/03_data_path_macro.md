@@ -31,7 +31,7 @@
 
 ## Purpose
 
-"Schedulable entry pools and data buffers for writes and reads." `pumice_core` instantiates the common `mc_storage_plane` on `aclk` between `u_axi_plane` (`mc_axi4_plane`) and `u_sched_plane` (`pumice_scheduler_plane`). It holds the write-data CAM / write buffer and the read-command scheduling window, exposes the per-entry scheduler vectors, and streams committed write data toward the DFI plane.
+"Schedulable entry pools and data buffers for writes and reads." `pumice_core` instantiates the common `mc_storage_plane` on `aclk` between `u_axi_plane` (`mc_axi4_plane`) and `u_sched_plane` (`mc_scheduler_plane`). It holds the write-data CAM / write buffer and the read-command scheduling window, exposes the per-entry scheduler vectors, and streams committed write data toward the DFI plane.
 
 Until 2026-10-09 the write-data and read-command CAMs lived inside the pumice-local `pumice_axi4_plane` and were documented as part of the AXI front-end macro; Phase-2 moved them into the common `mc_storage_plane`, and the old `data_path_macro` (`wr_beat_sequencer` + `rd_cl_aligner`) is retired.
 
@@ -55,7 +55,7 @@ Until 2026-10-09 the write-data and read-command CAMs lived inside the pumice-lo
 ## External boundaries
 
 - **From `mc_axi4_plane` (`u_axi_plane`):** the storage seam — `aw_push_*` + `wd_*` for writes, `snarf_probe_*` for read-your-write probes, `ar_push_*` for reads, and the return-ring ticket handshake (`rt_alloc_*`, `rd_iss_*`, `rd_cam_ins_ready_*`).
-- **To `pumice_scheduler_plane` (`u_sched_plane`):** per-entry scheduling vectors (`wr_sch_*`, `rd_sch_*`), plus the write `commit` and read `issue` handshakes.
+- **To `mc_scheduler_plane` (`u_sched_plane`):** per-entry scheduling vectors (`wr_sch_*`, `rd_sch_*`), plus the write `commit` and read `issue` handshakes.
 - **To `mc_dfi_2p1_plane` (`u_dfi_plane`):** committed write-data stream `wr_cm_rd_*` (`valid/ready/data/strb/last`).
 - **Status:** `busy_o` is left unconnected in `pumice_core` (`pumice_core.sv:595`).
 
@@ -71,7 +71,7 @@ Until 2026-10-09 the write-data and read-command CAMs lived inside the pumice-lo
 localparam int CMD_DELAY_EFF = (CMD_DELAY == 0) ? (5 + 2 * BURST_WORDS) : CMD_DELAY;
 ```
 
-Measured: BL8/4-word bursts held up to 6 cycles at `CMD_DELAY=6 -> 13`; BL4 x16 (1 word) needs 7 (`pumice_core.sv:273-275`). The DFI write-data FIFO is sized to 32 entries (`WD_FIFO_DEPTH = 32`, `pumice_core.sv:788`) to absorb that staging without stalling the CAM drain. The read-return FIFO is sized to `RD_RET_DEPTH * BURST_WORDS` entries (`pumice_core.sv:784`). Inside the common write-data CAM, `WR_DRAIN_AHEAD = 2` bounds how far the command stream can run ahead of the data drain; the common_mas chapter records that the old FIFO-room gate allowed a command to run ~20 `aclk` ahead and produced a measured 29373-cycle DFI hold.
+Measured: BL8/4-word bursts held up to 6 cycles at `CMD_DELAY=6 -> 13`; BL4 x16 (1 word) needs 7 (`pumice_core.sv:273-275`). The DFI write-data FIFO is sized to 32 entries (`WD_FIFO_DEPTH = 32`, `pumice_core.sv:825`) to absorb that staging without stalling the CAM drain. The read-return FIFO is sized to `RD_RET_DEPTH * BURST_WORDS` entries (`pumice_core.sv:821`). Inside the common write-data CAM, `WR_DRAIN_AHEAD = 2` bounds how far the command stream can run ahead of the data drain; the common_mas chapter records that the old FIFO-room gate allowed a command to run ~20 `aclk` ahead and produced a measured 29373-cycle DFI hold.
 
 `tCCD` is clamped to at least `BURST_WORDS` in `pumice_core` (`w_t_ccd_eff = (t_ccd_i < 8'(BURST_WORDS)) ? 8'(BURST_WORDS) : t_ccd_i`; `pumice_core.sv:281-282`) because the DFI command path no longer paces columns.
 

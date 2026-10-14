@@ -21,13 +21,22 @@
 
 <!-- End Header -->
 
-# Power-Down Controller (`powerdown_ctrl`)
+# Power-Down Controller (retired — `powerdown_ctrl` removed)
 
-**Module:** `powerdown_ctrl.sv`
-**Location:** `rtl/fub/`
-**Category:** FUB
-**Parent macro:** `pumice_scheduler_plane`
-**Status:** Live but optional — a single-channel idle-detect power-down requester. Not instantiated in the default top build. Deep Power Down, per-rank control, and refresh/init interlocks are TODO (see Open Questions).
+> ## RETIRED — no power-down block exists
+>
+> `powerdown_ctrl.sv` was removed from the RTL on 2026-10-11. It was never
+> instantiated in `pumice_core` (it was a live-but-optional FUB outside the
+> default build), and it has no replacement block: no module in the current
+> hierarchy drives CKE low for power-down or issues SRE/SRX. Low-power entry
+> is an open item for the scheduler plane's maintenance path, not a
+> standalone FUB. The rest of this chapter is kept as the design record of the
+> removed block (its FSM, PDE/SR selection, and test plan), so a future
+> implementation starts from what was built and measured.
+
+**Module:** `powerdown_ctrl.sv` (removed)  
+**Category:** FUB (retired)  
+**Status:** Removed 2026-10-11; never part of the default build.
 
 > **Renamed / rescoped.** An earlier SWAG called this `power_state_fub` and
 > described a per-rank FSM array with a separate DEEP_POWER_DOWN state, a
@@ -41,9 +50,9 @@
 
 ---
 
-## Purpose
+## Purpose (as built, before removal)
 
-`powerdown_ctrl` is a small idle-detector that asks the scheduler for permission
+`powerdown_ctrl` was a small idle-detector that asks the scheduler for permission
 to put the DRAM into a low-power state, then drops the DFI clock-enable (`CKE`)
 when granted. It supports two low-power flavors, selected by two enable inputs:
 
@@ -57,7 +66,7 @@ commands, does **not** run any exit-timing counters (tXP / tXSDLL / tXSR), and
 does **not** coordinate a handshake with the refresh controller. All command
 issue, precondition enforcement (all banks precharged before SR), and exit
 timing are the responsibility of the parent scheduler
-(`pumice_scheduler_plane`) — this FUB is purely a request/grant + CKE-drive
+(`mc_scheduler_plane`) — this FUB is purely a request/grant + CKE-drive
 block. It trusts the scheduler not to issue a grant before DRAM init completes.
 
 ---
@@ -182,7 +191,7 @@ interface wired into this FUB today.
 
 ---
 
-## Verification Notes (cocotb test plan)
+## Verification Notes (cocotb test plan, removed with the block)
 
 The block is small and self-contained; a directed FSM testbench is sufficient.
 
@@ -204,23 +213,23 @@ The block is small and self-contained; a directed FSM testbench is sufficient.
 
 ## Open Questions / Future Work
 
-All of the following are called out in the RTL header comments and are **not**
-implemented today:
+All of the following were called out in the removed block's header comments
+and remain unimplemented; any replacement has to cover them:
 
 - **Deep Power Down (DPD).** LPDDR2-only. Would need an `enable_dpd_i` input and
-  `dfi_dram_clk_disable_o` cooperation from `dfi_signal_pack`. There is no DPD
-  state in the current FSM.
-- **Per-rank power-down.** The block currently powers down **all ranks
+  a `dfi_dram_clk_disable` driver (the controller drives none today). The
+  removed FSM had no DPD state.
+- **Per-rank power-down.** The removed block powered down **all ranks
   together** (identical CKE on every `dfi_cke_o` bit). A per-rank FSM array with
   independent CKE routing is future work.
-- **`dfi_init_complete` interlock.** The FSM currently trusts the scheduler not
+- **`dfi_init_complete` interlock.** The FSM trusted the scheduler not
   to issue `pdn_grant_i` before DRAM init completes. A hard interlock input is
   future work.
 - **Self-refresh command / handshake ownership.** SREFE/SREFX command issue,
   the all-banks-precharged precondition, and exit-timing enforcement
   (tXP / tXSDLL / tXSR) live in the scheduler, not here. There is no
-  `refresh_ctrl` coordination handshake in this FUB.
-- **CSR / observability wiring.** The `obs_*` outputs are intended for future
-  CSR readback but are not connected to any APB register block yet.
-- **Not in the default top build.** The module is live and verifiable
-  standalone, but is not instantiated in the default `pumice` top today.
+  `mc_xddr2_refresh_ctrl` coordination handshake existed.
+- **CSR / observability wiring.** The `obs_*` outputs were never connected to
+  the register block.
+- **Never in the default top build.** The module was verifiable standalone
+  but never instantiated in `pumice_core`; it was removed on 2026-10-11.

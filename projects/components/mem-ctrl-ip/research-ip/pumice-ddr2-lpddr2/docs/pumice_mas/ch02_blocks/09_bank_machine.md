@@ -21,20 +21,22 @@
 
 <!-- End Header -->
 
-# Bank Timer (`bank_timer` + `mc_bank_timers`)
+> **Status (2026-10-10): this block lives in common-ip now.** The RTL is `mc_bank_timer` / `mc_bank_timers`, inside `mc_scheduler_plane`; the plane that composes it is documented in [common_mas Chapter 4 — Scheduler Plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps pumice's provenance and measured history.
 
-**Module:** `bank_timer.sv` (per-bank) / `mc_bank_timers.sv` (aggregator)
-**Location:** `rtl/fub/`
+# Bank Timer (`mc_bank_timer` + `mc_bank_timers`)
+
+**Module:** `mc_bank_timer.sv` (per-bank) / `mc_bank_timers.sv` (aggregator)
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_scheduler_plane`
+**Parent macro:** `mc_scheduler_plane`
 **Status:** Implemented (FSM-free countdown-timer model)
 
 > **Replaces the retired bank machine.** The original architecture placed a
 > per-(rank, bank) seven-state FSM (`bank_machine_fub`) between the scheduler
 > and the DFI encoder. That block **no longer exists**. Per-bank JEDEC timing
-> is now enforced by `bank_timer.sv` — a set of preset/decrement countdown
+> is now enforced by `mc_bank_timer.sv` — a set of preset/decrement countdown
 > timers with a trivial row-open register and **no state machine at all**.
-> `mc_bank_timers.sv` stamps one `bank_timer` per (rank, bank) and fans the
+> `mc_bank_timers.sv` stamps one `mc_bank_timer` per (rank, bank) and fans the
 > scheduler's command-event strobes to the addressed instance.
 >
 > The retirement was deliberate: the old FSM double-registered readiness (state
@@ -49,14 +51,14 @@
 
 ## Purpose
 
-`bank_timer` tracks one DRAM bank's JEDEC "safe" timing. For each JEDEC
+`mc_bank_timer` tracks one DRAM bank's JEDEC "safe" timing. For each JEDEC
 per-bank constraint it holds a down-counter that is preset on the triggering
 command and free-runs toward zero (saturating at 0). A constraint is "safe"
 when its counter reads 0. The per-command readiness outputs (`safe_act`,
 `safe_rd`, `safe_wr`, `safe_pre`) are a **combinational AND** of the relevant
 timers plus a one-bit row-open flag — no FSM, no multi-stage lag.
 
-The scheduler (`pumice_cmd_arbiter`, the single command issuer in the design)
+The scheduler (`mc_cmd_arbiter`, the single command issuer in the design)
 drives one `set_*` strobe per issued command. Each timer reloads its config
 value on its trigger; the `safe_*` outputs therefore reflect the just-issued
 command one cycle later. The arbiter ANDs these per-bank `safe_*` signals with
@@ -64,7 +66,7 @@ the channel-wide turnaround windows from `mc_global_timers` (§2.10) to decide
 which command may fire.
 
 `mc_bank_timers` is a thin aggregator: it instantiates `NUM_RANKS ×
-NUM_BANKS` copies of `bank_timer` and routes the arbiter's single command-event
+NUM_BANKS` copies of `mc_bank_timer` and routes the arbiter's single command-event
 bus (`evt_*` + `evt_rank_i` / `evt_bank_i`) to the one addressed instance. All
 other instances see their `set_*` strobes deasserted that cycle and simply
 continue counting down.
@@ -73,7 +75,7 @@ continue counting down.
 
 ## Synthesis Parameters
 
-### `bank_timer`
+### `mc_bank_timer`
 
 | Parameter    | Default | Effect on this FUB                                              |
 |--------------|---------|-----------------------------------------------------------------|
@@ -86,7 +88,7 @@ continue counting down.
 |--------------|---------------------|-----------------------------------------------------------------|
 | `NUM_RANKS`  | 1                   | Rank dimension of the instance array; width of `evt_rank_i` sel |
 | `NUM_BANKS`  | 8                   | Bank dimension of the instance array; width of `evt_bank_i` sel |
-| `ROW_WIDTH`  | 14                  | Passed to each `bank_timer`                                     |
+| `ROW_WIDTH`  | 14                  | Passed to each `mc_bank_timer`                                     |
 | `RKW`        | `clog2(NUM_RANKS)`  | Rank-select width (min 1)                                       |
 | `BKW`        | `clog2(NUM_BANKS)`  | Bank-select width                                              |
 
@@ -110,7 +112,7 @@ for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
         logic w_sel;
         assign w_sel = (evt_rank_i == RKW'(k)) && (evt_bank_i == BKW'(b));
 
-        bank_timer #(.ROW_WIDTH(ROW_WIDTH)) u_bt (
+        mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH)) u_bt (
             .clk(aclk), .rst_n(aresetn),
             .t_rcd_i(t_rcd_i), .t_rp_i(t_rp_i), .t_ras_i(t_ras_i),
             .t_rc_i(t_rc_i), .t_wr_i(t_wr_i), .t_rtp_i(t_rtp_i),
@@ -135,9 +137,9 @@ end
 
 The per-(rank, bank) readiness outputs are 2-D-packed arrays
 (`logic [NUM_RANKS-1:0][NUM_BANKS-1:0]`) consumed directly by
-`pumice_cmd_arbiter`. There is no aggregation logic beyond the packing — pure
+`mc_cmd_arbiter`. There is no aggregation logic beyond the packing — pure
 structural fan-out. Note that `safe_wr_o` is left unconnected in the aggregator
-because inside `bank_timer` it is identical to `safe_rd_o` (see the RTL: `assign
+because inside `mc_bank_timer` it is identical to `safe_rd_o` (see the RTL: `assign
 safe_wr_o = safe_rd_o`); the arbiter uses the single `bank_rdwr_ready_o` bit for
 both RD and WR column commands.
 
@@ -145,7 +147,7 @@ both RD and WR column commands.
 
 ## The Timer Pool (per bank)
 
-`bank_timer` holds five countdown registers (`r_rcd`, `r_ras`, `r_rc`, `r_rp`,
+`mc_bank_timer` holds five countdown registers (`r_rcd`, `r_ras`, `r_rc`, `r_rp`,
 `r_preblk`), each `TW` bits, plus a one-bit `r_row_valid`, the `r_open_row`
 register, and a single `r_ap_pending` auto-precharge bit. Every timer is a
 down-counter: reload on its trigger, else decrement while non-zero (saturate
@@ -358,7 +360,7 @@ stage deep, versus the retired FSM's two (state + accepts).
   timers; `TW` is already a parameter, so this is a re-elaboration, not a rework.
 - **Per-bank vs shared tRC.** tRC is enforced per bank here. If a future family
   needs same-bank-group tRC differentiation (DDR4 bank groups), that logic would
-  land in `mc_global_timers`, not here — `bank_timer` stays bank-local by design.
+  land in `mc_global_timers`, not here — `mc_bank_timer` stays bank-local by design.
 - **Auto-PRE vs explicit PRE priority.** The RTL priority is ACT > explicit PRE >
   auto-PRE. If the arbiter ever issued an explicit PRE to a bank with a pending
   auto-PRE, the explicit PRE wins and `r_ap_pending` clears. The arbiter does not

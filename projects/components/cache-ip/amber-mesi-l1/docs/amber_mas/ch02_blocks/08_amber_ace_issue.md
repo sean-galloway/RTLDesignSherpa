@@ -25,13 +25,13 @@
 
 **Module:** `amber_ace_issue.sv`
 **Location:** `projects/components/cache-ip/amber-mesi-l1/rtl/fub/`
-**Status:** Pre-RTL micro-architecture contract
+**Status:** RTL landed; this chapter is the micro-architecture contract the RTL implements.
 
 ---
 
 ## Overview
 
-`amber_ace_issue` maps cache-side events to the onyx D2 coherent-transaction subset. It lives only in the `amber_ace` rig; the pair-rig `amber` top does not instantiate it. The module sits between `amber_control` / `amber_fill` / `amber_drain` and the `axi4ace_master_rd` / `axi4ace_master_wr` wrappers.
+`amber_ace_issue` maps cache-side events to the onyx D2 coherent-transaction subset. It lives only in the `amber_ace_top` rig; the pair-rig `amber` top does not instantiate it. The module sits between `l1_control` / `l1_fill` / `l1_drain` and the `axi4ace_master_rd` / `axi4ace_master_wr` wrappers.
 
 ---
 
@@ -52,7 +52,7 @@
 
 ## Interface
 
-### From amber_control / fill / drain
+### From l1_control / fill / drain
 
 | Signal | Direction | Meaning |
 |--------|-----------|---------|
@@ -73,7 +73,7 @@
 
 ## CleanUnique / MakeUnique Data Behavior
 
-- `CleanUnique` is an AW-only transaction (no W data). It tells the interconnect to invalidate other copies so the local write can proceed. `amber_control` performs the actual data write into `amber_data_array` and promotes the line to M.
+- `CleanUnique` is an AW-only transaction (no W data). It tells the interconnect to invalidate other copies so the local write can proceed. `l1_control` performs the actual data write into `l1_data_array` and promotes the line to M.
 - `MakeUnique` is also an AW-only transaction for the full-line case. It invalidates other copies and grants exclusive ownership; the local line is installed or promoted to M.
 - `WriteBack` is an AW+W burst with the dirty victim data.
 - `Evict` is an AW-only transaction with no data.
@@ -82,7 +82,7 @@
 
 ## Timing
 
-`amber_ace_issue` is combinational for address/snoop mapping. It does not add pipeline stages; the timing path is from `amber_control` through this module into the `axi4ace_master_*` skid buffers.
+`amber_ace_issue` is combinational for address/snoop mapping. It does not add pipeline stages; the timing path is from `l1_control` through this module into the `axi4ace_master_*` skid buffers.
 
 ---
 

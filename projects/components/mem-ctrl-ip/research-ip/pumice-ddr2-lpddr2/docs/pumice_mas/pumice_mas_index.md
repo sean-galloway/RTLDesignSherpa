@@ -27,10 +27,20 @@
 **Date:** 2026-10-10
 **Purpose:** Implementation-level micro-architecture specification for the unified DDR2 / LPDDR2 memory controller family
 
+> **Note (v0.9-draft, 2026-10-13):** the interim rock wrappers are gone.
+> `pumice_core` now instantiates all five planes from common-ip directly —
+> `mc_axi4_plane`, `mc_storage_plane`, `mc_scheduler_plane`,
+> `mc_training_plane`, `mc_dfi_2p1_plane` — and every leaf FUB is common-ip
+> too: the DDR2/LPDDR2 children moved on 2026-10-11 as `mc_xddr2_*`,
+> `mc_page_policy`, and `mc_lpddr2_*`. `pumice_scheduler_plane`,
+> `pumice_training_plane`, `dfi_signal_pack`, and `powerdown_ctrl` were
+> removed. Pumice owns the tops, `pumice_pkg`, the `pumice_csr` RDL, and the
+> parameter choices.
+
 > **Note (v0.9-draft, 2026-10-10):** Phase-2 extraction. pumice_core now
 > instantiates the common-ip blocks `mc_axi4_plane`, `mc_storage_plane`, and
 > `mc_dfi_2p1_plane`; `pumice_scheduler_plane` and `pumice_training_plane`
-> are thin rock wrappers around the common cores. Macro chapters describe
+> were thin rock wrappers around the common cores. Macro chapters describe
 > the pumice integration and point at the owning common chapters; block
 > chapters for moved FUBs carry a "lives in common-ip now" banner. The
 > per-block microarchitecture of every moved block is owned by
@@ -78,45 +88,45 @@
 **Integration (Macros — pure structural):**
 - [Top-Level Integration (`pumice_core`)](ch02_blocks/01_top_integration.md)
 - [AXI4 Interface (`mc_axi4_plane` via common-ip)](ch02_macros/01_axi_frontend_macro.md)
-- [Command Scheduler (`pumice_scheduler_plane` wrapper over common `mc_scheduler_plane`)](ch02_macros/02_command_scheduler_macro.md)
-- [Data Path (`mc_storage_plane` CAMs + DFI plane)](ch02_macros/03_data_path_macro.md)
+- [Command Scheduler (`mc_scheduler_plane` via common-ip)](ch02_macros/02_command_scheduler_macro.md)
+- [Data Path (`mc_storage_plane` via common-ip)](ch02_macros/03_data_path_macro.md)
 - [DFI v2.1 Plane (`mc_dfi_2p1_plane` via common-ip)](ch02_macros/04_dfi_v21_interface_macro.md)
 
 **AXI4 Interface FUBs (`mc_axi4_plane` via common-ip — banners point to the owning common_mas chapters):**
 - [AXI4 Intakes (`mc_wr_intake`, `mc_rd_intake`)](ch02_blocks/02_axi4_slave.md)
-- [Address Mapper (`addr_mapper`, bank_lsb) — pumice-local](ch02_blocks/03_addr_mapper.md)
+- [Address Mapper (`mc_addr_mapper`, bank_lsb)](ch02_blocks/03_addr_mapper.md)
 - [Read Command CAM (`mc_rd_cmd_cam`)](ch02_blocks/04_rd_cmd_cam.md)
 - [Read Return Ring (`mc_rd_return_ring`)](ch02_blocks/22_rd_return_ring.md)
 - [Write Data CAM (`mc_wr_data_cam`)](ch02_blocks/05_wr_cmd_cam.md)
 - [Write-to-Read Forward (snarf in `mc_wr_data_cam`)](ch02_blocks/21_wr2rd_forward.md)
 
-**Scheduling FUBs (wrapper children + common core):**
-- [Command Arbiter (`pumice_cmd_arbiter` wrapper around `mc_cmd_arbiter`)](ch02_blocks/07_scheduler.md) — CLOSE/OPEN/HAPPY_HYBRID
-- [Page-policy engine (`pumice_page_policy`)](ch02_blocks/08_page_policy.md)
+**Scheduling FUBs (`mc_scheduler_plane` via common-ip):**
+- [Command Arbiter (`mc_cmd_arbiter`)](ch02_blocks/07_scheduler.md) — CLOSE/OPEN/HAPPY_HYBRID
+- [Page-policy engine (`mc_page_policy`)](ch02_blocks/08_page_policy.md)
 - [Cross-bank Turnaround Timers (`mc_global_timers`)](ch02_blocks/10_xbank_timers.md)
 - [Global Timers (`mc_global_timers`)](ch02_blocks/19_global_timers.md)
-- [Refresh Controller (`refresh_ctrl`)](ch02_blocks/11_refresh_mgr.md)
-- [Init Sequencer (`init_sequencer`)](ch02_blocks/12_init_engine.md)
-- [Power-Down Controller (`powerdown_ctrl`)](ch02_blocks/13_power_state.md)
-- [Mode Register (`mode_register`)](ch02_blocks/20_mode_register.md)
+- [Refresh Controller (`mc_xddr2_refresh_ctrl`)](ch02_blocks/11_refresh_mgr.md)
+- [Init Sequencer (`mc_xddr2_init_sequencer`)](ch02_blocks/12_init_engine.md)
+- [Mode Register (`mc_xddr2_mode_register`)](ch02_blocks/20_mode_register.md)
 
 **Data Path FUBs (CAMs + DFI plane — common-owned):**
 - [Write Data Path (`mc_wr_data_cam` + `mc_dfi_wr_serializer`)](ch02_blocks/17_wr_data_path.md)
 - [Read Data Path (`mc_dfi_rd_aligner` + `mc_rd_return_ring`)](ch02_blocks/18_rd_data_path.md)
 
 **DFI v2.1 FUBs (`mc_dfi_2p1_plane` via common-ip):**
-- [DFI Command Formatter (`dfi_cmd_formatter`) — pumice-local](ch02_blocks/14_cmd_encoder.md)
+- [DFI Command Formatter (`mc_xddr2_cmd_formatter`)](ch02_blocks/14_cmd_encoder.md)
 - [DFI Plane / Gearing (`mc_dfi_2p1_plane`)](ch02_blocks/15_gear_dfi.md)
 
 **Training plane (LPDDR2 calibration / training):**
-- [Training Plane (`pumice_training_plane`)](ch02_macros/05_training_plane_macro.md)
-- [ZQ Calibration Controller (`pumice_zq_ctrl`)](ch02_blocks/23_zq_ctrl.md)
-- [DQ-Calibration Sequencer (`pumice_lp_cal`)](ch02_blocks/24_lp_cal.md)
+- [Training Plane (`mc_training_plane` via common-ip)](ch02_macros/05_training_plane_macro.md)
+- [ZQ Calibration Controller (`mc_lpddr2_zq_ctrl`)](ch02_blocks/23_zq_ctrl.md)
+- [DQ-Calibration Sequencer (`mc_lpddr2_dq_cal`)](ch02_blocks/24_lp_cal.md)
 
 **Absorbed (kept for design rationale; no standalone FUB exists today):**
 - [Transaction Queue — absorbed into intake+CAMs](ch02_blocks/06_txn_queue.md)
-- [Bank Machine — replaced by FSM-free bank_timer](ch02_blocks/09_bank_machine.md)
-- [ODT Control — absorbed into dfi_cmd_formatter](ch02_blocks/16_odt_ctrl.md)
+- [Bank Machine — replaced by FSM-free mc_bank_timer](ch02_blocks/09_bank_machine.md)
+- [ODT Control — absorbed into mc_xddr2_cmd_formatter](ch02_blocks/16_odt_ctrl.md)
+- [Power-Down Controller (`powerdown_ctrl`) — removed 2026-10-11](ch02_blocks/13_power_state.md)
 
 ### Chapter 3: AXI / DFI Interfaces
 

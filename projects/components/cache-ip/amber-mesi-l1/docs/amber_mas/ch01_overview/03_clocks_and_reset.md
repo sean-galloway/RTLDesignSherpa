@@ -41,7 +41,7 @@ amber is a single-clock IP. The GAXI slave, AXI4/ACE masters, snoop responder, a
 
 : Table 1.3.2: Reset signals
 
-`aresetn` resets all flops. The `sdpram_core` instances inside `amber_tag_array` and `amber_data_array` are not reset; their contents are invalidated by clearing valid bits or by the first access after reset, depending on the implementation choice recorded in Chapter 2.3.
+`aresetn` resets all flops. The `sdpram_core` instances inside `l1_tag_array` and `l1_data_array` are not reset; their contents are invalidated by clearing valid bits or by the first access after reset, depending on the implementation choice recorded in Chapter 2.3.
 
 All sequential logic uses the house `ALWAYS_FF_RST` macro with `RST_ASSERTED(aresetn)`. This is the same pattern used in the AMBA wrappers and STREAM.
 

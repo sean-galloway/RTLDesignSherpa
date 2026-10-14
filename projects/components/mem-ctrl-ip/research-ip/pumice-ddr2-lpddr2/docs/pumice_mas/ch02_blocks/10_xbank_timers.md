@@ -26,16 +26,16 @@
 # Global Timers (`mc_global_timers`)
 
 **Module:** `mc_global_timers.sv`
-**Location:** `rtl/fub/`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_scheduler_plane`
+**Parent macro:** `mc_scheduler_plane`
 **Status:** Implemented (per-rank tFAW/tRRD; global tWTR/tRTW/tCCD; strict-flop outputs)
 
 > **Replaces the retired cross-bank timer block.** The original `xbank_timers`
 > FUB owned a mix of per-bank AND cross-bank counters. That mix has been split:
 >
 > - **Per-bank** timing (tRCD, tRP, tRAS, tRC, tWR/tRTP) moved into
->   [`bank_timer`](09_bank_machine.md), stamped per (rank, bank) by
+>   [`mc_bank_timer`](09_bank_machine.md), stamped per (rank, bank) by
 >   `mc_bank_timers`.
 > - **Cross-bank / channel-wide** turnaround (tFAW, tRRD, tWTR, tRTW, tCCD)
 >   lives here in `mc_global_timers`.
@@ -43,7 +43,7 @@
 > The retired block's cross-rank extras (`tRTRS`, `tCS`, the `last_rd_rank` /
 > `last_cmd_rank` chains, and the wide `blocks_*[NR][NB]` broadcast) are **not**
 > in the live RTL. `mc_global_timers` emits compact per-rank / global `*_window_ok`
-> readiness bits that the arbiter ANDs with `bank_timer`'s `safe_*` outputs.
+> readiness bits that the arbiter ANDs with `mc_bank_timer`'s `safe_*` outputs.
 
 ---
 
@@ -203,7 +203,7 @@ Out of reset, every `*_ok` output is driven to its permissive value (`'1` /
 `1'b1`) so the arbiter is not spuriously blocked before any command has issued.
 
 Because the outputs are flopped, the arbiter sees a one-cycle-registered view of
-the counters — the same single-stage discipline as `bank_timer`'s combinational
+the counters — the same single-stage discipline as `mc_bank_timer`'s combinational
 `safe_*`, one flop deeper. The arbiter accounts for this uniform one-cycle
 readiness latency across both timer FUBs.
 

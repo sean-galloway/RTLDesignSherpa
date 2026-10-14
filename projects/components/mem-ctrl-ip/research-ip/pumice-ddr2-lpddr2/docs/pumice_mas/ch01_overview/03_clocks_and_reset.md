@@ -32,11 +32,13 @@ separate APB CSR clock).
 
 | Clock       | Polarity | Domain members                                                                 |
 |-------------|----------|--------------------------------------------------------------------------------|
-| `aclk`      | Posedge  | `pumice_csr`, `mc_axi4_plane` (AXI slave, burst splitters, both CAMs), `pumice_scheduler_plane` (arbiter, bank/global timers, refresh, init, mode register) |
+| `aclk`      | Posedge  | `pumice_csr`, `mc_axi4_plane` (AXI slave, burst splitters, intakes, return ring), `mc_storage_plane` (both CAMs), `mc_scheduler_plane` (arbiter, bank/global timers, refresh, init, mode register, page policy), `mc_training_plane` (ZQ + DQ-cal clients) |
 | `dfi_clk`   | Posedge  | `mc_dfi_2p1_plane` command path, write serializer, read aligner; the DFI 2.1 pin bus |
 
 `aclk` and `dfi_clk` are independent. The DFI-word datapath unit means one FIFO
 word equals one `dfi_clk` cycle, so the crossing is bubble-free at rate.
+The only other crossing is the calibration sideband inside `mc_training_plane`
+(`mc_training_shell`), which carries no datapath traffic.
 
 ## Reset Topology
 
@@ -88,12 +90,12 @@ On power-on:
    software programs the timing, DFI-phase, page-policy, and address-map fields
    by name (never by hardcoded offset -- see `dv/tbclasses/pumice_regmap.py`).
    The controller idles with `init_done_o = 0`; AXI traffic is held off.
-3. The `init_sequencer` (inside `pumice_scheduler_plane`) drives
+3. The `mc_xddr2_init_sequencer` (inside `mc_scheduler_plane`) drives
    `dfi_init_start_o` and walks the per-memtype JEDEC MRS init sequence,
    emitting init commands into the same arbiter path as normal traffic and
    waiting on the programmed init timings (`t_init_wait`, `t_dll_wait`,
    `t_mrd_wait`, `t_rp_wait`, `t_rfc_wait`) plus `dfi_init_complete_i` from the
-   PHY. The `mode_register` shadow captures the MRS writes and exposes
+   PHY. The `mc_xddr2_mode_register` shadow captures the MRS writes and exposes
    CL/CWL/BL to the DFI plane.
 4. On completion the sequencer asserts `init_done_o`; the controller begins
    honoring host AXI traffic and the refresh controller is enabled.

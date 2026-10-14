@@ -65,11 +65,11 @@ Until 2026-10-09 the pumice MAS described a pumice-local `pumice_axi4_plane` mac
 
 ## Pumice-specific integration notes
 
-**Gearing wrapper.** The AXI4 plane is built for the compile-time maximum DFI word width and does not know `gear_i` or `bl_i` directly. It frames one AXI beat per DFI word and passes `AXI_BEATS_PER_BURST = BURST_WORDS`. Runtime sub-DFI-word burst packing (`N_SUBCMD > 1`) is expanded later in `mc_dfi_2p1_plane` (`pumice_core.sv:766-836`).
+**Gearing wrapper.** The AXI4 plane is built for the compile-time maximum DFI word width and does not know `gear_i` or `bl_i` directly. It frames one AXI beat per DFI word and passes `AXI_BEATS_PER_BURST = BURST_WORDS`. Runtime sub-DFI-word burst packing (`N_SUBCMD > 1`) is expanded later in `mc_dfi_2p1_plane` (`pumice_core.sv:803-873`).
 
 **Observed buses.** The signals observed at this plane are the host AXI4 channels, the `mc_storage_plane` storage-seam nets, and the `rd_dfi_ret_*` stream from the DFI plane. No pumice-local CAM or datapath buses exist here anymore.
 
-**Backpressure thresholds.** Write and read acceptance is gated by `mc_storage_plane` ready signals, not by local FIFOs. Read allocation is additionally gated by the return ring (`ar_push_ready_o = rd_cam_ins_ready_o && rt_alloc_ready_i` inside `mc_storage_plane`; see the common plane documentation). The DFI-side read-return FIFO is sized in `mc_dfi_2p1_plane` as `RD_RET_DEPTH * BURST_WORDS` entries (`pumice_core.sv:784`).
+**Backpressure thresholds.** Write and read acceptance is gated by `mc_storage_plane` ready signals, not by local FIFOs. Read allocation is additionally gated by the return ring (`ar_push_ready_o = rd_cam_ins_ready_o && rt_alloc_ready_i` inside `mc_storage_plane`; see the common plane documentation). The DFI-side read-return FIFO is sized in `mc_dfi_2p1_plane` as `RD_RET_DEPTH * BURST_WORDS` entries (`pumice_core.sv:821`).
 
 ## Common-plane reference
 

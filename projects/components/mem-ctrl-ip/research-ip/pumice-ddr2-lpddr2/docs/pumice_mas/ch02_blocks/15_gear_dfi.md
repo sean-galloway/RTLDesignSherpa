@@ -33,8 +33,9 @@
 > **Replaces the retired `gear_dfi_fub`.** The original chapter described a
 > phase-packing FUB (`gear_dfi_fub` / `dfi_signal_pack`) that spread a single MC
 > command and burst-of-`N` data beats into per-phase DFI slots. That
-> phase-packing role is real but small — it lives inside `dfi_signal_pack` and
-> the DFI-plane sub-FUBs. This chapter now covers the two live, distinct concepts
+> phase-packing role is real but small — it lives inside the DFI-plane sub-FUBs
+> (`mc_xddr2_cmd_formatter` for commands, the serializer and aligner for data;
+> `dfi_signal_pack` was removed on 2026-10-11). This chapter now covers the two live, distinct concepts
 > that carry the word "gearing" in pumice, and it keeps them separate:
 >
 > 1. **The DFI plane** (`mc_dfi_2p1_plane`) — the single controller/PHY
@@ -73,7 +74,7 @@ Two clock domains:
 | Sub-FUB                    | Domain    | Role                                                             |
 |----------------------------|-----------|-----------------------------------------------------------------|
 | `mc_dfi_cdc`           | ctl↔dfi   | The **single** clock crossing — async gaxi FIFOs only (cmd, wrdata, rddata, plus init-start/complete bit crossings) |
-| `mc_dfi_cmd_path`      | dfi_clk   | cmd FIFO → DFI command bus + `wr_fire`/`rd_fire` strobes; instantiates `dfi_cmd_formatter` (§2.14) and `dfi_signal_pack` |
+| `mc_dfi_cmd_path`      | dfi_clk   | cmd FIFO → DFI command bus + `wr_fire`/`rd_fire` strobes; instantiates `mc_xddr2_cmd_formatter` (§2.14), one per packed sub-command, and drives the bus from its registered outputs |
 | `mc_dfi_wr_serializer` | dfi_clk   | wrdata FIFO → `dfi_wrdata` at `t_phy_wrlat`                       |
 | `mc_dfi_rd_aligner`    | dfi_clk   | `dfi_rddata` → rddata FIFO at `t_rddata_en`                      |
 
@@ -136,7 +137,7 @@ stabilized controller datapath.
 
 > **The old coupling is gone.** Do not describe the retired "AXI_DATA_WIDTH ==
 > DRAM_BEAT_WIDTH" constraint. Internal geometry is `DW = DRAM_BEAT_WIDTH *
-> DFI_RATE`; the DW→phase split happens inside the DFI plane / `dfi_signal_pack`,
+> DFI_RATE`; the DW→phase split happens inside the DFI plane (serializer / aligner),
 > and the host AXI width is decoupled from it by this wrapper.
 
 ### GEAR-1 bypass (bit-identical)
@@ -193,7 +194,7 @@ real silicon — the Nexys A7 x16 bring-up hit all three:
    feeding the burst-split and serializer, else an x16 BL4 is over-counted and the
    controller drives/captures an extra DFI cycle.
 2. **Column address stride.** DRAM columns are device-word granular, so
-   `addr_mapper`'s `BYTE_OFFSET_WIDTH` must be `log2(DRAM_DEVICE_WIDTH/8)`, not
+   `mc_addr_mapper`'s `BYTE_OFFSET_WIDTH` must be `log2(DRAM_DEVICE_WIDTH/8)`, not
    `log2(DRAM_BEAT_WIDTH/8)`; using the beat width makes a split burst's chunk
    overwrite the previous chunk's tail (a ~50% read scramble on silicon).
 3. **Read-data / valid alignment.** A PHY may present read data ahead of, or on a
@@ -206,7 +207,7 @@ bit-identical to the wide-device behavior.
 
 ### `DFI_PHASE` CSR (rd_phase / wr_phase)
 
-`dfi_cmd_formatter` places the READ command on `rd_phase` and the WRITE command on
+`mc_xddr2_cmd_formatter` places the READ command on `rd_phase` and the WRITE command on
 `wr_phase` (defaults 0; all other commands on phase 0), runtime-settable via the
 `DFI_PHASE` CSR through `mc_dfi_2p1_plane`'s `rd_phase_i` / `wr_phase_i`. This
 matches a PHY that consumes a per-command rdphase/wrphase off the DFI bus. The
@@ -266,8 +267,8 @@ wires either directly (`g_direct`) or via the two converters (`g_conv`) to
   word today (multi-phase content passes through, but a single command occupies
   a word). Emitting multiple commands per DFI cycle is a scheduler-side feature;
   the bus widths are already in place.
-- **`dfi_dram_clk_disable` / power-down.** `dfi_signal_pack` holds clk-disable at
-  0; wiring the power-state machine through the DFI plane is future work.
+- **`dfi_dram_clk_disable` / power-down.** Nothing drives clk-disable today and
+  there is no power-state machine; adding both is future work.
 - **Higher gear ratios.** `DFI_RATE = 4` (and DDR3+ higher ratios) scale the DFI
   geometry linearly; validate the CDC FIFO depths and serializer/aligner timing
   when the family controller targets them.

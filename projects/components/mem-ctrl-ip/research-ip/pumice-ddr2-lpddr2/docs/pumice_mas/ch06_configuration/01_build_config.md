@@ -60,7 +60,7 @@ DW = DRAM_BEAT_WIDTH * DFI_RATE          // e.g. 64 * 2 = 128 (default)
 
 - **One AXI beat == one DFI word == DFI_RATE DRAM beats.**
 - **One AXI burst (BL / DFI_RATE beats) == one DRAM burst (BL beats).**
-- The DW -> per-phase split happens in `dfi_signal_pack` / the DFI plane (`DFI_DATA_WIDTH = DW`, `DFI_EN_WIDTH = DFI_RATE`).
+- The DW -> per-phase split happens in the DFI plane (`mc_dfi_wr_serializer` / `mc_dfi_rd_aligner`; `DFI_DATA_WIDTH = DW`, `DFI_EN_WIDTH = DFI_RATE`).
 
 The old "AXI_DATA_WIDTH == DRAM_BEAT_WIDTH" coupling is **gone** — do not describe it. The host AXI data width the core presents is exactly `DW`.
 
@@ -96,7 +96,7 @@ endgenerate
 
 ## Filelists
 
-FUB filelists live in `rtl/filelists/`. The live module hierarchy (top -> core -> `mc_axi4_plane` / `mc_storage_plane` / `pumice_scheduler_plane` / `mc_dfi_2p1_plane`) is fixed; the DDR2 vs LPDDR2 command paths coexist in `dfi_cmd_formatter` and branch on `memtype`, so a single build supports both families with dead-code elimination handling the unused branch. `powerdown_ctrl.sv` is optional/not in the default top build (confirm via the filelists); `page_predictor.sv` was retired 2026-08-25.
+FUB filelists live in `rtl/filelists/`. The live module hierarchy (top -> core -> `mc_axi4_plane` / `mc_storage_plane` / `mc_scheduler_plane` / `mc_dfi_2p1_plane`) is fixed; the DDR2 vs LPDDR2 command paths coexist in `mc_xddr2_cmd_formatter` and branch on `memtype`, so a single build supports both families with dead-code elimination handling the unused branch. `powerdown_ctrl.sv` is optional/not in the default top build (confirm via the filelists); `page_predictor.sv` was retired 2026-08-25.
 
 ## Open Questions / Future Work
 

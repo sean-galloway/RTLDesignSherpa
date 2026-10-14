@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# ZQ Calibration Controller (`pumice_zq_ctrl`)
+> **Status (2026-10-11): this block lives in common-ip now.** The RTL is `mc_lpddr2_zq_ctrl`, slot 0 of `mc_training_plane`; the plane that composes it is documented in [common_mas Chapter 5 — mc_training_plane](../../../../../common-ip/docs/common_mas/ch05_training_plane/01_mc_training_plane.md). This chapter keeps pumice's provenance and measured history.
 
-**Module:** `pumice_zq_ctrl.sv`
-**Location:** `rtl/fub/`
+# ZQ Calibration Controller (`mc_lpddr2_zq_ctrl`)
+
+**Module:** `mc_lpddr2_zq_ctrl.sv`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_training_plane`
+**Parent macro:** `mc_training_plane`
 **Status:** implemented and FUB-tested (LPDDR2); inert for DDR2 builds — no ZQ pin
 
 > This FUB never emits a DRAM command. It raises a request, and on grant the
@@ -60,7 +62,7 @@ enforces satisfies both.
 
 ## The Four FSM States
 
-`r_state` is 2 bits. Unlike the FSM-free `refresh_ctrl`, this block has a
+`r_state` is 2 bits. Unlike the FSM-free `mc_xddr2_refresh_ctrl`, this block has a
 genuinely sequential lifecycle — wait, ask, hold, and a deferred-wait state
 for the placement policy:
 
@@ -137,8 +139,8 @@ discipline intact — `w_fire_out == cmd_valid_o && cmd_ready_i` holds by
 construction, and the new gate never touches the pick cone.
 
 MR10 writes are transient commands: they flow through the arbiter
-maintenance path and are never shadowed into the `mode_register` FUB, same
-rule `init_sequencer`'s ZQ step follows today.
+maintenance path and are never shadowed into the `mc_xddr2_mode_register` FUB, same
+rule `mc_xddr2_init_sequencer`'s ZQ step follows today.
 
 ## Verification Notes (cocotb test plan)
 
@@ -165,7 +167,7 @@ overdue expiry selects ZQCL, `zq_row_o` MRW packing (`MR10` + `0x56`/`0xAB`),
 
 ## Open Questions / Future Work
 
-- **Demand wiring.** `demand_i` grounded in `pumice_training_plane`; feed it
+- **Demand wiring.** `demand_i` grounded in `mc_training_plane`; feed it
   from the scheduler's demand indicator to make Mode-C placement live.
 - **Multi-rank.** Single-rank today; the rank loop for a shared ZQ resistor
   is a documented `generate` hook.

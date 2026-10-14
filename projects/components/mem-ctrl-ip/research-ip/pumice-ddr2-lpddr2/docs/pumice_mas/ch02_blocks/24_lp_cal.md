@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# LPDDR2 DQ-Calibration Sequencer (`pumice_lp_cal`)
+> **Status (2026-10-11): this block lives in common-ip now.** The RTL is `mc_lpddr2_dq_cal`, slot 1 of `mc_training_plane`; the plane that composes it is documented in [common_mas Chapter 5 — mc_training_plane](../../../../../common-ip/docs/common_mas/ch05_training_plane/01_mc_training_plane.md). This chapter keeps pumice's provenance and measured history.
 
-**Module:** `pumice_lp_cal.sv`
-**Location:** `rtl/fub/`
+# LPDDR2 DQ-Calibration Sequencer (`mc_lpddr2_dq_cal`)
+
+**Module:** `mc_lpddr2_dq_cal.sv`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_training_plane`
+**Parent macro:** `mc_training_plane`
 **Status:** implemented and FUB-tested (LPDDR2); inert for DDR2 builds — no MRR
 
 > The DQ-vs-tap sweep lives outside the core, on purpose. This FUB is the

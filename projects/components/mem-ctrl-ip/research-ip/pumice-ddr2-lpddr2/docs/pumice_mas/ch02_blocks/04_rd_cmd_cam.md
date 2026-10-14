@@ -26,7 +26,7 @@
 # Read Command CAM (`mc_rd_cmd_cam`)
 
 **Module:** `mc_rd_cmd_cam.sv`
-**Location:** `rtl/fub/`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
 **Parent:** `mc_storage_plane`
 **Status:** Implemented (de-FSM'd streaming drain)

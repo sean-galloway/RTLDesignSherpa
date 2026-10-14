@@ -21,22 +21,24 @@
 
 <!-- End Header -->
 
-# Command Arbiter (`pumice_cmd_arbiter`)
+> **Status (2026-10-13): this block lives in common-ip now.** The RTL is `mc_cmd_arbiter` inside `mc_scheduler_plane`; its microarchitecture is owned by [common_mas Chapter 4 — Scheduler Plane and Pick Machinery](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps pumice's provenance and measured history. Its column-issuability description (CAM lookups by `{bank, open row}`, `N_LU` per-bank lookup ports) records the pumice-era interface; the common arbiter instead reads per-entry schedulable vectors from `mc_storage_plane` (`*_sch_valid/bank/row/col/older/age_exceed/qos/head_rel`), and the interface table below has been updated to those ports.
 
-**Module:** `pumice_cmd_arbiter.sv`
-**Location:** `rtl/fub/`
+# Command Arbiter (`mc_cmd_arbiter`)
+
+**Module:** `mc_cmd_arbiter.sv`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB (the pick core)
-**Parent:** `pumice_scheduler_plane`
+**Parent:** `mc_scheduler_plane`
 **Status:** Implemented (single-issue, single-rank v1)
 
 > **Rearchitected:** the SWAG `scheduler.sv` was a multi-mask priority-encoder
 > pipeline (Stages 1–4) over a wide `txn_queue` snapshot with a column-op FSM
 > (S_NEED_PRE → S_NEED_ACT → S_NEED_RDWR → S_DONE) and a round-robin W/R toggle.
-> That block is retired. The live pick core is `pumice_cmd_arbiter` — a
-> **combinational, single-issue, FSM-free** priority picker that reads the CAM
-> lookup/oldest ports and the per-bank / global readiness inputs and emits ONE
+> That block is retired. The live pick core is `mc_cmd_arbiter` — a
+> **combinational, single-issue, FSM-free** priority picker that reads the CAMs'
+> per-entry schedulable vectors and the per-bank / global readiness inputs and emits ONE
 > abstract DRAM command per cycle. It is instantiated inside
-> `pumice_scheduler_plane` alongside the timers, refresh, init, and
+> `mc_scheduler_plane` alongside the timers, refresh, init, and
 > mode-register (see [ch02/19](19_global_timers.md), [ch02/09](09_bank_machine.md),
 > [ch02/11](11_refresh_mgr.md), [ch02/12](12_init_engine.md)).
 
@@ -44,17 +46,18 @@
 
 ## Purpose
 
-`pumice_cmd_arbiter` picks one abstract DRAM command each cycle and pushes it into
+`mc_cmd_arbiter` picks one abstract DRAM command each cycle and pushes it into
 the scheduler → DFI command interface. It is PHY/nphases-agnostic and
 single-issue; JEDEC timing is enforced by the per-bank (`mc_bank_timers`) and
 global (`mc_global_timers`) readiness inputs it consumes. Open-page vs auto-precharge
-is decided **inline** from `page_policy_i` — there is no standalone page
-runtime page-policy engine (see [ch02/08](08_page_policy.md)).
+is decided **inline** from `page_policy_i` or, when enabled, from the per-bank
+controls of the runtime page-policy engine `mc_page_policy` — there is no
+standalone page predictor (see [ch02/08](08_page_policy.md)).
 
-The wider `pumice_scheduler_plane` wrapper wires the arbiter to those timers,
-the refresh controller, the init sequencer + mode-register shadow, and an output
-command FIFO; the CAM sched-lookup / oldest / commit / issue ports pass through to
-`mc_axi4_plane`.
+The enclosing `mc_scheduler_plane` macro wires the arbiter to those timers,
+the refresh controller, the init sequencer + mode-register shadow, the page-policy
+engine, and an output command FIFO; the CAM schedulable-entry / commit / issue
+ports pass through to `mc_storage_plane`.
 
 ## Priority (each cycle)
 
@@ -62,7 +65,7 @@ The pick is a single combinational `if/else` cascade producing an abstract
 command plus its side-effects (event strobes, CAM commit/issue, refresh grant),
 all gated on the command sink accepting the push:
 
-1. **INIT** (`!init_done_i`) — forward the `init_sequencer` command verbatim
+1. **INIT** (`!init_done_i`) — forward the `mc_xddr2_init_sequencer` command verbatim
    (`init_cmd_op/bank/row`).
 2. **REFRESH** (`refresh_req_i || refresh_drain_i`) — if any bank is active,
    precharge the lowest active, precharge-ready, un-guarded bank (one/cycle); once
@@ -138,7 +141,7 @@ all gated on the command sink accepting the push:
    `trfc_pb` instead of tRFCab, and the rank-wide ACT block during that
    (shorter) window also provides the JEDEC spacing between consecutive
    REFpb commands. The sequencing is audited by
-   `rtl/fub/pumice_cmd_history_checker.sv` (generate-gated by `CMD_HISTORY_EN`
+   `common-ip/rtl/fub/mc_cmd_history_checker.sv` (generate-gated by `CMD_HISTORY_EN`
    inside the scheduler macro, `$fatal` on violation).
 3. **COLUMN row-hit** — an issuable RD/WR to an open row.
    **READ-PRIORITY**: a ready read wins over a ready write. Within each
@@ -207,7 +210,7 @@ used to be nine ad-hoc masks.
 
 ### Why any guard exists at all
 
-`bank_timer` is meant to BE the authority — its `safe_*` outputs are a
+`mc_bank_timer` is meant to BE the authority — its `safe_*` outputs are a
 combinational AND of the counters, a single register stage, no FSM lag. But the
 arbiter drives the `set_*` strobes at **FIRE** (`evt_act_o = w_fire_out &&
 r_do_act`) while it **SELECTS** three to four registered stages earlier. So up
@@ -325,8 +328,9 @@ of the write FIFO. There is no command queue downstream of the timing decision.
 | refresh                   | in/out    | `refresh_req_i`, `refresh_drain_i`, `refresh_grant_o`       |
 | per-bank readiness        | in        | `bank_{act,rdwr,pre}_ready_i`, `bank_row_active_i`, `bank_open_row_i` (`[NUM_RANKS][NUM_BANKS]`) |
 | global readiness          | in        | `tfaw_ok_i`, `trrd_ok_i` (per-rank), `twtr_ok_i`, `trtw_ok_i`, `tccd_ok_i` |
-| wr CAM lookup + oldest + commit | in/out | `wr_lu_*` (drive + read), `wr_oldest_*`, `wr_commit_{valid,slot}_o` |
-| rd CAM lookup + oldest + issue  | in/out | `rd_lu_*`, `rd_oldest_*`, `rd_issue_{valid,slot}_o`         |
+| wr CAM entries + commit   | in/out    | `wr_sch_{valid,bank,row,col,older,age_exceed,qos,head_rel}_i`, `wr_commit_ready_i`, `wr_commit_{valid,slot}_o` |
+| rd CAM entries + issue    | in/out    | `rd_sch_{valid,bank,row,col,older,age_exceed,qos,head_rel}_i`, `rd_issue_ready_i`, `rd_issue_{valid,slot}_o` |
+| maintenance slot          | in/out    | `maint_{req,op,bank,row,col,extra,busy}_i`, `maint_grant_o` (training plane) |
 | event strobes             | out       | `evt_{act,rd,wr,pre,ap}_o`, `evt_{rank,bank,row}_o` (to timers) |
 | command push              | out/in    | `cmd_{valid,op,rank,bank,row,col,ap}_o`, `cmd_ready_i`      |
 
@@ -347,22 +351,23 @@ rank 0 (`RK0`) — v1 is a single-rank pick.
 - **Single-rank** pick (`RK0 = 0`); multi-rank arbitration is a TODO.
 - **HAPPY_HYBRID == OPEN**; the per-bank page predictor is not in the build.
 - Write-drain watermark and powerdown are TODO.
-- Unused CAM buses (`wr_lu_id_i`, `rd_lu_id_i`, `*_oldest_slot_i`) are absorbed by
-  an explicit `unused` sink.
+- The pumice-era unused CAM buses (`wr_lu_id_i`, `rd_lu_id_i`,
+  `*_oldest_slot_i`) no longer exist; the common arbiter takes per-entry vectors.
 
-## `pumice_scheduler_plane` wrapper
+## Enclosing macro: `mc_scheduler_plane`
 
-The macro instantiates, on a single `aclk`:
+In the pumice configuration (`HAS_*` defaults) the macro instantiates, on a single `aclk`:
 
 | Instance          | Module               | Role                                              |
 |-------------------|----------------------|---------------------------------------------------|
-| `u_init`          | `init_sequencer`     | JEDEC MRS init; gates traffic until `init_done`   |
-| `u_mode_reg`      | `mode_register`      | MRS-updated CL/CWL/BL shadow → `cl_o/cwl_o/bl_o`  |
-| `u_refresh`       | `refresh_ctrl`       | tREFI + postpone; enabled after init              |
+| `u_init`          | `mc_xddr2_init_sequencer`     | JEDEC MRS init; gates traffic until `init_done`   |
+| `u_mode_reg`      | `mc_xddr2_mode_register`      | MRS-updated CL/CWL/BL shadow → `cl_o/cwl_o/bl_o`  |
+| `u_refresh`       | `mc_xddr2_refresh_ctrl`       | tREFI + postpone; enabled after init              |
+| `u_page_policy`   | `mc_page_policy`     | runtime auto-precharge / timeout-precharge engine |
 | `u_bank_timers`   | `mc_bank_timers` | per-(rank,bank) safe timers + open-row            |
 | `u_global_timers` | `mc_global_timers`      | tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global)     |
-| `u_arbiter`       | `pumice_cmd_arbiter` | the pick core (above)                             |
-| `u_cmd_fifo`      | `gaxi_fifo_sync`     | output command FIFO, packs `{op,rank,bank,row,col,ap}` (`CMD_W = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1`, depth `CMD_FIFO_DEPTH=8`) |
+| `u_arbiter`       | `mc_cmd_arbiter` | the pick core (above)                             |
+| `u_cmd_fifo`      | `gaxi_fifo_sync`     | output command FIFO, packs `{ap, col, row, bg, bank, rank, extra, op}` (`w_cmd_wr_data`; `extra` carries the MRR flag), depth `CMD_FIFO_DEPTH` (default 16) |
 
 The arbiter pushes into `u_cmd_fifo`; the FIFO read side is the macro's
 `cmd_*_o` command stream to the DFI plane. `busy_o` is

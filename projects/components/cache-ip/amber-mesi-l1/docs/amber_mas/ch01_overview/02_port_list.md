@@ -23,11 +23,11 @@
 
 # Top-Level Port List
 
-This chapter lists the top-level ports of `amber` and `amber_ace`. Internal `amber_core` ports are defined in the per-block chapters of Chapter 2.
+This chapter lists the top-level ports of `amber_top` and `amber_ace_top`. Internal `l1_core` ports are defined in the per-block chapters of Chapter 2.
 
 ---
 
-## `amber` — Pair-Rig Top
+## `amber_top` — Pair-Rig Top
 
 ### Clock and Reset
 
@@ -49,7 +49,7 @@ This chapter lists the top-level ports of `amber` and `amber_ace`. Internal `amb
 
 ### AXI4 Memory Masters
 
-Plain AXI4 masters driven by `amber_fill` and `amber_drain`. Signal names and widths follow the house `axi4_master_rd` / `axi4_master_wr` wrappers.
+Plain AXI4 masters driven by `l1_fill` and `l1_drain` through the house `axi4_master_rd_monlite` / `axi4_master_wr_monlite` wrappers, whose signal names and widths they follow.
 
 | Channel | Direction | Signals |
 |---------|-----------|---------|
@@ -87,9 +87,9 @@ Plain AXI4 masters driven by `amber_fill` and `amber_drain`. Signal names and wi
 
 ---
 
-## `amber_ace` — Onyx-Rig Top
+## `amber_ace_top` — Onyx-Rig Top
 
-`amber_ace` has the same CPU GAXI slave, snoop responder, and MonBus ports as `amber`. The memory-side masters are full ACE masters with `ARSNOOP` / `AWSNOOP`, `ARDOMAIN` / `AWDOMAIN` and `ARBAR` / `AWBAR` fields, the 4-bit ACE `RRESP` (IHI 0022H §D2.1), and auto-pulsed `RACK` / `WACK` outputs (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5). `amber_ace_issue` maps cache-side events to ACE transactions; see Chapter 2.8.
+`amber_ace_top` has the same CPU GAXI slave, snoop responder, and MonBus ports as `amber_top`. The memory-side masters are full ACE masters with `ARSNOOP` / `AWSNOOP`, `ARDOMAIN` / `AWDOMAIN` and `ARBAR` / `AWBAR` fields, the 4-bit ACE `RRESP` (IHI 0022H §D2.1), and auto-pulsed `RACK` / `WACK` outputs (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5). `amber_ace_issue` maps cache-side events to ACE transactions; see Chapter 2.8.
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
@@ -103,7 +103,7 @@ Plain AXI4 masters driven by `amber_fill` and `amber_drain`. Signal names and wi
 | `m_axi_awbar` | output | 2 | Barrier type; tied to `0b00`, normal access |
 | `m_axi_wack` | output | 1 | ACE write acknowledge (auto-pulsed) |
 
-All other AXI/ACE master signals mirror `amber` but connect to `axi4ace_master_rd` / `axi4ace_master_wr` instead of the plain AXI4 wrappers.
+All other AXI/ACE master signals mirror `amber_top` but connect to `axi4ace_master_rd_monlite` / `axi4ace_master_wr_monlite` instead of the plain AXI4 wrappers.
 
 ---
 

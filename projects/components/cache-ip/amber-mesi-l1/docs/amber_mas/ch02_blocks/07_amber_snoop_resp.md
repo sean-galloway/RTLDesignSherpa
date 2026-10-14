@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# amber_snoop_resp: Snoop Responder Adapter
+# l1_snoop_resp: Snoop Responder Adapter
 
-**Module:** `amber_snoop_resp.sv`
+**Module:** `l1_snoop_resp.sv`
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed 2026-10-06; this chapter is the contract the RTL
 implements. Wraps the house `axi4ace_snoop_slave` transport (which exists in
@@ -36,7 +36,7 @@ compliance checks, not a token rerun.
 
 ## Overview
 
-`amber_snoop_resp` is the ACE-shaped snoop responder. It wraps the house `axi4ace_snoop_slave` module and adds the small state machine that sequences CR and CD for each snoop transaction. Inside `amber_core` the snoop is bus-agnostic; only `amber_snoop_resp` speaks ACE.
+`l1_snoop_resp` is the ACE-shaped snoop responder. It wraps the house `axi4ace_snoop_slave` module and adds the small state machine that sequences CR and CD for each snoop transaction. Inside `l1_core` the snoop is bus-agnostic; only `l1_snoop_resp` speaks ACE.
 
 ---
 
@@ -65,15 +65,15 @@ The core-facing side is a bus-agnostic handshake:
 
 | Signal | Direction | Meaning |
 |--------|-----------|---------|
-| `ctrl_snoop_req` | output to `amber_control` | Valid snoop address + type. |
+| `ctrl_snoop_req` | output to `l1_control` | Valid snoop address + type. |
 | `ctrl_snoop_addr` | output | Snoop line address. |
 | `ctrl_snoop_type` | output | Encoded snoop type. |
-| `ctrl_snoop_ready` | input from `amber_control` | Control accepts snoop. |
-| `ctrl_crresp` | input from `amber_control` | 5-bit response. |
-| `ctrl_cddata` | input from `amber_control` | CD beat data. |
-| `ctrl_cdlast` | input from `amber_control` | CD last beat. |
-| `ctrl_cdvalid` | input from `amber_control` | CD beat valid. |
-| `ctrl_cdready` | output to `amber_control` | Adapter ready for CD beat. |
+| `ctrl_snoop_ready` | input from `l1_control` | Control accepts snoop. |
+| `ctrl_crresp` | input from `l1_control` | 5-bit response. |
+| `ctrl_cddata` | input from `l1_control` | CD beat data. |
+| `ctrl_cdlast` | input from `l1_control` | CD last beat. |
+| `ctrl_cdvalid` | input from `l1_control` | CD beat valid. |
+| `ctrl_cdready` | output to `l1_control` | Adapter ready for CD beat. |
 
 ---
 
@@ -82,15 +82,15 @@ The core-facing side is a bus-agnostic handshake:
 | State | Meaning |
 |-------|---------|
 | `SR_IDLE` | Waiting for AC handshake. |
-| `SR_LOOKUP` | Snoop accepted; waiting for `amber_control` CRRESP. |
+| `SR_LOOKUP` | Snoop accepted; waiting for `l1_control` CRRESP. |
 | `SR_DATA` | Driving CD beats. |
 | `SR_RESP` | Driving CR after CDLAST. |
 
 ### State transitions
 
 1. `SR_IDLE` → `SR_LOOKUP`: AC handshake completes (`m_axi_acvalid && m_axi_acready`).
-2. `SR_LOOKUP` → `SR_DATA`: `amber_control` returns `ctrl_crresp` and `CRRESP.DataTransfer` is 1.
-3. `SR_LOOKUP` → `SR_RESP`: `amber_control` returns `ctrl_crresp` and `CRRESP.DataTransfer` is 0.
+2. `SR_LOOKUP` → `SR_DATA`: `l1_control` returns `ctrl_crresp` and `CRRESP.DataTransfer` is 1.
+3. `SR_LOOKUP` → `SR_RESP`: `l1_control` returns `ctrl_crresp` and `CRRESP.DataTransfer` is 0.
 4. `SR_DATA` → `SR_RESP`: Last CD beat accepted (`m_axi_cdvalid && m_axi_cdready && m_axi_cdlast`).
 5. `SR_RESP` → `SR_IDLE`: CR handshake completes (`m_axi_crvalid && m_axi_crready`).
 

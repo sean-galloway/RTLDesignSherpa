@@ -5,20 +5,20 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pumice_core
-// Purpose: The rearchitected pumice DDR2/LPDDR2 controller core. Wires the
-//          three planes built bottom-up this cycle:
-//            1. mc_axi4_plane          (host AXI + wr/rd CAMs)
-//            2. pumice_scheduler_plane (bank timers + arbiter + refresh/init)
-//            3. mc_dfi_2p1_plane       (common single async CDC + DFI datapath)
+// Purpose: The rearchitected pumice DDR2/LPDDR2 controller core. Wires five
+//          common-ip planes directly (no pumice-local plane or wrapper):
+//            mc_axi4_plane (host AXI) + mc_storage_plane (wr/rd CAMs),
+//            mc_scheduler_plane (arbiter + timers + refresh/init/MR/page),
+//            mc_training_plane (LPDDR2 ZQ + DQ cal), mc_dfi_2p1_plane (DFI)
 //
 //          Host AXI + scheduler + CAMs run on aclk; the DFI phase-packer + PHY
-//          run on dfi_clk; the ONE clock crossing lives in mc_dfi_2p1_plane's
+//          run on dfi_clk; the datapath crossing lives in mc_dfi_2p1_plane's
 //          CDC (async gaxi FIFOs only). Internal data unit = the DFI word
 //          (DFI_DATA_WIDTH); the host AXI data width is the DFI word too (an
 //          external 64<->128 dwidth shim is a separate edge concern).
 //
-//          Config (timings / phases / policy) is delivered on ports here; a
-//          by-name CSR register block is a clean-rebuild follow-up.
+//          Config (timings / phases / policy) is delivered on ports here and
+//          driven by name from the pumice_csr register block in pumice_top.
 //
 // Documentation: docs/uarch/PUMICE_DFI_PLANE_UARCH.md (+ the IFC / scheduler specs)
 `timescale 1ns / 1ps

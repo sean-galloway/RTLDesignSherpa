@@ -21,15 +21,16 @@
 
 <!-- End Header -->
 
-# `pumice_training_plane` (LPDDR2 calibration / training macro)
+# Training plane macro — `mc_training_plane` instantiation
 
-**Module:** `pumice_training_plane.sv`
-**Location:** `rtl/macro/`
-**Category:** Plane-4 macro (maintenance traffic for LPDDR2)
-**FUBs bundled:** `pumice_zq_ctrl` + `pumice_lp_cal`, wired into the common `mc_training_plane` shell (the shell provides the one-active `trn_cmd` mux and the mc_clk/dfi_clk CDC)
-**Status:** implemented and FUB-tested (ZQ ctrl, lp_cal); sim-verified against `pumice_scheduler_plane` training priority/gate
+**Module:** `mc_training_plane` (common IP)  
+**Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_training_plane.sv`  
+**Category:** Plane-4 macro in `pumice_core` (maintenance traffic for LPDDR2)  
+**Instance:** `u_train_plane` (`rtl/top/pumice_core.sv:756-798`)  
+**Child FUBs (pumice build):** `mc_lpddr2_zq_ctrl` (`u_zq`, slot 0) + `mc_lpddr2_dq_cal` (`u_lp_cal`, slot 1), around `mc_training_shell` (`u_shell`: one-active `trn_cmd` mux and the mc_clk/dfi_clk CDC)  
+**Status:** implemented and FUB-tested (ZQ control, DQ calibration)
 
-> The common training shell is documented in [common_mas chapter 5: `mc_training_plane`](../../../../../common-ip/docs/common_mas/ch05_training_plane/01_mc_training_plane.md).
+> The plane is documented in [common_mas chapter 5: `mc_training_plane`](../../../../../common-ip/docs/common_mas/ch05_training_plane/01_mc_training_plane.md). Until 2026-10-11 pumice reached the shell through its own `pumice_training_plane` wrapper around pumice-local `pumice_zq_ctrl` / `pumice_lp_cal`; those FUBs moved into common-ip as `mc_lpddr2_zq_ctrl` / `mc_lpddr2_dq_cal`, the plane now composes them itself, and the wrapper was removed. `pumice_core` builds the plane with `NUM_SLOTS = 2`, `EXTRA_WIDTH = 1`, `CAL_DATA_WIDTH = DFI_DATA_WIDTH`, `HAS_LP_ZQ = 1`, `HAS_LP_DQ_CAL = 1`.
 
 ## Purpose
 
@@ -40,11 +41,12 @@ which firmware sweeps the PHY read-delay taps). Both are maintenance-class:
 they need the bus to themselves, they can wait, and they must never invent
 their own command encodings. This plane is where they live.
 
-`pumice_training_plane` holds the two FUBs, muxes both onto the single
-`trn_cmd` maintenance channel into the scheduler plane's arbiter, and owns
-all of the mc_clk/dfi_clk clock crossing for the read-aligner calibration
-sideband. Run gating (`init_done && memtype == MEMTYPE_LPDDR2`) lives inside
-the two FUBs, not here — the plane is a passive wiring and arbitration shell.
+`mc_training_plane` holds the two FUBs, muxes both onto the single
+`trn_cmd` maintenance channel into the scheduler plane's arbiter, and (in
+`mc_training_shell`) owns all of the mc_clk/dfi_clk clock crossing for the
+read-aligner calibration sideband. Run gating (`init_done && memtype ==
+MEMTYPE_LPDDR2`) lives inside the two FUBs, not in the plane — the plane is
+wiring and arbitration.
 For DDR2 builds both FUBs are inert: no ZQ pin, no MRR.
 
 The DQ-vs-tap sweep itself deliberately stays outside the core (the scoria/
@@ -56,36 +58,36 @@ the taps and compares each lane against patterns A/B.
 
 | FUB             | Role |
 |-----------------|------|
-| `pumice_zq_ctrl` | Periodic ZQ calibration. Counts down `zq_interval`, requests the arbiter on expiry, holds the post-grant bus-quiet window (`t_zqcs`/`t_zqcl`) that comes back as `cal_busy`. Mode-C deferral holds the request under sustained demand and escalates an overdue deferral to ZQCL. |
-| `pumice_lp_cal`  | One-shot DQ-calibration sequencer. On `cal_start`: MRR to MR32, capture the first return beat, wait `t_mrr`, MRR to MR40, capture, done. Sticky `cal_done`/`cal_err`; abort via `cal_abort`. |
+| `mc_lpddr2_zq_ctrl` | Periodic ZQ calibration. Counts down `zq_interval`, requests the arbiter on expiry, holds the post-grant bus-quiet window (`t_zqcs`/`t_zqcl`) that comes back as `cal_busy`. Mode-C deferral holds the request under sustained demand and escalates an overdue deferral to ZQCL. |
+| `mc_lpddr2_dq_cal`  | One-shot DQ-calibration sequencer. On `cal_start`: MRR to MR32, capture the first return beat, wait `t_mrr`, MRR to MR40, capture, done. Sticky `cal_done`/`cal_err`; abort via `cal_abort`. |
 
 ## The One-Active Mux
 
 Both FUBs want the same `trn_cmd` channel, so the plane arbitrates: ZQ wins,
-because it is periodic maintenance with a real expiry behind it, while
-`lp_cal` is a firmware-initiated one-shot that can wait a few hundred cycles
-without anything drifting. Selection is a single `w_zq_select = w_zq_req`
-term; the channel payload is just the selected FUB's payload, with one
-wrinkle — the command kind:
+because it is periodic maintenance with a real expiry behind it, while DQ
+calibration is a firmware-initiated one-shot that can wait a few hundred cycles
+without anything drifting. ZQ sits on shell slot 0 and DQ calibration on slot
+1, and `mc_training_shell` selects the lowest-numbered requesting slot; the
+channel payload is just the selected FUB's payload, with one wrinkle — the
+command kind, carried as the slot's extra bit:
 
-| `trn_cmd_*` output | ZQ selected           | lp_cal selected        |
+| `trn_cmd_*` output | ZQ selected (slot 0)  | DQ cal selected (slot 1) |
 |--------------------|-----------------------|------------------------|
 | `trn_cmd_op_o`     | `w_zq_op` (always `OP_MRS`) | `OP_MRS`         |
 | `trn_cmd_row_o`    | `{4'd0, MR10, OP}` (`0x56` ZQCS / `0xAB` ZQCL) | `{4'd0, MA, 8'd0}` (MR32=32 / MR40=40, OP=0) |
 | `trn_cmd_mrr_o`    | `0` (MRW)             | `1` (MRR)              |
 | `trn_cmd_bank_o`   | `0`                   | `0`                    |
 
-Grant is broadcast back to the selected FUB only: `w_zq_grant =
-trn_cmd_grant_i && w_zq_select`, `w_lp_grant = trn_cmd_grant_i &&
-!w_zq_select`. The arbiter passes the granted op verbatim onto the command
+Grant is returned to the selected slot only: `slot_grant_o[g] =
+slot_req_i[g] && trn_cmd_grant_i && (w_sel == g)`. The arbiter passes the granted op verbatim onto the command
 output — neither the mux nor the arbiter re-encodes maintenance commands.
 
 ## External Boundaries
 
-- **Maintenance channel out (to `pumice_scheduler_plane`):** `trn_cmd_req_o`,
+- **Maintenance channel out (to `mc_scheduler_plane`'s `maint_*` slot):** `trn_cmd_req_o`,
   `trn_cmd_op_o`, `trn_cmd_bank_o[2:0]`, `trn_cmd_row_o[17:0]`,
-  `trn_cmd_mrr_o`; `trn_cmd_grant_i` back. Wired in `pumice_core.sv` exactly
-  as andesite's core wires its training plane. The arbiter grants only when
+  `trn_cmd_mrr_o`; `trn_cmd_grant_i` back. Wired in `pumice_core.sv`
+  (`maint_col_i` tied `'0`, `cal_busy_o` onto `maint_busy_i`). The arbiter grants only when
   all banks are idle, nothing row-affecting is in flight or inside its guard
   window, and no REF recovery is running — see
   [ch02/07](../ch02_blocks/07_scheduler.md) and
@@ -99,18 +101,18 @@ output — neither the mux nor the arbiter re-encodes maintenance commands.
 - **DFI-plane calibration sideband (dfi_clk domain):** `cal_expect_o` down
   to the read aligner, `cal_data_i`/`cal_valid_i` back with the captured
   beat. See [ch02/18](../ch02_blocks/18_rd_data_path.md).
-- **Telemetry out (CAL_STATUS and MRR data registers):** `cal_busy_o` (ZQ hold or lp_cal
+- **Telemetry out (CAL_STATUS and MRR data registers):** `cal_busy_o` (ZQ hold or DQ cal
   running), `cal_done_o`/`cal_err_o` (sticky), `mrr32_data_o`/
   `mrr40_data_o` (full DFI read width each), `zq_busy_o`, `zq_overdue_o`,
   `zqcs_total_o[15:0]`.
 
 ## CDC Discipline
 
-All mc_clk/dfi_clk crossing for the calibration sideband lives here, using
-the repo's standard cells:
+All mc_clk/dfi_clk crossing for the calibration sideband lives in
+`mc_training_shell`, using the repo's standard cells:
 
 - `cal_expect_o` crosses down through `sync_pulse` (3 stages) — a single
-  mc_clk assertion from `pumice_lp_cal` becomes exactly one dfi_clk pulse,
+  mc_clk assertion from `mc_lpddr2_dq_cal` becomes exactly one dfi_clk pulse,
   which arms the aligner sideband.
 - Captured data crosses up through `cdc_synchronizer` (`WIDTH =
   DFI_DATA_WIDTH`, 3 flops). This is safe because the aligner holds the
@@ -121,25 +123,31 @@ the repo's standard cells:
 
 ## Parameters
 
-| Parameter        | Default | Meaning                              |
-|------------------|---------|--------------------------------------|
-| `DFI_DATA_WIDTH` | 128     | Full DFI read-data width; sizes `cal_data_i`, `mrr32_data_o`, `mrr40_data_o`, and the up-synchronizer. |
+| Parameter        | Pumice value | Meaning                              |
+|------------------|--------------|--------------------------------------|
+| `NUM_SLOTS`      | 2            | Shell slots: ZQ (0) and DQ cal (1). |
+| `BKW` / `ROW_WIDTH` | core `BKW` / `ROW_WIDTH` | Maintenance bank/row field widths. |
+| `EXTRA_WIDTH`    | 1            | Per-slot extra bit = MRR flag. |
+| `CAL_DATA_WIDTH` | `DFI_DATA_WIDTH` (128 default) | Full DFI read-data width; sizes `cal_data_i`, `mrr32_data_o`, `mrr40_data_o`, and the up-synchronizer. |
+| `HAS_LP_ZQ` / `HAS_LP_DQ_CAL` | 1 / 1 | Build both LPDDR2 clients. |
 
 ## Tests
 
 - `dv/tests/macro/test_pumice_scheduler_plane.py::cocotb_test_training_priority_and_gate`
   — training channel sits between refresh and demand, grants only when the
   bus is safe, demand blocked during the hold window, fire==valid invariant.
-- FUB suites: `dv/tests/fub/test_pumice_zq_ctrl.py`,
-  `dv/tests/fub/test_pumice_lp_cal.py` (see the per-FUB chapters that
-  follow).
+  This test still targets the removed `pumice_scheduler_plane` wrapper and
+  must be repointed at `mc_scheduler_plane` before it runs again.
+- FUB suites: `dv/tests/fub/test_pumice_zq_ctrl.py` (DUT `mc_lpddr2_zq_ctrl`),
+  `dv/tests/fub/test_pumice_lp_cal.py` (DUT `mc_lpddr2_dq_cal`) — see the
+  per-FUB chapters that follow.
 
 ## Open Questions / Future Work
 
 - **Multi-rank ZQ overlap.** Pumice board targets are single-rank, so a
-  shared-ZQ-resistor overlap policy is untested; the rank loop is left as a
-  documented `generate` hook in `pumice_zq_ctrl`.
+  shared-ZQ-resistor overlap policy is untested; `mc_lpddr2_zq_ctrl` has no
+  per-rank loop yet.
 - **Temperature-driven refresh.** The MRR engine makes MR4 reads possible,
   but tREFI derating on temperature class is not built.
-- **Self-refresh-exit ZQCL.** The power-down path is dormant in pumice, so
+- **Self-refresh-exit ZQCL.** Pumice has no power-down path (`powerdown_ctrl` was removed), so
   no ZQCL-on-self-refresh-exit trigger exists.

@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# Init Sequencer (`init_sequencer`)
+> **Status (2026-10-11): this block lives in common-ip now.** The RTL is `mc_xddr2_init_sequencer`, a default child of `mc_scheduler_plane`; the plane that composes it is documented in [common_mas Chapter 4 — Scheduler Plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps pumice's provenance and measured history.
 
-**Module:** `init_sequencer.sv`
-**Location:** `rtl/fub/`
+# Init Sequencer (`mc_xddr2_init_sequencer`)
+
+**Module:** `mc_xddr2_init_sequencer.sv`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_scheduler_plane`
+**Parent macro:** `mc_scheduler_plane`
 **Status:** Implemented — DDR2 and LPDDR2 sequences both complete (DDR2 validated on the Nexys A7 board; LPDDR2 passes the full sim suite for family reuse)
 
 > **Renamed / re-scoped:** an early sketch called this an `init_engine_fub`
@@ -35,7 +37,7 @@
 > path, IRQ outputs, and a CSR MR-override path). **None of that ROM
 > machinery was built.** The implemented module is a small hard-coded FSM
 > that issues a fixed JEDEC bring-up sequence. It drives MR-write strobes into
-> [`mode_register`](20_mode_register.md) (which owns the MR shadow + live
+> [`mc_xddr2_mode_register`](20_mode_register.md) (which owns the MR shadow + live
 > CL/CWL/BL decode), and it issues the real DRAM commands (PRECHARGE, REFRESH,
 > MRS/MRW) through the command path while `init_busy_o` is high.
 
@@ -43,7 +45,7 @@
 
 ## Purpose
 
-`init_sequencer` walks the JEDEC cold-boot DRAM initialization sequence — the
+`mc_xddr2_init_sequencer` walks the JEDEC cold-boot DRAM initialization sequence — the
 deterministic recipe of DFI init handshake, PRECHARGE-ALL, mode-register
 loads, and REFRESH settling that must complete before any normal traffic can
 issue. It is memtype-specific: `memtype_i` selects between the DDR2 sequence
@@ -55,15 +57,15 @@ Two things happen for each mode-register step:
 1. A real DRAM command is issued. The sequencer drives a single-cycle command
    request (`init_cmd_valid_o` / `init_cmd_op_o` / `init_cmd_bank_o` /
    `init_cmd_row_o`) that the parent scheduler forwards to
-   [`dfi_cmd_formatter`](14_cmd_encoder.md). Because the scheduler stays
+   [`mc_xddr2_cmd_formatter`](14_cmd_encoder.md). Because the scheduler stays
    idle during init (it owns nothing else while `init_busy_o` is high) and the
    formatter is always `cmd_ready`, a single-cycle pulse issues exactly one
    command — no grant handshake is needed.
-2. The `mode_register` shadow is updated in lockstep (`mr_seq_we_o`) so the
+2. The `mc_xddr2_mode_register` shadow is updated in lockstep (`mr_seq_we_o`) so the
    controller's live CL/CWL/BL decode tracks what was actually programmed.
 
 The init sequencer sits above the scheduler in the command-priority hierarchy.
-`init_done_o` also drives [`refresh_ctrl`](11_refresh_mgr.md)`.enable_i` —
+`init_done_o` also drives [`mc_xddr2_refresh_ctrl`](11_refresh_mgr.md)`.enable_i` —
 periodic refresh does not start until init reports done.
 
 > **History (why the sequence is "full").** An earlier version was a
@@ -124,11 +126,11 @@ so these were promoted from hardcoded constants to `INIT_TIMING`-programmable.
 | `dfi_init_start_o`    | output    | Asserted (registered) once `r_state != S_RESET`. Tells the PHY to begin its own init. |
 | `dfi_init_complete_i` | input     | PHY reports its DLL-lock / IO training complete. Gates the exit from `S_DFI_INIT`. |
 
-### MR-shadow write port (muxed with CSR by `pumice_scheduler_plane`)
+### MR-shadow write port (muxed with CSR by `mc_scheduler_plane`)
 
 | Signal           | Direction | Width | Description                          |
 |------------------|-----------|-------|--------------------------------------|
-| `mr_seq_we_o`    | output    | 1     | Write-enable strobe into `mode_register`. |
+| `mr_seq_we_o`    | output    | 1     | Write-enable strobe into `mc_xddr2_mode_register`. |
 | `mr_seq_index_o` | output    | 5     | MR index (0..3) being shadowed.      |
 | `mr_seq_data_o`  | output    | 16    | MR data being shadowed.              |
 
@@ -153,7 +155,7 @@ so these were promoted from hardcoded constants to `INIT_TIMING`-programmable.
 | Signal        | Direction | Description                                                        |
 |---------------|-----------|--------------------------------------------------------------------|
 | `init_busy_o` | output    | Registered; high whenever `r_state != S_DONE`. Reset value is 1.   |
-| `init_done_o` | output    | Registered; high when `r_state == S_DONE`. Drives `refresh_ctrl.enable_i`. |
+| `init_done_o` | output    | Registered; high when `r_state == S_DONE`. Drives `mc_xddr2_refresh_ctrl.enable_i`. |
 
 ---
 
@@ -262,7 +264,7 @@ LPDDR2 mode-register writes must reach indices up to MR63, which a 3-bit bank
 port cannot express. So the index (MA) and data (OP) are packed together into
 the wide row request by the `mrw_row()` function as `{MA[5:0], OP[7:0]}`
 (`init_cmd_row_o[13:8]` = MA index, `init_cmd_row_o[7:0]` = OP data);
-`dfi_cmd_formatter` unpacks this for the LPDDR2 CA MRW word.
+`mc_xddr2_cmd_formatter` unpacks this for the LPDDR2 CA MRW word.
 
 ### LPDDR2 MR values
 
@@ -274,7 +276,7 @@ the wide row request by the `mrw_row()` function as `{MA[5:0], OP[7:0]}`
 | `LPDDR2_MR2_OP`  | `0x01`   | `S_L_MR2`    | MR2: RL3 / WL1.               | Yes (MR2).              |
 | `LPDDR2_MR3_OP`  | `0x02`   | `S_L_MR3`    | MR3: DS 40ohm.                | Yes (MR3).              |
 
-Only MR1 / MR2 / MR3 update the `mode_register` shadow (`mr_seq_we_o`), because
+Only MR1 / MR2 / MR3 update the `mc_xddr2_mode_register` shadow (`mr_seq_we_o`), because
 those are the registers that feed the CL/CWL/BL decode. MR63 and MR10 are
 issued to the DRAM but not shadowed.
 
@@ -285,10 +287,10 @@ issued to the DRAM but not shadowed.
 `init_busy_o` is high from reset (its reset value is 1) through every state
 except `S_DONE`. While busy:
 
-- The parent `pumice_scheduler_plane` forwards the sequencer's command
-  request to `dfi_cmd_formatter` and issues nothing of its own — the scheduler
+- The parent `mc_scheduler_plane` forwards the sequencer's command
+  request to `mc_xddr2_cmd_formatter` and issues nothing of its own — the scheduler
   parks so exactly one command reaches DFI per `init_cmd_valid_o` pulse.
-- `refresh_ctrl.enable_i` is low (driven by `init_done_o`), so periodic refresh
+- `mc_xddr2_refresh_ctrl.enable_i` is low (driven by `init_done_o`), so periodic refresh
   does not start until init completes.
 
 When the FSM reaches `S_DONE`, `init_busy_o` drops and `init_done_o` rises;
@@ -309,7 +311,7 @@ the scheduler and refresh controller take over normal operation.
 | Each command state produces exactly one `init_cmd_valid_o` cycle, then `S_WAIT`   | Single-cycle pulse behavior.                                |
 | Program short `t_*_wait_i` values → inter-command `S_WAIT` countdown matches       | CSR-backed wait timing.                                     |
 | `mr_seq_*` shadow tracks the MRS writes (MR0/MR1/MR2/MR3 for DDR2)                 | Shadow lockstep with issued commands; OCD_DEF not shadowed. |
-| After `init_done_o`, `refresh_ctrl.enable_i` asserts and refresh begins            | Init → refresh handoff.                                     |
+| After `init_done_o`, `mc_xddr2_refresh_ctrl.enable_i` asserts and refresh begins            | Init → refresh handoff.                                     |
 
 ---
 

@@ -21,17 +21,17 @@
 
 <!-- End Header -->
 
-# amber_victim: Depth-1 Victim Buffer
+# l1_victim: Depth-1 Victim Buffer
 
-**Module:** `amber_victim.sv`
+**Module:** `l1_victim.sv`
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
-**Status:** Pre-RTL micro-architecture contract
+**Status:** RTL landed; this chapter is the micro-architecture contract the RTL implements.
 
 ---
 
 ## Overview
 
-`amber_victim` is a depth-1 buffer that holds one dirty cache line while its write-back (drain) is outstanding. The depth-1 size matches the single-outstanding-miss model: there can be only one dirty victim at a time because the pipeline blocks on the miss until it resolves.
+`l1_victim` is a depth-1 buffer that holds one dirty cache line while its write-back (drain) is outstanding. The depth-1 size matches the single-outstanding-miss model: there can be only one dirty victim at a time because the pipeline blocks on the miss until it resolves.
 
 ---
 
@@ -45,23 +45,23 @@
 
 ---
 
-## Handshake with amber_control
+## Handshake with l1_control
 
 | Signal | Direction | Meaning |
 |--------|-----------|---------|
-| `victim_load` | input from `amber_control` | Load the buffer from `amber_data_array` port A this cycle. |
-| `victim_addr_in` | input from `amber_control` | Line address to load. |
-| `victim_data_in` | input from `amber_control` | Line data to load. |
-| `victim_busy` | output to `amber_control` | Buffer already occupied. |
-| `victim_empty` | output to `amber_control` | Buffer is empty. |
+| `victim_load` | input from `l1_control` | Load the buffer from `l1_data_array` port A this cycle. |
+| `victim_addr_in` | input from `l1_control` | Line address to load. |
+| `victim_data_in` | input from `l1_control` | Line data to load. |
+| `victim_busy` | output to `l1_control` | Buffer already occupied. |
+| `victim_empty` | output to `l1_control` | Buffer is empty. |
 
-`victim_load` asserts for one cycle in `CTRL_MISS_VICTIM` when the victim is dirty. The buffer is busy until `amber_drain` reports done.
+`victim_load` asserts for one cycle in `CTRL_MISS_VICTIM` when the victim is dirty. The buffer is busy until `l1_drain` reports done.
 
 ---
 
 ## Bypass for Snoops
 
-If a snoop arrives for the victim line while the drain is still outstanding, `amber_victim` can supply the data without re-reading `amber_data_array`. `amber_control` checks:
+If a snoop arrives for the victim line while the drain is still outstanding, `l1_victim` can supply the data without re-reading `l1_data_array`. `l1_control` checks:
 
 ```systemverilog
 victim_valid && (snoop_line_addr == victim_addr)
@@ -76,7 +76,7 @@ If matched, the snoop responder sources CD beats from `victim_data` instead of f
 | Cycle | Event |
 |-------|-------|
 | `CTRL_MISS_VICTIM`, victim is M | `victim_load` asserted; `victim_valid` sets next cycle. |
-| `CTRL_MISS_DRAIN` | `amber_drain` consumes `victim_addr` and `victim_data`; begins AW/W burst. |
+| `CTRL_MISS_DRAIN` | `l1_drain` consumes `victim_addr` and `victim_data`; begins AW/W burst. |
 | Drain done (`ctrl_drain_done`) | `victim_valid` cleared. |
 
 The buffer is never loaded while valid; the single-outstanding property guarantees this cannot happen.

@@ -26,7 +26,7 @@
 # Write Data CAM (`mc_wr_data_cam`)
 
 **Module:** `mc_wr_data_cam.sv`
-**Location:** `rtl/fub/`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
 **Parent:** `mc_storage_plane`
 **Status:** Implemented (fill / commit-drain / snarf movers)

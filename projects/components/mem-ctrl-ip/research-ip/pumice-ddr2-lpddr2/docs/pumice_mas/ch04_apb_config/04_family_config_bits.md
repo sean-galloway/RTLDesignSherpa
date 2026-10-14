@@ -33,8 +33,8 @@
 
 | memtype | Family | What it changes                                                                 |
 |---------|--------|---------------------------------------------------------------------------------|
-| 0       | DDR2   | `init_sequencer` runs the DDR2 MRS/precharge/refresh chain; `dfi_cmd_formatter` drives the DDR2 RAS/CAS/WE command bus |
-| 1       | LPDDR2 | `init_sequencer` runs the LPDDR2 MRW chain (MR63/MR10/MR1/MR2/MR3); `dfi_cmd_formatter` packs the JESD209-2F CA-bus word onto `dfi_address` |
+| 0       | DDR2   | `mc_xddr2_init_sequencer` runs the DDR2 MRS/precharge/refresh chain; `mc_xddr2_cmd_formatter` drives the DDR2 RAS/CAS/WE command bus |
+| 1       | LPDDR2 | `mc_xddr2_init_sequencer` runs the LPDDR2 MRW chain (MR63/MR10/MR1/MR2/MR3); `mc_xddr2_cmd_formatter` packs the JESD209-2F CA-bus word onto `dfi_address` |
 
 `memtype` is set before init and left fixed (see §4.3). DDR2 is the board target; LPDDR2 is the family-reuse path. Both pass the full sim suite.
 

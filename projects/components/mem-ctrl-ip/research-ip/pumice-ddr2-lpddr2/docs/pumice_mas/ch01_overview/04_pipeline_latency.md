@@ -57,42 +57,54 @@ everything to everything and would destroy the staging.
 Depth is the longest flop-distance from an input port. Registers counts the
 merged registers (a bit-blasted `r_bank[2:0]` is one), not raw flop cells.
 
+> **Stale until regenerated (2026-10-13).** These numbers come from the last
+> generator run, made against the pumice-local copies of these blocks before
+> they moved into `common-ip` on 2026-10-10/11. The rows are labelled with the
+> common-ip module each block became. `gen_schematics.py` / `gen_latency.py`
+> resolve only pumice's own `rtl/filelists/{fub,macro}`, which no longer hold
+> these blocks, so the table cannot be rerun until the generator learns the
+> common-ip filelists. One row is already known to disagree with the RTL:
+> `mc_xddr2_cmd_formatter` has strict-flop outputs, so it is not 0 clocks.
+
 | Block | Depth (clocks) | Registers | State nodes |
 |---|---|---|---|
-| `addr_mapper` | 0 | 0 | 8 |
-| `dfi_cmd_formatter` | 0 | 0 | 17 |
-| `dfi_signal_pack` | 0 | 0 | 24 |
+| `mc_addr_mapper` | 0 | 0 | 8 |
+| `mc_xddr2_cmd_formatter` | 0 | 0 | 17 |
 | `mc_global_timers` | 1 | 5 | 24 |
-| `mode_register` | 1 | 1 | 16 |
+| `mc_xddr2_mode_register` | 1 | 1 | 16 |
 | `mc_dfi_cdc` | 2 | 53 | 78 |
 | `mc_dfi_rd_aligner` | 2 | 3 | 14 |
 | `mc_dfi_wr_serializer` | 2 | 2 | 12 |
 | `mc_wr_splitter` | 2 | 13 | 51 |
-| `powerdown_ctrl` | 3 | 5 | 18 |
 | `mc_bank_timers` | 3 | 48 | 72 |
-| `pumice_cmd_arbiter` | 3 | 57 | 128 |
+| `mc_cmd_arbiter` | 3 | 57 | 128 |
 | `mc_rd_cmd_cam` | 3 | 11 | 49 |
 | `mc_rd_intake` | 3 | 24 | 75 |
-| `refresh_ctrl` | 3 | 6 | 26 |
+| `mc_xddr2_refresh_ctrl` | 3 | 6 | 26 |
 | `mc_rd_return_ring` | 5 | 23 | 41 |
 | `mc_wr_data_cam` | 5 | 60 | 120 |
-| `pumice_page_policy` | 7 | 39 | 70 |
+| `mc_page_policy` | 7 | 39 | 70 |
 | `mc_wr_intake` | 7 | 31 | 79 |
 
-Three blocks are purely combinational (`addr_mapper`, `dfi_cmd_formatter`,
-`dfi_signal_pack`): they transform a command in place and add no clock. The two
-deepest live blocks are `pumice_page_policy` and `mc_wr_intake`.
+`mc_addr_mapper` is purely combinational: it transforms a request in place and
+adds no clock. (The table also reports `mc_xddr2_cmd_formatter` as 0 clocks; see
+the note above.) The two deepest live blocks are `mc_page_policy` and
+`mc_wr_intake`.
 
 ### Retired blocks
 
 Two history-based paging predictors were removed from the RTL in 2026-09 (TASK-011,
-TASK-014) after measuring inert or harmful on silicon. They are kept here as a
+TASK-014) after measuring inert or harmful on silicon, and two more blocks were
+removed on 2026-10-11 (`dfi_signal_pack`, whose register stage was dropped, and
+`powerdown_ctrl`, which was never wired into the core). They are kept here as a
 latency record for the pre-removal netlist only.
 
 | Block | Depth (clocks) | Registers | State nodes | Status |
 |---|---|---|---|---|
 | `pumice_row_pred_table` | 4 | 8 | 18 | **RETIRED** — removed 2026-09-27 (TASK-014) |
 | `pumice_rbl_table` | 6 | — | — | **RETIRED** — removed 2026-09-26 (TASK-011) |
+| `dfi_signal_pack` | 0 | 0 | 24 | **RETIRED** — removed 2026-10-11 |
+| `powerdown_ctrl` | 3 | 5 | 18 | **RETIRED** — removed 2026-10-11 |
 
 ## Datapath latencies worth knowing
 

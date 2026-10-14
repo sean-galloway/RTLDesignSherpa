@@ -58,7 +58,7 @@ The MAS is the **micro-architecture** view: per-FUB inputs/outputs, internal sta
 
 This document covers:
 
-- Top-level integration wiring (`pumice_ctrl`)
+- Top-level integration wiring (`pumice_core`, `pumice_top`)
 - Each FUB's interface signal list, internal storage, datapath flow, FSM, and timing budget
 - AXI4 and DFI v2.1 wire-level protocol details specific to this controller
 - APB programming interface and the full CSR register map

@@ -23,7 +23,7 @@
 
 # Multi-Rank Programming
 
-> Per HAS §2.1 (multi-rank as differentiator), HAS §3.3 / §3.4 / §3.6 (architecture). FUB-level detail in MAS §2 (`mc_bank_timers` per (rank,bank), `refresh_ctrl` round-robin, `dfi_cmd_formatter` CS_n / ODT).
+> Per HAS §2.1 (multi-rank as differentiator), HAS §3.3 / §3.4 / §3.6 (architecture). FUB-level detail in MAS §2 (`mc_bank_timers` per (rank,bank), `mc_xddr2_refresh_ctrl` round-robin, `mc_xddr2_cmd_formatter` CS_n / ODT).
 >
 > Note: the default board build is single-rank (`NUM_RANKS = 1`). This chapter documents the intended multi-rank programming model; the single-rank RDL declares only `*_RANK0` registers, and per-rank register generation is a follow-up (see §4.2).
 
@@ -58,7 +58,7 @@ A multi-rank build adds `PASR_BANK_MASK_RANK{N}` registers (each rank has indepe
 
 ## ODT
 
-ODT is handled inside `dfi_cmd_formatter` / `mode_register` (there is no standalone ODT control block and no `RANK_TUNING.odt_rule_or` CSR). `dfi_odt_o` is driven per command. Board-specific ODT rule selection is not a runtime CSR knob in this build; it is baked into the formatter's per-command ODT logic. For boards with non-standard impedance budgets, adjust the formatter's ODT policy at build time.
+ODT is handled inside `mc_xddr2_cmd_formatter` / `mc_xddr2_mode_register` (there is no standalone ODT control block and no `RANK_TUNING.odt_rule_or` CSR). `dfi_odt_o` is driven per command. Board-specific ODT rule selection is not a runtime CSR knob in this build; it is baked into the formatter's per-command ODT logic. For boards with non-standard impedance budgets, adjust the formatter's ODT policy at build time.
 
 ## Per-Rank Disable
 
@@ -66,13 +66,13 @@ There is no `RANK_TUNING` rank-enable CSR in this build. Rank enable/disable is 
 
 ## Address Mapping for Multi-Rank
 
-The rank field always sits in the high bits of the (byte-offset-stripped) word address, above the row — its position is invariant. The single `ADDR_MAP.bank_lsb` knob only slides the **bank** field within the column region (see §4.4 and `rtl/fub/addr_mapper.sv`); the rank field is unaffected by `bank_lsb`. The `hash_en` XOR-hash folds row bits into the bank index only — it does not touch the rank field.
+The rank field always sits in the high bits of the (byte-offset-stripped) word address, above the row — its position is invariant. The single `ADDR_MAP.bank_lsb` knob only slides the **bank** field within the column region (see §4.4 and `common-ip/rtl/fub/mc_addr_mapper.sv`); the rank field is unaffected by `bank_lsb`. The `hash_en` XOR-hash folds row bits into the bank index only — it does not touch the rank field.
 
 There is no rank-interleave mode. Software-managed rank interleaving (the OS striping allocations across rank-aligned regions) is the workaround if consecutive-line rank striping is desired.
 
 ## Refresh Behavior with Multi-Rank
 
-Per HAS §3.4 and MAS §2 (`refresh_ctrl`, intended multi-rank extension):
+Per HAS §3.4 and MAS §2 (`mc_xddr2_refresh_ctrl`, intended multi-rank extension):
 
 - REFab dispatches per-rank in round-robin (not all-rank simultaneously)
 - REFpb (LPDDR2) selects (rank, bank) tuples via `REF_CTRL.mode` = 2 (round-robin), gated by the `REF_CTRL.perbank_supported` capability strap. (`REFRESH_TUNING.refpb_policy_or` was retired 2026-09-09.)
@@ -117,4 +117,4 @@ driven and had no consumer (pumice BUG-020).
 - **Per-rank register generation.** The RDL declares only `*_RANK0`; a `NUM_RANKS` loop is needed for PASR/temp/observation and rank-enable.
 - **Per-rank MR override.** Some DIMMs have rank-specific tuning (rare).
 - **Per-rank power control.** `CTRL.pwr_req_*` is channel-wide; per-rank request registers are a follow-up.
-- **Runtime ODT rule select.** ODT is currently baked into `dfi_cmd_formatter`; a runtime CSR knob could be reintroduced if board diversity needs it.
+- **Runtime ODT rule select.** ODT is currently baked into `mc_xddr2_cmd_formatter`; a runtime CSR knob could be reintroduced if board diversity needs it.

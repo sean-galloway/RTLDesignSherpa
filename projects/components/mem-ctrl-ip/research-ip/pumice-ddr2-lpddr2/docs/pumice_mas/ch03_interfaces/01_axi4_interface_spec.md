@@ -150,7 +150,7 @@ DECERR is never returned -- the address space is monolithic.
 ## Open Questions / Future Work
 
 - **QoS-driven priority.** `awqos`/`arqos` are carried but not yet consumed by
-  `pumice_cmd_arbiter`. A future revision would fold them into the pick.
+  `mc_cmd_arbiter`. A future revision would fold them into the pick.
 - **Wider USER signals.** The front-end carries single-bit user today; wider
   sideband would need a `USER_WIDTH` parameter threaded through the intakes and
   CAMs.

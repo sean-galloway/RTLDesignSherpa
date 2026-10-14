@@ -21,11 +21,13 @@
 
 <!-- End Header -->
 
-# Page-Policy Engine (`pumice_page_policy`)
+> **Status (2026-10-11): this block lives in common-ip now.** The RTL is `mc_page_policy`, a default child of `mc_scheduler_plane`; the plane that composes it is documented in [common_mas Chapter 4 — Scheduler Plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps pumice's provenance and measured history.
+
+# Page-Policy Engine (`mc_page_policy`)
 
 ## Overview
 
-`pumice_page_policy` is the runtime Axis-2 (paging) engine. It replaced the
+`mc_page_policy` is the runtime Axis-2 (paging) engine. It replaced the
 HAPPY address-hash predictor (`page_predictor.sv`, retired 2026-08-25: it was
 never wired into the rearchitected core — `PAGE_POLICY_HAPPY_HYBRID` degraded
 to OPEN in the arbiter). The engine watches the arbiter's ISSUED command

@@ -21,28 +21,28 @@
 
 <!-- End Header -->
 
-# amber_fill and amber_drain
+# l1_fill and l1_drain
 
-**Modules:** `amber_fill.sv`, `amber_drain.sv`
+**Modules:** `l1_fill.sv`, `l1_drain.sv`
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
-**Status:** Pre-RTL micro-architecture contract
+**Status:** RTL landed; this chapter is the micro-architecture contract the RTL implements.
 
 ---
 
-## amber_fill
+## l1_fill
 
 ### Purpose
 
-`amber_fill` issues whole-line read bursts to the memory-side master and forwards received beats to `amber_data_array` port A and to the pending-fill bypass register.
+`l1_fill` issues whole-line read bursts to the memory-side master and forwards received beats to `l1_data_array` port A and to the pending-fill bypass register.
 
 ### Interface
 
 | Signal | Direction | Meaning |
 |--------|-----------|---------|
-| `fill_start` | input from `amber_control` | Launch a fill for `fill_addr`. |
-| `fill_addr` | input from `amber_control` | Line-aligned address. |
-| `fill_done` | output to `amber_control` | All beats received (RLAST accepted). |
-| `fill_beat_valid` | output to `amber_control` / data array | A fill beat is valid this cycle. |
+| `fill_start` | input from `l1_control` | Launch a fill for `fill_addr`. |
+| `fill_addr` | input from `l1_control` | Line-aligned address. |
+| `fill_done` | output to `l1_control` | All beats received (RLAST accepted). |
+| `fill_beat_valid` | output to `l1_control` / data array | A fill beat is valid this cycle. |
 | `fill_beat_data` | output | Fill beat data. |
 | `fill_beat_idx` | output | Beat index within line. |
 | `fill_last` | output | Last beat of burst. |
@@ -57,25 +57,25 @@
 ### Timing
 
 1. `fill_start` asserted in `CTRL_MISS_FILL`.
-2. `amber_fill` asserts `fub_axi_arvalid` to the memory-side read master.
+2. `l1_fill` asserts `fub_axi_arvalid` to the memory-side read master.
 3. As R beats arrive, `fill_beat_valid` pulses; `fill_beat_idx` increments.
-4. Each beat is written to `amber_data_array` port A and the `pf_data_valid` mask is updated.
+4. Each beat is written to `l1_data_array` port A and the `pf_data_valid` mask is updated.
 5. On `RLAST` acceptance, `fill_done` pulses for one cycle.
 
 ---
 
-## amber_drain
+## l1_drain
 
 ### Purpose
 
-`amber_drain` takes a dirty line from `amber_victim` and issues a whole-line write-back burst to the memory-side write master.
+`l1_drain` takes a dirty line from `l1_victim` and issues a whole-line write-back burst to the memory-side write master.
 
 ### Interface
 
 | Signal | Direction | Meaning |
 |--------|-----------|---------|
-| `drain_start` | input from `amber_control` | Launch drain from `amber_victim`. |
-| `drain_done` | output to `amber_control` | B response received. |
+| `drain_start` | input from `l1_control` | Launch drain from `l1_victim`. |
+| `drain_done` | output to `l1_control` | B response received. |
 | `drain_beat_ready` | input from memory master | W-channel ready. |
 | `drain_beat_valid` | output | W-channel valid. |
 | `drain_beat_data` | output | W-channel data. |
@@ -92,13 +92,13 @@
 
 ### Timing
 
-1. `drain_start` asserted in `CTRL_MISS_DRAIN` when `amber_victim` is valid.
-2. `amber_drain` asserts `fub_axi_awvalid` and begins driving W beats as the master accepts them.
+1. `drain_start` asserted in `CTRL_MISS_DRAIN` when `l1_victim` is valid.
+2. `l1_drain` asserts `fub_axi_awvalid` and begins driving W beats as the master accepts them.
 3. After `WLAST` is accepted and the B response arrives, `drain_done` pulses.
 
 ### On the onyx rig
 
-For `amber_ace`, dirty evictions are issued as `WriteBack` transactions. `amber_ace_issue` supplies `AWSNOOP` and the AW address; `amber_drain` supplies the W beats. Clean evictions are `Evict` transactions with no data.
+For `amber_ace_top`, dirty evictions are issued as `WriteBack` transactions. `amber_ace_issue` supplies `AWSNOOP` and the AW address; `l1_drain` supplies the W beats. Clean evictions are `Evict` transactions with no data.
 
 ---
 

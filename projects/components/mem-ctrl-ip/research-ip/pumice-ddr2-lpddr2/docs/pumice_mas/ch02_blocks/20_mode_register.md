@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# Mode Register (`mode_register`)
+> **Status (2026-10-11): this block lives in common-ip now.** The RTL is `mc_xddr2_mode_register`, a default child of `mc_scheduler_plane`; the plane that composes it is documented in [common_mas Chapter 4 — Scheduler Plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps pumice's provenance and measured history.
 
-**Module:** `mode_register.sv`
-**Location:** `rtl/fub/`
+# Mode Register (`mc_xddr2_mode_register`)
+
+**Module:** `mc_xddr2_mode_register.sv`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_scheduler_plane`
+**Parent macro:** `mc_scheduler_plane`
 **Status:** implemented (DDR2 + LPDDR2 decode)
 
 ## Purpose
@@ -35,7 +37,7 @@ Per-rank Mode Register shadow + live decode of MR-derived timing values
 for use by the rest of the controller.
 
 On `mr_we_i`, write `mr_data_i` into shadow MR[`mr_index_i`] for
-`mr_rank_i` (indices `< MAX_MR_IDX` only). `init_sequencer` drives this
+`mr_rank_i` (indices `< MAX_MR_IDX` only). `mc_xddr2_init_sequencer` drives this
 during DRAM bring-up; a CSR/APB hot-update path drives it later.
 
 The `memtype_i` input (`memtype_e`: `MEMTYPE_DDR2` / `MEMTYPE_LPDDR2`)
@@ -73,13 +75,13 @@ For DDR2, `cl_o` is the raw MR0[6:4] field and `cwl_o` is simply `CL − 1`
 
 All outputs are strict-flop registered. Consumed by:
 
-- `pumice_cmd_arbiter` / `pumice_scheduler_plane` — use `cl_o`, `cwl_o`,
+- `mc_cmd_arbiter` / `mc_scheduler_plane` — use `cl_o`, `cwl_o`,
   `al_o` to time RD/WR latencies.
 - write data path (`mc_dfi_wr_serializer` via `t_phy_wrlat`) — sized
   against `cwl_o` for the WR-to-wrdata window.
 - read data path (`mc_dfi_rd_aligner` via `t_rddata_en`) — sized
   against `cl_o` for the RD-to-rddata window.
-- `dfi_cmd_formatter` — uses `bl_o` to size column commands.
+- `mc_xddr2_cmd_formatter` — uses `bl_o` to size column commands.
 
 ## Burst Length: Fixed per Instance, Parameterized for Family Reuse
 

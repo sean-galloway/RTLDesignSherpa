@@ -31,7 +31,7 @@
 
 | Category                       | Detection                                | Reporting                                          |
 |--------------------------------|------------------------------------------|----------------------------------------------------|
-| Init failure                   | `init_sequencer` timeout / ZQ retries exhausted | `STATUS.init_error = 1`; `STATUS.init_step_dbg` shows where |
+| Init failure                   | `mc_xddr2_init_sequencer` timeout / ZQ retries exhausted | `STATUS.init_error = 1`; `STATUS.init_step_dbg` shows where |
 | DFI rddata-valid timeout       | RD issued, no rddata in the expected window | `SLVERR` on the AXI R (bring-up: check DFI phase / `t_rddata_en`) |
 | AXI burst boundary violation   | Per §3.1 (one AXI burst == one DRAM burst) | `SLVERR` on B/R                                   |
 | ZQ calibration failure (silicon) | DFI signal-integrity, caught at PHY plane | Not this controller                              |
@@ -50,7 +50,7 @@ void handle_init_error(void) {
 
     log_error("DRAM init failed at step %d", step);
 
-    // init_sequencer step encodings (r_state), for reference:
+    // mc_xddr2_init_sequencer step encodings (r_state), for reference:
     //   S_DFI_INIT  -> PHY init did not complete (check PHY config)
     //   S_EMR*/S_MR0* / S_L_* -> MRS/MRW issue phase (verify MR values, CA-bus)
     //   S_REF1/S_REF2 -> refresh phase

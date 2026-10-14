@@ -27,7 +27,7 @@
 > face -- what's driven, what's tied, what's sampled, what's deferred.
 >
 > The interface is implemented by `mc_dfi_2p1_plane` (section 2.4):
-> `mc_dfi_cmd_path` (with `dfi_cmd_formatter` + `dfi_signal_pack`) drives the
+> `mc_dfi_cmd_path` (around `mc_xddr2_cmd_formatter`) drives the
 > command bus, `mc_dfi_wr_serializer` drives write data,
 > `mc_dfi_rd_aligner` captures read data, and `mc_dfi_cdc` is the single
 > clock crossing to `aclk`.
@@ -82,13 +82,13 @@ NOP-equivalent idle on the other phases.
 `dfi_cs_n_o` and `dfi_odt_o` are each `NUM_RANKS * DFI_RATE` wide (rank inner,
 phase outer, as the `DFI_CS_BUS_W = NUM_RANKS * DFI_RATE` packing implies). The
 formatter drives the addressed rank's CS_n active for a single-rank command;
-init-time REF broadcasts. ODT is driven inside `dfi_cmd_formatter` /
-`mode_register` -- there is no standalone `odt_ctrl` block.
+init-time REF broadcasts. ODT is driven inside `mc_xddr2_cmd_formatter` /
+`mc_xddr2_mode_register` -- there is no standalone `odt_ctrl` block.
 
 ### DDR2 vs LPDDR2 Encoding
 
 For `memtype_i = DDR2`, commands use the classic `ras/cas/we/cs` strobe
-encoding. For `memtype_i = LPDDR2`, `dfi_cmd_formatter` takes the memtype branch
+encoding. For `memtype_i = LPDDR2`, `mc_xddr2_cmd_formatter` takes the memtype branch
 and emits bit-exact JESD209-2F CA-bus commands (Table 60): the 10-bit CA bus
 over 2 edges packed as a flat 20-bit word on `dfi_address`, with `ras/cas/we`
 idle. See `docs/uarch/LPDDR2_CA_ENCODING.md`.
@@ -123,7 +123,7 @@ is correct for `a7ddrphy` (which handles read gearing internally).
 ## Status / Init Sub-Interface
 
 `dfi_init_start_o` and `dfi_init_complete_i` are the only status signals. The
-`init_sequencer` (in `pumice_scheduler_plane`) asserts `dfi_init_start` and
+`mc_xddr2_init_sequencer` (in `mc_scheduler_plane`) asserts `dfi_init_start` and
 walks the JEDEC MRS init, waiting on `dfi_init_complete` from the PHY plus the
 programmed init-timing CSRs. These cross the CDC in `mc_dfi_cdc`.
 

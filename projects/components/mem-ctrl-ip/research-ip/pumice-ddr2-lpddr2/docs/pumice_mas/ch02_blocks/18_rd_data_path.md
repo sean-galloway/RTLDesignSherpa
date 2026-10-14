@@ -26,7 +26,7 @@
 # Read Data Path (`mc_dfi_rd_aligner` + `mc_rd_return_ring`)
 
 **Modules:** `mc_dfi_rd_aligner.sv`, `mc_rd_return_ring.sv`, `mc_rd_cmd_cam.sv`
-**Location:** `rtl/fub/`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
 **Parents:** `mc_dfi_2p1_plane` (aligner), `mc_axi4_plane` (ring), `mc_storage_plane` (CAM)
 **Status:** implemented
@@ -191,7 +191,7 @@ on the last word.
 | `ins_ready_o` | out | 1           | Free entry available|
 | `ins_bank/row/col/id_i` | in | key + id | Decoded key + AXI id |
 
-### Scheduler ports (to `pumice_cmd_arbiter`)
+### Scheduler ports (to `mc_cmd_arbiter`)
 
 | Signal              | Dir | Description                                      |
 |---------------------|-----|--------------------------------------------------|

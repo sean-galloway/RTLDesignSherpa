@@ -21,20 +21,23 @@
 
 <!-- End Header -->
 
-# DFI Command Formatter (`dfi_cmd_formatter` + `dfi_signal_pack`)
+> **Status (2026-10-11): this block lives in common-ip now.** The RTL is `mc_xddr2_cmd_formatter`, inside `mc_dfi_cmd_path` of `mc_dfi_2p1_plane`; the plane that composes it is documented in [common_mas mc_dfi_2p1_plane](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md). This chapter keeps pumice's provenance and measured history.
 
-**Module:** `dfi_cmd_formatter.sv` (command decode) / `dfi_signal_pack.sv` (final DFI pipe stage)
-**Location:** `rtl/fub/`
+# DFI Command Formatter (`mc_xddr2_cmd_formatter`)
+
+**Module:** `mc_xddr2_cmd_formatter.sv` (command decode + strict-flop outputs)
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
-**Parent macro:** `mc_dfi_2p1_plane`
+**Parent:** `mc_dfi_cmd_path`, inside `mc_dfi_2p1_plane`
 **Status:** Implemented (DDR2 truth table + bit-exact LPDDR2 CA-bus encoding; both memtypes functional)
 
 > **Replaces the retired command encoder.** The original `cmd_encoder_fub` (with
 > its `ddr2_cmd_encoder` / `lpddr2_cmd_encoder` generate-branch sub-modules and a
-> separate `odt_ctrl_fub`) is gone. The live design is `dfi_cmd_formatter.sv` — a
+> separate `odt_ctrl_fub`) is gone. The live design is `mc_xddr2_cmd_formatter.sv` — a
 > single module with a runtime `memtype_i` branch (not an elaboration-time
-> generate) — followed by `dfi_signal_pack.sv`, the final registered DFI-bus
-> pipeline stage.
+> generate) — whose registered outputs drive the PHY bus through
+> `mc_dfi_cmd_path`. The `dfi_signal_pack.sv` relatch stage that used to follow
+> it was removed on 2026-10-11.
 >
 > **LPDDR2 is now fully implemented.** The retired chapter listed LPDDR2 as
 > "deferred to v2." The live formatter builds the bit-exact JESD209-2F Table 60
@@ -43,34 +46,35 @@
 > against the identical layout.
 >
 > **ODT is absorbed here.** There is no standalone ODT block (see the retired
-> ODT chapter). `dfi_cmd_formatter` drives `dfi_odt_o`; the DDR2 ODT rule follows
+> ODT chapter). `mc_xddr2_cmd_formatter` drives `dfi_odt_o`; the DDR2 ODT rule follows
 > from the same truth table. In v1 `dfi_odt_o` is driven to 0 (the decode leaves
 > `w_p0_odt` at its NOP default for every op); the JEDEC ODT-timing hooks live in
-> `mode_register`'s `odt_o` decode.
+> `mc_xddr2_mode_register`'s `odt_o` decode.
 
 ---
 
 ## Purpose
 
-`dfi_cmd_formatter` translates the scheduler's abstract command — `(cmd_op,
+`mc_xddr2_cmd_formatter` translates the scheduler's abstract command — `(cmd_op,
 rank, bank, row, col, len)` plus an implicit auto-precharge encoded in the op
 (RDA/WRA vs RD/WR) — into wire-level DFI v2.1 control-bus signals, packed across
 `DFI_RATE` phases. For DDR2 it drives the classic `{ras_n, cas_n, we_n}` strobes
 plus `dfi_address` / `dfi_bank`; for LPDDR2 it packs the multiplexed 10-bit CA
 bus (two edges = a flat 20-bit word) onto `dfi_address`.
 
-`dfi_signal_pack` is the final pipeline register on the DFI v2.1 bus. It latches
-the formatter's command bus together with the write/read data-enable signals and
-drives reset-safe NOP values during reset. It owns `dfi_dram_clk_disable`
-(currently held 0).
+The formatter's outputs are the last register on the DFI command bus: its reset
+values are the reset-safe NOP pattern, and `mc_dfi_cmd_path` merges the
+per-sub-command formatters' buses combinationally onto the PHY pins. The data
+enables and masks come from `mc_dfi_wr_serializer` / `mc_dfi_rd_aligner`, not
+from here. No module drives `dfi_dram_clk_disable`.
 
-Both modules run in the DFI clock domain inside `mc_dfi_2p1_plane` (see
-[the DFI plane / gearing chapter](15_gear_dfi.md)); the formatter is instantiated
-via `mc_dfi_cmd_path`.
+The formatter runs in the DFI clock domain inside `mc_dfi_2p1_plane` (see
+[the DFI plane / gearing chapter](15_gear_dfi.md)); it is instantiated by
+`mc_dfi_cmd_path`, one instance per packed sub-command.
 
 ---
 
-## Synthesis Parameters (`dfi_cmd_formatter`)
+## Synthesis Parameters (`mc_xddr2_cmd_formatter`)
 
 | Parameter          | Default | Effect                                                          |
 |--------------------|---------|-----------------------------------------------------------------|
@@ -148,7 +152,7 @@ the address for RDA/WRA, and doubles as the all-bank flag for PREA.
 **MRS carries data on the ROW field, not the column.** The RTL comment is
 explicit: MR0 = 0x533 needs bit 10 (tWR[1]), which a `COL_WIDTH` (10-bit) field
 would truncate — so the formatter reads MR data from `cmd_row_i` (ROW_WIDTH) and
-the MR index from `cmd_bank_i`. This matches `init_sequencer`, which drives MR
+the MR index from `cmd_bank_i`. This matches `mc_xddr2_init_sequencer`, which drives MR
 data on `init_cmd_row_o`.
 
 Unhandled DDR2-irrelevant ops (`OP_REFPB`, `OP_ZQCS`/`ZQCL`, self-refresh entry/
@@ -195,7 +199,7 @@ light up their reserved pins cleanly.
 **MRW field packing.** LPDDR2 mode-register addresses reach MR63 (MA[5:0]), which
 a 3-bit bank port cannot express. The scheduler therefore carries the MRW fields
 in the ROW request as `{MA[5:0], OP[7:0]}` — `w_mr_ma = {2'b0, cmd_row_i[13:8]}`,
-`w_mr_op = cmd_row_i[7:0]` — matching `init_sequencer`'s `mrw_row()` packing.
+`w_mr_op = cmd_row_i[7:0]` — matching `mc_xddr2_init_sequencer`'s `mrw_row()` packing.
 MA[7:6] are 0 (MR <= 63).
 
 ---
@@ -218,30 +222,26 @@ The active-rank CS_n mask is built once (`w_active_rank_mask`): bit `r` = 0 when
 
 ---
 
-## `dfi_signal_pack` — Final Registered DFI Stage
+## Reset-safe output values (formerly `dfi_signal_pack`)
 
-`dfi_signal_pack` is a pure one-cycle registered pipeline. It latches the
-formatter's command bus plus the data-enable/mask signals from the write/read
-serializers and drives them to the PHY the next DFI cycle. Its value is the
-reset-safe defaults it guarantees during reset / before first issue:
+The removed `dfi_signal_pack` stage existed to hold reset-safe defaults. The
+formatter's own strict-flop outputs now provide them:
 
 | Output                     | Reset value | Meaning                              |
 |----------------------------|-------------|--------------------------------------|
 | `dfi_cs_n_o`               | all-1       | all-deselected                       |
 | `dfi_ras_n_o/cas_n_o/we_n_o` | all-1     | NOP                                  |
-| `dfi_cke_o`                | 0           | DRAM held CKE-low until init          |
+| `dfi_bank_o` / `dfi_address_o` | 0       | idle                                 |
 | `dfi_odt_o`                | 0           | ODT off                              |
-| `dfi_wrdata_en_o` / `dfi_rddata_en_o` | 0 | no data movement                     |
-| `dfi_wrdata_mask_o`        | all-1       | mask all bytes (write nothing)       |
-| `dfi_dram_clk_disable_o`   | 0           | clock enabled (power-state TODO)     |
 
-It owns `dfi_dram_clk_disable` for a future power-state machine (held 0 today).
-Phase staggering and CKE power-down driving are v2 TODOs noted in the RTL header;
-today it is a transparent width-preserving flop.
+The write data enables and masks are driven by `mc_dfi_wr_serializer` (enable
+and mask both 0 when it is not driving a burst); the read enable by
+`mc_dfi_rd_aligner`. CKE and `dfi_dram_clk_disable` are not driven by the
+controller.
 
 ---
 
-## Interface (`dfi_cmd_formatter` outputs)
+## Interface (`mc_xddr2_cmd_formatter` outputs)
 
 | Signal          | Width           | Description                          |
 |-----------------|-----------------|--------------------------------------|
@@ -253,15 +253,16 @@ today it is a transparent width-preserving flop.
 | `dfi_cs_n_o`    | DFI_CS_BUS_W    | Per-phase per-rank chip-select       |
 | `dfi_odt_o`     | DFI_CS_BUS_W    | Per-phase per-rank ODT (0 in v1)     |
 
-All outputs are strict-flopped; `dfi_signal_pack` widens/relatches them onto the
-PHY pins unchanged.
+All outputs are strict-flopped and reach the PHY pins through `mc_dfi_cmd_path`
+with no further register.
 
 ---
 
 ## Timing Budget
 
-The formatter is combinational decode into a single output flop; `dfi_signal_pack`
-adds one more flop. The worst path is the LPDDR2 ACT with full row-bit spreading
+The formatter is combinational decode into a single output flop; nothing
+re-registers it before the pins (the sub-command merge in `mc_dfi_cmd_path` is
+a few OR/AND gates). The worst path is the LPDDR2 ACT with full row-bit spreading
 across CA0r/CA0f (bank + 5 rising row bits + 8 falling row bits), which is a few
 LUT levels feeding the output register — well within the DFI clock budget. The
 formatter is not the controller's critical path; that is the arbiter upstream.
@@ -283,7 +284,7 @@ formatter is not the controller's critical path; that is the arbiter upstream.
 | Multi-rank ACT rank 1 → `dfi_cs_n` bit 1 low, bit 0 high                          | Per-rank CS_n mask                      |
 | rd_phase=1 → RD command lands on DFI phase 1, other phases NOP                    | Runtime phase placement                 |
 | NOP / `!cmd_valid` → all-deselected (cs_n all-1), strobes all-1                   | Idle pattern                            |
-| Reset → `dfi_signal_pack` drives cs_n=1, cke=0, wrdata_mask=all-1                 | Reset-safe NOP defaults                 |
+| Reset → formatter drives cs_n=1, ras/cas/we=1, odt=0                             | Reset-safe NOP defaults                 |
 
 ---
 
@@ -292,14 +293,14 @@ formatter is not the controller's critical path; that is the arbiter upstream.
 - **ODT driving.** `dfi_odt_o` is held 0 in v1 (the decode leaves the ODT default
   at NOP). Multi-rank DDR2 needs the JEDEC cross-termination window (ODT-high on
   the non-accessed rank during a read, on the accessed rank during a write). The
-  hooks exist (`mode_register.odt_o` decodes the DDR2 MR1 ODT bits); wiring the
+  hooks exist (`mc_xddr2_mode_register.odt_o` decodes the DDR2 MR1 ODT bits); wiring the
   timed ODT window through the formatter is future work — see the absorbed ODT
   chapter.
 - **`cmd_len_i` unused.** The burst-length input is reserved (tied into
   `unused_v1`); burst geometry is handled by the data-path serializers, so the
   formatter does not need it today.
-- **Phase staggering / clk-disable.** `dfi_signal_pack` is a plain relatch;
-  per-phase output staggering and `dfi_dram_clk_disable` driving (for power-down)
-  are v2 items noted in the RTL header.
-- **LPDDR2 BL16.** `mode_register.bl_o` is 4-bit and clips BL16 to BL8; only
+- **Phase staggering / clk-disable.** Per-phase output staggering and a
+  `dfi_dram_clk_disable` driver (for power-down) are future items; the
+  `dfi_signal_pack` stage that once reserved them was removed.
+- **LPDDR2 BL16.** `mc_xddr2_mode_register.bl_o` is 4-bit and clips BL16 to BL8; only
   BL4/BL8 are wired end-to-end. Widening the burst path is a separate item.

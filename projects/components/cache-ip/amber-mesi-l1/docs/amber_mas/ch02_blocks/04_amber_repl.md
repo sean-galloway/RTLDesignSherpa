@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# amber_repl: Replacement Policy Engine
+# l1_repl: Replacement Policy Engine
 
-**Module:** `amber_repl.sv`
+**Module:** `l1_repl.sv`
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed 2026-10-06; this chapter is the micro-architecture
 contract the RTL implements. DV: `dv/tests/fub/test_amber_repl.py`, green at
@@ -35,10 +35,10 @@ included — it still has no cache_sim golden; the TB model is the check).
 
 ## Overview
 
-`amber_repl` selects the victim way on a cache miss. The policy is an elaboration parameter `REPL_POLICY` with supported values `lru`, `tree_plru`, `fifo`, and `random`. LRU is the default; tree-PLRU is the timing-tight fallback.
+`l1_repl` selects the victim way on a cache miss. The policy is an elaboration parameter `REPL_POLICY` with supported values `lru`, `tree_plru`, `fifo`, and `random`. LRU is the default; tree-PLRU is the timing-tight fallback.
 
 In the RTL the parameter is declared `int` holding the `amber_repl_t`
-encoding from `amber_pkg` (house precedent: `fifo_sync` MEM_STYLE is typed,
+encoding from `l1_pkg` (house precedent: `fifo_sync` MEM_STYLE is typed,
 but a typed enum parameter receives `-G` overrides as raw 32-bit constants
 and verilator WIDTHTRUNCs values 2/3 — the int declaration keeps test-time
 overrides width-clean; the generate branches compare against
@@ -88,7 +88,7 @@ The victim way is the one with `rank[set][w] == WAYS-1`.
 
 Each set maintains a FIFO queue of way indices, stored as a ring with a head pointer. On a miss, the head of the queue is the victim; on an install, the ring slot at the head is overwritten with the installed way and the head advances — the popped victim slot becomes the tail, so one write plus one head bump is the whole update. On a hit, the queue is unchanged (FIFO does not recency-stack); the TB golden model encodes the same rule (`UPDATES_ON_HIT = False`).
 
-This matches `cache_sim` exactly, under the invariant that the installed way equals the victim way — which `amber_control` guarantees because fills install into the victim way. Installing into any other way would require a mid-queue removal this ring does not perform; that is a contract, not an accident.
+This matches `cache_sim` exactly, under the invariant that the installed way equals the victim way — which `l1_control` guarantees because fills install into the victim way. Installing into any other way would require a mid-queue removal this ring does not perform; that is a contract, not an accident.
 
 This matches `cache_sim` exactly.
 

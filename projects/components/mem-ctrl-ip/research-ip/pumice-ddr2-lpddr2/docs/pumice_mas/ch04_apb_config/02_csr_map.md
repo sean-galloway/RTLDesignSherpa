@@ -225,7 +225,7 @@ All registers are 32-bit; unlisted bits are reserved (`RSVD`, `sw = r`). "Defaul
 | 8     | `hash_en`   | 0       | Enable bank XOR-hash: `bank ^= fold(row) ^ hash_seed`         |
 | 23:16 | `hash_seed` | 0       | XOR-hash seed (`seed[BW-1:0]`)                                |
 
-There is no scheme selector, `scheme_or`, or `synth_mask_obs`. ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH are just settings of this one register (see §4.4 and `rtl/fub/addr_mapper.sv`).
+There is no scheme selector, `scheme_or`, or `synth_mask_obs`. ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH are just settings of this one register (see §4.4 and `common-ip/rtl/fub/mc_addr_mapper.sv`).
 
 ### INIT_TUNING @ 0x050 (rw)
 
@@ -380,7 +380,7 @@ REFpb intervals (MC cycles). All-bank tREFI/tRFCab stay in TIMINGS_RFC_REFI.
 ### LPDDR2 Calibration / Training registers (0x0A0–0x0F0)
 
 > **Added to this chapter at rev 0.8** with the training plane
-> (`pumice_training_plane`: `pumice_zq_ctrl` + `pumice_lp_cal`). The window
+> (`mc_training_plane`: `mc_lpddr2_zq_ctrl` + `mc_lpddr2_dq_cal`). The window
 > sits in the free range between `OBS_ROW_HIT` (0x080–0x09F) and the retired
 > 0x0C0 hole; retired holes are never reused (pumice doctrine). Field names,
 > widths, and reset values below are transcribed from `rtl/macro/pumice_csr.rdl`

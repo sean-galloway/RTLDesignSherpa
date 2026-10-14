@@ -35,7 +35,7 @@
 
 ## Contract: scheduler command FIFO word (MRR flag)
 
-**Source.** `rtl/macro/pumice_scheduler_plane.sv` — pack at the `w_cmd_wr_data`
+**Source.** `common-ip/rtl/macro/mc_scheduler_plane.sv` — pack at the `w_cmd_wr_data`
 assign, unpack at `w_cmd_rd_data`.
 
 The arbiter-to-DFI command FIFO word grew one bit for training: the MRR
@@ -64,7 +64,7 @@ MRR got through.
 
 ## Contract: formatter MRR CA word
 
-**Source.** `rtl/fub/dfi_cmd_formatter.sv` — `OP_MRS` branch; JESD209-2F §5.12.
+**Source.** `common-ip/rtl/fub/mc_xddr2_cmd_formatter.sv` — `OP_MRS` branch; JESD209-2F §5.12.
 
 For `OP_MRS`, the formatter already builds the MRW CA word; MRR is the same
 word with one bit inverted:
@@ -86,8 +86,8 @@ was needed for ZQ.
 
 ## Contract: read-aligner calibration sideband
 
-**Source.** `rtl/fub/mc_dfi_rd_aligner.sv` — calibration capture block;
-CDC owned by `pumice_training_plane`.
+**Source.** `common-ip/rtl/fub/mc_dfi_rd_aligner.sv` — calibration capture block;
+CDC owned by `mc_training_plane`.
 
 | Signal          | Domain   | Direction (aligner) | Contract                                       |
 |-----------------|----------|---------------------|------------------------------------------------|
@@ -100,14 +100,14 @@ Behavior: `cal_expect_i` sets `r_cal_armed`; the next cycle with any
 `cal_valid_o` for one cycle, and clears the flag. The normal read FIFO push
 path is untouched — the arbiter grant contract guarantees no read is
 outstanding when calibration is active, so the sideband cannot collide with
-a returning demand read. Crossing into mc_clk for `pumice_lp_cal` is a
+a returning demand read. Crossing into mc_clk for `mc_lpddr2_dq_cal` is a
 `cdc_synchronizer` on data (held stable by this register) plus a
 `sync_pulse` on valid.
 
 ## Contract: `trn_cmd` maintenance arbitration
 
-**Source.** `rtl/fub/pumice_cmd_arbiter.sv` — priority pick, `w_trn_safe`,
-grant output; channel driven by `pumice_training_plane`.
+**Source.** `common-ip/rtl/fub/mc_cmd_arbiter.sv` — priority pick, `w_trn_safe`,
+grant output; channel driven by `mc_training_plane`.
 
 The training plane is one more maintenance client on the arbiter, in
 priority order:

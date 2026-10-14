@@ -26,7 +26,7 @@
 # Write Data Path (`mc_wr_data_cam` + `mc_dfi_wr_serializer`)
 
 **Modules:** `mc_wr_data_cam.sv`, `mc_dfi_wr_serializer.sv`
-**Location:** `rtl/fub/`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
 **Parents:** `mc_storage_plane` (CAM), `mc_dfi_2p1_plane` (serializer)
 **Status:** implemented
@@ -61,7 +61,7 @@ bus one DFI word per cycle.
 `mc_wr_data_cam` is the MC-domain staging structure. It stores each
 pending write's key `{bank, row, col}`, its AXI id, a free-running age,
 and the burst's beats in an SRAM slot. It exposes associative query ports
-so the `pumice_cmd_arbiter` can find row-hit writes, an oldest-entry port
+so the `mc_cmd_arbiter` can find row-hit writes, an oldest-entry port
 as a scheduler fallback, and a snarf (read-your-write) forwarding port for
 `mc_rd_intake`. On commit it drains the SRAM slot into the DFI plane.
 
@@ -180,8 +180,7 @@ drain is what allows one-command-per-clock scheduling.
 
 This FUB is purely mechanical and lives in the DFI clock domain. Its
 internal datapath unit is the DFI word (`DFI_DATA_WIDTH`, default 128),
-which already carries all `DFI_RATE` phases; `dfi_signal_pack` splits it to
-the pins, so there is **no per-beat packing here**.
+which already carries all `DFI_RATE` phases and goes to the pins as-is, so there is **no per-beat packing here**.
 
 Interface (abridged):
 
@@ -261,7 +260,7 @@ so the drive never stalls and bursts run back-to-back with zero bubbles.
 | `snarf_accept_i`    | in  | Read admitted as a snarf; push slot to snarf FIFO |
 | `snarf_rd_valid/ready/data/last` | out/in | Snarf data stream (accept order)    |
 
-### Oldest port + scheduler lookups (to `pumice_cmd_arbiter`)
+### Oldest port + scheduler lookups (to `mc_cmd_arbiter`)
 
 | Signal              | Dir | Description                                       |
 |---------------------|-----|---------------------------------------------------|

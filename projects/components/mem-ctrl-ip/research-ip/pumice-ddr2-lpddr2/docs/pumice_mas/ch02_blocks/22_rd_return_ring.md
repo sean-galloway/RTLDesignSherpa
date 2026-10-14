@@ -26,7 +26,7 @@
 # Read Return Ring (`mc_rd_return_ring`)
 
 **Module:** `mc_rd_return_ring.sv`
-**Location:** `rtl/fub/`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
 **Parent:** `mc_axi4_plane`
 **Status:** Implemented

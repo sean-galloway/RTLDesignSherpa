@@ -23,7 +23,7 @@
 
 # Initialization Sequence
 
-> Per HAS §6.2 for the architectural sequence and §2.12 for the FUB-level detail. This chapter is the **software-side cookbook** — what bring-up firmware actually does to get from power-on to "DRAM ready for AXI traffic." The sequence is driven by `rtl/fub/init_sequencer.sv`.
+> Per HAS §6.2 for the architectural sequence and §2.12 for the FUB-level detail. This chapter is the **software-side cookbook** — what bring-up firmware actually does to get from power-on to "DRAM ready for AXI traffic." The sequence is driven by `common-ip/rtl/fub/mc_xddr2_init_sequencer.sv`.
 
 ---
 
@@ -90,7 +90,7 @@ Note (this build): `STATUS` readback (`hwif_in`) is currently tied off in `pumic
 
 ## Init Sequence Details
 
-The step-by-step JEDEC sequence is a hardware FSM in `init_sequencer.sv` (`r_state`); software does not interleave commands during init. The sequencer both **issues** the commands to the DRAM (through the scheduler to `dfi_cmd_formatter`) and updates the mode-register shadow so the live CL/CWL/BL decode tracks what was programmed. The `memtype_i` input selects the DDR2 or LPDDR2 chain.
+The step-by-step JEDEC sequence is a hardware FSM in `mc_xddr2_init_sequencer.sv` (`r_state`); software does not interleave commands during init. The sequencer both **issues** the commands to the DRAM (through the scheduler to `mc_xddr2_cmd_formatter`) and updates the mode-register shadow so the live CL/CWL/BL decode tracks what was programmed. The `memtype_i` input selects the DDR2 or LPDDR2 chain.
 
 ### DDR2 chain (mirrors LiteDRAM's proven Nexys A7 sequence)
 
@@ -112,13 +112,13 @@ The step-by-step JEDEC sequence is a hardware FSM in `init_sequencer.sv` (`r_sta
 4. **MRW(MR1)** = BL8/nWR3 (0x23), **MRW(MR2)** = RL3/WL1 (0x01), **MRW(MR3)** = DS 40ohm (0x02) — each followed by tMRW (reuses `t_mrd_wait`)
 5. `init_done_o = 1`
 
-The MR index (MA, up to MR63) and data (OP) are packed as `{MA[5:0], OP[7:0]}` into the row request field; `dfi_cmd_formatter` unpacks it for the LPDDR2 CA-bus MRW word (a 3-bit bank port cannot reach MR10/MR63). Only MR1/MR2/MR3 update the CL/CWL/BL decode shadow; MR63/MR10 are issued but not shadowed.
+The MR index (MA, up to MR63) and data (OP) are packed as `{MA[5:0], OP[7:0]}` into the row request field; `mc_xddr2_cmd_formatter` unpacks it for the LPDDR2 CA-bus MRW word (a 3-bit bank port cannot reach MR10/MR63). Only MR1/MR2/MR3 update the CL/CWL/BL decode shadow; MR63/MR10 are issued but not shadowed.
 
 The init waits are the `INIT_TIMING0/1` CSR fields (`t_init_wait`, `t_dll_wait`, `t_mrd_wait`, `t_rp_wait`, `t_rfc_wait`); RDL defaults (512/256/8/8/16 MC cycles) comfortably cover the JEDEC minimums at the board frequency. For fast sim, program small values before triggering init.
 
 ## Multi-Rank Init Differences
 
-The current `init_sequencer.sv` targets a single rank (the board build is `NUM_RANKS = 1`). For a `NUM_RANKS > 1` build the intended extension is:
+The current `mc_xddr2_init_sequencer.sv` targets a single rank (the board build is `NUM_RANKS = 1`). For a `NUM_RANKS > 1` build the intended extension is:
 
 - MRS/MRW steps iterate over ranks (one rank per step iteration)
 - ZQ calibration is per-rank (each rank has its own reference)

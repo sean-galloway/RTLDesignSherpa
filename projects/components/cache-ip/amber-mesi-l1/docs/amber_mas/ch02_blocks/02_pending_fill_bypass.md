@@ -23,18 +23,18 @@
 
 # Pending-Fill Bypass Register
 
-**Module:** `amber_pending_fill_bypass.sv` (leaf, instantiated by `amber_control`)
+**Module:** `l1_pending_fill_bypass.sv` (leaf, instantiated by `l1_control`)
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed (Task 4); built as a leaf (DECISION D-2) so Task 13
 proves it standalone. Integration scenarios:
 `dv/testplans/amber_pending_fill_bypass_testplan.yaml` (via the
-`amber_control` suite).
+`l1_control` suite).
 
 ---
 
 ## Purpose
 
-While a fill is outstanding, a snoop may arrive for the same line. The pending-fill bypass register lets `amber_control` answer that snoop with the post-fill state and any fill beats already received, before the tag and data arrays have been updated. This is the only place in amber where a line can be observed in a state that has not yet been committed to the arrays, so its correctness is a SymbiYosys target (Task 13).
+While a fill is outstanding, a snoop may arrive for the same line. The pending-fill bypass register lets `l1_control` answer that snoop with the post-fill state and any fill beats already received, before the tag and data arrays have been updated. This is the only place in amber where a line can be observed in a state that has not yet been committed to the arrays, so its correctness is a SymbiYosys target (Task 13).
 
 ---
 
@@ -58,9 +58,9 @@ decision, pinned by the `UpgradeNoBypassArm` directed test): an upgrade
 carries no fill data in flight — the line stays installed in S and snoops
 are answered from the tag array on port B — and a bypass armed with no
 beats would deadlock the CD channel against `pf_data_valid` bits that can
-never set. The load is qualified `!upgr_q` in `amber_control`.
+never set. The load is qualified `!upgr_q` in `l1_control`.
 
-`pf_data_valid` is updated as each R beat is accepted by `amber_fill` (the
+`pf_data_valid` is updated as each R beat is accepted by `l1_fill` (the
 `ctrl_fill_beat_valid`/`ctrl_fill_beat_idx` strobe, MAS ch02/06). The
 snoop responder can forward fill beats whose `pf_data_valid` bit is set; beats not yet received stall the CD channel until they arrive.
 
@@ -84,7 +84,7 @@ The line address is `{tag, set_index}`; the line offset is ignored. The kmap wor
 | Cycle | Event |
 |-------|-------|
 | `CTRL_MISS_FILL` entry | `pf_active` set, `pf_addr` and `pf_state` loaded, `pf_data_valid` cleared. |
-| Each accepted R beat | Corresponding `pf_data_valid` bit set by `amber_fill` done-strobe. |
+| Each accepted R beat | Corresponding `pf_data_valid` bit set by `l1_fill` done-strobe. |
 | Snoop arrives during fill | If match, `CRRESP` and CD beats sourced from bypass register; otherwise normal tag lookup. |
 | `CTRL_FILL_WRITE` | Bypass register contents written to arrays; `pf_active` cleared. |
 | `CTRL_REPLAY` | Original request now hits the installed line. |

@@ -26,9 +26,9 @@
 # Global Timers (`mc_global_timers`)
 
 **Module:** `mc_global_timers.sv`
-**Location:** `rtl/fub/`
+**Location:** `common-ip/rtl/fub/`
 **Category:** FUB
-**Parent macro:** `pumice_scheduler_plane`
+**Parent macro:** `mc_scheduler_plane`
 **Status:** implemented (v2 H)
 
 ## Purpose
@@ -71,7 +71,7 @@ It was not always so. The outputs used to be flopped from `r_*_cnt == 0`, the
 state they were about to replace, which left every gate open for exactly one
 cycle after the command that should have closed it -- a tCCD of 2 and a tRTW of
 1 both honoured as 1. Both consumers had grown compensating logic for it
-(`pumice_cmd_arbiter` stopped using `tccd_ok_i` for gating altogether, and added
+(`mc_cmd_arbiter` stopped using `tccd_ok_i` for gating altogether, and added
 fire-history terms to the turnarounds after a board ILA capture showed a tRTW of
 20 honoured as 1), while tFAW and tRRD had no compensation and were simply
 exposed. The counters and the readiness flags are now derived from one

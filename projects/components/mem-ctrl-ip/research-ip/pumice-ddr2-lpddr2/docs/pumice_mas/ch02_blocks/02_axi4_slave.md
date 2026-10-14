@@ -27,7 +27,7 @@
 
 **Modules:** `axi4_slave_wr` / `axi4_slave_rd` (repo AMBA IP) inside
 `mc_wr_intake` / `mc_rd_intake`
-**Location:** intakes in `rtl/fub/`; slaves in the shared AMBA library
+**Location:** intakes in `common-ip/rtl/fub/`; slaves in the shared AMBA library
 **Category:** FUB (intakes)
 **Parent:** `mc_axi4_plane`
 **Status:** Implemented
@@ -52,7 +52,7 @@ two planes each:
   present a clean post-skid "fub" face (`fub_axi_*`).
 - **`mc_wr_intake` / `mc_rd_intake`** — the pumice-specific intake FUBs
   that sit on the post-skid face. They decode the burst address via
-  `addr_mapper`, push a decoded command downstream to a CAM, stream write/read
+  `mc_addr_mapper`, push a decoded command downstream to a CAM, stream write/read
   data through FIFOs, and return B/R responses.
 
 Ahead of both intakes, `mc_axi4_plane` places the repo's
@@ -72,7 +72,7 @@ Exactly three things plus the address decoder, per the locked µarch spec:
 3. **wr-data FIFO (`u_wr_data_fifo`)** — a `gaxi_fifo_sync`, depth
    `WDATA_FIFO_DEPTH` (16), width `WD_W = 1 + SW + DW`, capturing
    `{wlast, wstrb, wdata}` per AXI beat.
-4. **`addr_mapper` (`u_addr_mapper`)** — combinational decode of the FIFO-head
+4. **`mc_addr_mapper` (`u_addr_mapper`)** — combinational decode of the FIFO-head
    address into `{rank, bank, row, col}` for the downstream `aw_push`.
 
 Plus a **B-response FIFO (`u_b_fifo`)**, depth `B_FIFO_DEPTH` (4), width
@@ -85,7 +85,7 @@ Plus a **B-response FIFO (`u_b_fifo`)**, depth `B_FIFO_DEPTH` (4), width
 2. **W intake** — `fub_wvalid` writes `{wlast, wstrb, wdata}` into the wr-data
    FIFO; `fub_wready = w_wd_wr_ready`. AW and W are decoupled — each has its own
    FIFO.
-3. **Decode + push** — the AW-meta FIFO head address is decoded by `addr_mapper`;
+3. **Decode + push** — the AW-meta FIFO head address is decoded by `mc_addr_mapper`;
    the decoded `{bank, row, col, id, err}` is presented on `aw_push_*` and
    valid whenever the AW-meta FIFO is non-empty. It pops on the downstream
    `aw_push_ready_i` handshake. (`aw_push_rank_o` is driven but left unconnected
@@ -112,7 +112,7 @@ Mirror of the write intake, plus the read **snarf** path:
 
 1. **`axi4_slave_rd` (`u_slave_rd`)** — AXI protocol / skid buffering
    (`SKID_DEPTH_AR=2`, `SKID_DEPTH_R=4`).
-2. **`addr_mapper` (`u_addr_mapper`)** — decode `fub_araddr` → `{rank, bank,
+2. **`mc_addr_mapper` (`u_addr_mapper`)** — decode `fub_araddr` → `{rank, bank,
    row, col}` at the AR inlet (combinational).
 3. **Snarf probe** — the decoded `{bank, row, col, id, len}` is presented on the
    `snarf_probe_*` ports every cycle `fub_arvalid` is high; the wr-data CAM
@@ -147,7 +147,7 @@ Both intakes present a full AXI4 write (AW/W/B) or read (AR/R) slave face plus:
 
 | Port group        | Direction | Purpose                                             |
 |-------------------|-----------|-----------------------------------------------------|
-| `bank_lsb_i` / `hash_en_i` / `hash_seed_i` | in | `ADDR_MAP` config forwarded to `addr_mapper` |
+| `bank_lsb_i` / `hash_en_i` / `hash_seed_i` | in | `ADDR_MAP` config forwarded to `mc_addr_mapper` |
 | `aw_push_*` / `ar_push_*` | out | Decoded command to the wr/rd CAM              |
 | `wdata_*` (wr)    | out       | Write-data pop to the wr-data CAM                   |
 | `wr_done_*` (wr)  | in        | Commit-completion strobe from the CAM → B response  |

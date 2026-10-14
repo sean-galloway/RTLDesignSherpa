@@ -34,7 +34,7 @@ the Write Data Path chapter).
 
 The rearchitected AXI4 interface (`pumice_axi4_plane`) folded write-to-read
 forwarding into the write CAM rather than keeping it as a separate FUB on
-the AR path. The old `wr2rd_forward` block sat between `addr_mapper` and
+the AR path. The old `wr2rd_forward` block sat between `mc_addr_mapper` and
 `rd_cmd_cam` and compared each AR against a `wr_cmd_cam` snapshot bus;
 that snapshot bus, the standalone comparator, and the separate `w_buf`
 storage it read from no longer exist. Forwarding is now a native operation
@@ -87,7 +87,7 @@ cross-id pair.
 
 ## Tests
 
-Covered by the `mc_wr_data_cam` FUB test and the `pumice_axi4_plane`
-integration tests (snarf stream, snarf-vs-DRAM-path selection, and the
+Covered by the `mc_wr_data_cam` FUB test and the `test_pumice_axi4_plane.py`
+integration tests (an `mc_axi4_plane` + `mc_storage_plane` TB wrapper) (snarf stream, snarf-vs-DRAM-path selection, and the
 same-id / same-BL / unscheduled exclusion scenarios). See §17 for the
 detailed test plan.

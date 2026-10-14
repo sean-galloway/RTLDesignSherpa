@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# amber_tag_array and amber_data_array
+# l1_tag_array and l1_data_array
 
-**Modules:** `amber_tag_array.sv`, `amber_data_array.sv`
+**Modules:** `l1_tag_array.sv`, `l1_data_array.sv`
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed 2026-10-06; this chapter is the micro-architecture
 contract the RTL implements. DV: `dv/tests/fub/test_amber_{tag,data}_array.py`,
@@ -51,7 +51,7 @@ the HAS F8 dual-port decision implemented at L1-array granularity.
 
 ---
 
-## amber_tag_array
+## l1_tag_array
 
 ### Tag + state packing
 
@@ -73,7 +73,7 @@ the DV against per-location values that place nonzero patterns in both fields.
 | A | CPU / fill | Read tag+state for lookup; write tag+state on fill or hit-state update. |
 | B | Snoop | Read tag+state for snoop lookup. |
 
-Port A is driven by `amber_control`. Port B is driven by `amber_control` during snoop handling.
+Port A is driven by `l1_control`. Port B is driven by `l1_control` during snoop handling.
 
 ### Addressing
 
@@ -91,7 +91,7 @@ For timing closure at larger geometries, each way is a separate physical memory 
 
 ---
 
-## amber_data_array
+## l1_data_array
 
 ### Organization
 
@@ -117,7 +117,7 @@ The address is `{set_index, beat_index}`.
 
 ### Snoop data readout
 
-A snoop that requires data transfer reads the matching way from port B beat-by-beat. `amber_control` drives `b_addr = {snoop_set, beat}`, increments the beat counter each cycle until the line is complete, and supplies the hit way on `b_way` (from the tag compare on port B). The data is forwarded to `amber_snoop_resp` for CD transmission.
+A snoop that requires data transfer reads the matching way from port B beat-by-beat. `l1_control` drives `b_addr = {snoop_set, beat}`, increments the beat counter each cycle until the line is complete, and supplies the hit way on `b_way` (from the tag compare on port B). The data is forwarded to `l1_snoop_resp` for CD transmission.
 
 ---
 
@@ -125,7 +125,7 @@ A snoop that requires data transfer reads the matching way from port B beat-by-b
 
 The arrays carry **no reset port** (GLOBAL_REQUIREMENTS 1.4 — SRAM contents
 are not reset, and real BRAM has no reset pin). After `aresetn` deassertion,
-`amber_control` treats all ways as Invalid until the init walk completes;
+`l1_control` treats all ways as Invalid until the init walk completes;
 option 1 from the pre-RTL review is the contract: a hardware sequence walks
 all sets and writes `STATE_I` to every way (the DV TBs perform the same walk
 so unwritten locations cannot leak X's). The formal proofs assume all lines

@@ -21,19 +21,19 @@
 
 <!-- End Header -->
 
-# amber_cpu_frontend and amber_monlite
+# l1_cpu_frontend and l1_monlite
 
-**Modules:** `amber_cpu_frontend.sv`, `amber_monlite.sv`
+**Modules:** `l1_cpu_frontend.sv`, `l1_monlite.sv`
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
-**Status:** Pre-RTL micro-architecture contract
+**Status:** RTL landed; this chapter is the micro-architecture contract the RTL implements.
 
 ---
 
-## amber_cpu_frontend
+## l1_cpu_frontend
 
 ### Purpose
 
-`amber_cpu_frontend` is the GAXI slave that accepts CPU requests and returns responses. Because the cache is blocking, it latches one request at a time and does not accept a new request until `amber_control` returns `req_ready`.
+`l1_cpu_frontend` is the GAXI slave that accepts CPU requests and returns responses. Because the cache is blocking, it latches one request at a time and does not accept a new request until `l1_control` returns `req_ready`.
 
 ### Request payload
 
@@ -62,19 +62,19 @@ Packed as `{rdata[BUS_WIDTH-1:0]}`.
 | `cpu_rsp_rd_ready` | input | CPU accepts response. |
 | `cpu_rsp_rd_data` | output | Response payload. |
 
-`cpu_req_wr_ready` is asserted only when `amber_control` is in `CTRL_IDLE` and no snoop priority stall is active. Once a request is accepted, the front end latches it and holds it until `amber_control` returns the response.
+`cpu_req_wr_ready` is asserted only when `l1_control` is in `CTRL_IDLE` and no snoop priority stall is active. Once a request is accepted, the front end latches it and holds it until `l1_control` returns the response.
 
 ### Replay path
 
-On a miss, `amber_control` re-drives the original latched request into its own hit logic in `CTRL_REPLAY`. The front end does not see a new GAXI transaction; the response is generated from the same latched request.
+On a miss, `l1_control` re-drives the original latched request into its own hit logic in `CTRL_REPLAY`. The front end does not see a new GAXI transaction; the response is generated from the same latched request.
 
 ---
 
-## amber_monlite
+## l1_monlite
 
 ### Purpose
 
-`amber_monlite` is the drop-and-count MonBus observer. It taps the internal signals of `amber_core` and emits 128-bit MonBus event packets. It never stalls the observed path; under sustained backpressure it drops packets and counts the loss.
+`l1_monlite` is the drop-and-count MonBus observer. It taps the internal signals of `l1_core` and emits 128-bit MonBus event packets. It never stalls the observed path; under sustained backpressure it drops packets and counts the loss.
 
 ### Observation points
 
