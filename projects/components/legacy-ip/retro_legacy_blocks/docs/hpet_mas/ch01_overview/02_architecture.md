@@ -25,61 +25,22 @@
 
 ## Overview
 
-Three blocks do the work: an APB slave (with or without CDC), a register wrapper that adapts the PeakRDL register file to the core, and the timer core itself. The block diagram shows how they fit together.
+Three blocks do the work: an APB slave (with or without CDC), a register wrapper that adapts the PeakRDL register file to the core, and the timer core itself. Figure 1.1 in the overview shows how they fit together.
 
 ### High-Level Block Diagram
 
-```
-+-------------------------------------------------------------------+
-|                           APB HPET                                 |
-|                                                                    |
-|  +----------------+        +------------------+                  |
-|  |   APB Slave    |--------▶|  hpet_config_regs|                  |
-|  |  (Optional CDC)|        |  (PeakRDL Wrapper)|                  |
-|  |                |        |                   |                  |
-|  |  APB Interface |        | +--------------+ |                  |
-|  |  - PADDR       |        | |  hpet_regs   | |  Per-Timer Data  |
-|  |  - PDATA       |        | |  (PeakRDL    | |  Buses           |
-|  |  - PSEL/PENABLE|        | |  Generated)  | |  +-+-+-+-+-+-+  |
-|  |  - PREADY      |        | +--------------+ |  |0|1|2|3|...|N|  |
-|  +----------------+        |                   |  +-+-+-+-+-+-+  |
-|         |                  |  Edge Detect +    |       |         |
-|         |                  |  Data Routing     |       |         |
-|         ▼                  +------------------+       |         |
-|  +----------------+               |                   |         |
-|  |  APB CDC       |◀--------------+                   |         |
-|  |  (Optional)    |                                    |         |
-|  +----------------+                                    |         |
-|         |                                               ▼         |
-|         |                        +--------------------------+    |
-|         +------------------------▶|     hpet_core           |    |
-|                                   |                          |    |
-|                                   |  +---------------------+|    |
-|                                   |  |  64-bit Counter     ||    |
-|                                   |  |  - Free-running     ||    |
-|                                   |  |  - Read/Write access||    |
-|                                   |  +---------------------+|    |
-|                                   |                          |    |
-|                                   |  +---------------------+|    |
-|                                   |  | Timer Array [N-1:0] ||    |
-|                                   |  |                     ||    |
-|                                   |  | Per Timer:          ||    |
-|                                   |  | - 64-bit Comparator ||    |
-|                                   |  | - Control FSM       ||    |
-|                                   |  | - Fire Detection    ||    |
-|                                   |  | - Period Storage    ||    |
-|                                   |  +---------------------+|    |
-|                                   |                          |    |
-|                                   |  Outputs:                |    |
-|                                   |  - timer_irq[N-1:0]      |    |
-|                                   |  - timer_fired[N-1:0]    |    |
-|                                   +--------------------------+    |
-|                                                 |                 |
-|                                                 ▼                 |
-|                                   timer_irq[NUM_TIMERS-1:0] ---------▶ To Interrupt Controller
-|                                                                    |
-+--------------------------------------------------------------------+
-```
+The whole unit is Figure 1.1 (APB HPET Block Diagram). Read top to bottom:
+
+1. **APB slave.** `apb4_slave`, or `apb4_slave_cdc` when `CDC_ENABLE = 1`,
+   turns APB transfers into the cmd/rsp handshake. With CDC the crossing is
+   inside this block (Figure 1.3); there is no separate CDC stage after it.
+2. **Register wrapper.** `hpet_config_regs` adapts cmd/rsp to the PeakRDL
+   `hpet_regs` file through `peakrdl_to_cmdrsp`, and turns register writes
+   into the one-cycle strobes and per-timer configuration the core consumes.
+3. **Timer core.** `hpet_core` holds the 64-bit main counter and, per timer,
+   the comparator, the period and the fire logic. Its outputs are
+   `timer_irq[NUM_TIMERS-1:0]` and, for the LegacyReplacement Route,
+   `legacy_irq0` and `legacy_irq8`.
 
 ### Module Hierarchy
 
@@ -170,158 +131,100 @@ hpet_regs.sv -- there are no such localparams in the RTL):
 
 #### Write Transaction Flow (APB -> HPET Core)
 
-```
-1. APB Master Write
-   |
-   ▼
-2. APB Slave (or APB CDC)
-   - Protocol handling
-   - Clock domain crossing (if enabled)
-   |
-   ▼
-3. hpet_regs (PeakRDL)
-   - Register decoding
-   - Field updates
-   - Software access flags (swacc, swmod)
-   |
-   ▼
-4. hpet_config_regs
-   - Rising-edge detect on the swmod levels, aligned to the written value
-   - Generate per-half write strobes (counter_write_lo/hi,
-     timer_comp_write_lo/hi[i])
-   - Decode an HPET_STATUS write into a per-bit clear mask
-   - Route per-timer data buses
-   |
-   ▼
-5. hpet_core
-   - Load one counter half (if HPET_COUNTER_LO or _HI write)
-   - Load one comparator half; re-arm only if the counter is halted
-     (if TIMER_COMPARATOR write)
-   - Update control (if TIMER_CONFIG write)
-   - Clear the status bits written with 1 (if HPET_STATUS write)
-```
+A write walks Figure 1.1 top to bottom:
+
+1. **APB master** issues the write.
+2. **APB slave** (`apb4_slave`, or `apb4_slave_cdc`) handles the protocol and,
+   with `CDC_ENABLE = 1`, carries the command across to `hpet_clk`
+   (Figure 1.3).
+3. **`hpet_regs` (PeakRDL)** decodes the register, updates the field, and
+   raises the software-access flags (`swacc`, `swmod`).
+4. **`hpet_config_regs`**:
+   - detects the rising edge of each `swmod` level, aligned to the written
+     value;
+   - generates the per-half write strobes (`counter_write_lo/hi`,
+     `timer_comp_write_lo/hi[i]`);
+   - decodes an HPET_STATUS write into a per-bit clear mask;
+   - routes the per-timer data buses.
+5. **`hpet_core`**:
+   - loads one counter half (HPET_COUNTER_LO or _HI write);
+   - loads one comparator half, re-arming only if the counter is halted
+     (TIMER_COMPARATOR write);
+   - updates control (TIMER_CONFIG write);
+   - clears the status bits written with 1 (HPET_STATUS write).
 
 #### Read Transaction Flow (HPET Core -> APB)
 
-```
-1. APB Master Read
-   |
-   ▼
-2. APB Slave (or APB CDC)
-   - Protocol handling
-   - Read data synchronization (if CDC)
-   |
-   ▼
-3. hpet_regs (PeakRDL)
-   - Address decode
-   - Multiplex read data from hardware interface (hwif)
-   |
-   ▼
-4. hpet_config_regs
-   - Connect hpet_core signals to hwif read ports
-   |
-   ▼
-5. hpet_core
-   - Provide counter value
-   - Provide timer configuration
-   - Provide status flags
-   |
-   ▼
-6. APB Slave returns PRDATA to master
-```
+A read walks the same path and returns:
+
+1. **APB master** issues the read.
+2. **APB slave** handles the protocol; with CDC the response crosses back to
+   `pclk`.
+3. **`hpet_regs` (PeakRDL)** decodes the address and multiplexes the read data
+   from the hardware interface (hwif).
+4. **`hpet_config_regs`** connects the `hpet_core` signals to the hwif read
+   ports.
+5. **`hpet_core`** provides the counter value, the timer configuration and the
+   status flags.
+6. **APB slave** returns PRDATA to the master.
 
 #### Timer Operation Flow
 
-```
-1. Counter Increment (every hpet_clk)
-   r_main_counter <= r_main_counter + 1
-   |
-   ▼
-2. Comparator Match Detection (for each timer i)
-   timer_match[i] = (r_main_counter >= r_timer_comparator[i])
-                    && !r_comp_next_epoch[i]
-   (at the compare width; the hold bit forces the match off while the
-   comparator sits in the counter's next epoch)
-   |
-   ▼
-3. Timer Fire Logic
-   |
-   A match fires only while the timer is ARMED; firing clears the
-   armed latch. The latch sets when the match falls (or is held off by
-   the epoch bit), when a comparator half is written on a STOPPED timer,
-   or when a periodic catch-up step lands at or ahead of the counter.
-   |
-   +- One-Shot Mode:
-   |  - Fire once on the armed match
-   |  - Stay un-armed until the comparator is written with the counter
-   |    halted, or the match falls (comparator written above the
-   |    counter, or the counter written back)
-   |  - Assert timer_irq[i]
-   |
-   +- Periodic Mode:
-      - Fire on the armed match
-      - Auto-increment comparator:
-        r_timer_comparator[i] <= r_timer_comparator[i] + r_timer_period[i]
-        (the match drops, which re-arms the timer)
-      - If the advanced comparator is still at or below the counter,
-        keep advancing one boundary per cycle WITHOUT firing until it
-        is at or ahead, then re-arm (missed periods are skipped, never
-        burst; at period 1 the step is to counter + 1)
-      - If an advance carries out of the compare width, set the
-        next-epoch hold bit: no fire, no catch-up, until the counter
-        wraps at that width (or software writes the comparator or
-        counter half the compare reads, or changes timer_size)
-      - Assert timer_irq[i]
-      - Repeat
-   |
-   ▼
-4. Interrupt Status Update
-   r_interrupt_status[i] <= 1 in hpet_core (sticky until software clears
-   via W1C); HPET_STATUS[i] mirrors it
-   |
-   ▼
-5. Interrupt Output
-   timer_irq[i] is a flop in hpet_core: set one hpet_clk after the fire
-   event when timer_int_enable[i] was set at fire time; cleared by the
-   same W1C that clears the status. It is core state, not a combinational
-   copy of HPET_STATUS.
-```
+1. **Counter increment**, every tick of the core clock:
+   `r_main_counter <= r_main_counter + 1`.
+2. **Comparator match detection**, for each timer i:
+   `timer_match[i] = (r_main_counter >= r_timer_comparator[i]) && !r_comp_next_epoch[i]`,
+   at the compare width. The hold bit forces the match off while the
+   comparator sits in the counter's next epoch.
+3. **Timer fire logic.** A match fires only while the timer is ARMED, and
+   firing clears the armed latch. The latch sets when the match falls (or is
+   held off by the epoch bit), when a comparator half is written on a STOPPED
+   timer, or when a periodic catch-up step lands at or ahead of the counter.
+   - **One-shot mode:** fire once on the armed match, then stay un-armed until
+     the comparator is written with the counter halted, or the match falls
+     (comparator written above the counter, or the counter written back).
+   - **Periodic mode:** fire on the armed match and auto-increment the
+     comparator, `r_timer_comparator[i] <= r_timer_comparator[i] + r_timer_period[i]`;
+     the match drops, which re-arms the timer.
+     - If the advanced comparator is still at or below the counter, keep
+       advancing one boundary per cycle WITHOUT firing until it is at or
+       ahead, then re-arm. Missed periods are skipped, never burst; at period
+       1 the step is to counter + 1.
+     - If an advance carries out of the compare width, set the next-epoch
+       hold bit: no fire and no catch-up until the counter wraps at that
+       width, or software writes the comparator or the counter half the
+       compare reads, or changes `timer_size`.
+4. **Interrupt status update.** `r_interrupt_status[i] <= 1` in `hpet_core`,
+   sticky until software clears it by W1C; HPET_STATUS[i] mirrors it.
+5. **Interrupt output.** `timer_irq[i]` is a flop in `hpet_core`, set one
+   core clock after the fire when `timer_int_enable[i]` was set at fire time,
+   and cleared by the same W1C that clears the status. It is core state, not a
+   combinational copy of HPET_STATUS.
 
 ### Clock Domains
 
-**Synchronous Mode (CDC_ENABLE = 0):**
-```
-+----------+
-|   pclk   |--------+-------------+---------------+
-+----------+        |             |               |
-              +-----▼------+  +--▼------+  +----▼-----+
-              | APB Slave  |  | hpet_   |  |  hpet_   |
-              |            |  | config_ |  |  core    |
-              |            |  | regs    |  |          |
-              +------------+  +---------+  +----------+
+`CDC_ENABLE` selects one of two clockings at build time. In both, the
+register block and the timer core share a single clock and reset; only the
+APB front-end changes.
 
-Note: pclk = hpet_clk (same clock domain)
-```
+**Synchronous mode (CDC_ENABLE = 0).** The front-end is the plain
+`apb4_slave`, and the register block and core run on `pclk` / `presetn`.
+`hpet_clk` and `hpet_resetn` are not connected to anything, so the main
+counter ticks on `pclk` and `HPET_PERIOD` must state `pclk`'s period.
 
-**Asynchronous Mode (CDC_ENABLE = 1):**
-```
-+----------+                                +----------+
-|   pclk   |---------+--------------+       | hpet_clk |
-+----------+         |              |       +----------+
-               +-----▼------+  +---▼----+       |
-               | APB Slave  |  |  APB   |       |
-               |            |  |  CDC   |       |
-               |            |  |        |       |
-               +------------+  +---+----+       |
-                                   |            |
-                             +-----▼------------▼----+
-                             |  hpet_config_regs +   |
-                             |  hpet_core             |
-                             |  (HPET clock domain)   |
-                             +------------------------+
+### Figure 1.2: Clocking with CDC_ENABLE = 0
 
-Note: pclk and hpet_clk are asynchronous, CDC required
-```
+![Clocking with CDC_ENABLE = 0](../assets/graphviz/hpet_clock_sync.png)
+
+**Asynchronous mode (CDC_ENABLE = 1).** The front-end is `apb4_slave_cdc`:
+the APB completer stays on `pclk`, and the command and response cross through
+a pair of asynchronous FIFOs. The register block, core and interrupt outputs
+run on `hpet_clk` / `hpet_resetn`; the interrupts are not synchronized back
+to `pclk`.
+
+### Figure 1.3: Clocking with CDC_ENABLE = 1
+
+![Clocking with CDC_ENABLE = 1](../assets/graphviz/hpet_cdc_crossings.png)
 
 ### Reset Domains
 

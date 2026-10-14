@@ -684,69 +684,9 @@ Use the HI/LO/HI retry sequence (read HI, read LO, re-read HI; retry if
 the two HI reads differ). A plain LO-then-HI read has no rollover
 protection.
 
-### Memory Map Diagram
+### Figure 5.4: HPET Register Memory Map
 
-```
-0x000  ┌─────────────────────────┐
-       │ HPET_ID (RO)            │  GCAP_ID[31:0]: vendor, caps, revision
-0x004  ├─────────────────────────┤
-       │ HPET_PERIOD (RO)        │  GCAP_ID[63:32]: femtoseconds per tick
-0x008  ├─────────────────────────┤
-       │ RESERVED                │
-0x010  ├─────────────────────────┤
-       │ HPET_CONFIG (RW)        │  GEN_CONF: enable, legacy replacement
-0x014  ├─────────────────────────┤
-       │ RESERVED                │
-0x020  ├─────────────────────────┤
-       │ HPET_STATUS (RW/W1C)    │  GINTR_STA: timer interrupt status
-0x024  ├─────────────────────────┤
-       │ RESERVED                │
-0x0F0  ├─────────────────────────┤
-       │ HPET_COUNTER_LO (RW)    │  MAIN_CNT[31:0]
-0x0F4  ├─────────────────────────┤
-       │ HPET_COUNTER_HI (RW)    │  MAIN_CNT[63:32]
-0x0F8  ├─────────────────────────┤
-       │ RESERVED                │
-0x0FF  ├─────────────────────────┤
-
-0x100  ┌─────────────────────────┐
-       │ TIMER0_CONFIG (RW)      │  TN_CONF[31:0]
-0x104  ├─────────────────────────┤
-       │ TIMER0_INT_ROUTE_CAP    │  TN_CONF[63:32] (RO, reads 0)
-0x108  ├─────────────────────────┤
-       │ TIMER0_COMPARATOR_LO    │  Timer 0 comparator [31:0]
-0x10C  ├─────────────────────────┤
-       │ TIMER0_COMPARATOR_HI    │  Timer 0 comparator [63:32]
-0x110  ├─────────────────────────┤
-       │ RESERVED (FSB route)    │  not implemented
-0x11F  ├─────────────────────────┤
-
-0x120  ┌─────────────────────────┐
-       │ TIMER1_CONFIG (RW)      │  TN_CONF[31:0]
-0x124  ├─────────────────────────┤
-       │ TIMER1_INT_ROUTE_CAP    │  TN_CONF[63:32] (RO, reads 0)
-0x128  ├─────────────────────────┤
-       │ TIMER1_COMPARATOR_LO    │  Timer 1 comparator [31:0]
-0x12C  ├─────────────────────────┤
-       │ TIMER1_COMPARATOR_HI    │  Timer 1 comparator [63:32]
-0x130  ├─────────────────────────┤
-       │ RESERVED (FSB route)    │  not implemented
-0x13F  ├─────────────────────────┤
-
-       │         ...             │
-
-0x1E0  ┌─────────────────────────┐
-       │ TIMER7_CONFIG (RW)      │  TN_CONF[31:0] (if 8 timers)
-0x1E4  ├─────────────────────────┤
-       │ TIMER7_INT_ROUTE_CAP    │  TN_CONF[63:32] (RO, reads 0)
-0x1E8  ├─────────────────────────┤
-       │ TIMER7_COMPARATOR_LO    │  Timer 7 comparator [31:0]
-0x1EC  ├─────────────────────────┤
-       │ TIMER7_COMPARATOR_HI    │  Timer 7 comparator [63:32]
-0x1F0  ├─────────────────────────┤
-       │ RESERVED (FSB route)    │  not implemented
-0x1FF  └─────────────────────────┘
-```
+![HPET Register Memory Map](../assets/graphviz/hpet_memory_map.png)
 
 Only address bits [8:0] reach the register block, so 0x200-0xFFF alias
 back onto 0x000-0x1FF (0x200 reads HPET_ID, and so on). No error is
@@ -794,7 +734,7 @@ Complete timer setup sequence: disable HPET, reset counter, configure comparator
 
 ### Initialization Sequence
 
-### Figure 5.4: Software Initialization Flow
+### Figure 5.5: Software Initialization Flow
 
 ![Software Initialization Flow](../assets/graphviz/software_init.png)
 
@@ -842,7 +782,7 @@ printf("HPET: Vendor=0x%04X, Rev=%d, Timers=%d, 64-bit=%d\n",
 
 ### Interrupt Handling
 
-### Figure 5.5: Interrupt Handling Flow
+### Figure 5.6: Interrupt Handling Flow
 
 ![Interrupt Handling Flow](../assets/graphviz/interrupt_handling.png)
 

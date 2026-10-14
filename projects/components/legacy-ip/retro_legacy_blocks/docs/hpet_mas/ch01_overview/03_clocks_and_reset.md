@@ -322,17 +322,9 @@ assign hpet_resetn = presetn;  // Same reset for both domains
 6. Begin register accesses
 ```
 
-**Reset Timing Diagram (CDC Mode):**
-```
-           +-------------------------------------
-presetn    +                                    (>=10 pclk cycles in reset)
+### Figure 1.4: Reset Sequence with CDC_ENABLE = 1
 
-                  +---------------------------------
-hpet_resetn        +                              (>=10 hpet_clk cycles in reset)
-
-                           +-------------------------
-APB Access                 + Safe to access       (Wait for CDC stabilization)
-```
+![Reset Sequence with CDC_ENABLE = 1](../assets/graphviz/hpet_reset_cdc.png)
 
 ### Timing Constraints
 

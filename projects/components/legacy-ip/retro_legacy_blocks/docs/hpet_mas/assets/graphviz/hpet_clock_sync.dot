@@ -1,0 +1,32 @@
+// apb4_hpet CDC_ENABLE=0 clocking - house style
+// (vault/handbook/authoring/block-diagrams.md). Companion to
+// hpet_cdc_crossings (CDC_ENABLE=1); replaces an ASCII sketch in
+// ch01_overview/02_architecture.md. One domain: the APB front-end is the plain
+// apb4_slave, and hpet_config_regs and hpet_core are clocked by
+// CDC_ENABLE[0] ? hpet_clk : pclk, which is pclk here. hpet_clk and
+// hpet_resetn are not connected to anything in this build.
+// Source of truth: rtl/hpet/apb4_hpet.sv (g_apb4_slave_no_cdc, the clk/rst_n
+// selects on u_hpet_config_regs and u_hpet_core).
+digraph hpet_clock_sync {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.75", splines=ortho, newrank=true,
+           label="apb4_hpet, CDC_ENABLE=0 - one clock domain: every block runs on pclk / presetn", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    apb  [label="APB4 Completer Port  s_apb_*  (pclk, presetn)", fillcolor="white"];
+    core [label="APB Completer  (pclk, presetn)\napb4_slave - no CDC FIFOs\ncompleter FSM, command and response skids"];
+    cfg  [label="Register Block + Strobes  (pclk, presetn)\nhpet_config_regs: peakrdl_to_cmdrsp + hpet_regs"];
+    hc   [label="Timer Core  (pclk, presetn)\nhpet_core - main counter ticks on pclk\n(HPET_PERIOD must state pclk's period)"];
+    bar  [label="Module Boundary\ntimer_irq, legacy_irq0, legacy_irq8 out - on pclk", fillcolor="white", width=7.5];
+    nc   [label="hpet_clk, hpet_resetn\nunused in this build\n(no connection inside apb4_hpet)", fillcolor="white", style="filled,dashed"];
+
+    apb  -> core [dir=both, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
+    core -> cfg  [dir=both, penwidth=1.8, xlabel="cmd (write, addr, data, strb)\n/ rsp (prdata, pslverr)"];
+    cfg  -> hc   [dir=both, minlen=2, xlabel="strobes, config\n/ live counter, comparators, status"];
+    hc   -> bar  [xlabel="interrupts"];
+
+    { rank=same; core; nc; }
+    core -> nc [style=invis, minlen=3];
+}
