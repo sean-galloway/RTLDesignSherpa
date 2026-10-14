@@ -143,29 +143,9 @@
 //   0xFC  DESC_VR_LIVE     R  Live single-cycle snapshot of all live
 //                              valid/ready pairs (see harness for layout).
 //
-//   AXI bus meter readback. Two meters live in this CSR space:
-//     R-meter at 0x100  -- watches the read engine's R bus
-//     W-meter at 0x180  -- watches the write engine's W bus
-//   Both share the same layout, base + offset:
-//
-//   +0x00  AGG_PRODUCTIVE     R  Cycles with (valid && ready)
-//   +0x04  AGG_BACKPRESSURE   R  Cycles with (valid && !ready)
-//   +0x08  AGG_STARVATION     R  Cycles with (!valid && ready)
-//   +0x0C  AGG_IDLE           R  Cycles with (!valid && !ready)
-//   +0x10  CH_OVERFLOW        R  Per-(channel, bucket) sticky overflow mask.
-//                                Bit layout (NUM_CHANNELS=8):
-//                                [3:0]    = ch0 {prod, bp, starv, idle}
-//                                [7:4]    = ch1 ...
-//                                [31:28]  = ch7 ...
-//                                If any bit is set, the corresponding 16-bit
-//                                per-channel counter wrapped past 65535
-//                                cycles (~655 us at 100 MHz). Discard that
-//                                channel's per-bucket value for the run.
-//   +0x20+4*ch  CH[ch]_PROD_BP    R  {bp[15:0], productive[15:0]}
-//   +0x40+4*ch  CH[ch]_STARV_IDLE R  {idle[15:0], starvation[15:0]}
-//
-//   All bus-meter counters clear synchronously on CTRL.clear_stats, in lock
-//   step with debug_sram and the CRC state. No separate clear-bit needed.
+//   0x100-0x1CF: unallocated. The AXI bus-meter readback that lived here
+//   (R-meter 0x100, W-meter 0x180) is retired: datapath utilization is read
+//   from STREAM's own perf CSRs and the observers' regblocks, not from here.
 //
 //   MonBus compressor statistics (R, from stream_top_ch8; 0 unless the
 //   build sets USE_MON_COMPRESSION=1):
@@ -266,7 +246,7 @@ module harness_csr #(
     input  logic            i_dbg_clear_busy,
 
     // MonBus compressor statistics (from stream_top_ch8). Live only when
-    // USE_MON_COMPRESSION=1; read-only at 0x100..0x11C.
+    // USE_MON_COMPRESSION=1; read-only at 0x1E0..0x1FC.
     input  logic [31:0]     i_mon_comp_tier1_a,
     input  logic [31:0]     i_mon_comp_tier1_b,
     input  logic [31:0]     i_mon_comp_tier1_c,
@@ -276,17 +256,12 @@ module harness_csr #(
     input  logic [31:0]     i_mon_comp_event_data_ovf,
     input  logic [31:0]     i_mon_comp_ed_delta_ovf,
 
-    // RFC Stage E: external axi4_intf_master_observer perf readback (revives the
-    // 0x100-0x128 range the retired harness axi_bus_meter used). Aggregate
-    // R/W bus-meter buckets + an indexed latency-histogram readout, sourced
-    // from the standalone observer dropped inline on STREAM's rd/wr AXI. Used
-    // for observer-vs-in-core equivalence and the eventual USE_AXI_MONITORS=0
-    // path where the observer is the sole perf source.
-    // Indexed histogram readout. o_obs_hist_sel = {bin[5:2], metric[1], bus[0]}
-    // (bus 0=read/1=write; metric 0=AR->firstR or AW->B, 1=AR->RLAST). The
-    // harness drives the observer's i_hist_metric/i_hist_bin from this and
-    // muxes the selected count/total back into i_obs_hist_data/total.
-    // o_obs_hist_sel RETIRED -- drove nothing; see 0x120 note below.
+    // 0x100-0x128 is RETIRED in full: there is no observer perf readback through
+    // this block. The harness-side axi_bus_meter that once lived here was
+    // removed (RFC Stage E.4), and the observer owns its own telemetry -- the
+    // host reads it from the observer's regblock (OBS_STAT_SEL / OBS_STAT_DATA,
+    // bin/obs_addrs.py). OBS_HIST_SEL @ 0x120 and o_obs_hist_sel are gone too;
+    // see the note at the u_csr instantiation in stream_harness.sv.
 
     input  logic [31:0]     i_crc_rd_expected,
     input  logic [31:0]     i_crc_wr_expected,
@@ -652,10 +627,8 @@ module harness_csr #(
                     if (int_awvalid && int_wvalid) begin
                         // The decode is the register block's job now.
                         // Use the same 9-bit slice as the read path so the
-                        // meter region 0x100-0x1FF stays read-only (no write
-                        // case-match means write goes to default = ignore),
-                        // with the sole exception of the RFC Stage E observer
-                        // histogram selector at 0x120 (RW).
+                        // region 0x100-0x1FF stays read-only (no write
+                        // case-match means write goes to default = ignore).
                         r_wstate <= W_BRESP;
                     end
                 end
@@ -704,7 +677,7 @@ module harness_csr #(
     r_state_t r_rstate;
     logic [31:0] r_rdata;
 
-    // 9-bit decode to span 0x000-0x1FF (meter readback lives at 0x100+).
+    // 9-bit decode to span 0x000-0x1FF (BUILD_* and COMP_* live at 0x1D0+).
     logic [8:0] w_raddr;
     assign w_raddr = int_araddr[8:0];
 

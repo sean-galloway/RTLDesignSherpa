@@ -49,8 +49,8 @@ that one master out to six slaves at fixed bases.
 |---|---|---|---|---|
 | `ddr2_apb` | `0x0000_0000` | 4 KB | APB | pumice controller CSR (PeakRDL-generated) |
 | `harness_csr` | `0x0001_0000` | 4 KB | AXIL | harness control, timer, engine cfg, perf readback |
-| `debug_sram` | `0x0004_0000` | 256 KB | AXIL 64b | MonBus / DFI trace ring |
-| `dfi_mon_ram` | `0x0008_0000` | 4 KB | AXIL | small ring for DFI command observability |
+| `debug_sram` | `0x0004_0000` | 256 KB | AXIL 64b | host-access memory; no writer on this build (the trace ring is unused, see below) |
+| `dfi_mon_ram` | `0x0008_0000` | 4 KB | AXIL | placeholder for DFI command observability; no writer on this build, host access only |
 | `obs_apb` | `0x0009_0000` | 4 KB | APB | expansion slot for an interface observer; unused on this build |
 | `chargen_apb` | `0x000A_0000` | 4 KB | APB | `chargen_regs`: per-generator configuration, status and `GO` |
 
@@ -108,7 +108,7 @@ and the instruments:
 | Block | Role | Why it is shaped this way |
 |---|---|---|
 | `chargen_regs` (PeakRDL) | per-generator address window, stride, burst length, bank span, transaction budget | the stimulus is *described*, not compiled in, so a sweep is a host loop and not a rebuild |
-| `char_gen_unit` | two write and two read generator blocks | each spans `NUM_BANKS / NUM_GEN` banks, so **bank concurrency is a property of the stimulus**, not of the controller -- that is what makes the bank/gap knee measurable |
+| `char_gen_unit` | `NUM_GEN` = 4 write and 4 read generator blocks (the default; no build overrides it) | each spans `NUM_BANKS / NUM_GEN` banks, so **bank concurrency is a property of the stimulus**, not of the controller -- that is what makes the bank/gap knee measurable |
 | `char_gen_axi_mux` + `char_gen_wr_order_q` | N:1 merge onto the DUT's single `s_axi` | see below |
 | `axi_bus_meter` | per cycle: productive, backpressure, starvation, idle | four states that account for every cycle; this is where "the arbiter is idle 33% of the time" came from |
 | `axi_perf_latency_hist` | response-time histograms | a mean hides a bimodal distribution, which is exactly what a page-policy change produces |
@@ -148,7 +148,8 @@ sim stub ignores the writes.
 
 ## Observability, and one honest compromise
 
-`dfi_mon_ram` is a small AXIL ring for DFI command observability, and
+`dfi_mon_ram` is reserved for DFI command observability but has no writer on
+this build -- only the host reads and writes it -- and
 `seven_seg_4digit` plus `led_status_driver` give state at the bench with no
 host attached -- a heartbeat and a pass/fail byte are enough to tell "hung"
 from "running" across the room.

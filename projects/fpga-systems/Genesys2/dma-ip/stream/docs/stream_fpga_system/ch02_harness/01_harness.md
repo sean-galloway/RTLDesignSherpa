@@ -79,7 +79,7 @@ external AXI4-Lite channel sits behind a skid buffer for timing.
 | `STATUS` | latched `stream_irq`, sticky `any_error`, sticky `trace_overflow`, `clear_busy` (poll to zero after `clear_stats` before the next capture) |
 | `DBG_WR_PTR`, `DBG_OVERFLOW` | how much of the capture memory is written, and whether it overflowed |
 | `CRC_RD_EXPECTED`, `CRC_WR_EXPECTED`, `CRC_WR_COMPUTED` | the source's pseudo-random CRC, the expected sink CRC, and what the sink actually wrote |
-| meter and count registers | the per-interface cycle classification the perf host reads |
+| (no meter registers) | `0x100`-`0x128`, where the retired harness bus meters were read back, is unallocated; the per-interface cycle classification is read from the observers' own register blocks (`OBS_STAT_SEL` / `OBS_STAT_DATA`) and from STREAM's in-core perf CSRs |
 
 : Table 2.2: Harness CSR, the registers that define a run
 
@@ -102,8 +102,10 @@ the runner hooks on the host issue it between programs.
 The harness carries three ways of measuring, and Chapter 3 is about which
 build has which.
 
-- **Bus meters**, always built. Per interface, every cycle of the window is
-  productive, backpressure, starvation or idle. They sit outside the monitor
+- **Bus meters**, always built, inside the interface observers and STREAM's
+  in-core datapath (the harness's own `axi_bus_meter` blocks are retired). Per
+  interface, every cycle of the window is productive, backpressure, starvation
+  or idle. They sit outside the monitor
   gate on purpose: the perf build has no monitor and must still count. That
   separation regressed once, when the gate over-reached and the perf build
   reported zeros, and the monitor test now asserts the meters are non-zero in
