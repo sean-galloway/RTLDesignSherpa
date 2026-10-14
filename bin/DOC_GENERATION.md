@@ -221,11 +221,11 @@ them — stable, versioned, faster builds, no build-time renderer needed.
 - Chapters reference the `.png`, each followed by a source link:
 
 ```markdown
-### Figure 2.13.1: STREAM Core Block Diagram
+### Figure 2.4.2: Scheduler FSM
 
-![STREAM Core Block Diagram](../assets/mermaid/01_stream_core_block.png)
+![Scheduler FSM](../assets/mermaid/02_scheduler_fsm.png)
 
-**Source:** [01_stream_core_block.mmd](../assets/mermaid/01_stream_core_block.mmd)
+**Source:** [02_scheduler_fsm.mmd](../assets/mermaid/02_scheduler_fsm.mmd)
 ```
 
 **Regenerate via the committed batch scripts** (one per asset dir), which already

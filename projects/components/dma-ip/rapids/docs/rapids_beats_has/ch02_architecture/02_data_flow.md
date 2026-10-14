@@ -32,26 +32,53 @@ RAPIDS Beats implements two independent data paths that can operate concurrently
 
 ## Sink Path Data Flow
 
+The sink accepts a beat for channel `tid` only while that channel holds an
+SRAM reservation. `snk_data_path_axis_beats` drives
+
+`s_axis_tready = fill_ready && (r_pending_alloc[tid] > 0 || fill_alloc_req)`
+
+where `r_pending_alloc[tid]` is the number of reserved beats the channel has
+not yet filled. When the head beat arrives for a channel that holds no
+reservation, the wrapper raises `fill_alloc_req` in the same cycle. The request
+is for `AXI_XFER_CONFIG.ALLOC_SIZE` beats, or for whatever remains when less
+than that is free, and the beat is accepted on that cycle. A channel whose
+partition is full, or whose last allocation is still settling into
+`fill_space_free` (three cycles), gets no reservation, and `tready` stays low.
+
+The reservation does not depend on the descriptor. Data can therefore reach a
+channel's SRAM partition before its descriptor has been fetched, but only up
+to the space the partition has free. After that the channel stops accepting
+until the write engine drains. The write engine drains only after the
+scheduler has a descriptor in `CH_XFER_DATA` and presents `sched_wr_valid`, so
+a channel that is never kicked fills its partition once and then stalls.
+`tready` is evaluated for the `tid` of the beat at the head of the single
+`s_axis` port, so a stalled channel also blocks beats for every other channel
+behind it (head-of-line blocking). The AXIS monitor-lite's skid stage in front
+of the wrapper absorbs a few beats before the stall reaches the network.
+
 ```mermaid
 sequenceDiagram
     participant NET as Network (AXIS)
     participant ALLOC as Alloc Ctrl
     participant SRAM as SRAM Buffer
+    participant SCHED as Scheduler
     participant DRAIN as Drain Ctrl
     participant AXI as AXI Write Engine
     participant MEM as Memory
 
     Note over NET,MEM: Sink Path: Network to Memory
 
-    NET->>ALLOC: Request space (N beats)
-    ALLOC-->>NET: Space granted
+    NET->>ALLOC: Head beat for channel tid, no reservation held
+    ALLOC-->>NET: fill_alloc_req (ALLOC_SIZE beats, or the remainder), tready high
+    Note over NET,ALLOC: No free space: no reservation, tready low
 
-    loop For each beat
-        NET->>SRAM: Write data beat
+    loop While the reservation lasts
+        NET->>SRAM: Write data beat (r_pending_alloc - 1)
         SRAM->>DRAIN: Data available +1
     end
 
-    DRAIN->>AXI: Data ready (N beats)
+    SCHED->>AXI: sched_wr_valid (descriptor in CH_XFER_DATA)
+    DRAIN->>AXI: Data ready (burst of beats)
     AXI->>MEM: AXI Write Burst
 
     MEM-->>AXI: Write Response (OKAY)
@@ -68,7 +95,8 @@ sequenceDiagram
     {},
     ["Network Input",
       {"name": "s_axis_tvalid", "wave": "0.1...1...|0........"},
-      {"name": "s_axis_tready", "wave": "1.........|........."},
+      {"name": "fill_alloc_req", "wave": "0.10......|........."},
+      {"name": "s_axis_tready", "wave": "0.1.......|0........"},
       {"name": "s_axis_tdata", "wave": "x.=...=...|x........", "data": ["D0","D1-D3"]},
       {"name": "s_axis_tlast", "wave": "0.....1...|0........"}
     ],

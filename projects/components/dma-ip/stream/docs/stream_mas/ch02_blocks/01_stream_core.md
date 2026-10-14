@@ -159,17 +159,29 @@ sequenceDiagram
 
 : Monitor Control
 
-**Note:** `USE_AXI_MONITORS` gates only the **heavy** monitor logic. When
-`USE_AXI_MONITORS = 0`:
-- The `axi4_master_*_mon` transaction monitors (CAM + reporter cones) and the
-  per-transaction latency histograms are gated off; their configuration inputs
-  are tied off internally and MonBus output is present but inactive.
-- The **datapath performance meters stay active**: the in-core `axi_bus_meter`
-  buckets (RDMON/WRMON_PERF productive / backpressure / starvation / idle) and
-  the beat / byte / burst / window counters are always-on, and the perf-window
-  `RUN` bits pass through. A production (monitors-off) build therefore still
-  measures datapath utilisation, with no CAM / reporter / histogram area.
-- Reduces resource usage for production systems.
+**Note:** `USE_AXI_MONITORS` gates the monitor-lite logic and the latency
+histograms. It does **not** gate the bus meters. When `USE_AXI_MONITORS = 0`:
+- The monitor-lite logic inside the data-master taps
+  (`axi4_master_rd_monlite` / `axi4_master_wr_monlite`, `USE_MONITOR = 0`) is
+  not built. The taps shrink to bare skid buffers. The descriptor-port
+  `axi4_master_rd_monlite` in `scheduler_group_array` is also left unbuilt,
+  and it is off by default even with monitors on (`USE_DESC_AXI_MONITOR`). The
+  configuration inputs of these monitors are tied off internally.
+- The per-transaction latency histograms (`axi_perf_latency_hist` x 2) are not
+  built.
+- The **bus meters stay built**. The two in-core `axi_bus_meter` instances
+  (RDMON/WRMON_PERF productive / backpressure / starvation / idle buckets) and
+  the beat, byte, burst and window counters do not depend on
+  `USE_AXI_MONITORS`, and the perf-window `RUN` bits pass straight from the
+  registers. A monitors-off build can still measure datapath utilisation, with
+  no monitor-lite or histogram area.
+- The per-channel completion/error MonBus emitters are controlled by `GEN_MON`,
+  not by `USE_AXI_MONITORS`.
+- The meters' registers sit in the MON window (0x1000). At top level,
+  `USE_MON_REGS` defaults to `USE_AXI_MONITORS`. In a monitors-off build left at
+  that default, every MON-window access returns `PSLVERR`, so the meters are
+  built but cannot be reached. To read them, a build without monitors must set
+  `USE_MON_REGS = 1`.
 
 ### Outstanding Transaction Limits
 

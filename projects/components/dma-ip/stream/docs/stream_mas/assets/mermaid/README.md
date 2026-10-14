@@ -1,125 +1,54 @@
-# STREAM Mermaid Diagrams
+# STREAM MAS Mermaid Diagrams
 
-This directory contains Mermaid diagram source files (.mmd) and their generated PNG images.
+This directory holds the Mermaid sources (`.mmd`) for the STREAM MAS figures
+together with the PNGs rendered from them. Each source and its PNG sit side by
+side. Chapters reference the `.png`. Why it is PNG and not SVG, and the rest of
+the pipeline, are covered in `vault/handbook/authoring/doc-pipeline.md` and
+`bin/DOC_GENERATION.md`.
 
-**Key principle:** Source and generated files stay together in the same directory.
+## Files
 
-## Directory Contents
+Each diagram has:
+- **Source:** `{diagram_id}.mmd`, the file you edit
+- **Generated:** `{diagram_id}.png`, rendered from the source and referenced by the chapter
 
-Each diagram has two files:
-- **Source:** `{diagram_id}.mmd` - Editable Mermaid source
-- **Generated:** `{diagram_id}.png` - PNG for PDF rendering
+For example, the scheduler FSM figure in `ch02_blocks/04_scheduler.md`:
 
-Example:
 ```
-08_axi_read_engine_block.mmd   ← Edit this
-08_axi_read_engine_block.png   ← Auto-generated from .mmd
+02_scheduler_fsm.mmd   <- edit this
+02_scheduler_fsm.png   <- regenerated from the .mmd
 ```
 
-## Workflow
+Run `ls *.mmd` to see the current set. A list kept here would drift.
 
-### Creating/Editing Diagrams
+## Regenerating
 
-1. **Edit the .mmd source file:**
-   ```bash
-   vim 08_axi_read_engine_block.mmd
-   ```
-
-2. **Regenerate PNG:**
-   ```bash
-   cd /mnt/data/github/rtldesignsherpa/projects/components/dma-ip/stream/docs/stream_mas/assets/mermaid
-   mmdc -i 08_axi_read_engine_block.mmd -o 08_axi_read_engine_block.png -w 1200 -b white --quiet
-   ```
-
-3. **Commit both files:**
-   ```bash
-   git add 08_axi_read_engine_block.mmd 08_axi_read_engine_block.png
-   git commit -m "Update AXI read engine diagram"
-   ```
-
-### Bulk Regeneration
-
-To regenerate ALL diagrams:
+Use the committed batch script, not an ad hoc `mmdc` call:
 
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/dma-ip/stream/docs/stream_mas/assets/mermaid
-
-for mmd in *.mmd; do
-    base="${mmd%.mmd}"
-    mmdc -i "$mmd" -o "${base}.png" -w 1200 -b white --quiet
-    echo "Generated ${base}.png"
-done
+./regenerate_all_diagrams.sh          # every .mmd -> .png (SCALE=2 by default)
+SCALE=3 ./regenerate_all_diagrams.sh  # higher-resolution render
 ```
 
-## Markdown References
+The script writes the puppeteer `--no-sandbox` config that headless Chromium
+needs on Ubuntu 23.10+ and later releases ("No usable sandbox!"). It also
+reports any diagram that fails to render. Rebuild the book PDF afterwards with
+`../../../generate_mas_pdf.sh`.
 
-Markdown files reference diagrams like this:
+## Referencing a diagram from a chapter
 
 ```markdown
-![Diagram](../assets/mermaid/08_axi_read_engine_block.png)
+### Figure 2.4.2: Scheduler FSM
 
-**Source:** [08_axi_read_engine_block.mmd](../assets/mermaid/08_axi_read_engine_block.mmd)
+![Scheduler FSM](../assets/mermaid/02_scheduler_fsm.png)
+
+**Source:** [02_scheduler_fsm.mmd](../assets/mermaid/02_scheduler_fsm.mmd)
 ```
-
-This provides:
-- **PNG** for immediate viewing and PDF generation
-- **Link to source** for future editing
-
-## File Naming Convention
-
-Format: `{document}_{line_number}.{ext}`
-
-Examples:
-- `02_scheduler_block.mmd` - Diagram from 02_scheduler.md at line 35
-- `08_axi_read_engine_block.mmd` - Diagram from 08_axi_read_engine.md at line 34
-
-The line number helps track which diagram came from which location in the original markdown.
-
-## Current Files
-
-| Diagram ID | Source Doc | Description |
-|------------|------------|-------------|
-| `02_scheduler_L035` | 02_scheduler.md:35 | Scheduler block diagram |
-| `02_scheduler_L301` | 02_scheduler.md:301 | Scheduler FSM state diagram |
-| `05_sram_controller_L038` | 05_sram_controller.md:38 | Multi-channel SRAM architecture |
-| `06_sram_controller_unit_L043` | 06_sram_controller_unit.md:43 | Three-component pipeline |
-| `06_stream_latency_bridge_L030` | 06_stream_latency_bridge.md:30 | Latency bridge block diagram |
-| `07_stream_alloc_ctrl_L073` | 07_stream_alloc_ctrl.md:73 | Allocation controller virtual FIFO |
-| `08_axi_read_engine_block` | 08_axi_read_engine.md:34 | AXI read engine architecture |
-| `09_sram_controller_L030` | 09_sram_controller.md:30` | SRAM controller architecture |
-| `09_stream_drain_ctrl_L073` | 09_stream_drain_ctrl.md:73 | Drain controller virtual FIFO |
-| `10_axi_write_engine_L051` | 10_axi_write_engine.md:51 | AXI write engine architecture |
-| `11_scheduler_group_L037` | 11_scheduler_group.md:37 | Scheduler group integration |
-| `12_scheduler_group_array_L038` | 12_scheduler_group_array.md:38 | 8-channel array architecture |
-
-## Requirements
-
-- **Mermaid CLI:** `npm install -g @mermaid-js/mermaid-cli`
-- **Node.js:** v14 or later
 
 ## Troubleshooting
 
-**Parse errors:**
-- Escape special characters in labels: use `"label (a, b)"` not `{a, b}`
-- Test at: https://mermaid.live/
-
-**PNG not rendering:**
-- Check .mmd syntax first
-- Increase timeout: `mmdc -i diagram.mmd -o diagram.png --puppeteerConfigFile /tmp/puppeteer-config.json`
-
-**Missing diagrams:**
-- Check markdown file for references
-- Line numbers may have shifted - verify source
-
-## History
-
-- **2025-11-21:** Reorganized structure
-  - Moved PNG files from `../images/` to this directory
-  - Source (.mmd) and generated (.svg) now colocated
-  - Updated all markdown references
-  - Removed commented Mermaid blocks from markdown files
-
----
-
-**Last Updated:** 2025-11-21
-**Maintained By:** STREAM Documentation Team
+- **Parse errors:** quote labels that contain special characters, for example
+  `"label (a, b)"` rather than `{a, b}`.
+- **Render fails or times out:** check the `.mmd` syntax first. The script
+  prints the first lines of the `mmdc` error for each failed diagram.
+- **Requirement:** Mermaid CLI (`npm install -g @mermaid-js/mermaid-cli`).

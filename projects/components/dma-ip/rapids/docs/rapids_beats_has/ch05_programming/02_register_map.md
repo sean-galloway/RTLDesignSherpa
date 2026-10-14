@@ -66,18 +66,18 @@ that succeeded would tell the host a monitor is configured that does not exist.
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
-| 0x100 | `GLOBAL_CTRL` | RW | `GLOBAL_EN[0]`, `GLOBAL_RST[1]` (self-clearing) |
+| 0x100 | `GLOBAL_CTRL` | RW | `GLOBAL_EN[0]`, `GLOBAL_RST[1]` (level; write 0 to release) |
 | 0x104 | `GLOBAL_STATUS` | RO | `SYSTEM_IDLE[0]` |
 | 0x108 | `VERSION` | RO | `MINOR[7:0]`, `MAJOR[15:8]`, `NUM_CHANNELS[23:16]=8` |
 | 0x120 | `CHANNEL_ENABLE` | RW | `CH_EN[7:0]` per-channel enable |
-| 0x124 | `CHANNEL_RESET` | RW | `CH_RST[7:0]` per-channel reset (self-clearing) |
-| 0x140 | `CHANNEL_IDLE` | RO | `CH_IDLE[7:0]` |
+| 0x124 | `CHANNEL_RESET` | RW | `CH_RST[7:0]` per-channel reset (level; write 0 to release) |
+| 0x140 | `CHANNEL_IDLE` | RO | `CH_IDLE[7:0]` -- not driven at the top level, reads 0; use `SCHEDULER_IDLE` |
 | 0x144 | `DESC_ENGINE_IDLE` | RO | Per-channel descriptor-engine idle |
 | 0x148 | `SCHEDULER_IDLE` | RO | Per-channel scheduler idle (excludes CH_ERROR) |
 | 0x150-0x16C | `CH_STATE[0..7]` | RO | Per-channel FSM state (stride 0x4) |
 | 0x170 | `SCHED_ERROR` | RO | Per-channel sticky scheduler error |
-| 0x174 | `AXI_RD_COMPLETE` | RO | Per-channel read-complete |
-| 0x178 | `AXI_WR_COMPLETE` | RO | Per-channel write-complete |
+| 0x174 | `AXI_RD_COMPLETE` | RO | Per-channel read-complete (SRC half only; reads 0 in SNK) |
+| 0x178 | `AXI_WR_COMPLETE` | RO | Per-channel write-complete -- not driven, reads 0 |
 | 0x200 | `SCHED_TIMEOUT_CYCLES` | RW | Write-progress timeout window (cycles, reset 1000) |
 | 0x204 | `SCHED_CONFIG` | RW | `SCHED_EN`, `TIMEOUT_EN`, `ERR_EN`, `COMPL_EN`, `PERF_EN` |
 | 0x208 | `SCHED_TIMEOUT_LIMIT` | RW | `LIMIT[7:0]` escalation limit (reset 4, 0 = never) |
@@ -118,7 +118,7 @@ that succeeded would tell the host a monitor is configured that does not exist.
 | Bits | Field | Reset | Description |
 |------|-------|-------|-------------|
 | [0] | `GLOBAL_EN` | 0 | Master enable for the entire engine |
-| [1] | `GLOBAL_RST` | 0 | Global reset (self-clearing) |
+| [1] | `GLOBAL_RST` | 0 | Global reset: holds every channel of the half in reset while 1. Not self-clearing -- write 0 to release |
 | [31:2] | Reserved | 0 | Reserved |
 
 : GLOBAL_CTRL Register
@@ -217,7 +217,7 @@ Staging a channel's descriptor address, then writing that channel's bit in
 
 Registers are global (not per-channel windows); per-channel fields are packed
 as bit lanes within a single 32-bit register (e.g. `CHANNEL_ENABLE.CH_EN[7:0]`,
-`CHANNEL_IDLE.CH_IDLE[7:0]`). The only per-channel array is `CH_STATE[0..7]` at
+`SCHEDULER_IDLE.SCHED_IDLE[7:0]`). The only per-channel array is `CH_STATE[0..7]` at
 0x150-0x16C (stride 0x4). Descriptor kick-off is part of this register block:
 staged addresses at 0x000-0x03F (`CH*_DESC_ADDR_{LOW,HIGH}`, stride 0x8) and the
 `KICK_ENABLE` launch register at 0x040.

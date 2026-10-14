@@ -55,18 +55,18 @@ RTL). The APB address bus feeding the block (`APB_ADDR_WIDTH`) must therefore be
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
-| 0x100 | `GLOBAL_CTRL` | RW | `GLOBAL_EN[0]`, `GLOBAL_RST[1]` (self-clearing) |
+| 0x100 | `GLOBAL_CTRL` | RW | `GLOBAL_EN[0]`, `GLOBAL_RST[1]` (level; write 0 to release) |
 | 0x104 | `GLOBAL_STATUS` | RO | `SYSTEM_IDLE[0]` (all channels idle) |
 | 0x108 | `VERSION` | RO | `MINOR[7:0]=0x5A`, `MAJOR[15:8]`, `NUM_CHANNELS[23:16]=0x08` |
 | 0x120 | `CHANNEL_ENABLE` | RW | `CH_EN[7:0]` per-channel enable |
-| 0x124 | `CHANNEL_RESET` | RW | `CH_RST[7:0]` per-channel reset (self-clearing) |
-| 0x140 | `CHANNEL_IDLE` | RO | `CH_IDLE[7:0]` per-channel idle |
+| 0x124 | `CHANNEL_RESET` | RW | `CH_RST[7:0]` per-channel reset (level; write 0 to release) |
+| 0x140 | `CHANNEL_IDLE` | RO | `CH_IDLE[7:0]` -- not driven at the top level, reads 0 |
 | 0x144 | `DESC_ENGINE_IDLE` | RO | Per-channel descriptor-engine idle |
 | 0x148 | `SCHEDULER_IDLE` | RO | Per-channel scheduler idle (excludes CH_ERROR) |
 | 0x150-0x16C | `CH_STATE[0..7].STATE` | RO | Per-channel FSM state (stride 0x4) |
 | 0x170 | `SCHED_ERROR` | RO | Per-channel sticky scheduler error |
-| 0x174 | `AXI_RD_COMPLETE` | RO | Per-channel read-complete flags |
-| 0x178 | `AXI_WR_COMPLETE` | RO | Per-channel write-complete flags |
+| 0x174 | `AXI_RD_COMPLETE` | RO | Per-channel read-complete flags (SRC half only; reads 0 in SNK) |
+| 0x178 | `AXI_WR_COMPLETE` | RO | Per-channel write-complete flags -- not driven, reads 0 |
 | 0x200 | `SCHED_TIMEOUT_CYCLES` | RW | `TIMEOUT_CYCLES[31:0]` write-progress window (reset 1000) |
 | 0x204 | `SCHED_CONFIG` | RW | `SCHED_EN`, `TIMEOUT_EN`, `ERR_EN`, `COMPL_EN`, `PERF_EN` |
 | 0x208 | `SCHED_TIMEOUT_LIMIT` | RW | `LIMIT[7:0]` consecutive-timeout escalation limit (reset 4, 0 = never) |

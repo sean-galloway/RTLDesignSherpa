@@ -25,7 +25,17 @@
 
 ## Overview
 
-This section describes the required steps to initialize RAPIDS Beats and start DMA transfers. The initialization sequence ensures proper hardware state before beginning operations.
+This section describes how software brings up RAPIDS Beats and starts a
+transfer. Every register named here is a register of the PeakRDL
+`rapids_engine_regs` register file (`rtl/macro_beats/rapids_engine_regs.rdl`),
+using the names in the generated per-instance map `rapids_regmap.py`. The two
+halves share one layout: **SRC at 0x0000** and **SNK at 0x1000**. Each half is
+initialized on its own, and the offsets in the
+[Register Map](02_register_map.md) are relative to the half.
+
+The code below uses `reg_wr(half, NAME, value)` and `reg_rd(half, NAME)` as
+shorthand for an APB access to register `NAME` in the SRC or SNK half. Resolve
+the names through the generated map instead of hard-coding offsets.
 
 ## Boot Sequence
 
@@ -35,116 +45,134 @@ This section describes the required steps to initialize RAPIDS Beats and start D
 
 **Source:** [ch05_boot_sequence.dot](../assets/graphviz/ch05_boot_sequence.dot)
 
+## What the Hardware Requires
+
+A channel runs a descriptor only when every one of these terms is true. They
+are ANDed in `rapids_config_block`, so a missing one leaves the channel idle
+without raising an error:
+
+| Term | Register.field | Reset | Effect when 0 |
+|------|----------------|-------|---------------|
+| Global enable | `GLOBAL_CTRL.GLOBAL_EN` | 0 | Masks `CH_EN`, `SCHED_EN`, `DESCENG_EN` and every monitor enable in the half |
+| Channel enable | `CHANNEL_ENABLE.CH_EN[n]` | 0 | The scheduler stays in `CH_IDLE` with a descriptor waiting |
+| Scheduler enable | `SCHED_CONFIG.SCHED_EN` | 1 | All schedulers in the half are disabled |
+| Descriptor engine enable | `DESCENG_CONFIG.DESCENG_EN` | 1 | No descriptor is fetched |
+| Descriptor window | `DESCENG_ADDR0_BASE/_LIMIT`, `DESCENG_ADDR1_BASE/_LIMIT` | 0 / 0xFFFFFFFF | A descriptor address outside both windows is refused and the channel errors |
+| Kick | `KICK_ENABLE.KICKn` | -- | Nothing is fetched until the bit is written |
+
+: Conditions for a Channel to Run
+
+`GLOBAL_EN` and `CH_EN` both reset to 0. The other enables reset to 1, and both
+descriptor windows reset to the full 32-bit range, so a minimal bring-up only
+has to write `CHANNEL_ENABLE`, `GLOBAL_CTRL`, the staged address and
+`KICK_ENABLE`.
+
 ## Detailed Steps
 
 ### Step 1: Verify Hardware Presence
 
 ```c
-// Read VERSION register
-uint32_t version = read_reg(RAPIDS_BASE + VERSION);
-uint8_t major = (version >> 24) & 0xFF;
-uint8_t minor = (version >> 16) & 0xFF;
+// VERSION (0x108): MINOR[7:0], MAJOR[15:8], NUM_CHANNELS[23:16]
+uint32_t version = reg_rd(SRC, VERSION);
+uint8_t minor    = (version >>  0) & 0xFF;   // 0x5A (90) in this release
+uint8_t major    = (version >>  8) & 0xFF;   // 0x00: pre-release, version 0.90
+uint8_t num_ch   = (version >> 16) & 0xFF;   // 8
 
-if (major < 1) {
-    printf("ERROR: RAPIDS not detected or incompatible version\n");
+if (num_ch == 0) {
+    printf("ERROR: RAPIDS not detected\n");
     return -1;
 }
-
-printf("RAPIDS Beats v%d.%d detected\n", major, minor);
 ```
 
-### Step 2: Read Configuration
+There is no separate configuration register. The channel count is the only
+build parameter that software can read back. Data width and SRAM depth are
+not readable from the register file.
+
+### Step 2: Optional Reset
+
+`GLOBAL_CTRL.GLOBAL_RST` and `CHANNEL_RESET.CH_RST[n]` are ordinary read/write
+bits. They do **not** self-clear. A channel is held in reset (scheduler forced
+to `CH_IDLE`, descriptor engine reset) for as long as its bit, or
+`GLOBAL_RST`, reads 1. Software must write the bit back to 0 to release it.
 
 ```c
-// Read CONFIG register
-uint32_t config = read_reg(RAPIDS_BASE + CONFIG);
-uint8_t num_channels = (config >> 24) & 0xFF;
-uint8_t data_width = ((config >> 16) & 0xFF) * 8;  // Convert to bits
-uint8_t sram_depth = ((config >> 8) & 0xFF) * 16;
+// Pulse the global reset: set, then clear. Keep GLOBAL_EN at 0 meanwhile.
+reg_wr(half, GLOBAL_CTRL, GLOBAL_CTRL_GLOBAL_RST);   // bit 1
+reg_wr(half, GLOBAL_CTRL, 0);
 
-printf("Channels: %d, Data Width: %d bits, SRAM: %d entries\n",
-       num_channels, data_width, sram_depth);
+// Every scheduler should now report idle (SYSTEM_IDLE = AND of SCHED_IDLE).
+while (!(reg_rd(half, GLOBAL_STATUS) & 1)) { }
 ```
 
-### Step 3: Global Reset
+### Step 3: Configure the Engine
 
 ```c
-// Perform soft reset to ensure clean state
-write_reg(RAPIDS_BASE + GLOBAL_CTRL, GLOBAL_CTRL_SOFT_RESET);
+// Scheduler: SCHED_EN[0] TIMEOUT_EN[1] ERR_EN[2] COMPL_EN[3] PERF_EN[4]
+reg_wr(half, SCHED_TIMEOUT_CYCLES, 1000);   // write-progress window, in clocks
+reg_wr(half, SCHED_TIMEOUT_LIMIT,  4);      // fatal after 4 stalled windows; 0 = never
+reg_wr(half, SCHED_CONFIG, SCHED_EN | TIMEOUT_EN | ERR_EN | COMPL_EN);
 
-// Wait for reset completion
-while (read_reg(RAPIDS_BASE + GLOBAL_STATUS) & GLOBAL_STATUS_RESET_ACTIVE) {
-    // Poll until reset complete
+// Descriptor engine: DESCENG_EN[0] PREFETCH_EN[1] FIFO_THRESH[5:2]
+reg_wr(half, DESCENG_CONFIG, DESCENG_EN | PREFETCH_EN | (4 << 2));
+
+// Descriptor address windows (lower 32 bits). A fetch address outside
+// both windows is refused and the channel enters CH_ERROR.
+reg_wr(half, DESCENG_ADDR0_BASE,  desc_region_base);
+reg_wr(half, DESCENG_ADDR0_LIMIT, desc_region_base + desc_region_size - 1);
+
+// Burst sizing: RD_XFER_BEATS[7:0] WR_XFER_BEATS[15:8]
+//               ALLOC_SIZE[23:16]  DRAIN_SIZE[31:24]
+reg_wr(half, AXI_XFER_CONFIG, (16 << 24) | (16 << 16) | (8 << 8) | 8);
+```
+
+The SRC half uses the read-side fields and the SNK half uses the write-side
+fields. Writing the whole word in both halves does no harm.
+
+### Step 4: Optional Monitor and Interrupt Egress
+
+The only interrupt output is `mon_irq`. It comes from the top-level
+`monbus_axil4_axil4_group` and is asserted while that group's error FIFO is
+not empty. The scheduler error and completion packets travel on the CORE
+protocol. For both halves, the group takes its CORE filter from the **SRC**
+half's `WRMON_*` registers:
+
+```c
+// CORE packets: PKT_MASK bit[type] = 1 DROPS that type; reset is 0xFFFF.
+reg_wr(SRC, WRMON_PKT_MASK, ~((1u << 0) | (1u << 1)) & 0xFFFF);  // pass Error, Completion
+
+// ERR_SELECT[3:0] bit[type] = 1 routes that type to the error FIFO (-> mon_irq).
+// Bit 0 = Error.  Bit 1 = Completion, which includes the gen_irq descriptor event.
+reg_wr(SRC, WRMON_ERR_CFG, (0xFF << 8) | (1u << 0));             // keep ERR_MASK reset value
+```
+
+Packets that are passed but not selected for the error FIFO go to the capture
+path (`m_axil_mon_*`). The group, `mon_irq` and the `s_axil_err_*` drain exist
+only when `USE_AXI_MONITORS = 1`. With `USE_AXI_MONITORS = 0`, `mon_irq` is
+tied to 0, and software must poll `SCHED_ERROR` and `SCHEDULER_IDLE` instead.
+
+### Step 5: Build Descriptors
+
+```c
+// rapids_pkg::descriptor_t, 256 bits (see Descriptor Format)
+for (int i = 0; i < NUM_RX_DESC; i++) {
+    desc[i].src_addr            = 0;                        // unused by a sink transfer
+    desc[i].dst_addr            = rx_buffer + i * FRAME_SIZE;
+    desc[i].length              = FRAME_LEN;   // BEATS in RAPIDS Beats, BYTES in byte-granular RAPIDS
+    desc[i].next_descriptor_ptr = (i < NUM_RX_DESC - 1) ? (uint32_t)&desc[i + 1] : 0;
+    desc[i].valid               = 1;                        // 0 -> CH_ERROR
+    desc[i].last                = (i == NUM_RX_DESC - 1);
+    desc[i].gen_irq             = 1;                        // completion event RAPIDS_EVENT_IRQ
 }
-
-// Clear any pending interrupts
-write_reg(RAPIDS_BASE + IRQ_STATUS, 0xFFFFFFFF);
+__sync_synchronize();   // descriptors visible before the kick
 ```
 
-### Step 4: Allocate Resources
+The descriptors must lie inside a `DESCENG_ADDR0`/`DESCENG_ADDR1` window.
+
+### Step 6: Enable
 
 ```c
-// Allocate descriptor ring (must be 32-byte aligned)
-size_t desc_size = NUM_DESCRIPTORS * sizeof(rapids_descriptor_t);
-rapids_descriptor_t *desc_ring = aligned_alloc(32, desc_size);
-if (!desc_ring) {
-    return -ENOMEM;
-}
-
-// Allocate data buffers (must be 64-byte aligned for 512-bit AXI)
-size_t buf_size = BUFFER_SIZE_BYTES;
-void *rx_buffer = aligned_alloc(64, buf_size);
-void *tx_buffer = aligned_alloc(64, buf_size);
-```
-
-### Step 5: Initialize Descriptors
-
-```c
-// Initialize sink descriptor chain
-for (int i = 0; i < NUM_RX_DESC - 1; i++) {
-    desc_ring[i].dest_addr = (uint64_t)(rx_buffer + i * FRAME_SIZE);
-    desc_ring[i].src_addr = 0;
-    desc_ring[i].next_ptr = (uint64_t)&desc_ring[i + 1];
-    desc_ring[i].direction = DESC_DIR_SINK;
-    desc_ring[i].length = FRAME_SIZE / 64;  // Convert to beats
-    desc_ring[i].control = DESC_CTRL_IRQ_EN;
-}
-
-// Last descriptor
-desc_ring[NUM_RX_DESC - 1].dest_addr = (uint64_t)(rx_buffer + (NUM_RX_DESC-1) * FRAME_SIZE);
-desc_ring[NUM_RX_DESC - 1].next_ptr = 0;
-desc_ring[NUM_RX_DESC - 1].control = DESC_CTRL_LAST | DESC_CTRL_IRQ_EN;
-
-// Ensure descriptors are visible to hardware
-__sync_synchronize();  // Memory barrier
-```
-
-### Step 6: Configure Channels
-
-```c
-// Configure channel 0 for sink (receive)
-uint32_t ch0_base = RAPIDS_BASE + 0x100;
-
-// Set descriptor pointer
-write_reg(ch0_base + DESC_PTR_LO, (uint32_t)((uint64_t)desc_ring & 0xFFFFFFFF));
-write_reg(ch0_base + DESC_PTR_HI, (uint32_t)((uint64_t)desc_ring >> 32));
-
-// Configure channel
-write_reg(ch0_base + CH_CONFIG, CH_CONFIG_DEFAULT);
-```
-
-### Step 7: Enable Interrupts
-
-```c
-// Enable completion and error interrupts for channel 0
-write_reg(RAPIDS_BASE + IRQ_ENABLE, IRQ_CH0_COMPLETE | IRQ_CH0_ERROR);
-```
-
-### Step 8: Enable Channel
-
-```c
-// Enable channel (but don't kick yet)
-write_reg(ch0_base + CH_CTRL, CH_CTRL_ENABLE);
+reg_wr(half, CHANNEL_ENABLE, 1u << ch);          // CH_EN[n]
+reg_wr(half, GLOBAL_CTRL,    GLOBAL_CTRL_GLOBAL_EN);   // bit 0; GLOBAL_RST stays 0
 ```
 
 ## Initialization Timing
@@ -152,23 +180,20 @@ write_reg(ch0_base + CH_CTRL, CH_CTRL_ENABLE);
 ```wavedrom
 {
   "signal": [
-    {"name": "clk", "wave": "p................|.."},
+    {"name": "pclk", "wave": "p................"},
     {},
-    ["Software Actions",
-      {"name": "read_version", "wave": "01.0..............|.."},
-      {"name": "read_config", "wave": "0..1.0............|.."},
-      {"name": "soft_reset", "wave": "0....1.0..........|.."},
-      {"name": "clear_irq", "wave": "0......1.0........|.."},
-      {"name": "write_desc_ptr", "wave": "0........1.0......|.."},
-      {"name": "write_irq_en", "wave": "0..........1.0....|.."},
-      {"name": "write_ch_enable", "wave": "0............1.0..|.."}
+    ["APB writes (one half)",
+      {"name": "VERSION read", "wave": "010.............."},
+      {"name": "GLOBAL_RST set/clear", "wave": "0.1.0............"},
+      {"name": "SCHED_* / DESCENG_* / AXI_XFER_CONFIG", "wave": "0...1...0........"},
+      {"name": "CHANNEL_ENABLE", "wave": "0........10......"},
+      {"name": "GLOBAL_CTRL.GLOBAL_EN", "wave": "0.........10....."}
     ],
     {},
-    ["Hardware State",
-      {"name": "reset_active", "wave": "0....1..0.........|.."},
-      {"name": "ch0_state", "wave": "=....=..=.........|..", "data": ["IDLE","RESET","IDLE"]},
-      {"name": "ch0_enabled", "wave": "0............1....|.."},
-      {"name": "irq_enabled", "wave": "0..........1......|.."}
+    ["Hardware state",
+      {"name": "cfg_channel_reset[n]", "wave": "0..1.0..........."},
+      {"name": "cfg_channel_enable[n]", "wave": "0..........1....."},
+      {"name": "CH_STATE[n]", "wave": "=................", "data": ["CH_IDLE"]}
     ]
   ],
   "config": {"hscale": 1},
@@ -176,116 +201,112 @@ write_reg(ch0_base + CH_CTRL, CH_CTRL_ENABLE);
 }
 ```
 
+`cfg_channel_enable[n]` is `CH_EN[n] & GLOBAL_EN`, so it asserts only after the
+last of the two writes.
+
 ## Starting Transfers
 
 ### Kick a Channel
 
-After initialization, kick the channel to start processing:
+Stage the descriptor address, then launch it with a single write to
+`KICK_ENABLE`. The address registers only store the value, so writing them
+does not start anything. Each `KICKn` bit is a singlepulse field and clears
+itself. One 32-bit write can launch several channels on the same clock.
 
 ```c
-// Kick channel 0 to start descriptor processing
-write_reg(ch0_base + CH_CTRL, CH_CTRL_ENABLE | CH_CTRL_KICK);
+reg_wr(half, CH0_DESC_ADDR_LOW,  (uint32_t)((uint64_t)&desc[0]));
+reg_wr(half, CH0_DESC_ADDR_HIGH, (uint32_t)((uint64_t)&desc[0] >> 32));
+reg_wr(half, KICK_ENABLE, 1u << 0);              // KICK0
 ```
+
+The APB write completes as soon as the request is raised. The RTL holds the
+request until the descriptor engine accepts it, so a completed write does not
+mean the engine has accepted the kick.
 
 ```wavedrom
 {
   "signal": [
     {"name": "clk", "wave": "p..........."},
     {},
-    {"name": "apb_write_kick", "wave": "01.0........"},
-    {"name": "kick_pulse", "wave": "0.1.0......."},
+    {"name": "APB write KICK_ENABLE", "wave": "010........."},
+    {"name": "KICK0 (singlepulse)", "wave": "0.10........"},
+    {"name": "descriptor fetch (AR/R)", "wave": "0..1..0....."},
+    {"name": "descriptor_valid", "wave": "0.....10...."},
     {},
-    {"name": "ch_state", "wave": "=..=.=......", "data": ["IDLE","WAIT_DESC","PARSE"]},
-    {"name": "desc_fetch", "wave": "0..1.0......"},
-    {"name": "ch_active", "wave": "0..1........"}
+    {"name": "CH_STATE[0]", "wave": "=......=.=..", "data": ["CH_IDLE","CH_FETCH_DESC","CH_XFER_DATA"]},
+    {"name": "SCHEDULER_IDLE[0]", "wave": "1......0...."}
   ],
   "config": {"hscale": 1.5},
   "head": {"text": "Channel Kick and Start"}
 }
 ```
 
-## Interrupt Handling
+## Completion and Interrupt Handling
 
-### Completion Interrupt
+There is no interrupt status register and no per-channel interrupt clear.
+Software sees completion in one of two ways:
+
+- **Polling.** `SCHEDULER_IDLE.SCHED_IDLE[n]` returns to 1 when the scheduler is
+  back in `CH_IDLE` after the last descriptor of a chain. A channel in
+  `CH_ERROR` never reports idle, and `SCHED_ERROR.SCHED_ERR[n]` reads 1 for it
+  instead. Poll both registers, or the loop will hang on a faulted channel.
+  Do not poll `CHANNEL_IDLE`, `AXI_WR_COMPLETE`, or the SNK half's
+  `AXI_RD_COMPLETE`. Those fields are not driven at the top level and
+  always read 0 (see the [Register Map](02_register_map.md)).
+- **mon_irq.** If Step 4 routed Completion packets to the error FIFO, every
+  descriptor completion lands there, and so does every error. A completion is
+  reported as `RAPIDS_EVENT_DESC_COMPLETE`, or as `RAPIDS_EVENT_IRQ` when the
+  descriptor's `gen_irq` is set. The descriptor engine's descriptor-loaded
+  completions land there too. `mon_irq` stays high
+  until the records are drained over `s_axil_err_*`.
 
 ```c
 void rapids_irq_handler(void) {
-    uint32_t irq_status = read_reg(RAPIDS_BASE + IRQ_STATUS);
-
-    // Handle channel 0 completion
-    if (irq_status & IRQ_CH0_COMPLETE) {
-        // Read channel status
-        uint32_t ch_status = read_reg(ch0_base + CH_STATUS);
-        uint8_t desc_count = (ch_status >> 16) & 0xFF;
-
-        // Process completed buffers
-        process_rx_buffers(desc_count);
-
-        // Clear interrupt
-        write_reg(RAPIDS_BASE + IRQ_STATUS, IRQ_CH0_COMPLETE);
-
-        // Re-kick channel for continuous operation (if desired)
-        write_reg(ch0_base + CH_CTRL, CH_CTRL_ENABLE | CH_CTRL_KICK);
-    }
-
-    // Handle errors
-    if (irq_status & IRQ_CH0_ERROR) {
-        uint32_t err_status = read_reg(ch0_base + ERR_STATUS);
-        handle_error(err_status);
-
-        // Clear error interrupt
-        write_reg(RAPIDS_BASE + IRQ_STATUS, IRQ_CH0_ERROR);
+    // mon_irq == error FIFO not empty: drain every record
+    while (mon_irq_pending()) {
+        mon_record_t r = err_fifo_read();        // s_axil_err_* reads
+        if (r.pkt_type == PKT_TYPE_ERROR) {
+            handle_channel_error(r.half, r.channel_id);   // see Error Handling
+        } else if (r.pkt_type == PKT_TYPE_COMPLETION) {
+            process_completed_buffer(r.half, r.channel_id, r.event_data);
+        }
     }
 }
 ```
+
+To run the channel again, stage the next chain's first descriptor address and
+write its `KICK_ENABLE` bit. No re-enable is needed, because `CH_EN` stays set.
 
 ## Reset and Recovery
 
 ### Per-Channel Reset
 
 ```c
-void reset_channel(int channel) {
-    uint32_t ch_base = RAPIDS_BASE + 0x100 + (channel * 0x40);
+void reset_channel(int half, int ch) {
+    // Assert, then release: CH_RST is NOT self-clearing.
+    reg_wr(half, CHANNEL_RESET, 1u << ch);
+    reg_wr(half, CHANNEL_RESET, 0);
 
-    // Soft reset the channel
-    write_reg(ch_base + CH_CTRL, CH_CTRL_SOFT_RESET);
-
-    // Wait for reset complete
-    while ((read_reg(ch_base + CH_STATUS) >> 28) == 0xF) {
-        // State = RESET
-    }
-
-    // Clear error status
-    write_reg(ch_base + ERR_STATUS, 0xFFFFFFFF);
-
-    // Re-initialize descriptor pointer
-    write_reg(ch_base + DESC_PTR_LO, saved_desc_ptr_lo[channel]);
-    write_reg(ch_base + DESC_PTR_HI, saved_desc_ptr_hi[channel]);
-
-    // Re-enable
-    write_reg(ch_base + CH_CTRL, CH_CTRL_ENABLE);
+    while (!(reg_rd(half, SCHEDULER_IDLE) & (1u << ch))) { }
+    // SCHED_ERROR[ch] is the CH_ERROR state, so it reads 0 again here.
 }
 ```
+
+The scheduler's error state is sticky. The only ways out of `CH_ERROR` are a
+channel reset (`CH_RST[n]`) or a global reset (`GLOBAL_RST`). The reset leaves
+`CH_EN[n]` and the staged descriptor address unchanged. After the reset,
+re-stage the address if it should change, then kick.
 
 ### Global Reset
 
 ```c
-void reset_rapids(void) {
-    // Disable all interrupts
-    write_reg(RAPIDS_BASE + IRQ_ENABLE, 0);
-
-    // Global soft reset
-    write_reg(RAPIDS_BASE + GLOBAL_CTRL, GLOBAL_CTRL_SOFT_RESET);
-
-    // Wait for all channels idle
-    while (read_reg(RAPIDS_BASE + GLOBAL_STATUS) & 0x00FF0000) {
-        // Wait for active channels to clear
-    }
-
-    // Clear all interrupts
-    write_reg(RAPIDS_BASE + IRQ_STATUS, 0xFFFFFFFF);
-
-    // Re-run full initialization
-    rapids_init();
+void reset_rapids_half(int half) {
+    reg_wr(half, GLOBAL_CTRL, GLOBAL_CTRL_GLOBAL_RST);   // GLOBAL_EN = 0, RST = 1
+    reg_wr(half, GLOBAL_CTRL, 0);                        // release
+    while (!(reg_rd(half, GLOBAL_STATUS) & 1)) { }       // SYSTEM_IDLE
+    rapids_init_half(half);                              // Steps 3-6 again
 }
 ```
+
+`GLOBAL_RST` drives every channel's reset in that half only. The other half,
+and the shared monitor group's error FIFO, are not affected.

@@ -143,7 +143,7 @@ complete, RTL-accurate address map. The registers most relevant to bring-up are:
 
 | Register | Offset | Description |
 |----------|--------|-------------|
-| `GLOBAL_CTRL` | 0x100 | `GLOBAL_EN`, `GLOBAL_RST` (self-clearing) |
+| `GLOBAL_CTRL` | 0x100 | `GLOBAL_EN`, `GLOBAL_RST` (level; write 0 to release) |
 | `CHANNEL_ENABLE` | 0x120 | Per-channel enable bitmap |
 | `SCHED_TIMEOUT_CYCLES` | 0x200 | Write-progress timeout window |
 | `SCHED_TIMEOUT_LIMIT` | 0x208 | Consecutive-timeout escalation limit (0 = never) |
@@ -157,9 +157,9 @@ complete, RTL-accurate address map. The registers most relevant to bring-up are:
 ### Initialization
 
 ```c
-// 1. Optional global reset (self-clearing)
-GLOBAL_CTRL = 0x2;
-while (GLOBAL_CTRL & 0x2);   // wait for GLOBAL_RST to clear
+// 1. Optional global reset: GLOBAL_RST is a level, not self-clearing
+GLOBAL_CTRL = 0x2;           // assert
+GLOBAL_CTRL = 0x0;           // release
 
 // 2. Configure descriptor address range(s)
 DESCENG_ADDR0_BASE  = 0x8000_0000;
@@ -184,14 +184,16 @@ desc->length = beats;
 desc->last = 1;
 desc->valid = 1;
 
-// Kick off channel 0
-apb_kickoff(0, desc_addr);
+// Kick off channel 0: stage the address, then launch
+CH0_DESC_ADDR_LOW  = (uint32_t)desc_addr;
+CH0_DESC_ADDR_HIGH = (uint32_t)(desc_addr >> 32);
+KICK_ENABLE        = 0x01;   // KICK0, self-clearing
 
-// Wait for completion
-while (!(channel_idle & 0x01));
+// Wait for completion: idle, or faulted (CH_ERROR is never idle)
+while (!(SCHEDULER_IDLE & 0x01) && !(SCHED_ERROR & 0x01));
 
 // Check for errors
-if (channel_error & 0x01) {
+if (SCHED_ERROR & 0x01) {
     handle_error(0);
 }
 ```

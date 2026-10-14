@@ -14,7 +14,7 @@ digraph rapids_beats_error_recovery {
     axi  [label="Check the address map\nand the target slave"];
     desc [label="Fix the descriptor, or the\nDESCENG_ADDR0/1 windows"];
     tmo  [label="Check the external side:\nAXIS peer or memory backpressure"];
-    rst  [label="Write CHANNEL_RESET bit n (self-clearing):\nclears the sticky error, channel back to idle", group=C];
+    rst  [label="Write CHANNEL_RESET bit n = 1, then 0 (not self-clearing):\nclears the sticky error, channel back to idle", group=C];
     kick [label="Re-stage CHn_DESC_ADDR, write KICK_ENABLE bit n", group=C];
     done [label="Channel running again", fillcolor="white", style="rounded,filled"];
 

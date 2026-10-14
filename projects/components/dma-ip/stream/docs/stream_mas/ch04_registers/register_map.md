@@ -358,13 +358,17 @@ Per-channel AXI write engine completion status.
 
 ### Monitor FIFO Status (0x1000 - 0x1007)
 
-The **heavy** monitor registers in this block — FIFO status, the DAXMON / RDMON /
-WRMON enable / mask / timeout configuration, and the latency-histogram readback —
-are active only when `USE_AXI_MONITORS=1`. The **datapath perf-window registers**
-(DAXMON / RDMON / WRMON `PERF_CTRL` plus their `PROD/BP/STARV/IDLE_CYCLES`,
-`BEAT/BYTE/BURST_COUNT`, and `WINDOW_*` readbacks) are **always-on** — populated
-by the lightweight in-core `axi_bus_meter` regardless of `USE_AXI_MONITORS`, so a
-monitors-off production build still measures datapath utilisation.
+`USE_AXI_MONITORS` gates the monitor-lite logic and the latency histograms, but
+not the bus meters. Some registers in this block are therefore active only when
+`USE_AXI_MONITORS=1`: FIFO status, the DAXMON / RDMON / WRMON enable / mask /
+timeout configuration, and the latency-histogram readback. The **datapath
+perf-window registers** are populated by the in-core `axi_bus_meter`
+instances, which are always built. These are the DAXMON / RDMON / WRMON
+`PERF_CTRL` registers and their `PROD/BP/STARV/IDLE_CYCLES`,
+`BEAT/BYTE/BURST_COUNT` and `WINDOW_*` readbacks. Reaching them over APB is a
+separate question. `USE_MON_REGS` defaults to `USE_AXI_MONITORS`, and with it at
+0 the whole MON window answers every access with `PSLVERR`. A monitors-off build
+that needs the meters must therefore set `USE_MON_REGS = 1`.
 
 **Monitor register block relocation (v0.93):** All monitor and per-monitor performance registers now live in a separate `stream_mon_regs` regfile instantiated at **0x1000** within the same PeakRDL addrmap (served by the same APB slave). Addresses below reflect the new base; the previous layout placed these registers at 0x180-0x2FF. The mapping is `new = old - 0x180 + 0x1000`.
 
