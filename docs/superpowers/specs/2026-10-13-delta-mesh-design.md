@@ -137,7 +137,9 @@ intercepts them instead of delivering to the local port. Format:
 packets to the source (load-verify). Config rides QoS class 0 over the
 default route; a boundary cell or rapids injects. Per-cell unicast load
 (owner decision): N cells × M entries writes at boot, plus runtime
-re-route. (NPU precedent: control sequences may be supplied *along with
+re-route. A **broadcast mode-switch** message for standard fabric modes
+coexists with unicast loading (§5.4). (NPU precedent: control sequences
+may be supplied *along with
 the packet* — config flits carry their own program, not just an index
 [Q6]; we implement the table-read/write form now and keep the
 action-program form as a table-entry extension.)
@@ -160,6 +162,36 @@ action-program form as a table-entry extension.)
 - Tree-based multicast in wormhole networks deadlocks readily [D9:
   §5.5.2]; the BRCP + replication + delivery-VC combination above is the
   book-recommended discipline [D9: §5.5.3].
+
+### 5.4 Standard fabric modes (owner decision 2026-10-13, amended)
+
+Alongside per-cell unicast table loading, delta defines a **broadcast
+mode-switch** config message: a broadcast packet carries a mode ID;
+every cell holds generator-emitted images for the standard modes (ROM
+or preloaded RAM) and switches atomically. Atomicity rule: the new mode
+applies only after a fabric-wide ack barrier — each cell returns its
+config read-response ack, and the injector treats the mode as active
+when all acks are in. No packet straddles two modes. Custom mode (the
+per-cell unicast tables of §5.2) coexists; mode 0 = custom, mode
+switches among standard images, custom tables unaffected by broadcast
+switches.
+
+Standard mode catalog (owner-confirmed unless marked *pending*):
+
+| Mode | Pattern | Routing/table content | Sources |
+|---|---|---|---|
+| 1 Mesh (default) | generic packet switching | RAM tables, reset DOR default | §5.1 |
+| 2 Systolic-1D | linear nearest-neighbor chains, row/column selected, optional torus ring | fixed source-route paths, 1-cycle/hop steady state | [P8][P17][S1] |
+| 3 Wavefront-2D | 2-D diagonal ripple, E/W + N/S skewed streams | per-diagonal static table/source routes | [S1][S2][N7] |
+| 4 Stencil-3D | 3-D halo/ghost-zone exchange, periodic boundaries | nearest-neighbor tables + torus wrap all dims | [P3][P4][P5] |
+| 5 Broadcast | one-to-all | multicast VC0, port masks to all | [D9][N3] |
+| 6 Convergecast/reduce (*pending*) | all-to-one reduction tree | reverse-broadcast tables; ocelus counter reduction | [D9][Q7] |
+| 7 All-to-all/transpose (*pending*) | permutations: transpose, shuffle/butterfly stages | per-stage table images | [P1] |
+| 8 Pipeline + rapids-stream (*pending*) | boustrophedon serpentine chain; boundary↔rapids DMA streaming | fixed chain + boundary tables | [P8][Q9] |
+
+Mode images are data — the same table RAMs and mechanisms as §5.1;
+adding a mode = adding an image + a verification suite, no new hardware
+per mode.
 
 ## 6. Deadlock, livelock, QoS
 
@@ -349,6 +381,7 @@ assertion (packet atomicity, as flat mode does).
 | Flat xbar | kept; mesh is a mode | — |
 | Book pulls now | systolic package, perf model, ocelus counters, DFT mode | §15 |
 | Book pulls deferred | §11 | — |
+| Standard modes | broadcast mode-switch w/ ack barrier; catalog §5.4 (modes 6–8 pending owner confirmation) | [P8][P17][D9][N3] |
 
 ## 15. References
 
@@ -508,6 +541,16 @@ parallel readers, one per book.
   specialized buses (`.../12.61-14-2-7-internal-buses.md`); fabric
   processor in-band signaling headroom (`.../12.60-14-2-6-fabric-processor.md`)
 
+### External references (not in the calibre library)
+
+- **[S1]** H. T. Kung and C. E. Leiserson, "Systolic Arrays (for
+  VLSI)," in *Sparse Matrix Proceedings 1978*, SIAM, 1979, pp. 256–282.
+  The founding systolic-array paper — nearest-neighbor dataflow,
+  rhythm/schedule skew, the systolic-1D and wavefront-2D mode patterns.
+- **[S2]** H. T. Kung, "Why Systolic Architectures?," *IEEE Computer*,
+  vol. 15, no. 1, pp. 37–46, Jan. 1982. Survey of systolic/wavefront
+  design patterns and their bandwidth advantages.
+
 ## 16. Decision/feature → source traceability
 
 | Spec claim or decision | Sources |
@@ -540,3 +583,5 @@ parallel readers, one per book.
 | DFT 3-configuration test mode | [N6] |
 | Buffer/FIFO area knob (regs vs SRAM) | [N8: §4.5] |
 | Deferred: GT/TDM, faults, barrier, express, GALS, VOQ, WRR/DRR, flit-reservation, resend | [N2][N3][N4][D10–D12][N7][P6][N1][N8] |
+| Standard modes: systolic/wavefront patterns | [S1][S2]; static-route precedent [P8][N7]; latency [P17] |
+| Broadcast mode-switch + ack barrier | [D9][N3] multicast/config machinery; atomicity is a delta rule |
