@@ -116,17 +116,17 @@ module monbus_pkt_tally #(
 
 ### Architecture
 
-```mermaid
-flowchart LR
-    IN["accepted packet<br/>{agent,protocol,pkt_type,event_code}"] --> CAM["monbus_legal_cam<br/>legal-set lookup"]
-    CAM -->|hit| BIN["dense bin index<br/>(position in legal set)"]
-    CAM -->|miss| UNX["UNEXPECTED bin<br/>(index N_PROFILE)"]
-    BIN --> RMW["read-modify-write<br/>saturating increment"]
-    UNX --> RMW
-    RMW --> SRAM["count SRAM<br/>SRAM_DEPTH x COUNT_WIDTH<br/>(N_PROFILE+1 used)"]
-    SRAM --> RD["indexed readback<br/>rd_addr → rd_count (live)"]
-    IN --> LATCH["first-event latch bank<br/>(watched pkt_types)"]
-```
+![monbus_pkt_tally block diagram](../../assets/rtl-amba/graphviz/monbus_pkt_tally.png)
+
+An accepted packet's key `{agent, protocol, pkt_type, event_code}` is looked up
+in the host-loaded legal set (`monbus_legal_cam`); a hit gives the dense bin, a
+miss the `UNEXPECTED` bin. The count SRAM is single-port: the bin is read in
+`ST_RUN`, and the saturating increment of that old count climbs the right edge
+back into the port select and is written in `ST_WR`. When the controller is
+idle the same port serves host readback at `rd_addr`. The first-event latch
+bank captures `{packet, ts}` when armed and the `pkt_type` is in the watch
+mask **or** the key missed the legal set, so the first unexpected packets are
+kept for inspection.
 
 A tiny FSM runs the accept: `ST_RUN` reads the CAM-resolved bin, `ST_WR` writes the saturating-incremented count back; a walk-counter (`ST_CLEAR`) zeroes the SRAM on clear. `i_flush` is accepted for interface compatibility but is a **no-op** — there is no cache to drain.
 

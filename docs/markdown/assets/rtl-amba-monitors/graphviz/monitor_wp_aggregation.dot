@@ -1,0 +1,62 @@
+// Whitepaper ch8 "Aggregation topology" - house style
+// (vault/handbook/authoring/block-diagrams.md). Three topologies side by side,
+// same geography: monitored ports (white) at the top, the merge in the middle,
+// the group(s) at the bottom. Every arbiter is a genuine many-to-one pick, so a
+// wide-edge-up trapezium; packets flow top-down only.
+// Source of truth: rtl/amba/ocelus/{monbus_arbiter,arbiter_wrr_pwm_monbus,
+// arbiter_rr_pwm_monbus,monbus_group_core}.sv; chapter text.
+digraph monitor_wp_aggregation {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.25", ranksep="0.55", splines=ortho, newrank=true,
+           label="Aggregation topologies: round-robin tree (default), weighted, protocol-partitioned",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.10,0.05"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---------------- round-robin tree ----------------
+    subgraph cluster_tree {
+        label="Tree of round-robin arbiters (default)\nports of similar rate; simplest, fair\nmonbus_arbiter: any fan-in, ACK-mode grants";
+        labelloc=b; style=dashed; fontsize=10;
+        t1 [label="mon", fillcolor="white"]; t2 [label="mon", fillcolor="white"];
+        t3 [label="mon", fillcolor="white"]; t4 [label="mon", fillcolor="white"];
+        ta1 [label="monbus_arbiter", shape=invtrapezium, width=1.9, height=0.5, fixedsize=true, fillcolor="#BFD7EE"];
+        ta2 [label="monbus_arbiter", shape=invtrapezium, width=1.9, height=0.5, fixedsize=true, fillcolor="#BFD7EE"];
+        tr  [label="monbus_arbiter", shape=invtrapezium, width=3.6, height=0.5, fixedsize=true, fillcolor="#BFD7EE"];
+        tg  [label="monbus_group_core", width=3.0];
+        t1 -> ta1; t2 -> ta1; t3 -> ta2; t4 -> ta2;
+        ta1 -> tr [label="merged", penwidth=1.8]; ta2 -> tr [penwidth=1.8];
+        tr -> tg [label="one stream", penwidth=1.8];
+    }
+
+    // ---------------- weighted ----------------
+    subgraph cluster_wtd {
+        label="Weighted\none port far busier than the others: its packets\nwin proportionally, not equally\n(arbiter_rr_pwm_monbus is the unweighted sibling)";
+        labelloc=b; style=dashed; fontsize=10;
+        w1 [label="busy port", fillcolor="white"];
+        w2 [label="quiet port", fillcolor="white"];
+        w3 [label="quiet port", fillcolor="white"];
+        wa [label="arbiter_wrr_pwm_monbus\nweights per client, PWM flow control", shape=invtrapezium, width=3.8, height=0.7, fixedsize=true, fillcolor="#BFD7EE"];
+        wg [label="monbus_group_core", width=3.0];
+        w1 -> wa [label="weight 4"]; w2 -> wa [label="weight 1"]; w3 -> wa [label="weight 1"];
+        wa -> wg [label="one stream", penwidth=1.8];
+    }
+
+    // ---------------- protocol-partitioned ----------------
+    subgraph cluster_part {
+        label="Protocol-partitioned groups\nfamilies needing different rings, interrupt\nhandlers or flush policies; one monbus_group_core\nper family -- a topology choice, not a new block";
+        labelloc=b; style=dashed; fontsize=10;
+        pa [label="AXI monitors", fillcolor="white"];
+        ps [label="AXIS monitors", fillcolor="white"];
+        pga [label="monbus_group_core\nAXI ring, IRQ A"];
+        pgs [label="monbus_group_core\nAXIS ring, IRQ B"];
+        pa -> pga [label="AXI packets"];
+        ps -> pgs [label="AXIS packets"];
+    }
+
+    { rank=same; t1; t2; t3; t4; w1; w2; w3; pa; ps; }
+    t1 -> t2 [style=invis]; t2 -> t3 [style=invis]; t3 -> t4 [style=invis];
+    t4 -> w1 [style=invis]; w1 -> w2 [style=invis]; w2 -> w3 [style=invis];
+    w3 -> pa [style=invis]; pa -> ps [style=invis];
+    { rank=same; tg; wg; pga; pgs; }
+}

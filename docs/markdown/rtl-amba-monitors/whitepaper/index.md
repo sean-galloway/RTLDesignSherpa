@@ -48,6 +48,7 @@ this file rather than here.
 11. [Out of scope](11_out_of_scope.md)
 12. [Relationship to Nexus (IEEE-ISTO 5001)](12_relationship_to_nexus.md)
 
-Figures are the shared `../../assets/rtl-amba/monitor_wp_*.png` (mermaid
-sources beside them under `assets/mermaid/`). The per-module pages the paper
+Figures are `../../assets/rtl-amba-monitors/graphviz/monitor_wp_*.png`, rendered
+from the graphviz sources beside them (`regenerate_all_graphviz.sh` in that
+directory). The per-module pages the paper
 cites are the [monitor pages of the rtl-amba index](../../rtl-amba/index.md).

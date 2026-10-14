@@ -37,7 +37,7 @@ ports apart. With the full monitor the same per-port choice would cost about
 21,000 LUTs, which is why per-port monitoring was not realistic before the
 lite and is the default with it.
 
-![Insertion points: per port, mid-fabric, root of tree](../../assets/rtl-amba/monitor_wp_insertion.png)
+![Insertion points: per port, mid-fabric, root of tree](../../assets/rtl-amba-monitors/graphviz/monitor_wp_insertion.png)
 
 ## References
 

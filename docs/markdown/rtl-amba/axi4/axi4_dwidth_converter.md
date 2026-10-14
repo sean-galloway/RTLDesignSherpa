@@ -138,93 +138,23 @@ Read the blockquote above before you read anything else on this page — this mo
 
 ## Functional Description
 
+### Block diagram
+
+![axi4_dwidth_converter block diagram (planned)](../../assets/rtl-amba/graphviz/axi4_dwidth_converter.png)
+
+This is the intended structure of the planned module; there is no RTL. Each of
+the five channels passes through its own FIFO. The write converter takes AW and
+W, recomputes AWLEN / AWSIZE for the destination width and packs (upsize) or
+unpacks (downsize) the W beats, merging WSTRB. The read converter does the same
+for AR and for the returning R beats, which climb back to the slave port on the
+right with B. One build is either upsize or downsize; the two sections below
+give the burst arithmetic for each.
+
 ### Upsize Mode (Narrow → Wide)
-
-```mermaid
-flowchart LR
-    subgraph Slave["Slave (Narrow 32-bit)"]
-        saw["s_axi_aw*"]
-        sw["s_axi_w*"]
-        sb["s_axi_b*"]
-        sar["s_axi_ar*"]
-        sr["s_axi_r*"]
-    end
-
-    subgraph FIFO["Address FIFOs"]
-        awf["AW FIFO"]
-        wf["W FIFO"]
-        bf["B FIFO"]
-        arf["AR FIFO"]
-        rf["R FIFO"]
-    end
-
-    subgraph WrConv["Write Converter"]
-        wrup["WR Upsize<br/>- Pack 4→1<br/>- AWLEN: ceil w/ lane<br/>- WSTRB"]
-    end
-
-    subgraph RdConv["Read Converter"]
-        rdup["RD Upsize<br/>- Unpack<br/>- ARLEN: ceil w/ lane"]
-    end
-
-    subgraph Master["Master (Wide 128-bit)"]
-        maw["m_axi_aw*"]
-        mw["m_axi_w*"]
-        mb["m_axi_b*"]
-        mar["m_axi_ar*"]
-        mr["m_axi_r*"]
-    end
-
-    saw --> awf --> wrup --> maw
-    sw --> wf --> wrup --> mw
-    mb --> bf --> sb
-    sar --> arf --> rdup --> mar
-    mr --> rdup --> rf --> sr
-```
 
 **WIDTH_RATIO = 4** (128/32): Burst 16 beats @ 32-bit → 4 beats @ 128-bit
 
 ### Downsize Mode (Wide → Narrow)
-
-```mermaid
-flowchart LR
-    subgraph Slave["Slave (Wide 128-bit)"]
-        saw2["s_axi_aw*"]
-        sw2["s_axi_w*"]
-        sb2["s_axi_b*"]
-        sar2["s_axi_ar*"]
-        sr2["s_axi_r*"]
-    end
-
-    subgraph FIFO2["Address FIFOs"]
-        awf2["AW FIFO"]
-        wf2["W FIFO"]
-        bf2["B FIFO"]
-        arf2["AR FIFO"]
-        rf2["R FIFO"]
-    end
-
-    subgraph WrConv2["Write Converter"]
-        wrdn["WR Downsize<br/>- Unpack<br/>- AWLEN: split &lt;=256<br/>- WSTRB"]
-    end
-
-    subgraph RdConv2["Read Converter"]
-        rddn["RD Downsize<br/>- Pack<br/>- ARLEN: split &lt;=256"]
-    end
-
-    subgraph Master2["Master (Narrow 32-bit)"]
-        maw2["m_axi_aw*"]
-        mw2["m_axi_w*"]
-        mb2["m_axi_b*"]
-        mar2["m_axi_ar*"]
-        mr2["m_axi_r*"]
-    end
-
-    saw2 --> awf2 --> wrdn --> maw2
-    sw2 --> wf2 --> wrdn --> mw2
-    mb2 --> bf2 --> sb2
-    sar2 --> arf2 --> rddn --> mar2
-    mr2 --> rddn --> rf2 --> sr2
-```
 
 **WIDTH_RATIO = 4** (128/32): Burst 4 beats @ 128-bit → 16 beats @ 32-bit
 

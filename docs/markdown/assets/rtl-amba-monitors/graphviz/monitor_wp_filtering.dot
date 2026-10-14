@@ -1,0 +1,62 @@
+// Whitepaper ch7 "Packet-type filtering" - house style
+// (vault/handbook/authoring/block-diagrams.md).
+//   center - an event's path through the three runtime layers in the order it
+//            meets them: enable pins (wrapper) -> type mask (lite wrapper, then
+//            group) -> event mask (group) -> drain steering
+//   left   - what each layer drops (white sinks, dashed): nothing silent
+//   right  - the lite's queue-full path: lost events are counted and reported in
+//            one Error/EVENT_DROPPED packet, which then takes the same path
+// All masks are runtime, over the control APB.
+// Source of truth: chapter text; rtl/amba/ocelus/monbus_group_core.sv
+// (cfg_<proto>_pkt_mask, per-class event masks, err_select);
+// rtl/amba/ocelus/axi_monitor_lite.sv.
+digraph monitor_wp_filtering {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
+           label="Packet-type filtering: enable pins, type mask, event mask, then drain steering; the lite counts what its queue could not take",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    ev [group=C, label="Event fires in the monitor\n(error, timeout, completion, threshold, ...)", fillcolor="white"];
+
+        en  [group=C, label="1. Enable Pins (wrapper)\ncfg_error_enable, cfg_compl_enable,\ncfg_timeout_enable, cfg_threshold_enable"];
+        tmw [group=C, label="2a. Type Mask (lite wrapper)\ncfg_axi_pkt_mask[type]: 1 drops the type"];
+        q   [label="Lite output queue full (wrapper)\nlost events are counted"];
+        drp [label="One Error/EVENT_DROPPED\npacket carries the count,\nsent when the bus is free"];
+
+        tmg [group=C, label="2b. Type Mask (group: monbus_group_core)\ncfg_<proto>_pkt_mask[type]: 1 drops the type"];
+        emk [group=C, label="3. Event Mask (group: monbus_group_core)\ncfg_<proto>_<class>_mask[event_code[3:0]]\n1 drops one event within a type\n(e.g. RESP_SLVERR but not RESP_DECERR)"];
+
+    x1 [label="enable = 0: class off,\nnever generated,\nno monbus bandwidth", fillcolor="white", style="filled,dashed"];
+    x2 [label="mask = 1: type dropped\nat the port, never\nleaves it", fillcolor="white", style="filled,dashed"];
+    x3 [label="mask = 1: type\ndropped at the group", fillcolor="white", style="filled,dashed"];
+    x4 [label="mask = 1: event\ncode dropped", fillcolor="white", style="filled,dashed"];
+
+    st [group=C, label="Drain steering (cfg_<proto>_err_select) -- see the drains figure", fillcolor="white", width=6.0];
+
+    ev  -> en  [label="event"];
+    en  -> tmw [xlabel="class enabled", penwidth=1.8];
+    tmw -> tmg [label="packet on the monbus", penwidth=1.8];
+    tmg -> emk [label="type kept", penwidth=1.8];
+    emk -> st  [label="event kept", penwidth=1.8];
+
+    // drops leave LEFT (dir=back keeps the sink left of its stage)
+    x1 -> en  [style=dashed, dir=back];
+    x2 -> tmw [style=dashed, dir=back];
+    x3 -> tmg [style=dashed, dir=back];
+    x4 -> emk [style=dashed, dir=back];
+
+    q   -> drp [label="count"];
+    drp -> tmw [label="Error/EVENT_DROPPED"];
+
+    { rank=same; ev; q; }
+    ev -> q [style=invis, minlen=3];
+    { rank=same; x1; en; drp; }
+    en -> drp [style=invis];
+    { rank=same; x2; tmw; }
+    { rank=same; x3; tmg; }
+    { rank=same; x4; emk; }
+    { rank=max; st; }
+}

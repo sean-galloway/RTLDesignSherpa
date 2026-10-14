@@ -1,0 +1,43 @@
+// uart_axil_bridge block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Source of truth: projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_axil_bridge.sv
+// Flow: ASCII commands enter on i_uart_rx (top left), the parser issues one
+// AXI4-Lite write or read through axil4_master_wr / axil4_master_rd (bottom
+// bar), and the response text climbs the right edge out of o_uart_tx.
+digraph uart_axil_bridge {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="uart_axil_bridge - ASCII UART command line to an AXI4-Lite master (single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    prm  [label="Parameters (fixed at build)\lCLKS_PER_BIT: aclk cycles per UART bit\l    (868 = 115200 baud at 100 MHz)\lSKID_DEPTH_*: per-channel skid entries\l", fillcolor="white"];
+    rxp  [label="UART In\ni_uart_rx", fillcolor="white"];
+    txp  [label="UART Out\no_uart_tx", fillcolor="white"];
+    fmt  [label="Command Format\lW <addr_hex> <data_hex>\\n  ->  \"OK\\n\"\lR <addr_hex>\\n             ->  \"0x<data>\\n\"\lbus error                  ->  \"ERR\\n\"\l", fillcolor="white"];
+
+    rx   [label="UART Receiver\nuart_rx - u_uart_rx\n8N1, one byte per frame"];
+    fsm  [label="Command Parser FSM (flops)\nCMD_IDLE > READ_CMD > READ_ADDR > READ_DATA > EXECUTE\n> AXIL_WRITE_ADDR / _DATA / _RESP  or  AXIL_READ_ADDR / _DATA\n> SEND_RESPONSE; hex digits to address / data"];
+    wr   [label="AXI4-Lite Write Master\naxil4_master_wr - u_axil_wr_timing\n(see its diagram)"];
+    rd   [label="AXI4-Lite Read Master\naxil4_master_rd - u_axil_rd_timing\n(see its diagram)"];
+    tx   [label="UART Transmitter\nuart_tx - u_uart_tx\nresponse text, one byte per frame"];
+
+    bar  [label="AXI4-Lite Master Bus  m_axil_*\nAW, W out / B in  |  AR out / R in", fillcolor="white", width=8.0];
+
+    rxp -> rx  [xlabel="serial bits", penwidth=1.8];
+    rx  -> fsm [xlabel="received byte", penwidth=1.8];
+    fsm -> wr  [dir=both, xlabel="write: addr, data /\nbresp", penwidth=1.8];
+    fsm -> rd  [dir=both, xlabel="read: addr /\nrdata, rresp", penwidth=1.8];
+    wr  -> bar [dir=both, xlabel="AW, W / B"];
+    rd  -> bar [dir=both, xlabel="AR / R"];
+    fsm -> tx  [xlabel="response byte"];
+    tx  -> txp [xlabel="serial bits", penwidth=1.8];
+
+    { rank=same; prm; rxp; fmt; txp; }
+    { rank=same; rx; tx; }
+    { rank=same; wr; rd; }
+    prm -> rxp [style=invis]; rxp -> fmt [style=invis, minlen=2]; fmt -> txp [style=invis];
+    rx -> tx [style=invis, minlen=4];
+    wr -> rd [style=invis, minlen=2];
+}

@@ -122,25 +122,13 @@ projects/components/{component_name}/
 
 **APB-Connected Component Example:**
 
-```mermaid
-graph TB
-    subgraph TopLevel["{component}_top (Top Level)"]
-        subgraph InterfaceLayer["Interface Layer"]
-            APB["APB Slave<br/>(Optional CDC)"]
-            Regs["Config Regs<br/>(PeakRDL)"]
-        end
+![APB-connected component pattern](../assets/projects/graphviz/component_pattern.png)
 
-        subgraph CoreLogic["Core Logic"]
-            Core["{component} Core<br/>- State<br/>- Datapath<br/>- Control"]
-        end
-
-        ExtIf["External Interfaces"]
-    end
-
-    APB --> Regs
-    Regs --> Core
-    Core --> ExtIf
-```
+The CPU's register accesses enter at the top through the APB slave (the `_cdc`
+variant when the register clock differs from the core clock) into the
+PeakRDL-generated register block. Configuration fields flow down into the core
+and status fields flow back up into the registers; the core's own interfaces
+are the bottom bar.
 
 **Key Interfaces:**
 1. **APB/AXI Interface** - Register access from CPU

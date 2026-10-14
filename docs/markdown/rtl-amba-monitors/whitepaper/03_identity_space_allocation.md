@@ -45,7 +45,7 @@ name the block on each bus. A host filter on `unit_id[7:4]` then isolates a
 subsystem, and on the full byte a single bus, with no change to the RTL.
 The cost is nothing: the fields exist in every packet regardless.
 
-![Identity allocation: one unit per subsystem, or a subsystem nibble and a sub-bus nibble](../../assets/rtl-amba/monitor_wp_identity.png)
+![Identity allocation: one unit per subsystem, or a subsystem nibble and a sub-bus nibble](../../assets/rtl-amba-monitors/graphviz/monitor_wp_identity.png)
 
 ## References
 

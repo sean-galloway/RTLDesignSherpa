@@ -1,0 +1,25 @@
+// Generic APB-connected component pattern - house style
+// (vault/handbook/authoring/block-diagrams.md). A pattern, not one module:
+// the CPU's register access enters at the top, configuration flows down into
+// the core, status returns up into the registers, and the core's own
+// interfaces are the bottom bar.
+digraph component_pattern {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="{component}_top - the APB-connected component pattern",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    cpu  [label="CPU Register Port\ns_apb_* (PSEL, PADDR, PWRITE, PWDATA /\nPRDATA, PREADY, PSLVERR)", fillcolor="white"];
+    apb  [label="APB Slave\napb4_slave or apb5_slave (the _cdc variant\nwhen the register clock differs from the core clock)"];
+    regs [label="Configuration Registers\n{component}_regs (PeakRDL, generated)\ncontrol fields out, status fields in"];
+    core [label="{component} Core\ndatapath + control\n(component-specific)"];
+    bar  [label="External Interfaces (component-specific)\ne.g. AXI4 masters, streams, memory, pins", fillcolor="white", width=6.0];
+
+    cpu  -> apb  [dir=both, xlabel="register read / write"];
+    apb  -> regs [dir=both, xlabel="register access /\nread data"];
+    regs -> core [dir=both, xlabel="config fields /\nstatus fields", penwidth=1.8];
+    core -> bar  [dir=both, xlabel="component traffic", penwidth=1.8];
+}

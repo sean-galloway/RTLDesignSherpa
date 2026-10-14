@@ -36,7 +36,7 @@ errors and timeouts to the interrupt path and everything else to the trace
 ring; a debug session flips completions over to the error FIFO for a while
 and reads them one at a time.
 
-![Drain paths: error FIFO with interrupt, write FIFO into the memory ring](../../assets/rtl-amba/monitor_wp_drains.png)
+![Drain paths: error FIFO with interrupt, write FIFO into the memory ring](../../assets/rtl-amba-monitors/graphviz/monitor_wp_drains.png)
 
 ## References
 

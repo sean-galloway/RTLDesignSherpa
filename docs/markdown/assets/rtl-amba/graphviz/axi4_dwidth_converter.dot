@@ -1,0 +1,53 @@
+// axi4_dwidth_converter block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// PLANNED module: there is no axi4_dwidth_converter.sv. This is the intended
+// structure described on its page; the shipping converters are the separate
+// _rd and _wr modules in projects/components/utility-ip/converters.
+// AMBA lanes: W left, AW/AR center, B and R climb the right.
+digraph axi4_dwidth_converter {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="axi4_dwidth_converter - PLANNED (no RTL): bidirectional AXI4 width converter, one mode per build",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    mode [label="Mode (planned parameters)\lupsize (narrow -> wide): pack WIDTH_RATIO\l    beats into one; AWLEN/ARLEN = ceil\l    over the lanes; WSTRB merged\ldownsize (wide -> narrow): unpack one beat\l    into WIDTH_RATIO; bursts split at 256\lWIDTH_RATIO = wide / narrow data width\l*_FIFO_DEPTH: per-channel FIFO depth\l", fillcolor="white"];
+    sp   [label="Slave Port  s_axi_*  (source width)\nAW, W, AR in  /  B, R out", fillcolor="white", width=9.0];
+
+    awf  [label="AW FIFO"];
+    wf   [label="W FIFO"];
+    arf  [label="AR FIFO"];
+    bf   [label="B FIFO"];
+    rf   [label="R FIFO"];
+
+    wcv  [label="Write Converter\nrecompute AWLEN / AWSIZE;\npack or unpack W beats, merge WSTRB"];
+    rcv  [label="Read Converter\nrecompute ARLEN / ARSIZE;\npack or unpack R beats"];
+
+    mp   [label="Master Port  m_axi_*  (destination width)\nAW, W, AR out  /  B, R in", fillcolor="white", width=9.0];
+
+    // write: W left, AW center
+    sp  -> wf  [xlabel="W"];
+    sp  -> awf [xlabel="AW"];
+    wf  -> wcv [label="W beats"];
+    awf -> wcv [label="AW"];
+    wcv -> mp  [label="AW, W (converted)", penwidth=1.8];
+    // read request
+    sp  -> arf [xlabel="AR"];
+    arf -> rcv [label="AR"];
+    rcv -> mp  [xlabel="AR (converted) ", penwidth=1.8];
+    // responses climb the right
+    bf  -> mp  [dir=back, label="B"];
+    sp  -> bf  [dir=back, label="B"];
+    rf  -> rcv [dir=back, label="R (source width)"];
+    sp  -> rf  [dir=back, label="R"];
+    rcv -> mp  [dir=back, xlabel="R (destination width)"];
+
+    { rank=same; mode; }
+    mode -> wf [style=invis];
+    { rank=same; wf; awf; arf; rf; bf; }
+    { rank=same; wcv; rcv; }
+
+    wf -> awf [style=invis]; awf -> arf [style=invis, minlen=2]; arf -> rf [style=invis]; rf -> bf [style=invis];
+    wcv -> rcv [style=invis, minlen=2];
+}

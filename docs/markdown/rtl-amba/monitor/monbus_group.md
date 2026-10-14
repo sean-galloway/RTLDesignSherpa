@@ -102,42 +102,22 @@ The compressor stat ports stay in the port list regardless of elaboration mode, 
 
 ### Architecture
 
-The diagram below is for the AXIL/AXIL variant; the other three wrappers are structurally identical except for the leaf skids and the FUB-to-leaf bridge (e.g., `axi4_slave_rd` instead of `axil4_slave_rd`).
+The core is shared by all four wrappers:
 
-```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
-flowchart TB
-    subgraph MonInput["Monitor Bus Input"]
-        MONBUS["monbus_valid/ready<br/>monbus_packet (128b)<br/>monbus_timestamp (64b)"]
-    end
+![monbus_group_core block diagram](../../assets/rtl-amba/graphviz/monbus_group_core.png)
 
-    subgraph Wrapper["monbus_axil4_axil4_group (wrapper)"]
-        subgraph Core["monbus_group_core (protocol-agnostic)"]
-            FILTER["Per-protocol filter<br/>(drop / err / write)<br/>+ per-event masks"]
-            ERR_FIFO["Err FIFO<br/>192-bit records"]
-            WRITE_FIFO["Write FIFO<br/>BEAT-granular<br/>(one entry = 64b)"]
-            TS_CTR["Free-running 64-bit<br/>timestamp counter"]
-            EXP["Raw expander<br/>(USE_COMPRESSION=0)<br/>3 beats/record"]
-            COMP["Compressor<br/>(USE_COMPRESSION=1)<br/>1 slot/burst entry"]
-            DRAIN["Slice counter<br/>3 beats per record<br/>(arlen-aware)"]
-            WRITER["Burst writer<br/>watermark + timeout<br/>4KB-boundary aware"]
-        end
-        AXIL_RD["axil4_slave_rd<br/>(single-beat AR)"]
-        AXIL_WR["axil4_master_wr<br/>(single-beat AW)"]
-    end
+Packets enter at the top and the protocol filter routes each one: error-selected
+types go down the left into the error FIFO, which the CPU drains three 64-bit
+beats per record over the slave-read port; everything else goes down the center
+through the raw expander (or the compressor when `USE_COMPRESSION=1`) into the
+write FIFO, and the burst writer flushes it to the memory log on watermark or
+timeout. Each wrapper adds only the leaf protocol modules on the two FUB ports,
+for example the AXIL/AXIL variant:
 
-    MONBUS --> FILTER
-    FILTER -- "err_select=1<br/>not dropped" --> ERR_FIFO
-    FILTER -- "default route" --> EXP
-    FILTER -- "default route" --> COMP
-    EXP --> WRITE_FIFO
-    COMP --> WRITE_FIFO
-    TS_CTR -.mon_time_out.-> MONBUS
-    ERR_FIFO --> DRAIN
-    WRITE_FIFO --> WRITER
-    DRAIN --> AXIL_RD
-    WRITER --> AXIL_WR
-```
+![monbus_axil4_axil4_group block diagram](../../assets/rtl-amba/graphviz/monbus_axil4_axil4_group.png)
+
+The other three wrappers differ only in those leaves (`axi4_slave_rd` instead of
+`axil4_slave_rd`, and so on); each has its own page and diagram.
 
 The module has **no built-in arbitration** — it is a single-input block. Callers with N upstream sources (e.g., RAPIDS source+sink) instantiate a separate `monbus_arbiter` upstream to merge their streams before feeding the group. Keeping arbitration orthogonal to capture means the family never has to duplicate the arbiter for each consumer's input count.
 

@@ -1,0 +1,55 @@
+// Whitepaper ch6 "Drain path selection" - house style
+// (vault/handbook/authoring/block-diagrams.md).
+//   center - an accepted {timestamp, packet} meets the per-type steer
+//            cfg_<proto>_err_select[type] (a 1-to-2 steer by a runtime mask:
+//            a plain box, not a pick)
+//   left   - error FIFO, record-granular, irq_out while non-empty, drained by
+//            host AXI-Lite reads (three 64-bit beats per record)
+//   right  - write FIFO, beat-granular, flushed by watermark or idle timeout as
+//            AXI write bursts into the ring
+//   bar    - the host and the memory ring, outside the group
+// Source of truth: rtl/amba/ocelus/monbus_group_core.sv; docs page
+// rtl-amba/monitor/monbus_group.md.
+digraph monitor_wp_drains {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="Drain paths: error FIFO with interrupt, write FIFO into the memory ring (monbus_group_core)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    in   [label="Accepted Packet\n{timestamp, packet} -- not dropped by the masks", fillcolor="white"];
+    sel  [label="Per-Type Steer (runtime mask)\ncfg_<proto>_err_select[type]\n1 -> error FIFO, 0 -> write FIFO"];
+
+    efifo [group=L, label="Error FIFO\nrecord-granular: 192-bit {timestamp, packet}\nirq_out while non-empty"];
+    rd    [group=L, label="AXI-Lite Slave Read\neach record as three 64-bit beats:\ntimestamp, packet hi, packet lo"];
+
+    wfifo [group=R, label="Write FIFO\nbeat-granular: raw 3 beats per record,\nor 1 beat when compressed"];
+    fl    [group=R, label="Flush Trigger\nbeats >= cfg_flush_watermark,\nor FLUSH_TIMEOUT_CYCLES with no new beat"];
+    aw    [group=R, label="AXI Write Burst\nwhole records only, never across a 4 KB boundary"];
+
+    bar  [label="Outside the group\nhost: services irq_out and reads the error FIFO   |   ring in memory [cfg_base_addr, cfg_limit_addr], wraps to base",
+          fillcolor="white", width=9.0];
+
+    in -> sel [label="packet + timestamp", penwidth=1.8];
+    sel -> efifo [xlabel="err_select = 1\n(errors, timeouts)"];
+    sel -> wfifo [xlabel="err_select = 0\n(completions, latencies,\nthresholds)"];
+    efifo -> rd [label="records"];
+    wfifo -> fl [label="beats queued"];
+    fl -> aw [label="flush"];
+
+    p_e [shape=point, width=0.01, group=L];
+    p_w [shape=point, width=0.01, group=R];
+    rd -> p_e [arrowhead=none, headclip=false];
+    p_e -> bar [xlabel="AXI-Lite reads + irq_out", tailclip=false];
+    aw -> p_w [arrowhead=none, headclip=false];
+    p_w -> bar [xlabel="bursts into the ring", tailclip=false];
+
+    { rank=same; efifo; wfifo; }
+    efifo -> wfifo [style=invis, minlen=3];
+    sp [style=invis, label="", fixedsize=true, width=2.0, height=0.02];
+    { rank=same; p_e; sp; p_w; }
+    p_e -> sp [style=invis]; sp -> p_w [style=invis];
+    { rank=max; bar; }
+}

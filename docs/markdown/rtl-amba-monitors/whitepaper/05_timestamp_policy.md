@@ -42,7 +42,7 @@ Two directions are open to the integrator:
 Neither is prototyped; the hybrid form is the one this paper recommends
 when it is, because it needs no new field and no host-side re-basing.
 
-![Timestamp policy: the group's local counter today, the hybrid time base as the tweak](../../assets/rtl-amba/monitor_wp_timestamp.png)
+![Timestamp policy: the group's local counter today, the hybrid time base as the tweak](../../assets/rtl-amba-monitors/graphviz/monitor_wp_timestamp.png)
 
 ## References
 

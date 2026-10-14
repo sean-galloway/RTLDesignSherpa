@@ -32,7 +32,7 @@ per packet type. The packet layout is fixed
 ([monitor_package_spec.md](../../rtl-amba/includes/ocelus_package_spec.md)); everything
 else on this page is a knob.
 
-![Monitor system spine: ports, arbiter tree, group, two drains](../../assets/rtl-amba/monitor_wp_spine.png)
+![Monitor system spine: ports, arbiter tree, group, two drains](../../assets/rtl-amba-monitors/graphviz/monitor_wp_spine.png)
 
 ## References
 

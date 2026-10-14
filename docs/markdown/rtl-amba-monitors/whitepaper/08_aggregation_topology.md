@@ -32,7 +32,7 @@
 The group core is shared by every wrapper family (AXI4, AXI5, AXI-Lite,
 AXIS, Wishbone), so partitioning is a topology decision, not a new block.
 
-![Aggregation topologies: round-robin tree, weighted, protocol-partitioned](../../assets/rtl-amba/monitor_wp_aggregation.png)
+![Aggregation topologies: round-robin tree, weighted, protocol-partitioned](../../assets/rtl-amba-monitors/graphviz/monitor_wp_aggregation.png)
 
 ## References
 

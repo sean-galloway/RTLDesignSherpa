@@ -57,32 +57,13 @@ Provides command-line memory access over UART for:
 
 ### Architecture
 
-```mermaid
-graph TB
-    subgraph Bridge["uart_axil_bridge (Top Level)"]
-        subgraph UartLayer["UART Layer"]
-            RX["UART RX<br/>(uart_rx)"]
-            TX["UART TX<br/>(uart_tx)"]
-        end
+![uart_axil_bridge block diagram](../assets/projects/graphviz/uart_axil_bridge.png)
 
-        subgraph Parser["Command Parser"]
-            FSM["FSM States:<br/>- CMD_IDLE<br/>- READ_ADDR<br/>- READ_DATA<br/>- EXECUTE<br/>- RESPONSE"]
-        end
-
-        subgraph AxiLayer["AXI4-Lite Layer"]
-            Master["AXI4-Lite Master<br/>(W + R)"]
-            Skid["Skid Buffers<br/>(Timing Iso)"]
-        end
-
-        Output["AXI4-Lite Master I/F"]
-    end
-
-    RX --> FSM
-    FSM --> TX
-    FSM --> Master
-    Master --> Skid
-    Skid --> Output
-```
+ASCII commands arrive on `i_uart_rx` and `uart_rx` hands the parser one byte
+per frame. The command parser FSM turns the hex digits into an address (and
+data, for a write) and issues one AXI4-Lite transaction through
+`axil4_master_wr` or `axil4_master_rd`. The response (`OK`, the read data as
+`0x...`, or `ERR` on a bus error) goes back out through `uart_tx` on the right.
 
 **Key Components:**
 

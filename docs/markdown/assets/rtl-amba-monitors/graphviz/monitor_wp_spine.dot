@@ -1,0 +1,69 @@
+// Whitepaper ch1 "The spine" - house style (vault/handbook/authoring/block-diagrams.md).
+// Flows:
+//   packets - top-down the center: monitored ports -> monbus_arbiter tree (the
+//             many-to-one pick, trapezium) -> monbus_group_core (filter + steer)
+//   drains  - the group splits: error FIFO down the LEFT to the host (AXI-Lite
+//             reads, irq_out), write FIFO down the RIGHT as AXI bursts to the ring
+//   boundary bar - what lies outside the monitor system: host and memory
+// Source of truth: rtl/amba/ocelus/{monbus_arbiter,monbus_group_core}.sv,
+// rtl/amba/*/*_monlite.sv.
+digraph monitor_wp_spine {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="The Ocelus spine: every monitored port's packets merge onto one monbus and sink into two drains",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- monitored ports (white: the design being watched) ----
+    pa [label="Port A\n*_monlite wrapper\n(axi_monitor_lite)", fillcolor="white"];
+    pb [label="Port B\n*_monlite wrapper\n(axi_monitor_lite)", fillcolor="white"];
+    pc [label="Port C\n*_monlite wrapper\n(axi_monitor_lite)", fillcolor="white"];
+
+    // ---- aggregation: the many-to-one pick ----
+    arb [label="Arbiter Tree\nmonbus_arbiter (round robin, any fan-in)",
+         shape=invtrapezium, width=8.2, height=0.75, fixedsize=true,
+         fillcolor="#BFD7EE", fontsize=11];
+
+    // ---- the group ----
+    grp [label="Monbus Group\nmonbus_group_core\nfilter: cfg_<proto>_pkt_mask, per-class event masks\nsteer: cfg_<proto>_err_select[type]", width=4.6];
+
+    // ---- two drains ----
+    efifo [group=L, label="Error FIFO\n192-bit {timestamp, packet} records\nirq_out while non-empty"];
+    wfifo [group=R, label="Write FIFO\n3-beat records (raw)\nor 1 beat (compressed)"];
+    flush [group=R, label="Flush\nAXI write bursts when cfg_flush_watermark\nbeats are queued or the flush timeout elapses"];
+
+    // ---- boundary bar: outside the monitor system ----
+    bar [label="Outside the monitor system\nhost: reads each record as 3 x 64-bit beats over the AXI-Lite slave, irq_out   |   memory ring [cfg_base_addr, cfg_limit_addr]",
+         fillcolor="white", width=9.0];
+
+    // ---- packets down the center ----
+    pa -> arb [xlabel="monbus packets"];
+    pb -> arb [label="monbus packets"];
+    pc -> arb [xlabel="monbus packets"];
+    arb -> grp [label="one merged stream", penwidth=1.8];
+
+    // ---- drains ----
+    grp -> efifo [xlabel="err_select = 1\n(errors, timeouts)"];
+    grp -> wfifo [xlabel="else (not dropped)"];
+    wfifo -> flush [label="beats"];
+
+    // ---- crossings of the bar via point scaffolds ----
+    p_e [shape=point, width=0.01, group=L];
+    p_w [shape=point, width=0.01, group=R];
+    efifo -> p_e [arrowhead=none, headclip=false];
+    p_e -> bar [xlabel="AXI-Lite reads + irq_out", tailclip=false];
+    flush -> p_w [arrowhead=none, headclip=false];
+    p_w -> bar [xlabel="AXI bursts into the ring", tailclip=false];
+
+    // ---- rank pinning ----
+    { rank=same; pa; pb; pc; }
+    pa -> pb [style=invis]; pb -> pc [style=invis];
+    { rank=same; efifo; wfifo; }
+    efifo -> wfifo [style=invis, minlen=4];
+    sp [style=invis, label="", fixedsize=true, width=2.5, height=0.02];
+    { rank=same; p_e; sp; p_w; }
+    p_e -> sp [style=invis]; sp -> p_w [style=invis];
+    { rank=max; bar; }
+}

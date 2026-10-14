@@ -1,0 +1,57 @@
+// Whitepaper ch3 "Identity space allocation" - house style
+// (vault/handbook/authoring/block-diagrams.md). Not a datapath: a hierarchy
+// of build-time identity fields, so the vocabulary is white field/port boxes
+// over blue allocation boxes, every arrow labeled with what it names.
+//   left  - as built: STREAM spends one unit_id and names blocks with agent_id
+//   right - the tweak: unit_id split into a subsystem nibble and a sub-bus nibble
+// Source of truth: the chapter text; STREAM's values from
+// projects/components/dma-ip/stream/rtl/macro/scheduler_group.sv.
+digraph monitor_wp_identity {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
+           label="Identity allocation: one unit per subsystem, or a subsystem nibble and a sub-bus nibble",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    fields [label="Identity fields in every packet (build-time, designer-owned)\lunit_id[7:0]: which subsystem (wrapper parameter UNIT_ID)\lagent_id[15:0]: which block inside it (wrapper parameter AGENT_ID)\lchannel_id[8:0]: which channel or AXI ID (set by the monitor)\lthe tools decode nothing: a host-side table maps (unit_id, agent_id) to a name\l",
+            fillcolor="white"];
+
+    subgraph cluster_built {
+        label="As built: one unit_id per subsystem"; labelloc=b; style=dashed; fontsize=10;
+        u01  [label="unit_id = 0x01\nSTREAM (the whole DMA)"];
+        a10  [label="agent_id 0x10\ndescriptor engine"];
+        a30  [label="agent_id 0x30\nscheduler"];
+        a40  [label="agent_id 0x40\nwidened scheduler set"];
+    }
+
+    subgraph cluster_split {
+        label="Tweak: unit_id = {sub_system[3:0], sub_bus[3:0]}"; labelloc=b; style=dashed; fontsize=10;
+        sub  [label="subsystem 0x1\nunit_id[7:4] = 0x1"];
+        b0   [label="unit_id 0x10\nsub-bus 0"];
+        b1   [label="unit_id 0x11\nsub-bus 1"];
+        bf   [label="... unit_id 0x1F\nsub-bus 15"];
+        ag   [label="agent_id still names\nthe block on each bus"];
+    }
+
+    host [label="Host filter (no RTL change)\nunit_id[7:4] isolates a subsystem;\nthe full byte isolates one bus\ncost: nothing -- the fields exist\nin every packet regardless", fillcolor="white"];
+
+    fields -> u01 [xlabel="one value per subsystem"];
+    fields -> sub [xlabel="split the byte"];
+    u01 -> a10 [label="names"];
+    u01 -> a30 [label="names"];
+    u01 -> a40 [label="names"];
+    sub -> b0 [label="sub-bus"];
+    sub -> b1 [label="sub-bus"];
+    sub -> bf [label="sub-bus"];
+    b1 -> ag [label="per bus"];
+
+    a30 -> ag [style=invis];
+
+    { rank=same; u01; sub; }
+    { rank=same; a10; a30; a40; b0; b1; bf; }
+    a40 -> b0 [style=invis];
+    { rank=same; ag; host; }
+    host -> ag [style=invis];
+}

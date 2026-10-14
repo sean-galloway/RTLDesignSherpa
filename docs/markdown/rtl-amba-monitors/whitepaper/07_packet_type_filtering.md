@@ -48,7 +48,7 @@ its queue is genuinely full it counts the loss and reports the count in one
 silently; the consumer always knows how many events it did not see, which
 is the property a filtering strategy can be built on.
 
-![Packet-type filtering: enable pins, type mask, event mask, then drain steering; the lite counts what its queue could not take](../../assets/rtl-amba/monitor_wp_filtering.png)
+![Packet-type filtering: enable pins, type mask, event mask, then drain steering; the lite counts what its queue could not take](../../assets/rtl-amba-monitors/graphviz/monitor_wp_filtering.png)
 
 ## References
 
