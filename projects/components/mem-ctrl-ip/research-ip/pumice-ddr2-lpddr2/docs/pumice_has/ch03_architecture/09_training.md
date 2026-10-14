@@ -23,13 +23,18 @@
 
 # Training: LPDDR2 ZQ and DQ Calibration
 
-The training plane is `pumice_training_plane` (`rtl/macro/pumice_training_plane.sv`),
-the fourth plane of the core, instantiated in `pumice_core` between the scheduler
-plane and the DFI plane ("Plane 2b" in the RTL). It holds the two calibration FUBs —
-`pumice_zq_ctrl` (periodic ZQ calibration) and `pumice_lp_cal` (one-shot DQ
-calibration via mode-register reads) — muxes both onto a single maintenance command
-channel into the scheduler's arbiter, and owns the `mc_clk` ↔ `dfi_clk` clock
-crossing for the read-aligner calibration sideband.
+The training plane is the common `mc_training_plane`
+(`common-ip/rtl/macro/mc_training_plane.sv`), instantiated directly by `pumice_core`
+as `u_train_plane` between the scheduler plane and the DFI plane ("Plane 2b" in the
+RTL, `rtl/top/pumice_core.sv:756`). Pumice builds it with both LPDDR2 clients
+enabled (`HAS_LP_ZQ = 1`, `HAS_LP_DQ_CAL = 1`), so it holds the two calibration
+FUBs — `mc_lpddr2_zq_ctrl` (periodic ZQ calibration) and `mc_lpddr2_dq_cal`
+(one-shot DQ calibration via mode-register reads) — muxes both onto a single
+maintenance command channel into the scheduler's arbiter, and, through
+`mc_training_shell`, owns the `mc_clk` ↔ `dfi_clk` clock crossing for the
+read-aligner calibration sideband. Until 2026-10-11 these FUBs were the
+pumice-local `pumice_zq_ctrl` / `pumice_lp_cal` behind a `pumice_training_plane`
+wrapper; both moved into common-ip and the wrapper was removed.
 
 Both FUBs run only when `init_done` is set and `memtype == MEMTYPE_LPDDR2`; DDR2
 has no ZQ pin and no MRR mechanism, so the entire plane is inert for DDR2 builds.
@@ -57,27 +62,28 @@ mechanism owned by andesite's training plane). What LPDDR2 actually offers is tw
 mechanisms, both implemented here: ZQ calibration through MR10 writes, and DQ
 calibration through MRR reads of MR32/MR40.
 
-## `pumice_training_plane`: arbitration and CDC
+## `mc_training_plane`: arbitration and CDC
 
-The plane is a passive wiring and arbitration shell; run gating lives inside the
-two FUBs.
+The plane composes the two FUBs around `mc_training_shell`, which does the slot
+arbitration and the clock crossing; run gating lives inside the two FUBs.
 
 | Responsibility | Detail |
 |---|---|
-| FUB holder | `u_zq` (`pumice_zq_ctrl`) + `u_lp_cal` (`pumice_lp_cal`) |
-| One-active command mux | Both FUBs share one `trn_cmd_*` channel; priority ZQ > lp_cal, because ZQ is periodic maintenance while lp_cal is a firmware-initiated one-shot. `trn_cmd_mrr_o` is `0` for ZQ (MRW) and `1` for lp_cal (MRR) |
-| Calibration sideband CDC | `cal_expect` crosses `mc_clk` → `dfi_clk` as a `sync_pulse` (one mc_clk assertion produces exactly one dfi_clk pulse); the captured beat crosses back through a `cdc_synchronizer` (data held stable by the aligner until the next arm) with a `sync_pulse` for the valid strobe |
+| FUB holder | `u_zq` (`mc_lpddr2_zq_ctrl`, slot 0) + `u_lp_cal` (`mc_lpddr2_dq_cal`, slot 1); each removable by `HAS_LP_ZQ` / `HAS_LP_DQ_CAL` |
+| One-active command mux | `mc_training_shell` puts both FUBs on one `trn_cmd_*` channel; fixed priority slot 0 (ZQ) > slot 1 (DQ cal), because ZQ is periodic maintenance while lp_cal is a firmware-initiated one-shot. `trn_cmd_mrr_o` is `0` for ZQ (MRW) and `1` for lp_cal (MRR) |
+| Calibration sideband CDC | In `mc_training_shell`: `cal_expect` crosses `mc_clk` → `dfi_clk` as a `sync_pulse` (one mc_clk assertion produces exactly one dfi_clk pulse); the captured beat crosses back through a `cdc_synchronizer` (data held stable by the aligner until the next arm) with a `sync_pulse` for the valid strobe |
 | Status aggregation | `cal_busy_o = zq_busy \|\| lp_busy`; `cal_done` / `cal_err` come from lp_cal; `zq_busy` / `zq_overdue` / `zqcs_total` from ZQ |
 
-: Table 3.0: `pumice_training_plane` responsibilities
+: Table 3.0: `mc_training_plane` responsibilities
 
 `pumice_core` wires the plane exactly as andesite wires its training plane: the
-`trn_cmd_*` channel nets into the scheduler plane's new maintenance client ports,
+`trn_cmd_*` channel nets into the scheduler plane's generic maintenance slot
+(`maint_*`, Ch 3.2),
 and `cal_expect_o` / `cal_data_i` / `cal_valid_i` net into the DFI plane's read
 aligner. `pumice_top` connects the CSR side (`CAL_CTRL` fields, timing registers)
 and harvests status back into `CAL_STATUS` and the `CAL_MRR32/40_DATA` slices.
 
-## `pumice_zq_ctrl`: periodic ZQ calibration as maintenance traffic
+## `mc_lpddr2_zq_ctrl`: periodic ZQ calibration as maintenance traffic
 
 LPDDR2 has no dedicated ZQCS/ZQCL command (unlike DDR3); both are **MRW writes to
 MR10**, OP = `0x56` (short, ZQCS) or `0xAB` (long, ZQCL), per JESD209-2F §5.13.3.
@@ -124,12 +130,12 @@ ZQ bus placement follows the all-banks-idle grant contract rather than the JEDEC
 minimum: LPDDR2-S4 requires all banks precharged for ZQ calibration while
 LPDDR2-N permits Idle-or-Active; the conservative contract satisfies both.
 
-## `pumice_lp_cal`: one-shot DQ calibration over MRR
+## `mc_lpddr2_dq_cal`: one-shot DQ calibration over MRR
 
 JESD209-2F §5.12.2 defines DQ calibration: MRR reads of MR32 (pattern A, `1010`)
 and MR40 (pattern B, `0011`) make the DRAM drive a known, training-only pattern
 onto DQ, so firmware can observe the read-capture timing without any memory array
-in the loop. `pumice_lp_cal` is the one-shot sequencer that issues those two
+in the loop. `mc_lpddr2_dq_cal` is the one-shot sequencer that issues those two
 reads and captures the answers; what firmware does with the answers — the tap
 sweep — is deliberately outside the core.
 
@@ -166,9 +172,9 @@ never enters the demand path. Instead MRR rides the existing `OP_MRS` as a new
 - The arbiter passes the granted maintenance op **verbatim** (no re-encoding) and
   latches the requester's `trn_cmd_mrr_i` into the command word.
 - The scheduler's output cmd FIFO word grows by one bit to
-  `{mrr, ap, col, row, bank, rank, op}` (pack site `pumice_scheduler_plane.sv`,
+  `{mrr, ap, col, row, bank, rank, op}` (pack site `pumice_core.sv`, `w_cmd_data`;
   unpack site `mc_dfi_cmd_path.sv`). Demand commands simply carry `mrr = 0`.
-- In `dfi_cmd_formatter`'s `OP_MRS` branch, `cmd_mrr_i` drives **CA3r**: MRW and
+- In `mc_xddr2_cmd_formatter`'s `OP_MRS` branch, `cmd_mrr_i` drives **CA3r**: MRW and
   MRR share the same MA/OP field packing — MA[7:0] on
   `{CA1f, CA0f, CA9r..CA4r}` — and MRR is MRW with CA3r inverted, bit-exact to
   JESD209-2F §5.12 (the OP field is don't-care-zero for MRR; the lp_cal row packs
@@ -232,16 +238,19 @@ sticky and clear only on soft reset.
 
 ## Verification and integration notes
 
-- **FUB**: `test_pumice_zq_ctrl.py` (interval expiry, Mode-C deferral, overdue →
-  ZQCL select, hold window, DDR2-inert) and `test_pumice_lp_cal.py` (one-shot
+- **FUB**: `test_pumice_zq_ctrl.py` (DUT `mc_lpddr2_zq_ctrl`; interval expiry, Mode-C deferral, overdue →
+  ZQCL select, hold window, DDR2-inert) and `test_pumice_lp_cal.py` (DUT `mc_lpddr2_dq_cal`; one-shot
   sequence, MRR32 → capture → tMRR → MRR40 → capture, timeout error, abort).
-- **FUB**: `test_dfi_cmd_formatter.py::lpddr2_mrr` checks the MRR CA encoding
-  against JESD209-2F §5.12; `test_pumice_dfi_rd_aligner.py::test_pumice_dfi_rd_aligner_cal_capture`
-  checks the sideband capture with zero reads outstanding and no interference
-  with normal returns.
+- **FUB**: `test_dfi_cmd_formatter.py::lpddr2_mrr` (DUT `mc_xddr2_cmd_formatter`)
+  checks the MRR CA encoding against JESD209-2F §5.12. The pumice-local
+  read-aligner cal-capture test (`test_pumice_dfi_rd_aligner.py`) went with the
+  local aligner; the sideband capture is now `mc_dfi_rd_aligner`'s, exercised
+  through the top-level `cal_start` tests below.
 - **Macro**: `test_pumice_scheduler_plane.py` (training priority vs refresh /
   demand, all-banks-idle gating, demand blocked during `cal_busy`, the
-  fire==valid invariant). The command-stream checker allows MRR and MRW-MR10 in
+  fire==valid invariant). It still names the removed `pumice_scheduler_plane`
+  wrapper and its filelist, so it must be repointed at `mc_scheduler_plane`
+  before it runs again. The command-stream checker allows MRR and MRW-MR10 in
   its stream rules.
 - **Top**: the CSR/top tests drive an end-to-end `cal_start` on the LPDDR2 model
   and observe both captured patterns; ZQCS MRW at interval with demand blocked.

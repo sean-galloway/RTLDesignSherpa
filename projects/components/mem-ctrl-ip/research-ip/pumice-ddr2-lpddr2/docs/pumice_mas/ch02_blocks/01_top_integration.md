@@ -31,7 +31,8 @@
 > **Note:** the early SWAG used a five-`*_macro` hierarchy
 > (`pumice_core_macro`, `axi_frontend_macro`, `command_scheduler_macro`,
 > `data_path_macro`, `dfi_v21_interface_macro`). That naming is retired. The
-> live controller is a four-plane stack instantiated by `pumice_core`, wrapped
+> live controller is a five-plane stack of common-ip macros instantiated
+> directly by `pumice_core` (no pumice-local plane or wrapper), wrapped
 > by `pumice_top` (which adds the PeakRDL CSR block) and optionally by
 > `pumice_top_geared` (which adds a host-width AXI dwidth shim).
 
@@ -42,7 +43,7 @@
 The controller top is structural wiring only — every behavioral statement lives
 in a FUB or a plane macro. Two files make up the top:
 
-- **`pumice_core`** — wires the four functional planes on their two clocks and
+- **`pumice_core`** — wires the five common-ip planes on their two clocks and
   exposes host AXI4 plus the DFI 2.1 pin bus. Config arrives on ports.
 - **`pumice_top`** — instantiates `pumice_core` plus the PeakRDL-generated
   `pumice_csr` register block, and drives every core config port **by name** from
@@ -55,19 +56,30 @@ An optional third file, `pumice_top_geared`, wraps `pumice_top` with a free
 slave and the fixed-`DW` core. `HOST == DW` is a generate bypass (bit-identical).
 See [`docs/AXI_DRAM_GEARING_SCOPE.md`](../../AXI_DRAM_GEARING_SCOPE.md).
 
-## `pumice_core` — the four planes
+## `pumice_core` — the five planes
 
-`pumice_core` instantiates exactly four plane modules and the nets between
-them. There is no FSM, no CSR decode, and no arithmetic beyond the packed-bus
-`assign` for the command word.
+`pumice_core` instantiates exactly five plane modules, all from
+`common-ip/rtl/macro/`, and the nets between them. There is no FSM and no CSR
+decode. Beyond the packed-bus `assign` for the command word, the only logic is
+small per-build arithmetic on config ports (the `t_ccd_i` floor at
+`BURST_WORDS` and the active sub-command count / strides derived from `bl_i`
+and `gear_i`).
 
 ```
 pumice_core
-├── u_axi_plane       : pumice_axi4_plane          (host AXI + wr/rd CAMs)          [aclk]
-├── u_sched_plane     : pumice_scheduler_plane (arbiter + timers + refresh/init)[aclk]
-├── u_train_plane  : pumice_training_plane    (ZQ + lp_cal + trn_cmd mux + CDC)[aclk→dfi_clk]
-└── u_dfi_plane       : mc_dfi_2p1_plane         (single async CDC + DFI datapath)[aclk→dfi_clk]
++-- u_axi_plane    : mc_axi4_plane      (host AXI intakes + rd return ring)  [aclk]
++-- u_store_plane  : mc_storage_plane   (wr-data CAM + rd-cmd CAM)           [aclk]
++-- u_sched_plane  : mc_scheduler_plane (arbiter + timers + refresh/init/MR
+|                                        + page policy, HAS_* defaults)      [aclk]
++-- u_train_plane  : mc_training_plane  (ZQ + DQ cal + trn_cmd mux + CDC,
+|                                        HAS_LP_ZQ = HAS_LP_DQ_CAL = 1)      [aclk -> dfi_clk]
++-- u_dfi_plane    : mc_dfi_2p1_plane   (single async CDC + DFI datapath)    [aclk -> dfi_clk]
 ```
+
+The interim pumice wrappers `pumice_scheduler_plane` and
+`pumice_training_plane` were removed on 2026-10-11; their DDR2/LPDDR2 children
+are now the common `mc_xddr2_*`, `mc_page_policy`, and `mc_lpddr2_*` FUBs,
+composed by the common planes (`rtl/top/pumice_core.sv:601`, `:756`).
 
 - Host AXI, the scheduler, and both CAMs run on **`aclk`** (`aresetn`).
 - The DFI phase-packer and PHY interface run on **`dfi_clk`** (`dfi_rstn`).
@@ -75,6 +87,7 @@ pumice_core
   only); `mc_dfi_2p1_plane` is instantiated with `.ctl_clk(aclk)` /
   `.ctl_rstn(aresetn)` on the control side and `.dfi_clk` / `.dfi_rstn` on
   the PHY side. The training plane owns a second, sideband-only crossing
+  in `mc_training_shell`
   (cal_expect down / captured data up for the read-aligner calibration
   capture) — see [ch02/25](../ch02_macros/05_training_plane_macro.md).
 
@@ -87,41 +100,53 @@ edge concern — the core does not gear internally).
 
 | Instance   | Module                        | Count | Clock              | Role                                            |
 |------------|-------------------------------|-------|--------------------|-------------------------------------------------|
-| `u_axi_plane`    | `mc_axi4_plane`             | 1     | `aclk`             | Host AXI4 face; wr-data CAM + rd-cmd CAM        |
-| `u_sched_plane`  | `pumice_scheduler_plane`    | 1     | `aclk`             | Command arbiter + bank/global timers + refresh + init + mode-register shadow |
+| `u_axi_plane`    | `mc_axi4_plane`             | 1     | `aclk`             | Host AXI4 face; wr/rd intakes (with `mc_addr_mapper`), splitter, chopper, rd return ring |
+| `u_store_plane`  | `mc_storage_plane`          | 1     | `aclk`             | wr-data CAM + rd-cmd CAM; schedulable-entry vectors |
+| `u_sched_plane`  | `mc_scheduler_plane`        | 1     | `aclk`             | `mc_cmd_arbiter` + bank/global timers + `mc_xddr2_refresh_ctrl` / `_init_sequencer` / `_mode_register` + `mc_page_policy` + cmd FIFO |
+| `u_train_plane`  | `mc_training_plane`         | 1     | `aclk` → `dfi_clk` | `mc_lpddr2_zq_ctrl` + `mc_lpddr2_dq_cal` + `mc_training_shell` (slot mux + cal sideband CDC) |
 | `u_dfi_plane`    | `mc_dfi_2p1_plane`            | 1     | `aclk` → `dfi_clk` | Single async CDC + DFI cmd/wr/rd datapath       |
 
 There are **no** `generate` fan-out blocks in `pumice_core`. Per-(rank, bank)
-fan-out (the bank timers) happens one level down, inside
-`pumice_scheduler_plane`.
+fan-out (the bank timers) happens two levels down, in `mc_bank_timers` inside
+`mc_scheduler_plane`.
 
 ### Inter-plane nets
 
-`pumice_core` declares and wires four net groups:
+`pumice_core` declares and wires these net groups (besides the
+`mc_axi4_plane` ↔ `mc_storage_plane` descriptor-seam push and snarf ports):
 
-1. **Scheduler ↔ IFC CAM ports** — the per-bank scheduler lookup buses
-   (`w_wr_lu_*`, `w_rd_lu_*`), the oldest-entry ports (`w_wr_old_*`,
-   `w_rd_old_*`), the write commit handshake (`w_wr_commit_*`), and the read
-   issue handshake (`w_rd_issue_*`). `N_LU = NUM_BANKS` (one lookup per bank).
-2. **IFC commit-data → DFI wrdata** (`w_cm_*`: valid/ready/data/strb/last) and
-   **DFI rddata → IFC rd-return** (`w_ret_*`: valid/ready/data/resp/last).
+1. **Scheduler ↔ storage CAM ports** — the per-entry schedulable vectors
+   (`w_wr_sch_*`, `w_rd_sch_*`: valid, bank, row, col, older matrix,
+   age-exceeded, qos, head-relative), the write commit handshake
+   (`w_wr_commit_*`), and the read issue handshake (`w_rd_issue_*`).
+2. **Storage commit-data → DFI wrdata** (`w_cm_*`: valid/ready/data/strb/last) and
+   **DFI rddata → read return** (`w_ret_*`: valid/ready/data/resp/last).
 3. **Scheduler command stream → DFI** — the abstract command
-   `{op, rank, bank, row, col, ap}`, flattened into `w_cmd_data` (width
-   `CMD_DW = 4 + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1`) by a single `assign`.
-4. **Init handshake** — `w_init_start` / `w_init_complete` between the scheduler's
+   `{mrr, ap, col, row, bank, rank, op}`, flattened into `w_cmd_data` (width
+   `CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1`) by a
+   single `assign`; `mrr` comes back from the scheduler's maintenance slot as
+   `cmd_extra_o`.
+4. **Scheduler ↔ training plane** — the `trn_cmd_*` channel (`w_trn_*`) onto
+   the scheduler's generic `maint_*` slot, and `w_cal_busy` onto `maint_busy_i`.
+5. **DFI plane ↔ training plane** — the calibration sideband
+   (`w_cal_expect`, `w_cal_data`, `w_cal_valid`).
+6. **Init handshake** — `w_init_start` / `w_init_complete` between the scheduler's
    init sequencer and the DFI plane's PHY-init side.
 
-Note the parameter mapping at the IFC boundary: `pumice_core` passes
-`.BL(BL / DFI_RATE)` to `mc_axi4_plane` (the IFC/CAM view of burst length is in
-DFI words), while `mc_dfi_2p1_plane` receives the full `.BL(BL)` (DRAM beats).
+Note the burst-length mapping at the plane boundaries: `mc_axi4_plane` and
+`mc_storage_plane` receive `.AXI_BEATS_PER_BURST(BURST_WORDS)` (the IFC/CAM view
+of a burst is in DFI words), while `mc_dfi_2p1_plane` receives
+`.DFI_BEATS_PER_BURST(BL_PUMICE)` (DRAM beats) plus the `N_SUBCMD` sub-burst
+packing parameters.
 
 ## `pumice_top` — CSR + by-name config
 
 `pumice_top` adds the register block and the config fan-out. It does two things:
 
 1. Instantiates `pumice_csr` (PeakRDL passthrough cpuif) with the `hwif_in` /
-   `hwif_out` struct pair. `hwif_in` is currently tied to `'{default:'0}` —
-   status/observability readback is a follow-up; config-drive is wired first.
+   `hwif_out` struct pair. `hwif_in` defaults to `'{default:'0}` and the live
+   telemetry members (stall counters, page/row-hit statistics, training-plane
+   status and MRR data) are assigned over it in one `always_comb`.
 2. Instantiates `pumice_core` and drives **every** config port by name from the
    decoded `hwif_out.*` fields. Representative mappings:
 
@@ -150,8 +175,9 @@ list.
 
 ## What the top does not do
 
-- No combinational logic beyond the single command-word `assign` in
-  `pumice_core` and the by-name field selects in `pumice_top`.
+- No datapath logic: `pumice_core` holds only the command-word `assign` and the
+  config-port arithmetic noted above, and `pumice_top` only by-name field
+  selects and the telemetry `hwif_in` assignments.
 - No CSR field expansion in `pumice_core` (that is `pumice_csr`'s job; the top
   only reads decoded `hwif_out` fields).
 - No clock gating (a synthesis-script concern).

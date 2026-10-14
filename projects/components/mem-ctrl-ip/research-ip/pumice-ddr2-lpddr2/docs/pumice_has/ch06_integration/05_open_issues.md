@@ -47,7 +47,7 @@ Keeping `last_ref_age` per bank costs one counter per bank. For 8 banks this is 
 
 RESOLVED (2026-08-25): the HAPPY address-hash predictor is retired — it was
 never wired into the rearchitected core. Its Ghasempour-2015 successors landed
-as runtime modes of `pumice_page_policy` (`adapt_time` and `adapt_access`) and
+as runtime modes of `mc_page_policy` (`adapt_time` and `adapt_access`) and
 have since been retired themselves (2026-09-27, TASK-014): `adapt_time`
 measured as `fixed_open(tr_min)`, and `adapt_access` drove auto-precharge,
 which costs 4.9x the activations of a background precharge. The surviving
@@ -56,7 +56,7 @@ address hash.
 
 ### 6. Self-Refresh Exit Latency
 
-JESD79-2 requires `tXSNR` (~200 ns) before any command after SR exit. **Confirm** the optional `powerdown_ctrl` enforces this correctly and that the scheduler is gated for the full duration.
+JESD79-2 requires `tXSNR` (~200 ns) before any command after SR exit. Self-refresh is not implemented (the optional `powerdown_ctrl` was removed 2026-10-11); whichever block implements SR exit must enforce this and gate the scheduler for the full duration.
 
 ### 7. Init Sequencer Retry on Error
 
@@ -108,7 +108,7 @@ A known scheduler/CAM interaction: under open-page policy with gapped read traff
 
 - Add bit-level pinout tables for the AXI, DFI, and cpuif (register) interfaces
 - Add timing diagrams for the WR / RD command issue, including CWL / CL alignment
-- Add sequence diagrams for `init_sequencer` (DDR2 and LPDDR2 MR init) and, where present, the optional `powerdown_ctrl`; document the FSM-free `bank_timer` countdown timers rather than an FSM diagram
+- Add sequence diagrams for `init_sequencer` (DDR2 and LPDDR2 MR init) and, once power-down exists, its entry/exit; document the FSM-free `bank_timer` countdown timers rather than an FSM diagram
 - Add a draft of the Verilog package skeletons for `ddr2_init_steps_pkg.sv` and `lpddr2_init_steps_pkg.sv`
 - Cross-reference each section to the corresponding pre-aspec.md bullet
 - Add quantitative area / power estimates per module (synthesis pass needed)

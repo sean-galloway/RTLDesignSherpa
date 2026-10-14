@@ -23,17 +23,17 @@
 
 # Init Sequencer and Power-Down
 
-Cold-boot bring-up is handled by `init_sequencer`; low-power entry/exit by `powerdown_ctrl`.
+Cold-boot bring-up is handled by `mc_xddr2_init_sequencer`, a default child of the common `mc_scheduler_plane` (Ch 3.2). The controller has no power-down block: the earlier optional `powerdown_ctrl` was removed on 2026-10-11 (see the last section).
 
 ## `init_sequencer`
 
 ### Purpose
 
-Sequence post-reset DRAM bring-up: the DFI init handshake, JEDEC mode-register loads, precharge, and refresh. RTL: `rtl/fub/init_sequencer.sv`. It is a compact hard-coded FSM (not a microprogram ROM). Its commands are **issued to the DRAM**, not merely shadowed — this was the fix for the on-board bring-up failure where an earlier shadow-only walk left the read DLL unlocked.
+Sequence post-reset DRAM bring-up: the DFI init handshake, JEDEC mode-register loads, precharge, and refresh. RTL: `common-ip/rtl/fub/mc_xddr2_init_sequencer.sv`. It is a compact hard-coded FSM (not a microprogram ROM). Its commands are **issued to the DRAM**, not merely shadowed — this was the fix for the on-board bring-up failure where an earlier shadow-only walk left the read DLL unlocked.
 
 ### Command Path
 
-While `init_busy_o` is high, the scheduler stays idle and forwards the sequencer's single-cycle command pulses (`init_cmd_valid_o` / `init_cmd_op_o` / `init_cmd_bank_o` / `init_cmd_row_o`) straight to `dfi_cmd_formatter`. Each command state is occupied for exactly one cycle, then the FSM parks in `S_WAIT` for the JEDEC inter-command delay before advancing. Because `dfi_cmd_formatter` is always `cmd_ready`, a single-cycle pulse issues exactly one command with no grant handshake.
+While `init_busy_o` is high, the scheduler stays idle and forwards the sequencer's single-cycle command pulses (`init_cmd_valid_o` / `init_cmd_op_o` / `init_cmd_bank_o` / `init_cmd_row_o`) straight to the command formatter (`mc_xddr2_cmd_formatter`). Each command state is occupied for exactly one cycle, then the FSM parks in `S_WAIT` for the JEDEC inter-command delay before advancing. Because the formatter is always `cmd_ready`, a single-cycle pulse issues exactly one command with no grant handshake.
 
 The `mode_register` shadow is updated in lockstep (`mr_seq_we_o` / `mr_seq_index_o` / `mr_seq_data_o`) so the live CL/CWL/BL decode tracks what was programmed.
 
@@ -75,7 +75,7 @@ Per JESD209-2F power-up and mode-register configuration:
 4. MRW(MR1) = `0x23` (BL8 / nWR3), MRW(MR2) = `0x01` (RL3 / WL1), MRW(MR3) = `0x02` (DS 40 ohm).
 5. `init_done_o = 1`.
 
-Only MR1/MR2/MR3 update the CL/CWL/BL decode shadow; MR63/MR10 are issued to the DRAM but not shadowed (they exceed the 5-bit shadow index). The MR index (MA, up to MR63) and data (OP) are carried packed as `{MA[5:0], OP[7:0]}` in the ROW request field, so `dfi_cmd_formatter` can build the full LPDDR2 CA MRW word — a 3-bit bank port alone could not reach MR10/MR63.
+Only MR1/MR2/MR3 update the CL/CWL/BL decode shadow; MR63/MR10 are issued to the DRAM but not shadowed (they exceed the 5-bit shadow index). The MR index (MA, up to MR63) and data (OP) are carried packed as `{MA[5:0], OP[7:0]}` in the ROW request field, so `mc_xddr2_cmd_formatter` can build the full LPDDR2 CA MRW word — a 3-bit bank port alone could not reach MR10/MR63.
 
 ### Memtype Selection
 
@@ -92,23 +92,10 @@ Only MR1/MR2/MR3 update the CL/CWL/BL decode shadow; MR63/MR10 are issued to the
 
 ---
 
-## `powerdown_ctrl`
+## Power-down (removed)
 
-### Purpose
-
-Idle-detect into a low-power state. RTL: `rtl/fub/powerdown_ctrl.sv`. It is available but not in the default top build; it is documented here for completeness.
-
-### Modes
-
-- **PDE (Precharge Power Down)** — CKE low, banks may stay active. Wakes on new activity within ~tXPDLL cycles.
-- **SR (Self Refresh)** — CKE low plus an SRE command issued by the scheduler; the DRAM self-refreshes internally and the controller stops issuing REFs. Exit requires SRX plus tXSDLL (DDR2) / tXSR (LPDDR2) before new commands. SR entry requires all banks precharged first (the scheduler enforces the precondition).
-
-### Selection
-
-- `enable_sref_i` high: on the idle threshold, request SR (`pdn_kind_o = 1`).
-- `enable_sref_i` low, `enable_pde_i` high: request PDE (`pdn_kind_o = 0`).
-- neither: never request.
+The optional `powerdown_ctrl` FUB (idle-detect into precharge power-down or self-refresh) was never wired into the default `pumice_core` build and was removed on 2026-10-11 with no replacement block. No module in the current hierarchy drives CKE low for power-down or issues SRE/SRX; low-power entry is a scheduler maintenance concern still to be designed.
 
 ### Scope / TODO
 
-Deep Power Down (LPDDR2), per-rank power-down, and the `dfi_dram_clk_disable` cooperation with `dfi_signal_pack` are documented TODOs. The block currently powers down all ranks together and trusts the scheduler not to grant before init completes.
+Precharge power-down, self-refresh, Deep Power Down (LPDDR2), per-rank power-down, and `dfi_dram_clk_disable` control are all open TODOs. When they land they belong in the scheduler plane's maintenance path, not in a standalone FUB.

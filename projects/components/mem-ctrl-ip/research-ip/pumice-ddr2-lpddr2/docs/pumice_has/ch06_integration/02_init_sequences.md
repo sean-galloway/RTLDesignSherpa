@@ -24,7 +24,7 @@
 # Init Sequences
 
 The cold-boot init sequences for DDR2 and LPDDR2 are implemented as a single
-FSM in `rtl/fub/init_sequencer.sv` (not separate step-package files). The FSM
+FSM in `common-ip/rtl/fub/mc_xddr2_init_sequencer.sv` (not separate step-package files). The FSM
 issues real MRS / precharge / refresh commands to the DRAM through the command
 scheduler while `init_busy_o` is high, and updates the mode-register shadow in
 lockstep so the live CL / CWL / BL decode tracks what was programmed. The
@@ -64,7 +64,7 @@ stable.
 
 Per JESD209-2F. LPDDR2 uses the Mode Register Write (MRW) chain. Because the MR
 address (MA) can reach MR63 / MR10 — beyond a 3-bit bank port — the sequencer
-packs `{MA[5:0], OP[7:0]}` into the ROW request field, and `dfi_cmd_formatter.sv`
+packs `{MA[5:0], OP[7:0]}` into the ROW request field, and `mc_xddr2_cmd_formatter.sv`
 unpacks it (row[13:8] = MA, row[7:0] = OP) to build the bit-exact LPDDR2 CA-bus
 MRW word. Only MR1 / MR2 / MR3 update the CL / CWL / BL decode shadow; MR63 and
 MR10 are issued to the DRAM but not shadowed.
@@ -107,10 +107,11 @@ no separate scaling parameter — the shorter waits are just smaller CSR values.
 
 ## Power-State Transitions
 
-Self-refresh and deep-power-down transitions are handled by the optional
-`powerdown_ctrl.sv` power-state FSM, not by the init sequencer. On an idle
-threshold it requests a low-power state and drops CKE (`dfi_cke_o`); it wakes on
-any new controller activity. The two supported entry modes are:
+Self-refresh and deep-power-down transitions are not implemented in the current
+build, and they are not the init sequencer's job. The optional
+`powerdown_ctrl.sv` power-state FSM that once covered them was never wired into
+`pumice_core` and was removed on 2026-10-11 (Ch 3.5). For reference, the two
+entry modes it implemented were:
 
 - Precharge Power Down (PDE) — CKE low, banks may stay active.
 - Self Refresh (SR) — CKE low plus the SRE command; the DRAM self-refreshes

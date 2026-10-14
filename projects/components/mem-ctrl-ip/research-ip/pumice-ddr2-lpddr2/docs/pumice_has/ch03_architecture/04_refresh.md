@@ -23,7 +23,7 @@
 
 # Refresh Controller
 
-`refresh_ctrl` (`rtl/fub/refresh_ctrl.sv`) owns tREFI timing and refresh request accounting. It does not issue commands itself — it raises a request to the command arbiter, which serializes the precharge-then-REF sequence and pulses a grant once `REF` reaches the DFI bus.
+`mc_xddr2_refresh_ctrl` (`common-ip/rtl/fub/mc_xddr2_refresh_ctrl.sv`, a default child of `mc_scheduler_plane`) owns tREFI timing and refresh request accounting. It does not issue commands itself — it raises a request to the command arbiter, which serializes the precharge-then-REF sequence and pulses a grant once `REF` reaches the DFI bus.
 
 ## `refresh_ctrl`
 
@@ -63,7 +63,7 @@ When `refpb_mode_i` is set (LPDDR2 per-bank refresh), `r_bank_rotor` advances 0.
 
 ## Arbiter-Side Refresh Sequence
 
-`refresh_ctrl` only raises `refresh_req` / `refresh_drain`. The precharge-then-REF sequence is performed by `pumice_cmd_arbiter` at refresh priority (second only to init):
+`refresh_ctrl` only raises `refresh_req` / `refresh_drain`. The precharge-then-REF sequence is performed by `mc_cmd_arbiter` at refresh priority (second only to init):
 
 1. While any bank on the target rank has an open row, precharge the active banks one per cycle (lowest ready bank first, honoring the ACT/PRE guard).
 2. Once no bank has an open row **and `w_ref_safe` holds** — nothing
@@ -82,6 +82,6 @@ This "wait until all banks are precharged" behavior is implicit in the arbiter's
 
 ## Notes and Scope
 
-- **Self-refresh / power-down** are handled by the separate `powerdown_ctrl` block (see `05_init_power.md`), not by `refresh_ctrl`.
+- **Self-refresh / power-down** are not implemented; the earlier optional `powerdown_ctrl` block was removed (see `05_init_power.md`).
 - **PASR, DARP idle-bank-first selection, temperature-compensated tREFI, and periodic ZQCS** are not part of the current `refresh_ctrl` RTL. REFpb selection is a simple bank rotor; the richer selection policies remain future work.
 - **REFab vs REFpb** for LPDDR2 is selectable via `refpb_mode_i` and the bank rotor, but the default build uses REFab.

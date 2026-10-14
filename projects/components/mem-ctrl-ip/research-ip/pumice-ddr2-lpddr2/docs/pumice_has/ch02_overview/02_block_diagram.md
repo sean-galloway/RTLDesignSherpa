@@ -113,9 +113,9 @@ the pumice-specific wrappers and children are covered in the pumice MAS
    `mode_register` propagates live CL / CWL / BL / AL to the DFI plane.
 3. On completion, `init_done_o` asserts and the scheduler core begins
    servicing AXI traffic.
-4. Power-down / self-refresh entry (Active / APD / SR / DPD) is managed by
-   `powerdown_ctrl` (present but optional; not in the default top build),
-   with SR-entry coordinated with `refresh_ctrl`.
+4. Power-down / self-refresh entry (Active / APD / SR / DPD) is not
+   implemented; the optional `powerdown_ctrl` was removed on 2026-10-11
+   (Ch 3.5).
 
 **Post-Phase-2 note (2026-10-09).** Until 2026-10-09 the pumice core used
 local `pumice_axi4_plane`, `pumice_dfi_plane`, and a monolithic

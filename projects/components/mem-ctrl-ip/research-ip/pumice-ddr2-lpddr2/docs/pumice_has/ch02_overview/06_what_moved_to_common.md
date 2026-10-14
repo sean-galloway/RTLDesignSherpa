@@ -35,14 +35,15 @@ book that tells the move story.
 
 ## What pumice consumes from common-ip
 
-pumice_core instantiates four common blocks directly:
+pumice_core instantiates five common planes directly, and every leaf FUB beneath them is common-ip as well:
 
 | Common block | Role in pumice | Microarchitecture |
 |---|---|---|
 | `mc_axi4_plane` | AXI4 slave intakes, burst chop/split, coalescing, read-return ring | [common_mas ch02](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md) |
 | `mc_storage_plane` | rd/wr CAMs, read snooping, bank image | [common_mas ch03](../../../../../common-ip/docs/common_mas/ch03_storage_plane/01_mc_storage_plane.md) |
-| `mc_scheduler_plane` | pick machinery, timers, generic maintenance slot (inside the `pumice_scheduler_plane` wrapper) | [common_mas ch04](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) |
-| `mc_dfi_2p1_plane` | DFI 2.1 command/data pipeline + the single aclk↔dfi_clk CDC | [common_mas ch07](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md) |
+| `mc_scheduler_plane` | pick machinery, timers, generic maintenance slot, plus its default DDR2/LPDDR2 children (`mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl`, `mc_page_policy`) | [common_mas ch04](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) |
+| `mc_training_plane` | LPDDR2 ZQ (`mc_lpddr2_zq_ctrl`) and DQ calibration (`mc_lpddr2_dq_cal`) behind the two-slot arbiter and `mc_training_shell` CDC | [common_mas ch05](../../../../../common-ip/docs/common_mas/ch05_training_plane/01_mc_training_plane.md) |
+| `mc_dfi_2p1_plane` | DFI 2.1 command/data pipeline (`mc_xddr2_cmd_formatter` inside `mc_dfi_cmd_path`) + the single aclk↔dfi_clk CDC | [common_mas ch07](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md) |
 
 The package is the family's `mc_common_pkg`; `pumice_pkg` remains and
 re-exports it (the shipping-CSR widening argument for not migrating the
@@ -50,16 +51,23 @@ package itself is unchanged — see the family package design).
 
 ## What stayed pumice-side
 
-Everything generation-specific stayed, by the family's two-customer rule:
-the init sequencer, mode register, refresh controller, page-policy engine,
-power-down controller, the DFI command formatter/signal pack, ZQ calibration
-(`pumice_zq_ctrl`), DQ calibration (`pumice_lp_cal`), and the local
-`addr_mapper` (the common `mc_addr_mapper` is extracted but pumice has not
-switched to it; adoption is scheduled with the scoria/andesite wrapper
-thinning). Two thin wrappers hold the rock-specific wiring:
-`pumice_scheduler_plane` (rock scheduler children + training-channel mapping
-onto the common maintenance slot) and `pumice_training_plane` (ZQ + DQ cal
-behind the common training shell).
+At the 2026-10-10 extraction everything generation-specific stayed, by the
+family's two-customer rule: the init sequencer, mode register, refresh
+controller, page-policy engine, power-down controller, the DFI command
+formatter and signal pack, ZQ calibration (`pumice_zq_ctrl`), DQ calibration
+(`pumice_lp_cal`), and a local `addr_mapper`, held together by two thin
+wrappers, `pumice_scheduler_plane` and `pumice_training_plane`.
+
+That state lasted one day. On 2026-10-11 the DDR2/LPDDR2 children moved into
+common-ip as the `xddr2` / `lpddr2` generation FUBs (`mc_xddr2_init_sequencer`,
+`mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl`, `mc_xddr2_cmd_formatter`,
+`mc_page_policy`, `mc_lpddr2_zq_ctrl`, `mc_lpddr2_dq_cal`), the common planes
+gained `HAS_*` parameters to compose them, and both wrappers were removed.
+`powerdown_ctrl`, `dfi_signal_pack`, and the unused local `addr_mapper` were
+removed outright. What stays pumice-side now is only the tops
+(`pumice_top_geared`, `pumice_top`, `pumice_core`), `pumice_pkg`, the
+`pumice_csr` register description, and the parameter choices on the common
+planes ([FUB Breakdown](05_fub_breakdown.md)).
 
 ## What this book does with the moved blocks
 

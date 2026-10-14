@@ -47,10 +47,13 @@
 
 > **Note (v1.0-draft, 2026-10-10):** the Phase-2 extraction moved the shared
 > logic to `mem-ctrl-ip/common-ip/` and pumice was re-integrated onto it.
-> `pumice_core` now instantiates `mc_axi4_plane`, `mc_storage_plane`, and
-> `mc_dfi_2p1_plane` from common-ip, with `pumice_scheduler_plane` and
-> `pumice_training_plane` as thin rock wrappers around the common cores. The
-> old `pumice_axi4_plane` and `pumice_dfi_plane` no longer exist as RTL. See
+> `pumice_core` now instantiates all five planes from common-ip directly:
+> `mc_axi4_plane`, `mc_storage_plane`, `mc_scheduler_plane`,
+> `mc_training_plane`, and `mc_dfi_2p1_plane`. (The interim thin rock wrappers
+> `pumice_scheduler_plane` and `pumice_training_plane` were removed on
+> 2026-10-11 once their DDR2/LPDDR2 children moved into common-ip as
+> `mc_xddr2_*` and `mc_lpddr2_*`.) The old `pumice_axi4_plane`,
+> `pumice_dfi_plane`, and `dfi_signal_pack` no longer exist as RTL. See
 > [What Moved to Common](ch02_overview/06_what_moved_to_common.md) and the
 > family books
 > [common_has](../../../../common-ip/docs/common_has/common_has_index.md) /
@@ -90,15 +93,15 @@
 
 ### Chapter 3: Architecture
 
-- [AXI4 Interface (`mc_axi4_plane` via common-ip; pumice address mapping)](ch03_architecture/01_axi_frontend.md)
-- [Scheduler (`pumice_scheduler_plane` wrapper over common `mc_scheduler_plane`)](ch03_architecture/02_scheduler.md)
-- [Bank + Global Timers (`bank_timer`, `mc_global_timers`)](ch03_architecture/03_bank_machines.md)
-- [Refresh Controller (`refresh_ctrl`)](ch03_architecture/04_refresh.md)
-- [Init Sequencer and Power-Down (`init_sequencer`, `powerdown_ctrl`, `mode_register`)](ch03_architecture/05_init_power.md)
-- [DFI v2.1 Output Pipeline (`dfi_cmd_formatter`, `dfi_signal_pack`)](ch03_architecture/06_encoder_output.md)
+- [AXI4 Interface (`mc_axi4_plane` via common-ip; address-map configuration)](ch03_architecture/01_axi_frontend.md)
+- [Scheduler (common `mc_scheduler_plane`)](ch03_architecture/02_scheduler.md)
+- [Bank + Global Timers (`mc_bank_timer`, `mc_global_timers`)](ch03_architecture/03_bank_machines.md)
+- [Refresh Controller (`mc_xddr2_refresh_ctrl`)](ch03_architecture/04_refresh.md)
+- [Init Sequencer and Power-Down (`mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`)](ch03_architecture/05_init_power.md)
+- [DFI v2.1 Command Path (`mc_xddr2_cmd_formatter`, `mc_dfi_cmd_path`)](ch03_architecture/06_encoder_output.md)
 - [Write / Read Data Paths (CAMs + DFI serializer/aligner)](ch03_architecture/07_data_paths.md)
 - [DFI v2.1 Plane and CSR (`mc_dfi_2p1_plane` via common-ip; `pumice_csr`)](ch03_architecture/08_dfi_csr.md)
-- [Training Plane (`pumice_training_plane`, `pumice_zq_ctrl`, `pumice_lp_cal`) — LPDDR2](ch03_architecture/09_training.md)
+- [Training Plane (`mc_training_plane`, `mc_lpddr2_zq_ctrl`, `mc_lpddr2_dq_cal`) — LPDDR2](ch03_architecture/09_training.md)
 
 ### Chapter 4: Interfaces
 

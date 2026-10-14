@@ -38,15 +38,17 @@ This document complements the upcoming Micro-Architecture Specification (MAS), w
 
 ## Scope
 
-This HAS covers a single unified controller that supports both DDR2 and LPDDR2 memory. The memory type is a runtime CSR selection (`PHY_TIMING.memtype`: 0 = DDR2, 1 = LPDDR2). The controller is built as three planes under `pumice_core`:
+This HAS covers a single unified controller that supports both DDR2 and LPDDR2 memory. The memory type is a runtime CSR selection (`PHY_TIMING.memtype`: 0 = DDR2, 1 = LPDDR2). The controller is built as five planes under `pumice_core`, all of them common-ip macros instantiated directly (there is no pumice-local plane or wrapper):
 
-- **`mc_axi4_plane`** — AXI4 slave host interface: dumb write/read intakes, an address mapper, a write-data CAM (write buffer + read-your-write snarf source), and a read-command CAM (read reorder buffer).
-- **`pumice_scheduler_plane`** — the command-scheduling plane: a single command arbiter (`pumice_cmd_arbiter`, open-page decision inline), per-(rank,bank) FSM-free JEDEC "safe" timers (`mc_bank_timers` / `bank_timer`), global turnaround timers (tFAW / tRRD / tWTR / tRTW / tCCD), a refresh controller, an init sequencer (DDR2 and LPDDR2 JEDEC MR init), and a mode-register shadow (CL / CWL / BL / AL decode).
-- **`mc_dfi_2p1_plane`** — a single controller-to-PHY clock crossing (`mc_dfi_cdc`, async FIFOs) plus the DFI-domain command path (`dfi_cmd_formatter` / `dfi_signal_pack`), write serializer, and read aligner, presenting the DFI v2.1 pin bus.
+- **`mc_axi4_plane`** — AXI4 slave host interface: dumb write/read intakes (each with an `mc_addr_mapper`), the write splitter and burst chopper, and the `mc_rd_return_ring` that returns read data in AR order.
+- **`mc_storage_plane`** — the write-data CAM (`mc_wr_data_cam`: write buffer + read-your-write snarf source) and the read-command CAM (`mc_rd_cmd_cam`).
+- **`mc_scheduler_plane`** — the command-scheduling plane: a single command arbiter (`mc_cmd_arbiter`, open-page decision inline), per-(rank,bank) FSM-free JEDEC "safe" timers (`mc_bank_timers` / `mc_bank_timer`), global turnaround timers (`mc_global_timers`: tFAW / tRRD / tWTR / tRTW / tCCD), and its default DDR2/LPDDR2 children: `mc_xddr2_refresh_ctrl`, `mc_xddr2_init_sequencer` (DDR2 and LPDDR2 JEDEC MR init), `mc_xddr2_mode_register` (CL / CWL / BL / AL decode) and `mc_page_policy` (runtime page policy).
+- **`mc_training_plane`** — LPDDR2 maintenance clients `mc_lpddr2_zq_ctrl` (periodic ZQ calibration) and `mc_lpddr2_dq_cal` (MRR DQ calibration) behind a two-slot arbiter, plus the `mc_training_shell` calibration-data crossing. Inert for DDR2.
+- **`mc_dfi_2p1_plane`** — a single controller-to-PHY clock crossing (`mc_dfi_cdc`, async FIFOs) plus the DFI-domain command path (`mc_dfi_cmd_path` around `mc_xddr2_cmd_formatter`, which drives the phase-packed DFI buses directly), write serializer, and read aligner, presenting the DFI v2.1 pin bus.
 
 Configuration (timings, phases, page policy, address map, memtype) is delivered by name from a PeakRDL-generated CSR register block (`pumice_csr`) instantiated in `pumice_top`. An optional outer wrapper, `pumice_top_geared`, gives the host a free AXI data width by inserting the repository's formally-verified `axi4_dwidth_converter_wr` / `_rd` between a host-width slave and the fixed-width core.
 
-The differences between DDR2 and LPDDR2 are the command encoding (DDR2 ras/cas/we vs the LPDDR2 10-bit CA bus, both in `dfi_cmd_formatter`), the init MR sequence in `init_sequencer`, and a small number of mode-register decode differences. Both memtypes pass the full simulation suite; everything else is shared.
+The differences between DDR2 and LPDDR2 are the command encoding (DDR2 ras/cas/we vs the LPDDR2 10-bit CA bus, both in `mc_xddr2_cmd_formatter`), the init MR sequence in `mc_xddr2_init_sequencer`, and a small number of mode-register decode differences. Both memtypes pass the full simulation suite; everything else is shared.
 
 ---
 
@@ -56,7 +58,7 @@ This controller is intended as a **characterization-first** design. Algorithmic 
 
 The principal characterization knobs, all programmed by name through the CSR block, are:
 
-- **Page policy** — static OPEN / CLOSE via `REFRESH_TUNING.page_policy_or`, plus the runtime page-policy engine (`pumice_page_policy`, selected by `PAGE_POLICY_CFG.policy_mode`): `fixed_open` idle-timeout close. The adaptive modes are retired: `adapt_time` (the Ghasempour-2015 adapting-timeout scheme) and `adapt_access` (a per-row 2-bit close predictor) were removed 2026-09-27 — `adapt_time` measured as `fixed_open(tr_min)` and `adapt_access` drove auto-precharge at 4.9x the activations (TASK-014). The earlier HAPPY_HYBRID address-hash predictor had already been retired; it was never wired into the rearchitected core. The open-page decision itself is inline in `pumice_cmd_arbiter`.
+- **Page policy** — static OPEN / CLOSE via `REFRESH_TUNING.page_policy_or`, plus the runtime page-policy engine (`mc_page_policy`, selected by `PAGE_POLICY_CFG.policy_mode`): `fixed_open` idle-timeout close. The adaptive modes are retired: `adapt_time` (the Ghasempour-2015 adapting-timeout scheme) and `adapt_access` (a per-row 2-bit close predictor) were removed 2026-09-27 — `adapt_time` measured as `fixed_open(tr_min)` and `adapt_access` drove auto-precharge at 4.9x the activations (TASK-014). The earlier HAPPY_HYBRID address-hash predictor had already been retired; it was never wired into the rearchitected core. The open-page decision itself is inline in `mc_cmd_arbiter`.
 - **Refresh policy** (`REFRESH_TUNING.refpb_policy_or`: ROUND_ROBIN / OLDEST_FIRST / DARP) — where DARP is the dynamic access refresh parallelization scheme from Chang et al. (HPCA 2014).
 - **Address map** (`ADDR_MAP.bank_lsb`, `hash_en`, `hash_seed`) — a single knob that slides the bank field within the word address, subsuming the classic ROW_MAJOR / BANK_INTERLEAVE schemes, with an optional bank XOR-hash.
 

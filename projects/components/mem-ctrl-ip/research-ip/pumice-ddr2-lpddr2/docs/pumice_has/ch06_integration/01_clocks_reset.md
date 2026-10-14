@@ -67,7 +67,7 @@ Controller reset, tied to the `aclk` domain. The register block resets on
 
 - Host AXI4 interface state (`mc_axi4_plane`)
 - Write-data and read-command CAMs
-- Command scheduler and bank timers (`pumice_scheduler_plane`)
+- Command scheduler and bank timers (`mc_scheduler_plane`)
 - Refresh manager and init sequencer
 - Register block (`pumice_csr`) and observation state
 
@@ -98,7 +98,7 @@ inside `mc_dfi_2p1_plane`.
 
 The SoC can warm-reset the controller without losing DRAM content:
 
-1. SoC requests self-refresh entry (via `powerdown_ctrl`, optional)
+1. SoC requests self-refresh entry (not yet implemented: the controller has no power-down block since `powerdown_ctrl` was removed; see Ch 3.5)
 2. Controller acknowledges; DRAM is in self-refresh
 3. SoC asserts `aresetn`; clocks may be gated
 4. SoC deasserts `aresetn`; clocks resume

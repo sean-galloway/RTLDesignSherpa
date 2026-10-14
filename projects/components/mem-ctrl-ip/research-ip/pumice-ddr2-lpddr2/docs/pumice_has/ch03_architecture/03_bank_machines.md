@@ -23,19 +23,19 @@
 
 # Bank Timers and Cross-Bank Timers
 
-Per-bank JEDEC timing is tracked by an **FSM-free** `bank_timer` per (rank, bank); cross-bank / bus-turnaround timing is tracked by `mc_global_timers`. There is no multi-state bank machine in this design.
+Per-bank JEDEC timing is tracked by an **FSM-free** `mc_bank_timer` per (rank, bank); cross-bank / bus-turnaround timing is tracked by `mc_global_timers`. There is no multi-state bank machine in this design.
 
-## `bank_timer`
+## `mc_bank_timer`
 
 ### Purpose
 
-Track one DRAM bank's JEDEC "safe" timing. RTL: `rtl/fub/bank_timer.sv`. It is **not a state machine** — it is a set of preset/decrement countdown timers plus a trivial row-open register and a single auto-precharge bit. The arbiter drives one `set_*` strobe per issued command; each timer loads its config value on its trigger, free-runs decrementing (saturating at 0), and reports its constraint as "safe" when the count is 0.
+Track one DRAM bank's JEDEC "safe" timing. RTL: `common-ip/rtl/fub/mc_bank_timer.sv`. It is **not a state machine** — it is a set of preset/decrement countdown timers plus a trivial row-open register and a single auto-precharge bit. The arbiter drives one `set_*` strobe per issued command; each timer loads its config value on its trigger, free-runs decrementing (saturating at 0), and reports its constraint as "safe" when the count is 0.
 
 Because the per-command `safe_*` outputs are a purely combinational AND of the relevant timers behind a **single register stage** (the counter), a just-issued command is reflected one cycle later with no multi-stage lag. This was the point of retiring the old 3-state FSM, whose double-registered state was the root cause of the refresh-vs-ACT and column-vs-PRE hazards.
 
 ### Instantiation
 
-`mc_bank_timers` (`rtl/fub/mc_bank_timers.sv`) stamps one `bank_timer` per `(rank, bank)` pair — for the default (`NUM_RANKS=1`, `NUM_BANKS=8`) that is 8 instances. It routes the arbiter's `evt_*` event strobes to the addressed bank and fans the per-bank readiness back out to the arbiter.
+`mc_bank_timers` (`common-ip/rtl/fub/mc_bank_timers.sv`, inside `mc_scheduler_plane`) stamps one `mc_bank_timer` per `(rank, bank)` pair — for the default (`NUM_RANKS=1`, `NUM_BANKS=8`) that is 8 instances. It routes the arbiter's `evt_*` event strobes to the addressed bank and fans the per-bank readiness back out to the arbiter.
 
 ### Timers
 

@@ -66,7 +66,7 @@ the two disagree, the HAS wins and this book is the defect.
 
 ### Chapter 5: `mc_training_plane`
 
-- [`mc_training_plane` — shell, maintenance slot, rock wrappers](ch05_training_plane/01_mc_training_plane.md)
+- [`mc_training_plane` — LPDDR2 clients, generic shell, maintenance slot](ch05_training_plane/01_mc_training_plane.md)
 
 ### Chapter 6: `mc_ras_plane`
 

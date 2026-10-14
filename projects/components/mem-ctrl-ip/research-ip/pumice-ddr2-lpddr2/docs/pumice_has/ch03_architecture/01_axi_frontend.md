@@ -38,11 +38,11 @@ Until 2026-10-09 this functionality lived in the pumice-local `pumice_axi4_plane
 
 Pumice instantiates this plane with `DRAM_BEAT_WIDTH = DW` (the DFI word width) and `AXI_BEATS_PER_BURST = BURST_WORDS`, so one AXI beat equals one DFI word and the front end remains DFI-word granular. Sub-DFI-word burst expansion is handled downstream in `mc_dfi_2p1_plane`.
 
-## What remains pumice-specific
+## What pumice configures
 
-### Address mapping (`addr_mapper`)
+### Address mapping (`mc_addr_mapper`)
 
-The flat-AXI-address to `{rank, bank, row, col}` decode is still performed by the pumice-local `addr_mapper` (`rtl/fub/addr_mapper.sv`). `mc_axi4_plane` accepts the decoded coordinates on its descriptor seam; it does not perform address mapping itself. The mapping knobs are runtime CSRs in the `ADDR_MAP` register:
+The flat-AXI-address to `{rank, bank, row, col}` decode is performed inside `mc_axi4_plane`: each intake (`mc_wr_intake`, `mc_rd_intake`) instantiates the common `mc_addr_mapper` (`common-ip/rtl/fub/mc_addr_mapper.sv`) and pushes the decoded coordinates across the descriptor seam. There is no pumice-local mapper. What pumice owns is the configuration: the mapping knobs are runtime CSRs in the `ADDR_MAP` register:
 
 | Field | Width | Role |
 |-------|-------|------|

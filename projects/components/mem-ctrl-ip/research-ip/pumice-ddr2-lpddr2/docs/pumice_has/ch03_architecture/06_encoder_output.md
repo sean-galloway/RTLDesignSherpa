@@ -21,15 +21,15 @@
 
 <!-- End Header -->
 
-# Command Formatter and Signal Pack
+# Command Formatter and Command Path
 
-Two modules translate the scheduler's abstract command into DFI wire signals: `dfi_cmd_formatter` (memtype-specific encoding and phase placement) and `dfi_signal_pack` (the final registered pipeline stage). `dfi_cmd_formatter` is instantiated inside `mc_dfi_cmd_path` in the DFI plane.
+Two common-ip modules in the DFI plane translate the scheduler's abstract command into DFI wire signals: `mc_xddr2_cmd_formatter` (memtype-specific encoding and phase placement, with flopped outputs) and `mc_dfi_cmd_path`, which pops the command FIFO, instantiates the formatter (one per packed sub-command), and drives the phase-packed bus to the PHY directly. There is no separate output-packing stage; the earlier `dfi_signal_pack` register stage was removed on 2026-10-11.
 
-## `dfi_cmd_formatter`
+## `mc_xddr2_cmd_formatter`
 
 ### Purpose
 
-Translate the scheduler's chosen `dram_op_e` plus `(rank, bank, row, col)` into the multi-phase DFI v2.1 control bus. RTL: `rtl/fub/dfi_cmd_formatter.sv`. It is the only place where DDR2 and LPDDR2 differ at the wire plane, and its outputs are strict-flopped.
+Translate the scheduler's chosen `dram_op_e` plus `(rank, bank, row, col)` into the multi-phase DFI v2.1 control bus. RTL: `common-ip/rtl/fub/mc_xddr2_cmd_formatter.sv`. It is the only place where DDR2 and LPDDR2 differ at the wire plane, and its outputs are strict-flopped.
 
 ### Input
 
@@ -82,20 +82,22 @@ When not issuing, every phase is driven to its deselected idle: `cs_n=1, ras_n=1
 
 ---
 
-## `dfi_signal_pack`
+## `mc_dfi_cmd_path`
 
 ### Purpose
 
-Final pipeline-register stage on the DFI v2.1 bus. RTL: `rtl/fub/dfi_signal_pack.sv`. It latches every command / write-data / read-data-enable input and drives it out the next MC cycle, owning `dfi_dram_clk_disable` and reset-safe output values.
+The DFI-clock command path. RTL: `common-ip/rtl/fub/mc_dfi_cmd_path.sv`. It pops the abstract command stream from the CDC command FIFO, unpacks `{op, rank, bank, row, col, ap, mrr}`, drives the formatter, and emits the `wr_fire` / `rd_fire` strobes that the write serializer and read aligner use to place their data phases.
 
 ### Behavior
 
-- v1 is a pure one-cycle registered pipeline. Bus widths are `DFI_*_WIDTH * DFI_RATE`, so the multi-phase content from `dfi_cmd_formatter` passes through unchanged. This is where the internal `DW = DRAM_BEAT_WIDTH * DFI_RATE` word is presented across the `DFI_RATE` phases.
-- `dram_clk_disable` is held at 0 in v1; per-phase staggering and power-down assertion are documented TODOs.
+- The formatter's outputs are already registered, so the command path adds no pipeline stage of its own. When one DFI word packs `N_SUBCMD > 1` JEDEC bursts, the path instantiates one formatter per sub-command and merges their phase buses combinationally (address/bank OR, active-low controls AND) before the PHY.
+- Bus widths are `DFI_*_WIDTH * DFI_RATE`, so the multi-phase content leaves the formatter in its final layout. The internal `DW = DRAM_BEAT_WIDTH * DFI_RATE` write and read words are split across phases by `mc_dfi_wr_serializer` and `mc_dfi_rd_aligner`.
+- `dfi_dram_clk_disable` is not driven by the controller; clock-disable and power-down are documented TODOs (Ch 3.5).
+- With `CMD_HISTORY_EN != 0` the path also builds `mc_cmd_history_checker` on the DFI wires (simulation only).
 
 ### Multi-Cycle Commands
 
-LPDDR2's 2-edge CA command is not split here. The 20-bit CA word is already packed onto `dfi_address` by `dfi_cmd_formatter`; the PHY splits it into two DRAM cycles per DFI v2.1.
+LPDDR2's 2-edge CA command is not split here. The 20-bit CA word is already packed onto `dfi_address` by `mc_xddr2_cmd_formatter`; the PHY splits it into two DRAM cycles per DFI v2.1.
 
 ### Verification
 

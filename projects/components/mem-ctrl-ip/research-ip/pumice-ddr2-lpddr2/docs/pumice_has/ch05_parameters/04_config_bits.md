@@ -76,7 +76,7 @@ Register block at the same offset (0x040) in every controller. These bits govern
 
 ## PAGE_POLICY_CFG / PAGE_TIMEOUT_CFG (Axis 2)
 
-The runtime page-policy engine (`pumice_page_policy`). **This axis carries the
+The runtime page-policy engine (`mc_page_policy`). **This axis carries the
 largest measured runtime win on the controller**, and as of 2026-09-27 its
 resets SHIP that win: `policy_mode = 3` (`fixed_open`) and `tr_init = 2`.
 
@@ -131,7 +131,7 @@ mux. The old `ADDR_MAP_TUNING` register (with a `scheme_or` selector and a
 `synth_mask_obs` synthesized-scheme bitmask) has been **retired** in this
 generation: the classic ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH schemes are just
 settings of `bank_lsb` plus the optional `hash_en` fold, so there is nothing to
-mux (see §5.4 §3/§4 and `rtl/fub/addr_mapper.sv`).
+mux (see §5.4 §3/§4 and `common-ip/rtl/fub/mc_addr_mapper.sv`).
 
 | Bit Field   | Width | Apply       | Description                                                                 |
 |-------------|-------|-------------|-----------------------------------------------------------------------------|

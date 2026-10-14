@@ -206,7 +206,7 @@ Former contents for history:
 
 Replaces the retired `ADDR_MAP_TUNING` register. The AXI-to-DRAM mapping is
 driven by a single knob rather than a scheme selector — see §5.4 and §3.1, and
-`rtl/fub/addr_mapper.sv`.
+`common-ip/rtl/fub/mc_addr_mapper.sv`.
 
 | Bits  | Field        | Reset | Description                                                                       |
 |-------|--------------|-------|-----------------------------------------------------------------------------------|
@@ -296,7 +296,7 @@ registers striding by 4 bytes.
 ### `OBS_ROW_HIT[0..7]` (0x080 + N×4, R only)
 
 Per-bank ROW HITS: column ops issued to a bank whose row was **already open**.
-`VAL[31:0]`, `hw = w`, driven by `pumice_page_policy` from the issued command
+`VAL[31:0]`, `hw = w`, driven by `mc_page_policy` from the issued command
 stream. Free-running — they clear only on `aresetn`, so read two and subtract
 for a window, as with `PAGE_STATS_*`.
 
@@ -311,7 +311,7 @@ rewrites whatever a read clears.
 ## Calibration / Training (0x0A0 – 0x0FF)
 
 LPDDR2 ZQ calibration and MRR DQ calibration, driven and harvested by
-`pumice_training_plane` (Ch 3.9). Both FUBs are inert for DDR2 builds, so every
+`mc_training_plane` (Ch 3.9). Both FUBs are inert for DDR2 builds, so every
 register in this block reads its reset (or holds zero) when `memtype == DDR2`.
 
 ### `CAL_CTRL` (0x0A0, R/W)
@@ -349,7 +349,7 @@ register in this block reads its reset (or holds zero) when `memtype == DDR2`.
 
 First captured DFI read-data beat for MRR MR32 (DQ-cal pattern A). Four 32-bit
 slices of the full DFI read width (128 bits at the default geometry); `hw = w`,
-harvested from `pumice_lp_cal`. Held until the next `cal_start` run captures a
+harvested from `mc_lpddr2_dq_cal`. Held until the next `cal_start` run captures a
 new beat.
 
 ### `CAL_MRR40_DATA[0..3]` (0x0E0 + N×4, R only)

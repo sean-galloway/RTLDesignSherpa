@@ -37,21 +37,20 @@ Each live FUB gets its own cocotb unit test (see `dv/tests/fub/`):
 | `mc_rd_intake`          | AR channel handshakes; address mapping; snarf (read-your-write) probe   |
 | `mc_wr_data_cam`        | WR CAM fill / commit-drain / snarf movers; `r_fdone` fill-complete gating |
 | `mc_rd_cmd_cam`         | RD CAM return-fill / drain movers; oldest-first, data-ready gating       |
-| `addr_mapper`               | Address translation across `ADDR_MAP.bank_lsb` settings (ROW_MAJOR .. interleave) and hash on/off |
-| `pumice_cmd_arbiter`        | Single-pick priority order; inline open-page decision; refresh prioritization |
-| `mc_bank_timers` / `bank_timer` | Per-(rank,bank) preset/decrement timers; combinational safe_act/rd/wr/pre readiness |
+| `mc_addr_mapper`            | Address translation across `ADDR_MAP.bank_lsb` settings (ROW_MAJOR .. interleave) and hash on/off |
+| `mc_cmd_arbiter`            | Single-pick priority order; inline open-page decision; refresh prioritization |
+| `mc_bank_timers` / `mc_bank_timer` | Per-(rank,bank) preset/decrement timers; combinational safe_act/rd/wr/pre readiness |
 | `mc_global_timers`             | tFAW / tRRD / tWTR / tRTW / tCCD against JESD79-2 / JESD209-2 truth tables |
-| `refresh_ctrl`              | tREFI counter; refresh-deferral; refresh request/ack handshake          |
-| `init_sequencer`            | Step-by-step DDR2 and LPDDR2 JEDEC MR init sequences                     |
-| `mode_register`             | CL / CWL / BL / AL decode (DDR2 and LPDDR2 MR2 RL/WL enum)               |
-| `dfi_cmd_formatter`         | Round-trip table tests against JEDEC encoding; LPDDR2 CA-bus branch      |
-| `dfi_signal_pack`           | DW-to-phase split; idle-phase handling                                  |
+| `mc_xddr2_refresh_ctrl`     | tREFI counter; refresh-deferral; refresh request/ack handshake          |
+| `mc_xddr2_init_sequencer`   | Step-by-step DDR2 and LPDDR2 JEDEC MR init sequences                     |
+| `mc_xddr2_mode_register`    | CL / CWL / BL / AL decode (DDR2 and LPDDR2 MR2 RL/WL enum)               |
+| `mc_xddr2_cmd_formatter`    | Round-trip table tests against JEDEC encoding; LPDDR2 CA-bus branch      |
 | `mc_dfi_cdc`            | The single async-FIFO clock-domain crossing; bubble-free cmd/wr/rd flow  |
 | `mc_dfi_wr_serializer`  | CWL alignment; write-data serialization onto DFI phases                  |
 | `mc_dfi_rd_aligner`     | CL alignment; read-data assembly; back-pressure                          |
 
-The four macro wrappers and the integration levels are exercised at Plane 2/3:
-`mc_axi4_plane`, `pumice_scheduler_plane`, `mc_dfi_2p1_plane`, `pumice_core`,
+The common planes and the integration levels are exercised at Plane 2/3:
+`mc_axi4_plane`, `mc_scheduler_plane`, `mc_dfi_2p1_plane`, `pumice_core`,
 and `pumice_top` (the PeakRDL `pumice_csr` register block is verified with the top).
 
 ### Plane 2: Subsystem Tests
@@ -59,7 +58,7 @@ and `pumice_top` (the PeakRDL `pumice_csr` register block is verified with the t
 Multi-module integration tests, framed around the three macro planes (see `dv/tests/macro/`):
 
 - **AXI interface** (`mc_axi4_plane` = wr/rd intakes + the two CAMs): full AXI transaction flow with diverse traffic, including read-your-write snarf forwarding
-- **Command scheduler** (`pumice_scheduler_plane` = cmd arbiter + bank/global timers + refresh + init + mode register): scheduler decisions on representative queue contents, inline open-page reordering, refresh interleave
+- **Command scheduler** (`mc_scheduler_plane` = cmd arbiter + bank/global timers + refresh + init + mode register + page policy; `test_pumice_scheduler_plane.py` still names the removed `pumice_scheduler_plane` wrapper and must be repointed): scheduler decisions on representative queue contents, inline open-page reordering, refresh interleave
 - **DFI plane** (`mc_dfi_2p1_plane` = single CDC + cmd path + wr serializer + rd aligner): command/data flow across the clock-domain crossing with the DFI BFM slave
 
 ### Plane 3: End-to-End with DFI BFM Slave

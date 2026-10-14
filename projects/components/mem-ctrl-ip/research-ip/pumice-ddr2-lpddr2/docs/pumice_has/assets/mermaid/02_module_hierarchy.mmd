@@ -13,44 +13,40 @@ graph TD
 
     core --> axi["mc_axi4_plane<br/><i>common-ip</i>"]
     core --> stor["mc_storage_plane<br/><i>common-ip</i>"]
-    core --> sched["pumice_scheduler_plane<br/><i>thin wrapper around mc_scheduler_plane</i>"]
-    core --> trn["pumice_training_plane<br/><i>thin wrapper around mc_training_plane</i>"]
+    core --> sched["mc_scheduler_plane<br/><i>common-ip</i>"]
+    core --> trn["mc_training_plane<br/><i>common-ip</i>"]
     core --> dfi["mc_dfi_2p1_plane<br/><i>common-ip</i>"]
 
     axi --> wr_intake["mc_wr_intake<br/><i>axi4_slave_wr + AW-meta FIFO + wr-data FIFO + mc_addr_mapper</i>"]
     axi --> rd_intake["mc_rd_intake<br/><i>axi4_slave_rd + mc_addr_mapper + snarf probe</i>"]
+    axi --> rd_ring["mc_rd_return_ring<br/><i>read return in AR order</i>"]
 
     stor --> wr_data_cam["mc_wr_data_cam<br/><i>WR CAM + wr-data SRAM; fill/commit-drain/snarf</i>"]
     stor --> rd_cmd_cam["mc_rd_cmd_cam<br/><i>RD CAM + rd SRAM; return-fill/drain</i>"]
 
-    sched --> sched_core["mc_scheduler_plane core<br/><i>pick machinery + bank/global timers</i>"]
-    sched --> init_sequencer["init_sequencer<br/><i>DDR2 + LPDDR2 JEDEC MR init</i>"]
-    sched --> mode_register["mode_register<br/><i>CL/CWL/BL/AL decode</i>"]
-    sched --> refresh_ctrl["refresh_ctrl<br/><i>tREFI accumulator + drain</i>"]
-    sched --> page_policy["pumice_page_policy<br/><i>open-page decision</i>"]
-    sched --> cmd_hist["pumice_cmd_history_checker<br/><i>optional DV scoreboard</i>"]
+    sched --> sched_core["mc_cmd_arbiter + mc_bank_timers + mc_global_timers<br/><i>pick machinery + timers + cmd FIFO</i>"]
+    sched --> init_sequencer["mc_xddr2_init_sequencer<br/><i>DDR2 + LPDDR2 JEDEC MR init</i>"]
+    sched --> mode_register["mc_xddr2_mode_register<br/><i>CL/CWL/BL/AL decode</i>"]
+    sched --> refresh_ctrl["mc_xddr2_refresh_ctrl<br/><i>tREFI accumulator + drain</i>"]
+    sched --> page_policy["mc_page_policy<br/><i>runtime page policy</i>"]
 
-    trn --> trn_shell["mc_training_plane shell"]
-    trn --> zq_ctrl["pumice_zq_ctrl<br/><i>periodic ZQ calibration</i>"]
-    trn --> lp_cal["pumice_lp_cal<br/><i>LPDDR2 MRR DQ calibration</i>"]
+    trn --> trn_shell["mc_training_shell<br/><i>cal-data sideband CDC</i>"]
+    trn --> zq_ctrl["mc_lpddr2_zq_ctrl<br/><i>periodic ZQ calibration (slot 0)</i>"]
+    trn --> lp_cal["mc_lpddr2_dq_cal<br/><i>LPDDR2 MRR DQ calibration (slot 1)</i>"]
 
     dfi --> dfi_cdc["mc_dfi_cdc<br/><i>SINGLE CDC; async gaxi FIFOs</i>"]
-    dfi --> dfi_cmd_path["mc_dfi_cmd_path<br/><i>+ dfi_cmd_formatter + dfi_signal_pack</i>"]
+    dfi --> dfi_cmd_path["mc_dfi_cmd_path<br/><i>+ mc_xddr2_cmd_formatter; drives the phase-packed bus</i>"]
     dfi --> dfi_wr_ser["mc_dfi_wr_serializer"]
     dfi --> dfi_rd_align["mc_dfi_rd_aligner"]
-
-    opt["page_predictor / powerdown_ctrl<br/><i>live but not in default build</i>"]
 
     classDef top fill:#404040,stroke:#228B22,stroke-width:2px,color:#fff
     classDef macro fill:#fef6c8,stroke:#b08000,stroke-width:2px,color:#000
     classDef common fill:#d0e8ff,stroke:#1a5fb4,stroke-width:2px,color:#000
     classDef fub fill:#e8f4e8,stroke:#228B22,stroke-width:1px,color:#000
     classDef ip fill:#f0f0f0,stroke:#404040,stroke-width:1px,color:#000
-    classDef optcls fill:#f5f5f5,stroke:#999,stroke-width:1px,stroke-dasharray:4 3,color:#333
 
     class geared,top top
-    class core,sched,trn macro
-    class axi,stor,dfi common
+    class core macro
+    class axi,stor,sched,trn,dfi common
     class csr,dwc ip
-    class wr_intake,rd_intake,wr_data_cam,rd_cmd_cam,sched_core,init_sequencer,mode_register,refresh_ctrl,page_policy,cmd_hist,trn_shell,zq_ctrl,lp_cal,dfi_cdc,dfi_cmd_path,dfi_wr_ser,dfi_rd_align fub
-    class opt optcls
+    class wr_intake,rd_intake,rd_ring,wr_data_cam,rd_cmd_cam,sched_core,init_sequencer,mode_register,refresh_ctrl,page_policy,trn_shell,zq_ctrl,lp_cal,dfi_cdc,dfi_cmd_path,dfi_wr_ser,dfi_rd_align fub
