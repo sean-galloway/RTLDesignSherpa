@@ -53,13 +53,13 @@ axi4_w_64b_t  cpu_axi3_64b_w;
 The slave adapter sits between the crossbar and an external slave. Its responsibilities are:
 
 - Convert the internal AXI4 face to the external protocol.
-- Carry the in-order `bridge_id` FIFO for response routing.
+- Carry the `bridge_id` response tracker: `bridge_cam` or an in-order FIFO.
 - Handle CDC if `cdc=true`.
 - Expose APB, AXI-Lite, AXI3, AXI5, or Wishbone pins as configured.
 
 ### Response routing
 
-Each slave adapter keeps an in-order FIFO of `bridge_id` values pushed on the address handshake and popped on the response. The returned AXI ID is **not** used for routing; the FIFO head determines which master receives the response.
+Each slave adapter stores the issuing master's `bridge_id` on the address handshake and hands it back with the response. For an AXI4/AXI5 slave in a bridge with more than one master (or any slave with `enable_ooo`) the store is a pair of `bridge_cam` instances keyed by the returned BID/RID, so the slave may complete different IDs out of order. Single-master bridges, protocol-shim slaves and the subtractive slave use an in-order FIFO whose head names the master. With more than one master, slave-side AXI IDs are `{BRIDGE_ID, id}`, `clog2(NUM_MASTERS)` bits wider than the master's.
 
 ## Crossbar (`<bridge_name>_xbar.sv`)
 

@@ -148,7 +148,7 @@ rejected as not existing on AXI5-Lite).
 
 ### Conversion Process
 
-### Figure 3.1: AXI4 to APB Conversion Sequence
+### Figure 3.4: AXI4 to APB Conversion Sequence
 
 ![AXI4 to APB Conversion](../assets/mermaid/axi4_to_apb4_sequence.png)
 
@@ -168,13 +168,13 @@ rejected as not existing on AXI5-Lite).
 
 ### Upsize (Narrow to Wide)
 
-### Figure 3.2: Width Upsize Conversion
+### Figure 3.5: Width Upsize Conversion
 
 ![Width Upsize](../assets/mermaid/width_upsize_sequence.png)
 
 ### Downsize (Wide to Narrow)
 
-### Figure 3.3: Width Downsize Conversion
+### Figure 3.6: Width Downsize Conversion
 
 ![Width Downsize](../assets/mermaid/width_downsize_sequence.png)
 

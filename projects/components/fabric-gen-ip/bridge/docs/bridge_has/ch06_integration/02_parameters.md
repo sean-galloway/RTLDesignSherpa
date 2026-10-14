@@ -70,15 +70,19 @@ The generator works these out from the core set — you never write them yoursel
 
 | Parameter | Formula | Example |
 |-----------|---------|---------|
-| BRIDGE_ID_WIDTH | clog2(NUM_MASTERS) | 4 masters = 2 bits |
+| BRIDGE_ID_WIDTH | clog2(NUM_MASTERS), minimum 1 | 4 masters = 2 bits |
+| MASTER_ID_WIDTH | widest master `id_width` | 4 |
+| ID_PREFIX_WIDTH | clog2(NUM_MASTERS), 0 for one master | 4 masters = 2 bits |
+| XBAR_ID_WIDTH | MASTER_ID_WIDTH + ID_PREFIX_WIDTH | 4 + 2 = 6 bits |
 | STRB_WIDTH | DATA_WIDTH / 8 | 64b = 8 strobes |
 
 : Table 6.9: Derived Parameters
 
-> `TOTAL_ID_WIDTH` was listed here as a derived parameter. It does not exist:
-> IDs are not extended, so there is nothing to widen. `BRIDGE_ID_WIDTH` sizes
-> the SIDEBAND master id carried beside the transaction, and is the only
-> derived width the generated package defines.
+> `BRIDGE_ID_WIDTH` sizes the sideband master index stored in each slave
+> adapter's response tracker. `XBAR_ID_WIDTH` is the AXI ID width inside the
+> fabric and on every AXI slave port, because each master adapter widens its
+> IDs to `{BRIDGE_ID, id}`; a slave's `id_width` must be at least this. All
+> four are emitted into `<bridge>_pkg.sv`. There is no `TOTAL_ID_WIDTH`.
 
 ### Per-Port Configuration
 

@@ -3,13 +3,23 @@
 Read the root `CLAUDE.md` and `vault/handbook/INDEX.md` first; this file holds
 only what is particular to this directory.
 
-## State (2026-09-29)
+## State (2026-10-13)
 
-- Stood up at Sean's request; `References/` is populated and `PRD.md` is a
-  draft whose decision table is unresolved. There is NO RTL, NO DV and NO
-  filelist yet. Do not create placeholder RTL, tests or a MAS skeleton.
+- The codec is built. RTL: GF layer in `rtl/fub/gf/` (`gf_pkg`, `gf_mul`,
+  `gf_mul_const`, `gf_inv`, `gf_syndrome_cell`, `gf_lfsr_encoder`,
+  `ribm_pe`); fubs in `rtl/fub/` (`rs_pkg`, `syndrome_unit`,
+  `key_equation_solver_ribm`, `key_equation_solver_euclid`, `chien_search`,
+  `forney_evaluator`, `rs_erasure_unit`, `rs_beat_packer`); macros
+  `rs_encoder_core` / `rs_decoder_core` in `rtl/macro/`; tops in `rtl/top/`
+  (`rs_{encoder,decoder}_{axis4,axi4}`, `rs_axi4_{read,write}_engine`).
+  Every module has a `.f` in `rtl/filelists/`. DV is cocotb under `dv/`, and
+  a HAS and a MAS live under `docs/`. `PRD.md` is still a draft: the first
+  consumer (D10) is open.
 - Tracker: `vault/Tasks/projects/components/ecc-ip/reed-solomon/` (task/bug/issue
-  lanes). TASK-001 (stand-up) is active and logs what exists.
+  lanes). TASK-001 (stand-up) closed 2026-10-02 with the codec, both
+  solvers, AXIS + AXI4 wrappers, DV and the board loop harness; TASK-002
+  (erasures, elaboration-time `ERASURE_SUPPORT`, default 0) closed
+  2026-10-03; TASK-003 (first consumer) is deferred.
 
 ## Decisions this area is waiting on (see PRD.md section 3)
 
@@ -25,15 +35,16 @@ derived (PRD D1, Sean 2026-09-29) -- never derive m from the bus width. DECIDED:
 the CORE with plain valid/ready at both ends (drops into a memory controller
 or compute engine); `INTAKE_IF` / `OUTLET_IF` default `NONE` and may be
 `AXIS` or `AXI4` independently for standalone use (PRD D9, Sean 2026-09-29).
-It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer names them, nothing here should be
-"designed" -- gather, compare, record.
+It is an endpoint codec, never a mid-stream insert (PRD 4a). Until a consumer names them, the
+remaining open decisions stay at the placeholder values the RTL parameters
+default to.
 
 ## Conventions that already apply
 
 - Interface: valid/ready streaming in the house style (`vault/handbook/design/valid-ready-contracts.md`),
   `aclk`/`aresetn` naming as in `rtl/amba`, reset through the `ALWAYS_FF_RST`
   macros with `RST_ASSERTED` (`vault/handbook/design/reset-and-clocking.md`).
-- GF layer facts (`rtl/gf/`, 2026-09-30): combinational, no clock or reset
+- GF layer facts (`rtl/fub/gf/`, 2026-09-30): combinational, no clock or reset
   port; data ports `i_*` / `ow_*` like `rtl/math`. `gf_pkg` is constant
   functions with (m, prim) as arguments -- there is NO parameterised package
   and NO generator; each module builds its own `localparam` tables. Verilator

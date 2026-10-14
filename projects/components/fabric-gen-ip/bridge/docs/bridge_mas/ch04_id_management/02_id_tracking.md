@@ -25,204 +25,128 @@
 
 ## Overview
 
-A multi-master fabric has to know which master a response belongs to. This bridge records it **positionally**: each slave adapter pushes the originating master's `bridge_id` onto an in-order FIFO at the address handshake and pops it on the response, routing by FIFO head. The AXI ID passes through untouched in both directions.
+A multi-master fabric has to know which master a response belongs to. The
+bridge does two things:
+
+1. **Widens the ID.** With more than one master, each master adapter sends
+   `{BRIDGE_ID, id}` into the fabric (bridge TASK-005), so IDs are unique
+   across masters at every slave. In `bridge_2x2_rw` the 4-bit
+   `cpu_m_axi_awid` becomes the 5-bit `ddr_s_axi_awid`. On B / R the master
+   adapter returns the low bits, so the master sees its own ID.
+2. **Records the issuing master per slave.** The granted master's index
+   rides beside the request as `xbar_bridge_id_aw` / `_ar` and is stored by
+   the slave adapter's tracker at the address handshake; the crossbar
+   steers B / R by the index the tracker returns (`bid_bridge_id` /
+   `rid_bridge_id`).
+
+The tracker comes in two forms, chosen at generation:
+
+| Slave | Tracker | Completion order allowed |
+|---|---|---|
+| AXI4 / AXI5 slave, more than one master | `bridge_cam` by fabric ID ([CAM Architecture](01_cam_architecture.md)) | any order across IDs |
+| any slave with `enable_ooo = true` | `bridge_cam` | any order across IDs |
+| single-master bridge, apb / axil / wb shim slave, subtractive slave | in-order `bridge_id` FIFO | request order across all IDs |
 
 ```systemverilog
+// FIFO form
 wr_fifo[wr_ptr[...]] <= xbar_bridge_id_aw;      // push on AW accept
 assign bid_bridge_id  = wr_fifo[rd_ptr[...]];   // route by the HEAD
 ```
 
-The consequence is a requirement the fabric does not check: **each slave port must return B/R in request order across ALL IDs.** AXI4 permits a slave to complete different-ID transactions out of order. Every generated slave adapter now carries a SIMULATION-ONLY check that compares the returned BID/RID against the FIFO head and $error()s on a mismatch (bridge BUG-008, was BRIDGE-010); it cannot fire in silicon --
-see bridge BUG-008 (was BRIDGE-010).
-
-The rest of this page documents an **ID tracking table** design that was specified but never built: extended IDs formed by prepending a Bridge ID, per-slave lookup tables, out-of-order completion. `bridge_cam.sv` exists in the tree and is instantiated in zero generated bridges. It is kept because the positional scheme above is easy to mistake for it, and because several other pages once described it as real.
+A FIFO-tracked slave must return B/R in request order across ALL IDs; the
+slaves that get the FIFO are in order by construction or have one master.
+Every FIFO-tracked adapter carries a SIMULATION-ONLY check that compares
+the returned BID/RID against the head and $error()s on a mismatch (bridge
+BUG-008, was BRIDGE-010); it cannot fire in silicon.
 
 ---
 
 ## Functional Description
 
-### HISTORICAL -- the unbuilt ID-table design
-
-Everything below this line describes the design that was NOT implemented.
-
-### Not implemented: the per-slave ID table
-
-**What follows describes a design that was never built.** It is retained
-because the mechanism that replaced it is easy to mistake for it.
-
-The generated RTL has no ID tables and no CAM: `bridge_cam.sv` exists in the
-tree and is instantiated in zero generated bridges. IDs are pass-through --
-the slave port is declared at the same width as the master port, and nothing
-is prepended. Each slave adapter instead keeps an **in-order FIFO** of the
-originating master's `bridge_id`, pushed on the address handshake and popped
-on the response, and routes by FIFO POSITION rather than by the returned
-BID/RID. The consequence -- each slave port must return B/R in request order
-across all IDs -- is tracked as bridge BUG-008 (was BRIDGE-010).
-
-### Per-Slave ID Table (historical)
-
-Each slave was to have its own ID tracking table:
-
 ### Figure 4.2: ID Table Structure
 
 ![ID Table Structure](../assets/mermaid/id_table_structure.png)
 
-### Table Sizing
+The figure shows the contents of one slave's CAM in a 4-master bridge:
+the 6-bit fabric ID (2 master-index bits over a 4-bit master ID), the
+stored master index and the valid bit. `bridge_cam` also keeps a per-entry
+ordering count for duplicate IDs.
+
+### Sizing
+
+Every tracker, CAM or FIFO, is 16 entries per direction per slave adapter:
 
 ```
-Entries = MAX_OUTSTANDING_PER_SLAVE
-Width = TOTAL_ID_WIDTH + clog2(NUM_MASTERS) + 1 (valid)
+CAM:   TAG_WIDTH = XBAR_ID_WIDTH, DATA_WIDTH = BRIDGE_ID_WIDTH, DEPTH = 16
+FIFO:  BRIDGE_ID_WIDTH bits x 16 (WR_FIFO_DEPTH / RD_FIFO_DEPTH)
 ```
 
-### ID Extension
+When it is full the slave adapter drops its AWREADY / ARREADY toward the
+crossbar (bridge BUG-009). There is no `max_outstanding` key.
 
-#### Master-Side Extension
-
-When a transaction enters the bridge, its ID would have been extended with the Bridge ID (master index):
+### ID Extension (Master Adapter)
 
 ```systemverilog
-// Extend ID with Bridge ID (master index)
-logic [TOTAL_ID_WIDTH-1:0] extended_id;
-assign extended_id = {master_bid, external_id};
+// <master>_adapter.sv
+assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
+assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};
 
-// Example: Master 2, external ID = 4'hA
-// master_bid = 2'b10, external_id = 4'b1010
-// extended_id = 6'b10_1010
+// Example, 4 masters: master 2, ID 4'hA -> fabric ID 6'b10_1010
 ```
 
-#### Slave-Side Presentation (historical design -- not built)
+The slave port is declared at `XBAR_ID_WIDTH`; the config validator rejects
+an AXI3/AXI4/AXI5 slave whose `id_width` is narrower. A single-master
+bridge prepends nothing.
 
-In the unbuilt design an extended ID would have gone to the slave. In the RTL
-the slave receives the master's ID unchanged:
+### ID Stripping and Routing
+
+The prefix bits are not decoded to choose the master; the tracker's
+returned index is. The master adapter only narrows the ID:
 
 ```systemverilog
-assign s_axi_arid = extended_id;  // 6 bits to slave
-assign s_axi_awid = extended_id;  // 6 bits to slave
+fub_axi_bid = cpu_32b_b.id[3:0];   // bridge_2x2_rw: drop the 1-bit prefix
 ```
 
-### ID Extraction
+### Tracker Operations
 
-#### Response Parsing
-
-When the response returns from the slave, the extended ID splits back apart — the upper bits pick the master, the lower bits go home as the ID:
-
-```systemverilog
-// Extract Bridge ID and external ID
-logic [BID_WIDTH-1:0] bridge_id;
-logic [ID_WIDTH-1:0] external_id;
-
-assign bridge_id = slave_rid[TOTAL_ID_WIDTH-1:ID_WIDTH];
-assign external_id = slave_rid[ID_WIDTH-1:0];
-
-// Route to master based on bridge_id
-assign m_rvalid[bridge_id] = s_rvalid;
-assign m_rid[bridge_id] = external_id;  // Strip Bridge ID
-```
-
-### Table Operations
-
-#### Allocation (AR/AW Phase)
-
-On the address handshake, find a free entry and claim it:
-
-```systemverilog
-always_ff @(posedge clk) begin
-    if (arvalid && arready) begin
-        // Find free entry
-        for (int i = 0; i < DEPTH; i++) begin
-            if (!valid[i]) begin
-                id_table[i] <= extended_arid;
-                master_table[i] <= master_idx;
-                valid[i] <= 1'b1;
-                break;
-            end
-        end
-    end
-end
-```
-
-#### Lookup (R/B Phase)
-
-The lookup is combinational across the whole table, producing a one-hot master select:
-
-```systemverilog
-// Combinational lookup
-logic [NUM_MASTERS-1:0] master_onehot;
-always_comb begin
-    master_onehot = '0;
-    for (int i = 0; i < DEPTH; i++) begin
-        if (valid[i] && (id_table[i] == response_id)) begin
-            master_onehot[master_table[i]] = 1'b1;
-        end
-    end
-end
-```
-
-#### Deallocation (Response Complete)
-
-When the last beat lands, invalidate the matching entry:
-
-```systemverilog
-always_ff @(posedge clk) begin
-    if (rvalid && rready && rlast) begin
-        // Find and invalidate matching entry
-        for (int i = 0; i < DEPTH; i++) begin
-            if (valid[i] && (id_table[i] == response_rid)) begin
-                valid[i] <= 1'b0;
-                break;
-            end
-        end
-    end
-end
-```
+| Event | CAM form | FIFO form |
+|---|---|---|
+| AW / AR accepted from crossbar | allocate tag = fabric ID, data = `bridge_id` | push `bridge_id` |
+| B handshake | deallocate by BID, return master index | pop head |
+| R handshake with RLAST | deallocate by RID, return master index | pop head |
+| full | `tags_full` holds AWREADY / ARREADY low | not-full gate holds AWREADY / ARREADY low |
 
 ### Multi-ID Considerations
 
-#### Same External ID, Different Masters
+#### Same Master ID, Different Masters
 
 ```
-Master 0 issues ID=5 → Extended: 00_0101
-Master 1 issues ID=5 → Extended: 01_0101
-Master 2 issues ID=5 → Extended: 10_0101
-
-All three can be outstanding simultaneously!
-The extended ID ensures uniqueness.
+Master 0 issues ID=5 -> fabric ID 00_0101
+Master 1 issues ID=5 -> fabric ID 01_0101
+Master 2 issues ID=5 -> fabric ID 10_0101
 ```
 
-That was the whole point of the extension — three masters can each have ID=5 outstanding at once, and the prepended Bridge ID keeps them distinct.
+All three can be outstanding at one slave at once; the prefix keeps them
+distinct, and a CAM-tracked slave may answer them in any order.
 
-#### Same Extended ID (historical design -- not built)
+#### Same Fabric ID Twice
 
-This cannot happen:
-
-- Bridge ID is unique per master
-- Extended ID = {unique BID, external ID}
-- Same extended ID implies same master + same external ID
-- AXI4 requires unique IDs per master for outstanding transactions
+One master may reuse an ID while an earlier transaction with it is still
+outstanding (AXI allows this; same-ID responses come back in order). The
+CAM is built with `ALLOW_DUPLICATES = 1` and retires same-tag entries
+oldest first using the per-entry ordering count.
 
 ## Design Notes
 
 ### Resource Utilization
 
-What the tables would have cost, for the record:
-
-```
-4 masters, 4-bit external ID, 16 outstanding per slave:
-
-Per-slave table:
-  Entries: 16
-  Width: 6 + 2 + 1 = 9 bits
-  Total: 16 × 9 = 144 bits
-
-4 slaves:
-  Total: 4 × 144 = 576 bits (~72 bytes)
-
-Implementation:
-  Distributed RAM: ~150 LEs
-  Block RAM: 1 BRAM (minimum)
-```
+Per CAM-tracked slave adapter: two 16-entry CAMs of
+`XBAR_ID_WIDTH + BRIDGE_ID_WIDTH` bits plus valid and ordering count, in
+distributed RAM and flops (no block RAM). Per FIFO-tracked slave adapter:
+two 16-entry FIFOs of `BRIDGE_ID_WIDTH` bits. Measured totals per fixture
+are in HAS 5.3.
 
 ## Related Modules
 
-- [CAM Architecture](01_cam_architecture.md) - CAM implementation details
-- [Response Routing](../ch02_blocks/08_response_routing.md) - Using tables for routing
+- [CAM Architecture](01_cam_architecture.md) - `bridge_cam` details
+- [Response Routing](../ch02_blocks/08_response_routing.md) - the crossbar's B / R muxes

@@ -19,9 +19,13 @@ imported RS riBM; `KES_ALGO` guards the unimplemented candidates), and
 (six-state sequencer, ENABLE_RECHECK second-syndrome re-check, release-on-
 verdict the way `rs_decoder_core` does it). Gate-green on the three standing
 profiles — CCSDS (63,56) t=1 b=0, flash-class shortened (4224,4120) t=8
-m=13, narrow-sense (63,51) t=2. Known decoder-core corner: a block longer
-than N_BITS deadlocks the input (named in the RTL header); inter-block
-pipelining stays open under PRD D6.
+m=13, narrow-sense (63,51) t=2. Over-long blocks no longer deadlock the
+decoder (issue #90, closed 2026-10-08): a block that reaches or passes N_BITS
+without `in_last` keeps being accepted (surplus beats dropped), is flagged
+`out_status_frame_err` when `in_last` arrives, and the syndrome unit is cleared for the
+next block -- a runaway stream can stall the pipeline but cannot deadlock it
+(RTL header of `rtl/macro/bch_decoder_core.sv`). Inter-block pipelining stays
+open under PRD D6.
 
 ## Hard rules carried from the component's PRD and the repo
 

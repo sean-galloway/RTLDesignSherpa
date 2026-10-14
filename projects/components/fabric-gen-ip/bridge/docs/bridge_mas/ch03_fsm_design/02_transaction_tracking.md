@@ -25,63 +25,44 @@
 
 ## Overview
 
-Several small FSMs track outstanding transactions so responses route correctly. They work alongside the per-slave in-order bridge_id FIFO -- not a CAM, which was never built -- each holding one piece of the transaction state.
+Despite the chapter title, the generated bridge tracks outstanding transactions with FIFOs and a CAM, not state machines: the W destination and W owner FIFOs in the crossbar, the `aw_trk` / `ar_trk` / `w_trk` slave-select FIFOs in each master adapter, and the per-slave `bridge_id` tracker (`bridge_cam` for multi-master AXI4/AXI5 slaves, an in-order FIFO otherwise). The FSM designs this chapter used to show are kept below only where they are marked as not built.
 
-## Write Data Tracking FSM
+## Write Data Tracking (FIFO, not an FSM)
 
 ### Purpose
 
-The W channel carries no address of its own, so this FSM remembers which slave the AW handshake selected and steers the data beats to match.
-
-### States
-
-| State | Description |
-|---|---|
-| IDLE | Waiting for AW handshake |
-| WRITING | Routing W beats to target slave |
-
-### Figure 3.1: Write Data Tracking FSM
-
-![Write Data Tracking FSM](../assets/mermaid/w_tracking_fsm.png)
+The W channel carries no address of its own, so the bridge remembers which
+slave each AW selected and steers the data beats to match.
 
 ### Implementation
 
+There is no IDLE/WRITING state machine. Each master width-path has a
+16-entry W destination FIFO in the crossbar (`<master>_<w>b_wdest_*`),
+and each master adapter has a matching `w_trk` FIFO of slave selects:
+
 ```systemverilog
-typedef enum logic [0:0] {
-    W_IDLE    = 1'b0,
-    W_WRITING = 1'b1
-} w_state_t;
-
-w_state_t r_w_state;
-logic [$clog2(NUM_SLAVES)-1:0] r_w_target;
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_w_state <= W_IDLE;
-        r_w_target <= '0;
-    end else begin
-        case (r_w_state)
-            W_IDLE: begin
-                if (awvalid && awready) begin
-                    r_w_state <= W_WRITING;
-                    r_w_target <= decoded_slave;
-                end
-            end
-            W_WRITING: begin
-                if (wvalid && wready && wlast) begin
-                    r_w_state <= W_IDLE;
-                end
-            end
-        endcase
-    end
-end
+// bridge_2x2_rw_xbar.sv
+wire cpu_32b_wdest_push = cpu_32b_awvalid && cpu_32b_awready;          // record target at AW
+wire cpu_32b_wdest_pop  = cpu_32b_wvalid && cpu_32b_wready && cpu_32b_w.last;  // retire at WLAST
+assign cpu_32b_w_to_ddr = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd0);
 ```
+
+Because every accepted AW is queued, a master may issue further AWs before
+the first burst's W beats finish; each W burst follows its own AW in order.
+
+### Figure 3.3: W Destination Entry Lifecycle
+
+![W Destination Entry Lifecycle](../assets/mermaid/w_tracking_fsm.png)
+
+Read the figure as the life of ONE FIFO entry, not as a channel-wide
+state: the entry is written at the AW handshake and retired by the W beat
+carrying WLAST. Several entries can be live at once.
 
 ## Response Pending Counter
 
 > **Not built.** There is no per-master outstanding-transaction counter and no
 > flow control derived from one. Outstanding depth is bounded by the per-slave
-> bridge_id FIFO, whose fullness gates the address handshake (bridge BUG-009, was BRIDGE-011).
+> bridge_id tracker (CAM or FIFO, 16 deep), whose fullness gates the address handshake (bridge BUG-009, was BRIDGE-011).
 > Searching the generated RTL for a response-pending counter returns nothing.
 
 ### Purpose
@@ -118,6 +99,9 @@ assign accept_aw[m] = (r_outstanding[m] < MAX_OUTSTANDING);
 ```
 
 ## Burst Counter FSM
+
+> **Not built.** No generated file contains a burst-beat counter; the read
+> tracker frees its entry on the R beat with RLAST, so no count is needed.
 
 ### Purpose
 
@@ -157,4 +141,4 @@ end
 ## Related Documentation
 
 - [Arbiter FSMs](01_arbiter_fsms.md) - Address channel arbitration
-- [ID Management](../ch04_id_management/02_id_tracking.md) - the in-order FIFO actually built; 01_cam_architecture.md documents an unbuilt CAM for response tracking
+- [ID Management](../ch04_id_management/02_id_tracking.md) - the per-slave response tracker (`bridge_cam` or in-order FIFO)

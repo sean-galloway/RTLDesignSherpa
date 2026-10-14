@@ -66,8 +66,9 @@ data_width = 64              # Data bus width
 ```toml
 [bridge]
 # internal_data_width: NOT A KEY -- there is no fixed internal crossbar width.
-enable_width_conversion = true
-bid_width = 2                # Calculated: clog2(num_masters)
+# Width conversion and the ID prefix width are derived, not configured:
+# converters are emitted wherever a master and slave width differ, and
+# ID_PREFIX_WIDTH = $clog2(num_masters) lands in <bridge>_pkg.sv.
 ```
 
 ## Ports
@@ -107,14 +108,14 @@ Input Channels (from crossbar):
 
 ### Channel Specialization
 
-The Bridge generator creates three types of master adapters based on the channel usage specified in the configuration:
+The Bridge generator emits one adapter per master, named after the port: `<name>_adapter.sv` in the bridge's `rtl/generated/<bridge>/` directory (for example `cpu_adapter.sv` in `bridge_2x2_rw`, `cpu_rd_adapter.sv` in `bridge_1x2_rd`, where the port itself is called `cpu_rd`). There is no separate file per channel type; the `channels` key decides which channel logic the one module contains:
 
 #### Read-Only Masters
 **Channels**: AR (Address Read), R (Read Data)
 
 ```
-Configuration: "rd" or "read"
-RTL Generated: adapter_master_rd_<id>.sv
+Configuration: channels = "rd"
+RTL Generated: <name>_adapter.sv  (module <name>_adapter)
 
 Optimizations:
 - No write address channel logic
@@ -127,8 +128,8 @@ Optimizations:
 **Channels**: AW (Address Write), W (Write Data), B (Write Response)
 
 ```
-Configuration: "wr" or "write"
-RTL Generated: adapter_master_wr_<id>.sv
+Configuration: channels = "wr"
+RTL Generated: <name>_adapter.sv  (module <name>_adapter)
 
 Optimizations:
 - No read address channel logic
@@ -140,8 +141,8 @@ Optimizations:
 **Channels**: AR, R, AW, W, B (Full AXI4 interface)
 
 ```
-Configuration: "rw" or "readwrite"
-RTL Generated: adapter_master_rw_<id>.sv
+Configuration: channels = "rw"
+RTL Generated: <name>_adapter.sv  (module <name>_adapter)
 
 Full Functionality:
 - All five AXI4 channels implemented
@@ -206,67 +207,60 @@ end
 
 ### Bridge ID Management
 
-> **Not built.** IDs are NOT injected, extended or stripped anywhere in this
-> bridge. `cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in
-> `bridge_2x2_rw`: the master's ID passes through untouched and comes back
-> untouched. The originating master travels as a SEPARATE SIDEBAND signal
-> (`xbar_bridge_id_aw`/`_ar`) into a per-slave in-order FIFO, and responses are
-> routed by that FIFO's POSITION -- the returned BID/RID is never consulted.
-> The section below describes the scheme that was replaced. See ch04
-> `02_id_tracking.md`.
+With more than one master, the adapter widens every request ID to a
+fabric ID `{BRIDGE_ID, id}` so two masters can never alias an ID at a slave
+(bridge TASK-005). The generated assignment in `cpu_adapter.sv`
+(`bridge_2x2_rw`) is:
 
-
-#### ID Width Calculation
-```
-BID_WIDTH = clog2(num_masters)
-
-Examples:
-- 2 masters  → BID_WIDTH = 1
-- 4 masters  → BID_WIDTH = 2
-- 8 masters  → BID_WIDTH = 3
-- 16 masters → BID_WIDTH = 4
+```systemverilog
+assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
+assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};
 ```
 
-#### ID Injection (Request Path)
+`BRIDGE_ID` is a per-instance parameter (the master's index). The widths
+come from `<bridge>_pkg.sv`:
 
-For each master adapter, a unique constant Bridge ID is appended to the AXI transaction ID:
+| Package constant | Meaning | `bridge_2x2_rw` |
+|---|---|---|
+| `MASTER_ID_WIDTH` | widest master-side ID | 4 |
+| `ID_PREFIX_WIDTH` | master-index bits prepended, `$clog2(NUM_MASTERS)` | 1 |
+| `XBAR_ID_WIDTH` | fabric and slave-port ID width | 5 |
 
+A single-master bridge prepends nothing (`ID_PREFIX_WIDTH = 0`;
+`bridge_1x2_rd` is 4 bits on both sides). A slave's declared `id_width`
+must be at least `XBAR_ID_WIDTH`, or the config validator rejects the
+bridge.
+
+#### ID Width Examples
 ```
-AR Channel:
-  Internal ARID = {MASTER_BID[BID_WIDTH-1:0], External ARID[ARID_WIDTH-1:0]}
-  Internal ARID Width = BID_WIDTH + ARID_WIDTH
+ID_PREFIX_WIDTH = $clog2(num_masters)   (0 for one master)
 
-AW Channel:
-  Internal AWID = {MASTER_BID[BID_WIDTH-1:0], External AWID[AWID_WIDTH-1:0]}
-  Internal AWID Width = BID_WIDTH + AWID_WIDTH
+- 2 masters  -> 1 prefix bit
+- 4 masters  -> 2 prefix bits
+- 8 masters  -> 3 prefix bits
 ```
 
-**Example**: 4-master system, external ARID_WIDTH = 4
+**Example**: 4-master system, 4-bit master IDs (6-bit fabric IDs)
 ```
-Master 0: BID = 2'b00, External ID = 4'h3 → Internal ID = 6'b00_0011
-Master 1: BID = 2'b01, External ID = 4'h3 → Internal ID = 6'b01_0011
-Master 2: BID = 2'b10, External ID = 4'h5 → Internal ID = 6'b10_0101
-Master 3: BID = 2'b11, External ID = 4'hA → Internal ID = 6'b11_1010
+Master 0: BRIDGE_ID = 2'b00, ID = 4'h3 -> fabric ID = 6'b00_0011
+Master 1: BRIDGE_ID = 2'b01, ID = 4'h3 -> fabric ID = 6'b01_0011
+Master 2: BRIDGE_ID = 2'b10, ID = 4'h5 -> fabric ID = 6'b10_0101
+Master 3: BRIDGE_ID = 2'b11, ID = 4'hA -> fabric ID = 6'b11_1010
 ```
 
 #### ID Stripping (Response Path)
 
-The Bridge ID is removed from responses before returning to the master:
+On B and R the adapter returns only the low `MASTER_ID_WIDTH` bits to the
+master (`fub_axi_bid = cpu_32b_b.id[3:0]` in `bridge_2x2_rw`), so the master
+sees its original ID.
 
-```
-R Channel:
-  External RID = Internal RID[ARID_WIDTH-1:0]
-  Bridge routes based on Internal RID[BID_WIDTH+ARID_WIDTH-1:ARID_WIDTH]
-
-B Channel:
-  External BID = Internal BID[AWID_WIDTH-1:0]
-  Bridge routes based on Internal BID[BID_WIDTH+AWID_WIDTH-1:AWID_WIDTH]
-```
-
-This ensures:
-- Master sees original transaction IDs
-- Bridge internally tracks which master originated each transaction
-- Responses route back to correct master even with ID reuse across masters
+Routing a response back to the right master does not decode those prefix
+bits. Each slave adapter also receives the originating master's index as
+a sideband (`xbar_bridge_id_aw` / `_ar`) and stores it on the address
+handshake; the crossbar steers B/R by the `bid_bridge_id` / `rid_bridge_id`
+it returns. For an AXI4/AXI5 slave of a multi-master bridge that store is a
+`bridge_cam` looked up by the returned BID/RID; single-master bridges and
+shim/subtractive slaves use an in-order FIFO. See Section 2.5 and ch04.
 
 ### Protocol Normalization
 
@@ -331,8 +325,8 @@ and `test_bridge_2x2_rw_latency`, which asserts 2 exactly.
 > and a round trip of "2-8 cycles depending on pipeline depth". A
 > `gaxi_skid_buffer` presents its output one cycle after the write regardless
 > of DEPTH; the depth sets how many beats it can ABSORB under backpressure,
-> not how long a beat takes to cross it. There is also no ID injection or
-> stripping to cost anything -- IDs pass through untouched.
+> not how long a beat takes to cross it. The ID prefix and strip are pure
+> wiring (a concatenation and a bit-select) and add no cycles.
 
 ### Throughput
 
@@ -359,7 +353,7 @@ Typical critical paths (if skid buffers not used):
 ```
 Logic Elements:  ~200-400 (depending on ID width and features)
 Registers:       ~150-250 (pipeline stages + control)
-Block RAM:       0 (no CAM anywhere in the design)
+Block RAM:       0 (the master adapter holds no CAM; `bridge_cam` lives in the slave adapters)
 
 Breakdown:
 - Skid buffers (5 channels × ~30 regs each): ~150 regs
@@ -396,7 +390,7 @@ Resource usage scales with:
 
 - Section 2.3: Crossbar Core (interconnect architecture)
 - Section 2.4: Arbitration (how adapters compete for slaves)
-- Section 2.5: ID Management (sideband bridge_id; the CAM it describes was never built)
+- Section 2.5: ID Management (fabric ID widening, sideband bridge_id, CAM/FIFO tracking)
 - HAS ch04_interfaces/01_axi4_interface.md (port signals)
 
 ## Testing

@@ -43,7 +43,7 @@ Per-block verification:
 ```
 Unit Test Coverage:
 ├── Master Adapter Tests
-│   ├── bridge_id sideband tagging (IDs pass through unchanged)
+│   ├── {BRIDGE_ID, id} widening and strip; bridge_id sideband tagging
 │   ├── Channel routing
 │   └── Backpressure handling
 ├── Address Decoder Tests

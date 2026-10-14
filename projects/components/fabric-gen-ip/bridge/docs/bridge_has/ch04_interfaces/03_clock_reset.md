@@ -98,7 +98,7 @@ top has no APB clock port. A generated APB slave port therefore runs on
 
 ### Reset Behavior
 
-#### Figure 4.3: Reset Timing
+#### Figure 4.2: Reset Timing
 
 ![Reset Timing](../assets/wavedrom/reset_timing.png)
 
@@ -185,7 +185,7 @@ set_false_path -from [get_ports aresetn]
 For master ports, and for slave ports that are not `cdc = true` AXI4 ports,
 in systems with multiple clock domains:
 
-#### Figure 4.2: Multi-Clock CDC
+#### Figure 4.3: Multi-Clock CDC
 
 ![Multi-Clock CDC](../assets/graphviz/multi_clock_cdc.png)
 

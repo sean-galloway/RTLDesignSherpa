@@ -96,7 +96,7 @@ The slave adapter:
 
 1. Declares the external slave port with the configured prefix and protocol.
 2. Optionally instantiates a timing wrapper or protocol shim (`axi4_to_apb4_shim`, `axi4_to_axi3`, `axi4_to_wb4`, AXI5 boundary wrappers).
-3. Carries the in-order `bridge_id` FIFO for response routing.
+3. Carries the `bridge_id` response tracker: `bridge_cam` for an AXI4/AXI5 slave of a multi-master bridge or an `enable_ooo` slave (`SlaveAdapterGenerator.use_cam`), an in-order FIFO otherwise.
 4. Handles CDC if `cdc=true` by inserting `axi4_cdc_{wr,rd}`.
 
 ## Crossbar (`CrossbarGenerator`)

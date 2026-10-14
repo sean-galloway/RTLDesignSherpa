@@ -113,7 +113,7 @@ that now reports it.
 
 - Width converters (only if widths mismatch)
 - Protocol converters (only if protocols differ)
-- Per-slave in-order bridge_id FIFO (no CAM; OOO is not supported)
+- Per-slave response tracker: `bridge_cam` by ID for multi-master AXI4/AXI5 slaves (or `enable_ooo`), an in-order bridge_id FIFO otherwise
 
 ## References
 

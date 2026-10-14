@@ -68,7 +68,7 @@ Determining which slave receives a transaction, from its address.
 Selecting which master gets a slave when several masters contend for it.
 
 **Bridge ID (BID):**
-Internal routing tag carried ALONGSIDE a transaction inside the fabric, never prepended to the AXI ID. Width = clog2(NUM_MASTERS). Slave-side AXI IDs are the same width as master-side ones; the tag lives in the slave adapter's in-order FIFO, not on the bus.
+The issuing master's index, width clog2(NUM_MASTERS). With more than one master it is both prepended to the AXI ID inside the fabric (slave-side IDs are `{BRIDGE_ID, id}`, wider than master-side ones) and carried as a sideband into the slave adapter's response tracker (a `bridge_cam` or an in-order FIFO), which routes B and R back to the master.
 
 **Channel-Specific Master:**
 A master that uses only a subset of AXI4 channels (write-only or read-only).

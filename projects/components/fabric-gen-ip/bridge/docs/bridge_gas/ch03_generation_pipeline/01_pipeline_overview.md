@@ -36,7 +36,7 @@ Each variant (`no`, `mon`) runs stages 3–5 independently and writes to its own
 
 ### Figure 3.1: Bridge Generator Pipeline
 
-![Bridge generator pipeline](assets/graphviz/bridge_generator_pipeline.png)
+![Bridge generator pipeline](../assets/graphviz/bridge_generator_pipeline.png)
 
 Configuration enters at the top and passes down the center column: load, validate, then one pass per variant into the RTL emitter, which fans out to one sub-generator per file kind. Every output lands on the emitted-artifacts bar at the bottom. The dashed boxes run only when asked for: the cocotb test generator under `--generate-tests`, and the PeakRDL config regblock for a `use_cfg_regblock` bridge's `mon` variant. Nothing in the generator arbitrates, so the figure has no trapezium.
 

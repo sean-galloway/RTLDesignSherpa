@@ -54,8 +54,9 @@ num_slaves = 3
 arbiter_type = "round_robin"       # "round_robin", "fixed_priority", "weighted"
 registered_mux = false             # true = +1 cycle, better timing
 registered_demux = false           # true = +1 cycle, better timing
-# NOTE: there is no enable_cam key -- the loader does not know it, and no CAM exists
-# cam_depth: NOT A KEY. No CAM exists and the loader does not know this name.
+# NOTE: there is no enable_cam / cam_depth key. The CAM is chosen per slave by the
+# generator (multi-master AXI4/AXI5 slave, or enable_ooo = true on [[bridge.slaves]])
+# and is always 16 deep.
 ```
 
 ## Functional Description
@@ -100,11 +101,10 @@ Responses from slaves are demultiplexed back to masters:
 
 ```
 Slave 0 Response Outputs (R, B channels):
-  - Extract Bridge ID from RID/BID
+  - Take the master index the slave adapter's tracker returns
+    (bridge_cam lookup by RID/BID, or in-order FIFO head)
   - Route to corresponding master (M0, M1, M2, or M3)
-  - Strip Bridge ID before delivering to master adapter
-  
-Routes responses by the position of a per-slave in-order bridge_id FIFO (no CAM)
+  - Master adapter strips the {BRIDGE_ID} prefix from the ID
 ```
 
 ### Per-Slave Request Arbitration
@@ -225,88 +225,41 @@ This ensures:
 - Non-granted masters see READY = 0 (backpressure)
 - No combinatorial loops in ready path (registered arbitration)
 
-### Bridge ID Extraction
+### Bridge ID and Response Routing
 
-> **Not built.** Nothing is extracted from the BID. IDs pass through untouched
-> (`cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in `bridge_2x2_rw`),
-> and the originating master travels as a separate sideband into a per-slave
-> in-order FIFO whose POSITION selects the return path. The returned BID/RID is
-> never consulted. The section below describes the replaced scheme; see ch04
-> `02_id_tracking.md`.
+With more than one master, slave-side IDs are `{BRIDGE_ID, id}` (bridge
+TASK-005; 5 bits at `ddr_s_axi_awid` for 4-bit master IDs in
+`bridge_2x2_rw`). The crossbar does not decode those prefix bits. Each
+slave adapter returns the originating master's index beside every response
+(`<slave>_axi_bid_bridge_id` / `_rid_bridge_id`, with a valid), produced by
+its tracker:
 
+| Slave | Tracker | Lookup |
+|---|---|---|
+| AXI4 / AXI5, multi-master (or `enable_ooo`) | `bridge_cam`, 16 deep, duplicates allowed | by the returned BID / RID, same cycle |
+| single master, apb / axil / wb shim, subtractive | in-order FIFO, 16 deep | FIFO head |
 
-Response routing uses the Bridge ID embedded in transaction IDs:
-
-```
-R Channel:
-  Slave RID = {BID[BID_WIDTH-1:0], Original_ID[ID_WIDTH-1:0]}
-  Extract: Master_Index = BID
-  Route R response to Master[Master_Index]
-
-B Channel:
-  Slave BID = {BID[BID_WIDTH-1:0], Original_ID[ID_WIDTH-1:0]}
-  Extract: Master_Index = BID
-  Route B response to Master[Master_Index]
-```
-
-### CAM-Based Routing (Optional)
-
-> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
-> instantiated in zero of them. Responses are routed by the POSITION of an
-> in-order per-slave FIFO holding a sideband master id, so out-of-order
-> completion is not supported and the section below describes an option
-> that was never implemented. See ch04 `02_id_tracking.md`.
-
-
-For large master counts or OOO responses, a CAM tracks outstanding transactions:
-
-```
-CAM Entry Structure:
-  - Internal ID (with BID)
-  - Master index
-  - Transaction type (read/write)
-  - Timestamp (for timeout detection)
-
-Lookup:
-  Input: RID or BID from slave
-  Output: Master index for routing
-  Latency: 1 cycle (registered CAM)
-```
-
-**Benefit** (of the unbuilt CAM): would have handled ID reordering and burst interleaving
+There is no timestamp or transaction-type field in the CAM, no timeout and
+no registered lookup.
 
 ### Response Demultiplexers
 
-Based on the extracted Bridge ID, responses are routed:
+The B / R muxes toward each master OR together every slave's response,
+gated by that slave's returned master index:
 
 ```systemverilog
-// Simplified R channel DEMUX from Slave 0
-logic [BID_WIDTH-1:0] master_id;
-assign master_id = s0_rid[TOTAL_ID_WIDTH-1:ID_WIDTH];  // Extract BID
+// bridge_2x2_rw_xbar.sv: B toward cpu (master index 0)
+((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
+((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bid : '0) |
+((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
 
-always_comb begin
-    // Default: No masters receive response
-    m0_rvalid = 1'b0;
-    m1_rvalid = 1'b0;
-    m2_rvalid = 1'b0;
-    m3_rvalid = 1'b0;
-    
-    // Route to indicated master
-    case (master_id)
-        2'b00: begin
-            m0_rvalid = s0_rvalid;
-            m0_rdata  = s0_rdata;
-            m0_rid    = s0_rid[ID_WIDTH-1:0];  // Strip BID
-            // ... other R signals
-        end
-        2'b01: begin
-            m1_rvalid = s0_rvalid;
-            // ... route to M1
-        end
-        // ... M2, M3
-    endcase
-end
+// and the slave's BREADY comes from the owning master
+assign ddr_axi_bready = ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? cpu_32b_bready : '0) |
+                        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? dma_32b_bready : '0);
 ```
+
+The ID forwarded is still the fabric ID; the master adapter strips the
+prefix (`fub_axi_bid = cpu_32b_b.id[3:0]`).
 
 ### Multi-Slave Response Merging
 

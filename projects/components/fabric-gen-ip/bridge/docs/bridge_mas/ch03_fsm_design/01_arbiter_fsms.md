@@ -42,7 +42,7 @@ Each arbiter is a simple 2-state FSM. Round-robin access keeps any master from s
 
 **Algorithm:** Round-robin with grant locking
 
-### Figure 5.3: AW Arbiter FSM
+### Figure 3.1: AW Arbiter FSM
 
 ![AW Arbiter FSM](assets/puml/aw_arbiter_fsm.png)
 
@@ -81,7 +81,7 @@ Each arbiter is a simple 2-state FSM. Round-robin access keeps any master from s
 
 **Algorithm:** Round-robin with grant locking (same as AW)
 
-### Figure 5.4: AR Arbiter FSM
+### Figure 3.2: AR Arbiter FSM
 
 ![AR Arbiter FSM](assets/puml/ar_arbiter_fsm.png)
 

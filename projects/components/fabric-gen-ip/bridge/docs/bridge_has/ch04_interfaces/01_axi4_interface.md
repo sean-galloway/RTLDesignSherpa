@@ -69,26 +69,30 @@ output logic        cpu_m_axi_awready,
 
 // Example: Slave 0 with prefix "ddr_s_axi_"
 output logic [31:0] ddr_s_axi_awaddr,
-output logic [3:0]  ddr_s_axi_awid,  // same width as the master port
+output logic [4:0]  ddr_s_axi_awid,  // {BRIDGE_ID, id}: master width + clog2(NUM_MASTERS)
 output logic        ddr_s_axi_awvalid,
 input  logic        ddr_s_axi_awready,
 ```
 
 ### ID Width Extension
 
-Slave-side IDs are the SAME width as master-side:
+With more than one master, slave-side IDs are WIDER than master-side:
 
 ```
-Master ID Width: ID_WIDTH (configuration parameter)
-Bridge ID Width: clog2(NUM_MASTERS)
-Slave ID Width: EQUAL to the master ID width -- IDs are pass-through.
+Master ID Width: id_width of the master port (widest master = MASTER_ID_WIDTH)
+Bridge ID Width: clog2(NUM_MASTERS)            (ID_PREFIX_WIDTH; 0 for one master)
+Slave ID Width:  MASTER_ID_WIDTH + ID_PREFIX_WIDTH  (XBAR_ID_WIDTH)
 
-There is no bridge_id prepended to the slave-side ID and no width extension.
-Responses are routed back to the originating master by an in-order bridge_id
-FIFO in each slave adapter, keyed on FIFO POSITION rather than on the returned
-BID/RID. That imposes a requirement the fabric does not check: each slave port
-must return B/R in request order across ALL IDs. See bridge BUG-008 (was BRIDGE-010).
+bridge_2x2_rw: cpu_m_axi_awid [3:0]  ->  ddr_s_axi_awid [4:0]
 ```
+
+Each master adapter sends `{BRIDGE_ID, id}` into the fabric and strips the
+prefix from B and R. A slave port's declared `id_width` must be at least
+`XBAR_ID_WIDTH`; the validator rejects a narrower AXI3/AXI4/AXI5 slave.
+Responses are routed by the `bridge_id` sideband the slave adapter stores:
+a `bridge_cam` looked up by BID/RID for a multi-master AXI4/AXI5 slave (any
+completion order), or an in-order FIFO for single-master bridges and shim
+slaves (request order required, bridge BUG-008). See HAS 3.2.
 
 ## Channel-Specific Interfaces
 

@@ -56,7 +56,7 @@ make clean-all && make run-all-func
 
 ## Files that are never regenerated
 
-- `rtl/bridge_cam.sv` — hand-written CAM, unused by every generated bridge.
+- `rtl/bridge_cam.sv` — hand-written CAM, instantiated by the slave adapters of multi-master AXI4/AXI5 slaves.
 - Anything outside `rtl/generated/` and `rtl/filelists/`.
 
 ## Version-mismatch symptoms

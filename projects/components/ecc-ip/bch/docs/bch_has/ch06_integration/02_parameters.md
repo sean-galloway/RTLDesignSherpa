@@ -35,10 +35,14 @@ PRD decision not yet taken; the value shown is a placeholder, not a default.
 | `N_BITS` | int | 2t+1 .. 2^m-1 | **TBD** | block length in bits; < 2^m-1 is a shortened code | D3 |
 | `PRIM_POLY` | int | irreducible of degree m | **TBD** | primitive polynomial; selects the field representation | D8 |
 | `FIRST_ROOT` | int | 0 .. 2^m-2 | **TBD** | b, first root of g(x); narrow-sense when b = 1 | D8 |
-| `ENABLE_ERASURES` | bit | | 0 **TBD** | erasure input and erasure-locator logic (decoder) | D5 |
-| `KES_ALGO` | string | `"RIBM"`, `"EUCLID"`, `"SMALL_T"` | **TBD** | key-equation solver | D11 |
+| `ENABLE_RECHECK` | bit | 0, 1 | 1 | decoder only: second syndrome unit re-checks the corrected stream and gates the verdict | -- |
 
 : Table 6.1: Code parameters
+
+Neither core has an `ENABLE_ERASURES` or `KES_ALGO` parameter. Erasures
+(D5) are not implemented. The solver choice (D11) is
+`bch_key_equation_solver`'s own `KES_ALGO`, which only accepts `"RIBM"`
+and is not exposed through the decoder core.
 
 Derived: `K_BITS = N_BITS - DEGREE_G`, where `DEGREE_G` is the degree of the
 generator polynomial computed by `gf_pkg` from m, t, `PRIM_POLY` and

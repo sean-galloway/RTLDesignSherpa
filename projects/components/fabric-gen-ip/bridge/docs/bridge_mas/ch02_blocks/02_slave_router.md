@@ -224,22 +224,28 @@ Write transactions require coordinated routing:
 
 Figure 2.2 shows the W side: the W destination FIFO is pushed with the AW's target at the AW handshake and popped at WLAST.
 
-#### Write Data Tracking FSM
+#### Write Data Tracking (FIFO, no FSM)
+
+There is no state machine on the W path. The crossbar keeps one W
+destination FIFO per master width-path (`<master>_<w>b_wdest_*` in
+`<bridge>_xbar.sv`, 16 entries):
 
 ```
-State Machine for W Channel Routing:
-
-IDLE:
-  - Wait for AWVALID && AWREADY
-  - On handshake: Store target slave, goto WRITING
-  
-WRITING:
-  - Route W beats to stored slave
-  - On WVALID && WREADY && WLAST: goto IDLE
-  
-Error Handling:
-  - If AW was OOR: Discard W beats, generate BRESP error
+Push:  on the AW handshake, write the encoded target slave
+       (e.g. cpu_32b_wdest_enc: 0 = ddr, 1 = sram, 2 = subtractive)
+Head:  while the FIFO is non-empty, its head selects which slave
+       the master's W beats go to (cpu_32b_w_to_ddr, ..._to_sram, ...)
+Pop:   on the W handshake that carries WLAST
 ```
+
+Because the FIFO holds every accepted AW, a master can have several write
+bursts queued to different slaves; each W burst follows its own AW in
+order, with no IDLE/WRITING handshake between them. On the slave side a
+matching W owner FIFO (`<slave>_wowner_*`), pushed with the AW arbiter's
+grant and popped on WLAST, decides which master owns that slave's W
+channel. An out-of-range AW is routed to the subtractive slave like any
+other target, so its W beats are drained there and it answers DECERR
+(see below).
 
 ### Out-of-Range Handling
 
@@ -260,7 +266,7 @@ own; its behaviour is fixed, not configurable.
 ```
 1. Accept ARVALID (ARREADY high while no read is active)
 2. Return exactly ARLEN+1 beats:
-     RID   = ARID, unmodified (IDs are pass-through -- nothing is prepended)
+     RID   = ARID as received (the fabric ID; the master adapter strips the prefix)
      RDATA = 0xDEADBEEF, replicated to the data width
      RRESP = 2'b11 (DECERR)
      RLAST = 1 on the FINAL beat only

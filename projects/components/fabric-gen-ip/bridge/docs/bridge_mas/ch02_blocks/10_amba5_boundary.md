@@ -128,7 +128,7 @@ low, which every chunking requester must accept.
 A **write-only** atomic-enabled master's wr path inserts `axi5_atomic_filter`
 between the boundary wrapper and the fabric:
 
-### Figure 2.10: Atomic Filter on a Write-Only Port
+### Figure 2.11: Atomic Filter on a Write-Only Port
 
 ![Atomic Filter on a Write-Only Port](../assets/graphviz/atomic_filter.png)
 
@@ -164,7 +164,7 @@ R, the R beat carrying the location's original data under the **AW's ID**.
 Two things in this fabric had to learn about that beat, because every
 R-return tracker in it is fed by AR handshakes:
 
-### Figure 2.11: Read-Return Atomics
+### Figure 2.12: Read-Return Atomics
 
 ![Read-Return Atomics](../assets/graphviz/rr_atomics.png)
 

@@ -103,11 +103,11 @@ Action: Force transaction completion
 
 **CAM Overflow**:
 
-> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
-> instantiated in zero of them. Responses are routed by the POSITION of an
-> in-order per-slave FIFO holding a sideband master id, so out-of-order
-> completion is not supported and the section below describes an option
-> that was never implemented. See ch04 `02_id_tracking.md`.
+> **Built as backpressure, not as an error.** Each slave adapter's response
+> tracker (`bridge_cam` for a multi-master AXI4/AXI5 slave, an in-order FIFO
+> otherwise) is 16 deep; when it is full the slave's AWREADY / ARREADY toward
+> the crossbar drops (bridge BUG-009). No error response is generated. See
+> ch04.
 
 ```
 Too many outstanding transactions (CAM full)
@@ -127,7 +127,7 @@ Response: Generation error, fail early
 
 ## 2.9.3 Block Diagram
 
-### Figure 2.9: Error Handling Architecture
+### Figure 2.10: Error Handling Architecture
 
 ![Error Handling System](../assets/graphviz/error_handling.png)
 

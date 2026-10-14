@@ -31,41 +31,29 @@ The generator turns configuration files into parameterized SystemVerilog modules
 
 ### Compile-Time Parameters
 
-> **Not built.** The generated top has no parameters and no `BID_WIDTH` /
-> `TOTAL_ID_WIDTH` localparams: IDs are not extended, so there is nothing to
-> widen. The package carries exactly two constants --
-> `NUM_MASTERS` and `BRIDGE_ID_WIDTH = $clog2(NUM_MASTERS)` -- and
-> `BRIDGE_ID_WIDTH` sizes the SIDEBAND master id, not any AXI ID field.
-> Per-port widths are baked into the port declarations; there is no
-> `M0_DATA_WIDTH` localparam.
-
-What the template would have emitted, had that design survived:
+The generated top has no parameter list. The shared constants live in the
+per-bridge package `<bridge>_pkg.sv`; this is `bridge_2x2_rw_pkg.sv`:
 
 ```systemverilog
-// Core parameters
-parameter int NUM_MASTERS = 4;
-parameter int NUM_SLAVES = 3;
-parameter int ADDR_WIDTH = 32;
-parameter int DATA_WIDTH = 64;
-parameter int ID_WIDTH = 4;
-
-// Derived parameters
-localparam int BID_WIDTH = $clog2(NUM_MASTERS);
-localparam int TOTAL_ID_WIDTH = ID_WIDTH + BID_WIDTH;
-localparam int STRB_WIDTH = DATA_WIDTH / 8;
+localparam int NUM_MASTERS     = 2;
+localparam int BRIDGE_ID_WIDTH = 1;  // $clog2(NUM_MASTERS): sideband master index
+localparam int MASTER_ID_WIDTH = 4;  // widest master-side ID
+localparam int ID_PREFIX_WIDTH = 1;  // master-index bits prepended (0 for one master)
+localparam int XBAR_ID_WIDTH   = 5;  // MASTER_ID_WIDTH + ID_PREFIX_WIDTH
 ```
+
+`BRIDGE_ID_WIDTH` sizes the `bridge_id` sideband that the slave adapters
+store; `XBAR_ID_WIDTH` is the AXI ID width inside the fabric and on every
+AXI slave port, because each master adapter widens its IDs to
+`{BRIDGE_ID, id}` (Section 2.5). The package also defines the AXI channel
+structs used by the crossbar, one per data width present.
 
 ### Per-Port Parameters
 
-```systemverilog
-// Generated per-port widths
-localparam int M0_DATA_WIDTH = 64;
-localparam int M1_DATA_WIDTH = 256;
-localparam int S0_DATA_WIDTH = 512;
-localparam int S1_DATA_WIDTH = 32;  // APB
-```
-
-In the real output these widths are baked straight into the port declarations — there are no localparams to override.
+Per-port widths are baked straight into the port declarations; there are no
+`M0_DATA_WIDTH`-style localparams to override. Each adapter module does carry
+a small parameter list (for example `BRIDGE_ID` on a master adapter, `ID_WIDTH`
+on a slave adapter), set by the generated top.
 
 ## Ports
 
@@ -165,57 +153,42 @@ port is in another domain. Slave ports only, `protocol = "axi4"` only (HAS
 
 ### Component Instantiation
 
-Adapters are named after the port, not the index — and several modules you might go looking for (`master_adapter_rw`, a standalone `address_decoder`) don't exist anywhere in the tree. Address decode is inline in the crossbar and each master adapter. From `bridge_2x2_rw.sv`:
+Adapters are named after the port, not the index, and there is no standalone
+address decoder, arbiter, width-converter or response-router module at the
+top: address decode, arbitration and response muxing are inline in the
+crossbar and the master adapters; width converters and protocol shims are
+instantiated inside the adapter that needs them. The complete instance list
+of `bridge_2x2_rw.sv`:
 
 ```systemverilog
-// Generated module internal structure
-
-// Adapters are named after the PORT, not the index -- there is no
-// master_adapter_rw / address_decoder module anywhere in the tree.
-// From bridge_2x2_rw.sv:
-
-axi4_subtractive_slave #(...) u_subtractive (...);   // unmapped-address default
-cpu_adapter            u_cpu_adapter (...);          // per-master, named for the master
+axi4_subtractive_slave #(...) u_subtractive (...);   // unmapped-address default (DECERR)
+cpu_adapter            u_cpu_adapter (...);          // per master, named for the port
 dma_adapter            u_dma_adapter (...);
-bridge_2x2_rw_xbar     u_xbar (...);                 // one crossbar
-ddr_adapter            u_ddr_adapter (...);          // per-slave, named for the slave
-sram_adapter           u_sram_adapter (...);
+bridge_2x2_rw_xbar     u_xbar (...);                 // decode, per-slave AW/AR arbiters,
+                                                     // W owner/destination FIFOs, B/R muxes
+ddr_adapter            u_ddr_adapter (...);          // per slave, named for the port
+sram_adapter           u_sram_adapter (...);         //   (bridge_cam x2 inside, multi-master)
 subtractive_adapter    u_subtractive_adapter (...);
+```
 
-// Address decode is INLINE in the crossbar and each master adapter --
-// there is no separate decoder module to instantiate.
-address_decoder u_m2_decoder (...);
-address_decoder u_m3_decoder (...);
+What lives inside the adapters (from `bridge_mix_a_mon`):
 
-// Per-slave arbiters
-arbiter_aw u_s0_aw_arb (...);
-arbiter_ar u_s0_ar_arb (...);
-arbiter_aw u_s1_aw_arb (...);
-arbiter_ar u_s1_ar_arb (...);
-arbiter_aw u_s2_aw_arb (...);
-arbiter_ar u_s2_ar_arb (...);
+```
+<master>_adapter   axi4_dwidth_converter_{rd,wr}       width paths, where widths differ
+                   axil_to_axi4_wide_align_{rd,wr}     AXI4-Lite master ports
+                   axi4_slave_{rd,wr}_monlite          monitored variants only
+<slave>_adapter    bridge_cam (u_wr_cam / u_rd_cam)    AXI4/AXI5 slave, multi-master
+                   axi4_master_{rd,wr}[_monlite]       timing wrapper (+ monitor)
+                   axi4_to_apb4_shim                   apb slave
+                   axi4_to_axil4_{rd,wr}               axil slave
+```
 
-// Width converters (as needed)
-width_upsize_64_512 u_m0_s0_upsizer (...);
+A monitored variant adds two instances at the top: one `monbus_arbiter`
+merging every port's monitor stream, and the AXIL group behind it:
 
-// Protocol converters (as needed)
-axi4_to_apb4 u_s2_apb_conv (...);
+```systemverilog
+monbus_arbiter #(.CLIENTS(10), ...) u_...;   // bridge_mix_a_mon: 10 monitor streams
 
-// Response routing
-response_router u_resp_router (...);
-
-// Monitor system (when variants include "mon")
-axi4_master_rd_mon u_m0_rd_mon (...);    // Per-port monitor wrappers
-axi4_master_wr_mon u_m0_wr_mon (...);
-axi4_slave_rd_mon  u_s0_rd_mon (...);
-axi4_slave_wr_mon  u_s0_wr_mon (...);
-// ... (repeat for remaining ports)
-
-// Monitor aggregation tree (if multiple monitors)
-monbus_arbiter u_mon_arb0 (...);         // Aggregate master-side streams
-monbus_arbiter u_mon_arb1 (...);         // Aggregate slave-side streams
-
-// Monitor AXIL group at bridge top
 monbus_axil4_axil4_group #(
     .FIFO_DEPTH_ERR      (64),
     .FIFO_DEPTH_WRITE    (96),   // in BEATS, not packets
@@ -242,18 +215,22 @@ monbus_axil4_axil4_group #(
 ### Internal Signals
 
 ```
-// Crossbar internal signals
-xbar_m{N}_aw_{signal}  - Master N to crossbar AW
-xbar_m{N}_ar_{signal}  - Master N to crossbar AR
-xbar_s{N}_aw_{signal}  - Crossbar to slave N AW
-xbar_s{N}_ar_{signal}  - Crossbar to slave N AR
+// Top-level nets between crossbar and slave adapters
+xbar_{slave}_axi_{aw,w,b,ar,r}{signal}   e.g. xbar_ddr_axi_awid (XBAR_ID_WIDTH bits)
 
-// Arbitration signals
-grant_aw_s{N}[M-1:0]   - AW grants for slave N
-grant_ar_s{N}[M-1:0]   - AR grants for slave N
+// Inside the crossbar
+{slave}_{aw,ar}_arb_gnt                  per-slave round-robin grant
+{master}_{w}b_{aw,ar}_gnt_{slave}        master width-path granted to slave
+{master}_{w}b_wdest_*                    W destination FIFO (per master width-path)
+{slave}_wowner_*                         W owner FIFO (per slave)
 
-// ID tracking signals
-wr_fifo/rd_fifo[...]   - per-slave bridge_id FIFO (no ID table exists)
+// Response routing sideband (slave adapter -> crossbar)
+{slave}_axi_bridge_id_{aw,ar}            granted master's index, into the tracker
+{slave}_axi_{bid,rid}_bridge_id / _valid tracker output steering B / R
+
+// ID tracking inside a slave adapter
+u_wr_cam / u_rd_cam                      bridge_cam (multi-master AXI4/AXI5 slave)
+wr_fifo / rd_fifo                        in-order bridge_id FIFO (otherwise)
 ```
 
 ### Reset Style and the Emitted Filelist
@@ -305,50 +282,43 @@ filelist gets `Cannot find include file: 'reset_defs.svh'` — see
 
 ### Generated Variants
 
-When the `variants` list in the bridge TOML includes multiple entries, the generator produces one complete `.sv` file per variant:
+The mandatory `variants` list in the `[bridge]` table picks which builds to
+emit. Each variant is written to its own directory under `rtl/generated/`
+and is a complete, standalone bridge:
 
 ```
-variants = ["no", "mon"]
+variants = ["no", "mon"]   (bridge_mix_a)
 
-Generated files:
-  bridge_4x3.sv              (variants = "no", no monitor)
-  bridge_4x3_mon.sv          (variants = "mon", with monitor)
+rtl/generated/bridge_mix_a/bridge_mix_a.sv            no monitors
+rtl/generated/bridge_mix_a_mon/bridge_mix_a_mon.sv    monitored
 ```
-
-Each variant is a complete, standalone bridge module. Both can coexist in the same design or be selected at compile time.
 
 ### Generated File Structure
 
-#### Single-File Output
+The generator always writes one directory per bridge (and per variant), one
+module per file. Regenerated listing of `rtl/generated/bridge_2x2_rw/`:
 
 ```
-bridge_{name}.sv
-├── Module declaration
-├── Parameter section
-├── Port declarations
-├── Internal signal declarations
-├── Master adapter instances
-├── Address decoder instances
-├── Arbiter instances
-├── Converter instances
-├── Response router instance
-└── Debug signals (optional)
+rtl/generated/bridge_2x2_rw/
+├── bridge_2x2_rw.sv                  - top level (BridgeModuleGenerator)
+├── bridge_2x2_rw_pkg.sv              - constants + channel structs (PackageGenerator)
+├── bridge_2x2_rw_xbar.sv             - crossbar (CrossbarGenerator)
+├── cpu_adapter.sv                    - master adapter, port "cpu" (AdapterGenerator)
+├── dma_adapter.sv                    - master adapter, port "dma"
+├── ddr_adapter.sv                    - slave adapter, port "ddr" (SlaveAdapterGenerator)
+├── sram_adapter.sv                   - slave adapter, port "sram"
+├── subtractive_adapter.sv            - adapter for the internal DECERR slave
+├── bridge_2x2_rw.toml                - copy of the port configuration
+└── bridge_2x2_rw_connectivity.csv    - copy of the connectivity matrix
 ```
 
-#### Multi-File Output (Optional)
-
-```
-bridge_{name}/
-├── bridge_{name}.sv        - Top-level wrapper
-├── master_adapter_m0.sv    - Master 0 adapter
-├── master_adapter_m1.sv    - Master 1 adapter
-├── address_decoder.sv      - Shared decoder
-├── arbiter_aw.sv           - AW arbiter
-├── arbiter_ar.sv           - AR arbiter
-├── width_upsize_64_512.sv  - Width converter
-├── axi4_to_apb4.sv          - Protocol converter
-└── response_router.sv      - Response routing
-```
+A monitored variant has the same shape with the `_mon` name on the top,
+package and crossbar (`bridge_2x3_apb_req_mon/bridge_2x3_apb_req_mon_xbar.sv`);
+the adapter files keep the port names. The emitted filelist is
+`rtl/filelists/<bridge>.f`. Shared modules (`bridge_cam`,
+`axi4_subtractive_slave`, the converters, shims and monitor wrappers) are
+not copied into the directory; the filelist pulls them from their home
+areas.
 
 ## Related Modules
 

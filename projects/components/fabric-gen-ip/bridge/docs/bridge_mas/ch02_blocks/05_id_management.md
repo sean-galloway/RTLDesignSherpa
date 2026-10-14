@@ -50,23 +50,18 @@ Before anything else in this chapter, read this — it colors everything below:
 > Either tracker is fixed-depth (16), so the address handshake is gated on it
 > being not full (bridge BUG-009).
 >
-> An earlier revision of this note said there was no CAM and that IDs passed
-> through at equal width; the generated RTL has done both since TASK-005.
->
-> ---
->
-> **Everything below this line describes a design that was never built.** It is
-> retained because the mechanism that replaced it is easy to mistake for it.
+> An earlier revision of this chapter said there was no CAM, that IDs
+> passed through at equal width, and that everything below described a
+> design that was never built. The prefix and the CAM are both built; the
+> sections below say, per item, what the generated RTL does and what was
+> only ever proposed.
 
-The unbuilt design described three pieces: Bridge ID injection, Content Addressable Memory (CAM) structures, and ID translation logic.
+The ID management system does four things:
 
-The ID management system does five things:
-
-1. **Transaction Tracking**: Maintains association between requests and originating masters
-2. **Response Routing**: Directs responses to correct master using embedded IDs
-3. **Out-of-Order Support**: Handles responses returning in different order than issued
-4. **ID Space Isolation**: Prevents ID conflicts between multiple masters
-5. **Burst Management**: Tracks multi-beat bursts through the bridge
+1. **Transaction Tracking**: each slave adapter records which master issued each outstanding request
+2. **Response Routing**: the crossbar steers B / R by the recorded master index (`bid_bridge_id` / `rid_bridge_id`)
+3. **Out-of-Order Support**: a CAM-tracked slave may return different IDs in any order
+4. **ID Space Isolation**: the `{BRIDGE_ID, id}` prefix keeps two masters' IDs distinct at every slave
 
 ### Figure 2.5: ID Management Architecture
 
@@ -76,547 +71,211 @@ The request takes the center column, widened to `{BRIDGE_ID, id}` in the master 
 
 ## Parameters
 
+There is no `[bridge.id_management]` table and no `enable_cam`, `cam_type`,
+`cam_depth` or `max_outstanding_*` key; `config_validator` rejects unknown
+keys. What decides ID handling:
+
 ```toml
-[bridge]
-num_masters = 4
-enable_cam = false              # Use CAM for ID tracking
-cam_type = "parallel"           # "parallel", "bram", "sequential"
-cam_depth = 16                  # Outstanding transaction capacity
-
-# NONE of the keys below exist. There is no [bridge.id_management] table,
-# no ID injection/extraction (IDs are pass-through) and no timeout anywhere
-# in the bridge -- see 2.9. config_validator rejects unknown keys, so a TOML
-# written from this block does not load.
-#
-# The real per-port keys are id_width / addr_width / data_width under
-# [[bridge.masters]] and [[bridge.slaves]]:
-
 [[bridge.masters]]
 name = "cpu"
-id_width = 4
-max_outstanding_reads = 8       # CAM allocation limit
-max_outstanding_writes = 8
+id_width = 4                    # master-side ID width
+
+[[bridge.slaves]]
+name = "ddr"
+id_width = 5                    # must be >= widest master id_width + $clog2(num_masters)
+enable_ooo = false              # true forces bridge_cam on this slave even with one master
 ```
+
+Derived, not configured (emitted into `<bridge>_pkg.sv`):
+
+| Constant | Value | `bridge_2x2_rw` |
+|---|---|---|
+| `BRIDGE_ID_WIDTH` | `$clog2(NUM_MASTERS)`, minimum 1 | 1 |
+| `MASTER_ID_WIDTH` | widest master `id_width` | 4 |
+| `ID_PREFIX_WIDTH` | `$clog2(NUM_MASTERS)`, 0 for one master | 1 |
+| `XBAR_ID_WIDTH` | `MASTER_ID_WIDTH + ID_PREFIX_WIDTH` | 5 |
+
+The tracker choice is fixed by the generator (`SlaveAdapterGenerator.use_cam`):
+`bridge_cam` when the slave sets `enable_ooo`, or when the bridge has more
+than one master and the slave is a real `axi4` / `axi5` port; an in-order
+FIFO otherwise (single master, apb/axil/wb shim slaves, the internal
+subtractive slave).
 
 ## Functional Description
 
 ### Bridge ID Concept
 
-**Problem Statement** — without ID management, the bridge cannot determine which master originated a transaction:
+**Problem** -- two masters may use the same AXI ID:
 
 ```
-Scenario: Two masters with overlapping IDs
-  Master 0: Issues read with ARID = 4'h5
-  Master 1: Issues read with ARID = 4'h5 (same ID!)
-  
-When slave responds with RID = 4'h5, which master gets the response?
-  → Ambiguous! Need additional information.
+Master 0: ARID = 4'h5
+Master 1: ARID = 4'h5
+A slave returning RID = 4'h5 cannot say which master it answers.
 ```
 
-**Solution: Bridge ID Injection** — the bridge adds a **Bridge ID (BID)** to each transaction ID:
+**Solution (built)** -- the master adapter prepends its index:
 
 ```
-Internal ID = {Bridge_ID, Original_ID}
+fabric ID = {BRIDGE_ID, master ID}
 
-Master 0, ARID = 4'h5:
-  Internal ARID = {2'b00, 4'h5} = 6'b00_0101
-  
-Master 1, ARID = 4'h5:
-  Internal ARID = {2'b01, 4'h5} = 6'b01_0101
-  
-Now responses with RID = 6'b00_0101 → Route to Master 0
-                    RID = 6'b01_0101 → Route to Master 1
+Master 0, ARID = 4'h5 -> 5'b0_0101
+Master 1, ARID = 4'h5 -> 5'b1_0101     (bridge_2x2_rw)
 ```
 
-### Bridge ID Width Calculation
-
-**Formula**:
+### ID Width Calculation
 
 ```
-BID_WIDTH = clog2(NUM_MASTERS)
+ID_PREFIX_WIDTH = $clog2(NUM_MASTERS)   (0 for a single master)
 
-Where clog2(x) = ceiling(log2(x))
-```
+2 masters:  1 bit      3-4 masters: 2 bits
+5-8 masters: 3 bits    9-16 masters: 4 bits
 
-**Examples**:
-
-```
-2 masters:  clog2(2)  = 1 bit   (BID: 0, 1)
-3 masters:  clog2(3)  = 2 bits  (BID: 00, 01, 10)
-4 masters:  clog2(4)  = 2 bits  (BID: 00, 01, 10, 11)
-5 masters:  clog2(5)  = 3 bits  (BID: 000-100)
-8 masters:  clog2(8)  = 3 bits  (BID: 000-111)
-16 masters: clog2(16) = 4 bits  (BID: 0000-1111)
-```
-
-**ID Width Growth**:
-
-```
-Configuration: 4 masters, external ARID_WIDTH = 4
-
-Internal ARID_WIDTH = BID_WIDTH + External ARID_WIDTH
-                    = 2 + 4
-                    = 6 bits
-
-Slave sees 6-bit IDs
-Master sees 4-bit IDs
-Bridge translates between them
+4 masters, 4-bit master IDs: slave ports see 6-bit IDs, masters see 4.
 ```
 
 ### Multi-Master OR-Merge Gating
 
-When multiple masters drive address and ID signals toward a slave, an OR-merge combines them. To prevent idle masters with stale addresses from corrupting the routing tag, every OR-merge term is gated on both the slave_select condition AND the valid signal:
+Every slave-side address, ID and `bridge_id` field is an OR of per-master
+terms, each gated by that master's AW / AR arbiter grant for the slave, so
+an idle master with a stale address contributes nothing:
 
 ```systemverilog
-// Wrong (deprecated):
-assign s0_bridge_id_aw = m0_bridge_id_aw | m1_bridge_id_aw | m2_bridge_id_aw;
-//                       ↓ Master 1 contributes even if awvalid=0 and address is stale!
-
-// Correct:
-assign s0_bridge_id_aw = (m0_slave_select_aw && m0_awvalid ? m0_bridge_id_aw : '0) |
-                        (m1_slave_select_aw && m1_awvalid ? m1_bridge_id_aw : '0) |
-                        (m2_slave_select_aw && m2_awvalid ? m2_bridge_id_aw : '0);
+// bridge_2x2_rw_xbar.sv
+assign ddr_axi_bridge_id_aw = (cpu_32b_aw_gnt_ddr ? cpu_bridge_id_aw : '0) |
+                              (dma_32b_aw_gnt_ddr ? dma_bridge_id_aw : '0);
 ```
 
-**Why this matters**: An idle master with stale address (fub_axi_awaddr = 0) still decodes to slave 0 if that's the address map. Without valid gating, its zero bridge_id corrupts the slave's routing tag via OR-merge. When the slave responds, the B-response gets routed to the idle master instead of the actual requester.
+The grant already implies the master is valid and decoded to this slave.
+An ungated OR let an idle master's zero `bridge_id` corrupt the routing
+tag and send a B to the wrong master.
 
-**Implementation**:
-- All AW/AR/W data signals gated by `{slave_select && <channel_valid>}`
-- bridge_id_aw/ar signals gated by corresponding `<channel>valid`
-- Prevents any idle master from affecting the OR-merge result
-
-### ID Injection (Request Path)
-
-#### Read Address Channel (AR)
+### ID Injection (Request Path, built)
 
 ```systemverilog
-// ID injection at master adapter
-logic [BID_WIDTH-1:0] master_bid;         // Constant per master
-logic [ARID_WIDTH-1:0] external_arid;     // From master
-logic [TOTAL_ARID_WIDTH-1:0] internal_arid;  // To crossbar
-
-assign master_bid = MASTER_INDEX;  // M0=0, M1=1, M2=2, M3=3
-assign internal_arid = {master_bid, external_arid};
-
-// Example: Master 2, ARID = 4'h7
-// internal_arid = {2'b10, 4'h7} = 6'b10_0111
+// <master>_adapter.sv
+assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
+assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};
 ```
 
-#### Write Address Channel (AW)
+`BRIDGE_ID` is the per-instance master index. The concatenation is wiring
+and adds no cycle. There is no "registered injection" option. A
+single-master bridge prepends nothing.
+
+### ID Stripping and Response Routing (built)
+
+The response is NOT routed by decoding the prefix bits of BID / RID. The
+slave adapter returns the originating master's index on a sideband
+(`bid_bridge_id` / `rid_bridge_id`, with `bid_valid` / `rid_valid`), and
+the crossbar's B / R muxes select on it:
 
 ```systemverilog
-// ID injection for write transactions
-logic [BID_WIDTH-1:0] master_bid;
-logic [AWID_WIDTH-1:0] external_awid;
-logic [TOTAL_AWID_WIDTH-1:0] internal_awid;
-
-assign internal_awid = {master_bid, external_awid};
-
-// Note: AWID and ARID widths can differ per master
+// bridge_2x2_rw_xbar.sv (B toward cpu, master index 0)
+((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0) | ...
 ```
 
-#### Injection Timing
+The master adapter then returns the low `MASTER_ID_WIDTH` bits
+(`fub_axi_bid = cpu_32b_b.id[3:0]`), so the master sees its own ID.
 
-**Combinatorial** (default):
-- ID concatenation done in same cycle as VALID assertion
-- Zero latency overhead
-- May contribute to critical path in high-frequency designs
+### Content Addressable Memory: `bridge_cam` (built)
 
-**Registered** (optional):
-- Add pipeline register after ID injection
-- +1 cycle latency
-- Breaks critical path
+`rtl/bridge_cam.sv` is hand-written and instantiated twice (`u_wr_cam`,
+`u_rd_cam`) in each CAM-tracked slave adapter:
 
-### ID Extraction (Response Path)
+| Parameter | Value in the slave adapter |
+|---|---|
+| `TAG_WIDTH` | `ID_WIDTH` (fabric ID width, 5 in `bridge_2x2_rw`) |
+| `DATA_WIDTH` | `BRIDGE_ID_WIDTH` |
+| `DEPTH` | 16 |
+| `ALLOW_DUPLICATES` | 1 (same ID may be outstanding more than once; oldest freed first) |
+| `PIPELINE_EVICT` | 0 (lookup result in the same cycle) |
 
-#### Read Data Channel (R)
-
-```systemverilog
-// ID extraction at crossbar response router
-logic [TOTAL_RID_WIDTH-1:0] internal_rid;   // From slave
-logic [BID_WIDTH-1:0] extracted_bid;        // Upper bits
-logic [RID_WIDTH-1:0] external_rid;         // Lower bits
-
-// Extract Bridge ID
-assign extracted_bid = internal_rid[TOTAL_RID_WIDTH-1:RID_WIDTH];
-
-// Strip Bridge ID for master
-assign external_rid = internal_rid[RID_WIDTH-1:0];
-
-// Route based on BID
-always_comb begin
-    case (extracted_bid)
-        2'b00: master0_rvalid = slave_rvalid;
-        2'b01: master1_rvalid = slave_rvalid;
-        2'b10: master2_rvalid = slave_rvalid;
-        2'b11: master3_rvalid = slave_rvalid;
-    endcase
-end
-```
-
-#### Write Response Channel (B)
-
-```systemverilog
-// Similar extraction for write responses
-logic [TOTAL_BID_WIDTH-1:0] internal_bid;
-logic [BID_WIDTH-1:0] extracted_bid;
-logic [BID_WIDTH-1:0] external_bid;
-
-assign extracted_bid = internal_bid[TOTAL_BID_WIDTH-1:BID_WIDTH];
-assign external_bid = internal_bid[BID_WIDTH-1:0];
-
-// Route to originating master
-```
-
-### Content Addressable Memory (CAM)
-
-**When to Use CAM**:
-
-**Simple Configurations** (No CAM needed):
-- Single master (BID unnecessary)
-- Direct ID mapping suffices
-- Lower resource usage
-
-**Complex Configurations** (CAM beneficial):
-- Many masters (>8)
-- Out-of-order responses common
-- Multiple outstanding transactions per master
-- ID reordering within slave
-
-**CAM Structure**:
+Operation:
 
 ```
-Entry Format:
-┌────────────┬──────────────┬─────────────┬───────────┬───────┐
-│ Internal ID│ Master Index │ Transaction │ Timestamp │ Valid │
-│  (6-12 bits│  (2-4 bits)  │    Type     │ (counter) │ (1b)  │
-│            │              │   (R/W)     │           │       │
-└────────────┴──────────────┴─────────────┴───────────┴───────┘
-     10b           3b             1b          16b         1b
-
-Total per entry: ~30 bits
-CAM depth: 16-64 entries typical
+Allocate:   on the AW / AR handshake from the crossbar
+            tag = awid / arid, data = xbar_bridge_id_aw / _ar
+Deallocate: write on B handshake; read on the R handshake with RLAST
+            tag = bid / rid -> deallocate_data = bid_bridge_id / rid_bridge_id
+Full:       tags_full gates the crossbar-side AWREADY / ARREADY (bridge BUG-009)
 ```
 
-**CAM Operations**:
+An entry holds only the tag, the master index and the duplicate-ordering
+count. There is no timestamp, transaction-type field or timeout, and only
+the parallel, distributed-RAM form exists; the sequential-search and
+BRAM-based CAM variants this chapter once compared were never built.
 
-**Allocation** (Request Path):
-```
-1. Master issues AR/AW transaction
-2. Find free CAM entry (Valid = 0)
-3. Write entry:
-   - Internal ID = {BID, External_ID}
-   - Master Index = BID
-   - Transaction Type = Read or Write
-   - Timestamp = Current cycle count
-   - Valid = 1
-4. Forward transaction to slave
-```
+### In-Order FIFO Tracker (built)
 
-**Lookup** (Response Path):
-```
-1. Slave returns R/B response with Internal ID
-2. CAM lookup: Search for matching Internal ID
-3. Extract Master Index from matching entry
-4. Route response to Master[Master Index]
-5. If LAST: Deallocate entry (Valid = 0)
-```
-
-**Associative Search**:
-- All entries checked in parallel
-- 1-cycle lookup (registered CAM)
-- Match found → Returns master index
-- No match → Error condition (protocol violation)
-
-### CAM Implementation
-
-#### Parallel CAM (Fast, Resource-Intensive)
-
-```systemverilog
-// Parallel CAM structure (16 entries)
-typedef struct packed {
-    logic valid;
-    logic [TOTAL_ID_WIDTH-1:0] internal_id;
-    logic [BID_WIDTH-1:0] master_idx;
-    logic txn_type;  // 0=read, 1=write
-    logic [15:0] timestamp;
-} cam_entry_t;
-
-cam_entry_t cam [0:15];
-
-// Parallel search
-logic [15:0] match;
-logic [3:0] match_idx;
-
-for (genvar i = 0; i < 16; i++) begin
-    assign match[i] = cam[i].valid && 
-                      (cam[i].internal_id == response_id);
-end
-
-// Priority encode first match
-assign match_idx = find_first_set(match);
-assign routed_master = cam[match_idx].master_idx;
-```
-
-#### Sequential CAM (Slow, Resource-Efficient)
-
-```systemverilog
-// Sequential CAM search (multi-cycle)
-logic [3:0] search_idx;
-logic searching;
-
-always_ff @(posedge clk) begin
-    if (search_start) begin
-        search_idx <= 0;
-        searching <= 1'b1;
-    end else if (searching) begin
-        if (cam[search_idx].valid && 
-            cam[search_idx].internal_id == response_id) begin
-            // Match found
-            routed_master <= cam[search_idx].master_idx;
-            searching <= 1'b0;
-        end else if (search_idx == 15) begin
-            // No match found (error)
-            searching <= 1'b0;
-            error <= 1'b1;
-        end else begin
-            search_idx <= search_idx + 1;
-        end
-    end
-end
-```
-
-**Trade-off**:
-- Parallel: 1-cycle, ~2000 LEs for 16 entries
-- Sequential: 16 cycles, ~200 LEs for 16 entries
+Slaves that do not get the CAM keep a 16-entry FIFO of `bridge_id`,
+pushed on the address handshake and popped on B / RLAST. Routing uses the
+FIFO head, so such a slave must complete in request order; a
+simulation-only check flags a returned ID that does not match the head
+(bridge BUG-008). The same not-full gate applies.
 
 ### Outstanding Transaction Limits
 
-**Configuration**:
-
-```toml
-[bridge]
-enable_cam = true
-# cam_depth: NOT A KEY. No CAM exists and the loader does not know this name.
-
-[[bridge.masters]]
-name = "cpu"
-max_outstanding_reads = 8   # Per-master limit
-max_outstanding_writes = 8
-```
-
-**Enforcement** — when the CAM is full:
-
-```
-1. Master issues new request
-2. Check CAM for free entry
-3. If full:
-   - ARREADY/AWREADY = 0 (backpressure)
-   - Wait for response to free entry
-4. When entry freed (RLAST/BVALID):
-   - Accept new request
-```
-
-**Sizing Guidelines**:
-
-```
-CAM Depth = Σ(max_outstanding per master) + Safety margin
-
-Example: 4 masters, 4 outstanding each
-  Minimum CAM depth = 4 × 4 = 16 entries
-  Recommended depth = 20 entries (25% margin)
-```
+The limit per slave is the tracker depth: 16 writes and 16 reads
+outstanding at each slave adapter, CAM or FIFO. When the tracker is full
+the slave's AWREADY / ARREADY toward the crossbar drops until a response
+frees an entry. There is no per-master outstanding limit key.
 
 ## Timing
 
-### ID Injection Latency
+- **ID injection / stripping**: 0 cycles (concatenation and bit-select).
+- **CAM lookup**: 0 added cycles (`PIPELINE_EVICT = 0`; the deallocate
+  data is combinational in the response cycle).
+- **FIFO head**: 0 added cycles.
 
-**Combinatorial** (default):
-- 0 cycles overhead
-- Part of adapter pipeline stage
-
-**Registered**:
-- +1 cycle latency
-- Breaks timing path
-
-### ID Extraction/Routing Latency
-
-**Direct Decode** (no CAM):
-- 0 cycles (combinatorial BID extraction)
-
-**Parallel CAM**:
-- 1 cycle (registered search)
-
-**Sequential CAM**:
-- 1-N cycles (where N = CAM depth)
-- Average: N/2 cycles
-
-### End-to-End Impact
-
-```
-Configuration: No CAM, combinatorial ID management
-  Request:  Master → +0 cycles → Crossbar
-  Response: Slave → +0 cycles → Master
-  Total: 0 cycles overhead
-
-Configuration: Parallel CAM, registered
-  Request:  Master → +1 cycle (allocation) → Crossbar
-  Response: Slave → +1 cycle (lookup) → Master
-  Total: 2 cycles overhead
-```
+The measured end-to-end latency (2 cycles each way in `bridge_2x2_rw`,
+HAS Table 5.7) includes whichever tracker the slave uses.
 
 ## Design Notes
 
 ### Resource Utilization
 
-**Per Master** (ID injection/extraction only, no CAM):
-```
-Logic Elements:  ~20-50 LEs
-Registers:       ~10 regs
-
-Simple bit concatenation and extraction
-Minimal overhead
-```
-
-**CAM Resources** (16 entries, 6-bit IDs):
-```
-Parallel CAM:
-  Logic Elements:  ~2000 LEs
-  Registers:       ~500 regs
-  Block RAM:       0 (distributed)
-
-BRAM-Based CAM:
-  Logic Elements:  ~500 LEs
-  Registers:       ~100 regs
-  Block RAM:       1-2 KB
-
-Sequential CAM:
-  Logic Elements:  ~200 LEs
-  Registers:       ~100 regs
-  Block RAM:       0
-```
-
-**Scaling**:
-
-```
-CAM Depth      Parallel      BRAM         Sequential
-16 entries     ~2000 LEs     ~500 LEs     ~200 LEs
-32 entries     ~4000 LEs     ~800 LEs     ~250 LEs
-64 entries     ~8000 LEs     ~1200 LEs    ~300 LEs
-```
+The per-master prefix is wiring. Each CAM-tracked slave adapter carries
+two 16-entry `bridge_cam` instances built in distributed RAM and flops (no
+block RAM); the FIFO tracker is two 16-entry FIFOs of `BRIDGE_ID_WIDTH`
+bits. Measured totals for the fixtures are in HAS 5.3.
 
 ### Debug and Observability
 
-Recommended debug signals:
-
 ```
-ID Injection:
-- Master BID assignments (constant per master)
-- External IDs (from masters)
-- Internal IDs (after injection)
-
-ID Extraction:
-- Internal IDs (from slaves)
-- Extracted BIDs
-- External IDs (to masters)
-
-CAM (if enabled):
-- CAM occupancy (number of valid entries)
-- Allocation/deallocation events
-- Search hits/misses
-- Timeout events
-```
-
-Performance counters:
-
-```
-- Total transactions tracked
-- CAM hit rate
-- CAM miss rate (should be 0)
-- Average CAM occupancy
-- Peak CAM occupancy
-- Timeout errors
-- ID width overhead (bits added per transaction)
+Request:  fub_axi_awid / arid  vs  xbar_axi_awid / arid (prefix added)
+Slave:    xbar_bridge_id_aw / _ar at the address handshake
+CAM:      u_wr_cam / u_rd_cam tags_count, tags_full, deallocate_valid
+Response: bid_bridge_id / rid_bridge_id with bid_valid / rid_valid
 ```
 
 ### Common Issues
 
-**Symptom**: Response goes to wrong master  
-**Check**:
-- BID assignment (verify each master has unique BID)
-- ID width calculation (BID_WIDTH correct?)
-- Bit slicing in extraction logic
-- CAM contents (if used)
+**Response goes to the wrong master**
+- FIFO-tracked slave completing out of order (look for the BUG-008 check message)
+- Slave truncating the ID: its `id_width` must be at least `XBAR_ID_WIDTH`
+  (the validator enforces this for axi3/axi4/axi5 slaves)
 
-**Symptom**: CAM full, transactions stalling  
-**Check**:
-- CAM depth vs. outstanding transaction count
-- Are responses being received? (slave responsive?)
-- Timeout threshold (too short?)
-- Leaked entries (not deallocated after LAST)
+**Address channel stalls**
+- Tracker full: 16 outstanding at that slave with no B / RLAST returning
+- A hung slave stalls its path indefinitely; there is no timeout in the bridge
 
-**Symptom**: CAM miss errors  
-**Check**:
-- Slave returning incorrect IDs
-- ID corruption in transit
-- Race condition (deallocation before response complete)
-
-### Future Enhancements
-
-**Planned Features**:
-- **Dynamic CAM Depth**: Runtime adjustment based on utilization
-- **Per-Master CAM Partition**: Guaranteed entries per master
-- **ID Compression**: Reduce internal ID width for slaves with limited ID support
-- **Transaction Ordering**: CAM tracks issue order for reordering enforcement
-
-**Under Consideration**:
-- **Multi-Level CAM**: Hierarchical for large transaction counts
-- **TCAM Support**: Partial ID matching (wildcards)
-- **Error Injection**: Debug mode to test error handling
-- **CAM Mirrors**: Redundant CAMs for fail-safe operation
+**`deallocate_valid` low on a response**
+- The slave returned an ID it was never sent
 
 ## Related Modules
 
-- Section 2.1: Master Adapter (BID injection location)
-- Section 2.3: Crossbar Core (BID extraction, response routing)
-- Section 2.8: Response Routing (detailed routing logic)
-- HAS ch04_interfaces/01_axi4_interface.md (ID widths -- note IDs are pass-through)
+- Section 2.1: Master Adapter (prefix injection and stripping)
+- Section 2.3: Crossbar Core (grant-gated OR-merge, B / R muxes)
+- Section 2.8: Response Routing
+- HAS ch04_interfaces/01_axi4_interface.md (port ID widths)
 
 ## Testing
 
-### Test Scenarios
-
-1. **Basic ID Injection/Extraction**:
-```
-- Single master, single transaction
-- Verify BID added correctly
-- Verify BID stripped before response delivery
-- Check external ID unchanged
-```
-
-2. **Multi-Master ID Isolation**:
-```
-- Multiple masters with same external IDs
-- Verify responses route to correct master
-- Check BID uniqueness prevents collisions
-```
-
-3. **CAM Capacity**:
-```
-- Issue max_outstanding transactions
-- Verify backpressure when CAM full
-- Issue responses to free entries
-- Verify new transactions accepted
-```
-
-4. **Out-of-Order Responses**:
-```
-- Issue transactions: ID=1, ID=2, ID=3
-- Return responses: ID=3, ID=1, ID=2
-- Verify CAM correctly routes each
-```
-
-5. **~~CAM Timeout~~** -- not testable: there is no timeout to trigger and no
-   CAM in the generated bridges (`bridge_cam.sv` is instantiated in zero of
-   them). A hung slave stalls its path indefinitely; the system-level answer is
-   a watchdog outside the bridge.
+1. **Multi-master ID isolation**: two masters issue the same ID to one
+   slave; each response returns to its own master with the original ID.
+2. **Out-of-order at a CAM slave**: the slave answers IDs out of request
+   order; each response still reaches its master (the mix_b / mix_d
+   arbitration tests exercise this).
+3. **Tracker capacity**: 16 outstanding at one slave holds off the 17th
+   address until a response frees an entry (bridge BUG-009 tests).
+4. **Timeout**: not testable -- there is no timeout in the bridge. The
+   system-level answer is a watchdog outside it.

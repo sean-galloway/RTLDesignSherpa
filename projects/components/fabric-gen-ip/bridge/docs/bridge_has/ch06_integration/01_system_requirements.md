@@ -150,15 +150,13 @@ Slaves connecting to Bridge must:
 
 ### Response-Ordering Assumption
 
-Bridge routes B and R by popping a per-slave in-order FIFO of sideband
-master IDs. This is safe for single-master AXI4/AXI4-Lite/APB/Wishbone
-slaves and for internal subtractive-decoding responses because they all
-return responses in request order. It is **not** safe for a multi-master
-AXI4/AXI5 slave that reorders across different IDs: AXI4 permits
-out-of-order completion per ID, and ARM IHI 0022E §A4 describes the
-ordering rules. Such slaves require the CAM-based response-tracking mode
-that Bridge keeps in `bridge_cam.sv` but does not currently instantiate
-by default.
+Bridge routes B and R by a sideband master index stored per slave. For an
+AXI4/AXI5 slave of a multi-master bridge (or any slave with `enable_ooo`)
+the store is `bridge_cam`, looked up by the returned BID/RID, so the slave
+may complete different IDs in any order (ARM IHI 0022E §A4). Every other
+slave -- single-master bridges, AXI4-Lite/APB/Wishbone shim slaves and the
+internal subtractive slave -- uses an in-order FIFO and must return
+responses in request order, which those slaves do by construction.
 
 ### Buffer and CAM Depths
 

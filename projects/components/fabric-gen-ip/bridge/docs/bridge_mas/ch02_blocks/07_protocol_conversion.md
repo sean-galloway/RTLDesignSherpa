@@ -107,7 +107,7 @@ The bridge now emits real AXI4-to-AXIL4 conversion shims (`axi4_to_axil4_{rd,wr}
 
 ## 2.7.3 Conversion Architecture Overview
 
-### Figure 2.7.1: Protocol Conversion Architecture
+### Figure 2.7: Protocol Conversion Architecture
 
 ![Protocol Conversion Architecture](../assets/graphviz/protocol_conversion_arch.png)
 
@@ -115,7 +115,7 @@ Every port converts to AXI4 at its own adapter and the fabric is AXI4 throughout
 
 ## 2.7.4 Block Diagram
 
-### Figure 2.7: AXI4 to APB Shim
+### Figure 2.8: AXI4 to APB Shim
 
 ![AXI4 to APB Shim](../assets/graphviz/protocol_conversion_apb.png)
 

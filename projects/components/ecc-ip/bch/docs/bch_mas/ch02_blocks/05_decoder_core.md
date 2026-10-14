@@ -62,10 +62,18 @@ stages is genuine control, not per-beat datapath.
 | `T_BITS` | int | 1..(2^m-1)/2 | **TBD** | correctable bit errors | D2 |
 | `N_BITS` | int | 2t+1 .. 2^m-1 | **TBD** | codeword length in bits | D3 |
 | `BITS_PER_BEAT` | int | 1 .. K_BITS | **TBD** | bits per valid/ready beat | D9 |
-| `ENABLE_ERASURES` | bit | | 0 **TBD** | erasure input and erasure-locator logic | D5 |
-| `KES_ALGO` | string | `"RIBM"`, `"EUCLID"`, `"SMALL_T"` | **TBD** | solver algorithm | D11 |
+| `PRIM_POLY` | int | irreducible of degree m | **TBD** | primitive polynomial | D8 |
+| `FIRST_ROOT` | int | 0 .. 2^m-2 | **TBD** | b, first root of g(x) | D8 |
+| `K_BITS` | int | derived | N_BITS - deg g(x) | message bits; exposed for convenience, do not override | -- |
+| `ENABLE_RECHECK` | bit | 0, 1 | 1 | run a second syndrome unit over the corrected stream and fold its zero-syndrome result into the verdict | -- |
 
 : Table 2.10: Decoder core parameters
+
+`bch_decoder_core` has no `ENABLE_ERASURES` or `KES_ALGO` parameter.
+Erasure decoding is not implemented (PRD D5 is open, and the imported
+solver is instantiated with `ERASURE_SUPPORT = 0`). `KES_ALGO` is a
+parameter of `bch_key_equation_solver` only, left at its default `"RIBM"`
+by the core; any other value is an elaboration error (Section 2.3).
 
 ## Interface
 

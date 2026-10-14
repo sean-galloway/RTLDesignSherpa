@@ -40,10 +40,10 @@ Bridge is a TOML-driven generator that produces AXI4 crossbars with automatic wi
 - **CSV-Driven Configuration:** Human-readable port and connectivity definitions
 - **Channel-Specific Masters:** Write-only (wr), read-only (rd), or full (rw) support
 - **Automatic Width Conversion:** Upsize/downsize for data width mismatches
-- **Out-of-Order Support:** NONE. Responses route by in-order bridge_id FIFO position; a slave that reorders between IDs misroutes (bridge BUG-008, was BRIDGE-010)
+- **Out-of-Order Support:** per slave. A multi-master AXI4/AXI5 slave (or any `enable_ooo` slave) is tracked by `bridge_cam` keyed on the fabric ID `{BRIDGE_ID, id}` and may complete IDs in any order; single-master bridges and shim slaves use an in-order bridge_id FIFO and must answer in request order (bridge BUG-008, was BRIDGE-010)
 - **Custom Signal Prefixes:** Unique prefixes per port for clean integration
 
-That out-of-order bullet is the one people skim past and regret. The bridge does not sort responses back into order — it trusts the FIFO position, so the trust has to be mutual.
+That out-of-order bullet is the one people skim past and regret. The bridge never sorts responses back into order: a CAM-tracked slave is routed by ID, but a FIFO-tracked slave is routed by position, so there the trust has to be mutual.
 
 ### Protocol Conversion Matrix
 
@@ -81,6 +81,12 @@ out-of-range responder against `axi4_subtractive_slave` (RLAST on the final
 beat only, DECERR, 0xDEADBEEF), the monbus group instantiation, the transaction
 timeout that does not exist, and the strobe-mapping example. Documented the
 subtractive catch-all and its status/IRQ path.
+
+**2026-10-13:** the ID-extension retirement above was itself overtaken by
+bridge TASK-005: IDs ARE widened to `{BRIDGE_ID, id}` with more than one
+master, and multi-master AXI4/AXI5 slaves track responses in `bridge_cam`.
+Chapters 2.1, 2.2, 2.5, 2.8, 2.9, 3.2, 4 and 6.1 were corrected to the
+generated RTL; figure numbers were made unique.
 
 **Version 1.1 (2026-06-04):** content sync to RTL state at that date.
 
@@ -168,7 +174,7 @@ Each chapter below is one source file.
 
 #### Chapter 4: ID Management
 
-- [CAM Architecture](ch04_id_management/01_cam_architecture.md) -- describes a design that was NEVER BUILT; see [ID Tracking](ch04_id_management/02_id_tracking.md) for the mechanism actually generated
+- [CAM Architecture](ch04_id_management/01_cam_architecture.md) -- `bridge_cam` as instantiated in multi-master AXI4/AXI5 slave adapters; the sections marked historical were never built
 - [ID Tracking Tables](ch04_id_management/02_id_tracking.md)
 
 #### Chapter 5: Converters

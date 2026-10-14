@@ -37,7 +37,7 @@ Response routing does five things:
 
 ## 2.8.2 Block Diagram
 
-### Figure 2.8: Response Routing Architecture
+### Figure 2.9: Response Routing Architecture
 
 ![Response Routing Architecture](../assets/graphviz/response_routing.png)
 
@@ -74,30 +74,20 @@ end
 
 ### BID Extraction
 
-> **Not built.** Nothing is extracted from the BID. IDs pass through the bridge
-> untouched at equal width, and the return path is chosen by the POSITION of a
-> per-slave in-order FIFO holding a sideband master id. The returned BID/RID is
-> never consulted -- which is exactly why a slave that reorders between IDs
-> misroutes here (bridge BUG-008, was BRIDGE-010).
-
-For ID-based routing, Bridge ID is extracted from response:
+The master is not chosen by decoding the prefix bits of the returned ID.
+With more than one master the slave-side ID is `{BRIDGE_ID, id}` (bridge
+TASK-005), but the crossbar steers B / R by the master index the slave
+adapter's tracker returns beside the response (`bid_bridge_id` /
+`rid_bridge_id`). For a CAM-tracked slave that index is looked up BY the
+returned BID/RID; for a FIFO-tracked slave it is the FIFO head. The master
+adapter then strips the prefix:
 
 ```systemverilog
-// Extract Bridge ID from response ID
-logic [TOTAL_RID_WIDTH-1:0] slave_rid;     // From slave
-logic [BID_WIDTH-1:0] extracted_bid;       // Master index
-logic [RID_WIDTH-1:0] external_rid;        // To master
+// bridge_2x2_rw_xbar.sv: B toward cpu (master index 0)
+((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0) | ...
 
-// Upper bits = Bridge ID, lower bits = original ID
-assign extracted_bid = slave_rid[TOTAL_RID_WIDTH-1:RID_WIDTH];
-assign external_rid = slave_rid[RID_WIDTH-1:0];
-
-// Route response based on BID (combined with slave select tracking above)
-logic [NUM_MASTERS-1:0] master_rvalid;
-always_comb begin
-    master_rvalid = '0;  // Default: no master selected
-    master_rvalid[extracted_bid] = slave_rvalid && (r_slave_select == current_slave);
-end
+// cpu_adapter.sv: return the master's own ID bits
+fub_axi_bid = cpu_32b_b.id[3:0];
 ```
 
 ### CAM-Based Extraction

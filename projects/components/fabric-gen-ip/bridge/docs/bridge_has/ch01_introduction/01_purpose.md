@@ -37,7 +37,7 @@
 
 1. Writing 5 separate channel multiplexers (AW, W, B, AR, R)
 2. Implementing per-slave arbitration for each channel
-3. Routing responses by in-order bridge_id FIFO position (out-of-order is not supported)
+3. Routing responses back to the issuing master, including slaves that complete different IDs out of order
 4. Handling burst locking and interleaving constraints
 5. Inserting width converters for data width mismatches
 6. Inserting protocol converters for mixed systems — APB/APB5, AXI4-Lite/AXI5-Lite, AXI3, or Wishbone B4 peripherals behind an AXI4 fabric (and vice versa)

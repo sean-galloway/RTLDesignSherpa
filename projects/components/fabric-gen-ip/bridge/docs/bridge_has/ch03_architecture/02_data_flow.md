@@ -67,71 +67,88 @@ Each AXI4 channel operates independently:
 - Different masters can access different slaves in parallel
 - Same slave serializes access via arbitration
 
-## Bridge ID (there is no ID extension)
+## Bridge ID and ID Widening
 
 ### Bridge ID (BID) Concept
 
 ```
-Original Master ID: [ID_WIDTH-1:0]
-AXI ID on the slave port: the master's original ID, unmodified
-BID Width: clog2(NUM_MASTERS)
+Master ID:                 [MASTER_ID_WIDTH-1:0]
+Bridge ID (master index):  BRIDGE_ID_WIDTH = clog2(NUM_MASTERS)
+AXI ID on a slave port:    {BRIDGE_ID, master ID}, XBAR_ID_WIDTH bits
 ```
 
-### IDs are pass-through, not extended
+### IDs are widened inside the fabric
 
-The generated RTL does **not** widen or prepend anything. A master's ID reaches
-the slave unchanged, and the slave port is declared at the same width:
+With more than one master, each master adapter prepends its index to every
+request ID (bridge TASK-005), so two masters can never alias an ID at a
+slave. In `bridge_2x2_rw`:
 
 ```systemverilog
-input  logic [3:0]  cpu_axi4_awid     // master side
-output logic [3:0]  ddr_s_axi_awid    // slave side -- same width
+input  logic [3:0]  cpu_m_axi_awid     // master side: 4 bits
+output logic [4:0]  ddr_s_axi_awid     // slave side: {BRIDGE_ID, id} = 5 bits
 ```
 
-The slave-side ID is `{master index, master id}` (bridge TASK-005, was BRIDGE-016): the widest master's id_width plus `$clog2(NUM_MASTERS)` bits, so masters never alias at a slave and an `enable_ooo` slave can track by ID across them. For one master the prefix is empty and the slave sees the master's width unchanged.
-
-Earlier revisions of this page described a bridge-ID-prepend scheme, with
-`4'b0101` becoming `6'b00_0101` and the upper bits extracted on the response.
-That design was never built. It is documented here only because the mechanism
-that replaced it has a consequence worth understanding.
+The slave-side width is the widest master's `id_width` plus
+`$clog2(NUM_MASTERS)` bits (`XBAR_ID_WIDTH` in `<bridge>_pkg.sv`); a slave
+declared narrower is rejected by the config validator. A single-master
+bridge prepends nothing. On B and R the master adapter returns only the low
+master-ID bits, so a master always sees its own ID.
 
 ## Response Routing
 
-Each slave adapter keeps an **in-order FIFO** of the originating master's
-`bridge_id`: pushed on the address handshake, popped on the response.
+The prefix bits are not decoded to route a response. Each slave adapter
+also receives the granted master's index as a sideband (`bridge_id`),
+stores it at the address handshake, and returns it with the response
+(`bid_bridge_id` / `rid_bridge_id`); the crossbar's B and R muxes select
+on that. Which store a slave gets is fixed at generation:
+
+| Slave | Tracker | Order the slave may complete in |
+|---|---|---|
+| AXI4 / AXI5 slave, more than one master | `bridge_cam` (`u_wr_cam` / `u_rd_cam`), tag = AXI ID, data = `bridge_id`, 16 deep | any order across IDs |
+| any slave with `enable_ooo = true` | `bridge_cam` | any order across IDs |
+| single-master bridge, apb / axil / wb shim slaves, internal subtractive slave | in-order `bridge_id` FIFO, 16 deep | request order across all IDs |
 
 ```systemverilog
+// CAM form (multi-master AXI4 slave)
+bridge_cam #(.TAG_WIDTH(ID_WIDTH), .DATA_WIDTH(BRIDGE_ID_WIDTH),
+             .DEPTH(16), .ALLOW_DUPLICATES(1)) u_wr_cam (
+    .allocate_tag  (xbar_ddr_axi_awid),   .allocate_data  (xbar_bridge_id_aw),
+    .deallocate_tag(xbar_ddr_axi_bid),    .deallocate_data(bid_bridge_id), ...);
+
+// FIFO form
 wr_fifo[wr_ptr[...]] <= xbar_bridge_id_aw;      // push on AW accept
-assign bid_bridge_id  = wr_fifo[rd_ptr[...]];   // route by FIFO HEAD
+assign bid_bridge_id  = wr_fifo[rd_ptr[...]];   // route by FIFO head
 ```
 
 ### B Channel (Write Response)
 
-1. Slave issues B carrying the master's own (unmodified) ID
-2. The slave adapter pops its `bridge_id` FIFO
-3. That FIFO entry -- **not** anything in the BID -- selects the master
-4. The B beat is forwarded unchanged
+1. Slave issues B carrying the fabric ID it was sent
+2. The slave adapter looks the BID up in its CAM (or pops its FIFO)
+3. The returned `bridge_id` selects the master
+4. The master adapter strips the prefix and forwards B
 
 ### R Channel (Read Data)
 
-1. Slave issues R carrying the master's own (unmodified) ID
-2. The slave adapter's read FIFO selects the master, popped on RLAST
-3. RLAST indicates the final beat
+1. Slave issues R carrying the fabric ID
+2. The slave adapter's read tracker names the master; the entry is freed on RLAST
+3. The master adapter strips the prefix
 
-### The requirement this creates
+Either tracker holds 16 transactions; when it is full the slave's
+AWREADY / ARREADY toward the crossbar drops (bridge BUG-009).
 
-Because routing is keyed on FIFO *position* rather than on the returned ID,
-**each slave port must return B/R in request order across ALL IDs.** AXI4
-permits a slave to complete different-ID transactions out of order, and a
-multi-ported memory controller normally does; nothing in the fabric detects
-or prevents it. Two masters with writes outstanding at one slave are enough to
-expose it -- the response goes to the wrong master, carrying an ID that master
-never issued. Tracked as bridge BUG-008 (was BRIDGE-010).
+### The requirement the FIFO form creates
+
+A FIFO-tracked slave is routed by *position*, so it must return B/R in
+request order across ALL IDs. Those slaves are in order by construction
+(the protocol shims and the subtractive slave) or have a single master;
+a simulation-only check flags a violation (bridge BUG-008, was BRIDGE-010).
+A multi-master AXI4/AXI5 slave has no such requirement: the CAM routes by
+ID.
 
 ## Ordering: what the fabric actually guarantees
 
-**Out-of-order completion is not supported.** There are no ID tracking tables;
-`bridge_cam.sv` exists in the tree but is instantiated in zero generated
-bridges. Ordering is enforced structurally instead, in two places:
+Per-ID ordering is the slave's AXI obligation; across IDs a CAM-tracked
+slave may complete in any order. The fabric adds one structural rule:
 
 **Per master -- one target at a time.** A master may not have transactions
 outstanding to more than one slave simultaneously. `aw_gate_ok`/`ar_gate_ok`
@@ -141,8 +158,8 @@ order, slaves respond in their own order, and cross-slave outstanding
 transactions from several masters can wedge the heads against each other.
 Same-slave pipelining is unaffected.
 
-**Per slave -- responses must come back in order.** See "The requirement this
-creates" above, and bridge BUG-008 (was BRIDGE-010).
+**Per FIFO-tracked slave -- responses must come back in order.** See "The
+requirement the FIFO form creates" above.
 
 The sequence an earlier revision of this page offered as a worked example --
 master 0 issuing to slave 0 and slave 1 concurrently, then the fast slave

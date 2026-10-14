@@ -25,51 +25,39 @@
 
 ## Overview
 
-**This chapter describes a design that was NEVER BUILT.**
+`bridge_cam` (`rtl/bridge_cam.sv`, hand-written) is the response tracker in
+every slave adapter that has to route by ID: an AXI4/AXI5 slave of a bridge
+with more than one master, or any slave with `enable_ooo = true`
+(`SlaveAdapterGenerator.use_cam`). Each such adapter instantiates two,
+`u_wr_cam` and `u_rd_cam`. Single-master bridges, protocol-shim slaves and
+the internal subtractive slave use an in-order FIFO instead (see
+[ID Tracking](02_id_tracking.md)).
 
-> **What the generated bridge actually does.** There is no CAM, no ID table and
-> no ID injection. `bridge_cam.sv` exists in the tree and is instantiated in
-> **zero** generated bridges. AXI IDs pass through UNTOUCHED and at equal width
-> -- `cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in `bridge_2x2_rw`,
-> with nothing prepended and nothing stripped.
->
-> The originating master travels as a SIDEBAND signal (`xbar_bridge_id_aw` /
-> `xbar_bridge_id_ar`) beside the transaction. Each slave adapter pushes it
-> into an in-order FIFO on the address handshake, pops it on the response, and
-> routes the response by FIFO POSITION -- never by the returned BID/RID.
->
-> Two consequences follow, and both are tracked:
-> * each slave port REQUIRES responses in request order across all IDs; a slave
->   that reorders between IDs misroutes here (bridge BUG-008 (was BRIDGE-010), now detected by a
->   simulation-only check that compares the returned BID/RID against the FIFO
->   head);
-> * the FIFO is fixed-depth, so the address handshake is gated on it being
->   not-full (bridge BUG-009, was BRIDGE-011).
->
-> Out-of-order response routing is therefore NOT supported and NOT implemented.
->
-> ---
->
-> **Everything below this line describes a design that was never built.** It is
-> retained because the mechanism that replaced it is easy to mistake for it.
-
-The CAM existed to make out-of-order response routing possible: it would record which master owns each outstanding transaction ID, so a single lookup answers the routing question in one shot. Here's what was on the whiteboard.
+> An earlier revision of this chapter said the CAM was never built, that it
+> was instantiated in zero bridges, and that IDs passed through at equal
+> width. Since bridge TASK-005 the master adapter widens IDs to
+> `{BRIDGE_ID, id}` (`cpu_m_axi_awid` 4 bits, `ddr_s_axi_awid` 5 bits in
+> `bridge_2x2_rw`) and multi-master AXI4/AXI5 slaves are tracked here. The
+> sizing formula and the block-RAM sequential search below were never built
+> and are marked as such.
 
 ## Functional Description
 
-### What the CAM Was Meant to Do
+### What the CAM Does
 
-**Transaction tracking.** The CAM stores:
+**Transaction tracking.** Each entry stores:
 
-- Transaction ID (key)
-- Originating master index (value)
-- Transaction metadata (optional)
+- the fabric transaction ID `{BRIDGE_ID, id}` (tag, `TAG_WIDTH = ID_WIDTH`)
+- the originating master index (`DATA_WIDTH = BRIDGE_ID_WIDTH`)
+- an ordering count, so one ID may be outstanding more than once
 
 **Response routing.** When a response arrives:
 
-1. Extract transaction ID from response
-2. CAM lookup returns originating master
-3. Route response to correct master
+1. The returned BID / RID is the deallocate tag
+2. `deallocate_data` returns the originating master index, in the same cycle
+3. The crossbar steers the B / R beat by that index (`bid_bridge_id` / `rid_bridge_id`)
+
+The slave may therefore complete different IDs in any order.
 
 ### Figure 4.1: CAM Entry Format
 
@@ -77,53 +65,48 @@ The CAM existed to make out-of-order response routing possible: it would record 
 
 ### CAM Sizing
 
-Depth scales with total outstanding transactions; width scales with everything the entry has to hold:
+As generated, every CAM is 16 entries deep regardless of master count:
 
 ```
-CAM Depth = MAX_OUTSTANDING × NUM_MASTERS
-CAM Width = TOTAL_ID_WIDTH + BID_WIDTH + METADATA_WIDTH
+bridge_cam #(.TAG_WIDTH(ID_WIDTH),          // XBAR_ID_WIDTH, 5 in bridge_2x2_rw
+             .DATA_WIDTH(BRIDGE_ID_WIDTH),  // 1 in bridge_2x2_rw
+             .DEPTH(16),
+             .ALLOW_DUPLICATES(1),
+             .PIPELINE_EVICT(0))
 ```
 
-### Example Configuration
+The formula once proposed here (`DEPTH = MAX_OUTSTANDING x NUM_MASTERS`,
+with a metadata field in each entry) was never built; there is no
+`max_outstanding` key and no metadata field.
 
-```
-4 masters, 4-bit external ID, max 16 outstanding per master:
-  BID_WIDTH = clog2(4) = 2
-  TOTAL_ID_WIDTH = 4 + 2 = 6
-  CAM Depth = 16 × 4 = 64 entries
-  CAM Width = 6 + 2 + 8 = 16 bits
-```
+### Insertion (AW / AR Acceptance)
 
-### Insertion (AR/AW Acceptance)
-
-On the AR handshake, the CAM writes the key (`{bid, arid}`) against the value (`master_idx`):
+On the crossbar-side address handshake the slave adapter allocates the
+fabric ID against the granted master's index (from the generated
+`ddr_adapter.sv`):
 
 ```systemverilog
-// On AR handshake
-if (arvalid && arready) begin
-    cam_write_en <= 1'b1;
-    cam_write_id <= {bid, arid};  // Key
-    cam_write_master <= master_idx;  // Value
-end
+.allocate     (xbar_ddr_axi_awvalid && xbar_ddr_axi_awready),
+.allocate_tag (xbar_ddr_axi_awid),     // {BRIDGE_ID, id}
+.allocate_data(xbar_bridge_id_aw),     // master index sideband
 ```
 
-### Lookup (R/B Response)
+### Lookup and Deletion (B / last R)
 
-When a response comes back from the slave, the lookup is one shot. A miss means the response belongs to no outstanding transaction — that's an error, full stop.
+Lookup and deletion are one operation: the response handshake deallocates
+by the returned ID and returns the stored master index combinationally
+(`PIPELINE_EVICT = 0`):
 
 ```systemverilog
-// On R response from slave
-logic [BID_WIDTH-1:0] response_master;
-logic cam_hit;
-
-cam_lookup(slave_rid, response_master, cam_hit);
-
-if (cam_hit) begin
-    route_response_to(response_master);
-end else begin
-    // Error: Unknown transaction
-end
+// write side: every B; read side: the R beat with RLAST
+.deallocate     (xbar_ddr_axi_bvalid && xbar_ddr_axi_bready),
+.deallocate_tag (xbar_ddr_axi_bid),
+.deallocate_valid(bid_valid),          // tag found
+.deallocate_data(bid_bridge_id),       // routes B in the crossbar
 ```
+
+A response whose ID is not in the CAM leaves `deallocate_valid` low and
+routes nowhere; it means the slave returned an ID it was never sent.
 
 ### Duplicate IDs: the Ordering Counter (Mode 2)
 
@@ -146,80 +129,33 @@ retires the survivors step down by one. Two consequences shape the logic:
 An allocate and a same-tag retire in one cycle take `k - 1`, because the
 survivors step down in that same cycle (MAS 2.3).
 
-### Deletion (Response Complete)
+### Implementation
 
-Entries free up when the transaction completes — the last R beat, or the B beat:
-
-```systemverilog
-// On RLAST or B response
-if ((rvalid && rready && rlast) || (bvalid && bready)) begin
-    cam_delete_en <= 1'b1;
-    cam_delete_id <= response_id;
-end
-```
-
-### Implementation Options
-
-Two ways to build it, picked by depth.
-
-#### Distributed RAM CAM
-
-For small outstanding counts (< 16 entries), a parallel comparator array does the lookup combinationally — every entry compared at once, logic cost scaling with depth:
+Only one form exists: a parallel comparator array in distributed RAM and
+flops (no block RAM), every entry compared at once:
 
 ```systemverilog
-// Parallel comparator-based CAM
-logic [DEPTH-1:0] valid;
-logic [ID_WIDTH-1:0] id_table [DEPTH];
-logic [BID_WIDTH-1:0] master_table [DEPTH];
-
-// Parallel compare for lookup
-logic [DEPTH-1:0] match;
-for (genvar i = 0; i < DEPTH; i++) begin
-    assign match[i] = valid[i] && (id_table[i] == lookup_id);
-end
+// bridge_cam.sv (simplified): one match vector per lookup port
+w_evict_matches[i] = r_valid[i] && (r_tag_array[i] == deallocate_tag);
+w_entry_matches[i] = r_valid[i] && (r_tag_array[i] == allocate_tag);
 ```
 
-#### Block RAM CAM
+The block-RAM sequential-search variant that an earlier revision proposed
+for deeper tables was never built.
 
-For larger outstanding counts (> 16 entries), the parallel approach gets expensive, so the design falls back to a sequential search — one entry per cycle until a match or the end of the table:
+### CAM Full
+
+The CAM never overflows; it backpressures first. Its `tags_full` masks the
+slave adapter's ready toward the crossbar (bridge BUG-009, was BRIDGE-011):
 
 ```systemverilog
-// Sequential search CAM (saves logic)
-logic [$clog2(DEPTH)-1:0] search_idx;
-logic searching;
-
-always_ff @(posedge clk) begin
-    if (start_lookup) begin
-        searching <= 1'b1;
-        search_idx <= 0;
-    end else if (searching) begin
-        if (match_found || search_idx == DEPTH-1)
-            searching <= 1'b0;
-        else
-            search_idx <= search_idx + 1;
-    end
-end
+assign xbar_ddr_axi_awready = w_sub_awready && !wr_trk_full;  // wr_trk_full = u_wr_cam.tags_full
 ```
 
-### CAM Overflow Handling
-
-**Prevention.** The CAM never overflows because it backpressures first:
-
-```systemverilog
-// Backpressure when CAM full
-assign ar_ready = !cam_full && downstream_ready;
-assign aw_ready = !cam_full && downstream_ready;
-```
-
-**Error response.** If CAM overflow would occur:
-
-1. Assert backpressure (ARREADY/AWREADY = 0)
-2. Wait for responses to free entries
-3. Never drop transactions
-
-Worth repeating: none of this exists. The generated bridge gates the address handshake on the tracking FIFO being not-full instead (bridge BUG-009, was BRIDGE-011), and it routes responses strictly in order.
+The address phase waits until a B or last R frees an entry. Nothing is
+dropped and no error response is generated.
 
 ## Related Modules
 
-- [ID Tracking](02_id_tracking.md) - ID table implementation
-- [Response Routing](../ch02_blocks/08_response_routing.md) - Using CAM for routing
+- [ID Tracking](02_id_tracking.md) - which slaves use the CAM and which use the in-order FIFO
+- [Response Routing](../ch02_blocks/08_response_routing.md) - how the crossbar uses the returned master index
