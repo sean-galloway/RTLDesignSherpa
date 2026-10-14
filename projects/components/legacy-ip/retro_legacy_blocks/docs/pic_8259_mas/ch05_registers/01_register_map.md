@@ -163,11 +163,13 @@ here returns the SLAVE's vector and forwards the acknowledge down. Covered by
 `dv/tests/test_pic_8259_cascade.py` (RLB/pic_8259 TASK-001).
 
 **Master mode:**
+
 | Bits | Description |
 |------|-------------|
 | 7:0 | Bitmap of IR lines that have a slave attached (1 = slave present) |
 
 **Slave mode:**
+
 | Bits | Description |
 |------|-------------|
 | 2:0 | Slave ID (cascade input number 0-7) |

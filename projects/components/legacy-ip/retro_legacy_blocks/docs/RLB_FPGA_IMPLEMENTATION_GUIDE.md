@@ -173,40 +173,7 @@ All RLB modules are **100% compatible** with Nexys A7 and Genesys2 FPGAs.
 
 ### Typical FPGA System Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ FPGA Top Level (Nexys A7 or Genesys 2)                 │
-│                                                          │
-│  ┌──────────────┐          ┌──────────────┐            │
-│  │ Soft CPU     │          │ DDR2/3       │            │
-│  │ (MicroBlaze/ │◄────────►│ Controller   │◄───► DRAM │
-│  │  RISC-V)     │   AXI    │              │            │
-│  └──────┬───────┘          └──────────────┘            │
-│         │ APB                                            │
-│         ▼                                                │
-│  ┌──────────────────────────────────────┐              │
-│  │ APB Crossbar (apbx_xbar)              │              │
-│  └──┬───┬───┬───┬───┬───┬───┬──────────┘              │
-│     │   │   │   │   │   │   │                           │
-│   ┌─▼─┐ │   │   │   │   │   │   [More peripherals]     │
-│   │HPT│ │   │   │   │   │   │                           │
-│   │ ET│ │   │   │   │   │   │                           │
-│   └─┬─┘ │   │   │   │   │   │                           │
-│     │IRQ│   │   │   │   │   │                           │
-│  ┌──▼───▼───▼───▼───▼───▼───▼──────┐                   │
-│  │ IOAPIC or PIC_8259               │                   │
-│  │ (Interrupt Aggregation)          │                   │
-│  └──────────┬────────────────────────┘                   │
-│            IRQ                                            │
-│             └──────────► CPU Interrupt                    │
-│                                                           │
-│  External Connections:                                    │
-│  ├─ GPIO ◄───► PMOD ports, switches, LEDs               │
-│  ├─ UART ◄───► USB-UART bridge                          │
-│  ├─ SMBus ◄──► I2C sensors, EEPROMs                     │
-│  └─ PM_ACPI ◄► Power management signals                  │
-└───────────────────────────────────────────────────────────┘
-```
+![RLB on an FPGA, illustrative](shared_assets/graphviz/rlb_fpga_system.png)
 
 ### Example Use Cases on FPGAs
 

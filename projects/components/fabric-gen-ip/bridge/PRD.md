@@ -336,40 +336,7 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 
 ### 2.2 Block Diagram
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                          BRIDGE AXI4 CROSSBAR                        │
-└──────────────────────────────────────────────────────────────────────┘
-
-Masters (M)                                                    Slaves (S)
-┌─────────┐                                                   ┌─────────┐
-│ Master 0│ ─AW──┐                                      ┌─AW──│ Slave 0 │
-│  (CPU)  │ ─W───┤                                      ├─W───│ (DDR)   │
-│         │ ─B───┤                                      ├─B───│         │
-│         │ ─AR──┤                                      ├─AR──│         │
-│         │ ─R───┤                                      ├─R───│         │
-└─────────┘      │                                      │     └─────────┘
-                 │                                      │
-┌─────────┐      │   ┌──────────────────────────┐      │     ┌─────────┐
-│ Master 1│ ─────┼───│  Request Generation      │──────┼─────│ Slave 1 │
-│  (GPU)  │      │   │  (Address Range Decode)  │      │     │ (SRAM)  │
-└─────────┘      │   └──────────────────────────┘      │     └─────────┘
-                 │             │                        │
-┌─────────┐      │   ┌──────────────────────────┐      │     ┌─────────┐
-│ Master 2│ ─────┼───│  Arbitration Matrix      │──────┼─────│ Slave 2 │
-│  (DMA)  │      │   │  (AW + AR arbiters       │      │     │ (PCIE)  │
-└─────────┘      │   │   per slave: AW,W,B,AR,R)│      │     └─────────┘
-                 │   └──────────────────────────┘      │
-┌─────────┐      │             │                        │     ┌─────────┐
-│ Master 3│ ─────┴───│  Data/Addr Multiplexing  │──────┴─────│ Slave 3 │
-│ (Accel) │          │  (bridge_id routing)     │            │ (Periph)│
-└─────────┘          └──────────────────────────┘            └─────────┘
-                               │
-                     ┌──────────────────────────┐
-                     │  Transaction Tracking    │
-                     │  (in-order bridge_id FIFO)│
-                     └──────────────────────────┘
-```
+![Bridge block diagram (from the bridge HAS)](docs/bridge_has/assets/graphviz/bridge_block_diagram.png)
 
 ### 2.3 Key Components
 

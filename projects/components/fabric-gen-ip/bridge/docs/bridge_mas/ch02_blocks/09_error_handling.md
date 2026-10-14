@@ -406,23 +406,20 @@ the watchdog belongs outside the bridge.
 > nearest real thing is the subtractive slave's `o_hit_irq` / `o_hit_addr` /
 > `o_hit_count`, which are module PORTS, not a memory-mapped register.
 
-```
-Error Status Register (Read/Clear):
-┌──────┬──────────────────────────────────────┐
-│ Bits │ Description                          │
-├──────┼──────────────────────────────────────┤
-│ 0    │ OOR Read Error                       │
-│ 1    │ OOR Write Error                      │
-│ 2    │ Protocol Violation                   │
-│ 3    │ Timeout Error                        │
-│ 4    │ bridge_id FIFO overflow (gated off)  │
-│ 5    │ Slave Error (SLVERR received)        │
-│ 6    │ Decode Error (DECERR received)       │
-│ 7    │ ID Match Error                       │
-│15:8  │ Reserved                             │
-│31:16 │ Error Count (saturating)             │
-└──────┴──────────────────────────────────────┘
-```
+The register as originally proposed (read/clear), kept for reference:
+
+| Bits | Description |
+|------|-------------|
+| 0 | OOR Read Error |
+| 1 | OOR Write Error |
+| 2 | Protocol Violation |
+| 3 | Timeout Error |
+| 4 | bridge_id FIFO overflow (gated off) |
+| 5 | Slave Error (SLVERR received) |
+| 6 | Decode Error (DECERR received) |
+| 7 | ID Match Error |
+| 15:8 | Reserved |
+| 31:16 | Error Count (saturating) |
 
 ### Error History Buffer
 

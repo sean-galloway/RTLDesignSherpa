@@ -73,15 +73,16 @@ is no dedicated "reject pulses < 4 clocks" glitch filter.
 #### Frame Reception
 
 ```mermaid
-flowchart LR
-    A["IDLE"] --> B["START"]
-    B --> C["DATA[0..n]"]
-    C --> D["PARITY"]
-    D --> E["STOP"]
-    E --> A
-    C -->|"Shift data"| F["Data Shift Register"]
-    D -->|"Check parity"| G["Parity Checker"]
-    E -->|"Check framing"| H["Frame Checker"]
+stateDiagram-v2
+    [*] --> RX_IDLE
+    RX_IDLE --> RX_START: line low, no break being held off
+    RX_START --> RX_DATA: start bit still low at mid-bit
+    RX_START --> RX_IDLE: false start
+    RX_DATA --> RX_DATA: shift the next data bit
+    RX_DATA --> RX_PARITY: last data bit, parity enabled
+    RX_DATA --> RX_STOP: last data bit, parity disabled
+    RX_PARITY --> RX_STOP: parity checked
+    RX_STOP --> RX_IDLE: framing checked, character to the RX FIFO
 ```
 
 ### RX FIFO

@@ -1,0 +1,15 @@
+// UART RTS/CTS hardware flow control (ch03_interfaces/03_modem.md). Replaces
+// an ASCII sketch. House style: vault/handbook/authoring/block-diagrams.md
+// (one blue unit, the far end a white port). Port names from
+// rtl/uart_16550/apb4_uart_16550.sv: uart_tx, uart_rx, rts_n, cts_n.
+digraph uart_rts_cts {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.3", ranksep="2.4", splines=polyline, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="RTS/CTS flow control between this UART and the far end"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    uart [label="apb4_uart_16550", height=1.6];
+    far  [label="Far-end UART\n/ transceiver", fillcolor="white", height=1.6];
+    uart -> far [penwidth=1.8, label="uart_tx  (TXD)"];
+    uart -> far [dir=back, penwidth=1.8, label="uart_rx  (RXD)"];
+    uart -> far [label="rts_n: ready to receive"];
+    uart -> far [dir=back, label="cts_n: far end ready"];
+}

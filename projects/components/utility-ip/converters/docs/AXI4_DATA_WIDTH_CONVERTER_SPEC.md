@@ -300,29 +300,9 @@ module axi4_dwidth_converter #(
 
 ### High-Level Block Diagram
 
-```
-Upsize Mode (32-bit → 128-bit example):
+![axi4_dwidth_converter write path (from the converter MAS)](converter_mas/assets/graphviz/axi4_dwidth_converter_wr.png)
 
-Slave AXI (32-bit)                                Master AXI (128-bit)
-┌────────────────┐                               ┌────────────────┐
-│   s_axi_aw*    │──> AW FIFO ──> AW Converter ──>│   m_axi_aw*    │
-│   s_axi_w*     │──> W Accumulator ──────────────>│   m_axi_w*     │
-│   s_axi_b*     │<── B Pass-through ─────────────<│   m_axi_b*     │
-│   s_axi_ar*    │──> AR FIFO ──> AR Converter ──>│   m_axi_ar*    │
-│   s_axi_r*     │<── R Splitter ─────────────────<│   m_axi_r*     │
-└────────────────┘                               └────────────────┘
-
-Downsize Mode (128-bit → 32-bit example):
-
-Slave AXI (128-bit)                              Master AXI (32-bit)
-┌────────────────┐                               ┌────────────────┐
-│   s_axi_aw*    │──> AW Modifier ───────────────>│   m_axi_aw*    │
-│   s_axi_w*     │──> W Splitter ─────────────────>│   m_axi_w*     │
-│   s_axi_b*     │<── B Collector ────────────────<│   m_axi_b*     │
-│   s_axi_ar*    │──> AR Modifier ───────────────>│   m_axi_ar*    │
-│   s_axi_r*     │<── R Accumulator ──────────────<│   m_axi_r*     │
-└────────────────┘                               └────────────────┘
-```
+![axi4_dwidth_converter read path (from the converter MAS)](converter_mas/assets/graphviz/axi4_dwidth_converter_rd.png)
 
 ### Internal Components
 

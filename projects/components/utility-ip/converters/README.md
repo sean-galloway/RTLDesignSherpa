@@ -86,50 +86,19 @@ Converters Component
 ### Data Flow Examples
 
 **Write Path Downsize (512→128 bits):**
-```
-┌────────────────────────────────────────────────────┐
-│ Slave Interface (512-bit)                          │
-│   ┌──────────┐                                     │
-│   │ AW       │ ← 1 address                         │
-│   │ W        │ ← 1 wide beat (512-bit + 64-bit WSTRB)
-│   │ B        │ → 1 response                        │
-│   └──────────┘                                     │
-│       ↓                                            │
-│   ┌──────────────────┐                             │
-│   │ axi_data_dnsize  │                             │
-│   │  512→128 split   │                             │
-│   └──────────────────┘                             │
-│       ↓                                            │
-│   ┌──────────┐                                     │
-│   │ Master Interface (128-bit)                     │
-│   │ AW       │ → 1 address                         │
-│   │ W        │ → 4 narrow beats (128-bit + 16-bit WSTRB each)
-│   │ B        │ ← 1 response                        │
-│   └──────────┘                                     │
-└────────────────────────────────────────────────────┘
-```
+
+One 512-bit write (1 AW, 1 wide W beat with a 64-bit WSTRB, 1 B) leaves
+`axi_data_dnsize` as 1 AW and 4 narrow W beats of 128 bits (16-bit WSTRB each),
+with the single B passed back.
+
+![axi_data_dnsize (from the converter MAS)](docs/converter_mas/assets/graphviz/axi_data_dnsize.png)
 
 **Read Path Upsize (128→512 bits):**
-```
-┌────────────────────────────────────────────────────┐
-│ Master Interface (512-bit)                         │
-│   ┌──────────┐                                     │
-│   │ AR       │ → 1 address                         │
-│   │ R        │ ← 1 wide beat (512-bit + 2-bit RRESP)
-│   └──────────┘                                     │
-│       ↑                                            │
-│   ┌──────────────────┐                             │
-│   │ axi_data_upsize  │ (TRACK_BURSTS=1)            │
-│   │  128→512 accum   │                             │
-│   └──────────────────┘                             │
-│       ↑                                            │
-│   ┌──────────┐                                     │
-│   │ Slave Interface (128-bit)                      │
-│   │ AR       │ ← 1 address                         │
-│   │ R        │ → 4 narrow beats (128-bit + 2-bit RRESP each)
-│   └──────────┘                                     │
-└────────────────────────────────────────────────────┘
-```
+
+With `TRACK_BURSTS=1`, `axi_data_upsize` accumulates 4 narrow 128-bit R beats
+into the 1 wide 512-bit R beat the 512-bit master asked for with its single AR.
+
+![axi_data_upsize (from the converter MAS)](docs/converter_mas/assets/graphviz/axi_data_upsize.png)
 
 ---
 

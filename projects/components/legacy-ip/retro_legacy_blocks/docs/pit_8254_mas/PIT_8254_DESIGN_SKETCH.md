@@ -46,26 +46,7 @@ The APB 8254 PIT provides a production-quality implementation of the 8254 Progra
 
 ### 1.1 High-Level Block Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                          APB_PIT_8254                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                   │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
-│  │  APB Slave   │────▶│ Config Regs  │────▶│  PIT Core    │    │
-│  │  (Optional   │     │ (PeakRDL)    │     │              │    │
-│  │   CDC)       │     │              │     │ - Counter 0  │    │
-│  └──────────────┘     └──────────────┘     │ - Counter 1  │    │
-│                                             │ - Counter 2  │    │
-│       APB Clock Domain                      │              │    │
-│                                             └──────────────┘    │
-│                                                    │             │
-│                       PIT Clock Domain       Gate[2:0]          │
-│                                              Out[2:0]           │
-│                                              (Interrupts/       │
-│                                               Square Waves)     │
-└─────────────────────────────────────────────────────────────────┘
-```
+![APB PIT 8254 whole unit (from the PIT MAS)](assets/graphviz/pit_8254_whole_unit.png)
 
 **Follows HPET Pattern:**
 - APB Slave + Config Regs + Core (3-layer architecture)

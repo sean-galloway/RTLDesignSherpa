@@ -74,12 +74,14 @@ module apb4_pit_8254 #(
 ### Signal Groups
 
 **APB Clock and Reset:**
+
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `pclk` | Input | 1 | APB bus clock. All APB signals are synchronous to this clock. |
 | `presetn` | Input | 1 | APB reset, active-low. Asynchronous assertion, synchronous deassertion (generated register file is the exception -- it resets synchronously; see ch01 clocks). |
 
 **APB Interface Signals:**
+
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `s_apb_PADDR` | Input | 12 | APB address. All 12 bits are compared against the seven mapped registers; anything else is dropped with PSLVERR. See Address Map below. |
@@ -94,12 +96,14 @@ module apb4_pit_8254 #(
 | `s_apb_PSLVERR` | Output | 1 | APB slave error. Asserted for any access whose address is not one of the seven mapped registers: the write is ignored, the read returns 0, and the transfer completes with PSLVERR high. Mapped accesses never error. |
 
 **PIT Clock and Reset:**
+
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `pit_clk` | Input | 1 | Timer clock. Used when `CDC_ENABLE=1` for independent timer clock domain. Ignored when `CDC_ENABLE=0`. |
 | `pit_resetn` | Input | 1 | Timer reset, active-low. Used when `CDC_ENABLE=1`. Should be synchronous to `pit_clk`. Ignored when `CDC_ENABLE=0`. |
 
 **Counter Control and Status:**
+
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `gate_in[2:0]` | Input | 3 | GATE inputs for counters 0, 1, 2, active high. In Mode 0 a low GATE pauses the count where it stands and a high GATE resumes it from that value -- no reload, no restart -- as on the 8254. A load is unaffected by GATE. The pins are treated as asynchronous in both clocking configurations and pass a `SYNC_STAGES`-flop synchronizer (default 2) on the counting clock, so a transition takes effect `SYNC_STAGES` counting clocks after the pin moves. No external synchronizer is needed. |

@@ -87,12 +87,10 @@ as a full 16-bit load. (This replaced the write-triggered, sticky latch
 of issue #52 on 2026-09-09.)
 
 **Control Word Format (8254-Compatible):**
-```
-    7    6    5    4    3    2    1    0
-┌────┬────┬────┬────┬────┬────┬────┬────┐
-│ SC │ SC │ RW │ RW │ M  │ M  │ M  │BCD │
-└────┴────┴────┴────┴────┴────┴────┴────┘
-```
+
+| Bit | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+|-----|---|---|---|---|---|---|---|---|
+| Field | SC | SC | RW | RW | M | M | M | BCD |
 
 **Programming Example:**
 ```c
@@ -119,12 +117,10 @@ write_register(PIT_CONTROL, control_word);  // Write 0x30
 | [7:0] | COUNTER0_STATUS | Counter 0 status byte |
 
 **Status Byte Format (per counter):**
-```
-    7       6       5    4       3    2    1       0
-┌───────┬───────┬────┬────┬────┬────┬────┬────────┐
-│  OUT  │ NULL  │ RW │ RW │ M  │ M  │ M  │  BCD   │
-└───────┴───────┴────┴────┴────┴────┴────┴────────┘
-```
+
+| Bit | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+|-----|---|---|---|---|---|---|---|---|
+| Field | OUT | NULL | RW | RW | M | M | M | BCD |
 
 | Bit | Name | Description |
 |-----|------|-------------|

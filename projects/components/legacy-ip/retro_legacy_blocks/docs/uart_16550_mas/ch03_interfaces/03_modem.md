@@ -102,17 +102,9 @@ rather than reading MSR a second time.
 
 #### RTS/CTS Flow Control
 
-```
-TX Device                    RX Device
-    |                            |
-    |-------- TXD ------------->|
-    |                            |
-    |<------- CTS_N ------------|
-    |                            |
-    |-------- RTS_N ----------->|
-    |                            |
-    |<------- RXD --------------|
-```
+### Figure 3.2: RTS/CTS Flow Control Connections
+
+![RTS/CTS Flow Control Connections](../assets/graphviz/uart_rts_cts.png)
 
 With AFE clear, RTS/CTS flow control is handled in software:
 1. Software asserts MCR.RTS when ready to receive

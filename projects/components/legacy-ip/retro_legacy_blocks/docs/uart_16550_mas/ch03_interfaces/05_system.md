@@ -100,7 +100,7 @@ Baud Rate = pclk / (16 * Divisor)
 
 ### Reset Sequence
 
-### Figure 3.2: Reset Sequence
+### Figure 3.3: Reset Sequence
 
 ![Reset Sequence](../assets/graphviz/uart_reset_sequence.png)
 
@@ -133,17 +133,9 @@ wake-on-activity path.
 
 #### Typical System
 
-```
-         +------------+
-pclk --->|            |---> uart_tx ---> RS-232
-presetn->|   UART     |<--- uart_rx <--- Transceiver
-uart_clk/uart_rstn -> core domain when CDC_ENABLE=1 (see ch01 clocks)
-         |   16550    |
-APB <===>|            |<--> Modem signals
-         |            |---> irq    ---> Interrupt
-         +------------+      |          Controller
-                             v
-```
+### Figure 3.4: UART 16550 in a System
+
+![UART 16550 in a System](../assets/graphviz/uart_system_context.png)
 
 #### Direct Connection (TTL)
 

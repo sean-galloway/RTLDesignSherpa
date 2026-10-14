@@ -95,22 +95,7 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 - 12 test cases per configuration (gate/func/full)
 
 **Architecture:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        APB HPET                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────┐     ┌──────────────┐    ┌──────────────┐ │
-│  │  APB Slave   │────▶│ Config Regs  │───▶│  HPET Core   │ │
-│  │  (Optional   │     │ (PeakRDL)    │    │              │ │
-│  │   CDC)       │     │              │    │ - Counter    │ │
-│  └──────────────┘     └──────────────┘    │ - Timers[N]  │ │
-│                                            │ - Comparators│ │
-│                                            └──────────────┘ │
-│                                                    │         │
-│                                            Timer IRQs [N:0]  │
-└────────────────────────────────────────────────────────────┘
-```
+![APB HPET whole unit (from the HPET MAS)](docs/hpet_mas/assets/graphviz/hpet_whole_unit.png)
 
 **Design Highlights:**
 - Reset macro standardization (FPGA-friendly)
@@ -446,25 +431,7 @@ apb4_hpet #(
 **Goal:** Create top-level wrapper combining multiple legacy blocks into unified retro-compatible subsystem.
 
 **System Architecture:**
-```
-                    ┌─────────────────────────────────────────┐
-                    │         RLB Wrapper                      │
-                    │  (Single APB Slave Entry Point)         │
-                    └──────────────┬──────────────────────────┘
-                                   │
-                    ┌──────────────▼──────────────────┐
-                    │     APB Decoder/Bridge           │
-                    │  (Address decode + routing)      │
-                    └──────────────┬──────────────────┘
-                                   │
-        ┌──────────────────────────┴──────────────────────────┐
-        │                                                       │
-        ▼                 ▼              ▼              ▼      ▼
-    ┌──────┐         ┌──────┐       ┌──────┐      ┌──────┐  ┌──────┐
-    │ HPET │         │ 8259 │       │ 8254 │      │ RTC  │  │ ...  │
-    │ 4KB  │         │ 4KB  │       │ 4KB  │      │ 4KB  │  │      │
-    └──────┘         └──────┘       └──────┘      └──────┘  └──────┘
-```
+![rlb_top whole unit (from the RLB top MAS)](docs/rlb_top_mas/assets/graphviz/rlb_top_whole_unit.png)
 
 **Address Map:**
 

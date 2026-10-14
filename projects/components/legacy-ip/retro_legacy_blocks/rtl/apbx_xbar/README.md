@@ -29,17 +29,11 @@ This directory contains the APB crossbar specifically designed for retro PC lega
 
 ### Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│ apbx_xbar_legacy_1to8 (Named Port Wrapper)           │
-│                                                      │
-│  Master APB ─────► apbx_xbar_1to8 ───────► Named     │
-│  (m_apb_*)         (Generated)           Slaves     │
-│                    (Registered)          (hpet_apb_*│
-│                                           ioapic_*  │
-│                                           etc.)     │
-└─────────────────────────────────────────────────────┘
-```
+![rlb_top whole unit, with the apbx_xbar_1to10 crossbar (from the RLB top MAS)](../../docs/rlb_top_mas/assets/graphviz/rlb_top_whole_unit.png)
+
+> **Current RTL:** the crossbar here is `apbx_xbar_1to10.sv` (ten 4 KB windows,
+> registered). The `apbx_xbar_1to8` / `apbx_xbar_legacy_1to8` pair described below
+> no longer exists; this README predates the change.
 
 The implementation uses the official APB crossbar generator:
 - **apbx_xbar_1to8.sv** - Generated using `generate_xbars.py` from `projects/components/fabric-gen-ip/lattice-apbx-xbar/bin/`

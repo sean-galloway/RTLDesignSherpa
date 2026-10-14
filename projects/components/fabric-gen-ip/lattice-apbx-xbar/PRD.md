@@ -88,42 +88,7 @@ The **Lattice** is a parametric generator for configurable MxN APB interconnect 
 
 ### 3.1 Top-Level Block Diagram
 
-```
-Lattice (M masters × N slaves)
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                  │
-│  Master-Side (APB slaves)                                        │
-│  ┌──────────────┐  ┌──────────────┐       ┌──────────────┐     │
-│  │ apb4_slave[0] │  │ apb4_slave[1] │  ...  │ apb4_slave[M-1]│     │
-│  │ (Master 0)   │  │ (Master 1)   │       │ (Master M-1)  │     │
-│  └──────┬───────┘  └──────┬───────┘       └──────┬────────┘     │
-│         │                  │                      │              │
-│         └──────────────────┴──────────────────────┘              │
-│                            │                                     │
-│                     cmd/rsp buses                                │
-│                            │                                     │
-│         ┌──────────────────┴──────────────────────┐              │
-│         │                                          │              │
-│  ┌──────▼──────┐  ┌──────────────┐  ┌────────────▼──┐          │
-│  │ Address     │  │ Arbitration  │  │ Response       │          │
-│  │ Decode      │  │ per Slave    │  │ Routing        │          │
-│  │ (parallel)  │  │ (round-robin)│  │(combinational) │          │
-│  └──────┬──────┘  └──────┬───────┘  └────────┬───────┘          │
-│         │                 │                   │                  │
-│         └─────────────────┴───────────────────┘                  │
-│                            │                                     │
-│                     cmd/rsp buses                                │
-│                            │                                     │
-│         ┌──────────────────┴──────────────────────┐              │
-│         │                  │                      │              │
-│  ┌──────▼───────┐  ┌──────▼───────┐       ┌──────▼────────┐    │
-│  │ apb4_master[0]│  │ apb4_master[1]│  ...  │ apb4_master[N-1]│    │
-│  │ (Slave 0)    │  │ (Slave 1)    │       │ (Slave N-1)    │    │
-│  └──────────────┘  └──────────────┘       └───────────────┘    │
-│                                                                  │
-│  Slave-Side (APB masters)                                        │
-└──────────────────────────────────────────────────────────────────┘
-```
+![Lattice block diagram (from the lattice HAS)](docs/lattice_has/assets/graphviz/lattice_block_diagram.png)
 
 ![Lattice Architecture (2x4 Example)](docs/lattice_mas/assets/graphviz/apbx_xbar_architecture.png)
 *Figure: Lattice top-level architecture showing 2 masters connected to 4 slaves. [Source: docs/lattice_mas/assets/graphviz/apbx_xbar_architecture.dot](docs/lattice_mas/assets/graphviz/apbx_xbar_architecture.dot)*

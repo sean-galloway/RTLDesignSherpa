@@ -1,0 +1,22 @@
+// UART typical system connections (ch03_interfaces/05_system.md). Replaces an
+// ASCII sketch. House style: vault/handbook/authoring/block-diagrams.md (system
+// figure: white neighbours around one blue unit, edges labeled by protocol).
+// Ports from rtl/uart_16550/apb4_uart_16550.sv.
+digraph uart_system_context {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.5", ranksep="0.7", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="UART 16550 in a system"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    host [label="APB Requester\npclk, presetn", fillcolor="white"];
+    clk  [label="uart_clk, uart_rstn\ncore domain when CDC_ENABLE=1", fillcolor="white", style="filled,dashed"];
+    uart [label="apb4_uart_16550", width=3];
+    xcvr [label="RS-232 Transceiver\n(or TTL-level link)", fillcolor="white"];
+    modem [label="Modem Signals\noutputs: rts_n dtr_n out1_n out2_n\ninputs: cts_n dsr_n ri_n dcd_n", fillcolor="white"];
+    ic   [label="Interrupt Controller", fillcolor="white"];
+    host -> uart [dir=both, xlabel="APB"];
+    clk  -> uart [style=dashed];
+    uart -> xcvr [dir=both, xlabel="uart_tx / uart_rx"];
+    uart -> modem [dir=both];
+    uart -> ic   [xlabel="irq"];
+    { rank=same; host; clk; }
+    { rank=same; xcvr; modem; ic; }
+}

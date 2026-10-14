@@ -83,12 +83,14 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 ### HPET Core Interface (to hpet_core.sv)
 
 **Global Configuration:**
+
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **hpet_enable** | logic | 1 | Output | Global HPET enable (from HPET_CONFIG[0]) |
 | **legacy_replacement** | logic | 1 | Output | LegacyReplacement Route enable (from HPET_CONFIG[1]); `hpet_core` routes timer 0 to `legacy_irq0` and timer 1 to `legacy_irq8` and suppresses both on `timer_irq` |
 
 **Counter Interface:**
+
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **counter_write_lo** | logic | 1 | Output | One-cycle strobe: HPET_COUNTER_LO was written |
@@ -97,6 +99,7 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 | **counter_rdata** | logic | 64 | Input | Live counter value (from hpet_core) |
 
 **Per-Timer Configuration:**
+
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **timer_int_enable[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer interrupt enable (from TIMER_CONFIG[2]). The ONLY per-timer enable the spec defines -- there is no per-timer RUN enable |
@@ -105,6 +108,7 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 | **timer_value_set[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | From TIMER_CONFIG[6]. Currently unconsumed: the wire dead-ends at the top level (hpet_core has no such input), so the bit stores and reads back with no hardware effect |
 
 **Per-Timer Comparator (Dedicated Buses):**
+
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **timer_comp_write_lo[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer one-cycle strobe: TIMER_COMPARATOR_LO written |
@@ -112,6 +116,7 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 | **timer_comp_wdata[NUM_TIMERS]** | logic [63:0] | NUM_TIMERS×64 | Output | Per-timer comparator data (LO/HI combined) |
 
 **Interrupt Status:**
+
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **timer_int_status[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer sticky status (from hpet_core; mirrored into HPET_STATUS) |

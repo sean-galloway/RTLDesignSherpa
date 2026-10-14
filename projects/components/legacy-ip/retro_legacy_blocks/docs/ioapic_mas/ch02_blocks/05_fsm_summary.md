@@ -132,24 +132,20 @@ accept and back to 0 on `eoi_in && eoi_vector == r_delivered_vector[i]`.
 ### Edge vs Level Interrupt Paths
 
 **Edge-Triggered Interrupt:**
-```
-IRQ asserts -> rising edge of the polarity-adjusted level -> r_irq_pending set ->
-arbitration selects it -> stage loads -> irq_out_valid ->
-CPU accepts -> pending cleared (same cycle; a coincident new edge sets instead) -> done
-```
+1. The IRQ asserts; the rising edge of the polarity-adjusted level sets `r_irq_pending`.
+2. Arbitration selects it, the stage loads, and `irq_out_valid` rises.
+3. The CPU accepts; pending clears in the same cycle (a coincident new edge sets it instead). Done.
 **Time:** 3 sync cycles + 1 edge-detect cycle + 1 load cycle to `irq_out_valid`; the delivery retires on the first cycle the CPU holds `irq_out_ready`.
 
 **Polarity:** flipping an RTE's polarity bit inverts the active level, which would read as a rising edge - so the edge detector for that pin is suppressed for one cycle after the bit changes, and the flip itself never latches a pending interrupt. Software may change polarity on an idle pin without a spurious delivery.
 
 **Level-Triggered Interrupt:**
-```
-IRQ asserts -> synchronized level is the request (no latch, gated by Remote IRR) ->
-arbitration selects it -> stage loads -> irq_out_valid ->
-CPU accepts -> Remote IRR set, delivered vector latched, stage free ->
-(other pins deliver meanwhile) ->
-EOI with the delivered vector -> Remote IRR cleared ->
-if the level is still asserted, it re-requests the next cycle and is delivered again, once
-```
+1. The IRQ asserts; the synchronized level is the request (no latch, gated by Remote IRR).
+2. Arbitration selects it, the stage loads, and `irq_out_valid` rises.
+3. The CPU accepts: Remote IRR sets, the delivered vector is latched, and the stage is free.
+   Other pins deliver meanwhile.
+4. An EOI with the delivered vector clears Remote IRR.
+5. If the level is still asserted, it re-requests the next cycle and is delivered again, once.
 **Time:** Same as edge to the accept; the pin then waits for the ISR and its EOI, but the block does not.
 
 ### Arbitration Logic
@@ -231,16 +227,17 @@ This prevents a level interrupt from re-triggering while it is being serviced, a
 6. Process repeats until nothing is eligible
 
 **Example Timeline:**
-```
-Cycle 0:   IRQ3 (level), IRQ5 (edge), IRQ7 (level) all become eligible
-Cycle 1:   Stage loads IRQ3
-Cycle 2:   CPU accepts IRQ3 -> Remote IRR[3] set; stage loads IRQ5 the same cycle
-Cycle 3:   CPU accepts IRQ5 -> pending[5] cleared; stage loads IRQ7
-Cycle 4:   CPU accepts IRQ7 -> Remote IRR[7] set; stage empty
-...
-Cycle N:   EOI(vector of IRQ7) -> Remote IRR[7] clears; IRQ3 still in service, unaffected
-Cycle N+1: IRQ7 re-requests if its level is still asserted
-```
+
+| Cycle | Event |
+|-------|-------|
+| 0 | IRQ3 (level), IRQ5 (edge) and IRQ7 (level) all become eligible |
+| 1 | The stage loads IRQ3 |
+| 2 | The CPU accepts IRQ3: Remote IRR[3] sets; the stage loads IRQ5 in the same cycle |
+| 3 | The CPU accepts IRQ5: pending[5] clears; the stage loads IRQ7 |
+| 4 | The CPU accepts IRQ7: Remote IRR[7] sets; the stage is empty |
+| ... | |
+| N | EOI (vector of IRQ7): Remote IRR[7] clears; IRQ3 is still in service, unaffected |
+| N+1 | IRQ7 re-requests if its level is still asserted |
 
 **Fairness:** with static priority, lower numbered IRQs starve higher ones if they keep requesting, and a low-numbered level pin that is EOI'd promptly can hold the stage indefinitely. That is the 82093AA scheme and it is the reset default.
 

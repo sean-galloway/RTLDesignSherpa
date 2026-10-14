@@ -122,6 +122,7 @@ end
 ```
 
 **Reset Values:**
+
 | Register | Reset Value | Description |
 |----------|-------------|-------------|
 | `HPET_CONFIG` | 32'h0 | Global disable, no legacy mapping |
@@ -162,6 +163,7 @@ end
 ```
 
 **Reset Values:**
+
 | Signal | Reset Value | Description |
 |--------|-------------|-------------|
 | `r_main_counter` | 64'h0 | Counter starts at zero |

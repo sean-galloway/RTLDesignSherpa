@@ -80,12 +80,17 @@ TXD  |0| D0 D1 D2 D3 D4 [D5 D6 D7] [P] |1|1|
 ### State Machine
 
 ```mermaid
-flowchart TD
-    A["IDLE"] -->|"FIFO not empty"| B["START<br/>(1 bit)"]
-    B --> C["DATA<br/>(5-8 bits)"]
-    C --> D["PARITY<br/>(0/1 bit, if enabled)"]
-    D --> E["STOP<br/>(1, 1.5 or 2 bits)"]
-    E --> A
+stateDiagram-v2
+    [*] --> TX_IDLE
+    TX_IDLE --> TX_START: FIFO not empty, and CTS allows (when AFE)
+    TX_START --> TX_DATA: 1 bit time
+    TX_DATA --> TX_DATA: next of 5 to 8 data bits
+    TX_DATA --> TX_PARITY: last data bit, parity enabled
+    TX_DATA --> TX_STOP1: last data bit, parity disabled
+    TX_PARITY --> TX_STOP1
+    TX_STOP1 --> TX_STOP2: stop_bits set (1.5 or 2 stop bits)
+    TX_STOP1 --> TX_IDLE: one stop bit
+    TX_STOP2 --> TX_IDLE
 ```
 
 ### Flow Control

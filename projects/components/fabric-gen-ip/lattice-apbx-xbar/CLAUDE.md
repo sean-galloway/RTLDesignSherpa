@@ -160,26 +160,7 @@ projects/components/fabric-gen-ip/lattice-apbx-xbar/
 
 ### Block Diagram (2×4 Example)
 
-```
-           Master 0      Master 1
-               │             │
-               ▼             ▼
-         ┌─────────────────────┐
-         │  APB Slaves (M-side) │
-         └──────────┬────────────┘
-                    │
-         ┌──────────┴────────────┐
-         │ Address Decode        │
-         │ + Arbitration         │
-         │ + Response Routing    │
-         └──────────┬────────────┘
-                    │
-         ┌──────────┴────────────┐
-         │  APB Masters (S-side) │
-         └──────┬────────┬───────┘
-                │        │   (more)
-           Slave 0   Slave 1 ... Slave 3
-```
+![Lattice block diagram (from the lattice HAS)](docs/lattice_has/assets/graphviz/lattice_block_diagram.png)
 
 ---
 
