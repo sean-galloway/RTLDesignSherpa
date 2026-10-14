@@ -284,6 +284,9 @@ Start a new diagram from them, not from a blank file:
   invisible order chain. Otherwise dot swaps the lanes.
 - **Run PDF builds one at a time.** Parallel `md_to_docx` / LibreOffice
   builds collide: one fails, or its TOC update is skipped.
+- **A label-size change can also trigger the graphviz 2.43 `maze.c
+  chkSgraph` assertion.** Shortening the label fixed it when nudging
+  `nodesep` did not. A labeled same-rank edge next to clusters also crashed.
 - **Shorten node labels before fighting the aspect ratio.** Long third lines
   widened every column and pushed the drawing past 2.5:1.
 
@@ -714,6 +717,28 @@ not have. A figure drawn from the RTL is a check on the prose around it.
 - **Captions must be `### Figure N.M:` headings** (or the book's existing
   encoded form). An italic `*Figure 1:*` line never reaches the List of
   Figures.
+
+### FPGA-system books (2026-10-13)
+
+- **A bench figure:**
+  - Host programs and Vivado are white ports on top, then the USB chip, the
+    FPGA stack down the center, and the board's parts as the bar.
+  - DDR crossings at the bar split into write, command and read, as in the
+    reference.
+- **A characterization harness:** the harness memory models (stand-ins for
+  system memory) are the bar under the DUT's AXI masters.
+- **Process flows** (measurement path, program path, sequence runner):
+  - Use the decision-tree vocabulary, with each step boxed as "N. Step
+    (where it runs)".
+  - The heavy center column carries the steps, and the per-point loop
+    climbs the right edge dashed.
+  - Traps and "why" notes are dashed white notes attached to their step.
+- **A build-variant fan-out:** the source is a white box on top and the
+  knobs go in a Parameters legend. Each arrow is labeled with the knob
+  settings that make that build.
+- **N alternative CDC paths** sit side by side in one rank between the two
+  domain regions, fanning into a plain-box register-driven select.
+- **A timeline sketched in graphviz is a waveform.** Convert it to WaveDrom.
 
 ### Decision trees
 
