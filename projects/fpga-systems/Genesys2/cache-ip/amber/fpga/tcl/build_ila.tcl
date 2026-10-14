@@ -77,6 +77,30 @@ foreach n $marked {
     lappend grp($base) $n
 }
 
+# Post-synth debug marks on the read-path terms RTL taps cannot reach
+# (generated-bridge internals). Wildcard-anchored; a miss only shrinks
+# visibility, so warn and continue -- the wedge layer is already proven.
+foreach pat {"*rd_trk_full*" "*w_sub_arready*" "*ar_trk_full*" \
+             "*i_ar_channel*ready*" "*i_ar_channel*valid*" \
+             "*u_harness_csr_axil_converter_rd*s_axi_arready*"} {
+    set ns [get_nets -quiet -hier -filter "NAME =~ $pat"]
+    if {[llength $ns] == 0} { puts "NOTE: post-synth pattern found no nets: $pat" }
+    foreach n $ns {
+        if {![get_property MARK_DEBUG [get_nets $n] -quiet] eq "true"} {
+            set_property MARK_DEBUG true [get_nets $n]
+        }
+        puts "  post-synth marked: $n"
+    }
+}
+set marked [get_nets -hier -filter {MARK_DEBUG}]
+foreach n $marked {
+    set base [lindex [split $n /] end]
+    set base [lindex [split $base .] end]
+    if {[regexp {^(.+)\[(\d+)\]$} $base -> b bit]} { set base $b }
+    if {![info exists grp($base)]} { set grp($base) {} }
+    lappend grp($base) $n
+}
+
 # Golden-reference probe order (matches golden_probes.vcd column order; the
 # harness-level taps keep their RTL names -- s0_r*/ci0_*/ci1_* -- which the
 # golden aliases map onto: s0_rvalid==sla_rvalid, ci0_req_valid==ci0_req_v, ...).
@@ -88,7 +112,15 @@ set order {host_arvalid host_arready host_rvalid host_rready host_rdata \
            ci1_req_valid ci1_req_ready ci1_rsp_valid ci1_rsp_ready \
            ci1_done ci1_busy ci1_err \
            ub_state ub_rx_valid ub_fub_arv ub_fub_arr ub_m_arv ub_m_arr \
-           ub_fub_rv ub_fub_rr}
+           ub_fub_rv ub_fub_rr r_ar_done}
+
+# Then any extra post-synth marks (adapter-internal read path), sorted.
+set extra [lsort [array names grp]]
+foreach b $order {
+    set i [lsearch $extra $b]
+    if {$i >= 0} { set extra [lreplace $extra $i $i] }
+}
+set order [concat $order $extra]
 
 set depth 4096
 create_debug_core u_ila_0 ila

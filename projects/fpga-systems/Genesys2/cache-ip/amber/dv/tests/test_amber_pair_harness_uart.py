@@ -200,8 +200,10 @@ def test_amber_pair_harness_uart(request, test_level):
         # Verilator compiles trace support in via waves=True but the dump is
         # only written when the sim binary gets the runtime switch; the
         # runner forwards plus_args to the binary argv (sim_args is ignored).
-        plus_args=["--trace", "--trace-file",
-                   os.path.join(sim_build, "dump.fst")],
+        plus_args=(["--trace", "--trace-file",
+                    os.path.join(sim_build, "dump.fst")] +
+                   (["+verilator+rand+reset+2"]
+                    if os.environ.get("AMBER_RAND_RESET") else [])),
         keep_files=True,
         compile_args=compile_args,
     )

@@ -1411,7 +1411,7 @@ module amber_harness_csr (
     )
 
     // Read path: capture AR address so the mux stays stable after handshake.
-    logic        r_ar_done;
+    `AMBER_DBG_NET logic        r_ar_done;
     logic [31:0] r_araddr;
     logic [31:0] r_rdata;
     assign s_axil_arready = ~r_ar_done;
