@@ -45,7 +45,7 @@ by comparing the root count to the locator degree.
 
 ### Figure 2.3: Chien search block diagram
 
-![Chien search block diagram](../assets/mermaid/bch_chien_search.png)
+![Chien search block diagram](../assets/graphviz/bch_chien_search.png)
 
 ## Parameters
 
@@ -108,17 +108,20 @@ degree, degree within `T_BITS`) and `w_release_passthrough` (uncorrectable
 and frame-err blocks pass through unchanged, R2). There is no error-value
 computation anywhere; every root means flip.
 
-### Uncorrectability check
+### Root count (the verdict lives in the decoder core)
 
-The block tracks the root count across the `N_BITS` positions:
+The block keeps a running root count, `r_root_count`, and presents
+`out_root_count = r_root_count + roots in this beat` on every beat; on the
+last beat it is the block's total. The block makes no verdict of its own.
+`bch_decoder_core` compares the count with the locator degree it captured
+from the solver:
 
 ```
-w_correctable = (r_root_count == r_lambda_degree) && (r_lambda_degree <= T_BITS)
+correctable = !more_than_t && (root_count == lambda_degree) && recheck_zero
 ```
 
-If the root count differs from the degree, or if the degree exceeds `T_BITS`,
-the block is uncorrectable. The final `w_correctable` value is captured on the
-last position and passed to the decoder core as the block verdict.
+The `in_lambda_degree` port is declared but not read inside this block; the
+decoder core uses its own registered copy of the degree.
 
 ## FSM policy
 

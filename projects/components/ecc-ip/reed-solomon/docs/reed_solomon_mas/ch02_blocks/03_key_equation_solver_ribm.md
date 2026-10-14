@@ -46,7 +46,7 @@ critical path is one GF multiply and one XOR, independent of `t`.
 
 ### Figure 2.3: riBM solver block diagram
 
-![riBM solver block diagram](../assets/mermaid/rs_ribm_solver.png)
+![riBM solver block diagram](../assets/graphviz/rs_ribm_solver.png)
 
 ## Parameters
 

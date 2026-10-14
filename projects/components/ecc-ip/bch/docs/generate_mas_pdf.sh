@@ -162,7 +162,7 @@ python3 "${MD2DOCX}" \
   --mathfont "Noto Serif" \
   --assets-dir "${ASSETS}" \
   --assets-dir "${ASSETS}/images" \
-  --assets-dir "${ASSETS}/mermaid" \
+  --assets-dir "${ASSETS}/graphviz" \
  
 
 

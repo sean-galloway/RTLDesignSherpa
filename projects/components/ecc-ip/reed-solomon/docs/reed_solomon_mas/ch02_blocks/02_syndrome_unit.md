@@ -48,7 +48,7 @@ symbol.
 
 ### Figure 2.2: Syndrome unit block diagram
 
-![Syndrome unit block diagram](../assets/mermaid/rs_syndrome_unit.png)
+![Syndrome unit block diagram](../assets/graphviz/rs_syndrome_unit.png)
 
 ## Parameters
 

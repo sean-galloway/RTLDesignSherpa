@@ -44,11 +44,12 @@ corrupts, not several repackings later.
 
 ### Figure 2.1: Where the codec sits
 
-![Where the codec sits](../assets/mermaid/rs_system_context.png)
+![Where the codec sits](../assets/graphviz/rs_system_context.png)
 
 Three endpoint shapes: a memory controller with an encoder on its write path
 and a decoder on its read path; a serial link pair with the scrambler on the
-line side; and the standalone memory-to-memory job engine built from the
+line side (`ENABLE_SCRAMBLER`, PRD D12, is planned and not in the RTL
+yet, so the figure draws it dashed); and the standalone memory-to-memory job engine built from the
 AXI4 adapters.
 
 ## The core inside a consumer

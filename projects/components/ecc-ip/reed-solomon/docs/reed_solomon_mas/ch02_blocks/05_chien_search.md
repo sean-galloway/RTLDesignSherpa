@@ -44,7 +44,7 @@ is the signal-level implementation.
 
 ### Figure 2.5: Chien search block diagram
 
-![Chien search block diagram](../assets/mermaid/rs_chien_search.png)
+![Chien search block diagram](../assets/graphviz/rs_chien_search.png)
 
 ## Parameters
 

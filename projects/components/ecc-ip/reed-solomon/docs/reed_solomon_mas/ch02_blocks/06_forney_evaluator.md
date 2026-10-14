@@ -42,7 +42,7 @@ is the signal-level implementation.
 
 ### Figure 2.6: Forney evaluator block diagram
 
-![Forney evaluator block diagram](../assets/mermaid/rs_forney_evaluator.png)
+![Forney evaluator block diagram](../assets/graphviz/rs_forney_evaluator.png)
 
 ## Parameters
 

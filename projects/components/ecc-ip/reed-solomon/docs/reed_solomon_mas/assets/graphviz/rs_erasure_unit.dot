@@ -1,0 +1,53 @@
+// rs_erasure_unit - MAS Figure 2.7.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Two halves on one top-down flow. Half A (receive) turns the per-lane
+// erasure flags into locations and files them; the packed record leaves
+// the unit and rides the decoder core's A->B descriptor (white box, not
+// in this module) back in as i_ab. Half B (solve) builds Gamma and
+// Gamma*S (TRANS), hands the solver its window, and combines the
+// solver's Lambda_e back in (COMB). The solver is outside this module
+// too (white box). The decoder core's stage-B FSM sequences TRANS and
+// COMB through dashed start/done sideband.
+// Source of truth: rtl/fub/rs_erasure_unit.sv.
+digraph rs_erasure_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="rs_erasure_unit - erasure record (stage A) and erasure transform / combine (stage B), on aclk";
+
+    rx    [label="Received Beat (stage A)\ni_rx_fire, i_rx_first, i_rx_count,\ni_rx_erasure[S-1:0] (per-lane flags)", fillcolor="white", group=C];
+    seq   [label="Stage-B Sequencer (rs_decoder_core)\ni_trans_start / o_trans_done\ni_comb_start / o_comb_done", fillcolor="white", group=L];
+
+    xpow  [label="Location Generator\nrunning power r_xbase: alpha^(n-1) on the first beat,\nx alpha^(-count) per beat (gf_mul_const - u_adv);\nlane u: x alpha^(-u) (gf_mul_const - u_lane)", group=C];
+    xfile [label="Erasure File + Count (flops)\nr_xfile[0 .. 2t]: flagged X in arrival order\n(rank within the beat picks the entry)\nf counter, saturating at 2t+1 -> f_over", group=C];
+    ab    [label="A->B Descriptor\n(in rs_decoder_core: o_ab out, i_ab back)", fillcolor="white", group=C];
+    trans [label="TRANS (f cycles, flops)\nGamma(x) = prod (1 + X_p x)\nGS = Gamma * S mod x^2t (gf_mul - u_gs)", group=C];
+    win   [label="Solver Window (combinational)\nRIBM: T = GS >> f   |   EUCLID: x^f * T\nt_zero: high cells all zero -> skip the solver", group=C];
+    kes   [label="Key-Equation Solver\n(in rs_decoder_core, outside this unit)", fillcolor="white", group=C];
+    comb  [label="COMB (deg_e + 1 cycles, flops)\nLambda_c = Gamma * Lambda_e\nOmega_c = Lambda_e * GS mod x^2t\ndeg_c = deg_e + f (clamped at 2t+1)", group=C];
+    synd  [label="Syndromes\ni_synd (from the descriptor)", fillcolor="white", group=R];
+
+    bar   [label="Outputs (to the Chien / Forney walk)\no_lambda_c   |   o_omega_c   |   o_deg_c   |   o_f, o_f_over, o_t_zero",
+           fillcolor="white", width=8.0];
+
+    rx    -> xpow  [xlabel="flags, count"];
+    xpow  -> xfile [xlabel="X per flagged lane"];
+    xfile -> ab    [xlabel="o_ab {over, f, X file}"];
+    ab    -> trans [xlabel="i_ab"];
+    synd  -> trans [xlabel="S_0 .. S_2t-1"];
+    trans -> win   [xlabel="Gamma, GS"];
+    win   -> kes   [xlabel="o_kes_synd (window), f"];
+    kes   -> comb  [xlabel="i_lambda_e, i_deg_e"];
+    comb  -> bar   [xlabel="combined locator,\nevaluator, degree", penwidth=1.8];
+
+    seq   -> trans [style=dashed, xlabel="start / done"];
+    seq   -> comb  [style=dashed, xlabel="start / done"];
+
+    { rank=same; rx; seq; }
+    { rank=same; ab; synd; }
+    seq -> rx [style=invis];
+    ab -> synd [style=invis];
+}

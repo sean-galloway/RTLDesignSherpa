@@ -1,0 +1,60 @@
+// bch_system_context - where the BCH codec sits (HAS Figure 2.1).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Three endpoint shapes, one dashed region each. In every shape the
+// encoder sits on the way DOWN into the channel (left column) and the
+// decoder on the way back UP out of it (right column): the reference's
+// spatial loop. The one boundary bar is the channel that corrupts.
+// Source of truth: rtl/macro/bch_{encoder,decoder}_core.sv and
+// rtl/top/bch_{encoder,decoder}_axi4.sv.
+digraph bch_system_context {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="Binary BCH codec - three endpoint placements (encode on the way in, decode on the way out)";
+
+    subgraph cluster_mc {
+        label="Memory controller (flash / DRAM endpoint)"; style=dashed; fontsize=10;
+        mc_wr  [label="Write Path\npage data\n(k bits / block)", fillcolor="white", group=A];
+        mc_rd  [label="Read Path\nk bits +\nverdict", fillcolor="white", group=B];
+        mc_enc [label="Encode\nbch_encoder_\ncore", group=A];
+        mc_dec [label="Decode +\nCorrect\nbch_decoder_\ncore", group=B];
+    }
+    subgraph cluster_tc {
+        label="Telecommand link (endpoint pair)"; style=dashed; fontsize=10;
+        tc_fr  [label="CLTU Framer\n(TX side)", fillcolor="white", group=C];
+        tc_df  [label="CLTU Deframer\n(RX side)", fillcolor="white", group=D];
+        tc_enc [label="Encode\nbch_encoder_\ncore", group=C];
+        tc_dec [label="Decode +\nCorrect\nbch_decoder_\ncore", group=D];
+    }
+    subgraph cluster_sa {
+        label="Standalone memory-to-memory job (AXI4 / AXI4)"; style=dashed; fontsize=10;
+        sa_cfg [label="Job Port\ncfg_start, src / dst\naddress, block count\n-> cfg_done", fillcolor="white", group=E];
+        sa_top [label="Job Engine\nbch_encoder_axi4 or\nbch_decoder_axi4\n(rs_axi4_read_engine,\ncore, rs_axi4_write_engine)", group=E];
+    }
+
+    bar [label="The channel that corrupts\nflash / DRAM array   |   RF link (TX PHY -> RX PHY)   |   AXI4 memory",
+         fillcolor="white", width=10.2];
+
+    // ---- memory controller loop ----
+    mc_wr  -> mc_enc [minlen=2, xlabel="k data bits"];
+    mc_enc -> bar    [minlen=3, xlabel="Write to medium\n(n-bit codeword)"];
+    mc_dec -> bar    [minlen=3, dir=back, xlabel="Read from\nmedium (n bits)"];
+    mc_rd  -> mc_dec [dir=back, xlabel="k bits + verdict"];
+
+    // ---- telecommand loop ----
+    tc_fr  -> tc_enc [minlen=2, xlabel="k data bits"];
+    tc_enc -> bar    [minlen=3, xlabel="Transmit\n(n-bit codeword)"];
+    tc_dec -> bar    [minlen=3, dir=back, xlabel="Receive\n(n bits)"];
+    tc_df  -> tc_dec [dir=back, xlabel="k bits + verdict"];
+
+    // ---- standalone job ----
+    sa_cfg -> sa_top [minlen=2, xlabel="job"];
+    sa_top -> bar    [minlen=3, dir=both, xlabel="AXI4 read source /\nAXI4 write result"];
+
+    { rank=same; mc_wr; mc_rd; tc_fr; tc_df; sa_cfg; }
+    { rank=same; mc_enc; mc_dec; tc_enc; tc_dec; sa_top; }
+    mc_wr -> mc_rd -> tc_fr -> tc_df -> sa_cfg [style=invis];
+}

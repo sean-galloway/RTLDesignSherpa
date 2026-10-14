@@ -1,0 +1,46 @@
+// bch_syndrome_unit - MAS Figure 2.2.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// One flow: received bits down the center through the bit embed into the
+// t Horner cells (one counted box, the "N identical stages" ruling), then
+// the zero detect, then the output bar. The bit counter is a control
+// column on the left: it restarts the cells on a block's first beat and
+// raises out_valid at the N_BITS-th bit. i_clear is dashed sideband.
+// Source of truth: rtl/fub/bch_syndrome_unit.sv.
+digraph bch_syndrome_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="bch_syndrome_unit - t odd syndromes, B received bits per beat (on aclk)";
+
+    in    [label="Received Beat\nin_valid / in_ready, in_data[B-1:0],\nin_keep (low-aligned)", fillcolor="white", group=C];
+    clr   [label="Framing Abort\ni_clear (from bch_decoder_core)", fillcolor="white", group=L];
+
+    cnt   [label="Bit Counter (flops)\nr_bit_count += keep count\ndone at N_BITS: r_out_valid = 1\nin_ready = !r_out_valid or out_ready", group=L];
+    emb   [label="Bit Embed + Keep Count (combinational)\nbit u -> GF element {0...0, bit}\nkeep count = popcount(in_keep)", group=C];
+    cells [label="T_BITS x Syndrome Cell\ngf_syndrome_cell - g_lane[j].u_cell\nS_j <- S_j * alpha^j + r, keep-count steps\nper beat (flop); root j from bch_pkg", group=C];
+    zero  [label="Zero Detect (combinational)\nout_no_error = (all S_j == 0)", group=C];
+
+    bar   [label="Outputs\nout_valid / out_ready   |   out_syndromes {S_2t-1 .. S_3, S_1}   |   out_no_error",
+           fillcolor="white", width=7.5];
+
+    // ---- main flow ----
+    in    -> emb   [xlabel="received bits"];
+    emb   -> cells [xlabel="B GF symbols\n+ keep count"];
+    cells -> zero  [xlabel="t syndromes"];
+    zero  -> bar   [xlabel="syndromes,\nno-error flag", penwidth=1.8];
+
+    // ---- control ----
+    clr   -> cnt   [style=dashed, xlabel="clear: count = 0,\ndrop out_valid"];
+    in    -> cnt   [style=dashed, constraint=false, xlabel="keep, fire"];
+    cnt   -> cells [style=dashed, xlabel="first beat: restart"];
+    cnt   -> bar   [xlabel="out_valid"];
+
+    { rank=same; in; clr; }
+    sp [label="", width=1.3, style=invis];
+    { rank=same; cells; cnt; sp; }
+    cnt -> sp -> cells [style=invis];
+    clr -> in [style=invis];
+}

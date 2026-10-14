@@ -1,0 +1,56 @@
+// rs_chien_search - MAS Figure 2.5 (chien_search).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// One flow: Lambda comes in at the top, is scaled to position 0 by the
+// load multipliers, and sits in the t+1 cell registers. Each i_step the
+// step multipliers move every cell S positions on; that feedback climbs
+// the right edge. The cells feed S lane evaluations, which give the
+// root flag and the odd-index sum (the formal derivative term Forney
+// needs). The caller owns the walk: i_load / i_step are dashed sideband.
+// Source of truth: rtl/fub/chien_search.sv.
+digraph rs_chien_search {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="chien_search - Lambda(x) evaluated at S positions per step (on aclk)";
+
+    in    [label="Locator Input\ni_lambda: Lambda_0 .. Lambda_t", fillcolor="white", group=C];
+    ctl   [label="Walk Control (from the caller)\ni_load: start a block at position 0\ni_step: advance one beat", fillcolor="white", group=L];
+
+    init  [label="Load Multipliers (combinational)\n(t+1) x gf_mul_const - u_init\nLambda_i * alpha^(-i(n-1)): position 0", group=C];
+    step  [label="Step Multipliers (combinational)\n(t+1) x gf_mul_const - u_step\nc_i * alpha^(iS): next beat", group=R];
+    cells [label="Chien Cell Registers\nr_c[0 .. t] (flops)\ni_load: from u_init | i_step: from u_step", group=C];
+    lanes [label="Lane Evaluation (combinational)\nlane u = 0 .. S-1: sum_i c_i * alpha^(iu)\nall i -> Lambda(X^-1);  odd i -> X^-1 Lambda'(X^-1)", group=C];
+    root  [label="Root Detect (combinational)\no_root[u] = (full sum == 0)", group=C];
+
+    bar   [label="Outputs (describe the beat the cells hold)\no_root[S-1:0]   |   o_odd_sum[S x m] (to forney_evaluator)",
+           fillcolor="white", width=7.0];
+
+    in    -> init  [xlabel="Lambda_0 .. Lambda_t"];
+    init  -> cells [xlabel="position-0 terms"];
+    cells -> lanes [xlabel="c_0 .. c_t"];
+    lanes -> root  [xlabel="S full sums"];
+    root  -> bar   [xlabel="root flags", penwidth=1.8];
+
+    p_o [shape=point, width=0.01, group=L];
+    lanes -> p_o [arrowhead=none, headclip=false, xlabel="S odd sums"];
+    p_o -> bar [tailclip=false];
+
+    p_f1 [shape=point, width=0.01, group=F];
+    p_f2 [shape=point, width=0.01, group=F];
+    cells -> p_f2 [arrowhead=none, headclip=false];
+    p_f1  -> p_f2 [dir=none, tailclip=false, headclip=false, xlabel="current c_i"];
+    p_f1  -> step [tailclip=false];
+    step  -> cells [xlabel="stepped terms"];
+
+    ctl   -> cells [style=dashed, xlabel="load / step"];
+
+    { rank=same; in; ctl; }
+    { rank=same; init; step; p_f1; }
+    { rank=same; cells; p_f2; }
+    { rank=same; root; p_o; }
+    ctl -> in [style=invis];
+    init -> step -> p_f1 [style=invis];
+}

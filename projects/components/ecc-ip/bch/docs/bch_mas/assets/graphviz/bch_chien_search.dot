@@ -1,0 +1,59 @@
+// bch_chien_search - MAS Figure 2.3.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// One flow: the locator coefficients come in at the top, are scaled to
+// position 0 by the load multipliers, and sit in the T_BITS+1 Horner cell
+// registers. Each output beat the step multipliers move every cell B
+// positions on: that feedback climbs the right edge. The cells feed B
+// parallel lane evaluations, then root detect and the position mask,
+// then the output bar. The position counter is the left control column;
+// the running root count sits beside the root detect.
+// Source of truth: rtl/fub/bch_chien_search.sv.
+digraph bch_chien_search {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="bch_chien_search - Lambda(x) evaluated at B bit positions per beat (on aclk)";
+
+    in    [label="Locator Input\nin_valid / in_ready (= !out_valid)\nin_lambda: Lambda_0 .. Lambda_t\n(in_lambda_degree: port only, unused)", fillcolor="white", group=C];
+
+    pos   [label="Position Counter (flops)\nr_position: 0, B, 2B, ...\nout_last = position + B >= N_BITS\nload on in fire, step on out fire", group=L];
+    init  [label="Load Multipliers (combinational)\n(T_BITS+1) x gf_mul_const - u_init\nLambda_i * alpha^(-i(N-1)): position 0", group=C];
+    step  [label="Step Multipliers (combinational)\n(T_BITS+1) x gf_mul_const - u_step\nc_i * alpha^(iB): next beat", group=R];
+    cells [label="Horner Cell Registers\nr_c[0 .. T_BITS] (flops)\nload: from u_init | out fire: from u_step", group=C];
+    lanes [label="Lane Evaluation (combinational)\nlane u = 0 .. B-1:\nsum_i c_i * alpha^(iu) = Lambda at position p+u", group=C];
+    root  [label="Root Detect + Position Mask\nroot[u] = (sum == 0)\nflip_en = root and (p+u < N_BITS)", group=C];
+    rcnt  [label="Root Counter\nr_root_count (flop)\n+ roots in this beat", group=R];
+
+    bar   [label="Outputs (one beat per B positions)\nout_valid / out_ready   |   out_flip_en[B-1:0]   |   out_root_count   |   out_last",
+           fillcolor="white", width=8.0];
+
+    // ---- main flow ----
+    in    -> init  [xlabel="Lambda_0 .. Lambda_t"];
+    init  -> cells [xlabel="position-0 terms"];
+    cells -> lanes [xlabel="c_0 .. c_t"];
+    lanes -> root  [xlabel="B lane sums"];
+    root  -> bar   [xlabel="flip enables", penwidth=1.8];
+    root  -> rcnt  [xlabel="roots in beat"];
+    rcnt  -> bar   [xlabel="root count"];
+
+    // ---- step feedback climbing the right edge ----
+    p_f1 [shape=point, width=0.01, group=F];
+    p_f2 [shape=point, width=0.01, group=F];
+    cells -> p_f2 [arrowhead=none, headclip=false];
+    p_f1  -> p_f2 [dir=none, tailclip=false, headclip=false, xlabel="current c_i"];
+    p_f1  -> step [tailclip=false];
+    step  -> cells [xlabel="stepped terms"];
+
+    // ---- control ----
+    in    -> pos   [style=dashed, constraint=false, xlabel="load"];
+    pos   -> root  [style=dashed, xlabel="position p "];
+    pos   -> bar   [xlabel="out_valid, out_last"];
+
+    { rank=same; init; step; pos; p_f1; }
+    { rank=same; cells; p_f2; }
+
+    pos -> init -> step -> p_f1 [style=invis];
+}

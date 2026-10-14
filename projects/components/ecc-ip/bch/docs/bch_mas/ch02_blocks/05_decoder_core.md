@@ -52,7 +52,7 @@ stages is genuine control, not per-beat datapath.
 
 ### Figure 2.4: Decoder core block diagram
 
-![Decoder core block diagram](../assets/mermaid/bch_decoder_core.png)
+![Decoder core block diagram](../assets/graphviz/bch_decoder_core.png)
 
 ## Parameters
 
@@ -92,9 +92,10 @@ stages is genuine control, not per-beat datapath.
 
 ### Block buffer
 
-The received block is written into a buffer as it arrives and read out during
-the Chien/correction pass. The buffer depth is at least `N_BITS` bits, sized
-to absorb the latency of the syndrome pass and the solver. For an
+The received block is written into a register buffer as it arrives:
+`r_buf` and `r_buf_keep` hold `BEATS_N = ceil(N_BITS / BITS_PER_BEAT)`
+beats, and `r_flip` holds the Chien flip mask for each beat, written during
+CHIEN. The buffer is read out in RELEASE, after the verdict. For an
 uncorrectable block, the buffer passes the received bits through unchanged
 (R2):
 
@@ -113,7 +114,8 @@ one fixed cycle into its successor with a counter:
 IDLE    -> wait for a new block to begin arriving
 SYND    -> receiving the block into the buffer and the syndrome unit
 SOLVE   -> key-equation solver running
-CHIEN   -> Chien search / correction pass over the buffer
+CHIEN   -> Chien search; flip masks stored beside the buffered beats
+RECHECK -> wait for the re-check syndrome unit (skipped if ENABLE_RECHECK=0)
 RELEASE -> outputting the corrected (or passthrough) block
 ```
 
@@ -122,8 +124,9 @@ registered `r_solver_start` pulse inside SYND or SOLVE.
 
 ### Corrected-stream re-check
 
-As an optional R2 mechanism, a second syndrome unit may accumulate over the
-corrected stream leaving the buffer. If any odd syndrome is non-zero after
+As an R2 mechanism, a second syndrome unit (`u_rechk`, present when
+`ENABLE_RECHECK = 1`, the default) accumulates over the corrected stream,
+`r_buf ^ flip mask`, beat by beat during CHIEN. If any odd syndrome is non-zero after
 correction, the block is flagged uncorrectable even if the Chien root count
 matched the locator degree. This mirrors the release-on-verdict discipline in
 the sibling `rs_decoder_core` architecture. The re-check is gated by a build
@@ -143,7 +146,7 @@ w_correctable = (r_root_count == r_lambda_degree) && (r_lambda_degree <= T_BITS)
 ## FSM policy
 
 This block is the **one place in the decoder datapath where a minimal control
-FSM is permitted**. The FSM has at most the four states above; any state that
+FSM is permitted**. The FSM has the six states above; any state that
 only waits one fixed cycle is merged with its successor. All per-beat
 operations inside the stages (syndrome accumulation, solver array stepping,
 Chien evaluation) remain FSM-free pipelines.

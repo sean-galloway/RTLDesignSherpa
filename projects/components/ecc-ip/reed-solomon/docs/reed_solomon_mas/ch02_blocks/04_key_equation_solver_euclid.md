@@ -44,7 +44,7 @@ soon as the remainder degree drops below `t`.
 
 ### Figure 2.4: Euclid solver block diagram
 
-![Euclid solver block diagram](../assets/mermaid/rs_euclid_solver.png)
+![Euclid solver block diagram](../assets/graphviz/rs_euclid_solver.png)
 
 ## Parameters
 

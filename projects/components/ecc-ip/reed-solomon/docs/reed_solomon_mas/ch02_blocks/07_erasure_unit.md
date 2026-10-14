@@ -37,7 +37,7 @@
 
 ### Figure 2.7: Erasure unit block diagram
 
-![Erasure unit block diagram](../assets/mermaid/rs_erasure_unit.png)
+![Erasure unit block diagram](../assets/graphviz/rs_erasure_unit.png)
 
 ## Parameters
 

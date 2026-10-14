@@ -1,0 +1,62 @@
+// rs_decoder_core - MAS Figure 2.8.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Three pipelined stages joined by descriptor skids. The received beats
+// drop down the left lane into the block FIFO and wait there; the
+// syndromes and flags go down the center as a descriptor through the
+// solver. Stage C reads the FIFO beat by beat against Chien / Forney,
+// registers the walked beat (C2), feeds the re-check on the right, and
+// pushes {symbol, correction, hit} into the output FIFO. The C3 verdict
+// goes to the status skid; a block leaves only when both FIFOs offer it,
+// and the correction is applied on the way out unless the block is
+// uncorrectable. Build-dependent erasure logic is dashed.
+// Source of truth: rtl/macro/rs_decoder_core.sv.
+digraph rs_decoder_core {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.55", ranksep="0.48", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="rs_decoder_core - receive / solve / correct, three blocks in flight (on aclk)";
+
+    in    [label="Received Beat\nin_valid / in_ready, in_data (S symbols), in_keep,\nin_last, in_erasure[S-1:0] (ERASURE_SUPPORT=1)", fillcolor="white", group=C];
+
+    synd  [label="A: Receive\nsyndrome_unit - u_synd (+ framing count;\nfifo-depth block force-ended with frame_err)", group=C];
+    bfifo [label="Block FIFO\ngaxi_fifo_sync - u_blk_fifo\n{keep, data}, BLOCK_FIFO_DEPTH", group=B];
+    dab   [label="A->B Descriptor\ngaxi_skid_buffer - u_desc_ab\n{length, frame_err, all_zero, syndromes}", group=C];
+    solve [label="B: Solve (B FSM: IDLE / SOLVE / PUSH)\nkey_equation_solver_ribm or _euclid - u_kes\nclean or mis-framed block bypasses the solver", group=C];
+    era   [label="Erasure Unit\nrs_erasure_unit - u_erasure\nB FSM adds TRANS and COMB\n(ERASURE_SUPPORT=1 only)", style="filled,dashed", group=V];
+    dbc   [label="B->C Descriptor\ngaxi_skid_buffer - u_desc_bc\n{length, flags, degree, Lambda, Omega}", group=C];
+    cwalk [label="C1: Walk (C FSM: IDLE / WALK)\nchien_search - u_chien, forney_evaluator - u_forney\nroots, error values, hit count per beat", group=C];
+    c2    [label="C2: Walked-Beat Register (flops)\n{received, correction, hit} per lane", group=C];
+    rchk  [label="Re-check + C3 Verdict\nsyndrome_unit - u_rechk on the corrected beat;\nuncorrectable = deg > t | deg == 0 | roots != deg\n| zero derivative | re-check not zero", group=V];
+    ofifo [label="Output FIFO\ngaxi_fifo_sync - u_out_fifo\n{last, keep, hit, correction, received}\n(data positions only)", group=C];
+    stat  [label="Status Skid\ngaxi_skid_buffer - u_status\none verdict per block", group=V];
+    rel   [label="Release (combinational)\nout_valid = FIFO valid and status valid\nout_data = received ^ (correction if hit\nand not uncorrectable)", group=C];
+
+    bar   [label="Outputs\nout_valid / out_ready, out_data, out_keep, out_last (k symbols)   |   out_status_ok / corrected / uncorrectable / frame_err (valid on every beat)",
+           fillcolor="white", width=10.5];
+
+    in    -> synd  [xlabel="symbols"];
+    in    -> bfifo [xlabel="received beats\n(stored as-is)"];
+    synd  -> dab   [xlabel="descriptor"];
+    dab   -> solve [minlen=2, xlabel="syndromes, flags"];
+    dab   -> era   [style=dashed, xlabel="erasure record"];
+    era   -> solve [style=dashed, xlabel="window /\ncombined poly"];
+    solve -> dbc   [xlabel="Lambda, Omega,\ndegree"];
+    dbc   -> cwalk [xlabel="load"];
+    bfifo -> cwalk [xlabel="one beat per\nwalk step"];
+    cwalk -> c2    [xlabel="beat + corrections"];
+    c2    -> ofifo [xlabel="data lanes"];
+    c2    -> rchk  [xlabel="corrected beat\n(data and parity)"];
+    rchk  -> stat  [xlabel="verdict"];
+    ofifo -> rel   [xlabel="beat"];
+    stat  -> rel   [style=dashed, xlabel="status"];
+    rel   -> bar   [xlabel="k corrected symbols", penwidth=1.8];
+
+    { rank=same; dab; bfifo; }
+
+    { rank=same; ofifo; rchk; }
+    bfifo -> dab [style=invis];
+
+}

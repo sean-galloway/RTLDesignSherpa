@@ -42,7 +42,7 @@ back-to-back pipeline: it holds `in_ready` low while parity drains.
 
 ### Figure 2.1: Encoder core block diagram
 
-![Encoder core block diagram](../assets/mermaid/rs_encoder_core.png)
+![Encoder core block diagram](../assets/graphviz/rs_encoder_core.png)
 
 ## Parameters
 

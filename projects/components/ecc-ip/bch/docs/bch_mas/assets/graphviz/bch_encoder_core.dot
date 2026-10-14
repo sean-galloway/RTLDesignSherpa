@@ -1,0 +1,59 @@
+// bch_encoder_core - MAS Figure 2.1.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// One flow: data beats down the center into the output select, which
+// passes them through (systematic) and then emits the parity the LFSR
+// holds. The LFSR is next-state logic above its register, with the
+// register's feedback climbing the right edge. The phase counters form a
+// control column on the left; frame_err leaves straight down it.
+// Source of truth: rtl/macro/bch_encoder_core.sv.
+digraph bch_encoder_core {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="bch_encoder_core - systematic BCH encoder, B bits per beat (on aclk)";
+
+    in   [label="Input Beat\nin_valid / in_ready, in_data[B-1:0],\nin_keep (low-aligned), in_last", fillcolor="white", group=C];
+
+    ctl  [label="Phase Counters (flops)\nr_drain, r_data_count, r_parity_count\nin_ready = !r_drain and skid ready\nframe_err = in_last and data bits != K_BITS", group=L];
+    p_in [shape=point, width=0.01, group=C];
+    p_l  [shape=point, width=0.01, group=R];
+    nxt  [label="LFSR Next-State (combinational)\nB chained lfsr_step() of g(x),\nselect step [keep count]", group=R];
+    reg  [label="Parity Register\nr_lfsr (flop, loads on input fire;\nshifts B lanes per parity beat)", group=R];
+    sel  [label="Output Select (combinational)\nDATA: input beat, out_last = 0\nDRAIN: parity bits from the top lanes,\nlast parity beat sets out_last", group=C];
+    skid [label="Output Skid\ngaxi_skid_buffer - u_out_skid\n{last, keep, data}, SKID_DEPTH", group=C];
+
+    bar  [label="Outputs (registered through the skid)\nout_valid / out_ready, out_data, out_keep, out_last   |   frame_err (pulse)",
+          fillcolor="white", width=8.0];
+
+    // ---- main flow ----
+    in   -> p_in [arrowhead=none, headclip=false];
+    p_in -> sel  [tailclip=false, xlabel="data beat\n(passes unchanged)"];
+    p_in -> p_l  [arrowhead=none, tailclip=false, headclip=false];
+    p_l  -> nxt  [tailclip=false, xlabel="data bits"];
+    nxt  -> reg  [xlabel="next state"];
+    reg  -> sel  [xlabel="parity bits"];
+    sel  -> skid [xlabel="data, then parity"];
+    skid -> bar  [xlabel="coded beats", penwidth=1.8];
+
+    // ---- feedback: register back into next-state, right edge ----
+    p_f1 [shape=point, width=0.01, group=F];
+    p_f2 [shape=point, width=0.01, group=F];
+    reg  -> p_f2 [arrowhead=none, headclip=false];
+    p_f1 -> p_f2 [dir=none, tailclip=false, headclip=false, xlabel="current state"];
+    p_f1 -> nxt  [tailclip=false];
+
+    // ---- control ----
+    in   -> ctl  [style=dashed, xlabel="keep, last"];
+    ctl  -> sel  [style=dashed, xlabel="phase\n(DATA / DRAIN)"];
+    skid -> ctl  [style=dashed, constraint=false, xlabel="skid ready"];
+    ctl  -> bar  [xlabel="frame_err"];
+
+    { rank=same; ctl; p_in; p_l; }
+    { rank=same; nxt; p_f1; }
+    { rank=same; reg; p_f2; }
+    ctl -> p_in -> p_l [style=invis];
+    nxt -> p_f1 [style=invis];
+}

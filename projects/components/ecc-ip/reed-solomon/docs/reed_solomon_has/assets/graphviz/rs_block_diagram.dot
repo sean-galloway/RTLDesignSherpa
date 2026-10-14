@@ -1,0 +1,101 @@
+// rs_block_diagram - codec block diagram (HAS Figure 3.1).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Two independent request flows, one column each (the cam_tag ruling):
+// the encoder on the left, the decoder on the right, each from its own
+// white input port down to the shared output bar. The decoder is three
+// pipelined stages (receive, solve, correct) joined by descriptor skids;
+// the received symbols wait in the block FIFO down the decoder's left
+// lane while their descriptor goes through the solver. Adapters and the
+// erasure unit are build-dependent and dashed. The GF layer is a
+// sideband legend.
+// Source of truth: rtl/macro/rs_encoder_core.sv, rtl/macro/rs_decoder_core.sv,
+// rtl/top/rs_{encoder,decoder}_{axis4,axi4}.sv.
+digraph rs_block_diagram {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="Reed-Solomon codec - encoder core and three-stage decoder core, with the optional adapters";
+
+    // ---------------- inputs ----------------
+    e_in [label="Encoder Input\nk data symbols per block\n(valid / ready, keep, last)", fillcolor="white", group=E];
+    d_in [label="Decoder Input\nn received symbols per block\n(valid / ready, keep, last, erasure flags)", fillcolor="white", group=S];
+
+    // ---------------- intake adapters ----------------
+    e_ai [label="Intake Adapter (top-dependent)\naxis4_slave (rs_encoder_axis4) or\nrs_axi4_read_engine (rs_encoder_axi4)", style="filled,dashed", group=E];
+    d_ai [label="Intake Adapter (top-dependent)\naxis4_slave (rs_decoder_axis4) or\nrs_axi4_read_engine (rs_decoder_axi4)", style="filled,dashed", group=S];
+
+    // ---------------- encoder core ----------------
+    p_e  [shape=point, width=0.01, group=E];
+    p_l  [shape=point, width=0.01, group=L];
+    lfsr [group=L, label="Parity LFSR\ngf_lfsr_encoder - u_lfsr\n2t stages, S symbols per step"];
+    esel [label="Data / Parity Select\nrs_encoder_core\nDATA: beat passes through\nDRAIN: 2t parity symbols, in_ready low", group=E];
+    eskd [label="Output Skid\ngaxi_skid_buffer - u_out_skid", group=E];
+    epk  [label="Beat Packer\nrs_beat_packer\n(encoder tops, when rs_need_pack(k, S))", style="filled,dashed", group=E];
+    e_ao [label="Outlet Adapter (top-dependent)\naxis4_master or\nrs_axi4_write_engine", style="filled,dashed", group=E];
+
+    // ---------------- decoder core ----------------
+    p_d  [shape=point, width=0.01, group=S];
+    p_b  [shape=point, width=0.01, group=B];
+    synd [label="A: Syndrome Unit\nsyndrome_unit - u_synd\n2t syndromes", group=S];
+    era  [label="Erasure Unit\nrs_erasure_unit - u_erasure\nrecords in_erasure flags (stage A)\n(ERASURE_SUPPORT=1 only)", style="filled,dashed", group=V];
+    kes  [label="B: Key-Equation Solver\nkey_equation_solver_ribm or _euclid\n(KES_ALGO) -> Lambda, Omega", group=S];
+    cf   [label="C: Chien Search + Forney\nchien_search, forney_evaluator\nroots and error values per beat", group=S];
+    bfifo[label="Block FIFO\ngaxi_fifo_sync - u_blk_fifo\nreceived beats", group=B];
+    rchk [label="Re-check Syndrome Unit\nsyndrome_unit - u_rechk\nthen C3 verdict: degree,\nroot count, re-check zero", group=S];
+    ofifo[width=3.8, label="Output FIFO + Status\ngaxi_fifo_sync - u_out_fifo,\ngaxi_skid_buffer - u_status", group=B];
+    rel  [label="Release + Correct\nrs_decoder_core\nsymbol XOR error value,\nskipped if uncorrectable", group=B];
+    d_ao [label="Outlet Adapter (top-dependent)\naxis4_master or\nrs_axi4_write_engine", style="filled,dashed", group=B];
+
+    // ---------------- sideband legend ----------------
+    gf [label="GF(2^m) layer (sideband, every block)\nrtl/fub/gf: gf_pkg (field functions),\ngf_mul, gf_mul_const, gf_inv,\ngf_syndrome_cell, gf_lfsr_encoder, ribm_pe", fillcolor="white"];
+
+    // ---------------- output bar ----------------
+    bar [label="Outputs\ncoded stream: n symbols per block   |   corrected stream: k symbols per block + verdict (ok / corrected / uncorrectable / frame_err)",
+         fillcolor="white", width=11.5];
+
+    // ---- encoder flow ----
+    e_in -> e_ai [xlabel="data beats"];
+    e_ai -> p_e  [arrowhead=none, headclip=false];
+    p_e  -> esel [tailclip=false, xlabel="data beat\n(systematic)"];
+    p_e  -> p_l  [arrowhead=none, tailclip=false, headclip=false];
+    p_l  -> lfsr [tailclip=false, xlabel="data symbols"];
+    lfsr -> esel [xlabel="parity symbols"];
+    esel -> eskd [xlabel="data, then parity"];
+    eskd -> epk  [xlabel="coded beats"];
+    epk  -> e_ao [xlabel="packed beats"];
+    e_ao -> bar  [xlabel="n-symbol codeword", penwidth=1.8];
+
+    // ---- decoder flow ----
+    d_in -> d_ai [xlabel="received beats"];
+    d_ai -> p_b  [arrowhead=none, headclip=false];
+    p_b  -> p_d  [dir=none, tailclip=false, headclip=false];
+    p_d  -> synd [tailclip=false, xlabel="received symbols"];
+    p_b  -> bfifo[tailclip=false, xlabel="received beats\n(stored as-is)"];
+    synd -> kes  [xlabel="A->B descriptor\n(syndromes, length, flags)"];
+    synd -> era  [style=dashed, xlabel="syndromes"];
+    era  -> kes  [style=dashed, xlabel="solver window"];
+    kes  -> cf   [xlabel="B->C descriptor\n(Lambda, Omega, degree)"];
+    bfifo-> cf   [xlabel="received beat"];
+    cf   -> rchk [xlabel="C2 beat"];
+    cf   -> ofifo[xlabel="symbol, error value, hit"];
+    rchk -> ofifo[style=dashed, xlabel="verdict"];
+    ofifo-> rel  [xlabel="block, once its\nverdict exists"];
+    rel  -> d_ao [xlabel="k symbols + verdict"];
+    d_ao -> bar  [xlabel="corrected block", penwidth=1.8];
+
+    // ---- ranks ----
+    { rank=same; e_in; d_in; gf; }
+    { rank=same; e_ai; d_ai; }
+    { rank=same; p_e; p_l; p_b; p_d; }
+    { rank=same; lfsr; synd; }
+    { rank=same; esel; era; }
+    { rank=same; eskd; kes; bfifo; }
+    { rank=same; epk; cf; }
+    { rank=same; e_ao; rchk; }
+    e_in -> d_in -> gf [style=invis];
+    lfsr -> synd [style=invis];
+    bfifo -> kes [style=invis];
+}

@@ -1,0 +1,60 @@
+// bch_decoder_core - MAS Figure 2.4.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// The received beat splits at the top: the beat itself drops down the
+// left column into the block buffer (stored as-is), the bits go down the
+// center through the three fubs. The Chien walk writes a flip mask per
+// beat into the buffer and feeds the corrected beat to the optional
+// re-check unit (dashed, ENABLE_RECHECK). The sequencer FSM sits on the
+// right and gates everything with dashed control; the release stage
+// reads the buffer and applies the masks only on a correctable verdict.
+// Source of truth: rtl/macro/bch_decoder_core.sv.
+digraph bch_decoder_core {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="bch_decoder_core - one block outstanding, release on verdict (on aclk)";
+
+    in    [label="Received Beat\nin_valid / in_ready, in_data[B-1:0],\nin_keep, in_last", fillcolor="white", group=C];
+
+    frm   [label="Framing Check (flops)\nbit / beat counts; frame_err if last != N_BITS\nover-N: keep accepting, drop surplus;\nshort block: zero-pad the syndrome unit", group=C];
+    p_s   [shape=point, width=0.01, group=C];
+    p_b   [shape=point, width=0.01, group=B];
+    synd  [label="Syndrome Unit\nbch_syndrome_unit - u_synd\nt odd syndromes", group=C];
+    kes   [label="Key-Equation Solver\nbch_key_equation_solver - u_kes\nriBM: Lambda(x), degree, more-than-t", group=C];
+    chien [label="Chien Search\nbch_chien_search - u_chien\nflip mask + root count per beat", group=C];
+    buf   [label="Block Buffer (flops)\nr_buf, r_buf_keep: BEATS_N received beats\nr_flip: the Chien flip mask per beat", group=B];
+    rchk  [label="Re-check Syndrome Unit\nbch_syndrome_unit - u_rechk\n(ENABLE_RECHECK=1 only)", style="filled,dashed", group=V];
+    seq   [label="Block Sequencer (FSM) + Verdict (flops)\nIDLE -> SYND -> SOLVE -> CHIEN -> RECHECK -> RELEASE\n(all-zero syndromes or frame_err: SYND -> RELEASE)\ncorrectable = !more-than-t, roots == degree,\nre-check zero -> r_st_ok / corrected / uncorrectable / frame_err", group=V];
+    rel   [label="Release (combinational)\nout_data = r_buf ^ (r_flip if correctable)\nout_keep = K-bit mask, or stored keep on frame_err", group=B];
+
+    bar   [label="Outputs\nout_valid / out_ready, out_data, out_keep, out_last (k bits)   |   out_status_ok / corrected / uncorrectable / frame_err (held through the block)",
+           fillcolor="white", width=10.5];
+
+    // ---- main flow ----
+    in    -> frm   [xlabel="received beat"];
+    frm   -> p_b   [arrowhead=none, headclip=false];
+    p_b   -> p_s   [dir=none, tailclip=false, headclip=false];
+    p_s   -> synd  [tailclip=false, xlabel="bits (or zero padding)"];
+    p_b   -> buf   [tailclip=false, xlabel="beat + keep\n(stored as-is)"];
+    synd  -> kes   [xlabel="odd syndromes\n(non-zero)"];
+    kes   -> chien [xlabel="Lambda(x)"];
+    chien -> buf   [xlabel="flip mask"];
+    chien -> rchk  [xlabel="corrected beat\n(buffer ^ mask)"];
+    buf   -> rel   [xlabel="beat, keep,\nflip mask"];
+    rel   -> bar   [xlabel="k corrected bits", penwidth=1.8];
+
+    // ---- verdict and control ----
+    synd  -> seq   [style=dashed, taillabel="no-error", labelangle=-50, labeldistance=2.2];
+    kes   -> seq   [style=dashed, taillabel="degree, > t", labelangle=-70, labeldistance=4.5];
+    chien -> seq   [style=dashed, taillabel="roots", labelangle=-60, labeldistance=2.5];
+    rchk  -> seq   [style=dashed, xlabel="re-check zero"];
+    seq   -> rel   [style=dashed, xlabel="apply corrections\n(RELEASE)"];
+    seq   -> bar   [xlabel="status"];
+
+    { rank=same; p_s; p_b; }
+    { rank=same; buf; rchk; }
+    buf -> rchk [style=invis];
+}

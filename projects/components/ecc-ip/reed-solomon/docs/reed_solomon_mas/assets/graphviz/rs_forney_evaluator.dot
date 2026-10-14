@@ -1,0 +1,54 @@
+// rs_forney_evaluator - MAS Figure 2.6 (forney_evaluator).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// The numerator is a Chien-style walk of its own over Omega: load
+// multipliers, cell registers, step multipliers climbing the right edge,
+// then S lane sums. The denominator (the odd-index sum from chien_search)
+// enters on its own lane at the left, is inverted per lane, and the
+// per-lane multiply joins the two. A zero denominator is flagged.
+// Source of truth: rtl/fub/forney_evaluator.sv.
+digraph rs_forney_evaluator {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="forney_evaluator - error values for S positions per step (on aclk)";
+
+    odd   [label="Denominator Input\ni_odd_sum[S x m] from chien_search\n= X^-1 Lambda'(X^-1) per lane", fillcolor="white", group=L];
+    in    [label="Evaluator Input\ni_omega: Omega_0 .. Omega_t-1\ni_load / i_step: as chien_search", fillcolor="white", group=C];
+    leg   [label="Parameters (fixed at build)\lOMEGA_HIGH_HALF: 1 = off = 2t (riBM's\l    high-half evaluator); 0 = off = 0 (Euclid)\l", fillcolor="white", group=R];
+
+    init  [label="Load Multipliers (combinational)\nt x gf_mul_const - u_init\nOmega_i * alpha^(-(i+off)(n-1))", group=C];
+    step  [label="Step Multipliers (combinational)\nt x gf_mul_const - u_step\nw_i * alpha^((i+off)S)", group=R];
+    cells [label="Omega Cell Registers\nr_w[0 .. t-1] (flops)\ni_load: from u_init | i_step: from u_step", group=C];
+    num   [label="Numerator Lanes (combinational)\nlane u: sum_i w_i * alpha^((i+off)u)\n= X^-(b+off) Omega(X^-1)", group=C];
+    inv   [label="Lane Inverse\nS x gf_inv - g_lane[u].u_inv\n1 / odd_sum; ow_zero flags 0", group=L];
+    mul   [label="Lane Multiply\nS x gf_mul - g_lane[u].u_mul\nerror value = numerator * inverse", group=C];
+
+    bar   [label="Outputs\no_err_val[S x m]   |   o_den_zero[S-1:0] (marks the block uncorrectable)",
+           fillcolor="white", width=7.5];
+
+    in    -> init  [xlabel="Omega_0 .. Omega_t-1"];
+    init  -> cells [xlabel="position-0 terms"];
+    cells -> num   [xlabel="w_0 .. w_t-1"];
+    num   -> mul   [xlabel="numerators"];
+    odd   -> inv   [xlabel="odd sums"];
+    inv   -> mul   [xlabel="inverses"];
+    mul   -> bar   [xlabel="error values", penwidth=1.8];
+    inv   -> bar   [xlabel="den == 0"];
+
+    p_f1 [shape=point, width=0.01, group=F];
+    p_f2 [shape=point, width=0.01, group=F];
+    cells -> p_f2 [arrowhead=none, headclip=false];
+    p_f1  -> p_f2 [dir=none, tailclip=false, headclip=false, xlabel="current w_i"];
+    p_f1  -> step [tailclip=false];
+    step  -> cells [xlabel="stepped terms"];
+
+    { rank=same; odd; in; leg; }
+    { rank=same; init; step; p_f1; }
+    { rank=same; cells; p_f2; }
+    { rank=same; num; inv; }
+    odd -> in -> leg [style=invis];
+    init -> step -> p_f1 [style=invis];
+}

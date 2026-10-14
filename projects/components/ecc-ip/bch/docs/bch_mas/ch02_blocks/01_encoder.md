@@ -41,7 +41,7 @@ pipeline: it holds `in_ready` low while parity drains.
 
 ### Figure 2.1: Encoder core block diagram
 
-![Encoder core block diagram](../assets/mermaid/bch_encoder_core.png)
+![Encoder core block diagram](../assets/graphviz/bch_encoder_core.png)
 
 ## Parameters
 
@@ -80,25 +80,21 @@ parameters. `DEGREE_G` is at most `m * T_BITS` and equals `N_BITS - K_BITS`.
 
 ## Microarchitecture internals
 
-### Bit serialiser / unpack
+### Beat-parallel LFSR parity generator
 
-The input beat `in_data` is serialised beat-by-beat into a single bit stream.
-With `BITS_PER_BEAT = 1` this is a pass-through. With `BITS_PER_BEAT > 1` a
-small barrel or counter-driven mux presents one valid bit per cycle to the
-LFSR. The `in_keep` mask qualifies the final beat so that only real data bits
-enter the LFSR.
+The core works on whole B-bit beats; there is no serialiser. The parity
+register `r_lfsr` holds deg(g) lanes of m bits over GF(2^m), with the
+generator polynomial's coefficients (computed by `bch_pkg` from `FIELD_DIM`,
+`PRIM_POLY`, `T_BITS` and `FIRST_ROOT`) on its taps. Its next-state logic is
+a chain of B `lfsr_step()` evaluations, one per bit of the beat (bit 0
+first), built as an unpacked array `w_chain[0..B]`; the keep count of the
+beat selects `w_chain[keep count]`, so a partial final data beat advances
+the register by exactly the bits present. The multiplies use `gf_mul_fn`
+from the imported `gf_pkg`; no `gf_lfsr_encoder` instance is used.
 
-### GF(2^m) LFSR parity generator
-
-The parity generator is imported from the reed-solomon component per PRD D7:
-`gf_lfsr_encoder` in `projects/components/ecc-ip/reed-solomon/rtl/fub/gf/gf_lfsr_encoder.sv`.
-It is a `2 * T_BITS`-stage shift register over GF(2^m) with constant
-multipliers on the taps derived from `g(x)`. The encoder clears at block
-start, consumes the `K_BITS` data bits serially, and then holds the parity
-symbols.
-
-The binary BCH use is identical to the RS encoder shape; the only difference
-is that the input is bits, not symbols, so the LFSR advances once per bit.
+The register loads on every accepted data beat. During the parity drain it
+shifts left by one beat's worth of lanes each emitted beat, so it is all-zero
+again when the drain ends and the next block needs no explicit clear.
 
 ### Parity mux
 
@@ -118,15 +114,17 @@ w_beat_is_parity = (r_bit_count + BITS_PER_BEAT - 1) >= K_BITS
 
 The mux output is `out_data = w_parity_phase ? w_parity_bits : w_data_bits`.
 
-### Bit packer
+### Output skid
 
-The serial output stream is reassembled into `BITS_PER_BEAT`-bit output beats.
-`out_keep` is full except on the final data beat and the final parity beat,
-where it marks the partial beat. `out_last` raises on the beat that carries
-the `N_BITS`-th coded bit:
+There is no bit packer. `{last, keep, data}` from the output select goes into
+one `gaxi_skid_buffer` (`u_out_skid`, depth `SKID_DEPTH`, 2..8), whose read
+side is the output port. `out_keep` is full except on the final data beat
+and the final parity beat, where it marks the partial beat. `out_last` raises
+on the beat that carries the `N_BITS`-th coded bit:
 
 ```
-w_enc_out_last = w_parity_phase && (r_parity_count == N_BITS - K_BITS - 1)
+w_enc_out_last = w_parity_phase &&
+                 (r_parity_count + w_par_beat_len - 1 == N_BITS - K_BITS - 1)
 ```
 
 ## FSM policy
@@ -136,12 +134,12 @@ The sequencing that another design might put in a state machine is replaced by:
 
 - `r_bit_count`: counts input/output bit position in the block, 0 .. `N_BITS-1`
 - `r_parity_count`: counts parity bits emitted, 0 .. `N_BITS-K_BITS-1`
-- `r_valid` pipeline flags on the packer output stage
+- `r_drain`: set by the accepted `in_last` beat, cleared by the last parity beat
 - `w_parity_phase`: combinational qualifier selecting parity vs data
 - `w_last`: combinational qualifier marking the final output beat
 
-`in_ready` is combinational `!r_valid || m_ready` at the input skid, ANDed with
-the qualifier that the block is not currently draining parity.
+`in_ready` is combinational: `!r_drain && w_skid_wr_ready`, the output
+skid's write-side ready qualified by the drain flag.
 
 ## Timing
 
@@ -161,11 +159,11 @@ the qualifier that the block is not currently draining parity.
   `out_status_frame_err` (R1/R2):
 
   ```
-  w_frame_err = in_last && (r_bit_count != K_BITS - 1)
+  w_frame_err = in_last && (r_data_count + keep_count != K_BITS)
   ```
 - **OFF-state testing convention:** For tests that need to verify the core
-  tolerates idle cycles, the LFSR clears on `in_last` acceptance and the output
-  pipeline stalls cleanly when `out_ready` is low.
-- The `gf_lfsr_encoder` instance is configured by the same `FIELD_DIM`,
-  `T_BITS`, `N_BITS`, `PRIM_POLY`, and `FIRST_ROOT` parameters as the rest of
-  the codec; its generator polynomial comes from `gf_pkg` (PRD D3/D8).
+  tolerates idle cycles, the LFSR drains to zero with the last parity beat and
+  the output skid stalls cleanly when `out_ready` is low.
+- The LFSR is configured by the same `FIELD_DIM`, `T_BITS`, `N_BITS`,
+  `PRIM_POLY`, and `FIRST_ROOT` parameters as the rest of the codec; its
+  generator polynomial comes from `bch_pkg` (PRD D3/D8).

@@ -40,7 +40,7 @@ GF(2^m) multiply-accumulate lanes, one per odd syndrome.
 
 ### Figure 2.2: Syndrome unit block diagram
 
-![Syndrome unit block diagram](../assets/mermaid/bch_syndrome_unit.png)
+![Syndrome unit block diagram](../assets/graphviz/bch_syndrome_unit.png)
 
 ## Parameters
 

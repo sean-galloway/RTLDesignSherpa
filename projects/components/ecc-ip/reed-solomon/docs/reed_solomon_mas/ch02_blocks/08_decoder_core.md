@@ -37,7 +37,7 @@
 
 ### Figure 2.8: Decoder core block diagram
 
-![Decoder core block diagram](../assets/mermaid/rs_decoder_core.png)
+![Decoder core block diagram](../assets/graphviz/rs_decoder_core.png)
 
 ## Parameters
 

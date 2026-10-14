@@ -44,7 +44,7 @@ corrupts, not several repackings later.
 
 ### Figure 2.1: Where the codec sits
 
-![Where the codec sits](../assets/mermaid/bch_system_context.png)
+![Where the codec sits](../assets/graphviz/bch_system_context.png)
 
 Three endpoint shapes: a memory controller with an encoder on its write path
 and a decoder on its read path; a telecommand link pair with the BCH code

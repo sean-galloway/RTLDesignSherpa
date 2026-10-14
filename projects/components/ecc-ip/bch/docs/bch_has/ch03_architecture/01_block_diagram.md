@@ -25,65 +25,78 @@
 
 ### Figure 3.1: Codec block diagram
 
-![Codec block diagram](../assets/mermaid/bch_block_diagram.png)
+![Codec block diagram](../assets/graphviz/bch_block_diagram.png)
 
 The two cores, the shared GF layer imported from the reed-solomon component,
 and the optional adapters that wrap a core for standalone use.
 
 ## The encoder core
 
-Four blocks in a straight line. `bit_unpack` (or its beat-to-bit serialiser)
-slices each beat into the `BITS_PER_BEAT` lanes and tracks the position in
-the block. `gf_lfsr_encoder` is the systematic encoder: a 2t-stage shift
-register over GF(2^m) with the generator polynomial's coefficients as
-constant multipliers on its taps; it is cleared at block start, the k data
-bits shift through (the RS-shaped LFSR consumes them serially or in the
-parallel form chosen by D6), and it then holds the parity symbols.
-`parity_mux` passes the data bits and then appends the parity, raising
-`last` on the final one. `bit_pack` reassembles beats. A skid buffer after
-the unpack and before the pack decouples the stages.
+Three blocks in a straight line, all inside `bch_encoder_core`. The parity
+LFSR (`r_lfsr`) is a deg(g)-stage shift register over GF(2^m) with the
+generator polynomial's coefficients on its taps; its next-state logic chains
+B steps of the generator so a whole beat of data bits enters in one cycle,
+and the keep count picks how many of those steps apply. The data / parity
+select passes each data beat straight through (the code is systematic), and
+once `in_last` arrives it drains the parity from the top LFSR lanes with
+`in_ready` held low, raising `last` on the final parity beat. The LFSR is
+all-zero again when the drain ends, so the next block needs no clear. A
+`gaxi_skid_buffer` on the output decouples the core from its consumer. There
+is no separate unpack or pack stage: the core works on B-bit beats end to
+end.
 
 ## The decoder core
 
-The received block is written into `block_buffer` and, in the same cycles,
-into `syndrome_unit`, whose t cells each accumulate one odd syndrome by
-Horner's rule as the bits arrive. When the block is complete the odd
-syndromes go to `key_equation_solver` -- one of the candidates from PRD D11
--- which produces the error-locator polynomial in at most 2t iterations, or
-flags the block uncorrectable. `chien_search` then walks every one of the n
-bit positions, one per cycle (or more if D6 chooses a parallel tree), in
-lock-step with the buffer read-out; where it finds a root, `corrector`
-flips the bit leaving the buffer. `status` counts corrections and raises the
-per-block verdict with the final bit. An all-zero syndrome set bypasses the
-solver and drains the buffer uncorrected.
+The received block is written into the block buffer and, in the same
+cycles, into `bch_syndrome_unit`, whose t cells each accumulate one odd
+syndrome by Horner's rule as the bits arrive. An all-zero syndrome set
+skips the solver and releases the buffer unchanged. Otherwise the odd
+syndromes go to `bch_key_equation_solver` (riBM, the only `KES_ALGO`
+implemented), which produces the error-locator polynomial in 2t iterations
+and flags a degree above t. `bch_chien_search` then walks the n bit
+positions, B per cycle; each beat's flip mask is stored beside the buffered
+beat, and the corrected beat feeds a second syndrome unit
+(`ENABLE_RECHECK=1`, the default) that re-checks the corrected stream.
+
+The verdict is formed only after the walk and the re-check finish:
+correctable means degree <= t, root count equal to the degree, and a zero
+re-check. The block sequencer (IDLE, SYND, SOLVE, CHIEN, RECHECK, RELEASE)
+then releases the buffer, applying the stored flip masks only when the
+verdict is correctable; an uncorrectable or mis-framed block leaves
+bit-for-bit unchanged. The status outputs (ok / corrected count /
+uncorrectable / frame_err) are held through the released block.
 
 Because the code is binary there is no Forney evaluator: the error value is
-always 1. A second syndrome unit over the corrected stream may be added as a
-re-check, matching the RS decoder's release-on-verdict discipline; that is a
-D11 / implementation detail, not part of the locator search.
+always 1.
 
 ## The GF layer
 
 The GF layer is imported from `projects/components/ecc-ip/reed-solomon/rtl/fub/gf/`.
-`gf_pkg` holds the field: the primitive polynomial, the generator
-coefficients and the log/antilog tables, all generated from the profile
-parameters. Three primitives are built on it: `gf_mul_const` (a constant
-multiply, an XOR network), `gf_mul` (full multiply, AND array plus
-reduction) and `gf_inv` (table inverse). Everything arithmetic in both cores
-is one of these three; the block counts are in chapter 5.3.
+`gf_pkg` holds the field arithmetic (primitive-polynomial checks, alpha
+powers and the `gf_mul_fn` multiply function); the BCH-specific generator
+polynomial and syndrome roots are computed in `bch_pkg` from the profile
+parameters. The cores build on it with `gf_mul_const` (a constant multiply,
+an XOR network) in the Chien search, `gf_syndrome_cell` in the syndrome
+units, and the imported riBM array `key_equation_solver_ribm` in the
+key-equation solver; the LFSR and the Chien lane sums use `gf_mul_fn`
+directly. The block counts are in chapter 5.3.
 
 ## The adapters
 
-Present only when `INTAKE_IF` or `OUTLET_IF` is not `NONE`. The AXI-Stream
-adapter is the house `axis4_slave` (intake) or `axis4_master` (outlet) timing
-wrapper with TLAST as the block boundary and TUSER carrying any erasure flags
-in or status out. The AXI4 adapter is a read engine (job in, stream out) or a
-write engine (stream in, bursts out) with a job controller that sequences
-them from the register block or a descriptor stream. Chapter 4 specifies each.
+The adapters come from the top that wraps the core. `bch_encoder_axis4` and
+`bch_decoder_axis4` put the house `axis4_slave` (intake) and `axis4_master`
+(outlet) timing wrappers around the core, with TLAST as the block boundary
+and the per-bit keep on tstrb or the low tuser bits. `bch_encoder_axi4` and
+`bch_decoder_axi4` are memory-to-memory job engines: `rs_axi4_read_engine`
+feeds the core and `rs_axi4_write_engine` drains it, sequenced by a job port
+(`cfg_start`, source and destination address, block count, `cfg_done`).
+`bch_encoder_axi4` adds `bch_beat_packer` when k is not a multiple of B, so
+the written codeword has its only partial beat last. Chapter 4 specifies
+each.
 
 ## Hierarchy
 
-The complete bottom-up hierarchy -- every block, what it does and every
-component it instantiates with counts -- will be recorded in a companion FUB
-catalog once the RTL exists. This chapter names the blocks; that catalog will
-be the authority on their contents.
+The cores live in `rtl/macro/` (`bch_encoder_core`, `bch_decoder_core`), the
+fubs in `rtl/fub/` (`bch_syndrome_unit`, `bch_key_equation_solver`,
+`bch_chien_search`, `bch_beat_packer`, `bch_pkg`) and the four integration
+tops in `rtl/top/`. The MAS describes each block.

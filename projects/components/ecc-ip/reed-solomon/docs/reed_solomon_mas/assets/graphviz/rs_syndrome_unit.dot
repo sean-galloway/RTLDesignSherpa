@@ -1,0 +1,39 @@
+// rs_syndrome_unit - MAS Figure 2.2 (syndrome_unit).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// One flow: the received beat steps 2t identical Horner cells (one counted
+// box); each cell exposes its register (ow_synd) and its combinational
+// next value (ow_next). Both feed a zero detect. The two output forms
+// take separate columns so the registered and same-cycle results read
+// apart. The caller owns block boundaries: i_first is dashed sideband.
+// Source of truth: rtl/fub/syndrome_unit.sv, rtl/fub/gf/gf_syndrome_cell.sv.
+digraph rs_syndrome_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.80", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="syndrome_unit - 2t syndromes, S received symbols per step (on aclk)";
+
+    in    [label="Received Beat (from the caller)\ni_step, i_data (S symbols, low lanes first),\ni_count (symbols present)", fillcolor="white", group=C];
+    first [label="Block Boundary\ni_first (caller marks the\nblock's first beat)", fillcolor="white", group=L];
+
+    cells [label="2t x Syndrome Cell\ngf_syndrome_cell - g_cell[i].u_cell, root alpha^(b+i)\ns <- s * alpha^(b+i) ^ symbol, i_count steps per i_step\n(one gf_mul_const + an m-bit flop each)", group=C, width=5.0];
+    zreg  [label="Zero Detect (registered form)\now_all_zero = (all S_i == 0)", group=A];
+    znxt  [label="Zero Detect (next form)\now_all_zero_next = (all next S_i == 0)", group=C];
+
+    bar   [label="Outputs\now_synd + ow_all_zero (registered: the block after its last step)   |   ow_synd_next + ow_all_zero_next (same cycle as the last step)",
+           fillcolor="white", width=10.0];
+
+    in    -> cells [xlabel="received symbols"];
+    first -> cells [style=dashed, xlabel="zero the state\nbefore this beat"];
+    cells -> zreg  [xlabel="S_0 .. S_2t-1\n(registers)"];
+    cells -> znxt  [xlabel="next S_0 .. S_2t-1\n(combinational)"];
+    zreg  -> bar   [xlabel="registered syndromes", penwidth=1.8];
+    znxt  -> bar   [xlabel="same-cycle syndromes"];
+
+    { rank=same; in; first; }
+    { rank=same; zreg; znxt; }
+    first -> in [style=invis];
+    zreg -> znxt [style=invis, minlen=3];
+}
