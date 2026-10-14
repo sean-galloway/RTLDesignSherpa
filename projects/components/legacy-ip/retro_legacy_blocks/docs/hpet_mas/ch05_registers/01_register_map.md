@@ -26,7 +26,7 @@
 **Chapter:** 5.1
 **Title:** Complete Register Address Map
 **Version:** 1.1
-**Last Updated:** 2026-09-08
+**Last Updated:** 2026-10-13
 
 ---
 
@@ -67,8 +67,9 @@ APB HPET top-level architecture showing APB interface, configuration registers, 
 | 0x0F8-0x0FF | RESERVED | RO | - | Reserved |
 
 These are the PUBLISHED SPEC offsets (RLB/hpet TASK-006). Reserved space is not
-decoded and answers with PSLVERR rather than reading 0; that predates this
-change and is recorded as a known deviation in the task.
+decoded: a read returns 0 and a write is dropped, and neither raises PSLVERR
+(the generated register block ties its read and write error responses to 0).
+See the address-aliasing note under the Memory Map Diagram below.
 
 #### Per-Timer Registers
 
@@ -91,18 +92,18 @@ Each timer (N = 0 to NUM_TIMERS-1) has a 32-byte register block at base address 
 | 0 | 0x100 | 0x100 | 0x108 | 0x10C |
 | 1 | 0x120 | 0x120 | 0x128 | 0x12C |
 | 2 | 0x140 | 0x140 | 0x148 | 0x14C |
-| 3 | 0x160 | 0x160 | 0x164 | 0x168 |
-| 4 | 0x180 | 0x180 | 0x184 | 0x188 |
-| 5 | 0x1A0 | 0x1A0 | 0x1A4 | 0x1A8 |
-| 6 | 0x1C0 | 0x1C0 | 0x1C4 | 0x1C8 |
-| 7 | 0x1E0 | 0x1E0 | 0x1E4 | 0x1E8 |
+| 3 | 0x160 | 0x160 | 0x168 | 0x16C |
+| 4 | 0x180 | 0x180 | 0x188 | 0x18C |
+| 5 | 0x1A0 | 0x1A0 | 0x1A8 | 0x1AC |
+| 6 | 0x1C0 | 0x1C0 | 0x1C8 | 0x1CC |
+| 7 | 0x1E0 | 0x1E0 | 0x1E8 | 0x1EC |
 
 ### Global Register Descriptions
 
 #### HPET_ID (0x000) - Identification Register
 
 **Access:** Read-Only
-**Reset Value:** `(VENDOR_ID[7:0] << 24) | (REVISION_ID[7:0] << 16) | ((NUM_TIMERS-1) << 8) | 0x80`
+**Reset Value:** `(VENDOR_ID[15:0] << 16) | 0x8000 | 0x2000 | ((NUM_TIMERS-1) << 8) | REVISION_ID[7:0]` -- 0x8000 is `leg_rt_cap`, 0x2000 is `count_size_cap`
 
 Contains capability information and identification fields. `vendor_id`,
 `rev_id` and `num_tim_cap` are all driven from the top-level parameters
@@ -309,7 +310,7 @@ Each timer has a dedicated 32-byte register block. The following descriptions ap
 #### TIMER_CONFIG (Timer Base + 0x00) - Timer Configuration
 
 **Access:** Read-Write
-**Reset Value:** 0x00000000
+**Reset Value:** 0x00000030 (the read-only `size_cap` and `per_int_cap` read 1; every writable bit resets to 0)
 
 Configuration and control for individual timer.
 
@@ -337,8 +338,12 @@ interrupt.
 **Field Descriptions:**
 
 **timer_int_enable (bit 2):**
-- 0 = Interrupt generation disabled (timer fires but no interrupt)
-- 1 = Interrupt generation enabled (sets `HPET_STATUS` bit on fire)
+- 0 = Interrupt delivery disabled: the timer still fires and still sets its
+  `HPET_STATUS` bit, but `timer_irq` (or the legacy route) stays low
+- 1 = Interrupt delivery enabled: a fire sets the `HPET_STATUS` bit AND
+  raises the interrupt
+- `hpet_core` sets the sticky status bit on EVERY fire, whatever this bit
+  says; it gates only the interrupt output, sampled at fire time
 
 **timer_type (bit 3):**
 - 0 = **One-shot mode:** Timer fires once when counter >= comparator, then stays idle
@@ -349,7 +354,7 @@ interrupt.
 - 0 = 64-bit (uses the full 64-bit comparator) -- the DEFAULT
 - The polarity is the spec's and is the inverse of the retired `timer_size`
 - APB HPET supports 64-bit by default
-- Change it only on a stopped timer, and rewrite the comparator
+- Change it only with the counter halted, and rewrite the comparator
   afterwards. The change clears the next-epoch hold, but a comparator
   advanced at the old width is not on the new width's lattice, and a
   live 0->1 switch can leave the timer catching up for ~2^32 cycles
@@ -371,7 +376,7 @@ WRITE(TIMER0_CONFIG, 0x00C);  // bits 3, 2 = TYPE (periodic) | INT_ENB
 WRITE(TIMER0_CONFIG, 0x104);  // bits 8, 2 = 32MODE | INT_ENB
 ```
 
-#### TIMER_COMPARATOR_LO (Timer Base + 0x04) - Comparator Low
+#### TIMER_COMPARATOR_LO (Timer Base + 0x08) - Comparator Low
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -407,7 +412,7 @@ WRITE(TIMER0_COMPARATOR_LO, 1000);
 WRITE(TIMER0_COMPARATOR_HI, 0);
 ```
 
-#### TIMER_COMPARATOR_HI (Timer Base + 0x08) - Comparator High
+#### TIMER_COMPARATOR_HI (Timer Base + 0x0C) - Comparator High
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -451,9 +456,11 @@ the two writes the core holds the torn value `{old HI, new LO}`, which
 software never programmed; withholding the re-arm on a running timer is
 what guarantees that value can never fire.
 
-The contract: to reprogram a running timer's comparator, disable the
-timer first, write both halves, then re-enable. It fires once, at the
-programmed value -- even one the counter has already passed. The real
+The contract: to reprogram a running timer's comparator, halt the counter
+first (`HPET_CONFIG.hpet_enable=0` -- the only stop the published map
+has), write both halves, then restart it. It fires once, at the
+programmed value -- even one the counter has already passed. Clearing
+`timer_int_enable` does NOT stop a timer; it only masks the interrupt. The real
 HPET has the same requirement. Two consequences of reprogramming a
 running timer anyway are outside the contract, not defects:
 
@@ -467,10 +474,10 @@ running timer anyway are outside the contract, not defects:
 
 ```c
 // Move a running 64-bit timer to a new deadline, any value
-WRITE(TIMER1_CONFIG, 0x20);              // 64-bit, timer disabled
+WRITE(HPET_CONFIG, 0x0);                 // halt the counter (block-wide stop)
 WRITE(TIMER1_COMPARATOR_LO, new_lo);
 WRITE(TIMER1_COMPARATOR_HI, new_hi);
-WRITE(TIMER1_CONFIG, 0x2C);              // 64-bit | int_enable | enable
+WRITE(HPET_CONFIG, 0x1);                 // restart; TIMER1_CONFIG untouched
 ```
 
 A software write landing in the same cycle as a fire on a running timer
@@ -499,7 +506,7 @@ One-shot timer operation flow showing counter increment, comparator match, and i
 2. When `counter >= comparator` and the timer is armed: Timer fires, and the armed latch clears
 3. Sets the `HPET_STATUS` bit; if `timer_int_enable=1`, also raises `timer_irq`
 4. Timer stays complete until the comparator is rewritten with the counter
-   halted (HPET_CONFIG.enable = 0), or written above the counter while it
+   halted (HPET_CONFIG.hpet_enable = 0), or written above the counter while it
    runs -- halting and restarting the counter alone does not re-fire
 
 **Comparator Behavior:**
@@ -529,7 +536,7 @@ while (!(READ(HPET_STATUS) & 0x1));
 WRITE(HPET_STATUS, 0x1);
 
 // Re-arm for the next fire at 2000 cycles. Halt the counter around the
-// write: a comparator write re-arms only while HPET_CONFIG.enable = 0 (the
+// write: a comparator write re-arms only while HPET_CONFIG.hpet_enable = 0 (the
 // published map has no per-timer stop), so this works for any value, even
 // one the counter has already passed (which then fires on the first enabled
 // cycle). Writing 2000 with the counter running would also work here -- but
@@ -654,7 +661,8 @@ void timer1_isr(void) {
   [31:16]), rev_id = REVISION_ID ([7:0]), num_tim_cap = NUM_TIMERS-1 ([12:8]),
   count_size_cap = 1 ([13]), leg_rt_cap = 1 ([15])
 - **HPET_PERIOD:** Constant GCAP_ID[63:32]: COUNTER_CLK_PERIOD_FS femtoseconds
-- **All timers:** Reset to disabled state (0x00000000)
+- **All timers:** TIMER_CONFIG resets to 0x00000030 (every writable bit 0;
+  the read-only `per_int_cap` and `size_cap` read 1); comparators reset to 0
 - **Main counter:** Reset to 0x00000000_00000000
 
 #### Read/Write Ordering
@@ -667,7 +675,7 @@ holds {old HI, new LO} (or the reverse). Halt the counter
 for a partial, byte-strobed write, whose merge reads a cycle-old mirror.
 The mixed comparator value can never fire, because a comparator write does
 not re-arm a running timer; the flip side is that a running timer re-arms
-only when the completed value is above the counter, so disable the timer
+only when the completed value is above the counter, so halt the counter
 around the pair whenever the new value may already be behind it (see
 Reprogramming a Running Timer).
 
@@ -680,62 +688,70 @@ protection.
 
 ```
 0x000  ┌─────────────────────────┐
-       │ HPET_ID (RO)            │  Vendor, revision, capabilities
+       │ HPET_ID (RO)            │  GCAP_ID[31:0]: vendor, caps, revision
 0x004  ├─────────────────────────┤
-       │ HPET_CONFIG (RW)        │  Global enable, legacy mode
+       │ HPET_PERIOD (RO)        │  GCAP_ID[63:32]: femtoseconds per tick
 0x008  ├─────────────────────────┤
-       │ HPET_STATUS (RW/W1C)    │  Timer interrupt status
-0x00C  ├─────────────────────────┤
-       │ RESERVED (RO)           │
-0x010  ├─────────────────────────┤
-       │ HPET_COUNTER_LO (RW)    │  Main counter [31:0]
-0x014  ├─────────────────────────┤
-       │ HPET_COUNTER_HI (RW)    │  Main counter [63:32]
-0x018  ├─────────────────────────┤
-       │                         │
        │ RESERVED                │
-       │                         │
+0x010  ├─────────────────────────┤
+       │ HPET_CONFIG (RW)        │  GEN_CONF: enable, legacy replacement
+0x014  ├─────────────────────────┤
+       │ RESERVED                │
+0x020  ├─────────────────────────┤
+       │ HPET_STATUS (RW/W1C)    │  GINTR_STA: timer interrupt status
+0x024  ├─────────────────────────┤
+       │ RESERVED                │
+0x0F0  ├─────────────────────────┤
+       │ HPET_COUNTER_LO (RW)    │  MAIN_CNT[31:0]
+0x0F4  ├─────────────────────────┤
+       │ HPET_COUNTER_HI (RW)    │  MAIN_CNT[63:32]
+0x0F8  ├─────────────────────────┤
+       │ RESERVED                │
 0x0FF  ├─────────────────────────┤
 
 0x100  ┌─────────────────────────┐
-       │ TIMER0_CONFIG (RW)      │  Timer 0 configuration
+       │ TIMER0_CONFIG (RW)      │  TN_CONF[31:0]
 0x104  ├─────────────────────────┤
-       │ TIMER0_COMPARATOR_LO    │  Timer 0 comparator [31:0]
+       │ TIMER0_INT_ROUTE_CAP    │  TN_CONF[63:32] (RO, reads 0)
 0x108  ├─────────────────────────┤
-       │ TIMER0_COMPARATOR_HI    │  Timer 0 comparator [63:32]
+       │ TIMER0_COMPARATOR_LO    │  Timer 0 comparator [31:0]
 0x10C  ├─────────────────────────┤
-       │ RESERVED                │
-       │                         │
+       │ TIMER0_COMPARATOR_HI    │  Timer 0 comparator [63:32]
+0x110  ├─────────────────────────┤
+       │ RESERVED (FSB route)    │  not implemented
 0x11F  ├─────────────────────────┤
 
 0x120  ┌─────────────────────────┐
-       │ TIMER1_CONFIG (RW)      │  Timer 1 configuration
+       │ TIMER1_CONFIG (RW)      │  TN_CONF[31:0]
 0x124  ├─────────────────────────┤
-       │ TIMER1_COMPARATOR_LO    │  Timer 1 comparator [31:0]
+       │ TIMER1_INT_ROUTE_CAP    │  TN_CONF[63:32] (RO, reads 0)
 0x128  ├─────────────────────────┤
-       │ TIMER1_COMPARATOR_HI    │  Timer 1 comparator [63:32]
+       │ TIMER1_COMPARATOR_LO    │  Timer 1 comparator [31:0]
 0x12C  ├─────────────────────────┤
-       │ RESERVED                │
-       │                         │
+       │ TIMER1_COMPARATOR_HI    │  Timer 1 comparator [63:32]
+0x130  ├─────────────────────────┤
+       │ RESERVED (FSB route)    │  not implemented
 0x13F  ├─────────────────────────┤
 
        │         ...             │
 
 0x1E0  ┌─────────────────────────┐
-       │ TIMER7_CONFIG (RW)      │  Timer 7 configuration (if 8 timers)
+       │ TIMER7_CONFIG (RW)      │  TN_CONF[31:0] (if 8 timers)
 0x1E4  ├─────────────────────────┤
-       │ TIMER7_COMPARATOR_LO    │  Timer 7 comparator [31:0]
+       │ TIMER7_INT_ROUTE_CAP    │  TN_CONF[63:32] (RO, reads 0)
 0x1E8  ├─────────────────────────┤
-       │ TIMER7_COMPARATOR_HI    │  Timer 7 comparator [63:32]
+       │ TIMER7_COMPARATOR_LO    │  Timer 7 comparator [31:0]
 0x1EC  ├─────────────────────────┤
-       │ RESERVED                │
-       │                         │
+       │ TIMER7_COMPARATOR_HI    │  Timer 7 comparator [63:32]
+0x1F0  ├─────────────────────────┤
+       │ RESERVED (FSB route)    │  not implemented
 0x1FF  └─────────────────────────┘
 ```
 
 Only address bits [8:0] reach the register block, so 0x200-0xFFF alias
 back onto 0x000-0x1FF (0x200 reads HPET_ID, and so on). No error is
-raised for any address.
+raised for any address: reserved offsets inside the window read 0 and
+ignore writes.
 
 Timer slots at or above NUM_TIMERS (e.g. 0x140-0x1FF on a 2-timer
 build) are REAL decoded storage: they read back written values but
@@ -770,7 +786,7 @@ Timer interrupt generation and W1C (Write-1-to-Clear) status clearing sequence. 
 
 ![Timer Setup Sequence](../assets/svg/timer_setup_sequence.png)
 
-Complete timer setup sequence: disable HPET, reset counter, configure comparator, enable timer, enable HPET. [Source: assets/wavedrom/timer_setup_sequence.json](../assets/wavedrom/timer_setup_sequence.json)
+Complete timer setup sequence: disable HPET, reset counter, configure comparator, configure timer (INT_ENB | TYPE), enable HPET. [Source: assets/wavedrom/timer_setup_sequence.json](../assets/wavedrom/timer_setup_sequence.json)
 
 ---
 

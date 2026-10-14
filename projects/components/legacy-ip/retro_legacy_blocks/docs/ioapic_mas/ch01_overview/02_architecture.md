@@ -186,7 +186,10 @@ lost EOI, and its delayed pending-clear delivered every edge twice.
 - 0x00: IOAPICID
 - 0x01: IOAPICVER
 - 0x02: IOAPICARB
-- 0x03-0x0F: Reserved
+- 0x03: IOAPICARBCFG (round-robin enable; not an 82093AA register)
+- 0x04-0x07: IOAPICMSIADDR, IOAPICMSIDATA, IOAPICMSIDROP, IOAPICBOOTINTX
+  (extensions; reserved selectors on the real 82093AA)
+- 0x08-0x0F: Reserved (unmapped; IOWIN access dropped)
 - 0x10-0x3F: IOREDTBL[0-23] (LO/HI pairs)
 
 **Memory Footprint:** 4KB APB window (matches other RLB modules)

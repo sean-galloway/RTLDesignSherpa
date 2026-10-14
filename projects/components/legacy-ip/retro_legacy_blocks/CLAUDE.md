@@ -206,19 +206,33 @@ timeout_us = (timeout_ns + 999) // 1000
 
 #### Rule #3: HPET Register Map
 
-```
-0x000: HPET_ID              (num_tim_cap, vendor/revision fixed 0x01/0x01, RO)
-0x004: HPET_CONFIG          (hpet_enable; legacy_replacement bit stores, no HW effect)
-0x008: HPET_STATUS          (timer interrupt status, W1C)
-0x00C: RESERVED             (reads 0)
-0x010: HPET_COUNTER_LO      (main counter bits [31:0], RW)
-0x014: HPET_COUNTER_HI      (main counter bits [63:32], RW)
+The PUBLISHED spec map (RLB/hpet TASK-006); `rdl/hpet/hpet_regs.rdl` is the
+source of truth. Reserved offsets read 0 with no PSLVERR.
 
-Per-Timer Registers (i = 0 to NUM_TIMERS-1), fields at bits [6:2]:
-0x100 + i*0x20: TIMER[i]_CONFIG         (enable[2], int_enable[3], type[4], size[5])
-0x104 + i*0x20: TIMER[i]_COMPARATOR_LO  (bits [31:0], RW)
-0x108 + i*0x20: TIMER[i]_COMPARATOR_HI  (bits [63:32], RW)
 ```
+0x000: HPET_ID              GCAP_ID[31:0] RO: rev_id[7:0], num_tim_cap[12:8] (N-1),
+                            count_size_cap[13]=1, leg_rt_cap[15]=1, vendor_id[31:16] (16 bits)
+0x004: HPET_PERIOD          GCAP_ID[63:32] RO: femtoseconds per tick (COUNTER_CLK_PERIOD_FS)
+0x010: HPET_CONFIG          GEN_CONF: hpet_enable[0], legacy_replacement[1] (T0->IRQ0, T1->IRQ8)
+0x020: HPET_STATUS          GINTR_STA: timer interrupt status, W1C; set on EVERY fire
+0x0F0: HPET_COUNTER_LO      main counter bits [31:0], RW
+0x0F4: HPET_COUNTER_HI      main counter bits [63:32], RW
+
+Per-Timer Registers (i = 0 to NUM_TIMERS-1):
+0x100 + i*0x20: TIMER[i]_CONFIG          TN_CONF[31:0]; reads 0x30 out of reset
+0x104 + i*0x20: TIMER[i]_INT_ROUTE_CAP   TN_CONF[63:32], RO, reads 0
+0x108 + i*0x20: TIMER[i]_COMPARATOR_LO   bits [31:0], RW
+0x10C + i*0x20: TIMER[i]_COMPARATOR_HI   bits [63:32], RW
+
+TIMER_CONFIG (TN_CONF): int_type[1] (storage), int_enable[2], type[3] (1=periodic),
+  per_int_cap[4]=1 RO, size_cap[5]=1 RO, value_set[6] (storage), 32mode[8],
+  int_route[13:9] (storage), fsb_en[14] (storage), fsb_int_del_cap[15]=0 RO
+```
+
+Two traps: there is NO per-timer run enable -- `int_enable` masks only the
+interrupt, and the only stop is `HPET_CONFIG.hpet_enable` (halt it before
+reprogramming a comparator). And `32mode` FORCES 32-bit, so 64-bit operation
+is the bit CLEAR -- the inverse of the retired `timer_size`.
 
 #### Rule #4: HPET Timer Modes
 
@@ -230,17 +244,18 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1), fields at bits [6:2]:
 **Periodic:**
 - Timer fires repeatedly
 - Comparator auto-increments by period value
-- Fires indefinitely until disabled
+- Fires indefinitely until the counter is halted or the timer is switched to one-shot (there is no per-timer stop)
 
 ### HPET Common Issues
 
 **Issue: Timer Not Firing**
-1. HPET enabled? (HPET_CONFIG bit 0)
-2. Timer enabled? (TIMER_CONFIG bit 2)
-3. Comparator set correctly?
-4. Counter incrementing?
-5. Counter will reach comparator?
-6. Interrupt enable set? (TIMER_CONFIG bit 3)
+1. HPET enabled? (HPET_CONFIG bit 0 -- the only run control)
+2. Comparator set correctly? (LO at +0x08, HI at +0x0C)
+3. Counter incrementing?
+4. Counter will reach comparator?
+5. Interrupt enable set? (TIMER_CONFIG bit 2) -- without it the HPET_STATUS
+   bit still sets but `timer_irq` stays low
+6. Legacy replacement on? (HPET_CONFIG bit 1 moves timers 0/1 off `timer_irq`)
 
 **Issue: Tests Failing Inconsistently**
 - Most common cause: Missing test cleanup (counter not reset)

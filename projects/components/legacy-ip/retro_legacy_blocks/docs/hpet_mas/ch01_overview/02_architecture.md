@@ -195,7 +195,7 @@ hpet_regs.sv -- there are no such localparams in the RTL):
    ▼
 5. hpet_core
    - Load one counter half (if HPET_COUNTER_LO or _HI write)
-   - Load one comparator half; re-arm only if the timer is stopped
+   - Load one comparator half; re-arm only if the counter is halted
      (if TIMER_COMPARATOR write)
    - Update control (if TIMER_CONFIG write)
    - Clear the status bits written with 1 (if HPET_STATUS write)
@@ -253,8 +253,8 @@ hpet_regs.sv -- there are no such localparams in the RTL):
    |
    +- One-Shot Mode:
    |  - Fire once on the armed match
-   |  - Stay un-armed until the comparator is written with the timer
-   |    stopped, or the match falls (comparator written above the
+   |  - Stay un-armed until the comparator is written with the counter
+   |    halted, or the match falls (comparator written above the
    |    counter, or the counter written back)
    |  - Assert timer_irq[i]
    |

@@ -70,12 +70,12 @@ HPET Core architecture showing main counter, timer comparators, match detection,
 | **counter_write_lo** | logic | 1 | Input | One-cycle strobe: load counter[31:0] from counter_wdata[31:0] |
 | **counter_write_hi** | logic | 1 | Input | One-cycle strobe: load counter[63:32] from counter_wdata[63:32] |
 | **counter_wdata** | logic | 64 | Input | Counter write data (from HPET_COUNTER_LO/HI; only the strobed half is used) |
-| **timer_enable[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer enable (from TIMER_CONFIG[2]) |
-| **timer_int_enable[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer interrupt enable (from TIMER_CONFIG[3]) |
-| **timer_type[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer mode: 0=One-shot, 1=Periodic (from TIMER_CONFIG[4]) |
-| **timer_size[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer compare width: 0=32-bit, 1=64-bit (from TIMER_CONFIG[5]); a change clears the timer's next-epoch hold bit -- change it only on a stopped timer, then rewrite the comparator |
-| **timer_comp_write_lo[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer strobe: load comparator[31:0]; re-arms only while the timer is stopped |
-| **timer_comp_write_hi[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer strobe: load comparator[63:32]; re-arms only while the timer is stopped |
+| **legacy_replacement** | logic | 1 | Input | LegacyReplacement Route (from HPET_CONFIG[1]): timers 0/1 leave on legacy_irq0/legacy_irq8 instead of timer_irq |
+| **timer_int_enable[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer interrupt enable (from TIMER_CONFIG[2], TN_CONF.INT_ENB). Gates only the interrupt output; there is NO per-timer run enable |
+| **timer_type[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer mode: 0=One-shot, 1=Periodic (from TIMER_CONFIG[3]) |
+| **timer_size[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer compare width: 0=32-bit, 1=64-bit. Driven as `~TIMER_CONFIG[8]` (32MODE forces 32-bit, so the polarity is inverted); a change clears the timer's next-epoch hold bit -- change it only with the counter halted, then rewrite the comparator |
+| **timer_comp_write_lo[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer strobe: load comparator[31:0]; re-arms only while the counter is halted |
+| **timer_comp_write_hi[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer strobe: load comparator[63:32]; re-arms only while the counter is halted |
 | **timer_comp_wdata[NUM_TIMERS]** | logic [63:0] | NUM_TIMERS x 64 | Input | Per-timer comparator write data |
 
 ### Status Interface (to hpet_config_regs)
@@ -83,6 +83,7 @@ HPET Core architecture showing main counter, timer comparators, match detection,
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **counter_rdata** | logic | 64 | Output | Current main counter value (to HPET_COUNTER_LO/HI) |
+| **timer_comp_rdata[NUM_TIMERS]** | logic [63:0] | NUM_TIMERS x 64 | Output | Live comparator, periodic advance included (to TIMER_COMPARATOR_LO/HI readback) |
 | **timer_int_status[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer sticky interrupt status, owned here (mirrored into HPET_STATUS) |
 | **timer_int_clear[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-bit one-cycle clear pulses from the register wrapper (W1C) |
 
@@ -90,7 +91,9 @@ HPET Core architecture showing main counter, timer comparators, match detection,
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
-| **timer_irq[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer interrupt outputs (active-high) |
+| **timer_irq[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer interrupt outputs (active-high); timers 0/1 suppressed while legacy_replacement is set |
+| **legacy_irq0** | logic | 1 | Output | Timer 0 on the LegacyReplacement Route (IRQ0); 0 unless legacy_replacement is set |
+| **legacy_irq8** | logic | 1 | Output | Timer 1 on the LegacyReplacement Route (IRQ8); 0 unless legacy_replacement is set |
 
 ---
 
@@ -108,24 +111,26 @@ Each timer instance implements an identical FSM controlling its operation:
 
 | State | Encoding | Description |
 |-------|----------|-------------|
-| **IDLE** | Default | Timer disabled, waiting for enable signal |
+| **IDLE** | Default | Counter halted (`hpet_enable = 0`), waiting for it to run |
 | **ARMED** | Active | Timer enabled, monitoring counter vs comparator |
 | **FIRE** | Transient | Timer match detected, asserting interrupt (1 cycle) |
 | **PERIODIC_RELOAD** | Transient | Periodic mode: auto-increment comparator (1 cycle; one boundary per cycle while catching up, counter + 1 at period 1) |
-| **ONE_SHOT_COMPLETE** | Sticky | One-shot mode: fired, armed latch clear, waiting for a comparator write with the timer stopped or for the match to fall |
+| **ONE_SHOT_COMPLETE** | Sticky | One-shot mode: fired, armed latch clear, waiting for a comparator write with the counter halted or for the match to fall |
 
 **Note:** FSM is **conceptual** - the implementation is a raw comparator plus two state bits per timer, the armed latch (`r_timer_armed[i]`) and the next-epoch hold bit (`r_comp_next_epoch[i]`), rather than an explicit state register. A timer whose advance carried out of the compare width is epoch-held: it looks ARMED-but-not-matching (the latch is set, the match is forced off) until the counter wraps at that width, and none of the transitions below happen for it in the meantime.
 
 #### State Transitions
 
 **IDLE -> ARMED:**
-- Condition: `hpet_enable && timer_enable[i]`
+- Condition: `hpet_enable` (block-wide -- the published spec defines no
+  per-timer run enable, so every timer runs whenever the counter does)
 - Action: Latch current comparator value
 - Duration: Immediate (next clock cycle)
 
 **ARMED -> FIRE:**
 - Condition: `counter_value >= timer_comparator[i]` with the armed latch set
-- Action: Assert `timer_int_status[i]` (sticky), clear the armed latch
+- Action: Assert `timer_int_status[i]` (sticky) on EVERY fire, whatever
+  `timer_int_enable[i]` says; clear the armed latch
 - Duration: 1 clock cycle (the fire is a one-cycle pulse)
 
 **FIRE -> PERIODIC_RELOAD:**
@@ -136,7 +141,7 @@ Each timer instance implements an identical FSM controlling its operation:
 **FIRE -> ONE_SHOT_COMPLETE:**
 - Condition: `timer_type[i] == 0` (one-shot mode)
 - Action: Hold `timer_int_status[i]` until software clears
-- Duration: Until STATUS cleared or timer disabled
+- Duration: Until STATUS cleared or the counter halted
 
 **PERIODIC_RELOAD -> ARMED:**
 - Condition: Always (automatic)
@@ -145,15 +150,15 @@ Each timer instance implements an identical FSM controlling its operation:
 
 **ONE_SHOT_COMPLETE -> ARMED:**
 - Condition: a comparator write, LO or HI half (`timer_comp_write_lo/hi[i]`),
-  while the timer is NOT running (`timer_enable[i] = 0` or
-  `hpet_enable = 0`), even with the value it already holds; or the raw
+  while the counter is HALTED (`hpet_enable = 0`), even with the value
+  it already holds; or the raw
   match falling (a comparator written above the counter, or the counter
   written back below the comparator)
 - Action: Set the armed latch; resume monitoring
 - Duration: Immediate on the write strobe or on the match falling
-- A comparator written with the timer stopped does NOT have to exceed the
-  counter. A value at or below the counter fires on the first cycle both
-  enables allow -- that is the explicit re-arm, and it is how software
+- A comparator written with the counter halted does NOT have to exceed the
+  counter. A value at or below the counter fires on the first cycle the
+  counter runs -- that is the explicit re-arm, and it is how software
   fires a timer "now".
 - A comparator write on a RUNNING timer loads the half but does not
   re-arm. Written above the counter, the match falls and the timer
@@ -162,15 +167,16 @@ Each timer instance implements an identical FSM controlling its operation:
   that same path and fires at the final value once it is written, and a
   same-value rewrite on a running periodic timer drags the comparator
   back from its advanced position and can add one off-lattice fire. To
-  reprogram a running timer, disable it first.
+  reprogram a running timer, halt the counter first.
 
 **ARMED/ONE_SHOT_COMPLETE -> IDLE:**
-- Condition: `!hpet_enable || !timer_enable[i]`
+- Condition: `!hpet_enable` (clearing `timer_int_enable[i]` does NOT stop a
+  timer; it only masks the interrupt)
 - Action: Stop firing. A pending interrupt status/output is NOT cleared
-  by disabling -- it holds until software W1C or reset.
+  by halting -- it holds until software W1C or reset.
 - Duration: Immediate
-- The enables do not touch the armed latch, so a completed one-shot stays
-  complete across a disable/enable cycle: re-enabling with an expired
+- The enable does not touch the armed latch, so a completed one-shot stays
+  complete across a halt/restart cycle: restarting with an expired
   comparator does not re-fire it.
 
 ### Main Counter Logic
@@ -301,7 +307,7 @@ end
 - **Rewrite**: a write is the event, not a change of value -- writing the
   comparator with the value it already holds reloads the internal
   comparator (discarding any periodic advance). It re-arms the timer only
-  while the timer is stopped; on a running timer the reload lands and the
+  while the counter is halted; on a running timer the reload lands and the
   timer re-arms when the match next falls
 - **Periodic Mode**: Comparator auto-increments by period value on each fire
 - **Periodic catch-up**: while a periodic timer is running, un-armed and
@@ -342,7 +348,7 @@ logic [NUM_TIMERS-1:0] w_timer_match_raw;
 logic [NUM_TIMERS-1:0] w_timer_match;
 
 for (genvar i = 0; i < NUM_TIMERS; i++) begin : gen_timer_terms
-    // timer_size (TIMER_CONFIG[5]) selects 64-bit or 32-bit compare
+    // timer_size (= ~TIMER_CONFIG[8], 32MODE) selects 64-bit or 32-bit compare
     assign w_timer_match_raw[i] = timer_size[i]
                                   ? (r_main_counter >= r_timer_comparator[i])
                                   : (r_main_counter[31:0] >= r_timer_comparator[i][31:0]);
@@ -360,9 +366,9 @@ assign w_timer_match = w_timer_match_raw & ~r_comp_next_epoch;
   of the compare width the comparator belongs to the counter's next
   epoch, and the raw comparison says nothing useful until the counter
   wraps at that width; the bit forces the match off until then.
-- That is all. The enables (`timer_enable[i]`, `hpet_enable`) are
-  deliberately NOT in the match: they gate the fire pulse instead (next
-  section), so that turning them on cannot manufacture a match edge.
+- That is all. The enable (`hpet_enable`) is deliberately NOT in the
+  match: it gates the fire pulse instead (next section), so that turning
+  it on cannot manufacture a match edge.
 
 ### Timer Fire Logic
 
@@ -371,24 +377,24 @@ assign w_timer_match = w_timer_match_raw & ~r_comp_next_epoch;
 A per-timer armed latch decides whether the raw match may still produce a
 fire. It holds "this timer still owes one interrupt for this comparator"
 as state, which is what a plain rising-edge detect cannot do: an edge on
-(match && enables) re-fires every expired one-shot the moment an enable
-goes 0->1, while an edge on the raw match is consumed at the comparator
-write, before the enables are on, and then never fires at all.
+(match && hpet_enable) re-fires every expired one-shot the moment the
+counter is started, while an edge on the raw match is consumed at the
+comparator write, before the counter runs, and then never fires at all.
 
 ```systemverilog
 // Per-timer armed latch and next-epoch hold bit. Reset ARMED: out of
-// reset counter == comparator == 0 is already a match, and the enables
-// hold the fire off until then. Reset epoch clear.
+// reset counter == comparator == 0 is already a match, and hpet_enable
+// holds the fire off until then. Reset epoch clear.
 logic [NUM_TIMERS-1:0] r_timer_armed;
 logic [NUM_TIMERS-1:0] r_comp_next_epoch;
 logic [NUM_TIMERS-1:0] w_timer_comp_write;   // LO or HI half of timer i written
-logic [NUM_TIMERS-1:0] w_timer_running;      // timer_enable[i] & hpet_enable
-logic [NUM_TIMERS-1:0] w_comp_write_rearm;   // comparator write on a STOPPED timer
+logic [NUM_TIMERS-1:0] w_timer_running;      // = hpet_enable (block-wide)
+logic [NUM_TIMERS-1:0] w_comp_write_rearm;   // comparator write with the counter HALTED
 logic [NUM_TIMERS-1:0] w_timer_catchup;      // advance a boundary, do NOT fire
 logic [NUM_TIMERS-1:0] w_catchup_rearm;      // catch-up landed at or ahead of the counter
 
 assign w_timer_comp_write = timer_comp_write_lo | timer_comp_write_hi;
-assign w_timer_running    = timer_enable & {NUM_TIMERS{hpet_enable}};
+assign w_timer_running    = {NUM_TIMERS{hpet_enable}};
 assign w_comp_write_rearm = w_timer_comp_write & ~w_timer_running;
 
 // Periodic catch-up: periodic, NOT armed, comparator still at or behind
@@ -445,8 +451,8 @@ always_ff @(posedge clk or negedge rst_n) begin
     end
 end
 
-// Fire: epoch-gated match, still armed, and both enables on
-assign w_timer_fire = w_timer_match & r_timer_armed & timer_enable &
+// Fire: epoch-gated match, still armed, and the counter running
+assign w_timer_fire = w_timer_match & r_timer_armed &
                       {NUM_TIMERS{hpet_enable}};
 ```
 
@@ -461,8 +467,8 @@ The latch is set by exactly three things and cleared only by a fire:
   compare width). This is the only re-arm path for a period of 1, where
   the advance never pulls away from the counter and the match therefore
   never falls on its own.
-- **Explicit re-arm** -- a comparator half is written while the timer is
-  NOT running (`timer_enable[i] = 0` or `hpet_enable = 0`). This is what
+- **Explicit re-arm** -- a comparator half is written while the counter
+  is HALTED (`hpet_enable = 0`; there is no per-timer stop). This is what
   lets software arm to a value the counter has already passed: a zero
   comparator, or restarting a periodic phase after a counter reset.
 
@@ -475,10 +481,10 @@ naturally, through the first rule, once the completed value is ahead of
 the counter. Written above the counter it fires at the new value.
 
 The contract that follows: to reprogram a running timer's 64-bit
-comparator without a spurious or a missed event, disable the timer first,
-write both halves, then re-enable -- it fires once, at the value
-programmed, and a value at or below the counter fires as soon as the
-timer is enabled (the `>=` match, the same rule that makes a deficit fire
+comparator without a spurious or a missed event, halt the counter first
+(`hpet_enable = 0` -- there is no per-timer stop), write both halves, then
+restart it -- it fires once, at the value programmed, and a value at or
+below the counter fires as soon as the counter restarts (the `>=` match, the same rule that makes a deficit fire
 rather than be missed; there is no wait for a wrap). The real HPET has
 the same requirement. Two consequences of reprogramming a running timer
 anyway are outside the contract, not defects: a torn 64-bit value ABOVE
@@ -546,7 +552,7 @@ nothing the comparison reads and leaves the hold in place. In 64-bit mode
 either half clears it. Clear beats set, because the two coincide exactly
 at the counter's own wrap and taking the set there would hold the
 comparator for a whole extra epoch. E4 carries a contract of its own:
-change `timer_size` only on a stopped timer, and rewrite the comparator
+change `timer_size` only with the counter halted, and rewrite the comparator
 afterwards. The hold clears on the change, but a comparator that was
 advanced at the old width is not on the new width's lattice, and a live
 0->1 switch can leave the timer catching up for ~2^32 cycles. What
@@ -657,7 +663,11 @@ for (genvar i = 0; i < NUM_TIMERS; i++) begin : gen_interrupt_output
     end
 end
 
-assign timer_irq = r_interrupt_output;
+// LegacyReplacement Route REPLACES timers 0/1 on timer_irq (TASK-003)
+assign timer_irq   = r_interrupt_output &
+                     ~(legacy_replacement ? LEGACY_MASK : {NUM_TIMERS{1'b0}});
+assign legacy_irq0 = legacy_replacement & r_interrupt_output[0];
+assign legacy_irq8 = legacy_replacement & r_interrupt_output[1];  // 0 if NUM_TIMERS < 2
 ```
 
 **Interrupt Behavior:**
@@ -710,9 +720,9 @@ Armed match (re-armed when the advance dropped the match): timer fires
   r_timer_comparator[0] = 2000 + 1000 = 3000
 ```
 
-**Process repeats indefinitely until timer disabled**
+**Process repeats indefinitely until the counter is halted or the timer is switched to one-shot**
 
-**Late Start (counter already at 3500 when the timer is enabled):**
+**Late Start (counter already at 3500 when the timer is programmed):**
 ```
 Armed match with comparator = 1000: timer fires once
 -> Comparator advances 1000 -> 2000; still <= 3500, timer un-armed
@@ -770,7 +780,7 @@ Armed match: timer fires, armed latch clears
 -> timer_int_status[0] asserts (sticky)
 -> Comparator remains at 5000 (no auto-reload)
 -> Interrupt remains asserted
--> Disabling and re-enabling the timer does NOT fire it again
+-> Halting and restarting the counter does NOT fire it again
 ```
 
 **Interrupt Clearing:**

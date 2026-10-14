@@ -120,7 +120,7 @@ package hpet_regs_pkg;
             logic [7:0] next;  // rev_id, from the REVISION_ID parameter
         } rev_id;
         struct packed {
-            logic [7:0] next;  // vendor_id, from the VENDOR_ID parameter
+            logic [15:0] next; // vendor_id, from the VENDOR_ID parameter (GCAP_ID[31:16])
         } vendor_id;
     } HPET_ID__in_t;
 
@@ -377,9 +377,9 @@ assign readback_array[0][31:16] = (decoded_reg_strb.HPET_ID && !decoded_req_is_w
                                   hwif_in.HPET_ID.vendor_id.next : '0;
 
 // Config/status registers
-assign readback_array[1][0:0] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ?
+assign readback_array[2][0:0] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ?
                                 field_storage.HPET_CONFIG.hpet_enable.value : '0;
-assign readback_array[2][7:0] = (decoded_reg_strb.HPET_STATUS && !decoded_req_is_wr) ?
+assign readback_array[3][7:0] = (decoded_reg_strb.HPET_STATUS && !decoded_req_is_wr) ?
                                 field_storage.HPET_STATUS.timer_int_status.value : '0;
 
 // Counter registers

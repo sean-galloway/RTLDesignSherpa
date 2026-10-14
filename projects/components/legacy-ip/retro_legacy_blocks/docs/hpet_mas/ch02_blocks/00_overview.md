@@ -94,8 +94,8 @@ apb4_hpet (Top Level)
 - Per-timer data buses prevent configuration corruption
 - Strobe-driven loads: a write is the event, not a change in the stored
   value, so rewriting the same comparator still reloads it (whether it
-  also re-arms the timer is the core's call: only while the timer is
-  stopped)
+  also re-arms the timer is the core's call: only while the counter is
+  halted)
 - Per-bit W1C clear mask from the write data and byte enables
 - One clear pulse per write, so a same-cycle fire is never undone
 
@@ -131,7 +131,7 @@ apb4_hpet (Top Level)
 - Per-timer FSM (conceptual)
 - Automatic period reload (periodic mode)
 - Armed-latch fire detection: one fire per arm, no re-fire on enable,
-  comparator writes re-arm only a stopped timer
+  comparator writes re-arm only while the counter is halted
 - Periodic catch-up: missed periods are skipped, never burst (period 1
   steps to counter + 1)
 - Next-epoch hold: an advance that carries out of the compare width is
@@ -152,7 +152,7 @@ peakrdl_to_cmdrsp Adapter
 hpet_regs (PeakRDL)
     ↓ hwif_out (register values)
 hpet_config_regs (Mapping)
-    ↓ timer_enable, timer_comp_write_lo/hi, timer_comp_wdata[i]
+    ↓ timer_int_enable/type/size, timer_comp_write_lo/hi, timer_comp_wdata[i]
 hpet_core (Timer Logic)
     -> Counter/Comparator update
 ```
@@ -245,10 +245,10 @@ output logic                    hpet_enable;            // Global enable
 output logic                    counter_write_lo;       // Counter[31:0] write strobe
 output logic                    counter_write_hi;       // Counter[63:32] write strobe
 output logic [63:0]             counter_wdata;          // Counter write data
-output logic [NUM_TIMERS-1:0]   timer_enable;           // Per-timer enable
-output logic [NUM_TIMERS-1:0]   timer_int_enable;       // Per-timer interrupt enable
+output logic                    legacy_replacement;     // HPET_CONFIG[1]
+output logic [NUM_TIMERS-1:0]   timer_int_enable;       // TN_CONF[2]; gates the irq only (no per-timer run enable)
 output logic [NUM_TIMERS-1:0]   timer_type;             // Per-timer mode (0=one-shot, 1=periodic)
-output logic [NUM_TIMERS-1:0]   timer_size;             // Per-timer size (0=32-bit, 1=64-bit)
+output logic [NUM_TIMERS-1:0]   timer_size;             // ~TN_CONF[8] (32MODE): 0=32-bit, 1=64-bit
 output logic [NUM_TIMERS-1:0]   timer_comp_write_lo;    // Per-timer comparator[31:0] write strobe
 output logic [NUM_TIMERS-1:0]   timer_comp_write_hi;    // Per-timer comparator[63:32] write strobe
 output logic [63:0]             timer_comp_wdata[NUM_TIMERS];  // Per-timer data buses
@@ -284,13 +284,13 @@ output hpet_regs_pkg::hpet_regs__out_t hwif_out;
 
 #### Configuration Write
 
-When software writes to HPET_CONFIG to enable the timer, the enable signal propagates through the register file to the core.
+When software writes to HPET_CONFIG to start the counter, the enable signal propagates through the register file to the core.
 
 ### Waveform 2.1: HPET Config Write
 
 ![HPET Config Write](../assets/wavedrom/timing/hpet_config_write.png)
 
-The APB write to address 0x004 (HPET_CONFIG) sets `hpet_enable`, which starts the main counter incrementing.
+The APB write to address 0x010 (HPET_CONFIG) sets `hpet_enable`, which starts the main counter incrementing.
 
 #### Counter Read
 
@@ -344,17 +344,18 @@ Configuring a timer requires multiple APB writes: config register, then comparat
 ![HPET Timer Setup](../assets/wavedrom/timing/hpet_timer_setup.png)
 
 The sequence shows three consecutive writes:
-1. TIMER_CONFIG (0x100): Enable, interrupt enable, periodic mode
-2. TIMER_COMPARATOR_LO (0x104): Lower 32 bits of comparator
-3. TIMER_COMPARATOR_HI (0x108): Upper 32 bits of comparator
+1. TIMER_CONFIG (0x100): interrupt enable (bit 2), periodic mode (bit 3)
+2. TIMER_COMPARATOR_LO (0x108): Lower 32 bits of comparator
+3. TIMER_COMPARATOR_HI (0x10C): Upper 32 bits of comparator
 
 Each comparator half loads hpet_core on its own write strobe, so between
 writes 2 and 3 the core holds {old HI, new LO}. A write re-arms the timer
-only while it is stopped, so that torn value can never fire on a running
-timer -- but a running timer then re-arms only when the completed value is
-above the counter. Write the comparator before enabling the timer, or
-disable it around the pair, whenever the new value may already be behind
-the counter; a write with the timer stopped re-arms it to any value.
+only while the counter is halted, so that torn value can never fire on a
+running timer -- but a running timer then re-arms only when the completed
+value is above the counter. Write the comparator before starting the
+counter, or halt it (`HPET_CONFIG.hpet_enable = 0`) around the pair,
+whenever the new value may already be behind the counter; a write with the
+counter halted re-arms the timer to any value. There is no per-timer stop.
 
 #### Clock Domain Crossing (CDC Mode)
 

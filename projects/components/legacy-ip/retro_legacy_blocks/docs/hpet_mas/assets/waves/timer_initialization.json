@@ -13,7 +13,7 @@
     {
       "name": "APB Write",
       "wave": "x..2...3..|4.....|.....",
-      "data": ["CONFIG=0", "COUNTER=0", "TMR0_CFG=3"]
+      "data": ["CONFIG=0", "COUNTER=0", "TMR0_CFG=0x4"]
     },
     {},
     {
@@ -26,7 +26,7 @@
       "data": ["0", "1", "2", "3", "4"]
     },
     {
-      "name": "timer0_config.enable",
+      "name": "timer0_config.int_enable",
       "wave": "0.........|....1.|....."
     },
     {

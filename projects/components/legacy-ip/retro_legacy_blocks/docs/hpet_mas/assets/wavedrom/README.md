@@ -43,16 +43,18 @@ wavedrom/
 
 ### Register Descriptions
 
-#### Global Registers (0x000 - 0x014)
+#### Global Registers (0x000 - 0x0FF, published spec offsets)
 
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|
-| 0x000 | HPET_ID | RO | Identification and capabilities |
-| 0x004 | HPET_CONFIG | RW | Global enable |
-| 0x008 | HPET_STATUS | RW (W1C) | Timer interrupt status |
-| 0x00C | RESERVED | RO | Reads 0 |
-| 0x010 | HPET_COUNTER_LO | RW | Main counter [31:0] |
-| 0x014 | HPET_COUNTER_HI | RW | Main counter [63:32] |
+| 0x000 | HPET_ID | RO | GCAP_ID[31:0]: identification and capabilities |
+| 0x004 | HPET_PERIOD | RO | GCAP_ID[63:32]: femtoseconds per counter tick |
+| 0x010 | HPET_CONFIG | RW | GEN_CONF: global enable, legacy replacement |
+| 0x020 | HPET_STATUS | RW (W1C) | GINTR_STA: timer interrupt status |
+| 0x0F0 | HPET_COUNTER_LO | RW | Main counter [31:0] |
+| 0x0F4 | HPET_COUNTER_HI | RW | Main counter [63:32] |
+
+Every other offset in the window is reserved and reads 0.
 
 #### Per-Timer Registers (0x100 + i*0x20)
 
@@ -60,10 +62,11 @@ Each timer has 4 registers with 0x20 byte stride:
 
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|
-| +0x00 | TIMER_CONFIG | RW | Enable, interrupt, mode |
-| +0x04 | TIMER_COMPARATOR_LO | RW | Comparator [31:0] |
-| +0x08 | TIMER_COMPARATOR_HI | RW | Comparator [63:32] |
-| +0x0C | Reserved | - | Reserved |
+| +0x00 | TIMER_CONFIG | RW | TN_CONF[31:0]: interrupt enable, mode, 32MODE |
+| +0x04 | TIMER_INT_ROUTE_CAP | RO | TN_CONF[63:32]: reads 0 |
+| +0x08 | TIMER_COMPARATOR_LO | RW | Comparator [31:0] |
+| +0x0C | TIMER_COMPARATOR_HI | RW | Comparator [63:32] |
+| +0x10-0x1F | Reserved | - | Spec FSB route registers, not implemented |
 
 **Examples:**
 - Timer 0: Base = 0x100
@@ -89,18 +92,24 @@ Each timer has 4 registers with 0x20 byte stride:
 - **bit[1]**: legacy_replacement - routes timer 0 to IRQ0 and timer 1 to IRQ8, suppressing both on timer_irq
 - **bits[31:2]**: Reserved
 
-#### HPET_STATUS (0x008) - Write 1 to Clear
+#### HPET_STATUS (0x020) - Write 1 to Clear
 - **bit[i]**: Timer[i] interrupt status (fixed 8-bit field; bits with no timer behind them read 0)
 - Write 1 to clear that bit only; a 0 leaves the bit alone. The register mirrors the status held in hpet_core
 
 #### TIMER_CONFIG (0x100 + i*0x20)
-- **bits[1:0]**: Reserved
-- **bit[2]**: timer_enable - Enable timer
-- **bit[3]**: timer_int_enable - Enable interrupt generation
-- **bit[4]**: timer_type - 0=One-shot, 1=Periodic
-- **bit[5]**: timer_size - 0=32-bit, 1=64-bit compare
+- **bit[0]**: Reserved
+- **bit[1]**: timer_int_type - 0=edge, 1=level (storage only)
+- **bit[2]**: timer_int_enable - gates the interrupt only; there is no per-timer run enable
+- **bit[3]**: timer_type - 0=One-shot, 1=Periodic
+- **bit[4]**: per_int_cap - RO, reads 1
+- **bit[5]**: size_cap - RO, reads 1
 - **bit[6]**: timer_value_set - stored, no hardware effect
-- **bits[31:7]**: Reserved
+- **bit[7]**: Reserved
+- **bit[8]**: timer_32mode - 1 FORCES 32-bit compare (64-bit is the bit clear)
+- **bits[13:9]**: timer_int_route - storage only
+- **bit[14]**: timer_fsb_en - storage only
+- **bit[15]**: fsb_int_del_cap - RO, reads 0
+- **bits[31:16]**: Reserved
 
 ---
 
@@ -139,7 +148,7 @@ wavedrom-cli -i hpet_config.json -o hpet_config.svg
 To embed these diagrams in markdown documentation:
 
 ```markdown
-### HPET_CONFIG Register (0x004)
+### HPET_CONFIG Register (0x010)
 
 \`\`\`wavedrom
 {

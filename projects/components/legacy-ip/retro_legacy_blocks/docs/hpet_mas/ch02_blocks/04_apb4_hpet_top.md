@@ -133,7 +133,9 @@ apb4_hpet
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
-| **timer_irq[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer interrupt outputs (active-high) |
+| **timer_irq[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer interrupt outputs (active-high); timers 0/1 suppressed while HPET_CONFIG.legacy_replacement is set |
+| **legacy_irq0** | logic | 1 | Output | Timer 0 on the LegacyReplacement Route (IRQ0); 0 unless legacy_replacement is set |
+| **legacy_irq8** | logic | 1 | Output | Timer 1 on the LegacyReplacement Route (IRQ8); 0 unless legacy_replacement is set |
 
 **Interrupt Characteristics:**
 - **Active-high level-sensitive**
@@ -191,8 +193,7 @@ logic [63:0]             w_counter_wdata;
 logic [63:0]             w_counter_rdata;
 
 // Per-timer configuration
-logic [NUM_TIMERS-1:0]   w_timer_enable;
-logic [NUM_TIMERS-1:0]   w_timer_int_enable;
+logic [NUM_TIMERS-1:0]   w_timer_int_enable;     // no per-timer run enable (TASK-006)
 logic [NUM_TIMERS-1:0]   w_timer_type;
 logic [NUM_TIMERS-1:0]   w_timer_size;
 logic [NUM_TIMERS-1:0]   w_timer_value_set;

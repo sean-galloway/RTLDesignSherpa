@@ -24,14 +24,14 @@
 # APB HPET Micro-Architecture Specification
 
 **Component:** APB High Precision Event Timer (HPET)
-**Version:** 1.3
-**Last Updated:** 2026-09-09
+**Version:** 1.4
+**Last Updated:** 2026-10-13
 **Status:** RTL Functional - register interface validated; HPET_STATUS
 per-bit W1C with a reset value and a core-owned status mirror, independent
 counter halves, strobe-driven comparator loads and the no-re-fire armed
 latch are as specified (fixed 2026-09-08, issue #46); periodic catch-up
 (missed periods skipped, never burst; period 1 steps to counter + 1), the
-stopped-timer-only comparator re-arm and the next-epoch hold (an advance
+halted-counter-only comparator re-arm and the next-epoch hold (an advance
 that carries out of the compare width is held off until the counter wraps
 there) are as specified (review rounds 1 and 2, 2026-09-09)
 
@@ -47,6 +47,7 @@ This MAS describes the APB HPET as the RTL exists today. The register-side defec
 | 1.1 | 2026-09-08 | RTL Design Sherpa | Issue #46 fixes: per-bit W1C status mirror with reset, independent counter halves, strobe-driven comparator loads, armed-latch fire (no re-fire on enable), HPET_ID from parameters |
 | 1.2 | 2026-09-09 | RTL Design Sherpa | Issue #46 review: comparator writes re-arm only a stopped timer (torn 64-bit value cannot fire; disable-write-enable contract), periodic catch-up skips missed periods without bursting, period 0/1 behaviour, same-cycle write-and-fire rule, halted-counter rule for byte-strobed counter writes |
 | 1.3 | 2026-09-09 | RTL Design Sherpa | Issue #46 review round 2: period-1 catch-up steps to counter + 1 and terminates on advance >= counter; next-epoch hold bit (`r_comp_next_epoch`) for an advance that carries out of the compare width, with its four clears and the width consequences; stopped-timer comparator write always re-arms (a value at or below the counter fires on enable, no wait for wrap); running-timer reprogramming consequences stated as outside the contract; width-masked advance in 32-bit mode |
+| 1.4 | 2026-10-13 | RTL Design Sherpa | Stale pre-spec references swept out: comparator offsets +0x08/+0x0C in every example table, waveform and memory-map diagram; global offsets (CONFIG 0x010, STATUS 0x020, COUNTER 0x0F0/0x0F4); the retired per-timer `timer_enable` removed from port tables, FSM transitions and code excerpts (the only stop is `hpet_enable`); HPET_STATUS is set on every fire, `timer_int_enable` gates only the interrupt; TIMER_CONFIG reads 0x30 out of reset; reserved offsets read 0 without PSLVERR |
 
 : Table: Version History
 

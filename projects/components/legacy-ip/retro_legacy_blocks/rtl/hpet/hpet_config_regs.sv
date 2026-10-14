@@ -78,8 +78,10 @@
 * HPET_ID
 *   num_tim_cap, vendor_id and rev_id are all hw = w and driven from this
 *   module's parameters, so one generated regblock (NUM_TIMERS = 8) serves
-*   every instantiation. vendor_id/rev_id are 8-bit fields here, so only the
-*   low byte of a wider VENDOR_ID/REVISION_ID parameter is visible.
+*   every instantiation. vendor_id is the spec's full 16-bit GCAP_ID[31:16]
+*   field, so a PCI-style VENDOR_ID such as 16'h4747 reads back whole; rev_id
+*   is 8 bits (GCAP_ID[7:0]), so only the low byte of a wider REVISION_ID is
+*   visible.
 *
 * CHECK BY INSPECTION (these were assertions and a simulation-time parameter
 * guard; properties belong in external formal bindings, not inside the module)

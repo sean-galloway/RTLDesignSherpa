@@ -12,7 +12,7 @@
     },
     {},
     [
-      "APB Read COUNTER_LO (0x008)",
+      "APB Read COUNTER_LO (0x0F0)",
       {
         "name": "psel",
         "wave": "01..............0........"
@@ -33,8 +33,8 @@
         "name": "paddr",
         "wave": "x2..............x3......x",
         "data": [
-          "0x008",
-          "0x00C"
+          "0x0F0",
+          "0x0F4"
         ]
       },
       {
@@ -49,7 +49,7 @@
     ],
     {},
     [
-      "APB Read COUNTER_HI (0x00C)",
+      "APB Read COUNTER_HI (0x0F4)",
       {
         "name": "psel",
         "wave": "0................1......0"

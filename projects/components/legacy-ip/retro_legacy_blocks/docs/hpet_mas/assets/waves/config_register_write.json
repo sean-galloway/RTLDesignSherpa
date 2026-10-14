@@ -23,18 +23,18 @@
     {
       "name": "paddr",
       "wave": "x.2...x.3...x.4...x",
-      "data": ["0x000", "0x100", "0x104"]
+      "data": ["0x010", "0x100", "0x108"]
     },
     {
       "name": "pwdata",
       "wave": "x.2...x.3...x.4...x",
-      "data": ["0x1", "0x7", "1000"]
+      "data": ["0x1", "0xC", "1000"]
     },
     {},
     {
       "name": "Config Written",
       "wave": "x...2.x...3.x...4.x",
-      "data": ["HPET_EN", "T0_EN+INT", "T0_CMP"]
+      "data": ["HPET_EN", "T0_INT+TYPE", "T0_CMP"]
     },
     {},
     {
@@ -42,9 +42,9 @@
       "wave": "0...1.............."
     },
     {
-      "name": "timer0_config[2:0]",
+      "name": "timer0_config[3:2]",
       "wave": "x.........2........",
-      "data": ["0x7"]
+      "data": ["0x3"]
     },
     {
       "name": "timer0_comparator",

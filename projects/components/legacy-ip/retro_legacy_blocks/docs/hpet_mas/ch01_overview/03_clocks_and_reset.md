@@ -115,7 +115,7 @@ always_ff @(posedge pclk or negedge presetn) begin
 
         // Per-timer configuration
         for (int i = 0; i < NUM_TIMERS; i++) begin
-            TIMER_CONFIG[i] <= 32'h0;  // Timer disabled
+            TIMER_CONFIG[i] <= 32'h0;  // writable bits; reads 0x30 (RO size_cap/per_int_cap = 1)
         end
     end
 end
@@ -130,7 +130,7 @@ end
 | `HPET_COUNTER_HI` | 32'h0 | Read/write; reads return the live counter |
 | `HPET_ID` | Constant | RO GCAP_ID[31:0]: `vendor_id` = VENDOR_ID (16 bits, [31:16]), `rev_id` = REVISION_ID ([7:0]), `num_tim_cap` = NUM_TIMERS-1 ([12:8]), `count_size_cap` = 1 ([13]), `leg_rt_cap` = 1 ([15]) |
 | `HPET_PERIOD` | Constant | RO GCAP_ID[63:32]: femtoseconds per counter tick, from `COUNTER_CLK_PERIOD_FS` |
-| `TIMER[i]_CONFIG` | 32'h0 | Timer disabled, one-shot mode |
+| `TIMER[i]_CONFIG` | 32'h30 | Interrupt disabled, one-shot, 64-bit; the RO `per_int_cap` [4] and `size_cap` [5] read 1 |
 | `TIMER[i]_COMPARATOR_LO` | 32'h0 | Read/write; reads return the live comparator (includes the periodic advance) |
 | `TIMER[i]_COMPARATOR_HI` | 32'h0 | Read/write; reads return the live comparator (includes the periodic advance) |
 
@@ -265,7 +265,7 @@ from a real HPET rather than improve on it. (RLB/hpet TASK-004, dropped 2026-09-
 `counter >= comparator` match qualified by a per-timer armed latch that
 clears when the timer fires and sets again only when the match falls
 (or is held off by the next-epoch bit), when a comparator half is written
-with the timer stopped, or when a periodic catch-up step lands at or
+with the counter halted, or when a periodic catch-up step lands at or
 ahead of the counter. A one-shot that
 completed before step 1 is still un-armed when step 5 runs, so the 0->1
 of HPET_CONFIG[0] (or of a timer's own enable) while counter >= comparator

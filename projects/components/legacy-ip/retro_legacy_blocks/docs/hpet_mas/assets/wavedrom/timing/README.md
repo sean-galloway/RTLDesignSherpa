@@ -33,7 +33,7 @@ The diagrams show external-to-internal signal relationships:
 #### HPET Core (Internal)
 - `hpet_enable` - Global enable from config register
 - `r_main_counter` - 64-bit free-running counter
-- `timer_enable[i]`, `timer_type[i]` - Per-timer configuration
+- `timer_int_enable[i]`, `timer_type[i]` - Per-timer configuration (no per-timer run enable)
 - `r_timer_comparator[i]` - Timer comparator value
 - `w_timer_match[i]`, `w_timer_fire[i]` - Comparator logic
 - `r_interrupt_status[i]`, `timer_irq[i]` - Interrupt outputs
@@ -41,11 +41,11 @@ The diagrams show external-to-internal signal relationships:
 ### Scenarios Explained
 
 #### 1. Config Write
-Shows APB write transaction to HPET_CONFIG (0x004) enabling the HPET.
+Shows APB write transaction to HPET_CONFIG (0x010) enabling the HPET.
 Demonstrates CDC delay from APB domain to HPET domain before counter starts.
 
 #### 2. Counter Read
-Shows APB read transaction of HPET_COUNTER_LO (0x010).
+Shows APB read transaction of HPET_COUNTER_LO (0x0F0).
 Counter value is captured and returned on PRDATA.
 
 #### 3. One-Shot Timer Fire
@@ -62,9 +62,9 @@ Writing 1 to bit[0] clears Timer0 interrupt.
 
 #### 6. Timer Setup
 Shows three consecutive APB writes to configure a timer:
-1. TIMER_CONFIG (0x100) - enable, int_enable, type
-2. TIMER_COMPARATOR_LO (0x104) - lower 32 bits
-3. TIMER_COMPARATOR_HI (0x108) - upper 32 bits
+1. TIMER_CONFIG (0x100) - int_enable, type
+2. TIMER_COMPARATOR_LO (0x108) - lower 32 bits
+3. TIMER_COMPARATOR_HI (0x10C) - upper 32 bits
 
 #### 7. CDC Crossing
 Shows 2-stage synchronizer for APB-to-HPET clock domain crossing.

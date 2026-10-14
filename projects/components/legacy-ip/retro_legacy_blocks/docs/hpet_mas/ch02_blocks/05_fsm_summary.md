@@ -128,11 +128,11 @@ way (a few cycles of each clock domain, ratio-dependent).
 
 | State | Description | Duration |
 |-------|-------------|----------|
-| **IDLE** | Timer disabled, waiting for enable signal | Until timer enabled |
-| **ARMED** | Timer enabled, monitoring counter vs comparator | Until counter match |
+| **IDLE** | Counter halted (`hpet_enable = 0`); there is no per-timer run enable | Until the counter runs |
+| **ARMED** | Counter running, monitoring counter vs comparator | Until counter match |
 | **FIRE** | Armed match detected, asserting interrupt | 1 cycle (one-cycle pulse) |
 | **PERIODIC_RELOAD** | Periodic mode: auto-increment comparator | 1 cycle, or one boundary per cycle while catching up (counter + 1 at period 1) |
-| **ONE_SHOT_COMPLETE** | One-shot mode: fired, armed latch clear, waiting for a comparator write with the timer stopped or for the match to fall | Until the comparator is rewritten (timer stopped) or written above the counter, or the timer disabled |
+| **ONE_SHOT_COMPLETE** | One-shot mode: fired, armed latch clear, waiting for a comparator write with the counter halted or for the match to fall | Until the comparator is rewritten (counter halted) or written above the counter, or the counter halted |
 
 An epoch-held timer -- one whose advance carried out of the compare width,
 setting `r_comp_next_epoch[i]` -- is not a state of its own. It looks
@@ -145,14 +145,15 @@ reads -- LO only in 32-bit mode, either half in 64-bit -- or changes
 #### State Transition Conditions
 
 **IDLE -> ARMED:**
-- **Condition:** `hpet_enable = 1 AND timer_enable[i] = 1`
+- **Condition:** `hpet_enable = 1` (block-wide; the published spec defines
+  no per-timer run enable, and `timer_int_enable[i]` gates only the interrupt)
 - **Action:** Latch current comparator value, begin monitoring
-- **Trigger:** Rising edge of enable signals
+- **Trigger:** Rising edge of `hpet_enable`
 
 **ARMED -> FIRE:**
 - **Condition:** `counter >= comparator[i]` with the armed latch set
-- **Action:** Assert `timer_int_status[i]` (sticky), clear the armed latch, interrupt output one cycle later
-- **Trigger:** Counter comparison (combinational), gated by the enables and the latch
+- **Action:** Assert `timer_int_status[i]` (sticky, on every fire whatever `timer_int_enable[i]` says), clear the armed latch; the interrupt output follows one cycle later only if `timer_int_enable[i]` = 1
+- **Trigger:** Counter comparison (combinational), gated by `hpet_enable` and the latch
 
 **FIRE -> PERIODIC_RELOAD:**
 - **Condition:** `timer_type[i] = 1` (periodic mode)
@@ -190,27 +191,26 @@ reads -- LO only in 32-bit mode, either half in 64-bit -- or changes
 
 **ONE_SHOT_COMPLETE -> ARMED:**
 - **Condition:** `timer_comp_write_lo[i]` or `timer_comp_write_hi[i]`
-  while the timer is NOT running (`timer_enable[i] = 0` or
-  `hpet_enable = 0`; software writes the LO or HI half, even with
+  while the counter is HALTED (`hpet_enable = 0`; software writes the
+  LO or HI half, even with
   the value it already holds), or the raw match falling (comparator
   written above the counter, or the counter reloaded below it)
 - **Action:** Set the armed latch and resume monitoring. A comparator
-  written with the timer stopped need not exceed the counter: a value
-  already passed fires on the first cycle both enables allow
-- **Trigger:** Comparator write strobe on a stopped timer, or the match
+  written with the counter halted need not exceed the counter: a value
+  already passed fires on the first cycle the counter runs
+- **Trigger:** Comparator write strobe with the counter halted, or the match
   falling
 
-A 0->1 of `hpet_enable` or `timer_enable[i]` while counter >= comparator
-does NOT re-enter FIRE: the armed latch is the fired-state memory, and the
-enables cannot set it. A completed one-shot stays complete across a
-disable/enable cycle.
+A 0->1 of `hpet_enable` while counter >= comparator does NOT re-enter
+FIRE: the armed latch is the fired-state memory, and the enable cannot
+set it. A completed one-shot stays complete across a halt/restart cycle.
 
 A comparator write on a RUNNING timer does not re-arm either: the half
 loads, and the timer re-arms only when the completed value moves the match
 low. That keeps the torn {old HI, new LO} between two half-writes from ever
-firing. The contract is to disable the timer before reprogramming it; a
-write on a STOPPED timer always re-arms, and a value at or below the
-counter fires as soon as the timer is enabled. Reprogramming a running
+firing. The contract is to halt the counter before reprogramming it; a
+write with the counter HALTED always re-arms, and a value at or below the
+counter fires as soon as the counter restarts. Reprogramming a running
 timer anyway has two consequences that are outside the contract, not
 bugs: a torn 64-bit value above the counter re-arms through the natural
 path and fires at the final value once it is written, and a same-value
@@ -218,15 +218,15 @@ rewrite on a running periodic timer drags the comparator back and can
 add one off-lattice fire.
 
 **ARMED -> IDLE:**
-- **Condition:** `hpet_enable = 0 OR timer_enable[i] = 0`
+- **Condition:** `hpet_enable = 0`
 - **Action:** Stop match generation. A pending interrupt status/output is
-  NOT cleared by disabling -- it holds until software W1C or reset.
-- **Trigger:** Falling edge of enable signals
+  NOT cleared by halting -- it holds until software W1C or reset.
+- **Trigger:** Falling edge of `hpet_enable`
 
 **ONE_SHOT_COMPLETE -> IDLE:**
-- **Condition:** `timer_enable[i] = 0`
+- **Condition:** `hpet_enable = 0`
 - **Action:** Stop monitoring (pending status, if any, holds until W1C)
-- **Trigger:** Timer disable
+- **Trigger:** Counter halt. Clearing `timer_int_enable[i]` is not a stop
 
 #### FSM Timing Examples
 
@@ -235,8 +235,8 @@ add one off-lattice fire.
 Clock:      -+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-
 hpet_clk    +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-
 
-Enable:     ---+                       +-------------------
-timer_enable   +-----------------------+
+hpet_enable ---+                       +-------------------
+               +-----------------------+
 
 Counter:    [0] [1] [2] [3] [4] [5] [6] [0] [1] [2] [3]
 
@@ -377,7 +377,7 @@ always_ff @(posedge clk or negedge rst_n) begin
     else if (w_epoch_set[i])   r_comp_next_epoch[i] <= 1'b1;
 end
 
-// Armed latch: set on a comparator write to a STOPPED timer, when the
+// Armed latch: set on a comparator write with the counter HALTED, when the
 // gated match drops, or when a catch-up step lands at or ahead of the
 // counter; cleared when the timer fires. Reset armed.
 always_ff @(posedge clk or negedge rst_n) begin
@@ -387,9 +387,9 @@ always_ff @(posedge clk or negedge rst_n) begin
     else if (w_timer_fire[i])                    r_timer_armed[i] <= 1'b0;
 end
 
-// Fire: match, still armed, both enables on
+// Fire: match, still armed, counter running (no per-timer run enable)
 assign w_timer_fire[i] = w_timer_match[i] && r_timer_armed[i] &&
-                         timer_enable[i] && hpet_enable;
+                         hpet_enable;
 
 // Sticky interrupt status -- identical in BOTH modes (no timer_type term)
 always_ff @(posedge clk or negedge rst_n) begin
@@ -406,8 +406,8 @@ end
 **Characteristics:**
 - No explicit state register; the armed latch and the next-epoch hold
   bit are the only state bits
-- One fire per arm, so the enables cannot manufacture a fire
-- A comparator write re-arms only a stopped timer, so a half-written
+- One fire per arm, so `hpet_enable` cannot manufacture a fire
+- A comparator write re-arms only with the counter halted, so a half-written
   64-bit comparator cannot fire on the torn value
 - Periodic catch-up skips missed periods without bursting; period 1
   steps to counter + 1 and keeps its every-other-tick cadence at any
@@ -445,21 +445,21 @@ end
 - [ ] FIRE -> ONE_SHOT_COMPLETE path
 - [ ] PERIODIC_RELOAD -> ARMED auto-transition
 - [ ] ONE_SHOT_COMPLETE -> ARMED on reconfigure
-- [ ] Return to IDLE on disable
+- [ ] Return to IDLE on counter halt
 
 #### Transition Coverage
 
 **Edge Cases:**
-- [ ] Enable/disable during active timer
+- [ ] Counter halt/restart during active timer
 - [ ] Comparator write during countdown
 - [ ] Counter write during active timer
 - [ ] Multiple timers firing simultaneously
 - [ ] Interrupt clear during fire event (the fire wins)
-- [ ] Re-enable with counter >= comparator (must NOT re-fire)
+- [ ] Counter restart with counter >= comparator (must NOT re-fire)
 - [ ] Comparator rewritten with the same value (reloads the comparator;
-      re-arms only if the timer is disabled or the match falls)
+      re-arms only if the counter is halted or the match falls)
 - [ ] 64-bit comparator reprogrammed on a running timer (the torn
-      {old HI, new LO} never fires; disable-write-enable fires once)
+      {old HI, new LO} never fires; halt-write-restart fires once)
 - [ ] Comparator write in the same cycle as a fire (exactly one fire,
       software value wins, no periodic advance that cycle)
 - [ ] Periodic timer more than one period behind the counter (catch-up:

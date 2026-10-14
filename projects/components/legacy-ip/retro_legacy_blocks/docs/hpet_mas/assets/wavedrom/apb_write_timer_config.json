@@ -40,18 +40,13 @@
         "name": "pwdata",
         "wave": "x2..............x",
         "data": [
-          "0x07"
+          "0x0C"
         ]
       }
     ],
     {},
     [
       "HPET Core Response",
-      {
-        "name": "timer0_enable",
-        "wave": "0...1...........",
-        "node": "....a"
-      },
       {
         "name": "timer0_int_enable",
         "wave": "0...1...........",
@@ -70,13 +65,12 @@
     "every": 1
   },
   "foot": {
-    "text": "Timer Config: 0x07 = enable(1) + int_enable(1) + periodic(1)"
+    "text": "Timer Config: 0x0C = INT_ENB (bit 2) + TYPE periodic (bit 3); no per-timer run enable exists"
   },
   "config": {
     "hscale": 2
   },
   "edge": [
-    "a-~>b Enable + Interrupt",
-    "b-~>c Periodic Mode"
+    "b-~>c Interrupt enable + periodic mode"
   ]
 }

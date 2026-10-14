@@ -1005,10 +1005,10 @@ addrmap pm_acpi_regs {
 
         field {
             name = "Watchdog Reset";
-            desc = "ALWAYS READS 0 - apb4_pm_acpi has no watchdog input port, so
-                    a watchdog reset is not observable here (GH#54 round_2 item
-                    7). Kept for register-map compatibility; wiring it would
-                    take a new device pin.";
+            desc = "Reads 1 once the wdt_reset_n input port of apb4_pm_acpi has
+                    been seen asserted (low) since the last hardware reset of
+                    this block. The pin is synchronized into this clock domain
+                    and latched sticky in pm_acpi_core; only rst_n clears it.";
             sw = r;
             hw = w;
         } wdt_reset[1:1];
@@ -1024,9 +1024,10 @@ addrmap pm_acpi_regs {
 
         field {
             name = "External Reset";
-            desc = "ALWAYS READS 0 - apb4_pm_acpi has no external-reset input
-                    port, so an external reset is indistinguishable from a
-                    power-on reset here (GH#54 round_2 item 7).";
+            desc = "Reads 1 once the ext_reset_n input port of apb4_pm_acpi has
+                    been seen asserted (low) since the last hardware reset of
+                    this block. The pin is synchronized into this clock domain
+                    and latched sticky in pm_acpi_core; only rst_n clears it.";
             sw = r;
             hw = w;
         } ext_reset[3:3];

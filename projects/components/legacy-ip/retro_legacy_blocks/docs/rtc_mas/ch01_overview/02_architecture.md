@@ -44,13 +44,15 @@ apb4_rtc (Top Level)
 |   +-- seconds-read latch (minutes to year)
 |
 +-- rtc_core
-    +-- reset_sync (rtc_resetn onto the counter clock)
+    +-- rtc_clk_mux (counter clock select: rtc_clk or pclk)
+    +-- reset_sync (x2: rtc_resetn onto the counter clock, and into pclk)
     +-- Divider and Time Counters (seconds to year)   [counter clock]
     +-- Calendar Arithmetic (binary; BCD at the boundary)
     +-- Alarm Comparator                               [counter clock]
     +-- Time Shadow, Sticky Flags, Interrupts          [pclk]
-    +-- Clock crossings: glitch_free_n_dff_arn (x3),
-        cdc_4_phase_handshake, sync_pulse
+    +-- Clock crossings: glitch_free_n_dff_arn (x3: config/alarm,
+        time read, events), cdc_4_phase_handshake (commit),
+        sync_pulse (x2: snapshot, commit-load evidence)
 ```
 
 ## Functional Description
@@ -95,6 +97,7 @@ Every crossing between the domains is explicit, and each uses a primitive from `
 | pclk -> counter | config + alarm compare values + the config-valid flag (quasi-static, 34 bits) | `glitch_free_n_dff_arn` (3 flops) + a two-identical-samples filter on its output; the hold loads only a settled word whose own valid bit is set | 5 counter clocks (3 chain + 2 for the filter to see the same word twice); `time_set_mode` is taken live from the chain output, 3 counter clocks |
 | pclk -> counter | the six staged time bytes + the commit event | `cdc_4_phase_handshake` (request/acknowledge, 48-bit quasi-static bus behind it); `RTC_STATUS.commit_timeout` reports an acknowledge missing after `COMMIT_TIMEOUT_CYCLES` pclk (default 65535, about 655 us at 100 MHz), the data held until it lands | ~5 counter clocks (~150 us on a 32.768 kHz crystal); the report stands while the stall is outstanding — it clears on W1C, or by itself once the commit that finally lands from that slot completes (a retry that replaced the stalled one included), and it is reset with the commit bookkeeping (synchronized `rtc_resetn`), not by `presetn` |
 | counter -> pclk | the coherent time snapshot | `sync_pulse` on the update event, capturing a snapshot register; destination side reset by the synchronized `rtc_resetn`, not `presetn` | 3-4 pclk after the counters change |
+| counter -> pclk | commit-load evidence (fires only on a commit load, never on a tick) | a second `sync_pulse`; destination side reset by the synchronized `rtc_resetn`, not `presetn` | 3-4 pclk after the load |
 | counter -> pclk | the same time as a background refresh (49 bits: six bytes + `time_valid`) | `glitch_free_n_dff_arn` (3 flops) + a two-identical-samples filter | 4-5 pclk after any change |
 | counter -> pclk | `second_tick`, `alarm_match` | `glitch_free_n_dff_arn` + edge detect in pclk; destination side reset by the synchronized `rtc_resetn`, not `presetn` | 3-4 pclk |
 

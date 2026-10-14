@@ -22,7 +22,7 @@
       "node": ".................A"
     },
     {
-      "name": "timer2_config.enable",
+      "name": "timer2_config.int_enable",
       "wave": "1.................."
     },
     {},

@@ -1239,8 +1239,9 @@ module pm_acpi_core #(
     // por_reset is a sticky LEVEL, not the one-cycle pulse it used to be: no
     // APB read can ever land on a single cycle out of reset, so the old shape
     // reported nothing (round_2 item 7). A soft reset hands the title over.
-    // wdt/ext have no input port on this module and read 0 - stated in the
-    // RDL descriptions rather than left looking implemented.
+    // wdt/ext are NOT tracked here: they come from the wdt_reset_n /
+    // ext_reset_n input ports, synchronized and latched sticky into
+    // r_wdt_reset_seen / r_ext_reset_seen above (cleared only by rst_n).
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin

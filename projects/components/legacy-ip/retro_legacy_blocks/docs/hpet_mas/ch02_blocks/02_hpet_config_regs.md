@@ -296,7 +296,7 @@ endgenerate
 // are hw = r, so the value is simply whatever software last wrote; the
 // STROBE is what tells the core to reload it, which is what makes
 // rewriting the same value reload it. Whether the reload also re-arms
-// the timer is the core's decision (only while the timer is stopped).
+// the timer is the core's decision (only while the counter is halted).
 generate
     for (genvar i = 0; i < NUM_TIMERS; i++) begin : g_timer_mapping
         assign w_comp_lo_swmod[i] = hwif_out.TIMER[i].TIMER_COMPARATOR_LO.timer_comp_lo.swmod;

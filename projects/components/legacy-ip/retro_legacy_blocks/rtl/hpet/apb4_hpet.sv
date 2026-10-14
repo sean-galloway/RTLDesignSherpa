@@ -17,6 +17,8 @@
 // Updated: 2026-09-28 - RLB/hpet TASK-003: legacy_irq0/legacy_irq8 outputs, and
 //                       w_legacy_replacement now reaches hpet_core (it was
 //                       declared and driven but consumed by nothing)
+// Updated: 2026-10-13 - header register map brought to the published spec
+//                       map the RDL implements (comments only)
 
 /**
  * ============================================================================
@@ -38,38 +40,43 @@
  *   - hpet_clk: High frequency timer clock
  *
  * REGISTER MAP AND BIT FIELDS:
+ *   The PUBLISHED HPET spec map (RLB/hpet TASK-006); rdl/hpet/hpet_regs.rdl
+ *   is the source of truth. 64-bit spec registers appear as LO/HI halves.
  *
  *   Global Registers:
  *   ----------------
- *   0x000: HPET_ID - Capabilities and ID (Read-Only)
- *          [31:24] Vendor ID - low 8 bits of the VENDOR_ID parameter
- *          [23:16] Revision ID - low 8 bits of the REVISION_ID parameter
- *          [15:13] Reserved
- *          [12:8]  Number of Timers - 1 (e.g., 0x01 for 2 timers)
- *          [7]     64-bit Counter Capable (1=yes, 0=no)
- *          [6]     Reserved
- *          [5]     Legacy Replacement Capable - reads 0: this block has no
- *                  legacy replacement routing (see HPET_CONFIG[1])
- *          [4:0]   Reserved
+ *   0x000: HPET_ID - GCAP_ID[31:0], Capabilities and ID (Read-Only)
+ *          [31:16] vendor_id - the VENDOR_ID parameter, full 16 bits
+ *          [15]    leg_rt_cap - reads 1: the LegacyReplacement Route is
+ *                  implemented (RLB/hpet TASK-003). Drivers gate on this
+ *                  bit, so its POSITION is load-bearing
+ *          [14]    Reserved
+ *          [13]    count_size_cap - reads 1 (64-bit main counter)
+ *          [12:8]  num_tim_cap - NUM_TIMERS - 1 (e.g., 0x01 for 2 timers)
+ *          [7:0]   rev_id - the REVISION_ID parameter
  *
- *   0x004: HPET_CONFIG - Global Configuration (Read/Write)
+ *   0x004: HPET_PERIOD - GCAP_ID[63:32] (Read-Only)
+ *          [31:0]  Femtoseconds per main-counter tick, from
+ *                  COUNTER_CLK_PERIOD_FS
+ *
+ *   0x010: HPET_CONFIG - GEN_CONF, Global Configuration (Read/Write)
  *          [31:2]  Reserved
- *          [1]     Legacy Replacement Enable - STORAGE ONLY, no hardware
- *                  effect (HPET_ID[5] reports 0 to match)
- *          [0]     HPET Enable (1=enable counter, 0=disable counter)
+ *          [1]     legacy_replacement - timer 0 leaves on legacy_irq0 (IRQ0)
+ *                  and timer 1 on legacy_irq8 (IRQ8), both SUPPRESSED on
+ *                  timer_irq
+ *          [0]     hpet_enable (1=counter runs, 0=counter halted). The ONLY
+ *                  run control: the spec defines no per-timer run enable
  *
- *   0x008: HPET_STATUS - Interrupt Status (Read/Write-to-Clear)
- *          [31:NUM_TIMERS] Reserved
- *          [NUM_TIMERS-1:0] Timer Interrupt Status (1=interrupt pending, write 1 to clear)
- *                           Bit n corresponds to Timer n
+ *   0x020: HPET_STATUS - GINTR_STA, Interrupt Status (Read/Write-1-to-Clear)
+ *          [31:8]  Reserved
+ *          [7:0]   Timer Interrupt Status, bit n = timer n (bits at or
+ *                  above NUM_TIMERS read 0). Set on EVERY fire, whatever
+ *                  TIMER_CONFIG.timer_int_enable says; write 1 to clear
  *
- *   0x00C: RESERVED - Reserved register (Read-Only)
- *          [31:0]  Reserved, returns 0x00000000
- *
- *   0x010: HPET_COUNTER_LO - Main Counter Low 32 bits (Read/Write)
+ *   0x0F0: HPET_COUNTER_LO - MAIN_CNT[31:0] (Read/Write)
  *          [31:0]  Lower 32 bits of 64-bit main counter
  *
- *   0x014: HPET_COUNTER_HI - Main Counter High 32 bits (Read/Write)
+ *   0x0F4: HPET_COUNTER_HI - MAIN_CNT[63:32] (Read/Write)
  *          [31:0]  Upper 32 bits of 64-bit main counter
  *
  *          The two halves are written INDEPENDENTLY: each write loads only
@@ -88,62 +95,64 @@
  *          stable and the merge is exact. Full-word writes are unaffected:
  *          they replace all four bytes and never read the mirror.
  *
+ *   Every other offset in 0x000-0x0FF is reserved: reads return 0, writes
+ *   are dropped, and no PSLVERR is raised.
+ *
  *   Timer Registers (32-byte blocks starting at 0x100):
  *   ---------------------------------------------------------------
- *   Each timer occupies 32 bytes (0x20) of address space:
+ *   Timer N occupies 0x100 + N*0x20 .. 0x11F + N*0x20:
+ *      +0x00: TIMER_CONFIG        - TN_CONF[31:0] (Read/Write)
+ *      +0x04: TIMER_INT_ROUTE_CAP - TN_CONF[63:32] (Read-Only, reads 0)
+ *      +0x08: TIMER_COMPARATOR_LO - comparator [31:0] (Read/Write)
+ *      +0x0C: TIMER_COMPARATOR_HI - comparator [63:32] (Read/Write)
+ *      +0x10-0x1F: Reserved - the spec's FSB route registers, not
+ *                  implemented (fsb_int_del_cap reads 0)
  *
- *   Timer 0: 0x100-0x11F
- *      0x100: TIMER0_CONFIG  - Timer 0 Configuration (Read/Write)
- *      0x104: TIMER0_COMP_LO - Timer 0 Comparator Low 32 bits (Read/Write)
- *      0x108: TIMER0_COMP_HI - Timer 0 Comparator High 32 bits (Read/Write)
- *      0x10C-0x11F: Reserved for Timer 0 expansion
- *
- *   Timer 1: 0x120-0x13F
- *      0x120: TIMER1_CONFIG  - Timer 1 Configuration (Read/Write)
- *      0x124: TIMER1_COMP_LO - Timer 1 Comparator Low 32 bits (Read/Write)
- *      0x128: TIMER1_COMP_HI - Timer 1 Comparator High 32 bits (Read/Write)
- *      0x12C-0x13F: Reserved for Timer 1 expansion
- *
- *   Timer 2: 0x140-0x15F (if NUM_TIMERS >= 3)
- *      0x140: TIMER2_CONFIG
- *      0x144: TIMER2_COMP_LO
- *      0x148: TIMER2_COMP_HI
- *      0x14C-0x15F: Reserved
- *
- *   Timer 3: 0x160-0x17F (if NUM_TIMERS >= 4)
- *   Timer 4: 0x180-0x19F (if NUM_TIMERS >= 5)
- *   Timer 5: 0x1A0-0x1BF (if NUM_TIMERS >= 6)
- *   Timer 6: 0x1C0-0x1DF (if NUM_TIMERS >= 7)
- *   Timer 7: 0x1E0-0x1FF (if NUM_TIMERS = 8)
+ *   e.g. Timer 0: 0x100 / 0x104 / 0x108 / 0x10C
+ *        Timer 1: 0x120 / 0x124 / 0x128 / 0x12C
+ *        Timer 7: 0x1E0 / 0x1E4 / 0x1E8 / 0x1EC (if NUM_TIMERS = 8)
  *
  *   Timer Register Bit Fields:
  *   ---------------------------
- *   TIMER_CONFIG Register:
- *          [31:7]  Reserved
- *          [6]     Value Set - stored and readable, but NOT consumed by any
- *                  logic. On a real HPET this selects whether a periodic
- *                  comparator write loads the accumulator or the period;
- *                  this core always loads both, so there is nothing to
- *                  select.
- *          [5]     Size (1=64-bit comparison, 0=32-bit comparison)
- *          [4]     Type (1=periodic mode, 0=one-shot mode)
- *          [3]     Interrupt Enable (1=enable interrupt, 0=disable interrupt)
- *          [2]     Timer Enable (1=enable timer, 0=disable timer)
- *          [1:0]   Reserved
+ *   TIMER_CONFIG Register (TN_CONF):
+ *          [31:16] Reserved
+ *          [15]    fsb_int_del_cap - RO, reads 0 (no FSB delivery)
+ *          [14]    timer_fsb_en - storage only
+ *          [13:9]  timer_int_route - storage only (general I/O APIC
+ *                  routing is not implemented)
+ *          [8]     timer_32mode - 1 FORCES 32-bit compare, so 64-bit is
+ *                  the bit CLEAR. hpet_config_regs drives the core's
+ *                  timer_size = ~timer_32mode
+ *          [7]     Reserved
+ *          [6]     timer_value_set - stored and readable, but NOT consumed
+ *                  by any logic. On a real HPET this selects whether a
+ *                  periodic comparator write loads the accumulator or the
+ *                  period; this core always loads both, so there is
+ *                  nothing to select.
+ *          [5]     size_cap - RO, reads 1 (64-bit capable)
+ *          [4]     per_int_cap - RO, reads 1 (periodic capable)
+ *          [3]     timer_type (1=periodic mode, 0=one-shot mode)
+ *          [2]     timer_int_enable - gates the INTERRUPT only; a timer is
+ *                  live whenever the counter runs, and its HPET_STATUS bit
+ *                  is set on every fire either way
+ *          [1]     timer_int_type (0=edge, 1=level) - storage only
+ *          [0]     Reserved
+ *          Reads 0x00000030 out of reset.
  *
- *   TIMER_COMP_LO Register:
+ *   TIMER_COMPARATOR_LO Register:
  *          [31:0]  Lower 32 bits of timer comparator value
  *                  In one-shot mode: fires when counter >= comparator
  *                  In periodic mode: initial compare value and period
  *                  Each half loads hpet_core on its own WRITE STROBE, so
- *                  rewriting the same value re-arms the timer. Readback
- *                  returns the core's LIVE comparator, so in periodic
- *                  mode it shows the advanced value, not the last one
- *                  written (RLB/hpet TASK-002).
+ *                  rewriting the same value reloads the comparator; the
+ *                  write re-arms the timer only while the counter is
+ *                  halted. Readback returns the core's LIVE comparator,
+ *                  so in periodic mode it shows the advanced value, not
+ *                  the last one written (RLB/hpet TASK-002).
  *
- *   TIMER_COMP_HI Register:
+ *   TIMER_COMPARATOR_HI Register:
  *          [31:0]  Upper 32 bits of timer comparator value
- *                  Only used when Size bit is set for 64-bit comparison
+ *                  Ignored by the compare when timer_32mode is set
  *
  * ADDRESS SPACE LAYOUT (Fixed 12-bit addressing for all configurations):
  *
@@ -164,7 +173,7 @@
  *   - Fixed 12-bit address width supports up to 4KB address space
  *   - Timer spacing of 32 bytes allows for future expansion
  *   - All configurations (2-8 timers) use the same address map
- *   - TIMER[2..7] registers above NUM_TIMERS are real decoded storage
+ *   - TIMER[NUM_TIMERS..7] registers are real decoded storage
  *     (read back written values) but reach no core timer
  * ============================================================================
  */

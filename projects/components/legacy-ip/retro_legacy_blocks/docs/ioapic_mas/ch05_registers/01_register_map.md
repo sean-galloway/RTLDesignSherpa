@@ -439,7 +439,12 @@ blocked pin and forced a mask-and-wait rule on software.)
 | 0x00 | IOAPICID | RW | I/O APIC identification |
 | 0x01 | IOAPICVER | RO | Version and max entry |
 | 0x02 | IOAPICARB | RO | Arbitration priority |
-| 0x03-0x0F | Reserved | - | Reserved |
+| 0x03 | IOAPICARBCFG | RW | Arbitration policy (`rr_enable[0]`). NOT an 82093AA register |
+| 0x04 | IOAPICMSIADDR | RW | MSI target address. NOT an 82093AA register |
+| 0x05 | IOAPICMSIDATA | RW | MSI data-word template. NOT an 82093AA register |
+| 0x06 | IOAPICMSIDROP | RO | Saturating count of refused deliveries that could not be acted on. NOT an 82093AA register |
+| 0x07 | IOAPICBOOTINTX | RW | Boot-interrupt rerouting arm (`enable[0]`). NOT an 82093AA register |
+| 0x08-0x0F | Reserved | - | Unmapped: the selector stores and reads back, IOWIN access is dropped |
 | **Redirection Table** ||||
 | 0x10 | IOREDTBL[0]_LO | RW | IRQ0 redirection entry low |
 | 0x11 | IOREDTBL[0]_HI | RW | IRQ0 redirection entry high |
