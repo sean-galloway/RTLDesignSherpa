@@ -1,44 +1,64 @@
-// mc_scheduler_plane internal block diagram — DDR-MC course style per STYLE.md.
+// mc_scheduler_plane internal block diagram -- house style per
+// vault/handbook/authoring/block-diagrams.md and STYLE.md (common_has).
+// Plane scale: the schedulable-entry views and the maintenance requester
+// enter at the top, the DDR command leaves through the plane-edge bar.
+// Every contender lands on the wide edge of the scheduler trapezium; the
+// pick result (commit / issue slot, grant) rides back up the same edge.
 digraph mc_scheduler_plane {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.30", ranksep="0.55", splines=ortho,
-           label="mc_scheduler_plane — scheduler plane view",
+           nodesep="0.40", ranksep="1.0", splines=ortho,
+           label="mc_scheduler_plane - the command pick (aclk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    // ---- context: neighbouring plane feeding schedulable entries ----
-    sch_in [label="Schedulable-entry view in\nmc_storage_plane — mc_wr_data_cam, mc_rd_cmd_cam",
-            fillcolor="white"];
+    // ---- inputs (white) ----
+    p_wr    [label="WR entry view\n(storage plane - wr CAM)", fillcolor="white"];
+    p_rd    [label="RD entry view\n(storage plane - rd CAM)", fillcolor="white"];
+    p_maint [label="Maintenance / ZQ request\n(training plane slot)", fillcolor="white"];
+    cfg     [label="Configuration (sideband, CSR-driven)\l  scheduler policy: order mode, row / col\l    select, write watermarks, QoS enable\l  page-policy mode, JEDEC timings t_*,\l  refresh controls, MR0-MR3\l",
+             fillcolor="white"];
 
-    // ---- scheduler plane functional blocks ----
-    wr_arb [label="DDR Write Arbitration\nmc_scheduler_plane — mc_cmd_arbiter\nunified prospect pool (classify)"];
-    rd_arb [label="DDR Read Arbitration\nmc_scheduler_plane — mc_cmd_arbiter\nunified prospect pool (classify)"];
-    maint  [label="DDR Maintenance Command Queue\nmc_scheduler_plane — mc_cmd_arbiter\ngeneric maintenance slot (REF / ZQ / training)"];
-    sched  [label="DDR Command Scheduler\nmc_scheduler_plane — mc_cmd_arbiter\n(FR-FCFS pick)",
-            shape=invtrapezium, width=4.6, fillcolor="#BFD7EE", fontsize=11];
-    tctl   [label="DDR Timing Control\nmc_scheduler_plane — mc_bank_timers + mc_global_timers\n(tRCD/tRP/tRAS/tFAW/tRRD/tCCD next-state)"];
+    // ---- request sources inside the plane (build-dependent) ----
+    init [label="Init Sequencer\nmc_xddr2_init_sequencer\n(HAS_INIT_SEQUENCER=1)", style="filled,dashed"];
+    refc [label="Refresh Controller\nmc_xddr2_refresh_ctrl\n(HAS_REFRESH_CTRL=1)", style="filled,dashed"];
+    timers [label="DDR Timing Control\nmc_bank_timers + mc_global_timers - FUB\n(tRCD / tRP / tRAS / tFAW / tRRD /\ntCCD / tWTR / tRTW next-state)"];
 
-    // ---- context: command output to the DFI plane ----
-    cmd_out [label="DDR Command out\nmc_dfi_2p1_plane — DFI command descriptor",
-             fillcolor="white", width=4.0];
+    // ---- the pick ----
+    sched [label="DDR Command Scheduler\nmc_cmd_arbiter - FUB (FR-FCFS pick)",
+           shape=polygon, sides=4, distortion=0.10, width=12, height=0.6, fillcolor="#BDD7EE", fontsize=11];
 
-    // ---- top-down flow ----
-    sch_in -> wr_arb;
-    sch_in -> rd_arb;
-    wr_arb -> sched [label="WR"];
-    rd_arb -> sched [label="RD"];
-    maint  -> sched [label="REF"];
-    tctl   -> sched [label="timer window"];
-    sched  -> cmd_out [label="DDR Command", penwidth=1.8];
+    mreg [label="Mode Register Shadow\nmc_xddr2_mode_register - FUB\n(HAS_MODE_REGISTER=1;\nloaded by the init MR writes)", style="filled,dashed"];
+    fifo [label="Command FIFO + fixed-delay release\ngaxi_fifo_sync (CMD_FIFO_DEPTH)\n+ CMD_DELAY token count"];
+    pp   [label="Page Policy\nmc_page_policy - FUB\n(HAS_PAGE_POLICY=1;\nwatches issued commands)", style="filled,dashed"];
+    hist [label="Command History Checker\nmc_cmd_history_checker - FUB\n(HAS_CMD_HISTORY=1, scoreboard)", style="filled,dashed"];
 
-    // ---- rank pinning ----
-    { rank=same; sch_in; }
-    { rank=same; wr_arb; rd_arb; maint; }
-    wr_arb -> rd_arb [style=invis];
-    rd_arb -> maint  [style=invis];
-    { rank=same; sched; tctl; }
-    sched -> tctl [style=invis];
-    { rank=same; cmd_out; }
+    bar [label="Plane edge - DFI plane (DDR command, CL / CWL / BL)",
+         fillcolor="white", width=6, height=0.5, fontsize=11];
+
+    // ---- contenders onto the wide edge (pick result rides back) ----
+    p_wr    -> sched [dir=both, xlabel="WR\n(commit slot back)"];
+    p_rd    -> sched [dir=both, xlabel="RD\n(issue slot back)"];
+    init    -> sched [xlabel="INIT / MRS"];
+    refc    -> sched [xlabel="REF / REFpb"];
+    p_maint -> sched [dir=both, xlabel="ZQ / training\n(grant back)"];
+    sched -> timers [dir=back, style=dashed, xlabel="timer window"];
+
+    // ---- the winner ----
+    sched -> fifo [penwidth=1.8, label="DDR Command"];
+    fifo  -> bar  [penwidth=1.8, xlabel="DDR Command"];
+    sched -> pp   [dir=back, style=dashed, xlabel="auto-PRE /\ntimeout PRE"];
+    fifo  -> hist [style=dashed, xlabel="issued commands"];
+
+    // ---- init loads the mode-register shadow ----
+    mreg -> bar  [style=dashed, xlabel="CL / CWL / BL"];
+
+    // ---- ranks ----
+    { rank=same; init; refc; p_wr; p_rd; p_maint; }
+    { rank=same; mreg; fifo; pp; timers; }
+    { rank=same; hist; cfg; }
+    init -> refc -> p_wr -> p_rd -> p_maint [style=invis];
+    mreg -> fifo -> pp -> timers [style=invis];
+    hist -> cfg [style=invis];
 }

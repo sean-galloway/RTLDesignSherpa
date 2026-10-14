@@ -194,11 +194,10 @@ The mapper strips byte offsets to a 32-bit word address and slides a `BW`-bit ba
 
 When `hash_en_i` is set, each bank bit is folded with row bits and the seed: `bank_hashed[i] = bank_raw[i] ^ row[i] ^ row[MID] ^ hash_seed[i]` where `MID` is clamped to `ROW_WIDTH-1` (`fub/mc_addr_mapper.sv:127-133`). `HAS_BG` adds the bank-group field above bank for generation-4 geometries while keeping generation-2/3 arithmetic bit-identical (`fub/mc_addr_mapper.sv:63-65`).
 
-`mc_addr_mapper` was extracted on 2026-10-10 (`fub/mc_addr_mapper.sv:43`). A grep of `research-ip/*/rtl` for `mc_addr_mapper` instantiations found none as of this writing, so the research rocks still instantiate their local `addr_mapper` today.
+`mc_addr_mapper` was extracted on 2026-10-10 (`fub/mc_addr_mapper.sv:43`). It is not instantiated in this plane: `mc_wr_intake` and `mc_rd_intake` each instantiate one (`fub/mc_wr_intake.sv:322`, `fub/mc_rd_intake.sv:236`), so it sits in `mc_axi4_plane`, and all three research rocks reach it through that plane (`pumice_core`, `scoria_core` and `andesite_core` each instantiate `mc_axi4_plane`). It is documented here because it produces the `{bank,row,col}` key the pools are searched on.
 
 ## Open questions
 
-- When will the research rocks switch from their local `addr_mapper` to the common `mc_addr_mapper`? No `mc_addr_mapper` instantiations were found in `research-ip/*/rtl`.
 - The legacy `sched_lu_*` and `oldest_*` ports on both CAMs are tied off inside `mc_storage_plane`. Will they be removed or reconnected for a future scheduler variant?
 
 ## References

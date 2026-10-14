@@ -38,7 +38,7 @@
 > - `mc_dfi_rd_aligner` (DFI domain, inside `mc_dfi_2p1_plane`) —
 >   drives `dfi_rddata_en` at the right cycle for an issued READ and
 >   captures `dfi_rddata` words into the read return FIFO.
-> - `mc_rd_return_ring` (MC domain, inside `mc_storage_plane`) — the
+> - `mc_rd_return_ring` (MC domain, inside `mc_axi4_plane`) — the
 >   outstanding-read reorder buffer. Returns arrive in *issue* order into
 >   the slot named by the read's ticket, and the ring drains from its head
 >   in *AR* order to `mc_rd_intake`. See §22.
@@ -175,9 +175,9 @@ on the last word.
 
 ## Block Pipeline View
 
-![Read Data Path — DFI en-window aligner + issue-order fill + AR-order drain reorder buffer](../assets/mermaid/16_rd_data_path_pipeline.png)
+![Read Data Path — DFI en-window aligner + issue-order fill + AR-order drain reorder buffer](../assets/graphviz/16_rd_data_path.png)
 
-**Source:** [16_rd_data_path_pipeline.mmd](../assets/mermaid/16_rd_data_path_pipeline.mmd)
+**Source:** [16_rd_data_path.dot](../assets/graphviz/16_rd_data_path.dot)
 
 ---
 

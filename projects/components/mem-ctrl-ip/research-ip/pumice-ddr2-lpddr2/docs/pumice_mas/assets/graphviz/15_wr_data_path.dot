@@ -1,0 +1,69 @@
+// pumice write data path (common-ip FUBs) -- house style per
+// vault/handbook/authoring/block-diagrams.md. Replaces the Mermaid
+// 15_wr_data_path_pipeline figure. Write data falls down the left from the
+// intake into the BRAM; commit and snarf requests come down the center onto
+// the one BRAM read port; committed data drops to the PHY bar, snarf data
+// climbs the right edge back to the read intake.
+digraph wr_data_path {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho,
+           label="pumice write data path - mc_wr_data_cam movers + the DFI write serializer (no datapath FSM)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    p_w   [label="Write beats\nmc_wr_intake - u_wr_data_fifo\n(data, strb, last)", fillcolor="white"];
+    p_cm  [label="Commit slot\nmc_scheduler_plane\n(wr_commit_*)", fillcolor="white"];
+    p_sn  [label="Read Intake (mc_rd_intake)\nsnarf probe hit in / snarf data out", fillcolor="white"];
+
+    fill  [label="Fill Mover\nmc_wr_data_cam - u_fill_q + r_fill_beat\n(one beat per cycle into the slot)"];
+    dq    [label="Commit Drain Queue\nmc_wr_data_cam - u_drain_q\n(up to WR_DRAIN_AHEAD bursts)"];
+    sq    [label="Snarf Queue\nmc_wr_data_cam - u_snarf_q\n(youngest matching slot)"];
+
+    pick  [label="BRAM Read-Port Pick\ncommit first; a snarf preempted 16 cycles wins one fetch",
+           shape=polygon, sides=4, distortion=0.10, width=5.6, height=0.55, fillcolor="#BDD7EE"];
+
+    mem   [label="Write-Data BRAM\nmc_wr_data_cam - r_mem [N_SRAM_SLOTS x AXI_BEATS_PER_BURST] + r_sram_occ\none write port (fill), one read port (commit or snarf)",
+           width=8.5];
+
+    skid  [label="2-deep Prefetch Skid\nmc_wr_data_cam - r_sk_* (synchronous-read BRAM, 1 beat / cycle)\ncommit last beat evicts the slot and raises commit done (-> B)"];
+
+    cdc   [label="Write Data CDC FIFO\nmc_dfi_cdc - u_wd_fifo (gaxi_fifo_async)\n(ctl_clk -> dfi_clk)"];
+    fire  [label="DFI Command Path\nmc_dfi_cmd_path\n(write fire)", fillcolor="white"];
+    ser   [label="Write Serializer\nmc_dfi_wr_serializer - FUB\non write fire wait t_phy_wrlat, then one DFI word / cycle"];
+
+    phy   [label="DDR PHY - dfi_wrdata / dfi_wrdata_en / dfi_wrdata_mask (dfi_clk)",
+           fillcolor="white", width=8.5, height=0.5, fontsize=11];
+
+    // ---- data in ----
+    p_w  -> fill [xlabel="write beats"];
+    fill -> mem  [xlabel="fill (slot, beat)"];
+
+    // ---- read requests onto the one port ----
+    p_cm -> dq   [xlabel="commit slot"];
+    p_sn -> sq   [xlabel="snarf hit slot"];
+    dq   -> pick [xlabel="commit"];
+    sq   -> pick [xlabel="snarf"];
+    pick -> mem  [penwidth=1.8, xlabel="read slot, beat"];
+
+    // ---- data out ----
+    mem  -> skid [xlabel="read beat"];
+    skid -> cdc  [xlabel="commit stream\n(data, strb, last)"];
+    cdc  -> ser  [xlabel="write data"];
+    ser  -> phy  [xlabel="Write to DDR"];
+    fire -> ser  [style=dashed, xlabel="write fire"];
+    p_sn -> x_sn [dir=back, xlabel="snarf stream\n(data, last)"];
+    x_sn -> skid [dir=none];
+
+    x_sn [shape=point, width=0.01, height=0.01, label="", style=invis];
+
+    { rank=same; p_w; p_cm; p_sn; }
+    { rank=same; fill; dq; sq; }
+    { rank=same; x_sn; pick; }
+    { rank=same; cdc; fire; }
+    p_w -> p_cm -> p_sn [style=invis];
+    fill -> dq -> sq [style=invis];
+    pick -> x_sn [style=invis];
+    cdc -> fire [style=invis];
+}

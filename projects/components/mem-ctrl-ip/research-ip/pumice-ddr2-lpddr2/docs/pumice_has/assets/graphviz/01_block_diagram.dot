@@ -1,115 +1,108 @@
-// PUMICE whole-unit uarch diagram — DDR-MC course style per STYLE.md.
-// Restyled from the original mermaid block diagram; shows the PUMICE-specific
-// rock children inside the scheduler and training wrappers of the common-ip stack.
+// pumice whole-unit block diagram -- house style per
+// vault/handbook/authoring/block-diagrams.md and common_has STYLE.md, in the
+// geography of common_has/assets/graphviz/01_whole_unit.dot (the reference).
+// Command down the center, write data down the left, read data back up the
+// right edge into the AXI read channel. pumice is built entirely from common-ip planes.
 digraph pumice_whole_unit {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.30", ranksep="0.55", splines=ortho,
-           label="PUMICE DDR2 / LPDDR2 controller — whole-unit block diagram",
-           labelloc=t, labeljust=c];
+           nodesep="0.35", ranksep="0.55", splines=ortho,
+           label="pumice DDR2 / LPDDR2 controller - whole unit (pumice_core: five common-ip planes + pumice_csr)", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    // ---- external interfaces (white) ----
-    axi_port [label="AXI4 Slave Port\n(from SoC; fixed DW)", fillcolor="white"];
-    phy      [label="DDR PHY  (DFI 2.1 master)", fillcolor="white",
-              width=6.5, fontsize=11];
+    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W];
+    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R];
 
-    // ---- host side: mc_axi4_plane ----
-    wr_intake [label="Write Request Intake\nmc_axi4_plane — mc_wr_intake,\nmc_addr_mapper, burst chopper"];
-    rd_intake [label="Read Request Intake\nmc_axi4_plane — mc_rd_intake,\nmc_addr_mapper, snarf probe"];
+    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_splitter + mc_wr_intake\n(address map: mc_addr_mapper)", group=W];
+    rd_pkt [label="Read Request Packetizer + R Return\nmc_axi4_plane - mc_axi_burst_chopper + mc_rd_intake\n(address map, snarf probe, R in AR order)", group=R];
+    cfg    [label="Configuration Registers\npumice_csr (PeakRDL)\nsideband config to all planes"];
 
-    // ---- storage: mc_storage_plane ----
-    wr_cam [label="Write Data CAM\nmc_storage_plane — mc_wr_data_cam\n(fill / drain / snarf)"];
-    rd_cam [label="Read Command CAM\nmc_storage_plane — mc_rd_cmd_cam\n(return-fill / drain)"];
+    wr_pool [label="DDR Write Command Pool + Write Data Buffer\nmc_storage_plane - mc_wr_data_cam"];
+    rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam"];
+    rbuf    [label="Read Data\nReorder Buffer\nmc_axi4_plane -\nmc_rd_return_ring", height=1.4];
 
-    // ---- scheduler: pumice_scheduler_plane wrapper + rock children ----
-    init_seq  [label="Init Sequencer\npumice_scheduler_plane — init_sequencer\n(DDR2/LPDDR2 MR init)"];
-    mode_reg  [label="Mode Register\npumice_scheduler_plane — mode_register\n(CL / CWL / BL / AL)"];
-    refresh   [label="Refresh Controller\npumice_scheduler_plane — refresh_ctrl\n(tREFI accumulator)"];
-    page_pol  [label="Page Policy\npumice_scheduler_plane — pumice_page_policy\n(open-page decision)"];
-    cmd_hist  [label="Command History Checker\npumice_scheduler_plane — pumice_cmd_history_checker\n(optional DV scoreboard)",
-               style="filled,dashed"];
-    sched     [label="Command Scheduler\npumice_scheduler_plane — mc_scheduler_plane core\n(FR-FCFS pick + timers)",
-               shape=invtrapezium, width=4.2, fillcolor="#BFD7EE", fontsize=11];
+    init  [label="Init Sequencer + Mode Register
+mc_scheduler_plane - mc_xddr2_init_sequencer
++ mc_xddr2_mode_register"];
+    refc  [label="Refresh Controller
+mc_scheduler_plane -
+mc_xddr2_refresh_ctrl"];
+    maint [label="DDR Maintenance Command Queue
+mc_training_plane - mc_lpddr2_zq_ctrl,
+mc_lpddr2_dq_cal (MRR)"];
 
-    // ---- training: pumice_training_plane wrapper + rock children ----
-    zq_cal    [label="ZQ Calibration\npumice_training_plane — pumice_zq_ctrl\n(periodic ZQ)"];
-    lp_cal    [label="LP DQ Calibration\npumice_training_plane — pumice_lp_cal\n(MRR DQ cal)"];
-    trn_shell [label="Training Plane Shell\npumice_training_plane — mc_training_plane shell"];
+    sched [label="DDR Command Scheduler\nmc_scheduler_plane - mc_cmd_arbiter (FR-FCFS pick)
+page policy: mc_page_policy",
+           shape=polygon, sides=4, distortion=0.10, width=9.5, height=0.6,
+           fillcolor="#BDD7EE", fontsize=11];
+    tctl  [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(tRCD / tRP / tRAS / tFAW / tRRD / tCCD next-state)"];
 
-    // ---- data path: mc_dfi_2p1_plane ----
-    dfi_cdc [label="DFI Clock-Domain Crossing\nmc_dfi_2p1_plane — mc_dfi_cdc\n(async gaxi FIFOs)"];
-    dfi_cmd [label="DFI Command Path\nmc_dfi_2p1_plane — mc_dfi_cmd_path\n(formatter + signal pack)"];
-    dfi_wr  [label="DFI Write Serializer\nmc_dfi_2p1_plane — mc_dfi_wr_serializer"];
-    dfi_rd  [label="DFI Read Aligner\nmc_dfi_2p1_plane — mc_dfi_rd_aligner"];
+    dfi [label="DFI 2.1 data path - mc_dfi_2p1_plane
+mc_dfi_cdc (the one ctl_clk / dfi_clk crossing) + mc_dfi_cmd_path
++ mc_dfi_wr_serializer (left) + mc_dfi_rd_aligner (right)", width=9.5, height=1.1];
 
-    // ---- configuration ----
-    csr [label="Configuration Registers\npumice_csr  (PeakRDL)"];
+    phy [label="DDR PHY (DFI 2.1, dfi_clk)", fillcolor="white", width=9.5, height=0.5, fontsize=11];
+
+    // ---- point scaffolds: one per crossing ----
+    node [shape=point, width=0.01, height=0.01, label="", style=invis];
+    s_wd; s_rd; p_wr; p_cmd; p_rd;
+    sp1 [fixedsize=true, width=1.6, height=0.02, shape=box];
+    sp2 [fixedsize=true, width=1.6, height=0.02, shape=box];
+    node [shape=box, style=filled];
 
     // ---- host channels ----
-    axi_port -> wr_intake [label="WR transaction"];
-    axi_port -> rd_intake [label="RD transaction"];
+    axi_wr -> wr_pkt [dir=both, xlabel="AW / W (B back)"];
+    axi_rd -> rd_pkt [dir=both, xlabel="AR / R"];
 
-    // ---- write path ----
-    wr_intake -> wr_cam [label="WR descriptor"];
-    wr_cam -> sched [label="WR"];
-    wr_cam -> dfi_wr [style=dashed, arrowhead=none, label="commit-drain wrdata"];
+    // ---- write side ----
+    wr_pkt  -> wr_pool [xlabel="WR push"];
+    wr_pkt  -> s_wd    [dir=none, xlabel="write data"];
+    s_wd    -> wr_pool;
+    wr_pool -> sched   [xlabel="WR"];
+    wr_pool -> dfi     [xlabel="Write data\n(commit order)"];
 
-    // ---- read path ----
-    rd_intake -> rd_cam [label="RD descriptor"];
-    rd_cam -> sched [label="RD"];
-    dfi_rd -> rd_cam [style=dashed, arrowhead=none, label="return-fill rddata"];
+    // ---- read side ----
+    rd_pkt  -> rd_pool [xlabel="RD push (miss)"];
+    rd_pkt  -> wr_pool [dir=both, style=dashed, xlabel="snarf probe /\nhit + data", constraint=false];
+    rd_pool -> sched   [xlabel="RD"];
+    rd_pool -> rbuf    [dir=both, style=dashed, xlabel="tickets", constraint=false];
 
-    // ---- scheduler rock children feeding the pick ----
-    init_seq -> sched [label="init commands"];
-    mode_reg -> sched [label="MR settings"];
-    refresh  -> sched [label="REF"];
-    page_pol -> sched [label="open/closed page"];
-    cmd_hist -> sched [label="audit", style=dashed];
+    // ---- maintenance + timing into the pick ----
+    init  -> sched [xlabel="INIT / MRS"];
+    refc  -> sched [xlabel="REF"];
+    maint -> sched [dir=both, xlabel="ZQ / training\n(grant back)"];
+    tctl  -> sched [style=dashed, xlabel="timer window"];
 
-    // ---- training/maintenance path ----
-    zq_cal -> trn_shell;
-    lp_cal -> trn_shell;
-    trn_shell -> sched [label="maintenance"];
+    // ---- the winner ----
+    sched -> dfi [penwidth=1.8, xlabel="DDR Command"];
 
-    // ---- scheduler to DFI/PHY ----
-    sched -> dfi_cdc [label="DDR command"];
+    // ---- PHY crossings ----
+    dfi   -> p_wr  [dir=none];
+    p_wr  -> phy   [xlabel="Write to DDR"];
+    dfi   -> p_cmd [dir=none, penwidth=1.8];
+    p_cmd -> phy   [penwidth=1.8, xlabel="DDR Command"];
+    dfi   -> p_rd  [dir=back, xlabel="Read from DDR"];
+    p_rd  -> phy   [dir=none];
 
-    // ---- DFI plane internals ----
-    dfi_cdc -> dfi_cmd;
-    dfi_cdc -> dfi_wr [dir=both, arrowhead=none, label="write data"];
-    dfi_cdc -> dfi_rd [dir=both, arrowhead=none, label="read data"];
+    // ---- read return: up the right edge ----
+    rbuf -> s_rd [dir=back, xlabel="Read data\n(issue order)"];
+    s_rd -> dfi  [dir=none];
+    rd_pkt -> rbuf [dir=back, xlabel="drain\n(AR order)"];
 
-    // ---- DFI to PHY ----
-    dfi_cmd -> phy [label="DDR command"];
-    dfi_wr  -> phy [label="Write to DDR"];
-    dfi_rd  -> phy [dir=back, label="Read from DDR"];
-
-    // ---- configuration sideband (dashed, no arrowheads, no rank constraint) ----
-    csr -> sched [style=dashed, arrowhead=none, label="config", constraint=false];
-
-    // ---- rank pinning ----
-    { rank=same; axi_port; csr; }
-    { rank=same; wr_intake; rd_intake; }
-    wr_intake -> rd_intake [style=invis];
-    { rank=same; wr_cam; rd_cam; }
-    wr_cam -> rd_cam [style=invis];
-    { rank=same; init_seq; mode_reg; refresh; page_pol; cmd_hist; }
-    init_seq -> mode_reg [style=invis];
-    mode_reg -> refresh  [style=invis];
-    refresh  -> page_pol [style=invis];
-    page_pol -> cmd_hist [style=invis];
-    { rank=same; zq_cal; lp_cal; trn_shell; }
-    zq_cal -> lp_cal    [style=invis];
-    lp_cal -> trn_shell [style=invis];
-    { rank=same; dfi_cdc; dfi_wr; dfi_rd; dfi_cmd; }
-    dfi_cdc -> dfi_wr [style=invis];
-    dfi_wr  -> dfi_rd [style=invis];
-    dfi_rd  -> dfi_cmd [style=invis];
-    { rank=sink; phy; }
-
-    // ---- vertical order between ranks ----
-    wr_cam  -> init_seq [style=invis];
-    cmd_hist -> zq_cal  [style=invis];
+    // ---- ranks ----
+    { rank=same; axi_wr; axi_rd; }
+    { rank=same; wr_pkt; cfg; rd_pkt; }
+    { rank=same; s_wd; }
+    { rank=same; wr_pool; rd_pool; }
+    { rank=same; init; refc; maint; rbuf;  }
+    { rank=same; sched; tctl; }
+    { rank=same; s_rd; }
+    { rank=same; p_wr; sp1; p_cmd; sp2; p_rd; }
+    axi_wr -> axi_rd [style=invis];
+    wr_pkt -> cfg -> rd_pkt [style=invis];
+    wr_pool -> rd_pool [style=invis];
+    init -> refc -> maint -> rbuf [style=invis];
+    tctl -> sched [style=invis];
+    p_wr -> sp1 -> p_cmd -> sp2 -> p_rd [style=invis];
 }

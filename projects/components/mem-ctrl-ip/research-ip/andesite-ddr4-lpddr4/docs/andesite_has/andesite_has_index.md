@@ -120,6 +120,6 @@ lineage, the JEDEC generation deltas.
 
 | Figure | Source | Subject |
 |---|---|---|
-| 2.1 | `assets/mermaid/01_block_diagram.mmd` | the controller, with each block colour-marked inherited / modified / new against scoria |
+| 2.1 | `assets/graphviz/01_block_diagram.dot` | the controller, with each block marked INHERITED / MODIFIED / NEW against scoria |
 
 : Table 0.1: Figures and their sources

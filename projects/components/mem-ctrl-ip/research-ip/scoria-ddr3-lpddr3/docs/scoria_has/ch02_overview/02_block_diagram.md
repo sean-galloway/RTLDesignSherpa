@@ -25,24 +25,26 @@
 
 ## The whole controller, marked against pumice
 
-Read this figure first. The colour of each block tells you the size of this
-project: green blocks are pumice's, used as-is; amber blocks change in named,
-bounded ways; red blocks are new, and there are two.
+Read this figure first. The last line of each block's label tells you the size
+of this project: INHERITED blocks are pumice's (the common-ip planes), used
+as-is; MODIFIED blocks change in named, bounded ways; NEW blocks are new, and
+there are two. The dashed box lists the scoria FUBs that are in `rtl/fub` but
+that `scoria_core` does not instantiate.
 
 ### Figure 2.1: scoria block diagram, with inheritance marking
 
-![scoria DDR3/LPDDR3: inherited (green), modified (amber), new (red)](../assets/graphviz/01_block_diagram.png)
+![scoria DDR3/LPDDR3: each block marked INHERITED, MODIFIED or NEW against pumice](../assets/graphviz/01_block_diagram.png)
 
 **Source:** [01_block_diagram.dot](../assets/graphviz/01_block_diagram.dot)
 
 ## Reading the figure
 
-**The front end is entirely green.** The AXI4 interface — 1:1 read and write
+**The front end is entirely INHERITED.** The AXI4 interface — 1:1 read and write
 intakes, the write-data CAM, the read-reorder CAM, in-order commit, and the
 FSM-free split/aggregate — is untouched by the move to DDR3. Nothing about
 DDR3 or LPDDR3 reaches the host side.
 
-**The scheduler is green in structure, and its timing *values* change.** The
+**The scheduler is INHERITED in structure, and its timing *values* change.** The
 FR-FCFS arbiter, the per-(rank,bank) bank timers and the global timers are
 inherited. What changes is the numbers they enforce, and those are runtime CSRs
 rather than structure.
@@ -55,19 +57,19 @@ was to compute one next-state function and feed both the counter and its status
 flop from it. scoria inherits the fixed form. A fresh implementation of the same
 block from the same description would reintroduce the bug.
 
-**The amber blocks are the three FUBs the standards change:** the init
+**The MODIFIED blocks are the three FUBs the standards change:** the init
 sequencer, the mode-register block, and `dfi_cmd_formatter` for the new
 command encodings — plus the CSR block, which grows to hold the new timings.
-v0.9 adds a fourth FUB to the amber set: `refresh_ctrl`, for TASK-001's
+v0.9 adds a fourth FUB to the MODIFIED set: `refresh_ctrl`, for TASK-001's
 Modes A/B (Chapter 3.4) — a CSR-selected scheduling-policy plane, not a
 mechanism change.
 
-**Note:** power-down is green, and was amber in earlier editions of this book:
+**Note:** power-down was marked INHERITED, and MODIFIED in earlier editions of this book:
 it works through CKE and `SRE`/`SRX`, and the DFI low-power channel that v0.2
 built a requirement around is not implemented by this PHY family at all
-(Chapter 3.1). Refresh was corrected to green the same way — pumice already
+(Chapter 3.1). Refresh was corrected to INHERITED the same way — pumice already
 implements `REFpb` and the device owns the sequence (Chapter 3.4) — and v0.9
-turns it amber again, for a different reason: TASK-001's Modes A/B add a
+turns it MODIFIED again, for a different reason: TASK-001's Modes A/B add a
 CSR-selected scheduling-policy plane (elastic refresh, TCR) on top of the
 inherited mechanism. Both corrections came from reading an artifact instead of
 reasoning about one.
@@ -75,7 +77,7 @@ reasoning about one.
 `dfi_signal_pack` went the same way during implementation: marked MODIFIED for
 the "v3.1 signal set", it turned out to pack only signals v3.1 leaves alone.
 
-**The red blocks are the two new ones**, and both are deliberately small: a ZQ
+**The NEW blocks are the two new ones**, and both are deliberately small: a ZQ
 controller that issues periodic `ZQCS` as maintenance traffic, and a
 write-leveling interface that contains no search loop.
 
@@ -83,5 +85,13 @@ write-leveling interface that contains no search loop.
 
 The PHY, because DFI is the boundary. A tap-search state machine, because
 decision D2 puts the search in firmware. And DFI v3.1's DDR4/LPDDR4 signals,
-because scoria does not implement them. The note in the figure says so, so that
+because scoria does not implement them. This section says so, so that
 their absence reads as a decision rather than an omission.
+
+**RTL check (2026-10-13).** `scoria_powerdown_ctrl`, `scoria_dfi_signal_pack`,
+`scoria_addr_mapper` and `scoria_cmd_arbiter` exist in `rtl/fub` but nothing
+in `scoria_core` instantiates them: the scheduler pick is the common
+`mc_cmd_arbiter` inside `mc_scheduler_plane`, the address map is the common
+`mc_addr_mapper` inside the intakes, and the DFI pins come from
+`mc_dfi_3p1_plane`. The figure lists them in its dashed box rather than
+drawing them on a flow.

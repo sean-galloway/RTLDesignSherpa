@@ -1,83 +1,52 @@
-// mc_training_plane — shell and rock-wrapper contract.
-// Per STYLE.md: white canvas, blue functional blocks, white external/context
-// boxes, dashed = shell-only / optional, splines=ortho.
+// mc_training_plane block diagram -- house style per
+// vault/handbook/authoring/block-diagrams.md and STYLE.md (common_has).
+// Plane scale: CSR controls enter at the top; the maintenance command leaves
+// through the bar to the scheduler; the calibration sideband crosses the bar
+// to the DFI plane, with the returned data climbing the right edge.
 digraph mc_training_plane {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.30", ranksep="0.55", splines=ortho, compound=true,
-           newrank=true,
-           label="mc_training_plane — shell and rock-wrapper contract",
+           nodesep="0.50", ranksep="0.60", splines=ortho,
+           label="mc_training_plane - LPDDR2 training clients, maintenance slot select, calibration CDC",
            labelloc=t, labeljust=c];
-    node  [fontname="Helvetica", fontsize="10", shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
-    edge  [fontname="Helvetica", fontsize="9", color="black", arrowsize=0.7];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    // ---- external context (white) ----
-    sched [label="Scheduler Maintenance Slot\nmc_scheduler_plane — maintenance req/grant",
-           fillcolor="white", width=3.2];
-    phy_cal [label="PHY Calibration Sideband\n(dfi_clk domain)", fillcolor="white"];
+    csr_zq [label="ZQ CSR controls (mc_clk)\nzq_en, interval, t_zqcs / t_zqcl,\ndefer enable, overdue limit", fillcolor="white"];
+    csr_cal [label="DQ-cal CSR controls (mc_clk)\ncal_start / cal_abort, t_mrr, t_readout", fillcolor="white"];
 
-    // ---- shell blocks (blue) ----
-    mux [label="One-Active trn_cmd Mux\nmc_training_plane — fixed-priority selector"];
-    slot0 [label="Maintenance Slot 0\nmc_training_plane — generic slot port"];
-    slot1 [label="Maintenance Slot 1\nmc_training_plane — generic slot port"];
-    cdc [label="Calibration Sideband CDC\nmc_training_plane — sync_pulse + cdc_synchronizer\n(mc_clk -> dfi_clk)"];
+    zq  [label="ZQ Calibration Controller\nmc_lpddr2_zq_ctrl - FUB\n(HAS_LP_ZQ=1; slot 0)", style="filled,dashed"];
+    dqc [label="DQ Calibration Sequencer\nmc_lpddr2_dq_cal - FUB\n(HAS_LP_DQ_CAL=1; slot 1)", style="filled,dashed"];
 
-    // ---- rock-wrapper supplied calibration FUBs (dashed border = wrapper area) ----
-    subgraph cluster_rock {
-        label="rock wrapper supplies its calibration FUBs\n(example: pumice_zq_ctrl, pumice_lp_cal)";
-        labelloc=t;
-        labeljust=c;
-        style=dashed;
-        color=black;
-        fillcolor=none;
-        fontname="Helvetica";
-        fontsize=10;
+    sel [label="Maintenance Slot Select\nmc_training_shell (fixed priority: slot 0 > slot 1)",
+         shape=polygon, sides=4, distortion=0.10, width=5.2, height=0.6, fillcolor="#BDD7EE"];
 
-        zq [label="ZQ Calibration Controller\npumice_zq_ctrl — ZQCS / ZQCL"];
-        dq [label="DQ Calibration Sequencer\npumice_lp_cal — MRR readout"];
-        wl [label="Write-Leveling Interface\nshell-only — write-leveling sequencer",
-            style="filled,dashed"];
+    exp_sync [label="Calibration Expect Sync\nsync_pulse (mc_clk -> dfi_clk)\nin mc_training_shell"];
+    dat_sync [label="Calibration Data Sync\ncdc_synchronizer + sync_pulse\n(dfi_clk -> mc_clk)\nin mc_training_shell"];
 
-        zq -> dq -> wl [style=invis];
-    }
+    bar [label="Plane edge - scheduler maintenance port (mc_clk)  |  DFI read aligner (dfi_clk)",
+         fillcolor="white", width=8, height=0.5, fontsize=11];
 
-    // ---- maintenance request/grant flow ----
-    zq -> slot0 [label="maintenance req"];
-    dq -> slot1 [label="maintenance req"];
-    wl -> slot1 [label="maintenance req", style=dashed];
+    // ---- control in, status back ----
+    csr_zq  -> zq  [dir=both, style=dashed, xlabel="enable, timing /\nbusy, overdue, ZQCS count"];
+    csr_cal -> dqc [dir=both, style=dashed, xlabel="start, abort /\nbusy, done, err, MR32 / MR40"];
 
-    slot0 -> mux [label="slot command"];
-    slot1 -> mux [label="slot command"];
+    // ---- request flow: the slot pick ----
+    zq  -> sel [xlabel="slot 0: ZQ (MRW MR10)"];
+    dqc -> sel [xlabel="slot 1: MRR MR32 / MR40"];
+    sel -> bar [dir=both, penwidth=1.8, xlabel="Maintenance command\n(grant back)"];
 
-    mux -> sched [label="maintenance command"];
-    sched -> mux [label="grant"];
-    mux -> slot0 [label="grant"];
-    mux -> slot1 [label="grant"];
+    // ---- calibration sideband ----
+    dqc -> exp_sync [xlabel="cal expect"];
+    exp_sync -> bar [xlabel="cal expect (dfi_clk)"];
+    dqc -> dat_sync [dir=back, xlabel="cal data + valid"];
+    dat_sync -> bar [dir=back, xlabel="captured beat"];
 
-    // ---- calibration sideband crossing ----
-    // Rank order: FUBs -> CDC -> PHY cal (cal_expect down, cal_data up)
-    zq -> cdc [style=dashed, arrowhead=none];
-    dq -> cdc [style=dashed, arrowhead=none];
-    wl -> cdc [style=dashed, arrowhead=none];
-    cdc -> phy_cal [label="calibration expect"];
-
-    cdc -> zq [constraint=false];
-    cdc -> dq [constraint=false];
-    cdc -> wl [style=dashed, constraint=false];
-    phy_cal -> cdc [label="calibration data", constraint=false];
-
-    // ---- rank pinning ----
-    { rank=same; sched; }
-    { rank=same; mux; }
-    { rank=same; slot0; slot1; }
-    { rank=same; zq; dq; wl; }
-
-    sched -> mux [style=invis];
-    mux -> slot0 [style=invis];
-    slot0 -> slot1 [style=invis];
-    slot0 -> zq [style=invis];
-    slot1 -> dq [style=invis];
-    slot1 -> wl [style=invis];
-    zq -> cdc [style=invis];
-    cdc -> phy_cal [style=invis];
+    { rank=same; csr_zq; csr_cal; }
+    { rank=same; zq; dqc; }
+    { rank=same; exp_sync; dat_sync; }
+    csr_zq -> csr_cal [style=invis];
+    zq -> dqc [style=invis];
+    exp_sync -> dat_sync [style=invis];
+    sel -> exp_sync [style=invis];
 }

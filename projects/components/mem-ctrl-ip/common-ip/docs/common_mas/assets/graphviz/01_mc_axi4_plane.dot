@@ -1,43 +1,76 @@
-// mc_axi4_plane internal block diagram — DDR-MC course style per STYLE.md.
+// mc_axi4_plane internal block diagram -- house style per
+// vault/handbook/authoring/block-diagrams.md and STYLE.md (common_has).
+// Plane scale: the boundary bar is the plane edge (storage / scheduler /
+// DFI planes). Command down the center, write data down the left, read
+// data back up the right edge into the AXI read channel.
 digraph mc_axi4_plane {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.30", ranksep="0.55", splines=ortho,
-           label="mc_axi4_plane — AXI4 host interface and read-return ring",
+           nodesep="0.60", ranksep="0.55", splines=ortho,
+           label="mc_axi4_plane - AXI4 host interface, intakes and read-return ring (aclk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    // ---- external host interfaces (white) ----
-    axi_wr [label="AXI Write Channel", fillcolor="white"];
-    axi_rd [label="AXI Read Channel", fillcolor="white"];
+    // ---- host channels (white) ----
+    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W];
+    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R];
 
-    // ---- mc_axi4_plane functional blocks ----
-    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane — mc_wr_intake,\nmc_axi_burst_chopper, mc_wr_splitter"];
-    rd_pkt [label="Read Request Packetizer\nmc_axi4_plane — mc_rd_intake"];
-    merge_b [label="Merge Buffer\nfinal write coalescing\n(mc_axi4_plane)"];
-    rbuf [label="Read Data Reorder Buffer\n+ Merge Logic\nmc_axi4_plane — mc_rd_return_ring\n(AXI ID order)"];
+    // ---- request side ----
+    wr_split [label="Write Burst Splitter\nmc_wr_splitter - FUB\n(one sub-burst per DRAM burst)", group=W];
+    rd_chop  [label="Read Burst Chopper\nmc_axi_burst_chopper - FUB\n(one sub-burst per DRAM burst)", group=R];
 
-    // ---- downstream context (white) ----
-    storage [label="mc_storage_plane\n(write command / data pool context)", fillcolor="white"];
+    wr_intake [label="Write Intake\nmc_wr_intake - FUB\naddress map (mc_addr_mapper), AW-meta + W FIFOs,\none B per host burst on write done", group=W];
+    rd_intake [label="Read Intake\nmc_rd_intake - FUB\naddress map, snarf probe, AR-order FIFO,\nR source select (snarf or DRAM)", group=R];
 
-    // ---- host channels ----
-    axi_wr -> wr_pkt [dir=both, arrowhead=normal, label="WR"];
-    axi_rd -> rd_pkt [dir=both, arrowhead=normal, label="RD"];
+    ring [label="Read Return Ring\nmc_rd_return_ring - FUB\nticket per read in AR order,\nfilled in issue order, drained in AR order"];
 
-    // ---- write flow ----
-    wr_pkt -> merge_b;
-    merge_b -> storage [label="descriptors"];
+    // ---- boundary bar: the plane edge ----
+    bar [label="Plane edge - mc_storage_plane (wr / rd CAMs), mc_scheduler_plane (issue), DFI plane (read return)",
+         fillcolor="white", width=13, height=0.5, fontsize=11];
 
-    // ---- read flow ----
-    rd_pkt -> storage [xlabel="descriptors"];
-    rd_pkt -> storage [xlabel="snoop probe"];
-    storage -> rbuf [label="RD"];
-    rbuf -> axi_rd [label="RD"];
+    // ---- crossing scaffolds (one point per crossing, pinned rank) ----
+    node [shape=point, width=0.01, height=0.01, label="", style=invis];
+    x_wd; x_wc; x_done; x_rc; x_sn; x_tk; x_rd; p_r;
+    node [shape=box, style=filled];
+
+    // ---- host channel hops ----
+    axi_wr   -> wr_split  [label="AW / W"];
+    wr_split -> wr_intake [label="AW / W (split)"];
+    wr_intake -> axi_wr   [xlabel="B (one per host burst)", constraint=false];
+    axi_rd   -> rd_chop   [label="AR"];
+    rd_chop  -> rd_intake [label="AR (split)"];
+
+    // ---- write flow: command center-left, data far left ----
+    wr_intake -> x_wd   [dir=none, xlabel="write data beats"];
+    x_wd      -> bar;
+    wr_intake -> x_wc   [dir=none, xlabel="WR push"];
+    x_wc      -> bar;
+    wr_intake -> x_done [dir=back, style=dashed, xlabel="write done"];
+    x_done    -> bar    [dir=none, style=dashed];
+
+    // ---- read flow: command center-right ----
+    rd_intake -> x_rc   [dir=none, xlabel="RD push"];
+    x_rc      -> bar;
+    rd_intake -> x_sn   [dir=both, style=dashed, xlabel="snarf probe / hit + data"];
+    x_sn      -> bar    [dir=none, style=dashed];
+
+    // ---- read return: up the right edge ----
+    ring -> x_tk [dir=both, style=dashed, xlabel="tickets"];
+    x_tk -> bar  [dir=none, style=dashed];
+    ring -> x_rd [dir=back, xlabel="Read from DFI\n(issue order)"];
+    x_rd -> bar  [dir=none];
+    rd_intake -> ring [dir=back, label="drain (AR order)"];
+    axi_rd -> p_r [dir=back, xlabel="R (AR order)"];
+    p_r -> rd_intake [dir=none];
 
     // ---- rank pinning ----
     { rank=same; axi_wr; axi_rd; }
-    { rank=same; wr_pkt; rd_pkt; }
-    { rank=same; merge_b; rbuf; }
-    merge_b -> rbuf [style=invis];
+    { rank=same; wr_split; rd_chop; p_r; }
+    { rank=same; wr_intake; rd_intake; }
+    { rank=same; x_wd; x_wc; x_done; x_rc; x_sn; x_tk; x_rd; }
+    x_wd -> x_wc -> x_done -> x_rc -> x_sn -> x_rd -> x_tk [style=invis];
+    axi_wr -> axi_rd [style=invis];
+    wr_split -> rd_chop -> p_r [style=invis];
+    wr_intake -> rd_intake [style=invis];
 }

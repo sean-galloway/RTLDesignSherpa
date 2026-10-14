@@ -223,9 +223,9 @@ so the drive never stalls and bursts run back-to-back with zero bubbles.
 
 ## Block Pipeline View
 
-![Write Data Path — streaming CAM movers + DFI-word serializer, no datapath FSM](../assets/mermaid/15_wr_data_path_pipeline.png)
+![Write Data Path — streaming CAM movers + DFI-word serializer, no datapath FSM](../assets/graphviz/15_wr_data_path.png)
 
-**Source:** [15_wr_data_path_pipeline.mmd](../assets/mermaid/15_wr_data_path_pipeline.mmd)
+**Source:** [15_wr_data_path.dot](../assets/graphviz/15_wr_data_path.dot)
 
 ---
 

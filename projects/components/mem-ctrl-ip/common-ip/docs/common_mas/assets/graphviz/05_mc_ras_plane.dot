@@ -1,61 +1,34 @@
-// mc_ras_plane uarch diagram — per-plane view, house style from STYLE.md.
+// mc_ras_plane block diagram -- house style per
+// vault/handbook/authoring/block-diagrams.md and STYLE.md (common_has).
+// Skeleton plane: both seams are straight wiring today, so the ECC blocks are
+// dashed (reserved). Write data goes down the left, read return climbs the
+// right; the downstream seam is the bar.
 digraph mc_ras_plane {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.30", ranksep="0.55", splines=ortho,
-           label="mc_ras_plane — transform pair only — doctrine 9: features discussed as needed",
+           nodesep="0.60", ranksep="1.05", splines=ortho,
+           label="mc_ras_plane - ECC transform pair on the two data seams\n(skeleton: a passthrough at every HAS_ECC today)",
            labelloc=t, labeljust=c];
-    node  [fontname="Helvetica", fontsize="10", shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.07"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    // ---- external interfaces (white) ----
-    wr_host [label="Host Write Data", fillcolor="white"];
-    wr_down [label="Downstream Write Data\n(storage / DFI)", fillcolor="white"];
-    rd_down [label="Downstream Read Return\n(storage / DFI)", fillcolor="white"];
-    rd_host [label="Host Read Return", fillcolor="white"];
+    up_w [label="Write data in\n(upstream write path)", fillcolor="white"];
+    up_r [label="Read return out\n(upstream read path)", fillcolor="white"];
+    csr  [label="Reserved CSR surface (sideband)\l  csr_ecc_en_i, csr_ecc_mode_i: ignored today\l  csr_ecc_stat_o: reads 0\l", fillcolor="white"];
 
-    // ---- plane boundary ----
-    subgraph cluster_ras {
-        label="mc_ras_plane\n(macro/mc_ras_plane.sv — RAS transform)\noptional; not instantiated today";
-        labelloc=b;
-        labeljust=c;
-        style="dashed,filled";
-        color="#2E75B6";
-        penwidth=3;
-        fillcolor="white";
-        fontname="Helvetica";
-        fontsize=10;
+    enc [label="ECC Insert (reserved)\nwrite-data forward seam\nHAS_ECC = 1 / 2: still a passthrough", style="filled,dashed"];
+    dec [label="ECC Check + Correct (reserved)\nread-return backward seam\nHAS_ECC = 1 / 2: still a passthrough", style="filled,dashed"];
 
-        ecc_insert [label="ECC Insert\nwrite-data forward seam"];
-        ecc_check  [label="ECC Check + Correct\nread-return backward seam"];
-        csr        [label="Reserved CSR Surface\nmacro/mc_ras_plane.sv —\ncsr_ecc_en / csr_ecc_mode / csr_ecc_stat"];
-    }
+    bar [label="Plane edge - downstream write data / read return (storage or DFI seam)",
+         fillcolor="white", width=6.5, height=0.5, fontsize=11];
 
-    // ---- future maintenance client (off to the side) ----
-    scrub [label="scrub\nfuture maintenance client\n(not decided)",
-           style="filled,dashed", fillcolor="#E0E0E0"];
+    up_w -> enc [xlabel="write data + strb + last"];
+    enc  -> bar [xlabel="Write data"];
+    up_r -> dec [dir=back, label="read data + resp + last"];
+    dec  -> bar [dir=back, xlabel="Read data"];
 
-    // ---- write-data forward seam (top) ----
-    { rank=same; wr_host; ecc_insert; wr_down; }
-    wr_host -> ecc_insert -> wr_down [label="WR data"];
-
-    // ---- read-return backward seam (bottom) ----
-    { rank=same; rd_host; ecc_check; rd_down; }
-    rd_host -> ecc_check -> rd_down [style=invis];
-    rd_host -> ecc_check -> rd_down [dir=back, label="RD return"];
-
-    // ---- CSR surface to transform pair ----
-    csr -> ecc_insert [style=dashed, arrowhead=none, label="csr_ecc_en / mode"];
-    csr -> ecc_check  [style=dashed, arrowhead=none, label="csr_ecc_stat"];
-
-    // ---- future scrub connection ----
-    scrub -> ecc_check [style=dashed, label="scrub RD"];
-
-    // ---- rank / order hints ----
-    { rank=same; csr; scrub; }
-    csr -> scrub [style=invis];
-    wr_host -> csr [style=invis];
-    wr_down -> scrub [style=invis];
-    csr -> rd_host [style=invis];
-    csr -> rd_down [style=invis];
+    { rank=same; up_w; up_r; csr; }
+    { rank=same; enc; dec; }
+    up_w -> up_r -> csr [style=invis];
+    enc -> dec [style=invis];
 }

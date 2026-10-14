@@ -34,7 +34,7 @@ The plane-stack role of this block — where it sits between the scheduler and t
 
 ## What the shell provides
 
-`mc_training_plane` is a dependency-inverted shell. It does not instantiate training algorithms; it exposes a fixed-priority maintenance-slot bus, a single generic `trn_cmd` output, and the `mc_clk`/`dfi_clk` clock crossings that calibration sideband data must use. The actual training children (ZQ controllers, DQ calibrators, future CA-train or write-leveling sequencers) are instantiated rock-side and wired into the slot ports (`macro/mc_training_plane.sv:8-13`).
+`mc_training_plane` composes two LPDDR2 training clients, `mc_lpddr2_zq_ctrl` (slot 0, `HAS_LP_ZQ`) and `mc_lpddr2_dq_cal` (slot 1, `HAS_LP_DQ_CAL`), each removable by its parameter, around the generic `mc_training_shell`. The shell is the dependency-inverted part: it exposes a fixed-priority maintenance-slot bus, a single generic `trn_cmd` output, and the `mc_clk`/`dfi_clk` clock crossings that calibration sideband data must use (`macro/mc_training_plane.sv:7-15`, `macro/mc_training_shell.sv:7-16`). Further training children (CA training, write leveling) would be added as more slots on the shell. The slot, mux and CDC descriptions below are the shell's; its `slot_*` ports are internal to this plane.
 
 ### Maintenance-slot client interface
 
