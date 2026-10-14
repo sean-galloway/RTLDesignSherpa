@@ -34,7 +34,11 @@ and status; not on the data path.
 **Descriptor injection (HIVE-C AXIS master → Delta → RAPIDS):** 256-bit CDA
 packets classified by `tuser=2'b01` and routed to the RAPIDS descriptor
 FIFO at virtual tile 16. No memory round-trip — 10-20 cycles vs. 100+ for
-memory-mapped descriptor writes.
+memory-mapped descriptor writes. **Execution pacing:** RAPIDS' producer/
+consumer flow control (memory-flag handshakes between producer and consumer
+endpoints) paces chains after the kick — one cell can produce while another
+consumes without HIVE-C polling per-chain progress; HIVE-C tracks completion
+via the interrupt inventory (§5.1).
 
 The contract with RAPIDS is exactly the CDA descriptor format in §4.2 plus
 the channel-aware S2MM rule in §5.2. See the RAPIDS Beats HAS for the

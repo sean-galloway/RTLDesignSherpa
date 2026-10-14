@@ -23,10 +23,16 @@
 
 # Descriptor Scheduling
 
-HIVE-C implements a multi-level queue scheduler over the descriptor pool.
-Scheduling is policy — all ordering decisions live in firmware; the hardware
-contract is only that injected descriptors reach RAPIDS in injection order
-per priority queue.
+HIVE-C's scheduler admits descriptor **chains** — descriptors linked through
+the next-descriptor pointer with scatter-gather enabled (HAS §4.2) — and
+schedules the **kick**: when each chain starts, and on which RAPIDS channel.
+The kick/flow split is deliberate (owner, 2026-10-13): HIVE-C owns admission
+and kick ordering; **RAPIDS' built-in flow control owns pacing** — producers
+and consumers (e.g., one cell producing, another consuming) synchronize
+through hardware handshakes via flags in memory, so a kicked chain executes
+at the rate the producer/consumer pair sustains without HIVE-C polling.
+
+Scheduling policy orders the kicks:
 
 ## Priority Levels
 

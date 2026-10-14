@@ -89,7 +89,12 @@ reference is *for* in HIVE terms.
 | Roy, *Advanced Digital System Design* **[lib]** | yes | General advanced RTL practice |
 | Vivado / Quartus tool docs; NexysA7 100T, Genesys2, DE10 Standard | tools | The PoC/production platforms from the HAS |
 
-## Ideas the library suggests for HIVE (not yet in the HAS/MAS)
+## Ideas the library suggests for HIVE (explored 2026-10-13)
+
+Explored in depth with owner input — see
+[design-notes/kick-flow-fifo-deadlock-tlm.md](../design-notes/kick-flow-fifo-deadlock-tlm.md)
+(kick-vs-pacing separation, FIFO sizing framework, deadlock obligations,
+TLM measurability). In brief:
 
 1. **Descriptor scheduling as network-processor queueing** (Franklin et al.):
    the HAS §5.2 four-level scheduler is a classic NP queueing problem — deficit
