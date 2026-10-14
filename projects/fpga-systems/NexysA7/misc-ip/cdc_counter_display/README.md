@@ -128,12 +128,8 @@ vivado build-phase1/fpga/build/vivado_project/cdc_counter_display.xpr
 
 The 7-segment display shows the counter value in hexadecimal:
 
-```
- AN1  AN0
-┌───┬───┐
-│ 3 │ A │  ← Counter value = 0x3A (58 decimal)
-└───┴───┘
-```
+Two hex digits: AN1 shows the high nibble and AN0 the low nibble, so a counter
+value of 0x3A (58 decimal) shows `3` on AN1 and `A` on AN0.
 
 Rightmost two digits display current count (00-FF hex).
 
@@ -153,30 +149,11 @@ Rightmost two digits display current count (00-FF hex).
 
 ### Block Diagram
 
-```
-System Clock (100 MHz)
-         │
-         ├──→ Clock Divider ──→ Button Clock (10 Hz)
-         │                          │
-         │                          ├──→ Debounce ──→ Edge Detect ──→ Counter
-         │                          │                                    │
-         │                          │                                    │ r_count_value[7:0]
-         │                          │                                    │
-         │                          └──→ Heartbeat LED0                  │
-         │                                                                │
-         └──→ Clock Divider ──→ Display Clock (1 kHz)               ┌────┘
-                                    │                                │
-                                    │              (CDC CROSSING)    │
-                                    │                                │
-                                    │         sync_pulse ←───────────┘ increment_pulse
-                                    │                │
-                                    │                ▼
-                                    ├──→ Capture ──→ r_display_count[7:0]
-                                    │                │
-                                    │                ├──→ Hex Decode ──→ 7-Seg Display
-                                    │                │
-                                    └──→ Heartbeat LED1
-```
+![build-phase1 block diagram](docs/assets/graphviz/cdc_phase1_blocks.png)
+
+The counter lives in the 10 Hz `btn_clk` domain; `cdc_4_phase_handshake` carries
+the 8-bit value to the 1 kHz `disp_clk` domain, where it is captured on
+`dst_valid` and decoded onto the two 7-segment digits.
 
 ### Clock Domains
 

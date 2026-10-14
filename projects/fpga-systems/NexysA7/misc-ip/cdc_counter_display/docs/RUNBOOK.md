@@ -16,36 +16,20 @@ pitfalls, see [`CDC_DEMO_TODO.md`](CDC_DEMO_TODO.md).
 
 ## At a glance
 
-```
-      ┌──────────────────────────────────────────────────────────────┐
-      │                       7-segment display                      │
-      │   ┌──────┐ ┌──────┐ ┌──────────────────────────────────┐    │
-      │   │ Mode │ │ Pick │ │      16-bit Counter Value        │    │
-      │   │  00  │ │  17  │ │              CAFE                 │    │
-      │   │ AN76 │ │ AN54 │ │             AN3210                │    │
-      │   └──────┘ └──────┘ └──────────────────────────────────┘    │
-      │                                                              │
-      │   ┌─────────────┐                                            │
-      │   │    LEDs     │                                            │
-      │   │ ●●●○ ○○○● = sel-counter LED[3:0] · alive[4] · rx[5] ·    │
-      │   │              tx[6] · ok[7]                               │
-      │   └─────────────┘                                            │
-      │                                                              │
-      │       ┌─────────┐                                            │
-      │       │ Buttons │   BTNU = pickoff UP (faster)               │
-      │       │   ◯     │   BTND = pickoff DOWN (slower)             │
-      │       │ ◯ ● ◯   │   BTNL = cycle CDC mode                    │
-      │       │   ◯     │   BTNC = inject press (host-equivalent)    │
-      │       └─────────┘   BTNR = system reset                      │
-      │                                                              │
-      │     ┌────────────────┐                                       │
-      │     │ Slide switches │                                       │
-      │     │ SW[1:0] = which counter is selected (0-3)              │
-      │     │ SW[15] = AUTO_INC for selected counter (1 = on)        │
-      │     │ SW[2..14] = reserved                                   │
-      │     └────────────────┘                                       │
-      └──────────────────────────────────────────────────────────────┘
-```
+| Control | What it shows or does |
+|---------|-----------------------|
+| 7-segment AN7-AN6 | Mode (for example `00`) |
+| 7-segment AN5-AN4 | Pickoff (for example `17`) |
+| 7-segment AN3-AN0 | 16-bit value of the selected counter (for example `CAFE`) |
+| LED[3:0] | Selected counter |
+| LED[4] / LED[5] / LED[6] / LED[7] | alive / UART rx / UART tx / ok |
+| BTNU / BTND | Pickoff up (faster) / down (slower) |
+| BTNL | Cycle the CDC mode |
+| BTNC | Inject a press (host-equivalent) |
+| BTNR | System reset |
+| SW[1:0] | Which counter is selected (0-3) |
+| SW[15] | AUTO_INC for the selected counter (1 = on) |
+| SW[14:2] | Reserved |
 
 ---
 

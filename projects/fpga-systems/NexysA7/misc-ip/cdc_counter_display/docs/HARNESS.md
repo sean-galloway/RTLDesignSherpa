@@ -9,34 +9,7 @@
 
 ## Block diagram
 
-```
-            ┌──────────────────────────────────────────────────────────────┐
-            │  Nexys A7-100T  (sys_clk = 100 MHz from on-board oscillator) │
-            │                                                              │
-   USB ── UART ── uart_axil_bridge ── AXIL ── cdc_demo_harness             │
-                                                │                          │
-                                                ├── per-counter cfg/ctl    │
-                                                │   (sys_clk domain)       │
-                                                │                          │
-                                                ▼                          │
-                                       ┌─────────────────────────┐         │
-                                       │ cdc_counter_domain × 4  │         │
-   BTNC ─ btn_in[0] ─────────────────► │  ┌──── ctr_clk[i] ────┐ │         │
-   BTNU ─ btn_in[1] ─────────────────► │  │ clock_divider      │ │         │
-   BTND ─ btn_in[2] ─────────────────► │  │ debounce           │ │         │
-   BTNL ─ btn_in[3] ─────────────────► │  │ counter (val+presses)│         │
-                                       │  └────────────────────┘ │         │
-                                       │   bin2gray + sync       │         │
-                                       │   gray2bin (→ sys_clk)  │         │
-                                       └─────────────────────────┘         │
-                                                │                          │
-                                                ▼                          │
-                                       display_mux ── hex_to_7seg ── 7-seg │
-                                                │                          │
-   LEDs[7:0] ◄────────── alive/heartbeat/UART activity per counter         │
-   BTNR ─ CPU_RESETN / soft-reset                                          │
-            └──────────────────────────────────────────────────────────────┘
-```
+![cdc_demo harness blocks (from the CDC FPGA-system book)](cdc_fpga_system/assets/graphviz/02_harness_blocks.png)
 
 Each counter lives in its own divided-clock domain. The divisor is host-settable per counter via CSR, so the user can sweep through clock ratios (1:N, 1:7, 1:13, …) to demonstrate where CDC matters and where naive crossings happen to "just work."
 

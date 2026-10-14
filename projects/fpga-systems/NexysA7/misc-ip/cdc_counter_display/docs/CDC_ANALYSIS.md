@@ -4,6 +4,10 @@
 **Date:** 2025-10-15
 **Status:** Verified Safe
 
+> **Note:** this analysis was written against the original `sync_pulse` design.
+> The current build-phase1 RTL (`cdc_counter_display_top.sv`) crosses with
+> `cdc_4_phase_handshake`; the analysis has not been redone for it.
+
 ---
 
 ## Executive Summary
@@ -129,18 +133,7 @@ end
    - **Guarantee:** Counter stable during entire sampling window
 
 2. **Timing Relationship:**
-   ```
-   btn_clk cycle:    |‾‾‾‾‾|_____|‾‾‾‾‾|_____|‾‾‾‾‾|_____|  (100ms period)
-   increment_pulse:  _____|‾|_____________________________|
-   r_count_value:    0x3A  │ 0x3B (stable)
-                            └─ Changes here
-
-   (2-3ms later in disp_clk domain)
-   disp_clk cycle:   |‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|  (1ms period)
-   pulse_sync:       _______|‾|__________________________|
-   r_display_count:  0x3A    │ 0x3B (captured)
-                              └─ Samples here (value already stable)
-   ```
+![Original design: counter value crossing](assets/graphviz/cdc_original_counter_crossing.png)
 
 3. **Multi-Bit Bus Consideration:**
    - **UNSAFE** if sampled continuously (metastability on multiple bits)

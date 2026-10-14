@@ -17,7 +17,7 @@ rapids_beats/                    ← this directory (umbrella)
 │   ├── rapids_beats_findings.md  the report (source)
 │   ├── characterization_styles.yaml         corporate style
 │   ├── title.md  generate_pdf.sh            PDF pipeline (md_to_docx --style)
-│   └── assets/{mmd,png}/                     mermaid + matplotlib figures
+│   └── assets/{graphviz,png}/                graphviz + matplotlib figures
 └── flows-rapids-beats/                      the build + host flow
     ├── rtl/       rapids_char_harness.sv, rapids_char_top.sv (pin top)
     ├── filelists/ filelists      constraints/  NexysA7 XDC

@@ -190,25 +190,11 @@ normalized delta table (% difference, Leg A vs Leg B).
 
 ## 5. Architecture sketch
 
-```
-                 DE10-Standard (Cyclone V 5CSX)
- ┌──────────────────────────────────────────────────────────────────┐
- │  HPS (ARM) + Intel hard DDR3 MC                                  │
- │        ▲                                    │ AXI3               │
- │        │ AXI3                              │  masters            │
- │  ┌─────┴───────────┐   AXI3   ┌───────────────────────────────┐  │
- │  │     FABRIC      │◄────────►│ stream: mover both flavors    │  │
- │  │  A: bridge      │          │ write injector (PRBS fill)    │  │
- │  │  B: PD          │          │ PRBS data slave (mirror src)  │  │
- │  └─────────────────┘          │ CRC checker block + SRAM      │  │
- │        ▲                        │ obs blocks (BW/latency taps)  │  │
- │  JTAG-AXI master (System Console driver)                        │  │
- └──────────────────────────────────────────────────────────────────┘
+![DE10-Standard fabric benchmark (planned)](docs/assets/graphviz/de10_fabric_benchmark_planned.png)
 
- Flavor 1: injector ──► DRAM ══ stream ══► CRC SRAM
- Flavor 2: PRBS slave ══ stream ══► DRAM ──(C1 readback)──► CRC SRAM
- F3 pair:  stream drain + injector fill (roles swap in the mirror)
-```
+- **Flavor 1:** injector -> DRAM, then stream -> CRC SRAM.
+- **Flavor 2:** PRBS slave -> stream -> DRAM, then C1 readback -> CRC SRAM.
+- **F3 pair:** stream drain + injector fill (the roles swap in the mirror).
 
 Leg A assembles from: bridge generator config TOML → generated crossbar SV →
 thin wrapper top; obs probes instantiated at the same net names as Leg B.

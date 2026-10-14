@@ -1,0 +1,17 @@
+// DE10-Standard fabric benchmark architecture (PRD.md section 5). Replaces an
+// ASCII sketch. PLANNED: no RTL or build exists yet; this restates the PRD's
+// sketch. House style: vault/handbook/authoring/block-diagrams.md ("(planned)"
+// in the title; the fabric under test in the center).
+digraph de10_fabric_benchmark_planned {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.5", ranksep="0.7", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="DE10-Standard (Cyclone V 5CSX) fabric benchmark (planned)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    jtag [label="JTAG-AXI master\n(System Console driver)", fillcolor="white"];
+    fab  [label="FABRIC under test\nA: bridge   B: PD", penwidth=1.8];
+    trf  [label="Traffic and check blocks (AXI3 masters)\nstream mover (both flavors), write injector (PRBS fill),\nPRBS data slave (mirror source), CRC checker + SRAM,\nobservation blocks (bandwidth / latency taps)"];
+    hps  [label="HPS (ARM) + Intel hard DDR3 memory controller", fillcolor="white", width=6];
+    jtag -> fab [xlabel="control"];
+    trf  -> fab [dir=both, xlabel="AXI3"];
+    fab  -> hps [dir=both, xlabel="AXI3"];
+    { rank=same; jtag; trf; }
+}

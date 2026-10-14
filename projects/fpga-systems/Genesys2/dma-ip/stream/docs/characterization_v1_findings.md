@@ -290,15 +290,10 @@ The interesting characterization knobs (engine outstanding-queue depth, response
 
 The current build plumbs them up cleanly:
 
-```
-stream_char_cfg_pkg.sv            (single source of truth)
-       │  CFG_AR_MAX_OUTSTANDING
-       │  CFG_AW_MAX_OUTSTANDING
-       │  CFG_RESP_DELAY_R_CAPACITY
-       │  CFG_RESP_DELAY_B_CAPACITY
-       ▼
-stream_char_top.sv  →  stream_char_harness.sv  →  stream_top_ch8.sv  →  stream_core.sv
-```
+`stream_char_cfg_pkg.sv` is the single source of truth for `CFG_AR_MAX_OUTSTANDING`,
+`CFG_AW_MAX_OUTSTANDING`, `CFG_RESP_DELAY_R_CAPACITY` and `CFG_RESP_DELAY_B_CAPACITY`.
+They flow down the hierarchy: `stream_char_top.sv` -> `stream_char_harness.sv` ->
+`stream_top_ch8.sv` -> `stream_core.sv`.
 
 To run a different config (deeper outstanding queues, shallower queues, etc.) for a build campaign, only the package file changes. The skid buffers remain hard-coded inside `stream_core` — they are timing-only structures and don't belong in the characterization knob set.
 

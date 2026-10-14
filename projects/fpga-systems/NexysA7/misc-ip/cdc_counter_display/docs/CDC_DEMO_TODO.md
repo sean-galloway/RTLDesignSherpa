@@ -73,17 +73,10 @@ Examples:
 
 ### Quick Decision Tree
 
-```
-Is the signal 1 bit?
-├── Yes → quasi-static or OK to miss pulses?
-│       ├── Yes → cdc_synchronizer (or reset_sync for reset)
-│       └── No  → sync_pulse (edge pulse synchronizer)
-└── No (multi-bit):
-    ├── Sustained streaming / burst traffic?  → fifo_async
-    └── One word at a time, occasional?
-        ├── Throughput matters         → cdc_2_phase_handshake
-        └── Debug/clarity matters more → cdc_4_phase_handshake
-```
+![Choosing a CDC technique (from the rtl-cdc book)](../../../../../../docs/markdown/assets/rtl-cdc/graphviz/cdc_choosing.png)
+
+Between the two handshakes: `cdc_2_phase_handshake` when throughput matters,
+`cdc_4_phase_handshake` when debug clarity matters more.
 
 ---
 

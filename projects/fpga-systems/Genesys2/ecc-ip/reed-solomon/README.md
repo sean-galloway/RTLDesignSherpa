@@ -37,27 +37,15 @@ Tracked as issue #83; see `docs/UART_HARNESS.md` for the mechanism.
 
 ## The loop (build-loop)
 
-```
-UART -> uart_axil_bridge -> bridge_rs_loop_axil (generated 1x3 fabric)
-                              |  rs_loop_apb  0x00000000  -> apb4_to_peakrdl -> rs_loop_regs
-                              |  rs_regs_apb  0x00010000  -> axi4_intf_master_observer
-                              |                            (AXI4 flavours; read-0 stub on AXIS.
-                              |                             codec CSRs remain reserved, PRD D9)
-                              |  obs_apb      0x00020000  -> axis4_intf_observer on the
-                              |                            four AXIS seams (every image)
-                                                     |
-  axis4_master_injector (32-bit, one packet per block, LFSR data + CRC-32)
-        |                                    \
-  rs_encoder_core RS(252,236)                 \  bypass: generator straight to
-        |                                      \ the checkers, codec out of loop
-  error_injector     (none | exact count | burst | rate | clusters)
-        |
-        +----> rs_decoder_core KES_ALGO=RIBM   ----> axis4_slave_pattern_check A
-        |                                     \
-        +----> rs_decoder_core KES_ALGO=EUCLID ----> axis4_slave_pattern_check B
-                                                \
-                                     comparator: A and B beat for beat, verdict for verdict
-```
+![Reed-Solomon AXIS loop and register path (from the rs_uart_harness book)](docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png)
+
+The loop runs UART -> `uart_axil_bridge` -> the generated 1x3 fabric
+`bridge_rs_loop_axil` (`rs_loop_apb` 0x00000000, `rs_regs_apb` 0x00010000,
+`obs_apb` 0x00020000). The datapath is `axis4_master_injector` ->
+`rs_encoder_core` RS(252,236) -> `error_injector` -> the riBM and Euclid
+`rs_decoder_core`s -> one `axis4_slave_pattern_check` each, with a comparator
+checking A against B beat for beat; bypass sends the generator straight to the
+checkers.
 
 **The profile is RS(252,236)**, the reference RS(255,239) shortened by three
 symbols so that n and k are multiples of the 4-symbol beat. That keeps every
