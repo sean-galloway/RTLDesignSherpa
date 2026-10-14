@@ -65,11 +65,12 @@ def main(argv=None) -> int:
 
     if mode in ("read", "both"):
         print("[ila_stim] attempting one CSR read (expected to hang/timeout)")
-        try:
-            val = bridge.read(HARNESS_CSR_BASE)
+        # The bridge returns None on timeout (it does not raise).
+        val = bridge.read(HARNESS_CSR_BASE)
+        if val is None:
+            print("[ila_stim] read wedged as expected (None after timeout)")
+        else:
             print(f"[ila_stim] UNEXPECTED read success: {val:#x}")
-        except (IOError, OSError) as e:
-            print(f"[ila_stim] read wedged as expected: {e}")
 
     print("[ila_stim] stimulus complete; fabric state is frozen for the ILA")
     return 0

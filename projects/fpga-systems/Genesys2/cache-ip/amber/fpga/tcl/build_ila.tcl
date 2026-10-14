@@ -70,6 +70,8 @@ puts "marked nets: [llength $marked]"
 array set grp {}
 foreach n $marked {
     set base [lindex [split $n /] end]
+    # Named-generate scopes render as "genblock.sig" in flattened names.
+    set base [lindex [split $base .] end]
     if {[regexp {^(.+)\[(\d+)\]$} $base -> b bit]} { set base $b }
     if {![info exists grp($base)]} { set grp($base) {} }
     lappend grp($base) $n
@@ -84,7 +86,9 @@ set order {host_arvalid host_arready host_rvalid host_rready host_rdata \
            ci0_req_valid ci0_req_ready ci0_rsp_valid ci0_rsp_ready \
            ci0_done ci0_busy ci0_err \
            ci1_req_valid ci1_req_ready ci1_rsp_valid ci1_rsp_ready \
-           ci1_done ci1_busy ci1_err}
+           ci1_done ci1_busy ci1_err \
+           ub_state ub_rx_valid ub_fub_arv ub_fub_arr ub_m_arv ub_m_arr \
+           ub_fub_rv ub_fub_rr}
 
 set depth 4096
 create_debug_core u_ila_0 ila

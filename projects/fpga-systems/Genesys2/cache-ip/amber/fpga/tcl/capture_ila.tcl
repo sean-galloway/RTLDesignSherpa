@@ -83,7 +83,7 @@ set ila [get_hw_ilas -of_objects [current_hw_device]]
 # immediate-trigger to snapshot it -- no trigger-condition setup needed and
 # both failure modes persist once wedged.
 puts "Driving '$mode' wedge over $uart ..."
-set py [file normalize "$project_root/../host/ila_stim.py"]
+set py [file normalize "$project_root/../../host/ila_stim.py"]
 set st [catch {exec bash -c "cd $repo_root && source ./env_python >/dev/null 2>&1 && python3 $py $uart $mode"} msg]
 puts "stim output: $msg"
 

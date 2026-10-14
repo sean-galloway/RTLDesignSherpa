@@ -165,6 +165,29 @@ module amber_pair_harness
                 .m_axil_rvalid (uart_rvalid),
                 .m_axil_rready (uart_rready)
             );
+
+            // ILA taps on uart_axil_bridge internals: the read hang never
+            // reaches the fabric, so the wedge must be visible here --
+            // dispatcher state, fub AR handshake, master AR, fub R stream.
+`ifdef AMBER_ILA_DBG
+            `AMBER_DBG_NET logic [3:0] ub_state;
+            `AMBER_DBG_NET logic       ub_rx_valid;
+            `AMBER_DBG_NET logic       ub_fub_arv;
+            `AMBER_DBG_NET logic       ub_fub_arr;
+            `AMBER_DBG_NET logic       ub_m_arv;
+            `AMBER_DBG_NET logic       ub_m_arr;
+            `AMBER_DBG_NET logic       ub_fub_rv;
+            `AMBER_DBG_NET logic       ub_fub_rr;
+
+            assign ub_state    = 4'(u_uart.r_cmd_state);
+            assign ub_rx_valid = u_uart.w_rx_valid;
+            assign ub_fub_arv  = u_uart.w_fub_arvalid;
+            assign ub_fub_arr  = u_uart.w_fub_arready;
+            assign ub_m_arv    = u_uart.m_axil_arvalid;
+            assign ub_m_arr    = u_uart.m_axil_arready;
+            assign ub_fub_rv   = u_uart.w_fub_rvalid;
+            assign ub_fub_rr   = u_uart.w_fub_rready;
+`endif
         end
     endgenerate
 
