@@ -689,13 +689,14 @@ Armed match (re-armed when the advance dropped the match): timer fires
 **Process repeats indefinitely until the counter is halted or the timer is switched to one-shot**
 
 **Late Start (counter already at 3500 when the timer is programmed):**
-```
-Armed match with comparator = 1000: timer fires once
--> Comparator advances 1000 -> 2000; still <= 3500, timer un-armed
--> Catch-up, no fire: 2000 -> 3000 (still behind), 3000 -> 4000 (ahead)
--> Catch-up re-arm; next fire at counter = 4000, then 5000, 6000, ...
-   (the 2000 and 3000 boundaries are skipped, not burst)
-```
+
+1. An armed match with comparator = 1000 fires the timer once.
+2. The comparator advances 1000 -> 2000; that is still <= 3500, so the timer
+   stays un-armed.
+3. Catch-up, no fire: 2000 -> 3000 (still behind), 3000 -> 4000 (ahead).
+4. Catch-up re-arms; the next fire is at counter = 4000, then 5000, 6000, ...
+   The 2000 and 3000 boundaries are skipped, not burst.
+
 
 ### Figure 2.15: Periodic Mode Timing Example
 
@@ -722,13 +723,13 @@ Result:
 ```
 
 **Fire Event (at counter = 5000):**
-```
-Armed match: timer fires, armed latch clears
--> timer_int_status[0] asserts (sticky)
--> Comparator remains at 5000 (no auto-reload)
--> Interrupt remains asserted
--> Halting and restarting the counter does NOT fire it again
-```
+
+- The armed match fires the timer and clears the armed latch.
+- `timer_int_status[0]` asserts (sticky).
+- The comparator stays at 5000 (no auto-reload).
+- The status stays set until software clears it.
+- Halting and restarting the counter does NOT fire it again.
+
 
 **Interrupt Clearing:**
 ```

@@ -305,15 +305,13 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-**Architecture Benefit:**
+**Architecture Benefit:** each timer has its own comparator write-data bus,
+so a write to one timer can never land in another:
 
-```
-Timer 0:  hwif.TIMER[0].COMP_LO/HI -> timer_comp_wdata[0] -> hpet_core timer 0 ONLY
-Timer 1:  hwif.TIMER[1].COMP_LO/HI -> timer_comp_wdata[1] -> hpet_core timer 1 ONLY
-Timer 2:  hwif.TIMER[2].COMP_LO/HI -> timer_comp_wdata[2] -> hpet_core timer 2 ONLY
+- Timer 0: `hwif.TIMER[0].COMP_LO/HI` -> `timer_comp_wdata[0]` -> `hpet_core` timer 0 only
+- Timer 1: `hwif.TIMER[1].COMP_LO/HI` -> `timer_comp_wdata[1]` -> `hpet_core` timer 1 only
+- Timer 2: `hwif.TIMER[2].COMP_LO/HI` -> `timer_comp_wdata[2]` -> `hpet_core` timer 2 only
 
-No shared bus -> No corruption possible
-```
 
 #### Interrupt Status Handling
 

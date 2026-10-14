@@ -178,31 +178,20 @@ APB Master
 
 #### Timer Fire Flow
 
-```
-hpet_core
-    ← Counter increments
-    -> Raw match (counter >= comparator) while the timer is armed
-    -> timer_int_status[i] asserts (sticky, owned here); armed latch clears
-    -> timer_irq[i] asserts one clock later (if int_enable was set at fire)
-        ↓
-hpet_config_regs
-    -> hwif_in.HPET_STATUS.timer_int_status.next (live level, every cycle)
-        ↓
-hpet_regs (PeakRDL)
-    -> HPET_STATUS reads the mirrored level
-        ↓
-Software reads HPET_STATUS
-Software writes 1 to bit i
-    ↓
-hpet_config_regs
-    -> timer_int_clear[i] pulses for ONE cycle
-       (mask = write data & byte enables: bits written 0 are untouched,
-       a write of 0x0 clears nothing)
-        ↓
-hpet_core
-    -> timer_int_status[i] clears (a fire of the same bit in that cycle wins)
-    -> timer_irq[i] deasserts
-```
+1. **`hpet_core`:** the counter increments. A raw match (counter >= comparator)
+   while the timer is armed fires it: `timer_int_status[i]` asserts (sticky,
+   owned here) and the armed latch clears. `timer_irq[i]` asserts one clock
+   later if `int_enable` was set at the fire.
+2. **`hpet_config_regs`** drives `hwif_in.HPET_STATUS.timer_int_status.next`
+   from that live level every cycle.
+3. **`hpet_regs` (PeakRDL):** HPET_STATUS reads the mirrored level.
+4. **Software** reads HPET_STATUS, then writes 1 to bit i.
+5. **`hpet_config_regs`** pulses `timer_int_clear[i]` for ONE cycle. The mask is
+   write data AND byte enables: bits written 0 are untouched, and a write of
+   0x0 clears nothing.
+6. **`hpet_core`:** `timer_int_status[i]` clears (a fire of the same bit in that
+   cycle wins) and `timer_irq[i]` deasserts.
+
 
 ### Clock Domain Organization
 
