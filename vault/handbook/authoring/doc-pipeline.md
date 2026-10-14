@@ -105,6 +105,20 @@ monitor book needed no script change, because its generator globs
 `rtl-amba/monitor/*.md` and `rtl-amba/includes/ocelus_*.md` and so picks up
 new pages on its own.*
 
+**Never run two PDF builds at once.** Concurrent `soffice --headless`
+conversions share one LibreOffice user profile, and every one but the first
+fails with exit status 1, leaving a stale `.~lock.<name>.docx#` beside the
+DOCX. Some wrappers hide that failure. `retro_legacy_blocks/docs/generate_mas_pdf.sh`
+prints `Failed: 1` but exits 0, and it also reports success when it skips a
+book because it was run from the wrong directory (`MAS directory not found`).
+Most book scripts resolve paths from the current directory, so `cd` to the
+script's own directory first. Build the books one after another, then check
+the PDF's mtime and text.
+
+*Case (2026-10-13): six books were built in parallel. STREAM HAS and HPET MAS
+both reported success and left last session's PDF in place. Only the mtime and
+pdftotext checks caught it.*
+
 ## Diagrams: the PDF eats PNG, not SVG
 
 Every `.mmd` needs a rendered `.png` beside it. An SVG-only diagram silently
