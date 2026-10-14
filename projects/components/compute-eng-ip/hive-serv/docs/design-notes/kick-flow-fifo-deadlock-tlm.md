@@ -92,16 +92,27 @@ credit loops are ever added without a return-path proof.
 **Cell's 3-D QoS-routed fabric (write these before the fabric):** per Duato's
 theory, a routing function is deadlock-free when its channel-dependency
 graph is acyclic, or when an escape resource exists under a restricted
-acyclic routing function. Concretely:
+acyclic routing function. **Requirement context (owner 2026-10-13):** a
+single cell has only N connections, and N-cell paths can form loops — and
+the fabric must support **dynamic re-routing** when a cell hangs or latency
+grows too high. Adaptive routing is precisely where naive loop-avoidance
+breaks: an adaptive function that detours around a hung cell can reintroduce
+cycles unless the escape-resource conditions hold for the adaptive paths
+too (fully-adaptive-with-escape-channel is Duato's canonical safe pattern).
+Detection needs a per-cell heartbeat/watchdog, and a re-route must ride the
+quiesce/reconfigure discipline HIVE already owns (HAS §5.4) — fault handling
+reuses the context-switch machinery rather than inventing a new one. The
+obligations, concretely:
 
 1. **Routing restriction:** dimension-ordered (X→Y→Z), no backtracking.
    *Property:* at every router, a packet's coordinates are monotonic per
    hop; the next-hop dimension is the current or the next in order. (SVA,
    each router ingress.)
 2. **Escape resource:** at least one VC per port routed by the restricted
-   function; QoS classes may not bypass the escape VC while blocked.
-   *Property:* a packet holding non-escape resources can always eventually
-   acquire the escape VC.
+   function; QoS classes and **adaptive detours** may not bypass the escape
+   VC while blocked. *Property:* a packet holding non-escape resources can
+   always eventually acquire the escape VC — under the base routing
+   function **and** under every detour the adaptive policy can select.
 3. **Credit progress:** credits return on wires independent of data;
    *Property:* credit occupancy is bounded and strictly decreasing when the
    downstream drains (no credit cycles).
