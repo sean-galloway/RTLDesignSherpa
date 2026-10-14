@@ -24,9 +24,11 @@
 
 The Delta generator uses the `Module` framework from `bin/rtl_generators/verilog/`. It builds the RTL as a sequence of method calls that append comments, instructions, and assignments to an internal buffer, then writes the completed module to disk.
 
-![Delta Generator Pipeline](assets/images/delta_generator_pipeline.png)
+### Figure 3.1: Delta Generator Pipeline
 
-**Figure 1: Delta Generator Pipeline.** The generator takes CLI/API arguments, builds a `DeltaConfig`, constructs the `DeltaFlatCrossbar` object, and calls `verilog()` to emit the flat crossbar file. Optional tree primitives are emitted separately.
+![Delta Generator Pipeline](assets/graphviz/delta_generator_pipeline.png)
+
+The generator parses its flags into a `DeltaConfig`, builds the `DeltaFlatCrossbar` module skeleton, and `verilog()` appends the sections in file order: the always-present datapath, the AMBA 5 sections (`--amba5`), the counters (unless `--no-counters`) and the `FORMAL`-guarded assertions. `--nodes` also writes the 1:2 splitter. `complete_tree_generator.py`, the retired tree prototype, is a separate script that writes its primitives as strings.
 
 ## Stages
 
@@ -40,6 +42,7 @@ The Delta generator uses the `Module` framework from `bin/rtl_generators/verilog
    - `generate_crossbar_mux()`
    - `generate_backpressure_logic()`
    - `generate_wakeup_logic()` (AMBA 5 only)
+   - `generate_check_logic()` (AMBA 5 only: odd-parity `*CHK` checks, sticky `parity_error`)
    - `generate_performance_counters()` (unless disabled)
    - `generate_assertions()`
 5. **Framework finalization** — `start()` emits the module header; `end()` emits `endmodule`.

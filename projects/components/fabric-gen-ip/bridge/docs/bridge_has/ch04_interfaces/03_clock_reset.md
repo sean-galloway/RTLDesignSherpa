@@ -25,7 +25,7 @@
 
 ## Overview
 
-One clock, one reset. The AXI fabric runs in a single synchronous domain — there is exactly one exception, at an APB slave boundary, and it gets its own discussion below — and the reset is asynchronous, active-low. This page covers what that means for your clock tree, your reset strategy, and your constraint file.
+One clock, one reset. The AXI fabric runs in a single synchronous domain — there is exactly one exception, an AXI4 slave port declared `cdc = true`, and it gets its own discussion below — and the reset is asynchronous, active-low. This page covers what that means for your clock tree, your reset strategy, and your constraint file.
 
 ## Ports
 
@@ -53,7 +53,7 @@ One clock, one reset. The AXI fabric runs in a single synchronous domain — the
 
 #### Figure 4.1: Clock Distribution
 
-![Clock Distribution](../assets/mermaid/clock_distribution.png)
+![Clock Distribution](../assets/graphviz/clock_distribution.png)
 
 Every master port and the fabric itself run on `aclk`. A slave port may run
 on its own clock when declared `cdc = true` (next section); every other
@@ -86,9 +86,11 @@ beats appear on the slave clock, the sustained rate is set by the slower
 clock (>= 0.85 beat per cycle of it), and the same-clock port beside it is
 unaffected.
 
-The other place a clock boundary already existed: an `apb`/`apb5` slave's
-`axi4_to_apb4_shim` core contains two async FIFOs and its own
-`pclk`/`presetn`. For every other port:
+An `apb`/`apb5` slave's `axi4_to_apb4_shim` core is built around two async
+FIFOs and has its own `pclk`/`presetn` pins, but the generator ties them to
+`aclk`/`aresetn` (`periph_adapter.sv` in `bridge_2x3_apb_req`), and the bridge
+top has no APB clock port. A generated APB slave port therefore runs on
+`aclk`. For every port that is not `cdc = true`:
 
 - All inputs sampled on aclk rising edge
 - All outputs generated on aclk rising edge
@@ -185,7 +187,7 @@ in systems with multiple clock domains:
 
 #### Figure 4.2: Multi-Clock CDC
 
-![Multi-Clock CDC](../assets/mermaid/multi_clock_cdc.png)
+![Multi-Clock CDC](../assets/graphviz/multi_clock_cdc.png)
 
 ### CDC Recommendations
 

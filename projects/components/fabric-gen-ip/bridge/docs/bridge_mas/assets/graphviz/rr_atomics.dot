@@ -1,0 +1,46 @@
+// A5-3b: read-return atomics on an rw AXI5 master port. Labels from
+// rtl/generated/bridge_1x2_rw_axi5a/{cpu_adapter,ddr_adapter}.sv
+// (aw_rr_gate_ok, r_local_head, axi5_atomic_rr_tracker). House style:
+// vault/handbook/authoring/block-diagrams.md
+digraph rr_atomics {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.85", ranksep="0.60", splines=ortho, labelloc=t,
+           label="Read-return atomics on an rw AXI5 port - AtomicLoad / Swap / Compare ride AW and answer on both B and R\n(the R beat carries the AW's ID and has no AR, so both R trackers learn about it at the AW)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    pc [label="Master AW (AWATOP = read-return class)\nand AR", fillcolor="white", group=C];
+    pr [label="Master R out\noriginal data, RID = the AW's ID", fillcolor="white", group=R];
+    { rank=same; pc; pr; }
+    pc -> pr [style=invis];
+
+    gate [label="Atomic AW Gate - <master>_adapter\naw_rr_gate_ok: two free R-return slots and the\nsingle-outstanding-target rule; the atomic AW\npushes the AR->R slot FIFO (dual push with a\nsame-cycle AR: AR first, AW second)", group=C];
+    rsel [label="R Path Select - <master>_adapter\nr_slave_select = slot FIFO head; a head marked\nlocal (atomic to an unmapped address) sends one\nDECERR beat with the AW's ID itself and holds\nevery slave's rready off (r_local_head)", group=R];
+    { rank=same; gate; rsel; }
+    gate -> rsel [style=dashed, xlabel="slot: target slave,\nor local + ID"];
+
+    xa [label="Crossbar - <bridge>_xbar\nthe atomic AW is arbitrated\nlike any write", group=C];
+    xr [label="R OR-Mux - <bridge>_xbar\nR to the master named by\nrid_bridge_id", group=R];
+    { rank=same; xa; xr; }
+    xa -> xr [style=invis];
+
+    pc3 [shape=point, width=0.01, label="", group=C];
+    trk [label="Atomic Tracker - <slave>_adapter\naxi5_atomic_rr_tracker: one entry\nper ID, written at the atomic AW\nhandshake with its bridge_id"];
+    rret [label="Read Return Select - <slave>_adapter\nRID hits the atomic tracker: route by its\nbridge_id, read FIFO / CAM left untouched;\notherwise the read tracker as usual", group=R];
+    { rank=same; pc3; trk; rret; }
+    pc3 -> trk [style=dashed, xlabel="AWID + bridge_id"];
+    trk -> rret [style=dashed, xlabel="hit, bridge_id"];
+
+    bar [label="Slave Port - the atomic AW and its W out; B, and R carrying the original data with RID = AWID, back", fillcolor="white", width=9];
+
+    pc -> gate [label="AW / AR"];
+    gate -> xa [label="AW (atomic) / AR", penwidth=1.8];
+    xa -> pc3 [dir=none, penwidth=1.8];
+    pc3 -> bar [xlabel="granted AW + bridge_id", penwidth=1.8];
+
+    pr -> rsel [dir=back, label="R"];
+    rsel -> xr [dir=back, label="R of the head slave"];
+    xr -> rret [dir=back, label="R + rid_bridge_id"];
+    rret -> bar [dir=back, xlabel="R (RID = AWID)"];
+}

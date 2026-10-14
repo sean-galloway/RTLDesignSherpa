@@ -33,15 +33,15 @@ Concretely, the adapter does five things:
 
 1. **Timing Isolation**: Inserts pipeline registers (skid buffers) to break combinatorial paths from master to crossbar
 2. **Channel Specialization**: Separates read-only, write-only, and read-write masters for optimal resource utilization
-3. **Bridge ID Injection**: Adds internal tracking IDs to transactions for response routing
-4. **Protocol Normalization**: Ensures all transactions meet crossbar assumptions and constraints
-5. **Backpressure Management**: Handles ready/valid handshaking with single-cycle latency
+3. **Fabric ID**: Widens the AXI ID to `{BRIDGE_ID, id}` so IDs are unique across masters
+4. **Address Decode and Width Paths**: Selects the target slave and converts width on paths that need it (`axi4_dwidth_converter_wr` / `_rd`)
+5. **Response Steering**: Returns B / R from the slave of the oldest outstanding request (`aw_trk` / `ar_trk` FIFOs)
 
 ### Figure 2.1: Master Adapter Architecture
 
-![Master Adapter Architecture](assets/graphviz/master_adapter.png)
+![Master Adapter Architecture](../assets/graphviz/master_adapter.png)
 
-The figure shows Master Adapter architecture with per-master skid buffers, bridge ID injection/stripping, and channel specialization for rd/wr/rw configurations.
+The figure follows the generated `<master>_adapter`: skid buffers at the port, the combinational address decode, the target gate that also widens the ID to `{BRIDGE_ID, id}`, and one width path per distinct slave width. W follows its AW through the `w_trk` FIFO, and B / R climb back through a response mux steered by the head of the `aw_trk` / `ar_trk` FIFO.
 
 ## Parameters
 

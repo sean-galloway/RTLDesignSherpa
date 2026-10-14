@@ -29,26 +29,29 @@ ID Management is how the bridge remembers which master sent each outstanding tra
 
 Before anything else in this chapter, read this — it colors everything below:
 
-> **What the generated bridge actually does.** There is no CAM, no ID table and
-> no ID injection. `bridge_cam.sv` exists in the tree and is instantiated in
-> **zero** generated bridges. AXI IDs pass through UNTOUCHED and at equal width
-> -- `cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in `bridge_2x2_rw`,
-> with nothing prepended and nothing stripped.
+> **What the generated bridge actually does** (measured against
+> `rtl/generated/`). Two mechanisms, both in Figure 2.5:
 >
-> The originating master travels as a SIDEBAND signal (`xbar_bridge_id_aw` /
-> `xbar_bridge_id_ar`) beside the transaction. Each slave adapter pushes it
-> into an in-order FIFO on the address handshake, pops it on the response, and
-> routes the response by FIFO POSITION -- never by the returned BID/RID.
+> * **The ID is widened.** The master adapter sends `{BRIDGE_ID, id}` into the
+>   fabric (bridge TASK-005), so IDs are unique across masters: in
+>   `bridge_2x2_rw`, `cpu_m_axi_awid` is 4 bits and `ddr_s_axi_awid` is 5. The
+>   response muxes return the low bits to the master.
+> * **Each slave adapter tracks the originating master.** The granted
+>   master's index rides beside the request as `xbar_bridge_id_aw` /
+>   `xbar_bridge_id_ar` and is written into the slave adapter's tracker at the
+>   address handshake. An AXI4 / AXI5 slave of a multi-master bridge (or any
+>   slave with `enable_ooo`) gets `bridge_cam` (`u_wr_cam` / `u_rd_cam`), keyed
+>   by the AXI ID and looked up with the returned BID / RID, so the slave may
+>   complete different IDs in any order. A single-master bridge, the protocol
+>   shims and the catch-all keep an in-order `bridge_id` FIFO, which requires
+>   the slave to answer in request order (bridge BUG-008's simulation-only
+>   check flags a violation).
 >
-> Two consequences follow, and both are tracked:
-> * each slave port REQUIRES responses in request order across all IDs; a slave
->   that reorders between IDs misroutes here (bridge BUG-008 (was BRIDGE-010), now detected by a
->   simulation-only check that compares the returned BID/RID against the FIFO
->   head);
-> * the FIFO is fixed-depth, so the address handshake is gated on it being
->   not-full (bridge BUG-009, was BRIDGE-011).
+> Either tracker is fixed-depth (16), so the address handshake is gated on it
+> being not full (bridge BUG-009).
 >
-> Out-of-order response routing is therefore NOT supported and NOT implemented.
+> An earlier revision of this note said there was no CAM and that IDs passed
+> through at equal width; the generated RTL has done both since TASK-005.
 >
 > ---
 >
@@ -67,9 +70,9 @@ The ID management system does five things:
 
 ### Figure 2.5: ID Management Architecture
 
-![ID Management Architecture](assets/graphviz/id_management.png)
+![ID Management Architecture](../assets/graphviz/id_management.png)
 
-ID management architecture showing CAM and FIFO modes for transaction tracking and response routing.
+The request takes the center column, widened to `{BRIDGE_ID, id}` in the master adapter and granted with its `bridge_id` in the crossbar. The response climbs the right side: the slave adapter's tracker (CAM or FIFO, dashed because each slave builds exactly one) names the master, and the crossbar and master adapter return B / R with the master's own id bits.
 
 ## Parameters
 

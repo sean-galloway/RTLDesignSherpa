@@ -27,45 +27,47 @@
 
 ### Figure 3.1: Bridge Block Diagram
 
-![Bridge Block Diagram](../assets/mermaid/bridge_block_diagram.png)
+![Bridge Block Diagram](../assets/graphviz/bridge_block_diagram.png)
 
-Bridge high-level block diagram showing master adapters, crossbar core, and slave routers.
+One master's path through the generated bridge to one slave; every master and every slave repeats it. Write data drops down the left lane, requests take the center through the per-slave arbiter (the trapezium, where every master's AW / AR contend), and B / R responses climb the right lane back to the master named by the returned `bridge_id`. The response tracker in the slave adapter is written at AW / AR accept (dashed) and read when the response returns.
 
 ## Functional Blocks
 
 ### Master Adapter
 
-Receives transactions from upstream masters:
+One per master (`<master>_adapter`), receives transactions from the upstream master:
 
-- **Skid buffer** - Pipeline registration for timing
-- **Response tracking** - the originating master is recorded in the slave adapter's in-order `bridge_id` FIFO; the AXI ID itself is passed through untouched
-- **Channel separation** - Route AW/W/AR independently
+- **Skid buffers** - `axi4_slave_wr` / `axi4_slave_rd` register every channel at the port
+- **Address decode** - a one-hot slave select from each slave's `base_addr` / `addr_range`; no hit selects the catch-all
+- **Width conversion** - `axi4_dwidth_converter_wr` / `_rd`, one path per distinct slave width, only where the widths differ
+- **Fabric ID** - the AXI ID is prefixed with the master's `BRIDGE_ID` (`{BRIDGE_ID, id}`), so a slave port's ID is wider than a master port's
 
 ### Crossbar Core
 
-Central switching fabric:
+Central switching fabric (`<bridge>_xbar`):
 
 - **5-channel routing** - Independent AW, W, B, AR, R paths
-- **Address decode** - Determine target slave
-- **Arbitration** - Per-slave round-robin selection
+- **Arbitration** - one AW and one AR arbiter per slave, round-robin (or `arbitration = "qos"`), grant held until the address handshake
+- **W steering** - a W destination FIFO per master path and a W owner FIFO per slave keep each W burst with its AW
+- **Response muxes** - B and R return to the master named by the `bridge_id` the slave adapter hands back
 
-### Slave Router
+### Slave Adapter
 
-Delivers transactions to downstream slaves:
+One per slave (`<slave>_adapter`), delivers transactions to the downstream slave:
 
-- **Protocol conversion** - AXI4 to APB/AXI4-Lite if needed
-- **Width conversion** - Upsize/downsize data paths
-- **Response collection** - Route B/R back to masters
+- **Response tracking** - `bridge_cam` keyed by AXI ID when several masters share the slave, or an in-order `bridge_id` FIFO when one master does; written at AW / AR accept, read at B / last R
+- **Skid buffers or protocol conversion** - `axi4_master_wr` / `_rd`, or `axi4_to_apb4_shim`, `axi4_to_axil4_*` / `axi4_to_axil5_*`, `axi4_to_wb4`
+- **Clock crossing** - `axi4_cdc_wr` / `_rd` when the slave port is `cdc = true`
 
 ## Data Flow
 
 ### Figure 3.2: Write Path
 
-![Write Path Flow](../assets/mermaid/write_path_flow.png)
+![Write Path Flow](../assets/graphviz/write_path_flow.png)
 
 ### Figure 3.3: Read Path
 
-![Read Path Flow](../assets/mermaid/read_path_flow.png)
+![Read Path Flow](../assets/graphviz/read_path_flow.png)
 
 ## Scalability
 
@@ -76,7 +78,7 @@ Delivers transactions to downstream slaves:
 | NUM_MASTERS | 1-32 | Linear MUX growth |
 | NUM_SLAVES | 1-256 | Linear decoder growth |
 | DATA_WIDTH | 32-512 | Linear data path growth |
-| ID_WIDTH | 1-16 | Pass-through; scales the ID wires only (no CAM) |
+| ID_WIDTH | 1-16 | Scales the ID wires (slave side carries {BRIDGE_ID, id}) and the tracker CAM tags |
 
 : Table 3.1: Topology Parameter Scaling
 

@@ -1,0 +1,72 @@
+// Bridge generator pipeline: configuration in, generator stages, emitted RTL /
+// filelist / tests out. House style: vault/handbook/authoring/block-diagrams.md
+// Labels from bin/bridge_generator.py, bin/bridge_pkg/config_loader.py,
+// bin/bridge_pkg/components/bridge_module_generator.py (generate_all) and
+// bin/bridge_pkg/generators/*.py.
+digraph bridge_generator_pipeline {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.75", splines=ortho, labelloc=t,
+           label="bridge_generator.py - one pass per bridge (--ports <toml>, or one per row of --bulk bridge_batch.csv)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- inputs ----
+    toml [label="Port Configuration\nbridge_<name>.toml: [bridge] masters / slaves,\nprotocol, widths, base_addr, variants", fillcolor="white", group=C];
+    csv  [label="Connectivity Matrix\nbridge_<name>_connectivity.csv\n(1 = master reaches slave)", fillcolor="white"];
+    { rank=same; toml; csv; }
+
+    // ---- parse + validate ----
+    load [label="Configuration Loader\nload_config - config_loader.py\n+ parse_connectivity_csv - csv_parser.py", group=C];
+    val  [label="Configuration Validator\nvalidate_config - config_validator.py\n(rejects the config before any file is written)", group=C];
+
+    // ---- per-variant translate ----
+    var  [label="Variant Emitter - _emit_bridge_variant\none pass per [bridge].variants entry:\nno -> <name>,  mon -> <name>_mon", group=C];
+
+    // ---- RTL emission ----
+    emit [label="RTL Emitter\nBridgeModuleGenerator.generate_all\n(writes the five file kinds in order)", group=C];
+
+    pkg  [label="Package Generator\nPackageGenerator\n(widths, channel structs)"];
+    mad  [label="Master Adapter Generator\nAdapterGenerator\n(one per master)"];
+    top  [label="Top Module Writer\nBridgeModuleGenerator\n(ports, instances, monitors)", group=C];
+    sad  [label="Slave Adapter Generator\nSlaveAdapterGenerator\n(one per slave + catch-all)"];
+    xbar [label="Crossbar Generator\nCrossbarGenerator\n(decode, per-slave arbiters)"];
+
+    // ---- collateral (outer columns) ----
+    tst  [label="Test Generator\ngenerate_tests,\ngenerate_monitor_tests\n(--generate-tests only)", style="filled,dashed", group=T];
+    cfg  [label="Config Regblock Generator\nCfgRdlGenerator + PeakRDL\n(use_cfg_regblock, mon only)", style="filled,dashed", group=G];
+    fl   [label="Filelist Writer\n_emit_bridge_variant\n(compile order + config copies)"];
+
+    // ---- boundary bar ----
+    bar [label="Emitted artifacts\nrtl/generated/<bridge>/  (*.sv, copied .toml / .csv, cfg .rdl + regmap)   |   rtl/filelists/<bridge>.f   |   dv/tbclasses/ + dv/tests/  (cocotb)",
+         fillcolor="white", width=20.5];
+
+    // ---- main flow ----
+    toml -> load [label="port specs"];
+    csv  -> load [label="connectivity"];
+    load -> val  [label="PortSpec lists"];
+    val  -> var  [label="validated BridgeConfig"];
+    var  -> emit [label="MasterConfig / SlaveInfo"];
+
+    { rank=same; tst; fl; pkg; mad; top; sad; xbar; cfg; }
+    tst -> fl -> pkg -> mad -> top -> sad -> xbar -> cfg [style=invis];
+
+    emit -> pkg  [xlabel="widths"];
+    emit -> mad  [xlabel="each master"];
+    emit -> top  [xlabel="all ports"];
+    emit -> sad  [xlabel="each slave"];
+    emit -> xbar [xlabel="address map"];
+    emit -> fl   [xlabel="file paths"];
+
+    pkg  -> bar [xlabel="<bridge>_pkg.sv"];
+    mad  -> bar [xlabel="<master>_adapter.sv"];
+    top  -> bar [xlabel="<bridge>.sv", penwidth=1.8];
+    sad  -> bar [xlabel="<slave>_adapter.sv"];
+    xbar -> bar [xlabel="<bridge>_xbar.sv"];
+    fl   -> bar [xlabel="<bridge>.f"];
+
+    var -> tst [style=dashed, xlabel="variant names"];
+    var -> cfg [style=dashed, xlabel="adapter ports"];
+    tst -> bar [style=dashed, xlabel="test_<bridge>.py,\nTB class"];
+    cfg -> bar [style=dashed, xlabel="<bridge>_cfg.sv,\n_cfg_pkg.sv"];
+}

@@ -29,7 +29,7 @@ The shipped Lattice variants use a 64KB address region per slave. The size is ch
 
 ### Figure 3.3: Address Mapping Structure
 
-![Address Mapping](../assets/mermaid/04_address_map.png)
+![Address Mapping](../assets/graphviz/lattice_address_map.png)
 
 ## Default Address Map
 

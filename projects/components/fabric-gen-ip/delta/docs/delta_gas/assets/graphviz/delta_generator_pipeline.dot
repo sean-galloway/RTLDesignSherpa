@@ -1,0 +1,51 @@
+// Delta generator pipeline. Labels from bin/delta_generator.py (main, DeltaConfig,
+// calculate_widths, DeltaFlatCrossbar.verilog, DeltaSplitter1to2) and
+// bin/complete_tree_generator.py. House style: vault/handbook/authoring/block-diagrams.md
+digraph delta_generator_pipeline {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.80", splines=ortho, labelloc=t,
+           label="Delta generators - delta_generator.py emits the flat crossbar; complete_tree_generator.py is a separate, retired prototype\n(no arbitration: each stage appends its section to one module buffer, in file order left to right)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    cli  [label="delta_generator.py Arguments\n--masters --slaves --data-width --user-width --strb-width\n--amba5 --no-counters --nodes --topology --output-dir", fillcolor="white"];
+    tcli [label="complete_tree_generator.py Arguments\n--type merger | fanout | fanin, --size, --output", fillcolor="white"];
+    { rank=same; cli; tcli; }
+
+    cfg  [label="Configuration - DeltaConfig\ncalculate_widths: DEST_WIDTH = clog2(slaves),\nID_WIDTH = clog2(masters) (each at least 1);\n--amba5 rejects a non-byte data width"];
+    tgen [label="Tree Primitive Writer (retired prototype)\ngenerate_2to1_merger / generate_fanout_tree /\ngenerate_fanin_tree: SystemVerilog\nbuilt directly as strings", style="filled,dashed"];
+    { rank=same; cfg; tgen; }
+
+    obj  [label="Module Builder - DeltaFlatCrossbar(config)\nheader comment, parameters, ports\n(TSTRB ports only with --strb-width;\nTWAKEUP / *CHK ports only with --amba5)"];
+    spl  [label="Splitter Node - DeltaSplitter1to2\n(--nodes only)", style="filled,dashed"];
+    { rank=same; obj; spl; }
+
+    emit [label="RTL Emitter - DeltaFlatCrossbar.verilog()\ncalls the section generators in order"];
+
+    s1 [label="Datapath Sections (always)\ngenerate_request_decode: TDEST -> request_matrix\ngenerate_arbiter_logic: grant_matrix, lock to TLAST\ngenerate_crossbar_mux, generate_backpressure_logic"];
+    s2 [label="AMBA 5 Sections (--amba5)\ngenerate_wakeup_logic: TWAKEUP by TDEST\ngenerate_check_logic: odd-parity *CHK\nchecks, sticky parity_error", style="filled,dashed"];
+    s3 [label="Counters\ngenerate_performance_counters\n(unless --no-counters)", style="filled,dashed"];
+    s4 [label="Assertions\ngenerate_assertions:\nemitted inside `ifdef FORMAL"];
+    { rank=same; s1; s2; s3; s4; }
+    s1 -> s2 -> s3 -> s4 [style=invis];
+
+    bar [label="Emitted files (default --output-dir ../rtl)   |   delta_axis_flat_<M>x<N>.sv   |   delta_split_1to2.sv (--nodes)   |   delta_merge_2to1.sv, delta_fanout_1to<N>.sv, delta_fanin_<N>to1.sv",
+         fillcolor="white", width=17];
+
+    cli  -> cfg  [label="parsed flags"];
+    cfg  -> obj  [label="DeltaConfig"];
+    obj  -> emit [label="module skeleton"];
+    emit -> s1 [xlabel="section 1"];
+    emit -> s2 [xlabel="section 2"];
+    emit -> s3 [xlabel="section 3"];
+    emit -> s4 [xlabel="section 4"];
+    s1 -> bar [label="decode, arbiters,\nmux, TREADY"];
+    s2 -> bar [label="TWAKEUP, *CHK"];
+    s3 -> bar [label="pkt_count_*"];
+    s4 -> bar [label="assert property", penwidth=1.0];
+    cfg  -> spl [style=dashed, xlabel="DeltaConfig"];
+    spl  -> bar [style=dashed, xlabel="delta_split_1to2.sv"];
+    tcli -> tgen [label="type, size"];
+    tgen -> bar [style=dashed, xlabel="merger / fan-out / fan-in"];
+}

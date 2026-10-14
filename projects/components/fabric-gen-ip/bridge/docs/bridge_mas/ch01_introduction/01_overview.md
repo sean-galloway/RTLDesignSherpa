@@ -70,29 +70,29 @@ You never instantiate these by hand; the generator looks at each master/slave pa
 ```
 Bridge NxM
 ├── Master Adapters (M instances)
-│   ├── Skid buffers
-│   └── sideband bridge_id (AXI IDs pass through unchanged)
+│   ├── Skid buffers, address decode, width paths
+│   └── fabric ID = {BRIDGE_ID, id}; bridge_id sideband
 ├── Crossbar Core
 │   ├── Address decode
 │   ├── Per-slave arbiters
 │   └── Channel muxes
 ├── Slave Adapters (N instances)
 │   ├── Protocol shims (axi4_to_apb4_shim / axi4_to_axil4_*)
-│   └── In-order bridge_id FIFO (response tracking)
+│   └── Response tracker: bridge_cam by ID (multi-master), or bridge_id FIFO
 ├── Subtractive slave (always present, internal)
 │   └── Answers unmapped addresses: DECERR + 0xDEADBEEF + sticky status
 └── Response Routing
-    ├── bridge_id FIFO head selects the master
-    └── Master demux (the AXI ID is passed through untouched)
+    ├── the tracker's bridge_id selects the master
+    └── Master response mux (the master's own id bits returned)
 ```
 
 ### Signal Flow
 
-```mermaid
-graph LR
-    M[Master] --> AD[Adapter] --> DE[Decode] --> AR[Arbiter] --> MX[Mux] --> CVQ[Converter] --> S[Slave]
-    S --> CVR[Converter] --> RS[Response] --> IE[ID Extract] --> DM[Demux] --> M
-```
+### Figure 1.1: Bridge Signal Flow
+
+![Bridge Signal Flow](../assets/graphviz/signal_flow.png)
+
+One master's path to one slave; every master and every slave repeats it. Write data takes the left lane, AW / AR the center through the per-slave arbiter, and B / R climb the right lane back to the master named by the returned `bridge_id`.
 
 ## References
 

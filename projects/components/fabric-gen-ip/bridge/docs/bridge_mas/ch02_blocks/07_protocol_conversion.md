@@ -109,17 +109,17 @@ The bridge now emits real AXI4-to-AXIL4 conversion shims (`axi4_to_axil4_{rd,wr}
 
 ### Figure 2.7.1: Protocol Conversion Architecture
 
-![Protocol Conversion Architecture](assets/mermaid/protocol_conversion_arch.png)
+![Protocol Conversion Architecture](../assets/graphviz/protocol_conversion_arch.png)
 
-The diagram shows the complete protocol conversion flow: AXI4-Lite masters are adapted to full AXI4 before entering the crossbar, while APB peripherals receive AXI4 transactions through a dedicated converter.
+Every port converts to AXI4 at its own adapter and the fabric is AXI4 throughout: AXI4-Lite, APB, Wishbone and AXI3 masters get a front-end converter in their master adapter, and the matching slaves get a shim in their slave adapter. AXI4 and AXI5 ports need only the boundary skid buffers.
 
 ## 2.7.4 Block Diagram
 
-### Figure 2.7: Protocol Conversion Architecture
+### Figure 2.7: AXI4 to APB Shim
 
-![Protocol Conversion Architecture](assets/graphviz/protocol_conversion_apb.png)
+![AXI4 to APB Shim](../assets/graphviz/protocol_conversion_apb.png)
 
-Protocol conversion showing AXI4 to APB conversion with state machine, burst decomposition, and response mapping.
+`axi4_to_apb4_shim` as an APB slave adapter instantiates it. The APB FSM picks a write (AW with W waiting) ahead of a read (the trapezium), `axi_gen_addr` decomposes the burst into one APB command per APB-width slice, and the commands cross to the APB master through an async FIFO. Responses return through a second async FIFO; the response FSM packs PRDATA into RDATA beats, issues one B per burst and maps PSLVERR to SLVERR. The generator ties `pclk` to `aclk`.
 
 ## 2.7.5 AXI4-Lite to AXI4 Conversion (Master-Side)
 

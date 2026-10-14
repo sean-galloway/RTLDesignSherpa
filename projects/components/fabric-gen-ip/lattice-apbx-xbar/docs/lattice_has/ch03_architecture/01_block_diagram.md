@@ -29,7 +29,9 @@ The Lattice has three functional layers:
 
 ### Figure 3.1: Lattice Block Diagram
 
-![Block Diagram](../assets/mermaid/02_block_diagram.png)
+![Block Diagram](../assets/graphviz/lattice_block_diagram.png)
+
+One master's path to one slave; every master and slave repeats it. The request takes the center column: the master-side `apb4_slave` turns the APB transfer into a cmd packet, the address decode picks the slave window, and the slave's round-robin arbiter (the trapezium, where every master's cmd for that slave contends) grants one master and holds the grant until the response handshake. The completion climbs the right column, routed back by the slave index registered when the command was accepted; an address outside every window completes locally with PSLVERR.
 
 ## Functional Blocks
 

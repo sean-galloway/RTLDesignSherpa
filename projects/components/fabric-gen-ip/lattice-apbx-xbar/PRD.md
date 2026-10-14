@@ -125,8 +125,8 @@ Lattice (M masters × N slaves)
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-![Lattice Architecture (2x4 Example)](docs/lattice_mas/assets/svg/apbx_xbar_architecture.png)
-*Figure: Lattice top-level architecture showing 2 masters connected to 4 slaves. [Source: docs/lattice_mas/assets/graphviz/apbx_xbar_architecture.gv](docs/lattice_mas/assets/graphviz/apbx_xbar_architecture.gv) | [SVG](docs/lattice_mas/assets/svg/apbx_xbar_architecture.svg)*
+![Lattice Architecture (2x4 Example)](docs/lattice_mas/assets/graphviz/apbx_xbar_architecture.png)
+*Figure: Lattice top-level architecture showing 2 masters connected to 4 slaves. [Source: docs/lattice_mas/assets/graphviz/apbx_xbar_architecture.dot](docs/lattice_mas/assets/graphviz/apbx_xbar_architecture.dot)*
 
 ### 3.2 Address Mapping
 
@@ -148,8 +148,8 @@ The crossbar extracts the slave index from the upper bits of the address offset:
 slave_index = (address - BASE_ADDR) >> 16  // Divide by 64KB (0x10000)
 ```
 
-![Address Decode Flow](docs/lattice_mas/assets/svg/address_decode_flow.png)
-*Figure: Address decode flow showing how address 0x10023456 routes to Slave 2. [Source: docs/lattice_mas/assets/graphviz/address_decode_flow.gv](docs/lattice_mas/assets/graphviz/address_decode_flow.gv) | [SVG](docs/lattice_mas/assets/svg/address_decode_flow.svg)*
+![Address Decode Flow](docs/lattice_mas/assets/graphviz/address_decode_flow.png)
+*Figure: Address decode flow showing how address 0x10023456 routes to Slave 2. [Source: docs/lattice_mas/assets/graphviz/address_decode_flow.dot](docs/lattice_mas/assets/graphviz/address_decode_flow.dot)*
 
 ### 3.3 Arbitration Strategy
 

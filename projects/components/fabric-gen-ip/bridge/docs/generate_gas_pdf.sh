@@ -116,6 +116,7 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --mathfont "Noto Serif" \
   --assets-dir "${ASSETS}" \
   --assets-dir "${ASSETS}/images" \
+  --assets-dir "${ASSETS}/graphviz" \
   --assets-dir "${ASSETS}/mermaid" \
   --assets-dir "${ASSETS}/wavedrom" \
   --quiet

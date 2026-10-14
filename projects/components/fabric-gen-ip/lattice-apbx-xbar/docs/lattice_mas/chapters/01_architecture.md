@@ -49,7 +49,9 @@ The 2x4 configuration below connects 2 masters (CPU and DMA) to 4 slaves (UART, 
 
 ### Figure 1.1: Lattice Top-Level Architecture
 
-![Lattice Architecture (2x4 Example)](../assets/png/apbx_xbar_architecture.png)
+![Lattice Architecture (2x4 Example)](../assets/graphviz/apbx_xbar_architecture.png)
+
+Both masters are drawn, for one slave `s`. Each master's cmd is decoded into a request bit for the slave it addresses; the slave's `arbiter_round_robin` (the trapezium) grants one master and holds the grant until the response handshake (`WAIT_GNT_ACK = 1`); the command mux and `apb4_master` carry the granted cmd to the slave. The response climbs the right column, steered back by the slave index registered at cmd accept, or replaced by a local PSLVERR on a decode miss.
 
 ---
 

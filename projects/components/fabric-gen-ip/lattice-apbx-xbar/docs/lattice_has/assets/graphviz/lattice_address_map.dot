@@ -1,0 +1,30 @@
+// Lattice address mapping (HAS 3.3), shipped 64 KB windows, 2to4 example.
+// Labels from rtl/apbx_xbar_2to4.sv. House style: vault/handbook/authoring/block-diagrams.md
+digraph lattice_address_map {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.9", splines=ortho, labelloc=t,
+           label="Address mapping - apbx_xbar_2to4, 64 KB windows from BASE_ADDR (default 0x1000_0000)\nwindow size fixed at generation (--slave-size); BASE_ADDR is a parameter"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    pa [label="Master Address\nPADDR (from the master's apb4_slave cmd)", fillcolor="white"];
+    off [label="Offset (combinational)\noffset = PADDR - BASE_ADDR"];
+    rng [label="Range Check + Window Select\nin range: BASE_ADDR <= PADDR < BASE_ADDR + 0x4_0000\nslave_sel = offset[17:16] (one 64 KB window per slave)"];
+
+    w0 [label="Slave 0\n0x1000_0000\nto 0x1000_FFFF", fillcolor="white"];
+    w1 [label="Slave 1\n0x1001_0000\nto 0x1001_FFFF", fillcolor="white"];
+    w2 [label="Slave 2\n0x1002_0000\nto 0x1002_FFFF", fillcolor="white"];
+    w3 [label="Slave 3\n0x1003_0000\nto 0x1003_FFFF", fillcolor="white"];
+    miss [label="Decode Miss\nno slave selected;\ncompleted locally\nwith PSLVERR", fillcolor="white"];
+    { rank=same; w0; w1; w2; w3; miss; }
+    w0 -> w1 -> w2 -> w3 -> miss [style=invis];
+
+    pa -> off [label="PADDR"];
+    off -> rng [label="offset"];
+    rng -> w0 [xlabel="slave_sel = 0"];
+    rng -> w1 [xlabel="1"];
+    rng -> w2 [xlabel="2"];
+    rng -> w3 [xlabel="3"];
+    rng -> miss [xlabel="out of range", style=dashed];
+}

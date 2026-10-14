@@ -97,7 +97,7 @@ subtractive catch-all and its status/IRQ path.
 Diagram sources and their renders live in two directories:
 
 - **Source Files:**
-  - `assets/graphviz/*.gv` - Graphviz source diagrams
+  - `assets/graphviz/*.dot` - Graphviz source diagrams
   - `assets/puml/*.puml` - PlantUML FSM diagrams
 
 - **Rendered Files:**

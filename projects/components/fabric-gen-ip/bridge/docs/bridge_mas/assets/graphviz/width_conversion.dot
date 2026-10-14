@@ -1,0 +1,62 @@
+// Width conversion inside a master adapter: axi4_dwidth_converter_wr / _rd
+// (projects/components/utility-ip/converters/rtl/). Instantiated by
+// <master>_adapter once per distinct slave width that differs from the master's
+// (bridge_4x4_rw/cpu_master_adapter.sv). House style: vault/handbook/authoring/block-diagrams.md
+digraph width_conversion {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.90", splines=ortho, labelloc=t,
+           label="Width conversion - axi4_dwidth_converter_wr + axi4_dwidth_converter_rd on one master-to-slave-width path\n(a path whose widths match is a direct passthrough with no converter)\nS_AXI_DATA_WIDTH = master width, M_AXI_DATA_WIDTH = slave width: S < M is UPSIZE, S > M is DOWNSIZE; RATIO = wide / narrow"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    pw [label="Master Side (master width)\nW in", fillcolor="white", group=L];
+    pc [label="Master Side (master width)\nAW / AR in", fillcolor="white", group=C];
+    pr [label="Master Side (master width)\nR out", fillcolor="white", group=R];
+    pb [label="Master Side\nB out", fillcolor="white", group=B];
+    { rank=same; pw; pc; pr; pb; }
+    pw -> pc -> pr -> pb [style=invis];
+
+    sw [label="W Skid Buffer\ngaxi_skid_buffer", group=L];
+    sc [label="AW / AR Skid Buffers\ngaxi_skid_buffer", group=C];
+    sr [label="R Skid Buffer\ngaxi_skid_buffer", group=R];
+    sb [label="B Skid Buffer\ngaxi_skid_buffer", group=B];
+    { rank=same; sw; sc; sr; sb; }
+    sw -> sc -> sr -> sb [style=invis];
+
+    wrp [label="W Repack\nUPSIZE: axi_data_upsize packs\nRATIO narrow beats into one, from\nthe start lane; WSTRB concatenated\nDOWNSIZE: axi_data_dnsize splits\none wide beat into RATIO", group=L];
+    arw [label="AW / AR Rewrite\nUPSIZE: len = ceil((start lane +\nbeats) / RATIO), size = wide;\nnever splits\nDOWNSIZE: each beat becomes\nRATIO beats; past 256 beats the\nburst is split, a split queue\nframes each piece's W beats", group=C];
+    rrp [label="R Repack\naxi_data_upsize / _dnsize\n(axi4_dwidth_converter_rd);\nRRESP folds to the worst\nbeat when packing", group=R];
+    bf [label="B Fold (DOWNSIZE only)\nper-AWID split counter (B CAM):\none B per original AW, worst\nBRESP of its split bursts;\nUPSIZE: B passes", style="filled,dashed", group=B];
+    { rank=same; wrp; arw; rrp; bf; }
+    wrp -> arw -> rrp -> bf [style=invis];
+
+    pl [shape=point, width=0.01, label="", group=L];
+    pcc [shape=point, width=0.01, label="", group=C];
+    pr4 [shape=point, width=0.01, label="", group=R];
+    pb4 [shape=point, width=0.01, label="", group=B];
+    { rank=same; pl; pcc; pr4; pb4; }
+    pl -> pcc -> pr4 -> pb4 [style=invis];
+
+    bar [label="Crossbar Side (slave width) - AW / W / AR out, B / R in", fillcolor="white", width=14];
+
+    pw -> sw [label="W"];
+    sw -> wrp [label="W (master width)"];
+    wrp -> pl [dir=none];
+    pl -> bar [xlabel="W (slave width)"];
+
+    pc -> sc [label="AW / AR"];
+    sc -> arw [label="AW / AR"];
+    arw -> pcc [dir=none, penwidth=1.8];
+    pcc -> bar [xlabel="AW / AR (slave width)", penwidth=1.8];
+    arw -> wrp [style=dashed, xlabel="start lane,\nsplit framing"];
+
+    pr -> sr [dir=back, label="R"];
+    sr -> rrp [dir=back, label="R (master width)"];
+    rrp -> pr4 [dir=back];
+    pr4 -> bar [dir=none, xlabel="R (slave width)"];
+    pb -> sb [dir=back, label="B"];
+    sb -> bf [dir=back, label="B, one per AW"];
+    bf -> pb4 [dir=back];
+    pb4 -> bar [dir=none, xlabel="B, one per issued AW"];
+}

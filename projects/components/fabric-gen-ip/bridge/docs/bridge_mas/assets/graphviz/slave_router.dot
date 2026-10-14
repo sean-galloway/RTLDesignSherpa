@@ -1,0 +1,42 @@
+// Request routing ("slave router"): how one master's AW / AR picks a slave and
+// how its W beats follow. There is no separate router module: the decode is in
+// <master>_adapter and the re-decode and W steering are in <bridge>_xbar.
+// Labels from rtl/generated/bridge_2x2_rw/{cpu_adapter,bridge_2x2_rw_xbar}.sv and
+// rtl/amba/axi4/axi4_subtractive_slave.sv. House style: vault/handbook/authoring/block-diagrams.md
+digraph slave_router {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, labelloc=t,
+           label="Request routing for one master - decode in <master>_adapter, re-decode and W steering in <bridge>_xbar\n(subtractive decode: every address selects exactly one target, so nothing can hang)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    pw [label="Master Write Data\nW beats (no address)", fillcolor="white", group=L];
+    pc [label="Master Requests\nAW / AR address", fillcolor="white", group=C];
+    { rank=same; pw; pc; }
+    pw -> pc [style=invis];
+
+    p1 [shape=point, width=0.01, label="", group=L];
+    dec [label="Window Compare - <master>_adapter\ncomb_slave_select_aw / _ar: if / else-if over each slave's\n[base_addr, base_addr + addr_range); the final else = catch-all", group=C];
+    { rank=same; p1; dec; }
+    p1 -> dec [style=invis];
+
+    wdest [label="W Destination FIFO - <bridge>_xbar\n(per master path, 16 deep) pushed with the\nAW's target at the master-side AW accept,\npopped at WLAST", group=L];
+    rdec [label="Re-decode on the Held Address - <bridge>_xbar\n<m>_aw_to_<s> / <m>_ar_to_<s>: the address is stable\nwhile valid, so the request gates into one slave's arbiter", group=C];
+    { rank=same; wdest; rdec; }
+    wdest -> rdec [style=invis];
+
+    slv [label="Mapped Slave - <bridge>_xbar per-slave side\nAW / AR arbiter (one per slave), W owner FIFO", fillcolor="white", group=L];
+    cat [group=R, label="Catch-all - subtractive_adapter + axi4_subtractive_slave\nDECERR on every B and R; R data = READ_FILL (0xDEADBEEF);\none monbus error packet per hit, carrying the address", fillcolor="white"];
+    { rank=same; slv; cat; }
+    slv -> cat [style=invis];
+
+    pw -> p1 [dir=none];
+    p1 -> wdest [xlabel="W beats"];
+    pc -> dec [label="AW / AR"];
+    dec -> rdec [label="AW / AR + one-hot select", penwidth=1.8];
+    wdest -> rdec [style=dashed, dir=back, xlabel="AW target"];
+    wdest -> slv [xlabel="W of that AW (catch-all W\nis sunk the same way)"];
+    rdec -> slv [xlabel="inside slave s's window"];
+    rdec -> cat [label="no window hit", penwidth=1.8];
+}

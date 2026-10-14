@@ -1,0 +1,66 @@
+// Where protocol conversion happens: front-end converters in each master
+// adapter, AXI4 through the fabric, shims in each slave adapter. Module names
+// counted across rtl/generated/*/*adapter.sv. House style: vault/handbook/authoring/block-diagrams.md
+digraph protocol_conversion_arch {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.60", splines=ortho, labelloc=t,
+           label="Protocol conversion - every port converts to AXI4 at its own adapter; the fabric is AXI4 throughout\n(each edge: requests down, responses up)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.10,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, dir=both];
+
+    m1 [label="AXI4 / AXI5\nMaster", fillcolor="white"];
+    m2 [label="AXI4-Lite /\nAXI5-Lite Master", fillcolor="white"];
+    m3 [label="APB4 / APB5\nMaster", fillcolor="white"];
+    m4 [label="Wishbone B4\nMaster", fillcolor="white"];
+    m5 [label="AXI3\nMaster", fillcolor="white"];
+    { rank=same; m1; m2; m3; m4; m5; }
+    m1 -> m2 -> m3 -> m4 -> m5 [style=invis, dir=none];
+
+    f1 [label="Boundary only\naxi4_slave_wr / _rd,\naxi5_slave_wr / _rd"];
+    f2 [label="Lite Front End\naxil_to_axi4_wide_align\n_wr / _rd"];
+    f3 [label="APB Front End\napb4_to_axi4 /\napb5_to_axi4"];
+    f4 [label="WB4 Front End\nwb4_to_axi4"];
+    f5 [label="AXI3 Front End\naxi3_to_axi4"];
+    { rank=same; f1; f2; f3; f4; f5; }
+    f1 -> f2 -> f3 -> f4 -> f5 [style=invis, dir=none];
+
+    x [label="Fabric - <master>_adapter width paths, <bridge>_xbar, <slave>_adapter trackers\nAXI4 throughout; AXI5 sideband rides only width-matched AXI5-to-AXI5 paths", width=10];
+
+    s1 [label="Boundary only\naxi4_master_wr / _rd,\naxi5_master_wr / _rd"];
+    s2 [label="Lite Shim\naxi4_to_axil4_wr / _rd,\naxi4_to_axil5_wr / _rd"];
+    s3 [label="APB Shim\naxi4_to_apb4_shim /\naxi4_to_apb5_shim"];
+    s4 [label="WB4 Shim\naxi4_to_wb4"];
+    s5 [label="AXI3 Shim\naxi4_to_axi3"];
+    { rank=same; s1; s2; s3; s4; s5; }
+    s1 -> s2 -> s3 -> s4 -> s5 [style=invis, dir=none];
+
+    t1 [label="AXI4 / AXI5\nSlave", fillcolor="white"];
+    t2 [label="AXI4-Lite /\nAXI5-Lite Slave", fillcolor="white"];
+    t3 [label="APB4 / APB5\nSlave", fillcolor="white"];
+    t4 [label="Wishbone B4\nSlave", fillcolor="white"];
+    t5 [label="AXI3\nSlave", fillcolor="white"];
+    { rank=same; t1; t2; t3; t4; t5; }
+    t1 -> t2 -> t3 -> t4 -> t5 [style=invis, dir=none];
+
+    m1 -> f1 [xlabel="AXI4 / AXI5"];
+    m2 -> f2 [xlabel="AXI-Lite"];
+    m3 -> f3 [xlabel="APB"];
+    m4 -> f4 [xlabel="WB4"];
+    m5 -> f5 [xlabel="AXI3"];
+    f1 -> x [xlabel="AXI4"];
+    f2 -> x [xlabel="AXI4"];
+    f3 -> x [xlabel="AXI4"];
+    f4 -> x [xlabel="AXI4"];
+    f5 -> x [xlabel="AXI4"];
+    x -> s1 [xlabel="AXI4"];
+    x -> s2 [xlabel="AXI4"];
+    x -> s3 [xlabel="AXI4"];
+    x -> s4 [xlabel="AXI4"];
+    x -> s5 [xlabel="AXI4"];
+    s1 -> t1 [xlabel="AXI4 / AXI5"];
+    s2 -> t2 [xlabel="AXI-Lite"];
+    s3 -> t3 [xlabel="APB"];
+    s4 -> t4 [xlabel="WB4"];
+    s5 -> t5 [xlabel="AXI3"];
+}

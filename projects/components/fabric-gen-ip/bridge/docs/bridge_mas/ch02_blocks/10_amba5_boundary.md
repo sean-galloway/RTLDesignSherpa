@@ -128,12 +128,9 @@ low, which every chunking requester must accept.
 A **write-only** atomic-enabled master's wr path inserts `axi5_atomic_filter`
 between the boundary wrapper and the fabric:
 
-```mermaid
-graph LR
-    SW["axi5_slave_wr"] -- "pref_axi_*" --> AF["axi5_atomic_filter"]
-    AF -- "fub_axi_*" --> WP["width paths / structs"]
-    SW -. "payload pass-through assigns around the filter" .-> WP
-```
+### Figure 2.10: Atomic Filter on a Write-Only Port
+
+![Atomic Filter on a Write-Only Port](../assets/graphviz/atomic_filter.png)
 
 Handshakes (AW/W/B) and the B payload (`bid`/`bresp`) go **through** the
 filter, and `awlen` is connected so the filter can count the read data it
@@ -167,13 +164,9 @@ R, the R beat carrying the location's original data under the **AW's ID**.
 Two things in this fabric had to learn about that beat, because every
 R-return tracker in it is fed by AR handshakes:
 
-```mermaid
-graph LR
-    M["master adapter<br/>AR->R slave_select FIFO"] -- "push at atomic AW<br/>(dual push with a same-cycle AR)" --> X["crossbar"]
-    X --> S["slave adapter<br/>in-order read FIFO + axi5_atomic_rr_tracker"]
-    S -- "R beat: RID hits tracker -> route by its tag,<br/>do not pop the FIFO" --> X
-    X -- "R muxed to the FIFO head's slave" --> M
-```
+### Figure 2.11: Read-Return Atomics
+
+![Read-Return Atomics](../assets/graphviz/rr_atomics.png)
 
 **Master adapter.** The AR->R tracking FIFO that drives `r_slave_select`
 takes an entry at the atomic AW handshake as well as at AR. An AR and an

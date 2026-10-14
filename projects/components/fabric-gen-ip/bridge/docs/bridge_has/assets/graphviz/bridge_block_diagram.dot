@@ -1,0 +1,78 @@
+// Bridge whole unit: one master's path through the generated bridge to one slave.
+// House style: vault/handbook/authoring/block-diagrams.md
+// Labels from rtl/generated/bridge_2x2_rw/ (cpu_adapter.sv, bridge_2x2_rw_xbar.sv,
+// ddr_adapter.sv), bridge_4x4_rw/cpu_master_adapter.sv (axi4_dwidth_converter_*),
+// bridge_2x3_apb_req/periph_adapter.sv (axi4_to_apb4_shim).
+digraph bridge_block_diagram {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.65", splines=ortho, labelloc=t,
+           label="Generated bridge - one master's path to one slave (every master and every slave repeats it)\nsingle fabric clock aclk / aresetn"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- master ports (one per flow) ----
+    pw_in [label="Master Write Data\nW in", fillcolor="white", group=L];
+    pc_in [label="Master Requests\nAW / AR in", fillcolor="white", group=C];
+    pr_out[label="Master Responses\nB / R out", fillcolor="white", group=R];
+    legend[label="Build options (TOML, fixed at generation)\lvariants = [\"mon\"]: *_monlite wrappers, monbus_arbiter,\l    monbus_axil4_axil4_group (a second top, <name>_mon)\larbitration = \"qos\": AxQOS + aging pick, round-robin among equals\lxbar_pipeline = true: registered slave-side crossbar channels\lcdc = true (AXI4 slave): that port runs on <slave>_aclk\l", fillcolor="white"];
+    { rank=same; pw_in; pc_in; pr_out; legend; }
+    pw_in -> pc_in -> pr_out -> legend [style=invis];
+
+    // ---- master adapter: one box per lane ----
+    mW    [label="Write Data Path - <master>_adapter\naxi4_slave_wr W skid buffer,\nthen axi4_dwidth_converter_wr\n(only when the slave width differs)", group=L];
+    others[label="Other Masters\n(each with its own\nadapter chain)", fillcolor="white"];
+    mC    [label="Request Path - <master>_adapter\naxi4_slave_wr / _rd AW / AR skid buffers;\naddress decode against each slave's\nbase_addr / addr_range (no hit -> catch-all);\nlen / size rewrite when widths differ", group=C];
+    mR    [label="Response Path - <master>_adapter\naxi4_slave_wr / _rd B / R skid buffers;\nR width conversion when widths differ", group=R];
+    { rank=same; mW; others; mC; mR; }
+    mW -> others -> mC -> mR [style=invis];
+
+    // ---- crossbar ----
+    wdest [label="W Destination FIFO - <bridge>_xbar\n(per master path) the AW decode,\nin order, steers each W burst", group=L];
+    arb   [label="Per-Slave AW / AR Arbiter - <bridge>_xbar\nround-robin (or qos), held to the address handshake",
+           shape=invtrapezium, width=6.6, height=0.7, group=C];
+    rmux  [label="Response Mux - <bridge>_xbar\nB / R to the master named\nby the returned bridge_id", group=R];
+    { rank=same; wdest; arb; rmux; }
+    wdest -> arb -> rmux [style=invis];
+
+    wown  [label="W Owner FIFO + W Mux - <bridge>_xbar\n(per slave) AW accept order\nselects whose W beats pass", group=L];
+    pc3   [shape=point, width=0.01, label="", group=C];
+    trk   [label="Response Tracker - <slave>_adapter\nbridge_cam by ID (several masters) or a\nbridge_id FIFO (one master): written at\nAW / AR accept, read at B / last R", group=R];
+    { rank=same; wown; pc3; trk; }
+    wown -> pc3 [style=invis];
+
+    // ---- slave adapter: one box per lane ----
+    sW    [label="Write Data Path - <slave>_adapter\naxi4_master_wr W skid buffer,\nor the shim's write-data side", group=L];
+    sC    [label="Command Path - <slave>_adapter\naxi4_master_wr / _rd AW / AR skid buffers, or a protocol shim:\naxi4_to_apb4_shim, axi4_to_axil4_* / axil5_*, axi4_to_wb4;\n+ axi4_cdc_wr / _rd when the port is cdc = true", group=C];
+    sR    [label="Response Path - <slave>_adapter\naxi4_master_wr / _rd B / R skid\nbuffers, or the shim's response side", group=R];
+    { rank=same; sW; sC; sR; }
+    sW -> sC -> sR [style=invis];
+
+    bar   [label="Slave Ports - one per [bridge].slaves entry (AXI4 / AXI5 / AXI4-Lite / APB / WB4)\n+ the internal catch-all axi4_subtractive_slave: an unmapped address gets DECERR",
+           fillcolor="white", width=13, group=C];
+
+    // ---- write data lane (left, down) ----
+    pw_in -> mW    [label="W beats"];
+    mW    -> wdest [label="W (slave width)"];
+    wdest -> wown  [label="W + its destination"];
+    wown  -> sW    [label="W of the owning master"];
+    sW    -> bar   [xlabel="Write data"];
+
+    // ---- request lane (center, down) ----
+    pc_in -> mC    [label="AW / AR"];
+    mC    -> arb   [label="AW / AR + slave select"];
+    others-> arb   [label="AW / AR from other masters"];
+    arb   -> pc3   [dir=none, penwidth=1.8];
+    pc3   -> sC    [xlabel="granted AW / AR + bridge_id", penwidth=1.8];
+    sC    -> bar   [label="Write / read command", penwidth=1.8];
+
+    // ---- response lane (right, up) ----
+    pr_out-> mR    [dir=back, label="B / R"];
+    mR    -> rmux  [dir=back, label="B / R (master width)"];
+    rmux  -> trk   [dir=back, label="B / R + bridge_id"];
+    trk   -> sR    [dir=back, label="B / R + ID"];
+    sR    -> bar   [dir=back, label="Write response / read data"];
+
+    // ---- sideband ----
+    pc3 -> trk [style=dashed, xlabel="ID + bridge_id at accept"];
+}

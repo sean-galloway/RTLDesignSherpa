@@ -35,7 +35,7 @@ When a master and slave disagree on data width, a converter sits between them: a
 
 ### Figure 5.1: Upsize Converter (64-bit to 512-bit)
 
-![Upsize Converter](../assets/mermaid/upsize_converter.png)
+![Upsize Converter](../assets/graphviz/upsize_converter.png)
 
 ### Implementation
 
@@ -111,7 +111,7 @@ The burst math follows directly — eight narrow beats pack into one wide beat:
 
 ### Figure 5.2: Downsize Converter (512-bit to 64-bit)
 
-![Downsize Converter](../assets/mermaid/downsize_converter.png)
+![Downsize Converter](../assets/graphviz/downsize_converter.png)
 
 ### Implementation
 

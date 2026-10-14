@@ -29,7 +29,7 @@ The Lattice in a typical SoC context:
 
 ### Figure 2.1: System Context Diagram
 
-![System Context Diagram](../assets/mermaid/01_system_context.png)
+![System Context Diagram](../assets/graphviz/lattice_system_context.png)
 
 ## Typical Integration Topology
 

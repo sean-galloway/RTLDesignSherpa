@@ -1,0 +1,48 @@
+// ID management and response tracking end to end. Labels from
+// rtl/generated/bridge_2x2_rw/{cpu_adapter,bridge_2x2_rw_xbar,ddr_adapter}.sv (CAM mode)
+// and bridge_1x2_wr/ddr_wr_adapter.sv (FIFO mode); selection rule from
+// bin/bridge_pkg/generators/slave_adapter_generator.py use_cam.
+// House style: vault/handbook/authoring/block-diagrams.md
+digraph id_management {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
+           label="ID management - the master's ID is widened to {BRIDGE_ID, id}, and each slave adapter records which master to answer\n(each slave adapter builds exactly one of the two trackers)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    pc [label="Master Requests\nAW / AR, ID = id (master width)", fillcolor="white", group=C];
+    pr [label="Master Responses\nB / R, ID = id", fillcolor="white", group=R];
+    { rank=same; pc; pr; }
+    pc -> pr [style=invis];
+
+    pre [label="ID Prefix - <master>_adapter\nfabric ID = {BRIDGE_ID, id}; BRIDGE_ID is the\nmaster's index, so IDs are unique across masters", group=C];
+    strip [label="ID Strip - <master>_adapter\nresponse muxes keep the low id bits", group=R];
+    { rank=same; pre; strip; }
+    pre -> strip [style=invis];
+
+    arb [label="Per-Slave Arbiter + AW / AR Mux - <bridge>_xbar\nthe granted master's bridge_id rides beside\nthe request as xbar_bridge_id_aw / _ar", group=C];
+    rmux [label="Response OR-Mux - <bridge>_xbar\nB / R go to the master named by\nbid_bridge_id / rid_bridge_id", group=R];
+    { rank=same; arb; rmux; }
+    arb -> rmux [style=invis];
+
+    cam [label="CAM Mode - <slave>_adapter\nu_wr_cam / u_rd_cam: bridge_cam, tag = AXI ID,\ndata = bridge_id, 16 deep, duplicates allowed;\nlooked up by BID / RID, freed at B / last R.\nBuilt for an AXI4 / AXI5 slave of a multi-master\nbridge, or any slave with enable_ooo", style="filled,dashed"];
+    fifo [label="FIFO Mode - <slave>_adapter\nwr_fifo / rd_fifo of bridge_id, 16 deep,\nwritten at AW / AR accept;\nthe head answers the next B / last R\n(the slave must respond in request order).\nBuilt for a single-master bridge, shim\nslaves and the catch-all", style="filled,dashed", group=R];
+    { rank=same; cam; fifo; }
+
+    bar [label="Slave Port - <slave>_s_axi_*: AW / AR leave with ID = {BRIDGE_ID, id}; B / R return carrying the same ID",
+         fillcolor="white", width=11, group=C];
+
+    pc -> pre [label="AW / AR"];
+    pre -> arb [label="AW / AR, ID = {BRIDGE_ID, id}"];
+    arb -> bar [xlabel="granted AW / AR", penwidth=1.8];
+    arb -> cam [style=dashed, label="ID + bridge_id at accept\n(written in either mode)"];
+    cam -> fifo [style=invis];
+
+    pr -> strip [dir=back, label="B / R"];
+    strip -> rmux [dir=back, label="B / R, wide ID"];
+    rmux -> cam [dir=back, xlabel="bridge_id (CAM)"];
+    rmux -> fifo [dir=back, label="bridge_id (FIFO head)"];
+    cam -> bar [dir=back, xlabel="B / R + ID"];
+    fifo -> bar [dir=back, xlabel="B / R"];
+}

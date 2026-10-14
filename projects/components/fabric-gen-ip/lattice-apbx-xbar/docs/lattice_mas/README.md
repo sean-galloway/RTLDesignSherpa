@@ -64,12 +64,10 @@ This directory holds the Lattice's documentation set: the architecture chapters,
 
 | Diagram | Format | Description |
 |---------|--------|-------------|
-| [apbx_xbar_architecture](assets/graphviz/apbx_xbar_architecture.gv) | Graphviz | 2x4 crossbar showing master-side slaves, arbitration, slave-side masters |
-| [address_decode_flow](assets/graphviz/address_decode_flow.gv) | Graphviz | Step-by-step address decode example (0x10023456 → Slave 2) |
+| [apbx_xbar_architecture](assets/graphviz/apbx_xbar_architecture.dot) | Graphviz | 2x4 crossbar showing master-side slaves, arbitration, slave-side masters |
+| [address_decode_flow](assets/graphviz/address_decode_flow.dot) | Graphviz | Step-by-step address decode example (0x10023456 to Slave 2) |
 
-**Rendered Formats:**
-- PNG: `assets/png/*.png` (what the chapters embed)
-- SVG: `assets/svg/*.svg` (for web viewing, scalable)
+**Rendered Format:** PNG beside each source in `assets/graphviz/` (what the chapters embed).
 
 ### Timing Diagrams
 
@@ -132,17 +130,12 @@ docs/lattice_mas/
 │   ├── 02_address_and_arbitration.md      ← Decode & arbitration details
 │   └── 03_rtl_generator.md                ← Generator documentation
 └── assets/
-    ├── graphviz/                          ← Source diagrams
-    │   ├── apbx_xbar_architecture.gv
-    │   └── address_decode_flow.gv
-    ├── wavedrom/                          ← Source timing diagrams
-    │   └── arbitration_round_robin.json
-    ├── svg/                               ← Rendered SVG (scalable)
-    │   ├── apbx_xbar_architecture.svg
-    │   └── address_decode_flow.svg
-    └── png/                               ← Rendered PNG (embedded)
-        ├── apbx_xbar_architecture.png
-        └── address_decode_flow.png
+    ├── graphviz/                          ← Diagram sources + rendered PNGs
+    │   ├── apbx_xbar_architecture.dot / .png
+    │   ├── address_decode_flow.dot / .png
+    │   └── regenerate_all_graphviz.sh
+    └── wavedrom/                          ← Source timing diagrams
+        └── arbitration_round_robin.json
 ```
 
 ---
@@ -286,15 +279,8 @@ Transaction 4: M0, M1 request → M0 granted → Priority rotates to M1
 ### Graphviz Diagrams (Architecture, Address Decode)
 
 ```bash
-cd assets/graphviz/
-
-# Generate SVG
-dot -Tsvg apbx_xbar_architecture.gv -o ../svg/apbx_xbar_architecture.svg
-dot -Tsvg address_decode_flow.gv -o ../svg/address_decode_flow.svg
-
-# Generate PNG (this is what the chapters embed)
-dot -Tpng apbx_xbar_architecture.gv -o ../png/apbx_xbar_architecture.png
-dot -Tpng address_decode_flow.gv -o ../png/address_decode_flow.png
+# Renders every .dot beside itself as PNG (150 dpi, alpha flattened, PNG8)
+assets/graphviz/regenerate_all_graphviz.sh
 ```
 
 ### WaveJSON Diagrams (Timing)
@@ -303,7 +289,7 @@ dot -Tpng address_decode_flow.gv -o ../png/address_decode_flow.png
 cd assets/wavedrom/
 
 # Generate SVG, then PNG
-wavedrom-cli -i arbitration_round_robin.json -s ../svg/arbitration_round_robin.svg
+wavedrom-cli -i arbitration_round_robin.json -s arbitration_round_robin.svg
 wavedrom-cli -i arbitration_round_robin.json -p arbitration_round_robin.png
 ```
 

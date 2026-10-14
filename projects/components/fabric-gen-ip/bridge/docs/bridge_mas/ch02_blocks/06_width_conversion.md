@@ -51,21 +51,21 @@ Rationale:
 
 ### Width Conversion Locations
 
-Converters live at the port boundaries, so a path only pays for conversion when its two ends actually disagree:
+Converters live in the master adapter, one per distinct slave width the master reaches, so a path only pays for conversion when its two ends actually disagree. There is no fixed crossbar width:
 
-```
-Master (32-bit) → [Upsizer] → Crossbar (64-bit) → [Downsizer] → Slave (32-bit)
-Master (64-bit) → [No conversion] → Crossbar (64-bit) → [No conversion] → Slave (64-bit)
-Master (128-bit) → [Downsizer] → Crossbar (64-bit) → [Upsizer] → Slave (128-bit)
-```
+- a 64-bit master reaching a 64-bit slave takes a direct passthrough path;
+- the same master reaching a 512-bit slave goes through one `axi4_dwidth_converter_wr` / `_rd` pair set to UPSIZE;
+- reaching a 32-bit slave, through one pair set to DOWNSIZE.
+
+Each master-slave pair is converted at most once.
 
 ## 2.6.3 Block Diagram
 
 ### Figure 2.6: Width Conversion Architecture
 
-![Width Conversion Architecture](assets/graphviz/width_conversion.png)
+![Width Conversion Architecture](../assets/graphviz/width_conversion.png)
 
-Width conversion architecture showing data upsizing and downsizing with beat count adjustment and strobe handling.
+One converter pair on one master-to-slave-width path. Every channel enters a skid buffer; W and R are repacked by `axi_data_upsize` / `axi_data_dnsize`; AW / AR length and size are rewritten (a DOWNSIZE burst that would exceed 256 beats is split, and a split queue frames its W beats); and in DOWNSIZE the B fold returns one B per original AW.
 
 ## 2.6.4 Upsizing (Narrow to Wide)
 

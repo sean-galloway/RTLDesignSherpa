@@ -56,7 +56,7 @@ The generator emits a single module named `delta_axis_flat_MxN` where `M` is `NU
 
 ![Delta MAS Block Diagram](../assets/graphviz/delta_mas_block_diagram.png)
 
-The micro-architecture diagram shows the internal blocks of the generated RTL. The request/control flow descends through TDEST decode, the request matrix, the packet-atomic round-robin arbiter (inverted-trapezium scheduler), the grant matrix, and the crossbar mux to the slave boundary. The payload flow follows its own route on the left. The backpressure flow returns up through TREADY steering as a dashed sideband. Optional blocks (TWAKEUP steering, packet counters, and SVA assertions) are dashed.
+The diagram follows one slave `s` of the generated RTL; every slave repeats it. Each master's TVALID and TDEST become one bit of `request_matrix[s]`; the round-robin pick (the trapezium) chooses the first requester after `last_grant[s]` while no packet is active; the grant-state flops hold `grant_matrix[s]` until the TLAST handshake; and the combinational mux forwards the granted master's TVALID and payload, which arrive on their own lane at the left. TREADY climbs the right lane to the granted master only. Dashed blocks are build options: TWAKEUP steering and the ingress and egress `*CHK` checks with `--amba5`, the packet counters unless `--no-counters`, and the assertions under `` `ifdef FORMAL ``.
 
 ## Reference RTL
 

@@ -129,9 +129,9 @@ Response: Generation error, fail early
 
 ### Figure 2.9: Error Handling Architecture
 
-![Error Handling System](assets/graphviz/error_handling.png)
+![Error Handling System](../assets/graphviz/error_handling.png)
 
-Error handling system showing detection (OOR, protocol, timeout, bridge_id FIFO), generation, and logging subsystems.
+Only what the generated RTL contains: the catch-all path that answers an unmapped access with DECERR (and 0xDEADBEEF read data), the sticky hit capture behind the bridge's `unmapped_*` ports, the monitor-bus error packet, slave error responses returning unchanged, and the simulation-only response-order check.
 
 ## 2.9.4 Out-of-Range Address Handling
 

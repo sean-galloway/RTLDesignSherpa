@@ -37,9 +37,9 @@ The core does five things:
 
 ### Figure 2.3: Crossbar Core Architecture
 
-![Crossbar Core Architecture](assets/graphviz/crossbar_core.png)
+![Crossbar Core Architecture](../assets/graphviz/crossbar_core.png)
 
-Crossbar core architecture showing complete M×S switching fabric with address decode, per-slave arbitration, data path multiplexing, and ID-based response routing.
+The per-slave side of `<bridge>_xbar` for one slave; every slave repeats it. Each master path re-decodes its held address, the AW and AR arbiters (the trapezium) pick one master per slave, and a grant-selected OR mux forwards the winner with its `bridge_id`. W beats are steered by a W destination FIFO per master path and a W owner FIFO per slave. B / R climb the right lane to the master named by the `bridge_id` the slave adapter returns.
 
 ## Parameters
 

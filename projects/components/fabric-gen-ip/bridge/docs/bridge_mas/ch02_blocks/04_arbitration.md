@@ -41,13 +41,15 @@ Arbiter configuration from the TOML — though here the comments carry the real 
 
 ```toml
 [bridge]
-# arbiter_type: NOT A KEY. Every generated arbiter is ROUND-ROBIN with lock-
-# until-handshake; fixed_priority and weighted exist nowhere in bin/bridge_pkg/
-# or rtl/generated/.
+# arbiter_type: NOT A KEY. The policy key is `arbitration`: "rr" (default,
+# round-robin) or "qos" (AWQOS / ARQOS + age, round-robin among equals; the
+# age step is 2**qos_aging_shift cycles). Both lock until the address
+# handshake; fixed_priority and weighted exist nowhere in bin/bridge_pkg/ or
+# rtl/generated/.
 
 [bridge.arbitration]
 pipeline_stages = 1              # 1-3 (more = better timing, higher latency)
-# enable_priority_aging: NOT A KEY -- there is no aging logic.
+# enable_priority_aging: NOT A KEY -- aging comes with arbitration = "qos".
 aging_threshold = 1000           # Cycles before priority boost
 
 # Weighted arbitration does not exist.
@@ -86,31 +88,11 @@ Slave 0:
 
 ### Block Diagram
 
-```mermaid
-graph LR
-    subgraph FM["From Masters (via Router)"]
-        M0["M0 (VALID)"]
-        M1["M1 (VALID)"]
-        M2["M2 (VALID)"]
-        M3["M3 (VALID)"]
-        SREADY["S (READY)"]
-        SLAST["S (LAST)"]
-    end
-    subgraph ARB["ARBITER (per slave, per channel)"]
-        RC["Request Capture"]
-        AL["Arbitration Logic<br/>&bull; Round-Robin<br/>&bull; Fixed Prio<br/>&bull; Weighted"]
-        BT["Burst Tracking<br/>(Hold Grant)<br/>Grant held until LAST asserted"]
-        RC --> AL
-        AL --> BT
-    end
-    M0 --> RC
-    M1 --> RC
-    M2 --> RC
-    M3 --> RC
-    BT --> SREADY
-    BT --> SLAST
-    AL --> GRANT["GRANT[1:0]<br/>(Master Select)<br/>To Slave (via MUX)"]
-```
+### Figure 2.4: Per-Slave Address Arbiter
+
+![Per-Slave Address Arbiter](../assets/graphviz/arbitration.png)
+
+One AW arbiter as generated in `<bridge>_xbar` (the AR arbiter is identical). The request vector holds one bit per master whose AW is valid and re-decodes to this slave. The round-robin pick starts one past the last winner, and the grant is locked from AWVALID until the AW handshake, not until the burst's last beat. With `arbitration = "qos"` a QoS-eligibility stage (dashed) narrows the pick to the requesters at the best AWQOS-plus-age priority.
 
 ### Round-Robin Arbitration
 

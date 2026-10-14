@@ -27,7 +27,7 @@
 
 ### Figure 2.2: Bridge System Context
 
-![Bridge System Context](../assets/mermaid/system_context.png)
+![Bridge System Context](../assets/graphviz/system_context.png)
 
 Bridge as central interconnect connecting masters to slaves with protocol conversion.
 

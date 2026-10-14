@@ -42,9 +42,9 @@ The router does five things:
 
 ### Figure 2.2: Slave Router Architecture
 
-![Slave Router Architecture](assets/graphviz/slave_router.png)
+![Slave Router Architecture](../assets/graphviz/slave_router.png)
 
-Slave router architecture showing address decoding, routing matrix, and out-of-range detection for AW and AR channels.
+There is no separate router module. The window compare lives in `<master>_adapter`; `<bridge>_xbar` re-decodes the held address to gate the request into one slave's arbiter and records each AW's target in a W destination FIFO, so W beats (which carry no address) follow their AW. An address in no window takes the final `else` of the decode chain to the always-present catch-all, which answers DECERR.
 
 ## Parameters
 
@@ -206,11 +206,7 @@ Read address routing flow:
 3. **Route**: Send AR transaction to selected slave's arbiter
 4. **Track**: Remember routing decision for R channel responses
 
-```mermaid
-graph LR
-    ARADDR --> DEC[Decoder] --> SEL[Slave Selection] --> ARB[AR to Slave Arbiter]
-    DEC -- "If OOR" --> ERR[Error Response Generator]
-```
+The decode and its out-of-range branch are the center column of Figure 2.2.
 
 #### AW/W Channel Routing
 
@@ -226,13 +222,7 @@ Write transactions require coordinated routing:
    - Route all W beats to same slave as AW
    - Continue until WLAST = 1
 
-```mermaid
-graph LR
-    AWADDR --> DEC[Decoder] --> SEL[Slave Selection] --> AWARB[AW to Slave Arbiter]
-    AWARB --> STORE[Store Routing]
-    WBEATS["W[0..N]<br/>(until WLAST)"] --> WSAME[W to Same Slave]
-    STORE --> WSAME
-```
+Figure 2.2 shows the W side: the W destination FIFO is pushed with the AW's target at the AW handshake and popped at WLAST.
 
 #### Write Data Tracking FSM
 

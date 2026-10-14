@@ -102,7 +102,7 @@ The diagram walks one concrete address — 0x10023456 — through the decode to 
 
 ### Figure 2.1: Address Decode Flow
 
-![Address Decode Flow](../assets/png/address_decode_flow.png)
+![Address Decode Flow](../assets/graphviz/address_decode_flow.png)
 
 ### Decode Example Walkthrough
 

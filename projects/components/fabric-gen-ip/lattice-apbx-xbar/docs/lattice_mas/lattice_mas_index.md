@@ -79,21 +79,21 @@ All answered in [README.md](README.md), section "Common Questions".
 Every diagram in this specification is checked in as both source and rendered output:
 
 - **Source Files:**
-  - `assets/graphviz/*.gv` - Graphviz source diagrams
+  - `assets/graphviz/*.dot` - Graphviz source diagrams
   - `assets/wavedrom/*.json` - WaveJSON timing diagrams
 
 - **Rendered Files:**
-  - `assets/png/*.png` - PNG format (for document generation)
+  - `assets/graphviz/*.png` - PNG format (for document generation)
 
 ### Architecture Diagrams
 
 1. **Lattice Architecture (2x4 Example)**
-   - Source: [assets/graphviz/apbx_xbar_architecture.gv](assets/graphviz/apbx_xbar_architecture.gv)
-   - Rendered: [assets/png/apbx_xbar_architecture.png](assets/png/apbx_xbar_architecture.png)
+   - Source: [assets/graphviz/apbx_xbar_architecture.dot](assets/graphviz/apbx_xbar_architecture.dot)
+   - Rendered: [assets/graphviz/apbx_xbar_architecture.png](assets/graphviz/apbx_xbar_architecture.png)
 
 2. **Address Decode Flow**
-   - Source: [assets/graphviz/address_decode_flow.gv](assets/graphviz/address_decode_flow.gv)
-   - Rendered: [assets/png/address_decode_flow.png](assets/png/address_decode_flow.png)
+   - Source: [assets/graphviz/address_decode_flow.dot](assets/graphviz/address_decode_flow.dot)
+   - Rendered: [assets/graphviz/address_decode_flow.png](assets/graphviz/address_decode_flow.png)
 
 ### Timing Diagrams
 

@@ -1,0 +1,67 @@
+// axi4_to_apb4_shim as a bridge slave adapter instantiates it
+// (bridge_2x3_apb_req/periph_adapter.sv: pclk tied to aclk). Labels from
+// projects/components/utility-ip/converters/rtl/axi4_to_apb4_shim.sv and
+// axi4_to_apb4_convert.sv. House style: vault/handbook/authoring/block-diagrams.md
+digraph protocol_conversion_apb {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
+           label="axi4_to_apb4_shim in <slave>_adapter - AXI4 bursts in, one APB transfer per APB-width slice out\n(two async FIFOs separate aclk and pclk; the generator ties pclk to aclk)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    pw [label="From the Crossbar\nW in", fillcolor="white", group=L];
+    pa [label="From the Crossbar\nAW in", fillcolor="white", group=A];
+    pd [label="From the Crossbar\nAR in", fillcolor="white", group=D];
+    pr [label="To the Crossbar\nB / R out", fillcolor="white", group=R];
+    { rank=same; pw; pa; pd; pr; }
+    pw -> pa -> pd -> pr [style=invis];
+
+    sw [label="W Skid Buffer\naxi4_slave_stub", group=L];
+    sa [label="AW Skid Buffer\naxi4_slave_stub", group=A];
+    sd [label="AR Skid Buffer\naxi4_slave_stub", group=D];
+    sr [label="B / R Skid Buffers\naxi4_slave_stub", group=R];
+    { rank=same; sw; sa; sd; sr; }
+    sw -> sa -> sd -> sr [style=invis];
+
+    pick [label="Command Pick - APB FSM in IDLE\nAW with W waiting -> WRITE, else AR -> READ", shape=invtrapezium, width=5.4, height=0.6];
+    pl2 [shape=point, width=0.01, label="", group=L];
+    pr2 [shape=point, width=0.01, label="", group=R];
+    { rank=same; pl2; pick; pr2; }
+    pl2 -> pick -> pr2 [style=invis];
+
+    gen [label="Burst Decomposition - axi4_to_apb4_convert\naxi_gen_addr steps the address; one command per APB-width\nslice of each beat: {pwrite, paddr, pwdata, pstrb, pprot, first, last}"];
+    side [label="Side Queue\ngaxi_fifo_sync, SIDE_DEPTH:\n{write?, ID, last, user}\nper command"];
+    rsp [label="Response Assembly - response FSM\nR: packs APB-width PRDATA slices into\none RDATA beat; RLAST from the side queue\nB: one per burst after its last command\nPSLVERR -> SLVERR (2'b10)", group=R];
+    { rank=same; gen; side; rsp; }
+    gen -> side -> rsp [style=invis];
+
+    cfifo [label="Command CDC FIFO\ngaxi_fifo_async u_cmd_cdc_fifo\n(aclk -> pclk)"];
+    rfifo [label="Response CDC FIFO\ngaxi_fifo_async u_rsp_cdc_fifo\n(pclk -> aclk)", group=R];
+    { rank=same; cfifo; rfifo; }
+    cfifo -> rfifo [style=invis];
+
+    apbm [label="APB Master - apb4_master_stub\none SETUP + ACCESS transfer per command;\nreturns {first, last, pslverr, prdata}"];
+
+    bar [label="APB Port - PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT out; PREADY, PRDATA, PSLVERR in", fillcolor="white", width=10];
+
+    pw -> sw [label="W"];
+    pa -> sa [label="AW"];
+    pd -> sd [label="AR"];
+    sw -> pl2 [dir=none];
+    pl2 -> gen [xlabel="WDATA, WSTRB"];
+    sa -> pick [label="AW (write)"];
+    sd -> pick [label="AR (read)"];
+    pick -> gen [label="chosen burst", penwidth=1.8];
+    gen -> cfifo [label="APB command", penwidth=1.8];
+    cfifo -> apbm [label="APB command", penwidth=1.8];
+    apbm -> bar [label="APB transfer", penwidth=1.8];
+    gen -> side [style=dashed, xlabel="per command"];
+    side -> rsp [style=dashed, xlabel="ID, last"];
+
+    pr -> sr [dir=back, label="B / R"];
+    sr -> pr2 [dir=back];
+    pr2 -> rsp [dir=none, xlabel="B / R"];
+    rsp -> rfifo [dir=back, label="APB response"];
+    rfifo -> apbm [dir=back, label="first, last, pslverr, prdata"];
+}

@@ -24,9 +24,11 @@
 
 The generator runs in a single Python function (`generate_apbx_xbar`) and emits one SystemVerilog file. There is no separate AST framework; the output is built by string composition.
 
-![Lattice Generator Pipeline](../assets/images/lattice_generator_pipeline.png)
+### Figure 3.1: Lattice Generator Pipeline
 
-**Figure 1: Lattice Generator Pipeline.** The generator takes scalar arguments and version lists, validates them, then emits the module header, master-side boundary modules, decode/arbitrate/routing fabric, and slave-side boundary modules.
+![Lattice Generator Pipeline](../assets/graphviz/lattice_generator_pipeline.png)
+
+Either the batch driver (one call per row of its variant table) or the single-variant command line feeds `generate_apbx_xbar()`, which validates the counts, versions and window size, writes the header and ports, then appends four sections in file order: the master-side boundary IP, the address decode (only when there is more than one slave), the per-slave arbitration and routing (only when there is more than one master), and the slave-side boundary IP. Nothing in the generator arbitrates, so the figure has no trapezium.
 
 ## Stages
 

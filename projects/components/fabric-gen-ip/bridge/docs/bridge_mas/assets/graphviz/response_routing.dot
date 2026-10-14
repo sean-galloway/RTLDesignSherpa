@@ -1,0 +1,34 @@
+// Response routing: B and R from every slave back to the master that asked.
+// Labels from rtl/generated/bridge_2x2_rw/{ddr_adapter,bridge_2x2_rw_xbar,cpu_adapter}.sv
+// and bridge_4x4_rw/cpu_master_adapter.sv (b_ / r_slave_select).
+// House style: vault/handbook/authoring/block-diagrams.md
+digraph response_routing {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, labelloc=t,
+           label="Response routing for one master - B / R climb from the slaves; nothing arbitrates\n(each slave's response is presented only where its bridge_id names this master)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    port [label="Master Responses\nB / R out, ID = the master's own id", fillcolor="white"];
+    skid [label="B / R Skid Buffers - <master>_adapter\naxi4_slave_wr / axi4_slave_rd"];
+    msel [label="Response Path Select - <master>_adapter\nb_slave_select / r_slave_select = head of the aw_trk / ar_trk FIFO\n(the slave of the oldest outstanding request); popped at B / last R;\nonly that path's ready is raised; low id bits returned as BID / RID"];
+    p0 [label="Width Path to Slave 0 - <bridge>_xbar\nOR-merge: slave 0's B / R where\nbid_ / rid_bridge_id == this master"];
+    pn [label="Width Path to Slave S-1 - <bridge>_xbar\nOR-merge: slave S-1's B / R where\nbid_ / rid_bridge_id == this master"];
+    { rank=same; p0; pn; }
+    p0 -> pn [style=invis];
+    t0 [label="Response Tracker - slave 0's adapter\nbridge_cam (looked up by BID / RID)\nor bridge_id FIFO head"];
+    tn [label="Response Tracker - slave S-1's adapter\nbridge_cam (looked up by BID / RID)\nor bridge_id FIFO head"];
+    { rank=same; t0; tn; }
+    t0 -> tn [style=invis];
+    bar [label="Slave Ports - B (one per write) and R beats (RLAST on the last) from each slave, ID = {BRIDGE_ID, id}", fillcolor="white", width=9];
+
+    port -> skid [dir=back, xlabel="B / R"];
+    skid -> msel [dir=back, xlabel="B / R of the head path", penwidth=1.8];
+    msel -> p0 [dir=back, xlabel="B / R from slave 0"];
+    msel -> pn [dir=back, xlabel="B / R from slave S-1"];
+    p0 -> t0 [dir=back, xlabel="B / R + bid / rid_bridge_id"];
+    pn -> tn [dir=back, xlabel="B / R + bid / rid_bridge_id"];
+    t0 -> bar [dir=back, xlabel="B / R + ID"];
+    tn -> bar [dir=back, xlabel="B / R + ID"];
+}

@@ -1,0 +1,41 @@
+// Lattice generator pipeline. Labels from bin/apbx_xbar_generator.py
+// (generate_apbx_xbar) and bin/generate_xbars.py. House style:
+// vault/handbook/authoring/block-diagrams.md
+digraph lattice_generator_pipeline {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.70", splines=ortho, labelloc=t,
+           label="Lattice generator - generate_apbx_xbar() builds one apbx_xbar_<M>to<N>.sv by string composition\n(no arbitration: sections are appended in file order, left to right)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    batch [label="Batch Driver - generate_xbars.py\nstandard table: 1to1, 2to1, 1to4, 2to4 (64 KB windows),\n2to2_mixed (m0 APB4, m1 APB5, s0 APB5, s1 APB4),\nand the 1to10 consumed by retro_legacy_blocks", fillcolor="white"];
+    cli   [label="Single Variant - apbx_xbar_generator.py\n--masters --slaves --base-addr --slave-size\n--addr-width --data-width --output", fillcolor="white"];
+    { rank=same; batch; cli; }
+
+    val [label="Validation - generate_apbx_xbar\n1..16 masters and slaves; per-port version apb4 / apb5;\nslave_size a power of 2, at least 256 bytes (default 4 KB)"];
+
+    hdr [label="Header + Ports\nbanner, reset_defs include, parameters (BASE_ADDR),\nAPB port lists per version; *CHK ports with enable_parity"];
+
+    s1 [label="Master-Side Boundary\none apb4_slave / apb5_slave\nper master: APB -> cmd / rsp"];
+    s2 [label="Address Decode (N > 1)\noffset = PADDR - BASE_ADDR;\nslave_sel = offset bits; range\ncheck; local PSLVERR on a miss"];
+    s3 [label="Arbitration + Routing (M > 1)\none arbiter_round_robin per slave\n(WAIT_GNT_ACK = 1); command,\nresponse and ready muxes"];
+    s4 [label="Slave-Side Boundary\none apb4_master / apb5_master\nper slave: cmd / rsp -> APB"];
+    { rank=same; s1; s2; s3; s4; }
+    s1 -> s2 -> s3 -> s4 [style=invis];
+
+    bar [label="Emitted file - apbx_xbar_<M>to<N><suffix>.sv   (batch: this component's rtl/, or retro_legacy_blocks for the 1to10)",
+         fillcolor="white", width=13];
+
+    batch -> val [label="each table row"];
+    cli -> val [label="one configuration"];
+    val -> hdr [label="validated counts, versions, sizes"];
+    hdr -> s1 [xlabel="section 1"];
+    hdr -> s2 [xlabel="section 2"];
+    hdr -> s3 [xlabel="section 3"];
+    hdr -> s4 [xlabel="section 4"];
+    s1 -> bar [label="apb*_slave instances"];
+    s2 -> bar [label="decode logic"];
+    s3 -> bar [label="arbiters, muxes"];
+    s4 -> bar [label="apb*_master instances"];
+}

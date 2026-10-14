@@ -58,10 +58,13 @@ Block diagrams in this specification use these symbols:
 
 | Symbol | Meaning |
 |--------|---------|
-| Rectangle | Functional block |
-| Arrow | Data/signal flow |
-| Dashed box | Optional/configurable block |
-| Double line | Multi-signal bus |
+| White rectangle | External port or interface (masters at the top, slaves at the bottom) |
+| Shaded rectangle | Functional block; the second line names the owning RTL |
+| Solid arrow | A flow, labeled with what it carries: requests down, responses back up their own lane |
+| Heavy arrow | The main flow out of a decision point, or a path on a clock other than `aclk` |
+| Dashed arrow | Sideband: tracking writes, configuration, clocks |
+| Dashed box | Optional or build-dependent block |
+| Trapezium, wide edge up | A many-to-one pick (the per-slave arbiter): contenders enter the wide edge |
 
 : Table 1.3: Block Diagram Symbols
 

@@ -1,0 +1,31 @@
+// Where a clock crossing sits when the system has more than one clock (HAS 4.2).
+// The bridge generates a crossing only for a cdc = true AXI4 slave port; every
+// other port on a foreign clock needs one supplied outside the bridge.
+// House style: vault/handbook/authoring/block-diagrams.md
+digraph multi_clock_cdc {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.60", splines=ortho, labelloc=t,
+           label="Multi-clock systems - which crossings the bridge builds and which the integrator supplies\n(each solid edge: requests down, responses up; heavy edges run on a clock other than aclk)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, dir=both];
+
+    m    [label="Master\non clk_a", fillcolor="white"];
+    xm   [label="External Clock Crossing (integrator-supplied)\nfor example axi4_cdc_wr / axi4_cdc_rd from rtl/amba/axi4\n(clk_a side up, aclk side down)", style="filled,dashed"];
+    br   [label="Generated Bridge - <name>.sv\nevery master port and the whole fabric on aclk", width=6];
+    xs1  [label="Built-in Crossing (inside the bridge)\n<slave>_adapter, generated when cdc = true on an AXI4 slave:\naxi4_cdc_wr / _rd, port on <slave>_aclk"];
+    xs2  [label="External Clock Crossing (integrator-supplied)\nany other slave on a foreign clock\n(APB, AXI4-Lite, WB4, AXI5, or AXI4 without cdc)", style="filled,dashed"];
+    { rank=same; xs1; xs2; }
+    xs1 -> xs2 [style=invis, dir=none];
+    s1   [label="AXI4 Slave\non clk_b", fillcolor="white"];
+    s2   [label="Other Slave\non clk_c", fillcolor="white"];
+    { rank=same; s1; s2; }
+    s1 -> s2 [style=invis, dir=none];
+
+    m   -> xm  [penwidth=1.8, xlabel="AXI4 (clk_a)"];
+    xm  -> br  [xlabel="AXI4 (aclk)"];
+    br  -> xs1 [xlabel="AXI4 (aclk)"];
+    br  -> xs2 [xlabel="slave protocol (aclk)"];
+    xs1 -> s1  [penwidth=1.8, xlabel="AXI4 (clk_b)"];
+    xs2 -> s2  [penwidth=1.8, xlabel="slave protocol (clk_c)"];
+}

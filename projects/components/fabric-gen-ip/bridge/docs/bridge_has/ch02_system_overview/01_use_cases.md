@@ -56,7 +56,7 @@ Bridge supports custom accelerator architectures like RAPIDS:
 
 ### Figure 2.1: RAPIDS System Topology
 
-![RAPIDS System Topology](../assets/mermaid/rapids_system_topology.png)
+![RAPIDS System Topology](../assets/graphviz/rapids_system_topology.png)
 
 Bridge topology for RAPIDS accelerator with channel-specific masters.
 

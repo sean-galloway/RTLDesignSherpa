@@ -29,15 +29,9 @@ Delta sits between upstream AXI4-Stream masters and downstream AXI4-Stream slave
 
 A typical Delta deployment looks like:
 
-```
-┌─────────────┐     ┌───────┐     ┌─────────────┐
-│   Master    │────▶│       │────▶│   Slave     │
-│   (source)  │     │ Delta │     │  (sink)     │
-│             │◀────│       │◀────│             │
-└─────────────┘     └───────┘     └─────────────┘
-     s_axis              ▲              m_axis
-                     aclk / aresetn
-```
+### Figure 2.1: Delta System Context
+
+![Delta System Context](../assets/graphviz/delta_system_context.png)
 
 Multiple masters and multiple slaves attach in parallel. Each master drives one index of the `s_axis_*` arrays; each slave receives one index of the `m_axis_*` arrays.
 

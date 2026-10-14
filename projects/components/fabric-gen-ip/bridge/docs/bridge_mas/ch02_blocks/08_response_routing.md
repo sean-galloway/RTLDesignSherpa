@@ -30,7 +30,7 @@ Requests are easy to route — the address says where they go. Responses are har
 Response routing does five things:
 
 1. **Response Direction**: Routes R and B channel responses to correct master
-2. **Position-Based Routing**: pops a per-slave in-order FIFO of sideband master ids; the returned BID/RID is not used
+2. **Tracked Routing**: each slave adapter names the master to answer -- `bridge_cam` looked up with the returned BID/RID on a multi-master AXI4/AXI5 slave, an in-order `bridge_id` FIFO elsewhere
 3. **Multi-Slave Merging**: Combines responses from multiple slaves to single master
 4. **Flow Control**: Manages backpressure from master on response channels
 5. **Error Propagation**: Ensures error responses reach originating master
@@ -39,9 +39,9 @@ Response routing does five things:
 
 ### Figure 2.8: Response Routing Architecture
 
-![Response Routing Architecture](assets/graphviz/response_routing.png)
+![Response Routing Architecture](../assets/graphviz/response_routing.png)
 
-Response routing architecture showing B and R channel merging from slaves and ID-based demultiplexing to masters.
+Responses for one master climb from the slaves. Each slave adapter's tracker supplies the `bridge_id` of the master to answer; the crossbar presents that slave's B / R on this master's width path only when the `bridge_id` matches; and the master adapter takes the path at the head of its `aw_trk` / `ar_trk` FIFO. Nothing here arbitrates, so there is no trapezium.
 
 ## 2.8.3 Stable Response Routing via FIFO-Tracked Slave Select
 
