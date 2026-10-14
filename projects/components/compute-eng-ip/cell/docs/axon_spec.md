@@ -27,9 +27,9 @@
 
 Axon is the block that gets a CGRA's results off the array and onto the
 network: a SERV agent (or a small group of them) paired with the delta AXIS
-fabric, attached at the **organ** boundary — the level where the cell array
-faces RAPIDS (owner hierarchy 2026-10-13: cells tile 4-up into a tile, tiles
-4-up into an organ; the organ connects to RAPIDS). It is the tile-level twin
+fabric, attached at the **tile** boundary — the level where the cell array
+faces RAPIDS (owner hierarchy 2026-10-13: four cells make a quad, four quads
+make a tile; the tile connects to RAPIDS). It is the tile-level twin
 of [hive-serv](../../hive-serv/)'s monitors — the same idiom (tiny bit-serial
 agent + stream fabric), applied to the data path instead of the control path.
 
