@@ -480,6 +480,17 @@ module mc_xddr2_entry_store
     end)
 
     // ======================================================================
+    // Relative age (used for head_rel and age-exceed)
+    // ======================================================================
+    logic [AGEW-1:0] w_wr_rel [NUM_ENTRIES];
+    logic [AGEW-1:0] w_rd_rel [NUM_ENTRIES];
+    always_comb
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            w_wr_rel[i] = r_age_ctr - r_wr_age[i];
+            w_rd_rel[i] = r_age_ctr - r_rd_age[i];
+        end
+
+    // ======================================================================
     // Registered age-exceed flags (one-cycle stale, matching reference CAMs)
     // ======================================================================
     logic [NUM_ENTRIES-1:0] r_wr_age_exceed;
@@ -502,17 +513,6 @@ module mc_xddr2_entry_store
             if (w_ar_fire) r_rd_age_exceed[w_rd_free_slot] <= 1'b0;
         end
     end)
-
-    // ======================================================================
-    // Relative age (used for head_rel and age-exceed)
-    // ======================================================================
-    logic [AGEW-1:0] w_wr_rel [NUM_ENTRIES];
-    logic [AGEW-1:0] w_rd_rel [NUM_ENTRIES];
-    always_comb
-        for (int i = 0; i < NUM_ENTRIES; i++) begin
-            w_wr_rel[i] = r_age_ctr - r_wr_age[i];
-            w_rd_rel[i] = r_age_ctr - r_rd_age[i];
-        end
 
     // ======================================================================
     // Scheduler vectors + oldest-head relative age

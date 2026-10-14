@@ -89,6 +89,13 @@ module granite_char_top #(
     localparam int  MMCM_CO1  = 6;     // sys2x     = 133.3 MHz (DDR2-266)
     localparam int  MMCM_CO2  = 6;     // sys2x_dqs = 133.3 MHz
     localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
+`elsif GRANITE_SYS_100
+    // 100 MHz sys / 150 MHz sys2x = DDR2-300 (granite timing-push build).
+    localparam real MMCM_MULT = 6.0;   // VCO = 600 MHz
+    localparam real MMCM_CO0  = 6.0;   // sys       = 100 MHz
+    localparam int  MMCM_CO1  = 4;     // sys2x     = 150 MHz (DDR2-300)
+    localparam int  MMCM_CO2  = 4;     // sys2x_dqs = 150 MHz
+    localparam int  MMCM_CO3  = 3;     // idelay    = 200 MHz (/3)
 `else
     // DEFAULT: 75 MHz sys / 150 MHz sys2x = DDR2-300 (Granite A7 plan).
     localparam real MMCM_MULT = 6.0;   // VCO = 600 MHz
@@ -204,6 +211,8 @@ module granite_char_top #(
         .ROW_WIDTH          (ROW_WIDTH),
 `ifdef GRANITE_SYS_66
         .FPGA_CLK_HZ        (66_666_667)
+`elsif GRANITE_SYS_100
+        .FPGA_CLK_HZ        (100_000_000)
 `else
         .FPGA_CLK_HZ        (75_000_000)
 `endif
