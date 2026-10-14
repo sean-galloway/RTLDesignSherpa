@@ -370,6 +370,32 @@ former items are in git history.
 - Integration with RAPIDS and Delta
 - FPGA deployment and testing
 
+### 10.3 HIVE-C core strategy — VexRiscv now, falcon-flavored later
+
+HIVE-C's core sits behind the `hive_c_loader` contract (AXIL loader window,
+load-then-run); the LDR testplan verifies that contract, not the core. That
+deliberate isolation makes the core **swappable by parameter** (`CORE_FLAVOR`,
+to be recorded in the MAS): `vexriscv` is the default today, `peregrine` is
+the intended successor when falcon rung 3 lands. The swap touches only the
+wrapper's core-facing glue (VexRiscv native ibus/dbus cmd/rsp vs peregrine's
+caches-behind-AXI4); the loader, firmware, and testplan carry over unchanged.
+
+Two purposes, per the owner (2026-10-13):
+
+1. **System proving ground for the falcon ladder.** Every falcon rung is
+   verified in isolation (spike lockstep, riscv-formal, ISA batteries) but
+   never *in a system*. HIVE-C is the vehicle: real control firmware, real
+   interrupts, a real fabric — the LDR plan becomes peregrine's
+   bring-up acceptance test the day its RTL exists.
+2. **The "does a more powerful RV make a difference" experiment.** The PoC's
+   headline latencies are fabric-bound (a stronger core will not move the
+   30-cycle injection target). The differences to measure: interrupt-driven
+   firmware architecture (alert-to-action latency vs polling), scheduler
+   worst case under load, and headroom at the 64-SERV expansion scale.
+   Same firmware, same testplan, measure the deltas — if there is no
+   system-level gain, that is a finding about HIVE's workload class, not a
+   failed experiment.
+
 ---
 
 ## 11. Educational Value
@@ -436,6 +462,10 @@ repo's `bin/md_to_docx.py`.
 - **SERV:** https://github.com/olofk/serv
 - **RISC-V ISA:** https://riscv.org/technical/specifications/
 - **AXI4-Stream:** ARM IHI 0051A
+- **HIVE Reference Library** (`docs/references.md`) — annotated bibliography
+  (NoC/interconnect, network processors, RISC-V, SoC integration, modeling,
+  verification, FPGA practice), compiled from the owner calibre library +
+  spec-cited papers 2026-10-13
 
 ---
 
