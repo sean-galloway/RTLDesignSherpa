@@ -1,0 +1,40 @@
+// STREAM v1 characterization harness, top level (Figure 3.1 of
+// characterization_v1_findings.md). Replaces assets/mmd/01_harness_top.mmd.
+// House style: vault/handbook/authoring/block-diagrams.md (host and bench as
+// white ports on top, DUT in the center, harness memory models as the bar).
+// HISTORICAL: this is the v1 harness the report measured. The current harness
+// (rtl/stream_harness.sv) fronts the DUT with the 13-slave bridge_stream_mon_axil
+// and moved the kick to stage-all-then-GO; see the stream_fpga_system book.
+digraph stream_v1_harness_top {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="STREAM v1 characterization harness (as measured in this report)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    host [label="Host PC\ncharacterize.py, UART 115200 baud", fillcolor="white"];
+    br   [label="UART to AXIL Bridge\n5 address regions"];
+    csr  [label="harness_csr\nkick burst, response-delay programming,\ncycle-stamp timer, status"];
+    dram [label="Descriptor RAM"];
+    dbg  [label="Debug SRAM"];
+    apb  [label="STREAM APB"];
+    dut  [label="stream_top_ch8 (DUT)\ndescriptor-fetch, data-read and data-write AXI4 masters", width=5.5];
+    rdly [label="axi_response_delay (R side)"];
+    bdly [label="axi_response_delay (B side)"];
+    rgen [label="axi4_slave_rd_injector\nLFSR stream + per-channel CRC"];
+    wchk [label="axi4_slave_wr_crc_check\nper-channel CRC"];
+    cmp  [label="read CRC == write CRC?", fillcolor="white"];
+    bar  [label="Board Status\nLEDs / 7-seg / IRQ: PASS 0x0123, FAIL 0x9999", fillcolor="white", width=7.5];
+
+    host -> br  [xlabel="UART"];
+    br -> csr; br -> apb; br -> dbg; br -> dram;
+    csr -> dut  [style=dashed, xlabel="kick pulse"];
+    apb -> dut  [xlabel="APB"];
+    dut -> dram [xlabel="descriptor\nfetch"];
+    dut -> rdly [xlabel="data read"];
+    rdly -> rgen;
+    dut -> bdly [xlabel="data write"];
+    bdly -> wchk;
+    rgen -> cmp; wchk -> cmp;
+    cmp -> bar  [xlabel="verdict"];
+    { rank=same; csr; apb; dbg; dram; }
+    { rank=same; rdly; bdly; }
+    { rank=same; rgen; wchk; }
+}

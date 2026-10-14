@@ -202,7 +202,7 @@ The DUT is `stream_top_ch8`. Everything else around it is harness — not part o
 
 ### Figure 3.1: Harness top-level block diagram
 
-![harness top](assets/png/01_harness_top.png)
+![harness top](assets/graphviz/stream_v1_harness_top.png)
 
 The harness wraps `stream_top_ch8` with everything needed to drive it from a host PC and observe what happens, while keeping the DUT itself unchanged. From left to right:
 
@@ -221,7 +221,7 @@ Each instrumentation block earned its place after a bug or a measurement we coul
 
 ### Figure 3.2: Read- and write-path data flow
 
-![data path](assets/png/02_data_path.png)
+![data path](assets/graphviz/stream_v1_data_path.png)
 
 The most important question we wanted answered was: *how much memory latency can the engine hide before throughput drops?* That requires injecting latency at the slave port, which means we need a memory model.
 
@@ -233,7 +233,7 @@ So the second attempt — the one in the current build — is a pipelined timest
 
 ### Figure 3.3: `axi_response_delay` internals
 
-![response delay internals](assets/png/03_response_delay.png)
+![response delay internals](assets/graphviz/stream_response_delay.png)
 
 Every beat presented on the slave side is admitted to a CAPACITY-deep FIFO with a timestamp. A free-running cycle counter labels the slot. The drain gate fires when the head's `(now − t_in)` exceeds the runtime-programmable `i_delay_cycles`. Up to CAPACITY beats can be in flight at once. When the FIFO fills, `s_ready` drops, naturally back-pressuring the slave — that mirrors a real controller running out of in-flight slots.
 
@@ -248,7 +248,7 @@ This is plumbed up through `stream_char_cfg_pkg::CFG_RESP_DELAY_R_CAPACITY` and 
 
 ### Figure 3.4: CSR-driven kick-burst path
 
-![csr kick path](assets/png/04_csr_kick.png)
+![csr kick path](assets/graphviz/stream_v1_csr_kick.png)
 
 Multi-channel sweeps require all selected channels to start on the same `aclk`, otherwise channel-N is sometimes still in pipe-fill when channel-1 is in steady state, and the cross-channel interleave at the slaves becomes unreproducible. Originally the host fired one APB write per channel to start each one, but at 115 200 baud each APB write is ~870 µs of UART time — which means ch3 starts ~2.6 ms after ch0. That's enough skew to make the channel × delay heatmap uninterpretable.
 
@@ -258,7 +258,7 @@ The fix in the current harness is a CSR-driven kick-burst. The host writes all f
 
 ### Figure 3.5: Timer windows on the test timeline
 
-![timer windows](assets/png/05_timer_windows.png)
+![timer windows](assets/graphviz/stream_timer_windows.png)
 
 Every test captures three independent cycle counts in `harness_csr`:
 
@@ -518,7 +518,7 @@ The "ideal-system" reference plane. Every `(channels, descriptors)` combination 
 
 ### Figure 7.1: Pre-cliff, knee, post-cliff regimes
 
-![cliff math](assets/png/06_cliff_math.png)
+![cliff math](assets/graphviz/stream_cliff_regimes.png)
 
 The cleanest way to summarize the latency-tolerance result is in three regimes:
 

@@ -1,0 +1,14 @@
+// STREAM v1 cycle-stamp windows (Figure 3.5 of characterization_v1_findings.md;
+// replaces the mermaid gantt assets/mmd/05_timer_windows.mmd). Schematic, not to
+// scale: the cycle numbers are the gantt's illustrative ones. Shaded bars are the
+// counted windows; white italic bars are the context outside each window.
+// Timeline figure, owner ruling 2026-10-13 (ASCII timing sketches become
+// graphviz): one row per signal, one column per clock cycle; a shaded "1"
+// cell is high, a white "0" cell low, grey "x" don't-care; equal neighbouring
+// values merge into one wide cell. House style: vault/handbook/authoring/block-diagrams.md
+digraph stream_timer_windows {
+    graph [bgcolor="white", fontname="Helvetica", fontsize=11, labelloc=t,
+           labeljust=c, label="harness_csr cycle-stamp windows on one test timeline", pad="0.15"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+    grid [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="3" COLOR="black"><TR><TD WIDTH="110" BORDER="0" ALIGN="RIGHT"><B>cycles</B></TD><TD WIDTH="120" BORDER="0"><B>0-22</B></TD><TD WIDTH="120" BORDER="0"><B>22-30</B></TD><TD WIDTH="120" BORDER="0"><B>30-335</B></TD><TD WIDTH="120" BORDER="0"><B>335-343</B></TD><TD WIDTH="120" BORDER="0"><B>343-350</B></TD></TR><TR><TD BORDER="0" ALIGN="RIGHT" HEIGHT="40">total_cycles</TD><TD COLSPAN="5" WIDTH="600" HEIGHT="40" FIXEDSIZE="FALSE" BGCOLOR="#D6E4F0">first descriptor AR handshake -&gt; last B response</TD></TR><TR><TD BORDER="0" ALIGN="RIGHT" HEIGHT="40">r2r_cycles</TD><TD COLSPAN="1" WIDTH="120" HEIGHT="40" FIXEDSIZE="FALSE" BGCOLOR="white"><FONT COLOR="#555555"><I>startup (descriptor<BR/>fetch, pipe fill)</I></FONT></TD><TD COLSPAN="2" WIDTH="240" HEIGHT="40" FIXEDSIZE="FALSE" BGCOLOR="#D6E4F0">first R beat -&gt; last R beat</TD><TD COLSPAN="2" WIDTH="240" HEIGHT="40" FIXEDSIZE="FALSE" BORDER="0"> </TD></TR><TR><TD BORDER="0" ALIGN="RIGHT" HEIGHT="40">w2w_cycles</TD><TD COLSPAN="2" WIDTH="240" HEIGHT="40" FIXEDSIZE="FALSE" BGCOLOR="white"><FONT COLOR="#555555"><I>write pipe fill</I></FONT></TD><TD COLSPAN="2" WIDTH="240" HEIGHT="40" FIXEDSIZE="FALSE" BGCOLOR="#D6E4F0">first W beat -&gt; last W beat</TD><TD COLSPAN="1" WIDTH="120" HEIGHT="40" FIXEDSIZE="FALSE" BGCOLOR="white"><FONT COLOR="#555555"><I>drain (last<BR/>B response)</I></FONT></TD></TR><TR><TD BORDER="0"> </TD><TD COLSPAN="5" BORDER="1" BGCOLOR="white" ALIGN="LEFT" BALIGN="LEFT" CELLPADDING="6"><FONT POINT-SIZE="9">Three independent counts per test. total_cycles spans the whole transfer; r2r_cycles and<BR ALIGN="LEFT"/>w2w_cycles count only the data beats on each side, so pipe fill and drain fall outside them.<BR ALIGN="LEFT"/></FONT></TD></TR></TABLE>>];
+}

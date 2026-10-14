@@ -1,0 +1,20 @@
+// RAPIDS beats monitor-bus hierarchy (Figure 3.3 of rapids_beats_findings.md).
+// Replaces assets/mmd/03_monbus_hier.mmd. House style
+// (vault/handbook/authoring/block-diagrams.md: a chain of picks is shallow
+// trapezia). The group was monbus_axil_axil_group in the original figure;
+// it is monbus_axil4_axil4_group in the RTL. Source of truth:
+// projects/components/dma-ip/rapids/rtl/macro_beats/rapids_core_beats.sv (u_mon_arbiter),
+// projects/components/dma-ip/rapids/rtl/top_beats/rapids_beats_top.sv (u_monbus_axil_group).
+digraph rapids_monbus_hier {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="Monitor bus: three arbitration levels merge to one egress"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    srcm  [label="monbus_arbiter\n(SRC half)", shape=polygon, sides=4, distortion=-0.10];
+    snkm  [label="monbus_arbiter\n(SNK half)", shape=polygon, sides=4, distortion=-0.10];
+    merge [label="Core merge\nmonbus_arbiter in rapids_core_beats", shape=polygon, sides=4, distortion=-0.10, width=4];
+    grp   [label="monbus_axil4_axil4_group\ncapture, error drain, IRQ"];
+    egr   [label="m_axil_mon  (single egress)", fillcolor="white", width=5];
+    srcm -> merge; snkm -> merge;
+    merge -> grp; grp -> egr;
+    { rank=same; srcm; snkm; }
+}

@@ -1,0 +1,24 @@
+// STREAM v1 read- and write-path data flow (Figure 3.2 of
+// characterization_v1_findings.md). Replaces assets/mmd/02_data_path.mmd.
+// House style: vault/handbook/authoring/block-diagrams.md. Read path down the
+// left, write path down the right; the delayed response climbs back to the
+// engine. CAPACITY values are the v1 build's (the current harness takes them
+// from stream_char_cfg_pkg).
+digraph stream_v1_data_path {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="STREAM v1 data paths: latency L is injected on the R and B responses"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    eng  [label="STREAM channel\ndata-read master: 8 outstanding AR, 16-beat bursts\ndata-write master: 8 outstanding AW, 16-beat bursts\nread CRC vs write CRC compared at end of test", width=6];
+    rdly [label="axi_response_delay (R)\nCAPACITY = 256"];
+    rinj [label="axi4_slave_rd_injector\nLFSR byte stream"];
+    wchk [label="axi4_slave_wr_crc_check"];
+    bdly [label="axi_response_delay (B)\nCAPACITY = 16"];
+
+    eng  -> rdly [dir=both, xlabel="AR\n/ R beats, delayed L"];
+    rdly -> rinj [dir=both, xlabel="AR\n/ R beats"];
+    eng  -> wchk [xlabel="AW, W"];
+    wchk -> bdly [xlabel="B"];
+    eng  -> bdly [dir=back, xlabel="B, delayed L"];
+    { rank=same; rdly; wchk; }
+    { rank=same; rinj; bdly; }
+}

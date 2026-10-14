@@ -1,0 +1,25 @@
+// STREAM v1 CSR-driven kick burst (Figure 3.4 of characterization_v1_findings.md).
+// Replaces assets/mmd/04_csr_kick.mmd. House style:
+// vault/handbook/authoring/block-diagrams.md.
+// HISTORICAL: CH_KICK_ADDR / KICK_GO were the v1 harness_csr registers; the
+// current harness replays staged descriptor kicks on GO (stage-all-then-GO).
+digraph stream_v1_csr_kick {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="STREAM v1 kick burst: stage the addresses slowly, start every channel on one edge"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    host  [label="Host over UART\n~870 us per APB write", fillcolor="white"];
+    sh    [label="CH_KICK_ADDR[0..3]\nshadow registers in harness_csr\npersistent, no side effect"];
+    go    [label="KICK_GO in harness_csr\none-byte write, channel bitmask"];
+    pulse [label="1-aclk kick pulse\nto the selected channels"];
+    bar   [label="STREAM channels ch0  ch1  ch2  ch3\nall selected channels see the kick on the SAME aclk edge", fillcolor="white", width=6];
+    note  [label="UART skew is removed at the source:\nonly the single KICK_GO write is time-critical", fillcolor="white", style="filled,dashed"];
+
+    host -> sh    [xlabel="one write per channel\n(ahead of time)"];
+    host -> go    [xlabel="single write"];
+    sh   -> pulse [xlabel="start address"];
+    go   -> pulse;
+    pulse -> bar  [penwidth=1.8];
+    pulse -> note [style=dashed, arrowhead=none];
+    { rank=same; sh; go; }
+    { rank=same; pulse; note; }
+}

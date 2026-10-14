@@ -1,0 +1,33 @@
+// rapids_char_harness block diagram (Figure 6.1 of rapids_beats_findings.md).
+// Replaces assets/mmd/04_harness.mmd. House style
+// (vault/handbook/authoring/block-diagrams.md, characterization harness: host
+// on top, DUT in the center, harness memory models as the bar). Drawn as the
+// report shows it; the current RTL also puts an axi_response_delay on the
+// m_axi_rd R channel and the m_axi_wr B channel, plus bus meters and
+// observers. Source of truth: flows-rapids-beats/rtl/rapids_char_harness.sv.
+digraph rapids_char_harness {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="rapids_char_harness: host path, stimulus and checkers around the DUT"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    host  [label="Host PC", fillcolor="white"];
+    uart  [label="uart_axil_bridge"];
+    fan   [label="AXIL host fanout"];
+    csr   [label="Harness CSR / APB"];
+    gen   [label="axis4_master_injector"];
+    rdp   [label="axi4_slave_rd_injector"];
+    dut   [label="rapids_beats_top (DUT)", width=5, penwidth=1.8];
+    chk   [label="axis4_slave_pattern_check"];
+    wcrc  [label="axi4_slave_wr_crc_check"];
+    bar   [label="Harness Memories\ndescriptor RAM (SRC)   descriptor RAM (SNK)   control semaphore RAMs", fillcolor="white", width=7];
+
+    host -> uart [xlabel="UART"];
+    uart -> fan -> csr;
+    csr  -> dut  [xlabel="APB"];
+    gen  -> dut  [xlabel="s_axis"];
+    rdp  -> dut  [xlabel="m_axi_rd"];
+    dut  -> chk  [xlabel="m_axis"];
+    dut  -> wcrc [xlabel="m_axi_wr"];
+    dut  -> bar  [xlabel="descriptor fetch,\ncontrol masters"];
+    { rank=same; gen; csr; rdp; }
+    { rank=same; chk; wcrc; }
+}

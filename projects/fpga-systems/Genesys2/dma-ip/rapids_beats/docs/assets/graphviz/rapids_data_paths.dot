@@ -1,0 +1,28 @@
+// RAPIDS beats data paths (Figure 3.2 of rapids_beats_findings.md). Replaces
+// assets/mmd/02_data_paths.mmd. House style (vault/handbook/authoring/
+// block-diagrams.md, network DMA with two independent halves): sink write data
+// runs down the left, source read data comes back up the right, memory is the
+// bar. Source of truth: projects/components/dma-ip/rapids/rtl/macro_beats/rapids_snk_beats.sv, rapids_src_beats.sv.
+digraph rapids_data_paths {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="The two data paths are wholly separate: no shared datapath"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    saxis [label="s_axis  (tid = channel)", fillcolor="white"];
+    maxis [label="m_axis  (tid = channel)", fillcolor="white"];
+    sks   [label="Sink SRAM"];
+    srs   [label="Source SRAM"];
+    wr    [label="SINK write engine\nm_axi_wr (AW / W / B)"];
+    rd    [label="SOURCE read engine\nm_axi_rd (AR / R)"];
+    mem   [label="Memory (AXI4)", fillcolor="white", width=6];
+
+    saxis -> sks  [penwidth=1.8, xlabel="sink ingress"];
+    sks   -> wr   [penwidth=1.8];
+    wr    -> mem  [penwidth=1.8, xlabel="write data"];
+    maxis -> srs  [dir=back, penwidth=1.8, xlabel="source egress"];
+    srs   -> rd   [dir=back, penwidth=1.8];
+    rd    -> mem  [dir=back, penwidth=1.8, xlabel="read data"];
+    { rank=same; saxis; maxis; }
+    { rank=same; sks; srs; }
+    { rank=same; wr; rd; }
+    sks -> srs [style=invis, minlen=3];
+}

@@ -1,0 +1,20 @@
+// RAPIDS beats critical path and its fix (Figure 4.2 of
+// rapids_beats_findings.md). Replaces assets/mmd/05_timing_path.mmd. House
+// style: vault/handbook/authoring/block-diagrams.md (the "before" path runs
+// left to right; the fix is a dashed note on the stage it changed). Numbers
+// are the report's timing results.
+digraph rapids_timing_path {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.5", ranksep="0.7", splines=polyline, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="Critical path before the fix: a config CSR into the monbus window math"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    csr [label="cfg_mon_base_addr\n(config CSR flop)", fillcolor="white"];
+    rt  [label="Global route\nfo = 124 high-fanout net\n~0.8 ns CSR route"];
+    s1  [label="monbus_group_core\ns1_beats_to_limit\n(window-limit subtract)"];
+    ep  [label="Capture flop", fillcolor="white"];
+    fix [label="FIX: register cfg_base_addr / cfg_limit_addr LOCALLY\nin monbus_group_core (max_fanout = 24);\nstage-1 arithmetic sources from adjacent flops\nWNS -0.365 ns -> +0.051 ns", fillcolor="white", style="filled,dashed"];
+    csr -> rt [label="BEFORE: 19 levels,\nroute 53%", minlen=2];
+    rt  -> s1;
+    s1  -> ep;
+    fix -> s1 [style=dashed];
+    { rank=same; s1; fix; }
+}

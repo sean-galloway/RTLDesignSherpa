@@ -1,0 +1,33 @@
+// axi_response_delay internals (Figure 3.3 of characterization_v1_findings.md;
+// also used by stream_char_guide ch03). Replaces assets/mmd/03_response_delay.mmd.
+// Decision-tree vocabulary (vault/handbook/authoring/block-diagrams.md): white
+// question boxes, blue action boxes, every arrow out of a question labeled.
+// Source of truth: rtl/axi_response_delay.sv (timestamp FIFO, per-drain
+// i_delay_cycles compare).
+digraph stream_response_delay {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="axi_response_delay: admit with a timestamp, drain when the head is old enough"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    in   [label="Slave-side beat\ns_valid / s_ready", fillcolor="white"];
+    room [label="FIFO has room?", fillcolor="white"];
+    bp   [label="s_ready = 0: back-pressure\n(mirrors a controller out of in-flight slots)"];
+    push [label="Admit {beat, t_in}"];
+    ctr  [label="Free-running cycle counter"];
+    fifo [label="Timestamp FIFO\nCAPACITY deep: up to CAPACITY beats in flight"];
+    age  [label="now - t_in >= i_delay_cycles?", fillcolor="white"];
+    hold [label="Head waits"];
+    out  [label="Drain head\nm_valid / m_ready", fillcolor="white", width=4];
+
+    in   -> room;
+    room -> bp   [xlabel="no"];
+    room -> push [xlabel="yes"];
+    ctr  -> push [style=dashed, xlabel="t_in\nstamp"];
+    push -> fifo;
+    fifo -> age;
+    ctr  -> age  [style=dashed, xlabel="now"];
+    age  -> hold [xlabel="no"];
+    age  -> out  [xlabel="yes"];
+    { rank=same; bp; push; }
+    { rank=same; fifo; ctr; }
+    { rank=same; age; }
+}

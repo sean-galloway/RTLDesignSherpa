@@ -122,7 +122,7 @@ decode and a monitor egress.
 
 ### Figure 3.1: Split architecture
 
-![split architecture](assets/png/01_split_arch.png)
+![split architecture](assets/graphviz/rapids_split_arch.png)
 
 `rapids_beats_top` instantiates `rapids_core_beats`, which contains exactly two
 data engines:
@@ -140,7 +140,7 @@ Monitoring from both halves is merged down to a single `m_axil_mon` egress.
 
 ### Figure 3.2: The two data paths are wholly separate
 
-![data paths](assets/png/02_data_paths.png)
+![data paths](assets/graphviz/rapids_data_paths.png)
 
 The sink path is `s_axis` (with `tid` = channel) into the sink SRAM, then out
 `m_axi_wr` (AW/W/B) to memory. The source path is memory in via `m_axi_rd`
@@ -151,7 +151,7 @@ engine cannot introduce a datapath hazard in the other.
 
 ### Figure 3.3: Monitor-bus hierarchy — 3-level merge to one egress
 
-![monbus hierarchy](assets/png/03_monbus_hier.png)
+![monbus hierarchy](assets/graphviz/rapids_monbus_hier.png)
 
 Observability is built in and merges in three levels: a per-half
 `monbus_arbiter` inside each of the source and sink engines, a core-level
@@ -178,7 +178,7 @@ folded in the harness pulse-fix of Section 8.
 
 ### Figure 4.2: The critical path — a config CSR into the monbus window math
 
-![critical path](assets/png/05_timing_path.png)
+![critical path](assets/graphviz/rapids_timing_path.png)
 
 The critical path was **not** in the datapath. It ran from `cfg_mon_base_addr`
 — a configuration CSR that essentially never changes at runtime — into
@@ -226,7 +226,7 @@ next engine that reuses these packages qualifies from the start.
 
 ### Figure 6.1: `rapids_char_harness` block diagram
 
-![harness block diagram](assets/png/04_harness.png)
+![harness block diagram](assets/graphviz/rapids_char_harness.png)
 
 The harness wraps `rapids_beats_top` with everything needed to drive it from a
 host PC and check both directions on-chip, while leaving the DUT untouched:

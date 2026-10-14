@@ -1,0 +1,29 @@
+// RAPIDS beats split architecture (Figure 3.1 of rapids_beats_findings.md).
+// Replaces assets/mmd/01_split_arch.mmd. House style:
+// vault/handbook/authoring/block-diagrams.md (two independent halves side by
+// side; shared infrastructure white). Source of truth: projects/components/dma-ip/rapids/rtl/top_beats/rapids_beats_top.sv,
+// projects/components/dma-ip/rapids/rtl/macro_beats/rapids_core_beats.sv.
+digraph rapids_split_arch {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="rapids_beats_top: two independent engines behind one APB and one monitor egress"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    apb  [label="rapids_beats_top: APB slave + register block\nPADDR[12] selects SRC (0x0000) or SNK (0x1000) registers", fillcolor="white", width=6];
+    subgraph cluster_core {
+        label="rapids_core_beats"; fontname="Helvetica"; fontsize=10; style=solid; color="black";
+        src  [label="rapids_src_beats\nSOURCE: read-only engine"];
+        snk  [label="rapids_snk_beats\nSINK: write-only engine"];
+        dm1  [label="Descriptor master\n(SRC)", fillcolor="white"];
+        mon  [label="MonBus merge\n(3 levels)"];
+        dm2  [label="Descriptor master\n(SNK)", fillcolor="white"];
+    }
+    egr  [label="m_axil_mon  (single monitor egress)", fillcolor="white", width=6];
+
+    apb  -> src [xlabel="SRC config"];
+    apb  -> snk [xlabel="SNK config"];
+    src  -> dm1; snk -> dm2;
+    src  -> mon; snk -> mon;
+    mon  -> egr;
+    { rank=same; src; snk; }
+    { rank=same; dm1; mon; dm2; }
+    dm1 -> mon -> dm2 [style=invis];
+}

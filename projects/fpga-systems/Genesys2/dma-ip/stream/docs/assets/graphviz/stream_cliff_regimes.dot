@@ -1,0 +1,16 @@
+// Pre-cliff, knee and post-cliff regimes (Figure 7.1 of
+// characterization_v1_findings.md). Replaces assets/mmd/06_cliff_math.mmd.
+// House style: vault/handbook/authoring/block-diagrams.md. Numbers are the
+// report's measurements.
+digraph stream_cliff_regimes {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="Latency tolerance: three regimes as injected latency L grows"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    a [label="1. Pre-cliff  (L <= in_flight x cycles_per_beat)\nThe response pipe stays full; L costs a one-time pipe fill only.\nThroughput stays at peak (~1435 MB/s)", width=6];
+    b [label="2. Knee  (L ~ in_flight)\nThe pipe just covers L; throughput begins to slip.\nMeasured -11 % at L = 128, 1 channel", width=6];
+    c [label="3. Post-cliff  (L > in_flight)\nThe engine waits for responses. Little's Law: BW = (in_flight / L) x peak\nWithin 1 % of theory across L = 384..512", width=6];
+    s [label="Scaling: total_in_flight = N_ch x 8 x 16 = 128 x N_ch\nthe 4-channel build hides up to 512 cycles", fillcolor="white", style="filled,dashed"];
+    a -> b [xlabel="L grows"];
+    b -> c [xlabel="L grows"];
+    c -> s [style=dashed, arrowhead=none];
+}
