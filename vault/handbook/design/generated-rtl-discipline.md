@@ -443,3 +443,15 @@ visible mismatch rather than a silent truncation.
 - The byte-identical invariant held: 35 existing fixtures regenerated
   without a changed line, because a feature no port enables emits no
   field.
+
+## Where generated output lives: one bin is fine (owner, 2026-10-13)
+
+Root CLAUDE.md Rule #0.1 asks for generated files in named subdirectories.
+For the fabric generators whose output is entirely generated (delta, lattice),
+the owner ruled that **one directory holding all the generated output is
+acceptable** ("since it is generated, it is ok for one big bin"). Do not move
+it into per-config folders to satisfy 0.1. What still applies: a hand-written
+file never shares that directory, and Rule #0 (delete all, regenerate all on
+any generator change) is unchanged. Case: the 2026-10-13 fabric-gen-ip doc
+pass flagged `delta/rtl/delta_axis_flat_4x16.sv` and the lattice crossbars at
+the top of `rtl/`.
