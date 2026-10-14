@@ -1,0 +1,54 @@
+// axil4_to_wb4 - MAS Figure 3.12 (replaces the ASCII sketch).
+// House style: vault/handbook/authoring/block-diagrams.md (rtl-amba lanes;
+// the WB4 ruling: command down, response back up).
+// The write and read paths contend for wb4_master's single command queue:
+// a genuine two-way pick, so it is the trapezium (alternating priority).
+// Wishbone terminates in issue order, so a one-bit side queue written at
+// issue steers each response to B or R on the way back up.
+// Source of truth: rtl/axil4_to_wb4.sv, rtl/axil4_to_wb4_core.sv.
+digraph axil4_to_wb4 {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.55", ranksep="0.65", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axil4_to_wb4 - AXI4-Lite slave to Wishbone B4 master (on aclk, equal widths)";
+
+    s     [label="AXI4-Lite Slave Port (s_axil_*)\nAW, W, B   |   AR, R", fillcolor="white", width=8.0];
+
+    skwr  [label="Write Skids\naxil4_slave_wr\nAW / W / B, SKID_DEPTH_*", group=W];
+    skrd  [label="Read Skids\naxil4_slave_rd\nAR / R, SKID_DEPTH_*", group=R];
+
+    pick  [group=P, label="Issue Pick (axil4_to_wb4_core)\nalternate when both eligible", shape=invtrapezium, width=7.0, fixedsize=false];
+    side  [label="Direction Queue\ngaxi_fifo_sync (SIDE_DEPTH)\nwe per issued command", group=R];
+    steer [label="Response Steer (axil4_to_wb4_core)\noldest response -> B or R by the queue head\nACK -> OKAY, ERR -> SLVERR, RTY -> RTY_RESP", group=R];
+
+    wbm   [group=P, label="Wishbone Master\nwb4_master\ncommand queue (CMD_DEPTH),\nresponse queue (RSP_DEPTH),\nB4 pipelined or classic (CLASSIC)"];
+
+    bar   [label="Wishbone B4 Master Port (m_wb_*)\nCYC, STB, WE, ADR, DAT_W, SEL   |   STALL, ACK, ERR, RTY, DAT_R", fillcolor="white", width=8.0];
+
+    s     -> skwr  [dir=both, xlabel="AW, W down / B up"];
+    s     -> skrd  [dir=both, xlabel="AR down / R up"];
+    skwr  -> pick  [weight=8, xlabel="WR: AW + W"];
+    p_ar  [shape=point, width=0.01, group=P];
+    skrd  -> p_ar  [arrowhead=none, headclip=false];
+    p_ar  -> pick  [tailclip=false, xlabel="RD: AR"];
+    p_c   [shape=point, width=0.01, group=P];
+    pick  -> p_c   [arrowhead=none, headclip=false, penwidth=1.8];
+    p_c   -> wbm   [tailclip=false, xlabel="cmd {we, adr, dat, sel}", penwidth=1.8];
+    p_c   -> side  [style=dashed, tailclip=false, xlabel="we (at issue)"];
+    wbm   -> bar   [dir=both, xlabel="request down /\ntermination up"];
+
+    wbm   -> steer [xlabel="rsp {status, dat}"];
+    side  -> steer [style=dashed, xlabel="head"];
+    skwr  -> steer [dir=back, xlabel="B: resp"];
+    skrd  -> steer [dir=back, xlabel="R: data, resp"];
+
+    { rank=same; skwr; skrd; }
+    sp [label="", width=1.0, style=invis];
+    { rank=same; p_c; side; }
+    { rank=same; wbm; sp; steer; }
+    skwr -> skrd [style=invis];
+    wbm -> sp -> steer [style=invis];
+}

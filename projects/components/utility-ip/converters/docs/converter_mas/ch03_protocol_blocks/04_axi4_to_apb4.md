@@ -43,7 +43,7 @@ AXI4 and APB differ on just about every axis:
 
 ### Figure 3.6: AXI4 to APB Converter
 
-![AXI4 to APB](../assets/mermaid/axi4_to_apb4.png)
+![AXI4 to APB](../assets/graphviz/axi4_to_apb4.png)
 
 ## 3.4.3 Interface Specification
 

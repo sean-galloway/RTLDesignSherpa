@@ -1,0 +1,33 @@
+// axi4_to_axil4_rd - MAS figure (AXI4 -> AXI4-Lite, read path).
+// House style: vault/handbook/authoring/block-diagrams.md (rtl-amba lanes:
+// address down the center, R climbing the right lane via dir=back).
+// The decomposer turns one AXI4 burst into ARLEN+1 single AXI4-Lite
+// reads; the R tracker restores ID and RLAST and folds RRESP. The
+// tracker is loaded from the accepted AR (dashed sideband).
+// Source of truth: rtl/axi4_to_axil4_rd.sv.
+digraph axi4_to_axil4_rd {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.95", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi4_to_axil4_rd - AXI4 read bursts as single AXI4-Lite reads (on aclk, equal data widths)";
+
+    s   [label="AXI4 Slave Port (s_axi_*)\nAR (id, addr, len, size, burst)   |   R", fillcolor="white", width=8.5];
+
+    dec [label="Burst Decomposer\n(RD_IDLE / RD_BURST / RD_LAST_BEAT)\nr_ar_*: beat 0 passes s_axi_araddr;\nlater beats step by 1 << size\n(INCR / FIXED), wrap in window (WRAP);\none read outstanding", group=A];
+    trk [label="R Tracker (flops)\nr_r_id, r_r_len, r_r_beat_count;\nrlast on beat len, rid restored,\nRRESP: worst of all beats on the last", group=R];
+
+    m   [label="AXI4-Lite Master Port (m_axil_*)\nAR (addr, prot)   |   R", fillcolor="white", width=8.5];
+
+    s   -> dec [xlabel="AR: one burst"];
+    dec -> m   [xlabel="AR: one single beat\nper ARLEN+1", penwidth=1.8];
+    s   -> trk [dir=back, xlabel="R: data, rid, rresp,\nrlast (ruser = 0)"];
+    trk -> m   [dir=back, xlabel="R: data, resp"];
+    dec -> trk [style=dashed, xlabel="id, len"];
+
+    sp [label="", width=0.8, style=invis];
+    { rank=same; dec; sp; trk; }
+    dec -> sp -> trk [style=invis];
+}

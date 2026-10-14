@@ -38,7 +38,7 @@ The write converter combines the generic `axi_data_upsize` with AXI4 protocol ha
 
 ### Figure 2.6: Write Converter Architecture
 
-![Write Converter Architecture](../assets/mermaid/dwidth_converter_wr.png)
+![Write Converter Architecture](../assets/graphviz/axi4_dwidth_converter_wr.png)
 
 ## 2.5.3 Interface Specification
 

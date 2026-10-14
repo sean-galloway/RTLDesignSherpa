@@ -1,0 +1,56 @@
+// converter_hierarchy - MAS Figure 1.1 (module hierarchy, not a data flow).
+// Each arrow is "instantiates", parent above child, the parent-wrapper
+// ruling (a parent draws its children as instance boxes). Wrappers top,
+// leaf blocks bottom; the two width converters both use both primitives
+// (one per direction of data), which the earlier figure got wrong.
+// Source of truth: the instantiations in rtl/*.sv.
+digraph converter_hierarchy {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.90", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.10,0.05"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="Converters component - module hierarchy (arrow = instantiates)";
+
+    subgraph cluster_w {
+        label="Data width converters"; style=dashed; fontsize=10;
+        wr  [label="axi4_dwidth_converter_wr\nwrite path: AW / W / B"];
+        rd  [label="axi4_dwidth_converter_rd\nread path: AR / R"];
+        up  [label="axi_data_upsize\nnarrow -> wide accumulator\n(write UPSIZE: W; read DOWNSIZE: R)"];
+        dn  [label="axi_data_dnsize\nwide -> narrow splitter\n(write DOWNSIZE: W; read UPSIZE: R)"];
+    }
+    subgraph cluster_p {
+        label="Protocol converters"; style=dashed; fontsize=10;
+        a2l  [label="axi4_to_axil4\nburst decomposition"];
+        a2lr [label="axi4_to_axil4_rd"];
+        a2lw [label="axi4_to_axil4_wr"];
+        l2a  [label="axil4_to_axi4\nprotocol upgrade"];
+        l2ar [label="axil4_to_axi4_rd"];
+        l2aw [label="axil4_to_axi4_wr"];
+        shim [label="axi4_to_apb4_shim\nAXI4 -> APB (aclk -> pclk)"];
+        conv [label="axi4_to_apb4_convert\nAXI4 -> APB command core"];
+        a2p  [label="apb4_to_peakrdl\nAPB -> register block"];
+        prdl [label="peakrdl_to_cmdrsp\nregister adapter"];
+    }
+    more [label="More in chapter 3: AXI4-Lite to AXI5-Lite, APB5, Wishbone B4,\lAXI3 <-> AXI4, APB to AXI4, wide alignment, UART to AXI4-Lite,\land the width-converter chains\l", fillcolor="white"];
+
+    wr -> up; wr -> dn;
+    rd -> up; rd -> dn;
+    a2l -> a2lr; a2l -> a2lw;
+    l2a -> l2ar; l2a -> l2aw;
+    shim -> conv;
+    a2p -> prdl;
+
+    { rank=same; wr; rd; }
+    { rank=same; up; dn; }
+    { rank=same; a2l; l2a; }
+    { rank=same; a2lr; a2lw; l2ar; l2aw; }
+    { rank=same; shim; a2p; }
+    { rank=same; conv; prdl; }
+    up -> a2l [style=invis];
+    wr -> rd [style=invis];
+    up -> dn [style=invis];
+    a2lr -> shim [style=invis];
+    conv -> more [style=invis];
+}

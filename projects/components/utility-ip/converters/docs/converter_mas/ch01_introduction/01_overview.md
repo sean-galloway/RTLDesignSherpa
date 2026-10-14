@@ -61,7 +61,7 @@ Sooner or later, every SoC design runs into the same two integration problems:
 
 ### Figure 1.1: Converter Module Hierarchy
 
-![Converter Module Hierarchy](../assets/mermaid/converter_hierarchy.png)
+![Converter Module Hierarchy](../assets/graphviz/converter_hierarchy.png)
 
 ### 1.3.1 Data Width Converters
 

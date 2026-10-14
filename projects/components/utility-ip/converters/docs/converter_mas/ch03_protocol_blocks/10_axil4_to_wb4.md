@@ -68,14 +68,7 @@ front when the interconnect width differs.
 
 ### Figure 3.12: AXI4-Lite to Wishbone B4 Converter
 
-```
- s_axil_aw ──► skid ──► fub_aw ─┐
- s_axil_w  ──► skid ──► fub_w  ─┤ pick        cmd_{we,adr,dat,sel} ──► wb4_master ──► m_wb_*
- s_axil_ar ──► skid ──► fub_ar ─┘ (alternate)         │
-                                     │ side queue (we per issue)
- s_axil_b  ◄── skid ◄── fub_b  ◄─┐   ▼
- s_axil_r  ◄── skid ◄── fub_r  ◄─┴─ steer ◄── rsp_{status,dat} ◄── wb4_master
-```
+![AXI4-Lite to Wishbone B4 Converter](../assets/graphviz/axil4_to_wb4.png)
 
 ## 3.10.4 Interface Specification
 

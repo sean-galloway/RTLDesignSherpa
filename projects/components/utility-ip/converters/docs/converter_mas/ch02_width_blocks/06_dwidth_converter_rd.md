@@ -38,7 +38,7 @@ The read converter combines the generic `axi_data_dnsize` with AXI4 protocol han
 
 ### Figure 2.7: Read Converter Architecture
 
-![Read Converter Architecture](../assets/mermaid/dwidth_converter_rd.png)
+![Read Converter Architecture](../assets/graphviz/axi4_dwidth_converter_rd.png)
 
 ## 2.6.3 Interface Specification
 

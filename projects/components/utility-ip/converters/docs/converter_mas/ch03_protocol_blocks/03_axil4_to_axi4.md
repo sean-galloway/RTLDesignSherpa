@@ -82,7 +82,7 @@ axil4_to_axi4.sv          # Full bidirectional wrapper
 
 ### Figure 3.4: AXI4-Lite to AXI4 Read Path
 
-![AXIL4 to AXI4 Read](../assets/mermaid/axil4_to_axi4_rd.png)
+![AXIL4 to AXI4 Read](../assets/graphviz/axil4_to_axi4_rd.png)
 
 ### Implementation
 
@@ -165,7 +165,7 @@ module axil4_to_axi4_rd #(
 
 ### Figure 3.5: AXI4-Lite to AXI4 Write Path
 
-![AXIL4 to AXI4 Write](../assets/mermaid/axil4_to_axi4_wr.png)
+![AXIL4 to AXI4 Write](../assets/graphviz/axil4_to_axi4_wr.png)
 
 ### Implementation
 

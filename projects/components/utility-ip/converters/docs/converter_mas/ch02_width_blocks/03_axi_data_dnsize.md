@@ -37,7 +37,7 @@ The downsize module does three things:
 
 ### Figure 2.3: axi_data_dnsize Single-Buffer Architecture
 
-![axi_data_dnsize Single Buffer](../assets/mermaid/axi_data_dnsize_single.png)
+![axi_data_dnsize Single Buffer](../assets/graphviz/axi_data_dnsize.png)
 
 ## 2.3.3 Interface Specification
 

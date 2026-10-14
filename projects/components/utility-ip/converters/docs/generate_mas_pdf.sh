@@ -81,6 +81,7 @@ python3 "$MD_TO_DOCX" \
     --assets-dir "$ASSETS" \
     --assets-dir "$ASSETS/images" \
     --assets-dir "$ASSETS/mermaid" \
+    --assets-dir "$ASSETS/graphviz" \
     --assets-dir "$ASSETS/wavedrom" \
     --quiet
 

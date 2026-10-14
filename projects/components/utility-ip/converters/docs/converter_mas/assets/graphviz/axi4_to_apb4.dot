@@ -1,0 +1,53 @@
+// axi4_to_apb4 - MAS Figure 3.6 (axi4_to_apb4_shim around axi4_to_apb4_convert).
+// House style: vault/handbook/authoring/block-diagrams.md (rtl-amba lanes:
+// commands down the center, responses climbing the right lane).
+// The core does not drive PSEL / PENABLE itself: it emits one APB
+// command packet per APB transfer, which crosses to pclk in an async
+// FIFO and is played onto the bus by apb4_master_stub. Responses climb
+// back through the second async FIFO and are paired with the side FIFO
+// entry (ID, user, last) that rode alongside the command. Each block's
+// clock domain is named in its label (the *_slave_cdc ruling).
+// Source of truth: rtl/axi4_to_apb4_shim.sv, rtl/axi4_to_apb4_convert.sv.
+digraph axi4_to_apb4 {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.55", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi4_to_apb4_shim - AXI4 slave (aclk) to APB4 master (pclk)";
+
+    s     [label="AXI4 Slave Port (s_axi_*)\nAW   |   W   |   AR   |   B   |   R", fillcolor="white", width=8.0];
+
+    stub  [label="AXI4 Channel Skids (aclk)\naxi4_slave_stub - axi_slave_stub_inst\nDEPTH_AW / W / B / AR / R", width=8.0];
+
+    cmd   [label="Command Builder (aclk)\naxi4_to_apb4_convert: APB FSM IDLE / READ / WRITE\naxi_gen_addr steps the address per beat;\none APB command per APB-width slice:\n{pwrite, paddr, pwdata, pstrb, pprot}", group=C];
+    side  [label="Side FIFO (aclk)\ngaxi_fifo_sync - side_fifo_inst\n{read/write, id, last, user}\nper command", group=S];
+    rsp   [label="Response Builder (aclk)\naxi4_to_apb4_convert: RSP FSM\nRSP_IDLE / RSP_ACTIVE\nR: pack APB slices into AXI beats\nB: one per burst; PSLVERR -> SLVERR", group=R];
+
+    ccdc  [label="Command CDC\ngaxi_fifo_async - u_cmd_cdc_fifo\naclk -> pclk", group=C];
+    rcdc  [label="Response CDC\ngaxi_fifo_async - u_rsp_cdc_fifo\npclk -> aclk", group=R];
+
+    apbm  [label="APB Master (pclk)\napb4_master_stub\nsetup / access phases, waits on PREADY", width=8.0];
+
+    bar   [label="APB4 Master Port (m_apb_*, pclk)\nPSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT   |   PRDATA, PREADY, PSLVERR", fillcolor="white", width=8.0];
+
+    s     -> stub [dir=both, xlabel="AW, W, AR down /\nB, R up"];
+    stub  -> cmd  [xlabel="AW + W / AR"];
+    cmd   -> ccdc [xlabel="APB command"];
+    ccdc  -> apbm [xlabel="command (pclk)"];
+    apbm  -> bar  [dir=both, xlabel="APB transfer down /\nPRDATA, PREADY, PSLVERR up", penwidth=1.8];
+
+    cmd   -> side [style=dashed, xlabel="push per command"];
+    rsp   -> side [style=dashed, dir=back, xlabel="id, last, op"];
+
+    stub  -> rsp  [dir=back, xlabel="B / R beats"];
+    rsp   -> rcdc [dir=back, xlabel="response (aclk)"];
+    rcdc  -> apbm [dir=back, xlabel="{prdata, pslverr}"];
+
+    { rank=same; cmd; rsp; }
+    sp [label="", width=0.9, style=invis];
+    { rank=same; ccdc; side; sp; rcdc; }
+    cmd -> rsp [style=invis];
+    ccdc -> side -> sp -> rcdc [style=invis];
+}

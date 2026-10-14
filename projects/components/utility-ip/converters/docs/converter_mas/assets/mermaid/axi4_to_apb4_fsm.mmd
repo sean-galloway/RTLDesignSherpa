@@ -1,30 +1,17 @@
 %%{init: {'theme': 'neutral'}}%%
 stateDiagram-v2
-    [*] --> IDLE
-
-    IDLE --> APB_SETUP: AW or AR valid
-
-    APB_SETUP --> APB_ACCESS: always
-
-    APB_ACCESS --> AXI_RESP: PREADY
-
-    AXI_RESP --> BURST_NEXT: more beats
-    AXI_RESP --> IDLE: last beat
-
-    BURST_NEXT --> APB_SETUP: next address
-
-    note right of IDLE
-        Wait for AXI4
-        transaction
-    end note
-
-    note right of APB_SETUP
-        PSEL=1
-        PENABLE=0
-    end note
-
-    note right of APB_ACCESS
-        PSEL=1
-        PENABLE=1
-        Wait PREADY
-    end note
+    state "Command FSM (apb_state_t)" as CMD {
+        [*] --> IDLE
+        IDLE --> WRITE: AW + W
+        IDLE --> READ: AR
+        WRITE --> WRITE: next cmd
+        READ --> READ: next cmd
+        WRITE --> IDLE: last cmd
+        READ --> IDLE: last cmd
+    }
+    state "Response FSM (rsp_state_t)" as RSP {
+        [*] --> RSP_IDLE
+        RSP_IDLE --> RSP_ACTIVE: first rsp packet of a transaction
+        RSP_ACTIVE --> RSP_ACTIVE: pack R slices / fold PSLVERR
+        RSP_ACTIVE --> RSP_IDLE: last rsp (R beat with rlast, or the one B)
+    }

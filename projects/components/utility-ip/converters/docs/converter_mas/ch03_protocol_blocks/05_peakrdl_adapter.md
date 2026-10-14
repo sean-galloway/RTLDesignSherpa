@@ -159,11 +159,11 @@ state -- the command capture replays the request out of
 CMD_STALLED/CMD_WAIT_ACK, and the response capture holds the rsp packet)
 ```
 
-## Waveforms
+## Block Diagram
 
 ### Figure 3.8: PeakRDL Adapter
 
-![PeakRDL Adapter](../assets/mermaid/peakrdl_adapter.png)
+![PeakRDL Adapter](../assets/graphviz/peakrdl_adapter.png)
 
 ## Usage Example
 
@@ -215,15 +215,9 @@ fabric whose endpoint speaks the cmd/rsp packet convention.
 
 The flow a real deployment uses (CSRs behind the APB shim):
 
-```
-AXI4 master → axi4_to_apb4_shim → APB bus → apb4_to_peakrdl
-                                              ├─ apb4_slave_cdc  (APB -> cmd/rsp)
-                                              └─ peakrdl_to_cmdrsp
-                                                        │
-                                              regblk_* request/ack
-                                                        ↓
-                                          PeakRDL-generated register block
-```
+### Figure 3.9: CSRs Behind the APB Shim
+
+![CSRs Behind the APB Shim](../assets/graphviz/peakrdl_integration.png)
 
 The shim's own cmd/rsp stream is internal — its external pins are APB.
 The block that turns a bus back into the cmd/rsp surface this adapter

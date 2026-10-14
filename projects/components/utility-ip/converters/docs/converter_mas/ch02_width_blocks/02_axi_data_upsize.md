@@ -38,7 +38,7 @@ The upsize module does four things:
 
 ### Figure 2.2: axi_data_upsize Architecture
 
-![axi_data_upsize Architecture](../assets/mermaid/axi_data_upsize.png)
+![axi_data_upsize Architecture](../assets/graphviz/axi_data_upsize.png)
 
 ## 2.2.3 Interface Specification
 

@@ -1,0 +1,35 @@
+// axil4_to_axi4_wr - MAS figure (AXI4-Lite -> AXI4, write path).
+// House style: vault/handbook/authoring/block-diagrams.md (rtl-amba lanes:
+// W left, AW center, B climbing the right).
+// Purely combinational: AW and W gain the AXI4-only fields as defaults;
+// B climbs back and drops them. No state.
+// Source of truth: rtl/axil4_to_axi4_wr.sv.
+digraph axil4_to_axi4_wr {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="1.10", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axil4_to_axi4_wr - AXI4-Lite writes as single-beat AXI4 writes (combinational)";
+
+    s   [label="AXI4-Lite Slave Port (s_axil_*)\nAW (addr, prot)   |   W (data, strb)   |   B (resp)", fillcolor="white", width=9.0];
+
+    w   [label="W Fill (combinational)\nwdata, wstrb pass\nwlast = 1, wuser = 0"];
+    aw  [label="AW Field Fill (combinational)\nawaddr, awprot pass straight\nawid = DEFAULT_ID, awlen = 0,\nawsize = full width, INCR,\ncache 0011, awqos = DEFAULT_QOS,\nawregion = DEFAULT_REGION"];
+    b   [label="B Strip (combinational)\nbresp passes\nbid, buser dropped"];
+
+    m   [label="AXI4 Master Port (m_axi_*)\nAW (all AXI4 fields)   |   W   |   B", fillcolor="white", width=9.0];
+
+    s   -> w  [xlabel="W: data, strb"];
+    w   -> m  [xlabel="W: single beat"];
+    s   -> aw [xlabel="AW: addr, prot"];
+    aw  -> m  [xlabel="AW: single beat", penwidth=1.8];
+    s   -> b  [dir=back, xlabel="B: resp"];
+    b   -> m  [dir=back, xlabel="B: resp, id"];
+
+    sp1 [label="", width=0.5, style=invis];
+    sp2 [label="", width=0.5, style=invis];
+    { rank=same; w; sp1; aw; sp2; b; }
+    w -> sp1 -> aw -> sp2 -> b [style=invis];
+}

@@ -86,7 +86,11 @@ has no standalone PRD — this book is the authoritative document.)
 
 ### Diagrams
 
-All diagrams use Mermaid format rendered to PNG:
+Block and microarchitecture figures are graphviz, rendered to PNG:
+- Source: `assets/graphviz/*.dot`
+- Rendered: `assets/graphviz/*.png`
+
+State charts, sequence charts and comparison cards are Mermaid:
 - Source: `assets/mermaid/*.mmd`
 - Rendered: `assets/mermaid/*.png`
 

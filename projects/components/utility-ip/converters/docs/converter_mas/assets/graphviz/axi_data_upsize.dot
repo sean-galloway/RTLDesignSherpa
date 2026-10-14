@@ -1,0 +1,46 @@
+// axi_data_upsize - MAS Figure 2.x (narrow -> wide accumulator).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Two flows, one column each: narrow data down the center into the
+// data accumulator, narrow sideband down the right into the sideband
+// accumulator. The beat pointer / group logic is the control column on
+// the left: it picks the lane both accumulators write and raises
+// wide_valid / wide_last. Ready is a dashed return.
+// Source of truth: rtl/axi_data_upsize.sv.
+digraph axi_data_upsize {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.70", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi_data_upsize - WIDTH_RATIO narrow beats into one wide beat (on aclk)";
+
+    lane_in [label="Burst Start Lane\nstart_lane =\naddr % wide_bytes / narrow_bytes\n(0 for aligned-only use)", fillcolor="white", group=L];
+    nin     [label="Narrow Input\nnarrow_valid / narrow_ready,\nnarrow_data, narrow_last", fillcolor="white", group=C];
+    sbin    [label="Narrow Sideband\nnarrow_sideband\n(WSTRB slice or RRESP)", fillcolor="white", group=R];
+    leg     [label="Parameters (fixed at build)\lSB_OR_MODE: 0 = concatenate (WSTRB),\l    1 = severity fold, numeric max (RRESP)\lNARROW_SB_WIDTH: 0 = no sideband logic\l", fillcolor="white", group=X];
+
+    ptr  [label="Beat Pointer + Group Control (flops)\nr_beat_ptr, r_burst_fresh\nlane: fresh burst -> start_lane,\ngroup opener -> 0\ngroup done: lane == RATIO-1 or narrow_last\n-> r_wide_valid, r_last_buffered\nnarrow_ready = !wide_valid or wide_ready", group=L];
+    dacc [label="Data Accumulator\nr_data_accumulator (flop)\ngroup opener: zero the word,\nplace the beat;\nlater beats: write their lane", group=C];
+    sacc [label="Sideband Accumulator\nr_sideband_accumulator (flop)\nsame lane as the data;\nconcat: lane-shifted, unfilled = 0\nfold: keep the maximum", group=R];
+
+    bar  [label="Wide Output (registered)\nwide_valid / wide_ready, wide_last   |   wide_data   |   wide_sideband",
+          fillcolor="white", width=7.0];
+
+    nin  -> dacc [xlabel="narrow beats"];
+    sbin -> sacc [xlabel="narrow sideband"];
+    dacc -> bar  [xlabel="wide beat", penwidth=1.8];
+    sacc -> bar  [xlabel="wide sideband"];
+
+    lane_in -> ptr  [xlabel="first lane"];
+    nin  -> ptr  [style=dashed, dir=both, xlabel="fire, last /\nready"];
+    ptr  -> dacc [style=dashed, xlabel="lane"];
+    ptr  -> bar  [xlabel="wide_valid,\nwide_last"];
+
+    { rank=same; lane_in; nin; sbin; }
+    { rank=same; dacc; sacc; }
+    lane_in -> nin -> sbin [style=invis];
+    { rank=same; sbin; leg; }
+    sbin -> leg [style=invis];
+    nin -> dacc [style=invis, minlen=2];
+}

@@ -1,0 +1,30 @@
+// axil4_to_axi4_rd - MAS figure (AXI4-Lite -> AXI4, read path).
+// House style: vault/handbook/authoring/block-diagrams.md (rtl-amba lanes).
+// Purely combinational: the AR lane fills the AXI4-only fields with
+// defaults; the R lane climbs back and drops them. No state.
+// Source of truth: rtl/axil4_to_axi4_rd.sv.
+digraph axil4_to_axi4_rd {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="1.10", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axil4_to_axi4_rd - AXI4-Lite reads as single-beat AXI4 reads (combinational)";
+
+    s   [label="AXI4-Lite Slave Port (s_axil_*)\nAR (addr, prot)   |   R (data, resp)", fillcolor="white", width=7.0];
+
+    ar  [label="AR Field Fill (combinational)\naraddr, arprot, valid / ready pass straight\narid = DEFAULT_ID, arlen = 0, arsize = full width,\narburst = INCR, arcache = 0011, arlock = 0,\narqos = DEFAULT_QOS, arregion =\nDEFAULT_REGION, aruser = 0"];
+    r   [label="R Strip (combinational)\nrdata, rresp, valid / ready pass\nrid, rlast, ruser dropped"];
+
+    m   [label="AXI4 Master Port (m_axi_*)\nAR (all AXI4 fields)   |   R", fillcolor="white", width=7.0];
+
+    s   -> ar [xlabel="AR: addr, prot"];
+    ar  -> m  [xlabel="AR: single beat", penwidth=1.8];
+    s   -> r  [dir=back, xlabel="R: data, resp"];
+    r   -> m  [dir=back, xlabel="R: data, resp,\nid, last"];
+
+    sp [label="", width=0.6, style=invis];
+    { rank=same; ar; sp; r; }
+    ar -> sp -> r [style=invis];
+}

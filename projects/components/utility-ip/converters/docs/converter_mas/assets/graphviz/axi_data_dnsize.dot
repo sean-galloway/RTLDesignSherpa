@@ -1,0 +1,47 @@
+// axi_data_dnsize - MAS figure (wide -> narrow splitter, single buffer).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Two flows, one column each: the wide beat down the center into the
+// data buffer and out through the slice mux; the wide sideband down the
+// right into its buffer and out sliced or broadcast. The beat pointer
+// and the optional burst tracker are the control column on the left.
+// Source of truth: rtl/axi_data_dnsize.sv.
+digraph axi_data_dnsize {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.85", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi_data_dnsize - one wide beat into WIDTH_RATIO narrow beats, single buffer (on aclk)";
+
+    burst [label="Burst Context (TRACK_BURSTS=1)\nburst_start, burst_len (AxLEN),\nstart_lane", fillcolor="white", group=L];
+    win   [label="Wide Input\nwide_valid / wide_ready,\nwide_data, wide_last", fillcolor="white", group=C];
+    sbin  [label="Wide Sideband\nwide_sideband\n(RRESP or WSTRB)", fillcolor="white", group=R];
+    leg   [label="Parameters (fixed at build)\lSB_BROADCAST: 1 = every narrow beat gets the\l    whole sideband (RRESP); 0 = slice (WSTRB)\lTRACK_BURSTS: 1 = narrow_last from the burst\l    count; 0 = from wide_last on the last slice\l", fillcolor="white", group=X];
+
+    ctl   [label="Beat Pointer + Burst Tracker (flops)\nr_beat_ptr: first wide of a burst -> start_lane\nr_slave_beat_count / r_slave_total_beats,\nr_burst_active (TRACK_BURSTS=1 only)\nwide_ready = empty, or last slice going out\n(mid-burst only when tracking)", group=L];
+    dbuf  [label="Data Buffer\nr_data_buffer, r_wide_buffered,\nr_last_buffered (flops)", group=C];
+    sbuf  [label="Sideband Buffer\nr_sideband_buffer (flop)", group=R];
+    dmux  [label="Slice Mux (combinational)\nnarrow_data = buffer[ptr]", group=C];
+    smux  [label="Sideband Select (combinational)\nbroadcast: whole sideband\nslice: sideband[ptr]", group=R];
+
+    bar   [label="Narrow Output\nnarrow_valid / narrow_ready, narrow_last   |   narrow_data   |   narrow_sideband",
+           fillcolor="white", width=8.0];
+
+    win   -> dbuf [xlabel="wide beat"];
+    sbin  -> sbuf [xlabel="wide sideband"];
+    dbuf  -> dmux [xlabel="buffered word"];
+    sbuf  -> smux [xlabel="buffered sideband"];
+    dmux  -> bar  [xlabel="narrow beats", penwidth=1.8];
+    smux  -> bar  [xlabel="narrow sideband"];
+
+    burst -> ctl  [xlabel="burst length,\nfirst lane"];
+    win   -> ctl  [style=dashed, dir=both, xlabel="fire, last /\nready "];
+    ctl   -> dmux [style=dashed, xlabel="slice pointer"];
+    ctl   -> bar  [xlabel="narrow_valid,\nnarrow_last"];
+
+    { rank=same; burst; win; sbin; leg; }
+    { rank=same; dbuf; sbuf; }
+    { rank=same; dmux; smux; }
+    burst -> win -> sbin -> leg [style=invis];
+}
