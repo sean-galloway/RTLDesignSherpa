@@ -36,7 +36,7 @@ the data plane — the part that actually computes.
 | Block | Name | What | Status |
 |---|---|---|---|
 | Compute array | `cgra` | Reconfigurable 3-D nearest-neighbor array of compute units (owner: "cells"); four cells form a **quad**, four quads form a **tile** — the tile level is what connects to RAPIDS. Configuration is in-band through delta (routing tables via PKT_CONFIG, no extra wires) and routing is QoS-aware. Fabric geometry, PE datapath, and context model TBD — own HAS/MAS when designed | TBD (architecture set 2026-10-13) |
-| Result routing | [`axon`](docs/axon_spec.md) | SERV + delta pair that collects organ results and streams them out over the AXIS fabric (the tile-level twin of HIVE's monitors); attaches at the organ boundary | Spec sketch |
+| Result routing | [`axon`](docs/axon_spec.md) | SERV + delta pair that collects tile results and streams them out over the AXIS fabric (the tile-level twin of HIVE's monitors); attaches at the tile boundary | Spec sketch |
 
 ## Architecture sketch
 
@@ -54,7 +54,7 @@ the data plane — the part that actually computes.
         │             ▼ results      │
         │  ┌──────────────────────┐  │
         │  │        axon          │  │   SERV agents on delta at the
-        │  │  (SERV + delta)      │  │   organ boundary: collect +
+        │  │  (SERV + delta)      │  │   tile boundary: collect +
         │  └──────────┬───────────┘  │   stream out
         └─────────────┼──────────────┘
                       ▼ PKT_DATA / results
