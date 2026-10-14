@@ -123,14 +123,18 @@ foreach {inst cnt} $sorted {
 close $fh
 
 # ---- Copy bitstream into bitstream/ for easy access (committed location) ----
-set bit_src "$project_root/build/vivado_project/ddr2_char.runs/impl_1/ddr2_char_top.bit"
+# The impl run names the .bit after the top module (granite_char_top), not the
+# project (ddr2_char); glob rather than hardcode so a top rename cannot leave
+# a stale .bit sitting here while the copy silently fails (seen 2026-10-14:
+# the flow warned and the previous 75 MHz .bit masqueraded as the new build).
+set bit_list [lsort [glob -nocomplain "$project_root/build/vivado_project/ddr2_char.runs/impl_1/*.bit"]]
 set bit_dst "$project_root/bitstream/ddr2_char.bit"
 file mkdir "$project_root/bitstream"
-if {[file exists $bit_src]} {
-    file copy -force $bit_src $bit_dst
-    puts "\nBitstream: $bit_dst"
+if {[llength $bit_list] > 0} {
+    file copy -force [lindex $bit_list 0] $bit_dst
+    puts "\nBitstream: $bit_dst  (from [file tail [lindex $bit_list 0]])"
 } else {
-    puts stderr "WARNING: bitstream not found at $bit_src"
+    puts stderr "WARNING: no bitstream found in impl_1 -- $bit_dst NOT updated"
 }
 
 puts "========================================================================"
