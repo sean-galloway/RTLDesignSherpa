@@ -279,6 +279,11 @@ Start a new diagram from them, not from a blank file:
 - **A family of near-identical diagrams is best generated from one
   parameterized script** (`gen_base.py` / `gen_var.py` per family), so
   layout stays identical across master/slave and rd/wr.
+- **Opposite lanes between the same pair** (commands down, status up):
+  route both through scaffold points held in one same-rank row by an
+  invisible order chain. Otherwise dot swaps the lanes.
+- **Run PDF builds one at a time.** Parallel `md_to_docx` / LibreOffice
+  builds collide: one fails, or its TOC update is skipped.
 - **Shorten node labels before fighting the aspect ratio.** Long third lines
   widened every column and pushed the drawing past 2.5:1.
 
@@ -618,6 +623,97 @@ and ACE pages were derived from them so the families look alike.
 **Clock domains stacked vertically** (`*_slave_cdc`): the dashed regions
 collided with the crossing labels, so name each block's domain in its label
 instead and point at the cdc FIFO's own diagram.
+
+### Component books: HAS / MAS / GAS (2026-10-13)
+
+Every `projects/components/*` HAS/MAS/GAS book was converted:
+- RLB (10 books)
+- mem-ctrl (common, pumice, scoria, andesite)
+- cache-ip (amber, jet, onyx)
+- hive, dfx
+- ECC (BCH, Reed-Solomon)
+- converters
+- kestrel
+- fabric-gen-ip (bridge, delta, lattice)
+- dma-ip (RAPIDS, RAPIDS beats, STREAM)
+
+The same pass rewrote many book passages that described blocks the RTL does
+not have. A figure drawn from the RTL is a check on the prose around it.
+
+**Whole units and systems**
+- **Memory-to-memory DMA (STREAM):** the data loop takes the center. Read
+  data climbs from the bar through the read engine into the SRAM, then
+  drops through the write engine back to the bar. Descriptor fetch is the
+  left lane; observers are on the right.
+- **Network DMA with two independent halves (RAPIDS):** sink write data
+  runs down the left and source read data comes back up the right.
+  Descriptors and control run down the center to a shared-arbiter
+  trapezium.
+- **A peripheral's input-only pin group** (interrupt requests, timer
+  gates, event pins) is a white port at the top, with its own column.
+  Outputs and bidirectional pads stay at the bar.
+- **System and context figures:** white masters and slaves around one blue
+  unit, `dir=both` edges labeled by protocol. Several alternative
+  placements get one dashed region each, sharing a bar when they share a
+  medium (ECC: "the channel that corrupts").
+- **A subsystem top with N peer windows** (rlb_top) staggers them over two
+  rows, so every crossbar drop and pin lane runs straight.
+- **A codec:** encoder and decoder each get one column into a shared
+  output bar; the shared arithmetic (GF) layer is an edge-free legend. A
+  pipelined decoder keeps its received data in a FIFO lane down one edge
+  while the descriptor walks the solver stages in the center.
+- **Generator (GAS) books:** stages fan out to one box per sub-generator,
+  then into an "Emitted files" bar. A fan-out is NOT a trapezium (the old
+  "emitter funnel" was wrong). Optional stages are dashed, with their
+  flag in the label.
+- **Planned blocks with no RTL:** say "(planned)" in the title and carry
+  the open decision IDs (J1, D5, ...) in the labels.
+- **Inheritance across a family** (scoria/andesite from pumice): INHERITED
+  / MODIFIED / NEW goes on the last label line, never in color.
+- **FUBs under `rtl/fub` that nothing instantiates** go in one dashed white
+  legend box, not on a flow.
+- **A topology map** (a mesh) is undirected, with `splines=line`.
+
+**Picks**
+- **A chain of identical picks** (the MonBus 4:1, 9:1, 3:1, 2:1 tree):
+  shallow trapezia that widen down the page, so each narrow edge feeds the
+  next wide edge. When the tree isn't the subject, it collapses to one
+  dashed sideband box.
+- **When contenders span more than about 60% of the width,**
+  `invtrapezium` lands the outer arrows on the slanted sides. Use
+  `shape=polygon, sides=4, distortion=0.10` (negative for an upward-path
+  pick) so the wide edge stays flat.
+- **A requester's grant returns on the same edge** as `dir=both`
+  ("WR (commit slot back)"), never as a parallel edge.
+- **An interrupt controller's acknowledge-by-read** is its own small box,
+  feeding ISR/IRR. The vector climbs back to the register block.
+- **A bus decoder** (one-to-many route) is a plain box.
+
+**Pins, clocks, crossings**
+- **Two engines sharing open-drain pads** (SMBus master and target): one
+  "pad wiring + wired-AND merge" box at the bar, with one `dir=both` edge
+  per engine.
+- **A build-time clock select** (`CDC_ENABLE`) is a plain box the heavy
+  clock columns run through. The bar names which clock each output is on.
+- **One right-angle crossing is allowed** when the topology forces it
+  (configuration to the event side, events to the register side). Put the
+  label on each lane's straight leg.
+- **Stacked clock domains:** write "on <clk>" in the block label instead of
+  dashed clusters, which collide with the crossing labels.
+
+**Conversions**
+- **A Mermaid containment-hierarchy flowchart becomes an ASCII tree.** An
+  ASCII state chart becomes a Mermaid `stateDiagram`, not graphviz.
+- **A numbered-step data-flow chart that duplicates a block figure**
+  becomes numbered prose pointing at that figure.
+- **A figure shared between books** (HAS and MAS, beat and byte variants)
+  is copied into each book's `assets/graphviz/`, with a "derived from /
+  kept in step" header line, because each build searches only its own
+  book's assets. Variants come from one generator script by label
+  substitution, so the layouts stay identical.
+- **Captions must be `### Figure N.M:` headings** (or the book's existing
+  encoded form). An italic `*Figure 1:*` line never reaches the List of
+  Figures.
 
 ### Decision trees
 
