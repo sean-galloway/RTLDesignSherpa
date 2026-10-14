@@ -1,0 +1,33 @@
+// Where a RAPIDS Beats channel error comes from: every source feeds the
+// channel's scheduler, which latches a sticky error and parks in CH_ERROR.
+// Verified against descriptor_engine_beats.sv, scheduler_beats.sv and the
+// read / write / control engines' error outputs.
+digraph rapids_beats_error_sources {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.90", splines=ortho,
+           label="Error sources for one channel - all converge on the channel's scheduler",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.10,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    de [label="Descriptor\nEngine\nfetch RRESP error,\naddress outside the\nDESCENG_ADDR0/1\nwindows, valid bit\nclear, address 0"];
+    rd [label="AXI Read\nEngine\n(source half)\nRRESP error"];
+    wr [label="AXI Write\nEngine\n(sink half)\nBRESP error"];
+    cr [label="Control Read\nEngine\nmax retries\nreached or\nRRESP error"];
+    cw [label="Control Write\nEngine\nBRESP error"];
+    to [label="Write-Progress\nWatchdog\n(in the scheduler)\nSCHED_TIMEOUT_\nLIMIT stalled\nwindows in a row"];
+
+    sc [label="Scheduler - scheduler_beats\nlatches a sticky error and enters CH_ERROR\n(a soft timeout below the limit is reported, not fatal)", width=9.0, fillcolor="#BFD7EE"];
+    out [label="Reported as: SCHED_ERROR bit n (APB-readable)  |  one MonBus error packet\nchannel stays out of SCHEDULER_IDLE  |  cleared by CHANNEL_RESET bit n", fillcolor="white", width=9.0];
+
+    de -> sc [label="descriptor_error"];
+    rd -> sc [label="sched_rd_error"];
+    wr -> sc [label="sched_wr_error"];
+    cr -> sc [label="ctrlrd_error"];
+    cw -> sc [label="ctrlwr_error"];
+    to -> sc [label="escalated\ntimeout"];
+    sc -> out [label="sched_error (sticky)", penwidth=1.8];
+    { rank=same; de; rd; wr; cr; cw; to; }
+    de -> rd -> wr -> cr -> cw -> to [style=invis];
+}

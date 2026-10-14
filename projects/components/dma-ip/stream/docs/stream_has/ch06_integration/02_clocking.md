@@ -32,17 +32,22 @@
 | **Frequency** | 100 - 400 MHz (target dependent) |
 | **Duty Cycle** | 40% - 60% |
 | **Jitter** | <100 ps peak-to-peak |
-| **Domain** | Single clock domain for all interfaces |
+| **Domain** | All logic except the APB slave side (see below) |
 
 ### Clock Relationship
 
-All STREAM interfaces are synchronous to `aclk`:
+Everything is synchronous to `aclk` except the APB slave interface. With
+`CDC_ENABLE = 1` (the `stream_top_ch8` default) `s_apb_*` runs on `pclk` /
+`presetn` and `apb4_slave_cdc` crosses into `aclk`; with `CDC_ENABLE = 0`
+`apb4_slave` is used and the APB interface runs on `aclk`:
 
-![Clock Distribution](../assets/mermaid/06_clock_distribution.png)
+### Figure 6.2.1: Clock Domains
 
-**Source:** [06_clock_distribution.mmd](../assets/mermaid/06_clock_distribution.mmd)
+![Clock Domains](../assets/graphviz/ch06_clock_distribution.png)
 
-**[INTEG-1]** External interfaces must be synchronous to `aclk`. Clock domain crossing is the system integrator's responsibility.
+**Source:** [ch06_clock_distribution.dot](../assets/graphviz/ch06_clock_distribution.dot)
+
+**[INTEG-1]** The AXI, AXI-Lite and interrupt interfaces must be synchronous to `aclk`. The APB interface may use its own `pclk` when `CDC_ENABLE = 1`; any other clock domain crossing is the system integrator's responsibility.
 
 ---
 

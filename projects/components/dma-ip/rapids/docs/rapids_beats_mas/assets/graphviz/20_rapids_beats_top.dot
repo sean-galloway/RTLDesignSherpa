@@ -1,0 +1,73 @@
+// Same figure as rapids_beats_has/assets/graphviz/ch02_top_integration.dot (kept in step by hand).
+// rapids_beats_top integration: what the top adds around rapids_core_beats.
+// Center: APB register path (request flow) into the core.
+// Left: sink AXIS ingress drops into the core; right: source egress climbs out.
+// Bottom bar: the memory-side masters and the monitor outputs.
+// Verified against rtl/top_beats/rapids_beats_top.sv.
+digraph rapids_beats_top_integration {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho,
+           label="rapids_beats_top - registers, configuration and monitor egress around rapids_core_beats\n(single clock: aclk, aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    s_axis [label="Network In - s_axis_*\n(AXIS slave)", fillcolor="white", group=L];
+    s_apb  [label="Host Configuration - s_apb_*\n(APB4 slave)", fillcolor="white", group=C];
+    m_axis [label="Network Out - m_axis_*\n(AXIS master)", fillcolor="white", group=R];
+
+    apb    [label="APB Slave + Register Adapter\napb4_slave -> peakrdl_to_cmdrsp", group=C];
+    regs   [label="Register Block - rapids_regs (PeakRDL)\nSRC block 0x0000, SNK block 0x1000;\neach: kick 0x000-0x040, engine config 0x100+,\nMON regfile", group=C];
+    meters [label="Data-Master Bus Meters (sideband)\naxi_bus_meter x 2: observe m_axi_rd R and\nm_axi_wr W, nothing driven back;\nperf counts read back through rapids_regs", style="filled,dashed"];
+    cfg    [label="Configuration Mapping\nrapids_config_block x 2 (u_cfg_src, u_cfg_snk)\nhwif_out -> cfg_* per half", group=C];
+    core   [label="RAPIDS Beats Core - rapids_core_beats\nsource half + sink half (see the whole-unit figure)", width=6.5, height=0.8, group=C];
+    mon    [label="Monitor Egress (USE_AXI_MONITORS=1 only)\nmonbus_axil4_axil4_group:\nerror FIFO + capture writer + irq", style="filled,dashed"];
+
+    bar [label="Module Boundary\ns_axil_err, m_axil_mon, mon_irq  |  m_axi_wr (AW, W / B)  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)",
+         fillcolor="white", width=13.0, fontsize=11, group=C];
+
+    // ---- register path, down the center ----
+    s_apb -> apb  [label="APB transfer"];
+    apb   -> regs [label="register req / rsp"];
+    regs  -> cfg  [label="hwif_out (SRC, SNK)"];
+    cfg   -> core [label="cfg_*, kick\n(descriptor address)", penwidth=1.8];
+
+    // ---- network data ----
+    s_axis -> core [xlabel="packet beats (tid = channel)"];
+    p_m [shape=point, width=0.01, group=R];
+    m_axis -> p_m [dir=back, xlabel="packet beats\n(tid = channel)", headclip=false];
+    p_m -> core [dir=none, tailclip=false];
+
+    // ---- core status back up to the registers ----
+    regs -> core [dir=back, style=dashed, constraint=false, xlabel="status:\nidle, state,\nerrors"];
+
+    // ---- monitor egress ----
+    core -> mon [style=dashed, xlabel="merged MonBus\n(core_mon_*)"];
+
+    // ---- boundary crossings (one scaffold per crossing) ----
+    p_wr  [shape=point, width=0.01, group=L];
+    p_ctl [shape=point, width=0.01, group=C];
+    p_ar  [shape=point, width=0.01];
+    p_r   [shape=point, width=0.01, group=R];
+    s1 [style=invis, label="", fixedsize=true, width=1.0, height=0.02];
+    s2 [style=invis, label="", fixedsize=true, width=0.6, height=0.02];
+    { rank=same; p_wr; p_ctl; s1; p_ar; s2; p_r; }
+    p_wr -> p_ctl -> s1 -> p_ar -> s2 -> p_r [style=invis];
+
+    core -> p_wr  [arrowhead=none, headclip=false];
+    p_wr -> bar   [xlabel="Write to memory\n(AW + W, B back)", tailclip=false];
+    core -> p_ctl [arrowhead=none, headclip=false, dir=both, arrowtail=normal];
+    p_ctl -> bar  [xlabel="descriptor fetch, control rd / wr\n(AR, AW, W out; R, B back)", tailclip=false];
+    core -> p_ar  [arrowhead=none, headclip=false];
+    p_ar -> bar   [xlabel="Read request (AR)", tailclip=false];
+    core -> p_r   [dir=back, headclip=false];
+    p_r  -> bar   [dir=none, xlabel="Read from\nmemory (R)", tailclip=false];
+    mon  -> bar   [style=dashed, xlabel="error drain, capture\nwrites, mon_irq"];
+
+    { rank=same; s_axis; s_apb; m_axis; }
+    s_axis -> s_apb -> m_axis [style=invis];
+    { rank=same; regs; p_m; meters; }
+    regs -> p_m -> meters [style=invis];
+    { rank=same; p_wr; mon; }
+}

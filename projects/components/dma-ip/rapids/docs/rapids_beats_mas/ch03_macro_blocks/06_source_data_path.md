@@ -45,35 +45,9 @@ The Source Data Path integrates the AXI read engine and SRAM controller for memo
 
 ### Figure 3.6.1: Source Data Path Block Diagram
 
-```
-                        source_data_path
-    +-------------------------------------------------------+
-    |                                                       |
-    |    AXI Read Master (from System Memory)               |
-    |         |                                             |
-    |         v                                             |
-    |  +---------------------------------------------+      |
-    |  |            axi_read_engine                  |      |
-    |  |  - AR channel management                    |      |
-    |  |  - R channel streaming                      |      |
-    |  |  - Burst generation                         |      |
-    |  +------------------+------------------------+        |
-    |                     |                                 |
-    |                     v                                 |
-    |  +---------------------------------------------+      |
-    |  |         src_sram_controller                 |      |
-    |  |  +-------+  +-------+       +-------+       |      |
-    |  |  | unit  |  | unit  |  ...  | unit  |       |      |
-    |  |  |  [0]  |  |  [1]  |       |  [7]  |       |      |
-    |  |  +-------+  +-------+       +-------+       |      |
-    |  +------------------+------------------------+        |
-    |                     |                                 |
-    |                     v                                 |
-    +---------------------|--------------------------------+
-                          |
-                   Drain Interface
-                 (to Network Master)
-```
+![Source data path block diagram](../assets/graphviz/16_source_data_path.png)
+
+**Source:** [16_source_data_path.dot](../assets/graphviz/16_source_data_path.dot)
 
 ---
 

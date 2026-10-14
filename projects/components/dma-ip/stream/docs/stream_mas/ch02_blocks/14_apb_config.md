@@ -52,9 +52,9 @@ The `stream_config_block` module maps PeakRDL-generated register outputs to STRE
 
 ### Figure 1: Stream Config Block Diagram
 
-![Stream Config Block Diagram](../assets/mermaid/14_stream_config_block.png)
+![Stream Config Block Diagram](../assets/graphviz/14_stream_config_block.png)
 
-**Source:** [14_stream_config_block.mmd](../assets/mermaid/14_stream_config_block.mmd)
+**Source:** [14_stream_config_block.dot](../assets/graphviz/14_stream_config_block.dot)
 
 ### Configuration Groups
 

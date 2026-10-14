@@ -1,0 +1,23 @@
+// Multi-channel chaining: each channel walks its own chain; chains never
+// cross because each channel has its own descriptor engine and scheduler.
+digraph rapids_beats_multichannel_chains {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.70", ranksep="0.35", splines=ortho,
+           label="Independent chains - one per channel, each walked by that channel's own descriptor engine",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    e0 [label="Channel 0\ndescriptor engine", fillcolor="#D6E4F0", group=A];
+    e1 [label="Channel 1\ndescriptor engine", fillcolor="#D6E4F0", group=B];
+    e2 [label="Channel 2\ndescriptor engine", fillcolor="#D6E4F0", group=D];
+    a0 [label="DESC 0.0", group=A]; a1 [label="DESC 0.1", group=A]; a2 [label="DESC 0.2 (last)", group=A];
+    c0 [label="DESC 1.0", group=B]; c1 [label="DESC 1.1 (last)", group=B];
+    f0 [label="DESC 2.0", group=D]; f1 [label="DESC 2.1", group=D]; f2 [label="DESC 2.2", group=D]; f3 [label="DESC 2.3 (last)", group=D];
+
+    e0 -> a0 [label="fetch at\nkick address"]; a0 -> a1 [label="next"]; a1 -> a2 [label="next"];
+    e1 -> c0 [label="fetch at\nkick address"]; c0 -> c1 [label="next"];
+    e2 -> f0 [label="fetch at\nkick address"]; f0 -> f1 [label="next"]; f1 -> f2 [label="next"]; f2 -> f3 [label="next"];
+    { rank=same; e0; e1; e2; }
+}

@@ -58,9 +58,9 @@ RAPIDS has source + sink data paths requiring TWO monitor buses. STREAM has memo
 
 ### Figure 2.16.1: MonBus AXI-Lite Group Block Diagram
 
-![MonBus AXI-Lite Group Block Diagram](../assets/mermaid/16_monbus_axil_group_block.png)
+![MonBus AXI-Lite Group Block Diagram](../assets/graphviz/16_monbus_axil4_axil4_group.png)
 
-**Source:** [16_monbus_axil_group_block.mmd](../assets/mermaid/16_monbus_axil_group_block.mmd)
+**Source:** [16_monbus_axil4_axil4_group.dot](../assets/graphviz/16_monbus_axil4_axil4_group.dot)
 
 ### Filter Decision Tree
 

@@ -1,0 +1,30 @@
+// Shared-master arbitration in scheduler_group_array (rtl/macro/scheduler_group_array.sv):
+// arbiter_round_robin in acknowledge mode; the granted channel's request is
+// muxed to the shared master and the response returns by ID.
+digraph shared_master_arbitration {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho,
+           label="Shared-master arbitration (desc AR, ctrlrd AR, ctrlwr AW) - round-robin in acknowledge mode",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    g0 [label="Group 0"]; g1 [label="Groups 1 .. NC-2"]; gn [label="Group NC-1"];
+    arb [label="Round-Robin Arbiter - arbiter_round_robin (WAIT_GNT_ACK = 1)\ngrant held until grant_ack = grant and valid and ready", shape=invtrapezium, width=7.0, height=0.8, fillcolor="#BFD7EE"];
+    mux [label="Request Mux (combinational)\nthe granted channel's AR / AW drives the shared master;\nits ready is the downstream ready gated by the grant"];
+    rsp [label="Response Router\nR / B back to the channel named by the ID", group=R];
+    bar [label="Shared AXI Master\nAR or AW out (ID = channel)   |   R or B in", fillcolor="white", width=7.0];
+
+    g0 -> arb [label="valid (ch 0)"];
+    g1 -> arb [label="valid (ch 1 .. NC-2)"];
+    gn -> arb [label="valid (ch NC-1)"];
+    arb -> mux [label="grant (channel id)", penwidth=1.8];
+    mux -> bar [label="AR / AW", penwidth=1.8];
+    rsp -> bar [dir=back, xlabel="R / B"];
+    gn -> rsp [dir=back, constraint=false, xlabel="R / B to the\nowning group"];
+    { rank=same; g0; g1; gn; }
+    g0 -> g1 -> gn [style=invis];
+    { rank=same; mux; rsp; }
+    mux -> rsp [style=invis];
+}

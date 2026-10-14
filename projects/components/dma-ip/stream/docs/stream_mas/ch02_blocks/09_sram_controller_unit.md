@@ -54,9 +54,9 @@ The `sram_controller_unit` module is a single-channel SRAM controller unit conta
 
 ### Figure 1: SRAM Controller Unit Block Diagram
 
-![SRAM Controller Unit Block Diagram](../assets/mermaid/06_sram_controller_unit_block.png)
+![SRAM Controller Unit Block Diagram](../assets/graphviz/06_sram_controller_unit.png)
 
-**Source:** [06_sram_controller_unit_block.mmd](../assets/mermaid/06_sram_controller_unit_block.mmd)
+**Source:** [06_sram_controller_unit.dot](../assets/graphviz/06_sram_controller_unit.dot)
 
 ### Component Hierarchy
 

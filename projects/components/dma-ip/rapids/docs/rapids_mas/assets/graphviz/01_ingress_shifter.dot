@@ -1,27 +1,39 @@
-// snk_data_path_axis: the ingress shifter datapath.
+// snk_data_path_axis (rtl/macro/snk_data_path_axis.sv): the ingress shifter.
+// A packed stream beat is shifted by the destination offset into a 2 x DW
+// window; the low half is this memory beat, the high half is held as spill.
 digraph ingress_shifter {
-    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.6,
-           label="snk_data_path_axis ingress: packed stream beat -> beat-aligned memory beat with byte enables", labelloc=t, labeljust=l];
-    node  [shape=box, style="rounded,filled", fillcolor="#f4f4f4", fontname="Helvetica", fontsize=10];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.50", splines=ortho,
+           label="snk_data_path_axis ingress shifter - packed stream beats to beat-aligned memory beats with byte enables\n(single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    axis  [label="s_axis\ntdata, tstrb, tid, tlast", fillcolor="#fff3e0"];
-    head  [label="record queue head [tid]\noffset, bytes", fillcolor="#fff9c4"];
-    wide  [label="wide shift (2 x DW)\n{tdata << offset*8} | hold[tid]\n{tstrb << offset} | hold_strb[tid]"];
-    hold  [label="hold[tid], hold_strb[tid]\nthe spill: lanes 0..offset-1\nof the NEXT memory beat", fillcolor="#e3f2fd"];
-    outr  [label="output register\nid, data, strb"];
-    flush [label="flush\nafter tlast with a non-empty spill:\nthe spill becomes one more beat\n(tready low for that cycle)", fillcolor="#e3f2fd"];
-    count [label="packet byte count\n+= popcount(tstrb)\nat tlast: != record bytes\n-> sticky sched_wr_error", fillcolor="#ffebee"];
-    fill  [label="fill logic (as in beats)\nallocation, settle window,\nfill_valid / fill_ready", fillcolor="#f4f4f4"];
-    sram  [label="snk_sram_controller\nentry = {strb, data}\nDW + DW/8 wide"];
+    axis  [label="Network In - s_axis_*\ntdata, tstrb, tid (channel), tlast", fillcolor="white", group=C];
+    rec   [label="Packet Records (from the scheduler)\nsched_wr_pkt_*: {bytes, dst offset} per channel", fillcolor="white", group=R];
+    pq    [label="Record Queue (flops, 4 per channel)\nhead[tid]: offset, bytes", group=R];
+    cnt   [label="Byte Counter (flops, per channel)\n+= popcount(tstrb); at tlast compare\nwith the record -> sticky sched_wr_error", group=L];
+    wide  [label="Wide Shift (combinational, 2 x DW)\n{tdata << offset*8} | hold[tid]\n{tstrb << offset} | hold_strb[tid]", width=4.2, group=C];
+    hold  [label="Spill Hold (flops, per channel)\nhold, hold_strb: lanes 0 .. offset-1\nof the next memory beat", group=R];
+    outr  [label="Output Register (flops)\nchannel id, data, strb;\nafter tlast a non-empty spill is\nflushed as one more beat", group=C];
+    fill  [label="Fill Logic (as in RAPIDS Beats)\nallocation, settle window, fill_valid / fill_ready", group=C];
+    bar   [label="Sink SRAM - snk_sram_controller (entry = {strb, data}, DW + DW/8 wide)", fillcolor="white", width=8.0, group=C];
 
-    axis -> wide;
-    head -> wide [label="offset"];
-    hold -> wide;
-    wide -> outr [label="low DW bits\n(this memory beat)"];
-    wide -> hold [label="high DW bits\n(the spill)"];
-    hold -> flush -> outr;
-    axis -> count;
-    outr -> fill -> sram;
-    fill -> axis [label="s_axis_tready =\noutput free && !flush && record known", style=dashed];
+    rec  -> pq   [label="record push"];
+    axis -> wide [xlabel="stream beat", penwidth=1.8];
+    pq   -> wide [xlabel="offset"];
+    axis -> cnt  [xlabel="tstrb, tlast"];
+    pq   -> cnt  [style=dashed, constraint=false, label="record bytes"];
+    wide -> hold [dir=both, xlabel="high DW bits out;\nheld spill back in"];
+    wide -> outr [label="low DW bits: this memory beat", penwidth=1.8];
+    hold -> outr [xlabel="flush\n(after tlast)"];
+    outr -> fill [label="placed beat + strobes", penwidth=1.8];
+    fill -> bar  [label="fill beats {strb, data}", penwidth=1.8];
+    fill -> axis [style=dashed, constraint=false, xlabel="tready = output free, no flush\npending, record known"];
+
+    { rank=same; axis; rec; }
+    axis -> rec [style=invis];
+    { rank=same; cnt; pq; }
+    { rank=same; outr; hold; }
 }

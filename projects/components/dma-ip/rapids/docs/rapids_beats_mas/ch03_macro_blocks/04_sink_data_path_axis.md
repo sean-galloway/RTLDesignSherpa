@@ -45,35 +45,9 @@ The Sink Data Path AXIS wrapper adds an AXI-Stream slave interface to the sink d
 
 ### Figure 3.4.1: Sink Data Path AXIS Block Diagram
 
-```
-                        sink_data_path_axis
-    +-------------------------------------------------------+
-    |                                                       |
-    |    AXI-Stream Slave Interface                         |
-    |    +-------------------------------------------+      |
-    |    | s_axis_tvalid   s_axis_tready             |      |
-    |    | s_axis_tdata    s_axis_tlast              |      |
-    |    | s_axis_tid      s_axis_tkeep              |      |
-    |    +--------------------+----------------------+      |
-    |                         |                             |
-    |                         v                             |
-    |    +-------------------------------------------+      |
-    |    |          AXIS to Fill Converter           |      |
-    |    |  - TID -> fill_id                         |      |
-    |    |  - TLAST -> fill_last                     |      |
-    |    |  - TVALID/TREADY -> fill handshaking     |      |
-    |    +--------------------+----------------------+      |
-    |                         |                             |
-    |                         v                             |
-    |    +-------------------------------------------+      |
-    |    |            sink_data_path                 |      |
-    |    |  (snk_sram_controller + axi_write_engine) |      |
-    |    +--------------------+----------------------+      |
-    |                         |                             |
-    +-------------------------|-----------------------------+
-                              v
-                      AXI Write Master
-```
+![Sink data path AXIS block diagram](../assets/graphviz/14_sink_data_path_axis.png)
+
+**Source:** [14_sink_data_path_axis.dot](../assets/graphviz/14_sink_data_path_axis.dot)
 
 ---
 
@@ -174,17 +148,9 @@ parameter int TUSER_WIDTH = 1;
 
 ### Figure 3.4.2: AXIS to Fill Interface Mapping
 
-```
-    AXIS Slave                    Fill Interface
-    +----------------+            +----------------+
-    | s_axis_tvalid  |----------->| snk_fill_valid |
-    | s_axis_tready  |<-----------| snk_fill_ready |
-    | s_axis_tdata   |----------->| snk_fill_data  |
-    | s_axis_tlast   |----------->| snk_fill_last  |
-    | s_axis_tid     |----------->| snk_fill_id    |
-    | s_axis_tkeep   |----------->| snk_fill_strb  |
-    +----------------+            +----------------+
-```
+![AXIS to fill mapping](../assets/graphviz/14b_axis_to_fill.png)
+
+**Source:** [14b_axis_to_fill.dot](../assets/graphviz/14b_axis_to_fill.dot)
 
 ---
 

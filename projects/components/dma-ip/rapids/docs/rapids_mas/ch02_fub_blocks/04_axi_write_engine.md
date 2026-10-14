@@ -50,21 +50,9 @@ Byte-granular RAPIDS changes the engine in three places. Write strobes now come 
 
 ### Figure 2.4.1: AXI Write Engine Block Diagram
 
-```
-                     +-----------------------------------+
- sched_wr_valid  --->|                                   |---> m_axi_awid / awaddr (aligned)
- sched_wr_addr   --->|  per-channel request, round robin |---> m_axi_awlen / awsize / awburst
- sched_wr_beats  --->|  arbiter, 4 KB burst cap          |---> m_axi_awvalid <-- awready
- cfg_..xfer_beats -->|                                   |
-                     |                                   |---> m_axi_wdata
- sched_wr_done   <---|                                   |---> m_axi_wstrb  (from SRAM strobe)
- sched_wr_commit <---|                                   |---> m_axi_wlast / wuser / wvalid
- sched_wr_error  <---|                                   |<--- m_axi_wready
-                     |                                   |
- axi_wr_drain_*  <-->|  reserve and drain                |<--- m_axi_bid / bresp / bvalid
- axi_wr_sram_*   <-->|                                   |---> m_axi_bready
-                     +-----------------------------------+
-```
+![AXI write engine block diagram](../assets/graphviz/06_axi_write_engine.png)
+
+**Source:** [06_axi_write_engine.dot](../assets/graphviz/06_axi_write_engine.dot)
 
 ---
 

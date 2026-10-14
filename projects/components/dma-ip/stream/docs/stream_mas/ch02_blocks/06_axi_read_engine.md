@@ -49,6 +49,14 @@ The `axi_read_engine` module is a high-performance multi-channel AXI4 read engin
 
 ## Architecture
 
+### Block Diagram
+
+### Figure 2.6.1: AXI Read Engine Block Diagram
+
+![AXI Read Engine Block Diagram](../assets/graphviz/08_axi_read_engine.png)
+
+**Source:** [08_axi_read_engine.dot](../assets/graphviz/08_axi_read_engine.dot)
+
 ### Operation Flow
 
 ```

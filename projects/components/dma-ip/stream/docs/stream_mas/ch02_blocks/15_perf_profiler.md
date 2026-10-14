@@ -54,9 +54,9 @@ The `perf_profiler` module captures timing information for channel activity to e
 
 ### Figure 2.15.1: Performance Profiler Block Diagram
 
-![Performance Profiler Block Diagram](../assets/mermaid/15_perf_profiler_block.png)
+![Performance Profiler Block Diagram](../assets/graphviz/15_perf_profiler.png)
 
-**Source:** [15_perf_profiler_block.mmd](../assets/mermaid/15_perf_profiler_block.mmd)
+**Source:** [15_perf_profiler.dot](../assets/graphviz/15_perf_profiler.dot)
 
 ### Profiling Modes
 

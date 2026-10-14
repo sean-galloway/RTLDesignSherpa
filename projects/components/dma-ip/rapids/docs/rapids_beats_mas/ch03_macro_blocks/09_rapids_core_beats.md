@@ -45,39 +45,9 @@ The RAPIDS Core Beats module is the top-level integration of the "beats" archite
 
 ### Figure 3.9.1: RAPIDS Core Beats Block Diagram
 
-```
-                         rapids_core_beats
-    +---------------------------------------------------------------------+
-    |                                                                     |
-    |  +---------------------------------------------------------------+  |
-    |  |            beats_scheduler_group_array                        |  |
-    |  |  [8 channels x (scheduler + descriptor_engine)]               |  |
-    |  +----------------------------+----------------------------------+  |
-    |                               |                                     |
-    |            +------------------+------------------+                   |
-    |            |                                    |                   |
-    |            v                                    v                   |
-    |  +-----------------------+        +-----------------------+        |
-    |  |   sink_data_path      |        |  source_data_path     |        |
-    |  | (or sink_data_path_   |        | (or source_data_path_ |        |
-    |  |      axis)            |        |      axis)            |        |
-    |  |                       |        |                       |        |
-    |  | - snk_sram_controller |        | - src_sram_controller |        |
-    |  | - axi_write_engine    |        | - axi_read_engine     |        |
-    |  +-----------+-----------+        +-----------+-----------+        |
-    |              |                                |                     |
-    |              v                                v                     |
-    |       AXI Write Master               AXI Read Master               |
-    |                                                                     |
-    |  MonBus Aggregation:                                               |
-    |  +---------------------------------------------------------------+  |
-    |  |  Scheduler Array MonBus + Sink Path MonBus + Source Path      |  |
-    |  +----------------------------+----------------------------------+  |
-    |                               |                                     |
-    +-------------------------------|-------------------------------------+
-                                    v
-                          Unified MonBus Output
-```
+![RAPIDS core beats block diagram](../assets/graphviz/19_rapids_core.png)
+
+**Source:** [19_rapids_core.dot](../assets/graphviz/19_rapids_core.dot)
 
 ---
 
@@ -309,39 +279,9 @@ Status is reported per half. There is no `all_channels_idle`, `sink_idle`,
 
 ### Figure 3.9.2: RAPIDS Core Complete Data Flow
 
-```
-                    SOFTWARE
-                        |
-                        v
-            +------------------------+
-            |     APB Kick-Off       |
-            | (per-channel address)  |
-            +------------------------+
-                        |
-                        v
-            +------------------------+
-            |  Scheduler Group Array |
-            |  - Descriptor fetch    |
-            |  - Channel scheduling  |
-            +------------------------+
-                 /            \
-                v              v
-    +----------------+    +----------------+
-    | Sink Path      |    | Source Path    |
-    | (Network->Mem) |    | (Mem->Network) |
-    +----------------+    +----------------+
-          |                      |
-          v                      v
-    +----------------+    +----------------+
-    | AXI Write      |    | AXI Read       |
-    | Master         |    | Master         |
-    +----------------+    +----------------+
-          |                      |
-          v                      v
-    +----------------------------------------+
-    |           SYSTEM MEMORY                |
-    +----------------------------------------+
-```
+![RAPIDS core data flow](../assets/graphviz/22_core_data_flow.png)
+
+**Source:** [22_core_data_flow.dot](../assets/graphviz/22_core_data_flow.dot)
 
 ---
 

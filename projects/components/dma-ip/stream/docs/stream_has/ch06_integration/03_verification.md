@@ -117,9 +117,11 @@ STREAM verification follows a hierarchical approach:
 
 ### CocoTB-Based Verification
 
-![Testbench Architecture](../assets/mermaid/07_testbench_stack.png)
+### Figure 6.3.1: Testbench Architecture
 
-**Source:** [07_testbench_stack.mmd](../assets/mermaid/07_testbench_stack.mmd)
+![Testbench Architecture](../assets/graphviz/ch06_testbench_stack.png)
+
+**Source:** [ch06_testbench_stack.dot](../assets/graphviz/ch06_testbench_stack.dot)
 
 ### Key Testbench Components
 

@@ -1,0 +1,27 @@
+// One STREAM descriptor chain, step by step (scheduler CH_* states in parentheses).
+// Decision-tree vocabulary: white question boxes, blue action boxes.
+digraph stream_data_flow {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.40", splines=ortho,
+           label="Transfer sequence for one channel", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    sw    [label="Software: stage CHn descriptor address, write the kick", fillcolor="white", style="rounded,filled", width=5.5];
+    fetch [label="1. Descriptor engine fetches the 256-bit descriptor (m_axi_desc)", width=5.5];
+    parse [label="2. Scheduler latches it (CH_FETCH_DESC); valid bit checked", width=5.5];
+    xfer  [label="3. Read and write run concurrently (CH_XFER_DATA)\nread engine: source -> SRAM;  write engine: SRAM -> destination", width=5.5];
+    done  [label="4. All beats written and acknowledged (CH_COMPLETE)", width=5.5];
+    q     [label="next_descriptor_ptr != 0\nand last = 0?", fillcolor="white"];
+    next  [label="Fetch the next descriptor\n(CH_NEXT_DESC)"];
+    idle  [label="Channel idle (CH_IDLE);\ncompletion / IRQ event on MonBus", fillcolor="white", style="rounded,filled"];
+    sw -> fetch [label="kick"];
+    fetch -> parse [label="descriptor"];
+    parse -> xfer [label="valid"];
+    xfer -> done [label="beats committed"];
+    done -> q [label="check chain"];
+    q -> idle [label="no"];
+    q -> next [xlabel="yes"];
+    next -> fetch [label="next address", constraint=false];
+    { rank=same; q; next; }
+}

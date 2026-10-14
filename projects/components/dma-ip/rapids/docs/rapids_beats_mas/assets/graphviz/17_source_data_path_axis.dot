@@ -1,0 +1,38 @@
+// src_data_path_axis_beats (rtl/macro_beats/src_data_path_axis_beats.sv):
+// src_data_path_beats -> round-robin drain reservation -> AXIS master.
+digraph src_data_path_axis_beats {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.55", splines=ortho,
+           label="src_data_path_axis_beats - AXIS egress over the source data path (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    sched [label="Scheduler Interface (8 channels)\nsched_rd_* in; done strobes, errors out", fillcolor="white", group=C];
+    axis  [label="Network Out - m_axis_*\ntdata, tid = tdest = channel, tstrb all ones,\ntlast on the last beat of each drain block", fillcolor="white", group=R];
+    stream [label="Data Stage (flops)\nr_d_ch, r_d_remaining: streams the reserved\nbeats; tlast when one beat remains", group=R];
+    rq    [label="Reservation Queue (flops, RQ_DEPTH = 4)\n{channel, size} in grant order", group=R];
+    pick  [label="Channel Pick - round-robin (one decision per cycle)\neligible: data_avail >= cfg_drain_size (0 -> 1);\nsize = min(cfg_drain_size, data_avail)", shape=polygon, sides=4, distortion=-0.15, width=5.0, fillcolor="#BFD7EE", group=R];
+    dp    [label="Source Data Path\nsrc_data_path_beats (see its figure)", width=4.0, group=C];
+    bar   [label="Module Boundary - m_axi_rd\nAR out   |   R in", fillcolor="white", width=9.5];
+
+    sched -> dp    [dir=both, xlabel="read commands in;\ndone strobes, errors back"];
+    dp    -> bar   [dir=both, label="AR out, R back", penwidth=1.8];
+    pick  -> dp    [dir=back, xlabel="data_avail[8] up;\ndrain_req + size down"];
+    rq    -> pick  [dir=back, label="grant: channel, size"];
+    stream -> rq   [dir=back, label="next reservation"];
+    axis  -> stream [dir=back, label="AXIS beats (valid / ready)", penwidth=1.8];
+    stream -> dp   [dir=back, style=dashed, constraint=false, xlabel="drain beats\n(by channel id)"];
+
+    { rank=same; sched; axis; }
+    sched -> axis [style=invis];
+    { rank=same; c1; stream; }
+    { rank=same; c2; rq; }
+    { rank=same; c3; pick; }
+    c1 [shape=point, style=invis, width=0.01, group=C];
+    c2 [shape=point, style=invis, width=0.01, group=C];
+    c3 [shape=point, style=invis, width=0.01, group=C];
+    sched -> c1 -> c2 -> c3 -> dp [style=invis, weight=10];
+    c3 -> pick [style=invis];
+}

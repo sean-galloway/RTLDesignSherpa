@@ -46,24 +46,9 @@ The Descriptor Engine fetches and manages 256-bit descriptors from memory via AX
 
 ### Figure 2.2.1: Descriptor Engine Block Diagram
 
-```
-                        +---------------------------+
-    apb_valid        -->|                           |
-    apb_ready        <--|                           |--> m_axi_araddr
-    apb_addr         -->|                           |--> m_axi_arvalid
-                        |                           |<-- m_axi_arready
-    cfg_enable       -->|   DESCRIPTOR ENGINE       |
-    cfg_prefetch     -->|                           |<-- m_axi_rdata
-    cfg_fifo_thresh  -->|                           |<-- m_axi_rvalid
-    cfg_addr0_base   -->|                           |--> m_axi_rready
-    cfg_addr0_limit  -->|                           |<-- m_axi_rresp
-                        |                           |
-    descriptor_valid <--|                           |
-    descriptor_ready -->|                           |--> monbus_pkt_valid
-    descriptor_packet<--|                           |--> monbus_pkt_data
-    descriptor_error <--|                           |
-                        +---------------------------+
-```
+![Descriptor engine block diagram](../assets/graphviz/02_descriptor_engine.png)
+
+**Source:** [02_descriptor_engine.dot](../assets/graphviz/02_descriptor_engine.dot)
 
 ---
 
@@ -167,43 +152,23 @@ parameter logic [3:0] MON_UNIT_ID = 4'h1;        // Unit identifier
 
 ### Figure 2.2.2: Descriptor Engine FSM
 
-```
-                    +-------+
-        rst_n=0 --> | IDLE  |<-----------------+
-                    +---+---+                  |
-                        |                      |
-                  apb_valid                    |
-                        |                      |
-                        v                      |
-                +---------------+              |
-                | CHECK_RANGE   |              |
-                +-------+-------+              |
-                        |                      |
-               range OK | range error          |
-                        |         |            |
-                        v         v            |
-                +-------+   +-------+          |
-                | FETCH |   | ERROR |----------+
-                +---+---+   +-------+          |
-                    |                          |
-            axi_rvalid                         |
-                    |                          |
-                    v                          |
-                +-------+                      |
-                | PUSH  |                      |
-                +---+---+                      |
-                    |                          |
-            last descriptor?                   |
-                    |                          |
-         no         |         yes              |
-    +---------------+---------------+          |
-    |                               |          |
-    v                               v          |
-+-------+                       +-------+      |
-|PREFETCH|                      | DONE  |------+
-+---+---+                       +-------+
-    |
-    +---> back to FETCH
+States and transitions of the `descriptor_engine_beats` fetch FSM.
+
+```mermaid
+stateDiagram-v2
+    [*] --> RD_IDLE: reset
+    RD_IDLE --> RD_ISSUE_ADDR: address popped from the address FIFO
+    RD_ISSUE_ADDR --> RD_ERROR: address outside both DESCENG windows
+    RD_ISSUE_ADDR --> RD_WAIT_DATA: AR accepted
+    RD_WAIT_DATA --> RD_ERROR: RRESP not OKAY
+    RD_WAIT_DATA --> RD_ISSUE_ADDR2: TYPE = EXT
+    RD_WAIT_DATA --> RD_COMPLETE: LEGACY descriptor
+    RD_ISSUE_ADDR2 --> RD_WAIT_DATA2: AR at +0x20 accepted
+    RD_WAIT_DATA2 --> RD_COMPLETE: RRESP OKAY
+    RD_WAIT_DATA2 --> RD_ERROR: RRESP not OKAY
+    RD_COMPLETE --> RD_IDLE: descriptor FIFO took it
+    RD_ERROR --> RD_IDLE: descriptor_error raised
+    note right of RD_IDLE: channel reset returns every state to RD_IDLE
 ```
 
 ---

@@ -49,25 +49,9 @@ The write target address must be 4-byte aligned because the transfer is a 32-bit
 
 ### Figure 2.9.1: Control-Write Engine Block Diagram
 
-```
-                        +---------------------------+
-    ctrlwr_valid     -->|                           |--> aw_valid
-    ctrlwr_ready     <--|                           |<-- aw_ready
-    ctrlwr_pkt_addr  -->|                           |--> aw_addr
-    ctrlwr_pkt_data  -->|                           |--> aw_len/aw_size
-                        |   CONTROL-WRITE ENGINE    |
-    cfg_channel_reset-->|                           |--> w_valid
-                        |                           |<-- w_ready
-    ctrlwr_error     <--|                           |--> w_data/w_strb/w_last
-    ctrlwr_engine_idle<-|                           |
-                        |                           |<-- b_valid
-                        |                           |--> b_ready
-                        |                           |<-- b_id/b_resp
-                        |                           |
-                        |                           |--> mon_valid
-                        |                           |--> mon_packet
-                        +---------------------------+
-```
+![Control-write engine block diagram](../assets/graphviz/09_ctrlwr_engine.png)
+
+**Source:** [09_ctrlwr_engine.dot](../assets/graphviz/09_ctrlwr_engine.dot)
 
 ---
 
@@ -173,39 +157,21 @@ it from the Control-Read Engine's `16'h0020`.
 
 ### Figure 2.9.2: Control-Write Engine FSM
 
-```
-                    +-------------+
-        rst_n=0 --> | WRITE_IDLE  |<--------------------+
-                    +------+------+                     |
-                           |                            |
-                  request accepted                      |
-                           |                            |
-                           v                            |
-                  +-----------------+                   |
-                  | WRITE_ISSUE_ADDR|                   |
-                  +--------+--------+                   |
-                           |                            |
-            align error    | aw handshake  null addr    |
-              |            |            |               |
-              v            v            +-------------->-+
-        +-----------+  +-----------------+               |
-        |WRITE_ERROR|  | WRITE_ISSUE_DATA|               |
-        +-----+-----+  +--------+--------+               |
-              |                 |                        |
-              |          both phases issued              |
-              |                 |                        |
-              |                 v                        |
-              |         +---------------+                |
-              |         | WRITE_WAIT_RESP|               |
-              |         +-------+--------+               |
-              |                 |                        |
-              |         b_resp OK? ------ error -------->-+ (WRITE_ERROR)
-              |                 |                        |
-              |                 v                        |
-              |         +---------------+                |
-              |         | WRITE_COMPLETE|----------------+
-              |         +---------------+                |
-              +--------------------------------------->--+
+States and transitions of the `ctrlwr_engine` doorbell FSM.
+
+```mermaid
+stateDiagram-v2
+    [*] --> WRITE_IDLE: reset
+    WRITE_IDLE --> WRITE_ISSUE_ADDR: request accepted
+    WRITE_ISSUE_ADDR --> WRITE_ERROR: address not 4-byte aligned
+    WRITE_ISSUE_ADDR --> WRITE_IDLE: null address (skipped)
+    WRITE_ISSUE_ADDR --> WRITE_ISSUE_DATA: AW accepted
+    WRITE_ISSUE_DATA --> WRITE_WAIT_RESP: AW and W both issued
+    WRITE_WAIT_RESP --> WRITE_ERROR: BRESP not OKAY
+    WRITE_WAIT_RESP --> WRITE_COMPLETE: BRESP OKAY
+    WRITE_COMPLETE --> WRITE_IDLE
+    WRITE_ERROR --> WRITE_IDLE
+    note right of WRITE_IDLE: cfg_channel_reset returns every state to WRITE_IDLE
 ```
 
 State summary:

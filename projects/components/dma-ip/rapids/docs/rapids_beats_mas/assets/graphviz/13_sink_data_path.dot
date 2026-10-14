@@ -1,0 +1,25 @@
+// snk_data_path_beats (rtl/macro_beats/snk_data_path_beats.sv): the sink SRAM
+// controller feeding the AXI write engine.
+digraph snk_data_path_beats {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.60", splines=ortho,
+           label="snk_data_path_beats - fill interface to AXI write (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    fill  [label="Fill Interface (from the AXIS ingress)\nfill_alloc_req / size / id, fill_valid / id / data;\nfill_space_free[8] back", fillcolor="white", group=L];
+    sched [label="Scheduler Interface (8 channels)\nsched_wr_valid / addr / beats in;\nissue + commit strobes, errors out", fillcolor="white", group=C];
+    sram  [label="Sink SRAM Buffer\nsnk_sram_controller_beats\n(see its figure)", height=0.9, group=L];
+    eng   [label="AXI Write Engine\naxi_write_engine_beats\n(see its figure)", group=C];
+    bar   [label="Module Boundary - m_axi_wr\nAW + W out (to the interconnect)   |   B in", fillcolor="white", width=7.5];
+
+    fill  -> sram [dir=both, label="alloc + fill beats in;\nspace_free back", penwidth=1.8];
+    sram  -> eng  [label="drain beats (valid / ready);\ndata_avail, drain_req", penwidth=1.8];
+    sched -> eng  [dir=both, label="write commands in;\nstrobes, errors back"];
+    eng   -> bar  [dir=both, label="AW + W out, B back", penwidth=1.8];
+
+    { rank=same; fill; sched; }
+    fill -> sched [style=invis];
+}

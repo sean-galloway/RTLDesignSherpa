@@ -1,0 +1,33 @@
+// Software recovery from a channel error, in decision-tree form: white
+// question boxes, blue action boxes, every arrow labeled.
+digraph rapids_beats_error_recovery {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.45", splines=ortho,
+           label="Recovering a channel after an error", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    irq  [label="mon_irq asserted", fillcolor="white", style="rounded,filled"];
+    rd   [label="Read the error FIFO over s_axil_err;\nread SCHED_ERROR (and CH_STATE) to find channel n"];
+    q    [label="Which source does\nthe packet name?", fillcolor="white"];
+    axi  [label="Check the address map\nand the target slave"];
+    desc [label="Fix the descriptor, or the\nDESCENG_ADDR0/1 windows"];
+    tmo  [label="Check the external side:\nAXIS peer or memory backpressure"];
+    rst  [label="Write CHANNEL_RESET bit n (self-clearing):\nclears the sticky error, channel back to idle", group=C];
+    kick [label="Re-stage CHn_DESC_ADDR, write KICK_ENABLE bit n", group=C];
+    done [label="Channel running again", fillcolor="white", style="rounded,filled"];
+
+    irq -> rd [label="interrupt"];
+    rd -> q [label="agent, channel, event"];
+    q -> axi  [label="AXI response\n(read / write engine)"];
+    q -> desc [label="descriptor engine"];
+    q -> tmo  [label="write-progress\ntimeout"];
+    axi -> rst  [label="fixed"];
+    desc -> rst [label="fixed"];
+    tmo -> rst  [label="fixed"];
+    rst -> kick [label="channel idle"];
+    kick -> done [label="kick"];
+    { rank=same; axi; desc; tmo; }
+    axi -> desc -> tmo [style=invis];
+}

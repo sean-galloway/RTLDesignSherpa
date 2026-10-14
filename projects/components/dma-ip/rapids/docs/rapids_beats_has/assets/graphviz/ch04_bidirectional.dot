@@ -1,0 +1,34 @@
+// Bidirectional use of one network connection: a sink channel receives,
+// a source channel transmits. The receive data goes down the left to memory;
+// the transmit data comes back up the right from memory.
+digraph rapids_beats_bidirectional {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.55", splines=ortho,
+           label="One network connection, two channels: receive on a sink channel, transmit on a source channel",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    nic_rx [label="Network Interface - receive\n(drives s_axis_*, tid = 0)", fillcolor="white"];
+    nic_tx [label="Network Interface - transmit\n(takes m_axis_*, tid = 1)", fillcolor="white"];
+    snk [label="Sink Channel 0 (RX)\nrapids_snk_beats: ingress -> FIFO 0\n-> AXI write engine"];
+    src [label="Source Channel 1 (TX)\nrapids_src_beats: AXI read engine\n-> FIFO 1 -> egress"];
+    mem [label="System Memory\nRX buffer (written by sink channel 0)   |   TX buffer (read by source channel 1)", fillcolor="white", width=8.0];
+
+    nic_rx -> snk [label="AXIS packets in"];
+    snk -> mem [label="AXI write (AW + W)"];
+    nic_tx -> src [dir=back, label="AXIS packets out"];
+    p_ar [shape=point, width=0.01];
+    p_r  [shape=point, width=0.01];
+    { rank=same; p_ar; p_r; }
+    p_ar -> p_r [style=invis];
+    src -> p_ar [arrowhead=none, headclip=false];
+    p_ar -> mem [xlabel="AXI read\nrequest (AR)", tailclip=false];
+    src -> p_r  [dir=back, headclip=false];
+    p_r -> mem  [dir=none, xlabel="read data (R)", tailclip=false];
+
+    { rank=same; nic_rx; nic_tx; }
+    { rank=same; snk; src; }
+    snk -> src [style=invis];
+}

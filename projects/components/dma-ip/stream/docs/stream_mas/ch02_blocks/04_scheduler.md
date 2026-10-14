@@ -51,9 +51,9 @@ The Scheduler coordinates descriptor-based memory-to-memory DMA transfers for a 
 
 ### Figure 2.4.1: Scheduler Block Diagram
 
-![Diagram](../assets/mermaid/02_scheduler_block.png)
+![Diagram](../assets/graphviz/02_scheduler.png)
 
-**Source:** [02_scheduler_block.mmd](../assets/mermaid/02_scheduler_block.mmd)
+**Source:** [02_scheduler.dot](../assets/graphviz/02_scheduler.dot)
 
 ---
 
@@ -466,8 +466,6 @@ CH_ERROR       - Error condition
 ### Figure 2.4.2: Scheduler FSM
 
 ![Diagram](../assets/mermaid/02_scheduler_fsm.png)
-
-**Source:** [02_scheduler_block.mmd](../assets/mermaid/02_scheduler_block.mmd)
 
 ### State Transitions
 

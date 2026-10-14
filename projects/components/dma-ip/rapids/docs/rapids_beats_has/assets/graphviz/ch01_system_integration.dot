@@ -1,0 +1,48 @@
+// RAPIDS Beats system integration: every top-level port and where it goes.
+// Verified against the port list of rtl/top_beats/rapids_beats_top.sv.
+digraph rapids_beats_system_integration {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho,
+           label="RAPIDS Beats system integration - rapids_beats_top ports",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    nic_in  [label="Network Interface\n(receive side)", fillcolor="white", group=L];
+    cpu     [label="Host CPU\n(also a master on the interconnect)", fillcolor="white", group=C];
+    nic_out [label="Network Interface\n(transmit side)", fillcolor="white", group=R];
+
+    rapids [label="RAPIDS Beats - rapids_beats_top\nsink half (AXIS -> memory)  |  registers + monitor egress  |  source half (memory -> AXIS)\nsingle clock domain (aclk, aresetn)",
+            width=9.0, height=0.9, group=C];
+
+    xbar [label="AXI Interconnect\n(the RAPIDS masters may share one physical port)", width=10.8, group=C];
+    ddr  [label="DDR Memory - data buffers, descriptor chains, monitor log", fillcolor="white", width=10.8, group=C];
+
+    nic_in  -> rapids [xlabel="s_axis_* (packets in)"];
+    cpu     -> rapids [dir=both, label="s_apb_* config + kick, s_axil_err reads;\nmon_irq back", penwidth=1.8];
+    nic_out -> rapids [dir=back, xlabel="m_axis_* (packets out)"];
+
+    p_wr  [shape=point, width=0.01, group=L];
+    p_ctl [shape=point, width=0.01];
+    p_mon [shape=point, width=0.01];
+    p_rd  [shape=point, width=0.01, group=R];
+    s1 [style=invis, label="", fixedsize=true, width=0.8, height=0.02];
+    s2 [style=invis, label="", fixedsize=true, width=0.3, height=0.02];
+    s3 [style=invis, label="", fixedsize=true, width=1.6, height=0.02];
+    { rank=same; p_wr; s1; p_ctl; s3; p_mon; s2; p_rd; }
+    p_wr -> s1 -> p_ctl -> s3 -> p_mon -> s2 -> p_rd [style=invis];
+
+    rapids -> p_wr  [arrowhead=none, headclip=false];
+    p_wr   -> xbar  [xlabel="m_axi_wr: sink\ndata writes", tailclip=false];
+    rapids -> p_ctl [arrowhead=none, headclip=false];
+    p_ctl  -> xbar  [xlabel="src_/snk_ m_axi_desc,\nm_axi_ctrlrd, m_axi_ctrlwr", tailclip=false];
+    rapids -> p_mon [arrowhead=none, headclip=false, style=dashed];
+    p_mon  -> xbar  [style=dashed, xlabel="m_axil_mon: monitor\nlog writes", tailclip=false];
+    rapids -> p_rd  [dir=both, arrowhead=none, headclip=false];
+    p_rd   -> xbar  [xlabel="m_axi_rd: source\ndata reads (AR / R)", tailclip=false];
+    xbar   -> ddr   [dir=both, label="AXI reads and writes"];
+
+    { rank=same; nic_in; cpu; nic_out; }
+    nic_in -> cpu -> nic_out [style=invis];
+}

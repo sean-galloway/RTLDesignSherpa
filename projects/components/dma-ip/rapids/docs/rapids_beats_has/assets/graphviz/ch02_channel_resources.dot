@@ -1,0 +1,62 @@
+// One RAPIDS Beats channel slice (sink half drawn): what is per channel and
+// what is shared. Each half has 8 such channels; shared blocks are one per half.
+// Verified against scheduler_group_beats.sv, scheduler_group_array_beats.sv,
+// snk_data_path_beats.sv and the STREAM sram_controller it wraps.
+digraph rapids_beats_channel_resources {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho,
+           label="One sink-half channel: per-channel and shared resources (8 channels per half)\nthe source half mirrors it: the read engine fills the channel FIFO and the AXIS egress drains it",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    data_in [label="Network In - s_axis_*\nbeats with tid = n", fillcolor="white", group=L];
+    kick    [label="Kick - CHn_DESC_ADDR + KICK_ENABLE\n(from rapids_regs)", fillcolor="white", group=C];
+
+    desc  [label="Descriptor Engine (per channel)\ndescriptor_engine_beats", group=C];
+    fifo  [label="Channel SRAM FIFO (per channel)\nsram_controller_unit in\nsnk_sram_controller_beats", group=L];
+    sched [label="Scheduler (per channel)\nscheduler_beats", group=M];
+    eng   [label="AXI Write Engine (shared)\naxi_write_engine_beats\nround-robin over 8 channels", group=L];
+    mon   [label="MonBus Arbiter (shared)\nmonbus_arbiter: 8 groups\n+ descriptor AXI monitor", style="filled,dashed", group=M];
+    darb  [label="Descriptor AR Arbiter (shared)\narbiter_round_robin, 8 -> 1", shape=invtrapezium, width=3.4, fillcolor="#BFD7EE", group=C];
+
+    mem [label="System Memory\nm_axi_wr (channel data)   |   snk_m_axi_desc (descriptors)", fillcolor="white", width=13.0, group=S];
+
+    data_in -> fifo  [label="channel n beats"];
+    kick    -> desc  [label="descriptor address"];
+    desc    -> darb  [label="desc fetch AR\n(1 of 8 contenders)"];
+    desc    -> sched [xlabel="parsed descriptor"];
+    sched   -> eng   [xlabel="write cmd:\naddr, beats"];
+    fifo    -> eng   [label="buffered beats"];
+    sched   -> mon   [style=dashed, label="events"];
+
+    p_e  [shape=point, width=0.01, group=L];
+    p_d  [shape=point, width=0.01, group=C];
+    p_r  [shape=point, width=0.01, group=R];
+    s1 [style=invis, label="", fixedsize=true, width=1.5, height=0.02];
+    { rank=same; p_e; p_d; s1; p_r; }
+    p_e -> p_d -> s1 -> p_r [style=invis];
+    eng  -> p_e [arrowhead=none, headclip=false];
+    p_e  -> mem [xlabel="AW + W burst", tailclip=false];
+    darb -> p_d [arrowhead=none, headclip=false, penwidth=1.8];
+    p_d  -> mem [xlabel="AR (descriptor)", penwidth=1.8, tailclip=false];
+    p_rt [shape=point, width=0.01, group=R];
+    desc -> p_rt [dir=back, xlabel="descriptor (R)", headclip=false];
+    p_rt -> p_r [dir=none];
+    p_r  -> mem [dir=none, tailclip=false];
+
+    // invisible center spine: centers the bar under the whole drawing
+    node [shape=point, style=invis, width=0.01, group=S];
+    c0; c1; c2; c3;
+    c0 -> c1 -> c2 -> c3 [style=invis, weight=10];
+    c3 -> mem [style=invis, weight=10];
+    { rank=same; data_in; c0; kick; }
+    data_in -> c0 -> kick [style=invis];
+    { rank=same; c1; desc; p_rt; }
+    c1 -> desc -> p_rt [style=invis];
+    { rank=same; fifo; sched; c2; }
+    fifo -> sched -> c2 [style=invis];
+    { rank=same; eng; mon; c3; darb; }
+    eng -> mon -> c3 -> darb [style=invis];
+}

@@ -27,9 +27,11 @@
 
 A complete STREAM transfer follows this sequence:
 
-![Transfer Sequence Flowchart](../assets/mermaid/03_data_flow.png)
+### Figure 3.2.1: Transfer Sequence
 
-**Source:** [03_data_flow.mmd](../assets/mermaid/03_data_flow.mmd)
+![Transfer Sequence](../assets/graphviz/ch03_data_flow.png)
+
+**Source:** [ch03_data_flow.dot](../assets/graphviz/ch03_data_flow.dot)
 
 ---
 
@@ -67,7 +69,7 @@ Descriptor fields extracted and validated:
 Channel requests access to shared data path:
 
 - Multiple channels may be active simultaneously
-- Arbiter grants based on priority and fairness
+- The read and write engines grant channels round-robin (no priority)
 - Granted channel proceeds to read phase
 
 ### Phase 5: Read Phase

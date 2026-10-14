@@ -1,0 +1,31 @@
+// sram_controller_unit - one channel's buffer: the read engine fills it, the write engine drains it
+// One channel's sram_controller_unit (STREAM rtl/fub/sram_controller_unit.sv),
+// as wrapped by the RAPIDS beats SRAM controllers. Generated from a shared template.
+digraph sram_controller_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.90", ranksep="0.60", splines=ortho,
+           label="sram_controller_unit - one channel's buffer: the read engine fills it, the write engine drains it", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    wr    [label="Fill Side - AXI read engine (axi_read_engine)\nalloc_req + size, R beats (valid / ready)", fillcolor="white", group=C];
+    alloc [label="Space Reservation\nstream_alloc_ctrl\n(space_free = depth - reserved)", group=L];
+    fifo  [label="Channel Storage - gaxi_fifo_sync\n(SRAM_DEPTH beats, registered read)", width=3.6, height=0.8, group=C];
+    drain [label="Data Accounting\nstream_drain_ctrl\n(data_avail = written - claimed)", group=R];
+    lb    [label="Read Latency Bridge\nstream_latency_bridge\n(hides the registered-read cycle)", group=C];
+    rd    [label="Drain Side - AXI write engine (axi_write_engine)\ndrain_req + size, W beats (valid / ready)", fillcolor="white", width=6.5, group=C];
+
+    wr    -> fifo  [label="R data beats (valid / ready)", penwidth=1.8];
+    alloc -> wr    [dir=both, style=dashed, xlabel="alloc_req + size in,\nspace_free out"];
+    fifo  -> lb    [label="stored beats"];
+    fifo  -> drain [style=dashed, xlabel="beat written\n(+1 available)"];
+    alloc -> lb    [dir=back, style=dashed, xlabel="beat read out\n(+1 free)"];
+    lb    -> rd    [label="drain beats (valid / ready)", penwidth=1.8];
+    drain -> rd    [dir=both, style=dashed, xlabel="drain_req + size in,\ndata_avail out"];
+
+    { rank=same; alloc; fifo; }
+    alloc -> fifo [style=invis];
+    { rank=same; lb; drain; }
+    lb -> drain [style=invis];
+}

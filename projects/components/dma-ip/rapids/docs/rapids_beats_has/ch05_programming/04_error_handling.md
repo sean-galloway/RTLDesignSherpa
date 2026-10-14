@@ -29,46 +29,11 @@ RAPIDS Beats implements comprehensive error detection and reporting. This sectio
 
 ## Error Categories
 
-```mermaid
-graph TB
-    subgraph Errors["RAPIDS Error Categories"]
-        AXI["AXI Protocol<br/>Errors"]
-        DESC["Descriptor<br/>Errors"]
-        TIMEOUT["Timeout<br/>Errors"]
-        CONFIG["Configuration<br/>Errors"]
-    end
+### Figure 5.4.1: Error Sources
 
-    subgraph AXI_Detail["AXI Errors"]
-        AXI_DECERR["DECERR<br/>(Decode Error)"]
-        AXI_SLVERR["SLVERR<br/>(Slave Error)"]
-    end
+![Error Sources](../assets/graphviz/ch05_error_sources.png)
 
-    subgraph DESC_Detail["Descriptor Errors"]
-        DESC_ADDR["Address Range<br/>Error"]
-        DESC_ALIGN["Alignment<br/>Error"]
-        DESC_LEN["Invalid Length<br/>Error"]
-    end
-
-    subgraph TIMEOUT_Detail["Timeout Errors"]
-        TO_DESC["Descriptor Fetch<br/>Timeout"]
-        TO_XFER["Transfer<br/>Timeout"]
-        TO_AXIS["AXIS<br/>Timeout"]
-    end
-
-    AXI --> AXI_DECERR
-    AXI --> AXI_SLVERR
-    DESC --> DESC_ADDR
-    DESC --> DESC_ALIGN
-    DESC --> DESC_LEN
-    TIMEOUT --> TO_DESC
-    TIMEOUT --> TO_XFER
-    TIMEOUT --> TO_AXIS
-
-    style AXI fill:#ffcdd2
-    style DESC fill:#fff9c4
-    style TIMEOUT fill:#c8e6c9
-    style CONFIG fill:#bbdefb
-```
+**Source:** [ch05_error_sources.dot](../assets/graphviz/ch05_error_sources.dot)
 
 ## Error Detection
 
@@ -226,51 +191,27 @@ Errors generate MonBus packets for system-wide visibility:
 
 ### Interrupt Generation
 
-Error interrupts are generated when enabled:
+There is no separate interrupt status register. A channel error sets that
+channel's sticky `SCHED_ERROR` bit and emits one MonBus error packet; the
+monitor group routes packet types selected by its `err_select` configuration
+into its error FIFO, and `mon_irq` is asserted while that FIFO is not empty.
+Software reads the records out over `s_axil_err`:
 
-```mermaid
-graph LR
-    ERR["Error<br/>Detected"]
-    LATCH["Error Status<br/>Latched"]
-    IRQ_CHECK{"IRQ<br/>Enabled?"}
-    IRQ_SET["Set IRQ<br/>Status Bit"]
-    IRQ_OUT["Assert<br/>IRQ Output"]
-    NO_IRQ["No IRQ"]
+### Figure 5.4.2: Error Reporting
 
-    ERR --> LATCH
-    LATCH --> IRQ_CHECK
-    IRQ_CHECK -->|Yes| IRQ_SET
-    IRQ_CHECK -->|No| NO_IRQ
-    IRQ_SET --> IRQ_OUT
-```
+![Error Reporting](../assets/graphviz/ch05_error_reporting.png)
+
+**Source:** [ch05_error_reporting.dot](../assets/graphviz/ch05_error_reporting.dot)
 
 ## Error Recovery
 
 ### Recovery Flow
 
-```mermaid
-flowchart TD
-    IRQ([Error Interrupt]) --> READ_IRQ["Read IRQ_STATUS"]
-    READ_IRQ --> IDENTIFY["Identify Channel"]
-    IDENTIFY --> READ_ERR["Read ERR_STATUS"]
-    READ_ERR --> ANALYZE{"Analyze<br/>Error Type"}
+### Figure 5.4.3: Error Recovery
 
-    ANALYZE -->|AXI Error| AXI_REC["Check Memory<br/>Mapping"]
-    ANALYZE -->|Descriptor Error| DESC_REC["Fix Descriptor"]
-    ANALYZE -->|Timeout| TO_REC["Check External<br/>Interface"]
+![Error Recovery](../assets/graphviz/ch05_error_recovery.png)
 
-    AXI_REC --> CLEAR["Clear ERR_STATUS"]
-    DESC_REC --> CLEAR
-    TO_REC --> CLEAR
-
-    CLEAR --> RESET["Reset Channel"]
-    RESET --> REINIT["Reinitialize"]
-    REINIT --> RESTART["Restart Transfer"]
-    RESTART --> DONE([Recovery Complete])
-
-    style IRQ fill:#ffcdd2
-    style DONE fill:#c8e6c9
-```
+**Source:** [ch05_error_recovery.dot](../assets/graphviz/ch05_error_recovery.dot)
 
 ### AXI Error Recovery
 

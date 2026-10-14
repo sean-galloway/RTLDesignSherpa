@@ -50,27 +50,9 @@ The Scheduler coordinates descriptor-based data transfers for a single RAPIDS ch
 
 ### Figure 2.1.1: Scheduler Block Diagram
 
-```
-                        +---------------------------+
-    descriptor_valid -->|                           |--> sched_rd_valid
-    descriptor_ready <--|                           |--> sched_rd_addr
-    descriptor_packet-->|                           |--> sched_rd_beats
-                        |        SCHEDULER          |
-    cfg_channel_enable->|                           |<-- sched_rd_done_strobe
-    cfg_timeout_cycles->|                           |<-- sched_rd_beats_done
-    cfg_timeout_enable->|                           |<-- sched_rd_error
-                        |                           |
-                        |                           |--> sched_wr_valid
-                        |                           |--> sched_wr_addr
-                        |                           |--> sched_wr_beats
-                        |                           |
-                        |                           |<-- sched_wr_done_strobe
-                        |                           |<-- sched_wr_beats_done
-    scheduler_idle   <--|                           |<-- sched_wr_error
-    scheduler_state  <--|                           |
-    sched_error      <--|                           |--> monbus_pkt_valid
-                        +---------------------------+--> monbus_pkt_data
-```
+![Scheduler block diagram](../assets/graphviz/01_scheduler.png)
+
+**Source:** [01_scheduler.dot](../assets/graphviz/01_scheduler.dot)
 
 ---
 
@@ -211,48 +193,33 @@ maintains two independent beat counters for the write side:
 
 ### Figure 2.1.2: Scheduler FSM State Diagram
 
-```
-                    +-------+
-        rst_n=0 --> | IDLE  |<-----------------+
-                    +---+---+                  |
-                        |                      |
-             descriptor_valid                  |
-                        |                      |
-                        v                      |
-                    +-------+                  |
-                    | PARSE |                  |
-                    +---+---+                  |
-                        |                      |
-                  parse complete               |
-                        |                      |
-                        v                      |
-                +---------------+              |
-                | CH_XFER_DATA  |              |
-                | (concurrent   |              |
-                |  rd + wr)     |              |
-                +-------+-------+              |
-                        |                      |
-            rd_beats=0 && wr_beats=0           |
-                        |                      |
-                        v                      |
-                    +-------+                  |
-                    | DONE  |------------------+
-                    +-------+
-```
+States and transitions of `scheduler_beats` (one-hot `channel_state_t` in `rapids_pkg`).
 
-**Source:** [02_scheduler_fsm.mmd](../assets/mermaid/02_scheduler_fsm.mmd)
+```mermaid
+stateDiagram-v2
+    [*] --> CH_IDLE: reset
+    CH_IDLE --> CH_FETCH_DESC: descriptor_valid and cfg_channel_enable
+    CH_FETCH_DESC --> CH_XFER_DATA: descriptor valid bit set
+    CH_FETCH_DESC --> CH_ERROR: valid bit clear
+    CH_XFER_DATA --> CH_COMPLETE: DATA - reads and writes committed, CTRL - engine idle
+    CH_COMPLETE --> CH_NEXT_DESC: next_descriptor_ptr != 0 and last = 0
+    CH_COMPLETE --> CH_IDLE: end of chain
+    CH_NEXT_DESC --> CH_FETCH_DESC: descriptor_valid
+    CH_ERROR --> CH_IDLE: cfg_channel_reset
+    note right of CH_ERROR: entered from any state on a fatal error (descriptor, read, write or control error, or an escalated timeout), cfg_channel_reset returns any state to CH_IDLE
+```
 
 ### State Encoding
 
 | State | Encoding | Description |
 |-------|----------|-------------|
-| IDLE | 7'b0000001 | Waiting for descriptor |
-| PARSE | 7'b0000010 | Parsing descriptor fields |
-| CH_XFER_DATA | 7'b0000100 | Concurrent read/write transfer |
-| DONE | 7'b0001000 | Transfer complete, MonBus report |
-| ERROR | 7'b0010000 | Error handling |
-| TIMEOUT | 7'b0100000 | Timeout occurred |
-| SOFT_RESET | 7'b1000000 | Soft reset handling |
+| CH_IDLE | 7'b0000001 | Waiting for a descriptor |
+| CH_FETCH_DESC | 7'b0000010 | Descriptor latched and decoded |
+| CH_XFER_DATA | 7'b0000100 | Concurrent read/write transfer, or the control operation |
+| CH_COMPLETE | 7'b0001000 | Transfer complete; chain check |
+| CH_NEXT_DESC | 7'b0010000 | Waiting for the next chained descriptor |
+| CH_ERROR | 7'b0100000 | Sticky error; left only by channel reset |
+| CH_RESERVED | 7'b1000000 | Reserved |
 
 : Table 2.1.7: FSM State Encoding
 

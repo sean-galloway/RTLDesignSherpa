@@ -47,45 +47,9 @@ The RAPIDS "Beats" architecture is a Phase 1 implementation providing network-to
 
 ### Figure 1.1.1: RAPIDS Beats Architecture Block Diagram
 
-```
-                              rapids_core_beats
-    +-------------------------------------------------------------------------+
-    |                                                                         |
-    |  +-------------------------------------------------------------------+  |
-    |  |              beats_scheduler_group_array (8 channels)             |  |
-    |  |  +----------------+  +----------------+       +----------------+  |  |
-    |  |  | scheduler_grp  |  | scheduler_grp  |  ...  | scheduler_grp  |  |  |
-    |  |  |    [0]         |  |    [1]         |       |    [7]         |  |  |
-    |  |  +----------------+  +----------------+       +----------------+  |  |
-    |  |         |                   |                        |           |  |
-    |  |         v                   v                        v           |  |
-    |  |  +----------------------------------------------------------+    |  |
-    |  |  |           Shared Descriptor AXI Master                   |    |  |
-    |  |  |              (Round-Robin Arbitration)                   |    |  |
-    |  |  +----------------------------------------------------------+    |  |
-    |  +-------------------------------------------------------------------+  |
-    |         |                                              |                |
-    |         v                                              v                |
-    |  +--------------------+                    +------------------------+   |
-    |  |   SINK DATA PATH   |                    |   SOURCE DATA PATH     |   |
-    |  | (Network -> Memory)|                    | (Memory -> Network)    |   |
-    |  |                    |                    |                        |   |
-    |  |  Fill Interface    |                    |  Drain Interface       |   |
-    |  |       |            |                    |        ^               |   |
-    |  |       v            |                    |        |               |   |
-    |  |  snk_sram_ctrl     |                    |  src_sram_ctrl         |   |
-    |  |       |            |                    |        ^               |   |
-    |  |       v            |                    |        |               |   |
-    |  |  axi_write_engine  |                    |  axi_read_engine       |   |
-    |  |       |            |                    |        ^               |   |
-    |  +-------|------------+                    +--------|---------------+   |
-    |          v                                          |                   |
-    +----------|------------------------------------------|-----------------+
-               |                                          |
-               v                                          |
-        AXI Write Master                           AXI Read Master
-        (to System Memory)                         (from System Memory)
-```
+![rapids_core_beats block diagram](../assets/graphviz/19_rapids_core.png)
+
+**Source:** [19_rapids_core.dot](../assets/graphviz/19_rapids_core.dot)
 
 ---
 

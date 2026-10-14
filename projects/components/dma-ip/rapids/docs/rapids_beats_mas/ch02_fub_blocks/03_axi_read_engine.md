@@ -46,25 +46,9 @@ The AXI Read Engine performs burst reads from system memory and writes data to t
 
 ### Figure 2.3.1: AXI Read Engine Block Diagram
 
-```
-                        +---------------------------+
-    sched_rd_valid   -->|                           |--> m_axi_arid
-    sched_rd_addr    -->|                           |--> m_axi_araddr
-    sched_rd_beats   -->|    AXI READ ENGINE        |--> m_axi_arlen
-    sched_rd_id      -->|                           |--> m_axi_arvalid
-                        |    (Streaming Pipeline)   |<-- m_axi_arready
-    cfg_xfer_beats   -->|                           |
-                        |                           |<-- m_axi_rid
-    sched_rd_done    <--|                           |<-- m_axi_rdata
-    sched_rd_beats_d <--|                           |<-- m_axi_rresp
-    sched_rd_error   <--|                           |<-- m_axi_rlast
-                        |                           |<-- m_axi_rvalid
-    sram_wr_en       <--|                           |--> m_axi_rready
-    sram_wr_addr     <--|                           |
-    sram_wr_data     <--|                           |
-    sram_wr_id       <--|                           |
-                        +---------------------------+
-```
+![AXI read engine block diagram](../assets/graphviz/03_axi_read_engine.png)
+
+**Source:** [03_axi_read_engine.dot](../assets/graphviz/03_axi_read_engine.dot)
 
 ---
 
@@ -169,12 +153,10 @@ the AR for 256 beats allocated 0, and the engine over-fetched past the buffer
 
 The AXI read engine uses a **streaming pipeline** with no FSM:
 
-```
-Scheduler Request --> AR Channel --> R Channel --> SRAM Write
-      |                   |             |              |
-      +--- beat count     +-- addr      +-- data       +-- wr_en
-           tracking           issue         receive        generate
-```
+1. Scheduler request: per-channel beat count, masked by SRAM space.
+2. AR issue: round-robin grant, burst address and length, space allocation.
+3. R receive: data routed to the channel by RID.
+4. SRAM write: one fill beat per R beat.
 
 ### Timing Diagram
 

@@ -54,17 +54,9 @@ The Beats Drain Control is a "virtual FIFO" that tracks data availability withou
 
 ### Figure 2.6.1: Beats Drain Control Block Diagram
 
-```
-                +---------------------------+
-    wr_valid -->|                           |--> wr_ready
-                |    BEATS_DRAIN_CTRL       |--> data_available
-    rd_valid -->|                           |
-    rd_size  -->|     (Virtual FIFO)        |--> wr_full
-                |                           |--> wr_almost_full
-                |  [No data storage]        |--> rd_empty
-                |  [Pointer arithmetic]     |--> rd_almost_empty
-                +---------------------------+
-```
+![Drain control block diagram](../assets/graphviz/06_drain_ctrl.png)
+
+**Source:** [06_drain_ctrl.dot](../assets/graphviz/06_drain_ctrl.dot)
 
 ---
 

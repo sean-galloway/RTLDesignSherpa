@@ -55,37 +55,9 @@ The descriptor engine, the control-read and control-write engines, the SRAM cont
 
 ### Figure 1.1.1: RAPIDS Architecture Block Diagram
 
-```
-                                   rapids_core
-    +-------------------------------------------------------------------------+
-    |                                                                         |
-    |  +-------------------------------------------------------------------+  |
-    |  |              scheduler_group_array (8 channels)                   |  |
-    |  |  +----------------+  +----------------+       +----------------+  |  |
-    |  |  | scheduler_grp  |  | scheduler_grp  |  ...  | scheduler_grp  |  |  |
-    |  |  |  scheduler +   |  |                |       |                |  |  |
-    |  |  |  desc engine   |  |                |       |                |  |  |
-    |  |  +----------------+  +----------------+       +----------------+  |  |
-    |  |     shared descriptor AXI master (round-robin)                    |  |
-    |  +----------------------------+--------------------------------------+  |
-    |     wr beats + wr_pkt records |          rd beats + rd_pkt records      |
-    |         v                     |                       v                 |
-    |  +--------------------+       |        +------------------------+       |
-    |  |   rapids_snk       |                |   rapids_src           |       |
-    |  |  snk_data_path_axis|                | src_data_path_axis     |       |
-    |  |   ingress shifter  |                |   egress shifter       |       |
-    |  |   + record queue   |                |   + record queue       |       |
-    |  |        |           |                |        ^               |       |
-    |  |  snk_data_path     |                | src_data_path          |       |
-    |  |  {strb,data} SRAM  |                | data SRAM              |       |
-    |  |        |           |                |        ^               |       |
-    |  |  axi_write_engine  |                | axi_read_engine        |       |
-    |  +--------|-----------+                +--------|---------------+       |
-    +-----------|-------------------------------------|---------------------+
-                v                                     ^
-         AXI Write Master (WSTRB)              AXI Read Master
-         (to system memory)                    (from system memory)
-```
+![RAPIDS core block diagram](../assets/graphviz/04_rapids_core.png)
+
+**Source:** [04_rapids_core.dot](../assets/graphviz/04_rapids_core.dot)
 
 **Source:** `rapids_core.sv`, `rapids_snk.sv`, `rapids_src.sv`
 

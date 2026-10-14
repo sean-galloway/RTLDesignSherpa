@@ -29,54 +29,20 @@ RAPIDS integrates into a system as a DMA engine bridging network interfaces and 
 
 ## System Block Diagram
 
-```mermaid
-graph LR
-    subgraph Host["Host Domain"]
-        CPU["CPU"]
-        DDR["DDR Memory"]
-    end
+### Figure 1.3.1: System Integration
 
-    subgraph Interconnect["AXI Interconnect"]
-        AXI_IC["AXI Crossbar"]
-    end
+![System Integration](../assets/graphviz/ch01_system_integration.png)
 
-    subgraph RAPIDS["RAPIDS"]
-        DESC_AXI["Descriptor<br/>AXI Master"]
-        SINK_AXI["Sink<br/>AXI Master"]
-        SRC_AXI["Source<br/>AXI Master"]
-        SINK_AXIS["Sink<br/>AXIS Slave"]
-        SRC_AXIS["Source<br/>AXIS Master"]
-        MONBUS["MonBus<br/>Output"]
-    end
-
-    subgraph Network["Network Domain"]
-        NIC["Network<br/>Interface"]
-    end
-
-    subgraph Monitor["Monitor Domain"]
-        MON_AGG["Monitor<br/>Aggregator"]
-    end
-
-    CPU --> AXI_IC
-    DDR <--> AXI_IC
-
-    DESC_AXI --> AXI_IC
-    SINK_AXI --> AXI_IC
-    SRC_AXI --> AXI_IC
-
-    NIC --> SINK_AXIS
-    SRC_AXIS --> NIC
-
-    MONBUS --> MON_AGG
-
-    style RAPIDS fill:#e3f2fd
-```
+**Source:** [ch01_system_integration.dot](../assets/graphviz/ch01_system_integration.dot)
 
 ## Interface Connections
 
 ### Memory Interface
 
-RAPIDS requires three AXI4 master ports connected to system memory:
+RAPIDS reaches system memory through the AXI4 masters below. Each half
+(`src_`, `snk_`) has its own descriptor master and its own two control
+masters (`m_axi_ctrlrd`, `m_axi_ctrlwr`). With monitors built, an AXI-Lite
+master (`m_axil_mon`) also writes the monitor log:
 
 | Port | Access Pattern | Typical Bandwidth |
 |------|----------------|-------------------|
@@ -88,7 +54,7 @@ RAPIDS requires three AXI4 master ports connected to system memory:
 
 **Interconnect Requirements:**
 
-- All three ports MAY share a single physical AXI port with arbitration
+- All of these ports MAY share a single physical AXI port with arbitration
 - The descriptor port has the lowest bandwidth requirement
 - Sink and Source ports should have balanced bandwidth allocation
 - The memory system SHALL honor WSTRB on the sink write master. A slave that ignores byte enables corrupts the bytes outside a partial beat. Every AXI4-conformant slave honors them.

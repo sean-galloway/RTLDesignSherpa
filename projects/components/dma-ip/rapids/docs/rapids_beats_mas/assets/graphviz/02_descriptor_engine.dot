@@ -1,0 +1,42 @@
+// descriptor_engine_beats microarchitecture (rtl/fub_beats/descriptor_engine_beats.sv).
+// Request: kick address -> skid -> address FIFO -> range check + fetch FSM -> AR (center).
+// Return: R climbs the right lane -> descriptor FIFOs -> scheduler (top right).
+// Chaining: next_descriptor_ptr feeds back into the address FIFO.
+digraph descriptor_engine_beats {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho,
+           label="descriptor_engine_beats - one channel's descriptor fetcher (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    kick  [label="Kick In (from the config block)\napb_valid / apb_ready, apb_addr\n(accepted only while the channel is idle)", fillcolor="white", group=C];
+    out   [label="Descriptor Out (to scheduler_beats)\ndescriptor_valid / ready, packet,\next packet, descriptor_error", fillcolor="white", group=R];
+
+    skid  [label="Kick Skid Buffer\ngaxi_skid_buffer (DEPTH 2)", group=C];
+    afifo [label="Descriptor Address FIFO\ngaxi_fifo_sync (DESC_ADDR_FIFO_DEPTH)", group=C];
+    fsm   [label="Range Check + Fetch FSM\naddress inside DESCENG_ADDR0 or ADDR1 window?\nRD_IDLE -> ISSUE_ADDR -> WAIT_DATA\n(-> ISSUE_ADDR2 -> WAIT_DATA2 for EXT) -> COMPLETE;\nout of range or bad RRESP -> RD_ERROR", group=C];
+    dfifo [label="Descriptor FIFOs - gaxi_fifo_sync (FIFO_DEPTH)\nchunk 0 (256-bit); chunk 1 FIFO only when\nUSE_ROW_COL_MAJOR_ADDRESSING = 1", group=R];
+    chain [label="Chaining\nnext_descriptor_ptr != 0 and\nlast = 0 -> next address", group=R];
+    mon   [label="MonBus Packet Generator\nfetch complete, error events", style="filled,dashed"];
+
+    bar [label="Module Boundary - descriptor AXI master (shared through the array's round-robin arbiter)\nAR out: addr, id = channel   |   R in: data, resp", fillcolor="white", width=12.8];
+
+    kick  -> skid  [label="descriptor 0 address"];
+    skid  -> afifo [label="address"];
+    afifo -> fsm   [label="next address to fetch"];
+    fsm   -> bar   [xlabel="AR (chunk 0, then chunk 1\nat +0x20 for EXT)", penwidth=1.8];
+    dfifo -> bar   [dir=back, xlabel="R: 256-bit\ndescriptor"];
+    out   -> dfifo [dir=back, label="descriptor (valid / ready)"];
+    chain -> dfifo [dir=back, style=dashed, xlabel="completed\ndescriptor"];
+    chain -> afifo [xlabel="chained address"];
+    fsm   -> mon   [style=dashed, xlabel="events"];
+
+    { rank=same; kick; out; }
+    kick -> out [style=invis];
+    { rank=same; skid; chain; }
+    skid -> chain [style=invis];
+    { rank=same; fsm; dfifo; mon; }
+    mon -> fsm -> dfifo [style=invis];
+}

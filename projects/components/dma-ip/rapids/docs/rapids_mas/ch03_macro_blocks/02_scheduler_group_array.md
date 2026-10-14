@@ -49,28 +49,9 @@ Compared with the RAPIDS Beats array, the sharing, arbitration and monitoring ar
 
 ### Figure 3.2.1: Scheduler Group Array Block Diagram
 
-```
-                             scheduler_group_array
-  +---------------------------------------------------------------------------+
-  |  +--------------+  +--------------+          +--------------+              |
-  |  | group [0]    |  | group [1]    |   ...    | group [NC-1] |              |
-  |  +--+--+--+--+--+  +--+--+--+--+--+          +--+--+--+--+--+              |
-  |     |  |  |  |        |  |  |  |                |  |  |  |                 |
-  |     |  |  |  +-- sched_*_pkt_* [ch] (bytes, offset)  |  |  +-- mon         |
-  |     |  |  +----- sched_rd/wr_* [ch]  (beats, addr)   |  |                   |
-  |     |  +-------- ctrlrd / ctrlwr requests            |  |                   |
-  |     +----------- desc AR/R requests                  |  |                   |
-  |     v                                                v                     |
-  |  +---------------------+ +---------------------+ +---------------------+  |
-  |  | desc AR arbiter     | | ctrlrd AR arbiter   | | ctrlwr AW arbiter   |  |
-  |  +----------+----------+ +----------+----------+ +----------+----------+  |
-  |             |  desc monitor + bus meter                                    |
-  |             v                       v                       v              |
-  |        desc_axi_*             ctrlrd_axi_*             ctrlwr_axi_*        |
-  |                                                                            |
-  |  mon [0..NC-1] + desc monitor --> MonBus arbiter (NC + 1) --> mon_*        |
-  +---------------------------------------------------------------------------+
-```
+![Scheduler group array block diagram](../assets/graphviz/08_scheduler_group_array.png)
+
+**Source:** [08_scheduler_group_array.dot](../assets/graphviz/08_scheduler_group_array.dot)
 
 ---
 
@@ -254,13 +235,9 @@ Each shared master has a round-robin arbiter over `NUM_CHANNELS` requesters in a
 
 ### Figure 3.2.2: Shared Master Arbitration
 
-```
-  group[0] --valid--+
-  group[1] --valid--+--> round-robin arbiter (ack mode) --grant--+--> mux --> shared AXI master
-  group[n] --valid--+                                            |
-                        grant_ack = grant && valid && ready <----+
-  R / B  <-- routed back to the granted channel by ID
-```
+![Shared master arbitration](../assets/graphviz/11_shared_master_arbitration.png)
+
+**Source:** [11_shared_master_arbitration.dot](../assets/graphviz/11_shared_master_arbitration.dot)
 
 ---
 

@@ -45,41 +45,9 @@ The Sink Data Path integrates the SRAM controller and AXI write engine for netwo
 
 ### Figure 3.3.1: Sink Data Path Block Diagram
 
-```
-                        sink_data_path
-    +-------------------------------------------------------+
-    |                                                       |
-    |    Fill Interface (External)                          |
-    |         |                                             |
-    |         v                                             |
-    |  +---------------------------------------------+      |
-    |  |         snk_sram_controller                 |      |
-    |  |  +-------+  +-------+       +-------+       |      |
-    |  |  | unit  |  | unit  |  ...  | unit  |       |      |
-    |  |  |  [0]  |  |  [1]  |       |  [7]  |       |      |
-    |  |  +-------+  +-------+       +-------+       |      |
-    |  |      |          |              |            |      |
-    |  |      v          v              v            |      |
-    |  |  +-------------------------------------+    |      |
-    |  |  |        Channel Arbitration          |    |      |
-    |  |  +------------------+------------------+    |      |
-    |  +---------------------|----------------------+       |
-    |                        |                              |
-    |                        v                              |
-    |  +---------------------------------------------+      |
-    |  |            axi_write_engine                 |      |
-    |  |  - Burst generation                         |      |
-    |  |  - W channel streaming                      |      |
-    |  |  - B channel response tracking              |      |
-    |  +---------------------+-----------------------+      |
-    |                        |                              |
-    +------------------------|------------------------------+
-                             v
-                     AXI Write Master
-                   (to System Memory)
-```
+![Sink data path block diagram](../assets/graphviz/13_sink_data_path.png)
 
-**Source:** [03_sink_data_path_block.mmd](../assets/mermaid/03_sink_data_path_block.mmd)
+**Source:** [13_sink_data_path.dot](../assets/graphviz/13_sink_data_path.dot)
 
 ---
 

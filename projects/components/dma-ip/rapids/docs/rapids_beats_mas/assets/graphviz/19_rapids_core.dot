@@ -1,0 +1,96 @@
+// rapids_core_beats (rtl/macro_beats/rapids_core_beats.sv): the two independent
+// halves (rapids_snk_beats, rapids_src_beats) and the 2:1 monbus_arbiter.
+// Derived from the HAS whole-unit figure, at core scope (no registers).
+// Flow geography:
+//   sink write data   - enters s_axis top-left, drops down the LEFT lane to memory
+//   command / control - kick down the CENTER: scheduler groups ->
+//                       descriptor/control arbiter -> memory (heavy)
+//   source read data  - re-enters at the bar and climbs the RIGHT lane to m_axis
+// Scheduler commands reach the two engines one rank down (no same-rank edges).
+// Verified against rtl/top_beats/rapids_beats_top.sv, rtl/macro_beats/*.sv.
+digraph rapids_core_beats {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.75", splines=ortho,
+           label="rapids_core_beats - sink half (rapids_snk_beats) and source half (rapids_src_beats); they share no logic (single clock: clk, rst_n)\nsink: AXIS -> memory down the left; source: memory -> AXIS up the right; descriptors and control down the center",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external ports (white) ----
+    s_axis [label="Network In - s_axis_*\n(AXIS slave, tid = channel)", fillcolor="white", group=L];
+    s_apb  [label="Configuration In (from rapids_config_block x 2)\nsrc_ / snk_ cfg_*, per-channel kick (apb_valid / apb_addr)", fillcolor="white", group=C];
+    m_axis [label="Network Out - m_axis_*\n(AXIS master, tid = channel)", fillcolor="white", group=R];
+
+    // ---- rank 1 ----
+    ingress [label="Sink Ingress\nsnk_data_path_axis_beats\n(tid picks the channel FIFO)", group=L];
+    egress  [label="Source Egress (round-robin channel pick)\nsrc_data_path_axis_beats",
+             shape=trapezium, width=3.4, height=0.6, group=R];
+
+    // ---- rank 2 ----
+    snk_sram [label="Sink SRAM Buffer\nsnk_sram_controller_beats\n(8 per-channel FIFOs)", height=0.9, group=L];
+    sga      [label="Scheduler Group Arrays\nscheduler_group_array_beats x 2 (sink, source)\neach 8 x scheduler_group_beats:\ndescriptor_engine_beats + scheduler_beats\n+ ctrlrd_engine + ctrlwr_engine", group=C];
+    src_sram [label="Source SRAM Buffer\nsrc_sram_controller_beats\n(8 per-channel FIFOs)", height=0.9, group=R];
+
+    // ---- rank 3 ----
+    wr_eng [label="AXI Write Engine\naxi_write_engine_beats\n(round-robin over channels)", group=L];
+    arb    [label="Descriptor / Control Arbiters\narbiter_round_robin x 3 per half",
+            shape=invtrapezium, width=4.2, fillcolor="#BFD7EE", group=C];
+    mon    [label="MonBus\nhalf 3:1 arbiters ->\ncore 2:1 monbus_arbiter", style="filled,dashed"];
+    rd_eng [label="AXI Read Engine\naxi_read_engine_beats\n(round-robin over channels)", group=R];
+
+    // ---- boundary bar ----
+    mem [label="Core Boundary (to rapids_beats_top)\nm_axi_wr (AW, W / B)  |  mon_*  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)",
+         fillcolor="white", width=17.0, fontsize=11, group=C];
+
+    // ---- sink write data, down the left ----
+    s_axis   -> ingress  [label="packet beats"];
+    ingress  -> snk_sram [label="fill beats\n(per channel)"];
+    snk_sram -> wr_eng   [label="drain beats"];
+
+    // ---- command / control, down the center ----
+    s_apb -> sga  [label="kick: descriptor address,\ncfg_* (per half)"];
+    sga   -> arb  [label="desc fetch / ctrl RD / ctrl WR\n(8 channels)"];
+    sga   -> wr_eng [xlabel="write cmd: addr,\nbeats (sink half)"];
+    sga   -> rd_eng [xlabel="read cmd: addr,\nbeats (source half)"];
+    sga   -> mon    [style=dashed, xlabel="monitor\npackets"];
+
+    // ---- source read data, up the right ----
+    m_axis   -> egress   [dir=back, label="packet beats, tlast"];
+    egress   -> src_sram [dir=back, label="drain beats"];
+    src_sram -> rd_eng   [dir=back, label="R data\n(per channel)"];
+
+    // ---- bar crossings via point scaffolds (one node pair per crossing) ----
+    p_wr  [shape=point, width=0.01, group=L];
+    p_cmd [shape=point, width=0.01, group=C];
+    p_dr  [shape=point, width=0.01];
+    p_ar  [shape=point, width=0.01, group=R];
+    p_rd  [shape=point, width=0.01];
+    sp1 [style=invis, label="", fixedsize=true, width=1.2, height=0.02];
+    sp2 [style=invis, label="", fixedsize=true, width=1.2, height=0.02];
+    sp3 [style=invis, label="", fixedsize=true, width=0.9, height=0.02];
+    { rank=same; p_wr; p_cmd; sp1; p_dr; sp2; p_ar; sp3; p_rd; }
+    p_wr -> p_cmd -> sp1 -> p_dr -> sp2 -> p_ar -> sp3 -> p_rd [style=invis];
+
+    wr_eng -> p_wr  [arrowhead=none, headclip=false];
+    p_wr   -> mem   [xlabel="Write to memory\n(AW + W, B back)", tailclip=false];
+    arb    -> p_cmd [arrowhead=none, headclip=false, penwidth=1.8];
+    p_cmd  -> mem   [xlabel="descriptor fetch, control\nread / write (AR, AW, W)", penwidth=1.8, tailclip=false];
+    sga    -> p_dr  [dir=back, xlabel="descriptors, ctrl\nread data (R), B", headclip=false];
+    p_dr   -> mem   [dir=none, tailclip=false];
+    mon    -> mem   [style=dashed, xlabel="mon_* (merged\nstream)"];
+    rd_eng -> p_ar  [arrowhead=none, headclip=false];
+    p_ar   -> mem   [xlabel="Read request (AR)", tailclip=false];
+    rd_eng -> p_rd  [dir=back, headclip=false];
+    p_rd   -> mem   [dir=none, xlabel="Read from\nmemory (R)", tailclip=false];
+
+    // ---- rank pinning ----
+    { rank=same; s_axis; s_apb; m_axis; }
+    s_axis -> s_apb -> m_axis [style=invis];
+    { rank=same; ingress; egress; }
+    ingress -> egress [style=invis];
+    { rank=same; snk_sram; sga; src_sram; }
+    snk_sram -> sga -> src_sram [style=invis];
+    { rank=same; wr_eng; arb; mon; rd_eng; }
+    wr_eng -> mon -> arb -> rd_eng [style=invis];
+}

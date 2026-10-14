@@ -29,36 +29,11 @@ RAPIDS Beats supports 8 independent DMA channels, each with dedicated resources 
 
 ## Channel Resource Allocation
 
-```mermaid
-graph TB
-    subgraph CH["Per-Channel Resources (x8)"]
-        SCHED["Scheduler<br/>FSM"]
-        DESC["Descriptor<br/>Engine"]
-        SNK_UNIT["Sink SRAM<br/>Unit"]
-        SRC_UNIT["Source SRAM<br/>Unit"]
-    end
+### Figure 2.3.1: Per-Channel and Shared Resources
 
-    subgraph SHARED["Shared Resources"]
-        DESC_AXI["Descriptor<br/>AXI Arbiter"]
-        SNK_AXI["Sink AXI<br/>Write Engine"]
-        SRC_AXI["Source AXI<br/>Read Engine"]
-        MONBUS_ARB["MonBus<br/>Arbiter"]
-    end
+![Per-Channel and Shared Resources](../assets/graphviz/ch02_channel_resources.png)
 
-    SCHED --> DESC
-    DESC --> DESC_AXI
-
-    SCHED --> SNK_UNIT
-    SCHED --> SRC_UNIT
-
-    SNK_UNIT --> SNK_AXI
-    SRC_UNIT --> SRC_AXI
-
-    CH --> MONBUS_ARB
-
-    style CH fill:#e8f5e9
-    style SHARED fill:#fff3e0
-```
+**Source:** [ch02_channel_resources.dot](../assets/graphviz/ch02_channel_resources.dot)
 
 ## Per-Channel Resources
 
@@ -83,7 +58,7 @@ Resources shared across all channels:
 | **Descriptor AXI** | Round-robin | 8 (1 per channel) |
 | **Sink AXI Write** | Round-robin | 8 configurable |
 | **Source AXI Read** | Round-robin | 8 configurable |
-| **MonBus Output** | Priority | 1 (serialized) |
+| **MonBus Output** | Round-robin (`monbus_arbiter` tree) | 1 (serialized) |
 
 : Shared Resources
 
@@ -91,26 +66,11 @@ Resources shared across all channels:
 
 ### Arbitration Policy
 
-```mermaid
-graph LR
-    subgraph Channels["Channel Requests"]
-        CH0["CH0 req"]
-        CH1["CH1 req"]
-        CH2["CH2 req"]
-        CHN["..."]
-        CH7["CH7 req"]
-    end
+### Figure 2.3.2: Channel Arbitration onto a Shared AXI Port
 
-    ARB["Round-Robin<br/>Arbiter"]
+![Channel Arbitration onto a Shared AXI Port](../assets/graphviz/ch02_channel_arbitration.png)
 
-    CH0 --> ARB
-    CH1 --> ARB
-    CH2 --> ARB
-    CHN --> ARB
-    CH7 --> ARB
-
-    ARB --> GRANT["Grant"]
-```
+**Source:** [ch02_channel_arbitration.dot](../assets/graphviz/ch02_channel_arbitration.dot)
 
 **Arbitration Timing:**
 

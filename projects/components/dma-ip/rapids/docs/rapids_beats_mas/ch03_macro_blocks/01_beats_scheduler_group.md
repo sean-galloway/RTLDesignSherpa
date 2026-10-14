@@ -45,28 +45,9 @@ The Beats Scheduler Group wraps a single channel's scheduler and descriptor engi
 
 ### Figure 3.1.1: Beats Scheduler Group Block Diagram
 
-```
-                    beats_scheduler_group
-    +-------------------------------------------------------+
-    |                                                       |
-    |  +-------------------+    +-------------------+       |
-    |  | descriptor_engine |    |     scheduler     |       |
-    |  |                   |--->|                   |       |
-    |  | - AXI AR/R        |    | - FSM             |       |
-    |  | - Prefetch FIFO   |desc| - Beat tracking   |       |
-    |  | - Address check   |--->| - Error handling  |       |
-    |  +--------+----------+    +---------+---------+       |
-    |           |                         |                 |
-    |           | monbus                  | monbus          |
-    |           v                         v                 |
-    |  +-----------------------------------------------+    |
-    |  |           MonBus Arbiter (2:1)                |    |
-    |  +----------------------+------------------------+    |
-    |                         |                             |
-    +-------------------------|-----------------------------+
-                              v
-                       mon_valid/mon_packet
-```
+![Scheduler group block diagram](../assets/graphviz/10_scheduler_group.png)
+
+**Source:** [10_scheduler_group.dot](../assets/graphviz/10_scheduler_group.dot)
 
 ---
 
@@ -201,21 +182,10 @@ parameter int MON_UNIT_ID = 1;
 
 ## Internal Architecture
 
-```
-Internal Signal Flow:
-
-apb_valid/addr -----> descriptor_engine -----> scheduler
-                             |                     |
-                      desc_valid/packet           |
-                             |                     |
-                             +--> descriptor_ready <--+
-
-MonBus Aggregation:
-
-desc_engine.monbus_pkt ----+
-                           |---> round_robin_arbiter ---> monbus_out
-scheduler.monbus_pkt   ----+
-```
+The descriptor engine hands each fetched descriptor to the scheduler over a
+valid/ready pair, and the four MonBus emitters (descriptor engine, scheduler,
+ctrlrd engine, ctrlwr engine) merge in the group's 4:1 `monbus_arbiter`;
+both are drawn in Figure 3.1.1.
 
 ---
 

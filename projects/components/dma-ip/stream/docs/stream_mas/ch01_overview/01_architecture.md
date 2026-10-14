@@ -48,85 +48,9 @@ STREAM is a high-performance, multi-channel descriptor-based DMA engine designed
 
 ### Figure 1.1.1: STREAM Architecture Overview
 
-![Diagram](../assets/mermaid/01_architecture_block.png)
+![Diagram](../assets/graphviz/01_stream_core.png)
 
-<!--
-Original Mermaid diagram (for editing):
-
-
-```mermaid
-graph TB
-    subgraph "External Interfaces"
-        APB[APB Config<br/>Software Control]
-        DESC_MEM[Descriptor Memory<br/>256-bit AXI]
-        SRC_MEM[Source Data Memory<br/>512-bit AXI Read]
-        DST_MEM[Destination Memory<br/>512-bit AXI Write]
-        MON_IF[MonBus Output<br/>Debug/Trace]
-        IRQ_OUT[IRQ Output<br/>Interrupts]
-    end
-
-    subgraph "STREAM Core"
-        subgraph "Per-Channel Components 8x"
-            DESC_ENG[Descriptor Engine<br/>Fetch & Parse]
-            SCHED[Scheduler<br/>FSM Control]
-        end
-
-        subgraph "Shared Resource Arbitration"
-            DESC_ARB[Descriptor AR Arbiter<br/>Round-Robin]
-            RD_ARB[Read Request Arbiter<br/>Priority-Based]
-            WR_ARB[Write Request Arbiter<br/>Priority-Based]
-        end
-
-        subgraph "Shared Data Path"
-            RD_ENG[AXI Read Engine<br/>Multi-Channel]
-            WR_ENG[AXI Write Engine<br/>Multi-Channel]
-            SRAM[SRAM Controller<br/>8x Per-Channel FIFOs]
-        end
-
-        subgraph "Monitoring & Control"
-            MON_AGG[MonBus Aggregator<br/>9 Sources]
-            APB_CFG[APB Config Registers<br/>8 Channels]
-        end
-    end
-
-    APB --> APB_CFG
-    APB_CFG --> |enable, config| DESC_ENG
-    APB_CFG --> |enable, config| SCHED
-
-    DESC_ENG --> |desc_ar_valid| DESC_ARB
-    DESC_ARB --> |m_axi_desc_ar| DESC_MEM
-    DESC_MEM --> |m_axi_desc_r| DESC_ENG
-    DESC_ENG --> |descriptor| SCHED
-
-    SCHED --> |datard_req| RD_ARB
-    RD_ARB --> RD_ENG
-    RD_ENG --> |m_axi_rd_ar| SRC_MEM
-    SRC_MEM --> |m_axi_rd_r| RD_ENG
-    RD_ENG --> |rd_data| SRAM
-
-    SCHED --> |datawr_req| WR_ARB
-    WR_ARB --> WR_ENG
-    SRAM --> |wr_data| WR_ENG
-    WR_ENG --> |m_axi_wr_aw/w| DST_MEM
-    DST_MEM --> |m_axi_wr_b| WR_ENG
-
-    RD_ENG --> |done_strobe| SCHED
-    WR_ENG --> |done_strobe| SCHED
-
-    DESC_ENG --> |mon_events| MON_AGG
-    SCHED --> |mon_events| MON_AGG
-    RD_ENG --> |mon_events| MON_AGG
-    WR_ENG --> |mon_events| MON_AGG
-    MON_AGG --> MON_IF
-    MON_AGG --> IRQ_OUT
-
-    style DESC_ARB fill:#f9f,stroke:#333,stroke-width:3px
-    style RD_ARB fill:#f9f,stroke:#333,stroke-width:3px
-    style WR_ARB fill:#f9f,stroke:#333,stroke-width:3px
-    style SRAM fill:#bbf,stroke:#333,stroke-width:3px
-    style MON_AGG fill:#bfb,stroke:#333,stroke-width:2px
-```
--->
+**Source:** [01_stream_core.dot](../assets/graphviz/01_stream_core.dot)
 
 ---
 
@@ -142,8 +66,8 @@ graph TB
 
 **Resource Sharing:**
 - Descriptor AXI master (shared via round-robin arbiter)
-- Data read AXI master (shared via priority arbiter)
-- Data write AXI master (shared via priority arbiter)
+- Data read AXI master (shared via round-robin, space-aware)
+- Data write AXI master (shared via round-robin, data-aware)
 - SRAM buffer (per-channel FIFOs, no arbitration)
 
 ### 2. Descriptor-Based Operation
@@ -197,17 +121,17 @@ Concurrent (CORRECT):
 - Prevents underflow due to AW/W latency gap
 - Includes latency bridge occupancy in count
 
-### 5. Priority-Based Arbitration
+### 5. Round-Robin Arbitration
 
 **Descriptor Fetch:**
 - Round-robin arbitration (fair access)
-- All channels equal priority
 
 **Data Read/Write:**
-- Priority-based arbitration
-- Priority from descriptor
-- Round-robin within same priority tier
-- Timeout prevention for low-priority channels
+- Round-robin arbitration inside each engine (`arbiter_round_robin`)
+- A channel joins the read pick only with SRAM space for a burst, and the
+  write pick only with SRAM data for a burst
+- No priority logic: the descriptor priority field is carried but not used
+  for arbitration, and there is no anti-starvation timer
 
 ---
 
@@ -297,44 +221,34 @@ stream_top_ch8 (Top-Level Wrapper)
 
 ### Figure 1.1.3: Core DMA Engine Hierarchy
 
-```mermaid
-graph TB
-    CORE["stream_core<br/>(DMA engine)"]
-
-    CORE --> SGA["scheduler_group_array"]
-    CORE --> RD["axi_read_engine"]
-    CORE --> WR["axi_write_engine"]
-    CORE --> SRAM["sram_controller"]
-    CORE --> APB["apb_config<br/>(TBD)"]
-
-    SGA --> SG["scheduler_group<br/>[0..7]"]
-    SGA --> DESC_ARB["descriptor AR arbiter"]
-    SGA --> MON_AGG["MonBus aggregator<br/>(9 sources)"]
-
-    SG --> DESC["descriptor_engine"]
-    SG --> SCHED["scheduler"]
-
-    RD --> AR_MGR["AR channel manager"]
-    RD --> R_RX["R channel receiver"]
-    RD --> RD_ARB["Space-aware arbiter"]
-
-    WR --> AW_MGR["AW channel manager"]
-    WR --> W_STR["W channel streaming"]
-    WR --> B_TRK["B response tracker"]
-
-    SRAM --> SCU["sram_controller_unit<br/>[0..7]"]
-
-    SCU --> ALLOC["stream_alloc_ctrl"]
-    SCU --> FIFO["gaxi_fifo_sync"]
-    SCU --> BRIDGE["stream_latency_bridge"]
-    SCU --> DRAIN["stream_drain_ctrl"]
-
-    style CORE fill:#e1f5ff,stroke:#333,stroke-width:3px
-    style SGA fill:#ffe1e1,stroke:#333,stroke-width:2px
-    style RD fill:#e1ffe1,stroke:#333,stroke-width:2px
-    style WR fill:#ffe1ff,stroke:#333,stroke-width:2px
-    style SRAM fill:#ffffe1,stroke:#333,stroke-width:2px
-    style APB fill:#f0f0f0,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+```
+stream_core
+├── scheduler_group_array
+│   ├── scheduler_group [0..7]
+│   │   ├── descriptor_engine
+│   │   ├── scheduler
+│   │   └── monbus_arbiter
+│   ├── arbiter_round_robin       (descriptor AR, 8:1)
+│   ├── axi4_master_rd_monlite    (descriptor port monitor)
+│   └── monbus_arbiter            (9 sources)
+├── monbus_arbiter                (core MonBus merge)
+├── axi_read_engine
+│   └── arbiter_round_robin       (space-aware channel pick)
+├── axi_write_engine
+│   ├── arbiter_round_robin       (data-aware channel pick)
+│   └── gaxi_fifo_sync            (W-phase queue, per-channel B-phase queues)
+├── sram_controller
+│   └── sram_controller_unit [0..7]
+│       ├── stream_alloc_ctrl
+│       ├── gaxi_fifo_sync
+│       ├── stream_drain_ctrl
+│       └── stream_latency_bridge
+├── perf_profiler
+├── axi4_master_rd_monlite / axi4_master_wr_monlite  (data masters; monitor
+│                                                     logic on only when
+│                                                     USE_AXI_MONITORS = 1)
+├── axi_bus_meter x 2             (always built)
+└── axi_perf_latency_hist x 2     (USE_AXI_MONITORS = 1 only)
 ```
 
 ---

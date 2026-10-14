@@ -27,33 +27,11 @@
 
 RAPIDS Beats exposes the following external interfaces:
 
-```mermaid
-graph LR
-    subgraph RAPIDS["RAPIDS Beats"]
-        direction TB
-        CORE["Core Logic"]
-    end
+### Figure 3.1.1: External Interfaces
 
-    DESC_AXI["AXI4 Master<br/>(Descriptor)"]
-    SINK_AXI["AXI4 Master<br/>(Sink Write)"]
-    SRC_AXI["AXI4 Master<br/>(Source Read)"]
+![External Interfaces](../assets/graphviz/ch01_system_integration.png)
 
-    SINK_AXIS["AXIS Slave<br/>(Sink Input)"]
-    SRC_AXIS["AXIS Master<br/>(Source Output)"]
-
-    APB["APB/Config<br/>Interface"]
-    MONBUS["MonBus<br/>Output"]
-
-    CORE --- DESC_AXI
-    CORE --- SINK_AXI
-    CORE --- SRC_AXI
-    CORE --- SINK_AXIS
-    CORE --- SRC_AXIS
-    CORE --- APB
-    CORE --- MONBUS
-
-    style RAPIDS fill:#e3f2fd
-```
+**Source:** [ch01_system_integration.dot](../assets/graphviz/ch01_system_integration.dot)
 
 ## Interface Port Summary
 

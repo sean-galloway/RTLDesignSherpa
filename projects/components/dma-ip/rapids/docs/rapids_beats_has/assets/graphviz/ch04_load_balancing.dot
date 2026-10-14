@@ -1,0 +1,34 @@
+// Load balancing across sink channels: the upstream sender (outside RAPIDS)
+// spreads packets by setting tid; the sink ingress routes each beat to the
+// FIFO of channel tid (snk_data_path_axis_beats: axis_channel_id = s_axis_tid).
+digraph rapids_beats_load_balancing {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho,
+           label="Load balancing - the sender picks a channel per packet with tid; RAPIDS routes by tid",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    pkts [label="Incoming Packets 0 .. 3", fillcolor="white"];
+    dist [label="Traffic Distributor (upstream, outside RAPIDS)\nassigns tid = 0 .. 3 per packet", fillcolor="white", style="filled,dashed"];
+    ing  [label="Sink Ingress - snk_data_path_axis_beats\nroutes each beat to channel s_axis_tid[2:0]", width=6.0];
+    c0 [label="Sink Channel 0\nFIFO + scheduler"];
+    c1 [label="Sink Channel 1\nFIFO + scheduler"];
+    c2 [label="Sink Channel 2\nFIFO + scheduler"];
+    c3 [label="Sink Channel 3\nFIFO + scheduler"];
+    mem [label="System Memory - one buffer chain per channel\n(written through the shared AXI write engine)", fillcolor="white", width=7.0];
+
+    pkts -> dist [label="packets"];
+    dist -> ing  [label="s_axis_* (tid set)"];
+    ing -> c0 [label="tid = 0"];
+    ing -> c1 [label="tid = 1"];
+    ing -> c2 [label="tid = 2"];
+    ing -> c3 [label="tid = 3"];
+    c0 -> mem [label="writes"];
+    c1 -> mem [label="writes"];
+    c2 -> mem [label="writes"];
+    c3 -> mem [label="writes"];
+    { rank=same; c0; c1; c2; c3; }
+    c0 -> c1 -> c2 -> c3 [style=invis];
+}

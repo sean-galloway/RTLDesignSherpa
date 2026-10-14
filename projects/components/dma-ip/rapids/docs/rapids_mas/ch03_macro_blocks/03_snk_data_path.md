@@ -45,21 +45,9 @@ In RAPIDS every SRAM word carries the byte enables of its data. The fill interfa
 
 ### Figure 3.3.1: Sink Data Path Block Diagram
 
-```
-                          snk_data_path
-   fill_alloc_*  --->  +-----------------------------+
-   fill_valid/id --->  |     snk_sram_controller     |
-   fill_data           |   DATA_WIDTH = DW + SW      |
-   {strb, data}        |   per-channel partitions    |
-                       +--------------+--------------+
-                                      | drain_data [DW+SW-1:0]
-                                      |   [DW-1:0]     -> wdata
-                                      |   [DW+SW-1:DW] -> wstrb
-                                      v
-                       +-----------------------------+
-   sched_wr_*    <---> |      axi_write_engine       | ---> m_axi_aw / w / b
-                       +-----------------------------+
-```
+![Sink data path block diagram](../assets/graphviz/09_snk_data_path.png)
+
+**Source:** [09_snk_data_path.dot](../assets/graphviz/09_snk_data_path.dot)
 
 ---
 

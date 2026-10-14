@@ -54,17 +54,9 @@ The Beats Alloc Control is a "virtual FIFO" that tracks space allocation without
 
 ### Figure 2.5.1: Beats Alloc Control Block Diagram
 
-```
-                +---------------------------+
-    wr_valid -->|                           |--> wr_ready
-    wr_size  -->|    BEATS_ALLOC_CTRL       |--> space_free
-                |                           |
-    rd_valid -->|     (Virtual FIFO)        |--> wr_full
-                |                           |--> wr_almost_full
-                |  [No data storage]        |--> rd_empty
-                |  [Pointer arithmetic]     |--> rd_almost_empty
-                +---------------------------+
-```
+![Alloc control block diagram](../assets/graphviz/05_alloc_ctrl.png)
+
+**Source:** [05_alloc_ctrl.dot](../assets/graphviz/05_alloc_ctrl.dot)
 
 ---
 
@@ -72,13 +64,11 @@ The Beats Alloc Control is a "virtual FIFO" that tracks space allocation without
 
 Unlike a traditional FIFO that stores data, alloc_ctrl_beats only tracks **space reservations**:
 
-```
-Traditional FIFO:          Virtual FIFO (alloc_ctrl):
-
-  wr_data --> [storage] -> rd_data    wr_size --> [pointers] --> space_free
-
-  Data moves through FIFO             Only pointers move, no data
-```
+| | Traditional FIFO | Virtual FIFO (alloc_ctrl_beats) |
+|---|---|---|
+| Write side | `wr_data` into storage | `wr_size` advances a pointer |
+| Read side | `rd_data` out of storage | one beat advances a pointer |
+| Output | data | `space_free` |
 
 ### Use Case: Pre-Allocation for AXI Reads
 

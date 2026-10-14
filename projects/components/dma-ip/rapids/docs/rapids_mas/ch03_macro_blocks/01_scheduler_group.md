@@ -48,24 +48,9 @@ The structure is identical to the RAPIDS Beats group. The one change is the pack
 
 ### Figure 3.1.1: Scheduler Group Block Diagram
 
-```
-                              scheduler_group
-  +---------------------------------------------------------------------+
-  |                                                                     |
-  |  +-------------------+ descriptor  +------------------+  ctrlrd  +-------------+
-  |  | descriptor_engine |------------>|    scheduler     |<-------->| ctrlrd_eng  |
-  |  | AXI AR/R fetch    |             | FSM, beat math   |  ctrlwr  +-------------+
-  |  +---------+---------+             | packet records   |<-------->| ctrlwr_eng  |
-  |            |                       +---+-----+-----+--+          +-------------+
-  |            | mon                       |     |     |
-  |            v                           |     |     +--> sched_rd_* / sched_wr_*
-  |  +---------------------------+         |     |          sched_*_pkt_*  (byte length, offset)
-  |  | completion gate, 4:1 MonBus arbiter |<--- mon ---+
-  |  +--------------+------------+         |
-  +-----------------|--------------------------------------------------------+
-                    v
-             mon_valid / mon_packet
-```
+![Scheduler group block diagram](../assets/graphviz/07_scheduler_group.png)
+
+**Source:** [07_scheduler_group.dot](../assets/graphviz/07_scheduler_group.dot)
 
 ---
 

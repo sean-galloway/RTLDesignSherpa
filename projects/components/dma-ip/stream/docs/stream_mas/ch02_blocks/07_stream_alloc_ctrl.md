@@ -90,7 +90,9 @@ Cycle 15: AXI read data arrives, enters FIFO
 
 ### Figure 2.7.1: Stream Allocation Controller Block Diagram
 
-![Diagram](../assets/mermaid/07_stream_alloc_ctrl_block.png)
+![Diagram](../assets/graphviz/07_stream_alloc_ctrl.png)
+
+**Source:** [07_stream_alloc_ctrl.dot](../assets/graphviz/07_stream_alloc_ctrl.dot)
 
 -->
 

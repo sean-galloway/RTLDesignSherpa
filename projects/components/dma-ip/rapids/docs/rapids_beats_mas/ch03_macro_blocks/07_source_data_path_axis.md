@@ -45,36 +45,9 @@ The Source Data Path AXIS wrapper adds an AXI-Stream master interface to the sou
 
 ### Figure 3.7.1: Source Data Path AXIS Block Diagram
 
-```
-                        source_data_path_axis
-    +-------------------------------------------------------+
-    |                                                       |
-    |    AXI Read Master (from System Memory)               |
-    |         |                                             |
-    |         v                                             |
-    |    +-------------------------------------------+      |
-    |    |           source_data_path                |      |
-    |    |  (axi_read_engine + src_sram_controller)  |      |
-    |    +--------------------+----------------------+      |
-    |                         |                             |
-    |                         v                             |
-    |    +-------------------------------------------+      |
-    |    |          Drain to AXIS Converter          |      |
-    |    |  - drain_id -> TID                        |      |
-    |    |  - drain_last -> TLAST                    |      |
-    |    |  - drain handshaking -> TVALID/TREADY    |      |
-    |    +--------------------+----------------------+      |
-    |                         |                             |
-    |                         v                             |
-    |    +-------------------------------------------+      |
-    |    | m_axis_tvalid   m_axis_tready             |      |
-    |    | m_axis_tdata    m_axis_tlast              |      |
-    |    | m_axis_tid      m_axis_tkeep              |      |
-    |    +-------------------------------------------+      |
-    |    AXI-Stream Master Interface                        |
-    |                                                       |
-    +-------------------------------------------------------+
-```
+![Source data path AXIS block diagram](../assets/graphviz/17_source_data_path_axis.png)
+
+**Source:** [17_source_data_path_axis.dot](../assets/graphviz/17_source_data_path_axis.dot)
 
 ---
 
@@ -169,17 +142,9 @@ parameter int TUSER_WIDTH = 1;
 
 ### Figure 3.7.2: Drain to AXIS Interface Mapping
 
-```
-    Drain Interface               AXIS Master
-    +----------------+            +----------------+
-    | src_drain_valid|----------->| m_axis_tvalid  |
-    | src_drain_ready|<-----------| m_axis_tready  |
-    | src_drain_data |----------->| m_axis_tdata   |
-    | src_drain_last |----------->| m_axis_tlast   |
-    | src_drain_id   |----------->| m_axis_tid     |
-    | src_drain_strb |----------->| m_axis_tkeep   |
-    +----------------+            +----------------+
-```
+![Drain to AXIS mapping](../assets/graphviz/17b_drain_to_axis.png)
+
+**Source:** [17b_drain_to_axis.dot](../assets/graphviz/17b_drain_to_axis.dot)
 
 ---
 

@@ -187,31 +187,9 @@ unaffected. Their ERROR packets are always forwarded (rapids ISSUE-005).
 
 ### Figure 4.3.3: MonBus Aggregation Tree
 
-```
-    Level 0 (Sources)           Level 1 (Groups)        Level 2 (Top)
-    +----------------+
-    | Scheduler[0]   |------+
-    | DescEngine[0]  |------+---> scheduler_group[0] ---+
-    +----------------+                                   |
-    +----------------+                                   |
-    | Scheduler[1]   |------+                           |
-    | DescEngine[1]  |------+---> scheduler_group[1] ---+
-    +----------------+                                   |
-         ...                            ...              +---> rapids_core
-    +----------------+                                   |     monbus_out
-    | Scheduler[7]   |------+                           |
-    | DescEngine[7]  |------+---> scheduler_group[7] ---+
-    +----------------+                                   |
-    +----------------+                                   |
-    | SnkSRAM[0:7]   |--------> snk_sram_group --------+
-    +----------------+                                   |
-    +----------------+                                   |
-    | SrcSRAM[0:7]   |--------> src_sram_group --------+
-    +----------------+                                   |
-    +----------------+                                   |
-    | AXI Engines    |--------> axi_engine_group ------+
-    +----------------+
-```
+![MonBus aggregation tree](../assets/graphviz/21_monbus_aggregation.png)
+
+**Source:** [21_monbus_aggregation.dot](../assets/graphviz/21_monbus_aggregation.dot)
 
 ---
 

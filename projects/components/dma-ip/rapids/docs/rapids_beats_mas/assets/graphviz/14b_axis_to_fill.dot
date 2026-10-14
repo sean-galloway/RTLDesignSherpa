@@ -1,0 +1,17 @@
+// AXIS slave to fill interface mapping in snk_data_path_axis_beats
+// (verified against the assigns in rtl/macro_beats/snk_data_path_axis_beats.sv).
+digraph axis_to_fill {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.50", splines=ortho,
+           label="AXIS to fill mapping - snk_data_path_axis_beats", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    axis [label="AXIS Slave - s_axis_*\ntvalid, tdata, tid (tready out)\ntstrb, tdest, tuser, tlast: not used by beats", fillcolor="white"];
+    conv [label="Conversion\nfill_data = tdata;  fill_id = tid[2:0]\nfill_valid = tvalid and the channel holds (or is taking) a reservation\nfill_alloc_req = tvalid, channel holds none, space free;  size = cfg_alloc_size\ntready = fill_ready and the channel holds (or is taking) a reservation"];
+    fill [label="Fill Interface - snk_data_path_beats\nfill_alloc_req / size / id,  fill_valid / id / data  (fill_ready, fill_space_free[8] back)", fillcolor="white", width=7.5];
+
+    axis -> conv [dir=both, label="beat in; tready back"];
+    conv -> fill [dir=both, penwidth=1.8, label="reservation + beat in; fill_ready, space_free back"];
+}

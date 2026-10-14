@@ -46,35 +46,9 @@ The Beats Scheduler Group Array instantiates 8 scheduler groups with a shared de
 
 ### Figure 3.2.1: Beats Scheduler Group Array Block Diagram
 
-```
-                    beats_scheduler_group_array
-    +------------------------------------------------------------------+
-    |                                                                  |
-    |  +------------------+  +------------------+  +------------------+ |
-    |  | scheduler_group  |  | scheduler_group  |  | scheduler_group  | |
-    |  |      [0]         |  |      [1]         |  |      [7]         | |
-    |  +--------+---------+  +--------+---------+  +--------+---------+ |
-    |           |                     |                     |          |
-    |           | AXI AR/R            | AXI AR/R            | AXI AR/R |
-    |           v                     v                     v          |
-    |  +----------------------------------------------------------+   |
-    |  |              Round-Robin AXI AR/R Arbiter                |   |
-    |  +----------------------------+-----------------------------+   |
-    |                               |                                  |
-    |                               v                                  |
-    |                     Shared Descriptor AXI                        |
-    |                                                                  |
-    |  MonBus from each group:                                        |
-    |           |                     |                     |          |
-    |           v                     v                     v          |
-    |  +----------------------------------------------------------+   |
-    |  |            MonBus Round-Robin Arbiter (9 sources)        |   |
-    |  +----------------------------+-----------------------------+   |
-    |                               |                                  |
-    +-------------------------------|----------------------------------+
-                                    v
-                          mon_valid/mon_packet
-```
+![Scheduler group array block diagram](../assets/graphviz/11_scheduler_group_array.png)
+
+**Source:** [11_scheduler_group_array.dot](../assets/graphviz/11_scheduler_group_array.dot)
 
 ---
 
@@ -229,29 +203,21 @@ count while it is high and hold while it is low. The meter is not gated by
 
 ### Figure 3.2.2: Descriptor AXI Arbitration Sequence
 
-```
-        Channel[0]    Channel[1]    Arbiter        AXI Master
-            |             |            |               |
-    AR REQ  |------------>|            |               |
-            |             | AR REQ     |               |
-            |             |----------->|               |
-            |             |            | GRANT[0]      |
-            |<-------------------------|               |
-            |             |            |  AR VALID     |
-            |             |            |-------------->|
-            |             |            |  AR READY     |
-            |             |            |<--------------|
-            |             |            | GRANT[1]      |
-            |             |<-----------|               |
-            |             |            |  AR VALID     |
-            |             |            |-------------->|
-            |             |            |  R DATA       |
-            |             |            |<--------------|
-            |    R DATA   |            |               |
-            |<-------------------------|               |
-            |             |    R DATA  |               |
-            |             |<-----------|               |
-            |             |            |               |
+Two channels contending for the descriptor master; responses return by RID.
+
+```mermaid
+sequenceDiagram
+    participant C0 as Channel 0 descriptor engine
+    participant C1 as Channel 1 descriptor engine
+    participant ARB as Descriptor AR arbiter (round-robin)
+    participant AXI as m_axi_desc
+    C0->>ARB: AR request
+    C1->>ARB: AR request
+    ARB->>AXI: AR from channel 0 (ARID = 0)
+    AXI-->>ARB: AR ready (grant acknowledged)
+    ARB->>AXI: AR from channel 1 (ARID = 1)
+    AXI-->>C0: R data (RID = 0, routed by RID)
+    AXI-->>C1: R data (RID = 1, routed by RID)
 ```
 
 ---
@@ -263,11 +229,11 @@ The unified MonBus output aggregates 9 sources using round-robin arbitration:
 | Source ID | Origin | Description |
 |-----------|--------|-------------|
 | 0-7 | scheduler_group[0:7] | Per-channel aggregated MonBus |
-| 8 | AXI Arbiter | Arbitration events |
+| 8 | Descriptor AXI monitor | `axi4_master_rd_monlite` packets (USE_AXI_MONITORS = 1) |
 
 : Table 3.2.10: MonBus Source Assignment
 
-Each scheduler_group provides a single MonBus output that combines both scheduler and descriptor engine packets (2:1 internal arbitration).
+Each scheduler_group provides a single MonBus output that combines its descriptor engine, scheduler, ctrlrd engine and ctrlwr engine packets (4:1 internal arbitration).
 
 ---
 

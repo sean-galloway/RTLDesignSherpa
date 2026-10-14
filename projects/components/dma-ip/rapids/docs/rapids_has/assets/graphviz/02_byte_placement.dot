@@ -4,8 +4,9 @@
 // and all 32 lanes of the second. ceil((31 + 33) / 32) = 2 memory beats,
 // ceil(33 / 32) = 2 stream beats -- here equal, in general not.
 digraph byte_placement {
-    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.7,
-           label="Sink placement: 33 bytes to a destination at offset 31 (32-byte beats)", labelloc=t, labeljust=l];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.45,
+           label="Sink placement: 33 bytes to a destination at offset 31 (32-byte beats)", labelloc=t, labeljust=c];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     node  [shape=plaintext, fontname="Helvetica", fontsize=10];
 
     stream [label=<
@@ -13,7 +14,7 @@ digraph byte_placement {
         <tr><td colspan="4" bgcolor="#e3f2fd"><b>s_axis stream beats (packed from lane 0)</b></td></tr>
         <tr><td>beat</td><td>lanes 0..30</td><td>lane 31</td><td>tstrb / tlast</td></tr>
         <tr><td>0</td><td bgcolor="#c8e6c9">bytes 0..30</td><td bgcolor="#c8e6c9">byte 31</td><td>0xFFFFFFFF / 0</td></tr>
-        <tr><td>1</td><td bgcolor="#ffffff">-</td><td bgcolor="#c8e6c9">byte 32 (lane 0)</td><td>0x00000001 / 1</td></tr>
+        <tr><td>1</td><td bgcolor="#c8e6c9">byte 32 in lane 0 (lanes 1..30 empty)</td><td bgcolor="#ffffff">-</td><td>0x00000001 / 1</td></tr>
       </table>>];
 
     shifter [label=<
@@ -33,5 +34,6 @@ digraph byte_placement {
         <tr><td>1 (+32)</td><td bgcolor="#c8e6c9">bytes 1..31</td><td bgcolor="#c8e6c9">byte 32</td><td>0xFFFFFFFF</td></tr>
       </table>>];
 
-    stream -> shifter -> memory;
+    stream -> shifter [label="2 packed stream beats (33 bytes)"];
+    shifter -> memory [label="2 memory beats with WSTRB"];
 }

@@ -38,24 +38,9 @@ The structure, the port naming convention and the register and monitor plumbing 
 
 ### Figure 3.9.1: Core Block Diagram
 
-```
-                              rapids_core
-  +--------------------------------------------------------------------+
-  |  rapids_src (u_src)                       memory -> AXIS           |
-  |    scheduler_group_array (EN_WRITE=0)                              |
-  |    src_data_path_axis  --> m_axis_*    m_axi_rd_* <--              |
-  |    AXIS egress monitor (agent 0x0A)                                |
-  |    monbus_arbiter                                                  |
-  |                                                                    |
-  |  rapids_snk (u_snk)                       AXIS -> memory           |
-  |    scheduler_group_array (EN_READ=0)                               |
-  |    snk_data_path_axis  <-- s_axis_*    m_axi_wr_* -->              |
-  |    AXIS ingress monitor (agent 0x09)                               |
-  |    monbus_arbiter                                                  |
-  |                                                                    |
-  |  u_mon_arbiter (2 clients)  --> mon_valid / mon_packet / timestamp |
-  +--------------------------------------------------------------------+
-```
+![Core block diagram](../assets/graphviz/04_rapids_core.png)
+
+**Source:** [04_rapids_core.dot](../assets/graphviz/04_rapids_core.dot)
 
 ---
 

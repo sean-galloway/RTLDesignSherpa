@@ -25,9 +25,11 @@
 
 ## Top-Level Architecture
 
-![STREAM Block Diagram](../assets/mermaid/02_block_diagram.png)
+### Figure 3.1.1: STREAM Whole Unit
 
-**Source:** [02_block_diagram.mmd](../assets/mermaid/02_block_diagram.mmd)
+![STREAM Whole Unit](../assets/graphviz/ch03_whole_unit.png)
+
+**Source:** [ch03_whole_unit.dot](../assets/graphviz/ch03_whole_unit.dot)
 
 ---
 
@@ -35,14 +37,15 @@
 
 | Block | Function | Key Interfaces |
 |-------|----------|----------------|
-| **APB Config Slave** | Channel control registers, status | APB slave, kick-off signals |
+| **APB Config Slave + Registers** | `apb4_slave_cdc` (or `apb4_slave`), `stream_regs`, `stream_config_block` | APB slave, kick-off signals |
 | **Descriptor Engine** | Fetch and parse descriptors | AXI read, descriptor output |
 | **Scheduler** | Coordinate transfer phases | Control signals to all blocks |
-| **Channel Arbiter** | Multi-channel priority arbitration | Grant signals |
+| **Descriptor AR Arbiter** | Round-robin over the 8 descriptor engines (no priority) | Grant signals |
 | **AXI Read Engine** | Read source data to SRAM | AXI read master |
 | **SRAM Buffer** | Temporary data storage | Read/write ports |
 | **AXI Write Engine** | Write SRAM data to destination | AXI write master |
-| **MonBus Reporter** | Generate monitoring packets | MonBus output |
+| **Monitors + MonBus group** | Monitor-lites, `monbus_arbiter`, `monbus_axil4_axil4_group` (USE_AXI_MONITORS = 1) | `m_axil_mon`, `s_axil_err`, `stream_irq` |
+| **Performance Profiler** | Per-channel activity timestamps or elapsed times | Register read-back |
 
 ---
 
@@ -58,7 +61,7 @@ Memory -> AXI Read Engine -> SRAM Buffer -> AXI Write Engine -> Memory
 
 ### Monitoring Flow
 
-All Blocks -> Event Signals -> MonBus Reporter -> MonBus Output
+Scheduler groups and monitor-lites -> `monbus_arbiter` -> `monbus_axil4_axil4_group` -> error FIFO (`s_axil_err`, `stream_irq`) and capture writes (`m_axil_mon`)
 
 ---
 

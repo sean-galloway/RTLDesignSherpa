@@ -45,35 +45,9 @@ The Sink SRAM Controller is a naming wrapper, with no logic of its own, around S
 
 ### Figure 3.5.1: Sink SRAM Controller Block Diagram
 
-```
-                    snk_sram_controller_beats
-    +------------------------------------------------------------------+
-    |                                                                  |
-    |  fill_* (from AXIS ingress)                snk_sram_controller_beats |
-    |         |                                (names only)            |
-    |         v                                                        |
-    |  +------------------------------------------------------------+  |
-    |  |  sram_controller  (STREAM, shared with the STREAM DMA)     |  |
-    |  |  +-----------+ +-----------+       +-----------+           |  |
-    |  |  | unit [0]  | | unit [1]  |  ...  | unit [7]  |           |  |
-    |  |  | alloc_ctrl| | alloc_ctrl|       | alloc_ctrl|           |  |
-    |  |  | fifo_sync | | fifo_sync |       | fifo_sync |           |  |
-    |  |  | drain_ctrl| | drain_ctrl|       | drain_ctrl|           |  |
-    |  |  | lat.bridge| | lat.bridge|       | lat.bridge|           |  |
-    |  |  +-----+-----+ +-----+-----+       +-----+-----+           |  |
-    |  |        |drain_valid  |drain_valid        |drain_valid      |  |
-    |  |        v             v                   v                 |  |
-    |  |  +--------------------------------------------------------+ |  |
-    |  |  | drain_id select (the consumer arbitrates, 1 beat/cycle)| |  |
-    |  |  +--------------------------------------------------------+ |  |
-    |  +------------------------------------------------------------+  |
-    |                               |                                  |
-    |                               v                                  |
-    |                    SRAM Read Interface                           |
-    |                    (to AXI Write Engine)                         |
-    |                                                                  |
-    +------------------------------------------------------------------+
-```
+![Sink SRAM controller block diagram](../assets/graphviz/15_snk_sram_controller.png)
+
+**Source:** [15_snk_sram_controller.dot](../assets/graphviz/15_snk_sram_controller.dot)
 
 ---
 

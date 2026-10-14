@@ -25,67 +25,11 @@
 
 ## Top-Level Architecture
 
-```mermaid
-graph TB
-    subgraph RAPIDS_CORE["rapids_core_beats"]
+### Figure 2.1.1: RAPIDS Beats Whole Unit
 
-        subgraph SCHED_ARRAY["beats_scheduler_group_array"]
-            direction TB
-            SG0["Scheduler Group 0"]
-            SG1["Scheduler Group 1"]
-            SGN["..."]
-            SG7["Scheduler Group 7"]
+![RAPIDS Beats Whole Unit](../assets/graphviz/ch02_whole_unit.png)
 
-            subgraph SG_DETAIL["Scheduler Group (x8)"]
-                SCHED["scheduler_beats"]
-                DESC["descriptor_engine_beats"]
-                SCHED <--> DESC
-            end
-        end
-
-        subgraph SINK_PATH["sink_data_path_beats"]
-            SNK_SRAM["snk_sram_controller"]
-            SNK_AXI["axi_write_engine"]
-            SNK_ALLOC["alloc_ctrl"]
-            SNK_DRAIN["drain_ctrl"]
-
-            SNK_SRAM --> SNK_AXI
-            SNK_ALLOC --> SNK_SRAM
-            SNK_DRAIN --> SNK_SRAM
-        end
-
-        subgraph SRC_PATH["source_data_path_beats"]
-            SRC_AXI["axi_read_engine"]
-            SRC_SRAM["src_sram_controller"]
-            SRC_ALLOC["alloc_ctrl"]
-            SRC_DRAIN["drain_ctrl"]
-
-            SRC_AXI --> SRC_SRAM
-            SRC_ALLOC --> SRC_SRAM
-            SRC_DRAIN --> SRC_SRAM
-        end
-
-        SCHED_ARRAY -->|"Write Commands"| SINK_PATH
-        SCHED_ARRAY -->|"Read Commands"| SRC_PATH
-    end
-
-    %% External Interfaces
-    APB["APB Config"] --> SCHED_ARRAY
-    DESC_MEM["Descriptor Memory"] <-->|"AXI4"| SCHED_ARRAY
-
-    AXIS_IN["AXIS Slave<br/>(Network In)"] --> SNK_ALLOC
-    SNK_AXI -->|"AXI4 Write"| DATA_MEM["Data Memory"]
-
-    DATA_MEM -->|"AXI4 Read"| SRC_AXI
-    SRC_DRAIN --> AXIS_OUT["AXIS Master<br/>(Network Out)"]
-
-    RAPIDS_CORE -->|"MonBus"| MON["Monitor Aggregator"]
-
-    style RAPIDS_CORE fill:#e3f2fd
-    style SCHED_ARRAY fill:#fff9c4
-    style SINK_PATH fill:#c8e6c9
-    style SRC_PATH fill:#ffccbc
-```
+**Source:** [ch02_whole_unit.dot](../assets/graphviz/ch02_whole_unit.dot)
 
 ## Top-Level Integration (rapids_beats_top)
 
@@ -101,33 +45,19 @@ When `USE_AXI_MONITORS = 1`, each half carries two monitor-lites:
 `axi4_master_rd_monlite` on its descriptor read master and an AXIS monitor-lite
 on its network port (`axis4_slave_monlite` on the sink's `s_axis_*`,
 `axis4_master_monlite` on the source's `m_axis_*`; rapids TASK-015). Their
-packets join the scheduler groups' events in the half's 3:1 `monbus_arbiter`,
+descriptor-monitor packets join the eight scheduler groups in the array's
+9:1 `monbus_arbiter`, the AXIS-monitor packets join the array output in the
+half's 3:1 `monbus_arbiter` (third input reserved),
 the core merges the two halves, and the top delivers the stream through a
 `monbus_axil4_axil4_group` to an AXI-Lite error-drain slave, an AXI-Lite
 capture master, and a `mon_irq` interrupt. The data masters `m_axi_rd` and
 `m_axi_wr` carry no monitors.
 
-```mermaid
-graph TB
-    APB["APB4 Slave<br/>s_apb_*"] --> ROUTER["cmdrsp_router"]
-    ROUTER -->|"0x000-0x03F / 0x100+ / 0x1000"| REGS["rapids_regs<br/>(kick + base + MON regfile)"]
-    REGS --> CFG["rapids_config_block<br/>(hwif_out -> cfg_*)"]
-    CFG --> CORE["rapids_core_beats"]
+### Figure 2.1.2: rapids_beats_top Integration
 
-    CORE --> MRD["m_axi_rd"]
-    CORE --> MWR["m_axi_wr"]
-    SAXIS["s_axis_*"] -->|"axis4_slave_monlite (SNK)"| CORE
-    CORE -->|"axis4_master_monlite (SRC)"| MAXIS["m_axis_*"]
+![rapids_beats_top Integration](../assets/graphviz/ch02_top_integration.png)
 
-    CORE -->|"core_mon_* (per-half 3:1, core 2:1)"| GRP["monbus_axil4_axil4_group"]
-    GRP --> ERR["s_axil_err_*<br/>(error drain)"]
-    GRP --> CAP["m_axil_mon_*<br/>(capture master)"]
-    GRP --> IRQ["mon_irq"]
-
-    style CORE fill:#e3f2fd
-    style REGS fill:#fff9c4
-    style GRP fill:#ffccbc
-```
+**Source:** [ch02_top_integration.dot](../assets/graphviz/ch02_top_integration.dot)
 
 ## Component Summary
 

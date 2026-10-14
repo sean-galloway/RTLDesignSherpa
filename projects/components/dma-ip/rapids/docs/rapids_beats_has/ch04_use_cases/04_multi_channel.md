@@ -29,45 +29,11 @@ RAPIDS Beats supports 8 independent DMA channels that can operate concurrently. 
 
 ## Channel Independence
 
-```mermaid
-graph TB
-    subgraph Channels["Independent Channels"]
-        CH0["Channel 0<br/>High Priority<br/>Voice Traffic"]
-        CH1["Channel 1<br/>High Priority<br/>Control Packets"]
-        CH2["Channel 2<br/>Medium Priority<br/>Video Stream"]
-        CH3["Channel 3<br/>Low Priority<br/>Bulk Data"]
-        CH4["Channel 4<br/>Idle"]
-        CH5["Channel 5<br/>Idle"]
-        CH6["Channel 6<br/>Idle"]
-        CH7["Channel 7<br/>Idle"]
-    end
+### Figure 4.4.1: Independent Channels
 
-    subgraph Shared["Shared Resources"]
-        DESC_ARB["Descriptor<br/>AXI Arbiter"]
-        SINK_ARB["Sink AXI<br/>Arbiter"]
-        SRC_ARB["Source AXI<br/>Arbiter"]
-    end
+![Independent Channels](../assets/graphviz/ch04_channel_independence.png)
 
-    CH0 --> DESC_ARB
-    CH1 --> DESC_ARB
-    CH2 --> DESC_ARB
-    CH3 --> DESC_ARB
-
-    CH0 --> SINK_ARB
-    CH2 --> SINK_ARB
-
-    CH1 --> SRC_ARB
-    CH3 --> SRC_ARB
-
-    style CH0 fill:#ffcdd2
-    style CH1 fill:#ffcdd2
-    style CH2 fill:#fff9c4
-    style CH3 fill:#c8e6c9
-    style CH4 fill:#f5f5f5
-    style CH5 fill:#f5f5f5
-    style CH6 fill:#f5f5f5
-    style CH7 fill:#f5f5f5
-```
+**Source:** [ch04_channel_independence.dot](../assets/graphviz/ch04_channel_independence.dot)
 
 ## Concurrent Operation Timing
 
@@ -128,27 +94,15 @@ All channels share a single AXI port for descriptor fetches:
 
 ### Sink/Source Arbitration
 
-Data path AXI ports use round-robin arbitration with optional priority:
+Data path AXI ports use plain round-robin arbitration (`arbiter_round_robin`
+inside each engine). There is no priority boost: the descriptor's priority
+field is carried but not used for arbitration.
 
-```mermaid
-graph LR
-    subgraph Requests["Channel Requests"]
-        R0["CH0 req"]
-        R1["CH1 req"]
-        R2["CH2 req"]
-        R7["CH7 req"]
-    end
+### Figure 4.4.2: Data-Path AXI Arbitration
 
-    ARB["Round-Robin<br/>Arbiter<br/>(with priority boost)"]
+![Data-Path AXI Arbitration](../assets/graphviz/ch04_datapath_arbitration.png)
 
-    R0 --> ARB
-    R1 --> ARB
-    R2 --> ARB
-    R7 --> ARB
-
-    ARB --> G["Grant"]
-    ARB --> AXI["AXI<br/>Port"]
-```
+**Source:** [ch04_datapath_arbitration.dot](../assets/graphviz/ch04_datapath_arbitration.dot)
 
 ## Channel Isolation
 
@@ -224,61 +178,21 @@ Typical network application with different traffic types:
 
 Single network connection using paired channels:
 
-```mermaid
-graph LR
-    subgraph Network["Network Connection"]
-        NIC["Network<br/>Interface"]
-    end
+### Figure 4.4.3: Bidirectional Transfer
 
-    subgraph RAPIDS["RAPIDS Beats"]
-        CH0["Channel 0<br/>(RX - Sink)"]
-        CH1["Channel 1<br/>(TX - Source)"]
-    end
+![Bidirectional Transfer](../assets/graphviz/ch04_bidirectional.png)
 
-    subgraph Memory["System Memory"]
-        RX_BUF["RX Buffer"]
-        TX_BUF["TX Buffer"]
-    end
-
-    NIC -->|AXIS Slave| CH0
-    CH0 -->|AXI Write| RX_BUF
-
-    TX_BUF -->|AXI Read| CH1
-    CH1 -->|AXIS Master| NIC
-```
+**Source:** [ch04_bidirectional.dot](../assets/graphviz/ch04_bidirectional.dot)
 
 ### Load Balancing
 
 Multiple channels processing same traffic type:
 
-```mermaid
-graph TB
-    subgraph Input["Incoming Traffic"]
-        PKT0["Packet 0"]
-        PKT1["Packet 1"]
-        PKT2["Packet 2"]
-        PKT3["Packet 3"]
-    end
+### Figure 4.4.4: Load Balancing by tid
 
-    DIST["Traffic<br/>Distributor"]
+![Load Balancing by tid](../assets/graphviz/ch04_load_balancing.png)
 
-    subgraph Channels["RAPIDS Channels"]
-        CH0["Channel 0"]
-        CH1["Channel 1"]
-        CH2["Channel 2"]
-        CH3["Channel 3"]
-    end
-
-    PKT0 --> DIST
-    PKT1 --> DIST
-    PKT2 --> DIST
-    PKT3 --> DIST
-
-    DIST --> CH0
-    DIST --> CH1
-    DIST --> CH2
-    DIST --> CH3
-```
+**Source:** [ch04_load_balancing.dot](../assets/graphviz/ch04_load_balancing.dot)
 
 ## Performance Considerations
 

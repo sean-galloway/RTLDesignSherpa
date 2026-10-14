@@ -29,36 +29,11 @@ Descriptor chaining enables multiple transfers to execute sequentially without s
 
 ## Chain Structure
 
-```mermaid
-graph LR
-    subgraph Memory["System Memory"]
-        DESC0["Descriptor 0<br/>next_ptr → DESC1"]
-        DESC1["Descriptor 1<br/>next_ptr → DESC2"]
-        DESC2["Descriptor 2<br/>next_ptr → 0"]
+### Figure 4.3.1: Descriptor Chain Structure
 
-        BUF0["Buffer 0"]
-        BUF1["Buffer 1"]
-        BUF2["Buffer 2"]
-    end
+![Descriptor Chain Structure](../assets/graphviz/ch04_chain_structure.png)
 
-    subgraph RAPIDS["RAPIDS Beats"]
-        SCHED["Scheduler"]
-        DESC_ENG["Descriptor<br/>Engine"]
-    end
-
-    DESC0 --> DESC1
-    DESC1 --> DESC2
-
-    DESC0 -.-> BUF0
-    DESC1 -.-> BUF1
-    DESC2 -.-> BUF2
-
-    DESC_ENG --> DESC0
-
-    style DESC0 fill:#e3f2fd
-    style DESC1 fill:#e3f2fd
-    style DESC2 fill:#e3f2fd
-```
+**Source:** [ch04_chain_structure.dot](../assets/graphviz/ch04_chain_structure.dot)
 
 ## Chain Execution Flow
 
@@ -220,24 +195,11 @@ lost.
 
 Each channel maintains independent chains:
 
-```mermaid
-graph TB
-    subgraph CH0["Channel 0 Chain"]
-        D0_0["DESC 0.0"] --> D0_1["DESC 0.1"] --> D0_2["DESC 0.2"]
-    end
+### Figure 4.3.2: Independent Per-Channel Chains
 
-    subgraph CH1["Channel 1 Chain"]
-        D1_0["DESC 1.0"] --> D1_1["DESC 1.1"]
-    end
+![Independent Per-Channel Chains](../assets/graphviz/ch04_multichannel_chains.png)
 
-    subgraph CH2["Channel 2 Chain"]
-        D2_0["DESC 2.0"] --> D2_1["DESC 2.1"] --> D2_2["DESC 2.2"] --> D2_3["DESC 2.3"]
-    end
-
-    style CH0 fill:#e3f2fd
-    style CH1 fill:#e8f5e9
-    style CH2 fill:#fff3e0
-```
+**Source:** [ch04_multichannel_chains.dot](../assets/graphviz/ch04_multichannel_chains.dot)
 
 Channels execute their chains concurrently and independently.
 

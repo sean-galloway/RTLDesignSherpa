@@ -1,23 +1,37 @@
 // The packet record: how a DATA descriptor's byte length and offset reach the
 // data paths, and why the sink ingress waits for it.
+// Verified against rtl/fub/scheduler.sv (sched_*_pkt_*, waits for ready),
+// rtl/macro/snk_data_path_axis.sv and src_data_path_axis.sv (PQ_DEPTH = 4).
+// Sink on the left, source on the right, the beat command down the center.
 digraph packet_record_flow {
-    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.4, ranksep=0.6,
-           label="Packet records: scheduler -> data path, one per DATA descriptor and direction", labelloc=t, labeljust=l];
-    node  [shape=box, style="rounded,filled", fillcolor="#f4f4f4", fontname="Helvetica", fontsize=10];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.80", ranksep="0.55", splines=ortho,
+           label="Packet records - scheduler to data path, one per DATA descriptor and direction\n(byte lanes = 32 at DATA_WIDTH = 256)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    desc  [label="descriptor\nlength (BYTES), src_addr, dst_addr"];
-    sched [label="scheduler, CH_FETCH_DESC\noffset = addr[4:0]\nbeats = ceil((offset + length) / 32)\nwaits here while a record queue is full", fillcolor="#fff9c4"];
-    q_rd  [label="src_data_path_axis\nrecord queue (4 deep per channel)\n{bytes, src offset}", fillcolor="#e8f5e9"];
-    q_wr  [label="snk_data_path_axis\nrecord queue (4 deep per channel)\n{bytes, dst offset}", fillcolor="#e3f2fd"];
-    eng   [label="engines\nsched_rd_beats / sched_wr_beats\naligned AxADDR, 4 KB cap"];
-    egress[label="egress: drop the offset, re-pack,\ntstrb + tlast on the last beat", fillcolor="#e8f5e9"];
-    ingress[label="ingress: s_axis_tready stays low\nuntil the record exists; then place\nbytes at offset + lane, check the count", fillcolor="#e3f2fd"];
+    desc  [label="Descriptor (from the descriptor engine)\nlength in BYTES, src_addr, dst_addr", fillcolor="white", group=C];
+    sched [label="Scheduler - scheduler, leaving CH_FETCH_DESC\noffset = addr[4:0];  beats = ceil((offset + length) / 32)\nwaits here while either record queue is full", group=C];
+    q_wr  [label="Sink Record Queue\nsnk_data_path_axis\n4 per channel: {bytes, dst offset}", group=L];
+    eng   [label="AXI Read / Write Engines\nsched_rd_beats / sched_wr_beats,\nbeat-aligned AxADDR, 4 KB cap", group=C];
+    q_rd  [label="Source Record Queue\nsrc_data_path_axis\n4 per channel: {bytes, src offset}", group=R];
+    ingress [label="Sink Ingress Shifter\ns_axis_tready low until the record exists;\nbytes to lane offset + l; byte count checked", group=L];
+    egress  [label="Source Egress Re-Packer\ndrops the offset, packs from lane 0;\ntstrb + tlast on the last beat", group=R];
+    bar [label="Data paths: s_axis -> memory (sink)   |   memory -> m_axis (source)", fillcolor="white", width=9.5, group=C];
 
-    desc -> sched;
-    sched -> eng [label="beats"];
-    sched -> q_rd [label="sched_rd_pkt_valid\n(ready = !full)"];
-    sched -> q_wr [label="sched_wr_pkt_valid\n(ready = !full)"];
-    q_rd -> egress [label="pop on the packet's\nlast stream beat"];
-    q_wr -> ingress [label="pop on tlast\n(or the flush beat)"];
+    desc  -> sched [label="parsed descriptor"];
+    sched -> q_wr  [xlabel="sched_wr_pkt\n(ready = not full)"];
+    sched -> eng   [label="beat command", penwidth=1.8];
+    sched -> q_rd  [xlabel="sched_rd_pkt\n(ready = not full)"];
+    q_wr  -> ingress [label="record; popped on tlast\n(or the flush beat)"];
+    q_rd  -> egress  [label="record; popped on the\npacket's last stream beat"];
+    ingress -> bar [label="placed beats + strobes"];
+    eng -> bar [label="AR / AW + W bursts", penwidth=1.8];
+    egress -> bar [label="packed stream beats"];
+
+    { rank=same; q_wr; eng; q_rd; }
+    q_wr -> eng -> q_rd [style=invis];
+    { rank=same; ingress; egress; }
 }

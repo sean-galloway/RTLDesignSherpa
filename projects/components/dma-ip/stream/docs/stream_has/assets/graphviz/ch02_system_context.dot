@@ -1,0 +1,29 @@
+// STREAM in a SoC: the host programs it over APB; it moves data between two
+// memory regions through its own AXI masters. Ports from stream_top_ch8.sv.
+digraph stream_system_context {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.55", splines=ortho,
+           label="STREAM in its system - memory-to-memory DMA with descriptor chains", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    cpu    [label="Host CPU\nbuilds descriptor chains in memory,\nprograms and kicks over APB", fillcolor="white"];
+    apbic  [label="APB Interconnect", fillcolor="white"];
+    stream [label="STREAM - stream_top_ch8\n8 channels, one shared data loop\n(read engine -> SRAM -> write engine)", width=6.0];
+    mon    [label="Monitor Consumer\n(error FIFO reader, log memory)", fillcolor="white", style="filled,dashed"];
+    xbar   [label="AXI Interconnect", fillcolor="white", width=9.0];
+    mem    [label="Memory System - source buffers, destination buffers, descriptor chains\n(one or more memory controllers)", fillcolor="white", width=9.0];
+
+    cpu -> apbic [label="APB (pclk)"];
+    apbic -> stream [label="s_apb_* config + kick", penwidth=1.8];
+    stream -> mon [style=dashed, dir=both, xlabel="s_axil_err reads,\nstream_irq"];
+    p_d [shape=point, width=0.01]; p_r [shape=point, width=0.01]; p_w [shape=point, width=0.01]; p_m [shape=point, width=0.01];
+    { rank=same; p_d; p_r; p_w; p_m; }
+    p_d -> p_r -> p_w -> p_m [style=invis];
+    stream -> p_d [arrowhead=none]; p_d -> xbar [dir=both, xlabel="m_axi_desc:\ndescriptor fetch"];
+    stream -> p_r [arrowhead=none]; p_r -> xbar [dir=both, xlabel="m_axi_rd:\nsource reads"];
+    stream -> p_w [arrowhead=none]; p_w -> xbar [dir=both, xlabel="m_axi_wr:\ndestination writes"];
+    stream -> p_m [arrowhead=none, style=dashed]; p_m -> xbar [style=dashed, xlabel="m_axil_mon:\nmonitor log"];
+    xbar -> mem [dir=both, label="AXI reads and writes"];
+    { rank=same; stream; mon; }
+}

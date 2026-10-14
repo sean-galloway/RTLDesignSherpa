@@ -1,20 +1,26 @@
-// scheduler: what the byte fields become, per direction.
+// scheduler (rtl/fub/scheduler.sv): bytes in, beats out, per enabled direction.
 digraph scheduler_byte_math {
-    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.4, ranksep=0.5,
-           label="scheduler: bytes in, beats out (per enabled direction)", labelloc=t, labeljust=l];
-    node  [shape=box, style="rounded,filled", fillcolor="#f4f4f4", fontname="Helvetica", fontsize=10];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.40", splines=ortho,
+           label="scheduler - bytes in, beats out (per enabled direction)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    in    [label="descriptor\nlength (bytes), src_addr, dst_addr", fillcolor="#fff3e0"];
-    off   [label="offset = addr[OFF_W-1:0]\n(OFF_W = log2(BYTE_LANES), 5 for 256-bit)"];
-    beats [label="beats_total = length == 0 ? 0\n: (offset + length + BYTE_LANES - 1) >> OFF_W\n(33-bit intermediate)", fillcolor="#fff9c4"];
-    load  [label="CH_FETCH_DESC\nr_*_beats_remaining <= beats_total\naddr working registers <= byte addresses"];
-    gate  [label="w_pkt_ok: every enabled direction's\nrecord queue has room (or length == 0)\nelse stay in CH_FETCH_DESC", fillcolor="#ffebee"];
-    rec   [label="sched_*_pkt_valid pulse\n{length, offset}", fillcolor="#e3f2fd"];
-    xfer  [label="CH_XFER_DATA\nsched_*_beats = remaining (beats)\nsched_*_addr = working address (byte)"];
-    adv   [label="on done_strobe:\naddr <= (addr & ~(BYTE_LANES-1)) + beats_done * BYTE_LANES\nremaining -= beats_done"];
-    ext   [label="TYPE=EXT: rows counted in beats;\naddresses beat-aligned, lengths beat-multiples\n(permanent)", shape=note, fillcolor="#ffffff"];
+    in    [label="Descriptor (from the descriptor engine)\nlength in bytes, src_addr, dst_addr", fillcolor="white", group=C];
+    math  [label="Offset and Beat Count (combinational)\noffset = addr[OFF_W-1:0]  (OFF_W = log2(BYTE_LANES), 5 at 256-bit)\nbeats = length == 0 ? 0 : (offset + length + BYTE_LANES - 1) >> OFF_W  (33-bit)", group=C];
+    gate  [label="Record Gate, CH_FETCH_DESC (combinational)\nw_pkt_ok: each enabled direction's record queue has room\n(or length == 0); otherwise stay in CH_FETCH_DESC", group=C];
+    load  [label="Working Registers (flops), loaded leaving CH_FETCH_DESC\nr_*_beats_remaining = beats;  address = byte address", group=C];
+    adv   [label="Advance on each done strobe (flops)\naddr = (addr & ~(BYTE_LANES-1)) + beats_done * BYTE_LANES;\nremaining -= beats_done", group=C];
+    ext   [label="TYPE=EXT: rows counted in beats;\naddresses beat-aligned and lengths\nbeat multiples (by design)", fillcolor="white", group=R];
+    bar   [label="Outputs\nsched_*_beats = remaining, sched_*_addr = working address (to the engines)   |   sched_*_pkt_valid pulse with {length, offset} (to the data path)", fillcolor="white", width=11.0, group=C];
 
-    in -> off -> beats -> load -> gate -> rec -> xfer -> adv -> xfer;
-    beats -> ext [style=dashed];
+    in   -> math [label="length, address"];
+    math -> gate [label="beats, offset"];
+    gate -> load [label="record accepted"];
+    load -> adv  [label="beats remaining, address"];
+    adv  -> bar  [xlabel="beat command\n(CH_XFER_DATA)", penwidth=1.8];
+    gate -> bar  [style=dashed, constraint=false, xlabel="packet record"];
+    math -> ext  [style=dashed, xlabel="EXT"];
+    { rank=same; math; ext; }
 }

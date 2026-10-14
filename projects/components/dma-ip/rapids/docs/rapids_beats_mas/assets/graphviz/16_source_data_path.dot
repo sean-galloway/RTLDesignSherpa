@@ -1,0 +1,34 @@
+// src_data_path_beats (rtl/macro_beats/src_data_path_beats.sv): the AXI read
+// engine filling the source SRAM controller; the drain side goes to the egress.
+digraph src_data_path_beats {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.60", splines=ortho,
+           label="src_data_path_beats - AXI read to drain interface (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    sched [label="Scheduler Interface (8 channels)\nsched_rd_valid / addr / beats in;\ndone strobes, errors out", fillcolor="white", group=C];
+    drain [label="Drain Interface (to the AXIS egress)\ndrain_req / size per channel in; drain_data_avail,\nvalid out; drain + id -> data", fillcolor="white", group=R];
+    eng   [label="AXI Read Engine\naxi_read_engine_beats\n(see its figure)", group=C];
+    sram  [label="Source SRAM Buffer\nsrc_sram_controller_beats\n(see its figure)", height=0.9, group=R];
+    bar   [label="Module Boundary - m_axi_rd\nAR out (to the interconnect)   |   R in", fillcolor="white", width=7.5];
+
+    sched -> eng  [dir=both, label="read commands in;\ndone strobes, errors back", penwidth=1.8];
+    sram  -> eng  [dir=back, label="R beats (fill, by channel id);\nalloc_req, space_free"];
+    drain -> sram [dir=back, label="drain beats out;\ndrain_req in", penwidth=1.8];
+
+    p_ar [shape=point, width=0.01, group=C];
+    p_r  [shape=point, width=0.01];
+    { rank=same; p_ar; p_r; }
+    p_ar -> p_r [style=invis];
+    eng -> p_ar [arrowhead=none, headclip=false, penwidth=1.8];
+    p_ar -> bar [xlabel="AR", penwidth=1.8, tailclip=false];
+    eng -> p_r  [dir=back, headclip=false];
+    p_r -> bar  [dir=none, xlabel="R", tailclip=false];
+
+    { rank=same; sched; drain; }
+    sched -> drain [style=invis];
+    { rank=same; eng; }
+}

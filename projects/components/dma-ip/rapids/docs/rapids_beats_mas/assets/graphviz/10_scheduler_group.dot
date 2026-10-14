@@ -1,0 +1,52 @@
+// scheduler_group_beats (rtl/macro_beats/scheduler_group_beats.sv): one channel's
+// descriptor engine, scheduler, control-read and control-write engines, and
+// a 4:1 monbus_arbiter.
+digraph scheduler_group_beats {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho,
+           label="scheduler_group_beats - one channel (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    kick  [label="Kick + Configuration\napb_valid / apb_addr (descriptor address), cfg_*", fillcolor="white", group=C];
+    de    [label="Descriptor Engine\ndescriptor_engine_beats (see its figure)", group=C];
+    sc    [label="Scheduler\nscheduler_beats (see its figure)", group=C];
+    cr    [label="Control-Read Engine\nctrlrd_engine", group=L];
+    cw    [label="Control-Write Engine\nctrlwr_engine", group=R];
+    arb   [label="MonBus Arbiter (sideband) - monbus_arbiter, 4:1
+merges descriptor, scheduler, ctrlrd and ctrlwr
+event packets (see the MonBus aggregation figure)", style="filled,dashed", group=M];
+
+    bar [label="Group Boundary (to scheduler_group_array_beats)\nctrlrd AR / R  |  descriptor AR / R  |  sched_rd_*, sched_wr_* (to the data paths)  |  ctrlwr AW / W / B  |  mon_* (one stream)",
+         fillcolor="white", width=13.0];
+
+    kick -> de [label="descriptor address"];
+    de   -> sc [label="descriptor (valid / ready)", penwidth=1.8];
+    sc   -> cr [xlabel="poll request"];
+    sc   -> cw [xlabel="doorbell request"];
+
+    p_cr [shape=point, width=0.01, group=L];
+    p_de [shape=point, width=0.01];
+    p_sc [shape=point, width=0.01, group=C];
+    p_mn [shape=point, width=0.01, group=M];
+    p_cw [shape=point, width=0.01, group=R];
+    sp1 [style=invis, label="", fixedsize=true, width=1.2, height=0.02];
+    { rank=same; p_cr; sp1; p_de; sp2; p_sc; p_mn; p_cw; }
+    p_cr -> sp1 -> p_de -> sp2 -> p_sc -> p_mn -> p_cw [style=invis];
+    sp2 [style=invis, label="", fixedsize=true, width=1.2, height=0.02];
+    cr -> p_cr [arrowhead=none];
+    p_cr -> bar [dir=both, xlabel="AR out,\nR back"];
+    de -> p_de [arrowhead=none];
+    p_de -> bar [dir=both, xlabel="descriptor fetch:\nAR out, R back"];
+    sc -> p_sc [arrowhead=none, penwidth=1.8];
+    p_sc -> bar [dir=both, penwidth=1.8, xlabel="read / write commands;\ndone, commit, error back"];
+    arb -> p_mn [arrowhead=none];
+    p_mn -> bar [xlabel="mon_* packets"];
+    cw -> p_cw [arrowhead=none];
+    p_cw -> bar [dir=both, xlabel="AW + W out,\nB back"];
+
+    { rank=same; cr; arb; cw; }
+    cr -> arb -> cw [style=invis];
+}

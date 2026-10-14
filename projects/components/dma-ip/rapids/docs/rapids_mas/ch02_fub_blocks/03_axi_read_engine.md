@@ -49,21 +49,9 @@ The engine is beat based, as in RAPIDS Beats. The scheduler has already converte
 
 ### Figure 2.3.1: AXI Read Engine Block Diagram
 
-```
-                     +-----------------------------------+
- sched_rd_valid  --->|                                   |---> m_axi_arid
- sched_rd_addr   --->|  per-channel request, round robin |---> m_axi_araddr  (beat aligned)
- sched_rd_beats  --->|  arbiter, 4 KB burst cap          |---> m_axi_arlen
- cfg_..xfer_beats -->|                                   |---> m_axi_arsize / arburst
-                     |                                   |---> m_axi_arvalid
- sched_rd_done   <---|                                   |<--- m_axi_arready
- sched_rd_beats_d <--|                                   |
- sched_rd_error  <---|                                   |<--- m_axi_rid / rdata / rresp / rlast
-                     |                                   |<--- m_axi_rvalid
- axi_rd_alloc_*  <-->|  allocation and fill handshake    |---> m_axi_rready
- axi_rd_sram_*   --->|                                   |
-                     +-----------------------------------+
-```
+![AXI read engine block diagram](../assets/graphviz/05_axi_read_engine.png)
+
+**Source:** [05_axi_read_engine.dot](../assets/graphviz/05_axi_read_engine.dot)
 
 ---
 

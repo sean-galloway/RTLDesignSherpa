@@ -1,0 +1,32 @@
+// Descriptor chain in system memory: the kick gives descriptor 0's address,
+// each descriptor's next_descriptor_ptr [191:160] gives the next, and a chain
+// ends at next_descriptor_ptr == 0 or last [194] = 1 (rapids_pkg.sv).
+digraph rapids_beats_chain_structure {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.40", splines=ortho,
+           label="Descriptor chain - a linked list in system memory, walked by one channel's descriptor engine",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    kick [label="Kick - CHn_DESC_ADDR + KICK_ENABLE\n(address of descriptor 0)", fillcolor="white", group=C];
+    de   [label="Descriptor Engine - descriptor_engine_beats\nfetches each 256-bit descriptor by AXI read\n(m_axi_desc) and passes it to the scheduler", group=C];
+    d0 [label="Descriptor 0\nsrc / dst / length\nnext_descriptor_ptr = D1", fillcolor="white", group=C];
+    d1 [label="Descriptor 1\nsrc / dst / length\nnext_descriptor_ptr = D2", fillcolor="white", group=C];
+    d2 [label="Descriptor 2\nsrc / dst / length\nnext_descriptor_ptr = 0 (or last = 1):\nchain ends, no further fetch", fillcolor="white", group=C];
+    b0 [label="Data Buffer 0", fillcolor="white", group=B];
+    b1 [label="Data Buffer 1", fillcolor="white", group=B];
+    b2 [label="Data Buffer 2", fillcolor="white", group=B];
+
+    kick -> de [label="descriptor 0 address"];
+    de -> d0 [label="fetch (AR / R)", penwidth=1.8];
+    d0 -> d1 [label="next_descriptor_ptr"];
+    d1 -> d2 [label="next_descriptor_ptr"];
+    d0 -> b0 [style=dashed, xlabel="buffer address"];
+    d1 -> b1 [style=dashed, xlabel="buffer address"];
+    d2 -> b2 [style=dashed, xlabel="buffer address"];
+    b0 -> b1 -> b2 [style=invis, weight=5];
+    { rank=same; d1; b0; }
+    { rank=same; d2; b1; }
+}

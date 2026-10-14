@@ -27,9 +27,11 @@
 
 STREAM supports 8 independent DMA channels, each capable of processing its own descriptor chain:
 
-![Channel Architecture](../assets/mermaid/04_channel_architecture.png)
+### Figure 3.3.1: Channel Architecture
 
-**Source:** [04_channel_architecture.mmd](../assets/mermaid/04_channel_architecture.mmd)
+![Channel Architecture](../assets/graphviz/ch03_channel_architecture.png)
+
+**Source:** [ch03_channel_architecture.dot](../assets/graphviz/ch03_channel_architecture.dot)
 
 ---
 
@@ -54,30 +56,25 @@ All channels share the following resources:
 | Resource | Arbitration | Capacity |
 |----------|-------------|----------|
 | **Descriptor AXI Master** | Round-robin | 1 outstanding transaction |
-| **Data Read AXI Master** | Priority-based | Configurable outstanding |
-| **Data Write AXI Master** | Priority-based | Configurable outstanding |
+| **Data Read AXI Master** | Round-robin over channels with SRAM space | Configurable outstanding |
+| **Data Write AXI Master** | Round-robin over channels with SRAM data | Configurable outstanding |
 | **SRAM Buffer** | Partitioned by channel | SRAM_DEPTH entries |
-| **MonBus Reporter** | FIFO-based | 64-entry FIFO |
+| **MonBus** | Round-robin (`monbus_arbiter`) | One packet per grant |
 
 ---
 
 ## Arbitration Scheme
 
-### Priority-Based Arbitration
+### Round-Robin Arbitration
 
-Descriptor priority field (8 bits) determines service order:
-
-- **Priority 255:** Highest priority
-- **Priority 0:** Lowest priority
-- **Same Priority:** Round-robin among equal priority
-
-### Fairness Mechanism
-
-To prevent starvation:
-
-- Maximum service time per grant (configurable)
-- Anti-starvation counter promotes low-priority after timeout
-- Emergency preemption for high-priority arrivals (optional)
+Every shared master is behind a plain round-robin pick (`arbiter_round_robin`
+in acknowledge mode): the grant moves to the next requesting channel after
+the last winner. There is no priority logic. The descriptor's 8-bit priority
+field (`[207:200]`) is carried but not used for arbitration, and there is no
+anti-starvation timer or preemption; round-robin itself bounds every
+channel's wait to one turn of the other channels. The read and write engines
+mask a channel out of their pick until its SRAM FIFO has room (read) or data
+(write) for a burst.
 
 ### Arbitration Points
 
@@ -92,6 +89,8 @@ Arbitration occurs at:
 ## Channel States
 
 Each channel FSM traverses these states:
+
+### Figure 3.3.2: Channel FSM State Diagram
 
 ![Channel FSM State Diagram](../assets/mermaid/05_channel_fsm.png)
 

@@ -45,35 +45,9 @@ The Source SRAM Controller is a naming wrapper, with no logic of its own, around
 
 ### Figure 3.8.1: Source SRAM Controller Block Diagram
 
-```
-                    src_sram_controller_beats
-    +------------------------------------------------------------------+
-    |                                                                  |
-    |  fill_* (from the AXI read engine)         src_sram_controller_beats |
-    |         |                                (names only)            |
-    |         v                                                        |
-    |  +------------------------------------------------------------+  |
-    |  |  sram_controller  (STREAM, shared with the STREAM DMA)     |  |
-    |  |  +-----------+ +-----------+       +-----------+           |  |
-    |  |  | unit [0]  | | unit [1]  |  ...  | unit [7]  |           |  |
-    |  |  | alloc_ctrl| | alloc_ctrl|       | alloc_ctrl|           |  |
-    |  |  | fifo_sync | | fifo_sync |       | fifo_sync |           |  |
-    |  |  | drain_ctrl| | drain_ctrl|       | drain_ctrl|           |  |
-    |  |  | lat.bridge| | lat.bridge|       | lat.bridge|           |  |
-    |  |  +-----+-----+ +-----+-----+       +-----+-----+           |  |
-    |  |        |drain_valid  |drain_valid        |drain_valid      |  |
-    |  |        v             v                   v                 |  |
-    |  |  +--------------------------------------------------------+ |  |
-    |  |  | drain_id select (the consumer arbitrates, 1 beat/cycle)| |  |
-    |  |  +--------------------------------------------------------+ |  |
-    |  +------------------------------------------------------------+  |
-    |                               |                                  |
-    |                               v                                  |
-    |                    Drain Interface                               |
-    |                    (to Network Master)                           |
-    |                                                                  |
-    +------------------------------------------------------------------+
-```
+![Source SRAM controller block diagram](../assets/graphviz/18_src_sram_controller.png)
+
+**Source:** [18_src_sram_controller.dot](../assets/graphviz/18_src_sram_controller.dot)
 
 ---
 

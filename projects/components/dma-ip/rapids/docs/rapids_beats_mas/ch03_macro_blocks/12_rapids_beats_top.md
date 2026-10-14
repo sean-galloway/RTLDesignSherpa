@@ -44,39 +44,9 @@ and interrupt).
 
 ### Figure 3.12.1: RAPIDS Beats Top Integration
 
-```
-   s_apb_* (APB4 slave)
-        |
-     apb4_slave  (APB -> cmd/rsp)
-        |
-   cmdrsp_router (address decode)
-        |
-        | all ranges: 0x000-0x03F kick regs, 0x100+ base, 0x1000 MON
-        v
-                   peakrdl_to_cmdrsp
-                         |
-                         v
-                   rapids_regs  ---> hwif_out
-                         |
-                         v
-                   rapids_config_block  (hwif_out -> cfg_*)
-                         |
-                         v
-                rapids_core_beats
-                        |
-        core AXI rd/wr, AXIS in/out, ONE merged MonBus stream
-        (per half: scheduler groups + descriptor-read monlite +
-         AXIS monlite through a 3:1 monbus_arbiter; core merges 2:1)
-                        |
-     +------------------+------------------+
-     | m_axi_rd    m_axi_wr   s_axis / m_axis      core_mon_*
-     |                                                 |
-     |                                  monbus_axil4_axil4_group
-     |                 |          |         |
-     |          s_axil_err_*  m_axil_mon_*  mon_irq
-     v
-   (external memory)
-```
+![RAPIDS beats top integration](../assets/graphviz/20_rapids_beats_top.png)
+
+**Source:** [20_rapids_beats_top.dot](../assets/graphviz/20_rapids_beats_top.dot)
 
 ### Address Decode
 

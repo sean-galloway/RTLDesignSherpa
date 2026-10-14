@@ -29,58 +29,25 @@ RAPIDS Beats integrates into a system as a DMA engine bridging network interface
 
 ## System Block Diagram
 
-```mermaid
-graph LR
-    subgraph Host["Host Domain"]
-        CPU["CPU"]
-        DDR["DDR Memory"]
-    end
+### Figure 1.3.1: System Integration
 
-    subgraph Interconnect["AXI Interconnect"]
-        AXI_IC["AXI Crossbar"]
-    end
+![System Integration](../assets/graphviz/ch01_system_integration.png)
 
-    subgraph RAPIDS["RAPIDS Beats"]
-        DESC_AXI["Descriptor<br/>AXI Master"]
-        SINK_AXI["Sink<br/>AXI Master"]
-        SRC_AXI["Source<br/>AXI Master"]
-        SINK_AXIS["Sink<br/>AXIS Slave"]
-        SRC_AXIS["Source<br/>AXIS Master"]
-        MONBUS["MonBus<br/>Output"]
-    end
-
-    subgraph Network["Network Domain"]
-        NIC["Network<br/>Interface"]
-    end
-
-    subgraph Monitor["Monitor Domain"]
-        MON_AGG["Monitor<br/>Aggregator"]
-    end
-
-    CPU --> AXI_IC
-    DDR <--> AXI_IC
-
-    DESC_AXI --> AXI_IC
-    SINK_AXI --> AXI_IC
-    SRC_AXI --> AXI_IC
-
-    NIC --> SINK_AXIS
-    SRC_AXIS --> NIC
-
-    MONBUS --> MON_AGG
-
-    style RAPIDS fill:#e3f2fd
-```
+**Source:** [ch01_system_integration.dot](../assets/graphviz/ch01_system_integration.dot)
 
 ## Interface Connections
 
 ### Memory Interface
 
-RAPIDS requires three AXI4 master ports connected to system memory:
+RAPIDS Beats reaches system memory through the AXI4 masters below. Each
+half (`src_`, `snk_`) has its own descriptor master and its own two control
+masters, so the descriptor and control rows are two ports each. With monitors
+built, an AXI-Lite master (`m_axil_mon`) also writes the monitor log:
 
 | Port | Access Pattern | Typical Bandwidth |
 |------|----------------|-------------------|
-| **Descriptor AXI** | Random read (256-bit) | Low (<100 MB/s) |
+| **Descriptor AXI** (`m_axi_desc`) | Random read (256-bit) | Low (<100 MB/s) |
+| **Control AXI** (`m_axi_ctrlrd`, `m_axi_ctrlwr`) | Single 32-bit reads and writes | Very low |
 | **Sink AXI** | Sequential write (512-bit) | High (up to interface max) |
 | **Source AXI** | Sequential read (512-bit) | High (up to interface max) |
 
@@ -88,7 +55,7 @@ RAPIDS requires three AXI4 master ports connected to system memory:
 
 **Interconnect Requirements:**
 
-- All three ports MAY share a single physical AXI port with arbitration
+- All of these ports MAY share a single physical AXI port with arbitration
 - Descriptor port has lowest bandwidth requirement
 - Sink and Source ports should have balanced bandwidth allocation
 

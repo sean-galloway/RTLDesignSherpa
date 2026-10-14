@@ -1,0 +1,40 @@
+// ctrlrd_engine (rtl/fub/ctrlrd_engine.sv): consumer gate. Polls one 32-bit
+// word until (data & mask) == (expected & mask), bounded by cfg_ctrlrd_max_try.
+digraph ctrlrd_engine {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.50", splines=ortho,
+           label="ctrlrd_engine - control-read poll engine (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    req  [label="Request (from scheduler_beats)\nctrlrd_valid / ready: poll addr,\nexpected data, mask", fillcolor="white", group=C];
+    sts  [label="Status (to scheduler_beats)\nctrlrd_engine_idle, ctrlrd_error,\nctrlrd_result", fillcolor="white", group=R];
+
+    skid [label="Request Skid Buffer\ngaxi_skid_buffer {addr, data, mask}", group=C];
+    fsm  [label="Read FSM (see the FSM figure)\nREAD_ISSUE_ADDR: single-beat AR (ARLEN 0);\nnull address -> immediate match", group=C];
+    cmp  [label="Compare (combinational)\n(r_data & mask) == (expected & mask)?\nRRESP error -> READ_ERROR", group=R];
+    rty  [label="Retry Counter (flops)\nloaded with cfg_ctrlrd_max_try;\nwait for tick_1us, then reissue", group=M];
+    mon  [label="MonBus Packet Generator\ncompletion, retry, error events", style="filled,dashed", group=L];
+
+    bar  [label="Module Boundary - control-read AXI master (shared per array)\nAR out: addr, id   |   R in: data, resp", fillcolor="white", width=8.5, group=C];
+
+    req  -> skid [label="poll request"];
+    skid -> fsm  [label="addr, expected, mask"];
+    fsm  -> bar  [xlabel="AR (one beat)", penwidth=1.8];
+    cmp  -> bar  [dir=back, xlabel="R: data, resp"];
+    sts  -> cmp  [dir=back, label="match / error -> idle, result"];
+    cmp  -> rty  [style=dashed, xlabel="mismatch,\nretries left"];
+    fsm  -> rty  [dir=back, style=dashed, xlabel="reissue after\ntick_1us"];
+    fsm  -> mon  [style=dashed, xlabel="events"];
+
+    { rank=same; req; sts; }
+    req -> sts [style=invis];
+    { rank=same; fsm; cmp; }
+    fsm -> cmp [style=invis];
+    { rank=same; mon; rty; }
+    mon -> rty [style=invis];
+    mon -> bar [style=invis];
+    rty -> bar [style=invis];
+}

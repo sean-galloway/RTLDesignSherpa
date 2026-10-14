@@ -70,9 +70,9 @@ The implementation uses **independent FIFOs** rather than a monolithic SRAM divi
 
 ### Figure 2.8.1: SRAM Controller Block Diagram
 
-![Diagram](../assets/mermaid/05_sram_controller_block.png)
+![Diagram](../assets/graphviz/05_sram_controller.png)
 
-**Source:** [05_sram_controller_block.mmd](../assets/mermaid/05_sram_controller_block.mmd)
+**Source:** [05_sram_controller.dot](../assets/graphviz/05_sram_controller.dot)
 
 ### Per-Channel Architecture
 

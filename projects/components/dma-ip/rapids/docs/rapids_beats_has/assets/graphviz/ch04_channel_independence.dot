@@ -1,0 +1,41 @@
+// Channel independence: the example traffic mix of the multi-channel use case.
+// A channel number exists in BOTH halves; sink channel n and source channel n
+// are separate schedulers with separate buffers. Channels meet only at the
+// round-robin picks inside each half's data engine (and descriptor arbiter).
+// No priority: arbiter_round_robin has none, and the descriptor priority
+// field is not used for arbitration.
+digraph rapids_beats_channel_independence {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.25", ranksep="1.0", splines=ortho,
+           label="Independent channels - the example traffic mix\nchannels meet only at each half's round-robin data engine (no priority);\nsink ch 1, 3 and source ch 0, 2 are idle in this example",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.10,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    s0 [label="Sink ch 0\nvoice"];
+    s2 [label="Sink ch 2\nvideo"];
+    s4 [label="Sink ch 4-7\nbulk"];
+    r1 [label="Source ch 1\nvoice"];
+    r3 [label="Source ch 3\ncontrol"];
+    r4 [label="Source ch 4-7\nbulk"];
+
+    we [label="Sink: AXI Write Engine\naxi_write_engine_beats (round-robin)", shape=polygon, sides=4, distortion=0.2, width=3.8, fillcolor="#BFD7EE"];
+    re [label="Source: AXI Read Engine\naxi_read_engine_beats (round-robin)", shape=polygon, sides=4, distortion=0.2, width=3.8, fillcolor="#BFD7EE"];
+
+    bar [label="System Memory\nm_axi_wr: AW + W bursts of the granted sink channel   |   m_axi_rd: AR of the granted source channel\n(R data returns to the requesting channel's FIFO by RID)",
+         fillcolor="white", width=10.5];
+
+    s0 -> we [label="burst req"];
+    s2 -> we [label="burst req"];
+    s4 -> we [label="burst req"];
+    r1 -> re [label="burst req"];
+    r3 -> re [label="burst req"];
+    r4 -> re [label="burst req"];
+    we -> bar [xlabel="Write to memory", penwidth=1.8];
+    re -> bar [xlabel="Read request (AR)", penwidth=1.8];
+
+    { rank=same; s0; s2; s4; r1; r3; r4; }
+    s0 -> s2 -> s4 -> r1 -> r3 -> r4 [style=invis];
+    { rank=same; we; re; }
+}

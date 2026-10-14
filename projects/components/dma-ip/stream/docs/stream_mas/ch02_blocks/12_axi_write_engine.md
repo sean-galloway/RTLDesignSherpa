@@ -54,9 +54,9 @@ The `axi_write_engine` module is a high-performance multi-channel AXI4 write eng
 
 ### Figure 2.12.1: AXI Write Engine Block Diagram
 
-![AXI Write Engine Block Diagram](../assets/mermaid/10_axi_write_engine_block.png)
+![AXI Write Engine Block Diagram](../assets/graphviz/10_axi_write_engine.png)
 
-**Source:** [10_axi_write_engine_block.mmd](../assets/mermaid/10_axi_write_engine_block.mmd)
+**Source:** [10_axi_write_engine.dot](../assets/graphviz/10_axi_write_engine.dot)
 
 ### Operation Flow
 

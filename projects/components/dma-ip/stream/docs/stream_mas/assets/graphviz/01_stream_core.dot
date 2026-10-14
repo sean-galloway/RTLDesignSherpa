@@ -1,0 +1,67 @@
+// stream_core (stream/rtl/macro/stream_core.sv) - the HAS whole-unit figure at core scope.
+// Memory-to-memory DMA: the data loop is the center - R climbs from the bar
+// through the read engine into the SRAM, then drops through the write engine
+// back to the bar. Descriptor fetch takes the left lane; monitors the right.
+// Verified against rtl/top/stream_top_ch8.sv, rtl/macro/stream_core.sv,
+// rtl/macro/scheduler_group_array.sv.
+digraph stream_core {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho,
+           label="stream_core - the DMA engine below stream_top_ch8 (single clock: clk, rst_n)\nread data climbs from m_axi_rd into the SRAM and drops back down to m_axi_wr (the data loop, center); descriptors on the left lane",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    s_apb [label="Configuration In (from stream_config_block)\ncfg_* and per-channel kick (descriptor address)", fillcolor="white", group=C];
+    sram  [label="SRAM Buffer - sram_controller\n8 per-channel FIFOs (sram_controller_unit)", height=0.9, width=3.6, group=C];
+    sga   [label="Scheduler Group Array - scheduler_group_array\n8 x scheduler_group: descriptor_engine + scheduler\n(read and write run concurrently per descriptor)", group=C];
+    wr    [label="AXI Write Engine\naxi_write_engine (round-robin\nover channels; data-aware)", group=L];
+    arb   [label="Descriptor AR Arbiter\narbiter_round_robin (8:1)", shape=invtrapezium, width=3.4, fillcolor="#BFD7EE", group=A];
+    mon   [label="Observers + MonBus (sideband)\ndesc / rd / wr monitor-lites (USE_AXI_MONITORS),\nbus meters, latency histograms, monbus_arbiter", style="filled,dashed", group=M];
+    rd    [label="AXI Read Engine\naxi_read_engine (round-robin\nover channels; space-aware)", group=R];
+    perf  [label="Performance Profiler (sideband)\nperf_profiler: watches channel idle;\nFIFO read back through the registers", style="filled,dashed", group=R];
+
+    mem [label="Core Boundary (to stream_top_ch8)\nm_axi_desc (AR / R, 256-bit)  |  m_axi_wr (AW, W / B)  |  m_axi_rd (AR / R)  |  mon_*",
+         fillcolor="white", width=15.0, group=C];
+
+    s_apb -> sga  [label="kick: descriptor address (per channel)"];
+    sga   -> arb  [label="desc fetch AR\n(8 channels)"];
+    sga   -> wr   [xlabel="write cmd: dst addr, beats"];
+    sga   -> rd   [xlabel="read cmd: src addr, beats"];
+    sga   -> mon  [style=dashed, xlabel="monitor\npackets"];
+    sram  -> wr   [label="drain beats", penwidth=1.8];
+
+    p_wr  [shape=point, width=0.01, group=L];
+    p_cmd [shape=point, width=0.01, group=A];
+    p_dr  [shape=point, width=0.01];
+    p_mn  [shape=point, width=0.01, group=M];
+    p_ar  [shape=point, width=0.01, group=R];
+    p_rd  [shape=point, width=0.01];
+    sp1 [style=invis, label="", fixedsize=true, width=0.9, height=0.02];
+    sp2 [style=invis, label="", fixedsize=true, width=0.9, height=0.02];
+    { rank=same; p_dr; p_cmd; sp1; p_wr; p_ar; sp2; p_rd; p_mn; }
+    p_dr -> p_cmd -> sp1 -> p_wr -> p_ar -> sp2 -> p_rd -> p_mn [style=invis];
+
+    wr   -> p_wr  [arrowhead=none, headclip=false, penwidth=1.8];
+    p_wr -> mem   [xlabel="Write to memory\n(AW + W, B back)", penwidth=1.8, tailclip=false];
+    arb  -> p_cmd [arrowhead=none, headclip=false, penwidth=1.8];
+    p_cmd -> mem  [xlabel="descriptor fetch (AR)", penwidth=1.8, tailclip=false];
+    sga  -> p_dr  [dir=back, headclip=false, xlabel="descriptors (R)"];
+    p_dr -> mem   [dir=none, tailclip=false];
+    mon  -> p_mn  [arrowhead=none, headclip=false, style=dashed];
+    p_mn -> mem   [style=dashed, xlabel="mon_* (to the\nmonitor group)", tailclip=false];
+    rd   -> p_ar  [arrowhead=none, headclip=false];
+    p_ar -> mem   [xlabel="Read request (AR)", tailclip=false];
+    rd   -> p_rd  [dir=back, headclip=false];
+    p_rd -> mem   [dir=none, xlabel="Read from\nmemory (R)", tailclip=false];
+
+    // read data climbs from the read engine into the SRAM fill side
+    sram -> rd [dir=back, label="R beats (fill)", penwidth=1.8];
+
+    { rank=same; sga; perf; }
+    sga -> perf [style=invis];
+    { rank=same; arb; wr; rd; mon; }
+    arb -> wr -> rd -> mon [style=invis];
+    sga -> sram [style=invis, weight=5];
+}

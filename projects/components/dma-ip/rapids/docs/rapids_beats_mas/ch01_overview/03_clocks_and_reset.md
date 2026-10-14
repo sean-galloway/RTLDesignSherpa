@@ -48,18 +48,13 @@ RAPIDS Beats operates in a single clock domain for simplified design and maximum
 ### Clock Distribution
 
 ```
-                  clk (system clock)
-                        |
-    +-------------------+-------------------+
-    |                   |                   |
-    v                   v                   v
-beats_scheduler    sink_data_path    source_data_path
-_group_array            |                   |
-    |              +----+----+         +----+----+
-    |              |         |         |         |
-    v              v         v         v         v
-descriptor    snk_sram   axi_write  axi_read  src_sram
-_engine       _ctrl      _engine    _engine   _ctrl
+clk (one clock domain; rst_n active-low, async assert)
+├── scheduler_group_array_beats (one per half)
+│   └── descriptor_engine_beats, scheduler_beats, ctrlrd_engine, ctrlwr_engine (x8)
+├── snk_data_path_axis_beats
+│   └── snk_sram_controller_beats, axi_write_engine_beats
+└── src_data_path_axis_beats
+    └── axi_read_engine_beats, src_sram_controller_beats
 ```
 
 ---

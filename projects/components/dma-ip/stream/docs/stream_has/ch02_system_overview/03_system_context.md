@@ -27,9 +27,11 @@
 
 STREAM integrates into a typical SoC as a peripheral subsystem with the following connections:
 
-![System Context Diagram](../assets/mermaid/01_system_context.png)
+### Figure 2.3.1: System Context
 
-**Source:** [01_system_context.mmd](../assets/mermaid/01_system_context.mmd)
+![System Context](../assets/graphviz/ch02_system_context.png)
+
+**Source:** [ch02_system_context.dot](../assets/graphviz/ch02_system_context.dot)
 
 ---
 

@@ -46,26 +46,9 @@ The AXI Write Engine reads data from SRAM and performs burst writes to system me
 
 ### Figure 2.4.1: AXI Write Engine Block Diagram
 
-```
-                        +---------------------------+
-    sched_wr_valid   -->|                           |--> m_axi_awid
-    sched_wr_addr    -->|                           |--> m_axi_awaddr
-    sched_wr_beats   -->|    AXI WRITE ENGINE       |--> m_axi_awlen
-    sched_wr_id      -->|                           |--> m_axi_awvalid
-                        |    (Streaming Pipeline)   |<-- m_axi_awready
-    cfg_xfer_beats   -->|                           |
-                        |                           |--> m_axi_wdata
-    sched_wr_done    <--|                           |--> m_axi_wstrb
-    sched_wr_beats_d <--|                           |--> m_axi_wlast
-    sched_wr_error   <--|                           |--> m_axi_wvalid
-                        |                           |<-- m_axi_wready
-    sram_rd_en       <--|                           |
-    sram_rd_addr     <--|                           |<-- m_axi_bid
-    sram_rd_data     -->|                           |<-- m_axi_bresp
-    sram_rd_id       <--|                           |<-- m_axi_bvalid
-                        |                           |--> m_axi_bready
-                        +---------------------------+
-```
+![AXI write engine block diagram](../assets/graphviz/04_axi_write_engine.png)
+
+**Source:** [04_axi_write_engine.dot](../assets/graphviz/04_axi_write_engine.dot)
 
 ---
 

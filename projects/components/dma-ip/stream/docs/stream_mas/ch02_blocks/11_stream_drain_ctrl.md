@@ -52,9 +52,9 @@ The `stream_drain_ctrl` module is a virtual FIFO for write engine flow control. 
 
 ### Figure 1: Stream Drain Controller Block Diagram
 
-![Stream Drain Controller Block Diagram](../assets/mermaid/09_stream_drain_ctrl_block.png)
+![Stream Drain Controller Block Diagram](../assets/graphviz/09_stream_drain_ctrl.png)
 
-**Source:** [09_stream_drain_ctrl_block.mmd](../assets/mermaid/09_stream_drain_ctrl_block.mmd)
+**Source:** [09_stream_drain_ctrl.dot](../assets/graphviz/09_stream_drain_ctrl.dot)
 
 ### Virtual FIFO Concept
 

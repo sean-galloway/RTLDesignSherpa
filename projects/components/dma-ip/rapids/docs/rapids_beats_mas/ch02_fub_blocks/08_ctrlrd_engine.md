@@ -51,22 +51,9 @@ One Control-Read Engine is instantiated per channel in `scheduler_group_beats.sv
 
 ### Figure 2.8.1: Control-Read Engine Block Diagram
 
-```
-                        +---------------------------+
-    ctrlrd_valid     -->|                           |--> ar_valid
-    ctrlrd_ready     <--|                           |--> ar_addr
-    ctrlrd_pkt_addr  -->|                           |<-- ar_ready
-    ctrlrd_pkt_data  -->|   CONTROL-READ ENGINE     |
-    ctrlrd_pkt_mask  -->|                           |<-- r_valid
-                        |   poll: (rd & mask)       |<-- r_data
-    cfg_ctrlrd_max_try->|          == expected ?    |--> r_ready
-    tick_1us         -->|                           |<-- r_resp
-                        |                           |
-    ctrlrd_error     <--|                           |
-    ctrlrd_result    <--|                           |--> mon_valid
-    ctrlrd_engine_idle<-|                           |--> mon_packet
-                        +---------------------------+
-```
+![Control-read engine block diagram](../assets/graphviz/08_ctrlrd_engine.png)
+
+**Source:** [08_ctrlrd_engine.dot](../assets/graphviz/08_ctrlrd_engine.dot)
 
 ---
 
@@ -173,45 +160,23 @@ instance in `scheduler_group_beats.sv` overrides `AXI_DATA_WIDTH` to 32.
 
 ### Figure 2.8.2: Control-Read Engine FSM
 
-```
-                    +-----------+
-        rst_n=0 --> | READ_IDLE |<-------------------+
-                    +-----+-----+                    |
-                          |                          |
-                  request accepted                   |
-                          |                          |
-                          v                          |
-                 +-----------------+                 |
-                 | READ_ISSUE_ADDR |                 |
-                 +--------+--------+                 |
-                          |                          |
-              null addr   | ar_ready handshake       |
-              +-----------+-----------+              |
-              |                       |              |
-              v                       v              |
-        +------------+       +----------------+      |
-        | READ_MATCH |       | READ_WAIT_DATA |      |
-        +-----+------+       +--------+-------+      |
-              |                       |              |
-              |               r_valid (our ID)       |
-              |                       v              |
-              |              +--------------+        |
-              |              | READ_COMPARE |        |
-              |              +------+-------+        |
-              |                     |                |
-              |   +-----------------+-------------+  |
-              |   |         |                     |  |
-              |  match   retry left           no retry / AXI err
-              |   |         |                     |  |
-              |   |         v                     v  |
-              |   |  +-----------------+   +------------+
-              |   |  | READ_RETRY_WAIT |   | READ_ERROR |
-              |   |  +--------+--------+   +-----+------+
-              |   |           |                  |
-              |   |     tick_1us -> reissue      |
-              |   +-----------> READ_ISSUE_ADDR  |
-              |                                  |
-              +----------------------------------+
+States and transitions of the `ctrlrd_engine` poll FSM.
+
+```mermaid
+stateDiagram-v2
+    [*] --> READ_IDLE: reset
+    READ_IDLE --> READ_ISSUE_ADDR: request accepted
+    READ_ISSUE_ADDR --> READ_MATCH: null address
+    READ_ISSUE_ADDR --> READ_WAIT_DATA: AR accepted
+    READ_WAIT_DATA --> READ_COMPARE: R received (own ID)
+    READ_COMPARE --> READ_ERROR: RRESP error
+    READ_COMPARE --> READ_MATCH: masked data equals expected
+    READ_COMPARE --> READ_RETRY_WAIT: mismatch, retries left
+    READ_COMPARE --> READ_ERROR: mismatch, no retries left
+    READ_RETRY_WAIT --> READ_ISSUE_ADDR: tick_1us
+    READ_MATCH --> READ_IDLE
+    READ_ERROR --> READ_IDLE
+    note right of READ_IDLE: cfg_channel_reset returns every state to READ_IDLE
 ```
 
 State summary:

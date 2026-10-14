@@ -1,27 +1,34 @@
-// src_data_path_axis: the egress shifter datapath.
+// src_data_path_axis (rtl/macro/src_data_path_axis.sv): the egress re-packer.
+// Memory beats are popped from the source SRAM; the start offset is dropped
+// and bytes are re-packed from lane 0, with a partial last beat.
+// Return-flow figure: data climbs from the SRAM (bar, bottom) to m_axis (top).
 digraph egress_shifter {
-    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.6,
-           label="src_data_path_axis egress: memory beats -> packed stream beats with a partial last beat", labelloc=t, labeljust=l];
-    node  [shape=box, style="rounded,filled", fillcolor="#f4f4f4", fontname="Helvetica", fontsize=10];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.50", splines=ortho,
+           label="src_data_path_axis egress re-packer - memory beats to packed stream beats with a partial last beat\n(single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    drain [label="drain stage (as in beats)\nreservations of cfg_drain_size beats,\nr_d_ch, r_d_remaining\nadvances on POPS, not stream beats"];
-    sram  [label="src_sram_controller\ndrain_data (DW)", fillcolor="#fff3e0"];
-    head  [label="record queue head [r_d_ch]\noffset, bytes\nmem_beats = ceil((offset + bytes) / lanes)", fillcolor="#fff9c4"];
-    prime [label="first pop, offset != 0:\nhold = beat >> offset*8\n(no output unless the packet\nfits in this one beat)", fillcolor="#e8f5e9"];
-    form  [label="later pops:\nout = hold | (beat << (lanes - offset)*8)\nhold = beat >> offset*8", fillcolor="#e8f5e9"];
-    flush [label="flush: last memory beat popped,\nbytes_left != 0 -> out = hold\n(blocks pops for one cycle)", fillcolor="#e8f5e9"];
-    outr  [label="output register\ndata, tstrb = low min(bytes_left, lanes) lanes,\ntlast = bytes_left reaches 0, tid = channel"];
-    axis  [label="m_axis", fillcolor="#fff3e0"];
-    pop   [label="pop when: drain has a beat,\noutput free, no flush pending,\nrecord known", shape=note, fillcolor="#ffffff"];
+    axis  [label="Network Out - m_axis_*\ntdata, tstrb, tlast, tid = channel", fillcolor="white", group=C];
+    rec   [label="Packet Records (from the scheduler)\nsched_rd_pkt_*: {bytes, src offset} per channel", fillcolor="white", group=R];
+    outr  [label="Output Register (flops)\ntstrb = low min(bytes_left, lanes) lanes;\ntlast when bytes_left reaches 0", group=C];
+    pq    [label="Record Queue (flops, 4 per channel)\nhead: offset, bytes; mem beats =\nceil((offset + bytes) / lanes); popped on\nthe packet's last stream beat", group=R];
+    form  [label="Re-Pack (combinational)\nfirst pop (offset != 0): hold = beat >> offset*8, no output\nlater pops: out = hold | beat << (lanes - offset)*8\nflush: last beat popped, bytes left -> out = hold", width=5.0, group=C];
+    hold  [label="Hold (flops, per channel)\nbytes above the offset\nof the last popped beat", group=L];
+    drain [label="Drain Stage (as in RAPIDS Beats)\nround-robin reservations of cfg_drain_size beats;\npops when output free, no flush, record known", group=C];
+    bar   [label="Source SRAM - src_sram_controller (drain_data, DW wide)", fillcolor="white", width=7.5, group=C];
 
-    sram -> drain -> prime;
-    drain -> form;
-    head -> prime; head -> form;
-    prime -> form [label="hold"];
-    form -> flush [label="hold"];
-    form -> outr; prime -> outr [label="single-beat packet"]; flush -> outr;
-    outr -> axis;
-    pop -> drain [style=dashed];
-    outr -> head [label="pop the record on the\npacket's last stream beat", style=dashed];
+    rec   -> pq    [label="record push"];
+    axis  -> outr  [dir=back, label="packed stream beat", penwidth=1.8];
+    outr  -> form  [dir=back, label="re-packed bytes", penwidth=1.8];
+    pq    -> form  [xlabel="offset, bytes left"];
+    form  -> hold  [dir=both, xlabel="held bytes in;\nnew hold out"];
+    form  -> drain [dir=back, label="popped memory beat", penwidth=1.8];
+    drain -> bar   [dir=back, label="drain beats (by channel)", penwidth=1.8];
+
+    { rank=same; axis; rec; }
+    axis -> rec [style=invis];
+    { rank=same; form; hold; }
 }

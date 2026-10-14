@@ -1,0 +1,23 @@
+// STREAM verification stack: cocotb tests drive the RTL only through BFMs.
+digraph stream_testbench_stack {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.50", splines=ortho,
+           label="Testbench layers - test, testbench class, BFMs, DUT", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    test [label="Test Runner\npytest + cocotb (dv/tests/fub, macro, top)", fillcolor="white"];
+    tb   [label="Testbench Class\ndv/tbclasses (TBBase subclass)"];
+    apb  [label="APB Master BFM"];
+    axi  [label="AXI4 Slave BFMs\n(memory model)"];
+    mon  [label="MonBus Monitor"];
+    dut  [label="DUT - STREAM RTL\n(Verilator)", fillcolor="white", width=6.0];
+    test -> tb [label="test sequence"];
+    tb -> apb [label="register writes"];
+    tb -> axi [label="memory contents"];
+    tb -> mon [dir=back, label="checked packets"];
+    apb -> dut [label="s_apb_*"];
+    axi -> dut [dir=both, label="m_axi_* (DUT masters)"];
+    mon -> dut [dir=back, label="MonBus (observed)"];
+    { rank=same; apb; axi; mon; }
+}

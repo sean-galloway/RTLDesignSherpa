@@ -114,32 +114,11 @@ sequenceDiagram
 
 The source path uses internal SRAM to prefetch data and maintain network throughput:
 
-```mermaid
-graph LR
-    subgraph Fill["Fill Side (from Memory)"]
-        AXI[("AXI\nRead")]
-        FILL_PTR["Fill\nPointer"]
-    end
+### Figure 4.2.1: Source Channel Buffer
 
-    subgraph SRAM["Channel SRAM Partition"]
-        BUF0["Beat 0"]
-        BUF1["Beat 1"]
-        BUFN["..."]
-        BUFM["Beat N-1"]
-    end
+![Source Channel Buffer](../assets/graphviz/ch04_source_buffering.png)
 
-    subgraph Drain["Drain Side (to Network)"]
-        DRAIN_PTR["Drain\nPointer"]
-        AXIS[("AXIS\nMaster")]
-    end
-
-    AXI --> FILL_PTR
-    FILL_PTR --> BUF0
-    BUFM --> DRAIN_PTR
-    DRAIN_PTR --> AXIS
-
-    style SRAM fill:#e3f2fd
-```
+**Source:** [ch04_source_buffering.dot](../assets/graphviz/ch04_source_buffering.dot)
 
 ### Flow Control
 

@@ -1,0 +1,44 @@
+// STREAM variant of rapids_beats_mas/assets/graphviz/04_axi_write_engine.dot (the RTL is the same design).
+// axi_write_engine_beats microarchitecture (stream/rtl/fub/axi_write_engine.sv).
+// Request: scheduler requests -> data mask -> round-robin pick -> AW issue -> m_axi_wr (center).
+// Write data: drained from the SRAM down the left lane, sequenced by the W-phase FIFO.
+// Response: B re-enters at the bar and climbs the right lane to the commit logic.
+digraph axi_write_engine {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.50", splines=ortho,
+           label="axi_write_engine - data-aware round-robin AXI write engine (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    sram  [label="SRAM Controller (drain side)\ndrain_data_avail in; drain_req / size out;\nsram_valid / data in", fillcolor="white", group=L];
+    sched [label="Scheduler Side (8 channels)\nsched_wr_valid / addr / beats in; issue strobe,\ncommit strobe, error out", fillcolor="white", group=C];
+
+    mask  [label="Data-Aware Request Mask\nchannel requests only if data_avail >= burst\nand below AW_MAX_OUTSTANDING", group=C];
+    arb   [label="Channel Arbiter - arbiter_round_robin\n(WAIT_GNT_ACK = 1)", shape=invtrapezium, width=4.6, fillcolor="#BFD7EE", group=C];
+    aw    [label="AW Issue (flops)\nAWADDR, AWLEN, AWID = channel;\ndrain_req to SRAM, issue strobe to scheduler", group=C];
+    wph   [label="W-Phase Queue - gaxi_fifo_sync\n(W_PHASE_FIFO_DEPTH, in AW order)\n{channel, beats}", group=M];
+    wgen  [label="W Streamer\nbeats from the SRAM, WSTRB all ones,\nWLAST on the burst's last beat", group=L];
+    bph   [label="B-Phase Queues - gaxi_fifo_sync x 8\n(B_PHASE_FIFO_DEPTH per channel)\nBID -> channel, commit strobe;\nBRESP != OKAY -> sticky sched_wr_error", group=R];
+
+    bar [label="Module Boundary - m_axi_wr\nW out   |   AW out (to the interconnect)   |   B in (from memory)", fillcolor="white", width=10.0, group=C];
+
+    sched -> mask [label="write requests (8 ch)"];
+    sram  -> mask [style=dashed, xlabel="data_avail\n(per channel)"];
+    mask  -> arb  [label="eligible channels"];
+    arb   -> aw   [label="grant (channel id)", penwidth=1.8];
+    aw    -> wph  [xlabel="burst record"];
+    aw    -> bph  [xlabel="expected B"];
+    wph   -> wgen [xlabel="next burst"];
+    sram  -> wgen [label="drain beats"];
+    wgen  -> bar  [label="W: data, strb, last"];
+    aw    -> bar  [label="AW: id, addr, len", penwidth=1.8];
+    bph   -> bar  [dir=back, label="B: id, resp"];
+    sched -> bph  [dir=back, style=dashed, constraint=false, xlabel="commit strobe,\nbeats committed"];
+
+    { rank=same; sram; sched; }
+    sram -> sched [style=invis];
+    { rank=same; wph; bph; }
+    wph -> bph [style=invis];
+}

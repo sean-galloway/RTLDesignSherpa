@@ -1,0 +1,21 @@
+// stream_config_block (stream/rtl/top/stream_config_block.sv): maps PeakRDL
+// hwif_out fields onto stream_core cfg_* inputs. Pure mapping; one direction.
+digraph stream_config_block {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho,
+           label="stream_config_block - register fields to engine configuration", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    regs [label="Register Block - stream_regs (PeakRDL)\nhwif_out: packed register fields", fillcolor="white", width=8.0];
+    g1 [label="Global + Channel\nGLOBAL_EN, channel\nenable and reset"];
+    g2 [label="Scheduler + Descriptor\nEngine\ntimeouts, prefetch,\naddress windows"];
+    g3 [label="Monitors\ndescriptor, read and\nwrite monitor masks\nand thresholds"];
+    g4 [label="AXI Transfer +\nProfiler\nburst sizes, perf\nenable / mode / clear"];
+    bar [label="Engine Configuration (to stream_core and the monitor group)\ncfg_* signals, defaults applied for unimplemented fields", fillcolor="white", width=8.0];
+
+    regs -> g1 [label="fields"]; regs -> g2 [label="fields"]; regs -> g3 [label="fields"]; regs -> g4 [label="fields"];
+    g1 -> bar [label="cfg_*"]; g2 -> bar [label="cfg_*"]; g3 -> bar [label="cfg_*"]; g4 -> bar [label="cfg_*"];
+    { rank=same; g1; g2; g3; g4; }
+}

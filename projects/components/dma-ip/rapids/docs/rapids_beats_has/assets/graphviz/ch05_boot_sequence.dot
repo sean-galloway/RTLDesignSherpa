@@ -1,0 +1,28 @@
+// RAPIDS Beats bring-up sequence, by register name (rtl/macro_beats/rapids_engine_regs.rdl).
+// Each half (SRC block at 0x0000, SNK block at 0x1000) is programmed the same way.
+digraph rapids_beats_boot_sequence {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.30", splines=ortho,
+           label="Bring-up sequence (per half: SRC block 0x0000, SNK block 0x1000)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.14,0.06", width=6.2];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    s0 [label="Reset released (aresetn high)", fillcolor="white", style="rounded,filled"];
+    s1 [label="1. Read VERSION (0x108): confirm the IP is present"];
+    s2 [label="2. Configure: GLOBAL_CTRL.GLOBAL_EN, SCHED_CONFIG + SCHED_TIMEOUT_*,\nDESCENG_CONFIG + DESCENG_ADDR0/1 windows, AXI_XFER_CONFIG"];
+    s3 [label="3. Enable channels: CHANNEL_ENABLE (one bit per channel)"];
+    s4 [label="4. Optional monitor egress: MON regfile filters, capture window"];
+    s5 [label="5. Build descriptor chains and data buffers in system memory"];
+    s6 [label="6. Stage CHn_DESC_ADDR_LOW / _HIGH (descriptor 0 address)"];
+    s7 [label="7. Write KICK_ENABLE bit n (self-clearing): channel n starts", fillcolor="white", style="rounded,filled"];
+
+    s0 -> s1 [label="APB read"];
+    s1 -> s2 [label="APB writes"];
+    s2 -> s3 [label="APB write"];
+    s3 -> s4 [label="APB writes"];
+    s4 -> s5 [label="software"];
+    s5 -> s6 [label="APB writes"];
+    s6 -> s7 [label="APB write", penwidth=1.8];
+}

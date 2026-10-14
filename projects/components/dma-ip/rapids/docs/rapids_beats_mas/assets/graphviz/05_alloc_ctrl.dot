@@ -1,0 +1,28 @@
+// alloc_ctrl_beats - space reservation as a virtual FIFO (single clock: axi_aclk, axi_aresetn) -- virtual FIFO: pointers and flags, no data storage.
+// fifo_sync geography: write side left, read side right, both pointers
+// converge on fifo_control; outputs are the bottom bar.
+digraph alloc_ctrl_beats {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.55", splines=ortho,
+           label="alloc_ctrl_beats - space reservation as a virtual FIFO (single clock: axi_aclk, axi_aresetn)", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    wport [label="Allocate (write side)\nwr_valid, wr_size: reserve N beats", fillcolor="white", group=L];
+    rport [label="Release (read side)\nrd_valid: one beat written into the buffer", fillcolor="white", group=R];
+    wptr  [label="Allocation Pointer (flops)\nwr_ptr += wr_size per accepted request", group=L];
+    rptr  [label="Release Pointer - counter_bin\nrd_ptr += 1 per accepted beat", group=R];
+    ctl   [label="Count + Flags - fifo_control\ncount = wr_ptr - rd_ptr; full / almost full,\nempty / almost empty (REGISTERED option)", width=4.4];
+    bar   [label="Outputs\nspace_free = DEPTH - count  |  wr_ready, wr_full, wr_almost_full  |  rd_ready, rd_empty, rd_almost_empty", fillcolor="white", width=7.5];
+
+    wport -> wptr [label="handshake (wr_ready = not full)"];
+    rport -> rptr [label="handshake (rd_ready = not empty)"];
+    wptr  -> ctl  [label="next wr_ptr"];
+    rptr  -> ctl  [label="next rd_ptr"];
+    ctl   -> bar  [label="count, flags", penwidth=1.8];
+    { rank=same; wport; rport; }
+    wport -> rport [style=invis];
+    { rank=same; wptr; rptr; }
+    wptr -> rptr [style=invis];
+}

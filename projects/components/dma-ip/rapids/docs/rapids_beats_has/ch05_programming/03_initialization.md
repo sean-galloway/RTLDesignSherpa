@@ -29,22 +29,11 @@ This section describes the required steps to initialize RAPIDS Beats and start D
 
 ## Boot Sequence
 
-```mermaid
-flowchart TD
-    START([Reset Released]) --> READ_VER["Read VERSION<br/>Verify IP present"]
-    READ_VER --> READ_CFG["Read CONFIG<br/>Get capabilities"]
-    READ_CFG --> GLOBAL_INIT["Initialize Global<br/>Registers"]
-    GLOBAL_INIT --> CH_INIT["Initialize Channel<br/>Registers"]
-    CH_INIT --> DESC_ALLOC["Allocate Descriptor<br/>Memory"]
-    DESC_ALLOC --> DESC_INIT["Initialize<br/>Descriptors"]
-    DESC_INIT --> BUF_ALLOC["Allocate Data<br/>Buffers"]
-    BUF_ALLOC --> IRQ_EN["Enable Interrupts"]
-    IRQ_EN --> CH_EN["Enable Channels"]
-    CH_EN --> READY([Ready for Transfers])
+### Figure 5.3.1: Bring-Up Sequence
 
-    style START fill:#c8e6c9
-    style READY fill:#c8e6c9
-```
+![Bring-Up Sequence](../assets/graphviz/ch05_boot_sequence.png)
+
+**Source:** [ch05_boot_sequence.dot](../assets/graphviz/ch05_boot_sequence.dot)
 
 ## Detailed Steps
 

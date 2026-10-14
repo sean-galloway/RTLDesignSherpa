@@ -49,7 +49,7 @@ A descriptor names a byte length `L` and a byte address `A`. With `BYTE_LANES` b
 
 The stream side is packed: a packet of `L` bytes occupies `ceil(L / BYTE_LANES)` stream beats, all full except possibly the last. The number of memory beats and stream beats can differ by one, because the offset shifts the boundary. The data paths absorb the difference.
 
-### Figure 2.2: Sink Byte Placement
+### Figure 2.2.1: Sink Byte Placement
 
 ![Sink byte placement](../assets/graphviz/02_byte_placement.png)
 
@@ -61,7 +61,7 @@ For every DATA descriptor, the scheduler hands each data path it uses a record: 
 
 The record is what lets the data path work in bytes while the engines work in beats. The sink ingress uses it to place bytes and to check the packet length. The source egress uses it to drop the offset and to set TSTRB and TLAST.
 
-### Figure 2.3: Packet Record Flow
+### Figure 2.2.2: Packet Record Flow
 
 ![Packet record flow](../assets/graphviz/03_packet_record_flow.png)
 

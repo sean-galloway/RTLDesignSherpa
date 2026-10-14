@@ -27,68 +27,11 @@
 
 RAPIDS has the same block structure as RAPIDS Beats: a scheduler group array per direction, a data path per direction, and a top level that adds the registers, configuration mapping and monitoring. What the byte design adds sits at the edges of the two data paths: an ingress shifter on the sink, an egress re-packer on the source, and a packet record passed from each scheduler to its data path.
 
-### Figure 2.1: RAPIDS Block Diagram
+### Figure 2.1.1: RAPIDS Block Diagram
 
 ![RAPIDS block diagram](../assets/graphviz/01_byte_block_diagram.png)
 
 **Source:** [01_byte_block_diagram.dot](../assets/graphviz/01_byte_block_diagram.dot)
-
-```mermaid
-graph TB
-    subgraph RAPIDS_CORE["rapids_core"]
-
-        subgraph SCHED_ARRAY["scheduler_group_array"]
-            direction TB
-            SG0["Scheduler Group 0"]
-            SG1["Scheduler Group 1"]
-            SGN["..."]
-            SG7["Scheduler Group 7"]
-
-            subgraph SG_DETAIL["Scheduler Group (x8)"]
-                SCHED["scheduler"]
-                DESC["descriptor_engine"]
-                SCHED <--> DESC
-            end
-        end
-
-        subgraph SINK_PATH["snk_data_path_axis"]
-            SNK_ING["ingress shifter"]
-            SNK_SRAM["snk_sram_controller"]
-            SNK_AXI["axi_write_engine"]
-
-            SNK_ING --> SNK_SRAM
-            SNK_SRAM --> SNK_AXI
-        end
-
-        subgraph SRC_PATH["src_data_path_axis"]
-            SRC_AXI["axi_read_engine"]
-            SRC_SRAM["src_sram_controller"]
-            SRC_EGR["egress re-packer"]
-
-            SRC_AXI --> SRC_SRAM
-            SRC_SRAM --> SRC_EGR
-        end
-
-        SCHED_ARRAY -->|"Write commands + packet record"| SINK_PATH
-        SCHED_ARRAY -->|"Read commands + packet record"| SRC_PATH
-    end
-
-    APB["APB Config"] --> SCHED_ARRAY
-    DESC_MEM["Descriptor Memory"] <-->|"AXI4"| SCHED_ARRAY
-
-    AXIS_IN["AXIS Slave<br/>(Network In)"] --> SNK_ING
-    SNK_AXI -->|"AXI4 Write, WSTRB"| DATA_MEM["Data Memory"]
-
-    DATA_MEM -->|"AXI4 Read"| SRC_AXI
-    SRC_EGR --> AXIS_OUT["AXIS Master<br/>(Network Out)"]
-
-    RAPIDS_CORE -->|"MonBus"| MON["Monitor Aggregator"]
-
-    style RAPIDS_CORE fill:#e3f2fd
-    style SCHED_ARRAY fill:#fff9c4
-    style SINK_PATH fill:#c8e6c9
-    style SRC_PATH fill:#ffccbc
-```
 
 ## Top-Level Integration (rapids_top)
 

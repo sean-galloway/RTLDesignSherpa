@@ -1,0 +1,51 @@
+// RAPIDS (byte-granular) product context: the three flows through the engine.
+// Sink (network -> memory) down the left, descriptors/control down the center,
+// source (memory -> network) back up the right. System memory is the bar.
+digraph rapids_byte_product_context {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.55", splines=ortho,
+           label="RAPIDS in its system - three flows through one engine, byte-granular at both edges",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    net_in  [label="Network Interface (ingress)\npacked bytes, tstrb", fillcolor="white", group=L];
+    cpu     [label="Host CPU\nbuilds descriptor chains in memory,\nprograms and kicks over APB", fillcolor="white", group=C];
+    net_out [label="Network Interface (egress)\npacked bytes, tstrb, tlast", fillcolor="white", group=R];
+
+    sink  [label="Sink Data Path\nAXIS slave -> ingress shifter -> SRAM\n-> AXI write engine (WSTRB)", group=L];
+    sched [label="Scheduler Group Arrays (8 channels per half)\ndescriptor engines + schedulers", group=C];
+    src   [label="Source Data Path\nAXI read engine -> SRAM\n-> egress re-packer -> AXIS master", group=R];
+
+    mem [label="System Memory (through the AXI interconnect)\ndata buffers and descriptor chains",
+         fillcolor="white", width=9.5, group=C];
+
+    net_in -> sink  [label="AXIS packets"];
+    cpu    -> sched [label="APB: config, kick"];
+    sched  -> sink  [xlabel="write commands"];
+    sched  -> src   [xlabel="read commands"];
+    net_out -> src  [dir=back, label="AXIS packets"];
+
+    p_w  [shape=point, width=0.01, group=L];
+    p_d  [shape=point, width=0.01, group=C];
+    p_ar [shape=point, width=0.01];
+    p_r  [shape=point, width=0.01, group=R];
+    s1 [style=invis, label="", fixedsize=true, width=1.2, height=0.02];
+    { rank=same; p_w; p_d; s1; p_ar; p_r; }
+    p_w -> p_d -> s1 -> p_ar -> p_r [style=invis];
+
+    sink -> p_w  [arrowhead=none, headclip=false];
+    p_w  -> mem  [xlabel="AXI write\n(WSTRB byte enables)", tailclip=false];
+    sched -> p_d [arrowhead=none, headclip=false, dir=both, arrowtail=normal, penwidth=1.8];
+    p_d  -> mem  [xlabel="descriptor fetch\n(AR out, R back)", penwidth=1.8, tailclip=false];
+    src  -> p_ar [arrowhead=none, headclip=false];
+    p_ar -> mem  [xlabel="AXI read\nrequest (AR)", tailclip=false];
+    src  -> p_r  [dir=back, headclip=false];
+    p_r  -> mem  [dir=none, xlabel="read data (R)", tailclip=false];
+
+    { rank=same; net_in; cpu; net_out; }
+    net_in -> cpu -> net_out [style=invis];
+    { rank=same; sink; src; }
+    sched -> s1 [style=invis];
+}

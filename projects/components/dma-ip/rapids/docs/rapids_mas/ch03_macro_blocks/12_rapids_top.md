@@ -38,18 +38,9 @@ The byte-granular behavior is entirely below the top: the packet record nets are
 
 ### Figure 3.12.1: Top Hierarchy
 
-```
-  s_apb_*  --> apb4_slave --> peakrdl_to_cmdrsp --> rapids_regs
-                                                      |
-                     rapids_config_block u_cfg_src <--+--> rapids_config_block u_cfg_snk
-                                   |                              |
-                                   +------------> rapids_core (u_core) <----> AXI / AXIS
-                                                      |
-        axi_bus_meter u_rd_bus_meter, u_wr_bus_meter  |  mon_*
-                                                      v
-                                       monbus_axil4_axil4_group (u_monbus_axil_group)
-                                                      --> m_axil_mon_*, mon_irq, s_axil_err_*
-```
+![RAPIDS top integration](../assets/graphviz/10_rapids_top.png)
+
+**Source:** [10_rapids_top.dot](../assets/graphviz/10_rapids_top.dot)
 
 ---
 

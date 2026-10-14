@@ -52,9 +52,9 @@ The `stream_latency_bridge` module is a simple latency-1 bridge that compensates
 
 ### Figure 2.10.1: Stream Latency Bridge Block Diagram
 
-![Stream Latency Bridge Block Diagram](../assets/mermaid/06_stream_latency_bridge_block.png)
+![Stream Latency Bridge Block Diagram](../assets/graphviz/06_stream_latency_bridge.png)
 
-**Source:** [06_stream_latency_bridge_block.mmd](../assets/mermaid/06_stream_latency_bridge_block.mmd)
+**Source:** [06_stream_latency_bridge.dot](../assets/graphviz/06_stream_latency_bridge.dot)
 
 ### Operation Flow
 
@@ -66,30 +66,7 @@ Cycle N: Consumer drains skid buffer at its own pace
 
 ### Component Diagram
 
-```
-                    +-------------------+
-                    |   Glue Logic      |
-
-: Component Diagram
-   s_valid -------->|  (r_drain_ip)     |
-   s_ready <--------|                   |
-   s_data  -------->|                   |
-                    +--------+----------+
-                             |
-                             v
-                    +-------------------+
-                    |   Skid Buffer     |
-                    |  (gaxi_fifo_sync) |
-                    |  Depth: 4         |
-
-: Component Diagram
-                    +--------+----------+
-                             |
-                             v
-   m_valid <-----------------|
-   m_ready ---------------->||
-   m_data  <-----------------|
-```
+The glue flop (`r_drain_ip`) and the 4-deep skid buffer are drawn in Figure 2.10.1.
 
 ### Backpressure Logic
 

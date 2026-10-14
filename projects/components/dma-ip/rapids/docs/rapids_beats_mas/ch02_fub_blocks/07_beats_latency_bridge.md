@@ -66,19 +66,9 @@ described such an interface, and it never existed in this module.
 
 ### Figure 2.7.1: Latency Bridge Block Diagram
 
-```
-                     latency_bridge_beats
-       +-----------------------------------------------------+
-       |                                                     |
- s_valid ---->|                  |            |              |
- s_ready <----|  glue: r_drain_ip|--valid---->| gaxi_fifo_   |----> m_valid
- s_data  ---->|  (1 cycle)       |--data----->| sync (skid,  |<---- m_ready
-       |      |                  |            | SKID_DEPTH)  |----> m_data
-       |      +------------------+            +------+-------+     |
-       |                                             |             |
-       |   occupancy = r_drain_ip + skid_count  <----+             |
-       +-----------------------------------------------------+
-```
+![Latency bridge block diagram](../assets/graphviz/07_latency_bridge.png)
+
+**Source:** [07_latency_bridge.dot](../assets/graphviz/07_latency_bridge.dot)
 
 ---
 

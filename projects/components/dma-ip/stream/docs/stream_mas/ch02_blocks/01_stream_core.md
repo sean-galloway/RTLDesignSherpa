@@ -52,9 +52,9 @@ The STREAM Core integrates the following major components:
 
 ### Figure 2.1.1: STREAM Core Block Diagram
 
-![STREAM Core Block Diagram](../assets/mermaid/01_stream_core_block.png)
+![STREAM Core Block Diagram](../assets/graphviz/01_stream_core.png)
 
-**Source:** [01_stream_core_block.mmd](../assets/mermaid/01_stream_core_block.mmd)
+**Source:** [01_stream_core.dot](../assets/graphviz/01_stream_core.dot)
 
 ---
 

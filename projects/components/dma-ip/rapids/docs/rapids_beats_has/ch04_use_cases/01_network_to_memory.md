@@ -113,32 +113,11 @@ sequenceDiagram
 
 The sink path uses internal SRAM to decouple network timing from memory timing:
 
-```mermaid
-graph LR
-    subgraph Fill["Fill Side (from Network)"]
-        AXIS[("AXIS\nSlave")]
-        FILL_PTR["Fill\nPointer"]
-    end
+### Figure 4.1.1: Sink Channel Buffer
 
-    subgraph SRAM["Channel SRAM Partition"]
-        BUF0["Beat 0"]
-        BUF1["Beat 1"]
-        BUFN["..."]
-        BUFM["Beat N-1"]
-    end
+![Sink Channel Buffer](../assets/graphviz/ch04_sink_buffering.png)
 
-    subgraph Drain["Drain Side (to Memory)"]
-        DRAIN_PTR["Drain\nPointer"]
-        AXI[("AXI\nWrite")]
-    end
-
-    AXIS --> FILL_PTR
-    FILL_PTR --> BUF0
-    BUFM --> DRAIN_PTR
-    DRAIN_PTR --> AXI
-
-    style SRAM fill:#e8f5e9
-```
+**Source:** [ch04_sink_buffering.dot](../assets/graphviz/ch04_sink_buffering.dot)
 
 ### Flow Control
 

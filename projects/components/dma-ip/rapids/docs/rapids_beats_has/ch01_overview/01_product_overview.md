@@ -31,33 +31,11 @@ The "Beats" architecture represents Phase 1 of the RAPIDS family, optimized for 
 
 ## System Context
 
-```mermaid
-graph TB
-    subgraph External["External System"]
-        CPU["CPU/Host"]
-        MEM["System Memory"]
-        NET["Network Interface"]
-    end
+### Figure 1.1.1: RAPIDS Beats in Its System
 
-    subgraph RAPIDS["RAPIDS Beats Core"]
-        SCHED["Scheduler Array<br/>(8 Channels)"]
-        SINK["Sink Data Path"]
-        SRC["Source Data Path"]
-    end
+![RAPIDS Beats in Its System](../assets/graphviz/ch01_product_context.png)
 
-    CPU -->|"APB Config"| SCHED
-    CPU -->|"Descriptor Write"| MEM
-
-    NET -->|"AXIS Slave<br/>(Network Ingress)"| SINK
-    SRC -->|"AXIS Master<br/>(Network Egress)"| NET
-
-    SCHED -->|"AXI Read<br/>(Descriptor Fetch)"| MEM
-    SINK -->|"AXI Write<br/>(Data Store)"| MEM
-    SRC -->|"AXI Read<br/>(Data Fetch)"| MEM
-
-    style RAPIDS fill:#e1f5fe
-    style External fill:#fff3e0
-```
+**Source:** [ch01_product_context.dot](../assets/graphviz/ch01_product_context.dot)
 
 ## Target Applications
 

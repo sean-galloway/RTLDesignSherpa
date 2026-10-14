@@ -178,22 +178,11 @@ are reported regardless of `ERR_EN`.
 
 Multiple RAPIDS modules generate MonBus packets. Internal arbitration ensures ordered delivery:
 
-```mermaid
-graph LR
-    DESC0["Desc Engine 0"]
-    DESC7["Desc Engine 7"]
-    SCHED0["Scheduler 0"]
-    SCHED7["Scheduler 7"]
+### Figure 3.5.1: MonBus Arbitration Tree
 
-    ARB["MonBus<br/>Arbiter"]
+![MonBus Arbitration Tree](../assets/graphviz/ch03_monbus_arbitration.png)
 
-    DESC0 --> ARB
-    DESC7 --> ARB
-    SCHED0 --> ARB
-    SCHED7 --> ARB
-
-    ARB --> OUT["MonBus<br/>Output"]
-```
+**Source:** [ch03_monbus_arbitration.dot](../assets/graphviz/ch03_monbus_arbitration.dot)
 
 ### Arbitration Policy
 

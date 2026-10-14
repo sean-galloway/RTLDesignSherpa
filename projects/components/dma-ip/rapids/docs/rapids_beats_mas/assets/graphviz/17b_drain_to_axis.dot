@@ -1,0 +1,17 @@
+// Drain interface to AXIS master mapping in src_data_path_axis_beats
+// (verified against the assigns in rtl/macro_beats/src_data_path_axis_beats.sv).
+digraph drain_to_axis {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.50", splines=ortho,
+           label="Drain to AXIS mapping - src_data_path_axis_beats", labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    axis  [label="AXIS Master - m_axis_*\ntvalid, tdata, tstrb, tlast, tid, tdest, tuser (tready in)", fillcolor="white", width=7.0];
+    conv  [label="Conversion\ntdata = drain_data;  tstrb = all ones;  tuser = 0\ntid = tdest = r_d_ch (the reserved channel)\ntvalid = data stage active and drain_valid[r_d_ch]\ntlast = one beat of the reservation remains"];
+    drain [label="Drain Interface - src_data_path_beats\ndrain_req / size per channel,  drain_valid[8], drain + id -> drain_data", fillcolor="white", width=7.0];
+
+    axis  -> conv  [dir=back, label="AXIS beat out; tready in"];
+    conv  -> drain [dir=back, penwidth=1.8, label="drain beats up; drain + id down"];
+}

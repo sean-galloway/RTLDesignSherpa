@@ -1,0 +1,50 @@
+// scheduler_beats microarchitecture (rtl/fub_beats/scheduler_beats.sv).
+// Command flow down the center: descriptor -> descriptor register -> trackers ->
+// engines (bar). Done / commit strobes and engine errors climb back on the right.
+digraph scheduler_beats {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.45", splines=ortho,
+           label="scheduler_beats - one channel's transfer coordinator (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    cfg  [label="Configuration\ncfg_channel_enable, cfg_channel_reset,\ncfg_sched_timeout_cycles / _limit / _enable", fillcolor="white", group=L];
+    din  [label="Descriptor In (from descriptor_engine_beats)\ndescriptor_valid / ready, 256-bit packet,\next chunk, descriptor_error", fillcolor="white", group=C];
+
+    fsm  [label="Channel FSM (one-hot; see the\nFSM figure): IDLE, FETCH_DESC,\nXFER_DATA, COMPLETE, NEXT_DESC,\nERROR", group=L];
+    dreg [label="Descriptor Register + Opcode Decode\nDATA / CTRL_READ / CTRL_WRITE; TYPE = EXT\nloads address generators (row / column runs)", group=C];
+
+    rdt  [label="Read Tracker\nsrc address, read beats remaining", group=M];
+    wrt  [label="Write Tracker\ndst address, beats issued / committed", group=C];
+    ctl  [label="Control Request\nctrlrd: addr, expected, mask\nctrlwr: addr, data", group=R];
+
+    wd   [label="Watchdog + Error Latch\nstrikes per stalled window;\nsticky sched_error", group=L];
+    mon  [label="MonBus Packet Generator\nstate, completion, IRQ\nand error events", style="filled,dashed", group=L];
+
+    bar [label="Engines and Status\nsched_rd_* (read engine)  |  sched_wr_* (write engine)  |  ctrlrd / ctrlwr engines\nerrors and write progress back  |  mon_* out",
+         fillcolor="white", width=10.0, group=C];
+
+    din  -> dreg [label="descriptor (valid / ready)"];
+    cfg  -> fsm  [style=dashed, label="enable, reset"];
+    fsm  -> dreg [style=dashed, xlabel="load in\nFETCH_DESC"];
+    dreg -> rdt  [xlabel="src, length"];
+    dreg -> wrt  [label="dst, length", penwidth=1.8];
+    dreg -> ctl  [xlabel="CTRL_* fields"];
+    rdt  -> bar  [dir=both, label="read cmd down;\ndone strobe, beats\ndone back"];
+    wrt  -> bar  [dir=both, penwidth=1.8, label="write cmd down;\nissue + commit\nstrobes back"];
+    ctl  -> bar  [dir=both, label="ctrl request down;\nidle, error back"];
+    fsm  -> wd   [dir=back, style=dashed, xlabel="fatal -> CH_ERROR"];
+    wd   -> bar  [dir=back, style=dashed, label="engine errors,\nwrite progress"];
+    mon  -> bar  [style=dashed, label="mon_* packets"];
+
+    { rank=same; cfg; din; }
+    cfg -> din [style=invis];
+    { rank=same; fsm; dreg; }
+    fsm -> dreg [style=invis];
+    { rank=same; rdt; wrt; ctl; }
+    rdt -> wrt -> ctl [style=invis];
+    { rank=same; wd; mon; }
+    rdt -> wd [style=invis];
+}

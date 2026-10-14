@@ -1,0 +1,37 @@
+// ctrlwr_engine (rtl/fub/ctrlwr_engine.sv): producer doorbell. One 32-bit
+// single-beat write per request; BRESP checked.
+digraph ctrlwr_engine {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.50", splines=ortho,
+           label="ctrlwr_engine - control-write doorbell engine (single clock: clk, rst_n)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    req  [label="Request (from scheduler_beats)\nctrlwr_valid / ready: doorbell addr, data", fillcolor="white", group=C];
+    sts  [label="Status (to scheduler_beats)\nctrlwr_engine_idle, ctrlwr_error", fillcolor="white", group=R];
+
+    skid [label="Request Skid Buffer\ngaxi_skid_buffer {addr, data}", group=C];
+    fsm  [label="Write FSM (see the FSM figure)\nnull address -> skip; addr[1:0] != 0 -> WRITE_ERROR;\nissue AW, then W, then wait for B", group=C];
+    wbeat [label="W Beat\nw_data = doorbell data,\nWSTRB 0xF, WLAST", group=L];
+    resp [label="Response Check\nBRESP != OKAY -> WRITE_ERROR,\nelse WRITE_COMPLETE", group=R];
+    mon  [label="MonBus Packet Generator\ncompletion, error events", style="filled,dashed", group=R2];
+
+    bar  [label="Module Boundary - control-write AXI master (shared per array)\nW out   |   AW out: addr, id (one beat)   |   B in: resp", fillcolor="white", width=9.0, group=C];
+
+    req  -> skid [label="doorbell request"];
+    skid -> fsm  [label="addr, data"];
+    fsm  -> wbeat [xlabel="data phase"];
+    wbeat -> bar [xlabel="W: data, strb, last"];
+    fsm  -> bar  [xlabel="AW (AWLEN 0)", penwidth=1.8];
+    resp -> bar  [dir=back, xlabel="B: resp"];
+    sts  -> resp [dir=back, label="idle, error"];
+    fsm  -> mon  [style=dashed, xlabel="events"];
+
+    { rank=same; req; sts; }
+    req -> sts [style=invis];
+    { rank=same; fsm; resp; }
+    fsm -> resp [style=invis];
+    { rank=same; wbeat; mon; }
+}

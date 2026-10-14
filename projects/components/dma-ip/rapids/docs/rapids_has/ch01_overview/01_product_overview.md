@@ -33,33 +33,11 @@ The earlier RAPIDS Beats design moved whole beats only. It was the stepping ston
 
 ## System Context
 
-```mermaid
-graph TB
-    subgraph External["External System"]
-        CPU["CPU/Host"]
-        MEM["System Memory"]
-        NET["Network Interface"]
-    end
+### Figure 1.1.1: RAPIDS in Its System
 
-    subgraph RAPIDS["RAPIDS Core"]
-        SCHED["Scheduler Array<br/>(8 Channels)"]
-        SINK["Sink Data Path<br/>(ingress shifter)"]
-        SRC["Source Data Path<br/>(egress shifter)"]
-    end
+![RAPIDS in Its System](../assets/graphviz/ch01_product_context.png)
 
-    CPU -->|"APB Config"| SCHED
-    CPU -->|"Descriptor Write"| MEM
-
-    NET -->|"AXIS Slave<br/>packed bytes, TSTRB"| SINK
-    SRC -->|"AXIS Master<br/>packed bytes, TSTRB, TLAST"| NET
-
-    SCHED -->|"AXI Read<br/>(Descriptor Fetch)"| MEM
-    SINK -->|"AXI Write<br/>(WSTRB byte enables)"| MEM
-    SRC -->|"AXI Read<br/>(Data Fetch)"| MEM
-
-    style RAPIDS fill:#e1f5fe
-    style External fill:#fff3e0
-```
+**Source:** [ch01_product_context.dot](../assets/graphviz/ch01_product_context.dot)
 
 ## Target Applications
 
