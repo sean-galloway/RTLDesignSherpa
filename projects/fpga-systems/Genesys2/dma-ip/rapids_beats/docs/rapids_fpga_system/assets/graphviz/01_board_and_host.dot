@@ -1,35 +1,62 @@
-// The rapids-beats FPGA system: what is on the bench, what talks to what.
+// Figure 1.1 -- the bench, in the house style for system diagrams
+// (vault/handbook/authoring/block-diagrams.md): the host PC and its two USB
+// links on top, the FPGA stack (pin top -> pin-level top -> harness -> DUT)
+// down the center, and the board's own parts as the boundary bar. The UART
+// command path is the heavy center column (one dir=both edge per hop: W/R
+// down, reply up); JTAG programming is its own column on the right; clock,
+// reset and LEDs cross the bar on the left.
+// RTL: flows-rapids-beats/rtl/rapids_char_genesys2_top.sv, rapids_char_top.sv,
+//      rapids_char_harness.sv.
 digraph board_and_host {
-    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.6,
-           label="rapids-beats on the Genesys 2: the bench", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="rapids-beats on the Genesys 2: the bench", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    subgraph cluster_host {
-        label="Host PC"; style="rounded"; color="#404040";
-        host_tools [label="host/run_characterization.py\nsmoke | single run | --suite sweeps\nresults JSON (with the BUILD record)", fillcolor="#e8f1ff"];
-        host_report [label="host/report_tables.py\nhost/report_figures.py\nreports/perf README + PDF", fillcolor="#e8f1ff"];
-        vivado [label="Vivado\nmake bitstream | make program\ntcl/build_ila.tcl + capture_ila_*.tcl", fillcolor="#e8f1ff"];
-        host_tools -> host_report [label="perf/json/*.json"];
-    }
+    host   [group=C, label="Host PC - characterization program\nhost/run_characterization.py: smoke | single run | --suite\nresults JSON carries the BUILD record", fillcolor="white"];
+    vivado [group=J, label="Host PC - Vivado\nmake bitstream / make program\ntcl/build_ila.tcl, capture_ila_*.tcl", fillcolor="white"];
 
-    subgraph cluster_usb {
-        label="Two USB chips on the board"; style="rounded"; color="#404040";
-        ft232r [label="FT232R\nUART 115200-8N1\n(its own /dev/ttyUSB*, enumeration order varies:\nhost uses --port auto)", fillcolor="#fff4e0"];
-        ft2232 [label="FT2232\nJTAG (serial 200300B818A0)\nprogram / ILA", fillcolor="#fff4e0"];
-    }
+    ft232  [group=C, label="UART Bridge Chip\nFT232R - its own /dev/ttyUSB*\n(plug-order dependent: host uses --port auto)"];
+    ft2232 [group=J, label="JTAG Bridge Chip\nFT2232 - serial 200300B818A0\n(FPGA_JTAG_SERIAL picks it on a shared chain)"];
 
-    subgraph cluster_fpga {
-        label="Genesys 2  --  Kintex-7 XC7K325T-2"; style="rounded"; color="#228B22";
-        clk [label="200 MHz LVDS sysclk\nIBUFDS + MMCM\n-> 100 MHz aclk", fillcolor="#e9f7e9"];
-        top [label="rapids_char_genesys2_top\npins, reset sync, 8 user LEDs\n(low 8 of the status bank)", fillcolor="#e9f7e9"];
-        harness [label="rapids_char_harness\nUART->AXIL bridge, region decode,\nharness CSRs, apb4_master, kick sequencer,\ngenerators, checkers, RAMs, meters, observers", fillcolor="#e9f7e9"];
-        dut [label="rapids_beats_top  (the DUT)\nsplit SOURCE + SINK beats DMA\n8 ch, 256-bit AXI4 + AXIS, 4 KB SRAM/ch", fillcolor="#d5ecd5", penwidth=2];
-        clk -> top; top -> harness; harness -> dut [dir=both];
-    }
+    ptop   [group=C, label="Board Pin Top\nrapids_char_genesys2_top\nIBUFDS + MMCM: 200 MHz LVDS -> 100 MHz aclk; reset sync"];
+    ctop   [group=C, label="Pin-level Top\nrapids_char_top\npins to harness ports, status rollup"];
+    harn   [group=C, label="Characterization Harness\nrapids_char_harness - u_harness (Figure 2.1)\nUART bridge, decode, CSRs, kick sequencer,\nstimulus, checkers, memory models, meters"];
+    dut    [group=C, label="DUT\nrapids_beats_top - split SOURCE + SINK beats DMA\n8 ch, 256-bit AXI4 + AXIS, 4 KB SRAM per channel", penwidth=1.8];
 
-    host_tools -> ft232r [label="ASCII  W addr data / R addr", dir=both];
-    ft232r -> harness [label="UART", dir=both];
-    vivado -> ft2232 [label="USB"];
-    ft2232 -> top [label="JTAG: .bit, ILA"];
+    bar    [group=C, label="Genesys 2 board parts:  200 MHz LVDS oscillator  |  CPU reset button (active low)  |  8 user LEDs  |  Kintex-7 XC7K325T-2 configuration (JTAG)",
+            fillcolor="white", width=9.5, height=0.45];
+
+    { rank=same; host; vivado; }
+    { rank=same; ft232; ft2232; }
+    host -> vivado [style=invis, minlen=3];
+    { rank=sink; bar; }
+    dut -> bar [style=invis, weight=10];
+    host -> ft232 -> ptop -> ctop -> harn -> dut [style=invis, weight=20];
+
+    // UART command path, center
+    host  -> ft232 [dir=both, penwidth=1.8, xlabel="USB: ASCII W addr data / R addr\ndown, reply up"];
+    ft232 -> ptop  [dir=both, penwidth=1.8, xlabel="UART 115200-8N1\nuart_tx_in / uart_rx_out"];
+    ptop  -> ctop  [dir=both, xlabel="UART + aclk / aresetn"];
+    ctop  -> harn  [dir=both, xlabel="UART bytes; LED status back"];
+    harn  -> dut   [dir=both, xlabel="APB CSRs + kicks, AXIS in;\nAXI4 masters, AXIS out (Figure 2.1)"];
+
+    // JTAG, right column
+    vivado -> ft2232 [xlabel="USB"];
+    pj [group=J, shape=point, style=invis, width=0.01, label=""];
+    { rank=same; harn; pj; }
+    ft2232 -> pj [dir=none];
+    pj -> bar    [xlabel="JTAG: .bit program,\nILA readout"];
+
+    // board parts, left
+    pc [shape=point, style=invis, width=0.01, label=""];
+    pl [shape=point, style=invis, width=0.01, label=""];
+    { rank=same; pc; pl; dut; }
+    pc -> pl -> dut [style=invis];
+    ptop -> pc [dir=back];
+    pc -> bar  [dir=back, xlabel="200 MHz LVDS sysclk,\ncpu_resetn"];
+    ctop -> pl [dir=none];
+    pl -> bar  [xlabel="led[7:0]: low 8 bits\nof the status bank"];
 }

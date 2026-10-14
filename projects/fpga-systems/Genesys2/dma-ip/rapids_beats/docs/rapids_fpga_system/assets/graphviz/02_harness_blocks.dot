@@ -1,57 +1,93 @@
-// rapids_char_harness: every block around the DUT and what it does for the measurement.
+// Figure 2.1 -- rapids_char_harness block map, in the house style
+// (vault/handbook/authoring/block-diagrams.md). Every block is an instance or
+// an inline register block in flows-rapids-beats/rtl/rapids_char_harness.sv.
+//   - Host UART is the white port on top; the control path runs down the
+//     center (bridge -> region decode -> apb4_master -> DUT s_apb).
+//   - The boundary bar is the harness's memory models: what stands in for
+//     system memory under every DUT AXI master.
+//   - SINK forward data enters left (AXIS generator) and leaves down
+//     (m_axi_wr); SOURCE read data comes back UP through the R-channel delay
+//     on the right and leaves right (m_axis to the pattern check).
+//   - Meters and observers are passive taps (dashed, nothing driven back).
 digraph harness_blocks {
-    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.7,
-           label="rapids_char_harness: the blocks around the DUT", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           label="rapids_char_harness: control down the center, SINK data left, SOURCE return right", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    subgraph cluster_front {
-        label="Host front-end (inside the harness since 2026-09-23, so sim drives the board's own launch path)";
-        style="rounded"; color="#404040";
-        uart [label="uart_axil_bridge\n32-bit AXIL master", fillcolor="#fff4e0"];
-        decode [label="region decode  addr[19:16]\n0x0_0000 DUT-REG (APB window)\n0x1_0000 DESC-LOAD\n0x2_0000 HARNESS CSR\n(+ observer window on the observers build)", fillcolor="#fff4e0"];
-        apbm [label="apb4_master\ncmd/rsp -> DUT s_apb\nSRC @0x0000, SNK @0x1000", fillcolor="#fff4e0"];
-        csr [label="harness CSRs\nGEN_* CHK_* MEM_* MON_* OBS_*\nBUILD (geometry of this bitstream)\nSTATUS, CRCs, meter counts", fillcolor="#fff4e0"];
-        kick [label="kick sequencer\nstage-all-then-GO:\nGO arms the window, starts the\ngenerator, fires every kick on-chip", fillcolor="#fff4e0"];
-        uart -> decode; decode -> apbm; decode -> csr; csr -> kick;
-    }
+    host  [group=C, label="Host UART\nFT232R, 115200-8N1, ASCII W / R lines", fillcolor="white"];
+    uart  [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart"];
+    dec   [group=C, label="Region Decode on addr[19:16]\ninline in rapids_char_harness\n0 DUT-REG, 1 DESC-LOAD, 2 HARNESS CSR, 3 OBS"];
 
-    subgraph cluster_stim {
-        label="Stimulus and checking (synthesizable, seeded)"; style="rounded"; color="#404040";
-        gen  [label="axis4_master_injector\nsink ingress: LFSR data, beats/ch,\nchannel mask, GEN_MODE interleave", fillcolor="#e8f1ff"];
-        chk  [label="axis4_slave_pattern_check\nsource egress: CRC per channel,\nchk_ready_en backpressure knob", fillcolor="#e8f1ff"];
-        rdgen [label="axi4_slave_rd_injector\nbacks m_axi_rd: LFSR read data", fillcolor="#e8f1ff"];
-        wrcrc [label="axi4_slave_wr_crc_check\nbacks m_axi_wr: CRC per channel", fillcolor="#e8f1ff"];
-        dly  [label="axi_response_delay x2\nRESP_DELAY on R and on B:\nthe memory-latency knob", fillcolor="#e8f1ff"];
-    }
+    csr   [group=L, label="Harness CSRs + Kick Sequencer\ninline: GEN_* CHK_* RESP_DELAY OBS_TARGET\nBUILD, ID; GO = arm window, start gen,\nreplay staged kicks at aclk"];
+    apbm  [group=C, label="APB Master\napb4_master - u_apb\nDUT window + every staged kick"];
+    dload [group=RR, label="Descriptor Loader (DESC-LOAD)\ninline holding regs: 8 x 32 bits\nDESC_KICK = one 256-bit AXI4 write"];
 
-    subgraph cluster_mem {
-        label="Memories the DUT owns"; style="rounded"; color="#404040";
-        descram [label="descriptor RAM x2 (sdpram_slave_axi4_axi4)\nDUT reads port A over m_axi_desc;\nhost writes 256-bit descriptors via DESC-LOAD", fillcolor="#f4f4f4"];
-        ctrlram [label="control semaphore RAM x2\nctrlwr master writes, ctrlrd master reads\nthe same store: a doorbell is a gate read", fillcolor="#f4f4f4"];
-        monresp [label="always-accept AXIL responder\nm_axil_mon egress never stalls", fillcolor="#f4f4f4"];
-    }
+    meter [group=LL, label="Bus Meters (always built)\naxi_bus_meter on m_axi_rd, m_axi_wr\naxis_bus_meter on s_axis, m_axis\nproductive / backpressure /\nstarvation / idle per cycle;\nfreeze at OBS_TARGET"];
+    gen   [group=L, label="AXIS Stimulus\naxis4_master_injector - u_axis_gen\nseeded LFSR, GEN_MODE interleave"];
 
-    dut [label="rapids_beats_top\nSOURCE: m_axi_rd -> SRAM -> m_axis\nSINK:   s_axis -> SRAM -> m_axi_wr", fillcolor="#d5ecd5", penwidth=2];
+    obs   [group=LL, label="Interface Observers\n(USE_OBSERVERS=1)\naxi4_intf_master_observer\naxis4_intf_observer\nlatency histograms\nAPB: the OBS region\nthrough apb4_master", style="filled,dashed"];
+    dut   [group=C, label="DUT - rapids_beats_top - u_dut\nSINK: s_axis -> SRAM -> m_axi_wr      SOURCE: m_axi_rd -> SRAM -> m_axis\ndescriptor + control-semaphore AXI4 masters per half; MonBus egress m_axil_mon", width=8.5, penwidth=1.8];
 
-    subgraph cluster_meas {
-        label="Measurement (always built) and the optional instruments"; style="rounded"; color="#228B22";
-        meters [label="bus meters (always on)\naxi_bus_meter rd, wr\naxis_bus_meter sin, sout\nper cycle: productive | backpressure |\nstarvation | idle, frozen at the target", fillcolor="#e9f7e9"];
-        obs [label="USE_OBSERVERS=1\naxi4_intf_master_observer\naxis4_intf_observer\npassive taps, own APB window,\nutilization + latency histograms", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
-        mon [label="USE_AXI_MONITORS=1 + GEN_MON=1\nin-core monitors inside the DUT,\nMonBus egress to the AXIL responder", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
-    }
+    wdly  [group=L, label="Write-Response Delay\naxi_response_delay\nu_wr_resp_delay\nRESP_DELAY[31:16] on B"];
+    rdly  [group=R, label="Read-Data Delay\naxi_response_delay\nu_rd_resp_delay\nRESP_DELAY[15:0] on R"];
+    chk   [group=RR, label="AXIS Egress Check\naxis4_slave_pattern_check\nu_axis_chk: CRC per channel;\nchk_ready_en = backpressure", fillcolor="white"];
 
-    apbm -> dut [label="s_apb"];
-    kick -> dut [label="kicks"];
-    kick -> gen [label="start"];
-    gen -> dut [label="s_axis"];
-    dut -> chk [label="m_axis"];
-    dut -> dly [label="m_axi_rd / m_axi_wr"];
-    dly -> rdgen; dly -> wrcrc;
-    dut -> descram [label="m_axi_desc x2"];
-    dut -> ctrlram [label="ctrl rd/wr"];
-    dut -> monresp [label="m_axil_mon"];
-    meters -> csr [label="counts"];
-    gen -> meters [style=dotted]; dut -> meters [style=dotted];
-    obs -> csr [style=dashed]; dut -> obs [style=dotted]; mon -> monresp [style=dashed];
+    p_aw [shape=point, style=invis, width=0.01, label=""];
+    p_ar [shape=point, style=invis, width=0.01, label=""];
+    p_fe [shape=point, style=invis, width=0.01, label=""];
+    p_mon [shape=point, style=invis, width=0.01, label=""];
+
+    bar   [group=C, label="Harness memory models (stand in for system memory)\ndescriptor RAM x2 + control RAM x2 (sdpram_slave_axi4_axi4)  |  axi4_slave_wr_crc_check - u_wr_mem  |  axi4_slave_rd_injector - u_rd_mem  |  always-accept AXI4-Lite responder",
+           fillcolor="white", width=11.5, height=0.5];
+
+    { rank=same; csr; apbm; dload; }
+    { rank=same; obs; meter; gen; }
+
+    { rank=same; p_aw; wdly; s0; p_ar; s1; p_fe; s2; p_mon; rdly; chk; }
+    s0 [shape=box, style=invis, width=1.0, label=""];
+    s1 [shape=box, style=invis, width=1.0, label=""];
+    s2 [shape=box, style=invis, width=1.0, label=""];
+
+    csr -> apbm -> dload [style=invis];
+    obs -> meter -> gen [style=invis];
+
+    p_aw -> wdly -> s0 -> p_ar -> s1 -> p_fe -> s2 -> p_mon -> rdly -> chk [style=invis, minlen=2];
+
+    // ---- control flow, center column ----
+    host -> uart  [dir=both, penwidth=1.8, xlabel="UART bytes: W / R down, reply up"];
+    uart -> dec   [dir=both, xlabel="AXI4-Lite access (32-bit)"];
+    dec  -> csr   [xlabel="HARNESS CSR"];
+    dec  -> apbm  [xlabel="DUT-REG + OBS"];
+    dec  -> dload [xlabel="DESC-LOAD"];
+    apbm -> dut   [xlabel="s_apb: CSRs, kicks"];
+    csr  -> gen   [style=dashed, xlabel="GO: start"];
+
+    // ---- SINK forward data, left ----
+    gen  -> dut   [penwidth=1.8, xlabel="s_axis: LFSR beats"];
+    dut  -> p_aw  [dir=none];
+    p_aw -> bar   [xlabel="m_axi_wr:\nAW + W"];
+    dut  -> wdly  [dir=back, xlabel="B (delayed)"];
+    wdly -> bar   [dir=back, xlabel="B"];
+
+    // ---- requests and fetches, center ----
+    dut  -> p_ar  [dir=none];
+    p_ar -> bar   [xlabel="m_axi_rd:\nAR"];
+    dut  -> p_fe  [dir=none];
+    p_fe -> bar   [dir=both, xlabel="descriptor +\nsemaphore fetch\n(AXI4, both ways)"];
+    dut  -> p_mon [dir=none, style=dashed];
+    p_mon -> bar  [style=dashed, xlabel="MonBus m_axil_mon\n(USE_AXI_MONITORS=1)"];
+
+    // ---- SOURCE return, right ----
+    dut  -> rdly  [dir=back, penwidth=1.8, xlabel="R (delayed)"];
+    rdly -> bar   [dir=back, xlabel="R: LFSR read data"];
+    dut  -> chk   [penwidth=1.8, xlabel="m_axis"];
+    dload -> bar  [xlabel="descriptor write\n(RAM port B)"];
+
+    // ---- measurement (passive) ----
+    meter -> csr  [style=dashed, dir=back, xlabel="GO arms the window"];
+    meter -> dut  [style=dashed, dir=back, xlabel="taps (observed,\nnothing driven back)"];
+    obs  -> dut   [style=dashed, dir=back, xlabel="same\ntaps"];
 }

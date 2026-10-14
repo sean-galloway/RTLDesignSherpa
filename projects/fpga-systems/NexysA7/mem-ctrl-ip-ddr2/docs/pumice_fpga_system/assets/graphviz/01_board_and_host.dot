@@ -1,37 +1,61 @@
-// The bench. Deliberately does NOT name the USB bridge part: board_info.md
-// records only "Digilent USB-JTAG", so the checkable facts are the single
-// connector, the JTAG serial, and that ttyUSB numbering drifts.
+// Figure 1.1 -- the bench, in the house style for system diagrams
+// (vault/handbook/authoring/block-diagrams.md): host programs and Vivado on
+// top, the single USB connector, the FPGA stack down the center, and the
+// board's parts as the boundary bar. At the bar the DDR2 crossings split the
+// reference's way: write data left, command center, read data back up the
+// right. Deliberately does NOT name the USB bridge part: board_info.md
+// records only "Digilent USB-JTAG".
+// RTL: build-perf/rtl/ddr2_char_top.sv (MMCM, u_harness, u_dfi_adapter,
+// u_a7ddrphy), build-perf/rtl/ddr2_char_harness.sv.
 digraph board_and_host {
-    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.8,
-           label="The bench: host, one USB connector, the Artix-7 and the DDR2 part", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="pumice on the Nexys A7: the bench", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    subgraph cluster_host {
-        label="Host (Linux workstation)"; style="rounded"; color="#404040";
-        prog [label="pumice_char.py  (the measurement program)\nddr2_char.py    (the harness driver)\nhost_bringup_*.py (PHY training sweeps)", fillcolor="#fff4e0"];
-        dev  [label="pumice_device.py + pumice_master.py\nCSRs BY NAME through the generated regmap,\nnever by hardcoded offset", fillcolor="#fff4e0"];
-        link [label="fpga-systems/bin/ : uart_link.py,\nuart_axi_bridge.py, board.py, sequence.py\nONE transport shared by every board", fillcolor="#fff4e0"];
-        prog -> dev -> link;
-    }
+    host   [group=C, label="Host PC - measurement programs\npumice_char.py, ddr2_char.py, host_bringup_*.py\nCSRs by name through the generated regmaps;\nfpga-systems/bin/ transport (uart_link, uart_axi_bridge)", fillcolor="white"];
+    vivado [label="Host PC - Vivado\nmake bitstream / make program\nILA captures", fillcolor="white"];
 
-    usb [label="ONE USB connector carries both roles\nJTAG: program / ILA (serial 210292BFA3EE)\nUART: 115200-8N1 on /dev/ttyUSB*\nNumbering drifts and a second board may share\nthe chain, so the host resolves the port, not a constant.\nContrast the Genesys 2: TWO chips, FT2232 JTAG + FT232R UART", fillcolor="#ffe8e8", penwidth=2];
+    usb    [group=C, label="One USB Connector (Digilent USB-JTAG), both roles\nUART 115200-8N1 on /dev/ttyUSB* (numbering drifts: the host resolves the port)\nJTAG serial 210292BFA3EE (a second board may share the chain)", width=6];
 
-    subgraph cluster_fpga {
-        label="Nexys A7-100T : Artix-7 XC7A100T-1CSG324C"; style="rounded"; color="#228B22";
-        top  [label="ddr2_char_top\npin-level top: clocks, reset, UART pins,\n7-seg, LEDs, DDR2 pads", fillcolor="#e9f7e9"];
-        harn [label="ddr2_char_harness\nthe flow harness (Figure 2.1)", fillcolor="#e9f7e9"];
-        phy  [label="a7ddrphy  (LiteDRAM-generated Verilog)\nDFI -> DDR2 pads, 1:2 serialization.\nVivado substitutes it for a7ddrphy_stub.sv\nat build time; never hand-edited", fillcolor="#e9f7e9"];
-        top -> harn -> phy;
-    }
+    top    [group=C, label="Board Top - ddr2_char_top\nMMCM from the 100 MHz oscillator: sys 75 MHz (PUMICE_SYS_75, the design point;\notherwise 66.67), sys2x = DRAM CK 150 MHz (DDR2-300), idelay 200 MHz; reset sync", width=6];
+    harn   [group=C, label="Characterization Harness - ddr2_char_harness - u_harness (Figure 2.1)\nUART bridge, harness_csr, generator array, perf instruments, DFI alignment;\nDUT: pumice_top_geared (in ddr2_char_macro)", width=6];
+    adap   [group=C, label="DFI to PHY - dfi_v21_flat_to_a7ddrphy - u_dfi_adapter\n+ a7ddrphy - u_a7ddrphy (LiteDRAM-generated; substituted for a7ddrphy_stub at build)", width=6];
 
-    dram [label="Micron MT47H64M16HR-25E\nDDR2, x16, single rank, 128 MiB (1 Gbit)\nRun at DDR2-300: CK 150 MHz, 300 MT/s\nBL4 x 16 bit -> 600 MB/s peak", fillcolor="#e8f1ff", penwidth=2];
+    p1 [shape=point, style=invis, width=0.01, label=""];
+    p2 [shape=point, style=invis, width=0.01, label=""];
+    p3 [shape=point, style=invis, width=0.01, label=""];
+    pc [shape=point, style=invis, width=0.01, label=""];
+    pl [shape=point, style=invis, width=0.01, label=""];
+    g1 [shape=box, style=invis, width=0.9, label=""];
+    g2 [shape=box, style=invis, width=0.9, label=""];
 
-    clk [label="Clocking\n100 MHz board oscillator\n  -> sys 75 MHz  (PUMICE_SYS_75 = the design point)\n  -> 1:2 gear, CK 150 MHz, 300 MT/s\nPUMICE_SYS_75=0 builds 66.67 MHz instead,\nwhich create_project.tcl labels NOT the design point", shape=note, fillcolor="#f0f0f0"];
+    bar    [group=C, label="Nexys A7-100T board parts:  Micron MT47H64M16HR-25E DDR2 (x16, 128 MiB; 600 MB/s peak at 300 MT/s)  |  100 MHz oscillator  |  CPU reset  |  16 LEDs + 7-segment  |  XC7A100T configuration",
+            fillcolor="white", width=10];
 
-    link -> usb [label="USB"];
-    usb  -> top [label="UART bytes", style=bold];
-    usb  -> top [label=".bit / ILA over JTAG", style=dashed];
-    phy  -> dram [label="CK/CKE/CS, A/BA,\nDQ[15:0], DQS, DM", style=bold];
-    clk  -> top [style=dotted, arrowhead=none];
+    { rank=same; host; vivado; }
+    host -> vivado [style=invis, minlen=2];
+    { rank=same; p1; g1; p2; g2; p3; pl; pc; }
+    p1 -> g1 -> p2 -> g2 -> p3 -> pl -> pc [style=invis];
+    host -> usb -> top -> harn -> adap [style=invis, weight=20];
+
+    host  -> usb  [dir=both, penwidth=1.8, xlabel="ASCII W / R over USB"];
+    vivado -> usb [xlabel=".bit, ILA (JTAG)"];
+    usb   -> top  [dir=both, penwidth=1.8, xlabel="UART_TXD_IN / UART_RXD_OUT;\nJTAG configures the part"];
+    top   -> harn [dir=both, xlabel="UART + sys / sys2x clocks, reset"];
+    harn  -> adap [dir=both, penwidth=1.8, xlabel="flat DFI: command + write data down,\nread data up"];
+
+    adap -> p1 [dir=none];
+    p1 -> bar  [xlabel="Write to DDR\n(DQ, DQS, DM)"];
+    adap -> p2 [dir=none, penwidth=1.8];
+    p2 -> bar  [penwidth=1.8, xlabel="DDR Command\n(CK, CKE, CS, A, BA,\nRAS, CAS, WE, ODT)"];
+    adap -> p3 [dir=back];
+    p3 -> bar  [dir=none, xlabel="Read from DDR\n(DQ, DQS)"];
+
+    top -> pc  [dir=back, xlabel="CLK100MHZ,\nCPU_RESETN"];
+    pc  -> bar [dir=none];
+    harn -> pl [dir=none, xlabel="LED[15:0],\n7-segment"];
+    pl  -> bar;
 }

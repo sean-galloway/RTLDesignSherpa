@@ -1,0 +1,50 @@
+// Figure 2.2 -- BCH AXI4 memory-to-memory datapath. Replaces the second
+// mermaid fence in ch02_harness/01_architecture.md. House style
+// (vault/handbook/authoring/block-diagrams.md): the generator is the white
+// port on top, the four jobs run top-down in the center column, and
+// each job memory sits between the job that writes it and the job that reads
+// it, so the whole chain flows downward, and the pattern
+// checker is the boundary bar. The jobs run in sequence; the injector sits
+// on the decoder's read (R) channel. The observer taps the codec's own AXI4
+// master ports (2 read, 2 write).
+// RTL: Genesys2/ecc-ip/bch/build-loop/rtl/bch_axi4_pipeline.sv (IFACE="AXI4").
+digraph bch_axi4_loop {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           label="BCH loop, AXI4 flavour: four sequential jobs over three memories (bch_axi4_pipeline)", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    gen   [label="Pattern Generator\naxis4_master_injector\n(the same block as AXIS)", fillcolor="white"];
+    obs   [label="AXI4 Observer (window 0x0001_0000)\naxi4_intf_master_observer - u_obs_axi4\non the codec's 2 read + 2 write masters\n(observed, nothing driven back)"];
+
+    seed  [label="Job 1: Seed Write\nrs_axi4_write_engine\nu_seed"];
+    enc   [label="Job 2: Encode\nbch_encoder_axi4 - u_enc\n(includes the beat packer)"];
+    dec   [label="Job 3: Decode (riBM)\nbch_decoder_axi4 - u_dec\nerror_injector - u_inj on its R channel"];
+    drain [label="Job 4: Drain Read\nrs_axi4_read_engine\nu_drain"];
+
+    m1 [label="M1 Seed Memory\nsdpram_slave_axi4_axi4\nu_mem1"];
+    m2 [label="M2 Codeword Memory\nsdpram_slave_axi4_axi4\nu_mem2 (packed codewords)"];
+    m4 [label="M4 Recovered-Message Memory\nsdpram_slave_axi4_axi4\nu_mem4"];
+
+    bar [label="Pattern Check: axis4_slave_pattern_check\n(the same checker as AXIS) -> status CSRs", fillcolor="white", width=6];
+
+    gen [group=C]; seed [group=C]; enc [group=C]; dec [group=C]; drain [group=C]; bar [group=C];
+    m1 [group=L]; m4 [group=L]; m2 [group=R];
+    { rank=same; enc; obs; }
+    enc -> obs [style=invis, minlen=3];
+
+    gen   -> seed  [penwidth=1.8, xlabel="message beats"];
+    seed  -> m1    [penwidth=1.8, xlabel="AXI4 write"];
+    m1    -> enc   [penwidth=1.8, xlabel="AXI4 read"];
+    enc   -> m2    [penwidth=1.8, xlabel="AXI4 write"];
+    m2    -> dec   [penwidth=1.8, xlabel="AXI4 read,\ncorrupted in flight"];
+    dec   -> m4    [penwidth=1.8, xlabel="AXI4 write"];
+    m4    -> drain [penwidth=1.8, xlabel="AXI4 read"];
+    drain -> bar   [penwidth=1.8, xlabel="recovered message"];
+    seed -> enc -> dec -> drain [style=invis];
+
+    enc   -> obs   [style=dashed, xlabel="taps"];
+    obs   -> dec   [style=dashed, dir=back, xlabel="taps"];
+}

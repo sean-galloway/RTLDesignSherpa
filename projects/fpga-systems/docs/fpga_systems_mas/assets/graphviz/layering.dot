@@ -1,0 +1,54 @@
+// Figure 1.1 -- layering of the host-side stack. Replaces assets/mermaid/layering.mmd.
+// House style (vault/handbook/authoring/block-diagrams.md): the entry point is the
+// white port on top, the board is the boundary bar at the bottom. The command
+// path (W/R lines out, replies back) is the center column; each hop is ONE
+// dir=both edge because the reply retraces the same objects (AMBA ruling:
+// "request down / response up" on one edge). Board selection and locking are
+// dashed sideband on the right; the cosim channel is the dashed optional block
+// on the left.
+digraph layering {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           label="Host-side stack: each layer calls only downward", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host [group=M, label="Entry point (one per build)\nhost_*.py / run_*.py - argv, port choice, printing", fillcolor="white", width=3.6];
+
+    env  [label="Area Environment\nbin/<area>_env.py - area layer\nsideband: marker-anchored sys.path\nfor the shared layer (no runtime traffic)", fillcolor="white", style="dashed"];
+    run  [group=M, label="Sequence Runner\nsequence.py - shared layer\nresolve(order), then run each step"];
+    brd  [label="Board Registry\nboard.py + boards/ - shared layer\nUSB-serial match, probe, JTAG serial"];
+
+    seq  [group=M, label="Named Sequences\nbin/seq_*.py - area layer\nordered, dependency-checked"];
+    lock [label="One Flow per Board\nboard_lock.sh - shared layer\nflock rds-board-<jtag serial>.lock"];
+
+    drv  [group=M, label="Drivers, Programs, Verdicts\narea bin/ libraries - area layer\nCSRs by name through the regmap"];
+
+    brg  [group=M, label="ASCII W/R Protocol\nuart_axi_bridge.py - UARTAxiBridge\nshared layer"];
+    cosim [label="cocotb Byte Channel\nsame bytes, no board\n(sim only, injected in place of the link)", style="dashed", fillcolor="white"];
+
+    lnk  [group=M, label="Serial Transport\nuart_link.py - UartLink\nshared layer"];
+
+    bar  [group=M, label="FPGA board: /dev/ttyUSB* (FTDI UART)  ->  UART bridge RTL  ->  AXI4-Lite CSRs", fillcolor="white", width=7.5, height=0.45];
+
+    { rank=same; env; run; brd; }
+    { rank=same; cosim; lnk; }
+    cosim -> lnk [style=invis];
+    { rank=same; lock; seq; }
+
+    host -> run  [label="run(['init', ...])"];
+    run  -> seq  [label="setup / run(ctx) / teardown"];
+    seq  -> drv  [label="register reads + writes"];
+    drv  -> brg  [dir=both, label="write(addr, data) / read(addr)\ndown; data or OK back up"];
+    brg  -> lnk  [dir=both, label="\"W addr data\\n\", \"R addr\\n\" down;\n\"0x...\\n\" / \"OK\\n\" back up"];
+    lnk  -> bar  [dir=both, penwidth=1.8, label="UART bytes, both ways"];
+
+    host -> brd  [style=dashed, xlabel="get_board, find_uart_port"];
+    brd  -> lock [style=dashed, xlabel="hold the board"];
+    brd  -> lnk  [style=dashed, xlabel="the one port that\nanswered the probe"];
+    brg -> cosim [style=dashed, dir=both, xlabel="cosim only: same W/R\nbytes, no board"];
+
+    env -> run [style=invis];
+    run -> brd [style=invis];
+}

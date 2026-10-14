@@ -1,31 +1,39 @@
-// One RTL, three builds: the parameters and why each exists.
+// Figure 3.1 -- one RTL, the knobs, the three builds. House style
+// (vault/handbook/authoring/block-diagrams.md): the common source is the white
+// box on top, the knobs are a white "Parameters (fixed at build)" legend with
+// no edges, and every arrow to a bitstream carries the generics that make it.
+// The cosim is dashed sideband: same generics, same host programs, not a
+// bitstream. The "complementary, not redundant" note is a dashed note box.
+// Knobs: build-{mon,obs,perf}/Makefile export USE_AXI_MONITORS and
+// OBS_ENABLE_MON_TAPS; geometry defaults in rtl/stream_cfg_pkg.sv.
 digraph build_variants {
-    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.5, ranksep=0.55,
-           label="One source tree, three bitstreams: the STREAM builds", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.70", ranksep="0.80", splines=ortho, newrank=true,
+           label="One source tree, three bitstreams: the STREAM builds", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    src [label="COMMON RTL (one copy, component level)\nstream_genesys2_top.sv + stream_harness.sv + harness_csr.sv + axi_response_delay.sv\nthe generated bridges (regen_bridges.sh), one tcl set, one XDC, one instrumentation filelist\nstream_top_ch8 and its blocks (projects/components/dma-ip/stream); geometry defaults in stream_cfg_pkg",
-         fillcolor="#d5ecd5", penwidth=2];
+    src [group=C, label="Common RTL (one copy, component level)\nstream_genesys2_top + stream_harness\n+ harness_csr + axi_response_delay\ngenerated bridges (regen_bridges.sh),\none tcl set, one XDC; stream_top_ch8;\ngeometry defaults in stream_cfg_pkg", fillcolor="white"];
 
-    knobs [shape=plaintext, label=<
-      <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
-        <tr><td bgcolor="#e0e0e0"><b>build</b></td><td bgcolor="#e0e0e0"><b>USE_AXI_MONITORS</b></td><td bgcolor="#e0e0e0"><b>OBS_ENABLE_MON_TAPS</b></td><td bgcolor="#e0e0e0"><b>channels</b></td><td bgcolor="#e0e0e0"><b>measures</b></td></tr>
-        <tr><td>mon</td><td>1</td><td>0</td><td>8</td><td>the in-core monitors, compression, coverage</td></tr>
-        <tr><td>obs</td><td>0</td><td>1</td><td>4</td><td>the interface observers, from outside the DUT</td></tr>
-        <tr><td>perf</td><td>0</td><td>0</td><td>8</td><td>the datapath itself</td></tr>
-      </table>>];
+    knobs [label="Parameters (fixed at build; build-<x>/Makefile)\lUSE_AXI_MONITORS (monitors): 1 = in-core rd / wr / desc\l    monitors inside the DUT\lOBS_ENABLE_MON_TAPS (taps): 1 = the interface\l    observers' MonBus taps (their meters and\l    histograms count either way)\lchannels: 8, or 4 on build-obs\lGenerics only, never edits to stream_cfg_pkg:\l    the package is every build's default\l", fillcolor="white"];
 
-    mon  [label="build-mon\nin-core monitors ON, observer taps OFF, 8 ch\nsign-off 2026-09-09: 60 MHz, all cones + error flavour,\nWNS +1.513 ns, 139,293 LUTs (68%); stable/", fillcolor="#e9f7e9"];
-    obs  [label="build-obs\nmonitors OFF, observer taps ON, 4 ch\n(8 ch = 99.3% LUTs and the placer gives up;\nboth instruments together = 217,761 LUTs > 203,800)\narchive 2026-09-07: WNS +2.191 ns; stable-obs/", fillcolor="#e9f7e9"];
-    perf [label="build-perf\nno instrument at all: pure throughput, 8 ch\nthe bare meters are outside the monitor gate\nand keep counting (a regression proved it once)", fillcolor="#e9f7e9"];
+    mon  [label="build-mon\nin-core monitors on,\nobserver taps off, 8 ch\nsign-off 2026-09-09: 60 MHz,\nall cones + error flavour,\nWNS +1.513 ns, 139,293\nLUTs (68%); stable/"];
+    obs  [group=C, label="build-obs\nmonitors off,\nobserver taps on, 4 ch\n(8 ch = 99.3% LUTs: the placer\ngives up; both instruments =\n217,761 LUTs > 203,800)\n2026-09-07: WNS +2.191 ns;\nstable-obs/"];
+    perf [label="build-perf\nno instrument:\npure throughput, 8 ch;\nthe bare meters sit\noutside the monitor gate\nand keep counting (a\nregression proved it once)"];
 
-    src -> knobs [arrowhead=none];
-    knobs -> mon; knobs -> obs; knobs -> perf;
+    why  [label="Complementary, not redundant:\nobs has no in-core monitor and mon has\nno taps, so a zero on the other side's\nprobe is structural", fillcolor="white", style="filled,dashed"];
+    sim  [label="Cosim (not a bitstream)\nmake sim BUILD=<x>: the SAME host\nprograms over the same UART bytestream,\nagainst the same generics", fillcolor="white", style="filled,dashed"];
 
-    why [label="COMPLEMENTARY, not redundant:\nobs has no in-core monitor at all and mon has no taps,\nso a zero on the other side's probe is structural.\nGenerics, never edits to stream_cfg_pkg:\nthe package is every build's default.", fillcolor="#fff4e0"];
-    knobs -> why [style=dashed, arrowhead=none];
+    { rank=same; mon; obs; perf; }
+    mon -> obs -> perf [style=invis];
+    { rank=same; knobs; why; sim; }
+    knobs -> why -> sim [style=invis];
+    mon -> knobs [style=invis];
+    perf -> why [style=invis];
 
-    sim [label="make sim BUILD=<x>\nthe cosim runs the SAME host programs\nover the same UART bytestream against\nthe same generics: one program, two targets", fillcolor="#e8f1ff"];
-    src -> sim [style=dashed];
+    src -> mon  [xlabel="monitors 1,\ntaps 0"];
+    src -> obs  [penwidth=1.8, xlabel="monitors 0,\ntaps 1"];
+    src -> perf [xlabel="monitors 0,\ntaps 0"];
+    src -> sim  [style=dashed, xlabel="same\ngenerics"];
 }

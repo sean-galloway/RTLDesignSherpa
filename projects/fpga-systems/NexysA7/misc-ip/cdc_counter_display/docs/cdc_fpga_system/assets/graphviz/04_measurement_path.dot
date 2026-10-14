@@ -1,22 +1,49 @@
-// The headline demo: make a correct design fail on demand, and see it.
+// Figure 4.1 -- watch-fail: breaking a CDC on purpose. A process flow in the
+// house vocabulary (vault/handbook/authoring/block-diagrams.md): steps
+// top-down in one center column, each naming where it runs, every arrow
+// labeled; the sweep loop climbs the right edge dashed; the two "why" notes
+// are dashed notes attached to the step they explain.
+// Source: build-demo/host/cdc_programs.py watch_fail(), host_cdc_demo.py.
 digraph measurement_path {
-    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.55,
-           label="watch-fail: breaking a CDC on purpose, and watching the display say so", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.45", splines=ortho, newrank=true,
+           label="watch-fail: breaking a CDC on purpose, and watching the display say so", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06", width=4.6];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    s0 [label="0. Prove the link\nread BUILD_ID, expect 0x43434331 (\"CDC1\").\nA host that cannot read that is talking to\nsome other bitstream", fillcolor="#fff4e0"];
-    s1 [label="1. Leave three counters alone\nthey stay in a correct mode (3 or 4) and act as\nthe CONTROL GROUP for the rest of the experiment", fillcolor="#fff4e0"];
-    s2 [label="2. Break one counter\nset its value-out path to mode 0, NO_CDC:\na raw flop per bit, no Gray coding, no ASYNC_REG", fillcolor="#ffe8e8", penwidth=2];
-    s3 [label="3. Sweep its clock\nclock_select / div_pickoff walk that counter's\nclock from slow to fast while the others hold", fillcolor="#fff4e0"];
-    s4 [label="4. Watch the display\nDISPLAY.sel points the 7-seg at the broken counter.\nSlow: it looks fine. Fast: the digits show values the\ncounter never held -- multi-bit skew sampled mid-flight", fillcolor="#e9f7e9", penwidth=2];
-    s5 [label="5. Read the same value over UART\nVALUE is CDC'd into sys_clk; PRESS_COUNT crosses\nGRAY-coded. The press count stays trustworthy while\nthe raw value does not -- which is the whole point", fillcolor="#e9f7e9"];
+    s0 [group=C, label="0. Prove the link (host)\nread BUILD_ID, expect 0x43434331 (\"CDC1\");\ncheck STATUS.any_written"];
+    s1 [group=C, label="1. Keep the control group (board)\nthe other three counters stay in a correct\nmode for the whole experiment"];
+    s2 [group=C, label="2. Break one counter (host)\nDISP_SELECT = that counter; CDC_MODE = 0 NO_CDC\n(raw flop per bit); AUTO_INC = 1; INIT 0, STEP 1, load"];
+    s3 [group=C, label="3. Sweep its clock (host)\nDIV_PICKOFF = next point, slow to fast:\nf = sys_clk / 2^(pickoff + 1)"];
+    s4 [group=C, label="4. Watch the display (board)\nthe 7-segment shows the broken counter: values\nit never held appear once the clock is fast"];
+    s5 [group=C, label="5. Read the same value over UART (host)\nsample VALUE several times, record the spread;\nPRESS_COUNT crosses Gray-coded and stays clean"];
+    s6 [group=C, label="Restore (host)\nCDC_MODE = 2 SYNC_FIFO, AUTO_INC = 0, slow pickoff"];
 
-    s0 -> s1 -> s2 -> s3 -> s4 -> s5;
+    why [label="Why a slow sweep is not enough: mode 0 mostly\nworks at low clock rates, so a demo that never\nraises the clock 'proves' the broken design fine.\nThe failure is probabilistic; the sweep shows it.", fillcolor="white", style="filled,dashed", width=3.4];
+    ctl [label="Why four counters: the other three stay in a\ncorrect mode as the control group, on the same\nboard and bitstream, so a flickering display\ncannot be blamed on the board.", fillcolor="white", style="filled,dashed", width=3.4];
 
-    why [label="Why a slow sweep is not enough:\nmode 0 is a REAL design that mostly works. At low\nclock rates the raw flops usually settle and the value\nreads correctly, so a demo that never raises the clock\n'proves' the broken design is fine. The failure is\nprobabilistic, and the sweep is what makes it visible.", shape=note, fillcolor="#ffe8e8"];
-    why -> s3 [style=dotted, arrowhead=none];
+    pl [shape=point, style=invis, width=0.01, label=""];
+    pt [shape=point, style=invis, width=0.01, label=""];
+    { rank=same; ctl; s1; }
+    { rank=same; why; s3; pt; }
+    { rank=same; s5; pl; }
+    ctl -> s1 [style=invis];
+    why -> s3 [style=invis];
+    s3 -> pt [style=invis, minlen=2];
+    s5 -> pl [style=invis, minlen=2];
 
-    ctl [label="Why four counters and not one:\nwith a control group on the same board, at the same\ntemperature, in the same bitstream, 'the display is\nflickering' cannot be blamed on the board.\nThree clean digits beside one broken one is the evidence.", shape=note, fillcolor="#f0f0f0"];
-    ctl -> s1 [style=dotted, arrowhead=none];
+    s0 -> s1 [penwidth=1.8, xlabel="link proven"];
+    s1 -> s2 [penwidth=1.8, xlabel="three counters correct"];
+    s2 -> s3 [penwidth=1.8, xlabel="one counter broken"];
+    s3 -> s4 [penwidth=1.8, xlabel="ctr_clk retuned"];
+    s4 -> s5 [penwidth=1.8, xlabel="visible on the digits"];
+    s5 -> s6 [penwidth=1.8, xlabel="sweep done"];
+
+    ctl -> s1 [style=dashed, constraint=false];
+    why -> s3 [style=dashed, constraint=false];
+
+    s5 -> pl [style=dashed, dir=none];
+    pl -> pt [style=dashed, dir=none, xlabel="next pickoff"];
+    pt -> s3 [style=dashed];
 }

@@ -17,9 +17,9 @@ instances and collects their CDC'd status back.
 
 ### Figure 1.1: CDC Demo Harness Spine
 
-![CDC demo harness spine](../assets/mermaid/01_harness_spine.png)
+![CDC demo harness spine](../assets/graphviz/01_harness_spine.png)
 
-**Source:** [01_harness_spine.mmd](../assets/mermaid/01_harness_spine.mmd)
+**Source:** [01_harness_spine.dot](../assets/graphviz/01_harness_spine.dot)
 
 ## What it demonstrates
 

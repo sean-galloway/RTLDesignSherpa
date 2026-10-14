@@ -92,9 +92,9 @@ narrow window is a result that will not survive a temperature change.
 ## Steps 2 to 5: configure, run, measure, read back
 
 `pumice_char.Config.apply()` writes every CSR that defines a measurement point:
-JEDEC timings, page policy, bank span, burst length, address mapping. Then
-`harness_csr.CTRL` releases the generators, they run until their transaction
-budgets are spent, and the instruments count in hardware while they do.
+JEDEC timings, page policy, bank span, burst length, address mapping. Then a
+single write to `chargen_regs.GO` releases the generators on one cycle, they run
+until their transaction budgets are spent, and the instruments count in hardware while they do.
 
 **Important:** `apply()` re-programs **every** CSR on **every** measurement
 point. A register written by hand between points is therefore silently

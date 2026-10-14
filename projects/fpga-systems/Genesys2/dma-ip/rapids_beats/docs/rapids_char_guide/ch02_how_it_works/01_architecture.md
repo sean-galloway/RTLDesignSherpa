@@ -7,9 +7,9 @@ word address (`addr[19:16]`) into four regions:
 
 ### Figure 2.1: RAPIDS Characterization Harness Spine
 
-![RAPIDS characterization harness spine](../assets/mermaid/01_harness_spine.png)
+![RAPIDS characterization harness spine](../assets/graphviz/01_harness_spine.png)
 
-**Source:** [01_harness_spine.mmd](../assets/mermaid/01_harness_spine.mmd)
+**Source:** [01_harness_spine.dot](../assets/graphviz/01_harness_spine.dot)
 
 | Region | Base | Contents |
 |:------:|------|----------|
@@ -27,8 +27,8 @@ The UART wire protocol is ASCII (`W <addr> <data>\n` / `R <addr>\n`), 115200
 
 | File | Role |
 |------|------|
-| `flows-rapids-beats/rtl/rapids_char_top.sv` | FPGA board top. Owns the host front-end: `uart_axil_bridge`, the region decode/router, `apb4_master`, the DESC-LOAD path, the harness CSR register file, the atomic-launch kick sequencer, LEDs and 7-seg. All CSR/DESC offsets are `localparam`s here (the single source of truth for the host regmaps). |
-| `flows-rapids-beats/rtl/rapids_char_harness.sv` | Synthesizable harness: instantiates the DUT `rapids_beats_top` plus the on-chip stimulus / checkers / memories. **This is the cocotb DUT top.** |
+| `flows-rapids-beats/rtl/rapids_char_top.sv` | FPGA pin-level top: pins to harness ports, LEDs and 7-seg. It no longer owns the host front-end: that moved into `rapids_char_harness` on 2026-09-23, so the harness simulation drives the board's own launch path. |
+| `flows-rapids-beats/rtl/rapids_char_harness.sv` | Synthesizable harness: the host front-end (`uart_axil_bridge`, the region decode, `apb4_master`, the DESC-LOAD path, the harness CSR register file and the atomic-launch kick sequencer; all CSR/DESC offsets are `localparam`s here, the single source of truth for the host regmaps), the DUT `rapids_beats_top`, and the on-chip stimulus / checkers / memories. **This is the cocotb DUT top.** |
 | `flows-rapids-beats/rtl/rapids_char_genesys2_top.sv` | Genesys 2 wrapper (MMCM 200→100 MHz) around `rapids_char_top`, default 8 channels. |
 
 : Key RTL blocks

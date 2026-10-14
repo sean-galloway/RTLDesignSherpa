@@ -2,7 +2,7 @@
 
 ### Figure 1.1: Layering of the host-side stack
 
-![Layering of the host-side stack](../assets/mermaid/layering.png)
+![Layering of the host-side stack](../assets/graphviz/layering.png)
 
 Four layers, each of which may only reach downward.
 

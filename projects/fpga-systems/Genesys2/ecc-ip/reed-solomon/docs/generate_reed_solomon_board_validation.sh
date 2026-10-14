@@ -47,6 +47,7 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --mathfont "Noto Serif" \
   --assets-dir "${ASSETS}" \
   --assets-dir "${ASSETS}/images" \
+  --assets-dir "${ASSETS}/graphviz" \
   --assets-dir "${REPO_ROOT}/projects/fpga-systems/Genesys2/ecc-ip/reed-solomon/stable/results/2026-10-05_battery" \
   --quiet
 

@@ -1,0 +1,72 @@
+// Figure 2.1 -- Reed-Solomon AXIS datapath and register path. Replaces the
+// mermaid fence in ch02_harness/01_architecture.md. House style
+// (vault/handbook/authoring/block-diagrams.md): the host is the white port on
+// top, the register path runs down to the loop's CSR block, the codec loop is
+// the heavy center column in flow order (generator -> encoder ->
+// injector -> decoder). The second decoder, its checker and the riBM-vs-Euclid
+// comparator exist only with ENABLE_COMPARE=1 (simulation; every board build
+// carries one solver), so they are dashed., and the pattern checker is the boundary bar. CSR
+// control is dashed sideband from the left; the AXIS observer is a passive
+// tap on the right; bypass is a dashed lane straight to the checker.
+// RTL: Genesys2/ecc-ip/reed-solomon/build-loop/rtl/rs_loop_genesys2_top.sv
+//      (u_uart_bridge) and rs_loop_harness.sv (IFACE="AXIS", g_axis_path).
+digraph rs_axis_loop {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.45", splines=ortho, newrank=true,
+           label="Reed-Solomon RS(252,236) t=8 loop, AXIS flavour: register path and codec datapath", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host [group=C, label="Host: python3 bin/run_smoke.py\nRsLoopDriver (registers by name) over UARTAxiBridge", fillcolor="white"];
+    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge (in rs_loop_genesys2_top)"];
+    fab  [group=C, label="Generated 1 x 3 AXI4-Lite to APB Fabric\nbridge_rs_loop_axil - u_bridge"];
+
+    regs [group=L, label="Loop CSRs (window 0x0000_0000)\napb4_to_peakrdl + rs_loop_regs\nCTRL, GO, GEN_BLOCKS, GEN_SEED, INJ_CFG;\nBUILD_ID, SCRATCH, PROFILE, TOPOLOGY;\nblock verdict tallies"];
+    w1   [label="Window 0x0001_0000 (rs_regs_apb)\nAXI4 flavour: the pipeline's\naxi4_intf_master_observer;\nAXIS flavour: read-0 stub", fillcolor="white", style="filled,dashed"];
+    obs  [group=R, label="AXIS Observer (window 0x0002_0000)\naxis4_intf_observer - u_obs\n4 seams: msg in, cw out, cw in, msg out\n(observed, nothing driven back)"];
+
+    gen  [group=C, label="Pattern Generator\naxis4_master_injector - u_gen\nseeded LFSR + CRC-32, GEN_BLOCKS blocks"];
+    enc  [group=C, label="RS Encoder\nrs_encoder_axis4 - u_enc"];
+    inj  [group=C, label="Error Injector (after the encoder)\nerror_injector - u_inj, 8-bit symbol errors"];
+    dec  [group=C, label="RS Decoder A (solver = KES_ALGO_A: riBM or Euclid)\nrs_decoder_axis4 - g_dec[0].u_dec\nok / corrected / uncorrectable / frame verdict"];
+    decb [label="RS Decoder B (the other solver)\nrs_decoder_axis4 - g_dec[1].u_dec\n+ its own pattern check (g_chk[1])\nENABLE_COMPARE=1 only (simulation)", style="filled,dashed"];
+    cmp  [label="Solver Comparator\ngaxi_fifo_sync x2 + beat / verdict compare\nENABLE_COMPARE=1 only (simulation)", style="filled,dashed"];
+
+    bar  [group=C, label="Pattern Check A: axis4_slave_pattern_check - g_chk[0].u_chk\nregenerated LFSR pattern; data_err, CRC, beat and packet counts -> status CSRs", fillcolor="white", width=6.5];
+
+    pb [group=B, shape=point, style=invis, width=0.01, label=""];
+    pb2 [group=B, shape=point, style=invis, width=0.01, label=""];
+    { rank=same; regs; w1; obs; }
+    regs -> w1 -> obs [style=invis];
+    { rank=same; gen; pb; }
+    gen -> pb [style=invis, minlen=2];
+    { rank=same; decb; dec; pb2; }
+    decb -> dec -> pb2 [style=invis, minlen=2];
+    inj  -> decb [style=dashed, xlabel="same corrupted\ncodeword"];
+    decb -> cmp  [style=dashed, xlabel="B beats + verdict"];
+    dec  -> cmp  [style=dashed, xlabel="A beats + verdict"];
+    { rank=same; cmp; bar; }
+    cmp -> bar [style=invis];
+
+    host -> uart [dir=both, penwidth=1.8, xlabel="/dev/ttyUSB* 115200: W / R lines"];
+    uart -> fab  [dir=both, xlabel="AXI4-Lite access"];
+    fab  -> regs [xlabel="window 0"];
+    fab  -> w1   [style=dashed, xlabel="window 1"];
+    fab  -> obs  [xlabel="window 2"];
+
+    regs -> gen  [style=dashed, xlabel="GO, GEN_BLOCKS,\nGEN_SEED"];
+    regs -> inj  [style=dashed, xlabel="INJ_CFG: mode,\nerrors, rate"];
+
+    gen  -> enc  [penwidth=1.8, xlabel="message beats"];
+    enc  -> inj  [penwidth=1.8, xlabel="codeword"];
+    inj  -> dec  [penwidth=1.8, xlabel="corrupted codeword"];
+    dec  -> bar  [penwidth=1.8, xlabel="recovered message"];
+
+    gen  -> pb   [style=dashed, dir=none];
+    pb   -> pb2  [style=dashed, dir=none, xlabel="CTRL.bypass:\ngenerator straight\nto the checker"];
+    pb2  -> bar  [style=dashed];
+
+    obs  -> enc  [style=dashed, dir=back, constraint=false, xlabel="taps: msg in, cw out"];
+    obs  -> dec  [style=dashed, dir=back, constraint=false, xlabel="taps: cw in, msg out"];
+}

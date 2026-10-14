@@ -2,7 +2,7 @@
 
 ### Figure 4.1: The program path
 
-![The program path](../assets/mermaid/program_path.png)
+![The program path](../assets/graphviz/program_path.png)
 
 ```
 fpga_board.py program --board nexys_a7_100t --bitstream build/top.bit

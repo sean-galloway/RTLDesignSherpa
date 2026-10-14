@@ -24,5 +24,7 @@
 # FPGA Systems Host Layer Specification
 
 Source for the book. Build with `../generate_mas_pdf.sh`; the entry point is
-`fpga_systems_mas_index.md`. Diagrams are mermaid sources under
-`assets/mermaid/`, rendered to PNG by the Makefile there.
+`fpga_systems_mas_index.md`. Block and flow diagrams are graphviz sources under
+`assets/graphviz/` (render with `regenerate_all_graphviz.sh` there); the
+one sequence chart stays mermaid under `assets/mermaid/`, rendered by the
+Makefile there.

@@ -1,24 +1,37 @@
-// From a host program to a result: the three measurement paths, one per build.
+// Figure 4.1 -- what each build measures, end to end. A process flow in the
+// house vocabulary (vault/handbook/authoring/block-diagrams.md): the shared
+// steps run down the center, the transfer fans out to one result path per
+// build (a parallel rank, each arrow labeled with the build it belongs to),
+// and all three converge on the verdict. Each step says where it runs.
+// Sources: stream_harness.sv (harness_csr CTRL, desc_ram, u_stream_tally,
+// u_slave_tally, u_comp_sram), bin/harness_kick.py, build-*/host/.
 digraph measurement_path {
-    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.4,
-           label="STREAM: what each build measures, end to end", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
+           label="STREAM: what each build measures, end to end", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    stage [label="1. stage over UART (any build)\nsoft_reset, clear_stats, cam_clear\ndescriptors -> desc_ram (32 B each)\nSTREAM APB config: channels, XFER_BEATS, delays\nharness_csr: what to count, where to capture", fillcolor="#fff4e0"];
-    kick [label="2. kick\nharness_kick.py stages the channel kicks;\nCTRL.start opens the window", fillcolor="#fff4e0"];
-    run [label="3. the transfer\ndesc_ram -> DUT -> m_axi_rd (LFSR source) -> SRAM\n-> m_axi_wr (CRC sink), through the latency model", fillcolor="#d5ecd5"];
+    stage [group=C, label="1. Stage (host, over UART; any build)\nsoft_reset, clear_stats, cam_clear; descriptors -> desc_ram (32 B each);\nSTREAM APB config: channels, XFER_BEATS, delays;\nharness_csr: what to count, where to capture"];
+    kick  [group=C, label="2. Kick (host)\nharness_kick.py stages the channel kicks; CTRL.start opens the window"];
+    run   [group=C, label="3. The transfer (on chip)\ndesc_ram -> DUT -> m_axi_rd (LFSR source) -> SRAM -> m_axi_wr (CRC sink),\nthrough the response-delay latency model"];
 
-    subgraph cluster_out {
-        label="4. what comes back, per build"; style="rounded"; color="#228B22";
-        perf [label="perf: bus meters + CRCs\nutilization per interface, bytes moved,\nhost_characterize -> CSV / JSON -> plots", fillcolor="#e9f7e9"];
-        mon  [label="mon: MonBus -> stream_tally + comp_sram\nevery legal packet identity counted per agent,\ncompressed capture downloaded and decoded\n(host_mon_coverage, host_mon_compress)", fillcolor="#e9f7e9"];
-        obs  [label="obs: observer taps -> slave_tally + histograms\nthe same identities seen from outside the DUT\n(host_obs_campaign, host_obs_matrix)", fillcolor="#e9f7e9"];
-    }
+    perf  [label="4. build-perf result\nbus meters + CRCs: utilization per\ninterface, bytes moved;\nhost_characterize -> CSV / JSON -> plots"];
+    mon   [group=C, label="4. build-mon result\nMonBus -> stream_tally + comp_sram:\nevery legal packet identity counted per\nagent; compressed capture downloaded\nand decoded (host_mon_coverage,\nhost_mon_compress)"];
+    obs   [label="4. build-obs result\nobserver taps -> slave_tally + histograms:\nthe same identities seen from outside\nthe DUT (host_obs_campaign,\nhost_obs_matrix)"];
 
-    verdict [label="5. verdict\nCRC_WR_COMPUTED == CRC_WR_EXPECTED, any_error clear,\ntally coverage matrix complete, cosim reference agrees", fillcolor="#e8f1ff"];
+    verdict [group=C, label="5. Verdict (host)\nCRC_WR_COMPUTED == CRC_WR_EXPECTED, any_error clear,\ntally coverage matrix complete, cosim reference agrees"];
 
-    stage -> kick -> run;
-    run -> perf; run -> mon; run -> obs;
-    perf -> verdict; mon -> verdict; obs -> verdict;
+    { rank=same; perf; mon; obs; }
+    perf -> mon -> obs [style=invis];
+
+    stage -> kick [penwidth=1.8, xlabel="config + descriptors staged"];
+    kick  -> run  [penwidth=1.8, xlabel="kicks fired"];
+    run   -> perf [xlabel="perf"];
+    run   -> mon  [xlabel="mon"];
+    run   -> obs  [xlabel="obs"];
+    perf  -> verdict [xlabel="counts, CRCs"];
+    mon   -> verdict [xlabel="tallies, capture"];
+    obs   -> verdict [xlabel="tallies, histograms"];
 }

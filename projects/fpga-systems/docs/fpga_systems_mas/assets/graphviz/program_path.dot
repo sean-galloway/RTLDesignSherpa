@@ -1,0 +1,54 @@
+// Figure 4.1 -- the program path. Replaces assets/mermaid/program_path.mmd.
+// A process flow with decisions, drawn in the handbook's decision-tree
+// vocabulary: white question boxes, blue action/outcome boxes, every arrow
+// labeled with its answer, right angles, top-down. The happy path is the
+// heavy center column; every refusal exits to the left.
+// Source of truth: bin/board.py Board.program(), bin/board_lock.sh.
+digraph program_path {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.45", splines=ortho, newrank=true,
+           label="Programming a board: lock, pre-checks, identity verdict, then Vivado", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    call [group=M, label="make program  or  fpga_board.py program", fillcolor="white"];
+    lock [group=M, label="board_lock.sh: flock on\nrds-board-<jtag serial>.lock free?", fillcolor="white"];
+    bit  [group=M, label="Bitstream file exists?", fillcolor="white"];
+    viv  [group=M, label="vivado on PATH?", fillcolor="white"];
+    idv  [group=M, label="identity_verdict()\njtag_readback.tcl: which chain answers?", fillcolor="white"];
+    prog [group=M, label="Program\nprogram_fpga.tcl, pinned to this JTAG serial"];
+    rec  [group=M, label="--identity-json record\nverdict + bitstream sha256 + programmed true/false"];
+
+    busy [label="Exit 98\nanother flow owns this board"];
+    fnf  [label="FileNotFoundError\nbefore Vivado starts"];
+    nov  [label="FileNotFoundError\nsource the Vivado settings"];
+    ref  [label="IdentityError - REFUSE\nrecord written with programmed=false"];
+    warn [label="Warn and continue\n(verdict kept in the record)"];
+
+    { rank=same; lock; busy; }
+    { rank=same; bit;  fnf; }
+    { rank=same; viv;  nov; }
+    { rank=same; prog; ref; }
+    busy -> lock [style=invis];
+    fnf -> bit [style=invis];
+    nov -> viv [style=invis];
+    ref -> prog [style=invis];
+    sp [group=M, shape=point, style=invis, width=0.01];
+    { rank=same; sp; warn; }
+    sp -> warn [style=invis, minlen=3];
+
+    call -> lock [penwidth=1.8];
+    lock -> busy [xlabel="held"];
+    lock -> bit  [penwidth=1.8, xlabel="acquired"];
+    bit  -> fnf  [xlabel="no"];
+    bit  -> viv  [penwidth=1.8, xlabel="yes"];
+    viv  -> nov  [xlabel="no"];
+    viv  -> idv  [penwidth=1.8, xlabel="yes"];
+    idv  -> sp [penwidth=1.8, dir=none];
+    sp -> prog [penwidth=1.8, xlabel="verified, unjudged (no registry serial),\nskipped (check disabled)"];
+    idv  -> warn [xlabel="inconclusive\n(no hw_server)"];
+    idv  -> ref  [xlabel="wrong chain"];
+    warn -> prog [xlabel="then program"];
+    prog -> rec  [penwidth=1.8];
+}

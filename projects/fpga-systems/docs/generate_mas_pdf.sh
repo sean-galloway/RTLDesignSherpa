@@ -10,8 +10,10 @@ set -euo pipefail
 # Builds the FPGA Systems host-layer specification (DOCX and PDF)
 # from the Markdown sources using bin/md_to_docx.py.
 #
-# Diagrams are NOT rebuilt here. They are mermaid sources under
-# fpga_systems_mas/assets/mermaid/; regenerate with:
+# Diagrams are NOT rebuilt here. Block and flow diagrams are graphviz sources
+# under fpga_systems_mas/assets/graphviz/; regenerate with:
+#   fpga_systems_mas/assets/graphviz/regenerate_all_graphviz.sh
+# The sequence chart is a mermaid source under fpga_systems_mas/assets/mermaid/:
 #   make -C fpga_systems_mas/assets/mermaid
 # which needs mmdc (npm install -g @mermaid-js/mermaid-cli).
 # ============================================================
@@ -64,9 +66,9 @@ while read -r png; do
     echo "ERROR: referenced diagram missing: ${png#../}" >&2
     missing=1
   fi
-done < <(grep -ohE '\.\./assets/mermaid/[a-z_]+\.png' "${MAS_DIR}"/ch*/*.md | sort -u)
+done < <(grep -ohE '\.\./assets/(mermaid|graphviz)/[a-z_]+\.png' "${MAS_DIR}"/ch*/*.md | sort -u)
 if [[ $missing -ne 0 ]]; then
-  echo "Run: make -C ${MAS_DIR}/assets/mermaid" >&2
+  echo "Run: ${MAS_DIR}/assets/graphviz/regenerate_all_graphviz.sh and/or make -C ${MAS_DIR}/assets/mermaid" >&2
   exit 1
 fi
 
@@ -102,7 +104,8 @@ python3 "$REPO_ROOT/bin/md_to_docx.py" \
   --mathfont "Noto Serif" \
   --assets-dir "$ASSETS" \
   --assets-dir "$ASSETS/images" \
-  --assets-dir "$ASSETS/mermaid"
+  --assets-dir "$ASSETS/mermaid" \
+  --assets-dir "$ASSETS/graphviz"
 
 echo
 echo "Done: ${OUT_BASE}.docx and ${OUT_BASE}.pdf"

@@ -1,47 +1,74 @@
-// stream_harness: every block around the DUT and what it does for the measurement.
+// Figure 2.1 -- stream_harness block map, in the house style
+// (vault/handbook/authoring/block-diagrams.md). Every block is an instance in
+// Genesys2/dma-ip/stream/rtl/stream_harness.sv.
+//   - Host UART on top; control runs down the center through the generated
+//     1 -> N bridge to the DUT's APB window.
+//   - The boundary bar is axi4_dma_slaves, the memory model under both DMA
+//     masters. Write data (AW + W) goes down the left, B comes back up
+//     through its delay; AR goes down and R climbs the right through its
+//     delay (the reference's spatial loop).
+//   - The two interface observers are pure snoops (every AXI port an input):
+//     the master observer on STREAM's own rd/wr port, the slave observer on
+//     the slaves' port. Their bus meters and latency histograms always count;
+//     only their MonBus taps are gated (OBS_ENABLE_MON_TAPS).
+//   - Tallies and capture are read back through the bridge (named in their
+//     labels, not drawn as N edges back to the top).
 digraph harness_blocks {
-    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.7,
-           label="stream_harness: the blocks around the DUT", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           label="stream_harness: control down the center, write data left, read data back up the right", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    subgraph cluster_front {
-        label="Host front-end (inside the harness: the same path in cosim and on the board)";
-        style="rounded"; color="#404040";
-        uart [label="uart_axil_bridge\n32-bit AXIL master", fillcolor="#fff4e0"];
-        bridge [label="bridge_stream_mon_axil  (GENERATED, 1 -> N)\nAXIL/APB fan-out with a fixed address map:\nstream_apb 0x0, harness_csr 0x1_0000, desc_ram 0x2_0000,\nstream_err 0x3_0000, stream_tally 0x4_0000, slave_err 0x9_0000,\nslave_tally 0xC_0000, tally cfgs 0x10/0x14_0000,\nslvmon_apb 0x18_0000, obs_apb 0x19_0000, comp_sram 0x1A_0000", fillcolor="#fff4e0"];
-        csr [label="harness_csr  (map from regs/harness_csr.rdl)\nCTRL: start, clear_stats, freeze_trace,\nsoft_reset, cam_clear   STATUS, CRCs, counts", fillcolor="#fff4e0"];
-        uart -> bridge; bridge -> csr;
-    }
+    host  [group=C, label="Host UART\nFT232R, 115200-8N1, ASCII W / R lines", fillcolor="white"];
+    uart  [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart"];
+    brg   [group=C, label="Generated 1 -> N Bridge\nbridge_stream_mon_axil - u_bridge (regen_bridges.sh)\nfixed map: stream_apb 0x0, harness_csr 0x1_0000, desc_ram 0x2_0000,\nerr drains, tallies + their CAM configs, observer APBs, comp_sram 0x1A_0000", width=6];
 
-    subgraph cluster_stim {
-        label="Stimulus, memory model, checking"; style="rounded"; color="#404040";
-        slaves [label="axi4_dma_slaves\nLFSR read source behind m_axi_rd,\nwrite sink with CRC behind m_axi_wr", fillcolor="#e8f1ff"];
-        dly [label="axi_response_delay x2\nprogrammable memory latency\non the read and write paths", fillcolor="#e8f1ff"];
-        descram [label="desc_ram (sdpram_slave_axi4_axi4)\n256-bit AXI4 straight to the DUT's\nm_axi_desc; host preloads 32 B/desc", fillcolor="#e8f1ff"];
-    }
+    csr   [group=L, label="Harness CSRs\nharness_csr - u_csr\nCTRL: start, clear_stats, freeze_trace,\nsoft_reset, cam_clear; STATUS, timer +\nbeat stamps, per-channel CRCs, RESP_DELAY"];
+    desc  [group=L2, label="Descriptor RAM\nsdpram_slave_axi4_axi4 - u_desc_ram\n256-bit; host preloads 32 B / descriptor"];
+    tally [group=R, label="Packet Tallies + Capture\nmonbus_tally_axil x2: u_stream_tally, u_slave_tally\n(CAM of legal {agent, protocol, type, event})\nsdpram_slave_axil_axil - u_comp_sram (MonBus capture)\nall read back through the bridge"];
 
-    dut [label="stream_top_ch8\nAPB config + kicks, 8 channels,\nm_axi_rd -> SRAM -> m_axi_wr,\nin-core monitors on MonBus (USE_AXI_MONITORS)", fillcolor="#d5ecd5", penwidth=2];
+    dut   [group=C, label="DUT - stream_top_ch8 - u_stream\nscatter-gather DMA, 8 channels (4 on build-obs): m_axi_rd -> SRAM -> m_axi_wr\nin-core datapath meters (STREAM perf CSRs); in-core monitors when USE_AXI_MONITORS=1", width=7, penwidth=1.8];
 
-    subgraph cluster_meas {
-        label="Measurement: three instruments, two of them build-selected"; style="rounded"; color="#228B22";
-        meters [label="bus meters (always on)\nper cycle: productive | backpressure |\nstarvation | idle; the perf numbers", fillcolor="#e9f7e9"];
-        tally [label="monbus_tally_axil x2: stream_tally, slave_tally\nconfig-defined dense tally (CAM, MON_N_PROFILE slots):\nevery legal {agent, protocol, type, event} counted", fillcolor="#e9f7e9"];
-        comp [label="comp_sram\nMonBus capture memory,\n(compressed on the mon build);\nhost downloads it", fillcolor="#e9f7e9"];
-        obs [label="OBS_ENABLE_MON_TAPS=1\naxi4_intf_master_observer + axi4_intf_slave_observer\npassive taps on the DUT's masters and the slaves,\ntheir own APB window; feed slave_tally", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
-        mon [label="USE_AXI_MONITORS=1\nin-core rd/wr/desc monitors inside the DUT,\nMonBus -> stream_tally + comp_sram + stream_err", fillcolor="#e9f7e9", style="rounded,filled,dashed"];
-    }
+    mobs  [group=R, label="Master-side Observer\naxi4_intf_master_observer - u_dma_observer\nsnoops STREAM's rd / wr port: bus meters +\nlatency histograms always (read through\nits own obs_apb window); MonBus taps\nonly with OBS_ENABLE_MON_TAPS=1"];
 
-    leds [label="led_status_driver\nheartbeat, PASS/FAIL byte", fillcolor="#f4f4f4"];
+    wdly  [group=L, label="Write-Response Delay\naxi_response_delay\nu_wr_resp_delay (on B)"];
+    rdly  [group=R2, label="Read-Data Delay\naxi_response_delay\nu_rd_resp_delay (on R)"];
+    sobs  [group=R, label="Slave-side Observer\naxi4_intf_slave_observer\nu_slave_observer: snoops\nthe slaves' port; records\n-> slave_tally"];
 
-    bridge -> dut [label="stream_apb"];
-    csr -> dut [label="start / soft_reset / cam_clear"];
-    dut -> descram [label="m_axi_desc"];
-    dut -> dly [label="m_axi_rd / m_axi_wr"];
-    dly -> slaves;
-    dut -> mon [style=dotted]; mon -> tally [style=dashed]; mon -> comp [style=dashed];
-    dut -> obs [style=dotted]; slaves -> obs [style=dotted]; obs -> tally [style=dashed];
-    dut -> meters [style=dotted]; slaves -> meters [style=dotted];
-    meters -> csr [label="counts"]; tally -> bridge [label="readback"]; comp -> bridge [label="download"];
-    csr -> leds;
+    p_aw  [shape=point, style=invis, width=0.01, label=""];
+    p_ar  [shape=point, style=invis, width=0.01, label=""];
+
+    bar   [group=C, label="Memory model: axi4_dma_slaves - u_dma_slaves\nLFSR read source behind m_axi_rd  |  CRC write sink behind m_axi_wr (per-channel CRC + beat counts)",
+           fillcolor="white", width=9];
+
+    { rank=same; csr; desc; tally; }
+    desc -> csr -> tally [style=invis];
+    { rank=same; dut; mobs; }
+    dut -> mobs [style=invis];
+    { rank=same; p_aw; wdly; p_ar; rdly; sobs; }
+    p_aw -> wdly -> p_ar -> rdly -> sobs [style=invis];
+
+    host -> uart [dir=both, penwidth=1.8, xlabel="UART bytes: W / R down, reply up"];
+    uart -> brg  [dir=both, xlabel="AXI4-Lite access (32-bit)"];
+    brg  -> csr  [xlabel="CSR access"];
+    brg  -> desc [xlabel="preload"];
+    brg  -> tally [dir=back, xlabel="tally / capture readback"];
+    brg  -> dut  [xlabel="stream_apb: config + kicks"];
+    csr  -> dut  [style=dashed, xlabel="start, soft_reset, cam_clear"];
+    desc -> dut  [dir=both, xlabel="m_axi_desc: 256-bit fetch\n(AR up, descriptors down)"];
+
+    dut  -> p_aw [dir=none];
+    p_aw -> bar  [xlabel="m_axi_wr: AW + W"];
+    dut  -> wdly [dir=back, xlabel="B (delayed)"];
+    wdly -> bar  [dir=back, xlabel="B"];
+    dut  -> p_ar [dir=none];
+    p_ar -> bar  [xlabel="m_axi_rd: AR"];
+    dut  -> rdly [dir=back, penwidth=1.8, xlabel="R (delayed)"];
+    rdly -> bar  [dir=back, penwidth=1.8, xlabel="R: LFSR data"];
+
+    dut  -> mobs [style=dashed, constraint=false, xlabel="snoop"];
+    sobs -> bar  [style=dashed, dir=back, xlabel="snoop"];
+    mobs -> tally [style=dashed, xlabel="MonBus records\n(+ in-core monitors)"];
 }

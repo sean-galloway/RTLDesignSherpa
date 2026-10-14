@@ -1,0 +1,45 @@
+// Figure 5.1 -- where each kind of file lives. Replaces assets/mermaid/file_layout.mmd.
+// The entry point is the white box on top; the area's files sit in the middle,
+// each label naming its directory; the shared fpga-systems/bin/ layer is the
+// boundary bar, and every edge into it names the shared module it imports.
+// Edges are imports; calls go the same way, downward.
+digraph file_layout {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.5", ranksep="0.55", splines=ortho, newrank=true,
+           label="Where each kind of file lives, and what imports what", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host [group=M, label="Entry Point - one per program (make host-<name>)\n<area>/build-<variant>/host/host_*.py - argv lives here only", fillcolor="white"];
+
+    env  [label="Area Environment\n<area>/bin/<area>_env.py\nlocates fpga-systems/bin/"];
+    seq  [group=M, label="Sequences (make seq-<name>)\n<area>/bin/seq_*.py\nSEQUENCES list"];
+    blib [label="Build-local Libraries\n<area>/build-<variant>/host/*.py\nno host_ prefix: imported, never run"];
+
+    drv  [group=M, label="Drivers, Programs, Verdict Libraries\n<area>/bin/*.py\nimported by more than one entry point"];
+
+    bar [group=M, label="fpga-systems/bin/ (shared layer)\nuart_link.py   uart_axi_bridge.py   sequence.py   board.py + boards/   board_lock.sh   program_fpga.tcl / jtag_readback.tcl",
+         fillcolor="white", width=8.5];
+
+    { rank=same; env; seq; blib; }
+    env -> seq -> blib [style=invis];
+
+    host -> env  [xlabel="imports first"];
+    host -> seq  [xlabel="imports"];
+    host -> blib [xlabel="imports"];
+    seq  -> drv  [xlabel="calls"];
+
+    env  -> bar  [xlabel="sys.path entry\n(marker-anchored)"];
+    drv  -> bar  [xlabel="uart_axi_bridge.py"];
+    { rank=same; drv; sp_r; }
+    sp_r [shape=point, style=invis, width=0.01];
+    drv -> sp_r [style=invis, minlen=3];
+    host -> sp_r [dir=none];
+    sp_r -> bar [xlabel="board.py\n(get_board, program)"];
+    { rank=same; drv; sp_l; }
+    sp_l [shape=point, style=invis, width=0.01];
+    sp_l -> drv [style=invis];
+    seq -> sp_l [dir=none];
+    sp_l -> bar [xlabel="sequence.py\n(Sequence base)"];
+}

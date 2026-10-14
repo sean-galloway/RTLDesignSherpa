@@ -42,47 +42,20 @@
 
 ## Datapath diagram
 
-```mermaid
-flowchart LR
-    subgraph host ["Host"]
-        py["python3<br/>bin/run_smoke.py"]
-    end
-    py -->|"/dev/ttyUSB0 115200"| uart["uart_axil_bridge"]
-    uart --> axil["bridge_bch_loop_axil<br/>1x3 AXIL-APB fabric"]
-    axil -->|0x00000000| win0["bch_loop_apb<br/>apb4_to_peakrdl<br/>bch_loop_regs"]
-    axil -->|0x00010000| win1["bch_regs_apb<br/>axi4_intf_master_observer<br/>(AXI4 live / AXIS read-0 stub)"]
-    axil -->|0x00020000| win2["obs_apb<br/>axis4_intf_observer<br/>AXIS seams"]
-    win0 --> ctrl["CTRL / GO / GEN_BLOCKS / INJ_CFG<br/>BUILD_ID / SCRATCH / PROFILE / TOPOLOGY"]
-
-    subgraph loop ["Codec loop"]
-        gen["axis4_master_injector<br/>LFSR + CRC-32"]
-        enc["bch_encoder_core"]
-        inj["error_injector<br/>SYMBOL_WIDTH=1"]
-        dec["bch_decoder_core<br/>riBM"]
-        chk["axis4_slave_pattern_check"]
-    end
-    gen --> enc --> inj --> dec --> chk
-```
+![BCH AXIS datapath and register path](../assets/graphviz/01_bch_axis_loop.png)
 
 ### Figure 2.1: BCH AXIS datapath and register path.
+
+**Source:** [01_bch_axis_loop.dot](../assets/graphviz/01_bch_axis_loop.dot)
 
 The AXI4 flavour replaces the streaming seams with job memories; the codec
 itself is identical.
 
-```mermaid
-flowchart LR
-    subgraph axi4 ["AXI4 flavour only"]
-        m1["M1 seed memory"]
-        enc["encoder"]
-        m2["M2 codeword memory"]
-        inj["injector on decoder R channel"]
-        dec["decoder"]
-        m4["M4 recovered-message memory"]
-    end
-    m1 --> enc --> m2 --> inj --> dec --> m4
-```
+![BCH AXI4 memory-to-memory datapath](../assets/graphviz/02_bch_axi4_loop.png)
 
 ### Figure 2.2: BCH AXI4 memory-to-memory datapath.
+
+**Source:** [02_bch_axi4_loop.dot](../assets/graphviz/02_bch_axi4_loop.dot)
 
 ## Register path, clock, and reset
 

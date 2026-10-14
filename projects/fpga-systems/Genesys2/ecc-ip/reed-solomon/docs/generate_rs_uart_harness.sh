@@ -45,6 +45,7 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --sansfont "Noto Sans" \
   --mathfont "Noto Serif" \
   --assets-dir "${ASSETS}" \
-  --assets-dir "${ASSETS}/images"
+  --assets-dir "${ASSETS}/images" \
+  --assets-dir "${ASSETS}/graphviz"
 
 echo "Done: ${OUTPUT_DOCX} ${OUTPUT_PDF}"

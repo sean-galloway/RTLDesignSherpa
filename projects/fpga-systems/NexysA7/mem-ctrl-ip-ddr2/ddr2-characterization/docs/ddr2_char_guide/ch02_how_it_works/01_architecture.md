@@ -7,9 +7,9 @@ slaves:
 
 ### Figure 2.1: DDR2 Characterization Harness Spine
 
-![DDR2 characterization harness spine](../assets/mermaid/01_harness_spine.png)
+![DDR2 characterization harness spine](../assets/graphviz/01_harness_spine.png)
 
-**Source:** [01_harness_spine.mmd](../assets/mermaid/01_harness_spine.mmd)
+**Source:** [01_harness_spine.dot](../assets/graphviz/01_harness_spine.dot)
 
 The UART wire protocol is ASCII, line-based, 115200 8N1: a write is
 `W <hex-addr32> <hex-data32>\n` → the FPGA replies `OK\n`; a read is
@@ -17,11 +17,12 @@ The UART wire protocol is ASCII, line-based, 115200 8N1: a write is
 `projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_axil_bridge.sv`; the host
 framing is `UARTAxiBridge` (`projects/components/utility-ip/converters/bin/uart_axi_bridge.py`).
 
-## The 1→4 AXIL bridge
+## The 1→6 AXIL bridge
 
 `bridge_ddr2_char_axil` is generated from
 `ddr2_char_framework/rtl/bridges/configs/bridge_ddr2_char_axil.toml` (one master
-`host`, four slaves). It decodes the four windows in Chapter 5 and routes each
+`host`, six slaves: `ddr2_apb`, `harness_csr`, `debug_sram`, `dfi_mon_ram`,
+the unused `obs_apb` expansion slot, and `chargen_apb`). It decodes those windows and routes each
 host transaction to the right slave via per-slave adapters.
 
 ## Key RTL blocks
@@ -30,9 +31,9 @@ host transaction to the right slave via per-slave adapters.
 |------|------|
 | `build-perf/rtl/ddr2_char_top.sv` | FPGA pin-level top: wraps the harness, the flat-DFI→per-phase adapter, and the a7ddrphy black box; MMCM clock synthesis (sys / sys2x / sys4x / sys4x_dqs), IDELAYCTRL, DDR2 pads. |
 | `build-perf/rtl/ddr2_char_harness.sv` | Internal integration: `uart_axil_bridge` + `bridge_ddr2_char_axil` + `harness_csr` + `debug_sram` + `dfi_mon_ram` + `ddr2_char_macro` + char timer + LED / 7-seg. |
-| `ddr2_char_framework/rtl/char_engine_block.sv` | The DUT-agnostic spine: `chargen_regs` (per-generator config behind the `chargen_apb` window), the generator arrays (`axi4_master_wr_injector` / `axi4_master_rd_crc_check`), the two per-direction crossbars that merge them onto one AXI4 master, and the perf taps (bus meters + latency histograms) on that port. Shared by the pumice and LiteDRAM flows. |
+| `projects/fpga-systems/rtl/mem_char_framework/rtl/char_engine_block.sv` | The DUT-agnostic spine: `chargen_regs` (per-generator config behind the `chargen_apb` window), the generator arrays (`axi4_master_wr_injector` / `axi4_master_rd_crc_check`), the N:1 merge (`char_gen_axi_mux` + `char_gen_wr_order_q`, inside `char_gen_unit`) onto one AXI4 master, and the perf taps (bus meters + latency histograms) on that port. Shared by the pumice and LiteDRAM flows. |
 | `ddr2_char_framework/rtl/ddr2_char_macro.sv` | Wraps `char_engine_block` around pumice: the block's AXI4 master drives the controller's `s_axi`, and the APB CSR / DFI / runtime controls pass through. |
-| `ddr2_char_framework/rtl/harness_csr.sv` | The AXIL CSR slave (Chapter 5). Hand-written (self-clearing pulses, latches, PHY passthrough). |
+| `projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.sv` | The AXIL CSR slave (Chapter 5). Hand-written (self-clearing pulses, latches, PHY passthrough). |
 | `ddr2_char_framework/rtl/dfi_v21_flat_to_a7ddrphy.sv` | Combinational adapter: pumice's phase-packed flat DFI v2.1 → a7ddrphy per-phase ports (`NPHASES = 4`). |
 | `ddr2_char_framework/rtl/a7ddrphy_stub.sv` | Port-shape black box of a7ddrphy for Verilator (real body swapped in by Vivado). |
 

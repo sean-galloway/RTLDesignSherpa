@@ -1,23 +1,47 @@
-// The sink ingress: from an AXIS beat to a write burst, and the two windows that measure it.
+// Figure 2.2 -- sink ingress: an AXIS beat becomes a write burst. House style
+// (vault/handbook/authoring/block-diagrams.md): the s_axis port is the white
+// box on top, the beat drops through allocation, SRAM and the write engine
+// in flow order down the center, and m_axi_wr (into the harness memory
+// model) is the boundary bar. The meters are passive taps on the right
+// (dashed, nothing driven back); the 82-cycle fill stall is a note on the
+// left, attached to the block that causes it.
+// RTL: projects/components/dma-ip/rapids/rtl/macro_beats/
+//   snk_data_path_axis_beats.sv -> snk_data_path_beats.sv ->
+//   snk_sram_controller_beats.sv (wraps STREAM's sram_controller) +
+//   fub_beats/axi_write_engine_beats.sv
 digraph sink_ingress {
-    graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.55,
-           label="Sink ingress: an AXIS beat becomes a write burst", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
+           label="Sink ingress: an AXIS beat becomes a write burst", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    beat [label="s_axis beat\ntvalid, tid = channel, tstrb, tlast", fillcolor="#e8f1ff"];
-    ingress [label="snk_data_path_axis_beats (ingress)\ntready = fill_ready AND (pending allocation OR allocating now)\nallocate cfg_alloc_size beats (16) when a channel has none pending,\nthe remainder when less than a segment is free,\nthen settle three cycles (the space view lags)", fillcolor="#fff4e0"];
-    sram [label="snk_sram_controller (STREAM's sram_controller)\nper-channel FIFO, 128 beats (4 KB)\nalloc_ctrl: allocated minus drained\ndrain_ctrl: written minus reserved\nlatency bridge (up to 5 beats)", fillcolor="#f4f4f4"];
-    eng [label="axi_write_engine_beats\nhas_data: avail >= burst (clamped to the depth)\nAW -> drain reservation -> W from the bridge\nAW_MAX_OUTSTANDING 8 per channel", fillcolor="#f4f4f4"];
-    aw [label="m_axi_wr\nbursts of AXI_XFER_CONFIG.WR_XFER_BEATS + 1\n(default 8; 128 = one buffer)", fillcolor="#d5ecd5"];
+    beat [group=C, label="s_axis (from the AXIS stimulus)\ntvalid, tdata, tstrb, tid = channel, tlast", fillcolor="white"];
 
-    beat -> ingress -> sram -> eng -> aw;
+    ing  [group=C, label="Ingress + Segment Allocation\nsnk_data_path_axis_beats\ntready = fill_ready AND (allocation pending OR allocating now);\nallocate cfg_alloc_size (16) beats when none is pending,\nthe remainder when less than a segment is free;\nthen settle 3 cycles (the free-space view lags)"];
+    sram [group=C, label="Per-channel SRAM FIFO\nsnk_sram_controller_beats (wraps STREAM's sram_controller)\n128 beats (4 KB) per channel; alloc_ctrl = allocated - drained;\ndrain_ctrl = written - reserved; latency bridge (up to 5 beats)"];
+    eng  [group=C, label="AXI Write Engine\naxi_write_engine_beats\nhas_data: available >= burst (clamped to the depth);\nAW, then drain reservation, then W from the bridge;\nAW_MAX_OUTSTANDING = 8 per channel"];
 
-    subgraph cluster_win {
-        label="What the meters count"; style="rounded"; color="#228B22";
-        wsin [label="AXIS-in window (sin)\narmed at GO, opens on the first tvalid,\ncloses after the target-th accepted beat:\ningress utilization, first beat to last", fillcolor="#e9f7e9"];
-        wwr [label="AXI4-wr window (wr, shared)\narmed at GO, closes when wr_prod reaches\nthe target: the datapath rate", fillcolor="#e9f7e9"];
-        stall [label="the fixed 82-cycle fill stall (4 KB build)\nthe first channel's 128 beats land before\nthe engine starts draining; once per run,\nbackpressure on sin, invisible to wr", fillcolor="#fff4e0"];
-    }
-    ingress -> wsin [style=dotted]; aw -> wwr [style=dotted]; sram -> stall [style=dashed];
+    bar  [group=C, label="m_axi_wr  ->  axi4_slave_wr_crc_check (harness memory model)\nbursts of AXI_XFER_CONFIG.WR_XFER_BEATS + 1 (default 8; 128 = one buffer)", fillcolor="white", width=6.5];
+
+    msin [label="AXIS-in Window (meter sin)\narmed at GO, opens on the first tvalid,\ncloses after the target-th accepted beat:\ningress utilization, first beat to last"];
+    mwr  [label="AXI4-wr Window (meter wr, shared)\narmed at GO, closes when wr_prod\nreaches the target: the datapath rate"];
+    stall [label="Fixed 82-cycle fill stall (4 KB build)\nthe first channel's 128 beats land before\nthe engine starts draining: once per run,\nbackpressure on sin, invisible to wr", fillcolor="white", style="filled,dashed"];
+
+    { rank=same; ing; msin; }
+    { rank=same; stall; sram; }
+    { rank=same; bar; mwr; }
+    ing -> msin [style=invis, minlen=2];
+    stall -> sram [style=invis, minlen=2];
+    bar -> mwr [style=invis, minlen=1];
+
+    beat -> ing  [penwidth=1.8, xlabel="beat (tid selects the channel)"];
+    ing  -> sram [penwidth=1.8, xlabel="fill_data, fill_last;\nallocation request"];
+    sram -> eng  [penwidth=1.8, xlabel="drain: beats available"];
+    eng  -> bar  [penwidth=1.8, dir=both, xlabel="AW + W burst down; B back up"];
+
+    beat -> msin [style=dashed, xlabel="tap on s_axis (observed)"];
+    eng  -> mwr  [style=dashed, xlabel="tap on m_axi_wr\n(observed)"];
+    sram -> stall [style=dashed, xlabel="where it\nhappens"];
 }

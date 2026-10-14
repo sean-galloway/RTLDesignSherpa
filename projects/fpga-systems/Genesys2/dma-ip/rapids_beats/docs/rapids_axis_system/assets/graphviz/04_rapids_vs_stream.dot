@@ -1,43 +1,57 @@
-// Side by side: what the STREAM harness and the rapids harness put around their DUTs.
+// Figure 1.1 -- two harnesses, one methodology. House style
+// (vault/handbook/authoring/block-diagrams.md): each harness is a dashed
+// region, the harness memory models are the one shared boundary bar, and in
+// both the forward data goes down and the read data comes back up. STREAM is
+// memory to memory (one DMA, both AXI masters); rapids is stream to memory
+// (SINK, down the left) and memory to stream (SOURCE, R up then m_axis out
+// to the checker on top: the reference's spatial loop). The comparison
+// table that used to sit in this figure is Table 1.1 in the text.
+// RTL: Genesys2/dma-ip/stream/rtl/stream_harness.sv (stream_top_ch8,
+// axi4_dma_slaves, axi_response_delay); flows-rapids-beats/rtl/
+// rapids_char_harness.sv.
 digraph rapids_vs_stream {
-    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.4, ranksep=0.5,
-           label="Two harnesses, one methodology: memory-to-memory (STREAM) versus stream-to-memory and memory-to-stream (rapids)",
-           labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
+           label="Two harnesses, one methodology: memory to memory (STREAM) versus stream to memory and memory to stream (rapids)", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    subgraph cluster_stream {
-        label="STREAM harness"; style="rounded"; color="#404040";
-        s_src [label="axi4_dma_slaves: LFSR read source\nbehind m_axi_rd", fillcolor="#e8f1ff"];
-        s_dut [label="stream_top_ch8\ndescriptor: src addr, dst addr, length\nm_axi_rd -> SRAM -> m_axi_wr", fillcolor="#d5ecd5", penwidth=2];
-        s_snk [label="axi4_dma_slaves: write sink with CRC\nbehind m_axi_wr", fillcolor="#e8f1ff"];
-        s_meas [label="two AXI meters + in-core monitors\nor AXI interface observers\n(master on the DUT, slave on the memory side)", fillcolor="#e9f7e9"];
-        s_src -> s_dut -> s_snk; s_dut -> s_meas [style=dotted];
-    }
+        s_kick [group=S, label="STREAM harness: Descriptor Kick\nsrc addr, dst addr, length\n(staged, fired by GO)", fillcolor="white"];
+        s_dut  [group=S, label="STREAM DMA (one engine)\nstream_top_ch8\nm_axi_rd -> SRAM -> m_axi_wr\nmeasured by two AXI meters + in-core\nmonitors, or AXI master + slave observers", penwidth=1.8];
 
-    subgraph cluster_rapids {
-        label="rapids harness"; style="rounded"; color="#228B22";
-        r_gen [label="axis4_master_injector\n-> s_axis (SINK ingress)", fillcolor="#e8f1ff"];
-        r_snk [label="rapids_snk_beats\ns_axis -> SRAM -> m_axi_wr", fillcolor="#d5ecd5", penwidth=2];
-        r_wr [label="axi4_slave_wr_crc_check\nbehind m_axi_wr", fillcolor="#e8f1ff"];
-        r_rd [label="axi4_slave_rd_injector\nbehind m_axi_rd", fillcolor="#e8f1ff"];
-        r_src [label="rapids_src_beats\nm_axi_rd -> SRAM -> m_axis", fillcolor="#d5ecd5", penwidth=2];
-        r_chk [label="axis4_slave_pattern_check\n<- m_axis (SOURCE egress)", fillcolor="#e8f1ff"];
-        r_meas [label="four meters (two AXI, two AXIS) +\naxi4_intf_master_observer and axis4_intf_observer,\nor the in-core monitors including\ntwo AXIS monitor-lites", fillcolor="#e9f7e9"];
-        r_gen -> r_snk -> r_wr; r_rd -> r_src -> r_chk;
-        r_snk -> r_meas [style=dotted]; r_src -> r_meas [style=dotted];
-    }
+        r_gen [label="rapids harness: AXIS Stimulus\naxis4_master_injector\nGO starts it with the kicks", fillcolor="white"];
+        r_chk [label="rapids harness: AXIS Egress Check\naxis4_slave_pattern_check", fillcolor="white"];
+        r_snk [label="SINK Engine\nrapids_snk_beats\ns_axis -> SRAM -> m_axi_wr\nmeasured by the AXIS-in and AXI-wr\nmeters + AXIS / AXI observers,\nor in-core monitors (AXIS monitor-lite)", penwidth=1.8];
+        r_src [label="SOURCE Engine\nrapids_src_beats\nm_axi_rd -> SRAM -> m_axis\nmeasured by the AXI-rd and AXIS-out\nmeters + AXI / AXIS observers,\nor in-core monitors (AXIS monitor-lite)", penwidth=1.8];
 
-    diff [shape=plaintext, label=<
-      <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
-        <tr><td bgcolor="#e0e0e0"><b>what changes</b></td><td bgcolor="#e0e0e0"><b>STREAM</b></td><td bgcolor="#e0e0e0"><b>rapids</b></td></tr>
-        <tr><td>data ports on the DUT</td><td>2 AXI4 masters</td><td>2 AXI4 masters + 1 AXIS slave + 1 AXIS master</td></tr>
-        <tr><td>directions</td><td>one, memory to memory</td><td>two independent engines, each half-duplex</td></tr>
-        <tr><td>stimulus start</td><td>the kick</td><td>GO starts the AXIS generator AND fires the kicks</td></tr>
-        <tr><td>channel identity on the wire</td><td>AXI id</td><td>tid (plus tdest, tuser carried through)</td></tr>
-        <tr><td>packet boundary</td><td>none (descriptor length)</td><td>tlast, beats per packet from the generator</td></tr>
-        <tr><td>ingress window</td><td>shared window</td><td>own window, first beat to last (ISSUE-001)</td></tr>
-        <tr><td>observers</td><td>AXI master + AXI slave</td><td>AXI master + AXIS (two ports, per-tid)</td></tr>
-        <tr><td>measured bytes</td><td>from beats</td><td>exact, from tstrb; packets from tlast</td></tr>
-      </table>>];
+    bar [label="Harness memory models (behind axi_response_delay)\nSTREAM: axi4_dma_slaves (LFSR read source + CRC write sink)    |    rapids: axi4_slave_wr_crc_check, axi4_slave_rd_injector",
+         fillcolor="white", width=9];
+
+    { rank=same; s_kick; r_gen; r_chk; }
+    s_kick -> r_gen -> r_chk [style=invis];
+    { rank=same; s_dut; r_snk; r_src; }
+    s_dut -> r_snk -> r_src [style=invis];
+    { rank=same; sw; g1; sr; g2; rw; g3; rr; }
+    g1 [shape=box, style=invis, width=1.2, label=""];
+    g2 [shape=box, style=invis, width=1.2, label=""];
+    g3 [shape=box, style=invis, width=1.2, label=""];
+    sw [shape=point, style=invis, width=0.01, label=""];
+    sr [shape=point, style=invis, width=0.01, label=""];
+    rw [shape=point, style=invis, width=0.01, label=""];
+    rr [shape=point, style=invis, width=0.01, label=""];
+    sw -> g1 -> sr -> g2 -> rw -> g3 -> rr [style=invis];
+
+    s_kick -> s_dut [xlabel="APB kick"];
+    s_dut  -> sw    [dir=none];
+    sw     -> bar   [xlabel="m_axi_wr:\nAW + W (B back)"];
+    s_dut  -> sr    [dir=back, penwidth=1.8];
+    sr     -> bar   [xlabel="m_axi_rd:\nAR down, R up"];
+
+    r_gen  -> r_snk [penwidth=1.8, xlabel="s_axis"];
+    r_snk  -> rw    [dir=none];
+    rw     -> bar   [xlabel="m_axi_wr:\nAW + W (B back)"];
+    r_src  -> rr    [dir=back, penwidth=1.8];
+    rr     -> bar   [xlabel="m_axi_rd:\nAR down, R up"];
+    r_chk  -> r_src [dir=back, penwidth=1.8, xlabel="m_axis"];
 }

@@ -43,7 +43,7 @@ back.
 `uart_axil_bridge` turns the UART byte stream into a 32-bit AXIL master.
 `bridge_ddr2_char_axil` -- a *generated* bridge, from
 `ddr2_char_framework/rtl/bridges/configs/bridge_ddr2_char_axil.toml` -- fans
-that one master out to four slaves at fixed bases.
+that one master out to six slaves at fixed bases.
 
 | Slave | Base | Size | Protocol | Purpose |
 |---|---|---|---|---|
@@ -51,6 +51,8 @@ that one master out to four slaves at fixed bases.
 | `harness_csr` | `0x0001_0000` | 4 KB | AXIL | harness control, timer, engine cfg, perf readback |
 | `debug_sram` | `0x0004_0000` | 256 KB | AXIL 64b | MonBus / DFI trace ring |
 | `dfi_mon_ram` | `0x0008_0000` | 4 KB | AXIL | small ring for DFI command observability |
+| `obs_apb` | `0x0009_0000` | 4 KB | APB | expansion slot for an interface observer; unused on this build |
+| `chargen_apb` | `0x000A_0000` | 4 KB | APB | `chargen_regs`: per-generator configuration, status and `GO` |
 
 : Table 2.1: The bridge address map
 
@@ -69,7 +71,7 @@ disagree, the fix is to the document, not to the hardware.
 
 | Off | Register | R/W | What it does |
 |---|---|---|---|
-| `0x00` | `CTRL` | RW | `start_wr`, `start_rd`, `clear_stats`, `freeze_trace` (latch), `soft_reset` |
+| `0x00` | `CTRL` | RW | `clear_stats`, `freeze_trace` (latch), `soft_reset`; bits 0/1 (`start_wr`, `start_rd`) are retired -- launch is `chargen_regs.GO` |
 | `0x04` | `STATUS` | R | per-direction done/error, `any_error`, `init_done`, `init_fail` |
 | `0x10`/`0x14` | `CRC_EXPECTED` / `CRC_ACTUAL` | R | write-engine expected CRC, read-engine actual CRC |
 | `0x18` | `CRC_MATCH` | R | `exp==act`, both valid bits, and `beats_mism != 0` |

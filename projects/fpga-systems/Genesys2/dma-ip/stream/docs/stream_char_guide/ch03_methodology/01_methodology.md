@@ -31,23 +31,26 @@ descriptors into `desc_ram`, set the memory-latency model (`RESP_DELAY`), kick v
 and CRCs. Monitor presets (`perf-mon`, `debug-compl`, …) select which MonBus cones
 are active.
 
-The timer captures the edges of the window — kick, first/last AR/R and W/B — so a
-run's throughput and latency are derived from a well-defined interval:
+The timer starts on the first descriptor AR handshake after a clear and stops
+when the sink's write-beat count reaches `TIMER_EXPECTED_BEATS`; inside that
+window it stamps the first and last R beat and the first and last W beat, all on
+the same 64-bit cycle base, so a run's throughput and latency are derived from a
+well-defined interval:
 
-### Figure 3.1: Measurement Timer Windows
+### Waveform 3.1: Measurement Timer Windows
 
-![Measurement timer windows](../assets/dot/05_timer_windows.png)
+![Measurement timer windows](../assets/wavedrom/02_timer_windows.png)
 
-**Source:** [05_timer_windows.dot](../assets/dot/05_timer_windows.dot)
+**Source:** [02_timer_windows.json](../assets/wavedrom/02_timer_windows.json)
 
 The emulated memory latency is a per-beat timestamp FIFO — the `RESP_DELAY` CSR
 sets how long each beat dwells before it is released to the DUT:
 
-### Figure 3.2: Response-Delay Latency Model
+### Figure 3.1: Response-Delay Latency Model
 
-![Response-delay latency model](../assets/dot/03_response_delay.png)
+![Response-delay latency model](../assets/graphviz/03_response_delay.png)
 
-**Source:** [03_response_delay.dot](../assets/dot/03_response_delay.dot)
+**Source:** [03_response_delay.dot](../assets/graphviz/03_response_delay.dot)
 
 ## Workloads
 

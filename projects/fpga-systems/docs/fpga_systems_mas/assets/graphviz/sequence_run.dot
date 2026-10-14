@@ -1,0 +1,51 @@
+// Figure 3.1 -- resolve, then run. Replaces assets/mermaid/sequence_run.mmd.
+// Decision-tree vocabulary (white questions, blue actions, every arrow labeled
+// with its answer). The happy path is the heavy center column; the plan-time
+// refusals exit right, a failed step exits left, the step loop returns up the right edge.
+// Source of truth: bin/sequence.py SequenceRunner.resolve() / run().
+digraph sequence_run {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.45", splines=ortho, newrank=true,
+           label="SequenceRunner.run(): resolve the whole plan, then execute it", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    start [group=M, label="runner.run(['init', 'smoke'])", fillcolor="white"];
+    k1    [group=M, label="resolve(order): order non-empty and\nevery name registered?", fillcolor="white"];
+    k2    [group=M, label="Every 'requires' scheduled\nEARLIER in the order?", fillcolor="white"];
+    plan  [group=M, label="Plan fixed\nno traffic has happened yet"];
+    step  [group=M, label="Next sequence: setup, run(ctx), teardown\nctx.results[name] = returned value"];
+    st    [group=M, label="Returned False or raised?", fillcolor="white"];
+    sf    [label="stop_on_fail?", fillcolor="white"];
+    more  [group=M, label="More steps?", fillcolor="white"];
+    ok    [group=M, label="RunReport\nper-step status, ALL PASS or the failures"];
+
+    e1    [label="SequenceError\nempty order / unknown sequence"];
+    e2    [label="SequenceError\nrequirement not scheduled before it"];
+    stop  [label="Stop - later steps would measure\na board that never came up"];
+
+    { rank=same; k1; e1; }
+    { rank=same; k2; e2; }
+    { rank=same; st; sf; }
+    { rank=same; more; stop; }
+    e1 -> k1 [style=invis];
+    e2 -> k2 [style=invis];
+    stop -> more [style=invis];
+
+
+    start -> k1  [penwidth=1.8];
+    k1    -> e1  [xlabel="no"];
+    k1    -> k2  [penwidth=1.8, xlabel="yes"];
+    k2    -> e2  [xlabel="no"];
+    k2    -> plan [penwidth=1.8, xlabel="yes"];
+    plan  -> step [penwidth=1.8];
+    step  -> st  [penwidth=1.8];
+    st    -> more [penwidth=1.8, xlabel="no: step passed"];
+    sf    -> st  [dir=back, xlabel="yes"];
+    sf    -> stop [xlabel="yes (default)"];
+    sf    -> more [xlabel="no"];
+    more  -> ok  [penwidth=1.8, xlabel="no"];
+    more  -> step [xlabel="yes: loop"];
+    stop  -> ok  [xlabel="report so far"];
+}

@@ -1,0 +1,63 @@
+// Figure 2.1 -- RAPIDS characterization harness spine. Replaces
+// assets/mermaid/01_harness_spine.mmd. House style
+// (vault/handbook/authoring/block-diagrams.md): the host link is the white
+// port on top, control runs down the center through the region decode to the
+// DUT, and the harness memory models are the boundary bar. SINK data enters
+// left (AXIS stimulus) and leaves down; SOURCE data climbs back up the right
+// and leaves to the AXIS checker. The full block map is the FPGA System
+// book's Figure 2.1.
+// RTL: flows-rapids-beats/rtl/rapids_char_harness.sv.
+digraph harness_spine {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
+           label="rapids_char_harness: the spine", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    usb  [group=C, label="Host link: USB / FTDI UART\nASCII W addr data / R addr, 115200-8N1", fillcolor="white"];
+    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge"];
+    dec  [group=C, label="Region Decode on addr[19:16]\ninline in rapids_char_harness"];
+
+    csr  [group=L, label="Harness CSRs + Kick Sequencer\ngen / chk / mem / mon / obs, GO"];
+    apbm [group=C, label="APB Master\napb4_master"];
+    desc [group=RR, label="Descriptor Loader\n256-bit assembly + one AXI4 write"];
+
+    gen  [group=L, label="AXIS Stimulus\naxis4_master_injector", fillcolor="white"];
+    chk  [group=R, label="AXIS Egress Check\naxis4_slave_pattern_check", fillcolor="white"];
+
+    dut  [group=C, label="DUT - rapids_beats_top\nSINK (s_axis -> m_axi_wr)   +   SOURCE (m_axi_rd -> m_axis)", width=7, penwidth=1.8];
+
+    pw [group=L, shape=point, style=invis, width=0.01, label=""];
+    pd [group=C, shape=point, style=invis, width=0.01, label=""];
+    pr [group=R, shape=point, style=invis, width=0.01, label=""];
+
+    bar  [group=C, label="Harness memory models:  descriptor RAM (sdpram_slave_axi4_axi4)  |  axi4_slave_wr_crc_check  |  axi4_slave_rd_injector",
+          fillcolor="white", width=8];
+
+    { rank=same; csr; apbm; desc; }
+    csr -> apbm -> desc [style=invis];
+    { rank=same; gen; chk; }
+    gen -> chk [style=invis, minlen=4];
+    { rank=same; pw; pd; pr; }
+    pw -> pd -> pr [style=invis, minlen=4];
+
+    usb  -> uart [dir=both, penwidth=1.8, xlabel="UART bytes"];
+    uart -> dec  [dir=both, xlabel="AXI4-Lite access"];
+    dec  -> csr  [xlabel="region 2: HARNESS CSR"];
+    dec  -> apbm [xlabel="region 0: DUT-REG\n(3: observers)"];
+    dec  -> desc [xlabel="region 1: DESC-LOAD"];
+    apbm -> dut  [xlabel="APB: SRC 0x0000, SNK 0x1000;\nstaged kicks on GO"];
+    csr  -> gen  [style=dashed, xlabel="GO: start"];
+
+    gen  -> dut  [penwidth=1.8, xlabel="s_axis"];
+    chk  -> dut  [dir=back, penwidth=1.8, xlabel="m_axis"];
+
+    dut  -> pw   [dir=none];
+    pw   -> bar  [xlabel="m_axi_wr: AW + W\n(CRC checked)"];
+    dut  -> pd   [dir=none];
+    pd   -> bar  [dir=both, xlabel="descriptor reads\n(m_axi_desc)"];
+    dut  -> pr   [dir=back, penwidth=1.8];
+    pr   -> bar  [xlabel="m_axi_rd: AR down,\nLFSR data up"];
+    desc -> bar  [xlabel="descriptor write"];
+}

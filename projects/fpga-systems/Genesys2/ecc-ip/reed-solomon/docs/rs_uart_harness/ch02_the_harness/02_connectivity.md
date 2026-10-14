@@ -6,45 +6,11 @@ The host register path is: Python over pyserial to the UART, into
 `uart_axil_bridge`, through the generated `bridge_rs_loop_axil` 1x3 fabric, and
 out as three APB windows.
 
-```mermaid
-flowchart LR
-    subgraph host["Host side"]
-        py["python3 run_smoke.py"]
-        port["/dev/ttyUSB0 115200"]
-    end
+### Figure 2.1: Reed-Solomon AXIS datapath and register path
 
-    subgraph fabric["AXI4-Lite fabric"]
-        bridge["uart_axil_bridge"]
-        xbar["bridge_rs_loop_axil"]
-        w0["0x00000000 rs_loop_regs"]
-        w1["0x00010000 rs_regs_apb"]
-        w2["0x00020000 obs_apb"]
-    end
+![Reed-Solomon AXIS datapath and register path](../assets/graphviz/01_rs_axis_loop.png)
 
-    subgraph datapath["Codec datapath (AXIS flavor)"]
-        gen["axis4_master_injector"]
-        enc["rs_encoder_core"]
-        inj["error_injector"]
-        decA["rs_decoder_core A"]
-        decB["rs_decoder_core B"]
-        chkA["axis4_slave_pattern_check A"]
-        chkB["axis4_slave_pattern_check B"]
-        cmp["comparator"]
-    end
-
-    py --> port --> bridge --> xbar
-    xbar --> w0
-    xbar --> w1
-    xbar --> w2
-    w0 -.->|registers| gen
-    w0 -.->|registers| inj
-    w0 -.->|registers| cmp
-    gen --> enc --> inj
-    inj --> decA --> chkA
-    inj --> decB --> chkB
-    decA --> cmp
-    decB --> cmp
-```
+**Source:** [01_rs_axis_loop.dot](../assets/graphviz/01_rs_axis_loop.dot)
 
 Window 0 at `0x00000000` is `rs_loop_apb`, which feeds the shared
 `apb4_to_peakrdl` shim and then the generated `rs_loop_regs` block — that is

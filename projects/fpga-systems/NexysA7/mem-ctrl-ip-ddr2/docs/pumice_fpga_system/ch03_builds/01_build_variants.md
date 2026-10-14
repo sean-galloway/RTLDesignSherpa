@@ -26,8 +26,11 @@
 ## The short answer
 
 **The harness RTL does not change per build.** There is one copy of the engine
-spine, the CSR block, the DFI delays and the displays, in
-`ddr2_char_framework/rtl/`, and every target compiles that same source. There
+spine, the CSR block, the DFI delays and the LED driver, in
+`projects/fpga-systems/rtl/mem_char_framework/rtl/` (shared with the LiteDRAM
+flow), plus the pumice macro, the DFI-to-PHY adapter, the PHY stub and the
+7-segment driver in `ddr2_char_framework/rtl/`, and every target compiles that
+same source. There
 are no per-build copies and no `ifdef` forks of the engine.
 
 What changes between targets is one of exactly three things: the debug cores

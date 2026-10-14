@@ -1,34 +1,37 @@
-// Same board as the pumice system, but note the asymmetry: only one of the two
-// builds needs the host at all.
+// Figure 1.1 -- the bench, in the house style for system diagrams
+// (vault/handbook/authoring/block-diagrams.md): the host on top, the single
+// USB connector, the two alternative bitstreams side by side in the middle,
+// and the board's I/O as the boundary bar. The asymmetry is the point: only
+// build-demo has a UART path; build-phase1 is programmed over JTAG and then
+// talks to nothing but the buttons and the display.
+// RTL: build-demo/rtl/cdc_demo_top.sv, build-phase1/rtl/cdc_counter_display_top.sv.
 digraph board_and_host {
-    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.7,
-           label="The bench: the same Nexys A7, and a host that only ONE build needs", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.60", splines=ortho, newrank=true,
+           label="The bench: the same Nexys A7, and a host that only ONE build needs", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    subgraph cluster_host {
-        label="Host -- required by build-demo, NOT by build-phase1"; style="rounded"; color="#404040";
-        hp [label="host_cdc_demo.py  (the CLI: watch-fail, sweep, press)\ncdc_demo.py       (CdcDemoDriver)", fillcolor="#fff4e0"];
-        sh [label="fpga-systems/bin/: uart_link, uart_axi_bridge, board\nthe SAME transport the pumice system uses", fillcolor="#fff4e0"];
-        hp -> sh;
-    }
+    host [label="Host PC (build-demo only)\nhost_cdc_demo.py: watch-fail, sweep, press\ncdc_demo.py (CdcDemoDriver) over the shared\nfpga-systems/bin/ transport (uart_link, uart_axi_bridge)", fillcolor="white"];
+    viv  [label="Host PC - Vivado\nmake program (either build)", fillcolor="white"];
 
-    usb [label="ONE USB connector: JTAG to program, UART to talk\n115200-8N1 on some /dev/ttyUSB*.\nThe driver resolves the port -- numbering drifts and a\nsecond board may share the chain", fillcolor="#ffe8e8"];
+    usb  [label="One USB Connector (Digilent USB-JTAG), both roles\nUART 115200-8N1 on /dev/ttyUSB* (the driver resolves the port);\nJTAG to program (a second board may share the chain)", width=6];
 
-    subgraph cluster_fpga {
-        label="Nexys A7-100T : Artix-7 XC7A100T-1CSG324C"; style="rounded"; color="#228B22";
-        d [label="build-demo (default)\ncdc_demo_top -> cdc_demo_harness\n4 counters, host-controlled clocks,\n5 selectable CDC modes", fillcolor="#e9f7e9", penwidth=2];
-        p [label="build-phase1\ncdc_counter_display_top\nONE file. One counter, buttons,\none 4-phase handshake. No harness,\nno UART, no host", fillcolor="#e8f1ff", penwidth=2];
-    }
+    demo [label="build-demo (default) - the instrument\ncdc_demo_top -> cdc_demo_harness (Figure 2.1)\n4 counters on host-controlled clocks,\n5 selectable CDC modes each", penwidth=1.8];
+    p1   [label="build-phase1 - the teaching artifact\ncdc_counter_display_top: ONE file.\nOne counter, buttons, one 4-phase handshake.\nNo harness, no UART, no host"];
 
-    io [label="Board I/O used by BOTH builds\n5 push buttons (BTNC + directions),\n8-digit 7-segment display, LEDs,\n100 MHz oscillator", fillcolor="#f0f0f0"];
+    bar  [label="Nexys A7-100T board I/O (used by both builds):  push buttons  |  8-digit 7-segment display  |  LEDs  |  100 MHz oscillator  |  CPU reset", fillcolor="white", width=9];
 
-    sh  -> usb [label="USB"];
-    usb -> d   [label="UART: register reads and writes", style=bold];
-    usb -> d   [label=".bit over JTAG", style=dashed];
-    usb -> p   [label=".bit over JTAG only", style=dashed];
-    d -> io [dir=both]; p -> io [dir=both];
+    { rank=same; host; viv; }
+    host -> viv [style=invis, minlen=2];
+    { rank=same; demo; p1; }
+    demo -> p1 [style=invis, minlen=2];
 
-    note [label="The asymmetry IS the lesson of Chapter 3:\nphase1 is a standalone demonstration you can\nwalk up to and press. build-demo is an\nINSTRUMENT, and an instrument needs a host.", shape=note, fillcolor="#f0f0f0"];
-    note -> p [style=dotted, arrowhead=none];
+    host -> usb  [dir=both, penwidth=1.8, xlabel="ASCII W / R"];
+    viv  -> usb  [xlabel=".bit (JTAG)"];
+    usb  -> demo [dir=both, penwidth=1.8, xlabel="UART: register reads\nand writes; .bit"];
+    usb  -> p1   [style=dashed, xlabel=".bit over JTAG only"];
+    demo -> bar  [dir=both, xlabel="buttons in; display,\nLEDs out; clock"];
+    p1   -> bar  [dir=both, xlabel="buttons in; display,\nLEDs out; clock"];
 }

@@ -2,7 +2,7 @@
 
 ### Figure 3.1: Resolve, then run
 
-![Resolve, then run](../assets/mermaid/sequence_run.png)
+![Resolve, then run](../assets/graphviz/sequence_run.png)
 
 `SequenceRunner` holds the registry for one area and runs a requested order
 against a context.

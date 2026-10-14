@@ -1,33 +1,43 @@
-// One RTL, several bitstreams: the parameters and why each build exists.
+// Figure 3.1 -- one RTL, the knobs, the builds. House style
+// (vault/handbook/authoring/block-diagrams.md): the common source is the white
+// box on top, the knobs are a white legend with no edges (they are build-time
+// parameters, "Parameters (fixed at build)"), and every arrow to a bitstream
+// is labeled with the knob settings that make it. The sim gate is dashed
+// sideband: it is handed the same geometry, it is not a bitstream.
+// Knobs: flows-rapids-beats/Makefile (BOARD, CHANNELS, DATA_WIDTH, SRAM_DEPTH,
+// USE_AXI_MONITORS, GEN_MON, USE_OBSERVERS, OBS_ENABLE_MON_TAPS), tcl/build_ila.tcl.
 digraph build_variants {
-    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.4, ranksep=0.55,
-           label="One source tree, several bitstreams: rapids-beats build variants", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           label="One source tree, several bitstreams: rapids-beats build variants", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    src [label="COMMON RTL (one copy)\nrapids_char_genesys2_top.sv + rapids_char_top.sv + rapids_char_harness.sv\nrapids_beats_top and its engines (projects/components/dma-ip/rapids)\nthree filelists, one XDC, one tcl set (create_project.tcl reads the knobs from the environment)",
-         fillcolor="#d5ecd5", penwidth=2];
+    src [group=C, label="Common RTL (one copy)\nrapids_char_genesys2_top + rapids_char_top\n+ rapids_char_harness + rapids_beats_top\nthree filelists, one XDC, one tcl set;\ncreate_project.tcl reads the knobs from the environment", fillcolor="white"];
 
-    knobs [shape=plaintext, label=<
-      <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
-        <tr><td bgcolor="#e0e0e0"><b>knob (Makefile, exported)</b></td><td bgcolor="#e0e0e0"><b>generic / define</b></td><td bgcolor="#e0e0e0"><b>what it selects</b></td></tr>
-        <tr><td>BOARD</td><td>top module, XDC, CHANNELS default</td><td>genesys2 (8 ch) or nexys (4 ch)</td></tr>
-        <tr><td>CHANNELS</td><td>RAPIDS_NUM_CHANNELS</td><td>channel count; the host refuses a mismatch (BUILD CSR)</td></tr>
-        <tr><td>DATA_WIDTH / SRAM_DEPTH</td><td>RAPIDS_DATA_WIDTH / RAPIDS_SRAM_DEPTH</td><td>the design point: 256 bits, 128 beats (4 KB/ch) since 2026-09-29</td></tr>
-        <tr><td>USE_AXI_MONITORS + GEN_MON</td><td>DUT generics</td><td>in-core monitors and their MonBus emitters</td></tr>
-        <tr><td>USE_OBSERVERS (+OBS_ENABLE_MON_TAPS)</td><td>harness generics</td><td>shared interface observers on the data ports</td></tr>
-        <tr><td>tcl/build_ila.tcl</td><td>`define RAPIDS_CHAR_ILA</td><td>mark_debug on the window nets, ILA core inserted</td></tr>
-      </table>>];
+    knobs [label="Parameters (fixed at build;\lMakefile, exported)\lBOARD: genesys2 (8 ch) or nexys (4 ch)\l    - top module, XDC, CHANNELS default\lCHANNELS: the host refuses a mismatch\l    (BUILD CSR)\lDATA_WIDTH / SRAM_DEPTH: the design point,\l    256 bits x 128 beats (4 KB / ch)\lUSE_AXI_MONITORS + GEN_MON: 1 = in-core\l    monitors and their MonBus emitters\lUSE_OBSERVERS (+ OBS_ENABLE_MON_TAPS):\l    1 = shared observers on the data ports\lbuild_ila.tcl: `define RAPIDS_CHAR_ILA\l    = mark_debug nets + ILA core\l", fillcolor="white"];
 
-    perf [label="PERF (bare meters)\nmonitors 0, GEN_MON 0, observers 0\nthe datapath itself; the numbers in\nreport sections 1-6; tuned to close 8 ch", fillcolor="#e9f7e9"];
-    mon  [label="MONITORS-IN\nUSE_AXI_MONITORS 1, GEN_MON 1\nwhat the in-core monitors cost, and\nMonBus egress proven on silicon\n(512-bit/256-deep: WNS +0.524 ns, 71,222 LUTs, 44 BRAM)", fillcolor="#e9f7e9"];
-    obs  [label="OBSERVERS\nUSE_OBSERVERS 1\nSTREAM's five knobs measured by the\nshared observers (report section 7);\nv2.0 point: WNS +0.608 ns, 75,679 LUTs, 44 BRAM\nafter BUG-009: WNS +0.286 ns", fillcolor="#e9f7e9"];
-    deep [label="16 KB VARIANT\nRAPIDS_SRAM_DEPTH=512 on the observers build\nthe buffer-depth question (report 7.5c)\nWNS +0.651 ns", fillcolor="#e9f7e9"];
-    ila  [label="ILA\nbuild_ila.tcl: RAPIDS_CHAR_ILA\nabout 1,100 marked nets on the window,\nthe engines and the ingress;\ncapture_ila_bug009.tcl drives one run\n(WNS +0.356 / +0.584 ns)", fillcolor="#e9f7e9"];
+    sim [label="Simulation Gate (not a bitstream)\nverify-sim / make sim:\nthe cocotb harness TB\nis handed the SAME\nDATA_WIDTH / SRAM_DEPTH\n(TEST_*)", style="filled,dashed", fillcolor="white"];
 
-    src -> knobs [arrowhead=none];
-    knobs -> perf; knobs -> mon; knobs -> obs; knobs -> deep; knobs -> ila;
+    perf [label="PERF (bare meters)\nthe datapath itself:\nreport sections 1-6;\ntuned to close 8 ch"];
+    mon  [label="MONITORS-IN\nwhat the in-core monitors cost;\nMonBus egress proven on silicon\n512-bit / 256-deep: WNS +0.524 ns,\n71,222 LUTs, 44 BRAM"];
+    obs  [group=C, label="OBSERVERS\nSTREAM's five knobs measured by the\nshared observers (report section 7)\nv2.0: WNS +0.608 ns, 75,679 LUTs, 44 BRAM;\nafter BUG-009: WNS +0.286 ns"];
+    ila  [label="ILA\nabout 1,100 marked nets:\nwindow, engines, ingress;\ncapture_ila_bug009.tcl\ndrives one run\nWNS +0.356 / +0.584 ns"];
+    deep [group=C, label="16 KB VARIANT\nthe buffer-depth question (report 7.5c)\nWNS +0.651 ns"];
 
-    sim [label="verify-sim / make sim\nthe cocotb harness TB is handed the SAME\nDATA_WIDTH / SRAM_DEPTH (TEST_*), so the\nsim gate builds the geometry the bitstream has", fillcolor="#e8f1ff"];
-    src -> sim [style=dashed];
+    { rank=same; perf; mon; pobs; ila; }
+    perf -> mon -> pobs -> ila [style=invis];
+    pobs [group=C, shape=point, style=invis, width=0.01, label=""];
+    { rank=same; knobs; obs; sim; }
+    knobs -> obs -> sim [style=invis];
+    perf -> knobs [style=invis];
+
+    src -> perf [xlabel="monitors 0, GEN_MON 0,\nobservers 0"];
+    src -> mon  [xlabel="USE_AXI_MONITORS 1,\nGEN_MON 1"];
+    src -> pobs [penwidth=1.8, dir=none];
+    pobs -> obs [penwidth=1.8, xlabel="USE_OBSERVERS 1"];
+    src -> ila  [xlabel="build_ila.tcl\n(RAPIDS_CHAR_ILA)"];
+    obs -> deep [xlabel="+ SRAM_DEPTH=512"];
+    src -> sim  [style=dashed, xlabel="same geometry"];
 }

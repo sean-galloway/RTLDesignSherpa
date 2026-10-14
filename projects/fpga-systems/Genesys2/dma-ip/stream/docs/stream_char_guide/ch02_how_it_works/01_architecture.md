@@ -7,9 +7,9 @@ fans out to the DUT config, the harness CSR, and the trace/error memories:
 
 ### Figure 2.1: STREAM Characterization Harness Spine
 
-![STREAM characterization harness spine](../assets/mermaid/01_harness_spine.png)
+![STREAM characterization harness spine](../assets/graphviz/01_harness_spine.png)
 
-**Source:** [01_harness_spine.mmd](../assets/mermaid/01_harness_spine.mmd)
+**Source:** [01_harness_spine.dot](../assets/graphviz/01_harness_spine.dot)
 
 ## Bridge slaves and base addresses
 

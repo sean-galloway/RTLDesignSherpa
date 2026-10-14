@@ -1,22 +1,47 @@
-// How a host command becomes a number. The loop the whole apparatus exists for.
+// Figure 4.1 -- from host command to a row of the CSV. A process flow in the
+// house vocabulary (vault/handbook/authoring/block-diagrams.md): six steps
+// top-down in one center column, every arrow labeled with what it carries,
+// each step naming where it runs; the per-point loop climbs the right edge
+// dashed, and the two traps are dashed notes attached to the step they bite.
+// Sources: build-perf/host (pumice_char.py, host_bringup_75.py), chargen_regs GO,
+// char_engine_block (axi_bus_meter, axi_perf_latency_hist).
 digraph measurement_path {
-    graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.3, ranksep=0.75,
-           label="From host command to a row of the CSV", labelloc=t, labeljust=l];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#f4f4f4"];
-    edge  [fontname="Helvetica", fontsize=9];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.45", splines=ortho, newrank=true,
+           label="pumice: from host command to a row of the CSV", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06", width=4.8];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    cfg  [label="1. Configure\npumice_char.Config.apply() writes EVERY CSR\nfor the point: JEDEC timings, page policy,\nbank span, burst length, address map.\nTRAP: it re-applies on EVERY point, so a CSR\nwritten by hand between points is silently\nclobbered", fillcolor="#fff4e0"];
-    train [label="2. Train the PHY (once per build)\nhost_bringup_75.py and the sweeps settle\nt_phy_wrlat, t_rddata_en, rddata_delay,\nbitslip and IDELAY tap; cached in level_cache.json", fillcolor="#fff4e0"];
-    run  [label="3. Run\nharness_csr CTRL.start releases the generators;\nthey issue until their txn budget is spent", fillcolor="#e9f7e9"];
-    meas [label="4. Measure IN HARDWARE\naxi_bus_meter counts productive / backpressure /\nstarvation / idle cycles; latency histograms bin\nresponse times; the read engine CRCs every beat", fillcolor="#e9f7e9"];
-    read [label="5. Read back\nhost reads the counters by NAME and derives\nMB/s, %-of-peak, cycles-per-beat", fillcolor="#fff4e0"];
-    csv  [label="6. Record\na CSV row + a findings page under char_results/.\nEvery bandwidth table carries the MEASURED MB/s\nAND the 600 MB/s theoretical peak", fillcolor="#e8f1ff", penwidth=2];
+    train [group=C, label="1. Train the PHY (host, once per bitstream)\nhost_bringup_75.py and the sweeps settle t_phy_wrlat, t_rddata_en,\nrddata_delay, bitslip and IDELAY tap; cached in level_cache.json"];
+    cfg   [group=C, label="2. Configure (host, every point)\npumice_char.Config.apply() writes EVERY CSR for the point:\nJEDEC timings, page policy, bank span, burst length, address map"];
+    run   [group=C, label="3. Run (on chip)\none write to chargen_regs.GO releases the generators on one\ncycle; they issue until their transaction budget is spent"];
+    meas  [group=C, label="4. Measure in hardware (on chip)\naxi_bus_meter: productive / backpressure / starvation / idle;\nlatency histograms; the read engines CRC every beat"];
+    read  [group=C, label="5. Read back (host)\ncounters by NAME through the generated regmaps;\nMB/s, % of peak, cycles per beat"];
+    csv   [group=C, label="6. Record (host)\na CSV row + a findings page under char_results/;\nevery table carries the measured MB/s AND the 600 MB/s peak"];
 
-    cfg -> train -> run -> meas -> read -> csv;
+    trap1 [label="Trap: apply() re-writes every CSR on\nevery point, so a register written by\nhand between points is silently clobbered", fillcolor="white", style="filled,dashed", width=3.2];
+    trap2 [label="Trap: CharRecord.bytes_moved is per\nphase (read side only); dividing it by the\nfull 600 MB/s peak understates by 2x", fillcolor="white", style="filled,dashed", width=3.2];
 
-    trap [label="Why % of peak is easy to get wrong:\nCharRecord.bytes_moved is PER PHASE (read side only).\nDividing it by the full 600 MB/s peak understates\nthe result by 2x -- a whole conclusion was retracted\nover this once", shape=note, fillcolor="#ffe8e8"];
-    trap -> csv [style=dotted, arrowhead=none];
+    pl [shape=point, style=invis, width=0.01, label=""];
+    pt [shape=point, style=invis, width=0.01, label=""];
+    { rank=same; cfg; trap1; pt; }
+    { rank=same; csv; trap2; pl; }
+    trap1 -> cfg [style=invis];
+    trap2 -> csv [style=invis];
+    cfg -> pt [style=invis, minlen=2];
+    csv -> pl [style=invis, minlen=2];
 
-    integ [label="Integrity is not optional:\nthe CRC check is the reason a throughput number\nmeans anything. A detector that has never fired\nis not evidence -- this one was proved by\ndeliberately corrupting the analog eye", shape=note, fillcolor="#ffe8e8"];
-    integ -> meas [style=dotted, arrowhead=none];
+    train -> cfg  [penwidth=1.8, xlabel="trained tuple"];
+    cfg   -> run  [penwidth=1.8, xlabel="CSRs written over UART"];
+    run   -> meas [penwidth=1.8, xlabel="AXI traffic into pumice"];
+    meas  -> read [penwidth=1.8, xlabel="counters, CRCs"];
+    read  -> csv  [penwidth=1.8, xlabel="derived numbers"];
+
+    trap1 -> cfg  [style=dashed, constraint=false, xlabel=""];
+    trap2 -> csv  [style=dashed, constraint=false];
+
+    csv -> pl [style=dashed, dir=none];
+    pl  -> pt [style=dashed, dir=none, xlabel="next point"];
+    pt  -> cfg [style=dashed];
 }

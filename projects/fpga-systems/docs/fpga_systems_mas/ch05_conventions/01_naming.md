@@ -2,7 +2,7 @@
 
 ### Figure 5.1: Where each kind of file lives
 
-![Where each kind of file lives](../assets/mermaid/file_layout.png)
+![Where each kind of file lives](../assets/graphviz/file_layout.png)
 
 **The authority for the directory skeleton and the filename conventions is the
 handbook note `[[flow-layout]]`, not this chapter.** This chapter records only

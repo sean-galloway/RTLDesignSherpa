@@ -1,0 +1,76 @@
+// Figure 1.1 of the CDC Counter Display Guide: the same figure as the
+// CDC FPGA System book Figure 2.1 (cdc_fpga_system/assets/graphviz/
+// 02_harness_blocks.dot). Replaces assets/mermaid/01_harness_spine.mmd.
+// Keep the two in step.
+// Figure 2.1 -- cdc_demo_harness and one of its four counter domains, in the
+// CDC house style (vault/handbook/authoring/block-diagrams.md, the fifo_async
+// template): the host link is the white port on top, the two clock domains
+// are dashed regions, and the five value-out paths are the crossings, drawn
+// side by side as the heavy center rank between the domains. The mode select
+// is a plain box (a mux driven by a register, not a pick). The display and
+// the readback CSRs are the boundary bar. One counter is drawn; there are
+// four identical ones.
+// RTL: build-demo/rtl/cdc_demo_top.sv (u_uart_bridge, MMCM, clock_divider,
+// BUFGMUX_CTRL tree, u_seg7), cdc_demo_harness.sv, cdc_counter_domain.sv.
+digraph harness_blocks {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.50", splines=ortho, newrank=true,
+           label="cdc_demo_harness: one of four identical counter domains, five value-out CDC modes", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.10,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host [group=C, label="Host UART (Nexys A7 USB, 115200-8N1)\nhost_cdc_demo.py / CdcDemoDriver", fillcolor="white"];
+    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge (in cdc_demo_top)"];
+    csr  [group=C, label="CSR Decode (sys_clk) - cdc_demo_harness, inline\nBUILD_ID \"CDC1\", STATUS, CTRL, DISP_SELECT, SCRATCH;\nper counter: INIT, STEP, CLOCK_SELECT / DIV_PICKOFF, CDC_MODE, loads, presses;\nalso the board buttons (BTNC press, BTNU / BTND clock, BTNL mode),\ndebounced on sys_clk in cdc_demo_top", width=6];
+
+    clk  [label="Counter Clock (cdc_demo_top)\nMMCM 72.73 / 27.59 / 11.94 / 6.25 MHz\nor clock_divider (DIV_PICKOFF);\nBUFGMUX_CTRL tree, glitchless switch\non CLOCK_SELECT", fillcolor="white"];
+
+    subgraph cluster_ctr {
+        label="ctr_clk domain (one per counter)"; style=dashed; fontsize=10;
+        cin  [label="Config In (sys_clk -> ctr_clk)\n2-FF per bit: INIT, STEP, freeze;\nsync_pulse: CFG_LOAD, press"];
+        ctr  [label="Counter (flop on ctr_clk)\n+STEP per press (host or BTNC)\nor auto-increment"];
+    }
+
+    m0 [label="Mode 0 NO_CDC\nraw flop per bit\n(broken on purpose)", style="filled,dashed"];
+    m1 [label="Mode 1 STRETCH\ncdc_open_loop\nu_stretch"];
+    m2 [label="Mode 2 SYNC_FIFO\nfifo_async\nu_fifo"];
+    m3 [label="Mode 3 TWO_PHASE\ncdc_2_phase_\nhandshake - u_hs2p"];
+    m4 [label="Mode 4 FOUR_PHASE\ncdc_4_phase_\nhandshake - u_hs4p"];
+    gray [label="PRESS_COUNT, ticks\nbin2gray -> 2-FF\n-> gray2bin"];
+
+    subgraph cluster_sys {
+        label="sys_clk domain"; style=dashed; fontsize=10;
+        sel [label="Mode Select (sys_clk)\nCDC_MODE picks which path drives VALUE\n(5..7 fall back to NO_CDC)", width=4];
+    }
+
+    bar [group=C, label="sys_clk readback: VALUE, PRESS_COUNT, CLK_TICKS -> CSRs (over UART)  and  DISP_SELECT -> 7-segment + LEDs (u_seg7)", fillcolor="white", width=9];
+
+
+    { rank=same; clk; csr; }
+    clk -> csr [style=invis];
+    { rank=same; m0; m1; m2; m3; m4; gray; }
+    m0 -> m1 -> m2 -> m3 -> m4 -> gray [style=invis];
+
+    host -> uart [dir=both, penwidth=1.8, xlabel="UART bytes"];
+    uart -> csr  [dir=both, xlabel="AXI4-Lite access"];
+    csr  -> cin;
+    clk  -> ctr  [style=dashed, xlabel="ctr_clk"];
+    cin  -> ctr  [xlabel="init, step, load"];
+
+    ctr -> m0 [penwidth=1.8, xlabel="counter value (all five paths)"];
+    ctr -> m1 [penwidth=1.8];
+    ctr -> m2 [penwidth=1.8];
+    ctr -> m3 [penwidth=1.8];
+    ctr -> m4 [penwidth=1.8];
+    ctr -> gray;
+
+    m0 -> sel [penwidth=1.8];
+    m1 -> sel [penwidth=1.8];
+    m2 -> sel [penwidth=1.8];
+    m3 -> sel [penwidth=1.8];
+    m4 -> sel [penwidth=1.8];
+
+    sel  -> bar [penwidth=1.8, xlabel="VALUE"];
+    gray -> bar [xlabel="PRESS_COUNT,\nCLK_TICKS"];
+}

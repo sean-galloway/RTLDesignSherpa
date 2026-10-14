@@ -32,9 +32,9 @@ window deterministically; the host then reads the CRCs and counters.
 
 ### Figure 3.1: Measurement Pipeline
 
-![Measurement pipeline](../assets/mermaid/02_measurement_pipeline.png)
+![Measurement pipeline](../assets/graphviz/02_measurement_pipeline.png)
 
-**Source:** [02_measurement_pipeline.mmd](../assets/mermaid/02_measurement_pipeline.mmd)
+**Source:** [02_measurement_pipeline.dot](../assets/graphviz/02_measurement_pipeline.dot)
 
 ## Workloads
 

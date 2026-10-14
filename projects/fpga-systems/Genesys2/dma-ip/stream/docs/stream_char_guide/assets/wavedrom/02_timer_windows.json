@@ -1,0 +1,49 @@
+{
+ "signal": [
+  {
+   "name": "aclk",
+   "wave": "p..................."
+  },
+  {
+   "name": "first desc AR handshake",
+   "wave": "0.10................"
+  },
+  {
+   "name": "timer running",
+   "wave": "0.1..............0.."
+  },
+  {
+   "node": "..g..............h"
+  },
+  {
+   "name": "R beats (slave side)",
+   "wave": "0...1.......0......."
+  },
+  {
+   "node": "....b.......c"
+  },
+  {
+   "name": "W beats (slave side)",
+   "wave": "0.....1..........0.."
+  },
+  {
+   "node": "......d..........e"
+  },
+  {
+   "name": "timer done (+5 settle)",
+   "wave": "0..................1",
+   "phase": 0
+  }
+ ],
+ "edge": [
+  "g<->h TIMER_CYCLES",
+  "b<->c R_FIRST to R_LAST: read rate",
+  "d<->e W_FIRST to W_LAST: write rate"
+ ],
+ "head": {
+  "text": "Timer windows: one 64-bit cycle base, four beat stamps"
+ },
+ "foot": {
+  "text": "start: first descriptor AR; stop: W beat count reaches TIMER_EXPECTED_BEATS"
+ }
+}
