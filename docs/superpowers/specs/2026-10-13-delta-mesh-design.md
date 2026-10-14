@@ -176,7 +176,7 @@ per-cell unicast tables of §5.2) coexists; mode 0 = custom, mode
 switches among standard images, custom tables unaffected by broadcast
 switches.
 
-Standard mode catalog (owner-confirmed unless marked *pending*):
+Standard mode catalog (all 8 modes owner-confirmed 2026-10-13):
 
 | Mode | Pattern | Routing/table content | Sources |
 |---|---|---|---|
@@ -185,9 +185,9 @@ Standard mode catalog (owner-confirmed unless marked *pending*):
 | 3 Wavefront-2D | 2-D diagonal ripple, E/W + N/S skewed streams | per-diagonal static table/source routes | [S1][S2][N7] |
 | 4 Stencil-3D | 3-D halo/ghost-zone exchange, periodic boundaries | nearest-neighbor tables + torus wrap all dims | [P3][P4][P5] |
 | 5 Broadcast | one-to-all | multicast VC0, port masks to all | [D9][N3] |
-| 6 Convergecast/reduce (*pending*) | all-to-one reduction tree | reverse-broadcast tables; ocelus counter reduction | [D9][Q7] |
-| 7 All-to-all/transpose (*pending*) | permutations: transpose, shuffle/butterfly stages | per-stage table images | [P1] |
-| 8 Pipeline + rapids-stream (*pending*) | boustrophedon serpentine chain; boundary↔rapids DMA streaming | fixed chain + boundary tables | [P8][Q9] |
+| 6 Convergecast/reduce | all-to-one reduction tree | reverse-broadcast tables; ocelus counter reduction | [D9][Q7] |
+| 7 All-to-all/transpose | permutations: transpose, shuffle/butterfly stages | per-stage table images | [P1] |
+| 8 Pipeline + rapids-stream | boustrophedon serpentine chain; boundary↔rapids DMA streaming | fixed chain + boundary tables | [P8][Q9] |
 
 Mode images are data — the same table RAMs and mechanisms as §5.1;
 adding a mode = adding an image + a verification suite, no new hardware
@@ -381,7 +381,7 @@ assertion (packet atomicity, as flat mode does).
 | Flat xbar | kept; mesh is a mode | — |
 | Book pulls now | systolic package, perf model, ocelus counters, DFT mode | §15 |
 | Book pulls deferred | §11 | — |
-| Standard modes | broadcast mode-switch w/ ack barrier; catalog §5.4 (modes 6–8 pending owner confirmation) | [P8][P17][D9][N3] |
+| Standard modes | broadcast mode-switch w/ ack barrier; catalog §5.4 (all 8 modes confirmed) | [P8][P17][D9][N3] |
 
 ## 15. References
 
