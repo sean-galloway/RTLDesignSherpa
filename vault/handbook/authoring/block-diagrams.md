@@ -65,9 +65,9 @@ own route.
 3. **Right angles only** (`splines=ortho`). Parallel flows may share trunk
    routes. Keep crossings to a minimum, and always at right angles.
 4. **Every arrow is labeled with what it carries.** At decision points and at
-   every boundary crossing, the label names the transaction class (`WR / RMW`,
-   `RD`, `REF / ZQ` going in; "Write to DDR", "Read from DDR", "DDR Command"
-   at the PHY). Never use bare signal names. A label answers "what is this
+   every boundary crossing, the label names the transaction class (`WR`,
+   `RD`, `INIT / MRS / REF`, `ZQ / MRR` going in; "Write to DDR", "Read from
+   DDR", "DDR Command" at the PHY). Never use bare signal names. A label answers "what is this
    arrow carrying?", not "what is this wire called?".
 5. **One boundary bar per diagram.** The bar is the PHY at whole-unit scale
    and the plane edge at plane scale. Everything leaving the drawn unit

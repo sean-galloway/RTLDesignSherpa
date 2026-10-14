@@ -1,19 +1,25 @@
 // Family whole-unit uarch diagram - the DDR-MC course style per STYLE.md.
 // Reference: design-a-ddr-memory-controller-i-top-level-diagram.webp
+// Drawn from the RTL: common-ip/rtl/macro/*_plane.sv as composed by
+// pumice_core.sv (scoria / andesite swap the DFI plane revision). Kept in
+// step with the per-plane figures in common_mas/assets/graphviz/.
 // Rank geography mirrors the reference:
-//   channels -> packetizers (+cfg) -> pools -> merge/fwd + arbitration +
-//   maintenance + reorder buffer -> scheduler trapezium (+timing ctl) ->
-//   merge logic -> data path controls -> PHY bar.
+//   channels -> packetizers (+cfg) -> pools -> maintenance + reorder ring ->
+//   scheduler trapezium (+timing ctl, page policy) -> command queue ->
+//   DFI plane -> PHY bar.
 // Vocabulary mapped onto the common-ip stack:
-//   packetizers  = mc_axi4_plane intakes + burst chopper/splitter
+//   packetizers  = mc_axi4_plane splitter / chopper + intakes (address map)
 //   pools/buffer = mc_storage_plane CAMs (wr_data_cam / rd_cmd_cam)
-//   merge/forward= coalescing merge + wr2rd snarf forward
-//   maintenance  = mc_training_plane clients (ZQ / DQ-cal) via the scheduler's
-//                  generic maintenance slot
-//   scheduler    = mc_scheduler_plane (prospect pool -> mc_cmd_arbiter)
+//   maintenance  = init + refresh (scheduler plane children) and the
+//                  training plane (ZQ / DQ-cal slot select)
+//   scheduler    = mc_scheduler_plane - mc_cmd_arbiter, fed straight by the
+//                  CAMs' schedulable-entry views (no separate arbitration stage)
 //   timing ctl   = mc_bank_timers + mc_global_timers
-//   data path ctl= mc_dfi_NpM_plane wr_serializer / rd_aligner
-//   reorder buf  = mc_rd_return_ring (read return path - its own contract)
+//   reorder buf  = mc_rd_return_ring (mc_axi4_plane), drained through
+//                  mc_rd_intake's R source select
+// There is no merge buffer and no forward buffer: write data leaves the wr
+// CAM by its commit stream to the DFI plane, and the read-your-writes snarf
+// returns wr CAM data to the read intake (host side), never to the DFI plane.
 digraph whole_unit {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.35", ranksep="0.60", splines=ortho,
@@ -24,85 +30,86 @@ digraph whole_unit {
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interfaces (white) ----
-    axi_wr [label="AXI Write Channel", fillcolor="white"];
-    axi_rd [label="AXI Read Channel",  fillcolor="white"];
+    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W];
+    axi_rd [label="AXI Read Channel\n(AR in / R out)",  fillcolor="white", group=R];
     phy    [label="DDR PHY  (DFI 2.1 / 3.1 / 4.0 - one revision per product)",
-            fillcolor="white", rank=sink, width=8.0, fontsize=11];
+            fillcolor="white", rank=sink, width=8.0, fontsize=11, group=C];
 
     // ---- host side: mc_axi4_plane ----
-    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_intake,\nmc_axi_burst_chopper, mc_wr_splitter"];
-    rd_pkt [label="Read Request Packetizer\nmc_axi4_plane - mc_rd_intake"];
-    cfg    [label="Configuration Registers\npumice_csr / scoria_csr / andesite_csr (PeakRDL)\nsideband config to all planes"];
+    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_splitter,\nmc_wr_intake (address map, B)", group=W];
+    rd_pkt [label="Read Request Packetizer\nmc_axi4_plane - mc_axi_burst_chopper,\nmc_rd_intake (address map, R select)", group=R];
+    cfg    [label="Configuration Registers\npumice_csr / scoria_csr / granite_csr (PeakRDL)\nsideband config to all planes", group=C];
 
     // ---- storage: mc_storage_plane ----
-    wr_pool [label="DDR Write Command Pool\n+ Write Data Buffer\nmc_storage_plane - mc_wr_data_cam"];
+    wr_pool [label="DDR Write Command Pool\n+ Write Data Buffer\nmc_storage_plane - mc_wr_data_cam", group=W, width=3.6];
     rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam"];
-    merge_b [label="Merge Buffer\nfinal write coalescing\n(mc_axi4_plane)"];
-    fwd_b   [label="Forward Buffer\nread-snoop wr2rd forward\n(mc_wr_data_cam snarf)"];
 
-    // ---- maintenance: mc_training_plane ----
-    maint [label="DDR Maintenance Command Queue\nmc_training_plane - ZQ cal, DQ cal,\nwrite-leveling interface"];
+    // ---- maintenance requesters ----
+    initref [label="Init + Refresh\nmc_scheduler_plane - mc_xddr2_init_sequencer,\nmc_xddr2_refresh_ctrl"];
+    maint   [label="DDR Maintenance Requester\nmc_training_plane - ZQ cal, DQ cal,\nmaintenance slot select\n(cal sideband to the DFI read aligner)"];
 
     // ---- scheduler: mc_scheduler_plane ----
-    wr_arb [label="DDR Write Arbitration\nunified prospect pool (classify)"];
-    rd_arb [label="DDR Read Arbitration\nunified prospect pool (classify)"];
     sched  [label="DDR Command Scheduler\nmc_scheduler_plane - mc_cmd_arbiter (FR-FCFS pick)",
-            shape=invtrapezium, width=5.2, fillcolor="#BFD7EE", fontsize=11];
+            shape=invtrapezium, width=10, fillcolor="#BFD7EE", fontsize=11, group=C];
     tctl   [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(tRCD/tRP/tRAS/tFAW/tRRD/... next-state)"];
-
-    // ---- return merge: mc_axi4_plane side of the return path ----
-    mlog [label="Merge Logic\nmc_rd_return_ring reorder\n(AXI ID order)"];
+    ppol   [label="Page Policy\nmc_scheduler_plane - mc_page_policy\n(auto-PRE / timeout PRE)"];
+    cmdq   [label="DDR Command Queue\nmc_scheduler_plane - gaxi_fifo_sync\n+ CMD_DELAY release (write data leads)", group=C];
 
     // ---- the DFI plane as ONE container: command + write + read + CDC ----
-    dfi [label="mc_dfi_2p1_plane (DFI 2.1 data path)\nmc_dfi_cmd_path + mc_dfi_wr_serializer + mc_dfi_rd_aligner + CDC\nwrite data in at the left, read data out at the right, command through the center",
-         width=10.5, height=1.7, fontsize=10];
+    dfi [label="DFI plane - mc_dfi_2p1 / 3p1 / 4p0_plane (one per product)\nmc_dfi_cdc (ctl_clk <-> dfi_clk) + mc_dfi_cmd_path + mc_dfi_wr_serializer + mc_dfi_rd_aligner\nwrite data in at the left, read data out at the right, command through the center",
+         width=10.5, height=1.7, fontsize=10, group=C];
 
     // ---- return path: mc_axi4_plane ----
-    rbuf [label="Read Data\nReorder Buffer\nmc_axi4_plane -\nmc_rd_return_ring",
-          height=1.6];
+    ring [label="Read Data\nReorder Buffer\nmc_axi4_plane -\nmc_rd_return_ring\n(fill in issue order,\ndrain in AR order)",
+          height=1.6, group=R];
 
     // ---- host channels ----
     axi_wr -> wr_pkt [dir=both];
     axi_rd -> rd_pkt [dir=both];
 
-    // ---- write flow (down the left and center) ----
-    wr_pkt -> wr_pool;
-    wr_pool -> wr_arb;
-    wr_pool -> merge_b;
-    wr_pool -> fwd_b;
-    merge_b -> dfi;
-    fwd_b   -> dfi;
-    wr_arb -> sched [label="WR / RMW"];
+    // ---- write flow: command to the pick, data down the left ----
+    wr_pkt -> wr_pool [dir=both, xlabel="WR push + write data\n(write done back, for B)"];
+    w3  [shape=point, width=0.01, label=""];
+    spw [style=invis, fixedsize=true, width=1.7, height=0.02, label=""];
+    wr_pool -> w3  [dir=none, headclip=false];
+    w3 -> dfi      [xlabel="Write data (commit order)", tailclip=false];
+    wr_pool -> sched [dir=both, xlabel="WR (commit slot back)"];
 
-    // ---- read flow (command down the center, data back up the right) ----
-    rd_pkt -> rd_pool;
-    rd_pool -> rd_arb;
-    rd_arb -> sched [label="RD"];
-    rd_pool -> rbuf [style=dashed, arrowhead=none, label="ticket at insert", tailport=e];
-    mlog -> dfi [dir=back];
-    rbuf -> mlog [dir=back];
-    rbuf -> axi_rd [constraint=false];
+    // ---- read flow: command down the center, data back up the right ----
+    rd_pkt -> rd_pool [xlabel="RD push (snarf miss)"];
+    rd_pool -> sched [dir=both, xlabel="RD (issue slot back)"];
+    rd_pool -> ring [style=dashed, dir=both, label="ticket at insert / issue"];
+    rd_pkt -> wr_pool [style=dashed, dir=both, xlabel="snarf probe / hit + data", constraint=false];
+    r4 [shape=point, style=invis, width=0.01, group=R];
+    r5 [shape=point, style=invis, width=0.01, group=R];
+    ring -> r4     [dir=back, xlabel="Read data (issue order)", headclip=false];
+    r4 -> r5       [dir=none, tailclip=false, headclip=false];
+    r5 -> dfi      [dir=none, tailclip=false];
+    rd_pkt -> ring [dir=back, xlabel="drain (AR order)"];
 
     // ---- maintenance + timing into the pick ----
-    maint -> sched [label="REF / ZQ"];
-    tctl -> sched [xlabel="timer window"];
+    initref -> sched [label="INIT / MRS / REF"];
+    maint -> sched [dir=both, label="ZQ / MRR (grant back)"];
+    tctl -> sched  [xlabel="timer window"];
+    sched -> ppol  [dir=back, style=dashed, xlabel="PRE request"];
 
     // ---- scheduler into the DFI plane ----
-    sched -> dfi [penwidth=1.8];
+    sched -> cmdq [penwidth=1.8, label="DDR Command"];
+    cmdq  -> dfi  [penwidth=1.8, label="DDR Command"];
 
     // ---- three PHY crossings via invisible port scaffolding (distinct node
     //      pairs per crossing => deterministic direction + label placement) ----
     p_wr  [shape=point, width=0.01];
-    p_cmd [shape=point, width=0.01];
+    p_cmd [shape=point, width=0.01, group=C];
     p_rd  [shape=point, width=0.01];
     sp1   [style=invis, fixedsize=true, width=1.6, height=0.02];
     sp2   [style=invis, fixedsize=true, width=1.6, height=0.02];
     dfi -> p_wr  [arrowhead=none, headclip=false];
     dfi -> p_cmd [arrowhead=none, headclip=false, penwidth=1.8];
-    p_wr  -> phy [label="Write to DDR", tailclip=false];
-    p_cmd -> phy [label="DDR Command", penwidth=1.8, tailclip=false];
-    phy -> p_rd  [arrowhead=none, headclip=false, constraint=false];
-    p_rd  -> dfi [label="Read from DDR", tailclip=false, constraint=false];
+    p_wr  -> phy [xlabel="Write to DDR", tailclip=false];
+    p_cmd -> phy [xlabel="DDR Command", penwidth=1.8, tailclip=false];
+    p_rd -> phy  [dir=none, headclip=false];
+    dfi -> p_rd  [dir=back, xlabel="Read from DDR", headclip=false];
     { rank=same; p_wr; sp1; p_cmd; sp2; p_rd; }
     p_wr -> sp1 [style=invis];
     sp1 -> p_cmd [style=invis];
@@ -114,15 +121,23 @@ digraph whole_unit {
     { rank=same; wr_pkt; cfg; rd_pkt; }
     wr_pkt -> cfg    [style=invis];
     cfg    -> rd_pkt [style=invis];
-    { rank=same; wr_pool; rd_pool; }
-    wr_pool -> rd_pool [style=invis];
-    { rank=same; merge_b; fwd_b; wr_arb; maint; rd_arb; rbuf; }
-    merge_b -> fwd_b  [style=invis];
-    fwd_b   -> wr_arb [style=invis];
-    wr_arb  -> maint  [style=invis];
-    maint   -> rd_arb [style=invis];
-    rd_arb  -> rbuf   [style=invis];
-    { rank=same; sched; tctl; }
-    sched -> tctl [style=invis];
+    rcol2 [shape=point, style=invis, width=0.01, group=R];
+    c2 [shape=point, style=invis, width=0.01, group=C];
+    c3 [shape=point, style=invis, width=0.01, group=C];
+    cfg -> c2 -> c3 -> sched [style=invis, weight=10];
+    sched -> cmdq -> dfi [style=invis, weight=10];
+    { rank=same; wr_pool; c2; rd_pool; rcol2; }
+    wr_pool -> c2 -> rd_pool -> rcol2 [style=invis];
+    rd_pkt -> rcol2 -> ring [style=invis, weight=10];
+    d3 [shape=point, style=invis, width=0.01, group=D];
+    rd_pool [group=D];
+    rd_pool -> d3 -> sched [style=invis, weight=10];
+    { rank=same; w3; spw; initref; c3; d3; maint; ring; }
+    w3 -> spw -> initref -> c3 -> d3 -> maint [style=invis];
+    maint   -> ring  [style=invis];
+    { rank=same; sched; tctl; r4; }
+    sched -> tctl -> r4 [style=invis];
+    { rank=same; cmdq; ppol; r5; }
+    cmdq -> ppol -> r5 [style=invis];
     { rank=same; dfi; }
 }
