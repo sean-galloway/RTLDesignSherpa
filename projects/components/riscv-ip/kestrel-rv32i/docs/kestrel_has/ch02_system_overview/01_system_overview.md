@@ -43,9 +43,9 @@ The core has no memory inside it. Integration therefore always means: core + ins
 
 ### Figure 2.1: kestrel in a minimal system and in a loader-based SoC
 
-![kestrel system context: minimal integration and loader-based integration](../assets/images/fig_2_1_system_context.png)
+![kestrel system context: minimal integration and loader-based integration](../assets/graphviz/kestrel_system_context.png)
 
-The left side shows the minimal integration: `kestrel_core` with two independently provided memories. The right side shows the loader integration: `kestrel_mem_loader` supplies both memories and a run-control register; a host agent on the SoC interconnect (a CPU, a DMA engine, or a debug port) drives the loader's AXIL slave to load the image and start the core.
+The top region shows the minimal integration: `kestrel_core` with two independently provided memories. The bottom region shows the loader integration: `kestrel_mem_loader` supplies both memories and a run-control register; a host agent on the SoC interconnect (a CPU, a DMA engine, or a debug port) drives the loader's AXIL slave to load the image and start the core.
 
 ### Minimal Integration (No Loader)
 

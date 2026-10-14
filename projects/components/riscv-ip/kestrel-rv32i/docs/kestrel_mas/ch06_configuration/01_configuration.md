@@ -84,7 +84,7 @@ Compile-order and closure discipline: each list is complete for its module (pack
 python3 gen_kestrel_figures.py      # regenerate figures + waveform PNGs
 ```
 
-`gen_kestrel_figures.py` (this directory) redraws the block/composition figures with matplotlib and renders the wavedrom sources in `kestrel_mas/assets/wavedrom/*.json` via `wavedrom-cli` + `inkscape`; both build scripts only consume the committed PNGs.
+The block and composition figures are graphviz sources in `kestrel_{has,mas}/assets/graphviz/`, rendered by each directory's `regenerate_all_graphviz.sh`. `gen_kestrel_figures.py` (this directory) copies the falcon-ladder figure and renders the wavedrom sources in `kestrel_mas/assets/wavedrom/*.json` via `wavedrom-cli` + `inkscape`; both build scripts only consume the committed PNGs.
 
 ---
 

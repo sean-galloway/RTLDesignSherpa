@@ -37,7 +37,7 @@ The discipline the suite's style brief imposes — datapath logic is truth table
 
 ### Figure 1.1: kestrel datapath block diagram
 
-![kestrel datapath block diagram](../assets/images/fig_1_1_datapath.png)
+![kestrel datapath block diagram](../assets/graphviz/kestrel_datapath.png)
 
 The diagram is drawn to match the RTL: the blocks are the module instances in `kestrel_core.sv`, and every named wire is a real signal in the source. State elements are the PC register, the register file, and three small holding registers described below; everything else is combinational.
 

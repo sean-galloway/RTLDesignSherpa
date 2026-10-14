@@ -1,0 +1,56 @@
+// kestrel_system_context - HAS Figure 2.1.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Two alternative integrations, one dashed region each (a system figure:
+// each region is its own unit, so each has its own memory bar at the
+// bottom). In both, the core's requests go DOWN to memory (fetch on the
+// left lane, load/store in the center) and the read data climbs back up
+// the same hop; trace leaves on the right. In the loader build the
+// loader IS the memory, and the host loads it from above.
+// Source of truth: rtl/top/kestrel_core.sv, rtl/fub/kestrel_mem_loader.sv.
+digraph kestrel_system_context {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="kestrel in a system - minimal integration (top) and loader-based board integration (bottom)";
+
+    subgraph cluster_min {
+        label="Minimal integration (no loader)"; style=dashed; fontsize=10;
+        m_clk  [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+        m_core [label="RV32I Core\nkestrel_core (RESET_ADDR)", width=3.2];
+        m_tr   [label="Trace Consumer\nRVFI retire + halt,\nhalt_cause", fillcolor="white"];
+        m_mem  [label="Integrator Memories (combinational read)\ninstruction memory   |   data memory,\nper-byte write merge on dmem_wstrb", fillcolor="white", width=6.0];
+    }
+    subgraph cluster_ld {
+        label="Loader integration (boards)"; style=dashed; fontsize=10;
+        l_host [label="Host AXI4-Lite Master\n(CPU, DMA or debug port)", fillcolor="white"];
+        l_core [label="RV32I Core\nkestrel_core", width=3.2];
+        l_tr   [label="Trace Consumer\nRVFI + halt", fillcolor="white"];
+        p_h    [shape=point, width=0.01];
+        sp     [label="", width=2.2, style=invis];
+        l_ld   [label="Loader and Memories\nkestrel_mem_loader\nimem + dmem (16K words each), CTRL.run", width=6.0];
+    }
+
+    m_clk  -> m_core [style=dashed, xlabel="clk, rst_n"];
+    m_core -> m_mem  [dir=both, xlabel="fetch, load / store down;\nimem_rdata, dmem_rdata up", penwidth=1.8];
+    m_core -> m_tr   [xlabel="rvfi_*, halt"];
+
+    l_host -> l_core [style=invis];
+    p_h -> sp -> l_core [style=invis];
+    l_core -> l_ld   [minlen=2, dir=both, xlabel="fetch, load / store down;\nread data up; core_rst_n\n(held low until CTRL.run)", penwidth=1.8];
+    l_core -> l_tr   [xlabel="rvfi_*, halt"];
+    l_host -> p_h    [arrowhead=none, headclip=false];
+    p_h    -> l_ld   [tailclip=false, xlabel="s_axil_*: load\nimage, CTRL.run"];
+
+    { rank=same; m_core; }
+    { rank=same; m_mem; m_tr; }
+    { rank=same; l_host; }
+    { rank=same; l_core; p_h; sp; }
+    { rank=same; l_ld; l_tr; }
+    m_mem -> l_host [style=invis];
+    m_mem -> m_tr [style=invis];
+    l_ld -> l_tr [style=invis];
+    m_core -> m_mem [style=invis, minlen=2];
+}

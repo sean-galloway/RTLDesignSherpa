@@ -152,6 +152,7 @@ python3 "${MD2DOCX}" \
   --mathfont "Noto Serif" \
   --assets-dir "${ASSETS}" \
   --assets-dir "${ASSETS}/images" \
+  --assets-dir "${ASSETS}/graphviz" \
   --assets-dir "${ASSETS}/wavedrom" \
   --quiet
 

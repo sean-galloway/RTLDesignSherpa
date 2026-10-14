@@ -29,7 +29,7 @@
 
 ### Figure 2.1: Loader composition
 
-![kestrel_mem_loader internal composition](../assets/images/fig_2_1_loader_composition.png)
+![kestrel_mem_loader internal composition](../assets/graphviz/kestrel_mem_loader.png)
 
 ## Memory Arrays
 

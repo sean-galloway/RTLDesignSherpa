@@ -1,0 +1,79 @@
+// kestrel_datapath - MAS Figure 1.1 (kestrel_core, single-cycle RV32I).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// The memory ports are the boundary bar. Requests go DOWN to it: the
+// fetch address from the PC (left edge) and the load/store beat from
+// the L/S unit (center). Returns climb back UP on their own lanes:
+// the instruction word up the right edge into decode / imm / regfile,
+// the load data into the L/S unit. The two register loops are the
+// architectural feedback: next PC climbs the left edge into the PC,
+// the writeback climbs into the register file. No pipeline, so no
+// hazard or forwarding lanes. Halt is sideband.
+// Source of truth: rtl/top/kestrel_core.sv and rtl/fub/kestrel_*.sv.
+digraph kestrel_datapath {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="kestrel_core - single-cycle RV32I datapath (one instruction per clk; cross-word L/S takes two)";
+
+    pc    [label="PC Register\npc (flop, RESET_ADDR)\nholds on halt or the first beat\nof a cross-word L/S", group=L];
+    dec   [label="Decode Truth Table\nkestrel_decode - u_decode\ncontrol bundle, halt cause", group=C];
+    immg  [label="Immediate Generator\nkestrel_imm_gen - u_imm_gen\nI / S / B / U / J by imm_sel", group=I];
+    rf    [label="Register File\nkestrel_regfile - u_regfile\nx0..x31: 2 read, 1 write (flops)", group=R];
+
+    srcm  [label="Operand Select (combinational)\nA = pc or rs1 (alu_src_a_pc)\nB = imm or rs2 (alu_src_b_imm)", group=C];
+    cmp   [label="Branch Compare (combinational)\nrs1 vs rs2: eq / lt / ltu\nby funct3", group=I];
+    alu   [label="ALU\nkestrel_alu - u_alu\nalu_y (also the L/S address)", group=C];
+    npc   [label="Next-PC Select (combinational)\nJAL: pc + imm  |  JALR: (rs1 + imm) & ~1\ntaken branch: pc + imm  |  else pc + 4\nmisaligned target -> HALT_IALIGN", group=L];
+    lsu   [label="Load / Store Unit\nword address, byte-lane rotation, wstrb;\ncross-word: retry beat at the next word\n(ls_retry, ls_rdata_lo flops); load extend", group=C];
+    wb    [label="Writeback Select (combinational)\nCSR stub: 0 | LUI: imm | load data\n| JAL/JALR: pc + 4 | else alu_y", group=R];
+    hlt   [label="Halt Register (sideband)\nhalt_q: any decode halt cause or\nmisaligned target freezes PC and retirement;\nRVFI retire ports built from the same signals", fillcolor="white"];
+
+    bar   [label="Memory and Trace Ports (combinational-read memories)\nimem_addr -> imem_rdata   |   dmem_req, dmem_addr, dmem_wstrb, dmem_wdata -> dmem_rdata   |   halt, halt_cause, rvfi_*",
+           fillcolor="white", width=15.4];
+
+    // ---- fetch request down the left edge, instruction back up the right ----
+    p_pc  [shape=point, width=0.01, group=L];
+    pc    -> p_pc [arrowhead=none, headclip=false];
+    p_pc  -> npc  [tailclip=false, xlabel="pc"];
+    p_f   [shape=point, width=0.01, group=F];
+    p_pc  -> p_f  [arrowhead=none, tailclip=false, headclip=false];
+    p_f   -> bar  [tailclip=false, xlabel="imem_addr = pc\n(fetch)"];
+    p_r   [shape=point, width=0.01, group=Q];
+    insn  -> p_r  [dir=back, headclip=false, xlabel="imem_rdata\n(instruction)"];
+    p_r   -> bar  [dir=none, tailclip=false];
+
+    // ---- instruction word ----
+    insn  [label="Instruction Word\ninsn = imem_rdata", fillcolor="white", group=Q];
+    insn  -> dec  [xlabel="opcode, funct"];
+    insn  -> immg [xlabel="imm fields"];
+    insn  -> rf   [xlabel="rs1, rs2, rd"];
+
+    // ---- execute ----
+    dec   -> srcm [style=dashed, xlabel="selects"];
+    immg  -> srcm [xlabel="imm"];
+    rf    -> srcm [xlabel="rs1, rs2"];
+    pc    -> srcm [xlabel="pc"];
+    rf    -> cmp  [xlabel="rs1, rs2"];
+    srcm  -> alu  [xlabel="A, B"];
+    alu   -> lsu  [xlabel="address"];
+    lsu   -> bar  [dir=both, xlabel="L/S beat down /\ndmem_rdata up", penwidth=1.8];
+    lsu   -> wb   [xlabel="load data"];
+    alu   -> wb   [xlabel="alu_y"];
+    cmp   -> npc  [xlabel="branch taken"];
+    pc    -> npc  [dir=back, xlabel="next_pc"];
+
+    // ---- feedback loops ----
+    npc   -> hlt  [style=dashed, xlabel="misaligned"];
+    rf    -> wb   [dir=back, xlabel="rd_wdata (rd_wen\nunless halted or\nfirst L/S beat)"];
+    hlt   -> bar  [style=dashed, xlabel="halt, rvfi_*"];
+
+    { rank=same; pc; insn; }
+    { rank=same; dec; immg; rf; }
+    { rank=same; srcm; cmp; }
+    { rank=same; npc; lsu; wb; p_r; p_f; }
+    p_f -> npc [style=invis];
+    wb -> p_r [style=invis];
+}
