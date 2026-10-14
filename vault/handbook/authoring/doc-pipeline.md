@@ -229,6 +229,20 @@ is already soft once fitted to a page; the committed set is 2x the renderer's
 natural width for that reason. Palette encoding buys the same saving with no
 resolution cost at all.
 
+## A table needs a blank line above it
+
+A Markdown table that starts on the line directly after a label line
+(`**Status Byte Format:**`, a sentence ending in a colon) is not a table to
+the converter: it joins the paragraph, and the PDF shows the raw `| a | b |`
+text with the separator row turned into dashes. Nothing warns. Put a blank
+line between the label and the header row. Check a built book with
+`pdftotext book.pdf - | grep -c '|—'`; anything but 0 is a broken table.
+
+*Case (2026-10-14): converting register box-drawings to tables in the PIT
+MAS produced two of these, and the same check then found seven older ones in
+HPET, four in PIT and two in PIC that had been shipping as pipe text.*
+
+
 ## A heading directly above a fence becomes that figure's caption
 
 `md_to_docx.py` compiles the mermaid and wavedrom block patterns with an
