@@ -61,7 +61,7 @@ The slave may therefore complete different IDs in any order.
 
 ### Figure 4.1: CAM Entry Format
 
-![CAM Entry Format](../assets/mermaid/cam_entry_format.png)
+![CAM Entry Format](../assets/graphviz/cam_entry_format.png)
 
 ### CAM Sizing
 

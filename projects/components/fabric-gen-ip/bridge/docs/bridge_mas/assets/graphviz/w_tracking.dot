@@ -1,0 +1,58 @@
+// W data tracking: there is no IDLE/WRITING state machine. Two FIFOs steer W:
+// a W destination FIFO per master path (which slave this master's next W burst
+// goes to) and a W owner FIFO per slave (which master owns this slave's W
+// channel next). Labels from rtl/generated/bridge_2x2_rw/bridge_2x2_rw_xbar.sv
+// (cpu_32b_wdest_*, ddr_wowner_*). House style: vault/handbook/authoring/block-diagrams.md
+digraph w_tracking {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, labelloc=t,
+           label="W data tracking in <bridge>_xbar - two FIFOs, no state machine\n(shown for one slave; every master path and every slave has its own FIFO)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // rank 0: intakes
+    pw [label="Master Write Data\nW beats from each master path (no address)", fillcolor="white", group=L];
+    pc [label="Master Write Requests\nAW from each master path", fillcolor="white", group=C];
+    { rank=same; pw; pc; }
+    pw -> pc [style=invis];
+
+    // rank 1
+    wdest [label="W Destination FIFO - <bridge>_xbar\n<m>_<w>b_wdest_* (one per master path, 16 deep)\npush: target slave, at the master-side AW accept\npop: the W beat carrying WLAST\nhead = slave this master's current W burst goes to", group=L];
+    arb [shape=invtrapezium, width=3.2, label="Per-slave AW Arbiter\n<s>_aw_arb (round robin)", group=C];
+    { rank=same; wdest; arb; }
+    wdest -> arb [style=invis];
+
+    // rank 2
+    pl2 [shape=point, width=0.01, label="", group=L];
+    wown [label="W Owner FIFO - <bridge>_xbar\n<s>_wowner_* (one per slave, 16 deep)\npush: granted master, at the slave-side AW accept\npop: the slave's W beat carrying WLAST\nhead = master that owns this slave's W channel", group=M];
+    pc2 [shape=point, width=0.01, label="", group=C];
+    { rank=same; pl2; wown; pc2; }
+    pl2 -> wown -> pc2 [style=invis];
+
+    // rank 3
+    wmux [label="Slave W Mux - <bridge>_xbar\nORs the W of the one master path whose\nW-destination head is this slave AND which\nis the W-owner head (<m>_w_sel_<s>)", group=L];
+    pc3 [shape=point, width=0.01, label="", group=C];
+    { rank=same; wmux; pc3; }
+    wmux -> pc3 [style=invis];
+
+    // rank 4: boundary bar
+    bar [label="Slave Port  -  <slave>_adapter / <s>_axi_*", fillcolor="white", width=7.5, group=M];
+
+    // forward data flow (left column)
+    pw -> wdest [label="W beats"];
+    wdest -> pl2 [dir=none, xlabel="W beats, steered\nby the head"];
+    pl2 -> wmux;
+    wmux -> bar [label="W to slave", penwidth=1.8];
+
+    // request flow (center column)
+    pc -> arb [label="AW (each master path)"];
+    arb -> pc2 [dir=none, penwidth=1.8, xlabel="granted AW"];
+    pc2 -> pc3 [dir=none, penwidth=1.8];
+    pc3 -> bar [label="AW to slave", penwidth=1.8];
+
+    // sideband: pushes and the owner select
+    pc -> wdest [style=dashed, label="target slave\n(push)"];
+    arb -> wown [style=dashed, label="grant\n(push)"];
+    wown -> wmux [style=dashed, label="owner\n(head)"];
+}

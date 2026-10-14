@@ -50,13 +50,17 @@ assign cpu_32b_w_to_ddr = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd0);
 Because every accepted AW is queued, a master may issue further AWs before
 the first burst's W beats finish; each W burst follows its own AW in order.
 
-### Figure 3.3: W Destination Entry Lifecycle
+### Figure 3.3: W Data Tracking FIFOs
 
-![W Destination Entry Lifecycle](../assets/mermaid/w_tracking_fsm.png)
+![W Data Tracking FIFOs](../assets/graphviz/w_tracking.png)
 
-Read the figure as the life of ONE FIFO entry, not as a channel-wide
-state: the entry is written at the AW handshake and retired by the W beat
-carrying WLAST. Several entries can be live at once.
+W beats run down the left: each master path's W destination FIFO names the
+slave its current burst goes to, and the slave's W mux takes the beats of the
+master that is also at the head of that slave's W owner FIFO. The AW
+requests run down the center through the per-slave arbiter. The dashed
+pushes come from the AW side: the master-side AW accept pushes the target
+slave, and the slave-side AW accept pushes the granted master. Both FIFOs pop
+on the W beat carrying WLAST, and several bursts can be queued at once.
 
 ## Response Pending Counter
 

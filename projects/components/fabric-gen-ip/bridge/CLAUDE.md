@@ -388,7 +388,7 @@ memory_model = MemoryModel()  # Unnecessary complexity
 **When to Use Memory Models:**
 - Simple in-order tests → Use queue access
 - Single-master systems → Use queue access
-- Complex out-of-order scenarios → not supported; slaves must respond in request order
+- Out-of-order responses → a multi-master AXI4/AXI5 slave may reorder across IDs (CAM-tracked); FIFO-tracked slaves must respond in request order
 - Multi-master with address overlap → Memory model tracks state
 
 ---
@@ -910,9 +910,11 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 
 **Deliberately NOT supported** -- these were claimed here for months and none
 of them is built:
-- Out-of-order responses. Ordering is structural: one target slave per master
-  at a time (`aw_gate_ok`), and each slave port must return B/R in request
-  order across all IDs (bridge BUG-008, was BRIDGE-010).
+- Out-of-order responses at a FIFO-tracked slave (single-master bridges,
+  shim and subtractive slaves): those must return B/R in request order across
+  all IDs (bridge BUG-008, was BRIDGE-010). A multi-master AXI4/AXI5 slave is
+  CAM-tracked and may reorder across IDs. Each master still has one target
+  slave at a time (`aw_gate_ok`).
 - Burst-locked arbitration. The grant releases at the address handshake, as
   item 4 above already said -- this bullet contradicted it directly.
 - Configurable arbitration policy. Round-robin is hard-coded.
