@@ -1,0 +1,72 @@
+# Testplan for hive_descriptor_gen (Block 1)
+# STATUS: planned — RTL not written yet. Contract: HAS §4.2 (256-bit CDA
+# descriptor format), MAS §2.2 (mailbox + descriptor_gen model; mailbox is
+# a parameter-controlled dedicated register file, register-file default).
+
+module: hive_descriptor_gen
+rtl_file: projects/components/compute-eng-ip/hive-serv/rtl/hive_c_controller/descriptor_gen.sv
+test_file: projects/components/compute-eng-ip/hive-serv/dv/tests/test_hive_descriptor_gen.py
+
+# Module description:
+# Firmware writes a descriptor record into the mailbox register file and
+# pulses a doorbell; descriptor_gen assembles the 256-bit CDA beat per the
+# HAS field map (src[255:192], dst[191:128], len[127:96], stride[95:64],
+# flags[63:32], next[31:0]), pushes it to the injection queue in mailbox
+# order, and raises a firmware-visible stall while the queue is full.
+
+parameters:
+  - name: QUEUE_DEPTH
+    default: 8
+
+functional_scenarios:
+  - id: DG-01
+    name: "Mailbox write to field-assembled CDA beat"
+    description: "Write each mailbox field (including corner values
+                  0x0/all-ones/address-bit-63 corners), pulse doorbell, and
+                  check the emitted 256-bit beat field-by-field against the
+                  HAS §4.2 map."
+    test_function: "cocotb_test_hive_descriptor_gen"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: DG-02
+    name: "Control-flag bit packing"
+    description: "Flags word packing: burst size [31:28], burst type
+                  [27:24], priority [23:20], dest tile [19:16], source tile
+                  [15:12], irq vector [11:8], 2D/scatter-gather/irq/coherent
+                  [7:4], type [3:0] — each subfield survives the trip."
+    test_function: "cocotb_test_hive_descriptor_gen"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: DG-03
+    name: "Enqueue order preserved at the queue output"
+    description: "N back-to-back mailbox writes (N < QUEUE_DEPTH) dequeue in
+                  strict FIFO order; ordering property matches the formal
+                  inventory (descriptor FIFO ordering)."
+    test_function: "cocotb_test_hive_descriptor_gen"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: DG-04
+    name: "Full-queue stall flag"
+    description: "With the queue held full (consumer idle), the stall flag
+                  rises on the next doorbell; it clears as the consumer
+                  drains. Stall is a policy signal, never a lost doorbell."
+    test_function: "cocotb_test_hive_descriptor_gen"
+    test_level: func
+    priority: medium
+    status: planned
+
+  - id: DG-05
+    name: "Doorbell coalescing / back-to-back throughput"
+    description: "Sustained doorbell rate at the queue-drain rate: one CDA
+                  beat per cycle steady-state; no bubble larger than the
+                  documented pipeline latency at func, sustained at full."
+    test_function: "cocotb_test_hive_descriptor_gen"
+    test_level: full
+    priority: medium
+    status: planned

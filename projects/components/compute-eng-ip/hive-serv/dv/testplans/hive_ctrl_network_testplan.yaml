@@ -1,0 +1,90 @@
+# Testplan for hive_ctrl_network (Block 3)
+# NOTE (2026-10-13): CN-04..07 blocked on the CN-04 rotation issue — see vault
+# hive-serv TASK-000.  CN-01..03 verified at gate; statuses below reflect the block.
+# STATUS: planned — RTL not written yet. Contract: MAS §2.4 (AXIS-shaped
+# 32-bit frames, star fan-out, round-robin uplink, tuser[0] urgent) under
+# the owner AXIS-only rule (2026-10-13).
+
+module: hive_ctrl_network
+rtl_file: projects/components/compute-eng-ip/hive-serv/rtl/control_network/control_network.sv
+test_file: projects/components/compute-eng-ip/hive-serv/dv/tests/test_hive_ctrl_network.py
+
+# Module description:
+# Star between HIVE-C (master, hive_c_clk) and the SERV slaves (serv_clk):
+# control_packetizer (frame encode/decode), control_router (fan-out),
+# control_arbiter (16->1 round-robin uplink with urgent next-grant),
+# CDC FIFOs as the only clock crossing. One frame per AXIS beat, tlast
+# every beat, tuser[0] = urgent.
+
+parameters:
+  - name: SLAVE_COUNT
+    default: 4   # Phase 1 bring-up at 4 of 16; full count in Phase 3
+
+functional_scenarios:
+  - id: CN-01
+    name: "Frame encode/decode round trip"
+    description: "opcode[31:24] / target-or-source[23:16] / payload[15:0]
+                  survive encode on the master side and decode on the slave
+                  side; tlast marks frame end; malformed lengths are
+                  rejected per the framing rules."
+    test_function: "cocotb_test_hive_ctrl_network"
+    test_level: func
+    priority: high
+    status: blocked
+
+  - id: CN-02
+    name: "Unicast delivery and in-order per slave"
+    description: "Commands to a single slave arrive in issue order; frames
+                  to different slaves may overlap in flight."
+    test_function: "cocotb_test_hive_ctrl_network"
+    test_level: func
+    priority: high
+    status: blocked
+
+  - id: CN-03
+    name: "Broadcast (target 8'hFF)"
+    description: "A broadcast frame is delivered to every slave in the same
+                  command issue; slaves see identical payload."
+    test_function: "cocotb_test_hive_ctrl_network"
+    test_level: func
+    priority: medium
+    status: blocked
+
+  - id: CN-04
+    name: "Round-robin grant order"
+    description: "With all uplink FIFOs non-empty, grants cycle 0,1,2,...
+                  regardless of arrival skew; one frame per grant."
+    test_function: "cocotb_test_hive_ctrl_network"
+    test_level: func
+    priority: high
+    status: blocked
+
+  - id: CN-05
+    name: "Urgent flag = next-grant priority"
+    description: "A frame with tuser[0]=1 urgent wins the grant immediately
+                  after the current frame completes (non-preemptive);
+                  verified for every slave position."
+    test_function: "cocotb_test_hive_ctrl_network"
+    test_level: func
+    priority: medium
+    status: blocked
+
+  - id: CN-06
+    name: "No starvation (structural)"
+    description: "Under adversarial single-slave flooding, every slave's
+                  service interval stays bounded by SLAVE_COUNT frames —
+                  the formal no-starvation property's simulation mirror."
+    test_function: "cocotb_test_hive_ctrl_network"
+    test_level: full
+    priority: medium
+    status: blocked
+
+  - id: CN-07
+    name: "CDC integrity and latency targets"
+    description: "Randomized both-side rates: no frame loss or reorder
+                  across the FIFOs; command delivery < 10 cycles, all-16
+                  aggregation < 20 cycles (scaled: SLAVE_COUNT for Phase 1)."
+    test_function: "cocotb_test_hive_ctrl_network"
+    test_level: func
+    priority: medium
+    status: blocked

@@ -63,7 +63,7 @@ design.
 | mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4 | README "structure only — no HAS, no RTL" | v4 research placeholder |
 | riscv-ip/garuda-rv32imaf | `.gitkeep` shells; area README "planned, structure only" | FP OoO rung placeholder |
 | riscv-ip/gyrfalcon-rv32ima | `.gitkeep` shells; area README "planned, structure only" | OoO capstone placeholder |
-| riscv-ip/hive-serv | PRD/CLAUDE v0.1 "early specification"; no RTL | SERV/VexRiscv control-cluster spec |
+| compute-eng-ip/hive-serv | HAS/MAS v0.2; Phase 1 RTL in progress (descriptor_gen, axis_cda_master, ctrl_network CN-01..03 green; vault hive-serv TASK-000) | HIVE control system (1 VexRiscv + 16 SERV) |
 | riscv-ip/merlin-rv32i | `.gitkeep` shells; area README "planned, structure only" | 5-stage placeholder |
 | riscv-ip/peregrine-rv32im | `.gitkeep` shells; area README "planned, structure only" | Advanced in-order placeholder |
 

@@ -65,7 +65,7 @@ build understanding from the ground up.
 
 ```mermaid
 graph TD
-    L1[Level 1: Common Building Blocks<br/>224 modules] --> L2[Level 2: AMBA Protocol Infrastructure<br/>124 modules]
+    L1[Level 1: Common Building Blocks<br/>250 modules] --> L2[Level 2: AMBA Protocol Infrastructure<br/>231 modules]
     L2 --> L3[Level 3: Integration Examples]
     L3 --> L4[Level 4: Production Components<br/>10+ components]
     L4 --> L5[Level 5: Complete FPGA Projects]
@@ -86,9 +86,13 @@ graph TD
 - **[Documentation Index](../DOCUMENTATION_INDEX.md)** - Complete documentation guide
 
 ### RTL Building Blocks
-- **[Common Library](../../rtl/common)** (224 modules) - [Documentation](rtl-common/index.md) - [AI Guide](../../rtl/common/CLAUDE.md)
-  - Counters, FIFOs, arbiters, integer math, floating-point (BF16/FP16/FP32/FP8), data integrity
-- **[AMBA Infrastructure](../../rtl/amba)** (124 modules) - [Documentation](rtl-amba/index.md) - [AI Guide](../../rtl/amba/CLAUDE.md)
+- **[Common Library](../../rtl/common)** (50 modules) - [Documentation](rtl-common/index.md) - [AI Guide](../../rtl/common/CLAUDE.md)
+  - Counters, FIFOs, arbiters, encoders, shifters, data integrity
+- **[Math Library](../../rtl/math)** (185 modules) - [Documentation](rtl-math/index.md)
+  - Integer arithmetic, floating-point (BF16/FP16/FP32/FP8)
+- **[CDC Library](../../rtl/cdc)** (15 modules) - [Documentation](rtl-cdc/index.md)
+  - Synchronizers, handshakes, async FIFOs, Gray/Johnson counters
+- **[AMBA Infrastructure](../../rtl/amba)** (231 modules) - [Documentation](rtl-amba/index.md) - [AI Guide](../../rtl/amba/CLAUDE.md)
   - APB, AXI4, AXI4-Lite, AXI-Stream, ACE, AMBA5 protocols
 
 ### Component Projects
@@ -107,7 +111,7 @@ graph TD
 | **[BCH](../../projects/components/ecc-ip/bch)** | Ready | Binary BCH codec; 1.0, Genesys-2 board-validated |
 | **[kestrel](../../projects/components/riscv-ip/kestrel-rv32i)** | Ready | RV32I single-cycle core (rv32ui + riscv-formal 42/42) |
 | **[falcon suite rungs](../../projects/components/riscv-ip)** | Planned | merlin / peregrine / gyrfalcon / garuda RISC-V ladder |
-| **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV cores) |
+| **[HIVE](../../projects/components/compute-eng-ip/hive-serv)** | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + 16 SERV cores) |
 | **[amber](../../projects/components/cache-ip/amber-mesi-l1)** | In progress | Blocking MESI snoopy L1 (gemstone family) |
 | **[cache-ip rungs](../../projects/components/cache-ip)** | Planned | jet (MSHR L1) · basalt (MOESI L2) · onyx (ACE CCU) |
 | **[dfx-ip](../../projects/components/dfx-ip)** | Planned | House debug port: jtag-tap, jtag-axil-agent, riscv-debug |
@@ -131,7 +135,7 @@ graph TD
 
 **Location:** [`rtl/common/`](../../rtl/common) | **Documentation:** [Full Index](rtl-common/index.md) | [AI Guide](../../rtl/common/CLAUDE.md)
 
-Learn fundamental RTL design patterns through **224 reusable modules**:
+Learn fundamental RTL design patterns through **250 reusable modules** across `rtl/common` (50), `rtl/math` (185) and `rtl/cdc` (15):
 
 #### Integer Arithmetic (44+ modules)
 - **Counters:** Binary, Gray code, Johnson, Ring, Load/Clear variants
@@ -182,7 +186,7 @@ module counter_bin #(
 
 **Location:** [`rtl/amba/`](../../rtl/amba) | **Documentation:** [Full Index](rtl-amba/index.md) | [AI Guide](../../rtl/amba/CLAUDE.md)
 
-Apply common building blocks to implement industry-standard protocols (**124 modules**):
+Apply common building blocks to implement industry-standard protocols (**231 modules**):
 
 #### APB (Advanced Peripheral Bus)
 - **[APB Masters](../../rtl/amba/apb4)** - Command/response interfaces with FIFO buffering
@@ -296,7 +300,7 @@ Build complete, production-ready peripherals for FPGA deployment (**25+ componen
 |-----------|--------|-------------|
 | **[kestrel](../../projects/components/riscv-ip/kestrel-rv32i)** | Ready | RV32I single-cycle core — rv32ui 42/42 spike lockstep, riscv-formal 42/42 |
 | **[merlin / peregrine / gyrfalcon / garuda](../../projects/components/riscv-ip)** | Planned | The ladder: 5-stage → advanced in-order → OoO capstone (+A atomics) → OoO + FPU |
-| **[HIVE](../../projects/components/riscv-ip/hive-serv)** | Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+| **[HIVE](../../projects/components/compute-eng-ip/hive-serv)** | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
 
 #### Cache Coherence (gemstone family)
 
@@ -479,7 +483,7 @@ rtldesignsherpa/
 │   │   ├── fabric-gen-ip/       # Bridge, APB crossbar, Delta AXIS-xbar generator
 │   │   ├── mem-ctrl-ip/         # research rocks (pumice/scoria/andesite) + product tops
 │   │   ├── ecc-ip/              # Reed-Solomon + BCH (1.0, board-validated)
-│   │   ├── riscv-ip/            # falcon suite (kestrel Done) + hive-serv
+│   │   ├── riscv-ip/            # falcon suite (kestrel Done)
 │   │   ├── cache-ip/            # gemstone coherence family (amber in progress)
 │   │   ├── dfx-ip/              # debug-port scaffolds (jtag-tap / jtag-axil-agent / riscv-debug)
 │   │   ├── noc-ip/              # future NoC draft spec (delta_spec; no RTL)
@@ -704,10 +708,10 @@ pytest val/{subsystem}/test_my_module.py -v
 
 ### Module Counts
 
-- **224 Common Modules** - Counters, FIFOs, arbiters, math, floating-point
-- **~160 AMBA Modules** - APB, AXI4/5, AXI-Lite, AXI-Stream, ACE, Wishbone-4
+- **250 Common, Math and CDC Modules** - Counters, FIFOs, arbiters, math, floating-point, CDC
+- **231 AMBA Modules** - APB, AXI4/5, AXI-Lite, AXI-Stream, ACE, Wishbone-4
 - **25+ Production Components** - DMA engines, interconnect generators, ECC, memory controllers, RISC-V cores, caches
-- **350+ Total RTL Modules** - Complete verification infrastructure
+- **481 Total RTL Modules** (all of `rtl/`, counted by `module` declarations, 2026-10-13) - Complete verification infrastructure
 
 ### Synthesis Results
 

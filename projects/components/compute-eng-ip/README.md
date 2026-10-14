@@ -21,12 +21,20 @@
 
 <!-- End Header -->
 
-
 # Compute Engine IP
 
-Compute engines and accelerators. Created 2026-09-29 (Sean) when the component
-tree was regrouped into `*-ip` families.
+Compute systems: the engines that compute and the control planes that
+orchestrate them. Family revived 2026-10-13 (created 2026-09-29 in the
+component-tree regrouping) when **cell** joined and **hive-serv** returned
+from its 2026-10-10..2026-10-13 stay in riscv-ip — HIVE uses RISC-V cores but
+is a *system*, not a core, and it is the control half of this family.
 
 | Directory | What | Status |
 |---|---|---|
-| _(hive re-homed to [riscv-ip/hive-serv](../riscv-ip/hive-serv/) 2026-10-10 — a SERV-based RISC-V block belongs in the falcon suite area)_ | | |
+| [`hive-serv/`](hive-serv/) | Hierarchical control/monitoring system: 1 VexRiscv master (HIVE-C) + 16 SERV per-tile monitors; inband descriptor injection into delta; coordinates RAPIDS and cell | HAS/MAS v0.2; Phase 1 RTL in progress (vault hive-serv TASK-000) |
+| [`cell/`](cell/) | Compute engine: `cgra` reconfigurable array (TBD) + `axon` SERV/delta result router | Scaffold (README + axon spec sketch) |
+
+The pair forms the compute system: **cell** is the data plane (the CGRA),
+**hive-serv** is the control plane, **delta** is the fabric between them, and
+**RAPIDS** moves bulk data. See the [hive-serv HAS](hive-serv/docs/hive_has/hive_has_index.md)
+and the [cell README](cell/README.md).

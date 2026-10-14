@@ -26,7 +26,7 @@
 
 **Version:** 0.2
 **Date:** 2026-10-12
-**Status:** Specification phase — HAS/MAS v0.2 published; no RTL yet
+**Status:** HAS/MAS v0.2 published; Phase 1 RTL in progress (3 of 5 blocks verified, see vault hive-serv TASK-000)
 **Owner:** RTL Design Sherpa Project
 **Parent Document:** `/PRD.md`
 
@@ -57,14 +57,14 @@ The Hierarchical Intelligent Vector Environment (HIVE) is a distributed control 
 This PRD provides a high-level overview. **Detailed specifications are maintained separately:**
 
 ### HIVE Hardware Architecture Specification (HAS) — external contract
-**Location:** `projects/components/riscv-ip/hive-serv/docs/hive_has/`
+**Location:** `projects/components/compute-eng-ip/hive-serv/docs/hive_has/`
 
 - **[Index](docs/hive_has/hive_has_index.md)** - HAS structure
 - System overview, subsystem architecture (4 blocks), interfaces & packet
   formats, programming model, performance targets, integration & verification
 
 ### HIVE Micro-Architecture Specification (MAS) — implementation intent
-**Location:** `projects/components/riscv-ip/hive-serv/docs/hive_mas/`
+**Location:** `projects/components/compute-eng-ip/hive-serv/docs/hive_mas/`
 
 - **[Index](docs/hive_mas/hive_mas_index.md)** - MAS structure
 - Block-level module trees, clocking/reset, internal interfaces, cycle-level
@@ -75,7 +75,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
 - **Tasks** - none tracked. The vault area was deleted 2026-09-27: hive has no .sv,
   no tests and no filelists, so its 24 open items described work that had not begun.
-  They are in git history at `vault/Tasks/projects/components/riscv-ip/hive-serv/`.
+  They are in git history at `vault/Tasks/projects/components/compute-eng-ip/hive-serv/`.
 
 > **History note:** the earlier `docs/hive_spec/` + `docs/hive_specification.md`
 > drafts (v0.3) were migrated into the HAS/MAS and retired 2026-10-12; they remain
@@ -261,14 +261,14 @@ packet-format, and register-map specifications.
 
 ### 7.1 Current Status
 
-**Overall:** Specification phase - implementation pending
+**Overall:** Phase 1 RTL in progress (2026-10-13)
 
 | Component | Spec Status | Implementation Status |
 |-----------|-------------|----------------------|
-| HIVE-C Controller | HAS/MAS v0.2 | Pending |
-| SERV Monitors | HAS/MAS v0.2 | Pending |
-| Control Network | HAS/MAS v0.2 | Pending |
-| Configuration Manager | HAS/MAS v0.2 | Pending |
+| HIVE-C Controller | HAS/MAS v0.2 | Phase 1 in progress (descriptor_gen, axis_cda_master verified) |
+| SERV Monitors | HAS/MAS v0.2 | Submodules written; top pending (TASK-000) |
+| Control Network | HAS/MAS v0.2 | CN-01..03 verified; rotation scenarios blocked (TASK-000) |
+| Configuration Manager | HAS/MAS v0.1 | Pending |
 | Integration | HAS/MAS v0.2 | Pending |
 
 ---
@@ -398,7 +398,7 @@ HIVE demonstrates:
 **Tool:** `bin/md_to_docx.py` (repo root) via the wrapper scripts:
 
 ```bash
-cd projects/components/riscv-ip/hive-serv/docs
+cd projects/components/compute-eng-ip/hive-serv/docs
 ./generate_has_pdf.sh            # HIVE_HAS_v0.2.docx / .pdf
 ./generate_mas_pdf.sh            # HIVE_MAS_v0.2.docx / .pdf
 # Optional revision override:

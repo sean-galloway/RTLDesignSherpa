@@ -32,12 +32,12 @@
 ## Quick Context
 
 **What:** HIVE (Hierarchical Intelligent Vector Environment) - Distributed control and monitoring subsystem for RAPIDS/Delta Network
-**Status:** Specification phase — HAS/MAS v0.2 published 2026-10-13; no RTL yet
+**Status:** HAS/MAS v0.2 published 2026-10-13; Phase 1 RTL in progress (descriptor_gen, axis_cda_master, ctrl_network CN-01..03 verified at gate/func; remaining blocks + the CN-04 rotation issue tracked in vault hive-serv TASK-000)
 **Your Role:** Help users understand hierarchical RISC-V architecture, distributed monitoring, and network reconfiguration
 
 **Primary Specifications:**
-- HAS (`projects/components/riscv-ip/hive-serv/docs/hive_has/`) — external contract
-- MAS (`projects/components/riscv-ip/hive-serv/docs/hive_mas/`) — block-level implementation intent
+- HAS (`projects/components/compute-eng-ip/hive-serv/docs/hive_has/`) — external contract
+- MAS (`projects/components/compute-eng-ip/hive-serv/docs/hive_mas/`) — block-level implementation intent
 
 ---
 
@@ -46,19 +46,19 @@
 ### Rule #2: Always Reference the Specifications
 
 **This subsystem's technical documentation lives in:**
-- `projects/components/riscv-ip/hive-serv/docs/hive_has/` — architecture, interfaces, packet formats, programming model
-- `projects/components/riscv-ip/hive-serv/docs/hive_mas/` — module trees, clocking/reset, cycle-level behavior, verification hooks
+- `projects/components/compute-eng-ip/hive-serv/docs/hive_has/` — architecture, interfaces, packet formats, programming model
+- `projects/components/compute-eng-ip/hive-serv/docs/hive_mas/` — module trees, clocking/reset, cycle-level behavior, verification hooks
 
 **Before answering technical questions:**
 ```bash
-ls projects/components/riscv-ip/hive-serv/docs/hive_has/
-ls projects/components/riscv-ip/hive-serv/docs/hive_mas/
-cat projects/components/riscv-ip/hive-serv/docs/hive_has/hive_has_index.md
+ls projects/components/compute-eng-ip/hive-serv/docs/hive_has/
+ls projects/components/compute-eng-ip/hive-serv/docs/hive_mas/
+cat projects/components/compute-eng-ip/hive-serv/docs/hive_has/hive_has_index.md
 ```
 
 **Your answer should:**
 1. Provide direct answer/code
-2. **Then link to the spec:** "See `projects/components/riscv-ip/hive-serv/docs/hive_has/{file}.md` (or `hive_mas/`) for the full specification"
+2. **Then link to the spec:** "See `projects/components/compute-eng-ip/hive-serv/docs/hive_has/{file}.md` (or `hive_mas/`) for the full specification"
 
 ### Rule #3: HIVE System Context
 
@@ -253,7 +253,7 @@ Switching Sequence:
 **Tool:** `bin/md_to_docx.py` (repo root) via the wrapper scripts:
 
 ```bash
-cd projects/components/riscv-ip/hive-serv/docs
+cd projects/components/compute-eng-ip/hive-serv/docs
 ./generate_has_pdf.sh            # HIVE_HAS_v0.2.docx / .pdf
 ./generate_mas_pdf.sh            # HIVE_MAS_v0.2.docx / .pdf
 ```
@@ -269,7 +269,7 @@ repo's `bin/md_to_docx.py`.
 
 ```bash
 python bin/md_to_docx.py \
-    projects/components/riscv-ip/hive-serv/docs/hive_has/hive_has_index.md \
+    projects/components/compute-eng-ip/hive-serv/docs/hive_has/hive_has_index.md \
     -o output.docx --debug-md
 ```
 

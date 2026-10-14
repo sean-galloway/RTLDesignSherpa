@@ -63,12 +63,12 @@ tracker. Nothing here is a second copy of either.
 | dma-ip/rapids (DMA with network integration) | [dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md](dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md), [dma-ip/rapids/CLAUDE.md](dma-ip/rapids/CLAUDE.md) |
 | mem-ctrl-ip (research rocks: pumice board-validated, scoria sim-verified, andesite planned; product tops granite/gabbro/diorite scaffolded) | [mem-ctrl-ip/README.md](mem-ctrl-ip/README.md) |
 | ecc-ip (reed-solomon + bch, both 1.0 and board-validated) | [ecc-ip/README.md](ecc-ip/README.md), [ecc-ip/reed-solomon/README.md](ecc-ip/reed-solomon/README.md), [ecc-ip/bch/README.md](ecc-ip/bch/README.md) |
-| riscv-ip (falcon suite: kestrel Done — rv32ui/riscv-formal 42/42; merlin/peregrine/gyrfalcon/garuda planned; hive-serv spec) | [riscv-ip/README.md](riscv-ip/README.md) |
+| riscv-ip (falcon suite: kestrel Done — rv32ui/riscv-formal 42/42; merlin/peregrine/gyrfalcon/garuda planned) | [riscv-ip/README.md](riscv-ip/README.md) |
 | cache-ip (gemstone family: amber in progress with RTL landing; jet/basalt/onyx planned) | [cache-ip/amber-mesi-l1/README.md](cache-ip/amber-mesi-l1/README.md) |
 | dfx-ip (house debug port: jtag-tap, jtag-axil-agent, riscv-debug scaffolds) | [dfx-ip/docs/dfx_has/dfx_has_index.md](dfx-ip/docs/dfx_has/dfx_has_index.md) |
 | legacy-ip (retro_legacy_blocks: HPET, 8259, 8254, RTC, SMBus, PM/ACPI, IOAPIC, GPIO, UART) | [legacy-ip/retro_legacy_blocks/README.md](legacy-ip/retro_legacy_blocks/README.md) |
 | misc (ROM/RAM wrappers and utilities) | [utility-ip/misc/README.md](utility-ip/misc/README.md) |
-| compute-eng-ip/hive | retired 2026-09-27; re-homed to riscv-ip/hive-serv 2026-10-10 (SERV-based, belongs in the falcon suite area) |
+| compute-eng-ip (compute systems: hive-serv control plane — Phase 1 RTL in progress; cell CGRA scaffold) | [compute-eng-ip/README.md](compute-eng-ip/README.md) |
 
 ---
 

@@ -473,3 +473,9 @@ filelist_dirs = ["val/amba/filelists"]
 # (enable on a bigger/faster part). See rtl/OLD/README.md.
 pumice_bank_cmd_picker = "set aside under rtl/OLD/ -- two-stage scheduler, too big for this part; see that README"
 pumice_bank_sched_core = "set aside under rtl/OLD/ -- two-stage scheduler, too big for this part; see that README"
+
+[[area]]
+name = "hive"
+kind = "component"
+rtl_roots = ["projects/components/compute-eng-ip/hive-serv/rtl"]
+filelist_dirs = ["projects/components/compute-eng-ip/hive-serv/rtl/filelists"]

@@ -228,7 +228,8 @@ When adding new projects:
 | [ecc-ip bch](components/ecc-ip/bch/) | Done — 1.0 | [README](components/ecc-ip/bch/README.md) |
 | [riscv-ip kestrel](components/riscv-ip/kestrel-rv32i/) | Done | [docs](components/riscv-ip/kestrel-rv32i/docs/) |
 | [riscv-ip falcon suite](components/riscv-ip/) | Planned | [README](components/riscv-ip/README.md) |
-| [hive-serv](components/riscv-ip/hive-serv/) | Re-homed 2026-10-10 (retired 2026-09-27, revived) | [PRD](components/riscv-ip/hive-serv/PRD.md) · [HAS](components/riscv-ip/hive-serv/docs/hive_has/hive_has_index.md) · [MAS](components/riscv-ip/hive-serv/docs/hive_mas/hive_mas_index.md) |
+| [hive-serv](components/compute-eng-ip/hive-serv/) | HAS/MAS v0.2; Phase 1 RTL in progress | [PRD](components/compute-eng-ip/hive-serv/PRD.md) · [HAS](components/compute-eng-ip/hive-serv/docs/hive_has/hive_has_index.md) · [MAS](components/compute-eng-ip/hive-serv/docs/hive_mas/hive_mas_index.md) |
+| [cell](components/compute-eng-ip/cell/) | Scaffold — CGRA (TBD) + axon result router | [README](components/compute-eng-ip/cell/README.md) · [axon spec](components/compute-eng-ip/cell/docs/axon_spec.md) |
 | [cache-ip amber](components/cache-ip/amber-mesi-l1/) | In progress | [README](components/cache-ip/amber-mesi-l1/README.md) · [PRD](components/cache-ip/amber-mesi-l1/PRD.md) |
 | [dfx-ip](components/dfx-ip/) | Scaffold | [HAS](components/dfx-ip/docs/dfx_has/dfx_has_index.md) |
 | [legacy-ip/retro_legacy_blocks](components/legacy-ip/retro_legacy_blocks/) | Active | [PRD](components/legacy-ip/retro_legacy_blocks/PRD.md) |

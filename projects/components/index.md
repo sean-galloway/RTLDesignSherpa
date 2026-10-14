@@ -55,7 +55,8 @@ This directory contains production-ready and in-development component projects f
 | **ecc-ip / BCH** | Production — 1.0, Genesys-2 board-validated | [ecc-ip/bch/](ecc-ip/bch/) | [README](ecc-ip/bch/README.md) |
 | **kestrel (RV32I single-cycle core)** | Production — rv32ui 42/42 spike lockstep, riscv-formal 42/42 | [riscv-ip/kestrel-rv32i/](riscv-ip/kestrel-rv32i/) | [HAS](riscv-ip/kestrel-rv32i/docs/kestrel_has/kestrel_has_index.md) · [MAS](riscv-ip/kestrel-rv32i/docs/kestrel_mas/kestrel_mas_index.md) |
 | **merlin / peregrine / gyrfalcon / garuda** | Planned — falcon-suite ladder (structure only; see [suite README](riscv-ip/README.md)) | [riscv-ip/](riscv-ip/) | [Suite design spec](../../docs/superpowers/specs/2026-10-06-riscv-falcon-suite-design.md) |
-| **hive-serv (SERV compute cluster)** | Re-homed 2026-10-10 from compute-eng-ip/hive (retired 2026-09-27; revived as a riscv-ip area — 1 VexRiscv + 16 SERV cores; HAS/MAS v0.2 published 2026-10-13, no RTL yet) | [riscv-ip/hive-serv/](riscv-ip/hive-serv/) | [HAS](riscv-ip/hive-serv/docs/hive_has/hive_has_index.md), [MAS](riscv-ip/hive-serv/docs/hive_mas/hive_mas_index.md) |
+| **hive-serv (control/monitoring system)** | HIVE: 1 VexRiscv master (HIVE-C) + 16 SERV per-tile monitors; control half of the compute family (returned from riscv-ip 2026-10-13). HAS/MAS v0.2; Phase 1 RTL in progress | [compute-eng-ip/hive-serv/](compute-eng-ip/hive-serv/) | [HAS](compute-eng-ip/hive-serv/docs/hive_has/hive_has_index.md), [MAS](compute-eng-ip/hive-serv/docs/hive_mas/hive_mas_index.md) |
+| **cell (CGRA compute engine)** | Scaffold — `cgra` array (TBD) + `axon` SERV/delta result router; data half of the compute family | [compute-eng-ip/cell/](compute-eng-ip/cell/) | [README](compute-eng-ip/cell/README.md) · [axon spec](compute-eng-ip/cell/docs/axon_spec.md) |
 | **amber (blocking MESI snoopy L1 cache)** | In progress — first of the [cache-ip/](cache-ip/) gemstone family; HAS/MAS v1.0, RTL landing | [cache-ip/amber-mesi-l1/](cache-ip/amber-mesi-l1/) | [README](cache-ip/amber-mesi-l1/README.md) · [PRD](cache-ip/amber-mesi-l1/PRD.md) |
 | **jet (lockup-free MESI snoopy L1)** | Planned — non-blocking (MSHR) follow-on to amber; [README](cache-ip/jet-mesi-l1/README.md) + [PRD](cache-ip/jet-mesi-l1/PRD.md) scaffolded | [cache-ip/jet-mesi-l1/](cache-ip/jet-mesi-l1/) | — |
 | **basalt (MOESI L2)** | Planned — pencil only, PRD v0.1 all rows OPEN; gated behind onyx v1 | [cache-ip/basalt-moesi-l2/](cache-ip/basalt-moesi-l2/) | [README](cache-ip/basalt-moesi-l2/README.md) |
@@ -92,7 +93,8 @@ This directory contains production-ready and in-development component projects f
 **RISC-V:**
 - [kestrel](riscv-ip/kestrel-rv32i/) - RV32I single-cycle core (rv32ui + riscv-formal 42/42)
 - [falcon suite](riscv-ip/) - merlin / peregrine / gyrfalcon / garuda ladder (planned)
-- [hive-serv](riscv-ip/hive-serv/) - SERV compute cluster, re-homed from compute-eng-ip 2026-10-10 (retired 2026-09-27, revived)
+- [hive-serv](compute-eng-ip/hive-serv/) - HIVE control/monitoring system (control half of the compute family; returned from riscv-ip 2026-10-13)
+- [cell](compute-eng-ip/cell/) - CGRA compute engine: cgra (TBD) + axon SERV/delta result router (scaffold)
 
 **Cache coherence:**
 - [amber](cache-ip/amber-mesi-l1/) - blocking MESI snoopy L1, RTL landing

@@ -55,15 +55,14 @@ not `kestrel`. The bare codename is how the core is referred to in prose
 | [`gyrfalcon-rv32ima/`](gyrfalcon-rv32ima/) | **gyrfalcon** | RV32IM baseline; gyrfalcon-A flavor RV32IMA | out-of-order capstone: rename, ROB, reservation stations; two flavors — baseline and gyrfalcon-A (`A_EXT=1`: LR/SC + AMO atomics study) | Planned; structure only |
 | [`garuda-rv32imaf/`](garuda-rv32imaf/) | **garuda** | RV32IMAF | gyrfalcon's OoO plus an FPU: FP register file + rename, fcsr precise flags, non-pipelined long-latency units | Planned; structure only (penciled in; beyond the 2026-10-06 design spec, which pins four rungs) |
 
-### Adjacent: hive-serv
+### Moved: hive-serv
 
-[`hive-serv/`](hive-serv/) — the SERV-based compute cluster (1 VexRiscv control
-plane + 16 SERV monitor cores). Not a falcon-ladder rung: it *uses* RISC-V
-cores rather than teaching one, so it lives beside the ladder rather than on
-it. Re-homed from `compute-eng-ip/hive` 2026-10-10 (it was retired
-2026-09-27 as an unstarted component; the re-home revives it under the
-falcon suite). HAS/MAS v0.2 published 2026-10-13 (`hive-serv/docs/hive_has/`,
-`hive-serv/docs/hive_mas/`) — no RTL yet.
+hive-serv — the SERV-based control/monitoring system (1 VexRiscv control
+plane + 16 SERV monitor cores) — left this area 2026-10-13 for
+[`compute-eng-ip/hive-serv`](../compute-eng-ip/hive-serv/): it *uses* RISC-V
+cores rather than teaching one, and it is the control half of the compute
+family (its other half is the cell CGRA), not a falcon-ladder rung. This
+directory is the ladder again, nothing more.
 
 ## Goals per rung
 

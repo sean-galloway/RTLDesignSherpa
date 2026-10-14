@@ -1,0 +1,69 @@
+# Testplan for hive_axis_cda_master (Block 1)
+# STATUS: planned — RTL not written yet. Contract: HAS §4.1/§4.2 (CDA
+# packet class, TUSER=2'b01, TDEST=16, single-beat descriptors), MAS §2.2
+# (axis4_master into the 256x8 hive_c_clk->delta_clk CDC FIFO).
+
+module: hive_axis_cda_master
+rtl_file: projects/components/compute-eng-ip/hive-serv/rtl/hive_c_controller/axis4_master.sv
+test_file: projects/components/compute-eng-ip/hive-serv/dv/tests/test_hive_axis_cda_master.py
+
+# Module description:
+# Drives the CDA AXIS interface: 256-bit data, tuser=2'b01, tdest=16,
+# tlast on every beat (one descriptor = one beat), tvalid held until
+# tready. Single outstanding packet. Feeds the async FIFO that crosses
+# into delta_clk (hive_top presents only delta_clk AXIS toward delta).
+
+parameters: []
+
+functional_scenarios:
+  - id: CDA-01
+    name: "Sideband protocol on every beat"
+    description: "tuser==2'b01, tdest==16, tlast==1 on every emitted beat;
+                  a protocol checker (or per-signal assertions) flags any
+                  deviation."
+    test_function: "cocotb_test_hive_axis_cda_master"
+    test_level: gate
+    priority: high
+    status: planned
+
+  - id: CDA-02
+    name: "Handshake discipline: single outstanding"
+    description: "At most one beat in flight: tvalid asserted only when the
+                  previous beat completed (tready&&tvalid); no retraction
+                  of tvalid or data between clock edges."
+    test_function: "cocotb_test_hive_axis_cda_master"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: CDA-03
+    name: "tready stall absorption"
+    description: "With tready deasserted for random stretches, tvalid/data
+                  hold stable (no glitches); when tready returns, exactly
+                  one beat transfers per handshake cycle."
+    test_function: "cocotb_test_hive_axis_cda_master"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: CDA-04
+    name: "CDC FIFO crossing integrity"
+    description: "With a delta_clk BFM consuming, the fifo input order is
+                  preserved at the delta_clk output; gray-pointer full/empty
+                  never overflow/underflow under randomized both-side
+                  rates."
+    test_function: "cocotb_test_hive_axis_cda_master"
+    test_level: func
+    priority: medium
+    status: planned
+
+  - id: CDA-05
+    name: "Injection latency target (with FIFO + BFM)"
+    description: "End-to-end mailbox-to-BFM-accept latency measured against
+                  the < 30 cycle target (queue + handshake + crossing);
+                  reported as a measured number in the test log, not a
+                  hard fail until RTL timing is representative."
+    test_function: "cocotb_test_hive_axis_cda_master"
+    test_level: func
+    priority: low
+    status: planned

@@ -54,7 +54,7 @@ sixteen SERV bit-serial cores, one per Delta compute tile, provide distributed
 traffic monitoring and inband configuration/status injection. HIVE consumes no
 DSP blocks and a minority of FPGA logic, leaving the fabric free for compute.
 
-HIVE lives in `projects/components/riscv-ip/hive-serv/`, beside the RISC-V falcon
+HIVE lives in `projects/components/compute-eng-ip/hive-serv/`, beside the RISC-V falcon
 suite ladder. It is deliberately **not** a falcon rung: the ladder teaches one
 core's microarchitecture per rung, while HIVE *uses* RISC-V cores (VexRiscv and
 SERV, both external projects) as building blocks for a control system. The

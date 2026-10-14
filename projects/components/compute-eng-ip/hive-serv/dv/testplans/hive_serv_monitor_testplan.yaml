@@ -1,0 +1,99 @@
+# Testplan for hive_serv_monitor (Block 2, single-instance bring-up)
+# STATUS: planned — RTL not written yet. Contract: HAS ch3 Block 2
+# (monitored metrics, trigger conditions), MAS §2.3 (module tree; dual-flop
+# tap synchronizers decision 2026-10-13).
+
+module: hive_serv_monitor
+rtl_file: projects/components/compute-eng-ip/hive-serv/rtl/serv_monitor/serv_monitor.sv
+test_file: projects/components/compute-eng-ip/hive-serv/dv/tests/test_hive_serv_monitor.py
+
+# Module description:
+# One per-tile monitor: vendored SERV core (vendor/serv) with 2 KB I + 2 KB
+# D local memory, traffic_counter behind the (read-only) router tap,
+# trigger_logic threshold comparator, axis_injector (PKT_CONFIG/PKT_STATUS
+# commit), and ctrl_net_slave. Detection is hardware; policy (packet
+# content) is SERV firmware — the Phase-1 tests drive tap/injector signals
+# directly and run the SERV core only in bring-up scenarios.
+
+parameters:
+  - name: TILE_ID
+    default: 0
+  - name: CONGESTION_THRESHOLD
+    default: 6
+
+functional_scenarios:
+  - id: SM-01
+    name: "Per-direction packet counters"
+    description: "tap strobes increment pkt_rx_count[4]/pkt_tx_count[4] per
+                  direction, plus pkt_local_inject/pkt_local_consume;
+                  wrapping at 2^32; clear-on-read when the statistics-reset
+                  command arrives."
+    test_function: "cocotb_test_hive_serv_monitor"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: SM-02
+    name: "Real-time occupancy and stall tracking"
+    description: "buffer_occupancy[4] tracks the tap's fill-level bus;
+                  stall_cycles increments while valid-packet-waiting-for-
+                  credit is asserted."
+    test_function: "cocotb_test_hive_serv_monitor"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: SM-03
+    name: "Congestion trigger at threshold"
+    description: "Occupancy crossing cfg_threshold (default 75% of 8) raises
+                  congestion_flag within the < 10-cycle detection target
+                  and holds until occupancy drops back below; threshold is
+                  runtime-writable from the control network."
+    test_function: "cocotb_test_hive_serv_monitor"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: SM-04
+    name: "Dual-flop tap synchronization"
+    description: "Tap inputs crossing into serv_clk pass through two-stage
+                  synchronizers (2026-10-13 decision): functional sim checks
+                  the documented 2-cycle settling behavior on randomized tap
+                  transitions; the tap never back-drives the router."
+    test_function: "cocotb_test_hive_serv_monitor"
+    test_level: gate
+    priority: medium
+    status: planned
+
+  - id: SM-05
+    name: "Injector commit → AXIS packet"
+    description: "Firmware-style word writes + TVALID commit produce a
+                  single-beat 128-bit packet with tuser per commit record
+                  (2'b10 config / 2'b11 status), tid = TILE_ID, tlast set;
+                  tready stall holds the commit without duplicate beats."
+    test_function: "cocotb_test_hive_serv_monitor"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: SM-06
+    name: "Sticky error flags"
+    description: "Parity/protocol-violation strobes set sticky error_flags
+                  and interrupt the SERV core; explicit clear via control
+                  frame; overflow/underflow events counted."
+    test_function: "cocotb_test_hive_serv_monitor"
+    test_level: func
+    priority: medium
+    status: planned
+
+  - id: SM-07
+    name: "SERV core bring-up in the wrapper"
+    description: "Load a tiny monitor-firmware image (poll trigger flags,
+                  increment a counter, emit a status packet) into local
+                  memory, run, and observe the assembled PKT_STATUS on the
+                  injector — end-to-end proof the bit-serial core + glue
+                  execute real firmware."
+    test_function: "cocotb_test_hive_serv_monitor"
+    test_level: func
+    priority: high
+    status: planned
