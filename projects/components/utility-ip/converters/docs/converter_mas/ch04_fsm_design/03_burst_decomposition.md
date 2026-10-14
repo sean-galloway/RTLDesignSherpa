@@ -234,7 +234,7 @@ guard).
 
 ## Waveforms
 
-### Figure 4.5: Width Burst Conversion
+### Figure 4.3: Width Burst Conversion
 
 ![Width Burst Conversion](../assets/mermaid/width_burst_conversion.png)
 

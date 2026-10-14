@@ -128,15 +128,9 @@ R_FORWARD:
 No `s_ready` bubble: the wide handshake overlaps the next group's first
 narrow beat.
 
-```
-clk     __|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|
-s_valid ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-s_data    D0   D1   D2   D3   D4   D5   D6   D7   D8   D9   ...
-s_ready ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-m_valid _______________________________________|¯¯¯¯|_______________
-m_data                                          WIDE0
-m_ready ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-```
+### Figure 4.1: Upsize 8:1 Timing
+
+![Upsize 8:1 Timing](../assets/graphviz/conv_upsize_timing.png)
 
 `s_ready` only drops if the wide side stalls with a completed group
 waiting (`!r_wide_valid || wide_ready` fails).
@@ -146,12 +140,6 @@ waiting (`!r_wide_valid || wide_ready` fails).
 `s_ready` re-asserts DURING the last narrow beat, so WIDE1 is accepted
 as D7 drains — back-to-back wide beats with no gap:
 
-```
-clk     __|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|__|¯¯|
-s_valid ¯¯¯¯¯¯¯|_________________________________________|¯¯¯¯|_____
-s_data    WIDE0                                            WIDE1
-s_ready ¯¯¯¯¯¯¯|__________________________________________|¯¯¯¯|____
-m_valid ________|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-m_data           D0   D1   D2   D3   D4   D5   D6   D7   E0   E1 ...
-m_ready ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-```
+### Figure 4.2: Downsize 8:1 Timing
+
+![Downsize 8:1 Timing](../assets/graphviz/conv_downsize_timing.png)

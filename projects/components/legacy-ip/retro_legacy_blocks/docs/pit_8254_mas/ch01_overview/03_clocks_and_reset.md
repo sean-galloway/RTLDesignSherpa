@@ -121,22 +121,9 @@ COUNTER1_DATA = 0x00000000  (no count loaded)
 COUNTER2_DATA = 0x00000000  (no count loaded)
 ```
 
-**Reset Timing:**
-```
-presetn ──┐      ┌──────────────────────────
-          │      │
-          └──────┘
-          ▲      ▲
-       Assert  Deassert
-         │        │
-         │        └── Synchronous to clock edge
-         └─────────── Asynchronous (immediate)
+### Figure 1.6: Reset Timing
 
-pclk   ───┐  ┐  ┐  ┐  ┐  ┐  ┐──
-          └──┘  └──┘  └──┘  └──
-             ▲
-             └── State cleared on this edge (or earlier if async assert)
-```
+![Reset Timing](../assets/graphviz/pit_reset_timing.png)
 
 **Reset Sequence:**
 
@@ -190,12 +177,10 @@ The design includes clock domain crossing infrastructure to safely transfer data
 - Handshaking ensures no data loss across domains
 - Status signals synchronized back to `pclk` domain
 
-**CDC Timing:**
-```
-APB Write → pclk domain → CDC FIFO → pit_clk domain → Register Update
-                (1-2 cycles)        (2-3 cycles)      (1 cycle)
-Total latency: 4-6 pit_clk cycles
-```
+**CDC Timing:** each APB access crosses to `pit_clk` and back through the
+two async FIFOs, so PREADY arrives later than in single-clock mode: 10 wait
+states in the gate simulation at pclk = 100 MHz, pit_clk = 143 MHz. The count
+depends on the clock ratio.
 
 **CDC Verification:**
 - All 6/6 tests pass with `CDC_ENABLE=1` configuration
@@ -209,14 +194,11 @@ The design uses a single clock domain with `apb4_slave` module (no CDC):
 **Direct Connection:**
 - APB slave converts APB protocol to cmd/rsp interface
 - No domain crossing required
-- Lower latency (2-3 cycle register access)
+- Lower latency (5 wait states per access)
 
-**Single Clock Timing:**
-```
-APB Write → pclk domain → Register Update
-                (1-2 cycles)
-Total latency: 2-3 pclk cycles
-```
+**Single Clock Timing:** one SETUP cycle and six ACCESS cycles per access;
+the register is written or read in the third ACCESS cycle (chapter 3,
+Figure 3.1).
 
 ### Multi-Clock Timing Constraints
 

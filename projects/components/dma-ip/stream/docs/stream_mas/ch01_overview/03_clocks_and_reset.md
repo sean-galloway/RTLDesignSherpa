@@ -140,15 +140,9 @@ end
 8. Begin APB configuration
 ```
 
-**Timing diagram:**
+### Figure 1.3.1: STREAM Power-On Reset Sequence
 
-```
-aclk     __| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_
-pclk     __| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_
-aresetn  __________|                                  
-presetn  __________|                                  
-         <--10 cyc-->
-```
+![STREAM Power-On Reset Sequence](../assets/graphviz/stream_power_on_reset.png)
 
 ### Functional Reset
 

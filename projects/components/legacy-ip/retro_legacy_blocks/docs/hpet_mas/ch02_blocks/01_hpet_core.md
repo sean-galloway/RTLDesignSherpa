@@ -212,20 +212,9 @@ assign counter_rdata = r_main_counter;
 - **Increment**: Counter increments every clock when `hpet_enable = 1`
 - **Overflow**: Counter wraps from 64'hFFFF_FFFF_FFFF_FFFF to 64'h0 naturally
 
-#### Counter Timing
+### Figure 2.10: Main Counter Start Timing
 
-```
-Clock:      --+ +-+ +-+ +-+ +-+ +-
-hpet_clk      +-+ +-+ +-+ +-+ +-
-
-Enable:     --------+
-hpet_enable         +-------------
-
-Counter:    [N] [N] [N+1][N+2][N+3]
-r_main_counter
-
-Latency: 1 cycle from enable to first increment
-```
+![Main Counter Start Timing](../assets/graphviz/hpet_counter_enable_timing.png)
 
 ### Timer Comparator Logic
 
@@ -336,7 +325,7 @@ end
 
 **64-bit Comparator Match Waveform:**
 
-### Waveform 2.10: Comparator Match Behavior
+### Waveform 2.11: Comparator Match Behavior
 
 ![Comparator Match Behavior](../assets/waves/comparator_match.json)
 
@@ -572,32 +561,9 @@ exactly one fire; the software value wins and the periodic advance is
 skipped that cycle, so the comparator holds what software programmed,
 not that value plus a period.
 
-**Fire Timing:**
-```
-Clock:      --+ +-+ +-+ +-+ +-+ +-
-hpet_clk      +-+ +-+ +-+ +-+ +-
+### Figure 2.12: Timer Fire Timing
 
-Counter:    [99][100][101][102][103]
-r_main_counter
-
-Comparator:      [100]
-                (constant)
-
-Match:      ------+
-w_timer_match     +-----------
-
-Armed:      ----------+
-r_timer_armed         +-------
-
-Fire:       ------+ +-
-w_timer_fire      +-
-
-Fired Flag: --------+
-timer_int_status[i] +---------
-
-Note: Fire is a 1-cycle pulse; the armed latch drops with it, so the
-match staying high afterwards cannot fire again
-```
+![Timer Fire Timing](../assets/graphviz/hpet_fire_timing.png)
 
 #### Fire Flag Management
 
@@ -639,7 +605,7 @@ assign timer_int_status = r_interrupt_status;
 
 **Interrupt Generation and Acknowledgment Waveform:**
 
-### Waveform 2.11: Interrupt Generation
+### Waveform 2.13: Interrupt Generation
 
 ![Interrupt Generation](../assets/waves/interrupt_generation.json)
 
@@ -688,7 +654,7 @@ bits written with 1. Bits written 0 -- and a write of 0x0 -- clear nothing.
 
 **Periodic Timer Waveform:**
 
-### Waveform 2.12: Periodic Timer Operation
+### Waveform 2.14: Periodic Timer Operation
 
 ![Periodic Timer Operation](../assets/waves/periodic_timer.json)
 
@@ -731,34 +697,15 @@ Armed match with comparator = 1000: timer fires once
    (the 2000 and 3000 boundaries are skipped, not burst)
 ```
 
-#### Periodic Mode Timing Example
+### Figure 2.15: Periodic Mode Timing Example
 
-```
-Clock Cycles:   0   1000 1001 2000 2001 3000 3001 ...
-
-Counter:        0 -> 1000 1001 2000 2001 3000 3001 ...
-
-Comparator:     [1000] [2000] [3000] [4000] ...
-                   ↑      ↑      ↑
-                Fire 1  Fire 2  Fire 3
-
-timer_int_status: --+
-                    +---------------... (sticky: set at Fire 1, holds
-                                         through Fire 2/3 until SW W1C)
-
-timer_irq:        --+
-                    +---------------... (same shape, one cycle later)
-
-Period = 1000 HPET clock cycles (constant). The comparator keeps advancing
-each period, but status/irq do NOT pulse per fire -- they stay asserted from
-the first fire until software clears HPET_STATUS.
-```
+![Periodic Mode Timing Example](../assets/graphviz/hpet_periodic_example.png)
 
 ### One-Shot Mode Details
 
 **One-Shot Timer Waveform:**
 
-### Waveform 2.13: One-Shot Mode Operation
+### Waveform 2.16: One-Shot Mode Operation
 
 ![One-Shot Mode Operation](../assets/waves/oneshot_mode.json)
 
@@ -802,31 +749,9 @@ Result:
   timer around the write -- a write on a running timer does not re-arm)
 ```
 
-#### One-Shot Mode Timing Example
+### Figure 2.17: One-Shot Mode Timing Example
 
-```
-Clock Cycles:   0   5000 5001 5002 ...
-
-Counter:        0 -> 5000 5001 5002 ...
-
-Comparator:     [5000] [5000] [5000] ...
-                   ↑
-                Fire (once)
-
-timer_int_status: --+
-                    +-------------... (sticky until SW clear)
-
-timer_irq:        --+
-                    +-------------... (one cycle later, follows status)
-
-Software Write: ------+ +-
-HPET_STATUS[0]=1      +-
-
-timer_int_status: --+     +-
-(after clear)       +-----+
-
-Fire only once, interrupt sticky until software clear
-```
+![One-Shot Mode Timing Example](../assets/graphviz/hpet_oneshot_example.png)
 
 ---
 

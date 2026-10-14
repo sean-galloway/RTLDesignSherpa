@@ -27,7 +27,7 @@
 
 The `hpet_config_regs` module is the bridge between the PeakRDL-generated register file (`hpet_regs.sv`) and the HPET core timer logic (`hpet_core.sv`). The wrapper exists because the generated register interface and the core's expectations don't line up on their own: it handles interface adaptation, per-timer data bus isolation, and turning the register block's write indications into the one-cycle strobes the core expects.
 
-### Figure 2.14: HPET Config Registers Block Diagram
+### Figure 2.18: HPET Config Registers Block Diagram
 
 ![HPET Config Registers Block Diagram](../assets/graphviz/hpet_config_regs.png)
 
@@ -239,23 +239,9 @@ assign counter_wdata = {hwif_out.HPET_COUNTER_HI.counter_hi.value,
                         hwif_out.HPET_COUNTER_LO.counter_lo.value};
 ```
 
-**Timing:**
-```
-Clock:           -+ +-+ +-+ +-+ +-+ +-
-clk              +-+ +-+ +-+ +-+ +-
+### Figure 2.19: Counter Write Strobe Timing
 
-swmod (level):   ---+     +---------
-counter_lo.swmod   +-----+
-
-Field:           [LIVE][LIVE][NEW ][LIVE]
-counter_lo.value
-
-Strobe:          ---------+ +-------
-counter_write_lo          +-
-
-Note: one pulse per write, aligned to the cycle the field shows NEW;
-the core loads counter[31:0] from that value and HI is untouched
-```
+![Counter Write Strobe Timing](../assets/graphviz/hpet_counter_write_strobe.png)
 
 #### Timer Configuration Mapping
 
@@ -378,28 +364,9 @@ cycle (the core sets the bit, the level's second cycle clears it again).
 One cycle here plus fire-over-clear priority in the core closes that
 window.
 
-**Timing:**
-```
-Clock:           -+ +-+ +-+ +-+ +-+ +-
-clk              +-+ +-+ +-+ +-+ +-
+### Figure 2.20: HPET_STATUS Mirror and W1C Clear Timing
 
-Timer Fires:     --+
-timer_int_status   +---------------+
-                                   +---
-
-HPET_STATUS:     ----+
-(mirror, 1 cyc)      +-------------+
-                                   +---
-
-SW Write (lvl):  ----------+     +-----
-regblk_req, addr 0x020     +-----+
-
-Clear Pulse:     ----------+ +---------
-timer_int_clear[i]         +-
-
-Note: the mirror follows the core one register stage later; the clear
-is one cycle wide, for the bits written with 1 only
-```
+![HPET_STATUS Mirror and W1C Clear Timing](../assets/graphviz/hpet_status_clear_timing.png)
 
 ### Register-to-Core Signal Summary
 

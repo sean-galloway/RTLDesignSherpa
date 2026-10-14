@@ -77,25 +77,9 @@ The APB HPET component contains multiple state machines across different modules
 - **Action:** Deassert cmd_valid, return to IDLE
 - **Duration:** Immediate
 
-#### Timing Diagram
+### Figure 2.22: APB Access Timing
 
-```
-Clock:      -+ +-+ +-+ +-+ +-+ +-
-pclk        +-+ +-+ +-+ +-+ +-
-
-PSEL:       ---+       +-------
-            +-----------+
-
-PENABLE:    -------+   +-------
-            +-----------+
-
-State:      [IDLE][SETUP][ACCESS][IDLE]
-
-PREADY:     -----------+ +-----
-            +-----------+
-
-Latency: 2 cycles (SETUP + ACCESS)
-```
+![APB Access Timing](../assets/graphviz/hpet_apb_access_timing.png)
 
 ---
 
@@ -152,7 +136,7 @@ reads -- LO only in 32-bit mode, either half in 64-bit -- or changes
 
 **ARMED -> FIRE:**
 - **Condition:** `counter >= comparator[i]` with the armed latch set
-- **Action:** Assert `timer_int_status[i]` (sticky, on every fire whatever `timer_int_enable[i]` says), clear the armed latch; the interrupt output follows one cycle later only if `timer_int_enable[i]` = 1
+- **Action:** Assert `timer_int_status[i]` (sticky, on every fire whatever `timer_int_enable[i]` says), clear the armed latch; the interrupt output is set at the same edge, only if `timer_int_enable[i]` = 1
 - **Trigger:** Counter comparison (combinational), gated by `hpet_enable` and the latch
 
 **FIRE -> PERIODIC_RELOAD:**
@@ -230,59 +214,13 @@ add one off-lattice fire.
 
 #### FSM Timing Examples
 
-**One-Shot Mode:**
-```
-Clock:      -+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-
-hpet_clk    +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-
+### Figure 2.23: One-Shot Mode State Timeline
 
-hpet_enable ---+                       +-------------------
-               +-----------------------+
+![One-Shot Mode State Timeline](../assets/graphviz/hpet_fsm_oneshot_timing.png)
 
-Counter:    [0] [1] [2] [3] [4] [5] [6] [0] [1] [2] [3]
+### Figure 2.24: Periodic Mode State Timeline
 
-Comparator: [5] [5] [5] [5] [5] [5] [5] [5] [5] [5] [5]
-
-State:      [IDLE][ARMED][ARMED][ARMED][ARMED][FIRE][ONE_SHOT_COMPLETE][IDLE]
-
-timer_int_status:----------------+           +-------
-            +-----------------------------------+
-
-timer_irq:  ---------------------+           +-------
-            +-----------------------------------+
-
-Status Clear:-----------------------------+ +-
-            +-------------------------------+
-
-Note: Fire at counter=5, interrupt sticky until status cleared
-```
-
-**Periodic Mode:**
-```
-Clock:      -+ +-+ +-+ + +-+ +-+ + +-+ +-+ + +-+ +-
-hpet_clk    +-+ +-+ +- +-+ +-+ +- +-+ +-+ +- +-+ +-
-
-Counter:    [8] [9] [10][11][12][13][14][15][16][17]
-
-Comparator: [10][10][10][13][13][13][16][16][16][19]
-                    ↑       ↑       ↑
-                Fire 1  Fire 2  Fire 3
-
-State:      [ARMED][ARMED][FIRE][RELOAD][ARMED][ARMED][FIRE][RELOAD]...
-
-timer_int_status: --+
-                    +------------------------------... (sticky: set at
-                                                        Fire 1, holds until
-                                                        software W1C)
-
-timer_irq:        --+
-                    +------------------------------... (same, one cycle later)
-
-Period:     [3] [3] [3] [3] [3] [3] [3] [3] [3] [3]
-
-Note: The comparator auto-increments by the period every fire, but the
-status/irq do NOT pulse per fire -- there is no timer_type term in the
-interrupt logic. From the first fire they stay asserted until W1C.
-```
+![Periodic Mode State Timeline](../assets/graphviz/hpet_fsm_periodic_timing.png)
 
 ---
 

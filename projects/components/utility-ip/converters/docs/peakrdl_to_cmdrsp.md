@@ -250,51 +250,15 @@ regblk_wr_biten = 32'hFFFF_0000
 
 ### Timing Diagrams
 
-**Read Transaction (No Stall):**
+#### Figure 1: Read Transaction, No Stall
 
-```
-Cycle:         0    1    2    3    4    5
-              ___  ___  ___  ___  ___  ___
-aclk       __|   |_|   |_|   |_|   |_|   |_
+![Read Transaction, No Stall](assets/graphviz/p2c_read_timing.png)
 
-cmd_valid  ____/¯¯¯¯¯\_____________________
-cmd_ready  ¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-cmd_pwrite ____[  0  ]_____________________
-cmd_paddr  ____[0x100]_____________________
+#### Figure 2: Write Transaction with a Write Stall
 
-regblk_req ________/¯¯¯\___________________
-              (held from accept until rd_ack)
-regblk_rd_ack __________/¯\_________________
+![Write Transaction with a Write Stall](assets/graphviz/p2c_write_stall_timing.png)
 
-rsp_valid  ____________/¯¯¯¯¯\_____________
-rsp_ready  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯
-rsp_prdata ____________[DATA  ]_____________
-```
-
-**Write Transaction with Stall:**
-
-```
-Cycle:         0    1    2    3    4    5    6
-              ___  ___  ___  ___  ___  ___  ___
-aclk       __|   |_|   |_|   |_|   |_|   |_|   |_
-
-cmd_valid  ____/¯¯¯¯¯\_____________________________
-cmd_ready  ¯¯¯¯¯¯¯¯¯\______________/¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-
-regblk_req_stall_wr ___/¯¯¯¯¯¯¯\___________________
-               (stalled in cycles 1-2)
-
-regblk_req ____/¯¯¯¯¯\_________/¯¯¯¯¯¯¯¯¯¯\_______
-             (accept-cycle pulse; LOW during STALLED;
-              re-asserted in WAIT_ACK and HELD until ack)
-
-regblk_wr_ack ______________/¯\___________________
-
-rsp_valid  ________________/¯¯¯¯¯\________________
-rsp_ready  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯¯¯¯
-```
-
-Watch the `regblk_req` line in that second diagram — accept-cycle pulse, low while stalled, then re-asserted and held. That's the behavior the generated cpuif depends on.
+Watch the `regblk_req` line in Figure 2: an accept-cycle pulse, low while stalled, then re-asserted in WAIT_ACK from the registered command. Because the PeakRDL cpuif acks combinationally, a request that is not stalled is seen in both the accept cycle and the WAIT_ACK cycle (Figure 1); the first ack fills the response and the second only returns the FSM to IDLE.
 
 ### Latency
 

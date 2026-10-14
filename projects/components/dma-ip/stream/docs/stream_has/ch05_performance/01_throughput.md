@@ -123,11 +123,9 @@
 
 For chained descriptors, next descriptor fetch can overlap with current transfer:
 
-```
-Desc 0: [Fetch][-----Transfer 0-----]
-Desc 1:             [Fetch][-----Transfer 1-----]
-Desc 2:                         [Fetch][-----Transfer 2-----]
-```
+### Figure 5.1.1: Descriptor Chain Fetch Overlap
+
+![Descriptor Chain Fetch Overlap](../assets/graphviz/stream_descriptor_chain_overlap.png)
 
 This pipelining minimizes chaining overhead for continuous transfers.
 

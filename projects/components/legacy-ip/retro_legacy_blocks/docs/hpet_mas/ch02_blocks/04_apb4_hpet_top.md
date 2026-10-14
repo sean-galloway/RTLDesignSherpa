@@ -27,7 +27,7 @@
 
 The `apb4_hpet` module is the top-level system integration point. It combines the APB slave interface, configuration registers, and timer core into a complete HPET peripheral, provides parameterized clock domain crossing (CDC) support, and exposes a unified external interface. It's mostly wiring -- but wiring with opinions, particularly about which clock each block runs on.
 
-### Figure 2.15: APB HPET Top-Level Block Diagram
+### Figure 2.21: APB HPET Top-Level Block Diagram
 
 ![APB HPET Top-Level Block Diagram](../assets/graphviz/hpet_whole_unit.png)
 

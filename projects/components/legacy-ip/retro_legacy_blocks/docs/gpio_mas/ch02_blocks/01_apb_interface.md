@@ -62,29 +62,20 @@ The APB interface is the bridge between the system APB bus and the GPIO register
 
 ## Timing
 
-A basic APB access, start to finish:
+Figure 2.2 shows a basic APB access, start to finish.
 
-```
-         _____       _____       _____
-pclk  __/     \_____/     \_____/     \_____
+### Figure 2.2: APB Access Timing
 
-         _________________
-psel  __/                 \_________________
+![APB Access Timing](../assets/graphviz/gpio_apb_access_timing.png)
 
-                   _______
-penable __________|       |_________________
-
-paddr   XXXXXXXXXX|  ADDR |XXXXXXXXXXXXXXXXX
-
-prdata  XXXXXXXXXX|  DATA |XXXXXXXXXXXXXXXXX
-                   _______
-pready  __________|       |_________________
-```
+One SETUP cycle, then six ACCESS cycles: the register itself is read or
+written in cycle 3, and PREADY rises with PRDATA in the sixth ACCESS cycle.
 
 ## Design Notes
 
-- PREADY-gated: the bridge FSM adds a few wait states per access (no
-  stalls originate in the register block itself)
+- PREADY-gated: the bridge FSM adds five wait states per access with
+  CDC_ENABLE=0, more with the CDC (no stalls originate in the register
+  block itself)
 - No error responses (pslverr always 0)
 - 32-bit aligned access only
 

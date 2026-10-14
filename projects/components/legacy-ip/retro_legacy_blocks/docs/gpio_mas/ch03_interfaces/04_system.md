@@ -102,31 +102,17 @@ gpio_clk: Tie to pclk or leave unconnected
 #### Power-On Reset
 
 1. Assert both presetn and gpio_rstn low
-2. Clocks may be running or stopped
+2. Keep both clocks running: the PeakRDL register file resets synchronously
+   (see the note above)
 3. Hold reset for minimum 2 clock cycles
 4. Release gpio_rstn first
 5. Wait 2 gpio_clk cycles
 6. Release presetn
 7. Wait 2 pclk cycles before APB access
 
-#### Timing Diagram
+### Figure 3.2: Power-On Reset Sequence
 
-```
-          ________________________________________
-pclk     |  |  |  |  |  |  |  |  |  |  |  |  |  |
-
-          ________________________________________
-gpio_clk |  |  |  |  |  |  |  |  |  |  |  |  |  |
-
-                              _____________________
-presetn  ____________________|
-
-                        ___________________________
-gpio_rstn ______________|
-
-              |<- min 2 ->|<- 2 ->|<- 2 ->|
-                 clocks    gclk    pclk
-```
+![Power-On Reset Sequence](../assets/graphviz/gpio_reset_sequence.png)
 
 ## Timing
 

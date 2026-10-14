@@ -539,53 +539,15 @@ The following diagram shows the complete SRAM controller write and read flow:
 
 ### Write Path (R Data → FIFO)
 
-```
-Cycle:  0    1    2    3    4    5
-        |    |    |    |    |    |
+### Figure 2.8.2: SRAM Controller Write Path (Reserve, Fill, Release)
 
-: Write Path
-Alloc:  [REQ][---grant---]
-        (ch2, size=4)
-
-R Data:                [V][V][V][V]
-R ID:                  [2][2][2][2]
-        |              |  |  |  |
-
-: Write Path
-Decode:                [1][1][1][1] (channel 2)
-FIFO:                  [W][W][W][W]
-Ready:  [1][1][1][1][1][1][1]...
-
-Notes:
-- Allocation at cycle 0 reserves 4 beats
-- R data arrives cycles 3-6
-- Each beat commits 1 reserved entry
-```
+![SRAM Controller Write Path (Reserve, Fill, Release)](../assets/graphviz/stream_sram_write_path.png)
 
 ### Read Path (FIFO → W Data)
 
-```
-Cycle:  0    1    2    3    4    5    6
-        |    |    |    |    |    |    |
+### Figure 2.8.3: SRAM Controller Read Path (Reserve, Drain, Release)
 
-: Read Path
-Drain:  [REQ][---reserve---]
-        (ch2, size=2)
-
-Drain:            [D][D]
-Drain ID:         [2][2]
-        |         |  |
-
-: Read Path
-Decode:           [1][1] (channel 2)
-Bridge:           [-][V][V] (1-cycle latency)
-W Data:               [D0][D1]
-
-Notes:
-- Drain request at cycle 0 reserves 2 beats
-- Actual drain at cycles 3-4
-- Latency bridge adds 1 cycle (data at 4-5)
-```
+![SRAM Controller Read Path (Reserve, Drain, Release)](../assets/graphviz/stream_sram_read_path.png)
 
 ---
 

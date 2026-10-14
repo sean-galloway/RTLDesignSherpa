@@ -21,7 +21,7 @@ SPEC_INDEX="delta_spec/delta_index.md"
 
 # Detect repository root (go up from noc-ip/ to repo root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel)"  # move-proof (was ../../../.., one level too high after the noc-ip move)
 
 # ------------------------------------------------------------
 # Parse command line arguments

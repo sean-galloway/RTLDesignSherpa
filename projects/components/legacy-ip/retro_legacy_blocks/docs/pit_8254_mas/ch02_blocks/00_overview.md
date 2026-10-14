@@ -210,7 +210,7 @@ Updated r_out value propagates to OUT signal and timer_irq output
 - All blocks use `pclk`
 - No domain crossing required
 - Direct connections throughout hierarchy
-- Lowest latency (2-3 cycle register access)
+- Lowest latency (5 wait states per access)
 
 **Dual Clock Configuration (CDC_ENABLE=1):**
 - `apb4_slave_cdc` uses `pclk` for APB interface

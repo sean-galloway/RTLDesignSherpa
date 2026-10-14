@@ -110,19 +110,9 @@ For clean operation:
 2. Deassert reset synchronous to pclk rising edge
 3. Wait 1 cycle before first transaction
 
-### Reset Sequence Diagram
+### Figure 4.4: Reset Sequence
 
-```
-pclk      _|~|_|~|_|~|_|~|_|~|_|~|_|~|_
-
-presetn   ________|~~~~~~~~~~~~~~~~
-
-Internal  xxxxxxxx|--- Valid State --
-State
-
-Ready for ________|--- Transactions --
-Traffic
-```
+![Reset Sequence](../assets/graphviz/lattice_reset_sequence.png)
 
 ## Integration Notes
 

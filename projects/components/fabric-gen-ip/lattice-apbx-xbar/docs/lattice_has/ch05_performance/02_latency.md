@@ -163,34 +163,15 @@ the stated 3.
 
 ### Best Case (No Waits, No Contention)
 
-```
-Master PSEL   ___|-----------|___
-Master PENABLE___|_____------|___
-               ^         ^
-Slave PSEL    _____|---------|___
-Slave PENABLE _____|___------|___
-Slave PREADY  _________|-----|___
-                       ^
-Master PREADY _________|-----|___
-                       ^
-              Total: 9 cycles (SETUP edge to PREADY edge)
-```
+### Figure 5.1: Best-Case Latency Timeline
+
+![Best-Case Latency Timeline](../assets/graphviz/lattice_latency_best_case.png)
 
 ### Worst Case (Contention + Slave Wait States)
 
-```
-Master PSEL   ___|--------------------------|___
-Master PENABLE___|________________----------|___
-               ^  Arbitration    ^
-               |  wait           |
-Slave PSEL    ____________|---------------|___
-Slave PENABLE ____________|______---------|___
-Slave PREADY  _____________________|------|___
-                                   ^
-Master PREADY _____________________|------|___
-                                   ^
-              Total: 9+ cycles (plus slave wait states and contention)
-```
+### Figure 5.2: Arbitration and Slave Wait States
+
+![Arbitration and Slave Wait States](../assets/graphviz/lattice_latency_worst_case.png)
 
 ## Latency Optimization
 

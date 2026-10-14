@@ -102,40 +102,15 @@ Every APB transfer pays for a setup phase plus an access phase, so the floor is 
 
 ### Write Transaction
 
-```
-        ___     ___     ___     ___
-PCLK   |   |___|   |___|   |___|   |___
-            _________
-PSEL   ____|         |________________
-                _____
-PENABLE ________|    |________________
-            _________
-PWRITE  ____|        |________________
-       xxxxxx|  ADDR |xxxxxxxxxxxxxxxx
-PADDR  xxxxxx|_______|xxxxxxxxxxxxxxxx
-       xxxxxx| WDATA |xxxxxxxxxxxxxxxx
-PWDATA xxxxxx|_______|xxxxxxxxxxxxxxxx
-                _____
-PREADY  ________|    |________________
-```
+#### Figure 4.1: APB Write Transfer (Zero Wait States)
+
+![APB Write Transfer (Zero Wait States)](../assets/graphviz/bridge_apb_write_timing.png)
 
 ### Read Transaction
 
-```
-        ___     ___     ___     ___
-PCLK   |   |___|   |___|   |___|   |___
-            _________
-PSEL   ____|         |________________
-                _____
-PENABLE ________|    |________________
-PWRITE  ______________________________
-       xxxxxx|  ADDR |xxxxxxxxxxxxxxxx
-PADDR  xxxxxx|_______|xxxxxxxxxxxxxxxx
-                _____
-PREADY  ________|    |________________
-       xxxxxxxx|RDATA|xxxxxxxxxxxxxxxx
-PRDATA xxxxxxxx|_____|xxxxxxxxxxxxxxxx
-```
+#### Figure 4.2: APB Read Transfer (One Wait State)
+
+![APB Read Transfer (One Wait State)](../assets/graphviz/bridge_apb_read_timing.png)
 
 ## APB Requester Ports
 

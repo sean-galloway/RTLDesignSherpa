@@ -714,6 +714,16 @@ not have. A figure drawn from the RTL is a check on the prose around it.
   kept in step" header line, because each build searches only its own
   book's assets. Variants come from one generator script by label
   substitution, so the layouts stay identical.
+- **An ASCII timing sketch becomes a graphviz cycle grid** (owner ruling,
+  2026-10-13). It is an HTML-table node with one row per signal and one column
+  per clock cycle, or per event or interval when the sketch is not to scale.
+  A "1" cell is shaded blue, a "0" cell is white and a don't-care cell is grey
+  "x"; equal neighbouring values merge. A boxed note row at the foot
+  says what to read off it. The grid is a table, not a drawn waveform, so it
+  does not conflict with the FPGA-book rule below that a timeline drawn as
+  graphviz edges becomes WaveDrom. Draw every cell from the RTL, not from the
+  sketch: the cmd/rsp adapter's sketch showed a registered ack where the
+  PeakRDL cpuif acks combinationally, so a short Verilator run settled it.
 - **Captions must be `### Figure N.M:` headings** (or the book's existing
   encoded form). An italic `*Figure 1:*` line never reaches the List of
   Figures.

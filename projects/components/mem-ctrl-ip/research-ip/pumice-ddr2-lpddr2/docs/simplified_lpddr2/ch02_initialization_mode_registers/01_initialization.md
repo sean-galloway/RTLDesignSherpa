@@ -34,11 +34,9 @@ mandatory steps. Named checkpoints (Ta..Tg) are the spec's.
    type, wrap, nWR), MR2 (RL/WL), MR3 (drive strength). The device is
    now Idle and accepts any valid command.
 
-```
-ramp <=20ms  CKE __/  NOP 200us  MRW63  NOP 1us  MRR0(DAI)  MRW10(0xFF)  MRW1,2,3
-|__tINIT0____|_tINIT1_|_tINIT3_|      |_tINIT4_|__tINIT5____|__tZQINIT___|  ready
-              tINIT2 = 5 tCK of stable clock before CKE rises
-```
+### Figure 2.1: LPDDR2 Power-Up Initialization Timeline
+
+![LPDDR2 Power-Up Initialization Timeline](../assets/graphviz/lpddr2_init_timeline.png)
 
 ## Reset without power ramp
 

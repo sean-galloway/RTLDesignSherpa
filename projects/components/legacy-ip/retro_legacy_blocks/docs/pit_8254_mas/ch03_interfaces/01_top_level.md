@@ -90,7 +90,7 @@ module apb4_pit_8254 #(
 | `s_apb_PSTRB` | Input | 4 | APB write strobes (byte lane enables). Honoured all the way through: the register block merges the strobed bytes into the stored value, and a counter load takes that merged value, so a PSTRB=0x1 write to COUNTERx_DATA loads {stored high byte, new low byte}. A write that strobes none of a register's bytes changes nothing and fires no command. |
 | `s_apb_PPROT` | Input | 3 | APB protection attributes. Accepted for protocol completeness; not used by the decode. |
 | `s_apb_PRDATA` | Output | 32 | APB read data. Valid when `s_apb_PREADY=1` and `s_apb_PWRITE=0`. |
-| `s_apb_PREADY` | Output | 1 | APB ready. The wrapper converts APB to an internal command/response handshake, so PREADY inserts wait states: typically 2-3 `pclk` cycles single-clock, 4-6 cycles across the CDC. |
+| `s_apb_PREADY` | Output | 1 | APB ready. The wrapper converts APB to an internal command/response handshake, so PREADY inserts wait states: 5 `pclk` cycles single-clock (Figure 3.1), about 10 across the CDC (clock-ratio dependent). |
 | `s_apb_PSLVERR` | Output | 1 | APB slave error. Asserted for any access whose address is not one of the seven mapped registers: the write is ignored, the read returns 0, and the transfer completes with PSLVERR high. Mapped accesses never error. |
 
 **PIT Clock and Reset:**
@@ -186,7 +186,8 @@ pit_counter[*] uses: pit_clk, pit_resetn
 - Multiple clock domain systems
 
 **CDC Considerations:**
-- APB transactions take 4-6 `pit_clk` cycles (vs 2-3 in single-clock mode)
+- APB transactions take more wait states than in single-clock mode (about 10
+  versus 5 at pclk = 100 MHz, pit_clk = 143 MHz; ratio-dependent)
 - Both clocks must be free-running during transactions
 - Ensure proper reset sequencing (both domains reset before use)
 - `gate_in` needs no special handling: its synchronizer runs on the counting
@@ -233,40 +234,14 @@ If resetting during operation:
 
 ### APB Protocol Timing
 
-**Write Transaction:**
+### Figure 3.1: APB Access Timing (CDC_ENABLE=0)
 
-```
-        ┌───┐   ┌───┐   ┌───┐   ┌───┐
-pclk    ┘   └───┘   └───┘   └───┘   └───
-          SETUP   ACCESS
-psel    ───────┐           ┌───────────
-               └───────────┘
-penable ───────────┐   ┌───────────────
-                   └───┘
-pwrite  ───────┐           ┌───────────
-               └───────────┘
-paddr   ═══════X═══════════X═══════════
-pwdata  ═══════X═══════════X═══════════
-pready  ───────────────┐   ┌───────────
-                       └───┘
-```
+![APB Access Timing](../assets/graphviz/pit_apb_access_timing.png)
 
-**Read Transaction:**
-
-```
-        ┌───┐   ┌───┐   ┌───┐   ┌───┐
-pclk    ┘   └───┘   └───┘   └───┘   └───
-          SETUP   ACCESS
-psel    ───────┐           ┌───────────
-               └───────────┘
-penable ───────────┐   ┌───────────────
-                   └───┘
-pwrite  ───────────────────────────────  (0)
-paddr   ═══════X═══════════X═══════════
-prdata  ═══════════════════X═══════════  (valid in ACCESS)
-pready  ───────────────┐   ┌───────────
-                       └───┘
-```
+One figure covers both directions: PWDATA is held from SETUP to PREADY on a
+write, and PRDATA is valid only in the PREADY cycle on a read. An access is
+one SETUP and six ACCESS cycles with CDC_ENABLE=0; apb4_slave_cdc adds the
+crossing cycles described above.
 
 ## Usage Example
 

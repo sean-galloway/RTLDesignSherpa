@@ -140,13 +140,9 @@ when BASE_ADDR is 64KB-aligned (which is permitted but not required).
 
 Slaves can insert wait states by holding PREADY low:
 
-```
-       Cycle 1    Cycle 2    Cycle 3    Cycle 4
-PSEL   __|-------------------------------|____
-PENABLE__|____________|------------------|____
-PREADY _____________________|-----------|____
-                      ^ Wait states
-```
+### Figure 4.3: Slave Wait States
+
+![Slave Wait States](../assets/graphviz/lattice_slave_wait_states.png)
 
 The crossbar:
 - Holds master PREADY low while waiting

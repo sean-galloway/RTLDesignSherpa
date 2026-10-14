@@ -100,30 +100,16 @@ Byte-granular writes supported:
 
 PREADY inserts wait states: the apb4_slave bridge is a small FSM that
 issues the command and returns the response over a registered cmd/rsp
-handshake, so an access takes several pclk beyond the 2-cycle APB minimum
-(more when CDC_ENABLE=1 crosses to gpio_clk). The register block itself
+handshake, so an access takes five pclk wait states beyond the 2-cycle APB
+minimum (more when CDC_ENABLE=1 crosses to gpio_clk). The register block itself
 never stalls (`cpuif_req_stall_* = 0`).
 
-### Timing Diagram
+### Figure 3.1: APB Access Timing (CDC_ENABLE=0)
 
-```
-          ___     ___     ___     ___
-pclk    _|   |___|   |___|   |___|   |___
+![APB Access Timing](../assets/graphviz/gpio_apb_access_timing.png)
 
-        _______________
-psel   |               |_________________
-
-                _______
-penable ________|       |________________
-
-paddr   --------|  A1   |----------------
-
-pwdata  --------|  D1   |---------------- (write)
-
-prdata  --------|  D1   |---------------- (read)
-                _______
-pready  ________|       |________________
-```
+The same access as Figure 2.2: PREADY and PRDATA arrive together in the
+sixth ACCESS cycle, and PWDATA is held from SETUP until PREADY.
 
 ---
 

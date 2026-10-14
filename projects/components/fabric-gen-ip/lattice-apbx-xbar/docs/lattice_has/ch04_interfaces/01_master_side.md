@@ -171,31 +171,22 @@ Transfer ready signal:
 
 ## Transaction Timing
 
-### Uncontended Write (No Arbitration Wait) -- PHASE SHAPE ONLY, not to scale:
-a real transfer is 9 pclk cycles SETUP-to-PREADY on a single-master variant, 10 on an arbitrated one (see 5.2)
+### Uncontended Write (No Arbitration Wait)
 
-```
-       Cycle 1    Cycle 2    Cycle 3
-PSEL   __|-----------|----------|____
-PENABLE__|________---|----------|____
-PADDR  --<  Address  >--
-PWRITE --<  1        >--
-PWDATA --<  Data     >--
-PREADY _________|----------|____
-```
+Drawn to scale for a single-master variant: 9 pclk edges SETUP-to-PREADY,
+10 on an arbitrated one (see 5.2).
+
+### Figure 4.1: Uncontended Write at a Master Port
+
+![Uncontended Write at a Master Port](../assets/graphviz/lattice_master_uncontended_write.png)
 
 ### Contended Transaction (Arbitration Wait)
 
 When another master holds the target slave:
 
-```
-       Cycle 1    Cycle 2    Cycle 3    Cycle 4
-PSEL   __|--------------------------|____
-PENABLE__|_____________|--------------|____
-PADDR  --<  Address                   >--
-PREADY _______________________|------|____
-                     ^ Wait for grant
-```
+### Figure 4.2: Contended Transfer
+
+![Contended Transfer](../assets/graphviz/lattice_master_contended.png)
 
 ---
 

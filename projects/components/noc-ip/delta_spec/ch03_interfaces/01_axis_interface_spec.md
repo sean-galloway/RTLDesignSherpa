@@ -111,21 +111,9 @@ end
 
 ## 1.5 Timing Diagram
 
-```
-         ___     ___     ___     ___     ___
-clk    _|   |___|   |___|   |___|   |___|   |___
+### Figure 3.1: AXIS Handshake With One Stall Cycle
 
-tvalid ________/```````````````\___________
-
-tready ````````\___/```````````````````````
-
-tdata  XXXXXXXX<D0><D1><D1><D2>XXXXXXXXXXX
-                     ^   ^
-                     |   |
-       No transfer   |   Transfer completes
-       (not ready)   |
-                     Stall (data held)
-```
+![AXIS Handshake With One Stall Cycle](../assets/graphviz/delta_axis_handshake.png)
 
 ---
 

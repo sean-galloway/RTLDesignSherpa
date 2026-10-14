@@ -12,11 +12,9 @@ LPDDR3 must be brought up with a fixed sequence; any other path is undefined. Re
 6. **ZQ calibration / CA training (Tf -> Tg).** If CA training is required, start it at Tf using MR41 (or MR48 for the second mapping) and exit with MR42; no CA commands other than RESET or NOP may be issued until training finishes (Tf'). Then issue the MRW ZQ initialization calibration command (MR10, code 0xFF). If CA training is not needed, ZQ initialization may start at Tf directly. On a shared ZQ bus, do not overlap ZQ calibrations across devices. The device is ready for normal operation after tZQINIT = 1 us.
 7. **Configure (after Tg).** MRW the operating registers: MR1 (burst length, nWR), MR2 (RL/WL, write-leveling enable, WL set), MR3 (drive strength) and MR11 (DQ ODT). The device is now idle and accepts any valid command.
 
-```
-ramp <=20ms  CKE __/  NOP 200us  MRW63  NOP 1us  MRR0(DAI)  [CA train]  MRW10(0xFF)  MRW1,2,3,11
-|__tINIT0____|_tINIT1_|_tINIT3_|      |_tINIT4_|__tINIT5___|__[Tf->Tf']__|__tZQINIT___|  ready
-              tINIT2 = 5 tCK of stable clock before CKE rises
-```
+### Figure 2.1: LPDDR3 Power-Up Initialization Timeline
+
+![LPDDR3 Power-Up Initialization Timeline](../assets/graphviz/lpddr3_init_timeline.png)
 
 | Parameter | Min | Max | Unit | Meaning |
 | --- | --- | --- | --- | --- |

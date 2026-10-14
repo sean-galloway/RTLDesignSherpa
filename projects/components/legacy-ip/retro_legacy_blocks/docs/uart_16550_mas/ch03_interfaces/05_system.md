@@ -100,17 +100,9 @@ Baud Rate = pclk / (16 * Divisor)
 
 ### Reset Sequence
 
-#### Timing
+### Figure 3.2: Reset Sequence
 
-```
-          ________________________________________
-pclk     |  |  |  |  |  |  |  |  |  |  |  |  |  |
-
-                              _____________________
-presetn  ____________________|
-
-         |<-- Reset Active -->|<-- Normal Op ----->|
-```
+![Reset Sequence](../assets/graphviz/uart_reset_sequence.png)
 
 #### Requirements
 

@@ -196,28 +196,19 @@ but the OUTPUT of the dnsize):
    - WSTRB rides narrow_/wide_sideband on the write path
    - RRESP rides narrow_/wide_sideband on the read path
 
-#### Timing Diagram Template
+#### Reference Timing
 
-```
-            ___     ___     ___     ___     ___
-clk     ___|   |___|   |___|   |___|   |___|   |
-            _______________________________
-s_valid ___/                               \___
-           [D0 ][D1 ][D2 ][D3 ][D4 ][D5 ][D6 ][D7 ]
-s_data
-        ___________________________________________
-s_ready
+### Figure 5.1: Upsize Reference Timing
 
-           ________________________________
-m_valid __|                                |___
-                                   [WIDE_DATA ]
-m_data
+![Upsize Reference Timing](../assets/graphviz/conv_upsize_timing.png)
 
-Check:
-1. s_ready stays high during accumulation
-2. m_valid asserts after RATIO beats
-3. Data packing is correct
-```
+Compare a failing upsize waveform against this. Check:
+
+1. `s_ready` stays high during accumulation (it drops only while a completed
+   group waits on a stalled wide side)
+2. `m_valid` is a one-cycle pulse per group, in the cycle after the RATIO-th
+   narrow beat is accepted (with `m_ready` high)
+3. Data packing is correct: D0 in the low lane, D(RATIO-1) in the high lane
 
 ### 5.2.4 Common Mistakes
 
