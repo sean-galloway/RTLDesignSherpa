@@ -35,8 +35,8 @@ the data plane — the part that actually computes.
 
 | Block | Name | What | Status |
 |---|---|---|---|
-| Compute array | `cgra` | The reconfigurable PE array itself — fabric size, PE datapath, configuration memory, and instruction/context model are TBD and get their own HAS/MAS when designed | TBD |
-| Result routing | [`axon`](docs/axon_spec.md) | SERV + delta pair that collects CGRA results and streams them out over the AXIS fabric (the tile-level twin of HIVE's monitors) | Spec sketch |
+| Compute array | `cgra` | Reconfigurable 3-D nearest-neighbor array of compute units (owner: "cells"); four cells form a **tile**, four tiles form an **organ** — the organ level is what connects to RAPIDS. Configuration is in-band through delta (routing tables via PKT_CONFIG, no extra wires) and routing is QoS-aware. Fabric geometry, PE datapath, and context model TBD — own HAS/MAS when designed | TBD (architecture set 2026-10-13) |
+| Result routing | [`axon`](docs/axon_spec.md) | SERV + delta pair that collects organ results and streams them out over the AXIS fabric (the tile-level twin of HIVE's monitors); attaches at the organ boundary | Spec sketch |
 
 ## Architecture sketch
 
@@ -46,19 +46,26 @@ the data plane — the part that actually computes.
         ┌─────────────┴──────────────┐
         │            cell            │
         │  ┌──────────────────────┐  │
-        │  │        cgra          │  │   PE array (TBD):
-        │  │  PE PE PE PE PE PE   │  │   config + compute
-        │  │  PE PE PE PE PE PE   │  │
+        │  │        cgra          │  │   3-D nearest-neighbor array:
+        │  │  cells in tiles      │  │   4 cells = 1 tile
+        │  │  (4 cells per tile)  │  │   4 tiles = 1 organ
+        │  │  tiles in an organ   │  │   organ <-> RAPIDS
         │  └──────────┬───────────┘  │
         │             ▼ results      │
         │  ┌──────────────────────┐  │
-        │  │        axon          │  │   SERV agents on delta:
-        │  │  (SERV + delta)      │  │   collect + stream out
-        │  └──────────┬───────────┘  │
+        │  │        axon          │  │   SERV agents on delta at the
+        │  │  (SERV + delta)      │  │   organ boundary: collect +
+        │  └──────────┬───────────┘  │   stream out
         └─────────────┼──────────────┘
                       ▼ PKT_DATA / results
                  delta fabric → RAPIDS (S2MM)
 ```
+
+**Fabric configuration (owner decisions 2026-10-13):** in-band only — delta
+routers are programmed through routing tables carried by PKT_CONFIG; no
+dedicated configuration wires. Routing is QoS-aware (the HIVE HAS router
+register map already provisions `ROUTE_TABLE_n`, `FLOW_CTRL_CFG`, and
+`PRIORITY_MASK`; descriptor priority levels cover the traffic side).
 
 **Conventions (standing owner decisions — apply to cell as they do to HIVE):**
 delta is the fabric; everything crossing a block boundary is AXI4-Stream;
