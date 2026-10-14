@@ -137,8 +137,10 @@ close and a clean golden-data reopen. The close request was mutation-checked
 retired encoding (4..7) leave `ap_mode_en_o` low and `ap_close_o` at zero,
 while mode 2 (`static_close`) does auto-precharge — so the test still
 distinguishes "no AP" from a block that has stopped driving `ap_close_o` at
-all. `test_pumice_sched_matrix.py` sweeps the retired encodings as
-fallthrough arms across all 12 operating points.
+all. The retired encodings are swept as fallthrough arms by the pumice_top
+pairwise covering array (`dv/tests/top/test_pumice_config_sweep.py`);
+the scheduler-plane matrix that used to do it, `test_pumice_sched_matrix.py`,
+was removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet.
 
 ## Related
 

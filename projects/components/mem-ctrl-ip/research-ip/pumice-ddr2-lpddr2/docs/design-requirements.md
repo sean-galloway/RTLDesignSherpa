@@ -546,6 +546,6 @@ at a time, each with its own red→green model test and OFF-by-default:
 | One AXI burst == one DRAM burst at DW   | `pumice_wr_intake` ragged-burst assert                        |
 | `CHUNK_BEATS` power-of-two              | `pumice_axi_burst_chopper` assert                             |
 | `DFI_RATE == nphases` (gear lockstep)   | design rule + `gear_ratio` CSR set to PHY nphases             |
-| gear=MAX bit-identical                  | by construction (phase mask all-ones at gear = log2(DFI_RATE)); every core/top TB runs at gear = MAX and `test_pumice_dfi_plane` fails on a masked phase |
+| gear=MAX bit-identical                  | by construction (phase mask all-ones at gear = log2(DFI_RATE)); every core/top TB runs at gear = MAX (the plane-level `test_pumice_dfi_plane` that failed on a masked phase was removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet) |
 | No hardcoded offsets                    | config reached by name via generated `*_regmap.py`            |
 | Config not param (gear, BL, timings)    | runtime CSRs; a wrong value is bad programming, not a rebuild |

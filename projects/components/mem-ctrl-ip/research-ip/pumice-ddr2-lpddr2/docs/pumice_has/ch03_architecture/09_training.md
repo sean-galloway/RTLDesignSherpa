@@ -238,22 +238,19 @@ sticky and clear only on soft reset.
 
 ## Verification and integration notes
 
-- **FUB**: `test_pumice_zq_ctrl.py` (DUT `mc_lpddr2_zq_ctrl`; interval expiry, Mode-C deferral, overdue →
-  ZQCL select, hold window, DDR2-inert) and `test_pumice_lp_cal.py` (DUT `mc_lpddr2_dq_cal`; one-shot
-  sequence, MRR32 → capture → tMRR → MRR40 → capture, timeout error, abort).
-- **FUB**: `test_dfi_cmd_formatter.py::lpddr2_mrr` (DUT `mc_xddr2_cmd_formatter`)
-  checks the MRR CA encoding against JESD209-2F §5.12. The pumice-local
-  read-aligner cal-capture test (`test_pumice_dfi_rd_aligner.py`) went with the
-  local aligner; the sideband capture is now `mc_dfi_rd_aligner`'s, exercised
-  through the top-level `cal_start` tests below.
-- **Macro**: `test_pumice_scheduler_plane.py` (training priority vs refresh /
-  demand, all-banks-idle gating, demand blocked during `cal_busy`, the
-  fire==valid invariant). It still names the removed `pumice_scheduler_plane`
-  wrapper and its filelist, so it must be repointed at `mc_scheduler_plane`
-  before it runs again. The command-stream checker allows MRR and MRW-MR10 in
-  its stream rules.
-- **Top**: the CSR/top tests drive an end-to-end `cal_start` on the LPDDR2 model
-  and observe both captured patterns; ZQCS MRW at interval with demand blocked.
+- **FUB / macro**: none in the pumice area. The training FUBs, the formatter
+  and the scheduler plane are common-ip `mc_*` modules, and their directed
+  tests -- `test_pumice_zq_ctrl.py` (`mc_lpddr2_zq_ctrl`),
+  `test_pumice_lp_cal.py` (`mc_lpddr2_dq_cal`),
+  `test_dfi_cmd_formatter.py::lpddr2_mrr` (`mc_xddr2_cmd_formatter`, MRR CA
+  encoding against JESD209-2F §5.12) and `test_pumice_scheduler_plane.py`
+  (training priority vs refresh / demand, all-banks-idle gating, demand
+  blocked during `cal_busy`, fire==valid) -- were removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet. The
+  read-aligner cal capture is `mc_dfi_rd_aligner`'s. The command-stream
+  checker allows MRR and MRW-MR10 in its stream rules.
+- **Top**: none yet. No test under `dv/tests/top/` writes `CAL_CTRL.cal_start`
+  or enables ZQ (checked 2026-10-13), so calibration currently has no
+  coverage in the pumice area at any level.
 - **TB tie-off**: `pumice_core_tb_top.sv` ties every training input to 0
   (`zq_en`, `zq_defer_en`, `zq_interval`, `t_zqcs/t_zqcl`, `zq_overdue_max`,
   `cal_start`, `cal_abort`, `t_mrr`, `t_readout`) and leaves the status outputs

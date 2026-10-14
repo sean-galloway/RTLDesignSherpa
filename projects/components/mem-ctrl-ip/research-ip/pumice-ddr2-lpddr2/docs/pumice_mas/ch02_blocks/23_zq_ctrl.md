@@ -144,7 +144,7 @@ rule `mc_xddr2_init_sequencer`'s ZQ step follows today.
 
 ## Verification Notes (cocotb test plan)
 
-Verified by `dv/tests/fub/test_pumice_zq_ctrl.py`: interval expiry →
+No directed unit test today: `test_pumice_zq_ctrl.py` was removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet. It covered interval expiry →
 request, grant → hold → reload, Mode-C deferral under sustained demand,
 overdue expiry selects ZQCL, `zq_row_o` MRW packing (`MR10` + `0x56`/`0xAB`),
 `obs_zqcs_total_o` accounting, and DDR2-inert behavior

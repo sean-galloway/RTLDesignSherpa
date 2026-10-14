@@ -9,8 +9,8 @@ This is the single source of truth that BOTH the RTL command formatter
 (`rtl/fub/dfi_cmd_formatter.sv`, LPDDR2 branch) AND the verification BFM
 (`RTLDesignSherpa-DV` `CocoTBFramework/components/dfi/lpddr_ca.py`) encode against.
 Neither side may invent its own packing — they must be bit-identical to the tables
-below, and the round-trip conformance test (`dv/tests/fub/test_dfi_cmd_formatter.py`)
-holds them to it.
+below. The round-trip conformance test that held them to it
+(`test_dfi_cmd_formatter.py`) was removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet.
 
 > WHY THIS EXISTS: DDR2 puts the command on dedicated `ras_n/cas_n/we_n` + a
 > straight `dfi_address` row/column. LPDDR2 has NO ras/cas/we — the command AND a

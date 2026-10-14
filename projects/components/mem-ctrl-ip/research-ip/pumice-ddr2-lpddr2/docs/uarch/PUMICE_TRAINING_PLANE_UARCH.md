@@ -96,7 +96,10 @@ status registers `CAL_STATUS`, `CAL_MRR32_DATA`, and `CAL_MRR40_DATA`. See
 
 ## 6. Verification
 
-- FUB: `dv/tests/fub/test_pumice_zq_ctrl.py`, `dv/tests/fub/test_pumice_lp_cal.py`
-- Formatter: `dv/tests/fub/test_dfi_cmd_formatter.py::lpddr2_mrr`
-- Read aligner: `dv/tests/fub/test_pumice_dfi_rd_aligner.py::test_pumice_dfi_rd_aligner_cal_capture`
-- Scheduler: `dv/tests/macro/test_pumice_scheduler_plane.py::test_pumice_scheduler_plane_training`
+- Top: none. No test under `dv/tests/top/` writes `CAL_CTRL.cal_start` or
+  enables ZQ (checked 2026-10-13).
+- The FUB, formatter, read-aligner and scheduler-plane tests
+  (`test_pumice_zq_ctrl.py`, `test_pumice_lp_cal.py`,
+  `test_dfi_cmd_formatter.py::lpddr2_mrr`, `test_pumice_dfi_rd_aligner.py`,
+  `test_pumice_scheduler_plane.py`) targeted common-ip `mc_*` DUTs and were
+  removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet.

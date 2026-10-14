@@ -128,7 +128,7 @@ partial-burst bandwidth (it usually does not).
 
 ## Tests
 
-Verified by `dv/tests/fub/test_mode_register.py`: `smoke_ddr2`,
+No directed unit test today: `test_mode_register.py` was removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet. It covered `smoke_ddr2`,
 `ddr2_cl_sweep`, `reset_values`, `ddr2_bl_sweep`, `ddr2_al_sweep`,
 `multi_rank` (plus LPDDR2 RL/WL-enum coverage as the suite is extended for
 the `memtype_i` LPDDR2 branch).

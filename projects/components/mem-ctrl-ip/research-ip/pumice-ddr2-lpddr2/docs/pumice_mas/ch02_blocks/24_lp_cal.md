@@ -161,7 +161,7 @@ collide with the normal read FIFO push path (see
 
 ## Verification Notes (cocotb test plan)
 
-Verified by `dv/tests/fub/test_pumice_lp_cal.py`: the one-shot sequence
+No directed unit test today: `test_pumice_lp_cal.py` was removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet. It covered the one-shot sequence
 (start → grant32 → arm → capture → tMRR → grant40 → arm → capture → done),
 readout-timeout error path, abort mid-sequence, MRR row packing
 (`MA` + OP=0), and DDR2-inert behavior.

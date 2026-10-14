@@ -133,14 +133,13 @@ All mc_clk/dfi_clk crossing for the calibration sideband lives in
 
 ## Tests
 
-- `dv/tests/macro/test_pumice_scheduler_plane.py::cocotb_test_training_priority_and_gate`
-  — training channel sits between refresh and demand, grants only when the
-  bus is safe, demand blocked during the hold window, fire==valid invariant.
-  This test still targets the removed `pumice_scheduler_plane` wrapper and
-  must be repointed at `mc_scheduler_plane` before it runs again.
-- FUB suites: `dv/tests/fub/test_pumice_zq_ctrl.py` (DUT `mc_lpddr2_zq_ctrl`),
-  `dv/tests/fub/test_pumice_lp_cal.py` (DUT `mc_lpddr2_dq_cal`) — see the
-  per-FUB chapters that follow.
+The training plane and both clients are common-ip (`mc_training_shell`,
+`mc_lpddr2_zq_ctrl`, `mc_lpddr2_dq_cal`). No pumice test drives calibration
+today: nothing under `dv/tests/top/` writes `CAL_CTRL.cal_start` or enables
+ZQ, and `pumice_core_tb_top.sv` ties every training input to 0. The directed tests
+that used to sit in this area -- `test_pumice_scheduler_plane.py`
+(training priority vs refresh/demand, the hold window, fire==valid),
+`test_pumice_zq_ctrl.py` and `test_pumice_lp_cal.py` -- were removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet.
 
 ## Open Questions / Future Work
 

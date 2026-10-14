@@ -106,8 +106,8 @@ timing paths, not latency.
 
 ## Verification
 
-`dv/tests/fub/test_pumice_rd_return_ring.py` covers depth-8 and depth-32
-configurations at 1 and 4 beats per burst. The block asserts on a return with
+No directed unit test today: `test_pumice_rd_return_ring.py` (depth-8 and
+depth-32 configurations at 1 and 4 beats per burst) was removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet. The ring is exercised through `pumice_core` and `pumice_top`. The block asserts on a return with
 no outstanding ticket and on an issue notify when the issue FIFO is empty —
 both would be a ticket-accounting break rather than a data error, so they are
 caught structurally rather than by a data mismatch downstream.

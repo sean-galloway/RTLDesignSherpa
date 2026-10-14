@@ -87,7 +87,7 @@ cross-id pair.
 
 ## Tests
 
-Covered by the `mc_wr_data_cam` FUB test and the `test_pumice_axi4_plane.py`
-integration tests (an `mc_axi4_plane` + `mc_storage_plane` TB wrapper) (snarf stream, snarf-vs-DRAM-path selection, and the
+Directed coverage was the `mc_wr_data_cam` FUB test and the `test_pumice_axi4_plane.py`
+integration tests (an `mc_axi4_plane` + `mc_storage_plane` TB wrapper), both removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet; forwarding is now exercised only through `pumice_core` / `pumice_top` (snarf stream, snarf-vs-DRAM-path selection, and the
 same-id / same-BL / unscheduled exclusion scenarios). See §17 for the
 detailed test plan.

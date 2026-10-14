@@ -253,16 +253,16 @@ async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
     if os.environ.get("PUMICE_TRACKERS", "0") == "1":
         from tbclasses.trackers import wire_trackers
         wire_trackers(dut, log=dut._log, num_banks=NUM_BANKS, scope_paths={
-            "sched":   "u_core.u_sched.u_core.u_arbiter",
-            "btmr":    "u_core.u_sched.u_core.u_bank_timers",
-            "refr":    "u_core.u_sched.u_refresh",
-            "pgpol":   "u_core.u_sched.u_page_policy",
-            "init":    "u_core.u_sched.u_init",
-            "camrd":   "u_core.u_ifc.u_rd_cam",
-            "camwr":   "u_core.u_ifc.u_wr_cam",
-            "dficmd":  "u_core.u_dfi.u_cmd",
-            "wrbeat":  "u_core.u_dfi.u_wr",
-            "rdalign": "u_core.u_dfi.u_rd",
+            "sched":   "u_core.u_sched_plane.u_arbiter",
+            "btmr":    "u_core.u_sched_plane.u_bank_timers",
+            "refr":    "u_core.u_sched_plane.g_refresh.u_refresh",
+            "pgpol":   "u_core.u_sched_plane.g_page_policy.u_page_policy",
+            "init":    "u_core.u_sched_plane.g_init.u_init",
+            "camrd":   "u_core.u_store_plane.u_rd_cam",
+            "camwr":   "u_core.u_store_plane.u_wr_cam",
+            "dficmd":  "u_core.u_dfi_plane.u_cmd",
+            "wrbeat":  "u_core.u_dfi_plane.u_wr",
+            "rdalign": "u_core.u_dfi_plane.u_rd",
         })
         # AXI-side utilization + handshake run lengths (DV-side only; the
         # silicon equivalent is the external observer, pumice TASK-019 (was PUMICE-008)).
@@ -534,7 +534,7 @@ async def cocotb_test_pumice_core_fixed_open(dut):
     # and it began failing against RTL that disarms correctly. Three different
     # window/drain tweaks each moved the symptom without addressing it -- the
     # signal is the answer, the bus is a proxy with confounders.
-    req = dut.u_core.u_sched.u_page_policy.timeout_pre_req_o
+    req = dut.u_core.u_sched_plane.g_page_policy.u_page_policy.timeout_pre_req_o
     for _ in range(300):
         await ClockCycles(dut.aclk, 1)
         assert int(req.value) == 0, (
@@ -1339,8 +1339,8 @@ async def cocotb_test_pumice_core_perf_intake_admit_rate(dut):
     no arm stage and is the control.
     """
     _memory, _slave = await _bring_up(dut, page_policy=1)
-    rd_i = dut.u_core.u_ifc.u_rd_intake
-    wr_i = dut.u_core.u_ifc.u_wr_intake
+    rd_i = dut.u_core.u_axi_plane.u_rd_intake
+    wr_i = dut.u_core.u_axi_plane.u_wr_intake
 
     wr_task = cocotb.start_soon(_admit_when_ready(
         dut, wr_i.aw_push_valid_o, wr_i.aw_push_ready_i, wr_i.aw_push_valid_o))
@@ -1383,8 +1383,8 @@ async def cocotb_test_pumice_core_perf_write_ceiling(dut):
     # WRITE DATA MUST LEAD (2026-09-09): the DFI write-staged token is an
     # invariant, not a throttle. A WR held at the DFI head for lack of data
     # stalls the in-order command stream and compresses the spacing behind it.
-    held = int(dut.u_core.u_dfi.u_cmd.r_wr_held_cnt.value)
-    held_max = int(dut.u_core.u_dfi.u_cmd.r_wr_held_max.value)
+    held = int(dut.u_core.u_dfi_plane.u_cmd.r_wr_held_cnt.value)
+    held_max = int(dut.u_core.u_dfi_plane.u_cmd.r_wr_held_max.value)
     dut._log.info("write-staged gate: held %d cycles total, longest hold %d", held, held_max)
     assert held == 0, (
         f"a WR was held at the DFI for {held} cycles (longest {held_max}) waiting "

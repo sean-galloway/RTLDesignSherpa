@@ -132,6 +132,6 @@ obs_twtr_nz_o               obs_trtw_nz_o               obs_tccd_nz_o
 
 ## Tests
 
-Verified by `dv/tests/fub/test_global_timers.py`: `smoke`, `tfaw_4_acts`,
+The pumice-area `test_global_timers.py` was removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet (scoria and andesite each keep an `mc_global_timers` FUB test). It covered `smoke`, `tfaw_4_acts`,
 `trrd_spacing`, `twtr_after_wr`, `trtw_after_rd` (plus tCCD coverage as the
 suite is extended for the v2 H additions).

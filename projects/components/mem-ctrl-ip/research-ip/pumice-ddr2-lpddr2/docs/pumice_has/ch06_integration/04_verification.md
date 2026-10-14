@@ -29,37 +29,50 @@ A planeed verification approach with the existing DFI BFM as the primary referen
 
 ### Plane 1: Module-Level Unit Tests
 
-Each live FUB gets its own cocotb unit test (see `dv/tests/fub/`):
+Every FUB pumice instantiates is a common-ip `mc_*` module
+(`projects/components/mem-ctrl-ip/common-ip/rtl/`). Their unit tests belong
+with that RTL, not in the pumice area: a pumice test points only at a pumice
+DUT (owner ruling, 2026-10-13). The `mc_*` FUB tests that lived under
+`dv/tests/fub/` were removed for that reason. common-ip carries no tests of
+its own yet. The table lists the blocks whose pumice-area test was removed;
+`mc_global_timers` and `mc_wr_splitter` keep a directed test in the scoria and
+andesite areas, the rest now have none. `mc_addr_mapper`, `mc_cmd_arbiter`,
+`mc_page_policy`, `mc_dfi_cdc`, `mc_dfi_cmd_path`, `mc_dfi_wr_serializer` and
+`mc_dfi_rd_aligner` lost their pumice tests earlier, in the common-ip move
+(scoria/andesite cover the last two; `mc_bank_timers`' leaf `mc_bank_timer`
+is also tested there, the array wrapper is not):
 
-| Module                      | Test focus                                                             |
+| Module                      | Test focus a common-ip unit test should cover                          |
 |-----------------------------|------------------------------------------------------------------------|
 | `mc_wr_intake`          | AW-meta + wr-data FIFO handshakes; backpressure; burst splitting into fixed-BL commands |
 | `mc_rd_intake`          | AR channel handshakes; address mapping; snarf (read-your-write) probe   |
+| `mc_wr_splitter`        | Host burst split / pad / ragged-tail into fixed-BL sub-commands          |
 | `mc_wr_data_cam`        | WR CAM fill / commit-drain / snarf movers; `r_fdone` fill-complete gating |
 | `mc_rd_cmd_cam`         | RD CAM return-fill / drain movers; oldest-first, data-ready gating       |
-| `mc_addr_mapper`            | Address translation across `ADDR_MAP.bank_lsb` settings (ROW_MAJOR .. interleave) and hash on/off |
-| `mc_cmd_arbiter`            | Single-pick priority order; inline open-page decision; refresh prioritization |
-| `mc_bank_timers` / `mc_bank_timer` | Per-(rank,bank) preset/decrement timers; combinational safe_act/rd/wr/pre readiness |
-| `mc_global_timers`             | tFAW / tRRD / tWTR / tRTW / tCCD against JESD79-2 / JESD209-2 truth tables |
-| `mc_xddr2_refresh_ctrl`     | tREFI counter; refresh-deferral; refresh request/ack handshake          |
-| `mc_xddr2_init_sequencer`   | Step-by-step DDR2 and LPDDR2 JEDEC MR init sequences                     |
-| `mc_xddr2_mode_register`    | CL / CWL / BL / AL decode (DDR2 and LPDDR2 MR2 RL/WL enum)               |
-| `mc_xddr2_cmd_formatter`    | Round-trip table tests against JEDEC encoding; LPDDR2 CA-bus branch      |
-| `mc_dfi_cdc`            | The single async-FIFO clock-domain crossing; bubble-free cmd/wr/rd flow  |
-| `mc_dfi_wr_serializer`  | CWL alignment; write-data serialization onto DFI phases                  |
-| `mc_dfi_rd_aligner`     | CL alignment; read-data assembly; back-pressure                          |
+| `mc_rd_return_ring`     | Read-return ring wrap and occupancy at each depth                        |
+| `mc_bank_timers`        | Per-(rank,bank) preset/decrement timers; combinational safe_act/rd/wr/pre readiness |
+| `mc_global_timers`      | tFAW / tRRD / tWTR / tRTW / tCCD against JESD79-2 / JESD209-2 truth tables |
+| `mc_xddr2_refresh_ctrl` | tREFI counter; refresh-deferral; refresh request/ack handshake          |
+| `mc_xddr2_init_sequencer` | Step-by-step DDR2 and LPDDR2 JEDEC MR init sequences                   |
+| `mc_xddr2_mode_register` | CL / CWL / BL / AL decode (DDR2 and LPDDR2 MR2 RL/WL enum)              |
+| `mc_xddr2_cmd_formatter` | Round-trip table tests against JEDEC encoding; LPDDR2 CA-bus branch     |
+| `mc_lpddr2_zq_ctrl`     | ZQ interval expiry, Mode-C deferral, overdue escalation, DDR2-inert      |
+| `mc_lpddr2_dq_cal`      | One-shot DQ calibration sequence                                         |
 
-The common planes and the integration levels are exercised at Plane 2/3:
-`mc_axi4_plane`, `mc_scheduler_plane`, `mc_dfi_2p1_plane`, `pumice_core`,
-and `pumice_top` (the PeakRDL `pumice_csr` register block is verified with the top).
+The pumice area verifies what pumice owns: `pumice_core` and `pumice_top`
+(with the PeakRDL `pumice_csr` register block), at the default and the board
+geometry, plus the pure-Python oracles the top tests rely on.
 
 ### Plane 2: Subsystem Tests
 
-Multi-module integration tests, framed around the three macro planes (see `dv/tests/macro/`):
-
-- **AXI interface** (`mc_axi4_plane` = wr/rd intakes + the two CAMs): full AXI transaction flow with diverse traffic, including read-your-write snarf forwarding
-- **Command scheduler** (`mc_scheduler_plane` = cmd arbiter + bank/global timers + refresh + init + mode register + page policy; `test_pumice_scheduler_plane.py` still names the removed `pumice_scheduler_plane` wrapper and must be repointed): scheduler decisions on representative queue contents, inline open-page reordering, refresh interleave
-- **DFI plane** (`mc_dfi_2p1_plane` = single CDC + cmd path + wr serializer + rd aligner): command/data flow across the clock-domain crossing with the DFI BFM slave
+The three macro planes are common-ip too -- `mc_axi4_plane` (wr/rd intakes +
+the two CAMs), `mc_scheduler_plane` (cmd arbiter + bank/global timers +
+refresh + init + mode register + page policy) and `mc_dfi_2p1_plane` (single
+CDC + cmd path + wr serializer + rd aligner). Their plane-level tests were
+removed from `dv/tests/macro/` under the same ruling and have no common-ip
+replacement yet. Inside pumice they are exercised only through `pumice_core`
+and `pumice_top` (Plane 3). `dv/tests/macro/` keeps the JEDEC command-stream
+oracle's own unit test (`test_pumice_cmd_stream_checker.py`).
 
 ### Plane 3: End-to-End with DFI BFM Slave
 

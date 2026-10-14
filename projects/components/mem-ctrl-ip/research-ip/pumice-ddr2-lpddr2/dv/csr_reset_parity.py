@@ -44,7 +44,14 @@ CLOCK = {
             "same 75 MHz; that table is what the sim planes run.",
 }
 
-_MATRIX = "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/macro/test_pumice_sched_matrix.py"
+# The page-policy sweep lives in the pumice_top pairwise covering array. It was
+# test_pumice_sched_matrix.py, a scheduler-plane matrix; that test targeted a
+# plane that moved to common-ip and was removed from the pumice area (owner
+# ruling 2026-10-13: pumice tests must not point at common-ip DUTs).
+_SWEEP = "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tests/top/test_pumice_config_sweep.py"
+_SWEEP_ORACLE = ("golden data integrity through the DFI slave MemoryModel plus the "
+                 "telemetry invariants (dv/tbclasses/pumice_telemetry_invariants.py), "
+                 "checked in every covering-array cell")
 _CONFIGS = "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tbclasses/pumice_dram_configs.py"
 _JEDEC = ("the JEDEC command-stream checker (dv/tbclasses/pumice_cmd_stream_checker.py) "
           "asserts on the emitted command stream, so a wrong value shows up as a "
@@ -59,15 +66,13 @@ DOCUMENTED_FIELD_COUNT = 75
 FIELDS = {
     # ---- swept: DV runs more than the reset, with an oracle ------------------
     "PAGE_POLICY_CFG.policy_mode": dict(
-        drives="page_mode_i",
-        swept=(0, 1, 2, 3, 4, 5), by=_MATRIX, oracle=_JEDEC,
-        note="PAGE_ARMS: build_default/static_open/static_close/fixed_open x2, plus "
-             "the two retired encodings as a fallthrough regression. Resets to 3, "
+        swept=(0, 1, 2, 3, 4, 5), by=_SWEEP, oracle=_SWEEP_ORACLE,
+        note="All six encodings appear in the covering array: build_default/static_open/"
+             "static_close/fixed_open, plus the two retired encodings as a fallthrough regression. Resets to 3, "
              "the shipping default (board: +9.1% col_major, +35.1% col_major_interleaved).",
     ),
     "PAGE_TIMEOUT_CFG.tr_init": dict(
-        drives="page_tr_init_i",
-        swept=(0, 2, 8), by=_MATRIX, oracle=_JEDEC,
+        swept=(0, 1, 2, 4, 8), by=_SWEEP, oracle=_SWEEP_ORACLE,
         note="Only meaningful for the background-close modes. Resets to 2, measured "
              "as the best default in TASK-013 and blocked by BUG-003 until it was fixed.",
     ),
