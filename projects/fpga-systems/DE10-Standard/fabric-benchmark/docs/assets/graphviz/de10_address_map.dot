@@ -1,0 +1,39 @@
+// DE10-Standard fabric benchmark - system address map (PRD Table 5.1 as a
+// picture). PLANNED. One 32-bit space: the data fabric decodes everything
+// below 0xF000_0000, the configuration bridge decodes the 0xF000_0000 region.
+// House style: vault/handbook/authoring/block-diagrams.md.
+digraph de10_address_map {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.6", ranksep="0.9", splines=line, labelloc=t, labeljust=c, pad="0.2",
+           label="DE10-Standard fabric benchmark - system address map (planned)"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, style=dashed];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Address</B></TD><TD BGCOLOR="white"><B>Region</B></TD><TD BGCOLOR="white"><B>Decoded by</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0xF000_0000 - 0xF01D_0FFF</TD><TD BGCOLOR="#D6E4F0">Configuration region (expanded right)</TD><TD PORT="cfg">config bridge</TD></TR>
+  <TR><TD ALIGN="LEFT">0xB000_0000 - 0xEFFF_FFFF</TD><TD>unmapped - DECERR</TD><TD>-</TD></TR>
+  <TR><TD ALIGN="LEFT">0xA000_0000 - 0xAFFF_FFFF</TD><TD BGCOLOR="#D6E4F0">CRC sink (write-only, 256 MB window)</TD><TD>data fabric</TD></TR>
+  <TR><TD ALIGN="LEFT">0x9000_0000 - 0x9FFF_FFFF</TD><TD BGCOLOR="#D6E4F0">LFSR source (read-only, 256 MB window)</TD><TD>data fabric</TD></TR>
+  <TR><TD ALIGN="LEFT">0x8000_0000 - 0x8000_FFFF</TD><TD BGCOLOR="#D6E4F0">desc_ram read port (64 KB)</TD><TD>data fabric</TD></TR>
+  <TR><TD ALIGN="LEFT">0x4000_0000 - 0x7FFF_FFFF</TD><TD>unmapped - DECERR</TD><TD>-</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2000_0000 - 0x3FFF_FFFF</TD><TD BGCOLOR="#D6E4F0">DDR3 - benchmark regions (512 MB)</TD><TD>data fabric</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0000_0000 - 0x1FFF_FFFF</TD><TD>DDR3 - HPS preloader / software (not touched)</TD><TD>data fabric</TD></TR>
+</TABLE>>];
+
+    cfg [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Address</B></TD><TD BGCOLOR="white"><B>Window</B></TD><TD BGCOLOR="white"><B>Block behind it</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0xF01D_0000 (4 KB)</TD><TD>chargen</TD><TD ALIGN="LEFT">W3 injector registers (char_engine_block)</TD></TR>
+  <TR><TD ALIGN="LEFT">0xF01C_0000 (4 KB)</TD><TD>obs_desc</TD><TD ALIGN="LEFT">observer on stream's descriptor master</TD></TR>
+  <TR><TD ALIGN="LEFT">0xF01A_0000</TD><TD>(reserved)</TD><TD ALIGN="LEFT">capture SRAM - monitor build only</TD></TR>
+  <TR><TD ALIGN="LEFT">0xF019_0000 (4 KB)</TD><TD>obs_master</TD><TD ALIGN="LEFT">observer at the fabric's master ports</TD></TR>
+  <TR><TD ALIGN="LEFT">0xF018_0000 (4 KB)</TD><TD>obs_slave</TD><TD ALIGN="LEFT">observer at the fabric's slave ports</TD></TR>
+  <TR><TD ALIGN="LEFT">0xF003_0000 - 0xF017_FFFF</TD><TD>(reserved)</TD><TD ALIGN="LEFT">tallies, error drains - monitor build only</TD></TR>
+  <TR><TD ALIGN="LEFT">0xF002_0000 (64 KB)</TD><TD>desc_ram write</TD><TD ALIGN="LEFT">descriptor preload (same RAM as 0x8000_0000)</TD></TR>
+  <TR><TD ALIGN="LEFT">0xF001_0000 (4 KB)</TD><TD>harness_csr</TD><TD ALIGN="LEFT">CTRL, STATUS, CRC expected / computed</TD></TR>
+  <TR><TD ALIGN="LEFT">0xF000_0000 (8 KB)</TD><TD>stream_apb</TD><TD ALIGN="LEFT">STREAM: channels, engines, KICK, perf CSRs</TD></TR>
+</TABLE>>];
+
+    map:cfg:e -> cfg:w [label="expanded"];
+}

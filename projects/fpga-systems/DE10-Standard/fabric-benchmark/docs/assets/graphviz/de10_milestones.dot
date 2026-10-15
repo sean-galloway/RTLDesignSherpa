@@ -1,0 +1,32 @@
+// DE10-Standard fabric benchmark - milestones (PRD 7). PLANNED.
+// Each step passes the sim harness with the board's sequence files before
+// its bitstream; the Intel leg goes first because the PD flow is the unknown.
+// House style: vault/handbook/authoring/block-diagrams.md.
+digraph de10_milestones {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.6", ranksep="0.4", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
+           label="Milestones - sim before silicon at every step (planned)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06", width=3.2];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    m0  [label="M0 collateral\nPD IP, JTAG bridge, HPS DDR3 config, f2sdram width", width=6.8, fillcolor="white"];
+    m1s [label="SIM  M1 config path\nby-name CSR access through avmm_to_axil4"];
+    m1b [label="BOARD  M1 config path\nSystem Console bridge, same CSR reads"];
+    m2s [label="SIM  M2 Leg B (Platform Designer)\nfabric-only mode, W1, W3 green"];
+    m2b [label="BOARD  M2 Leg B (Platform Designer)\nsame runs on silicon"];
+    m3s [label="SIM  M3 Leg A (bridge)\nmatched TOML, same runs green"];
+    m3b [label="BOARD  M3 Leg A (bridge)\nsame runs on silicon"];
+    m4  [label="M4 measure\nv1 sweep x5 both legs; Fitter / TimeQuest parses", width=6.8];
+    m5  [label="M5 analysis\ndoc + site write-up", width=6.8, fillcolor="white"];
+
+    { rank=same; m1s; m1b; }
+    { rank=same; m2s; m2b; }
+    { rank=same; m3s; m3b; }
+    m0 -> m1s [xlabel="unblocks"];
+    m1s -> m1b [constraint=false, xlabel="then"];
+    m1s -> m2s [xlabel="sim green"]; m1b -> m2b [xlabel="board green"];
+    m2s -> m3s [xlabel="sim green"]; m2b -> m3b [xlabel="board green"];
+    m2s -> m2b [constraint=false, xlabel="then"];
+    m3s -> m3b [constraint=false, xlabel="then"];
+    m3b -> m4 [xlabel="both legs on silicon"];
+    m4 -> m5;
+}

@@ -1,0 +1,32 @@
+// DE10-Standard fabric benchmark - Leg A vs Leg B: the one swap. PLANNED.
+// Everything outside the fabric instance is the same RTL in both bitstreams.
+// House style: vault/handbook/authoring/block-diagrams.md.
+digraph de10_legs {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.5", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
+           label="Leg A vs Leg B - one block changes, everything else is the same RTL (planned)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    subgraph cluster_a {
+        label="Leg A bitstream"; fontsize=10; style=solid;
+        a_m  [label="Masters + master-side observers\nstream, char_engine_block, obs_master, obs_desc"];
+        a_f  [label="Bridge-generated AXI4 crossbar\nbridge_generator.py - matched TOML", penwidth=2.2, style="filled,bold"];
+        a_s  [label="Slave-side observer + slaves\nobs_slave, desc_ram, LFSR source, CRC sink, axi4_to_axi3"];
+        a_m -> a_f [xlabel="RD / WR requests"];
+        a_f -> a_s [xlabel="RD / WR requests"];
+    }
+    subgraph cluster_b {
+        label="Leg B bitstream"; fontsize=10; style=solid;
+        b_m  [label="Masters + master-side observers\nstream, char_engine_block, obs_master, obs_desc"];
+        b_f  [label="Platform Designer AXI4 interconnect\nQsys-generated - matched topology", penwidth=2.2, style="filled,bold"];
+        b_s  [label="Slave-side observer + slaves\nobs_slave, desc_ram, LFSR source, CRC sink, axi4_to_axi3"];
+        b_m -> b_f [xlabel="RD / WR requests"];
+        b_f -> b_s [xlabel="RD / WR requests"];
+    }
+    same [label="Held constant (identical RTL, constraints, seeds):\l- configuration path: JTAG bridge, avmm_to_axil4, config bridge, harness_csr\l- every block above and below the fabric\l- HPS config, DDR3 controller, f2sdram port\l- SDC, Quartus seeds and effort, host programs, sequence files\l", fillcolor="white", shape=box];
+    { rank=same; a_m; b_m; }
+    { rank=same; a_f; b_f; }
+    { rank=same; a_s; b_s; }
+    a_s -> same [style=invis];
+    b_s -> same [style=invis];
+}

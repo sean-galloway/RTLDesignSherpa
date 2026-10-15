@@ -1,0 +1,64 @@
+// DE10-Standard fabric benchmark - the run matrix (PRD 4.1). PLANNED.
+// Each panel is one run: where stream reads from, where it writes to, and
+// what part of the system the run isolates. Every path crosses the fabric
+// under test; only DDR3 paths also cross the HPS boundary.
+// House style: vault/handbook/authoring/block-diagrams.md.
+digraph de10_runs {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.3", ranksep="0.35", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
+           label="Run matrix - source x sink, every path through the fabric under test (planned)"];
+    node  [fontname="Helvetica", fontsize=9, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.10,0.05"];
+    edge  [fontname="Helvetica", fontsize=8, color="black", arrowsize=0.6];
+
+    subgraph cluster_w2 {
+        label="FABRIC-ONLY MODE (W2)\nstream <-> CRC endpoints only: nothing but the fabric"; fontsize=10; penwidth=2.2;
+        w2s [label="LFSR source\npattern"];
+        w2f [label="Fabric under test\nrd port", penwidth=1.8];
+        w2m [label="stream\nm_axi_rd -> m_axi_wr"];
+        w2g [label="Fabric under test\nwr port", penwidth=1.8];
+        w2k [label="CRC sink\nverdict vs the source's CRC"];
+        w2s -> w2f [xlabel="read data"]; w2f -> w2m [xlabel="read data"]; w2m -> w2g [xlabel="write data"]; w2g -> w2k [xlabel="write data"];
+    }
+    subgraph cluster_f1 {
+        label="W1-F1  drain\nisolates: read path, fabric + DDR3 controller"; fontsize=9;
+        f1s [label="DDR3\nbenchmark region", fillcolor="white"];
+        f1f [label="Fabric under test\nrd port", penwidth=1.8];
+        f1m [label="stream\nm_axi_rd -> m_axi_wr"];
+        f1g [label="Fabric under test\nwr port", penwidth=1.8];
+        f1k [label="CRC sink\nverdict vs the fill run's CRC (C1)"];
+        f1s -> f1f [xlabel="read data"]; f1f -> f1m [xlabel="read data"]; f1m -> f1g [xlabel="write data"]; f1g -> f1k [xlabel="write data"];
+    }
+    subgraph cluster_f2 {
+        label="W1-F2  fill\nisolates: write path, fabric + DDR3 controller"; fontsize=9;
+        f2s [label="LFSR source\npattern"];
+        f2f [label="Fabric under test\nrd port", penwidth=1.8];
+        f2m [label="stream\nm_axi_rd -> m_axi_wr"];
+        f2g [label="Fabric under test\nwr port", penwidth=1.8];
+        f2k [label="DDR3\nbenchmark region", fillcolor="white"];
+        f2s -> f2f [xlabel="read data"]; f2f -> f2m [xlabel="read data"]; f2m -> f2g [xlabel="write data"]; f2g -> f2k [xlabel="write data"];
+    }
+    subgraph cluster_w4 {
+        label="W4  copy\nisolates: DDR3 read + write at once"; fontsize=9;
+        w4s [label="DDR3\nregion A", fillcolor="white"];
+        w4f [label="Fabric under test\nrd port", penwidth=1.8];
+        w4m [label="stream\nm_axi_rd -> m_axi_wr"];
+        w4g [label="Fabric under test\nwr port", penwidth=1.8];
+        w4k [label="DDR3\nregion B", fillcolor="white"];
+        w4s -> w4f [xlabel="read data"]; w4f -> w4m [xlabel="read data"]; w4m -> w4g [xlabel="write data"]; w4g -> w4k [xlabel="write data"];
+    }
+    subgraph cluster_w3 {
+        label="W3  contention (and mirror: roles swap)\nisolates: arbitration - fabric vs DDR3 controller"; fontsize=9;
+        w3s [label="DDR3\nregion A", fillcolor="white"];
+        w3f [label="Fabric under test\nrd port", penwidth=1.8];
+        w3m [label="stream\nm_axi_rd -> m_axi_wr"];
+        w3i [label="W3 injector\nchar_engine_block"];
+        w3g [label="Fabric under test\nwr port - 2 writers contend", penwidth=1.8];
+        w3k [label="CRC sink"];
+        w3d [label="DDR3\nregion B", fillcolor="white"];
+        w3s -> w3f [xlabel="read data"]; w3f -> w3m [xlabel="read data"];
+        w3m -> w3g [xlabel="stream writes"]; w3i -> w3g [xlabel="injector writes"];
+        w3g -> w3k [xlabel="stream data"]; w3g -> w3d [xlabel="injector data"];
+        { rank=same; w3m; w3i; }
+        { rank=same; w3k; w3d; }
+    }
+    { rank=same; w2s; f1s; f2s; w4s; w3s; }
+}

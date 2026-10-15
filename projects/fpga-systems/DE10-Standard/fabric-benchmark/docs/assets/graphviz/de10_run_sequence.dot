@@ -1,0 +1,32 @@
+// DE10-Standard fabric benchmark - one run, sim and board (PRD 4.4, 5.2,
+// 5.5). PLANNED. The steps are CharacterizationRunner.run_config from
+// Genesys2/dma-ip/stream/bin/characterization.py, unchanged; only the bridge
+// object injected at the top differs between sim and silicon.
+// House style: vault/handbook/authoring/block-diagrams.md.
+digraph de10_run_sequence {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.5", ranksep="0.35", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
+           label="One run - the same host program and sequence file in sim and on the board (planned)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    sim  [label="Sim transport\ncocotb Avalon-MM master -> avmm_to_axil4\n(sim harness, identical RTL)", fillcolor="white"];
+    brd  [label="Board transport\nSystem Console -> JTAG to Avalon Master Bridge\n-> avmm_to_axil4", fillcolor="white"];
+    seq  [label="Sequence file + host program\nUartRegisterMap / Device / DeviceBus - registers by name", penwidth=1.8];
+
+    s1 [label="1. reset_stream, clear_stats\nharness_csr CTRL.SOFT_RESET - every instrument cleared"];
+    s2 [label="2. load_descriptors\nchain written to desc_ram (0xF002_0000)"];
+    s3 [label="3. configure_stream\nstream_apb: channels, burst length, outstanding"];
+    s4 [label="4. setup_timer\nmeasurement window sized to the run's bytes"];
+    s5 [label="5. pre_kick hook\narm obs_master / obs_slave / obs_desc; chargen for W3"];
+    s6 [label="6. kick_channels\nstream fetches descriptors and moves data across the fabric"];
+    s7 [label="7. poll_completion\nuntil done or timeout"];
+    s8 [label="8. read_run_metrics, read_crc\nobserver meters + histograms, CRC verdict"];
+    out [label="data/<leg>/<run>.csv\none row per sweep point", fillcolor="white"];
+
+    sim -> seq [xlabel="bridge(write, read)"];
+    brd -> seq [xlabel="bridge(write, read)"];
+    seq -> s1 [xlabel="run_config(cfg)"];
+    s1 -> s2 -> s3 -> s4 -> s5 -> s6 -> s7 -> s8;
+    s8 -> out [xlabel="results"];
+    { rank=same; sim; brd; }
+}

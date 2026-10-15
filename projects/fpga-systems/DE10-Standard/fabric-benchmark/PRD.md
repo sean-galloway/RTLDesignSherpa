@@ -109,6 +109,12 @@ map (Table 5.1). No wider or fancier bridge than the PD fabric it replaces. Any 
 feature with no bridge equivalent (e.g. default slave, topology display) is
 matched functionally or documented as a difference.
 
+### Figure 3.1: Leg A vs Leg B (planned)
+
+![Leg A vs Leg B (planned)](docs/assets/graphviz/de10_legs.png)
+
+**Source:** [de10_legs.dot](docs/assets/graphviz/de10_legs.dot)
+
 ## 4. Benchmark definition
 
 ### 4.1 Workloads (performance axis)
@@ -120,16 +126,40 @@ LFSR source; the sink is DDR3 or the CRC sink:
 | --- | --- | --- | --- |
 | **W1-F1 — drain** | DDR3 | CRC sink | read path: fabric + memory controller, read direction |
 | **W1-F2 — fill** | LFSR source | DDR3 | write path: fabric + memory controller, write direction |
-| **W2 — fabric only** | LFSR source | CRC sink | the fabric with no memory controller in the path |
+| **W2 — fabric-only mode** | LFSR source | CRC sink | the fabric and nothing else: no memory controller, no HPS |
 | **W4 — copy** | DDR3 | DDR3 | both directions through the controller at once |
 
-W2 is the attributor: a shortfall that appears in W1 and not in W2 is the
-memory controller's; one that appears in W2 is the fabric's. F2 followed by
+**Fabric-only mode (W2)** is the baseline every other run is read against.
+`stream` talks only to the CRC endpoints on the fabric: it reads the LFSR
+source and writes the CRC sink, and fetches its descriptors from `desc_ram`,
+all through the fabric under test. Nothing else is in the path — no DDR3
+controller, no f2sdram, no `axi4_to_axi3`, no HPS. The endpoints accept the
+next transaction on the last beat of the current one, so they add no
+bubbles; they run on the faster `srcsnk_clk`, so they cannot limit; and the
+slave-side meters sit between the fabric and the CDC crossings, so
+subtracting slave-side from master-side latency removes the crossings and
+the endpoints as well. What remains is the fabric, which is exactly what
+the two legs differ in. A shortfall that appears in W1 and not in W2 is the
+memory controller's; one that appears in W2 is the fabric's.
+
+### Figure 4.1: Run matrix (planned)
+
+![Run matrix (planned)](docs/assets/graphviz/de10_runs.png)
+
+**Source:** [de10_runs.dot](docs/assets/graphviz/de10_runs.dot)
+
+### Figure 4.2: Fabric-only mode in detail (planned)
+
+![Fabric-only mode in detail (planned)](docs/assets/graphviz/de10_fabric_only.png)
+
+**Source:** [de10_fabric_only.dot](docs/assets/graphviz/de10_fabric_only.dot)
+
+F2 followed by
 F1 over the same region is also the integrity loop: the LFSR data written by
 F2 is drained into the CRC sink by F1, so every F2 run ends in a CRC verdict
 (C1 below).
 
-**v1 execution scope** — the headline sweep runs on W1-F1, W1-F2 and W2:
+**v1 execution scope** — the headline sweep runs on fabric-only mode (W2) first, then W1-F1 and W1-F2:
 burst length {4, 8, 16, 32, 64 beats} × outstanding transactions {1, 2, 4,
 8}, fixed measurement window, N = 5 runs. Bursts above 16 beats are split
 by the fabric-edge `axi4_to_axi3` on the DDR3 path; that converter is the
@@ -168,6 +198,12 @@ the sustained-backpressure story, but needs one small RTL knob (a pace
 throttle on the LFSR source / CRC sink); revisit after v1.
 
 ### 4.2 Metrics — performance
+
+### Figure 4.3: Measurement points (planned)
+
+![Measurement points (planned)](docs/assets/graphviz/de10_measurement.png)
+
+**Source:** [de10_measurement.dot](docs/assets/graphviz/de10_measurement.dot)
 
 Measured by the **obs blocks** (identical RTL and probe points both legs),
 read out over the control plane:
@@ -244,6 +280,12 @@ interconnects, but no address means two things, and every block the host or
 
 : Table 5.1: System address map. The configuration region keeps the Genesys 2 harness offsets (`bridge_stream_mon_axil`) under a `0xF000_0000` base, so the generated regmaps carry over unchanged and only the base moves; the host takes the bases from the DE10 bridge TOML's generated map, never from constants. DDR3 is at base 0 so fabric addresses are SDRAM physical addresses at f2sdram with no translation. The LFSR polynomial and seed and the CRC configuration are parameters of the source and sink, not registers, and are identical in both legs.
 
+### Figure 5.2: System address map (planned)
+
+![System address map (planned)](docs/assets/graphviz/de10_address_map.png)
+
+**Source:** [de10_address_map.dot](docs/assets/graphviz/de10_address_map.dot)
+
 **Observer placement is the measurement.** Master-side observers sit
 between the masters and the fabric; slave-side observers sit between the
 fabric and the slaves. The same transaction is stamped on both sides, so
@@ -277,6 +319,12 @@ serves the board; the sim harness drives the same register calls into
 sequence files on both sides — the equivalence property of the shared
 host stack, at the register-call level rather than the UART byte level.
 
+### Figure 5.3: One run, sim and board (planned)
+
+![One run, sim and board (planned)](docs/assets/graphviz/de10_run_sequence.png)
+
+**Source:** [de10_run_sequence.dot](docs/assets/graphviz/de10_run_sequence.dot)
+
 ### 5.3 Data path — the fabric under test
 
 | Master | Width | Role |
@@ -295,6 +343,12 @@ purpose — descriptor traffic competing with data traffic is part of the
 real workload. (On the Genesys 2 the descriptor master is wired straight to
 `desc_ram`; that wiring is one `desc_ram` port move if a run wants it
 removed from the measurement.)
+
+### Figure 5.4: Clock domains (planned)
+
+![Clock domains (planned)](docs/assets/graphviz/de10_clocks.png)
+
+**Source:** [de10_clocks.dot](docs/assets/graphviz/de10_clocks.dot)
 
 ### 5.4 The protocol boundary
 
@@ -332,11 +386,17 @@ Designer's generated simulation model of its interconnect.
 
 ## 7. Milestones
 
+### Figure 7.1: Milestones (planned)
+
+![Milestones (planned)](docs/assets/graphviz/de10_milestones.png)
+
+**Source:** [de10_milestones.dot](docs/assets/graphviz/de10_milestones.dot)
+
 | M | Content | Blocked by |
 | --- | --- | --- |
 | M0 | Collateral intake: PD IP inventory, JTAG to Avalon Master Bridge in 24.1 std, HPS DDR3 config for this board, f2sdram port width and count | external download |
 | M1 | Control plane: JTAG → `avmm_to_axil4` → config bridge; System Console bridge reads and writes the harness CSRs by name, in sim and on the board | M0 |
-| M2 | Leg B (Intel PD) data plane: sim harness green on W1-F1/W1-F2/W2/W3 with the board sequences; then compiles and runs on the board | M1 |
+| M2 | Leg B (Intel PD) data plane: sim harness green on fabric-only mode, W1-F1/W1-F2 and W3 with the board sequences; then compiles and runs on the board | M1 |
 | M3 | Leg A (bridge) data plane: matched-topology TOML; same sim then board gate as M2 | M2 |
 | M4 | Measurements: v1 sweep ×5 runs both legs; scenario-library runs as appetite allows; Fitter/TimeQuest parses | M3 |
 | M5 | Analysis doc + site write-up (incl. mirror-agreement verdicts) | M4 |
