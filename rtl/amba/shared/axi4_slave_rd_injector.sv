@@ -15,7 +15,8 @@
 //   handler with LFSR pattern generator and CRC checker.
 //
 //   Per-channel mode (NUM_CHANNELS > 1): the slave maintains independent
-//   LFSR + CRC state per channel, demuxed off the low bits of s_axi_arid.
+//   LFSR + CRC state per channel, demuxed off the low bits of s_axi_arid,
+//   or off s_axi_araddr[CH_ADDR_LSB +: CIW] when CH_SEL_ADDR = 1.
 //   This makes the data each channel reads back independent of any other
 //   channel's traffic, so a multi-channel test can verify integrity per
 //   channel without ordering interleave at the shared AXI port corrupting
@@ -72,6 +73,16 @@ module axi4_slave_rd_injector #(
     // Derived parameters
     parameter int REPLICATION_FACTOR = (AXI_DATA_WIDTH + 31) / 32,
     parameter int CIW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
+
+    // Channel select. 0 (default): the channel is the low CIW bits of the
+    // burst's ID (AR/AW), as every harness built so far drives it.
+    // 1: the channel is the burst's address bits [CH_ADDR_LSB +: CIW] -- for a
+    // fabric that does not carry the master's ID to its slaves (SmartConnect's
+    // MI ID width is 0). Each channel then owns a 2^CH_ADDR_LSB-byte window;
+    // the windows never overlap and a burst never crosses one (AXI bursts stop
+    // at 4 KB, so CH_ADDR_LSB >= 12). CH_ADDR_LSB + CIW <= AXI_ADDR_WIDTH.
+    parameter bit CH_SEL_ADDR = 1'b0,
+    parameter int CH_ADDR_LSB = 16,
 
     // ERR_INJECT=1 (rapids TASK-020) builds the R-response error injector:
     // every beat of a chosen burst on a chosen channel answers cfg_err_resp
@@ -201,9 +212,15 @@ module axi4_slave_rd_injector #(
     logic [AXI_USER_WIDTH-1:0] r_rd_user;
     logic [7:0]                r_rd_beats_remaining;
 
-    // Active channel index for the in-flight burst (low bits of the captured AR ID)
+    // Channel of an AR at the handshake (CH_SEL_ADDR: from the ID or the
+    // address), captured with the burst; the in-flight burst's channel.
+    logic [CIW-1:0] w_ar_ch_sel;
+    logic [CIW-1:0] r_rd_ch;
+    assign w_ar_ch_sel = (NUM_CHANNELS == 1) ? '0
+                       : CH_SEL_ADDR ? fub_axi_araddr[CH_ADDR_LSB +: CIW]
+                                     : fub_axi_arid[CIW-1:0];
     logic [CIW-1:0] w_active_ch;
-    assign w_active_ch = (NUM_CHANNELS == 1) ? '0 : r_rd_id[CIW-1:0];
+    assign w_active_ch = r_rd_ch;
 
     // R-beat handshake (one beat consumed per channel per cycle)
     wire w_r_beat = fub_axi_rvalid && fub_axi_rready;
@@ -370,8 +387,7 @@ module axi4_slave_rd_injector #(
             logic [1:0]  r_rd_resp;
 
             wire w_ar_accept = fub_axi_arvalid && fub_axi_arready;
-            wire [CIW-1:0] w_ar_ch = (NUM_CHANNELS == 1) ? '0
-                                                         : fub_axi_arid[CIW-1:0];
+            wire [CIW-1:0] w_ar_ch = w_ar_ch_sel;
             wire w_err_arm_ch = (NUM_CHANNELS == 1) ? 1'b1
                                                     : (w_ar_ch == cfg_err_channel);
             wire w_err_hit    = cfg_err_enable && !r_err_done && w_err_arm_ch &&
@@ -424,6 +440,7 @@ module axi4_slave_rd_injector #(
         if (`RST_ASSERTED(w_aresetn)) begin
             r_rd_state <= RD_IDLE;
             r_rd_id <= '0;
+            r_rd_ch <= '0;
             r_rd_user <= '0;
             r_rd_beats_remaining <= '0;
         end else begin
@@ -432,6 +449,7 @@ module axi4_slave_rd_injector #(
                     if (fub_axi_arvalid && fub_axi_arready) begin
                         r_rd_state <= RD_BURST;
                         r_rd_id <= fub_axi_arid;
+                        r_rd_ch <= w_ar_ch_sel;
                         r_rd_user <= fub_axi_aruser;
                         r_rd_beats_remaining <= fub_axi_arlen;  // arlen = beats - 1
                     end
@@ -448,6 +466,7 @@ module axi4_slave_rd_injector #(
                             // CRC) is unchanged -- only the dead cycle is removed.
                             if (fub_axi_arvalid) begin
                                 r_rd_id <= fub_axi_arid;
+                                r_rd_ch <= w_ar_ch_sel;
                                 r_rd_user <= fub_axi_aruser;
                                 r_rd_beats_remaining <= fub_axi_arlen;
                             end else begin

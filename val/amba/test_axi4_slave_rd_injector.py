@@ -18,6 +18,7 @@ Pins:
     the byte-order verification)
   - NUM_CHANNELS>1: each channel's LFSR/CRC state is independent -- only
     the served channel's stream advances
+  - CH_SEL_ADDR=1: the channel is taken from the address, not the ID
 
 REG_LEVEL (env, default FUNC) selects how many (test_type, test_level)
 combinations run; TEST_LEVEL (gate/func/full) scales how much work each
@@ -68,6 +69,7 @@ async def cocotb_test_axi4_slave_rd_injector(dut):
         "multi_beat_burst": _multi_beat_burst,
         "crc_telemetry": _crc_telemetry,
         "two_channel_interleave": _two_channel_interleave,
+        "two_channel_interleave_addr": lambda t, d: _two_channel_interleave(t, d, by_addr=True),
         "rresp_error_injection": _rresp_error_injection,
     }
     if test_type not in scenarios:
@@ -138,18 +140,24 @@ async def _crc_telemetry(tb: SlaveRdInjectorTB, depth: dict):
     )
 
 
-async def _two_channel_interleave(tb: SlaveRdInjectorTB, depth: dict):
+async def _two_channel_interleave(tb: SlaveRdInjectorTB, depth: dict, by_addr: bool = False):
     """NUM_CHANNELS=2 build: interleave bursts across channel 0 and
     channel 1. Each channel's LFSR/CRC stream must be independent of the
     other's traffic -- ch0's second burst continues where its first
-    burst left off, ch1's seed is LFSR_SEED ^ 1."""
+    burst left off, ch1's seed is LFSR_SEED ^ 1.
+
+    The addresses put ch0 at bit 12 = 0 (0x4000, 0x4100) and ch1 at bit
+    12 = 1 (0x5000). CH_SEL_ADDR builds (the `_addr` scenarios, CH_ADDR_LSB=12): the channel
+comes from address bit 12, and every burst carries the OTHER channel's ID,
+so a block still selecting by ID fails every assertion."""
     assert tb.NUM_CHANNELS == 2, "this scenario requires a NUM_CHANNELS=2 build"
 
     n0a, n1, n0b = depth["ch0a"], depth["ch1"], depth["ch0b"]
+    id0, id1 = (1, 0) if by_addr else (0, 1)
 
-    got0a = await tb.read_burst(addr=0x4000, burst_len=n0a, axi_id=0)
-    got1 = await tb.read_burst(addr=0x5000, burst_len=n1, axi_id=1)
-    got0b = await tb.read_burst(addr=0x4100, burst_len=n0b, axi_id=0)
+    got0a = await tb.read_burst(addr=0x4000, burst_len=n0a, axi_id=id0)
+    got1 = await tb.read_burst(addr=0x5000, burst_len=n1, axi_id=id1)
+    got0b = await tb.read_burst(addr=0x4100, burst_len=n0b, axi_id=id0)
     await tb.settle()
 
     exp0 = tb.expected_data_words(n0a + n0b, channel=0)
@@ -226,7 +234,7 @@ async def _rresp_error_injection(tb: SlaveRdInjectorTB, depth: dict):
 
 _CORE_TYPES = ["smoke", "multi_beat_burst", "crc_telemetry"]
 _FUNC_TYPES = _CORE_TYPES + ["sequential", "two_channel_interleave",
-                             "rresp_error_injection"]
+                             "two_channel_interleave_addr", "rresp_error_injection"]
 _ALL_TYPES = _FUNC_TYPES
 
 _REG_LEVEL = os.environ.get("REG_LEVEL", "FUNC").upper()
@@ -238,7 +246,10 @@ elif _REG_LEVEL == "FULL":
 else:  # FUNC (default)
     _COMBOS = [(t, "func") for t in _FUNC_TYPES]
 
-_NUM_CHANNELS_FOR = {"two_channel_interleave": 2}
+_NUM_CHANNELS_FOR = {"two_channel_interleave": 2, "two_channel_interleave_addr": 2}
+# CH_SEL_ADDR defaults to 0 (channel from the ID); the _addr scenario takes it
+# from address bit 12.
+_CH_SEL_ADDR_FOR = {"two_channel_interleave_addr": 1}
 # ERR_INJECT defaults to 0 (STREAM and the beats harness keep today's block);
 # only the injection scenario elaborates it on.
 _ERR_INJECT_FOR = {"rresp_error_injection": 1}
@@ -280,6 +291,8 @@ def test_axi4_slave_rd_injector(request, test_type, test_level):
         "AXI_USER_WIDTH": "1",
         "NUM_CHANNELS": str(num_channels),
         "ERR_INJECT": str(err_inject),
+        "CH_SEL_ADDR": str(_CH_SEL_ADDR_FOR.get(test_type, 0)),
+        "CH_ADDR_LSB": "12",
     }
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))

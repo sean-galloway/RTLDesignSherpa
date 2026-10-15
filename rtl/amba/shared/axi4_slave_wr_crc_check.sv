@@ -17,8 +17,8 @@
 //   CRC state per channel, demuxed off the low bits of the W-side wuser
 //   (which the STREAM master drives with the burst's channel index). The
 //   AW FSM accepts one burst at a time and W beats are in-order with AW,
-//   so r_wr_id[CIW-1:0] is the active channel during W; we use that as
-//   the demux selector.
+//   so the channel captured with the AW is the active channel during W: the
+//   low CIW bits of awid, or awaddr[CH_ADDR_LSB +: CIW] when CH_SEL_ADDR = 1.
 //
 // Per-channel outputs:
 //   write_crc_value [NUM_CHANNELS][31:0] - per-channel CRC values
@@ -59,6 +59,16 @@ module axi4_slave_wr_crc_check #(
     // cycle through cascade_sel, with wready held low while a beat is fed.
     // 0: the CRC_SLICE_OFFSET 32-bit slice of every beat (STREAM's harness).
     parameter bit BYTE_CRC = 1'b0,
+
+    // Channel select. 0 (default): the channel is the low CIW bits of the
+    // burst's ID (AR/AW), as every harness built so far drives it.
+    // 1: the channel is the burst's address bits [CH_ADDR_LSB +: CIW] -- for a
+    // fabric that does not carry the master's ID to its slaves (SmartConnect's
+    // MI ID width is 0). Each channel then owns a 2^CH_ADDR_LSB-byte window;
+    // the windows never overlap and a burst never crosses one (AXI bursts stop
+    // at 4 KB, so CH_ADDR_LSB >= 12). CH_ADDR_LSB + CIW <= AXI_ADDR_WIDTH.
+    parameter bit CH_SEL_ADDR = 1'b0,
+    parameter int CH_ADDR_LSB = 16,
 
     // ERR_INJECT=1 (rapids TASK-020) builds the B-response error injector:
     // a chosen burst on a chosen channel answers cfg_err_resp instead of
@@ -218,8 +228,15 @@ module axi4_slave_wr_crc_check #(
     // returned to idle. The module comment already called for a B FIFO here.
 
     // Active channel index for the in-flight burst (low bits of captured AW ID).
+    // Channel of an AW at the handshake (CH_SEL_ADDR: from the ID or the
+    // address), captured with the burst; the in-flight burst's channel.
+    logic [CIW-1:0] w_aw_ch_sel;
+    logic [CIW-1:0] r_wr_ch;
+    assign w_aw_ch_sel = (NUM_CHANNELS == 1) ? '0
+                       : CH_SEL_ADDR ? fub_axi_awaddr[CH_ADDR_LSB +: CIW]
+                                     : fub_axi_awid[CIW-1:0];
     logic [CIW-1:0] w_active_ch;
-    assign w_active_ch = (NUM_CHANNELS == 1) ? '0 : r_wr_id[CIW-1:0];
+    assign w_active_ch = r_wr_ch;
 
     // Single accepted-W-beat strobe; per-channel CRC instances gate on this.
     wire w_w_beat = fub_axi_wvalid && fub_axi_wready && r_wr_active;
@@ -458,12 +475,14 @@ module axi4_slave_wr_crc_check #(
         if (`RST_ASSERTED(w_aresetn)) begin
             r_wr_active <= 1'b0;
             r_wr_id <= '0;
+            r_wr_ch <= '0;
             r_wr_user <= '0;
         end else begin
             // AW acceptance — start a new burst from idle.
             if (fub_axi_awvalid && fub_axi_awready && !r_wr_active) begin
                 r_wr_active <= 1'b1;
                 r_wr_id <= fub_axi_awid;
+                r_wr_ch <= w_aw_ch_sel;
                 r_wr_user <= fub_axi_awuser;
             end
 
@@ -473,6 +492,7 @@ module axi4_slave_wr_crc_check #(
             if (w_wr_last_beat) begin
                 if (fub_axi_awvalid) begin
                     r_wr_id   <= fub_axi_awid;
+                    r_wr_ch   <= w_aw_ch_sel;
                     r_wr_user <= fub_axi_awuser;
                     // r_wr_active stays 1 -> gapless
                 end else begin

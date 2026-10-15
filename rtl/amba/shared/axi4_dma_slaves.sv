@@ -58,6 +58,11 @@ module axi4_dma_slaves #(
     // Slice offset for the write-side CRC accumulator
     parameter int CRC_SLICE_OFFSET = 0,
 
+    // Channel select, both sides (see axi4_slave_rd_injector): 0 = low ID
+    // bits, 1 = address bits [CH_ADDR_LSB +: CIW]
+    parameter bit CH_SEL_ADDR = 1'b0,
+    parameter int CH_ADDR_LSB = 16,
+
     parameter int CIW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1
 ) (
     input  logic                          aclk,
@@ -188,7 +193,9 @@ module axi4_dma_slaves #(
         .CRC_XOROUT         (CRC_XOROUT),
         .CRC_REFIN          (CRC_REFIN),
         .CRC_REFOUT         (CRC_REFOUT),
-        .REPLICATION_FACTOR (REPLICATION_FACTOR)
+        .REPLICATION_FACTOR (REPLICATION_FACTOR),
+        .CH_SEL_ADDR        (CH_SEL_ADDR),
+        .CH_ADDR_LSB        (CH_ADDR_LSB)
     ) u_rd_injector (
         .aclk                  (aclk),
         .aresetn               (w_aresetn),
@@ -250,7 +257,9 @@ module axi4_dma_slaves #(
         .CRC_XOROUT      (CRC_XOROUT),
         .CRC_REFIN       (CRC_REFIN),
         .CRC_REFOUT      (CRC_REFOUT),
-        .CRC_SLICE_OFFSET(CRC_SLICE_OFFSET)
+        .CRC_SLICE_OFFSET(CRC_SLICE_OFFSET),
+        .CH_SEL_ADDR     (CH_SEL_ADDR),
+        .CH_ADDR_LSB     (CH_ADDR_LSB)
     ) u_wr_crc_check (
         .aclk                   (aclk),
         .aresetn                (w_aresetn),

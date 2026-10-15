@@ -66,6 +66,7 @@ async def cocotb_test_axi4_slave_wr_crc_check(dut):
         "corrupted_beat": _corrupted_beat,
         "b_fifo_gapless_multi_id": _b_fifo_gapless_multi_id,
         "multi_channel_independent": _multi_channel_independent,
+        "multi_channel_independent_addr": lambda t, d: _multi_channel_independent(t, d, by_addr=True),
         "bresp_error_injection": _bresp_error_injection,
     }
     if test_type not in scenarios:
@@ -172,17 +173,23 @@ async def _b_fifo_gapless_multi_id(tb: SlaveWrCrcCheckTB, depth: dict):
     assert tb.beat_count_total() == n_bursts * b_len
 
 
-async def _multi_channel_independent(tb: SlaveWrCrcCheckTB, depth: dict):
+async def _multi_channel_independent(tb: SlaveWrCrcCheckTB, depth: dict, by_addr: bool = False):
     """NUM_CHANNELS=2 build: write to channel 0 then channel 1 -- each
-    channel's CRC/beat-count state is independent."""
+    channel's CRC/beat-count state is independent.
+
+    Channel 0 is written at 0x4000 (bit 12 = 0), channel 1 at 0x5000.
+    CH_SEL_ADDR builds (the `_addr` scenarios, CH_ADDR_LSB=12): the channel
+comes from address bit 12, and every burst carries the OTHER channel's ID,
+so a block still selecting by ID fails every assertion."""
     assert tb.NUM_CHANNELS == 2, "this scenario requires a NUM_CHANNELS=2 build"
     n0, n1 = depth["ch0"], depth["ch1"]
+    id0, id1 = (1, 0) if by_addr else (0, 1)
 
     words0 = tb.channel_words(n0, channel=0)
     words1 = tb.channel_words(n1, channel=1)
 
-    r0 = await tb.write_burst(addr=0x4000, words=words0, axi_id=0)
-    r1 = await tb.write_burst(addr=0x5000, words=words1, axi_id=1)
+    r0 = await tb.write_burst(addr=0x4000, words=words0, axi_id=id0)
+    r1 = await tb.write_burst(addr=0x5000, words=words1, axi_id=id1)
     assert r0["success"] and r1["success"]
     await tb.settle()
 
@@ -239,7 +246,7 @@ async def _bresp_error_injection(tb: SlaveWrCrcCheckTB, depth: dict):
 
 _CORE_TYPES = ["smoke", "multi_beat_burst", "corrupted_beat"]
 _FUNC_TYPES = _CORE_TYPES + ["b_fifo_gapless_multi_id", "multi_channel_independent",
-                             "bresp_error_injection"]
+                             "multi_channel_independent_addr", "bresp_error_injection"]
 _ALL_TYPES = _FUNC_TYPES
 
 _REG_LEVEL = os.environ.get("REG_LEVEL", "FUNC").upper()
@@ -251,7 +258,10 @@ elif _REG_LEVEL == "FULL":
 else:  # FUNC (default)
     _COMBOS = [(t, "func") for t in _FUNC_TYPES]
 
-_NUM_CHANNELS_FOR = {"multi_channel_independent": 2}
+_NUM_CHANNELS_FOR = {"multi_channel_independent": 2, "multi_channel_independent_addr": 2}
+# CH_SEL_ADDR defaults to 0 (channel from the ID); the _addr scenario takes it
+# from address bit 12.
+_CH_SEL_ADDR_FOR = {"multi_channel_independent_addr": 1}
 # ERR_INJECT defaults to 0 (STREAM and the beats harness keep today's block
 # byte for byte); only the injection scenario elaborates it on.
 _ERR_INJECT_FOR = {"bresp_error_injection": 1}
@@ -293,6 +303,8 @@ def test_axi4_slave_wr_crc_check(request, test_type, test_level):
         "AXI_USER_WIDTH": "1",
         "NUM_CHANNELS": str(num_channels),
         "ERR_INJECT": str(err_inject),
+        "CH_SEL_ADDR": str(_CH_SEL_ADDR_FOR.get(test_type, 0)),
+        "CH_ADDR_LSB": "12",
     }
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
