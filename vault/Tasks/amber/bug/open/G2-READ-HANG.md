@@ -1,0 +1,99 @@
+# G2-READ-HANG: amber Genesys2 board read hang — Vivado synthesis folds the UART→bridge AR handshake
+
+**Priority:** P1 (blocks all board reads; writes work)
+**Status:** root cause NAMED (netlist-level); fix candidate identified, not yet applied
+**Found:** 2026-10-15, round-5 ILA taps + synthesis-checkpoint forensics
+
+## Symptom (unchanged across every bitstream: normal, ILA r4, ILA r5)
+
+Host writes over UART complete; any CSR read wedges forever. UART bridge
+times out; fabric frozen. Deterministic, both builds, sims all clean.
+
+## Evidence chain (each step verified this session)
+
+1. **Round-5 ILA capture** (14 new `dbg_ad_*` taps inside `host_adapter`,
+   emitted by `AdapterGenerator._generate_ila_taps()` under
+   `ifdef AMBER_ILA_DBG`; 50 probes, depth 4096): at the wedge the adapter
+   is internally HEALTHY and IDLE — `host_axi_arvalid=0`, AR tracker empty
+   (wptr=rptr=0), `ar_trk_full=0`, `ar_gate_ok=1`, `wrapper_rd_busy=0`,
+   no pushes/pops. The uart bridge side shows `m_axil_arvalid=1` stuck,
+   `m_axil_arready=0` stuck, read FSM `r_cmd_state=19` stuck.
+2. **Synthesis checkpoint** (today's real `synth_1` dcp):
+   - `u_harness/u_bridge/host_axi_arvalid` : **IN on `u_harness/<const0>`**
+   - `u_harness/u_bridge/host_axi_arready` : **OUT, NO NET (undriven)**
+   - every other host channel (AW/W/B/RVALID/RREADY) properly connected
+     via `u_harness/uart_*` nets.
+   So the AR pair is disconnected IN THE NETLIST that was implemented —
+   not silicon corruption, not an ILA artifact.
+3. **OOC experiment matrix** (same flat filelist as lint, Vivado 2025.1):
+   - `host_adapter` alone: **CORRECT** — `host_axi_arready` driven by
+     `u_timing_wrapper_rd/i_ar_channel/wr_ready_reg/Q`.
+   - full `amber_pair_harness` OOC: `uart_arvalid`/`uart_arready` nets
+     **GONE** (folded), writes intact — bug reproduces without the ILA
+     define, so mark_debug/keep_hierarchy is not the trigger.
+   - XMR taps (`u_bridge.host_32b_*`, `u_uart.*`) stubbed to 0: **still
+     broken** — hierarchical references exonerated.
+   - `gen_direct_host` branch removed entirely: **still broken** — the
+     unconnected-port generate branch exonerated.
+   - Vivado project file set: exactly one `uart_axil_bridge.sv`, one
+     `host_adapter.sv`, one `axi4_slave_rd.sv`, no formal flat files, no
+     duplicates — compiled sources are the correct ones.
+4. Verilator/cocotb evidence: G2 cosim and all sims pass — the cosim drives
+   the harness with `USE_DIRECT_HOST=1`, so the `uart_axil_bridge` +
+   `axil4_master_rd` read path is **never exercised in sim**; only Vivado
+   full-design synthesis shows the fold. There is no Verilator-visible
+   RTL bug.
+
+## Root cause (named)
+
+**Full-design Vivado synthesis constant-folds the uart_axil_bridge→
+bridge_amber_axil AR handshake** (`uart_arvalid` ≡ 0, `uart_arready`
+severed), dead-code-eliminating the adapter's read path — while leaving
+the write channels and R-return path intact. Net effect on silicon:
+writes work, reads hang forever. All earlier "wedge candidates"
+(`ar_trk_full` corruption, `axi4_slave_rd` wedge, silicon SEU) are
+**exonerated by the round-5 taps** — the adapter was never receiving
+the AR in the first place.
+
+Trigger mechanism: NOT identified to the exact construct yet. Exonerated:
+XMR taps, direct-host generate branch, mark_debug interplay, duplicate/
+stale module sources. Prime remaining suspect: some construct that lets
+Vivado prove `m_axil_arvalid ≡ 0` in full-design context (the value
+propagates: `uart_arvalid`→bridge input const0→adapter read path DCE→
+`host_axi_arready` undriven→ARREADY≡0 back to the uart bridge's AR skid
+→ARVALID held 1 internally — which is exactly the frozen silicon state,
+including the internally-contradictory `w_fub_arvalid=0` /
+`m_axil_arvalid=1` the ILA shows, since the preserved observation nets
+outlive their severed connections).
+
+## Fix candidates (in order)
+
+1. **`DONT_TOUCH` / `KEEP_HIERARCHY` on `u_uart` and `u_bridge`** in
+   `amber_pair_harness.sv` (guarded by `AMBER_ILA_DBG`? No — needed in
+   ALL builds, this is a functional break): prevents cross-boundary
+   folding of exactly this kind. Cheapest, targeted; standard cure for
+   synthesis-context connectivity folds. Verify with the harness OOC
+   script (`/tmp/ooc5.tcl` shape: check `uart_arvalid`/`uart_arready`
+   exist) before spending a board cycle.
+2. Find and fix the exact RTL construct that makes the read engine
+   provably-0 in context (needs one more bisection round on
+   `axil4_master_rd` + the `r_cmd_state` decode inside
+   `uart_axil_bridge.sv`).
+3. Longer term: give the uart path real sim coverage (a cosim cell that
+   runs the harness with `USE_DIRECT_HOST=0` against a UART BFM) so this
+   class can't sail through Verilator again.
+
+## What round-5 changed (keep)
+
+- `AdapterGenerator._generate_ila_taps()` (fabric-gen-ip bridge
+  generator): emits 14 `dbg_ad_*` observation nets under
+  `ifdef AMBER_ILA_DBG` for rd/rw adapters. Unit tests 149/149.
+- Regenerated `bridge_amber_axil/host_adapter.sv` (+38 lines, taps only).
+
+These are keepers for any future board debug, independent of this bug.
+
+## Repro pointers
+
+- ILA CSV: `projects/fpga-systems/Genesys2/cache-ip/amber/build-bringup/fpga/reports/ila_trace.csv` (radix row = line 2; probes `u_harness/u_bridge/u_host_adapter/dbg_ad_*`).
+- Build/capture: `make -C projects/fpga-systems/Genesys2/cache-ip/amber/build-bringup bitstream-ila` then `FPGA_JTAG_SERIAL=200300B818A0 make -C ... tcl-capture_ila`.
+- OOC repro script pattern: read `.flat_filelist.f`, `synth_design -mode out_of_context -top amber_pair_harness`, `get_nets -hier *uart_arvalid*` (empty = folded).
