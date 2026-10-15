@@ -41,6 +41,8 @@ _AREA = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 #: Fixed-cost tests: pure Python, no simulator, milliseconds. Reason required.
 FIXED_COST = {
+    'bin/tests/test_descriptor_builder_maps.py':
+        'pure-Python address arithmetic on DescriptorBuilder; no simulator, milliseconds',
     'bin/tests/test_dump_monbus.py':
         'decodes monbus records from a fixture; no DUT, no sweep',
     'bin/tests/test_builds_share_rtl_and_map.py':

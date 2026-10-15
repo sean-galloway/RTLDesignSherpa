@@ -23,7 +23,7 @@
 
 # Genesys 2 (Kintex-7) Fabric Benchmark — PRD
 
-**Version:** 0.2 (draft) · **Date:** 2026-10-15 · **Status:** K0 in progress; vendor legs and MIG generated
+**Version:** 0.2 (draft) · **Date:** 2026-10-15 · **Status:** K0 done in sim (legs A, B1); vendor legs and MIG generated
 
 ## 1. Purpose
 
@@ -102,9 +102,11 @@ not know which fabric it holds.
 
 AXI4, ID width 8 at every master. The port set carries no USER and no
 REGION. The LFSR source and CRC sink bin channels on the **address**:
-channel N owns the 64 KB window at its endpoint's base + N x 64 KB
-(`fb_endpoints` `CH_SEL_ADDR`=1, `CH_ADDR_LSB`=16), and the host places
-each channel's buffers in its own window. Nothing downstream of the fabric
+channel N owns the 32 MB window at its endpoint's base + N x 32 MB
+(`fb_harness` sets `fb_endpoints` `CH_SEL_ADDR`=1, `CH_ADDR_LSB`=25; 32 MB
+holds the largest chain the host builds, 16 descriptors x 1 MB), and the
+host places each channel's buffers in its own window
+(`DescriptorBuilder(channel_stride=32 MB)`). Nothing downstream of the fabric
 depends on the slave-side ID, because SmartConnect delivers none (§5.1).
 Legs A and B1 still present `{master slot, master ID}` (10 bits) at their
 slaves, and the fabric test checks that at every slave handshake; B2
@@ -161,7 +163,19 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 
 ## 6. Milestones
 
-**Status (2026-10-15):** K0 in progress; the Vivado side of K1-K3 is generated.
+**Status (2026-10-15):** K0 done in sim on legs A and B1; the Vivado side of K1-K3 is generated.
+
+- K0: `rtl/fb_harness.sv` (`dv/tests/test_fb_harness.py`) is the harness of
+  §4. The Genesys 2 STREAM characterization runner drives it unchanged over
+  the sim UART -- the configuration bridge keeps the STREAM harness's
+  offsets -- given only a `DescriptorBuilder` for the fabric's map
+  (descriptors preloaded at 0x0002_0000, fetched at 0x8000_0000; per-channel
+  32 MB windows). func on both legs: 1ch x 1 x 4 KB, 4ch x 2 x 8 KB,
+  8ch x 2 x 8 KB all pass with the on-chip PASS and every active channel
+  in the CRC valid and match masks; datapath utilization from the
+  master-side observer 79.5 / 98.4 / 99.2 % (A) and 80.0 / 98.5 / 99.2 % (B1).
+  The slave-side observer window is stubbed (reads 0) until it is built in;
+  the W3 injector on M3 is idle until K3.
 
 - All three data fabrics exist, every one from
   `rtl/bridges/configs/bridge_fb_data.toml` and its connectivity CSV
@@ -185,7 +199,7 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   ([reports/mig_example/](reports/mig_example/), `make mig-example`); its only
   DRC criticals are the example's one status port with no board pin.
 
-Next: the K0 harness around `fb_data_fabric`.
+Next: the board top and bitstreams (K1).
 
 | K | Content | Gate |
 | --- | --- | --- |

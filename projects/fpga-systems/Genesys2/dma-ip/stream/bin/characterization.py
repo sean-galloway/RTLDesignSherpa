@@ -255,9 +255,14 @@ class CharacterizationRunner:
                  poll_interval_s: float = 0.001,
                  aclk_hz: float = None,   # None = read BUILD_CLK_HZ from the board
                  compression: bool = True,
-                 rd_prefetch: bool = True):
+                 rd_prefetch: bool = True,
+                 builder: Optional[DescriptorBuilder] = None):
         self.bridge = bridge
-        self.builder = DescriptorBuilder(data_width=data_width)
+        # `builder`: a harness whose data map differs from the STREAM
+        # harness's (the fabric benchmark: descriptors fetched at a different
+        # address than they are preloaded, per-channel address windows) passes
+        # its own DescriptorBuilder. Default: the STREAM harness's map.
+        self.builder = builder or DescriptorBuilder(data_width=data_width)
         self.verbose = verbose
         self.results = []
         # Scheduler read-ahead descriptor prefetch (SCHED_CONFIG.RD_PREFETCH_EN).

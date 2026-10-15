@@ -4,6 +4,7 @@
 # ==============================================================================
 # One input, every leg: rtl/bridges/configs/bridge_fb_data.toml (+ connectivity)
 #   1. bridge generator  -> rtl/bridges/generated/bridge_fb_data/  (Leg A fabric)
+#                           rtl/bridges/generated/bridge_fb_cfg/   (config bridge)
 #                           rtl/bridges/filelists/bridge_fb_data.f
 #   2. gen_fabric_legs   -> rtl/generated/fb_data_fabric_bridge/   (Leg A wrapper)
 #                           rtl/generated/fb_data_fabric_xbar/     (Leg B1 wrapper)
@@ -25,6 +26,12 @@ python3 "$REPO_ROOT/projects/components/fabric-gen-ip/bridge/bin/bridge_generato
     --ports "$CFG/bridge_fb_data.toml" \
     --connectivity "$CFG/bridge_fb_data_connectivity.csv" \
     --name bridge_fb_data \
+    --output-dir "$AREA/rtl/bridges/generated" > /dev/null
+echo "[regen] bridge_fb_cfg (host configuration bridge, held constant across legs)"
+python3 "$REPO_ROOT/projects/components/fabric-gen-ip/bridge/bin/bridge_generator.py" \
+    --ports "$CFG/bridge_fb_cfg.toml" \
+    --connectivity "$CFG/bridge_fb_cfg_connectivity.csv" \
+    --name bridge_fb_cfg \
     --output-dir "$AREA/rtl/bridges/generated" > /dev/null
 echo "[regen] fb_data_fabric wrappers (every leg)"
 python3 "$AREA/bin/gen_fabric_legs.py"

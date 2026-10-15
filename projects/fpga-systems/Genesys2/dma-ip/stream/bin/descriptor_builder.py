@@ -151,12 +151,25 @@ class DescriptorBuilder:
         data_width: STREAM DATA_WIDTH in bits (default 128)
         src_base: Base source address (arbitrary — injector ignores it)
         dst_base: Base destination address (arbitrary — crc_check ignores it)
+        desc_dma_base: Address the DMA fetches descriptors from, when it is
+            not the host's write address. Default None = desc_ram_base, the
+            STREAM harness, where host and DMA reach desc_ram through one
+            bridge. The fabric benchmark preloads at 0x2_0000 over the
+            configuration bridge and STREAM fetches at 0x8000_0000 over the
+            data fabric, so the kick addresses and next pointers need the
+            DMA's view and the preload writes the host's.
+        channel_stride: Bytes between channels' buffers. Default 0 = every
+            channel uses the same addresses (the STREAM harness's endpoints
+            bin channels by ID). The fabric benchmark's endpoints bin by
+            address, so channel N's buffers start at base + N * stride.
     """
 
     def __init__(self, data_width: int = 128,
                  src_base: int = 0x8000_0000,
                  dst_base: int = 0x9000_0000,
-                 desc_ram_base: int = DESC_RAM_BASE):
+                 desc_ram_base: int = DESC_RAM_BASE,
+                 desc_dma_base: int = None,
+                 channel_stride: int = 0):
         self.bytes_per_beat = data_width // 8
         self.src_base = src_base
         self.dst_base = dst_base
@@ -164,6 +177,8 @@ class DescriptorBuilder:
         # stream1, ...) each own a desc RAM region, so the builder is not tied to
         # the module-level default.
         self.desc_ram_base = desc_ram_base
+        self.desc_dma_base = desc_ram_base if desc_dma_base is None else desc_dma_base
+        self.channel_stride = channel_stride
 
     def _desc_index(self, channel: int, desc_idx: int) -> int:
         """Flat index in desc_ram for (channel, descriptor).
@@ -179,7 +194,15 @@ class DescriptorBuilder:
         address and for next_descriptor_ptr fields in chained
         descriptors.
         """
-        return self.desc_ram_base + index * 32
+        return self.desc_dma_base + index * 32
+
+    def _src(self, channel: int, offset: int) -> int:
+        """Source byte address of `offset` into channel's buffer."""
+        return self.src_base + channel * self.channel_stride + offset
+
+    def _dst(self, channel: int, offset: int) -> int:
+        """Destination byte address of `offset` into channel's buffer."""
+        return self.dst_base + channel * self.channel_stride + offset
 
     def _host_addr(self, index: int, word: int) -> int:
         """Host AXIL byte address for word `word` of descriptor `index`."""
@@ -216,8 +239,8 @@ class DescriptorBuilder:
             # Source/dest addresses: offset per descriptor so each transfer
             # is nominally to a different region (injector/crc_check don't
             # care, but it's more realistic).
-            src = self.src_base + d * transfer_bytes
-            dst = self.dst_base + d * transfer_bytes
+            src = self._src(channel, d * transfer_bytes)
+            dst = self._dst(channel, d * transfer_bytes)
 
             # Next pointer: AXI4-side address of the next descriptor
             if is_last:
@@ -278,8 +301,8 @@ class DescriptorBuilder:
         idx0 = self._desc_index(channel, desc_idx)
         idx1 = self._desc_index(channel, desc_idx + 1)   # chunk 1 -> next slot (+0x20)
 
-        src = self.src_base + desc_idx * transfer_bytes
-        dst = self.dst_base + desc_idx * transfer_bytes
+        src = self._src(channel, desc_idx * transfer_bytes)
+        dst = self._dst(channel, desc_idx * transfer_bytes)
 
         # 16 words (chunk0[0:8] @ idx0, chunk1[8:16] @ idx1) from the shared
         # component format -- the flow consumes the component, not vice versa.
@@ -328,8 +351,8 @@ class DescriptorBuilder:
                 self._desc_index(channel, 2 * (k + 1)))
 
             beats = self.beats_for_bytes(d['transfer_bytes'])
-            src = self.src_base + k * d['transfer_bytes']
-            dst = self.dst_base + k * d['transfer_bytes']
+            src = self._src(channel, k * d['transfer_bytes'])
+            dst = self._dst(channel, k * d['transfer_bytes'])
             words = DescriptorPacketBuilder.build_extended_words(
                 src, dst, beats, d['rd'], d['wr'],
                 channel_id=channel, next_ptr=next_ptr, last=is_last)

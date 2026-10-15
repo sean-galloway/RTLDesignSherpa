@@ -1,0 +1,110 @@
+#==============================================================================
+# bridge_fb_cfg.toml -- the K7 fabric benchmark's CONFIGURATION bridge
+#==============================================================================
+# The host's UART AXI4-Lite master fans out to every control window. This is
+# NOT the fabric under test (that is bridge_fb_data / the vendor legs): it is
+# held constant across the legs, like the rest of the harness.
+#
+# Offsets are the Genesys 2 STREAM harness's (bridge_stream_mon_axil), so the
+# STREAM host stack -- stream_addrs, harness_addrs, obs_addrs, the
+# characterization runner -- resolves every register unchanged:
+#   0x0000_0000  stream_apb    8 KB   STREAM registers
+#   0x0001_0000  harness_csr   4 KB   timer, CRCs, BUILD_*, CTRL
+#   0x0002_0000  desc_ram     64 KB   descriptor preload (write port; the DMA
+#                                     reads the same RAM at 0x8000_0000 on the
+#                                     data fabric)
+#   0x0003_0000  stream_err    4 KB   STREAM error FIFO
+#   0x0018_0000  slvmon_apb    4 KB   slave-side observer (fabric -> endpoints)
+#   0x0019_0000  obs_apb       4 KB   master-side observer (STREAM -> fabric)
+#==============================================================================
+
+[bridge]
+name = "bridge_fb_cfg"
+description = "Genesys 2 fabric benchmark: host configuration bridge"
+variants = ["no"]
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+[[bridge.masters]]
+name        = "host"
+prefix      = "host_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+
+[[bridge.slaves]]
+name        = "stream_apb"
+prefix      = "stream_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00000000"
+addr_range  = "0x00002000"
+
+[[bridge.slaves]]
+name        = "harness_csr"
+prefix      = "harness_csr_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00010000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "desc_ram"
+prefix      = "desc_ram_axi_"
+protocol    = "axi4"
+channels    = "wr"
+id_width    = 8
+addr_width  = 32
+data_width  = 128
+user_width  = 0
+base_addr   = "0x00020000"
+addr_range  = "0x00010000"
+
+[[bridge.slaves]]
+name        = "stream_err"
+prefix      = "stream_err_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00030000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "slvmon_apb"
+prefix      = "slvmon_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00180000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "obs_apb"
+prefix      = "obs_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00190000"
+addr_range  = "0x00001000"
