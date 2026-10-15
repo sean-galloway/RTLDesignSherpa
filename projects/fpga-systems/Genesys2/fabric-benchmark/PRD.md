@@ -100,8 +100,19 @@ not know which fabric it holds.
 | S2 | LFSR source `0x9000_0000` | rd | 128 | `axi4_cdc_rd` → LFSR source |
 | S3 | CRC sink `0xA000_0000` | wr | 128 | `axi4_cdc_wr` → CRC sink |
 
-AXI4, ID width 8 at every master, `stream`'s 3-bit channel USER carried
-end to end. The configuration region (`0xF000_0000`) is the DE10 PRD's
+AXI4, ID width 8 at every master. The port set carries no USER and no
+REGION: the LFSR source and CRC sink bin channels on the **low ID bits**,
+and every leg presents `{master slot, master ID}` at its slaves (10 bits),
+so the per-channel CRC works through any of them. The fabric test checks
+exactly that at every slave handshake.
+
+Descriptors at 128 bits: the scheduler's descriptor is 256 bits and
+`m_axi_desc` stays 256-bit, so the converter splits each one-beat fetch into
+two 128-bit beats and reassembles the 256-bit beat for `stream`. The
+converter splits on ARSIZE, which the descriptor engine drove as 64 bytes
+on a 32-byte bus until `e236d102e` (2026-09-26); with that fixed, the K0
+sim checks descriptor contents end to end through the converter and the
+fabric. The configuration region (`0xF000_0000`) is the DE10 PRD's
 Table 5.1 unchanged; it is decoded by the generated configuration bridge,
 which is not the fabric under test.
 
@@ -123,6 +134,13 @@ the same generated regmaps and the same host programs (over
   measured on the board, and fabric-only mode (W2) needs no DDR3 at all.
 
 ## 6. Milestones
+
+**Status (2026-10-14):** K0 started. Both data fabrics exist and pass the
+same fabric test (`dv/tests/test_fb_fabric.py`, gate and func): Leg A from
+`rtl/bridges/configs/bridge_fb_data.toml`, Leg B1 generated from the same
+TOML and connectivity CSV by `bin/gen_fabric_legs.py` (`bin/regen.sh`
+regenerates both), so the legs cannot differ in topology. Next: the
+harness around `fb_data_fabric`.
 
 | K | Content | Gate |
 | --- | --- | --- |

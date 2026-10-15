@@ -311,6 +311,24 @@ kind = "board"
 rtl_roots = []
 filelist_dirs = ["projects/fpga-systems/Genesys2/dma-ip/stream/rtl/filelists"]
 
+# Genesys 2 fabric benchmark (PRD: projects/fpga-systems/Genesys2/fabric-benchmark/PRD.md).
+# The Leg A data fabric is bridge-GENERATED; regen.sh regenerates it and the
+# per-leg fb_data_fabric wrappers from the one TOML. The leg filelists name the
+# Xilinx AXI Crossbar sources under $XILINX_VIVADO (the Vivado install).
+[[area]]
+name = "genesys2_fabric_benchmark_bridges"
+kind = "board"
+generated = true
+regen = "projects/fpga-systems/Genesys2/fabric-benchmark/bin/regen.sh"
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/filelists"]
+
+[[area]]
+name = "genesys2_fabric_benchmark"
+kind = "board"
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/Genesys2/fabric-benchmark/rtl/filelists"]
+
 # REMOVED 2026-08-30: the two "nexys_stream_char" areas registered
 # projects/NexysA7/stream_characterization, which is being deleted. Their
 # successors are already registered above -- "genesys2_stream_bridges" and

@@ -3,7 +3,8 @@
 //
 // Module: Xilinx primitive stubs (Verilator-only)
 // Purpose: LINT-ONLY pass-through stubs for the Xilinx clocking primitives a
-//          board top instantiates. Vivado substitutes the real unisims at
+//          board top instantiates, plus two FUNCTIONAL datapath primitives
+//          (SRLC32E, MUXF7 -- see the section at the bottom). Vivado substitutes the real unisims at
 //          synthesis; these exist so `make lint` can elaborate a board top
 //          without the vendor library.
 //
@@ -132,5 +133,46 @@ module IDELAYCTRL (
 );
     assign RDY = ~RST;
 endmodule : IDELAYCTRL
+
+// ---------------------------------------------------------------------------
+// DATAPATH primitives. Unlike the clocking stubs above these are FUNCTIONAL
+// models, exact to the unisim behaviour, because they carry data: the Xilinx
+// AXI Crossbar (Genesys 2 fabric benchmark, Leg B1) builds its SRL FIFOs and
+// wide muxes from them when C_FAMILY names a real part. Vivado's own unisim
+// .v files use deassign/specify, which Verilator cannot parse, so the cosim
+// reads these instead. Added 2026-10-14.
+
+// 32-deep shift register LUT: D shifts in at bit 0 on each enabled clock;
+// Q reads the tap A addresses, Q31 the last stage (for cascading).
+module SRLC32E #(
+    parameter        LOC             = "UNPLACED",
+    parameter [31:0] INIT            = 32'h00000000,
+    parameter [0:0]  IS_CLK_INVERTED = 1'b0
+) (
+    output wire       Q,
+    output wire       Q31,
+    input  wire [4:0] A,
+    input  wire       CE,
+    input  wire       CLK,
+    input  wire       D
+);
+    // INIT is the power-up content, as on the part (an SRL has no reset).
+    logic [31:0] r_sr;
+    initial r_sr = INIT;
+    wire w_clk = CLK ^ IS_CLK_INVERTED;
+    always_ff @(posedge w_clk) if (CE) r_sr <= {r_sr[30:0], D};
+    assign Q   = r_sr[A];
+    assign Q31 = r_sr[31];
+endmodule : SRLC32E
+
+// 2:1 mux joining two LUT6 outputs: S high selects I1.
+module MUXF7 (
+    output wire O,
+    input  wire I0,
+    input  wire I1,
+    input  wire S
+);
+    assign O = S ? I1 : I0;
+endmodule : MUXF7
 
 `endif
