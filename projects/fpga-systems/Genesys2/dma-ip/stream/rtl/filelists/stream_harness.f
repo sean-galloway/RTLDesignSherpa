@@ -18,6 +18,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 -f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
 -f $MISC_ROOT/rtl/filelists/axi4_intf_slave_observer.f
+-f $MISC_ROOT/rtl/filelists/char_run_timer.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f

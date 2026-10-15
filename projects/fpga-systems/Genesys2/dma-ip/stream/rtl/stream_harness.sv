@@ -10,6 +10,7 @@
 //                                      handles every port natively — no
 //                                      external converter glue needed)
 //   - harness_csr                     (control/status)
+//   - char_run_timer                  (run timer + per-channel CRC verdict)
 //   - desc_ram                        (descriptor storage)
 //   - stream_tally / slave_tally      (observer monbus records, counted)
 //   - comp_sram                       (STREAM monbus capture, host download)
@@ -924,42 +925,14 @@ module stream_harness #(
     logic [63:0] timer_r_first, timer_r_last;
     logic [63:0] timer_w_first, timer_w_last;
 
-    // Per-channel match: equal CRC AND both halves valid for that channel.
-    // Aggregate "test passed" = at least one channel was active (saw beats
-    // and produced a valid CRC) AND no active channel mismatched. This
-    // sidesteps needing visibility into cfg_channel_enable here — channels
-    // that were never enabled have valid=0 so they neither pass nor fail.
-    //
-    // EVERY channel is checked. There is no ignore mask and none may be added:
-    // a channel excluded from the aggregate is a channel whose data corruption
-    // reports PASS, which is worse than having no check at all.
-    //
-    // Bit 0 used to be masked, for a "pre-existing harness-side CRC-aggregation
-    // bug on channel 0". It does not reproduce. The 8-channel cosim
-    // (test_stream_mon_perf[dma_8ch]) reports match_mask=0xFF and
-    // valid_mask=0xFF -- all eight channels agree, ch0 included -- and
-    // match_mask is the RAW per-channel comparison, which the mask never
-    // touched, so it was not flattering the number. Whatever the original
-    // symptom was, it was either fixed elsewhere or misattributed.
-    //
-    // If ch0 mismatches on silicon, that is a finding to debug, not to mask.
+    // Per-channel CRC verdict, driven by u_char_run_timer below. A channel
+    // matches when both CRCs are valid and equal; the run passes when at least
+    // one channel ran and none mismatched. EVERY channel is checked -- no
+    // ignore mask may be added (char_run_timer header has the history).
     logic [NUM_CHANNELS-1:0] crc_match_per_ch;
     logic [NUM_CHANNELS-1:0] crc_valid_per_ch;
-    always_comb begin
-        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
-            crc_valid_per_ch[ch] = read_crc_valid[ch] && write_crc_valid[ch];
-            crc_match_per_ch[ch] = crc_valid_per_ch[ch]
-                                && (read_crc_value[ch] == write_crc_value[ch]);
-        end
-    end
-    // any_active: at least one channel produced valid CRCs, i.e. a test ran.
-    // Channels that were never enabled have valid=0, so they neither pass nor
-    // fail and an idle channel cannot hold the aggregate down.
-    // any_mismatch: ANY active channel that disagrees fails the aggregate.
-    wire any_active   = |crc_valid_per_ch;
-    wire any_mismatch = |(crc_valid_per_ch & ~crc_match_per_ch);
-    wire crc_match      = any_active && !any_mismatch;
-    wire crc_both_valid = any_active;  // raw activity
+    logic                    crc_match;
+    logic                    crc_both_valid;   // raw activity: any channel ran
     // any_error: sticky "something went wrong" signal routed to CSR_STATUS[1].
     // TODO: drive from a real error source. stream_top_ch8 does not yet expose
     // a scheduler/engine error wire at its boundary, so for now this stays tied
@@ -1136,163 +1109,44 @@ module stream_harness #(
     );
 
     // =========================================================================
-    // Characterization timer
+    // Characterization timer + CRC verdict (utility-ip/misc char_run_timer)
     // =========================================================================
-    // 64-bit cycle counter at aclk (10 ns / cycle). Captures the wall-clock
-    // duration of a DMA "session" so the host can compute measured throughput
-    // without depending on the broken stream_irq -> CSR_STATUS path.
-    //
-    //   START : rising edge of (desc_arvalid & desc_arready) — the first AR
-    //           handshake the scheduler issues on the descriptor-RAM bus
-    //           after a TIMER_CTRL clear. Latched: only one start per
-    //           session (ignored once running OR done).
-    //   STOP  : write_beat_count >= csr_timer_expected_beats. The sink
-    //           slave's write_beat_count increments on each W beat, so this
-    //           reaches the programmed expected count exactly when the last
-    //           beat has been consumed by the CRC checker. The host
-    //           programs CSR_TIMER_EXP_BEATS (0x38) before the kick.
-    //           Disabled when expected_beats == 0 (host can keep timer
-    //           running indefinitely if it wants to read cycles live).
-    //   PASS  : crc_match sampled SETTLE_CYCLES after the stop trigger.
-    //           dataint_crc has a 2-cycle pipeline (cascade compute +
-    //           output register), so write_crc_value lags write_beat_count
-    //           by one cycle. We let it settle for SETTLE_CYCLES before
-    //           capturing pass to avoid a 1-cycle race that would mark a
-    //           correct transfer as failed. The settle window is NOT
-    //           counted in timer_cycles — that freezes at the true
-    //           transfer-end so reported throughput stays accurate.
-    //   CLEAR : csr_timer_clear_pulse from harness_csr (0x28[0] write).
-    localparam logic [2:0] SETTLE_CYCLES = 3'd5;
-
-    logic r_desc_handshake_d;
-    logic [2:0] r_settle_cnt;
-    wire  w_desc_handshake      = desc_arvalid & desc_arready;
-    wire  w_desc_handshake_rise = w_desc_handshake & ~r_desc_handshake_d;
-
-    // Pipeline the aggregate beat counts and the expected-beats threshold
-    // by one stage before doing the wide-comparison + AND-reduce that
-    // fires w_{rd,wr}_{first,last}_now. The aggregates come from
-    // u_{rd,wr}_crc_check.{read,write}_beat_count_total, which is itself
-    // an 8-channel adder tree. Without this register stage, at 8 channels
-    // the combinational path
-    //   per-ch beat count -> 8-way adder -> compare -> AND with running
-    //   -> timer_w_last_reg/CE + timer_cycles_reg/CE
-    // lands at 14 levels and blows -1.05 ns of slack at 100 MHz on the
-    // xc7a100t-1. Breaking it into two ~7-level halves around the new
-    // r_{rd,wr}_beat_count_q flop adds 1 cycle of measurement-side
-    // latency on the FIRST and LAST beat-stamps -- harmless for cycle-
-    // count measurements that span tens of thousands of cycles, and
-    // invisible to software since the host polls TIMER_STATUS for done.
-    logic [31:0] r_rd_beat_count_q;
-    logic [31:0] r_wr_beat_count_q;
-    logic [31:0] r_csr_exp_beats_q;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_desc_handshake_d <= 1'b0;
-            r_rd_beat_count_q  <= '0;
-            r_wr_beat_count_q  <= '0;
-            r_csr_exp_beats_q  <= '0;
-        end else begin
-            r_desc_handshake_d <= w_desc_handshake;
-            r_rd_beat_count_q  <= read_beat_count;
-            r_wr_beat_count_q  <= write_beat_count;
-            r_csr_exp_beats_q  <= csr_timer_expected_beats;
-        end
-    )
-
-    wire w_beat_count_reached = (r_csr_exp_beats_q != 32'd0) &&
-                                (r_wr_beat_count_q >= r_csr_exp_beats_q);
-
-    // First/last beat detection on the slave side. read_beat_count and
-    // write_beat_count both start at 0 and increment monotonically; we
-    // latch cycle stamps on the first cycle each crosses 0 and on the
-    // first cycle each reaches the programmed expected_beats target.
-    // All sources here are the *_q registered flavors above so the
-    // wide compare + AND lands on a flop boundary, not on the per-
-    // channel CRC counter.
-    logic        r_rd_first_seen, r_wr_first_seen;
-    logic        r_rd_last_seen,  r_wr_last_seen;
-    wire         w_rd_first_now  = timer_running && !r_rd_first_seen
-                                                  && (r_rd_beat_count_q != 32'd0);
-    wire         w_wr_first_now  = timer_running && !r_wr_first_seen
-                                                  && (r_wr_beat_count_q != 32'd0);
-    wire         w_rd_last_now   = timer_running && !r_rd_last_seen
-                                                  && (r_csr_exp_beats_q != 32'd0)
-                                                  && (r_rd_beat_count_q >= r_csr_exp_beats_q);
-    wire         w_wr_last_now   = timer_running && !r_wr_last_seen
-                                                  && w_beat_count_reached;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            timer_running <= 1'b0;
-            timer_done    <= 1'b0;
-            timer_pass    <= 1'b0;
-            timer_cycles  <= '0;
-            r_settle_cnt  <= 3'd0;
-            timer_r_first <= '0;
-            timer_r_last  <= '0;
-            timer_w_first <= '0;
-            timer_w_last  <= '0;
-            r_rd_first_seen <= 1'b0;
-            r_wr_first_seen <= 1'b0;
-            r_rd_last_seen  <= 1'b0;
-            r_wr_last_seen  <= 1'b0;
-        end else if (csr_timer_clear_pulse) begin
-            timer_running <= 1'b0;
-            timer_done    <= 1'b0;
-            timer_pass    <= 1'b0;
-            timer_cycles  <= '0;
-            r_settle_cnt  <= 3'd0;
-            timer_r_first <= '0;
-            timer_r_last  <= '0;
-            timer_w_first <= '0;
-            timer_w_last  <= '0;
-            r_rd_first_seen <= 1'b0;
-            r_wr_first_seen <= 1'b0;
-            r_rd_last_seen  <= 1'b0;
-            r_wr_last_seen  <= 1'b0;
-        end else if (timer_running) begin
-            // Latch first/last beat stamps. Sampled from timer_cycles so all
-            // four share the same start-of-session time base (cycle 1 = first
-            // post-start cycle). Each is latched exactly once per session.
-            if (w_rd_first_now) begin
-                timer_r_first   <= timer_cycles;
-                r_rd_first_seen <= 1'b1;
-            end
-            if (w_wr_first_now) begin
-                timer_w_first   <= timer_cycles;
-                r_wr_first_seen <= 1'b1;
-            end
-            if (w_rd_last_now) begin
-                timer_r_last   <= timer_cycles;
-                r_rd_last_seen <= 1'b1;
-            end
-            if (w_wr_last_now) begin
-                timer_w_last   <= timer_cycles;
-                r_wr_last_seen <= 1'b1;
-            end
-
-            if (w_beat_count_reached) begin
-                // Stop counting cycles; begin settle window.
-                timer_running <= 1'b0;
-                r_settle_cnt  <= 3'd1;
-            end else begin
-                timer_cycles  <= timer_cycles + 64'd1;
-            end
-        end else if (r_settle_cnt != 3'd0) begin
-            if (r_settle_cnt == SETTLE_CYCLES) begin
-                r_settle_cnt <= 3'd0;
-                timer_done   <= 1'b1;
-                timer_pass   <= crc_match;
-            end else begin
-                r_settle_cnt <= r_settle_cnt + 3'd1;
-            end
-        end else if (!timer_done && w_desc_handshake_rise) begin
-            // First AR handshake on the descriptor RAM bus — start.
-            timer_running <= 1'b1;
-            timer_cycles  <= 64'd1;  // count the start cycle
-        end
-    )
+    // START on the first descriptor-bus AR handshake after a TIMER_CTRL clear;
+    // STOP when the sink's write_beat_count reaches CSR_TIMER_EXP_BEATS (0x38);
+    // PASS is the CRC verdict SETTLE_CYCLES after STOP. Directly from
+    // axi4_dma_slaves the CRC lags the count by dataint_crc's output register,
+    // so the long-standing 5 cycles holds. Protocol, stamps and the
+    // every-channel-is-checked rule: the module header.
+    char_run_timer #(
+        .NUM_CHANNELS  (NUM_CHANNELS),
+        .CRC_WIDTH     (32),
+        .COUNT_WIDTH   (32),
+        .SETTLE_CYCLES (5)
+    ) u_char_run_timer (
+        .aclk             (aclk),
+        .aresetn          (aresetn),
+        .i_clear          (csr_timer_clear_pulse),
+        .i_start          (desc_arvalid & desc_arready),
+        .i_expected_beats (csr_timer_expected_beats),
+        .i_rd_beat_count  (read_beat_count),
+        .i_wr_beat_count  (write_beat_count),
+        .i_rd_crc_value   (read_crc_value),
+        .i_rd_crc_valid   (read_crc_valid),
+        .i_wr_crc_value   (write_crc_value),
+        .i_wr_crc_valid   (write_crc_valid),
+        .o_crc_valid_mask (crc_valid_per_ch),
+        .o_crc_match_mask (crc_match_per_ch),
+        .o_crc_any_valid  (crc_both_valid),
+        .o_crc_match      (crc_match),
+        .o_running        (timer_running),
+        .o_done           (timer_done),
+        .o_pass           (timer_pass),
+        .o_cycles         (timer_cycles),
+        .o_r_first        (timer_r_first),
+        .o_r_last         (timer_r_last),
+        .o_w_first        (timer_w_first),
+        .o_w_last         (timer_w_last)
+    );
 
     // =========================================================================
     // S2: desc_ram — sdpram_slave at 256-bit, AXI4 wr + AXI4 rd.
