@@ -68,6 +68,11 @@ the grouping but not the single-cycle guarantee.)
   tetrad is out of grid tie P_DIA2 off (provably never selected: the
   mate coordinate is out of grid, and mode images only name in-grid
   ports).
+- Conceptual model (owner, 2026-10-15): the two diagonal port instances
+  are ONE conceptual diagonal axis. A cell has three in-plane axes —
+  X, Y, diagonal — and one out-of-plane axis, Z: 4 axes, 8 directional
+  links + local = 9 ports. P_DIA and P_DIA2 are that single diagonal
+  axis realized at tetrad and tile scale respectively.
 - 1 local port (host-facing; rapids at tile boundary cells).
 - All ports AXI4-Stream: `TDATA/TVALID/TREADY/TLAST` + header sideband in
   `TUSER` (§4). Optional AMBA 5 check/TWAKEUP richness carries over from
