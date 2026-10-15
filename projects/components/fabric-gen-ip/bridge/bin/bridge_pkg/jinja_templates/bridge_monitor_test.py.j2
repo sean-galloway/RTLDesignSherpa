@@ -26,7 +26,10 @@ from cocotb_test.simulator import run  # noqa: F401
 from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 {{ tb_import_block }}
-from monitor_stress_common import run_comprehensive, run_monitor_sim
+# monitor_stress_common is shared bridge-component collateral; a test
+# generated into another area finds it here (one copy, never a second).
+sys.path.insert(0, os.path.join(repo_root, 'projects/components/fabric-gen-ip/bridge/dv/tests'))
+from monitor_stress_common import run_comprehensive, run_monitor_sim  # noqa: E402
 
 CFG_PREFIXES = {{ cfg_prefixes }}
 BLOCK_READY_PATH = "{{ block_ready_path }}"

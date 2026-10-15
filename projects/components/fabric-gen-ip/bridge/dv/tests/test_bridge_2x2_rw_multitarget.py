@@ -3,7 +3,8 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # HAND-WRITTEN (not generated): several targets in flight per master on
-# bridge_2x2_rw (bridge parity item 1).
+# bridge_2x2_rw -- the fix for the one-target-per-master limitation
+# (bridge GitHub #119 L1).
 #
 # A master adapter used to accept a new AW/AR only while every outstanding one
 # went to the SAME slave. It now tracks per ID: a request waits only when its

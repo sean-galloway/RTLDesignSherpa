@@ -7,12 +7,14 @@
 #
 # Architecture:
 #   - Masters use protocol-specific BFMs (AXI4MasterRead/Write,
-#     AXIL4MasterRead/Write, APBMaster). NEVER bare GAXI — reaching past
+#     AXI3MasterRead/Write, AXI5MasterRead/Write, AXIL4MasterRead/Write,
+#     APBMaster). NEVER bare GAXI — reaching past
 #     the protocol BFM bypasses the framework's memory model, ID tracking,
 #     response generation, and compliance checking, forcing the test to
 #     reimplement protocol semantics by hand.
 #   - Slaves use protocol-specific BFMs (AXI4SlaveRead/Write,
-#     AXIL4SlaveRead/Write, APBSlave), each backed by its own MemoryModel
+#     AXI3SlaveRead/Write, AXI5SlaveRead/Write, AXIL4SlaveRead/Write,
+#     APBSlave), each backed by its own MemoryModel
 #     pre-seeded with a distinct per-slave pattern. The slave BFM auto-
 #     responds from memory honoring whatever ARSIZE/ARLEN/ARADDR the
 #     bridge forwards, so the same TB works across direct, width-converted,
@@ -46,11 +48,49 @@ from CocoTBFramework.components.axi4.axi4_interfaces import (
 from CocoTBFramework.components.axil4.axil4_interfaces import (
     AXIL4MasterRead, AXIL4MasterWrite, AXIL4SlaveRead, AXIL4SlaveWrite,
 )
+# Protocol checkers ride every AXI master port, AXI4 as well as AXI5: the
+# checker binds its five channel monitors and reports handshake, burst, ID
+# and response-code violations that a data round-trip cannot see.
+from CocoTBFramework.components.axi4.axi4_compliance_checker import AXI4ComplianceChecker
 from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
 
 # Memory model — shared across all protocol slave BFMs (every slave gets
 # its own instance, pre-seeded with a distinct pattern).
 from CocoTBFramework.components.shared.memory_model import MemoryModel
+# bridge_levels is shared bridge-component collateral. A TB generated into
+# another area (--output-tb outside the component) has no other way to find
+# it: PYTHONPATH carries bridge/dv, not bridge/dv/tbclasses.
+sys.path.insert(0, os.path.join(repo_root, 'projects/components/fabric-gen-ip/bridge/dv/tbclasses'))
+from bridge_levels import (  # noqa: E402
+    PROFILE, current_level, seeded_rng,
+)
+
+
+class AxiResponseError(RuntimeError):
+    """An AXI error response, carrying the code so callers can discriminate.
+
+    A test that tolerates one kind of error must not tolerate every kind. The
+    boundary probe expects SLVERR from the ADDRESSED slave when it probes past
+    that slave's seeded memory model -- but a DECERR means the subtractive
+    catch-all answered, i.e. the address did not decode to any real slave,
+    and a bare `except RuntimeError` swallowed that identically. The bridge
+    testqc round called this out (2026-09-10): a decode defect confined to
+    addresses above the 64 KB seed cap would route ddr's top pages to sram,
+    whose BFM answers the out-of-window address SLVERR too, and the whole
+    suite would pass.
+    """
+
+    RESP_NAMES = {0: 'OKAY', 1: 'EXOKAY', 2: 'SLVERR', 3: 'DECERR'}
+
+    def __init__(self, address, resp, detail=''):
+        self.address = address
+        self.resp = resp
+        name = self.RESP_NAMES.get(resp, f'resp={resp}')
+        super().__init__(f"AXI {name} at 0x{address:08x}: {detail}")
+
+    @property
+    def is_slverr(self) -> bool:
+        return self.resp == 2
 
 
 class BridgeStreamMonAxilTB(TBBase):
@@ -58,11 +98,11 @@ class BridgeStreamMonAxilTB(TBBase):
     Testbench for bridge_stream_mon_axil bridge.
 
     Configuration:
-        Masters: 3 (host, stream_desc, monbus_wr)
+        Masters: 4 (host, stream_desc, monbus_wr, slave_monbus_wr)
         Slaves:  13 (obs_apb, slvmon_apb, stream_apb, harness_csr, desc_ram, stream_err, stream_tally, dma_axil, slave_err, slave_tally, comp_sram, stream_tally_cfg, slave_tally_cfg)
         Channels: RW
         Data Width: 256
-        Addr Width: 64
+        Addr Width: 32
         ID Width: 8
     """
 
@@ -81,8 +121,26 @@ class BridgeStreamMonAxilTB(TBBase):
         self.num_masters = 4
         self.num_slaves = 13
         self.data_width = 256
-        self.addr_width = 64
+        self.addr_width = 32
         self.id_width = 8
+
+        # Depth: TEST_LEVEL (exported by the pytest wrapper) picks the profile
+        # every count in the tests is read from; SEED (pinned per test node
+        # by the repo-root conftest) seeds the one RNG the tests draw from.
+        # Both are logged so a failing cell names how to replay it.
+        self.level = current_level()
+        self.level_cfg = PROFILE[self.level]
+        self.seed, self.rng = seeded_rng(self.log)
+        self.log.info(f"TEST_LEVEL={self.level}: {self.level_cfg}")
+
+        # Slave-side BFM ID width, emitted from xbar_id_width(masters): inside
+        # the fabric every transaction ID is {master index, master id}, so the
+        # slave BFMs must bind at that width or they mis-decode every ID
+        # (bridge TASK-005, was BRIDGE-016). Every AXI slave BFM below takes
+        # id_width from this knob. Hand-synced copies of this TB: keep the BFM
+        # id_widths equal to this value — do not re-derive or hand-edit them
+        # at the call sites (bridge GitHub #99).
+        self.XBAR_ID_WIDTH = 10
 
         # Per-slave metadata used by misroute checks and pattern computation.
         # slave_info[i] = (protocol, base_addr, addr_range, data_width)
@@ -102,6 +160,18 @@ class BridgeStreamMonAxilTB(TBBase):
             12: ('axil', 0x00140000, 0x00040000, 64),  # slave_tally_cfg
         }
 
+        # connectivity[m] = slave indices master m is wired to, straight from
+        # the connectivity CSV at generation time. Tests read this rather than
+        # searching for the CSV: a bridge generated outside the component has
+        # no CSV where that search looks, and assuming FULL connectivity sends
+        # unwired masters into the subtractive slave (DECERR).
+        self.connectivity = {
+            0: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, },  # host
+            1: {4, },  # stream_desc
+            2: {6, 10, },  # monbus_wr
+            3: {9, 10, },  # slave_monbus_wr
+        }
+
         # Per-master data width (in bits). Used by master_read/write helpers
         # and by slave_mem_read so verification reads back master-width
         # bytes regardless of the slave's native width.
@@ -109,6 +179,7 @@ class BridgeStreamMonAxilTB(TBBase):
             0: 32,  # host
             1: 256,  # stream_desc
             2: 64,  # monbus_wr
+            3: 64,  # slave_monbus_wr
         }
 
         # Slave memory models — one per slave, pre-seeded.
@@ -119,6 +190,8 @@ class BridgeStreamMonAxilTB(TBBase):
         self.slave_wr = {}
         # APB doesn't split rd/wr — single APBSlave per port.
         self.slave_apb = {}
+        # Wishbone B4 completer ports — single WB4Slave per port.
+        self.slave_wb = {}
 
         # Master BFMs — separate read and write handles. For wr-only or
         # rd-only masters only one of these gets populated.
@@ -126,6 +199,10 @@ class BridgeStreamMonAxilTB(TBBase):
         self.master_wr = {}
         # APB master (one handle per APB master port).
         self.master_apb = {}
+        # Wishbone B4 requester ports (one WB4Master per port).
+        self.master_wb = {}
+        # AXI5ComplianceChecker per AXI5 master port (see _setup_master_*).
+        self.compliance = {}
 
         self._setup_slave_0_obs_apb()
         self._setup_slave_1_slvmon_apb()
@@ -143,6 +220,7 @@ class BridgeStreamMonAxilTB(TBBase):
         self._setup_master_0_host()
         self._setup_master_1_stream_desc()
         self._setup_master_2_monbus_wr()
+        self._setup_master_3_slave_monbus_wr()
 
     # ----------------------------------------------------------------------
     # Slave seed pattern
@@ -170,11 +248,32 @@ class BridgeStreamMonAxilTB(TBBase):
     # byte, scaled across multiple multi-hundred-MB slaves).
     #
     # Pre-seed the first SLAVE_MEM_CAP_BYTES of each slave; tests must
-    # probe within that window for data verification. Routing-only probes
-    # (address_decode beyond page 0) work outside the cap — the framework
-    # slave BFMs silently drop OOR writes and fall back to addr-as-data on
-    # OOR reads, so the AW/AR routing assertion still fires.
-    SLAVE_MEM_CAP_BYTES = 4096
+    # probe within that window for data verification.
+    #
+    # 64 KB, not 4 KB, and the difference is load-bearing. The two slave BFMs
+    # DISAGREE about an out-of-range access: AXI4SlaveWrite logs it and leaves
+    # RESP alone (a silent drop, answering OKAY), while AXIL4SlaveWrite answers
+    # SLVERR. An earlier version of this comment asserted the first behaviour
+    # for both and sized the cap at 4 KB on that basis, so a boundary probe of
+    # a 64 KB AXI4-Lite slave -- mix_a's axil_periph, mix_c's cfg_regs -- got a
+    # legitimate SLVERR from a model that simply did not extend that far, and
+    # the master raised. Routing was correct the whole time; the model was
+    # short.
+    #
+    # 64 KB covers a typical peripheral window whole, so those probes now land
+    # in real memory and verify DATA as well as routing rather than depending
+    # on a drop. Cost is 9 bytes per addressable byte (uint8 data + two uint32
+    # access maps) = ~576 KB per slave, against the multi-GB windows the cap
+    # exists to stop. A slave larger than this is still capped, and a probe
+    # past the cap is answered by the ONE out-of-range contract every slave
+    # BFM now follows (RDS-DV shared/memory_model.py, bridge BUG-006 (was BRIDGE-008) closed
+    # 2026-09-09): SLVERR, nothing written, 0xDEADDEAD data, one warning.
+    # The probe still proves routing -- the error comes back from the slave
+    # the address decodes to -- and is data-checked only inside the seeded
+    # region. That is the model's limit; an address the bridge does not
+    # decode at all is the subtractive slave's DECERR (bridge BUG-007, was BRIDGE-009), a
+    # different thing.
+    SLAVE_MEM_CAP_BYTES = 64 * 1024
 
     # Bridge page granularity. The slave-window validator already aligns
     # each base_addr / addr_range to PAGE_SIZE (4 KB), so page-level probes
@@ -220,27 +319,66 @@ class BridgeStreamMonAxilTB(TBBase):
             return [base + i * self.PAGE_SIZE for i in range(num_pages)]
         # boundary (default)
         if num_pages == 1:
-            return [base]
-        if num_pages == 2:
-            return [base, base + self.PAGE_SIZE]
-        mid = (num_pages // 2) * self.PAGE_SIZE
-        last = (num_pages - 1) * self.PAGE_SIZE
-        return [base, base + mid, base + last]
+            boundary = [base]
+        elif num_pages == 2:
+            boundary = [base, base + self.PAGE_SIZE]
+        else:
+            mid = (num_pages // 2) * self.PAGE_SIZE
+            last = (num_pages - 1) * self.PAGE_SIZE
+            boundary = [base, base + mid, base + last]
+        if mode != 'seeded':
+            return boundary
+        # 'seeded' (the full level): the boundary pages plus EVERY page whose
+        # data can be verified -- the seeded region is capped at
+        # SLAVE_MEM_CAP_BYTES, so this walks at most 16 pages per slave
+        # however large the window, unlike 'all'.
+        seeded_pages = min(num_pages, self._slave_mem_bytes(slave_idx) // self.PAGE_SIZE)
+        pages = [base + i * self.PAGE_SIZE for i in range(seeded_pages)]
+        return pages + [pg for pg in boundary if pg not in pages]
 
-    def page_probe_offsets(self, slave_idx: int, master_idx: int = 0) -> list:
-        """Return three in-page byte offsets [low, mid, high] for probing,
-        each aligned to max(master_width, slave_width). Catches address
-        decoders that ignore low bits (low probe), mid-bit decoders
-        (middle), and decoders that off-by-one at the page boundary
-        (high — last aligned word in the page)."""
+    def _probe_align(self, slave_idx: int, master_idx: int = 0) -> int:
+        """Byte alignment a probe must honour: max(master_width, slave_width)."""
         master_bytes = self.master_data_width[master_idx] // 8
         slave_bytes = self.slave_info[slave_idx][3] // 8
-        align = max(master_bytes, slave_bytes)
+        return max(master_bytes, slave_bytes)
+
+    def page_probe_offsets(self, slave_idx: int, master_idx: int = 0,
+                           count: int = None) -> list:
+        """Return in-page byte offsets [low, mid, high] for probing, each
+        aligned to max(master_width, slave_width). Catches address decoders
+        that ignore low bits (low probe), mid-bit decoders (middle), and
+        decoders that off-by-one at the page boundary (high — last aligned
+        word in the page). `count` (from the level profile) takes the first
+        N of the three: gate probes low only, func and full all three."""
+        align = self._probe_align(slave_idx, master_idx)
         align_mask = ~(align - 1) & 0xFFFFFFFFFFFFFFFF
         low = 0
         mid = (self.PAGE_SIZE // 2) & align_mask
         high = (self.PAGE_SIZE - align) & align_mask
-        return [low, mid, high]
+        offsets = [low, mid, high]
+        if count is None:
+            count = self.level_cfg['in_page_probes']
+        return offsets[:max(1, count)]
+
+    def connectivity_addrs(self, slave_idx: int, master_idx: int = 0) -> list:
+        """Addresses the connectivity test touches for one (master, slave)
+        pair: the fixed +0x100 probe first (every level, so gate is the old
+        test exactly), then `connectivity_offsets - 1` further aligned,
+        seeded, distinct offsets drawn from this TB's RNG. Verifiable by
+        construction: all inside the seeded region."""
+        _, base, _, _ = self.slave_info[slave_idx]
+        align = self._probe_align(slave_idx, master_idx)
+        seeded = self._slave_mem_bytes(slave_idx)
+        want = max(1, self.level_cfg['connectivity_offsets'])
+        addrs = [base + 0x100] if seeded > 0x100 + align else [base]
+        slots = max(1, seeded // align)
+        tries = 0
+        while len(addrs) < want and tries < 64 * want:
+            tries += 1
+            a = base + self.rng.randrange(slots) * align
+            if a not in addrs:
+                addrs.append(a)
+        return addrs
 
     def is_seeded(self, slave_idx: int, addr: int) -> bool:
         """True if `addr` falls inside slave_idx's seeded MemoryModel
@@ -283,7 +421,25 @@ class BridgeStreamMonAxilTB(TBBase):
         offset = addr - base
         if proto in ('apb', 'apb5'):
             apb = self.slave_apb[slave_idx]
-            data_bytes = apb.mem.read(offset, byte_count)
+            # Read where the APB slave ACTUALLY stored it. APBSlave does not
+            # subtract the window base: it masks the full PADDR by its own
+            # memory size --
+            #     addr_bits = (num_lines * strb_bits - 1).bit_length()
+            #     self.mem.write(address & ((1 << addr_bits) - 1), ...)
+            # -- so `addr - base` is only the same place when
+            # `base & mask == 0`. It silently was, for every APB slave whose
+            # base happened to be mask-aligned, until the memory model grew and
+            # widened the mask: mix_d's apb_periph at base 0x4000_1000 then
+            # stored a write to 0x4000_1100 at 0x1100 while this read looked at
+            # 0x0100 and got seed data back. Mirror the slave's own mapping
+            # instead of assuming one.
+            span = apb.num_lines * apb.strb_bits
+            mask = (1 << (span - 1).bit_length()) - 1
+            data_bytes = apb.mem.read(addr & mask, byte_count)
+        elif proto == 'wb4':
+            # WB4Slave is constructed with base_addr, so its memory is
+            # window-relative like the AXI/AXIL slave models.
+            data_bytes = self.slave_wb[slave_idx].mem.read(offset, byte_count)
         else:
             mem = self.slave_memory[slave_idx]
             data_bytes = mem.read(offset, byte_count)
@@ -323,11 +479,33 @@ class BridgeStreamMonAxilTB(TBBase):
             user_width=1,
             multi_sig=True,
         )
+        # Protocol checker on the AXI4 boundary: handshake stability, burst
+        # length/size, xLAST, ID ordering and response codes. Armed in
+        # setup_clocks_and_reset; assert_compliance() reads the verdict.
+        self.compliance[1] = AXI4ComplianceChecker(
+            self.dut, self.clock,
+            prefix="stream_desc_",
+            log=self.log,
+            data_width=256,
+            addr_width=32,
+            id_width=8,
+            user_width=1,
+        )
     def _setup_master_2_monbus_wr(self):
         """Set up protocol BFMs for master 2: monbus_wr (protocol: axil)"""
         self.master_wr[2] = AXIL4MasterWrite(
             self.dut, self.clock,
             prefix="monbus_wr_",
+            log=self.log,
+            data_width=64,
+            addr_width=32,
+            multi_sig=True,
+        )
+    def _setup_master_3_slave_monbus_wr(self):
+        """Set up protocol BFMs for master 3: slave_monbus_wr (protocol: axil)"""
+        self.master_wr[3] = AXIL4MasterWrite(
+            self.dut, self.clock,
+            prefix="slave_monbus_wr_",
             log=self.log,
             data_width=64,
             addr_width=32,
@@ -422,7 +600,7 @@ class BridgeStreamMonAxilTB(TBBase):
         )
     def _setup_slave_4_desc_ram(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 4: desc_ram (protocol: axi4)"""
-        # AXI4 slave — full memory-backed BFM.
+        # AXI-family slave (axi3/axi4/axi5) — full memory-backed BFM.
         bytes_per_line = 256 // 8
         addr_range = 0x00010000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
@@ -440,7 +618,7 @@ class BridgeStreamMonAxilTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=10,
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[4],
@@ -452,7 +630,7 @@ class BridgeStreamMonAxilTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=10,
+            id_width=self.XBAR_ID_WIDTH,  # {master index, master id} — knob above
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[4],
@@ -765,12 +943,94 @@ class BridgeStreamMonAxilTB(TBBase):
         await self.wait_clocks(self.clock_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clock_name, 5)
+        for idx, checker in self.compliance.items():
+            # setup_monitors binds the five channel monitors AND starts the
+            # transaction / handshake / cycle loops itself (and raises if it
+            # cannot bind). Starting the loops again here doubled every count.
+            checker.setup_monitors()
+            self.log.info(f"AXI protocol checker armed on master {idx}")
+
+    def assert_compliance(self, allow: dict = None) -> dict:
+        """Every AXI master port's protocol checker must report zero violations.
+        Called by each generated test before it declares PASSED, so a
+        protocol error on the AXI5 boundary fails the test that caused it
+        even when the data still round-tripped. Returns the reports.
+
+        `allow` = {violation_type_name: exact_count} lets a hand-written test
+        name a violation class it deliberately provokes -- and the count it
+        expects, so one more or one fewer still fails. Nothing is tolerated
+        implicitly; the generated tests never pass it."""
+        reports = {}
+        allow = dict(allow or {})
+        for idx, checker in self.compliance.items():
+            report = checker.get_compliance_report()
+            reports[idx] = report
+            # A checker that never armed reports 'disabled' and no counts; a
+            # checker that armed but saw nothing has checks_performed == 0.
+            # Both read as "zero violations" to a naive caller -- and did,
+            # for a month (RDS-DV 2026-09-09). Neither is a pass.
+            assert report.get('compliance_checking') == 'enabled', (
+                f"protocol checker on master {idx} is not enabled: {report}")
+            # 'armed' and 'channels' exist so a blind checker cannot pass as a
+            # clean one: a prefix whose separator did not resolve used to bind
+            # no channels and report zero violations forever.
+            assert report.get('armed'), (
+                f"protocol checker on master {idx} bound no channels "
+                f"(prefix resolution failed?): {report}")
+            stats = report.get('statistics', {})
+            checks = stats.get('checks_performed', 0)
+            violations = report.get('total_violations', 0)
+            if isinstance(violations, (list, tuple)):
+                violations = len(violations)
+            self.log.info(f"AXI compliance master {idx}: {violations} violation(s) in "
+                          f"{checks} checks; stats={ {k: v for k, v in stats.items() if v} }")
+            assert checks > 0, (
+                f"protocol checker on master {idx} performed no checks -- "
+                f"its verdict is vacuous")
+            summary = dict(report.get('violation_summary', {}))
+            for name, expected in allow.items():
+                got = summary.pop(name, 0)
+                assert got == expected, (
+                    f"AXI5 compliance master {idx}: expected exactly {expected} "
+                    f"{name} (deliberately provoked), saw {got}")
+            assert not summary, (
+                f"AXI protocol violations on master {idx}: {summary}")
+        return reports
 
     async def assert_reset(self):
         self.reset_n.value = 0
 
     async def deassert_reset(self):
         self.reset_n.value = 1
+
+    # ----------------------------------------------------------------------
+    # Slave backpressure (depth knob)
+    # ----------------------------------------------------------------------
+
+    def set_slave_response_delay(self, slave_idx: int, cycles: int) -> None:
+        """Hold B/R off at slave[slave_idx] for `cycles` before responding.
+
+        The bridge tracks the originating master in a fixed-depth FIFO per
+        slave port and pops it on the response, so OUTSTANDING DEPTH is only
+        reachable when a slave is slow. The default BFM slave answers in ~1
+        cycle, which is why no test got anywhere near the depth where
+        bridge BUG-009 (was BRIDGE-011) bit until this knob existed. APB slaves have no such
+        attribute and are left alone.
+        """
+        for container in (self.slave_wr, self.slave_rd):
+            bfm = container.get(slave_idx)
+            if bfm is not None and hasattr(bfm, 'response_delay_cycles'):
+                bfm.response_delay_cycles = cycles
+
+    def apply_level_slave_delay(self) -> int:
+        """Apply the level profile's slave_delay to every slave (full: 24
+        cycles, so requests queue in the fabric; gate/func: 0). Returns it."""
+        cycles = self.level_cfg['slave_delay']
+        if cycles:
+            for idx in self.slave_info:
+                self.set_slave_response_delay(idx, cycles)
+            self.log.info(f"level {self.level}: slave response delay {cycles} cycles on all slaves")
+        return cycles
 
     # ----------------------------------------------------------------------
     # Transaction helpers — thin wrappers over protocol BFMs
@@ -791,43 +1051,64 @@ class BridgeStreamMonAxilTB(TBBase):
     async def master_read(self, master_idx: int, address: int) -> int:
         """Single-beat read from master[master_idx]. Returns master-width int."""
         if master_idx in self.master_apb:
-            return await self.master_apb[master_idx].read(address)
+            # APB has one error bit: SLVERR and DECERR both arrive as PSLVERR.
+            # Report it as SLVERR (2) -- the code an in-range-but-failed
+            # access would carry -- since APB cannot tell the two apart.
+            txn = await self.master_apb[master_idx].read(address)
+            if txn.fields.get('pslverr', 0):
+                raise AxiResponseError(address, 2, 'PSLVERR on APB read')
+            return int(txn.fields['prdata'])
         rd = self.master_rd[master_idx]
-        return await rd.single_read(address, size=self._natural_arsize(master_idx))
+        try:
+            return await rd.single_read(address, size=self._natural_arsize(master_idx))
+        except AxiResponseError:
+            raise
+        except RuntimeError as e:
+            # The BFM raises with the response NAME in the message; re-raise
+            # with the code attached so a caller can tell SLVERR from DECERR
+            # without string-matching. See AxiResponseError.
+            resp = (3 if 'DECERR' in str(e) else 2 if 'SLVERR' in str(e) else None)
+            raise AxiResponseError(address, resp, str(e)) from e
 
     async def master_write(self, master_idx: int, address: int, data: int,
-                           allow_slverr: bool = False) -> None:
+                           txn_id: int = None) -> None:
         """Single-beat write from master[master_idx]. `data` is master-width.
 
-        `allow_slverr` tolerates a SLVERR response. Pass it ONLY for a probe
-        aimed outside the slave's modeled memory (see is_seeded); a SLVERR
-        from inside the modeled region is a real error and must still raise.
-
-        Why this is needed: the two framework slave BFMs disagree about what
-        an out-of-range access returns.
-
-            axi4_interfaces.py  AXI4SlaveWrite   warn, drop, respond OKAY
-            axil4_interfaces.py AXIL4SlaveWrite  warn, drop, respond SLVERR
-
-        The class note above ("the framework slave BFMs silently drop OOR
-        writes") describes only the AXI4 behavior. Against an AXIL4 slave an
-        out-of-range probe answers SLVERR, the master raises, and the probe
-        loop dies. SLVERR is arguably the more correct answer of the two, so
-        this tolerates it rather than forcing both BFMs to drop silently; a
-        slave that responds at all has proved the decoder routed to it, which
-        is what the out-of-range probes are here to show.
+        `txn_id` sets AWID. Give each master a DISJOINT id range and the
+        returned BID identifies which master a response belongs to, which is
+        the only way to tell a correctly routed response from one that merely
+        arrived somewhere. APB has no id and ignores it.
         """
         if master_idx in self.master_apb:
-            await self.master_apb[master_idx].write(address, data)
+            txn = await self.master_apb[master_idx].write(address, data)
+            if txn.fields.get('pslverr', 0):
+                raise AxiResponseError(address, 2, 'PSLVERR on APB write')
             return
         wr = self.master_wr[master_idx]
+        kwargs = {'size': self._natural_arsize(master_idx)}
+        if txn_id is not None:
+            kwargs['id'] = txn_id
+        # The BFM families report an error response THREE different ways and a
+        # caller cannot be asked to know which one it has:
+        #   AXI4/AXI5 MasterWrite -> a dict, success=False, no exception;
+        #   AXIL4/AXIL5           -> raises a bare RuntimeError;
+        #   (defensively)         -> returns the bare response code.
+        # Before this every one of them was handled differently or not at all:
+        # the dict path was checked, the AXIL path escaped as a RuntimeError
+        # the boundary probe's `except AxiResponseError` would NOT catch, and
+        # the int path was ignored outright. The bridge testqc round caught
+        # the AXIL half (2026-09-10). Normalise all three to AxiResponseError,
+        # which carries the response CODE so a caller can tolerate an expected
+        # out-of-range SLVERR without also tolerating a DECERR.
         try:
-            await wr.single_write(address, data,
-                                  size=self._natural_arsize(master_idx))
-        except RuntimeError as e:
-            if allow_slverr and 'SLVERR' in str(e):
-                self.log.debug(
-                    f"master_write: tolerated SLVERR at 0x{address:08x} "
-                    f"(outside modeled memory; routing still exercised)")
-                return
+            result = await wr.single_write(address, data, **kwargs)
+        except AxiResponseError:
             raise
+        except RuntimeError as e:
+            resp = (3 if 'DECERR' in str(e) else 2 if 'SLVERR' in str(e) else None)
+            raise AxiResponseError(address, resp, str(e)) from e
+        if isinstance(result, dict) and not result.get('success', True):
+            raise AxiResponseError(address, result.get('response'),
+                                   result.get('error', result))
+        if isinstance(result, int) and result in (2, 3):
+            raise AxiResponseError(address, result, 'error response code returned')

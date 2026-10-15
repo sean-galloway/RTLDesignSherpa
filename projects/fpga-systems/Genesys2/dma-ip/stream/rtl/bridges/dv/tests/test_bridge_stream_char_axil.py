@@ -27,22 +27,18 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-# The area's bin/ must be on sys.path HERE, not only via conftest: cocotb
-# re-imports this module inside the SIMULATOR process, where pytest's
-# conftest never runs and python_search only supplies tests_dir.
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                os.pardir, os.pardir, os.pardir, os.pardir, 'bin'))
-import stream_levels  # noqa: E402
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
-# Import the testbench class. NOT as a dotted package path: the area
-# lives under projects/fpga-systems/, and 'fpga-systems' contains a
-# hyphen, which is not a legal Python identifier -- 'from
-# projects.fpga-systems....' is a SyntaxError, so these five test files
-# could not even be collected. Put the tbclasses dir on sys.path and
-# import the module by its own name instead.
+# Import generated testbench class
+# The TB class lives on a path that is not dotted-importable (a
+# directory component is not a legal Python identifier, e.g.
+# 'fpga-systems', or this component's own 'fabric-gen-ip'). Import
+# it by module name off sys.path instead -- tbclasses/ is a sibling
+# of tests/.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, 'tbclasses'))
-from bridge_stream_char_axil_tb import BridgeStreamCharAxilTB  # noqa: E402
+from bridge_stream_char_axil_tb import BridgeStreamCharAxilTB, AxiResponseError
+from bridge_arbitration import run_arbitration
 
 
 # ============================================================================
@@ -58,13 +54,17 @@ from bridge_stream_char_axil_tb import BridgeStreamCharAxilTB  # noqa: E402
 # fail in the full regression). Stream's per-module naming was the
 # reference.
 
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_bridge_stream_char_axil_basic_connectivity(dut):
     """
-    Basic connectivity — every (master, slave) pair gets one write and/or
-    one read at a non-base offset inside the slave's window. Reads check
+    Basic connectivity — every (master, slave) pair gets writes and/or
+    reads at non-base offsets inside the slave's window. Reads check
     against the pre-seeded slave memory pattern; writes verify the bytes
     landed in the slave's memory at the expected offset.
+
+    Depth (TEST_LEVEL): the fixed +0x100 probe at every level, then
+    `connectivity_offsets - 1` further seeded, aligned offsets drawn from the
+    TB's SEED-pinned RNG -- gate 1, func 4, full 16 per pair.
 
     The slave BFMs auto-respond from their MemoryModel honoring whatever
     ARSIZE/ARLEN/ARADDR (or AWSIZE/AWLEN/AWADDR) the bridge forwards, so
@@ -75,199 +75,221 @@ async def cocotb_test_bridge_stream_char_axil_basic_connectivity(dut):
     await tb.setup_clocks_and_reset()
 
     tb.log.info("=" * 80)
-    tb.log.info("Starting basic connectivity test")
+    tb.log.info(f"Starting basic connectivity test (level={tb.level}, "
+                f"{tb.level_cfg['connectivity_offsets']} offset(s) per pair)")
     tb.log.info(f"Configuration: 3M x 6S, RW channels")
     tb.log.info("=" * 80)
 
     # ---- Write connectivity --------------------------------------------
     tb.log.info(f"Master 0 (host) — writes")
     # Master 0 → Slave 0 (stream_apb)
-    test_addr = 0x00000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 0)
-    tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(0, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(0, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (0 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(0, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 1 (harness_csr)
-    test_addr = 0x00010100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 1)
-    tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(1, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(1, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (1 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(1, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 2 (desc_ram)
-    test_addr = 0x00020100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 2)
-    tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(2, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(2, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (2 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(2, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 3 (stream_err)
-    test_addr = 0x00030100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 3)
-    tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(3, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(3, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (3 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(3, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 4 (debug_sram)
-    test_addr = 0x00040100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 4)
-    tb.log.info(f"  W slave=4 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(4, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 4 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(4, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (4 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=4 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(4, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 4 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 5 (dma_axil)
-    test_addr = 0x00080100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 5)
-    tb.log.info(f"  W slave=5 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(5, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 5 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(5, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (5 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=5 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(5, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 5 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     tb.log.info(f"Master 2 (monbus_wr) — writes")
     # Master 2 → Slave 4 (debug_sram)
-    test_addr = 0x00040100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (2 << 12) | 4)
-    tb.log.info(f"  W slave=4 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(2, test_addr, test_data)
-    # Read back at master 2's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(4, test_addr, master_idx=2)
-    assert actual == test_data, (
-        f"Slave 4 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(4, master_idx=2)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (2 << 20) | (4 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=4 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(2, test_addr, test_data)
+        # Read back at master 2's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(4, test_addr, master_idx=2)
+        assert actual == test_data, (
+            f"Slave 4 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
 
     # ---- Read connectivity ---------------------------------------------
     tb.log.info(f"Master 0 (host) — reads")
     # Master 0 → Slave 0 (stream_apb)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 0 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(0, master_idx=0):
+        expected = tb.slave_mem_read(0, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 0 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 1 (harness_csr)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00010100
-    expected = tb.slave_mem_read(1, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 1 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(1, master_idx=0):
+        expected = tb.slave_mem_read(1, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 1 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 2 (desc_ram)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00020100
-    expected = tb.slave_mem_read(2, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 2 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(2, master_idx=0):
+        expected = tb.slave_mem_read(2, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 2 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 3 (stream_err)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00030100
-    expected = tb.slave_mem_read(3, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 3 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(3, master_idx=0):
+        expected = tb.slave_mem_read(3, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 3 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 4 (debug_sram)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00040100
-    expected = tb.slave_mem_read(4, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=4 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 4 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(4, master_idx=0):
+        expected = tb.slave_mem_read(4, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=4 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 4 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 5 (dma_axil)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00080100
-    expected = tb.slave_mem_read(5, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=5 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 5 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(5, master_idx=0):
+        expected = tb.slave_mem_read(5, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=5 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 5 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     tb.log.info(f"Master 1 (stream_desc) — reads")
     # Master 1 → Slave 2 (desc_ram)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00020100
-    expected = tb.slave_mem_read(2, test_addr, master_idx=1)
-    tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(1, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 1 ← slave 2 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(2, master_idx=1):
+        expected = tb.slave_mem_read(2, test_addr, master_idx=1)
+        tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(1, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 1 ← slave 2 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
 
     await ClockCycles(tb.clock, 20)
+    tb.assert_compliance()
     tb.log.info("=" * 80)
     tb.log.info("Basic connectivity test PASSED")
     tb.log.info("=" * 80)
 
 
-@cocotb.test(timeout_time=500, timeout_unit="ms")
+@cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     """
-    Boundary probe — for each (master, slave) pair, probe three offsets
-    per page (bottom / middle / top of the page) back-to-back, at either
-    the boundary pages of the slave window (default) or every page
-    (BRIDGE_BOUNDARY_PROBE_MODE=all).
+    Boundary probe — for each (master, slave) pair, probe up to three
+    offsets per page (bottom / middle / top of the page) back-to-back, at
+    the boundary pages of the slave window, every seeded page, or every
+    page (BRIDGE_BOUNDARY_PROBE_MODE=all).
+
+    Depth (TEST_LEVEL): gate probes the boundary pages at the low offset
+    only; func the boundary pages at all three offsets; full every seeded
+    page at all three offsets WITH every slave holding its response off for
+    `slave_delay` cycles, so the probes queue in the fabric instead of
+    completing one at a time.
 
     NB: previously named "address_decode". The failure modes it surfaces
     are not in the address decoder (which is per-bridge generated inline
@@ -278,12 +300,14 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
 
     Routing IS the data round-trip: a misroute lands the write at a
     different slave or different offset and the seed pattern shows
-    through instead of the tagged write data. Data verification is
-    skipped for probes past the SLAVE_MEM_CAP_BYTES seeded region —
-    the slave BFM silently drops OOR writes and fakes reads with
-    data=addr, so OOR probes still exercise the decoder pathway but
-    can't be data-checked. If/when we want explicit AW/AR routing
-    monitors, wire them up at the bridge slave ports separately.
+    through instead of the tagged write data. Probes past the
+    SLAVE_MEM_CAP_BYTES seeded region are answered SLVERR by the slave
+    BFM (the one out-of-range contract every slave family follows since
+    2026-09-09 -- nothing written, 0xDEADDEAD data); they still exercise
+    the decode path, and the error coming back from the addressed slave
+    is the routing evidence, so they are not data-checked. If/when we
+    want explicit AW/AR routing monitors, wire them up at the bridge
+    slave ports separately.
 
     Set BRIDGE_BOUNDARY_PROBE_MODE=all in the environment to walk every
     page instead of bottom/mid/top — useful for small-window slaves
@@ -292,20 +316,23 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     tb = BridgeStreamCharAxilTB(dut)
     await tb.setup_clocks_and_reset()
 
-    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', 'boundary').lower()
-    if mode not in ('boundary', 'all'):
+    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', '').lower() or tb.level_cfg['probe_pages']
+    if mode not in ('boundary', 'seeded', 'all'):
         tb.log.warning(f"Unknown BRIDGE_BOUNDARY_PROBE_MODE={mode!r}, falling back to 'boundary'")
         mode = 'boundary'
+    delay = tb.apply_level_slave_delay()
 
     tb.log.info("=" * 80)
-    tb.log.info(f"Starting boundary probe test (mode={mode})")
+    tb.log.info(f"Starting boundary probe test (level={tb.level}, mode={mode}, "
+                f"{tb.level_cfg['in_page_probes']} probe(s)/page, slave delay {delay})")
     tb.log.info("=" * 80)
 
     tb.log.info(f"Master 0 (host)")
     # Slave 0 (stream_apb): 0x00000000-0x00001fff
     pages_0_0 = tb.slave_probe_pages(0, mode=mode)
     in_page_0_0 = tb.page_probe_offsets(0, master_idx=0)
-    tb.log.info(f"  slave 0: {len(pages_0_0)} pages x 3 probes/page")
+    tb.log.info(f"  slave 0: {len(pages_0_0)} pages x "
+                f"{len(in_page_0_0)} probes/page")
     for page_idx, page_base in enumerate(pages_0_0):
         for probe_idx, probe_off in enumerate(in_page_0_0):
             addr = page_base + probe_off
@@ -315,17 +342,32 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (0 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            # Outside the modeled region an AXIL4 slave answers SLVERR
-            # (an AXI4 one answers OKAY) -- tolerate it there, stay
-            # strict inside. Same predicate as the data check below.
-            await tb.master_write(0, addr, d,
-                                  allow_slverr=not tb.is_seeded(0, addr))
+            seeded = tb.is_seeded(0, addr)
+            try:
+                await tb.master_write(0, addr, d)
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
+                    raise
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 0 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M0->S0 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
+                continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
-            # seed pattern shows through instead of d. Skip the check
-            # for non-seeded probes (write still exercises the decode
-            # path, framework just drops OOR memory writes silently).
-            if tb.is_seeded(0, addr):
+            # seed pattern shows through instead of d.
+            if seeded:
                 got = tb.slave_mem_read(0, addr, master_idx=0)
                 assert got == d, (
                     f"M0→S0 data mismatch at "
@@ -334,7 +376,8 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     # Slave 1 (harness_csr): 0x00010000-0x00010fff
     pages_0_1 = tb.slave_probe_pages(1, mode=mode)
     in_page_0_1 = tb.page_probe_offsets(1, master_idx=0)
-    tb.log.info(f"  slave 1: {len(pages_0_1)} pages x 3 probes/page")
+    tb.log.info(f"  slave 1: {len(pages_0_1)} pages x "
+                f"{len(in_page_0_1)} probes/page")
     for page_idx, page_base in enumerate(pages_0_1):
         for probe_idx, probe_off in enumerate(in_page_0_1):
             addr = page_base + probe_off
@@ -344,17 +387,32 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (1 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            # Outside the modeled region an AXIL4 slave answers SLVERR
-            # (an AXI4 one answers OKAY) -- tolerate it there, stay
-            # strict inside. Same predicate as the data check below.
-            await tb.master_write(0, addr, d,
-                                  allow_slverr=not tb.is_seeded(1, addr))
+            seeded = tb.is_seeded(1, addr)
+            try:
+                await tb.master_write(0, addr, d)
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
+                    raise
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 1 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M0->S1 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
+                continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
-            # seed pattern shows through instead of d. Skip the check
-            # for non-seeded probes (write still exercises the decode
-            # path, framework just drops OOR memory writes silently).
-            if tb.is_seeded(1, addr):
+            # seed pattern shows through instead of d.
+            if seeded:
                 got = tb.slave_mem_read(1, addr, master_idx=0)
                 assert got == d, (
                     f"M0→S1 data mismatch at "
@@ -363,7 +421,8 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     # Slave 2 (desc_ram): 0x00020000-0x0002ffff
     pages_0_2 = tb.slave_probe_pages(2, mode=mode)
     in_page_0_2 = tb.page_probe_offsets(2, master_idx=0)
-    tb.log.info(f"  slave 2: {len(pages_0_2)} pages x 3 probes/page")
+    tb.log.info(f"  slave 2: {len(pages_0_2)} pages x "
+                f"{len(in_page_0_2)} probes/page")
     for page_idx, page_base in enumerate(pages_0_2):
         for probe_idx, probe_off in enumerate(in_page_0_2):
             addr = page_base + probe_off
@@ -373,17 +432,32 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (2 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            # Outside the modeled region an AXIL4 slave answers SLVERR
-            # (an AXI4 one answers OKAY) -- tolerate it there, stay
-            # strict inside. Same predicate as the data check below.
-            await tb.master_write(0, addr, d,
-                                  allow_slverr=not tb.is_seeded(2, addr))
+            seeded = tb.is_seeded(2, addr)
+            try:
+                await tb.master_write(0, addr, d)
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
+                    raise
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 2 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M0->S2 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
+                continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
-            # seed pattern shows through instead of d. Skip the check
-            # for non-seeded probes (write still exercises the decode
-            # path, framework just drops OOR memory writes silently).
-            if tb.is_seeded(2, addr):
+            # seed pattern shows through instead of d.
+            if seeded:
                 got = tb.slave_mem_read(2, addr, master_idx=0)
                 assert got == d, (
                     f"M0→S2 data mismatch at "
@@ -392,7 +466,8 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     # Slave 3 (stream_err): 0x00030000-0x00030fff
     pages_0_3 = tb.slave_probe_pages(3, mode=mode)
     in_page_0_3 = tb.page_probe_offsets(3, master_idx=0)
-    tb.log.info(f"  slave 3: {len(pages_0_3)} pages x 3 probes/page")
+    tb.log.info(f"  slave 3: {len(pages_0_3)} pages x "
+                f"{len(in_page_0_3)} probes/page")
     for page_idx, page_base in enumerate(pages_0_3):
         for probe_idx, probe_off in enumerate(in_page_0_3):
             addr = page_base + probe_off
@@ -402,17 +477,32 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (3 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            # Outside the modeled region an AXIL4 slave answers SLVERR
-            # (an AXI4 one answers OKAY) -- tolerate it there, stay
-            # strict inside. Same predicate as the data check below.
-            await tb.master_write(0, addr, d,
-                                  allow_slverr=not tb.is_seeded(3, addr))
+            seeded = tb.is_seeded(3, addr)
+            try:
+                await tb.master_write(0, addr, d)
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
+                    raise
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 3 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M0->S3 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
+                continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
-            # seed pattern shows through instead of d. Skip the check
-            # for non-seeded probes (write still exercises the decode
-            # path, framework just drops OOR memory writes silently).
-            if tb.is_seeded(3, addr):
+            # seed pattern shows through instead of d.
+            if seeded:
                 got = tb.slave_mem_read(3, addr, master_idx=0)
                 assert got == d, (
                     f"M0→S3 data mismatch at "
@@ -421,7 +511,8 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     # Slave 4 (debug_sram): 0x00040000-0x0007ffff
     pages_0_4 = tb.slave_probe_pages(4, mode=mode)
     in_page_0_4 = tb.page_probe_offsets(4, master_idx=0)
-    tb.log.info(f"  slave 4: {len(pages_0_4)} pages x 3 probes/page")
+    tb.log.info(f"  slave 4: {len(pages_0_4)} pages x "
+                f"{len(in_page_0_4)} probes/page")
     for page_idx, page_base in enumerate(pages_0_4):
         for probe_idx, probe_off in enumerate(in_page_0_4):
             addr = page_base + probe_off
@@ -431,17 +522,32 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (4 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            # Outside the modeled region an AXIL4 slave answers SLVERR
-            # (an AXI4 one answers OKAY) -- tolerate it there, stay
-            # strict inside. Same predicate as the data check below.
-            await tb.master_write(0, addr, d,
-                                  allow_slverr=not tb.is_seeded(4, addr))
+            seeded = tb.is_seeded(4, addr)
+            try:
+                await tb.master_write(0, addr, d)
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
+                    raise
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 4 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M0->S4 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
+                continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
-            # seed pattern shows through instead of d. Skip the check
-            # for non-seeded probes (write still exercises the decode
-            # path, framework just drops OOR memory writes silently).
-            if tb.is_seeded(4, addr):
+            # seed pattern shows through instead of d.
+            if seeded:
                 got = tb.slave_mem_read(4, addr, master_idx=0)
                 assert got == d, (
                     f"M0→S4 data mismatch at "
@@ -450,7 +556,8 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     # Slave 5 (dma_axil): 0x00080000-0x00080fff
     pages_0_5 = tb.slave_probe_pages(5, mode=mode)
     in_page_0_5 = tb.page_probe_offsets(5, master_idx=0)
-    tb.log.info(f"  slave 5: {len(pages_0_5)} pages x 3 probes/page")
+    tb.log.info(f"  slave 5: {len(pages_0_5)} pages x "
+                f"{len(in_page_0_5)} probes/page")
     for page_idx, page_base in enumerate(pages_0_5):
         for probe_idx, probe_off in enumerate(in_page_0_5):
             addr = page_base + probe_off
@@ -460,17 +567,32 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (5 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            # Outside the modeled region an AXIL4 slave answers SLVERR
-            # (an AXI4 one answers OKAY) -- tolerate it there, stay
-            # strict inside. Same predicate as the data check below.
-            await tb.master_write(0, addr, d,
-                                  allow_slverr=not tb.is_seeded(5, addr))
+            seeded = tb.is_seeded(5, addr)
+            try:
+                await tb.master_write(0, addr, d)
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
+                    raise
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 5 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M0->S5 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
+                continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
-            # seed pattern shows through instead of d. Skip the check
-            # for non-seeded probes (write still exercises the decode
-            # path, framework just drops OOR memory writes silently).
-            if tb.is_seeded(5, addr):
+            # seed pattern shows through instead of d.
+            if seeded:
                 got = tb.slave_mem_read(5, addr, master_idx=0)
                 assert got == d, (
                     f"M0→S5 data mismatch at "
@@ -480,26 +602,34 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     # Slave 2 (desc_ram): 0x00020000-0x0002ffff
     pages_1_2 = tb.slave_probe_pages(2, mode=mode)
     in_page_1_2 = tb.page_probe_offsets(2, master_idx=1)
-    tb.log.info(f"  slave 2: {len(pages_1_2)} pages x 3 probes/page")
+    tb.log.info(f"  slave 2: {len(pages_1_2)} pages x "
+                f"{len(in_page_1_2)} probes/page")
     for page_idx, page_base in enumerate(pages_1_2):
         for probe_idx, probe_off in enumerate(in_page_1_2):
             addr = page_base + probe_off
             # For seeded probes: full data round-trip is the routing
-            # check. For non-seeded probes: just exercise the decode
-            # pathway. The AXIL slave BFM returns SLVERR for OOR reads
-            # (the AXI4 slave BFM silently returns OKAY+fallback —
-            # asymmetric framework behavior); single_read raises
-            # RuntimeError on SLVERR, so swallow it for non-seeded
-            # probes where the error is expected and meaningless.
+            # check. For non-seeded probes: the slave BFM answers SLVERR
+            # (the one out-of-range contract, every family). WHICH error
+            # matters: SLVERR is the addressed slave's model limit and is
+            # expected; DECERR is the subtractive catch-all answering, which
+            # means the address did not decode where it should have.
             seeded = tb.is_seeded(2, addr)
             try:
                 got = await tb.master_read(1, addr)
-            except RuntimeError as e:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # OOR probe — slave returned an error response; routing
-                # still happened (we got back to the master) which is
-                # all we can verify outside the seeded region.
+                # Same discrimination as the write path above: SLVERR is the
+                # addressed slave's model limit and is expected; DECERR is the
+                # subtractive catch-all and is a routing failure.
+                assert e.is_slverr, (
+                    f"M1<-S2 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             if seeded:
                 exp = tb.slave_mem_read(2, addr, master_idx=1)
@@ -511,7 +641,8 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     # Slave 4 (debug_sram): 0x00040000-0x0007ffff
     pages_2_4 = tb.slave_probe_pages(4, mode=mode)
     in_page_2_4 = tb.page_probe_offsets(4, master_idx=2)
-    tb.log.info(f"  slave 4: {len(pages_2_4)} pages x 3 probes/page")
+    tb.log.info(f"  slave 4: {len(pages_2_4)} pages x "
+                f"{len(in_page_2_4)} probes/page")
     for page_idx, page_base in enumerate(pages_2_4):
         for probe_idx, probe_off in enumerate(in_page_2_4):
             addr = page_base + probe_off
@@ -521,17 +652,32 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (2 << 20) | (4 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            # Outside the modeled region an AXIL4 slave answers SLVERR
-            # (an AXI4 one answers OKAY) -- tolerate it there, stay
-            # strict inside. Same predicate as the data check below.
-            await tb.master_write(2, addr, d,
-                                  allow_slverr=not tb.is_seeded(4, addr))
+            seeded = tb.is_seeded(4, addr)
+            try:
+                await tb.master_write(2, addr, d)
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
+                    raise
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 4 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M2->S4 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
+                continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
-            # seed pattern shows through instead of d. Skip the check
-            # for non-seeded probes (write still exercises the decode
-            # path, framework just drops OOR memory writes silently).
-            if tb.is_seeded(4, addr):
+            # seed pattern shows through instead of d.
+            if seeded:
                 got = tb.slave_mem_read(4, addr, master_idx=2)
                 assert got == d, (
                     f"M2→S4 data mismatch at "
@@ -539,38 +685,98 @@ async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
                     f"got 0x{got:08x}, expected 0x{d:08x}")
 
     await ClockCycles(tb.clock, 20)
+    tb.assert_compliance()
     tb.log.info("=" * 80)
     tb.log.info("Boundary probe test PASSED")
     tb.log.info("=" * 80)
-@cocotb.test(timeout_time=1000, timeout_unit="ms")
+
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_bridge_stream_char_axil_narrow_to_wide_alignment(dut):
+    """host (32b, single-beat) writes into
+    desc_ram (256b) land on the right byte lanes.
+
+    AXI4 puts a narrow beat at lanes [addr % row +: size]: WSTRB bits set
+    there and WDATA's slice there carrying the value. A burst-aggregating
+    upsizer puts every single-beat write at lane 0, which a byte-strobed
+    slave (a BRAM) turns into silent corruption of the row's first word.
+    The bridge routes these masters through axil_to_axi4_wide_align_wr;
+    this test watches desc_ram's W channel at the bridge top and checks
+    each write's lanes. The same writes at every level: distinct slots
+    in one row (0, 1, 2 and the last), so every lane offset class is hit.
+    """
+    tb = BridgeStreamCharAxilTB(dut)
+    await tb.setup_clocks_and_reset()
+
+    row_bytes, word_bytes = 32, 4
+    word_mask = (1 << (8 * word_bytes)) - 1
+    captured_w = []
+
+    async def mon_w():
+        while True:
+            await RisingEdge(tb.clock)
+            if (int(dut.desc_ram_axi_wvalid.value) == 1 and
+                    int(dut.desc_ram_axi_wready.value) == 1):
+                captured_w.append((int(dut.desc_ram_axi_wdata.value),
+                                   int(dut.desc_ram_axi_wstrb.value)))
+
+    cocotb.start_soon(mon_w())
+
+    row_base = 0x00020100
+    plan = [(row_base + off, (0xA5A50000 + i) & word_mask)
+            for i, off in enumerate([0, 4, 8, 28])]
+    for addr, data in plan:
+        await tb.master_write(0, addr, data)
+    await ClockCycles(tb.clock, 50)
+
+    assert len(captured_w) == len(plan), (
+        f"expected {len(plan)} W beats at desc_ram, saw {len(captured_w)}")
+    errors = []
+    for (addr, data), (wdata, wstrb) in zip(plan, captured_w):
+        off = addr % row_bytes
+        want_strb = ((1 << word_bytes) - 1) << off
+        lane = (wdata >> (8 * off)) & word_mask
+        if wstrb != want_strb or lane != data:
+            errors.append(f"addr 0x{addr:08X} (lane {off}): wstrb 0x{wstrb:X} "
+                          f"(want 0x{want_strb:X}), data at lane 0x{lane:X} (want 0x{data:X})")
+    assert not errors, "narrow-to-wide lane placement wrong:\n" + "\n".join(errors)
+    for addr, data in plan:
+        got = tb.slave_mem_read(2, addr, byte_count=word_bytes,
+                                master_idx=0)
+        assert got == data, f"desc_ram @0x{addr:08X} holds 0x{got:X}, want 0x{data:X}"
+    tb.log.info(f"narrow-to-wide alignment: {len(plan)} writes on the right lanes")
+
+@cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_stream_char_axil_arbitration(dut):
     """
-    Multi-master arbitration test
+    Multi-master arbitration test: every master offers `arb_per_master`
+    concurrent transactions to ONE slave whose responses are held off, so
+    the requests genuinely contend, then every write is read back and
+    every read checked against the seed. run_arbitration returns the count
+    it verified and refuses to report success for zero work.
 
-    Test plan:
-    1. Multiple masters simultaneously request same slave
-    2. Verify round-robin arbitration grants access
-    3. Verify non-winning masters are backpressured
-    4. Verify transactions complete correctly
+    Depth (TEST_LEVEL): arb_per_master -- gate 4, func 8, full 24.
     """
     tb = BridgeStreamCharAxilTB(dut)
     await tb.setup_clocks_and_reset()
 
     tb.log.info("=" * 80)
-    tb.log.info("Starting arbitration test")
+    tb.log.info(f"Starting arbitration test (level={tb.level}, "
+                f"{tb.level_cfg['arb_per_master']} txn/master)")
     tb.log.info("=" * 80)
 
-    # TODO: Implement concurrent transaction test
-    # This requires cocotb.start_soon() for parallel master activity
-
-    await ClockCycles(tb.clock, 100)
-    tb.log.info("Arbitration test PASSED")
+    checked = await run_arbitration(tb, per_master=tb.level_cfg['arb_per_master'])
+    tb.assert_compliance()
+    tb.log.info(f"Arbitration test PASSED — {checked} concurrent transactions verified")
 
 # ============================================================================
 # Pytest Wrapper Functions (collected by pytest, call specific cocotb_test_*)
 # ============================================================================
 
-def test_bridge_stream_char_axil_basic_connectivity(request):
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_bridge_stream_char_axil_basic_connectivity(request, test_level):
     """Pytest wrapper for basic connectivity test"""
 
     # Get standard paths
@@ -596,41 +802,29 @@ def test_bridge_stream_char_axil_basic_connectivity(request):
     # directory and outputs.
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_basic_connectivity"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_basic_connectivity_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
     sim_build = sim_build_path(tests_dir, sim_build_name)
-    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     # Waveforms via the canonical helper in TBClasses.shared.utilities.
     waves = get_wave_config(sim_build)
 
-    extra_args = ['--assert', '--coverage',
-                  # The generated PeakRDL CSR (*_cfg.sv) drives one
-                  # 'field_combo' struct from many always_comb blocks,
-                  # each writing a DIFFERENT member. Verilator's
-                  # MULTIDRIVEN fires on the aggregate, not per member,
-                  # so this is a false positive -- 1988 of them, which
-                  # tripped '--Wall as error' and failed the COMPILE.
-                  # Every other test in the repo that builds this
-                  # generated code suppresses it the same way.
-                  '-Wno-MULTIDRIVEN',
-                  ] + waves['extra_args']
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        # gate/func/full. These tests had no level at all -- they could not
-        # even be COLLECTED until recently, so nothing ever asked them to
-        # scale. 'all' walks every page of every slave window, which is the
-        # right depth for a nightly and far too slow for a smoke run.
-        **stream_levels.env(),
-        'BRIDGE_BOUNDARY_PROBE_MODE': os.environ.get(
-            'BRIDGE_BOUNDARY_PROBE_MODE',
-            stream_levels.scale('boundary', 'boundary', 'all')),
+        **level_env(test_level),
         **waves['extra_env'],
     }
 
@@ -649,7 +843,8 @@ def test_bridge_stream_char_axil_basic_connectivity(request):
     )
 
 
-def test_bridge_stream_char_axil_boundary_probe(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_bridge_stream_char_axil_boundary_probe(request, test_level):
     """Pytest wrapper for boundary probe test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -667,40 +862,28 @@ def test_bridge_stream_char_axil_boundary_probe(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_boundary_probe"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_boundary_probe_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
     sim_build = sim_build_path(tests_dir, sim_build_name)
-    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     waves = get_wave_config(sim_build)
 
-    extra_args = ['--assert', '--coverage',
-                  # The generated PeakRDL CSR (*_cfg.sv) drives one
-                  # 'field_combo' struct from many always_comb blocks,
-                  # each writing a DIFFERENT member. Verilator's
-                  # MULTIDRIVEN fires on the aggregate, not per member,
-                  # so this is a false positive -- 1988 of them, which
-                  # tripped '--Wall as error' and failed the COMPILE.
-                  # Every other test in the repo that builds this
-                  # generated code suppresses it the same way.
-                  '-Wno-MULTIDRIVEN',
-                  ] + waves['extra_args']
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        # gate/func/full. These tests had no level at all -- they could not
-        # even be COLLECTED until recently, so nothing ever asked them to
-        # scale. 'all' walks every page of every slave window, which is the
-        # right depth for a nightly and far too slow for a smoke run.
-        **stream_levels.env(),
-        'BRIDGE_BOUNDARY_PROBE_MODE': os.environ.get(
-            'BRIDGE_BOUNDARY_PROBE_MODE',
-            stream_levels.scale('boundary', 'boundary', 'all')),
+        **level_env(test_level),
         **waves['extra_env'],
     }
 
@@ -717,7 +900,64 @@ def test_bridge_stream_char_axil_boundary_probe(request):
         plus_args=waves['sim_args'],
         extra_env=extra_env
     )
-def test_bridge_stream_char_axil_arbitration(request):
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_bridge_stream_char_axil_narrow_to_wide_alignment(request, test_level):
+    """Pytest wrapper for the narrow-to-wide lane alignment test"""
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_bridge': '../../../../rtl/bridge',
+        'rtl_common': '../../../../rtl/common',
+        'rtl_amba': '../../../../rtl/amba'
+    })
+
+    dut_name = "bridge_stream_char_axil"
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/fpga-systems/Genesys2/dma-ip/stream/rtl/bridges/filelists/bridge_stream_char_axil.f'
+    )
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    worker_suffix = f"_{worker_id}" if worker_id else ""
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    sim_build_name = f"test_{dut_name}_narrow_to_wide_alignment_{test_level}_{reg_level}{worker_suffix}"
+
+    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
+    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    sim_build = sim_build_path(tests_dir, sim_build_name)
+    os.makedirs(log_dir, exist_ok=True)
+
+    waves = get_wave_config(sim_build)
+
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_env = {
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'LOG_PATH': log_path,
+        'COCOTB_RESULTS_FILE': results_path,
+        **level_env(test_level),
+        **waves['extra_env'],
+    }
+
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=module,
+        testcase="cocotb_test_bridge_stream_char_axil_narrow_to_wide_alignment",
+        sim_build=sim_build,
+        waves=False,
+        extra_args=extra_args,
+        plus_args=waves['sim_args'],
+        extra_env=extra_env
+    )
+
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_bridge_stream_char_axil_arbitration(request, test_level):
     """Pytest wrapper for arbitration test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -735,40 +975,28 @@ def test_bridge_stream_char_axil_arbitration(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_arbitration"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_arbitration_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
     sim_build = sim_build_path(tests_dir, sim_build_name)
-    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     waves = get_wave_config(sim_build)
 
-    extra_args = ['--assert', '--coverage',
-                  # The generated PeakRDL CSR (*_cfg.sv) drives one
-                  # 'field_combo' struct from many always_comb blocks,
-                  # each writing a DIFFERENT member. Verilator's
-                  # MULTIDRIVEN fires on the aggregate, not per member,
-                  # so this is a false positive -- 1988 of them, which
-                  # tripped '--Wall as error' and failed the COMPILE.
-                  # Every other test in the repo that builds this
-                  # generated code suppresses it the same way.
-                  '-Wno-MULTIDRIVEN',
-                  ] + waves['extra_args']
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        # gate/func/full. These tests had no level at all -- they could not
-        # even be COLLECTED until recently, so nothing ever asked them to
-        # scale. 'all' walks every page of every slave window, which is the
-        # right depth for a nightly and far too slow for a smoke run.
-        **stream_levels.env(),
-        'BRIDGE_BOUNDARY_PROBE_MODE': os.environ.get(
-            'BRIDGE_BOUNDARY_PROBE_MODE',
-            stream_levels.scale('boundary', 'boundary', 'all')),
+        **level_env(test_level),
         **waves['extra_env'],
     }
 

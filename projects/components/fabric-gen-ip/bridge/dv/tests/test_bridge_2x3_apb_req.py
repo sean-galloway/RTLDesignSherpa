@@ -579,6 +579,9 @@ async def cocotb_test_bridge_2x3_apb_req_boundary_probe(dut):
     tb.log.info("=" * 80)
     tb.log.info("Boundary probe test PASSED")
     tb.log.info("=" * 80)
+
+
+
 @cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_2x3_apb_req_arbitration(dut):
     """
@@ -732,6 +735,9 @@ def test_bridge_2x3_apb_req_boundary_probe(request, test_level):
         plus_args=waves['sim_args'],
         extra_env=extra_env
     )
+
+
+
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_2x3_apb_req_arbitration(request, test_level):
     """Pytest wrapper for arbitration test"""

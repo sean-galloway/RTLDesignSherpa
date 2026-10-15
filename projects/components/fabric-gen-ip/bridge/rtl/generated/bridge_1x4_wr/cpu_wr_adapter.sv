@@ -469,7 +469,7 @@ module bridge_1x4_wr_cpu_wr_adapter
 
     localparam int AW_TRK_DEPTH = 16;
     localparam int AW_TRK_AW    = 4;
-    // -------- AW per-ID target table (bridge parity item 1) --------
+    // -------- AW per-ID target table (fixes bridge GitHub #119 L1) --------
     // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
     // in flight may only add more to the SAME slave (AXI same-ID order);
     // any other ID may go to any slave. IDs that share the index bits are
@@ -511,7 +511,7 @@ module bridge_1x4_wr_cpu_wr_adapter
     assign aw_id_ok    = (aw_idt_cnt[aw_idt_widx] == '0) ||
                            (aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw);
 
-    // -------- B path arbiter (bridge parity item 1) --------
+    // -------- B path arbiter (fixes bridge GitHub #119 L1) --------
     // Round robin over the 3 width paths. A grant holds while its
     // response is offered and not taken.
     logic [2:0] b_pv, b_pgnt, r_b_held;

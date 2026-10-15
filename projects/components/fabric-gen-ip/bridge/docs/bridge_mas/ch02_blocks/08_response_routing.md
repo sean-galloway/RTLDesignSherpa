@@ -47,7 +47,7 @@ Responses for one master climb from the slaves. Each slave adapter's tracker sup
 
 ### Architecture: FIFO-Tracked Master Routing
 
-> **Scope since bridge parity item 1 (2026-10-15):** this FIFO steering is
+> **Scope since the one-target limitation was fixed (GitHub #119 L1, 2026-10-15):** this FIFO steering is
 > used only on master ports with a read-return atomic or a trace echo. Every
 > other port has per-ID tracking and a path arbiter instead (MAS 2.1, and
 > Response Arbitration below).
@@ -197,7 +197,7 @@ Solution: Arbitrate between slave responses
 
 ### Response Arbitration
 
-Built (bridge parity item 1, 2026-10-15). Responses are arbitrated at two
+Built 2026-10-15, fixing the one-target-per-master limitation (GitHub #119 L1). Responses are arbitrated at two
 levels:
 
 1. **Crossbar, per master width path** (`<master>_<W>b_{b,r}_rarb_*`): the

@@ -402,7 +402,7 @@ module bridge_1x3_rd_cpu_rd_adapter
 
     localparam int AR_TRK_DEPTH = 16;
     localparam int AR_TRK_AW    = 4;
-    // -------- AR per-ID target table (bridge parity item 1) --------
+    // -------- AR per-ID target table (fixes bridge GitHub #119 L1) --------
     // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
     // in flight may only add more to the SAME slave (AXI same-ID order);
     // any other ID may go to any slave. IDs that share the index bits are
@@ -445,7 +445,7 @@ module bridge_1x3_rd_cpu_rd_adapter
                            (ar_idt_tgt[ar_idt_widx] == comb_slave_select_ar);
     assign ar_gate_ok = ar_id_ok && !ar_trk_full;
 
-    // -------- R path arbiter (bridge parity item 1) --------
+    // -------- R path arbiter (fixes bridge GitHub #119 L1) --------
     // Round robin over the 3 width paths. A grant holds while its
     // response is offered and not taken, and through RLAST.
     logic [2:0] r_pv, r_pgnt, r_r_held;

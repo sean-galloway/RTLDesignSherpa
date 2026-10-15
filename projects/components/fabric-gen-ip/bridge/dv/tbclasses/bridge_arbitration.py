@@ -90,6 +90,10 @@ def _connectivity(tb):
     to assuming full connectivity.
     """
     import csv, glob, os, pathlib
+    # A generated TB carries its own map (bridge_tb_class.py.j2). Prefer it:
+    # the CSV search below only finds bridges generated inside the component.
+    if getattr(tb, 'connectivity', None):
+        return {m: set(s) for m, s in tb.connectivity.items()}
     name = getattr(getattr(tb, 'dut', None), '_name', None)
     if not name:
         return None
@@ -227,7 +231,10 @@ async def run_arbitration(tb, per_master: int = 6, resp_delay: int = 40,
                 if len(writers) >= 2 and m in writers:
                     expect = 0xA5000000 | (m << 12) | i
                 elif tb.is_seeded(slave_idx, addr):
-                    expect = tb.expected_pattern(slave_idx, addr)
+                    # At THIS master's width. expected_pattern() reads master
+                    # 0's width, which under-reads for a wider master (a 256-bit
+                    # reader beside a 32-bit one compared 32 bits to 256).
+                    expect = tb.slave_mem_read(slave_idx, addr, master_idx=m)
                 else:
                     continue
                 read_plan.append((m, addr, expect))

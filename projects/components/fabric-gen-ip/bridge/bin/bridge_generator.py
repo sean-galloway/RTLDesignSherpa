@@ -124,6 +124,49 @@ def _tb_import_pkg(tb_dir_abs, repo_root_abs):
     return ''
 
 
+# Masters whose narrow single-beat writes reach a wider slave through
+# axil_to_axi4_wide_align_wr (adapter_generator: use_aligner) rather than a
+# burst-aggregating upsizer. Must match that condition.
+_ALIGNER_MASTER_PROTOCOLS = ('axil', 'axil5', 'apb', 'apb5', 'wb4')
+# Slave protocols with AW/W ports at the bridge top for the test to watch.
+_ALIGN_SPY_SLAVE_PROTOCOLS = ('axi4', 'axi5', 'axil', 'axil5')
+
+
+def _align_case(config, slaves):
+    """The narrow-to-wide byte-lane alignment test's target, or None.
+
+    The first aligner master (config order) with write channels, paired with
+    the WIDEST slave it writes that is wider than itself and has AW/W ports.
+    One pair per bridge: the aligner is one module, instantiated per path, so
+    one wide path proves the lane placement."""
+    for m_idx, m in enumerate(config.masters):
+        if m.protocol not in _ALIGNER_MASTER_PROTOCOLS or not m.has_write_channels():
+            continue
+        reach = config.connectivity.get(m.port_name, [])
+        cands = [s for s in slaves
+                 if s.port_name in reach and s.has_write_channels()
+                 and s.protocol in _ALIGN_SPY_SLAVE_PROTOCOLS
+                 and s.data_width > m.data_width]
+        if not cands:
+            continue
+        s = max(cands, key=lambda p: p.data_width)
+        row = s.data_width // 8
+        mb = m.data_width // 8
+        # Distinct slots inside ONE row: 0, 1, 2 and the last (a 2-slot row
+        # gives just 0 and 1).
+        row_base = (s.base_addr + 0x100) & ~(row - 1)
+        last = row // mb - 1
+        offsets = sorted({min(k, last) * mb for k in (0, 1, 2, last)})
+        return {
+            'master_idx': m_idx, 'master': m.port_name,
+            'master_bytes': mb, 'slave': s.port_name, 'prefix': s.prefix,
+            'slave_idx': slaves.index(s),  # the TB's slave_info index
+            'row_bytes': row, 'row_base': f"0x{row_base:08X}",
+            'offsets': offsets,
+        }
+    return None
+
+
 def _tb_import_block(tb_import_pkg, tb_class_module, tb_class_name):
     """The import statement(s) for the TB class, as literal source text.
 
@@ -347,7 +390,9 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
             'id_width': id_width,
             'slave_id_width': slave_id_width,
             'rtl_relative_path': '../../../../rtl/bridge',
-            'filelist_path': filelist_path
+            'filelist_path': filelist_path,
+            # AXIL/APB/WB4 master -> wider slave lane placement (None = no test)
+            'align_case': _align_case(config, slaves),
         }
 
         # Setup Jinja2 environment

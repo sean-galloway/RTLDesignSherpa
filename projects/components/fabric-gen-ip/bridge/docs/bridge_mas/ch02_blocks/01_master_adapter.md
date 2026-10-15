@@ -316,7 +316,7 @@ The FIFOs above steer responses ONLY on ports that carry a read-return atomic
 entry, and they still hold one target slave at a time. Every other port uses
 the scheme below.
 
-### Several Targets in Flight (bridge parity item 1)
+### Several Targets in Flight (limitation fixed: GitHub #119 L1)
 
 A master used to be held to one target slave at a time, because B / R were
 replayed in issue order from the tracking FIFO. Now the adapter keeps only

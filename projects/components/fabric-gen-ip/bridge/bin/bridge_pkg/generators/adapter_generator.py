@@ -1914,7 +1914,7 @@ class AdapterGenerator:
 
         return lines
 
-    # --- bridge parity item 1: several targets in flight per master ------------
+    # --- bridge GitHub #119 L1: fixes the one-target-per-master limitation -----
     # The adapter used to accept a new AW/AR only while every outstanding one
     # went to the SAME slave, because responses were replayed in issue order
     # from a FIFO of targets. Now responses are taken in whatever order the
@@ -1945,7 +1945,7 @@ class AdapterGenerator:
         ridx = f"{resp_id}[{k-1}:0]" if k else "1'b0"
         iw = max(1, k)
         lines = [
-            f"    // -------- {up} per-ID target table (bridge parity item 1) --------",
+            f"    // -------- {up} per-ID target table (fixes bridge GitHub #119 L1) --------",
             f"    // {2**k} entries indexed by the ID's low {k} bit(s). An ID with requests",
             f"    // in flight may only add more to the SAME slave (AXI same-ID order);",
             f"    // any other ID may go to any slave. IDs that share the index bits are",
@@ -2010,7 +2010,7 @@ class AdapterGenerator:
         valids = [f"{self.master.name}_{w}b_{resp}valid" if w == mw else f"conv_{w}b_{resp}valid"
                   for w in widths]
         pw = max(1, (p - 1).bit_length())
-        L = [f"    // -------- {resp.upper()} path arbiter (bridge parity item 1) --------",
+        L = [f"    // -------- {resp.upper()} path arbiter (fixes bridge GitHub #119 L1) --------",
              f"    // Round robin over the {p} width paths. A grant holds while its",
              f"    // response is offered and not taken" + (", and through RLAST." if resp == 'r' else "."),
              f"    logic [{p-1}:0] {resp}_pv, {resp}_pgnt, r_{resp}_held;",

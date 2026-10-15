@@ -57,7 +57,11 @@ from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
 # Memory model — shared across all protocol slave BFMs (every slave gets
 # its own instance, pre-seeded with a distinct pattern).
 from CocoTBFramework.components.shared.memory_model import MemoryModel
-from bridge_levels import (
+# bridge_levels is shared bridge-component collateral. A TB generated into
+# another area (--output-tb outside the component) has no other way to find
+# it: PYTHONPATH carries bridge/dv, not bridge/dv/tbclasses.
+sys.path.insert(0, os.path.join(repo_root, 'projects/components/fabric-gen-ip/bridge/dv/tbclasses'))
+from bridge_levels import (  # noqa: E402
     PROFILE, current_level, seeded_rng,
 )
 
@@ -143,6 +147,15 @@ class Bridge1x2RdRegblockMonTB(TBBase):
         self.slave_info = {
             0: ('axi4', 0x00000000, 0x80000000, 32),  # ddr_rd
             1: ('axi4', 0x80000000, 0x80000000, 32),  # sram_rd
+        }
+
+        # connectivity[m] = slave indices master m is wired to, straight from
+        # the connectivity CSV at generation time. Tests read this rather than
+        # searching for the CSV: a bridge generated outside the component has
+        # no CSV where that search looks, and assuming FULL connectivity sends
+        # unwired masters into the subtractive slave (DECERR).
+        self.connectivity = {
+            0: {0, 1, },  # cpu_rd
         }
 
         # Per-master data width (in bits). Used by master_read/write helpers

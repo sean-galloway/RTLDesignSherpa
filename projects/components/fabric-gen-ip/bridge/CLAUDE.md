@@ -33,7 +33,7 @@
 
 **Before making ANY changes to bridge generator or understanding signal flow:**
 
-**READ:** `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.7.pdf`)
+**READ:** `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.1.pdf`)
 
 These documents contain the **definitive bridge architecture** including:
 - Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
@@ -57,8 +57,8 @@ taking TOML or CSV configuration. There is no second generator: the separate
 1. `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` ← **START HERE** (generator build mechanics; the design lives in the MAS below)
 2. `projects/components/fabric-gen-ip/bridge/PRD.md` ← Product requirements
 3. `vault/Tasks/bridge/INDEX.md` ← Task tracking (open / closed / dropped; the old TASKS.md was folded in 2026-09-10)
-4. `projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.7.pdf`)
-5. `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.7.pdf`)
+4. `projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.1.pdf`)
+5. `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.1.pdf`)
 
 (The older BRIDGE_ARCHITECTURE.md, BRIDGE_CURRENT_STATE.md, BRIDGE_ARCHITECTURE_DIAGRAMS.md, CSV_BRIDGE_STATUS.md, and docs/bridge_spec/ documents were superseded by the HAS/MAS above.)
 
@@ -866,7 +866,8 @@ by level.
 
 **Hand-written**: bridge BUG-009 (was BRIDGE-011) tracking + latency on 2x2;
 several-targets-in-flight (`test_bridge_2x2_rw_multitarget.py`: overlap,
-same-ID order, mixed stress -- bridge parity item 1); the AMBA5 sign-off
+same-ID order, mixed stress -- the fix for the one-target-per-master
+limitation, GitHub #119 L1); the AMBA5 sign-off
 tests (sideband values, sideband through arbitration, sideband across a
 width converter, atomics incl. Compare, AXI5 read BFM sign-off).
 

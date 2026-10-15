@@ -246,8 +246,7 @@ no registered lookup.
 
 ### Response Arbiters and Demultiplexers
 
-A master may have requests in flight at several slaves (bridge parity item
-1), so two slaves can offer it a response in the same cycle. Each master
+A master may have requests in flight at several slaves (limitation fixed: GitHub #119 L1), so two slaves can offer it a response in the same cycle. Each master
 width path that reaches more than one slave has a B and an R response
 arbiter. A slave requests it when its response is valid and its tracker
 names this master; round robin picks one; a grant that is offered and not

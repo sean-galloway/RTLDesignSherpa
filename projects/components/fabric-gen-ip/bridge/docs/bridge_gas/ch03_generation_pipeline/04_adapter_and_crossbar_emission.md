@@ -63,6 +63,7 @@ BridgeModuleGenerator(
     xbar_pipeline=...,
     arbitration=...,
     qos_aging_shift=...,
+    id_track_bits=...,
 )
 ```
 

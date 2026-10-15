@@ -437,6 +437,64 @@ async def cocotb_test_bridge_2x2_lite_req_boundary_probe(dut):
     tb.log.info("=" * 80)
     tb.log.info("Boundary probe test PASSED")
     tb.log.info("=" * 80)
+
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_bridge_2x2_lite_req_narrow_to_wide_alignment(dut):
+    """lite4 (32b, single-beat) writes into
+    mem (64b) land on the right byte lanes.
+
+    AXI4 puts a narrow beat at lanes [addr % row +: size]: WSTRB bits set
+    there and WDATA's slice there carrying the value. A burst-aggregating
+    upsizer puts every single-beat write at lane 0, which a byte-strobed
+    slave (a BRAM) turns into silent corruption of the row's first word.
+    The bridge routes these masters through axil_to_axi4_wide_align_wr;
+    this test watches mem's W channel at the bridge top and checks
+    each write's lanes. The same writes at every level: distinct slots
+    in one row (0, 1, 2 and the last), so every lane offset class is hit.
+    """
+    tb = Bridge2x2LiteReqTB(dut)
+    await tb.setup_clocks_and_reset()
+
+    row_bytes, word_bytes = 8, 4
+    word_mask = (1 << (8 * word_bytes)) - 1
+    captured_w = []
+
+    async def mon_w():
+        while True:
+            await RisingEdge(tb.clock)
+            if (int(dut.mem_axi_wvalid.value) == 1 and
+                    int(dut.mem_axi_wready.value) == 1):
+                captured_w.append((int(dut.mem_axi_wdata.value),
+                                   int(dut.mem_axi_wstrb.value)))
+
+    cocotb.start_soon(mon_w())
+
+    row_base = 0x00000100
+    plan = [(row_base + off, (0xA5A50000 + i) & word_mask)
+            for i, off in enumerate([0, 4])]
+    for addr, data in plan:
+        await tb.master_write(0, addr, data)
+    await ClockCycles(tb.clock, 50)
+
+    assert len(captured_w) == len(plan), (
+        f"expected {len(plan)} W beats at mem, saw {len(captured_w)}")
+    errors = []
+    for (addr, data), (wdata, wstrb) in zip(plan, captured_w):
+        off = addr % row_bytes
+        want_strb = ((1 << word_bytes) - 1) << off
+        lane = (wdata >> (8 * off)) & word_mask
+        if wstrb != want_strb or lane != data:
+            errors.append(f"addr 0x{addr:08X} (lane {off}): wstrb 0x{wstrb:X} "
+                          f"(want 0x{want_strb:X}), data at lane 0x{lane:X} (want 0x{data:X})")
+    assert not errors, "narrow-to-wide lane placement wrong:\n" + "\n".join(errors)
+    for addr, data in plan:
+        got = tb.slave_mem_read(0, addr, byte_count=word_bytes,
+                                master_idx=0)
+        assert got == data, f"mem @0x{addr:08X} holds 0x{got:X}, want 0x{data:X}"
+    tb.log.info(f"narrow-to-wide alignment: {len(plan)} writes on the right lanes")
+
 @cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_2x2_lite_req_arbitration(dut):
     """
@@ -590,6 +648,62 @@ def test_bridge_2x2_lite_req_boundary_probe(request, test_level):
         plus_args=waves['sim_args'],
         extra_env=extra_env
     )
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_bridge_2x2_lite_req_narrow_to_wide_alignment(request, test_level):
+    """Pytest wrapper for the narrow-to-wide lane alignment test"""
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_bridge': '../../../../rtl/bridge',
+        'rtl_common': '../../../../rtl/common',
+        'rtl_amba': '../../../../rtl/amba'
+    })
+
+    dut_name = "bridge_2x2_lite_req"
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/fabric-gen-ip/bridge/rtl/filelists/bridge_2x2_lite_req.f'
+    )
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    worker_suffix = f"_{worker_id}" if worker_id else ""
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    sim_build_name = f"test_{dut_name}_narrow_to_wide_alignment_{test_level}_{reg_level}{worker_suffix}"
+
+    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
+    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    sim_build = sim_build_path(tests_dir, sim_build_name)
+    os.makedirs(log_dir, exist_ok=True)
+
+    waves = get_wave_config(sim_build)
+
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_env = {
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'LOG_PATH': log_path,
+        'COCOTB_RESULTS_FILE': results_path,
+        **level_env(test_level),
+        **waves['extra_env'],
+    }
+
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=module,
+        testcase="cocotb_test_bridge_2x2_lite_req_narrow_to_wide_alignment",
+        sim_build=sim_build,
+        waves=False,
+        extra_args=extra_args,
+        plus_args=waves['sim_args'],
+        extra_env=extra_env
+    )
+
+
+
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_2x2_lite_req_arbitration(request, test_level):
     """Pytest wrapper for arbitration test"""

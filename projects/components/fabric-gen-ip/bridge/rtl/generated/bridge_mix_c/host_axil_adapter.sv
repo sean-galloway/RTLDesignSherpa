@@ -610,7 +610,7 @@ module bridge_mix_c_host_axil_adapter
 
     localparam int AW_TRK_DEPTH = 16;
     localparam int AW_TRK_AW    = 4;
-    // -------- AW per-ID target table (bridge parity item 1) --------
+    // -------- AW per-ID target table (fixes bridge GitHub #119 L1) --------
     // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
     // in flight may only add more to the SAME slave (AXI same-ID order);
     // any other ID may go to any slave. IDs that share the index bits are
@@ -652,7 +652,7 @@ module bridge_mix_c_host_axil_adapter
     assign aw_id_ok    = (aw_idt_cnt[aw_idt_widx] == '0) ||
                            (aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw);
 
-    // -------- B path arbiter (bridge parity item 1) --------
+    // -------- B path arbiter (fixes bridge GitHub #119 L1) --------
     // Round robin over the 2 width paths. A grant holds while its
     // response is offered and not taken.
     logic [1:0] b_pv, b_pgnt, r_b_held;
@@ -742,7 +742,7 @@ module bridge_mix_c_host_axil_adapter
 
     localparam int AR_TRK_DEPTH = 16;
     localparam int AR_TRK_AW    = 4;
-    // -------- AR per-ID target table (bridge parity item 1) --------
+    // -------- AR per-ID target table (fixes bridge GitHub #119 L1) --------
     // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
     // in flight may only add more to the SAME slave (AXI same-ID order);
     // any other ID may go to any slave. IDs that share the index bits are
@@ -785,7 +785,7 @@ module bridge_mix_c_host_axil_adapter
                            (ar_idt_tgt[ar_idt_widx] == comb_slave_select_ar);
     assign ar_gate_ok = ar_id_ok && !ar_trk_full;
 
-    // -------- R path arbiter (bridge parity item 1) --------
+    // -------- R path arbiter (fixes bridge GitHub #119 L1) --------
     // Round robin over the 2 width paths. A grant holds while its
     // response is offered and not taken, and through RLAST.
     logic [1:0] r_pv, r_pgnt, r_r_held;

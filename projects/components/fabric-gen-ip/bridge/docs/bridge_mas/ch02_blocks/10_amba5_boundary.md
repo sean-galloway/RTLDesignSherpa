@@ -193,7 +193,8 @@ FIFO path (MAS 2.1): the R-return FIFO entry carries the atomic's local flag
 and ID, which the per-ID table of the other ports does not. The atomic AW's
 gate therefore yields when an AR to a different slave handshakes in the same
 cycle, the one way a dual push could hold two targets. The crossbar's
-response mux no longer depends on this: since bridge parity item 1 it is a
+response mux no longer depends on this: since the one-target limitation was fixed
+(GitHub #119 L1) it is a
 grant-driven mux behind a per-path response arbiter, not an OR-merge, so the
 old simulation-only `$countones` guard on the select vector is gone.
 

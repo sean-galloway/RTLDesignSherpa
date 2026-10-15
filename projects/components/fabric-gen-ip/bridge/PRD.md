@@ -104,7 +104,7 @@ Core AXI4 features that matter:
 - In-order completion. Responses are routed by a per-master `bridge_id`
   sideband and an in-order FIFO, NOT by matching AXI IDs -- see FR-2.
 - Multiple outstanding transactions per master, **to several slaves at
-  once** (bridge parity item 1, 2026-10-15). The master adapter tracks per ID
+  once** -- fixed limitation, GitHub #119 L1 (2026-10-15). The master adapter tracks per ID
   (`[bridge].id_track_bits`, default 4): a new AW/AR waits only when its ID is
   already in flight to a DIFFERENT slave, which is AXI's same-ID ordering rule.
   A new AW also waits while W is still owed to a different slave (W carries no
@@ -239,7 +239,7 @@ Bridge automates generation of AXI4 crossbar infrastructure:
   registers its output side, so an ideal zero-wait slave still costs >=4
   cycles of bridge-added latency before arbitration. The 2-3 cycle figure in
   6.1 describes the wrapperless flat crossbar, not what the generator emits.
-- [x] Throughput: a master may have transactions in flight at several slaves at once (per-ID tracking, `aw_gate_ok`/`ar_gate_ok`); the old one-target-per-master rule was lifted 2026-10-15 (bridge parity item 1). Exceptions: rr_atomic and trace-echo ports, see MAS 2.1.
+- [x] Throughput: a master may have transactions in flight at several slaves at once (per-ID tracking, `aw_gate_ok`/`ar_gate_ok`); the old one-target-per-master rule was lifted 2026-10-15 (limitation fixed, GitHub #119 L1). Exceptions: rr_atomic and trace-echo ports, see MAS 2.1.
 - [x] Performance models implemented (bridge_model.py - V1 Flat)
 - [ ] Fmax ≥ 300 MHz on UltraScale+ FPGAs (pending synthesis validation)
 

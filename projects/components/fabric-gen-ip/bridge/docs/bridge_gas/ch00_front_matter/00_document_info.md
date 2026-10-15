@@ -28,8 +28,8 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Bridge Generator Architecture Specification |
-| Version | 1.0 |
-| Date | 2026-10-12 |
+| Version | 1.1 |
+| Date | 2026-10-15 |
 | Status | Released |
 | Classification | Open Source - MIT License |
 
@@ -40,6 +40,7 @@
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0 | 2026-10-12 | RTL Design Sherpa | Initial GAS release — generator code paths verified against `bridge_generator.py`, `bridge_pkg/config.py`, `bridge_pkg/config_validator.py`, `bridge_pkg/config_loader.py`, and emitted artifacts in `rtl/generated/bridge_mix_e/`. |
+| 1.1 (renumbered) | 2026-10-15 | RTL Design Sherpa | The bridge document set (GAS, HAS, MAS) is renumbered to one common rev, 1.1; rows above keep the numbers they were published under. Content: the one-target-per-master limitation is fixed (GitHub #119 L1) -- per-ID target tracking (`[bridge].id_track_bits`), B/R response arbiters per master width path, the crossed-W hold; the generated TB carries its connectivity map and the generator emits the AXIL narrow-to-wide alignment test (GitHub #119 L8). |
 
 : Revision history
 

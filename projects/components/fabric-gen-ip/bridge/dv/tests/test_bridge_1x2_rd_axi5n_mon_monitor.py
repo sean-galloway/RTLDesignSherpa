@@ -33,7 +33,10 @@ from TBClasses.shared.test_levels import level_env, reg_level_grid
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, 'tbclasses'))
 from bridge1x2_rd_axi5n_mon_tb import Bridge1x2RdAxi5nMonTB, AxiResponseError
-from monitor_stress_common import run_comprehensive, run_monitor_sim
+# monitor_stress_common is shared bridge-component collateral; a test
+# generated into another area finds it here (one copy, never a second).
+sys.path.insert(0, os.path.join(repo_root, 'projects/components/fabric-gen-ip/bridge/dv/tests'))
+from monitor_stress_common import run_comprehensive, run_monitor_sim  # noqa: E402
 
 CFG_PREFIXES = ['cpu_rd_0_rd', 'ddr_rd_0_rd', 'sram_rd_1_rd']
 BLOCK_READY_PATH = ""

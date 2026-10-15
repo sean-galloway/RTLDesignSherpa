@@ -28,8 +28,8 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Bridge Hardware Architecture Specification |
-| Version | 2.0 |
-| Date | September 8, 2026 |
+| Version | 1.1 |
+| Date | 2026-10-15 |
 | Status | Released |
 | Classification | Open Source - MIT License |
 
@@ -48,6 +48,7 @@
 | 1.6 | 2026-09-13 | RTL Design Sherpa | bridge TASK-007 (was BRIDGE-018): native AXI5 fabric -- Memory Tagging and read-data chunking through the structs |
 | 1.7 | 2026-09-13 | RTL Design Sherpa | Document sync: one fabric clock plus CDC ports throughout, Wishbone best-effort stance, out-of-order chunk proof |
 | 2.0 | 2026-10-12 | RTL Design Sherpa | Protocol-set correction: overview/summary bullets now state the full eight-protocol support (axi3/axi4/axi5/axil/axil5/apb/apb5/wb4 — per-port, slave or master side) verified against `bin/bridge_pkg/config_validator.py`; explicit "ACE coherency NOT supported" section added to ch03. Version strings aligned across index/front-matter/renders. |
+| 1.1 (renumbered) | 2026-10-15 | RTL Design Sherpa | The bridge document set (GAS, HAS, MAS) is renumbered to one common rev, 1.1; rows above keep the numbers they were published under. Content: the one-target-per-master limitation is fixed (GitHub #119 L1) -- per-ID target tracking (`[bridge].id_track_bits`), B/R response arbiters per master width path, the crossed-W hold; the generated TB carries its connectivity map and the generator emits the AXIL narrow-to-wide alignment test (GitHub #119 L8). |
 
 : Revision history
 

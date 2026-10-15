@@ -2139,7 +2139,7 @@ def test_two_bridges_share_no_module_names(tmp_path):
     assert not modules["bridge_one"] & modules["bridge_two"]
 
 
-# --- bridge parity item 1: several targets in flight per master -------------
+# --- bridge GitHub #119 L1: the one-target-per-master limitation, fixed ----
 
 def _with_bridge_key(toml_path: str, line: str) -> str:
     p = Path(toml_path)
@@ -2178,3 +2178,49 @@ def test_id_track_bits_sizes_the_adapter_table(tmp_path, bits, entries):
     assert f"localparam int AR_IDT_N = {entries};" in adapter
     assert "r_ar_active_target" not in adapter
     assert "assign ar_gate_ok = ar_id_ok && !ar_trk_full;" in adapter
+
+
+# --- bridge GitHub #119 L8: DV generated anywhere is complete --------------
+
+def _gen_with_tests(tmp_path, toml, conn):
+    out = tmp_path / "gen"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", toml, "--connectivity", conn, "--name", "b",
+         "--output-dir", str(out / "rtl"), "--generate-tests",
+         "--output-tb", str(out / "tb"), "--output-test", str(out / "test")],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    return (next((out / "tb").glob("*tb.py")).read_text(),
+            next((out / "test").glob("test_*.py")).read_text())
+
+
+def test_generated_tb_carries_connectivity_and_shared_paths(tmp_path):
+    """A TB generated outside the component must not depend on finding the
+    component's CSV or on PYTHONPATH reaching bridge/dv/tbclasses."""
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    tb, _ = _gen_with_tests(tmp_path, toml, conn)
+    assert "self.connectivity = {" in tb and "0: {0, },  # m0" in tb
+    assert "fabric-gen-ip/bridge/dv/tbclasses'" in tb
+
+
+def test_alignment_test_emitted_only_for_aligner_paths(tmp_path):
+    """AXIL master writing a wider slave -> the narrow-to-wide lane test;
+    an AXI4 master of the same shape -> none (it is not an aligner path)."""
+    def gen(sub, proto):
+        d = tmp_path / sub
+        d.mkdir()
+        toml, conn = _write_min_toml(d, slave_extra='channels = "rw"', master_channels="rw")
+        p = Path(toml)
+        t = p.read_text()
+        # master 32b -> slave 128b; master protocol as given
+        t = t.replace('data_width = 32\nid_width = 4\nchannels = "rw"',
+                      f'data_width = 32\nid_width = {0 if proto == "axil" else 4}\nchannels = "rw"\nprotocol = "{proto}"', 1)
+        t = t.replace('data_width = 32\nid_width = 4\nbase_addr', 'data_width = 128\nid_width = 4\nbase_addr', 1)
+        p.write_text(t)
+        return _gen_with_tests(d, toml, conn)[1]
+    axil = gen("axil", "axil")
+    assert "def test_b_narrow_to_wide_alignment(" in axil
+    assert "enumerate([0, 4, 8, 12])" in axil
+    assert "narrow_to_wide_alignment" not in gen("axi4", "axi4")
