@@ -100,6 +100,7 @@ module amber_pair_harness
     logic [31:0] uart_awaddr, uart_araddr, uart_wdata;
     logic [2:0]  uart_awprot, uart_arprot;
     logic        uart_awvalid, uart_awready;
+    logic        uart_arvalid, uart_arready;
     logic [3:0]  uart_wstrb;
     logic        uart_wvalid, uart_wready;
     logic [1:0]  uart_bresp;
@@ -837,7 +838,7 @@ module amber_pair_harness
     logic [2:0]           mem_arprot, mem_awprot;
     logic [3:0]           mem_arqos, mem_awqos;
     logic [3:0]           mem_arregion, mem_awregion;
-    logic [UW-1:0]        mem_aruser, mem_awuser, mem_ruser, mem_buser;
+    logic [UW-1:0]        mem_aruser, mem_awuser, mem_wuser, mem_ruser, mem_buser;
     logic                 mem_arvalid, mem_arready;
     logic [BUS_WIDTH-1:0] mem_rdata, mem_wdata;
     logic [1:0]           mem_rresp, mem_bresp;
@@ -1146,6 +1147,7 @@ module amber_pair_harness
     logic [31:0] group_awaddr, group_araddr;
     logic [2:0]  group_awprot, group_arprot;
     logic        group_awvalid, group_awready;
+    logic        group_arvalid, group_arready;
     logic [63:0] group_wdata;
     logic [7:0]  group_wstrb;
     logic        group_wvalid, group_wready;
