@@ -1044,8 +1044,17 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
     P_LOCAL -- the pinned minimal image, no torus wrap until Task 9);
     mode 5 = broadcast placeholder (DOR; multicast replication is
     Task 8); mode 6 = convergecast (every dst routes toward root
-    0,0,0); modes 3/4/7/8 = minimal DOR images, catalog presence this
+    0,0,0); modes 3/4/7/8 = minimal DOR images.  DV selects and
+    delivers under modes 0/1/2/3/5/6; modes 4/7/8 are covered by the
+    offline image suite (bin/tests/test_delta_mesh_modes.py) this
     task.  Mode 0 = custom RAM tables, power-on default.
+
+    Congestion corner (scenario d): fan-out/ack control beats are
+    injected into the local VC0 input FIFO only while it can accept
+    (``gen_take`` gated by ``w_fifo_wr_ready[P_LOCAL][0]``); a full
+    FIFO stalls the drain of the control-generator FIFO, never drops
+    a beat (the house FIFO commits writes only on
+    wr_valid && wr_ready, and the gen FIFO pops on rd_ready alone).
     """
 
     def __init__(self, dut):
@@ -1313,8 +1322,18 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
         await self._expect_delivery(3, (0, 0, 0), 0, f"{tag}:m5-back")
         self._check_no_new_frames(counts, allowed={0, 3}, tag=f"{tag}:m5")
 
+        # --- mode 3: wavefront-2D -- minimal DOR image; select + deliver:
+        #     x-first leg from the y row, y-leg from the x column ---
+        await self._switch_and_wait(0, 3, 12, tag)
+        counts = self._data_frame_counts()
+        # b2=(0,1,0) -> (1,0,0): +X to (1,1,0), then -Y to b1
+        await self._expect_delivery(2, (1, 0, 0), 1, f"{tag}:m3-xpos")
+        # b0=(0,0,0) -> (0,1,0): straight +Y to b2
+        await self._expect_delivery(0, (0, 1, 0), 2, f"{tag}:m3-ypos")
+        self._check_no_new_frames(counts, allowed={1, 2}, tag=f"{tag}:m3")
+
         # --- mode 6: convergecast -- everything routes to root b0 ---
-        await self._switch_and_wait(0, 6, 12, tag)
+        await self._switch_and_wait(0, 6, 16, tag)
         counts = self._data_frame_counts()
 
         # All three cells inject concurrently (convergecast contention at
@@ -1346,7 +1365,7 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
         # --- RAM intact across switches (mode mux, not RAM rewrite) ---
         # mode 0 restores the custom tables; config writes/reads work in
         # every mode and the switch never touches the RAM contents.
-        await self._switch_and_wait(0, 0, 16, f"{tag}:to0")
+        await self._switch_and_wait(0, 0, 20, f"{tag}:to0")
         # data rides qos 1: the custom key is the qos-1 region
         idx_d00 = table_index((0, 0, 0), 1, self.COORD_W)
         local_entry = 1 << P_LOCAL  # deliver dst(0,0,0) locally at b1
@@ -1361,7 +1380,7 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
         await self._expect_delivery(1, (0, 0, 0), 1, f"{tag}:ram-custom")
         self._check_no_new_frames(counts, allowed={1}, tag=f"{tag}:ram-custom")
 
-        await self._switch_and_wait(0, 1, 20, f"{tag}:to1")
+        await self._switch_and_wait(0, 1, 24, f"{tag}:to1")
         # the custom entry survives the broadcast switch untouched
         await self._config_op(1, False, idx_d00, local_entry,
                               f"{tag}:ram-during-mode1")
@@ -1370,17 +1389,17 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
         await self._expect_delivery(1, (0, 0, 0), 0, f"{tag}:mode1-dor")
         self._check_no_new_frames(counts, allowed={0}, tag=f"{tag}:mode1-dor")
 
-        await self._switch_and_wait(0, 0, 24, f"{tag}:to0-again")
+        await self._switch_and_wait(0, 0, 28, f"{tag}:to0-again")
         await self._config_op(1, False, idx_d00, local_entry,
                               f"{tag}:ram-restored")
         counts = self._data_frame_counts()
         await self._expect_delivery(1, (0, 0, 0), 1, f"{tag}:ram-custom2")
         self._check_no_new_frames(counts, allowed={1}, tag=f"{tag}:ram-custom2")
 
-        # final accounting: b0 = 6 deliveries + 24 acks (six switches);
-        # b1 = 4 deliveries + 4 config responses; b2 = 0; b3 = 1.
+        # final accounting: b0 = 6 deliveries + 28 acks (seven switches);
+        # b1 = 5 deliveries + 4 config responses; b2 = 1; b3 = 1.
         await self.wait_clocks('aclk', 10)
-        exp_counts = {0: 6, 1: 8, 2: 0, 3: 1}
+        exp_counts = {0: 6, 1: 9, 2: 1, 3: 1}
         got_counts = self._data_frame_counts()
         if got_counts != exp_counts:
             raise AssertionError(
@@ -1388,7 +1407,7 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
                 f"{exp_counts}")
         self._check_zero_err(tag)
         self.log.info(
-            "delta mesh modes (b): mode 2/5/6 images + RAM intact "
+            "delta mesh modes (b): mode 2/3/5/6 images + RAM intact "
             "across switches")
 
     # ------------------------------------------------------------------
@@ -1470,3 +1489,96 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
         self.log.info(
             "delta mesh modes (c): switch mid-flight -- 8 packets exactly "
             "once, ack barrier at 4, zero drops")
+
+    # ------------------------------------------------------------------
+    # Scenario (d): congestion corner -- fan/ack beats must not drop
+    # when the local VC0 FIFO is full (gen_take wr_ready guard)
+    # ------------------------------------------------------------------
+    async def run_mode_switch_congested(self):
+        """b0's local output is stalled (deterministic consumer-stall
+        policy on the boundary slave) and its local VC0 input FIFO is
+        filled with four self-dstined single-beat packets when the
+        mode-switch broadcast lands: b0 consumes a flooded copy, and its
+        fan-out (ack + copies to b1/b2) must wait in the control
+        generator FIFO -- NOT drop -- until the stuck packets drain.
+        Pre-guard RTL popped the gen FIFO on ``gen_take`` regardless of
+        the full FIFO (house FIFO commits writes only on
+        wr_valid && wr_ready), silently losing the beats: the barrier
+        hung below 4 with no error tally.  Post-guard the barrier
+        completes with acks == 4 exactly and zero err drops.
+        """
+        tag = "msw-congested"
+        stuck_n = 4  # local VC0 input FIFO depth: fill it exactly
+
+        # Deterministic full stall of b0's local output (the harness
+        # slave's ready-policy API; set_ready_policy('stall') deasserts
+        # ready immediately and holds it low).
+        self.slaves['b0'].set_ready_policy('stall')
+
+        # Fill b0's local VC0 input FIFO: single-beat qos-1 packets
+        # destined to b0 itself (DOR delivers local).  The head packet
+        # holds the output grant while the slave stalls; the rest queue
+        # behind it until the FIFO reads full.
+        stuck = {}
+        for i in range(stuck_n):
+            payload = [0x5C00 + i]
+            header = self.build_header(dst=self.BOUNDARY_COORDS[0],
+                                       src=self.BOUNDARY_COORDS[0],
+                                       qos=1, packet_id=self._next_pid())
+            await self._send_packet('b0', header, payload)
+            stuck[i] = (header, payload)
+
+        # Issue the switch at b1; the flooded copy reaches b0 through
+        # b0's neighbor-port input FIFOs (uncongested), b0 consumes it
+        # and its fan-out pushes into the FULL local VC0 FIFO.
+        await self._issue_mode_switch(1, 1, tag)
+        # Let the flood propagate and b0 attempt its fan-out while the
+        # FIFO is still full: pre-guard RTL drops the gen beats here.
+        await self.wait_clocks('aclk', 200)
+        self._check_zero_err(f"{tag}:stalled")
+        if self._data_frame_count('b0') != 0:
+            raise AssertionError(
+                f"{tag}: b0 delivered {self._data_frame_count('b0')} frames "
+                f"while its output was stalled")
+        # Pre-release the barrier must hold at exactly 3: b1's self-ack,
+        # b3's ack, and b2's ack (b2 is reached unimpeded via b3's
+        # fan-out) all ride uncongested paths -- only b0's ack is stuck
+        # behind the full local FIFO.  Pre-guard RTL would have DROPPED
+        # b0's gen beats, so the count freezes at 3 forever and the
+        # post-release wait times out below 4.
+        if self._mode_acks(1) != 3:
+            raise AssertionError(
+                f"{tag}: o_mode_acks[b1] == {self._mode_acks(1)} before "
+                f"release, expected 3 (b1/b2/b3 via uncongested paths); "
+                f"only b0's ack may still be blocked")
+
+        # Release: the stuck packets drain, then the waiting fan/ack
+        # beats enter and the barrier completes with exactly 4.
+        self.slaves['b0'].set_ready_policy('valid_first')
+        await self._wait_mode_acks(1, 4, tag)
+        self._check_acks(1, 4, tag)
+        # the stuck packets deliver at b0, exactly as sent (each a
+        # distinct single beat; match the whole set)
+        await self._wait_frames('b0', stuck_n)
+        frames = self._group_frames('b0', tag)
+        if len(frames) != stuck_n:
+            raise AssertionError(
+                f"{tag}: b0 delivered {len(frames)} frames after release, "
+                f"expected {stuck_n}")
+        want = {h: p[0] for h, p in stuck.values()}
+        for frame in frames:
+            head = int(frame[0].fields.get('user', 0))
+            if head not in want:
+                raise AssertionError(
+                    f"{tag}: unexpected frame head 0x{head:x} at b0")
+            if len(frame) != 1 or int(frame[0].fields['data']) != want.pop(head):
+                raise AssertionError(
+                    f"{tag}: stuck packet payload mismatch (head 0x{head:x})")
+        if want:
+            raise AssertionError(
+                f"{tag}: {len(want)} stuck packets never delivered at b0")
+        await self.wait_clocks('aclk', 10)
+        self._check_zero_err(tag)
+        self.log.info(
+            "delta mesh modes (d): congested fan-out -- gen beats wait "
+            "on the full local FIFO, barrier at 4, zero drops")

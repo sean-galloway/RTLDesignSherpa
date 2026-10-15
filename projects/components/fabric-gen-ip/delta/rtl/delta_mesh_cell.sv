@@ -231,9 +231,16 @@ logic [FLIT_W-1:0]   gen_fifo_rd_data;
 // Intake steering and FIFO write side. The local port
 // arbitrates external beats against the control
 // generator: a generator beat is injected only while the
-// external master presents nothing and the intake packet
-// boundary is closed (in_pkt low), so external packets
-// are never interleaved mid-packet and no s_axis handshake
+// external master presents nothing, the intake packet
+// boundary is closed (in_pkt low), AND the local VC0
+// input FIFO can accept it -- the house FIFO commits a
+// write only on wr_valid && wr_ready, while the gen FIFO
+// pops on rd_ready alone, so a gen_take without
+// wr_ready would silently and permanently lose the beat
+// (dropped ack/fan copy -> barrier hang, no error tally).
+// No deadlock: the route stage drains the local FIFO
+// independently of the gen FIFO. External packets are
+// never interleaved mid-packet and no s_axis handshake
 // is shadowed (gen_take implies s_axis_tvalid low).
 always_comb begin
     for (int p = 0; p < NUM_PORTS; p++) begin
@@ -249,8 +256,12 @@ always_comb begin
         end
     end
 //     // Local port: the control generator fills the
-//     // bubbles between external packets (VC0).
-    gen_take = gen_fifo_rd_valid && !in_pkt[P_LOCAL] &&
+//     // bubbles between external packets (VC0), gated by
+//     // the VC0 FIFO's wr_ready (full-FIFO beats wait in
+//     // the gen FIFO, never drop).
+    gen_take = gen_fifo_rd_valid &&
+               w_fifo_wr_ready[P_LOCAL][0] &&
+               !in_pkt[P_LOCAL] &&
                !s_axis_tvalid[P_LOCAL];
     s_axis_tready[P_LOCAL] =
         w_fifo_wr_ready[P_LOCAL][wr_vc[P_LOCAL]] && !gen_take;

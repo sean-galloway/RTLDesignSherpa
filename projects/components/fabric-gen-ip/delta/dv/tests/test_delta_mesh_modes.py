@@ -23,6 +23,12 @@
 #   inflight  (c) Review Focus #4: eight packets mid-fabric when the
 #             mode-switch broadcast lands -- every packet delivers
 #             exactly once, the ack barrier reaches 4, zero drops
+#   congested (d) b0's local output stalled and its local VC0 input
+#             FIFO filled to depth with self-destined packets when the
+#             broadcast lands: the fan/ack control beats must wait in
+#             the generator FIFO (gen_take wr_ready guard), not drop;
+#             after release the barrier completes with acks == 4
+#             exactly and the stuck packets deliver intact
 
 import os
 import subprocess
@@ -104,6 +110,13 @@ async def cocotb_test_delta_mesh_modes_in_flight(dut):
     await tb.run_mode_switch_in_flight()
 
 
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_delta_mesh_modes_congested(dut):
+    tb = DeltaMeshModesTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.run_mode_switch_congested()
+
+
 def _run(testcase, test_level, gen_dir):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     verilog_sources = [
@@ -150,6 +163,7 @@ def _run(testcase, test_level, gen_dir):
     "cocotb_test_delta_mesh_modes_barrier",
     "cocotb_test_delta_mesh_modes_images",
     "cocotb_test_delta_mesh_modes_in_flight",
+    "cocotb_test_delta_mesh_modes_congested",
 ))
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_delta_mesh_modes(request, testcase, test_level, fabric_gen_dir):
