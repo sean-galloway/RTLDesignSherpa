@@ -53,6 +53,7 @@ from CocoTBFramework.components.axis4.axis_factories import (
 )
 from CocoTBFramework.components.axis4.axis_packet import AXISPacket
 from delta_mesh.header import build_header_offsets
+from delta_mesh.tables import P_X_POS, P_Y_POS, table_index
 from TBClasses.shared.tbbase import TBBase
 
 
@@ -170,7 +171,7 @@ class DeltaMeshCellTB(TBBase):
     # ------------------------------------------------------------------
     # Header / packet helpers
     # ------------------------------------------------------------------
-    def build_header(self, dst, src, qos=0, vc=0, packet_id=0):
+    def build_header(self, dst, src, qos=0, vc=0, packet_id=0, sr_ptr=0):
         """Pack a head-flit header int per delta_mesh.header layout."""
         hdr = 0
         for value, fields in ((dst, ('dst_x', 'dst_y', 'dst_z')),
@@ -178,7 +179,8 @@ class DeltaMeshCellTB(TBBase):
             for coord, field in zip(value, fields):
                 lo, width = self.hdr_offsets[field]
                 hdr |= (coord & ((1 << width) - 1)) << lo
-        for field, value in (('qos', qos), ('vc', vc), ('packet_id', packet_id)):
+        for field, value in (('qos', qos), ('vc', vc), ('sr_ptr', sr_ptr),
+                             ('packet_id', packet_id)):
             lo, width = self.hdr_offsets[field]
             hdr |= (value & ((1 << width) - 1)) << lo
         return hdr
@@ -401,9 +403,14 @@ class DeltaMeshFabricTB(DeltaMeshCellTB):
             for b in range(nb):
                 payload = [self._pair_payload(a, b, j)
                            for j in range(self.BEATS_PER_PKT)]
+                # Data rides QoS class 1 (latency); class 0 is the config
+                # class (plan-pinned): a class-0 packet addressed to the
+                # cell itself is intercepted as a config transaction, so
+                # self-pairs (dst == own coordinate) must not use it.
                 header = self.build_header(
                     dst=self.BOUNDARY_COORDS[b],
                     src=self.BOUNDARY_COORDS[a],
+                    qos=1,
                     packet_id=a * nb + b + 1)
                 expected[(a, b)] = (header, payload)
 
@@ -689,3 +696,170 @@ class DeltaMeshFlowControlTB(DeltaMeshCellTB):
         self.log.info(
             f"flow control (c): back-to-back sustained 1 flit/clk "
             f"({idle} idle cycles, <= {PKTS - 1} allowed)")
+
+
+class DeltaMeshTablesTB(DeltaMeshCellTB):
+    """TB for the route_table RAM: in-band config read/write/readback with
+    a reroute verify, and the malformed-dst drop path with err_drop_cnt
+    (Task 5). Derived from the cell TB; uses the same harness
+    (dv/tb/delta_mesh_cell_th.sv) at POS (1,1,0) of the 4x4x1 grid.
+
+    Config transaction (plan-pinned format): a single-beat packet on the
+    local port addressed to the cell itself (dst == POS), QoS class 0,
+    ``sr_ptr[0]`` = 1 write / 0 read, command in the payload beat's TDATA:
+    ``{table_index[15:0], entry[7:0]}`` (entry = {port_mask[6:0], vc}).
+    The response is a single beat on the local master's m_axis carrying
+    the same ``{table_index, entry}`` shape: a write acks with the written
+    entry, a read returns the table value. Responses carry tuser = 0.
+    """
+
+    GRID = (4, 4, 1)  # must match the harness GRID_* parameters
+
+    # ------------------------------------------------------------------
+    # Config helpers
+    # ------------------------------------------------------------------
+    def build_config_header(self, is_write, packet_id):
+        return self.build_header(dst=self.POS, src=self.POS, qos=0,
+                                 packet_id=packet_id,
+                                 sr_ptr=1 if is_write else 0)
+
+    @staticmethod
+    def build_config_payload(index, entry):
+        return (entry << 16) | index
+
+    async def _config_op(self, is_write, index, entry, packet_id, tag):
+        """Send one config transaction; returns the expected response frame
+        count at the local master."""
+        header = self.build_config_header(is_write, packet_id)
+        payload = self.build_config_payload(index, entry)
+        frames_before = self.slaves['local'].frames_received
+        await self._send_packet('local', header, [payload])
+        return frames_before + 1
+
+    async def _expect_response(self, exp_index, exp_entry, exp_frames, tag):
+        slave = self.slaves['local']
+        for _ in range(1000):
+            if slave.frames_received >= exp_frames:
+                break
+            await RisingEdge(self.aclk)
+        else:
+            raise AssertionError(f"{tag}: no config response observed")
+        beat = slave.get_observed_packets()[-1]
+        got_data = int(beat.fields['data'])
+        got_last = int(beat.fields.get('last', 0))
+        got_user = int(beat.fields.get('user', 0))
+        exp_data = self.build_config_payload(exp_index, exp_entry)
+        if got_data != exp_data:
+            raise AssertionError(
+                f"{tag}: response data mismatch: got 0x{got_data:x}, "
+                f"expected 0x{exp_data:x} (index {exp_index}, entry 0x{exp_entry:02x})")
+        if got_last != 1:
+            raise AssertionError(f"{tag}: response tlast {got_last}, expected 1")
+        if got_user != 0:
+            raise AssertionError(
+                f"{tag}: response tuser 0x{got_user:x}, expected 0")
+
+    async def _wait_err_count(self, exp, tag):
+        for _ in range(200):
+            await RisingEdge(self.aclk)
+            if int(self.dut.err_drop_cnt.value) == exp:
+                return
+        raise AssertionError(
+            f"{tag}: err_drop_cnt == {int(self.dut.err_drop_cnt.value)}, "
+            f"expected {exp}")
+
+    # ------------------------------------------------------------------
+    # Test scenarios
+    # ------------------------------------------------------------------
+    async def run_config_read_write_reroute(self):
+        """(b) Read a power-on entry; rewrite one dst to a different port;
+        traffic follows the new route; readback confirms."""
+        tag = "config"
+        idx_d30 = table_index((3, 0, 0), 0, self.COORD_W)
+        idx_d22 = table_index((2, 2, 0), 0, self.COORD_W)
+
+        # (1) power-on readback: dst (3,0,0) routes P_X_POS on the image.
+        f = await self._config_op(False, idx_d30, 0, 0x51, tag)
+        await self._expect_response(idx_d30, 1 << P_X_POS, f,
+                                    f"{tag}: read dst(3,0,0)")
+
+        # (2) traffic follows the default image before any write.
+        header = self.build_header(dst=(3, 0, 0), src=self.POS,
+                                   packet_id=0x52)
+        payload = self._random_payload()
+        await self._send_packet('local', header, payload)
+        await self._expect_packet('xpos', header, payload, 1,
+                                  f"{tag}: default route dst(3,0,0)")
+
+        # (3) rewrite dst (2,2,0) to P_Y_POS -- DOR would route P_X_POS
+        # first at POS (1,1,0), so a ypos exit proves the table drove it.
+        new_entry = 1 << P_Y_POS
+        f = await self._config_op(True, idx_d22, new_entry, 0x53, tag)
+        await self._expect_response(idx_d22, new_entry, f,
+                                    f"{tag}: write ack dst(2,2,0)")
+
+        # (4) readback confirms.
+        f = await self._config_op(False, idx_d22, 0, 0x54, tag)
+        await self._expect_response(idx_d22, new_entry, f,
+                                    f"{tag}: readback dst(2,2,0)")
+
+        # (5) traffic follows the NEW route; the old route stays silent.
+        header = self.build_header(dst=(2, 2, 0), src=self.POS,
+                                   packet_id=0x55)
+        payload = self._random_payload()
+        await self._send_packet('local', header, payload)
+        await self._expect_packet('ypos', header, payload, 1,
+                                  f"{tag}: rerouted dst(2,2,0)")
+        if self.slaves['xpos'].frames_received != 1:
+            raise AssertionError(
+                f"{tag}: xpos saw {self.slaves['xpos'].frames_received} "
+                f"frames, expected 1 (pre-write packet only)")
+
+        await self.wait_clocks('aclk', 10)
+        self._check_idle_ports({'xpos', 'ypos', 'local'}, tag)
+        self.log.info("delta mesh tables: config read/write/reroute passed")
+
+    async def run_err_drop(self):
+        """(c) Review Focus #2: an out-of-range dst is dropped at the head,
+        err_drop_cnt counts heads only, and subsequent traffic is
+        unaffected. COORD_W=2 fields cannot encode 9 on a 4-wide grid, so
+        the out-of-range coordinate uses the Z axis (grid Z=1, dst_z=1 is
+        representable and out of range)."""
+        tag = "err-drop"
+        if int(self.dut.err_drop_cnt.value) != 0:
+            raise AssertionError(f"{tag}: err_drop_cnt not zero at reset")
+
+        # (1) multi-beat packet, out-of-range dst: head counted once, the
+        # body beats drain silently.
+        header = self.build_header(dst=(0, 0, 1), src=self.POS,
+                                   packet_id=0x61)
+        payload = self._random_payload()
+        await self._send_packet('local', header, payload)
+        await self._wait_err_count(1, f"{tag}: head drop")
+        await self.wait_clocks('aclk', 10)
+        if int(self.dut.err_drop_cnt.value) != 1:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt {int(self.dut.err_drop_cnt.value)}, "
+                f"expected 1 (body beats must drain without counting)")
+        self._check_idle_ports(set(), f"{tag}: leak")
+
+        # (2) single-beat out-of-range packet: counter -> 2.
+        header = self.build_header(dst=(2, 2, 1), src=self.POS,
+                                   packet_id=0x62)
+        await self._send_packet('local', header, [0xDEAD_BEEF])
+        await self._wait_err_count(2, f"{tag}: single-beat drop")
+        self._check_idle_ports(set(), f"{tag}: leak2")
+
+        # (3) the fabric keeps working: normal post-drop traffic delivers.
+        header = self.build_header(dst=(3, 0, 0), src=self.POS,
+                                   packet_id=0x63)
+        payload = self._random_payload()
+        await self._send_packet('local', header, payload)
+        await self._expect_packet('xpos', header, payload, 1,
+                                  f"{tag}: post-drop traffic")
+        if int(self.dut.err_drop_cnt.value) != 2:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt moved on good traffic")
+        await self.wait_clocks('aclk', 10)
+        self._check_idle_ports({'xpos'}, tag)
+        self.log.info("delta mesh tables: err_drop + counter passed")

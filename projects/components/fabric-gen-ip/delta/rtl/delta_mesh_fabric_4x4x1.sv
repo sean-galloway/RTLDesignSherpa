@@ -20,7 +20,8 @@ parameter int     NUM_BOUNDARY = 16 )(
     output logic                  m_local_tlast  [NUM_BOUNDARY],
     output logic [USER_WIDTH-1:0] m_local_tuser  [NUM_BOUNDARY],
     input  logic [NUM_VC-1:0]     s_local_credit [NUM_BOUNDARY],
-    output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY]
+    output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY],
+    output logic [31:0]           o_err          [NUM_BOUNDARY]
 );
 // ==============================================================================
 // Module: delta_mesh_fabric_4x4x1
@@ -49,6 +50,11 @@ parameter int     NUM_BOUNDARY = 16 )(
 //   - Ports s_local_* / m_local_* (plus s_local_credit /
 //     m_local_credit) are unpacked arrays over boundary
 //     cells, one entry per boundary cell in that order.
+//   - Per-cell malformed-dst drop counters ride out as
+//     o_err[NUM_BOUNDARY] (32 bits per boundary cell,
+//     same index order; Task 5 observability, the ocelus
+//     counter suite reads them via the config plane in
+//     Task 10).
 //
 // Tie-off policy (no torus this task -- wrap links land in
 // Task 9; --torus-* is rejected at generation time):
@@ -138,6 +144,13 @@ logic [USER_WIDTH-1:0] cell_m_tuser  [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];
 logic [NUM_VC-1:0]     cell_m_credit [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];
 /* verilator lint_on UNUSEDSIGNAL */
 /* verilator lint_on UNOPTFLAT */
+// Per-cell malformed-dst drop counters (delta_mesh_cell's
+// o_err_drop_cnt). Interior cells (possible only when X, Y,
+// Z all >= 3) keep counting but are deliberately unread
+// here -- the fabric exposes boundary cells only.
+/* verilator lint_off UNUSEDSIGNAL */
+logic [31:0]           cell_err_drop [X_DIM][Y_DIM][Z_DIM];
+/* verilator lint_on UNUSEDSIGNAL */
 
 // ==========================================================================
 // Cell grid -- nested generate loops over x, y, z
@@ -295,6 +308,7 @@ generate
                     assign m_local_tlast[BIDX]  = cell_m_tlast[gx][gy][gz][P_LOCAL];
                     assign m_local_tuser[BIDX]  = cell_m_tuser[gx][gy][gz][P_LOCAL];
                     assign m_local_credit[BIDX] = cell_m_credit[gx][gy][gz][P_LOCAL];
+                    assign o_err[BIDX] = cell_err_drop[gx][gy][gz];
                 end else begin : gen_local_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_LOCAL]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_LOCAL] = 1'b0;
@@ -311,6 +325,9 @@ generate
                     .POS_X(gx),
                     .POS_Y(gy),
                     .POS_Z(gz),
+                    .GRID_X(X_DIM),
+                    .GRID_Y(Y_DIM),
+                    .GRID_Z(Z_DIM),
                     .NUM_VC(NUM_VC),
                     .FIFO_IMPL(FIFO_IMPL),
                     .ENABLE_COUNTERS(ENABLE_COUNTERS)
@@ -328,7 +345,8 @@ generate
                     .m_axis_tlast (cell_m_tlast [gx][gy][gz]),
                     .m_axis_tuser (cell_m_tuser [gx][gy][gz]),
                     .s_credit(cell_s_credit[gx][gy][gz]),
-                    .m_credit(cell_m_credit[gx][gy][gz])
+                    .m_credit(cell_m_credit[gx][gy][gz]),
+                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz])
                 );
             end
         end

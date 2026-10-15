@@ -22,6 +22,8 @@
 //
 // Credit sidebands: s_local_credit is tied to '1 (credits always available,
 // matching the Task 2/3 cell tie-off); m_local_credit is exposed per boundary.
+// b<i>_err are the per-cell malformed-dst drop counters (Task 5 o_err pass-
+// through); suites may ignore them but the fabric port must exist.
 //
 // Subsystem: delta (dv)
 //
@@ -86,7 +88,12 @@ module delta_mesh_fabric_2x2_th #(
     input  logic                  b3_m_axis_tready,
     output logic                  b3_m_axis_tlast,
     output logic [USER_WIDTH-1:0] b3_m_axis_tuser,
-    output logic [NUM_VC-1:0]     b3_m_credit
+    output logic [NUM_VC-1:0]     b3_m_credit,
+
+    output logic [31:0]           b0_err,
+    output logic [31:0]           b1_err,
+    output logic [31:0]           b2_err,
+    output logic [31:0]           b3_err
 );
 
     // Fabric boundary index map (pinned by the generator, x-major then y
@@ -159,6 +166,15 @@ module delta_mesh_fabric_2x2_th #(
         assign w_s_local_credit[i] = {NUM_VC{1'b1}};
     end
 
+    // Per-cell malformed-dst drop counters (Task 5): exposed per boundary
+    // cell; the suites may ignore them but the fabric port must exist.
+    logic [31:0] w_o_err [NUM_BOUNDARY];
+
+    assign b0_err = w_o_err[0];
+    assign b1_err = w_o_err[1];
+    assign b2_err = w_o_err[2];
+    assign b3_err = w_o_err[3];
+
     delta_mesh_fabric_2x2x1 #(
         .DATA_WIDTH(DATA_WIDTH),
         .USER_WIDTH(USER_WIDTH),
@@ -178,7 +194,8 @@ module delta_mesh_fabric_2x2_th #(
         .m_local_tlast(w_m_local_tlast),
         .m_local_tuser(w_m_local_tuser),
         .s_local_credit(w_s_local_credit),
-        .m_local_credit(w_m_local_credit)
+        .m_local_credit(w_m_local_credit),
+        .o_err(w_o_err)
     );
 
 endmodule : delta_mesh_fabric_2x2_th

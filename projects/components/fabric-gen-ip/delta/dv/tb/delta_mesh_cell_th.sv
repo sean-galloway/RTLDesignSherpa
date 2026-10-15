@@ -19,6 +19,8 @@
 // Credit sidebands: s_credit is driven per port per VC by the test (modeling
 // the downstream neighbor's advertised credits); m_credit is the credit
 // count this cell advertises for its own input buffers (Task 4 protocol).
+// err_drop_cnt is the cell's malformed-dst drop tally (Task 5), exposed for
+// the tables/drop suites; GRID_* defaults match the checked-in 4x4x1 cell.
 //
 // Subsystem: delta (dv)
 //
@@ -34,6 +36,9 @@ module delta_mesh_cell_th #(
     parameter int POS_X      = 1,
     parameter int POS_Y      = 1,
     parameter int POS_Z      = 0,
+    parameter int GRID_X     = 4,
+    parameter int GRID_Y     = 4,
+    parameter int GRID_Z     = 1,
     parameter int NUM_VC     = 2
 ) (
     input  logic aclk,
@@ -128,7 +133,9 @@ module delta_mesh_cell_th #(
     input  logic                  local_m_axis_tready,
     output logic                  local_m_axis_tlast,
     output logic [USER_WIDTH-1:0] local_m_axis_tuser,
-    output logic [NUM_VC-1:0]     local_m_credit
+    output logic [NUM_VC-1:0]     local_m_credit,
+
+    output logic [31:0]           err_drop_cnt
 );
 
     // DUT port index map (pinned localparams in delta_mesh_cell):
@@ -249,6 +256,9 @@ module delta_mesh_cell_th #(
         .POS_X(POS_X),
         .POS_Y(POS_Y),
         .POS_Z(POS_Z),
+        .GRID_X(GRID_X),
+        .GRID_Y(GRID_Y),
+        .GRID_Z(GRID_Z),
         .NUM_VC(NUM_VC)
     ) u_dut (
         .aclk(aclk),
@@ -264,7 +274,8 @@ module delta_mesh_cell_th #(
         .m_axis_tlast(w_m_tlast),
         .m_axis_tuser(w_m_tuser),
         .s_credit(w_s_credit),
-        .m_credit(w_m_credit)
+        .m_credit(w_m_credit),
+        .o_err_drop_cnt(err_drop_cnt)
     );
 
 endmodule : delta_mesh_cell_th

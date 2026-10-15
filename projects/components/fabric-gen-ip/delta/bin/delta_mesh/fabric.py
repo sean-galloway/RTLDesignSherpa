@@ -120,7 +120,9 @@ class DeltaMeshFabric(Module):
             output logic [USER_WIDTH-1:0] m_local_tuser  [NUM_BOUNDARY],
 
             input  logic [NUM_VC-1:0]     s_local_credit [NUM_BOUNDARY],
-            output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY]
+            output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY],
+
+            output logic [31:0]           o_err          [NUM_BOUNDARY]
         '''
         self.ports.add_port_string(port_str)
 
@@ -158,6 +160,11 @@ class DeltaMeshFabric(Module):
         self.comment("  - Ports s_local_* / m_local_* (plus s_local_credit /")
         self.comment("    m_local_credit) are unpacked arrays over boundary")
         self.comment("    cells, one entry per boundary cell in that order.")
+        self.comment("  - Per-cell malformed-dst drop counters ride out as")
+        self.comment("    o_err[NUM_BOUNDARY] (32 bits per boundary cell,")
+        self.comment("    same index order; Task 5 observability, the ocelus")
+        self.comment("    counter suite reads them via the config plane in")
+        self.comment("    Task 10).")
         self.comment("")
         self.comment("Tie-off policy (no torus this task -- wrap links land in")
         self.comment("Task 9; --torus-* is rejected at generation time):")
@@ -247,6 +254,13 @@ class DeltaMeshFabric(Module):
         self.instruction("logic [NUM_VC-1:0]     cell_m_credit [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
         self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
         self.instruction("/* verilator lint_on UNOPTFLAT */")
+        self.comment("Per-cell malformed-dst drop counters (delta_mesh_cell's")
+        self.comment("o_err_drop_cnt). Interior cells (possible only when X, Y,")
+        self.comment("Z all >= 3) keep counting but are deliberately unread")
+        self.comment("here -- the fabric exposes boundary cells only.")
+        self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
+        self.instruction("logic [31:0]           cell_err_drop [X_DIM][Y_DIM][Z_DIM];")
+        self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
         self.instruction("")
 
     # ------------------------------------------------------------------
@@ -298,6 +312,7 @@ class DeltaMeshFabric(Module):
         self.instruction(f"                    assign m_local_tlast[BIDX]  = cell_m_tlast{p};")
         self.instruction(f"                    assign m_local_tuser[BIDX]  = cell_m_tuser{p};")
         self.instruction(f"                    assign m_local_credit[BIDX] = cell_m_credit{p};")
+        self.instruction("                    assign o_err[BIDX] = cell_err_drop[gx][gy][gz];")
 
     def _emit_neighbor_hookups(self):
         """Emit the six if-generate neighbor hookups (genvar-relative)."""
@@ -349,6 +364,9 @@ class DeltaMeshFabric(Module):
         self.instruction("                    .POS_X(gx),")
         self.instruction("                    .POS_Y(gy),")
         self.instruction("                    .POS_Z(gz),")
+        self.instruction("                    .GRID_X(X_DIM),")
+        self.instruction("                    .GRID_Y(Y_DIM),")
+        self.instruction("                    .GRID_Z(Z_DIM),")
         self.instruction("                    .NUM_VC(NUM_VC),")
         self.instruction("                    .FIFO_IMPL(FIFO_IMPL),")
         self.instruction("                    .ENABLE_COUNTERS(ENABLE_COUNTERS)")
@@ -366,7 +384,8 @@ class DeltaMeshFabric(Module):
         self.instruction("                    .m_axis_tlast (cell_m_tlast [gx][gy][gz]),")
         self.instruction("                    .m_axis_tuser (cell_m_tuser [gx][gy][gz]),")
         self.instruction("                    .s_credit(cell_s_credit[gx][gy][gz]),")
-        self.instruction("                    .m_credit(cell_m_credit[gx][gy][gz])")
+        self.instruction("                    .m_credit(cell_m_credit[gx][gy][gz]),")
+        self.instruction("                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz])")
         self.instruction("                );")
         self.instruction("            end")
         self.instruction("        end")

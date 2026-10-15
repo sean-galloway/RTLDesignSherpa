@@ -9,23 +9,27 @@ parameter int     COORD_W = 2,
 parameter int     POS_X = 0,
 parameter int     POS_Y = 0,
 parameter int     POS_Z = 0,
+parameter int     GRID_X = 4,
+parameter int     GRID_Y = 4,
+parameter int     GRID_Z = 1,
 parameter int     NUM_VC = 2,
 parameter string  FIFO_IMPL = "reg",
 parameter int     ENABLE_COUNTERS = 1 )(
     input  logic                  aclk,
     input  logic                  aresetn,
-    input  logic [DATA_WIDTH-1:0] s_axis_tdata  [7],
-    input  logic                  s_axis_tvalid [7],
-    output logic                  s_axis_tready [7],
-    input  logic                  s_axis_tlast  [7],
-    input  logic [USER_WIDTH-1:0] s_axis_tuser  [7],
-    output logic [DATA_WIDTH-1:0] m_axis_tdata  [7],
-    output logic                  m_axis_tvalid [7],
-    input  logic                  m_axis_tready [7],
-    output logic                  m_axis_tlast  [7],
-    output logic [USER_WIDTH-1:0] m_axis_tuser  [7],
-    input  logic [NUM_VC-1:0]     s_credit      [7],
-    output logic [NUM_VC-1:0]     m_credit      [7]
+    input  logic [DATA_WIDTH-1:0] s_axis_tdata   [7],
+    input  logic                  s_axis_tvalid  [7],
+    output logic                  s_axis_tready  [7],
+    input  logic                  s_axis_tlast   [7],
+    input  logic [USER_WIDTH-1:0] s_axis_tuser   [7],
+    output logic [DATA_WIDTH-1:0] m_axis_tdata   [7],
+    output logic                  m_axis_tvalid  [7],
+    input  logic                  m_axis_tready  [7],
+    output logic                  m_axis_tlast   [7],
+    output logic [USER_WIDTH-1:0] m_axis_tuser   [7],
+    input  logic [NUM_VC-1:0]     s_credit       [7],
+    output logic [NUM_VC-1:0]     m_credit       [7],
+    output logic [31:0]           o_err_drop_cnt
 );
 // ==============================================================================
 // Module: delta_mesh_cell
@@ -65,8 +69,33 @@ parameter int     ENABLE_COUNTERS = 1 )(
 //     another on a link); one-cycle grant bubble per packet
 //     boundary (release cycle drops the grant, see below).
 //   - Power-on default DOR: dst coord vs POS per dimension in
-//     X, Y, Z order; P_LOCAL when all equal (routing RAM
-//     tables land in Task 5).
+//     X, Y, Z order; P_LOCAL when all equal (Task 5: installed
+//     as the route_table RAM image, see below).
+//   - Route table RAM (Task 5): per-cell table keyed
+//     {qos, dst_z, dst_y, dst_x} -> {port_mask[6:0], vc};
+//     the address carries the full key width now so Task 7's
+//     QoS classes land without reshaping the memory. The
+//     power-on image is installed by an initial block and
+//     re-derives the DOR decision from this instance's POS
+//     parameters (one checked-in module serves every grid
+//     position). Out-of-range dst coordinates and empty
+//     masks drop at the head flit with err_drop_cnt tally;
+//     the vc field is written 0 and is not consulted by the
+//     datapath this task (the output VC follows the packet's
+//     intake VC; Task 7 activates the vc field).
+//   - In-band config on the local port (Task 5): a single-
+//     beat packet addressed to this cell itself (dst == POS),
+//     QoS class 0, sr_ptr[0] = 1 write / 0 read, command in
+//     beat-0 TDATA {table_index[15:0], entry[ENTRY_W-1:0]}.
+//     Writes commit on the accepting clock edge (single-cycle
+//     write; a master that awaits the ack never sees stale
+//     routes); a multi-beat config-shaped packet is dropped
+//     whole (head counted, op not executed). The response is
+//     one beat on the local m_axis, same {table_index, entry}
+//     shape (write: echo; read: table value; out-of-depth
+//     index reads back 0), tlast = 1, tuser = 0. Config
+//     responses wait for the idle local output and stall its
+//     grant registration meanwhile.
 //
 // ==============================================================================
 
@@ -101,6 +130,19 @@ localparam int HDR_DST_Y_LO = 2;
 localparam int HDR_DST_Z_LO = 4;
 localparam int HDR_VC_LO = 15;
 localparam int HDR_VC_W  = 1;
+localparam int HDR_QOS_LO = 12;
+localparam int HDR_QOS_W  = 2;
+localparam int HDR_SR_PTR_LO = 20;
+
+// Route table organization (Task 5): key {qos, dst_z, dst_y,
+// dst_x} -> entry {port_mask[6:0], vc}; an all-zero mask is
+// the drop encoding. The dst space occupies the low
+// 3*COORD_W address bits; QoS rides above it.
+localparam int ROUTE_ADDR_W = 3*COORD_W + 2;
+localparam int ROUTE_DEPTH  = 2**ROUTE_ADDR_W;
+localparam int ENTRY_MASK_W = 7;
+localparam int ENTRY_W      = ENTRY_MASK_W + VC_W;
+localparam int RESP_W       = 16 + ENTRY_W;
 
 // ==========================================================================
 // Input buffers - one house FIFO per port per VC
@@ -190,6 +232,7 @@ logic [VC_W-1:0]       sel_vc      [NUM_PORTS];
 logic                  pres_valid  [NUM_PORTS];
 logic                  pres_last   [NUM_PORTS];
 logic [USER_WIDTH-1:0] pres_tuser  [NUM_PORTS];
+logic [DATA_WIDTH-1:0] pres_tdata  [NUM_PORTS];
 
 always_comb begin
     for (int p = 0; p < NUM_PORTS; p++) begin
@@ -212,63 +255,230 @@ always_comb begin
         pres_last[p]  = w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH];
         pres_tuser[p] =
             w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH+1 +: USER_WIDTH];
+        pres_tdata[p] =
+            w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH-1:0];
     end
 end
 
 // ==========================================================================
-// Route computation - power-on default DOR
+// Route table RAM + head-flit classification
 // ==========================================================================
-// Head flit only, computed on the presented FIFO head: the
-// destination coordinates in TUSER are compared against this
-// cell's position, one dimension at a time in X, Y, Z order.
-// A lower coordinate takes the negative-direction port, a
-// higher coordinate the positive-direction port, an equal
-// coordinate moves to the next dimension; all equal delivers
-// to the attached host (P_LOCAL). Non-head beats do not
-// recompute -- they follow the packet's allocated output
-// (lock_active/lock_port below) to TLAST. The presented
-// payload is meaningful only with pres_valid; the request
-// matrix gates on it.
+// The presented head flit classifies before it routes:
+// in-range dsts look the RAM up (combinational read) and the
+// winning port mask bit becomes route_req; out-of-range dsts
+// and empty masks take the drop path instead of a grant; a
+// config-shaped local head (dst == POS, QoS class 0) is
+// consumed by the config plane, never granted. Body beats
+// (!lock_active low, drop_active set) drain with no side
+// effects. Non-head beats of a granted packet never
+// recompute -- they follow lock_active/lock_port to TLAST.
 // ==========================================================================
 
-// Per-dimension signed deltas: dst coordinate minus this
-// cell's position (COORD_W+1 bits so the sign survives).
-logic signed [COORD_W:0] delta_x [NUM_PORTS];
-logic signed [COORD_W:0] delta_y [NUM_PORTS];
-logic signed [COORD_W:0] delta_z [NUM_PORTS];
-logic [PORT_W-1:0]       route_req [NUM_PORTS];
+// Per-cell table: combinational read for the route stage,
+// single-cycle write port from the config plane below. The
+// initial block installs the power-on image; the config
+// write is the only always_ff writer (deliberate two-process
+// table: image at time 0, runtime writes after).
+logic [ENTRY_W-1:0] route_table [ROUTE_DEPTH];
+
+// Power-on image: DOR toward the coord-0 (rapids) boundary,
+// evaluated per instance from the POS parameters so one
+// checked-in module serves every grid position. A
+// mechanical transcription of delta_mesh.tables.dor_port;
+// the cocotb suites verify the equivalence behaviorally and
+// tables.check_acyclic proves the VC0 subrelation
+// connected + acyclic at generation time.
+function automatic logic [ENTRY_W-1:0] dor_default_entry(
+    input int addr
+);
+    int unsigned d_x, d_y, d_z;
+    int unsigned port;
+    begin
+        d_x = addr[0 +: COORD_W];
+        d_y = addr[COORD_W +: COORD_W];
+        d_z = addr[2*COORD_W +: COORD_W];
+        port = P_LOCAL;
+        if (int'(d_x) < POS_X)       port = P_X_NEG;
+        else if (int'(d_x) > POS_X)  port = P_X_POS;
+        else if (int'(d_y) < POS_Y)  port = P_Y_NEG;
+        else if (int'(d_y) > POS_Y)  port = P_Y_POS;
+        else if (int'(d_z) < POS_Z)  port = P_Z_NEG;
+        else if (int'(d_z) > POS_Z)  port = P_Z_POS;
+        if ((int'(d_x) >= GRID_X) || (int'(d_y) >= GRID_Y) ||
+            (int'(d_z) >= GRID_Z))
+//         // Representable but out-of-grid dst: drop encoding.
+            dor_default_entry = '0;
+        else
+//         // {port_mask[6:0] one-hot, vc = 0}
+            dor_default_entry = {VC_W'(0), 7'(32'd1 << port)};
+    end
+endfunction
+
+initial begin
+//     Every QoS region gets the same DOR default (the image
+//     ignores the qos key bits); Task 7 overlays per-class
+//     routes without reshaping the memory.
+    for (int a = 0; a < ROUTE_DEPTH; a++) begin
+        route_table[a] = dor_default_entry(a);
+    end
+end
+
+// Head decode of the presented flit (meaningful only on a
+// head beat; bodies carry tuser == 0 and never consult it)
+logic [COORD_W-1:0] head_dst_x [NUM_PORTS];
+logic [COORD_W-1:0] head_dst_y [NUM_PORTS];
+logic [COORD_W-1:0] head_dst_z [NUM_PORTS];
+logic [HDR_QOS_W-1:0] head_qos   [NUM_PORTS];
+logic               dst_in_range [NUM_PORTS];
+logic               head_cfg     [NUM_PORTS];
+logic [ENTRY_W-1:0] head_entry   [NUM_PORTS];
+logic               head_no_route [NUM_PORTS];
+logic [PORT_W-1:0]  route_req    [NUM_PORTS];
 
 always_comb begin
     for (int p = 0; p < NUM_PORTS; p++) begin
-        delta_x[p] = $signed({1'b0, pres_tuser[p][HDR_DST_X_LO +: COORD_W]}) -
-                          $signed({1'b0, COORD_W'(POS_X)});
-        delta_y[p] = $signed({1'b0, pres_tuser[p][HDR_DST_Y_LO +: COORD_W]}) -
-                          $signed({1'b0, COORD_W'(POS_Y)});
-        delta_z[p] = $signed({1'b0, pres_tuser[p][HDR_DST_Z_LO +: COORD_W]}) -
-                          $signed({1'b0, COORD_W'(POS_Z)});
+        head_dst_x[p] = pres_tuser[p][HDR_DST_X_LO +: COORD_W];
+        head_dst_y[p] = pres_tuser[p][HDR_DST_Y_LO +: COORD_W];
+        head_dst_z[p] = pres_tuser[p][HDR_DST_Z_LO +: COORD_W];
+        head_qos[p]   = pres_tuser[p][HDR_QOS_LO +: HDR_QOS_W];
+        dst_in_range[p] = (int'(head_dst_x[p]) < GRID_X) &&
+                          (int'(head_dst_y[p]) < GRID_Y) &&
+                          (int'(head_dst_z[p]) < GRID_Z);
+//         Config shape: local port, dst == own coordinate,
+//         QoS class 0 (plan-pinned config class).
+        head_cfg[p] = (p == P_LOCAL) && dst_in_range[p] &&
+                      (int'(head_dst_x[p]) == POS_X) &&
+                      (int'(head_dst_y[p]) == POS_Y) &&
+                      (int'(head_dst_z[p]) == POS_Z) &&
+                      (head_qos[p] == 2'd0);
+        head_entry[p] = route_table[{head_qos[p], head_dst_z[p],
+                                   head_dst_y[p], head_dst_x[p]}];
+        head_no_route[p] =
+            (head_entry[p][ENTRY_MASK_W-1:0] == '0);
+//         Lowest set mask bit wins (multi-bit masks --
+//         multicast -- arrive in Task 8).
         route_req[p] = PORT_W'(P_LOCAL);
-        if (delta_x[p] < 0)
-            route_req[p] = PORT_W'(P_X_NEG);
-        else if (delta_x[p] > 0)
-            route_req[p] = PORT_W'(P_X_POS);
-        else if (delta_y[p] < 0)
-            route_req[p] = PORT_W'(P_Y_NEG);
-        else if (delta_y[p] > 0)
-            route_req[p] = PORT_W'(P_Y_POS);
-        else if (delta_z[p] < 0)
-            route_req[p] = PORT_W'(P_Z_NEG);
-        else if (delta_z[p] > 0)
-            route_req[p] = PORT_W'(P_Z_POS);
+        for (int b = ENTRY_MASK_W-1; b >= 0; b--) begin
+            if (head_entry[p][b]) begin
+                route_req[p] = PORT_W'(b);
+            end
+        end
     end
 end
+
+// Special consumers: drop heads (out-of-range dst or empty
+// mask), malformed config (multi-beat config shape), and
+// well-formed config commands. All are consumed straight
+// from the input FIFO -- no output grant, no credit -- so
+// the local input path serializes config against data
+// exactly like a granted packet does.
+logic drop_req        [NUM_PORTS];
+logic bad_cfg_req     [NUM_PORTS];
+logic cfg_req         [NUM_PORTS];
+logic special_req     [NUM_PORTS];
+logic special_consume [NUM_PORTS];
+logic drop_active     [NUM_PORTS];
+logic drop_active_next [NUM_PORTS];
+
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        drop_req[p] = pres_valid[p] && !lock_active[p] &&
+                      !drop_active[p] && !head_cfg[p] &&
+                      (!dst_in_range[p] || head_no_route[p]);
+//         A config-shaped packet must be single-beat: a
+//         multi-beat one is dropped whole (head counted, op
+//         not executed) so its body beats cannot be
+//         misread as fresh headers.
+        bad_cfg_req[p] = pres_valid[p] && !lock_active[p] &&
+                         !drop_active[p] && head_cfg[p] &&
+                         !pres_last[p];
+//         A well-formed config command waits when the
+//         response FIFO is full (local master protocol:
+//         one outstanding config transaction).
+        cfg_req[p]  = pres_valid[p] && !lock_active[p] &&
+                      !drop_active[p] && head_cfg[p] &&
+                      pres_last[p] && cfg_resp_wr_ready;
+        special_req[p]     = drop_req[p] || bad_cfg_req[p] ||
+                             cfg_req[p];
+        special_consume[p] = special_req[p] ||
+                             (drop_active[p] && pres_valid[p]);
+        drop_active_next[p] = drop_active[p];
+        if (drop_req[p] || bad_cfg_req[p]) begin
+            drop_active_next[p] = !pres_last[p];
+        end else if (drop_active[p] && pres_valid[p] &&
+                   pres_last[p]) begin
+            drop_active_next[p] = 1'b0;
+        end
+    end
+end
+
+// Config plane: beat-0 TDATA carries the command
+// {table_index[15:0], entry[ENTRY_W-1:0]}; sr_ptr[0] selects
+// write (1) / read (0). The response beat carries the same
+// {table_index, entry} shape (write: echo of the written
+// entry; read: the table value, 0 for an out-of-depth
+// index) with tlast = 1 and tuser = 0.
+logic [15:0]        cfg_index;
+logic [ENTRY_W-1:0] cfg_entry;
+logic               cfg_write_op;
+logic [RESP_W-1:0]  cfg_resp_wr_data;
+logic [RESP_W-1:0]  cfg_resp_rd_data;
+logic               cfg_resp_rd_valid;
+logic               cfg_resp_rd_ready;
+logic               cfg_resp_wr_ready;
+logic               cfg_resp_present;
+
+always_comb begin
+    cfg_index    = pres_tdata[P_LOCAL][15:0];
+    cfg_entry    = pres_tdata[P_LOCAL][16 +: ENTRY_W];
+//     sr_ptr[0] lives in the header (TUSER), not the payload:
+    cfg_write_op = pres_tuser[P_LOCAL][HDR_SR_PTR_LO];
+    cfg_resp_wr_data = {cfg_write_op ?
+//         // write: echo the entry that committed
+                            cfg_entry :
+//         // read: current table value (0 out of depth)
+                            ((int'(cfg_index) < ROUTE_DEPTH)
+                                ? route_table[cfg_index[ROUTE_ADDR_W-1:0]]
+                                : ENTRY_W'(0)),
+                        cfg_index};
+end
+
+// Response skid: config responses wait here for the idle
+// local output; grant registration on P_LOCAL stalls
+// while any response is pending (see arbitration).
+gaxi_fifo_sync #(
+    .MEM_STYLE (FIFO_AUTO),
+    .DATA_WIDTH(RESP_W),
+    .DEPTH     (FIFO_DEPTH)
+) u_config_resp_fifo (
+    .axi_aclk   (aclk),
+    .axi_aresetn(aresetn),
+    .wr_valid   (cfg_req[P_LOCAL]),
+    .wr_ready   (cfg_resp_wr_ready),
+    .wr_data    (cfg_resp_wr_data),
+    .rd_ready   (cfg_resp_rd_ready),
+    .count      (),
+    .rd_valid   (cfg_resp_rd_valid),
+    .rd_data    (cfg_resp_rd_data)
+);
+
+// A response presents only while no data grant holds the
+// local output (packet_active[P_LOCAL] == 0); the read
+// pointer holds the beat stable under tready backpressure.
+assign cfg_resp_present = cfg_resp_rd_valid &&
+                          !packet_active[P_LOCAL];
+assign cfg_resp_rd_ready = cfg_resp_present &&
+                           m_axis_tready[P_LOCAL];
 
 // ==========================================================================
 // Request matrix - which inputs want which outputs this cycle
 // ==========================================================================
 // An input with a packet in flight requests only its locked
 // output; an idle input routes its presented head flit
-// (route_req). Inputs present no request until granted, so a
-// head beat is never consumed early.
+// (route_req from the table). Drop/config heads and
+// draining bodies request nothing -- they consume without a
+// grant -- so a head beat is never consumed early and a
+// malformed flit never reaches an output.
 // ==========================================================================
 
 logic [NUM_PORTS-1:0] request_matrix [NUM_PORTS];  // [output][input]
@@ -280,7 +490,8 @@ always_comb begin
     end
     for (int p = 0; p < NUM_PORTS; p++) begin
         req_port[p] = lock_active[p] ? lock_port[p] : route_req[p];
-        if (pres_valid[p]) begin
+        if (pres_valid[p] && !special_req[p] &&
+            !drop_active[p]) begin
             request_matrix[req_port[p]][p] = 1'b1;
         end
     end
@@ -402,7 +613,15 @@ endfunction
 // keeping the steering unambiguous.
 always_comb begin
     for (int q = 0; q < NUM_PORTS; q++) begin
-        if (packet_active[q]) begin
+//         A pending config response owns the idle local
+//         output: no new data grant registers until the
+//         response drains (requests are not dropped -- the
+//         round-robin re-picks once the response leaves).
+        if ((q == P_LOCAL) && cfg_resp_rd_valid &&
+            !packet_active[q]) begin
+            grant_next[q]      = '0;
+            last_grant_next[q] = last_grant[q];
+        end else if (packet_active[q]) begin
             if (out_xfer_last[q]) begin
                 grant_next[q]      = '0;
                 last_grant_next[q] = last_grant[q];
@@ -440,6 +659,15 @@ always_comb begin
         m_axis_tvalid[q] = 1'b0;
         m_axis_tlast[q]  = 1'b0;
         m_axis_tuser[q]  = '0;
+//         Config responses own the local output while it
+//         is idle (no data grant holds it); data grants
+//         resume the cycle after the response drains.
+        if ((q == P_LOCAL) && cfg_resp_present) begin
+            m_axis_tdata[q]  =
+                {{(DATA_WIDTH-RESP_W){1'b0}}, cfg_resp_rd_data};
+            m_axis_tvalid[q] = 1'b1;
+            m_axis_tlast[q]  = 1'b1;
+        end else begin
         for (int p = 0; p < NUM_PORTS; p++) begin
             if (grant_matrix[q][p]) begin
                 m_axis_tdata[q]  =
@@ -449,6 +677,7 @@ always_comb begin
                 m_axis_tlast[q]  = pres_last[p];
                 m_axis_tuser[q]  = pres_tuser[p];
             end
+        end
         end
     end
 end
@@ -465,6 +694,14 @@ always_comb begin
                 w_fifo_rd_ready[p][sel_vc[p]] =
                     m_axis_tready[q] && s_credit[q][sel_vc[p]];
             end
+        end
+    end
+//     Drop/config consumption wins over (the absent)
+//     grant path: special consumers leave the FIFO with
+//     no output side effects.
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        if (special_consume[p]) begin
+            w_fifo_rd_ready[p][sel_vc[p]] = 1'b1;
         end
     end
 end
@@ -509,5 +746,104 @@ generate
         )
     end
 endgenerate
+
+// Drop-draining state per input: a dropped head latches
+// drop_active so the packet's body beats drain silently
+// (consumed, no counter, no grant) up to and including
+// their TLAST beat.
+generate
+    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_drop_track
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (!aresetn) begin
+                drop_active[p] <= 1'b0;
+            end else begin
+                drop_active[p] <= drop_active_next[p];
+            end
+        )
+    end
+endgenerate
+
+// Dropped-head tally (per cycle, across all inputs):
+logic [3:0] drop_fire_cnt;
+
+always_comb begin
+    drop_fire_cnt = 4'd0;
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        drop_fire_cnt = drop_fire_cnt +
+            4'(drop_req[p] || bad_cfg_req[p]);
+    end
+end
+
+// Route table write port: a well-formed config write
+// commits on the accepting clock edge (single-cycle
+// write -- no batching barrier); the response beat leaves
+// after the commit, so a master that awaits the ack never
+// steers against a stale entry. The table is not reset --
+// the power-on image (initial block) remains the config
+// plane's baseline across aresetn.
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (!aresetn) begin
+    end else begin
+        if (cfg_req[P_LOCAL] && cfg_write_op &&
+            (int'(cfg_index) < ROUTE_DEPTH)) begin
+            route_table[cfg_index[ROUTE_ADDR_W-1:0]] <= cfg_entry;
+        end
+    end
+)
+
+// err_drop_cnt: heads dropped this cycle (out-of-range
+// dst, empty-mask in-range dst, malformed config).
+// Saturating 32-bit; frozen when ENABLE_COUNTERS == 0.
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (!aresetn) begin
+        o_err_drop_cnt <= '0;
+    end else if (ENABLE_COUNTERS != 0) begin
+        if (drop_fire_cnt != 4'd0 &&
+            (o_err_drop_cnt <= (32'hFFFF_FFFF - 32'(drop_fire_cnt)))) begin
+            o_err_drop_cnt <= o_err_drop_cnt + 32'(drop_fire_cnt);
+        end
+    end
+)
+
+// ==========================================================================
+// Formal assists (flat-mode discipline)
+// ==========================================================================
+// One-hot output grant; a granted head always carries an
+// in-range, non-empty-mask dst (out-of-range heads take
+// the drop path instead); a grant is never released before
+// its packet's TLAST handshake (packet atomicity).
+// ==========================================================================
+`ifdef FORMAL
+generate
+    for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_onehot_assert
+        assert property (@(posedge aclk) disable iff (!aresetn)
+            $onehot0(grant_matrix[q])
+        ) else $error("Grant matrix not one-hot for output %0d", q);
+    end
+endgenerate
+
+generate
+    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_dst_range_assert
+        for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_out
+            assert property (@(posedge aclk) disable iff (!aresetn)
+                (grant_matrix[q][p] && !lock_active[p])
+                    |-> (dst_in_range[p] && !head_no_route[p])
+            ) else $error(
+                "Granted head with unroutable dst: in %0d out %0d",
+                p, q);
+        end
+    end
+endgenerate
+
+generate
+    for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_hold_assert
+        assert property (@(posedge aclk) disable iff (!aresetn)
+            (packet_active[q] && !out_xfer_last[q])
+                |-> (grant_next[q] == grant_matrix[q])
+        ) else $error(
+            "Grant released before TLAST on output %0d", q);
+    end
+endgenerate
+`endif
 
 endmodule
