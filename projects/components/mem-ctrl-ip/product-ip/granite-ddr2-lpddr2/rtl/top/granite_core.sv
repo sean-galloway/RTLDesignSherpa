@@ -211,6 +211,14 @@ module granite_core
     logic [NUM_ENTRIES-1:0]             w_wr_sch_agex,  w_rd_sch_agex;
     logic [NUM_ENTRIES*4-1:0]           w_wr_sch_qos,   w_rd_sch_qos;
     logic [15:0]                        w_wr_sch_hrel,  w_rd_sch_hrel;
+    // per-bank head views (BANK_FIFO pick core)
+    localparam int BKW_LC = $clog2(NUM_BANKS);
+    logic [NUM_BANKS-1:0]               w_wr_bh_v,  w_rd_bh_v,  w_wr_bh2_v,  w_rd_bh2_v;
+    logic [NUM_BANKS*PTRW-1:0]          w_wr_bh_slot, w_rd_bh_slot, w_wr_bh2_slot, w_rd_bh2_slot;
+    logic [NUM_BANKS*ROW_WIDTH-1:0]     w_wr_bh_row, w_rd_bh_row, w_wr_bh2_row, w_rd_bh2_row;
+    logic [NUM_BANKS*COL_WIDTH-1:0]     w_wr_bh_col, w_rd_bh_col, w_wr_bh2_col, w_rd_bh2_col;
+    logic [NUM_BANKS*IW-1:0]            w_wr_bh_id,  w_rd_bh_id,  w_wr_bh2_id, w_rd_bh2_id;
+    logic [NUM_BANKS-1:0]               w_wr_bh_last, w_wr_bh_empty, w_rd_bh_empty, w_wr_bh2_last;
     logic                      w_wr_commit_v, w_wr_commit_rdy;
     logic [PTRW-1:0]           w_wr_commit_slot;
     logic                      w_rd_issue_v, w_rd_issue_rdy;
@@ -477,6 +485,30 @@ module granite_core
         .rd_sch_age_exceed_o(w_rd_sch_agex),
         .rd_sch_qos_o       (w_rd_sch_qos),
         .rd_sch_head_rel_o  (w_rd_sch_hrel),
+        .wr_bh_valid_o      (w_wr_bh_v),
+        .wr_bh_slot_o       (w_wr_bh_slot),
+        .wr_bh_row_o        (w_wr_bh_row),
+        .wr_bh_col_o        (w_wr_bh_col),
+        .wr_bh_id_o         (w_wr_bh_id),
+        .wr_bh_last_o       (w_wr_bh_last),
+        .wr_bh_empty_o      (w_wr_bh_empty),
+        .rd_bh_valid_o      (w_rd_bh_v),
+        .rd_bh_slot_o       (w_rd_bh_slot),
+        .rd_bh_row_o        (w_rd_bh_row),
+        .rd_bh_col_o        (w_rd_bh_col),
+        .rd_bh_id_o         (w_rd_bh_id),
+        .rd_bh_empty_o      (w_rd_bh_empty),
+        .wr_bh2_valid_o     (w_wr_bh2_v),
+        .wr_bh2_slot_o      (w_wr_bh2_slot),
+        .wr_bh2_row_o       (w_wr_bh2_row),
+        .wr_bh2_col_o       (w_wr_bh2_col),
+        .wr_bh2_id_o        (w_wr_bh2_id),
+        .wr_bh2_last_o      (w_wr_bh2_last),
+        .rd_bh2_valid_o     (w_rd_bh2_v),
+        .rd_bh2_slot_o      (w_rd_bh2_slot),
+        .rd_bh2_row_o       (w_rd_bh2_row),
+        .rd_bh2_col_o       (w_rd_bh2_col),
+        .rd_bh2_id_o        (w_rd_bh2_id),
         .wr_cm_rd_valid_o   (w_cm_v),
         .wr_cm_rd_ready_i   (w_cm_rdy),
         .wr_cm_rd_data_o    (w_cm_data),
@@ -500,14 +532,13 @@ module granite_core
         .HAS_ZQ        (1'b0),
         .MAINT_EXTRA_WIDTH(1),
         .CLOSE_ON_DRAIN(1'b1),
-        // BANK_IN_ORDER stays OFF for granite v1: measured on the A7 (2026-10-15)
-        // it halves every page-hit stream (147 vs 572 MB/s row_major). Head-of-
-        // bank as a pick MASK leaves at most one same-bank candidate, so the
-        // shared 5-stage pick pipe serializes single-bank traffic at pipeline-
-        // depth rate (4-5 cyc/col); LiteDRAM's per-bank machines are independent
-        // FSMs with no shared pipe. The LiteDRAM-class SKU needs the dedicated
-        // per-bank lite scheduler (own head/task), not a mask on this pipe.
-        .BANK_IN_ORDER (1'b0),
+        // BANK_FIFO (the per-bank in-order product core, mc_bank_sched) is
+        // LANDED but not yet ENABLED: the first functional run exposed a
+        // head-slot lifetime race (rd issue of an already-freed slot,
+        // granite_core func, 2026-10-15 -- see MC-003). Granite ships on the
+        // FRFCFS core until the race is root-caused on waves; the plumbing,
+        // store head views and filelists are all in place behind this param.
+        .BANK_FIFO     (1'b0),
         .HAS_CMD_HISTORY(1'b0),
         .REF_HAS_POSTPONE(1'b0),
         .REF_HAS_PULLIN  (1'b0),
@@ -598,6 +629,19 @@ module granite_core
         .wr_sch_age_exceed_i(w_wr_sch_agex),
         .wr_sch_qos_i       (w_wr_sch_qos),
         .wr_sch_head_rel_i  (w_wr_sch_hrel),
+        .wr_bh_valid_i      (w_wr_bh_v),
+        .wr_bh_slot_i       (w_wr_bh_slot),
+        .wr_bh_row_i        (w_wr_bh_row),
+        .wr_bh_col_i        (w_wr_bh_col),
+        .wr_bh_id_i         (w_wr_bh_id),
+        .wr_bh_last_i       (w_wr_bh_last),
+        .wr_bh_empty_i      (w_wr_bh_empty),
+        .wr_bh2_valid_i     (w_wr_bh2_v),
+        .wr_bh2_slot_i      (w_wr_bh2_slot),
+        .wr_bh2_row_i       (w_wr_bh2_row),
+        .wr_bh2_col_i       (w_wr_bh2_col),
+        .wr_bh2_id_i        (w_wr_bh2_id),
+        .wr_bh2_last_i      (w_wr_bh2_last),
         .wr_commit_ready_i  (w_wr_commit_rdy),
         .wr_commit_valid_o  (w_wr_commit_v),
         .wr_commit_slot_o   (w_wr_commit_slot),
@@ -609,6 +653,17 @@ module granite_core
         .rd_sch_age_exceed_i(w_rd_sch_agex),
         .rd_sch_qos_i       (w_rd_sch_qos),
         .rd_sch_head_rel_i  (w_rd_sch_hrel),
+        .rd_bh_valid_i      (w_rd_bh_v),
+        .rd_bh_slot_i       (w_rd_bh_slot),
+        .rd_bh_row_i        (w_rd_bh_row),
+        .rd_bh_col_i        (w_rd_bh_col),
+        .rd_bh_id_i         (w_rd_bh_id),
+        .rd_bh_empty_i      (w_rd_bh_empty),
+        .rd_bh2_valid_i     (w_rd_bh2_v),
+        .rd_bh2_slot_i      (w_rd_bh2_slot),
+        .rd_bh2_row_i       (w_rd_bh2_row),
+        .rd_bh2_col_i       (w_rd_bh2_col),
+        .rd_bh2_id_i        (w_rd_bh2_id),
         .rd_issue_ready_i   (w_rd_issue_rdy),
         .rd_issue_valid_o   (w_rd_issue_v),
         .rd_issue_slot_o    (w_rd_issue_slot),

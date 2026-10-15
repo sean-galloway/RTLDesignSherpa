@@ -159,7 +159,7 @@ async def cocotb_test_close_drain(dut):
             break
     assert int(dut.init_done_o.value) == 1, "init never completed"
 
-    arb = dut.u_sched_plane.u_arbiter
+    arb = dut.u_sched_plane.g_arbiter.u_arbiter
     ap_emits = []
     ops = []
     OP_NAMES = {0: "NOP", 1: "ACT", 2: "RD", 3: "RDA", 4: "WR", 5: "WRA",

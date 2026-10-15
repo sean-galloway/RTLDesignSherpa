@@ -48,6 +48,10 @@ module mc_scheduler_plane
     parameter int MAINT_EXTRA_WIDTH = 1,
     parameter bit CLOSE_ON_DRAIN = 1'b1,
     parameter bit BANK_IN_ORDER  = 1'b0,
+    // SCHED_CORE select: BANK_FIFO = the per-bank in-order product core
+    // (mc_bank_sched, the family design); 0 = the FRFCFS research core
+    // (mc_cmd_arbiter). See common-ip/docs/mc_scheduler_plane_v2.md.
+    parameter bit BANK_FIFO      = 1'b0,
     // v2 children composition
     parameter bit HAS_INIT_SEQUENCER = 1'b1,
     parameter bit HAS_MODE_REGISTER  = 1'b1,
@@ -214,6 +218,33 @@ module mc_scheduler_plane
     input  logic [NUM_ENTRIES-1:0]              rd_sch_age_exceed_i,
     input  logic [NUM_ENTRIES*4-1:0]            rd_sch_qos_i,
     input  logic [15:0]                         rd_sch_head_rel_i,
+
+    // ---- BANK_FIFO storage head views (from mc_xddr2_entry_store; tied off
+    // when the FRFCFS core is selected) ------------------------------------
+    input  logic [NUM_BANKS-1:0]                wr_bh_valid_i,
+    input  logic [NUM_BANKS*PTRW-1:0]           wr_bh_slot_i,
+    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      wr_bh_row_i,
+    input  logic [NUM_BANKS*COL_WIDTH-1:0]      wr_bh_col_i,
+    input  logic [NUM_BANKS*IW-1:0]             wr_bh_id_i,
+    input  logic [NUM_BANKS-1:0]                wr_bh_last_i,
+    input  logic [NUM_BANKS-1:0]                wr_bh_empty_i,
+    input  logic [NUM_BANKS-1:0]                rd_bh_valid_i,
+    input  logic [NUM_BANKS*PTRW-1:0]           rd_bh_slot_i,
+    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh_row_i,
+    input  logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh_col_i,
+    input  logic [NUM_BANKS*IW-1:0]             rd_bh_id_i,
+    input  logic [NUM_BANKS-1:0]                rd_bh_empty_i,
+    input  logic [NUM_BANKS-1:0]                wr_bh2_valid_i,
+    input  logic [NUM_BANKS*PTRW-1:0]           wr_bh2_slot_i,
+    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      wr_bh2_row_i,
+    input  logic [NUM_BANKS*COL_WIDTH-1:0]      wr_bh2_col_i,
+    input  logic [NUM_BANKS*IW-1:0]             wr_bh2_id_i,
+    input  logic [NUM_BANKS-1:0]                wr_bh2_last_i,
+    input  logic [NUM_BANKS-1:0]                rd_bh2_valid_i,
+    input  logic [NUM_BANKS*PTRW-1:0]           rd_bh2_slot_i,
+    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh2_row_i,
+    input  logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh2_col_i,
+    input  logic [NUM_BANKS*IW-1:0]             rd_bh2_id_i,
     input  logic                                rd_issue_ready_i,
     output logic                                rd_issue_valid_o,
     output logic [PTRW-1:0]                     rd_issue_slot_o,
@@ -563,7 +594,121 @@ module mc_scheduler_plane
     );
 
     // ======================================================================
-    // mc_cmd_arbiter — the common pick core.
+    // Pick core: BANK_FIFO = per-bank in-order product core (family design);
+    // else the FRFCFS research core. Both drive the plane outputs directly
+    // (exactly one branch elaborates).
+    // ======================================================================
+    generate if (BANK_FIFO) begin : g_bank_sched
+        mc_bank_sched #(
+            .NUM_RANKS   (NUM_RANKS),
+            .NUM_BANKS   (NUM_BANKS),
+            .ROW_WIDTH   (ROW_WIDTH),
+            .COL_WIDTH   (COL_WIDTH),
+            .AXI_ID_WIDTH(IW),
+            .NUM_ENTRIES (NUM_ENTRIES),
+            .HAS_ZQ      (HAS_ZQ),
+            .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
+            .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH)
+        ) u_bank_sched (
+            .aclk               (aclk),
+            .aresetn            (aresetn),
+            .page_policy_i      (page_policy_i),
+            .wr_bh_valid_i      (wr_bh_valid_i),
+            .wr_bh_slot_i       (wr_bh_slot_i),
+            .wr_bh_row_i        (wr_bh_row_i),
+            .wr_bh_col_i        (wr_bh_col_i),
+            .wr_bh_id_i         (wr_bh_id_i),
+            .wr_bh_last_i       (wr_bh_last_i),
+            .wr_bh_empty_i      (wr_bh_empty_i),
+            .rd_bh_valid_i      (rd_bh_valid_i),
+            .rd_bh_slot_i       (rd_bh_slot_i),
+            .rd_bh_row_i        (rd_bh_row_i),
+            .rd_bh_col_i        (rd_bh_col_i),
+            .rd_bh_id_i         (rd_bh_id_i),
+            .rd_bh_empty_i      (rd_bh_empty_i),
+            .wr_bh2_valid_i     (wr_bh2_valid_i),
+            .wr_bh2_slot_i      (wr_bh2_slot_i),
+            .wr_bh2_row_i       (wr_bh2_row_i),
+            .wr_bh2_col_i       (wr_bh2_col_i),
+            .wr_bh2_id_i        (wr_bh2_id_i),
+            .wr_bh2_last_i      (wr_bh2_last_i),
+            .rd_bh2_valid_i     (rd_bh2_valid_i),
+            .rd_bh2_slot_i      (rd_bh2_slot_i),
+            .rd_bh2_row_i       (rd_bh2_row_i),
+            .rd_bh2_col_i       (rd_bh2_col_i),
+            .rd_bh2_id_i        (rd_bh2_id_i),
+            .wr_commit_ready_i  (wr_commit_ready_i),
+            .wr_commit_valid_o  (wr_commit_valid_o),
+            .wr_commit_slot_o   (wr_commit_slot_o),
+            .rd_issue_ready_i   (rd_issue_ready_i),
+            .rd_issue_valid_o   (rd_issue_valid_o),
+            .rd_issue_slot_o    (rd_issue_slot_o),
+            .init_done_i        (init_done),
+            .init_cmd_valid_i   (init_cmd_valid),
+            .init_cmd_op_i      (init_cmd_op),
+            .init_cmd_bank_i    (init_cmd_bank),
+            .init_cmd_row_i     (init_cmd_row),
+            .refresh_req_i      (refresh_req),
+            .refresh_drain_i    (refresh_drain),
+            .refresh_kind_i     (w_refresh_kind),
+            .refresh_bank_i     (w_refresh_bank),
+            .refresh_grant_o    (refresh_grant),
+            .t_rfc_i            (t_rfc_i),
+            .t_rfc_pb_i         (ref_trfc_pb_i),
+            .zq_req_i           (zq_req_i),
+            .zq_grant_o         (zq_grant_o),
+            .t_zqcs_i           (t_zqcs_i),
+            .maint_req_i        (maint_req_i),
+            .maint_grant_o      (w_maint_grant),
+            .maint_op_i         (maint_op_i),
+            .maint_bank_i       (maint_bank_i),
+            .maint_row_i        (maint_row_i),
+            .maint_col_i        (maint_col_i),
+            .maint_extra_i      (maint_extra_i),
+            .maint_busy_i       (maint_busy_i),
+            .bank_act_ready_i   (w_bank_act_ready),
+            .bank_rdwr_ready_i  (w_bank_rdwr_ready),
+            .bank_pre_ready_i   (w_bank_pre_ready),
+            .bank_act_ready_la_i (w_bank_act_ready_la),
+            .bank_rdwr_ready_la_i(w_bank_rdwr_ready_la),
+            .bank_pre_ready_la_i (w_bank_pre_ready_la),
+            .bank_row_active_i  (w_bank_row_active),
+            .bank_open_row_i    (w_bank_open_row),
+            .tfaw_ok_i          (w_tfaw_ok),
+            .trrd_ok_i          (w_trrd_ok),
+            .twtr_ok_i          (w_twtr_ok),
+            .trtw_ok_i          (w_trtw_ok),
+            .tccd_ok_i          (w_tccd_ok),
+            .evt_act_o          (evt_act),
+            .evt_rd_o           (evt_rd),
+            .evt_wr_o           (evt_wr),
+            .evt_pre_o          (evt_pre),
+            .evt_ap_o           (evt_ap),
+            .evt_rank_o         (evt_rank),
+            .evt_bank_o         (evt_bank),
+            .evt_row_o          (evt_row),
+            .cmd_valid_o        (a_cmd_valid),
+            .cmd_ready_i        (a_cmd_ready),
+            .cmd_op_o           (a_cmd_op),
+            .cmd_rank_o         (a_cmd_rank),
+            .cmd_bank_o         (a_cmd_bank),
+            .cmd_row_o          (a_cmd_row),
+            .cmd_col_o          (a_cmd_col),
+            .cmd_ap_o           (a_cmd_ap),
+            .cmd_extra_o        (a_cmd_extra),
+            .stall_bp_o         (stall_bp_o),
+            .stall_refresh_o    (stall_refresh_o),
+            .stall_turnaround_o (stall_turnaround_o),
+            .stall_tccd_o       (stall_tccd_o),
+            .stall_actlimit_o   (stall_actlimit_o),
+            .stall_banktimer_o  (stall_banktimer_o),
+            .stall_noreq_o      (stall_noreq_o),
+            .stall_zq_o         (stall_zq_o)
+        );
+        assign a_cmd_bg = '0;
+    end else begin : g_arbiter
+    // ======================================================================
+    // mc_cmd_arbiter — the FRFCFS research pick core.
     // ======================================================================
     mc_cmd_arbiter #(
         .NUM_RANKS   (NUM_RANKS),
@@ -683,6 +828,7 @@ module mc_scheduler_plane
         .stall_noreq_o      (stall_noreq_o),
         .stall_zq_o         (stall_zq_o)
     );
+    end endgenerate
 
     assign maint_grant_o = w_maint_grant;
     generate

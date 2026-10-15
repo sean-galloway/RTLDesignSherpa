@@ -139,7 +139,7 @@ module mc_xddr2_entry_store
     input  logic [PTRW-1:0]     rd_issue_slot_i,
 
     //=========================================================================
-    // Scheduler vectors (NUM_ENTRIES-wide)
+    // Scheduler vectors (NUM_ENTRIES-wide) — FRFCFS pick core
     //=========================================================================
     output logic [NUM_ENTRIES-1:0]              wr_sch_valid_o,
     output logic [NUM_ENTRIES*BKW-1:0]          wr_sch_bank_o,
@@ -158,6 +158,46 @@ module mc_xddr2_entry_store
     output logic [NUM_ENTRIES-1:0]              rd_sch_age_exceed_o,
     output logic [NUM_ENTRIES*4-1:0]            rd_sch_qos_o,
     output logic [15:0]                         rd_sch_head_rel_o,
+
+    //=========================================================================
+    // Per-bank head views — BANK_FIFO pick core (mc_scheduler_plane v2).
+    // Purely combinational off the entry arrays; the core latches a bank's
+    // head into its own sequencer register and drives the SAME commit/issue
+    // strobes above (head slot), so no store state changes here.
+    //   head  = oldest schedulable entry of the bank (wr: valid && fdone &&
+    //           !sched; rd: valid), via the age matrix.
+    //   empty = exactly one schedulable entry in the bank (CLOSE_ON_DRAIN:
+    //           the head's close is exact when its queue drains behind it).
+    //=========================================================================
+    output logic [NUM_BANKS-1:0]                wr_bh_valid_o,
+    output logic [NUM_BANKS*PTRW-1:0]           wr_bh_slot_o,
+    output logic [NUM_BANKS*ROW_WIDTH-1:0]      wr_bh_row_o,
+    output logic [NUM_BANKS*COL_WIDTH-1:0]      wr_bh_col_o,
+    output logic [NUM_BANKS*IW-1:0]             wr_bh_id_o,
+    output logic [NUM_BANKS-1:0]                wr_bh_last_o,
+    output logic [NUM_BANKS-1:0]                wr_bh_empty_o,
+
+    output logic [NUM_BANKS-1:0]                rd_bh_valid_o,
+    output logic [NUM_BANKS*PTRW-1:0]           rd_bh_slot_o,
+    output logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh_row_o,
+    output logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh_col_o,
+    output logic [NUM_BANKS*IW-1:0]             rd_bh_id_o,
+    output logic [NUM_BANKS-1:0]                rd_bh_empty_o,
+
+    // Second-oldest per bank (the reserve behind the head). Fields mirror the
+    // head outputs; the BANK_FIFO core's 2-deep head skid needs it to sustain
+    // 1 command/cycle on a single bank without a store round-trip per pick.
+    output logic [NUM_BANKS-1:0]                wr_bh2_valid_o,
+    output logic [NUM_BANKS*PTRW-1:0]           wr_bh2_slot_o,
+    output logic [NUM_BANKS*ROW_WIDTH-1:0]      wr_bh2_row_o,
+    output logic [NUM_BANKS*COL_WIDTH-1:0]      wr_bh2_col_o,
+    output logic [NUM_BANKS*IW-1:0]             wr_bh2_id_o,
+    output logic [NUM_BANKS-1:0]                wr_bh2_last_o,
+    output logic [NUM_BANKS-1:0]                rd_bh2_valid_o,
+    output logic [NUM_BANKS*PTRW-1:0]           rd_bh2_slot_o,
+    output logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh2_row_o,
+    output logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh2_col_o,
+    output logic [NUM_BANKS*IW-1:0]             rd_bh2_id_o,
 
     //=========================================================================
     // WR commit data to DFI plane
@@ -300,27 +340,35 @@ module mc_xddr2_entry_store
     // picked out of wr_sch_valid_o (valid && fdone && !sched), and nothing but
     // commit/drain can clear those bits between the pick and the fire.
     //
-    // The occupancy look-ahead mirrors mc_wr_data_cam's rate-matched predicate:
+    // The occupancy look-ahead mirrors mc_wr_data_cam's rate-matched predicate
+    // for the FRFCFS core's decide-one-cycle-early pipeline:
     // ready answers "will a commit decided now still fit when it fires one
     // cycle later", counting this cycle's own accept and pop. The classify-to-
     // fire window is at most one enqueue deep (picks fire 1/cycle and each
     // enqueue lands on the next edge), so occ_next < DEPTH cannot overflow.
+    //
+    // 2026-10-15 (mc_bank_sched): the per-bank core fires COMBINATIONALLY
+    // (decide == fire), so a ready that includes this cycle's own accept
+    // closes a combinational loop (valid -> store.fire -> occ_next -> ready
+    // -> core.valid). The registered occupancy alone is exact for decide==
+    // fire (one commit/cycle can never overflow a slot it already counted),
+    // and remains safe for the FRFCFS core (at most one undecided commit, so
+    // occ at fire <= occ at decide + 1 <= DEPTH). Gate on r_dq_occ directly.
     logic            w_wr_commit_fire;
     logic            w_dq_pop;
     logic [PTRW:0]   r_dq_occ;
-    logic [PTRW:0]   w_dq_occ_next;
     assign w_wr_commit_fire = wr_commit_valid_i && w_dq_wr_ready
                             && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
     assign w_dq_wr_valid    = w_wr_commit_fire;
     assign w_dq_pop         = w_dq_rd_valid && w_dq_rd_ready;
-    assign w_dq_occ_next    = r_dq_occ + (w_wr_commit_fire ? (PTRW+1)'(1) : (PTRW+1)'(0))
-                                       - (w_dq_pop         ? (PTRW+1)'(1) : (PTRW+1)'(0));
     assign wr_commit_ready_o = w_dq_wr_ready
-                            && (w_dq_occ_next < (PTRW+1)'(DQ_DEPTH));
+                            && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) r_dq_occ <= '0;
-        else                        r_dq_occ <= w_dq_occ_next;
+        else                        r_dq_occ <= r_dq_occ
+                                               + (w_wr_commit_fire ? (PTRW+1)'(1) : (PTRW+1)'(0))
+                                               - (w_dq_pop         ? (PTRW+1)'(1) : (PTRW+1)'(0));
     )
 
     assign w_dq_wr_slot  = wr_commit_slot_i;
@@ -677,6 +725,79 @@ module mc_xddr2_entry_store
         end
         wr_sch_head_rel_o = w_wr_sho_found ? w_wr_rel[w_wr_sho_slot] : '0;
         rd_sch_head_rel_o = w_rd_sho_found ? w_rd_rel[w_rd_sho_slot] : '0;
+    end
+
+    // ======================================================================
+    // Per-bank head views (BANK_FIFO pick core) — oldest schedulable entry
+    // of each bank + queue-empty flags + the second-oldest (reserve). Purely
+    // combinational.
+    // ======================================================================
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            automatic logic            wv  = 1'b0;
+            automatic logic [PTRW-1:0] ws  = '0;
+            automatic logic            wv2 = 1'b0;
+            automatic logic [PTRW-1:0] ws2 = '0;
+            automatic int              wc  = 0;
+            automatic logic            rv  = 1'b0;
+            automatic logic [PTRW-1:0] rs  = '0;
+            automatic logic            rv2 = 1'b0;
+            automatic logic [PTRW-1:0] rs2 = '0;
+            automatic int              rc  = 0;
+            for (int i = 0; i < NUM_ENTRIES; i++) begin
+                if (r_wr_valid[i] && r_wr_fdone[i] && !r_wr_sched[i]
+                    && (int'(r_wr_bank[i]) == b)) begin
+                    automatic int n_older = 0;
+                    wc = wc + 1;
+                    for (int j = 0; j < NUM_ENTRIES; j++)
+                        if ((j != i) && r_wr_valid[j] && r_wr_fdone[j] && !r_wr_sched[j]
+                            && (int'(r_wr_bank[j]) == b) && r_wr_older[j][i])
+                            n_older = n_older + 1;
+                    if (n_older == 0) begin
+                        wv = 1'b1;  ws = PTRW'(i);
+                    end else if (n_older == 1) begin
+                        wv2 = 1'b1; ws2 = PTRW'(i);
+                    end
+                end
+                if (r_rd_valid[i] && (int'(r_rd_bank[i]) == b)) begin
+                    automatic int n_older = 0;
+                    rc = rc + 1;
+                    for (int j = 0; j < NUM_ENTRIES; j++)
+                        if ((j != i) && r_rd_valid[j]
+                            && (int'(r_rd_bank[j]) == b) && r_rd_older[j][i])
+                            n_older = n_older + 1;
+                    if (n_older == 0) begin
+                        rv = 1'b1;  rs = PTRW'(i);
+                    end else if (n_older == 1) begin
+                        rv2 = 1'b1; rs2 = PTRW'(i);
+                    end
+                end
+            end
+            wr_bh_valid_o[b] = wv;
+            wr_bh_slot_o [b*PTRW +: PTRW]           = ws;
+            wr_bh_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_wr_row[ws];
+            wr_bh_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_wr_col[ws];
+            wr_bh_id_o   [b*IW +: IW]               = r_wr_id [ws];
+            wr_bh_last_o [b]                        = r_wr_last[ws];
+            wr_bh_empty_o[b]                        = wv && (wc == 1);
+            rd_bh_valid_o[b] = rv;
+            rd_bh_slot_o [b*PTRW +: PTRW]           = rs;
+            rd_bh_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_rd_row[rs];
+            rd_bh_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_rd_col[rs];
+            rd_bh_id_o   [b*IW +: IW]               = r_rd_id [rs];
+            rd_bh_empty_o[b]                        = rv && (rc == 1);
+            wr_bh2_valid_o[b] = wv2;
+            wr_bh2_slot_o [b*PTRW +: PTRW]           = ws2;
+            wr_bh2_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_wr_row[ws2];
+            wr_bh2_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_wr_col[ws2];
+            wr_bh2_id_o   [b*IW +: IW]               = r_wr_id [ws2];
+            wr_bh2_last_o [b]                        = r_wr_last[ws2];
+            rd_bh2_valid_o[b] = rv2;
+            rd_bh2_slot_o [b*PTRW +: PTRW]           = rs2;
+            rd_bh2_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_rd_row[rs2];
+            rd_bh2_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_rd_col[rs2];
+            rd_bh2_id_o   [b*IW +: IW]               = r_rd_id [rs2];
+        end
     end
 
     // ======================================================================
