@@ -34,6 +34,13 @@ DUT_TOP = 'delta_mesh_fabric_2x2_th'
 FABRIC_SV = 'delta_mesh_fabric_2x2x1.sv'
 CELL_SV = 'delta_mesh_cell.sv'
 RESET_DEFS_INCDIR = 'rtl/amba/includes'
+# house FIFO primitives the cell's input buffers instantiate
+# (mirrors rtl/filelists/delta_mesh.f, resolved repo-relative here)
+FIFO_DEPS = (
+    'rtl/common/counter_bin.sv',
+    'rtl/common/fifo_control.sv',
+    'rtl/amba/gaxi/gaxi_fifo_sync.sv',
+)
 
 
 @pytest.fixture(scope="module")
@@ -74,6 +81,7 @@ async def cocotb_test_delta_mesh_fabric_all_pairs(dut):
 def _run(testcase, test_level, gen_dir):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     verilog_sources = [
+        *[os.path.join(repo_root, dep) for dep in FIFO_DEPS],
         str(gen_dir / CELL_SV),
         str(gen_dir / FABRIC_SV),
         os.path.join(repo_root, HARNESS),

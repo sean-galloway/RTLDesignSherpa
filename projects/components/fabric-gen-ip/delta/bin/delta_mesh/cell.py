@@ -17,12 +17,17 @@
 """
 Delta mesh cell generator using the unified verilog framework.
 
-Task 2 scope (skeleton): full port list (including the credit sidebands,
-tied off here), head-flit header decode in TUSER, and the power-on default
-DOR pipeline -- route compute -> request -> round-robin output grant with
-packet atomicity -> crossbar mux -> ready steering. Single VC (VC0);
-no input buffers yet (direct ready/valid steering), per the plan's
-task-by-task discipline.
+Task 4 scope: per-port per-VC input buffers (house gaxi_fifo_sync, one per
+port per VC, DEPTH=4) between the port's s_axis acceptance and the
+route/grant stage; credit flow control on the pinned credit sidebands (one
+credit level per VC: m_credit advertises "my input buffer for this VC is
+not full", a flit is presented on an output only while the corresponding
+s_credit level is set); and packet-atomic grants operating on FIFO outputs
+(grant held to TLAST, one-cycle bubble per packet boundary). VC selection:
+the head flit's header vc bit picks the input VC FIFO; an idle port
+presents VC0 ahead of VC1; both VCs route with the same power-on default
+DOR. Flit acceptance into the input FIFO is unconditional on downstream
+state -- credits govern the output side of each link, not local admission.
 """
 
 import os
@@ -46,7 +51,7 @@ PORT_IDS = (
 
 
 class DeltaMeshCell(Module):
-    """delta_mesh_cell emitter: default-DOR routing pipeline, no buffers yet."""
+    """delta_mesh_cell emitter: input-buffered DOR router, credit flow control."""
 
     module_str = 'delta_mesh_cell'
 
@@ -114,16 +119,31 @@ class DeltaMeshCell(Module):
         self.comment(f"  - User Width: {cfg.user_width} bits (head-flit header in TUSER)")
         self.comment(f"  - Coordinate Width: {self.coord_w} bits")
         self.comment("")
-        self.comment("Features (Task 2 skeleton):")
-        self.comment("  - Power-on default DOR: dst coord vs POS per dimension in X, Y, Z")
-        self.comment("    order; negative port on <, positive port on >, next dimension")
-        self.comment("    on equal; P_LOCAL when all equal")
-        self.comment("  - Packet-atomic grants: output grant held until TLAST; non-head")
-        self.comment("    beats follow the packet's allocated output")
-        self.comment("  - Single VC (VC0); routing RAM tables land in Task 5")
-        self.comment("  - Credit sideband ports tied off (credits always available);")
-        self.comment("    the credit protocol lands in Task 4")
-        self.comment("  - No input buffers yet: direct ready/valid steering")
+        self.comment("Features (Task 4):")
+        self.comment("  - Per-port per-VC input buffers: one house gaxi_fifo_sync per")
+        self.comment("    port per VC (7 x NUM_VC, DEPTH=4) between s_axis acceptance")
+        self.comment("    and the route/grant stage; a flit word is")
+        self.comment("    {TUSER, TLAST, TDATA}. Acceptance is unconditional on")
+        self.comment("    downstream state (credits govern the output side of each")
+        self.comment("    link, not local admission); the port backpressures only")
+        self.comment("    when the selected VC FIFO is full.")
+        self.comment("  - Credit flow control per VC: the credit sideband carries")
+        self.comment("    one level per VC -- m_credit[p][vc] = the VC FIFO at port")
+        self.comment("    p is not full (the free-slot count, DEPTH at reset,")
+        self.comment("    saturated to its level form). A flit is presented on")
+        self.comment("    m_axis[q] only while s_credit[q][vc] is set and consumes")
+        self.comment("    one slot per handshake; the neighbor returns credit by")
+        self.comment("    draining its buffer (post-consume, one cycle later).")
+        self.comment("  - VC selection: the head flit's header vc bit steers the")
+        self.comment("    beat into the VC FIFO at intake; an idle port presents")
+        self.comment("    VC0 ahead of VC1; both VCs route with the same DOR.")
+        self.comment("  - Packet-atomic grants on FIFO outputs: the output grant is")
+        self.comment("    held until TLAST (a packet never interleaves with")
+        self.comment("    another on a link); one-cycle grant bubble per packet")
+        self.comment("    boundary (release cycle drops the grant, see below).")
+        self.comment("  - Power-on default DOR: dst coord vs POS per dimension in")
+        self.comment("    X, Y, Z order; P_LOCAL when all equal (routing RAM")
+        self.comment("    tables land in Task 5).")
         self.comment("")
         self.comment("==============================================================================")
         self.instruction("")
@@ -139,24 +159,155 @@ class DeltaMeshCell(Module):
         for name, value in PORT_IDS:
             self.instruction(f"localparam int {name} = {value};")
         self.instruction("")
+        self.comment("Input buffer configuration (plan-pinned DEPTH=4)")
+        self.instruction("localparam int FIFO_DEPTH = 4;")
+        self.instruction("localparam int FLIT_W     = DATA_WIDTH + USER_WIDTH + 1;")
+        self.instruction("localparam int VC_W       = (NUM_VC > 1) ? $clog2(NUM_VC) : 1;")
+        self.comment("FIFO memory style from the FIFO_IMPL knob: 'reg' -> AUTO")
+        self.comment("(register array, mux read); 'sram' -> BRAM (registered read)")
+        self.instruction('localparam fifo_mem_t P_FIFO_MEM_STYLE =')
+        self.instruction('    (FIFO_IMPL == "sram") ? FIFO_BRAM : FIFO_AUTO;')
+        self.instruction("")
         self.comment("Head-flit header field offsets in TUSER, LSB-first")
         self.comment("(single source of truth: bin/delta_mesh/header.py)")
-        for field, (lo, _width) in self.hdr_offsets.items():
+        for field, (lo, width) in self.hdr_offsets.items():
             if field.startswith("dst_"):
                 self.instruction(f"localparam int HDR_{field.upper()}_LO = {lo};")
+        vc_lo, vc_w = self.hdr_offsets['vc']
+        self.instruction(f"localparam int HDR_VC_LO = {vc_lo};")
+        self.instruction(f"localparam int HDR_VC_W  = {vc_w};")
+        self.instruction("")
+
+    def generate_input_buffers(self):
+        self.comment("==========================================================================")
+        self.comment("Input buffers - one house FIFO per port per VC")
+        self.comment("==========================================================================")
+        self.comment("A flit word is {TUSER, TLAST, TDATA}: the head-flit header")
+        self.comment("rides TUSER on the first beat and the body beats carry 0,")
+        self.comment("so the whole beat streams through the buffer unchanged.")
+        self.comment("Intake steering: the head beat's header vc bit picks the VC")
+        self.comment("FIFO; body beats follow the in_vc latch taken at the head's")
+        self.comment("acceptance (in_pkt tracks beats-since-TLAST). Acceptance is")
+        self.comment("unconditional on downstream state -- the port backpressures")
+        self.comment("only when the selected VC FIFO is full.")
+        self.comment("==========================================================================")
+        self.instruction("")
+        self.instruction("logic [FLIT_W-1:0]     w_fifo_wr_data  [NUM_PORTS][NUM_VC];")
+        self.instruction("logic                  w_fifo_wr_valid [NUM_PORTS][NUM_VC];")
+        self.instruction("logic                  w_fifo_wr_ready [NUM_PORTS][NUM_VC];")
+        self.instruction("logic [FLIT_W-1:0]     w_fifo_rd_data  [NUM_PORTS][NUM_VC];")
+        self.instruction("logic                  w_fifo_rd_valid [NUM_PORTS][NUM_VC];")
+        self.instruction("logic                  w_fifo_rd_ready [NUM_PORTS][NUM_VC];")
+        self.instruction("")
+        self.instruction("logic [VC_W-1:0] wr_vc   [NUM_PORTS];")
+        self.instruction("logic            in_pkt  [NUM_PORTS];")
+        self.instruction("logic [VC_W-1:0] in_vc   [NUM_PORTS];")
+        self.instruction("")
+        self.comment("Intake steering and FIFO write side")
+        self.instruction("always_comb begin")
+        self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
+        self.instruction("        wr_vc[p] = in_pkt[p] ? in_vc[p] :")
+        self.instruction("                    VC_W'(s_axis_tuser[p][HDR_VC_LO +: HDR_VC_W]);")
+        self.instruction("        s_axis_tready[p] = w_fifo_wr_ready[p][wr_vc[p]];")
+        self.instruction("        for (int v = 0; v < NUM_VC; v++) begin")
+        self.instruction("            w_fifo_wr_valid[p][v] = s_axis_tvalid[p] &&")
+        self.instruction("                                      (wr_vc[p] == VC_W'(v));")
+        self.instruction("            w_fifo_wr_data[p][v]  = {s_axis_tuser[p],")
+        self.instruction("                                     s_axis_tlast[p],")
+        self.instruction("                                     s_axis_tdata[p]};")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("end")
+        self.instruction("")
+        self.comment("Per-port per-VC input FIFOs (house gaxi_fifo_sync)")
+        self.instruction("generate")
+        self.instruction("    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_input_fifo")
+        self.instruction("        for (genvar v = 0; v < NUM_VC; v++) begin : gen_vc")
+        self.instruction("            gaxi_fifo_sync #(")
+        self.instruction("                .MEM_STYLE (P_FIFO_MEM_STYLE),")
+        self.instruction("                .DATA_WIDTH(FLIT_W),")
+        self.instruction("                .DEPTH     (FIFO_DEPTH)")
+        self.instruction("            ) u_input_fifo (")
+        self.instruction("                .axi_aclk   (aclk),")
+        self.instruction("                .axi_aresetn(aresetn),")
+        self.instruction("                .wr_valid   (w_fifo_wr_valid[p][v]),")
+        self.instruction("                .wr_ready   (w_fifo_wr_ready[p][v]),")
+        self.instruction("                .wr_data    (w_fifo_wr_data[p][v]),")
+        self.instruction("                .rd_ready   (w_fifo_rd_ready[p][v]),")
+        self.instruction("                .count      (),")
+        self.instruction("                .rd_valid   (w_fifo_rd_valid[p][v]),")
+        self.instruction("                .rd_data    (w_fifo_rd_data[p][v])")
+        self.instruction("            );")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+        self.comment("Credit advertisement: the credit count each link needs is")
+        self.comment("the free-slot count of this port's VC FIFO -- DEPTH at")
+        self.comment("reset, post-consume after every accepted flit. The pinned")
+        self.comment("sideband carries one level bit per VC, so the count rides")
+        self.comment("in saturated form: m_credit[p][vc] = the FIFO is not full.")
+        self.comment("A sender holding this level can always place one more flit")
+        self.comment("(the buffer itself absorbs up to DEPTH in-flight flits),")
+        self.comment("so the saturated count loses burst budgeting only, never")
+        self.comment("losslessness.")
+        self.instruction("generate")
+        self.instruction("    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_credit_adv")
+        self.instruction("        for (genvar v = 0; v < NUM_VC; v++) begin : gen_vc_lvl")
+        self.instruction("            assign m_credit[p][v] = w_fifo_wr_ready[p][v];")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+        self.comment("Presented flit per port: the head of the selected VC FIFO.")
+        self.comment("A locked port presents its packet's VC; an idle port")
+        self.comment("presents VC0 ahead of VC1 (VC0 is the escape resource and")
+        self.comment("must never wait behind VC1).")
+        self.instruction("logic [VC_W-1:0]       sel_vc      [NUM_PORTS];")
+        self.instruction("logic                  pres_valid  [NUM_PORTS];")
+        self.instruction("logic                  pres_last   [NUM_PORTS];")
+        self.instruction("logic [USER_WIDTH-1:0] pres_tuser  [NUM_PORTS];")
+        self.instruction("")
+        self.instruction("always_comb begin")
+        self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
+        self.instruction("        if (lock_active[p]) begin")
+        self.instruction("            sel_vc[p] = lock_vc[p];")
+        self.instruction("        end else begin")
+        self.instruction("            sel_vc[p] = '0;")
+        self.instruction("            for (int v = NUM_VC-1; v >= 0; v--) begin")
+        self.instruction("                if (w_fifo_rd_valid[p][v]) begin")
+        self.instruction("                    sel_vc[p] = VC_W'(v);")
+        self.instruction("                end")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("end")
+        self.instruction("")
+        self.instruction("always_comb begin")
+        self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
+        self.instruction("        pres_valid[p] = w_fifo_rd_valid[p][sel_vc[p]];")
+        self.instruction("        pres_last[p]  = w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH];")
+        self.instruction("        pres_tuser[p] =")
+        self.instruction("            w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH+1 +: USER_WIDTH];")
+        self.instruction("    end")
+        self.instruction("end")
         self.instruction("")
 
     def generate_route_compute(self):
         self.comment("==========================================================================")
         self.comment("Route computation - power-on default DOR")
         self.comment("==========================================================================")
-        self.comment("Head flit only: the destination coordinates in TUSER are compared")
-        self.comment("against this cell's position, one dimension at a time in X, Y, Z")
-        self.comment("order. A lower coordinate takes the negative-direction port, a")
-        self.comment("higher coordinate the positive-direction port, an equal coordinate")
-        self.comment("moves to the next dimension; all equal delivers to the attached")
-        self.comment("host (P_LOCAL). Non-head beats do not recompute -- they follow the")
-        self.comment("packet's allocated output (lock_active/lock_port below) to TLAST.")
+        self.comment("Head flit only, computed on the presented FIFO head: the")
+        self.comment("destination coordinates in TUSER are compared against this")
+        self.comment("cell's position, one dimension at a time in X, Y, Z order.")
+        self.comment("A lower coordinate takes the negative-direction port, a")
+        self.comment("higher coordinate the positive-direction port, an equal")
+        self.comment("coordinate moves to the next dimension; all equal delivers")
+        self.comment("to the attached host (P_LOCAL). Non-head beats do not")
+        self.comment("recompute -- they follow the packet's allocated output")
+        self.comment("(lock_active/lock_port below) to TLAST. The presented")
+        self.comment("payload is meaningful only with pres_valid; the request")
+        self.comment("matrix gates on it.")
         self.comment("==========================================================================")
         self.instruction("")
         self.comment("Per-dimension signed deltas: dst coordinate minus this")
@@ -170,7 +321,7 @@ class DeltaMeshCell(Module):
         self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
         for axis, pos in (("x", "POS_X"), ("y", "POS_Y"), ("z", "POS_Z")):
             hdr = f"HDR_DST_{axis.upper()}_LO"
-            self.instruction(f"        delta_{axis}[p] = $signed({{1'b0, s_axis_tuser[p][{hdr} +: COORD_W]}}) -")
+            self.instruction(f"        delta_{axis}[p] = $signed({{1'b0, pres_tuser[p][{hdr} +: COORD_W]}}) -")
             self.instruction(f"                          $signed({{1'b0, COORD_W'({pos})}});")
         self.instruction("        route_req[p] = PORT_W'(P_LOCAL);")
         for axis in ("x", "y", "z"):
@@ -187,9 +338,10 @@ class DeltaMeshCell(Module):
         self.comment("==========================================================================")
         self.comment("Request matrix - which inputs want which outputs this cycle")
         self.comment("==========================================================================")
-        self.comment("An input with a packet in flight requests only its locked output;")
-        self.comment("an idle input routes its head flit (route_req). Inputs present no")
-        self.comment("request until granted, so a head beat is never consumed early.")
+        self.comment("An input with a packet in flight requests only its locked")
+        self.comment("output; an idle input routes its presented head flit")
+        self.comment("(route_req). Inputs present no request until granted, so a")
+        self.comment("head beat is never consumed early.")
         self.comment("==========================================================================")
         self.instruction("")
         self.instruction("logic [NUM_PORTS-1:0] request_matrix [NUM_PORTS];  // [output][input]")
@@ -201,7 +353,7 @@ class DeltaMeshCell(Module):
         self.instruction("    end")
         self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
         self.instruction("        req_port[p] = lock_active[p] ? lock_port[p] : route_req[p];")
-        self.instruction("        if (s_axis_tvalid[p]) begin")
+        self.instruction("        if (pres_valid[p]) begin")
         self.instruction("            request_matrix[req_port[p]][p] = 1'b1;")
         self.instruction("        end")
         self.instruction("    end")
@@ -285,34 +437,44 @@ class DeltaMeshCell(Module):
         self.comment("==========================================================================")
         self.comment("Input tracking - packet allocation per input")
         self.comment("==========================================================================")
-        self.comment("Once a head beat is accepted, the input locks its granted output")
-        self.comment("so the body beats steer to the same port; the lock releases on the")
-        self.comment("input's TLAST handshake. Single-beat packets never lock.")
+        self.comment("Once a head beat is consumed into the crossbar, the input")
+        self.comment("locks its granted output and VC so the body beats steer to")
+        self.comment("the same port from the same FIFO; the lock releases on the")
+        self.comment("packet's TLAST handshake. Single-beat packets never lock.")
+        self.comment("The in_pkt/in_vc pair is the intake mirror of the same")
+        self.comment("packet boundary: it steers body beats into the VC FIFO the")
+        self.comment("head chose.")
         self.comment("==========================================================================")
         self.instruction("")
         self.instruction("logic              lock_active [NUM_PORTS];")
         self.instruction("logic              lock_active_next [NUM_PORTS];")
         self.instruction("logic [PORT_W-1:0] lock_port [NUM_PORTS];")
         self.instruction("logic [PORT_W-1:0] lock_port_next [NUM_PORTS];")
+        self.instruction("logic [VC_W-1:0]   lock_vc [NUM_PORTS];")
+        self.instruction("logic [VC_W-1:0]   lock_vc_next [NUM_PORTS];")
         self.instruction("logic              in_xfer [NUM_PORTS];")
         self.instruction("logic              in_xfer_last [NUM_PORTS];")
         self.instruction("logic [PORT_W-1:0] in_cov_port [NUM_PORTS];")
         self.instruction("")
-        self.comment("Steered backpressure: an input is ready exactly when its granted")
-        self.comment("output is ready; ungranted inputs are not ready (the head beat")
-        self.comment("must wait for its grant).")
+        self.comment("Consumed flit per input: the presented flit of the selected")
+        self.comment("VC FIFO leaves when its granted output accepts it")
+        self.comment("(rd_valid gates inside the FIFO).")
         self.instruction("always_comb begin")
         self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
-        self.instruction("        s_axis_tready[p] = 1'b0;")
-        self.instruction("        in_cov_port[p]   = PORT_W'(P_LOCAL);")
+        self.instruction("        in_xfer[p]      = pres_valid[p] &&")
+        self.instruction("                          w_fifo_rd_ready[p][sel_vc[p]];")
+        self.instruction("        in_xfer_last[p] = in_xfer[p] && pres_last[p];")
+        self.instruction("    end")
+        self.instruction("end")
+        self.instruction("")
+        self.instruction("always_comb begin")
+        self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
+        self.instruction("        in_cov_port[p] = PORT_W'(P_LOCAL);")
         self.instruction("        for (int q = 0; q < NUM_PORTS; q++) begin")
         self.instruction("            if (grant_matrix[q][p]) begin")
-        self.instruction("                s_axis_tready[p] = m_axis_tready[q];")
-        self.instruction("                in_cov_port[p]   = PORT_W'(q);")
+        self.instruction("                in_cov_port[p] = PORT_W'(q);")
         self.instruction("            end")
         self.instruction("        end")
-        self.instruction("        in_xfer[p]      = s_axis_tvalid[p] && s_axis_tready[p];")
-        self.instruction("        in_xfer_last[p] = in_xfer[p] && s_axis_tlast[p];")
         self.instruction("    end")
         self.instruction("end")
         self.instruction("")
@@ -320,13 +482,15 @@ class DeltaMeshCell(Module):
         self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
         self.instruction("        lock_active_next[p] = lock_active[p];")
         self.instruction("        lock_port_next[p]   = lock_port[p];")
+        self.instruction("        lock_vc_next[p]     = lock_vc[p];")
         self.instruction("        if (lock_active[p]) begin")
         self.instruction("            if (in_xfer_last[p]) begin")
         self.instruction("                lock_active_next[p] = 1'b0;")
         self.instruction("            end")
-        self.instruction("        end else if (in_xfer[p] && !s_axis_tlast[p]) begin")
+        self.instruction("        end else if (in_xfer[p] && !pres_last[p]) begin")
         self.instruction("            lock_active_next[p] = 1'b1;")
         self.instruction("            lock_port_next[p]   = in_cov_port[p];")
+        self.instruction("            lock_vc_next[p]     = sel_vc[p];")
         self.instruction("        end")
         self.instruction("    end")
         self.instruction("end")
@@ -334,11 +498,19 @@ class DeltaMeshCell(Module):
 
     def generate_crossbar_mux(self):
         self.comment("==========================================================================")
-        self.comment("Crossbar data multiplexing")
+        self.comment("Crossbar data multiplexing + credit-gated presentation")
         self.comment("==========================================================================")
-        self.comment("Per output: forward the granted input's beat (payload streams pass")
-        self.comment("transparently -- the head-flit header rides TUSER like flat mode's")
-        self.comment("TDEST handling).")
+        self.comment("Per output: forward the granted input's presented flit")
+        self.comment("(payload streams pass transparently -- the head-flit header")
+        self.comment("rides TUSER like flat mode's TDEST handling). A flit is")
+        self.comment("presented only while the downstream credit level for its VC")
+        self.comment("is set; on the handshake it leaves the input FIFO and the")
+        self.comment("neighbor's free-slot count drops by one (its m_credit level")
+        self.comment("follows one cycle later). While a presented flit waits on a")
+        self.comment("low tready the credit level cannot change -- this link's")
+        self.comment("handshakes are the only thing that consume this VC's slots,")
+        self.comment("so the AXI payload-hold rule holds. The FIFO read enable")
+        self.comment("is the same predicate as tvalid && tready.")
         self.comment("==========================================================================")
         self.instruction("")
         self.instruction("always_comb begin")
@@ -349,10 +521,28 @@ class DeltaMeshCell(Module):
         self.instruction("        m_axis_tuser[q]  = '0;")
         self.instruction("        for (int p = 0; p < NUM_PORTS; p++) begin")
         self.instruction("            if (grant_matrix[q][p]) begin")
-        self.instruction("                m_axis_tdata[q]  = s_axis_tdata[p];")
-        self.instruction("                m_axis_tvalid[q] = s_axis_tvalid[p];")
-        self.instruction("                m_axis_tlast[q]  = s_axis_tlast[p];")
-        self.instruction("                m_axis_tuser[q]  = s_axis_tuser[p];")
+        self.instruction("                m_axis_tdata[q]  =")
+        self.instruction("                    w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH-1:0];")
+        self.instruction("                m_axis_tvalid[q] = pres_valid[p] &&")
+        self.instruction("                    s_credit[q][sel_vc[p]];")
+        self.instruction("                m_axis_tlast[q]  = pres_last[p];")
+        self.instruction("                m_axis_tuser[q]  = pres_tuser[p];")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("end")
+        self.instruction("")
+        self.instruction("always_comb begin")
+        self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
+        self.instruction("        for (int v = 0; v < NUM_VC; v++) begin")
+        self.instruction("            w_fifo_rd_ready[p][v] = 1'b0;")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("    for (int q = 0; q < NUM_PORTS; q++) begin")
+        self.instruction("        for (int p = 0; p < NUM_PORTS; p++) begin")
+        self.instruction("            if (grant_matrix[q][p]) begin")
+        self.instruction("                w_fifo_rd_ready[p][sel_vc[p]] =")
+        self.instruction("                    m_axis_tready[q] && s_credit[q][sel_vc[p]];")
         self.instruction("            end")
         self.instruction("        end")
         self.instruction("    end")
@@ -383,39 +573,23 @@ class DeltaMeshCell(Module):
         self.instruction("            if (!aresetn) begin")
         self.instruction("                lock_active[p] <= 1'b0;")
         self.instruction("                lock_port[p]   <= '0;")
+        self.instruction("                lock_vc[p]     <= '0;")
+        self.instruction("                in_pkt[p]      <= 1'b0;")
+        self.instruction("                in_vc[p]       <= '0;")
         self.instruction("            end else begin")
         self.instruction("                lock_active[p] <= lock_active_next[p];")
         self.instruction("                lock_port[p]   <= lock_port_next[p];")
+        self.instruction("                lock_vc[p]     <= lock_vc_next[p];")
+        self.instruction("                if (s_axis_tvalid[p] && s_axis_tready[p]) begin")
+        self.instruction("                    in_pkt[p] <= !s_axis_tlast[p];")
+        self.instruction("                    if (!in_pkt[p]) begin")
+        self.instruction("                        in_vc[p] <= wr_vc[p];")
+        self.instruction("                    end")
+        self.instruction("                end")
         self.instruction("            end")
         self.instruction("        )")
         self.instruction("    end")
         self.instruction("endgenerate")
-        self.instruction("")
-
-    def generate_credit_tieoff(self):
-        self.comment("==========================================================================")
-        self.comment("Credit sidebands (Task 2 tie-off)")
-        self.comment("==========================================================================")
-        self.comment("Credits are always available: m_credit is tied to 1 per VC and the")
-        self.comment("s_credit inputs are ignored. The real credit protocol lands in")
-        self.comment("Task 4; the ports exist now so later tasks do not change the shape.")
-        self.comment("==========================================================================")
-        self.instruction("generate")
-        self.instruction("    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_credit")
-        self.instruction("        assign m_credit[p] = {NUM_VC{1'b1}};")
-        self.instruction("    end")
-        self.instruction("endgenerate")
-        self.instruction("")
-        self.comment("s_credit is consumed by no logic this task; sink it for lint")
-        self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
-        self.instruction("logic unused_s_credit;")
-        self.instruction("always_comb begin")
-        self.instruction("    unused_s_credit = 1'b0;")
-        self.instruction("    for (int p = 0; p < NUM_PORTS; p++) begin")
-        self.instruction("        unused_s_credit = unused_s_credit ^ (|s_credit[p]);")
-        self.instruction("    end")
-        self.instruction("end")
-        self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
         self.instruction("")
 
     # ------------------------------------------------------------------
@@ -424,19 +598,21 @@ class DeltaMeshCell(Module):
     def verilog(self, file_path):
         self.generate_header_comment()
         self.generate_localparams()
+        self.generate_input_buffers()
         self.generate_route_compute()
         self.generate_request_matrix()
         self.generate_input_lock()
         self.generate_arbitration()
         self.generate_crossbar_mux()
         self.generate_registers()
-        self.generate_credit_tieoff()
 
         self.start()
-        # reset_defs.svh must precede the module (house ALWAYS_FF_RST macro)
+        # reset_defs.svh must precede the module (house ALWAYS_FF_RST macro);
+        # fifo_defs.svh provides fifo_mem_t for the MEM_STYLE localparam.
         self.start_instructions[0] = self.start_instructions[0].replace(
             f'module {self.module_str} #(',
-            f'`include "reset_defs.svh"\n\nmodule {self.module_str} #(')
+            '`include "reset_defs.svh"\n`include "fifo_defs.svh"\n\n'
+            f'module {self.module_str} #(')
         self.end()
         # House style: no trailing whitespace (the framework's comment("")
         # emits "// "; verible no-trailing-spaces flags it)
@@ -449,9 +625,10 @@ class DeltaMeshCell(Module):
 def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
     """Write rtl/filelists/delta_mesh.f next to the generated cell + fabric.
 
-    Sources: the cell first (the fabric top instantiates it), then the
-    fabric. The list is self-contained outside the area flow: it carries
-    the reset_defs.svh include path itself.
+    Sources: the FIFO primitives the cell's input buffers instantiate, then
+    the cell (the fabric top instantiates it), then the fabric. The list is
+    self-contained outside the area flow: it carries the include path for
+    the macro headers itself.
     """
     filelists_dir = os.path.join(output_dir, 'filelists')
     os.makedirs(filelists_dir, exist_ok=True)
@@ -467,6 +644,15 @@ def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
         except ValueError:
             return abs_path
 
+    def _repo_entry(rel_repo_path: str) -> str:
+        return f"$REPO_ROOT/{rel_repo_path}"
+
+    fifo_entries = "\n".join([
+        _repo_entry('rtl/common/counter_bin.sv'),
+        _repo_entry('rtl/common/fifo_control.sv'),
+        _repo_entry('rtl/amba/gaxi/gaxi_fifo_sync.sv'),
+    ])
+
     cell_entry = _entry('delta_mesh_cell.sv')
     fabric_name = (f"delta_mesh_fabric_{config.cells_x}"
                    f"x{config.cells_y}x{config.cells_z}.sv")
@@ -475,17 +661,20 @@ def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
     lines = [
         "# delta_mesh_cell + delta_mesh_fabric_<X>x<Y>x<Z> -- the delta mesh",
         "# router cell (7 ports: +/-X, +/-Y, +/-Z, local; head-flit header in",
-        "# TUSER, default DOR at reset) and the mesh fabric top that grids it",
-        "# (boundary cells' local ports exposed as s_local_*/m_local_* arrays).",
+        "# TUSER, default DOR at reset, per-VC input buffers with credit flow",
+        "# control) and the mesh fabric top that grids it (boundary cells'",
+        "# local ports exposed as s_local_*/m_local_* arrays).",
         "#",
         "# Generated by projects/components/fabric-gen-ip/delta/bin/delta_generator.py",
         f"#   --topology mesh --cells-x {config.cells_x} --cells-y {config.cells_y}",
         f"#   --cells-z {config.cells_z} --user-width {config.user_width}",
         f"#   (checked-in artifact from the default {config.cells_x}x{config.cells_y}x{config.cells_z} config).",
         "#",
-        "# Sources: the cell first -- the fabric top references the cell module,",
-        "# so it must compile earlier in the list. The only other dependency is",
-        "# `reset_defs.svh`, included below so the list is self-contained",
+        "# Sources: FIFO primitives first (the cell's per-port per-VC input",
+        "# buffers instantiate gaxi_fifo_sync, which needs fifo_control and",
+        "# counter_bin), then the cell -- the fabric top references the cell",
+        "# module. The only other dependencies are `reset_defs.svh` and",
+        "# `fifo_defs.svh`, included below so the list is self-contained",
         "# outside the area flow.",
         "# Root path token is $REPO_ROOT.",
         "",
@@ -493,6 +682,9 @@ def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
         "",
         "# Header files with macros (MUST be compiled first)",
         "$REPO_ROOT/rtl/amba/includes/reset_defs.svh",
+        "$REPO_ROOT/rtl/amba/includes/fifo_defs.svh",
+        "",
+        fifo_entries,
         "",
         cell_entry,
         "",

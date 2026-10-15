@@ -51,6 +51,7 @@ from CocoTBFramework.components.axis4.axis_factories import (
     create_axis_master,
     create_axis_slave,
 )
+from CocoTBFramework.components.axis4.axis_packet import AXISPacket
 from delta_mesh.header import build_header_offsets
 from TBClasses.shared.tbbase import TBBase
 
@@ -130,6 +131,12 @@ class DeltaMeshCellTB(TBBase):
             getattr(dut, f"{name}_s_axis_tlast").value = 0
             getattr(dut, f"{name}_s_axis_tuser").value = 0
             getattr(dut, f"{name}_m_axis_tready").value = 1
+            # Credits: all-ones = both VC levels set (max credits). The
+            # fabric harness ties its boundary credits internally, so only
+            # drive the signal when the harness exposes it.
+            credit = getattr(dut, f"{name}_s_credit", None)
+            if credit is not None:
+                credit.value = (1 << 2) - 1  # NUM_VC=2: 2'b11 per port
 
     def _build_bfms(self):
         # The cell carries no TSTRB/TID/TDEST: id_width=0/dest_width=0 drop
@@ -418,3 +425,267 @@ class DeltaMeshFabricTB(DeltaMeshCellTB):
             self._check_destination(f'b{dst_idx}', dst_idx, expected)
         self.log.info(
             f"delta mesh fabric all-pairs: {nb}x{nb} ordered pairs passed")
+
+
+class DeltaMeshFlowControlTB(DeltaMeshCellTB):
+    """TB for delta_mesh_cell flow control: per-VC input buffers, credit
+    sideband protocol, and packet atomicity under downstream exhaustion.
+
+    Derived from the cell TB. The harness exposes per-port s_credit inputs
+    (one credit level bit per VC); the test drives them to model the
+    downstream neighbor's advertised credits, so credit exhaustion and
+    return are directly controllable. Scenario beat/packet counts are
+    fixed (not TEST_LEVEL-scaled): the brief pins exact fill depths.
+
+    Scenario traffic: all packets are VC0 with dst (3,0,0) at POS (1,1,0),
+    whose first DOR hop is P_X_POS -- the 'xpos' output is the link under
+    test.
+    """
+
+    XPOS = 'xpos'
+
+    # ------------------------------------------------------------------
+    # Credit / monitoring helpers
+    # ------------------------------------------------------------------
+    def _drive_credit(self, port, value):
+        getattr(self.dut, f"{port}_s_credit").value = value
+
+    async def _send_burst(self, port, packets):
+        """Send whole packets back-to-back with zero producer bubble.
+
+        `packets` is a list of (header, payload) pairs. Every beat becomes
+        one AXISPacket and the whole list is queued on the master's
+        transmit pipeline in one shot (send_burst), so beats stream
+        contiguously -- per-beat `send()` would drain the pipeline between
+        beats and add producer-side gaps the scenario must not measure.
+        """
+        master = self.masters[port]
+        beats = []
+        for header, payload in packets:
+            n = len(payload)
+            for i, data in enumerate(payload):
+                beat = AXISPacket(field_config=master.field_config)
+                beat.data = data
+                beat.last = 1 if i == n - 1 else 0
+                beat.user = header if i == 0 else 0
+                if 'strb' in master.field_config:
+                    beat.strb = (1 << master.field_config['strb'].bits) - 1
+                beats.append(beat)
+        await master.send_burst(beats)
+
+    async def _wait_handshakes(self, port, n, tag):
+        """Wait until `n` tvalid&tready handshakes are observed on a port."""
+        v = getattr(self.dut, f"{port}_m_axis_tvalid")
+        r = getattr(self.dut, f"{port}_m_axis_tready")
+        for _ in range(2000):
+            await RisingEdge(self.aclk)
+            if int(v.value) and int(r.value):
+                n -= 1
+                if n == 0:
+                    return
+        raise AssertionError(f"{tag}: timed out waiting for {n} handshakes")
+
+    async def _wait_beats(self, port, n, tag):
+        """Poll a slave BFM until it has counted `n` beats."""
+        slave = self.slaves[port]
+        for _ in range(2000):
+            if slave.packets_received >= n:
+                return
+            await RisingEdge(self.aclk)
+        raise AssertionError(
+            f"{tag}: port '{port}' saw {slave.packets_received} beats, "
+            f"expected {n}")
+
+    def _frames_at(self, port):
+        """Group a slave's observed beats into TLAST-delimited frames."""
+        frames = []
+        current = []
+        for beat in self.slaves[port].get_observed_packets():
+            current.append(beat)
+            if int(beat.fields.get('last', 0)):
+                frames.append(current)
+                current = []
+        if current:
+            raise AssertionError(
+                f"flow control: port '{port}' ended mid-packet "
+                f"({len(current)} trailing beats without tlast)")
+        return frames
+
+    def _verify_frames(self, frames, expected, tag):
+        """Scoreboard frames against [(header, payload), ...].
+
+        Arrival order between packets is arbitrary; within a frame beats
+        must be exact and in order. Distinct headers per packet catch
+        duplication.
+        """
+        if len(frames) != len(expected):
+            raise AssertionError(
+                f"{tag}: got {len(frames)} frames, expected {len(expected)}")
+        by_head = {}
+        for frame in frames:
+            head = int(frame[0].fields.get('user', 0))
+            if head in by_head:
+                raise AssertionError(
+                    f"{tag}: two frames with header 0x{head:x} (duplicate)")
+            by_head[head] = frame
+        for header, payload in expected:
+            label = f"{tag}: packet 0x{header:x}"
+            frame = by_head.get(header)
+            if frame is None:
+                raise AssertionError(f"{label} never arrived")
+            if len(frame) != len(payload):
+                raise AssertionError(
+                    f"{label}: {len(frame)} beats, expected {len(payload)}")
+            for i, (beat, exp) in enumerate(zip(frame, payload)):
+                got_data = int(beat.fields['data'])
+                got_last = int(beat.fields.get('last', 0))
+                exp_last = 1 if i == len(payload) - 1 else 0
+                if got_data != exp:
+                    raise AssertionError(
+                        f"{label} beat {i}: got 0x{got_data:x}, "
+                        f"expected 0x{exp:x}")
+                if got_last != exp_last:
+                    raise AssertionError(
+                        f"{label} beat {i}: tlast {got_last}, "
+                        f"expected {exp_last}")
+
+    # ------------------------------------------------------------------
+    # Test scenarios
+    # ------------------------------------------------------------------
+    async def run_credit_exhaustion_and_drain(self):
+        """(a) Downstream credits exhausted: producer stalls once the input
+        FIFO (DEPTH=4) absorbs 4 beats, nothing is presented on the
+        credit-less link, nothing is dropped; releasing credits drains the
+        payload complete and in order."""
+        tag = "exhaustion"
+        BEATS = 6  # > input FIFO DEPTH (4): the FIFO must fill and stall
+        header = self.build_header(dst=(3, 0, 0), src=self.POS, packet_id=0xA1)
+        payload = [self.rng.getrandbits(self.DATA_WIDTH) for _ in range(BEATS)]
+
+        self._drive_credit(self.XPOS, 0)
+        sender = cocotb.start_soon(self._send_packet('local', header, payload))
+        v = self.dut.local_s_axis_tvalid
+        r = self.dut.local_s_axis_tready
+        accepted = 0
+        for _ in range(20):
+            await RisingEdge(self.aclk)
+            if int(v.value) and int(r.value):
+                accepted += 1
+        if accepted != 4:
+            raise AssertionError(
+                f"{tag}: producer accepted {accepted} beats with the xpos "
+                f"link out of credits, expected 4 (input FIFO DEPTH)")
+        if self.slaves[self.XPOS].packets_received != 0:
+            raise AssertionError(
+                f"{tag}: flits delivered on 'xpos' with zero credits")
+        if int(self.dut.xpos_m_axis_tvalid.value) != 0:
+            raise AssertionError(
+                f"{tag}: tvalid raised on 'xpos' with zero credits")
+        credit = int(self.dut.local_m_credit.value)
+        if credit != 0b10:
+            raise AssertionError(
+                f"{tag}: m_credit[local] == 2'b{credit:02b}, expected "
+                f"2'b10 (VC0 FIFO full, VC1 empty)")
+
+        self._drive_credit(self.XPOS, (1 << 2) - 1)
+        await sender
+        await self._wait_beats(self.XPOS, BEATS, tag)
+        await self.wait_clocks('aclk', 4)
+        self._verify_frames(self._frames_at(self.XPOS), [(header, payload)], tag)
+        credit = int(self.dut.local_m_credit.value)
+        if credit != 0b11:
+            raise AssertionError(
+                f"{tag}: m_credit[local] == 2'b{credit:02b} after drain, "
+                f"expected 2'b11 (both FIFOs empty)")
+        self.log.info("flow control (a): credit exhaustion stall + drain passed")
+
+    async def run_atomicity_one_credit_left(self):
+        """(b) Review Focus #3: exactly one flit of credit space left on the
+        xpos link; two sources start 4-beat packets to the same output.
+        The granted packet holds the output; no interleaving, no loss."""
+        tag = "atomicity"
+        BEATS = 4
+        # Both packets: dst (3,0,0) at POS (1,1,0) -> first DOR hop P_X_POS,
+        # so both sources contend for the 'xpos' output.
+        header_a = self.build_header(dst=(3, 0, 0), src=(0, 1, 0), packet_id=0xB1)
+        header_b = self.build_header(dst=(3, 0, 0), src=self.POS, packet_id=0xB2)
+        payload_a = [self.rng.getrandbits(self.DATA_WIDTH) for _ in range(BEATS)]
+        payload_b = [self.rng.getrandbits(self.DATA_WIDTH) for _ in range(BEATS)]
+
+        self._drive_credit(self.XPOS, 0b01)  # VC0: one space; VC1: none
+        ta = cocotb.start_soon(self._send_packet('xneg', header_a, payload_a))
+        tb = cocotb.start_soon(self._send_packet('local', header_b, payload_b))
+        await self._wait_handshakes(self.XPOS, 1, tag)
+        # The single free slot is consumed by whichever head won the grant;
+        # the link is now full -- the neighbor would advertise zero.
+        self._drive_credit(self.XPOS, 0)
+        v = self.dut.xpos_m_axis_tvalid
+        for _ in range(10):
+            await RisingEdge(self.aclk)
+            if self.slaves[self.XPOS].packets_received != 1:
+                raise AssertionError(
+                    f"{tag}: more than one flit passed on the full link")
+            if int(v.value) != 0:
+                raise AssertionError(
+                    f"{tag}: tvalid raised on the credit-less link")
+
+        self._drive_credit(self.XPOS, (1 << 2) - 1)
+        await ta
+        await tb
+        await self._wait_beats(self.XPOS, 2 * BEATS, tag)
+        await self.wait_clocks('aclk', 4)
+        self._verify_frames(self._frames_at(self.XPOS),
+                            [(header_a, payload_a), (header_b, payload_b)], tag)
+        self.log.info(
+            "flow control (b): one-credit-left atomicity: no interleaving, "
+            "no loss")
+
+    async def run_back_to_back_steady_state(self):
+        """(c) Back-to-back packets on one output sustain 1 flit/clk; the
+        only allowed idle output cycles are the documented 1-cycle bubble
+        per packet boundary (P-1 bubbles for P packets)."""
+        tag = "steady-state"
+        PKTS, BEATS = 4, 4
+        expected = []
+        for i in range(PKTS):
+            header = self.build_header(dst=(3, 0, 0), src=self.POS,
+                                       packet_id=0xC0 + i)
+            payload = [self.rng.getrandbits(self.DATA_WIDTH)
+                       for _ in range(BEATS)]
+            expected.append((header, payload))
+
+        async def monitor():
+            v = getattr(self.dut, f"{self.XPOS}_m_axis_tvalid")
+            r = getattr(self.dut, f"{self.XPOS}_m_axis_tready")
+            hs = 0
+            idle = 0
+            started = False
+            for _ in range(5000):
+                await RisingEdge(self.aclk)
+                if int(v.value) and int(r.value):
+                    hs += 1
+                    started = True
+                    if hs == PKTS * BEATS:
+                        return hs, idle
+                elif started:
+                    idle += 1
+            raise AssertionError(f"{tag}: monitor timed out")
+
+        mon = cocotb.start_soon(monitor())
+        # One burst, all beats queued up front: the producer streams
+        # contiguously, so the only idle cycles must be the RTL's own.
+        await self._send_burst('local', expected)
+        hs, idle = await mon
+        if hs != PKTS * BEATS:
+            raise AssertionError(
+                f"{tag}: monitor counted {hs} handshakes, expected "
+                f"{PKTS * BEATS}")
+        if idle > PKTS - 1:
+            raise AssertionError(
+                f"{tag}: {idle} idle output cycles for {PKTS} back-to-back "
+                f"packets, expected <= {PKTS - 1} (the documented 1-cycle "
+                f"bubble per packet boundary)")
+        self._verify_frames(self._frames_at(self.XPOS), expected, tag)
+        self.log.info(
+            f"flow control (c): back-to-back sustained 1 flit/clk "
+            f"({idle} idle cycles, <= {PKTS - 1} allowed)")

@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
+`include "fifo_defs.svh"
 
 module delta_mesh_cell #(parameter int     DATA_WIDTH = 64,
 parameter int     USER_WIDTH = 64,
@@ -41,16 +42,31 @@ parameter int     ENABLE_COUNTERS = 1 )(
 //   - User Width: 64 bits (head-flit header in TUSER)
 //   - Coordinate Width: 2 bits
 //
-// Features (Task 2 skeleton):
-//   - Power-on default DOR: dst coord vs POS per dimension in X, Y, Z
-//     order; negative port on <, positive port on >, next dimension
-//     on equal; P_LOCAL when all equal
-//   - Packet-atomic grants: output grant held until TLAST; non-head
-//     beats follow the packet's allocated output
-//   - Single VC (VC0); routing RAM tables land in Task 5
-//   - Credit sideband ports tied off (credits always available);
-//     the credit protocol lands in Task 4
-//   - No input buffers yet: direct ready/valid steering
+// Features (Task 4):
+//   - Per-port per-VC input buffers: one house gaxi_fifo_sync per
+//     port per VC (7 x NUM_VC, DEPTH=4) between s_axis acceptance
+//     and the route/grant stage; a flit word is
+//     {TUSER, TLAST, TDATA}. Acceptance is unconditional on
+//     downstream state (credits govern the output side of each
+//     link, not local admission); the port backpressures only
+//     when the selected VC FIFO is full.
+//   - Credit flow control per VC: the credit sideband carries
+//     one level per VC -- m_credit[p][vc] = the VC FIFO at port
+//     p is not full (the free-slot count, DEPTH at reset,
+//     saturated to its level form). A flit is presented on
+//     m_axis[q] only while s_credit[q][vc] is set and consumes
+//     one slot per handshake; the neighbor returns credit by
+//     draining its buffer (post-consume, one cycle later).
+//   - VC selection: the head flit's header vc bit steers the
+//     beat into the VC FIFO at intake; an idle port presents
+//     VC0 ahead of VC1; both VCs route with the same DOR.
+//   - Packet-atomic grants on FIFO outputs: the output grant is
+//     held until TLAST (a packet never interleaves with
+//     another on a link); one-cycle grant bubble per packet
+//     boundary (release cycle drops the grant, see below).
+//   - Power-on default DOR: dst coord vs POS per dimension in
+//     X, Y, Z order; P_LOCAL when all equal (routing RAM
+//     tables land in Task 5).
 //
 // ==============================================================================
 
@@ -69,22 +85,150 @@ localparam int P_Z_NEG = 4;
 localparam int P_Z_POS = 5;
 localparam int P_LOCAL = 6;
 
+// Input buffer configuration (plan-pinned DEPTH=4)
+localparam int FIFO_DEPTH = 4;
+localparam int FLIT_W     = DATA_WIDTH + USER_WIDTH + 1;
+localparam int VC_W       = (NUM_VC > 1) ? $clog2(NUM_VC) : 1;
+// FIFO memory style from the FIFO_IMPL knob: 'reg' -> AUTO
+// (register array, mux read); 'sram' -> BRAM (registered read)
+localparam fifo_mem_t P_FIFO_MEM_STYLE =
+    (FIFO_IMPL == "sram") ? FIFO_BRAM : FIFO_AUTO;
+
 // Head-flit header field offsets in TUSER, LSB-first
 // (single source of truth: bin/delta_mesh/header.py)
 localparam int HDR_DST_X_LO = 0;
 localparam int HDR_DST_Y_LO = 2;
 localparam int HDR_DST_Z_LO = 4;
+localparam int HDR_VC_LO = 15;
+localparam int HDR_VC_W  = 1;
+
+// ==========================================================================
+// Input buffers - one house FIFO per port per VC
+// ==========================================================================
+// A flit word is {TUSER, TLAST, TDATA}: the head-flit header
+// rides TUSER on the first beat and the body beats carry 0,
+// so the whole beat streams through the buffer unchanged.
+// Intake steering: the head beat's header vc bit picks the VC
+// FIFO; body beats follow the in_vc latch taken at the head's
+// acceptance (in_pkt tracks beats-since-TLAST). Acceptance is
+// unconditional on downstream state -- the port backpressures
+// only when the selected VC FIFO is full.
+// ==========================================================================
+
+logic [FLIT_W-1:0]     w_fifo_wr_data  [NUM_PORTS][NUM_VC];
+logic                  w_fifo_wr_valid [NUM_PORTS][NUM_VC];
+logic                  w_fifo_wr_ready [NUM_PORTS][NUM_VC];
+logic [FLIT_W-1:0]     w_fifo_rd_data  [NUM_PORTS][NUM_VC];
+logic                  w_fifo_rd_valid [NUM_PORTS][NUM_VC];
+logic                  w_fifo_rd_ready [NUM_PORTS][NUM_VC];
+
+logic [VC_W-1:0] wr_vc   [NUM_PORTS];
+logic            in_pkt  [NUM_PORTS];
+logic [VC_W-1:0] in_vc   [NUM_PORTS];
+
+// Intake steering and FIFO write side
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        wr_vc[p] = in_pkt[p] ? in_vc[p] :
+                    VC_W'(s_axis_tuser[p][HDR_VC_LO +: HDR_VC_W]);
+        s_axis_tready[p] = w_fifo_wr_ready[p][wr_vc[p]];
+        for (int v = 0; v < NUM_VC; v++) begin
+            w_fifo_wr_valid[p][v] = s_axis_tvalid[p] &&
+                                      (wr_vc[p] == VC_W'(v));
+            w_fifo_wr_data[p][v]  = {s_axis_tuser[p],
+                                     s_axis_tlast[p],
+                                     s_axis_tdata[p]};
+        end
+    end
+end
+
+// Per-port per-VC input FIFOs (house gaxi_fifo_sync)
+generate
+    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_input_fifo
+        for (genvar v = 0; v < NUM_VC; v++) begin : gen_vc
+            gaxi_fifo_sync #(
+                .MEM_STYLE (P_FIFO_MEM_STYLE),
+                .DATA_WIDTH(FLIT_W),
+                .DEPTH     (FIFO_DEPTH)
+            ) u_input_fifo (
+                .axi_aclk   (aclk),
+                .axi_aresetn(aresetn),
+                .wr_valid   (w_fifo_wr_valid[p][v]),
+                .wr_ready   (w_fifo_wr_ready[p][v]),
+                .wr_data    (w_fifo_wr_data[p][v]),
+                .rd_ready   (w_fifo_rd_ready[p][v]),
+                .count      (),
+                .rd_valid   (w_fifo_rd_valid[p][v]),
+                .rd_data    (w_fifo_rd_data[p][v])
+            );
+        end
+    end
+endgenerate
+
+// Credit advertisement: the credit count each link needs is
+// the free-slot count of this port's VC FIFO -- DEPTH at
+// reset, post-consume after every accepted flit. The pinned
+// sideband carries one level bit per VC, so the count rides
+// in saturated form: m_credit[p][vc] = the FIFO is not full.
+// A sender holding this level can always place one more flit
+// (the buffer itself absorbs up to DEPTH in-flight flits),
+// so the saturated count loses burst budgeting only, never
+// losslessness.
+generate
+    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_credit_adv
+        for (genvar v = 0; v < NUM_VC; v++) begin : gen_vc_lvl
+            assign m_credit[p][v] = w_fifo_wr_ready[p][v];
+        end
+    end
+endgenerate
+
+// Presented flit per port: the head of the selected VC FIFO.
+// A locked port presents its packet's VC; an idle port
+// presents VC0 ahead of VC1 (VC0 is the escape resource and
+// must never wait behind VC1).
+logic [VC_W-1:0]       sel_vc      [NUM_PORTS];
+logic                  pres_valid  [NUM_PORTS];
+logic                  pres_last   [NUM_PORTS];
+logic [USER_WIDTH-1:0] pres_tuser  [NUM_PORTS];
+
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        if (lock_active[p]) begin
+            sel_vc[p] = lock_vc[p];
+        end else begin
+            sel_vc[p] = '0;
+            for (int v = NUM_VC-1; v >= 0; v--) begin
+                if (w_fifo_rd_valid[p][v]) begin
+                    sel_vc[p] = VC_W'(v);
+                end
+            end
+        end
+    end
+end
+
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        pres_valid[p] = w_fifo_rd_valid[p][sel_vc[p]];
+        pres_last[p]  = w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH];
+        pres_tuser[p] =
+            w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH+1 +: USER_WIDTH];
+    end
+end
 
 // ==========================================================================
 // Route computation - power-on default DOR
 // ==========================================================================
-// Head flit only: the destination coordinates in TUSER are compared
-// against this cell's position, one dimension at a time in X, Y, Z
-// order. A lower coordinate takes the negative-direction port, a
-// higher coordinate the positive-direction port, an equal coordinate
-// moves to the next dimension; all equal delivers to the attached
-// host (P_LOCAL). Non-head beats do not recompute -- they follow the
-// packet's allocated output (lock_active/lock_port below) to TLAST.
+// Head flit only, computed on the presented FIFO head: the
+// destination coordinates in TUSER are compared against this
+// cell's position, one dimension at a time in X, Y, Z order.
+// A lower coordinate takes the negative-direction port, a
+// higher coordinate the positive-direction port, an equal
+// coordinate moves to the next dimension; all equal delivers
+// to the attached host (P_LOCAL). Non-head beats do not
+// recompute -- they follow the packet's allocated output
+// (lock_active/lock_port below) to TLAST. The presented
+// payload is meaningful only with pres_valid; the request
+// matrix gates on it.
 // ==========================================================================
 
 // Per-dimension signed deltas: dst coordinate minus this
@@ -96,11 +240,11 @@ logic [PORT_W-1:0]       route_req [NUM_PORTS];
 
 always_comb begin
     for (int p = 0; p < NUM_PORTS; p++) begin
-        delta_x[p] = $signed({1'b0, s_axis_tuser[p][HDR_DST_X_LO +: COORD_W]}) -
+        delta_x[p] = $signed({1'b0, pres_tuser[p][HDR_DST_X_LO +: COORD_W]}) -
                           $signed({1'b0, COORD_W'(POS_X)});
-        delta_y[p] = $signed({1'b0, s_axis_tuser[p][HDR_DST_Y_LO +: COORD_W]}) -
+        delta_y[p] = $signed({1'b0, pres_tuser[p][HDR_DST_Y_LO +: COORD_W]}) -
                           $signed({1'b0, COORD_W'(POS_Y)});
-        delta_z[p] = $signed({1'b0, s_axis_tuser[p][HDR_DST_Z_LO +: COORD_W]}) -
+        delta_z[p] = $signed({1'b0, pres_tuser[p][HDR_DST_Z_LO +: COORD_W]}) -
                           $signed({1'b0, COORD_W'(POS_Z)});
         route_req[p] = PORT_W'(P_LOCAL);
         if (delta_x[p] < 0)
@@ -121,9 +265,10 @@ end
 // ==========================================================================
 // Request matrix - which inputs want which outputs this cycle
 // ==========================================================================
-// An input with a packet in flight requests only its locked output;
-// an idle input routes its head flit (route_req). Inputs present no
-// request until granted, so a head beat is never consumed early.
+// An input with a packet in flight requests only its locked
+// output; an idle input routes its presented head flit
+// (route_req). Inputs present no request until granted, so a
+// head beat is never consumed early.
 // ==========================================================================
 
 logic [NUM_PORTS-1:0] request_matrix [NUM_PORTS];  // [output][input]
@@ -135,7 +280,7 @@ always_comb begin
     end
     for (int p = 0; p < NUM_PORTS; p++) begin
         req_port[p] = lock_active[p] ? lock_port[p] : route_req[p];
-        if (s_axis_tvalid[p]) begin
+        if (pres_valid[p]) begin
             request_matrix[req_port[p]][p] = 1'b1;
         end
     end
@@ -144,34 +289,44 @@ end
 // ==========================================================================
 // Input tracking - packet allocation per input
 // ==========================================================================
-// Once a head beat is accepted, the input locks its granted output
-// so the body beats steer to the same port; the lock releases on the
-// input's TLAST handshake. Single-beat packets never lock.
+// Once a head beat is consumed into the crossbar, the input
+// locks its granted output and VC so the body beats steer to
+// the same port from the same FIFO; the lock releases on the
+// packet's TLAST handshake. Single-beat packets never lock.
+// The in_pkt/in_vc pair is the intake mirror of the same
+// packet boundary: it steers body beats into the VC FIFO the
+// head chose.
 // ==========================================================================
 
 logic              lock_active [NUM_PORTS];
 logic              lock_active_next [NUM_PORTS];
 logic [PORT_W-1:0] lock_port [NUM_PORTS];
 logic [PORT_W-1:0] lock_port_next [NUM_PORTS];
+logic [VC_W-1:0]   lock_vc [NUM_PORTS];
+logic [VC_W-1:0]   lock_vc_next [NUM_PORTS];
 logic              in_xfer [NUM_PORTS];
 logic              in_xfer_last [NUM_PORTS];
 logic [PORT_W-1:0] in_cov_port [NUM_PORTS];
 
-// Steered backpressure: an input is ready exactly when its granted
-// output is ready; ungranted inputs are not ready (the head beat
-// must wait for its grant).
+// Consumed flit per input: the presented flit of the selected
+// VC FIFO leaves when its granted output accepts it
+// (rd_valid gates inside the FIFO).
 always_comb begin
     for (int p = 0; p < NUM_PORTS; p++) begin
-        s_axis_tready[p] = 1'b0;
-        in_cov_port[p]   = PORT_W'(P_LOCAL);
+        in_xfer[p]      = pres_valid[p] &&
+                          w_fifo_rd_ready[p][sel_vc[p]];
+        in_xfer_last[p] = in_xfer[p] && pres_last[p];
+    end
+end
+
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        in_cov_port[p] = PORT_W'(P_LOCAL);
         for (int q = 0; q < NUM_PORTS; q++) begin
             if (grant_matrix[q][p]) begin
-                s_axis_tready[p] = m_axis_tready[q];
-                in_cov_port[p]   = PORT_W'(q);
+                in_cov_port[p] = PORT_W'(q);
             end
         end
-        in_xfer[p]      = s_axis_tvalid[p] && s_axis_tready[p];
-        in_xfer_last[p] = in_xfer[p] && s_axis_tlast[p];
     end
 end
 
@@ -179,13 +334,15 @@ always_comb begin
     for (int p = 0; p < NUM_PORTS; p++) begin
         lock_active_next[p] = lock_active[p];
         lock_port_next[p]   = lock_port[p];
+        lock_vc_next[p]     = lock_vc[p];
         if (lock_active[p]) begin
             if (in_xfer_last[p]) begin
                 lock_active_next[p] = 1'b0;
             end
-        end else if (in_xfer[p] && !s_axis_tlast[p]) begin
+        end else if (in_xfer[p] && !pres_last[p]) begin
             lock_active_next[p] = 1'b1;
             lock_port_next[p]   = in_cov_port[p];
+            lock_vc_next[p]     = sel_vc[p];
         end
     end
 end
@@ -262,11 +419,19 @@ always_comb begin
 end
 
 // ==========================================================================
-// Crossbar data multiplexing
+// Crossbar data multiplexing + credit-gated presentation
 // ==========================================================================
-// Per output: forward the granted input's beat (payload streams pass
-// transparently -- the head-flit header rides TUSER like flat mode's
-// TDEST handling).
+// Per output: forward the granted input's presented flit
+// (payload streams pass transparently -- the head-flit header
+// rides TUSER like flat mode's TDEST handling). A flit is
+// presented only while the downstream credit level for its VC
+// is set; on the handshake it leaves the input FIFO and the
+// neighbor's free-slot count drops by one (its m_credit level
+// follows one cycle later). While a presented flit waits on a
+// low tready the credit level cannot change -- this link's
+// handshakes are the only thing that consume this VC's slots,
+// so the AXI payload-hold rule holds. The FIFO read enable
+// is the same predicate as tvalid && tready.
 // ==========================================================================
 
 always_comb begin
@@ -277,10 +442,28 @@ always_comb begin
         m_axis_tuser[q]  = '0;
         for (int p = 0; p < NUM_PORTS; p++) begin
             if (grant_matrix[q][p]) begin
-                m_axis_tdata[q]  = s_axis_tdata[p];
-                m_axis_tvalid[q] = s_axis_tvalid[p];
-                m_axis_tlast[q]  = s_axis_tlast[p];
-                m_axis_tuser[q]  = s_axis_tuser[p];
+                m_axis_tdata[q]  =
+                    w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH-1:0];
+                m_axis_tvalid[q] = pres_valid[p] &&
+                    s_credit[q][sel_vc[p]];
+                m_axis_tlast[q]  = pres_last[p];
+                m_axis_tuser[q]  = pres_tuser[p];
+            end
+        end
+    end
+end
+
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        for (int v = 0; v < NUM_VC; v++) begin
+            w_fifo_rd_ready[p][v] = 1'b0;
+        end
+    end
+    for (int q = 0; q < NUM_PORTS; q++) begin
+        for (int p = 0; p < NUM_PORTS; p++) begin
+            if (grant_matrix[q][p]) begin
+                w_fifo_rd_ready[p][sel_vc[p]] =
+                    m_axis_tready[q] && s_credit[q][sel_vc[p]];
             end
         end
     end
@@ -309,36 +492,22 @@ generate
             if (!aresetn) begin
                 lock_active[p] <= 1'b0;
                 lock_port[p]   <= '0;
+                lock_vc[p]     <= '0;
+                in_pkt[p]      <= 1'b0;
+                in_vc[p]       <= '0;
             end else begin
                 lock_active[p] <= lock_active_next[p];
                 lock_port[p]   <= lock_port_next[p];
+                lock_vc[p]     <= lock_vc_next[p];
+                if (s_axis_tvalid[p] && s_axis_tready[p]) begin
+                    in_pkt[p] <= !s_axis_tlast[p];
+                    if (!in_pkt[p]) begin
+                        in_vc[p] <= wr_vc[p];
+                    end
+                end
             end
         )
     end
 endgenerate
-
-// ==========================================================================
-// Credit sidebands (Task 2 tie-off)
-// ==========================================================================
-// Credits are always available: m_credit is tied to 1 per VC and the
-// s_credit inputs are ignored. The real credit protocol lands in
-// Task 4; the ports exist now so later tasks do not change the shape.
-// ==========================================================================
-generate
-    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_credit
-        assign m_credit[p] = {NUM_VC{1'b1}};
-    end
-endgenerate
-
-// s_credit is consumed by no logic this task; sink it for lint
-/* verilator lint_off UNUSEDSIGNAL */
-logic unused_s_credit;
-always_comb begin
-    unused_s_credit = 1'b0;
-    for (int p = 0; p < NUM_PORTS; p++) begin
-        unused_s_credit = unused_s_credit ^ (|s_credit[p]);
-    end
-end
-/* verilator lint_on UNUSEDSIGNAL */
 
 endmodule

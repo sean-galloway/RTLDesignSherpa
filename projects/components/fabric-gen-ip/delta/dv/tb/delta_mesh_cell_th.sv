@@ -16,8 +16,9 @@
 //       instantiated here at POS (1,1,0) of the 4x4x1 grid).
 //      If that generator command changes, this port list must follow it.
 //
-// Credit sidebands: Task 2 ties s_credit to '1 (credits available) and
-// exposes m_credit as outputs; the credit protocol itself lands in Task 4.
+// Credit sidebands: s_credit is driven per port per VC by the test (modeling
+// the downstream neighbor's advertised credits); m_credit is the credit
+// count this cell advertises for its own input buffers (Task 4 protocol).
 //
 // Subsystem: delta (dv)
 //
@@ -43,6 +44,7 @@ module delta_mesh_cell_th #(
     output logic                  xneg_s_axis_tready,
     input  logic                  xneg_s_axis_tlast,
     input  logic [USER_WIDTH-1:0] xneg_s_axis_tuser,
+    input  logic [NUM_VC-1:0]     xneg_s_credit,
     output logic [DATA_WIDTH-1:0] xneg_m_axis_tdata,
     output logic                  xneg_m_axis_tvalid,
     input  logic                  xneg_m_axis_tready,
@@ -55,6 +57,7 @@ module delta_mesh_cell_th #(
     output logic                  xpos_s_axis_tready,
     input  logic                  xpos_s_axis_tlast,
     input  logic [USER_WIDTH-1:0] xpos_s_axis_tuser,
+    input  logic [NUM_VC-1:0]     xpos_s_credit,
     output logic [DATA_WIDTH-1:0] xpos_m_axis_tdata,
     output logic                  xpos_m_axis_tvalid,
     input  logic                  xpos_m_axis_tready,
@@ -67,6 +70,7 @@ module delta_mesh_cell_th #(
     output logic                  yneg_s_axis_tready,
     input  logic                  yneg_s_axis_tlast,
     input  logic [USER_WIDTH-1:0] yneg_s_axis_tuser,
+    input  logic [NUM_VC-1:0]     yneg_s_credit,
     output logic [DATA_WIDTH-1:0] yneg_m_axis_tdata,
     output logic                  yneg_m_axis_tvalid,
     input  logic                  yneg_m_axis_tready,
@@ -79,6 +83,7 @@ module delta_mesh_cell_th #(
     output logic                  ypos_s_axis_tready,
     input  logic                  ypos_s_axis_tlast,
     input  logic [USER_WIDTH-1:0] ypos_s_axis_tuser,
+    input  logic [NUM_VC-1:0]     ypos_s_credit,
     output logic [DATA_WIDTH-1:0] ypos_m_axis_tdata,
     output logic                  ypos_m_axis_tvalid,
     input  logic                  ypos_m_axis_tready,
@@ -91,6 +96,7 @@ module delta_mesh_cell_th #(
     output logic                  zneg_s_axis_tready,
     input  logic                  zneg_s_axis_tlast,
     input  logic [USER_WIDTH-1:0] zneg_s_axis_tuser,
+    input  logic [NUM_VC-1:0]     zneg_s_credit,
     output logic [DATA_WIDTH-1:0] zneg_m_axis_tdata,
     output logic                  zneg_m_axis_tvalid,
     input  logic                  zneg_m_axis_tready,
@@ -103,6 +109,7 @@ module delta_mesh_cell_th #(
     output logic                  zpos_s_axis_tready,
     input  logic                  zpos_s_axis_tlast,
     input  logic [USER_WIDTH-1:0] zpos_s_axis_tuser,
+    input  logic [NUM_VC-1:0]     zpos_s_credit,
     output logic [DATA_WIDTH-1:0] zpos_m_axis_tdata,
     output logic                  zpos_m_axis_tvalid,
     input  logic                  zpos_m_axis_tready,
@@ -115,6 +122,7 @@ module delta_mesh_cell_th #(
     output logic                  local_s_axis_tready,
     input  logic                  local_s_axis_tlast,
     input  logic [USER_WIDTH-1:0] local_s_axis_tuser,
+    input  logic [NUM_VC-1:0]     local_s_credit,
     output logic [DATA_WIDTH-1:0] local_m_axis_tdata,
     output logic                  local_m_axis_tvalid,
     input  logic                  local_m_axis_tready,
@@ -146,6 +154,7 @@ module delta_mesh_cell_th #(
     assign xneg_s_axis_tready = w_s_tready[0];
     assign w_s_tlast[0]  = xneg_s_axis_tlast;
     assign w_s_tuser[0]  = xneg_s_axis_tuser;
+    assign w_s_credit[0] = xneg_s_credit;
     assign xneg_m_axis_tdata  = w_m_tdata[0];
     assign xneg_m_axis_tvalid = w_m_tvalid[0];
     assign w_m_tready[0] = xneg_m_axis_tready;
@@ -158,6 +167,7 @@ module delta_mesh_cell_th #(
     assign xpos_s_axis_tready = w_s_tready[1];
     assign w_s_tlast[1]  = xpos_s_axis_tlast;
     assign w_s_tuser[1]  = xpos_s_axis_tuser;
+    assign w_s_credit[1] = xpos_s_credit;
     assign xpos_m_axis_tdata  = w_m_tdata[1];
     assign xpos_m_axis_tvalid = w_m_tvalid[1];
     assign w_m_tready[1] = xpos_m_axis_tready;
@@ -170,6 +180,7 @@ module delta_mesh_cell_th #(
     assign yneg_s_axis_tready = w_s_tready[2];
     assign w_s_tlast[2]  = yneg_s_axis_tlast;
     assign w_s_tuser[2]  = yneg_s_axis_tuser;
+    assign w_s_credit[2] = yneg_s_credit;
     assign yneg_m_axis_tdata  = w_m_tdata[2];
     assign yneg_m_axis_tvalid = w_m_tvalid[2];
     assign w_m_tready[2] = yneg_m_axis_tready;
@@ -182,6 +193,7 @@ module delta_mesh_cell_th #(
     assign ypos_s_axis_tready = w_s_tready[3];
     assign w_s_tlast[3]  = ypos_s_axis_tlast;
     assign w_s_tuser[3]  = ypos_s_axis_tuser;
+    assign w_s_credit[3] = ypos_s_credit;
     assign ypos_m_axis_tdata  = w_m_tdata[3];
     assign ypos_m_axis_tvalid = w_m_tvalid[3];
     assign w_m_tready[3] = ypos_m_axis_tready;
@@ -194,6 +206,7 @@ module delta_mesh_cell_th #(
     assign zneg_s_axis_tready = w_s_tready[4];
     assign w_s_tlast[4]  = zneg_s_axis_tlast;
     assign w_s_tuser[4]  = zneg_s_axis_tuser;
+    assign w_s_credit[4] = zneg_s_credit;
     assign zneg_m_axis_tdata  = w_m_tdata[4];
     assign zneg_m_axis_tvalid = w_m_tvalid[4];
     assign w_m_tready[4] = zneg_m_axis_tready;
@@ -206,6 +219,7 @@ module delta_mesh_cell_th #(
     assign zpos_s_axis_tready = w_s_tready[5];
     assign w_s_tlast[5]  = zpos_s_axis_tlast;
     assign w_s_tuser[5]  = zpos_s_axis_tuser;
+    assign w_s_credit[5] = zpos_s_credit;
     assign zpos_m_axis_tdata  = w_m_tdata[5];
     assign zpos_m_axis_tvalid = w_m_tvalid[5];
     assign w_m_tready[5] = zpos_m_axis_tready;
@@ -218,6 +232,7 @@ module delta_mesh_cell_th #(
     assign local_s_axis_tready = w_s_tready[6];
     assign w_s_tlast[6]  = local_s_axis_tlast;
     assign w_s_tuser[6]  = local_s_axis_tuser;
+    assign w_s_credit[6] = local_s_credit;
     assign local_m_axis_tdata  = w_m_tdata[6];
     assign local_m_axis_tvalid = w_m_tvalid[6];
     assign w_m_tready[6] = local_m_axis_tready;
@@ -225,12 +240,8 @@ module delta_mesh_cell_th #(
     assign local_m_axis_tuser = w_m_tuser[6];
     assign local_m_credit = w_m_credit[6];
 
-    // Task 2 credit tie-off: credits always available; the s_credit inputs
-    // are ignored by the DUT this task (protocol lands in Task 4).
-    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_credit_tieoff
-        assign w_s_credit[p] = {NUM_VC{1'b1}};
-    end
-
+    // Credit sidebands: driven per port per VC by the test bench (s_credit
+    // models the downstream neighbor's advertised credit levels).
     delta_mesh_cell #(
         .DATA_WIDTH(DATA_WIDTH),
         .USER_WIDTH(USER_WIDTH),
