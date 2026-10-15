@@ -1309,6 +1309,16 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
             "barrier at 4, all-pairs intact")
 
     # ------------------------------------------------------------------
+    # Multicast helper used by mode-5 validation (Task 8) and by the
+    # dedicated multicast test class below.
+    # ------------------------------------------------------------------
+    def build_mcast_header(self, src, packet_id, qos=1, vc=0):
+        """Header for a multicast packet; dst is rewritten to the source
+        coordinate so it is not mistaken for an ordinary unicast."""
+        return self.build_header(dst=src, src=src, qos=qos, vc=vc,
+                                 packet_id=packet_id, mcast=1)
+
+    # ------------------------------------------------------------------
     # Scenario (b): mode images 2/5/6 + RAM-intact across switches
     # ------------------------------------------------------------------
     async def run_mode_images(self):
@@ -1325,13 +1335,17 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
         await self._expect_delivery(1, (0, 0, 0), 1, f"{tag}:m2-degenerate")
         self._check_no_new_frames(counts, allowed={0, 1}, tag=f"{tag}:m2")
 
-        # --- mode 5: broadcast placeholder (DOR image; replication
-        #     lands with Task 8) -- selection + multi-hop delivery ---
+        # --- mode 5: broadcast placeholder -- with Task 8 replication,
+        #     a multicast packet reaches every local output exactly once.
+        #     The mcast path ignores the mode image (VC0-only, runtime
+        #     BFS-tree flood), so this validates mode 5 selection and the
+        #     full-fabric delivery contract.
         await self._switch_and_wait(0, 5, 8, tag)
         counts = self._data_frame_counts()
-        await self._expect_delivery(0, (1, 1, 0), 3, f"{tag}:m5-multihop")
-        await self._expect_delivery(3, (0, 0, 0), 0, f"{tag}:m5-back")
-        self._check_no_new_frames(counts, allowed={0, 3}, tag=f"{tag}:m5")
+        nb = len(self.BOUNDARY_COORDS)
+        await DeltaMeshMulticastTB.run_mcast_full_fabric(self, src_bidx=0)
+        self._check_no_new_frames(counts, allowed=set(range(nb)),
+                                  tag=f"{tag}:m5")
 
         # --- mode 3: wavefront-2D -- minimal DOR image; select + deliver:
         #     x-first leg from the y row, y-leg from the x column ---
@@ -1408,9 +1422,9 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
         self._check_no_new_frames(counts, allowed={1}, tag=f"{tag}:ram-custom2")
 
         # final accounting: b0 = 6 deliveries + 28 acks (seven switches);
-        # b1 = 5 deliveries + 4 config responses; b2 = 1; b3 = 1.
+        # b1 = 6 deliveries + 4 config responses; b2 = 2; b3 = 1.
         await self.wait_clocks('aclk', 10)
-        exp_counts = {0: 6, 1: 9, 2: 1, 3: 1}
+        exp_counts = {0: 6, 1: 10, 2: 2, 3: 1}
         got_counts = self._data_frame_counts()
         if got_counts != exp_counts:
             raise AssertionError(
@@ -1619,7 +1633,7 @@ class DeltaMeshTetradTB(DeltaMeshModesTB):
     """
 
     # The fabric's inter-cell port indices (pinned in delta_mesh_cell and
-    # mirrored by fabric.py): 0..5 axis, 6 = P_DIA, 7 = P_LOCAL.
+    # mirrored by fabric.py): 0..5 axis, 6 = P_DIA, 7 = P_DIA2, 8 = P_LOCAL.
     P_DIA_IDX = P_DIA
     AXIS_IDXS = (0, 1, 2, 3, 4, 5)
 
@@ -2836,3 +2850,150 @@ class DeltaMeshTileTB(DeltaMeshTetradTB):
                 f"the isolated P_DIA2 burst ({axis_hits} samples) -- "
                 "a hidden multi-hop detour carried traffic")
         return dia_cycles
+
+
+class DeltaMeshMulticastTB(DeltaMeshModesTB):
+    """TB for Task 8 multicast: VC0-only, BRCP-conformed BFS-tree flood,
+    source-side replication per cell, no responses.
+
+    Reuses the 2x2x1 fabric harness.  Multicast packets are single-beat
+    (the RTL replication stage is single-beat in this task) with
+    mcast=1, qos=1 (latency data class), vc=0, and src set to the
+    multicast source coordinate.  dst is set equal to src (ignored by
+    the datapath but keeps the header unambiguous).
+    """
+
+    async def run_mcast_full_fabric(self, src_bidx=0):
+        """A single multicast from b{src_bidx} reaches every local output
+        exactly once."""
+        tag = "mcast-full-fabric"
+        nb = len(self.BOUNDARY_COORDS)
+        before = self._data_frame_counts()
+        header = self.build_mcast_header(
+            src=self.BOUNDARY_COORDS[src_bidx],
+            packet_id=self._next_pid())
+        payload = [0xCAFE_0000_0000_0000 | (src_bidx << 56)]
+        await self._send_packet(f'b{src_bidx}', header, payload)
+
+        expected_per_dst = {
+            dst_idx: {(src_bidx, dst_idx): (header, payload)}
+            for dst_idx in range(nb)
+        }
+        for dst_idx in range(nb):
+            await self._wait_frames(f'b{dst_idx}', before[dst_idx] + 1)
+
+        await self.wait_clocks('aclk', 10)
+        for dst_idx in range(nb):
+            frames = self._group_frames(f'b{dst_idx}', tag)
+            if len(frames) != before[dst_idx] + 1:
+                raise AssertionError(
+                    f"{tag}: boundary b{dst_idx} received {len(frames)} "
+                    f"data frames, expected {before[dst_idx] + 1}")
+            self._match_expected_frames(f'b{dst_idx}', dst_idx,
+                                        expected_per_dst[dst_idx],
+                                        frames[before[dst_idx]:], tag)
+        self._check_zero_err(tag)
+        self.log.info(
+            f"delta mesh multicast (a): b{src_bidx} mcast reached all "
+            f"{nb} locals exactly once")
+
+    async def run_mcast_response_drop(self, src_bidx=0):
+        """A response-shaped unicast (dst == multicast source, mcast=0)
+        injected at a different boundary is dropped at injection and
+        counted; the fabric does not deadlock."""
+        tag = "mcast-response-drop"
+        nb = len(self.BOUNDARY_COORDS)
+        resp_src_bidx = (src_bidx + 1) % nb
+        before = self._data_frame_counts()
+        before_err = self._err(resp_src_bidx)
+
+        # Response-shaped packet: claims to return to the multicast source
+        # coordinate, with mcast clear, injected away from that source.
+        src_coord = self.BOUNDARY_COORDS[src_bidx]
+        header = self.build_header(dst=src_coord, src=src_coord,
+                                   qos=1, packet_id=self._next_pid())
+        payload = [0xBAD0_0000_0000_0000]
+        await self._send_packet(f'b{resp_src_bidx}', header, payload)
+
+        for _ in range(200):
+            await RisingEdge(self.aclk)
+            if self._err(resp_src_bidx) == before_err + 1:
+                break
+        else:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt at b{resp_src_bidx} == "
+                f"{self._err(resp_src_bidx)}, expected {before_err + 1}")
+
+        await self.wait_clocks('aclk', 50)
+        after = self._data_frame_counts()
+        for bidx, count in after.items():
+            if count != before[bidx]:
+                raise AssertionError(
+                    f"{tag}: boundary b{bidx} gained {count - before[bidx]} "
+                    "unexpected data frames from the response-shaped packet")
+        self.log.info(
+            "delta mesh multicast (b): response-shaped packet dropped at "
+            f"b{resp_src_bidx}, err_drop_cnt = {self._err(resp_src_bidx)}")
+
+    async def run_mcast_deadlock_soak(self):
+        """Random unicast background plus periodic multicast on the 2x2x1
+        fabric: no deadlock/livelock and all expected frames deliver.
+        Seed is locked via self.SEED so the run is reproducible."""
+        tag = "mcast-deadlock-soak"
+        nb = len(self.BOUNDARY_COORDS)
+        bg_pkts = {'gate': 1000, 'func': 100000, 'full': 200000}[
+            self.TEST_LEVEL]
+        bg_per_src = bg_pkts // nb
+        mcast_interval = max(1, bg_per_src // 10)
+
+        before = self._data_frame_counts()
+        expected_increase = {bidx: 0 for bidx in range(nb)}
+        b0_mcasts = []
+
+        async def sender(src_bidx):
+            port = f'b{src_bidx}'
+            src_coord = self.BOUNDARY_COORDS[src_bidx]
+            for i in range(bg_per_src):
+                # Self-dst is allowed; it is a local delivery, not a
+                # response-shaped packet because src == pos of source.
+                dst_bidx = self.rng.randrange(nb)
+                dst_coord = self.BOUNDARY_COORDS[dst_bidx]
+                header = self.build_header(
+                    dst=dst_coord, src=src_coord, qos=1,
+                    packet_id=self._next_pid())
+                payload = [((0xB6 << 56) | (src_bidx << 48)
+                            | (dst_bidx << 40) | i)]
+                expected_increase[dst_bidx] += 1
+                await self._send_packet(port, header, payload)
+                # Periodic multicast from b0 only.
+                if src_bidx == 0 and (i + 1) % mcast_interval == 0:
+                    m_header = self.build_mcast_header(
+                        src=src_coord, packet_id=self._next_pid())
+                    m_payload = [((0xB7 << 56) | (len(b0_mcasts) << 32)
+                                  | i)]
+                    b0_mcasts.append((m_header, m_payload))
+                    for dst in range(nb):
+                        expected_increase[dst] += 1
+                    await self._send_packet(port, m_header, m_payload)
+
+        senders = [cocotb.start_soon(sender(b)) for b in range(nb)]
+        for s in senders:
+            await s
+
+        for bidx in range(nb):
+            await self._wait_frames(f'b{bidx}',
+                                    before[bidx] + expected_increase[bidx])
+
+        await self.wait_clocks('aclk', 50)
+        for bidx in range(nb):
+            got = self._data_frame_count(f'b{bidx}')
+            exp = before[bidx] + expected_increase[bidx]
+            if got != exp:
+                raise AssertionError(
+                    f"{tag}: boundary b{bidx} received {got} data frames, "
+                    f"expected {exp}")
+        self._check_zero_err(tag)
+        self.log.info(
+            f"delta mesh multicast (c): deadlock soak passed -- "
+            f"{bg_pkts} background packets + {len(b0_mcasts)} multicasts "
+            "delivered exactly")

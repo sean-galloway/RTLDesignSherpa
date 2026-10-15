@@ -603,6 +603,9 @@ logic [3:0]         r_mode;
 logic [COORD_W-1:0] head_dst_x [NUM_PORTS];
 logic [COORD_W-1:0] head_dst_y [NUM_PORTS];
 logic [COORD_W-1:0] head_dst_z [NUM_PORTS];
+logic [COORD_W-1:0] head_src_x [NUM_PORTS];
+logic [COORD_W-1:0] head_src_y [NUM_PORTS];
+logic [COORD_W-1:0] head_src_z [NUM_PORTS];
 logic [HDR_QOS_W-1:0] head_qos   [NUM_PORTS];
 logic               dst_in_range [NUM_PORTS];
 logic               head_self_cfg [NUM_PORTS];
@@ -617,6 +620,9 @@ always_comb begin
         head_dst_x[p] = pres_tuser[p][HDR_DST_X_LO +: COORD_W];
         head_dst_y[p] = pres_tuser[p][HDR_DST_Y_LO +: COORD_W];
         head_dst_z[p] = pres_tuser[p][HDR_DST_Z_LO +: COORD_W];
+        head_src_x[p] = pres_tuser[p][HDR_SRC_X_LO +: COORD_W];
+        head_src_y[p] = pres_tuser[p][HDR_SRC_Y_LO +: COORD_W];
+        head_src_z[p] = pres_tuser[p][HDR_SRC_Z_LO +: COORD_W];
         head_qos[p]   = pres_tuser[p][HDR_QOS_LO +: HDR_QOS_W];
         dst_in_range[p] = (int'(head_dst_x[p]) < GRID_X) &&
                           (int'(head_dst_y[p]) < GRID_Y) &&
@@ -770,9 +776,13 @@ always_comb begin
 //         logic consumes it (duplication), and suppressed
 //         copies must still leave no grant trace.
         special_req[p]     = drop_req[p] || bad_cfg_req[p] ||
-                             cfg_req[p] || msw_req_vec[p];
+                             cfg_req[p] || msw_req_vec[p] ||
+                             mcast_ok_req[p] || mcast_bad_req[p] ||
+                             resp_drop_req[p];
         special_consume[p] = drop_req[p] || bad_cfg_req[p] ||
                              cfg_req[p] || msw_consume[p] ||
+                             mcast_ok_req[p] || mcast_bad_req[p] ||
+                             resp_drop_req[p] ||
                              (drop_active[p] && pres_valid[p]);
         drop_active_next[p] = drop_active[p];
         if (drop_req[p] || bad_cfg_req[p]) begin
@@ -841,6 +851,204 @@ assign cfg_resp_present = cfg_resp_rd_valid &&
                           !packet_active[P_LOCAL];
 assign cfg_resp_rd_ready = cfg_resp_present &&
                            m_axis_tready[P_LOCAL];
+
+// ==========================================================================
+// Multicast flood - VC0-only single-beat BFS-tree replication
+// (Task 8)
+// ==========================================================================
+// A multicast head (mcast=1, vc=0, single beat) replicates on
+// a dimension-ordered spanning tree rooted at the header src
+// coordinate.  The tree is X-first, then Y, then Z: at each
+// cell the parent port is the one the DOR route from this
+// cell back to src would first take; children are the reverse
+// edges.  P_DIA/P_DIA2 are never multicast links.  Multi-beat
+// mcast heads, non-VC0 mcasts, and mcast packets arriving on
+// a non-parent port are dropped.  Response-shaped unicast
+// packets (dst == src, injected away from src) are also
+// dropped.  The multicast path bypasses the arbiter: the
+// head is latched into a holding register and fires to all
+// children + local in one cycle once every target output is
+// idle and has VC0 credit.
+// ==========================================================================
+
+logic [COORD_W-1:0] mcast_src_x [NUM_PORTS];
+logic [COORD_W-1:0] mcast_src_y [NUM_PORTS];
+logic [COORD_W-1:0] mcast_src_z [NUM_PORTS];
+logic               mcast_is_vc0 [NUM_PORTS];
+logic               mcast_single [NUM_PORTS];
+logic               mcast_parent_port [NUM_PORTS];
+logic [NUM_PORTS-1:0] mcast_child_mask [NUM_PORTS];
+logic                 mcast_ok_req [NUM_PORTS];
+logic                 mcast_bad_req [NUM_PORTS];
+logic                 resp_drop_req [NUM_PORTS];
+
+// Per-input multicast classification and spanning-tree
+// parent/child computation.
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        mcast_src_x[p] = pres_tuser[p][HDR_SRC_X_LO +: COORD_W];
+        mcast_src_y[p] = pres_tuser[p][HDR_SRC_Y_LO +: COORD_W];
+        mcast_src_z[p] = pres_tuser[p][HDR_SRC_Z_LO +: COORD_W];
+        mcast_is_vc0[p] = (sel_vc[p] == '0);
+        mcast_single[p] = pres_last[p];
+//         Parent port: the incoming direction matches the
+//         DOR first-hop from this cell back to the multicast
+//         source.  P_DIA/P_DIA2 are never on the tree.
+        mcast_parent_port[p] = 1'b0;
+        case (p)
+            P_X_NEG: mcast_parent_port[p] =
+                (int'(POS_X) > int'(mcast_src_x[p]));
+            P_X_POS: mcast_parent_port[p] =
+                (int'(POS_X) < int'(mcast_src_x[p]));
+            P_Y_NEG: mcast_parent_port[p] =
+                (int'(POS_X) == int'(mcast_src_x[p])) &&
+                (int'(POS_Y) > int'(mcast_src_y[p]));
+            P_Y_POS: mcast_parent_port[p] =
+                (int'(POS_X) == int'(mcast_src_x[p])) &&
+                (int'(POS_Y) < int'(mcast_src_y[p]));
+            P_Z_NEG: mcast_parent_port[p] =
+                (int'(POS_X) == int'(mcast_src_x[p])) &&
+                (int'(POS_Y) == int'(mcast_src_y[p])) &&
+                (int'(POS_Z) > int'(mcast_src_z[p]));
+            P_Z_POS: mcast_parent_port[p] =
+                (int'(POS_X) == int'(mcast_src_x[p])) &&
+                (int'(POS_Y) == int'(mcast_src_y[p])) &&
+                (int'(POS_Z) < int'(mcast_src_z[p]));
+            P_LOCAL: mcast_parent_port[p] =
+                (int'(POS_X) == int'(mcast_src_x[p])) &&
+                (int'(POS_Y) == int'(mcast_src_y[p])) &&
+                (int'(POS_Z) == int'(mcast_src_z[p]));
+            default: mcast_parent_port[p] = 1'b0;
+        endcase
+//         Child mask: all downstream neighbors on the DOR
+//         spanning tree, plus the local host.  Boundary
+//         checks suppress out-of-grid directions.
+        mcast_child_mask[p] = '0;
+        if (int'(POS_X) < int'(mcast_src_x[p])) begin
+            mcast_child_mask[p][P_X_NEG] = (POS_X > 0);
+        end else if (int'(POS_X) > int'(mcast_src_x[p])) begin
+            mcast_child_mask[p][P_X_POS] = (POS_X < GRID_X-1);
+        end else begin
+            if (POS_X > 0)
+                mcast_child_mask[p][P_X_NEG] = 1'b1;
+            if (POS_X < GRID_X-1)
+                mcast_child_mask[p][P_X_POS] = 1'b1;
+            if (int'(POS_Y) < int'(mcast_src_y[p])) begin
+                mcast_child_mask[p][P_Y_NEG] = (POS_Y > 0);
+            end else if (int'(POS_Y) > int'(mcast_src_y[p])) begin
+                mcast_child_mask[p][P_Y_POS] = (POS_Y < GRID_Y-1);
+            end else begin
+                if (POS_Y > 0)
+                    mcast_child_mask[p][P_Y_NEG] = 1'b1;
+                if (POS_Y < GRID_Y-1)
+                    mcast_child_mask[p][P_Y_POS] = 1'b1;
+                if (int'(POS_Z) < int'(mcast_src_z[p])) begin
+                    mcast_child_mask[p][P_Z_NEG] = (POS_Z > 0);
+                end else if (int'(POS_Z) > int'(mcast_src_z[p])) begin
+                    mcast_child_mask[p][P_Z_POS] = (POS_Z < GRID_Z-1);
+                end else begin
+                    if (POS_Z > 0)
+                        mcast_child_mask[p][P_Z_NEG] = 1'b1;
+                    if (POS_Z < GRID_Z-1)
+                        mcast_child_mask[p][P_Z_POS] = 1'b1;
+                end
+            end
+        end
+        mcast_child_mask[p][P_LOCAL] = 1'b1;
+//         Valid single-beat VC0 multicast on the parent port.
+        mcast_ok_req[p] = pres_valid[p] && !lock_active[p] &&
+                          !drop_active[p] && head_mcast[p] &&
+                          !pres_tuser[p][HDR_SR_PTR_LO] &&
+                          mcast_is_vc0[p] && mcast_single[p] &&
+                          mcast_parent_port[p];
+//         Malformed multicast: wrong VC, multi-beat, control
+//         class, or non-parent arrival (duplicate/loop
+//         prevention).
+        mcast_bad_req[p] = pres_valid[p] && !lock_active[p] &&
+                           !drop_active[p] && head_mcast[p] &&
+                           !pres_tuser[p][HDR_SR_PTR_LO] &&
+                           (!mcast_is_vc0[p] || !mcast_single[p] ||
+                            !mcast_parent_port[p]);
+//         Response-shaped data unicast: dst == src, injected
+//         away from the source coordinate.
+        resp_drop_req[p] = pres_valid[p] && !lock_active[p] &&
+                           !drop_active[p] && !head_mcast[p] &&
+                           !pres_tuser[p][HDR_SR_PTR_LO] &&
+                           (route_req[p] == PORT_W'(P_LOCAL)) &&
+                           (r_mode != 4'd6) &&
+                           (int'(head_dst_x[p]) == int'(mcast_src_x[p])) &&
+                           (int'(head_dst_y[p]) == int'(mcast_src_y[p])) &&
+                           (int'(head_dst_z[p]) == int'(mcast_src_z[p])) &&
+                           ((int'(POS_X) != int'(mcast_src_x[p])) ||
+                            (int'(POS_Y) != int'(mcast_src_y[p])) ||
+                            (int'(POS_Z) != int'(mcast_src_z[p])));
+    end
+end
+
+// Multicast holding register and one-cycle fan-out fire.
+logic                 mcast_hold_valid;
+logic [DATA_WIDTH-1:0] mcast_hold_tdata;
+logic [USER_WIDTH-1:0] mcast_hold_tuser;
+logic                 mcast_hold_last;
+logic [NUM_PORTS-1:0] mcast_hold_child_mask;
+logic [PORT_W-1:0]    mcast_hold_in_port;
+logic                 mcast_latch;
+logic                 mcast_fire_next;
+logic                 mcast_fire;
+logic                 mcast_consume;
+
+// Pick one valid multicast head per cycle (lowest port
+// wins) and consume it from the input FIFO.
+always_comb begin
+    mcast_latch = 1'b0;
+    mcast_hold_in_port = PORT_W'(P_LOCAL);
+    for (int p = NUM_PORTS-1; p >= 0; p--) begin
+        if (mcast_ok_req[p]) begin
+            mcast_latch = 1'b1;
+            mcast_hold_in_port = PORT_W'(p);
+        end
+    end
+    mcast_consume = mcast_latch;
+end
+
+// Fire when every target output is idle and has VC0
+// credit (the local output must also be free of a pending
+// config response).
+always_comb begin
+    mcast_fire_next = (mcast_hold_child_mask != '0);
+    for (int q = 0; q < NUM_PORTS; q++) begin
+        if (mcast_hold_child_mask[q]) begin
+            mcast_fire_next = mcast_fire_next && !packet_active[q] &&
+                              s_credit[q][0] &&
+                              ((q != P_LOCAL) || !cfg_resp_present);
+        end
+    end
+end
+
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (!aresetn) begin
+        mcast_hold_valid <= 1'b0;
+        mcast_fire       <= 1'b0;
+        mcast_hold_tdata <= '0;
+        mcast_hold_tuser <= '0;
+        mcast_hold_last  <= 1'b0;
+        mcast_hold_child_mask <= '0;
+    end else begin
+        mcast_fire <= mcast_fire_next;
+        if (mcast_latch) begin
+            mcast_hold_valid <= 1'b1;
+            mcast_hold_tdata <= pres_tdata[mcast_hold_in_port];
+            mcast_hold_tuser <= pres_tuser[mcast_hold_in_port];
+            mcast_hold_last  <= pres_last[mcast_hold_in_port];
+            mcast_hold_child_mask <=
+                mcast_child_mask[mcast_hold_in_port] |
+                (NUM_PORTS'(1) << P_LOCAL);
+        end else if (mcast_fire) begin
+            mcast_hold_valid <= 1'b0;
+            mcast_hold_child_mask <= '0;
+        end
+    end
+)
 
 // ==========================================================================
 // Mode switch - fan-out FSM, control generator, ack tally
@@ -1364,8 +1572,8 @@ always_comb begin
 //         A pending config response owns the idle local
 //         output: block fresh grant registration until
 //         it drains (a held grant is undisturbed).
-        block_arb[q]     = (q == P_LOCAL) && cfg_resp_rd_valid &&
-                           !packet_active[q];
+        block_arb[q]     = ((q == P_LOCAL) && cfg_resp_rd_valid) ||
+                          mcast_hold_child_mask[q];
         winner_bulk[q]   = 1'b0;
         for (int p = 0; p < NUM_PORTS; p++) begin
             winner_bulk[q] = winner_bulk[q] ||
@@ -1415,6 +1623,11 @@ always_comb begin
                 {{(DATA_WIDTH-RESP_W){1'b0}}, cfg_resp_rd_data};
             m_axis_tvalid[q] = 1'b1;
             m_axis_tlast[q]  = 1'b1;
+        end else if (mcast_fire && mcast_hold_child_mask[q]) begin
+            m_axis_tdata[q]  = mcast_hold_tdata;
+            m_axis_tvalid[q] = 1'b1;
+            m_axis_tlast[q]  = mcast_hold_last;
+            m_axis_tuser[q]  = mcast_hold_tuser;
         end else begin
         for (int p = 0; p < NUM_PORTS; p++) begin
             if (grant_matrix[q][p]) begin
@@ -1448,7 +1661,8 @@ always_comb begin
 //     grant path: special consumers leave the FIFO with
 //     no output side effects.
     for (int p = 0; p < NUM_PORTS; p++) begin
-        if (special_consume[p]) begin
+        if (special_consume[p] ||
+            (mcast_consume && (PORT_W'(p) == mcast_hold_in_port))) begin
             w_fifo_rd_ready[p][sel_vc[p]] = 1'b1;
         end
     end
@@ -1580,7 +1794,8 @@ always_comb begin
     drop_fire_cnt = 4'd0;
     for (int p = 0; p < NUM_PORTS; p++) begin
         drop_fire_cnt = drop_fire_cnt +
-            4'(drop_req[p] || bad_cfg_req[p]);
+            4'(drop_req[p] || bad_cfg_req[p] ||
+                mcast_bad_req[p] || resp_drop_req[p]);
     end
 end
 

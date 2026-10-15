@@ -179,7 +179,9 @@ def default_dor_image(cfg: DeltaMeshConfig) -> list[TableEntry]:
 # minimal-but-correct images. Modes 2 (systolic-1D) and 6 (convergecast)
 # carry their pinned distinct routing; modes 3/4/5/7/8 are DOR images
 # (catalog presence + selectability + acyclicity this task). Mode 5's
-# true multicast replication lands with Task 8; the torus-dependent
+# true multicast replication lands with Task 8 as a VC0-only runtime
+# BFS-tree flood rooted at the packet's header src coordinate; ordinary
+# unicast traffic in mode 5 still routes DOR. The torus-dependent
 # patterns (2's ring wrap, 4's periodic boundaries) land with Task 9.
 #
 # Task 6b pin (controller resolution): mode 9 (tetrad all-to-all K4) is
@@ -199,7 +201,7 @@ MODE_CATALOG = {
     2: "systolic-1D: +X when dst_x > pos_x else P_LOCAL (wrap is Task 9)",
     3: "wavefront-2D: minimal DOR (diagonal schedules are traffic patterns)",
     4: "stencil-3D: minimal DOR (halo dsts are one-hop DOR deliveries)",
-    5: "broadcast: minimal DOR placeholder (replication is Task 8)",
+    5: "broadcast: DOR unicast + VC0 BFS-tree multicast flood (Task 8)",
     6: "convergecast/reduce: every dst routes toward root (0,0,0)",
     7: "all-to-all/transpose: minimal DOR (permutations are traffic patterns)",
     8: "pipeline+rapids-stream: minimal DOR (the serpentine chain routes DOR)",
@@ -299,6 +301,89 @@ def mode_image(cfg: DeltaMeshConfig, mode_id: int) -> list[TableEntry]:
     return image
 
 
+def mcast_tree(src: tuple[int, int, int],
+               cfg: DeltaMeshConfig) -> dict[tuple[int, int, int], tuple[int | None, int]]:
+    """Offline mirror of the Task 8 runtime multicast spanning tree.
+
+    For a given multicast source coordinate ``src`` and grid dimensions,
+    return a map ``cell -> (parent_port, child_mask)`` describing the
+    dimension-ordered BFS tree (X-first, then Y, then Z) used by the
+    RTL.  ``parent_port`` is the port on which the cell receives its
+    single copy (``None`` for the source), and ``child_mask`` is the
+    set of downstream ports the cell replicates to (including
+    ``P_LOCAL``).  The tree covers every in-grid cell exactly once,
+    which the offline test verifies.
+    """
+    cells = [(x, y, z)
+             for z in range(cfg.cells_z)
+             for y in range(cfg.cells_y)
+             for x in range(cfg.cells_x)]
+    tree: dict[tuple[int, int, int], tuple[int | None, int]] = {}
+
+    def _child_mask(pos: tuple[int, int, int]) -> int:
+        px, py, pz = pos
+        sx, sy, sz = src
+        mask = 0
+        if px < sx:
+            if px > 0:
+                mask |= PORT_TO_MASK[P_X_NEG]
+        elif px > sx:
+            if px < cfg.cells_x - 1:
+                mask |= PORT_TO_MASK[P_X_POS]
+        else:
+            if px > 0:
+                mask |= PORT_TO_MASK[P_X_NEG]
+            if px < cfg.cells_x - 1:
+                mask |= PORT_TO_MASK[P_X_POS]
+            if py < sy:
+                if py > 0:
+                    mask |= PORT_TO_MASK[P_Y_NEG]
+            elif py > sy:
+                if py < cfg.cells_y - 1:
+                    mask |= PORT_TO_MASK[P_Y_POS]
+            else:
+                if py > 0:
+                    mask |= PORT_TO_MASK[P_Y_NEG]
+                if py < cfg.cells_y - 1:
+                    mask |= PORT_TO_MASK[P_Y_POS]
+                if pz < sz:
+                    if pz > 0:
+                        mask |= PORT_TO_MASK[P_Z_NEG]
+                elif pz > sz:
+                    if pz < cfg.cells_z - 1:
+                        mask |= PORT_TO_MASK[P_Z_POS]
+                else:
+                    if pz > 0:
+                        mask |= PORT_TO_MASK[P_Z_NEG]
+                    if pz < cfg.cells_z - 1:
+                        mask |= PORT_TO_MASK[P_Z_POS]
+        mask |= PORT_TO_MASK[P_LOCAL]
+        return mask
+
+    def _parent_port(pos: tuple[int, int, int]) -> int | None:
+        px, py, pz = pos
+        sx, sy, sz = src
+        if pos == src:
+            return None
+        if px < sx:
+            return P_X_POS
+        if px > sx:
+            return P_X_NEG
+        if py < sy:
+            return P_Y_POS
+        if py > sy:
+            return P_Y_NEG
+        if pz < sz:
+            return P_Z_POS
+        if pz > sz:
+            return P_Z_NEG
+        return None  # unreachable
+
+    for cell in cells:
+        tree[cell] = (_parent_port(cell), _child_mask(cell))
+    return tree
+
+
 def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig,
                   route_fn=None) -> None:
     """Greedy-routing simulation over the VC0 subrelation of ``image``.
@@ -321,8 +406,10 @@ def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig,
     The VC0 subrelation must be connected and acyclic (spec sec. 5.1):
     a walk that revisits a cell or steps out of the grid is a cycle; a
     missing entry or an empty mask for an in-grid dst breaks
-    connectivity. A multi-bit mask (multicast shape, Task 8) must
-    deliver on every set bit, so each bit spawns its own bounded branch.
+    connectivity. A multi-bit mask must deliver on every set bit, so each
+    bit spawns its own bounded branch. Multicast (Task 8) is not table-
+    driven; the cell's route_table continues to return one-hot masks, and
+    multicast packets are flooded at runtime on a VC0-only BFS tree.
     P_DIA steps to the diagonal mate (x^1, y^1, z) -- the mode-9 tetrad
     link (Task 6b). P_DIA2 steps to the inter-tetrad diagonal mate
     (x + (x&1 ? +1 : -1), y + (y&1 ? +1 : -1), z) -- the mode-10 tile
