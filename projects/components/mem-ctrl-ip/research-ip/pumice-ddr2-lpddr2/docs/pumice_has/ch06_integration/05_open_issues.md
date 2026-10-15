@@ -104,6 +104,28 @@ The pre-rearchitecture modules still live under `rtl/fub/OLD/`, `rtl/macro/OLD/`
 
 A known scheduler/CAM interaction: under open-page policy with gapped read traffic, a read can be fetched before its data is valid (returns zero) in a narrow timing window (reproduces at `PUMICE_SEED=2`, the burst-pause / hit-miss-oscillation pattern). **Root-cause and fix** the read-fetch gating in the open-page path before promoting the HAS to formal status. The `r_fdone` fill-complete gating in the CAMs is the relevant mechanism.
 
+### 18. Refresh-Collision Liveness Wedge at Tiny tREFI (common-IP)
+
+The refresh-pressure soak (`pumice_master.py --soak`, Nexys A7 @75 MHz) fails
+the `tREFI = 0x40` corner (~850 ns, a refresh every ~4 BL8 bursts) on **both**
+pumice (RTL 2026-10-11) and granite (fixed entry store, 2026-10-14): writes
+never complete (`done=False`, `WR HANG`) in 5/5 rounds while `mism=0`
+everywhere — a pure liveness wedge, no data corruption. `tREFI` default and
+`0xFFFF` are 5/5 clean on both. The corner is far tighter than any real DDR2
+tREFI, so this is robustness debt, not a shipping defect; no real DRAM runs
+refresh at 0x40.
+
+Suspected area: the common scheduler-plane refresh path — the arbiter's
+`w_ref_col_block` all-bank column block while `refresh_req_i/drain_i` are
+asserted interacting with the refresh grant/drain handshake and the write
+drain-in-progress indication. Under 0x40 the request line is effectively
+permanent, so any `drain waits for idle / idle waits for grant` circularity
+latches.
+
+**Next crack**: reproduce in `test_pumice_core_sched_order`-style sim with
+waves at tREFI=0x40 (the board repro is `pumice_master.py --soak`), find the
+circular wait, and re-soak silicon on both controllers.
+
 ## TODOs Before v0.2
 
 - Add bit-level pinout tables for the AXI, DFI, and cpuif (register) interfaces
