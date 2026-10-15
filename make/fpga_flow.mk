@@ -192,9 +192,18 @@ LINT_DEFINES ?= +define+USE_ASYNC_RESET
 # open (monbus group fifo counts/full, compressor tier stats, debug taps). That
 # is an integration choice, not a defect, and the module's own tests are where a
 # genuinely unconnected port gets caught.
+#
+# IMPLICIT is deliberately NOT waived: an identifier used before any declaration
+# silently becomes a 1-bit implicit wire, and Vivado scopes implicit nets per
+# module while Verilator merges same-named ones -- so sim lints clean while
+# synthesis ties the channel off. That exact fault shipped to the Genesys 2
+# amber pair rig (amber BUG-003, undeclared uart_arvalid/uart_arready) despite
+# passing every simulation. Verilator runs without -Wno-fatal here, so an
+# IMPLICIT warning is a hard lint failure. check_sv_decl_order.py complements
+# this by catching use-before-declaration of signals that ARE declared later.
 LINT_WAIVERS ?= -Wno-MULTIDRIVEN -Wno-UNUSED -Wno-UNDRIVEN -Wno-WIDTH \
                 -Wno-CASEINCOMPLETE -Wno-SELRANGE -Wno-DECLFILENAME \
-                -Wno-UNUSEDSIGNAL -Wno-VARHIDDEN -Wno-IMPLICIT \
+                -Wno-UNUSEDSIGNAL -Wno-VARHIDDEN \
                 -Wno-CASEOVERLAP -Wno-MODDUP -Wno-PINMISSING
 
 # Verilator's loop-unroll budget, when this build's RTL needs more than the

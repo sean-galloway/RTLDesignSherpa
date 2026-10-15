@@ -126,6 +126,28 @@ module amber_pair_genesys2_top #(
         .aresetn   (aresetn),
         .i_uart_rx (uart_tx_in),
         .o_uart_tx (uart_rx_out),
+        // Direct-host AXIL is a sim/cocotb-only path (USE_DIRECT_HOST=1).
+        // This board top always services the host over UART, so tie the
+        // direct-host inputs off and leave its outputs open.
+        .host_axi_awaddr  (32'b0),
+        .host_axi_awprot  (3'b0),
+        .host_axi_awvalid (1'b0),
+        .host_axi_awready (),
+        .host_axi_wdata   (32'b0),
+        .host_axi_wstrb   (4'b0),
+        .host_axi_wvalid  (1'b0),
+        .host_axi_wready  (),
+        .host_axi_bresp   (),
+        .host_axi_bvalid  (),
+        .host_axi_bready  (1'b0),
+        .host_axi_araddr  (32'b0),
+        .host_axi_arprot  (3'b0),
+        .host_axi_arvalid (1'b0),
+        .host_axi_arready (),
+        .host_axi_rdata   (),
+        .host_axi_rresp   (),
+        .host_axi_rvalid  (),
+        .host_axi_rready  (1'b0),
         .o_done    (w_done),
         .o_busy    (w_busy),
         .o_error   (w_error)

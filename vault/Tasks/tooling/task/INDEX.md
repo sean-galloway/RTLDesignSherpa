@@ -2,7 +2,7 @@
 
 # tooling — tasks
 
-**Next ID: TASK-032** — never recycle a number, even when its item closed.
+**Next ID: TASK-033** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 30 | done (kept for history) |
+| [closed/](closed/) | 31 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -29,6 +29,14 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-032** — un-waive IMPLICIT in the fpga lint gate + tie off amber
+  direct-host pins -- CLOSED 2026-10-15: `-Wno-IMPLICIT` removed from
+  `make/fpga_flow.mk` LINT_WAIVERS (fatal-by-default; would have caught amber
+  BUG-003's undeclared uart_arvalid, which both existing gates missed);
+  direct-host `host_axi_*` pins tied off/open on the amber_pair_harness
+  instantiation. 17-flow sweep with IMPLICIT unwaived: zero warnings; gate
+  teeth proven on a planted port-connection-actual repro (rc=1 vs old rc=0);
+  amber lint rc=0 post-change; board smoke re-confirmed ALL PASS.
 - **TASK-031** — delta re-home: noc-ip/delta → fabric-gen-ip/delta (component/spec
   split; NoC draft archived at noc-ip/delta_spec; ~27 refs + statuses +
   tree-topology scrub; closed 2026-10-12 in the re-home commit)
