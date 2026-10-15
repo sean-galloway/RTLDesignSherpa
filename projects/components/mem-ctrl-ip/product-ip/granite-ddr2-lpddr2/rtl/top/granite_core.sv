@@ -500,7 +500,14 @@ module granite_core
         .HAS_ZQ        (1'b0),
         .MAINT_EXTRA_WIDTH(1),
         .CLOSE_ON_DRAIN(1'b1),
-        .BANK_IN_ORDER (1'b1),   // granite = the LiteDRAM-class SKU: per-bank in-order
+        // BANK_IN_ORDER stays OFF for granite v1: measured on the A7 (2026-10-15)
+        // it halves every page-hit stream (147 vs 572 MB/s row_major). Head-of-
+        // bank as a pick MASK leaves at most one same-bank candidate, so the
+        // shared 5-stage pick pipe serializes single-bank traffic at pipeline-
+        // depth rate (4-5 cyc/col); LiteDRAM's per-bank machines are independent
+        // FSMs with no shared pipe. The LiteDRAM-class SKU needs the dedicated
+        // per-bank lite scheduler (own head/task), not a mask on this pipe.
+        .BANK_IN_ORDER (1'b0),
         .HAS_CMD_HISTORY(1'b0),
         .REF_HAS_POSTPONE(1'b0),
         .REF_HAS_PULLIN  (1'b0),
