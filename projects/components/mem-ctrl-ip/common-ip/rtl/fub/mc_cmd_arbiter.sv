@@ -239,6 +239,7 @@ module mc_cmd_arbiter
     logic [BKW-1:0]       rd_pre_bank, wr_pre_bank;
     logic [COL_WIDTH-1:0] rd_col_col,  wr_col_col;
     logic [ROW_WIDTH-1:0] rd_act_row,  wr_act_row;
+    logic [ROW_WIDTH-1:0] rd_col_row,  wr_col_row;
 
     // arg_sel COMBINATIONAL result (STAGE 1b)
     logic            w_sel_rd_col_f, w_sel_wr_col_f, w_sel_rd_act_f;
@@ -937,6 +938,36 @@ module mc_cmd_arbiter
         end
     end
 
+    // CLOSE_ON_DRAIN last-column detect: the selected column is the
+    // age-YOUNGEST same-row demand in the window (no younger same-row column
+    // can still issue behind it) and has no cross-direction same-row demand
+    // at all. Age uses the STAGE-1a matrix snapshot; same-row membership
+    // compares the live CAM fields (an entry's bank/row are fixed at insert).
+    // The col_sel==0 gate keeps this on the default age-ordered column pick:
+    // under a population-weighted col_sel a younger sibling can be picked
+    // first, and closing on the age-youngest would truncate the row.
+    logic w_rd_ylast, w_wr_ylast;
+    always_comb begin
+        w_rd_ylast = (r_rd_xpop[rd_col_s] == POPW'(0));
+        for (int j = 0; j < NUM_ENTRIES; j++) begin
+            if (rd_sch_valid_i[j] && (j != int'(rd_col_s))
+                && (f_bank(rd_sch_bank_i, PTRW'(j)) == rd_col_bank)
+                && (f_row (rd_sch_row_i,  PTRW'(j)) == rd_col_row)
+                && !r_rd_older[j*NUM_ENTRIES + int'(rd_col_s)])
+                w_rd_ylast = 1'b0;
+        end
+    end
+    always_comb begin
+        w_wr_ylast = (r_wr_xpop[wr_col_s] == POPW'(0));
+        for (int j = 0; j < NUM_ENTRIES; j++) begin
+            if (wr_sch_valid_i[j] && (j != int'(wr_col_s))
+                && (f_bank(wr_sch_bank_i, PTRW'(j)) == wr_col_bank)
+                && (f_row (wr_sch_row_i,  PTRW'(j)) == wr_col_row)
+                && !r_wr_older[j*NUM_ENTRIES + int'(wr_col_s)])
+                w_wr_ylast = 1'b0;
+        end
+    end
+
     // ---- registered pre-pick -----------------------------------------------
     // Fed by STAGE-1b arg_sel. Every consumer below (the write-first decision,
     // the class-priority mux, and the main pick) reads these, so the names are
@@ -968,21 +999,19 @@ module mc_cmd_arbiter
             rd_col_f <= w_sel_rd_col_f; rd_col_s <= w_sel_rd_col_s;
             wr_col_f <= w_sel_wr_col_f; wr_col_s <= w_sel_wr_col_s;
             rd_col_ap <= r_ap_snap[f_bank(rd_sch_bank_i, w_sel_rd_col_s)]
-                       || (CLOSE_ON_DRAIN
-                           && (r_rd_pop[w_sel_rd_col_s] == POPW'(1))
-                           && (r_rd_xpop[w_sel_rd_col_s] == POPW'(0)));
+                       || (CLOSE_ON_DRAIN && (r_col_sel == 2'd0) && w_rd_ylast);
             wr_col_ap <= r_ap_snap[f_bank(wr_sch_bank_i, w_sel_wr_col_s)]
-                       || (CLOSE_ON_DRAIN
-                           && (r_wr_pop[w_sel_wr_col_s] == POPW'(1))
-                           && (r_wr_xpop[w_sel_wr_col_s] == POPW'(0)));
+                       || (CLOSE_ON_DRAIN && (r_col_sel == 2'd0) && w_wr_ylast);
             rd_act_f <= w_sel_rd_act_f; rd_act_s <= w_sel_rd_act_s;
             wr_act_f <= w_sel_wr_act_f; wr_act_s <= w_sel_wr_act_s;
             rd_pre_f <= w_sel_rd_pre_f; rd_pre_s <= w_sel_rd_pre_s;
             wr_pre_f <= w_sel_wr_pre_f; wr_pre_s <= w_sel_wr_pre_s;
             rd_col_bank <= f_bank(rd_sch_bank_i, w_sel_rd_col_s);
             rd_col_col  <= f_col (rd_sch_col_i,  w_sel_rd_col_s);
+            rd_col_row  <= f_row (rd_sch_row_i,  w_sel_rd_col_s);
             wr_col_bank <= f_bank(wr_sch_bank_i, w_sel_wr_col_s);
             wr_col_col  <= f_col (wr_sch_col_i,  w_sel_wr_col_s);
+            wr_col_row  <= f_row (wr_sch_row_i,  w_sel_wr_col_s);
             rd_act_bank <= f_bank(rd_sch_bank_i, w_sel_rd_act_s);
             rd_act_row  <= f_row (rd_sch_row_i,  w_sel_rd_act_s);
             wr_act_bank <= f_bank(wr_sch_bank_i, w_sel_wr_act_s);
