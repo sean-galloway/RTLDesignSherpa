@@ -23,10 +23,9 @@
 
 # amber — Product Requirements (DRAFT)
 
-**Version:** 0.5 (draft, 2026-10-06)
-**Status:** nine of the eleven decision rows record a name and a date; D3
-(memory-side, now shaped by the two-top structure) and D11 (arrays, house
-primitives by rule) remain OPEN. A decision becomes DECIDED when it records
+**Version:** 0.7 (2026-10-15)
+**Status:** all eleven decision rows record a name and a date.
+A decision becomes DECIDED when it records
 a name and a date, the way the reed-solomon PRD does it.
 v0.2: D8 decided — `*_monlite` observation wrappers (never `_mon` on the
 measured paths).
@@ -57,6 +56,15 @@ set aside as a rewrite-in-waiting. D11 — **DECIDED in the documented
 shared-primitives direction: `sdpram_core`-based tag/data stores (house
 no-bespoke-SRAM rule) + `gaxi_fifo_sync` house FIFOs for the pending/fill
 queues**; FPGA attributes per GLOBAL_REQUIREMENTS.md.
+v0.7 (2026-10-15): post-RTL reconciliation, no new D-rows. Shared core
+renamed `amber_*` → `l1_*` (commit 79dc18ccb) — D9's formal scope is now
+`l1_control` / `l1_snoop_resp` / `l1_pkg`. ACE issue #106 conformance
+(`2594d73bb`): read misses issue `ReadNotSharedDirty`, `PassDirty` is
+honoured (installs M), `CleanUnique`/`MakeUnique` move to the AR channel
+with the spec encodings — Table 2.8.1's event map is implemented that way.
+`PF_GUARD` pending-fill snoop guard added (`ab308d108`, amber BUG-002);
+`amber_top` sets it, standalone benches default it off. Genesys 2 pair-rig
+bring-up board-verified; bug board BUG-001/002/003 closed.
 
 ## 1. Purpose
 
@@ -101,7 +109,7 @@ from `rtl/amba/`.
 | D6 | MESI variant | **DECIDED 2026-10-06 (Sean): plain MESI on a 3-bit state field.** MOESI's O-state is a later elaboration upgrade (encoding headroom reserved now, ~512 extra tag bits); its win — dirty→shared without a memory read — is a measurement for the pair rig, not a v1 requirement | state machine count, snoop response matrix |
 | D7 | Replacement policy | **DECIDED 2026-10-06 (Sean): policy set {LRU, tree-PLRU, FIFO, RANDOM}, default LRU.** LRU/FIFO/RANDOM match the [cache simulator](../../../../bin/apps/cache_sim/) exactly (`POLICIES = ['LRU','FIFO','RANDOM']`), so golden-model parity covers every policy both sides implement; **tree-PLRU is carried as the timing-tight fallback — the one policy with no sim golden model**, cross-checked by RTL self-checks today and a future cache_sim extension (recorded, not silently assumed). Policy stays an elaboration parameter so the sim↔RTL cross-check holds per policy | policy engine, cross-check fidelity |
 | D8 | Observation | **DECIDED 2026-10-04 (Sean): `*_monlite` wrappers, not the heavyweight `_mon`.** MonBus taps for hits, misses (class split if the model supplies it), snoops, evictions, and state transitions, observed through the `axi4_monlite` / `axil4_monlite` family — same 128-bit MonBus packets, UNIT/AGENT ids, and host tooling as `_mon`, ~1/5 the monitor gates, and a drop-and-count policy that never stalls the port. Rationale for a research cache: the observer must not perturb what it measures — a `_mon` wrapper that gates the port when its tracking tables fill would corrupt the very miss-latency numbers amber and jet exist to produce. The events D8 lists are emitted as MonBus packets and tallied by the standard agents (`monbus_tally_axil`); heavyweight `_mon` stays available as a DV cross-check, never on the measured paths. | perf counters, board capture, DV scoreboards |
-| D9 | Verification strategy | **DECIDED 2026-10-06 (Sean): Pattern-B cocotb GATE/FUNC/FULL grids over the geometry × policy × rig matrix (ACE BFMs: cocotb-framework 1.2.0); SymbiYosys scoped to the control layer — `amber_control`, `amber_snoop_resp`, the pending-fill bypass, the victim-buffer handoff — proven at the tiny 16-set/2-way geometry; cache_sim trace-replay parity across LRU/FIFO/RANDOM. The Python reference model and the FSM oracles derive from the gem5 Ruby `MESI_Two_Level` SLICC tables in [`../References/gem5-ruby-protocols/`](../References/gem5-ruby-protocols/) — `L1cache.sm`'s enumerated transient states are the derivation source for the `amber_pkg` state encoding, and every stable and transient transition is cross-checked against an executable protocol spec, not prose** | DV structure, formal areas, CI time |
+| D9 | Verification strategy | **DECIDED 2026-10-06 (Sean): Pattern-B cocotb GATE/FUNC/FULL grids over the geometry × policy × rig matrix (ACE BFMs: cocotb-framework 1.2.0); SymbiYosys scoped to the control layer — `l1_control`, `l1_snoop_resp`, the pending-fill bypass, the victim-buffer handoff — proven at the tiny 16-set/2-way geometry; cache_sim trace-replay parity across LRU/FIFO/RANDOM. The Python reference model and the FSM oracles derive from the gem5 Ruby `MESI_Two_Level` SLICC tables in [`../References/gem5-ruby-protocols/`](../References/gem5-ruby-protocols/) — `L1cache.sm`'s enumerated transient states are the derivation source for the `l1_pkg` state encoding, and every stable and transient transition is cross-checked against an executable protocol spec, not prose** | DV structure, formal areas, CI time |
 | D10 | First consumer | **DECIDED 2026-10-06 (Sean): standalone TB masters for bring-up; the gated deliverable is the pair rig — two ambers + shared memory, the coherence research rig.** STREAM attach is documented as the future integration hook (D2's GAXI choice is what makes it cheap later); the onyx rig is sequenced per onyx D10 — onyx waits behind the pair rig | integration scope, what "done" means |
 | D11 | Data/tag arrays | **DECIDED 2026-10-07 (Sean), in the documented shared-primitives direction: `sdpram_core`-based tag/data stores + `gaxi_fifo_sync` house FIFOs for the pending/fill queues**; FPGA attributes per [`../../../../GLOBAL_REQUIREMENTS.md`](../../../../GLOBAL_REQUIREMENTS.md). House no-bespoke-SRAM rule applies | area/timing headroom, the no-bespoke-SRAM rule |
 

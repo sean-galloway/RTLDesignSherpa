@@ -7,12 +7,12 @@ compile against belongs to neither of them.
 
 ## What lives here
 
-- `rtl/includes/amber_pkg.sv` — the shared package (geometry defaults,
+- `rtl/includes/l1_pkg.sv` — the shared package (geometry defaults,
   state/snoop encodings, Table 3.0 decode).
 - `rtl/fub/` — the twelve core leaf blocks: snoop kmap, tag/data arrays,
   replacement engine, snoop responder, control, pending-fill bypass, fill,
   drain, CPU frontend, monlite, victim.
-- `rtl/top/amber_core.sv` — the core itself: pure structural integration of
+- `rtl/top/l1_core.sv` — the core itself: pure structural integration of
   the twelve FUBs (MAS ch01 hierarchy).
 - `rtl/filelists/` — the per-module closure lists for everything above.
   They resolve through `$CACHE_COMMON_ROOT` (exported by
@@ -32,9 +32,11 @@ coherent-transaction issuer — lives in the consumer's own top wrapper
 block here inherits the obligation to re-run the whole verification baseline
 (proofs and golden-model parity), not assume it.
 
-Module names keep the `amber_` prefix: a rename to a neutral prefix (if ever
-wanted) is its own task with its own re-validation, and the jet documents
-already cite `amber_core` by name.
+The blocks here carry the neutral `l1_*` module/file prefix — renamed from
+`amber_*` on 2026-10-12 (commit 79dc18ccb) because anything two IPs compile
+against belongs to neither of them; the unit-level modules each IP owns
+(amber's `amber_top`/`amber_ace_top`/`amber_pair_fabric`/`amber_ace_issue`)
+keep their codename prefix.
 
 ## What deliberately does not live here (yet)
 

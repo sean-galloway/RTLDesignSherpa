@@ -33,23 +33,36 @@ the second research artifact.
 
 ## Status
 
-**Scaffolded 2026-10-04; architecture decided 2026-10-06.** The [PRD](PRD.md)
-(v0.5) carries nine of eleven decision rows closed with name and date — D1
-geometry (32 KiB/64 B/4-way center + a tiny formal config), D2 GAXI CPU-side,
-D4 ACE snoop transport, D5 write-back + write-allocate, D6 plain MESI on a
-3-bit state field, D7 replacement {LRU, tree-PLRU, FIFO, RANDOM} default LRU,
-D8 `*_monlite` observation, D9 verification (control-layer SymbiYosys +
-cache_sim parity + FSM oracles derived from the gem5 Ruby MESI_Two_Level
-SLICC tables), D10 first consumer (TB masters bring-up, pair rig the gated
-deliverable); D3 and D11 remain OPEN. The full **[Hardware Architecture
-Specification](docs/amber_has/amber_has_index.md)** (chapter book, v1.0)
-ratifies the [Pre-HAS](docs/amber_has/amber_prehas.md) sketch — two tops,
-`amber` (pair rig) and `amber_ace` (onyx rig), on a shared `amber_core`. The
-**[Micro-Architecture Specification](docs/amber_mas/amber_mas_index.md)** and
-pre-RTL **[signal-contract / K-map workbook](docs/gen_amber_contracts_kmaps.py)**
-now close the implementation decisions the HAS deferred (pipeline staging,
-array banking, FSM state encoding, replacement datapaths, interface timing).
-`rtl/`, `dv/` are still placeholders; no RTL, no testbench, no register model.
+**RTL complete and board-verified (2026-10-15).** All eleven PRD decision
+rows are closed (D3/D11 fell in v0.6, 2026-10-07). The
+**[Hardware Architecture Specification](docs/amber_has/amber_has_index.md)**
+is at v0.9 and the
+**[Micro-Architecture Specification](docs/amber_mas/amber_mas_index.md)** at
+v0.7; the pre-RTL
+**[signal-contract / K-map workbook](docs/gen_amber_contracts_kmaps.py)**
+closes the implementation decisions the HAS deferred.
+
+- **RTL:** `rtl/top/amber_top.sv` (pair rig, AXI4), `rtl/top/amber_ace_top.sv`
+  (onyx rig, ACE), `rtl/top/amber_pair_fabric.sv`, and
+  `rtl/fub/amber_ace_issue.sv` live here; the shared MESI L1 core (`l1_core`
+  + twelve `l1_*` FUBs, `l1_pkg`) lives in
+  [`../common-ip/`](../common-ip/) per the sharing contract.
+- **DV:** 19 test roots in the flat `dv/tests/` directory, on the repo-wide
+  `make/tests.mk` rails — `make clean-all && make run-all-full-parallel` is
+  the sign-off run (350/350 green at 2026-10-15). The D9 SymbiYosys targets
+  (control layer, tiny geometry) are defined under [`../../formal/`](../../../formal/).
+- **Board:** the Genesys 2 pair-rig bring-up is verified end to end — both
+  cycle injectors 20000/20000 with clean error flags and live read data in
+  the smoke sequence. See the
+  [FPGA system book](../../../fpga-systems/Genesys2/cache-ip/amber/README.md).
+- **Conformance and robustness since v0.6:** ACE issue #106
+  (`2594d73bb` — `ReadNotSharedDirty` read misses, `PassDirty` honoured with
+  M install, `CleanUnique`/`MakeUnique` on AR with spec encodings);
+  `PF_GUARD` pending-fill snoop guard (`ab308d108`, amber BUG-002);
+  boundary reset-sync per the
+  [BKM](../docs/BKM_boundary_reset_sync.md) (`003773645`). The bug board
+  (BUG-001/002/003) is fully closed as of 2026-10-15 — see
+  `vault/Tasks/amber/bug/`.
 
 ## What it teaches / why it exists
 
@@ -85,31 +98,30 @@ caching, ECC integration, virtual memory / TLB handling. See
 
 ## Layout
 
-`rtl/`, `dv/`, `docs/` exist as placeholders. When RTL lands, this directory
-follows the per-component layout of
-[`../dma-ip/stream/`](../../dma-ip/stream/README.md) (fub/macro/top split,
+`rtl/`, `dv/`, `docs/` follow the per-component layout of
+[`../dma-ip/stream/`](../dma-ip/stream/README.md) (fub/macro/top split,
 filelists registry, Pattern-B cocotb tests) and the mandatory rules in
 [`../../CLAUDE.md`](../../CLAUDE.md) (reset macros, shared `sdpram_core` /
 FIFO primitives, array syntax).
 
 RTL layout as landed (Sean, 2026-10-06 conventions; core moved to
-`../common-ip/` 2026-10-11 so jet can inherit it — see
-[`../common-ip/README.md`](../common-ip/README.md)):
+`../common-ip/` 2026-10-11 so jet can inherit it, renamed `amber_*` →
+`l1_*` 2026-10-12 — see [`../common-ip/README.md`](../common-ip/README.md)):
 
-- `rtl/includes/`, `rtl/fub/` (12 leaf blocks), `rtl/top/amber_core.sv` —
+- `rtl/includes/`, `rtl/fub/` (12 leaf blocks), `rtl/top/l1_core.sv` —
   now live in `../common-ip/rtl/`. The MESI L1 core — package, arrays,
   replacement, snoop responder, control/fill/drain/frontend/monlite/victim —
-  is shared IP; amber and jet both instantiate `amber_core` from there.
+  is shared IP; amber and jet both instantiate `l1_core` from there.
 - `rtl/fub/amber_ace_issue.sv` — the coherent-transaction issuer stays
   here: per the jet inheritance contract it is top-wrapping amber owns
-  (the Table 2.8.1 event-to-transaction map).
+  (the Table 2.8.1 event-to-transaction map, post-#106 on AR for upgrades).
 - `rtl/top/` — the integration tops, named `<ip>_top.sv`. amber has two
-  rigs sharing `amber_core`: `amber_top.sv` (pair rig, plain AXI4) and
+  rigs sharing `l1_core`: `amber_top.sv` (pair rig, plain AXI4) and
   `amber_ace_top.sv` (onyx rig, ACE).
 - `rtl/filelists/` — amber's integration lists (`amber_top.f`,
   `amber_ace_top.f`, `amber_pair_fabric.f`, `amber_ace_issue.f`) plus
   `amber_all.f`, the whole-closure list. The core/fub lists moved with
   the RTL to `../common-ip/rtl/filelists/` and resolve there through
   `$CACHE_COMMON_ROOT`.
-- `dv/tests/fub/`, `dv/tbclasses/` — Pattern-B grids (fine for a block this
-  size; larger IPs split dv/tests into fub/macro/top sub-areas).
+- `dv/tests/` (flat, 19 roots), `dv/tbclasses/` — Pattern-B grids on the
+  repo-wide make/tests.mk rails.

@@ -33,8 +33,11 @@ lockup-free cache — everything still moving while a miss is in flight),
 **onyx** is the banded stone — parallel bands, stern and orderly; the
 serializer that holds same-address traffic in strict order.
 
-The codename is the RTL identifier prefix and the module/package prefix
-(`amber_*`, `jet_*`); the DIRECTORY is the compound `<codename>-<scope>` form,
+The codename is the RTL identifier prefix and the module prefix at the unit
+level (`amber_*`, `jet_*`); the shared cache-core blocks that more than one
+IP compiles against carry the neutral `l1_*` prefix instead (see
+[`common-ip/`](common-ip/)). The DIRECTORY is the compound
+`<codename>-<scope>` form,
 mirroring the memory-controller convention — `amber-mesi-l1/`, not `amber`.
 The bare codename is how an IP is referred to in prose; the compound form is
 canonical anywhere a directory names one.
@@ -43,7 +46,7 @@ canonical anywhere a directory names one.
 
 | Directory | Codename | Scope | RTL prefix | Start here |
 |---|---|---|---|---|
-| [`common-ip/`](common-ip/) | — | Shared home for the MESI L1 core (package, twelve leaf FUBs, `amber_core`, their filelists) — instantiated by amber today, jet on its first RTL | `amber_*` (kept) | [README](common-ip/README.md) |
+| [`common-ip/`](common-ip/) | — | Shared home for the MESI L1 core (package, twelve leaf FUBs, `l1_core`, their filelists) — instantiated by amber today, jet on its first RTL | `l1_*` (shared blocks) | [README](common-ip/README.md) |
 | [`amber-mesi-l1/`](amber-mesi-l1/) | **amber** | Blocking MESI snoopy L1 cache — the research baseline | `amber_*` | [README](amber-mesi-l1/README.md) · [HAS](amber-mesi-l1/docs/amber_has/amber_has_index.md) |
 | [`jet-mesi-l1/`](jet-mesi-l1/) | **jet** | Lockup-free (MSHR) MESI snoopy L1 — the non-blocking follow-on to amber | `jet_*` | [README](jet-mesi-l1/README.md) · [HAS](jet-mesi-l1/docs/jet_has/jet_has_index.md) |
 | [`onyx-ace-ccu/`](onyx-ace-ccu/) | **onyx** | Snoop-based ACE coherency unit — the coherence manager over the house AXI4 fabric | `onyx_*` | [README](onyx-ace-ccu/README.md) · [HAS](onyx-ace-ccu/docs/onyx_has/onyx_has_index.md) |
