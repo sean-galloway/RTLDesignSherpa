@@ -206,11 +206,69 @@ class AdapterGenerator:
         # after the crossbar, not in the adapter. The adapter only does
         # timing isolation, address decode, and width conversion.
 
+        # ILA observation taps (amber bring-up; compiled out unless
+        # AMBER_ILA_DBG is defined).
+        lines.extend(self._generate_ila_taps())
+
         # Module end
         lines.append("endmodule : " + self._get_module_name())
         lines.append("")
 
         return "\n".join(lines)
+
+    def _generate_ila_taps(self) -> List[str]:
+        """ILA observation taps for the amber Genesys2 bring-up (round 5).
+
+        Emitted only for read-capable adapters and compiled to nothing unless
+        AMBER_ILA_DBG is defined (amber fpga/tcl/build_ila.tcl defines it
+        project-wide), so no other bridge build, sim, or lint ever sees these
+        nets. The taps give the adapter-internal AR gate (ar_trk_*/ar_gate_ok)
+        and the axi4_slave_rd timing wrapper (wrapper_rd_busy) post-synth
+        names, so the board ILA can tell a silicon-corrupted AR tracker from a
+        wedged read wrapper. Pure observation -- no functional effect.
+        """
+        if self.master.channels not in ("rd", "rw"):
+            return []
+        lines = []
+        lines.append("")
+        lines.append("    // -------- ILA observation taps (AMBER_ILA_DBG builds only) --------")
+        lines.append("    // Amber bring-up round 5: name the adapter-internal AR tracker,")
+        lines.append("    // AR gate, and read-wrapper terms post-synth so the board ILA can")
+        lines.append("    // distinguish a corrupted ar_trk_full from a wedged axi4_slave_rd.")
+        lines.append("    // Pure observation; compiled out unless AMBER_ILA_DBG is defined.")
+        lines.append("`ifdef AMBER_ILA_DBG")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_ar_trk_full;")
+        lines.append("    (* mark_debug = \"true\" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_wptr;")
+        lines.append("    (* mark_debug = \"true\" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_rptr;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_ar_gate_ok;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_ar_push;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_ar_pop;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_host_arvalid;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_host_arready;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_fub_arvalid;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_fub_arready;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_wrapper_rd_busy;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_fub_rvalid;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_fub_rready;")
+        lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_fub_rlast;")
+        lines.append("")
+        lines.append("    assign dbg_ad_ar_trk_full      = ar_trk_full;")
+        lines.append("    assign dbg_ad_ar_trk_wptr      = ar_trk_wptr;")
+        lines.append("    assign dbg_ad_ar_trk_rptr      = ar_trk_rptr;")
+        lines.append("    assign dbg_ad_ar_gate_ok       = ar_gate_ok;")
+        lines.append("    assign dbg_ad_ar_push          = ar_trk_push;")
+        lines.append("    assign dbg_ad_ar_pop           = ar_trk_pop;")
+        lines.append("    assign dbg_ad_host_arvalid     = host_axi_arvalid;")
+        lines.append("    assign dbg_ad_host_arready     = host_axi_arready;")
+        lines.append("    assign dbg_ad_fub_arvalid      = fub_axi_arvalid;")
+        lines.append("    assign dbg_ad_fub_arready      = fub_axi_arready;")
+        lines.append("    assign dbg_ad_wrapper_rd_busy  = wrapper_rd_busy;")
+        lines.append("    assign dbg_ad_fub_rvalid       = fub_axi_rvalid;")
+        lines.append("    assign dbg_ad_fub_rready       = fub_axi_rready;")
+        lines.append("    assign dbg_ad_fub_rlast        = fub_axi_rlast;")
+        lines.append("`endif")
+        lines.append("")
+        return lines
 
     def _generate_header(self) -> List[str]:
         """Generate file header."""
