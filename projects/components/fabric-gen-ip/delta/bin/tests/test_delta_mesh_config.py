@@ -6,8 +6,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from delta_mesh import DeltaMeshConfig, validate_mesh, header_width
-
+from delta_mesh import DeltaMeshConfig, header_width, validate_mesh
 
 DELTA_GENERATOR = Path(__file__).resolve().parents[1] / "delta_generator.py"
 
@@ -26,7 +25,7 @@ def test_header_width_formula():
     assert header_width(DeltaMeshConfig(cells_x=4, cells_y=4, cells_z=1)) == 6 * 2 + 32
 
 
-def test_mesh_parses_without_masters_or_slaves():
+def test_mesh_parses_without_masters_or_slaves(tmp_path):
     result = subprocess.run(
         [
             sys.executable,
@@ -36,25 +35,28 @@ def test_mesh_parses_without_masters_or_slaves():
             "--cells-y", "4",
             "--cells-z", "1",
             "--user-width", "64",
-            "--output-dir", "/tmp/delta_mesh_cli_test",
+            "--output-dir", str(tmp_path),
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
-    assert result.returncode == 1
-    assert "mesh RTL generation lands in Task 2" in (result.stdout + result.stderr)
+    assert result.returncode == 0
+    assert (tmp_path / "delta_mesh_cell.sv").is_file()
+    assert (tmp_path / "filelists" / "delta_mesh.f").is_file()
 
 
-def test_flat_requires_masters_and_slaves():
+def test_flat_requires_masters_and_slaves(tmp_path):
     result = subprocess.run(
         [
             sys.executable,
             str(DELTA_GENERATOR),
             "--topology", "flat",
-            "--output-dir", "/tmp/delta_flat_cli_test",
+            "--output-dir", str(tmp_path),
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 2
     err = result.stdout + result.stderr

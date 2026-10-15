@@ -1,0 +1,259 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: delta_mesh_cell_th
+// Purpose: Test harness -- pure wiring. Flattens the generated cell's
+//          unpacked-array ports ([7]) into one named port set per mesh port
+//          (xneg_, xpos_, yneg_, ypos_, zneg_, zpos_, local_) so the RDS-DV
+//          AXIS BFMs bind to each one by prefix.
+//
+// DUT: projects/components/fabric-gen-ip/delta/rtl/delta_mesh_cell.sv
+//      (module delta_mesh_cell, generated with
+//       --topology mesh --cells-x 4 --cells-y 4 --cells-z 1 --user-width 64,
+//       instantiated here at POS (1,1,0) of the 4x4x1 grid).
+//      If that generator command changes, this port list must follow it.
+//
+// Credit sidebands: Task 2 ties s_credit to '1 (credits available) and
+// exposes m_credit as outputs; the credit protocol itself lands in Task 4.
+//
+// Subsystem: delta (dv)
+//
+// Author: sean galloway
+// Created: 2026-10-14
+
+`timescale 1ns / 1ps
+
+module delta_mesh_cell_th #(
+    parameter int DATA_WIDTH = 64,
+    parameter int USER_WIDTH = 64,
+    parameter int COORD_W    = 2,
+    parameter int POS_X      = 1,
+    parameter int POS_Y      = 1,
+    parameter int POS_Z      = 0,
+    parameter int NUM_VC     = 2
+) (
+    input  logic aclk,
+    input  logic aresetn,
+
+    input  logic [DATA_WIDTH-1:0] xneg_s_axis_tdata,
+    input  logic                  xneg_s_axis_tvalid,
+    output logic                  xneg_s_axis_tready,
+    input  logic                  xneg_s_axis_tlast,
+    input  logic [USER_WIDTH-1:0] xneg_s_axis_tuser,
+    output logic [DATA_WIDTH-1:0] xneg_m_axis_tdata,
+    output logic                  xneg_m_axis_tvalid,
+    input  logic                  xneg_m_axis_tready,
+    output logic                  xneg_m_axis_tlast,
+    output logic [USER_WIDTH-1:0] xneg_m_axis_tuser,
+    output logic [NUM_VC-1:0]     xneg_m_credit,
+
+    input  logic [DATA_WIDTH-1:0] xpos_s_axis_tdata,
+    input  logic                  xpos_s_axis_tvalid,
+    output logic                  xpos_s_axis_tready,
+    input  logic                  xpos_s_axis_tlast,
+    input  logic [USER_WIDTH-1:0] xpos_s_axis_tuser,
+    output logic [DATA_WIDTH-1:0] xpos_m_axis_tdata,
+    output logic                  xpos_m_axis_tvalid,
+    input  logic                  xpos_m_axis_tready,
+    output logic                  xpos_m_axis_tlast,
+    output logic [USER_WIDTH-1:0] xpos_m_axis_tuser,
+    output logic [NUM_VC-1:0]     xpos_m_credit,
+
+    input  logic [DATA_WIDTH-1:0] yneg_s_axis_tdata,
+    input  logic                  yneg_s_axis_tvalid,
+    output logic                  yneg_s_axis_tready,
+    input  logic                  yneg_s_axis_tlast,
+    input  logic [USER_WIDTH-1:0] yneg_s_axis_tuser,
+    output logic [DATA_WIDTH-1:0] yneg_m_axis_tdata,
+    output logic                  yneg_m_axis_tvalid,
+    input  logic                  yneg_m_axis_tready,
+    output logic                  yneg_m_axis_tlast,
+    output logic [USER_WIDTH-1:0] yneg_m_axis_tuser,
+    output logic [NUM_VC-1:0]     yneg_m_credit,
+
+    input  logic [DATA_WIDTH-1:0] ypos_s_axis_tdata,
+    input  logic                  ypos_s_axis_tvalid,
+    output logic                  ypos_s_axis_tready,
+    input  logic                  ypos_s_axis_tlast,
+    input  logic [USER_WIDTH-1:0] ypos_s_axis_tuser,
+    output logic [DATA_WIDTH-1:0] ypos_m_axis_tdata,
+    output logic                  ypos_m_axis_tvalid,
+    input  logic                  ypos_m_axis_tready,
+    output logic                  ypos_m_axis_tlast,
+    output logic [USER_WIDTH-1:0] ypos_m_axis_tuser,
+    output logic [NUM_VC-1:0]     ypos_m_credit,
+
+    input  logic [DATA_WIDTH-1:0] zneg_s_axis_tdata,
+    input  logic                  zneg_s_axis_tvalid,
+    output logic                  zneg_s_axis_tready,
+    input  logic                  zneg_s_axis_tlast,
+    input  logic [USER_WIDTH-1:0] zneg_s_axis_tuser,
+    output logic [DATA_WIDTH-1:0] zneg_m_axis_tdata,
+    output logic                  zneg_m_axis_tvalid,
+    input  logic                  zneg_m_axis_tready,
+    output logic                  zneg_m_axis_tlast,
+    output logic [USER_WIDTH-1:0] zneg_m_axis_tuser,
+    output logic [NUM_VC-1:0]     zneg_m_credit,
+
+    input  logic [DATA_WIDTH-1:0] zpos_s_axis_tdata,
+    input  logic                  zpos_s_axis_tvalid,
+    output logic                  zpos_s_axis_tready,
+    input  logic                  zpos_s_axis_tlast,
+    input  logic [USER_WIDTH-1:0] zpos_s_axis_tuser,
+    output logic [DATA_WIDTH-1:0] zpos_m_axis_tdata,
+    output logic                  zpos_m_axis_tvalid,
+    input  logic                  zpos_m_axis_tready,
+    output logic                  zpos_m_axis_tlast,
+    output logic [USER_WIDTH-1:0] zpos_m_axis_tuser,
+    output logic [NUM_VC-1:0]     zpos_m_credit,
+
+    input  logic [DATA_WIDTH-1:0] local_s_axis_tdata,
+    input  logic                  local_s_axis_tvalid,
+    output logic                  local_s_axis_tready,
+    input  logic                  local_s_axis_tlast,
+    input  logic [USER_WIDTH-1:0] local_s_axis_tuser,
+    output logic [DATA_WIDTH-1:0] local_m_axis_tdata,
+    output logic                  local_m_axis_tvalid,
+    input  logic                  local_m_axis_tready,
+    output logic                  local_m_axis_tlast,
+    output logic [USER_WIDTH-1:0] local_m_axis_tuser,
+    output logic [NUM_VC-1:0]     local_m_credit
+);
+
+    // DUT port index map (pinned localparams in delta_mesh_cell):
+    //   0 = P_X_NEG, 1 = P_X_POS, 2 = P_Y_NEG, 3 = P_Y_POS,
+    //   4 = P_Z_NEG, 5 = P_Z_POS, 6 = P_LOCAL
+    localparam int NUM_PORTS = 7;
+
+    logic [DATA_WIDTH-1:0] w_s_tdata  [NUM_PORTS];
+    logic                  w_s_tvalid [NUM_PORTS];
+    logic                  w_s_tready [NUM_PORTS];
+    logic                  w_s_tlast  [NUM_PORTS];
+    logic [USER_WIDTH-1:0] w_s_tuser  [NUM_PORTS];
+    logic [DATA_WIDTH-1:0] w_m_tdata  [NUM_PORTS];
+    logic                  w_m_tvalid [NUM_PORTS];
+    logic                  w_m_tready [NUM_PORTS];
+    logic                  w_m_tlast  [NUM_PORTS];
+    logic [USER_WIDTH-1:0] w_m_tuser  [NUM_PORTS];
+    logic [NUM_VC-1:0]     w_s_credit [NUM_PORTS];
+    logic [NUM_VC-1:0]     w_m_credit [NUM_PORTS];
+
+    assign w_s_tdata[0]  = xneg_s_axis_tdata;
+    assign w_s_tvalid[0] = xneg_s_axis_tvalid;
+    assign xneg_s_axis_tready = w_s_tready[0];
+    assign w_s_tlast[0]  = xneg_s_axis_tlast;
+    assign w_s_tuser[0]  = xneg_s_axis_tuser;
+    assign xneg_m_axis_tdata  = w_m_tdata[0];
+    assign xneg_m_axis_tvalid = w_m_tvalid[0];
+    assign w_m_tready[0] = xneg_m_axis_tready;
+    assign xneg_m_axis_tlast = w_m_tlast[0];
+    assign xneg_m_axis_tuser = w_m_tuser[0];
+    assign xneg_m_credit = w_m_credit[0];
+
+    assign w_s_tdata[1]  = xpos_s_axis_tdata;
+    assign w_s_tvalid[1] = xpos_s_axis_tvalid;
+    assign xpos_s_axis_tready = w_s_tready[1];
+    assign w_s_tlast[1]  = xpos_s_axis_tlast;
+    assign w_s_tuser[1]  = xpos_s_axis_tuser;
+    assign xpos_m_axis_tdata  = w_m_tdata[1];
+    assign xpos_m_axis_tvalid = w_m_tvalid[1];
+    assign w_m_tready[1] = xpos_m_axis_tready;
+    assign xpos_m_axis_tlast = w_m_tlast[1];
+    assign xpos_m_axis_tuser = w_m_tuser[1];
+    assign xpos_m_credit = w_m_credit[1];
+
+    assign w_s_tdata[2]  = yneg_s_axis_tdata;
+    assign w_s_tvalid[2] = yneg_s_axis_tvalid;
+    assign yneg_s_axis_tready = w_s_tready[2];
+    assign w_s_tlast[2]  = yneg_s_axis_tlast;
+    assign w_s_tuser[2]  = yneg_s_axis_tuser;
+    assign yneg_m_axis_tdata  = w_m_tdata[2];
+    assign yneg_m_axis_tvalid = w_m_tvalid[2];
+    assign w_m_tready[2] = yneg_m_axis_tready;
+    assign yneg_m_axis_tlast = w_m_tlast[2];
+    assign yneg_m_axis_tuser = w_m_tuser[2];
+    assign yneg_m_credit = w_m_credit[2];
+
+    assign w_s_tdata[3]  = ypos_s_axis_tdata;
+    assign w_s_tvalid[3] = ypos_s_axis_tvalid;
+    assign ypos_s_axis_tready = w_s_tready[3];
+    assign w_s_tlast[3]  = ypos_s_axis_tlast;
+    assign w_s_tuser[3]  = ypos_s_axis_tuser;
+    assign ypos_m_axis_tdata  = w_m_tdata[3];
+    assign ypos_m_axis_tvalid = w_m_tvalid[3];
+    assign w_m_tready[3] = ypos_m_axis_tready;
+    assign ypos_m_axis_tlast = w_m_tlast[3];
+    assign ypos_m_axis_tuser = w_m_tuser[3];
+    assign ypos_m_credit = w_m_credit[3];
+
+    assign w_s_tdata[4]  = zneg_s_axis_tdata;
+    assign w_s_tvalid[4] = zneg_s_axis_tvalid;
+    assign zneg_s_axis_tready = w_s_tready[4];
+    assign w_s_tlast[4]  = zneg_s_axis_tlast;
+    assign w_s_tuser[4]  = zneg_s_axis_tuser;
+    assign zneg_m_axis_tdata  = w_m_tdata[4];
+    assign zneg_m_axis_tvalid = w_m_tvalid[4];
+    assign w_m_tready[4] = zneg_m_axis_tready;
+    assign zneg_m_axis_tlast = w_m_tlast[4];
+    assign zneg_m_axis_tuser = w_m_tuser[4];
+    assign zneg_m_credit = w_m_credit[4];
+
+    assign w_s_tdata[5]  = zpos_s_axis_tdata;
+    assign w_s_tvalid[5] = zpos_s_axis_tvalid;
+    assign zpos_s_axis_tready = w_s_tready[5];
+    assign w_s_tlast[5]  = zpos_s_axis_tlast;
+    assign w_s_tuser[5]  = zpos_s_axis_tuser;
+    assign zpos_m_axis_tdata  = w_m_tdata[5];
+    assign zpos_m_axis_tvalid = w_m_tvalid[5];
+    assign w_m_tready[5] = zpos_m_axis_tready;
+    assign zpos_m_axis_tlast = w_m_tlast[5];
+    assign zpos_m_axis_tuser = w_m_tuser[5];
+    assign zpos_m_credit = w_m_credit[5];
+
+    assign w_s_tdata[6]  = local_s_axis_tdata;
+    assign w_s_tvalid[6] = local_s_axis_tvalid;
+    assign local_s_axis_tready = w_s_tready[6];
+    assign w_s_tlast[6]  = local_s_axis_tlast;
+    assign w_s_tuser[6]  = local_s_axis_tuser;
+    assign local_m_axis_tdata  = w_m_tdata[6];
+    assign local_m_axis_tvalid = w_m_tvalid[6];
+    assign w_m_tready[6] = local_m_axis_tready;
+    assign local_m_axis_tlast = w_m_tlast[6];
+    assign local_m_axis_tuser = w_m_tuser[6];
+    assign local_m_credit = w_m_credit[6];
+
+    // Task 2 credit tie-off: credits always available; the s_credit inputs
+    // are ignored by the DUT this task (protocol lands in Task 4).
+    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_credit_tieoff
+        assign w_s_credit[p] = {NUM_VC{1'b1}};
+    end
+
+    delta_mesh_cell #(
+        .DATA_WIDTH(DATA_WIDTH),
+        .USER_WIDTH(USER_WIDTH),
+        .COORD_W(COORD_W),
+        .POS_X(POS_X),
+        .POS_Y(POS_Y),
+        .POS_Z(POS_Z),
+        .NUM_VC(NUM_VC)
+    ) u_dut (
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .s_axis_tdata(w_s_tdata),
+        .s_axis_tvalid(w_s_tvalid),
+        .s_axis_tready(w_s_tready),
+        .s_axis_tlast(w_s_tlast),
+        .s_axis_tuser(w_s_tuser),
+        .m_axis_tdata(w_m_tdata),
+        .m_axis_tvalid(w_m_tvalid),
+        .m_axis_tready(w_m_tready),
+        .m_axis_tlast(w_m_tlast),
+        .m_axis_tuser(w_m_tuser),
+        .s_credit(w_s_credit),
+        .m_credit(w_m_credit)
+    );
+
+endmodule : delta_mesh_cell_th
