@@ -14,8 +14,9 @@
 #
 # Sources: FIFO primitives first (the cell's per-port per-VC input
 # buffers instantiate gaxi_fifo_sync, which needs fifo_control and
-# counter_bin), then the cell -- the fabric top references the cell
-# module. The only other dependencies are `reset_defs.svh` and
+# counter_bin), then the house arbiter_matrix (Task 7: one instance
+# per output port), then the cell -- the fabric top references the
+# cell module. The only other dependencies are `reset_defs.svh` and
 # `fifo_defs.svh`, included below so the list is self-contained
 # outside the area flow.
 # Root path token is $REPO_ROOT.
@@ -29,6 +30,8 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 $REPO_ROOT/rtl/common/counter_bin.sv
 $REPO_ROOT/rtl/common/fifo_control.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+
+$REPO_ROOT/rtl/common/arbiter_matrix.sv
 
 $REPO_ROOT/projects/components/fabric-gen-ip/delta/rtl/delta_mesh_cell.sv
 

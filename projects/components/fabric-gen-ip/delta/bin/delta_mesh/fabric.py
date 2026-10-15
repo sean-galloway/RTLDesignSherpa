@@ -105,6 +105,8 @@ class DeltaMeshFabric(Module):
             parameter int NUM_VC = 2,
             parameter string FIFO_IMPL = "{config.fifo_impl}",
             parameter int ENABLE_COUNTERS = {1 if config.add_counters else 0},
+            parameter int AGING_LIMIT = 64,
+            parameter int BULK_MIN_CREDITS = 1,
             parameter int NUM_BOUNDARY = {self.num_boundary}
         '''
         self.params.add_param_string(param_str)
@@ -129,7 +131,8 @@ class DeltaMeshFabric(Module):
             output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY],
 
             output logic [31:0]           o_err          [NUM_BOUNDARY],
-            output logic [31:0]           o_mode_acks    [NUM_BOUNDARY]
+            output logic [31:0]           o_mode_acks    [NUM_BOUNDARY],
+            output logic [7:0]            o_bulk_starved [NUM_BOUNDARY]
         '''
         self.ports.add_port_string(port_str)
 
@@ -178,6 +181,11 @@ class DeltaMeshFabric(Module):
         self.comment("    [NUM_BOUNDARY], same index order; the origin's")
         self.comment("    entry is the Task 6 ack barrier (Task 10 reads")
         self.comment("    them via the config plane).")
+        self.comment("  - Per-cell bulk-reservation-due flags")
+        self.comment("    (delta_mesh_cell's o_bulk_starved[7:0], Task 7:")
+        self.comment("    bit p of a boundary cell's entry = that cell's")
+        self.comment("    output port p reservation is due) ride out as")
+        self.comment("    o_bulk_starved[NUM_BOUNDARY], same index order.")
         self.comment("")
         self.comment("Tie-off policy (no torus this task -- wrap links land in")
         self.comment("Task 9; --torus-* is rejected at generation time):")
@@ -305,6 +313,12 @@ class DeltaMeshFabric(Module):
         self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
         self.instruction("logic [31:0]           cell_mode_acks [X_DIM][Y_DIM][Z_DIM];")
         self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
+        self.comment("Per-cell bulk-reservation-due flags (delta_mesh_cell's")
+        self.comment("o_bulk_starved[7:0], Task 7), boundary cells exposed")
+        self.comment("in the same fashion as cell_err_drop.")
+        self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
+        self.instruction("logic [7:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];")
+        self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
         self.instruction("")
 
     # ------------------------------------------------------------------
@@ -359,6 +373,8 @@ class DeltaMeshFabric(Module):
         self.instruction("                    assign o_err[BIDX] = cell_err_drop[gx][gy][gz];")
         self.instruction("                    assign o_mode_acks[BIDX] =")
         self.instruction("                        cell_mode_acks[gx][gy][gz];")
+        self.instruction("                    assign o_bulk_starved[BIDX] =")
+        self.instruction("                        cell_bulk_starved[gx][gy][gz];")
 
     def _emit_neighbor_hookups(self):
         """Emit the six if-generate neighbor hookups (genvar-relative)."""
@@ -431,7 +447,9 @@ class DeltaMeshFabric(Module):
         self.instruction("                    .GRID_Z(Z_DIM),")
         self.instruction("                    .NUM_VC(NUM_VC),")
         self.instruction("                    .FIFO_IMPL(FIFO_IMPL),")
-        self.instruction("                    .ENABLE_COUNTERS(ENABLE_COUNTERS)")
+        self.instruction("                    .ENABLE_COUNTERS(ENABLE_COUNTERS),")
+        self.instruction("                    .AGING_LIMIT(AGING_LIMIT),")
+        self.instruction("                    .BULK_MIN_CREDITS(BULK_MIN_CREDITS)")
         self.instruction("                ) u_cell (")
         self.instruction("                    .aclk(aclk),")
         self.instruction("                    .aresetn(aresetn),")
@@ -448,7 +466,8 @@ class DeltaMeshFabric(Module):
         self.instruction("                    .s_credit(cell_s_credit[gx][gy][gz]),")
         self.instruction("                    .m_credit(cell_m_credit[gx][gy][gz]),")
         self.instruction("                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz]),")
-        self.instruction("                    .o_mode_acks(cell_mode_acks[gx][gy][gz])")
+        self.instruction("                    .o_mode_acks(cell_mode_acks[gx][gy][gz]),")
+        self.instruction("                    .o_bulk_starved(cell_bulk_starved[gx][gy][gz])")
         self.instruction("                );")
         self.instruction("            end")
         self.instruction("        end")

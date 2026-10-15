@@ -2011,3 +2011,572 @@ class DeltaMeshTetradTB(DeltaMeshModesTB):
             f"directions ({npkts}x{beats} each way, 1-hop latency {base}c "
             f"held per packet, P_DIA tvalid cycles {dia_cycles}, axis "
             f"links idle)")
+
+
+class DeltaMeshQoSTB(DeltaMeshCellTB):
+    """TB for the Task 7 QoS arbiter: strict priority (latency ahead of
+    queued bulk), aging inversion, the bulk minimum reservation, and the
+    class-0 data mapping / qos 2/3 routing coverage promised in the
+    Task 5 review. Derived from the cell TB on the same harness
+    (dv/tb/delta_mesh_cell_th.sv, POS (1,1,0) of 4x4x1, AGING_LIMIT=64
+    and BULK_MIN_CREDITS=1 = the cell parameter defaults).
+
+    Contention construction: 'xpos' is the output under test (dst
+    (3,0,0) at POS (1,1,0) DOR-routes P_X_POS from every input port).
+    A raw-drive latency stream on 'local' saturates the output with
+    single-beat class-1 packets at the service rate (1 packet per
+    grant+bubble pair of cycles); single-beat 'xneg' packets carry the
+    challenger. Raw drive (precedent: the tetrad TB) gives cycle-exact
+    acceptance/ejection stamps; the BFM producers' pipeline turnaround
+    would smear them.
+
+    QoS class decode under test (controller-pinned): header qos 1 =
+    latency, qos 2 = bulk; qos 0 data on a non-local destination maps
+    to the latency class (class 0 is reserved to the control plane);
+    qos 3 is unassigned in the spec's 3-class table and decodes to the
+    bulk class. Aging and the bulk reservation are both pinned to the
+    AGING_LIMIT horizon, so scenarios (b) and (c) bracket the same
+    trigger from two observables: a challenger must WAIT roughly
+    AGING_LIMIT cycles under saturation (floor) yet never longer than
+    AGING_LIMIT + grant latency (ceiling).
+    """
+
+    XPOS = 'xpos'
+    AGING_LIMIT = 64   # cell parameter default; harness default matches
+    CEIL_MARGIN = 4    # pick-phase + grant-registration slack
+
+    # ------------------------------------------------------------------
+    # Raw signal helpers (cycle-exact drive/observe)
+    # ------------------------------------------------------------------
+    def _s(self, port, field):
+        return getattr(self.dut, f'{port}_s_axis_{field}')
+
+    def _m(self, port, field):
+        return getattr(self.dut, f'{port}_m_axis_{field}')
+
+    def _qos(self, header):
+        lo, w = self.hdr_offsets['qos']
+        return (header >> lo) & ((1 << w) - 1)
+
+    def _pid(self, header):
+        lo, w = self.hdr_offsets['packet_id']
+        return (header >> lo) & ((1 << w) - 1)
+
+    def _bulk_starved_xpos(self):
+        """The cell's o_bulk_starved bit for 'xpos' (port index 1), or
+        None when the harness predates the Task 7 observability port."""
+        sig = getattr(self.dut, 'bulk_starved', None)
+        if sig is None:
+            return None
+        return (int(sig.value) >> 1) & 1
+
+    # ------------------------------------------------------------------
+    # Scenario (a): strict priority -- latency jumps the bulk queue
+    # ------------------------------------------------------------------
+    async def run_strict_priority(self):
+        """Bulk-saturate 'xpos' from 'local'; inject ONE latency packet
+        from 'xneg'. It must eject within 3 cycles of its head's
+        acceptance and ahead of every bulk packet injected after it.
+        Round-robin arbitration (the pre-Task-7 policy) rotates the
+        grant and can hold the latency packet a full bulk grant longer
+        (> 3 cycles); strict priority passes."""
+        tag = "strict-priority"
+        N_BULK = 8
+        bulk = []
+        for k in range(N_BULK):
+            header = self.build_header(dst=(3, 0, 0), src=self.POS, qos=2,
+                                       packet_id=0x100 + k)
+            bulk.append((header, (0xB0 << 56) | (0xA5 << 48) | k))
+        lat_header = self.build_header(dst=(3, 0, 0), src=(0, 1, 0), qos=1,
+                                       packet_id=0x1FF)
+        lat_data = (0x1A << 56) | (0x5A << 48) | 0xFF
+
+        l_v = self._s('local', 'tvalid')
+        l_r = self._s('local', 'tready')
+        l_d = self._s('local', 'tdata')
+        l_u = self._s('local', 'tuser')
+        l_l = self._s('local', 'tlast')
+        x_v = self._s('xneg', 'tvalid')
+        x_r = self._s('xneg', 'tready')
+        x_d = self._s('xneg', 'tdata')
+        x_u = self._s('xneg', 'tuser')
+        x_l = self._s('xneg', 'tlast')
+        q_v = self._m(self.XPOS, 'tvalid')
+        q_r = self._m(self.XPOS, 'tready')
+        q_d = self._m(self.XPOS, 'tdata')
+        q_u = self._m(self.XPOS, 'tuser')
+
+        x_v.value = 0
+        x_l.value = 0
+        x_u.value = 0
+        x_d.value = 0
+        bulk_i = 0
+        l_v.value = 1
+        l_d.value = bulk[0][1]
+        l_u.value = bulk[0][0]
+        l_l.value = 1
+
+        injected = False
+        accept_cyc = None
+        ejects = []
+        lat_eject = None
+        cyc = 0
+        # Single loop to the last ejection: the producer must be
+        # serviced for the WHOLE run -- the input FIFO (DEPTH=4)
+        # throttles it to the output's service rate, so it is still
+        # presenting beats long after the challenger ejects; a drain
+        # loop that stops driving it would re-accept the held beat.
+        while len(ejects) < N_BULK + 1:
+            await RisingEdge(self.aclk)
+            cyc += 1
+            if cyc > 3000:
+                raise AssertionError(
+                    f"{tag}: only {len(ejects)} of {N_BULK + 1} frames "
+                    "ejected")
+            if int(q_v.value) and int(q_r.value):
+                ejects.append((cyc, int(q_u.value), int(q_d.value)))
+                if accept_cyc is not None and \
+                        int(q_u.value) == lat_header and \
+                        int(q_d.value) == lat_data:
+                    lat_eject = cyc
+            if int(l_v.value) and int(l_r.value):
+                bulk_i += 1
+                if bulk_i < N_BULK:
+                    l_d.value = bulk[bulk_i][1]
+                    l_u.value = bulk[bulk_i][0]
+                    l_l.value = 1
+                else:
+                    l_v.value = 0
+                    l_l.value = 0
+                    l_u.value = 0
+                    l_d.value = 0
+            if injected and accept_cyc is None and \
+                    int(x_v.value) and int(x_r.value):
+                accept_cyc = cyc
+                x_v.value = 0
+                x_l.value = 0
+                x_u.value = 0
+                x_d.value = 0
+            # arm AFTER the acceptance check so the just-deposited
+            # tvalid is never mistaken for a presented beat
+            if not injected and len(ejects) >= 2:
+                x_v.value = 1
+                x_d.value = lat_data
+                x_u.value = lat_header
+                x_l.value = 1
+                injected = True
+
+        latency = latency_gap = None
+        for i, (c, u, d) in enumerate(ejects):
+            if u == lat_header and d == lat_data:
+                latency = (c, u, d)
+                latency_gap = c - accept_cyc
+                for (c2, u2, _d2) in ejects[i + 1:]:
+                    if self._qos(u2) != 2:
+                        raise AssertionError(
+                            f"{tag}: a non-bulk frame ejected after the "
+                            f"latency packet (head 0x{u2:x})")
+                break
+        if latency is None:
+            raise AssertionError(f"{tag}: latency frame missing on 'xpos'")
+        if latency_gap > 3:
+            raise AssertionError(
+                f"{tag}: latency ejected {latency_gap} cycles after "
+                f"acceptance, expected <= 3 (strict priority under bulk "
+                f"saturation)")
+        # frames ejected between the latency acceptance and its ejection
+        # must all be bulk that was already queued (never re-ordered
+        # ahead of it by class)
+        for (c, u, _d) in ejects:
+            if accept_cyc < c < lat_eject and u == lat_header:
+                raise AssertionError(
+                    f"{tag}: latency frame ejected out of order")
+
+        exp = {h: d for h, d in bulk}
+        exp[lat_header] = lat_data
+        seen_bulk = set()
+        for (_c, u, d) in ejects:
+            if u not in exp or exp[u] != d:
+                raise AssertionError(
+                    f"{tag}: ejected frame 0x{d:x}/0x{u:x} does not match "
+                    "any injected packet (corruption/misdelivery)")
+            if self._qos(u) == 2:
+                if u in seen_bulk:
+                    raise AssertionError(
+                        f"{tag}: bulk frame 0x{u:x} ejected twice")
+                seen_bulk.add(u)
+        if len(seen_bulk) != N_BULK:
+            raise AssertionError(
+                f"{tag}: {len(seen_bulk)} distinct bulk frames ejected, "
+                f"expected {N_BULK}")
+        if int(self.dut.err_drop_cnt.value) != 0:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt "
+                f"{int(self.dut.err_drop_cnt.value)}, expected 0")
+        await self.wait_clocks('aclk', 10)
+        self._check_idle_ports({self.XPOS}, tag)
+        self.log.info(
+            f"delta mesh qos (a): strict priority -- latency ejected "
+            f"{latency_gap} cycles after acceptance (<= 3), ahead of the "
+            f"queued bulk, {N_BULK} bulk intact")
+
+    # ------------------------------------------------------------------
+    # Scenario (b): aging inversion -- an aged bulk head wins the grant
+    # ------------------------------------------------------------------
+    async def run_aging_inversion(self):
+        """Latency-saturate 'xpos' from 'local'; inject ONE bulk packet
+        from 'xneg'. Under strict priority alone it would starve; with
+        aging (and the same-horizon bulk reservation) it must WAIT at
+        least ~AGING_LIMIT cycles and then win, ejecting no later than
+        AGING_LIMIT + grant latency. Round-robin (pre-Task-7) ejects the
+        challenger within a couple of grants, failing the wait floor."""
+        tag = "aging"
+        N_LAT = 48
+        lat = []
+        for k in range(N_LAT):
+            header = self.build_header(dst=(3, 0, 0), src=self.POS, qos=1,
+                                       packet_id=0x200 + k)
+            lat.append((header, (0x11 << 56) | (0xA5 << 48) | k))
+        blk_header = self.build_header(dst=(3, 0, 0), src=(0, 1, 0), qos=2,
+                                       packet_id=0x2FF)
+        blk_data = (0xB2 << 56) | (0x5A << 48) | 0xF0
+
+        l_v = self._s('local', 'tvalid')
+        l_r = self._s('local', 'tready')
+        l_d = self._s('local', 'tdata')
+        l_u = self._s('local', 'tuser')
+        l_l = self._s('local', 'tlast')
+        x_v = self._s('xneg', 'tvalid')
+        x_r = self._s('xneg', 'tready')
+        x_d = self._s('xneg', 'tdata')
+        x_u = self._s('xneg', 'tuser')
+        x_l = self._s('xneg', 'tlast')
+        q_v = self._m(self.XPOS, 'tvalid')
+        q_r = self._m(self.XPOS, 'tready')
+        q_d = self._m(self.XPOS, 'tdata')
+        q_u = self._m(self.XPOS, 'tuser')
+
+        x_v.value = 0
+        x_l.value = 0
+        x_u.value = 0
+        x_d.value = 0
+        lat_i = 0
+        l_v.value = 1
+        l_d.value = lat[0][1]
+        l_u.value = lat[0][0]
+        l_l.value = 1
+
+        injected = False
+        accept_cyc = None
+        bulk_eject = None
+        ejects = []
+        starved_seen = False
+        cyc = 0
+        # Single loop to the last ejection (see scenario (a)): the
+        # latency producer is throttled by the input FIFO and is still
+        # presenting beats after the bulk ejects.
+        while len(ejects) < N_LAT + 1:
+            await RisingEdge(self.aclk)
+            cyc += 1
+            if cyc > 6000:
+                raise AssertionError(
+                    f"{tag}: only {len(ejects)} of {N_LAT + 1} frames "
+                    f"ejected after {cyc} cycles (bulk_eject="
+                    f"{bulk_eject}) -- aging/reservation starved bulk "
+                    "forever" if bulk_eject is None else
+                    f"{tag}: only {len(ejects)} of {N_LAT + 1} frames "
+                    "ejected after 6000 cycles")
+            if int(q_v.value) and int(q_r.value):
+                ejects.append((cyc, int(q_u.value), int(q_d.value)))
+                if accept_cyc is not None and \
+                        int(q_u.value) == blk_header and \
+                        int(q_d.value) == blk_data:
+                    bulk_eject = cyc
+            if int(l_v.value) and int(l_r.value):
+                lat_i += 1
+                if lat_i < N_LAT:
+                    l_d.value = lat[lat_i][1]
+                    l_u.value = lat[lat_i][0]
+                    l_l.value = 1
+                else:
+                    l_v.value = 0
+                    l_l.value = 0
+                    l_u.value = 0
+                    l_d.value = 0
+            if injected and accept_cyc is None and \
+                    int(x_v.value) and int(x_r.value):
+                accept_cyc = cyc
+                x_v.value = 0
+                x_l.value = 0
+                x_u.value = 0
+                x_d.value = 0
+            # arm AFTER the acceptance check so the just-deposited
+            # tvalid is never mistaken for a presented beat
+            if not injected and \
+                    sum(1 for (_c, u, _d) in ejects
+                        if self._qos(u) == 1) >= 6:
+                x_v.value = 1
+                x_d.value = blk_data
+                x_u.value = blk_header
+                x_l.value = 1
+                injected = True
+            starved = self._bulk_starved_xpos()
+            if starved:
+                starved_seen = True
+
+        if bulk_eject is None:
+            raise AssertionError(
+                f"{tag}: bulk packet never ejected under latency "
+                "saturation -- aging/reservation starved it forever")
+        present = accept_cyc + 1   # head requests from the cycle after
+        waited = bulk_eject - present
+        if waited < 8:
+            raise AssertionError(
+                f"{tag}: bulk ejected only {waited} cycles after becoming "
+                f"eligible -- it never waited under saturation (expected "
+                f"~{self.AGING_LIMIT}: aging/reservation not enforced)")
+        if waited > self.AGING_LIMIT + self.CEIL_MARGIN:
+            raise AssertionError(
+                f"{tag}: bulk waited {waited} cycles, expected <= "
+                f"{self.AGING_LIMIT + self.CEIL_MARGIN} (aging horizon + "
+                "grant latency)")
+        if self._bulk_starved_xpos() is not None and not starved_seen:
+            raise AssertionError(
+                f"{tag}: o_bulk_starved[xpos] never asserted before the "
+                "bulk grant -- the starve counter is not counting")
+        # every eject before the bulk grant is a latency frame, in order
+        pre = [(c, u, d) for (c, u, d) in ejects if c < bulk_eject]
+        for i, (_c, u, d) in enumerate(pre):
+            if u != lat[i][0] or d != lat[i][1]:
+                raise AssertionError(
+                    f"{tag}: pre-bulk eject #{i} 0x{d:x}/0x{u:x} != "
+                    f"expected latency frame (corruption/reorder)")
+
+        # scoreboard by content: the bulk frame ejected mid-stream
+        # (that is the point), so match the latency frames as an
+        # ordered subsequence and require exactly one bulk eject, at
+        # the recorded cycle
+        lat_frames = [(c, u, d) for (c, u, d) in ejects
+                      if self._qos(u) == 1]
+        blk_frames = [(c, u, d) for (c, u, d) in ejects
+                      if self._qos(u) == 2]
+        if len(blk_frames) != 1 or blk_frames[0][0] != bulk_eject or \
+                blk_frames[0][1] != blk_header or blk_frames[0][2] != blk_data:
+            raise AssertionError(
+                f"{tag}: expected exactly one bulk eject at cycle "
+                f"{bulk_eject}, got {[(c, hex(u)) for (c, u, _d) in blk_frames]}")
+        if len(lat_frames) != N_LAT:
+            raise AssertionError(
+                f"{tag}: {len(lat_frames)} latency frames ejected, "
+                f"expected {N_LAT}")
+        for i, (_c, u, d) in enumerate(lat_frames):
+            if u != lat[i][0] or d != lat[i][1]:
+                trace = ", ".join(
+                    f"{_c}:{self._pid(u2):#x}" for (_c, u2, _d2) in ejects)
+                raise AssertionError(
+                    f"{tag}: latency eject #{i} 0x{d:x}/0x{u:x} != "
+                    f"expected 0x{lat[i][1]:x}/0x{lat[i][0]:x} "
+                    f"(corruption/reorder); ejects[cyc:pid] = {trace}")
+        if int(self.dut.err_drop_cnt.value) != 0:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt "
+                f"{int(self.dut.err_drop_cnt.value)}, expected 0")
+        await self.wait_clocks('aclk', 10)
+        self._check_idle_ports({self.XPOS}, tag)
+        self.log.info(
+            f"delta mesh qos (b): aging -- bulk waited {waited} cycles "
+            f"(floor 8, ceiling {self.AGING_LIMIT + self.CEIL_MARGIN}), "
+            f"then won the grant; {N_LAT} latency frames exact, one bulk")
+
+    # ------------------------------------------------------------------
+    # Scenario (c): bulk minimum reservation -- >= 1 grant per window
+    # ------------------------------------------------------------------
+    async def run_bulk_reservation(self):
+        """Latency-saturate 'xpos' from 'local' for the whole run; a
+        fresh single-beat bulk packet is re-armed on 'xneg' the cycle
+        after the previous one ejects, keeping bulk eligible across
+        several reservation periods. Consecutive bulk grants must be
+        spaced at least a few cycles (strict priority still defers bulk
+        -- round-robin would grant every other packet, failing the
+        floor) and at most AGING_LIMIT + grant latency apart (the
+        BULK_MIN_CREDITS=1 reservation: >= 1 bulk grant per AGING_LIMIT
+        eligible cycles)."""
+        tag = "reservation"
+        LIMIT = self.AGING_LIMIT
+        N_BULK = 5
+        N_LAT = 260
+        lat = []
+        for k in range(N_LAT):
+            header = self.build_header(dst=(3, 0, 0), src=self.POS, qos=1,
+                                       packet_id=0x300 + k)
+            lat.append((header, (0x22 << 56) | (0xA5 << 48) | k))
+
+        l_v = self._s('local', 'tvalid')
+        l_r = self._s('local', 'tready')
+        l_d = self._s('local', 'tdata')
+        l_u = self._s('local', 'tuser')
+        l_l = self._s('local', 'tlast')
+        x_v = self._s('xneg', 'tvalid')
+        x_r = self._s('xneg', 'tready')
+        x_d = self._s('xneg', 'tdata')
+        x_u = self._s('xneg', 'tuser')
+        x_l = self._s('xneg', 'tlast')
+        q_v = self._m(self.XPOS, 'tvalid')
+        q_r = self._m(self.XPOS, 'tready')
+        q_d = self._m(self.XPOS, 'tdata')
+        q_u = self._m(self.XPOS, 'tuser')
+
+        def arm_bulk(k):
+            header = self.build_header(dst=(3, 0, 0), src=(0, 1, 0), qos=2,
+                                       packet_id=0x3E0 + k)
+            data = (0xC3 << 56) | (0x5A << 48) | k
+            x_v.value = 1
+            x_d.value = data
+            x_u.value = header
+            x_l.value = 1
+            return header, data
+
+        x_v.value = 0
+        x_l.value = 0
+        x_u.value = 0
+        x_d.value = 0
+        lat_i = 0
+        l_v.value = 1
+        l_d.value = lat[0][1]
+        l_u.value = lat[0][0]
+        l_l.value = 1
+
+        bulk_ejects = []
+        blk = None
+        starved_seen = False
+        cyc = 0
+        while len(bulk_ejects) < N_BULK:
+            await RisingEdge(self.aclk)
+            cyc += 1
+            if cyc > 20000:
+                raise AssertionError(
+                    f"{tag}: only {len(bulk_ejects)} of {N_BULK} bulk "
+                    "grants observed")
+            if int(q_v.value) and int(q_r.value):
+                u = int(q_u.value)
+                d = int(q_d.value)
+                if blk is not None and u == blk[0] and d == blk[1]:
+                    bulk_ejects.append(cyc)
+                    blk = None
+            if int(l_v.value) and int(l_r.value):
+                lat_i += 1
+                if lat_i < N_LAT:
+                    l_d.value = lat[lat_i][1]
+                    l_u.value = lat[lat_i][0]
+                    l_l.value = 1
+                else:
+                    l_v.value = 0
+                    l_l.value = 0
+                    l_u.value = 0
+                    l_d.value = 0
+            if int(x_v.value) and int(x_r.value):
+                # a presented bulk beat was accepted at this edge
+                x_v.value = 0
+                x_l.value = 0
+                x_u.value = 0
+                x_d.value = 0
+            # arm AFTER the acceptance check so the just-deposited
+            # tvalid is never mistaken for a presented beat; re-arm the
+            # cycle after the previous bulk ejected (blk cleared above)
+            if blk is None and (len(bulk_ejects) > 0 or lat_i >= 6):
+                blk = arm_bulk(len(bulk_ejects))
+            starved = self._bulk_starved_xpos()
+            if starved:
+                starved_seen = True
+
+        gaps = [bulk_ejects[i + 1] - bulk_ejects[i]
+                for i in range(len(bulk_ejects) - 1)]
+        for gap in gaps:
+            if gap < 8:
+                raise AssertionError(
+                    f"{tag}: bulk grants {gap} cycles apart -- bulk is "
+                    "not being deferred between reservations "
+                    "(round-robin-like arbitration?)")
+            if gap > LIMIT + self.CEIL_MARGIN:
+                raise AssertionError(
+                    f"{tag}: bulk grants {gap} cycles apart, expected "
+                    f"<= {LIMIT + self.CEIL_MARGIN} (BULK_MIN_CREDITS=1: "
+                    f">= 1 bulk grant per {LIMIT} eligible cycles)")
+        if self._bulk_starved_xpos() is not None and not starved_seen:
+            raise AssertionError(
+                f"{tag}: o_bulk_starved[xpos] never asserted -- the "
+                "starve counter is not counting")
+        if int(self.dut.err_drop_cnt.value) != 0:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt "
+                f"{int(self.dut.err_drop_cnt.value)}, expected 0")
+        self.log.info(
+            f"delta mesh qos (c): bulk reservation -- {N_BULK} bulk "
+            f"grants at gaps {gaps}, each within "
+            f"[8, {LIMIT + self.CEIL_MARGIN}]")
+
+    # ------------------------------------------------------------------
+    # Scenario (d): qos 2/3 data routing + the class-0 data mapping
+    # ------------------------------------------------------------------
+    async def run_class_routes(self):
+        """Task 5 review promised coverage: data packets at qos 2 and 3
+        route identically to class 1 at power-on (the table image is DOR
+        in every qos region). Also pins the Task 7 class-0 ruling: a
+        class-0 packet whose dst is NOT this cell is data (the config
+        plane only claims dst == self), maps to the latency class, and
+        must eject normally -- no config response, no drop."""
+        tag = "class-routes"
+
+        # qos 2 (bulk class) to dst (3,0,0) -> P_X_POS
+        header = self.build_header(dst=(3, 0, 0), src=self.POS, qos=2,
+                                   packet_id=0x400)
+        payload = [0xCAFE_0002_0000_0001]
+        await self._send_packet('local', header, payload)
+        await self._expect_packet('xpos', header, payload, 1,
+                                  f"{tag}: qos2 dst(3,0,0)")
+
+        # qos 3 (unassigned; decoded to the bulk class) to dst (1,0,0)
+        # at POS (1,1,0): x equal, y differs -> P_Y_NEG
+        header = self.build_header(dst=(1, 0, 0), src=self.POS, qos=3,
+                                   packet_id=0x401)
+        payload = [0xCAFE_0003_0000_0001, 0xCAFE_0003_0000_0002]
+        await self._send_packet('local', header, payload)
+        await self._expect_packet('yneg', header, payload, 1,
+                                  f"{tag}: qos3 dst(1,0,0)")
+
+        # qos 3 arriving on a neighbor port routes the same DOR answer
+        header = self.build_header(dst=(3, 0, 0), src=(0, 1, 0), qos=3,
+                                   packet_id=0x402)
+        payload = [0xCAFE_0003_0000_0003]
+        await self._send_packet('xneg', header, payload)
+        await self._expect_packet('xpos', header, payload, 2,
+                                  f"{tag}: qos3 from xneg")
+
+        # class-0 DATA packet, dst != self: not a config transaction --
+        # it maps to the latency class and ejects as ordinary data.
+        if self.slaves['local'].frames_received != 0:
+            raise AssertionError(
+                f"{tag}: local master saw "
+                f"{self.slaves['local'].frames_received} frames before "
+                "the class-0 packet, expected 0")
+        header = self.build_header(dst=(3, 0, 0), src=self.POS, qos=0,
+                                   packet_id=0x403)
+        payload = [0xCAFE_0000_0000_0001]
+        await self._send_packet('local', header, payload)
+        await self._expect_packet('xpos', header, payload, 3,
+                                  f"{tag}: qos0 data dst(3,0,0)")
+        if self.slaves['local'].frames_received != 0:
+            raise AssertionError(
+                f"{tag}: class-0 data packet produced a config "
+                "response on the local master")
+        if int(self.dut.err_drop_cnt.value) != 0:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt "
+                f"{int(self.dut.err_drop_cnt.value)}, expected 0 "
+                "(class-0 data must not drop)")
+        await self.wait_clocks('aclk', 10)
+        self._check_idle_ports({'xpos', 'yneg'}, tag)
+        self.log.info(
+            "delta mesh qos (d): qos 2/3 route identically to class 1 "
+            "at power-on; class-0 data (dst != self) rides the latency "
+            "class -- no config response, no drop")

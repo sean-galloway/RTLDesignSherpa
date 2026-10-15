@@ -40,6 +40,9 @@ FIFO_DEPS = (
     'rtl/common/counter_bin.sv',
     'rtl/common/fifo_control.sv',
     'rtl/amba/gaxi/gaxi_fifo_sync.sv',
+    # Task 7: the cell's per-output QoS arbiters instantiate
+    # arbiter_matrix (mirrors rtl/filelists/delta_mesh.f)
+    'rtl/common/arbiter_matrix.sv',
 )
 
 

@@ -14,7 +14,9 @@ parameter int     GRID_Y = 4,
 parameter int     GRID_Z = 1,
 parameter int     NUM_VC = 2,
 parameter string  FIFO_IMPL = "reg",
-parameter int     ENABLE_COUNTERS = 1 )(
+parameter int     ENABLE_COUNTERS = 1,
+parameter int     AGING_LIMIT = 64,
+parameter int     BULK_MIN_CREDITS = 1 )(
     input  logic                  aclk,
     input  logic                  aresetn,
     input  logic [DATA_WIDTH-1:0] s_axis_tdata   [8],
@@ -30,7 +32,8 @@ parameter int     ENABLE_COUNTERS = 1 )(
     input  logic [NUM_VC-1:0]     s_credit       [8],
     output logic [NUM_VC-1:0]     m_credit       [8],
     output logic [31:0]           o_err_drop_cnt,
-    output logic [31:0]           o_mode_acks
+    output logic [31:0]           o_mode_acks,
+    output logic [7:0]            o_bulk_starved
 );
 // ==============================================================================
 // Module: delta_mesh_cell
@@ -134,6 +137,65 @@ parameter int     ENABLE_COUNTERS = 1 )(
 //     traffic (sr_ptr[0] = 1 bypasses the mode mux and
 //     the RAM), so the switch machinery works under any
 //     current mode.
+//   - QoS (Task 7): the head-flit header qos field
+//     decodes the data class at the arbiter: class 1 =
+//     latency, class 2 = bulk. A data packet decoded
+//     at class 0 maps to the latency class -- class 0
+//     is reserved to the control plane (a class-0
+//     packet addressed to this cell itself IS config
+//     and is consumed by the config plane, never
+//     granted), so class-0 data can only arrive with
+//     dst != self and rides as latency. The spec's 3-
+//     class table leaves qos 3 unassigned; it decodes
+//     to the bulk class. Per-class queuing is request
+//     accounting, not new FIFOs: the Task 4 per-port
+//     per-VC input FIFOs remain the only transport,
+//     each input's head-of-line entry carries a class
+//     (latched per packet for the body beats, whose
+//     tuser is 0), and the VC assignment stays header-
+//     driven and orthogonal to class. Per output the
+//     class filter is strict priority latency > bulk
+//     with two antistarvation mechanisms on the
+//     AGING_LIMIT horizon (parameter, default 64):
+//     AGING -- a per-input counter runs while the
+//     input's head is eligible but not granted and
+//     saturates at AGING_LIMIT+1; once it exceeds
+//     AGING_LIMIT the head joins the aged candidate
+//     set, which beats every non-aged head (priority
+//     inversion); it resets on grant. BULK MINIMUM
+//     RESERVATION -- a per-output saturating starve
+//     counter runs while bulk is eligible but not
+//     granted and resets on any bulk grant; at the
+//     trigger point (BULK_MIN_CREDITS+2 cycles inside
+//     the AGING_LIMIT window -- absorbing the worst-
+//     case pick phase plus the grant registration --
+//     so the grant itself lands within AGING_LIMIT
+//     eligible cycles) the output forces bulk
+//     candidates, giving a continuously eligible
+//     bulk flow >= 1 grant per AGING_LIMIT cycles.
+//     The reservation outranks
+//     aging inversion; within a candidate set the
+//     house arbiter_matrix (ACK mode) fair-picks.
+//     The arbiter's registered grant is held to the
+//     packet's TLAST handshake exactly like the pre-
+//     Task-7 grant register; the release cycle keeps
+//     its one-cycle bubble (the retiring grant is
+//     acknowledged one cycle after TLAST, so the next
+//     winner is picked from the requests visible in
+//     the bubble cycle -- never re-granted in the
+//     TLAST cycle), and a pending config response on
+//     P_LOCAL blocks only fresh grant registration.
+//     Packet atomicity and the credit-gated
+//     presentation are untouched: QoS replaces the
+//     arbitration policy, not the atomicity/credit
+//     machinery. o_bulk_starved[7:0] exposes the per-
+//     output reservation-due state (bit q = output q)
+//     for DV; it is a status flag, not a cumulative
+//     counter, so it is not gated by ENABLE_COUNTERS.
+//     Routing stays identical across classes at power-
+//     on (every qos table region holds the same DOR
+//     image); per-class routing tables / spec QoS path
+//     diversity are a deferred follow-on.
 //
 // ==============================================================================
 
@@ -198,6 +260,21 @@ localparam int RESP_W       = 16 + ENTRY_W;
 localparam logic [15:0] MSW_MAGIC = 16'hC0DE;
 localparam logic [15:0] ACK_MAGIC = 16'hACED;
 localparam int GEN_FIFO_DEPTH = 8;
+
+// QoS constants (Task 7): AGE_W holds the saturated
+// AGING_LIMIT+1; STARVE_DUE is the bulk reservation
+// trigger point, set BULK_MIN_CREDITS+2 cycles inside
+// the AGING_LIMIT window so that, after the worst-case
+// pick-phase alignment plus the 1-cycle grant
+// registration, the bulk grant itself lands within
+// AGING_LIMIT eligible cycles (BULK_MIN_CREDITS=1:
+// any AGING_LIMIT consecutive eligible cycles hold at
+// least one bulk grant; the counter saturates at the
+// trigger, keeping the reservation due until served).
+localparam int AGE_W = $clog2(AGING_LIMIT + 2);
+localparam int STARVE_DUE =
+    (AGING_LIMIT > (BULK_MIN_CREDITS + 2)) ?
+        (AGING_LIMIT - BULK_MIN_CREDITS - 2) : 1;
 
 // ==========================================================================
 // Input buffers - one house FIFO per port per VC
@@ -1079,20 +1156,75 @@ always_comb begin
 end
 
 // ==========================================================================
-// Output arbitration - round-robin, packet atomic
+// Output arbitration - QoS class filter + house arbiter_matrix
+// (Task 7), packet atomic
 // ==========================================================================
-// Per output: grant the round-robin winner among the requests and
-// hold the grant until the TLAST handshake (packet atomicity -- no
-// interleaving on an output). On the release cycle the grant is
-// dropped, not re-granted (see next-grant computation below).
+// Per output: a class filter narrows the request matrix to
+// one candidate set -- the bulk reservation (if due), else
+// the aged set (aging inversion), else latency, else bulk
+// -- and the house arbiter_matrix (matrix fair arbiter,
+// WAIT_GNT_ACK = 1) fair-picks within it. The arbiter's
+// registered grant IS the output grant: it is held until
+// the packet's TLAST handshake (packet atomicity -- no
+// interleaving on an output, and the credit-gated
+// presentation keeps a stalled flit presented while its
+// credit level is low). The release cycle keeps its
+// documented one-cycle bubble: the retiring grant is
+// acknowledged one cycle AFTER the TLAST handshake, so
+// the same-cycle handoff computes the next winner from
+// the requests visible during the bubble cycle -- the
+// releasing input's freshly routed next head among them
+// -- and the grant is never re-registered in the TLAST
+// cycle itself (that would steer the next head before
+// its route is known: misroute + duplicate, exposed by
+// the Task 3 fabric all-pairs back-to-back traffic). A
+// pending config response on P_LOCAL blocks only fresh
+// grant registration while the local output is idle.
 // ==========================================================================
 
+// Class accounting. cur_class is the QoS class of the
+// entry an input currently presents to the arbiters: a
+// locked input's in-flight packet keeps the class its
+// head decoded (in_class, latched when the packet lock
+// forms -- body beats carry tuser == 0 and would
+// otherwise misdecode); an unlocked input decodes its
+// presented head. Class 0 data rides as latency (class
+// 0 is the control plane; its only granted traffic is
+// the qos-1 acks); qos 3 is unassigned by the spec's
+// 3-class table and rides as bulk.
+logic [1:0]         cur_class  [NUM_PORTS];
+logic [1:0]         in_class   [NUM_PORTS];
+logic               in_aged    [NUM_PORTS];
+logic [AGE_W-1:0]   in_age_cnt [NUM_PORTS];
+logic               in_granted [NUM_PORTS];
+logic               req_active [NUM_PORTS];
+
+// Per-output candidate sets ([output][input]) and the
+// filtered request into each arbiter.
+logic [NUM_PORTS-1:0] cls_lat_req  [NUM_PORTS];
+logic [NUM_PORTS-1:0] cls_bulk_req [NUM_PORTS];
+logic [NUM_PORTS-1:0] cls_aged_req [NUM_PORTS];
+logic [NUM_PORTS-1:0] arb_req      [NUM_PORTS];
+logic               bulk_due     [NUM_PORTS];
+logic [AGE_W-1:0]   starve_cnt   [NUM_PORTS];
+
+// Arbiter handshake per output.
+logic [NUM_PORTS-1:0] arb_grant  [NUM_PORTS];
+logic               arb_valid  [NUM_PORTS];
+logic               winner_bulk [NUM_PORTS];
+logic               bubble     [NUM_PORTS];
+logic [NUM_PORTS-1:0] gnt_ack    [NUM_PORTS];
+logic               block_arb  [NUM_PORTS];
+
+// The visible grant: the arbiter's held grant, masked
+// to nothing during the release bubble. Everything
+// downstream of arbitration (crossbar steering, input
+// locks, drop paths, formal assists) reads this; it is
+// registered state (arbiter output + bubble flop), so
+// it is stable across the cycle exactly like the pre-
+// Task-7 grant register.
 logic [NUM_PORTS-1:0] grant_matrix [NUM_PORTS];  // [output][input]
-logic [NUM_PORTS-1:0] grant_next [NUM_PORTS];
-logic [PORT_W-1:0]    last_grant [NUM_PORTS];
-logic [PORT_W-1:0]    last_grant_next [NUM_PORTS];
 logic                 packet_active [NUM_PORTS];
-logic                 packet_active_next [NUM_PORTS];
 logic                 out_xfer_last [NUM_PORTS];
 
 // TLAST handshake on an output this cycle
@@ -1103,57 +1235,127 @@ always_comb begin
     end
 end
 
-// Round-robin pick: first requesting input at or after last+1
-// (wrapping); winner returned through the output argument.
-function automatic logic [NUM_PORTS-1:0] rr_pick(
-    input  logic [NUM_PORTS-1:0] reqs,
-    input  logic [PORT_W-1:0]    last,
-    output logic [PORT_W-1:0]    winner
-);
-    logic [NUM_PORTS-1:0] grant;
-    grant  = '0;
-    winner = last;
-    for (int i = 1; i <= NUM_PORTS; i++) begin
-        if (reqs[(last + i) % NUM_PORTS] && (grant == '0)) begin
-            grant[(last + i) % NUM_PORTS] = 1'b1;
-            winner = PORT_W'((last + i) % NUM_PORTS);
+// Class decode of the presented entry per input.
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        if (lock_active[p]) begin
+            cur_class[p] = in_class[p];
+        end else if (pres_tuser[p][HDR_QOS_LO +: HDR_QOS_W] >= 2'd2) begin
+            cur_class[p] = 2'd2;
+        end else begin
+//             // qos 0 data and qos 1: latency class
+            cur_class[p] = 2'd1;
         end
     end
-    return grant;
-endfunction
+end
 
-// Next-grant computation (hold while the packet is in flight)
-// Release cycle (TLAST handshake): the grant is dropped, NOT
-// re-granted in the same cycle -- the releasing input may
-// already present its next packet's head flit at the following
-// edge, routed to a different output; a held or re-granted grant
-// would steer that head onto this output (misroute + duplicate,
-// exposed by the Task 3 fabric all-pairs back-to-back traffic).
-// The one-cycle bubble per packet boundary is the price of
-// keeping the steering unambiguous.
+// Eligibility and grant coverage per input (aging
+// inputs): an input ages only while its head is
+// eligible -- presented, routable, neither a special
+// consumer nor mid-drop -- and holds no grant.
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        req_active[p] = pres_valid[p] && !special_req[p] &&
+                      !drop_active[p];
+        in_granted[p] = 1'b0;
+        for (int q = 0; q < NUM_PORTS; q++) begin
+            in_granted[p] = in_granted[p] || grant_matrix[q][p];
+        end
+        in_aged[p] = in_age_cnt[p] > AGE_W'(AGING_LIMIT);
+    end
+end
+
+// Per-output class filter: strict priority latency >
+// bulk, with the bulk reservation outranking aging
+// inversion and aging outranking plain latency. An
+// aged head beats every non-aged head regardless of
+// class; within the winning candidate set the
+// arbiter's matrix fair-picks.
 always_comb begin
     for (int q = 0; q < NUM_PORTS; q++) begin
-//         A pending config response owns the idle local
-//         output: no new data grant registers until the
-//         response drains (requests are not dropped -- the
-//         round-robin re-picks once the response leaves).
-        if ((q == P_LOCAL) && cfg_resp_rd_valid &&
-            !packet_active[q]) begin
-            grant_next[q]      = '0;
-            last_grant_next[q] = last_grant[q];
-        end else if (packet_active[q]) begin
-            if (out_xfer_last[q]) begin
-                grant_next[q]      = '0;
-                last_grant_next[q] = last_grant[q];
-            end else begin
-                grant_next[q]      = grant_matrix[q];
-                last_grant_next[q] = last_grant[q];
-            end
-        end else begin
-            grant_next[q] = rr_pick(request_matrix[q], last_grant[q],
-                                      last_grant_next[q]);
+        for (int p = 0; p < NUM_PORTS; p++) begin
+            cls_lat_req[q][p]  = request_matrix[q][p] &&
+                                 (cur_class[p] == 2'd1) && !in_aged[p];
+            cls_bulk_req[q][p] = request_matrix[q][p] &&
+                                 (cur_class[p] == 2'd2);
+            cls_aged_req[q][p] = request_matrix[q][p] && in_aged[p];
         end
-        packet_active_next[q] = |grant_next[q];
+        bulk_due[q] = starve_cnt[q] >= AGE_W'(STARVE_DUE);
+        if (bulk_due[q] && (cls_bulk_req[q] != '0)) begin
+            arb_req[q] = cls_bulk_req[q];
+        end else if (cls_aged_req[q] != '0) begin
+            arb_req[q] = cls_aged_req[q];
+        end else if (cls_lat_req[q] != '0) begin
+            arb_req[q] = cls_lat_req[q];
+        end else begin
+            arb_req[q] = cls_bulk_req[q];
+        end
+    end
+end
+
+// The house matrix arbiter per output, ACK mode: the
+// grant registers from the filtered candidates and is
+// held until grant_ack retires it (foreign-ack immune),
+// giving same-cycle handoff to the winner computed
+// from the post-ack matrix. block_arb freezes fresh
+// grant registration without disturbing a held grant.
+generate
+    for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_arbiter
+        arbiter_matrix #(
+            .CLIENTS     (NUM_PORTS),
+            .WAIT_GNT_ACK(1)
+        ) u_arbiter (
+            .clk       (aclk),
+            .rst_n     (aresetn),
+            .block_arb (block_arb[q]),
+            .request   (arb_req[q]),
+            .grant_ack (gnt_ack[q]),
+            .grant_valid(arb_valid[q]),
+            .grant     (arb_grant[q]),
+            .grant_id  (),
+            .last_grant()
+        );
+    end
+endgenerate
+
+// Grant visibility, release bubble, arbiter control.
+// The retiring grant is acknowledged during the bubble
+// cycle (one cycle after its TLAST handshake), which is
+// what schedules the same-cycle handoff onto the
+// bubble cycle's requests -- the releasing input's
+// freshly routed next head is evaluated against the
+// updated matrix, and the new grant registers one
+// cycle after the bubble exactly like the pre-Task-7
+// re-pick. The winner's class is decoded from the
+// entry it presents (latched in_class while its
+// packet is in flight) for the starve-counter reset.
+always_comb begin
+    for (int q = 0; q < NUM_PORTS; q++) begin
+        grant_matrix[q]  = arb_valid[q] && !bubble[q] ?
+                           arb_grant[q] : '0;
+        gnt_ack[q]       = bubble[q] ? arb_grant[q] : '0;
+        packet_active[q] = |grant_matrix[q];
+//         A pending config response owns the idle local
+//         output: block fresh grant registration until
+//         it drains (a held grant is undisturbed).
+        block_arb[q]     = (q == P_LOCAL) && cfg_resp_rd_valid &&
+                           !packet_active[q];
+        winner_bulk[q]   = 1'b0;
+        for (int p = 0; p < NUM_PORTS; p++) begin
+            winner_bulk[q] = winner_bulk[q] ||
+                (grant_matrix[q][p] && (cur_class[p] == 2'd2));
+        end
+    end
+end
+
+// Per-output bulk starve counter: runs while bulk is
+// eligible but not granted, saturates at the due
+// horizon, and resets on any bulk grant (a held bulk
+// grant keeps it at zero through the packet's
+// flight). The due flag is the observability pin.
+always_comb begin
+    for (int q = 0; q < NUM_PORTS; q++) begin
+        o_bulk_starved[q] = bulk_due[q];
     end
 end
 
@@ -1229,17 +1431,79 @@ end
 // ==========================================================================
 // Registers (house ALWAYS_FF_RST: async assert, sync release)
 // ==========================================================================
+// Per-output release bubble: set on the TLAST handshake
+// cycle, clear otherwise. While set, the arbiter's still-
+// held retiring grant is masked off the visible grant and
+// serves as the grant_ack that schedules the same-cycle
+// handoff onto the bubble cycle's requests.
 generate
-    for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_output_grant
+    for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_release_bubble
         `ALWAYS_FF_RST(aclk, aresetn,
             if (!aresetn) begin
-                grant_matrix[q]  <= '0;
-                last_grant[q]    <= '0;
-                packet_active[q] <= 1'b0;
+                bubble[q] <= 1'b0;
             end else begin
-                grant_matrix[q]  <= grant_next[q];
-                last_grant[q]    <= last_grant_next[q];
-                packet_active[q] <= packet_active_next[q];
+                bubble[q] <= out_xfer_last[q];
+            end
+        )
+    end
+
+// Per-input aging counter (Task 7): counts cycles the
+// input's head is eligible but holds no grant, saturates
+// at AGING_LIMIT+1 (the in_aged decode), and resets the
+// cycle the input wins a grant.
+    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_aging
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (!aresetn) begin
+                in_age_cnt[p] <= '0;
+            end else begin
+                if (in_granted[p]) begin
+                    in_age_cnt[p] <= '0;
+                end else if (req_active[p]) begin
+                    in_age_cnt[p] <=
+                        (in_age_cnt[p] > AGE_W'(AGING_LIMIT)) ?
+                            in_age_cnt[p] : in_age_cnt[p] + 1'b1;
+                end else begin
+                    in_age_cnt[p] <= '0;
+                end
+            end
+        )
+    end
+
+// Per-input class latch: the packet lock takes the class
+// of the head it is formed on, so the body beats (tuser
+// == 0) keep the packet's class for the filter and the
+// starve-counter reset.
+    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_class_track
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (!aresetn) begin
+                in_class[p] <= 2'd1;
+            end else begin
+                if (in_xfer[p] && !pres_last[p]) begin
+                    in_class[p] <= cur_class[p];
+                end
+            end
+        )
+    end
+
+// Per-output bulk starve counter (Task 7): runs while
+// bulk is eligible but holds no grant (a held bulk grant
+// keeps it at zero through the packet's flight),
+// saturates at STARVE_DUE, and resets on any bulk grant
+// or when no bulk is eligible.
+    for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_starve
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (!aresetn) begin
+                starve_cnt[q] <= '0;
+            end else begin
+                if (winner_bulk[q]) begin
+                    starve_cnt[q] <= '0;
+                end else if (cls_bulk_req[q] != '0) begin
+                    starve_cnt[q] <=
+                        (starve_cnt[q] >= AGE_W'(STARVE_DUE)) ?
+                            starve_cnt[q] : starve_cnt[q] + 1'b1;
+                end else begin
+                    starve_cnt[q] <= '0;
+                end
             end
         )
     end
@@ -1357,9 +1621,16 @@ endgenerate
 
 generate
     for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_hold_assert
+//         The visible grant is the arbiter's held grant;
+//         it may change only through the bubble cycle that
+//         follows this packet's TLAST handshake (the
+//         same-cycle handoff), so outside out_xfer_last
+//         it must be stable next cycle. bubble[q] next
+//         cycle implies out_xfer_last[q] this cycle,
+//         which the antecedent excludes.
         assert property (@(posedge aclk) disable iff (!aresetn)
             (packet_active[q] && !out_xfer_last[q])
-                |-> (grant_next[q] == grant_matrix[q])
+                |=> (grant_matrix[q] == $past(grant_matrix[q]))
         ) else $error(
             "Grant released before TLAST on output %0d", q);
     end

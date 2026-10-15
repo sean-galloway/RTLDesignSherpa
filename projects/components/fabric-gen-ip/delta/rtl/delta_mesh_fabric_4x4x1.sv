@@ -6,6 +6,8 @@ parameter int     COORD_W = 2,
 parameter int     NUM_VC = 2,
 parameter string  FIFO_IMPL = "reg",
 parameter int     ENABLE_COUNTERS = 1,
+parameter int     AGING_LIMIT = 64,
+parameter int     BULK_MIN_CREDITS = 1,
 parameter int     NUM_BOUNDARY = 16 )(
     input  logic                  aclk,
     input  logic                  aresetn,
@@ -22,7 +24,8 @@ parameter int     NUM_BOUNDARY = 16 )(
     input  logic [NUM_VC-1:0]     s_local_credit [NUM_BOUNDARY],
     output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY],
     output logic [31:0]           o_err          [NUM_BOUNDARY],
-    output logic [31:0]           o_mode_acks    [NUM_BOUNDARY]
+    output logic [31:0]           o_mode_acks    [NUM_BOUNDARY],
+    output logic [7:0]            o_bulk_starved [NUM_BOUNDARY]
 );
 // ==============================================================================
 // Module: delta_mesh_fabric_4x4x1
@@ -62,6 +65,11 @@ parameter int     NUM_BOUNDARY = 16 )(
 //     [NUM_BOUNDARY], same index order; the origin's
 //     entry is the Task 6 ack barrier (Task 10 reads
 //     them via the config plane).
+//   - Per-cell bulk-reservation-due flags
+//     (delta_mesh_cell's o_bulk_starved[7:0], Task 7:
+//     bit p of a boundary cell's entry = that cell's
+//     output port p reservation is due) ride out as
+//     o_bulk_starved[NUM_BOUNDARY], same index order.
 //
 // Tie-off policy (no torus this task -- wrap links land in
 // Task 9; --torus-* is rejected at generation time):
@@ -189,6 +197,12 @@ logic [31:0]           cell_err_drop [X_DIM][Y_DIM][Z_DIM];
 // fashion as cell_err_drop.
 /* verilator lint_off UNUSEDSIGNAL */
 logic [31:0]           cell_mode_acks [X_DIM][Y_DIM][Z_DIM];
+/* verilator lint_on UNUSEDSIGNAL */
+// Per-cell bulk-reservation-due flags (delta_mesh_cell's
+// o_bulk_starved[7:0], Task 7), boundary cells exposed
+// in the same fashion as cell_err_drop.
+/* verilator lint_off UNUSEDSIGNAL */
+logic [7:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];
 /* verilator lint_on UNUSEDSIGNAL */
 
 // ==========================================================================
@@ -380,6 +394,8 @@ generate
                     assign o_err[BIDX] = cell_err_drop[gx][gy][gz];
                     assign o_mode_acks[BIDX] =
                         cell_mode_acks[gx][gy][gz];
+                    assign o_bulk_starved[BIDX] =
+                        cell_bulk_starved[gx][gy][gz];
                 end else begin : gen_local_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_LOCAL]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_LOCAL] = 1'b0;
@@ -401,7 +417,9 @@ generate
                     .GRID_Z(Z_DIM),
                     .NUM_VC(NUM_VC),
                     .FIFO_IMPL(FIFO_IMPL),
-                    .ENABLE_COUNTERS(ENABLE_COUNTERS)
+                    .ENABLE_COUNTERS(ENABLE_COUNTERS),
+                    .AGING_LIMIT(AGING_LIMIT),
+                    .BULK_MIN_CREDITS(BULK_MIN_CREDITS)
                 ) u_cell (
                     .aclk(aclk),
                     .aresetn(aresetn),
@@ -418,7 +436,8 @@ generate
                     .s_credit(cell_s_credit[gx][gy][gz]),
                     .m_credit(cell_m_credit[gx][gy][gz]),
                     .o_err_drop_cnt(cell_err_drop[gx][gy][gz]),
-                    .o_mode_acks(cell_mode_acks[gx][gy][gz])
+                    .o_mode_acks(cell_mode_acks[gx][gy][gz]),
+                    .o_bulk_starved(cell_bulk_starved[gx][gy][gz])
                 );
             end
         end

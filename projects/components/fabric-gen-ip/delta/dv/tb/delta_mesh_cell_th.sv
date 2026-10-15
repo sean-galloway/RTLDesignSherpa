@@ -26,7 +26,10 @@
 // count this cell advertises for its own input buffers (Task 4 protocol).
 // err_drop_cnt is the cell's malformed-dst drop tally (Task 5), exposed for
 // the tables/drop suites; mode_acks is the mode-switch ack tally (Task 6,
-// the modes suite's barrier), exposed the same way; GRID_* defaults match
+// the modes suite's barrier), exposed the same way; bulk_starved is the
+// per-output bulk-reservation-due flag vector (Task 7 o_bulk_starved
+// pass-through -- the qos suite's starve observability), exposed the same
+// way. GRID_* defaults match
 // the checked-in 4x4x1 cell. The dia_ port is the tetrad diagonal link
 // (Task 6b): the fabric wires it to the (x^1, y^1, z) mate; driven here
 // like any neighbor port (s_credit all-ones default in the TB).
@@ -48,7 +51,9 @@ module delta_mesh_cell_th #(
     parameter int GRID_X     = 4,
     parameter int GRID_Y     = 4,
     parameter int GRID_Z     = 1,
-    parameter int NUM_VC     = 2
+    parameter int NUM_VC     = 2,
+    parameter int AGING_LIMIT = 64,
+    parameter int BULK_MIN_CREDITS = 1
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -158,7 +163,8 @@ module delta_mesh_cell_th #(
     output logic [NUM_VC-1:0]     local_m_credit,
 
     output logic [31:0]           err_drop_cnt,
-    output logic [31:0]           mode_acks
+    output logic [31:0]           mode_acks,
+    output logic [7:0]            bulk_starved
 );
 
     // DUT port index map (pinned localparams in delta_mesh_cell, Task 6b):
@@ -295,7 +301,9 @@ module delta_mesh_cell_th #(
         .GRID_X(GRID_X),
         .GRID_Y(GRID_Y),
         .GRID_Z(GRID_Z),
-        .NUM_VC(NUM_VC)
+        .NUM_VC(NUM_VC),
+        .AGING_LIMIT(AGING_LIMIT),
+        .BULK_MIN_CREDITS(BULK_MIN_CREDITS)
     ) u_dut (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -312,7 +320,8 @@ module delta_mesh_cell_th #(
         .s_credit(w_s_credit),
         .m_credit(w_m_credit),
         .o_err_drop_cnt(err_drop_cnt),
-        .o_mode_acks(mode_acks)
+        .o_mode_acks(mode_acks),
+        .o_bulk_starved(bulk_starved)
     );
 
 endmodule : delta_mesh_cell_th

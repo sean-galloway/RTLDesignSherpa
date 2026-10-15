@@ -24,8 +24,9 @@
 // matching the Task 2/3 cell tie-off); m_local_credit is exposed per boundary.
 // b<i>_err are the per-cell malformed-dst drop counters (Task 5 o_err pass-
 // through); b<i>_mode_acks are the per-cell mode-switch ack tallies (Task 6
-// o_mode_acks pass-through -- the modes suite's barrier). Suites may ignore
-// them but the fabric ports must exist.
+// o_mode_acks pass-through -- the modes suite's barrier); b<i>_bulk_starved
+// are the per-cell bulk-reservation-due flag vectors (Task 7 o_bulk_starved
+// pass-through). Suites may ignore them but the fabric ports must exist.
 //
 // Subsystem: delta (dv)
 //
@@ -99,7 +100,11 @@ module delta_mesh_fabric_2x2_th #(
     output logic [31:0]           b0_mode_acks,
     output logic [31:0]           b1_mode_acks,
     output logic [31:0]           b2_mode_acks,
-    output logic [31:0]           b3_mode_acks
+    output logic [31:0]           b3_mode_acks,
+    output logic [7:0]            b0_bulk_starved,
+    output logic [7:0]            b1_bulk_starved,
+    output logic [7:0]            b2_bulk_starved,
+    output logic [7:0]            b3_bulk_starved
 );
 
     // Fabric boundary index map (pinned by the generator, x-major then y
@@ -190,6 +195,17 @@ module delta_mesh_fabric_2x2_th #(
     assign b2_mode_acks = w_o_mode_acks[2];
     assign b3_mode_acks = w_o_mode_acks[3];
 
+    // Per-cell bulk-reservation-due flags (Task 7): bit p of each
+    // entry = that cell's output port p reservation is due. Exposed
+    // per boundary cell; suites may ignore them but the fabric port
+    // must exist.
+    logic [7:0] w_o_bulk_starved [NUM_BOUNDARY];
+
+    assign b0_bulk_starved = w_o_bulk_starved[0];
+    assign b1_bulk_starved = w_o_bulk_starved[1];
+    assign b2_bulk_starved = w_o_bulk_starved[2];
+    assign b3_bulk_starved = w_o_bulk_starved[3];
+
     delta_mesh_fabric_2x2x1 #(
         .DATA_WIDTH(DATA_WIDTH),
         .USER_WIDTH(USER_WIDTH),
@@ -211,7 +227,8 @@ module delta_mesh_fabric_2x2_th #(
         .s_local_credit(w_s_local_credit),
         .m_local_credit(w_m_local_credit),
         .o_err(w_o_err),
-        .o_mode_acks(w_o_mode_acks)
+        .o_mode_acks(w_o_mode_acks),
+        .o_bulk_starved(w_o_bulk_starved)
     );
 
 endmodule : delta_mesh_fabric_2x2_th
