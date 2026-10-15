@@ -42,6 +42,17 @@ module mc_cmd_arbiter
     parameter int NUM_ENTRIES = 8,
     parameter int AGE_WIDTH   = 16,
     parameter bit HAS_ZQ      = 1'b0, // include ZQ calibration branch + tZQCS block
+    // CLOSE_ON_DRAIN: pool-aware last-column auto-precharge. A column op that
+    // is the LAST demand for its (bank,row) in the scheduling window issues as
+    // RDA/WRA; the bank timer's autonomous AP path closes the row (no explicit
+    // PRE command, no extra pick-pipeline transit), and the next row's ACT
+    // classifies early (r_ap_closing) and holds at the fire stage until the
+    // live bank image says tRP/tRC are met. On same-bank row walks this is the
+    // difference between the 13-cycle ACT->RDA->ACT architectural floor and
+    // the ~24-cycle demand-driven-PRE path (LiteDRAM's per-bank close). No
+    // effect on rows with younger same-row demand still in the window, so
+    // page-hit streams keep their open-row behavior.
+    parameter bit CLOSE_ON_DRAIN = 1'b1,
     parameter int MAINT_EXTRA_WIDTH = 1, // width of maint_extra_i; pumice maps trn_cmd_mrr, andesite maps mpc[5:0]
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
@@ -304,11 +315,27 @@ module mc_cmd_arbiter
         else if (r_do_pre)            w_out_safe = !maint_busy_i && bank_pre_ready_i [RK0][r_bank]
                                                   && !w_zq_busy;
     end
-    // HOLD an ACT whose only obstacle is the rank-global windows:
-    assign w_out_hold   = r_pick_valid && !maint_busy_i && r_do_act
-                          && bank_act_ready_i[RK0][r_bank]
-                          && !(tfaw_ok_i[RK0] && trrd_ok_i[RK0])
-                          && !w_zq_busy;
+    // CLOSE_ON_DRAIN: "this bank is auto-precharging" tracker. Set at an
+    // AP column's fire (RDA/WRA), held until the bank-timer row image drops.
+    // Consumed by (a) the early-ACT classify term in pool_act_m and (b) the
+    // w_out_hold extension below -- declared ahead of both per the decl-order
+    // lint. Guard-update and clear live with the other guard registers.
+    logic [NUM_BANKS-1:0] r_ap_closing, w_ap_fire_bank;
+    assign w_ap_fire_bank = (w_fire_out && (r_do_rd || r_do_wr) && r_ap_out)
+                          ? (NUM_BANKS'(1) << r_bank) : '0;
+
+    // HOLD an ACT whose only obstacle is the rank-global windows, or --
+    // CLOSE_ON_DRAIN -- an early-ACT that reached the output register while
+    // its bank's AP-close is still draining (tRP not yet met on the live
+    // image). Hold, don't drop: the wait is bounded by tRP, and dropping
+    // would cost a 4-cycle pipeline refill that arrives at the same window.
+    // Restricted to r_ap_closing banks so ordinary busy-bank ACTs keep the
+    // proven drop behavior (a held ACT freezes the pick pipe behind it).
+    assign w_out_hold   = r_pick_valid && !maint_busy_i && r_do_act && !w_zq_busy
+                          && ((bank_act_ready_i[RK0][r_bank]
+                               && !(tfaw_ok_i[RK0] && trrd_ok_i[RK0]))
+                              || (CLOSE_ON_DRAIN && r_ap_closing[r_bank]
+                                  && !bank_act_ready_i[RK0][r_bank]));
     assign w_out_reject = r_pick_valid && !w_out_safe && !w_out_hold;
     assign w_out_ready  = !r_pick_valid || (cmd_ready_i && !w_out_hold) || w_out_reject;
     assign w_fire_out   = r_pick_valid && cmd_ready_i && w_out_safe;
@@ -403,10 +430,6 @@ module mc_cmd_arbiter
         else if (w_col_sel_now)          r_tccd_fwd <= (t_ccd_i > 8'd1) ? (t_ccd_i - 8'd1) : 8'd0;
         else if (r_tccd_fwd != 8'd0)     r_tccd_fwd <= r_tccd_fwd - 8'd1;
     )
-    logic [NUM_BANKS-1:0] r_ap_closing, w_ap_fire_bank;
-    assign w_ap_fire_bank = (w_fire_out && (r_do_rd || r_do_wr) && r_ap_out)
-                          ? (NUM_BANKS'(1) << r_bank) : '0;
-
     logic [NUM_BANKS-1:0] w_guarded;
     assign w_guarded = r_guard0 | r_guard1 | w_prepick_guard | w_col_inflight_guard
                      | w_if_preact_out | w_if_col_out;
@@ -579,7 +602,17 @@ module mc_cmd_arbiter
                               && !w_ap_col_guard[pbank] && !w_pre_col_guard[pbank]
                               && !w_preact_bank_guard[pbank]
                               && w_tccd_ls_ok;
-                pool_act_m[e] = !r_bank_row_active[RK0][pbank] && !w_guarded[pbank]
+                // CLOSE_ON_DRAIN early-ACT: when this bank is closing via an
+                // auto-precharge (r_ap_closing holds from the AP column's fire
+                // until the row image drops), a pending next-row entry may
+                // classify as ACT immediately and pipeline through the pick
+                // stages DURING the AP drain, instead of waiting for the row
+                // image to drop and then walking the pipe. The fire stage is
+                // the JEDEC authority: bank_act_ready_i (live) still requires
+                // tRP/tRC, so an early ACT holds (w_out_hold) until truly safe.
+                pool_act_m[e] = (!r_bank_row_active[RK0][pbank]
+                                 || (CLOSE_ON_DRAIN && r_ap_closing[pbank]))
+                              && !w_guarded[pbank]
                               && r_bank_act_ready[RK0][pbank] && w_act_classify_gate
                               && !w_rfc_busy;
                 pool_pre_m[e] = r_bank_row_active[RK0][pbank] && !w_guarded[pbank] && !phit
@@ -695,10 +728,23 @@ module mc_cmd_arbiter
     localparam int POPW = $clog2(NUM_ENTRIES + 1);
     logic [POPW-1:0] rd_pop [NUM_ENTRIES];
     logic [POPW-1:0] wr_pop [NUM_ENTRIES];
+    // CLOSE_ON_DRAIN cross-direction population: for rd entry i, rd_xpop[i] =
+    // number of WR-pool entries on the SAME bank+row -- and symmetrically
+    // wr_xpop[i] over the RD pool. A column op is the LAST demand for its row
+    // iff its own-direction population is exactly 1 (itself) and its cross
+    // population is 0. This is what lets the pre-pick arm an auto-precharge
+    // (RDA/WRA) on the final same-row column: the precise, pool-aware version
+    // of close-on-drain (LiteDRAM closes its per-bank machine the same way).
+    // Same-direction only counts same-direction by construction ((j>=N)==pdir),
+    // so the cross term needs the complementary comparison.
+    logic [POPW-1:0] rd_xpop [NUM_ENTRIES];
+    logic [POPW-1:0] wr_xpop [NUM_ENTRIES];
     always_comb begin
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             rd_pop[i] = '0;
             wr_pop[i] = '0;
+            rd_xpop[i] = '0;
+            wr_xpop[i] = '0;
         end
         for (int e = 0; e < POOL; e++) begin
             automatic logic           pdir = (e >= NUM_ENTRIES);
@@ -711,6 +757,13 @@ module mc_cmd_arbiter
                     && (f_pool_row (PTXW'(j)) == pprw)) begin
                     if (pdir) wr_pop[pslot] = wr_pop[pslot] + POPW'(1);
                     else      rd_pop[pslot] = rd_pop[pslot] + POPW'(1);
+                end
+                // cross-direction: same bank+row, opposite direction
+                if (pool_valid[j] && ((j >= NUM_ENTRIES) != pdir)
+                    && (f_pool_bank(PTXW'(j)) == ppbk)
+                    && (f_pool_row (PTXW'(j)) == pprw)) begin
+                    if (pdir) wr_xpop[pslot] = wr_xpop[pslot] + POPW'(1);
+                    else      rd_xpop[pslot] = rd_xpop[pslot] + POPW'(1);
                 end
             end
         end
@@ -782,6 +835,8 @@ module mc_cmd_arbiter
     logic [NUM_ENTRIES*NUM_ENTRIES-1:0] r_rd_older, r_wr_older;
     logic [POPW-1:0]                    r_rd_pop [NUM_ENTRIES];
     logic [POPW-1:0]                    r_wr_pop [NUM_ENTRIES];
+    logic [POPW-1:0]                    r_rd_xpop [NUM_ENTRIES];
+    logic [POPW-1:0]                    r_wr_xpop [NUM_ENTRIES];
     logic [1:0]                         r_col_sel, r_row_sel;
     logic [NUM_BANKS-1:0]               r_ap_snap;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -800,7 +855,8 @@ module mc_cmd_arbiter
             r_rd_older <= rd_sch_older_i; r_wr_older <= wr_sch_older_i;
             r_col_sel  <= sched_col_sel_i; r_row_sel <= sched_row_sel_i;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
-                r_rd_pop[i] <= rd_pop[i]; r_wr_pop[i] <= wr_pop[i];
+                r_rd_pop[i]  <= rd_pop[i];  r_wr_pop[i]  <= wr_pop[i];
+                r_rd_xpop[i] <= rd_xpop[i]; r_wr_xpop[i] <= wr_xpop[i];
             end
             for (int b = 0; b < NUM_BANKS; b++) r_ap_snap[b] <= f_ap(BKW'(b));
         end
@@ -911,8 +967,14 @@ module mc_cmd_arbiter
         end else if (w_out_ready) begin
             rd_col_f <= w_sel_rd_col_f; rd_col_s <= w_sel_rd_col_s;
             wr_col_f <= w_sel_wr_col_f; wr_col_s <= w_sel_wr_col_s;
-            rd_col_ap <= r_ap_snap[f_bank(rd_sch_bank_i, w_sel_rd_col_s)];
-            wr_col_ap <= r_ap_snap[f_bank(wr_sch_bank_i, w_sel_wr_col_s)];
+            rd_col_ap <= r_ap_snap[f_bank(rd_sch_bank_i, w_sel_rd_col_s)]
+                       || (CLOSE_ON_DRAIN
+                           && (r_rd_pop[w_sel_rd_col_s] == POPW'(1))
+                           && (r_rd_xpop[w_sel_rd_col_s] == POPW'(0)));
+            wr_col_ap <= r_ap_snap[f_bank(wr_sch_bank_i, w_sel_wr_col_s)]
+                       || (CLOSE_ON_DRAIN
+                           && (r_wr_pop[w_sel_wr_col_s] == POPW'(1))
+                           && (r_wr_xpop[w_sel_wr_col_s] == POPW'(0)));
             rd_act_f <= w_sel_rd_act_f; rd_act_s <= w_sel_rd_act_s;
             wr_act_f <= w_sel_wr_act_f; wr_act_s <= w_sel_wr_act_s;
             rd_pre_f <= w_sel_rd_pre_f; rd_pre_s <= w_sel_rd_pre_s;

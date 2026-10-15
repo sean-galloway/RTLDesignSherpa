@@ -194,6 +194,22 @@ module mc_store_arbiter_macro_tb_top
     logic        cmd_valid;
     dram_op_e    cmd_op;
     logic        cmd_ap;
+    logic [BKW-1:0] cmd_bank;
+
+    // Close-on-AP bank model. The old stub held every row open forever
+    // ("page always open"), which was fine until CLOSE_ON_DRAIN: the
+    // arbiter's last-column auto-precharge (RDA/WRA) raises r_ap_closing,
+    // and that guard only clears when the row image drops -- with rows
+    // pinned open it never cleared and every column to the bank wedged.
+    // The real mc_bank_timer clears row_valid at its internal AP fire
+    // (preblk+tRAS after the column, ~6 cycles at this geometry). Model
+    // exactly that: an AP column (cmd_valid && cmd_ap) starts a per-bank
+    // countdown, the row drops at zero, and a subsequent ACT re-opens the
+    // row AND aborts the pending close (the timer's r_ap_pending clear).
+    // All *_ready stay permissive -- this TB verifies the commit/issue
+    // contract, not JEDEC timing.
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] stub_row_active;
+    logic [NUM_BANKS-1:0][3:0]           stub_ap_cnt;
 
     mc_cmd_arbiter #(
         .NUM_RANKS  (NUM_RANKS),
@@ -254,7 +270,7 @@ module mc_store_arbiter_macro_tb_top
         .bank_act_ready_la_i('1),
         .bank_rdwr_ready_la_i('1),
         .bank_pre_ready_la_i('1),
-        .bank_row_active_i  ('1),
+        .bank_row_active_i  (stub_row_active),
         .bank_open_row_i    ('0),
         .tfaw_ok_i          ('1),
         .trrd_ok_i          ('1),
@@ -293,7 +309,7 @@ module mc_store_arbiter_macro_tb_top
         .cmd_ready_i        (cm_ready),   // real shape: cmd bus paces with the drain
         .cmd_op_o           (cmd_op),
         .cmd_rank_o         (),
-        .cmd_bank_o         (),
+        .cmd_bank_o         (cmd_bank),
         .cmd_row_o          (),
         .cmd_col_o          (),
         .cmd_ap_o           (cmd_ap),
@@ -318,6 +334,28 @@ module mc_store_arbiter_macro_tb_top
         else                        r_cm_gate <= r_cm_gate + 1'b1;
     end)
     assign cm_ready = (r_cm_gate == 2'd0);
+
+    // Close-on-AP bank model (see the declaration above the arbiter instance).
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            stub_row_active <= '1;   // every row starts open (the old stub)
+            stub_ap_cnt     <= '0;
+        end else begin
+            for (int b = 0; b < NUM_BANKS; b++) begin
+                if (cmd_valid && (cmd_op == OP_ACT) && (cmd_bank == BKW'(b))) begin
+                    // ACT wins over a pending close (timer: set_act > ap_fire)
+                    stub_row_active[0][b] <= 1'b1;
+                    stub_ap_cnt[b]        <= '0;
+                end else if (cmd_valid && cmd_ap && (cmd_bank == BKW'(b))) begin
+                    stub_ap_cnt[b] <= 4'd6;
+                end else if (stub_ap_cnt[b] != 4'd0) begin
+                    stub_ap_cnt[b] <= stub_ap_cnt[b] - 4'd1;
+                    if (stub_ap_cnt[b] == 4'd1)
+                        stub_row_active[0][b] <= 1'b0;
+                end
+            end
+        end
+    end)
 
     // ------------------------------------------------------------------
     // Contract counters (checked by the cocotb test)
