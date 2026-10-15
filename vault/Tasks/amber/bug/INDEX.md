@@ -12,12 +12,21 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- [BUG-001](open/BUG-001.md) — miss_fill_macro func cell: 3-check divergence at one lockstep transaction, load-dependent, no deterministic repro yet
+(none)
+
+## Closed
+
+- [BUG-001](closed/BUG-001.md) — miss_fill_macro func cell: 3-check divergence
+  at one lockstep transaction. CLOSED 2026-10-15: not reproducible at HEAD —
+  full 48-worker grid (350/350) + recorded seed solo (4/4) + forced-load (6/6)
+  all green; corner plausibly removed by BUG-002 PF_GUARD (`ab308d108`), which
+  post-dates the failure and reworks the soaked interaction. Archive-before-
+  rerun instruction survives in the filing.
