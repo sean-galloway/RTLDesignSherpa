@@ -1,0 +1,59 @@
+// Figure 5.1 -- ddr2-characterization / LiteDRAM UART/AXI4-Lite address map.
+// Drawn in the DE10 address-map style (projects/fpga-systems/DE10-Standard/
+// fabric-benchmark/docs/assets/graphviz/de10_address_map.dot): one top-level
+// table for the bridge decode and one expanded table for the harness_csr window.
+// Replaces the hand-maintained register map preamble in 01_register_map.md.
+// RTL / source of truth:
+//   - bridge: ddr2_char_framework/rtl/bridges/configs/bridge_ddr2_char_axil.toml
+//   - harness_csr: projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.sv
+//   - litedram harness: ddr2-characterization/flows-litedram-uart/rtl/char_engine_harness.sv
+//   - litedram top: ddr2-characterization/flows-litedram-uart/rtl/litedram_char_top.sv
+//   - host constants: ddr2-characterization/flows-litedram-uart/host/host_litedram_char.py
+// House style: vault/handbook/authoring/block-diagrams.md.
+digraph litedram_address_map {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.6", ranksep="0.9", splines=line, labelloc=t, labeljust=c,
+           pad="0.2",
+           label="ddr2-characterization / LiteDRAM: UART/AXI4-Lite address map (as-built)"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7,
+           style=dashed];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Base</B></TD><TD BGCOLOR="white"><B>Size</B></TD><TD BGCOLOR="white"><B>Slave / Window</B></TD><TD BGCOLOR="white"><B>Protocol</B></TD><TD BGCOLOR="white"><B>Purpose</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x0000_0000</TD><TD>4 KB</TD><TD>ddr2_apb</TD><TD>APB</TD><TD ALIGN="LEFT">TERMINATED on this flow (LiteDRAM self-configures; PREADY=1, PRDATA=0)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0001_0000</TD><TD>4 KB</TD><TD PORT="csr">harness_csr</TD><TD>AXIL</TD><TD ALIGN="LEFT">Harness ctrl / status / timer / perf / build identity</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0002_0000</TD><TD>128 KB</TD><TD>-</TD><TD>-</TD><TD ALIGN="LEFT">unallocated (was desc_ram; retired)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0004_0000</TD><TD>256 KB</TD><TD>debug_sram</TD><TD>AXIL 64b</TD><TD ALIGN="LEFT">MonBus / DFI trace ring (backing store 2 KB on this build)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0008_0000</TD><TD>4 KB</TD><TD>dfi_mon_ram</TD><TD>AXIL</TD><TD ALIGN="LEFT">DFI command observability placeholder; no writer on this build</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0009_0000</TD><TD>4 KB</TD><TD>obs_apb</TD><TD>APB</TD><TD ALIGN="LEFT">Expansion slot; TERMINATED on this flow (PREADY=1, PRDATA=0)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x000A_0000</TD><TD>4 KB</TD><TD>chargen_apb</TD><TD>APB</TD><TD ALIGN="LEFT">Per-generator config, status, and GO (16 generators)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x000B_0000 - 0xFFFF_FFFF</TD><TD>-</TD><TD>-</TD><TD>-</TD><TD ALIGN="LEFT">unmapped - DECERR</TD></TR>
+</TABLE>>];
+
+    csr [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Offset</B></TD><TD BGCOLOR="white"><B>Register</B></TD><TD BGCOLOR="white"><B>R/W</B></TD><TD BGCOLOR="white"><B>What it is</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x00</TD><TD>CTRL</TD><TD>RW</TD><TD ALIGN="LEFT">clear_stats, freeze_trace, soft_reset; start_wr/start_rd retired</TD></TR>
+  <TR><TD ALIGN="LEFT">0x04</TD><TD>STATUS</TD><TD>R</TD><TD ALIGN="LEFT">wr_done, rd_done, errors, init_done, init_fail (init from litedram_core)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x08</TD><TD>DBG_WR_PTR</TD><TD>R</TD><TD ALIGN="LEFT">Words written to debug_sram since last clear</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0C</TD><TD>DBG_OVERFLOW</TD><TD>R</TD><TD ALIGN="LEFT">Sticky trace-overflow flag</TD></TR>
+  <TR><TD ALIGN="LEFT">0x10 / 0x14</TD><TD>CRC_EXPECTED / CRC_ACTUAL</TD><TD>R</TD><TD ALIGN="LEFT">RETIRED, read 0; per-generator CRCs live in chargen_regs</TD></TR>
+  <TR><TD ALIGN="LEFT">0x18</TD><TD>CRC_MATCH</TD><TD>R</TD><TD ALIGN="LEFT">Whole-run AND of every launched writer/reader pair</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1C</TD><TD>SCRATCH</TD><TD>RW</TD><TD ALIGN="LEFT">Host bring-up ping</TD></TR>
+  <TR><TD ALIGN="LEFT">0x20</TD><TD>BUILD_ID</TD><TD>R</TD><TD ALIGN="LEFT">0x4C445232 ("LDR2")</TD></TR>
+  <TR><TD ALIGN="LEFT">0x24</TD><TD>BEATS_MISM</TD><TD>R</TD><TD ALIGN="LEFT">RETIRED, read 0; per-generator counts in chargen_regs</TD></TR>
+  <TR><TD ALIGN="LEFT">0x28 - 0x5C</TD><TD>Timer block</TD><TD>W/R</TD><TD ALIGN="LEFT">clear, status, 64b cycles, exp beats, first/last R+W stamps</TD></TR>
+  <TR><TD ALIGN="LEFT">0x60</TD><TD>CTRLR_CFG</TD><TD>RW</TD><TD ALIGN="LEFT">Present but unwired on this flow (LiteDRAM BIOS owns config)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x64</TD><TD>CTRLR_CAP</TD><TD>RW</TD><TD ALIGN="LEFT">Present but unwired on this flow</TD></TR>
+  <TR><TD ALIGN="LEFT">0x68</TD><TD>DFI_TUNING</TD><TD>RW</TD><TD ALIGN="LEFT">Present but unwired on this flow</TD></TR>
+  <TR><TD ALIGN="LEFT">0x80 - 0x8C</TD><TD>PHY_CSR_*</TD><TD>RW/R</TD><TD ALIGN="LEFT">Present but meaningless on this flow (LiteDRAM self-levels per boot)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x100 - 0x1AF</TD><TD>-</TD><TD>R</TD><TD ALIGN="LEFT">RETIRED engine-cfg hole; reads 0</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1C0 - 0x1DC</TD><TD>OBS_RD_* / OBS_WR_*</TD><TD>R</TD><TD ALIGN="LEFT">Bus-meter productive / backpressure / starvation / idle</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1E0 - 0x1E8</TD><td>OBS_HIST_*</td><TD>RW/R</TD><TD ALIGN="LEFT">Latency-histogram selector, bin count, total</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1EC - 0x1F8</TD><TD>BUILD_VERSION / BUILD_CONFIG / BUILD_DATA_CFG / BUILD_CLK_HZ</TD><TD>R</TD><TD ALIGN="LEFT">Bitstream identity: version, geometry, data widths, 75 MHz clock</TD></TR>
+</TABLE>>];
+
+    map:csr:e -> csr:w [label="expanded"];
+}

@@ -1,0 +1,62 @@
+// Amber pair-rig Genesys2 -- cycle injector internals.
+// Source: rtl/amber_cycle_injector.sv.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Flow geography: AXIL config/status top-down; cpu_req issues down the center;
+// cpu_rsp returns up the right edge; CRC accumulators sit on the data paths.
+digraph amber_cycle_injector {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho,
+           label="Amber pair-rig Genesys2 -- cycle injector internals",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    axil [label="AXIL4-Lite slave\nconfig / status", fillcolor="white"];
+    regs [label="CSR registers\nCTRL, SEED, ADDR_BASE,\nADDR_MASK, TRANS_COUNT"];
+    lfsr [label="Fibonacci LFSR\nshifter_lfsr_fibonacci\nwidth 32, taps {23,3,2,1}"];
+    addr [label="Address generator\ndma_address_gen\nbase + (index & mask)"];
+    fsm  [label="Stimulus FSM\nIDLE -> ADDR_WAIT -> ISSUE -> WAIT_RSP"];
+
+    // request issue boundary
+    req [label="cpu_req GAXI master\n{addr, we, be, wdata}", fillcolor="white", width=2.8];
+
+    // response return boundary
+    rsp [label="cpu_rsp GAXI\n{read data}", fillcolor="white", width=2.8];
+
+    // CRC accumulators on their respective data paths
+    wdatacrc [label="CRC-32 accumulator\ndataint_crc\nissued write data"];
+    rspcrc   [label="CRC-32 accumulator\ndataint_crc\nreturned read data"];
+
+    // status back to CSR
+    status [label="Status registers\nSTATUS, ACC_COUNT,\nRSP_COUNT, ERR_FLAG"];
+
+    axil -> regs [label="AW/W"];
+    regs -> lfsr [style=dashed, label="seed, run"];
+    regs -> addr [style=dashed, label="base, mask"];
+
+    lfsr -> addr [label="index"];
+    addr -> fsm [label="generated addr"];
+    lfsr -> fsm [label="we_mix, data, be"];
+
+    fsm -> req [label="cpu_req issue"];
+    req -> wdatacrc [style=dashed, constraint=false, label="wdata"];
+
+    rsp -> fsm [constraint=false, label="cpu_rsp"];
+    rsp -> rspcrc [style=dashed, constraint=false, label="rdata"];
+
+    fsm -> status [constraint=false, label="done/busy/err"];
+    status -> axil [constraint=false, label="AR/R"];
+
+    // timeout sideband
+    timeout [label="Response timeout\n24-bit counter", style="filled,dashed"];
+    fsm -> timeout [style=dashed, constraint=false, label="wait count"];
+    timeout -> fsm [style=dashed, constraint=false, label="timeout -> err"];
+
+    legend [shape=box, style=filled, fillcolor="white", color="black",
+            label="Parameters (fixed at build)\l\
+ADDR_WIDTH=32, BUS_WIDTH=64\l\
+INDEX_WIDTH=32, STRIDE=+1\l\
+CRC-32: POLY=0x04C11DB7, REFIN=1, REFOUT=1\l",
+            fontsize=9, align=left];
+}

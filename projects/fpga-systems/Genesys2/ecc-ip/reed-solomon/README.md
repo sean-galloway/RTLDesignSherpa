@@ -41,7 +41,9 @@ Tracked as issue #83; see `docs/UART_HARNESS.md` for the mechanism.
 
 The loop runs UART -> `uart_axil_bridge` -> the generated 1x3 fabric
 `bridge_rs_loop_axil` (`rs_loop_apb` 0x00000000, `rs_regs_apb` 0x00010000,
-`obs_apb` 0x00020000). The datapath is `axis4_master_injector` ->
+`obs_apb` 0x00020000 — see the address-map figure in
+`docs/rs_uart_harness/ch02_the_harness/03_address_map.md`). The datapath is
+`axis4_master_injector` ->
 `rs_encoder_core` RS(252,236) -> `error_injector` -> the riBM and Euclid
 `rs_decoder_core`s -> one `axis4_slave_pattern_check` each, with a comparator
 checking A against B beat for beat; bypass sends the generator straight to the

@@ -1,0 +1,44 @@
+// Figure 1.2 -- Nexys A7 Reed-Solomon UART harness (small-profile entry point).
+// New diagram for the NexysA7 build area. The detailed codec datapath
+// (generator / encoder / injector / decoder(s) / checker(s)) is intentionally
+// not duplicated here; see the Genesys2 sibling diagram
+// (Genesys2/ecc-ip/reed-solomon/docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// RTL: Genesys2/ecc-ip/reed-solomon/build-loop/rtl/rs_loop_top.sv (Nexys A7
+//      target) and rs_loop_harness.sv.
+digraph nexys_a7_rs_uart_harness {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
+           label="Nexys A7 Reed-Solomon small-profile UART harness (host -> UART -> CSR -> DUT)", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host [group=C, label="Host laptop\npython3 bin/run_smoke.py\nover /dev/ttyUSB* 115200 8N1", fillcolor="white"];
+    uart [group=C, label="UART to AXI4-Lite master\nuart_axil_bridge - u_uart_bridge"];
+    fab  [group=C, label="Generated 1 x 3 AXIL -> APB fabric\nbridge_rs_loop_axil - u_bridge"];
+
+    w0 [group=L, label="Window 0x0000_0000\nrs_loop_apb -> apb4_to_peakrdl\n+ rs_loop_regs (BUILD_ID, CTRL, GO, ...)"];
+    w1 [group=L, label="Window 0x0001_0000\nrs_regs_apb\nAXI4: axi4_intf_master_observer\nAXIS: read-0 stub", fillcolor="white"];
+    w2 [group=R, label="Window 0x0002_0000\nobs_apb -> axis4_intf_observer\n4 AXIS seam taps"];
+
+    harness [group=C, label="Reed-Solomon loop harness\nrs_loop_harness\nstatus aggregation + observer mux\nAXI4/AXIS datapath (see Genesys2 diagrams)"];
+
+    clk [group=R, label="Nexys A7 clock + reset\nrs_loop_top\n100 MHz pin -> fabric /2 -> 50 MHz\nreset synchronizer", fillcolor="white"];
+
+    bar [group=C, label="Nexys A7 board boundary\nUSB-UART, LEDs, 100 MHz CLK100MHZ", fillcolor="white", width=6];
+
+    { rank=same; w0; w1; w2; }
+    w0 -> w1 -> w2 [style=invis];
+
+    host -> uart [dir=both, penwidth=1.8, xlabel="UART W / R"];
+    uart -> fab  [dir=both, xlabel="AXI4-Lite access"];
+    fab  -> w0   [xlabel="window 0"];
+    fab  -> w1   [xlabel="window 1"];
+    fab  -> w2   [xlabel="window 2"];
+
+    w0   -> harness [style=dashed, xlabel="control + status"];
+    clk  -> harness [style=dashed, xlabel="clk + reset"];
+
+    harness -> bar [penwidth=1.8, xlabel="status LEDs / board I/O"];
+}

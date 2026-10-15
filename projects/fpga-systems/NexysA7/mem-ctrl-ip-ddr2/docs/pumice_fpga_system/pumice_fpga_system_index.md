@@ -68,6 +68,7 @@ architecture lives in the pumice HAS/MAS under
 
 ### Chapter 2: The Harness
 - [Every Block Around the DUT, the Address Map, and Why Each Block Is Shaped That Way](ch02_harness/01_harness.md)
+- [UART/AXI4-Lite Address Map](ch02_harness/02_address_map.md)
 
 ### Chapter 3: One Harness, Five Targets
 - [What Actually Changes Per Build, and What Does Not](ch03_builds/01_build_variants.md)
@@ -87,6 +88,7 @@ script; never hand-edit a PNG.
 |---|---|---|
 | 1.1 | `01_board_and_host.dot` | host, the single USB connector, the Artix-7, the DDR2 part |
 | 2.1 | `02_harness_blocks.dot` | every block around the DUT and the address map |
+| 2.2 | `05_address_map.dot` | UART/AXI4-Lite bridge decode and harness_csr offsets |
 | 3.1 | `03_build_variants.dot` | one harness source, five targets |
 | 4.1 | `04_measurement_path.dot` | from a host command to a row of the CSV |
 

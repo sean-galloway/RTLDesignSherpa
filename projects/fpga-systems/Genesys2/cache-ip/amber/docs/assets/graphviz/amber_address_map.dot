@@ -1,0 +1,37 @@
+// Amber pair-rig Genesys2 -- host-visible AXI4-Lite address map.
+// Source: host/amber_board.py and rtl/bridges/configs/bridge_amber_axil.toml.
+// Drawn from the as-built RTL; all shown windows are decoded by bridge_amber_axil.
+// House style: vault/handbook/authoring/block-diagrams.md (address map as
+// HTML-table-in-plaintext-node, expanded configuration region on the right).
+digraph amber_address_map {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.6", ranksep="0.9", splines=line,
+           labelloc=t, labeljust=c, pad="0.2",
+           label="Amber pair-rig Genesys2 -- host AXI4-Lite address map (as-built)"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, style=dashed];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Address</B></TD><TD BGCOLOR="white"><B>Region</B></TD><TD BGCOLOR="white"><B>Decoded by</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x0006_0000 - 0x0006_0FFF</TD><TD BGCOLOR="#D6E4F0">tally_cfgr (4 KB)</TD><TD PORT="cfg">bridge_amber_axil</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0005_0000 - 0x0005_0FFF</TD><TD BGCOLOR="#D6E4F0">tally_cfgw (4 KB)</TD><TD>bridge_amber_axil</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0004_0000 - 0x0004_0FFF</TD><TD BGCOLOR="#D6E4F0">tally_cnt (4 KB)</TD><TD>bridge_amber_axil</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0003_0000 - 0x0003_0FFF</TD><TD BGCOLOR="#D6E4F0">cycle_injector1 (4 KB)</TD><TD>bridge_amber_axil</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0002_0000 - 0x0002_0FFF</TD><TD BGCOLOR="#D6E4F0">cycle_injector0 (4 KB)</TD><TD>bridge_amber_axil</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0001_0000 - 0x0001_0FFF</TD><TD BGCOLOR="#D6E4F0">harness_csr (4 KB)</TD><TD PORT="csr">bridge_amber_axil</TD></TR>
+  <TR><TD ALIGN="LEFT">other</TD><TD>unmapped - DECERR</TD><TD>-</TD></TR>
+</TABLE>>];
+
+    cfg [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Window</B></TD><TD BGCOLOR="white"><B>Registers / Notes</B></TD></TR>
+  <TR><TD ALIGN="LEFT">harness_csr</TD><TD ALIGN="LEFT">CTRL, STATUS (ci0/ci1 done/busy/err), CYCLE_LO, CYCLE_HI, FABRIC_DBG</TD></TR>
+  <TR><TD ALIGN="LEFT">cycle_injector0/1</TD><TD ALIGN="LEFT">CTRL (run, we_mix), SEED, ADDR_BASE, ADDR_MASK, TRANS_COUNT, STATUS, ACC_COUNT, RSP_COUNT, ERR_FLAG, RSP_CRC, WDATA_CRC</TD></TR>
+  <TR><TD ALIGN="LEFT">tally_cnt</TD><TD ALIGN="LEFT">COUNT0..COUNT31 (32-bit lower half), UNEXPECTED (0x100)</TD></TR>
+  <TR><TD ALIGN="LEFT">tally_cfgw</TD><TD ALIGN="LEFT">CAM_CLEAR, CAM_KEY, CAM_LOAD, WATCH_CTRL, LATCH_SEL (monbus_tally_axil config)</TD></TR>
+  <TR><TD ALIGN="LEFT">tally_cfgr</TD><TD ALIGN="LEFT">Read-back of tally configuration/status registers</TD></TR>
+</TABLE>>];
+
+    map:cfg:e -> cfg:w [label="expanded"];
+}

@@ -1,0 +1,50 @@
+// Figure 3.1 -- scoria DDR3/LPDDR3 controller stack as instantiated in the
+// Genesys 2 characterization build.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// RTL: projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/top/scoria_top.sv,
+//      projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/top/scoria_top_geared.sv,
+//      rtl/scoria_char_macro.sv.
+// Replaces no prior figure.
+//
+// Host AXI is 64-bit; the controller core runs at the DFI word width
+// (DRAM_BEAT_WIDTH * DFI_RATE = 256-bit here). The AXI data-width converters
+// are the repo's formally-verified axi4_dwidth_converter_wr/_rd; at a 1:1 ratio
+// they are generated away. The command/address scheduler is the flat trapezium.
+digraph scoria_controller {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c, pad="0.2",
+           label="scoria controller stack in the Genesys 2 build"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host_axi [label="Host AXI4 masters\n(4 WR + 4 RD generators)\n64-bit", fillcolor="white"];
+
+    wr_conv [label="axi4_dwidth_converter_wr\n64 -> 256 bit", style="filled,dashed"];
+    rd_conv [label="axi4_dwidth_converter_rd\n256 -> 64 bit", style="filled,dashed"];
+
+    csr  [label="scoria_csr\nPeakRDL register block\n(timings, mode regs,\nZQ, wrlvl, stall stats)", width=3.2];
+
+    core [label="scoria_core\nscheduler + training + DFI planes\n(init_sequencer, cmd_arbiter,\naddr_mapper, bank_timers,\nrefresh_ctrl, zq_ctrl,\ndfi_wr_serializer,\ndfi_rd_aligner)", width=4.5];
+
+    bar  [label="DFI 2.1 boundary\n(command + write data down,\nread data up)", fillcolor="white", width=7];
+
+    // Host AXI in
+    host_axi -> wr_conv [penwidth=1.8, xlabel="AW/W"];
+    host_axi -> rd_conv [dir=back, penwidth=1.8, xlabel="AR/R"];
+
+    // Converters to core
+    wr_conv -> core [penwidth=1.8, xlabel="256-bit write"];
+    core -> rd_conv [dir=back, penwidth=1.8, xlabel="256-bit read"];
+
+    // CSR config
+    csr -> core [style=dashed, xlabel="hwif_out config"];
+    core -> csr [style=dashed, xlabel="hwif_in telemetry"];
+
+    // DFI boundary
+    core -> bar [penwidth=1.8, xlabel="DFI command / write data"];
+    bar -> core [dir=back, penwidth=1.8, xlabel="DFI read data"];
+
+    { rank=same; wr_conv; rd_conv; }
+}

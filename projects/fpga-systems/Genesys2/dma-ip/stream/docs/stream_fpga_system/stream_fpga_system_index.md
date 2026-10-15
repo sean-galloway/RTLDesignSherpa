@@ -50,7 +50,8 @@ architecture lives in the STREAM HAS/MAS under
 - [Board, Host, Clocks and the Two USB Chips](ch01_overview/01_system.md)
 
 ### Chapter 2: The Harness
-- [Every Block Around the DUT, and the Address Map](ch02_harness/01_harness.md)
+- [Every Block Around the DUT](ch02_harness/01_harness.md)
+- [The Address Map](ch02_harness/02_address_map.md)
 
 ### Chapter 3: One RTL, Three Builds
 - [mon, obs, perf: the Parameters and Why Each Exists](ch03_builds/01_build_variants.md)
@@ -83,3 +84,23 @@ architecture lives in the STREAM HAS/MAS under
 | Harness clock | 1200 MHz VCO / `CLKOUT0_DIVIDE`: 100, 80 or 60 MHz (the mon sign-off ran at 60) |
 | Host link | UART 115200-8N1 on the board's FT232R; JTAG on its FT2232 |
 | Builds | `mon` (8 ch, in-core monitors), `obs` (4 ch, observer taps), `perf` (8 ch, nothing but the datapath) |
+
+: Table 0.1: Identity
+
+---
+
+## Diagrams
+
+Every figure is a Graphviz source in `assets/graphviz/`, rendered to PNG by
+`assets/graphviz/regenerate_all_graphviz.sh`. Edit the `.dot` and re-run the
+script; never hand-edit a PNG.
+
+| Figure | Source | Subject |
+|---|---|---|
+| 1.1 | `01_board_and_host.dot` | Host, two USB chips, FPGA stack, board parts |
+| 2.1 | `02_harness_blocks.dot` | Harness blocks around the DUT |
+| 2.2 | `05_address_map.dot` | Host AXI4-Lite address map and harness CSR detail |
+| 3.1 | `03_build_variants.dot` | One RTL source, three build flavours |
+| 4.1 | `04_measurement_path.dot` | End-to-end measurement paths |
+
+: Table 0.2: The diagrams and their sources

@@ -1,0 +1,85 @@
+// scoria DDR3 on Genesys 2 - UART-harness address map.
+// Figure A.1, ADDRESS_MAP.md. Replaces no prior figure.
+// RTL: rtl/scoria_char_harness.sv (bridge_scoria_char_axil), bridge config
+//      rtl/bridges/configs/bridge_scoria_char_axil.toml,
+//      projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.rdl,
+//      projects/fpga-systems/rtl/mem_char_framework/rtl/chargen_regs.rdl,
+//      build-scoria/rtl/generated/k7ddrphy_csr_map.txt.
+// House style: vault/handbook/authoring/block-diagrams.md (HTML-table address
+// map in a plaintext node, planned-vs-as-built marked honestly).
+//
+// The host sees one 32-bit AXI4-Lite space. The bridge decodes three 4 KB
+// windows (controller APB, harness_csr AXIL, chargen APB). Accesses outside
+// those three reach the subtractive slave and assert unmapped_irq.
+// PLANNED holes mirror pumice's legacy layout so future debug_sram / dfi_mon /
+// obs_apb windows can be added without moving existing slaves.
+digraph scoria_address_map {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.6", ranksep="0.9", splines=line, labelloc=t, labeljust=c,
+           pad="0.2",
+           label="scoria Genesys 2 UART-harness address map (as-built windows solid, planned holes dashed)"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7,
+           style=dashed];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Address</B></TD><TD BGCOLOR="white"><B>Region</B></TD><TD BGCOLOR="white"><B>Decoded by</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x000B_0000 - 0xFFFF_FFFF</TD><TD>unmapped -&gt; subtractive slave</TD><TD>bridge_scoria_char_axil</TD></TR>
+  <TR><TD ALIGN="LEFT">0x000A_0000 - 0x000A_0FFF</TD><TD BGCOLOR="#D6E4F0">chargen_apb (4 KB)</TD><TD PORT="chargen">bridge</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0002_0000 - 0x0009_FFFF</TD><TD BGCOLOR="#F5F5F5">PLANNED: pumice legacy holes (debug_sram, dfi_mon_ram, obs_apb)</TD><TD>-</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0001_0000 - 0x0001_0FFF</TD><TD BGCOLOR="#D6E4F0">harness_csr (4 KB)</TD><TD PORT="harness">bridge</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0000_1000 - 0x0000_FFFF</TD><TD>unmapped -&gt; subtractive slave</TD><TD>bridge</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0000_0000 - 0x0000_0FFF</TD><TD BGCOLOR="#D6E4F0">scoria_apb (4 KB)</TD><TD PORT="scoria">bridge</TD></TR>
+</TABLE>>];
+
+    scoria [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Offset</B></TD><TD BGCOLOR="white"><B>Register / Window</B></TD><TD BGCOLOR="white"><B>Notes</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x000</TD><TD>CTRL</TD><TD ALIGN="LEFT">start_wr, start_rd, clear_stats, freeze_trace, soft_reset</TD></TR>
+  <TR><TD ALIGN="LEFT">0x004</TD><TD>STATUS</TD><TD ALIGN="LEFT">wr_done, rd_done, wr/rd_error, any_error, init_done, init_fail</TD></TR>
+  <TR><TD ALIGN="LEFT">0x008</TD><TD>DBG_WR_PTR</TD><TD ALIGN="LEFT">retired; reads 0 (no trace SRAM)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x00C</TD><TD>DBG_OVERFLOW</TD><TD ALIGN="LEFT">retired; reads 0</TD></TR>
+  <TR><TD ALIGN="LEFT">0x010-0x014</TD><TD>CRC_EXPECTED / CRC_ACTUAL</TD><TD ALIGN="LEFT">retired; reads 0</TD></TR>
+  <TR><TD ALIGN="LEFT">0x018</TD><TD>CRC_MATCH</TD><TD ALIGN="LEFT">match, exp_valid, act_valid, beats_mism_nz</TD></TR>
+  <TR><TD ALIGN="LEFT">0x01C</TD><TD>SCRATCH</TD><TD ALIGN="LEFT">RW sanity</TD></TR>
+  <TR><TD ALIGN="LEFT">0x020</TD><TD>BUILD_ID</TD><TD ALIGN="LEFT">0x4444_5233 = "DDR3"</TD></TR>
+  <TR><TD ALIGN="LEFT">0x028-0x05C</TD><TD>Timer block</TD><TD ALIGN="LEFT">TIMER_CTRL, TIMER_STATUS, cycles, exp_beats, resp_delay, first/last stamps</TD></TR>
+  <TR><TD ALIGN="LEFT">0x060</TD><TD>CTRLR_CFG</TD><TD ALIGN="LEFT">memtype, t_phy_wrlat, t_rddata_en, rd_in_order</TD></TR>
+  <TR><TD ALIGN="LEFT">0x064</TD><TD>CTRLR_CAP</TD><TD ALIGN="LEFT">cap_lookahead_max, cap_synth_mask</TD></TR>
+  <TR><TD ALIGN="LEFT">0x068</TD><TD>DFI_TUNING</TD><TD ALIGN="LEFT">cmd_delay, rddata_delay</TD></TR>
+  <TR><TD ALIGN="LEFT">0x080-0x08C</TD><TD>PHY_CSR_ADDR/WDATA/CTRL/RDATA</TD><TD ALIGN="LEFT">indirect K7DDRPHY calibration CSR window</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1C0-0x1E8</TD><TD>Perf observability</TD><TD ALIGN="LEFT">rd/wr prod/bp/starv/idle, histogram sel/count/total</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1EC-0x1F8</TD><TD>Build identity</TD><TD ALIGN="LEFT">BUILD_VERSION, BUILD_CONFIG, BUILD_DATA_CFG, BUILD_CLK_HZ</TD></TR>
+</TABLE>>];
+
+    chargen [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Offset</B></TD><TD BGCOLOR="white"><B>Register / Window</B></TD><TD BGCOLOR="white"><B>Notes</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x000-0x0FF</TD><TD>WR_GEN[0..3]</TD><TD ALIGN="LEFT">0x40 stride per generator</TD></TR>
+  <TR><TD ALIGN="LEFT">0x200-0x3FF</TD><TD>RD_GEN[0..3]</TD><TD ALIGN="LEFT">0x80 stride per generator</TD></TR>
+  <TR><TD ALIGN="LEFT">0x400</TD><TD>GO</TD><TD ALIGN="LEFT">single-pulse wr_go0..3, rd_go0..3</TD></TR>
+  <TR><TD ALIGN="LEFT">0x404</TD><TD>DONE</TD><TD ALIGN="LEFT">per-generator done rollup</TD></TR>
+  <TR><TD ALIGN="LEFT">0x408</TD><TD>ERRORS</TD><TD ALIGN="LEFT">per-generator sticky error rollup</TD></TR>
+  <TR><TD ALIGN="LEFT">0x410</TD><TD>GEN_CONFIG</TD><TD ALIGN="LEFT">num_wr_gen, num_rd_gen, num_banks</TD></TR>
+  <TR><TD ALIGN="LEFT">0x414</TD><TD>BLOCK_ID</TD><TD ALIGN="LEFT">0x4347_454E = "CGEN"</TD></TR>
+</TABLE>>];
+
+    phy [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>PHY CSR word</B></TD><TD BGCOLOR="white"><B>Byte offset</B></TD><TD BGCOLOR="white"><B>Name</B></TD><TD BGCOLOR="white"><B>Purpose</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0</TD><TD>0x00</TD><TD>rst</TD><TD ALIGN="LEFT">PHY reset</TD></TR>
+  <TR><TD ALIGN="LEFT">1</TD><TD>0x04</TD><TD>dly_sel</TD><TD ALIGN="LEFT">delay select</TD></TR>
+  <TR><TD ALIGN="LEFT">2</TD><TD>0x08</TD><TD>half_sys8x_taps</TD><TD ALIGN="LEFT">tap count</TD></TR>
+  <TR><TD ALIGN="LEFT">3</TD><TD>0x0C</TD><TD>wlevel_en</TD><TD ALIGN="LEFT">write leveling enable</TD></TR>
+  <TR><TD ALIGN="LEFT">4</TD><TD>0x10</TD><TD>wlevel_strobe</TD><TD ALIGN="LEFT">write leveling strobe</TD></TR>
+  <TR><TD ALIGN="LEFT">5-6</TD><TD>0x14-0x18</TD><TD>cdly_rst / cdly_inc</TD><TD ALIGN="LEFT">command delay ctrl</TD></TR>
+  <TR><TD ALIGN="LEFT">7-10</TD><TD>0x1C-0x28</TD><TD>rdly_dq_* / bitslip_*</TD><TD ALIGN="LEFT">read DQ delay / bitslip</TD></TR>
+  <TR><TD ALIGN="LEFT">11-16</TD><TD>0x2C-0x40</TD><TD>wdly_dq_* / dqs_* / bitslip_*</TD><TD ALIGN="LEFT">write DQ/DQS delay / bitslip</TD></TR>
+  <TR><TD ALIGN="LEFT">17-18</TD><TD>0x44-0x48</TD><TD>rdphase / wrphase</TD><TD ALIGN="LEFT">DFI read/write phase</TD></TR>
+</TABLE>>];
+
+    map:scoria:e -> scoria:w [label="expanded"];
+    map:chargen:e -> chargen:w [label="expanded"];
+    map:harness:e -> phy:w [label="PHY CSR\nindirect"];
+}

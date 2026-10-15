@@ -43,6 +43,8 @@ are. This is the harness guide; the run evidence lives in the companion
 ### Chapter 2: The Harness
 - [What Is In It](ch02_the_harness/01_contents.md)
 - [How The Pieces Connect](ch02_the_harness/02_connectivity.md)
+- [Harness Address Map](ch02_the_harness/03_address_map.md)
+- [AXI4 Memory-to-Memory Datapath](ch02_the_harness/04_axi4_pipeline.md)
 
 ### Chapter 3: Testing Choices
 - [The FPGA-Testing Choices, And Why](ch03_testing_choices/01_choices.md)

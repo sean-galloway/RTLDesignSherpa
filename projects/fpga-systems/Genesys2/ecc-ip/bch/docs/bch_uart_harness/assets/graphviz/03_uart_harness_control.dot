@@ -1,0 +1,38 @@
+// Figure 2.3 -- BCH UART harness control path: host -> UART byte stream ->
+// AXI4-Lite master -> generated fabric -> APB window -> PeakRDL cpuif ->
+// bch_loop_regs -> DUT control/status. Reuses the datapath blocks already
+// drawn in Figure 2.1/2.2; this diagram focuses on the command and status path.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// RTL: build-loop/rtl/bch_loop_genesys2_top.sv (u_uart_bridge) and
+//      build-loop/rtl/bch_loop_harness.sv (u_bridge, u_apb2cpuif, u_regs).
+digraph bch_uart_harness_control {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
+           label="BCH UART harness control path", labelloc=t];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host [group=C, label="Host Python\nbin/run_smoke.py\nBchLoopDriver", fillcolor="white"];
+    uart [group=C, label="UART 115200 8N1\n/dev/ttyUSB*"];
+    bridge [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge"];
+    fabric [group=C, label="Generated 1 x 3 AXIL/APB Fabric\nbridge_bch_loop_axil - u_bridge"];
+
+    apb [group=C, label="APB4 Slave Window (0x0000_0000)\napb4_to_peakrdl - u_apb2cpuif"];
+    regs [group=C, label="PeakRDL CSR Block\nbch_loop_regs - u_regs\n(CTRL, GO, GEN_BLOCKS, INJ_CFG, ...)"];
+
+    ctrl [group=C, label="DUT Control/Status\nbch_loop_harness datapath\nGO/start, INJ_CFG, STATUS -> CSRs"];
+
+    obs [group=R, label="obs_apb window (0x0002_0000)\naxis4_intf_observer status\n(passive read taps)", fillcolor="white", style="filled,dashed"];
+    obs4 [group=L, label="bch_regs_apb window (0x0001_0000)\nAXI4: axi4_intf_master_observer\nAXIS: read-0 stub", fillcolor="white", style="filled,dashed"];
+
+    host -> uart [dir=both, penwidth=1.8, xlabel="ASCII W/R bytes"];
+    uart -> bridge [dir=both, xlabel="RX / TX"];
+    bridge -> fabric [dir=both, xlabel="AXI4-Lite AR/AW/R/W/B"];
+    fabric -> apb [xlabel="APB window 0"];
+    apb -> regs [xlabel="PeakRDL cpuif req/ack"];
+    regs -> ctrl [dir=both, xlabel="decoded fields / sampled status"];
+
+    fabric -> obs4 [style=dashed, xlabel="window 1"];
+    fabric -> obs [style=dashed, xlabel="window 2"];
+}

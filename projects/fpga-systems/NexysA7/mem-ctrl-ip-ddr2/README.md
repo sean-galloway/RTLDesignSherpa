@@ -1,9 +1,76 @@
-# pumice on Nexys A7 -- directory map
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
 
-Board-campaign area for the pumice DDR2/LPDDR2 controller. This file is a map
-only. Method lives in the handbook: [[fpga/cmn-infra/boards]],
-[[fpga/cmn-infra/host-stack]], [[fpga/cmn-infra/sequences]],
-[[fpga/cmn-infra/uart-harness]], [[fpga/cmn-infra/build-flows]].
+---
+
+<!-- End Header -->
+
+# pumice on Nexys A7 -- DDR2/LPDDR2 controller characterization
+
+Board-campaign area for the **pumice** DDR2/LPDDR2 memory controller on the
+Digilent **Nexys A7-100T** (Artix-7 xc7a100tcsg324-1, 100 MHz oscillator, Micron
+MT47H64M16HR-25E DDR2 x16). The area contains two bitstream builds that share
+one measurement harness so their results compare directly:
+
+- **`build-perf/`** -- pumice as the DUT, plus LiteDRAM's generated `a7ddrphy`,
+  at the 75 MHz system-clock design point.
+- **`ddr2-characterization/flows-litedram-uart/`** -- **LiteDRAM**'s generated
+  `litedram_core` dropped into the same harness socket, as an apples-to-apples
+  baseline.
+
+The deeper documentation lives in two books under `docs/`:
+
+- `docs/pumice_fpga_system/` -- the FPGA-system book (block diagrams, build
+  variants, host flow, and the pumice address map).
+- `ddr2-characterization/docs/ddr2_char_guide/` -- the operator/developer guide
+  (architecture, register map, and the LiteDRAM address map).
+
+Method details that cross build areas live in the vault:
+[[fpga/cmn-infra/boards]], [[fpga/cmn-infra/host-stack]],
+[[fpga/cmn-infra/sequences]], [[fpga/cmn-infra/uart-harness]],
+[[fpga/cmn-infra/build-flows]].
+
+## What each build contains
+
+| Piece | `build-perf/` | `flows-litedram-uart/` | Shared |
+|---|---|---|---|
+| Board / pin-level top | `rtl/ddr2_char_top.sv` | `rtl/litedram_char_top.sv` | Nexys A7 XDC in `fpga/constraints/` |
+| DUT | `pumice_top_geared` inside `ddr2_char_macro` | `litedram_core` (generated) | - |
+| UART→AXIL bridge | `uart_axil_bridge` | `uart_axil_bridge` | `projects/components/utility-ip/converters/rtl/` |
+| Address decode | `bridge_ddr2_char_axil` (generated) | same generated bridge | `ddr2_char_framework/rtl/bridges/` |
+| Harness CSR | `harness_csr` | `harness_csr` | `projects/fpga-systems/rtl/mem_char_framework/rtl/` |
+| Engine spine | `char_engine_block` | `char_engine_block` | same shared RTL |
+| Host driver | `host/ddr2_char.py`, `pumice_char.py` | `host/host_litedram_char.py` | transport in `projects/fpga-systems/bin/` |
+| FPGA flow | `fpga/tcl/`, `fpga/constraints/` | `fpga/tcl/`, `fpga/constraints/` | driven by `make/fpga_flow.mk` |
+
+: Components of the two builds
+
+Both builds use the same generated 1×6 bridge (`bridge_ddr2_char_axil`) and the
+same `char_engine_harness` front-end. The host sees the same address map; the
+LiteDRAM flow terminates the pumice CSR window and ignores the controller-tuning
+registers because LiteDRAM's BIOS handles DRAM initialization and leveling. See
+the address-map figures:
+
+- pumice build: `docs/pumice_fpga_system/ch02_harness/02_address_map.md`
+- LiteDRAM flow: `ddr2-characterization/docs/ddr2_char_guide/ch05_harness_csr/02_address_map.md`
+
+## Directory map
 
 ```
 pumice/
@@ -46,16 +113,22 @@ variables only.
 
 ```
 make                          # what this area offers
-make -C build-perf help       # the full target list for one build
+make -C build-perf help       # full target list for the pumice build
+make -C ddr2-characterization/flows-litedram-uart help
+                              # full target list for the LiteDRAM build
 
-make lint                     # verilator, seconds, before you burn 30 min
-make bitstream                # BUILD=perf by default
-make bitstream BUILD=litedram
-make program                  # board from the registry, BOARD=genesys2 to switch
+make lint                     # verilator lint of build-perf (default)
+make -C ddr2-characterization/flows-litedram-uart lint
+                              # verilator lint of the LiteDRAM harness
+make bitstream                # build-perf (pumice) bitstream
+make -C ddr2-characterization/flows-litedram-uart bitstream
+                              # LiteDRAM yardstick bitstream
+make program                  # program build-perf; BOARD=genesys2 to switch
+make -C ddr2-characterization/flows-litedram-uart program
 make ports                    # which ttyUSB is this board on right now?
 make seq-list                 # what sequences exist
 make run SEQUENCES="init write_read"
-make sim                      # this build's harness sim, no board
+make sim                      # build-perf harness sim, no board
 make blocks-sim               # the shared rtl/ blocks only
 make ab                       # program+run BOTH builds, back to back
 ```
@@ -63,6 +136,11 @@ make ab                       # program+run BOTH builds, back to back
 The LiteDRAM flow (`ddr2-characterization/flows-litedram-uart`) adds `make regen`;
 `synth`/`bitstream` there refuse to start if no core has been generated, because
 the alternative is an obscure Vivado failure a long way in.
+
+**Note:** the top-level `Makefile` dispatcher currently maps `BUILD=litedram` to
+`build-litedram/`, which does not exist; the LiteDRAM build lives under
+`ddr2-characterization/flows-litedram-uart/`. Use `make -C` for that build until
+the dispatcher is updated.
 
 ## The two builds
 
@@ -97,6 +175,24 @@ unchanged against silicon and sim. Sequences take an injected bus, never a port.
 
 **No `program_fpga.tcl` under `fpga/tcl/`.** Board programming is the global
 `make/fpga_flow.mk` plus the `projects/fpga-systems/bin/boards/` registry.
+
+## Block diagrams and figures
+
+All block and address-map diagrams are Graphviz `dot` sources rendered to PNG.
+Edit the `.dot` and run the directory's `regenerate_all_graphviz.sh`; never
+hand-edit a PNG.
+
+| Book / location | Figure | Subject |
+|---|---|---|
+| `docs/pumice_fpga_system/` | 1.1 | bench, host, USB, FPGA, DDR2 pads |
+| `docs/pumice_fpga_system/` | 2.1 | harness blocks and data/DFI flows |
+| `docs/pumice_fpga_system/` | **2.2** | **pumice UART/AXI4-Lite address map** |
+| `docs/pumice_fpga_system/` | 3.1 | one harness source, five targets |
+| `docs/pumice_fpga_system/` | 4.1 | host command → CSV row |
+| `ddr2-characterization/docs/ddr2_char_guide/` | 2.1 | harness spine (same as Figure 2.1) |
+| `ddr2-characterization/docs/ddr2_char_guide/` | **5.1** | **LiteDRAM UART/AXI4-Lite address map** |
+
+: Figures in the two build documentation books
 
 ## Status
 

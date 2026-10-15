@@ -57,6 +57,7 @@ under test (pumice) is separate IP and is treated here as a black box.
 ### Chapter 5: Harness CSR Configuration
 
 - [Address Map and Register Map](ch05_harness_csr/01_register_map.md)
+- [UART/AXI4-Lite Address Map (pumice and LiteDRAM)](ch05_harness_csr/02_address_map.md)
 
 ### Chapter 6: Simulation / Silicon Equivalence
 

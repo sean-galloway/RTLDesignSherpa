@@ -1,0 +1,60 @@
+// Figure 2.3 -- Reed-Solomon AXI4 memory-to-memory datapath.
+// Complements Figure 2.1 (the AXIS stream flavour) by showing the significant
+// piece that is NOT in that diagram: the rs_axi4_pipeline job chain, its
+// engines, internal memories, and the AXI4 interface observer.
+// House style (vault/handbook/authoring/block-diagrams.md): command/control
+// top-down the center; write data drops down to each memory; read data climbs
+// back up. The checker is the boundary bar. CSR config and observer taps are
+// dashed sideband.
+// RTL source: build-loop/rtl/rs_axi4_pipeline.sv.
+digraph rs_axi4_pipeline {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c, pad="0.2",
+           label="Reed-Solomon AXI4 datapath: memory-to-memory job chain"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    csr  [group=L, label="Host CSRs\nrs_loop_regs\nCTRL, GO, GEN_BLOCKS,\nINJ_CFG, GEN_SEED", fillcolor="white"];
+    gen  [group=C, label="Pattern Generator\naxis4_master_injector - u_gen\nseeded LFSR + CRC-32"];
+
+    seed [group=C, label="Seed write engine\nrs_axi4_write_engine - u_seed\nwrites messages to M1"];
+    m1   [group=C, label="Memory 1 (messages)\nsdpram_slave_axi4_axi4 - u_mem1\n16 KB, blocks * k_beats words", fillcolor="white", width=4.5];
+    enc  [group=C, label="RS Encoder JOB engine\nrs_encoder_axi4 - u_enc\nreads M1, writes codewords to M2"];
+    m2   [group=C, label="Memory 2 (codewords)\nsdpram_slave_axi4_axi4 - u_mem2\n16 KB, blocks * n_beats words", fillcolor="white", width=4.5];
+
+    inj  [group=C, label="Error Injector\nerror_injector - u_inj\nsits on decoder R channel\ncorrupts codewords in flight"];
+    dec  [group=C, label="RS Decoder JOB engine\nrs_decoder_axi4 - u_dec\nreads corrupted M2, writes recovered to M4"];
+    m4   [group=C, label="Memory 4 (recovered)\nsdpram_slave_axi4_axi4 - u_mem4\n16 KB, blocks * k_beats words", fillcolor="white", width=4.5];
+    drain [group=C, label="Drain read engine\nrs_axi4_read_engine - u_drain\nreads M4 back to checker"];
+
+    obs  [group=R, label="AXI4 interface observer\naxi4_intf_master_observer - u_obs_axi4\n4 master ports: meters + latency hist\n(observed, nothing driven back)", fillcolor="white"];
+
+    bar  [group=C, label="Pattern Checker\naxis4_slave_pattern_check - g_chk[0].u_chk\nregenerated LFSR; data_err, CRC, beat/packet counts", fillcolor="white", width=5.5];
+
+    // control sideband from CSR -- short horizontal dashes to each stage
+    csr -> seed [style=dashed, xlabel="start"];
+    csr -> enc  [style=dashed, xlabel="enc_start"];
+    csr -> inj  [style=dashed, xlabel="mode / count /\nrate / seed"];
+    csr -> dec  [style=dashed, xlabel="dec_start"];
+    csr -> drain [style=dashed, xlabel="drain_start"];
+
+    // forward data / command top-down
+    gen -> seed [penwidth=1.8, xlabel="message beats"];
+    seed -> m1  [penwidth=1.8, xlabel="AW / W"];
+    enc  -> m2  [penwidth=1.8, xlabel="AW / W codewords"];
+    dec  -> m4  [penwidth=1.8, xlabel="AW / W recovered"];
+    drain -> bar [penwidth=1.8, xlabel="message beats"];
+
+    // read data climbs back up
+    m1 -> enc  [dir=back, penwidth=1.8, xlabel="AR / R messages"];
+    m2 -> inj  [dir=back, penwidth=1.8, xlabel="AR / R codewords"];
+    inj -> dec [dir=back, penwidth=1.8, xlabel="corrupted R beats"];
+    m4 -> drain [dir=back, penwidth=1.8, xlabel="AR / R recovered"];
+
+    // observer taps (passive, dashed, short from the right)
+    enc  -> obs [style=dashed, constraint=false, xlabel="enc RD + WR"];
+    inj  -> obs [style=dashed, constraint=false, xlabel="dec RD (post-inject)"];
+    dec  -> obs [style=dashed, constraint=false, xlabel="dec WR"];
+}

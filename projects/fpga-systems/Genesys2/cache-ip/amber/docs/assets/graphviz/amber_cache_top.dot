@@ -1,0 +1,61 @@
+// Amber pair-rig Genesys2 -- amber_top internals.
+// Source: projects/components/cache-ip/amber-mesi-l1/rtl/top/amber_top.sv.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Flow geography: cpu_req top-down through the L1 core to AXI4 masters;
+// AXI4 read data returns up the right edge; snoop sideband is dashed.
+digraph amber_cache_top {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho,
+           label="Amber pair-rig Genesys2 -- amber_top cache internals",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    cpu_req [label="cpu_req GAXI\n{addr, we, be, wdata}", fillcolor="white"];
+    cpu_rsp [label="cpu_rsp GAXI\n{read data}", fillcolor="white"];
+
+    rst [label="reset_sync\nsync deassert", fillcolor="white", style="filled,dashed"];
+
+    core [label="MESI L1 core\nl1_core\ntag/state array + hit/miss FSM"];
+
+    rd_master [label="AXI4 read master\naxi4_master_rd_monlite"];
+    wr_master [label="AXI4 write master\naxi4_master_wr_monlite"];
+
+    // boundary bar is the AXI4 port
+    axi_bar [label="AXI4 master port\nto amber_pair_fabric", width=6.0, height=0.8, fillcolor="white"];
+
+    // snoop slave port
+    snoop [label="ACE snoop slave\nAC/CR/CD", fillcolor="white"];
+
+    // monitor path
+    mon_merge [label="MonBus arbiter\nmonbus_arbiter\ncore + master observes", shape=invtrapezium, width=3.0, fillcolor="#BFD7EE"];
+    mon_out [label="monbus stream\n{packet[127:0], timestamp[63:0]}", fillcolor="white"];
+
+    cpu_req -> core [label="request"];
+    core -> rd_master [label="RD miss / upgrade AR"];
+    core -> wr_master [label="WB / eviction AW-W-B"];
+
+    rd_master -> axi_bar [label="AR"];
+    wr_master -> axi_bar [label="AW/W"];
+
+    axi_bar -> rd_master [constraint=false, label="R beats"];
+    rd_master -> core [constraint=false, label="line fill data"];
+    core -> cpu_rsp [constraint=false, label="cpu_rsp"];
+
+    snoop -> core [label="AC probe"];
+    core -> snoop [constraint=false, label="CR/CD response"];
+
+    core -> mon_merge [style=dashed, label="core mon"];
+    rd_master -> mon_merge [style=dashed, xlabel="rd mon"];
+    wr_master -> mon_merge [style=dashed, xlabel="wr mon"];
+    mon_merge -> mon_out [label="merged monbus"];
+
+    rst -> core [style=dashed, label="aresetn"];
+
+    legend [shape=box, style=filled, fillcolor="white", color="black",
+            label="Geometry (fixed at build)\l\
+s128w4l64b64: 128 sets, 4 ways, 64B line, 64b bus\l\
+Replacement: LRU\l",
+            fontsize=9, align=left];
+}

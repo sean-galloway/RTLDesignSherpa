@@ -59,6 +59,11 @@ Board gotcha (from the registry): Digilent Adept steals the UART ttyUSB —
 
 ## Evidence and docs
 
+- This area's address map and harness block diagram:
+  - [`docs/UART_HARNESS_ADDRESS_MAP.md`](docs/UART_HARNESS_ADDRESS_MAP.md)
+    (rendered: [`docs/assets/graphviz/nexys_a7_bch_uart_address_map.png`](docs/assets/graphviz/nexys_a7_bch_uart_address_map.png))
+  - [`docs/NEXYS_A7_HARNESS.md`](docs/NEXYS_A7_HARNESS.md)
+    (rendered: [`docs/assets/graphviz/nexys_a7_bch_uart_harness.png`](docs/assets/graphviz/nexys_a7_bch_uart_harness.png))
 - Scale-down tracking: issue #82; A7 board campaign: issue #85.
 - Campaign results (functional battery + soak): `stable/results/` in the
   harness tree, rendered by `projects/fpga-systems/bin/report_battery.py`.

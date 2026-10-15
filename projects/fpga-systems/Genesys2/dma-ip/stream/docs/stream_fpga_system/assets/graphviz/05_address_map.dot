@@ -1,0 +1,63 @@
+// Figure 2.2 -- STREAM Genesys 2 UART-harness address map.
+// Drawn from rtl/bridges/configs/bridge_stream_mon_axil.toml (the generated
+// bridge's source of truth) and regs/harness_csr_regs.rdl / rtl/harness_csr.sv
+// (the harness CSR decode). House style: vault/handbook/authoring/block-diagrams.md.
+// Replaces the hand-kept address table in ch02_harness/01_harness.md with a
+// rendered figure that is checked in beside its source.
+digraph stream_address_map {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.6", ranksep="0.9", splines=line, labelloc=t, labeljust=c,
+           pad="0.2",
+           label="STREAM Genesys 2 harness -- host AXI4-Lite address map"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7,
+           style=dashed];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Base address</B></TD><TD BGCOLOR="white"><B>Size</B></TD><TD BGCOLOR="white"><B>Protocol</B></TD><TD BGCOLOR="white"><B>Slave / window</B></TD><TD BGCOLOR="white"><B>What lives there</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x0000_0000</TD><TD>8 KB</TD><TD>APB</TD><TD BGCOLOR="#D6E4F0">stream_apb</TD><TD ALIGN="LEFT">STREAM DUT config + in-core monitor perf CSRs</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0001_0000</TD><TD>4 KB</TD><TD>AXIL</TD><TD BGCOLOR="#D6E4F0" PORT="csr">harness_csr</TD><TD ALIGN="LEFT">CTRL, STATUS, timer, per-channel CRCs, build identity (expanded below)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0002_0000</TD><TD>64 KB</TD><TD>AXI4/AXIL</TD><TD BGCOLOR="#D6E4F0">desc_ram</TD><TD ALIGN="LEFT">Descriptor preload (host writes; STREAM 256-bit reads)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0003_0000</TD><TD>4 KB</TD><TD>AXIL</TD><TD BGCOLOR="#D6E4F0">stream_err</TD><TD ALIGN="LEFT">STREAM in-core monitor error / IRQ FIFO drain</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0004_0000</TD><TD>256 KB</TD><TD>AXIL</TD><TD BGCOLOR="#D6E4F0">stream_tally</TD><TD ALIGN="LEFT">In-core monitor packet tally histogram readback</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0008_0000</TD><TD>4 KB</TD><TD>AXIL</TD><TD BGCOLOR="#E8E8E8">dma_axil</TD><TD ALIGN="LEFT">Tied off / DECERR -- not used in this harness</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0009_0000</TD><TD>4 KB</TD><TD>AXIL</TD><TD BGCOLOR="#D6E4F0">slave_err</TD><TD ALIGN="LEFT">Slave observer error / IRQ FIFO drain</TD></TR>
+  <TR><TD ALIGN="LEFT">0x000C_0000</TD><TD>256 KB</TD><TD>AXIL</TD><TD BGCOLOR="#D6E4F0">slave_tally</TD><TD ALIGN="LEFT">Slave observer packet tally histogram readback</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0010_0000</TD><TD>256 KB</TD><TD>AXIL</TD><TD BGCOLOR="#D6E4F0">stream_tally_cfg</TD><TD ALIGN="LEFT">stream_tally legal-set CAM config + bin readback</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0014_0000</TD><TD>256 KB</TD><TD>AXIL</TD><TD BGCOLOR="#D6E4F0">slave_tally_cfg</TD><TD ALIGN="LEFT">slave_tally legal-set CAM config + bin readback</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0018_0000</TD><TD>4 KB</TD><TD>APB</TD><TD BGCOLOR="#D6E4F0">slvmon_apb</TD><TD ALIGN="LEFT">Slave-role observer (obs_regs_top) configuration</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0019_0000</TD><TD>4 KB</TD><TD>APB</TD><TD BGCOLOR="#D6E4F0">obs_apb</TD><TD ALIGN="LEFT">Master-role observer (obs_regs_top) configuration</TD></TR>
+  <TR><TD ALIGN="LEFT">0x001A_0000</TD><TD>64 KB</TD><TD>AXIL</TD><TD BGCOLOR="#D6E4F0">comp_sram</TD><TD ALIGN="LEFT">Compressed MonBus capture memory, host download</TD></TR>
+  <TR><TD ALIGN="LEFT">0x001B_0000 - 0xFFFF_FFFF</TD><TD COLSPAN="4">unmapped -- DECERR</TD></TR>
+</TABLE>>];
+
+    csr [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Offset</B></TD><TD BGCOLOR="white"><B>Register</B></TD><TD BGCOLOR="white"><B>Access</B></TD><TD BGCOLOR="white"><B>Content</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x000</TD><TD>CTRL</TD><TD>RW</TD><TD ALIGN="LEFT">start, clear_stats, freeze_trace, soft_reset, cam_clear (pulses)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x004</TD><TD>STATUS</TD><TD>R</TD><TD ALIGN="LEFT">stream_irq, any_error, trace_overflow, clear_busy</TD></TR>
+  <TR><TD ALIGN="LEFT">0x008</TD><TD>DBG_WR_PTR</TD><TD>R</TD><TD ALIGN="LEFT">Capture SRAM write pointer (words)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x00C</TD><TD>DBG_OVERFLOW</TD><TD>R</TD><TD ALIGN="LEFT">Capture overflow flag</TD></TR>
+  <TR><TD ALIGN="LEFT">0x010 - 0x01C</TD><TD>CRC_* / CRC_MATCH</TD><TD>R</TD><TD ALIGN="LEFT">Aggregate expected/computed CRC and match/valid flags</TD></TR>
+  <TR><TD ALIGN="LEFT">0x020</TD><TD>SCRATCH</TD><TD>RW</TD><TD ALIGN="LEFT">Host ping / port autodetect (magic 0xC0FFEE5A)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x024</TD><TD>BUILD_ID</TD><TD>R</TD><TD ALIGN="LEFT">0x5354_5243 ("STRC")</TD></TR>
+  <TR><TD ALIGN="LEFT">0x028 - 0x02C</TD><TD>TIMER_CTRL / TIMER_STATUS</TD><TD>W / R</TD><TD ALIGN="LEFT">Timer clear pulse; done / running / pass</TD></TR>
+  <TR><TD ALIGN="LEFT">0x030 - 0x05C</TD><TD>TIMER_CYCLES_* / TIMER_{R,W}_{FIRST,LAST}_*</TD><TD>R</TD><TD ALIGN="LEFT">64-bit cycle counter and per-engine first/last beat stamps</TD></TR>
+  <TR><TD ALIGN="LEFT">0x038</TD><TD>TIMER_EXPECTED_BEATS</TD><TD>RW</TD><TD ALIGN="LEFT">Sink beat count that stops the timer</TD></TR>
+  <TR><TD ALIGN="LEFT">0x03C</TD><TD>RESP_DELAY</TD><TD>RW</TD><TD ALIGN="LEFT">rd_delay[15:0], wr_delay[31:16] memory latency knobs</TD></TR>
+  <TR><TD ALIGN="LEFT">0x060 - 0x07C</TD><TD>CRC_RD_PER_CH0..7</TD><TD>R</TD><TD ALIGN="LEFT">Per-channel read CRC</TD></TR>
+  <TR><TD ALIGN="LEFT">0x080 - 0x09C</TD><TD>CRC_WR_PER_CH0..7</TD><TD>R</TD><TD ALIGN="LEFT">Per-channel write CRC</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0A0 / 0x0A4</TD><TD>CRC_VALID_MASK / CRC_MATCH_MASK</TD><TD>R</TD><TD ALIGN="LEFT">Per-channel valid and match bitmasks</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0D4 / 0x0D8</TD><TD>DESC_SRAM_AR_HS / DESC_SRAM_R_HS</TD><TD>R</TD><TD ALIGN="LEFT">Descriptor SRAM AXIL handshake counters</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0E0 - 0x0FC</TD><TD>DESC_*_HS / DESC_*_STALL / DESC_VR_LIVE</TD><TD>R</TD><TD ALIGN="LEFT">STREAM descriptor AXI4 handshake + live valid/ready snapshot</TD></TR>
+  <TR><TD ALIGN="LEFT">0x100 - 0x1CF</TD><TD COLSPAN="3">unallocated (retired AXI bus-meter readback)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1D0</TD><TD>BUILD_VERSION</TD><TD>R</TD><TD ALIGN="LEFT">Functional build number</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1D4</TD><TD>BUILD_CONFIG</TD><TD>R</TD><TD ALIGN="LEFT">num_channels, error_flavor, use_monitors, gen_mon, data_width_b, main_cones</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1D8</TD><TD>BUILD_N_PROFILE</TD><TD>R</TD><TD ALIGN="LEFT">Tally CAM legal-set size</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1DC</TD><TD>BUILD_CLK_HZ</TD><TD>R</TD><TD ALIGN="LEFT">Harness clock frequency in Hz</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1E0 - 0x1FC</TD><TD>COMP_TIER1_* / COMP_TIER0 / COMP_*_OVF</TD><TD>R</TD><TD ALIGN="LEFT">MonBus compressor statistics (0 unless USE_MON_COMPRESSION=1)</TD></TR>
+</TABLE>>];
+
+    map:csr:e -> csr:w [label="expanded"];
+}

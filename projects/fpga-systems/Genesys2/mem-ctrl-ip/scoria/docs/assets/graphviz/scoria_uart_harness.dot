@@ -1,0 +1,65 @@
+// Figure 1.1 -- scoria_char_harness: host UART path, config decode, harness
+// control, traffic generators and DFI tuning delay lines.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// RTL: rtl/scoria_char_harness.sv, rtl/scoria_char_macro.sv,
+//      rtl/bridges/generated/bridge_scoria_char_axil/bridge_scoria_char_axil.sv,
+//      projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.sv,
+//      projects/fpga-systems/rtl/mem_char_framework/rtl/chargen_regs.rdl,
+//      projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/rtl/top/scoria_top_geared.sv.
+// Replaces no prior figure.
+digraph scoria_uart_harness {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c, pad="0.2",
+           label="scoria_char_harness: host UART path, config decode, engines and DFI"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host [label="Host PC\nhost/scoria_char.py, host/ddr3_char.py", fillcolor="white"];
+    uart [label="UART to AXI4-Lite\nuart_axil_bridge\n115200-8N1"];
+    bridge [label="1 x 3 AXIL/APB bridge\nbridge_scoria_char_axil\n0x0/0x10000/0xA0000"];
+
+    scoria_csr [label="scoria controller CSR\nscoria_apb (PeakRDL)\nprojects/components/.../scoria_csr.rdl"];
+    harness    [label="harness_csr\nbuild ID, control, timer,\nDFI tuning, PHY CSR window,\nperf observability"];
+    chargen    [label="chargen_regs\n4 WR + 4 RD generators\nGO / DONE / ERRORS"];
+
+    macro [label="scoria_char_macro\naxi4_master_wr_injector +\naxi4_master_rd_crc_check +\nscoria_top_geared", width=4.5];
+
+    cmd_dly [label="dfi_cmd_delay\ntunable command +\nrddata_en alignment"];
+    rd_dly  [label="dfi_rddata_delay\ntunable read-data\nalignment"];
+
+    led [label="LED status driver\n8 LEDs (errors, done,\nunmapped access, reset)", fillcolor="white"];
+
+    bar [label="K7DDRPHY boundary\nDFI 2.1 pin bus\n(pll, IDELAYCTRL, pads)", fillcolor="white", width=7];
+
+    // Host link
+    host -> uart [dir=both, penwidth=1.8, xlabel="UART bytes"];
+    uart -> bridge [dir=both, xlabel="AXI4-Lite access"];
+
+    // Config decode to three windows
+    bridge -> scoria_csr [xlabel="APB (controller)"];
+    bridge -> harness    [xlabel="AXIL (harness)"];
+    bridge -> chargen    [xlabel="APB (generators)"];
+
+    // Harness control/status back to host (implicit in AXI), plus LED sideband
+    harness -> led [style=dashed, xlabel="packed status"];
+
+    // Generator engine control into macro
+    chargen -> macro [style=dashed, xlabel="generator config"];
+
+    // Controller config into macro
+    scoria_csr -> macro [xlabel="scoria CSR\n(cpuif)"];
+
+    // Macro AXI flow down to boundary
+    macro -> cmd_dly [penwidth=1.8, xlabel="DFI command /\ncontrol / write data"];
+    cmd_dly -> bar   [penwidth=1.8, xlabel="DFI command +\nwrdata"];
+
+    // Read return back up
+    bar -> rd_dly  [dir=back, penwidth=1.8, xlabel="DFI rddata"];
+    rd_dly -> macro [dir=back, penwidth=1.8, xlabel="aligned rddata"];
+
+    // Ranks to keep the layout clean
+    { rank=same; scoria_csr; harness; chargen; }
+    { rank=same; cmd_dly; rd_dly; }
+}

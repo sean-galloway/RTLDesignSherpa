@@ -1,0 +1,49 @@
+// Figure 2.4 -- BCH UART harness address map. Drawn from
+// build-loop/rtl/bch_loop_regs.rdl and rtl/bridges/configs/bridge_bch_loop_axil.toml.
+// House style: vault/handbook/authoring/block-diagrams.md; address-map tables use
+// the DE10 reference pattern (HTML table inside a plaintext node, rankdir=LR).
+// PLANNED: the bch_regs_apb window is reserved as an expansion slot for a future
+// codec-native register block; today it carries the AXI4 flavour's observer or a
+// read-0 stub. The obs_apb window always hosts axis4_intf_observer; on the AXI4
+// flavour its seams are tied off and it reads 0.
+digraph bch_address_map {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.6", ranksep="0.9", splines=line, labelloc=t, labeljust=c,
+           pad="0.2",
+           label="BCH UART harness address map (as-built + planned expansion slot)"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, style=dashed];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Address</B></TD><TD BGCOLOR="white"><B>Window</B></TD><TD BGCOLOR="white"><B>Decoded by</B></TD><TD BGCOLOR="white"><B>Status</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x0000_0000 - 0x0000_0FFF (4 KB)</TD><TD BGCOLOR="#D6E4F0">bch_loop_apb</TD><TD PORT="loop">bridge_bch_loop_axil</TD><TD>as-built: loop CSRs (expanded right)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0001_0000 - 0x0001_0FFF (4 KB)</TD><TD BGCOLOR="#D6E4F0">bch_regs_apb</TD><TD>bridge_bch_loop_axil</TD><TD>AXI4: axi4_intf_master_observer; AXIS: read-0 stub. PLANNED for codec-native regs.</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0002_0000 - 0x0002_0FFF (4 KB)</TD><TD BGCOLOR="#D6E4F0">obs_apb</TD><TD>bridge_bch_loop_axil</TD><TD>as-built: axis4_intf_observer (4 AXIS seams). AXI4 seams tied off.</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0003_0000 - 0xFFFF_FFFF</TD><TD>unmapped</TD><TD>-</TD><TD>DECERR / unmapped_irq sticky</TD></TR>
+</TABLE>>];
+
+    loop_csr [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5">
+  <TR><TD BGCOLOR="white"><B>Offset</B></TD><TD BGCOLOR="white"><B>Register</B></TD><TD BGCOLOR="white"><B>Group</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x000</TD><TD>BUILD_ID</TD><TD>identification</TD></TR>
+  <TR><TD ALIGN="LEFT">0x004</TD><TD>SCRATCH</TD><TD>identification</TD></TR>
+  <TR><TD ALIGN="LEFT">0x008</TD><TD>CTRL</TD><TD>control</TD></TR>
+  <TR><TD ALIGN="LEFT">0x00C</TD><TD>GEN_BLOCKS</TD><TD>control</TD></TR>
+  <TR><TD ALIGN="LEFT">0x010</TD><TD>GEN_SEED</TD><TD>control</TD></TR>
+  <TR><TD ALIGN="LEFT">0x014</TD><TD>INJ_CFG</TD><TD>control</TD></TR>
+  <TR><TD ALIGN="LEFT">0x018</TD><TD>INJ_SEED</TD><TD>control</TD></TR>
+  <TR><TD ALIGN="LEFT">0x01C</TD><TD>STATUS</TD><TD>status</TD></TR>
+  <TR><TD ALIGN="LEFT">0x020</TD><TD>PROFILE</TD><TD>status</TD></TR>
+  <TR><TD ALIGN="LEFT">0x024 - 0x038</TD><TD>CRC_EXPECTED, CRC_A, CRC_B, PKTS_A, PKTS_B, CYCLES</TD><TD>status</TD></TR>
+  <TR><TD ALIGN="LEFT">0x03C - 0x060</TD><TD>BLK_OK_A..SYM_CORR_A, BLK_OK_B..SYM_CORR_B</TD><TD>status</TD></TR>
+  <TR><TD ALIGN="LEFT">0x064 - 0x070</TD><TD>INJ_SYMBOLS, INJ_BLOCKS, INJ_OVER_T, INJ_LAST</TD><TD>status</TD></TR>
+  <TR><TD ALIGN="LEFT">0x080</TD><TD>GO</TD><TD>control</TD></TR>
+  <TR><TD ALIGN="LEFT">0x084</TD><TD>TOPOLOGY</TD><TD>status</TD></TR>
+  <TR><TD ALIGN="LEFT">0x088</TD><TD>INJ_CNT</TD><TD>control</TD></TR>
+  <TR><TD ALIGN="LEFT">0x08C</TD><TD>INJ_LEN</TD><TD>control</TD></TR>
+  <TR><TD ALIGN="LEFT">0x090 - 0x0CC</TD><TD>OBS_IN_*, OBS_OUT_*, OBS_CW_OUT_*, OBS_CW_IN_*</TD><TD>observation</TD></TR>
+</TABLE>>];
+
+    map:loop:e -> loop_csr:w [label="expanded"];
+}

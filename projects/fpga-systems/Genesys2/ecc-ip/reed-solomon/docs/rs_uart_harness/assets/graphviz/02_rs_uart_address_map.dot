@@ -1,0 +1,53 @@
+// Figure 2.2 -- Reed-Solomon UART harness address map.
+// Replaces the address-range prose in ch02_the_harness/02_connectivity.md and
+// the inline table in docs/UART_HARNESS.md with one picture.
+// House style (vault/handbook/authoring/block-diagrams.md): DE10-Standard
+// fabric-benchmark address-map convention -- HTML-table plaintext nodes,
+// rankdir=LR, splines=line, one top-level space plus an expansion of the CSR
+// window. PLANNED content is marked honestly.
+// RTL source: build-loop/rtl/rs_loop_regs.rdl (regblock offsets) and
+// rtl/bridges/generated/bridge_rs_loop_axil/bridge_rs_loop_axil.toml (windows).
+// Host source: build-loop/host/rs_loop.py (OBS_AXI4_BASE, OBS_AXIS_BASE).
+digraph rs_uart_address_map {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.6", ranksep="0.9", splines=line,
+           labelloc=t, labeljust=c, pad="0.2",
+           label="Reed-Solomon UART harness -- system address map"];
+    node  [fontname="Helvetica", fontsize=9, shape=plaintext];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, style=dashed];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+  <TR><TD BGCOLOR="white"><B>Address</B></TD><TD BGCOLOR="white"><B>Window</B></TD><TD BGCOLOR="white"><B>What answers it</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x0002_0000 - 0x0002_0FFF (4 KB)</TD><TD BGCOLOR="#D6E4F0">obs_apb</TD><TD ALIGN="LEFT">axis4_intf_observer -- 4 AXIS seams</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0001_0000 - 0x0001_0FFF (4 KB)</TD><TD BGCOLOR="#D6E4F0">rs_regs_apb</TD><TD ALIGN="LEFT">AXI4: axi4_intf_master_observer. AXIS: read-0 stub. PLANNED: codec rs_regs (PRD D9).</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0000_0000 - 0x0000_0FFF (4 KB)</TD><TD BGCOLOR="#D6E4F0">rs_loop_apb</TD><TD PORT="csr">apb4_to_peakrdl -&gt; rs_loop_regs CSR (expanded)</TD></TR>
+</TABLE>>];
+
+    csr [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="3">
+  <TR><TD BGCOLOR="white"><B>Offset</B></TD><TD BGCOLOR="white"><B>Register</B></TD><TD BGCOLOR="white"><B>Purpose</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x000</TD><TD>BUILD_ID</TD><TD ALIGN="LEFT">Identity: ASCII RSLP / RSLS</TD></TR>
+  <TR><TD ALIGN="LEFT">0x004</TD><TD>SCRATCH</TD><TD ALIGN="LEFT">Identity: read-write sanity</TD></TR>
+  <TR><TD ALIGN="LEFT">0x020</TD><TD>PROFILE</TD><TD ALIGN="LEFT">Identity: n, t, m, spb</TD></TR>
+  <TR><TD ALIGN="LEFT">0x084</TD><TD>TOPOLOGY</TD><TD ALIGN="LEFT">Identity: decoders, solver, iface</TD></TR>
+  <TR><TD ALIGN="LEFT">0x008</TD><TD>CTRL</TD><TD ALIGN="LEFT">Control: reset, clear, bypass, throttle</TD></TR>
+  <TR><TD ALIGN="LEFT">0x00C</TD><TD>GEN_BLOCKS</TD><TD ALIGN="LEFT">Control: blocks per run</TD></TR>
+  <TR><TD ALIGN="LEFT">0x010</TD><TD>GEN_SEED</TD><TD ALIGN="LEFT">Control: pattern LFSR seed</TD></TR>
+  <TR><TD ALIGN="LEFT">0x014</TD><TD>INJ_CFG</TD><TD ALIGN="LEFT">Control: mode, mark, errors, rate</TD></TR>
+  <TR><TD ALIGN="LEFT">0x018</TD><TD>INJ_SEED</TD><TD ALIGN="LEFT">Control: injector LFSR seed</TD></TR>
+  <TR><TD ALIGN="LEFT">0x088</TD><TD>INJ_CNT</TD><TD ALIGN="LEFT">Control: cluster count range</TD></TR>
+  <TR><TD ALIGN="LEFT">0x08C</TD><TD>INJ_LEN</TD><TD ALIGN="LEFT">Control: cluster length range</TD></TR>
+  <TR><TD ALIGN="LEFT">0x080</TD><TD>GO</TD><TD ALIGN="LEFT">Control: kick (start pulse)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x01C</TD><TD>STATUS</TD><TD ALIGN="LEFT">Status: busy, done, errors</TD></TR>
+  <TR><TD ALIGN="LEFT">0x024 - 0x02C</TD><TD>CRC_EXPECTED / A / B</TD><TD ALIGN="LEFT">Status: generator + checker CRCs</TD></TR>
+  <TR><TD ALIGN="LEFT">0x030 - 0x034</TD><TD>PKTS_A / PKTS_B</TD><TD ALIGN="LEFT">Status: blocks per checker</TD></TR>
+  <TR><TD ALIGN="LEFT">0x038</TD><TD>CYCLES</TD><TD ALIGN="LEFT">Status: run cycles</TD></TR>
+  <TR><TD ALIGN="LEFT">0x03C - 0x060</TD><TD>BLK_*/SYM_CORR_* A/B</TD><TD ALIGN="LEFT">Status: per-decoder verdicts</TD></TR>
+  <TR><TD ALIGN="LEFT">0x064 - 0x070</TD><TD>INJ_SYMBOLS/BLOCKS/OVER_T/LAST</TD><TD ALIGN="LEFT">Status: injector statistics</TD></TR>
+  <TR><TD ALIGN="LEFT">0x074 - 0x07C</TD><TD>CMP_DATA/STATUS_MISMATCH, BEATS</TD><TD ALIGN="LEFT">Status: A-vs-B comparator (sim)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x090 - 0x0CC</TD><TD>OBS_IN/OUT/CW_OUT/CW_IN_*</TD><TD ALIGN="LEFT">Status: 4 seams x 4 buckets</TD></TR>
+</TABLE>>];
+
+    map:csr:e -> csr:w [label="expanded"];
+}

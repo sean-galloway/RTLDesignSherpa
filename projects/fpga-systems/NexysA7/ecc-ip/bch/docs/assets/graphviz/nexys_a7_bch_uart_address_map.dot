@@ -1,0 +1,50 @@
+// Figure 1.1 -- Nexys A7 BCH UART harness address map. New for the NexysA7
+// build-area docs. Drawn from the bridge definition
+// (Genesys2/ecc-ip/bch/rtl/bridges/generated/bridge_bch_loop_axil/bridge_bch_loop_axil.toml)
+// and the generated register map
+// (Genesys2/ecc-ip/bch/build-loop/dv/tbclasses/bch_loop_regs_regmap.py).
+// House style: vault/handbook/authoring/block-diagrams.md and the
+// DE10-Standard address-map example (HTML table in a plaintext node,
+// planned-vs-as-built marked honestly).
+digraph nexys_a7_bch_uart_address_map {
+    graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.5", ranksep="0.8", splines=line, labelloc=t, labeljust=c, pad="0.2",
+           label="Nexys A7 BCH UART harness address map"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, style=dashed];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="3">
+  <TR><TD BGCOLOR="white"><B>Address</B></TD><TD BGCOLOR="white"><B>Window / Region</B></TD><TD BGCOLOR="white"><B>Decoded by</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x0000_0000 - 0x0000_0FFF</TD><TD BGCOLOR="#D6E4F0">Loop CSRs (4 KB)</TD><TD PORT="loop">bch_loop_apb -&gt; apb4_to_peakrdl + bch_loop_regs</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0001_0000 - 0x0001_0FFF</TD><TD BGCOLOR="#D6E4F0">Window 1 (4 KB)</TD><TD>bch_regs_apb; AXI4: axi4_intf_master_observer; AXIS: stub</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0002_0000 - 0x0002_0FFF</TD><TD BGCOLOR="#D6E4F0">AXIS observer (4 KB)</TD><TD>obs_apb -&gt; axis4_intf_observer</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0003_0000 - 0xFFFF_FFFF</TD><TD>unmapped - DECERR</TD><TD>-</TD></TR>
+</TABLE>>];
+
+    detail [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="3">
+  <TR><TD BGCOLOR="white"><B>Offset</B></TD><TD BGCOLOR="white"><B>Register</B></TD><TD BGCOLOR="white"><B>Notes</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x000</TD><TD>BUILD_ID</TD><TD ALIGN="LEFT">full='BCHP', small='BCHS'</TD></TR>
+  <TR><TD ALIGN="LEFT">0x004</TD><TD>SCRATCH</TD><TD ALIGN="LEFT">RW test-and-link</TD></TR>
+  <TR><TD ALIGN="LEFT">0x008</TD><TD>CTRL</TD><TD ALIGN="LEFT">reset, clear, bypass, throttle, inj_seed_on_start</TD></TR>
+  <TR><TD ALIGN="LEFT">0x00C</TD><TD>GEN_BLOCKS</TD><TD ALIGN="LEFT">blocks to generate / check</TD></TR>
+  <TR><TD ALIGN="LEFT">0x010</TD><TD>GEN_SEED</TD><TD ALIGN="LEFT">LFSR pattern seed</TD></TR>
+  <TR><TD ALIGN="LEFT">0x014</TD><TD>INJ_CFG</TD><TD ALIGN="LEFT">mode, errors, rate</TD></TR>
+  <TR><TD ALIGN="LEFT">0x018</TD><TD>INJ_SEED</TD><TD ALIGN="LEFT">error placement seed</TD></TR>
+  <TR><TD ALIGN="LEFT">0x020</TD><TD>PROFILE</TD><TD ALIGN="LEFT">{spb,m,t,n} geometry</TD></TR>
+  <TR><TD ALIGN="LEFT">0x024</TD><TD>CRC_EXPECTED</TD><TD ALIGN="LEFT">expected CRC-32</TD></TR>
+  <TR><TD ALIGN="LEFT">0x028 / 0x02C</TD><TD>CRC_A / CRC_B</TD><TD ALIGN="LEFT">computed CRCs</TD></TR>
+  <TR><TD ALIGN="LEFT">0x030 / 0x034</TD><TD>PKTS_A / PKTS_B</TD><TD ALIGN="LEFT">packets per checker</TD></TR>
+  <TR><TD ALIGN="LEFT">0x038</TD><TD>CYCLES</TD><TD ALIGN="LEFT">run cycle counter</TD></TR>
+  <TR><TD ALIGN="LEFT">0x03C - 0x05C</TD><TD>BLK_OK/CORR/UNC/FRAME A/B</TD><TD ALIGN="LEFT">block verdict tallies</TD></TR>
+  <TR><TD ALIGN="LEFT">0x064 - 0x070</TD><TD>INJ_SYMBOLS/BLOCKS/OVER_T/LAST</TD><TD ALIGN="LEFT">injection diagnostics</TD></TR>
+  <TR><TD ALIGN="LEFT">0x080</TD><TD>GO</TD><TD ALIGN="LEFT">single-pulse start</TD></TR>
+  <TR><TD ALIGN="LEFT">0x084</TD><TD>TOPOLOGY</TD><TD ALIGN="LEFT">decoders, KES, interface</TD></TR>
+  <TR><TD ALIGN="LEFT">0x088</TD><TD>INJ_CNT</TD><TD ALIGN="LEFT">exact-count bounds</TD></TR>
+  <TR><TD ALIGN="LEFT">0x08C</TD><TD>INJ_LEN</TD><TD ALIGN="LEFT">burst length bounds</TD></TR>
+  <TR><TD ALIGN="LEFT">0x090 - 0x0CC</TD><TD>OBS_*</TD><TD ALIGN="LEFT">16 observer counters (4 seams x 4 metrics)</TD></TR>
+</TABLE>>];
+
+    map:loop:e -> detail:w [label="expanded"];
+}

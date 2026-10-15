@@ -1,0 +1,51 @@
+// Figure 2.1 -- LiteDRAM DDR3 board-proof stack on the Genesys 2.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// RTL: build-litedram/rtl/litedram_ddr3_board_top.sv,
+//      build-litedram/gen/gateware/litedram_genesys2_ddr3.v (LiteDRAM generated).
+// Replaces no prior figure.
+//
+// The AXI user port is tied idle on this build; the BIOS memtest exercises the
+// controller through the VexRiscv's own port. The boundary bar is the DDR3 pads.
+digraph scoria_litedram_stack {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c, pad="0.2",
+           label="LiteDRAM DDR3 board-proof stack (build-litedram)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host [label="Host PC\nminicom / picocom\n115200-8N1", fillcolor="white"];
+    top  [label="litedram_ddr3_board_top\npin wrapper + 200 MHz IBUFDS", width=4];
+
+    core [label="litedram_genesys2_ddr3\nLiteDRAM generated core\nVexRiscv + BIOS + UART +\nDDR3 controller + K7DDRPHY", width=5];
+
+    pll [label="Core PLL\n200 MHz in ->\nsys / sys4x / idelay", fillcolor="white"];
+    vex [label="VexRiscv CPU\n+ BIOS ROM", fillcolor="white"];
+    ctrl [label="LiteDRAM\nDDR3 controller"];
+    phy  [label="K7DDRPHY\n(Xilinx 7-series PHY)"];
+
+    user [label="AXI user port\ntied idle on this build", style="filled,dashed", fillcolor="white"];
+
+    bar  [label="DDR3 pads\n2 x MT41J256M16, 32-bit DQ", fillcolor="white", width=7];
+
+    // Host console
+    host -> top [dir=both, penwidth=1.8, xlabel="UART console"];
+    top -> core [dir=both, xlabel="uart_rx/tx, clk200, reset"];
+
+    // Inside the core
+    core -> pll  [style=dashed, xlabel="clk200"];
+    core -> vex  [style=invis];
+    vex  -> ctrl [penwidth=1.8, xlabel="init + memtest traffic"];
+    ctrl -> phy  [penwidth=1.8, xlabel="DFI command / write data"];
+    phy  -> ctrl [dir=back, penwidth=1.8, xlabel="DFI read data"];
+
+    // Tied-off user port
+    user -> ctrl [style=dashed, xlabel="idle"];
+
+    // Boundary
+    phy -> bar [penwidth=1.8, xlabel="address / bank / command / DQ / DQS / DM"];
+
+    { rank=same; pll; vex; }
+    { rank=same; ctrl; user; }
+}

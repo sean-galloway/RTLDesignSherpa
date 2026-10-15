@@ -20,6 +20,18 @@ maps: `OBS_AXI4_BASE = 0x00010000` and `OBS_AXIS_BASE = 0x00020000` in
 window moves, the bridge is regenerated and the host picks it up in one
 place.
 
+### Figure 2.3: UART harness control path
+
+![UART harness control path](../assets/graphviz/03_uart_harness_control.png)
+
+**Source:** [03_uart_harness_control.dot](../assets/graphviz/03_uart_harness_control.dot)
+
+This diagram isolates the command/status path: host Python → UART →
+`uart_axil_bridge` → `bridge_bch_loop_axil` → APB window →
+`apb4_to_peakrdl` → `bch_loop_regs` → harness control and status. The
+datapath blocks drawn in Figure 2.1 and Figure 2.2 receive their control from
+this path and write sampled status back into it.
+
 ## AXI4 flavour datapath
 
 The AXI4 flavour replaces the streaming middle with a memory-to-memory job

@@ -108,6 +108,10 @@ message-in, codeword-out, codeword-in, message-out. The fabric definition is
 frozen in `rtl/bridges/generated/bridge_rs_loop_axil/bridge_rs_loop_axil.toml`,
 so adding a new window is a bridge regeneration rather than a harness rewrite.
 
+The address map is drawn as a figure in
+`docs/rs_uart_harness/ch02_the_harness/03_address_map.md`; the register-level
+offsets are generated from `build-loop/rtl/rs_loop_regs.rdl`.
+
 Clock and reset differ only at the board top. On the Genesys 2 the 200 MHz LVDS
 system clock passes through `IBUFDS` into an `MMCME2_BASE` with VCO = 1200 MHz
 and `CLKOUT0_DIVIDE_F = 12`, producing the 100 MHz harness clock
@@ -216,9 +220,10 @@ BUILD_ID. Tracked as issue #83.
 
 The AXIS flavor is a single streaming pipe: generator, encoder, injector,
 decoder, checker. The AXI4 flavor replaces the middle with `rs_axi4_pipeline`,
-a memory-to-memory job chain over block RAM. Both use the same generator,
-checker, CSRs, and verdict logic, so a run reports itself identically whichever
-middle is built. The AXI4 flavor refuses a `GEN_BLOCKS` value that would exceed
+a memory-to-memory job chain over block RAM (see
+`docs/rs_uart_harness/ch02_the_harness/04_axi4_pipeline.md`). Both use the same
+generator, checker, CSRs, and verdict logic, so a run reports itself identically
+whichever middle is built. The AXI4 flavor refuses a `GEN_BLOCKS` value that would exceed
 the job memories — it declines rather than clamp, because clamping would answer
 a question the host did not ask. Running the same deterministic campaign on both
 flavors is a free sanity check: at e = 8 the AXI4 flavor takes 381.0

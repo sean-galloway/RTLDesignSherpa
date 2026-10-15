@@ -1,0 +1,87 @@
+// Genesys 2 fabric benchmark - data path and DUT internals.
+// PLANNED for K0; the Leg A fabric (bridge_fb_data) is generated, the harness
+// RTL and vendor legs are not yet present. Drawn from PRD.md section 4/5 and
+// the generated bridge_fb_data.toml / bridge_fb_data.sv.
+// House style: vault/handbook/authoring/block-diagrams.md.
+digraph k7_data_path {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.5", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c, pad="0.2",
+           label="Genesys 2 fabric benchmark - data path and DUT internals (planned)"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---------------- data plane: request direction ----------------
+    str  [label="DMA mover - stream_top_ch8\lm_axi_desc 256   m_axi_rd 128   m_axi_wr 128\l", group=C];
+    inj  [label="W3 write injector (contention run)\nchar_engine_block, 128-bit", style="filled,dashed"];
+    obm  [label="Master-side observers\nobs_master (rd, wr, injector wr) + obs_desc (desc rd)", fillcolor="#FFF2CC", group=C];
+    fab  [label="DATA FABRIC under test - AXI4 on every port, fabric clock\lLeg A: bridge_fb_data      Leg B1: axi_crossbar_v2_1      Leg B2: smartconnect_v1_0\l", penwidth=2.2, width=7.0, group=C];
+    obs  [label="Slave-side observers\nobs_slave (rd: DDR3, LFSR   wr: DDR3, CRC)", fillcolor="#FFF2CC", group=C];
+    dconv [label="Descriptor width converter\naxi4_dwidth_converter_rd (256 -> 128)\noutside the fabric"];
+    dsc  [label="Descriptor store - desc_ram read 0x8000_0000\nsdpram_slave_axi4_axi4 (host preloads at 0xF002_0000)"];
+
+    cdr  [label="Read crossing\naxi4_cdc_rd"];
+    cdw  [label="Write crossing\naxi4_cdc_wr"];
+
+    ddr  [label="DDR3 0x0000_0000 (1 GB)\nMIG 7-series AXI4 slave (memory model in sim)", fillcolor="white"];
+    src  [label="LFSR source 0x9000_0000\naxi4_slave_rd_injector (srcsnk_clk)"];
+    snk  [label="CRC sink 0xA000_0000\naxi4_slave_wr_crc_check (srcsnk_clk)"];
+
+    str -> obm [xlabel="desc RD, data RD, data WR", penwidth=1.6];
+    inj -> obm [xlabel="W3 WR"];
+    obm -> fab [xlabel="desc RD, data RD, data WR, W3 WR", penwidth=1.6];
+    fab -> obs [xlabel="data RD, data WR, W3 WR", penwidth=1.6];
+    fab -> dconv [xlabel="desc RD (128)"];
+    dconv -> dsc [xlabel="desc RD (256)"];
+    obs -> ddr [xlabel="DDR3 RD / WR (AXI4)"];
+    obs -> cdr [xlabel="LFSR RD"];
+    obs -> cdw [xlabel="CRC WR"];
+    cdr -> src [xlabel="LFSR RD"];
+    cdw -> snk [xlabel="CRC WR"];
+
+    // ---------------- return lane: up the right side ----------------
+    r0 [shape=point, width=0.03, label="", group=R];
+    r1 [shape=point, width=0.03, label="", group=R];
+    r2 [shape=point, width=0.03, label="", group=R];
+    r3 [shape=point, width=0.03, label="", group=R];
+    r4 [shape=point, width=0.03, label="", group=R];
+    rm [shape=point, width=0.03, label="", group=R];
+    pd [shape=point, width=0.03, label=""];
+    ps [shape=point, width=0.03, label=""];
+    pk [shape=point, width=0.03, label=""];
+
+    dsc -> r3 [dir=none, xlabel="desc R"];
+    ddr -> pd [dir=none, xlabel="DDR3 R / B"];
+    src -> ps [dir=none, xlabel="LFSR R"];
+    snk -> pk [dir=none, xlabel="CRC B"];
+    pd -> ps -> pk -> rm [dir=none, penwidth=1.6];
+    r4 -> rm [dir=back, penwidth=1.6];
+    r3 -> r4 [dir=back, penwidth=1.6];
+    r2 -> r3 [dir=back, penwidth=1.6];
+    r1 -> r2 [dir=back, penwidth=1.6];
+    r0 -> r1 [dir=back, penwidth=1.6];
+    str -> r0 [dir=back, xlabel="R data, B resp (back through the\lsame crossings, observers and fabric)\l", penwidth=1.6];
+
+    // ---------------- configuration sideband (dashed) ----------------
+    cfg [label="Host config (see harness diagram)\nstream_apb + harness_csr", fillcolor="white", style=dashed];
+    cfg -> str [style=dashed, xlabel="config (APB)"];
+    cfg -> inj [style=dashed, xlabel="chargen (APB)"];
+    cfg -> obm [style=dashed, xlabel="observer config / readout"];
+    cfg -> obs [style=dashed, xlabel="observer config / readout"];
+    cfg -> dsc [style=dashed, xlabel="preload (AXI4)"];
+
+    // ---------------- ranks for the three flows ----------------
+    { rank=same; inj; str; }
+    { rank=same; obm; r0; }
+    { rank=same; fab; r1; }
+    { rank=same; obs; dconv; r2; }
+    { rank=same; ddr; src; snk; dsc; r4; }
+    { rank=same; pd; ps; pk; rm; }
+    // invisible order chains
+    inj -> str [style=invis];
+    obm -> r0 [style=invis];
+    fab -> r1 [style=invis];
+    obs -> dconv -> r2 [style=invis];
+    ddr -> src -> snk -> dsc -> r4 [style=invis];
+}
