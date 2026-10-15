@@ -9,6 +9,8 @@ decides which file defines it:
 
     leg A   bridge   wraps the bridge generator's `bridge_fb_data`
     leg B1  xbar     wraps Xilinx `axi_crossbar_v2_1_37_axi_crossbar`
+    leg B2  sc       wraps `fb_sc_wrapper`, the IP-integrator block design
+                     around Xilinx SmartConnect (fpga/tcl/vendor_ip.tcl)
 
 Both wrappers are generated here from the same inputs the bridge generator
 reads -- `rtl/bridges/configs/bridge_fb_data.toml` and its connectivity CSV --
@@ -26,9 +28,25 @@ The wrapper port set carries no USER and no REGION: the endpoints key on the
 low ID bits, and neither leg's slaves use region. Slave-side IDs are
 {master slot, master id} in both legs, slot = TOML master order.
 
+SmartConnect carries no ID to its slaves: the ID width at every MI port is
+read-only and 0 (it orders responses itself and expects in-order slaves). It
+does carry AxUSER end to end, so leg B2 drives AxUSER = {slot, master id} at
+each SI and its wrapper presents that as the slave-side ID. The port contract
+-- {slot, id} at every slave -- is then the same in all three legs, and the
+endpoints' per-channel CRC works unchanged. Responses come back on the
+master's own ID (SmartConnect tracks it); the slaves' RID/BID go nowhere.
+
+The vendor IP is not hand-configured either: this script also writes
+rtl/generated/fb_vendor_ip_cfg/fb_vendor_ip_cfg.tcl, which vendor_ip.tcl
+sources to customize the IP-catalog AXI Crossbar (the same parameters as the
+leg B1 wrapper, which bin/check_xbar_params.py proves) and to build the
+SmartConnect block design (ports, windows, connectivity as exclusions).
+
 Output (generated, never hand-edited):
     rtl/generated/fb_data_fabric_bridge/fb_data_fabric.sv
     rtl/generated/fb_data_fabric_xbar/fb_data_fabric.sv
+    rtl/generated/fb_data_fabric_sc/fb_data_fabric.sv
+    rtl/generated/fb_vendor_ip_cfg/fb_vendor_ip_cfg.tcl
 """
 from __future__ import annotations
 
@@ -197,6 +215,11 @@ def emit_bridge(masters: list[Port], slaves: list[Port], w: dict[str, int]) -> s
                        f"        .{p.prefix}wuser()", f"        .{p.prefix}buser(1'b0)"] if p.wr else [])
             conns += ([f"        .{p.prefix}arregion()", f"        .{p.prefix}aruser()",
                        f"        .{p.prefix}ruser(1'b0)"] if p.rd else [])
+    # The bridge's unmapped-address log (OOR contract) is not on the benchmark
+    # port set: never clear it, read nothing from it. Unmapped accesses still
+    # answer DECERR, which is what the fabric test checks.
+    conns += ["        .unmapped_clear(1'b0)", "        .unmapped_irq()",
+              "        .unmapped_addr()", "        .unmapped_count()"]
     body = ",\n".join(conns)
     return (HEADER.format(leg="leg A: bridge-generated crossbar")
             + "\n`timescale 1ns / 1ps\n\nmodule fb_data_fabric (\n"
@@ -352,6 +375,103 @@ def emit_xbar(masters: list[Port], slaves: list[Port], w: dict[str, int],
             + f"\n    {XBAR} #(\n{pmap}\n    ) u_fabric (\n{body}\n    );\n\nendmodule : fb_data_fabric\n")
 
 
+SC_WRAPPER = "fb_sc_wrapper"
+
+
+def emit_sc(masters: list[Port], slaves: list[Port], w: dict[str, int]) -> str:
+    """Leg B2: the SmartConnect block design's wrapper behind the common port set.
+
+    BD interface ports are named after the TOML ports, so the wrapper's pins
+    are <name>_<signal> -- the same names as this module's ports.
+    """
+    mid, sid = w["mid"], w["sid"]
+    conns = ["        .aclk(aclk)", "        .aresetn(aresetn)"]
+    lines: list[str] = []
+    for slot, m in enumerate(masters):
+        p, b = m.prefix, m.name + "_"
+        for ch_on, req, rsp, hs_in, hs_out, user in (
+                (m.wr, AW + W, B, ("awvalid", "wvalid", "bready"), ("awready", "wready", "bvalid"), "awuser"),
+                (m.rd, AR, R, ("arvalid", "rready"), ("arready", "rvalid"), "aruser")):
+            if not ch_on:
+                continue
+            conns += [f"        .{b}{n}({p}{n})" for n, _ in req + rsp]
+            conns += [f"        .{b}{n}({p}{n})" for n in hs_in + hs_out]
+            # {slot, id}: what the xbar leg's base IDs produce at the slaves
+            idf = "awid" if user == "awuser" else "arid"
+            conns.append(f"        .{b}{user}({{{sid - mid}'d{slot}, {p}{idf}}})")
+    for s in slaves:
+        p, b = s.prefix, s.name + "_"
+        for ch_on, req, rsp, hs_out, hs_in, user, idf, rid in (
+                (s.wr, AW + W, B, ("awvalid", "wvalid", "bready"), ("awready", "wready", "bvalid"), "awuser", "awid", "bid"),
+                (s.rd, AR, R, ("arvalid", "rready"), ("arready", "rvalid"), "aruser", "arid", "rid")):
+            if not ch_on:
+                continue
+            conns += [f"        .{b}{n}({p}{n})" for n, _ in req + rsp if n not in (idf, rid)]
+            conns += [f"        .{b}{n}({p}{n})" for n in hs_out + hs_in]
+            # MI ID width is 0: the slave-side ID is the AxUSER the SI stamped
+            conns.append(f"        .{b}{user}({p}{idf})")
+            lines.append(f"    // {s.name}: {rid} has no SmartConnect pin (MI ID width 0)")
+            lines.append(f"    wire unused_{s.name}_{rid} = ^{p}{rid};")
+    body = ",\n".join(conns)
+    return (HEADER.format(leg="leg B2: Xilinx SmartConnect (IP-integrator block design)")
+            + "//\n// SmartConnect has no MI ID (width 0, read-only), so each SI's AxUSER carries\n"
+            + f"// {{slot, master id}} and the slave-side ID is that AxUSER. See the generator\n"
+            + "// docstring. fb_sc_wrapper is made by fpga/tcl/vendor_ip.tcl.\n"
+            + "\n`timescale 1ns / 1ps\n\nmodule fb_data_fabric (\n"
+            + "\n".join(port_list(masters, slaves, w))
+            + "\n);\n\n" + "\n".join(lines)
+            + f"\n\n    {SC_WRAPPER} u_fabric (\n{body}\n    );\n\nendmodule : fb_data_fabric\n")
+
+
+def emit_ip_cfg(masters: list[Port], slaves: list[Port], w: dict[str, int],
+                conn: dict[str, set[str]]) -> str:
+    """Tcl for vendor_ip.tcl: the IP-catalog crossbar CONFIG and the BD layout."""
+    mid, sid = w["mid"], w["sid"]
+    cfg = [("NUM_SI", len(masters)), ("NUM_MI", len(slaves)), ("PROTOCOL", "AXI4"),
+           ("ADDR_WIDTH", w["aw"]), ("DATA_WIDTH", w["dw"]), ("ID_WIDTH", sid),
+           ("CONNECTIVITY_MODE", "SAMD"), ("R_REGISTER", 0), ("ADDR_RANGES", 1)]
+    for j, s in enumerate(slaves):
+        cfg += [(f"M{j:02d}_A00_BASE_ADDR", f"0x{s.base:016X}"),
+                (f"M{j:02d}_A00_ADDR_WIDTH", int(math.log2(s.size))),
+                (f"M{j:02d}_READ_ISSUING", ISSUING if s.rd else 1),
+                (f"M{j:02d}_WRITE_ISSUING", ISSUING if s.wr else 1),
+                (f"M{j:02d}_SECURE", 0)]
+        for i, m in enumerate(masters):
+            cfg += [(f"M{j:02d}_S{i:02d}_READ_CONNECTIVITY", int(m.rd and s.name in conn[m.name])),
+                    (f"M{j:02d}_S{i:02d}_WRITE_CONNECTIVITY", int(m.wr and s.name in conn[m.name]))]
+    for i, m in enumerate(masters):
+        cfg += [(f"S{i:02d}_BASE_ID", f"0x{i << mid:08X}"),
+                (f"S{i:02d}_THREAD_ID_WIDTH", mid),
+                (f"S{i:02d}_SINGLE_THREAD", 0),
+                (f"S{i:02d}_READ_ACCEPTANCE", ACCEPTANCE if m.rd else 1),
+                (f"S{i:02d}_WRITE_ACCEPTANCE", ACCEPTANCE if m.wr else 1),
+                (f"S{i:02d}_ARB_PRIORITY", 0)]
+    mode = {"rd": "READ_ONLY", "wr": "WRITE_ONLY", "rw": "READ_WRITE"}
+    out = ["# Generated by bin/gen_fabric_legs.py from rtl/bridges/configs/bridge_fb_data.toml",
+           "# (+ _connectivity.csv). DO NOT EDIT -- regenerate. Sourced by fpga/tcl/vendor_ip.tcl.",
+           "",
+           f"set FB_PART      xc7k325tffg900-2",
+           f"set FB_FREQ_HZ   {100_000_000}",
+           f"set FB_DW        {w['dw']}",
+           f"set FB_AW        {w['aw']}",
+           f"set FB_MID       {mid}",
+           f"set FB_SID       {sid}",
+           f"set FB_ACCEPT    {ACCEPTANCE}",
+           "",
+           "# leg B1, IP catalog: CONFIG.<key> for axi_crossbar (matches the HDL wrapper)",
+           "set FB_XBAR_CONFIG [list \\"]
+    out += [f"    CONFIG.{k} {{{v}}} \\" for k, v in cfg]
+    out += ["]", "", "# leg B2, block design: {name rw_mode} per SI, slot order"]
+    out.append("set FB_MASTERS [list " + " ".join(f"{{{m.name} {mode[m.channels]}}}" for m in masters) + "]")
+    out.append("# {name rw_mode base range} per MI")
+    out.append("set FB_SLAVES [list " + " ".join(
+        f"{{{s.name} {mode[s.channels]} 0x{s.base:08X} 0x{s.size:X}}}" for s in slaves) + "]")
+    out.append("# master -> slaves it reaches; every other pair is excluded (DECERR)")
+    out.append("set FB_CONN [dict create " + " ".join(
+        f"{m.name} {{{' '.join(s.name for s in slaves if s.name in conn[m.name])}}}" for m in masters) + "]")
+    return "\n".join(out) + "\n"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--config", type=Path, default=CONFIG)
@@ -359,12 +479,16 @@ def main() -> int:
     args = ap.parse_args()
     masters, slaves, conn = load(args.config)
     w = widths(masters, slaves)
-    for leg, text in (("bridge", emit_bridge(masters, slaves, w)),
-                      ("xbar", emit_xbar(masters, slaves, w, conn))):
-        d = args.out / f"fb_data_fabric_{leg}"
+    outputs = [(f"fb_data_fabric_{leg}", "fb_data_fabric.sv", text) for leg, text in (
+        ("bridge", emit_bridge(masters, slaves, w)),
+        ("xbar", emit_xbar(masters, slaves, w, conn)),
+        ("sc", emit_sc(masters, slaves, w)))]
+    outputs.append(("fb_vendor_ip_cfg", "fb_vendor_ip_cfg.tcl", emit_ip_cfg(masters, slaves, w, conn)))
+    for sub, name, text in outputs:
+        d = args.out / sub
         d.mkdir(parents=True, exist_ok=True)
-        (d / "fb_data_fabric.sv").write_text(text)
-        print(f"[gen_fabric_legs] {d / 'fb_data_fabric.sv'}")
+        (d / name).write_text(text)
+        print(f"[gen_fabric_legs] {d / name}")
     return 0
 
 

@@ -1,16 +1,18 @@
-// Genesys 2 fabric benchmark - Leg A vs Leg B1 vs Leg B2: the one swap. PLANNED.
+// Genesys 2 fabric benchmark - Leg A vs Leg B1 vs Leg B2: the one swap.
+// The three fabrics are generated and compared out of context (reports/ooc/);
+// the bitstreams around them are planned. Fabric labels carry the OOC numbers.
 // Everything outside the fabric instance is the same RTL in all three bitstreams.
 // House style: vault/handbook/authoring/block-diagrams.md.
 digraph k7_legs {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
-           label="Genesys 2 legs - one block changes, everything else is the same RTL (planned)"];
+           label="Genesys 2 legs - one block changes, everything else is the same RTL (fabrics built; bitstreams planned)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     subgraph cluster_a {
         label="Leg A bitstream"; fontsize=10;
         a_m [label="Masters + master-side meters\nstream (desc via 256->128), injector"];
-        a_f [label="Bridge-generated crossbar\nmatched TOML, 128-bit AXI4", penwidth=2.2];
+        a_f [label="Bridge-generated crossbar\nbridge_fb_data, 128-bit AXI4\nsim: Verilator\nOOC: 10,201 LUT, ~186 MHz", penwidth=2.2];
         a_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC"];
         a_m -> a_f [xlabel="RD / WR"];
         a_f -> a_s [xlabel="RD / WR"];
@@ -18,7 +20,7 @@ digraph k7_legs {
     subgraph cluster_b1 {
         label="Leg B1 bitstream"; fontsize=10;
         b_m [label="Masters + master-side meters\nstream (desc via 256->128), injector"];
-        b_f [label="Xilinx AXI Crossbar\naxi_crossbar_v2_1, 128-bit AXI4", penwidth=2.2];
+        b_f [label="Xilinx AXI Crossbar\naxi_crossbar_v2_1 = IP-catalog config\nsim: Verilator\nOOC: 2,688 LUT, ~256 MHz", penwidth=2.2];
         b_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC"];
         b_m -> b_f [xlabel="RD / WR"];
         b_f -> b_s [xlabel="RD / WR"];
@@ -26,7 +28,7 @@ digraph k7_legs {
     subgraph cluster_b2 {
         label="Leg B2 bitstream"; fontsize=10;
         c_m [label="Masters + master-side meters\nstream (desc via 256->128), injector"];
-        c_f [label="Xilinx SmartConnect\nsmartconnect_v1_0, 128-bit AXI4", penwidth=2.2];
+        c_f [label="Xilinx SmartConnect (BD fb_sc)\nAxUSER carries {slot, id}\nsim: none (encrypted), board only\nOOC: 8,438 LUT + 4,064 LUTRAM, ~269 MHz", penwidth=2.2];
         c_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC"];
         c_m -> c_f [xlabel="RD / WR"];
         c_f -> c_s [xlabel="RD / WR"];

@@ -1,0 +1,950 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Thu Oct 15 08:16:34 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -max_paths 20 -nworst 1 -sort_by slack -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/sc/4.0ns/timing_worst.txt
+| Design       : fb_data_fabric
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             0.284ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.687ns  (logic 0.330ns (8.952%)  route 3.357ns (91.048%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y224        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y224        FDRE (Prop_fdre_C_Q)         0.204     0.741 r  <hidden>
+                         net (fo=139, routed)         3.357     4.098    <hidden>
+    SLICE_X68Y207        LUT4 (Prop_lut4_I3_O)        0.126     4.224 r  <hidden>
+                         net (fo=1, routed)           0.000     4.224    <hidden>
+    SLICE_X68Y207        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X68Y207        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X68Y207        FDRE (Setup_fdre_C_D)        0.033     4.508    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.508    
+                         arrival time                          -4.224    
+  -------------------------------------------------------------------
+                         slack                                  0.284    
+
+Slack (MET) :             0.303ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.669ns  (logic 0.330ns (8.995%)  route 3.339ns (91.005%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y224        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y224        FDRE (Prop_fdre_C_Q)         0.204     0.741 r  <hidden>
+                         net (fo=139, routed)         3.339     4.080    <hidden>
+    SLICE_X69Y213        LUT4 (Prop_lut4_I3_O)        0.126     4.206 r  <hidden>
+                         net (fo=1, routed)           0.000     4.206    <hidden>
+    SLICE_X69Y213        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X69Y213        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X69Y213        FDRE (Setup_fdre_C_D)        0.034     4.509    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.206    
+  -------------------------------------------------------------------
+                         slack                                  0.303    
+
+Slack (MET) :             0.309ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.662ns  (logic 0.330ns (9.011%)  route 3.332ns (90.989%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y224        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y224        FDRE (Prop_fdre_C_Q)         0.204     0.741 r  <hidden>
+                         net (fo=139, routed)         3.332     4.073    <hidden>
+    SLICE_X61Y204        LUT4 (Prop_lut4_I3_O)        0.126     4.199 r  <hidden>
+                         net (fo=1, routed)           0.000     4.199    <hidden>
+    SLICE_X61Y204        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X61Y204        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X61Y204        FDRE (Setup_fdre_C_D)        0.034     4.509    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.199    
+  -------------------------------------------------------------------
+                         slack                                  0.309    
+
+Slack (MET) :             0.314ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.688ns  (logic 0.330ns (8.948%)  route 3.358ns (91.052%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y224        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y224        FDRE (Prop_fdre_C_Q)         0.204     0.741 r  <hidden>
+                         net (fo=139, routed)         3.358     4.099    <hidden>
+    SLICE_X66Y210        LUT4 (Prop_lut4_I3_O)        0.126     4.225 r  <hidden>
+                         net (fo=1, routed)           0.000     4.225    <hidden>
+    SLICE_X66Y210        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X66Y210        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X66Y210        FDRE (Setup_fdre_C_D)        0.064     4.539    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.539    
+                         arrival time                          -4.225    
+  -------------------------------------------------------------------
+                         slack                                  0.314    
+
+Slack (MET) :             0.317ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.686ns  (logic 0.330ns (8.953%)  route 3.356ns (91.047%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y224        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y224        FDRE (Prop_fdre_C_Q)         0.204     0.741 r  <hidden>
+                         net (fo=139, routed)         3.356     4.097    <hidden>
+    SLICE_X66Y210        LUT4 (Prop_lut4_I3_O)        0.126     4.223 r  <hidden>
+                         net (fo=1, routed)           0.000     4.223    <hidden>
+    SLICE_X66Y210        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X66Y210        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X66Y210        FDRE (Setup_fdre_C_D)        0.065     4.540    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.540    
+                         arrival time                          -4.223    
+  -------------------------------------------------------------------
+                         slack                                  0.317    
+
+Slack (MET) :             0.357ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.615ns  (logic 0.266ns (7.358%)  route 3.349ns (92.642%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X92Y227        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X92Y227        FDRE (Prop_fdre_C_Q)         0.223     0.760 f  <hidden>
+                         net (fo=262, routed)         3.349     4.109    <hidden>
+    SLICE_X64Y204        LUT4 (Prop_lut4_I1_O)        0.043     4.152 r  <hidden>
+                         net (fo=1, routed)           0.000     4.152    <hidden>
+    SLICE_X64Y204        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X64Y204        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X64Y204        FDRE (Setup_fdre_C_D)        0.034     4.509    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.152    
+  -------------------------------------------------------------------
+                         slack                                  0.357    
+
+Slack (MET) :             0.385ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.586ns  (logic 0.330ns (9.203%)  route 3.256ns (90.797%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y224        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y224        FDRE (Prop_fdre_C_Q)         0.204     0.741 r  <hidden>
+                         net (fo=139, routed)         3.256     3.997    <hidden>
+    SLICE_X69Y213        LUT4 (Prop_lut4_I3_O)        0.126     4.123 r  <hidden>
+                         net (fo=1, routed)           0.000     4.123    <hidden>
+    SLICE_X69Y213        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X69Y213        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X69Y213        FDRE (Setup_fdre_C_D)        0.033     4.508    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.508    
+                         arrival time                          -4.123    
+  -------------------------------------------------------------------
+                         slack                                  0.385    
+
+Slack (MET) :             0.397ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.535ns  (logic 0.223ns (6.308%)  route 3.312ns (93.692%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X95Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X95Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=206, routed)         3.312     4.072    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X82Y123        RAMD32 (Setup_ramd32_CLK_WADR1)
+                                                     -0.006     4.469    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.469    
+                         arrival time                          -4.072    
+  -------------------------------------------------------------------
+                         slack                                  0.397    
+
+Slack (MET) :             0.397ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.535ns  (logic 0.223ns (6.308%)  route 3.312ns (93.692%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X95Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X95Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=206, routed)         3.312     4.072    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X82Y123        RAMD32 (Setup_ramd32_CLK_WADR1)
+                                                     -0.006     4.469    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.469    
+                         arrival time                          -4.072    
+  -------------------------------------------------------------------
+                         slack                                  0.397    
+
+Slack (MET) :             0.397ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.535ns  (logic 0.223ns (6.308%)  route 3.312ns (93.692%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X95Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X95Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=206, routed)         3.312     4.072    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X82Y123        RAMD32 (Setup_ramd32_CLK_WADR1)
+                                                     -0.006     4.469    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.469    
+                         arrival time                          -4.072    
+  -------------------------------------------------------------------
+                         slack                                  0.397    
+
+Slack (MET) :             0.397ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.535ns  (logic 0.223ns (6.308%)  route 3.312ns (93.692%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X95Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X95Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=206, routed)         3.312     4.072    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X82Y123        RAMD32 (Setup_ramd32_CLK_WADR1)
+                                                     -0.006     4.469    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.469    
+                         arrival time                          -4.072    
+  -------------------------------------------------------------------
+                         slack                                  0.397    
+
+Slack (MET) :             0.397ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.535ns  (logic 0.223ns (6.308%)  route 3.312ns (93.692%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X95Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X95Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=206, routed)         3.312     4.072    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X82Y123        RAMD32 (Setup_ramd32_CLK_WADR1)
+                                                     -0.006     4.469    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.469    
+                         arrival time                          -4.072    
+  -------------------------------------------------------------------
+                         slack                                  0.397    
+
+Slack (MET) :             0.397ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell RAMD32 clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.535ns  (logic 0.223ns (6.308%)  route 3.312ns (93.692%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X95Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X95Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=206, routed)         3.312     4.072    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X82Y123        RAMD32                                       r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X82Y123        RAMD32 (Setup_ramd32_CLK_WADR1)
+                                                     -0.006     4.469    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.469    
+                         arrival time                          -4.072    
+  -------------------------------------------------------------------
+                         slack                                  0.397    
+
+Slack (MET) :             0.397ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell RAMS32 clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.535ns  (logic 0.223ns (6.308%)  route 3.312ns (93.692%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X95Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X95Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=206, routed)         3.312     4.072    <hidden>
+    SLICE_X82Y123        RAMS32                                       r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X82Y123        RAMS32                                       r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X82Y123        RAMS32 (Setup_rams32_CLK_ADR1)
+                                                     -0.006     4.469    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.469    
+                         arrival time                          -4.072    
+  -------------------------------------------------------------------
+                         slack                                  0.397    
+
+Slack (MET) :             0.397ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell RAMS32 clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.535ns  (logic 0.223ns (6.308%)  route 3.312ns (93.692%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X95Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X95Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=206, routed)         3.312     4.072    <hidden>
+    SLICE_X82Y123        RAMS32                                       r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X82Y123        RAMS32                                       r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X82Y123        RAMS32 (Setup_rams32_CLK_ADR1)
+                                                     -0.006     4.469    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.469    
+                         arrival time                          -4.072    
+  -------------------------------------------------------------------
+                         slack                                  0.397    
+
+Slack (MET) :             0.401ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.603ns  (logic 0.266ns (7.383%)  route 3.337ns (92.617%))
+  Logic Levels:           1  (RAMD32=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=159, routed)         3.337     4.097    <hidden>
+    SLICE_X90Y122        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.043     4.140 r  <hidden>
+                         net (fo=1, routed)           0.000     4.140    <hidden>
+    SLICE_X90Y122        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X90Y122        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X90Y122        FDRE (Setup_fdre_C_D)        0.066     4.541    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.541    
+                         arrival time                          -4.140    
+  -------------------------------------------------------------------
+                         slack                                  0.401    
+
+Slack (MET) :             0.407ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.565ns  (logic 0.330ns (9.258%)  route 3.235ns (90.742%))
+  Logic Levels:           1  (LUT4=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y224        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y224        FDRE (Prop_fdre_C_Q)         0.204     0.741 r  <hidden>
+                         net (fo=139, routed)         3.235     3.976    <hidden>
+    SLICE_X72Y210        LUT4 (Prop_lut4_I3_O)        0.126     4.102 r  <hidden>
+                         net (fo=1, routed)           0.000     4.102    <hidden>
+    SLICE_X72Y210        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X72Y210        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X72Y210        FDRE (Setup_fdre_C_D)        0.034     4.509    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.102    
+  -------------------------------------------------------------------
+                         slack                                  0.407    
+
+Slack (MET) :             0.418ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.606ns  (logic 0.269ns (7.460%)  route 3.337ns (92.540%))
+  Logic Levels:           1  (RAMD32=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=159, routed)         3.337     4.097    <hidden>
+    SLICE_X90Y122        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.046     4.143 r  <hidden>
+                         net (fo=1, routed)           0.000     4.143    <hidden>
+    SLICE_X90Y122        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X90Y122        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X90Y122        FDRE (Setup_fdre_C_D)        0.086     4.561    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.561    
+                         arrival time                          -4.143    
+  -------------------------------------------------------------------
+                         slack                                  0.418    
+
+Slack (MET) :             0.433ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.569ns  (logic 0.266ns (7.453%)  route 3.303ns (92.547%))
+  Logic Levels:           1  (RAMD32=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X97Y144        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X97Y144        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=159, routed)         3.303     4.063    <hidden>
+    SLICE_X90Y122        RAMD32 (Prop_ramd32_RADR1_O)
+                                                      0.043     4.106 r  <hidden>
+                         net (fo=1, routed)           0.000     4.106    <hidden>
+    SLICE_X90Y122        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X90Y122        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X90Y122        FDRE (Setup_fdre_C_D)        0.064     4.539    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.539    
+                         arrival time                          -4.106    
+  -------------------------------------------------------------------
+                         slack                                  0.433    
+
+Slack (MET) :             0.434ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.303ns  (logic 0.223ns (6.751%)  route 3.080ns (93.249%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.537     0.537    <hidden>
+    SLICE_X96Y217        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+    SLICE_X96Y217        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  <hidden>
+                         net (fo=131, routed)         3.080     3.840    <hidden>
+    SLICE_X65Y209        FDRE                                         r  <hidden>
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=15626, unset)        0.510     4.510    <hidden>
+    SLICE_X65Y209        FDRE                                         r  <hidden>
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X65Y209        FDRE (Setup_fdre_C_CE)      -0.201     4.274    <hidden>
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -3.840    
+  -------------------------------------------------------------------
+                         slack                                  0.434    
+
+
+
+

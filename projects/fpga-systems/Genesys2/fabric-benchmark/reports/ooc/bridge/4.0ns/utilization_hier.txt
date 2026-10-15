@@ -1,0 +1,84 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Thu Oct 15 08:26:26 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/bridge/4.0ns/utilization_hier.txt
+| Design       : fb_data_fabric
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-------------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|            Instance           |                Module               | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++-------------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| fb_data_fabric                |                               (top) |       9181 |       9181 |       0 |    0 | 6937 |      0 |      0 |          0 |
+|   (fb_data_fabric)            |                               (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   u_fabric                    |                      bridge_fb_data |       9181 |       9181 |       0 |    0 | 6937 |      0 |      0 |          0 |
+|     u_crc_snk_adapter         |                     crc_snk_adapter |       1177 |       1177 |       0 |    0 |  997 |      0 |      0 |          0 |
+|       u_master_wr             |                   axi4_master_wr_26 |        642 |        642 |       0 |    0 |  752 |      0 |      0 |          0 |
+|         aw_channel            | gaxi_skid_buffer__parameterized3_28 |        140 |        140 |       0 |    0 |  134 |      0 |      0 |          0 |
+|         b_channel             | gaxi_skid_buffer__parameterized4_29 |         53 |         53 |       0 |    0 |   32 |      0 |      0 |          0 |
+|         w_channel             | gaxi_skid_buffer__parameterized1_30 |        449 |        449 |       0 |    0 |  586 |      0 |      0 |          0 |
+|       u_wr_cam                |                       bridge_cam_27 |        535 |        535 |       0 |    0 |  245 |      0 |      0 |          0 |
+|     u_ddr_adapter             |                         ddr_adapter |       2080 |       2080 |       0 |    0 | 1686 |      0 |      0 |          0 |
+|       (u_ddr_adapter)         |                         ddr_adapter |        434 |        434 |       0 |    0 |    0 |      0 |      0 |          0 |
+|       u_master_rd             |                   axi4_master_rd_17 |        134 |        134 |       0 |    0 |  422 |      0 |      0 |          0 |
+|         ar_channel            | gaxi_skid_buffer__parameterized3_24 |        115 |        115 |       0 |    0 |  134 |      0 |      0 |          0 |
+|         r_channel             | gaxi_skid_buffer__parameterized5_25 |         19 |         19 |       0 |    0 |  288 |      0 |      0 |          0 |
+|       u_master_wr             |                   axi4_master_wr_18 |        454 |        454 |       0 |    0 |  758 |      0 |      0 |          0 |
+|         aw_channel            | gaxi_skid_buffer__parameterized3_21 |          0 |          0 |       0 |    0 |  140 |      0 |      0 |          0 |
+|         w_channel             | gaxi_skid_buffer__parameterized1_23 |        449 |        449 |       0 |    0 |  586 |      0 |      0 |          0 |
+|       u_rd_cam                |                       bridge_cam_19 |        540 |        540 |       0 |    0 |  245 |      0 |      0 |          0 |
+|       u_wr_cam                |                       bridge_cam_20 |        518 |        518 |       0 |    0 |  261 |      0 |      0 |          0 |
+|     u_desc_ram_adapter        |                    desc_ram_adapter |        825 |        825 |       0 |    0 |  623 |      0 |      0 |          0 |
+|       u_master_rd             |                   axi4_master_rd_13 |        355 |        355 |       0 |    0 |  394 |      0 |      0 |          0 |
+|         ar_channel            | gaxi_skid_buffer__parameterized3_15 |         61 |         61 |       0 |    0 |  106 |      0 |      0 |          0 |
+|         r_channel             | gaxi_skid_buffer__parameterized5_16 |        294 |        294 |       0 |    0 |  288 |      0 |      0 |          0 |
+|       u_rd_cam                |                       bridge_cam_14 |        471 |        471 |       0 |    0 |  229 |      0 |      0 |          0 |
+|     u_inj_wr_adapter          |                      inj_wr_adapter |        849 |        849 |       0 |    0 |  799 |      0 |      0 |          0 |
+|       (u_inj_wr_adapter)      |                      inj_wr_adapter |         13 |         13 |       0 |    0 |   51 |      0 |      0 |          0 |
+|       u_timing_wrapper_wr     |                     axi4_slave_wr_9 |        836 |        836 |       0 |    0 |  748 |      0 |      0 |          0 |
+|         i_aw_channel          |                 gaxi_skid_buffer_10 |        182 |        182 |       0 |    0 |  136 |      0 |      0 |          0 |
+|         i_w_channel           | gaxi_skid_buffer__parameterized1_12 |        612 |        612 |       0 |    0 |  586 |      0 |      0 |          0 |
+|     u_lfsr_src_adapter        |                    lfsr_src_adapter |       1096 |       1096 |       0 |    0 |  667 |      0 |      0 |          0 |
+|       u_master_rd             |                    axi4_master_rd_6 |        479 |        479 |       0 |    0 |  422 |      0 |      0 |          0 |
+|         ar_channel            |  gaxi_skid_buffer__parameterized3_7 |        136 |        136 |       0 |    0 |  130 |      0 |      0 |          0 |
+|         r_channel             |  gaxi_skid_buffer__parameterized5_8 |        343 |        343 |       0 |    0 |  292 |      0 |      0 |          0 |
+|       u_rd_cam                |                          bridge_cam |        617 |        617 |       0 |    0 |  245 |      0 |      0 |          0 |
+|     u_stream_desc_adapter     |                 stream_desc_adapter |        471 |        471 |       0 |    0 |  464 |      0 |      0 |          0 |
+|       u_timing_wrapper_rd     |                     axi4_slave_rd_3 |        454 |        454 |       0 |    0 |  420 |      0 |      0 |          0 |
+|         i_ar_channel          |                  gaxi_skid_buffer_4 |        237 |        237 |       0 |    0 |  136 |      0 |      0 |          0 |
+|         i_r_channel           |  gaxi_skid_buffer__parameterized0_5 |        217 |        217 |       0 |    0 |  284 |      0 |      0 |          0 |
+|     u_stream_rd_adapter       |                   stream_rd_adapter |        544 |        544 |       0 |    0 |  487 |      0 |      0 |          0 |
+|       (u_stream_rd_adapter)   |                   stream_rd_adapter |         34 |         34 |       0 |    0 |   63 |      0 |      0 |          0 |
+|       u_timing_wrapper_rd     |                       axi4_slave_rd |        510 |        510 |       0 |    0 |  424 |      0 |      0 |          0 |
+|         i_ar_channel          |                  gaxi_skid_buffer_2 |        282 |        282 |       0 |    0 |  140 |      0 |      0 |          0 |
+|         i_r_channel           |    gaxi_skid_buffer__parameterized0 |        228 |        228 |       0 |    0 |  284 |      0 |      0 |          0 |
+|     u_stream_wr_adapter       |                   stream_wr_adapter |       1361 |       1361 |       0 |    0 |  867 |      0 |      0 |          0 |
+|       (u_stream_wr_adapter)   |                   stream_wr_adapter |         43 |         43 |       0 |    0 |  114 |      0 |      0 |          0 |
+|       u_timing_wrapper_wr     |                       axi4_slave_wr |       1318 |       1318 |       0 |    0 |  753 |      0 |      0 |          0 |
+|         i_aw_channel          |                    gaxi_skid_buffer |        285 |        285 |       0 |    0 |  141 |      0 |      0 |          0 |
+|         i_b_channel           |    gaxi_skid_buffer__parameterized2 |         54 |         54 |       0 |    0 |   26 |      0 |      0 |          0 |
+|         i_w_channel           |  gaxi_skid_buffer__parameterized1_1 |        979 |        979 |       0 |    0 |  586 |      0 |      0 |          0 |
+|     u_subtractive_adapter     |                 subtractive_adapter |        398 |        398 |       0 |    0 |  188 |      0 |      0 |          0 |
+|       (u_subtractive_adapter) |                 subtractive_adapter |         52 |         52 |       0 |    0 |   68 |      0 |      0 |          0 |
+|       u_master_rd             |                      axi4_master_rd |        258 |        258 |       0 |    0 |   64 |      0 |      0 |          0 |
+|         ar_channel            |  gaxi_skid_buffer__parameterized3_0 |         63 |         63 |       0 |    0 |   38 |      0 |      0 |          0 |
+|         r_channel             |    gaxi_skid_buffer__parameterized5 |        195 |        195 |       0 |    0 |   26 |      0 |      0 |          0 |
+|       u_master_wr             |                      axi4_master_wr |         88 |         88 |       0 |    0 |   56 |      0 |      0 |          0 |
+|     u_xbar                    |                 bridge_fb_data_xbar |        363 |        363 |       0 |    0 |  129 |      0 |      0 |          0 |
++-------------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

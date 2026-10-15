@@ -387,7 +387,11 @@ module fb_data_fabric (
         .crc_snk_awregion(),
         .crc_snk_awuser(),
         .crc_snk_wuser(),
-        .crc_snk_buser(1'b0)
+        .crc_snk_buser(1'b0),
+        .unmapped_clear(1'b0),
+        .unmapped_irq(),
+        .unmapped_addr(),
+        .unmapped_count()
     );
 
 endmodule : fb_data_fabric

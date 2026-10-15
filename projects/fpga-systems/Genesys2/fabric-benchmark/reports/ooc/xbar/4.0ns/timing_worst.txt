@@ -1,0 +1,931 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Thu Oct 15 08:14:49 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -max_paths 20 -nworst 1 -sort_by slack -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/xbar/4.0ns/timing_worst.txt
+| Design       : fb_data_fabric
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             0.088ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[114]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.649ns  (logic 0.259ns (7.098%)  route 3.390ns (92.902%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.390     4.186    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X35Y305        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[114]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X35Y305        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[114]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X35Y305        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[114]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.186    
+  -------------------------------------------------------------------
+                         slack                                  0.088    
+
+Slack (MET) :             0.088ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[115]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.649ns  (logic 0.259ns (7.098%)  route 3.390ns (92.902%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.390     4.186    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X35Y305        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[115]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X35Y305        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[115]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X35Y305        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[115]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.186    
+  -------------------------------------------------------------------
+                         slack                                  0.088    
+
+Slack (MET) :             0.099ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[112]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.873ns  (logic 0.302ns (7.798%)  route 3.571ns (92.202%))
+  Logic Levels:           1  (LUT3=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.571     4.367    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X27Y306        LUT3 (Prop_lut3_I2_O)        0.043     4.410 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i[112]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.410    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer[112]
+    SLICE_X27Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[112]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X27Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[112]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X27Y306        FDRE (Setup_fdre_C_D)        0.034     4.509    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[112]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.410    
+  -------------------------------------------------------------------
+                         slack                                  0.099    
+
+Slack (MET) :             0.108ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[98]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.628ns  (logic 0.223ns (6.146%)  route 3.405ns (93.854%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X40Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X40Y288        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.405     4.165    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X29Y305        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[98]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X29Y305        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[98]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X29Y305        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[98]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.165    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.108ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[99]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.628ns  (logic 0.223ns (6.146%)  route 3.405ns (93.854%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X40Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X40Y288        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.405     4.165    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X29Y305        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[99]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X29Y305        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[99]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X29Y305        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[99]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.165    
+  -------------------------------------------------------------------
+                         slack                                  0.108    
+
+Slack (MET) :             0.116ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[113]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.880ns  (logic 0.309ns (7.965%)  route 3.571ns (92.035%))
+  Logic Levels:           1  (LUT3=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.571     4.367    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X27Y306        LUT3 (Prop_lut3_I2_O)        0.050     4.417 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i[113]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.417    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer[113]
+    SLICE_X27Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[113]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X27Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[113]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X27Y306        FDRE (Setup_fdre_C_D)        0.058     4.533    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[113]
+  -------------------------------------------------------------------
+                         required time                          4.533    
+                         arrival time                          -4.417    
+  -------------------------------------------------------------------
+                         slack                                  0.116    
+
+Slack (MET) :             0.121ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[108]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.851ns  (logic 0.302ns (7.843%)  route 3.549ns (92.157%))
+  Logic Levels:           1  (LUT3=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.549     4.345    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X27Y299        LUT3 (Prop_lut3_I2_O)        0.043     4.388 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i[108]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.388    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer[108]
+    SLICE_X27Y299        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[108]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X27Y299        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[108]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X27Y299        FDRE (Setup_fdre_C_D)        0.034     4.509    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[108]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.388    
+  -------------------------------------------------------------------
+                         slack                                  0.121    
+
+Slack (MET) :             0.128ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[112]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.609ns  (logic 0.259ns (7.177%)  route 3.350ns (92.823%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.350     4.146    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X28Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[112]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X28Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[112]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X28Y306        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[112]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.146    
+  -------------------------------------------------------------------
+                         slack                                  0.128    
+
+Slack (MET) :             0.128ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[113]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.609ns  (logic 0.259ns (7.177%)  route 3.350ns (92.823%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.350     4.146    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X28Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[113]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X28Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[113]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X28Y306        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[113]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.146    
+  -------------------------------------------------------------------
+                         slack                                  0.128    
+
+Slack (MET) :             0.128ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[98]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.609ns  (logic 0.259ns (7.177%)  route 3.350ns (92.823%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.350     4.146    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X28Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[98]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X28Y306        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[98]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X28Y306        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[98]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.146    
+  -------------------------------------------------------------------
+                         slack                                  0.128    
+
+Slack (MET) :             0.136ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[109]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.860ns  (logic 0.311ns (8.058%)  route 3.549ns (91.942%))
+  Logic Levels:           1  (LUT3=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.549     4.345    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X27Y299        LUT3 (Prop_lut3_I2_O)        0.052     4.397 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i[109]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.397    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer[109]
+    SLICE_X27Y299        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[109]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X27Y299        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[109]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X27Y299        FDRE (Setup_fdre_C_D)        0.058     4.533    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[109]
+  -------------------------------------------------------------------
+                         required time                          4.533    
+                         arrival time                          -4.397    
+  -------------------------------------------------------------------
+                         slack                                  0.136    
+
+Slack (MET) :             0.145ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[28]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.592ns  (logic 0.259ns (7.210%)  route 3.333ns (92.790%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.333     4.129    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X25Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[28]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X25Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[28]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X25Y300        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[28]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.129    
+  -------------------------------------------------------------------
+                         slack                                  0.145    
+
+Slack (MET) :             0.145ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[29]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.592ns  (logic 0.259ns (7.210%)  route 3.333ns (92.790%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.333     4.129    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X25Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[29]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X25Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[29]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X25Y300        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[29]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.129    
+  -------------------------------------------------------------------
+                         slack                                  0.145    
+
+Slack (MET) :             0.145ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[90]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.592ns  (logic 0.259ns (7.210%)  route 3.333ns (92.790%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.333     4.129    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X25Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[90]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X25Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[90]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X25Y300        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[90]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.129    
+  -------------------------------------------------------------------
+                         slack                                  0.145    
+
+Slack (MET) :             0.145ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[91]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.592ns  (logic 0.259ns (7.210%)  route 3.333ns (92.790%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.333     4.129    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X25Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[91]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X25Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[91]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X25Y300        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[91]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.129    
+  -------------------------------------------------------------------
+                         slack                                  0.145    
+
+Slack (MET) :             0.172ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i_reg[78]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.800ns  (logic 0.266ns (7.000%)  route 3.534ns (93.000%))
+  Logic Levels:           1  (LUT3=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X40Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X40Y288        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.534     4.294    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X32Y307        LUT3 (Prop_lut3_I2_O)        0.043     4.337 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i[78]_i_1/O
+                         net (fo=1, routed)           0.000     4.337    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer[78]
+    SLICE_X32Y307        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i_reg[78]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X32Y307        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i_reg[78]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X32Y307        FDRE (Setup_fdre_C_D)        0.034     4.509    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i_reg[78]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.337    
+  -------------------------------------------------------------------
+                         slack                                  0.172    
+
+Slack (MET) :             0.184ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[28]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.788ns  (logic 0.302ns (7.972%)  route 3.486ns (92.028%))
+  Logic Levels:           1  (LUT3=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X38Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X38Y288        FDRE (Prop_fdre_C_Q)         0.259     0.796 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.486     4.282    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X25Y301        LUT3 (Prop_lut3_I2_O)        0.043     4.325 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i[28]_i_1__1/O
+                         net (fo=1, routed)           0.000     4.325    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer[28]
+    SLICE_X25Y301        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[28]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X25Y301        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[28]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X25Y301        FDRE (Setup_fdre_C_D)        0.034     4.509    u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/m_payload_i_reg[28]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.325    
+  -------------------------------------------------------------------
+                         slack                                  0.184    
+
+Slack (MET) :             0.187ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i_reg[79]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.809ns  (logic 0.275ns (7.220%)  route 3.534ns (92.780%))
+  Logic Levels:           1  (LUT3=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X40Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X40Y288        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.534     4.294    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X32Y307        LUT3 (Prop_lut3_I2_O)        0.052     4.346 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i[79]_i_1/O
+                         net (fo=1, routed)           0.000     4.346    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer[79]
+    SLICE_X32Y307        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i_reg[79]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X32Y307        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i_reg[79]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X32Y307        FDRE (Setup_fdre_C_D)        0.058     4.533    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/m_payload_i_reg[79]
+  -------------------------------------------------------------------
+                         required time                          4.533    
+                         arrival time                          -4.346    
+  -------------------------------------------------------------------
+                         slack                                  0.187    
+
+Slack (MET) :             0.199ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[110]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.537ns  (logic 0.223ns (6.304%)  route 3.314ns (93.696%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X40Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X40Y288        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.314     4.074    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X37Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[110]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X37Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[110]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X37Y300        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[110]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.074    
+  -------------------------------------------------------------------
+                         slack                                  0.199    
+
+Slack (MET) :             0.199ns  (required time - arrival time)
+  Source:                 u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[111]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.537ns  (logic 0.223ns (6.304%)  route 3.314ns (93.696%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.537     0.537    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X40Y288        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X40Y288        FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg/Q
+                         net (fo=284, routed)         3.314     4.074    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/s_ready_i_reg_0
+    SLICE_X37Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[111]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=2199, unset)         0.510     4.510    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/aclk
+    SLICE_X37Y300        FDRE                                         r  u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[111]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X37Y300        FDRE (Setup_fdre_C_CE)      -0.201     4.274    u_fabric/gen_samd.crossbar_samd/gen_master_slots[0].reg_slice_mi/r.r_pipe/skid_buffer_reg[111]
+  -------------------------------------------------------------------
+                         required time                          4.274    
+                         arrival time                          -4.074    
+  -------------------------------------------------------------------
+                         slack                                  0.199    
+
+
+
+

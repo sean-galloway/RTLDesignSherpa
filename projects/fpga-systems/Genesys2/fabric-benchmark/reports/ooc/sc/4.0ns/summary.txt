@@ -1,0 +1,15 @@
+leg sc
+part xc7k325tffg900-2
+period_ns 4.0
+wns_ns 0.284
+whs_ns 0.044
+worst_levels 1
+worst_start u_fabric/fb_sc_i/sc/inst/s00_entry_pipeline/s00_mmu/inst/r_sreg/skid2vector_q_reg/C
+worst_end u_fabric/fb_sc_i/sc/inst/s00_entry_pipeline/s00_mmu/inst/r_sreg/m_vector_i_reg[1138]/D
+lut 8438
+lutram 4064
+srl 755
+ff 11938
+bram_tile 0.0
+carry4 8
+muxf 0

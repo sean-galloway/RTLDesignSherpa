@@ -1,0 +1,15 @@
+leg bridge
+part xc7k325tffg900-2
+period_ns 4.0
+wns_ns -1.368
+whs_ns 0.082
+worst_levels 12
+worst_start u_fabric/u_inj_wr_adapter/u_timing_wrapper_wr/i_aw_channel/g_slot[0].r_data_reg[0][60]/C
+worst_end u_fabric/u_ddr_adapter/u_wr_cam/r_count_array_reg[1][2]/D
+lut 10201
+lutram 0
+srl 0
+ff 6937
+bram_tile 0.0
+carry4 165
+muxf 43

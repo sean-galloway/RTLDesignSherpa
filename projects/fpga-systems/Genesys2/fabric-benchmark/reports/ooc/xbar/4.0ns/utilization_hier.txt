@@ -1,0 +1,61 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Thu Oct 15 08:14:49 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/xbar/4.0ns/utilization_hier.txt
+| Design       : fb_data_fabric
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++------------------------------------------------------------+-------------------------------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|                          Instance                          |                               Module                              | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++------------------------------------------------------------+-------------------------------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| fb_data_fabric                                             |                                                             (top) |       2267 |       2257 |       0 |   10 | 2190 |      0 |      0 |          0 |
+|   (fb_data_fabric)                                         |                                                             (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   u_fabric                                                 |                                 axi_crossbar_v2_1_37_axi_crossbar |       2267 |       2257 |       0 |   10 | 2190 |      0 |      0 |          0 |
+|     gen_samd.crossbar_samd                                 |                                     axi_crossbar_v2_1_37_crossbar |       2267 |       2257 |       0 |   10 | 2190 |      0 |      0 |          0 |
+|       gen_slave_slots[3].gen_si_write.si_transactor_aw     |                axi_crossbar_v2_1_37_si_transactor__parameterized2 |        273 |        273 |       0 |    0 |  233 |      0 |      0 |          0 |
+|         (gen_slave_slots[3].gen_si_write.si_transactor_aw) |                axi_crossbar_v2_1_37_si_transactor__parameterized2 |        196 |        196 |       0 |    0 |  229 |      0 |      0 |          0 |
+|         gen_multi_thread.mux_resp_multi_thread             |                 generic_baseblocks_v2_1_2_mux_enc__parameterized0 |         76 |         76 |       0 |    0 |    0 |      0 |      0 |          0 |
+|       addr_arbiter_ar                                      |                                 axi_crossbar_v2_1_37_addr_arbiter |         71 |         71 |       0 |    0 |   81 |      0 |      0 |          0 |
+|         (addr_arbiter_ar)                                  |                                 axi_crossbar_v2_1_37_addr_arbiter |         38 |         38 |       0 |    0 |   81 |      0 |      0 |          0 |
+|       addr_arbiter_aw                                      |                               axi_crossbar_v2_1_37_addr_arbiter_0 |         98 |         98 |       0 |    0 |   82 |      0 |      0 |          0 |
+|         (addr_arbiter_aw)                                  |                               axi_crossbar_v2_1_37_addr_arbiter_0 |         33 |         33 |       0 |    0 |   82 |      0 |      0 |          0 |
+|         gen_arbiter.mux_mesg                               |                 generic_baseblocks_v2_1_2_mux_enc__parameterized2 |         65 |         65 |       0 |    0 |    0 |      0 |      0 |          0 |
+|       gen_master_slots[0].gen_mi_write.wdata_mux_w         |                                    axi_crossbar_v2_1_37_wdata_mux |        164 |        162 |       0 |    2 |   11 |      0 |      0 |          0 |
+|         gen_wmux.wmux_aw_fifo                              |        axi_data_fifo_v2_1_35_axic_reg_srl_fifo__parameterized0_26 |        164 |        162 |       0 |    2 |   11 |      0 |      0 |          0 |
+|           (gen_wmux.wmux_aw_fifo)                          |        axi_data_fifo_v2_1_35_axic_reg_srl_fifo__parameterized0_26 |        158 |        158 |       0 |    0 |   11 |      0 |      0 |          0 |
+|       gen_master_slots[0].reg_slice_mi                     |                     axi_register_slice_v2_1_35_axi_register_slice |         98 |         98 |       0 |    0 |  300 |      0 |      0 |          0 |
+|         r.r_pipe                                           | axi_register_slice_v2_1_35_axic_register_slice__parameterized2_25 |         84 |         84 |       0 |    0 |  284 |      0 |      0 |          0 |
+|       gen_master_slots[1].reg_slice_mi                     |     axi_register_slice_v2_1_35_axi_register_slice__parameterized0 |         74 |         74 |       0 |    0 |  280 |      0 |      0 |          0 |
+|         r.r_pipe                                           | axi_register_slice_v2_1_35_axic_register_slice__parameterized2_23 |         74 |         74 |       0 |    0 |  280 |      0 |      0 |          0 |
+|       gen_master_slots[2].reg_slice_mi                     |   axi_register_slice_v2_1_35_axi_register_slice__parameterized0_1 |        364 |        364 |       0 |    0 |  284 |      0 |      0 |          0 |
+|         r.r_pipe                                           | axi_register_slice_v2_1_35_axic_register_slice__parameterized2_22 |        364 |        364 |       0 |    0 |  284 |      0 |      0 |          0 |
+|       gen_master_slots[3].gen_mi_write.wdata_mux_w         |                                  axi_crossbar_v2_1_37_wdata_mux_2 |        165 |        163 |       0 |    2 |   11 |      0 |      0 |          0 |
+|         gen_wmux.wmux_aw_fifo                              |           axi_data_fifo_v2_1_35_axic_reg_srl_fifo__parameterized0 |        165 |        163 |       0 |    2 |   11 |      0 |      0 |          0 |
+|           (gen_wmux.wmux_aw_fifo)                          |           axi_data_fifo_v2_1_35_axic_reg_srl_fifo__parameterized0 |        158 |        158 |       0 |    0 |   11 |      0 |      0 |          0 |
+|       gen_slave_slots[0].gen_si_read.si_transactor_ar      |                                axi_crossbar_v2_1_37_si_transactor |        273 |        273 |       0 |    0 |  253 |      0 |      0 |          0 |
+|         (gen_slave_slots[0].gen_si_read.si_transactor_ar)  |                                axi_crossbar_v2_1_37_si_transactor |        195 |        195 |       0 |    0 |  245 |      0 |      0 |          0 |
+|         gen_multi_thread.mux_resp_multi_thread             |                              generic_baseblocks_v2_1_2_mux_enc_17 |         64 |         64 |       0 |    0 |    0 |      0 |      0 |          0 |
+|       gen_slave_slots[1].gen_si_read.si_transactor_ar      |                axi_crossbar_v2_1_37_si_transactor__parameterized0 |        274 |        274 |       0 |    0 |  251 |      0 |      0 |          0 |
+|         (gen_slave_slots[1].gen_si_read.si_transactor_ar)  |                axi_crossbar_v2_1_37_si_transactor__parameterized0 |        197 |        197 |       0 |    0 |  245 |      0 |      0 |          0 |
+|         gen_multi_thread.mux_resp_multi_thread             |                                 generic_baseblocks_v2_1_2_mux_enc |         64 |         64 |       0 |    0 |    0 |      0 |      0 |          0 |
+|       gen_slave_slots[2].gen_si_write.si_transactor_aw     |                axi_crossbar_v2_1_37_si_transactor__parameterized1 |        275 |        275 |       0 |    0 |  251 |      0 |      0 |          0 |
+|         (gen_slave_slots[2].gen_si_write.si_transactor_aw) |                axi_crossbar_v2_1_37_si_transactor__parameterized1 |        198 |        198 |       0 |    0 |  245 |      0 |      0 |          0 |
+|         gen_multi_thread.mux_resp_multi_thread             |              generic_baseblocks_v2_1_2_mux_enc__parameterized0_14 |         64 |         64 |       0 |    0 |    0 |      0 |      0 |          0 |
++------------------------------------------------------------+-------------------------------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+
