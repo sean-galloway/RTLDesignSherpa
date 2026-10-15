@@ -785,7 +785,7 @@ always_comb begin
                              resp_drop_req[p] ||
                              (drop_active[p] && pres_valid[p]);
         drop_active_next[p] = drop_active[p];
-        if (drop_req[p] || bad_cfg_req[p]) begin
+        if (drop_req[p] || bad_cfg_req[p] || resp_drop_req[p]) begin
             drop_active_next[p] = !pres_last[p];
         end else if (drop_active[p] && pres_valid[p] &&
                    pres_last[p]) begin
@@ -974,7 +974,6 @@ always_comb begin
         resp_drop_req[p] = pres_valid[p] && !lock_active[p] &&
                            !drop_active[p] && !head_mcast[p] &&
                            !pres_tuser[p][HDR_SR_PTR_LO] &&
-                           (route_req[p] == PORT_W'(P_LOCAL)) &&
                            (r_mode != 4'd6) &&
                            (int'(head_dst_x[p]) == int'(mcast_src_x[p])) &&
                            (int'(head_dst_y[p]) == int'(mcast_src_y[p])) &&
