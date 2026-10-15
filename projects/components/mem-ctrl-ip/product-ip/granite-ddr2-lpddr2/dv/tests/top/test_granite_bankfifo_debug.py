@@ -133,7 +133,15 @@ async def cocotb_test_bankfifo_race(dut):
             break
     assert int(dut.init_done_o.value) == 1, "init never completed"
 
-    bs = dut.u_sched_plane.g_bank_sched.u_bank_sched
+    # The skid trace probes the per-bank core (g_bank_sched), which only
+    # exists when the core is built with BANK_FIFO=1. Granite ships parked
+    # at BANK_FIFO=0 (MC-003), so the trace disables itself there and the
+    # test degrades to an init + traffic smoke.
+    bs = None
+    try:
+        bs = dut.u_sched_plane.g_bank_sched.u_bank_sched
+    except AttributeError:
+        dut._log.info("BANK_FIFO=0 (parked): g_bank_sched absent, skid trace disabled")
     fh = open("/tmp/race_trace.txt", "w")
     n = {"n": 0}
 
@@ -155,7 +163,8 @@ async def cocotb_test_bankfifo_race(dut):
                             "".join(map(str, vv))))
                 fh.flush()
             prev = None
-    cocotb.start_soon(_trace())
+    if bs is not None:
+        cocotb.start_soon(_trace())
 
     # the failing pattern: one write, then 8 reads to one address
     await bfm.write(0x2000, [0xAAAA_0000_0000_0000 + i for i in range(BL_WORDS)], wid=1)

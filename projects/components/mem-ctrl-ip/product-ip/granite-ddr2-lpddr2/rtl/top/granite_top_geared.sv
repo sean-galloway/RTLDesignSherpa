@@ -429,6 +429,11 @@ module granite_top_geared
         .mr1_i              (hwif_out.MR1.VAL.value),
         .mr2_i              (hwif_out.MR2.VAL.value),
         .mr3_i              (hwif_out.MR3.VAL.value),
+        // JEDEC LPDDR2 OP defaults until the LP_MR1/2/3_OP CSRs land
+        // (replaced by hwif_out.LP_MR*_OP.value then).
+        .lp_mr1_op_i        (8'h23),
+        .lp_mr2_op_i        (8'h01),
+        .lp_mr3_op_i        (8'h02),
         .init_restart_i     (hwif_out.CTRL.init_force_restart.value),
         .rd_phase_i         (hwif_out.DFI_PHASE.rd_phase.value[PHW-1:0]),
         .wr_phase_i         (hwif_out.DFI_PHASE.wr_phase.value[PHW-1:0]),

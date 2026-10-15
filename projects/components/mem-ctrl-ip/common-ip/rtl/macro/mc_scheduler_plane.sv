@@ -336,6 +336,14 @@ module mc_scheduler_plane
                 .mr1_i              (mr1_i),
                 .mr2_i              (mr2_i),
                 .mr3_i              (mr3_i),
+                // Legacy internal-init path: tie the LPDDR2 MR OP data to the
+                // JEDEC defaults the old hardcoded localparams carried
+                // (8'h23/8'h01/8'h02). The xDDR2-generation products run
+                // HAS_INIT_SEQUENCER=0 and take CSR-backed values through
+                // mc_init_plane instead.
+                .lp_mr1_op_i        (8'h23),
+                .lp_mr2_op_i        (8'h01),
+                .lp_mr3_op_i        (8'h02),
                 .init_restart_i     (init_restart_i),
                 .dfi_init_start_o   (dfi_init_start_o),
                 .dfi_init_complete_i(dfi_init_complete_i),
@@ -349,7 +357,8 @@ module mc_scheduler_plane
                 .zqcl_req_o         (),
                 .zqcl_grant_i       (1'b0),
                 .init_busy_o        (),
-                .init_done_o        (init_done)
+                .init_done_o        (init_done),
+                .init_state_o       ()
             );
         end else begin : g_no_init
             assign dfi_init_start_o = 1'b0;

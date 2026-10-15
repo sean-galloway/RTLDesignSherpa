@@ -9,9 +9,11 @@
 //          common-ip stack per config/product_config.md:
 //            1. mc_axi4_plane          (host AXI; intakes + return ring)
 //            2. mc_xddr2_entry_store   (storage-lite N=1 in-order seam)
-//            3. mc_scheduler_plane     (pick machinery + common v2 children)
-//            4. mc_training_plane      (LPDDR2 ZQ + DQ cal)
-//            5. mc_dfi_2p1_plane       (common single async CDC + DFI datapath)
+//            3. mc_init_plane          (JEDEC init + MR shadow + PHY handshake)
+//            4. mc_scheduler_plane     (pick machinery + common v2 children,
+//                                      external-init mode)
+//            5. mc_training_plane      (LPDDR2 ZQ + DQ cal)
+//            6. mc_dfi_2p1_plane       (common single async CDC + DFI datapath)
 //          No mc_storage_plane, no mc_ras_plane.  CSR/timer ports are simple
 //          inputs for now; a product CSR block is a later task.
 //
@@ -103,6 +105,7 @@ module granite_core
     input  logic [15:0]                t_init_wait_i, t_dll_wait_i,
     input  logic [7:0]                 t_mrd_wait_i, t_rp_wait_i, t_rfc_wait_i,
     input  logic [15:0]                mr0_i, mr1_i, mr2_i, mr3_i,
+    input  logic [7:0]                 lp_mr1_op_i, lp_mr2_op_i, lp_mr3_op_i,
     input  logic                       init_restart_i,
     input  logic [PHW-1:0]             rd_phase_i, wr_phase_i,
     input  logic [7:0]                 t_phy_wrlat_i, t_rddata_en_i,
@@ -258,8 +261,14 @@ module granite_core
     logic [DFI_DATA_WIDTH-1:0] w_cal_data;
     logic                      w_cal_valid;
 
-    // ---- init handshake scheduler <-> DFI ----
+    // ---- init handshake init plane <-> DFI ----
     logic                      w_init_start, w_init_complete;
+
+    // ---- init plane -> scheduler plane init command injection ----
+    logic                      w_init_cmd_v;
+    dram_op_e                  w_init_cmd_op;
+    logic [BKW-1:0]            w_init_cmd_bank;
+    logic [ROW_WIDTH-1:0]      w_init_cmd_row;
 
     // ---- AXI4 plane <-> entry store inter-plane nets ----
     logic                aw_push_valid, aw_push_ready;
@@ -518,7 +527,45 @@ module granite_core
     );
 
     // ======================================================================
-    // Plane 2: command scheduler
+    // Plane 2a: init plane (JEDEC sequencing + MR shadow + PHY handshake)
+    // ======================================================================
+    mc_init_plane #(
+        .NUM_RANKS (NUM_RANKS),
+        .NUM_BANKS (NUM_BANKS),
+        .ROW_WIDTH (ROW_WIDTH)
+    ) u_init_plane (
+        .mc_clk             (aclk),
+        .mc_rst_n           (aresetn),
+        .memtype_i          (memtype_i),
+        .t_init_wait_i      (t_init_wait_i),
+        .t_dll_wait_i       (t_dll_wait_i),
+        .t_mrd_wait_i       (t_mrd_wait_i),
+        .t_rp_wait_i        (t_rp_wait_i),
+        .t_rfc_wait_i       (t_rfc_wait_i),
+        .mr0_i              (mr0_i),
+        .mr1_i              (mr1_i),
+        .mr2_i              (mr2_i),
+        .mr3_i              (mr3_i),
+        .lp_mr1_op_i        (lp_mr1_op_i),
+        .lp_mr2_op_i        (lp_mr2_op_i),
+        .lp_mr3_op_i        (lp_mr3_op_i),
+        .init_restart_i     (init_restart_i),
+        .dfi_init_start_o   (w_init_start),
+        .dfi_init_complete_i(w_init_complete),
+        .init_cmd_valid_o   (w_init_cmd_v),
+        .init_cmd_op_o      (w_init_cmd_op),
+        .init_cmd_bank_o    (w_init_cmd_bank),
+        .init_cmd_row_o     (w_init_cmd_row),
+        .init_busy_o        (),
+        .init_done_o        (init_done_o),
+        .init_state_o       (),
+        .cl_o               (cl_o),
+        .cwl_o              (cwl_o),
+        .bl_o               (bl_o)
+    );
+
+    // ======================================================================
+    // Plane 2: command scheduler (external-init mode; init lives in u_init_plane)
     // ======================================================================
     mc_scheduler_plane #(
         .NUM_RANKS     (NUM_RANKS),
@@ -530,6 +577,10 @@ module granite_core
         .AGE_WIDTH     (AGE_WIDTH),
         .CMD_DELAY     (CMD_DELAY_EFF),
         .HAS_ZQ        (1'b0),
+        // Init is owned by u_init_plane; the scheduler plane takes its
+        // external-init mode (the same mode scoria's wrapper uses).
+        .HAS_INIT_SEQUENCER(1'b0),
+        .HAS_MODE_REGISTER (1'b0),
         .MAINT_EXTRA_WIDTH(1),
         .CLOSE_ON_DRAIN(1'b1),
         // BANK_FIFO (the per-bank in-order product core) is validated to
@@ -602,18 +653,18 @@ module granite_core
         .mr2_i              (mr2_i),
         .mr3_i              (mr3_i),
         .init_restart_i     (init_restart_i),
-        .dfi_init_start_o   (w_init_start),
-        .dfi_init_complete_i(w_init_complete),
-        .init_done_o        (init_done_o),
-        .cl_o               (cl_o),
-        .cwl_o              (cwl_o),
-        .bl_o               (bl_o),
+        .dfi_init_start_o   (),
+        .dfi_init_complete_i(1'b0),
+        .init_done_o        (),
+        .cl_o               (),
+        .cwl_o              (),
+        .bl_o               (),
         .refresh_grant_o    (),
-        .init_done_i        (1'b1),
-        .init_cmd_valid_i   (1'b0),
-        .init_cmd_op_i      (OP_NOP),
-        .init_cmd_bank_i    ('0),
-        .init_cmd_row_i     ('0),
+        .init_done_i        (init_done_o),
+        .init_cmd_valid_i   (w_init_cmd_v),
+        .init_cmd_op_i      (w_init_cmd_op),
+        .init_cmd_bank_i    (w_init_cmd_bank),
+        .init_cmd_row_i     (w_init_cmd_row),
         .refresh_req_i      (1'b0),
         .refresh_drain_i    (1'b0),
         .refresh_kind_i     (1'b0),

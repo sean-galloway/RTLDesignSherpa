@@ -214,6 +214,9 @@ module pumice_core_tb_top
         // CSR-backed MR values at their RDL resets (MR0 0x0433 = BL8/CL3/tWR3);
         // no runtime MR retune in this TB, init_restart tied off.
         .mr0_i(16'h0433), .mr1_i(16'h0000), .mr2_i(16'h0000), .mr3_i(16'h0000),
+        // LPDDR2 MR OP data at the JEDEC defaults (CSR reset values); this TB
+        // scores the datapath, no MR retune.
+        .lp_mr1_op_i(8'h23), .lp_mr2_op_i(8'h01), .lp_mr3_op_i(8'h02),
         .init_restart_i(1'b0),
         // Training plane (ZQ + DQ cal) tied off: this TB scores the datapath
         // and paging sweep, not calibration. Enables 0 make both FUBs inert;
