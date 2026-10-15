@@ -699,7 +699,7 @@ module bridge_amber_axil
     // ================================================================
     // HOST Adapter
     // ================================================================
-    host_adapter u_host_adapter (
+    bridge_amber_axil_host_adapter u_host_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1215,7 +1215,7 @@ module bridge_amber_axil
     // ================================================================
 
     // harness_csr adapter (AXIL, crossbar → external slave)
-    harness_csr_adapter u_harness_csr_adapter (
+    bridge_amber_axil_harness_csr_adapter u_harness_csr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1296,7 +1296,7 @@ module bridge_amber_axil
     );
 
     // cycle_injector0 adapter (AXIL, crossbar → external slave)
-    cycle_injector0_adapter u_cycle_injector0_adapter (
+    bridge_amber_axil_cycle_injector0_adapter u_cycle_injector0_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1377,7 +1377,7 @@ module bridge_amber_axil
     );
 
     // cycle_injector1 adapter (AXIL, crossbar → external slave)
-    cycle_injector1_adapter u_cycle_injector1_adapter (
+    bridge_amber_axil_cycle_injector1_adapter u_cycle_injector1_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1458,7 +1458,7 @@ module bridge_amber_axil
     );
 
     // tally_cnt adapter (AXIL, crossbar → external slave)
-    tally_cnt_adapter u_tally_cnt_adapter (
+    bridge_amber_axil_tally_cnt_adapter u_tally_cnt_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1539,7 +1539,7 @@ module bridge_amber_axil
     );
 
     // tally_cfgw adapter (AXIL, crossbar → external slave)
-    tally_cfgw_adapter u_tally_cfgw_adapter (
+    bridge_amber_axil_tally_cfgw_adapter u_tally_cfgw_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1620,7 +1620,7 @@ module bridge_amber_axil
     );
 
     // tally_cfgr adapter (AXIL, crossbar → external slave)
-    tally_cfgr_adapter u_tally_cfgr_adapter (
+    bridge_amber_axil_tally_cfgr_adapter u_tally_cfgr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1701,7 +1701,7 @@ module bridge_amber_axil
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_amber_axil_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

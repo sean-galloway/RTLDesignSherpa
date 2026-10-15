@@ -2293,7 +2293,7 @@ module bridge_stream_mon_axil_mon
     // ================================================================
     // HOST Adapter
     // ================================================================
-    host_adapter #(
+    bridge_stream_mon_axil_mon_host_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_host_wr),
         .USE_MONITOR_RD(EFF_USE_MON_host_rd)
     ) u_host_adapter (
@@ -2456,7 +2456,7 @@ module bridge_stream_mon_axil_mon
     // ================================================================
     // STREAM_DESC Adapter
     // ================================================================
-    stream_desc_adapter #(
+    bridge_stream_mon_axil_mon_stream_desc_adapter #(
         .USE_MONITOR_RD(EFF_USE_MON_stream_desc_rd)
     ) u_stream_desc_adapter (
         .aclk(aclk),
@@ -2526,7 +2526,7 @@ module bridge_stream_mon_axil_mon
     // ================================================================
     // MONBUS_WR Adapter
     // ================================================================
-    monbus_wr_adapter #(
+    bridge_stream_mon_axil_mon_monbus_wr_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_monbus_wr_wr)
     ) u_monbus_wr_adapter (
         .aclk(aclk),
@@ -2614,7 +2614,7 @@ module bridge_stream_mon_axil_mon
     // ================================================================
     // SLAVE_MONBUS_WR Adapter
     // ================================================================
-    slave_monbus_wr_adapter #(
+    bridge_stream_mon_axil_mon_slave_monbus_wr_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_slave_monbus_wr_wr)
     ) u_slave_monbus_wr_adapter (
         .aclk(aclk),
@@ -3570,7 +3570,7 @@ module bridge_stream_mon_axil_mon
     // ================================================================
 
     // obs_apb adapter (APB, crossbar → external slave)
-    obs_apb_adapter #(
+    bridge_stream_mon_axil_mon_obs_apb_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_obs_apb_wr),
         .USE_MONITOR_RD(EFF_USE_MON_obs_apb_rd)
     ) u_obs_apb_adapter (
@@ -3694,7 +3694,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // slvmon_apb adapter (APB, crossbar → external slave)
-    slvmon_apb_adapter #(
+    bridge_stream_mon_axil_mon_slvmon_apb_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_slvmon_apb_wr),
         .USE_MONITOR_RD(EFF_USE_MON_slvmon_apb_rd)
     ) u_slvmon_apb_adapter (
@@ -3818,7 +3818,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // stream_apb adapter (APB, crossbar → external slave)
-    stream_apb_adapter #(
+    bridge_stream_mon_axil_mon_stream_apb_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_stream_apb_wr),
         .USE_MONITOR_RD(EFF_USE_MON_stream_apb_rd)
     ) u_stream_apb_adapter (
@@ -3942,7 +3942,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // harness_csr adapter (AXIL, crossbar → external slave)
-    harness_csr_adapter #(
+    bridge_stream_mon_axil_mon_harness_csr_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_harness_csr_wr),
         .USE_MONITOR_RD(EFF_USE_MON_harness_csr_rd)
     ) u_harness_csr_adapter (
@@ -4075,7 +4075,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // desc_ram adapter (AXI4, crossbar → external slave)
-    desc_ram_adapter #(
+    bridge_stream_mon_axil_mon_desc_ram_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_desc_ram_wr),
         .USE_MONITOR_RD(EFF_USE_MON_desc_ram_rd)
     ) u_desc_ram_adapter (
@@ -4233,7 +4233,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // stream_err adapter (AXIL, crossbar → external slave)
-    stream_err_adapter #(
+    bridge_stream_mon_axil_mon_stream_err_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_stream_err_wr),
         .USE_MONITOR_RD(EFF_USE_MON_stream_err_rd)
     ) u_stream_err_adapter (
@@ -4366,7 +4366,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // stream_tally adapter (AXIL, crossbar → external slave)
-    stream_tally_adapter #(
+    bridge_stream_mon_axil_mon_stream_tally_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_stream_tally_wr),
         .USE_MONITOR_RD(EFF_USE_MON_stream_tally_rd)
     ) u_stream_tally_adapter (
@@ -4499,7 +4499,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // dma_axil adapter (AXIL, crossbar → external slave)
-    dma_axil_adapter #(
+    bridge_stream_mon_axil_mon_dma_axil_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_dma_axil_wr),
         .USE_MONITOR_RD(EFF_USE_MON_dma_axil_rd)
     ) u_dma_axil_adapter (
@@ -4632,7 +4632,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // slave_err adapter (AXIL, crossbar → external slave)
-    slave_err_adapter #(
+    bridge_stream_mon_axil_mon_slave_err_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_slave_err_wr),
         .USE_MONITOR_RD(EFF_USE_MON_slave_err_rd)
     ) u_slave_err_adapter (
@@ -4765,7 +4765,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // slave_tally adapter (AXIL, crossbar → external slave)
-    slave_tally_adapter #(
+    bridge_stream_mon_axil_mon_slave_tally_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_slave_tally_wr),
         .USE_MONITOR_RD(EFF_USE_MON_slave_tally_rd)
     ) u_slave_tally_adapter (
@@ -4898,7 +4898,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // comp_sram adapter (AXIL, crossbar → external slave)
-    comp_sram_adapter #(
+    bridge_stream_mon_axil_mon_comp_sram_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_comp_sram_wr),
         .USE_MONITOR_RD(EFF_USE_MON_comp_sram_rd)
     ) u_comp_sram_adapter (
@@ -5031,7 +5031,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // stream_tally_cfg adapter (AXIL, crossbar → external slave)
-    stream_tally_cfg_adapter #(
+    bridge_stream_mon_axil_mon_stream_tally_cfg_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_stream_tally_cfg_wr),
         .USE_MONITOR_RD(EFF_USE_MON_stream_tally_cfg_rd)
     ) u_stream_tally_cfg_adapter (
@@ -5164,7 +5164,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // slave_tally_cfg adapter (AXIL, crossbar → external slave)
-    slave_tally_cfg_adapter #(
+    bridge_stream_mon_axil_mon_slave_tally_cfg_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_slave_tally_cfg_wr),
         .USE_MONITOR_RD(EFF_USE_MON_slave_tally_cfg_rd)
     ) u_slave_tally_cfg_adapter (
@@ -5297,7 +5297,7 @@ module bridge_stream_mon_axil_mon
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_stream_mon_axil_mon_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

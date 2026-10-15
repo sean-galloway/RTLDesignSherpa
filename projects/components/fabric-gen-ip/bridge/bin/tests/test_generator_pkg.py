@@ -2109,3 +2109,31 @@ def test_axi5_native_tag_widths_follow_data_width(tmp_path):
     assert field_width(WIDTH_TAGS, 256) == 8 and field_width(WIDTH_NTAGS, 256) == 2
     assert field_width(WIDTH_CHUNKSTRB, 128) == 1 and field_width(WIDTH_TAGS, 32) == 4
     load_config(toml, conn)   # accepted: both ends AXI5, mte, width-matched, wide enough
+
+
+def test_two_bridges_share_no_module_names(tmp_path):
+    """Two generated bridges must coexist in one design. Adapters used to be
+    named after the port alone (<port>_adapter) and every bridge emits a
+    subtractive_adapter, so a configuration bridge and a data bridge in one
+    harness (the Genesys 2 fabric benchmark) defined the same modules twice
+    with different bodies. Every generated module now carries its bridge's
+    name; the files keep their <port>_adapter.sv names."""
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    modules = {}
+    for name in ("bridge_one", "bridge_two"):
+        r = subprocess.run(
+            [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+             "--ports", toml, "--connectivity", conn,
+             "--name", name, "--output-dir", str(tmp_path / "o")],
+            cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+        assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+        found = set()
+        for sv in (tmp_path / "o" / name).glob("*.sv"):
+            found |= set(re.findall(r"^\s*module\s+(\w+)", sv.read_text(), re.M))
+        assert all(m.startswith(name) for m in found), sorted(found)
+        assert f"{name}_s0_adapter" in found and f"{name}_m0_adapter" in found, sorted(found)
+        assert f"{name}_subtractive_adapter" in found, sorted(found)
+        assert (tmp_path / "o" / name / "s0_adapter.sv").exists()
+        modules[name] = found
+    assert not modules["bridge_one"] & modules["bridge_two"]

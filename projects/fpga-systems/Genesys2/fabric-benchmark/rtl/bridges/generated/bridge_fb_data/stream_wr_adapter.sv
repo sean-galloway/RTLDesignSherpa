@@ -7,7 +7,7 @@
 `include "reset_defs.svh"
 
 
-module stream_wr_adapter
+module bridge_fb_data_stream_wr_adapter
     import bridge_fb_data_pkg::*;
 #(
     parameter NUM_SLAVES = 5,
@@ -425,4 +425,4 @@ module stream_wr_adapter
         endcase
     end
 
-endmodule : stream_wr_adapter
+endmodule : bridge_fb_data_stream_wr_adapter

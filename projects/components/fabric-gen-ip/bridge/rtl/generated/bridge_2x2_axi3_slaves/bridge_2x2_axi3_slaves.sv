@@ -504,7 +504,7 @@ module bridge_2x2_axi3_slaves
     // ================================================================
     // CPU_AXI4 Adapter
     // ================================================================
-    cpu_axi4_adapter u_cpu_axi4_adapter (
+    bridge_2x2_axi3_slaves_cpu_axi4_adapter u_cpu_axi4_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -581,7 +581,7 @@ module bridge_2x2_axi3_slaves
     // ================================================================
     // HOST_AXIL Adapter
     // ================================================================
-    host_axil_adapter u_host_axil_adapter (
+    bridge_2x2_axi3_slaves_host_axil_adapter u_host_axil_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -874,7 +874,7 @@ module bridge_2x2_axi3_slaves
     // ================================================================
 
     // ddr_axi3 adapter (AXI3, crossbar → external slave)
-    ddr_axi3_adapter u_ddr_axi3_adapter (
+    bridge_2x2_axi3_slaves_ddr_axi3_adapter u_ddr_axi3_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -977,7 +977,7 @@ module bridge_2x2_axi3_slaves
     );
 
     // sram_axi3 adapter (AXI3, crossbar → external slave)
-    sram_axi3_adapter u_sram_axi3_adapter (
+    bridge_2x2_axi3_slaves_sram_axi3_adapter u_sram_axi3_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1080,7 +1080,7 @@ module bridge_2x2_axi3_slaves
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_2x2_axi3_slaves_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

@@ -7,7 +7,7 @@
 `include "reset_defs.svh"
 
 
-module descr_wr_master_adapter
+module bridge_5x3_channels_descr_wr_master_adapter
     import bridge_5x3_channels_pkg::*;
 #(
     parameter NUM_SLAVES = 4,
@@ -425,4 +425,4 @@ module descr_wr_master_adapter
         endcase
     end
 
-endmodule : descr_wr_master_adapter
+endmodule : bridge_5x3_channels_descr_wr_master_adapter

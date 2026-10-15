@@ -83,18 +83,10 @@ for config in "${configs[@]}"; do
     python3 "$GENERATOR" --ports "$config" --connectivity "$conn" \
         --name "$name" --output-dir "$RTL_OUT"
 
-    # The shared generator names the subtractive catch-all plainly
-    # `subtractive_adapter` for EVERY bridge. scoria has ONE bridge today, so
-    # nothing collides -- but pumice's flow flattens three into one filelist and
-    # three same-named modules with different interfaces made Vivado bind them
-    # all to whichever it elaborated first, silently losing the AR ports of the
-    # write-only variant. Uniquifying here is free and makes a second scoria
-    # bridge a non-event rather than a debugging session.
-    if [ -f "$RTL_OUT/$name/subtractive_adapter.sv" ]; then
-        sed -i "s/\bsubtractive_adapter\b/${name}_subtractive_adapter/g" \
-            "$RTL_OUT/$name"/*.sv
-        echo "    uniquified subtractive_adapter -> ${name}_subtractive_adapter"
-    fi
+    # The shared generator now names every module after its bridge
+    # (<bridge>_<port>_adapter, bridge_pkg/module_naming.py), so the
+    # subtractive catch-all no longer collides across bridges and the
+    # sed uniquifier that used to sit here is gone.
 done
 
 if [ "$CHECK_ONLY" = "1" ]; then

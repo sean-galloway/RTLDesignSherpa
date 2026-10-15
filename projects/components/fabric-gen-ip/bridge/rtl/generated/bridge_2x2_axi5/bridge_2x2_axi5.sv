@@ -582,7 +582,7 @@ module bridge_2x2_axi5
     // ================================================================
     // CPU Adapter
     // ================================================================
-    cpu_adapter u_cpu_adapter (
+    bridge_2x2_axi5_cpu_adapter u_cpu_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -669,7 +669,7 @@ module bridge_2x2_axi5
     // ================================================================
     // DMA Adapter
     // ================================================================
-    dma_adapter u_dma_adapter (
+    bridge_2x2_axi5_dma_adapter u_dma_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -978,7 +978,7 @@ module bridge_2x2_axi5
     // ================================================================
 
     // ddr adapter (AXI4, crossbar → external slave)
-    ddr_adapter u_ddr_adapter (
+    bridge_2x2_axi5_ddr_adapter u_ddr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1084,7 +1084,7 @@ module bridge_2x2_axi5
     );
 
     // sram adapter (AXI5, crossbar → external slave)
-    sram_adapter u_sram_adapter (
+    bridge_2x2_axi5_sram_adapter u_sram_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1210,7 +1210,7 @@ module bridge_2x2_axi5
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_2x2_axi5_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

@@ -824,7 +824,7 @@ module bridge_2x2_lite_req_mon
     // ================================================================
     // LITE4 Adapter
     // ================================================================
-    lite4_adapter #(
+    bridge_2x2_lite_req_mon_lite4_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_lite4_wr),
         .USE_MONITOR_RD(EFF_USE_MON_lite4_rd)
     ) u_lite4_adapter (
@@ -970,7 +970,7 @@ module bridge_2x2_lite_req_mon
     // ================================================================
     // LITE5 Adapter
     // ================================================================
-    lite5_adapter #(
+    bridge_2x2_lite_req_mon_lite5_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_lite5_wr),
         .USE_MONITOR_RD(EFF_USE_MON_lite5_rd)
     ) u_lite5_adapter (
@@ -1371,7 +1371,7 @@ module bridge_2x2_lite_req_mon
     // ================================================================
 
     // mem adapter (AXI4, crossbar → external slave)
-    mem_adapter #(
+    bridge_2x2_lite_req_mon_mem_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_mem_wr),
         .USE_MONITOR_RD(EFF_USE_MON_mem_rd)
     ) u_mem_adapter (
@@ -1529,7 +1529,7 @@ module bridge_2x2_lite_req_mon
     );
 
     // regs adapter (AXIL5, crossbar → external slave)
-    regs_adapter #(
+    bridge_2x2_lite_req_mon_regs_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_regs_wr),
         .USE_MONITOR_RD(EFF_USE_MON_regs_rd)
     ) u_regs_adapter (
@@ -1677,7 +1677,7 @@ module bridge_2x2_lite_req_mon
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_2x2_lite_req_mon_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

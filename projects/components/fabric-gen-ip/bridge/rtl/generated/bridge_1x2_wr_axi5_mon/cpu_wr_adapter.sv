@@ -7,7 +7,7 @@
 `include "reset_defs.svh"
 
 
-module cpu_wr_adapter
+module bridge_1x2_wr_axi5_mon_cpu_wr_adapter
     import bridge_1x2_wr_axi5_mon_pkg::*;
 #(
     parameter NUM_SLAVES = 3,
@@ -592,4 +592,4 @@ module cpu_wr_adapter
     end
 `endif
 
-endmodule : cpu_wr_adapter
+endmodule : bridge_1x2_wr_axi5_mon_cpu_wr_adapter

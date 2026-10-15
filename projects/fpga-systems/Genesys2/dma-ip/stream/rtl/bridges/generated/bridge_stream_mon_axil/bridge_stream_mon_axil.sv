@@ -1346,7 +1346,7 @@ module bridge_stream_mon_axil
     // ================================================================
     // HOST Adapter
     // ================================================================
-    host_adapter u_host_adapter (
+    bridge_stream_mon_axil_host_adapter u_host_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1457,7 +1457,7 @@ module bridge_stream_mon_axil
     // ================================================================
     // STREAM_DESC Adapter
     // ================================================================
-    stream_desc_adapter u_stream_desc_adapter (
+    bridge_stream_mon_axil_stream_desc_adapter u_stream_desc_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1499,7 +1499,7 @@ module bridge_stream_mon_axil
     // ================================================================
     // MONBUS_WR Adapter
     // ================================================================
-    monbus_wr_adapter u_monbus_wr_adapter (
+    bridge_stream_mon_axil_monbus_wr_adapter u_monbus_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1559,7 +1559,7 @@ module bridge_stream_mon_axil
     // ================================================================
     // SLAVE_MONBUS_WR Adapter
     // ================================================================
-    slave_monbus_wr_adapter u_slave_monbus_wr_adapter (
+    bridge_stream_mon_axil_slave_monbus_wr_adapter u_slave_monbus_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2487,7 +2487,7 @@ module bridge_stream_mon_axil
     // ================================================================
 
     // obs_apb adapter (APB, crossbar → external slave)
-    obs_apb_adapter u_obs_apb_adapter (
+    bridge_stream_mon_axil_obs_apb_adapter u_obs_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2559,7 +2559,7 @@ module bridge_stream_mon_axil
     );
 
     // slvmon_apb adapter (APB, crossbar → external slave)
-    slvmon_apb_adapter u_slvmon_apb_adapter (
+    bridge_stream_mon_axil_slvmon_apb_adapter u_slvmon_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2631,7 +2631,7 @@ module bridge_stream_mon_axil
     );
 
     // stream_apb adapter (APB, crossbar → external slave)
-    stream_apb_adapter u_stream_apb_adapter (
+    bridge_stream_mon_axil_stream_apb_adapter u_stream_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2703,7 +2703,7 @@ module bridge_stream_mon_axil
     );
 
     // harness_csr adapter (AXIL, crossbar → external slave)
-    harness_csr_adapter u_harness_csr_adapter (
+    bridge_stream_mon_axil_harness_csr_adapter u_harness_csr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2784,7 +2784,7 @@ module bridge_stream_mon_axil
     );
 
     // desc_ram adapter (AXI4, crossbar → external slave)
-    desc_ram_adapter u_desc_ram_adapter (
+    bridge_stream_mon_axil_desc_ram_adapter u_desc_ram_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2890,7 +2890,7 @@ module bridge_stream_mon_axil
     );
 
     // stream_err adapter (AXIL, crossbar → external slave)
-    stream_err_adapter u_stream_err_adapter (
+    bridge_stream_mon_axil_stream_err_adapter u_stream_err_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2971,7 +2971,7 @@ module bridge_stream_mon_axil
     );
 
     // stream_tally adapter (AXIL, crossbar → external slave)
-    stream_tally_adapter u_stream_tally_adapter (
+    bridge_stream_mon_axil_stream_tally_adapter u_stream_tally_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -3052,7 +3052,7 @@ module bridge_stream_mon_axil
     );
 
     // dma_axil adapter (AXIL, crossbar → external slave)
-    dma_axil_adapter u_dma_axil_adapter (
+    bridge_stream_mon_axil_dma_axil_adapter u_dma_axil_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -3133,7 +3133,7 @@ module bridge_stream_mon_axil
     );
 
     // slave_err adapter (AXIL, crossbar → external slave)
-    slave_err_adapter u_slave_err_adapter (
+    bridge_stream_mon_axil_slave_err_adapter u_slave_err_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -3214,7 +3214,7 @@ module bridge_stream_mon_axil
     );
 
     // slave_tally adapter (AXIL, crossbar → external slave)
-    slave_tally_adapter u_slave_tally_adapter (
+    bridge_stream_mon_axil_slave_tally_adapter u_slave_tally_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -3295,7 +3295,7 @@ module bridge_stream_mon_axil
     );
 
     // comp_sram adapter (AXIL, crossbar → external slave)
-    comp_sram_adapter u_comp_sram_adapter (
+    bridge_stream_mon_axil_comp_sram_adapter u_comp_sram_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -3376,7 +3376,7 @@ module bridge_stream_mon_axil
     );
 
     // stream_tally_cfg adapter (AXIL, crossbar → external slave)
-    stream_tally_cfg_adapter u_stream_tally_cfg_adapter (
+    bridge_stream_mon_axil_stream_tally_cfg_adapter u_stream_tally_cfg_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -3457,7 +3457,7 @@ module bridge_stream_mon_axil
     );
 
     // slave_tally_cfg adapter (AXIL, crossbar → external slave)
-    slave_tally_cfg_adapter u_slave_tally_cfg_adapter (
+    bridge_stream_mon_axil_slave_tally_cfg_adapter u_slave_tally_cfg_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -3538,7 +3538,7 @@ module bridge_stream_mon_axil
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_stream_mon_axil_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

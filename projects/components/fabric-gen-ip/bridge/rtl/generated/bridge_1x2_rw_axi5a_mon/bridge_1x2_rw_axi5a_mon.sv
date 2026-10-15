@@ -735,7 +735,7 @@ module bridge_1x2_rw_axi5a_mon
     // ================================================================
     // CPU Adapter
     // ================================================================
-    cpu_adapter #(
+    bridge_1x2_rw_axi5a_mon_cpu_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_cpu_wr),
         .USE_MONITOR_RD(EFF_USE_MON_cpu_rd)
     ) u_cpu_adapter (
@@ -1071,7 +1071,7 @@ module bridge_1x2_rw_axi5a_mon
     // ================================================================
 
     // ddr adapter (AXI5, crossbar → external slave)
-    ddr_adapter #(
+    bridge_1x2_rw_axi5a_mon_ddr_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_ddr_wr),
         .USE_MONITOR_RD(EFF_USE_MON_ddr_rd)
     ) u_ddr_adapter (
@@ -1237,7 +1237,7 @@ module bridge_1x2_rw_axi5a_mon
     );
 
     // sram adapter (AXI5, crossbar → external slave)
-    sram_adapter #(
+    bridge_1x2_rw_axi5a_mon_sram_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_sram_wr),
         .USE_MONITOR_RD(EFF_USE_MON_sram_rd)
     ) u_sram_adapter (
@@ -1395,7 +1395,7 @@ module bridge_1x2_rw_axi5a_mon
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_1x2_rw_axi5a_mon_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

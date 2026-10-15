@@ -509,7 +509,7 @@ module bridge_2x2_wb4
     // ================================================================
     // WBM Adapter
     // ================================================================
-    wbm_adapter u_wbm_adapter (
+    bridge_2x2_wb4_wbm_adapter u_wbm_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -572,7 +572,7 @@ module bridge_2x2_wb4
     // ================================================================
     // CPU Adapter
     // ================================================================
-    cpu_adapter u_cpu_adapter (
+    bridge_2x2_wb4_cpu_adapter u_cpu_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -914,7 +914,7 @@ module bridge_2x2_wb4
     // ================================================================
 
     // mem adapter (AXI4, crossbar → external slave)
-    mem_adapter u_mem_adapter (
+    bridge_2x2_wb4_mem_adapter u_mem_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1020,7 +1020,7 @@ module bridge_2x2_wb4
     );
 
     // wbp adapter (WB4, crossbar → external slave)
-    wbp_adapter u_wbp_adapter (
+    bridge_2x2_wb4_wbp_adapter u_wbp_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1095,7 +1095,7 @@ module bridge_2x2_wb4
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_2x2_wb4_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

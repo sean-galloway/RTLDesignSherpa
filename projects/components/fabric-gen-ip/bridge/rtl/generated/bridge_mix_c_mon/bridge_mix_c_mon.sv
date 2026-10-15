@@ -940,7 +940,7 @@ module bridge_mix_c_mon
     // ================================================================
     // CPU_AXI4 Adapter
     // ================================================================
-    cpu_axi4_adapter #(
+    bridge_mix_c_mon_cpu_axi4_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_cpu_axi4_wr),
         .USE_MONITOR_RD(EFF_USE_MON_cpu_axi4_rd)
     ) u_cpu_axi4_adapter (
@@ -1086,7 +1086,7 @@ module bridge_mix_c_mon
     // ================================================================
     // HOST_AXIL Adapter
     // ================================================================
-    host_axil_adapter #(
+    bridge_mix_c_mon_host_axil_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_host_axil_wr),
         .USE_MONITOR_RD(EFF_USE_MON_host_axil_rd)
     ) u_host_axil_adapter (
@@ -1533,7 +1533,7 @@ module bridge_mix_c_mon
     // ================================================================
 
     // ddr adapter (AXI4, crossbar → external slave)
-    ddr_adapter #(
+    bridge_mix_c_mon_ddr_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_ddr_wr),
         .USE_MONITOR_RD(EFF_USE_MON_ddr_rd)
     ) u_ddr_adapter (
@@ -1691,7 +1691,7 @@ module bridge_mix_c_mon
     );
 
     // cfg_regs adapter (AXIL, crossbar → external slave)
-    cfg_regs_adapter #(
+    bridge_mix_c_mon_cfg_regs_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_cfg_regs_wr),
         .USE_MONITOR_RD(EFF_USE_MON_cfg_regs_rd)
     ) u_cfg_regs_adapter (
@@ -1824,7 +1824,7 @@ module bridge_mix_c_mon
     );
 
     // apb_periph adapter (APB, crossbar → external slave)
-    apb_periph_adapter #(
+    bridge_mix_c_mon_apb_periph_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_apb_periph_wr),
         .USE_MONITOR_RD(EFF_USE_MON_apb_periph_rd)
     ) u_apb_periph_adapter (
@@ -1948,7 +1948,7 @@ module bridge_mix_c_mon
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_mix_c_mon_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

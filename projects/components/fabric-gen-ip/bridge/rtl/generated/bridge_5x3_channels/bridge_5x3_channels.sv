@@ -749,7 +749,7 @@ module bridge_5x3_channels
     // ================================================================
     // DESCR_WR_MASTER Adapter
     // ================================================================
-    descr_wr_master_adapter u_descr_wr_master_adapter (
+    bridge_5x3_channels_descr_wr_master_adapter u_descr_wr_master_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -798,7 +798,7 @@ module bridge_5x3_channels
     // ================================================================
     // SINK_WR_MASTER Adapter
     // ================================================================
-    sink_wr_master_adapter u_sink_wr_master_adapter (
+    bridge_5x3_channels_sink_wr_master_adapter u_sink_wr_master_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -847,7 +847,7 @@ module bridge_5x3_channels
     // ================================================================
     // SRC_RD_MASTER Adapter
     // ================================================================
-    src_rd_master_adapter u_src_rd_master_adapter (
+    bridge_5x3_channels_src_rd_master_adapter u_src_rd_master_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -889,7 +889,7 @@ module bridge_5x3_channels
     // ================================================================
     // STREAM_MASTER Adapter
     // ================================================================
-    stream_master_adapter u_stream_master_adapter (
+    bridge_5x3_channels_stream_master_adapter u_stream_master_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -966,7 +966,7 @@ module bridge_5x3_channels
     // ================================================================
     // CPU_MASTER Adapter
     // ================================================================
-    cpu_master_adapter u_cpu_master_adapter (
+    bridge_5x3_channels_cpu_master_adapter u_cpu_master_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1384,7 +1384,7 @@ module bridge_5x3_channels
     // ================================================================
 
     // sram_buffer adapter (AXI4, crossbar → external slave)
-    sram_buffer_adapter u_sram_buffer_adapter (
+    bridge_5x3_channels_sram_buffer_adapter u_sram_buffer_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1490,7 +1490,7 @@ module bridge_5x3_channels
     );
 
     // ddr_controller adapter (AXI4, crossbar → external slave)
-    ddr_controller_adapter u_ddr_controller_adapter (
+    bridge_5x3_channels_ddr_controller_adapter u_ddr_controller_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1596,7 +1596,7 @@ module bridge_5x3_channels
     );
 
     // apb_periph adapter (APB, crossbar → external slave)
-    apb_periph_adapter u_apb_periph_adapter (
+    bridge_5x3_channels_apb_periph_adapter u_apb_periph_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1668,7 +1668,7 @@ module bridge_5x3_channels
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_5x3_channels_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

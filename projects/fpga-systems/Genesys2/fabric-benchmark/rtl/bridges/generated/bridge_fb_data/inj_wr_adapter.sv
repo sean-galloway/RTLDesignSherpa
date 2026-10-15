@@ -7,7 +7,7 @@
 `include "reset_defs.svh"
 
 
-module inj_wr_adapter
+module bridge_fb_data_inj_wr_adapter
     import bridge_fb_data_pkg::*;
 #(
     parameter NUM_SLAVES = 5,
@@ -410,4 +410,4 @@ module inj_wr_adapter
         endcase
     end
 
-endmodule : inj_wr_adapter
+endmodule : bridge_fb_data_inj_wr_adapter

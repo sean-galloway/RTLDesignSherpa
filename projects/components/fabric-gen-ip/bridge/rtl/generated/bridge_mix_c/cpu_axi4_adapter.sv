@@ -7,7 +7,7 @@
 `include "reset_defs.svh"
 
 
-module cpu_axi4_adapter
+module bridge_mix_c_cpu_axi4_adapter
     import bridge_mix_c_pkg::*;
 #(
     parameter NUM_SLAVES = 4,
@@ -900,4 +900,42 @@ module cpu_axi4_adapter
         endcase
     end
 
-endmodule : cpu_axi4_adapter
+
+    // -------- ILA observation taps (AMBER_ILA_DBG builds only) --------
+    // Amber bring-up round 5: name the adapter-internal AR tracker,
+    // AR gate, and read-wrapper terms post-synth so the board ILA can
+    // distinguish a corrupted ar_trk_full from a wedged axi4_slave_rd.
+    // Pure observation; compiled out unless AMBER_ILA_DBG is defined.
+`ifdef AMBER_ILA_DBG
+    (* mark_debug = "true" *) logic             dbg_ad_ar_trk_full;
+    (* mark_debug = "true" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_wptr;
+    (* mark_debug = "true" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_rptr;
+    (* mark_debug = "true" *) logic             dbg_ad_ar_gate_ok;
+    (* mark_debug = "true" *) logic             dbg_ad_ar_push;
+    (* mark_debug = "true" *) logic             dbg_ad_ar_pop;
+    (* mark_debug = "true" *) logic             dbg_ad_host_arvalid;
+    (* mark_debug = "true" *) logic             dbg_ad_host_arready;
+    (* mark_debug = "true" *) logic             dbg_ad_fub_arvalid;
+    (* mark_debug = "true" *) logic             dbg_ad_fub_arready;
+    (* mark_debug = "true" *) logic             dbg_ad_wrapper_rd_busy;
+    (* mark_debug = "true" *) logic             dbg_ad_fub_rvalid;
+    (* mark_debug = "true" *) logic             dbg_ad_fub_rready;
+    (* mark_debug = "true" *) logic             dbg_ad_fub_rlast;
+
+    assign dbg_ad_ar_trk_full      = ar_trk_full;
+    assign dbg_ad_ar_trk_wptr      = ar_trk_wptr;
+    assign dbg_ad_ar_trk_rptr      = ar_trk_rptr;
+    assign dbg_ad_ar_gate_ok       = ar_gate_ok;
+    assign dbg_ad_ar_push          = ar_trk_push;
+    assign dbg_ad_ar_pop           = ar_trk_pop;
+    assign dbg_ad_host_arvalid     = host_axi_arvalid;
+    assign dbg_ad_host_arready     = host_axi_arready;
+    assign dbg_ad_fub_arvalid      = fub_axi_arvalid;
+    assign dbg_ad_fub_arready      = fub_axi_arready;
+    assign dbg_ad_wrapper_rd_busy  = wrapper_rd_busy;
+    assign dbg_ad_fub_rvalid       = fub_axi_rvalid;
+    assign dbg_ad_fub_rready       = fub_axi_rready;
+    assign dbg_ad_fub_rlast        = fub_axi_rlast;
+`endif
+
+endmodule : bridge_mix_c_cpu_axi4_adapter

@@ -434,7 +434,7 @@ module bridge_bch_loop_axil
     // ================================================================
     // HOST Adapter
     // ================================================================
-    host_adapter u_host_adapter (
+    bridge_bch_loop_axil_host_adapter u_host_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -758,7 +758,7 @@ module bridge_bch_loop_axil
     // ================================================================
 
     // bch_loop_apb adapter (APB, crossbar → external slave)
-    bch_loop_apb_adapter u_bch_loop_apb_adapter (
+    bridge_bch_loop_axil_bch_loop_apb_adapter u_bch_loop_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -830,7 +830,7 @@ module bridge_bch_loop_axil
     );
 
     // bch_regs_apb adapter (APB, crossbar → external slave)
-    bch_regs_apb_adapter u_bch_regs_apb_adapter (
+    bridge_bch_loop_axil_bch_regs_apb_adapter u_bch_regs_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -902,7 +902,7 @@ module bridge_bch_loop_axil
     );
 
     // obs_apb adapter (APB, crossbar → external slave)
-    obs_apb_adapter u_obs_apb_adapter (
+    bridge_bch_loop_axil_obs_apb_adapter u_obs_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

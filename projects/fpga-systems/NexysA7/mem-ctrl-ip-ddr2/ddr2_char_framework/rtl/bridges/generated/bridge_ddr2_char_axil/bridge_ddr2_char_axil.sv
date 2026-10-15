@@ -672,7 +672,7 @@ module bridge_ddr2_char_axil
     // ================================================================
     // HOST Adapter
     // ================================================================
-    host_adapter u_host_adapter (
+    bridge_ddr2_char_axil_host_adapter u_host_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1188,7 +1188,7 @@ module bridge_ddr2_char_axil
     // ================================================================
 
     // ddr2_apb adapter (APB, crossbar → external slave)
-    ddr2_apb_adapter u_ddr2_apb_adapter (
+    bridge_ddr2_char_axil_ddr2_apb_adapter u_ddr2_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1260,7 +1260,7 @@ module bridge_ddr2_char_axil
     );
 
     // harness_csr adapter (AXIL, crossbar → external slave)
-    harness_csr_adapter u_harness_csr_adapter (
+    bridge_ddr2_char_axil_harness_csr_adapter u_harness_csr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1341,7 +1341,7 @@ module bridge_ddr2_char_axil
     );
 
     // debug_sram adapter (AXIL, crossbar → external slave)
-    debug_sram_adapter u_debug_sram_adapter (
+    bridge_ddr2_char_axil_debug_sram_adapter u_debug_sram_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1422,7 +1422,7 @@ module bridge_ddr2_char_axil
     );
 
     // dfi_mon_ram adapter (AXIL, crossbar → external slave)
-    dfi_mon_ram_adapter u_dfi_mon_ram_adapter (
+    bridge_ddr2_char_axil_dfi_mon_ram_adapter u_dfi_mon_ram_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1503,7 +1503,7 @@ module bridge_ddr2_char_axil
     );
 
     // obs_apb adapter (APB, crossbar → external slave)
-    obs_apb_adapter u_obs_apb_adapter (
+    bridge_ddr2_char_axil_obs_apb_adapter u_obs_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1575,7 +1575,7 @@ module bridge_ddr2_char_axil
     );
 
     // chargen_apb adapter (APB, crossbar → external slave)
-    chargen_apb_adapter u_chargen_apb_adapter (
+    bridge_ddr2_char_axil_chargen_apb_adapter u_chargen_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

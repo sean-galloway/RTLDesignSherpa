@@ -311,7 +311,7 @@ module bridge_1x2_wr
     // ================================================================
     // CPU_WR Adapter
     // ================================================================
-    cpu_wr_adapter u_cpu_wr_adapter (
+    bridge_1x2_wr_cpu_wr_adapter u_cpu_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -474,7 +474,7 @@ module bridge_1x2_wr
     // ================================================================
 
     // ddr_wr adapter (AXI4, crossbar → external slave)
-    ddr_wr_adapter u_ddr_wr_adapter (
+    bridge_1x2_wr_ddr_wr_adapter u_ddr_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -537,7 +537,7 @@ module bridge_1x2_wr
     );
 
     // sram_wr adapter (AXI4, crossbar → external slave)
-    sram_wr_adapter u_sram_wr_adapter (
+    bridge_1x2_wr_sram_wr_adapter u_sram_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -600,7 +600,7 @@ module bridge_1x2_wr
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_1x2_wr_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

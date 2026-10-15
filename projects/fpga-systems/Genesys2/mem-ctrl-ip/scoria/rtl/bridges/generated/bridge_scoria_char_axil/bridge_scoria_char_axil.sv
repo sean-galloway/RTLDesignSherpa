@@ -443,7 +443,7 @@ module bridge_scoria_char_axil
     // ================================================================
     // HOST Adapter
     // ================================================================
-    host_adapter u_host_adapter (
+    bridge_scoria_char_axil_host_adapter u_host_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -767,7 +767,7 @@ module bridge_scoria_char_axil
     // ================================================================
 
     // scoria_apb adapter (APB, crossbar → external slave)
-    scoria_apb_adapter u_scoria_apb_adapter (
+    bridge_scoria_char_axil_scoria_apb_adapter u_scoria_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -839,7 +839,7 @@ module bridge_scoria_char_axil
     );
 
     // harness_csr adapter (AXIL, crossbar → external slave)
-    harness_csr_adapter u_harness_csr_adapter (
+    bridge_scoria_char_axil_harness_csr_adapter u_harness_csr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -920,7 +920,7 @@ module bridge_scoria_char_axil
     );
 
     // chargen_apb adapter (APB, crossbar → external slave)
-    chargen_apb_adapter u_chargen_apb_adapter (
+    bridge_scoria_char_axil_chargen_apb_adapter u_chargen_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

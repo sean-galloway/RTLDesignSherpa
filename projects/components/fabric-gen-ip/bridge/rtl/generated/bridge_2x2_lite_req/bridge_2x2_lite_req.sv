@@ -524,7 +524,7 @@ module bridge_2x2_lite_req
     // ================================================================
     // LITE4 Adapter
     // ================================================================
-    lite4_adapter u_lite4_adapter (
+    bridge_2x2_lite_req_lite4_adapter u_lite4_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -618,7 +618,7 @@ module bridge_2x2_lite_req
     // ================================================================
     // LITE5 Adapter
     // ================================================================
-    lite5_adapter u_lite5_adapter (
+    bridge_2x2_lite_req_lite5_adapter u_lite5_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -967,7 +967,7 @@ module bridge_2x2_lite_req
     // ================================================================
 
     // mem adapter (AXI4, crossbar → external slave)
-    mem_adapter u_mem_adapter (
+    bridge_2x2_lite_req_mem_adapter u_mem_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1073,7 +1073,7 @@ module bridge_2x2_lite_req
     );
 
     // regs adapter (AXIL5, crossbar → external slave)
-    regs_adapter u_regs_adapter (
+    bridge_2x2_lite_req_regs_adapter u_regs_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1169,7 +1169,7 @@ module bridge_2x2_lite_req
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_2x2_lite_req_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

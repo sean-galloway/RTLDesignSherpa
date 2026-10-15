@@ -7,7 +7,7 @@
 `include "reset_defs.svh"
 
 
-module host_adapter
+module bridge_ddr2_char_axil_host_adapter
     import bridge_ddr2_char_axil_pkg::*;
 #(
     parameter NUM_SLAVES = 7,
@@ -1012,4 +1012,4 @@ module host_adapter
     assign dbg_ad_fub_rlast        = fub_axi_rlast;
 `endif
 
-endmodule : host_adapter
+endmodule : bridge_ddr2_char_axil_host_adapter

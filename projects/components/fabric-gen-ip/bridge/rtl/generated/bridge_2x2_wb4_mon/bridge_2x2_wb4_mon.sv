@@ -809,7 +809,7 @@ module bridge_2x2_wb4_mon
     // ================================================================
     // WBM Adapter
     // ================================================================
-    wbm_adapter #(
+    bridge_2x2_wb4_mon_wbm_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_wbm_wr),
         .USE_MONITOR_RD(EFF_USE_MON_wbm_rd)
     ) u_wbm_adapter (
@@ -924,7 +924,7 @@ module bridge_2x2_wb4_mon
     // ================================================================
     // CPU Adapter
     // ================================================================
-    cpu_adapter #(
+    bridge_2x2_wb4_mon_cpu_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_cpu_wr),
         .USE_MONITOR_RD(EFF_USE_MON_cpu_rd)
     ) u_cpu_adapter (
@@ -1318,7 +1318,7 @@ module bridge_2x2_wb4_mon
     // ================================================================
 
     // mem adapter (AXI4, crossbar → external slave)
-    mem_adapter #(
+    bridge_2x2_wb4_mon_mem_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_mem_wr),
         .USE_MONITOR_RD(EFF_USE_MON_mem_rd)
     ) u_mem_adapter (
@@ -1476,7 +1476,7 @@ module bridge_2x2_wb4_mon
     );
 
     // wbp adapter (WB4, crossbar → external slave)
-    wbp_adapter #(
+    bridge_2x2_wb4_mon_wbp_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_wbp_wr),
         .USE_MONITOR_RD(EFF_USE_MON_wbp_rd)
     ) u_wbp_adapter (
@@ -1603,7 +1603,7 @@ module bridge_2x2_wb4_mon
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_2x2_wb4_mon_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

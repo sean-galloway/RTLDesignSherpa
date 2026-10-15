@@ -441,7 +441,7 @@ module bridge_1x2_rw_apb5
     // ================================================================
     // CPU Adapter
     // ================================================================
-    cpu_adapter u_cpu_adapter (
+    bridge_1x2_rw_apb5_cpu_adapter u_cpu_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -712,7 +712,7 @@ module bridge_1x2_rw_apb5
     // ================================================================
 
     // sram adapter (AXI4, crossbar → external slave)
-    sram_adapter u_sram_adapter (
+    bridge_1x2_rw_apb5_sram_adapter u_sram_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -818,7 +818,7 @@ module bridge_1x2_rw_apb5
     );
 
     // periph5 adapter (APB5, crossbar → external slave)
-    periph5_adapter u_periph5_adapter (
+    bridge_1x2_rw_apb5_periph5_adapter u_periph5_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -895,7 +895,7 @@ module bridge_1x2_rw_apb5
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_1x2_rw_apb5_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

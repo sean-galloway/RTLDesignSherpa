@@ -681,7 +681,7 @@ module bridge_mix_e
     // ================================================================
     // CPU_AXI3 Adapter
     // ================================================================
-    cpu_axi3_adapter u_cpu_axi3_adapter (
+    bridge_mix_e_cpu_axi3_adapter u_cpu_axi3_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -772,7 +772,7 @@ module bridge_mix_e
     // ================================================================
     // DMA_AXI4 Adapter
     // ================================================================
-    dma_axi4_adapter u_dma_axi4_adapter (
+    bridge_mix_e_dma_axi4_adapter u_dma_axi4_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -866,7 +866,7 @@ module bridge_mix_e
     // ================================================================
     // HOST_APB Adapter
     // ================================================================
-    host_apb_adapter u_host_apb_adapter (
+    bridge_mix_e_host_apb_adapter u_host_apb_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1265,7 +1265,7 @@ module bridge_mix_e
     // ================================================================
 
     // ddr_axi3 adapter (AXI3, crossbar → external slave)
-    ddr_axi3_adapter u_ddr_axi3_adapter (
+    bridge_mix_e_ddr_axi3_adapter u_ddr_axi3_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1368,7 +1368,7 @@ module bridge_mix_e
     );
 
     // sram_axi4 adapter (AXI4, crossbar → external slave)
-    sram_axi4_adapter u_sram_axi4_adapter (
+    bridge_mix_e_sram_axi4_adapter u_sram_axi4_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1474,7 +1474,7 @@ module bridge_mix_e
     );
 
     // apb_periph adapter (APB, crossbar → external slave)
-    apb_periph_adapter u_apb_periph_adapter (
+    bridge_mix_e_apb_periph_adapter u_apb_periph_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1546,7 +1546,7 @@ module bridge_mix_e
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_mix_e_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

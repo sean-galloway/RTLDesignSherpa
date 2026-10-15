@@ -7,7 +7,7 @@
 `include "reset_defs.svh"
 
 
-module slave_monbus_wr_adapter
+module bridge_stream_mon_axil_mon_slave_monbus_wr_adapter
     import bridge_stream_mon_axil_mon_pkg::*;
 #(
     parameter NUM_SLAVES = 14,
@@ -585,4 +585,4 @@ module slave_monbus_wr_adapter
         endcase
     end
 
-endmodule : slave_monbus_wr_adapter
+endmodule : bridge_stream_mon_axil_mon_slave_monbus_wr_adapter

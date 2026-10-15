@@ -586,7 +586,7 @@ module bridge_mix_c
     // ================================================================
     // CPU_AXI4 Adapter
     // ================================================================
-    cpu_axi4_adapter u_cpu_axi4_adapter (
+    bridge_mix_c_cpu_axi4_adapter u_cpu_axi4_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -680,7 +680,7 @@ module bridge_mix_c
     // ================================================================
     // HOST_AXIL Adapter
     // ================================================================
-    host_axil_adapter u_host_axil_adapter (
+    bridge_mix_c_host_axil_adapter u_host_axil_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1075,7 +1075,7 @@ module bridge_mix_c
     // ================================================================
 
     // ddr adapter (AXI4, crossbar → external slave)
-    ddr_adapter u_ddr_adapter (
+    bridge_mix_c_ddr_adapter u_ddr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1181,7 +1181,7 @@ module bridge_mix_c
     );
 
     // cfg_regs adapter (AXIL, crossbar → external slave)
-    cfg_regs_adapter u_cfg_regs_adapter (
+    bridge_mix_c_cfg_regs_adapter u_cfg_regs_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1262,7 +1262,7 @@ module bridge_mix_c
     );
 
     // apb_periph adapter (APB, crossbar → external slave)
-    apb_periph_adapter u_apb_periph_adapter (
+    bridge_mix_c_apb_periph_adapter u_apb_periph_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1334,7 +1334,7 @@ module bridge_mix_c
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_mix_c_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

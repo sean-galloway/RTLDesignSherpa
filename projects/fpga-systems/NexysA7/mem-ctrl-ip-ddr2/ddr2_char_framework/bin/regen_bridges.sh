@@ -75,7 +75,7 @@ fi
 
 if [ "$CHECK_ONLY" = "1" ]; then
     # Regenerate into a scratch tree and compare. RTL_OUT is repointed for the
-    # whole loop so every step below -- generation, the subtractive uniquifier,
+    # whole loop so every step below -- generation,
     # the filelist -- runs exactly as it would in place, and the comparison is
     # therefore of like with like.
     CHECK_DIR="$(mktemp -d)"
@@ -111,21 +111,10 @@ for config in "${configs[@]}"; do
         --name "$name" \
         --output-dir "$RTL_OUT"
 
-    # The shared bridge_generator emits the subtractive catch-all as a module
-    # named plainly `subtractive_adapter` for EVERY bridge. This flow flattens
-    # three bridges (axil/wr/rd) into one filelist, so three same-named modules
-    # with different interfaces collide -- Vivado binds them all to whichever it
-    # elaborates first and the AR ports of the write-only variant vanish. Make
-    # the module (and its instantiation) unique per bridge here, in the flow
-    # that combines them, rather than in the shared generator (which would force
-    # a repo-wide regen of every bridge). Filename is unchanged, so the filelist
-    # entry still resolves. See <shared-generator collision, to be filed>.
-    sub="$RTL_OUT/$name/subtractive_adapter.sv"
-    if [ -f "$sub" ]; then
-        sed -i "s/\bsubtractive_adapter\b/${name}_subtractive_adapter/g" \
-            "$RTL_OUT/$name"/*.sv
-        echo "    uniquified subtractive_adapter -> ${name}_subtractive_adapter"
-    fi
+    # The shared generator now names every module after its bridge
+    # (<bridge>_<port>_adapter, bridge_pkg/module_naming.py), so the
+    # subtractive catch-all no longer collides across bridges and the
+    # sed uniquifier that used to sit here is gone.
 done
 
 if [ "$CHECK_ONLY" = "1" ]; then

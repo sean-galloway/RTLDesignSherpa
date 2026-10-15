@@ -528,7 +528,7 @@ module bridge_2x3_apb_req
     // ================================================================
     // APB4M Adapter
     // ================================================================
-    apb4m_adapter u_apb4m_adapter (
+    bridge_2x3_apb_req_apb4m_adapter u_apb4m_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -571,7 +571,7 @@ module bridge_2x3_apb_req
     // ================================================================
     // APB5M Adapter
     // ================================================================
-    apb5m_adapter u_apb5m_adapter (
+    bridge_2x3_apb_req_apb5m_adapter u_apb5m_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -888,7 +888,7 @@ module bridge_2x3_apb_req
     // ================================================================
 
     // mem adapter (AXI4, crossbar → external slave)
-    mem_adapter u_mem_adapter (
+    bridge_2x3_apb_req_mem_adapter u_mem_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -994,7 +994,7 @@ module bridge_2x3_apb_req
     );
 
     // lregs adapter (AXIL5, crossbar → external slave)
-    lregs_adapter u_lregs_adapter (
+    bridge_2x3_apb_req_lregs_adapter u_lregs_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1090,7 +1090,7 @@ module bridge_2x3_apb_req
     );
 
     // periph adapter (APB, crossbar → external slave)
-    periph_adapter u_periph_adapter (
+    bridge_2x3_apb_req_periph_adapter u_periph_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1162,7 +1162,7 @@ module bridge_2x3_apb_req
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_2x3_apb_req_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

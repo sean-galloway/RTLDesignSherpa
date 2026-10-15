@@ -736,7 +736,7 @@ module bridge_mix_b
     // ================================================================
     // CPU_AXI4 Adapter
     // ================================================================
-    cpu_axi4_adapter u_cpu_axi4_adapter (
+    bridge_mix_b_cpu_axi4_adapter u_cpu_axi4_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -847,7 +847,7 @@ module bridge_mix_b
     // ================================================================
     // DMA_AXI4 Adapter
     // ================================================================
-    dma_axi4_adapter u_dma_axi4_adapter (
+    bridge_mix_b_dma_axi4_adapter u_dma_axi4_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -941,7 +941,7 @@ module bridge_mix_b
     // ================================================================
     // HOST_AXIL Adapter
     // ================================================================
-    host_axil_adapter u_host_axil_adapter (
+    bridge_mix_b_host_axil_adapter u_host_axil_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1423,7 +1423,7 @@ module bridge_mix_b
     // ================================================================
 
     // ddr adapter (AXI4, crossbar → external slave)
-    ddr_adapter u_ddr_adapter (
+    bridge_mix_b_ddr_adapter u_ddr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1529,7 +1529,7 @@ module bridge_mix_b
     );
 
     // scratch adapter (AXI4, crossbar → external slave)
-    scratch_adapter u_scratch_adapter (
+    bridge_mix_b_scratch_adapter u_scratch_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1635,7 +1635,7 @@ module bridge_mix_b
     );
 
     // apb_periph adapter (APB, crossbar → external slave)
-    apb_periph_adapter u_apb_periph_adapter (
+    bridge_mix_b_apb_periph_adapter u_apb_periph_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1707,7 +1707,7 @@ module bridge_mix_b
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_mix_b_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

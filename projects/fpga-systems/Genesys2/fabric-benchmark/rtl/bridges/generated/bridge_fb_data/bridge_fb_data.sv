@@ -610,7 +610,7 @@ module bridge_fb_data
     // ================================================================
     // STREAM_DESC Adapter
     // ================================================================
-    stream_desc_adapter u_stream_desc_adapter (
+    bridge_fb_data_stream_desc_adapter u_stream_desc_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -652,7 +652,7 @@ module bridge_fb_data
     // ================================================================
     // STREAM_RD Adapter
     // ================================================================
-    stream_rd_adapter u_stream_rd_adapter (
+    bridge_fb_data_stream_rd_adapter u_stream_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -694,7 +694,7 @@ module bridge_fb_data
     // ================================================================
     // STREAM_WR Adapter
     // ================================================================
-    stream_wr_adapter u_stream_wr_adapter (
+    bridge_fb_data_stream_wr_adapter u_stream_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -743,7 +743,7 @@ module bridge_fb_data
     // ================================================================
     // INJ_WR Adapter
     // ================================================================
-    inj_wr_adapter u_inj_wr_adapter (
+    bridge_fb_data_inj_wr_adapter u_inj_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1040,7 +1040,7 @@ module bridge_fb_data
     // ================================================================
 
     // ddr adapter (AXI4, crossbar → external slave)
-    ddr_adapter u_ddr_adapter (
+    bridge_fb_data_ddr_adapter u_ddr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1146,7 +1146,7 @@ module bridge_fb_data
     );
 
     // desc_ram adapter (AXI4, crossbar → external slave)
-    desc_ram_adapter u_desc_ram_adapter (
+    bridge_fb_data_desc_ram_adapter u_desc_ram_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1201,7 +1201,7 @@ module bridge_fb_data
     );
 
     // lfsr_src adapter (AXI4, crossbar → external slave)
-    lfsr_src_adapter u_lfsr_src_adapter (
+    bridge_fb_data_lfsr_src_adapter u_lfsr_src_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1256,7 +1256,7 @@ module bridge_fb_data
     );
 
     // crc_snk adapter (AXI4, crossbar → external slave)
-    crc_snk_adapter u_crc_snk_adapter (
+    bridge_fb_data_crc_snk_adapter u_crc_snk_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1319,7 +1319,7 @@ module bridge_fb_data
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_fb_data_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

@@ -882,7 +882,7 @@ module bridge_2x3_apb_req_mon
     // ================================================================
     // APB4M Adapter
     // ================================================================
-    apb4m_adapter #(
+    bridge_2x3_apb_req_mon_apb4m_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_apb4m_wr),
         .USE_MONITOR_RD(EFF_USE_MON_apb4m_rd)
     ) u_apb4m_adapter (
@@ -977,7 +977,7 @@ module bridge_2x3_apb_req_mon
     // ================================================================
     // APB5M Adapter
     // ================================================================
-    apb5m_adapter #(
+    bridge_2x3_apb_req_mon_apb5m_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_apb5m_wr),
         .USE_MONITOR_RD(EFF_USE_MON_apb5m_rd)
     ) u_apb5m_adapter (
@@ -1346,7 +1346,7 @@ module bridge_2x3_apb_req_mon
     // ================================================================
 
     // mem adapter (AXI4, crossbar → external slave)
-    mem_adapter #(
+    bridge_2x3_apb_req_mon_mem_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_mem_wr),
         .USE_MONITOR_RD(EFF_USE_MON_mem_rd)
     ) u_mem_adapter (
@@ -1504,7 +1504,7 @@ module bridge_2x3_apb_req_mon
     );
 
     // lregs adapter (AXIL5, crossbar → external slave)
-    lregs_adapter #(
+    bridge_2x3_apb_req_mon_lregs_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_lregs_wr),
         .USE_MONITOR_RD(EFF_USE_MON_lregs_rd)
     ) u_lregs_adapter (
@@ -1652,7 +1652,7 @@ module bridge_2x3_apb_req_mon
     );
 
     // periph adapter (APB, crossbar → external slave)
-    periph_adapter #(
+    bridge_2x3_apb_req_mon_periph_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_periph_wr),
         .USE_MONITOR_RD(EFF_USE_MON_periph_rd)
     ) u_periph_adapter (
@@ -1776,7 +1776,7 @@ module bridge_2x3_apb_req_mon
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_2x3_apb_req_mon_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

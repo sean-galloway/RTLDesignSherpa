@@ -7,7 +7,7 @@
 `include "reset_defs.svh"
 
 
-module cpu_wr_adapter
+module bridge_1x5_wr_cpu_wr_adapter
     import bridge_1x5_wr_pkg::*;
 #(
     parameter NUM_SLAVES = 6,
@@ -655,4 +655,4 @@ module cpu_wr_adapter
         endcase
     end
 
-endmodule : cpu_wr_adapter
+endmodule : bridge_1x5_wr_cpu_wr_adapter

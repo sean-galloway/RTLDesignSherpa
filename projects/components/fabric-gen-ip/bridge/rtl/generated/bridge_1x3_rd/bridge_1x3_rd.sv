@@ -340,7 +340,7 @@ module bridge_1x3_rd
     // ================================================================
     // CPU_RD Adapter
     // ================================================================
-    cpu_rd_adapter u_cpu_rd_adapter (
+    bridge_1x3_rd_cpu_rd_adapter u_cpu_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -536,7 +536,7 @@ module bridge_1x3_rd
     // ================================================================
 
     // periph_rd adapter (AXI4, crossbar → external slave)
-    periph_rd_adapter u_periph_rd_adapter (
+    bridge_1x3_rd_periph_rd_adapter u_periph_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -591,7 +591,7 @@ module bridge_1x3_rd
     );
 
     // ddr_rd adapter (AXI4, crossbar → external slave)
-    ddr_rd_adapter u_ddr_rd_adapter (
+    bridge_1x3_rd_ddr_rd_adapter u_ddr_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -646,7 +646,7 @@ module bridge_1x3_rd
     );
 
     // hbm_rd adapter (AXI4, crossbar → external slave)
-    hbm_rd_adapter u_hbm_rd_adapter (
+    bridge_1x3_rd_hbm_rd_adapter u_hbm_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -701,7 +701,7 @@ module bridge_1x3_rd
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_1x3_rd_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

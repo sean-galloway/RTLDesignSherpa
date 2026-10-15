@@ -460,7 +460,7 @@ module bridge_1x2_axi3
     // ================================================================
     // CPU Adapter
     // ================================================================
-    cpu_adapter u_cpu_adapter (
+    bridge_1x2_axi3_cpu_adapter u_cpu_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -728,7 +728,7 @@ module bridge_1x2_axi3
     // ================================================================
 
     // s0 adapter (AXI3, crossbar → external slave)
-    s0_adapter u_s0_adapter (
+    bridge_1x2_axi3_s0_adapter u_s0_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -831,7 +831,7 @@ module bridge_1x2_axi3
     );
 
     // s1 adapter (AXI4, crossbar → external slave)
-    s1_adapter u_s1_adapter (
+    bridge_1x2_axi3_s1_adapter u_s1_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -937,7 +937,7 @@ module bridge_1x2_axi3
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_1x2_axi3_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

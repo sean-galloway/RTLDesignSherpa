@@ -26,6 +26,7 @@ from bridge_pkg.signal_naming import SignalNaming, Direction, AXI4Channel, Proto
 from bridge_pkg.components.axi4_timing_wrapper_component import Axi4TimingWrapper, axi5_exposed_ext_signals
 from bridge_pkg.width_utils import get_connected_slave_widths, get_masters_connecting_to_slave
 from bridge_pkg.sideband import sideband_union
+from bridge_pkg.module_naming import adapter_module_name
 
 
 @dataclass
@@ -2000,13 +2001,13 @@ class BridgeModuleGenerator:
                         f"        .USE_MONITOR_RD(EFF_USE_MON_{master.name}_rd)"
                     )
             if mon_params:
-                lines.append(f"    {master.name}_adapter #(")
+                lines.append(f"    {adapter_module_name(self.bridge_name, master.name)} #(")
                 for i, p in enumerate(mon_params):
                     sep = "," if i < len(mon_params) - 1 else ""
                     lines.append(p + sep)
                 lines.append(f"    ) u_{master.name}_adapter (")
             else:
-                lines.append(f"    {master.name}_adapter u_{master.name}_adapter (")
+                lines.append(f"    {adapter_module_name(self.bridge_name, master.name)} u_{master.name}_adapter (")
             lines.append("        .aclk(aclk),")
             lines.append("        .aresetn(aresetn),")
             lines.append("")
@@ -2495,6 +2496,7 @@ class BridgeModuleGenerator:
                 # signals, so the instantiation must match.
                 axi5_features=getattr(slave, 'axi5_features', None),
                 cdc=bool(getattr(slave, 'cdc', False)),
+                module_name=adapter_module_name(self.bridge_name, slave.name),
             )
             inst.connect_clocks_and_resets()
             inst.connect_xbar_interface()

@@ -1059,7 +1059,7 @@ module bridge_4x4_rw
     // ================================================================
     // CPU_MASTER Adapter
     // ================================================================
-    cpu_master_adapter u_cpu_master_adapter (
+    bridge_4x4_rw_cpu_master_adapter u_cpu_master_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1187,7 +1187,7 @@ module bridge_4x4_rw
     // ================================================================
     // DMA0_MASTER Adapter
     // ================================================================
-    dma0_master_adapter u_dma0_master_adapter (
+    bridge_4x4_rw_dma0_master_adapter u_dma0_master_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1315,7 +1315,7 @@ module bridge_4x4_rw
     // ================================================================
     // DMA1_MASTER Adapter
     // ================================================================
-    dma1_master_adapter u_dma1_master_adapter (
+    bridge_4x4_rw_dma1_master_adapter u_dma1_master_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -1426,7 +1426,7 @@ module bridge_4x4_rw
     // ================================================================
     // GPU_MASTER Adapter
     // ================================================================
-    gpu_master_adapter u_gpu_master_adapter (
+    bridge_4x4_rw_gpu_master_adapter u_gpu_master_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2063,7 +2063,7 @@ module bridge_4x4_rw
     // ================================================================
 
     // periph_slave adapter (AXI4, crossbar → external slave)
-    periph_slave_adapter u_periph_slave_adapter (
+    bridge_4x4_rw_periph_slave_adapter u_periph_slave_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2169,7 +2169,7 @@ module bridge_4x4_rw
     );
 
     // ddr0_slave adapter (AXI4, crossbar → external slave)
-    ddr0_slave_adapter u_ddr0_slave_adapter (
+    bridge_4x4_rw_ddr0_slave_adapter u_ddr0_slave_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2275,7 +2275,7 @@ module bridge_4x4_rw
     );
 
     // sram_slave adapter (AXI4, crossbar → external slave)
-    sram_slave_adapter u_sram_slave_adapter (
+    bridge_4x4_rw_sram_slave_adapter u_sram_slave_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2381,7 +2381,7 @@ module bridge_4x4_rw
     );
 
     // gpu_mem_slave adapter (AXI4, crossbar → external slave)
-    gpu_mem_slave_adapter u_gpu_mem_slave_adapter (
+    bridge_4x4_rw_gpu_mem_slave_adapter u_gpu_mem_slave_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -2487,7 +2487,7 @@ module bridge_4x4_rw
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_4x4_rw_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

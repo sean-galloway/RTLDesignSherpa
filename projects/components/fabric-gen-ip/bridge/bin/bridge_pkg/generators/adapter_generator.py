@@ -2809,7 +2809,8 @@ class AdapterGenerator:
 
     def _get_module_name(self) -> str:
         """Get adapter module name."""
-        return f"{self.master.name}_adapter"
+        from bridge_pkg.module_naming import adapter_module_name
+        return adapter_module_name(self.bridge_name, self.master.name)
 
 
 def test_adapter_generator():

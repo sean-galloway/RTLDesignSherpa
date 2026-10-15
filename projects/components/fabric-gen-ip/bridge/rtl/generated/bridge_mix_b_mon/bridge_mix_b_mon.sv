@@ -1144,7 +1144,7 @@ module bridge_mix_b_mon
     // ================================================================
     // CPU_AXI4 Adapter
     // ================================================================
-    cpu_axi4_adapter #(
+    bridge_mix_b_mon_cpu_axi4_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_cpu_axi4_wr),
         .USE_MONITOR_RD(EFF_USE_MON_cpu_axi4_rd)
     ) u_cpu_axi4_adapter (
@@ -1307,7 +1307,7 @@ module bridge_mix_b_mon
     // ================================================================
     // DMA_AXI4 Adapter
     // ================================================================
-    dma_axi4_adapter #(
+    bridge_mix_b_mon_dma_axi4_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_dma_axi4_wr),
         .USE_MONITOR_RD(EFF_USE_MON_dma_axi4_rd)
     ) u_dma_axi4_adapter (
@@ -1453,7 +1453,7 @@ module bridge_mix_b_mon
     // ================================================================
     // HOST_AXIL Adapter
     // ================================================================
-    host_axil_adapter #(
+    bridge_mix_b_mon_host_axil_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_host_axil_wr),
         .USE_MONITOR_RD(EFF_USE_MON_host_axil_rd)
     ) u_host_axil_adapter (
@@ -1987,7 +1987,7 @@ module bridge_mix_b_mon
     // ================================================================
 
     // ddr adapter (AXI4, crossbar → external slave)
-    ddr_adapter #(
+    bridge_mix_b_mon_ddr_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_ddr_wr),
         .USE_MONITOR_RD(EFF_USE_MON_ddr_rd)
     ) u_ddr_adapter (
@@ -2145,7 +2145,7 @@ module bridge_mix_b_mon
     );
 
     // scratch adapter (AXI4, crossbar → external slave)
-    scratch_adapter #(
+    bridge_mix_b_mon_scratch_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_scratch_wr),
         .USE_MONITOR_RD(EFF_USE_MON_scratch_rd)
     ) u_scratch_adapter (
@@ -2303,7 +2303,7 @@ module bridge_mix_b_mon
     );
 
     // apb_periph adapter (APB, crossbar → external slave)
-    apb_periph_adapter #(
+    bridge_mix_b_mon_apb_periph_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_apb_periph_wr),
         .USE_MONITOR_RD(EFF_USE_MON_apb_periph_rd)
     ) u_apb_periph_adapter (
@@ -2427,7 +2427,7 @@ module bridge_mix_b_mon
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_mix_b_mon_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 

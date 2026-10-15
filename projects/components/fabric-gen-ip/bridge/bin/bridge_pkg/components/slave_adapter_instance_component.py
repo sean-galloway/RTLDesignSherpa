@@ -80,7 +80,7 @@ class SlaveAdapterInstance:
 
     def __init__(self, slave_name: str, slave_prefix: str, protocol: str,
                  has_write: bool, has_read: bool, axi5_features=None,
-                 cdc: bool = False):
+                 cdc: bool = False, module_name: str = None):
         if protocol not in ('axi4', 'axi5', 'axi3', 'apb', 'apb5', 'axil', 'axil5', 'wb4'):
             raise ValueError(f"unsupported protocol: {protocol!r}")
         if not (has_write or has_read):
@@ -98,7 +98,10 @@ class SlaveAdapterInstance:
         self.has_read = has_read
         # AXI5 sideband features exposed on this port (A5-2 slice 1).
         self.axi5_features = tuple(axi5_features or ())
-        self.module = Module(module_name=f"{slave_name}_adapter",
+        # module_name: the generated adapter's module, which carries the
+        # bridge's name (module_naming.adapter_module_name); the bare
+        # <slave>_adapter default serves direct unit use only.
+        self.module = Module(module_name=module_name or f"{slave_name}_adapter",
                              instance_name=f"u_{slave_name}_adapter")
         self._sections: List[tuple] = []
         # USE_MONITOR_WR / USE_MONITOR_RD parameter overrides emitted

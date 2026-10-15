@@ -706,7 +706,7 @@ module bridge_1x2_axi3_mon
     // ================================================================
     // CPU Adapter
     // ================================================================
-    cpu_adapter #(
+    bridge_1x2_axi3_mon_cpu_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_cpu_wr),
         .USE_MONITOR_RD(EFF_USE_MON_cpu_rd)
     ) u_cpu_adapter (
@@ -1026,7 +1026,7 @@ module bridge_1x2_axi3_mon
     // ================================================================
 
     // s0 adapter (AXI3, crossbar → external slave)
-    s0_adapter #(
+    bridge_1x2_axi3_mon_s0_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_s0_wr),
         .USE_MONITOR_RD(EFF_USE_MON_s0_rd)
     ) u_s0_adapter (
@@ -1181,7 +1181,7 @@ module bridge_1x2_axi3_mon
     );
 
     // s1 adapter (AXI4, crossbar → external slave)
-    s1_adapter #(
+    bridge_1x2_axi3_mon_s1_adapter #(
         .USE_MONITOR_WR(EFF_USE_MON_s1_wr),
         .USE_MONITOR_RD(EFF_USE_MON_s1_rd)
     ) u_s1_adapter (
@@ -1339,7 +1339,7 @@ module bridge_1x2_axi3_mon
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
-    subtractive_adapter u_subtractive_adapter (
+    bridge_1x2_axi3_mon_subtractive_adapter u_subtractive_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
