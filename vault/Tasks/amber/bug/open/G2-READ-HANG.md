@@ -55,16 +55,22 @@ writes work, reads hang forever. All earlier "wedge candidates"
 **exonerated by the round-5 taps** — the adapter was never receiving
 the AR in the first place.
 
-Trigger mechanism: NOT identified to the exact construct yet. Exonerated:
-XMR taps, direct-host generate branch, mark_debug interplay, duplicate/
-stale module sources. Prime remaining suspect: some construct that lets
-Vivado prove `m_axil_arvalid ≡ 0` in full-design context (the value
-propagates: `uart_arvalid`→bridge input const0→adapter read path DCE→
-`host_axi_arready` undriven→ARREADY≡0 back to the uart bridge's AR skid
-→ARVALID held 1 internally — which is exactly the frozen silicon state,
-including the internally-contradictory `w_fub_arvalid=0` /
-`m_axil_arvalid=1` the ILA shows, since the preserved observation nets
-outlive their severed connections).
+Trigger mechanism: NOT identified to the exact construct yet.
+Exonerated (each by direct experiment, 2026-10-15): XMR taps (stubbed →
+still folded); direct-host generate branch (removed → still folded);
+mark_debug/keep_hierarchy interplay (fold reproduces with no ILA define);
+duplicate/stale module sources (project file set verified clean);
+keep_hierarchy fix (attributes added → still folded); CLKS_PER_BIT=781
+(uart bridge alone at the harness's exact parameter → correct);
+undriven internal nets (Verilator lint with -Wno-UNDRIVEN lifted → 0
+warnings).
+
+The fold originates in full-design context: `uart_arvalid`≡0 propagates
+bridge input→const0→adapter read-path DCE→`host_axi_arready` undriven→
+ARREADY≡0 back to the uart bridge AR skid→ARVALID held 1 internally —
+exactly the frozen silicon state, including the internally-
+contradictory `w_fub_arvalid=0`/`m_axil_arvalid=1` the ILA shows
+(preserved observation nets outlive their severed connections).
 
 ## Fix candidates (in order)
 
