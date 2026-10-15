@@ -53,6 +53,13 @@ async def cocotb_test_delta_mesh_tables_err_drop(dut):
     await tb.run_err_drop()
 
 
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_delta_mesh_tables_err_drop_vc1(dut):
+    tb = DeltaMeshTablesTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.run_err_drop_vc1()
+
+
 def _run(testcase, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     verilog_sources, includes = get_sources_from_filelist(
@@ -93,6 +100,7 @@ def _run(testcase, test_level):
 @pytest.mark.parametrize("testcase", (
     "cocotb_test_delta_mesh_tables_config",
     "cocotb_test_delta_mesh_tables_err_drop",
+    "cocotb_test_delta_mesh_tables_err_drop_vc1",
 ))
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_delta_mesh_tables(request, testcase, test_level):

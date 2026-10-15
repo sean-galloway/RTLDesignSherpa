@@ -372,6 +372,16 @@ end
 // from the input FIFO -- no output grant, no credit -- so
 // the local input path serializes config against data
 // exactly like a granted packet does.
+//
+// Drain VC integrity: drop_req fires only on the
+// presented head, so the consumption below always
+// addresses the presented VC's FIFO; and that first
+// consume forms the per-input packet lock
+// (in_xfer && !pres_last), which pins sel_vc to the
+// drain VC for the rest of the packet. A mid-drain
+// arrival on the other VC therefore waits untouched
+// -- do not remove the lock's side effect on sel_vc
+// without an explicit drop_vc-style guard.
 logic drop_req        [NUM_PORTS];
 logic bad_cfg_req     [NUM_PORTS];
 logic cfg_req         [NUM_PORTS];

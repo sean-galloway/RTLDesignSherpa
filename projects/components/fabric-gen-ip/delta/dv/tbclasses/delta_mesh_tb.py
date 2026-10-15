@@ -863,3 +863,128 @@ class DeltaMeshTablesTB(DeltaMeshCellTB):
         await self.wait_clocks('aclk', 10)
         self._check_idle_ports({'xpos'}, tag)
         self.log.info("delta mesh tables: err_drop + counter passed")
+
+    async def run_err_drop_vc1(self):
+        """Cross-VC drop-drain characterization: a VC1 packet with an
+        out-of-range dst drains only its own VC FIFO, and VC0 traffic
+        arriving mid-drain is delivered untouched with the head counted
+        once. Guards two mechanisms that keep the drain on its own VC:
+        drop_req fires only on the presented head (so the drain's
+        rd_ready always addresses the presented VC), and the drain's
+        first consume forms the per-input packet lock, pinning sel_vc
+        to the drain VC until the dropped packet's TLAST.
+
+        Deterministic construction: a VC0 packet is granted on xpos and
+        stalled on zero credits; a VC1 drop packet of exactly the FIFO
+        depth is then fully buffered (the held port cannot present its
+        head, so nothing drains). Releasing credits drains the VC0
+        packet, the VC1 head drops (err_drop_cnt -> 1), the whole
+        buffered VC1 packet drains, and a second VC0 packet is
+        raw-driven into the drain window."""
+        tag = "err-drop-vc1"
+        V1_BEATS = 4  # == input FIFO DEPTH: fully buffered pre-drop
+        header_a = self.build_header(dst=(3, 0, 0), src=self.POS, vc=0,
+                                     packet_id=0x70)
+        payload_a = [self.rng.getrandbits(self.DATA_WIDTH)
+                     for _ in range(2)]
+        header_v1 = self.build_header(dst=(0, 0, 1), src=self.POS, vc=1,
+                                      packet_id=0x71)
+        payload_v1 = [self.rng.getrandbits(self.DATA_WIDTH)
+                      for _ in range(V1_BEATS)]
+        header_b = self.build_header(dst=(3, 0, 0), src=self.POS, vc=0,
+                                     packet_id=0x72)
+        payload_b = [self.rng.getrandbits(self.DATA_WIDTH)]
+
+        # (1) VC0 packet A granted on xpos, then stalled by zero
+        # credits: the grant is packet-atomic, so the output holds
+        # while the packet waits for credit (credits model the
+        # downstream stall, as in the flow-control suite; tready stays
+        # with the always-ready slave BFM).
+        self.dut.xpos_s_credit.value = 0
+        await self._send_packet('local', header_a, payload_a)
+        await self.wait_clocks('aclk', 4)  # A granted + held
+
+        # (2) The VC1 drop packet is fully buffered in the VC1 FIFO
+        # while A holds the port: its head cannot be presented (the
+        # port presents VC0), so nothing drains and the producer
+        # completes all DEPTH beats. Wait for the BFM queue to drain so
+        # the intake packet boundary (in_pkt) is closed before the next
+        # injection -- a beat arriving mid-packet would be steered into
+        # the wrong VC by the in_pkt latch.
+        await self._send_packet('local', header_v1, payload_v1)
+        for _ in range(200):
+            await RisingEdge(self.aclk)
+            if not int(self.dut.local_s_axis_tvalid.value):
+                break
+        else:
+            raise AssertionError(f"{tag}: V1 producer never went idle")
+
+        # (3) Release credits: A drains and completes, the VC1 head
+        # presents and drops, and the whole buffered VC1 packet drains
+        # afterwards.
+        self.dut.xpos_s_credit.value = (1 << 2) - 1
+        await self._wait_err_count(1, f"{tag}: vc1 head drop")
+
+        # (4) VC0 packet B lands while the VC1 drain is mid-flight. Raw
+        # drive: the BFM pipeline turnaround would let a short drain
+        # finish first. Pre-fix this beat is eaten by the wandering
+        # drain; post-fix it waits in VC0 and routes after the drain.
+        dut = self.dut
+        dut.local_s_axis_tvalid.value = 1
+        dut.local_s_axis_tdata.value = payload_b[0]
+        dut.local_s_axis_tuser.value = header_b
+        dut.local_s_axis_tlast.value = 1
+        for _ in range(10):
+            await RisingEdge(self.aclk)
+            if int(dut.local_s_axis_tready.value):
+                break
+        else:
+            raise AssertionError(f"{tag}: vc0 beat B not accepted")
+        dut.local_s_axis_tvalid.value = 0
+        dut.local_s_axis_tlast.value = 0
+        dut.local_s_axis_tuser.value = 0
+        dut.local_s_axis_tdata.value = 0
+
+        # (5) Both VC0 packets delivered intact and in order (A was
+        # granted first); the drop counted the VC1 head only; the
+        # stranded-body poison (pre-fix: re-parsed VC1 beats exit
+        # xneg) never emitted.
+        slave = self.slaves['xpos']
+        for _ in range(1000):
+            if slave.frames_received >= 2:
+                break
+            await RisingEdge(self.aclk)
+        else:
+            raise AssertionError(
+                f"{tag}: xpos saw {slave.frames_received} frames, "
+                f"expected 2 (packets A and B)")
+        beats = slave.get_observed_packets()
+        exp = ((header_a, payload_a), (header_b, payload_b))
+        offset = 0
+        for e_header, e_payload in exp:
+            n = len(e_payload)
+            frame = beats[offset:offset + n]
+            offset += n
+            if len(frame) != n:
+                raise AssertionError(
+                    f"{tag}: frame truncated: {len(frame)} beats, "
+                    f"expected {n}")
+            for i, (beat, e_data) in enumerate(zip(frame, e_payload)):
+                got_data = int(beat.fields['data'])
+                got_user = int(beat.fields.get('user', 0))
+                got_last = int(beat.fields.get('last', 0))
+                e_last = 1 if i == n - 1 else 0
+                e_user = e_header if i == 0 else 0
+                if got_data != e_data or got_user != e_user \
+                        or got_last != e_last:
+                    raise AssertionError(
+                        f"{tag}: beat mismatch (0x{got_data:x}/"
+                        f"0x{got_user:x}/{got_last}) vs expected "
+                        f"(0x{e_data:x}/0x{e_user:x}/{e_last})")
+        await self.wait_clocks('aclk', 10)
+        if int(self.dut.err_drop_cnt.value) != 1:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt {int(self.dut.err_drop_cnt.value)}, "
+                f"expected 1 (VC0 traffic must not count)")
+        self._check_idle_ports({'xpos'}, tag)
+        self.log.info("delta mesh tables: cross-VC drop drain passed")
