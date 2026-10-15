@@ -322,7 +322,8 @@ module mc_cmd_arbiter
     // w_out_hold extension below -- declared ahead of both per the decl-order
     // lint. Guard-update and clear live with the other guard registers.
     logic [NUM_BANKS-1:0] r_ap_closing, w_ap_fire_bank;
-    assign w_ap_fire_bank = (w_fire_out && (r_do_rd || r_do_wr) && r_ap_out)
+    logic                 w_ap_sibling, w_ap_fire;
+    assign w_ap_fire_bank = (w_fire_out && (r_do_rd || r_do_wr) && w_ap_fire)
                           ? (NUM_BANKS'(1) << r_bank) : '0;
 
     // HOLD an ACT whose only obstacle is the rank-global windows, or --
@@ -511,6 +512,38 @@ module mc_cmd_arbiter
     function automatic logic [COL_WIDTH-1:0] f_col (input logic [NUM_ENTRIES*COL_WIDTH-1:0] v, input logic [PTRW-1:0] e);
         return v[e*COL_WIDTH +: COL_WIDTH];
     endfunction
+
+    // ---- CLOSE_ON_DRAIN fire-stage qualifier --------------------------------
+    // The pre-pick age-youngest term is only a CANDIDATE auto-precharge. A
+    // same-row sibling can still be ahead out of age order (transient mask:
+    // tCCD forward gate, sink-FIFO gate, double-issue guard) -- closing the
+    // row behind the younger of the pair would force the older sibling
+    // through a re-activate and drain it AFTER the younger, swapping write
+    // data on the DFI (granite gate-8-12, 2026-10-14). So at the FIRE stage
+    // the close is re-qualified against the LIVE pool: any same-(bank,row)
+    // entry in either direction -- except the slot firing right now (its
+    // sch_valid has not dropped yet) -- downgrades RDA/WRA to a plain RD/WR
+    // (row stays open, the sibling issues in order). The firing slot's own
+    // row rides r_row, so columns must carry their row into the output
+    // register (w_row in the pick comb below).
+    always_comb begin
+        w_ap_sibling = 1'b0;
+        if (r_pick_valid && (r_do_rd || r_do_wr) && r_ap_out) begin
+            for (int j = 0; j < NUM_ENTRIES; j++) begin
+                if (rd_sch_valid_i[j]
+                    && !(r_do_rd && (j == int'(r_issue_slot)))
+                    && (f_bank(rd_sch_bank_i, PTRW'(j)) == r_bank)
+                    && (f_row (rd_sch_row_i,  PTRW'(j)) == r_row))
+                    w_ap_sibling = 1'b1;
+                if (wr_sch_valid_i[j]
+                    && !(r_do_wr && (j == int'(r_commit_slot)))
+                    && (f_bank(wr_sch_bank_i, PTRW'(j)) == r_bank)
+                    && (f_row (wr_sch_row_i,  PTRW'(j)) == r_row))
+                    w_ap_sibling = 1'b1;
+            end
+        end
+    end
+    assign w_ap_fire = r_ap_out && !w_ap_sibling;
 
     // ---- unified rd/wr prospect pool (2N entries) ----------------------------
     localparam int POOL = 2*NUM_ENTRIES;
@@ -1292,12 +1325,12 @@ module mc_cmd_arbiter
                      && w_rd_turn_live
                      && !(w_col_wrf && wr_col_f && wr_commit_ready_i
                           && w_wr_turn_live)) begin
-            w_bank = rd_col_bank; w_col = rd_col_col;
+            w_bank = rd_col_bank; w_col = rd_col_col; w_row = rd_col_row;
             w_valid = 1'b1; w_op = rd_col_ap ? OP_RDA : OP_RD;
             w_ap_out = rd_col_ap; w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
         end else if (w_pick_class == CL_COL && wr_col_f && wr_commit_ready_i
                      && w_wr_turn_live) begin
-            w_bank = wr_col_bank; w_col = wr_col_col;
+            w_bank = wr_col_bank; w_col = wr_col_col; w_row = wr_col_row;
             w_valid = 1'b1; w_op = wr_col_ap ? OP_WRA : OP_WR;
             w_ap_out = wr_col_ap; w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
         // ACTIVATE the oldest pending op's idle+ready bank (bank-parallel).
@@ -1396,12 +1429,17 @@ module mc_cmd_arbiter
     // REGISTERED !r_wr_full (no combinational path back to wr_valid, so no loop)
     // and pushes only on wr_valid && wr_ready.
     assign cmd_valid_o = r_pick_valid && w_out_safe;
-    assign cmd_op_o    = r_op;
+    // CLOSE_ON_DRAIN: the fire-stage qualifier downgrades a candidate
+    // auto-precharge to a plain column op when a same-row sibling is still
+    // live in the pool -- the emitted op and the AP bit must follow the
+    // QUALIFIED decision, never the registered candidate.
+    assign cmd_op_o    = (r_do_rd && !w_ap_fire) ? OP_RD
+                        : (r_do_wr && !w_ap_fire) ? OP_WR : r_op;
     assign cmd_rank_o  = RKW'(RK0);
     assign cmd_bank_o  = r_bank;
     assign cmd_row_o   = r_row;
     assign cmd_col_o   = r_col_out;
-    assign cmd_ap_o    = r_ap_out;
+    assign cmd_ap_o    = w_ap_fire;
     assign cmd_extra_o = r_cmd_extra;
 
     // ---- event strobes -----------------------------------------------------
@@ -1409,7 +1447,7 @@ module mc_cmd_arbiter
     assign evt_rd_o  = w_fire_out && r_do_rd;
     assign evt_wr_o  = w_fire_out && r_do_wr;
     assign evt_pre_o = w_fire_out && r_do_pre;
-    assign evt_ap_o  = r_ap_out;
+    assign evt_ap_o  = w_ap_fire;
     assign evt_rank_o = RKW'(RK0);
     assign evt_bank_o = r_bank;
     assign evt_row_o  = r_row;
@@ -1449,7 +1487,7 @@ module mc_cmd_arbiter
             r_rdfire0 <= w_fire_out && r_do_rd;
             r_apguard1 <= r_apguard0;
             r_apguard0 <= '0;
-            if (w_fire_out && (r_do_rd || r_do_wr) && r_ap_out)
+            if (w_fire_out && (r_do_rd || r_do_wr) && w_ap_fire)
                 r_apguard0 <= (NUM_BANKS'(1) << r_bank);
         end
     )
