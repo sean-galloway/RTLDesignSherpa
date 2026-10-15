@@ -87,6 +87,23 @@ module rs_encoder_axis4
     output logic                       frame_err
 );
 
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     // -------------------------------------------------------------------------
     // widths
     // -------------------------------------------------------------------------
@@ -130,7 +147,7 @@ module rs_encoder_axis4
         .AXIS_ID_WIDTH(AXIS_ID_WIDTH), .AXIS_DEST_WIDTH(AXIS_DEST_WIDTH),
         .AXIS_USER_WIDTH(AXIS_USER_WIDTH)
     ) u_in (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(w_aresetn),
         .s_axis_tdata(s_axis_tdata), .s_axis_tstrb(s_axis_tstrb),
         .s_axis_tlast(s_axis_tlast), .s_axis_tid(s_axis_tid),
         .s_axis_tdest(s_axis_tdest), .s_axis_tuser(s_axis_tuser),
@@ -165,7 +182,7 @@ module rs_encoder_axis4
         .N_SYMBOLS(N_SYMBOLS), .FIRST_ROOT(FIRST_ROOT), .DATA_WIDTH(DATA_WIDTH),
         .SKID_DEPTH(SKID_DEPTH)
     ) u_core (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(w_aresetn),
         .in_valid(in_tvalid), .in_ready(in_tready), .in_data(in_tdata),
         .in_keep(w_in_keep), .in_last(in_tlast),
         .out_valid(core_valid), .out_ready(core_ready), .out_data(core_data),
@@ -183,7 +200,7 @@ module rs_encoder_axis4
         rs_beat_packer #(
             .SYMBOL_WIDTH(SYMBOL_WIDTH), .SYMBOLS_PER_BEAT(S)
         ) u_pack (
-            .aclk(aclk), .aresetn(aresetn),
+            .aclk(aclk), .aresetn(w_aresetn),
             .in_valid(core_valid), .in_ready(core_ready), .in_data(core_data),
             .in_keep(core_keep), .in_last(core_last),
             .out_valid(pk_valid), .out_ready(pk_ready), .out_data(pk_data),
@@ -207,8 +224,8 @@ module rs_encoder_axis4
     logic [DESTW-1:0] r_tdest;
     logic             r_have;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    always_ff @(posedge aclk or negedge w_aresetn) begin
+        if (!w_aresetn) begin
             r_tid <= '0; r_tdest <= '0; r_have <= 1'b0;
         end else begin
             if (in_tvalid && in_tready && !r_have) begin
@@ -245,7 +262,7 @@ module rs_encoder_axis4
         .AXIS_ID_WIDTH(AXIS_ID_WIDTH), .AXIS_DEST_WIDTH(AXIS_DEST_WIDTH),
         .AXIS_USER_WIDTH(AXIS_USER_WIDTH)
     ) u_out (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(w_aresetn),
         .fub_axis_tdata(pk_data), .fub_axis_tstrb(w_out_tstrb),
         .fub_axis_tlast(pk_last), .fub_axis_tid(r_tid),
         .fub_axis_tdest(r_tdest), .fub_axis_tuser(w_out_tuser),

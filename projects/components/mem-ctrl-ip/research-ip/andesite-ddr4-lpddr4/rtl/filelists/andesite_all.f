@@ -1,4 +1,7 @@
 # Master filelist for the andesite DDR4/LPDDR4 controller
+# Boundary reset synchronizer (top input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/filelists/fub/andesite_smoke.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/filelists/fub/andesite_dfi_cmd_formatter.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/filelists/fub/andesite_mode_register.f

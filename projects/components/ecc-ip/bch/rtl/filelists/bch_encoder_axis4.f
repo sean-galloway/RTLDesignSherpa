@@ -6,6 +6,10 @@
 # stream interface includes THIS list; one that wants the bare handshake
 # includes bch_encoder_core.f instead.
 
+# Boundary reset synchronizer (top input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_encoder_core.f
 -f $REPO_ROOT/rtl/amba/filelists/axis4_slave.f
 -f $REPO_ROOT/rtl/amba/filelists/axis4_master.f

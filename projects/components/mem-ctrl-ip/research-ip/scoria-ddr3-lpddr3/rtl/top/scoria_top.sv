@@ -216,7 +216,7 @@ module scoria_top
 
     scoria_csr u_csr (
         .clk                 (aclk),
-        .rst                 (~aresetn),
+        .rst                 (~w_aresetn),
         .s_cpuif_req         (s_cpuif_req),
         .s_cpuif_req_is_wr   (s_cpuif_req_is_wr),
         .s_cpuif_addr        (s_cpuif_addr),
@@ -295,6 +295,35 @@ module scoria_top
                          ?  8'(hwif_out.TIMINGS_RTP_RTW.tRTW.value)
                          :  w_t_rtw_floor;
 
+    // Boundary reset synchronization. The ports aresetn and dfi_rstn are
+    // treated as asynchronous-assert inputs of unknown deassert quality: an
+    // N=3 reset_sync (rtl/cdc, formally proven) per clock domain produces the
+    // internal resets the CSR block and scoria_core see.
+    logic w_aresetn;
+    logic w_aresetn_dfi;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync_aclk (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync_dfi_clk (
+        .clk        (dfi_clk),
+        .rst_n      (dfi_rstn),
+        .sync_rst_n (w_aresetn_dfi)
+    );
+
     scoria_core #(
         .AXI_ID_WIDTH     (IW),
         .AXI_ADDR_WIDTH   (AW),
@@ -317,9 +346,9 @@ module scoria_top
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE)
     ) u_core (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
         .dfi_clk            (dfi_clk),
-        .dfi_rstn           (dfi_rstn),
+        .dfi_rstn           (w_aresetn_dfi),
         .memtype_i          (w_memtype),
         .page_policy_i      (w_page_policy),
         .page_mode_i        (hwif_out.PAGE_POLICY_CFG.policy_mode.value),

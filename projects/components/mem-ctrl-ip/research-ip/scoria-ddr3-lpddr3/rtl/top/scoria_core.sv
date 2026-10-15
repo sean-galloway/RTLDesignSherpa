@@ -380,6 +380,37 @@ module scoria_core
         w_sub_phase_stride = PHW'(w_bl_pumice);
     end
 
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees. Two domains: aclk (controller/AXI/scheduler)
+    // and dfi_clk (DFI/PHY plane); the DFI plane's ctl side lives on aclk
+    // and its dfi side lives on dfi_clk.
+    logic w_aresetn;
+    logic w_aresetn_dfi;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync_aclk (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync_dfi_clk (
+        .clk        (dfi_clk),
+        .rst_n      (dfi_rstn),
+        .sync_rst_n (w_aresetn_dfi)
+    );
+
     // ---- scheduler <-> IFC CAM per-entry vectors ----
     logic [NUM_ENTRIES-1:0]             w_wr_sch_v,     w_rd_sch_v;
     logic [NUM_ENTRIES*BKW-1:0]         w_wr_sch_bank,  w_rd_sch_bank;
@@ -472,7 +503,7 @@ module scoria_core
         .AGE_WIDTH        (AGE_WIDTH)
     ) u_axi_plane (
         .aclk          (aclk),
-        .aresetn       (aresetn),
+        .aresetn       (w_aresetn),
         .bank_lsb_i    (bank_lsb_i),
         .hash_en_i     (hash_en_i),
         .hash_seed_i   (hash_seed_i),
@@ -592,7 +623,7 @@ module scoria_core
         .RD_RET_DEPTH  (RD_RET_DEPTH)
     ) u_store_plane (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
         // WR intake push
         .aw_push_valid_i    (aw_push_valid),
         .aw_push_ready_o    (aw_push_ready),
@@ -687,7 +718,7 @@ module scoria_core
         .CMD_DELAY     (CMD_DELAY_EFF)
     ) u_sched_plane (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
         .page_policy_i      (page_policy_i),
         .memtype_i          (memtype_i),
         .page_mode_i        (page_mode_i),
@@ -816,7 +847,7 @@ module scoria_core
         .CSW   ((NUM_CS > 1) ? $clog2(NUM_CS) : 1)
     ) u_train_plane (
         .mc_clk             (aclk),
-        .mc_rst_n           (aresetn),
+        .mc_rst_n           (w_aresetn),
         .init_done_i        (init_done_o),
         .memtype_i          (memtype_i),
         .zq_enable_i        (zq_enable_i),
@@ -896,7 +927,7 @@ module scoria_core
         .HIST_T_WTR      (HIST_T_WTR_CORE)
     ) u_dfi_plane (
         .ctl_clk            (aclk),
-        .ctl_rstn           (aresetn),
+        .ctl_rstn           (w_aresetn),
         .cmd_valid_i        (w_cmd_v),
         .cmd_ready_o        (w_cmd_rdy),
         .cmd_data_i         (w_cmd_data),
@@ -909,7 +940,7 @@ module scoria_core
         .init_start_i       (w_init_start),
         .init_complete_o    (w_init_complete),
         .dfi_clk            (dfi_clk),
-        .dfi_rstn           (dfi_rstn),
+        .dfi_rstn           (w_aresetn_dfi),
         .memtype_i          (memtype_i),
         .rd_phase_i         (rd_phase_i),
         .wr_phase_i         (wr_phase_i),

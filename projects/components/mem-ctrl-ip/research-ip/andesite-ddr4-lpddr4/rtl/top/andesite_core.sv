@@ -300,6 +300,36 @@ module andesite_core
     localparam int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_STRB_WIDTH + DFI_DATA_WIDTH;
     localparam int RD_DW  = 1 + 2 + DFI_STRB_WIDTH + DFI_DATA_WIDTH;
 
+    // Boundary reset synchronization. The ports aresetn/dfi_rstn are treated as
+    // asynchronous-assert inputs of unknown deassert quality: an N=3 reset_sync
+    // (rtl/cdc, formally proven) per flop domain produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
+    logic w_aresetn_dfi;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync_dfi (
+        .clk        (dfi_clk),
+        .rst_n      (dfi_rstn),
+        .sync_rst_n (w_aresetn_dfi)
+    );
+
     // ---- runtime sub-DFI-word framing ----
     localparam int SUBW_MAX = $clog2(N_SUBCMD + 1);
     localparam int CMD_DELAY_EFF = (CMD_DELAY == 0) ? (5 + 2 * BURST_WORDS) : CMD_DELAY;
@@ -415,7 +445,7 @@ module andesite_core
         .AGE_WIDTH        (AGE_WIDTH)
     ) u_axi_plane (
         .aclk          (aclk),
-        .aresetn       (aresetn),
+        .aresetn       (w_aresetn),
         .bank_lsb_i    (bank_lsb_i),
         .hash_en_i     (hash_en_i),
         .hash_seed_i   (hash_seed_i),
@@ -535,7 +565,7 @@ module andesite_core
         .RD_RET_DEPTH  (RD_RET_DEPTH)
     ) u_store_plane (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
         // WR intake push
         .aw_push_valid_i    (aw_push_valid),
         .aw_push_ready_o    (aw_push_ready),
@@ -642,7 +672,7 @@ module andesite_core
         .N_LU          (N_LU)
     ) u_sched_plane (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
         .page_policy_i      (page_policy_i),
         .memtype_i          (memtype_i),
         .page_mode_i        (page_mode_i),
@@ -799,7 +829,7 @@ module andesite_core
         .NUM_CS(NUM_CS)
     ) u_train_plane (
         .mc_clk             (aclk),
-        .mc_rst_n           (aresetn),
+        .mc_rst_n           (w_aresetn),
         .wrlvl_en_i         (w_wrlvl_en),
         .wrlvl_strobe_i     (wrlvl_strobe_i),
         .wrlvl_cs_sel_i     (wrlvl_cs_sel_i),
@@ -828,7 +858,7 @@ module andesite_core
         .t_wdq_cal_i        (t_wdq_cal_i),
         .t_ca_timeout_i     (t_ca_timeout_i),
         .dfi_clk            (dfi_clk),
-        .dfi_rstn           (dfi_rstn),
+        .dfi_rstn           (w_aresetn_dfi),
         .dfi_phylvl_req_cs_n_o(dfi_phylvl_req_cs_n_o),
         .dfi_phylvl_ack_cs_n_i(dfi_phylvl_ack_cs_n_i),
         .dfi_phy_wrlvl_cs_n_o (dfi_phy_wrlvl_cs_n_o),
@@ -897,7 +927,7 @@ module andesite_core
         .WD_FIFO_DEPTH   (32)
     ) u_dfi_plane (
         .ctl_clk            (aclk),
-        .ctl_rstn           (aresetn),
+        .ctl_rstn           (w_aresetn),
         .cmd_valid_i        (w_cmd_v),
         .cmd_ready_o        (w_cmd_rdy),
         .cmd_data_i         (w_cmd_data),
@@ -926,7 +956,7 @@ module andesite_core
         .t_rddata_en_i      (t_rddata_en_i),
         .cke_i              (w_cke),
         .dfi_clk            (dfi_clk),
-        .dfi_rstn           (dfi_rstn),
+        .dfi_rstn           (w_aresetn_dfi),
         .dfi_address_o      (dfi_address_o),
         .dfi_bank_o         (dfi_bank_o),
         .dfi_bg_o           (dfi_bg_o),

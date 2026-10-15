@@ -198,6 +198,32 @@ cycles are the metastability margin the chain exists to buy you.
 
 ## Usage Examples
 
+### Repository Convention (read first)
+
+House rule, established 2026-10-14: **component top wrappers synchronize;
+library leaf cells never do.** Every `*_top.sv` under
+`projects/components/*/rtl/top*/` treats its external reset input as an
+async-assert signal of unknown deassert quality and runs it through one
+`reset_sync` (N=3, `ASYNC_ASSERT=1`, polarities matching the port) per clock
+domain before any internal logic sees it. Blocks below the top — the `rtl/`
+library, `fub/`, `macro/` levels — take the already-clean reset as a plain
+input. Rationale:
+
+- One synchronizer per domain at the boundary gives the metastability margin
+  exactly once; nested chains below would only add deassert latency.
+- Every top is self-protecting, whether it is instantiated under a system top
+  or driven directly by a testbench.
+- Multi-clock tops (mem-ctrl `aclk`/`dfi_clk` pairs) synchronize **each domain
+  separately**, with CDC-FIFO side resets synchronized in their own clock.
+
+The reference idiom lives in `cache-ip/amber-mesi-l1/rtl/top/amber_top.sv`
+(`u_reset_sync`, net `w_aresetn`). Swept 2026-10-14: rapids, bch,
+reed-solomon, andesite, scoria, kestrel. Follow-on areas pending their active
+lanes: stream, granite, pumice, `l1_core`, `amber_pair_fabric`,
+`scoria_top_geared`. `rtl/cdc/fifo_async.sv` and `rtl/common/fifo_sync.sv`
+header comments state the leaf-side contract ("reset synchronization not
+built-in; use externally").
+
 ### Choosing N Value
 
 #### N=2 (Minimum)

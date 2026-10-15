@@ -139,6 +139,22 @@ module bch_encoder_axi4
         $fatal(1, "bch_encoder_axi4: DATA_WIDTH %0d must equal BITS_PER_BEAT %0d", DATA_WIDTH, B);
     end
 
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
 
     // =========================================================================
     // source: k data beats per block
@@ -150,7 +166,7 @@ module bch_encoder_axi4
         .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .ID_WIDTH(ID_WIDTH),
         .MAX_OUTSTANDING(MAX_OUTSTANDING), .USER_WIDTH(USER_WIDTH)
     ) u_rd (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(w_aresetn),
         .cfg_start(cfg_start), .cfg_src_addr(cfg_src_addr),
         .cfg_beats(32'(cfg_blocks) * 32'(K_BEATS)),
         .cfg_burst_len(cfg_burst_len), .cfg_beats_per_block(16'(K_BEATS)),
@@ -184,7 +200,7 @@ module bch_encoder_axi4
         .N_BITS(N_BITS), .BITS_PER_BEAT(B), .FIRST_ROOT(FIRST_ROOT),
         .K_BITS(K_BITS)
     ) u_core (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(w_aresetn),
         .in_valid(rd_valid), .in_ready(rd_ready), .in_data(rd_data),
         .in_keep(w_in_keep), .in_last(rd_last),
         .out_valid(enc_valid), .out_ready(enc_ready), .out_data(enc_data),
@@ -202,7 +218,7 @@ module bch_encoder_axi4
         bch_beat_packer #(
             .BITS_PER_BEAT(B)
         ) u_pack (
-            .aclk(aclk), .aresetn(aresetn),
+            .aclk(aclk), .aresetn(w_aresetn),
             .in_valid(enc_valid), .in_ready(enc_ready), .in_data(enc_data),
             .in_keep(enc_keep), .in_last(enc_last),
             .out_valid(pk_valid), .out_ready(pk_ready), .out_data(pk_data),
@@ -224,7 +240,7 @@ module bch_encoder_axi4
         .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .ID_WIDTH(ID_WIDTH),
         .MAX_OUTSTANDING(MAX_OUTSTANDING), .USER_WIDTH(USER_WIDTH)
     ) u_wr (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(w_aresetn),
         .cfg_start(cfg_start), .cfg_dst_addr(cfg_dst_addr),
         .cfg_beats(32'(cfg_blocks) * 32'(CW_BEATS)),
         .cfg_burst_len(cfg_burst_len), .cfg_axi_id(cfg_axi_id),
@@ -250,8 +266,8 @@ module bch_encoder_axi4
 
     // frame_err is a pulse from the core; hold it for the job so a host that
     // polls after cfg_done still sees it
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn)            frame_err <= 1'b0;
+    always_ff @(posedge aclk or negedge w_aresetn) begin
+        if (!w_aresetn)          frame_err <= 1'b0;
         else if (cfg_start)      frame_err <= 1'b0;
         else if (w_frame_err)    frame_err <= 1'b1;
     end

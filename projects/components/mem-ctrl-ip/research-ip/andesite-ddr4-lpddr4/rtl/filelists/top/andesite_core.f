@@ -4,6 +4,9 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/includes/mc_common_pkg.f
 $REPO_ROOT/projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/rtl/includes/andesite_pkg.sv
+# Boundary reset synchronizer (top input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
 # common / gaxi / amba
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
 -f $REPO_ROOT/rtl/cdc/filelists/counter_johnson.f

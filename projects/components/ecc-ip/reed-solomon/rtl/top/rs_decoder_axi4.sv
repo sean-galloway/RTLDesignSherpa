@@ -139,6 +139,23 @@ module rs_decoder_axi4 #(
     output logic                    m_axi_bready
 );
 
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     localparam int S        = SYMBOLS_PER_BEAT;
     localparam int K_BEATS  = (K_SYMBOLS + S - 1) / S;
     // The codeword in memory is PACKED by rs_encoder_axi4: ceil(N/S) beats
@@ -164,7 +181,7 @@ module rs_decoder_axi4 #(
         .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .ID_WIDTH(ID_WIDTH),
         .MAX_OUTSTANDING(MAX_OUTSTANDING), .USER_WIDTH(USER_WIDTH)
     ) u_rd (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(w_aresetn),
         .cfg_start(cfg_start), .cfg_src_addr(cfg_src_addr),
         .cfg_beats(32'(cfg_blocks) * 32'(CW_BEATS)),
         .cfg_burst_len(cfg_burst_len), .cfg_beats_per_block(16'(CW_BEATS)),
@@ -197,8 +214,8 @@ module rs_decoder_axi4 #(
             w_in_keep = S'((1 << N_TAIL) - 1);
     end
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn)                       r_ibeat <= '0;
+    always_ff @(posedge aclk or negedge w_aresetn) begin
+        if (!w_aresetn)                       r_ibeat <= '0;
         else if (cfg_start)                 r_ibeat <= '0;
         else if (rd_valid && rd_ready)      r_ibeat <= rd_last ? '0 : r_ibeat + IBW'(1);
     end
@@ -217,8 +234,8 @@ module rs_decoder_axi4 #(
     if (ERASURE_SUPPORT) begin : g_erasure
         logic [N_SYMBOLS-1:0] r_er_map;
 
-        always_ff @(posedge aclk or negedge aresetn) begin
-            if (!aresetn)        r_er_map <= '0;
+        always_ff @(posedge aclk or negedge w_aresetn) begin
+            if (!w_aresetn)        r_er_map <= '0;
             else if (cfg_start)  r_er_map <= cfg_erasure;
         end
 
@@ -237,7 +254,7 @@ module rs_decoder_axi4 #(
         .N_SYMBOLS(N_SYMBOLS), .FIRST_ROOT(FIRST_ROOT), .DATA_WIDTH(DATA_WIDTH),
         .KES_ALGO(KES_ALGO), .ERASURE_SUPPORT(ERASURE_SUPPORT)
     ) u_core (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(w_aresetn),
         .in_valid(rd_valid), .in_ready(rd_ready), .in_data(rd_data),
         .in_keep(w_in_keep), .in_last(rd_last),
         .in_erasure(w_in_erasure),
@@ -256,7 +273,7 @@ module rs_decoder_axi4 #(
         .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .ID_WIDTH(ID_WIDTH),
         .MAX_OUTSTANDING(MAX_OUTSTANDING), .USER_WIDTH(USER_WIDTH)
     ) u_wr (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(w_aresetn),
         .cfg_start(cfg_start), .cfg_dst_addr(cfg_dst_addr),
         .cfg_beats(32'(cfg_blocks) * 32'(K_BEATS)),
         .cfg_burst_len(cfg_burst_len), .cfg_axi_id(cfg_axi_id),
@@ -285,8 +302,8 @@ module rs_decoder_axi4 #(
     logic w_verdict;
     assign w_verdict = dec_valid && dec_ready && dec_last;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn || cfg_start) begin
+    always_ff @(posedge aclk or negedge w_aresetn) begin
+        if (!w_aresetn || cfg_start) begin
             stat_blocks_ok            <= '0;
             stat_blocks_corrected     <= '0;
             stat_blocks_uncorrectable <= '0;

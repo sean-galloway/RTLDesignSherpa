@@ -380,6 +380,23 @@ module rapids_top #(
     output logic [NC-1:0]                           snk_sched_error
 );
 
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality; an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     //=========================================================================
     // APB -> CMD/RSP (single clock domain)
     //=========================================================================
@@ -399,7 +416,7 @@ module rapids_top #(
         .DATA_WIDTH (APB_DATA_WIDTH)
     ) u_apb4_slave (
         .pclk           (aclk),
-        .presetn        (aresetn),
+        .presetn        (w_aresetn),
         .s_apb_PSEL     (s_apb_psel),
         .s_apb_PENABLE  (s_apb_penable),
         .s_apb_PREADY   (s_apb_pready),
@@ -466,8 +483,8 @@ module rapids_top #(
         end
     endgenerate
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_mon_err_pending <= 1'b0;
         end else if (apb_cmd_valid && apb_cmd_ready && w_mon_blocked) begin
             r_mon_err_pending <= 1'b1;
@@ -525,7 +542,7 @@ module rapids_top #(
         .DATA_WIDTH (APB_DATA_WIDTH)
     ) u_peakrdl_adapter (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
         .cmd_valid          (peakrdl_cmd_valid),
         .cmd_ready          (peakrdl_cmd_ready),
         .cmd_pwrite         (apb_cmd_pwrite),
@@ -624,8 +641,8 @@ module rapids_top #(
     logic [63:0] r_rd_bytes, r_wr_bytes;
     logic [31:0] r_rd_bursts, r_wr_bursts;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_rd_run_d      <= 1'b0;
             r_wr_run_d      <= 1'b0;
             r_rd_win_cycles <= '0;
@@ -734,7 +751,7 @@ module rapids_top #(
     /* verilator lint_off PINCONNECTEMPTY */
     axi_bus_meter #(.NUM_CHANNELS(NC)) u_rd_bus_meter (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
         .i_clear            (w_rd_run && !r_rd_run_d),
         .i_freeze           (~w_rd_run),
         .i_valid            (m_axi_rd_rvalid),
@@ -765,7 +782,7 @@ module rapids_top #(
 
     axi_bus_meter #(.NUM_CHANNELS(NC)) u_wr_bus_meter (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
         .i_clear            (w_wr_run && !r_wr_run_d),
         .i_freeze           (~w_wr_run),
         .i_valid            (m_axi_wr_wvalid),
@@ -899,7 +916,7 @@ module rapids_top #(
 
     rapids_regs u_rapids_regs (
         .clk                    (aclk),
-        .rst                    (~aresetn),  // PeakRDL uses active-high reset
+        .rst                    (~w_aresetn),  // PeakRDL uses active-high reset
         .s_cpuif_req            (regblk_req),
         .s_cpuif_req_is_wr      (regblk_req_is_wr),
         .s_cpuif_addr           (regblk_addr),  // 13-bit
@@ -994,8 +1011,8 @@ module rapids_top #(
                         hwif_out.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
     end
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_kick_src_d <= '0;
             r_kick_snk_d <= '0;
         end else begin
@@ -1009,8 +1026,8 @@ module rapids_top #(
     logic [NC-1:0]          r_kick_src_pending, r_kick_snk_pending;
     logic [NC-1:0][AW-1:0]  r_kick_src_addr,    r_kick_snk_addr;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_kick_src_pending <= '0;
             r_kick_snk_pending <= '0;
             r_kick_src_addr    <= '{default:'0};
@@ -1148,8 +1165,8 @@ module rapids_top #(
     // ------------------------------------------------------------------------
     localparam int TICK_1US_CYCLES = 100;
     logic [$clog2(TICK_1US_CYCLES)-1:0] r_tick_cnt;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_tick_cnt <= '0;
             tick_1us   <= 1'b0;
         end else if (r_tick_cnt == TICK_1US_CYCLES[$clog2(TICK_1US_CYCLES)-1:0] - 1) begin
@@ -1170,7 +1187,7 @@ module rapids_top #(
         .USE_MON_REGS (USE_MON_REGS)
     ) u_cfg_src (
         .clk    (aclk),
-        .rst_n  (aresetn),
+        .rst_n  (w_aresetn),
         .reg_global_ctrl_global_en          (hwif_out.SRC.GLOBAL_CTRL.GLOBAL_EN.value),
         .reg_global_ctrl_global_rst         (hwif_out.SRC.GLOBAL_CTRL.GLOBAL_RST.value),
         .reg_channel_enable_ch_en           (hwif_out.SRC.CHANNEL_ENABLE.CH_EN.value),
@@ -1341,7 +1358,7 @@ module rapids_top #(
         .USE_MON_REGS (USE_MON_REGS)
     ) u_cfg_snk (
         .clk    (aclk),
-        .rst_n  (aresetn),
+        .rst_n  (w_aresetn),
         .reg_global_ctrl_global_en          (hwif_out.SNK.GLOBAL_CTRL.GLOBAL_EN.value),
         .reg_global_ctrl_global_rst         (hwif_out.SNK.GLOBAL_CTRL.GLOBAL_RST.value),
         .reg_channel_enable_ch_en           (hwif_out.SNK.CHANNEL_ENABLE.CH_EN.value),
@@ -1533,7 +1550,7 @@ module rapids_top #(
         .GEN_MON              (GEN_MON)
     ) u_core (
         .clk    (aclk),
-        .rst_n  (aresetn),
+        .rst_n  (w_aresetn),
 
         //---------------------------------------------------------------------
         // SOURCE half - shared-infra (src_ prefixed)
@@ -1913,7 +1930,7 @@ module rapids_top #(
         .HALF_BEAT_EN       (0)
     ) u_monbus_axil_group (
         .axi_aclk           (aclk),
-        .axi_aresetn        (aresetn),
+        .axi_aresetn        (w_aresetn),
         .cam_clear          (cam_clear),
 
         // Combined MonBus input (from the core's single merged egress)

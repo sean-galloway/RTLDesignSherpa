@@ -6,6 +6,10 @@
 # stream instead includes bch_decoder_axis4.f; one that wants the bare handshake
 # plus the raw per-block verdict includes bch_decoder_core.f.
 
+# Boundary reset synchronizer (top input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_pkg.f
 -f $REPO_ROOT/projects/components/ecc-ip/bch/rtl/filelists/bch_decoder_core.f
 -f $REPO_ROOT/projects/components/ecc-ip/reed-solomon/rtl/filelists/rs_axi4_engines.f

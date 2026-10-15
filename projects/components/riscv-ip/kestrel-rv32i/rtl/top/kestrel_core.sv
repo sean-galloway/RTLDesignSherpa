@@ -98,6 +98,23 @@ module kestrel_core #(
     localparam logic [2:0] F3_BLTU      = 3'b110;
     localparam logic [2:0] F3_BGEU      = 3'b111;
 
+    // Boundary reset synchronization. The port rst_n is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .sync_rst_n (w_aresetn)
+    );
+
     // The PC register, the RVFI retirement counter, and the Task-8 halt
     // holding register are the only state besides the register file.
     // Task 7 adds one retry bit (control state only) for cross-word L/S.
@@ -165,7 +182,7 @@ module kestrel_core #(
 
     kestrel_regfile u_regfile (
         .clk      (clk),
-        .rst_n    (rst_n),
+        .rst_n    (w_aresetn),
         .rs1_addr (insn[19:15]),
         .rs1_data (rs1_data),
         .rs2_addr (insn[24:20]),
@@ -377,8 +394,8 @@ module kestrel_core #(
                            | (misalign_target ? HALT_IALIGN : HALT_NONE);
     assign halt_now        = |halt_cause_eff;
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    `ALWAYS_FF_RST(clk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             halt_q <= 1'b0;
         end else begin
             halt_q <= halt_q | halt_now;
@@ -389,8 +406,8 @@ module kestrel_core #(
     assign halt_cause = halt_cause_eff;
 
     // PC register: hold on halt or on the first cycle of a cross-word access.
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    `ALWAYS_FF_RST(clk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             pc <= RESET_ADDR;
         end else begin
             pc <= halt ? pc : (ls_first ? pc : next_pc);
@@ -399,8 +416,8 @@ module kestrel_core #(
 
     // Cross-word L/S retry bit: control state only, set on the first beat and
     // cleared after the second beat.  No FSM in the datapath.
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    `ALWAYS_FF_RST(clk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             ls_retry <= 1'b0;
         end else begin
             ls_retry <= ls_first;
@@ -408,8 +425,8 @@ module kestrel_core #(
     )
 
     // Capture the shifted first-word read data for merging on the retry cycle.
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    `ALWAYS_FF_RST(clk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             ls_rdata_lo <= '0;
         end else begin
             if (ls_first) begin
@@ -419,8 +436,8 @@ module kestrel_core #(
     )
 
     // RVFI retirement order: 0, 1, 2, ... one per retired instruction.
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    `ALWAYS_FF_RST(clk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             retire_count <= '0;
         end else begin
             if (rvfi_valid) begin
@@ -448,7 +465,7 @@ module kestrel_core #(
     logic rd_wb;
 
     assign rd_wb          = rd_wen & (insn[11:7] != 5'd0) & ~halt;
-    assign rvfi_valid     = rst_n & ~halt_q & ~ls_first;
+    assign rvfi_valid     = w_aresetn & ~halt_q & ~ls_first;
     assign rvfi_order     = retire_count;
     assign rvfi_pc_rdata  = pc;
     assign rvfi_pc_wdata  = next_pc;

@@ -99,6 +99,23 @@ module rs_axi4_write_engine #(
     output logic                    m_axi_bready
 );
 
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     localparam int OSW = $clog2(MAX_OUTSTANDING + 1);
 
     // =========================================================================
@@ -133,8 +150,8 @@ module rs_axi4_write_engine #(
     assign m_axi_awuser   = '0;
     assign m_axi_wuser    = '0;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    always_ff @(posedge aclk or negedge w_aresetn) begin
+        if (!w_aresetn) begin
             r_aw_addr <= '0; r_aw_left <= '0; r_running <= 1'b0;
         end else if (cfg_start) begin
             r_aw_addr <= cfg_dst_addr;
@@ -167,8 +184,8 @@ module rs_axi4_write_engine #(
     assign m_axi_wstrb  = {(DATA_WIDTH/8){1'b1}};
     assign m_axi_wlast  = (r_w_in_burst + 9'd1) >= w_w_len;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    always_ff @(posedge aclk or negedge w_aresetn) begin
+        if (!w_aresetn) begin
             r_w_left <= '0; r_w_in_burst <= '0;
         end else if (cfg_start) begin
             r_w_left <= cfg_beats; r_w_in_burst <= '0;
@@ -186,8 +203,8 @@ module rs_axi4_write_engine #(
     assign m_axi_bready = 1'b1;   // nothing here can stall a response
     assign w_b_fire     = m_axi_bvalid && m_axi_bready;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    always_ff @(posedge aclk or negedge w_aresetn) begin
+        if (!w_aresetn) begin
             r_outstanding <= '0;
         end else if (cfg_start) begin
             r_outstanding <= '0;
@@ -213,8 +230,8 @@ module rs_axi4_write_engine #(
     // started", since both leave those two counters at zero.
     logic r_active;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    always_ff @(posedge aclk or negedge w_aresetn) begin
+        if (!w_aresetn) begin
             r_active <= 1'b0; cfg_done <= 1'b0; resp_err <= 1'b0;
         end else if (cfg_start) begin
             r_active <= (cfg_beats != '0);

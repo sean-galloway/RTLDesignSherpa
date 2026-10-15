@@ -23,6 +23,10 @@
 +incdir+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/includes
 +incdir+$REPO_ROOT/projects/components/dma-ip/stream/rtl/includes
 
+# Boundary reset synchronizer (top input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 # ---- RAPIDS beats core (two independent halves + wrapper) ----
 -f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro_beats/rapids_core_beats.f
 

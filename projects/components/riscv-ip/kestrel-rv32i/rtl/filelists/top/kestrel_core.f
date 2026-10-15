@@ -8,6 +8,10 @@
 # reset_defs.svh -- the core uses `ALWAYS_FF_RST.
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
+# Boundary reset synchronizer (top input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 # Package
 -f $KESTREL_ROOT/rtl/filelists/kestrel_pkg.f
 
