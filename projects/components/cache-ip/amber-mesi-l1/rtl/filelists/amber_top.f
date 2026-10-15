@@ -21,6 +21,10 @@
 # Pair-rig bench memory slave (AXI4 SDP RAM, complete closure)
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
 
+# Boundary reset synchronizer (amber_top input aresetn is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 # Monbus arbiter closure
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
 

@@ -58,6 +58,8 @@
 //
 // Notes:
 //   - Single clock / active-low reset (aclk / aresetn), MAS ch01/03.
+//     Port aresetn is async-assert, synchronized internally (reset_sync,
+//     N=3) -- see amber_top for the full contract.
 //   - The monitor cfg inputs are tied to observation-only defaults
 //     (monitor enabled, no error/timeout/completion/threshold actions, no
 //     address windows); cam_clear tied off.
@@ -313,6 +315,25 @@ module amber_ace_top
     logic [63:0] core_mon_timestamp;
     logic [7:0]  core_mon_dropped_unused;
 
+    // ------------------------------------------------------------------
+    // Boundary reset synchronization -- same contract as amber_top: the
+    // port aresetn is async-assert of unknown deassert quality, and the
+    // N=3 house reset_sync produces the internal reset every block below
+    // sees. Integrators may deassert it asynchronously.
+    // ------------------------------------------------------------------
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     l1_core #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .SETS           (SETS),
@@ -325,7 +346,7 @@ module amber_ace_top
         .USE_MONITOR    (USE_MONITOR)
     ) u_core (
         .clk               (aclk),
-        .rst_n             (aresetn),
+        .rst_n             (w_aresetn),
         .cpu_req_wr_valid  (cpu_req_wr_valid),
         .cpu_req_wr_ready  (cpu_req_wr_ready),
         .cpu_req_wr_data   (cpu_req_wr_data),
@@ -422,7 +443,7 @@ module amber_ace_top
         .AXI_USER_WIDTH (AXI_USER_WIDTH)
     ) u_ace_issue (
         .aclk          (aclk),
-        .aresetn       (aresetn),
+        .aresetn       (w_aresetn),
         .ace_rd_req    (coh_req_valid
                         && (coh_req_type == 3'(AMBER_ACE_READ_NOT_SHARED_DIRTY)
                             || coh_req_type == 3'(AMBER_ACE_READ_UNIQUE)
@@ -544,7 +565,7 @@ module amber_ace_top
         .AXI_USER_WIDTH   (AXI_USER_WIDTH)
     ) u_rd_monlite (
         .aclk                    (aclk),
-        .aresetn                 (aresetn),
+        .aresetn                 (w_aresetn),
         .fub_axi_arid            (iss_arid),
         .fub_axi_araddr          (iss_araddr),
         .fub_axi_arlen           (iss_arlen),
@@ -640,7 +661,7 @@ module amber_ace_top
         .AXI_USER_WIDTH   (AXI_USER_WIDTH)
     ) u_wr_monlite (
         .aclk                    (aclk),
-        .aresetn                 (aresetn),
+        .aresetn                 (w_aresetn),
         .fub_axi_awid            (iss_awid),
         .fub_axi_awaddr          (iss_awaddr),
         .fub_axi_awlen           (iss_awlen),
@@ -754,7 +775,7 @@ module amber_ace_top
         .OUTPUT_SKID_DEPTH  (2)
     ) u_monbus_arbiter (
         .axi_aclk            (aclk),
-        .axi_aresetn         (aresetn),
+        .axi_aresetn         (w_aresetn),
         .block_arb           (1'b0),
         .monbus_valid_in     (arb_vld),
         .monbus_ready_in     (arb_rdy),

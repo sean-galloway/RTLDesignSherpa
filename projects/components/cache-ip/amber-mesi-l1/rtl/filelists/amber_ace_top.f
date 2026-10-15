@@ -23,6 +23,10 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4ace_master_rd_monlite.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4ace_master_wr_monlite.f
 
+# Boundary reset synchronizer (amber_ace_top input aresetn is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 # Monbus arbiter closure
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
 

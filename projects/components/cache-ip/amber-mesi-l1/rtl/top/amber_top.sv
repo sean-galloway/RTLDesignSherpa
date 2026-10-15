@@ -49,6 +49,8 @@
 //
 // Notes:
 //   - Single clock / active-low reset (aclk / aresetn), MAS ch01/03.
+//     The port aresetn is async-assert and synchronized internally
+//     (reset_sync, N=3): integrators may deassert it asynchronously.
 //   - The monitor cfg inputs are tied to observation-only defaults
 //     (monitor enabled, no error/timeout/completion/threshold actions, no
 //     address windows); cam_clear tied off.
@@ -259,6 +261,27 @@ module amber_top
     logic [63:0] core_mon_timestamp;
     logic [7:0]  core_mon_dropped_unused;
 
+    // ------------------------------------------------------------------
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees. Integrators may drive aresetn with any
+    // async deassert; the release seen by the core is synchronous. This
+    // mirrors the Genesys2 top pattern and matches jet/onyx intent.
+    // ------------------------------------------------------------------
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     l1_core #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .SETS           (SETS),
@@ -271,7 +294,7 @@ module amber_top
         .USE_MONITOR    (USE_MONITOR)
     ) u_core (
         .clk               (aclk),
-        .rst_n             (aresetn),
+        .rst_n             (w_aresetn),
         .cpu_req_wr_valid  (cpu_req_wr_valid),
         .cpu_req_wr_ready  (cpu_req_wr_ready),
         .cpu_req_wr_data   (cpu_req_wr_data),
@@ -370,7 +393,7 @@ module amber_top
         .AXI_USER_WIDTH   (AXI_USER_WIDTH)
     ) u_rd_monlite (
         .aclk                    (aclk),
-        .aresetn                 (aresetn),
+        .aresetn                 (w_aresetn),
         .fub_axi_arid            (fub_arid),
         .fub_axi_araddr          (fub_araddr),
         .fub_axi_arlen           (fub_arlen),
@@ -457,7 +480,7 @@ module amber_top
         .AXI_USER_WIDTH   (AXI_USER_WIDTH)
     ) u_wr_monlite (
         .aclk                    (aclk),
-        .aresetn                 (aresetn),
+        .aresetn                 (w_aresetn),
         .fub_axi_awid            (fub_awid),
         .fub_axi_awaddr          (fub_awaddr),
         .fub_axi_awlen           (fub_awlen),
@@ -564,7 +587,7 @@ module amber_top
         .OUTPUT_SKID_DEPTH  (2)
     ) u_monbus_arbiter (
         .axi_aclk            (aclk),
-        .axi_aresetn         (aresetn),
+        .axi_aresetn         (w_aresetn),
         .block_arb           (1'b0),
         .monbus_valid_in     (arb_vld),
         .monbus_ready_in     (arb_rdy),
