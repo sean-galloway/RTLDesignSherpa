@@ -1,0 +1,104 @@
+[*]
+[*] GTKWave save file for mc_init_plane DDR2/LPDDR2 init chain
+[*] Edit [dumpfile] to point at the scenario you want to view.
+[*] Default points at the dump built with: WAVES=1 python -m pytest common-ip/dv/tests/macro/test_mc_init_plane.py -q
+[dumpfile] "../../local_sim_build/cocotb_test_ddr2_chain_at_plane_boundary/dump.fst"
+[savefile] "mc_init_plane.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 
+[treeopen] mc_init_plane_tb_top.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@200
+-CLOCK/RESET
+@28
+mc_init_plane_tb_top.mc_clk
+@28
+mc_init_plane_tb_top.mc_rst_n
+
+@200
+-CONFIG
+@22
+mc_init_plane_tb_top.memtype
+@22
+mc_init_plane_tb_top.t_init_wait
+@22
+mc_init_plane_tb_top.t_dll_wait
+@22
+mc_init_plane_tb_top.t_mrd_wait
+@22
+mc_init_plane_tb_top.t_rp_wait
+@22
+mc_init_plane_tb_top.t_rfc_wait
+@22
+mc_init_plane_tb_top.mr0
+@22
+mc_init_plane_tb_top.mr1
+@22
+mc_init_plane_tb_top.mr2
+@22
+mc_init_plane_tb_top.mr3
+@22
+mc_init_plane_tb_top.lp_mr1_op
+@22
+mc_init_plane_tb_top.lp_mr2_op
+@22
+mc_init_plane_tb_top.lp_mr3_op
+@28
+mc_init_plane_tb_top.init_restart
+
+@200
+-PHY HANDSHAKE
+@28
+mc_init_plane_tb_top.dfi_init_start
+@28
+mc_init_plane_tb_top.dfi_init_complete
+
+@200
+-INIT CMD OUT
+@28
+mc_init_plane_tb_top.init_cmd_valid
+@22
+mc_init_plane_tb_top.init_cmd_op
+@22
+mc_init_plane_tb_top.init_cmd_bank
+@22
+mc_init_plane_tb_top.init_cmd_row
+
+@200
+-FSM
+@22
+mc_init_plane_tb_top.u_dut.u_init.r_state
+@22
+mc_init_plane_tb_top.u_dut.u_init.r_wait
+@22
+mc_init_plane_tb_top.u_dut.u_init.r_next
+
+@200
+-MR SHADOW
+@28
+mc_init_plane_tb_top.u_dut.w_mr_seq_we
+@22
+mc_init_plane_tb_top.u_dut.w_mr_seq_index
+@22
+mc_init_plane_tb_top.u_dut.w_mr_seq_data
+@22
+mc_init_plane_tb_top.cl_o
+@22
+mc_init_plane_tb_top.cwl_o
+@22
+mc_init_plane_tb_top.bl_o
+
+@200
+-STATUS
+@28
+mc_init_plane_tb_top.init_busy
+@28
+mc_init_plane_tb_top.init_done
+@22
+mc_init_plane_tb_top.init_state

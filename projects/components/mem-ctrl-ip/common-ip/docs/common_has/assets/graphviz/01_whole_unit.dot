@@ -10,8 +10,10 @@
 // Vocabulary mapped onto the common-ip stack:
 //   packetizers  = mc_axi4_plane splitter / chopper + intakes (address map)
 //   pools/buffer = mc_storage_plane CAMs (wr_data_cam / rd_cmd_cam)
-//   maintenance  = init + refresh (scheduler plane children) and the
-//                  training plane (ZQ / DQ-cal slot select)
+//   maintenance  = init (mc_init_plane: init_sequencer + mode_register,
+//                  injected into the scheduler's external-init port) and
+//                  refresh (mc_xddr2_refresh_ctrl, scheduler plane child),
+//                  plus the training plane (ZQ / DQ-cal slot select)
 //   scheduler    = mc_scheduler_plane - mc_cmd_arbiter, fed straight by the
 //                  CAMs' schedulable-entry views (no separate arbitration stage)
 //   timing ctl   = mc_bank_timers + mc_global_timers
@@ -45,7 +47,7 @@ digraph whole_unit {
     rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam"];
 
     // ---- maintenance requesters ----
-    initref [label="Init + Refresh\nmc_scheduler_plane - mc_xddr2_init_sequencer,\nmc_xddr2_refresh_ctrl"];
+    initref [label="Init — mc_init_plane\n(mc_xddr2_init_sequencer + mode_register,\nexternal-init port into the scheduler)\nRefresh — mc_scheduler_plane child\n(mc_xddr2_refresh_ctrl)"];
     maint   [label="DDR Maintenance Requester\nmc_training_plane - ZQ cal, DQ cal,\nmaintenance slot select\n(cal sideband to the DFI read aligner)"];
 
     // ---- scheduler: mc_scheduler_plane ----

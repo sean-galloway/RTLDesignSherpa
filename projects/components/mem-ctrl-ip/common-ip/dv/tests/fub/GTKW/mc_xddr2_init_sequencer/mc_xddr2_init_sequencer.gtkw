@@ -1,0 +1,98 @@
+[*]
+[*] GTKWave save file for mc_xddr2_init_sequencer DDR2/LPDDR2 chains
+[*] Edit [dumpfile] to point at the scenario you want to view.
+[*] Default points at the dump built with: WAVES=1 python -m pytest common-ip/dv/tests/fub/test_mc_xddr2_init_sequencer.py -q
+[dumpfile] "../../local_sim_build/cocotb_test_lpddr2_chain_op_sweep/dump.fst"
+[savefile] "mc_xddr2_init_sequencer.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 
+[treeopen] mc_xddr2_init_sequencer_tb_top.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@200
+-CLOCK/RESET
+@28
+mc_xddr2_init_sequencer_tb_top.mc_clk
+@28
+mc_xddr2_init_sequencer_tb_top.mc_rst_n
+
+@200
+-CONFIG
+@22
+mc_xddr2_init_sequencer_tb_top.memtype
+@22
+mc_xddr2_init_sequencer_tb_top.t_init_wait
+@22
+mc_xddr2_init_sequencer_tb_top.t_dll_wait
+@22
+mc_xddr2_init_sequencer_tb_top.t_mrd_wait
+@22
+mc_xddr2_init_sequencer_tb_top.t_rp_wait
+@22
+mc_xddr2_init_sequencer_tb_top.t_rfc_wait
+@22
+mc_xddr2_init_sequencer_tb_top.mr0
+@22
+mc_xddr2_init_sequencer_tb_top.mr1
+@22
+mc_xddr2_init_sequencer_tb_top.mr2
+@22
+mc_xddr2_init_sequencer_tb_top.mr3
+@22
+mc_xddr2_init_sequencer_tb_top.lp_mr1_op
+@22
+mc_xddr2_init_sequencer_tb_top.lp_mr2_op
+@22
+mc_xddr2_init_sequencer_tb_top.lp_mr3_op
+@28
+mc_xddr2_init_sequencer_tb_top.init_restart
+
+@200
+-PHY HANDSHAKE
+@28
+mc_xddr2_init_sequencer_tb_top.dfi_init_start
+@28
+mc_xddr2_init_sequencer_tb_top.dfi_init_complete
+
+@200
+-INIT CMD OUT
+@28
+mc_xddr2_init_sequencer_tb_top.init_cmd_valid
+@22
+mc_xddr2_init_sequencer_tb_top.init_cmd_op
+@22
+mc_xddr2_init_sequencer_tb_top.init_cmd_bank
+@22
+mc_xddr2_init_sequencer_tb_top.init_cmd_row
+
+@200
+-MR SHADOW WR
+@28
+mc_xddr2_init_sequencer_tb_top.mr_seq_we
+@22
+mc_xddr2_init_sequencer_tb_top.mr_seq_index
+@22
+mc_xddr2_init_sequencer_tb_top.mr_seq_data
+
+@200
+-FSM
+@22
+mc_xddr2_init_sequencer_tb_top.u_dut.r_state
+@22
+mc_xddr2_init_sequencer_tb_top.u_dut.r_wait
+@22
+mc_xddr2_init_sequencer_tb_top.u_dut.r_next
+
+@200
+-STATUS
+@28
+mc_xddr2_init_sequencer_tb_top.init_busy
+@28
+mc_xddr2_init_sequencer_tb_top.init_done
+@22
+mc_xddr2_init_sequencer_tb_top.init_state

@@ -35,13 +35,14 @@ book that tells the move story.
 
 ## What pumice consumes from common-ip
 
-pumice_core instantiates five common planes directly, and every leaf FUB beneath them is common-ip as well:
+pumice_core instantiates six common planes directly, and every leaf FUB beneath them is common-ip as well:
 
 | Common block | Role in pumice | Microarchitecture |
 |---|---|---|
 | `mc_axi4_plane` | AXI4 slave intakes, burst chop/split, coalescing, read-return ring | [common_mas ch02](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md) |
 | `mc_storage_plane` | rd/wr CAMs, read snooping, bank image | [common_mas ch03](../../../../../common-ip/docs/common_mas/ch03_storage_plane/01_mc_storage_plane.md) |
-| `mc_scheduler_plane` | pick machinery, timers, generic maintenance slot, plus its default DDR2/LPDDR2 children (`mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl`, `mc_page_policy`) | [common_mas ch04](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) |
+| `mc_init_plane` | JEDEC init sequencing, mode-register shadow + CL/CWL/BL decode, DFI PHY init handshake, `init_state_o` telemetry (extracted from the scheduler plane 2026-10-15; granite instantiates the identical plane) | [common_mas ch10](../../../../../common-ip/docs/common_mas/ch10_init_plane/01_mc_init_plane.md) |
+| `mc_scheduler_plane` | pick machinery, timers, generic maintenance slot, in external-init mode (`HAS_INIT_SEQUENCER=0`, `HAS_MODE_REGISTER=0`), plus its DDR2/LPDDR2 children `mc_xddr2_refresh_ctrl` and `mc_page_policy` | [common_mas ch04](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) |
 | `mc_training_plane` | LPDDR2 ZQ (`mc_lpddr2_zq_ctrl`) and DQ calibration (`mc_lpddr2_dq_cal`) behind the two-slot arbiter and `mc_training_shell` CDC | [common_mas ch05](../../../../../common-ip/docs/common_mas/ch05_training_plane/01_mc_training_plane.md) |
 | `mc_dfi_2p1_plane` | DFI 2.1 command/data pipeline (`mc_xddr2_cmd_formatter` inside `mc_dfi_cmd_path`) + the single aclk↔dfi_clk CDC | [common_mas ch07](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md) |
 

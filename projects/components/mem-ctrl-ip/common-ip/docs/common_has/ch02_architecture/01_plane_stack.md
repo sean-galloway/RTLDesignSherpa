@@ -62,7 +62,8 @@ per-block microarchitecture is in
 |---|---|---|---|
 | `mc_axi4_plane` | Turn host AXI4 traffic into memory-command descriptors | AXI4 slave intakes, shallow FIFOs, burst chop/split, address mapping (`mc_addr_mapper` inside each intake), the B response; the read return ring and the R source select (DRAM or snarf) | Scheduling; the DRAM data path |
 | `mc_storage_plane` | Hold the schedulable-entry pool | rd/wr CAMs (`mc_rd_cmd_cam`, `mc_wr_data_cam` with its write-data slots), the read-your-writes snarf, the write commit stream to the DFI plane | The pick itself; DRAM command encoding; address mapping |
-| `mc_scheduler_plane` | Pick the next DRAM command | The schedulable-entry view contract, bank/global timers, command arbiter, init sequencer, mode register, refresh controller, page policy, the command queue, the maintenance port | Where entries are stored (that is the storage plane's job); PHY timing |
+| `mc_init_plane` | Bring the DRAM up and keep its mode-register shadow | The JEDEC init sequencer (`mc_xddr2_init_sequencer`), the per-rank mode-register shadow + live CL/CWL/BL decode (`mc_xddr2_mode_register`), the DFI PHY init handshake, init command injection into the scheduler plane's external-init port, `init_state_o` bring-up telemetry | Scheduling; refresh; the CSR/APB hot-update path for mode registers (future — `mr_seq_we` remains the only writer) |
+| `mc_scheduler_plane` | Pick the next DRAM command | The schedulable-entry view contract, bank/global timers, command arbiter, refresh controller, page policy, the command queue, the maintenance port, the external-init command injection point (`HAS_INIT_SEQUENCER=0` mode) | Where entries are stored (that is the storage plane's job); PHY timing; init sequencing and the MR shadow (owned by `mc_init_plane` since 2026-10-15 — the scheduler plane keeps its internal-init generate only for legacy wrappers, and scoria's wrapper still uses that mode) |
 | `mc_ras_plane` (optional) | Reliability transforms on the data path | ECC insert/check as a transform pair, scrub as a maintenance client | Anything when not instantiated — its absence is a true bypass, not a stub |
 | `mc_training_plane` | The training control plane as a maintenance client | ZQ calibration control, DQ calibration (MRR), the maintenance slot select that carries them, the calibration sideband to the DFI read aligner | The training *search* (PHY responsibility, per doctrine — the family doc's boundary rule) |
 | `mc_dfi_NpM_plane` | Deliver commands and data to the PHY at a DFI revision | Command formatter/pipeline, write serializer, read aligner, the aclk↔dfi_clk CDC — per generation: `dfi_2p1_plane`, `dfi_3p1_plane`, `dfi_4p0_plane` | Scheduling decisions; training searches |
@@ -103,15 +104,19 @@ not an omission.
 ## What the rocks own
 
 For the DDR2 / LPDDR2 rocks, the generation-specific scheduler children have
-already been extracted: `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`,
-`mc_xddr2_refresh_ctrl` and `mc_page_policy` live in common-ip, and the common
-`mc_scheduler_plane` instantiates them behind `HAS_*` parameters (pumice and
-granite use it; that is what the whole-unit figure draws). Scoria and
-andesite still keep their generation's blocks rock-side, by the two-customer
-rule: `scoria_scheduler_plane` and `andesite_scheduler_plane` are rock
-wrappers that instantiate the rock's children and map the rock's maintenance
-source into the generic maintenance slot
-([mc_scheduler_knobs.md](../../mc_scheduler_knobs.md) §6 documents the union
-that made this possible). When a second customer appears for one of those
-blocks — the refresh controller family is the leading candidate — the
+already been extracted: `mc_xddr2_init_sequencer` and `mc_xddr2_mode_register`
+compose the `mc_init_plane` (2026-10-15 — extracted from the scheduler plane
+so init is a first-class plane both rocks instantiate identically), and
+`mc_xddr2_refresh_ctrl` and `mc_page_policy` remain scheduler-plane children;
+all four live in common-ip. The common `mc_scheduler_plane` instantiates them
+behind `HAS_*` parameters — pumice and granite set
+`HAS_INIT_SEQUENCER=0/HAS_MODE_REGISTER=0` and feed the plane's external-init
+port from `mc_init_plane` (the mode scoria's wrapper already used with its
+own rock-side sequencer). Scoria and andesite still keep their generation's
+blocks rock-side, by the two-customer rule: `scoria_scheduler_plane` and
+`andesite_scheduler_plane` are rock wrappers that instantiate the rock's
+children and map the rock's maintenance source into the generic maintenance
+slot ([mc_scheduler_knobs.md](../../mc_scheduler_knobs.md) §6 documents the
+union that made this possible). When a second customer appears for one of
+those blocks — the refresh controller family is the leading candidate — the
 extraction follows the same rule that produced this stack.

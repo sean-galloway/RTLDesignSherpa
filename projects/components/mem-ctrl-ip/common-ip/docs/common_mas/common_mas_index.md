@@ -83,3 +83,12 @@ the two disagree, the HAS wins and this book is the defect.
 ### Chapter 9: `mc_dfi_4p0_plane`
 
 - [`mc_dfi_4p0_plane` — the 4.0 generation delta](ch09_dfi_4p0_plane/01_mc_dfi_4p0_plane.md)
+
+### Chapter 10: `mc_init_plane`
+
+- [`mc_init_plane` — JEDEC init, MR shadow, PHY handshake](ch10_init_plane/01_mc_init_plane.md)
+
+> Command-flow order (per the family HAS plane stack) places the init plane
+> between the storage plane and the scheduler plane; it is filed as chapter
+> 10 so chapters 2–9 keep stable paths for inbound links. The architecture
+> statement is the HAS stack, not the chapter number.

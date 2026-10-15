@@ -18,7 +18,8 @@ anything marked TBD is decided at bring-up.
 |---|---|
 | `mc_axi4_plane` | Lite SKU widths at instantiation (data width per board fabric — TBD). |
 | `mc_xddr2_entry_store` | **Storage-lite seam** (ch5.2 v2 default): `GRANITE_SEAM_N = 8`, in-order seam — allocates in-order so the seam behaves as an N-deep FIFO per direction while the scheduler argmaxes over the entry vectors (same pick machinery pumice runs at `NUM_ENTRIES = 8`). Depth 8 hides the read round-trip latency (~5 outstanding needed at BL8). Storage "off" shrinks toward one, never to zero. Replaces `mc_storage_plane`. |
-| `mc_scheduler_plane` | Full pick machinery (FR-FCFS + age). Common v2 children compose per wrapper dissolution: `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl` (reduced option set), `mc_page_policy`. Command history checker omitted in this SKU. |
+| `mc_init_plane` | JEDEC init sequencing, mode-register shadow + CL/CWL/BL decode, DFI PHY init handshake, `init_state_o` telemetry. Common to both xDDR2 rocks; identical instantiation in pumice. |
+| `mc_scheduler_plane` | Full pick machinery (FR-FCFS + age), external-init mode (`HAS_INIT_SEQUENCER=0`, `HAS_MODE_REGISTER=0`): init commands arrive from `mc_init_plane` through the external-init port. Common v2 children: `mc_xddr2_refresh_ctrl` (reduced option set), `mc_page_policy`. Command history checker omitted in this SKU. |
 | `mc_training_plane` | Shell composing the common LPDDR2 clients: `mc_lpddr2_zq_ctrl`, `mc_lpddr2_dq_cal`. DDR2 has no ZQ/DQ-cal maintenance requirement. |
 | `mc_storage_plane` | **Absent** — replaced by `mc_xddr2_entry_store` above. |
 | `mc_ras_plane` | **Absent** — true bypass: no transform pair instantiated, no scrub; only the reserved CSR decode. Omission, not a parameter. |

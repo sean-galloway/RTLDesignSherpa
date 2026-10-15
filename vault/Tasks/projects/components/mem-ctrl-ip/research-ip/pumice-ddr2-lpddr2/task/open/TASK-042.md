@@ -10,6 +10,18 @@
 **Status:** open
 **Owner:** TBD
 
+> **2026-10-15 status (mc_init_plane work):** the runtime-ZQ RTL is common
+> (`common-ip/rtl/fub/mc_lpddr2_zq_ctrl.sv`, composed by `mc_training_plane`)
+> and is now DV-verified at two levels: the fub test drives `demand_i`
+> directly and proves the full Mode-C policy (defer, overdue-cap → ZQCL,
+> exit-on-demand-loss, grant-wait overdue); the macro test proves the
+> composed-plane behavior (periodic ZQCS, gating, DQ-cal MRR32/40 flow).
+> Two caveats for the board exercise: (1) `mc_training_plane.sv:125` ties
+> `demand_i` to 1'b0, so DEFER/ZQCL/overdue are unreachable in the
+> composition until ISSUE-021 resolves — shipped behavior is periodic ZQCS
+> only; (2) the DQ-cal *search* remains PHY-side per doctrine. Board
+> bring-up and REFpb runtime exercise remain open below.
+
 Pumice's LPDDR2 support today is real but init-centric: the init sequencer
 runs the JEDEC LPDDR2 MRW chain (Reset -> ZQ(MR10) -> MR1 -> MR2 -> MR3),
 and `refresh_ctrl` carries the REFpb (per-bank) framework. Both memtypes

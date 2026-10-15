@@ -83,6 +83,20 @@ The LPDDR2 branch reuses the same CSR waits as DDR2: `t_init_wait` covers both
 tINIT and tINIT4, `t_dll_wait` covers tZQINIT, and `t_mrd_wait` covers the
 post-MRW tMRW delay.
 
+The MR1/2/3 OP data is CSR-backed (`LP_MR1_OP` 0x180, `LP_MR2_OP` 0x184,
+`LP_MR3_OP` 0x188; resets 0x23 / 0x01 / 0x02) — the values above are the JEDEC
+defaults. Software can retune BL/nWR/RL/WL/drive strength at bring-up, and
+sweep the values to defeat a scrambled CA/A-lane board mapping (the same
+escape hatch as the DDR2 `MRx.VAL` registers). A change takes effect on the
+next init: `CTRL.init_force_restart` re-runs the MRW chain with the current
+CSR values, or re-reset the controller. Verified end-to-end by the
+`lp_mr_op_csr_sweep_lpddr2` top test, which sweeps the CSRs and checks the
+swept values in the DFI slave's decoded CA MRW stream.
+
+Since 2026-10-15 the sequencer and the mode-register shadow compose the
+common `mc_init_plane` (family MAS ch10); the sequencing documented here is
+unchanged.
+
 LPDDR2 is now fully functional in sim: reads and writes, bit-exact JESD209-2F CA
 encoding, and the full MR init chain above.
 
@@ -90,7 +104,10 @@ encoding, and the full MR init chain above.
 
 The JEDEC inter-command delays were previously hardcoded; they are now driven by
 CSR fields (zero-extended to the 16-bit internal countdown). All counts are in
-MC (`aclk`) cycles.
+MC (`aclk`) cycles — **and are therefore MC-frequency-dependent: when the
+controller clock frequency changes (including the 75 MHz ↔ 100 MHz build
+switch), re-derive every `INIT_TIMING*` value from the JEDEC minimums for the
+new period.** The same caution applies to every timing CSR in this book.
 
 | CSR field                  | Purpose                | Reset value |
 |----------------------------|------------------------|-------------|
