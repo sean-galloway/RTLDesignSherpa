@@ -2,7 +2,7 @@
 
 # amber — bugs
 
-**Next ID: BUG-002** — never recycle a number, even when its item closed.
+**Next ID: BUG-003** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,3 +21,4 @@ by construction rather than by discipline.
 ## Open
 
 - [BUG-001](open/BUG-001.md) — miss_fill_macro func cell: 3-check divergence at one lockstep transaction, load-dependent, no deterministic repro yet
+- [BUG-002](open/BUG-002.md) — pair rig full: deterministic cross-cache deadlock (MISS_FILL x SNOOP) at SEED=45207; reproducer inside
