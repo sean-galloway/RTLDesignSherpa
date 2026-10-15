@@ -33,7 +33,7 @@ The CPU-side port is **two house-GAXI streams** (amber D2) —
 `wr_valid`/`wr_ready`/`wr_data` in, `rd_valid`/`rd_ready`/`rd_data` out.
 The house GAXI pattern and its plumbing (`gaxi_skid_buffer`,
 `gaxi_fifo_sync`) are documented with the `rtl/amba/gaxi/` modules, not
-restated here. `amber_cpu_frontend` is the slave: it receives the
+restated here. `l1_cpu_frontend` is the slave: it receives the
 request stream and drives the response stream.
 
 Request stream (CPU → amber, slave input):
@@ -62,12 +62,12 @@ agent prefers named fields at the boundary, the flattened per-field view
 same payload — the packed GAXI streams are the contract; naming is RTL
 bring-up detail.
 
-The frontend latches the accepted request and holds it until `amber_control`
+The frontend latches the accepted request and holds it until `l1_control`
 returns the response. Because the cache is blocking, the response stream is
 naturally in-order and carries no ID tags. Write-allocate fills are
-read-modify-write sequences inside `amber_control`; the GAXI slave itself
+read-modify-write sequences inside `l1_control`; the GAXI slave itself
 sees only single-beat reads and writes.
 
 ## No register block
 
-amber is a parameter-only IP. There is no APB CSR or register block. All visibility — configuration, event counting, and debug — comes through the MonBus observation fabric (`amber_monlite`). This is a deliberate decision, not an omission, and it keeps the CPU-side port the only software-visible surface.
+amber is a parameter-only IP. There is no APB CSR or register block. All visibility — configuration, event counting, and debug — comes through the MonBus observation fabric (`l1_monlite`). This is a deliberate decision, not an omission, and it keeps the CPU-side port the only software-visible surface.

@@ -23,7 +23,7 @@
 
 # amber — Blocking MESI Snoopy L1 Cache — Hardware Architecture Specification
 
-**Version:** 0.8
+**Version:** 0.9
 **Date:** 2026-10-11
 **Status:** full HAS ratifies the Pre-HAS sketch; book-informed pass folded Chinnakonda multiprocessor-cache material into coherence FSM, snoop adapter, and future hooks as candidates/hooks. All PRD decisions D1–D11 are DECIDED (D3 and D11 decided PRD v0.6, 2026-10-07; chapter hedges closed in this revision). Rulings recorded 2026-10-11 (Sean): RACK/WACK omitted from the family ACE contract (wrapper auto-pulse deprecated, removal tracked as A5); CD-before-CR convention confirmed.
 
@@ -68,11 +68,11 @@
 - [Fabric-Side AXI4 Masters](ch04_interfaces/02_fabric_axi4.md)
 - [Fabric-Side ACE Masters and Coherent Issue](ch04_interfaces/03_fabric_ace.md)
 - [Snoop Port: AC/CD/CR Adapter](ch04_interfaces/04_snoop_accdcr.md)
-- [Observation: MonBus through amber_monlite](ch04_interfaces/05_observation_monbus.md)
+- [Observation: MonBus through l1_monlite](ch04_interfaces/05_observation_monbus.md)
 
 ### Chapter 5: Parameters
 
-- [amber_pkg and Build-Time Geometry](ch05_parameters/01_parameters.md)
+- [l1_pkg and Build-Time Geometry](ch05_parameters/01_parameters.md)
 
 ### Chapter 6: Integration
 

@@ -67,16 +67,16 @@ scoreboard checks every CRRESP against this table, and
 
 ## Snoop flow
 
-Figure 3.2 shows the probe path. The ACE adapter decouples ACE signaling from the cache core: inside `amber_core` the snoop is a bus-agnostic `{address, type, response, data}` transaction; only `amber_snoop_resp` speaks ACE.
+Figure 3.2 shows the probe path. The ACE adapter decouples ACE signaling from the cache core: inside `l1_core` the snoop is a bus-agnostic `{address, type, response, data}` transaction; only `l1_snoop_resp` speaks ACE.
 
 ```mermaid
 sequenceDiagram
     participant PEER as peer cache / onyx
-    participant ADAPTER as amber_snoop_resp
-    participant CTRL as amber_control
-    participant TAG as amber_tag_array
+    participant ADAPTER as l1_snoop_resp
+    participant CTRL as l1_control
+    participant TAG as l1_tag_array
     participant BYPASS as pending-fill bypass reg
-    participant DATA as amber_data_array
+    participant DATA as l1_data_array
 
     PEER->>ADAPTER: ACVALID / ACADDR / ACSNOOP
     ADAPTER->>CTRL: snoop address + type

@@ -21,15 +21,15 @@
 
 <!-- End Header -->
 
-# Observation: MonBus through amber_monlite
+# Observation: MonBus through l1_monlite
 
 ## Observation decision
 
-amber observes through `*_monlite` wrappers only, not the heavyweight `_mon` (amber D8). The rationale is measurement integrity: a `_mon` wrapper that stalls the port when its tracking tables fill would corrupt the very miss-latency numbers the cache exists to produce. `amber_monlite` is drop-and-count: packets are emitted when possible, dropped and counted when not, and the observed path never stalls.
+amber observes through `*_monlite` wrappers only, not the heavyweight `_mon` (amber D8). The rationale is measurement integrity: a `_mon` wrapper that stalls the port when its tracking tables fill would corrupt the very miss-latency numbers the cache exists to produce. `l1_monlite` is drop-and-count: packets are emitted when possible, dropped and counted when not, and the observed path never stalls.
 
 ## MonBus packet content
 
-`amber_monlite` emits 128-bit MonBus packets with the standard UNIT/AGENT ids. Event classes:
+`l1_monlite` emits 128-bit MonBus packets with the standard UNIT/AGENT ids. Event classes:
 
 | Event class | Payload highlights |
 |---|---|
@@ -46,4 +46,4 @@ amber observes through `*_monlite` wrappers only, not the heavyweight `_mon` (am
 
 ## Observer cost
 
-The cost of observation is measured in the characterization sweep (Chapter 6.3): LUT/FF/RAM and fmax are reported with `amber_monlite` present and with it removed, so the claim "the observer does not perturb what it measures" is quantified.
+The cost of observation is measured in the characterization sweep (Chapter 6.3): LUT/FF/RAM and fmax are reported with `l1_monlite` present and with it removed, so the claim "the observer does not perturb what it measures" is quantified.

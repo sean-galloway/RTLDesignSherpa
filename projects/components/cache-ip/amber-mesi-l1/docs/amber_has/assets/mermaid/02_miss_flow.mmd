@@ -1,14 +1,14 @@
 sequenceDiagram
     participant CPU as CPU / STREAM
-    participant FE as amber_cpu_frontend
-    participant CTRL as amber_control
-    participant TAG as amber_tag_array
-    participant REPL as amber_repl
-    participant VICTIM as amber_victim
-    participant DRAIN as amber_drain
-    participant FILL as amber_fill
+    participant FE as l1_cpu_frontend
+    participant CTRL as l1_control
+    participant TAG as l1_tag_array
+    participant REPL as l1_repl
+    participant VICTIM as l1_victim
+    participant DRAIN as l1_drain
+    participant FILL as l1_fill
     participant FABRIC as fabric read master
-    participant DATA as amber_data_array
+    participant DATA as l1_data_array
 
     CPU->>FE: read / write request
     FE->>CTRL: accepted request

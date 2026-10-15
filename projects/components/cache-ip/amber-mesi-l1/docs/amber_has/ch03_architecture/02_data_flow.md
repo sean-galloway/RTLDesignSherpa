@@ -25,24 +25,24 @@
 
 ## Hit path
 
-A CPU request accepted by `amber_cpu_frontend` is latched and presented to `amber_control`. The control FSM drives a tag lookup on port A of `amber_tag_array`. On a hit, the state field is checked: read returns data from `amber_data_array` port A; write updates data and promotes the line to Modified. The response returns through the front end in the same transaction.
+A CPU request accepted by `l1_cpu_frontend` is latched and presented to `l1_control`. The control FSM drives a tag lookup on port A of `l1_tag_array`. On a hit, the state field is checked: read returns data from `l1_data_array` port A; write updates data and promotes the line to Modified. The response returns through the front end in the same transaction.
 
 ## Miss path
 
-On a miss, `amber_repl` selects the victim way. If the victim is dirty, it is moved to `amber_victim` and `amber_drain` issues a write-back burst. Once the victim path is clear, `amber_fill` issues a read burst. Returned beats write `amber_data_array` port A; the tag and MESI state are installed; the original request replays from the front-end latch. Figure 3.1 shows the sequence.
+On a miss, `l1_repl` selects the victim way. If the victim is dirty, it is moved to `l1_victim` and `l1_drain` issues a write-back burst. Once the victim path is clear, `l1_fill` issues a read burst. Returned beats write `l1_data_array` port A; the tag and MESI state are installed; the original request replays from the front-end latch. Figure 3.1 shows the sequence.
 
 ```mermaid
 sequenceDiagram
     participant CPU as CPU / STREAM
-    participant FE as amber_cpu_frontend
-    participant CTRL as amber_control
-    participant TAG as amber_tag_array
-    participant REPL as amber_repl
-    participant VICTIM as amber_victim
-    participant DRAIN as amber_drain
-    participant FILL as amber_fill
+    participant FE as l1_cpu_frontend
+    participant CTRL as l1_control
+    participant TAG as l1_tag_array
+    participant REPL as l1_repl
+    participant VICTIM as l1_victim
+    participant DRAIN as l1_drain
+    participant FILL as l1_fill
     participant FABRIC as fabric read master
-    participant DATA as amber_data_array
+    participant DATA as l1_data_array
 
     CPU->>FE: read / write request
     FE->>CTRL: accepted request
@@ -67,7 +67,7 @@ sequenceDiagram
 
 ## Snoop path
 
-A snoop arrives at `amber_snoop_resp`, is buffered, and is presented to `amber_control`. The control FSM reads `amber_tag_array` port B. If the address matches the pending-fill bypass register, the response is composed from the register's post-fill state and any fill beats already received. Otherwise the tag state determines `CRRESP` and whether `amber_data_array` port B supplies CD beats. The adapter returns CR and CD in order to the requester.
+A snoop arrives at `l1_snoop_resp`, is buffered, and is presented to `l1_control`. The control FSM reads `l1_tag_array` port B. If the address matches the pending-fill bypass register, the response is composed from the register's post-fill state and any fill beats already received. Otherwise the tag state determines `CRRESP` and whether `l1_data_array` port B supplies CD beats. The adapter returns CR and CD in order to the requester.
 
 ## Decided shape: memory-side masters (D3)
 

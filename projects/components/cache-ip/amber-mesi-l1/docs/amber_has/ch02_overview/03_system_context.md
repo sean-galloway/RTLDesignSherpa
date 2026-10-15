@@ -47,4 +47,4 @@ In the onyx rig, `amber_ace` behaves as an ACE master toward `onyx` and a snoop 
 
 ## Shared core, different tops
 
-Both rigs instantiate the same `amber_core`. The CPU-side front end, the tag/data arrays, the control FSM, the replacement engine, and the snoop responder are identical. Only the fabric master stack and the coherent-transaction issuer differ, and that difference lives in the top wrapper, not in the core.
+Both rigs instantiate the same `l1_core`. The CPU-side front end, the tag/data arrays, the control FSM, the replacement engine, and the snoop responder are identical. Only the fabric master stack and the coherent-transaction issuer differ, and that difference lives in the top wrapper, not in the core.

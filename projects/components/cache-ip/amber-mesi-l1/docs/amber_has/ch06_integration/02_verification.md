@@ -38,13 +38,13 @@ SymbiYosys is scoped to the control layer and proven at the tiny 16-set / 2-way 
 - No stale data served after an external write (pending-fill bypass correctness).
 - No deadlock or livelock under fair arbitration.
 - Victim-buffer handoff correctness.
-- `amber_snoop_resp` AC/CR/CD ordering.
+- `l1_snoop_resp` AC/CR/CD ordering.
 
 The proof surface is intentionally narrow: proving the whole cache data path at default geometry is not the goal; proving the control and snoop-responder logic that correctness depends on is.
 
 ## Python reference model
 
-The Python reference model and the FSM oracles derive from the gem5 Ruby `MESI_Two_Level` SLICC tables (D9). `L1cache.sm`'s enumerated transient states are the source for the `amber_pkg` state encoding. Every stable and transient transition is cross-checked against the executable protocol spec, not prose.
+The Python reference model and the FSM oracles derive from the gem5 Ruby `MESI_Two_Level` SLICC tables (D9). `L1cache.sm`'s enumerated transient states are the source for the `l1_pkg` state encoding. Every stable and transient transition is cross-checked against the executable protocol spec, not prose.
 
 ## MonBus coverage
 

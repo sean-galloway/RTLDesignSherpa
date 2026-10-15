@@ -23,7 +23,7 @@
 
 # Block Diagram
 
-Figure 2.1 shows the shared `l1_core` (in `cache-ip/common-ip`, formerly `amber_core`) and the two rig tops that instantiate it, `amber_top` and `amber_ace_top`. The core is rig-agnostic: the CPU-side front end, control FSM, arrays, replacement engine, fill/drain engines, snoop responder, and observation wrapper are identical in both configurations. The pair-rig top adds plain AXI4 masters to memory (`axi4_master_rd/wr_monlite`); the onyx-rig top adds ACE masters (`axi4ace_master_rd/wr_monlite`) and the `amber_ace_issue` coherent-transaction issuer. Both tops merge three MonBus streams with a `monbus_arbiter`.
+Figure 2.1 shows the shared `l1_core` (in `cache-ip/common-ip`, formerly `l1_core`) and the two rig tops that instantiate it, `amber_top` and `amber_ace_top`. The core is rig-agnostic: the CPU-side front end, control FSM, arrays, replacement engine, fill/drain engines, snoop responder, and observation wrapper are identical in both configurations. The pair-rig top adds plain AXI4 masters to memory (`axi4_master_rd/wr_monlite`); the onyx-rig top adds ACE masters (`axi4ace_master_rd/wr_monlite`) and the `amber_ace_issue` coherent-transaction issuer. Both tops merge three MonBus streams with a `monbus_arbiter`.
 
 ![amber whole unit: CPU front end, cache control, tag and data arrays, fill and drain engines, snoop responder, monitor merge](../assets/graphviz/01_block_diagram.png)
 

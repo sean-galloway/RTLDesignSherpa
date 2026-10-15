@@ -25,13 +25,13 @@
 
 ## The blocking pipeline
 
-`amber_control` implements the cache's only state machine. It moves through a fixed sequence per request:
+`l1_control` implements the cache's only state machine. It moves through a fixed sequence per request:
 
 1. **Lookup** — read tag and state for the request's set on port A.
 2. **Hit service** — read or write the data array and return the response.
-3. **Miss resolution** — on a miss, ask `amber_repl` for a victim way.
-4. **Victim drain** — if the victim is dirty, stage it in `amber_victim` and hand it to `amber_drain`.
-5. **Fill request** — launch `amber_fill` for a whole-line burst.
+3. **Miss resolution** — on a miss, ask `l1_repl` for a victim way.
+4. **Victim drain** — if the victim is dirty, stage it in `l1_victim` and hand it to `l1_drain`.
+5. **Fill request** — launch `l1_fill` for a whole-line burst.
 6. **Fill completion** — write data and install tag + MESI state.
 7. **Replay** — re-present the original request from the front-end latch; it now hits.
 
@@ -39,7 +39,7 @@ Because the pipeline is blocking, no new CPU request is accepted while a miss is
 
 ## Pending-fill bypass register
 
-While a fill is outstanding, a snoop may arrive for the same line. `amber_control` keeps one pending-fill register holding `{line_address, state_being_installed, data_available_mask}`. A snoop matching the pending line is answered from the register:
+While a fill is outstanding, a snoop may arrive for the same line. `l1_control` keeps one pending-fill register holding `{line_address, state_being_installed, data_available_mask}`. A snoop matching the pending line is answered from the register:
 
 - `CRRESP` reflects the post-fill state (e.g., Shared for a read-shared fill, Exclusive for a read-unique fill, Invalid for a line that will be invalidated by the requester's MakeUnique).
 - Required CD beats are forwarded from the fill stream as the beats arrive, so the response is bounded both for hits and for misses.

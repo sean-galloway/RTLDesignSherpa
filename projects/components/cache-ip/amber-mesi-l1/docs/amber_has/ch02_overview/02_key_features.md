@@ -34,7 +34,7 @@
 | ACE-shaped snoop responder | AC/CR/CD adapter facing peer or onyx; bus-agnostic inside. | D4 |
 | Pending-fill bypass register | Probe-during-fill answered from the register, bounded and state-accurate. | F9 |
 | Two tops on one core | `amber` for the pair rig, `amber_ace` for the onyx rig; no mode parameter. | F12 |
-| MonBus observation | `amber_monlite` emits 128-bit packets; drop-and-count, never stalls the observed path. | D8 |
+| MonBus observation | `l1_monlite` emits 128-bit packets; drop-and-count, never stalls the observed path. | D8 |
 
 : Table 2.0: Key features and their decisions
 

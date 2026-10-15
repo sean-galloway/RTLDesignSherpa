@@ -25,7 +25,7 @@
 
 ## Clock domain
 
-amber is a single-clock IP. The CPU-side GAXI port, the cache core, the fabric masters, and the snoop adapter all run on `aclk`. There are no CDC paths inside `amber_core`; the house AXI/ACE wrappers handle any external CDC if the fabric runs at a different frequency.
+amber is a single-clock IP. The CPU-side GAXI port, the cache core, the fabric masters, and the snoop adapter all run on `aclk`. There are no CDC paths inside `l1_core`; the house AXI/ACE wrappers handle any external CDC if the fabric runs at a different frequency.
 
 ## Reset
 
@@ -33,8 +33,8 @@ All flops use the `ALWAYS_FF_RST` macro with active-low asynchronous assertion, 
 
 ## Reset sequence
 
-After reset deassertion, `amber_control` starts in the idle state. The tag and data arrays contain undefined values until the first accesses fill them. The front end accepts no request until the control FSM is idle and ready. There is no explicit cache invalidation hardware; invalidation is the natural state of unaccessed lines because the MESI state field is not reset and the first access to any set treats a mismatching/invalid tag as a miss.
+After reset deassertion, `l1_control` starts in the idle state. The tag and data arrays contain undefined values until the first accesses fill them. The front end accepts no request until the control FSM is idle and ready. There is no explicit cache invalidation hardware; invalidation is the natural state of unaccessed lines because the MESI state field is not reset and the first access to any set treats a mismatching/invalid tag as a miss.
 
 ## Clock gating
 
-The ACE master and snoop adapter modules expose `busy` outputs. These can be used by the top-level clock-gating cell to shut off the fabric-side clock when the cache is quiescent. The core's `busy` signal is `amber_control`'s non-idle state OR the pending-fill bypass register valid bit OR any skid-buffer occupancy in the adapters.
+The ACE master and snoop adapter modules expose `busy` outputs. These can be used by the top-level clock-gating cell to shut off the fabric-side clock when the cache is quiescent. The core's `busy` signal is `l1_control`'s non-idle state OR the pending-fill bypass register valid bit OR any skid-buffer occupancy in the adapters.

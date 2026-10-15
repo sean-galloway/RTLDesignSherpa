@@ -26,10 +26,10 @@
 | Field | Value |
 |-------|-------|
 | Title | amber — Blocking MESI Snoopy L1 Cache — Hardware Architecture Specification |
-| Version | 0.8 |
+| Version | 0.9 |
 | Date | 2026-10-11 |
 | Status | HAS ratifies the Pre-HAS sketch; book-informed pass folded Chinnakonda multiprocessor-cache material into coherence FSM, snoop adapter, and future hooks as candidates/hooks. All PRD decisions D1–D11 are DECIDED (D3, D11: PRD v0.6, 2026-10-07; chapter hedges closed in this revision). Rulings recorded 2026-10-11 (Sean): RACK/WACK omitted from the family ACE contract (wrapper auto-pulse deprecated, removal tracked as A5); CD-before-CR convention confirmed. |
-| Scope | `amber` and `amber_ace` tops, the shared `amber_core`, interfaces, parameters, and integration rules for the pair rig and the onyx rig. |
+| Scope | `amber` and `amber_ace` tops, the shared `l1_core`, interfaces, parameters, and integration rules for the pair rig and the onyx rig. |
 | Not in scope | Lockup-free miss handling (jet), directory-based coherence, L2/L3, ECC, TLBs, multi-port CPU issue, ACE DVM and barrier semantics. |
 
 : Table 0.1: Document information
@@ -69,6 +69,7 @@
 | 0.6 | 2026-10-11 | Book-informed pass: Chinnakonda multiprocessor-cache material folded into coherence FSM, snoop adapter, and future hooks as candidates/hooks; nothing newly decided. |
 | 0.7 | 2026-10-11 | Owner rulings recorded: RACK/WACK omitted from the family ACE contract (wrapper auto-pulse deprecated, removal tracked as A5); CD-before-CR convention confirmed. |
 | 0.8 | 2026-10-11 | Erratum: D3/D11 closed to DECIDED per PRD v0.6 (2026-10-07) — status lines, purpose, top-structure, data-flow, and future-hooks wording updated; no architectural content change. |
+| 0.9 | 2026-10-15 | `l1_*` rename sweep (RTL commit 79dc18ccb) across all chapters and mermaid assets. ACE issue #106 (2594d73bb): Table 4.2 read misses issue `ReadNotSharedDirty`, `CleanUnique`/`MakeUnique` on AR with spec encodings, PassDirty consumed (installs M). PF_GUARD parameter documented (BUG-002, ab308d108) in arbitration chapter and Table 5.0. |
 
 : Table 0.3: Revision history
 

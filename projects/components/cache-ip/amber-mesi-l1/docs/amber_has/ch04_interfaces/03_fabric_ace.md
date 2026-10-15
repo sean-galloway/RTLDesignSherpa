@@ -33,14 +33,14 @@
 
 | Cache event | ACE transaction | Snoop field |
 |---|---|---|
-| read miss, shared intent | `ReadShared` | `fub_axi_arsnoop[3:0]` = `ReadShared` encoding |
-| read miss, exclusive intent | `ReadUnique` | `fub_axi_arsnoop[3:0]` = `ReadUnique` encoding |
-| write to Shared line | `CleanUnique` | `fub_axi_awsnoop[2:0]` = `CleanUnique` encoding |
-| write to Invalid line (whole line) | `MakeUnique` | `fub_axi_awsnoop[2:0]` = `MakeUnique` encoding |
+| read miss, shared intent | `ReadNotSharedDirty` | `fub_axi_arsnoop[3:0]` = `ReadNotSharedDirty` encoding (0x3) — issue #106 |
+| read miss, exclusive intent | `ReadUnique` | `fub_axi_arsnoop[3:0]` = `ReadUnique` encoding (0x7) |
+| write to Shared line | `CleanUnique` | `fub_axi_arsnoop[3:0]` = `CleanUnique` encoding (0xB) — AR channel, issue #106 |
+| write to Invalid line (whole line) | `MakeUnique` | `fub_axi_arsnoop[3:0]` = `MakeUnique` encoding (0xC) — AR channel, issue #106 |
 | dirty eviction | `WriteBack` | `fub_axi_awsnoop[2:0]` = `WriteBack` encoding |
 | clean eviction | `Evict` | `fub_axi_awsnoop[2:0]` = `Evict` encoding |
 
-: Table 4.2: Cache events to ACE transactions
+: Table 4.2: Cache events to ACE transactions (post-#106, commit 2594d73bb)
 
 ## House-module pin contracts — not restated here
 
@@ -57,10 +57,13 @@ contracts is exactly four facts:
   `ARBAR` / `AWBAR` to `0b00` (normal access): every amber transaction is
   coherent, the rig has one shareability domain, and amber issues no
   barriers (onyx D8);
-- `RRESP[3:2]` (IsShared, PassDirty) is carried and monitored but not
-  consumed: install state follows the request class (`ReadShared` -> S,
-  `ReadUnique` -> M), so amber relies on its manager never answering a
-  `ReadShared` with PassDirty set (MAS Chapter 3.3);
+- `RRESP[3:2]` (IsShared, PassDirty) is consumed since issue #106 (commit
+  `2594d73bb`): a `PassDirty` response installs **M** regardless of request
+  class (the fill engine forwards `fill_pass_dirty` to `l1_control`), so a
+  received dirty line keeps its write-back responsibility. Default installs
+  are unchanged (`ReadShared`/`ReadNotSharedDirty` -> S, `ReadUnique` -> M).
+  Read misses issue `ReadNotSharedDirty` precisely so the manager may pass
+  dirty legally (MAS Chapter 3.3);
 - `m_axi_rack` / `m_axi_wack` are **auto-pulsed inside the adapters** one
   cycle after the last R beat / the B handshake. The family contract
   omits RACK/WACK (ruling 2026-10-11 (Sean)); the auto-pulse is retained

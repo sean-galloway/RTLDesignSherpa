@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# amber_pkg and Build-Time Geometry
+# l1_pkg and Build-Time Geometry
 
 ## Parameter philosophy
 
@@ -38,6 +38,7 @@ amber is a parameter-only IP. All geometry, policy, and bus-width choices are el
 | `REPL_POLICY` | `"LRU"` | `lru`, `tree_plru`, `fifo`, `random` | replacement policy |
 | `WRITE_POLICY` | `"wb_wa"` | `wb_wa`, `wt_na` | write-back/write-allocate or write-through/no-allocate bring-up mode |
 | `VICTIM_DEPTH` | 1 | 1–2 | dirty victim buffer depth |
+| `PF_GUARD` | `1'b0` (`amber_top` sets 1) | 0–1 | grant a pending-fill snoop against fill data only when the fill is in flight; guards the pair-rig deadlock of BUG-002 |
 
 : Table 5.0: Core elaboration parameters
 
@@ -51,8 +52,8 @@ amber is a parameter-only IP. All geometry, policy, and bus-width choices are el
 
 ## Package contents
 
-`amber_pkg` holds the parameter defaults, derived localparams, MESI state encodings, the replacement-policy enum, the write-policy enum, and the transaction-type encodings used by `amber_ace_issue`. The FSM oracles and the Python reference model both derive from the same gem5 Ruby `MESI_Two_Level` SLICC tables, so the encoding in `amber_pkg` is the single source of truth for RTL and DV.
+`l1_pkg` holds the parameter defaults, derived localparams, MESI state encodings, the replacement-policy enum, the write-policy enum, and the transaction-type encodings used by `amber_ace_issue`. The FSM oracles and the Python reference model both derive from the same gem5 Ruby `MESI_Two_Level` SLICC tables, so the encoding in `l1_pkg` is the single source of truth for RTL and DV.
 
 ## Rig is not a parameter
 
-There is no `RIG` parameter. The pair rig and the onyx rig are two separate top modules sharing `amber_core` (Pre-HAS Q1, resolved 2026-10-06). Elaboration selects the rig by selecting the top file to compile and instantiate.
+There is no `RIG` parameter. The pair rig and the onyx rig are two separate top modules sharing `l1_core` (Pre-HAS Q1, resolved 2026-10-06). Elaboration selects the rig by selecting the top file to compile and instantiate.

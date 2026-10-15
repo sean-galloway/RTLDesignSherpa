@@ -34,7 +34,7 @@ amber is characterized on the same FPGA boards the repo uses for other component
 | Geometry | default (128 sets / 4 ways / 64 B), tiny (16 sets / 2 ways / 64 B), and boundary points from the 4–32 KiB / 2–8 way range |
 | Replacement policy | LRU, tree-PLRU, FIFO, RANDOM |
 | Rig | `amber` top, `amber_ace` top |
-| Observation | `amber_monlite` present, `amber_monlite` absent |
+| Observation | `l1_monlite` present, `l1_monlite` absent |
 
 : Table 6.0: Characterization sweep dimensions
 
@@ -44,4 +44,4 @@ For each point, the characterization records LUT, FF, RAMB36 (and RAMB18 where r
 
 ## Critical-path expectation
 
-The expected critical path is through `amber_tag_array` port A: address decode → tag compare → hit/miss decision → data-array enable. The dual-port split (port B for snoops) removes snoop traffic from the CPU hit path, so the path should be comparable to a non-snoopy cache of the same geometry plus the CRRESP combinatorial decode in `amber_control`.
+The expected critical path is through `l1_tag_array` port A: address decode → tag compare → hit/miss decision → data-array enable. The dual-port split (port B for snoops) removes snoop traffic from the CPU hit path, so the path should be comparable to a non-snoopy cache of the same geometry plus the CRRESP combinatorial decode in `l1_control`.

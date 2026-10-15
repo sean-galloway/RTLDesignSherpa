@@ -25,7 +25,7 @@
 
 ## Adapter purpose
 
-`amber_snoop_resp` is the ACE-shaped snoop responder (amber D4). It decouples the cache core from ACE signaling: the fabric side speaks real ACE AC/CR/CD; the core side is a bus-agnostic `{address, type, response, data}` transaction.
+`l1_snoop_resp` is the ACE-shaped snoop responder (amber D4). It decouples the cache core from ACE signaling: the fabric side speaks real ACE AC/CR/CD; the core side is a bus-agnostic `{address, type, response, data}` transaction.
 
 ## House-module pin contract — not restated here
 
@@ -39,7 +39,7 @@ at the `fub_acvalid/fub_acready` grant and sources CD beats on
 
 ## Ordering and the family convention
 
-Per the in-repo ACE definition, CR and CD must not be asserted before the AC handshake, and responses are returned in the order of the AC addresses. The book reinforces that ACE snoops carry no ID and the snoop channels are strictly in-order, so the adapter's CR+CD ordering obligation is absolute (Chinnakonda, §7.1, §14.18). amber strengthens this: CD beats complete before CR is asserted for the same transaction, giving onyx a single closed response at a time. Multiple outstanding snoops are buffered by the skid FIFOs inside the adapter; the cache core processes them one at a time because `amber_control` is a single FSM. The response bound is therefore one snoop at a time through the core; the adapter FIFOs absorb any back-pressure.
+Per the in-repo ACE definition, CR and CD must not be asserted before the AC handshake, and responses are returned in the order of the AC addresses. The book reinforces that ACE snoops carry no ID and the snoop channels are strictly in-order, so the adapter's CR+CD ordering obligation is absolute (Chinnakonda, §7.1, §14.18). amber strengthens this: CD beats complete before CR is asserted for the same transaction, giving onyx a single closed response at a time. Multiple outstanding snoops are buffered by the skid FIFOs inside the adapter; the cache core processes them one at a time because `l1_control` is a single FSM. The response bound is therefore one snoop at a time through the core; the adapter FIFOs absorb any back-pressure.
 
 ## RACK/WACK (resolved 2026-10-11)
 
@@ -54,4 +54,4 @@ signals were meant to protect.
 
 ## Bus-agnostic core boundary
 
-The `fub_*` side is the only boundary the cache core sees. If `onyx` is later replaced by a real ACE interconnect, only `amber_snoop_resp` (and the top-level wiring) changes; `amber_core` does not. That was the reason D4 chose an ACE-shaped transport with a thin adapter.
+The `fub_*` side is the only boundary the cache core sees. If `onyx` is later replaced by a real ACE interconnect, only `l1_snoop_resp` (and the top-level wiring) changes; `l1_core` does not. That was the reason D4 chose an ACE-shaped transport with a thin adapter.

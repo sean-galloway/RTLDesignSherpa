@@ -33,10 +33,10 @@ This document specifies amber's hardware architecture. It is written after the P
 
 In scope:
 
-- The two top-level wrappers, `amber` (pair rig) and `amber_ace` (onyx rig), and the shared `amber_core`.
-- CPU-side GAXI slave interface (`amber_cpu_frontend`).
+- The two top-level wrappers, `amber` (pair rig) and `amber_ace` (onyx rig), and the shared `l1_core`.
+- CPU-side GAXI slave interface (`l1_cpu_frontend`).
 - Fabric-side plain AXI4 masters under `amber` and ACE masters plus coherent-issue logic under `amber_ace`.
-- ACE-shaped snoop responder port (`amber_snoop_resp`) toward a peer cache or onyx.
+- ACE-shaped snoop responder port (`l1_snoop_resp`) toward a peer cache or onyx.
 - Blocking control FSM, pending-fill bypass, victim buffer, fill/drain engines, tag/data arrays, replacement policy engine, and observation wrapper.
 - Parameterization, clocking/reset, verification strategy, characterization plan, and future hooks.
 
