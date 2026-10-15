@@ -415,6 +415,15 @@ Designer's generated simulation model of its interconnect.
 Note the order: Intel leg first. The PD flow is the unknown; the bridge leg
 is deterministic given a matched topology.
 
+**Genesys 2 first (2026-10-14).** Until the Quartus tools are online, the
+benchmark runs on the Genesys 2 (Kintex-7), a board where `stream`, the
+host stack and the harness are already proven, with Xilinx's AXI Crossbar
+and SmartConnect as the vendor legs:
+[Genesys 2 fabric benchmark PRD](../../Genesys2/fabric-benchmark/PRD.md).
+Its K0/K1 prove the harness, host programs, sequence files and sim harness
+that M1–M3 then reuse, so the DE10 work reduces to the Quartus flow, the
+JTAG front end and the Platform Designer leg.
+
 ## 8. Success criteria
 
 - Both legs pass the sim harness and then fit and run on the DE10-Standard
