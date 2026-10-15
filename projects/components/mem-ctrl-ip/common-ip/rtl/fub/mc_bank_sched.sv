@@ -336,12 +336,18 @@ module mc_bank_sched
             end
     end
 
+    // All-idle gates for the override grants. Rows closed (+ recovery windows)
+    // is the JEDEC requirement and matches the FRFCFS core's w_ref_safe /
+    // w_maint_safe exactly: PENDING DEMAND DOES NOT BLOCK REFRESH. A pending
+    // head here would deadlock -- the override has priority, so a head that
+    // cannot fire while the override is active (e.g. its column gated)
+    // holds any_head_vld forever and REFab can never grant (found on the A7:
+    // engines hung from the first scenario under the real tREFI=585,
+    // 2026-10-15). The pending entries simply wait out the tRFC.
     logic w_ref_safe, w_refpb_safe, w_maint_safe;
-    assign w_ref_safe   = !w_any_active && !any_head_vld && !w_rfc_busy;
-    assign w_refpb_safe = !r_row_act[RK0][refresh_bank_i] && !any_head_vld
-                       && !w_rfc_busy;
-    assign w_maint_safe = !w_any_active && !any_head_vld
-                       && !w_rfc_busy && !w_zq_busy && !maint_busy_i;
+    assign w_ref_safe   = !w_any_active && !w_rfc_busy;
+    assign w_refpb_safe = !r_row_act[RK0][refresh_bank_i] && !w_rfc_busy;
+    assign w_maint_safe = !w_any_active && !w_rfc_busy && !w_zq_busy && !maint_busy_i;
 
     logic        w_ovr_vld;
     dram_op_e    w_ovr_op;
@@ -575,9 +581,12 @@ module mc_bank_sched
                     r_ws[b].id   <= wr_bh_id_i  [b*IW +: IW];
                     r_ws[b].last <= wr_bh_last_i[b];
                 end
-                // RD skid: same discipline.
+                // RD skid: same discipline (r_op, not w_op -- the RD fire
+                // releases the RD head; checking the WR decode here held the
+                // head past its fire and re-issued the freed slot, MC-003
+                // 2026-10-15).
                 if (w_fire && !w_ovr_vld && (cmd_bank_o == BKW'(b))
-                    && (w_op[b] == OP_RD)) begin
+                    && (r_op[b] == OP_RD)) begin
                     r_rs[b].vld  <= rd_bh2_valid_i[b];
                     r_rs[b].slot <= rd_bh2_slot_i[b*PTRW +: PTRW];
                     r_rs[b].row  <= rd_bh2_row_i [b*ROW_WIDTH +: ROW_WIDTH];

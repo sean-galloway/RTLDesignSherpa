@@ -532,13 +532,9 @@ module granite_core
         .HAS_ZQ        (1'b0),
         .MAINT_EXTRA_WIDTH(1),
         .CLOSE_ON_DRAIN(1'b1),
-        // BANK_FIFO (the per-bank in-order product core, mc_bank_sched) is
-        // LANDED but not yet ENABLED: the first functional run exposed a
-        // head-slot lifetime race (rd issue of an already-freed slot,
-        // granite_core func, 2026-10-15 -- see MC-003). Granite ships on the
-        // FRFCFS core until the race is root-caused on waves; the plumbing,
-        // store head views and filelists are all in place behind this param.
-        .BANK_FIFO     (1'b0),
+        // Debug/enabling in progress (MC-003): BANK_FIFO=1 to root-cause the
+        // rd-slot lifetime race on waves.
+        .BANK_FIFO     (1'b1),
         .HAS_CMD_HISTORY(1'b0),
         .REF_HAS_POSTPONE(1'b0),
         .REF_HAS_PULLIN  (1'b0),
