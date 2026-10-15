@@ -153,20 +153,31 @@ async def cocotb_test_gated(dut):
     cocotb.start_soon(Clock(dut.mc_clk, 10, units="ns").start())
     cocotb.start_soon(Clock(dut.dfi_clk, 14, units="ns").start())
 
-    # init_done = 0: nothing may issue.
+    # init_done = 0: nothing may issue — and cal_start MUST be pulsed here,
+    # or the gate it claims to pin is never exercised (the FSM never leaves
+    # CAL_IDLE without cal_start, gate or no gate).
     await _drive_config(dut, zq_en=1, zq_interval=4, init_done=0)
     await _reset(dut)
+    dut.cal_start.value = 1
+    await RisingEdge(dut.mc_clk)
+    dut.cal_start.value = 0
     for _ in range(100):
         await RisingEdge(dut.mc_clk)
         assert int(dut.trn_cmd_req.value) == 0, "req before init_done"
         assert int(dut.cal_busy.value) == 0
+        assert int(dut.cal_done.value) == 0
 
-    # DDR2 memtype: ZQ/cal are LPDDR2-only.
+    # DDR2 memtype: ZQ/cal are LPDDR2-only — request both, nothing may issue.
     await _drive_config(dut, zq_en=1, zq_interval=4, memtype=MEMTYPE_DDR2)
     await _reset(dut)
+    dut.cal_start.value = 1
+    await RisingEdge(dut.mc_clk)
+    dut.cal_start.value = 0
     for _ in range(100):
         await RisingEdge(dut.mc_clk)
         assert int(dut.trn_cmd_req.value) == 0, "req for DDR2"
+        assert int(dut.cal_busy.value) == 0
+        assert int(dut.cal_done.value) == 0
 
     # zq_en = 0 with LPDDR2: no ZQ requests (cal is gated separately and is
     # exercised by test_dq_cal_mrr32_40).

@@ -252,9 +252,12 @@ JEDEC JESD209-2F §3.4.1 power-up + §3.5 mode registers:
    settle).
 2. MRW(MR63) = Reset (`S_L_RESET`, OP don't-care); wait `W_INIT` (tINIT4).
 3. MRW(MR10) = 0xFF ZQ Init Calibration (`S_L_ZQ`); wait `W_DLL` (tZQINIT).
-4. Configure the device: MRW(MR1) = BL8 / nWR3 (`S_L_MR1`, 0x23),
-   MRW(MR2) = RL3 / WL1 (`S_L_MR2`, 0x01), MRW(MR3) = DS 40ohm
-   (`S_L_MR3`, 0x02) — each followed by `W_MRD` (tMRW).
+4. Configure the device: MRW(MR1) = BL8 / nWR3 (`S_L_MR1`, OP from
+   `lp_mr1_op_i`, reset 0x23), MRW(MR2) = RL3 / WL1 (`S_L_MR2`, `lp_mr2_op_i`,
+   reset 0x01), MRW(MR3) = DS 40ohm (`S_L_MR3`, `lp_mr3_op_i`, reset 0x02) —
+   each followed by `W_MRD` (tMRW). Since 2026-10-15 the OP data is CSR-backed
+   (`LP_MR1/2/3_OP` @ 0x180–0x188); a change takes effect on the next init
+   (`CTRL.init_force_restart` or reset).
 5. `S_DONE`.
 
 The CSR waits are reused: `W_INIT` covers tINIT4, `W_DLL` covers tZQINIT,
@@ -268,13 +271,18 @@ the wide row request by the `mrw_row()` function as `{MA[5:0], OP[7:0]}`
 
 ### LPDDR2 MR values
 
-| Symbol           | OP value | State        | Meaning                       | Shadowed?               |
-|------------------|----------|--------------|-------------------------------|-------------------------|
-| `LPDDR2_MR63_OP` | `0x00`   | `S_L_RESET`  | MRW(63) Reset (OP don't-care). | No — issued, not shadowed (MR63 exceeds the 5-bit index). |
-| `LPDDR2_MR10_OP` | `0xFF`   | `S_L_ZQ`     | MR10 ZQ Init Calibration.     | No — issued, not shadowed. |
-| `LPDDR2_MR1_OP`  | `0x23`   | `S_L_MR1`    | MR1: nWR3 \| BL8.             | Yes (MR1).              |
-| `LPDDR2_MR2_OP`  | `0x01`   | `S_L_MR2`    | MR2: RL3 / WL1.               | Yes (MR2).              |
-| `LPDDR2_MR3_OP`  | `0x02`   | `S_L_MR3`    | MR3: DS 40ohm.                | Yes (MR3).              |
+The MR63/MR10 OP values are JEDEC-fixed localparams; MR1/2/3 OP data arrives
+on the `lp_mr1_op_i` / `lp_mr2_op_i` / `lp_mr3_op_i` ports (CSR `LP_MR1/2/3_OP`,
+resets below). The 0x23/0x01/0x02 defaults are the CSR reset values — the
+former `LPDDR2_MR1_OP/2_OP/3_OP` localparams were removed 2026-10-15.
+
+| Source                | OP value | State        | Meaning                       | Shadowed?               |
+|-----------------------|----------|--------------|-------------------------------|-------------------------|
+| localparam (fixed)    | `0x00`   | `S_L_RESET`  | MRW(63) Reset (OP don't-care). | No — issued, not shadowed (MR63 exceeds the 5-bit index). |
+| localparam (fixed)    | `0xFF`   | `S_L_ZQ`     | MR10 ZQ Init Calibration.     | No — issued, not shadowed. |
+| `lp_mr1_op_i` (reset) | `0x23`   | `S_L_MR1`    | MR1: nWR3 \| BL8.             | Yes (MR1).              |
+| `lp_mr2_op_i` (reset) | `0x01`   | `S_L_MR2`    | MR2: RL3 / WL1.               | Yes (MR2).              |
+| `lp_mr3_op_i` (reset) | `0x02`   | `S_L_MR3`    | MR3: DS 40ohm.                | Yes (MR3).              |
 
 Only MR1 / MR2 / MR3 update the `mc_xddr2_mode_register` shadow (`mr_seq_we_o`), because
 those are the registers that feed the CL/CWL/BL decode. MR63 and MR10 are
