@@ -47,6 +47,12 @@ the grouping but not the single-cycle guarantee.)
 
 - 6 neighbor ports: ±X, ±Y, ±Z. Wrap links are parameterizable per
   dimension (§7.1).
+- 1 diagonal port: P_DIA, to the diagonally-opposite cell of the cell's
+  2×2×1 tetrad (owner decision 2026-10-15: every tetrad is fully
+  connected K4 — 4 perimeter edges over ±X/±Y plus both diagonals).
+  One link per cell, always emitted; the fabric draws one diagonal wire
+  pair per tetrad between (x,y,z) and (x^1,y^1,z). In 3-D, tetrads are
+  planar (X/Y only); Z expansion stays axis-routed.
 - 1 local port (host-facing; rapids at boundary cells).
 - All ports AXI4-Stream: `TDATA/TVALID/TREADY/TLAST` + header sideband in
   `TUSER` (§4). Optional AMBA 5 check/TWAKEUP richness carries over from
@@ -176,7 +182,7 @@ per-cell unicast tables of §5.2) coexists; mode 0 = custom, mode
 switches among standard images, custom tables unaffected by broadcast
 switches.
 
-Standard mode catalog (all 8 modes owner-confirmed 2026-10-13):
+Standard mode catalog (modes 1-8 owner-confirmed 2026-10-13; mode 9 added 2026-10-15):
 
 | Mode | Pattern | Routing/table content | Sources |
 |---|---|---|---|
@@ -188,10 +194,12 @@ Standard mode catalog (all 8 modes owner-confirmed 2026-10-13):
 | 6 Convergecast/reduce | all-to-one reduction tree | reverse-broadcast tables; ocelus counter reduction | [D9][Q7] |
 | 7 All-to-all/transpose | permutations: transpose, shuffle/butterfly stages | per-stage table images | [P1] |
 | 8 Pipeline + rapids-stream | boustrophedon serpentine chain; boundary↔rapids DMA streaming | fixed chain + boundary tables | [P8][Q9] |
+| 9 Tetrad all-to-all (K4) | every 2×2×1 tetrad fully connected: perimeter via ±X/±Y, both diagonals via P_DIA | intra-tetrad table entries route edge-mates 1 hop and the diagonal mate via P_DIA (1 hop); inter-tetrad dsts DOR | owner, 2026-10-15 |
 
 Mode images are data — the same table RAMs and mechanisms as §5.1;
 adding a mode = adding an image + a verification suite, no new hardware
-per mode.
+per mode. (Exception, mode 9: the P_DIA diagonal port of §2.2 is mode-9's
+enabling hardware, emitted in every build.)
 
 ## 6. Deadlock, livelock, QoS
 
@@ -381,7 +389,7 @@ assertion (packet atomicity, as flat mode does).
 | Flat xbar | kept; mesh is a mode | — |
 | Book pulls now | systolic package, perf model, ocelus counters, DFT mode | §15 |
 | Book pulls deferred | §11 | — |
-| Standard modes | broadcast mode-switch w/ ack barrier; catalog §5.4 (all 8 modes confirmed) | [P8][P17][D9][N3] |
+| Standard modes | broadcast mode-switch w/ ack barrier; catalog §5.4 (modes 1-8 confirmed 2026-10-13; mode 9 tetrad K4 added 2026-10-15 with P_DIA diagonal port) | [P8][P17][D9][N3] |
 
 ## 15. References
 

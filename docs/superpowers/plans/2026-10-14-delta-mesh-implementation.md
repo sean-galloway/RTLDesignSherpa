@@ -159,6 +159,23 @@ def test_header_width_formula():
 - [ ] **Step 4: Run all mesh tests + flat regression.**
 - [ ] **Step 5: Commit.**
 
+### Task 6b: Tetrad diagonal links (P_DIA) + mode 9 (tetrad all-to-all K4)
+
+**Files:**
+- Modify: `.../bin/delta_mesh/cell.py` (8th port), `.../bin/delta_mesh/fabric.py` (diagonal wiring), `.../bin/delta_mesh/tables.py` (mode 9 image)
+- Modify (generated): `rtl/delta_mesh_cell.sv`, `rtl/delta_mesh_fabric_4x4x1.sv`, harnesses (`dv/tb/delta_mesh_{cell,fabric_2x2}_th.sv`)
+- Test: extend `.../dv/tests/test_delta_mesh_modes.py` (or new `test_delta_mesh_tetrad.py`)
+
+**Interfaces:**
+- Consumes: Task 6 mode infrastructure (`r_mode`, mode mux, broadcast switch).
+- Produces: cell port list becomes 8: `P_X_NEG=0, P_X_POS=1, P_Y_NEG=2, P_Y_POS=3, P_Z_NEG=4, P_Z_POS=5, P_DIA=6, P_LOCAL=7` (P_LOCAL index MOVES — every harness/TB referencing index 6 must update; port count localparam `NUM_PORTS=8`). Fabric draws one diagonal wire pair per tetrad: cell (x,y,z) `m_axis[P_DIA]` ↔ cell (x^1,y^1,z) `s_axis[P_DIA]`, for all x,y (every cell has exactly one diagonal mate; both parities connect — no dangling P_DIA on any grid). `mode_image(cfg, 9)`: intra-tetrad dsts route 1 hop (edge-mates via the axis port, diagonal mate via P_DIA); inter-tetrad dsts DOR. `check_acyclic` must pass on the mode-9 image.
+
+- [ ] **Step 1: Failing tests** — (a) on the 2x2x1 fabric (a single tetrad): all 12 ordered intra-tetrad pairs delivered in exactly 1 hop (assert the receiving cell is the dst cell and the path has no intermediate — measurable via per-hop latency or by observing only the direct link toggling). (b) diagonal-pair bandwidth: sustained back-to-back packets between diagonal mates (0,0)↔(1,1) with no axis-port traffic — asserts the diagonal link carries full rate (no hidden 2-hop detour: any detour would show axis-port activity). (c) 4x4x1 DOR regression still passes on mode 0/1 (diagonal ports unused, no regression). (d) `check_acyclic(mode 9 image)` passes; a deliberately cyclic 9-variant is rejected.
+- [ ] **Step 2: Run, verify fail.**
+- [ ] **Step 3: Implement** the port addition (emitter: port arrays become `[8]`, DOR/grant/mux logic iterates NUM_PORTS; fabric: diagonal generate wiring; tables: mode 9), regenerate artifacts + harnesses.
+- [ ] **Step 4: Run full gate: modes + tetrad + cell + fabric + flow-control + tables + flat AMBA5 — all green. Verify artifacts byte-reproducible.**
+- [ ] **Step 5: Commit.**
+
 ### Task 7: QoS — strict priority, aging, bulk minimum reservation
 
 **Files:**
