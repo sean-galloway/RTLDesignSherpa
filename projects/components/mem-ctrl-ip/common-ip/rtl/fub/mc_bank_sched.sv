@@ -200,6 +200,24 @@ module mc_bank_sched
     assign w_rfc_busy = (r_rfc_cnt  != 16'd0);
     assign w_zq_busy  = (r_zqcs_cnt != 16'd0);
 
+    // Refresh-pending column block — the FRFCFS core's w_ref_col_block
+    // (mc_cmd_arbiter.sv), mirrored. While a refresh is requested or
+    // draining, demand columns to the affected bank(s) must not fire: a
+    // column launched into the refresh window returns data the aligner
+    // mis-captures and the AR-order return ring wedges behind the lost beat
+    // (MC-003 2026-10-15: READ ENGINE HANG + mismatched beats under tight
+    // tREFI; the FRFCFS core has always blocked these). REFab blocks all
+    // banks; REFpb blocks only the target bank. ACT/PRE are unaffected, so
+    // the refresh drain still completes and the override still grants; the
+    // blocked column waits out the tRFC in its skid — no deadlock (the
+    // all-idle grant does not depend on demand firing).
+    logic [NUM_BANKS-1:0] w_ref_col_block;
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++)
+            w_ref_col_block[b] = (refresh_req_i || refresh_drain_i)
+                              && (!refresh_kind_i || (BKW'(b) == refresh_bank_i));
+    end
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn))      r_rfc_cnt <= '0;
         else if (refresh_grant_o)
@@ -482,7 +500,8 @@ module mc_bank_sched
             else if (w_fis_col)
                 w_fsafe = bank_rdwr_ready_i[RK0][w_sel_bank] && tccd_ok_i
                           && (w_sel_is_rd ? (twtr_ok_i && !w_rd_turn_block)
-                                          : (trtw_ok_i && !w_wr_turn_block));
+                                          : (trtw_ok_i && !w_wr_turn_block))
+                          && !w_ref_col_block[w_sel_bank];
             else if (w_fis_pre)
                 w_fsafe = bank_pre_ready_i[RK0][w_sel_bank];
         end
