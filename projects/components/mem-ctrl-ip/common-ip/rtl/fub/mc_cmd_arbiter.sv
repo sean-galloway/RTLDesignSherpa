@@ -971,32 +971,36 @@ module mc_cmd_arbiter
         end
     end
 
-    // CLOSE_ON_DRAIN last-column detect: the selected column is the
-    // age-YOUNGEST same-row demand in the window (no younger same-row column
-    // can still issue behind it) and has no cross-direction same-row demand
-    // at all. Age uses the STAGE-1a matrix snapshot; same-row membership
-    // compares the live CAM fields (an entry's bank/row are fixed at insert).
+    // CLOSE_ON_DRAIN last-column detect, evaluated on the STAGE-1b selection
+    // being captured THIS cycle (w_sel_*, not the pre-pick register -- using
+    // rd_col_s here would evaluate the PREVIOUS selection, an off-by-one that
+    // misfires whenever the group has >1 member). The selected column is the
+    // age-YOUNGEST same-row demand in the window and has no cross-direction
+    // same-row demand at all. Age uses the STAGE-1a matrix snapshot; same-row
+    // membership uses the live CAM fields (fixed at insert).
     // The col_sel==0 gate keeps this on the default age-ordered column pick:
     // under a population-weighted col_sel a younger sibling can be picked
     // first, and closing on the age-youngest would truncate the row.
     logic w_rd_ylast, w_wr_ylast;
     always_comb begin
-        w_rd_ylast = (r_rd_xpop[rd_col_s] == POPW'(0));
+        w_rd_ylast = CLOSE_ON_DRAIN && (r_col_sel == 2'd0)
+                   && (r_rd_xpop[w_sel_rd_col_s] == POPW'(0));
         for (int j = 0; j < NUM_ENTRIES; j++) begin
-            if (rd_sch_valid_i[j] && (j != int'(rd_col_s))
-                && (f_bank(rd_sch_bank_i, PTRW'(j)) == rd_col_bank)
-                && (f_row (rd_sch_row_i,  PTRW'(j)) == rd_col_row)
-                && !r_rd_older[j*NUM_ENTRIES + int'(rd_col_s)])
+            if (rd_sch_valid_i[j] && (j != int'(w_sel_rd_col_s))
+                && (f_bank(rd_sch_bank_i, PTRW'(j)) == f_bank(rd_sch_bank_i, w_sel_rd_col_s))
+                && (f_row (rd_sch_row_i,  PTRW'(j)) == f_row (rd_sch_row_i,  w_sel_rd_col_s))
+                && !r_rd_older[j*NUM_ENTRIES + int'(w_sel_rd_col_s)])
                 w_rd_ylast = 1'b0;
         end
     end
     always_comb begin
-        w_wr_ylast = (r_wr_xpop[wr_col_s] == POPW'(0));
+        w_wr_ylast = CLOSE_ON_DRAIN && (r_col_sel == 2'd0)
+                   && (r_wr_xpop[w_sel_wr_col_s] == POPW'(0));
         for (int j = 0; j < NUM_ENTRIES; j++) begin
-            if (wr_sch_valid_i[j] && (j != int'(wr_col_s))
-                && (f_bank(wr_sch_bank_i, PTRW'(j)) == wr_col_bank)
-                && (f_row (wr_sch_row_i,  PTRW'(j)) == wr_col_row)
-                && !r_wr_older[j*NUM_ENTRIES + int'(wr_col_s)])
+            if (wr_sch_valid_i[j] && (j != int'(w_sel_wr_col_s))
+                && (f_bank(wr_sch_bank_i, PTRW'(j)) == f_bank(wr_sch_bank_i, w_sel_wr_col_s))
+                && (f_row (wr_sch_row_i,  PTRW'(j)) == f_row (wr_sch_row_i,  w_sel_wr_col_s))
+                && !r_wr_older[j*NUM_ENTRIES + int'(w_sel_wr_col_s)])
                 w_wr_ylast = 1'b0;
         end
     end
@@ -1032,9 +1036,9 @@ module mc_cmd_arbiter
             rd_col_f <= w_sel_rd_col_f; rd_col_s <= w_sel_rd_col_s;
             wr_col_f <= w_sel_wr_col_f; wr_col_s <= w_sel_wr_col_s;
             rd_col_ap <= r_ap_snap[f_bank(rd_sch_bank_i, w_sel_rd_col_s)]
-                       || (CLOSE_ON_DRAIN && (r_col_sel == 2'd0) && w_rd_ylast);
+                       || w_rd_ylast;
             wr_col_ap <= r_ap_snap[f_bank(wr_sch_bank_i, w_sel_wr_col_s)]
-                       || (CLOSE_ON_DRAIN && (r_col_sel == 2'd0) && w_wr_ylast);
+                       || w_wr_ylast;
             rd_act_f <= w_sel_rd_act_f; rd_act_s <= w_sel_rd_act_s;
             wr_act_f <= w_sel_wr_act_f; wr_act_s <= w_sel_wr_act_s;
             rd_pre_f <= w_sel_rd_pre_f; rd_pre_s <= w_sel_rd_pre_s;
