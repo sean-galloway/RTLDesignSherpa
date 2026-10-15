@@ -38,6 +38,7 @@ import os
 import random
 import sys
 
+import cocotb
 from cocotb.triggers import RisingEdge
 
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -261,3 +262,159 @@ class DeltaMeshCellTB(TBBase):
         await self.wait_clocks('aclk', 10)
         self._check_idle_ports({'xpos', 'yneg'}, tag="idle")
         self.log.info("delta mesh cell DOR routing: all scenarios passed")
+
+
+class DeltaMeshFabricTB(DeltaMeshCellTB):
+    """TB for a delta mesh fabric top (all-pairs over the boundary locals).
+
+    Binds one RDS-DV AXIS master BFM to every boundary local input of the
+    fabric harness (``b<i>_s_axis_``) and one AXIS slave BFM to every
+    boundary local output (``b<i>_m_axis_``). Derived from the cell TB: the
+    BFM construction helpers key off ``self.PORTS``, so the subclass only
+    redefines the port table, the boundary coordinate map, and the scenario.
+
+    The default harness is ``dv/tb/delta_mesh_fabric_2x2_th.sv`` (2x2x1,
+    NUM_BOUNDARY=4). Boundary index -> coordinate map is x-major, then y,
+    then z (documented in the fabric's header comment); with Z=1 both z
+    faces are boundary so every cell qualifies:
+        b0 = (0,0,0), b1 = (1,0,0), b2 = (0,1,0), b3 = (1,1,0)
+    """
+
+    # Harness boundary port prefixes, index == fabric boundary index.
+    BOUNDARY_COORDS = (
+        (0, 0, 0),
+        (1, 0, 0),
+        (0, 1, 0),
+        (1, 1, 0),
+    )
+    PORTS = tuple((f'b{i}', i) for i in range(len(BOUNDARY_COORDS)))
+
+    def _pair_payload(self, a, b, beat):
+        """Globally unique payload word per (source, destination, beat).
+
+        The tag travels in the data field, so a beat delivered to any wrong
+        boundary -- or out of order within its packet -- fails the match on
+        data alone.
+        """
+        return ((0xD1A << 48) | (a << 40) | (b << 32)
+                | (beat << 24) | 0xA5A5)
+
+    async def _wait_frames(self, port, n):
+        """Poll a slave BFM until it has counted `n` complete frames."""
+        slave = self.slaves[port]
+        for _ in range(4000):
+            if slave.frames_received >= n:
+                return
+            await RisingEdge(self.aclk)
+        raise AssertionError(
+            f"fabric all-pairs: boundary '{port}' saw {slave.frames_received} "
+            f"frames, expected {n}")
+
+    def _check_destination(self, port, dst_idx, expected):
+        """Scoreboard one boundary output against the expected packets."""
+        nb = len(self.BOUNDARY_COORDS)
+        beats = self.slaves[port].get_observed_packets()
+
+        # Group the flat beat stream into TLAST-delimited frames. Arrival
+        # order between packets is arbitrary (output contention at interior
+        # cells); order within a frame must be exactly as sent.
+        frames = []
+        current = []
+        for beat in beats:
+            current.append(beat)
+            if int(beat.fields.get('last', 0)):
+                frames.append(current)
+                current = []
+        if current:
+            raise AssertionError(
+                f"fabric all-pairs: boundary {dst_idx} ended mid-packet "
+                f"({len(current)} trailing beats without tlast)")
+        if len(frames) != nb:
+            raise AssertionError(
+                f"fabric all-pairs: boundary {dst_idx} received {len(frames)} "
+                f"packets, expected {nb} (one per source)")
+
+        # Match frames to expectations by the head-flit header in TUSER;
+        # duplicate heads mean a packet was duplicated, not just reordered.
+        by_head = {}
+        for frame in frames:
+            head_user = int(frame[0].fields.get('user', 0))
+            if head_user in by_head:
+                raise AssertionError(
+                    f"fabric all-pairs: boundary {dst_idx} received two "
+                    f"packets with header 0x{head_user:x} (duplicate)")
+            by_head[head_user] = frame
+
+        for src_idx in range(nb):
+            header, payload = expected[(src_idx, dst_idx)]
+            frame = by_head.get(header)
+            tag = f"b{src_idx}->b{dst_idx}"
+            if frame is None:
+                raise AssertionError(
+                    f"fabric all-pairs: packet {tag} never arrived at "
+                    f"boundary {dst_idx}")
+            if len(frame) != len(payload):
+                raise AssertionError(
+                    f"fabric all-pairs: {tag} delivered {len(frame)} beats, "
+                    f"expected {len(payload)}")
+            for i, (beat, exp_data) in enumerate(zip(frame, payload)):
+                got_data = int(beat.fields['data'])
+                got_user = int(beat.fields.get('user', 0))
+                exp_last = 1 if i == len(payload) - 1 else 0
+                got_last = int(beat.fields.get('last', 0))
+                if got_data != exp_data:
+                    raise AssertionError(
+                        f"fabric all-pairs: {tag} beat {i} data mismatch: "
+                        f"got 0x{got_data:x}, expected 0x{exp_data:x}")
+                if got_last != exp_last:
+                    raise AssertionError(
+                        f"fabric all-pairs: {tag} beat {i} tlast mismatch: "
+                        f"got {got_last}, expected {exp_last}")
+                exp_user = header if i == 0 else 0
+                if got_user != exp_user:
+                    raise AssertionError(
+                        f"fabric all-pairs: {tag} beat {i} tuser mismatch: "
+                        f"got 0x{got_user:x}, expected 0x{exp_user:x}")
+
+    async def run_all_pairs(self):
+        """Every ordered pair (a,b) of boundary locals, driven concurrently.
+
+        One sender task per source boundary injects its packets back to back
+        (b = 0..NUM_BOUNDARY-1, self-pair included: dst == own coordinate
+        delivers on the same cell's local port, the dst==POS DOR case); the
+        four senders run concurrently, so interior outputs contend. After
+        all sends drain, every boundary output must hold exactly one intact
+        packet per source. Multi-hop pairs (every a!=b on 2x2x1, e.g.
+        b0=(0,0,0) -> b3=(1,1,0) via the (1,0,0)/(0,1,0) interior hop)
+        exercise the DOR path across a neighbor cell.
+        """
+        nb = len(self.BOUNDARY_COORDS)
+        expected = {}
+        for a in range(nb):
+            for b in range(nb):
+                payload = [self._pair_payload(a, b, j)
+                           for j in range(self.BEATS_PER_PKT)]
+                header = self.build_header(
+                    dst=self.BOUNDARY_COORDS[b],
+                    src=self.BOUNDARY_COORDS[a],
+                    packet_id=a * nb + b + 1)
+                expected[(a, b)] = (header, payload)
+
+        async def send_all(src_idx):
+            port = f'b{src_idx}'
+            for dst_idx in range(nb):
+                header, payload = expected[(src_idx, dst_idx)]
+                await self._send_packet(port, header, payload)
+
+        senders = [cocotb.start_soon(send_all(a)) for a in range(nb)]
+        for sender in senders:
+            await sender
+
+        for dst_idx in range(nb):
+            await self._wait_frames(f'b{dst_idx}', nb)
+        await self.wait_clocks('aclk', 10)
+
+        for dst_idx in range(nb):
+            self._check_destination(f'b{dst_idx}', dst_idx, expected)
+        self.log.info(
+            f"delta mesh fabric all-pairs: {nb}x{nb} ordered pairs passed")

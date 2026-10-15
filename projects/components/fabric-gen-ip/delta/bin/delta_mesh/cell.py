@@ -214,8 +214,8 @@ class DeltaMeshCell(Module):
         self.comment("==========================================================================")
         self.comment("Per output: grant the round-robin winner among the requests and")
         self.comment("hold the grant until the TLAST handshake (packet atomicity -- no")
-        self.comment("interleaving on an output). On the release cycle a new request")
-        self.comment("may be granted immediately, so back-to-back packets do not stall.")
+        self.comment("interleaving on an output). On the release cycle the grant is")
+        self.comment("dropped, not re-granted (see next-grant computation below).")
         self.comment("==========================================================================")
         self.instruction("")
         self.instruction("logic [NUM_PORTS-1:0] grant_matrix [NUM_PORTS];  // [output][input]")
@@ -254,11 +254,24 @@ class DeltaMeshCell(Module):
         self.instruction("endfunction")
         self.instruction("")
         self.comment("Next-grant computation (hold while the packet is in flight)")
+        self.comment("Release cycle (TLAST handshake): the grant is dropped, NOT")
+        self.comment("re-granted in the same cycle -- the releasing input may")
+        self.comment("already present its next packet's head flit at the following")
+        self.comment("edge, routed to a different output; a held or re-granted grant")
+        self.comment("would steer that head onto this output (misroute + duplicate,")
+        self.comment("exposed by the Task 3 fabric all-pairs back-to-back traffic).")
+        self.comment("The one-cycle bubble per packet boundary is the price of")
+        self.comment("keeping the steering unambiguous.")
         self.instruction("always_comb begin")
         self.instruction("    for (int q = 0; q < NUM_PORTS; q++) begin")
-        self.instruction("        if (packet_active[q] && !out_xfer_last[q]) begin")
-        self.instruction("            grant_next[q]      = grant_matrix[q];")
-        self.instruction("            last_grant_next[q] = last_grant[q];")
+        self.instruction("        if (packet_active[q]) begin")
+        self.instruction("            if (out_xfer_last[q]) begin")
+        self.instruction("                grant_next[q]      = '0;")
+        self.instruction("                last_grant_next[q] = last_grant[q];")
+        self.instruction("            end else begin")
+        self.instruction("                grant_next[q]      = grant_matrix[q];")
+        self.instruction("                last_grant_next[q] = last_grant[q];")
+        self.instruction("            end")
         self.instruction("        end else begin")
         self.instruction("            grant_next[q] = rr_pick(request_matrix[q], last_grant[q],")
         self.instruction("                                      last_grant_next[q]);")
@@ -434,35 +447,46 @@ class DeltaMeshCell(Module):
 
 
 def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
-    """Write rtl/filelists/delta_mesh.f next to the generated cell.
+    """Write rtl/filelists/delta_mesh.f next to the generated cell + fabric.
 
-    Sources: the cell only. The list is self-contained outside the area
-    flow: it carries the reset_defs.svh include path itself.
+    Sources: the cell first (the fabric top instantiates it), then the
+    fabric. The list is self-contained outside the area flow: it carries
+    the reset_defs.svh include path itself.
     """
     filelists_dir = os.path.join(output_dir, 'filelists')
     os.makedirs(filelists_dir, exist_ok=True)
 
-    cell_abs = os.path.abspath(os.path.join(output_dir, 'delta_mesh_cell.sv'))
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                             *[os.pardir] * 6))
-    try:
-        cell_rel = os.path.relpath(cell_abs, repo_root)
-        cell_entry = (f"$REPO_ROOT/{cell_rel.replace(os.sep, '/')}"
-                      if not cell_rel.startswith(os.pardir) else cell_abs)
-    except ValueError:
-        cell_entry = cell_abs
+    def _entry(basename: str) -> str:
+        abs_path = os.path.abspath(os.path.join(output_dir, basename))
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                 *[os.pardir] * 6))
+        try:
+            rel = os.path.relpath(abs_path, repo_root)
+            return (f"$REPO_ROOT/{rel.replace(os.sep, '/')}"
+                    if not rel.startswith(os.pardir) else abs_path)
+        except ValueError:
+            return abs_path
+
+    cell_entry = _entry('delta_mesh_cell.sv')
+    fabric_name = (f"delta_mesh_fabric_{config.cells_x}"
+                   f"x{config.cells_y}x{config.cells_z}.sv")
+    fabric_entry = _entry(fabric_name)
 
     lines = [
-        "# delta_mesh_cell -- the delta mesh router cell (7 ports: +/-X, +/-Y,",
-        "# +/-Z, local; head-flit header in TUSER, default DOR at reset).",
+        "# delta_mesh_cell + delta_mesh_fabric_<X>x<Y>x<Z> -- the delta mesh",
+        "# router cell (7 ports: +/-X, +/-Y, +/-Z, local; head-flit header in",
+        "# TUSER, default DOR at reset) and the mesh fabric top that grids it",
+        "# (boundary cells' local ports exposed as s_local_*/m_local_* arrays).",
         "#",
         "# Generated by projects/components/fabric-gen-ip/delta/bin/delta_generator.py",
         f"#   --topology mesh --cells-x {config.cells_x} --cells-y {config.cells_y}",
         f"#   --cells-z {config.cells_z} --user-width {config.user_width}",
         f"#   (checked-in artifact from the default {config.cells_x}x{config.cells_y}x{config.cells_z} config).",
         "#",
-        "# Sources: the cell only. Its only dependency is `reset_defs.svh`,",
-        "# included below so the list is self-contained outside the area flow.",
+        "# Sources: the cell first -- the fabric top references the cell module,",
+        "# so it must compile earlier in the list. The only other dependency is",
+        "# `reset_defs.svh`, included below so the list is self-contained",
+        "# outside the area flow.",
         "# Root path token is $REPO_ROOT.",
         "",
         "+incdir+$REPO_ROOT/rtl/amba/includes",
@@ -471,6 +495,8 @@ def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
         "$REPO_ROOT/rtl/amba/includes/reset_defs.svh",
         "",
         cell_entry,
+        "",
+        fabric_entry,
         "",
     ]
     filelist_path = os.path.join(filelists_dir, 'delta_mesh.f')

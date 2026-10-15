@@ -798,7 +798,10 @@ def main():
                 add_counters=not args.no_counters,
             )
             validate_mesh(mesh_cfg)
-            generate_mesh(mesh_cfg, args.output_dir)
+            try:
+                generate_mesh(mesh_cfg, args.output_dir)
+            except NotImplementedError as err:
+                parser.error(str(err))
         else:
             print(f"Tree topology generation not yet implemented in framework version")
 

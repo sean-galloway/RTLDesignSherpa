@@ -195,8 +195,8 @@ end
 // ==========================================================================
 // Per output: grant the round-robin winner among the requests and
 // hold the grant until the TLAST handshake (packet atomicity -- no
-// interleaving on an output). On the release cycle a new request
-// may be granted immediately, so back-to-back packets do not stall.
+// interleaving on an output). On the release cycle the grant is
+// dropped, not re-granted (see next-grant computation below).
 // ==========================================================================
 
 logic [NUM_PORTS-1:0] grant_matrix [NUM_PORTS];  // [output][input]
@@ -235,11 +235,24 @@ function automatic logic [NUM_PORTS-1:0] rr_pick(
 endfunction
 
 // Next-grant computation (hold while the packet is in flight)
+// Release cycle (TLAST handshake): the grant is dropped, NOT
+// re-granted in the same cycle -- the releasing input may
+// already present its next packet's head flit at the following
+// edge, routed to a different output; a held or re-granted grant
+// would steer that head onto this output (misroute + duplicate,
+// exposed by the Task 3 fabric all-pairs back-to-back traffic).
+// The one-cycle bubble per packet boundary is the price of
+// keeping the steering unambiguous.
 always_comb begin
     for (int q = 0; q < NUM_PORTS; q++) begin
-        if (packet_active[q] && !out_xfer_last[q]) begin
-            grant_next[q]      = grant_matrix[q];
-            last_grant_next[q] = last_grant[q];
+        if (packet_active[q]) begin
+            if (out_xfer_last[q]) begin
+                grant_next[q]      = '0;
+                last_grant_next[q] = last_grant[q];
+            end else begin
+                grant_next[q]      = grant_matrix[q];
+                last_grant_next[q] = last_grant[q];
+            end
         end else begin
             grant_next[q] = rr_pick(request_matrix[q], last_grant[q],
                                       last_grant_next[q]);

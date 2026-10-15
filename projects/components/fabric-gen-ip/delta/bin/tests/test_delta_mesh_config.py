@@ -43,7 +43,34 @@ def test_mesh_parses_without_masters_or_slaves(tmp_path):
     )
     assert result.returncode == 0
     assert (tmp_path / "delta_mesh_cell.sv").is_file()
+    assert (tmp_path / "delta_mesh_fabric_4x4x1.sv").is_file()
     assert (tmp_path / "filelists" / "delta_mesh.f").is_file()
+
+
+def test_mesh_fabric_rejects_torus_until_task_9(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(DELTA_GENERATOR),
+            "--topology", "mesh",
+            "--cells-x", "2",
+            "--cells-y", "2",
+            "--cells-z", "1",
+            "--torus-x",
+            "--user-width", "64",
+            "--output-dir", str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    err = result.stdout + result.stderr
+    assert "torus" in err.lower()
+    assert "Task 9" in err
+    # validate-before-emitting: no artifacts from the rejected run
+    assert not (tmp_path / "delta_mesh_cell.sv").exists()
+    assert not (tmp_path / "delta_mesh_fabric_2x2x1.sv").exists()
 
 
 def test_flat_requires_masters_and_slaves(tmp_path):
