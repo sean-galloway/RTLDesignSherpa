@@ -4,11 +4,19 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
+
+## Open
+
+- **MC-003** — granite LiteDRAM-class per-bank in-order scheduler
+  (dedicated lite scheduler core: per-bank head sequencers + cross-bank
+  mux on the existing fire-stage JEDEC authority). Supersedes the
+  `BANK_IN_ORDER` pick-mask approach, measured on silicon 2026-10-15 to
+  serialize single-bank traffic at pick-pipe depth (revert `7a7f80b00`).
 
 ## Closed
 
