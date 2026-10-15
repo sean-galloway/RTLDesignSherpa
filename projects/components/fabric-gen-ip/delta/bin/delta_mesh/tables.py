@@ -18,7 +18,7 @@
 """Routing-table images for the delta mesh route_table RAM.
 
 Table organization (plan-pinned): per-cell RAM keyed
-``{dst_x, dst_y, dst_z, qos}`` -> ``{port_mask[7:0], vc}``. The address
+``{dst_x, dst_y, dst_z, qos}`` -> ``{port_mask[8:0], vc}``. The address
 carries the full key width now (``qos`` included) so Task 7's QoS classes
 land without reshaping the memory; the power-on image writes every QoS
 region with the same DOR default (qos is decoded but not yet acted on).
@@ -26,11 +26,12 @@ The dst space occupies the low ``3*COORD_W`` address bits, so the default
 image is one entry per representable dst coordinate:
 ``2**(3*COORD_W)`` entries (64 at COORD_W=2).
 
-Port list (Task 6b pin, 8 ports): the six axis ports, P_DIA (index 6) --
-the tetrad diagonal-mate link, owner addition 2026-10-15 -- and P_LOCAL
-(index 7). P_LOCAL's index MOVED from 6 to 7 when P_DIA landed; every
-harness/TB/generate-loop references the tables.py PORT_IDS single source
-of truth.
+Port list (Task 6c pin, 9 ports): the six axis ports, P_DIA (index 6) --
+the tetrad diagonal-mate link, owner addition 2026-10-15 -- P_DIA2 (index
+7) -- the inter-tetrad diagonal link, owner addition 2026-10-15 -- and
+P_LOCAL (index 8). P_LOCAL's index MOVED from 7 to 8 when P_DIA2 landed;
+every harness/TB/generate-loop references the tables.py PORT_IDS single
+source of truth.
 
 ``default_dor_image`` returns the canonical cell-at-origin install: the
 per-cell RAM is loaded at time 0 by the generated SystemVerilog ``initial``
@@ -41,15 +42,16 @@ every grid position). ``check_acyclic`` therefore models the fabric as
 proves the VC0 subrelation connected and acyclic by greedy hop-by-hop
 simulation (spec sec. 13 formal assist; Duato's sufficient condition,
 sec. 5.1 [D2][D7]). ``check_no_diag`` is the controller-pinned guard that
-DOR -- the power-on default and modes 1-8 -- never selects P_DIA; only
-the mode-9 table image may (spec sec. 2.2/5.4).
+DOR -- the power-on default and modes 1-8 -- never selects either
+diagonal port; mode 9 may select P_DIA, mode 10 may select P_DIA2 (spec
+sec. 2.2/5.4, Task 6c).
 """
 
 from dataclasses import dataclass
 
 from .config import DeltaMeshConfig
 
-NUM_PORTS = 8  # 6 axis neighbors + 1 diagonal + 1 local; pinned port ids
+NUM_PORTS = 9  # 6 axis neighbors + 2 diagonal + 1 local; pinned port ids
 
 PORT_IDS = (
     ("P_X_NEG", 0),
@@ -59,20 +61,21 @@ PORT_IDS = (
     ("P_Z_NEG", 4),
     ("P_Z_POS", 5),
     ("P_DIA", 6),
-    ("P_LOCAL", 7),
+    ("P_DIA2", 7),
+    ("P_LOCAL", 8),
 )
 
 (P_X_NEG, P_X_POS, P_Y_NEG, P_Y_POS,
- P_Z_NEG, P_Z_POS, P_DIA, P_LOCAL) = (pid for _, pid in PORT_IDS)
+ P_Z_NEG, P_Z_POS, P_DIA, P_DIA2, P_LOCAL) = (pid for _, pid in PORT_IDS)
 
 PORT_TO_MASK = {pid: 1 << pid for _, pid in PORT_IDS}
 
-# Entry layout: {port_mask[7:0], vc} -- mask bit p set = route to port p;
+# Entry layout: {port_mask[8:0], vc} -- mask bit p set = route to port p;
 # an all-zero mask is the table-level drop encoding. vc is 1 bit wide for
-# the pinned NUM_VC=2 and rides the bit above the mask (entry width 9).
-# The mask widened from 7 to 8 bits when P_DIA landed (Task 6b): P_DIA
-# occupies bit 6, P_LOCAL bit 7.
-ENTRY_MASK_W = 8
+# the pinned NUM_VC=2 and rides the bit above the mask (entry width 10).
+# The mask widened from 8 to 9 bits when P_DIA2 landed (Task 6c): P_DIA
+# occupies bit 6, P_DIA2 bit 7, P_LOCAL bit 8.
+ENTRY_MASK_W = 9
 ENTRY_VC_W = 1
 ENTRY_VC_LO = ENTRY_MASK_W
 ENTRY_W = ENTRY_MASK_W + ENTRY_VC_W
@@ -166,8 +169,8 @@ def default_dor_image(cfg: DeltaMeshConfig) -> list[TableEntry]:
 
 
 # Standard fabric mode catalog (spec sec. 5.4, owner-confirmed
-# 2026-10-13; mode 9 added 2026-10-15). Mode 0 is the custom per-cell RAM
-# tables (power-on default); modes 1-9 are generator-emitted images
+# 2026-10-13; modes 9-10 added 2026-10-15). Mode 0 is the custom per-cell
+# RAM tables (power-on default); modes 1-10 are generator-emitted images
 # selected by the cell's r_mode register -- a mux in front of the
 # route_table RAM, so the RAM stays user-intact and switching back to
 # mode 0 restores the custom tables.
@@ -180,10 +183,17 @@ def default_dor_image(cfg: DeltaMeshConfig) -> list[TableEntry]:
 # patterns (2's ring wrap, 4's periodic boundaries) land with Task 9.
 #
 # Task 6b pin (controller resolution): mode 9 (tetrad all-to-all K4) is
-# the ONLY image allowed to select P_DIA (checked by check_no_diag on
+# the only image allowed to select P_DIA (checked by check_no_diag on
 # every other image at generation time). Intra-tetrad dsts route 1 hop
 # (edge mates via the axis port -- the DOR answer for a one-dimension
 # mate; the diagonal mate via P_DIA); inter-tetrad dsts route DOR.
+#
+# Task 6c pin (controller resolution): mode 10 (tile all-to-all, K4 of
+# tetrads) is the only image allowed to select P_DIA2. Within a 4x4x1
+# tile the edge-adjacent-tetrad cells route via the shared +/-X/+/-Y
+# boundary (1 hop for the touching pair, else DOR within the tile);
+# diagonal-tetrad corner pairs route via P_DIA2 in exactly 1 hop;
+# inter-tile dsts DOR.
 MODE_CATALOG = {
     1: "mesh (pure DOR)",
     2: "systolic-1D: +X when dst_x > pos_x else P_LOCAL (wrap is Task 9)",
@@ -195,9 +205,26 @@ MODE_CATALOG = {
     8: "pipeline+rapids-stream: minimal DOR (the serpentine chain routes DOR)",
     9: "tetrad all-to-all (K4): diagonal mate via P_DIA, edge mates via "
        "the axis port (1 hop); inter-tetrad dsts DOR",
+    10: "tile all-to-all (K4 of tetrads): diagonal-tetrad corner pairs "
+        "via P_DIA2 (1 hop); edge-adjacent tetrads via axis ports; "
+        "inter-tile dsts DOR",
 }
 
 ROOT = (0, 0, 0)
+
+
+def _dia2_mate(pos: tuple[int, int, int]) -> tuple[int, int, int]:
+    """Inter-tetrad diagonal mate of ``pos`` (may be out of grid).
+
+    The mate is the diagonally-adjacent cell of the diagonally-neighboring
+    tetrad: (x + (x&1 ? +1 : -1), y + (y&1 ? +1 : -1), z). This is the
+    parity-directed form from the spec (sec. 2.2); it names exactly one
+    cell per (x,y,z), and the link is symmetric.
+    """
+    x, y, z = pos
+    return (x + (1 if (x & 1) else -1),
+            y + (1 if (y & 1) else -1),
+            z)
 
 
 def mode_port(mode_id: int, dst: tuple[int, int, int],
@@ -208,9 +235,9 @@ def mode_port(mode_id: int, dst: tuple[int, int, int],
     ``mode_default_entry`` SystemVerilog function (its mechanical twin,
     like ``dor_port``/``dor_default_entry``). Representable out-of-grid
     dsts carry the empty mask (the drop encoding). Mode 0 is the custom
-    RAM tables and has no image; ids outside 0..9 raise.
+    RAM tables and has no image; ids outside 0..10 raise.
     """
-    if not 1 <= mode_id <= 9:
+    if not 1 <= mode_id <= 10:
         raise ValueError(f"no standard image for mode {mode_id}")
     if not (dst[0] < cfg.cells_x and dst[1] < cfg.cells_y
             and dst[2] < cfg.cells_z):
@@ -237,6 +264,16 @@ def mode_port(mode_id: int, dst: tuple[int, int, int],
         if (dst[2] == pos[2]
                 and (dst[0] ^ pos[0]) == 1 and (dst[1] ^ pos[1]) == 1):
             return PORT_TO_MASK[P_DIA]
+        return PORT_TO_MASK[dor_port(dst, pos)]
+    if mode_id == 10:
+        # Tile K4-of-tetrads: the diagonal-tetrad corner mate rides
+        # P_DIA2 in 1 hop. The parity-directed mate is symmetric; when
+        # it steps out of the grid the link ties off and no in-grid dst
+        # can name it. Everything else (edge-adjacent tetrads via the
+        # shared boundary, within-tile DOR, inter-tile DOR, Z hops,
+        # dst == pos) keeps the DOR answer.
+        if (dst[2] == pos[2] and dst == _dia2_mate(pos)):
+            return PORT_TO_MASK[P_DIA2]
         return PORT_TO_MASK[dor_port(dst, pos)]
     return PORT_TO_MASK[dor_port(dst, pos)]
 
@@ -287,7 +324,10 @@ def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig,
     connectivity. A multi-bit mask (multicast shape, Task 8) must
     deliver on every set bit, so each bit spawns its own bounded branch.
     P_DIA steps to the diagonal mate (x^1, y^1, z) -- the mode-9 tetrad
-    link (Task 6b); only mode-9 route_fns produce it (see check_no_diag).
+    link (Task 6b). P_DIA2 steps to the inter-tetrad diagonal mate
+    (x + (x&1 ? +1 : -1), y + (y&1 ? +1 : -1), z) -- the mode-10 tile
+    K4-of-tetrads link (Task 6c). Only mode-9/10 route_fns produce these
+    diagonal hops (see check_no_diag).
 
     Raises:
         ValueError: "cycle in VC0 subrelation" on a cyclic/invalidating
@@ -318,6 +358,8 @@ def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig,
             return (x, y, z + 1)
         if port == P_DIA:
             return (x ^ 1, y ^ 1, z)
+        if port == P_DIA2:
+            return _dia2_mate(pos)
         return pos  # P_LOCAL
 
     # Connectivity first: every in-grid dst must have a non-empty VC0
@@ -373,26 +415,32 @@ def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig,
             visit(src, dst, src, 0, {src})
 
 
-def check_no_diag(image: list[TableEntry], where: str) -> None:
-    """Guard (controller resolution, Task 6b): a non-mode-9 image must
-    never route to P_DIA.
+def check_no_diag(image: list[TableEntry], where: str,
+                  allow: tuple[int, ...] = ()) -> None:
+    """Guard (controller resolution, Task 6c): only allowed modes may
+    route to diagonal ports.
 
     DOR -- the power-on default image and modes 1-8 -- selects only the
-    six axis ports and P_LOCAL (spec sec. 2.2: the diagonal port serves
-    the mode-9 tetrad K4 image; sec. 5.4). The fabric relies on this for
-    odd-dimension grids, where a cell on the last X/Y row/column has its
-    diagonal mate out of grid and its P_DIA tied off: if a non-9 image
-    could name P_DIA, such a cell would misroute into the tie-off. The
-    cell generator runs this on the default image and modes 1-8 at
-    generation time, so the pre-6b suites prove no regression by
-    construction.
+    six axis ports and P_LOCAL (spec sec. 2.2: the diagonal ports serve
+    the mode-9/10 K4 images; sec. 5.4). Mode 9 may select P_DIA; mode 10
+    may select P_DIA2; no other image may select either diagonal port.
+    The fabric relies on this for odd-dimension grids, where a cell on
+    the last X/Y row/column has its diagonal mate out of grid and the
+    corresponding diagonal port tied off: if a disallowed image could
+    name that port, the cell would misroute into the tie-off.
+
+    Args:
+        allow: tuple of diagonal port ids that may appear in this image
+            (P_DIA for mode 9, P_DIA2 for mode 10).
 
     Raises:
         ValueError: ``where`` names the offending image and dst.
     """
     for e in image:
-        if e.port_mask & PORT_TO_MASK[P_DIA]:
-            raise ValueError(
-                f"{where}: dst {(e.dst_x, e.dst_y, e.dst_z)} routes to "
-                "P_DIA -- only the mode-9 tetrad K4 image may select the "
-                "diagonal port")
+        for p in (P_DIA, P_DIA2):
+            if p not in allow and (e.port_mask & PORT_TO_MASK[p]):
+                name = "P_DIA" if p == P_DIA else "P_DIA2"
+                raise ValueError(
+                    f"{where}: dst {(e.dst_x, e.dst_y, e.dst_z)} routes to "
+                    f"{name} -- only the allowed mode image may select the "
+                    "diagonal port")

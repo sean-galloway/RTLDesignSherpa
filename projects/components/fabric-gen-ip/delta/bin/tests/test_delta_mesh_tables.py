@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from delta_mesh.config import DeltaMeshConfig
 from delta_mesh.tables import (
     P_DIA,
+    P_DIA2,
     P_LOCAL,
     P_X_NEG,
     P_X_POS,
@@ -29,6 +30,7 @@ from delta_mesh.tables import (
     check_acyclic,
     default_dor_image,
     dor_port,
+    mode_image,
     pack_entry,
     table_index,
     unpack_entry,
@@ -53,15 +55,16 @@ def grid_coords(cfg):
 # ------------------------------------------------------------------
 
 def test_port_ids_pinned():
-    # 8 ports (Task 6b): P_DIA takes index 6, P_LOCAL MOVES to 7.
+    # 9 ports (Task 6c): P_DIA at 6, P_DIA2 at 7, P_LOCAL MOVES to 8.
     assert PORT_IDS == (
         ("P_X_NEG", 0), ("P_X_POS", 1),
         ("P_Y_NEG", 2), ("P_Y_POS", 3),
         ("P_Z_NEG", 4), ("P_Z_POS", 5),
-        ("P_DIA", 6), ("P_LOCAL", 7),
+        ("P_DIA", 6), ("P_DIA2", 7), ("P_LOCAL", 8),
     )
     assert (P_X_NEG, P_X_POS, P_Y_NEG, P_Y_POS,
-            P_Z_NEG, P_Z_POS, P_DIA, P_LOCAL) == (0, 1, 2, 3, 4, 5, 6, 7)
+            P_Z_NEG, P_Z_POS, P_DIA, P_DIA2, P_LOCAL) == \
+        (0, 1, 2, 3, 4, 5, 6, 7, 8)
 
 
 def test_pack_entry_roundtrip():
@@ -69,10 +72,11 @@ def test_pack_entry_roundtrip():
     mask, vc = unpack_entry(entry)
     assert mask == 0x42
     assert vc == 1
-    # one-hot mask, vc 0 -> the low 8 bits carry the port bit (the entry
-    # mask field widened to 8 with P_DIA at index 6, Task 6b)
+    # one-hot mask, vc 0 -> the low 9 bits carry the port bit (the entry
+    # mask field widened to 9 with P_DIA2 at index 7, Task 6c)
     assert pack_entry(1 << P_X_POS, 0) == (1 << P_X_POS)
     assert pack_entry(1 << P_DIA, 0) == (1 << P_DIA)
+    assert pack_entry(1 << P_DIA2, 0) == (1 << P_DIA2)
     assert pack_entry(1 << P_LOCAL, 0) == (1 << P_LOCAL)  # top mask bit
 
 
@@ -196,3 +200,17 @@ def test_check_acyclic_verifies_walk_hop_bound():
     # (0,0,0)->(0,1,0)->DOR->(1,1,0)->(1,0,0): 3 hops vs Manhattan 1.
     with pytest.raises(ValueError, match="cycle in VC0 subrelation"):
         check_acyclic(image, CFG_4X4X1)
+
+
+def test_check_acyclic_p_dia2_step_out_of_grid():
+    # The P_DIA2 hop (Task 6c) walks to the parity-directed diagonal-tetrad
+    # mate (x + (x&1 ? +1 : -1), y + (y&1 ? +1 : -1), z). On a 2x2x1 grid
+    # every cell's mate is out of grid (e.g. (1,1,0) -> (2,2,0)), so a
+    # route_fn that always selects P_DIA2 steps out of the grid and must
+    # be rejected, not hang.
+    with pytest.raises(ValueError,
+                       match="cycle in VC0 subrelation.*stepped out"):
+        check_acyclic(mode_image(CFG_2X2X1, 1), CFG_2X2X1,
+                      route_fn=lambda dst, pos:
+                      PORT_TO_MASK[P_DIA2] if dst != pos
+                      else PORT_TO_MASK[P_LOCAL])

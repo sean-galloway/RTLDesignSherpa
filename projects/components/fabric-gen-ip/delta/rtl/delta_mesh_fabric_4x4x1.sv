@@ -25,7 +25,7 @@ parameter int     NUM_BOUNDARY = 16 )(
     output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY],
     output logic [31:0]           o_err          [NUM_BOUNDARY],
     output logic [31:0]           o_mode_acks    [NUM_BOUNDARY],
-    output logic [7:0]            o_bulk_starved [NUM_BOUNDARY]
+    output logic [8:0]            o_bulk_starved [NUM_BOUNDARY]
 );
 // ==============================================================================
 // Module: delta_mesh_fabric_4x4x1
@@ -66,7 +66,7 @@ parameter int     NUM_BOUNDARY = 16 )(
 //     entry is the Task 6 ack barrier (Task 10 reads
 //     them via the config plane).
 //   - Per-cell bulk-reservation-due flags
-//     (delta_mesh_cell's o_bulk_starved[7:0], Task 7:
+//     (delta_mesh_cell's o_bulk_starved[8:0], Task 7:
 //     bit p of a boundary cell's entry = that cell's
 //     output port p reservation is due) ride out as
 //     o_bulk_starved[NUM_BOUNDARY], same index order.
@@ -106,6 +106,30 @@ parameter int     NUM_BOUNDARY = 16 )(
 //   - The diagonals are planar (X/Y only); Z expansion
 //     stays axis-routed (spec sec. 2.2).
 //
+// Inter-tetrad diagonal links (Task 6c, owner addition
+// 2026-10-15): the four tetrads of a tile are themselves
+// fully connected K4 -- edge-adjacent tetrads over the
+// shared +/-X/+/-Y boundaries, diagonal tetrad pairs over
+// P_DIA2. Each cell has exactly one diagonal-tetrad mate,
+// (x + (x&1 ? +1 : -1), y + (y&1 ? +1 : -1), z), so one
+// P_DIA2 port per cell suffices and the fabric draws one
+// diagonal wire pair per unordered diagonal-tetrad pair:
+//   - cell (x,y,z) m_axis[P_DIA2] <-> cell (mate_x,mate_y,
+//     mate_z) s_axis[P_DIA2], for every (x,y) whose mate
+//     is in grid. Both parities connect (each cell of the
+//     pair drives its own wire direction), so no P_DIA2
+//     dangles on any grid.
+//   - Odd-dimension edge: when X or Y is odd, the cell at
+//     the last row/column has its mate out of grid. That
+//     cell's P_DIA2 ties off exactly like an absent
+//     neighbor. Safe by construction: the parity-directed
+//     mate form can only name the out-of-grid coordinate
+//     there, no in-grid dst can select it, and no image
+//     except mode 10 selects P_DIA2 (tables.check_no_diag,
+//     generation-time).
+//   - P_DIA2 is planar (X/Y only); Z expansion stays axis-
+//     routed (spec sec. 2.2).
+//
 // ==============================================================================
 
 // ==========================================================================
@@ -114,7 +138,7 @@ parameter int     NUM_BOUNDARY = 16 )(
 localparam int X_DIM = 4;
 localparam int Y_DIM = 4;
 localparam int Z_DIM = 1;
-localparam int NUM_PORTS = 8;
+localparam int NUM_PORTS = 9;
 
 // Mesh port ids (pinned, same as delta_mesh_cell)
 localparam int P_X_NEG = 0;
@@ -124,7 +148,8 @@ localparam int P_Y_POS = 3;
 localparam int P_Z_NEG = 4;
 localparam int P_Z_POS = 5;
 localparam int P_DIA = 6;
-localparam int P_LOCAL = 7;
+localparam int P_DIA2 = 7;
+localparam int P_LOCAL = 8;
 
 // Boundary predicate and boundary-index map, matching
 // bin/delta_mesh/fabric.py (single source of truth). The
@@ -154,6 +179,13 @@ function automatic int boundary_index(int x, int y, int z);
         end
     end
     return idx;
+endfunction
+
+// Inter-tetrad diagonal mate helper (Task 6c): the
+// parity-directed diagonal-tetrad corner mate of a
+// coordinate. Used by the P_DIA2 wiring below.
+function automatic int dia2_mate(int c);
+    dia2_mate = ((c & 1) != 0) ? (c + 1) : (c - 1);
 endfunction
 
 // ==========================================================================
@@ -199,10 +231,10 @@ logic [31:0]           cell_err_drop [X_DIM][Y_DIM][Z_DIM];
 logic [31:0]           cell_mode_acks [X_DIM][Y_DIM][Z_DIM];
 /* verilator lint_on UNUSEDSIGNAL */
 // Per-cell bulk-reservation-due flags (delta_mesh_cell's
-// o_bulk_starved[7:0], Task 7), boundary cells exposed
+// o_bulk_starved[8:0], Task 7), boundary cells exposed
 // in the same fashion as cell_err_drop.
 /* verilator lint_off UNUSEDSIGNAL */
-logic [7:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];
+logic [8:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];
 /* verilator lint_on UNUSEDSIGNAL */
 
 // ==========================================================================
@@ -211,8 +243,10 @@ logic [7:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];
 // Each delta_mesh_cell instance gets its grid coordinate as
 // POS_X/POS_Y/POS_Z; neighbor ports hook to the adjacent
 // cell or tie off at the mesh boundary; P_DIA hooks to the
-// diagonal mate (gx^1, gy^1, gz) or ties off on an odd
-// edge (Task 6b). Boundary cells'
+// tetrad diagonal mate (gx^1, gy^1, gz) or ties off on an
+// odd edge (Task 6b); P_DIA2 hooks to the inter-tetrad
+// diagonal mate (parity-directed, Task 6c) or ties off on an
+// odd edge. Boundary cells'
 // local ports drive the s_local_*/m_local_* port arrays via
 // the boundary-index map (x-major, then y, then z).
 // ==========================================================================
@@ -374,6 +408,37 @@ generate
                     assign cell_s_tuser[gx][gy][gz][P_DIA]  = '0;
                     assign cell_s_credit[gx][gy][gz][P_DIA] = {NUM_VC{1'b1}};
                     assign cell_m_tready[gx][gy][gz][P_DIA] = 1'b0;
+                end
+//         // Inter-tetrad diagonal (Task 6c): the parity-
+//         // directed diagonal-tetrad corner mate.
+//         // Both parities execute this block (each cell
+//         // drives its own wire direction), so the pair
+//         // connects with no dangling P_DIA2; on an odd X/Y
+//         // edge the out-of-grid mate ties off.
+                if ((dia2_mate(gx) >= 0) &&
+                    (dia2_mate(gx) < X_DIM) &&
+                    (dia2_mate(gy) >= 0) &&
+                    (dia2_mate(gy) < Y_DIM))
+                    begin : gen_dia2_conn
+                    assign cell_s_tdata[gx][gy][gz][P_DIA2]  =
+                        cell_m_tdata[dia2_mate(gx)][dia2_mate(gy)][gz][P_DIA2];
+                    assign cell_s_tvalid[gx][gy][gz][P_DIA2] =
+                        cell_m_tvalid[dia2_mate(gx)][dia2_mate(gy)][gz][P_DIA2];
+                    assign cell_s_tlast[gx][gy][gz][P_DIA2]  =
+                        cell_m_tlast[dia2_mate(gx)][dia2_mate(gy)][gz][P_DIA2];
+                    assign cell_s_tuser[gx][gy][gz][P_DIA2]  =
+                        cell_m_tuser[dia2_mate(gx)][dia2_mate(gy)][gz][P_DIA2];
+                    assign cell_s_credit[gx][gy][gz][P_DIA2] =
+                        cell_m_credit[dia2_mate(gx)][dia2_mate(gy)][gz][P_DIA2];
+                    assign cell_m_tready[gx][gy][gz][P_DIA2] =
+                        cell_s_tready[dia2_mate(gx)][dia2_mate(gy)][gz][P_DIA2];
+                end else begin : gen_dia2_tieoff
+                    assign cell_s_tdata[gx][gy][gz][P_DIA2]  = '0;
+                    assign cell_s_tvalid[gx][gy][gz][P_DIA2] = 1'b0;
+                    assign cell_s_tlast[gx][gy][gz][P_DIA2]  = 1'b0;
+                    assign cell_s_tuser[gx][gy][gz][P_DIA2]  = '0;
+                    assign cell_s_credit[gx][gy][gz][P_DIA2] = {NUM_VC{1'b1}};
+                    assign cell_m_tready[gx][gy][gz][P_DIA2] = 1'b0;
                 end
 
                 if (is_boundary(gx, gy, gz)) begin : gen_local_conn

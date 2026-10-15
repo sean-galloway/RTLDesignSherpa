@@ -30,6 +30,13 @@ parities connect, no dangling P_DIA. On an odd X/Y edge the out-of-grid
 mate's P_DIA ties off exactly like an absent neighbor (see the header
 comment for why that is safe by construction).
 
+Task 6c scope: the inter-tetrad diagonal links. Every cell's P_DIA2 hooks
+to its diagonal-tetrad corner mate (x + (x&1 ? +1 : -1), y + (y&1 ? +1 :
+-1), z) -- one diagonal wire pair per unordered diagonal-tetrad pair,
+both parities connect, no dangling P_DIA2. On an odd X/Y edge the out-of-
+grid mate's P_DIA2 ties off exactly like an absent neighbor (see the
+header comment for why that is safe by construction).
+
 The generated fabric is pure structural: nested SystemVerilog generate
 loops over genvars gx/gy/gz. The boundary-index map is computed by the
 elaboration-time constant functions is_boundary()/boundary_index() in the
@@ -132,7 +139,7 @@ class DeltaMeshFabric(Module):
 
             output logic [31:0]           o_err          [NUM_BOUNDARY],
             output logic [31:0]           o_mode_acks    [NUM_BOUNDARY],
-            output logic [7:0]            o_bulk_starved [NUM_BOUNDARY]
+            output logic [8:0]            o_bulk_starved [NUM_BOUNDARY]
         '''
         self.ports.add_port_string(port_str)
 
@@ -182,7 +189,7 @@ class DeltaMeshFabric(Module):
         self.comment("    entry is the Task 6 ack barrier (Task 10 reads")
         self.comment("    them via the config plane).")
         self.comment("  - Per-cell bulk-reservation-due flags")
-        self.comment("    (delta_mesh_cell's o_bulk_starved[7:0], Task 7:")
+        self.comment("    (delta_mesh_cell's o_bulk_starved[8:0], Task 7:")
         self.comment("    bit p of a boundary cell's entry = that cell's")
         self.comment("    output port p reservation is due) ride out as")
         self.comment("    o_bulk_starved[NUM_BOUNDARY], same index order.")
@@ -221,6 +228,30 @@ class DeltaMeshFabric(Module):
         self.comment("    the generator emits it for odd grids regardless.")
         self.comment("  - The diagonals are planar (X/Y only); Z expansion")
         self.comment("    stays axis-routed (spec sec. 2.2).")
+        self.comment("")
+        self.comment("Inter-tetrad diagonal links (Task 6c, owner addition")
+        self.comment("2026-10-15): the four tetrads of a tile are themselves")
+        self.comment("fully connected K4 -- edge-adjacent tetrads over the")
+        self.comment("shared +/-X/+/-Y boundaries, diagonal tetrad pairs over")
+        self.comment("P_DIA2. Each cell has exactly one diagonal-tetrad mate,")
+        self.comment("(x + (x&1 ? +1 : -1), y + (y&1 ? +1 : -1), z), so one")
+        self.comment("P_DIA2 port per cell suffices and the fabric draws one")
+        self.comment("diagonal wire pair per unordered diagonal-tetrad pair:")
+        self.comment("  - cell (x,y,z) m_axis[P_DIA2] <-> cell (mate_x,mate_y,")
+        self.comment("    mate_z) s_axis[P_DIA2], for every (x,y) whose mate")
+        self.comment("    is in grid. Both parities connect (each cell of the")
+        self.comment("    pair drives its own wire direction), so no P_DIA2")
+        self.comment("    dangles on any grid.")
+        self.comment("  - Odd-dimension edge: when X or Y is odd, the cell at")
+        self.comment("    the last row/column has its mate out of grid. That")
+        self.comment("    cell's P_DIA2 ties off exactly like an absent")
+        self.comment("    neighbor. Safe by construction: the parity-directed")
+        self.comment("    mate form can only name the out-of-grid coordinate")
+        self.comment("    there, no in-grid dst can select it, and no image")
+        self.comment("    except mode 10 selects P_DIA2 (tables.check_no_diag,")
+        self.comment("    generation-time).")
+        self.comment("  - P_DIA2 is planar (X/Y only); Z expansion stays axis-")
+        self.comment("    routed (spec sec. 2.2).")
         self.comment("")
         self.comment("==============================================================================")
         self.instruction("")
@@ -269,6 +300,13 @@ class DeltaMeshFabric(Module):
         self.instruction("    return idx;")
         self.instruction("endfunction")
         self.instruction("")
+        self.comment("Inter-tetrad diagonal mate helper (Task 6c): the")
+        self.comment("parity-directed diagonal-tetrad corner mate of a")
+        self.comment("coordinate. Used by the P_DIA2 wiring below.")
+        self.instruction("function automatic int dia2_mate(int c);")
+        self.instruction("    dia2_mate = ((c & 1) != 0) ? (c + 1) : (c - 1);")
+        self.instruction("endfunction")
+        self.instruction("")
 
     def generate_wire_declarations(self):
         self.comment("==========================================================================")
@@ -314,10 +352,10 @@ class DeltaMeshFabric(Module):
         self.instruction("logic [31:0]           cell_mode_acks [X_DIM][Y_DIM][Z_DIM];")
         self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
         self.comment("Per-cell bulk-reservation-due flags (delta_mesh_cell's")
-        self.comment("o_bulk_starved[7:0], Task 7), boundary cells exposed")
+        self.comment("o_bulk_starved[8:0], Task 7), boundary cells exposed")
         self.comment("in the same fashion as cell_err_drop.")
         self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
-        self.instruction("logic [7:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];")
+        self.instruction("logic [8:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];")
         self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
         self.instruction("")
 
@@ -409,6 +447,22 @@ class DeltaMeshFabric(Module):
         self.instruction("                end else begin : gen_dia_tieoff")
         self._emit_port_tieoff("gx", "gy", "gz", "P_DIA")
         self.instruction("                end")
+        self.comment("        // Inter-tetrad diagonal (Task 6c): the parity-")
+        self.comment("        // directed diagonal-tetrad corner mate.")
+        self.comment("        // Both parities execute this block (each cell")
+        self.comment("        // drives its own wire direction), so the pair")
+        self.comment("        // connects with no dangling P_DIA2; on an odd X/Y")
+        self.comment("        // edge the out-of-grid mate ties off.")
+        self.instruction("                if ((dia2_mate(gx) >= 0) &&")
+        self.instruction("                    (dia2_mate(gx) < X_DIM) &&")
+        self.instruction("                    (dia2_mate(gy) >= 0) &&")
+        self.instruction("                    (dia2_mate(gy) < Y_DIM))")
+        self.instruction("                    begin : gen_dia2_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_DIA2",
+                                   "dia2_mate(gx)", "dia2_mate(gy)", "gz", "P_DIA2")
+        self.instruction("                end else begin : gen_dia2_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_DIA2")
+        self.instruction("                end")
 
     def generate_grid(self):
         self.comment("==========================================================================")
@@ -417,8 +471,10 @@ class DeltaMeshFabric(Module):
         self.comment("Each delta_mesh_cell instance gets its grid coordinate as")
         self.comment("POS_X/POS_Y/POS_Z; neighbor ports hook to the adjacent")
         self.comment("cell or tie off at the mesh boundary; P_DIA hooks to the")
-        self.comment("diagonal mate (gx^1, gy^1, gz) or ties off on an odd")
-        self.comment("edge (Task 6b). Boundary cells'")
+        self.comment("tetrad diagonal mate (gx^1, gy^1, gz) or ties off on an")
+        self.comment("odd edge (Task 6b); P_DIA2 hooks to the inter-tetrad")
+        self.comment("diagonal mate (parity-directed, Task 6c) or ties off on an")
+        self.comment("odd edge. Boundary cells'")
         self.comment("local ports drive the s_local_*/m_local_* port arrays via")
         self.comment("the boundary-index map (x-major, then y, then z).")
         self.comment("==========================================================================")

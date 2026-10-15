@@ -1,5 +1,5 @@
 # delta_mesh_cell + delta_mesh_fabric_<X>x<Y>x<Z> -- the delta mesh
-# router cell (8 ports: +/-X, +/-Y, +/-Z, diagonal, local; head-flit
+# router cell (9 ports: +/-X, +/-Y, +/-Z, P_DIA, P_DIA2, local; head-flit
 # header in TUSER, route_table RAM with power-on DOR image + in-band
 # config on the local port, per-VC input buffers with credit flow
 # control) and the mesh fabric top that grids it (boundary cells'

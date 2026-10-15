@@ -2,12 +2,13 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
 # Offline unit tests for the delta mesh standard-mode catalog
-# (bin/delta_mesh/tables.py): mode_image / mode_port for the nine standard
+# (bin/delta_mesh/tables.py): mode_image / mode_port for the ten standard
 # modes (spec sec. 5.4; modes 1-8 owner-confirmed 2026-10-13, mode 9 tetrad
-# all-to-all K4 added 2026-10-15), the generalized check_acyclic route_fn
-# validation, and the pinned minimal images for the modes the DV suite
-# exercises behaviorally (1 mesh, 2 systolic-1D, 5 broadcast placeholder,
-# 6 convergecast, 9 tetrad K4). No simulator -- pure Python, run with the
+# all-to-all K4 and mode 10 tile K4-of-tetrads added 2026-10-15), the
+# generalized check_acyclic route_fn validation, and the pinned minimal
+# images for the modes the DV suite exercises behaviorally (1 mesh,
+# 2 systolic-1D, 5 broadcast placeholder, 6 convergecast, 9 tetrad K4,
+# 10 tile K4 of tetrads). No simulator -- pure Python, run with the
 # repo pytest.
 
 import os
@@ -20,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from delta_mesh.config import DeltaMeshConfig
 from delta_mesh.tables import (
     P_DIA,
+    P_DIA2,
     P_LOCAL,
     P_X_NEG,
     P_X_POS,
@@ -41,7 +43,7 @@ CFG_2X2X1 = DeltaMeshConfig(cells_x=2, cells_y=2, cells_z=1)
 CFG_3X3X1 = DeltaMeshConfig(cells_x=3, cells_y=3, cells_z=1)
 CFG_1X1X1 = DeltaMeshConfig(cells_x=1, cells_y=1, cells_z=1)
 
-MODE_IDS = tuple(range(1, 10))
+MODE_IDS = tuple(range(1, 11))
 MODE_NAMES = {
     1: "mesh",
     2: "systolic-1d",
@@ -52,6 +54,7 @@ MODE_NAMES = {
     7: "all-to-all/transpose",
     8: "pipeline+rapids-stream",
     9: "tetrad all-to-all (K4)",
+    10: "tile all-to-all (K4 of tetrads)",
 }
 
 
@@ -233,17 +236,109 @@ def test_mode9_image_contains_p_dia_bits():
     assert dia_pairs == 16
 
 
-def test_no_p_dia_outside_mode9():
-    # Controller-pinned guard (spec sec. 2.2/5.4): DOR -- the power-on
-    # default image and modes 1-8 -- must never select P_DIA; only the
-    # mode-9 table image may. This is what lets the pre-6b suites prove
-    # no regression: their images route exactly as before.
+# ------------------------------------------------------------------
+# Mode 10: tile all-to-all (K4 of tetrads) -- owner addition 2026-10-15
+# ------------------------------------------------------------------
+# The four tetrads of a 2x2x1-tetrad tile (= 4x4x1 cells) are themselves
+# fully connected: edge-adjacent tetrads over the shared +/-X/+/-Y
+# boundaries (the DOR answer), diagonal tetrad pairs over P_DIA2 -- cell
+# (x,y,z) links to its diagonal-tetrad corner mate
+# (x + (x&1 ? +1 : -1), y + (y&1 ? +1 : -1), z): (1,1,0) <-> (2,2,0) and
+# (1,2,0) <-> (2,1,0) per tile. The parity-directed form names the mate
+# exactly; on an odd X/Y edge (or a sub-tile grid) the out-of-grid mate
+# ties P_DIA2 off -- no in-grid dst can name it, so no image entry may
+# select it (same three-legged proof as mode 9's P_DIA).
+
+def _dia2_mate(pos):
+    # Diagonal-tetrad corner mate of pos (may be out of grid).
+    return (pos[0] + (1 if (pos[0] & 1) else -1),
+            pos[1] + (1 if (pos[1] & 1) else -1),
+            pos[2])
+
+
+def test_mode10_diagonal_tetrad_mate_rides_p_dia2():
+    for cfg in (CFG_4X4X1, CFG_3X3X1):
+        for pos in grid_coords(cfg):
+            mate = _dia2_mate(pos)
+            if not in_grid(mate, cfg):
+                continue  # odd-edge cell: its P_DIA2 ties off
+            assert mode_port(10, mate, pos, cfg) == PORT_TO_MASK[P_DIA2], (
+                f"mode 10: diagonal-tetrad mate {mate} of {pos} must ride "
+                "P_DIA2")
+            # and the reverse (the link is symmetric, both ends route)
+            assert mode_port(10, pos, mate, cfg) == PORT_TO_MASK[P_DIA2]
+
+
+def test_mode10_everything_else_is_dor():
+    # Every in-grid dst that is NOT the diagonal-tetrad mate keeps the DOR
+    # answer: edge-adjacent-tetrad cells via the shared boundary (1 hop
+    # for the touching pair), everything else within-tile DOR, inter-tile
+    # dsts DOR (out-of-grid here: drop encoding). The intra-tetrad
+    # diagonal mate (mode 9's P_DIA case) is NOT special in mode 10 --
+    # (0,0,0) -> (1,1,0) rides DOR, not P_DIA.
+    cfg = CFG_4X4X1
+    for pos in grid_coords(cfg):
+        for dst in grid_coords(cfg):
+            exp = PORT_TO_MASK[dor_port(dst, pos)]
+            if dst[2] == pos[2] and dst == _dia2_mate(pos):
+                exp = PORT_TO_MASK[P_DIA2]
+            assert mode_port(10, dst, pos, cfg) == exp, (
+                f"mode 10: dst {dst} of {pos}: "
+                f"{mode_port(10, dst, pos, cfg):#x} != {exp:#x}")
+
+
+def test_mode10_no_p_dia_and_sub_tile_grids_degenerate_to_dor():
+    # Mode 10 never names P_DIA (its K4 edge is the tetrad-level diagonal
+    # only), and on grids too small to hold a diagonal-tetrad pair the
+    # whole image degenerates to pure DOR.
+    cfg = CFG_4X4X1
+    for e in mode_image(cfg, 10):
+        assert not e.port_mask & PORT_TO_MASK[P_DIA]
+    for cfg in (CFG_1X1X1, CFG_2X2X1):
+        d = {(e.dst_x, e.dst_y, e.dst_z): e.port_mask
+             for e in default_dor_image(cfg)}
+        m = {(e.dst_x, e.dst_y, e.dst_z): e.port_mask
+             for e in mode_image(cfg, 10)}
+        assert m == d, f"mode 10 on {cfg.cells_x}x{cfg.cells_y}x{cfg.cells_z}" \
+            " must degenerate to the DOR image (no in-grid mate)"
+
+
+def test_no_diag_outside_modes_9_10():
+    # Controller-pinned guard (spec sec. 2.2/5.4, Task 6c): DOR -- the
+    # power-on default image and modes 1-8 -- must never select either
+    # diagonal port; mode 9 may select P_DIA but never P_DIA2 (it is the
+    # intra-tetrad image; its dsts never name the inter-tetrad mate);
+    # mode 10 may select P_DIA2 but never P_DIA. This is what lets the
+    # pre-6b suites prove no regression: their images route exactly as
+    # before.
     check_no_diag(default_dor_image(CFG_4X4X1), "power-on DOR image")
     for mode_id in range(1, 9):
         check_no_diag(mode_image(CFG_4X4X1, mode_id), f"mode {mode_id}")
-    # the negative case: a stray P_DIA bit in a non-9 image is a build
-    # error, caught at generation time
-    bad = [
+    check_no_diag(mode_image(CFG_4X4X1, 9), "mode 9",
+                  allow=(P_DIA,))
+    check_no_diag(mode_image(CFG_4X4X1, 10), "mode 10",
+                  allow=(P_DIA2,))
+    # the negative cases: a stray diagonal bit in a non-allowed image is a
+    # build error, caught at generation time
+    bad9 = [
+        TableEntry(e.dst_x, e.dst_y, e.dst_z, e.qos,
+                   PORT_TO_MASK[P_DIA2]
+                   if (e.dst_x, e.dst_y, e.dst_z) == (2, 2, 0)
+                   else e.port_mask, e.vc)
+        for e in mode_image(CFG_4X4X1, 9)
+    ]
+    with pytest.raises(ValueError, match="P_DIA2"):
+        check_no_diag(bad9, "tampered mode 9", allow=(P_DIA,))
+    bad10 = [
+        TableEntry(e.dst_x, e.dst_y, e.dst_z, e.qos,
+                   PORT_TO_MASK[P_DIA]
+                   if (e.dst_x, e.dst_y, e.dst_z) == (1, 1, 0)
+                   else e.port_mask, e.vc)
+        for e in mode_image(CFG_4X4X1, 10)
+    ]
+    with pytest.raises(ValueError, match="P_DIA"):
+        check_no_diag(bad10, "tampered mode 10", allow=(P_DIA2,))
+    bad1 = [
         TableEntry(e.dst_x, e.dst_y, e.dst_z, e.qos,
                    PORT_TO_MASK[P_DIA]
                    if (e.dst_x, e.dst_y, e.dst_z) == (1, 1, 0)
@@ -251,11 +346,7 @@ def test_no_p_dia_outside_mode9():
         for e in mode_image(CFG_4X4X1, 1)
     ]
     with pytest.raises(ValueError, match="P_DIA"):
-        check_no_diag(bad, "tampered mode 1")
-    # the guard does not blanket-forbid P_DIA: mode 9 passes it
-    check_no_diag([e for e in mode_image(CFG_4X4X1, 9)
-                   if not e.port_mask & PORT_TO_MASK[P_DIA]],
-                  "mode 9 non-diagonal entries")
+        check_no_diag(bad1, "tampered mode 1")
 
 
 def test_check_acyclic_mode9_cyclic_variant_rejected():
@@ -270,13 +361,25 @@ def test_check_acyclic_mode9_cyclic_variant_rejected():
                       else PORT_TO_MASK[P_LOCAL])
 
 
-def test_port_list_pinned_with_p_dia():
-    # The 8-port pin (Task 6b): P_DIA takes index 6, P_LOCAL MOVES to 7.
+def test_check_acyclic_mode10_cyclic_variant_rejected():
+    # Same construction for the P_DIA2 link: every non-local dst routes
+    # P_DIA2 regardless of geometry ping-pongs (1,1,0)<->(2,2,0) forever
+    # on the diagonal-tetrad link; out-of-grid mates step out of the grid.
+    cfg = CFG_4X4X1
+    with pytest.raises(ValueError, match="cycle in VC0 subrelation"):
+        check_acyclic(mode_image(cfg, 10), cfg,
+                      route_fn=lambda dst, pos:
+                      PORT_TO_MASK[P_DIA2] if dst != pos
+                      else PORT_TO_MASK[P_LOCAL])
+
+
+def test_port_list_pinned_with_both_diagonals():
+    # The 9-port pin (Task 6c): P_DIA at 6, P_DIA2 at 7, P_LOCAL MOVES to 8.
     assert PORT_IDS == (
         ("P_X_NEG", 0), ("P_X_POS", 1),
         ("P_Y_NEG", 2), ("P_Y_POS", 3),
         ("P_Z_NEG", 4), ("P_Z_POS", 5),
-        ("P_DIA", 6), ("P_LOCAL", 7),
+        ("P_DIA", 6), ("P_DIA2", 7), ("P_LOCAL", 8),
     )
 
 
@@ -351,7 +454,7 @@ ACK_MAGIC = 0xACED
 
 
 def test_msw_payload_layout():
-    for mode_id in range(10):
+    for mode_id in range(11):
         tdata = (mode_id << 16) | MSW_MAGIC
         assert tdata & 0xFFFF == MSW_MAGIC
         assert (tdata >> 16) & 0xF == mode_id

@@ -101,10 +101,10 @@ module delta_mesh_fabric_2x2_th #(
     output logic [31:0]           b1_mode_acks,
     output logic [31:0]           b2_mode_acks,
     output logic [31:0]           b3_mode_acks,
-    output logic [7:0]            b0_bulk_starved,
-    output logic [7:0]            b1_bulk_starved,
-    output logic [7:0]            b2_bulk_starved,
-    output logic [7:0]            b3_bulk_starved
+    output logic [8:0]            b0_bulk_starved,
+    output logic [8:0]            b1_bulk_starved,
+    output logic [8:0]            b2_bulk_starved,
+    output logic [8:0]            b3_bulk_starved
 );
 
     // Fabric boundary index map (pinned by the generator, x-major then y
@@ -198,8 +198,8 @@ module delta_mesh_fabric_2x2_th #(
     // Per-cell bulk-reservation-due flags (Task 7): bit p of each
     // entry = that cell's output port p reservation is due. Exposed
     // per boundary cell; suites may ignore them but the fabric port
-    // must exist.
-    logic [7:0] w_o_bulk_starved [NUM_BOUNDARY];
+    // must exist. Width follows the 9-port pin (Task 6c).
+    logic [8:0] w_o_bulk_starved [NUM_BOUNDARY];
 
     assign b0_bulk_starved = w_o_bulk_starved[0];
     assign b1_bulk_starved = w_o_bulk_starved[1];

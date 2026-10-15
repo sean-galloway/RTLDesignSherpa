@@ -19,21 +19,21 @@ parameter int     AGING_LIMIT = 64,
 parameter int     BULK_MIN_CREDITS = 1 )(
     input  logic                  aclk,
     input  logic                  aresetn,
-    input  logic [DATA_WIDTH-1:0] s_axis_tdata   [8],
-    input  logic                  s_axis_tvalid  [8],
-    output logic                  s_axis_tready  [8],
-    input  logic                  s_axis_tlast   [8],
-    input  logic [USER_WIDTH-1:0] s_axis_tuser   [8],
-    output logic [DATA_WIDTH-1:0] m_axis_tdata   [8],
-    output logic                  m_axis_tvalid  [8],
-    input  logic                  m_axis_tready  [8],
-    output logic                  m_axis_tlast   [8],
-    output logic [USER_WIDTH-1:0] m_axis_tuser   [8],
-    input  logic [NUM_VC-1:0]     s_credit       [8],
-    output logic [NUM_VC-1:0]     m_credit       [8],
+    input  logic [DATA_WIDTH-1:0] s_axis_tdata   [9],
+    input  logic                  s_axis_tvalid  [9],
+    output logic                  s_axis_tready  [9],
+    input  logic                  s_axis_tlast   [9],
+    input  logic [USER_WIDTH-1:0] s_axis_tuser   [9],
+    output logic [DATA_WIDTH-1:0] m_axis_tdata   [9],
+    output logic                  m_axis_tvalid  [9],
+    input  logic                  m_axis_tready  [9],
+    output logic                  m_axis_tlast   [9],
+    output logic [USER_WIDTH-1:0] m_axis_tuser   [9],
+    input  logic [NUM_VC-1:0]     s_credit       [9],
+    output logic [NUM_VC-1:0]     m_credit       [9],
     output logic [31:0]           o_err_drop_cnt,
     output logic [31:0]           o_mode_acks,
-    output logic [7:0]            o_bulk_starved
+    output logic [8:0]            o_bulk_starved
 );
 // ==============================================================================
 // Module: delta_mesh_cell
@@ -52,7 +52,7 @@ parameter int     BULK_MIN_CREDITS = 1 )(
 //
 // Features (Task 4):
 //   - Per-port per-VC input buffers: one house gaxi_fifo_sync per
-//     port per VC (8 x NUM_VC, DEPTH=4) between s_axis acceptance
+//     port per VC (9 x NUM_VC, DEPTH=4) between s_axis acceptance
 //     and the route/grant stage; a flit word is
 //     {TUSER, TLAST, TDATA}. Acceptance is unconditional on
 //     downstream state (credits govern the output side of each
@@ -76,7 +76,7 @@ parameter int     BULK_MIN_CREDITS = 1 )(
 //     X, Y, Z order; P_LOCAL when all equal (Task 5: installed
 //     as the route_table RAM image, see below).
 //   - Route table RAM (Task 5): per-cell table keyed
-//     {qos, dst_z, dst_y, dst_x} -> {port_mask[7:0], vc};
+//     {qos, dst_z, dst_y, dst_x} -> {port_mask[8:0], vc};
 //     the address carries the full key width now so Task 7's
 //     QoS classes land without reshaping the memory. The
 //     power-on image is installed by an initial block and
@@ -188,7 +188,7 @@ parameter int     BULK_MIN_CREDITS = 1 )(
 //     Packet atomicity and the credit-gated
 //     presentation are untouched: QoS replaces the
 //     arbitration policy, not the atomicity/credit
-//     machinery. o_bulk_starved[7:0] exposes the per-
+//     machinery. o_bulk_starved[8:0] exposes the per-
 //     output reservation-due state (bit q = output q)
 //     for DV; it is a status flag, not a cumulative
 //     counter, so it is not gated by ENABLE_COUNTERS.
@@ -202,11 +202,11 @@ parameter int     BULK_MIN_CREDITS = 1 )(
 // ==========================================================================
 // Local parameters
 // ==========================================================================
-localparam int NUM_PORTS = 8;
-localparam int PORT_W    = 3;
+localparam int NUM_PORTS = 9;
+localparam int PORT_W    = $clog2(NUM_PORTS);
 
-// Mesh port ids (pinned; Task 6b: P_DIA at 6, P_LOCAL
-// moved to 7)
+// Mesh port ids (pinned; Task 6c: P_DIA at 6, P_DIA2
+// at 7, P_LOCAL moved to 8)
 localparam int P_X_NEG = 0;
 localparam int P_X_POS = 1;
 localparam int P_Y_NEG = 2;
@@ -214,7 +214,8 @@ localparam int P_Y_POS = 3;
 localparam int P_Z_NEG = 4;
 localparam int P_Z_POS = 5;
 localparam int P_DIA = 6;
-localparam int P_LOCAL = 7;
+localparam int P_DIA2 = 7;
+localparam int P_LOCAL = 8;
 
 // Input buffer configuration (plan-pinned DEPTH=4)
 localparam int FIFO_DEPTH = 4;
@@ -242,13 +243,13 @@ localparam int HDR_MCAST_LO = 14;
 localparam int HDR_PID_LO = 28;
 
 // Route table organization (Task 5): key {qos, dst_z, dst_y,
-// dst_x} -> entry {port_mask[7:0], vc}; an all-zero mask is
-// the drop encoding. The mask widened from 7 to 8 bits when
-// P_DIA landed (Task 6b). The dst space occupies the low
+// dst_x} -> entry {port_mask[8:0], vc}; an all-zero mask is
+// the drop encoding. The mask widened from 8 to 9 bits when
+// P_DIA2 landed (Task 6c). The dst space occupies the low
 // 3*COORD_W address bits; QoS rides above it.
 localparam int ROUTE_ADDR_W = 3*COORD_W + 2;
 localparam int ROUTE_DEPTH  = 2**ROUTE_ADDR_W;
-localparam int ENTRY_MASK_W = 8;
+localparam int ENTRY_MASK_W = 9;
 localparam int ENTRY_W      = ENTRY_MASK_W + VC_W;
 localparam int RESP_W       = 16 + ENTRY_W;
 
@@ -485,12 +486,19 @@ function automatic logic [ENTRY_W-1:0] dor_default_entry(
 //         // Representable but out-of-grid dst: drop encoding.
             dor_default_entry = '0;
         else
-//         // {port_mask[7:0] one-hot, vc = 0}
-            dor_default_entry = {VC_W'(0), 8'(32'd1 << port)};
+//         // {port_mask[8:0] one-hot, vc = 0}
+            dor_default_entry = {VC_W'(0), 9'(32'd1 << port)};
     end
 endfunction
 
-// Standard-mode image (Task 6; mode 9 Task 6b): the
+// Inter-tetrad diagonal mate helper (Task 6c): the
+// parity-directed diagonal-tetrad corner mate of a
+// coordinate. Used by the mode-10 default entry below.
+function automatic int dia2_mate(int c);
+    dia2_mate = ((c & 1) != 0) ? (c + 1) : (c - 1);
+endfunction
+
+// Standard-mode image (Task 6; modes 9/10 Tasks 6b/6c): the
 // mechanical twin of delta_mesh.tables.mode_port,
 // evaluated per instance POS. Modes 1/3/4/5/7/8 are the
 // minimal DOR image; mode 2 is the pinned systolic-1D
@@ -498,10 +506,13 @@ endfunction
 // the wrap ring lands with Task 9); mode 6 is
 // convergecast (every dst routes toward the root
 // 0,0,0); mode 9 is the tetrad all-to-all K4 image
-// (diagonal mate via P_DIA, override below). The
-// offline tables.check_acyclic validates every mode
-// image and tables.check_no_diag guards that only
-// mode 9 selects P_DIA, both at generation time.
+// (diagonal mate via P_DIA, override below); mode 10
+// is the tile K4-of-tetrads image (diagonal-tetrad
+// corner mate via P_DIA2, override below). The offline
+// tables.check_acyclic validates every mode image and
+// tables.check_no_diag guards that only mode 9 selects
+// P_DIA and only mode 10 selects P_DIA2, both at
+// generation time.
 function automatic logic [ENTRY_W-1:0] mode_default_entry(
     input int mode,
     input int addr
@@ -522,7 +533,7 @@ function automatic logic [ENTRY_W-1:0] mode_default_entry(
                 else if (POS_Y > 0) port = P_Y_NEG;
                 else if (POS_Z > 0) port = P_Z_NEG;
             end
-//         // Modes 1/3/4/5/7/8: minimal DOR image; mode 9's
+//         // Modes 1/3/4/5/7/8: minimal DOR image; modes 9/10's
 //         // non-diagonal dsts also land here.
             default: begin
                 if (int'(d_x) < POS_X)       port = P_X_NEG;
@@ -549,13 +560,28 @@ function automatic logic [ENTRY_W-1:0] mode_default_entry(
             ((int'(d_y) ^ POS_Y) == 1)) begin
             port = P_DIA;
         end
+//         // Mode 10 (tile K4 of tetrads, Task 6c): the
+//         // diagonal-tetrad corner mate -- (x + (x&1 ? +1
+//         // : -1), y + (y&1 ? +1 : -1), z) -- rides P_DIA2
+//         // in 1 hop. The parity form is symmetric and
+//         // names exactly one in-grid mate per cell; on an
+//         // odd X/Y edge the out-of-grid mate ties off so
+//         // no in-grid dst can select it. Edge-adjacent
+//         // tetrads use the axis port (the DOR answer for a
+//         // one-boundary mate or DOR within the tile);
+//         // inter-tile dsts DOR.
+        if ((mode == 4'd10) && (int'(d_z) == POS_Z) &&
+            (int'(d_x) == dia2_mate(POS_X)) &&
+            (int'(d_y) == dia2_mate(POS_Y))) begin
+            port = P_DIA2;
+        end
         if ((int'(d_x) >= GRID_X) || (int'(d_y) >= GRID_Y) ||
             (int'(d_z) >= GRID_Z))
 //         // Representable but out-of-grid dst: drop encoding.
             mode_default_entry = '0;
         else
-//         // {port_mask[7:0] one-hot, vc = 0}
-            mode_default_entry = {VC_W'(0), 8'(32'd1 << port)};
+//         // {port_mask[8:0] one-hot, vc = 0}
+            mode_default_entry = {VC_W'(0), 9'(32'd1 << port)};
     end
 endfunction
 
@@ -571,7 +597,7 @@ end
 // Head decode of the presented flit (meaningful only on a
 // head beat; bodies carry tuser == 0 and never consult it)
 // Mode register (Task 6): 0 = custom RAM tables (power-on
-// default), 1-9 = the standard-mode image; written by the
+// default), 1-10 = the standard-mode image; written by the
 // mode-switch fan-out section below.
 logic [3:0]         r_mode;
 logic [COORD_W-1:0] head_dst_x [NUM_PORTS];
@@ -675,7 +701,7 @@ logic drop_active_next [NUM_PORTS];
 // shape on ANY port. A well-formed switch is single-beat
 // with sr_ptr[0] = 1 (write), the MSW magic in TDATA[15:0]
 // and the mode id in TDATA[19:16] (the config entry field's
-// low nibble); mode ids 0-9 are valid (0 returns to the
+// low nibble); mode ids 0-10 are valid (0 returns to the
 // custom RAM tables). Only ONE port's switch is consumed per
 // cycle (lowest port wins): the winner updates r_mode at the
 // next edge, so a copy arriving simultaneously on another
@@ -690,7 +716,7 @@ always_comb begin
         msw_wellformed[p] = msw_shape[p] && pres_last[p] &&
                             pres_tuser[p][HDR_SR_PTR_LO] &&
                             (pres_tdata[p][15:0] == MSW_MAGIC) &&
-                            (msw_mode[p] <= 4'd9);
+                            (msw_mode[p] <= 4'd10);
         msw_req_vec[p] = pres_valid[p] && !lock_active[p] &&
                          !drop_active[p] && msw_wellformed[p];
     end
@@ -1636,10 +1662,10 @@ generate
     end
 endgenerate
 
-// Mode ids 10-15 have no image; the decode gates them, and
+// Mode ids 11-15 have no image; the decode gates them, and
 // the register must never hold one.
 assert property (@(posedge aclk) disable iff (!aresetn)
-    (r_mode <= 4'd9)
+    (r_mode <= 4'd10)
 ) else $error("r_mode out of range: %0d", r_mode);
 `endif
 

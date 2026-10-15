@@ -53,17 +53,24 @@ from CocoTBFramework.components.axis4.axis_factories import (
 )
 from CocoTBFramework.components.axis4.axis_packet import AXISPacket
 from delta_mesh.header import build_header_offsets
-from delta_mesh.tables import P_DIA, P_LOCAL, P_X_POS, P_Y_POS, table_index
+from delta_mesh.tables import (
+    P_DIA,
+    P_DIA2,
+    P_LOCAL,
+    P_X_POS,
+    P_Y_POS,
+    table_index,
+)
 from TBClasses.shared.tbbase import TBBase
 
 
 class DeltaMeshCellTB(TBBase):
     """TB for delta_mesh_cell (default DOR) via its harness."""
 
-    # Harness port prefixes, index == cell port id (Task 6b: P_DIA takes
-    # index 6, P_LOCAL moved to 7):
+    # Harness port prefixes, index == cell port id (Task 6c: P_DIA at
+    # index 6, P_DIA2 at 7, P_LOCAL moved to 8):
     #   0 = P_X_NEG, 1 = P_X_POS, 2 = P_Y_NEG, 3 = P_Y_POS,
-    #   4 = P_Z_NEG, 5 = P_Z_POS, 6 = P_DIA, 7 = P_LOCAL
+    #   4 = P_Z_NEG, 5 = P_Z_POS, 6 = P_DIA, 7 = P_DIA2, 8 = P_LOCAL
     PORTS = (
         ('xneg', 0),
         ('xpos', 1),
@@ -72,7 +79,8 @@ class DeltaMeshCellTB(TBBase):
         ('zneg', 4),
         ('zpos', 5),
         ('dia', 6),
-        ('local', 7),
+        ('dia2', 7),
+        ('local', 8),
     )
 
     def __init__(self, dut):
@@ -2580,3 +2588,251 @@ class DeltaMeshQoSTB(DeltaMeshCellTB):
             "delta mesh qos (d): qos 2/3 route identically to class 1 "
             "at power-on; class-0 data (dst != self) rides the latency "
             "class -- no config response, no drop")
+
+
+class DeltaMeshTileTB(DeltaMeshTetradTB):
+    """TB for mode 10 (tile all-to-all K4 of tetrads) + the P_DIA2
+    inter-tetrad diagonal link (Task 6c), on the 4x4x1 fabric harness --
+    a single tile of four tetrads:
+
+        b0=(0,0,0) b1=(1,0,0) b2=(2,0,0) b3=(3,0,0)
+        b4=(0,1,0) b5=(1,1,0) b6=(2,1,0) b7=(3,1,0)
+        b8=(0,2,0) b9=(1,2,0) b10=(2,2,0) b11=(3,2,0)
+        b12=(0,3,0) b13=(1,3,0) b14=(2,3,0) b15=(3,3,0)
+
+    Diagonal-tetrad corner pairs (P_DIA2, 1 hop in mode 10):
+        b5=(1,1,0) <-> b10=(2,2,0)
+        b9=(1,2,0) <-> b6=(2,1,0)
+
+    Edge-adjacent tetrads use the axis ports (1 hop for the shared
+    boundary, otherwise DOR within the tile). Inter-tile dsts route DOR.
+
+    The single-hop property for the diagonal-tetrad pairs is proven by
+    injection->ejection LATENCY (calibrated live against power-on DOR,
+    where the diagonal-tetrad pair is 2 hops) and by the axis-idle
+    witness during isolated P_DIA2 bursts.
+    """
+
+    BOUNDARY_COORDS = (
+        (0, 0, 0), (1, 0, 0), (2, 0, 0), (3, 0, 0),
+        (0, 1, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0),
+        (0, 2, 0), (1, 2, 0), (2, 2, 0), (3, 2, 0),
+        (0, 3, 0), (1, 3, 0), (2, 3, 0), (3, 3, 0),
+    )
+    PORTS = tuple((f'b{i}', i) for i in range(len(BOUNDARY_COORDS)))
+
+    P_DIA2_IDX = P_DIA2
+    AXIS_IDXS = (0, 1, 2, 3, 4, 5)
+
+    def __init__(self, dut):
+        super().__init__(dut)
+        # Coordinate width for the 4x4 tile is 2 bits; the harness default
+        # matches, but make sure the header builder uses it.
+        self.COORD_W = self.convert_to_int(os.environ.get('TEST_COORD_W', '2'))
+        self.hdr_offsets = build_header_offsets(self.COORD_W)
+
+    # ------------------------------------------------------------------
+    # Scenario (a): diagonal-tetrad pairs drop from 2-hop DOR to 1 hop
+    # ------------------------------------------------------------------
+    async def run_tile_k4_one_hop(self):
+        """Diagonal-tetrad corner pairs b5<->b10 and b6<->b9 deliver in
+        exactly 1 hop under mode 10; every other intra-tile pair is
+        reachable. Calibration in power-on DOR: b5->b6 (edge-adjacent
+        tetrad) is 1 hop, b5->b10 (diagonal-tetrad) is 2 hops.
+        """
+        tag = "tile-k4"
+
+        # Calibration in power-on mode 0: 1-hop edge-adjacent reference
+        # and 2-hop diagonal-tetrad reference.
+        cal = {}
+        h, d, edge_1hop = await self._pair_latency(
+            5, 6, self._next_pid(), f"{tag}:cal-edge")
+        cal[(5, 6)] = (h, [d])
+        h, d, diag_2hop = await self._pair_latency(
+            5, 10, self._next_pid(), f"{tag}:cal-diag")
+        cal[(5, 10)] = (h, [d])
+        if diag_2hop <= edge_1hop:
+            raise AssertionError(
+                f"{tag}: calibration cannot resolve hops: diagonal DOR "
+                f"latency {diag_2hop} <= edge latency {edge_1hop}")
+
+        # Switch to mode 10.
+        await self._switch_and_wait(0, 10, 16, tag)
+
+        # Measure the two diagonal-tetrad pairs in both directions plus a
+        # representative edge-adjacent pair.
+        diag_pairs = ((5, 10), (10, 5), (6, 9), (9, 6))
+        expected = {}
+        lat = {}
+        for a, b in diag_pairs:
+            header, data, l = await self._pair_latency(
+                a, b, self._next_pid(), f"{tag}:{a}->{b}")
+            lat[(a, b)] = l
+            expected[(a, b)] = (header, [data])
+
+        for a, b in diag_pairs:
+            if lat[(a, b)] != edge_1hop:
+                raise AssertionError(
+                    f"{tag}: b{a}->b{b} latency {lat[(a,b)]} cycles, "
+                    f"expected exactly the 1-hop latency {edge_1hop} "
+                    f"(2-hop DOR would be {diag_2hop})")
+
+        # A representative cross-tile / edge-adjacent delivery still works
+        # (b0->b15 is 6 hops DOR; just verify it arrives, not the count).
+        await self._expect_delivery(0, (3, 3, 0), 15, f"{tag}:corner-dor")
+
+        await self.wait_clocks('aclk', 10)
+        for dst_idx in (5, 6, 9, 10, 15):
+            frames = self._group_frames(f'b{dst_idx}', tag)
+            exp = {(a, dst_idx): hp for (a, b), hp in expected.items()
+                   if b == dst_idx}
+            exp.update({(len(self.BOUNDARY_COORDS) + a, dst_idx): hp
+                        for (a, b), hp in cal.items() if b == dst_idx})
+            if dst_idx == 15:
+                # b0->b15 is checked by _expect_delivery above; the cal
+                # frames are the only other expected frames at b15.
+                pass
+            else:
+                if len(frames) != len(exp):
+                    raise AssertionError(
+                        f"{tag}: boundary b{dst_idx} received {len(frames)} "
+                        f"data frames, expected {len(exp)}")
+                self._match_expected_frames(f'b{dst_idx}', dst_idx, exp,
+                                            frames, tag)
+        self._check_zero_err(tag)
+        self.log.info(
+            f"delta mesh tile (a): diagonal-tetrad pairs 1 hop "
+            f"(edge={edge_1hop}c, DOR-diag={diag_2hop}c), reachable clean")
+
+    # ------------------------------------------------------------------
+    # Scenario (b): P_DIA2 full-rate bandwidth, axis links idle
+    # ------------------------------------------------------------------
+    async def run_tile_diag2_bandwidth(self):
+        """Sustained back-to-back b5<->b10 and b6<->b9 in both directions
+        concurrently under mode 10: every packet keeps the 1-hop latency,
+        the delivery window matches full-rate arithmetic, the axis links
+        stay completely idle (witness), and all beats deliver exactly.
+        """
+        tag = "tile-bw"
+        npkts = {'gate': 4, 'func': 8, 'full': 16}[self.TEST_LEVEL]
+        beats = 4
+
+        await self._switch_and_wait(0, 10, 16, tag)
+        _, _, base = await self._pair_latency(
+            5, 10, self._next_pid(), f"{tag}:baseline")
+
+        stop_witness = cocotb.triggers.Event()
+        witness = cocotb.start_soon(self._axis_idle_witness(1, stop_witness,
+                                                            tag))
+        d0 = cocotb.start_soon(self._diag_stream_driver(
+            5, 10, npkts, beats, 0x000, f"{tag}:b5"))
+        d1 = cocotb.start_soon(self._diag_stream_driver(
+            10, 5, npkts, beats, 0x100, f"{tag}:b10"))
+        d2 = cocotb.start_soon(self._diag_stream_driver(
+            6, 9, npkts, beats, 0x200, f"{tag}:b6"))
+        d3 = cocotb.start_soon(self._diag_stream_driver(
+            9, 6, npkts, beats, 0x300, f"{tag}:b9"))
+        m0 = cocotb.start_soon(self._diag_stream_monitor(
+            10, 5, npkts, beats, f"{tag}:b10"))
+        m1 = cocotb.start_soon(self._diag_stream_monitor(
+            5, 10, npkts, beats, f"{tag}:b5"))
+        m2 = cocotb.start_soon(self._diag_stream_monitor(
+            9, 6, npkts, beats, f"{tag}:b9"))
+        m3 = cocotb.start_soon(self._diag_stream_monitor(
+            6, 9, npkts, beats, f"{tag}:b6"))
+        head0 = await d0
+        head1 = await d1
+        head2 = await d2
+        head3 = await d3
+        last0 = await m0
+        last1 = await m1
+        last2 = await m2
+        last3 = await m3
+        await self.wait_clocks('aclk', 5)
+        stop_witness.set()
+        dia_cycles = await witness
+
+        # every beat of the four streams presented on the two P_DIA2
+        # links and none on any axis port (the witness already raised on
+        # axis activity).
+        for xy in ((1, 1), (2, 2), (2, 1), (1, 2)):
+            if dia_cycles[xy] != npkts * beats:
+                raise AssertionError(
+                    f"{tag}: P_DIA2 m_tvalid cycles at cell {xy} == "
+                    f"{dia_cycles[xy]}, expected {npkts * beats} (full "
+                    "rate on the diagonal link; beats went elsewhere?)")
+
+        exp_min = base + beats - 1
+        fill_margin = 2
+        streams = (
+            ("b5->b10", head0, last0),
+            ("b10->b5", head1, last1),
+            ("b6->b9", head2, last2),
+            ("b9->b6", head3, last3),
+        )
+        for label, head, last in streams:
+            lats = [last[pid] - h for pid, h in head.items()]
+            for k, l in enumerate(lats):
+                if not (exp_min <= l <= exp_min + fill_margin):
+                    raise AssertionError(
+                        f"{tag}: {label} packet {k} latency {l}, expected "
+                        f"[{exp_min}, {exp_min + fill_margin}] (1 hop + "
+                        "serial beats; a 2-hop detour adds a full hop)")
+            if lats[-1] > lats[min(2, len(lats) - 1)]:
+                raise AssertionError(
+                    f"{tag}: {label} queue grew: last packet latency "
+                    f"{lats[-1]} > steady {lats[min(2, len(lats)-1)]}")
+            first = min(head.values())
+            fin = max(last.values())
+            window = fin - first
+            exp_window = (npkts - 1) * (beats + 1) + (beats - 1) + base
+            if window > exp_window + 4:
+                raise AssertionError(
+                    f"{tag}: {label} delivery window {window}c, expected "
+                    f"<= {exp_window + 4}c (full rate minus the documented "
+                    f"per-packet bubble; {exp_window}c ideal)")
+
+        self._check_zero_err(tag)
+        # non-participating boundaries saw no data traffic at all
+        for bidx in (0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 14, 15):
+            if self._data_frame_count(f'b{bidx}') != 0:
+                raise AssertionError(
+                    f"{tag}: b{bidx} received "
+                    f"{self._data_frame_count(f'b{bidx}')} data frames, "
+                    "expected 0 (leak/detour into a non-participant)")
+        self.log.info(
+            f"delta mesh tile (b): diagonal-tetrad pairs full rate both "
+            f"directions ({npkts}x{beats} each of 4 streams, 1-hop latency "
+            f"{base}c held per packet, P_DIA2 tvalid cycles {dia_cycles}, "
+            f"axis links idle)")
+
+    # ------------------------------------------------------------------
+    # Witness helper overrides for the 4x4 grid
+    # ------------------------------------------------------------------
+    async def _axis_idle_witness(self, first_cycle, stop_event, tag):
+        """Sample every inter-cell axis-port m_tvalid each cycle: any
+        toggle is a detour. Returns observed P_DIA2 m_tvalid cycle counts
+        per diagonal-tetrad cell."""
+        cell_m = self.dut.u_dut.cell_m_tvalid
+        axis_hits = 0
+        dia_cycles = {(1, 1): 0, (2, 2): 0, (2, 1): 0, (1, 2): 0}
+        cyc = 0
+        while not stop_event.is_set():
+            await RisingEdge(self.aclk)
+            cyc += 1
+            if cyc < first_cycle:
+                continue
+            for x in range(4):
+                for y in range(4):
+                    for p in self.AXIS_IDXS:
+                        if int(cell_m[x][y][0][p].value):
+                            axis_hits += 1
+            for xy in ((1, 1), (2, 2), (2, 1), (1, 2)):
+                if int(cell_m[xy[0]][xy[1]][0][self.P_DIA2_IDX].value):
+                    dia_cycles[xy] += 1
+        if axis_hits != 0:
+            raise AssertionError(
+                f"{tag}: inter-cell axis-port activity observed during "
+                f"the isolated P_DIA2 burst ({axis_hits} samples) -- "
+                "a hidden multi-hop detour carried traffic")
+        return dia_cycles
