@@ -338,31 +338,9 @@ module mc_xddr2_entry_store
     );
 
     // ======================================================================
-    // WR drain fetch engine : stream committed entries (drain FIFO order) out
-    // of the BRAM through the prefetch skid.  The fetch beat pointer runs one
-    // beat AHEAD of the presented beat so the read port stays busy across
-    // entry boundaries (beat-0 of the next entry fetches while the current
-    // tail drains -> no per-entry bubble, 1 beat/cycle sustained).
-    // ======================================================================
-    logic [BCW-1:0]  r_cm_fbeat;   // commit fetch beat (next beat to issue)
-    logic [31:0]     w_cm_idx;
-    assign w_cm_idx = 32'(w_dq_rd_slot) * 32'(AXI_BEATS_PER_BURST) + 32'(r_cm_fbeat);
-
-    // Room for one more outstanding fetch: a free credit, or a consume this
-    // cycle returns one (w_cm_fire is declared with the consume side below;
-    // module-scope order is free).
-    logic w_fetch, w_room, w_fetch_last;
-    assign w_room       = (r_credits != 2'd0) || w_cm_fire;
-    assign w_fetch      = w_room && w_dq_rd_valid;
-    assign w_fetch_last = w_fetch && (r_cm_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
-
-    // Pop the drain queue at FETCH-last so the head advances to the next entry
-    // on the next edge and its beat-0 fetches immediately (no cross-entry
-    // bubble; same idiom as mc_wr_data_cam's w_dq_rd_ready).
-    assign w_dq_rd_ready = w_fetch_last;
-
-    // ======================================================================
-    // WR drain to DFI plane: consume side reads the skid head
+    // WR drain to DFI plane: consume side reads the skid head (declared
+    // before the fetch engine below — the house lint requires declaration
+    // before use)
     // ======================================================================
     logic w_cm_fire;
     logic            w_hd_vld, w_hd_blast, w_hd_slast;
@@ -381,6 +359,29 @@ module mc_xddr2_entry_store
     assign wr_cm_rd_last_o  = w_hd_blast;
 
     assign w_cm_fire = wr_cm_rd_valid_o && wr_cm_rd_ready_i;
+
+    // ======================================================================
+    // WR drain fetch engine : stream committed entries (drain FIFO order) out
+    // of the BRAM through the prefetch skid.  The fetch beat pointer runs one
+    // beat AHEAD of the presented beat so the read port stays busy across
+    // entry boundaries (beat-0 of the next entry fetches while the current
+    // tail drains -> no per-entry bubble, 1 beat/cycle sustained).
+    // ======================================================================
+    logic [BCW-1:0]  r_cm_fbeat;   // commit fetch beat (next beat to issue)
+    logic [31:0]     w_cm_idx;
+    assign w_cm_idx = 32'(w_dq_rd_slot) * 32'(AXI_BEATS_PER_BURST) + 32'(r_cm_fbeat);
+
+    // Room for one more outstanding fetch: a free credit, or a consume this
+    // cycle returns one.
+    logic w_fetch, w_room, w_fetch_last;
+    assign w_room       = (r_credits != 2'd0) || w_cm_fire;
+    assign w_fetch      = w_room && w_dq_rd_valid;
+    assign w_fetch_last = w_fetch && (r_cm_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
+
+    // Pop the drain queue at FETCH-last so the head advances to the next entry
+    // on the next edge and its beat-0 fetches immediately (no cross-entry
+    // bubble; same idiom as mc_wr_data_cam's w_dq_rd_ready).
+    assign w_dq_rd_ready = w_fetch_last;
 
     // ======================================================================
     // WR sequential logic
