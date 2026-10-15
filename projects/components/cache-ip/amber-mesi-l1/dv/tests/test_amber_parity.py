@@ -14,7 +14,8 @@ dv/golden/cache_sim_harness.py):
     l1_repl LFSR polynomial/seed -- mulberry32 cannot parity natively
     (DECISION D-9)
 
-Levels: gate replays the smoke trace only (seq_1k); func is the full grid.
+Levels: gate replays the smoke trace only (seq_1k); func and full both run
+the complete committed trace set (no per-level scaling — see TRACE_SETS).
 Seeds are pinned per test node by the repo-root conftest; the trace files
 themselves are deterministic committed artifacts (dv/traces/gen_traces.py,
 pinned seeds).
@@ -70,9 +71,16 @@ TRACES_DIR = os.path.join(repo_root,
                           'projects/components/cache-ip/amber-mesi-l1/dv/traces')
 
 # committed regression traces (see dv/traces/gen_traces.py); gate = smoke
+# trace only. func and full both run the complete committed set: parity
+# intensity comes from the traces themselves, and the TB takes no
+# per-level scaling knobs, so full == func here. The 'full' key must
+# exist regardless: make/tests.mk's run-all-full-parallel walks every
+# level of every test file (a missing key is a collection-time KeyError
+# that fails the whole area target).
 TRACE_SETS = {
     'gate': ('seq_1k',),
     'func': ('seq_1k', 'strided_8k', 'walk_16k', 'thrash_32k', 'mix_100k'),
+    'full': ('seq_1k', 'strided_8k', 'walk_16k', 'thrash_32k', 'mix_100k'),
 }
 
 # (repl_policy, name): amber_repl_t encodings
