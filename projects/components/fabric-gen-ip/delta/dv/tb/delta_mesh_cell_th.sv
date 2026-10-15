@@ -6,9 +6,9 @@
 //
 // Module: delta_mesh_cell_th
 // Purpose: Test harness -- pure wiring. Flattens the generated cell's
-//          unpacked-array ports ([7]) into one named port set per mesh port
-//          (xneg_, xpos_, yneg_, ypos_, zneg_, zpos_, local_) so the RDS-DV
-//          AXIS BFMs bind to each one by prefix.
+//          unpacked-array ports ([8]) into one named port set per mesh port
+//          (xneg_, xpos_, yneg_, ypos_, zneg_, zpos_, dia_, local_) so the
+//          RDS-DV AXIS BFMs bind to each one by prefix.
 //
 // DUT: projects/components/fabric-gen-ip/delta/rtl/delta_mesh_cell.sv
 //      (module delta_mesh_cell, generated with
@@ -16,13 +16,20 @@
 //       instantiated here at POS (1,1,0) of the 4x4x1 grid).
 //      If that generator command changes, this port list must follow it.
 //
+// Port index map (pinned in delta_mesh_cell; Task 6b added P_DIA at 6 and
+// MOVED P_LOCAL from 6 to 7):
+//   0 = P_X_NEG, 1 = P_X_POS, 2 = P_Y_NEG, 3 = P_Y_POS,
+//   4 = P_Z_NEG, 5 = P_Z_POS, 6 = P_DIA (diagonal mate), 7 = P_LOCAL
+//
 // Credit sidebands: s_credit is driven per port per VC by the test (modeling
 // the downstream neighbor's advertised credits); m_credit is the credit
 // count this cell advertises for its own input buffers (Task 4 protocol).
 // err_drop_cnt is the cell's malformed-dst drop tally (Task 5), exposed for
 // the tables/drop suites; mode_acks is the mode-switch ack tally (Task 6,
 // the modes suite's barrier), exposed the same way; GRID_* defaults match
-// the checked-in 4x4x1 cell.
+// the checked-in 4x4x1 cell. The dia_ port is the tetrad diagonal link
+// (Task 6b): the fabric wires it to the (x^1, y^1, z) mate; driven here
+// like any neighbor port (s_credit all-ones default in the TB).
 //
 // Subsystem: delta (dv)
 //
@@ -124,6 +131,19 @@ module delta_mesh_cell_th #(
     output logic [USER_WIDTH-1:0] zpos_m_axis_tuser,
     output logic [NUM_VC-1:0]     zpos_m_credit,
 
+    input  logic [DATA_WIDTH-1:0] dia_s_axis_tdata,
+    input  logic                  dia_s_axis_tvalid,
+    output logic                  dia_s_axis_tready,
+    input  logic                  dia_s_axis_tlast,
+    input  logic [USER_WIDTH-1:0] dia_s_axis_tuser,
+    input  logic [NUM_VC-1:0]     dia_s_credit,
+    output logic [DATA_WIDTH-1:0] dia_m_axis_tdata,
+    output logic                  dia_m_axis_tvalid,
+    input  logic                  dia_m_axis_tready,
+    output logic                  dia_m_axis_tlast,
+    output logic [USER_WIDTH-1:0] dia_m_axis_tuser,
+    output logic [NUM_VC-1:0]     dia_m_credit,
+
     input  logic [DATA_WIDTH-1:0] local_s_axis_tdata,
     input  logic                  local_s_axis_tvalid,
     output logic                  local_s_axis_tready,
@@ -141,10 +161,10 @@ module delta_mesh_cell_th #(
     output logic [31:0]           mode_acks
 );
 
-    // DUT port index map (pinned localparams in delta_mesh_cell):
+    // DUT port index map (pinned localparams in delta_mesh_cell, Task 6b):
     //   0 = P_X_NEG, 1 = P_X_POS, 2 = P_Y_NEG, 3 = P_Y_POS,
-    //   4 = P_Z_NEG, 5 = P_Z_POS, 6 = P_LOCAL
-    localparam int NUM_PORTS = 7;
+    //   4 = P_Z_NEG, 5 = P_Z_POS, 6 = P_DIA, 7 = P_LOCAL
+    localparam int NUM_PORTS = 8;
 
     logic [DATA_WIDTH-1:0] w_s_tdata  [NUM_PORTS];
     logic                  w_s_tvalid [NUM_PORTS];
@@ -237,18 +257,31 @@ module delta_mesh_cell_th #(
     assign zpos_m_axis_tuser = w_m_tuser[5];
     assign zpos_m_credit = w_m_credit[5];
 
-    assign w_s_tdata[6]  = local_s_axis_tdata;
-    assign w_s_tvalid[6] = local_s_axis_tvalid;
-    assign local_s_axis_tready = w_s_tready[6];
-    assign w_s_tlast[6]  = local_s_axis_tlast;
-    assign w_s_tuser[6]  = local_s_axis_tuser;
-    assign w_s_credit[6] = local_s_credit;
-    assign local_m_axis_tdata  = w_m_tdata[6];
-    assign local_m_axis_tvalid = w_m_tvalid[6];
-    assign w_m_tready[6] = local_m_axis_tready;
-    assign local_m_axis_tlast = w_m_tlast[6];
-    assign local_m_axis_tuser = w_m_tuser[6];
-    assign local_m_credit = w_m_credit[6];
+    assign w_s_tdata[6]  = dia_s_axis_tdata;
+    assign w_s_tvalid[6] = dia_s_axis_tvalid;
+    assign dia_s_axis_tready = w_s_tready[6];
+    assign w_s_tlast[6]  = dia_s_axis_tlast;
+    assign w_s_tuser[6]  = dia_s_axis_tuser;
+    assign w_s_credit[6] = dia_s_credit;
+    assign dia_m_axis_tdata  = w_m_tdata[6];
+    assign dia_m_axis_tvalid = w_m_tvalid[6];
+    assign w_m_tready[6] = dia_m_axis_tready;
+    assign dia_m_axis_tlast = w_m_tlast[6];
+    assign dia_m_axis_tuser = w_m_tuser[6];
+    assign dia_m_credit = w_m_credit[6];
+
+    assign w_s_tdata[7]  = local_s_axis_tdata;
+    assign w_s_tvalid[7] = local_s_axis_tvalid;
+    assign local_s_axis_tready = w_s_tready[7];
+    assign w_s_tlast[7]  = local_s_axis_tlast;
+    assign w_s_tuser[7]  = local_s_axis_tuser;
+    assign w_s_credit[7] = local_s_credit;
+    assign local_m_axis_tdata  = w_m_tdata[7];
+    assign local_m_axis_tvalid = w_m_tvalid[7];
+    assign w_m_tready[7] = local_m_axis_tready;
+    assign local_m_axis_tlast = w_m_tlast[7];
+    assign local_m_axis_tuser = w_m_tuser[7];
+    assign local_m_credit = w_m_credit[7];
 
     // Credit sidebands: driven per port per VC by the test bench (s_credit
     // models the downstream neighbor's advertised credit levels).

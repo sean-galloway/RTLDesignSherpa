@@ -53,16 +53,17 @@ from CocoTBFramework.components.axis4.axis_factories import (
 )
 from CocoTBFramework.components.axis4.axis_packet import AXISPacket
 from delta_mesh.header import build_header_offsets
-from delta_mesh.tables import P_LOCAL, P_X_POS, P_Y_POS, table_index
+from delta_mesh.tables import P_DIA, P_LOCAL, P_X_POS, P_Y_POS, table_index
 from TBClasses.shared.tbbase import TBBase
 
 
 class DeltaMeshCellTB(TBBase):
     """TB for delta_mesh_cell (default DOR) via its harness."""
 
-    # Harness port prefixes, index == cell port id:
+    # Harness port prefixes, index == cell port id (Task 6b: P_DIA takes
+    # index 6, P_LOCAL moved to 7):
     #   0 = P_X_NEG, 1 = P_X_POS, 2 = P_Y_NEG, 3 = P_Y_POS,
-    #   4 = P_Z_NEG, 5 = P_Z_POS, 6 = P_LOCAL
+    #   4 = P_Z_NEG, 5 = P_Z_POS, 6 = P_DIA, 7 = P_LOCAL
     PORTS = (
         ('xneg', 0),
         ('xpos', 1),
@@ -70,7 +71,8 @@ class DeltaMeshCellTB(TBBase):
         ('ypos', 3),
         ('zneg', 4),
         ('zpos', 5),
-        ('local', 6),
+        ('dia', 6),
+        ('local', 7),
     )
 
     def __init__(self, dut):
@@ -722,7 +724,8 @@ class DeltaMeshTablesTB(DeltaMeshCellTB):
     Config transaction (plan-pinned format): a single-beat packet on the
     local port addressed to the cell itself (dst == POS), QoS class 0,
     ``sr_ptr[0]`` = 1 write / 0 read, command in the payload beat's TDATA:
-    ``{table_index[15:0], entry[7:0]}`` (entry = {port_mask[6:0], vc}).
+    ``{table_index[15:0], entry[8:0]}`` (entry = {port_mask[7:0], vc};
+    the mask widened to 8 bits when P_DIA landed, Task 6b).
     The response is a single beat on the local master's m_axis carrying
     the same ``{table_index, entry}`` shape: a write acks with the written
     entry, a read returns the table value. Responses carry tuser = 0.
@@ -1582,3 +1585,429 @@ class DeltaMeshModesTB(DeltaMeshFabricTB):
         self.log.info(
             "delta mesh modes (d): congested fan-out -- gen beats wait "
             "on the full local FIFO, barrier at 4, zero drops")
+
+
+class DeltaMeshTetradTB(DeltaMeshModesTB):
+    """TB for mode 9 (tetrad all-to-all K4) + the P_DIA diagonal link
+    (Task 6b), on the 2x2x1 fabric harness -- a single tetrad:
+    b0=(0,0,0), b1=(1,0,0), b2=(0,1,0), b3=(1,1,0). Edge mates: b0<->b1,
+    b2<->b3 (+X), b0<->b2, b1<->b3 (+Y); diagonal mates: b0<->b3, b1<->b2.
+
+    The single-hop property is proven by injection->ejection LATENCY,
+    measured cycle-exactly with raw signal drive (the BFM pipeline
+    turnaround would smear the stamps): every cell traversal (input
+    buffer -> grant -> link -> output) adds a fixed latency, so a 2-hop
+    detour through an intermediate cell adds a multiple of it and can
+    never masquerade as 1 hop. Calibration, measured live on the same
+    RTL/harness: in the power-on DOR mode the diagonal pair b0->b3 IS 2
+    hops (dx then dy via an intermediate cell) while the edge pair
+    b0->b1 is 1 hop; under mode 9 the diagonal pair must drop to exactly
+    the 1-hop latency and every intra-tetrad pair (edge + diagonal mates,
+    both parities) must measure the identical latency. In the bandwidth
+    scenario a witness coroutine samples the fabric's inter-cell
+    axis-port tvalids every cycle: any hidden 2-hop detour would toggle
+    an axis port of an intermediate cell -- the direct diagonal link is
+    the only inter-cell link allowed to carry traffic.
+    """
+
+    # The fabric's inter-cell port indices (pinned in delta_mesh_cell and
+    # mirrored by fabric.py): 0..5 axis, 6 = P_DIA, 7 = P_LOCAL.
+    P_DIA_IDX = P_DIA
+    AXIS_IDXS = (0, 1, 2, 3, 4, 5)
+
+    # ------------------------------------------------------------------
+    # Signal access helpers (raw drive / raw observe)
+    # ------------------------------------------------------------------
+    def _sig(self, prefix, suffix):
+        return getattr(self.dut, f'{prefix}_{suffix}')
+
+    # ------------------------------------------------------------------
+    # Scenario (a): all 16 ordered intra-tetrad pairs, exactly 1 hop
+    # ------------------------------------------------------------------
+    async def _pair_latency(self, src_bidx, dst_bidx, pid, tag):
+        """Raw-drive one single-beat packet b{src}->b{dst}; return
+        (header, data, latency) with the ejected beat verified exact.
+        Latency = ejection_cycle - injection_cycle in aclk edges."""
+        s = f'b{src_bidx}'
+        d = f'b{dst_bidx}'
+        sv = self._sig(s, 's_axis_tvalid')
+        sr = self._sig(s, 's_axis_tready')
+        sd = self._sig(s, 's_axis_tdata')
+        su = self._sig(s, 's_axis_tuser')
+        sl = self._sig(s, 's_axis_tlast')
+        dv = self._sig(d, 'm_axis_tvalid')
+        dr = self._sig(d, 'm_axis_tready')
+        dd = self._sig(d, 'm_axis_tdata')
+        du = self._sig(d, 'm_axis_tuser')
+        dl = self._sig(d, 'm_axis_tlast')
+
+        header = self.build_header(
+            dst=self.BOUNDARY_COORDS[dst_bidx],
+            src=self.BOUNDARY_COORDS[src_bidx],
+            qos=1, packet_id=pid)
+        data = ((0x7E7 << 48) | (src_bidx << 44) | (dst_bidx << 40)
+                | (pid & 0xFFFFF))
+        sv.value = 1
+        sd.value = data
+        su.value = header
+        sl.value = 1
+        in_cyc = None
+        out_cyc = None
+        got_d = got_u = None
+        cyc = 0
+        while out_cyc is None:
+            await RisingEdge(self.aclk)
+            cyc += 1
+            if in_cyc is None and int(sv.value) and int(sr.value):
+                in_cyc = cyc
+                sv.value = 0
+                sl.value = 0
+                su.value = 0
+                sd.value = 0
+            if int(dv.value) and int(dr.value) and int(dl.value):
+                out_cyc = cyc
+                got_d = int(dd.value)
+                got_u = int(du.value)
+            if cyc > 2000:
+                raise AssertionError(
+                    f"{tag}: b{src_bidx}->b{dst_bidx} never ejected "
+                    f"(in_cyc={in_cyc})")
+        if got_d != data or got_u != header:
+            raise AssertionError(
+                f"{tag}: b{src_bidx}->b{dst_bidx} ejected beat "
+                f"0x{got_d:x}/0x{got_u:x}, expected 0x{data:x}/0x{header:x} "
+                "(misdelivery or corruption)")
+        return header, data, out_cyc - in_cyc
+
+    async def run_tetrad_k4_one_hop(self):
+        """All 12 ordered intra-tetrad pairs deliver in exactly 1 hop.
+
+        Calibration first, in the power-on DOR mode (no switch): the
+        edge pair b0->b1 is 1 hop, the diagonal pair b0->b3 is 2 hops.
+        Then broadcast-switch to mode 9 (ack barrier), re-measure every
+        ordered pair, and assert all 12 non-self latencies equal the
+        mode-0 1-hop calibration exactly; the diagonal pairs must drop
+        from the 2-hop calibration to the same 1-hop latency. A full
+        boundary scoreboard proves exactly-once delivery."""
+        tag = "tetrad-k4"
+        nb = len(self.BOUNDARY_COORDS)
+        expected = {}
+
+        # --- calibration in power-on mode 0 (pure DOR image); the two
+        # calibration packets are scoreboarded as their own pairs at the
+        # end (they share the BFM records with the traffic) ---
+        cal = {}
+        h, d, edge_1hop = await self._pair_latency(0, 1, self._next_pid(),
+                                                   f"{tag}:cal-edge")
+        cal[(0, 1)] = (h, [d])
+        h, d, diag_2hop = await self._pair_latency(0, 3, self._next_pid(),
+                                                   f"{tag}:cal-diag")
+        cal[(0, 3)] = (h, [d])
+        if diag_2hop <= edge_1hop:
+            raise AssertionError(
+                f"{tag}: calibration cannot resolve hops: diagonal DOR "
+                f"latency {diag_2hop} <= edge latency {edge_1hop} "
+                "(expected 2 hops > 1 hop; latency method broken)")
+
+        # --- switch to mode 9; the tetrad K4 image is live everywhere ---
+        await self._switch_and_wait(0, 9, 4, tag)
+
+        lat = {}
+        for a in range(nb):
+            for b in range(nb):
+                header, data, l = await self._pair_latency(
+                    a, b, self._next_pid(), f"{tag}:{a}->{b}")
+                lat[(a, b)] = l
+                payload = [data]
+                expected[(a, b)] = (header, payload)
+
+        # every non-self pair (edge mates AND diagonal mates, both
+        # parities) is exactly the 1-hop latency; the diagonal pairs no
+        # longer pay the 2-hop DOR calibration.
+        for a in range(nb):
+            for b in range(nb):
+                if a == b:
+                    continue
+                if lat[(a, b)] != edge_1hop:
+                    raise AssertionError(
+                        f"{tag}: b{a}->b{b} latency {lat[(a,b)]} cycles, "
+                        f"expected exactly the 1-hop latency {edge_1hop} "
+                        f"(2-hop DOR would be {diag_2hop})")
+        if lat[(0, 3)] != edge_1hop or lat[(3, 0)] != edge_1hop or \
+                lat[(1, 2)] != edge_1hop or lat[(2, 1)] != edge_1hop:
+            raise AssertionError(
+                f"{tag}: diagonal pairs did not drop to 1 hop under mode 9")
+
+        # exactly-once scoreboard at every boundary (self pairs deliver
+        # on the cell's own local port). The two calibration packets and
+        # the mode-switch acks at b0 ride in the same BFM records; the
+        # acks are filtered by the modes class's _group_frames override
+        # and the calibration frames are matched as their own pairs.
+        await self.wait_clocks('aclk', 10)
+        for dst_idx in range(nb):
+            frames = self._group_frames(f'b{dst_idx}', tag)
+            exp = {(a, dst_idx): hp for (a, b), hp in expected.items()
+                   if b == dst_idx}
+            # calibration frames are distinct packets (unique headers);
+            # scoreboard them under a pseudo-source index (nb+a) so the
+            # key neither collides with the traffic pair (a, dst) nor
+            # breaks the (src, dst) 2-tuple unpack in the matcher
+            exp.update({(nb + a, dst_idx): hp
+                        for (a, b), hp in cal.items() if b == dst_idx})
+            if len(frames) != len(exp):
+                raise AssertionError(
+                    f"{tag}: boundary b{dst_idx} received {len(frames)} "
+                    f"data frames, expected {len(exp)} (one per source "
+                    "plus calibration)")
+            self._match_expected_frames(f'b{dst_idx}', dst_idx, exp, frames,
+                                        tag)
+        self._check_zero_err(tag)
+        self.log.info(
+            f"delta mesh tetrad (a): all 12 ordered pairs 1 hop "
+            f"(edge={edge_1hop}c, DOR-diag={diag_2hop}c), exact-once "
+            f"scoreboard clean")
+
+    # ------------------------------------------------------------------
+    # Scenario (b): diagonal-pair bandwidth, no hidden detour
+    # ------------------------------------------------------------------
+    async def _diag_stream_driver(self, src_bidx, dst_bidx, npkts, beats,
+                                  base_pid, tag):
+        """Raw-drive npkts x beats back-to-back at the producer's line
+        rate (a beat every cycle the boundary accepts one); returns
+        {pid: injection cycle of the packet's head beat}."""
+        s = f'b{src_bidx}'
+        sv = self._sig(s, 's_axis_tvalid')
+        sr = self._sig(s, 's_axis_tready')
+        sd = self._sig(s, 's_axis_tdata')
+        su = self._sig(s, 's_axis_tuser')
+        sl = self._sig(s, 's_axis_tlast')
+        pkts = []
+        for k in range(npkts):
+            pid = base_pid + k
+            header = self.build_header(
+                dst=self.BOUNDARY_COORDS[dst_bidx],
+                src=self.BOUNDARY_COORDS[src_bidx],
+                qos=1, packet_id=pid)
+            payload = [
+                ((0xD1A << 48) | (src_bidx << 44) | (dst_bidx << 40)
+                 | ((pid & 0x3FF) << 8) | j)
+                for j in range(beats)]
+            pkts.append((pid, header, payload))
+
+        head_cycle = {}
+        cyc = 0
+        beat_q = [(pid, header, j, data, j == len(payload) - 1)
+                  for pid, header, payload in pkts
+                  for j, data in enumerate(payload)]
+        sv.value = 1
+        for pid, header, j, data, last in beat_q:
+            sd.value = data
+            su.value = header if j == 0 else 0
+            sl.value = 1 if last else 0
+            while True:
+                await RisingEdge(self.aclk)
+                cyc += 1
+                if int(sv.value) and int(sr.value):
+                    break
+                if cyc > 20000:
+                    raise AssertionError(
+                        f"{tag}: b{src_bidx} producer stalled at "
+                        f"packet {pid} beat {j}")
+            if j == 0:
+                head_cycle[pid] = cyc
+        sv.value = 0
+        sl.value = 0
+        su.value = 0
+        sd.value = 0
+        return head_cycle
+
+    async def _diag_stream_monitor(self, dst_bidx, exp_src, npkts, beats,
+                                   tag):
+        """Watch a boundary m_axis beat by beat; verify every beat exact
+        against the driver's construction and return
+        {pid: ejection cycle of the packet's last beat}."""
+        d = f'b{dst_bidx}'
+        dv = self._sig(d, 'm_axis_tvalid')
+        dr = self._sig(d, 'm_axis_tready')
+        dd = self._sig(d, 'm_axis_tdata')
+        du = self._sig(d, 'm_axis_tuser')
+        dl = self._sig(d, 'm_axis_tlast')
+        last_cycle = {}
+        seen = 0       # packets completed
+        j = 0          # beat index within the current packet
+        cyc = 0
+        while seen < npkts:
+            await RisingEdge(self.aclk)
+            cyc += 1
+            if not (int(dv.value) and int(dr.value)):
+                if cyc > 20000:
+                    raise AssertionError(
+                        f"{tag}: b{dst_bidx} saw {seen}/{npkts} packets")
+                continue
+            data = int(dd.value)
+            user = int(du.value)
+            last = int(dl.value)
+            pid = (data >> 8) & 0x3FF
+            j = data & 0xFF
+            exp_data = ((0xD1A << 48) | (exp_src << 44) | (dst_bidx << 40)
+                        | (pid << 8) | j)
+            exp_header = self.build_header(
+                dst=self.BOUNDARY_COORDS[dst_bidx],
+                src=self.BOUNDARY_COORDS[exp_src],
+                qos=1, packet_id=pid)
+            exp_user = exp_header if j == 0 else 0
+            exp_last = 1 if j == beats - 1 else 0
+            if data != exp_data or user != exp_user or last != exp_last:
+                raise AssertionError(
+                    f"{tag}: b{dst_bidx} beat 0x{data:x}/0x{user:x}/"
+                    f"{last} != expected 0x{exp_data:x}/0x{exp_user:x}/"
+                    f"{exp_last}")
+            if last:
+                seen += 1
+                last_cycle[pid] = cyc
+                j = 0
+            else:
+                j += 1
+        return last_cycle
+
+    async def _axis_idle_witness(self, first_cycle, stop_event, tag):
+        """Sample every inter-cell axis-port m_tvalid each cycle from
+        `first_cycle` until `stop_event`: any toggle is a detour (in
+        isolation the only legal inter-cell traffic is P_DIA). Returns
+        the observed P_DIA m_tvalid cycle counts per diagonal cell."""
+        cell_m = self.dut.u_dut.cell_m_tvalid
+        axis_hits = 0
+        dia_cycles = {(0, 0): 0, (1, 1): 0}
+        cyc = 0
+        while not stop_event.is_set():
+            await RisingEdge(self.aclk)
+            cyc += 1
+            if cyc < first_cycle:
+                continue
+            for x in (0, 1):
+                for y in (0, 1):
+                    for p in self.AXIS_IDXS:
+                        if int(cell_m[x][y][0][p].value):
+                            axis_hits += 1
+            for xy in ((0, 0), (1, 1)):
+                if int(cell_m[xy[0]][xy[1]][0][self.P_DIA_IDX].value):
+                    dia_cycles[xy] += 1
+        if axis_hits != 0:
+            raise AssertionError(
+                f"{tag}: inter-cell axis-port activity observed during "
+                f"the isolated diagonal burst ({axis_hits} samples) -- "
+                "a hidden multi-hop detour carried traffic")
+        return dia_cycles
+
+    async def run_tetrad_diag_bandwidth(self):
+        """Sustained back-to-back b0<->b3 (diagonal mates) in both
+        directions concurrently: every packet keeps the exact 1-hop
+        injection->ejection latency (a detour adds a fixed hop latency
+        per packet), the delivery window matches the full-rate pipeline
+        arithmetic (1 flit/clk minus the documented per-packet grant
+        bubble), the axis links stay completely idle (witness), and all
+        beats deliver exactly."""
+        tag = "tetrad-bw"
+        npkts = {'gate': 4, 'func': 8, 'full': 16}[self.TEST_LEVEL]
+        beats = 4  # == input FIFO DEPTH: maximal buffering pressure
+
+        await self._switch_and_wait(0, 9, 4, tag)
+        # fresh 1-hop baseline on the diagonal pair, post-switch
+        _, _, base = await self._pair_latency(0, 3, self._next_pid(),
+                                              f"{tag}:baseline")
+
+        stop_witness = cocotb.triggers.Event()
+        witness = cocotb.start_soon(self._axis_idle_witness(1, stop_witness,
+                                                            tag))
+        d0 = cocotb.start_soon(self._diag_stream_driver(
+            0, 3, npkts, beats, 0x100, f"{tag}:b0"))
+        d1 = cocotb.start_soon(self._diag_stream_driver(
+            3, 0, npkts, beats, 0x200, f"{tag}:b3"))
+        m0 = cocotb.start_soon(self._diag_stream_monitor(
+            3, 0, npkts, beats, f"{tag}:b3"))
+        m1 = cocotb.start_soon(self._diag_stream_monitor(
+            0, 3, npkts, beats, f"{tag}:b0"))
+        head0 = await d0
+        head1 = await d1
+        last0 = await m0   # b3's ejections: b0's packets
+        last1 = await m1   # b0's ejections: b3's packets
+        await self.wait_clocks('aclk', 5)
+        stop_witness.set()
+        dia_cycles = await witness
+
+        # every beat of both streams presented on the diagonal link (one
+        # tvalid cycle per beat; the credit-gated presentation never
+        # raises tvalid on a blocked link) and none on any axis port
+        # (the witness already raised on axis activity)
+        for xy in ((0, 0), (1, 1)):
+            if dia_cycles[xy] != npkts * beats:
+                raise AssertionError(
+                    f"{tag}: P_DIA m_tvalid cycles at cell {xy} == "
+                    f"{dia_cycles[xy]}, expected {npkts * beats} (full "
+                    "rate on the diagonal link; beats went elsewhere?)")
+
+        # Per-packet latency: the 1-hop baseline plus this packet's
+        # remaining beats transferring serially (1 flit/clk) plus a small
+        # pipeline-fill offset -- the input FIFO is exactly one packet
+        # deep (DEPTH == beats), so the queue fills by a cycle or two for
+        # the first packets and then holds steady (measured: base+beats-1
+        # + 0/1/2). The latency bound alone cannot exclude a detour at
+        # single-hop granularity (one hop measures 2 cycles in scenario
+        # (a)'s calibration), so the sharp no-detour instrument is the
+        # axis-idle witness below plus the exact P_DIA activity counts:
+        # every beat of both streams must present on the diagonal link
+        # and none on any axis port.
+        exp_min = base + beats - 1
+        all_lat = ([last0[pid] - h for pid, h in head0.items()] +
+                   [last1[pid] - h for pid, h in head1.items()])
+        fill_margin = 2
+        for label, lats in (("b0->b3",
+                             [last0[pid] - h for pid, h in head0.items()]),
+                            ("b3->b0",
+                             [last1[pid] - h for pid, h in head1.items()])):
+            for k, l in enumerate(lats):
+                if not (exp_min <= l <= exp_min + fill_margin):
+                    raise AssertionError(
+                        f"{tag}: {label} packet {k} latency {l}, expected "
+                        f"[{exp_min}, {exp_min + fill_margin}] (1 hop + "
+                        f"serial beats; a 2-hop detour adds a full hop)")
+        # the queue must not grow without bound: the last packet is no
+        # slower than the steady-state region (fill completes by pkt 3)
+        for label, lats in (("b0->b3",
+                             [last0[pid] - h for pid, h in head0.items()]),
+                            ("b3->b0",
+                             [last1[pid] - h for pid, h in head1.items()])):
+            if lats[-1] > lats[min(2, len(lats) - 1)]:
+                raise AssertionError(
+                    f"{tag}: {label} queue grew: last packet latency "
+                    f"{lats[-1]} > steady {lats[min(2, len(lats)-1)]}")
+
+        # sustained full rate per direction: the producer injects a beat
+        # every acceptance cycle; the path adds the 1-cycle grant bubble
+        # per packet boundary: window == (npkts-1)*(beats+1) + (beats-1)
+        # + base, worst case a couple of cycles looser.
+        for head, last, label in ((head0, last0, "b0->b3"),
+                                  (head1, last1, "b3->b0")):
+            first = min(head.values())
+            fin = max(last.values())
+            window = fin - first
+            exp_window = (npkts - 1) * (beats + 1) + (beats - 1) + base
+            if window > exp_window + 4:
+                raise AssertionError(
+                    f"{tag}: {label} delivery window {window}c, expected "
+                    f"<= {exp_window + 4}c (full rate minus the documented "
+                    f"per-packet bubble; {exp_window}c ideal)")
+
+        self._check_zero_err(tag)
+        # non-participating cells (b1, b2) saw no data traffic at all
+        for bidx in (1, 2):
+            if self._data_frame_count(f'b{bidx}') != 0:
+                raise AssertionError(
+                    f"{tag}: b{bidx} received "
+                    f"{self._data_frame_count(f'b{bidx}')} data frames, "
+                    "expected 0 (leak/detour into a non-participant)")
+        self.log.info(
+            f"delta mesh tetrad (b): diagonal pair full rate both "
+            f"directions ({npkts}x{beats} each way, 1-hop latency {base}c "
+            f"held per packet, P_DIA tvalid cycles {dia_cycles}, axis "
+            f"links idle)")

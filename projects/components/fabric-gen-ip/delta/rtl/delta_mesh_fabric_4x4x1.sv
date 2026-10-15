@@ -73,6 +73,31 @@ parameter int     NUM_BOUNDARY = 16 )(
 //   - An interior cell's local port (possible only when
 //     X, Y, Z all >= 3) is tied off the same way.
 //
+// Tetrad diagonal links (Task 6b, owner addition
+// 2026-10-15): every 2x2x1 tetrad is fully connected K4
+// -- the 4 perimeter edges over +/-X/+/-Y plus BOTH
+// diagonals. Each cell has exactly one diagonal mate,
+// (x^1, y^1, z), so one diagonal port per cell suffices
+// and the fabric draws one diagonal wire pair per tetrad:
+//   - cell (x,y,z) m_axis[P_DIA] <-> cell (x^1,y^1,z)
+//     s_axis[P_DIA], for every (x,y) whose mate is in
+//     grid. Both parities connect (each cell of the pair
+//     drives its own wire direction), so no P_DIA dangles
+//     on any grid.
+//   - Odd-dimension edge: when X or Y is odd, the cell at
+//     the last row/column has its mate (x^1) out of grid.
+//     That cell's P_DIA ties off exactly like an absent
+//     neighbor. This is safe by construction: the XOR
+//     mate form can only name the out-of-grid coordinate
+//     there, no in-grid dst can select it, and DOR (the
+//     power-on default + modes 1-8) never selects P_DIA
+//     at all (tables.check_no_diag, generation-time).
+//     The checked-in 4x4x1 and the test 2x2x1 have even
+//     dims, so the tie-off branch is unreachable there;
+//     the generator emits it for odd grids regardless.
+//   - The diagonals are planar (X/Y only); Z expansion
+//     stays axis-routed (spec sec. 2.2).
+//
 // ==============================================================================
 
 // ==========================================================================
@@ -81,7 +106,7 @@ parameter int     NUM_BOUNDARY = 16 )(
 localparam int X_DIM = 4;
 localparam int Y_DIM = 4;
 localparam int Z_DIM = 1;
-localparam int NUM_PORTS = 7;
+localparam int NUM_PORTS = 8;
 
 // Mesh port ids (pinned, same as delta_mesh_cell)
 localparam int P_X_NEG = 0;
@@ -90,7 +115,8 @@ localparam int P_Y_NEG = 2;
 localparam int P_Y_POS = 3;
 localparam int P_Z_NEG = 4;
 localparam int P_Z_POS = 5;
-localparam int P_LOCAL = 6;
+localparam int P_DIA = 6;
+localparam int P_LOCAL = 7;
 
 // Boundary predicate and boundary-index map, matching
 // bin/delta_mesh/fabric.py (single source of truth). The
@@ -170,7 +196,9 @@ logic [31:0]           cell_mode_acks [X_DIM][Y_DIM][Z_DIM];
 // ==========================================================================
 // Each delta_mesh_cell instance gets its grid coordinate as
 // POS_X/POS_Y/POS_Z; neighbor ports hook to the adjacent
-// cell or tie off at the mesh boundary. Boundary cells'
+// cell or tie off at the mesh boundary; P_DIA hooks to the
+// diagonal mate (gx^1, gy^1, gz) or ties off on an odd
+// edge (Task 6b). Boundary cells'
 // local ports drive the s_local_*/m_local_* port arrays via
 // the boundary-index map (x-major, then y, then z).
 // ==========================================================================
@@ -304,6 +332,34 @@ generate
                     assign cell_s_tuser[gx][gy][gz][P_Z_POS]  = '0;
                     assign cell_s_credit[gx][gy][gz][P_Z_POS] = {NUM_VC{1'b1}};
                     assign cell_m_tready[gx][gy][gz][P_Z_POS] = 1'b0;
+                end
+//         // Tetrad diagonal (Task 6b): the mate (gx^1,
+//         // gy^1, gz) of this cell's aligned 2x2x1 block.
+//         // Both parities execute this block (each drives
+//         // its own wire direction), so the pair connects
+//         // with no dangling P_DIA; on an odd X/Y edge the
+//         // out-of-grid mate ties off (see the header
+//         // comment).
+                if (((gx^1) < X_DIM) && ((gy^1) < Y_DIM)) begin : gen_dia_conn
+                    assign cell_s_tdata[gx][gy][gz][P_DIA]  =
+                        cell_m_tdata[gx^1][gy^1][gz][P_DIA];
+                    assign cell_s_tvalid[gx][gy][gz][P_DIA] =
+                        cell_m_tvalid[gx^1][gy^1][gz][P_DIA];
+                    assign cell_s_tlast[gx][gy][gz][P_DIA]  =
+                        cell_m_tlast[gx^1][gy^1][gz][P_DIA];
+                    assign cell_s_tuser[gx][gy][gz][P_DIA]  =
+                        cell_m_tuser[gx^1][gy^1][gz][P_DIA];
+                    assign cell_s_credit[gx][gy][gz][P_DIA] =
+                        cell_m_credit[gx^1][gy^1][gz][P_DIA];
+                    assign cell_m_tready[gx][gy][gz][P_DIA] =
+                        cell_s_tready[gx^1][gy^1][gz][P_DIA];
+                end else begin : gen_dia_tieoff
+                    assign cell_s_tdata[gx][gy][gz][P_DIA]  = '0;
+                    assign cell_s_tvalid[gx][gy][gz][P_DIA] = 1'b0;
+                    assign cell_s_tlast[gx][gy][gz][P_DIA]  = 1'b0;
+                    assign cell_s_tuser[gx][gy][gz][P_DIA]  = '0;
+                    assign cell_s_credit[gx][gy][gz][P_DIA] = {NUM_VC{1'b1}};
+                    assign cell_m_tready[gx][gy][gz][P_DIA] = 1'b0;
                 end
 
                 if (is_boundary(gx, gy, gz)) begin : gen_local_conn

@@ -6,7 +6,7 @@
 #
 # Module: delta_mesh.cell
 # Purpose: Emitter for delta_mesh_cell -- the one and only RTL module of the
-#          delta mesh topology (7 ports: +/-X, +/-Y, +/-Z, local).
+#          delta mesh topology (8 ports: +/-X, +/-Y, +/-Z, diagonal, local).
 #
 # Documentation: docs/superpowers/specs/2026-10-13-delta-mesh-design.md
 # Subsystem: delta
@@ -40,9 +40,10 @@ coordinates drop at the head with an err_drop_cnt tally.
 
 Task 6 scope: the standard fabric modes (spec sec. 5.4) land as a mode
 mux in front of the route_table RAM -- r_mode[3:0] selects the custom
-RAM image (0, power-on default) or one of eight generated mode images
-(1-8), so the RAM stays user-intact and switching back to mode 0
-restores the custom tables. A broadcast mode-switch is a config-format
+RAM image (0, power-on default) or one of the generated mode images
+(1-8 at Task 6; mode 9 lands with Task 6b), so the RAM stays
+user-intact and switching back to mode 0 restores the custom tables. A
+broadcast mode-switch is a config-format
 packet (dst == own coordinate, QoS class 0, mcast bit set, sr_ptr[0]
 write, single beat, payload {mode_id[3:0], magic[15:0]}) recognized on
 ANY input port: the consuming cell switches r_mode, returns a one-beat
@@ -59,6 +60,23 @@ The flooded copies carry each receiving cell's own coordinate as dst,
 so the pinned dst == self discriminator holds at every recipient.
 Data-plane contract: sr_ptr[0] = 0 on user data; the mode-switch magics
 in the payload low bits are the control class markers.
+
+Task 6b scope: the tetrad diagonal link + mode 9 (owner addition
+2026-10-15). The port list gains P_DIA at index 6 and P_LOCAL MOVES to
+index 7 (NUM_PORTS 8; every per-port structure -- input buffers, credit
+sidebands, request/grant matrices, crossbar -- iterates NUM_PORTS, so
+the extension is uniform). P_DIA is always emitted: the fabric wires
+cell (x,y,z) m_axis[P_DIA] to cell (x^1,y^1,z) s_axis[P_DIA] (one
+diagonal wire pair per tetrad, both parities connect); on an odd X/Y
+edge the out-of-grid mate's P_DIA ties off, which is safe because no
+in-grid dst can name it (the XOR mate form can only produce the
+out-of-grid coordinate there) and because DOR -- the power-on default
+and modes 1-8 -- never selects P_DIA (generator-enforced guard,
+tables.check_no_diag). Mode 9 (tetrad all-to-all K4) is the one image
+allowed to route P_DIA: the diagonal mate rides it in 1 hop, edge mates
+keep the axis port (1 hop), inter-tetrad dsts DOR. The mode-switch
+control flood deliberately stays on the six axis ports (P_DIA is
+mode-9's data-plane link; control traffic routes DOR regardless).
 """
 
 import os
@@ -71,6 +89,7 @@ from .tables import (  # noqa: F401  (re-exported for fabric.py)
     NUM_PORTS,
     PORT_IDS,
     check_acyclic,
+    check_no_diag,
     default_dor_image,
     mode_image,
     mode_port,
@@ -95,12 +114,20 @@ class DeltaMeshCell(Module):
         # (spec sec. 13 formal assist) before any RTL is written: the
         # power-on DOR image (Task 5 form: origin per image, DOR
         # elsewhere) and every standard-mode image (Task 6 form: every
-        # cell routes per the mode function).
+        # cell routes per the mode function; mode 9 the tetrad K4 image
+        # of Task 6b). The controller-pinned guard also proves DOR --
+        # the default image and modes 1-8 -- never selects P_DIA (only
+        # mode 9 may), which is what keeps the pre-6b suites regression-
+        # free by construction and the odd-dimension tie-off safe.
         check_acyclic(default_dor_image(config), config)
-        for mode_id in range(1, 9):
-            check_acyclic(mode_image(config, mode_id), config,
+        check_no_diag(default_dor_image(config), "power-on DOR image")
+        for mode_id in range(1, 10):
+            image = mode_image(config, mode_id)
+            check_acyclic(image, config,
                           route_fn=(lambda dst, pos, m=mode_id:
                                     mode_port(m, dst, pos, config)))
+            if mode_id != 9:
+                check_no_diag(image, f"mode {mode_id} image")
 
         param_str = f'''
             parameter int DATA_WIDTH = {config.data_width},
@@ -122,20 +149,20 @@ class DeltaMeshCell(Module):
             input  logic aclk,
             input  logic aresetn,
 
-            input  logic [DATA_WIDTH-1:0] s_axis_tdata  [7],
-            input  logic                  s_axis_tvalid [7],
-            output logic                  s_axis_tready [7],
-            input  logic                  s_axis_tlast  [7],
-            input  logic [USER_WIDTH-1:0] s_axis_tuser  [7],
+            input  logic [DATA_WIDTH-1:0] s_axis_tdata  [8],
+            input  logic                  s_axis_tvalid [8],
+            output logic                  s_axis_tready [8],
+            input  logic                  s_axis_tlast  [8],
+            input  logic [USER_WIDTH-1:0] s_axis_tuser  [8],
 
-            output logic [DATA_WIDTH-1:0] m_axis_tdata  [7],
-            output logic                  m_axis_tvalid [7],
-            input  logic                  m_axis_tready [7],
-            output logic                  m_axis_tlast  [7],
-            output logic [USER_WIDTH-1:0] m_axis_tuser  [7],
+            output logic [DATA_WIDTH-1:0] m_axis_tdata  [8],
+            output logic                  m_axis_tvalid [8],
+            input  logic                  m_axis_tready [8],
+            output logic                  m_axis_tlast  [8],
+            output logic [USER_WIDTH-1:0] m_axis_tuser  [8],
 
-            input  logic [NUM_VC-1:0]     s_credit      [7],
-            output logic [NUM_VC-1:0]     m_credit      [7],
+            input  logic [NUM_VC-1:0]     s_credit      [8],
+            output logic [NUM_VC-1:0]     m_credit      [8],
 
             output logic [31:0]           o_err_drop_cnt,
             output logic [31:0]           o_mode_acks
@@ -165,7 +192,7 @@ class DeltaMeshCell(Module):
         self.comment("")
         self.comment("Features (Task 4):")
         self.comment("  - Per-port per-VC input buffers: one house gaxi_fifo_sync per")
-        self.comment("    port per VC (7 x NUM_VC, DEPTH=4) between s_axis acceptance")
+        self.comment("    port per VC (8 x NUM_VC, DEPTH=4) between s_axis acceptance")
         self.comment("    and the route/grant stage; a flit word is")
         self.comment("    {TUSER, TLAST, TDATA}. Acceptance is unconditional on")
         self.comment("    downstream state (credits govern the output side of each")
@@ -189,7 +216,7 @@ class DeltaMeshCell(Module):
         self.comment("    X, Y, Z order; P_LOCAL when all equal (Task 5: installed")
         self.comment("    as the route_table RAM image, see below).")
         self.comment("  - Route table RAM (Task 5): per-cell table keyed")
-        self.comment("    {qos, dst_z, dst_y, dst_x} -> {port_mask[6:0], vc};")
+        self.comment("    {qos, dst_z, dst_y, dst_x} -> {port_mask[7:0], vc};")
         self.comment("    the address carries the full key width now so Task 7's")
         self.comment("    QoS classes land without reshaping the memory. The")
         self.comment("    power-on image is installed by an initial block and")
@@ -213,17 +240,20 @@ class DeltaMeshCell(Module):
         self.comment("    index reads back 0), tlast = 1, tuser = 0. Config")
         self.comment("    responses wait for the idle local output and stall its")
         self.comment("    grant registration meanwhile.")
-        self.comment("  - Standard fabric modes (Task 6): r_mode[3:0] selects")
-        self.comment("    the route source -- 0: the custom RAM image (power-on")
-        self.comment("    default), 1-8: the generated standard-mode images")
-        self.comment("    (spec sec. 5.4 catalog), a mux in front of the RAM")
-        self.comment("    lookup so the RAM stays user-intact across switches.")
-        self.comment("    Mode 1 = pure DOR; mode 2 = systolic-1D (+X when")
-        self.comment("    dst_x > POS_X else P_LOCAL; wrap is Task 9); mode 5 =")
+        self.comment("  - Standard fabric modes (Task 6; mode 9 Task 6b):")
+        self.comment("    r_mode[3:0] selects the route source -- 0: the")
+        self.comment("    custom RAM image (power-on default), 1-9: the")
+        self.comment("    generated standard-mode images (spec sec. 5.4")
+        self.comment("    catalog), a mux in front of the RAM lookup so the")
+        self.comment("    RAM stays user-intact across switches. Mode 1 =")
+        self.comment("    pure DOR; mode 2 = systolic-1D (+X when dst_x >")
+        self.comment("    POS_X else P_LOCAL; wrap is Task 9); mode 5 =")
         self.comment("    broadcast placeholder (DOR; multicast replication")
         self.comment("    lands with Task 8); mode 6 = convergecast (every dst")
-        self.comment("    routes toward root 0,0,0); modes 3/4/7/8 = minimal")
-        self.comment("    DOR images.")
+        self.comment("    routes toward root 0,0,0); mode 9 = tetrad")
+        self.comment("    all-to-all K4 (diagonal mate via P_DIA, 1 hop;")
+        self.comment("    edge mates via the axis port; inter-tetrad DOR);")
+        self.comment("    modes 3/4/7/8 = minimal DOR images.")
         self.comment("  - Broadcast mode-switch (Task 6): a config-format")
         self.comment("    packet -- dst == own coordinate, QoS class 0, mcast")
         self.comment("    bit set, sr_ptr[0] = 1 (write), single beat, payload")
@@ -255,10 +285,11 @@ class DeltaMeshCell(Module):
         self.comment("==========================================================================")
         self.comment("Local parameters")
         self.comment("==========================================================================")
-        self.instruction("localparam int NUM_PORTS = 7;")
+        self.instruction("localparam int NUM_PORTS = 8;")
         self.instruction("localparam int PORT_W    = 3;")
         self.instruction("")
-        self.comment("Mesh port ids (pinned)")
+        self.comment("Mesh port ids (pinned; Task 6b: P_DIA at 6, P_LOCAL")
+        self.comment("moved to 7)")
         for name, value in PORT_IDS:
             self.instruction(f"localparam int {name} = {value};")
         self.instruction("")
@@ -290,12 +321,13 @@ class DeltaMeshCell(Module):
         self.instruction(f"localparam int HDR_PID_LO = {pid_lo};")
         self.instruction("")
         self.comment("Route table organization (Task 5): key {qos, dst_z, dst_y,")
-        self.comment("dst_x} -> entry {port_mask[6:0], vc}; an all-zero mask is")
-        self.comment("the drop encoding. The dst space occupies the low")
+        self.comment("dst_x} -> entry {port_mask[7:0], vc}; an all-zero mask is")
+        self.comment("the drop encoding. The mask widened from 7 to 8 bits when")
+        self.comment("P_DIA landed (Task 6b). The dst space occupies the low")
         self.comment("3*COORD_W address bits; QoS rides above it.")
         self.instruction("localparam int ROUTE_ADDR_W = 3*COORD_W + 2;")
         self.instruction("localparam int ROUTE_DEPTH  = 2**ROUTE_ADDR_W;")
-        self.instruction("localparam int ENTRY_MASK_W = 7;")
+        self.instruction("localparam int ENTRY_MASK_W = 8;")
         self.instruction("localparam int ENTRY_W      = ENTRY_MASK_W + VC_W;")
         self.instruction("localparam int RESP_W       = 16 + ENTRY_W;")
         self.instruction("")
@@ -521,19 +553,23 @@ class DeltaMeshCell(Module):
         self.comment("        // Representable but out-of-grid dst: drop encoding.")
         self.instruction("            dor_default_entry = '0;")
         self.instruction("        else")
-        self.comment("        // {port_mask[6:0] one-hot, vc = 0}")
-        self.instruction("            dor_default_entry = {VC_W'(0), 7'(32'd1 << port)};")
+        self.comment("        // {port_mask[7:0] one-hot, vc = 0}")
+        self.instruction("            dor_default_entry = {VC_W'(0), 8'(32'd1 << port)};")
         self.instruction("    end")
         self.instruction("endfunction")
         self.instruction("")
-        self.comment("Standard-mode image (Task 6): the mechanical twin of")
-        self.comment("delta_mesh.tables.mode_port, evaluated per instance POS.")
-        self.comment("Modes 1/3/4/5/7/8 are the minimal DOR image; mode 2 is")
-        self.comment("the pinned systolic-1D image (+X when the dst is to the")
-        self.comment("right, else local -- the wrap ring lands with Task 9);")
-        self.comment("mode 6 is convergecast (every dst routes toward the")
-        self.comment("root 0,0,0). The offline tables.check_acyclic validates")
-        self.comment("every mode image at generation time.")
+        self.comment("Standard-mode image (Task 6; mode 9 Task 6b): the")
+        self.comment("mechanical twin of delta_mesh.tables.mode_port,")
+        self.comment("evaluated per instance POS. Modes 1/3/4/5/7/8 are the")
+        self.comment("minimal DOR image; mode 2 is the pinned systolic-1D")
+        self.comment("image (+X when the dst is to the right, else local --")
+        self.comment("the wrap ring lands with Task 9); mode 6 is")
+        self.comment("convergecast (every dst routes toward the root")
+        self.comment("0,0,0); mode 9 is the tetrad all-to-all K4 image")
+        self.comment("(diagonal mate via P_DIA, override below). The")
+        self.comment("offline tables.check_acyclic validates every mode")
+        self.comment("image and tables.check_no_diag guards that only")
+        self.comment("mode 9 selects P_DIA, both at generation time.")
         self.instruction("function automatic logic [ENTRY_W-1:0] mode_default_entry(")
         self.instruction("    input int mode,")
         self.instruction("    input int addr")
@@ -554,7 +590,8 @@ class DeltaMeshCell(Module):
         self.instruction("                else if (POS_Y > 0) port = P_Y_NEG;")
         self.instruction("                else if (POS_Z > 0) port = P_Z_NEG;")
         self.instruction("            end")
-        self.comment("        // Modes 1/3/4/5/7/8: minimal DOR image.")
+        self.comment("        // Modes 1/3/4/5/7/8: minimal DOR image; mode 9's")
+        self.comment("        // non-diagonal dsts also land here.")
         self.instruction("            default: begin")
         self.instruction("                if (int'(d_x) < POS_X)       port = P_X_NEG;")
         self.instruction("                else if (int'(d_x) > POS_X)  port = P_X_POS;")
@@ -564,13 +601,29 @@ class DeltaMeshCell(Module):
         self.instruction("                else if (int'(d_z) > POS_Z)  port = P_Z_POS;")
         self.instruction("            end")
         self.instruction("        endcase")
+        self.comment("        // Mode 9 (tetrad K4, Task 6b): the diagonal mate")
+        self.comment("        // of this cell's aligned 2x2x1 block -- (x^1,")
+        self.comment("        // y^1, z) -- rides P_DIA in 1 hop; every other")
+        self.comment("        // dst keeps the port the case computed (edge")
+        self.comment("        // mates are the axis answer; inter-tetrad dsts")
+        self.comment("        // DOR). The XOR names the mate exactly: on an")
+        self.comment("        // odd X/Y edge the out-of-grid mate can never")
+        self.comment("        // be an in-grid dst, so a tied-off P_DIA is")
+        self.comment("        // never selected. d_z == POS_Z keeps the")
+        self.comment("        // diagonal planar; Z expansion stays axis-")
+        self.comment("        // routed (spec sec. 2.2).")
+        self.instruction("        if ((mode == 4'd9) && (int'(d_z) == POS_Z) &&")
+        self.instruction("            ((int'(d_x) ^ POS_X) == 1) &&")
+        self.instruction("            ((int'(d_y) ^ POS_Y) == 1)) begin")
+        self.instruction("            port = P_DIA;")
+        self.instruction("        end")
         self.instruction("        if ((int'(d_x) >= GRID_X) || (int'(d_y) >= GRID_Y) ||")
         self.instruction("            (int'(d_z) >= GRID_Z))")
         self.comment("        // Representable but out-of-grid dst: drop encoding.")
         self.instruction("            mode_default_entry = '0;")
         self.instruction("        else")
-        self.comment("        // {port_mask[6:0] one-hot, vc = 0}")
-        self.instruction("            mode_default_entry = {VC_W'(0), 7'(32'd1 << port)};")
+        self.comment("        // {port_mask[7:0] one-hot, vc = 0}")
+        self.instruction("            mode_default_entry = {VC_W'(0), 8'(32'd1 << port)};")
         self.instruction("    end")
         self.instruction("endfunction")
         self.instruction("")
@@ -586,7 +639,7 @@ class DeltaMeshCell(Module):
         self.comment("Head decode of the presented flit (meaningful only on a")
         self.comment("head beat; bodies carry tuser == 0 and never consult it)")
         self.comment("Mode register (Task 6): 0 = custom RAM tables (power-on")
-        self.comment("default), 1-8 = the standard-mode image; written by the")
+        self.comment("default), 1-9 = the standard-mode image; written by the")
         self.comment("mode-switch fan-out section below.")
         self.instruction("logic [3:0]         r_mode;")
         self.instruction("logic [COORD_W-1:0] head_dst_x [NUM_PORTS];")
@@ -690,7 +743,7 @@ class DeltaMeshCell(Module):
         self.comment("shape on ANY port. A well-formed switch is single-beat")
         self.comment("with sr_ptr[0] = 1 (write), the MSW magic in TDATA[15:0]")
         self.comment("and the mode id in TDATA[19:16] (the config entry field's")
-        self.comment("low nibble); mode ids 0-8 are valid (0 returns to the")
+        self.comment("low nibble); mode ids 0-9 are valid (0 returns to the")
         self.comment("custom RAM tables). Only ONE port's switch is consumed per")
         self.comment("cycle (lowest port wins): the winner updates r_mode at the")
         self.comment("next edge, so a copy arriving simultaneously on another")
@@ -705,7 +758,7 @@ class DeltaMeshCell(Module):
         self.instruction("        msw_wellformed[p] = msw_shape[p] && pres_last[p] &&")
         self.instruction("                            pres_tuser[p][HDR_SR_PTR_LO] &&")
         self.instruction("                            (pres_tdata[p][15:0] == MSW_MAGIC) &&")
-        self.instruction("                            (msw_mode[p] <= 4'd8);")
+        self.instruction("                            (msw_mode[p] <= 4'd9);")
         self.instruction("        msw_req_vec[p] = pres_valid[p] && !lock_active[p] &&")
         self.instruction("                         !drop_active[p] && msw_wellformed[p];")
         self.instruction("    end")
@@ -739,7 +792,7 @@ class DeltaMeshCell(Module):
         self.comment("        unicast config (Task 5) and an mcast config-shape")
         self.comment("        packet that fails any mode-switch field (Task 6:")
         self.comment("        multi-beat, sr_ptr[0] != 1, bad magic, mode id")
-        self.comment("        above 8).")
+        self.comment("        above 9).")
         self.instruction("        bad_cfg_req[p] = pres_valid[p] && !lock_active[p] &&")
         self.instruction("                         !drop_active[p] &&")
         self.instruction("                         ((head_cfg[p] && !pres_last[p]) ||")
@@ -1469,10 +1522,10 @@ class DeltaMeshCell(Module):
         self.instruction("    end")
         self.instruction("endgenerate")
         self.instruction("")
-        self.comment("Mode ids 9-15 have no image; the decode gates them, and")
+        self.comment("Mode ids 10-15 have no image; the decode gates them, and")
         self.comment("the register must never hold one.")
         self.instruction("assert property (@(posedge aclk) disable iff (!aresetn)")
-        self.instruction("    (r_mode <= 4'd8)")
+        self.instruction("    (r_mode <= 4'd9)")
         self.instruction(") else $error(\"r_mode out of range: %0d\", r_mode);")
         self.instruction("`endif")
         self.instruction("")
@@ -1546,12 +1599,12 @@ def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
 
     lines = [
         "# delta_mesh_cell + delta_mesh_fabric_<X>x<Y>x<Z> -- the delta mesh",
-        "# router cell (7 ports: +/-X, +/-Y, +/-Z, local; head-flit header in",
-        "# TUSER, route_table RAM with power-on DOR image + in-band config on",
-        "# the local port, per-VC input buffers with credit flow control) and",
-        "# the mesh fabric top that grids it (boundary cells' local ports",
-        "# exposed as s_local_*/m_local_* arrays, per-cell drop counters as",
-        "# o_err[NUM_BOUNDARY], per-cell mode-ack tallies as",
+        "# router cell (8 ports: +/-X, +/-Y, +/-Z, diagonal, local; head-flit",
+        "# header in TUSER, route_table RAM with power-on DOR image + in-band",
+        "# config on the local port, per-VC input buffers with credit flow",
+        "# control) and the mesh fabric top that grids it (boundary cells'",
+        "# local ports exposed as s_local_*/m_local_* arrays, per-cell drop",
+        "# counters as o_err[NUM_BOUNDARY], per-cell mode-ack tallies as",
         "# o_mode_acks[NUM_BOUNDARY]).",
         "#",
         "# Generated by projects/components/fabric-gen-ip/delta/bin/delta_generator.py",

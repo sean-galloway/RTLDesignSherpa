@@ -24,6 +24,12 @@ unpacked boundary-local arrays (s_local_*/m_local_* plus the credit
 sidebands), and every absent boundary-neighbor port tied off. Torus wrap
 links are rejected here (NotImplementedError) until Task 9 lands them.
 
+Task 6b scope: the tetrad diagonal links. Every cell's P_DIA hooks to its
+diagonal mate (x^1, y^1, z) -- one diagonal wire pair per tetrad, both
+parities connect, no dangling P_DIA. On an odd X/Y edge the out-of-grid
+mate's P_DIA ties off exactly like an absent neighbor (see the header
+comment for why that is safe by construction).
+
 The generated fabric is pure structural: nested SystemVerilog generate
 loops over genvars gx/gy/gz. The boundary-index map is computed by the
 elaboration-time constant functions is_boundary()/boundary_index() in the
@@ -182,6 +188,31 @@ class DeltaMeshFabric(Module):
         self.comment("    of dropping flits. In-range DOR never selects one.")
         self.comment("  - An interior cell's local port (possible only when")
         self.comment("    X, Y, Z all >= 3) is tied off the same way.")
+        self.comment("")
+        self.comment("Tetrad diagonal links (Task 6b, owner addition")
+        self.comment("2026-10-15): every 2x2x1 tetrad is fully connected K4")
+        self.comment("-- the 4 perimeter edges over +/-X/+/-Y plus BOTH")
+        self.comment("diagonals. Each cell has exactly one diagonal mate,")
+        self.comment("(x^1, y^1, z), so one diagonal port per cell suffices")
+        self.comment("and the fabric draws one diagonal wire pair per tetrad:")
+        self.comment("  - cell (x,y,z) m_axis[P_DIA] <-> cell (x^1,y^1,z)")
+        self.comment("    s_axis[P_DIA], for every (x,y) whose mate is in")
+        self.comment("    grid. Both parities connect (each cell of the pair")
+        self.comment("    drives its own wire direction), so no P_DIA dangles")
+        self.comment("    on any grid.")
+        self.comment("  - Odd-dimension edge: when X or Y is odd, the cell at")
+        self.comment("    the last row/column has its mate (x^1) out of grid.")
+        self.comment("    That cell's P_DIA ties off exactly like an absent")
+        self.comment("    neighbor. This is safe by construction: the XOR")
+        self.comment("    mate form can only name the out-of-grid coordinate")
+        self.comment("    there, no in-grid dst can select it, and DOR (the")
+        self.comment("    power-on default + modes 1-8) never selects P_DIA")
+        self.comment("    at all (tables.check_no_diag, generation-time).")
+        self.comment("    The checked-in 4x4x1 and the test 2x2x1 have even")
+        self.comment("    dims, so the tie-off branch is unreachable there;")
+        self.comment("    the generator emits it for odd grids regardless.")
+        self.comment("  - The diagonals are planar (X/Y only); Z expansion")
+        self.comment("    stays axis-routed (spec sec. 2.2).")
         self.comment("")
         self.comment("==============================================================================")
         self.instruction("")
@@ -348,6 +379,20 @@ class DeltaMeshFabric(Module):
                              f"gen_{tag}_tieoff")
             self._emit_port_tieoff("gx", "gy", "gz", port)
             self.instruction("                end")
+        self.comment("        // Tetrad diagonal (Task 6b): the mate (gx^1,")
+        self.comment("        // gy^1, gz) of this cell's aligned 2x2x1 block.")
+        self.comment("        // Both parities execute this block (each drives")
+        self.comment("        // its own wire direction), so the pair connects")
+        self.comment("        // with no dangling P_DIA; on an odd X/Y edge the")
+        self.comment("        // out-of-grid mate ties off (see the header")
+        self.comment("        // comment).")
+        self.instruction("                if (((gx^1) < X_DIM) && "
+                         "((gy^1) < Y_DIM)) begin : gen_dia_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_DIA",
+                                   "gx^1", "gy^1", "gz", "P_DIA")
+        self.instruction("                end else begin : gen_dia_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_DIA")
+        self.instruction("                end")
 
     def generate_grid(self):
         self.comment("==========================================================================")
@@ -355,7 +400,9 @@ class DeltaMeshFabric(Module):
         self.comment("==========================================================================")
         self.comment("Each delta_mesh_cell instance gets its grid coordinate as")
         self.comment("POS_X/POS_Y/POS_Z; neighbor ports hook to the adjacent")
-        self.comment("cell or tie off at the mesh boundary. Boundary cells'")
+        self.comment("cell or tie off at the mesh boundary; P_DIA hooks to the")
+        self.comment("diagonal mate (gx^1, gy^1, gz) or ties off on an odd")
+        self.comment("edge (Task 6b). Boundary cells'")
         self.comment("local ports drive the s_local_*/m_local_* port arrays via")
         self.comment("the boundary-index map (x-major, then y, then z).")
         self.comment("==========================================================================")

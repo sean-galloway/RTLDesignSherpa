@@ -2,12 +2,13 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
 # Offline unit tests for the delta mesh standard-mode catalog
-# (bin/delta_mesh/tables.py): mode_image / mode_port for the eight
-# owner-confirmed standard modes (spec sec. 5.4), the generalized
-# check_acyclic route_fn validation, and the pinned minimal images for
-# the modes the DV suite exercises behaviorally (1 mesh, 2 systolic-1D,
-# 5 broadcast placeholder, 6 convergecast). No simulator -- pure Python,
-# run with the repo pytest.
+# (bin/delta_mesh/tables.py): mode_image / mode_port for the nine standard
+# modes (spec sec. 5.4; modes 1-8 owner-confirmed 2026-10-13, mode 9 tetrad
+# all-to-all K4 added 2026-10-15), the generalized check_acyclic route_fn
+# validation, and the pinned minimal images for the modes the DV suite
+# exercises behaviorally (1 mesh, 2 systolic-1D, 5 broadcast placeholder,
+# 6 convergecast, 9 tetrad K4). No simulator -- pure Python, run with the
+# repo pytest.
 
 import os
 import sys
@@ -18,12 +19,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from delta_mesh.config import DeltaMeshConfig
 from delta_mesh.tables import (
+    P_DIA,
     P_LOCAL,
+    P_X_NEG,
     P_X_POS,
+    P_Y_NEG,
     P_Y_POS,
+    PORT_IDS,
     PORT_TO_MASK,
     TableEntry,
     check_acyclic,
+    check_no_diag,
     default_dor_image,
     dor_port,
     mode_image,
@@ -35,7 +41,7 @@ CFG_2X2X1 = DeltaMeshConfig(cells_x=2, cells_y=2, cells_z=1)
 CFG_3X3X1 = DeltaMeshConfig(cells_x=3, cells_y=3, cells_z=1)
 CFG_1X1X1 = DeltaMeshConfig(cells_x=1, cells_y=1, cells_z=1)
 
-MODE_IDS = tuple(range(1, 9))
+MODE_IDS = tuple(range(1, 10))
 MODE_NAMES = {
     1: "mesh",
     2: "systolic-1d",
@@ -45,6 +51,7 @@ MODE_NAMES = {
     6: "convergecast",
     7: "all-to-all/transpose",
     8: "pipeline+rapids-stream",
+    9: "tetrad all-to-all (K4)",
 }
 
 
@@ -139,6 +146,140 @@ def test_mode6_convergecast_to_root():
                 PORT_TO_MASK[dor_port((0, 0, 0), pos)]
 
 
+# ------------------------------------------------------------------
+# Mode 9: tetrad all-to-all (K4) -- owner addition 2026-10-15
+# ------------------------------------------------------------------
+# Every 2x2x1 tetrad is fully connected: the 4 perimeter edges over
+# +/-X/+/-Y (the DOR ports for a one-dimension mate) plus BOTH diagonals
+# over P_DIA -- each cell has exactly one diagonal mate, (x^1, y^1, z),
+# so one diagonal port per cell suffices. The fabric wires one diagonal
+# link pair per tetrad; on an odd X/Y edge the out-of-grid mate's P_DIA
+# ties off (no in-grid dst can name it, so no image entry may select it).
+
+def _dia_mask(pos, cfg):
+    # In-grid diagonal mate of pos (None when the mate falls off an odd
+    # grid edge).
+    mate = (pos[0] ^ 1, pos[1] ^ 1, pos[2])
+    return mate if in_grid(mate, cfg) else None
+
+
+def test_mode9_diagonal_mate_rides_p_dia():
+    for cfg in (CFG_2X2X1, CFG_4X4X1):
+        for pos in grid_coords(cfg):
+            mate = _dia_mask(pos, cfg)
+            if mate is None:
+                continue  # odd-edge cell: its P_DIA ties off, no dst names it
+            assert mode_port(9, mate, pos, cfg) == PORT_TO_MASK[P_DIA], (
+                f"mode 9: diagonal mate {mate} of {pos} must ride P_DIA")
+            # and the reverse (the link is symmetric, both ends route)
+            assert mode_port(9, pos, mate, cfg) == PORT_TO_MASK[P_DIA]
+
+
+def test_mode9_edge_mates_ride_the_axis_port():
+    # Intra-tetrad dsts one dimension away keep the DOR/axis port (the
+    # perimeter edges of the K4) -- both parities.
+    cfg = CFG_4X4X1
+    for (x, y) in ((0, 0), (1, 1), (2, 3), (3, 2)):
+        pos = (x, y, 0)
+        same_block = ((x & ~1), (y & ~1))
+        for i in (0, 1):
+            for j in (0, 1):
+                dst = (same_block[0] + i, same_block[1] + j, 0)
+                if dst == pos:
+                    continue
+                if dst[0] != pos[0] and dst[1] != pos[1]:
+                    continue  # the diagonal mate: covered above
+                assert mode_port(9, dst, pos, cfg) == \
+                    PORT_TO_MASK[dor_port(dst, pos)], (
+                        f"mode 9: edge mate {dst} of {pos} must use the "
+                        f"axis port")
+
+
+def test_mode9_inter_tetrad_uses_dor():
+    # One block over (or a Z hop) is DOR, whatever the relative direction
+    # -- including diagonally-adjacent blocks, which must NOT select
+    # P_DIA (mate naming is by aligned 2x2 block, not by |dx|,|dy|).
+    cfg = CFG_4X4X1
+    assert mode_port(9, (2, 2, 0), (1, 1, 0), cfg) == \
+        PORT_TO_MASK[P_X_POS]      # inter-tetrad diagonal: DOR +X
+    assert mode_port(9, (1, 1, 0), (3, 3, 0), cfg) == \
+        PORT_TO_MASK[P_X_NEG]      # neighboring block the other way: DOR -X
+    for pos in grid_coords(cfg):
+        # out-of-tetrad dsts are exactly the DOR image
+        bx, by = pos[0] >> 1, pos[1] >> 1
+        for dst in grid_coords(cfg):
+            if dst[2] != pos[2] or (dst[0] >> 1, dst[1] >> 1) != (bx, by) \
+                    or dst == pos:
+                if dst != pos:
+                    assert mode_port(9, dst, pos, cfg) == \
+                        PORT_TO_MASK[dor_port(dst, pos)], (
+                            f"mode 9: inter-tetrad dst {dst} of {pos} "
+                            f"must use DOR")
+
+
+def test_mode9_image_contains_p_dia_bits():
+    # The only standard image allowed to select P_DIA is mode 9's, and it
+    # must do so on every in-grid diagonal pair (both parities).
+    cfg = CFG_4X4X1
+    image = {(e.dst_x, e.dst_y, e.dst_z): e for e in mode_image(cfg, 9)}
+    dia_pairs = 0
+    for pos in grid_coords(cfg):
+        mate = _dia_mask(pos, cfg)
+        if mate is not None:
+            dia_pairs += 1
+    # at the origin: the image's own entry must name P_DIA for the mate
+    assert image[(1, 1, 0)].port_mask == PORT_TO_MASK[P_DIA]
+    # 4 tetrads x 2 ordered diagonal pairs each (pos->mate and mate->pos)
+    assert dia_pairs == 16
+
+
+def test_no_p_dia_outside_mode9():
+    # Controller-pinned guard (spec sec. 2.2/5.4): DOR -- the power-on
+    # default image and modes 1-8 -- must never select P_DIA; only the
+    # mode-9 table image may. This is what lets the pre-6b suites prove
+    # no regression: their images route exactly as before.
+    check_no_diag(default_dor_image(CFG_4X4X1), "power-on DOR image")
+    for mode_id in range(1, 9):
+        check_no_diag(mode_image(CFG_4X4X1, mode_id), f"mode {mode_id}")
+    # the negative case: a stray P_DIA bit in a non-9 image is a build
+    # error, caught at generation time
+    bad = [
+        TableEntry(e.dst_x, e.dst_y, e.dst_z, e.qos,
+                   PORT_TO_MASK[P_DIA]
+                   if (e.dst_x, e.dst_y, e.dst_z) == (1, 1, 0)
+                   else e.port_mask, e.vc)
+        for e in mode_image(CFG_4X4X1, 1)
+    ]
+    with pytest.raises(ValueError, match="P_DIA"):
+        check_no_diag(bad, "tampered mode 1")
+    # the guard does not blanket-forbid P_DIA: mode 9 passes it
+    check_no_diag([e for e in mode_image(CFG_4X4X1, 9)
+                   if not e.port_mask & PORT_TO_MASK[P_DIA]],
+                  "mode 9 non-diagonal entries")
+
+
+def test_check_acyclic_mode9_cyclic_variant_rejected():
+    # A deliberately cyclic mode-9 variant -- every non-local dst routes
+    # P_DIA regardless of geometry -- ping-pongs (0,0,0)<->(1,1,0) forever
+    # on the diagonal link; the checker must raise, not hang.
+    cfg = CFG_4X4X1
+    with pytest.raises(ValueError, match="cycle in VC0 subrelation"):
+        check_acyclic(mode_image(cfg, 9), cfg,
+                      route_fn=lambda dst, pos:
+                      PORT_TO_MASK[P_DIA] if dst != pos
+                      else PORT_TO_MASK[P_LOCAL])
+
+
+def test_port_list_pinned_with_p_dia():
+    # The 8-port pin (Task 6b): P_DIA takes index 6, P_LOCAL MOVES to 7.
+    assert PORT_IDS == (
+        ("P_X_NEG", 0), ("P_X_POS", 1),
+        ("P_Y_NEG", 2), ("P_Y_POS", 3),
+        ("P_Z_NEG", 4), ("P_Z_POS", 5),
+        ("P_DIA", 6), ("P_LOCAL", 7),
+    )
+
+
 def test_mode_port_out_of_grid_drop():
     cfg = CFG_4X4X1  # 4x4x1: z=1 dsts are representable (COORD_W=2) but out
     for mode_id in MODE_IDS:
@@ -210,7 +351,7 @@ ACK_MAGIC = 0xACED
 
 
 def test_msw_payload_layout():
-    for mode_id in range(9):
+    for mode_id in range(10):
         tdata = (mode_id << 16) | MSW_MAGIC
         assert tdata & 0xFFFF == MSW_MAGIC
         assert (tdata >> 16) & 0xF == mode_id
