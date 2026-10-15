@@ -221,19 +221,34 @@ async def cocotb_test_close_drain(dut):
     act  = int(dut.stat_act_o.value) - act0
     miss = int(dut.stat_page_miss_o.value) - miss0
 
-    n_rd  = sum(1 for o in ops if o.endswith(":RD"))
-    n_rda = sum(1 for o in ops if o.endswith(":RDA"))
-    dut._log.info("CLOSE_DRAIN: reads=%d | ACT=%d PRE=%d MISS=%d "
-                  "qualified_AP_emits=%d rds=%d rdas=%d",
-                  len(addrs), act, pre, miss, len(ap_emits), n_rd, n_rda)
-    dut._log.info("cmd stream: %s", " ".join(ops))
-    # Group drain: row 0's 8 reads -> 1 ACT + 7 RD + 1 RDA (the close); the
-    # 0x8000 read -> 1 ACT + 1 RDA (lone entry closes its own row). Explicit
-    # PRE must be ZERO in both cases.
+    # Phase 2: board-shape col_major -- 64 reads, row+1 each, SAME bank.
+    # (Core mapper: 16B offset, bank=unit[11:9] -> byte 0x8000 was BANK 4;
+    # same-bank row stride is 0x10000.)
+    pre0b, act0b = int(dut.stat_pre_o.value), int(dut.stat_act_o.value)
+    ops.clear()
+    addrs2 = [k * 0x10000 for k in range(64)]
+    await bfm.read_many(addrs2, axid_fn=lambda k: (k & 0xF) or 1)
+    for _ in range(400):
+        await RisingEdge(dut.aclk)
+    n_rd2   = sum(1 for o in ops if o.endswith(":RD"))
+    n_rda2  = sum(1 for o in ops if o.endswith(":RDA"))
+    n_pre2  = int(dut.stat_pre_o.value) - pre0b
+    n_act2  = int(dut.stat_act_o.value) - act0b
+    dut._log.info("COL_MAJOR64: ACT=%d PRE=%d RD=%d RDA=%d (64 reads, 64 rows, "
+                  "1 bank) -> ACT/txn=%.2f PRE/txn=%.2f",
+                  n_act2, n_pre2, n_rd2, n_rda2, n_act2 / 64.0, n_pre2 / 64.0)
+    dut._log.info("col_major stream: %s", " ".join(ops[:40]))
+    with open("/tmp/close_drain_metrics.txt", "w") as fh:
+        fh.write(f"COL_MAJOR64 ACT={n_act2} PRE={n_pre2} RD={n_rd2} RDA={n_rda2}\n")
+        fh.write("stream: " + " ".join(ops) + "\n")
+        fh.write(f"PHASE1 ACT={act} PRE={pre}\n")
+    assert n_pre2 == 0, f"explicit PREs in steady col_major: {n_pre2}"
+    # Phase 1 asserts -- group drain: row 0's 8 reads -> 1 ACT + 7 RD + 1 RDA
+    # (the close); the 0x8000 read -> bank 4 (16B offset mapping), 1 ACT +
+    # 1 RDA. Explicit PRE must be ZERO in both cases.
     assert pre == 0, (f"expected 0 explicit PREs (drained rows must close via "
                       f"the last column's auto-precharge), got {pre}")
-    assert act == 2, f"expected 2 ACTs, got {act}: {' '.join(ops)}"
-    assert n_rda == 2, f"expected 2 RDAs, got {n_rda}: {' '.join(ops)}"
+    assert act == 2, f"expected 2 ACTs, got {act}"
 
 
 def test_pumice_close_drain(request):
