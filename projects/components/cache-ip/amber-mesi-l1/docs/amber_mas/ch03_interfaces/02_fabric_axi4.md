@@ -23,11 +23,11 @@
 
 # Fabric AXI4 Master Timing
 
-The `amber` pair-rig top uses the house `axi4_master_rd` and `axi4_master_wr` wrappers for plain AXI4 memory access. This chapter documents the cycle-level handoff between `amber_fill` / `amber_drain` and those wrappers.
+The `amber` pair-rig top uses the house `axi4_master_rd` and `axi4_master_wr` wrappers for plain AXI4 memory access. This chapter documents the cycle-level handoff between `l1_fill` / `l1_drain` and those wrappers.
 
 ## Read (Fill) Timing
 
-`amber_fill` drives the `fub_axi_*` side of `axi4_master_rd`:
+`l1_fill` drives the `fub_axi_*` side of `axi4_master_rd`:
 
 ```
 Cycle :  0   1   2   3   4   5   6
@@ -39,13 +39,13 @@ last  :  0   0   0   0   0   1   0
 ```
 
 - `ARLEN = FILL_BEATS - 1`, `ARSIZE = log2(BUS_WIDTH/8)`, `ARBURST = INCR`.
-- `RREADY` is asserted as long as `amber_data_array` port A can accept the beat.
-- Each accepted R beat is written to `amber_data_array` and the pending-fill bypass register is updated.
+- `RREADY` is asserted as long as `l1_data_array` port A can accept the beat.
+- Each accepted R beat is written to `l1_data_array` and the pending-fill bypass register is updated.
 - `fill_done` pulses one cycle after `RLAST` is accepted.
 
 ## Write (Drain) Timing
 
-`amber_drain` drives the `fub_axi_*` side of `axi4_master_wr`:
+`l1_drain` drives the `fub_axi_*` side of `axi4_master_wr`:
 
 ```
 Cycle :  0   1   2   3   4   5   6
@@ -64,7 +64,7 @@ B_r   :  0   0   0   0   0   1   0   <- B handshake
 
 ## Single Outstanding
 
-There is at most one AR transaction and one AW transaction in flight at any time because the blocking pipeline does not launch a new miss until the previous one completes. No reorder buffer is needed inside `amber_fill` or `amber_drain`.
+There is at most one AR transaction and one AW transaction in flight at any time because the blocking pipeline does not launch a new miss until the previous one completes. No reorder buffer is needed inside `l1_fill` or `l1_drain`.
 
 ---
 

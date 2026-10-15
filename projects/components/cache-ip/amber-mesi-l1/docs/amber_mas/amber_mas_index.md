@@ -23,8 +23,8 @@
 
 # amber MAS Index
 
-**Version:** 0.6
-**Date:** 2026-10-11
+**Version:** 0.7
+**Date:** 2026-10-15
 **Purpose:** Micro-architecture specification for the amber blocking MESI snoopy L1 cache
 
 **Scope:** Cycle-level behavior, per-module micro-architecture, and the signal-contract / kmap workbook for `amber_top` (pair-rig top) and `amber_ace_top` (onyx-rig top). The shared cache core is `l1_core` and its `l1_*` FUBs in `cache-ip/common-ip/`; amber owns the two tops, `amber_ace_issue`, and the pair-rig fabric. The binding architecture lives in the [amber HAS](../amber_has/amber_has_index.md); this book closes the implementation decisions the HAS deferred.
@@ -47,13 +47,13 @@
 
 ### Chapter 2: Functional Blocks
 
-- [l1_control: Blocking Pipeline FSM](ch02_blocks/01_amber_control.md)
+- [l1_control: Blocking Pipeline FSM](ch02_blocks/01_l1_control.md)
 - [Pending-Fill Bypass Register (l1_pending_fill_bypass)](ch02_blocks/02_pending_fill_bypass.md)
 - [l1_tag_array and l1_data_array](ch02_blocks/03_tag_data_arrays.md)
-- [l1_repl: Replacement Policy Engine](ch02_blocks/04_amber_repl.md)
-- [l1_victim: Depth-1 Victim Buffer](ch02_blocks/05_amber_victim.md)
+- [l1_repl: Replacement Policy Engine](ch02_blocks/04_l1_repl.md)
+- [l1_victim: Depth-1 Victim Buffer](ch02_blocks/05_l1_victim.md)
 - [l1_fill and l1_drain](ch02_blocks/06_fill_drain.md)
-- [l1_snoop_resp: Snoop Responder Adapter](ch02_blocks/07_amber_snoop_resp.md)
+- [l1_snoop_resp: Snoop Responder Adapter](ch02_blocks/07_l1_snoop_resp.md)
 - [amber_ace_issue: Coherent Transaction Mapping](ch02_blocks/08_amber_ace_issue.md)
 - [l1_cpu_frontend and l1_monlite](ch02_blocks/09_frontend_monlite.md)
 

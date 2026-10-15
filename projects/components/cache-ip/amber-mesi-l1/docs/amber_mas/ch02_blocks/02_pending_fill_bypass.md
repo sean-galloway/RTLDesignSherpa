@@ -77,6 +77,18 @@ pf_active &&
 
 The line address is `{tag, set_index}`; the line offset is ignored. The kmap workbook contains a small optional bypass-match sheet, but the match is a single equality compare; the sheet is included only if it earns its place as a teaching aid.
 
+### PF_GUARD: grant against the fill only when the fill is real
+
+`l1_control` grants a matching snoop against the pending fill only when the
+fill is actually in flight (`PF_GUARD=1`, default `1'b0`; parameter on both
+`l1_control` and `l1_core`; `amber_top` sets `1'b1`). A fill whose AR is
+still seeking acceptance can never produce beats while a fabric parks in its
+response state waiting for this very snoop — promising data from it
+deadlocked the pair rig (amber BUG-002, commit `ab308d108`). With the guard
+enabled, a pre-acceptance match is answered from the installed tag state
+instead, and the fabric serializes the two fills. Standalone benches without
+such a fabric leave `PF_GUARD=0` and keep the classic behavior.
+
 ---
 
 ## Timing

@@ -25,26 +25,26 @@
 
 ## Overview
 
-Because amber has no register block, the MonBus observation map replaces the traditional register-map chapter. Every software-visible event is emitted as a MonBus packet by `amber_monlite`.
+Because amber has no register block, the MonBus observation map replaces the traditional register-map chapter. Every software-visible event is emitted as a MonBus packet by `l1_monlite`.
 
 ## Event Encoding
 
 | Event code | Name | Emitting module | Trigger |
 |------------|------|-----------------|---------|
-| `AMBER_EV_HIT` | hit | `amber_monlite` | `CTRL_HIT_RD` or `CTRL_HIT_WR` |
-| `AMBER_EV_MISS` | miss | `amber_monlite` | `CTRL_MISS_VICTIM` |
-| `AMBER_EV_SNOOP` | snoop | `amber_monlite` | AC handshake accepted |
-| `AMBER_EV_EVICT` | eviction | `amber_monlite` | dirty victim staged to `amber_victim` |
-| `AMBER_EV_TRANSITION` | MESI transition | `amber_monlite` | tag-array state write |
-| `AMBER_EV_FILL_START` | fill start | `amber_monlite` | `CTRL_MISS_FILL` |
-| `AMBER_EV_FILL_END` | fill end | `amber_monlite` | `CTRL_FILL_WRITE` |
-| `AMBER_EV_DRAIN_START` | drain start | `amber_monlite` | `CTRL_MISS_DRAIN` |
-| `AMBER_EV_DRAIN_END` | drain end | `amber_monlite` | `drain_done` |
-| `AMBER_EV_DROPPED` | dropped packet | `amber_monlite` | packet dropped due to backpressure |
+| `AMBER_EV_HIT` | hit | `l1_monlite` | `CTRL_HIT_RD` or `CTRL_HIT_WR` |
+| `AMBER_EV_MISS` | miss | `l1_monlite` | `CTRL_MISS_VICTIM` |
+| `AMBER_EV_SNOOP` | snoop | `l1_monlite` | AC handshake accepted |
+| `AMBER_EV_EVICT` | eviction | `l1_monlite` | dirty victim staged to `l1_victim` |
+| `AMBER_EV_TRANSITION` | MESI transition | `l1_monlite` | tag-array state write |
+| `AMBER_EV_FILL_START` | fill start | `l1_monlite` | `CTRL_MISS_FILL` |
+| `AMBER_EV_FILL_END` | fill end | `l1_monlite` | `CTRL_FILL_WRITE` |
+| `AMBER_EV_DRAIN_START` | drain start | `l1_monlite` | `CTRL_MISS_DRAIN` |
+| `AMBER_EV_DRAIN_END` | drain end | `l1_monlite` | `drain_done` |
+| `AMBER_EV_DROPPED` | dropped packet | `l1_monlite` | packet dropped due to backpressure |
 
 : Table 4.1.1: MonBus event encodings
 
-The exact numeric codes are assigned in `amber_pkg` and match the house `monitor_common_pkg` allocation rules.
+The exact numeric codes are assigned in `l1_pkg` and match the house `monitor_common_pkg` allocation rules.
 
 ## Payload Fields
 

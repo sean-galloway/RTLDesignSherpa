@@ -53,7 +53,7 @@ SymbiYosys is scoped to the control layer at the tiny geometry:
 - No stale data served after an external write (pending-fill bypass correctness).
 - No deadlock or livelock under fair arbitration.
 - Victim-buffer handoff correctness.
-- `amber_snoop_resp` AC/CR/CD ordering.
+- `l1_snoop_resp` AC/CR/CD ordering.
 
 ## Golden-Model Parity
 

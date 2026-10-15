@@ -25,7 +25,7 @@
 
 ## Packet Format
 
-`amber_monlite` emits standard 128-bit MonBus packets plus a 64-bit side-band timestamp. The packet layout is the house `monitor_common_pkg` spec; the timestamp is sampled at the same cycle as the packet and held stable while `mon_valid` is high.
+`l1_monlite` emits standard 128-bit MonBus packets plus a 64-bit side-band timestamp. The packet layout is the house `monitor_common_pkg` spec; the timestamp is sampled at the same cycle as the packet and held stable while `mon_valid` is high.
 
 ## Emission Timing
 
@@ -49,7 +49,7 @@ If `mon_ready` is low when `mon_valid` would assert, the packet is dropped and a
 
 ## Backpressure Integrity
 
-`amber_monlite` is a pure observer. Its FIFO state never gates the CPU GAXI port, the AXI4/ACE masters, or the snoop responder. This is the measurement-integrity rationale that chose `*_monlite` over the heavyweight `_mon` wrappers.
+`l1_monlite` is a pure observer. Its FIFO state never gates the CPU GAXI port, the AXI4/ACE masters, or the snoop responder. This is the measurement-integrity rationale that chose `*_monlite` over the heavyweight `_mon` wrappers.
 
 ---
 

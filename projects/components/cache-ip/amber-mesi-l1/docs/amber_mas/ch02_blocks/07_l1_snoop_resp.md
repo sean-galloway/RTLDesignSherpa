@@ -27,7 +27,7 @@
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed 2026-10-06; this chapter is the contract the RTL
 implements. Wraps the house `axi4ace_snoop_slave` transport (which exists in
-`rtl/amba/ace` — confirmed). DV: `dv/tests/fub/test_amber_snoop_resp.py`,
+`rtl/amba/ace` — confirmed). DV: `dv/tests/test_amber_snoop_resp.py`,
 green at gate/func/full on both geometries; the FULL level is a 3000-snoop
 randomized soak over an evolving line-state model with per-transaction ACE
 compliance checks, not a token rerun.

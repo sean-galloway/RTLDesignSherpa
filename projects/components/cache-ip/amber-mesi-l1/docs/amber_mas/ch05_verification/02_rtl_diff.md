@@ -32,7 +32,7 @@ After the first RTL commit for a module, update the corresponding sheet in [`gen
 3. Re-run the generator.
 4. Review each sheet's verdict.
 
-First landing (2026-10-06): the snoop CRRESP / next-state decode exists as `amber_pkg` functions + `amber_snoop_kmap`. See [01_kmap_verdicts.md](01_kmap_verdicts.md) for why its sheets record truth-table PASS but the SOP-literal diff is classified RTL-REDUNDANT; the procedure above applies to every sheet still at `rtl_sop=None`.
+First landing (2026-10-06): the snoop CRRESP / next-state decode exists as `l1_pkg` functions + `l1_snoop_kmap`. See [01_kmap_verdicts.md](01_kmap_verdicts.md) for why its sheets record truth-table PASS but the SOP-literal diff is classified RTL-REDUNDANT; the procedure above applies to every sheet still at `rtl_sop=None`.
 
 ## Diff Checklist
 
@@ -59,9 +59,9 @@ The following differences between the landed RTL and the MAS text were evaluated
 | # | MAS text / figure | Landed RTL | Verdict class | Known erratum |
 |---|-------------------|------------|---------------|---------------|
 | 1 | ch01 and ch03 describe tag/data arrays as "built from `sdpram_core`" | Arrays are per-way inferred RAMs in the `sdpram_core` internal idiom; the literal `sdpram_core` module is a FUB/AXI burst slave and is the wrong shape for a same-cycle multi-way tag compare. The Task 9 ruling keeps the landed arrays and satisfies D11's queue requirement with the two `gaxi_fifo_sync` instances. | RTL-DIFFERS (documentation wording) | MAS ch01↔ch03 `sdpram_core` wording contradiction |
-| 2 | ch02 port list / handshake table uses `ctrl_snoop_crresp`, `ctrl_snoop_cddata`, `ctrl_snoop_cdlast` | `amber_control` and `amber_snoop_resp` use `ctrl_crresp`, `ctrl_cddata`, `ctrl_cdlast`, plus the streaming handshake `ctrl_cdvalid`/`ctrl_cdready`. | RTL-DIFFERS (naming) | ch02 `ctrl_snoop_*` → landed `ctrl_*` names (RTL wins) |
-| 3 | ch02/05 shows a single-cycle `victim_load` that loads a full line | The data-array port is `BUS_WIDTH` wide (MAS ch03), so a full line cannot be loaded in one cycle. `amber_control` gathers the dirty victim line over `FILL_BEATS` port-A read cycles and uses `ctrl_victim_load` as the final-beat strobe. | RTL-DIFFERS (timing) | ch02 single-cycle `victim_load` → gather over `FILL_BEATS` with final-beat strobe (D-5) |
-| 4 | ch02 FSM table lists `CTRL_IDLE`, `CTRL_LOOKUP`, `CTRL_HIT_RD`, `CTRL_HIT_WR`, `CTRL_MISS_VICTIM`, `CTRL_MISS_DRAIN`, `CTRL_MISS_FILL`, `CTRL_FILL_WRITE`, `CTRL_REPLAY`, `CTRL_SNOOP`, `CTRL_ERROR` | `amber_pkg` and `amber_control` implement an additional stable state `CTRL_INIT` for the post-reset init walk that writes `STATE_I` to every way before the first lookup. | RTL-DIFFERS (FSM states) | ch02 FSM table missing `CTRL_INIT` (D-3) |
+| 2 | ch02 port list / handshake table uses `ctrl_snoop_crresp`, `ctrl_snoop_cddata`, `ctrl_snoop_cdlast` | `l1_control` and `l1_snoop_resp` use `ctrl_crresp`, `ctrl_cddata`, `ctrl_cdlast`, plus the streaming handshake `ctrl_cdvalid`/`ctrl_cdready`. | RTL-DIFFERS (naming) | ch02 `ctrl_snoop_*` → landed `ctrl_*` names (RTL wins) |
+| 3 | ch02/05 shows a single-cycle `victim_load` that loads a full line | The data-array port is `BUS_WIDTH` wide (MAS ch03), so a full line cannot be loaded in one cycle. `l1_control` gathers the dirty victim line over `FILL_BEATS` port-A read cycles and uses `ctrl_victim_load` as the final-beat strobe. | RTL-DIFFERS (timing) | ch02 single-cycle `victim_load` → gather over `FILL_BEATS` with final-beat strobe (D-5) |
+| 4 | ch02 FSM table lists `CTRL_IDLE`, `CTRL_LOOKUP`, `CTRL_HIT_RD`, `CTRL_HIT_WR`, `CTRL_MISS_VICTIM`, `CTRL_MISS_DRAIN`, `CTRL_MISS_FILL`, `CTRL_FILL_WRITE`, `CTRL_REPLAY`, `CTRL_SNOOP`, `CTRL_ERROR` | `l1_pkg` and `l1_control` implement an additional stable state `CTRL_INIT` for the post-reset init walk that writes `STATE_I` to every way before the first lookup. | RTL-DIFFERS (FSM states) | ch02 FSM table missing `CTRL_INIT` (D-3) |
 | 5 | ch01/02 top-level port list omits the coherence sideband | `amber_top` and `amber_ace_top` expose the pair-rig coherence sideband `coh_req_{valid,addr,type}` (DECISION D-8). | RTL-DIFFERS (port list) | ch01/02 port list missing the coherence sideband |
 | 6 | Plan / early testplans reference `dv/tests/fub/` | All amber unit and macro suites live in the flat `dv/tests/` directory, consistent with the repo convention and the plan's DECISION D-13. | RTL-DIFFERS (paths) | `dv/tests/fub/` → flat `dv/tests/` paths |
 
@@ -69,9 +69,9 @@ The following differences between the landed RTL and the MAS text were evaluated
 
 The following landed design choices are recorded here for completeness but do not change the truth table of any K-map sheet:
 
-- **DECISION D-2 (leaf modules):** `amber_pending_fill_bypass` and `amber_victim` are built as leaf modules (not inline control logic) so Task 13 can prove them standalone. The port-level contract matches the MAS fields; the leaf boundary is an RTL-REDUNDANT structural choice.
-- **DECISION D-6 (fill/drain queues):** `amber_fill` uses a `gaxi_fifo_sync` (DEPTH=4) to stage R beats so snoop-imposed port-A stalls never drop `fub_axi_rready`; `amber_drain` forwards victim beats directly because the `axi4_master_wr` wrapper's W skid absorbs backpressure. This changes the pre-RTL fill/drain handshake sketch but does not affect the control-path K-map.
-- **DECISION D-9 (RANDOM policy):** `amber_repl` RANDOM uses an LFSR; `cache_sim` uses mulberry32. Exact bit-for-bit parity is impossible; the parity suite records this caveat. This is outside the K-map sheets.
+- **DECISION D-2 (leaf modules):** `l1_pending_fill_bypass` and `l1_victim` are built as leaf modules (not inline control logic) so Task 13 can prove them standalone. The port-level contract matches the MAS fields; the leaf boundary is an RTL-REDUNDANT structural choice.
+- **DECISION D-6 (fill/drain queues):** `l1_fill` uses a `gaxi_fifo_sync` (DEPTH=4) to stage R beats so snoop-imposed port-A stalls never drop `fub_axi_rready`; `l1_drain` forwards victim beats directly because the `axi4_master_wr` wrapper's W skid absorbs backpressure. This changes the pre-RTL fill/drain handshake sketch but does not affect the control-path K-map.
+- **DECISION D-9 (RANDOM policy):** `l1_repl` RANDOM uses an LFSR; `cache_sim` uses mulberry32. Exact bit-for-bit parity is impossible; the parity suite records this caveat. This is outside the K-map sheets.
 
 ---
 

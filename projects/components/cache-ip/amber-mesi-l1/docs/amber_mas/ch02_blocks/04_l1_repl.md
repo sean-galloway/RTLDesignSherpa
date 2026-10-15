@@ -26,7 +26,7 @@
 **Module:** `l1_repl.sv`
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed 2026-10-06; this chapter is the micro-architecture
-contract the RTL implements. DV: `dv/tests/fub/test_amber_repl.py`, green at
+contract the RTL implements. DV: `dv/tests/test_amber_repl.py`, green at
 gate/func/full across all four policies x {128/4, 16/2, 64/8} geometries.
 The TB carries an independent Python golden model per policy (tree-PLRU
 included — it still has no cache_sim golden; the TB model is the check).

@@ -25,7 +25,7 @@
 
 ## Drop-and-Count Policy
 
-`amber_monlite` is drop-and-count, not stall-and-backpressure. This preserves measurement integrity: the observer cannot perturb the cache hit/miss timing it is trying to measure.
+`l1_monlite` is drop-and-count, not stall-and-backpressure. This preserves measurement integrity: the observer cannot perturb the cache hit/miss timing it is trying to measure.
 
 When a packet is emitted and `mon_ready` is low, the packet is discarded and a saturating counter increments. When `mon_ready` next goes high, if the counter is non-zero an `AMBER_EV_DROPPED` packet is emitted with the count, and the counter clears.
 

@@ -51,18 +51,18 @@ CR_r  :  0   0   0   0   0   0   1   0   <- CR after CDLAST
 ```
 
 - Cycle 0: AC handshake. The snoop address and type are captured.
-- Cycles 1–2: `amber_control` performs tag lookup on port B. If the line is M/E and the snoop requires data, it reads the data array port B.
+- Cycles 1–2: `l1_control` performs tag lookup on port B. If the line is M/E and the snoop requires data, it reads the data array port B.
 - Cycles 3–5: CD beats are driven and accepted.
 - Cycle 6: CR is asserted after `CDLAST` has been accepted.
 - Cycle 7: CR handshake completes; the adapter returns to idle.
 
 ## CR-After-CDLAST Rule
 
-`amber_snoop_resp` holds `m_axi_crvalid` low until the last CD beat has been accepted. This is stronger than the minimum IHI0022 requirement but matches the family convention and the cocotb-framework 1.2.0 compliance checker. It also makes the gather logic simple: the manager sees one closed response at a time.
+`l1_snoop_resp` holds `m_axi_crvalid` low until the last CD beat has been accepted. This is stronger than the minimum IHI0022 requirement but matches the family convention and the cocotb-framework 1.2.0 compliance checker. It also makes the gather logic simple: the manager sees one closed response at a time.
 
 ## Multiple Outstanding Snoops
 
-The `axi4ace_snoop_slave` wrapper buffers up to `SKID_DEPTH_AC` snoops. However, `amber_control` processes them one at a time because it is a single FSM. Therefore the effective outstanding snoop count is 1 from the core's perspective; the adapter FIFO absorbs bursts of AC arrivals.
+The `axi4ace_snoop_slave` wrapper buffers up to `SKID_DEPTH_AC` snoops. However, `l1_control` processes them one at a time because it is a single FSM. Therefore the effective outstanding snoop count is 1 from the core's perspective; the adapter FIFO absorbs bursts of AC arrivals.
 
 ## AC Ready Backpressure
 

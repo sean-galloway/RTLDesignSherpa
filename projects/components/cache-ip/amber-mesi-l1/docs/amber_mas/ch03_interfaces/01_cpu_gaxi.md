@@ -40,7 +40,7 @@ The CPU-side port is two house-GAXI streams:
 
 ## Request Timing
 
-Because the cache is blocking, `cpu_req_wr_ready` is asserted only when `amber_control` is in `CTRL_IDLE` and no higher-priority snoop stall is active.
+Because the cache is blocking, `cpu_req_wr_ready` is asserted only when `l1_control` is in `CTRL_IDLE` and no higher-priority snoop stall is active.
 
 ```
 Cycle :  0   1   2   3   4   5
@@ -49,7 +49,7 @@ req_r :  1   0   0   0   0   0   <- handshake at cycle 0
 state :  L0  L1  HR  HR  RSP RSP
 ```
 
-- Cycle 0: request accepted; `amber_cpu_frontend` latches it.
+- Cycle 0: request accepted; `l1_cpu_frontend` latches it.
 - Cycle 1: `CTRL_LOOKUP` drives tag-array port A.
 - Cycle 2–3: hit service (`CTRL_HIT_RD` or `CTRL_HIT_WR`).
 - Cycle 4–5: response valid until accepted.
@@ -58,11 +58,11 @@ On a miss, `cpu_req_wr_ready` stays low from cycle 1 through the entire miss seq
 
 ## Response Timing
 
-`cpu_rsp_rd_valid` is asserted when `amber_control` enters the response state. The data is held stable until `cpu_rsp_rd_ready` is high. Because the response is single-beat and the front end blocks, backpressure is expected to be rare, but the handshake is still honored.
+`cpu_rsp_rd_valid` is asserted when `l1_control` enters the response state. The data is held stable until `cpu_rsp_rd_ready` is high. Because the response is single-beat and the front end blocks, backpressure is expected to be rare, but the handshake is still honored.
 
 ## Write-Allocate Fills
 
-A write miss triggers a fill, a merge of the CPU write data with the fill data, and then a replay of the write as a hit. The GAXI slave sees only the original single-beat write request and the eventual single-beat write response; the read-modify-write sequence is internal to `amber_control`.
+A write miss triggers a fill, a merge of the CPU write data with the fill data, and then a replay of the write as a hit. The GAXI slave sees only the original single-beat write request and the eventual single-beat write response; the read-modify-write sequence is internal to `l1_control`.
 
 ---
 

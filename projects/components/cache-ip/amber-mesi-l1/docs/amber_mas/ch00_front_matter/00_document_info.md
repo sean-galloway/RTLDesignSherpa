@@ -71,7 +71,7 @@ House generic-AXI streaming pattern (`wr_valid`/`wr_ready`/`wr_data`, `rd_valid`
 
 **LRU / FIFO / RANDOM / tree-PLRU**
 
-Replacement policies supported by `amber_repl`. LRU, FIFO, and RANDOM have cache_sim golden-model parity; tree-PLRU is the timing fallback without a sim golden model today.
+Replacement policies supported by `l1_repl`. LRU, FIFO, and RANDOM have cache_sim golden-model parity; tree-PLRU is the timing fallback without a sim golden model today.
 
 **MAC**
 
@@ -83,11 +83,11 @@ Cache coherence states: Modified, Exclusive, Shared, Invalid.
 
 **MonBus**
 
-128-bit packet + 64-bit side-band timestamp monitor bus. `amber_monlite` is a drop-and-count observer that never stalls the observed path.
+128-bit packet + 64-bit side-band timestamp monitor bus. `l1_monlite` is a drop-and-count observer that never stalls the observed path.
 
 **Pending-fill bypass register**
 
-Single register held by `amber_control` while a fill is outstanding, allowing snoops to the same line to be answered with the post-fill state before the array is updated.
+Single register held by `l1_control` while a fill is outstanding, allowing snoops to the same line to be answered with the post-fill state before the array is updated.
 
 **RACK / WACK**
 
@@ -99,7 +99,7 @@ Simple dual-port RAM. The house `sdpram_core` primitive is the only allowed tag/
 
 **Snoop responder**
 
-`amber_snoop_resp`, the ACE-shaped adapter that presents bus-agnostic `{address, type, response, data}` transactions to `amber_core`.
+`l1_snoop_resp`, the ACE-shaped adapter that presents bus-agnostic `{address, type, response, data}` transactions to `l1_core`.
 
 ---
 
@@ -109,6 +109,7 @@ Simple dual-port RAM. The house `sdpram_core` primitive is the only allowed tag/
 |-----|------|--------|-------|
 | 0.5 | 2026-10-06 | seang | Initial amber MAS: index, ch01–ch06, styles, title, and pre-RTL kmap workbook. No RTL yet; all micro-architecture proposals are contracts for the landing implementation. |
 | 0.6 | 2026-10-11 | seang | Owner rulings recorded: RACK/WACK omitted from the family ACE contract (auto-pulse deprecated, removal tracked as A5). |
+| 0.7 | 2026-10-15 | seang | `l1_*` rename sweep (RTL commit 79dc18ccb; module + file names, chapter files renamed to match). ACE issue #106 corrections (2594d73bb): ReadNotSharedDirty read misses, PassDirty honoured (install M), CleanUnique/MakeUnique on AR with spec encodings. PF_GUARD documented (BUG-002, ab308d108). Stale dv paths and moved common-ip paths fixed. |
 
 : amber MAS Document Revision History
 

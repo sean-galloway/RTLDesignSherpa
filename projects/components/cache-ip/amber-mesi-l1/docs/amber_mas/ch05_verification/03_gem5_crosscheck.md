@@ -25,7 +25,7 @@
 
 ## Source
 
-The Python reference model and the formal FSM oracles derive from the gem5 Ruby `MESI_Two_Level` SLICC tables, specifically `L1cache.sm`. The enumerated transient states in that file are the source for the `amber_pkg` state encoding and for the control FSM states in `amber_control`.
+The Python reference model and the formal FSM oracles derive from the gem5 Ruby `MESI_Two_Level` SLICC tables, specifically `L1cache.sm`. The enumerated transient states in that file are the source for the `l1_pkg` state encoding and for the control FSM states in `l1_control`.
 
 ## Cross-Check Mechanism
 
