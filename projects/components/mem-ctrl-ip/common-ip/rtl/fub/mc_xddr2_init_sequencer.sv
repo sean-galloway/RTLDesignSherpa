@@ -86,6 +86,16 @@ module mc_xddr2_init_sequencer
     input  logic [15:0] mr2_i,           // MR2 / EMR2
     input  logic [15:0] mr3_i,           // MR3 / EMR3
 
+    // ----- LPDDR2 mode-register OP data (CSR-backed: LP_MR1/2/3_OP) -----
+    // JEDEC JESD209-2F §3.5 defaults (0x23/0x01/0x02) live in the CSR reset
+    // values, so out-of-reset behavior matches the old hardcoded constants.
+    // CSR-backed so software can retune BL/nWR/RL/WL/DS at bring-up — and
+    // sweep the values to defeat a scrambled CA/A-lane board mapping, the
+    // same escape hatch the DDR2 mr*_i CSRs provide.
+    input  logic [7:0]  lp_mr1_op_i,     // MR1: nWR/WC/BT/BL
+    input  logic [7:0]  lp_mr2_op_i,     // MR2: RL/WL
+    input  logic [7:0]  lp_mr3_op_i,     // MR3: drive strength
+
     // Re-run the JEDEC MRS chain WITHOUT a controller reset (CTRL.init_force_
     // restart). A rising edge restarts the FSM at S_RESET, re-loading the (CSR)
     // MR values — the only way to apply a freshly-written MRx.VAL, since a
@@ -113,8 +123,9 @@ module mc_xddr2_init_sequencer
 
     // ----- status -----
     output logic        init_busy_o,
-    output logic        init_done_o
-);
+    output logic        init_done_o,
+    output logic [4:0]  init_state_o   // raw FSM state mirror (bring-up
+);                                   // telemetry; not a stable ABI
 
     //=========================================================================
     // Mode-register data (DDR2). MR0 mirrors LiteDRAM's mr + reset_dll:
@@ -133,13 +144,12 @@ module mc_xddr2_init_sequencer
     localparam logic [15:0] DDR2_DLL_RESET = 16'h0100;  // MR0 A8: DLL reset (first MR0 load)
     localparam logic [15:0] DDR2_OCD_DEF   = 16'h0380;  // MR1 A[9:7]=111: OCD calibration default
 
-    // LPDDR2 mode-register OP (data) values — JEDEC JESD209-2F §3.5. 8-bit OP;
-    // the index (MA) is a separate field packed with OP into the row request.
+    // LPDDR2 mode-register OP (data) values — JEDEC JESD209-2F §3.5. The MR1/2/3
+    // OP data is CSR-backed (lp_mr*_op_i, defaults in the CSR reset values);
+    // only the JEDEC-fixed items stay local here: MR63 (OP don't-care),
+    // MR10 ZQ-init (OP = 0xFF), and the MR indices (MA).
     localparam logic [7:0] LPDDR2_MR63_OP = 8'h00;  // MRW(63) Reset — OP don't-care
     localparam logic [7:0] LPDDR2_MR10_OP = 8'hFF;  // MR10 ZQ Init Calibration
-    localparam logic [7:0] LPDDR2_MR1_OP  = 8'h23;  // MR1: nWR3(001)|WC0|BT0|BL8(011)
-    localparam logic [7:0] LPDDR2_MR2_OP  = 8'h01;  // MR2: RL3/WL1 (default)
-    localparam logic [7:0] LPDDR2_MR3_OP  = 8'h02;  // MR3: DS 40ohm (default)
     // MR indices (MA). MR10/MR63 exceed the 5-bit shadow index -> not shadowed.
     localparam int LPDDR2_MR63 = 63;
     localparam int LPDDR2_MR10 = 10;
@@ -334,26 +344,26 @@ module mc_xddr2_init_sequencer
             S_L_MR1: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
-                init_cmd_row_o   = mrw_row(1, LPDDR2_MR1_OP);
+                init_cmd_row_o   = mrw_row(1, lp_mr1_op_i);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd1;
-                mr_seq_data_o    = {8'd0, LPDDR2_MR1_OP};
+                mr_seq_data_o    = {8'd0, lp_mr1_op_i};
             end
             S_L_MR2: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
-                init_cmd_row_o   = mrw_row(2, LPDDR2_MR2_OP);
+                init_cmd_row_o   = mrw_row(2, lp_mr2_op_i);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd2;
-                mr_seq_data_o    = {8'd0, LPDDR2_MR2_OP};
+                mr_seq_data_o    = {8'd0, lp_mr2_op_i};
             end
             S_L_MR3: begin
                 init_cmd_valid_o = 1'b1;
                 init_cmd_op_o    = OP_MRS;
-                init_cmd_row_o   = mrw_row(3, LPDDR2_MR3_OP);
+                init_cmd_row_o   = mrw_row(3, lp_mr3_op_i);
                 mr_seq_we_o      = 1'b1;
                 mr_seq_index_o   = 5'd3;
-                mr_seq_data_o    = {8'd0, LPDDR2_MR3_OP};
+                mr_seq_data_o    = {8'd0, lp_mr3_op_i};
             end
             S_MR0: begin  // DDR2-only (LPDDR2 jumps to DONE after S_MR0_DLL)
                 init_cmd_valid_o = 1'b1;
@@ -394,11 +404,13 @@ module mc_xddr2_init_sequencer
             zqcl_req_o       <= 1'b0;
             init_busy_o      <= 1'b1;
             init_done_o      <= 1'b0;
+            init_state_o     <= 5'd0;   // S_RESET
         end else begin
             dfi_init_start_o <= (r_state != S_RESET);
             zqcl_req_o       <= 1'b0;   // DDR2 has no ZQCL
             init_busy_o      <= (r_state != S_DONE);
             init_done_o      <= (r_state == S_DONE);
+            init_state_o     <= 5'(r_state);
         end
     end)
 
