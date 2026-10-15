@@ -12,9 +12,9 @@
 #   fb_sc     leg B2: an IP-integrator block design around smartconnect, one
 #             interface port per TOML port (so the wrapper's pins are
 #             <port>_<signal>), windows assigned per master, every pair not in
-#             the connectivity CSV excluded (DECERR), AxUSER = {slot, id} wide
-#             enough to rebuild the slave-side ID (SmartConnect's MI ID width
-#             is 0 and read-only).
+#             the connectivity CSV excluded (DECERR). No AxUSER: SmartConnect's
+#             MI ID width is 0 and read-only, so the endpoints select channels
+#             by address and B2 carries nothing the other legs do not.
 #   fb_mig    MIG 7-series DDR3 for S0 (K3), from
 #             rtl/generated/fb_mig_prj/fb_mig.prj (bin/gen_mig_prj.py: the
 #             board-proven Genesys 2 pinout, DDR3-800, 4:1 so ui_clk = 100 MHz
@@ -69,7 +69,7 @@ foreach m $FB_MASTERS {
     lassign $m name mode
     set p [create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 $name]
     set_property -dict [list CONFIG.PROTOCOL AXI4 CONFIG.DATA_WIDTH $FB_DW CONFIG.ADDR_WIDTH $FB_AW \
-        CONFIG.ID_WIDTH $FB_MID CONFIG.ARUSER_WIDTH $FB_SID CONFIG.AWUSER_WIDTH $FB_SID \
+        CONFIG.ID_WIDTH $FB_MID \
         CONFIG.READ_WRITE_MODE $mode CONFIG.HAS_REGION 0 CONFIG.FREQ_HZ $FB_FREQ_HZ \
         CONFIG.NUM_READ_OUTSTANDING $FB_ACCEPT CONFIG.NUM_WRITE_OUTSTANDING $FB_ACCEPT] $p
     connect_bd_intf_net $p [get_bd_intf_pins [format "sc/S%02d_AXI" $i]]
@@ -106,18 +106,16 @@ foreach m $FB_MASTERS {
 }
 
 validate_bd_design
-# The slave-side ID is rebuilt from AxUSER, so it must reach every MI full width.
+# The leg wrapper ties every slave-side ID to 0 because SmartConnect drives
+# none. If a Vivado release starts driving one, that assumption is stale.
 foreach s $FB_SLAVES {
-    lassign $s sname mode
-    foreach {key on} [list ARUSER_WIDTH [expr {$mode ne "WRITE_ONLY"}] AWUSER_WIDTH [expr {$mode ne "READ_ONLY"}]] {
+    set sname [lindex $s 0]
+    foreach key {ID_WIDTH ARUSER_WIDTH AWUSER_WIDTH} {
         set w [get_property CONFIG.$key [get_bd_intf_ports /$sname]]
-        if {$on && $w != $FB_SID} {
-            puts stderr "ERROR: fb_sc $sname $key = $w, need $FB_SID (the {slot, id} the wrapper rebuilds)"
+        if {$w != 0} {
+            puts stderr "ERROR: fb_sc $sname $key = $w; the leg wrapper assumes 0 (regenerate it to match)"
             exit 1
         }
-    }
-    if {[get_property CONFIG.ID_WIDTH [get_bd_intf_ports /$sname]] != 0} {
-        puts "NOTE: fb_sc $sname has an MI ID now; the wrapper's AxUSER-as-ID scheme should be revisited"
     }
 }
 save_bd_design

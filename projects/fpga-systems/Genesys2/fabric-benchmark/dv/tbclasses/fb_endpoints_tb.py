@@ -10,6 +10,10 @@ clock free-running at its own period (EP_PERIOD_NS vs ACLK_PERIOD_NS).
             CRC must equal the source's, and both beat counts must equal what
             was moved -- the run verdict the harness reports
   clear     after i_clear every CRC valid and both counts return to zero
+  CH_SEL    'addr' (the default build, CH_SEL_ADDR=1): channel ch's bursts go to
+            its 64 KB window and carry an ID whose low bits name a DIFFERENT
+            channel, so only address selection keeps the CRCs apart. 'id'
+            (CH_SEL_ADDR=0): the ID's low bits are the channel.
   line rate with rready held high and enough reads in flight, R must deliver a
             beat on nearly every fabric cycle: the endpoints and crossings
             cannot be what limits a run (DE10 PRD section 4.1)
@@ -47,6 +51,7 @@ class FbEndpointsTB(TBBase):
         self.wr = create_axi4_master_wr(prefix='s_wr', **kw)['interface']
         self.rd.r_channel.ready_policy = 'always'
         self.moved = [0] * NC
+        self.ch_sel = os.environ.get('CH_SEL', 'addr')
 
     # ---- mandatory ----------------------------------------------------------
     async def setup_clocks_and_reset(self):
@@ -67,14 +72,20 @@ class FbEndpointsTB(TBBase):
         self.dut.ep_aresetn.value = 1
 
     # ---- phases -------------------------------------------------------------
+    def _id_low(self, ch: int) -> int:
+        """The ID's low byte for a burst of channel ch."""
+        if self.ch_sel == 'id':
+            return ch
+        return (ch + 1 + self.rng.randrange(NC - 1)) % NC   # never ch
+
     async def _channel(self, ch: int, bursts: int):
         """Read LFSR bursts on channel ch and write them straight back."""
         for _ in range(bursts):
             beats = self.rng.choice((1, 4, 8, 16))
             data = await self.rd.read_transaction(SRC_BASE + ch * 0x10000, burst_len=beats,
-                                                  id=(SLOT_STREAM_RD << 8) | ch)
+                                                  id=(SLOT_STREAM_RD << 8) | self._id_low(ch))
             res = await self.wr.write_transaction(SNK_BASE + ch * 0x10000, data, burst_len=beats,
-                                                  id=(SLOT_STREAM_WR << 8) | ch)
+                                                  id=(SLOT_STREAM_WR << 8) | self._id_low(ch))
             if res.get('response') != 0:
                 self.errors.append(f"ch{ch} write resp {res.get('response')}")
                 return

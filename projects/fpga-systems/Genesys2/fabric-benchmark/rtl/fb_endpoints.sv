@@ -38,8 +38,17 @@
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
-//   NUM_CHANNELS   - STREAM channels; binned on the low ID bits (1..8)
-//   AXI_ID_WIDTH   - slave-side ID width ({fabric slot, master id})
+//   NUM_CHANNELS   - STREAM channels (1..8)
+//   CH_SEL_ADDR    - 1 (default): a burst's channel is its address bits
+//                    [CH_ADDR_LSB +: log2(NUM_CHANNELS)] -- every leg, because
+//                    SmartConnect (leg B2) carries no ID to its slaves and the
+//                    endpoints must be identical in all legs. 0: the low ID
+//                    bits, as in the STREAM harness.
+//   CH_ADDR_LSB    - with CH_SEL_ADDR: each channel's window is 2^CH_ADDR_LSB
+//                    bytes (default 16: channel N at window base + N * 64 KB);
+//                    the host places each channel's buffers in its own window
+//   AXI_ID_WIDTH   - slave-side ID width ({fabric slot, master id} on legs A and
+//                    B1, 0-valued on B2); unused for channel selection by address
 //   AXI_DATA_WIDTH - fabric data width
 //   CDC_DEPTH      - async FIFO depth per AXI channel; 16 sustains a beat per
 //                    cycle with the synchronizer round trip in flight
@@ -63,6 +72,8 @@ module fb_endpoints #(
     parameter int          AXI_DATA_WIDTH = 128,
     parameter int          CDC_DEPTH      = 16,
     parameter logic [31:0] LFSR_SEED      = 32'hDEADBEEF,
+    parameter bit          CH_SEL_ADDR    = 1'b1,
+    parameter int          CH_ADDR_LSB    = 16,
     // Short params
     parameter int IW = AXI_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
@@ -215,7 +226,8 @@ module fb_endpoints #(
 
     axi4_dma_slaves #(
         .NUM_CHANNELS(NC), .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW),
-        .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(1), .LFSR_SEED(LFSR_SEED)
+        .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(1), .LFSR_SEED(LFSR_SEED),
+        .CH_SEL_ADDR(CH_SEL_ADDR), .CH_ADDR_LSB(CH_ADDR_LSB)
     ) u_slaves (
         .aclk(ep_clk), .aresetn(ep_aresetn),
         .read_lfsr_reset(w_ep_clear), .write_crc_reset(w_ep_clear),

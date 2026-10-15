@@ -29,11 +29,11 @@ low ID bits, and neither leg's slaves use region. Slave-side IDs are
 {master slot, master id} in both legs, slot = TOML master order.
 
 SmartConnect carries no ID to its slaves: the ID width at every MI port is
-read-only and 0 (it orders responses itself and expects in-order slaves). It
-does carry AxUSER end to end, so leg B2 drives AxUSER = {slot, master id} at
-each SI and its wrapper presents that as the slave-side ID. The port contract
--- {slot, id} at every slave -- is then the same in all three legs, and the
-endpoints' per-channel CRC works unchanged. Responses come back on the
+read-only and 0 (it orders responses itself and expects in-order slaves). So
+leg B2's slave-side ID is 0, and nothing downstream may depend on it: the
+LFSR source and CRC sink take the channel from the address in every leg
+(fb_endpoints CH_SEL_ADDR=1), and SmartConnect is configured with no AxUSER,
+so it carries nothing the other two legs do not. Responses come back on the
 master's own ID (SmartConnect tracks it); the slaves' RID/BID go nowhere.
 
 The vendor IP is not hand-configured either: this script also writes
@@ -396,9 +396,6 @@ def emit_sc(masters: list[Port], slaves: list[Port], w: dict[str, int]) -> str:
                 continue
             conns += [f"        .{b}{n}({p}{n})" for n, _ in req + rsp]
             conns += [f"        .{b}{n}({p}{n})" for n in hs_in + hs_out]
-            # {slot, id}: what the xbar leg's base IDs produce at the slaves
-            idf = "awid" if user == "awuser" else "arid"
-            conns.append(f"        .{b}{user}({{{sid - mid}'d{slot}, {p}{idf}}})")
     for s in slaves:
         p, b = s.prefix, s.name + "_"
         for ch_on, req, rsp, hs_out, hs_in, user, idf, rid in (
@@ -408,15 +405,15 @@ def emit_sc(masters: list[Port], slaves: list[Port], w: dict[str, int]) -> str:
                 continue
             conns += [f"        .{b}{n}({p}{n})" for n, _ in req + rsp if n not in (idf, rid)]
             conns += [f"        .{b}{n}({p}{n})" for n in hs_out + hs_in]
-            # MI ID width is 0: the slave-side ID is the AxUSER the SI stamped
-            conns.append(f"        .{b}{user}({p}{idf})")
+            # MI ID width is 0: no ID reaches the slave, none comes back
+            lines.append(f"    assign {p}{idf} = '0;")
             lines.append(f"    // {s.name}: {rid} has no SmartConnect pin (MI ID width 0)")
             lines.append(f"    wire unused_{s.name}_{rid} = ^{p}{rid};")
     body = ",\n".join(conns)
     return (HEADER.format(leg="leg B2: Xilinx SmartConnect (IP-integrator block design)")
-            + "//\n// SmartConnect has no MI ID (width 0, read-only), so each SI's AxUSER carries\n"
-            + f"// {{slot, master id}} and the slave-side ID is that AxUSER. See the generator\n"
-            + "// docstring. fb_sc_wrapper is made by fpga/tcl/vendor_ip.tcl.\n"
+            + "//\n// SmartConnect has no MI ID (width 0, read-only): every slave-side ID is 0.\n"
+            + "// The endpoints select channels by address (fb_endpoints CH_SEL_ADDR=1).\n"
+            + "// See the generator docstring. fb_sc_wrapper is made by fpga/tcl/vendor_ip.tcl.\n"
             + "\n`timescale 1ns / 1ps\n\nmodule fb_data_fabric (\n"
             + "\n".join(port_list(masters, slaves, w))
             + "\n);\n\n" + "\n".join(lines)

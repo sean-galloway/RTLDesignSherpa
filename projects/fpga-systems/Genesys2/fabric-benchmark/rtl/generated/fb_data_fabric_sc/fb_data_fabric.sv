@@ -9,9 +9,9 @@
 // The data fabric under test. Every leg defines this module with this exact
 // port list; the leg's filelist picks the file. See PRD.md section 4.
 //
-// SmartConnect has no MI ID (width 0, read-only), so each SI's AxUSER carries
-// {slot, master id} and the slave-side ID is that AxUSER. See the generator
-// docstring. fb_sc_wrapper is made by fpga/tcl/vendor_ip.tcl.
+// SmartConnect has no MI ID (width 0, read-only): every slave-side ID is 0.
+// The endpoints select channels by address (fb_endpoints CH_SEL_ADDR=1).
+// See the generator docstring. fb_sc_wrapper is made by fpga/tcl/vendor_ip.tcl.
 
 `timescale 1ns / 1ps
 
@@ -193,14 +193,19 @@ module fb_data_fabric (
     output logic crc_snk_bready
 );
 
+    assign ddr_awid = '0;
     // ddr: bid has no SmartConnect pin (MI ID width 0)
     wire unused_ddr_bid = ^ddr_bid;
+    assign ddr_arid = '0;
     // ddr: rid has no SmartConnect pin (MI ID width 0)
     wire unused_ddr_rid = ^ddr_rid;
+    assign desc_ram_arid = '0;
     // desc_ram: rid has no SmartConnect pin (MI ID width 0)
     wire unused_desc_ram_rid = ^desc_ram_rid;
+    assign lfsr_src_arid = '0;
     // lfsr_src: rid has no SmartConnect pin (MI ID width 0)
     wire unused_lfsr_src_rid = ^lfsr_src_rid;
+    assign crc_snk_awid = '0;
     // crc_snk: bid has no SmartConnect pin (MI ID width 0)
     wire unused_crc_snk_bid = ^crc_snk_bid;
 
@@ -224,7 +229,6 @@ module fb_data_fabric (
         .stream_desc_rready(stream_desc_rready),
         .stream_desc_arready(stream_desc_arready),
         .stream_desc_rvalid(stream_desc_rvalid),
-        .stream_desc_aruser({2'd0, stream_desc_arid}),
         .stream_rd_arid(stream_rd_arid),
         .stream_rd_araddr(stream_rd_araddr),
         .stream_rd_arlen(stream_rd_arlen),
@@ -242,7 +246,6 @@ module fb_data_fabric (
         .stream_rd_rready(stream_rd_rready),
         .stream_rd_arready(stream_rd_arready),
         .stream_rd_rvalid(stream_rd_rvalid),
-        .stream_rd_aruser({2'd1, stream_rd_arid}),
         .stream_wr_awid(stream_wr_awid),
         .stream_wr_awaddr(stream_wr_awaddr),
         .stream_wr_awlen(stream_wr_awlen),
@@ -263,7 +266,6 @@ module fb_data_fabric (
         .stream_wr_awready(stream_wr_awready),
         .stream_wr_wready(stream_wr_wready),
         .stream_wr_bvalid(stream_wr_bvalid),
-        .stream_wr_awuser({2'd2, stream_wr_awid}),
         .inj_wr_awid(inj_wr_awid),
         .inj_wr_awaddr(inj_wr_awaddr),
         .inj_wr_awlen(inj_wr_awlen),
@@ -284,7 +286,6 @@ module fb_data_fabric (
         .inj_wr_awready(inj_wr_awready),
         .inj_wr_wready(inj_wr_wready),
         .inj_wr_bvalid(inj_wr_bvalid),
-        .inj_wr_awuser({2'd3, inj_wr_awid}),
         .ddr_awaddr(ddr_awaddr),
         .ddr_awlen(ddr_awlen),
         .ddr_awsize(ddr_awsize),
@@ -303,7 +304,6 @@ module fb_data_fabric (
         .ddr_awready(ddr_awready),
         .ddr_wready(ddr_wready),
         .ddr_bvalid(ddr_bvalid),
-        .ddr_awuser(ddr_awid),
         .ddr_araddr(ddr_araddr),
         .ddr_arlen(ddr_arlen),
         .ddr_arsize(ddr_arsize),
@@ -319,7 +319,6 @@ module fb_data_fabric (
         .ddr_rready(ddr_rready),
         .ddr_arready(ddr_arready),
         .ddr_rvalid(ddr_rvalid),
-        .ddr_aruser(ddr_arid),
         .desc_ram_araddr(desc_ram_araddr),
         .desc_ram_arlen(desc_ram_arlen),
         .desc_ram_arsize(desc_ram_arsize),
@@ -335,7 +334,6 @@ module fb_data_fabric (
         .desc_ram_rready(desc_ram_rready),
         .desc_ram_arready(desc_ram_arready),
         .desc_ram_rvalid(desc_ram_rvalid),
-        .desc_ram_aruser(desc_ram_arid),
         .lfsr_src_araddr(lfsr_src_araddr),
         .lfsr_src_arlen(lfsr_src_arlen),
         .lfsr_src_arsize(lfsr_src_arsize),
@@ -351,7 +349,6 @@ module fb_data_fabric (
         .lfsr_src_rready(lfsr_src_rready),
         .lfsr_src_arready(lfsr_src_arready),
         .lfsr_src_rvalid(lfsr_src_rvalid),
-        .lfsr_src_aruser(lfsr_src_arid),
         .crc_snk_awaddr(crc_snk_awaddr),
         .crc_snk_awlen(crc_snk_awlen),
         .crc_snk_awsize(crc_snk_awsize),
@@ -369,8 +366,7 @@ module fb_data_fabric (
         .crc_snk_bready(crc_snk_bready),
         .crc_snk_awready(crc_snk_awready),
         .crc_snk_wready(crc_snk_wready),
-        .crc_snk_bvalid(crc_snk_bvalid),
-        .crc_snk_awuser(crc_snk_awid)
+        .crc_snk_bvalid(crc_snk_bvalid)
     );
 
 endmodule : fb_data_fabric

@@ -101,10 +101,14 @@ not know which fabric it holds.
 | S3 | CRC sink `0xA000_0000` | wr | 128 | `axi4_cdc_wr` → CRC sink |
 
 AXI4, ID width 8 at every master. The port set carries no USER and no
-REGION: the LFSR source and CRC sink bin channels on the **low ID bits**,
-and every leg presents `{master slot, master ID}` at its slaves (10 bits),
-so the per-channel CRC works through any of them. The fabric test checks
-exactly that at every slave handshake.
+REGION. The LFSR source and CRC sink bin channels on the **address**:
+channel N owns the 64 KB window at its endpoint's base + N x 64 KB
+(`fb_endpoints` `CH_SEL_ADDR`=1, `CH_ADDR_LSB`=16), and the host places
+each channel's buffers in its own window. Nothing downstream of the fabric
+depends on the slave-side ID, because SmartConnect delivers none (§5.1).
+Legs A and B1 still present `{master slot, master ID}` (10 bits) at their
+slaves, and the fabric test checks that at every slave handshake; B2
+presents 0.
 
 Descriptors at 128 bits: the scheduler's descriptor is 256 bits and
 `m_axi_desc` stays 256-bit, so the converter splits each one-beat fetch into
@@ -141,16 +145,19 @@ the same generated regmaps and the same host programs (over
 ### 5.1 SmartConnect at the slave ports
 
 SmartConnect presents **no ID** to its slaves: the ID width of every MI port
-is 0 and read-only. It reorders nothing at the slave side -- it expects
-in-order slaves and returns each response to the master's own ID itself.
-It does carry AxUSER end to end. So the B2 wrapper drives AxUSER =
-`{slot, master id}` (10 bits) at every SI and presents that AxUSER as the
-slave-side ID. The port contract of §4 -- `{slot, id}` at every slave -- is
-the same in all three legs, and the LFSR source and CRC sink bin channels
-unchanged. The cost is an in-order requirement on the slaves. S1-S3 and the
-sim's S0 memory model are in order; MIG at S0 must be shown in order across
-IDs on the board at K3, and if it is not, the B2 wrapper presents a constant
-ID to S0 only (S0 bins nothing).
+is 0 and read-only. It expects in-order slaves and returns each response to
+the master's own ID itself. So the per-channel CRC cannot key on the ID in
+this leg, and the endpoints take the channel from the address in **every**
+leg (§4) -- the endpoints stay identical across the legs, and SmartConnect
+is configured with no AxUSER, so it carries nothing the other legs do not.
+
+(A first version carried `{slot, id}` on AxUSER and rebuilt the slave-side
+ID from it. It worked, but it added 10 bits per request that only B2
+carried; dropping it took B2 from 8,438 to 8,333 LUTs, 4,064 to 3,959
+LUTRAM and 11,938 to 11,616 flops.)
+
+The in-order requirement holds: with ID 0 on every request, MIG at S0 must
+answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 
 ## 6. Milestones
 
@@ -167,10 +174,10 @@ ID to S0 only (S0 bins nothing).
 - First size and timing comparison, every leg alone out of context on the
   board's part: [reports/ooc/README.md](reports/ooc/README.md) (`make ooc-all`).
   At the 100 MHz board clock all three close; at a 4 ns target B1 and B2
-  close (est. Fmax ~256 and ~269 MHz) and Leg A does not (~186 MHz, a
+  close (est. Fmax ~256 and ~268 MHz) and Leg A does not (~186 MHz, a
   12-level path from a master adapter's AW skid into the DDR slave's write
-  CAM count). Leg A is ~3.8x B1's LUTs; B2 is ~3x B1's LUTs plus 4,064
-  LUTRAM and ~5x its flops.
+  CAM count). Leg A is ~3.8x B1's LUTs; B2 is ~3.1x B1's LUTs plus 3,959
+  LUTRAM and ~5.3x its flops.
 - S0's MIG DDR3 controller is generated (`fb_mig`, §3): DDR3-800, 4:1, so
   its `ui_clk` is the 100 MHz fabric clock and S0 needs no clock crossing.
   MIG's own example design (controller + AXI traffic generator) places and
@@ -204,4 +211,5 @@ JTAG front end and the Platform Designer leg.
 - *Closed 2026-10-15:* SmartConnect simulation -- board-only (§5).
 - *Closed 2026-10-15:* per-channel CRC through a fabric -- A and B1 forward
   `{slot, id}` (checked at every slave handshake by the fabric test); B2
-  carries it on AxUSER and its wrapper rebuilds the ID (§5.1).
+  delivers no ID, so the endpoints select channels by address in every leg
+  (`CH_SEL_ADDR`, §4, §5.1).

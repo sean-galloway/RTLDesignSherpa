@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Thu Oct 15 08:15:46 2026
+| Date         : Thu Oct 15 08:55:41 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/sc/4.0ns/utilization_synth.txt
 | Design       : fb_data_fabric
@@ -31,13 +31,13 @@ Table of Contents
 +----------------------------+-------+-------+------------+-----------+-------+
 |          Site Type         |  Used | Fixed | Prohibited | Available | Util% |
 +----------------------------+-------+-------+------------+-----------+-------+
-| Slice LUTs*                |  8678 |     0 |          0 |    203800 |  4.26 |
-|   LUT as Logic             |  6445 |     0 |          0 |    203800 |  3.16 |
-|   LUT as Memory            |  2233 |     0 |          0 |     64000 |  3.49 |
-|     LUT as Distributed RAM |  1478 |     0 |            |           |       |
+| Slice LUTs*                |  8577 |     0 |          0 |    203800 |  4.21 |
+|   LUT as Logic             |  6388 |     0 |          0 |    203800 |  3.13 |
+|   LUT as Memory            |  2189 |     0 |          0 |     64000 |  3.42 |
+|     LUT as Distributed RAM |  1434 |     0 |            |           |       |
 |     LUT as Shift Register  |   755 |     0 |            |           |       |
-| Slice Registers            | 12004 |     0 |          0 |    407600 |  2.95 |
-|   Register as Flip Flop    | 12004 |     0 |          0 |    407600 |  2.95 |
+| Slice Registers            | 11682 |     0 |          0 |    407600 |  2.87 |
+|   Register as Flip Flop    | 11682 |     0 |          0 |    407600 |  2.87 |
 |   Register as Latch        |     0 |     0 |          0 |    407600 |  0.00 |
 | F7 Muxes                   |     0 |     0 |          0 |    101900 |  0.00 |
 | F8 Muxes                   |     0 |     0 |          0 |     50950 |  0.00 |
@@ -62,7 +62,7 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 | 0     |          Yes |           - |          Set |
 | 180   |          Yes |           - |        Reset |
 | 319   |          Yes |         Set |            - |
-| 11505 |          Yes |       Reset |            - |
+| 11183 |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -156,14 +156,14 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +----------+-------+---------------------+
 | Ref Name |  Used | Functional Category |
 +----------+-------+---------------------+
-| FDRE     | 11505 |        Flop & Latch |
-| LUT3     |  3145 |                 LUT |
-| RAMD32   |  2206 |  Distributed Memory |
-| LUT6     |  1718 |                 LUT |
-| LUT4     |  1420 |                 LUT |
+| FDRE     | 11183 |        Flop & Latch |
+| LUT3     |  3047 |                 LUT |
+| RAMD32   |  2136 |  Distributed Memory |
+| LUT6     |  1716 |                 LUT |
+| LUT4     |  1414 |                 LUT |
 | LUT5     |  1231 |                 LUT |
-| RAMS32   |   728 |  Distributed Memory |
-| LUT2     |   622 |                 LUT |
+| RAMS32   |   702 |  Distributed Memory |
+| LUT2     |   623 |                 LUT |
 | SRLC32E  |   551 |  Distributed Memory |
 | LUT1     |   378 |                 LUT |
 | FDSE     |   319 |        Flop & Latch |
