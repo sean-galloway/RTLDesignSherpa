@@ -12,11 +12,12 @@
 
 ## Open
 
-- **MC-003** — granite LiteDRAM-class per-bank in-order scheduler
-  (dedicated lite scheduler core: per-bank head sequencers + cross-bank
-  mux on the existing fire-stage JEDEC authority). Supersedes the
-  `BANK_IN_ORDER` pick-mask approach, measured on silicon 2026-10-15 to
-  serialize single-bank traffic at pick-pipe depth (revert `7a7f80b00`).
+- **MC-003** — granite's intended per-bank in-order scheduler core
+  (per-bank head sequencers + cross-bank mux on the existing fire-stage
+  JEDEC authority; the FR-FCFS pick core is the research core — pumice's).
+  Supersedes the `BANK_IN_ORDER` pick-mask approach, measured on silicon
+  2026-10-15 to serialize single-bank traffic at pick-pipe depth (revert
+  `7a7f80b00`).
 
 ## Closed
 
