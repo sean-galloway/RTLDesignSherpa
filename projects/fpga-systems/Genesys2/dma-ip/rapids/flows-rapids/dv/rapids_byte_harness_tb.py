@@ -195,6 +195,17 @@ class RapidsByteHarnessTB(TBBase):
     # EVIDENCE
     # =========================================================================
 
+    @staticmethod
+    def _require_hw_timer(ok: bool, detail: dict) -> bool:
+        """Every sim build carries char_run_timer, so a run with no hardware
+        timer record skipped the on-chip verdict (BUILD.RUN_TIMER read as 0)
+        and must not pass on the golden check alone."""
+        if detail.get('hw_timer') is None:
+            detail.setdefault('errors', []).append(
+                "no hardware timer record: BUILD.RUN_TIMER read 0, on-chip verdict skipped")
+            return False
+        return ok
+
     def _log_detail(self, label: str, ok: bool, detail: dict) -> None:
         """Mirror the campaign's findings into the COCOTB log.
 
@@ -251,6 +262,12 @@ class RapidsByteHarnessTB(TBBase):
             self.log.info(f"  {label} {key}: util={100 * m['util']:.1f}% "
                           f"eff={m.get('eff_bw_gb_s', 0):.2f} GB/s "
                           f"(prod={b.get('prod')} bp={b.get('bp')} starv={b.get('starv')} idle={b.get('idle')})")
+        hw = detail.get('hw_timer')
+        if hw:
+            self.log.info(f"  {label} HW timer: done={hw['done']} pass={hw['pass']} "
+                          f"verdict_valid={hw['verdict_valid']} cycles={hw['cycles']} "
+                          f"valid=0x{hw['valid_mask']:X} match=0x{hw['match_mask']:X} "
+                          f"r=[{hw['r_first']},{hw['r_last']}] w=[{hw['w_first']},{hw['w_last']}]")
         for w in (detail.get('warnings') or []):
             self.log.warning(f"  {label}: {w}")
         for e in (detail.get('errors') or []):
@@ -280,6 +297,7 @@ class RapidsByteHarnessTB(TBBase):
                                                     SIM_POLL_TIMEOUT_S,
                                                     pkt_bytes=pkt_bytes, offset=offset)
         ok, detail = await bridge(prog)()
+        ok = self._require_hw_timer(ok, detail)
         # The geometry the host read back from the harness BUILD register: a
         # passing run states what it simulated (sim == board is the contract).
         self.log.info(f"BUILD (from CSR): {self.campaign.design}")
@@ -308,5 +326,6 @@ class RapidsByteHarnessTB(TBBase):
                                                       backpressure=backpressure,
                                                       pkt_bytes=pkt_bytes, offset=offset)
         ok, detail = await bridge(prog)()
+        ok = self._require_hw_timer(ok, detail)
         self._log_detail('SOURCE', ok, detail)
         return ok, detail

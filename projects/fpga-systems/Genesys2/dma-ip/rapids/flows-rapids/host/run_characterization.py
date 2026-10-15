@@ -102,6 +102,9 @@ def read_build(io) -> dict:
         'axi_monitors': bool(io.csr_field("BUILD", "AXI_MONITORS")),
         'observers': bool(io.csr_field("BUILD", "OBSERVERS")),
         'gen_mon': bool(io.csr_field("BUILD", "GEN_MON")),
+        # char_run_timer in the harness (BUILD.RUN_TIMER): on-chip run timer and
+        # per-half CRC verdict, enforced by _score() beside the golden check.
+        'run_timer': bool(io.csr_field("BUILD", "RUN_TIMER")),
         # byte-granular rapids_top with byte-wise checkers (TASK-019): lengths
         # in bytes, golden over bytes even for whole-beat runs
         'byte_dut': bool(io.csr_field("BUILD", "BYTE_DUT")),
@@ -655,6 +658,45 @@ class RapidsByteCampaign:
 
     # ---- shared per-channel scoreboard -------------------------------------
 
+    def _hw_verdict(self, active_channels, label, errors):
+        """The harness's own verdict (char_run_timer), enforced beside golden.
+
+        GO cleared and started the timer; it stopped at OBS_TARGET output beats
+        and latched PASS from the active half's CRC pair (SOURCE: RD_CRC vs
+        CHK_ACT_CRC, SINK: GEN_EXP_CRC vs WR_CRC). Fails the run when the timer
+        never finished, or when the verdict is valid and either PASS is clear or
+        an active channel is missing from the match mask. VERDICT_VALID is clear
+        only on byte-wise-checker builds, whose two CRCs are different functions;
+        there the golden comparison above is the only data check. Returns the
+        record, or None on a bitstream without the timer.
+        """
+        if not (self.design or {}).get('run_timer'):
+            return None
+        st = self.io.csr_fields("TIMER_STATUS")
+        hw = {'done': st['DONE'], 'pass': st['PASS'],
+              'verdict_valid': st['VERDICT_VALID'],
+              'valid_mask': self.io.csr_read_reg("CRC_VALID_MASK") or 0,
+              'match_mask': self.io.csr_read_reg("CRC_MATCH_MASK") or 0,
+              'cycles': ((self.io.csr_read_reg("TIMER_CYC_HI") or 0) << 32)
+                        | (self.io.csr_read_reg("TIMER_CYC_LO") or 0)}
+        for k in ('R_FIRST', 'R_LAST', 'W_FIRST', 'W_LAST'):
+            hw[k.lower()] = self.io.csr_read_reg(f"TIMER_{k}") or 0
+        active = sum(1 << ch for ch in active_channels)
+        if not hw['done']:
+            errors.append(f"hardware timer not done (TIMER_STATUS {st})")
+        elif hw['verdict_valid']:
+            if not hw['pass']:
+                errors.append(f"hardware CRC verdict FAIL: valid=0x{hw['valid_mask']:X} "
+                              f"match=0x{hw['match_mask']:X} active=0x{active:X}")
+            if hw['match_mask'] & active != active:
+                errors.append(f"hardware CRC match mask 0x{hw['match_mask']:X} misses "
+                              f"active channels 0x{active & ~hw['match_mask']:X}")
+        print(f"  {label} HW timer: done={hw['done']} pass={hw['pass']} "
+              f"verdict_valid={hw['verdict_valid']} cycles={hw['cycles']} "
+              f"valid=0x{hw['valid_mask']:X} match=0x{hw['match_mask']:X} "
+              f"r=[{hw['r_first']},{hw['r_last']}] w=[{hw['w_first']},{hw['w_last']}]")
+        return hw
+
     def _score(self, active_channels, beats, expected_total, ok_idle, *,
                base_seed, beat_count_reg, sched_err_reg, label,
                authorities, corroborators, check_data_error):
@@ -825,6 +867,8 @@ class RapidsByteCampaign:
         if not perf['ifaces']:
             perf = None
 
+        hw = self._hw_verdict(active_channels, label, errors)
+
         passed = len(errors) == 0
         for w in warnings:
             self.log.warning(f"  {label}: {w}")
@@ -836,7 +880,7 @@ class RapidsByteCampaign:
         return passed, {'errors': errors, 'warnings': warnings,
                         'results': results, 'beat_total': beat_total,
                         'golden_mismatch': golden_mismatch,
-                        'perf': perf}
+                        'perf': perf, 'hw_timer': hw}
 
     # ---- suite: sweep a matrix, one row per config -------------------------
 

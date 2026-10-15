@@ -12,6 +12,7 @@
 //   - axis4_slave_pattern_check (consumes DUT m_axis_*: source-egress check)
 //   - axi4_slave_rd_injector (backs DUT m_axi_rd_*  : 512b source data source)
 //   - axi4_slave_wr_crc_check   (backs DUT m_axi_wr_*  : 512b sink data verify)
+//   - char_run_timer            (run timer + per-half CRC verdict, misc/)
 //   - sdpram_slave_axi4_axi4 x2 (descriptor RAM per half; DUT reads port A via
 //                                {src,snk}_m_axi_desc_*, host writes descriptors
 //                                via the exposed write/port-B boundary)
@@ -256,6 +257,16 @@ module rapids_char_harness #(
     localparam logic [11:0] CSR_OBS_SOUT_BYTES_LO = 12'h14C;
     localparam logic [11:0] CSR_OBS_SOUT_BYTES_HI = 12'h150;
     localparam logic [11:0] CSR_OBS_SOUT_PKTS     = 12'h154;
+    // char_run_timer readback (run timer + per-half CRC verdict)
+    localparam logic [11:0] CSR_TIMER_STATUS   = 12'h160;
+    localparam logic [11:0] CSR_TIMER_CYC_LO   = 12'h164;
+    localparam logic [11:0] CSR_TIMER_CYC_HI   = 12'h168;
+    localparam logic [11:0] CSR_TIMER_R_FIRST  = 12'h16C;
+    localparam logic [11:0] CSR_TIMER_R_LAST   = 12'h170;
+    localparam logic [11:0] CSR_TIMER_W_FIRST  = 12'h174;
+    localparam logic [11:0] CSR_TIMER_W_LAST   = 12'h178;
+    localparam logic [11:0] CSR_CRC_VALID_MASK = 12'h17C;
+    localparam logic [11:0] CSR_CRC_MATCH_MASK = 12'h180;
 
     // =========================================================================
     // Harness control/status registers (driven by the CSR region)
@@ -341,6 +352,12 @@ module rapids_char_harness #(
     `RC_DBG logic                       src_system_idle, snk_system_idle;
     logic [NUM_CHANNELS-1:0]    src_sched_error, snk_sched_error;
     logic                       mon_irq;
+    // char_run_timer outputs (instance after the port-alias block)
+    logic                       timer_running, timer_done, timer_pass;
+    logic [63:0]                timer_cycles;
+    logic [63:0]                timer_r_first, timer_r_last, timer_w_first, timer_w_last;
+    logic [NUM_CHANNELS-1:0]    crc_valid_per_ch, crc_match_per_ch;
+    logic                       crc_any_valid, crc_match;
 
     // SRC descriptor-RAM host write port
     logic                       desc_src_awvalid, desc_src_awready;
@@ -620,8 +637,9 @@ module rapids_char_harness #(
                     CSR_ID:          w_readmux = 32'h5241_5031;  // "RAP1"
                     // What was built, so the host never assumes the beat size:
                     // [7:0] bytes per beat, [15:8] channels, [23:16] log2(SRAM_DEPTH),
-                    // [24] USE_AXI_MONITORS, [25] USE_OBSERVERS, [26] GEN_MON.
-                    CSR_BUILD:       w_readmux = {5'b0, GEN_MON, USE_OBSERVERS,
+                    // [24] USE_AXI_MONITORS, [25] USE_OBSERVERS, [26] GEN_MON,
+                    // [30] RUN_TIMER (char_run_timer + its CSRs at 0x160).
+                    CSR_BUILD:       w_readmux = {1'b0, 1'b1, 3'b0, GEN_MON, USE_OBSERVERS,
                                                   (USE_AXI_MONITORS != 0),
                                                   8'($clog2(SRAM_DEPTH)),
                                                   8'(NUM_CHANNELS),
@@ -669,6 +687,21 @@ module rapids_char_harness #(
                     CSR_OBS_SOUT_BYTES_LO: w_readmux = obs_sout_bytes[31:0];
                     CSR_OBS_SOUT_BYTES_HI: w_readmux = obs_sout_bytes[63:32];
                     CSR_OBS_SOUT_PKTS:     w_readmux = obs_sout_packets;
+                    // [5] VERDICT_VALID: the two CRCs of a pair are the same
+                    // function, so PASS means something (see u_char_run_timer).
+                    CSR_TIMER_STATUS:   w_readmux = {26'b0, 1'b1, crc_match,
+                                                    crc_any_valid, timer_pass,
+                                                    timer_running, timer_done};
+                    CSR_TIMER_CYC_LO:   w_readmux = timer_cycles[31:0];
+                    CSR_TIMER_CYC_HI:   w_readmux = timer_cycles[63:32];
+                    // Stamps share timer_cycles' time base; low word only
+                    // (2^32 cycles is 42 s at 100 MHz, far past any run).
+                    CSR_TIMER_R_FIRST:  w_readmux = timer_r_first[31:0];
+                    CSR_TIMER_R_LAST:   w_readmux = timer_r_last[31:0];
+                    CSR_TIMER_W_FIRST:  w_readmux = timer_w_first[31:0];
+                    CSR_TIMER_W_LAST:   w_readmux = timer_w_last[31:0];
+                    CSR_CRC_VALID_MASK: w_readmux = 32'(crc_valid_per_ch);
+                    CSR_CRC_MATCH_MASK: w_readmux = 32'(crc_match_per_ch);
                     default:         w_readmux = 32'h0;
                 endcase
             end
@@ -937,6 +970,55 @@ module rapids_char_harness #(
     assign wr_crc_reset = r_wr_crc_reset;
     assign obs_arm = r_obs_arm;
     assign obs_target = r_obs_target;
+
+    // =========================================================================
+    // Run timer + per-half CRC verdict (utility-ip/misc char_run_timer)
+    // =========================================================================
+    // The same module the Genesys 2 STREAM harness uses. Each RAPIDS run tests
+    // one half, and the pair compared is that half's input and output CRC:
+    //   SRC (KICK_CFG.HALF=0): LFSR source read CRC  vs  AXIS checker CRC
+    //   SNK (KICK_CFG.HALF=1): AXIS generator CRC    vs  sink write CRC
+    // with the matching beat counts. GO clears the timer and, a cycle later,
+    // starts it (clear wins over start inside the module, so they cannot share
+    // a cycle). STOP is OBS_TARGET, which the host already programs to the
+    // run's total output beats. SETTLE 32 covers the checkers' CRC lag behind
+    // their beat counts with margin; it is outside the timed window.
+    logic r_go_d;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_go_d <= 1'b0;
+        else                        r_go_d <= r_go;
+    )
+
+    char_run_timer #(
+        .NUM_CHANNELS  (NUM_CHANNELS),
+        .CRC_WIDTH     (32),
+        .COUNT_WIDTH   (32),
+        .SETTLE_CYCLES (32)
+    ) u_char_run_timer (
+        .aclk             (aclk),
+        .aresetn          (aresetn),
+        .i_clear          (r_go),
+        .i_start          (r_go_d),
+        .i_expected_beats (r_obs_target),
+        .i_rd_beat_count  (r_kick_half ? o_gen_beat_count_total : rd_beat_count_total),
+        .i_wr_beat_count  (r_kick_half ? wr_beat_count_total    : o_chk_beat_count_total),
+        .i_rd_crc_value   (r_kick_half ? o_gen_expected_crc       : rd_crc_value),
+        .i_rd_crc_valid   (r_kick_half ? o_gen_expected_crc_valid : rd_crc_valid),
+        .i_wr_crc_value   (r_kick_half ? wr_crc_value             : o_chk_actual_crc),
+        .i_wr_crc_valid   (r_kick_half ? wr_crc_valid             : o_chk_actual_crc_valid),
+        .o_crc_valid_mask (crc_valid_per_ch),
+        .o_crc_match_mask (crc_match_per_ch),
+        .o_crc_any_valid  (crc_any_valid),
+        .o_crc_match      (crc_match),
+        .o_running        (timer_running),
+        .o_done           (timer_done),
+        .o_pass           (timer_pass),
+        .o_cycles         (timer_cycles),
+        .o_r_first        (timer_r_first),
+        .o_r_last         (timer_r_last),
+        .o_w_first        (timer_w_first),
+        .o_w_last         (timer_w_last)
+    );
     assign desc_src_awid = AXI_ID_WIDTH'(0);
     assign desc_src_awaddr = ADDR_WIDTH'(r_desc_addr);
     assign desc_src_awlen = 8'h0;

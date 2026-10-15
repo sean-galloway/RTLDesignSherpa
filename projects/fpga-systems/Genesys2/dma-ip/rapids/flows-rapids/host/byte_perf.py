@@ -150,6 +150,9 @@ def derive(ok, detail, pt, direction, bpb, aclk_hz):
         'perf_valid': bool(ok) and not (direction == 'source' and pt['backpressure']),
         'errors': list((detail or {}).get('errors') or [])[:4],
         'golden_mismatch': bool((detail or {}).get('golden_mismatch')),
+        # on-chip char_run_timer record (cycles, stamps, verdict); None on a
+        # bitstream without it. _score() already failed the row on a bad verdict.
+        'hw_timer': (detail or {}).get('hw_timer'),
         'expected': exp,
         'ifaces': {axis_key: axis, mem_key: mem},
         'axis_key': axis_key, 'mem_key': mem_key,

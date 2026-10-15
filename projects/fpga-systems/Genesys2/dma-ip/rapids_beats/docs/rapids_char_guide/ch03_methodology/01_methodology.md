@@ -54,11 +54,18 @@ Every beat is checked against a deterministic **golden CRC-32** (LFSR seed
 `rapids_char_golden.py` computes the same value the on-chip checkers do; a pass is
 a match on both paths (`make suite` = 48/48).
 
+The harness also judges each run on chip. Its run timer (`char_run_timer`, the
+module the STREAM harness uses) compares the active half's input CRC with its
+output CRC per channel and latches PASS when the run ends. The host requires
+both: the golden match and the on-chip PASS.
+
 ## Measurement pitfalls
 
 - **Arm every run** — the bus meters have no auto-reset; use `OBS_CTRL.arm` or the
   `CSR_GO` write, or the window stays frozen on the first capture.
 - **SINK re-arm** — the sink is fully trustworthy only on the first arm after a
   board reset; the runner pulses `CHANNEL_RESET` before each run.
-- The generator self-CRC (`GEN_EXP_VLD`) is corroboration only; PASS anchors on
-  the data-path CRC (`WR_CRC`).
+- The generator self-CRC (`GEN_EXP_CRC`) is one side of the on-chip SINK verdict.
+  Its valid flag read 0 intermittently in the 2026-07-15 board runs, before the
+  generator start became a one-cycle pulse; no board run since shows it. A
+  recurrence now fails the run instead of logging a warning.

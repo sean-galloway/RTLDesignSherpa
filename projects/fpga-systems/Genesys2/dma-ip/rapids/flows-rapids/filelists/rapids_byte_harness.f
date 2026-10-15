@@ -53,5 +53,6 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/dma-ip/stream/rtl/axi_response_delay.s
 # in the harness, but their closure must compile in every build.
 -f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/axi4_intf_master_observer.f
 -f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/axis4_intf_observer.f
+-f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/char_run_timer.f
 
 $REPO_ROOT/projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids/rtl/rapids_byte_harness.sv

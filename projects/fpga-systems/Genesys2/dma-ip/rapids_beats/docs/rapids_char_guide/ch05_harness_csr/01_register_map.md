@@ -101,9 +101,22 @@ These raw offsets are declared in `rapids_char_top.sv` and mirrored in
 | `OBS_SIN_*` / `OBS_SOUT_*` | 0x120–0x13C | `value` | [31:0] | AXIS in / out meter buckets |
 | `OBS_SIN_BYTES_LO/HI`, `OBS_SIN_PKTS` | 0x140–0x148 | `value` | [31:0] | Exact AXIS-in bytes / packets |
 | `OBS_SOUT_BYTES_LO/HI`, `OBS_SOUT_PKTS` | 0x14C–0x154 | `value` | [31:0] | Exact AXIS-out bytes / packets |
+| `TIMER_STATUS` | 0x160 | `done`, `running`, `pass`, `crc_any_valid`, `crc_match`, `verdict_valid` | [0]…[5] | On-chip run timer and CRC verdict (`char_run_timer`); `pass` is latched at `done` |
+| `TIMER_CYC_LO/HI` | 0x164 / 0x168 | `value` | [31:0] | Run length in aclk cycles, GO to the `OBS_TARGET`-th output beat |
+| `TIMER_R_FIRST/R_LAST/W_FIRST/W_LAST` | 0x16C–0x178 | `value` | [31:0] | Cycle stamps of the first and last input-side and output-side beat (low word) |
+| `CRC_VALID_MASK` / `CRC_MATCH_MASK` | 0x17C / 0x180 | `value` | [N-1:0] | Per channel: both CRCs of the pair valid / valid and equal |
 
 : Harness CSR — status and observability
 
 Meter buckets and byte/packet counters are cleared by `CTRL.cam_clear` and each
 run must be armed (via `OBS_CTRL.arm` or the `CSR_GO` write) or the window stays
 frozen on the first capture.
+
+The run timer is the same `char_run_timer` the STREAM harness uses
+(`projects/components/utility-ip/misc/rtl/char_run_timer.sv`; `BUILD.RUN_TIMER`
+says it is built). GO clears it and starts it a cycle later; it stops when the
+output-side beat count reaches `OBS_TARGET`. Its verdict compares the active
+half's input CRC with its output CRC: on SOURCE, `RD_CRC` against `CHK_ACT_CRC`;
+on SINK, `GEN_EXP_CRC` against `WR_CRC`. The host fails a run when the timer did
+not finish, when `pass` is clear, or when an active channel is missing from
+`CRC_MATCH_MASK`.

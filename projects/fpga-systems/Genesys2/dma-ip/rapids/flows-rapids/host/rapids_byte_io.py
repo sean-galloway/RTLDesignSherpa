@@ -271,6 +271,18 @@ class RapidsByteIO:
         """Read a harness CSR register by name."""
         return self.csr_read(int(self._csr_map.registers[name]['address'], 16))
 
+    def csr_fields(self, name: str) -> dict:
+        """Read a fielded harness CSR register ONCE and decode every field by name."""
+        val = self.csr_read_reg(name) or 0
+        out = {}
+        for field, spec in self._csr_map.registers[name].items():
+            if not isinstance(spec, dict) or spec.get('type') != 'field' or field == 'RSVD':
+                continue
+            off = spec['offset']
+            hi, lo = (int(x) for x in off.split(':')) if ':' in off else (int(off), int(off))
+            out[field] = (val >> lo) & ((1 << (hi - lo + 1)) - 1)
+        return out
+
     def csr_field(self, name: str, field: str) -> int:
         """Read one field of a harness CSR register by name."""
         return field_value(self._csr_map, name, field, self.csr_read_reg(name) or 0)

@@ -70,7 +70,8 @@ CSR = [
                                   ('SRAM_DEPTH_LOG2', 23, 16, 'r'),
                                   ('AXI_MONITORS', 24, 24, 'r'),
                                   ('OBSERVERS', 25, 25, 'r'),
-                                  ('GEN_MON', 26, 26, 'r')]),
+                                  ('GEN_MON', 26, 26, 'r'),
+                                  ('RUN_TIMER', 30, 30, 'r')]),       # char_run_timer CSRs at 0x160
     (0x010, 'GEN_CTRL',    'w',  [('GEN_START', 0, 0, 'w')]),         # cfg_gen_start pulse
     (0x014, 'GEN_SEED',    'rw', None),
     (0x018, 'GEN_NBEATS',  'rw', None),
@@ -149,6 +150,23 @@ CSR = [
     (0x14C, 'OBS_SOUT_BYTES_LO','r', None),
     (0x150, 'OBS_SOUT_BYTES_HI','r', None),
     (0x154, 'OBS_SOUT_PKTS',    'r', None),
+    # char_run_timer (utility-ip/misc): run timer + per-half CRC verdict.
+    # GO clears and starts it; STOP is OBS_TARGET; the pair is the active half's
+    # input vs output CRC (SRC: RD_CRC vs CHK_ACT_CRC, SNK: GEN_EXP_CRC vs WR_CRC).
+    (0x160, 'TIMER_STATUS', 'r', [('DONE', 0, 0, 'r'),
+                                  ('RUNNING', 1, 1, 'r'),
+                                  ('PASS', 2, 2, 'r'),               # latched verdict at done
+                                  ('CRC_ANY_VALID', 3, 3, 'r'),      # live
+                                  ('CRC_MATCH', 4, 4, 'r'),          # live
+                                  ('VERDICT_VALID', 5, 5, 'r')]),    # pair is one CRC function
+    (0x164, 'TIMER_CYC_LO',  'r', None),
+    (0x168, 'TIMER_CYC_HI',  'r', None),
+    (0x16C, 'TIMER_R_FIRST', 'r', None),   # cycle stamps, low word
+    (0x170, 'TIMER_R_LAST',  'r', None),
+    (0x174, 'TIMER_W_FIRST', 'r', None),
+    (0x178, 'TIMER_W_LAST',  'r', None),
+    (0x17C, 'CRC_VALID_MASK', 'r', None),  # per channel: both CRCs of the pair valid
+    (0x180, 'CRC_MATCH_MASK', 'r', None),  # per channel: valid and equal
 ]
 
 _HDR = '''# SPDX-License-Identifier: MIT

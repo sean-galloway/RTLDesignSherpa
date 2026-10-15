@@ -99,7 +99,10 @@ board and the simulator see the same bytes.
 The golden model on the host, `rapids_char_golden.py`, runs the same LFSR and
 computes the CRCs a correct DMA must produce. PASS is anchored on the data
 path: the sink's write CRC and the source's egress CRC must equal the model.
-The generator's own expected-CRC readback is corroboration only.
+On chip, `char_run_timer` (shared with the STREAM harness) times the run and
+compares each half's input CRC with its output CRC: `RD_CRC` against the egress
+checker on SOURCE, the generator's expected CRC against `WR_CRC` on SINK. The
+host requires that on-chip PASS as well as the golden match.
 
 ## Memories the DUT owns
 

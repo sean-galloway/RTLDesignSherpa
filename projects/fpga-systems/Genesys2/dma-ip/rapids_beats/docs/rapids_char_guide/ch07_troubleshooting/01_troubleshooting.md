@@ -16,7 +16,8 @@ known-state material lives in `docs/rapids_beats_findings.md`.
 | SINK over-produces / desyncs | The generator `start` must be a one-cycle pulse, not a held level (a UART-held level runs the generator repeatedly). Fixed in RTL; residual: SINK is fully trustworthy only on the **first arm after a board reset** — a full SINK sweep needs a per-config reset. SOURCE re-arms cleanly. |
 | Stale scheduler/descriptor state | `reset_channels()` pulses `CHANNEL_RESET` on both halves before each run — the sink does not self-clean after a transfer. |
 | Meter reads 0 / frozen | The bus meters have no per-run auto-reset. Arm each run via `OBS_CTRL.arm` or the `CSR_GO` write; use `CSR_OBS_TARGET = channels × beats` for a deterministic freeze window. |
-| `gen_expected_crc_valid` intermittently 0 | Non-fatal — PASS anchors on the data-path CRC (`WR_CRC` vs golden); the generator self-CRC is corroboration only. |
+| `gen_expected_crc_valid` intermittently 0 | Seen only in the 2026-07-15 board runs, before the generator start became a one-cycle pulse; none since. The on-chip SINK verdict now needs it, so a recurrence fails the run (`hardware CRC verdict FAIL`) instead of warning. Treat it as a bug to find, not a flake. |
+| `hardware timer not done` | GO did not start the run timer, or the output-side beat count never reached `OBS_TARGET`. Check `OBS_TARGET` = channels x beats and the beat totals. |
 | Spurious read failure | `csr_read()` retries up to 3× on malformed/short UART frames. |
 
 : Known issues and workarounds
