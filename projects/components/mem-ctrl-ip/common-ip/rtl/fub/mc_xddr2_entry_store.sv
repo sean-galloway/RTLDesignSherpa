@@ -10,16 +10,23 @@
 //          presents the scheduler with N-wide schedulable-entry vectors plus
 //          the age-order matrix it expects.  Read tickets are forwarded to the
 //          return ring at issue time; write descriptors are freed when their
-//          last beat drains to the DFI plane.
+//          last beat has been FETCHED from the data SRAM (see below).
 //
-//          Write data is staged PER ENTRY (AXI4 W beats are non-interleaved
-//          and arrive in AW order, so each burst's beats go to the oldest
-//          incomplete entry).  Per-entry storage lets the scheduler commit
-//          writes in any order it picks (FR-FCFS by page hit) without
-//          head-of-line blocking; committed slots queue in a drain FIFO and
-//          each drains its own beats to the DFI plane.  The write-completion
-//          (B) pulse fires once per host burst on the final sub-burst's last
-//          beat -- exactly the silicon-proven B-fix semantics.
+//          Write BEAT DATA lives in ONE simple-dual-port BRAM — one word per
+//          (slot, beat), {strb,data} packed, synchronous (registered) read.
+//          Pattern ported from mc_wr_data_cam (pumice, silicon-proven): the
+//          earlier per-entry flop arrays cost ~2.3k FFs (+3.6k LUTs on the
+//          A7 build) for exactly zero bandwidth.  A 2-deep prefetch skid over
+//          the 1-cycle-latency read keeps the drain stream at 1 beat/cycle
+//          across entry boundaries (beat-0 of the next entry fetches while
+//          the current tail drains), and full tags ride each buffered beat so
+//          the consume side needs no entry state.
+//
+//          Fill/drain collision freedom: AXI4 W beats are non-interleaved and
+//          arrive in AW order, so the filling entry (valid && !fdone) and the
+//          draining entry (committed => fdone && sched) are always different
+//          entries — the write port and the read port never touch the same
+//          region in the same cycle.
 //
 //          The AXI4 plane pushes descriptors (aw_push / ar_push) and write
 //          beats; the scheduler commits/issues and the entry store drains
@@ -188,14 +195,42 @@ module mc_xddr2_entry_store
     logic                 r_wr_last   [NUM_ENTRIES];
     logic [AGEW-1:0]      r_wr_age    [NUM_ENTRIES];
     logic [BCW-1:0]       r_wr_bcnt   [NUM_ENTRIES];   // beats received
-    logic [BCW-1:0]       r_wr_dbcnt  [NUM_ENTRIES];   // beats drained
 
-    // Per-entry write-data array.  AXI W beats are non-interleaved and arrive
-    // in AW order, so only one entry fills at a time; per-entry storage lets
-    // the scheduler commit/drain entries out of descriptor order without
-    // head-of-line blocking from the shared W stream.
-    logic [DW-1:0]        r_wr_data   [NUM_ENTRIES][AXI_BEATS_PER_BURST];
-    logic [SW-1:0]        r_wr_strb   [NUM_ENTRIES][AXI_BEATS_PER_BURST];
+    // WR beat-data SRAM: ONE simple-dual-port BRAM, one word per (slot, beat),
+    // {strb,data} packed so a read returns them atomically.  The write port is
+    // the fill engine; the read port is the commit-drain fetch engine.  Fill
+    // and drain are always different entries (fill target is !fdone, drain
+    // target is committed => fdone && sched), so the ports never collide on a
+    // region.  Synchronous read (1-cycle latency) -> the 2-deep prefetch skid
+    // below decouples fetch from consume.
+    localparam int SRW = DW + SW;
+    (* ram_style = "block" *)
+    logic [SRW-1:0]  r_mem [NUM_ENTRIES*AXI_BEATS_PER_BURST];
+    logic [SRW-1:0]  r_rd_q;    // BRAM read-data register (output of the sync read)
+
+    // 2-deep prefetch skid over the BRAM (commit drain only — this SKU has no
+    // snarf stream sharing the read port, so mc_wr_data_cam's port arbitration
+    // and anti-starvation logic is intentionally absent).  Each buffered beat
+    // carries its full tag {blast, slast, id} so the consume side needs no
+    // entry state: the entry itself is evicted at FETCH-last, one pipeline
+    // earlier than consume-last (Little's law on the write side; see
+    // mc_wr_data_cam).  A credit count bounds (outstanding + buffered) <=
+    // SKID_DEPTH so a stalled DFI plane never loses a beat.
+    localparam int SKID_DEPTH = 2;
+    logic [SRW-1:0]  r_sk_data  [SKID_DEPTH];
+    logic            r_sk_blast [SKID_DEPTH]; // last beat of this entry's burst
+    logic            r_sk_slast [SKID_DEPTH]; // entry r_wr_last: final sub of host AW
+    logic [IW-1:0]   r_sk_id    [SKID_DEPTH];
+    logic            r_sk_rd;                 // head pointer (1 bit; DEPTH=2)
+    logic            r_sk_wr;                 // tail pointer
+    logic [1:0]      r_sk_cnt;                // occupancy 0..2
+    logic [1:0]      r_credits;               // SKID_DEPTH - (outstanding + buffered)
+
+    // in-flight read (issued last cycle; its data lands in r_rd_q this cycle)
+    logic            r_if_valid;
+    logic            r_if_blast;
+    logic            r_if_slast;
+    logic [IW-1:0]   r_if_id;
 
     // Age-order matrix per WR direction: r_wr_older[i][j] = entry i was inserted
     // strictly before entry j.
@@ -231,6 +266,10 @@ module mc_xddr2_entry_store
                 w_fill_slot = PTRW'(i);
             end
     end
+
+    // SRAM flat index of the fill beat (32-bit width, mirroring mc_wr_data_cam)
+    logic [31:0] w_fill_idx;
+    assign w_fill_idx = 32'(w_fill_slot) * 32'(AXI_BEATS_PER_BURST) + 32'(r_wr_bcnt[w_fill_slot]);
 
     logic w_aw_fire;
     logic w_wd_fire;
@@ -299,45 +338,67 @@ module mc_xddr2_entry_store
     );
 
     // ======================================================================
-    // WR data drain to DFI plane (per-entry storage; valid held until fire)
+    // WR drain fetch engine : stream committed entries (drain FIFO order) out
+    // of the BRAM through the prefetch skid.  The fetch beat pointer runs one
+    // beat AHEAD of the presented beat so the read port stays busy across
+    // entry boundaries (beat-0 of the next entry fetches while the current
+    // tail drains -> no per-entry bubble, 1 beat/cycle sustained).
+    // ======================================================================
+    logic [BCW-1:0]  r_cm_fbeat;   // commit fetch beat (next beat to issue)
+    logic [31:0]     w_cm_idx;
+    assign w_cm_idx = 32'(w_dq_rd_slot) * 32'(AXI_BEATS_PER_BURST) + 32'(r_cm_fbeat);
+
+    // Room for one more outstanding fetch: a free credit, or a consume this
+    // cycle returns one (w_cm_fire is declared with the consume side below;
+    // module-scope order is free).
+    logic w_fetch, w_room, w_fetch_last;
+    assign w_room       = (r_credits != 2'd0) || w_cm_fire;
+    assign w_fetch      = w_room && w_dq_rd_valid;
+    assign w_fetch_last = w_fetch && (r_cm_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
+
+    // Pop the drain queue at FETCH-last so the head advances to the next entry
+    // on the next edge and its beat-0 fetches immediately (no cross-entry
+    // bubble; same idiom as mc_wr_data_cam's w_dq_rd_ready).
+    assign w_dq_rd_ready = w_fetch_last;
+
+    // ======================================================================
+    // WR drain to DFI plane: consume side reads the skid head
     // ======================================================================
     logic w_cm_fire;
-    logic w_last_beat;
+    logic            w_hd_vld, w_hd_blast, w_hd_slast;
+    logic [SRW-1:0]  w_hd_data;
+    logic [IW-1:0]   w_hd_id;
 
-    assign w_cm_fire     = wr_cm_rd_valid_o && wr_cm_rd_ready_i;
-    assign w_last_beat   = (r_wr_dbcnt[w_dq_rd_slot] == BCW'(AXI_BEATS_PER_BURST - 1));
+    assign w_hd_vld   = (r_sk_cnt != 2'd0);
+    assign w_hd_data  = r_sk_data [r_sk_rd];
+    assign w_hd_blast = r_sk_blast[r_sk_rd];
+    assign w_hd_slast = r_sk_slast[r_sk_rd];
+    assign w_hd_id    = r_sk_id   [r_sk_rd];
 
-    assign wr_cm_rd_valid_o = w_dq_rd_valid && r_wr_valid[w_dq_rd_slot];
-    assign wr_cm_rd_data_o  = r_wr_data[w_dq_rd_slot][r_wr_dbcnt[w_dq_rd_slot]];
-    assign wr_cm_rd_strb_o  = r_wr_strb[w_dq_rd_slot][r_wr_dbcnt[w_dq_rd_slot]];
-    assign wr_cm_rd_last_o  = w_last_beat;
+    assign wr_cm_rd_valid_o = w_hd_vld;
+    assign wr_cm_rd_data_o  = w_hd_data[DW-1:0];
+    assign wr_cm_rd_strb_o  = w_hd_data[SRW-1:DW];
+    assign wr_cm_rd_last_o  = w_hd_blast;
 
-    assign w_dq_rd_ready = w_cm_fire && w_last_beat;
-
-    // B consolidation: the host burst AW was chopped by mc_wr_splitter into
-    // AXI_BEATS_PER_BURST-sized sub-bursts (agg=1, last=1 only on the final
-    // chunk; an unsplit burst arrives as agg=0, last=1). The AXI slave owes
-    // the host exactly ONE B per host AW -- emitting wr_done per sub-burst
-    // returns N B's for one AW, the engine's outstanding count desyncs, and
-    // the run hangs with everything drained (granite A7 bring-up, 2026-10-12;
-    // the pumice storage plane's wr data CAM aggregates instead, which is why
-    // only the storage-less SKU saw it).
-    assign wr_done_valid_o = w_cm_fire && w_last_beat
-                           && r_wr_last[w_dq_rd_slot];
-    assign wr_done_id_o    = r_wr_id[w_dq_rd_slot];
+    assign w_cm_fire = wr_cm_rd_valid_o && wr_cm_rd_ready_i;
 
     // ======================================================================
     // WR sequential logic
     // ======================================================================
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
-            r_age_ctr <= '0;
+            r_age_ctr   <= '0;
+            r_cm_fbeat  <= '0;
+            r_sk_rd     <= 1'b0;
+            r_sk_wr     <= 1'b0;
+            r_sk_cnt    <= 2'd0;
+            r_credits   <= 2'(SKID_DEPTH);
+            r_if_valid  <= 1'b0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_wr_valid[i] <= 1'b0;
                 r_wr_fdone[i] <= 1'b0;
                 r_wr_sched[i] <= 1'b0;
-                r_wr_bcnt[i]  <= '0;
-                r_wr_dbcnt[i] <= '0;
+                r_wr_bcnt [i] <= '0;
                 r_wr_older[i] <= '0;
             end
         end else begin
@@ -349,7 +410,6 @@ module mc_xddr2_entry_store
                 r_wr_fdone[w_wr_free_slot] <= 1'b0;
                 r_wr_sched[w_wr_free_slot] <= 1'b0;
                 r_wr_bcnt [w_wr_free_slot] <= '0;
-                r_wr_dbcnt[w_wr_free_slot] <= '0;
                 r_wr_bank [w_wr_free_slot] <= aw_push_bank_i;
                 r_wr_row  [w_wr_free_slot] <= aw_push_row_i;
                 r_wr_col  [w_wr_free_slot] <= aw_push_col_i;
@@ -367,10 +427,9 @@ module mc_xddr2_entry_store
                 end
             end
 
-            // fill data beat into the oldest incomplete entry
+            // fill data beat bookkeeping (the beat itself is written into the
+            // BRAM in the reset-free process below)
             if (w_wd_fire) begin
-                r_wr_data[w_fill_slot][r_wr_bcnt[w_fill_slot]] <= wd_data_i;
-                r_wr_strb[w_fill_slot][r_wr_bcnt[w_fill_slot]] <= wd_strb_i;
                 if (wd_last_i || (r_wr_bcnt[w_fill_slot] == BCW'(AXI_BEATS_PER_BURST - 1))) begin
                     r_wr_fdone[w_fill_slot] <= 1'b1;
                     r_wr_bcnt [w_fill_slot] <= '0;
@@ -382,23 +441,70 @@ module mc_xddr2_entry_store
             // scheduler commit: mark scheduled and queue for drain
             if (w_wr_commit_fire) begin
                 r_wr_sched[wr_commit_slot_i] <= 1'b1;
-                r_wr_dbcnt[wr_commit_slot_i] <= '0;
             end
 
-            // drain beat; free entry on its last beat
-            if (w_cm_fire) begin
-                if (w_last_beat) begin
-                    r_wr_valid[w_dq_rd_slot] <= 1'b0;
-                    r_wr_fdone[w_dq_rd_slot] <= 1'b0;
-                    r_wr_sched[w_dq_rd_slot] <= 1'b0;
-                    r_wr_bcnt [w_dq_rd_slot] <= '0;
-                    r_wr_dbcnt[w_dq_rd_slot] <= '0;
-                end else begin
-                    r_wr_dbcnt[w_dq_rd_slot] <= r_wr_dbcnt[w_dq_rd_slot] + 1'b1;
-                end
+            // ---- fetch engine: issue BRAM reads one beat ahead -------------
+            r_if_valid <= w_fetch;
+            if (w_fetch) begin
+                r_if_blast <= (r_cm_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
+                r_if_slast <= r_wr_last[w_dq_rd_slot];
+                r_if_id    <= r_wr_id [w_dq_rd_slot];
+                if (r_cm_fbeat == BCW'(AXI_BEATS_PER_BURST-1)) r_cm_fbeat <= '0;
+                else                                           r_cm_fbeat <= r_cm_fbeat + 1'b1;
+            end
+
+            // ---- skid pipeline ----------------------------------------------
+            // Stage 1 (issue, above): latch the BRAM read + its tag as in-flight.
+            // Stage 2 (capture, next cycle): r_rd_q holds the data and r_if_* the
+            // tag -> push into the skid FIFO.  Credits bound the pipeline so a
+            // stalled consumer never overruns.
+            if (r_if_valid) begin
+                r_sk_data [r_sk_wr] <= r_rd_q;
+                r_sk_blast[r_sk_wr] <= r_if_blast;
+                r_sk_slast[r_sk_wr] <= r_if_slast;
+                r_sk_id   [r_sk_wr] <= r_if_id;
+                r_sk_wr             <= r_sk_wr + 1'b1;
+            end
+            if (w_cm_fire) r_sk_rd <= r_sk_rd + 1'b1;
+            r_sk_cnt  <= r_sk_cnt  + (r_if_valid ? 2'd1 : 2'd0) - (w_cm_fire ? 2'd1 : 2'd0);
+            r_credits <= r_credits - (w_fetch    ? 2'd1 : 2'd0) + (w_cm_fire ? 2'd1 : 2'd0);
+
+            // commit DRAIN evict at FETCH-last (mc_wr_data_cam semantics): the
+            // burst's last word is read out of the SRAM this cycle, so the entry
+            // is free from the next edge -- the command delay + DFI serializer
+            // wait leaves the entry lifetime and Little's-law write headroom
+            // widens.  The B response still rides the skid tag at consume-last.
+            if (w_fetch_last) begin
+                r_wr_valid[w_dq_rd_slot] <= 1'b0;
+                r_wr_fdone[w_dq_rd_slot] <= 1'b0;
+                r_wr_sched[w_dq_rd_slot] <= 1'b0;
+                r_wr_bcnt [w_dq_rd_slot] <= '0;
             end
         end
     end)
+
+    // -------------------------------------------------------------------------
+    // Data storage: a dedicated, RESET-FREE clocked process so Vivado maps it to
+    // Block RAM. RAM contents cannot be async-reset; a memory written inside an
+    // async-reset process reports "RAM is sensitive to asynchronous reset signal"
+    // and dissolves into fabric flip-flops -- defeating the whole point of the
+    // change. One write port (fill) + one registered read port (drain fetch) =
+    // simple dual-port BRAM. (Identical structure and rationale to
+    // mc_wr_data_cam's r_mem process.)
+    //
+    // READ LATENCY IS EXACTLY 1 CYCLE and the skid pipeline depends on it: the
+    // address (w_cm_idx / w_fill_idx) is combinational, the output r_rd_q is a
+    // single register, so data for the address issued in cycle T lands in
+    // r_rd_q in T+1 -- which is when the 1-deep in-flight tag (r_if_*) is
+    // paired with it and pushed into the skid. Do NOT register the read address
+    // or add an output-register stage unless you deepen the r_if_* tag pipeline
+    // to match: otherwise every captured beat pairs with the WRONG tag (last /
+    // B id) -> silent corruption, with no elaboration error.
+    // -------------------------------------------------------------------------
+    always_ff @(posedge aclk) begin
+        if (w_wd_fire) r_mem[w_fill_idx] <= {wd_strb_i, wd_data_i};
+        if (w_fetch)   r_rd_q            <= r_mem[w_cm_idx];
+    end
 
     // ======================================================================
     // RD entry state
@@ -581,10 +687,25 @@ module mc_xddr2_entry_store
     assign snarf_rd_last_o  = 1'b0;
 
     // ======================================================================
-    // Busy: any valid entry or data draining
+    // B consolidation: the host burst AW was chopped by mc_wr_splitter into
+    // AXI_BEATS_PER_BURST-sized sub-bursts (agg=1, last=1 only on the final
+    // chunk; an unsplit burst arrives as agg=0, last=1). The AXI slave owes
+    // the host exactly ONE B per host AW -- emitting wr_done per sub-burst
+    // returns N B's for one AW, the engine's outstanding count desyncs, and
+    // the run hangs with everything drained (granite A7 bring-up, 2026-10-12;
+    // the pumice storage plane's wr data CAM aggregates instead, which is why
+    // only the storage-less SKU saw it).  Sourced from the CARRIED skid tag
+    // (the entry is evicted at fetch-last, long before consume), exactly
+    // mc_wr_data_cam's scheme.
+    // ======================================================================
+    assign wr_done_valid_o = w_cm_fire && w_hd_blast && w_hd_slast;
+    assign wr_done_id_o    = w_hd_id;
+
+    // ======================================================================
+    // Busy: any valid entry, drain queue, skid, or in-flight fetch
     // ======================================================================
     always_comb begin
-        busy_o = w_dq_rd_valid;
+        busy_o = w_dq_rd_valid || w_hd_vld || r_if_valid;
         for (int i = 0; i < NUM_ENTRIES; i++)
             if (r_wr_valid[i] || r_rd_valid[i]) busy_o = 1'b1;
     end
