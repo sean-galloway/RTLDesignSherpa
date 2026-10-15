@@ -600,6 +600,34 @@ async def cocotb_test_pumice_top(dut):
         tb.log.info(f"PASS smoke ({mem_type}): init_done + ID ok")
         return
 
+    if test_type == "lp_mr_op_csr_sweep_lpddr2":
+        # LP_MR1/2/3_OP CSRs must reach the LPDDR2 MRW stream. The values only
+        # take effect on a (re-)init, so: verify defaults programmed at
+        # bring-up, sweep the CSRs, force a restart, then re-check the decoded
+        # MRs off the CA bus. Also exercises CTRL.init_force_restart end-to-end.
+        mr = tb.dfi_slave.mode_regs
+        for idx, val in ((1, 0x23), (2, 0x01), (3, 0x02)):
+            assert mr.get(idx) == val, \
+                f"pre-restart MR{idx} = {mr.get(idx)} != {val:#x} (decoded MRs: {mr})"
+        await tb.csr_write_field("LP_MR1_OP", "VAL", 0x5A)
+        await tb.csr_write_field("LP_MR2_OP", "VAL", 0xC3)
+        await tb.csr_write_field("LP_MR3_OP", "VAL", 0x3C)
+        await tb.csr_write_field("CTRL", "init_force_restart", 1)
+        # init_done_o lags the restart by a cycle and wait_for_init_done only
+        # polls for the rise -- wait for the fall first.
+        for _ in range(1000):
+            await RisingEdge(dut.aclk)
+            if not int(dut.init_done_o.value):
+                break
+        assert not int(dut.init_done_o.value), "restart never dropped init_done"
+        await tb.wait_for_init_done()
+        mr = tb.dfi_slave.mode_regs
+        for idx, val in ((1, 0x5A), (2, 0xC3), (3, 0x3C)):
+            assert mr.get(idx) == val, \
+                f"post-restart MR{idx} = {mr.get(idx)} != {val:#x} (decoded MRs: {mr})"
+        tb.log.info("PASS lp_mr_op_csr_sweep_lpddr2: CSR OP values reached the MRW stream")
+        return
+
     if test_type == "configure_via_csr":
         await tb.csr_write_field("REFRESH_TUNING", "page_policy_or", 0x2)
         await tb.csr_write_field("SCHED_POLICY", "order_mode", 0x1)
@@ -1723,7 +1751,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
     # root cause as the ISSUE-020 fub fixes).
     run(python_search=[tests_dir], verilog_sources=verilog_sources,
         includes=includes, toplevel=dut_name, module=module,
-        testcase=f"{testcase}$", sim_build=sim_build, simulator="verilator",
+        testcase=testcase, sim_build=sim_build, simulator="verilator",
         extra_env=env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw",
                       "-Wno-MULTIDRIVEN"],
@@ -1745,6 +1773,7 @@ _FUNC = ["smoke", "configure_via_csr", "axi_write_smoke", "wr_rd_roundtrip",
          "fresh_read_each_bank", "row_hit_pattern", "workload_mix",
          "wr_rd_ooo_multi_id", "open_page_workload", "adapt_time_workload",
          "smoke_lpddr2", "open_page_lpddr2", "workload_mix_lpddr2",
+         "lp_mr_op_csr_sweep_lpddr2",
          "random_soak"]
 
 

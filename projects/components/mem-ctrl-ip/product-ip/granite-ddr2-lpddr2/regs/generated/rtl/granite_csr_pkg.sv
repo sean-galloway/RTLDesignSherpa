@@ -549,6 +549,30 @@ package granite_csr_pkg;
     } granite_csr__CAL_TRAIN_TIMING__out_t;
 
     typedef struct {
+        logic [7:0] value;
+    } granite_csr__LP_MR1_OP__VAL__out_t;
+
+    typedef struct {
+        granite_csr__LP_MR1_OP__VAL__out_t VAL;
+    } granite_csr__LP_MR1_OP__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } granite_csr__LP_MR2_OP__VAL__out_t;
+
+    typedef struct {
+        granite_csr__LP_MR2_OP__VAL__out_t VAL;
+    } granite_csr__LP_MR2_OP__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } granite_csr__LP_MR3_OP__VAL__out_t;
+
+    typedef struct {
+        granite_csr__LP_MR3_OP__VAL__out_t VAL;
+    } granite_csr__LP_MR3_OP__out_t;
+
+    typedef struct {
         granite_csr__CTRL__out_t CTRL;
         granite_csr__TIMINGS_RC_RCD_RP_RAS__out_t TIMINGS_RC_RCD_RP_RAS;
         granite_csr__TIMINGS_RFC_REFI__out_t TIMINGS_RFC_REFI;
@@ -576,5 +600,8 @@ package granite_csr_pkg;
         granite_csr__CAL_ZQ_INTERVAL__out_t CAL_ZQ_INTERVAL;
         granite_csr__CAL_ZQ_TIMING__out_t CAL_ZQ_TIMING;
         granite_csr__CAL_TRAIN_TIMING__out_t CAL_TRAIN_TIMING;
+        granite_csr__LP_MR1_OP__out_t LP_MR1_OP;
+        granite_csr__LP_MR2_OP__out_t LP_MR2_OP;
+        granite_csr__LP_MR3_OP__out_t LP_MR3_OP;
     } granite_csr__out_t;
 endpackage

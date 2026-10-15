@@ -957,6 +957,39 @@ addrmap granite_csr {
     } REF_STATS_REF_BUSY @ 0x17C;
 
     //=========================================================================
+    // LPDDR2 Mode-Register OP Data (0x180 – 0x18F)
+    // CSR-backed OP values for the init sequencer's LPDDR2 MRW chain — the
+    // same "sweep MR values to defeat a scrambled CA/A-lane mapping" escape
+    // hatch the DDR2 MR0..MR3.VAL registers provide. JEDEC JESD209-2F
+    // defaults; a change takes effect on the next init (CTRL.init_force_
+    // restart or reset).
+    //=========================================================================
+
+    reg {
+        name = "LPDDR2 MR1 OP Data";
+        desc = "MRW OP value written to LPDDR2 MR1 (nWR/WC/BT/BL) during init.
+                JESD209-2F default 0x23 = nWR3/WC0/BT0/BL8.";
+        field { sw = rw; hw = r; reset = 8'h23; desc = "LPDDR2 MR1 OP value"; } VAL[7:0];
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:8] = 24'h0;
+    } LP_MR1_OP @ 0x180;
+
+    reg {
+        name = "LPDDR2 MR2 OP Data";
+        desc = "MRW OP value written to LPDDR2 MR2 (RL/WL) during init.
+                JESD209-2F default 0x01 = RL3/WL1.";
+        field { sw = rw; hw = r; reset = 8'h01; desc = "LPDDR2 MR2 OP value"; } VAL[7:0];
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:8] = 24'h0;
+    } LP_MR2_OP @ 0x184;
+
+    reg {
+        name = "LPDDR2 MR3 OP Data";
+        desc = "MRW OP value written to LPDDR2 MR3 (drive strength) during init.
+                JESD209-2F default 0x02 = DS 40ohm.";
+        field { sw = rw; hw = r; reset = 8'h02; desc = "LPDDR2 MR3 OP value"; } VAL[7:0];
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:8] = 24'h0;
+    } LP_MR3_OP @ 0x188;
+
+    //=========================================================================
     // Module Identification (0xFF0 – 0xFFC)
     //=========================================================================
 

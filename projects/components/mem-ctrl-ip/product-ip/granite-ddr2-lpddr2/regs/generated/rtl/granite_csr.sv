@@ -123,6 +123,9 @@ module granite_csr (
         logic STALL_BANKTIMER;
         logic STALL_NOREQ;
         logic REF_STATS_REF_BUSY;
+        logic LP_MR1_OP;
+        logic LP_MR2_OP;
+        logic LP_MR3_OP;
         logic ID;
         logic BUILD;
     } decoded_reg_strb_t;
@@ -190,6 +193,9 @@ module granite_csr (
         decoded_reg_strb.STALL_BANKTIMER = cpuif_req_masked & (cpuif_addr == 12'h174);
         decoded_reg_strb.STALL_NOREQ = cpuif_req_masked & (cpuif_addr == 12'h178);
         decoded_reg_strb.REF_STATS_REF_BUSY = cpuif_req_masked & (cpuif_addr == 12'h17c);
+        decoded_reg_strb.LP_MR1_OP = cpuif_req_masked & (cpuif_addr == 12'h180);
+        decoded_reg_strb.LP_MR2_OP = cpuif_req_masked & (cpuif_addr == 12'h184);
+        decoded_reg_strb.LP_MR3_OP = cpuif_req_masked & (cpuif_addr == 12'h188);
         decoded_reg_strb.ID = cpuif_req_masked & (cpuif_addr == 12'hff0);
         decoded_reg_strb.BUILD = cpuif_req_masked & (cpuif_addr == 12'hff4);
     end
@@ -530,6 +536,24 @@ module granite_csr (
                 logic load_next;
             } t_readout;
         } CAL_TRAIN_TIMING;
+        struct {
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } VAL;
+        } LP_MR1_OP;
+        struct {
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } VAL;
+        } LP_MR2_OP;
+        struct {
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } VAL;
+        } LP_MR3_OP;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -792,6 +816,21 @@ module granite_csr (
                 logic [15:0] value;
             } t_readout;
         } CAL_TRAIN_TIMING;
+        struct {
+            struct {
+                logic [7:0] value;
+            } VAL;
+        } LP_MR1_OP;
+        struct {
+            struct {
+                logic [7:0] value;
+            } VAL;
+        } LP_MR2_OP;
+        struct {
+            struct {
+                logic [7:0] value;
+            } VAL;
+        } LP_MR3_OP;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -2364,6 +2403,75 @@ module granite_csr (
         end
     end
     assign hwif_out.CAL_TRAIN_TIMING.t_readout.value = field_storage.CAL_TRAIN_TIMING.t_readout.value;
+    // Field: granite_csr.LP_MR1_OP.VAL
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.LP_MR1_OP.VAL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.LP_MR1_OP && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.LP_MR1_OP.VAL.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.LP_MR1_OP.VAL.next = next_c;
+        field_combo.LP_MR1_OP.VAL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.LP_MR1_OP.VAL.value <= 8'h23;
+        end else begin
+            if(field_combo.LP_MR1_OP.VAL.load_next) begin
+                field_storage.LP_MR1_OP.VAL.value <= field_combo.LP_MR1_OP.VAL.next;
+            end
+        end
+    end
+    assign hwif_out.LP_MR1_OP.VAL.value = field_storage.LP_MR1_OP.VAL.value;
+    // Field: granite_csr.LP_MR2_OP.VAL
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.LP_MR2_OP.VAL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.LP_MR2_OP && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.LP_MR2_OP.VAL.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.LP_MR2_OP.VAL.next = next_c;
+        field_combo.LP_MR2_OP.VAL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.LP_MR2_OP.VAL.value <= 8'h1;
+        end else begin
+            if(field_combo.LP_MR2_OP.VAL.load_next) begin
+                field_storage.LP_MR2_OP.VAL.value <= field_combo.LP_MR2_OP.VAL.next;
+            end
+        end
+    end
+    assign hwif_out.LP_MR2_OP.VAL.value = field_storage.LP_MR2_OP.VAL.value;
+    // Field: granite_csr.LP_MR3_OP.VAL
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.LP_MR3_OP.VAL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.LP_MR3_OP && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.LP_MR3_OP.VAL.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.LP_MR3_OP.VAL.next = next_c;
+        field_combo.LP_MR3_OP.VAL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.LP_MR3_OP.VAL.value <= 8'h2;
+        end else begin
+            if(field_combo.LP_MR3_OP.VAL.load_next) begin
+                field_storage.LP_MR3_OP.VAL.value <= field_combo.LP_MR3_OP.VAL.next;
+            end
+        end
+    end
+    assign hwif_out.LP_MR3_OP.VAL.value = field_storage.LP_MR3_OP.VAL.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2381,7 +2489,7 @@ module granite_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[66];
+    logic [31:0] readback_array[69];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2541,11 +2649,17 @@ module granite_csr (
     assign readback_array[61][31:0] = (decoded_reg_strb.STALL_BANKTIMER && !decoded_req_is_wr) ? 32'h0 : '0;
     assign readback_array[62][31:0] = (decoded_reg_strb.STALL_NOREQ && !decoded_req_is_wr) ? 32'h0 : '0;
     assign readback_array[63][31:0] = (decoded_reg_strb.REF_STATS_REF_BUSY && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[64][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[64][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[64][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[64][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[65][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[64][7:0] = (decoded_reg_strb.LP_MR1_OP && !decoded_req_is_wr) ? field_storage.LP_MR1_OP.VAL.value : '0;
+    assign readback_array[64][31:8] = (decoded_reg_strb.LP_MR1_OP && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[65][7:0] = (decoded_reg_strb.LP_MR2_OP && !decoded_req_is_wr) ? field_storage.LP_MR2_OP.VAL.value : '0;
+    assign readback_array[65][31:8] = (decoded_reg_strb.LP_MR2_OP && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[66][7:0] = (decoded_reg_strb.LP_MR3_OP && !decoded_req_is_wr) ? field_storage.LP_MR3_OP.VAL.value : '0;
+    assign readback_array[66][31:8] = (decoded_reg_strb.LP_MR3_OP && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[67][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[67][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[67][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[67][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[68][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2553,7 +2667,7 @@ module granite_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<66; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<69; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

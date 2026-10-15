@@ -78,6 +78,9 @@ Don't override. Generated from: $root
 | 0x174|    STALL_BANKTIMER    |         Stall: per-bank timer         |
 | 0x178|      STALL_NOREQ      |         Stall: nothing pending        |
 | 0x17C|   REF_STATS_REF_BUSY  |  Refresh Stats: Refreshes with demand |
+| 0x180|       LP_MR1_OP       |           LPDDR2 MR1 OP Data          |
+| 0x184|       LP_MR2_OP       |           LPDDR2 MR2 OP Data          |
+| 0x188|       LP_MR3_OP       |           LPDDR2 MR3 OP Data          |
 | 0xFF0|           ID          |               Module ID               |
 | 0xFF4|         BUILD         |               Build Hash              |
 
@@ -1884,6 +1887,72 @@ staging size is the single source of truth.</p>
 #### RSVD field
 
 <p>Reserved (was REF-with-demand count). Telemetry instrumentation is not part of the granite SKU.</p>
+
+### LP_MR1_OP register
+
+- Absolute Address: 0x180
+- Base Offset: 0x180
+- Size: 0x4
+
+<p>MRW OP value written to LPDDR2 MR1 (nWR/WC/BT/BL) during init.
+JESD209-2F default 0x23 = nWR3/WC0/BT0/BL8.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|    VAL   |  rw  | 0x23|  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### VAL field
+
+<p>LPDDR2 MR1 OP value</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### LP_MR2_OP register
+
+- Absolute Address: 0x184
+- Base Offset: 0x184
+- Size: 0x4
+
+<p>MRW OP value written to LPDDR2 MR2 (RL/WL) during init.
+JESD209-2F default 0x01 = RL3/WL1.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|    VAL   |  rw  | 0x1 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### VAL field
+
+<p>LPDDR2 MR2 OP value</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### LP_MR3_OP register
+
+- Absolute Address: 0x188
+- Base Offset: 0x188
+- Size: 0x4
+
+<p>MRW OP value written to LPDDR2 MR3 (drive strength) during init.
+JESD209-2F default 0x02 = DS 40ohm.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|    VAL   |  rw  | 0x2 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### VAL field
+
+<p>LPDDR2 MR3 OP value</p>
+
+#### RSVD field
+
+<p>Reserved</p>
 
 ### ID register
 

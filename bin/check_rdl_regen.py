@@ -56,6 +56,9 @@ STREAM_SOURCES = [
 PUMICE = "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2"
 PUMICE_SOURCES = [f"{PUMICE}/rtl/macro/pumice_csr.rdl"]
 
+GRANITE = "projects/components/mem-ctrl-ip/product-ip/granite-ddr2-lpddr2"
+GRANITE_SOURCES = [f"{GRANITE}/regs/granite_csr.rdl"]
+
 # DELIBERATELY NOT GATED (checked 2026-09-24) -- these .rdl files exist but
 # produce NO tracked artifact, so there is nothing to compare against:
 #   misc/rdl/dma_address_gen/dma_address_gen.rdl      a register DEFINITION for descriptor
@@ -149,6 +152,19 @@ MANIFEST = [
         "regmap_output": "pumice_regmap.py",
         "compare": [
             (f"{PUMICE}/dv/tbclasses/pumice_regmap.py", "pumice_regmap.py"),
+        ],
+    },
+    {
+        "name": "granite_csr (regblock + docs + regmap)",
+        "rdl": f"{GRANITE}/regs/granite_csr.rdl",
+        "sources": GRANITE_SOURCES,
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            (f"{GRANITE}/regs/generated/rtl/granite_csr.sv", "rtl/granite_csr.sv"),
+            (f"{GRANITE}/regs/generated/rtl/granite_csr_pkg.sv", "rtl/granite_csr_pkg.sv"),
+            (f"{GRANITE}/regs/generated/granite_csr_regmap.py", "granite_csr_regmap.py"),
+            (f"{GRANITE}/regs/generated/docs/granite_csr.md", "docs/granite_csr.md"),
         ],
     },
     {

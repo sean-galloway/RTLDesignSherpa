@@ -738,6 +738,30 @@ package pumice_csr_pkg;
     } pumice_csr__REF_TIMING_PB__out_t;
 
     typedef struct {
+        logic [7:0] value;
+    } pumice_csr__LP_MR1_OP__VAL__out_t;
+
+    typedef struct {
+        pumice_csr__LP_MR1_OP__VAL__out_t VAL;
+    } pumice_csr__LP_MR1_OP__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__LP_MR2_OP__VAL__out_t;
+
+    typedef struct {
+        pumice_csr__LP_MR2_OP__VAL__out_t VAL;
+    } pumice_csr__LP_MR2_OP__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__LP_MR3_OP__VAL__out_t;
+
+    typedef struct {
+        pumice_csr__LP_MR3_OP__VAL__out_t VAL;
+    } pumice_csr__LP_MR3_OP__out_t;
+
+    typedef struct {
         pumice_csr__CTRL__out_t CTRL;
         pumice_csr__TIMINGS_RC_RCD_RP_RAS__out_t TIMINGS_RC_RCD_RP_RAS;
         pumice_csr__TIMINGS_RFC_REFI__out_t TIMINGS_RFC_REFI;
@@ -767,5 +791,8 @@ package pumice_csr_pkg;
         pumice_csr__CAL_TRAIN_TIMING__out_t CAL_TRAIN_TIMING;
         pumice_csr__REF_CTRL__out_t REF_CTRL;
         pumice_csr__REF_TIMING_PB__out_t REF_TIMING_PB;
+        pumice_csr__LP_MR1_OP__out_t LP_MR1_OP;
+        pumice_csr__LP_MR2_OP__out_t LP_MR2_OP;
+        pumice_csr__LP_MR3_OP__out_t LP_MR3_OP;
     } pumice_csr__out_t;
 endpackage
