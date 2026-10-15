@@ -46,6 +46,8 @@ module mc_scheduler_plane
     parameter int CMD_DELAY      = 6,
     parameter bit HAS_ZQ      = 1'b0,
     parameter int MAINT_EXTRA_WIDTH = 1,
+    parameter bit CLOSE_ON_DRAIN = 1'b1,
+    parameter bit BANK_IN_ORDER  = 1'b0,
     // v2 children composition
     parameter bit HAS_INIT_SEQUENCER = 1'b1,
     parameter bit HAS_MODE_REGISTER  = 1'b1,
@@ -573,7 +575,9 @@ module mc_scheduler_plane
         .NUM_ENTRIES (NUM_ENTRIES),
         .AGE_WIDTH   (AGE_WIDTH),
         .HAS_ZQ      (HAS_ZQ),
-        .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH)
+        .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH),
+        .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
+        .BANK_IN_ORDER (BANK_IN_ORDER)
     ) u_arbiter (
         .aclk               (aclk),
         .aresetn            (aresetn),

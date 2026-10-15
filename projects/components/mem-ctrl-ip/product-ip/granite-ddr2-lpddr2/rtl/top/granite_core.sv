@@ -499,6 +499,8 @@ module granite_core
         .CMD_DELAY     (CMD_DELAY_EFF),
         .HAS_ZQ        (1'b0),
         .MAINT_EXTRA_WIDTH(1),
+        .CLOSE_ON_DRAIN(1'b1),
+        .BANK_IN_ORDER (1'b1),   // granite = the LiteDRAM-class SKU: per-bank in-order
         .HAS_CMD_HISTORY(1'b0),
         .REF_HAS_POSTPONE(1'b0),
         .REF_HAS_PULLIN  (1'b0),
