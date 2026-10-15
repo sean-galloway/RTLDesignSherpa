@@ -373,6 +373,18 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     if arbitration == 'qos':
         print(f"  arbitration: qos (AxQOS + aging, one level per 2**{qos_aging_shift} cycles)")
 
+    # Per-ID target tracking in every master adapter (the one-outstanding-
+    # target rule is gone). A master may have transactions in flight at
+    # several slaves; only a NEW request whose ID is already in flight to a
+    # DIFFERENT slave waits, which keeps AXI's same-ID ordering. The table
+    # has 2**id_track_bits entries indexed by the ID's low bits: IDs that
+    # share those bits are treated as one ID (safe, at worst a needless
+    # stall). 0 = one entry, i.e. every ID ordered as one.
+    id_track_bits = int(bridge_data.get('id_track_bits', 4))
+    if not (0 <= id_track_bits <= 8):
+        raise ValueError(
+            f"{config_path}: [bridge].id_track_bits must be 0..8, got {id_track_bits}")
+
     # Bridge-level monitor override switches (mon variant only).
     use_all_monitors = bool(bridge_data.get('use_all_monitors', False))
     use_no_monitors  = bool(bridge_data.get('use_no_monitors',  False))
@@ -408,7 +420,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     return (masters, slaves, defaults, connectivity_data, bridge_name,
             variants, internal_axil_group, use_all_monitors,
             use_no_monitors, mon_preset, use_cfg_regblock, mon_group,
-            xbar_pipeline, arbitration, qos_aging_shift)
+            xbar_pipeline, arbitration, qos_aging_shift, id_track_bits)
 
 
 def find_connectivity_csv(yaml_path: str) -> Optional[str]:
@@ -509,13 +521,13 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
          variants, internal_axil_group,
          use_all_monitors, use_no_monitors, mon_preset,
          use_cfg_regblock, mon_group, xbar_pipeline,
-         arbitration, qos_aging_shift) = load_toml_ports(config_path)
+         arbitration, qos_aging_shift, id_track_bits) = load_toml_ports(config_path)
     elif config_file.suffix in ['.yaml', '.yml']:
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
          use_all_monitors, use_no_monitors, mon_preset,
          use_cfg_regblock, mon_group, xbar_pipeline,
-         arbitration, qos_aging_shift) = load_yaml_ports(config_path)
+         arbitration, qos_aging_shift, id_track_bits) = load_yaml_ports(config_path)
     else:
         raise ValueError(f"Unsupported config format: {config_file.suffix}. Use .toml, .yaml, or .yml")
 
@@ -597,6 +609,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         xbar_pipeline=xbar_pipeline,
         arbitration=arbitration,
         qos_aging_shift=qos_aging_shift,
+        id_track_bits=id_track_bits,
     )
 
     # Validate configuration

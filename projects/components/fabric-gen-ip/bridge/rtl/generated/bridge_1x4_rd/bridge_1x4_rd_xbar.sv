@@ -185,6 +185,76 @@ module bridge_1x4_rd_xbar
     // W-follow declarations (assigned below)
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- R response arbiter, master cpu_rd 32b: round-robin, lock through RLAST ----
+    logic [1:0] cpu_rd_32b_r_rarb_req;
+    assign cpu_rd_32b_r_rarb_req = {((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid) && apb_periph_axi_rvalid, ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid) && periph_rd_axi_rvalid};
+    logic [0:0] cpu_rd_32b_r_rarb_lock, cpu_rd_32b_r_rarb_rr;
+    logic cpu_rd_32b_r_rarb_locked;
+    wire [0:0] cpu_rd_32b_r_rarb_pick = (cpu_rd_32b_r_rarb_rr == 1'd0) ? (cpu_rd_32b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_rd_32b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_rd_32b_r_rarb_gnt = cpu_rd_32b_r_rarb_locked ? cpu_rd_32b_r_rarb_lock : cpu_rd_32b_r_rarb_pick;
+    wire cpu_rd_32b_r_rarb_gnt_valid = cpu_rd_32b_r_rarb_locked || (|cpu_rd_32b_r_rarb_req);
+    wire cpu_rd_32b_r_rgnt_periph_rd = cpu_rd_32b_r_rarb_gnt_valid && (cpu_rd_32b_r_rarb_gnt == 1'd0);
+    wire cpu_rd_32b_r_rgnt_apb_periph = cpu_rd_32b_r_rarb_gnt_valid && (cpu_rd_32b_r_rarb_gnt == 1'd1);
+    wire cpu_rd_32b_r_rarb_vld = (cpu_rd_32b_r_rgnt_periph_rd && cpu_rd_32b_r_rarb_req[0]) || (cpu_rd_32b_r_rgnt_apb_periph && cpu_rd_32b_r_rarb_req[1]);
+    wire cpu_rd_32b_r_rarb_last = (cpu_rd_32b_r_rgnt_periph_rd && periph_rd_axi_rlast) || (cpu_rd_32b_r_rgnt_apb_periph && apb_periph_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_rd_32b_r_rarb_lock   <= '0;
+            cpu_rd_32b_r_rarb_rr     <= '0;
+            cpu_rd_32b_r_rarb_locked <= 1'b0;
+        end else if (cpu_rd_32b_r_rarb_vld && cpu_rd_32b_rready) begin
+            if (cpu_rd_32b_r_rarb_last) begin
+                cpu_rd_32b_r_rarb_locked <= 1'b0;
+                cpu_rd_32b_r_rarb_rr <= (cpu_rd_32b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_rd_32b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_rd_32b_r_rarb_lock   <= cpu_rd_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_rd_32b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_rd_32b_r_rarb_vld) begin
+            cpu_rd_32b_r_rarb_lock   <= cpu_rd_32b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_rd_32b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire cpu_rd_64b_r_rgnt_ddr_rd = ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid);
+
+    // ---- R response arbiter, master cpu_rd 128b: round-robin, lock through RLAST ----
+    logic [1:0] cpu_rd_128b_r_rarb_req;
+    assign cpu_rd_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid) && hbm_rd_axi_rvalid};
+    logic [0:0] cpu_rd_128b_r_rarb_lock, cpu_rd_128b_r_rarb_rr;
+    logic cpu_rd_128b_r_rarb_locked;
+    wire [0:0] cpu_rd_128b_r_rarb_pick = (cpu_rd_128b_r_rarb_rr == 1'd0) ? (cpu_rd_128b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_rd_128b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_rd_128b_r_rarb_gnt = cpu_rd_128b_r_rarb_locked ? cpu_rd_128b_r_rarb_lock : cpu_rd_128b_r_rarb_pick;
+    wire cpu_rd_128b_r_rarb_gnt_valid = cpu_rd_128b_r_rarb_locked || (|cpu_rd_128b_r_rarb_req);
+    wire cpu_rd_128b_r_rgnt_hbm_rd = cpu_rd_128b_r_rarb_gnt_valid && (cpu_rd_128b_r_rarb_gnt == 1'd0);
+    wire cpu_rd_128b_r_rgnt_subtractive = cpu_rd_128b_r_rarb_gnt_valid && (cpu_rd_128b_r_rarb_gnt == 1'd1);
+    wire cpu_rd_128b_r_rarb_vld = (cpu_rd_128b_r_rgnt_hbm_rd && cpu_rd_128b_r_rarb_req[0]) || (cpu_rd_128b_r_rgnt_subtractive && cpu_rd_128b_r_rarb_req[1]);
+    wire cpu_rd_128b_r_rarb_last = (cpu_rd_128b_r_rgnt_hbm_rd && hbm_rd_axi_rlast) || (cpu_rd_128b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_rd_128b_r_rarb_lock   <= '0;
+            cpu_rd_128b_r_rarb_rr     <= '0;
+            cpu_rd_128b_r_rarb_locked <= 1'b0;
+        end else if (cpu_rd_128b_r_rarb_vld && cpu_rd_128b_rready) begin
+            if (cpu_rd_128b_r_rarb_last) begin
+                cpu_rd_128b_r_rarb_locked <= 1'b0;
+                cpu_rd_128b_r_rarb_rr <= (cpu_rd_128b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_rd_128b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_rd_128b_r_rarb_lock   <= cpu_rd_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_rd_128b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_rd_128b_r_rarb_vld) begin
+            cpu_rd_128b_r_rarb_lock   <= cpu_rd_128b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_rd_128b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: periph_rd (32b)
     // ================================================================
     // Single master: cpu_rd → periph_rd
@@ -209,7 +279,7 @@ module bridge_1x4_rd_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign periph_rd_axi_rready = ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid) ? cpu_rd_32b_rready : '0;
+    assign periph_rd_axi_rready = cpu_rd_32b_r_rgnt_periph_rd ? cpu_rd_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign periph_rd_axi_bridge_id_ar = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_bridge_id_ar : '0;
@@ -240,7 +310,7 @@ module bridge_1x4_rd_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign ddr_rd_axi_rready = ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid) ? cpu_rd_64b_rready : '0;
+    assign ddr_rd_axi_rready = cpu_rd_64b_r_rgnt_ddr_rd ? cpu_rd_64b_rready : '0;
 
     // Bridge ID (master → slave)
     assign ddr_rd_axi_bridge_id_ar = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_bridge_id_ar : '0;
@@ -271,7 +341,7 @@ module bridge_1x4_rd_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign hbm_rd_axi_rready = ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid) ? cpu_rd_128b_rready : '0;
+    assign hbm_rd_axi_rready = cpu_rd_128b_r_rgnt_hbm_rd ? cpu_rd_128b_rready : '0;
 
     // Bridge ID (master → slave)
     assign hbm_rd_axi_bridge_id_ar = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_bridge_id_ar : '0;
@@ -302,7 +372,7 @@ module bridge_1x4_rd_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign apb_periph_axi_rready = ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid) ? cpu_rd_32b_rready : '0;
+    assign apb_periph_axi_rready = cpu_rd_32b_r_rgnt_apb_periph ? cpu_rd_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign apb_periph_axi_bridge_id_ar = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_bridge_id_ar : '0;
@@ -333,7 +403,7 @@ module bridge_1x4_rd_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) ? cpu_rd_128b_rready : '0;
+    assign subtractive_axi_rready = cpu_rd_128b_r_rgnt_subtractive ? cpu_rd_128b_rready : '0;
 
     // Bridge ID (master → slave)
     assign subtractive_axi_bridge_id_ar = cpu_rd_128b_ar_to_subtractive ? cpu_rd_bridge_id_ar : '0;
@@ -352,40 +422,28 @@ module bridge_1x4_rd_xbar
         (cpu_rd_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0);
 
     assign cpu_rd_32b_r.id = 
-        ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rid : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rid : '0);
+        (cpu_rd_32b_r_rgnt_periph_rd ? periph_rd_axi_rid : '0) |
+        (cpu_rd_32b_r_rgnt_apb_periph ? apb_periph_axi_rid : '0);
 
     assign cpu_rd_32b_r.data = 
-        ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rdata : 32'b0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rdata : 32'b0);
+        (cpu_rd_32b_r_rgnt_periph_rd ? periph_rd_axi_rdata : 32'b0) |
+        (cpu_rd_32b_r_rgnt_apb_periph ? apb_periph_axi_rdata : 32'b0);
 
     assign cpu_rd_32b_r.resp = 
-        ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rresp : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rresp : '0);
+        (cpu_rd_32b_r_rgnt_periph_rd ? periph_rd_axi_rresp : '0) |
+        (cpu_rd_32b_r_rgnt_apb_periph ? apb_periph_axi_rresp : '0);
 
     assign cpu_rd_32b_r.last = 
-        ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rlast : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rlast : '0);
+        (cpu_rd_32b_r_rgnt_periph_rd ? periph_rd_axi_rlast : '0) |
+        (cpu_rd_32b_r_rgnt_apb_periph ? apb_periph_axi_rlast : '0);
 
     assign cpu_rd_32b_r.user = 
-        ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_ruser : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_ruser : '0);
+        (cpu_rd_32b_r_rgnt_periph_rd ? periph_rd_axi_ruser : '0) |
+        (cpu_rd_32b_r_rgnt_apb_periph ? apb_periph_axi_ruser : '0);
 
     assign cpu_rd_32b_rvalid = 
-        ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rvalid : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid), ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_rd (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid), ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_rd_32b_r_rgnt_periph_rd ? periph_rd_axi_rvalid : '0) |
+        (cpu_rd_32b_r_rgnt_apb_periph ? apb_periph_axi_rvalid : '0);
 
 
     // Master: cpu_rd, Width path: 64b
@@ -393,34 +451,22 @@ module bridge_1x4_rd_xbar
         (cpu_rd_64b_ar_gnt_ddr_rd ? ddr_rd_axi_arready : '0);
 
     assign cpu_rd_64b_r.id = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rid : '0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rid : '0);
 
     assign cpu_rd_64b_r.data = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rdata : 64'b0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rdata : 64'b0);
 
     assign cpu_rd_64b_r.resp = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rresp : '0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rresp : '0);
 
     assign cpu_rd_64b_r.last = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rlast : '0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rlast : '0);
 
     assign cpu_rd_64b_r.user = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_ruser : '0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_ruser : '0);
 
     assign cpu_rd_64b_rvalid = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_rd (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rvalid : '0);
 
 
     // Master: cpu_rd, Width path: 128b
@@ -429,40 +475,28 @@ module bridge_1x4_rd_xbar
         (cpu_rd_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_rd_128b_r.id = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (cpu_rd_128b_r_rgnt_hbm_rd ? hbm_rd_axi_rid : '0) |
+        (cpu_rd_128b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign cpu_rd_128b_r.data = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rdata : 128'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 128'b0);
+        (cpu_rd_128b_r_rgnt_hbm_rd ? hbm_rd_axi_rdata : 128'b0) |
+        (cpu_rd_128b_r_rgnt_subtractive ? subtractive_axi_rdata : 128'b0);
 
     assign cpu_rd_128b_r.resp = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (cpu_rd_128b_r_rgnt_hbm_rd ? hbm_rd_axi_rresp : '0) |
+        (cpu_rd_128b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign cpu_rd_128b_r.last = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (cpu_rd_128b_r_rgnt_hbm_rd ? hbm_rd_axi_rlast : '0) |
+        (cpu_rd_128b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign cpu_rd_128b_r.user = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (cpu_rd_128b_r_rgnt_hbm_rd ? hbm_rd_axi_ruser : '0) |
+        (cpu_rd_128b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign cpu_rd_128b_rvalid = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_rd (128b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_rd_128b_r_rgnt_hbm_rd ? hbm_rd_axi_rvalid : '0) |
+        (cpu_rd_128b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_1x4_rd_xbar

@@ -92,7 +92,8 @@ class BridgeModuleGenerator:
                  mon_group=None,
                  xbar_pipeline: bool = False,
                  arbitration: str = 'rr',
-                 qos_aging_shift: int = 4):
+                 qos_aging_shift: int = 4,
+                 id_track_bits: int = 4):
         """
         Initialize bridge generator.
 
@@ -127,6 +128,8 @@ class BridgeModuleGenerator:
         # bridge TASK-006 (was BRIDGE-017): arbitration policy for every slave arbiter in the xbar.
         self.arbitration = arbitration
         self.qos_aging_shift = qos_aging_shift
+        # Per-ID target tracking in the master adapters (AdapterGenerator).
+        self.id_track_bits = id_track_bits
         # Defaults for the bridge-top USE_ALL_MONITORS / USE_NO_MONITORS
         # SV parameters. The harness can still override these at
         # instantiation -- the TOML just picks the build-time default.
@@ -265,7 +268,8 @@ class BridgeModuleGenerator:
             self.slaves,
             all_masters=self.masters,  # Pass full master list for LCD calculation
             enable_monitoring=self.enable_monitoring,
-            master_index=master_idx  # Pass master index for BRIDGE_ID
+            master_index=master_idx,  # Pass master index for BRIDGE_ID
+            id_track_bits=self.id_track_bits,
         )
         return adapter_gen.generate()
 

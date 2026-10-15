@@ -260,6 +260,9 @@ class BridgeConfig:
     # request gains one priority level every 2**shift cycles.
     arbitration: str = 'rr'
     qos_aging_shift: int = 4
+    # Per-ID target tracking in the master adapters: 2**id_track_bits
+    # entries indexed by the ID's low bits (see config_loader).
+    id_track_bits: int = 4
 
     # Skid buffer depths (per wrapper)
     skid_depth_ar: int = 2    # AR channel buffer depth

@@ -459,6 +459,11 @@ class CrossbarGenerator:
         if self.pipeline:
             lines.extend(self._generate_pipeline_decls())
 
+        # Response arbiters (per master width path, B and R): the slave
+        # routing blocks gate each slave's BREADY/RREADY with their grants,
+        # and the response muxes select by them.
+        lines.extend(self._generate_response_arbiters())
+
         # Route to each slave
         for slave_idx, slave in enumerate(self.slaves):
             lines.extend(self._generate_slave_routing(slave_idx, slave))
@@ -826,12 +831,11 @@ class CrossbarGenerator:
             # bready: route back to whichever master owns this response
             # (per bid_bridge_id from the slave_adapter). bid_valid keeps
             # the path open across the whole B handshake.
-            lines.append("    // Bready (slave → owning master, by bid_bridge_id)")
+            lines.append("    // Bready (slave -> the master whose response arbiter granted it)")
             bready_terms = []
             for m in wr_masters:
-                idx = self.masters.index(m)
                 bready_terms.append(
-                    f"(({prefix}bid_bridge_id == {idx}) && {prefix}bid_valid ? {m.name}_{suffix}_bready : '0)"
+                    f"({self._rgnt(m, suffix, 'b', slave)} ? {m.name}_{suffix}_bready : '0)"
                 )
             lines.append(f"    assign {prefix}bready = " + " |\n        ".join(bready_terms) + ";")
             lines.append("")
@@ -866,12 +870,11 @@ class CrossbarGenerator:
             lines.append(f"    assign {prefix}arvalid = {gnt_or};")
             lines.append("")
 
-            lines.append("    // Rready (slave → owning master, by rid_bridge_id)")
+            lines.append("    // Rready (slave -> the master whose response arbiter granted it)")
             rready_terms = []
             for m in rd_masters:
-                idx = self.masters.index(m)
                 rready_terms.append(
-                    f"(({prefix}rid_bridge_id == {idx}) && {prefix}rid_valid ? {m.name}_{suffix}_rready : '0)"
+                    f"({self._rgnt(m, suffix, 'r', slave)} ? {m.name}_{suffix}_rready : '0)"
                 )
             lines.append(f"    assign {prefix}rready = " + " |\n        ".join(rready_terms) + ";")
             lines.append("")
@@ -1047,7 +1050,7 @@ class CrossbarGenerator:
         # had this exact bug.
         lines.append("    // Bready (master → slave) — gated on bid_valid so the path stays")
         lines.append("    // open through the entire B handshake, not just the AW phase.")
-        lines.append(f"    assign {prefix}bready = (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid) ? {master.name}_{suffix}_bready : '0;")
+        lines.append(f"    assign {prefix}bready = {self._rgnt(master, suffix, 'b', slave)} ? {master.name}_{suffix}_bready : '0;")
         lines.append("")
 
         # Bridge ID routing (master → slave) - passes master index for response routing
@@ -1101,7 +1104,7 @@ class CrossbarGenerator:
         # the R handshake stalls).
         lines.append("    // Rready (master → slave) — gated on rid_valid so the path stays")
         lines.append("    // open through the entire R handshake, not just the AR phase.")
-        lines.append(f"    assign {prefix}rready = (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid) ? {master.name}_{suffix}_rready : '0;")
+        lines.append(f"    assign {prefix}rready = {self._rgnt(master, suffix, 'r', slave)} ? {master.name}_{suffix}_rready : '0;")
         lines.append("")
 
         # Bridge ID routing (master → slave) - passes master index for response routing
@@ -1111,9 +1114,122 @@ class CrossbarGenerator:
 
         return lines
 
+    def _path_slaves(self, master: MasterConfig, width: int):
+        """Slaves `master` connects to on its `width` path, as (index, slave)."""
+        return [(si, self.slaves[si]) for si in master.slave_connections
+                if self.slaves[si].data_width == width]
+
+    def _rgnt(self, master: MasterConfig, suffix: str, ch: str, slave: SlaveInfo) -> str:
+        """Name of the response grant: `slave` owns `master`'s `ch` (b|r) path."""
+        return f"{master.name}_{suffix}_{ch}_rgnt_{slave.name}"
+
+    def _generate_response_arbiters(self) -> List[str]:
+        """Per master width path and response channel, pick ONE slave.
+
+        A master may have transactions in flight at several slaves of one
+        width path at once (the one-outstanding-target rule is gone), so two
+        of them can hold a response for it in the same cycle. The muxes used
+        to OR every slave whose tracker head belonged to the master, which
+        was only correct while at most one could. This round-robin picks
+        one requesting slave; only it sees the master's ready.
+
+        Grant locking: a granted response held off by the master keeps its
+        grant (its payload must not change under an asserted valid), and an
+        R grant is held from the first beat through RLAST so bursts never
+        interleave toward a master -- the width converters reassemble one
+        burst at a time.
+
+        A path with a single slave keeps the plain ownership gate (no
+        arbiter, no extra state), so its timing and latency are unchanged.
+        """
+        lines = ["    // ================================================================",
+                 "    // Response arbiters (one slave per master path per channel)",
+                 "    // ================================================================",
+                 ""]
+        for master in self.masters:
+            mi = self.masters.index(master)
+            for width in self._get_connected_slave_widths(master):
+                suffix = f"{width}b"
+                conn = self._path_slaves(master, width)
+                for ch, on in (("b", master.channels in ("wr", "rw")),
+                               ("r", master.channels in ("rd", "rw"))):
+                    if not on or not conn:
+                        continue
+                    lines.extend(self._generate_response_arbiter(master, mi, suffix, ch, conn))
+        return lines
+
+    def _generate_response_arbiter(self, master, mi, suffix, ch, conn) -> List[str]:
+        lines = []
+        n = len(conn)
+        own = [f"(({self._sp(sl)}{ch}id_bridge_id == {mi}) && {self._sp(sl)}{ch}id_valid)"
+               for _si, sl in conn]
+        if n == 1:
+            sl = conn[0][1]
+            lines.append(f"    wire {self._rgnt(master, suffix, ch, sl)} = {own[0]};")
+            lines.append("")
+            return lines
+        k = max(1, (n - 1).bit_length())
+        arb = f"{master.name}_{suffix}_{ch}_rarb"
+        ready = f"{master.name}_{suffix}_{ch}ready"
+        lines.append(f"    // ---- {ch.upper()} response arbiter, master {master.name} {suffix}: "
+                     f"round-robin, lock {'through RLAST' if ch == 'r' else 'until taken'} ----")
+        req_bits = ", ".join(f"{own[i]} && {self._sp(conn[i][1])}{ch}valid" for i in reversed(range(n)))
+        lines.append(f"    logic [{n-1}:0] {arb}_req;")
+        lines.append(f"    assign {arb}_req = {{{req_bits}}};")
+        lines.append(f"    logic [{k-1}:0] {arb}_lock, {arb}_rr;")
+        lines.append(f"    logic {arb}_locked;")
+        pick_cases = []
+        for r in range(n):
+            order = [(r + o) % n for o in range(n)]
+            expr = f"{k}'d{order[-1]}"
+            for idx in reversed(order[:-1]):
+                expr = f"{arb}_req[{idx}] ? {k}'d{idx} : {expr}"
+            pick_cases.append(expr)
+        expr = pick_cases[-1]
+        for r in range(n - 2, -1, -1):
+            expr = f"({arb}_rr == {k}'d{r}) ? ({pick_cases[r]}) : \n        {expr}"
+        lines.append(f"    wire [{k-1}:0] {arb}_pick = {expr};")
+        lines.append(f"    wire [{k-1}:0] {arb}_gnt = {arb}_locked ? {arb}_lock : {arb}_pick;")
+        lines.append(f"    wire {arb}_gnt_valid = {arb}_locked || (|{arb}_req);")
+        for i, (_si, sl) in enumerate(conn):
+            lines.append(f"    wire {self._rgnt(master, suffix, ch, sl)} = "
+                         f"{arb}_gnt_valid && ({arb}_gnt == {k}'d{i});")
+        vld = " || ".join(f"({self._rgnt(master, suffix, ch, sl)} && {arb}_req[{i}])"
+                          for i, (_si, sl) in enumerate(conn))
+        lines.append(f"    wire {arb}_vld = {vld};")
+        if ch == "r":
+            last = " || ".join(f"({self._rgnt(master, suffix, ch, sl)} && {self._sp(sl)}rlast)"
+                               for _si, sl in conn)
+            lines.append(f"    wire {arb}_last = {last};")
+        lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
+        lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
+        lines.append(f"            {arb}_lock   <= '0;")
+        lines.append(f"            {arb}_rr     <= '0;")
+        lines.append(f"            {arb}_locked <= 1'b0;")
+        lines.append(f"        end else if ({arb}_vld && {ready}) begin")
+        if ch == "r":
+            lines.append(f"            if ({arb}_last) begin")
+            lines.append(f"                {arb}_locked <= 1'b0;")
+            lines.append(f"                {arb}_rr <= ({arb}_gnt == {k}'d{n-1}) ? {k}'d0 : {arb}_gnt + 1'b1;")
+            lines.append(f"            end else begin")
+            lines.append(f"                {arb}_lock   <= {arb}_gnt;   // mid-burst: hold through RLAST")
+            lines.append(f"                {arb}_locked <= 1'b1;")
+            lines.append(f"            end")
+        else:
+            lines.append(f"            {arb}_locked <= 1'b0;")
+            lines.append(f"            {arb}_rr <= ({arb}_gnt == {k}'d{n-1}) ? {k}'d0 : {arb}_gnt + 1'b1;")
+        lines.append(f"        end else if ({arb}_vld) begin")
+        lines.append(f"            {arb}_lock   <= {arb}_gnt;       // offered, not taken: hold")
+        lines.append(f"            {arb}_locked <= 1'b1;")
+        lines.append(f"        end")
+        lines.append(f"    )")
+        lines.append("")
+        return lines
+
     def _generate_response_muxes(self) -> List[str]:
         """
-        Generate response MUX logic to OR together slave responses.
+        Generate the response muxes: each master path takes its B/R from
+        the slave its response arbiter granted (_generate_response_arbiters).
 
         For each master and width combination, generate OR-based muxing of:
         - Write responses: awready, wready, b.* (uses slave_select_aw)
@@ -1199,7 +1315,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}bid : '0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'b', slave)} ? {prefix}bid : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1207,7 +1323,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}bresp : '0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'b', slave)} ? {prefix}bresp : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1218,7 +1334,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}buser : '0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'b', slave)} ? {prefix}buser : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1226,7 +1342,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}bvalid : '0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'b', slave)} ? {prefix}bvalid : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1241,7 +1357,7 @@ class CrossbarGenerator:
                     continue
                 prefix = get_slave_prefix(slave)
                 src = self._sb_port_to_struct('b', w, f"{prefix}{base}", slave.data_width)
-                mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {src} : '0)")
+                mux_terms.append(f"        ({self._rgnt(master, suffix, 'b', slave)} ? {src} : '0)")
             lines.append((" |\n".join(mux_terms) if mux_terms else "        '0") + ";")
             lines.append("")
 
@@ -1283,7 +1399,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rid : '0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rid : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1292,7 +1408,7 @@ class CrossbarGenerator:
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
             # Explicitly size the default value to match the slave's data width
-            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rdata : {width}'b0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rdata : {width}'b0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1300,7 +1416,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rresp : '0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rresp : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1308,7 +1424,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rlast : '0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rlast : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1316,7 +1432,7 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}ruser : '0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}ruser : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1324,31 +1440,8 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rvalid : '0)")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rvalid : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
-        lines.append("")
-
-        # The mux above is an OR-merge: it is only a mux while at most one
-        # connected slave's tracker head belongs to this master, which the
-        # master adapter's single-outstanding-target gate guarantees. When
-        # that invariant slips (A5-3b found one way: a dual push into the
-        # AR->R tracker with two targets), two slaves drive the same lines
-        # and the master sees ORed IDs and payload -- a starvation that looks
-        # like anything but this. Name it the cycle it happens. Sim-only.
-        sel_terms = ", ".join(
-            f"(({get_slave_prefix(slave)}rid_bridge_id == {master_idx}) && {get_slave_prefix(slave)}rid_valid)"
-            for _si, slave in connected_slaves)
-        lines.append("`ifndef SYNTHESIS")
-        lines.append("    // synthesis translate_off")
-        lines.append("    always_ff @(posedge aclk) begin")
-        lines.append(f"        if (aresetn && $countones({{{sel_terms}}}) > 1) begin")
-        lines.append(f'            $error("%m: response mux for master {master.name} ({suffix}) has %0d slaves selected at once; ",')
-        lines.append(f'                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",')
-        lines.append(f"                   $countones({{{sel_terms}}}));")
-        lines.append("        end")
-        lines.append("    end")
-        lines.append("    // synthesis translate_on")
-        lines.append("`endif")
         lines.append("")
 
         # AXI5 sideband (see write-response mux comment).
@@ -1360,7 +1453,7 @@ class CrossbarGenerator:
                     continue
                 prefix = get_slave_prefix(slave)
                 src = self._sb_port_to_struct('r', w, f"{prefix}{base}", slave.data_width)
-                mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {src} : '0)")
+                mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {src} : '0)")
             lines.append((" |\n".join(mux_terms) if mux_terms else "        '0") + ";")
             lines.append("")
 

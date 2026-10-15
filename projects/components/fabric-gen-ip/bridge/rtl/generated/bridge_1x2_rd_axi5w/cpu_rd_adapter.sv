@@ -387,9 +387,9 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     // OUTPUT slave_select_ar mirrors the live combinational decode.
     assign slave_select_ar = comb_slave_select_ar;
 
-    // -------- AR->R slave_select tracking FIFO --------
     localparam int AR_TRK_DEPTH = 16;
     localparam int AR_TRK_AW    = 4;
+    // -------- AR->R slave_select tracking FIFO --------
     logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];
     logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;
     logic ar_trk_push, ar_trk_pop;
@@ -467,8 +467,7 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
                 // No slave selected
             end
         endcase
-        // Single-outstanding-target: hold off a new AR while reads
-        // to a different slave are in flight (see ar_gate_ok).
+        // Hold off a new AR the gate refuses (see ar_gate_ok).
         if (!ar_gate_ok) fub_axi_arready = 1'b0;
     end
 

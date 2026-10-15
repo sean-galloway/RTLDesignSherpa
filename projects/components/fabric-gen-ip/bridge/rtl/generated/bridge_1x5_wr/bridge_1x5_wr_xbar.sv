@@ -263,6 +263,66 @@ module bridge_1x5_wr_xbar
     logic cpu_wr_128b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- B response arbiter, master cpu_wr 32b: round-robin, lock until taken ----
+    logic [2:0] cpu_wr_32b_b_rarb_req;
+    assign cpu_wr_32b_b_rarb_req = {((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid) && axil_periph_axi_bvalid, ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid) && apb_periph_axi_bvalid, ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid) && periph_wr_axi_bvalid};
+    logic [1:0] cpu_wr_32b_b_rarb_lock, cpu_wr_32b_b_rarb_rr;
+    logic cpu_wr_32b_b_rarb_locked;
+    wire [1:0] cpu_wr_32b_b_rarb_pick = (cpu_wr_32b_b_rarb_rr == 2'd0) ? (cpu_wr_32b_b_rarb_req[0] ? 2'd0 : cpu_wr_32b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_wr_32b_b_rarb_rr == 2'd1) ? (cpu_wr_32b_b_rarb_req[1] ? 2'd1 : cpu_wr_32b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_wr_32b_b_rarb_req[2] ? 2'd2 : cpu_wr_32b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_wr_32b_b_rarb_gnt = cpu_wr_32b_b_rarb_locked ? cpu_wr_32b_b_rarb_lock : cpu_wr_32b_b_rarb_pick;
+    wire cpu_wr_32b_b_rarb_gnt_valid = cpu_wr_32b_b_rarb_locked || (|cpu_wr_32b_b_rarb_req);
+    wire cpu_wr_32b_b_rgnt_periph_wr = cpu_wr_32b_b_rarb_gnt_valid && (cpu_wr_32b_b_rarb_gnt == 2'd0);
+    wire cpu_wr_32b_b_rgnt_apb_periph = cpu_wr_32b_b_rarb_gnt_valid && (cpu_wr_32b_b_rarb_gnt == 2'd1);
+    wire cpu_wr_32b_b_rgnt_axil_periph = cpu_wr_32b_b_rarb_gnt_valid && (cpu_wr_32b_b_rarb_gnt == 2'd2);
+    wire cpu_wr_32b_b_rarb_vld = (cpu_wr_32b_b_rgnt_periph_wr && cpu_wr_32b_b_rarb_req[0]) || (cpu_wr_32b_b_rgnt_apb_periph && cpu_wr_32b_b_rarb_req[1]) || (cpu_wr_32b_b_rgnt_axil_periph && cpu_wr_32b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_wr_32b_b_rarb_lock   <= '0;
+            cpu_wr_32b_b_rarb_rr     <= '0;
+            cpu_wr_32b_b_rarb_locked <= 1'b0;
+        end else if (cpu_wr_32b_b_rarb_vld && cpu_wr_32b_bready) begin
+            cpu_wr_32b_b_rarb_locked <= 1'b0;
+            cpu_wr_32b_b_rarb_rr <= (cpu_wr_32b_b_rarb_gnt == 2'd2) ? 2'd0 : cpu_wr_32b_b_rarb_gnt + 1'b1;
+        end else if (cpu_wr_32b_b_rarb_vld) begin
+            cpu_wr_32b_b_rarb_lock   <= cpu_wr_32b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_wr_32b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire cpu_wr_64b_b_rgnt_ddr_wr = ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid);
+
+    // ---- B response arbiter, master cpu_wr 128b: round-robin, lock until taken ----
+    logic [1:0] cpu_wr_128b_b_rarb_req;
+    assign cpu_wr_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid) && hbm_wr_axi_bvalid};
+    logic [0:0] cpu_wr_128b_b_rarb_lock, cpu_wr_128b_b_rarb_rr;
+    logic cpu_wr_128b_b_rarb_locked;
+    wire [0:0] cpu_wr_128b_b_rarb_pick = (cpu_wr_128b_b_rarb_rr == 1'd0) ? (cpu_wr_128b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_wr_128b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_wr_128b_b_rarb_gnt = cpu_wr_128b_b_rarb_locked ? cpu_wr_128b_b_rarb_lock : cpu_wr_128b_b_rarb_pick;
+    wire cpu_wr_128b_b_rarb_gnt_valid = cpu_wr_128b_b_rarb_locked || (|cpu_wr_128b_b_rarb_req);
+    wire cpu_wr_128b_b_rgnt_hbm_wr = cpu_wr_128b_b_rarb_gnt_valid && (cpu_wr_128b_b_rarb_gnt == 1'd0);
+    wire cpu_wr_128b_b_rgnt_subtractive = cpu_wr_128b_b_rarb_gnt_valid && (cpu_wr_128b_b_rarb_gnt == 1'd1);
+    wire cpu_wr_128b_b_rarb_vld = (cpu_wr_128b_b_rgnt_hbm_wr && cpu_wr_128b_b_rarb_req[0]) || (cpu_wr_128b_b_rgnt_subtractive && cpu_wr_128b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_wr_128b_b_rarb_lock   <= '0;
+            cpu_wr_128b_b_rarb_rr     <= '0;
+            cpu_wr_128b_b_rarb_locked <= 1'b0;
+        end else if (cpu_wr_128b_b_rarb_vld && cpu_wr_128b_bready) begin
+            cpu_wr_128b_b_rarb_locked <= 1'b0;
+            cpu_wr_128b_b_rarb_rr <= (cpu_wr_128b_b_rarb_gnt == 1'd1) ? 1'd0 : cpu_wr_128b_b_rarb_gnt + 1'b1;
+        end else if (cpu_wr_128b_b_rarb_vld) begin
+            cpu_wr_128b_b_rarb_lock   <= cpu_wr_128b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_wr_128b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: periph_wr (32b)
     // ================================================================
     // Single master: cpu_wr → periph_wr
@@ -296,7 +356,7 @@ module bridge_1x5_wr_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign periph_wr_axi_bready = ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid) ? cpu_wr_32b_bready : '0;
+    assign periph_wr_axi_bready = cpu_wr_32b_b_rgnt_periph_wr ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign periph_wr_axi_bridge_id_aw = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_bridge_id_aw : '0;
@@ -336,7 +396,7 @@ module bridge_1x5_wr_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign ddr_wr_axi_bready = ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid) ? cpu_wr_64b_bready : '0;
+    assign ddr_wr_axi_bready = cpu_wr_64b_b_rgnt_ddr_wr ? cpu_wr_64b_bready : '0;
 
     // Bridge ID (master → slave)
     assign ddr_wr_axi_bridge_id_aw = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_bridge_id_aw : '0;
@@ -376,7 +436,7 @@ module bridge_1x5_wr_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign hbm_wr_axi_bready = ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid) ? cpu_wr_128b_bready : '0;
+    assign hbm_wr_axi_bready = cpu_wr_128b_b_rgnt_hbm_wr ? cpu_wr_128b_bready : '0;
 
     // Bridge ID (master → slave)
     assign hbm_wr_axi_bridge_id_aw = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_bridge_id_aw : '0;
@@ -416,7 +476,7 @@ module bridge_1x5_wr_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign apb_periph_axi_bready = ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid) ? cpu_wr_32b_bready : '0;
+    assign apb_periph_axi_bready = cpu_wr_32b_b_rgnt_apb_periph ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign apb_periph_axi_bridge_id_aw = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_bridge_id_aw : '0;
@@ -456,7 +516,7 @@ module bridge_1x5_wr_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign axil_periph_axi_bready = ((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid) ? cpu_wr_32b_bready : '0;
+    assign axil_periph_axi_bready = cpu_wr_32b_b_rgnt_axil_periph ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign axil_periph_axi_bridge_id_aw = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_bridge_id_aw : '0;
@@ -496,7 +556,7 @@ module bridge_1x5_wr_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) ? cpu_wr_128b_bready : '0;
+    assign subtractive_axi_bready = cpu_wr_128b_b_rgnt_subtractive ? cpu_wr_128b_bready : '0;
 
     // Bridge ID (master → slave)
     assign subtractive_axi_bridge_id_aw = cpu_wr_128b_aw_to_subtractive ? cpu_wr_bridge_id_aw : '0;
@@ -596,24 +656,24 @@ module bridge_1x5_wr_xbar
         (cpu_wr_32b_w_sel_axil_periph ? axil_periph_axi_wready : '0);
 
     assign cpu_wr_32b_b.id = 
-        ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid ? periph_wr_axi_bid : '0) |
-        ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bid : '0) |
-        ((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid ? axil_periph_axi_bid : '0);
+        (cpu_wr_32b_b_rgnt_periph_wr ? periph_wr_axi_bid : '0) |
+        (cpu_wr_32b_b_rgnt_apb_periph ? apb_periph_axi_bid : '0) |
+        (cpu_wr_32b_b_rgnt_axil_periph ? axil_periph_axi_bid : '0);
 
     assign cpu_wr_32b_b.resp = 
-        ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid ? periph_wr_axi_bresp : '0) |
-        ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bresp : '0) |
-        ((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid ? axil_periph_axi_bresp : '0);
+        (cpu_wr_32b_b_rgnt_periph_wr ? periph_wr_axi_bresp : '0) |
+        (cpu_wr_32b_b_rgnt_apb_periph ? apb_periph_axi_bresp : '0) |
+        (cpu_wr_32b_b_rgnt_axil_periph ? axil_periph_axi_bresp : '0);
 
     assign cpu_wr_32b_b.user = 
-        ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid ? periph_wr_axi_buser : '0) |
-        ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_buser : '0) |
-        ((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid ? axil_periph_axi_buser : '0);
+        (cpu_wr_32b_b_rgnt_periph_wr ? periph_wr_axi_buser : '0) |
+        (cpu_wr_32b_b_rgnt_apb_periph ? apb_periph_axi_buser : '0) |
+        (cpu_wr_32b_b_rgnt_axil_periph ? axil_periph_axi_buser : '0);
 
     assign cpu_wr_32b_bvalid = 
-        ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid ? periph_wr_axi_bvalid : '0) |
-        ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0) |
-        ((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid ? axil_periph_axi_bvalid : '0);
+        (cpu_wr_32b_b_rgnt_periph_wr ? periph_wr_axi_bvalid : '0) |
+        (cpu_wr_32b_b_rgnt_apb_periph ? apb_periph_axi_bvalid : '0) |
+        (cpu_wr_32b_b_rgnt_axil_periph ? axil_periph_axi_bvalid : '0);
 
 
     // Master: cpu_wr, Width path: 64b
@@ -624,16 +684,16 @@ module bridge_1x5_wr_xbar
         (cpu_wr_64b_w_sel_ddr_wr ? ddr_wr_axi_wready : '0);
 
     assign cpu_wr_64b_b.id = 
-        ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bid : '0);
+        (cpu_wr_64b_b_rgnt_ddr_wr ? ddr_wr_axi_bid : '0);
 
     assign cpu_wr_64b_b.resp = 
-        ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bresp : '0);
+        (cpu_wr_64b_b_rgnt_ddr_wr ? ddr_wr_axi_bresp : '0);
 
     assign cpu_wr_64b_b.user = 
-        ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_buser : '0);
+        (cpu_wr_64b_b_rgnt_ddr_wr ? ddr_wr_axi_buser : '0);
 
     assign cpu_wr_64b_bvalid = 
-        ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bvalid : '0);
+        (cpu_wr_64b_b_rgnt_ddr_wr ? ddr_wr_axi_bvalid : '0);
 
 
     // Master: cpu_wr, Width path: 128b
@@ -646,20 +706,20 @@ module bridge_1x5_wr_xbar
         (cpu_wr_128b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_wr_128b_b.id = 
-        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (cpu_wr_128b_b_rgnt_hbm_wr ? hbm_wr_axi_bid : '0) |
+        (cpu_wr_128b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign cpu_wr_128b_b.resp = 
-        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (cpu_wr_128b_b_rgnt_hbm_wr ? hbm_wr_axi_bresp : '0) |
+        (cpu_wr_128b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign cpu_wr_128b_b.user = 
-        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (cpu_wr_128b_b_rgnt_hbm_wr ? hbm_wr_axi_buser : '0) |
+        (cpu_wr_128b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign cpu_wr_128b_bvalid = 
-        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (cpu_wr_128b_b_rgnt_hbm_wr ? hbm_wr_axi_bvalid : '0) |
+        (cpu_wr_128b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
 
 endmodule : bridge_1x5_wr_xbar

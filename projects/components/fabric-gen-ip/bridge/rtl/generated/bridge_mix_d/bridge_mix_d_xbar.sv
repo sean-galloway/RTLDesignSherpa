@@ -347,6 +347,188 @@ module bridge_mix_d_xbar
     logic trace_axil_64b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- B response arbiter, master cpu_axi4 32b: round-robin, lock until taken ----
+    logic [1:0] cpu_axi4_32b_b_rarb_req;
+    assign cpu_axi4_32b_b_rarb_req = {((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid) && apb_periph_axi_bvalid, ((doorbell_axi_bid_bridge_id == 0) && doorbell_axi_bid_valid) && doorbell_axi_bvalid};
+    logic [0:0] cpu_axi4_32b_b_rarb_lock, cpu_axi4_32b_b_rarb_rr;
+    logic cpu_axi4_32b_b_rarb_locked;
+    wire [0:0] cpu_axi4_32b_b_rarb_pick = (cpu_axi4_32b_b_rarb_rr == 1'd0) ? (cpu_axi4_32b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_axi4_32b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_axi4_32b_b_rarb_gnt = cpu_axi4_32b_b_rarb_locked ? cpu_axi4_32b_b_rarb_lock : cpu_axi4_32b_b_rarb_pick;
+    wire cpu_axi4_32b_b_rarb_gnt_valid = cpu_axi4_32b_b_rarb_locked || (|cpu_axi4_32b_b_rarb_req);
+    wire cpu_axi4_32b_b_rgnt_doorbell = cpu_axi4_32b_b_rarb_gnt_valid && (cpu_axi4_32b_b_rarb_gnt == 1'd0);
+    wire cpu_axi4_32b_b_rgnt_apb_periph = cpu_axi4_32b_b_rarb_gnt_valid && (cpu_axi4_32b_b_rarb_gnt == 1'd1);
+    wire cpu_axi4_32b_b_rarb_vld = (cpu_axi4_32b_b_rgnt_doorbell && cpu_axi4_32b_b_rarb_req[0]) || (cpu_axi4_32b_b_rgnt_apb_periph && cpu_axi4_32b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_axi4_32b_b_rarb_lock   <= '0;
+            cpu_axi4_32b_b_rarb_rr     <= '0;
+            cpu_axi4_32b_b_rarb_locked <= 1'b0;
+        end else if (cpu_axi4_32b_b_rarb_vld && cpu_axi4_32b_bready) begin
+            cpu_axi4_32b_b_rarb_locked <= 1'b0;
+            cpu_axi4_32b_b_rarb_rr <= (cpu_axi4_32b_b_rarb_gnt == 1'd1) ? 1'd0 : cpu_axi4_32b_b_rarb_gnt + 1'b1;
+        end else if (cpu_axi4_32b_b_rarb_vld) begin
+            cpu_axi4_32b_b_rarb_lock   <= cpu_axi4_32b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_axi4_32b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master cpu_axi4 32b: round-robin, lock through RLAST ----
+    logic [1:0] cpu_axi4_32b_r_rarb_req;
+    assign cpu_axi4_32b_r_rarb_req = {((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid) && apb_periph_axi_rvalid, ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid) && doorbell_axi_rvalid};
+    logic [0:0] cpu_axi4_32b_r_rarb_lock, cpu_axi4_32b_r_rarb_rr;
+    logic cpu_axi4_32b_r_rarb_locked;
+    wire [0:0] cpu_axi4_32b_r_rarb_pick = (cpu_axi4_32b_r_rarb_rr == 1'd0) ? (cpu_axi4_32b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_axi4_32b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_axi4_32b_r_rarb_gnt = cpu_axi4_32b_r_rarb_locked ? cpu_axi4_32b_r_rarb_lock : cpu_axi4_32b_r_rarb_pick;
+    wire cpu_axi4_32b_r_rarb_gnt_valid = cpu_axi4_32b_r_rarb_locked || (|cpu_axi4_32b_r_rarb_req);
+    wire cpu_axi4_32b_r_rgnt_doorbell = cpu_axi4_32b_r_rarb_gnt_valid && (cpu_axi4_32b_r_rarb_gnt == 1'd0);
+    wire cpu_axi4_32b_r_rgnt_apb_periph = cpu_axi4_32b_r_rarb_gnt_valid && (cpu_axi4_32b_r_rarb_gnt == 1'd1);
+    wire cpu_axi4_32b_r_rarb_vld = (cpu_axi4_32b_r_rgnt_doorbell && cpu_axi4_32b_r_rarb_req[0]) || (cpu_axi4_32b_r_rgnt_apb_periph && cpu_axi4_32b_r_rarb_req[1]);
+    wire cpu_axi4_32b_r_rarb_last = (cpu_axi4_32b_r_rgnt_doorbell && doorbell_axi_rlast) || (cpu_axi4_32b_r_rgnt_apb_periph && apb_periph_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_axi4_32b_r_rarb_lock   <= '0;
+            cpu_axi4_32b_r_rarb_rr     <= '0;
+            cpu_axi4_32b_r_rarb_locked <= 1'b0;
+        end else if (cpu_axi4_32b_r_rarb_vld && cpu_axi4_32b_rready) begin
+            if (cpu_axi4_32b_r_rarb_last) begin
+                cpu_axi4_32b_r_rarb_locked <= 1'b0;
+                cpu_axi4_32b_r_rarb_rr <= (cpu_axi4_32b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_axi4_32b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_axi4_32b_r_rarb_lock   <= cpu_axi4_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_axi4_32b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_axi4_32b_r_rarb_vld) begin
+            cpu_axi4_32b_r_rarb_lock   <= cpu_axi4_32b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_axi4_32b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- B response arbiter, master cpu_axi4 64b: round-robin, lock until taken ----
+    logic [1:0] cpu_axi4_64b_b_rarb_req;
+    assign cpu_axi4_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid) && ddr_axi_bvalid};
+    logic [0:0] cpu_axi4_64b_b_rarb_lock, cpu_axi4_64b_b_rarb_rr;
+    logic cpu_axi4_64b_b_rarb_locked;
+    wire [0:0] cpu_axi4_64b_b_rarb_pick = (cpu_axi4_64b_b_rarb_rr == 1'd0) ? (cpu_axi4_64b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_axi4_64b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_axi4_64b_b_rarb_gnt = cpu_axi4_64b_b_rarb_locked ? cpu_axi4_64b_b_rarb_lock : cpu_axi4_64b_b_rarb_pick;
+    wire cpu_axi4_64b_b_rarb_gnt_valid = cpu_axi4_64b_b_rarb_locked || (|cpu_axi4_64b_b_rarb_req);
+    wire cpu_axi4_64b_b_rgnt_ddr = cpu_axi4_64b_b_rarb_gnt_valid && (cpu_axi4_64b_b_rarb_gnt == 1'd0);
+    wire cpu_axi4_64b_b_rgnt_subtractive = cpu_axi4_64b_b_rarb_gnt_valid && (cpu_axi4_64b_b_rarb_gnt == 1'd1);
+    wire cpu_axi4_64b_b_rarb_vld = (cpu_axi4_64b_b_rgnt_ddr && cpu_axi4_64b_b_rarb_req[0]) || (cpu_axi4_64b_b_rgnt_subtractive && cpu_axi4_64b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_axi4_64b_b_rarb_lock   <= '0;
+            cpu_axi4_64b_b_rarb_rr     <= '0;
+            cpu_axi4_64b_b_rarb_locked <= 1'b0;
+        end else if (cpu_axi4_64b_b_rarb_vld && cpu_axi4_64b_bready) begin
+            cpu_axi4_64b_b_rarb_locked <= 1'b0;
+            cpu_axi4_64b_b_rarb_rr <= (cpu_axi4_64b_b_rarb_gnt == 1'd1) ? 1'd0 : cpu_axi4_64b_b_rarb_gnt + 1'b1;
+        end else if (cpu_axi4_64b_b_rarb_vld) begin
+            cpu_axi4_64b_b_rarb_lock   <= cpu_axi4_64b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_axi4_64b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master cpu_axi4 64b: round-robin, lock through RLAST ----
+    logic [1:0] cpu_axi4_64b_r_rarb_req;
+    assign cpu_axi4_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid) && ddr_axi_rvalid};
+    logic [0:0] cpu_axi4_64b_r_rarb_lock, cpu_axi4_64b_r_rarb_rr;
+    logic cpu_axi4_64b_r_rarb_locked;
+    wire [0:0] cpu_axi4_64b_r_rarb_pick = (cpu_axi4_64b_r_rarb_rr == 1'd0) ? (cpu_axi4_64b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_axi4_64b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_axi4_64b_r_rarb_gnt = cpu_axi4_64b_r_rarb_locked ? cpu_axi4_64b_r_rarb_lock : cpu_axi4_64b_r_rarb_pick;
+    wire cpu_axi4_64b_r_rarb_gnt_valid = cpu_axi4_64b_r_rarb_locked || (|cpu_axi4_64b_r_rarb_req);
+    wire cpu_axi4_64b_r_rgnt_ddr = cpu_axi4_64b_r_rarb_gnt_valid && (cpu_axi4_64b_r_rarb_gnt == 1'd0);
+    wire cpu_axi4_64b_r_rgnt_subtractive = cpu_axi4_64b_r_rarb_gnt_valid && (cpu_axi4_64b_r_rarb_gnt == 1'd1);
+    wire cpu_axi4_64b_r_rarb_vld = (cpu_axi4_64b_r_rgnt_ddr && cpu_axi4_64b_r_rarb_req[0]) || (cpu_axi4_64b_r_rgnt_subtractive && cpu_axi4_64b_r_rarb_req[1]);
+    wire cpu_axi4_64b_r_rarb_last = (cpu_axi4_64b_r_rgnt_ddr && ddr_axi_rlast) || (cpu_axi4_64b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_axi4_64b_r_rarb_lock   <= '0;
+            cpu_axi4_64b_r_rarb_rr     <= '0;
+            cpu_axi4_64b_r_rarb_locked <= 1'b0;
+        end else if (cpu_axi4_64b_r_rarb_vld && cpu_axi4_64b_rready) begin
+            if (cpu_axi4_64b_r_rarb_last) begin
+                cpu_axi4_64b_r_rarb_locked <= 1'b0;
+                cpu_axi4_64b_r_rarb_rr <= (cpu_axi4_64b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_axi4_64b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_axi4_64b_r_rarb_lock   <= cpu_axi4_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_axi4_64b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_axi4_64b_r_rarb_vld) begin
+            cpu_axi4_64b_r_rarb_lock   <= cpu_axi4_64b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_axi4_64b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire trace_axil_32b_b_rgnt_doorbell = ((doorbell_axi_bid_bridge_id == 1) && doorbell_axi_bid_valid);
+
+    wire trace_axil_32b_r_rgnt_doorbell = ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid);
+
+    // ---- B response arbiter, master trace_axil 64b: round-robin, lock until taken ----
+    logic [1:0] trace_axil_64b_b_rarb_req;
+    assign trace_axil_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid) && ddr_axi_bvalid};
+    logic [0:0] trace_axil_64b_b_rarb_lock, trace_axil_64b_b_rarb_rr;
+    logic trace_axil_64b_b_rarb_locked;
+    wire [0:0] trace_axil_64b_b_rarb_pick = (trace_axil_64b_b_rarb_rr == 1'd0) ? (trace_axil_64b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        trace_axil_64b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] trace_axil_64b_b_rarb_gnt = trace_axil_64b_b_rarb_locked ? trace_axil_64b_b_rarb_lock : trace_axil_64b_b_rarb_pick;
+    wire trace_axil_64b_b_rarb_gnt_valid = trace_axil_64b_b_rarb_locked || (|trace_axil_64b_b_rarb_req);
+    wire trace_axil_64b_b_rgnt_ddr = trace_axil_64b_b_rarb_gnt_valid && (trace_axil_64b_b_rarb_gnt == 1'd0);
+    wire trace_axil_64b_b_rgnt_subtractive = trace_axil_64b_b_rarb_gnt_valid && (trace_axil_64b_b_rarb_gnt == 1'd1);
+    wire trace_axil_64b_b_rarb_vld = (trace_axil_64b_b_rgnt_ddr && trace_axil_64b_b_rarb_req[0]) || (trace_axil_64b_b_rgnt_subtractive && trace_axil_64b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            trace_axil_64b_b_rarb_lock   <= '0;
+            trace_axil_64b_b_rarb_rr     <= '0;
+            trace_axil_64b_b_rarb_locked <= 1'b0;
+        end else if (trace_axil_64b_b_rarb_vld && trace_axil_64b_bready) begin
+            trace_axil_64b_b_rarb_locked <= 1'b0;
+            trace_axil_64b_b_rarb_rr <= (trace_axil_64b_b_rarb_gnt == 1'd1) ? 1'd0 : trace_axil_64b_b_rarb_gnt + 1'b1;
+        end else if (trace_axil_64b_b_rarb_vld) begin
+            trace_axil_64b_b_rarb_lock   <= trace_axil_64b_b_rarb_gnt;       // offered, not taken: hold
+            trace_axil_64b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master trace_axil 64b: round-robin, lock through RLAST ----
+    logic [1:0] trace_axil_64b_r_rarb_req;
+    assign trace_axil_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid) && ddr_axi_rvalid};
+    logic [0:0] trace_axil_64b_r_rarb_lock, trace_axil_64b_r_rarb_rr;
+    logic trace_axil_64b_r_rarb_locked;
+    wire [0:0] trace_axil_64b_r_rarb_pick = (trace_axil_64b_r_rarb_rr == 1'd0) ? (trace_axil_64b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        trace_axil_64b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] trace_axil_64b_r_rarb_gnt = trace_axil_64b_r_rarb_locked ? trace_axil_64b_r_rarb_lock : trace_axil_64b_r_rarb_pick;
+    wire trace_axil_64b_r_rarb_gnt_valid = trace_axil_64b_r_rarb_locked || (|trace_axil_64b_r_rarb_req);
+    wire trace_axil_64b_r_rgnt_ddr = trace_axil_64b_r_rarb_gnt_valid && (trace_axil_64b_r_rarb_gnt == 1'd0);
+    wire trace_axil_64b_r_rgnt_subtractive = trace_axil_64b_r_rarb_gnt_valid && (trace_axil_64b_r_rarb_gnt == 1'd1);
+    wire trace_axil_64b_r_rarb_vld = (trace_axil_64b_r_rgnt_ddr && trace_axil_64b_r_rarb_req[0]) || (trace_axil_64b_r_rgnt_subtractive && trace_axil_64b_r_rarb_req[1]);
+    wire trace_axil_64b_r_rarb_last = (trace_axil_64b_r_rgnt_ddr && ddr_axi_rlast) || (trace_axil_64b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            trace_axil_64b_r_rarb_lock   <= '0;
+            trace_axil_64b_r_rarb_rr     <= '0;
+            trace_axil_64b_r_rarb_locked <= 1'b0;
+        end else if (trace_axil_64b_r_rarb_vld && trace_axil_64b_rready) begin
+            if (trace_axil_64b_r_rarb_last) begin
+                trace_axil_64b_r_rarb_locked <= 1'b0;
+                trace_axil_64b_r_rarb_rr <= (trace_axil_64b_r_rarb_gnt == 1'd1) ? 1'd0 : trace_axil_64b_r_rarb_gnt + 1'b1;
+            end else begin
+                trace_axil_64b_r_rarb_lock   <= trace_axil_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                trace_axil_64b_r_rarb_locked <= 1'b1;
+            end
+        end else if (trace_axil_64b_r_rarb_vld) begin
+            trace_axil_64b_r_rarb_lock   <= trace_axil_64b_r_rarb_gnt;       // offered, not taken: hold
+            trace_axil_64b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: ddr (64b)
     // ================================================================
     // Multi-master (2 masters) → ddr
@@ -443,9 +625,9 @@ module bridge_mix_d_xbar
         ((trace_axil_64b_w_sel_ddr && trace_axil_64b_wvalid) ? trace_axil_64b_w.user : '0);
     assign ddr_axi_wvalid = (cpu_axi4_64b_w_sel_ddr && cpu_axi4_64b_wvalid) || (trace_axil_64b_w_sel_ddr && trace_axil_64b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign ddr_axi_bready = ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? cpu_axi4_64b_bready : '0) |
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? trace_axil_64b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign ddr_axi_bready = (cpu_axi4_64b_b_rgnt_ddr ? cpu_axi4_64b_bready : '0) |
+        (trace_axil_64b_b_rgnt_ddr ? trace_axil_64b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign ddr_axi_bridge_id_aw = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_bridge_id_aw : '0) |
@@ -503,9 +685,9 @@ module bridge_mix_d_xbar
         (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.user : '0);
     assign ddr_axi_arvalid = cpu_axi4_64b_ar_gnt_ddr || trace_axil_64b_ar_gnt_ddr;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign ddr_axi_rready = ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? cpu_axi4_64b_rready : '0) |
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? trace_axil_64b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign ddr_axi_rready = (cpu_axi4_64b_r_rgnt_ddr ? cpu_axi4_64b_rready : '0) |
+        (trace_axil_64b_r_rgnt_ddr ? trace_axil_64b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign ddr_axi_bridge_id_ar = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_bridge_id_ar : '0) |
@@ -609,9 +791,9 @@ module bridge_mix_d_xbar
         ((trace_axil_32b_w_sel_doorbell && trace_axil_32b_wvalid) ? trace_axil_32b_w.user : '0);
     assign doorbell_axi_wvalid = (cpu_axi4_32b_w_sel_doorbell && cpu_axi4_32b_wvalid) || (trace_axil_32b_w_sel_doorbell && trace_axil_32b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign doorbell_axi_bready = ((doorbell_axi_bid_bridge_id == 0) && doorbell_axi_bid_valid ? cpu_axi4_32b_bready : '0) |
-        ((doorbell_axi_bid_bridge_id == 1) && doorbell_axi_bid_valid ? trace_axil_32b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign doorbell_axi_bready = (cpu_axi4_32b_b_rgnt_doorbell ? cpu_axi4_32b_bready : '0) |
+        (trace_axil_32b_b_rgnt_doorbell ? trace_axil_32b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign doorbell_axi_bridge_id_aw = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_bridge_id_aw : '0) |
@@ -669,9 +851,9 @@ module bridge_mix_d_xbar
         (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.user : '0);
     assign doorbell_axi_arvalid = cpu_axi4_32b_ar_gnt_doorbell || trace_axil_32b_ar_gnt_doorbell;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign doorbell_axi_rready = ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? cpu_axi4_32b_rready : '0) |
-        ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? trace_axil_32b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign doorbell_axi_rready = (cpu_axi4_32b_r_rgnt_doorbell ? cpu_axi4_32b_rready : '0) |
+        (trace_axil_32b_r_rgnt_doorbell ? trace_axil_32b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign doorbell_axi_bridge_id_ar = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_bridge_id_ar : '0) |
@@ -712,7 +894,7 @@ module bridge_mix_d_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign apb_periph_axi_bready = ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid) ? cpu_axi4_32b_bready : '0;
+    assign apb_periph_axi_bready = cpu_axi4_32b_b_rgnt_apb_periph ? cpu_axi4_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign apb_periph_axi_bridge_id_aw = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_bridge_id_aw : '0;
@@ -735,7 +917,7 @@ module bridge_mix_d_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign apb_periph_axi_rready = ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid) ? cpu_axi4_32b_rready : '0;
+    assign apb_periph_axi_rready = cpu_axi4_32b_r_rgnt_apb_periph ? cpu_axi4_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign apb_periph_axi_bridge_id_ar = cpu_axi4_32b_ar_to_apb_periph ? cpu_axi4_bridge_id_ar : '0;
@@ -838,9 +1020,9 @@ module bridge_mix_d_xbar
         ((trace_axil_64b_w_sel_subtractive && trace_axil_64b_wvalid) ? trace_axil_64b_w.user : '0);
     assign subtractive_axi_wvalid = (cpu_axi4_64b_w_sel_subtractive && cpu_axi4_64b_wvalid) || (trace_axil_64b_w_sel_subtractive && trace_axil_64b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? cpu_axi4_64b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? trace_axil_64b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_bready = (cpu_axi4_64b_b_rgnt_subtractive ? cpu_axi4_64b_bready : '0) |
+        (trace_axil_64b_b_rgnt_subtractive ? trace_axil_64b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign subtractive_axi_bridge_id_aw = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_bridge_id_aw : '0) |
@@ -898,9 +1080,9 @@ module bridge_mix_d_xbar
         (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.user : '0);
     assign subtractive_axi_arvalid = cpu_axi4_64b_ar_gnt_subtractive || trace_axil_64b_ar_gnt_subtractive;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? cpu_axi4_64b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? trace_axil_64b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_rready = (cpu_axi4_64b_r_rgnt_subtractive ? cpu_axi4_64b_rready : '0) |
+        (trace_axil_64b_r_rgnt_subtractive ? trace_axil_64b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign subtractive_axi_bridge_id_ar = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_bridge_id_ar : '0) |
@@ -1023,60 +1205,48 @@ module bridge_mix_d_xbar
         (cpu_axi4_32b_w_sel_apb_periph ? apb_periph_axi_wready : '0);
 
     assign cpu_axi4_32b_b.id = 
-        ((doorbell_axi_bid_bridge_id == 0) && doorbell_axi_bid_valid ? doorbell_axi_bid : '0) |
-        ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bid : '0);
+        (cpu_axi4_32b_b_rgnt_doorbell ? doorbell_axi_bid : '0) |
+        (cpu_axi4_32b_b_rgnt_apb_periph ? apb_periph_axi_bid : '0);
 
     assign cpu_axi4_32b_b.resp = 
-        ((doorbell_axi_bid_bridge_id == 0) && doorbell_axi_bid_valid ? doorbell_axi_bresp : '0) |
-        ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bresp : '0);
+        (cpu_axi4_32b_b_rgnt_doorbell ? doorbell_axi_bresp : '0) |
+        (cpu_axi4_32b_b_rgnt_apb_periph ? apb_periph_axi_bresp : '0);
 
     assign cpu_axi4_32b_b.user = 
-        ((doorbell_axi_bid_bridge_id == 0) && doorbell_axi_bid_valid ? doorbell_axi_buser : '0) |
-        ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_buser : '0);
+        (cpu_axi4_32b_b_rgnt_doorbell ? doorbell_axi_buser : '0) |
+        (cpu_axi4_32b_b_rgnt_apb_periph ? apb_periph_axi_buser : '0);
 
     assign cpu_axi4_32b_bvalid = 
-        ((doorbell_axi_bid_bridge_id == 0) && doorbell_axi_bid_valid ? doorbell_axi_bvalid : '0) |
-        ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0);
+        (cpu_axi4_32b_b_rgnt_doorbell ? doorbell_axi_bvalid : '0) |
+        (cpu_axi4_32b_b_rgnt_apb_periph ? apb_periph_axi_bvalid : '0);
 
     assign cpu_axi4_32b_arready = 
         (cpu_axi4_32b_ar_gnt_doorbell ? doorbell_axi_arready : '0) |
         (cpu_axi4_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0);
 
     assign cpu_axi4_32b_r.id = 
-        ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? doorbell_axi_rid : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rid : '0);
+        (cpu_axi4_32b_r_rgnt_doorbell ? doorbell_axi_rid : '0) |
+        (cpu_axi4_32b_r_rgnt_apb_periph ? apb_periph_axi_rid : '0);
 
     assign cpu_axi4_32b_r.data = 
-        ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? doorbell_axi_rdata : 32'b0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rdata : 32'b0);
+        (cpu_axi4_32b_r_rgnt_doorbell ? doorbell_axi_rdata : 32'b0) |
+        (cpu_axi4_32b_r_rgnt_apb_periph ? apb_periph_axi_rdata : 32'b0);
 
     assign cpu_axi4_32b_r.resp = 
-        ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? doorbell_axi_rresp : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rresp : '0);
+        (cpu_axi4_32b_r_rgnt_doorbell ? doorbell_axi_rresp : '0) |
+        (cpu_axi4_32b_r_rgnt_apb_periph ? apb_periph_axi_rresp : '0);
 
     assign cpu_axi4_32b_r.last = 
-        ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? doorbell_axi_rlast : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rlast : '0);
+        (cpu_axi4_32b_r_rgnt_doorbell ? doorbell_axi_rlast : '0) |
+        (cpu_axi4_32b_r_rgnt_apb_periph ? apb_periph_axi_rlast : '0);
 
     assign cpu_axi4_32b_r.user = 
-        ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? doorbell_axi_ruser : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_ruser : '0);
+        (cpu_axi4_32b_r_rgnt_doorbell ? doorbell_axi_ruser : '0) |
+        (cpu_axi4_32b_r_rgnt_apb_periph ? apb_periph_axi_ruser : '0);
 
     assign cpu_axi4_32b_rvalid = 
-        ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? doorbell_axi_rvalid : '0) |
-        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid), ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_axi4 (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid), ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_axi4_32b_r_rgnt_doorbell ? doorbell_axi_rvalid : '0) |
+        (cpu_axi4_32b_r_rgnt_apb_periph ? apb_periph_axi_rvalid : '0);
 
 
     // Master: cpu_axi4, Width path: 64b
@@ -1089,60 +1259,48 @@ module bridge_mix_d_xbar
         (cpu_axi4_64b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_axi4_64b_b.id = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (cpu_axi4_64b_b_rgnt_ddr ? ddr_axi_bid : '0) |
+        (cpu_axi4_64b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign cpu_axi4_64b_b.resp = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (cpu_axi4_64b_b_rgnt_ddr ? ddr_axi_bresp : '0) |
+        (cpu_axi4_64b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign cpu_axi4_64b_b.user = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (cpu_axi4_64b_b_rgnt_ddr ? ddr_axi_buser : '0) |
+        (cpu_axi4_64b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign cpu_axi4_64b_bvalid = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (cpu_axi4_64b_b_rgnt_ddr ? ddr_axi_bvalid : '0) |
+        (cpu_axi4_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_axi4_64b_arready = 
         (cpu_axi4_64b_ar_gnt_ddr ? ddr_axi_arready : '0) |
         (cpu_axi4_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_axi4_64b_r.id = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (cpu_axi4_64b_r_rgnt_ddr ? ddr_axi_rid : '0) |
+        (cpu_axi4_64b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign cpu_axi4_64b_r.data = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rdata : 64'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
+        (cpu_axi4_64b_r_rgnt_ddr ? ddr_axi_rdata : 64'b0) |
+        (cpu_axi4_64b_r_rgnt_subtractive ? subtractive_axi_rdata : 64'b0);
 
     assign cpu_axi4_64b_r.resp = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (cpu_axi4_64b_r_rgnt_ddr ? ddr_axi_rresp : '0) |
+        (cpu_axi4_64b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign cpu_axi4_64b_r.last = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (cpu_axi4_64b_r_rgnt_ddr ? ddr_axi_rlast : '0) |
+        (cpu_axi4_64b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign cpu_axi4_64b_r.user = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (cpu_axi4_64b_r_rgnt_ddr ? ddr_axi_ruser : '0) |
+        (cpu_axi4_64b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign cpu_axi4_64b_rvalid = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_axi4 (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_axi4_64b_r_rgnt_ddr ? ddr_axi_rvalid : '0) |
+        (cpu_axi4_64b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: trace_axil, Width path: 32b
@@ -1153,49 +1311,37 @@ module bridge_mix_d_xbar
         (trace_axil_32b_w_sel_doorbell ? doorbell_axi_wready : '0);
 
     assign trace_axil_32b_b.id = 
-        ((doorbell_axi_bid_bridge_id == 1) && doorbell_axi_bid_valid ? doorbell_axi_bid : '0);
+        (trace_axil_32b_b_rgnt_doorbell ? doorbell_axi_bid : '0);
 
     assign trace_axil_32b_b.resp = 
-        ((doorbell_axi_bid_bridge_id == 1) && doorbell_axi_bid_valid ? doorbell_axi_bresp : '0);
+        (trace_axil_32b_b_rgnt_doorbell ? doorbell_axi_bresp : '0);
 
     assign trace_axil_32b_b.user = 
-        ((doorbell_axi_bid_bridge_id == 1) && doorbell_axi_bid_valid ? doorbell_axi_buser : '0);
+        (trace_axil_32b_b_rgnt_doorbell ? doorbell_axi_buser : '0);
 
     assign trace_axil_32b_bvalid = 
-        ((doorbell_axi_bid_bridge_id == 1) && doorbell_axi_bid_valid ? doorbell_axi_bvalid : '0);
+        (trace_axil_32b_b_rgnt_doorbell ? doorbell_axi_bvalid : '0);
 
     assign trace_axil_32b_arready = 
         (trace_axil_32b_ar_gnt_doorbell ? doorbell_axi_arready : '0);
 
     assign trace_axil_32b_r.id = 
-        ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? doorbell_axi_rid : '0);
+        (trace_axil_32b_r_rgnt_doorbell ? doorbell_axi_rid : '0);
 
     assign trace_axil_32b_r.data = 
-        ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? doorbell_axi_rdata : 32'b0);
+        (trace_axil_32b_r_rgnt_doorbell ? doorbell_axi_rdata : 32'b0);
 
     assign trace_axil_32b_r.resp = 
-        ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? doorbell_axi_rresp : '0);
+        (trace_axil_32b_r_rgnt_doorbell ? doorbell_axi_rresp : '0);
 
     assign trace_axil_32b_r.last = 
-        ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? doorbell_axi_rlast : '0);
+        (trace_axil_32b_r_rgnt_doorbell ? doorbell_axi_rlast : '0);
 
     assign trace_axil_32b_r.user = 
-        ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? doorbell_axi_ruser : '0);
+        (trace_axil_32b_r_rgnt_doorbell ? doorbell_axi_ruser : '0);
 
     assign trace_axil_32b_rvalid = 
-        ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? doorbell_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master trace_axil (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (trace_axil_32b_r_rgnt_doorbell ? doorbell_axi_rvalid : '0);
 
 
     // Master: trace_axil, Width path: 64b
@@ -1208,60 +1354,48 @@ module bridge_mix_d_xbar
         (trace_axil_64b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign trace_axil_64b_b.id = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (trace_axil_64b_b_rgnt_ddr ? ddr_axi_bid : '0) |
+        (trace_axil_64b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign trace_axil_64b_b.resp = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (trace_axil_64b_b_rgnt_ddr ? ddr_axi_bresp : '0) |
+        (trace_axil_64b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign trace_axil_64b_b.user = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (trace_axil_64b_b_rgnt_ddr ? ddr_axi_buser : '0) |
+        (trace_axil_64b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign trace_axil_64b_bvalid = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (trace_axil_64b_b_rgnt_ddr ? ddr_axi_bvalid : '0) |
+        (trace_axil_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign trace_axil_64b_arready = 
         (trace_axil_64b_ar_gnt_ddr ? ddr_axi_arready : '0) |
         (trace_axil_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign trace_axil_64b_r.id = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (trace_axil_64b_r_rgnt_ddr ? ddr_axi_rid : '0) |
+        (trace_axil_64b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign trace_axil_64b_r.data = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rdata : 64'b0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
+        (trace_axil_64b_r_rgnt_ddr ? ddr_axi_rdata : 64'b0) |
+        (trace_axil_64b_r_rgnt_subtractive ? subtractive_axi_rdata : 64'b0);
 
     assign trace_axil_64b_r.resp = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (trace_axil_64b_r_rgnt_ddr ? ddr_axi_rresp : '0) |
+        (trace_axil_64b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign trace_axil_64b_r.last = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (trace_axil_64b_r_rgnt_ddr ? ddr_axi_rlast : '0) |
+        (trace_axil_64b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign trace_axil_64b_r.user = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (trace_axil_64b_r_rgnt_ddr ? ddr_axi_ruser : '0) |
+        (trace_axil_64b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign trace_axil_64b_rvalid = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master trace_axil (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (trace_axil_64b_r_rgnt_ddr ? ddr_axi_rvalid : '0) |
+        (trace_axil_64b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_mix_d_xbar

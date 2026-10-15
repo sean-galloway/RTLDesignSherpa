@@ -408,6 +408,134 @@ module bridge_2x2_rw_qos_pipe_xbar
     logic xs_subtractive_axi_rid_valid;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- B response arbiter, master cpu 32b: round-robin, lock until taken ----
+    logic [2:0] cpu_32b_b_rarb_req;
+    assign cpu_32b_b_rarb_req = {((xs_subtractive_axi_bid_bridge_id == 0) && xs_subtractive_axi_bid_valid) && xs_subtractive_axi_bvalid, ((xs_sram_axi_bid_bridge_id == 0) && xs_sram_axi_bid_valid) && xs_sram_axi_bvalid, ((xs_ddr_axi_bid_bridge_id == 0) && xs_ddr_axi_bid_valid) && xs_ddr_axi_bvalid};
+    logic [1:0] cpu_32b_b_rarb_lock, cpu_32b_b_rarb_rr;
+    logic cpu_32b_b_rarb_locked;
+    wire [1:0] cpu_32b_b_rarb_pick = (cpu_32b_b_rarb_rr == 2'd0) ? (cpu_32b_b_rarb_req[0] ? 2'd0 : cpu_32b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_32b_b_rarb_rr == 2'd1) ? (cpu_32b_b_rarb_req[1] ? 2'd1 : cpu_32b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_32b_b_rarb_req[2] ? 2'd2 : cpu_32b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_32b_b_rarb_gnt = cpu_32b_b_rarb_locked ? cpu_32b_b_rarb_lock : cpu_32b_b_rarb_pick;
+    wire cpu_32b_b_rarb_gnt_valid = cpu_32b_b_rarb_locked || (|cpu_32b_b_rarb_req);
+    wire cpu_32b_b_rgnt_ddr = cpu_32b_b_rarb_gnt_valid && (cpu_32b_b_rarb_gnt == 2'd0);
+    wire cpu_32b_b_rgnt_sram = cpu_32b_b_rarb_gnt_valid && (cpu_32b_b_rarb_gnt == 2'd1);
+    wire cpu_32b_b_rgnt_subtractive = cpu_32b_b_rarb_gnt_valid && (cpu_32b_b_rarb_gnt == 2'd2);
+    wire cpu_32b_b_rarb_vld = (cpu_32b_b_rgnt_ddr && cpu_32b_b_rarb_req[0]) || (cpu_32b_b_rgnt_sram && cpu_32b_b_rarb_req[1]) || (cpu_32b_b_rgnt_subtractive && cpu_32b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_32b_b_rarb_lock   <= '0;
+            cpu_32b_b_rarb_rr     <= '0;
+            cpu_32b_b_rarb_locked <= 1'b0;
+        end else if (cpu_32b_b_rarb_vld && cpu_32b_bready) begin
+            cpu_32b_b_rarb_locked <= 1'b0;
+            cpu_32b_b_rarb_rr <= (cpu_32b_b_rarb_gnt == 2'd2) ? 2'd0 : cpu_32b_b_rarb_gnt + 1'b1;
+        end else if (cpu_32b_b_rarb_vld) begin
+            cpu_32b_b_rarb_lock   <= cpu_32b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_32b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master cpu 32b: round-robin, lock through RLAST ----
+    logic [2:0] cpu_32b_r_rarb_req;
+    assign cpu_32b_r_rarb_req = {((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid) && xs_subtractive_axi_rvalid, ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid) && xs_sram_axi_rvalid, ((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid) && xs_ddr_axi_rvalid};
+    logic [1:0] cpu_32b_r_rarb_lock, cpu_32b_r_rarb_rr;
+    logic cpu_32b_r_rarb_locked;
+    wire [1:0] cpu_32b_r_rarb_pick = (cpu_32b_r_rarb_rr == 2'd0) ? (cpu_32b_r_rarb_req[0] ? 2'd0 : cpu_32b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_32b_r_rarb_rr == 2'd1) ? (cpu_32b_r_rarb_req[1] ? 2'd1 : cpu_32b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_32b_r_rarb_req[2] ? 2'd2 : cpu_32b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_32b_r_rarb_gnt = cpu_32b_r_rarb_locked ? cpu_32b_r_rarb_lock : cpu_32b_r_rarb_pick;
+    wire cpu_32b_r_rarb_gnt_valid = cpu_32b_r_rarb_locked || (|cpu_32b_r_rarb_req);
+    wire cpu_32b_r_rgnt_ddr = cpu_32b_r_rarb_gnt_valid && (cpu_32b_r_rarb_gnt == 2'd0);
+    wire cpu_32b_r_rgnt_sram = cpu_32b_r_rarb_gnt_valid && (cpu_32b_r_rarb_gnt == 2'd1);
+    wire cpu_32b_r_rgnt_subtractive = cpu_32b_r_rarb_gnt_valid && (cpu_32b_r_rarb_gnt == 2'd2);
+    wire cpu_32b_r_rarb_vld = (cpu_32b_r_rgnt_ddr && cpu_32b_r_rarb_req[0]) || (cpu_32b_r_rgnt_sram && cpu_32b_r_rarb_req[1]) || (cpu_32b_r_rgnt_subtractive && cpu_32b_r_rarb_req[2]);
+    wire cpu_32b_r_rarb_last = (cpu_32b_r_rgnt_ddr && xs_ddr_axi_rlast) || (cpu_32b_r_rgnt_sram && xs_sram_axi_rlast) || (cpu_32b_r_rgnt_subtractive && xs_subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_32b_r_rarb_lock   <= '0;
+            cpu_32b_r_rarb_rr     <= '0;
+            cpu_32b_r_rarb_locked <= 1'b0;
+        end else if (cpu_32b_r_rarb_vld && cpu_32b_rready) begin
+            if (cpu_32b_r_rarb_last) begin
+                cpu_32b_r_rarb_locked <= 1'b0;
+                cpu_32b_r_rarb_rr <= (cpu_32b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_32b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_32b_r_rarb_lock   <= cpu_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_32b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_32b_r_rarb_vld) begin
+            cpu_32b_r_rarb_lock   <= cpu_32b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_32b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- B response arbiter, master dma 32b: round-robin, lock until taken ----
+    logic [2:0] dma_32b_b_rarb_req;
+    assign dma_32b_b_rarb_req = {((xs_subtractive_axi_bid_bridge_id == 1) && xs_subtractive_axi_bid_valid) && xs_subtractive_axi_bvalid, ((xs_sram_axi_bid_bridge_id == 1) && xs_sram_axi_bid_valid) && xs_sram_axi_bvalid, ((xs_ddr_axi_bid_bridge_id == 1) && xs_ddr_axi_bid_valid) && xs_ddr_axi_bvalid};
+    logic [1:0] dma_32b_b_rarb_lock, dma_32b_b_rarb_rr;
+    logic dma_32b_b_rarb_locked;
+    wire [1:0] dma_32b_b_rarb_pick = (dma_32b_b_rarb_rr == 2'd0) ? (dma_32b_b_rarb_req[0] ? 2'd0 : dma_32b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (dma_32b_b_rarb_rr == 2'd1) ? (dma_32b_b_rarb_req[1] ? 2'd1 : dma_32b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        dma_32b_b_rarb_req[2] ? 2'd2 : dma_32b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] dma_32b_b_rarb_gnt = dma_32b_b_rarb_locked ? dma_32b_b_rarb_lock : dma_32b_b_rarb_pick;
+    wire dma_32b_b_rarb_gnt_valid = dma_32b_b_rarb_locked || (|dma_32b_b_rarb_req);
+    wire dma_32b_b_rgnt_ddr = dma_32b_b_rarb_gnt_valid && (dma_32b_b_rarb_gnt == 2'd0);
+    wire dma_32b_b_rgnt_sram = dma_32b_b_rarb_gnt_valid && (dma_32b_b_rarb_gnt == 2'd1);
+    wire dma_32b_b_rgnt_subtractive = dma_32b_b_rarb_gnt_valid && (dma_32b_b_rarb_gnt == 2'd2);
+    wire dma_32b_b_rarb_vld = (dma_32b_b_rgnt_ddr && dma_32b_b_rarb_req[0]) || (dma_32b_b_rgnt_sram && dma_32b_b_rarb_req[1]) || (dma_32b_b_rgnt_subtractive && dma_32b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            dma_32b_b_rarb_lock   <= '0;
+            dma_32b_b_rarb_rr     <= '0;
+            dma_32b_b_rarb_locked <= 1'b0;
+        end else if (dma_32b_b_rarb_vld && dma_32b_bready) begin
+            dma_32b_b_rarb_locked <= 1'b0;
+            dma_32b_b_rarb_rr <= (dma_32b_b_rarb_gnt == 2'd2) ? 2'd0 : dma_32b_b_rarb_gnt + 1'b1;
+        end else if (dma_32b_b_rarb_vld) begin
+            dma_32b_b_rarb_lock   <= dma_32b_b_rarb_gnt;       // offered, not taken: hold
+            dma_32b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master dma 32b: round-robin, lock through RLAST ----
+    logic [2:0] dma_32b_r_rarb_req;
+    assign dma_32b_r_rarb_req = {((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid) && xs_subtractive_axi_rvalid, ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid) && xs_sram_axi_rvalid, ((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid) && xs_ddr_axi_rvalid};
+    logic [1:0] dma_32b_r_rarb_lock, dma_32b_r_rarb_rr;
+    logic dma_32b_r_rarb_locked;
+    wire [1:0] dma_32b_r_rarb_pick = (dma_32b_r_rarb_rr == 2'd0) ? (dma_32b_r_rarb_req[0] ? 2'd0 : dma_32b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (dma_32b_r_rarb_rr == 2'd1) ? (dma_32b_r_rarb_req[1] ? 2'd1 : dma_32b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        dma_32b_r_rarb_req[2] ? 2'd2 : dma_32b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] dma_32b_r_rarb_gnt = dma_32b_r_rarb_locked ? dma_32b_r_rarb_lock : dma_32b_r_rarb_pick;
+    wire dma_32b_r_rarb_gnt_valid = dma_32b_r_rarb_locked || (|dma_32b_r_rarb_req);
+    wire dma_32b_r_rgnt_ddr = dma_32b_r_rarb_gnt_valid && (dma_32b_r_rarb_gnt == 2'd0);
+    wire dma_32b_r_rgnt_sram = dma_32b_r_rarb_gnt_valid && (dma_32b_r_rarb_gnt == 2'd1);
+    wire dma_32b_r_rgnt_subtractive = dma_32b_r_rarb_gnt_valid && (dma_32b_r_rarb_gnt == 2'd2);
+    wire dma_32b_r_rarb_vld = (dma_32b_r_rgnt_ddr && dma_32b_r_rarb_req[0]) || (dma_32b_r_rgnt_sram && dma_32b_r_rarb_req[1]) || (dma_32b_r_rgnt_subtractive && dma_32b_r_rarb_req[2]);
+    wire dma_32b_r_rarb_last = (dma_32b_r_rgnt_ddr && xs_ddr_axi_rlast) || (dma_32b_r_rgnt_sram && xs_sram_axi_rlast) || (dma_32b_r_rgnt_subtractive && xs_subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            dma_32b_r_rarb_lock   <= '0;
+            dma_32b_r_rarb_rr     <= '0;
+            dma_32b_r_rarb_locked <= 1'b0;
+        end else if (dma_32b_r_rarb_vld && dma_32b_rready) begin
+            if (dma_32b_r_rarb_last) begin
+                dma_32b_r_rarb_locked <= 1'b0;
+                dma_32b_r_rarb_rr <= (dma_32b_r_rarb_gnt == 2'd2) ? 2'd0 : dma_32b_r_rarb_gnt + 1'b1;
+            end else begin
+                dma_32b_r_rarb_lock   <= dma_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                dma_32b_r_rarb_locked <= 1'b1;
+            end
+        end else if (dma_32b_r_rarb_vld) begin
+            dma_32b_r_rarb_lock   <= dma_32b_r_rarb_gnt;       // offered, not taken: hold
+            dma_32b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: ddr (32b)
     // ================================================================
     // Multi-master (2 masters) → ddr
@@ -531,9 +659,9 @@ module bridge_2x2_rw_qos_pipe_xbar
         ((dma_32b_w_sel_ddr && dma_32b_wvalid) ? dma_32b_w.user : '0);
     assign xs_ddr_axi_wvalid = (cpu_32b_w_sel_ddr && cpu_32b_wvalid) || (dma_32b_w_sel_ddr && dma_32b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign xs_ddr_axi_bready = ((xs_ddr_axi_bid_bridge_id == 0) && xs_ddr_axi_bid_valid ? cpu_32b_bready : '0) |
-        ((xs_ddr_axi_bid_bridge_id == 1) && xs_ddr_axi_bid_valid ? dma_32b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign xs_ddr_axi_bready = (cpu_32b_b_rgnt_ddr ? cpu_32b_bready : '0) |
+        (dma_32b_b_rgnt_ddr ? dma_32b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign xs_ddr_axi_bridge_id_aw = (cpu_32b_aw_gnt_ddr ? cpu_bridge_id_aw : '0) |
@@ -618,9 +746,9 @@ module bridge_2x2_rw_qos_pipe_xbar
         (dma_32b_ar_gnt_ddr ? dma_32b_ar.user : '0);
     assign xs_ddr_axi_arvalid = cpu_32b_ar_gnt_ddr || dma_32b_ar_gnt_ddr;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign xs_ddr_axi_rready = ((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid ? cpu_32b_rready : '0) |
-        ((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid ? dma_32b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign xs_ddr_axi_rready = (cpu_32b_r_rgnt_ddr ? cpu_32b_rready : '0) |
+        (dma_32b_r_rgnt_ddr ? dma_32b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign xs_ddr_axi_bridge_id_ar = (cpu_32b_ar_gnt_ddr ? cpu_bridge_id_ar : '0) |
@@ -751,9 +879,9 @@ module bridge_2x2_rw_qos_pipe_xbar
         ((dma_32b_w_sel_sram && dma_32b_wvalid) ? dma_32b_w.user : '0);
     assign xs_sram_axi_wvalid = (cpu_32b_w_sel_sram && cpu_32b_wvalid) || (dma_32b_w_sel_sram && dma_32b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign xs_sram_axi_bready = ((xs_sram_axi_bid_bridge_id == 0) && xs_sram_axi_bid_valid ? cpu_32b_bready : '0) |
-        ((xs_sram_axi_bid_bridge_id == 1) && xs_sram_axi_bid_valid ? dma_32b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign xs_sram_axi_bready = (cpu_32b_b_rgnt_sram ? cpu_32b_bready : '0) |
+        (dma_32b_b_rgnt_sram ? dma_32b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign xs_sram_axi_bridge_id_aw = (cpu_32b_aw_gnt_sram ? cpu_bridge_id_aw : '0) |
@@ -838,9 +966,9 @@ module bridge_2x2_rw_qos_pipe_xbar
         (dma_32b_ar_gnt_sram ? dma_32b_ar.user : '0);
     assign xs_sram_axi_arvalid = cpu_32b_ar_gnt_sram || dma_32b_ar_gnt_sram;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign xs_sram_axi_rready = ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid ? cpu_32b_rready : '0) |
-        ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid ? dma_32b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign xs_sram_axi_rready = (cpu_32b_r_rgnt_sram ? cpu_32b_rready : '0) |
+        (dma_32b_r_rgnt_sram ? dma_32b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign xs_sram_axi_bridge_id_ar = (cpu_32b_ar_gnt_sram ? cpu_bridge_id_ar : '0) |
@@ -971,9 +1099,9 @@ module bridge_2x2_rw_qos_pipe_xbar
         ((dma_32b_w_sel_subtractive && dma_32b_wvalid) ? dma_32b_w.user : '0);
     assign xs_subtractive_axi_wvalid = (cpu_32b_w_sel_subtractive && cpu_32b_wvalid) || (dma_32b_w_sel_subtractive && dma_32b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign xs_subtractive_axi_bready = ((xs_subtractive_axi_bid_bridge_id == 0) && xs_subtractive_axi_bid_valid ? cpu_32b_bready : '0) |
-        ((xs_subtractive_axi_bid_bridge_id == 1) && xs_subtractive_axi_bid_valid ? dma_32b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign xs_subtractive_axi_bready = (cpu_32b_b_rgnt_subtractive ? cpu_32b_bready : '0) |
+        (dma_32b_b_rgnt_subtractive ? dma_32b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign xs_subtractive_axi_bridge_id_aw = (cpu_32b_aw_gnt_subtractive ? cpu_bridge_id_aw : '0) |
@@ -1058,9 +1186,9 @@ module bridge_2x2_rw_qos_pipe_xbar
         (dma_32b_ar_gnt_subtractive ? dma_32b_ar.user : '0);
     assign xs_subtractive_axi_arvalid = cpu_32b_ar_gnt_subtractive || dma_32b_ar_gnt_subtractive;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign xs_subtractive_axi_rready = ((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid ? cpu_32b_rready : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid ? dma_32b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign xs_subtractive_axi_rready = (cpu_32b_r_rgnt_subtractive ? cpu_32b_rready : '0) |
+        (dma_32b_r_rgnt_subtractive ? dma_32b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign xs_subtractive_axi_bridge_id_ar = (cpu_32b_ar_gnt_subtractive ? cpu_bridge_id_ar : '0) |
@@ -1138,24 +1266,24 @@ module bridge_2x2_rw_qos_pipe_xbar
         (cpu_32b_w_sel_subtractive ? xs_subtractive_axi_wready : '0);
 
     assign cpu_32b_b.id = 
-        ((xs_ddr_axi_bid_bridge_id == 0) && xs_ddr_axi_bid_valid ? xs_ddr_axi_bid : '0) |
-        ((xs_sram_axi_bid_bridge_id == 0) && xs_sram_axi_bid_valid ? xs_sram_axi_bid : '0) |
-        ((xs_subtractive_axi_bid_bridge_id == 0) && xs_subtractive_axi_bid_valid ? xs_subtractive_axi_bid : '0);
+        (cpu_32b_b_rgnt_ddr ? xs_ddr_axi_bid : '0) |
+        (cpu_32b_b_rgnt_sram ? xs_sram_axi_bid : '0) |
+        (cpu_32b_b_rgnt_subtractive ? xs_subtractive_axi_bid : '0);
 
     assign cpu_32b_b.resp = 
-        ((xs_ddr_axi_bid_bridge_id == 0) && xs_ddr_axi_bid_valid ? xs_ddr_axi_bresp : '0) |
-        ((xs_sram_axi_bid_bridge_id == 0) && xs_sram_axi_bid_valid ? xs_sram_axi_bresp : '0) |
-        ((xs_subtractive_axi_bid_bridge_id == 0) && xs_subtractive_axi_bid_valid ? xs_subtractive_axi_bresp : '0);
+        (cpu_32b_b_rgnt_ddr ? xs_ddr_axi_bresp : '0) |
+        (cpu_32b_b_rgnt_sram ? xs_sram_axi_bresp : '0) |
+        (cpu_32b_b_rgnt_subtractive ? xs_subtractive_axi_bresp : '0);
 
     assign cpu_32b_b.user = 
-        ((xs_ddr_axi_bid_bridge_id == 0) && xs_ddr_axi_bid_valid ? xs_ddr_axi_buser : '0) |
-        ((xs_sram_axi_bid_bridge_id == 0) && xs_sram_axi_bid_valid ? xs_sram_axi_buser : '0) |
-        ((xs_subtractive_axi_bid_bridge_id == 0) && xs_subtractive_axi_bid_valid ? xs_subtractive_axi_buser : '0);
+        (cpu_32b_b_rgnt_ddr ? xs_ddr_axi_buser : '0) |
+        (cpu_32b_b_rgnt_sram ? xs_sram_axi_buser : '0) |
+        (cpu_32b_b_rgnt_subtractive ? xs_subtractive_axi_buser : '0);
 
     assign cpu_32b_bvalid = 
-        ((xs_ddr_axi_bid_bridge_id == 0) && xs_ddr_axi_bid_valid ? xs_ddr_axi_bvalid : '0) |
-        ((xs_sram_axi_bid_bridge_id == 0) && xs_sram_axi_bid_valid ? xs_sram_axi_bvalid : '0) |
-        ((xs_subtractive_axi_bid_bridge_id == 0) && xs_subtractive_axi_bid_valid ? xs_subtractive_axi_bvalid : '0);
+        (cpu_32b_b_rgnt_ddr ? xs_ddr_axi_bvalid : '0) |
+        (cpu_32b_b_rgnt_sram ? xs_sram_axi_bvalid : '0) |
+        (cpu_32b_b_rgnt_subtractive ? xs_subtractive_axi_bvalid : '0);
 
     assign cpu_32b_arready = 
         (cpu_32b_ar_gnt_ddr ? xs_ddr_axi_arready : '0) |
@@ -1163,46 +1291,34 @@ module bridge_2x2_rw_qos_pipe_xbar
         (cpu_32b_ar_gnt_subtractive ? xs_subtractive_axi_arready : '0);
 
     assign cpu_32b_r.id = 
-        ((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rid : '0) |
-        ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid ? xs_sram_axi_rid : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rid : '0);
+        (cpu_32b_r_rgnt_ddr ? xs_ddr_axi_rid : '0) |
+        (cpu_32b_r_rgnt_sram ? xs_sram_axi_rid : '0) |
+        (cpu_32b_r_rgnt_subtractive ? xs_subtractive_axi_rid : '0);
 
     assign cpu_32b_r.data = 
-        ((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rdata : 32'b0) |
-        ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid ? xs_sram_axi_rdata : 32'b0) |
-        ((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rdata : 32'b0);
+        (cpu_32b_r_rgnt_ddr ? xs_ddr_axi_rdata : 32'b0) |
+        (cpu_32b_r_rgnt_sram ? xs_sram_axi_rdata : 32'b0) |
+        (cpu_32b_r_rgnt_subtractive ? xs_subtractive_axi_rdata : 32'b0);
 
     assign cpu_32b_r.resp = 
-        ((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rresp : '0) |
-        ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid ? xs_sram_axi_rresp : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rresp : '0);
+        (cpu_32b_r_rgnt_ddr ? xs_ddr_axi_rresp : '0) |
+        (cpu_32b_r_rgnt_sram ? xs_sram_axi_rresp : '0) |
+        (cpu_32b_r_rgnt_subtractive ? xs_subtractive_axi_rresp : '0);
 
     assign cpu_32b_r.last = 
-        ((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rlast : '0) |
-        ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid ? xs_sram_axi_rlast : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rlast : '0);
+        (cpu_32b_r_rgnt_ddr ? xs_ddr_axi_rlast : '0) |
+        (cpu_32b_r_rgnt_sram ? xs_sram_axi_rlast : '0) |
+        (cpu_32b_r_rgnt_subtractive ? xs_subtractive_axi_rlast : '0);
 
     assign cpu_32b_r.user = 
-        ((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid ? xs_ddr_axi_ruser : '0) |
-        ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid ? xs_sram_axi_ruser : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_ruser : '0);
+        (cpu_32b_r_rgnt_ddr ? xs_ddr_axi_ruser : '0) |
+        (cpu_32b_r_rgnt_sram ? xs_sram_axi_ruser : '0) |
+        (cpu_32b_r_rgnt_subtractive ? xs_subtractive_axi_ruser : '0);
 
     assign cpu_32b_rvalid = 
-        ((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rvalid : '0) |
-        ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid ? xs_sram_axi_rvalid : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid), ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid), ((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((xs_ddr_axi_rid_bridge_id == 0) && xs_ddr_axi_rid_valid), ((xs_sram_axi_rid_bridge_id == 0) && xs_sram_axi_rid_valid), ((xs_subtractive_axi_rid_bridge_id == 0) && xs_subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_32b_r_rgnt_ddr ? xs_ddr_axi_rvalid : '0) |
+        (cpu_32b_r_rgnt_sram ? xs_sram_axi_rvalid : '0) |
+        (cpu_32b_r_rgnt_subtractive ? xs_subtractive_axi_rvalid : '0);
 
 
     // Master: dma, Width path: 32b
@@ -1217,24 +1333,24 @@ module bridge_2x2_rw_qos_pipe_xbar
         (dma_32b_w_sel_subtractive ? xs_subtractive_axi_wready : '0);
 
     assign dma_32b_b.id = 
-        ((xs_ddr_axi_bid_bridge_id == 1) && xs_ddr_axi_bid_valid ? xs_ddr_axi_bid : '0) |
-        ((xs_sram_axi_bid_bridge_id == 1) && xs_sram_axi_bid_valid ? xs_sram_axi_bid : '0) |
-        ((xs_subtractive_axi_bid_bridge_id == 1) && xs_subtractive_axi_bid_valid ? xs_subtractive_axi_bid : '0);
+        (dma_32b_b_rgnt_ddr ? xs_ddr_axi_bid : '0) |
+        (dma_32b_b_rgnt_sram ? xs_sram_axi_bid : '0) |
+        (dma_32b_b_rgnt_subtractive ? xs_subtractive_axi_bid : '0);
 
     assign dma_32b_b.resp = 
-        ((xs_ddr_axi_bid_bridge_id == 1) && xs_ddr_axi_bid_valid ? xs_ddr_axi_bresp : '0) |
-        ((xs_sram_axi_bid_bridge_id == 1) && xs_sram_axi_bid_valid ? xs_sram_axi_bresp : '0) |
-        ((xs_subtractive_axi_bid_bridge_id == 1) && xs_subtractive_axi_bid_valid ? xs_subtractive_axi_bresp : '0);
+        (dma_32b_b_rgnt_ddr ? xs_ddr_axi_bresp : '0) |
+        (dma_32b_b_rgnt_sram ? xs_sram_axi_bresp : '0) |
+        (dma_32b_b_rgnt_subtractive ? xs_subtractive_axi_bresp : '0);
 
     assign dma_32b_b.user = 
-        ((xs_ddr_axi_bid_bridge_id == 1) && xs_ddr_axi_bid_valid ? xs_ddr_axi_buser : '0) |
-        ((xs_sram_axi_bid_bridge_id == 1) && xs_sram_axi_bid_valid ? xs_sram_axi_buser : '0) |
-        ((xs_subtractive_axi_bid_bridge_id == 1) && xs_subtractive_axi_bid_valid ? xs_subtractive_axi_buser : '0);
+        (dma_32b_b_rgnt_ddr ? xs_ddr_axi_buser : '0) |
+        (dma_32b_b_rgnt_sram ? xs_sram_axi_buser : '0) |
+        (dma_32b_b_rgnt_subtractive ? xs_subtractive_axi_buser : '0);
 
     assign dma_32b_bvalid = 
-        ((xs_ddr_axi_bid_bridge_id == 1) && xs_ddr_axi_bid_valid ? xs_ddr_axi_bvalid : '0) |
-        ((xs_sram_axi_bid_bridge_id == 1) && xs_sram_axi_bid_valid ? xs_sram_axi_bvalid : '0) |
-        ((xs_subtractive_axi_bid_bridge_id == 1) && xs_subtractive_axi_bid_valid ? xs_subtractive_axi_bvalid : '0);
+        (dma_32b_b_rgnt_ddr ? xs_ddr_axi_bvalid : '0) |
+        (dma_32b_b_rgnt_sram ? xs_sram_axi_bvalid : '0) |
+        (dma_32b_b_rgnt_subtractive ? xs_subtractive_axi_bvalid : '0);
 
     assign dma_32b_arready = 
         (dma_32b_ar_gnt_ddr ? xs_ddr_axi_arready : '0) |
@@ -1242,46 +1358,34 @@ module bridge_2x2_rw_qos_pipe_xbar
         (dma_32b_ar_gnt_subtractive ? xs_subtractive_axi_arready : '0);
 
     assign dma_32b_r.id = 
-        ((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rid : '0) |
-        ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid ? xs_sram_axi_rid : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rid : '0);
+        (dma_32b_r_rgnt_ddr ? xs_ddr_axi_rid : '0) |
+        (dma_32b_r_rgnt_sram ? xs_sram_axi_rid : '0) |
+        (dma_32b_r_rgnt_subtractive ? xs_subtractive_axi_rid : '0);
 
     assign dma_32b_r.data = 
-        ((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rdata : 32'b0) |
-        ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid ? xs_sram_axi_rdata : 32'b0) |
-        ((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rdata : 32'b0);
+        (dma_32b_r_rgnt_ddr ? xs_ddr_axi_rdata : 32'b0) |
+        (dma_32b_r_rgnt_sram ? xs_sram_axi_rdata : 32'b0) |
+        (dma_32b_r_rgnt_subtractive ? xs_subtractive_axi_rdata : 32'b0);
 
     assign dma_32b_r.resp = 
-        ((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rresp : '0) |
-        ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid ? xs_sram_axi_rresp : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rresp : '0);
+        (dma_32b_r_rgnt_ddr ? xs_ddr_axi_rresp : '0) |
+        (dma_32b_r_rgnt_sram ? xs_sram_axi_rresp : '0) |
+        (dma_32b_r_rgnt_subtractive ? xs_subtractive_axi_rresp : '0);
 
     assign dma_32b_r.last = 
-        ((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rlast : '0) |
-        ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid ? xs_sram_axi_rlast : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rlast : '0);
+        (dma_32b_r_rgnt_ddr ? xs_ddr_axi_rlast : '0) |
+        (dma_32b_r_rgnt_sram ? xs_sram_axi_rlast : '0) |
+        (dma_32b_r_rgnt_subtractive ? xs_subtractive_axi_rlast : '0);
 
     assign dma_32b_r.user = 
-        ((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid ? xs_ddr_axi_ruser : '0) |
-        ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid ? xs_sram_axi_ruser : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_ruser : '0);
+        (dma_32b_r_rgnt_ddr ? xs_ddr_axi_ruser : '0) |
+        (dma_32b_r_rgnt_sram ? xs_sram_axi_ruser : '0) |
+        (dma_32b_r_rgnt_subtractive ? xs_subtractive_axi_ruser : '0);
 
     assign dma_32b_rvalid = 
-        ((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid ? xs_ddr_axi_rvalid : '0) |
-        ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid ? xs_sram_axi_rvalid : '0) |
-        ((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid ? xs_subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid), ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid), ((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master dma (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((xs_ddr_axi_rid_bridge_id == 1) && xs_ddr_axi_rid_valid), ((xs_sram_axi_rid_bridge_id == 1) && xs_sram_axi_rid_valid), ((xs_subtractive_axi_rid_bridge_id == 1) && xs_subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (dma_32b_r_rgnt_ddr ? xs_ddr_axi_rvalid : '0) |
+        (dma_32b_r_rgnt_sram ? xs_sram_axi_rvalid : '0) |
+        (dma_32b_r_rgnt_subtractive ? xs_subtractive_axi_rvalid : '0);
 
 
     // ================================================================

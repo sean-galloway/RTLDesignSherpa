@@ -244,31 +244,36 @@ its tracker:
 There is no timestamp or transaction-type field in the CAM, no timeout and
 no registered lookup.
 
-### Response Demultiplexers
+### Response Arbiters and Demultiplexers
 
-The B / R muxes toward each master OR together every slave's response,
-gated by that slave's returned master index:
+A master may have requests in flight at several slaves (bridge parity item
+1), so two slaves can offer it a response in the same cycle. Each master
+width path that reaches more than one slave has a B and an R response
+arbiter. A slave requests it when its response is valid and its tracker
+names this master; round robin picks one; a grant that is offered and not
+taken holds (AXI keeps the payload stable), and an R grant holds through
+RLAST so bursts never interleave:
 
 ```systemverilog
-// bridge_2x2_rw_xbar.sv: B toward cpu (master index 0)
-((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
-((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bid : '0) |
-((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+// bridge_2x2_rw_xbar.sv: B arbiter for cpu's 32b path (excerpt)
+assign cpu_32b_b_rarb_req = {
+    ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid,
+    ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid) && sram_axi_bvalid,
+    ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid) && ddr_axi_bvalid};
+wire cpu_32b_b_rgnt_ddr = cpu_32b_b_rarb_gnt_valid && (cpu_32b_b_rarb_gnt == 2'd0);
 
-// and the slave's BREADY comes from the owning master
-assign ddr_axi_bready = ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? cpu_32b_bready : '0) |
-                        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? dma_32b_bready : '0);
+// the mux toward the master and the slave's BREADY both follow the grant
+assign cpu_32b_bvalid = (cpu_32b_b_rgnt_ddr  ? ddr_axi_bvalid  : '0) |
+                        (cpu_32b_b_rgnt_sram ? sram_axi_bvalid : '0) | ...;
+assign ddr_axi_bready = (cpu_32b_b_rgnt_ddr ? cpu_32b_bready : '0) |
+                        (dma_32b_b_rgnt_ddr ? dma_32b_bready : '0);
 ```
 
-The ID forwarded is still the fabric ID; the master adapter strips the
-prefix (`fub_axi_bid = cpu_32b_b.id[3:0]`).
-
-### Multi-Slave Response Merging
-
-When multiple slaves can respond simultaneously, arbitration ensures:
-- Only one slave's response delivered per master per cycle
-- Fair arbitration if multiple slaves have responses for same master
-- No response loss (responses queued until master ready)
+A path with one slave keeps a plain ownership gate on the tracker's master
+index; there is nothing to arbitrate. Width paths are arbitrated once more
+inside the master adapter (MAS 2.1, 2.8). The ID forwarded is still the
+fabric ID; the master adapter strips the prefix
+(`fub_axi_bid = cpu_32b_b.id[3:0]`).
 
 ### AXI Ordering Requirements
 
@@ -293,11 +298,11 @@ The crossbar maintains AXI ordering rules.
 
 #### Out-of-Order (OOO) Completion
 
-> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
-> instantiated in zero of them. Responses are routed by the POSITION of an
-> in-order per-slave FIFO holding a sideband master id, so out-of-order
-> completion is not supported and the section below describes an option
-> that was never implemented. See ch04 `02_id_tracking.md`.
+> **Built, per slave.** A multi-master AXI4/AXI5 slave (or one with
+> `enable_ooo`) tracks with `bridge_cam` and may complete out of order across
+> IDs; FIFO-tracked slaves (single master, shims, subtractive) must answer in
+> request order. Across slaves a master sees responses in arrival order, and
+> same-ID order is kept by the master adapter's per-ID table.
 
 
 **Allowed**: 

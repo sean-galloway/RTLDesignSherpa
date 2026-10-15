@@ -397,9 +397,9 @@ module bridge_1x2_wr_axi5_mon_cpu_wr_adapter
     // OUTPUT slave_select_aw mirrors the live combinational decode.
     assign slave_select_aw = comb_slave_select_aw;
 
-    // -------- AW->B slave_select tracking FIFO --------
     localparam int AW_TRK_DEPTH = 16;
     localparam int AW_TRK_AW    = 4;
+    // -------- AW->B slave_select tracking FIFO --------
     logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];
     logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;
     logic aw_trk_push, aw_trk_pop;
@@ -514,8 +514,7 @@ module bridge_1x2_wr_axi5_mon_cpu_wr_adapter
                 // No slave selected
             end
         endcase
-        // Single-outstanding-target: hold off a new AW while writes
-        // to a different slave are in flight (see aw_gate_ok).
+        // Hold off a new AW the gate refuses (see aw_gate_ok).
         if (!aw_gate_ok) fub_axi_awready = 1'b0;
     end
 

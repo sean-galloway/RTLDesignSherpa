@@ -302,50 +302,54 @@ module bridge_1x2_rd_axi5s_mon_cpu_rd_adapter
     // OUTPUT slave_select_ar mirrors the live combinational decode.
     assign slave_select_ar = comb_slave_select_ar;
 
-    // -------- AR->R slave_select tracking FIFO --------
     localparam int AR_TRK_DEPTH = 16;
     localparam int AR_TRK_AW    = 4;
-    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];
-    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;
-    logic ar_trk_push, ar_trk_pop;
-
-    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;
-    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
+    // -------- AR per-ID target table (bridge parity item 1) --------
+    // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
+    // in flight may only add more to the SAME slave (AXI same-ID order);
+    // any other ID may go to any slave. IDs that share the index bits are
+    // treated as one ID: safe, at worst a needless stall.
+    localparam int AR_IDT_N = 16;
+    logic [AR_TRK_AW:0]   ar_idt_cnt [AR_IDT_N];
+    logic [NUM_SLAVES-1:0] ar_idt_tgt [AR_IDT_N];
+    logic [AR_TRK_AW:0]   ar_out_cnt;
+    logic [3:0] ar_idt_widx, ar_idt_ridx;
+    logic ar_idt_push, ar_idt_pop;
+    assign ar_idt_widx = fub_axi_arid[3:0];
+    assign ar_idt_ridx = fub_axi_rid[3:0];
+    assign ar_idt_push = fub_axi_arvalid && fub_axi_arready;
+    assign ar_idt_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            ar_trk_wptr <= '0;
-            ar_trk_rptr <= '0;
+            for (int i = 0; i < AR_IDT_N; i++) begin
+                ar_idt_cnt[i] <= '0;
+                ar_idt_tgt[i] <= '0;
+            end
+            ar_out_cnt <= '0;
         end else begin
-            if (ar_trk_push) begin
-                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;
-                ar_trk_wptr <= ar_trk_wptr + 1'b1;
+            if (ar_idt_push) ar_idt_tgt[ar_idt_widx] <= comb_slave_select_ar;
+            for (int i = 0; i < AR_IDT_N; i++) begin
+                ar_idt_cnt[i] <= ar_idt_cnt[i]
+                    + (AR_TRK_AW+1)'(ar_idt_push && (ar_idt_widx == 4'(i)))
+                    - (AR_TRK_AW+1)'(ar_idt_pop  && (ar_idt_ridx == 4'(i)));
             end
-            if (ar_trk_pop) begin
-                ar_trk_rptr <= ar_trk_rptr + 1'b1;
-            end
+            ar_out_cnt <= ar_out_cnt + (AR_TRK_AW+1)'(ar_idt_push)
+                                          - (AR_TRK_AW+1)'(ar_idt_pop);
         end
     )
 
-    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)
-                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
-                          : '0;
+    // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no
+    // count wraps; AR_TRK_DEPTH is the port's outstanding limit.
+    logic ar_trk_full, ar_id_ok;
+    assign ar_trk_full = (ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH));
+    assign ar_id_ok    = (ar_idt_cnt[ar_idt_widx] == '0) ||
+                           (ar_idt_tgt[ar_idt_widx] == comb_slave_select_ar);
+    assign ar_gate_ok = ar_id_ok && !ar_trk_full;
 
-    // Single-outstanding-target (reads) — see aw_gate_ok comment.
-    logic [NUM_SLAVES-1:0] r_ar_active_target;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_ar_active_target <= '0;
-        end else if (ar_trk_push) begin
-            r_ar_active_target <= comb_slave_select_ar;
-        end
-    )
-    logic ar_trk_full;
-    assign ar_trk_full = (ar_trk_wptr[AR_TRK_AW] != ar_trk_rptr[AR_TRK_AW]) &&
-                         (ar_trk_wptr[AR_TRK_AW-1:0] == ar_trk_rptr[AR_TRK_AW-1:0]);
-    assign ar_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||
-                         (comb_slave_select_ar == r_ar_active_target)) &&
-                        !ar_trk_full;
+    // One width path: every response arrives on it; the crossbar has
+    // already chosen among the slaves behind it.
+    assign r_slave_select = 3'b001;
 
     // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin
@@ -364,8 +368,7 @@ module bridge_1x2_rd_axi5s_mon_cpu_rd_adapter
                 // No slave selected
             end
         endcase
-        // Single-outstanding-target: hold off a new AR while reads
-        // to a different slave are in flight (see ar_gate_ok).
+        // Hold off a new AR the gate refuses (see ar_gate_ok).
         if (!ar_gate_ok) fub_axi_arready = 1'b0;
     end
 

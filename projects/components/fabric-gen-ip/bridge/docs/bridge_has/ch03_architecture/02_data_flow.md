@@ -152,20 +152,28 @@ ID.
 Per-ID ordering is the slave's AXI obligation; across IDs a CAM-tracked
 slave may complete in any order. The fabric adds one structural rule:
 
-**Per master -- one target at a time.** A master may not have transactions
-outstanding to more than one slave simultaneously. `aw_gate_ok`/`ar_gate_ok`
-hold off a new address phase until every outstanding transaction targets the
-same slave. This is a deadlock fix: the response mux replays in address-issue
-order, slaves respond in their own order, and cross-slave outstanding
-transactions from several masters can wedge the heads against each other.
-Same-slave pipelining is unaffected.
+**Per master -- per-ID targets.** A master may have transactions in flight
+at several slaves at once. The master adapter keeps a small table per ID
+(`[bridge].id_track_bits`, default 4: 16 entries indexed by the ID's low
+bits) and `aw_gate_ok`/`ar_gate_ok` hold a new address phase only when its
+ID is already in flight to a DIFFERENT slave -- the AXI same-ID ordering
+rule, enforced where it can be, before the request leaves. Responses from
+different slaves come back in whatever order the slaves produce them: the
+crossbar arbitrates among the slaves on each master width path, and the
+adapter among its paths. A new AW also waits while W is still owed to a
+different slave: W carries no ID and follows AW order, so two masters each
+owing W to two slaves could otherwise wait on each other at the slaves' W
+ports. Ports with a read-return atomic or a trace echo keep the earlier
+one-target-at-a-time rule (MAS 2.1). The rule was lifted 2026-10-15 (bridge
+parity item 1); before that every master held one target slave at a time.
 
 **Per FIFO-tracked slave -- responses must come back in order.** See "The
 requirement the FIFO form creates" above.
 
-The sequence an earlier revision of this page offered as a worked example --
-master 0 issuing to slave 0 and slave 1 concurrently, then the fast slave
-answering first -- is exactly what `aw_gate_ok` prevents. It cannot occur.
+Worked example: master 0 issues a read to a slow slave 0 with ID 1, then a
+read to slave 1 with ID 2. The slave 1 response returns first. With ID 2
+changed to ID 1, the second read is held at the master adapter until the
+first returns. `test_bridge_2x2_rw_multitarget` measures both cases.
 
 ## References
 

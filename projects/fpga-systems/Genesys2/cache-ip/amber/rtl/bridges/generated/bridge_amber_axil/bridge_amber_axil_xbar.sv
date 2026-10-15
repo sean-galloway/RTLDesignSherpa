@@ -483,6 +483,138 @@ module bridge_amber_axil_xbar
     logic host_64b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- B response arbiter, master host 32b: round-robin, lock until taken ----
+    logic [2:0] host_32b_b_rarb_req;
+    assign host_32b_b_rarb_req = {((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid) && cycle_injector1_axi_bvalid, ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid) && cycle_injector0_axi_bvalid, ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) && harness_csr_axi_bvalid};
+    logic [1:0] host_32b_b_rarb_lock, host_32b_b_rarb_rr;
+    logic host_32b_b_rarb_locked;
+    wire [1:0] host_32b_b_rarb_pick = (host_32b_b_rarb_rr == 2'd0) ? (host_32b_b_rarb_req[0] ? 2'd0 : host_32b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (host_32b_b_rarb_rr == 2'd1) ? (host_32b_b_rarb_req[1] ? 2'd1 : host_32b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        host_32b_b_rarb_req[2] ? 2'd2 : host_32b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] host_32b_b_rarb_gnt = host_32b_b_rarb_locked ? host_32b_b_rarb_lock : host_32b_b_rarb_pick;
+    wire host_32b_b_rarb_gnt_valid = host_32b_b_rarb_locked || (|host_32b_b_rarb_req);
+    wire host_32b_b_rgnt_harness_csr = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 2'd0);
+    wire host_32b_b_rgnt_cycle_injector0 = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 2'd1);
+    wire host_32b_b_rgnt_cycle_injector1 = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 2'd2);
+    wire host_32b_b_rarb_vld = (host_32b_b_rgnt_harness_csr && host_32b_b_rarb_req[0]) || (host_32b_b_rgnt_cycle_injector0 && host_32b_b_rarb_req[1]) || (host_32b_b_rgnt_cycle_injector1 && host_32b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            host_32b_b_rarb_lock   <= '0;
+            host_32b_b_rarb_rr     <= '0;
+            host_32b_b_rarb_locked <= 1'b0;
+        end else if (host_32b_b_rarb_vld && host_32b_bready) begin
+            host_32b_b_rarb_locked <= 1'b0;
+            host_32b_b_rarb_rr <= (host_32b_b_rarb_gnt == 2'd2) ? 2'd0 : host_32b_b_rarb_gnt + 1'b1;
+        end else if (host_32b_b_rarb_vld) begin
+            host_32b_b_rarb_lock   <= host_32b_b_rarb_gnt;       // offered, not taken: hold
+            host_32b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master host 32b: round-robin, lock through RLAST ----
+    logic [2:0] host_32b_r_rarb_req;
+    assign host_32b_r_rarb_req = {((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid) && cycle_injector1_axi_rvalid, ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid) && cycle_injector0_axi_rvalid, ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) && harness_csr_axi_rvalid};
+    logic [1:0] host_32b_r_rarb_lock, host_32b_r_rarb_rr;
+    logic host_32b_r_rarb_locked;
+    wire [1:0] host_32b_r_rarb_pick = (host_32b_r_rarb_rr == 2'd0) ? (host_32b_r_rarb_req[0] ? 2'd0 : host_32b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (host_32b_r_rarb_rr == 2'd1) ? (host_32b_r_rarb_req[1] ? 2'd1 : host_32b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        host_32b_r_rarb_req[2] ? 2'd2 : host_32b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] host_32b_r_rarb_gnt = host_32b_r_rarb_locked ? host_32b_r_rarb_lock : host_32b_r_rarb_pick;
+    wire host_32b_r_rarb_gnt_valid = host_32b_r_rarb_locked || (|host_32b_r_rarb_req);
+    wire host_32b_r_rgnt_harness_csr = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 2'd0);
+    wire host_32b_r_rgnt_cycle_injector0 = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 2'd1);
+    wire host_32b_r_rgnt_cycle_injector1 = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 2'd2);
+    wire host_32b_r_rarb_vld = (host_32b_r_rgnt_harness_csr && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_cycle_injector0 && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_cycle_injector1 && host_32b_r_rarb_req[2]);
+    wire host_32b_r_rarb_last = (host_32b_r_rgnt_harness_csr && harness_csr_axi_rlast) || (host_32b_r_rgnt_cycle_injector0 && cycle_injector0_axi_rlast) || (host_32b_r_rgnt_cycle_injector1 && cycle_injector1_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            host_32b_r_rarb_lock   <= '0;
+            host_32b_r_rarb_rr     <= '0;
+            host_32b_r_rarb_locked <= 1'b0;
+        end else if (host_32b_r_rarb_vld && host_32b_rready) begin
+            if (host_32b_r_rarb_last) begin
+                host_32b_r_rarb_locked <= 1'b0;
+                host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 2'd2) ? 2'd0 : host_32b_r_rarb_gnt + 1'b1;
+            end else begin
+                host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                host_32b_r_rarb_locked <= 1'b1;
+            end
+        end else if (host_32b_r_rarb_vld) begin
+            host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;       // offered, not taken: hold
+            host_32b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- B response arbiter, master host 64b: round-robin, lock until taken ----
+    logic [3:0] host_64b_b_rarb_req;
+    assign host_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((tally_cfgr_axi_bid_bridge_id == 0) && tally_cfgr_axi_bid_valid) && tally_cfgr_axi_bvalid, ((tally_cfgw_axi_bid_bridge_id == 0) && tally_cfgw_axi_bid_valid) && tally_cfgw_axi_bvalid, ((tally_cnt_axi_bid_bridge_id == 0) && tally_cnt_axi_bid_valid) && tally_cnt_axi_bvalid};
+    logic [1:0] host_64b_b_rarb_lock, host_64b_b_rarb_rr;
+    logic host_64b_b_rarb_locked;
+    wire [1:0] host_64b_b_rarb_pick = (host_64b_b_rarb_rr == 2'd0) ? (host_64b_b_rarb_req[0] ? 2'd0 : host_64b_b_rarb_req[1] ? 2'd1 : host_64b_b_rarb_req[2] ? 2'd2 : 2'd3) : 
+        (host_64b_b_rarb_rr == 2'd1) ? (host_64b_b_rarb_req[1] ? 2'd1 : host_64b_b_rarb_req[2] ? 2'd2 : host_64b_b_rarb_req[3] ? 2'd3 : 2'd0) : 
+        (host_64b_b_rarb_rr == 2'd2) ? (host_64b_b_rarb_req[2] ? 2'd2 : host_64b_b_rarb_req[3] ? 2'd3 : host_64b_b_rarb_req[0] ? 2'd0 : 2'd1) : 
+        host_64b_b_rarb_req[3] ? 2'd3 : host_64b_b_rarb_req[0] ? 2'd0 : host_64b_b_rarb_req[1] ? 2'd1 : 2'd2;
+    wire [1:0] host_64b_b_rarb_gnt = host_64b_b_rarb_locked ? host_64b_b_rarb_lock : host_64b_b_rarb_pick;
+    wire host_64b_b_rarb_gnt_valid = host_64b_b_rarb_locked || (|host_64b_b_rarb_req);
+    wire host_64b_b_rgnt_tally_cnt = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 2'd0);
+    wire host_64b_b_rgnt_tally_cfgw = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 2'd1);
+    wire host_64b_b_rgnt_tally_cfgr = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 2'd2);
+    wire host_64b_b_rgnt_subtractive = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 2'd3);
+    wire host_64b_b_rarb_vld = (host_64b_b_rgnt_tally_cnt && host_64b_b_rarb_req[0]) || (host_64b_b_rgnt_tally_cfgw && host_64b_b_rarb_req[1]) || (host_64b_b_rgnt_tally_cfgr && host_64b_b_rarb_req[2]) || (host_64b_b_rgnt_subtractive && host_64b_b_rarb_req[3]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            host_64b_b_rarb_lock   <= '0;
+            host_64b_b_rarb_rr     <= '0;
+            host_64b_b_rarb_locked <= 1'b0;
+        end else if (host_64b_b_rarb_vld && host_64b_bready) begin
+            host_64b_b_rarb_locked <= 1'b0;
+            host_64b_b_rarb_rr <= (host_64b_b_rarb_gnt == 2'd3) ? 2'd0 : host_64b_b_rarb_gnt + 1'b1;
+        end else if (host_64b_b_rarb_vld) begin
+            host_64b_b_rarb_lock   <= host_64b_b_rarb_gnt;       // offered, not taken: hold
+            host_64b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master host 64b: round-robin, lock through RLAST ----
+    logic [3:0] host_64b_r_rarb_req;
+    assign host_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid) && tally_cfgr_axi_rvalid, ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid) && tally_cfgw_axi_rvalid, ((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid) && tally_cnt_axi_rvalid};
+    logic [1:0] host_64b_r_rarb_lock, host_64b_r_rarb_rr;
+    logic host_64b_r_rarb_locked;
+    wire [1:0] host_64b_r_rarb_pick = (host_64b_r_rarb_rr == 2'd0) ? (host_64b_r_rarb_req[0] ? 2'd0 : host_64b_r_rarb_req[1] ? 2'd1 : host_64b_r_rarb_req[2] ? 2'd2 : 2'd3) : 
+        (host_64b_r_rarb_rr == 2'd1) ? (host_64b_r_rarb_req[1] ? 2'd1 : host_64b_r_rarb_req[2] ? 2'd2 : host_64b_r_rarb_req[3] ? 2'd3 : 2'd0) : 
+        (host_64b_r_rarb_rr == 2'd2) ? (host_64b_r_rarb_req[2] ? 2'd2 : host_64b_r_rarb_req[3] ? 2'd3 : host_64b_r_rarb_req[0] ? 2'd0 : 2'd1) : 
+        host_64b_r_rarb_req[3] ? 2'd3 : host_64b_r_rarb_req[0] ? 2'd0 : host_64b_r_rarb_req[1] ? 2'd1 : 2'd2;
+    wire [1:0] host_64b_r_rarb_gnt = host_64b_r_rarb_locked ? host_64b_r_rarb_lock : host_64b_r_rarb_pick;
+    wire host_64b_r_rarb_gnt_valid = host_64b_r_rarb_locked || (|host_64b_r_rarb_req);
+    wire host_64b_r_rgnt_tally_cnt = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 2'd0);
+    wire host_64b_r_rgnt_tally_cfgw = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 2'd1);
+    wire host_64b_r_rgnt_tally_cfgr = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 2'd2);
+    wire host_64b_r_rgnt_subtractive = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 2'd3);
+    wire host_64b_r_rarb_vld = (host_64b_r_rgnt_tally_cnt && host_64b_r_rarb_req[0]) || (host_64b_r_rgnt_tally_cfgw && host_64b_r_rarb_req[1]) || (host_64b_r_rgnt_tally_cfgr && host_64b_r_rarb_req[2]) || (host_64b_r_rgnt_subtractive && host_64b_r_rarb_req[3]);
+    wire host_64b_r_rarb_last = (host_64b_r_rgnt_tally_cnt && tally_cnt_axi_rlast) || (host_64b_r_rgnt_tally_cfgw && tally_cfgw_axi_rlast) || (host_64b_r_rgnt_tally_cfgr && tally_cfgr_axi_rlast) || (host_64b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            host_64b_r_rarb_lock   <= '0;
+            host_64b_r_rarb_rr     <= '0;
+            host_64b_r_rarb_locked <= 1'b0;
+        end else if (host_64b_r_rarb_vld && host_64b_rready) begin
+            if (host_64b_r_rarb_last) begin
+                host_64b_r_rarb_locked <= 1'b0;
+                host_64b_r_rarb_rr <= (host_64b_r_rarb_gnt == 2'd3) ? 2'd0 : host_64b_r_rarb_gnt + 1'b1;
+            end else begin
+                host_64b_r_rarb_lock   <= host_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                host_64b_r_rarb_locked <= 1'b1;
+            end
+        end else if (host_64b_r_rarb_vld) begin
+            host_64b_r_rarb_lock   <= host_64b_r_rarb_gnt;       // offered, not taken: hold
+            host_64b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: harness_csr (32b)
     // ================================================================
     // Single master: host → harness_csr
@@ -516,7 +648,7 @@ module bridge_amber_axil_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign harness_csr_axi_bready = ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) ? host_32b_bready : '0;
+    assign harness_csr_axi_bready = host_32b_b_rgnt_harness_csr ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign harness_csr_axi_bridge_id_aw = host_32b_aw_to_harness_csr ? host_bridge_id_aw : '0;
@@ -539,7 +671,7 @@ module bridge_amber_axil_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign harness_csr_axi_rready = ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) ? host_32b_rready : '0;
+    assign harness_csr_axi_rready = host_32b_r_rgnt_harness_csr ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign harness_csr_axi_bridge_id_ar = host_32b_ar_to_harness_csr ? host_bridge_id_ar : '0;
@@ -579,7 +711,7 @@ module bridge_amber_axil_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign cycle_injector0_axi_bready = ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid) ? host_32b_bready : '0;
+    assign cycle_injector0_axi_bready = host_32b_b_rgnt_cycle_injector0 ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign cycle_injector0_axi_bridge_id_aw = host_32b_aw_to_cycle_injector0 ? host_bridge_id_aw : '0;
@@ -602,7 +734,7 @@ module bridge_amber_axil_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign cycle_injector0_axi_rready = ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid) ? host_32b_rready : '0;
+    assign cycle_injector0_axi_rready = host_32b_r_rgnt_cycle_injector0 ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign cycle_injector0_axi_bridge_id_ar = host_32b_ar_to_cycle_injector0 ? host_bridge_id_ar : '0;
@@ -642,7 +774,7 @@ module bridge_amber_axil_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign cycle_injector1_axi_bready = ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid) ? host_32b_bready : '0;
+    assign cycle_injector1_axi_bready = host_32b_b_rgnt_cycle_injector1 ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign cycle_injector1_axi_bridge_id_aw = host_32b_aw_to_cycle_injector1 ? host_bridge_id_aw : '0;
@@ -665,7 +797,7 @@ module bridge_amber_axil_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign cycle_injector1_axi_rready = ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid) ? host_32b_rready : '0;
+    assign cycle_injector1_axi_rready = host_32b_r_rgnt_cycle_injector1 ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign cycle_injector1_axi_bridge_id_ar = host_32b_ar_to_cycle_injector1 ? host_bridge_id_ar : '0;
@@ -705,7 +837,7 @@ module bridge_amber_axil_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign tally_cnt_axi_bready = ((tally_cnt_axi_bid_bridge_id == 0) && tally_cnt_axi_bid_valid) ? host_64b_bready : '0;
+    assign tally_cnt_axi_bready = host_64b_b_rgnt_tally_cnt ? host_64b_bready : '0;
 
     // Bridge ID (master → slave)
     assign tally_cnt_axi_bridge_id_aw = host_64b_aw_to_tally_cnt ? host_bridge_id_aw : '0;
@@ -728,7 +860,7 @@ module bridge_amber_axil_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign tally_cnt_axi_rready = ((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid) ? host_64b_rready : '0;
+    assign tally_cnt_axi_rready = host_64b_r_rgnt_tally_cnt ? host_64b_rready : '0;
 
     // Bridge ID (master → slave)
     assign tally_cnt_axi_bridge_id_ar = host_64b_ar_to_tally_cnt ? host_bridge_id_ar : '0;
@@ -768,7 +900,7 @@ module bridge_amber_axil_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign tally_cfgw_axi_bready = ((tally_cfgw_axi_bid_bridge_id == 0) && tally_cfgw_axi_bid_valid) ? host_64b_bready : '0;
+    assign tally_cfgw_axi_bready = host_64b_b_rgnt_tally_cfgw ? host_64b_bready : '0;
 
     // Bridge ID (master → slave)
     assign tally_cfgw_axi_bridge_id_aw = host_64b_aw_to_tally_cfgw ? host_bridge_id_aw : '0;
@@ -791,7 +923,7 @@ module bridge_amber_axil_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign tally_cfgw_axi_rready = ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid) ? host_64b_rready : '0;
+    assign tally_cfgw_axi_rready = host_64b_r_rgnt_tally_cfgw ? host_64b_rready : '0;
 
     // Bridge ID (master → slave)
     assign tally_cfgw_axi_bridge_id_ar = host_64b_ar_to_tally_cfgw ? host_bridge_id_ar : '0;
@@ -831,7 +963,7 @@ module bridge_amber_axil_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign tally_cfgr_axi_bready = ((tally_cfgr_axi_bid_bridge_id == 0) && tally_cfgr_axi_bid_valid) ? host_64b_bready : '0;
+    assign tally_cfgr_axi_bready = host_64b_b_rgnt_tally_cfgr ? host_64b_bready : '0;
 
     // Bridge ID (master → slave)
     assign tally_cfgr_axi_bridge_id_aw = host_64b_aw_to_tally_cfgr ? host_bridge_id_aw : '0;
@@ -854,7 +986,7 @@ module bridge_amber_axil_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign tally_cfgr_axi_rready = ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid) ? host_64b_rready : '0;
+    assign tally_cfgr_axi_rready = host_64b_r_rgnt_tally_cfgr ? host_64b_rready : '0;
 
     // Bridge ID (master → slave)
     assign tally_cfgr_axi_bridge_id_ar = host_64b_ar_to_tally_cfgr ? host_bridge_id_ar : '0;
@@ -894,7 +1026,7 @@ module bridge_amber_axil_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) ? host_64b_bready : '0;
+    assign subtractive_axi_bready = host_64b_b_rgnt_subtractive ? host_64b_bready : '0;
 
     // Bridge ID (master → slave)
     assign subtractive_axi_bridge_id_aw = host_64b_aw_to_subtractive ? host_bridge_id_aw : '0;
@@ -917,7 +1049,7 @@ module bridge_amber_axil_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) ? host_64b_rready : '0;
+    assign subtractive_axi_rready = host_64b_r_rgnt_subtractive ? host_64b_rready : '0;
 
     // Bridge ID (master → slave)
     assign subtractive_axi_bridge_id_ar = host_64b_ar_to_subtractive ? host_bridge_id_ar : '0;
@@ -995,24 +1127,24 @@ module bridge_amber_axil_xbar
         (host_32b_w_sel_cycle_injector1 ? cycle_injector1_axi_wready : '0);
 
     assign host_32b_b.id = 
-        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bid : '0) |
-        ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid ? cycle_injector0_axi_bid : '0) |
-        ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid ? cycle_injector1_axi_bid : '0);
+        (host_32b_b_rgnt_harness_csr ? harness_csr_axi_bid : '0) |
+        (host_32b_b_rgnt_cycle_injector0 ? cycle_injector0_axi_bid : '0) |
+        (host_32b_b_rgnt_cycle_injector1 ? cycle_injector1_axi_bid : '0);
 
     assign host_32b_b.resp = 
-        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bresp : '0) |
-        ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid ? cycle_injector0_axi_bresp : '0) |
-        ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid ? cycle_injector1_axi_bresp : '0);
+        (host_32b_b_rgnt_harness_csr ? harness_csr_axi_bresp : '0) |
+        (host_32b_b_rgnt_cycle_injector0 ? cycle_injector0_axi_bresp : '0) |
+        (host_32b_b_rgnt_cycle_injector1 ? cycle_injector1_axi_bresp : '0);
 
     assign host_32b_b.user = 
-        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_buser : '0) |
-        ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid ? cycle_injector0_axi_buser : '0) |
-        ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid ? cycle_injector1_axi_buser : '0);
+        (host_32b_b_rgnt_harness_csr ? harness_csr_axi_buser : '0) |
+        (host_32b_b_rgnt_cycle_injector0 ? cycle_injector0_axi_buser : '0) |
+        (host_32b_b_rgnt_cycle_injector1 ? cycle_injector1_axi_buser : '0);
 
     assign host_32b_bvalid = 
-        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bvalid : '0) |
-        ((cycle_injector0_axi_bid_bridge_id == 0) && cycle_injector0_axi_bid_valid ? cycle_injector0_axi_bvalid : '0) |
-        ((cycle_injector1_axi_bid_bridge_id == 0) && cycle_injector1_axi_bid_valid ? cycle_injector1_axi_bvalid : '0);
+        (host_32b_b_rgnt_harness_csr ? harness_csr_axi_bvalid : '0) |
+        (host_32b_b_rgnt_cycle_injector0 ? cycle_injector0_axi_bvalid : '0) |
+        (host_32b_b_rgnt_cycle_injector1 ? cycle_injector1_axi_bvalid : '0);
 
     assign host_32b_arready = 
         (host_32b_ar_gnt_harness_csr ? harness_csr_axi_arready : '0) |
@@ -1020,46 +1152,34 @@ module bridge_amber_axil_xbar
         (host_32b_ar_gnt_cycle_injector1 ? cycle_injector1_axi_arready : '0);
 
     assign host_32b_r.id = 
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rid : '0) |
-        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rid : '0) |
-        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rid : '0);
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rid : '0) |
+        (host_32b_r_rgnt_cycle_injector0 ? cycle_injector0_axi_rid : '0) |
+        (host_32b_r_rgnt_cycle_injector1 ? cycle_injector1_axi_rid : '0);
 
     assign host_32b_r.data = 
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rdata : 32'b0) |
-        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rdata : 32'b0) |
-        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rdata : 32'b0);
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rdata : 32'b0) |
+        (host_32b_r_rgnt_cycle_injector0 ? cycle_injector0_axi_rdata : 32'b0) |
+        (host_32b_r_rgnt_cycle_injector1 ? cycle_injector1_axi_rdata : 32'b0);
 
     assign host_32b_r.resp = 
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rresp : '0) |
-        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rresp : '0) |
-        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rresp : '0);
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rresp : '0) |
+        (host_32b_r_rgnt_cycle_injector0 ? cycle_injector0_axi_rresp : '0) |
+        (host_32b_r_rgnt_cycle_injector1 ? cycle_injector1_axi_rresp : '0);
 
     assign host_32b_r.last = 
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rlast : '0) |
-        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rlast : '0) |
-        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rlast : '0);
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rlast : '0) |
+        (host_32b_r_rgnt_cycle_injector0 ? cycle_injector0_axi_rlast : '0) |
+        (host_32b_r_rgnt_cycle_injector1 ? cycle_injector1_axi_rlast : '0);
 
     assign host_32b_r.user = 
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_ruser : '0) |
-        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_ruser : '0) |
-        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_ruser : '0);
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_ruser : '0) |
+        (host_32b_r_rgnt_cycle_injector0 ? cycle_injector0_axi_ruser : '0) |
+        (host_32b_r_rgnt_cycle_injector1 ? cycle_injector1_axi_ruser : '0);
 
     assign host_32b_rvalid = 
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rvalid : '0) |
-        ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid ? cycle_injector0_axi_rvalid : '0) |
-        ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid ? cycle_injector1_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid), ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master host (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((cycle_injector0_axi_rid_bridge_id == 0) && cycle_injector0_axi_rid_valid), ((cycle_injector1_axi_rid_bridge_id == 0) && cycle_injector1_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rvalid : '0) |
+        (host_32b_r_rgnt_cycle_injector0 ? cycle_injector0_axi_rvalid : '0) |
+        (host_32b_r_rgnt_cycle_injector1 ? cycle_injector1_axi_rvalid : '0);
 
 
     // Master: host, Width path: 64b
@@ -1076,28 +1196,28 @@ module bridge_amber_axil_xbar
         (host_64b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign host_64b_b.id = 
-        ((tally_cnt_axi_bid_bridge_id == 0) && tally_cnt_axi_bid_valid ? tally_cnt_axi_bid : '0) |
-        ((tally_cfgw_axi_bid_bridge_id == 0) && tally_cfgw_axi_bid_valid ? tally_cfgw_axi_bid : '0) |
-        ((tally_cfgr_axi_bid_bridge_id == 0) && tally_cfgr_axi_bid_valid ? tally_cfgr_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (host_64b_b_rgnt_tally_cnt ? tally_cnt_axi_bid : '0) |
+        (host_64b_b_rgnt_tally_cfgw ? tally_cfgw_axi_bid : '0) |
+        (host_64b_b_rgnt_tally_cfgr ? tally_cfgr_axi_bid : '0) |
+        (host_64b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign host_64b_b.resp = 
-        ((tally_cnt_axi_bid_bridge_id == 0) && tally_cnt_axi_bid_valid ? tally_cnt_axi_bresp : '0) |
-        ((tally_cfgw_axi_bid_bridge_id == 0) && tally_cfgw_axi_bid_valid ? tally_cfgw_axi_bresp : '0) |
-        ((tally_cfgr_axi_bid_bridge_id == 0) && tally_cfgr_axi_bid_valid ? tally_cfgr_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (host_64b_b_rgnt_tally_cnt ? tally_cnt_axi_bresp : '0) |
+        (host_64b_b_rgnt_tally_cfgw ? tally_cfgw_axi_bresp : '0) |
+        (host_64b_b_rgnt_tally_cfgr ? tally_cfgr_axi_bresp : '0) |
+        (host_64b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign host_64b_b.user = 
-        ((tally_cnt_axi_bid_bridge_id == 0) && tally_cnt_axi_bid_valid ? tally_cnt_axi_buser : '0) |
-        ((tally_cfgw_axi_bid_bridge_id == 0) && tally_cfgw_axi_bid_valid ? tally_cfgw_axi_buser : '0) |
-        ((tally_cfgr_axi_bid_bridge_id == 0) && tally_cfgr_axi_bid_valid ? tally_cfgr_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (host_64b_b_rgnt_tally_cnt ? tally_cnt_axi_buser : '0) |
+        (host_64b_b_rgnt_tally_cfgw ? tally_cfgw_axi_buser : '0) |
+        (host_64b_b_rgnt_tally_cfgr ? tally_cfgr_axi_buser : '0) |
+        (host_64b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign host_64b_bvalid = 
-        ((tally_cnt_axi_bid_bridge_id == 0) && tally_cnt_axi_bid_valid ? tally_cnt_axi_bvalid : '0) |
-        ((tally_cfgw_axi_bid_bridge_id == 0) && tally_cfgw_axi_bid_valid ? tally_cfgw_axi_bvalid : '0) |
-        ((tally_cfgr_axi_bid_bridge_id == 0) && tally_cfgr_axi_bid_valid ? tally_cfgr_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (host_64b_b_rgnt_tally_cnt ? tally_cnt_axi_bvalid : '0) |
+        (host_64b_b_rgnt_tally_cfgw ? tally_cfgw_axi_bvalid : '0) |
+        (host_64b_b_rgnt_tally_cfgr ? tally_cfgr_axi_bvalid : '0) |
+        (host_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign host_64b_arready = 
         (host_64b_ar_gnt_tally_cnt ? tally_cnt_axi_arready : '0) |
@@ -1106,52 +1226,40 @@ module bridge_amber_axil_xbar
         (host_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign host_64b_r.id = 
-        ((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid ? tally_cnt_axi_rid : '0) |
-        ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid ? tally_cfgw_axi_rid : '0) |
-        ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid ? tally_cfgr_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (host_64b_r_rgnt_tally_cnt ? tally_cnt_axi_rid : '0) |
+        (host_64b_r_rgnt_tally_cfgw ? tally_cfgw_axi_rid : '0) |
+        (host_64b_r_rgnt_tally_cfgr ? tally_cfgr_axi_rid : '0) |
+        (host_64b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign host_64b_r.data = 
-        ((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid ? tally_cnt_axi_rdata : 64'b0) |
-        ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid ? tally_cfgw_axi_rdata : 64'b0) |
-        ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid ? tally_cfgr_axi_rdata : 64'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
+        (host_64b_r_rgnt_tally_cnt ? tally_cnt_axi_rdata : 64'b0) |
+        (host_64b_r_rgnt_tally_cfgw ? tally_cfgw_axi_rdata : 64'b0) |
+        (host_64b_r_rgnt_tally_cfgr ? tally_cfgr_axi_rdata : 64'b0) |
+        (host_64b_r_rgnt_subtractive ? subtractive_axi_rdata : 64'b0);
 
     assign host_64b_r.resp = 
-        ((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid ? tally_cnt_axi_rresp : '0) |
-        ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid ? tally_cfgw_axi_rresp : '0) |
-        ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid ? tally_cfgr_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (host_64b_r_rgnt_tally_cnt ? tally_cnt_axi_rresp : '0) |
+        (host_64b_r_rgnt_tally_cfgw ? tally_cfgw_axi_rresp : '0) |
+        (host_64b_r_rgnt_tally_cfgr ? tally_cfgr_axi_rresp : '0) |
+        (host_64b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign host_64b_r.last = 
-        ((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid ? tally_cnt_axi_rlast : '0) |
-        ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid ? tally_cfgw_axi_rlast : '0) |
-        ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid ? tally_cfgr_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (host_64b_r_rgnt_tally_cnt ? tally_cnt_axi_rlast : '0) |
+        (host_64b_r_rgnt_tally_cfgw ? tally_cfgw_axi_rlast : '0) |
+        (host_64b_r_rgnt_tally_cfgr ? tally_cfgr_axi_rlast : '0) |
+        (host_64b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign host_64b_r.user = 
-        ((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid ? tally_cnt_axi_ruser : '0) |
-        ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid ? tally_cfgw_axi_ruser : '0) |
-        ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid ? tally_cfgr_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (host_64b_r_rgnt_tally_cnt ? tally_cnt_axi_ruser : '0) |
+        (host_64b_r_rgnt_tally_cfgw ? tally_cfgw_axi_ruser : '0) |
+        (host_64b_r_rgnt_tally_cfgr ? tally_cfgr_axi_ruser : '0) |
+        (host_64b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign host_64b_rvalid = 
-        ((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid ? tally_cnt_axi_rvalid : '0) |
-        ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid ? tally_cfgw_axi_rvalid : '0) |
-        ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid ? tally_cfgr_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid), ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid), ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master host (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((tally_cnt_axi_rid_bridge_id == 0) && tally_cnt_axi_rid_valid), ((tally_cfgw_axi_rid_bridge_id == 0) && tally_cfgw_axi_rid_valid), ((tally_cfgr_axi_rid_bridge_id == 0) && tally_cfgr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (host_64b_r_rgnt_tally_cnt ? tally_cnt_axi_rvalid : '0) |
+        (host_64b_r_rgnt_tally_cfgw ? tally_cfgw_axi_rvalid : '0) |
+        (host_64b_r_rgnt_tally_cfgr ? tally_cfgr_axi_rvalid : '0) |
+        (host_64b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_amber_axil_xbar

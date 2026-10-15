@@ -227,6 +227,72 @@ module bridge_1x2_rw_apb5_xbar
     logic cpu_32b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- B response arbiter, master cpu 32b: round-robin, lock until taken ----
+    logic [2:0] cpu_32b_b_rarb_req;
+    assign cpu_32b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid) && periph5_axi_bvalid, ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid) && sram_axi_bvalid};
+    logic [1:0] cpu_32b_b_rarb_lock, cpu_32b_b_rarb_rr;
+    logic cpu_32b_b_rarb_locked;
+    wire [1:0] cpu_32b_b_rarb_pick = (cpu_32b_b_rarb_rr == 2'd0) ? (cpu_32b_b_rarb_req[0] ? 2'd0 : cpu_32b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_32b_b_rarb_rr == 2'd1) ? (cpu_32b_b_rarb_req[1] ? 2'd1 : cpu_32b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_32b_b_rarb_req[2] ? 2'd2 : cpu_32b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_32b_b_rarb_gnt = cpu_32b_b_rarb_locked ? cpu_32b_b_rarb_lock : cpu_32b_b_rarb_pick;
+    wire cpu_32b_b_rarb_gnt_valid = cpu_32b_b_rarb_locked || (|cpu_32b_b_rarb_req);
+    wire cpu_32b_b_rgnt_sram = cpu_32b_b_rarb_gnt_valid && (cpu_32b_b_rarb_gnt == 2'd0);
+    wire cpu_32b_b_rgnt_periph5 = cpu_32b_b_rarb_gnt_valid && (cpu_32b_b_rarb_gnt == 2'd1);
+    wire cpu_32b_b_rgnt_subtractive = cpu_32b_b_rarb_gnt_valid && (cpu_32b_b_rarb_gnt == 2'd2);
+    wire cpu_32b_b_rarb_vld = (cpu_32b_b_rgnt_sram && cpu_32b_b_rarb_req[0]) || (cpu_32b_b_rgnt_periph5 && cpu_32b_b_rarb_req[1]) || (cpu_32b_b_rgnt_subtractive && cpu_32b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_32b_b_rarb_lock   <= '0;
+            cpu_32b_b_rarb_rr     <= '0;
+            cpu_32b_b_rarb_locked <= 1'b0;
+        end else if (cpu_32b_b_rarb_vld && cpu_32b_bready) begin
+            cpu_32b_b_rarb_locked <= 1'b0;
+            cpu_32b_b_rarb_rr <= (cpu_32b_b_rarb_gnt == 2'd2) ? 2'd0 : cpu_32b_b_rarb_gnt + 1'b1;
+        end else if (cpu_32b_b_rarb_vld) begin
+            cpu_32b_b_rarb_lock   <= cpu_32b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_32b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master cpu 32b: round-robin, lock through RLAST ----
+    logic [2:0] cpu_32b_r_rarb_req;
+    assign cpu_32b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid) && periph5_axi_rvalid, ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid) && sram_axi_rvalid};
+    logic [1:0] cpu_32b_r_rarb_lock, cpu_32b_r_rarb_rr;
+    logic cpu_32b_r_rarb_locked;
+    wire [1:0] cpu_32b_r_rarb_pick = (cpu_32b_r_rarb_rr == 2'd0) ? (cpu_32b_r_rarb_req[0] ? 2'd0 : cpu_32b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_32b_r_rarb_rr == 2'd1) ? (cpu_32b_r_rarb_req[1] ? 2'd1 : cpu_32b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_32b_r_rarb_req[2] ? 2'd2 : cpu_32b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_32b_r_rarb_gnt = cpu_32b_r_rarb_locked ? cpu_32b_r_rarb_lock : cpu_32b_r_rarb_pick;
+    wire cpu_32b_r_rarb_gnt_valid = cpu_32b_r_rarb_locked || (|cpu_32b_r_rarb_req);
+    wire cpu_32b_r_rgnt_sram = cpu_32b_r_rarb_gnt_valid && (cpu_32b_r_rarb_gnt == 2'd0);
+    wire cpu_32b_r_rgnt_periph5 = cpu_32b_r_rarb_gnt_valid && (cpu_32b_r_rarb_gnt == 2'd1);
+    wire cpu_32b_r_rgnt_subtractive = cpu_32b_r_rarb_gnt_valid && (cpu_32b_r_rarb_gnt == 2'd2);
+    wire cpu_32b_r_rarb_vld = (cpu_32b_r_rgnt_sram && cpu_32b_r_rarb_req[0]) || (cpu_32b_r_rgnt_periph5 && cpu_32b_r_rarb_req[1]) || (cpu_32b_r_rgnt_subtractive && cpu_32b_r_rarb_req[2]);
+    wire cpu_32b_r_rarb_last = (cpu_32b_r_rgnt_sram && sram_axi_rlast) || (cpu_32b_r_rgnt_periph5 && periph5_axi_rlast) || (cpu_32b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_32b_r_rarb_lock   <= '0;
+            cpu_32b_r_rarb_rr     <= '0;
+            cpu_32b_r_rarb_locked <= 1'b0;
+        end else if (cpu_32b_r_rarb_vld && cpu_32b_rready) begin
+            if (cpu_32b_r_rarb_last) begin
+                cpu_32b_r_rarb_locked <= 1'b0;
+                cpu_32b_r_rarb_rr <= (cpu_32b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_32b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_32b_r_rarb_lock   <= cpu_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_32b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_32b_r_rarb_vld) begin
+            cpu_32b_r_rarb_lock   <= cpu_32b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_32b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: sram (32b)
     // ================================================================
     // Single master: cpu → sram
@@ -260,7 +326,7 @@ module bridge_1x2_rw_apb5_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign sram_axi_bready = ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid) ? cpu_32b_bready : '0;
+    assign sram_axi_bready = cpu_32b_b_rgnt_sram ? cpu_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign sram_axi_bridge_id_aw = cpu_32b_aw_to_sram ? cpu_bridge_id_aw : '0;
@@ -283,7 +349,7 @@ module bridge_1x2_rw_apb5_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign sram_axi_rready = ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid) ? cpu_32b_rready : '0;
+    assign sram_axi_rready = cpu_32b_r_rgnt_sram ? cpu_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign sram_axi_bridge_id_ar = cpu_32b_ar_to_sram ? cpu_bridge_id_ar : '0;
@@ -323,7 +389,7 @@ module bridge_1x2_rw_apb5_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign periph5_axi_bready = ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid) ? cpu_32b_bready : '0;
+    assign periph5_axi_bready = cpu_32b_b_rgnt_periph5 ? cpu_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign periph5_axi_bridge_id_aw = cpu_32b_aw_to_periph5 ? cpu_bridge_id_aw : '0;
@@ -346,7 +412,7 @@ module bridge_1x2_rw_apb5_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign periph5_axi_rready = ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid) ? cpu_32b_rready : '0;
+    assign periph5_axi_rready = cpu_32b_r_rgnt_periph5 ? cpu_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign periph5_axi_bridge_id_ar = cpu_32b_ar_to_periph5 ? cpu_bridge_id_ar : '0;
@@ -386,7 +452,7 @@ module bridge_1x2_rw_apb5_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) ? cpu_32b_bready : '0;
+    assign subtractive_axi_bready = cpu_32b_b_rgnt_subtractive ? cpu_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign subtractive_axi_bridge_id_aw = cpu_32b_aw_to_subtractive ? cpu_bridge_id_aw : '0;
@@ -409,7 +475,7 @@ module bridge_1x2_rw_apb5_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) ? cpu_32b_rready : '0;
+    assign subtractive_axi_rready = cpu_32b_r_rgnt_subtractive ? cpu_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign subtractive_axi_bridge_id_ar = cpu_32b_ar_to_subtractive ? cpu_bridge_id_ar : '0;
@@ -460,24 +526,24 @@ module bridge_1x2_rw_apb5_xbar
         (cpu_32b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_32b_b.id = 
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bid : '0) |
-        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (cpu_32b_b_rgnt_sram ? sram_axi_bid : '0) |
+        (cpu_32b_b_rgnt_periph5 ? periph5_axi_bid : '0) |
+        (cpu_32b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign cpu_32b_b.resp = 
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bresp : '0) |
-        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (cpu_32b_b_rgnt_sram ? sram_axi_bresp : '0) |
+        (cpu_32b_b_rgnt_periph5 ? periph5_axi_bresp : '0) |
+        (cpu_32b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign cpu_32b_b.user = 
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_buser : '0) |
-        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (cpu_32b_b_rgnt_sram ? sram_axi_buser : '0) |
+        (cpu_32b_b_rgnt_periph5 ? periph5_axi_buser : '0) |
+        (cpu_32b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign cpu_32b_bvalid = 
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bvalid : '0) |
-        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (cpu_32b_b_rgnt_sram ? sram_axi_bvalid : '0) |
+        (cpu_32b_b_rgnt_periph5 ? periph5_axi_bvalid : '0) |
+        (cpu_32b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_32b_arready = 
         (cpu_32b_ar_gnt_sram ? sram_axi_arready : '0) |
@@ -485,46 +551,34 @@ module bridge_1x2_rw_apb5_xbar
         (cpu_32b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_32b_r.id = 
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rid : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (cpu_32b_r_rgnt_sram ? sram_axi_rid : '0) |
+        (cpu_32b_r_rgnt_periph5 ? periph5_axi_rid : '0) |
+        (cpu_32b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign cpu_32b_r.data = 
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rdata : 32'b0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rdata : 32'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 32'b0);
+        (cpu_32b_r_rgnt_sram ? sram_axi_rdata : 32'b0) |
+        (cpu_32b_r_rgnt_periph5 ? periph5_axi_rdata : 32'b0) |
+        (cpu_32b_r_rgnt_subtractive ? subtractive_axi_rdata : 32'b0);
 
     assign cpu_32b_r.resp = 
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rresp : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (cpu_32b_r_rgnt_sram ? sram_axi_rresp : '0) |
+        (cpu_32b_r_rgnt_periph5 ? periph5_axi_rresp : '0) |
+        (cpu_32b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign cpu_32b_r.last = 
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rlast : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (cpu_32b_r_rgnt_sram ? sram_axi_rlast : '0) |
+        (cpu_32b_r_rgnt_periph5 ? periph5_axi_rlast : '0) |
+        (cpu_32b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign cpu_32b_r.user = 
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_ruser : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (cpu_32b_r_rgnt_sram ? sram_axi_ruser : '0) |
+        (cpu_32b_r_rgnt_periph5 ? periph5_axi_ruser : '0) |
+        (cpu_32b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign cpu_32b_rvalid = 
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rvalid : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid), ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid), ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_32b_r_rgnt_sram ? sram_axi_rvalid : '0) |
+        (cpu_32b_r_rgnt_periph5 ? periph5_axi_rvalid : '0) |
+        (cpu_32b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_1x2_rw_apb5_xbar

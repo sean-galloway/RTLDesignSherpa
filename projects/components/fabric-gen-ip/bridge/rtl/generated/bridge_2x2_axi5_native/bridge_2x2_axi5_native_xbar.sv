@@ -299,6 +299,134 @@ module bridge_2x2_axi5_native_xbar
     logic dma_128b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- B response arbiter, master cpu 128b: round-robin, lock until taken ----
+    logic [2:0] cpu_128b_b_rarb_req;
+    assign cpu_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid) && sram_axi_bvalid, ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid) && ddr_axi_bvalid};
+    logic [1:0] cpu_128b_b_rarb_lock, cpu_128b_b_rarb_rr;
+    logic cpu_128b_b_rarb_locked;
+    wire [1:0] cpu_128b_b_rarb_pick = (cpu_128b_b_rarb_rr == 2'd0) ? (cpu_128b_b_rarb_req[0] ? 2'd0 : cpu_128b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_128b_b_rarb_rr == 2'd1) ? (cpu_128b_b_rarb_req[1] ? 2'd1 : cpu_128b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_128b_b_rarb_req[2] ? 2'd2 : cpu_128b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_128b_b_rarb_gnt = cpu_128b_b_rarb_locked ? cpu_128b_b_rarb_lock : cpu_128b_b_rarb_pick;
+    wire cpu_128b_b_rarb_gnt_valid = cpu_128b_b_rarb_locked || (|cpu_128b_b_rarb_req);
+    wire cpu_128b_b_rgnt_ddr = cpu_128b_b_rarb_gnt_valid && (cpu_128b_b_rarb_gnt == 2'd0);
+    wire cpu_128b_b_rgnt_sram = cpu_128b_b_rarb_gnt_valid && (cpu_128b_b_rarb_gnt == 2'd1);
+    wire cpu_128b_b_rgnt_subtractive = cpu_128b_b_rarb_gnt_valid && (cpu_128b_b_rarb_gnt == 2'd2);
+    wire cpu_128b_b_rarb_vld = (cpu_128b_b_rgnt_ddr && cpu_128b_b_rarb_req[0]) || (cpu_128b_b_rgnt_sram && cpu_128b_b_rarb_req[1]) || (cpu_128b_b_rgnt_subtractive && cpu_128b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_128b_b_rarb_lock   <= '0;
+            cpu_128b_b_rarb_rr     <= '0;
+            cpu_128b_b_rarb_locked <= 1'b0;
+        end else if (cpu_128b_b_rarb_vld && cpu_128b_bready) begin
+            cpu_128b_b_rarb_locked <= 1'b0;
+            cpu_128b_b_rarb_rr <= (cpu_128b_b_rarb_gnt == 2'd2) ? 2'd0 : cpu_128b_b_rarb_gnt + 1'b1;
+        end else if (cpu_128b_b_rarb_vld) begin
+            cpu_128b_b_rarb_lock   <= cpu_128b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_128b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master cpu 128b: round-robin, lock through RLAST ----
+    logic [2:0] cpu_128b_r_rarb_req;
+    assign cpu_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid) && sram_axi_rvalid, ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid) && ddr_axi_rvalid};
+    logic [1:0] cpu_128b_r_rarb_lock, cpu_128b_r_rarb_rr;
+    logic cpu_128b_r_rarb_locked;
+    wire [1:0] cpu_128b_r_rarb_pick = (cpu_128b_r_rarb_rr == 2'd0) ? (cpu_128b_r_rarb_req[0] ? 2'd0 : cpu_128b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_128b_r_rarb_rr == 2'd1) ? (cpu_128b_r_rarb_req[1] ? 2'd1 : cpu_128b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_128b_r_rarb_req[2] ? 2'd2 : cpu_128b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_128b_r_rarb_gnt = cpu_128b_r_rarb_locked ? cpu_128b_r_rarb_lock : cpu_128b_r_rarb_pick;
+    wire cpu_128b_r_rarb_gnt_valid = cpu_128b_r_rarb_locked || (|cpu_128b_r_rarb_req);
+    wire cpu_128b_r_rgnt_ddr = cpu_128b_r_rarb_gnt_valid && (cpu_128b_r_rarb_gnt == 2'd0);
+    wire cpu_128b_r_rgnt_sram = cpu_128b_r_rarb_gnt_valid && (cpu_128b_r_rarb_gnt == 2'd1);
+    wire cpu_128b_r_rgnt_subtractive = cpu_128b_r_rarb_gnt_valid && (cpu_128b_r_rarb_gnt == 2'd2);
+    wire cpu_128b_r_rarb_vld = (cpu_128b_r_rgnt_ddr && cpu_128b_r_rarb_req[0]) || (cpu_128b_r_rgnt_sram && cpu_128b_r_rarb_req[1]) || (cpu_128b_r_rgnt_subtractive && cpu_128b_r_rarb_req[2]);
+    wire cpu_128b_r_rarb_last = (cpu_128b_r_rgnt_ddr && ddr_axi_rlast) || (cpu_128b_r_rgnt_sram && sram_axi_rlast) || (cpu_128b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_128b_r_rarb_lock   <= '0;
+            cpu_128b_r_rarb_rr     <= '0;
+            cpu_128b_r_rarb_locked <= 1'b0;
+        end else if (cpu_128b_r_rarb_vld && cpu_128b_rready) begin
+            if (cpu_128b_r_rarb_last) begin
+                cpu_128b_r_rarb_locked <= 1'b0;
+                cpu_128b_r_rarb_rr <= (cpu_128b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_128b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_128b_r_rarb_lock   <= cpu_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_128b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_128b_r_rarb_vld) begin
+            cpu_128b_r_rarb_lock   <= cpu_128b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_128b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- B response arbiter, master dma 128b: round-robin, lock until taken ----
+    logic [2:0] dma_128b_b_rarb_req;
+    assign dma_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid) && sram_axi_bvalid, ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid) && ddr_axi_bvalid};
+    logic [1:0] dma_128b_b_rarb_lock, dma_128b_b_rarb_rr;
+    logic dma_128b_b_rarb_locked;
+    wire [1:0] dma_128b_b_rarb_pick = (dma_128b_b_rarb_rr == 2'd0) ? (dma_128b_b_rarb_req[0] ? 2'd0 : dma_128b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (dma_128b_b_rarb_rr == 2'd1) ? (dma_128b_b_rarb_req[1] ? 2'd1 : dma_128b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        dma_128b_b_rarb_req[2] ? 2'd2 : dma_128b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] dma_128b_b_rarb_gnt = dma_128b_b_rarb_locked ? dma_128b_b_rarb_lock : dma_128b_b_rarb_pick;
+    wire dma_128b_b_rarb_gnt_valid = dma_128b_b_rarb_locked || (|dma_128b_b_rarb_req);
+    wire dma_128b_b_rgnt_ddr = dma_128b_b_rarb_gnt_valid && (dma_128b_b_rarb_gnt == 2'd0);
+    wire dma_128b_b_rgnt_sram = dma_128b_b_rarb_gnt_valid && (dma_128b_b_rarb_gnt == 2'd1);
+    wire dma_128b_b_rgnt_subtractive = dma_128b_b_rarb_gnt_valid && (dma_128b_b_rarb_gnt == 2'd2);
+    wire dma_128b_b_rarb_vld = (dma_128b_b_rgnt_ddr && dma_128b_b_rarb_req[0]) || (dma_128b_b_rgnt_sram && dma_128b_b_rarb_req[1]) || (dma_128b_b_rgnt_subtractive && dma_128b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            dma_128b_b_rarb_lock   <= '0;
+            dma_128b_b_rarb_rr     <= '0;
+            dma_128b_b_rarb_locked <= 1'b0;
+        end else if (dma_128b_b_rarb_vld && dma_128b_bready) begin
+            dma_128b_b_rarb_locked <= 1'b0;
+            dma_128b_b_rarb_rr <= (dma_128b_b_rarb_gnt == 2'd2) ? 2'd0 : dma_128b_b_rarb_gnt + 1'b1;
+        end else if (dma_128b_b_rarb_vld) begin
+            dma_128b_b_rarb_lock   <= dma_128b_b_rarb_gnt;       // offered, not taken: hold
+            dma_128b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master dma 128b: round-robin, lock through RLAST ----
+    logic [2:0] dma_128b_r_rarb_req;
+    assign dma_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid) && sram_axi_rvalid, ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid) && ddr_axi_rvalid};
+    logic [1:0] dma_128b_r_rarb_lock, dma_128b_r_rarb_rr;
+    logic dma_128b_r_rarb_locked;
+    wire [1:0] dma_128b_r_rarb_pick = (dma_128b_r_rarb_rr == 2'd0) ? (dma_128b_r_rarb_req[0] ? 2'd0 : dma_128b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (dma_128b_r_rarb_rr == 2'd1) ? (dma_128b_r_rarb_req[1] ? 2'd1 : dma_128b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        dma_128b_r_rarb_req[2] ? 2'd2 : dma_128b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] dma_128b_r_rarb_gnt = dma_128b_r_rarb_locked ? dma_128b_r_rarb_lock : dma_128b_r_rarb_pick;
+    wire dma_128b_r_rarb_gnt_valid = dma_128b_r_rarb_locked || (|dma_128b_r_rarb_req);
+    wire dma_128b_r_rgnt_ddr = dma_128b_r_rarb_gnt_valid && (dma_128b_r_rarb_gnt == 2'd0);
+    wire dma_128b_r_rgnt_sram = dma_128b_r_rarb_gnt_valid && (dma_128b_r_rarb_gnt == 2'd1);
+    wire dma_128b_r_rgnt_subtractive = dma_128b_r_rarb_gnt_valid && (dma_128b_r_rarb_gnt == 2'd2);
+    wire dma_128b_r_rarb_vld = (dma_128b_r_rgnt_ddr && dma_128b_r_rarb_req[0]) || (dma_128b_r_rgnt_sram && dma_128b_r_rarb_req[1]) || (dma_128b_r_rgnt_subtractive && dma_128b_r_rarb_req[2]);
+    wire dma_128b_r_rarb_last = (dma_128b_r_rgnt_ddr && ddr_axi_rlast) || (dma_128b_r_rgnt_sram && sram_axi_rlast) || (dma_128b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            dma_128b_r_rarb_lock   <= '0;
+            dma_128b_r_rarb_rr     <= '0;
+            dma_128b_r_rarb_locked <= 1'b0;
+        end else if (dma_128b_r_rarb_vld && dma_128b_rready) begin
+            if (dma_128b_r_rarb_last) begin
+                dma_128b_r_rarb_locked <= 1'b0;
+                dma_128b_r_rarb_rr <= (dma_128b_r_rarb_gnt == 2'd2) ? 2'd0 : dma_128b_r_rarb_gnt + 1'b1;
+            end else begin
+                dma_128b_r_rarb_lock   <= dma_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                dma_128b_r_rarb_locked <= 1'b1;
+            end
+        end else if (dma_128b_r_rarb_vld) begin
+            dma_128b_r_rarb_lock   <= dma_128b_r_rarb_gnt;       // offered, not taken: hold
+            dma_128b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: ddr (128b)
     // ================================================================
     // Multi-master (2 masters) → ddr
@@ -409,9 +537,9 @@ module bridge_2x2_axi5_native_xbar
         ((dma_128b_w_sel_ddr && dma_128b_wvalid) ? dma_128b_w.tagupdate : '0);
     assign ddr_axi_wvalid = (cpu_128b_w_sel_ddr && cpu_128b_wvalid) || (dma_128b_w_sel_ddr && dma_128b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign ddr_axi_bready = ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? cpu_128b_bready : '0) |
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? dma_128b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign ddr_axi_bready = (cpu_128b_b_rgnt_ddr ? cpu_128b_bready : '0) |
+        (dma_128b_b_rgnt_ddr ? dma_128b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign ddr_axi_bridge_id_aw = (cpu_128b_aw_gnt_ddr ? cpu_bridge_id_aw : '0) |
@@ -479,9 +607,9 @@ module bridge_2x2_axi5_native_xbar
         (dma_128b_ar_gnt_ddr ? dma_128b_ar.tagop : '0);
     assign ddr_axi_arvalid = cpu_128b_ar_gnt_ddr || dma_128b_ar_gnt_ddr;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign ddr_axi_rready = ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? cpu_128b_rready : '0) |
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? dma_128b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign ddr_axi_rready = (cpu_128b_r_rgnt_ddr ? cpu_128b_rready : '0) |
+        (dma_128b_r_rgnt_ddr ? dma_128b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign ddr_axi_bridge_id_ar = (cpu_128b_ar_gnt_ddr ? cpu_bridge_id_ar : '0) |
@@ -599,9 +727,9 @@ module bridge_2x2_axi5_native_xbar
         ((dma_128b_w_sel_sram && dma_128b_wvalid) ? dma_128b_w.tagupdate : '0);
     assign sram_axi_wvalid = (cpu_128b_w_sel_sram && cpu_128b_wvalid) || (dma_128b_w_sel_sram && dma_128b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign sram_axi_bready = ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? cpu_128b_bready : '0) |
-        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? dma_128b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign sram_axi_bready = (cpu_128b_b_rgnt_sram ? cpu_128b_bready : '0) |
+        (dma_128b_b_rgnt_sram ? dma_128b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign sram_axi_bridge_id_aw = (cpu_128b_aw_gnt_sram ? cpu_bridge_id_aw : '0) |
@@ -669,9 +797,9 @@ module bridge_2x2_axi5_native_xbar
         (dma_128b_ar_gnt_sram ? dma_128b_ar.tagop : '0);
     assign sram_axi_arvalid = cpu_128b_ar_gnt_sram || dma_128b_ar_gnt_sram;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign sram_axi_rready = ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? cpu_128b_rready : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? dma_128b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign sram_axi_rready = (cpu_128b_r_rgnt_sram ? cpu_128b_rready : '0) |
+        (dma_128b_r_rgnt_sram ? dma_128b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign sram_axi_bridge_id_ar = (cpu_128b_ar_gnt_sram ? cpu_bridge_id_ar : '0) |
@@ -775,9 +903,9 @@ module bridge_2x2_axi5_native_xbar
         ((dma_128b_w_sel_subtractive && dma_128b_wvalid) ? dma_128b_w.user : '0);
     assign subtractive_axi_wvalid = (cpu_128b_w_sel_subtractive && cpu_128b_wvalid) || (dma_128b_w_sel_subtractive && dma_128b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? cpu_128b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? dma_128b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_bready = (cpu_128b_b_rgnt_subtractive ? cpu_128b_bready : '0) |
+        (dma_128b_b_rgnt_subtractive ? dma_128b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign subtractive_axi_bridge_id_aw = (cpu_128b_aw_gnt_subtractive ? cpu_bridge_id_aw : '0) |
@@ -835,9 +963,9 @@ module bridge_2x2_axi5_native_xbar
         (dma_128b_ar_gnt_subtractive ? dma_128b_ar.user : '0);
     assign subtractive_axi_arvalid = cpu_128b_ar_gnt_subtractive || dma_128b_ar_gnt_subtractive;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? cpu_128b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? dma_128b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_rready = (cpu_128b_r_rgnt_subtractive ? cpu_128b_rready : '0) |
+        (dma_128b_r_rgnt_subtractive ? dma_128b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign subtractive_axi_bridge_id_ar = (cpu_128b_ar_gnt_subtractive ? cpu_bridge_id_ar : '0) |
@@ -915,32 +1043,32 @@ module bridge_2x2_axi5_native_xbar
         (cpu_128b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_128b_b.id = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (cpu_128b_b_rgnt_ddr ? ddr_axi_bid : '0) |
+        (cpu_128b_b_rgnt_sram ? sram_axi_bid : '0) |
+        (cpu_128b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign cpu_128b_b.resp = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (cpu_128b_b_rgnt_ddr ? ddr_axi_bresp : '0) |
+        (cpu_128b_b_rgnt_sram ? sram_axi_bresp : '0) |
+        (cpu_128b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign cpu_128b_b.user = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (cpu_128b_b_rgnt_ddr ? ddr_axi_buser : '0) |
+        (cpu_128b_b_rgnt_sram ? sram_axi_buser : '0) |
+        (cpu_128b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign cpu_128b_bvalid = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (cpu_128b_b_rgnt_ddr ? ddr_axi_bvalid : '0) |
+        (cpu_128b_b_rgnt_sram ? sram_axi_bvalid : '0) |
+        (cpu_128b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_128b_b.trace = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_btrace : '0) |
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_btrace : '0);
+        (cpu_128b_b_rgnt_ddr ? ddr_axi_btrace : '0) |
+        (cpu_128b_b_rgnt_sram ? sram_axi_btrace : '0);
 
     assign cpu_128b_b.tagmatch = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_btagmatch : '0) |
-        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_btagmatch : '0);
+        (cpu_128b_b_rgnt_ddr ? ddr_axi_btagmatch : '0) |
+        (cpu_128b_b_rgnt_sram ? sram_axi_btagmatch : '0);
 
     assign cpu_128b_arready = 
         (cpu_128b_ar_gnt_ddr ? ddr_axi_arready : '0) |
@@ -948,70 +1076,58 @@ module bridge_2x2_axi5_native_xbar
         (cpu_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_128b_r.id = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rid : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rid : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rid : '0) |
+        (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign cpu_128b_r.data = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rdata : 128'b0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rdata : 128'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 128'b0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rdata : 128'b0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rdata : 128'b0) |
+        (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rdata : 128'b0);
 
     assign cpu_128b_r.resp = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rresp : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rresp : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rresp : '0) |
+        (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign cpu_128b_r.last = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rlast : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rlast : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rlast : '0) |
+        (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign cpu_128b_r.user = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_ruser : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_ruser : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_ruser : '0) |
+        (cpu_128b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign cpu_128b_rvalid = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid), ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu (128b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid), ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rvalid : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rvalid : '0) |
+        (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
     assign cpu_128b_r.trace = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rtrace : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rtrace : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rtrace : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rtrace : '0);
 
     assign cpu_128b_r.poison = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rpoison : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rpoison : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rpoison : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rpoison : '0);
 
     assign cpu_128b_r.chunkv = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rchunkv : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rchunkv : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rchunkv : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rchunkv : '0);
 
     assign cpu_128b_r.chunknum = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rchunknum : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rchunknum : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rchunknum : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rchunknum : '0);
 
     assign cpu_128b_r.chunkstrb = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rchunkstrb : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rchunkstrb : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rchunkstrb : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rchunkstrb : '0);
 
     assign cpu_128b_r.tag = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rtag : '0) |
-        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rtag : '0);
+        (cpu_128b_r_rgnt_ddr ? ddr_axi_rtag : '0) |
+        (cpu_128b_r_rgnt_sram ? sram_axi_rtag : '0);
 
 
     // Master: dma, Width path: 128b
@@ -1026,32 +1142,32 @@ module bridge_2x2_axi5_native_xbar
         (dma_128b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign dma_128b_b.id = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
-        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (dma_128b_b_rgnt_ddr ? ddr_axi_bid : '0) |
+        (dma_128b_b_rgnt_sram ? sram_axi_bid : '0) |
+        (dma_128b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign dma_128b_b.resp = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
-        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (dma_128b_b_rgnt_ddr ? ddr_axi_bresp : '0) |
+        (dma_128b_b_rgnt_sram ? sram_axi_bresp : '0) |
+        (dma_128b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign dma_128b_b.user = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
-        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (dma_128b_b_rgnt_ddr ? ddr_axi_buser : '0) |
+        (dma_128b_b_rgnt_sram ? sram_axi_buser : '0) |
+        (dma_128b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign dma_128b_bvalid = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
-        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (dma_128b_b_rgnt_ddr ? ddr_axi_bvalid : '0) |
+        (dma_128b_b_rgnt_sram ? sram_axi_bvalid : '0) |
+        (dma_128b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign dma_128b_b.trace = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_btrace : '0) |
-        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_btrace : '0);
+        (dma_128b_b_rgnt_ddr ? ddr_axi_btrace : '0) |
+        (dma_128b_b_rgnt_sram ? sram_axi_btrace : '0);
 
     assign dma_128b_b.tagmatch = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_btagmatch : '0) |
-        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_btagmatch : '0);
+        (dma_128b_b_rgnt_ddr ? ddr_axi_btagmatch : '0) |
+        (dma_128b_b_rgnt_sram ? sram_axi_btagmatch : '0);
 
     assign dma_128b_arready = 
         (dma_128b_ar_gnt_ddr ? ddr_axi_arready : '0) |
@@ -1059,70 +1175,58 @@ module bridge_2x2_axi5_native_xbar
         (dma_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign dma_128b_r.id = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rid : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rid : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rid : '0) |
+        (dma_128b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign dma_128b_r.data = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rdata : 128'b0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rdata : 128'b0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 128'b0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rdata : 128'b0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rdata : 128'b0) |
+        (dma_128b_r_rgnt_subtractive ? subtractive_axi_rdata : 128'b0);
 
     assign dma_128b_r.resp = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rresp : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rresp : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rresp : '0) |
+        (dma_128b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign dma_128b_r.last = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rlast : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rlast : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rlast : '0) |
+        (dma_128b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign dma_128b_r.user = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_ruser : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_ruser : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_ruser : '0) |
+        (dma_128b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign dma_128b_rvalid = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master dma (128b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rvalid : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rvalid : '0) |
+        (dma_128b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
     assign dma_128b_r.trace = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rtrace : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rtrace : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rtrace : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rtrace : '0);
 
     assign dma_128b_r.poison = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rpoison : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rpoison : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rpoison : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rpoison : '0);
 
     assign dma_128b_r.chunkv = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rchunkv : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rchunkv : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rchunkv : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rchunkv : '0);
 
     assign dma_128b_r.chunknum = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rchunknum : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rchunknum : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rchunknum : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rchunknum : '0);
 
     assign dma_128b_r.chunkstrb = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rchunkstrb : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rchunkstrb : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rchunkstrb : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rchunkstrb : '0);
 
     assign dma_128b_r.tag = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rtag : '0) |
-        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rtag : '0);
+        (dma_128b_r_rgnt_ddr ? ddr_axi_rtag : '0) |
+        (dma_128b_r_rgnt_sram ? sram_axi_rtag : '0);
 
 
 endmodule : bridge_2x2_axi5_native_xbar

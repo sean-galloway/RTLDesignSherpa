@@ -103,10 +103,14 @@ Core AXI4 features that matter:
 - Burst transactions (INCR, WRAP, FIXED)
 - In-order completion. Responses are routed by a per-master `bridge_id`
   sideband and an in-order FIFO, NOT by matching AXI IDs -- see FR-2.
-- Multiple outstanding transactions per master, **to one slave at a time**.
-  The generated master adapters carry a single-outstanding-target gate
-  (`aw_gate_ok` / `ar_gate_ok`): a new AW/AR to a DIFFERENT slave is held off
-  until the outstanding ones drain.
+- Multiple outstanding transactions per master, **to several slaves at
+  once** (bridge parity item 1, 2026-10-15). The master adapter tracks per ID
+  (`[bridge].id_track_bits`, default 4): a new AW/AR waits only when its ID is
+  already in flight to a DIFFERENT slave, which is AXI's same-ID ordering rule.
+  A new AW also waits while W is still owed to a different slave (W carries no
+  ID). Responses from different slaves return in whatever order they arrive.
+  Ports with a read-return atomic or a trace echo keep the older
+  one-target-at-a-time FIFO path (MAS 2.1).
 - Channel-specific masters (write-only, read-only, read-write)
 - Data width conversion (32b ↔ 64b ↔ 128b ↔ 256b ↔ 512b)
 - Configurable M×N topology (1-32 masters, 1-256 slaves)
@@ -235,7 +239,7 @@ Bridge automates generation of AXI4 crossbar infrastructure:
   registers its output side, so an ideal zero-wait slave still costs >=4
   cycles of bridge-added latency before arbitration. The 2-3 cycle figure in
   6.1 describes the wrapperless flat crossbar, not what the generator emits.
-- [ ] Throughput: M×N paths do NOT all transfer concurrently. Each master is held to ONE target slave at a time (`aw_gate_ok`/`ar_gate_ok`, "single-outstanding-target"), a deadlock fix, not an oversight. Concurrency is across MASTERS, not across a master's targets.
+- [x] Throughput: a master may have transactions in flight at several slaves at once (per-ID tracking, `aw_gate_ok`/`ar_gate_ok`); the old one-target-per-master rule was lifted 2026-10-15 (bridge parity item 1). Exceptions: rr_atomic and trace-echo ports, see MAS 2.1.
 - [x] Performance models implemented (bridge_model.py - V1 Flat)
 - [ ] Fmax ≥ 300 MHz on UltraScale+ FPGAs (pending synthesis validation)
 
@@ -351,8 +355,10 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
   - AR channel arbiter (read address)
   - W has no arbiter -- a W-owner FIFO gives the channel to whichever master's
     AW the slave accepted first.
-  - B and R have no arbiter -- they are muxed combinationally on the
-    `bridge_id` carried alongside the response.
+  - B and R: a response arbiter per master width path picks among the
+    slaves whose response is for that master (round robin; the grant holds
+    while the response is offered and not taken, and through RLAST). One
+    slave on a path needs no arbiter.
 - Round-robin, grant held to the ADDRESS handshake -- NOT to xlast. The generated arbiters read `lock until handshake`.
 - Separate read/write paths (no head-of-line blocking)
 
@@ -807,8 +813,9 @@ end
 - Backpressure handling (similar to PREADY)
 
 **New Components for Bridge:**
-- **2 arbiters per slave** (AW and AR). W is owned via a FIFO, B and R are
-  muxed combinationally -- no arbiter on any of the three.
+- **2 arbiters per slave** (AW and AR), plus a B and an R response arbiter
+  per master width path that reaches more than one slave. W is owned via a
+  FIFO.
 - **`bridge_id` sideband routing** (B and R channel demuxing)
 - **In-order transaction tracking** (a FIFO per direction, not an ID table)
 - **Burst handling** (grant locked to the ADDRESS handshake, not xlast)

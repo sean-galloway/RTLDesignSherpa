@@ -130,6 +130,44 @@ module bridge_1x2_rd_axi5w_xbar
     // W-follow declarations (assigned below)
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    wire cpu_rd_32b_r_rgnt_sram_rd = ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid);
+
+    // ---- R response arbiter, master cpu_rd 64b: round-robin, lock through RLAST ----
+    logic [1:0] cpu_rd_64b_r_rarb_req;
+    assign cpu_rd_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid) && ddr_rd_axi_rvalid};
+    logic [0:0] cpu_rd_64b_r_rarb_lock, cpu_rd_64b_r_rarb_rr;
+    logic cpu_rd_64b_r_rarb_locked;
+    wire [0:0] cpu_rd_64b_r_rarb_pick = (cpu_rd_64b_r_rarb_rr == 1'd0) ? (cpu_rd_64b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_rd_64b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_rd_64b_r_rarb_gnt = cpu_rd_64b_r_rarb_locked ? cpu_rd_64b_r_rarb_lock : cpu_rd_64b_r_rarb_pick;
+    wire cpu_rd_64b_r_rarb_gnt_valid = cpu_rd_64b_r_rarb_locked || (|cpu_rd_64b_r_rarb_req);
+    wire cpu_rd_64b_r_rgnt_ddr_rd = cpu_rd_64b_r_rarb_gnt_valid && (cpu_rd_64b_r_rarb_gnt == 1'd0);
+    wire cpu_rd_64b_r_rgnt_subtractive = cpu_rd_64b_r_rarb_gnt_valid && (cpu_rd_64b_r_rarb_gnt == 1'd1);
+    wire cpu_rd_64b_r_rarb_vld = (cpu_rd_64b_r_rgnt_ddr_rd && cpu_rd_64b_r_rarb_req[0]) || (cpu_rd_64b_r_rgnt_subtractive && cpu_rd_64b_r_rarb_req[1]);
+    wire cpu_rd_64b_r_rarb_last = (cpu_rd_64b_r_rgnt_ddr_rd && ddr_rd_axi_rlast) || (cpu_rd_64b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_rd_64b_r_rarb_lock   <= '0;
+            cpu_rd_64b_r_rarb_rr     <= '0;
+            cpu_rd_64b_r_rarb_locked <= 1'b0;
+        end else if (cpu_rd_64b_r_rarb_vld && cpu_rd_64b_rready) begin
+            if (cpu_rd_64b_r_rarb_last) begin
+                cpu_rd_64b_r_rarb_locked <= 1'b0;
+                cpu_rd_64b_r_rarb_rr <= (cpu_rd_64b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_rd_64b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_rd_64b_r_rarb_lock   <= cpu_rd_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_rd_64b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_rd_64b_r_rarb_vld) begin
+            cpu_rd_64b_r_rarb_lock   <= cpu_rd_64b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_rd_64b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: ddr_rd (64b)
     // ================================================================
     // Single master: cpu_rd → ddr_rd
@@ -154,7 +192,7 @@ module bridge_1x2_rd_axi5w_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign ddr_rd_axi_rready = ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid) ? cpu_rd_64b_rready : '0;
+    assign ddr_rd_axi_rready = cpu_rd_64b_r_rgnt_ddr_rd ? cpu_rd_64b_rready : '0;
 
     // Bridge ID (master → slave)
     assign ddr_rd_axi_bridge_id_ar = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_bridge_id_ar : '0;
@@ -188,7 +226,7 @@ module bridge_1x2_rd_axi5w_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign sram_rd_axi_rready = ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid) ? cpu_rd_32b_rready : '0;
+    assign sram_rd_axi_rready = cpu_rd_32b_r_rgnt_sram_rd ? cpu_rd_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign sram_rd_axi_bridge_id_ar = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_bridge_id_ar : '0;
@@ -219,7 +257,7 @@ module bridge_1x2_rd_axi5w_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) ? cpu_rd_64b_rready : '0;
+    assign subtractive_axi_rready = cpu_rd_64b_r_rgnt_subtractive ? cpu_rd_64b_rready : '0;
 
     // Bridge ID (master → slave)
     assign subtractive_axi_bridge_id_ar = cpu_rd_64b_ar_to_subtractive ? cpu_rd_bridge_id_ar : '0;
@@ -237,37 +275,25 @@ module bridge_1x2_rd_axi5w_xbar
         (cpu_rd_32b_ar_gnt_sram_rd ? sram_rd_axi_arready : '0);
 
     assign cpu_rd_32b_r.id = 
-        ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rid : '0);
+        (cpu_rd_32b_r_rgnt_sram_rd ? sram_rd_axi_rid : '0);
 
     assign cpu_rd_32b_r.data = 
-        ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rdata : 32'b0);
+        (cpu_rd_32b_r_rgnt_sram_rd ? sram_rd_axi_rdata : 32'b0);
 
     assign cpu_rd_32b_r.resp = 
-        ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rresp : '0);
+        (cpu_rd_32b_r_rgnt_sram_rd ? sram_rd_axi_rresp : '0);
 
     assign cpu_rd_32b_r.last = 
-        ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rlast : '0);
+        (cpu_rd_32b_r_rgnt_sram_rd ? sram_rd_axi_rlast : '0);
 
     assign cpu_rd_32b_r.user = 
-        ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_ruser : '0);
+        (cpu_rd_32b_r_rgnt_sram_rd ? sram_rd_axi_ruser : '0);
 
     assign cpu_rd_32b_rvalid = 
-        ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_rd (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_rd_32b_r_rgnt_sram_rd ? sram_rd_axi_rvalid : '0);
 
     assign cpu_rd_32b_r.trace = 
-        ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rtrace : '0);
+        (cpu_rd_32b_r_rgnt_sram_rd ? sram_rd_axi_rtrace : '0);
 
 
     // Master: cpu_rd, Width path: 64b
@@ -276,40 +302,28 @@ module bridge_1x2_rd_axi5w_xbar
         (cpu_rd_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_rd_64b_r.id = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rid : '0) |
+        (cpu_rd_64b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign cpu_rd_64b_r.data = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rdata : 64'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rdata : 64'b0) |
+        (cpu_rd_64b_r_rgnt_subtractive ? subtractive_axi_rdata : 64'b0);
 
     assign cpu_rd_64b_r.resp = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rresp : '0) |
+        (cpu_rd_64b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign cpu_rd_64b_r.last = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rlast : '0) |
+        (cpu_rd_64b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign cpu_rd_64b_r.user = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_ruser : '0) |
+        (cpu_rd_64b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign cpu_rd_64b_rvalid = 
-        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_rd (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_rd_64b_r_rgnt_ddr_rd ? ddr_rd_axi_rvalid : '0) |
+        (cpu_rd_64b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
     assign cpu_rd_64b_r.trace = 
         '0;

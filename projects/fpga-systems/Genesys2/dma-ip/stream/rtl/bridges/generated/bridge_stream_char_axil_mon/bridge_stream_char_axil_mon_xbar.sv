@@ -538,6 +538,174 @@ module bridge_stream_char_axil_mon_xbar
     logic monbus_wr_256b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- B response arbiter, master host 32b: round-robin, lock until taken ----
+    logic [3:0] host_32b_b_rarb_req;
+    assign host_32b_b_rarb_req = {((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid) && dma_axil_axi_bvalid, ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid) && stream_err_axi_bvalid, ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) && harness_csr_axi_bvalid, ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid) && stream_apb_axi_bvalid};
+    logic [1:0] host_32b_b_rarb_lock, host_32b_b_rarb_rr;
+    logic host_32b_b_rarb_locked;
+    wire [1:0] host_32b_b_rarb_pick = (host_32b_b_rarb_rr == 2'd0) ? (host_32b_b_rarb_req[0] ? 2'd0 : host_32b_b_rarb_req[1] ? 2'd1 : host_32b_b_rarb_req[2] ? 2'd2 : 2'd3) : 
+        (host_32b_b_rarb_rr == 2'd1) ? (host_32b_b_rarb_req[1] ? 2'd1 : host_32b_b_rarb_req[2] ? 2'd2 : host_32b_b_rarb_req[3] ? 2'd3 : 2'd0) : 
+        (host_32b_b_rarb_rr == 2'd2) ? (host_32b_b_rarb_req[2] ? 2'd2 : host_32b_b_rarb_req[3] ? 2'd3 : host_32b_b_rarb_req[0] ? 2'd0 : 2'd1) : 
+        host_32b_b_rarb_req[3] ? 2'd3 : host_32b_b_rarb_req[0] ? 2'd0 : host_32b_b_rarb_req[1] ? 2'd1 : 2'd2;
+    wire [1:0] host_32b_b_rarb_gnt = host_32b_b_rarb_locked ? host_32b_b_rarb_lock : host_32b_b_rarb_pick;
+    wire host_32b_b_rarb_gnt_valid = host_32b_b_rarb_locked || (|host_32b_b_rarb_req);
+    wire host_32b_b_rgnt_stream_apb = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 2'd0);
+    wire host_32b_b_rgnt_harness_csr = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 2'd1);
+    wire host_32b_b_rgnt_stream_err = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 2'd2);
+    wire host_32b_b_rgnt_dma_axil = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 2'd3);
+    wire host_32b_b_rarb_vld = (host_32b_b_rgnt_stream_apb && host_32b_b_rarb_req[0]) || (host_32b_b_rgnt_harness_csr && host_32b_b_rarb_req[1]) || (host_32b_b_rgnt_stream_err && host_32b_b_rarb_req[2]) || (host_32b_b_rgnt_dma_axil && host_32b_b_rarb_req[3]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            host_32b_b_rarb_lock   <= '0;
+            host_32b_b_rarb_rr     <= '0;
+            host_32b_b_rarb_locked <= 1'b0;
+        end else if (host_32b_b_rarb_vld && host_32b_bready) begin
+            host_32b_b_rarb_locked <= 1'b0;
+            host_32b_b_rarb_rr <= (host_32b_b_rarb_gnt == 2'd3) ? 2'd0 : host_32b_b_rarb_gnt + 1'b1;
+        end else if (host_32b_b_rarb_vld) begin
+            host_32b_b_rarb_lock   <= host_32b_b_rarb_gnt;       // offered, not taken: hold
+            host_32b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master host 32b: round-robin, lock through RLAST ----
+    logic [3:0] host_32b_r_rarb_req;
+    assign host_32b_r_rarb_req = {((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid) && dma_axil_axi_rvalid, ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid) && stream_err_axi_rvalid, ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) && harness_csr_axi_rvalid, ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid) && stream_apb_axi_rvalid};
+    logic [1:0] host_32b_r_rarb_lock, host_32b_r_rarb_rr;
+    logic host_32b_r_rarb_locked;
+    wire [1:0] host_32b_r_rarb_pick = (host_32b_r_rarb_rr == 2'd0) ? (host_32b_r_rarb_req[0] ? 2'd0 : host_32b_r_rarb_req[1] ? 2'd1 : host_32b_r_rarb_req[2] ? 2'd2 : 2'd3) : 
+        (host_32b_r_rarb_rr == 2'd1) ? (host_32b_r_rarb_req[1] ? 2'd1 : host_32b_r_rarb_req[2] ? 2'd2 : host_32b_r_rarb_req[3] ? 2'd3 : 2'd0) : 
+        (host_32b_r_rarb_rr == 2'd2) ? (host_32b_r_rarb_req[2] ? 2'd2 : host_32b_r_rarb_req[3] ? 2'd3 : host_32b_r_rarb_req[0] ? 2'd0 : 2'd1) : 
+        host_32b_r_rarb_req[3] ? 2'd3 : host_32b_r_rarb_req[0] ? 2'd0 : host_32b_r_rarb_req[1] ? 2'd1 : 2'd2;
+    wire [1:0] host_32b_r_rarb_gnt = host_32b_r_rarb_locked ? host_32b_r_rarb_lock : host_32b_r_rarb_pick;
+    wire host_32b_r_rarb_gnt_valid = host_32b_r_rarb_locked || (|host_32b_r_rarb_req);
+    wire host_32b_r_rgnt_stream_apb = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 2'd0);
+    wire host_32b_r_rgnt_harness_csr = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 2'd1);
+    wire host_32b_r_rgnt_stream_err = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 2'd2);
+    wire host_32b_r_rgnt_dma_axil = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 2'd3);
+    wire host_32b_r_rarb_vld = (host_32b_r_rgnt_stream_apb && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_harness_csr && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_stream_err && host_32b_r_rarb_req[2]) || (host_32b_r_rgnt_dma_axil && host_32b_r_rarb_req[3]);
+    wire host_32b_r_rarb_last = (host_32b_r_rgnt_stream_apb && stream_apb_axi_rlast) || (host_32b_r_rgnt_harness_csr && harness_csr_axi_rlast) || (host_32b_r_rgnt_stream_err && stream_err_axi_rlast) || (host_32b_r_rgnt_dma_axil && dma_axil_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            host_32b_r_rarb_lock   <= '0;
+            host_32b_r_rarb_rr     <= '0;
+            host_32b_r_rarb_locked <= 1'b0;
+        end else if (host_32b_r_rarb_vld && host_32b_rready) begin
+            if (host_32b_r_rarb_last) begin
+                host_32b_r_rarb_locked <= 1'b0;
+                host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 2'd3) ? 2'd0 : host_32b_r_rarb_gnt + 1'b1;
+            end else begin
+                host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                host_32b_r_rarb_locked <= 1'b1;
+            end
+        end else if (host_32b_r_rarb_vld) begin
+            host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;       // offered, not taken: hold
+            host_32b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire host_64b_b_rgnt_debug_sram = ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid);
+
+    wire host_64b_r_rgnt_debug_sram = ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid);
+
+    // ---- B response arbiter, master host 256b: round-robin, lock until taken ----
+    logic [1:0] host_256b_b_rarb_req;
+    assign host_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid) && desc_ram_axi_bvalid};
+    logic [0:0] host_256b_b_rarb_lock, host_256b_b_rarb_rr;
+    logic host_256b_b_rarb_locked;
+    wire [0:0] host_256b_b_rarb_pick = (host_256b_b_rarb_rr == 1'd0) ? (host_256b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        host_256b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] host_256b_b_rarb_gnt = host_256b_b_rarb_locked ? host_256b_b_rarb_lock : host_256b_b_rarb_pick;
+    wire host_256b_b_rarb_gnt_valid = host_256b_b_rarb_locked || (|host_256b_b_rarb_req);
+    wire host_256b_b_rgnt_desc_ram = host_256b_b_rarb_gnt_valid && (host_256b_b_rarb_gnt == 1'd0);
+    wire host_256b_b_rgnt_subtractive = host_256b_b_rarb_gnt_valid && (host_256b_b_rarb_gnt == 1'd1);
+    wire host_256b_b_rarb_vld = (host_256b_b_rgnt_desc_ram && host_256b_b_rarb_req[0]) || (host_256b_b_rgnt_subtractive && host_256b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            host_256b_b_rarb_lock   <= '0;
+            host_256b_b_rarb_rr     <= '0;
+            host_256b_b_rarb_locked <= 1'b0;
+        end else if (host_256b_b_rarb_vld && host_256b_bready) begin
+            host_256b_b_rarb_locked <= 1'b0;
+            host_256b_b_rarb_rr <= (host_256b_b_rarb_gnt == 1'd1) ? 1'd0 : host_256b_b_rarb_gnt + 1'b1;
+        end else if (host_256b_b_rarb_vld) begin
+            host_256b_b_rarb_lock   <= host_256b_b_rarb_gnt;       // offered, not taken: hold
+            host_256b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master host 256b: round-robin, lock through RLAST ----
+    logic [1:0] host_256b_r_rarb_req;
+    assign host_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid) && desc_ram_axi_rvalid};
+    logic [0:0] host_256b_r_rarb_lock, host_256b_r_rarb_rr;
+    logic host_256b_r_rarb_locked;
+    wire [0:0] host_256b_r_rarb_pick = (host_256b_r_rarb_rr == 1'd0) ? (host_256b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        host_256b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] host_256b_r_rarb_gnt = host_256b_r_rarb_locked ? host_256b_r_rarb_lock : host_256b_r_rarb_pick;
+    wire host_256b_r_rarb_gnt_valid = host_256b_r_rarb_locked || (|host_256b_r_rarb_req);
+    wire host_256b_r_rgnt_desc_ram = host_256b_r_rarb_gnt_valid && (host_256b_r_rarb_gnt == 1'd0);
+    wire host_256b_r_rgnt_subtractive = host_256b_r_rarb_gnt_valid && (host_256b_r_rarb_gnt == 1'd1);
+    wire host_256b_r_rarb_vld = (host_256b_r_rgnt_desc_ram && host_256b_r_rarb_req[0]) || (host_256b_r_rgnt_subtractive && host_256b_r_rarb_req[1]);
+    wire host_256b_r_rarb_last = (host_256b_r_rgnt_desc_ram && desc_ram_axi_rlast) || (host_256b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            host_256b_r_rarb_lock   <= '0;
+            host_256b_r_rarb_rr     <= '0;
+            host_256b_r_rarb_locked <= 1'b0;
+        end else if (host_256b_r_rarb_vld && host_256b_rready) begin
+            if (host_256b_r_rarb_last) begin
+                host_256b_r_rarb_locked <= 1'b0;
+                host_256b_r_rarb_rr <= (host_256b_r_rarb_gnt == 1'd1) ? 1'd0 : host_256b_r_rarb_gnt + 1'b1;
+            end else begin
+                host_256b_r_rarb_lock   <= host_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                host_256b_r_rarb_locked <= 1'b1;
+            end
+        end else if (host_256b_r_rarb_vld) begin
+            host_256b_r_rarb_lock   <= host_256b_r_rarb_gnt;       // offered, not taken: hold
+            host_256b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master stream_desc 256b: round-robin, lock through RLAST ----
+    logic [1:0] stream_desc_256b_r_rarb_req;
+    assign stream_desc_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid) && desc_ram_axi_rvalid};
+    logic [0:0] stream_desc_256b_r_rarb_lock, stream_desc_256b_r_rarb_rr;
+    logic stream_desc_256b_r_rarb_locked;
+    wire [0:0] stream_desc_256b_r_rarb_pick = (stream_desc_256b_r_rarb_rr == 1'd0) ? (stream_desc_256b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        stream_desc_256b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] stream_desc_256b_r_rarb_gnt = stream_desc_256b_r_rarb_locked ? stream_desc_256b_r_rarb_lock : stream_desc_256b_r_rarb_pick;
+    wire stream_desc_256b_r_rarb_gnt_valid = stream_desc_256b_r_rarb_locked || (|stream_desc_256b_r_rarb_req);
+    wire stream_desc_256b_r_rgnt_desc_ram = stream_desc_256b_r_rarb_gnt_valid && (stream_desc_256b_r_rarb_gnt == 1'd0);
+    wire stream_desc_256b_r_rgnt_subtractive = stream_desc_256b_r_rarb_gnt_valid && (stream_desc_256b_r_rarb_gnt == 1'd1);
+    wire stream_desc_256b_r_rarb_vld = (stream_desc_256b_r_rgnt_desc_ram && stream_desc_256b_r_rarb_req[0]) || (stream_desc_256b_r_rgnt_subtractive && stream_desc_256b_r_rarb_req[1]);
+    wire stream_desc_256b_r_rarb_last = (stream_desc_256b_r_rgnt_desc_ram && desc_ram_axi_rlast) || (stream_desc_256b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stream_desc_256b_r_rarb_lock   <= '0;
+            stream_desc_256b_r_rarb_rr     <= '0;
+            stream_desc_256b_r_rarb_locked <= 1'b0;
+        end else if (stream_desc_256b_r_rarb_vld && stream_desc_256b_rready) begin
+            if (stream_desc_256b_r_rarb_last) begin
+                stream_desc_256b_r_rarb_locked <= 1'b0;
+                stream_desc_256b_r_rarb_rr <= (stream_desc_256b_r_rarb_gnt == 1'd1) ? 1'd0 : stream_desc_256b_r_rarb_gnt + 1'b1;
+            end else begin
+                stream_desc_256b_r_rarb_lock   <= stream_desc_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                stream_desc_256b_r_rarb_locked <= 1'b1;
+            end
+        end else if (stream_desc_256b_r_rarb_vld) begin
+            stream_desc_256b_r_rarb_lock   <= stream_desc_256b_r_rarb_gnt;       // offered, not taken: hold
+            stream_desc_256b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire monbus_wr_64b_b_rgnt_debug_sram = ((debug_sram_axi_bid_bridge_id == 2) && debug_sram_axi_bid_valid);
+
+    wire monbus_wr_256b_b_rgnt_subtractive = ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid);
+
+    // ================================================================
     // Slave 0: stream_apb (32b)
     // ================================================================
     // Single master: host → stream_apb
@@ -571,7 +739,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign stream_apb_axi_bready = ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid) ? host_32b_bready : '0;
+    assign stream_apb_axi_bready = host_32b_b_rgnt_stream_apb ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign stream_apb_axi_bridge_id_aw = host_32b_aw_to_stream_apb ? host_bridge_id_aw : '0;
@@ -594,7 +762,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign stream_apb_axi_rready = ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid) ? host_32b_rready : '0;
+    assign stream_apb_axi_rready = host_32b_r_rgnt_stream_apb ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign stream_apb_axi_bridge_id_ar = host_32b_ar_to_stream_apb ? host_bridge_id_ar : '0;
@@ -634,7 +802,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign harness_csr_axi_bready = ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) ? host_32b_bready : '0;
+    assign harness_csr_axi_bready = host_32b_b_rgnt_harness_csr ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign harness_csr_axi_bridge_id_aw = host_32b_aw_to_harness_csr ? host_bridge_id_aw : '0;
@@ -657,7 +825,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign harness_csr_axi_rready = ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) ? host_32b_rready : '0;
+    assign harness_csr_axi_rready = host_32b_r_rgnt_harness_csr ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign harness_csr_axi_bridge_id_ar = host_32b_ar_to_harness_csr ? host_bridge_id_ar : '0;
@@ -741,8 +909,8 @@ module bridge_stream_char_axil_mon_xbar
     assign desc_ram_axi_wuser = ((host_256b_w_sel_desc_ram && host_256b_wvalid) ? host_256b_w.user : '0);
     assign desc_ram_axi_wvalid = (host_256b_w_sel_desc_ram && host_256b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign desc_ram_axi_bready = ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? host_256b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign desc_ram_axi_bready = (host_256b_b_rgnt_desc_ram ? host_256b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign desc_ram_axi_bridge_id_aw = (host_256b_aw_gnt_desc_ram ? host_bridge_id_aw : '0);
@@ -799,9 +967,9 @@ module bridge_stream_char_axil_mon_xbar
         (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.user : '0);
     assign desc_ram_axi_arvalid = host_256b_ar_gnt_desc_ram || stream_desc_256b_ar_gnt_desc_ram;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign desc_ram_axi_rready = ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? host_256b_rready : '0) |
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? stream_desc_256b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign desc_ram_axi_rready = (host_256b_r_rgnt_desc_ram ? host_256b_rready : '0) |
+        (stream_desc_256b_r_rgnt_desc_ram ? stream_desc_256b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign desc_ram_axi_bridge_id_ar = (host_256b_ar_gnt_desc_ram ? host_bridge_id_ar : '0) |
@@ -842,7 +1010,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign stream_err_axi_bready = ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid) ? host_32b_bready : '0;
+    assign stream_err_axi_bready = host_32b_b_rgnt_stream_err ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign stream_err_axi_bridge_id_aw = host_32b_aw_to_stream_err ? host_bridge_id_aw : '0;
@@ -865,7 +1033,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign stream_err_axi_rready = ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid) ? host_32b_rready : '0;
+    assign stream_err_axi_rready = host_32b_r_rgnt_stream_err ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign stream_err_axi_bridge_id_ar = host_32b_ar_to_stream_err ? host_bridge_id_ar : '0;
@@ -967,9 +1135,9 @@ module bridge_stream_char_axil_mon_xbar
         ((monbus_wr_64b_w_sel_debug_sram && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.user : '0);
     assign debug_sram_axi_wvalid = (host_64b_w_sel_debug_sram && host_64b_wvalid) || (monbus_wr_64b_w_sel_debug_sram && monbus_wr_64b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign debug_sram_axi_bready = ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? host_64b_bready : '0) |
-        ((debug_sram_axi_bid_bridge_id == 2) && debug_sram_axi_bid_valid ? monbus_wr_64b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign debug_sram_axi_bready = (host_64b_b_rgnt_debug_sram ? host_64b_bready : '0) |
+        (monbus_wr_64b_b_rgnt_debug_sram ? monbus_wr_64b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign debug_sram_axi_bridge_id_aw = (host_64b_aw_gnt_debug_sram ? host_bridge_id_aw : '0) |
@@ -1014,8 +1182,8 @@ module bridge_stream_char_axil_mon_xbar
     assign debug_sram_axi_aruser = (host_64b_ar_gnt_debug_sram ? host_64b_ar.user : '0);
     assign debug_sram_axi_arvalid = host_64b_ar_gnt_debug_sram;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign debug_sram_axi_rready = ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? host_64b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign debug_sram_axi_rready = (host_64b_r_rgnt_debug_sram ? host_64b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign debug_sram_axi_bridge_id_ar = (host_64b_ar_gnt_debug_sram ? host_bridge_id_ar : '0);
@@ -1055,7 +1223,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign dma_axil_axi_bready = ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid) ? host_32b_bready : '0;
+    assign dma_axil_axi_bready = host_32b_b_rgnt_dma_axil ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign dma_axil_axi_bridge_id_aw = host_32b_aw_to_dma_axil ? host_bridge_id_aw : '0;
@@ -1078,7 +1246,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign dma_axil_axi_rready = ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid) ? host_32b_rready : '0;
+    assign dma_axil_axi_rready = host_32b_r_rgnt_dma_axil ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign dma_axil_axi_bridge_id_ar = host_32b_ar_to_dma_axil ? host_bridge_id_ar : '0;
@@ -1182,9 +1350,9 @@ module bridge_stream_char_axil_mon_xbar
         ((monbus_wr_256b_w_sel_subtractive && monbus_wr_256b_wvalid) ? monbus_wr_256b_w.user : '0);
     assign subtractive_axi_wvalid = (host_256b_w_sel_subtractive && host_256b_wvalid) || (monbus_wr_256b_w_sel_subtractive && monbus_wr_256b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? host_256b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? monbus_wr_256b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_bready = (host_256b_b_rgnt_subtractive ? host_256b_bready : '0) |
+        (monbus_wr_256b_b_rgnt_subtractive ? monbus_wr_256b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign subtractive_axi_bridge_id_aw = (host_256b_aw_gnt_subtractive ? host_bridge_id_aw : '0) |
@@ -1242,9 +1410,9 @@ module bridge_stream_char_axil_mon_xbar
         (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.user : '0);
     assign subtractive_axi_arvalid = host_256b_ar_gnt_subtractive || stream_desc_256b_ar_gnt_subtractive;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? host_256b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? stream_desc_256b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_rready = (host_256b_r_rgnt_subtractive ? host_256b_rready : '0) |
+        (stream_desc_256b_r_rgnt_subtractive ? stream_desc_256b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign subtractive_axi_bridge_id_ar = (host_256b_ar_gnt_subtractive ? host_bridge_id_ar : '0) |
@@ -1396,28 +1564,28 @@ module bridge_stream_char_axil_mon_xbar
         (host_32b_w_sel_dma_axil ? dma_axil_axi_wready : '0);
 
     assign host_32b_b.id = 
-        ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid ? stream_apb_axi_bid : '0) |
-        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bid : '0) |
-        ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid ? stream_err_axi_bid : '0) |
-        ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid ? dma_axil_axi_bid : '0);
+        (host_32b_b_rgnt_stream_apb ? stream_apb_axi_bid : '0) |
+        (host_32b_b_rgnt_harness_csr ? harness_csr_axi_bid : '0) |
+        (host_32b_b_rgnt_stream_err ? stream_err_axi_bid : '0) |
+        (host_32b_b_rgnt_dma_axil ? dma_axil_axi_bid : '0);
 
     assign host_32b_b.resp = 
-        ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid ? stream_apb_axi_bresp : '0) |
-        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bresp : '0) |
-        ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid ? stream_err_axi_bresp : '0) |
-        ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid ? dma_axil_axi_bresp : '0);
+        (host_32b_b_rgnt_stream_apb ? stream_apb_axi_bresp : '0) |
+        (host_32b_b_rgnt_harness_csr ? harness_csr_axi_bresp : '0) |
+        (host_32b_b_rgnt_stream_err ? stream_err_axi_bresp : '0) |
+        (host_32b_b_rgnt_dma_axil ? dma_axil_axi_bresp : '0);
 
     assign host_32b_b.user = 
-        ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid ? stream_apb_axi_buser : '0) |
-        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_buser : '0) |
-        ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid ? stream_err_axi_buser : '0) |
-        ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid ? dma_axil_axi_buser : '0);
+        (host_32b_b_rgnt_stream_apb ? stream_apb_axi_buser : '0) |
+        (host_32b_b_rgnt_harness_csr ? harness_csr_axi_buser : '0) |
+        (host_32b_b_rgnt_stream_err ? stream_err_axi_buser : '0) |
+        (host_32b_b_rgnt_dma_axil ? dma_axil_axi_buser : '0);
 
     assign host_32b_bvalid = 
-        ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid ? stream_apb_axi_bvalid : '0) |
-        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bvalid : '0) |
-        ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid ? stream_err_axi_bvalid : '0) |
-        ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid ? dma_axil_axi_bvalid : '0);
+        (host_32b_b_rgnt_stream_apb ? stream_apb_axi_bvalid : '0) |
+        (host_32b_b_rgnt_harness_csr ? harness_csr_axi_bvalid : '0) |
+        (host_32b_b_rgnt_stream_err ? stream_err_axi_bvalid : '0) |
+        (host_32b_b_rgnt_dma_axil ? dma_axil_axi_bvalid : '0);
 
     assign host_32b_arready = 
         (host_32b_ar_gnt_stream_apb ? stream_apb_axi_arready : '0) |
@@ -1426,52 +1594,40 @@ module bridge_stream_char_axil_mon_xbar
         (host_32b_ar_gnt_dma_axil ? dma_axil_axi_arready : '0);
 
     assign host_32b_r.id = 
-        ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid ? stream_apb_axi_rid : '0) |
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rid : '0) |
-        ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid ? stream_err_axi_rid : '0) |
-        ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_rid : '0);
+        (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rid : '0) |
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rid : '0) |
+        (host_32b_r_rgnt_stream_err ? stream_err_axi_rid : '0) |
+        (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rid : '0);
 
     assign host_32b_r.data = 
-        ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid ? stream_apb_axi_rdata : 32'b0) |
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rdata : 32'b0) |
-        ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid ? stream_err_axi_rdata : 32'b0) |
-        ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_rdata : 32'b0);
+        (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rdata : 32'b0) |
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rdata : 32'b0) |
+        (host_32b_r_rgnt_stream_err ? stream_err_axi_rdata : 32'b0) |
+        (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rdata : 32'b0);
 
     assign host_32b_r.resp = 
-        ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid ? stream_apb_axi_rresp : '0) |
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rresp : '0) |
-        ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid ? stream_err_axi_rresp : '0) |
-        ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_rresp : '0);
+        (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rresp : '0) |
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rresp : '0) |
+        (host_32b_r_rgnt_stream_err ? stream_err_axi_rresp : '0) |
+        (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rresp : '0);
 
     assign host_32b_r.last = 
-        ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid ? stream_apb_axi_rlast : '0) |
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rlast : '0) |
-        ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid ? stream_err_axi_rlast : '0) |
-        ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_rlast : '0);
+        (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rlast : '0) |
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rlast : '0) |
+        (host_32b_r_rgnt_stream_err ? stream_err_axi_rlast : '0) |
+        (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rlast : '0);
 
     assign host_32b_r.user = 
-        ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid ? stream_apb_axi_ruser : '0) |
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_ruser : '0) |
-        ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid ? stream_err_axi_ruser : '0) |
-        ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_ruser : '0);
+        (host_32b_r_rgnt_stream_apb ? stream_apb_axi_ruser : '0) |
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_ruser : '0) |
+        (host_32b_r_rgnt_stream_err ? stream_err_axi_ruser : '0) |
+        (host_32b_r_rgnt_dma_axil ? dma_axil_axi_ruser : '0);
 
     assign host_32b_rvalid = 
-        ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid ? stream_apb_axi_rvalid : '0) |
-        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rvalid : '0) |
-        ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid ? stream_err_axi_rvalid : '0) |
-        ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid), ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid), ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master host (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid), ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid), ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rvalid : '0) |
+        (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rvalid : '0) |
+        (host_32b_r_rgnt_stream_err ? stream_err_axi_rvalid : '0) |
+        (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rvalid : '0);
 
 
     // Master: host, Width path: 64b
@@ -1482,49 +1638,37 @@ module bridge_stream_char_axil_mon_xbar
         (host_64b_w_sel_debug_sram ? debug_sram_axi_wready : '0);
 
     assign host_64b_b.id = 
-        ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bid : '0);
+        (host_64b_b_rgnt_debug_sram ? debug_sram_axi_bid : '0);
 
     assign host_64b_b.resp = 
-        ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bresp : '0);
+        (host_64b_b_rgnt_debug_sram ? debug_sram_axi_bresp : '0);
 
     assign host_64b_b.user = 
-        ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_buser : '0);
+        (host_64b_b_rgnt_debug_sram ? debug_sram_axi_buser : '0);
 
     assign host_64b_bvalid = 
-        ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bvalid : '0);
+        (host_64b_b_rgnt_debug_sram ? debug_sram_axi_bvalid : '0);
 
     assign host_64b_arready = 
         (host_64b_ar_gnt_debug_sram ? debug_sram_axi_arready : '0);
 
     assign host_64b_r.id = 
-        ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rid : '0);
+        (host_64b_r_rgnt_debug_sram ? debug_sram_axi_rid : '0);
 
     assign host_64b_r.data = 
-        ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rdata : 64'b0);
+        (host_64b_r_rgnt_debug_sram ? debug_sram_axi_rdata : 64'b0);
 
     assign host_64b_r.resp = 
-        ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rresp : '0);
+        (host_64b_r_rgnt_debug_sram ? debug_sram_axi_rresp : '0);
 
     assign host_64b_r.last = 
-        ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rlast : '0);
+        (host_64b_r_rgnt_debug_sram ? debug_sram_axi_rlast : '0);
 
     assign host_64b_r.user = 
-        ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_ruser : '0);
+        (host_64b_r_rgnt_debug_sram ? debug_sram_axi_ruser : '0);
 
     assign host_64b_rvalid = 
-        ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master host (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (host_64b_r_rgnt_debug_sram ? debug_sram_axi_rvalid : '0);
 
 
     // Master: host, Width path: 256b
@@ -1537,60 +1681,48 @@ module bridge_stream_char_axil_mon_xbar
         (host_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign host_256b_b.id = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (host_256b_b_rgnt_desc_ram ? desc_ram_axi_bid : '0) |
+        (host_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign host_256b_b.resp = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (host_256b_b_rgnt_desc_ram ? desc_ram_axi_bresp : '0) |
+        (host_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign host_256b_b.user = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (host_256b_b_rgnt_desc_ram ? desc_ram_axi_buser : '0) |
+        (host_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign host_256b_bvalid = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (host_256b_b_rgnt_desc_ram ? desc_ram_axi_bvalid : '0) |
+        (host_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign host_256b_arready = 
         (host_256b_ar_gnt_desc_ram ? desc_ram_axi_arready : '0) |
         (host_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign host_256b_r.id = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (host_256b_r_rgnt_desc_ram ? desc_ram_axi_rid : '0) |
+        (host_256b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign host_256b_r.data = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 256'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
+        (host_256b_r_rgnt_desc_ram ? desc_ram_axi_rdata : 256'b0) |
+        (host_256b_r_rgnt_subtractive ? subtractive_axi_rdata : 256'b0);
 
     assign host_256b_r.resp = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (host_256b_r_rgnt_desc_ram ? desc_ram_axi_rresp : '0) |
+        (host_256b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign host_256b_r.last = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (host_256b_r_rgnt_desc_ram ? desc_ram_axi_rlast : '0) |
+        (host_256b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign host_256b_r.user = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (host_256b_r_rgnt_desc_ram ? desc_ram_axi_ruser : '0) |
+        (host_256b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign host_256b_rvalid = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master host (256b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (host_256b_r_rgnt_desc_ram ? desc_ram_axi_rvalid : '0) |
+        (host_256b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: stream_desc, Width path: 256b
@@ -1599,40 +1731,28 @@ module bridge_stream_char_axil_mon_xbar
         (stream_desc_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign stream_desc_256b_r.id = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (stream_desc_256b_r_rgnt_desc_ram ? desc_ram_axi_rid : '0) |
+        (stream_desc_256b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign stream_desc_256b_r.data = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 256'b0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
+        (stream_desc_256b_r_rgnt_desc_ram ? desc_ram_axi_rdata : 256'b0) |
+        (stream_desc_256b_r_rgnt_subtractive ? subtractive_axi_rdata : 256'b0);
 
     assign stream_desc_256b_r.resp = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (stream_desc_256b_r_rgnt_desc_ram ? desc_ram_axi_rresp : '0) |
+        (stream_desc_256b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign stream_desc_256b_r.last = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (stream_desc_256b_r_rgnt_desc_ram ? desc_ram_axi_rlast : '0) |
+        (stream_desc_256b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign stream_desc_256b_r.user = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (stream_desc_256b_r_rgnt_desc_ram ? desc_ram_axi_ruser : '0) |
+        (stream_desc_256b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign stream_desc_256b_rvalid = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master stream_desc (256b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (stream_desc_256b_r_rgnt_desc_ram ? desc_ram_axi_rvalid : '0) |
+        (stream_desc_256b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: monbus_wr, Width path: 64b
@@ -1643,16 +1763,16 @@ module bridge_stream_char_axil_mon_xbar
         (monbus_wr_64b_w_sel_debug_sram ? debug_sram_axi_wready : '0);
 
     assign monbus_wr_64b_b.id = 
-        ((debug_sram_axi_bid_bridge_id == 2) && debug_sram_axi_bid_valid ? debug_sram_axi_bid : '0);
+        (monbus_wr_64b_b_rgnt_debug_sram ? debug_sram_axi_bid : '0);
 
     assign monbus_wr_64b_b.resp = 
-        ((debug_sram_axi_bid_bridge_id == 2) && debug_sram_axi_bid_valid ? debug_sram_axi_bresp : '0);
+        (monbus_wr_64b_b_rgnt_debug_sram ? debug_sram_axi_bresp : '0);
 
     assign monbus_wr_64b_b.user = 
-        ((debug_sram_axi_bid_bridge_id == 2) && debug_sram_axi_bid_valid ? debug_sram_axi_buser : '0);
+        (monbus_wr_64b_b_rgnt_debug_sram ? debug_sram_axi_buser : '0);
 
     assign monbus_wr_64b_bvalid = 
-        ((debug_sram_axi_bid_bridge_id == 2) && debug_sram_axi_bid_valid ? debug_sram_axi_bvalid : '0);
+        (monbus_wr_64b_b_rgnt_debug_sram ? debug_sram_axi_bvalid : '0);
 
 
     // Master: monbus_wr, Width path: 256b
@@ -1663,16 +1783,16 @@ module bridge_stream_char_axil_mon_xbar
         (monbus_wr_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign monbus_wr_256b_b.id = 
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (monbus_wr_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign monbus_wr_256b_b.resp = 
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (monbus_wr_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign monbus_wr_256b_b.user = 
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (monbus_wr_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign monbus_wr_256b_bvalid = 
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (monbus_wr_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
 
 endmodule : bridge_stream_char_axil_mon_xbar

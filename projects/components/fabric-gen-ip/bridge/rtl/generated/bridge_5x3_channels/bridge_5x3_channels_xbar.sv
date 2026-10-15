@@ -382,6 +382,228 @@ module bridge_5x3_channels_xbar
     logic cpu_master_256b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- B response arbiter, master descr_wr_master 256b: round-robin, lock until taken ----
+    logic [2:0] descr_wr_master_256b_b_rarb_req;
+    assign descr_wr_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid) && ddr_controller_axi_bvalid, ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid) && sram_buffer_axi_bvalid};
+    logic [1:0] descr_wr_master_256b_b_rarb_lock, descr_wr_master_256b_b_rarb_rr;
+    logic descr_wr_master_256b_b_rarb_locked;
+    wire [1:0] descr_wr_master_256b_b_rarb_pick = (descr_wr_master_256b_b_rarb_rr == 2'd0) ? (descr_wr_master_256b_b_rarb_req[0] ? 2'd0 : descr_wr_master_256b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (descr_wr_master_256b_b_rarb_rr == 2'd1) ? (descr_wr_master_256b_b_rarb_req[1] ? 2'd1 : descr_wr_master_256b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        descr_wr_master_256b_b_rarb_req[2] ? 2'd2 : descr_wr_master_256b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] descr_wr_master_256b_b_rarb_gnt = descr_wr_master_256b_b_rarb_locked ? descr_wr_master_256b_b_rarb_lock : descr_wr_master_256b_b_rarb_pick;
+    wire descr_wr_master_256b_b_rarb_gnt_valid = descr_wr_master_256b_b_rarb_locked || (|descr_wr_master_256b_b_rarb_req);
+    wire descr_wr_master_256b_b_rgnt_sram_buffer = descr_wr_master_256b_b_rarb_gnt_valid && (descr_wr_master_256b_b_rarb_gnt == 2'd0);
+    wire descr_wr_master_256b_b_rgnt_ddr_controller = descr_wr_master_256b_b_rarb_gnt_valid && (descr_wr_master_256b_b_rarb_gnt == 2'd1);
+    wire descr_wr_master_256b_b_rgnt_subtractive = descr_wr_master_256b_b_rarb_gnt_valid && (descr_wr_master_256b_b_rarb_gnt == 2'd2);
+    wire descr_wr_master_256b_b_rarb_vld = (descr_wr_master_256b_b_rgnt_sram_buffer && descr_wr_master_256b_b_rarb_req[0]) || (descr_wr_master_256b_b_rgnt_ddr_controller && descr_wr_master_256b_b_rarb_req[1]) || (descr_wr_master_256b_b_rgnt_subtractive && descr_wr_master_256b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            descr_wr_master_256b_b_rarb_lock   <= '0;
+            descr_wr_master_256b_b_rarb_rr     <= '0;
+            descr_wr_master_256b_b_rarb_locked <= 1'b0;
+        end else if (descr_wr_master_256b_b_rarb_vld && descr_wr_master_256b_bready) begin
+            descr_wr_master_256b_b_rarb_locked <= 1'b0;
+            descr_wr_master_256b_b_rarb_rr <= (descr_wr_master_256b_b_rarb_gnt == 2'd2) ? 2'd0 : descr_wr_master_256b_b_rarb_gnt + 1'b1;
+        end else if (descr_wr_master_256b_b_rarb_vld) begin
+            descr_wr_master_256b_b_rarb_lock   <= descr_wr_master_256b_b_rarb_gnt;       // offered, not taken: hold
+            descr_wr_master_256b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- B response arbiter, master sink_wr_master 256b: round-robin, lock until taken ----
+    logic [2:0] sink_wr_master_256b_b_rarb_req;
+    assign sink_wr_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_controller_axi_bid_bridge_id == 1) && ddr_controller_axi_bid_valid) && ddr_controller_axi_bvalid, ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid) && sram_buffer_axi_bvalid};
+    logic [1:0] sink_wr_master_256b_b_rarb_lock, sink_wr_master_256b_b_rarb_rr;
+    logic sink_wr_master_256b_b_rarb_locked;
+    wire [1:0] sink_wr_master_256b_b_rarb_pick = (sink_wr_master_256b_b_rarb_rr == 2'd0) ? (sink_wr_master_256b_b_rarb_req[0] ? 2'd0 : sink_wr_master_256b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (sink_wr_master_256b_b_rarb_rr == 2'd1) ? (sink_wr_master_256b_b_rarb_req[1] ? 2'd1 : sink_wr_master_256b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        sink_wr_master_256b_b_rarb_req[2] ? 2'd2 : sink_wr_master_256b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] sink_wr_master_256b_b_rarb_gnt = sink_wr_master_256b_b_rarb_locked ? sink_wr_master_256b_b_rarb_lock : sink_wr_master_256b_b_rarb_pick;
+    wire sink_wr_master_256b_b_rarb_gnt_valid = sink_wr_master_256b_b_rarb_locked || (|sink_wr_master_256b_b_rarb_req);
+    wire sink_wr_master_256b_b_rgnt_sram_buffer = sink_wr_master_256b_b_rarb_gnt_valid && (sink_wr_master_256b_b_rarb_gnt == 2'd0);
+    wire sink_wr_master_256b_b_rgnt_ddr_controller = sink_wr_master_256b_b_rarb_gnt_valid && (sink_wr_master_256b_b_rarb_gnt == 2'd1);
+    wire sink_wr_master_256b_b_rgnt_subtractive = sink_wr_master_256b_b_rarb_gnt_valid && (sink_wr_master_256b_b_rarb_gnt == 2'd2);
+    wire sink_wr_master_256b_b_rarb_vld = (sink_wr_master_256b_b_rgnt_sram_buffer && sink_wr_master_256b_b_rarb_req[0]) || (sink_wr_master_256b_b_rgnt_ddr_controller && sink_wr_master_256b_b_rarb_req[1]) || (sink_wr_master_256b_b_rgnt_subtractive && sink_wr_master_256b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            sink_wr_master_256b_b_rarb_lock   <= '0;
+            sink_wr_master_256b_b_rarb_rr     <= '0;
+            sink_wr_master_256b_b_rarb_locked <= 1'b0;
+        end else if (sink_wr_master_256b_b_rarb_vld && sink_wr_master_256b_bready) begin
+            sink_wr_master_256b_b_rarb_locked <= 1'b0;
+            sink_wr_master_256b_b_rarb_rr <= (sink_wr_master_256b_b_rarb_gnt == 2'd2) ? 2'd0 : sink_wr_master_256b_b_rarb_gnt + 1'b1;
+        end else if (sink_wr_master_256b_b_rarb_vld) begin
+            sink_wr_master_256b_b_rarb_lock   <= sink_wr_master_256b_b_rarb_gnt;       // offered, not taken: hold
+            sink_wr_master_256b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master src_rd_master 256b: round-robin, lock through RLAST ----
+    logic [2:0] src_rd_master_256b_r_rarb_req;
+    assign src_rd_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid) && ddr_controller_axi_rvalid, ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid) && sram_buffer_axi_rvalid};
+    logic [1:0] src_rd_master_256b_r_rarb_lock, src_rd_master_256b_r_rarb_rr;
+    logic src_rd_master_256b_r_rarb_locked;
+    wire [1:0] src_rd_master_256b_r_rarb_pick = (src_rd_master_256b_r_rarb_rr == 2'd0) ? (src_rd_master_256b_r_rarb_req[0] ? 2'd0 : src_rd_master_256b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (src_rd_master_256b_r_rarb_rr == 2'd1) ? (src_rd_master_256b_r_rarb_req[1] ? 2'd1 : src_rd_master_256b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        src_rd_master_256b_r_rarb_req[2] ? 2'd2 : src_rd_master_256b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] src_rd_master_256b_r_rarb_gnt = src_rd_master_256b_r_rarb_locked ? src_rd_master_256b_r_rarb_lock : src_rd_master_256b_r_rarb_pick;
+    wire src_rd_master_256b_r_rarb_gnt_valid = src_rd_master_256b_r_rarb_locked || (|src_rd_master_256b_r_rarb_req);
+    wire src_rd_master_256b_r_rgnt_sram_buffer = src_rd_master_256b_r_rarb_gnt_valid && (src_rd_master_256b_r_rarb_gnt == 2'd0);
+    wire src_rd_master_256b_r_rgnt_ddr_controller = src_rd_master_256b_r_rarb_gnt_valid && (src_rd_master_256b_r_rarb_gnt == 2'd1);
+    wire src_rd_master_256b_r_rgnt_subtractive = src_rd_master_256b_r_rarb_gnt_valid && (src_rd_master_256b_r_rarb_gnt == 2'd2);
+    wire src_rd_master_256b_r_rarb_vld = (src_rd_master_256b_r_rgnt_sram_buffer && src_rd_master_256b_r_rarb_req[0]) || (src_rd_master_256b_r_rgnt_ddr_controller && src_rd_master_256b_r_rarb_req[1]) || (src_rd_master_256b_r_rgnt_subtractive && src_rd_master_256b_r_rarb_req[2]);
+    wire src_rd_master_256b_r_rarb_last = (src_rd_master_256b_r_rgnt_sram_buffer && sram_buffer_axi_rlast) || (src_rd_master_256b_r_rgnt_ddr_controller && ddr_controller_axi_rlast) || (src_rd_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            src_rd_master_256b_r_rarb_lock   <= '0;
+            src_rd_master_256b_r_rarb_rr     <= '0;
+            src_rd_master_256b_r_rarb_locked <= 1'b0;
+        end else if (src_rd_master_256b_r_rarb_vld && src_rd_master_256b_rready) begin
+            if (src_rd_master_256b_r_rarb_last) begin
+                src_rd_master_256b_r_rarb_locked <= 1'b0;
+                src_rd_master_256b_r_rarb_rr <= (src_rd_master_256b_r_rarb_gnt == 2'd2) ? 2'd0 : src_rd_master_256b_r_rarb_gnt + 1'b1;
+            end else begin
+                src_rd_master_256b_r_rarb_lock   <= src_rd_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                src_rd_master_256b_r_rarb_locked <= 1'b1;
+            end
+        end else if (src_rd_master_256b_r_rarb_vld) begin
+            src_rd_master_256b_r_rarb_lock   <= src_rd_master_256b_r_rarb_gnt;       // offered, not taken: hold
+            src_rd_master_256b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- B response arbiter, master stream_master 256b: round-robin, lock until taken ----
+    logic [2:0] stream_master_256b_b_rarb_req;
+    assign stream_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid) && ddr_controller_axi_bvalid, ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid) && sram_buffer_axi_bvalid};
+    logic [1:0] stream_master_256b_b_rarb_lock, stream_master_256b_b_rarb_rr;
+    logic stream_master_256b_b_rarb_locked;
+    wire [1:0] stream_master_256b_b_rarb_pick = (stream_master_256b_b_rarb_rr == 2'd0) ? (stream_master_256b_b_rarb_req[0] ? 2'd0 : stream_master_256b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (stream_master_256b_b_rarb_rr == 2'd1) ? (stream_master_256b_b_rarb_req[1] ? 2'd1 : stream_master_256b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        stream_master_256b_b_rarb_req[2] ? 2'd2 : stream_master_256b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] stream_master_256b_b_rarb_gnt = stream_master_256b_b_rarb_locked ? stream_master_256b_b_rarb_lock : stream_master_256b_b_rarb_pick;
+    wire stream_master_256b_b_rarb_gnt_valid = stream_master_256b_b_rarb_locked || (|stream_master_256b_b_rarb_req);
+    wire stream_master_256b_b_rgnt_sram_buffer = stream_master_256b_b_rarb_gnt_valid && (stream_master_256b_b_rarb_gnt == 2'd0);
+    wire stream_master_256b_b_rgnt_ddr_controller = stream_master_256b_b_rarb_gnt_valid && (stream_master_256b_b_rarb_gnt == 2'd1);
+    wire stream_master_256b_b_rgnt_subtractive = stream_master_256b_b_rarb_gnt_valid && (stream_master_256b_b_rarb_gnt == 2'd2);
+    wire stream_master_256b_b_rarb_vld = (stream_master_256b_b_rgnt_sram_buffer && stream_master_256b_b_rarb_req[0]) || (stream_master_256b_b_rgnt_ddr_controller && stream_master_256b_b_rarb_req[1]) || (stream_master_256b_b_rgnt_subtractive && stream_master_256b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stream_master_256b_b_rarb_lock   <= '0;
+            stream_master_256b_b_rarb_rr     <= '0;
+            stream_master_256b_b_rarb_locked <= 1'b0;
+        end else if (stream_master_256b_b_rarb_vld && stream_master_256b_bready) begin
+            stream_master_256b_b_rarb_locked <= 1'b0;
+            stream_master_256b_b_rarb_rr <= (stream_master_256b_b_rarb_gnt == 2'd2) ? 2'd0 : stream_master_256b_b_rarb_gnt + 1'b1;
+        end else if (stream_master_256b_b_rarb_vld) begin
+            stream_master_256b_b_rarb_lock   <= stream_master_256b_b_rarb_gnt;       // offered, not taken: hold
+            stream_master_256b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master stream_master 256b: round-robin, lock through RLAST ----
+    logic [2:0] stream_master_256b_r_rarb_req;
+    assign stream_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid) && ddr_controller_axi_rvalid, ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid) && sram_buffer_axi_rvalid};
+    logic [1:0] stream_master_256b_r_rarb_lock, stream_master_256b_r_rarb_rr;
+    logic stream_master_256b_r_rarb_locked;
+    wire [1:0] stream_master_256b_r_rarb_pick = (stream_master_256b_r_rarb_rr == 2'd0) ? (stream_master_256b_r_rarb_req[0] ? 2'd0 : stream_master_256b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (stream_master_256b_r_rarb_rr == 2'd1) ? (stream_master_256b_r_rarb_req[1] ? 2'd1 : stream_master_256b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        stream_master_256b_r_rarb_req[2] ? 2'd2 : stream_master_256b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] stream_master_256b_r_rarb_gnt = stream_master_256b_r_rarb_locked ? stream_master_256b_r_rarb_lock : stream_master_256b_r_rarb_pick;
+    wire stream_master_256b_r_rarb_gnt_valid = stream_master_256b_r_rarb_locked || (|stream_master_256b_r_rarb_req);
+    wire stream_master_256b_r_rgnt_sram_buffer = stream_master_256b_r_rarb_gnt_valid && (stream_master_256b_r_rarb_gnt == 2'd0);
+    wire stream_master_256b_r_rgnt_ddr_controller = stream_master_256b_r_rarb_gnt_valid && (stream_master_256b_r_rarb_gnt == 2'd1);
+    wire stream_master_256b_r_rgnt_subtractive = stream_master_256b_r_rarb_gnt_valid && (stream_master_256b_r_rarb_gnt == 2'd2);
+    wire stream_master_256b_r_rarb_vld = (stream_master_256b_r_rgnt_sram_buffer && stream_master_256b_r_rarb_req[0]) || (stream_master_256b_r_rgnt_ddr_controller && stream_master_256b_r_rarb_req[1]) || (stream_master_256b_r_rgnt_subtractive && stream_master_256b_r_rarb_req[2]);
+    wire stream_master_256b_r_rarb_last = (stream_master_256b_r_rgnt_sram_buffer && sram_buffer_axi_rlast) || (stream_master_256b_r_rgnt_ddr_controller && ddr_controller_axi_rlast) || (stream_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stream_master_256b_r_rarb_lock   <= '0;
+            stream_master_256b_r_rarb_rr     <= '0;
+            stream_master_256b_r_rarb_locked <= 1'b0;
+        end else if (stream_master_256b_r_rarb_vld && stream_master_256b_rready) begin
+            if (stream_master_256b_r_rarb_last) begin
+                stream_master_256b_r_rarb_locked <= 1'b0;
+                stream_master_256b_r_rarb_rr <= (stream_master_256b_r_rarb_gnt == 2'd2) ? 2'd0 : stream_master_256b_r_rarb_gnt + 1'b1;
+            end else begin
+                stream_master_256b_r_rarb_lock   <= stream_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                stream_master_256b_r_rarb_locked <= 1'b1;
+            end
+        end else if (stream_master_256b_r_rarb_vld) begin
+            stream_master_256b_r_rarb_lock   <= stream_master_256b_r_rarb_gnt;       // offered, not taken: hold
+            stream_master_256b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire cpu_master_32b_b_rgnt_apb_periph = ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid);
+
+    wire cpu_master_32b_r_rgnt_apb_periph = ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid);
+
+    // ---- B response arbiter, master cpu_master 256b: round-robin, lock until taken ----
+    logic [2:0] cpu_master_256b_b_rarb_req;
+    assign cpu_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 4) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid) && ddr_controller_axi_bvalid, ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid) && sram_buffer_axi_bvalid};
+    logic [1:0] cpu_master_256b_b_rarb_lock, cpu_master_256b_b_rarb_rr;
+    logic cpu_master_256b_b_rarb_locked;
+    wire [1:0] cpu_master_256b_b_rarb_pick = (cpu_master_256b_b_rarb_rr == 2'd0) ? (cpu_master_256b_b_rarb_req[0] ? 2'd0 : cpu_master_256b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_master_256b_b_rarb_rr == 2'd1) ? (cpu_master_256b_b_rarb_req[1] ? 2'd1 : cpu_master_256b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_master_256b_b_rarb_req[2] ? 2'd2 : cpu_master_256b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_master_256b_b_rarb_gnt = cpu_master_256b_b_rarb_locked ? cpu_master_256b_b_rarb_lock : cpu_master_256b_b_rarb_pick;
+    wire cpu_master_256b_b_rarb_gnt_valid = cpu_master_256b_b_rarb_locked || (|cpu_master_256b_b_rarb_req);
+    wire cpu_master_256b_b_rgnt_sram_buffer = cpu_master_256b_b_rarb_gnt_valid && (cpu_master_256b_b_rarb_gnt == 2'd0);
+    wire cpu_master_256b_b_rgnt_ddr_controller = cpu_master_256b_b_rarb_gnt_valid && (cpu_master_256b_b_rarb_gnt == 2'd1);
+    wire cpu_master_256b_b_rgnt_subtractive = cpu_master_256b_b_rarb_gnt_valid && (cpu_master_256b_b_rarb_gnt == 2'd2);
+    wire cpu_master_256b_b_rarb_vld = (cpu_master_256b_b_rgnt_sram_buffer && cpu_master_256b_b_rarb_req[0]) || (cpu_master_256b_b_rgnt_ddr_controller && cpu_master_256b_b_rarb_req[1]) || (cpu_master_256b_b_rgnt_subtractive && cpu_master_256b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_master_256b_b_rarb_lock   <= '0;
+            cpu_master_256b_b_rarb_rr     <= '0;
+            cpu_master_256b_b_rarb_locked <= 1'b0;
+        end else if (cpu_master_256b_b_rarb_vld && cpu_master_256b_bready) begin
+            cpu_master_256b_b_rarb_locked <= 1'b0;
+            cpu_master_256b_b_rarb_rr <= (cpu_master_256b_b_rarb_gnt == 2'd2) ? 2'd0 : cpu_master_256b_b_rarb_gnt + 1'b1;
+        end else if (cpu_master_256b_b_rarb_vld) begin
+            cpu_master_256b_b_rarb_lock   <= cpu_master_256b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_master_256b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master cpu_master 256b: round-robin, lock through RLAST ----
+    logic [2:0] cpu_master_256b_r_rarb_req;
+    assign cpu_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid) && ddr_controller_axi_rvalid, ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid) && sram_buffer_axi_rvalid};
+    logic [1:0] cpu_master_256b_r_rarb_lock, cpu_master_256b_r_rarb_rr;
+    logic cpu_master_256b_r_rarb_locked;
+    wire [1:0] cpu_master_256b_r_rarb_pick = (cpu_master_256b_r_rarb_rr == 2'd0) ? (cpu_master_256b_r_rarb_req[0] ? 2'd0 : cpu_master_256b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_master_256b_r_rarb_rr == 2'd1) ? (cpu_master_256b_r_rarb_req[1] ? 2'd1 : cpu_master_256b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_master_256b_r_rarb_req[2] ? 2'd2 : cpu_master_256b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_master_256b_r_rarb_gnt = cpu_master_256b_r_rarb_locked ? cpu_master_256b_r_rarb_lock : cpu_master_256b_r_rarb_pick;
+    wire cpu_master_256b_r_rarb_gnt_valid = cpu_master_256b_r_rarb_locked || (|cpu_master_256b_r_rarb_req);
+    wire cpu_master_256b_r_rgnt_sram_buffer = cpu_master_256b_r_rarb_gnt_valid && (cpu_master_256b_r_rarb_gnt == 2'd0);
+    wire cpu_master_256b_r_rgnt_ddr_controller = cpu_master_256b_r_rarb_gnt_valid && (cpu_master_256b_r_rarb_gnt == 2'd1);
+    wire cpu_master_256b_r_rgnt_subtractive = cpu_master_256b_r_rarb_gnt_valid && (cpu_master_256b_r_rarb_gnt == 2'd2);
+    wire cpu_master_256b_r_rarb_vld = (cpu_master_256b_r_rgnt_sram_buffer && cpu_master_256b_r_rarb_req[0]) || (cpu_master_256b_r_rgnt_ddr_controller && cpu_master_256b_r_rarb_req[1]) || (cpu_master_256b_r_rgnt_subtractive && cpu_master_256b_r_rarb_req[2]);
+    wire cpu_master_256b_r_rarb_last = (cpu_master_256b_r_rgnt_sram_buffer && sram_buffer_axi_rlast) || (cpu_master_256b_r_rgnt_ddr_controller && ddr_controller_axi_rlast) || (cpu_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_master_256b_r_rarb_lock   <= '0;
+            cpu_master_256b_r_rarb_rr     <= '0;
+            cpu_master_256b_r_rarb_locked <= 1'b0;
+        end else if (cpu_master_256b_r_rarb_vld && cpu_master_256b_rready) begin
+            if (cpu_master_256b_r_rarb_last) begin
+                cpu_master_256b_r_rarb_locked <= 1'b0;
+                cpu_master_256b_r_rarb_rr <= (cpu_master_256b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_master_256b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_master_256b_r_rarb_lock   <= cpu_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_master_256b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_master_256b_r_rarb_vld) begin
+            cpu_master_256b_r_rarb_lock   <= cpu_master_256b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_master_256b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: sram_buffer (256b)
     // ================================================================
     // Multi-master (5 masters) → sram_buffer
@@ -520,11 +742,11 @@ module bridge_5x3_channels_xbar
         ((cpu_master_256b_w_sel_sram_buffer && cpu_master_256b_wvalid) ? cpu_master_256b_w.user : '0);
     assign sram_buffer_axi_wvalid = (descr_wr_master_256b_w_sel_sram_buffer && descr_wr_master_256b_wvalid) || (sink_wr_master_256b_w_sel_sram_buffer && sink_wr_master_256b_wvalid) || (stream_master_256b_w_sel_sram_buffer && stream_master_256b_wvalid) || (cpu_master_256b_w_sel_sram_buffer && cpu_master_256b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign sram_buffer_axi_bready = ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? descr_wr_master_256b_bready : '0) |
-        ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid ? sink_wr_master_256b_bready : '0) |
-        ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid ? stream_master_256b_bready : '0) |
-        ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? cpu_master_256b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign sram_buffer_axi_bready = (descr_wr_master_256b_b_rgnt_sram_buffer ? descr_wr_master_256b_bready : '0) |
+        (sink_wr_master_256b_b_rgnt_sram_buffer ? sink_wr_master_256b_bready : '0) |
+        (stream_master_256b_b_rgnt_sram_buffer ? stream_master_256b_bready : '0) |
+        (cpu_master_256b_b_rgnt_sram_buffer ? cpu_master_256b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign sram_buffer_axi_bridge_id_aw = (descr_wr_master_256b_aw_gnt_sram_buffer ? descr_wr_master_bridge_id_aw : '0) |
@@ -597,10 +819,10 @@ module bridge_5x3_channels_xbar
         (cpu_master_256b_ar_gnt_sram_buffer ? cpu_master_256b_ar.user : '0);
     assign sram_buffer_axi_arvalid = src_rd_master_256b_ar_gnt_sram_buffer || stream_master_256b_ar_gnt_sram_buffer || cpu_master_256b_ar_gnt_sram_buffer;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign sram_buffer_axi_rready = ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? src_rd_master_256b_rready : '0) |
-        ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? stream_master_256b_rready : '0) |
-        ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? cpu_master_256b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign sram_buffer_axi_rready = (src_rd_master_256b_r_rgnt_sram_buffer ? src_rd_master_256b_rready : '0) |
+        (stream_master_256b_r_rgnt_sram_buffer ? stream_master_256b_rready : '0) |
+        (cpu_master_256b_r_rgnt_sram_buffer ? cpu_master_256b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign sram_buffer_axi_bridge_id_ar = (src_rd_master_256b_ar_gnt_sram_buffer ? src_rd_master_bridge_id_ar : '0) |
@@ -747,11 +969,11 @@ module bridge_5x3_channels_xbar
         ((cpu_master_256b_w_sel_ddr_controller && cpu_master_256b_wvalid) ? cpu_master_256b_w.user : '0);
     assign ddr_controller_axi_wvalid = (descr_wr_master_256b_w_sel_ddr_controller && descr_wr_master_256b_wvalid) || (sink_wr_master_256b_w_sel_ddr_controller && sink_wr_master_256b_wvalid) || (stream_master_256b_w_sel_ddr_controller && stream_master_256b_wvalid) || (cpu_master_256b_w_sel_ddr_controller && cpu_master_256b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign ddr_controller_axi_bready = ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid ? descr_wr_master_256b_bready : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 1) && ddr_controller_axi_bid_valid ? sink_wr_master_256b_bready : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid ? stream_master_256b_bready : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid ? cpu_master_256b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign ddr_controller_axi_bready = (descr_wr_master_256b_b_rgnt_ddr_controller ? descr_wr_master_256b_bready : '0) |
+        (sink_wr_master_256b_b_rgnt_ddr_controller ? sink_wr_master_256b_bready : '0) |
+        (stream_master_256b_b_rgnt_ddr_controller ? stream_master_256b_bready : '0) |
+        (cpu_master_256b_b_rgnt_ddr_controller ? cpu_master_256b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign ddr_controller_axi_bridge_id_aw = (descr_wr_master_256b_aw_gnt_ddr_controller ? descr_wr_master_bridge_id_aw : '0) |
@@ -824,10 +1046,10 @@ module bridge_5x3_channels_xbar
         (cpu_master_256b_ar_gnt_ddr_controller ? cpu_master_256b_ar.user : '0);
     assign ddr_controller_axi_arvalid = src_rd_master_256b_ar_gnt_ddr_controller || stream_master_256b_ar_gnt_ddr_controller || cpu_master_256b_ar_gnt_ddr_controller;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign ddr_controller_axi_rready = ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? src_rd_master_256b_rready : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? stream_master_256b_rready : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? cpu_master_256b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign ddr_controller_axi_rready = (src_rd_master_256b_r_rgnt_ddr_controller ? src_rd_master_256b_rready : '0) |
+        (stream_master_256b_r_rgnt_ddr_controller ? stream_master_256b_rready : '0) |
+        (cpu_master_256b_r_rgnt_ddr_controller ? cpu_master_256b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign ddr_controller_axi_bridge_id_ar = (src_rd_master_256b_ar_gnt_ddr_controller ? src_rd_master_bridge_id_ar : '0) |
@@ -869,7 +1091,7 @@ module bridge_5x3_channels_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign apb_periph_axi_bready = ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid) ? cpu_master_32b_bready : '0;
+    assign apb_periph_axi_bready = cpu_master_32b_b_rgnt_apb_periph ? cpu_master_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign apb_periph_axi_bridge_id_aw = cpu_master_32b_aw_to_apb_periph ? cpu_master_bridge_id_aw : '0;
@@ -892,7 +1114,7 @@ module bridge_5x3_channels_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign apb_periph_axi_rready = ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid) ? cpu_master_32b_rready : '0;
+    assign apb_periph_axi_rready = cpu_master_32b_r_rgnt_apb_periph ? cpu_master_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign apb_periph_axi_bridge_id_ar = cpu_master_32b_ar_to_apb_periph ? cpu_master_bridge_id_ar : '0;
@@ -1037,11 +1259,11 @@ module bridge_5x3_channels_xbar
         ((cpu_master_256b_w_sel_subtractive && cpu_master_256b_wvalid) ? cpu_master_256b_w.user : '0);
     assign subtractive_axi_wvalid = (descr_wr_master_256b_w_sel_subtractive && descr_wr_master_256b_wvalid) || (sink_wr_master_256b_w_sel_subtractive && sink_wr_master_256b_wvalid) || (stream_master_256b_w_sel_subtractive && stream_master_256b_wvalid) || (cpu_master_256b_w_sel_subtractive && cpu_master_256b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? descr_wr_master_256b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? sink_wr_master_256b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? stream_master_256b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 4) && subtractive_axi_bid_valid ? cpu_master_256b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_bready = (descr_wr_master_256b_b_rgnt_subtractive ? descr_wr_master_256b_bready : '0) |
+        (sink_wr_master_256b_b_rgnt_subtractive ? sink_wr_master_256b_bready : '0) |
+        (stream_master_256b_b_rgnt_subtractive ? stream_master_256b_bready : '0) |
+        (cpu_master_256b_b_rgnt_subtractive ? cpu_master_256b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign subtractive_axi_bridge_id_aw = (descr_wr_master_256b_aw_gnt_subtractive ? descr_wr_master_bridge_id_aw : '0) |
@@ -1114,10 +1336,10 @@ module bridge_5x3_channels_xbar
         (cpu_master_256b_ar_gnt_subtractive ? cpu_master_256b_ar.user : '0);
     assign subtractive_axi_arvalid = src_rd_master_256b_ar_gnt_subtractive || stream_master_256b_ar_gnt_subtractive || cpu_master_256b_ar_gnt_subtractive;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? src_rd_master_256b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? stream_master_256b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid ? cpu_master_256b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_rready = (src_rd_master_256b_r_rgnt_subtractive ? src_rd_master_256b_rready : '0) |
+        (stream_master_256b_r_rgnt_subtractive ? stream_master_256b_rready : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? cpu_master_256b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign subtractive_axi_bridge_id_ar = (src_rd_master_256b_ar_gnt_subtractive ? src_rd_master_bridge_id_ar : '0) |
@@ -1272,24 +1494,24 @@ module bridge_5x3_channels_xbar
         (descr_wr_master_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign descr_wr_master_256b_b.id = 
-        ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bid : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (descr_wr_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bid : '0) |
+        (descr_wr_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bid : '0) |
+        (descr_wr_master_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign descr_wr_master_256b_b.resp = 
-        ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bresp : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (descr_wr_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bresp : '0) |
+        (descr_wr_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bresp : '0) |
+        (descr_wr_master_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign descr_wr_master_256b_b.user = 
-        ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? sram_buffer_axi_buser : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid ? ddr_controller_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (descr_wr_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_buser : '0) |
+        (descr_wr_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_buser : '0) |
+        (descr_wr_master_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign descr_wr_master_256b_bvalid = 
-        ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bvalid : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (descr_wr_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bvalid : '0) |
+        (descr_wr_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bvalid : '0) |
+        (descr_wr_master_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
 
     // Master: sink_wr_master, Width path: 256b
@@ -1304,24 +1526,24 @@ module bridge_5x3_channels_xbar
         (sink_wr_master_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign sink_wr_master_256b_b.id = 
-        ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bid : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 1) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (sink_wr_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bid : '0) |
+        (sink_wr_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bid : '0) |
+        (sink_wr_master_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign sink_wr_master_256b_b.resp = 
-        ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bresp : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 1) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (sink_wr_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bresp : '0) |
+        (sink_wr_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bresp : '0) |
+        (sink_wr_master_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign sink_wr_master_256b_b.user = 
-        ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid ? sram_buffer_axi_buser : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 1) && ddr_controller_axi_bid_valid ? ddr_controller_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (sink_wr_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_buser : '0) |
+        (sink_wr_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_buser : '0) |
+        (sink_wr_master_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign sink_wr_master_256b_bvalid = 
-        ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bvalid : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 1) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (sink_wr_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bvalid : '0) |
+        (sink_wr_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bvalid : '0) |
+        (sink_wr_master_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
 
     // Master: src_rd_master, Width path: 256b
@@ -1331,46 +1553,34 @@ module bridge_5x3_channels_xbar
         (src_rd_master_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign src_rd_master_256b_r.id = 
-        ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rid : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (src_rd_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rid : '0) |
+        (src_rd_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rid : '0) |
+        (src_rd_master_256b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign src_rd_master_256b_r.data = 
-        ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rdata : 256'b0) |
-        ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rdata : 256'b0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
+        (src_rd_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rdata : 256'b0) |
+        (src_rd_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rdata : 256'b0) |
+        (src_rd_master_256b_r_rgnt_subtractive ? subtractive_axi_rdata : 256'b0);
 
     assign src_rd_master_256b_r.resp = 
-        ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rresp : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (src_rd_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rresp : '0) |
+        (src_rd_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rresp : '0) |
+        (src_rd_master_256b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign src_rd_master_256b_r.last = 
-        ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rlast : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (src_rd_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rlast : '0) |
+        (src_rd_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rlast : '0) |
+        (src_rd_master_256b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign src_rd_master_256b_r.user = 
-        ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_ruser : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (src_rd_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_ruser : '0) |
+        (src_rd_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_ruser : '0) |
+        (src_rd_master_256b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign src_rd_master_256b_rvalid = 
-        ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rvalid : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master src_rd_master (256b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (src_rd_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rvalid : '0) |
+        (src_rd_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rvalid : '0) |
+        (src_rd_master_256b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: stream_master, Width path: 256b
@@ -1385,24 +1595,24 @@ module bridge_5x3_channels_xbar
         (stream_master_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign stream_master_256b_b.id = 
-        ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bid : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (stream_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bid : '0) |
+        (stream_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bid : '0) |
+        (stream_master_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign stream_master_256b_b.resp = 
-        ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bresp : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (stream_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bresp : '0) |
+        (stream_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bresp : '0) |
+        (stream_master_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign stream_master_256b_b.user = 
-        ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid ? sram_buffer_axi_buser : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid ? ddr_controller_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (stream_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_buser : '0) |
+        (stream_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_buser : '0) |
+        (stream_master_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign stream_master_256b_bvalid = 
-        ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bvalid : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (stream_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bvalid : '0) |
+        (stream_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bvalid : '0) |
+        (stream_master_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign stream_master_256b_arready = 
         (stream_master_256b_ar_gnt_sram_buffer ? sram_buffer_axi_arready : '0) |
@@ -1410,46 +1620,34 @@ module bridge_5x3_channels_xbar
         (stream_master_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign stream_master_256b_r.id = 
-        ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rid : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (stream_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rid : '0) |
+        (stream_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rid : '0) |
+        (stream_master_256b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign stream_master_256b_r.data = 
-        ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rdata : 256'b0) |
-        ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rdata : 256'b0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
+        (stream_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rdata : 256'b0) |
+        (stream_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rdata : 256'b0) |
+        (stream_master_256b_r_rgnt_subtractive ? subtractive_axi_rdata : 256'b0);
 
     assign stream_master_256b_r.resp = 
-        ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rresp : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (stream_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rresp : '0) |
+        (stream_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rresp : '0) |
+        (stream_master_256b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign stream_master_256b_r.last = 
-        ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rlast : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (stream_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rlast : '0) |
+        (stream_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rlast : '0) |
+        (stream_master_256b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign stream_master_256b_r.user = 
-        ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_ruser : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (stream_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_ruser : '0) |
+        (stream_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_ruser : '0) |
+        (stream_master_256b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign stream_master_256b_rvalid = 
-        ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rvalid : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master stream_master (256b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (stream_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rvalid : '0) |
+        (stream_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rvalid : '0) |
+        (stream_master_256b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: cpu_master, Width path: 32b
@@ -1460,49 +1658,37 @@ module bridge_5x3_channels_xbar
         (cpu_master_32b_w_sel_apb_periph ? apb_periph_axi_wready : '0);
 
     assign cpu_master_32b_b.id = 
-        ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid ? apb_periph_axi_bid : '0);
+        (cpu_master_32b_b_rgnt_apb_periph ? apb_periph_axi_bid : '0);
 
     assign cpu_master_32b_b.resp = 
-        ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid ? apb_periph_axi_bresp : '0);
+        (cpu_master_32b_b_rgnt_apb_periph ? apb_periph_axi_bresp : '0);
 
     assign cpu_master_32b_b.user = 
-        ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid ? apb_periph_axi_buser : '0);
+        (cpu_master_32b_b_rgnt_apb_periph ? apb_periph_axi_buser : '0);
 
     assign cpu_master_32b_bvalid = 
-        ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0);
+        (cpu_master_32b_b_rgnt_apb_periph ? apb_periph_axi_bvalid : '0);
 
     assign cpu_master_32b_arready = 
         (cpu_master_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0);
 
     assign cpu_master_32b_r.id = 
-        ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_rid : '0);
+        (cpu_master_32b_r_rgnt_apb_periph ? apb_periph_axi_rid : '0);
 
     assign cpu_master_32b_r.data = 
-        ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_rdata : 32'b0);
+        (cpu_master_32b_r_rgnt_apb_periph ? apb_periph_axi_rdata : 32'b0);
 
     assign cpu_master_32b_r.resp = 
-        ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_rresp : '0);
+        (cpu_master_32b_r_rgnt_apb_periph ? apb_periph_axi_rresp : '0);
 
     assign cpu_master_32b_r.last = 
-        ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_rlast : '0);
+        (cpu_master_32b_r_rgnt_apb_periph ? apb_periph_axi_rlast : '0);
 
     assign cpu_master_32b_r.user = 
-        ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_ruser : '0);
+        (cpu_master_32b_r_rgnt_apb_periph ? apb_periph_axi_ruser : '0);
 
     assign cpu_master_32b_rvalid = 
-        ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_master (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_master_32b_r_rgnt_apb_periph ? apb_periph_axi_rvalid : '0);
 
 
     // Master: cpu_master, Width path: 256b
@@ -1517,24 +1703,24 @@ module bridge_5x3_channels_xbar
         (cpu_master_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_master_256b_b.id = 
-        ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bid : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 4) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (cpu_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bid : '0) |
+        (cpu_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bid : '0) |
+        (cpu_master_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign cpu_master_256b_b.resp = 
-        ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bresp : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 4) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (cpu_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bresp : '0) |
+        (cpu_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bresp : '0) |
+        (cpu_master_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign cpu_master_256b_b.user = 
-        ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? sram_buffer_axi_buser : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid ? ddr_controller_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 4) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (cpu_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_buser : '0) |
+        (cpu_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_buser : '0) |
+        (cpu_master_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign cpu_master_256b_bvalid = 
-        ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bvalid : '0) |
-        ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 4) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (cpu_master_256b_b_rgnt_sram_buffer ? sram_buffer_axi_bvalid : '0) |
+        (cpu_master_256b_b_rgnt_ddr_controller ? ddr_controller_axi_bvalid : '0) |
+        (cpu_master_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_master_256b_arready = 
         (cpu_master_256b_ar_gnt_sram_buffer ? sram_buffer_axi_arready : '0) |
@@ -1542,46 +1728,34 @@ module bridge_5x3_channels_xbar
         (cpu_master_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_master_256b_r.id = 
-        ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rid : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (cpu_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rid : '0) |
+        (cpu_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rid : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign cpu_master_256b_r.data = 
-        ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rdata : 256'b0) |
-        ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rdata : 256'b0) |
-        ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
+        (cpu_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rdata : 256'b0) |
+        (cpu_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rdata : 256'b0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rdata : 256'b0);
 
     assign cpu_master_256b_r.resp = 
-        ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rresp : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (cpu_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rresp : '0) |
+        (cpu_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rresp : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign cpu_master_256b_r.last = 
-        ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rlast : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (cpu_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rlast : '0) |
+        (cpu_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rlast : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign cpu_master_256b_r.user = 
-        ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_ruser : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? ddr_controller_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (cpu_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_ruser : '0) |
+        (cpu_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_ruser : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign cpu_master_256b_rvalid = 
-        ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rvalid : '0) |
-        ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_master (256b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_master_256b_r_rgnt_sram_buffer ? sram_buffer_axi_rvalid : '0) |
+        (cpu_master_256b_r_rgnt_ddr_controller ? ddr_controller_axi_rvalid : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_5x3_channels_xbar

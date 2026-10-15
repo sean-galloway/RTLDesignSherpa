@@ -287,6 +287,130 @@ module bridge_fb_data_xbar
     logic inj_wr_128b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    // ---- R response arbiter, master stream_desc 128b: round-robin, lock through RLAST ----
+    logic [1:0] stream_desc_128b_r_rarb_req;
+    assign stream_desc_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid) && desc_ram_axi_rvalid};
+    logic [0:0] stream_desc_128b_r_rarb_lock, stream_desc_128b_r_rarb_rr;
+    logic stream_desc_128b_r_rarb_locked;
+    wire [0:0] stream_desc_128b_r_rarb_pick = (stream_desc_128b_r_rarb_rr == 1'd0) ? (stream_desc_128b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        stream_desc_128b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] stream_desc_128b_r_rarb_gnt = stream_desc_128b_r_rarb_locked ? stream_desc_128b_r_rarb_lock : stream_desc_128b_r_rarb_pick;
+    wire stream_desc_128b_r_rarb_gnt_valid = stream_desc_128b_r_rarb_locked || (|stream_desc_128b_r_rarb_req);
+    wire stream_desc_128b_r_rgnt_desc_ram = stream_desc_128b_r_rarb_gnt_valid && (stream_desc_128b_r_rarb_gnt == 1'd0);
+    wire stream_desc_128b_r_rgnt_subtractive = stream_desc_128b_r_rarb_gnt_valid && (stream_desc_128b_r_rarb_gnt == 1'd1);
+    wire stream_desc_128b_r_rarb_vld = (stream_desc_128b_r_rgnt_desc_ram && stream_desc_128b_r_rarb_req[0]) || (stream_desc_128b_r_rgnt_subtractive && stream_desc_128b_r_rarb_req[1]);
+    wire stream_desc_128b_r_rarb_last = (stream_desc_128b_r_rgnt_desc_ram && desc_ram_axi_rlast) || (stream_desc_128b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stream_desc_128b_r_rarb_lock   <= '0;
+            stream_desc_128b_r_rarb_rr     <= '0;
+            stream_desc_128b_r_rarb_locked <= 1'b0;
+        end else if (stream_desc_128b_r_rarb_vld && stream_desc_128b_rready) begin
+            if (stream_desc_128b_r_rarb_last) begin
+                stream_desc_128b_r_rarb_locked <= 1'b0;
+                stream_desc_128b_r_rarb_rr <= (stream_desc_128b_r_rarb_gnt == 1'd1) ? 1'd0 : stream_desc_128b_r_rarb_gnt + 1'b1;
+            end else begin
+                stream_desc_128b_r_rarb_lock   <= stream_desc_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                stream_desc_128b_r_rarb_locked <= 1'b1;
+            end
+        end else if (stream_desc_128b_r_rarb_vld) begin
+            stream_desc_128b_r_rarb_lock   <= stream_desc_128b_r_rarb_gnt;       // offered, not taken: hold
+            stream_desc_128b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master stream_rd 128b: round-robin, lock through RLAST ----
+    logic [2:0] stream_rd_128b_r_rarb_req;
+    assign stream_rd_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid) && lfsr_src_axi_rvalid, ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid) && ddr_axi_rvalid};
+    logic [1:0] stream_rd_128b_r_rarb_lock, stream_rd_128b_r_rarb_rr;
+    logic stream_rd_128b_r_rarb_locked;
+    wire [1:0] stream_rd_128b_r_rarb_pick = (stream_rd_128b_r_rarb_rr == 2'd0) ? (stream_rd_128b_r_rarb_req[0] ? 2'd0 : stream_rd_128b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (stream_rd_128b_r_rarb_rr == 2'd1) ? (stream_rd_128b_r_rarb_req[1] ? 2'd1 : stream_rd_128b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        stream_rd_128b_r_rarb_req[2] ? 2'd2 : stream_rd_128b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] stream_rd_128b_r_rarb_gnt = stream_rd_128b_r_rarb_locked ? stream_rd_128b_r_rarb_lock : stream_rd_128b_r_rarb_pick;
+    wire stream_rd_128b_r_rarb_gnt_valid = stream_rd_128b_r_rarb_locked || (|stream_rd_128b_r_rarb_req);
+    wire stream_rd_128b_r_rgnt_ddr = stream_rd_128b_r_rarb_gnt_valid && (stream_rd_128b_r_rarb_gnt == 2'd0);
+    wire stream_rd_128b_r_rgnt_lfsr_src = stream_rd_128b_r_rarb_gnt_valid && (stream_rd_128b_r_rarb_gnt == 2'd1);
+    wire stream_rd_128b_r_rgnt_subtractive = stream_rd_128b_r_rarb_gnt_valid && (stream_rd_128b_r_rarb_gnt == 2'd2);
+    wire stream_rd_128b_r_rarb_vld = (stream_rd_128b_r_rgnt_ddr && stream_rd_128b_r_rarb_req[0]) || (stream_rd_128b_r_rgnt_lfsr_src && stream_rd_128b_r_rarb_req[1]) || (stream_rd_128b_r_rgnt_subtractive && stream_rd_128b_r_rarb_req[2]);
+    wire stream_rd_128b_r_rarb_last = (stream_rd_128b_r_rgnt_ddr && ddr_axi_rlast) || (stream_rd_128b_r_rgnt_lfsr_src && lfsr_src_axi_rlast) || (stream_rd_128b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stream_rd_128b_r_rarb_lock   <= '0;
+            stream_rd_128b_r_rarb_rr     <= '0;
+            stream_rd_128b_r_rarb_locked <= 1'b0;
+        end else if (stream_rd_128b_r_rarb_vld && stream_rd_128b_rready) begin
+            if (stream_rd_128b_r_rarb_last) begin
+                stream_rd_128b_r_rarb_locked <= 1'b0;
+                stream_rd_128b_r_rarb_rr <= (stream_rd_128b_r_rarb_gnt == 2'd2) ? 2'd0 : stream_rd_128b_r_rarb_gnt + 1'b1;
+            end else begin
+                stream_rd_128b_r_rarb_lock   <= stream_rd_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                stream_rd_128b_r_rarb_locked <= 1'b1;
+            end
+        end else if (stream_rd_128b_r_rarb_vld) begin
+            stream_rd_128b_r_rarb_lock   <= stream_rd_128b_r_rarb_gnt;       // offered, not taken: hold
+            stream_rd_128b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- B response arbiter, master stream_wr 128b: round-robin, lock until taken ----
+    logic [2:0] stream_wr_128b_b_rarb_req;
+    assign stream_wr_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((crc_snk_axi_bid_bridge_id == 2) && crc_snk_axi_bid_valid) && crc_snk_axi_bvalid, ((ddr_axi_bid_bridge_id == 2) && ddr_axi_bid_valid) && ddr_axi_bvalid};
+    logic [1:0] stream_wr_128b_b_rarb_lock, stream_wr_128b_b_rarb_rr;
+    logic stream_wr_128b_b_rarb_locked;
+    wire [1:0] stream_wr_128b_b_rarb_pick = (stream_wr_128b_b_rarb_rr == 2'd0) ? (stream_wr_128b_b_rarb_req[0] ? 2'd0 : stream_wr_128b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (stream_wr_128b_b_rarb_rr == 2'd1) ? (stream_wr_128b_b_rarb_req[1] ? 2'd1 : stream_wr_128b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        stream_wr_128b_b_rarb_req[2] ? 2'd2 : stream_wr_128b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] stream_wr_128b_b_rarb_gnt = stream_wr_128b_b_rarb_locked ? stream_wr_128b_b_rarb_lock : stream_wr_128b_b_rarb_pick;
+    wire stream_wr_128b_b_rarb_gnt_valid = stream_wr_128b_b_rarb_locked || (|stream_wr_128b_b_rarb_req);
+    wire stream_wr_128b_b_rgnt_ddr = stream_wr_128b_b_rarb_gnt_valid && (stream_wr_128b_b_rarb_gnt == 2'd0);
+    wire stream_wr_128b_b_rgnt_crc_snk = stream_wr_128b_b_rarb_gnt_valid && (stream_wr_128b_b_rarb_gnt == 2'd1);
+    wire stream_wr_128b_b_rgnt_subtractive = stream_wr_128b_b_rarb_gnt_valid && (stream_wr_128b_b_rarb_gnt == 2'd2);
+    wire stream_wr_128b_b_rarb_vld = (stream_wr_128b_b_rgnt_ddr && stream_wr_128b_b_rarb_req[0]) || (stream_wr_128b_b_rgnt_crc_snk && stream_wr_128b_b_rarb_req[1]) || (stream_wr_128b_b_rgnt_subtractive && stream_wr_128b_b_rarb_req[2]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stream_wr_128b_b_rarb_lock   <= '0;
+            stream_wr_128b_b_rarb_rr     <= '0;
+            stream_wr_128b_b_rarb_locked <= 1'b0;
+        end else if (stream_wr_128b_b_rarb_vld && stream_wr_128b_bready) begin
+            stream_wr_128b_b_rarb_locked <= 1'b0;
+            stream_wr_128b_b_rarb_rr <= (stream_wr_128b_b_rarb_gnt == 2'd2) ? 2'd0 : stream_wr_128b_b_rarb_gnt + 1'b1;
+        end else if (stream_wr_128b_b_rarb_vld) begin
+            stream_wr_128b_b_rarb_lock   <= stream_wr_128b_b_rarb_gnt;       // offered, not taken: hold
+            stream_wr_128b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- B response arbiter, master inj_wr 128b: round-robin, lock until taken ----
+    logic [1:0] inj_wr_128b_b_rarb_req;
+    assign inj_wr_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_axi_bid_bridge_id == 3) && ddr_axi_bid_valid) && ddr_axi_bvalid};
+    logic [0:0] inj_wr_128b_b_rarb_lock, inj_wr_128b_b_rarb_rr;
+    logic inj_wr_128b_b_rarb_locked;
+    wire [0:0] inj_wr_128b_b_rarb_pick = (inj_wr_128b_b_rarb_rr == 1'd0) ? (inj_wr_128b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        inj_wr_128b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] inj_wr_128b_b_rarb_gnt = inj_wr_128b_b_rarb_locked ? inj_wr_128b_b_rarb_lock : inj_wr_128b_b_rarb_pick;
+    wire inj_wr_128b_b_rarb_gnt_valid = inj_wr_128b_b_rarb_locked || (|inj_wr_128b_b_rarb_req);
+    wire inj_wr_128b_b_rgnt_ddr = inj_wr_128b_b_rarb_gnt_valid && (inj_wr_128b_b_rarb_gnt == 1'd0);
+    wire inj_wr_128b_b_rgnt_subtractive = inj_wr_128b_b_rarb_gnt_valid && (inj_wr_128b_b_rarb_gnt == 1'd1);
+    wire inj_wr_128b_b_rarb_vld = (inj_wr_128b_b_rgnt_ddr && inj_wr_128b_b_rarb_req[0]) || (inj_wr_128b_b_rgnt_subtractive && inj_wr_128b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            inj_wr_128b_b_rarb_lock   <= '0;
+            inj_wr_128b_b_rarb_rr     <= '0;
+            inj_wr_128b_b_rarb_locked <= 1'b0;
+        end else if (inj_wr_128b_b_rarb_vld && inj_wr_128b_bready) begin
+            inj_wr_128b_b_rarb_locked <= 1'b0;
+            inj_wr_128b_b_rarb_rr <= (inj_wr_128b_b_rarb_gnt == 1'd1) ? 1'd0 : inj_wr_128b_b_rarb_gnt + 1'b1;
+        end else if (inj_wr_128b_b_rarb_vld) begin
+            inj_wr_128b_b_rarb_lock   <= inj_wr_128b_b_rarb_gnt;       // offered, not taken: hold
+            inj_wr_128b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: ddr (128b)
     // ================================================================
     // Multi-master (3 masters) → ddr
@@ -383,9 +507,9 @@ module bridge_fb_data_xbar
         ((inj_wr_128b_w_sel_ddr && inj_wr_128b_wvalid) ? inj_wr_128b_w.user : '0);
     assign ddr_axi_wvalid = (stream_wr_128b_w_sel_ddr && stream_wr_128b_wvalid) || (inj_wr_128b_w_sel_ddr && inj_wr_128b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign ddr_axi_bready = ((ddr_axi_bid_bridge_id == 2) && ddr_axi_bid_valid ? stream_wr_128b_bready : '0) |
-        ((ddr_axi_bid_bridge_id == 3) && ddr_axi_bid_valid ? inj_wr_128b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign ddr_axi_bready = (stream_wr_128b_b_rgnt_ddr ? stream_wr_128b_bready : '0) |
+        (inj_wr_128b_b_rgnt_ddr ? inj_wr_128b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign ddr_axi_bridge_id_aw = (stream_wr_128b_aw_gnt_ddr ? stream_wr_bridge_id_aw : '0) |
@@ -430,8 +554,8 @@ module bridge_fb_data_xbar
     assign ddr_axi_aruser = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.user : '0);
     assign ddr_axi_arvalid = stream_rd_128b_ar_gnt_ddr;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign ddr_axi_rready = ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? stream_rd_128b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign ddr_axi_rready = (stream_rd_128b_r_rgnt_ddr ? stream_rd_128b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign ddr_axi_bridge_id_ar = (stream_rd_128b_ar_gnt_ddr ? stream_rd_bridge_id_ar : '0);
@@ -462,7 +586,7 @@ module bridge_fb_data_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign desc_ram_axi_rready = ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid) ? stream_desc_128b_rready : '0;
+    assign desc_ram_axi_rready = stream_desc_128b_r_rgnt_desc_ram ? stream_desc_128b_rready : '0;
 
     // Bridge ID (master → slave)
     assign desc_ram_axi_bridge_id_ar = stream_desc_128b_ar_to_desc_ram ? stream_desc_bridge_id_ar : '0;
@@ -493,7 +617,7 @@ module bridge_fb_data_xbar
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign lfsr_src_axi_rready = ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid) ? stream_rd_128b_rready : '0;
+    assign lfsr_src_axi_rready = stream_rd_128b_r_rgnt_lfsr_src ? stream_rd_128b_rready : '0;
 
     // Bridge ID (master → slave)
     assign lfsr_src_axi_bridge_id_ar = stream_rd_128b_ar_to_lfsr_src ? stream_rd_bridge_id_ar : '0;
@@ -533,7 +657,7 @@ module bridge_fb_data_xbar
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign crc_snk_axi_bready = ((crc_snk_axi_bid_bridge_id == 2) && crc_snk_axi_bid_valid) ? stream_wr_128b_bready : '0;
+    assign crc_snk_axi_bready = stream_wr_128b_b_rgnt_crc_snk ? stream_wr_128b_bready : '0;
 
     // Bridge ID (master → slave)
     assign crc_snk_axi_bridge_id_aw = stream_wr_128b_aw_to_crc_snk ? stream_wr_bridge_id_aw : '0;
@@ -638,9 +762,9 @@ module bridge_fb_data_xbar
         ((inj_wr_128b_w_sel_subtractive && inj_wr_128b_wvalid) ? inj_wr_128b_w.user : '0);
     assign subtractive_axi_wvalid = (stream_wr_128b_w_sel_subtractive && stream_wr_128b_wvalid) || (inj_wr_128b_w_sel_subtractive && inj_wr_128b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? stream_wr_128b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? inj_wr_128b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_bready = (stream_wr_128b_b_rgnt_subtractive ? stream_wr_128b_bready : '0) |
+        (inj_wr_128b_b_rgnt_subtractive ? inj_wr_128b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign subtractive_axi_bridge_id_aw = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_bridge_id_aw : '0) |
@@ -698,9 +822,9 @@ module bridge_fb_data_xbar
         (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.user : '0);
     assign subtractive_axi_arvalid = stream_desc_128b_ar_gnt_subtractive || stream_rd_128b_ar_gnt_subtractive;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? stream_desc_128b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? stream_rd_128b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_rready = (stream_desc_128b_r_rgnt_subtractive ? stream_desc_128b_rready : '0) |
+        (stream_rd_128b_r_rgnt_subtractive ? stream_rd_128b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign subtractive_axi_bridge_id_ar = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_bridge_id_ar : '0) |
@@ -771,40 +895,28 @@ module bridge_fb_data_xbar
         (stream_desc_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign stream_desc_128b_r.id = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (stream_desc_128b_r_rgnt_desc_ram ? desc_ram_axi_rid : '0) |
+        (stream_desc_128b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign stream_desc_128b_r.data = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 128'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 128'b0);
+        (stream_desc_128b_r_rgnt_desc_ram ? desc_ram_axi_rdata : 128'b0) |
+        (stream_desc_128b_r_rgnt_subtractive ? subtractive_axi_rdata : 128'b0);
 
     assign stream_desc_128b_r.resp = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (stream_desc_128b_r_rgnt_desc_ram ? desc_ram_axi_rresp : '0) |
+        (stream_desc_128b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign stream_desc_128b_r.last = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (stream_desc_128b_r_rgnt_desc_ram ? desc_ram_axi_rlast : '0) |
+        (stream_desc_128b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign stream_desc_128b_r.user = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (stream_desc_128b_r_rgnt_desc_ram ? desc_ram_axi_ruser : '0) |
+        (stream_desc_128b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign stream_desc_128b_rvalid = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master stream_desc (128b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (stream_desc_128b_r_rgnt_desc_ram ? desc_ram_axi_rvalid : '0) |
+        (stream_desc_128b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: stream_rd, Width path: 128b
@@ -814,46 +926,34 @@ module bridge_fb_data_xbar
         (stream_rd_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign stream_rd_128b_r.id = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rid : '0) |
-        ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid ? lfsr_src_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (stream_rd_128b_r_rgnt_ddr ? ddr_axi_rid : '0) |
+        (stream_rd_128b_r_rgnt_lfsr_src ? lfsr_src_axi_rid : '0) |
+        (stream_rd_128b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign stream_rd_128b_r.data = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rdata : 128'b0) |
-        ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid ? lfsr_src_axi_rdata : 128'b0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 128'b0);
+        (stream_rd_128b_r_rgnt_ddr ? ddr_axi_rdata : 128'b0) |
+        (stream_rd_128b_r_rgnt_lfsr_src ? lfsr_src_axi_rdata : 128'b0) |
+        (stream_rd_128b_r_rgnt_subtractive ? subtractive_axi_rdata : 128'b0);
 
     assign stream_rd_128b_r.resp = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rresp : '0) |
-        ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid ? lfsr_src_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (stream_rd_128b_r_rgnt_ddr ? ddr_axi_rresp : '0) |
+        (stream_rd_128b_r_rgnt_lfsr_src ? lfsr_src_axi_rresp : '0) |
+        (stream_rd_128b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign stream_rd_128b_r.last = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rlast : '0) |
-        ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid ? lfsr_src_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (stream_rd_128b_r_rgnt_ddr ? ddr_axi_rlast : '0) |
+        (stream_rd_128b_r_rgnt_lfsr_src ? lfsr_src_axi_rlast : '0) |
+        (stream_rd_128b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign stream_rd_128b_r.user = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_ruser : '0) |
-        ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid ? lfsr_src_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (stream_rd_128b_r_rgnt_ddr ? ddr_axi_ruser : '0) |
+        (stream_rd_128b_r_rgnt_lfsr_src ? lfsr_src_axi_ruser : '0) |
+        (stream_rd_128b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign stream_rd_128b_rvalid = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
-        ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid ? lfsr_src_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master stream_rd (128b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (stream_rd_128b_r_rgnt_ddr ? ddr_axi_rvalid : '0) |
+        (stream_rd_128b_r_rgnt_lfsr_src ? lfsr_src_axi_rvalid : '0) |
+        (stream_rd_128b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: stream_wr, Width path: 128b
@@ -868,24 +968,24 @@ module bridge_fb_data_xbar
         (stream_wr_128b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign stream_wr_128b_b.id = 
-        ((ddr_axi_bid_bridge_id == 2) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
-        ((crc_snk_axi_bid_bridge_id == 2) && crc_snk_axi_bid_valid ? crc_snk_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (stream_wr_128b_b_rgnt_ddr ? ddr_axi_bid : '0) |
+        (stream_wr_128b_b_rgnt_crc_snk ? crc_snk_axi_bid : '0) |
+        (stream_wr_128b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign stream_wr_128b_b.resp = 
-        ((ddr_axi_bid_bridge_id == 2) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
-        ((crc_snk_axi_bid_bridge_id == 2) && crc_snk_axi_bid_valid ? crc_snk_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (stream_wr_128b_b_rgnt_ddr ? ddr_axi_bresp : '0) |
+        (stream_wr_128b_b_rgnt_crc_snk ? crc_snk_axi_bresp : '0) |
+        (stream_wr_128b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign stream_wr_128b_b.user = 
-        ((ddr_axi_bid_bridge_id == 2) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
-        ((crc_snk_axi_bid_bridge_id == 2) && crc_snk_axi_bid_valid ? crc_snk_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (stream_wr_128b_b_rgnt_ddr ? ddr_axi_buser : '0) |
+        (stream_wr_128b_b_rgnt_crc_snk ? crc_snk_axi_buser : '0) |
+        (stream_wr_128b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign stream_wr_128b_bvalid = 
-        ((ddr_axi_bid_bridge_id == 2) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
-        ((crc_snk_axi_bid_bridge_id == 2) && crc_snk_axi_bid_valid ? crc_snk_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (stream_wr_128b_b_rgnt_ddr ? ddr_axi_bvalid : '0) |
+        (stream_wr_128b_b_rgnt_crc_snk ? crc_snk_axi_bvalid : '0) |
+        (stream_wr_128b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
 
     // Master: inj_wr, Width path: 128b
@@ -898,20 +998,20 @@ module bridge_fb_data_xbar
         (inj_wr_128b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign inj_wr_128b_b.id = 
-        ((ddr_axi_bid_bridge_id == 3) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (inj_wr_128b_b_rgnt_ddr ? ddr_axi_bid : '0) |
+        (inj_wr_128b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign inj_wr_128b_b.resp = 
-        ((ddr_axi_bid_bridge_id == 3) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (inj_wr_128b_b_rgnt_ddr ? ddr_axi_bresp : '0) |
+        (inj_wr_128b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign inj_wr_128b_b.user = 
-        ((ddr_axi_bid_bridge_id == 3) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (inj_wr_128b_b_rgnt_ddr ? ddr_axi_buser : '0) |
+        (inj_wr_128b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign inj_wr_128b_bvalid = 
-        ((ddr_axi_bid_bridge_id == 3) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (inj_wr_128b_b_rgnt_ddr ? ddr_axi_bvalid : '0) |
+        (inj_wr_128b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
 
 endmodule : bridge_fb_data_xbar

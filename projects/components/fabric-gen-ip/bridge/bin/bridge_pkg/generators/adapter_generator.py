@@ -133,7 +133,7 @@ class AdapterGenerator:
     - Struct-based outputs for clean interface
     """
 
-    def __init__(self, bridge_name: str, num_slaves: int, master_config: MasterConfig, slaves: List[SlaveInfo], all_masters: List[MasterConfig] = None, enable_monitoring: bool = False, master_index: int = 0):
+    def __init__(self, bridge_name: str, num_slaves: int, master_config: MasterConfig, slaves: List[SlaveInfo], all_masters: List[MasterConfig] = None, enable_monitoring: bool = False, master_index: int = 0, id_track_bits: int = 4):
         """
         Initialize adapter generator.
 
@@ -153,6 +153,9 @@ class AdapterGenerator:
         self.all_masters = all_masters if all_masters is not None else [master_config]
         self.enable_monitoring = enable_monitoring
         self.master_index = master_index
+        # Per-ID target tracking (replaces the one-outstanding-target gate):
+        # 2**id_track_bits entries indexed by the ID's low bits.
+        self.id_track_bits = int(id_track_bits)
 
         # AXI5 native sideband (A5-2 slice 2): the struct-field union for
         # the whole bridge, and this master's own feature set. EVERY
@@ -1820,7 +1823,7 @@ class AdapterGenerator:
         # reads) so only the matching path sees the request.
         if slave_widths and (self.master.channels in ("wr", "rw") or self.master.channels in ("rd", "rw")):
             lines.append("    // Per-width path-active gates (see comment in adapter_generator.py).")
-            # Single-outstanding-target gates: declared here (before first
+            # Request gates: declared here (before first
             # use in the path actives), assigned in the tracking section.
             if self.master.channels in ("wr", "rw"):
                 lines.append("    logic aw_gate_ok;")
@@ -1911,6 +1914,152 @@ class AdapterGenerator:
 
         return lines
 
+    # --- bridge parity item 1: several targets in flight per master ------------
+    # The adapter used to accept a new AW/AR only while every outstanding one
+    # went to the SAME slave, because responses were replayed in issue order
+    # from a FIFO of targets. Now responses are taken in whatever order the
+    # paths offer them -- the crossbar arbitrates among slaves on one width
+    # path, and _path_arb_lines below arbitrates among the paths -- and the
+    # only ordering kept is the one AXI requires: same ID, same order. A
+    # per-ID table (count + target, indexed by the ID's low id_track_bits
+    # bits) holds a request whose ID is already in flight to a DIFFERENT
+    # slave; requests with other IDs flow to any slave.
+    #
+    # Ports with a read-return atomic (rr_atomic) or a trace echo keep the
+    # FIFO path: both hang per-request state off the FIFO entry that routes
+    # the response, which the per-ID table does not carry.
+    @property
+    def multi_target(self) -> bool:
+        return not self.rr_atomic and not self._trace_echo
+
+    @property
+    def id_track_k(self) -> int:
+        """Index bits of the per-ID table: never more than the port's ID."""
+        return max(0, min(self.id_track_bits, self.fub_id_width))
+
+    def _id_table_lines(self, chan: str, resp_hs: str, resp_id: str) -> List[str]:
+        """Per-ID {count, target} table and outstanding counter for 'aw'/'ar'.
+        Declares {chan}_id_ok and {chan}_trk_full; the caller builds the gate."""
+        up, k = chan.upper(), self.id_track_k
+        widx = f"fub_axi_{chan}id[{k-1}:0]" if k else "1'b0"
+        ridx = f"{resp_id}[{k-1}:0]" if k else "1'b0"
+        iw = max(1, k)
+        lines = [
+            f"    // -------- {up} per-ID target table (bridge parity item 1) --------",
+            f"    // {2**k} entries indexed by the ID's low {k} bit(s). An ID with requests",
+            f"    // in flight may only add more to the SAME slave (AXI same-ID order);",
+            f"    // any other ID may go to any slave. IDs that share the index bits are",
+            f"    // treated as one ID: safe, at worst a needless stall.",
+            f"    localparam int {up}_IDT_N = {2**k};",
+            f"    logic [{up}_TRK_AW:0]   {chan}_idt_cnt [{up}_IDT_N];",
+            f"    logic [NUM_SLAVES-1:0] {chan}_idt_tgt [{up}_IDT_N];",
+            f"    logic [{up}_TRK_AW:0]   {chan}_out_cnt;",
+            f"    logic [{iw-1}:0] {chan}_idt_widx, {chan}_idt_ridx;",
+            f"    logic {chan}_idt_push, {chan}_idt_pop;",
+            f"    assign {chan}_idt_widx = {widx};",
+            f"    assign {chan}_idt_ridx = {ridx};",
+            f"    assign {chan}_idt_push = fub_axi_{chan}valid && fub_axi_{chan}ready;",
+            f"    assign {chan}_idt_pop  = {resp_hs};",
+            "",
+            "    `ALWAYS_FF_RST(aclk, aresetn,",
+            "        if (`RST_ASSERTED(aresetn)) begin",
+            f"            for (int i = 0; i < {up}_IDT_N; i++) begin",
+            f"                {chan}_idt_cnt[i] <= '0;",
+            f"                {chan}_idt_tgt[i] <= '0;",
+            "            end",
+            f"            {chan}_out_cnt <= '0;",
+            "        end else begin",
+            f"            if ({chan}_idt_push) {chan}_idt_tgt[{chan}_idt_widx] <= comb_slave_select_{chan};",
+            f"            for (int i = 0; i < {up}_IDT_N; i++) begin",
+            f"                {chan}_idt_cnt[i] <= {chan}_idt_cnt[i]",
+            f"                    + ({up}_TRK_AW+1)'({chan}_idt_push && ({chan}_idt_widx == {iw}'(i)))",
+            f"                    - ({up}_TRK_AW+1)'({chan}_idt_pop  && ({chan}_idt_ridx == {iw}'(i)));",
+            "            end",
+            f"            {chan}_out_cnt <= {chan}_out_cnt + ({up}_TRK_AW+1)'({chan}_idt_push)",
+            f"                                          - ({up}_TRK_AW+1)'({chan}_idt_pop);",
+            "        end",
+            "    )",
+            "",
+            f"    // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no",
+            f"    // count wraps; {up}_TRK_DEPTH is the port's outstanding limit.",
+            f"    logic {chan}_trk_full, {chan}_id_ok;",
+            f"    assign {chan}_trk_full = ({chan}_out_cnt == ({up}_TRK_AW+1)'({up}_TRK_DEPTH));",
+            f"    assign {chan}_id_ok    = ({chan}_idt_cnt[{chan}_idt_widx] == '0) ||",
+            f"                           ({chan}_idt_tgt[{chan}_idt_widx] == comb_slave_select_{chan});",
+        ]
+        return lines
+
+    def _path_arb_lines(self, resp: str, slave_widths: List[int],
+                        width_to_slaves) -> List[str]:
+        """{b,r}_slave_select for multi-target mode: which width path's
+        response goes to the master. Values are a representative slave of
+        the path (the response mux muxes per path, not per slave)."""
+        sel = f"{resp}_slave_select"
+        widths = sorted(set(slave_widths))
+        n = len(self.slaves)
+        reps = []
+        for w in widths:
+            i = width_to_slaves[w][0]
+            reps.append(f"{n}'b" + ''.join('1' if j == i else '0' for j in range(n - 1, -1, -1)))
+        p = len(widths)
+        if p == 1:
+            return [f"    // One width path: every response arrives on it; the crossbar has",
+                    f"    // already chosen among the slaves behind it.",
+                    f"    assign {sel} = {reps[0]};", ""]
+        mw = self.master.data_width
+        valids = [f"{self.master.name}_{w}b_{resp}valid" if w == mw else f"conv_{w}b_{resp}valid"
+                  for w in widths]
+        pw = max(1, (p - 1).bit_length())
+        L = [f"    // -------- {resp.upper()} path arbiter (bridge parity item 1) --------",
+             f"    // Round robin over the {p} width paths. A grant holds while its",
+             f"    // response is offered and not taken" + (", and through RLAST." if resp == 'r' else "."),
+             f"    logic [{p-1}:0] {resp}_pv, {resp}_pgnt, r_{resp}_held;",
+             f"    logic           r_{resp}_hold;",
+             f"    logic [{pw-1}:0] r_{resp}_last;"]
+        for i, v in enumerate(valids):
+            L.append(f"    assign {resp}_pv[{i}] = {v};  // {widths[i]}b path")
+        L += ["    always_comb begin",
+              f"        {resp}_pgnt = '0;",
+              f"        if (r_{resp}_hold) begin",
+              f"            {resp}_pgnt = r_{resp}_held;",
+              "        end else begin",
+              f"            case (r_{resp}_last)"]
+        for l in range(p):
+            order = [(l + k) % p for k in range(1, p + 1)]  # priority, highest first
+            L.append(f"                {pw}'d{l}: begin")
+            for j in reversed(order):
+                L.append(f"                    if ({resp}_pv[{j}]) {resp}_pgnt = {p}'b"
+                         + ''.join('1' if b == j else '0' for b in range(p - 1, -1, -1)) + ";")
+            L.append("                end")
+        L += ["                default: ;",
+              "            endcase",
+              "        end",
+              "    end",
+              "",
+              "    `ALWAYS_FF_RST(aclk, aresetn,",
+              "        if (`RST_ASSERTED(aresetn)) begin",
+              f"            r_{resp}_hold <= 1'b0;",
+              f"            r_{resp}_held <= '0;",
+              f"            r_{resp}_last <= '0;",
+              "        end else begin",
+              (f"            r_{resp}_hold <= r_{resp}_hold"
+               f"\n                ? !(fub_axi_rvalid && fub_axi_rready && fub_axi_rlast)"
+               f"\n                : (fub_axi_rvalid && !(fub_axi_rready && fub_axi_rlast));"
+               if resp == 'r' else
+               "            r_b_hold <= fub_axi_bvalid && !fub_axi_bready;"),
+              f"            r_{resp}_held <= {resp}_pgnt;",
+              f"            if (fub_axi_{resp}valid && fub_axi_{resp}ready) begin"]
+        for i in range(p):
+            L.append(f"                if ({resp}_pgnt[{i}]) r_{resp}_last <= {pw}'d{i};")
+        L += ["            end",
+              "        end",
+              "    )",
+              "",
+              f"    assign {sel} = " + "\n                          | ".join(
+                  f"({{NUM_SLAVES{{{resp}_pgnt[{i}]}}}} & {reps[i]})" for i in range(p)) + ";",
+              ""]
+        return L
+
     def _generate_response_mux(self, slave_widths: List[int]) -> List[str]:
         """
         Generate MUX logic to route responses from converters/passthroughs back to fub_axi_*.
@@ -1974,9 +2123,14 @@ class AdapterGenerator:
             lines.append("    // OUTPUT slave_select_aw mirrors the live combinational decode.")
             lines.append("    assign slave_select_aw = comb_slave_select_aw;")
             lines.append("")
-            lines.append("    // -------- AW->B slave_select tracking FIFO --------")
             lines.append(f"    localparam int AW_TRK_DEPTH = {fifo_depth};")
             lines.append(f"    localparam int AW_TRK_AW    = {fifo_aw_bits};")
+        if self.master.channels in ("wr", "rw") and self.multi_target:
+            lines.extend(self._id_table_lines('aw', "fub_axi_bvalid && fub_axi_bready", "fub_axi_bid"))
+            lines.append("")
+            lines.extend(self._path_arb_lines('b', slave_widths, width_to_slaves))
+        elif self.master.channels in ("wr", "rw"):
+            lines.append("    // -------- AW->B slave_select tracking FIFO --------")
             lines.append(f"    logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];")
             lines.append("    logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;")
             lines.append("    logic aw_trk_push, aw_trk_pop;")
@@ -2041,6 +2195,7 @@ class AdapterGenerator:
             else:
                 lines.append("                        !aw_trk_full;")
             lines.append("")
+        if self.master.channels in ("wr", "rw"):
             lines.append("    // -------- AW->W slave_select tracking FIFO --------")
             lines.append("    // Same push as AW (records slave_select at handshake);")
             lines.append("    // pops on wlast so W#2's path-active gating doesn't wait")
@@ -2073,14 +2228,30 @@ class AdapterGenerator:
             lines.append("                          ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]")
             lines.append("                          : '0;")
             lines.append("")
+            if self.multi_target:
+                lines.append("    // A new AW may target a different slave only once every W burst")
+                lines.append("    // already accepted has gone: W carries no ID and follows AW order,")
+                lines.append("    // so two masters each with W owed to two slaves could otherwise")
+                lines.append("    // wait on each other at the slaves' W ports (crossed W deadlock).")
+                lines.append("    assign aw_gate_ok = aw_id_ok && !aw_trk_full &&")
+                lines.append("                        ((w_trk_wptr == w_trk_rptr) ||")
+                lines.append("                         (w_slave_select == comb_slave_select_aw));")
+                lines.append("")
 
         if self.master.channels in ("rd", "rw"):
             lines.append("    // OUTPUT slave_select_ar mirrors the live combinational decode.")
             lines.append("    assign slave_select_ar = comb_slave_select_ar;")
             lines.append("")
-            lines.append("    // -------- AR->R slave_select tracking FIFO --------")
             lines.append(f"    localparam int AR_TRK_DEPTH = {fifo_depth};")
             lines.append(f"    localparam int AR_TRK_AW    = {fifo_aw_bits};")
+        if self.master.channels in ("rd", "rw") and self.multi_target:
+            lines.extend(self._id_table_lines(
+                'ar', "fub_axi_rvalid && fub_axi_rready && fub_axi_rlast", "fub_axi_rid"))
+            lines.append("    assign ar_gate_ok = ar_id_ok && !ar_trk_full;")
+            lines.append("")
+            lines.extend(self._path_arb_lines('r', slave_widths, width_to_slaves))
+        elif self.master.channels in ("rd", "rw"):
+            lines.append("    // -------- AR->R slave_select tracking FIFO --------")
             lines.append(f"    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];")
             lines.append("    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;")
             lines.append("    logic ar_trk_push, ar_trk_pop;")
@@ -2221,8 +2392,7 @@ class AdapterGenerator:
             lines.append("                // No slave selected")
             lines.append("            end")
             lines.append("        endcase")
-            lines.append("        // Single-outstanding-target: hold off a new AW while writes")
-            lines.append("        // to a different slave are in flight (see aw_gate_ok).")
+            lines.append("        // Hold off a new AW the gate refuses (see aw_gate_ok).")
             lines.append("        if (!aw_gate_ok) fub_axi_awready = 1'b0;")
             lines.append("    end")
             lines.append("")
@@ -2352,8 +2522,7 @@ class AdapterGenerator:
             lines.append("                // No slave selected")
             lines.append("            end")
             lines.append("        endcase")
-            lines.append("        // Single-outstanding-target: hold off a new AR while reads")
-            lines.append("        // to a different slave are in flight (see ar_gate_ok).")
+            lines.append("        // Hold off a new AR the gate refuses (see ar_gate_ok).")
             lines.append("        if (!ar_gate_ok) fub_axi_arready = 1'b0;")
             lines.append("    end")
             lines.append("")

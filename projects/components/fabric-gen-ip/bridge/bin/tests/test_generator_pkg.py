@@ -2137,3 +2137,44 @@ def test_two_bridges_share_no_module_names(tmp_path):
         assert (tmp_path / "o" / name / "s0_adapter.sv").exists()
         modules[name] = found
     assert not modules["bridge_one"] & modules["bridge_two"]
+
+
+# --- bridge parity item 1: several targets in flight per master -------------
+
+def _with_bridge_key(toml_path: str, line: str) -> str:
+    p = Path(toml_path)
+    p.write_text(p.read_text().replace('variants = ["no"]', f'variants = ["no"]\n{line}', 1))
+    return toml_path
+
+
+def test_id_track_bits_defaults_to_4(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    assert load_config(toml, conn).id_track_bits == 4
+
+
+@pytest.mark.parametrize("bad", [-1, 9])
+def test_id_track_bits_out_of_range_rejected(tmp_path, bad):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    _with_bridge_key(toml, f"id_track_bits = {bad}")
+    with pytest.raises(ValueError, match="id_track_bits"):
+        load_config(toml, conn)
+
+
+@pytest.mark.parametrize("bits,entries", [(2, 4), (8, 16), (0, 1)])
+def test_id_track_bits_sizes_the_adapter_table(tmp_path, bits, entries):
+    """The per-ID table has 2**min(id_track_bits, master id_width) entries,
+    and the one-outstanding-target register is gone."""
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    _with_bridge_key(toml, f"id_track_bits = {bits}")
+    out = tmp_path / "gen"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", toml, "--connectivity", conn, "--name", "b",
+         "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    adapter = next((out / "b").glob("*m0*adapter.sv")).read_text()
+    assert f"localparam int AR_IDT_N = {entries};" in adapter
+    assert "r_ar_active_target" not in adapter
+    assert "assign ar_gate_ok = ar_id_ok && !ar_trk_full;" in adapter

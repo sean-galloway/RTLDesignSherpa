@@ -52,7 +52,7 @@ Waveform Signal Groups:
 ├── Arbitration (inside u_xbar)
 │   └── ddr_aw_arb_gnt, ddr_aw_arb_locked, ddr_ar_arb_gnt, ddr_ar_arb_locked
 ├── Target gating (inside the master adapter)
-│   └── aw_gate_ok, ar_gate_ok, r_aw_active_target
+│   └── aw_gate_ok, ar_gate_ok, aw_id_ok, aw_idt_cnt/_tgt, aw_out_cnt
 └── Response
     └── s0_axi_bvalid, m0_axi_bvalid, ddr_axi_bid_bridge_id
 ```
@@ -110,8 +110,9 @@ async def test_with_debug(dut):
 |----------|--------------|---------|
 | Arbitration | `<slave>_aw_arb_gnt`, `_locked`, `_rr`, `_req`, `_pick` | Grant, lock and round-robin state, per slave, AW and AR |
 | Response routing | `<slave>_axi_bid_bridge_id`, `<slave>_axi_rid_bridge_id` | The `bridge_id` a B/R beat is muxed to. This is the routing decision -- the AXI ID is not used |
-| Outstanding tracking | `aw_trk_wptr` / `aw_trk_rptr`, `ar_trk_*` (in the master adapter) | Depth of the in-order tracking FIFO |
-| Target gating | `aw_gate_ok` / `ar_gate_ok`, `r_aw_active_target` (adapter) | Why a new AW/AR to a different slave is being held off |
+| Response arbitration | `<master>_<W>b_{b,r}_rarb_gnt`, `_locked`, `_rgnt_<slave>` (xbar); `b_pgnt` / `r_pgnt`, `r_{b,r}_hold` (adapter, multi-path masters) | Which slave, then which width path, a master's B/R comes from |
+| Outstanding tracking | `aw_out_cnt` / `ar_out_cnt`, `aw_idt_cnt[]` / `aw_idt_tgt[]` (adapter); `aw_trk_*` / `ar_trk_*` FIFO on rr_atomic / trace-echo ports | In flight per port and per ID |
+| Target gating | `aw_gate_ok` / `ar_gate_ok`, `aw_id_ok` / `ar_id_ok`, `w_trk_*` (adapter) | Why a new AW/AR is being held off |
 
 : Debug Signals That Exist
 
@@ -139,9 +140,9 @@ print(f"AWREADY: {dut.m0_axi_awready.value}")
 print(f"AW grant (ddr): {dut.u_xbar.ddr_aw_arb_gnt.value}")
 print(f"AW locked     : {dut.u_xbar.ddr_aw_arb_locked.value}")
 
-# 3. Check the tracking FIFO and the single-outstanding-target gate
-print(f"AW trk wptr/rptr: {dut.u_cpu_adapter.aw_trk_wptr.value}"
-      f"/{dut.u_cpu_adapter.aw_trk_rptr.value}")
+# 3. Check the per-ID table and the AW gate
+print(f"AW in flight    : {dut.u_cpu_adapter.aw_out_cnt.value}")
+print(f"aw_id_ok        : {dut.u_cpu_adapter.aw_id_ok.value}")
 print(f"aw_gate_ok      : {dut.u_cpu_adapter.aw_gate_ok.value}")
 
 # 4. Check slave response
@@ -151,12 +152,13 @@ print(f"BREADY: {dut.s0_axi_bready.value}")
 
 **Common Causes:**
 - Arbiter locked by another master (`_arb_locked` high for someone else)
-- **A different slave is still outstanding.** `aw_gate_ok` low means the
-  adapter is holding AWREADY down because every outstanding write must target
-  one slave at a time. This is by design, not a fault -- see the
-  single-outstanding-target note in the PRD.
+- **The same ID is in flight to a different slave.** `aw_id_ok` low holds
+  AWREADY down until that ID's earlier writes complete (AXI same-ID order).
+  By design; use distinct IDs for independent streams.
+- **W is still owed to a different slave.** `aw_gate_ok` low with `aw_id_ok`
+  high and `w_trk_*` non-empty: the AW waits for the earlier W bursts.
 - Slave not responding
-- Tracking FIFO full (`aw_trk_wptr` has lapped `aw_trk_rptr`)
+- Port at its outstanding limit (`aw_out_cnt == AW_TRK_DEPTH`, 16)
 
 #### Issue: Wrong Response Routing
 

@@ -287,6 +287,134 @@ module bridge_2x2_lite_req_mon_xbar
     logic lite5_64b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    wire lite4_32b_b_rgnt_regs = ((regs_axi_bid_bridge_id == 0) && regs_axi_bid_valid);
+
+    wire lite4_32b_r_rgnt_regs = ((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid);
+
+    // ---- B response arbiter, master lite4 64b: round-robin, lock until taken ----
+    logic [1:0] lite4_64b_b_rarb_req;
+    assign lite4_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid) && mem_axi_bvalid};
+    logic [0:0] lite4_64b_b_rarb_lock, lite4_64b_b_rarb_rr;
+    logic lite4_64b_b_rarb_locked;
+    wire [0:0] lite4_64b_b_rarb_pick = (lite4_64b_b_rarb_rr == 1'd0) ? (lite4_64b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        lite4_64b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] lite4_64b_b_rarb_gnt = lite4_64b_b_rarb_locked ? lite4_64b_b_rarb_lock : lite4_64b_b_rarb_pick;
+    wire lite4_64b_b_rarb_gnt_valid = lite4_64b_b_rarb_locked || (|lite4_64b_b_rarb_req);
+    wire lite4_64b_b_rgnt_mem = lite4_64b_b_rarb_gnt_valid && (lite4_64b_b_rarb_gnt == 1'd0);
+    wire lite4_64b_b_rgnt_subtractive = lite4_64b_b_rarb_gnt_valid && (lite4_64b_b_rarb_gnt == 1'd1);
+    wire lite4_64b_b_rarb_vld = (lite4_64b_b_rgnt_mem && lite4_64b_b_rarb_req[0]) || (lite4_64b_b_rgnt_subtractive && lite4_64b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            lite4_64b_b_rarb_lock   <= '0;
+            lite4_64b_b_rarb_rr     <= '0;
+            lite4_64b_b_rarb_locked <= 1'b0;
+        end else if (lite4_64b_b_rarb_vld && lite4_64b_bready) begin
+            lite4_64b_b_rarb_locked <= 1'b0;
+            lite4_64b_b_rarb_rr <= (lite4_64b_b_rarb_gnt == 1'd1) ? 1'd0 : lite4_64b_b_rarb_gnt + 1'b1;
+        end else if (lite4_64b_b_rarb_vld) begin
+            lite4_64b_b_rarb_lock   <= lite4_64b_b_rarb_gnt;       // offered, not taken: hold
+            lite4_64b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master lite4 64b: round-robin, lock through RLAST ----
+    logic [1:0] lite4_64b_r_rarb_req;
+    assign lite4_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid) && mem_axi_rvalid};
+    logic [0:0] lite4_64b_r_rarb_lock, lite4_64b_r_rarb_rr;
+    logic lite4_64b_r_rarb_locked;
+    wire [0:0] lite4_64b_r_rarb_pick = (lite4_64b_r_rarb_rr == 1'd0) ? (lite4_64b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        lite4_64b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] lite4_64b_r_rarb_gnt = lite4_64b_r_rarb_locked ? lite4_64b_r_rarb_lock : lite4_64b_r_rarb_pick;
+    wire lite4_64b_r_rarb_gnt_valid = lite4_64b_r_rarb_locked || (|lite4_64b_r_rarb_req);
+    wire lite4_64b_r_rgnt_mem = lite4_64b_r_rarb_gnt_valid && (lite4_64b_r_rarb_gnt == 1'd0);
+    wire lite4_64b_r_rgnt_subtractive = lite4_64b_r_rarb_gnt_valid && (lite4_64b_r_rarb_gnt == 1'd1);
+    wire lite4_64b_r_rarb_vld = (lite4_64b_r_rgnt_mem && lite4_64b_r_rarb_req[0]) || (lite4_64b_r_rgnt_subtractive && lite4_64b_r_rarb_req[1]);
+    wire lite4_64b_r_rarb_last = (lite4_64b_r_rgnt_mem && mem_axi_rlast) || (lite4_64b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            lite4_64b_r_rarb_lock   <= '0;
+            lite4_64b_r_rarb_rr     <= '0;
+            lite4_64b_r_rarb_locked <= 1'b0;
+        end else if (lite4_64b_r_rarb_vld && lite4_64b_rready) begin
+            if (lite4_64b_r_rarb_last) begin
+                lite4_64b_r_rarb_locked <= 1'b0;
+                lite4_64b_r_rarb_rr <= (lite4_64b_r_rarb_gnt == 1'd1) ? 1'd0 : lite4_64b_r_rarb_gnt + 1'b1;
+            end else begin
+                lite4_64b_r_rarb_lock   <= lite4_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                lite4_64b_r_rarb_locked <= 1'b1;
+            end
+        end else if (lite4_64b_r_rarb_vld) begin
+            lite4_64b_r_rarb_lock   <= lite4_64b_r_rarb_gnt;       // offered, not taken: hold
+            lite4_64b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire lite5_32b_b_rgnt_regs = ((regs_axi_bid_bridge_id == 1) && regs_axi_bid_valid);
+
+    wire lite5_32b_r_rgnt_regs = ((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid);
+
+    // ---- B response arbiter, master lite5 64b: round-robin, lock until taken ----
+    logic [1:0] lite5_64b_b_rarb_req;
+    assign lite5_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid) && mem_axi_bvalid};
+    logic [0:0] lite5_64b_b_rarb_lock, lite5_64b_b_rarb_rr;
+    logic lite5_64b_b_rarb_locked;
+    wire [0:0] lite5_64b_b_rarb_pick = (lite5_64b_b_rarb_rr == 1'd0) ? (lite5_64b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        lite5_64b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] lite5_64b_b_rarb_gnt = lite5_64b_b_rarb_locked ? lite5_64b_b_rarb_lock : lite5_64b_b_rarb_pick;
+    wire lite5_64b_b_rarb_gnt_valid = lite5_64b_b_rarb_locked || (|lite5_64b_b_rarb_req);
+    wire lite5_64b_b_rgnt_mem = lite5_64b_b_rarb_gnt_valid && (lite5_64b_b_rarb_gnt == 1'd0);
+    wire lite5_64b_b_rgnt_subtractive = lite5_64b_b_rarb_gnt_valid && (lite5_64b_b_rarb_gnt == 1'd1);
+    wire lite5_64b_b_rarb_vld = (lite5_64b_b_rgnt_mem && lite5_64b_b_rarb_req[0]) || (lite5_64b_b_rgnt_subtractive && lite5_64b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            lite5_64b_b_rarb_lock   <= '0;
+            lite5_64b_b_rarb_rr     <= '0;
+            lite5_64b_b_rarb_locked <= 1'b0;
+        end else if (lite5_64b_b_rarb_vld && lite5_64b_bready) begin
+            lite5_64b_b_rarb_locked <= 1'b0;
+            lite5_64b_b_rarb_rr <= (lite5_64b_b_rarb_gnt == 1'd1) ? 1'd0 : lite5_64b_b_rarb_gnt + 1'b1;
+        end else if (lite5_64b_b_rarb_vld) begin
+            lite5_64b_b_rarb_lock   <= lite5_64b_b_rarb_gnt;       // offered, not taken: hold
+            lite5_64b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master lite5 64b: round-robin, lock through RLAST ----
+    logic [1:0] lite5_64b_r_rarb_req;
+    assign lite5_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid) && mem_axi_rvalid};
+    logic [0:0] lite5_64b_r_rarb_lock, lite5_64b_r_rarb_rr;
+    logic lite5_64b_r_rarb_locked;
+    wire [0:0] lite5_64b_r_rarb_pick = (lite5_64b_r_rarb_rr == 1'd0) ? (lite5_64b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        lite5_64b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] lite5_64b_r_rarb_gnt = lite5_64b_r_rarb_locked ? lite5_64b_r_rarb_lock : lite5_64b_r_rarb_pick;
+    wire lite5_64b_r_rarb_gnt_valid = lite5_64b_r_rarb_locked || (|lite5_64b_r_rarb_req);
+    wire lite5_64b_r_rgnt_mem = lite5_64b_r_rarb_gnt_valid && (lite5_64b_r_rarb_gnt == 1'd0);
+    wire lite5_64b_r_rgnt_subtractive = lite5_64b_r_rarb_gnt_valid && (lite5_64b_r_rarb_gnt == 1'd1);
+    wire lite5_64b_r_rarb_vld = (lite5_64b_r_rgnt_mem && lite5_64b_r_rarb_req[0]) || (lite5_64b_r_rgnt_subtractive && lite5_64b_r_rarb_req[1]);
+    wire lite5_64b_r_rarb_last = (lite5_64b_r_rgnt_mem && mem_axi_rlast) || (lite5_64b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            lite5_64b_r_rarb_lock   <= '0;
+            lite5_64b_r_rarb_rr     <= '0;
+            lite5_64b_r_rarb_locked <= 1'b0;
+        end else if (lite5_64b_r_rarb_vld && lite5_64b_rready) begin
+            if (lite5_64b_r_rarb_last) begin
+                lite5_64b_r_rarb_locked <= 1'b0;
+                lite5_64b_r_rarb_rr <= (lite5_64b_r_rarb_gnt == 1'd1) ? 1'd0 : lite5_64b_r_rarb_gnt + 1'b1;
+            end else begin
+                lite5_64b_r_rarb_lock   <= lite5_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                lite5_64b_r_rarb_locked <= 1'b1;
+            end
+        end else if (lite5_64b_r_rarb_vld) begin
+            lite5_64b_r_rarb_lock   <= lite5_64b_r_rarb_gnt;       // offered, not taken: hold
+            lite5_64b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: mem (64b)
     // ================================================================
     // Multi-master (2 masters) → mem
@@ -383,9 +511,9 @@ module bridge_2x2_lite_req_mon_xbar
         ((lite5_64b_w_sel_mem && lite5_64b_wvalid) ? lite5_64b_w.user : '0);
     assign mem_axi_wvalid = (lite4_64b_w_sel_mem && lite4_64b_wvalid) || (lite5_64b_w_sel_mem && lite5_64b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign mem_axi_bready = ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? lite4_64b_bready : '0) |
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? lite5_64b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign mem_axi_bready = (lite4_64b_b_rgnt_mem ? lite4_64b_bready : '0) |
+        (lite5_64b_b_rgnt_mem ? lite5_64b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign mem_axi_bridge_id_aw = (lite4_64b_aw_gnt_mem ? lite4_bridge_id_aw : '0) |
@@ -443,9 +571,9 @@ module bridge_2x2_lite_req_mon_xbar
         (lite5_64b_ar_gnt_mem ? lite5_64b_ar.user : '0);
     assign mem_axi_arvalid = lite4_64b_ar_gnt_mem || lite5_64b_ar_gnt_mem;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign mem_axi_rready = ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? lite4_64b_rready : '0) |
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? lite5_64b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign mem_axi_rready = (lite4_64b_r_rgnt_mem ? lite4_64b_rready : '0) |
+        (lite5_64b_r_rgnt_mem ? lite5_64b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign mem_axi_bridge_id_ar = (lite4_64b_ar_gnt_mem ? lite4_bridge_id_ar : '0) |
@@ -549,9 +677,9 @@ module bridge_2x2_lite_req_mon_xbar
         ((lite5_32b_w_sel_regs && lite5_32b_wvalid) ? lite5_32b_w.user : '0);
     assign regs_axi_wvalid = (lite4_32b_w_sel_regs && lite4_32b_wvalid) || (lite5_32b_w_sel_regs && lite5_32b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign regs_axi_bready = ((regs_axi_bid_bridge_id == 0) && regs_axi_bid_valid ? lite4_32b_bready : '0) |
-        ((regs_axi_bid_bridge_id == 1) && regs_axi_bid_valid ? lite5_32b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign regs_axi_bready = (lite4_32b_b_rgnt_regs ? lite4_32b_bready : '0) |
+        (lite5_32b_b_rgnt_regs ? lite5_32b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign regs_axi_bridge_id_aw = (lite4_32b_aw_gnt_regs ? lite4_bridge_id_aw : '0) |
@@ -609,9 +737,9 @@ module bridge_2x2_lite_req_mon_xbar
         (lite5_32b_ar_gnt_regs ? lite5_32b_ar.user : '0);
     assign regs_axi_arvalid = lite4_32b_ar_gnt_regs || lite5_32b_ar_gnt_regs;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign regs_axi_rready = ((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid ? lite4_32b_rready : '0) |
-        ((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid ? lite5_32b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign regs_axi_rready = (lite4_32b_r_rgnt_regs ? lite4_32b_rready : '0) |
+        (lite5_32b_r_rgnt_regs ? lite5_32b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign regs_axi_bridge_id_ar = (lite4_32b_ar_gnt_regs ? lite4_bridge_id_ar : '0) |
@@ -715,9 +843,9 @@ module bridge_2x2_lite_req_mon_xbar
         ((lite5_64b_w_sel_subtractive && lite5_64b_wvalid) ? lite5_64b_w.user : '0);
     assign subtractive_axi_wvalid = (lite4_64b_w_sel_subtractive && lite4_64b_wvalid) || (lite5_64b_w_sel_subtractive && lite5_64b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? lite4_64b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? lite5_64b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_bready = (lite4_64b_b_rgnt_subtractive ? lite4_64b_bready : '0) |
+        (lite5_64b_b_rgnt_subtractive ? lite5_64b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign subtractive_axi_bridge_id_aw = (lite4_64b_aw_gnt_subtractive ? lite4_bridge_id_aw : '0) |
@@ -775,9 +903,9 @@ module bridge_2x2_lite_req_mon_xbar
         (lite5_64b_ar_gnt_subtractive ? lite5_64b_ar.user : '0);
     assign subtractive_axi_arvalid = lite4_64b_ar_gnt_subtractive || lite5_64b_ar_gnt_subtractive;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? lite4_64b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? lite5_64b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_rready = (lite4_64b_r_rgnt_subtractive ? lite4_64b_rready : '0) |
+        (lite5_64b_r_rgnt_subtractive ? lite5_64b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign subtractive_axi_bridge_id_ar = (lite4_64b_ar_gnt_subtractive ? lite4_bridge_id_ar : '0) |
@@ -897,49 +1025,37 @@ module bridge_2x2_lite_req_mon_xbar
         (lite4_32b_w_sel_regs ? regs_axi_wready : '0);
 
     assign lite4_32b_b.id = 
-        ((regs_axi_bid_bridge_id == 0) && regs_axi_bid_valid ? regs_axi_bid : '0);
+        (lite4_32b_b_rgnt_regs ? regs_axi_bid : '0);
 
     assign lite4_32b_b.resp = 
-        ((regs_axi_bid_bridge_id == 0) && regs_axi_bid_valid ? regs_axi_bresp : '0);
+        (lite4_32b_b_rgnt_regs ? regs_axi_bresp : '0);
 
     assign lite4_32b_b.user = 
-        ((regs_axi_bid_bridge_id == 0) && regs_axi_bid_valid ? regs_axi_buser : '0);
+        (lite4_32b_b_rgnt_regs ? regs_axi_buser : '0);
 
     assign lite4_32b_bvalid = 
-        ((regs_axi_bid_bridge_id == 0) && regs_axi_bid_valid ? regs_axi_bvalid : '0);
+        (lite4_32b_b_rgnt_regs ? regs_axi_bvalid : '0);
 
     assign lite4_32b_arready = 
         (lite4_32b_ar_gnt_regs ? regs_axi_arready : '0);
 
     assign lite4_32b_r.id = 
-        ((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid ? regs_axi_rid : '0);
+        (lite4_32b_r_rgnt_regs ? regs_axi_rid : '0);
 
     assign lite4_32b_r.data = 
-        ((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid ? regs_axi_rdata : 32'b0);
+        (lite4_32b_r_rgnt_regs ? regs_axi_rdata : 32'b0);
 
     assign lite4_32b_r.resp = 
-        ((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid ? regs_axi_rresp : '0);
+        (lite4_32b_r_rgnt_regs ? regs_axi_rresp : '0);
 
     assign lite4_32b_r.last = 
-        ((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid ? regs_axi_rlast : '0);
+        (lite4_32b_r_rgnt_regs ? regs_axi_rlast : '0);
 
     assign lite4_32b_r.user = 
-        ((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid ? regs_axi_ruser : '0);
+        (lite4_32b_r_rgnt_regs ? regs_axi_ruser : '0);
 
     assign lite4_32b_rvalid = 
-        ((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid ? regs_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master lite4 (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (lite4_32b_r_rgnt_regs ? regs_axi_rvalid : '0);
 
 
     // Master: lite4, Width path: 64b
@@ -952,60 +1068,48 @@ module bridge_2x2_lite_req_mon_xbar
         (lite4_64b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign lite4_64b_b.id = 
-        ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? mem_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (lite4_64b_b_rgnt_mem ? mem_axi_bid : '0) |
+        (lite4_64b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign lite4_64b_b.resp = 
-        ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? mem_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (lite4_64b_b_rgnt_mem ? mem_axi_bresp : '0) |
+        (lite4_64b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign lite4_64b_b.user = 
-        ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? mem_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (lite4_64b_b_rgnt_mem ? mem_axi_buser : '0) |
+        (lite4_64b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign lite4_64b_bvalid = 
-        ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? mem_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (lite4_64b_b_rgnt_mem ? mem_axi_bvalid : '0) |
+        (lite4_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign lite4_64b_arready = 
         (lite4_64b_ar_gnt_mem ? mem_axi_arready : '0) |
         (lite4_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign lite4_64b_r.id = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (lite4_64b_r_rgnt_mem ? mem_axi_rid : '0) |
+        (lite4_64b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign lite4_64b_r.data = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rdata : 64'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
+        (lite4_64b_r_rgnt_mem ? mem_axi_rdata : 64'b0) |
+        (lite4_64b_r_rgnt_subtractive ? subtractive_axi_rdata : 64'b0);
 
     assign lite4_64b_r.resp = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (lite4_64b_r_rgnt_mem ? mem_axi_rresp : '0) |
+        (lite4_64b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign lite4_64b_r.last = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (lite4_64b_r_rgnt_mem ? mem_axi_rlast : '0) |
+        (lite4_64b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign lite4_64b_r.user = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (lite4_64b_r_rgnt_mem ? mem_axi_ruser : '0) |
+        (lite4_64b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign lite4_64b_rvalid = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master lite4 (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (lite4_64b_r_rgnt_mem ? mem_axi_rvalid : '0) |
+        (lite4_64b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: lite5, Width path: 32b
@@ -1016,49 +1120,37 @@ module bridge_2x2_lite_req_mon_xbar
         (lite5_32b_w_sel_regs ? regs_axi_wready : '0);
 
     assign lite5_32b_b.id = 
-        ((regs_axi_bid_bridge_id == 1) && regs_axi_bid_valid ? regs_axi_bid : '0);
+        (lite5_32b_b_rgnt_regs ? regs_axi_bid : '0);
 
     assign lite5_32b_b.resp = 
-        ((regs_axi_bid_bridge_id == 1) && regs_axi_bid_valid ? regs_axi_bresp : '0);
+        (lite5_32b_b_rgnt_regs ? regs_axi_bresp : '0);
 
     assign lite5_32b_b.user = 
-        ((regs_axi_bid_bridge_id == 1) && regs_axi_bid_valid ? regs_axi_buser : '0);
+        (lite5_32b_b_rgnt_regs ? regs_axi_buser : '0);
 
     assign lite5_32b_bvalid = 
-        ((regs_axi_bid_bridge_id == 1) && regs_axi_bid_valid ? regs_axi_bvalid : '0);
+        (lite5_32b_b_rgnt_regs ? regs_axi_bvalid : '0);
 
     assign lite5_32b_arready = 
         (lite5_32b_ar_gnt_regs ? regs_axi_arready : '0);
 
     assign lite5_32b_r.id = 
-        ((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid ? regs_axi_rid : '0);
+        (lite5_32b_r_rgnt_regs ? regs_axi_rid : '0);
 
     assign lite5_32b_r.data = 
-        ((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid ? regs_axi_rdata : 32'b0);
+        (lite5_32b_r_rgnt_regs ? regs_axi_rdata : 32'b0);
 
     assign lite5_32b_r.resp = 
-        ((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid ? regs_axi_rresp : '0);
+        (lite5_32b_r_rgnt_regs ? regs_axi_rresp : '0);
 
     assign lite5_32b_r.last = 
-        ((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid ? regs_axi_rlast : '0);
+        (lite5_32b_r_rgnt_regs ? regs_axi_rlast : '0);
 
     assign lite5_32b_r.user = 
-        ((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid ? regs_axi_ruser : '0);
+        (lite5_32b_r_rgnt_regs ? regs_axi_ruser : '0);
 
     assign lite5_32b_rvalid = 
-        ((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid ? regs_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master lite5 (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (lite5_32b_r_rgnt_regs ? regs_axi_rvalid : '0);
 
 
     // Master: lite5, Width path: 64b
@@ -1071,60 +1163,48 @@ module bridge_2x2_lite_req_mon_xbar
         (lite5_64b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign lite5_64b_b.id = 
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? mem_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (lite5_64b_b_rgnt_mem ? mem_axi_bid : '0) |
+        (lite5_64b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign lite5_64b_b.resp = 
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? mem_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (lite5_64b_b_rgnt_mem ? mem_axi_bresp : '0) |
+        (lite5_64b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign lite5_64b_b.user = 
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? mem_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (lite5_64b_b_rgnt_mem ? mem_axi_buser : '0) |
+        (lite5_64b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign lite5_64b_bvalid = 
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? mem_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (lite5_64b_b_rgnt_mem ? mem_axi_bvalid : '0) |
+        (lite5_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign lite5_64b_arready = 
         (lite5_64b_ar_gnt_mem ? mem_axi_arready : '0) |
         (lite5_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign lite5_64b_r.id = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (lite5_64b_r_rgnt_mem ? mem_axi_rid : '0) |
+        (lite5_64b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign lite5_64b_r.data = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rdata : 64'b0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
+        (lite5_64b_r_rgnt_mem ? mem_axi_rdata : 64'b0) |
+        (lite5_64b_r_rgnt_subtractive ? subtractive_axi_rdata : 64'b0);
 
     assign lite5_64b_r.resp = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (lite5_64b_r_rgnt_mem ? mem_axi_rresp : '0) |
+        (lite5_64b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign lite5_64b_r.last = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (lite5_64b_r_rgnt_mem ? mem_axi_rlast : '0) |
+        (lite5_64b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign lite5_64b_r.user = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (lite5_64b_r_rgnt_mem ? mem_axi_ruser : '0) |
+        (lite5_64b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign lite5_64b_rvalid = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master lite5 (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (lite5_64b_r_rgnt_mem ? mem_axi_rvalid : '0) |
+        (lite5_64b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_2x2_lite_req_mon_xbar

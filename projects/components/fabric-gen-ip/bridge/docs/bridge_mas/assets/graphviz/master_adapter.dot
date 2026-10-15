@@ -29,8 +29,8 @@ digraph master_adapter {
     p1l -> dec -> p1r [style=invis];
 
     wsel [label="W Path Select\nw_trk FIFO: pushed with the AW's\nslave select, popped at WLAST", group=L];
-    gate [label="Target Gate + Fabric ID\naw_gate_ok / ar_gate_ok: a new AW / AR waits while\noutstanding ones target a different slave;\nID leaves as {BRIDGE_ID, id}", group=C];
-    rmux [label="Response Mux\naw_trk / ar_trk FIFO head picks the\nslave path (b_ / r_slave_select);\npopped at B / last R", group=R];
+    gate [label="Per-ID Target Gate + Fabric ID\naw_gate_ok / ar_gate_ok: a new AW / AR waits only while\nits ID is in flight to a different slave (AW also while\nW is owed to one); ID leaves as {BRIDGE_ID, id}", group=C];
+    rmux [label="Response Mux + Path Arbiter\nround robin across the width paths\n(b_ / r_slave_select); held until taken,\nR through RLAST; each B / last R\ndecrements the gate's ID table", group=R];
     { rank=same; wsel; gate; rmux; }
     wsel -> gate -> rmux [style=invis];
 
@@ -57,9 +57,8 @@ digraph master_adapter {
     pr -> sr [dir=back, label="B / R"];
     sr -> p1r [dir=back];
     p1r -> rmux [dir=none, xlabel="B / R"];
-    rmux -> rl [dir=back, label="B / R of the head path"];
+    rmux -> rl [dir=back, label="B / R of the granted path"];
     rl -> bar [dir=back, xlabel="B / R (slave width)"];
 
     dec -> wsel [style=dashed, xlabel="AW slave select"];
-    dec -> rmux [style=dashed, xlabel="AW / AR slave select"];
 }

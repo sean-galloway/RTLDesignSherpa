@@ -47,6 +47,11 @@ Responses for one master climb from the slaves. Each slave adapter's tracker sup
 
 ### Architecture: FIFO-Tracked Master Routing
 
+> **Scope since bridge parity item 1 (2026-10-15):** this FIFO steering is
+> used only on master ports with a read-return atomic or a trace echo. Every
+> other port has per-ID tracking and a path arbiter instead (MAS 2.1, and
+> Response Arbitration below).
+
 For multi-slave masters, responses are routed based on a **stable slave-select value** captured at request time, not the current address decode:
 
 ```systemverilog
@@ -192,45 +197,25 @@ Solution: Arbitrate between slave responses
 
 ### Response Arbitration
 
-> **Not built.** Responses are not arbitrated and there are no response FIFOs.
-> The crossbar instantiates round-robin arbiters for AW and AR only; B and R
-> follow the selection recorded at the address handshake. Searching the
-> generated crossbar for a B or R arbiter, or for a response FIFO, returns
-> nothing.
+Built (bridge parity item 1, 2026-10-15). Responses are arbitrated at two
+levels:
 
-```systemverilog
-// Arbitrate between multiple slave responses for same master
-logic [2:0] slave_has_response;  // Which slaves have responses for M0
-logic [1:0] selected_slave;      // Which slave wins arbitration
+1. **Crossbar, per master width path** (`<master>_<W>b_{b,r}_rarb_*`): the
+   slaves on that path whose tracker names this master request. Round robin
+   grants one. A grant offered and not taken holds, and an R grant holds
+   through RLAST. The mux toward the master and the slave's BREADY / RREADY
+   both follow the grant (`_rgnt_<slave>`). A path with one slave keeps the
+   plain ownership gate. Excerpt in MAS 2.3.
+2. **Master adapter, across width paths** (`b_pgnt` / `r_pgnt`): the same
+   rules over the master's width paths. Only the granted path's ready is
+   raised (MAS 2.1).
 
-// Detect responses destined for M0
-for (genvar s = 0; s < 3; s++) begin
-    assign slave_has_response[s] = slave_rvalid[s] && 
-                                   (extract_bid(slave_rid[s]) == 2'b00);
-end
-
-// Round-robin arbiter for fairness
-always_ff @(posedge clk) begin
-    if (!rst_n) begin
-        selected_slave <= 0;
-    end else if (m0_rready && (|slave_has_response)) begin
-        // Rotate selection for fairness
-        if (slave_has_response[selected_slave])
-            ; // Keep current
-        else
-            selected_slave <= find_next_requesting_slave();
-    end
-end
-
-// MUX selected slave's response to master
-assign m0_rvalid = slave_has_response[selected_slave];
-assign m0_rdata = slave_rdata[selected_slave];
-assign m0_rid = strip_bid(slave_rid[selected_slave]);
-```
+There are no response FIFOs. A response that loses arbitration waits in the
+slave's (or the slave adapter's skid buffer's) valid/ready hold.
 
 ### Response Buffering
 
-Optional: Add FIFOs to buffer pending responses:
+Not built. The option would add FIFOs to buffer pending responses:
 
 ```
 Purpose:

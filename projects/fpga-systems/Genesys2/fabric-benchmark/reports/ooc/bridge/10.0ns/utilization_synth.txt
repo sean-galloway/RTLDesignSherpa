@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Thu Oct 15 08:24:59 2026
+| Date         : Thu Oct 15 12:22:45 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/bridge/10.0ns/utilization_synth.txt
 | Design       : fb_data_fabric
@@ -31,14 +31,14 @@ Table of Contents
 +-------------------------+------+-------+------------+-----------+-------+
 |        Site Type        | Used | Fixed | Prohibited | Available | Util% |
 +-------------------------+------+-------+------------+-----------+-------+
-| Slice LUTs*             | 8196 |     0 |          0 |    203800 |  4.02 |
-|   LUT as Logic          | 8196 |     0 |          0 |    203800 |  4.02 |
+| Slice LUTs*             | 8176 |     0 |          0 |    203800 |  4.01 |
+|   LUT as Logic          | 8176 |     0 |          0 |    203800 |  4.01 |
 |   LUT as Memory         |    0 |     0 |          0 |     64000 |  0.00 |
-| Slice Registers         | 6916 |     0 |          0 |    407600 |  1.70 |
-|   Register as Flip Flop | 6916 |     0 |          0 |    407600 |  1.70 |
+| Slice Registers         | 7268 |     0 |          0 |    407600 |  1.78 |
+|   Register as Flip Flop | 7268 |     0 |          0 |    407600 |  1.78 |
 |   Register as Latch     |    0 |     0 |          0 |    407600 |  0.00 |
-| F7 Muxes                |   33 |     0 |          0 |    101900 |  0.03 |
-| F8 Muxes                |   10 |     0 |          0 |     50950 |  0.02 |
+| F7 Muxes                |   40 |     0 |          0 |    101900 |  0.04 |
+| F8 Muxes                |   18 |     0 |          0 |     50950 |  0.04 |
 +-------------------------+------+-------+------------+-----------+-------+
 * Warning! The Final LUT count, after physical optimizations and full implementation, is typically lower. Run opt_design after synthesis, if not already completed, for a more realistic count.
 Warning! LUT value is adjusted to account for LUT combining.
@@ -58,9 +58,9 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 | 0     |            _ |       Reset |            - |
 | 0     |          Yes |           - |            - |
 | 0     |          Yes |           - |          Set |
-| 6580  |          Yes |           - |        Reset |
+| 7060  |          Yes |           - |        Reset |
 | 0     |          Yes |         Set |            - |
-| 336   |          Yes |       Reset |            - |
+| 208   |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -154,17 +154,17 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +----------+------+---------------------+
 | Ref Name | Used | Functional Category |
 +----------+------+---------------------+
-| FDCE     | 6580 |        Flop & Latch |
-| LUT5     | 3349 |                 LUT |
-| LUT4     | 2589 |                 LUT |
-| LUT6     | 2452 |                 LUT |
-| LUT3     | 1244 |                 LUT |
-| LUT2     |  461 |                 LUT |
-| FDRE     |  336 |        Flop & Latch |
+| FDCE     | 7060 |        Flop & Latch |
+| LUT6     | 3237 |                 LUT |
+| LUT5     | 2228 |                 LUT |
+| LUT3     | 2075 |                 LUT |
+| LUT4     | 2072 |                 LUT |
+| LUT2     |  626 |                 LUT |
+| FDRE     |  208 |        Flop & Latch |
 | CARRY4   |  165 |          CarryLogic |
-| LUT1     |  111 |                 LUT |
-| MUXF7    |   33 |               MuxFx |
-| MUXF8    |   10 |               MuxFx |
+| LUT1     |  107 |                 LUT |
+| MUXF7    |   40 |               MuxFx |
+| MUXF8    |   18 |               MuxFx |
 +----------+------+---------------------+
 
 

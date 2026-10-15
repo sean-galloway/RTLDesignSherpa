@@ -864,7 +864,9 @@ probe, arbitration (multi-master). Every AXI5 master port carries an
 with monitor interfaces, monbus traffic / WRITE_BP / ERR_BP phases scaled
 by level.
 
-**Hand-written**: bridge BUG-009 (was BRIDGE-011) tracking + latency on 2x2; the AMBA5 sign-off
+**Hand-written**: bridge BUG-009 (was BRIDGE-011) tracking + latency on 2x2;
+several-targets-in-flight (`test_bridge_2x2_rw_multitarget.py`: overlap,
+same-ID order, mixed stress -- bridge parity item 1); the AMBA5 sign-off
 tests (sideband values, sideband through arbitration, sideband across a
 width converter, atomics incl. Compare, AXI5 read BFM sign-off).
 
@@ -884,7 +886,9 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
    `bridge_id` tracker (CAM or FIFO, see below)
 4. **Arbitration:** Per-slave round-robin, AW and AR only, with the grant
    locked until the ADDRESS handshake -- not until burst complete. W is
-   owned via a FIFO; B and R have no arbiter.
+   owned via a FIFO. B and R are arbitrated per master width path (round
+   robin, held through RLAST) and again across a master's width paths in its
+   adapter.
 5. **Response Routing:** each slave adapter stores the originating
    master's `bridge_id` on the address handshake. For AXI4/AXI5 slaves of a
    multi-master bridge (or any `enable_ooo` slave) that store is a
@@ -913,11 +917,13 @@ of them is built:
 - Out-of-order responses at a FIFO-tracked slave (single-master bridges,
   shim and subtractive slaves): those must return B/R in request order across
   all IDs (bridge BUG-008, was BRIDGE-010). A multi-master AXI4/AXI5 slave is
-  CAM-tracked and may reorder across IDs. Each master still has one target
-  slave at a time (`aw_gate_ok`).
+  CAM-tracked and may reorder across IDs. A master may have several slaves
+  in flight at once; only a same-ID request to a DIFFERENT slave waits
+  (`aw_gate_ok` / `ar_gate_ok`, `[bridge].id_track_bits`). rr_atomic and
+  trace-echo ports keep the older one-target FIFO path.
 - Burst-locked arbitration. The grant releases at the address handshake, as
   item 4 above already said -- this bullet contradicted it directly.
-- Configurable arbitration policy. Round-robin is hard-coded.
+- (Arbitration policy IS configurable now: `arbitration = "qos"`, HAS 6.8a.)
 
 **See:**
 - `projects/components/fabric-gen-ip/bridge/PRD.md` - Complete specification

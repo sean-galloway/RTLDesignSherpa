@@ -825,6 +825,8 @@ def _emit_bridge_variant(
         # bridge TASK-006 (was BRIDGE-017): [bridge].arbitration = "rr" | "qos" (+ qos_aging_shift).
         arbitration=getattr(config, 'arbitration', 'rr'),
         qos_aging_shift=getattr(config, 'qos_aging_shift', 4),
+        # [bridge].id_track_bits -> per-ID target tracking in the master adapters.
+        id_track_bits=getattr(config, 'id_track_bits', 4),
     )
 
     for master in master_configs:

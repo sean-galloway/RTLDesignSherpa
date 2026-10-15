@@ -287,6 +287,134 @@ module bridge_2x2_wb4_mon_xbar
     logic cpu_64b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    wire wbm_32b_b_rgnt_wbp = ((wbp_axi_bid_bridge_id == 0) && wbp_axi_bid_valid);
+
+    wire wbm_32b_r_rgnt_wbp = ((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid);
+
+    // ---- B response arbiter, master wbm 64b: round-robin, lock until taken ----
+    logic [1:0] wbm_64b_b_rarb_req;
+    assign wbm_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid) && mem_axi_bvalid};
+    logic [0:0] wbm_64b_b_rarb_lock, wbm_64b_b_rarb_rr;
+    logic wbm_64b_b_rarb_locked;
+    wire [0:0] wbm_64b_b_rarb_pick = (wbm_64b_b_rarb_rr == 1'd0) ? (wbm_64b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        wbm_64b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] wbm_64b_b_rarb_gnt = wbm_64b_b_rarb_locked ? wbm_64b_b_rarb_lock : wbm_64b_b_rarb_pick;
+    wire wbm_64b_b_rarb_gnt_valid = wbm_64b_b_rarb_locked || (|wbm_64b_b_rarb_req);
+    wire wbm_64b_b_rgnt_mem = wbm_64b_b_rarb_gnt_valid && (wbm_64b_b_rarb_gnt == 1'd0);
+    wire wbm_64b_b_rgnt_subtractive = wbm_64b_b_rarb_gnt_valid && (wbm_64b_b_rarb_gnt == 1'd1);
+    wire wbm_64b_b_rarb_vld = (wbm_64b_b_rgnt_mem && wbm_64b_b_rarb_req[0]) || (wbm_64b_b_rgnt_subtractive && wbm_64b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            wbm_64b_b_rarb_lock   <= '0;
+            wbm_64b_b_rarb_rr     <= '0;
+            wbm_64b_b_rarb_locked <= 1'b0;
+        end else if (wbm_64b_b_rarb_vld && wbm_64b_bready) begin
+            wbm_64b_b_rarb_locked <= 1'b0;
+            wbm_64b_b_rarb_rr <= (wbm_64b_b_rarb_gnt == 1'd1) ? 1'd0 : wbm_64b_b_rarb_gnt + 1'b1;
+        end else if (wbm_64b_b_rarb_vld) begin
+            wbm_64b_b_rarb_lock   <= wbm_64b_b_rarb_gnt;       // offered, not taken: hold
+            wbm_64b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master wbm 64b: round-robin, lock through RLAST ----
+    logic [1:0] wbm_64b_r_rarb_req;
+    assign wbm_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid) && mem_axi_rvalid};
+    logic [0:0] wbm_64b_r_rarb_lock, wbm_64b_r_rarb_rr;
+    logic wbm_64b_r_rarb_locked;
+    wire [0:0] wbm_64b_r_rarb_pick = (wbm_64b_r_rarb_rr == 1'd0) ? (wbm_64b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        wbm_64b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] wbm_64b_r_rarb_gnt = wbm_64b_r_rarb_locked ? wbm_64b_r_rarb_lock : wbm_64b_r_rarb_pick;
+    wire wbm_64b_r_rarb_gnt_valid = wbm_64b_r_rarb_locked || (|wbm_64b_r_rarb_req);
+    wire wbm_64b_r_rgnt_mem = wbm_64b_r_rarb_gnt_valid && (wbm_64b_r_rarb_gnt == 1'd0);
+    wire wbm_64b_r_rgnt_subtractive = wbm_64b_r_rarb_gnt_valid && (wbm_64b_r_rarb_gnt == 1'd1);
+    wire wbm_64b_r_rarb_vld = (wbm_64b_r_rgnt_mem && wbm_64b_r_rarb_req[0]) || (wbm_64b_r_rgnt_subtractive && wbm_64b_r_rarb_req[1]);
+    wire wbm_64b_r_rarb_last = (wbm_64b_r_rgnt_mem && mem_axi_rlast) || (wbm_64b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            wbm_64b_r_rarb_lock   <= '0;
+            wbm_64b_r_rarb_rr     <= '0;
+            wbm_64b_r_rarb_locked <= 1'b0;
+        end else if (wbm_64b_r_rarb_vld && wbm_64b_rready) begin
+            if (wbm_64b_r_rarb_last) begin
+                wbm_64b_r_rarb_locked <= 1'b0;
+                wbm_64b_r_rarb_rr <= (wbm_64b_r_rarb_gnt == 1'd1) ? 1'd0 : wbm_64b_r_rarb_gnt + 1'b1;
+            end else begin
+                wbm_64b_r_rarb_lock   <= wbm_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                wbm_64b_r_rarb_locked <= 1'b1;
+            end
+        end else if (wbm_64b_r_rarb_vld) begin
+            wbm_64b_r_rarb_lock   <= wbm_64b_r_rarb_gnt;       // offered, not taken: hold
+            wbm_64b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire cpu_32b_b_rgnt_wbp = ((wbp_axi_bid_bridge_id == 1) && wbp_axi_bid_valid);
+
+    wire cpu_32b_r_rgnt_wbp = ((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid);
+
+    // ---- B response arbiter, master cpu 64b: round-robin, lock until taken ----
+    logic [1:0] cpu_64b_b_rarb_req;
+    assign cpu_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid) && mem_axi_bvalid};
+    logic [0:0] cpu_64b_b_rarb_lock, cpu_64b_b_rarb_rr;
+    logic cpu_64b_b_rarb_locked;
+    wire [0:0] cpu_64b_b_rarb_pick = (cpu_64b_b_rarb_rr == 1'd0) ? (cpu_64b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_64b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_64b_b_rarb_gnt = cpu_64b_b_rarb_locked ? cpu_64b_b_rarb_lock : cpu_64b_b_rarb_pick;
+    wire cpu_64b_b_rarb_gnt_valid = cpu_64b_b_rarb_locked || (|cpu_64b_b_rarb_req);
+    wire cpu_64b_b_rgnt_mem = cpu_64b_b_rarb_gnt_valid && (cpu_64b_b_rarb_gnt == 1'd0);
+    wire cpu_64b_b_rgnt_subtractive = cpu_64b_b_rarb_gnt_valid && (cpu_64b_b_rarb_gnt == 1'd1);
+    wire cpu_64b_b_rarb_vld = (cpu_64b_b_rgnt_mem && cpu_64b_b_rarb_req[0]) || (cpu_64b_b_rgnt_subtractive && cpu_64b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_64b_b_rarb_lock   <= '0;
+            cpu_64b_b_rarb_rr     <= '0;
+            cpu_64b_b_rarb_locked <= 1'b0;
+        end else if (cpu_64b_b_rarb_vld && cpu_64b_bready) begin
+            cpu_64b_b_rarb_locked <= 1'b0;
+            cpu_64b_b_rarb_rr <= (cpu_64b_b_rarb_gnt == 1'd1) ? 1'd0 : cpu_64b_b_rarb_gnt + 1'b1;
+        end else if (cpu_64b_b_rarb_vld) begin
+            cpu_64b_b_rarb_lock   <= cpu_64b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_64b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master cpu 64b: round-robin, lock through RLAST ----
+    logic [1:0] cpu_64b_r_rarb_req;
+    assign cpu_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid) && mem_axi_rvalid};
+    logic [0:0] cpu_64b_r_rarb_lock, cpu_64b_r_rarb_rr;
+    logic cpu_64b_r_rarb_locked;
+    wire [0:0] cpu_64b_r_rarb_pick = (cpu_64b_r_rarb_rr == 1'd0) ? (cpu_64b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_64b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_64b_r_rarb_gnt = cpu_64b_r_rarb_locked ? cpu_64b_r_rarb_lock : cpu_64b_r_rarb_pick;
+    wire cpu_64b_r_rarb_gnt_valid = cpu_64b_r_rarb_locked || (|cpu_64b_r_rarb_req);
+    wire cpu_64b_r_rgnt_mem = cpu_64b_r_rarb_gnt_valid && (cpu_64b_r_rarb_gnt == 1'd0);
+    wire cpu_64b_r_rgnt_subtractive = cpu_64b_r_rarb_gnt_valid && (cpu_64b_r_rarb_gnt == 1'd1);
+    wire cpu_64b_r_rarb_vld = (cpu_64b_r_rgnt_mem && cpu_64b_r_rarb_req[0]) || (cpu_64b_r_rgnt_subtractive && cpu_64b_r_rarb_req[1]);
+    wire cpu_64b_r_rarb_last = (cpu_64b_r_rgnt_mem && mem_axi_rlast) || (cpu_64b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_64b_r_rarb_lock   <= '0;
+            cpu_64b_r_rarb_rr     <= '0;
+            cpu_64b_r_rarb_locked <= 1'b0;
+        end else if (cpu_64b_r_rarb_vld && cpu_64b_rready) begin
+            if (cpu_64b_r_rarb_last) begin
+                cpu_64b_r_rarb_locked <= 1'b0;
+                cpu_64b_r_rarb_rr <= (cpu_64b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_64b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_64b_r_rarb_lock   <= cpu_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_64b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_64b_r_rarb_vld) begin
+            cpu_64b_r_rarb_lock   <= cpu_64b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_64b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: mem (64b)
     // ================================================================
     // Multi-master (2 masters) → mem
@@ -383,9 +511,9 @@ module bridge_2x2_wb4_mon_xbar
         ((cpu_64b_w_sel_mem && cpu_64b_wvalid) ? cpu_64b_w.user : '0);
     assign mem_axi_wvalid = (wbm_64b_w_sel_mem && wbm_64b_wvalid) || (cpu_64b_w_sel_mem && cpu_64b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign mem_axi_bready = ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? wbm_64b_bready : '0) |
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? cpu_64b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign mem_axi_bready = (wbm_64b_b_rgnt_mem ? wbm_64b_bready : '0) |
+        (cpu_64b_b_rgnt_mem ? cpu_64b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign mem_axi_bridge_id_aw = (wbm_64b_aw_gnt_mem ? wbm_bridge_id_aw : '0) |
@@ -443,9 +571,9 @@ module bridge_2x2_wb4_mon_xbar
         (cpu_64b_ar_gnt_mem ? cpu_64b_ar.user : '0);
     assign mem_axi_arvalid = wbm_64b_ar_gnt_mem || cpu_64b_ar_gnt_mem;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign mem_axi_rready = ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? wbm_64b_rready : '0) |
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? cpu_64b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign mem_axi_rready = (wbm_64b_r_rgnt_mem ? wbm_64b_rready : '0) |
+        (cpu_64b_r_rgnt_mem ? cpu_64b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign mem_axi_bridge_id_ar = (wbm_64b_ar_gnt_mem ? wbm_bridge_id_ar : '0) |
@@ -549,9 +677,9 @@ module bridge_2x2_wb4_mon_xbar
         ((cpu_32b_w_sel_wbp && cpu_32b_wvalid) ? cpu_32b_w.user : '0);
     assign wbp_axi_wvalid = (wbm_32b_w_sel_wbp && wbm_32b_wvalid) || (cpu_32b_w_sel_wbp && cpu_32b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign wbp_axi_bready = ((wbp_axi_bid_bridge_id == 0) && wbp_axi_bid_valid ? wbm_32b_bready : '0) |
-        ((wbp_axi_bid_bridge_id == 1) && wbp_axi_bid_valid ? cpu_32b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign wbp_axi_bready = (wbm_32b_b_rgnt_wbp ? wbm_32b_bready : '0) |
+        (cpu_32b_b_rgnt_wbp ? cpu_32b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign wbp_axi_bridge_id_aw = (wbm_32b_aw_gnt_wbp ? wbm_bridge_id_aw : '0) |
@@ -609,9 +737,9 @@ module bridge_2x2_wb4_mon_xbar
         (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.user : '0);
     assign wbp_axi_arvalid = wbm_32b_ar_gnt_wbp || cpu_32b_ar_gnt_wbp;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign wbp_axi_rready = ((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid ? wbm_32b_rready : '0) |
-        ((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid ? cpu_32b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign wbp_axi_rready = (wbm_32b_r_rgnt_wbp ? wbm_32b_rready : '0) |
+        (cpu_32b_r_rgnt_wbp ? cpu_32b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign wbp_axi_bridge_id_ar = (wbm_32b_ar_gnt_wbp ? wbm_bridge_id_ar : '0) |
@@ -715,9 +843,9 @@ module bridge_2x2_wb4_mon_xbar
         ((cpu_64b_w_sel_subtractive && cpu_64b_wvalid) ? cpu_64b_w.user : '0);
     assign subtractive_axi_wvalid = (wbm_64b_w_sel_subtractive && wbm_64b_wvalid) || (cpu_64b_w_sel_subtractive && cpu_64b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? wbm_64b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? cpu_64b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_bready = (wbm_64b_b_rgnt_subtractive ? wbm_64b_bready : '0) |
+        (cpu_64b_b_rgnt_subtractive ? cpu_64b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign subtractive_axi_bridge_id_aw = (wbm_64b_aw_gnt_subtractive ? wbm_bridge_id_aw : '0) |
@@ -775,9 +903,9 @@ module bridge_2x2_wb4_mon_xbar
         (cpu_64b_ar_gnt_subtractive ? cpu_64b_ar.user : '0);
     assign subtractive_axi_arvalid = wbm_64b_ar_gnt_subtractive || cpu_64b_ar_gnt_subtractive;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? wbm_64b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? cpu_64b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_rready = (wbm_64b_r_rgnt_subtractive ? wbm_64b_rready : '0) |
+        (cpu_64b_r_rgnt_subtractive ? cpu_64b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign subtractive_axi_bridge_id_ar = (wbm_64b_ar_gnt_subtractive ? wbm_bridge_id_ar : '0) |
@@ -897,49 +1025,37 @@ module bridge_2x2_wb4_mon_xbar
         (wbm_32b_w_sel_wbp ? wbp_axi_wready : '0);
 
     assign wbm_32b_b.id = 
-        ((wbp_axi_bid_bridge_id == 0) && wbp_axi_bid_valid ? wbp_axi_bid : '0);
+        (wbm_32b_b_rgnt_wbp ? wbp_axi_bid : '0);
 
     assign wbm_32b_b.resp = 
-        ((wbp_axi_bid_bridge_id == 0) && wbp_axi_bid_valid ? wbp_axi_bresp : '0);
+        (wbm_32b_b_rgnt_wbp ? wbp_axi_bresp : '0);
 
     assign wbm_32b_b.user = 
-        ((wbp_axi_bid_bridge_id == 0) && wbp_axi_bid_valid ? wbp_axi_buser : '0);
+        (wbm_32b_b_rgnt_wbp ? wbp_axi_buser : '0);
 
     assign wbm_32b_bvalid = 
-        ((wbp_axi_bid_bridge_id == 0) && wbp_axi_bid_valid ? wbp_axi_bvalid : '0);
+        (wbm_32b_b_rgnt_wbp ? wbp_axi_bvalid : '0);
 
     assign wbm_32b_arready = 
         (wbm_32b_ar_gnt_wbp ? wbp_axi_arready : '0);
 
     assign wbm_32b_r.id = 
-        ((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid ? wbp_axi_rid : '0);
+        (wbm_32b_r_rgnt_wbp ? wbp_axi_rid : '0);
 
     assign wbm_32b_r.data = 
-        ((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid ? wbp_axi_rdata : 32'b0);
+        (wbm_32b_r_rgnt_wbp ? wbp_axi_rdata : 32'b0);
 
     assign wbm_32b_r.resp = 
-        ((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid ? wbp_axi_rresp : '0);
+        (wbm_32b_r_rgnt_wbp ? wbp_axi_rresp : '0);
 
     assign wbm_32b_r.last = 
-        ((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid ? wbp_axi_rlast : '0);
+        (wbm_32b_r_rgnt_wbp ? wbp_axi_rlast : '0);
 
     assign wbm_32b_r.user = 
-        ((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid ? wbp_axi_ruser : '0);
+        (wbm_32b_r_rgnt_wbp ? wbp_axi_ruser : '0);
 
     assign wbm_32b_rvalid = 
-        ((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid ? wbp_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master wbm (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((wbp_axi_rid_bridge_id == 0) && wbp_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (wbm_32b_r_rgnt_wbp ? wbp_axi_rvalid : '0);
 
 
     // Master: wbm, Width path: 64b
@@ -952,60 +1068,48 @@ module bridge_2x2_wb4_mon_xbar
         (wbm_64b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign wbm_64b_b.id = 
-        ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? mem_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (wbm_64b_b_rgnt_mem ? mem_axi_bid : '0) |
+        (wbm_64b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign wbm_64b_b.resp = 
-        ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? mem_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (wbm_64b_b_rgnt_mem ? mem_axi_bresp : '0) |
+        (wbm_64b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign wbm_64b_b.user = 
-        ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? mem_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (wbm_64b_b_rgnt_mem ? mem_axi_buser : '0) |
+        (wbm_64b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign wbm_64b_bvalid = 
-        ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid ? mem_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (wbm_64b_b_rgnt_mem ? mem_axi_bvalid : '0) |
+        (wbm_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign wbm_64b_arready = 
         (wbm_64b_ar_gnt_mem ? mem_axi_arready : '0) |
         (wbm_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign wbm_64b_r.id = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (wbm_64b_r_rgnt_mem ? mem_axi_rid : '0) |
+        (wbm_64b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign wbm_64b_r.data = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rdata : 64'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
+        (wbm_64b_r_rgnt_mem ? mem_axi_rdata : 64'b0) |
+        (wbm_64b_r_rgnt_subtractive ? subtractive_axi_rdata : 64'b0);
 
     assign wbm_64b_r.resp = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (wbm_64b_r_rgnt_mem ? mem_axi_rresp : '0) |
+        (wbm_64b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign wbm_64b_r.last = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (wbm_64b_r_rgnt_mem ? mem_axi_rlast : '0) |
+        (wbm_64b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign wbm_64b_r.user = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (wbm_64b_r_rgnt_mem ? mem_axi_ruser : '0) |
+        (wbm_64b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign wbm_64b_rvalid = 
-        ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid ? mem_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master wbm (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (wbm_64b_r_rgnt_mem ? mem_axi_rvalid : '0) |
+        (wbm_64b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: cpu, Width path: 32b
@@ -1016,49 +1120,37 @@ module bridge_2x2_wb4_mon_xbar
         (cpu_32b_w_sel_wbp ? wbp_axi_wready : '0);
 
     assign cpu_32b_b.id = 
-        ((wbp_axi_bid_bridge_id == 1) && wbp_axi_bid_valid ? wbp_axi_bid : '0);
+        (cpu_32b_b_rgnt_wbp ? wbp_axi_bid : '0);
 
     assign cpu_32b_b.resp = 
-        ((wbp_axi_bid_bridge_id == 1) && wbp_axi_bid_valid ? wbp_axi_bresp : '0);
+        (cpu_32b_b_rgnt_wbp ? wbp_axi_bresp : '0);
 
     assign cpu_32b_b.user = 
-        ((wbp_axi_bid_bridge_id == 1) && wbp_axi_bid_valid ? wbp_axi_buser : '0);
+        (cpu_32b_b_rgnt_wbp ? wbp_axi_buser : '0);
 
     assign cpu_32b_bvalid = 
-        ((wbp_axi_bid_bridge_id == 1) && wbp_axi_bid_valid ? wbp_axi_bvalid : '0);
+        (cpu_32b_b_rgnt_wbp ? wbp_axi_bvalid : '0);
 
     assign cpu_32b_arready = 
         (cpu_32b_ar_gnt_wbp ? wbp_axi_arready : '0);
 
     assign cpu_32b_r.id = 
-        ((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid ? wbp_axi_rid : '0);
+        (cpu_32b_r_rgnt_wbp ? wbp_axi_rid : '0);
 
     assign cpu_32b_r.data = 
-        ((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid ? wbp_axi_rdata : 32'b0);
+        (cpu_32b_r_rgnt_wbp ? wbp_axi_rdata : 32'b0);
 
     assign cpu_32b_r.resp = 
-        ((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid ? wbp_axi_rresp : '0);
+        (cpu_32b_r_rgnt_wbp ? wbp_axi_rresp : '0);
 
     assign cpu_32b_r.last = 
-        ((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid ? wbp_axi_rlast : '0);
+        (cpu_32b_r_rgnt_wbp ? wbp_axi_rlast : '0);
 
     assign cpu_32b_r.user = 
-        ((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid ? wbp_axi_ruser : '0);
+        (cpu_32b_r_rgnt_wbp ? wbp_axi_ruser : '0);
 
     assign cpu_32b_rvalid = 
-        ((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid ? wbp_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((wbp_axi_rid_bridge_id == 1) && wbp_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_32b_r_rgnt_wbp ? wbp_axi_rvalid : '0);
 
 
     // Master: cpu, Width path: 64b
@@ -1071,60 +1163,48 @@ module bridge_2x2_wb4_mon_xbar
         (cpu_64b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_64b_b.id = 
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? mem_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (cpu_64b_b_rgnt_mem ? mem_axi_bid : '0) |
+        (cpu_64b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign cpu_64b_b.resp = 
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? mem_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (cpu_64b_b_rgnt_mem ? mem_axi_bresp : '0) |
+        (cpu_64b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign cpu_64b_b.user = 
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? mem_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (cpu_64b_b_rgnt_mem ? mem_axi_buser : '0) |
+        (cpu_64b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign cpu_64b_bvalid = 
-        ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid ? mem_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (cpu_64b_b_rgnt_mem ? mem_axi_bvalid : '0) |
+        (cpu_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_64b_arready = 
         (cpu_64b_ar_gnt_mem ? mem_axi_arready : '0) |
         (cpu_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_64b_r.id = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (cpu_64b_r_rgnt_mem ? mem_axi_rid : '0) |
+        (cpu_64b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign cpu_64b_r.data = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rdata : 64'b0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
+        (cpu_64b_r_rgnt_mem ? mem_axi_rdata : 64'b0) |
+        (cpu_64b_r_rgnt_subtractive ? subtractive_axi_rdata : 64'b0);
 
     assign cpu_64b_r.resp = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (cpu_64b_r_rgnt_mem ? mem_axi_rresp : '0) |
+        (cpu_64b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign cpu_64b_r.last = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (cpu_64b_r_rgnt_mem ? mem_axi_rlast : '0) |
+        (cpu_64b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign cpu_64b_r.user = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (cpu_64b_r_rgnt_mem ? mem_axi_ruser : '0) |
+        (cpu_64b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign cpu_64b_rvalid = 
-        ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid ? mem_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_64b_r_rgnt_mem ? mem_axi_rvalid : '0) |
+        (cpu_64b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_2x2_wb4_mon_xbar

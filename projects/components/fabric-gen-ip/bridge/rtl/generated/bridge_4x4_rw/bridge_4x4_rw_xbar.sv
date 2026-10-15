@@ -597,6 +597,228 @@ module bridge_4x4_rw_xbar
     logic gpu_master_256b_w_sel_subtractive;
 
     // ================================================================
+    // Response arbiters (one slave per master path per channel)
+    // ================================================================
+
+    wire cpu_master_32b_b_rgnt_periph_slave = ((periph_slave_axi_bid_bridge_id == 0) && periph_slave_axi_bid_valid);
+
+    wire cpu_master_32b_r_rgnt_periph_slave = ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid);
+
+    wire cpu_master_64b_b_rgnt_ddr0_slave = ((ddr0_slave_axi_bid_bridge_id == 0) && ddr0_slave_axi_bid_valid);
+
+    wire cpu_master_64b_r_rgnt_ddr0_slave = ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid);
+
+    wire cpu_master_128b_b_rgnt_sram_slave = ((sram_slave_axi_bid_bridge_id == 0) && sram_slave_axi_bid_valid);
+
+    wire cpu_master_128b_r_rgnt_sram_slave = ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid);
+
+    // ---- B response arbiter, master cpu_master 256b: round-robin, lock until taken ----
+    logic [1:0] cpu_master_256b_b_rarb_req;
+    assign cpu_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid) && gpu_mem_slave_axi_bvalid};
+    logic [0:0] cpu_master_256b_b_rarb_lock, cpu_master_256b_b_rarb_rr;
+    logic cpu_master_256b_b_rarb_locked;
+    wire [0:0] cpu_master_256b_b_rarb_pick = (cpu_master_256b_b_rarb_rr == 1'd0) ? (cpu_master_256b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_master_256b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_master_256b_b_rarb_gnt = cpu_master_256b_b_rarb_locked ? cpu_master_256b_b_rarb_lock : cpu_master_256b_b_rarb_pick;
+    wire cpu_master_256b_b_rarb_gnt_valid = cpu_master_256b_b_rarb_locked || (|cpu_master_256b_b_rarb_req);
+    wire cpu_master_256b_b_rgnt_gpu_mem_slave = cpu_master_256b_b_rarb_gnt_valid && (cpu_master_256b_b_rarb_gnt == 1'd0);
+    wire cpu_master_256b_b_rgnt_subtractive = cpu_master_256b_b_rarb_gnt_valid && (cpu_master_256b_b_rarb_gnt == 1'd1);
+    wire cpu_master_256b_b_rarb_vld = (cpu_master_256b_b_rgnt_gpu_mem_slave && cpu_master_256b_b_rarb_req[0]) || (cpu_master_256b_b_rgnt_subtractive && cpu_master_256b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_master_256b_b_rarb_lock   <= '0;
+            cpu_master_256b_b_rarb_rr     <= '0;
+            cpu_master_256b_b_rarb_locked <= 1'b0;
+        end else if (cpu_master_256b_b_rarb_vld && cpu_master_256b_bready) begin
+            cpu_master_256b_b_rarb_locked <= 1'b0;
+            cpu_master_256b_b_rarb_rr <= (cpu_master_256b_b_rarb_gnt == 1'd1) ? 1'd0 : cpu_master_256b_b_rarb_gnt + 1'b1;
+        end else if (cpu_master_256b_b_rarb_vld) begin
+            cpu_master_256b_b_rarb_lock   <= cpu_master_256b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_master_256b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master cpu_master 256b: round-robin, lock through RLAST ----
+    logic [1:0] cpu_master_256b_r_rarb_req;
+    assign cpu_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid) && gpu_mem_slave_axi_rvalid};
+    logic [0:0] cpu_master_256b_r_rarb_lock, cpu_master_256b_r_rarb_rr;
+    logic cpu_master_256b_r_rarb_locked;
+    wire [0:0] cpu_master_256b_r_rarb_pick = (cpu_master_256b_r_rarb_rr == 1'd0) ? (cpu_master_256b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        cpu_master_256b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] cpu_master_256b_r_rarb_gnt = cpu_master_256b_r_rarb_locked ? cpu_master_256b_r_rarb_lock : cpu_master_256b_r_rarb_pick;
+    wire cpu_master_256b_r_rarb_gnt_valid = cpu_master_256b_r_rarb_locked || (|cpu_master_256b_r_rarb_req);
+    wire cpu_master_256b_r_rgnt_gpu_mem_slave = cpu_master_256b_r_rarb_gnt_valid && (cpu_master_256b_r_rarb_gnt == 1'd0);
+    wire cpu_master_256b_r_rgnt_subtractive = cpu_master_256b_r_rarb_gnt_valid && (cpu_master_256b_r_rarb_gnt == 1'd1);
+    wire cpu_master_256b_r_rarb_vld = (cpu_master_256b_r_rgnt_gpu_mem_slave && cpu_master_256b_r_rarb_req[0]) || (cpu_master_256b_r_rgnt_subtractive && cpu_master_256b_r_rarb_req[1]);
+    wire cpu_master_256b_r_rarb_last = (cpu_master_256b_r_rgnt_gpu_mem_slave && gpu_mem_slave_axi_rlast) || (cpu_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            cpu_master_256b_r_rarb_lock   <= '0;
+            cpu_master_256b_r_rarb_rr     <= '0;
+            cpu_master_256b_r_rarb_locked <= 1'b0;
+        end else if (cpu_master_256b_r_rarb_vld && cpu_master_256b_rready) begin
+            if (cpu_master_256b_r_rarb_last) begin
+                cpu_master_256b_r_rarb_locked <= 1'b0;
+                cpu_master_256b_r_rarb_rr <= (cpu_master_256b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_master_256b_r_rarb_gnt + 1'b1;
+            end else begin
+                cpu_master_256b_r_rarb_lock   <= cpu_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                cpu_master_256b_r_rarb_locked <= 1'b1;
+            end
+        end else if (cpu_master_256b_r_rarb_vld) begin
+            cpu_master_256b_r_rarb_lock   <= cpu_master_256b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_master_256b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire dma0_master_32b_b_rgnt_periph_slave = ((periph_slave_axi_bid_bridge_id == 1) && periph_slave_axi_bid_valid);
+
+    wire dma0_master_32b_r_rgnt_periph_slave = ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid);
+
+    wire dma0_master_64b_b_rgnt_ddr0_slave = ((ddr0_slave_axi_bid_bridge_id == 1) && ddr0_slave_axi_bid_valid);
+
+    wire dma0_master_64b_r_rgnt_ddr0_slave = ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid);
+
+    wire dma0_master_128b_b_rgnt_sram_slave = ((sram_slave_axi_bid_bridge_id == 1) && sram_slave_axi_bid_valid);
+
+    wire dma0_master_128b_r_rgnt_sram_slave = ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid);
+
+    wire dma0_master_256b_b_rgnt_subtractive = ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid);
+
+    wire dma0_master_256b_r_rgnt_subtractive = ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid);
+
+    wire dma1_master_64b_b_rgnt_ddr0_slave = ((ddr0_slave_axi_bid_bridge_id == 2) && ddr0_slave_axi_bid_valid);
+
+    wire dma1_master_64b_r_rgnt_ddr0_slave = ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid);
+
+    wire dma1_master_128b_b_rgnt_sram_slave = ((sram_slave_axi_bid_bridge_id == 2) && sram_slave_axi_bid_valid);
+
+    wire dma1_master_128b_r_rgnt_sram_slave = ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid);
+
+    // ---- B response arbiter, master dma1_master 256b: round-robin, lock until taken ----
+    logic [1:0] dma1_master_256b_b_rarb_req;
+    assign dma1_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid) && gpu_mem_slave_axi_bvalid};
+    logic [0:0] dma1_master_256b_b_rarb_lock, dma1_master_256b_b_rarb_rr;
+    logic dma1_master_256b_b_rarb_locked;
+    wire [0:0] dma1_master_256b_b_rarb_pick = (dma1_master_256b_b_rarb_rr == 1'd0) ? (dma1_master_256b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        dma1_master_256b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] dma1_master_256b_b_rarb_gnt = dma1_master_256b_b_rarb_locked ? dma1_master_256b_b_rarb_lock : dma1_master_256b_b_rarb_pick;
+    wire dma1_master_256b_b_rarb_gnt_valid = dma1_master_256b_b_rarb_locked || (|dma1_master_256b_b_rarb_req);
+    wire dma1_master_256b_b_rgnt_gpu_mem_slave = dma1_master_256b_b_rarb_gnt_valid && (dma1_master_256b_b_rarb_gnt == 1'd0);
+    wire dma1_master_256b_b_rgnt_subtractive = dma1_master_256b_b_rarb_gnt_valid && (dma1_master_256b_b_rarb_gnt == 1'd1);
+    wire dma1_master_256b_b_rarb_vld = (dma1_master_256b_b_rgnt_gpu_mem_slave && dma1_master_256b_b_rarb_req[0]) || (dma1_master_256b_b_rgnt_subtractive && dma1_master_256b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            dma1_master_256b_b_rarb_lock   <= '0;
+            dma1_master_256b_b_rarb_rr     <= '0;
+            dma1_master_256b_b_rarb_locked <= 1'b0;
+        end else if (dma1_master_256b_b_rarb_vld && dma1_master_256b_bready) begin
+            dma1_master_256b_b_rarb_locked <= 1'b0;
+            dma1_master_256b_b_rarb_rr <= (dma1_master_256b_b_rarb_gnt == 1'd1) ? 1'd0 : dma1_master_256b_b_rarb_gnt + 1'b1;
+        end else if (dma1_master_256b_b_rarb_vld) begin
+            dma1_master_256b_b_rarb_lock   <= dma1_master_256b_b_rarb_gnt;       // offered, not taken: hold
+            dma1_master_256b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master dma1_master 256b: round-robin, lock through RLAST ----
+    logic [1:0] dma1_master_256b_r_rarb_req;
+    assign dma1_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid) && gpu_mem_slave_axi_rvalid};
+    logic [0:0] dma1_master_256b_r_rarb_lock, dma1_master_256b_r_rarb_rr;
+    logic dma1_master_256b_r_rarb_locked;
+    wire [0:0] dma1_master_256b_r_rarb_pick = (dma1_master_256b_r_rarb_rr == 1'd0) ? (dma1_master_256b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        dma1_master_256b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] dma1_master_256b_r_rarb_gnt = dma1_master_256b_r_rarb_locked ? dma1_master_256b_r_rarb_lock : dma1_master_256b_r_rarb_pick;
+    wire dma1_master_256b_r_rarb_gnt_valid = dma1_master_256b_r_rarb_locked || (|dma1_master_256b_r_rarb_req);
+    wire dma1_master_256b_r_rgnt_gpu_mem_slave = dma1_master_256b_r_rarb_gnt_valid && (dma1_master_256b_r_rarb_gnt == 1'd0);
+    wire dma1_master_256b_r_rgnt_subtractive = dma1_master_256b_r_rarb_gnt_valid && (dma1_master_256b_r_rarb_gnt == 1'd1);
+    wire dma1_master_256b_r_rarb_vld = (dma1_master_256b_r_rgnt_gpu_mem_slave && dma1_master_256b_r_rarb_req[0]) || (dma1_master_256b_r_rgnt_subtractive && dma1_master_256b_r_rarb_req[1]);
+    wire dma1_master_256b_r_rarb_last = (dma1_master_256b_r_rgnt_gpu_mem_slave && gpu_mem_slave_axi_rlast) || (dma1_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            dma1_master_256b_r_rarb_lock   <= '0;
+            dma1_master_256b_r_rarb_rr     <= '0;
+            dma1_master_256b_r_rarb_locked <= 1'b0;
+        end else if (dma1_master_256b_r_rarb_vld && dma1_master_256b_rready) begin
+            if (dma1_master_256b_r_rarb_last) begin
+                dma1_master_256b_r_rarb_locked <= 1'b0;
+                dma1_master_256b_r_rarb_rr <= (dma1_master_256b_r_rarb_gnt == 1'd1) ? 1'd0 : dma1_master_256b_r_rarb_gnt + 1'b1;
+            end else begin
+                dma1_master_256b_r_rarb_lock   <= dma1_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                dma1_master_256b_r_rarb_locked <= 1'b1;
+            end
+        end else if (dma1_master_256b_r_rarb_vld) begin
+            dma1_master_256b_r_rarb_lock   <= dma1_master_256b_r_rarb_gnt;       // offered, not taken: hold
+            dma1_master_256b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    wire gpu_master_32b_b_rgnt_periph_slave = ((periph_slave_axi_bid_bridge_id == 3) && periph_slave_axi_bid_valid);
+
+    wire gpu_master_32b_r_rgnt_periph_slave = ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid);
+
+    wire gpu_master_64b_b_rgnt_ddr0_slave = ((ddr0_slave_axi_bid_bridge_id == 3) && ddr0_slave_axi_bid_valid);
+
+    wire gpu_master_64b_r_rgnt_ddr0_slave = ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid);
+
+    // ---- B response arbiter, master gpu_master 256b: round-robin, lock until taken ----
+    logic [1:0] gpu_master_256b_b_rarb_req;
+    assign gpu_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid) && gpu_mem_slave_axi_bvalid};
+    logic [0:0] gpu_master_256b_b_rarb_lock, gpu_master_256b_b_rarb_rr;
+    logic gpu_master_256b_b_rarb_locked;
+    wire [0:0] gpu_master_256b_b_rarb_pick = (gpu_master_256b_b_rarb_rr == 1'd0) ? (gpu_master_256b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
+        gpu_master_256b_b_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] gpu_master_256b_b_rarb_gnt = gpu_master_256b_b_rarb_locked ? gpu_master_256b_b_rarb_lock : gpu_master_256b_b_rarb_pick;
+    wire gpu_master_256b_b_rarb_gnt_valid = gpu_master_256b_b_rarb_locked || (|gpu_master_256b_b_rarb_req);
+    wire gpu_master_256b_b_rgnt_gpu_mem_slave = gpu_master_256b_b_rarb_gnt_valid && (gpu_master_256b_b_rarb_gnt == 1'd0);
+    wire gpu_master_256b_b_rgnt_subtractive = gpu_master_256b_b_rarb_gnt_valid && (gpu_master_256b_b_rarb_gnt == 1'd1);
+    wire gpu_master_256b_b_rarb_vld = (gpu_master_256b_b_rgnt_gpu_mem_slave && gpu_master_256b_b_rarb_req[0]) || (gpu_master_256b_b_rgnt_subtractive && gpu_master_256b_b_rarb_req[1]);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            gpu_master_256b_b_rarb_lock   <= '0;
+            gpu_master_256b_b_rarb_rr     <= '0;
+            gpu_master_256b_b_rarb_locked <= 1'b0;
+        end else if (gpu_master_256b_b_rarb_vld && gpu_master_256b_bready) begin
+            gpu_master_256b_b_rarb_locked <= 1'b0;
+            gpu_master_256b_b_rarb_rr <= (gpu_master_256b_b_rarb_gnt == 1'd1) ? 1'd0 : gpu_master_256b_b_rarb_gnt + 1'b1;
+        end else if (gpu_master_256b_b_rarb_vld) begin
+            gpu_master_256b_b_rarb_lock   <= gpu_master_256b_b_rarb_gnt;       // offered, not taken: hold
+            gpu_master_256b_b_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ---- R response arbiter, master gpu_master 256b: round-robin, lock through RLAST ----
+    logic [1:0] gpu_master_256b_r_rarb_req;
+    assign gpu_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid) && gpu_mem_slave_axi_rvalid};
+    logic [0:0] gpu_master_256b_r_rarb_lock, gpu_master_256b_r_rarb_rr;
+    logic gpu_master_256b_r_rarb_locked;
+    wire [0:0] gpu_master_256b_r_rarb_pick = (gpu_master_256b_r_rarb_rr == 1'd0) ? (gpu_master_256b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
+        gpu_master_256b_r_rarb_req[1] ? 1'd1 : 1'd0;
+    wire [0:0] gpu_master_256b_r_rarb_gnt = gpu_master_256b_r_rarb_locked ? gpu_master_256b_r_rarb_lock : gpu_master_256b_r_rarb_pick;
+    wire gpu_master_256b_r_rarb_gnt_valid = gpu_master_256b_r_rarb_locked || (|gpu_master_256b_r_rarb_req);
+    wire gpu_master_256b_r_rgnt_gpu_mem_slave = gpu_master_256b_r_rarb_gnt_valid && (gpu_master_256b_r_rarb_gnt == 1'd0);
+    wire gpu_master_256b_r_rgnt_subtractive = gpu_master_256b_r_rarb_gnt_valid && (gpu_master_256b_r_rarb_gnt == 1'd1);
+    wire gpu_master_256b_r_rarb_vld = (gpu_master_256b_r_rgnt_gpu_mem_slave && gpu_master_256b_r_rarb_req[0]) || (gpu_master_256b_r_rgnt_subtractive && gpu_master_256b_r_rarb_req[1]);
+    wire gpu_master_256b_r_rarb_last = (gpu_master_256b_r_rgnt_gpu_mem_slave && gpu_mem_slave_axi_rlast) || (gpu_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            gpu_master_256b_r_rarb_lock   <= '0;
+            gpu_master_256b_r_rarb_rr     <= '0;
+            gpu_master_256b_r_rarb_locked <= 1'b0;
+        end else if (gpu_master_256b_r_rarb_vld && gpu_master_256b_rready) begin
+            if (gpu_master_256b_r_rarb_last) begin
+                gpu_master_256b_r_rarb_locked <= 1'b0;
+                gpu_master_256b_r_rarb_rr <= (gpu_master_256b_r_rarb_gnt == 1'd1) ? 1'd0 : gpu_master_256b_r_rarb_gnt + 1'b1;
+            end else begin
+                gpu_master_256b_r_rarb_lock   <= gpu_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
+                gpu_master_256b_r_rarb_locked <= 1'b1;
+            end
+        end else if (gpu_master_256b_r_rarb_vld) begin
+            gpu_master_256b_r_rarb_lock   <= gpu_master_256b_r_rarb_gnt;       // offered, not taken: hold
+            gpu_master_256b_r_rarb_locked <= 1'b1;
+        end
+    )
+
+    // ================================================================
     // Slave 0: periph_slave (32b)
     // ================================================================
     // Multi-master (3 masters) → periph_slave
@@ -714,10 +936,10 @@ module bridge_4x4_rw_xbar
         ((gpu_master_32b_w_sel_periph_slave && gpu_master_32b_wvalid) ? gpu_master_32b_w.user : '0);
     assign periph_slave_axi_wvalid = (cpu_master_32b_w_sel_periph_slave && cpu_master_32b_wvalid) || (dma0_master_32b_w_sel_periph_slave && dma0_master_32b_wvalid) || (gpu_master_32b_w_sel_periph_slave && gpu_master_32b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign periph_slave_axi_bready = ((periph_slave_axi_bid_bridge_id == 0) && periph_slave_axi_bid_valid ? cpu_master_32b_bready : '0) |
-        ((periph_slave_axi_bid_bridge_id == 1) && periph_slave_axi_bid_valid ? dma0_master_32b_bready : '0) |
-        ((periph_slave_axi_bid_bridge_id == 3) && periph_slave_axi_bid_valid ? gpu_master_32b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign periph_slave_axi_bready = (cpu_master_32b_b_rgnt_periph_slave ? cpu_master_32b_bready : '0) |
+        (dma0_master_32b_b_rgnt_periph_slave ? dma0_master_32b_bready : '0) |
+        (gpu_master_32b_b_rgnt_periph_slave ? gpu_master_32b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign periph_slave_axi_bridge_id_aw = (cpu_master_32b_aw_gnt_periph_slave ? cpu_master_bridge_id_aw : '0) |
@@ -789,10 +1011,10 @@ module bridge_4x4_rw_xbar
         (gpu_master_32b_ar_gnt_periph_slave ? gpu_master_32b_ar.user : '0);
     assign periph_slave_axi_arvalid = cpu_master_32b_ar_gnt_periph_slave || dma0_master_32b_ar_gnt_periph_slave || gpu_master_32b_ar_gnt_periph_slave;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign periph_slave_axi_rready = ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? cpu_master_32b_rready : '0) |
-        ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? dma0_master_32b_rready : '0) |
-        ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? gpu_master_32b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign periph_slave_axi_rready = (cpu_master_32b_r_rgnt_periph_slave ? cpu_master_32b_rready : '0) |
+        (dma0_master_32b_r_rgnt_periph_slave ? dma0_master_32b_rready : '0) |
+        (gpu_master_32b_r_rgnt_periph_slave ? gpu_master_32b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign periph_slave_axi_bridge_id_ar = (cpu_master_32b_ar_gnt_periph_slave ? cpu_master_bridge_id_ar : '0) |
@@ -939,11 +1161,11 @@ module bridge_4x4_rw_xbar
         ((gpu_master_64b_w_sel_ddr0_slave && gpu_master_64b_wvalid) ? gpu_master_64b_w.user : '0);
     assign ddr0_slave_axi_wvalid = (cpu_master_64b_w_sel_ddr0_slave && cpu_master_64b_wvalid) || (dma0_master_64b_w_sel_ddr0_slave && dma0_master_64b_wvalid) || (dma1_master_64b_w_sel_ddr0_slave && dma1_master_64b_wvalid) || (gpu_master_64b_w_sel_ddr0_slave && gpu_master_64b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign ddr0_slave_axi_bready = ((ddr0_slave_axi_bid_bridge_id == 0) && ddr0_slave_axi_bid_valid ? cpu_master_64b_bready : '0) |
-        ((ddr0_slave_axi_bid_bridge_id == 1) && ddr0_slave_axi_bid_valid ? dma0_master_64b_bready : '0) |
-        ((ddr0_slave_axi_bid_bridge_id == 2) && ddr0_slave_axi_bid_valid ? dma1_master_64b_bready : '0) |
-        ((ddr0_slave_axi_bid_bridge_id == 3) && ddr0_slave_axi_bid_valid ? gpu_master_64b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign ddr0_slave_axi_bready = (cpu_master_64b_b_rgnt_ddr0_slave ? cpu_master_64b_bready : '0) |
+        (dma0_master_64b_b_rgnt_ddr0_slave ? dma0_master_64b_bready : '0) |
+        (dma1_master_64b_b_rgnt_ddr0_slave ? dma1_master_64b_bready : '0) |
+        (gpu_master_64b_b_rgnt_ddr0_slave ? gpu_master_64b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign ddr0_slave_axi_bridge_id_aw = (cpu_master_64b_aw_gnt_ddr0_slave ? cpu_master_bridge_id_aw : '0) |
@@ -1029,11 +1251,11 @@ module bridge_4x4_rw_xbar
         (gpu_master_64b_ar_gnt_ddr0_slave ? gpu_master_64b_ar.user : '0);
     assign ddr0_slave_axi_arvalid = cpu_master_64b_ar_gnt_ddr0_slave || dma0_master_64b_ar_gnt_ddr0_slave || dma1_master_64b_ar_gnt_ddr0_slave || gpu_master_64b_ar_gnt_ddr0_slave;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign ddr0_slave_axi_rready = ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? cpu_master_64b_rready : '0) |
-        ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? dma0_master_64b_rready : '0) |
-        ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? dma1_master_64b_rready : '0) |
-        ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? gpu_master_64b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign ddr0_slave_axi_rready = (cpu_master_64b_r_rgnt_ddr0_slave ? cpu_master_64b_rready : '0) |
+        (dma0_master_64b_r_rgnt_ddr0_slave ? dma0_master_64b_rready : '0) |
+        (dma1_master_64b_r_rgnt_ddr0_slave ? dma1_master_64b_rready : '0) |
+        (gpu_master_64b_r_rgnt_ddr0_slave ? gpu_master_64b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign ddr0_slave_axi_bridge_id_ar = (cpu_master_64b_ar_gnt_ddr0_slave ? cpu_master_bridge_id_ar : '0) |
@@ -1160,10 +1382,10 @@ module bridge_4x4_rw_xbar
         ((dma1_master_128b_w_sel_sram_slave && dma1_master_128b_wvalid) ? dma1_master_128b_w.user : '0);
     assign sram_slave_axi_wvalid = (cpu_master_128b_w_sel_sram_slave && cpu_master_128b_wvalid) || (dma0_master_128b_w_sel_sram_slave && dma0_master_128b_wvalid) || (dma1_master_128b_w_sel_sram_slave && dma1_master_128b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign sram_slave_axi_bready = ((sram_slave_axi_bid_bridge_id == 0) && sram_slave_axi_bid_valid ? cpu_master_128b_bready : '0) |
-        ((sram_slave_axi_bid_bridge_id == 1) && sram_slave_axi_bid_valid ? dma0_master_128b_bready : '0) |
-        ((sram_slave_axi_bid_bridge_id == 2) && sram_slave_axi_bid_valid ? dma1_master_128b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign sram_slave_axi_bready = (cpu_master_128b_b_rgnt_sram_slave ? cpu_master_128b_bready : '0) |
+        (dma0_master_128b_b_rgnt_sram_slave ? dma0_master_128b_bready : '0) |
+        (dma1_master_128b_b_rgnt_sram_slave ? dma1_master_128b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign sram_slave_axi_bridge_id_aw = (cpu_master_128b_aw_gnt_sram_slave ? cpu_master_bridge_id_aw : '0) |
@@ -1235,10 +1457,10 @@ module bridge_4x4_rw_xbar
         (dma1_master_128b_ar_gnt_sram_slave ? dma1_master_128b_ar.user : '0);
     assign sram_slave_axi_arvalid = cpu_master_128b_ar_gnt_sram_slave || dma0_master_128b_ar_gnt_sram_slave || dma1_master_128b_ar_gnt_sram_slave;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign sram_slave_axi_rready = ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? cpu_master_128b_rready : '0) |
-        ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? dma0_master_128b_rready : '0) |
-        ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? dma1_master_128b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign sram_slave_axi_rready = (cpu_master_128b_r_rgnt_sram_slave ? cpu_master_128b_rready : '0) |
+        (dma0_master_128b_r_rgnt_sram_slave ? dma0_master_128b_rready : '0) |
+        (dma1_master_128b_r_rgnt_sram_slave ? dma1_master_128b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign sram_slave_axi_bridge_id_ar = (cpu_master_128b_ar_gnt_sram_slave ? cpu_master_bridge_id_ar : '0) |
@@ -1364,10 +1586,10 @@ module bridge_4x4_rw_xbar
         ((gpu_master_256b_w_sel_gpu_mem_slave && gpu_master_256b_wvalid) ? gpu_master_256b_w.user : '0);
     assign gpu_mem_slave_axi_wvalid = (cpu_master_256b_w_sel_gpu_mem_slave && cpu_master_256b_wvalid) || (dma1_master_256b_w_sel_gpu_mem_slave && dma1_master_256b_wvalid) || (gpu_master_256b_w_sel_gpu_mem_slave && gpu_master_256b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign gpu_mem_slave_axi_bready = ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid ? cpu_master_256b_bready : '0) |
-        ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid ? dma1_master_256b_bready : '0) |
-        ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid ? gpu_master_256b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign gpu_mem_slave_axi_bready = (cpu_master_256b_b_rgnt_gpu_mem_slave ? cpu_master_256b_bready : '0) |
+        (dma1_master_256b_b_rgnt_gpu_mem_slave ? dma1_master_256b_bready : '0) |
+        (gpu_master_256b_b_rgnt_gpu_mem_slave ? gpu_master_256b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign gpu_mem_slave_axi_bridge_id_aw = (cpu_master_256b_aw_gnt_gpu_mem_slave ? cpu_master_bridge_id_aw : '0) |
@@ -1439,10 +1661,10 @@ module bridge_4x4_rw_xbar
         (gpu_master_256b_ar_gnt_gpu_mem_slave ? gpu_master_256b_ar.user : '0);
     assign gpu_mem_slave_axi_arvalid = cpu_master_256b_ar_gnt_gpu_mem_slave || dma1_master_256b_ar_gnt_gpu_mem_slave || gpu_master_256b_ar_gnt_gpu_mem_slave;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign gpu_mem_slave_axi_rready = ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? cpu_master_256b_rready : '0) |
-        ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? dma1_master_256b_rready : '0) |
-        ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_master_256b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign gpu_mem_slave_axi_rready = (cpu_master_256b_r_rgnt_gpu_mem_slave ? cpu_master_256b_rready : '0) |
+        (dma1_master_256b_r_rgnt_gpu_mem_slave ? dma1_master_256b_rready : '0) |
+        (gpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_master_256b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign gpu_mem_slave_axi_bridge_id_ar = (cpu_master_256b_ar_gnt_gpu_mem_slave ? cpu_master_bridge_id_ar : '0) |
@@ -1589,11 +1811,11 @@ module bridge_4x4_rw_xbar
         ((gpu_master_256b_w_sel_subtractive && gpu_master_256b_wvalid) ? gpu_master_256b_w.user : '0);
     assign subtractive_axi_wvalid = (cpu_master_256b_w_sel_subtractive && cpu_master_256b_wvalid) || (dma0_master_256b_w_sel_subtractive && dma0_master_256b_wvalid) || (dma1_master_256b_w_sel_subtractive && dma1_master_256b_wvalid) || (gpu_master_256b_w_sel_subtractive && gpu_master_256b_wvalid);
 
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? cpu_master_256b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? dma0_master_256b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? dma1_master_256b_bready : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? gpu_master_256b_bready : '0);
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_bready = (cpu_master_256b_b_rgnt_subtractive ? cpu_master_256b_bready : '0) |
+        (dma0_master_256b_b_rgnt_subtractive ? dma0_master_256b_bready : '0) |
+        (dma1_master_256b_b_rgnt_subtractive ? dma1_master_256b_bready : '0) |
+        (gpu_master_256b_b_rgnt_subtractive ? gpu_master_256b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign subtractive_axi_bridge_id_aw = (cpu_master_256b_aw_gnt_subtractive ? cpu_master_bridge_id_aw : '0) |
@@ -1679,11 +1901,11 @@ module bridge_4x4_rw_xbar
         (gpu_master_256b_ar_gnt_subtractive ? gpu_master_256b_ar.user : '0);
     assign subtractive_axi_arvalid = cpu_master_256b_ar_gnt_subtractive || dma0_master_256b_ar_gnt_subtractive || dma1_master_256b_ar_gnt_subtractive || gpu_master_256b_ar_gnt_subtractive;
 
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? cpu_master_256b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? dma0_master_256b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? dma1_master_256b_rready : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? gpu_master_256b_rready : '0);
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign subtractive_axi_rready = (cpu_master_256b_r_rgnt_subtractive ? cpu_master_256b_rready : '0) |
+        (dma0_master_256b_r_rgnt_subtractive ? dma0_master_256b_rready : '0) |
+        (dma1_master_256b_r_rgnt_subtractive ? dma1_master_256b_rready : '0) |
+        (gpu_master_256b_r_rgnt_subtractive ? gpu_master_256b_rready : '0);
 
     // Bridge ID (reads) — the granted master's id
     assign subtractive_axi_bridge_id_ar = (cpu_master_256b_ar_gnt_subtractive ? cpu_master_bridge_id_ar : '0) |
@@ -2046,49 +2268,37 @@ module bridge_4x4_rw_xbar
         (cpu_master_32b_w_sel_periph_slave ? periph_slave_axi_wready : '0);
 
     assign cpu_master_32b_b.id = 
-        ((periph_slave_axi_bid_bridge_id == 0) && periph_slave_axi_bid_valid ? periph_slave_axi_bid : '0);
+        (cpu_master_32b_b_rgnt_periph_slave ? periph_slave_axi_bid : '0);
 
     assign cpu_master_32b_b.resp = 
-        ((periph_slave_axi_bid_bridge_id == 0) && periph_slave_axi_bid_valid ? periph_slave_axi_bresp : '0);
+        (cpu_master_32b_b_rgnt_periph_slave ? periph_slave_axi_bresp : '0);
 
     assign cpu_master_32b_b.user = 
-        ((periph_slave_axi_bid_bridge_id == 0) && periph_slave_axi_bid_valid ? periph_slave_axi_buser : '0);
+        (cpu_master_32b_b_rgnt_periph_slave ? periph_slave_axi_buser : '0);
 
     assign cpu_master_32b_bvalid = 
-        ((periph_slave_axi_bid_bridge_id == 0) && periph_slave_axi_bid_valid ? periph_slave_axi_bvalid : '0);
+        (cpu_master_32b_b_rgnt_periph_slave ? periph_slave_axi_bvalid : '0);
 
     assign cpu_master_32b_arready = 
         (cpu_master_32b_ar_gnt_periph_slave ? periph_slave_axi_arready : '0);
 
     assign cpu_master_32b_r.id = 
-        ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? periph_slave_axi_rid : '0);
+        (cpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rid : '0);
 
     assign cpu_master_32b_r.data = 
-        ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? periph_slave_axi_rdata : 32'b0);
+        (cpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rdata : 32'b0);
 
     assign cpu_master_32b_r.resp = 
-        ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? periph_slave_axi_rresp : '0);
+        (cpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rresp : '0);
 
     assign cpu_master_32b_r.last = 
-        ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? periph_slave_axi_rlast : '0);
+        (cpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rlast : '0);
 
     assign cpu_master_32b_r.user = 
-        ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? periph_slave_axi_ruser : '0);
+        (cpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_ruser : '0);
 
     assign cpu_master_32b_rvalid = 
-        ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? periph_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_master (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rvalid : '0);
 
 
     // Master: cpu_master, Width path: 64b
@@ -2099,49 +2309,37 @@ module bridge_4x4_rw_xbar
         (cpu_master_64b_w_sel_ddr0_slave ? ddr0_slave_axi_wready : '0);
 
     assign cpu_master_64b_b.id = 
-        ((ddr0_slave_axi_bid_bridge_id == 0) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bid : '0);
+        (cpu_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bid : '0);
 
     assign cpu_master_64b_b.resp = 
-        ((ddr0_slave_axi_bid_bridge_id == 0) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bresp : '0);
+        (cpu_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bresp : '0);
 
     assign cpu_master_64b_b.user = 
-        ((ddr0_slave_axi_bid_bridge_id == 0) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_buser : '0);
+        (cpu_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_buser : '0);
 
     assign cpu_master_64b_bvalid = 
-        ((ddr0_slave_axi_bid_bridge_id == 0) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bvalid : '0);
+        (cpu_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bvalid : '0);
 
     assign cpu_master_64b_arready = 
         (cpu_master_64b_ar_gnt_ddr0_slave ? ddr0_slave_axi_arready : '0);
 
     assign cpu_master_64b_r.id = 
-        ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rid : '0);
+        (cpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rid : '0);
 
     assign cpu_master_64b_r.data = 
-        ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rdata : 64'b0);
+        (cpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rdata : 64'b0);
 
     assign cpu_master_64b_r.resp = 
-        ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rresp : '0);
+        (cpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rresp : '0);
 
     assign cpu_master_64b_r.last = 
-        ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rlast : '0);
+        (cpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rlast : '0);
 
     assign cpu_master_64b_r.user = 
-        ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_ruser : '0);
+        (cpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_ruser : '0);
 
     assign cpu_master_64b_rvalid = 
-        ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_master (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rvalid : '0);
 
 
     // Master: cpu_master, Width path: 128b
@@ -2152,49 +2350,37 @@ module bridge_4x4_rw_xbar
         (cpu_master_128b_w_sel_sram_slave ? sram_slave_axi_wready : '0);
 
     assign cpu_master_128b_b.id = 
-        ((sram_slave_axi_bid_bridge_id == 0) && sram_slave_axi_bid_valid ? sram_slave_axi_bid : '0);
+        (cpu_master_128b_b_rgnt_sram_slave ? sram_slave_axi_bid : '0);
 
     assign cpu_master_128b_b.resp = 
-        ((sram_slave_axi_bid_bridge_id == 0) && sram_slave_axi_bid_valid ? sram_slave_axi_bresp : '0);
+        (cpu_master_128b_b_rgnt_sram_slave ? sram_slave_axi_bresp : '0);
 
     assign cpu_master_128b_b.user = 
-        ((sram_slave_axi_bid_bridge_id == 0) && sram_slave_axi_bid_valid ? sram_slave_axi_buser : '0);
+        (cpu_master_128b_b_rgnt_sram_slave ? sram_slave_axi_buser : '0);
 
     assign cpu_master_128b_bvalid = 
-        ((sram_slave_axi_bid_bridge_id == 0) && sram_slave_axi_bid_valid ? sram_slave_axi_bvalid : '0);
+        (cpu_master_128b_b_rgnt_sram_slave ? sram_slave_axi_bvalid : '0);
 
     assign cpu_master_128b_arready = 
         (cpu_master_128b_ar_gnt_sram_slave ? sram_slave_axi_arready : '0);
 
     assign cpu_master_128b_r.id = 
-        ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? sram_slave_axi_rid : '0);
+        (cpu_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rid : '0);
 
     assign cpu_master_128b_r.data = 
-        ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? sram_slave_axi_rdata : 128'b0);
+        (cpu_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rdata : 128'b0);
 
     assign cpu_master_128b_r.resp = 
-        ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? sram_slave_axi_rresp : '0);
+        (cpu_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rresp : '0);
 
     assign cpu_master_128b_r.last = 
-        ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? sram_slave_axi_rlast : '0);
+        (cpu_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rlast : '0);
 
     assign cpu_master_128b_r.user = 
-        ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? sram_slave_axi_ruser : '0);
+        (cpu_master_128b_r_rgnt_sram_slave ? sram_slave_axi_ruser : '0);
 
     assign cpu_master_128b_rvalid = 
-        ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? sram_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_master (128b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rvalid : '0);
 
 
     // Master: cpu_master, Width path: 256b
@@ -2207,60 +2393,48 @@ module bridge_4x4_rw_xbar
         (cpu_master_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_master_256b_b.id = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (cpu_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_bid : '0) |
+        (cpu_master_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign cpu_master_256b_b.resp = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (cpu_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_bresp : '0) |
+        (cpu_master_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign cpu_master_256b_b.user = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (cpu_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_buser : '0) |
+        (cpu_master_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign cpu_master_256b_bvalid = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (cpu_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_bvalid : '0) |
+        (cpu_master_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_master_256b_arready = 
         (cpu_master_256b_ar_gnt_gpu_mem_slave ? gpu_mem_slave_axi_arready : '0) |
         (cpu_master_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_master_256b_r.id = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (cpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rid : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign cpu_master_256b_r.data = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rdata : 256'b0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
+        (cpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rdata : 256'b0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rdata : 256'b0);
 
     assign cpu_master_256b_r.resp = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (cpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rresp : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign cpu_master_256b_r.last = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (cpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rlast : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign cpu_master_256b_r.user = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (cpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_ruser : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign cpu_master_256b_rvalid = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master cpu_master (256b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (cpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rvalid : '0) |
+        (cpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: dma0_master, Width path: 32b
@@ -2271,49 +2445,37 @@ module bridge_4x4_rw_xbar
         (dma0_master_32b_w_sel_periph_slave ? periph_slave_axi_wready : '0);
 
     assign dma0_master_32b_b.id = 
-        ((periph_slave_axi_bid_bridge_id == 1) && periph_slave_axi_bid_valid ? periph_slave_axi_bid : '0);
+        (dma0_master_32b_b_rgnt_periph_slave ? periph_slave_axi_bid : '0);
 
     assign dma0_master_32b_b.resp = 
-        ((periph_slave_axi_bid_bridge_id == 1) && periph_slave_axi_bid_valid ? periph_slave_axi_bresp : '0);
+        (dma0_master_32b_b_rgnt_periph_slave ? periph_slave_axi_bresp : '0);
 
     assign dma0_master_32b_b.user = 
-        ((periph_slave_axi_bid_bridge_id == 1) && periph_slave_axi_bid_valid ? periph_slave_axi_buser : '0);
+        (dma0_master_32b_b_rgnt_periph_slave ? periph_slave_axi_buser : '0);
 
     assign dma0_master_32b_bvalid = 
-        ((periph_slave_axi_bid_bridge_id == 1) && periph_slave_axi_bid_valid ? periph_slave_axi_bvalid : '0);
+        (dma0_master_32b_b_rgnt_periph_slave ? periph_slave_axi_bvalid : '0);
 
     assign dma0_master_32b_arready = 
         (dma0_master_32b_ar_gnt_periph_slave ? periph_slave_axi_arready : '0);
 
     assign dma0_master_32b_r.id = 
-        ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? periph_slave_axi_rid : '0);
+        (dma0_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rid : '0);
 
     assign dma0_master_32b_r.data = 
-        ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? periph_slave_axi_rdata : 32'b0);
+        (dma0_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rdata : 32'b0);
 
     assign dma0_master_32b_r.resp = 
-        ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? periph_slave_axi_rresp : '0);
+        (dma0_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rresp : '0);
 
     assign dma0_master_32b_r.last = 
-        ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? periph_slave_axi_rlast : '0);
+        (dma0_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rlast : '0);
 
     assign dma0_master_32b_r.user = 
-        ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? periph_slave_axi_ruser : '0);
+        (dma0_master_32b_r_rgnt_periph_slave ? periph_slave_axi_ruser : '0);
 
     assign dma0_master_32b_rvalid = 
-        ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? periph_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master dma0_master (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (dma0_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rvalid : '0);
 
 
     // Master: dma0_master, Width path: 64b
@@ -2324,49 +2486,37 @@ module bridge_4x4_rw_xbar
         (dma0_master_64b_w_sel_ddr0_slave ? ddr0_slave_axi_wready : '0);
 
     assign dma0_master_64b_b.id = 
-        ((ddr0_slave_axi_bid_bridge_id == 1) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bid : '0);
+        (dma0_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bid : '0);
 
     assign dma0_master_64b_b.resp = 
-        ((ddr0_slave_axi_bid_bridge_id == 1) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bresp : '0);
+        (dma0_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bresp : '0);
 
     assign dma0_master_64b_b.user = 
-        ((ddr0_slave_axi_bid_bridge_id == 1) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_buser : '0);
+        (dma0_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_buser : '0);
 
     assign dma0_master_64b_bvalid = 
-        ((ddr0_slave_axi_bid_bridge_id == 1) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bvalid : '0);
+        (dma0_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bvalid : '0);
 
     assign dma0_master_64b_arready = 
         (dma0_master_64b_ar_gnt_ddr0_slave ? ddr0_slave_axi_arready : '0);
 
     assign dma0_master_64b_r.id = 
-        ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rid : '0);
+        (dma0_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rid : '0);
 
     assign dma0_master_64b_r.data = 
-        ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rdata : 64'b0);
+        (dma0_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rdata : 64'b0);
 
     assign dma0_master_64b_r.resp = 
-        ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rresp : '0);
+        (dma0_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rresp : '0);
 
     assign dma0_master_64b_r.last = 
-        ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rlast : '0);
+        (dma0_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rlast : '0);
 
     assign dma0_master_64b_r.user = 
-        ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_ruser : '0);
+        (dma0_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_ruser : '0);
 
     assign dma0_master_64b_rvalid = 
-        ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master dma0_master (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (dma0_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rvalid : '0);
 
 
     // Master: dma0_master, Width path: 128b
@@ -2377,49 +2527,37 @@ module bridge_4x4_rw_xbar
         (dma0_master_128b_w_sel_sram_slave ? sram_slave_axi_wready : '0);
 
     assign dma0_master_128b_b.id = 
-        ((sram_slave_axi_bid_bridge_id == 1) && sram_slave_axi_bid_valid ? sram_slave_axi_bid : '0);
+        (dma0_master_128b_b_rgnt_sram_slave ? sram_slave_axi_bid : '0);
 
     assign dma0_master_128b_b.resp = 
-        ((sram_slave_axi_bid_bridge_id == 1) && sram_slave_axi_bid_valid ? sram_slave_axi_bresp : '0);
+        (dma0_master_128b_b_rgnt_sram_slave ? sram_slave_axi_bresp : '0);
 
     assign dma0_master_128b_b.user = 
-        ((sram_slave_axi_bid_bridge_id == 1) && sram_slave_axi_bid_valid ? sram_slave_axi_buser : '0);
+        (dma0_master_128b_b_rgnt_sram_slave ? sram_slave_axi_buser : '0);
 
     assign dma0_master_128b_bvalid = 
-        ((sram_slave_axi_bid_bridge_id == 1) && sram_slave_axi_bid_valid ? sram_slave_axi_bvalid : '0);
+        (dma0_master_128b_b_rgnt_sram_slave ? sram_slave_axi_bvalid : '0);
 
     assign dma0_master_128b_arready = 
         (dma0_master_128b_ar_gnt_sram_slave ? sram_slave_axi_arready : '0);
 
     assign dma0_master_128b_r.id = 
-        ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? sram_slave_axi_rid : '0);
+        (dma0_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rid : '0);
 
     assign dma0_master_128b_r.data = 
-        ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? sram_slave_axi_rdata : 128'b0);
+        (dma0_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rdata : 128'b0);
 
     assign dma0_master_128b_r.resp = 
-        ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? sram_slave_axi_rresp : '0);
+        (dma0_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rresp : '0);
 
     assign dma0_master_128b_r.last = 
-        ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? sram_slave_axi_rlast : '0);
+        (dma0_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rlast : '0);
 
     assign dma0_master_128b_r.user = 
-        ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? sram_slave_axi_ruser : '0);
+        (dma0_master_128b_r_rgnt_sram_slave ? sram_slave_axi_ruser : '0);
 
     assign dma0_master_128b_rvalid = 
-        ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? sram_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master dma0_master (128b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (dma0_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rvalid : '0);
 
 
     // Master: dma0_master, Width path: 256b
@@ -2430,49 +2568,37 @@ module bridge_4x4_rw_xbar
         (dma0_master_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign dma0_master_256b_b.id = 
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (dma0_master_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign dma0_master_256b_b.resp = 
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (dma0_master_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign dma0_master_256b_b.user = 
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (dma0_master_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign dma0_master_256b_bvalid = 
-        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (dma0_master_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign dma0_master_256b_arready = 
         (dma0_master_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign dma0_master_256b_r.id = 
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (dma0_master_256b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign dma0_master_256b_r.data = 
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
+        (dma0_master_256b_r_rgnt_subtractive ? subtractive_axi_rdata : 256'b0);
 
     assign dma0_master_256b_r.resp = 
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (dma0_master_256b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign dma0_master_256b_r.last = 
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (dma0_master_256b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign dma0_master_256b_r.user = 
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (dma0_master_256b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign dma0_master_256b_rvalid = 
-        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master dma0_master (256b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (dma0_master_256b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: dma1_master, Width path: 64b
@@ -2483,49 +2609,37 @@ module bridge_4x4_rw_xbar
         (dma1_master_64b_w_sel_ddr0_slave ? ddr0_slave_axi_wready : '0);
 
     assign dma1_master_64b_b.id = 
-        ((ddr0_slave_axi_bid_bridge_id == 2) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bid : '0);
+        (dma1_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bid : '0);
 
     assign dma1_master_64b_b.resp = 
-        ((ddr0_slave_axi_bid_bridge_id == 2) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bresp : '0);
+        (dma1_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bresp : '0);
 
     assign dma1_master_64b_b.user = 
-        ((ddr0_slave_axi_bid_bridge_id == 2) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_buser : '0);
+        (dma1_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_buser : '0);
 
     assign dma1_master_64b_bvalid = 
-        ((ddr0_slave_axi_bid_bridge_id == 2) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bvalid : '0);
+        (dma1_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bvalid : '0);
 
     assign dma1_master_64b_arready = 
         (dma1_master_64b_ar_gnt_ddr0_slave ? ddr0_slave_axi_arready : '0);
 
     assign dma1_master_64b_r.id = 
-        ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rid : '0);
+        (dma1_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rid : '0);
 
     assign dma1_master_64b_r.data = 
-        ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rdata : 64'b0);
+        (dma1_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rdata : 64'b0);
 
     assign dma1_master_64b_r.resp = 
-        ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rresp : '0);
+        (dma1_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rresp : '0);
 
     assign dma1_master_64b_r.last = 
-        ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rlast : '0);
+        (dma1_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rlast : '0);
 
     assign dma1_master_64b_r.user = 
-        ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_ruser : '0);
+        (dma1_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_ruser : '0);
 
     assign dma1_master_64b_rvalid = 
-        ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master dma1_master (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (dma1_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rvalid : '0);
 
 
     // Master: dma1_master, Width path: 128b
@@ -2536,49 +2650,37 @@ module bridge_4x4_rw_xbar
         (dma1_master_128b_w_sel_sram_slave ? sram_slave_axi_wready : '0);
 
     assign dma1_master_128b_b.id = 
-        ((sram_slave_axi_bid_bridge_id == 2) && sram_slave_axi_bid_valid ? sram_slave_axi_bid : '0);
+        (dma1_master_128b_b_rgnt_sram_slave ? sram_slave_axi_bid : '0);
 
     assign dma1_master_128b_b.resp = 
-        ((sram_slave_axi_bid_bridge_id == 2) && sram_slave_axi_bid_valid ? sram_slave_axi_bresp : '0);
+        (dma1_master_128b_b_rgnt_sram_slave ? sram_slave_axi_bresp : '0);
 
     assign dma1_master_128b_b.user = 
-        ((sram_slave_axi_bid_bridge_id == 2) && sram_slave_axi_bid_valid ? sram_slave_axi_buser : '0);
+        (dma1_master_128b_b_rgnt_sram_slave ? sram_slave_axi_buser : '0);
 
     assign dma1_master_128b_bvalid = 
-        ((sram_slave_axi_bid_bridge_id == 2) && sram_slave_axi_bid_valid ? sram_slave_axi_bvalid : '0);
+        (dma1_master_128b_b_rgnt_sram_slave ? sram_slave_axi_bvalid : '0);
 
     assign dma1_master_128b_arready = 
         (dma1_master_128b_ar_gnt_sram_slave ? sram_slave_axi_arready : '0);
 
     assign dma1_master_128b_r.id = 
-        ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? sram_slave_axi_rid : '0);
+        (dma1_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rid : '0);
 
     assign dma1_master_128b_r.data = 
-        ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? sram_slave_axi_rdata : 128'b0);
+        (dma1_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rdata : 128'b0);
 
     assign dma1_master_128b_r.resp = 
-        ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? sram_slave_axi_rresp : '0);
+        (dma1_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rresp : '0);
 
     assign dma1_master_128b_r.last = 
-        ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? sram_slave_axi_rlast : '0);
+        (dma1_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rlast : '0);
 
     assign dma1_master_128b_r.user = 
-        ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? sram_slave_axi_ruser : '0);
+        (dma1_master_128b_r_rgnt_sram_slave ? sram_slave_axi_ruser : '0);
 
     assign dma1_master_128b_rvalid = 
-        ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? sram_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master dma1_master (128b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (dma1_master_128b_r_rgnt_sram_slave ? sram_slave_axi_rvalid : '0);
 
 
     // Master: dma1_master, Width path: 256b
@@ -2591,60 +2693,48 @@ module bridge_4x4_rw_xbar
         (dma1_master_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign dma1_master_256b_b.id = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (dma1_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_bid : '0) |
+        (dma1_master_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign dma1_master_256b_b.resp = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (dma1_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_bresp : '0) |
+        (dma1_master_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign dma1_master_256b_b.user = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (dma1_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_buser : '0) |
+        (dma1_master_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign dma1_master_256b_bvalid = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (dma1_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_bvalid : '0) |
+        (dma1_master_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign dma1_master_256b_arready = 
         (dma1_master_256b_ar_gnt_gpu_mem_slave ? gpu_mem_slave_axi_arready : '0) |
         (dma1_master_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign dma1_master_256b_r.id = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (dma1_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rid : '0) |
+        (dma1_master_256b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign dma1_master_256b_r.data = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rdata : 256'b0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
+        (dma1_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rdata : 256'b0) |
+        (dma1_master_256b_r_rgnt_subtractive ? subtractive_axi_rdata : 256'b0);
 
     assign dma1_master_256b_r.resp = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (dma1_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rresp : '0) |
+        (dma1_master_256b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign dma1_master_256b_r.last = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (dma1_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rlast : '0) |
+        (dma1_master_256b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign dma1_master_256b_r.user = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (dma1_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_ruser : '0) |
+        (dma1_master_256b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign dma1_master_256b_rvalid = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master dma1_master (256b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (dma1_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rvalid : '0) |
+        (dma1_master_256b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
     // Master: gpu_master, Width path: 32b
@@ -2655,49 +2745,37 @@ module bridge_4x4_rw_xbar
         (gpu_master_32b_w_sel_periph_slave ? periph_slave_axi_wready : '0);
 
     assign gpu_master_32b_b.id = 
-        ((periph_slave_axi_bid_bridge_id == 3) && periph_slave_axi_bid_valid ? periph_slave_axi_bid : '0);
+        (gpu_master_32b_b_rgnt_periph_slave ? periph_slave_axi_bid : '0);
 
     assign gpu_master_32b_b.resp = 
-        ((periph_slave_axi_bid_bridge_id == 3) && periph_slave_axi_bid_valid ? periph_slave_axi_bresp : '0);
+        (gpu_master_32b_b_rgnt_periph_slave ? periph_slave_axi_bresp : '0);
 
     assign gpu_master_32b_b.user = 
-        ((periph_slave_axi_bid_bridge_id == 3) && periph_slave_axi_bid_valid ? periph_slave_axi_buser : '0);
+        (gpu_master_32b_b_rgnt_periph_slave ? periph_slave_axi_buser : '0);
 
     assign gpu_master_32b_bvalid = 
-        ((periph_slave_axi_bid_bridge_id == 3) && periph_slave_axi_bid_valid ? periph_slave_axi_bvalid : '0);
+        (gpu_master_32b_b_rgnt_periph_slave ? periph_slave_axi_bvalid : '0);
 
     assign gpu_master_32b_arready = 
         (gpu_master_32b_ar_gnt_periph_slave ? periph_slave_axi_arready : '0);
 
     assign gpu_master_32b_r.id = 
-        ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? periph_slave_axi_rid : '0);
+        (gpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rid : '0);
 
     assign gpu_master_32b_r.data = 
-        ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? periph_slave_axi_rdata : 32'b0);
+        (gpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rdata : 32'b0);
 
     assign gpu_master_32b_r.resp = 
-        ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? periph_slave_axi_rresp : '0);
+        (gpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rresp : '0);
 
     assign gpu_master_32b_r.last = 
-        ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? periph_slave_axi_rlast : '0);
+        (gpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rlast : '0);
 
     assign gpu_master_32b_r.user = 
-        ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? periph_slave_axi_ruser : '0);
+        (gpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_ruser : '0);
 
     assign gpu_master_32b_rvalid = 
-        ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? periph_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master gpu_master (32b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (gpu_master_32b_r_rgnt_periph_slave ? periph_slave_axi_rvalid : '0);
 
 
     // Master: gpu_master, Width path: 64b
@@ -2708,49 +2786,37 @@ module bridge_4x4_rw_xbar
         (gpu_master_64b_w_sel_ddr0_slave ? ddr0_slave_axi_wready : '0);
 
     assign gpu_master_64b_b.id = 
-        ((ddr0_slave_axi_bid_bridge_id == 3) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bid : '0);
+        (gpu_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bid : '0);
 
     assign gpu_master_64b_b.resp = 
-        ((ddr0_slave_axi_bid_bridge_id == 3) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bresp : '0);
+        (gpu_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bresp : '0);
 
     assign gpu_master_64b_b.user = 
-        ((ddr0_slave_axi_bid_bridge_id == 3) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_buser : '0);
+        (gpu_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_buser : '0);
 
     assign gpu_master_64b_bvalid = 
-        ((ddr0_slave_axi_bid_bridge_id == 3) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bvalid : '0);
+        (gpu_master_64b_b_rgnt_ddr0_slave ? ddr0_slave_axi_bvalid : '0);
 
     assign gpu_master_64b_arready = 
         (gpu_master_64b_ar_gnt_ddr0_slave ? ddr0_slave_axi_arready : '0);
 
     assign gpu_master_64b_r.id = 
-        ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rid : '0);
+        (gpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rid : '0);
 
     assign gpu_master_64b_r.data = 
-        ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rdata : 64'b0);
+        (gpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rdata : 64'b0);
 
     assign gpu_master_64b_r.resp = 
-        ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rresp : '0);
+        (gpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rresp : '0);
 
     assign gpu_master_64b_r.last = 
-        ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rlast : '0);
+        (gpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rlast : '0);
 
     assign gpu_master_64b_r.user = 
-        ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_ruser : '0);
+        (gpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_ruser : '0);
 
     assign gpu_master_64b_rvalid = 
-        ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master gpu_master (64b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (gpu_master_64b_r_rgnt_ddr0_slave ? ddr0_slave_axi_rvalid : '0);
 
 
     // Master: gpu_master, Width path: 256b
@@ -2763,60 +2829,48 @@ module bridge_4x4_rw_xbar
         (gpu_master_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign gpu_master_256b_b.id = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bid : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+        (gpu_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_bid : '0) |
+        (gpu_master_256b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign gpu_master_256b_b.resp = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bresp : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+        (gpu_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_bresp : '0) |
+        (gpu_master_256b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign gpu_master_256b_b.user = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_buser : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+        (gpu_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_buser : '0) |
+        (gpu_master_256b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign gpu_master_256b_bvalid = 
-        ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bvalid : '0) |
-        ((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
+        (gpu_master_256b_b_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_bvalid : '0) |
+        (gpu_master_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign gpu_master_256b_arready = 
         (gpu_master_256b_ar_gnt_gpu_mem_slave ? gpu_mem_slave_axi_arready : '0) |
         (gpu_master_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign gpu_master_256b_r.id = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rid : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
+        (gpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rid : '0) |
+        (gpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign gpu_master_256b_r.data = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rdata : 256'b0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
+        (gpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rdata : 256'b0) |
+        (gpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rdata : 256'b0);
 
     assign gpu_master_256b_r.resp = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rresp : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
+        (gpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rresp : '0) |
+        (gpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign gpu_master_256b_r.last = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rlast : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
+        (gpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rlast : '0) |
+        (gpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign gpu_master_256b_r.user = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_ruser : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
+        (gpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_ruser : '0) |
+        (gpu_master_256b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign gpu_master_256b_rvalid = 
-        ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rvalid : '0) |
-        ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
-
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && $countones({((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid)}) > 1) begin
-            $error("%m: response mux for master gpu_master (256b) has %0d slaves selected at once; ",
-                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
-                   $countones({((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid)}));
-        end
-    end
-    // synthesis translate_on
-`endif
+        (gpu_master_256b_r_rgnt_gpu_mem_slave ? gpu_mem_slave_axi_rvalid : '0) |
+        (gpu_master_256b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_4x4_rw_xbar

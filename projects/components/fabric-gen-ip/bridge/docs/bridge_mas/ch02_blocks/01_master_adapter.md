@@ -35,13 +35,13 @@ Concretely, the adapter does five things:
 2. **Channel Specialization**: Separates read-only, write-only, and read-write masters for optimal resource utilization
 3. **Fabric ID**: Widens the AXI ID to `{BRIDGE_ID, id}` so IDs are unique across masters
 4. **Address Decode and Width Paths**: Selects the target slave and converts width on paths that need it (`axi4_dwidth_converter_wr` / `_rd`)
-5. **Response Steering**: Returns B / R from the slave of the oldest outstanding request (`aw_trk` / `ar_trk` FIFOs)
+5. **Per-ID Target Gate and Response Steering**: lets a master keep requests in flight at several slaves (same-ID requests stay on one slave), and arbitrates B / R across its width paths
 
 ### Figure 2.1: Master Adapter Architecture
 
 ![Master Adapter Architecture](../assets/graphviz/master_adapter.png)
 
-The figure follows the generated `<master>_adapter`: skid buffers at the port, the combinational address decode, the target gate that also widens the ID to `{BRIDGE_ID, id}`, and one width path per distinct slave width. W follows its AW through the `w_trk` FIFO, and B / R climb back through a response mux steered by the head of the `aw_trk` / `ar_trk` FIFO.
+The figure follows the generated `<master>_adapter`: skid buffers at the port, the combinational address decode, the per-ID target gate that also widens the ID to `{BRIDGE_ID, id}`, and one width path per distinct slave width. W follows its AW through the `w_trk` FIFO, and B / R climb back through a response mux whose path arbiter picks among the width paths.
 
 ## Parameters
 
@@ -310,6 +310,39 @@ r_slave_select <= ar_trk_pop;  // Stable slave index for response MUX
 - One FIFO per (master, AW/AR channel)
 - Width: `clog2(NUM_SLAVES)` bits (4 bits typical for 16-slave systems)
 - Depth: Matches maximum outstanding transactions (8-16 typical)
+
+The FIFOs above steer responses ONLY on ports that carry a read-return atomic
+(`rr_atomic`) or a trace echo. Those ports hang per-request state on the FIFO
+entry, and they still hold one target slave at a time. Every other port uses
+the scheme below.
+
+### Several Targets in Flight (bridge parity item 1)
+
+A master used to be held to one target slave at a time, because B / R were
+replayed in issue order from the tracking FIFO. Now the adapter keeps only
+the ordering AXI requires:
+
+- **Per-ID table** (`aw_idt_cnt[]` / `aw_idt_tgt[]`, same for AR):
+  `2**id_track_bits` entries (TOML `[bridge].id_track_bits`, default 4, and
+  never more bits than the port's ID), indexed by the ID's low bits. Each entry
+  holds an in-flight count and that ID's target slave. The address handshake
+  increments the count; a B, or an R with RLAST, decrements it by the returned
+  ID. IDs that share the index bits are treated as one ID: safe, at worst a
+  needless stall.
+- **Gates**: `ar_gate_ok = ar_id_ok && !ar_trk_full`, and
+  `aw_gate_ok = aw_id_ok && !aw_trk_full && (w_trk empty || w_slave_select == target)`.
+  Here `*_id_ok` means the ID is idle, or already in flight to the SAME
+  slave. The W term exists because W has no ID and follows AW order. Two
+  masters each owing W to two slaves would otherwise wait on each other at
+  the slaves' W ports.
+- **Outstanding limit**: `aw_out_cnt` / `ar_out_cnt` cap the port at 16 in
+  flight (bridge BUG-009's not-full rule), so no count wraps.
+- **Path arbiter**: with more than one width path, `b_pgnt` / `r_pgnt` pick a
+  path round robin. A grant holds while offered and not taken; an R grant
+  holds through RLAST. The selection feeds `b_slave_select` / `r_slave_select`
+  as a representative slave of the path, so the response mux and the path
+  readies are unchanged. One width path needs no arbiter. Among the slaves
+  on one path, the crossbar's response arbiter has already chosen (MAS 2.3).
 
 ## Timing
 

@@ -188,14 +188,14 @@ beat with that ID itself, holding every slave's `rready` off
 DECERR, and the port keeps working. This is bridge BUG-007 (was BRIDGE-009)'s rule applied to
 the atomic path.
 
-**The invariant underneath.** The crossbar's response mux is an OR-merge
-and is a mux only while at most one connected slave's tracker head belongs
-to a given master; the master adapter's single-outstanding-target gate is
-what guarantees that. The atomic AW's gate therefore yields when an AR to a
-different slave handshakes in the same cycle (the one way a dual push could
-hold two targets), and every generated crossbar now carries a simulation-
-only `$countones` guard on each master's response-mux select vector that
-reports the cycle the invariant slips.
+**The invariant underneath.** This port keeps the one-target-at-a-time
+FIFO path (MAS 2.1): the R-return FIFO entry carries the atomic's local flag
+and ID, which the per-ID table of the other ports does not. The atomic AW's
+gate therefore yields when an AR to a different slave handshakes in the same
+cycle, the one way a dual push could hold two targets. The crossbar's
+response mux no longer depends on this: since bridge parity item 1 it is a
+grant-driven mux behind a per-path response arbiter, not an OR-merge, so the
+old simulation-only `$countones` guard on the select vector is gone.
 
 **Slave adapter.** `axi5_atomic_rr_tracker` (module doc:
 `docs/markdown/rtl-amba/axi5/axi5_atomic_rr_tracker.md`) records
