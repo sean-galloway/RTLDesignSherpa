@@ -49,23 +49,21 @@ from `cache-ip/amber-mesi-l1/rtl/top/amber_top.sv`.
 - `scoria_top_geared` synchronized.
 - andesite TB `t_rfc_wait_i` compile break fixed and `dv/tests/top` gate green.
 
-## rtl/amba candidates (owner asked; lane was hot at filing)
+## rtl/amba candidates (owner-directed sweep landed 2026-10-14)
 
-Classification of the bigger `rtl/amba` blocks, deferred because the rtl/amba
-lane had live uncommitted work in the tree. Owner decision needed on whether
-these self-protect (subsystem-level, user-facing) or stay library leaves:
+`rtl/amba/shared` standalone blocks now self-protect (commit d661406b0, gate
+39/39 green): `sdpram_slave_{axi4_axi4,axi4_axil,axil_axi4,axil_axil}`,
+`axi_master_{rd,wr}_splitter`, `amba_clock_gate_ctrl`, `axi4_dma_slaves`,
+`axi4_slave_rd_injector`, `axi4_slave_wr_crc_check`, `axis4_master_injector`,
+`axis4_slave_pattern_check`, `axi_bus_meter`, `axis_bus_meter`,
+`axi_perf_latency_hist`. Leaves `sdpram_core`, `axi_gen_addr`,
+`axi_split_combi` unchanged by design.
 
-- **Likely self-protect (complete subsystems a user instantiates directly):**
-  `shared/sdpram_slave_axi4_axi4.sv`, `shared/sdpram_slave_axi4_axil.sv`,
-  `shared/sdpram_slave_axil_axi4.sv` (complete AXI memory slaves),
-  `wb4/wb4_master.sv`, `wb4/wb4_slave.sv`, `wb4/wb4_retry.sv` (complete WB4
-  bus agents), `shared/axi_master_rd_splitter.sv`,
-  `shared/axi_master_wr_splitter.sv` (infrastructure masters).
-- **Probably leaves (TB/verification infrastructure, driven by clean TB
-  resets):** `shared/axi4_master_wr_injector.sv`,
-  `shared/axi4_master_rd_crc_check.sv`,
-  `shared/axi4_slave_wr_crc_check.sv`, `shared/axi4_slave_rd_injector.sv`,
-  `shared/axis4_master_injector.sv`, `shared/axis4_slave_pattern_check.sv`.
-- **No sync (passive observers/monitors — must track the observed domain's
-  reset):** everything under `ocelus/`, the `axi4_{master,slave}_{rd,wr}_mon`
-  protocol monitors, `gaxi_*` leaf FIFOs/skids/regslice.
+Still open:
+- `axi4_master_wr_injector` / `axi4_master_rd_crc_check` — deferred (another
+  lane held uncommitted edits at sweep time); same idiom applies.
+- `rtl/amba/wb4/{wb4_master,wb4_slave,wb4_retry}` — complete WB4 bus agents;
+  owner has not directed these yet.
+- No sync by design (passive observers/monitors): everything under `ocelus/`,
+  the `axi4_{master,slave}_{rd,wr}_mon` protocol monitors, `gaxi_*` leaf
+  FIFOs/skids/regslice.
