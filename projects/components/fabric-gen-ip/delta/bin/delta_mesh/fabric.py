@@ -122,7 +122,8 @@ class DeltaMeshFabric(Module):
             input  logic [NUM_VC-1:0]     s_local_credit [NUM_BOUNDARY],
             output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY],
 
-            output logic [31:0]           o_err          [NUM_BOUNDARY]
+            output logic [31:0]           o_err          [NUM_BOUNDARY],
+            output logic [31:0]           o_mode_acks    [NUM_BOUNDARY]
         '''
         self.ports.add_port_string(port_str)
 
@@ -165,6 +166,12 @@ class DeltaMeshFabric(Module):
         self.comment("    same index order; Task 5 observability, the ocelus")
         self.comment("    counter suite reads them via the config plane in")
         self.comment("    Task 10).")
+        self.comment("  - Per-cell mode-ack tallies (delta_mesh_cell's")
+        self.comment("    o_mode_acks: acks the cell received for broadcast")
+        self.comment("    mode-switches) ride out as o_mode_acks")
+        self.comment("    [NUM_BOUNDARY], same index order; the origin's")
+        self.comment("    entry is the Task 6 ack barrier (Task 10 reads")
+        self.comment("    them via the config plane).")
         self.comment("")
         self.comment("Tie-off policy (no torus this task -- wrap links land in")
         self.comment("Task 9; --torus-* is rejected at generation time):")
@@ -261,6 +268,12 @@ class DeltaMeshFabric(Module):
         self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
         self.instruction("logic [31:0]           cell_err_drop [X_DIM][Y_DIM][Z_DIM];")
         self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
+        self.comment("Per-cell mode-ack tallies (delta_mesh_cell's")
+        self.comment("o_mode_acks), boundary cells exposed in the same")
+        self.comment("fashion as cell_err_drop.")
+        self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
+        self.instruction("logic [31:0]           cell_mode_acks [X_DIM][Y_DIM][Z_DIM];")
+        self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
         self.instruction("")
 
     # ------------------------------------------------------------------
@@ -313,6 +326,8 @@ class DeltaMeshFabric(Module):
         self.instruction(f"                    assign m_local_tuser[BIDX]  = cell_m_tuser{p};")
         self.instruction(f"                    assign m_local_credit[BIDX] = cell_m_credit{p};")
         self.instruction("                    assign o_err[BIDX] = cell_err_drop[gx][gy][gz];")
+        self.instruction("                    assign o_mode_acks[BIDX] =")
+        self.instruction("                        cell_mode_acks[gx][gy][gz];")
 
     def _emit_neighbor_hookups(self):
         """Emit the six if-generate neighbor hookups (genvar-relative)."""
@@ -385,7 +400,8 @@ class DeltaMeshFabric(Module):
         self.instruction("                    .m_axis_tuser (cell_m_tuser [gx][gy][gz]),")
         self.instruction("                    .s_credit(cell_s_credit[gx][gy][gz]),")
         self.instruction("                    .m_credit(cell_m_credit[gx][gy][gz]),")
-        self.instruction("                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz])")
+        self.instruction("                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz]),")
+        self.instruction("                    .o_mode_acks(cell_mode_acks[gx][gy][gz])")
         self.instruction("                );")
         self.instruction("            end")
         self.instruction("        end")

@@ -23,7 +23,9 @@
 // Credit sidebands: s_local_credit is tied to '1 (credits always available,
 // matching the Task 2/3 cell tie-off); m_local_credit is exposed per boundary.
 // b<i>_err are the per-cell malformed-dst drop counters (Task 5 o_err pass-
-// through); suites may ignore them but the fabric port must exist.
+// through); b<i>_mode_acks are the per-cell mode-switch ack tallies (Task 6
+// o_mode_acks pass-through -- the modes suite's barrier). Suites may ignore
+// them but the fabric ports must exist.
 //
 // Subsystem: delta (dv)
 //
@@ -93,7 +95,11 @@ module delta_mesh_fabric_2x2_th #(
     output logic [31:0]           b0_err,
     output logic [31:0]           b1_err,
     output logic [31:0]           b2_err,
-    output logic [31:0]           b3_err
+    output logic [31:0]           b3_err,
+    output logic [31:0]           b0_mode_acks,
+    output logic [31:0]           b1_mode_acks,
+    output logic [31:0]           b2_mode_acks,
+    output logic [31:0]           b3_mode_acks
 );
 
     // Fabric boundary index map (pinned by the generator, x-major then y
@@ -175,6 +181,15 @@ module delta_mesh_fabric_2x2_th #(
     assign b2_err = w_o_err[2];
     assign b3_err = w_o_err[3];
 
+    // Per-cell mode-switch ack tallies (Task 6): exposed per boundary
+    // cell; only the origin's entry feeds the modes suite's barrier.
+    logic [31:0] w_o_mode_acks [NUM_BOUNDARY];
+
+    assign b0_mode_acks = w_o_mode_acks[0];
+    assign b1_mode_acks = w_o_mode_acks[1];
+    assign b2_mode_acks = w_o_mode_acks[2];
+    assign b3_mode_acks = w_o_mode_acks[3];
+
     delta_mesh_fabric_2x2x1 #(
         .DATA_WIDTH(DATA_WIDTH),
         .USER_WIDTH(USER_WIDTH),
@@ -195,7 +210,8 @@ module delta_mesh_fabric_2x2_th #(
         .m_local_tuser(w_m_local_tuser),
         .s_local_credit(w_s_local_credit),
         .m_local_credit(w_m_local_credit),
-        .o_err(w_o_err)
+        .o_err(w_o_err),
+        .o_mode_acks(w_o_mode_acks)
     );
 
 endmodule : delta_mesh_fabric_2x2_th

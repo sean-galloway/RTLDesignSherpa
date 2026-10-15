@@ -21,7 +21,8 @@ parameter int     NUM_BOUNDARY = 16 )(
     output logic [USER_WIDTH-1:0] m_local_tuser  [NUM_BOUNDARY],
     input  logic [NUM_VC-1:0]     s_local_credit [NUM_BOUNDARY],
     output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY],
-    output logic [31:0]           o_err          [NUM_BOUNDARY]
+    output logic [31:0]           o_err          [NUM_BOUNDARY],
+    output logic [31:0]           o_mode_acks    [NUM_BOUNDARY]
 );
 // ==============================================================================
 // Module: delta_mesh_fabric_4x4x1
@@ -55,6 +56,12 @@ parameter int     NUM_BOUNDARY = 16 )(
 //     same index order; Task 5 observability, the ocelus
 //     counter suite reads them via the config plane in
 //     Task 10).
+//   - Per-cell mode-ack tallies (delta_mesh_cell's
+//     o_mode_acks: acks the cell received for broadcast
+//     mode-switches) ride out as o_mode_acks
+//     [NUM_BOUNDARY], same index order; the origin's
+//     entry is the Task 6 ack barrier (Task 10 reads
+//     them via the config plane).
 //
 // Tie-off policy (no torus this task -- wrap links land in
 // Task 9; --torus-* is rejected at generation time):
@@ -150,6 +157,12 @@ logic [NUM_VC-1:0]     cell_m_credit [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];
 // here -- the fabric exposes boundary cells only.
 /* verilator lint_off UNUSEDSIGNAL */
 logic [31:0]           cell_err_drop [X_DIM][Y_DIM][Z_DIM];
+/* verilator lint_on UNUSEDSIGNAL */
+// Per-cell mode-ack tallies (delta_mesh_cell's
+// o_mode_acks), boundary cells exposed in the same
+// fashion as cell_err_drop.
+/* verilator lint_off UNUSEDSIGNAL */
+logic [31:0]           cell_mode_acks [X_DIM][Y_DIM][Z_DIM];
 /* verilator lint_on UNUSEDSIGNAL */
 
 // ==========================================================================
@@ -309,6 +322,8 @@ generate
                     assign m_local_tuser[BIDX]  = cell_m_tuser[gx][gy][gz][P_LOCAL];
                     assign m_local_credit[BIDX] = cell_m_credit[gx][gy][gz][P_LOCAL];
                     assign o_err[BIDX] = cell_err_drop[gx][gy][gz];
+                    assign o_mode_acks[BIDX] =
+                        cell_mode_acks[gx][gy][gz];
                 end else begin : gen_local_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_LOCAL]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_LOCAL] = 1'b0;
@@ -346,7 +361,8 @@ generate
                     .m_axis_tuser (cell_m_tuser [gx][gy][gz]),
                     .s_credit(cell_s_credit[gx][gy][gz]),
                     .m_credit(cell_m_credit[gx][gy][gz]),
-                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz])
+                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz]),
+                    .o_mode_acks(cell_mode_acks[gx][gy][gz])
                 );
             end
         end

@@ -53,7 +53,7 @@ from CocoTBFramework.components.axis4.axis_factories import (
 )
 from CocoTBFramework.components.axis4.axis_packet import AXISPacket
 from delta_mesh.header import build_header_offsets
-from delta_mesh.tables import P_X_POS, P_Y_POS, table_index
+from delta_mesh.tables import P_LOCAL, P_X_POS, P_Y_POS, table_index
 from TBClasses.shared.tbbase import TBBase
 
 
@@ -171,7 +171,8 @@ class DeltaMeshCellTB(TBBase):
     # ------------------------------------------------------------------
     # Header / packet helpers
     # ------------------------------------------------------------------
-    def build_header(self, dst, src, qos=0, vc=0, packet_id=0, sr_ptr=0):
+    def build_header(self, dst, src, qos=0, vc=0, packet_id=0, sr_ptr=0,
+                     mcast=0):
         """Pack a head-flit header int per delta_mesh.header layout."""
         hdr = 0
         for value, fields in ((dst, ('dst_x', 'dst_y', 'dst_z')),
@@ -179,8 +180,8 @@ class DeltaMeshCellTB(TBBase):
             for coord, field in zip(value, fields):
                 lo, width = self.hdr_offsets[field]
                 hdr |= (coord & ((1 << width) - 1)) << lo
-        for field, value in (('qos', qos), ('vc', vc), ('sr_ptr', sr_ptr),
-                             ('packet_id', packet_id)):
+        for field, value in (('qos', qos), ('mcast', mcast), ('vc', vc),
+                             ('sr_ptr', sr_ptr), ('packet_id', packet_id)):
             lo, width = self.hdr_offsets[field]
             hdr |= (value & ((1 << width) - 1)) << lo
         return hdr
@@ -319,14 +320,10 @@ class DeltaMeshFabricTB(DeltaMeshCellTB):
             f"fabric all-pairs: boundary '{port}' saw {slave.frames_received} "
             f"frames, expected {n}")
 
-    def _check_destination(self, port, dst_idx, expected):
-        """Scoreboard one boundary output against the expected packets."""
-        nb = len(self.BOUNDARY_COORDS)
+    def _group_frames(self, port, tag):
+        """Group a boundary slave's observed beats into TLAST-delimited
+        frames (trailing beats without tlast raise)."""
         beats = self.slaves[port].get_observed_packets()
-
-        # Group the flat beat stream into TLAST-delimited frames. Arrival
-        # order between packets is arbitrary (output contention at interior
-        # cells); order within a frame must be exactly as sent.
         frames = []
         current = []
         for beat in beats:
@@ -336,35 +333,36 @@ class DeltaMeshFabricTB(DeltaMeshCellTB):
                 current = []
         if current:
             raise AssertionError(
-                f"fabric all-pairs: boundary {dst_idx} ended mid-packet "
+                f"{tag}: boundary ended mid-packet "
                 f"({len(current)} trailing beats without tlast)")
-        if len(frames) != nb:
-            raise AssertionError(
-                f"fabric all-pairs: boundary {dst_idx} received {len(frames)} "
-                f"packets, expected {nb} (one per source)")
+        return frames
 
-        # Match frames to expectations by the head-flit header in TUSER;
-        # duplicate heads mean a packet was duplicated, not just reordered.
+    def _match_expected_frames(self, port, dst_idx, exp_pairs, frames, tag):
+        """Match frames against {(src_idx, dst_idx): (header, payload), ...}.
+
+        Arrival order between packets is arbitrary (output contention at
+        interior cells); order within a frame must be exactly as sent.
+        Distinct headers per packet catch duplication.
+        """
         by_head = {}
         for frame in frames:
             head_user = int(frame[0].fields.get('user', 0))
             if head_user in by_head:
                 raise AssertionError(
-                    f"fabric all-pairs: boundary {dst_idx} received two "
+                    f"{tag}: boundary {dst_idx} received two "
                     f"packets with header 0x{head_user:x} (duplicate)")
             by_head[head_user] = frame
 
-        for src_idx in range(nb):
-            header, payload = expected[(src_idx, dst_idx)]
+        for (src_idx, dst), (header, payload) in exp_pairs.items():
             frame = by_head.get(header)
-            tag = f"b{src_idx}->b{dst_idx}"
+            tag2 = f"b{src_idx}->b{dst}"
             if frame is None:
                 raise AssertionError(
-                    f"fabric all-pairs: packet {tag} never arrived at "
+                    f"{tag}: packet {tag2} never arrived at "
                     f"boundary {dst_idx}")
             if len(frame) != len(payload):
                 raise AssertionError(
-                    f"fabric all-pairs: {tag} delivered {len(frame)} beats, "
+                    f"{tag}: {tag2} delivered {len(frame)} beats, "
                     f"expected {len(payload)}")
             for i, (beat, exp_data) in enumerate(zip(frame, payload)):
                 got_data = int(beat.fields['data'])
@@ -373,17 +371,34 @@ class DeltaMeshFabricTB(DeltaMeshCellTB):
                 got_last = int(beat.fields.get('last', 0))
                 if got_data != exp_data:
                     raise AssertionError(
-                        f"fabric all-pairs: {tag} beat {i} data mismatch: "
+                        f"{tag}: {tag2} beat {i} data mismatch: "
                         f"got 0x{got_data:x}, expected 0x{exp_data:x}")
                 if got_last != exp_last:
                     raise AssertionError(
-                        f"fabric all-pairs: {tag} beat {i} tlast mismatch: "
+                        f"{tag}: {tag2} beat {i} tlast mismatch: "
                         f"got {got_last}, expected {exp_last}")
                 exp_user = header if i == 0 else 0
                 if got_user != exp_user:
                     raise AssertionError(
-                        f"fabric all-pairs: {tag} beat {i} tuser mismatch: "
+                        f"{tag}: {tag2} beat {i} tuser mismatch: "
                         f"got 0x{got_user:x}, expected 0x{exp_user:x}")
+
+    def _check_destination(self, port, dst_idx, expected):
+        """Scoreboard one boundary output against the expected packets."""
+        nb = len(self.BOUNDARY_COORDS)
+        # Match frames to expectations by the head-flit header in TUSER;
+        # duplicate heads mean a packet was duplicated, not just reordered.
+        frames = self._group_frames(port, "fabric all-pairs")
+        if len(frames) != nb:
+            heads = sorted(int(f[0].fields.get('user', 0)) for f in frames)
+            raise AssertionError(
+                f"fabric all-pairs: boundary {dst_idx} received {len(frames)} "
+                f"packets, expected {nb} (one per source); heads: "
+                + ", ".join(f"0x{h:x}" for h in heads))
+        exp = {(src_idx, dst_idx): expected[(src_idx, dst_idx)]
+               for src_idx in range(nb)}
+        self._match_expected_frames(port, dst_idx, exp, frames,
+                                    "fabric all-pairs")
 
     async def run_all_pairs(self):
         """Every ordered pair (a,b) of boundary locals, driven concurrently.
@@ -988,3 +1003,470 @@ class DeltaMeshTablesTB(DeltaMeshCellTB):
                 f"expected 1 (VC0 traffic must not count)")
         self._check_idle_ports({'xpos'}, tag)
         self.log.info("delta mesh tables: cross-VC drop drain passed")
+
+
+# Pinned control-plane magics (Task 6). The mode-switch command is a
+# config-format packet whose payload beat carries the magic in TDATA[15:0]
+# (the config table_index field) and the mode id in TDATA[19:16] (the
+# config entry field's low nibble). The ack is a one-beat control packet
+# (qos 1, mcast 0, sr_ptr[0] = 1) with the ack magic in TDATA[15:0].
+# NOTE: the controller's "16'hM0DE" spelling is not a legal SystemVerilog
+# hex literal (M is not a hex digit); 16'hC0DE ("config opcode") is the
+# nearest legal stand-in. 16'hACED ("ACKED") is legal as pinned.
+MSW_MAGIC = 0xC0DE
+ACK_MAGIC = 0xACED
+
+
+class DeltaMeshModesTB(DeltaMeshFabricTB):
+    """TB for the broadcast mode-switch + ack barrier + standard modes
+    (Task 6), on the 2x2x1 fabric harness.
+
+    Control-plane contract under test (controller-pinned):
+
+    - Mode-switch broadcast: a config-format packet (dst == self, qos 0,
+      mcast 1, sr_ptr[0] = 1 write, single beat) with payload
+      ``{mode_id[3:0], magic[15:0]}`` injected at any cell's local port.
+      Every cell recognizes it (the flooded copies carry each receiving
+      cell's own coordinate as dst), switches ``r_mode``, re-emits copies
+      on all its neighbor ports (flooding; a cell already in the target
+      mode suppresses re-emission, which terminates the flood), and
+      returns a one-beat ack to the origin.  Mode id 0 returns to the
+      custom RAM tables.
+    - The origin counts received acks in ``o_mode_acks``; the barrier for
+      an N-cell fabric completes at N acks.  Acks are one-beat control
+      packets (qos 1, mcast 0, sr_ptr[0] = 1) whose header src coordinate
+      identifies the acking cell.
+    - Control traffic (sr_ptr[0] = 1) always routes DOR, independent of
+      the current mode, so the switch/ack machinery works under any mode.
+
+    Mode images (all validated offline by tables.check_acyclic):
+    mode 1 = pure DOR; mode 2 = systolic-1D (+X when dst_x > pos_x else
+    P_LOCAL -- the pinned minimal image, no torus wrap until Task 9);
+    mode 5 = broadcast placeholder (DOR; multicast replication is
+    Task 8); mode 6 = convergecast (every dst routes toward root
+    0,0,0); modes 3/4/7/8 = minimal DOR images, catalog presence this
+    task.  Mode 0 = custom RAM tables, power-on default.
+    """
+
+    def __init__(self, dut):
+        super().__init__(dut)
+        self._pid = 0x6000
+
+    # ------------------------------------------------------------------
+    # Mode-switch / ack-barrier helpers
+    # ------------------------------------------------------------------
+    def _next_pid(self):
+        self._pid += 1
+        return self._pid
+
+    def _mode_acks(self, bidx):
+        return int(getattr(self.dut, f'b{bidx}_mode_acks').value)
+
+    async def _wait_mode_acks(self, bidx, count, tag):
+        for _ in range(6000):
+            if self._mode_acks(bidx) >= count:
+                return
+            await RisingEdge(self.aclk)
+        raise AssertionError(
+            f"{tag}: o_mode_acks[b{bidx}] == {self._mode_acks(bidx)}, "
+            f"expected {count} (ack barrier never completed)")
+
+    async def _issue_mode_switch(self, bidx, mode_id, tag):
+        """Inject one broadcast mode-switch at boundary bidx."""
+        coord = self.BOUNDARY_COORDS[bidx]
+        header = self.build_header(dst=coord, src=coord, qos=0, mcast=1,
+                                   sr_ptr=1, packet_id=self._next_pid())
+        payload = (mode_id << 16) | MSW_MAGIC
+        await self._send_packet(f'b{bidx}', header, [payload])
+
+    async def _switch_and_wait(self, bidx, mode_id, cum_acks, tag):
+        await self._issue_mode_switch(bidx, mode_id, tag)
+        await self._wait_mode_acks(bidx, cum_acks, tag)
+        self._check_acks(bidx, cum_acks, tag)
+
+    def _is_ack_frame(self, frame):
+        """One-beat control packet with the ack magic (see class note)."""
+        if len(frame) != 1:
+            return False
+        head = int(frame[0].fields.get('user', 0))
+        data = int(frame[0].fields['data'])
+        qos_lo, qos_w = self.hdr_offsets['qos']
+        sr_lo = self.hdr_offsets['sr_ptr'][0]
+        mcast_lo = self.hdr_offsets['mcast'][0]
+        return ((head >> qos_lo) & ((1 << qos_w) - 1)) == 1 and \
+            ((head >> mcast_lo) & 1) == 0 and \
+            ((head >> sr_lo) & 1) == 1 and \
+            (data & 0xFFFF) == ACK_MAGIC
+
+    def _group_frames(self, port, tag):
+        # The modes scoreboards see only data frames: the ack frames the
+        # origin accumulates are control traffic, not deliveries. Strict:
+        # a trailing beat without tlast raises -- for FINAL scoreboards
+        # after the traffic has settled only.
+        frames, trailing = self._group_frames_lenient(self.slaves[port])
+        if trailing:
+            raise AssertionError(
+                f"{tag}: boundary '{port}' ended mid-packet "
+                f"({len(trailing)} trailing beats without tlast)")
+        return [f for f in frames if not self._is_ack_frame(f)]
+
+    @staticmethod
+    def _group_frames_lenient(port):
+        """Group a slave's beats into frames, keeping any trailing
+        partial packet instead of raising (for mid-flight polling)."""
+        frames = []
+        current = []
+        for beat in port.get_observed_packets():
+            current.append(beat)
+            if int(beat.fields.get('last', 0)):
+                frames.append(current)
+                current = []
+        return frames, current
+
+    def _data_frame_count(self, port):
+        """Complete data frames at a boundary (acks filtered, partial
+        packets not counted) -- the polling-safe counter."""
+        frames, _trailing = self._group_frames_lenient(self.slaves[port])
+        return sum(1 for f in frames if not self._is_ack_frame(f))
+
+    async def _wait_frames(self, port, n):
+        """Wait until a boundary holds `n` complete DATA frames."""
+        for _ in range(6000):
+            if self._data_frame_count(port) >= n:
+                return
+            await RisingEdge(self.aclk)
+        raise AssertionError(
+            f"modes: boundary '{port}' saw {self._data_frame_count(port)} "
+            f"complete data frames, expected {n}")
+
+    def _check_acks(self, origin, n, tag):
+        """Exactly n ack frames at the origin, one per cell, count exact."""
+        frames = super()._group_frames(f'b{origin}', tag)
+        acks = [f for f in frames if self._is_ack_frame(f)]
+        if len(acks) != n:
+            raise AssertionError(
+                f"{tag}: origin b{origin} received {len(acks)} ack frames, "
+                f"expected {n}")
+        srcs = set()
+        for frame in acks:
+            head = int(frame[0].fields.get('user', 0))
+            data = int(frame[0].fields['data'])
+            if (data & 0xFFFF) != ACK_MAGIC:
+                raise AssertionError(
+                    f"{tag}: ack payload 0x{data:x}, magic 0x{ACK_MAGIC:04x} "
+                    f"expected")
+            sx_lo, sx_w = self.hdr_offsets['src_x']
+            sy_lo, sy_w = self.hdr_offsets['src_y']
+            sz_lo, sz_w = self.hdr_offsets['src_z']
+            srcs.add(((head >> sx_lo) & ((1 << sx_w) - 1),
+                      (head >> sy_lo) & ((1 << sy_w) - 1),
+                      (head >> sz_lo) & ((1 << sz_w) - 1)))
+        if srcs != set(self.BOUNDARY_COORDS):
+            raise AssertionError(
+                f"{tag}: acks received from {sorted(srcs)}, expected one "
+                f"per cell {sorted(self.BOUNDARY_COORDS)}")
+        if self._mode_acks(origin) != n:
+            raise AssertionError(
+                f"{tag}: o_mode_acks[b{origin}] == "
+                f"{self._mode_acks(origin)}, expected exactly {n}")
+
+    def _err(self, bidx):
+        return int(getattr(self.dut, f'b{bidx}_err').value)
+
+    def _check_zero_err(self, tag):
+        for bidx in range(len(self.BOUNDARY_COORDS)):
+            if self._err(bidx) != 0:
+                raise AssertionError(
+                    f"{tag}: b{bidx}_err == {self._err(bidx)}, expected 0")
+
+    def _data_frame_counts(self):
+        return {bidx: self._data_frame_count(f'b{bidx}')
+                for bidx in range(len(self.BOUNDARY_COORDS))}
+
+    def _check_no_new_frames(self, since, allowed, tag):
+        """Every boundary NOT in `allowed` must show the same data-frame
+        count as `since` (no misdelivery/leak at the other locals)."""
+        now = self._data_frame_counts()
+        for bidx, count in now.items():
+            if bidx in allowed:
+                continue
+            if count != since[bidx]:
+                raise AssertionError(
+                    f"{tag}: boundary b{bidx} gained "
+                    f"{count - since[bidx]} unexpected data frames "
+                    f"(misdelivery/leak)")
+
+    # ------------------------------------------------------------------
+    # Delivery helper
+    # ------------------------------------------------------------------
+    async def _expect_delivery(self, src_bidx, dst_coord, to_bidx, tag):
+        """Inject one data packet at src_bidx for dst_coord; the new last
+        data frame at to_bidx must match it exactly. Polling is lenient
+        (complete frames only) so concurrent deliveries elsewhere cannot
+        trip the mid-packet guard."""
+        port = f'b{to_bidx}'
+        before = self._data_frame_count(port)
+        header = self.build_header(dst=dst_coord,
+                                   src=self.BOUNDARY_COORDS[src_bidx],
+                                   qos=1, packet_id=self._next_pid())
+        payload = self._random_payload()
+        await self._send_packet(f'b{src_bidx}', header, payload)
+        frames = []
+        for _ in range(6000):
+            all_frames, _trailing = self._group_frames_lenient(self.slaves[port])
+            frames = [f for f in all_frames if not self._is_ack_frame(f)]
+            if len(frames) >= before + 1:
+                break
+            await RisingEdge(self.aclk)
+        else:
+            raise AssertionError(
+                f"{tag}: b{src_bidx}->dst{dst_coord} never delivered to "
+                f"b{to_bidx}")
+        self._match_expected_frames(port, to_bidx,
+                                    {(src_bidx, to_bidx): (header, payload)},
+                                    frames[before:], tag)
+
+    # ------------------------------------------------------------------
+    # Config helpers (Task 5 protocol, applied at any boundary cell)
+    # ------------------------------------------------------------------
+    def build_config_header(self, is_write, packet_id, coord):
+        return self.build_header(dst=coord, src=coord, qos=0,
+                                 packet_id=packet_id,
+                                 sr_ptr=1 if is_write else 0)
+
+    async def _config_op(self, bidx, is_write, index, entry, tag):
+        """One config transaction at boundary bidx; verifies the response
+        beat carries the {table_index, entry} echo/value."""
+        coord = self.BOUNDARY_COORDS[bidx]
+        header = self.build_config_header(is_write, self._next_pid(), coord)
+        payload = (entry << 16) | index
+        before = self._data_frame_count(f'b{bidx}')
+        await self._send_packet(f'b{bidx}', header, [payload])
+        frames = []
+        for _ in range(2000):
+            all_frames, _trailing = self._group_frames_lenient(
+                self.slaves[f'b{bidx}'])
+            frames = [f for f in all_frames if not self._is_ack_frame(f)]
+            if len(frames) >= before + 1:
+                break
+            await RisingEdge(self.aclk)
+        else:
+            raise AssertionError(f"{tag}: no config response at b{bidx}")
+        beat = frames[-1][0]
+        got_data = int(beat.fields['data'])
+        got_last = int(beat.fields.get('last', 0))
+        got_user = int(beat.fields.get('user', 0))
+        # the caller passes the expected entry: the written entry echoes
+        # on a write, the table value on a read
+        exp_data = (entry << 16) | index
+        if got_data != exp_data:
+            raise AssertionError(
+                f"{tag}: b{bidx} config response 0x{got_data:x}, expected "
+                f"0x{exp_data:x} (index {index}, entry 0x{entry:02x})")
+        if got_last != 1 or got_user != 0:
+            raise AssertionError(
+                f"{tag}: b{bidx} config response tlast/tuser "
+                f"({got_last}/{got_user:x}), expected 1/0")
+
+    # ------------------------------------------------------------------
+    # Scenario (a): broadcast switch to mode 1 + barrier + all-pairs
+    # ------------------------------------------------------------------
+    async def run_mode_switch_barrier(self):
+        tag = "msw-barrier"
+        # Broadcast switch to mode 1 from b0; the barrier completes when
+        # all four cells' acks are in.
+        await self._issue_mode_switch(0, 1, tag)
+        await self._wait_mode_acks(0, 4, tag)
+        self._check_acks(0, 4, tag)
+        # Traffic still all-pairs correct under mode 1 (image == DOR).
+        # The base scoreboard routes through this class's ack-filtered
+        # _group_frames / _wait_frames, so b0's four ack frames are
+        # ignored by the packet accounting.
+        await self.run_all_pairs()
+        self._check_zero_err(tag)
+        self.log.info(
+            "delta mesh modes (a): broadcast switch to mode 1, ack "
+            "barrier at 4, all-pairs intact")
+
+    # ------------------------------------------------------------------
+    # Scenario (b): mode images 2/5/6 + RAM-intact across switches
+    # ------------------------------------------------------------------
+    async def run_mode_images(self):
+        tag = "mode-images"
+
+        # --- mode 2: systolic-1D pinned minimal image ---
+        await self._switch_and_wait(0, 2, 4, tag)
+        counts = self._data_frame_counts()
+        # left -> right delivers across the +X link
+        await self._expect_delivery(0, (1, 0, 0), 1, f"{tag}:m2-xpos")
+        # same-column dst: P_LOCAL at the left edge (no wrap yet: Task 9)
+        await self._expect_delivery(0, (0, 1, 0), 0, f"{tag}:m2-local")
+        # right-edge cell: every dst delivers locally (degenerate ring)
+        await self._expect_delivery(1, (0, 0, 0), 1, f"{tag}:m2-degenerate")
+        self._check_no_new_frames(counts, allowed={0, 1}, tag=f"{tag}:m2")
+
+        # --- mode 5: broadcast placeholder (DOR image; replication
+        #     lands with Task 8) -- selection + multi-hop delivery ---
+        await self._switch_and_wait(0, 5, 8, tag)
+        counts = self._data_frame_counts()
+        await self._expect_delivery(0, (1, 1, 0), 3, f"{tag}:m5-multihop")
+        await self._expect_delivery(3, (0, 0, 0), 0, f"{tag}:m5-back")
+        self._check_no_new_frames(counts, allowed={0, 3}, tag=f"{tag}:m5")
+
+        # --- mode 6: convergecast -- everything routes to root b0 ---
+        await self._switch_and_wait(0, 6, 12, tag)
+        counts = self._data_frame_counts()
+
+        # All three cells inject concurrently (convergecast contention at
+        # the root); scoreboard as a set once all three are in -- a
+        # per-packet wait would race on the shared frame counter.
+        async def send_to_root(src_bidx):
+            header = self.build_header(dst=self.BOUNDARY_COORDS[src_bidx],
+                                       src=self.BOUNDARY_COORDS[src_bidx],
+                                       qos=1,
+                                       packet_id=self._next_pid())
+            payload = self._random_payload()
+            await self._send_packet(f'b{src_bidx}', header, payload)
+            return src_bidx, (header, payload)
+
+        senders = [cocotb.start_soon(send_to_root(b)) for b in (1, 2, 3)]
+        expected6 = {}
+        for sender in senders:
+            src_bidx, hp = await sender
+            expected6[(src_bidx, 0)] = hp
+        await self._wait_frames('b0', counts[0] + 3)
+        all_frames, _trailing = self._group_frames_lenient(self.slaves['b0'])
+        data_frames = [f for f in all_frames if not self._is_ack_frame(f)]
+        self._match_expected_frames('b0', 0, expected6,
+                                    data_frames[counts[0]:],
+                                    f"{tag}:m6")
+        await self.wait_clocks('aclk', 10)
+        self._check_no_new_frames(counts, allowed={0}, tag=f"{tag}:m6")
+
+        # --- RAM intact across switches (mode mux, not RAM rewrite) ---
+        # mode 0 restores the custom tables; config writes/reads work in
+        # every mode and the switch never touches the RAM contents.
+        await self._switch_and_wait(0, 0, 16, f"{tag}:to0")
+        # data rides qos 1: the custom key is the qos-1 region
+        idx_d00 = table_index((0, 0, 0), 1, self.COORD_W)
+        local_entry = 1 << P_LOCAL  # deliver dst(0,0,0) locally at b1
+        # b1 = (1,0,0): DOR would say P_X_NEG; P_LOCAL is unambiguous.
+        # The data plane rides qos 1, so the custom entry must be written
+        # to the qos-1 region of the table (the key is {qos, dst}).
+        await self._config_op(1, True, idx_d00, local_entry,
+                              f"{tag}:ram-write")
+        await self._config_op(1, False, idx_d00, local_entry,
+                              f"{tag}:ram-readback")
+        counts = self._data_frame_counts()
+        await self._expect_delivery(1, (0, 0, 0), 1, f"{tag}:ram-custom")
+        self._check_no_new_frames(counts, allowed={1}, tag=f"{tag}:ram-custom")
+
+        await self._switch_and_wait(0, 1, 20, f"{tag}:to1")
+        # the custom entry survives the broadcast switch untouched
+        await self._config_op(1, False, idx_d00, local_entry,
+                              f"{tag}:ram-during-mode1")
+        counts = self._data_frame_counts()
+        # mode 1 image == DOR: the same packet now crosses to b0
+        await self._expect_delivery(1, (0, 0, 0), 0, f"{tag}:mode1-dor")
+        self._check_no_new_frames(counts, allowed={0}, tag=f"{tag}:mode1-dor")
+
+        await self._switch_and_wait(0, 0, 24, f"{tag}:to0-again")
+        await self._config_op(1, False, idx_d00, local_entry,
+                              f"{tag}:ram-restored")
+        counts = self._data_frame_counts()
+        await self._expect_delivery(1, (0, 0, 0), 1, f"{tag}:ram-custom2")
+        self._check_no_new_frames(counts, allowed={1}, tag=f"{tag}:ram-custom2")
+
+        # final accounting: b0 = 6 deliveries + 24 acks (six switches);
+        # b1 = 4 deliveries + 4 config responses; b2 = 0; b3 = 1.
+        await self.wait_clocks('aclk', 10)
+        exp_counts = {0: 6, 1: 8, 2: 0, 3: 1}
+        got_counts = self._data_frame_counts()
+        if got_counts != exp_counts:
+            raise AssertionError(
+                f"{tag}: final data-frame counts {got_counts}, expected "
+                f"{exp_counts}")
+        self._check_zero_err(tag)
+        self.log.info(
+            "delta mesh modes (b): mode 2/5/6 images + RAM intact "
+            "across switches")
+
+    # ------------------------------------------------------------------
+    # Scenario (c): Review Focus #4 -- switch broadcast mid-flight
+    # ------------------------------------------------------------------
+    async def run_mode_switch_in_flight(self):
+        """8 packets in flight when the mode-switch broadcast lands:
+        every packet delivers exactly once, the ack barrier reaches 4,
+        zero drops.  The switch targets mode 1 (image == DOR): a
+        routing-CHANGING mode would by design misroute in-flight
+        packets (the spec's 'no packet straddles two modes' rule is
+        enforced by waiting for the barrier before new traffic)."""
+        tag = "msw-inflight"
+        pairs = ((0, 1), (0, 2),
+                 (1, 0), (1, 3),
+                 (2, 0), (2, 3),
+                 (3, 1), (3, 2))
+        expected = {}
+        for a, b in pairs:
+            payload = [self._pair_payload(a, b, j)
+                       for j in range(self.BEATS_PER_PKT)]
+            header = self.build_header(dst=self.BOUNDARY_COORDS[b],
+                                       src=self.BOUNDARY_COORDS[a],
+                                       qos=1,
+                                       packet_id=self._next_pid())
+            expected[(a, b)] = (header, payload)
+
+        async def send_slow(src_idx):
+            sent = [p for p in pairs if p[0] == src_idx]
+            for _a, dst_idx in sent:
+                await self._send_packet(f'b{src_idx}',
+                                        expected[(src_idx, dst_idx)][0],
+                                        expected[(src_idx, dst_idx)][1])
+
+        async def send_burst(src_idx):
+            master = self.masters[f'b{src_idx}']
+            beats = []
+            for _a, dst_idx in [p for p in pairs if p[0] == src_idx]:
+                header, payload = expected[(src_idx, dst_idx)]
+                n = len(payload)
+                for i, data in enumerate(payload):
+                    beat = AXISPacket(field_config=master.field_config)
+                    beat.data = data
+                    beat.last = 1 if i == n - 1 else 0
+                    beat.user = header if i == 0 else 0
+                    if 'strb' in master.field_config:
+                        beat.strb = (1 << master.field_config['strb'].bits) - 1
+                    beats.append(beat)
+            await master.send_burst(beats)
+
+        # b0 streams its two packets contiguously; b1..b3 send per-beat
+        # (slower), so eight packets are mid-fabric when the switch
+        # lands at b0 right after b0's burst is accepted.
+        senders = [cocotb.start_soon(send_burst(0))]
+        senders += [cocotb.start_soon(send_slow(a)) for a in (1, 2, 3)]
+        await senders[0]
+        await self._issue_mode_switch(0, 1, tag)
+        for sender in senders[1:]:
+            await sender
+
+        for dst_idx in range(len(self.BOUNDARY_COORDS)):
+            await self._wait_frames(f'b{dst_idx}', 2)
+        await self.wait_clocks('aclk', 10)
+        for dst_idx in range(len(self.BOUNDARY_COORDS)):
+            frames = self._group_frames(f'b{dst_idx}', tag)
+            exp = {k: v for k, v in expected.items() if k[1] == dst_idx}
+            if len(frames) != len(exp):
+                heads = sorted(
+                    int(f[0].fields.get('user', 0)) for f in frames)
+                raise AssertionError(
+                    f"{tag}: boundary b{dst_idx} received {len(frames)} "
+                    f"data frames, expected {len(exp)}; heads: "
+                    + ", ".join(f"0x{h:x}" for h in heads))
+            self._match_expected_frames(f'b{dst_idx}', dst_idx, exp, frames,
+                                        tag)
+        await self._wait_mode_acks(0, 4, tag)
+        self._check_acks(0, 4, tag)
+        self._check_zero_err(tag)
+        self.log.info(
+            "delta mesh modes (c): switch mid-flight -- 8 packets exactly "
+            "once, ack barrier at 4, zero drops")

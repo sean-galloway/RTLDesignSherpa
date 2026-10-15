@@ -29,7 +29,8 @@ parameter int     ENABLE_COUNTERS = 1 )(
     output logic [USER_WIDTH-1:0] m_axis_tuser   [7],
     input  logic [NUM_VC-1:0]     s_credit       [7],
     output logic [NUM_VC-1:0]     m_credit       [7],
-    output logic [31:0]           o_err_drop_cnt
+    output logic [31:0]           o_err_drop_cnt,
+    output logic [31:0]           o_mode_acks
 );
 // ==============================================================================
 // Module: delta_mesh_cell
@@ -96,6 +97,40 @@ parameter int     ENABLE_COUNTERS = 1 )(
 //     index reads back 0), tlast = 1, tuser = 0. Config
 //     responses wait for the idle local output and stall its
 //     grant registration meanwhile.
+//   - Standard fabric modes (Task 6): r_mode[3:0] selects
+//     the route source -- 0: the custom RAM image (power-on
+//     default), 1-8: the generated standard-mode images
+//     (spec sec. 5.4 catalog), a mux in front of the RAM
+//     lookup so the RAM stays user-intact across switches.
+//     Mode 1 = pure DOR; mode 2 = systolic-1D (+X when
+//     dst_x > POS_X else P_LOCAL; wrap is Task 9); mode 5 =
+//     broadcast placeholder (DOR; multicast replication
+//     lands with Task 8); mode 6 = convergecast (every dst
+//     routes toward root 0,0,0); modes 3/4/7/8 = minimal
+//     DOR images.
+//   - Broadcast mode-switch (Task 6): a config-format
+//     packet -- dst == own coordinate, QoS class 0, mcast
+//     bit set, sr_ptr[0] = 1 (write), single beat, payload
+//     beat-0 {mode_id[3:0] in the entry field, 16'hC0DE
+//     magic in the index field} -- recognized on ANY input
+//     port (the controller's 16'hM0DE spelling is not a
+//     legal SystemVerilog hex digit; C0DE is the legal
+//     stand-in). The consuming cell switches r_mode,
+//     returns a one-beat ack to the origin (dst = the
+//     switch header's src coordinate; qos 1, mcast 0,
+//     sr_ptr[0] = 1 control class, 16'hACED payload
+//     magic) and re-emits the switch on every existing
+//     neighbor port; a cell already in the target mode
+//     suppresses re-emission, which terminates the flood.
+//     The origin counts received acks in
+//     o_mode_acks[31:0]; the barrier for an N-cell fabric
+//     completes at N acks. Acks and fan copies are
+//     generated into the local VC0 input FIFO between
+//     external packets (the external master is never
+//     shadowed mid-handshake) and route DOR as control
+//     traffic (sr_ptr[0] = 1 bypasses the mode mux and
+//     the RAM), so the switch machinery works under any
+//     current mode.
 //
 // ==============================================================================
 
@@ -128,11 +163,16 @@ localparam fifo_mem_t P_FIFO_MEM_STYLE =
 localparam int HDR_DST_X_LO = 0;
 localparam int HDR_DST_Y_LO = 2;
 localparam int HDR_DST_Z_LO = 4;
+localparam int HDR_SRC_X_LO = 6;
+localparam int HDR_SRC_Y_LO = 8;
+localparam int HDR_SRC_Z_LO = 10;
 localparam int HDR_VC_LO = 15;
 localparam int HDR_VC_W  = 1;
 localparam int HDR_QOS_LO = 12;
 localparam int HDR_QOS_W  = 2;
 localparam int HDR_SR_PTR_LO = 20;
+localparam int HDR_MCAST_LO = 14;
+localparam int HDR_PID_LO = 28;
 
 // Route table organization (Task 5): key {qos, dst_z, dst_y,
 // dst_x} -> entry {port_mask[6:0], vc}; an all-zero mask is
@@ -143,6 +183,15 @@ localparam int ROUTE_DEPTH  = 2**ROUTE_ADDR_W;
 localparam int ENTRY_MASK_W = 7;
 localparam int ENTRY_W      = ENTRY_MASK_W + VC_W;
 localparam int RESP_W       = 16 + ENTRY_W;
+
+// Standard-mode + control-plane constants (Task 6)
+// 16'hC0DE = mode-switch magic (the pinned 'M0DE' is not a
+// legal SV hex digit); 16'hACED = ack magic. The control
+// generator FIFO holds at most one switch fan-out (1 ack +
+// 6 neighbor copies on a fully populated cell).
+localparam logic [15:0] MSW_MAGIC = 16'hC0DE;
+localparam logic [15:0] ACK_MAGIC = 16'hACED;
+localparam int GEN_FIFO_DEPTH = 8;
 
 // ==========================================================================
 // Input buffers - one house FIFO per port per VC
@@ -168,7 +217,24 @@ logic [VC_W-1:0] wr_vc   [NUM_PORTS];
 logic            in_pkt  [NUM_PORTS];
 logic [VC_W-1:0] in_vc   [NUM_PORTS];
 
-// Intake steering and FIFO write side
+// Control-generator read side (Task 6): acks and mode-
+// switch fan copies queue in u_gen_fifo (see the mode-
+// switch section) and enter the fabric through the local
+// port's VC0 input FIFO, i.e. they are ordinary data
+// packets from the route stage's point of view (the
+// control sr_ptr[0] marker sends them down the DOR
+// route).
+logic                gen_take;
+logic                gen_fifo_rd_valid;
+logic [FLIT_W-1:0]   gen_fifo_rd_data;
+
+// Intake steering and FIFO write side. The local port
+// arbitrates external beats against the control
+// generator: a generator beat is injected only while the
+// external master presents nothing and the intake packet
+// boundary is closed (in_pkt low), so external packets
+// are never interleaved mid-packet and no s_axis handshake
+// is shadowed (gen_take implies s_axis_tvalid low).
 always_comb begin
     for (int p = 0; p < NUM_PORTS; p++) begin
         wr_vc[p] = in_pkt[p] ? in_vc[p] :
@@ -181,6 +247,22 @@ always_comb begin
                                      s_axis_tlast[p],
                                      s_axis_tdata[p]};
         end
+    end
+//     // Local port: the control generator fills the
+//     // bubbles between external packets (VC0).
+    gen_take = gen_fifo_rd_valid && !in_pkt[P_LOCAL] &&
+               !s_axis_tvalid[P_LOCAL];
+    s_axis_tready[P_LOCAL] =
+        w_fifo_wr_ready[P_LOCAL][wr_vc[P_LOCAL]] && !gen_take;
+    for (int v = 0; v < NUM_VC; v++) begin
+        w_fifo_wr_valid[P_LOCAL][v] =
+            (s_axis_tvalid[P_LOCAL] &&
+             (wr_vc[P_LOCAL] == VC_W'(v))) ||
+            (gen_take && (v == 0));
+        w_fifo_wr_data[P_LOCAL][v]  = gen_take ?
+            gen_fifo_rd_data :
+            {s_axis_tuser[P_LOCAL], s_axis_tlast[P_LOCAL],
+             s_axis_tdata[P_LOCAL]};
     end
 end
 
@@ -314,6 +396,54 @@ function automatic logic [ENTRY_W-1:0] dor_default_entry(
     end
 endfunction
 
+// Standard-mode image (Task 6): the mechanical twin of
+// delta_mesh.tables.mode_port, evaluated per instance POS.
+// Modes 1/3/4/5/7/8 are the minimal DOR image; mode 2 is
+// the pinned systolic-1D image (+X when the dst is to the
+// right, else local -- the wrap ring lands with Task 9);
+// mode 6 is convergecast (every dst routes toward the
+// root 0,0,0). The offline tables.check_acyclic validates
+// every mode image at generation time.
+function automatic logic [ENTRY_W-1:0] mode_default_entry(
+    input int mode,
+    input int addr
+);
+    int unsigned d_x, d_y, d_z;
+    int unsigned port;
+    begin
+        d_x = addr[0 +: COORD_W];
+        d_y = addr[COORD_W +: COORD_W];
+        d_z = addr[2*COORD_W +: COORD_W];
+        port = P_LOCAL;
+        case (mode)
+//         // Mode 2: systolic-1D pinned minimal image.
+            4'd2: port = (int'(d_x) > POS_X) ? P_X_POS : P_LOCAL;
+//         // Mode 6: convergecast toward the root.
+            4'd6: begin
+                if (POS_X > 0)      port = P_X_NEG;
+                else if (POS_Y > 0) port = P_Y_NEG;
+                else if (POS_Z > 0) port = P_Z_NEG;
+            end
+//         // Modes 1/3/4/5/7/8: minimal DOR image.
+            default: begin
+                if (int'(d_x) < POS_X)       port = P_X_NEG;
+                else if (int'(d_x) > POS_X)  port = P_X_POS;
+                else if (int'(d_y) < POS_Y)  port = P_Y_NEG;
+                else if (int'(d_y) > POS_Y)  port = P_Y_POS;
+                else if (int'(d_z) < POS_Z)  port = P_Z_NEG;
+                else if (int'(d_z) > POS_Z)  port = P_Z_POS;
+            end
+        endcase
+        if ((int'(d_x) >= GRID_X) || (int'(d_y) >= GRID_Y) ||
+            (int'(d_z) >= GRID_Z))
+//         // Representable but out-of-grid dst: drop encoding.
+            mode_default_entry = '0;
+        else
+//         // {port_mask[6:0] one-hot, vc = 0}
+            mode_default_entry = {VC_W'(0), 7'(32'd1 << port)};
+    end
+endfunction
+
 initial begin
 //     Every QoS region gets the same DOR default (the image
 //     ignores the qos key bits); Task 7 overlays per-class
@@ -325,11 +455,17 @@ end
 
 // Head decode of the presented flit (meaningful only on a
 // head beat; bodies carry tuser == 0 and never consult it)
+// Mode register (Task 6): 0 = custom RAM tables (power-on
+// default), 1-8 = the standard-mode image; written by the
+// mode-switch fan-out section below.
+logic [3:0]         r_mode;
 logic [COORD_W-1:0] head_dst_x [NUM_PORTS];
 logic [COORD_W-1:0] head_dst_y [NUM_PORTS];
 logic [COORD_W-1:0] head_dst_z [NUM_PORTS];
 logic [HDR_QOS_W-1:0] head_qos   [NUM_PORTS];
 logic               dst_in_range [NUM_PORTS];
+logic               head_self_cfg [NUM_PORTS];
+logic               head_mcast   [NUM_PORTS];
 logic               head_cfg     [NUM_PORTS];
 logic [ENTRY_W-1:0] head_entry   [NUM_PORTS];
 logic               head_no_route [NUM_PORTS];
@@ -344,15 +480,37 @@ always_comb begin
         dst_in_range[p] = (int'(head_dst_x[p]) < GRID_X) &&
                           (int'(head_dst_y[p]) < GRID_Y) &&
                           (int'(head_dst_z[p]) < GRID_Z);
-//         Config shape: local port, dst == own coordinate,
-//         QoS class 0 (plan-pinned config class).
-        head_cfg[p] = (p == P_LOCAL) && dst_in_range[p] &&
+//         Config shape: dst == own coordinate, QoS class
+//         0 (plan-pinned config class). head_cfg is the
+//         Task 5 unicast config plane (local port, mcast
+//         clear); the mcast-flagged form is the Task 6
+//         mode-switch broadcast, decoded below.
+        head_self_cfg[p] = dst_in_range[p] &&
                       (int'(head_dst_x[p]) == POS_X) &&
                       (int'(head_dst_y[p]) == POS_Y) &&
                       (int'(head_dst_z[p]) == POS_Z) &&
                       (head_qos[p] == 2'd0);
-        head_entry[p] = route_table[{head_qos[p], head_dst_z[p],
-                                   head_dst_y[p], head_dst_x[p]}];
+        head_mcast[p] = pres_tuser[p][HDR_MCAST_LO];
+        head_cfg[p] = (p == P_LOCAL) && head_self_cfg[p] &&
+                      !head_mcast[p];
+//         Route source (Task 6): control heads (sr_ptr[0]
+//         set -- mode-switch fan copies, mode acks) route
+//         DOR, independent of r_mode and the RAM, so the
+//         switch machinery works under any mode; data
+//         heads route per r_mode (0 = custom RAM image,
+//         1-8 = the standard-mode image).
+        if (pres_tuser[p][HDR_SR_PTR_LO]) begin
+            head_entry[p] = dor_default_entry(
+                {head_qos[p], head_dst_z[p],
+                 head_dst_y[p], head_dst_x[p]});
+        end else if (r_mode == 4'd0) begin
+            head_entry[p] = route_table[{head_qos[p], head_dst_z[p],
+                                       head_dst_y[p], head_dst_x[p]}];
+        end else begin
+            head_entry[p] = mode_default_entry(
+                int'(r_mode), {head_qos[p], head_dst_z[p],
+                               head_dst_y[p], head_dst_x[p]});
+        end
         head_no_route[p] =
             (head_entry[p][ENTRY_MASK_W-1:0] == '0);
 //         Lowest set mask bit wins (multi-bit masks --
@@ -385,32 +543,95 @@ end
 logic drop_req        [NUM_PORTS];
 logic bad_cfg_req     [NUM_PORTS];
 logic cfg_req         [NUM_PORTS];
+logic msw_shape     [NUM_PORTS];
+logic msw_wellformed [NUM_PORTS];
+logic [3:0]         msw_mode    [NUM_PORTS];
+logic               msw_req_vec [NUM_PORTS];
+logic               msw_consume [NUM_PORTS];
+logic               msw_consume_any;
+logic [PORT_W-1:0]  msw_winner;
+logic               msw_will_process;
 logic special_req     [NUM_PORTS];
 logic special_consume [NUM_PORTS];
 logic drop_active     [NUM_PORTS];
 logic drop_active_next [NUM_PORTS];
 
+// Mode-switch decode (Task 6): the mcast-flagged config
+// shape on ANY port. A well-formed switch is single-beat
+// with sr_ptr[0] = 1 (write), the MSW magic in TDATA[15:0]
+// and the mode id in TDATA[19:16] (the config entry field's
+// low nibble); mode ids 0-8 are valid (0 returns to the
+// custom RAM tables). Only ONE port's switch is consumed per
+// cycle (lowest port wins): the winner updates r_mode at the
+// next edge, so a copy arriving simultaneously on another
+// port re-evaluates against the new mode and is suppressed
+// (r_mode == target) instead of double-acking. A cell whose
+// r_mode already equals the target consumes duplicate copies
+// silently -- that suppression is what terminates the flood.
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        msw_mode[p]       = pres_tdata[p][16 +: 4];
+        msw_shape[p]      = head_self_cfg[p] && head_mcast[p];
+        msw_wellformed[p] = msw_shape[p] && pres_last[p] &&
+                            pres_tuser[p][HDR_SR_PTR_LO] &&
+                            (pres_tdata[p][15:0] == MSW_MAGIC) &&
+                            (msw_mode[p] <= 4'd8);
+        msw_req_vec[p] = pres_valid[p] && !lock_active[p] &&
+                         !drop_active[p] && msw_wellformed[p];
+    end
+    msw_winner = PORT_W'(P_LOCAL);
+    for (int p = NUM_PORTS-1; p >= 0; p--) begin
+        if (msw_req_vec[p]) begin
+            msw_winner = PORT_W'(p);
+        end
+    end
+    msw_will_process = (r_mode != msw_mode[msw_winner]);
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        msw_consume[p] = msw_req_vec[p] &&
+                         (PORT_W'(p) == msw_winner) &&
+                         (!msw_will_process || !msw_hold_valid);
+    end
+    msw_consume_any = 1'b0;
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        msw_consume_any = msw_consume_any || msw_consume[p];
+    end
+end
+
 always_comb begin
     for (int p = 0; p < NUM_PORTS; p++) begin
         drop_req[p] = pres_valid[p] && !lock_active[p] &&
                       !drop_active[p] && !head_cfg[p] &&
+                      !msw_wellformed[p] &&
                       (!dst_in_range[p] || head_no_route[p]);
-//         A config-shaped packet must be single-beat: a
-//         multi-beat one is dropped whole (head counted, op
-//         not executed) so its body beats cannot be
-//         misread as fresh headers.
+//         Malformed config shapes drop whole (head counted,
+//         op not executed) so body beats with tuser=0 can
+//         never be misread as fresh headers: a multi-beat
+//         unicast config (Task 5) and an mcast config-shape
+//         packet that fails any mode-switch field (Task 6:
+//         multi-beat, sr_ptr[0] != 1, bad magic, mode id
+//         above 8).
         bad_cfg_req[p] = pres_valid[p] && !lock_active[p] &&
-                         !drop_active[p] && head_cfg[p] &&
-                         !pres_last[p];
+                         !drop_active[p] &&
+                         ((head_cfg[p] && !pres_last[p]) ||
+                          (msw_shape[p] && !msw_wellformed[p]));
 //         A well-formed config command waits when the
 //         response FIFO is full (local master protocol:
 //         one outstanding config transaction).
         cfg_req[p]  = pres_valid[p] && !lock_active[p] &&
                       !drop_active[p] && head_cfg[p] &&
                       pres_last[p] && cfg_resp_wr_ready;
+//         Mode-switch heads raise NO route request while
+//         they wait for the one-hot winner (special_req)
+//         but only the winner -- and suppressed copies --
+//         actually pop the FIFO (special_consume): a
+//         non-winner granted onto its route would emit the
+//         switch as data in the same cycle the winner
+//         logic consumes it (duplication), and suppressed
+//         copies must still leave no grant trace.
         special_req[p]     = drop_req[p] || bad_cfg_req[p] ||
-                             cfg_req[p];
-        special_consume[p] = special_req[p] ||
+                             cfg_req[p] || msw_req_vec[p];
+        special_consume[p] = drop_req[p] || bad_cfg_req[p] ||
+                             cfg_req[p] || msw_consume[p] ||
                              (drop_active[p] && pres_valid[p]);
         drop_active_next[p] = drop_active[p];
         if (drop_req[p] || bad_cfg_req[p]) begin
@@ -479,6 +700,257 @@ assign cfg_resp_present = cfg_resp_rd_valid &&
                           !packet_active[P_LOCAL];
 assign cfg_resp_rd_ready = cfg_resp_present &&
                            m_axis_tready[P_LOCAL];
+
+// ==========================================================================
+// Mode switch - fan-out FSM, control generator, ack tally
+// (Task 6)
+// ==========================================================================
+// A consumed mode switch (see the head decode) is processed
+// exactly once per cell: the cell updates r_mode, returns a
+// one-beat ack to the origin, and re-emits the switch on
+// every existing neighbor port. Suppressed copies (cell
+// already in the target mode) consume with no side effects.
+// The fan-out is serialized through a holding register --
+// one switch per cell at a time; a distinct switch arriving
+// mid-fan waits in its input FIFO until the register frees
+// (no deadlock: the fan drains into the fabric under the
+// credit protocol).
+// ==========================================================================
+
+// Neighbor enumeration for this instance (constant
+// functions of the POS/GRID parameters).
+function automatic int n_neighbors();
+    int n;
+    n = 0;
+    if (POS_X > 0)        n++;
+    if (POS_X < GRID_X-1) n++;
+    if (POS_Y > 0)        n++;
+    if (POS_Y < GRID_Y-1) n++;
+    if (POS_Z > 0)        n++;
+    if (POS_Z < GRID_Z-1) n++;
+    return n;
+endfunction
+
+function automatic int neighbor_port(int i);
+    int n;
+    n = 0;
+    if (POS_X > 0) begin
+        if (n == i) return P_X_NEG;
+        n++;
+    end
+    if (POS_X < GRID_X-1) begin
+        if (n == i) return P_X_POS;
+        n++;
+    end
+    if (POS_Y > 0) begin
+        if (n == i) return P_Y_NEG;
+        n++;
+    end
+    if (POS_Y < GRID_Y-1) begin
+        if (n == i) return P_Y_POS;
+        n++;
+    end
+    if (POS_Z > 0) begin
+        if (n == i) return P_Z_NEG;
+        n++;
+    end
+    if (POS_Z < GRID_Z-1) begin
+        if (n == i) return P_Z_POS;
+        n++;
+    end
+//     // Unreachable for i < n_neighbors().
+    return P_LOCAL;
+endfunction
+
+localparam int N_NEIGH = n_neighbors();
+
+// Fan-out holding register + sequence index.
+logic               msw_hold_valid;
+logic [3:0]         msw_hold_mode;
+logic [COORD_W-1:0] msw_hold_src_x;
+logic [COORD_W-1:0] msw_hold_src_y;
+logic [COORD_W-1:0] msw_hold_src_z;
+logic [15:0]        msw_hold_pid;
+logic [3:0]         msw_fan_idx;
+
+// Control generator FIFO write side (the read side feeds
+// the local-port intake mux, see the input buffers).
+logic              gen_fifo_wr_valid;
+logic              gen_fifo_wr_ready;
+logic [FLIT_W-1:0] gen_fifo_wr_data;
+
+// Beat construction: fan index 0 acks the origin; index
+// k >= 1 re-emits the switch toward neighbor_port(k-1) with
+// the dst coordinate rewritten to the neighbor's own, so
+// the pinned dst == self discriminator holds on arrival.
+// Both beat kinds ride the control class (sr_ptr[0] = 1):
+// they route DOR regardless of the current mode, which is
+// what makes the switch machinery mode-independent.
+logic [USER_WIDTH-1:0] gen_hdr;
+logic [DATA_WIDTH-1:0] gen_tdata;
+logic [COORD_W-1:0]    gen_dst_x;
+logic [COORD_W-1:0]    gen_dst_y;
+logic [COORD_W-1:0]    gen_dst_z;
+int unsigned           gen_nport;
+
+always_comb begin
+//     // fan index 0 has no neighbor: the ack branch ignores
+//     // the destination computation.
+    gen_nport = neighbor_port(int'(msw_fan_idx) - 1);
+    gen_dst_x = COORD_W'(POS_X);
+    gen_dst_y = COORD_W'(POS_Y);
+    gen_dst_z = COORD_W'(POS_Z);
+    if (gen_nport == P_X_NEG) begin
+        gen_dst_x = COORD_W'(POS_X - 1);
+    end else if (gen_nport == P_X_POS) begin
+        gen_dst_x = COORD_W'(POS_X + 1);
+    end else if (gen_nport == P_Y_NEG) begin
+        gen_dst_y = COORD_W'(POS_Y - 1);
+    end else if (gen_nport == P_Y_POS) begin
+        gen_dst_y = COORD_W'(POS_Y + 1);
+    end else if (gen_nport == P_Z_NEG) begin
+        gen_dst_z = COORD_W'(POS_Z - 1);
+    end else if (gen_nport == P_Z_POS) begin
+        gen_dst_z = COORD_W'(POS_Z + 1);
+    end
+    gen_hdr   = '0;
+    gen_tdata = '0;
+    if (msw_fan_idx == 4'd0) begin
+//         // Ack to the switch origin (the switch header's
+//         // src coordinate); payload carries the ack magic.
+        gen_hdr[HDR_DST_X_LO +: COORD_W] = msw_hold_src_x;
+        gen_hdr[HDR_DST_Y_LO +: COORD_W] = msw_hold_src_y;
+        gen_hdr[HDR_DST_Z_LO +: COORD_W] = msw_hold_src_z;
+        gen_hdr[HDR_SRC_X_LO +: COORD_W] = COORD_W'(POS_X);
+        gen_hdr[HDR_SRC_Y_LO +: COORD_W] = COORD_W'(POS_Y);
+        gen_hdr[HDR_SRC_Z_LO +: COORD_W] = COORD_W'(POS_Z);
+        gen_hdr[HDR_QOS_LO +: HDR_QOS_W] = 2'd1;
+        gen_hdr[HDR_SR_PTR_LO]           = 1'b1;
+        gen_hdr[HDR_PID_LO +: 16]        = msw_hold_pid;
+        gen_tdata = {{(DATA_WIDTH-16){1'b0}}, ACK_MAGIC};
+    end else begin
+//         // Mode-switch copy to one neighbor: same payload
+//         // shape as the original command, dst rewritten.
+        gen_hdr[HDR_DST_X_LO +: COORD_W] = gen_dst_x;
+        gen_hdr[HDR_DST_Y_LO +: COORD_W] = gen_dst_y;
+        gen_hdr[HDR_DST_Z_LO +: COORD_W] = gen_dst_z;
+        gen_hdr[HDR_SRC_X_LO +: COORD_W] = msw_hold_src_x;
+        gen_hdr[HDR_SRC_Y_LO +: COORD_W] = msw_hold_src_y;
+        gen_hdr[HDR_SRC_Z_LO +: COORD_W] = msw_hold_src_z;
+        gen_hdr[HDR_QOS_LO +: HDR_QOS_W] = 2'd0;
+        gen_hdr[HDR_MCAST_LO]            = 1'b1;
+        gen_hdr[HDR_SR_PTR_LO]           = 1'b1;
+        gen_hdr[HDR_PID_LO +: 16]        = msw_hold_pid;
+        gen_tdata = {{(DATA_WIDTH-20){1'b0}},
+                     msw_hold_mode, MSW_MAGIC};
+    end
+    gen_fifo_wr_data = {gen_hdr, 1'b1, gen_tdata};
+end
+
+// Fan FSM: one beat per ready cycle -- ack first, then the
+// neighbor copies; the holding register frees after the
+// last copy pushes.
+always_comb begin
+    gen_fifo_wr_valid = msw_hold_valid &&
+                        (msw_fan_idx <= 4'(N_NEIGH)) &&
+                        gen_fifo_wr_ready;
+end
+
+gaxi_fifo_sync #(
+    .MEM_STYLE (FIFO_AUTO),
+    .DATA_WIDTH(FLIT_W),
+    .DEPTH     (GEN_FIFO_DEPTH)
+) u_gen_fifo (
+    .axi_aclk   (aclk),
+    .axi_aresetn(aresetn),
+    .wr_valid   (gen_fifo_wr_valid),
+    .wr_ready   (gen_fifo_wr_ready),
+    .wr_data    (gen_fifo_wr_data),
+//     // The intake mux (input buffers) drains this FIFO
+//     // between external packets.
+    .rd_ready   (gen_take),
+    .count      (),
+    .rd_valid   (gen_fifo_rd_valid),
+    .rd_data    (gen_fifo_rd_data)
+);
+
+// Mode register: updates on every mode-switch consume
+// (a suppressed consume writes back the same value).
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (!aresetn) begin
+        r_mode <= 4'd0;
+    end else begin
+        if (msw_consume_any) begin
+            r_mode <= msw_mode[msw_winner];
+        end
+    end
+)
+
+// Fan-out holding register: latches the origin + mode of a
+// processing consume; the index walks ack + N_NEIGH copies.
+// A processing consume is guaranteed an empty register (the
+// consume gate), so the if/else priority cannot drop a
+// pushed beat.
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (!aresetn) begin
+        msw_hold_valid <= 1'b0;
+        msw_hold_mode  <= '0;
+        msw_hold_src_x <= '0;
+        msw_hold_src_y <= '0;
+        msw_hold_src_z <= '0;
+        msw_hold_pid   <= '0;
+        msw_fan_idx    <= '0;
+    end else begin
+        if (msw_consume_any && msw_will_process) begin
+            msw_hold_valid <= 1'b1;
+            msw_hold_mode  <= msw_mode[msw_winner];
+            msw_hold_src_x <=
+                pres_tuser[msw_winner][HDR_SRC_X_LO +: COORD_W];
+            msw_hold_src_y <=
+                pres_tuser[msw_winner][HDR_SRC_Y_LO +: COORD_W];
+            msw_hold_src_z <=
+                pres_tuser[msw_winner][HDR_SRC_Z_LO +: COORD_W];
+            msw_hold_pid   <=
+                pres_tuser[msw_winner][HDR_PID_LO +: 16];
+            msw_fan_idx    <= '0;
+        end else if (gen_fifo_wr_valid) begin
+            if (msw_fan_idx == 4'(N_NEIGH)) begin
+                msw_hold_valid <= 1'b0;
+                msw_fan_idx    <= '0;
+            end else begin
+                msw_fan_idx <= msw_fan_idx + 4'd1;
+            end
+        end
+    end
+)
+
+// Ack tally: a one-beat control packet (qos 1, mcast 0,
+// sr_ptr[0] set) carrying the ack magic in the payload low
+// bits, leaving on the local output. Counted at every cell;
+// only the origin's value is the barrier. Saturating;
+// frozen at ENABLE_COUNTERS == 0 (o_err_drop_cnt policy).
+logic ack_fire;
+
+always_comb begin
+    ack_fire = m_axis_tvalid[P_LOCAL] &&
+               m_axis_tready[P_LOCAL] &&
+               m_axis_tlast[P_LOCAL] &&
+               (m_axis_tuser[P_LOCAL][HDR_QOS_LO +: HDR_QOS_W]
+                    == 2'd1) &&
+               !m_axis_tuser[P_LOCAL][HDR_MCAST_LO] &&
+               m_axis_tuser[P_LOCAL][HDR_SR_PTR_LO] &&
+               (m_axis_tdata[P_LOCAL][15:0] == ACK_MAGIC);
+end
+
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (!aresetn) begin
+        o_mode_acks <= '0;
+    end else if (ENABLE_COUNTERS != 0) begin
+        if (ack_fire && (o_mode_acks != 32'hFFFF_FFFF)) begin
+            o_mode_acks <= o_mode_acks + 32'd1;
+        end
+    end
+)
 
 // ==========================================================================
 // Request matrix - which inputs want which outputs this cycle
@@ -854,6 +1326,12 @@ generate
             "Grant released before TLAST on output %0d", q);
     end
 endgenerate
+
+// Mode ids 9-15 have no image; the decode gates them, and
+// the register must never hold one.
+assert property (@(posedge aclk) disable iff (!aresetn)
+    (r_mode <= 4'd8)
+) else $error("r_mode out of range: %0d", r_mode);
 `endif
 
 endmodule

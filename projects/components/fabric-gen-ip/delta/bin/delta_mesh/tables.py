@@ -154,17 +154,107 @@ def default_dor_image(cfg: DeltaMeshConfig) -> list[TableEntry]:
     return image
 
 
-def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig) -> None:
+# Standard fabric mode catalog (spec sec. 5.4, owner-confirmed
+# 2026-10-13). Mode 0 is the custom per-cell RAM tables (power-on
+# default); modes 1-8 are generator-emitted images selected by the
+# cell's r_mode register -- a mux in front of the route_table RAM, so
+# the RAM stays user-intact and switching back to mode 0 restores the
+# custom tables.
+#
+# Task 6 scope pin (controller resolution): modes 2-8 are
+# minimal-but-correct images. Modes 2 (systolic-1D) and 6 (convergecast)
+# carry their pinned distinct routing; modes 3/4/5/7/8 are DOR images
+# (catalog presence + selectability + acyclicity this task). Mode 5's
+# true multicast replication lands with Task 8; the torus-dependent
+# patterns (2's ring wrap, 4's periodic boundaries) land with Task 9.
+MODE_CATALOG = {
+    1: "mesh (pure DOR)",
+    2: "systolic-1D: +X when dst_x > pos_x else P_LOCAL (wrap is Task 9)",
+    3: "wavefront-2D: minimal DOR (diagonal schedules are traffic patterns)",
+    4: "stencil-3D: minimal DOR (halo dsts are one-hop DOR deliveries)",
+    5: "broadcast: minimal DOR placeholder (replication is Task 8)",
+    6: "convergecast/reduce: every dst routes toward root (0,0,0)",
+    7: "all-to-all/transpose: minimal DOR (permutations are traffic patterns)",
+    8: "pipeline+rapids-stream: minimal DOR (the serpentine chain routes DOR)",
+}
+
+ROOT = (0, 0, 0)
+
+
+def mode_port(mode_id: int, dst: tuple[int, int, int],
+              pos: tuple[int, int, int], cfg: DeltaMeshConfig) -> int:
+    """Port mask of a standard-mode image at ``pos`` toward ``dst``.
+
+    Single source of truth for the emitted per-instance
+    ``mode_default_entry`` SystemVerilog function (its mechanical twin,
+    like ``dor_port``/``dor_default_entry``). Representable out-of-grid
+    dsts carry the empty mask (the drop encoding). Mode 0 is the custom
+    RAM tables and has no image; ids outside 0..8 raise.
+    """
+    if not 1 <= mode_id <= 8:
+        raise ValueError(f"no standard image for mode {mode_id}")
+    if not (dst[0] < cfg.cells_x and dst[1] < cfg.cells_y
+            and dst[2] < cfg.cells_z):
+        return 0
+    if mode_id == 2:
+        # Systolic-1D pinned minimal image: stream +X when the dst sits
+        # to the right, else deliver to the local PE. Without the torus
+        # wrap (Task 9) the right edge consumes every dst.
+        if dst[0] > pos[0]:
+            return PORT_TO_MASK[P_X_POS]
+        return PORT_TO_MASK[P_LOCAL]
+    if mode_id == 6:
+        # Convergecast: every packet walks the DOR path toward the root
+        # and delivers there, whatever its dst key says.
+        return PORT_TO_MASK[dor_port(ROOT, pos)]
+    return PORT_TO_MASK[dor_port(dst, pos)]
+
+
+def mode_image(cfg: DeltaMeshConfig, mode_id: int) -> list[TableEntry]:
+    """Standard-mode image at the canonical origin cell.
+
+    Same convention as ``default_dor_image``: one qos-0 entry per
+    representable dst coordinate, the port resolved at the origin; the
+    emitted SystemVerilog function re-derives the decision per instance
+    POS. Every image is validated by ``check_acyclic`` (route_fn form)
+    before any RTL is written.
+    """
+    origin = (0, 0, 0)
+    image = []
+    for key in range(1 << (3 * coord_w(cfg))):
+        cw = coord_w(cfg)
+        dst = ((key >> 0) & ((1 << cw) - 1),
+               (key >> cw) & ((1 << cw) - 1),
+               (key >> 2 * cw) & ((1 << cw) - 1))
+        mask = mode_port(mode_id, dst, origin, cfg)
+        image.append(TableEntry(dst[0], dst[1], dst[2], 0, mask, 0))
+    return image
+
+
+def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig,
+                  route_fn=None) -> None:
     """Greedy-routing simulation over the VC0 subrelation of ``image``.
 
     For every ordered in-grid (src, dst) pair, walk the fabric hop by
-    hop: the origin cell (0,0,0) routes per the image entry for dst, every
-    other cell routes per the DOR function (the generated per-cell initial
-    block installs exactly this combination). The VC0 subrelation must be
-    connected and acyclic (spec sec. 5.1): every walk must reach dst in at
-    most the Manhattan distance hops. A walk that revisits a cell, steps
-    out of the grid, or exceeds the hop bound is a cycle; a missing entry
-    or an empty mask for an in-grid dst breaks connectivity.
+    hop until the walk reaches a cell whose port set for dst contains
+    P_LOCAL (delivery). Two routing models:
+
+    - default (``route_fn`` None): the origin cell (0,0,0) routes per
+      the image entry for dst, every other cell per the DOR function
+      (exactly what the generated per-instance initial block installs).
+      Each walk must deliver within its Manhattan distance (minimal
+      routing).
+    - ``route_fn`` given: every cell routes per ``route_fn(dst, pos)``
+      (an int port mask) -- the standard-mode images, which the mode
+      mux applies at every cell. The hop bound relaxes to the cell
+      count (the Manhattan bound only fits unicast-per-dst routing);
+      the visited set still proves acyclicity.
+
+    The VC0 subrelation must be connected and acyclic (spec sec. 5.1):
+    a walk that revisits a cell or steps out of the grid is a cycle; a
+    missing entry or an empty mask for an in-grid dst breaks
+    connectivity. A multi-bit mask (multicast shape, Task 8) must
+    deliver on every set bit, so each bit spawns its own bounded branch.
 
     Raises:
         ValueError: "cycle in VC0 subrelation" on a cyclic/invalidating
@@ -177,6 +267,7 @@ def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig) -> None:
              for z in range(cfg.cells_z)
              for y in range(cfg.cells_y)
              for x in range(cfg.cells_x)]
+    n_cells = len(cells)
 
     def step(pos: tuple[int, int, int], port: int) -> tuple[int, int, int]:
         x, y, z = pos
@@ -203,25 +294,35 @@ def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig) -> None:
                 f"dst {dst} unreachable in VC0 subrelation "
                 f"(entry {'missing' if entry is None else 'empty'})")
 
-    # Acyclicity: greedy hop-by-hop walks, each bounded by the Manhattan
-    # distance (a minimal route takes exactly that many hops; any detour
-    # exceeds the bound) and guarded by a visited set per walk. The origin
-    # cell routes per the image; every other cell per the DOR function.
-    # A multi-bit mask (multicast shape, Task 8) must deliver on every
-    # set bit, so each bit spawns its own bounded branch.
+    def ports_for(dst, pos) -> list[int]:
+        if route_fn is not None:
+            mask = route_fn(dst, pos)
+        elif pos == origin:
+            mask = entries[dst].port_mask
+        else:
+            mask = PORT_TO_MASK[dor_port(dst, pos)]
+        return [p for p in range(NUM_PORTS) if mask & (1 << p)]
+
+    # Acyclicity: greedy hop-by-hop walks, each bounded (Manhattan
+    # distance for the default model, cell count for arbitrary
+    # route_fns) and guarded by a visited set per walk. A walk delivers
+    # when the current cell's port set for dst contains P_LOCAL.
     def visit(src, dst, pos, hops, seen) -> None:
-        if pos == dst:
-            return
-        entry = entries[dst]
-        ports = ([p for p in range(NUM_PORTS) if entry.port_mask & (1 << p)]
-                 if pos == origin else [dor_port(dst, pos)])
-        manhattan = sum(abs(a - b) for a, b in zip(src, dst))
+        ports = ports_for(dst, pos)
+        if not ports:
+            raise ValueError(
+                f"unreachable in VC0 subrelation: walk {src}->{dst} at "
+                f"{pos} has an empty port set")
+        if P_LOCAL in ports:
+            return  # delivered at this cell
+        bound = (n_cells if route_fn is not None else
+                 sum(abs(a - b) for a, b in zip(src, dst)))
         for port in ports:
             nxt = step(pos, port)
-            if hops + 1 > manhattan:
+            if hops + 1 > bound:
                 raise ValueError(
                     f"cycle in VC0 subrelation: walk {src}->{dst} exceeded "
-                    f"{manhattan} hops (detour or cycle)")
+                    f"{bound} hops (detour or cycle)")
             if nxt not in cells:
                 raise ValueError(
                     f"cycle in VC0 subrelation: walk {src}->{dst} stepped "

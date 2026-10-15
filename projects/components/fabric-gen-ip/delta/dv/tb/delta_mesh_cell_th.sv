@@ -20,7 +20,9 @@
 // the downstream neighbor's advertised credits); m_credit is the credit
 // count this cell advertises for its own input buffers (Task 4 protocol).
 // err_drop_cnt is the cell's malformed-dst drop tally (Task 5), exposed for
-// the tables/drop suites; GRID_* defaults match the checked-in 4x4x1 cell.
+// the tables/drop suites; mode_acks is the mode-switch ack tally (Task 6,
+// the modes suite's barrier), exposed the same way; GRID_* defaults match
+// the checked-in 4x4x1 cell.
 //
 // Subsystem: delta (dv)
 //
@@ -135,7 +137,8 @@ module delta_mesh_cell_th #(
     output logic [USER_WIDTH-1:0] local_m_axis_tuser,
     output logic [NUM_VC-1:0]     local_m_credit,
 
-    output logic [31:0]           err_drop_cnt
+    output logic [31:0]           err_drop_cnt,
+    output logic [31:0]           mode_acks
 );
 
     // DUT port index map (pinned localparams in delta_mesh_cell):
@@ -275,7 +278,8 @@ module delta_mesh_cell_th #(
         .m_axis_tuser(w_m_tuser),
         .s_credit(w_s_credit),
         .m_credit(w_m_credit),
-        .o_err_drop_cnt(err_drop_cnt)
+        .o_err_drop_cnt(err_drop_cnt),
+        .o_mode_acks(mode_acks)
     );
 
 endmodule : delta_mesh_cell_th
