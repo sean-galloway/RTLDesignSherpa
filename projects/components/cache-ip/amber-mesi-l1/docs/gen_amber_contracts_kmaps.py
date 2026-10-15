@@ -50,7 +50,7 @@ MAS = "projects/components/cache-ip/amber-mesi-l1/docs/amber_mas"
 HAS_COHERENCE = f"{HAS}/ch03_architecture/04_coherence_fsm.md"
 HAS_PARAMS = f"{HAS}/ch05_parameters/01_parameters.md"
 HAS_INTERFACES = f"{HAS}/ch04_interfaces"
-MAS_CONTROL = f"{MAS}/ch02_blocks/01_amber_control.md"
+MAS_CONTROL = f"{MAS}/ch02_blocks/01_l1_control.md"
 
 
 # ---------------------------------------------------------------------------
@@ -452,7 +452,7 @@ def build_snoop_nextstate_kmaps(wb):
 def build_control_kmaps(wb):
     km = new_kmap_sheet(wb, "K-maps amber control")
     km.sheet_intro(
-        f"amber_control miss-path decision ({MAS_CONTROL})",
+        f"l1_control miss-path decision ({MAS_CONTROL})",
         ["PROPOSED micro-architecture decision owned by the MAS. The axes are "
          "honest one-term signals; the derived minimal SOP is the contract the "
          "RTL must match when it lands.",
