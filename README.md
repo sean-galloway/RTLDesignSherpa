@@ -25,6 +25,8 @@
 
 **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete guide to all documentation, organized by type
 
+**PDF Libraries** (latest revision of every book/document): [Docs Library](docs/docs-library.md) · [Components Library](projects/components/components-library.md) · [FPGA Systems Library](projects/fpga-systems/fpga-library.md)
+
 ---
 
 ## Project Mission
