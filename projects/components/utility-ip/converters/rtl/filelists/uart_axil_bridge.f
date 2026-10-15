@@ -8,6 +8,10 @@
 # Header files with macros (MUST be compiled first)
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 # Dependencies - UART modules
 $CONVERTERS_ROOT/rtl/uart_to_axil4/uart_rx.sv
 $CONVERTERS_ROOT/rtl/uart_to_axil4/uart_tx.sv

@@ -100,6 +100,28 @@ module axil4_to_wb4 #(
     output logic              busy
 );
 
+    //==========================================================================
+    // Boundary reset synchronization
+    //==========================================================================
+    // Boundary reset synchronizer (block input reset is async-assert,
+    // synchronized internally; complete closure)
+    //
+    // The port aresetn is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync (rtl/cdc, formally proven) produces
+    // the internal reset every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     // AXI4-Lite channels after the skids
     logic [AW-1:0] w_fub_awaddr, w_fub_araddr;
     logic [2:0]    w_fub_awprot, w_fub_arprot;
@@ -127,7 +149,7 @@ module axil4_to_wb4 #(
         .SKID_DEPTH_B    (SKID_DEPTH_B)
     ) u_slave_wr (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
         .s_axil_awaddr  (s_axil_awaddr),
         .s_axil_awprot  (s_axil_awprot),
         .s_axil_awvalid (s_axil_awvalid),
@@ -160,7 +182,7 @@ module axil4_to_wb4 #(
         .SKID_DEPTH_R    (SKID_DEPTH_R)
     ) u_slave_rd (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
         .s_axil_araddr  (s_axil_araddr),
         .s_axil_arprot  (s_axil_arprot),
         .s_axil_arvalid (s_axil_arvalid),
@@ -187,7 +209,7 @@ module axil4_to_wb4 #(
         .RTY_RESP   (RTY_RESP)
     ) u_core (
         .aclk        (aclk),
-        .aresetn     (aresetn),
+        .aresetn     (w_aresetn),
         .fub_awaddr  (w_fub_awaddr),
         .fub_awprot  (w_fub_awprot),
         .fub_awvalid (w_fub_awvalid),
@@ -227,7 +249,7 @@ module axil4_to_wb4 #(
         .CLASSIC    (CLASSIC)
     ) u_wb_master (
         .clk        (aclk),
-        .aresetn    (aresetn),
+        .aresetn    (w_aresetn),
         .m_wb_CYC   (m_wb_CYC),
         .m_wb_STB   (m_wb_STB),
         .m_wb_WE    (m_wb_WE),

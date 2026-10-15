@@ -139,6 +139,35 @@ module axi4_to_apb5_shim #(
     input  logic [APB_RUSER_WIDTH-1:0]    m_apb_PRUSER,
     input  logic [APB_BUSER_WIDTH-1:0]    m_apb_PBUSER
 );
+    // Boundary reset synchronization. The ports aresetn and presetn are
+    // treated as asynchronous-assert inputs of unknown deassert quality:
+    // an N=3 reset_sync (rtl/cdc, formally proven) per clock domain
+    // produces the internal reset every block below sees.
+    logic w_aresetn;
+    logic w_aresetn_pclk;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync_pclk (
+        .clk        (pclk),
+        .rst_n      (presetn),
+        .sync_rst_n (w_aresetn_pclk)
+    );
+
 
     // Requester-driven APB5 sideband: nothing upstream sources these.
     assign m_apb_PAUSER = '0;
@@ -149,8 +178,8 @@ module axi4_to_apb5_shim #(
 
     // Requester wake-up (IHI 0024E 3.7.2): registered copy of PSEL.
     logic r_pwakeup;
-    `ALWAYS_FF_RST(pclk, presetn,
-        if (`RST_ASSERTED(presetn)) begin
+    `ALWAYS_FF_RST(pclk, w_aresetn_pclk,
+        if (`RST_ASSERTED(w_aresetn_pclk)) begin
             r_pwakeup <= 1'b0;
         end else begin
             r_pwakeup <= m_apb_PSEL;
@@ -179,9 +208,9 @@ module axi4_to_apb5_shim #(
         .APB_WSTRB_WIDTH(APB_WSTRB_WIDTH)
     ) u_axi4_to_apb4_shim (
         .aclk(aclk),
-        .aresetn(aresetn),
+        .aresetn(w_aresetn),
         .pclk(pclk),
-        .presetn(presetn),
+        .presetn(w_aresetn_pclk),
         .s_axi_awid(s_axi_awid),
         .s_axi_awaddr(s_axi_awaddr),
         .s_axi_awlen(s_axi_awlen),

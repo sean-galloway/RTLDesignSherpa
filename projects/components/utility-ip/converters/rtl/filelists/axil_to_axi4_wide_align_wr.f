@@ -8,4 +8,8 @@
 # Header files with macros (MUST be compiled first)
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 $CONVERTERS_ROOT/rtl/axil_to_axi4_wide_align_wr.sv

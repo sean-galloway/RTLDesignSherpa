@@ -174,6 +174,23 @@ module error_injector #(
     localparam int LW    = 32;
     localparam int MAXB  = 8;   // clusters per block in mode 4
 
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     // -------------------------------------------------------------------------
     // Configuration, re-registered locally: the values are static during a run
     // and the CSR block sits far away; the copy is one cycle late, which no
@@ -190,8 +207,8 @@ module error_injector #(
     // combinational, Vivado builds a PCIN cascade across the 17 draw DSPs and
     // the config ripples through the whole chain (12.7 ns path on Genesys 2)
     logic [31:0] r_span_cnt, r_span_len;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_mode <= '0; r_count <= '0; r_rate <= '0; r_mark_erasure <= 1'b0;
             r_cnt_min <= '0; r_cnt_max <= '0; r_len_min <= '0; r_len_max <= '0;
             r_span_cnt <= '0; r_span_len <= '0;
@@ -284,8 +301,8 @@ module error_injector #(
     assign w_rnd_a = xorshift32(r_rnd_a);
     assign w_rnd_b = xorshift32(r_rnd_b);
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             for (int u = 0; u < S; u++) r_rnd[u] <= 32'h9E37_79B9 * 32'(u + 1);
             r_rnd_a <= (32'h9E37_79B9 * 32'd3);
             r_rnd_b <= (32'h9E37_79B9 * 32'd7);
@@ -316,8 +333,8 @@ module error_injector #(
     logic [S-1:0]          r_a_inrange;    // pos + u < n
     logic [POS_W-1:0]      r_a_dbghold;    // 7 DEBUG: base snapshot at the block's first beat
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_pos   <= '0;
             r_first <= 1'b1;
             r_a_v   <= 1'b0;
@@ -413,8 +430,8 @@ module error_injector #(
         w_fsm_s_loc = POS_W'((32'(r_dxb[15:0]) * (32'(N) - 32'(r_loc_wid) + 32'd1)) >> 16);
     end
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_n_burst <= '0;
             for (int i = 0; i < MAXB; i++) begin
                 r_tab_start[i] <= '0;
@@ -521,8 +538,8 @@ module error_injector #(
     logic [POS_W-1:0]      r_b_bstart;
     logic [POS_W-1:0]      r_b_dbghold;   // 7 DEBUG base, block-aligned copy
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_b_v <= 1'b0;
             r_b_data <= '0; r_b_keep <= '0; r_b_last <= 1'b0; r_b_first <= 1'b0; r_b_pos <= '0;
             r_b_bstart <= '0; r_b_inrange <= '0; r_b_dbghold <= '0;
@@ -691,8 +708,8 @@ module error_injector #(
         end
     end
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_cyc      <= '0;
             r_dec_busy <= 1'b0;
             r_k_mid    <= '0;
@@ -734,8 +751,8 @@ module error_injector #(
     logic [7:0]            w_blk_total;
     assign w_blk_total = r_blk_errors + r_s_hits;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_c_v <= 1'b0; r_c_data <= '0; r_c_keep <= '0; r_c_last <= 1'b0;
             r_c_erasure <= '0;
             r_s_v <= 1'b0; r_s_last <= 1'b0; r_s_hits <= '0;

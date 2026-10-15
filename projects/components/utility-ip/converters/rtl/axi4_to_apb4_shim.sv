@@ -131,6 +131,35 @@ module axi4_to_apb4_shim #(
     input  logic                          m_apb_PREADY,
     input  logic                          m_apb_PSLVERR
 );
+    // Boundary reset synchronization. The ports aresetn and presetn are
+    // treated as asynchronous-assert inputs of unknown deassert quality:
+    // an N=3 reset_sync (rtl/cdc, formally proven) per clock domain
+    // produces the internal reset every block below sees.
+    logic w_aresetn;
+    logic w_aresetn_pclk;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync_pclk (
+        .clk        (pclk),
+        .rst_n      (presetn),
+        .sync_rst_n (w_aresetn_pclk)
+    );
+
 
     // AXI Skid interface signals
     logic [AWSize-1:0]                r_s_axi_aw_pkt;
@@ -181,7 +210,7 @@ module axi4_to_apb4_shim #(
         .AXI_USER_WIDTH           (UW)
     ) axi_slave_stub_inst         (
         .aclk                     (aclk),
-        .aresetn                  (aresetn),
+        .aresetn                  (w_aresetn),
         // Write address channel  (AW)
         .s_axi_awid               (s_axi_awid),
         .s_axi_awaddr             (s_axi_awaddr),
@@ -269,7 +298,7 @@ module axi4_to_apb4_shim #(
         .APB_WSTRB_WIDTH    (APB_WSTRB_WIDTH)
     ) axi4_to_apb4_convert_inst (
         .aclk                 (aclk),
-        .aresetn              (aresetn),
+        .aresetn              (w_aresetn),
         .r_s_axi_aw_pkt       (r_s_axi_aw_pkt),
         .r_s_axi_aw_count     (r_s_axi_aw_count),
         .r_s_axi_awvalid      (r_s_axi_awvalid),
@@ -305,7 +334,7 @@ module axi4_to_apb4_shim #(
     // independent reset of one side cannot fabricate or swallow a transfer the
     // way the previous 2-phase handshake could. That failure mode offsets the
     // response stream permanently -- every read returns the previous read's
-    // data -- because the APB side (presetn) and the AXI side (aresetn) are
+    // data -- because the APB side (w_aresetn_pclk) and the AXI side (w_aresetn) are
     // separate reset domains.
     //
     // Depths follow the existing APB cmd/rsp queue depths; >=2, power of 2
@@ -321,9 +350,9 @@ module axi4_to_apb4_shim #(
         .N_FLOP_CROSS (2)
     ) u_cmd_cdc_fifo (
         .axi_wr_aclk    (aclk),
-        .axi_wr_aresetn (aresetn),
+        .axi_wr_aresetn(w_aresetn),
         .axi_rd_aclk    (pclk),
-        .axi_rd_aresetn (presetn),
+        .axi_rd_aresetn(w_aresetn_pclk),
 
         .wr_valid       (w_cmd_valid),
         .wr_ready       (r_cmd_ready),
@@ -341,9 +370,9 @@ module axi4_to_apb4_shim #(
         .N_FLOP_CROSS (2)
     ) u_rsp_cdc_fifo (
         .axi_wr_aclk    (pclk),
-        .axi_wr_aresetn (presetn),
+        .axi_wr_aresetn(w_aresetn_pclk),
         .axi_rd_aclk    (aclk),
-        .axi_rd_aresetn (aresetn),
+        .axi_rd_aresetn(w_aresetn),
 
         .wr_valid       (r_rsp_valid_apb),
         .wr_ready       (w_rsp_ready_apb),
@@ -366,7 +395,7 @@ module axi4_to_apb4_shim #(
         .RESP_PACKET_WIDTH(APBRspWidth)  // DATA_WIDTH + 2
     ) apb4_master_inst     (
         .pclk             (pclk),
-        .presetn          (presetn),
+        .presetn          (w_aresetn_pclk),
         .m_apb_PSEL       (m_apb_PSEL),
         .m_apb_PENABLE    (m_apb_PENABLE),
         .m_apb_PADDR      (m_apb_PADDR),

@@ -122,6 +122,23 @@ module apb_cmdrsp_to_axi4 #(
     input  logic            m_axi_rvalid,
     output logic            m_axi_rready
 );
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
 
     // One AXI beat per APB transfer: AxSIZE is the full data width.
     localparam logic [2:0] AXSIZE = 3'($clog2(SW));
@@ -206,8 +223,8 @@ module apb_cmdrsp_to_axi4 #(
     // ------------------------------------------------------------------
     // Sequencer
     // ------------------------------------------------------------------
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_state      <= IDLE;
             r_addr       <= '0;
             r_wdata      <= '0;

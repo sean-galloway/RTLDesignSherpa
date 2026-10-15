@@ -157,6 +157,23 @@ module axi3_loopback #(
     input  logic                        m_axi_bvalid,
     output logic                        m_axi_bready
 );
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
 
     //==========================================================================
     // Internal AXI3 loopback signals
@@ -219,7 +236,7 @@ module axi3_loopback #(
         .AXI_USER_WIDTH  (AXI_USER_WIDTH)
     ) u_axi4_to_axi3 (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
 
         // Slave AXI4 Interface
         .s_axi_arid     (s_axi_arid),
@@ -322,7 +339,7 @@ module axi3_loopback #(
         .AXI_USER_WIDTH  (AXI_USER_WIDTH)
     ) u_axi3_to_axi4 (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
 
         // Slave AXI3 Interface (looped back from axi4_to_axi3)
         .s_axi3_arid    (loopback_arid),

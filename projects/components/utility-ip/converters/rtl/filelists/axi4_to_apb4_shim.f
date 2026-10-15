@@ -3,6 +3,10 @@
 # Purpose: AXI4 to APB bridge/shim with clock domain crossing
 
 # Include directories
+
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Dependencies come in via each component's OWN filelist, never by
@@ -36,7 +40,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_stub.f
 
 # Dependencies - AXI4 to APB converter core
-$CONVERTERS_ROOT/rtl/axi4_to_apb4_convert.sv
+-f $CONVERTERS_ROOT/rtl/filelists/axi4_to_apb4_convert.f
 
 # Top-level AXI4 to APB shim
 $CONVERTERS_ROOT/rtl/axi4_to_apb4_shim.sv

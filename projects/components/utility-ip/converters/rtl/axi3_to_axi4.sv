@@ -164,6 +164,23 @@ module axi3_to_axi4 #(
     input  logic                        m_axi_bvalid,
     output logic                        m_axi_bready
 );
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
 
     //==========================================================================
     // Read Path: Instantiate axi3_to_axi4_rd
@@ -180,7 +197,7 @@ module axi3_to_axi4 #(
         .AXI_USER_WIDTH  (AXI_USER_WIDTH)
     ) u_rd_converter (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
 
         // Slave AXI3 Read Interface
         .s_axi3_arid    (s_axi3_arid),
@@ -234,7 +251,7 @@ module axi3_to_axi4 #(
         .AXI_USER_WIDTH  (AXI_USER_WIDTH)
     ) u_wr_converter (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
 
         // Slave AXI3 Write Interface
         .s_axi3_awid    (s_axi3_awid),

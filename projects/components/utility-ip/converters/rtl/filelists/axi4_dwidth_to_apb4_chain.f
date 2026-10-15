@@ -8,6 +8,10 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 # AMBA/common dependencies come in via each component's OWN filelist; this
 # file never hand-lists individual rtl/common or rtl/amba sources. A consumer
 # that hand-lists a component's files has to track that component's internal

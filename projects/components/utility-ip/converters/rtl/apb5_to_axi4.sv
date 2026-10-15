@@ -125,6 +125,23 @@ module apb5_to_axi4 #(
     input  logic            m_axi_rvalid,
     output logic            m_axi_rready
 );
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
 
     logic            w_cmd_valid;
     logic            w_cmd_ready;
@@ -161,7 +178,7 @@ module apb5_to_axi4 #(
         .ENABLE_PARITY (1'b0)
     ) u_apb5_slave (
         .pclk               (aclk),
-        .presetn            (aresetn),
+        .presetn            (w_aresetn),
         .s_apb_PSEL         (s_apb_PSEL),
         .s_apb_PENABLE      (s_apb_PENABLE),
         .s_apb_PREADY       (s_apb_PREADY),
@@ -222,7 +239,7 @@ module apb5_to_axi4 #(
         .DEFAULT_ID     (DEFAULT_ID)
     ) u_requester (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
         .cmd_valid      (w_cmd_valid),
         .cmd_ready      (w_cmd_ready),
         .cmd_pwrite     (w_cmd_pwrite),

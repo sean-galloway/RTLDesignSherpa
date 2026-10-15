@@ -3,6 +3,10 @@
 # Purpose: AXI4 to AXI4-Lite converter (rd+wr)
 
 # Include directories
+
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Header files with macros (MUST be compiled first)

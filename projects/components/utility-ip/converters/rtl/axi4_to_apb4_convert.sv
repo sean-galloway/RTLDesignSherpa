@@ -82,6 +82,23 @@ module axi4_to_apb4_convert #(
     output logic                    w_rsp_ready,
     input  logic [APBRspWidth-1:0]  r_rsp_data
 );
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
 
     // Extract signals from AW packet
     logic [IW-1:0]     r_s_axi_awid;
@@ -261,8 +278,8 @@ module axi4_to_apb4_convert #(
     );
 
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_apb_state            <= IDLE;
             r_apb_last_state       <= IDLE;
             r_rsp_state            <= RSP_IDLE;
@@ -492,7 +509,7 @@ module axi4_to_apb4_convert #(
     // Instantiate the side queue
     gaxi_fifo_sync #(.DATA_WIDTH(SideSize), .DEPTH(SIDE_DEPTH)) side_fifo_inst (
         .axi_aclk               (aclk),
-        .axi_aresetn            (aresetn),
+        .axi_aresetn(w_aresetn),
         .wr_valid               (w_side_in_valid),
         .wr_ready               (r_side_in_ready),
         .wr_data                (r_side_in_data),

@@ -44,6 +44,28 @@ from `cache-ip/amber-mesi-l1/rtl/top/amber_top.sv`.
 - Every top in the "Remaining tops" list carries the boundary idiom (N=3,
   KEEP_ATTRS=1, polarities matching the port, one instance per clock domain)
   and its filelist closes with `rtl/cdc/filelists/reset_sync.f`.
-- Gate tests pass per component; func too where the suite is reasonable.
+- Gate tests pass per component (owner-set minimum for this change; func/full
+  sweeps on touched areas are nice-to-have follow-on, recorded here).
 - `scoria_top_geared` synchronized.
 - andesite TB `t_rfc_wait_i` compile break fixed and `dv/tests/top` gate green.
+
+## rtl/amba candidates (owner asked; lane was hot at filing)
+
+Classification of the bigger `rtl/amba` blocks, deferred because the rtl/amba
+lane had live uncommitted work in the tree. Owner decision needed on whether
+these self-protect (subsystem-level, user-facing) or stay library leaves:
+
+- **Likely self-protect (complete subsystems a user instantiates directly):**
+  `shared/sdpram_slave_axi4_axi4.sv`, `shared/sdpram_slave_axi4_axil.sv`,
+  `shared/sdpram_slave_axil_axi4.sv` (complete AXI memory slaves),
+  `wb4/wb4_master.sv`, `wb4/wb4_slave.sv`, `wb4/wb4_retry.sv` (complete WB4
+  bus agents), `shared/axi_master_rd_splitter.sv`,
+  `shared/axi_master_wr_splitter.sv` (infrastructure masters).
+- **Probably leaves (TB/verification infrastructure, driven by clean TB
+  resets):** `shared/axi4_master_wr_injector.sv`,
+  `shared/axi4_master_rd_crc_check.sv`,
+  `shared/axi4_slave_wr_crc_check.sv`, `shared/axi4_slave_rd_injector.sv`,
+  `shared/axis4_master_injector.sv`, `shared/axis4_slave_pattern_check.sv`.
+- **No sync (passive observers/monitors — must track the observed domain's
+  reset):** everything under `ocelus/`, the `axi4_{master,slave}_{rd,wr}_mon`
+  protocol monitors, `gaxi_*` leaf FIFOs/skids/regslice.

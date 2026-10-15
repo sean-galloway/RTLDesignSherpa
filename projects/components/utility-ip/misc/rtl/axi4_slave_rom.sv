@@ -84,6 +84,23 @@ module axi4_slave_rom
     localparam int BYTES_PER_WORD = AXI_DATA_WIDTH / 8;
     localparam int ADDR_LSB       = $clog2(BYTES_PER_WORD);
 
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     //==========================================================================
     // Internal Signals - FUB (Functional Unit Backend) Interface
     //==========================================================================
@@ -152,7 +169,7 @@ module axi4_slave_rom
     ) u_axi4_slave_rd (
         // Clock and Reset
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
 
         // Slave AXI Interface (External)
         .s_axi_arid         (s_axi_arid),

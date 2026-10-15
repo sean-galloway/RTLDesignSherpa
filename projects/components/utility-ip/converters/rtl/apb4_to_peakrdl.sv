@@ -71,6 +71,35 @@ module apb4_to_peakrdl #(
     input  logic                    cpuif_wr_ack,
     input  logic                    cpuif_wr_err
 );
+    // Boundary reset synchronization. The ports aresetn and presetn are
+    // treated as asynchronous-assert inputs of unknown deassert quality:
+    // an N=3 reset_sync (rtl/cdc, formally proven) per clock domain
+    // produces the internal reset every block below sees.
+    logic w_aresetn;
+    logic w_aresetn_pclk;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync_pclk (
+        .clk        (pclk),
+        .rst_n      (presetn),
+        .sync_rst_n (w_aresetn_pclk)
+    );
+
 
     // ---- CMD/RSP link between the two stages ----
     logic                    cmd_valid, cmd_ready, cmd_pwrite;
@@ -92,9 +121,9 @@ module apb4_to_peakrdl #(
         .USE_JOHNSON     (USE_JOHNSON)
     ) u_apb_cdc (
         .aclk        (aclk),
-        .aresetn     (aresetn),
+        .aresetn     (w_aresetn),
         .pclk        (pclk),
-        .presetn     (presetn),
+        .presetn     (w_aresetn_pclk),
         .s_apb_PSEL  (s_apb_PSEL),
         .s_apb_PENABLE(s_apb_PENABLE),
         .s_apb_PREADY(s_apb_PREADY),
@@ -124,7 +153,7 @@ module apb4_to_peakrdl #(
         .DATA_WIDTH (DATA_WIDTH)
     ) u_cpuif (
         .aclk             (aclk),
-        .aresetn          (aresetn),
+        .aresetn            (w_aresetn),
         .cmd_valid        (cmd_valid),
         .cmd_ready        (cmd_ready),
         .cmd_pwrite       (cmd_pwrite),

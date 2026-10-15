@@ -133,6 +133,23 @@ module axi4_dwidth_converter_wr #(
     input  logic                        m_axi_bvalid,
     output logic                        m_axi_bready
 );
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
 
     //==========================================================================
     // Parameter Validation
@@ -241,7 +258,7 @@ module axi4_dwidth_converter_wr #(
         .DATA_WIDTH(AW_WIDTH)
     ) aw_skid (
         .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
+        .axi_aresetn(w_aresetn),
         .wr_valid   (s_axi_awvalid),
         .wr_ready   (s_axi_awready),
         .wr_data    ({s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize,
@@ -267,7 +284,7 @@ module axi4_dwidth_converter_wr #(
         .DATA_WIDTH(W_WIDTH)
     ) w_skid (
         .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
+        .axi_aresetn(w_aresetn),
         .wr_valid   (s_axi_wvalid),
         .wr_ready   (s_axi_wready),
         .wr_data    ({s_axi_wdata, s_axi_wstrb, s_axi_wlast, s_axi_wuser}),
@@ -289,7 +306,7 @@ module axi4_dwidth_converter_wr #(
         .DATA_WIDTH(B_WIDTH)
     ) b_skid (
         .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
+        .axi_aresetn(w_aresetn),
         .wr_valid   (int_b_valid),
         .wr_ready   (int_b_ready),
         .wr_data    (int_b_data),
@@ -341,8 +358,8 @@ module axi4_dwidth_converter_wr #(
             assign w_this_last  = (r_split_remaining <= CNTW'(MAX_BEATS));
             assign w_aw_issue   = m_axi_awvalid && m_axi_awready;
 
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     r_split_remaining <= '0;
                     r_split_addr      <= '0;
                     r_split_active    <= 1'b0;
@@ -384,8 +401,8 @@ module axi4_dwidth_converter_wr #(
             assign split_w_avail = (splitq_wptr != splitq_rptr_w);
             assign split_w_beats = splitq_mem[splitq_rptr_w[SPLITQ_AW-1:0]][8:0];
 
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     splitq_wptr   <= '0;
                     splitq_rptr_w <= '0;
                 end else begin
@@ -450,8 +467,8 @@ module axi4_dwidth_converter_wr #(
                                    (wlane_wptr[WLANE_AW-1:0] == wlane_rptr[WLANE_AW-1:0]);
             assign w_wlane_avail = (wlane_wptr != wlane_rptr);
 
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     wlane_wptr <= '0;
                     wlane_rptr <= '0;
                 end else begin
@@ -497,7 +514,7 @@ module axi4_dwidth_converter_wr #(
             // requirement -- their lane semantics through the packer are
             // not defined here.
             always_ff @(posedge aclk) begin
-                if (aresetn && int_aw_valid && int_aw_ready &&
+                if (w_aresetn && int_aw_valid && int_aw_ready &&
                     (int_awburst != 2'b01) &&
                     (int_awaddr[$clog2(M_STRB_WIDTH)-1:0] != '0)) begin
                     $error("axi4_dwidth_converter_wr: upsize %s AW addr 0x%h is not aligned to the %0d-byte wide bus",
@@ -521,8 +538,8 @@ module axi4_dwidth_converter_wr #(
 
     logic [AXI_USER_WIDTH-1:0] r_wuser_held;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_wuser_held <= '0;
         end else if (int_w_valid && int_w_ready) begin
             r_wuser_held <= int_wuser;
@@ -555,7 +572,7 @@ module axi4_dwidth_converter_wr #(
                 .BURST_LEN_WIDTH (8)
             ) u_w_dnsize (
                 .aclk            (aclk),
-                .aresetn         (aresetn),
+                .aresetn         (w_aresetn),
                 .burst_len       (8'd0),
                 .burst_start     (1'b0),
                 .start_lane      ('0),  // untracked mode: port unused
@@ -589,8 +606,8 @@ module axi4_dwidth_converter_wr #(
 
             assign split_w_pop = (r_w_beats_left == 9'd0) && split_w_avail;
 
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     r_w_beats_left <= 9'd0;
                 end else if (r_w_beats_left == 9'd0) begin
                     if (split_w_avail)
@@ -625,7 +642,7 @@ module axi4_dwidth_converter_wr #(
                 .SB_OR_MODE      (0)
             ) u_w_upsize (
                 .aclk            (aclk),
-                .aresetn         (aresetn),
+                .aresetn         (w_aresetn),
                 .narrow_valid    (int_w_valid && w_upsize_w_gate),
                 .narrow_ready    (w_upz_nready),
                 .narrow_data     (int_wdata),
@@ -744,8 +761,8 @@ module axi4_dwidth_converter_wr #(
                                    (b_cam[w_b_cam_idx].count == 8'd1))
                                   ? int_b_ready : 1'b1;
 
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     r_b_open_valid   <= 1'b0;
                     r_b_open_id      <= '0;
                     r_b_open_count   <= '0;
@@ -804,7 +821,7 @@ module axi4_dwidth_converter_wr #(
             // Defense in depth: gen_aw_downsize already gates a burst's final
             // master AW on w_b_cam_slot_free, so this should be unreachable.
             always_ff @(posedge aclk) begin
-                if (aresetn && w_aw_issue && w_this_last && !w_b_cam_free_found)
+                if (w_aresetn && w_aw_issue && w_this_last && !w_b_cam_free_found)
                     $error("axi4_dwidth_converter_wr: B CAM overflow");
             end
 `endif

@@ -218,11 +218,22 @@ input. Rationale:
 
 The reference idiom lives in `cache-ip/amber-mesi-l1/rtl/top/amber_top.sv`
 (`u_reset_sync`, net `w_aresetn`). Swept 2026-10-14: rapids, bch,
-reed-solomon, andesite, scoria, kestrel. Follow-on areas pending their active
-lanes: stream, granite, pumice, `l1_core`, `amber_pair_fabric`,
-`scoria_top_geared`. `rtl/cdc/fifo_async.sv` and `rtl/common/fifo_sync.sv`
-header comments state the leaf-side contract ("reset synchronization not
-built-in; use externally").
+reed-solomon, andesite, scoria, kestrel, and the user-facing wrappers of
+utility-ip (all protocol converters, `error_injector`, `axi4_slave_rom`;
+internal `*_rd`/`*_wr`/`*_core`/upsize-dnsize/UART leaves excluded, as are
+passive observers/monitors — a monitor must track the observed domain's reset,
+so synchronizing it would blind it to post-reset traffic). Follow-on areas
+pending their active lanes: stream, granite, pumice, `l1_core`,
+`amber_pair_fabric`, `scoria_top_geared`; the rtl/amba subsystem-level
+candidates are classified in vault `Tasks/cdc` TASK-004.
+`rtl/cdc/fifo_async.sv` and `rtl/common/fifo_sync.sv` header comments state
+the leaf-side contract ("reset synchronization not built-in; use externally").
+
+**Validation standard for this change (owner-set):** gate-level tests are the
+accepted minimum — the change confines itself to reset-deassert timing, and
+gate suites caught zero regressions across the sweep. Func/full runs on the
+touched areas are recorded as follow-on work (TASK-004), not a merge
+blocker.
 
 ### Choosing N Value
 

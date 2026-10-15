@@ -155,6 +155,28 @@ module axil4_to_axi4 #(
 );
 
     //==========================================================================
+    // Boundary reset synchronization
+    //==========================================================================
+    // Boundary reset synchronizer (block input reset is async-assert,
+    // synchronized internally; complete closure)
+    //
+    // The port aresetn is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync (rtl/cdc, formally proven) produces
+    // the internal reset every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
+    //==========================================================================
     // Read Path: Instantiate axil4_to_axi4_rd
     //==========================================================================
 
@@ -168,7 +190,7 @@ module axil4_to_axi4 #(
         .DEFAULT_QOS     (DEFAULT_QOS)
     ) u_rd_converter (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
 
         // Slave AXI4-Lite Read Interface
         .s_axil_araddr  (s_axil_araddr),
@@ -217,7 +239,7 @@ module axil4_to_axi4 #(
         .DEFAULT_QOS     (DEFAULT_QOS)
     ) u_wr_converter (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
 
         // Slave AXI4-Lite Write Interface
         .s_axil_awaddr  (s_axil_awaddr),

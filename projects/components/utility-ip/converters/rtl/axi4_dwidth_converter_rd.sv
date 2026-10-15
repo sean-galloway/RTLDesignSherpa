@@ -147,6 +147,23 @@ module axi4_dwidth_converter_rd #(
     input  logic                        m_axi_rvalid,
     output logic                        m_axi_rready
 );
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
 
     //==========================================================================
     // Parameter Validation
@@ -250,7 +267,7 @@ module axi4_dwidth_converter_rd #(
         .DATA_WIDTH(AR_WIDTH)
     ) ar_skid (
         .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
+        .axi_aresetn(w_aresetn),
         .wr_valid   (s_axi_arvalid),
         .wr_ready   (s_axi_arready),
         .wr_data    ({s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize,
@@ -277,7 +294,7 @@ module axi4_dwidth_converter_rd #(
         .DATA_WIDTH(R_WIDTH)
     ) r_skid (
         .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
+        .axi_aresetn(w_aresetn),
         .wr_valid   (int_r_valid),
         .wr_ready   (int_r_ready),
         .wr_data    (int_r_data),
@@ -335,8 +352,8 @@ module axi4_dwidth_converter_rd #(
             assign w_ar_issue   = m_axi_arvalid && m_axi_arready;
             assign w_id_free    = !rasm_rec_valid[int_arid];
 
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     r_split_remaining <= '0;
                     r_split_addr      <= '0;
                     r_split_active    <= 1'b0;
@@ -385,8 +402,8 @@ module axi4_dwidth_converter_rd #(
             // block owns the payload fields.
             assign w_rasm_push    = w_ar_issue;
             assign w_rasm_push_id = int_arid;
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     for (int i = 0; i < NUM_IDS; i++) begin
                         rasm_rec_final[i] <= 1'b0;
                         rasm_rec_beats[i] <= '0;
@@ -446,8 +463,8 @@ module axi4_dwidth_converter_rd #(
             // payload fields.
             assign w_rasm_push    = int_ar_valid && int_ar_ready;
             assign w_rasm_push_id = int_arid;
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     for (int i = 0; i < NUM_IDS; i++) begin
                         rasm_rec_beats[i] <= '0;
                         rasm_rec_nlen[i]  <= '0;
@@ -466,7 +483,7 @@ module axi4_dwidth_converter_rd #(
             // requirement -- their lane semantics through the slicer are
             // not defined here.
             always_ff @(posedge aclk) begin
-                if (aresetn && int_ar_valid && int_ar_ready &&
+                if (w_aresetn && int_ar_valid && int_ar_ready &&
                     (int_arburst != 2'b01) &&
                     (int_araddr[ALIGN_BITS-1:0] != '0)) begin
                     $error("axi4_dwidth_converter_rd: upsize %s AR addr 0x%h is not aligned to the %0d-byte wide bus",
@@ -558,8 +575,8 @@ module axi4_dwidth_converter_rd #(
     assign w_old_free_head = rasm_free_head;
     assign w_old_free_next = rasm_pool_next[rasm_free_head];
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             rasm_free_head <= '0;
             rasm_free_count <= (RASM_PTRW+1)'(RASM_POOL_DEPTH);
             for (int i = 0; i < RASM_POOL_DEPTH; i++) begin
@@ -733,7 +750,7 @@ module axi4_dwidth_converter_rd #(
 `ifdef SIMULATION
     // Protocol checks: flag violations without deadlocking.
     always_ff @(posedge aclk) begin
-        if (aresetn && m_axi_rvalid && m_axi_rready) begin
+        if (w_aresetn && m_axi_rvalid && m_axi_rready) begin
             automatic int idv = int'(m_axi_rid);
             if (!rasm_rec_valid[idv]) begin
                 $error("axi4_dwidth_converter_rd: R beat for ID %0d with no outstanding AR record", idv);
@@ -795,7 +812,7 @@ module axi4_dwidth_converter_rd #(
                 .SB_OR_MODE      (1)
             ) u_r_upsize (
                 .aclk            (aclk),
-                .aresetn         (aresetn),
+                .aresetn         (w_aresetn),
                 .narrow_valid    (prim_rvalid),
                 .narrow_ready    (prim_rready),
                 .narrow_data     (prim_rdata),
@@ -857,7 +874,7 @@ module axi4_dwidth_converter_rd #(
                 .BURST_LEN_WIDTH  (8)
             ) u_r_dnsize (
                 .aclk            (aclk),
-                .aresetn         (aresetn),
+                .aresetn         (w_aresetn),
                 .burst_len       (w_blen_rd_data),
                 .burst_start     (w_blen_rd_valid),
                 .start_lane      (w_blen_rd_lane[$clog2(WIDTH_RATIO)-1:0]),

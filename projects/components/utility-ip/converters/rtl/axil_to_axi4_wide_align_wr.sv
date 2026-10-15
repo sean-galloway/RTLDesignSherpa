@@ -43,6 +43,25 @@ module axil_to_axi4_wide_align_wr #(
     input  logic                                  aclk,
     input  logic                                  aresetn,
 
+    // Boundary reset synchronizer (block input reset is async-assert,
+    // synchronized internally; complete closure)
+    //
+    // The port aresetn is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync (rtl/cdc, formally proven) produces
+    // the internal reset every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     // -------- AXI4 slave (from master via wrapper) --------
     input  logic [AXI_ID_WIDTH-1:0]               s_axi_awid,
     input  logic [AXI_ADDR_WIDTH-1:0]             s_axi_awaddr,
@@ -128,8 +147,8 @@ module axil_to_axi4_wide_align_wr #(
     assign s_axi_awready = !r_aw_full;
     assign s_axi_wready  = !r_w_full;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_aw_full  <= 1'b0;
             r_aw_id    <= '0;
             r_aw_addr  <= '0;
@@ -190,8 +209,8 @@ module axil_to_axi4_wide_align_wr #(
         endcase
     end
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_state <= S_IDLE;
         end else begin
             r_state <= w_next_state;
@@ -210,8 +229,8 @@ module axil_to_axi4_wide_align_wr #(
     logic [S_STRB_W-1:0]         r_held_strb;
     logic [AXI_USER_WIDTH-1:0]   r_held_wuser;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_held_id     <= '0;
             r_held_addr   <= '0;
             r_held_prot   <= '0;
@@ -282,8 +301,8 @@ module axil_to_axi4_wide_align_wr #(
     logic [AXI_ID_WIDTH-1:0]    r_s_bid;
     logic [1:0]                 r_s_bresp;
     logic [AXI_USER_WIDTH-1:0]  r_s_buser;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_s_bvalid <= 1'b0;
             r_s_bid    <= '0;
             r_s_bresp  <= 2'b00;

@@ -31,6 +31,25 @@ module axil_to_axi4_wide_align_rd #(
     input  logic                                  aclk,
     input  logic                                  aresetn,
 
+    // Boundary reset synchronizer (block input reset is async-assert,
+    // synchronized internally; complete closure)
+    //
+    // The port aresetn is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync (rtl/cdc, formally proven) produces
+    // the internal reset every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     // -------- AXI4 slave (from master via wrapper) --------
     input  logic [AXI_ID_WIDTH-1:0]               s_axi_arid,
     input  logic [AXI_ADDR_WIDTH-1:0]             s_axi_araddr,
@@ -99,8 +118,8 @@ module axil_to_axi4_wide_align_rd #(
 
     assign s_axi_arready = !r_ar_full;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_ar_full  <= 1'b0;
             r_ar_id    <= '0;
             r_ar_addr  <= '0;
@@ -152,8 +171,8 @@ module axil_to_axi4_wide_align_rd #(
         endcase
     end
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_state <= S_IDLE;
         end else begin
             r_state <= w_next_state;
@@ -172,8 +191,8 @@ module axil_to_axi4_wide_align_rd #(
     logic [1:0]                   r_wide_rresp;
     logic [AXI_USER_WIDTH-1:0]    r_wide_ruser;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_held_id     <= '0;
             r_held_addr   <= '0;
             r_held_prot   <= '0;

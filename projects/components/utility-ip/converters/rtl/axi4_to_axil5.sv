@@ -151,6 +151,23 @@ module axi4_to_axil5 #(
     input  logic [USER_WIDTH-1:0]       m_axil_buser,
     input  logic                        m_axil_btrace
 );
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
 
     axi4_to_axil5_rd #(
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
@@ -161,7 +178,7 @@ module axi4_to_axil5 #(
         .USER_WIDTH     (USER_WIDTH)
     ) u_rd_converter (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
 
         .s_axi_arid     (s_axi_arid),
         .s_axi_araddr   (s_axi_araddr),
@@ -212,7 +229,7 @@ module axi4_to_axil5 #(
         .USER_WIDTH     (USER_WIDTH)
     ) u_wr_converter (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
 
         .s_axi_awid     (s_axi_awid),
         .s_axi_awaddr   (s_axi_awaddr),

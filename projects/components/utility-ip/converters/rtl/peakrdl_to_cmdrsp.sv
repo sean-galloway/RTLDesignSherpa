@@ -58,6 +58,28 @@ module peakrdl_to_cmdrsp #(
 );
 
     // =========================================================================
+    // Boundary reset synchronization
+    // =========================================================================
+    // Boundary reset synchronizer (block input reset is async-assert,
+    // synchronized internally; complete closure)
+    //
+    // The port aresetn is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync (rtl/cdc, formally proven) produces
+    // the internal reset every block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
+    // =========================================================================
     // Local Parameters
     // =========================================================================
     localparam int STRB_WIDTH = DATA_WIDTH / 8;
@@ -108,8 +130,8 @@ module peakrdl_to_cmdrsp #(
     // =========================================================================
     // Command State Machine (Sequential)
     // =========================================================================
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             cmd_state <= CMD_IDLE;
         end else begin
             cmd_state <= cmd_state_next;
@@ -169,8 +191,8 @@ module peakrdl_to_cmdrsp #(
     // =========================================================================
     // Register command when accepted
     // =========================================================================
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_cmd_pwrite   <= '0;
             r_cmd_paddr    <= '0;
             r_cmd_pwdata   <= '0;
@@ -216,8 +238,8 @@ module peakrdl_to_cmdrsp #(
     // =========================================================================
     // Response State Machine (Sequential)
     // =========================================================================
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             rsp_state <= RSP_IDLE;
         end else begin
             rsp_state <= rsp_state_next;
@@ -252,8 +274,8 @@ module peakrdl_to_cmdrsp #(
     // =========================================================================
     // Capture response data from register block
     // =========================================================================
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_rsp_prdata  <= '0;
             r_rsp_pslverr <= '0;
         end else if (rsp_state == RSP_IDLE) begin

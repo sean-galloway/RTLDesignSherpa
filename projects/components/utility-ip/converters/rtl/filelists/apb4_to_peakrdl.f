@@ -3,6 +3,10 @@
 # Purpose: APB to PeakRDL cmd/rsp shim (used by the NexysA7 ddr2-char harness)
 
 # Include directories
+
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Header files with macros (MUST be compiled first)
