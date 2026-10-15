@@ -532,9 +532,14 @@ module granite_core
         .HAS_ZQ        (1'b0),
         .MAINT_EXTRA_WIDTH(1),
         .CLOSE_ON_DRAIN(1'b1),
-        // Debug/enabling in progress (MC-003): BANK_FIFO=1 to root-cause the
-        // rd-slot lifetime race on waves.
-        .BANK_FIFO     (1'b1),
+        // BANK_FIFO (the per-bank in-order product core) is validated to
+        // 13/14 on the A7 after two deadlock-class fixes (see MC-003), with
+        // one known blocker: col_major_bl8_gap hangs the write engine (idle-
+        // gap + refresh interaction, root-cause pending), and the tCCD
+        // forward-admission that restores full-rate columns needs a loop-free
+        // form (its comb version wedged the base path). Granite ships on the
+        // FRFCFS core until those close.
+        .BANK_FIFO     (1'b0),
         .HAS_CMD_HISTORY(1'b0),
         .REF_HAS_POSTPONE(1'b0),
         .REF_HAS_PULLIN  (1'b0),
