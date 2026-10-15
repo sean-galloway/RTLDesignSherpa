@@ -1,6 +1,6 @@
 # TASK-032: un-waive IMPLICIT in the fpga lint gate + tie off amber direct-host pins
 
-**Status:** CLOSED 2026-10-15 (commits pending — see below). Filed and
+**Status:** CLOSED 2026-10-15 (commit 3afff8165). Filed and
 completed in the same session, from the owner's green light on the tooling
 follow-up floated at amber BUG-003 closure.
 **Priority:** P2
