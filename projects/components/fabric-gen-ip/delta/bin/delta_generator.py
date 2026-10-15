@@ -715,8 +715,8 @@ def main():
     )
 
     parser.add_argument("--topology", choices=["flat", "tree", "both", "mesh"], default="flat")
-    parser.add_argument("--masters", type=int, required=True)
-    parser.add_argument("--slaves", type=int, required=True)
+    parser.add_argument("--masters", type=int)
+    parser.add_argument("--slaves", type=int)
     parser.add_argument("--data-width", type=int, default=64)
     parser.add_argument("--user-width", type=int, default=1)
     parser.add_argument("--strb-width", type=int, default=0,
@@ -742,35 +742,41 @@ def main():
 
     args = parser.parse_args()
 
+    if args.topology != "mesh":
+        if args.masters is None:
+            parser.error("--masters is required for flat/tree/both topologies")
+        if args.slaves is None:
+            parser.error("--slaves is required for flat/tree/both topologies")
+
     if args.amba5 and args.data_width % 8:
         parser.error("--amba5 requires --data-width to be a whole number of bytes "
                      "(TDATACHK is one bit per TDATA byte, IHI 0051B Table 5-1)")
     if args.strb_width < 0:
         parser.error("--strb-width must be >= 0")
 
-    dest_width, id_width = calculate_widths(args.masters, args.slaves)
-
-    config = DeltaConfig(
-        topology=args.topology,
-        num_masters=args.masters,
-        num_slaves=args.slaves,
-        data_width=args.data_width,
-        dest_width=dest_width,
-        id_width=id_width,
-        user_width=args.user_width,
-        strb_width=args.strb_width,
-        amba5=args.amba5,
-        add_performance_counters=not args.no_counters
-    )
-
     os.makedirs(args.output_dir, exist_ok=True)
 
     topologies_to_generate = ["flat", "tree"] if args.topology == "both" else [args.topology]
 
-    for topo in topologies_to_generate:
-        config.topology = topo
+    config = None
+    if args.topology != "mesh":
+        dest_width, id_width = calculate_widths(args.masters, args.slaves)
+        config = DeltaConfig(
+            topology=args.topology,
+            num_masters=args.masters,
+            num_slaves=args.slaves,
+            data_width=args.data_width,
+            dest_width=dest_width,
+            id_width=id_width,
+            user_width=args.user_width,
+            strb_width=args.strb_width,
+            amba5=args.amba5,
+            add_performance_counters=not args.no_counters
+        )
 
+    for topo in topologies_to_generate:
         if topo == "flat":
+            config.topology = topo
             generator = DeltaFlatCrossbar(config)
             generator.verilog(args.output_dir)
             print(f"Generated flat topology: {args.output_dir}/delta_axis_flat_{args.masters}x{args.slaves}.sv")
@@ -797,6 +803,8 @@ def main():
             print(f"Tree topology generation not yet implemented in framework version")
 
     if args.nodes:
+        if config is None:
+            parser.error("--nodes requires flat/tree/both topology")
         splitter = DeltaSplitter1to2(config)
         splitter.verilog(args.output_dir)
         print(f"Generated node primitive: {args.output_dir}/delta_split_1to2.sv")
