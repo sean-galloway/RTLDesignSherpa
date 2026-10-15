@@ -24,18 +24,18 @@
 # FPGA Systems Library — Board Build Documents
 
 Latest revision of every PDF under `projects/fpga-systems/`.
-20 documents (14 superseded revisions omitted). Generated 2026-10-15.
+20 documents (17 superseded revisions omitted). Generated 2026-10-15.
 
 | Document | Rev | Size | Path |
 | --- | --- | --- | --- |
 | [FPGA_SYSTEMS_MAS_v1.0.pdf](docs/FPGA_SYSTEMS_MAS_v1.0.pdf) | v1.0 | 1.1 MB | `projects/fpga-systems/docs/` |
 | [RAPIDS_ByteCharacterizationReport_v0.10.pdf](Genesys2/dma-ip/rapids/reports/perf/RAPIDS_ByteCharacterizationReport_v0.10.pdf) | v0.10 | 1.6 MB | `projects/fpga-systems/Genesys2/dma-ip/rapids/reports/perf/` |
 | [RAPIDS_AXIS_System_v1.0.pdf](Genesys2/dma-ip/rapids_beats/docs/RAPIDS_AXIS_System_v1.0.pdf) | v1.0 | 666 KB | `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/docs/` |
-| [RAPIDS_Characterization_Guide_v0.90.pdf](Genesys2/dma-ip/rapids_beats/docs/RAPIDS_Characterization_Guide_v0.90.pdf) | v0.90 | 716 KB | `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/docs/` |
+| [RAPIDS_Characterization_Guide_v0.91.pdf](Genesys2/dma-ip/rapids_beats/docs/RAPIDS_Characterization_Guide_v0.91.pdf) | v0.91 | 742 KB | `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/docs/` |
 | [RAPIDS_CharacterizationReport_v1.0.pdf](Genesys2/dma-ip/rapids_beats/docs/RAPIDS_CharacterizationReport_v1.0.pdf) | v1.0 | 656 KB | `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/docs/` |
-| [RAPIDS_FPGA_System_v1.0.pdf](Genesys2/dma-ip/rapids_beats/docs/RAPIDS_FPGA_System_v1.0.pdf) | v1.0 | 809 KB | `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/docs/` |
+| [RAPIDS_FPGA_System_v1.1.pdf](Genesys2/dma-ip/rapids_beats/docs/RAPIDS_FPGA_System_v1.1.pdf) | v1.1 | 858 KB | `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/docs/` |
 | [RAPIDS_Char_Perf_v2.2.pdf](Genesys2/dma-ip/rapids_beats/reports/perf/RAPIDS_Char_Perf_v2.2.pdf) | v2.2 | 1.3 MB | `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/reports/perf/` |
-| [STREAM_FPGA_System_v1.0.pdf](Genesys2/dma-ip/stream/docs/STREAM_FPGA_System_v1.0.pdf) | v1.0 | 1.1 MB | `projects/fpga-systems/Genesys2/dma-ip/stream/docs/` |
+| [STREAM_FPGA_System_v1.1.pdf](Genesys2/dma-ip/stream/docs/STREAM_FPGA_System_v1.1.pdf) | v1.1 | 1.5 MB | `projects/fpga-systems/Genesys2/dma-ip/stream/docs/` |
 | [STREAM_Char_Compression_v1.2.pdf](Genesys2/dma-ip/stream/reports/compression/old/STREAM_Char_Compression_v1.2.pdf) | v1.2 | 370 KB | `projects/fpga-systems/Genesys2/dma-ip/stream/reports/compression/old/` |
 | [STREAM_Char_Compression_v1.3.pdf](Genesys2/dma-ip/stream/reports/compression/STREAM_Char_Compression_v1.3.pdf) | v1.3 | 370 KB | `projects/fpga-systems/Genesys2/dma-ip/stream/reports/compression/` |
 | [STREAM_Char_Perf_v1.3.pdf](Genesys2/dma-ip/stream/reports/perf/old/STREAM_Char_Perf_v1.3.pdf) | v1.3 | 937 KB | `projects/fpga-systems/Genesys2/dma-ip/stream/reports/perf/old/` |

@@ -13,7 +13,7 @@ set -euo pipefail
 # and styles file differ.
 # ------------------------------------------------------------
 
-REV="0.90"
+REV="0.91"
 DOC="rapids_char_guide"
 ASSETS="${DOC}/assets"
 SPEC_INDEX="${DOC}/${DOC}_index.md"

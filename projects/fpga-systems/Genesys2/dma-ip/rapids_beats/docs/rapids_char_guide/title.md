@@ -37,10 +37,10 @@
 {\LARGE\bfseries RAPIDS Characterization\par}
 \vspace{1cm}
 
-{\Large\bfseries Nexys A7 Project Guide 0.90\par}
+{\Large\bfseries Nexys A7 Project Guide 0.91\par}
 \vspace{2cm}
 
-{\large July 2026\par}
+{\large October 2026\par}
 
 \vfill
 \end{titlepage}

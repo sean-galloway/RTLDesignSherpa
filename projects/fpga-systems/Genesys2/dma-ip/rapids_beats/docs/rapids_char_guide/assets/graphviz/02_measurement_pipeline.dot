@@ -4,7 +4,7 @@
 // every arrow labeled with what it carries, each step naming where it runs.
 // The readback splits into its two independent checks, which share a rank
 // and both feed the verdict.
-// Sources: rapids_char_harness.sv (CSR_GO, CSR_OBS_TARGET), host
+// Sources: rapids_char_harness.sv (CSR_GO, CSR_OBS_TARGET, u_char_run_timer), host
 // run_characterization.py, rapids_char_golden.py.
 digraph measurement_pipeline {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
@@ -19,12 +19,12 @@ digraph measurement_pipeline {
     c3  [group=C, label="3. Host: stage the kick parameters + OBS_TARGET, then write CSR_GO"];
     go  [group=C, label="4. On chip - CSR_GO: arm the meters, start the generator,\nfire every staged kick within a few aclk"];
     run [group=C, label="5. On chip: SOURCE + SINK engines run at line rate"];
-    frz [group=C, label="6. On chip: freeze the window at CSR_OBS_TARGET = channels x beats"];
+    frz [group=C, label="6. On chip: freeze the window at CSR_OBS_TARGET = channels x beats;\nchar_run_timer stops on the same target and latches its CRC verdict"];
 
-    crc [label="7a. Host reads per-channel CRCs\nWR_CRC vs GEN_EXP_CRC\nCHK_ACT_CRC vs RD_CRC"];
+    crc [label="7a. Host reads per-channel CRCs\nWR_CRC vs GEN_EXP_CRC\nCHK_ACT_CRC vs RD_CRC\n+ TIMER_STATUS.pass, CRC_MATCH_MASK"];
     met [label="7b. Host reads the bus meters\nbuckets + exact byte / packet counts"];
 
-    gold [group=C, label="8. Verdict + row: CRCs vs the golden model (rapids_char_golden.py);\nutilization and bandwidth from the meter counts"];
+    gold [group=C, label="8. Verdict + row: CRCs vs the golden model (rapids_char_golden.py)\nAND the on-chip PASS; utilization and bandwidth from the meter counts"];
 
     pc [group=C, shape=point, style=invis, width=0.01, label=""];
     { rank=same; crc; pc; met; }
@@ -35,7 +35,7 @@ digraph measurement_pipeline {
     c3  -> go  [penwidth=1.8, xlabel="one CSR write"];
     go  -> run [penwidth=1.8, xlabel="kicks + generator start"];
     run -> frz [penwidth=1.8, xlabel="productive beats counted"];
-    frz -> crc [xlabel="CRC registers"];
+    frz -> crc [xlabel="CRC registers,\nverdict"];
     frz -> met [xlabel="frozen counts"];
     crc -> gold [xlabel="pass / fail"];
     met -> gold [xlabel="utilization"];

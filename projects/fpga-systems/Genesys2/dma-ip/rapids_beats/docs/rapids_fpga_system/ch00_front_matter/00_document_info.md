@@ -26,11 +26,11 @@
 | Field | Value |
 |-------|-------|
 | Title | RAPIDS beats on the Genesys 2 -- The FPGA System |
-| Version | 1.0 |
-| Date | 2026-09-29 |
+| Version | 1.1 |
+| Date | 2026-10-15 |
 | Scope | The `rapids_beats` characterization system: board, harness, build variants, host flow |
 | Not in scope | The RAPIDS core itself (HAS/MAS under `projects/components/dma-ip/rapids/docs/`); the measured numbers (`reports/perf/README.md`) |
-| Status | Current; written against the tree at the BUG-009 close (commit 37455c992) |
+| Status | Current; written against the tree at the BUG-009 close (commit 37455c992), run timer added 2026-10-15 (commit 32d8a986b) |
 
 : Table 0.1: Document information
 
@@ -39,6 +39,7 @@
 | Version | Date | Change |
 |---------|------|--------|
 | 1.0 | 2026-09-29 | First edition. Written after the 256-bit / 4 KB design point (report v2.0) and the BUG-009 close (report v2.2), so it describes the observers, monitors-in, 16 KB and ILA variants as actually built this month. |
+| 1.1 | 2026-10-15 | The harness gains `char_run_timer`, the run timer and CRC verdict shared with the STREAM harness: Figure 2.1 adds the block, a new section and Table 2.3 describe what it compares per half, Figure 4.1 shows it closing with the meters, and the host now requires its PASS beside the golden match. |
 
 : Table 0.2: Revision history
 

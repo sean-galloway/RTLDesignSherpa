@@ -9,6 +9,11 @@
 //     (m_axi_wr); SOURCE read data comes back UP through the R-channel delay
 //     on the right and leaves right (m_axis to the pattern check).
 //   - Meters and observers are passive taps (dashed, nothing driven back).
+//   - The run timer and CRC verdict (char_run_timer, utility-ip/misc, the same
+//     module as the STREAM harness) sits on the far left of the meter row:
+//     GO clears and starts it from the CSRs, the memory models' CRCs and beat
+//     counts climb to it, and the generator / egress-check CRCs it pairs with
+//     them are taps named in its label rather than two more crossing edges.
 digraph harness_blocks {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
@@ -21,13 +26,14 @@ digraph harness_blocks {
     uart  [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart"];
     dec   [group=C, label="Region Decode on addr[19:16]\ninline in rapids_char_harness\n0 DUT-REG, 1 DESC-LOAD, 2 HARNESS CSR, 3 OBS"];
 
-    csr   [group=L, label="Harness CSRs + Kick Sequencer\ninline: GEN_* CHK_* RESP_DELAY OBS_TARGET\nBUILD, ID; GO = arm window, start gen,\nreplay staged kicks at aclk"];
+    csr   [group=L, label="Harness CSRs + Kick Sequencer\ninline: GEN_* CHK_* RESP_DELAY OBS_TARGET\nBUILD, ID; GO = arm window, start gen,\nreplay staged kicks at aclk;\nTIMER_* / CRC_*_MASK read back"];
     apbm  [group=C, label="APB Master\napb4_master - u_apb\nDUT window + every staged kick"];
     dload [group=RR, label="Descriptor Loader (DESC-LOAD)\ninline holding regs: 8 x 32 bits\nDESC_KICK = one 256-bit AXI4 write"];
 
     meter [group=LL, label="Bus Meters (always built)\naxi_bus_meter on m_axi_rd, m_axi_wr\naxis_bus_meter on s_axis, m_axis\nproductive / backpressure /\nstarvation / idle per cycle;\nfreeze at OBS_TARGET"];
     gen   [group=L, label="AXIS Stimulus\naxis4_master_injector - u_axis_gen\nseeded LFSR, GEN_MODE interleave"];
 
+    tmr   [group=LL, label="Run Timer + CRC Verdict\nchar_run_timer - u_char_run_timer\n(utility-ip/misc; also in STREAM)\nGO clears, then starts; stop at OBS_TARGET\nSOURCE: RD_CRC vs u_axis_chk CRC\nSINK: u_axis_gen CRC vs WR_CRC\nPASS: every active channel equal"];
     obs   [group=LL, label="Interface Observers\n(USE_OBSERVERS=1)\naxi4_intf_master_observer\naxis4_intf_observer\nlatency histograms\nAPB: the OBS region\nthrough apb4_master", style="filled,dashed"];
     dut   [group=C, label="DUT - rapids_beats_top - u_dut\nSINK: s_axis -> SRAM -> m_axi_wr      SOURCE: m_axi_rd -> SRAM -> m_axis\ndescriptor + control-semaphore AXI4 masters per half; MonBus egress m_axil_mon", width=8.5, penwidth=1.8];
 
@@ -44,7 +50,7 @@ digraph harness_blocks {
            fillcolor="white", width=11.5, height=0.5];
 
     { rank=same; csr; apbm; dload; }
-    { rank=same; obs; meter; gen; }
+    { rank=same; tmr; obs; meter; gen; }
 
     { rank=same; p_aw; wdly; s0; p_ar; s1; p_fe; s2; p_mon; rdly; chk; }
     s0 [shape=box, style=invis, width=1.0, label=""];
@@ -52,7 +58,7 @@ digraph harness_blocks {
     s2 [shape=box, style=invis, width=1.0, label=""];
 
     csr -> apbm -> dload [style=invis];
-    obs -> meter -> gen [style=invis];
+    tmr -> obs -> meter -> gen [style=invis];
 
     p_aw -> wdly -> s0 -> p_ar -> s1 -> p_fe -> s2 -> p_mon -> rdly -> chk [style=invis, minlen=2];
 
@@ -88,6 +94,8 @@ digraph harness_blocks {
 
     // ---- measurement (passive) ----
     meter -> csr  [style=dashed, dir=back, xlabel="GO arms the window"];
+    csr  -> tmr   [style=dashed, dir=both, xlabel="GO, OBS_TARGET /\nresult"];
+    tmr  -> bar   [style=dashed, dir=back, xlabel="RD / WR CRCs\n+ beat counts"];
     meter -> dut  [style=dashed, dir=back, xlabel="taps (observed,\nnothing driven back)"];
     obs  -> dut   [style=dashed, dir=back, xlabel="same\ntaps"];
 }

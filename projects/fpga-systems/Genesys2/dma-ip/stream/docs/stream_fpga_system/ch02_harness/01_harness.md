@@ -71,6 +71,29 @@ external AXI4-Lite channel sits behind a skid buffer for timing.
 programming run a long sequence of host programs without inheriting state;
 the runner hooks on the host issue it between programs.
 
+## The run timer and the verdict
+
+`char_run_timer` (`u_char_run_timer`) times each run and judges it. It lives
+in `projects/components/utility-ip/misc/rtl/`. The two Genesys 2 RAPIDS
+harnesses use the same module and the fabric benchmark harness will, so every
+harness built on the LFSR source and CRC sink measures and judges a run the
+same way.
+
+- **Start:** the first `m_axi_desc` AR handshake after a `TIMER_CTRL` clear,
+  so the run begins with the first descriptor fetch.
+- **Stop:** the sink's write-beat count reaching `TIMER_EXPECTED_BEATS`.
+  `TIMER_CYCLES` freezes there, so the throughput is exact.
+- **Pass:** sampled 5 cycles after the stop, once the last beat's CRC has
+  settled. Every channel that ran must have a valid sink CRC equal to its
+  source CRC; a channel that never ran neither passes nor fails. No channel is
+  masked out of the verdict.
+- **Stamps:** the cycle of the first and last read and write beat, so the
+  host can separate steady-state engine throughput from descriptor fill and
+  drain.
+
+`TIMER_STATUS.pass` and the per-channel CRC registers in Table 2.1 are this
+block's outputs.
+
 ## Stimulus and the memory model
 
 | Block | Role |

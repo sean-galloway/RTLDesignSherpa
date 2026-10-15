@@ -22,6 +22,16 @@ What is different from rapids_beats:
 - the harness ID is `RAPB` (0x5241_5042), so a host never mistakes one
   bitstream for the other.
 
+What is the same: the harness carries `char_run_timer`
+(`projects/components/utility-ip/misc/`), the run timer and per-half CRC
+verdict that the rapids_beats and STREAM harnesses use; its registers sit at
+`0x160`-`0x180` and `BUILD.RUN_TIMER` reports it. On a `BYTE_CRC=0` build the
+two CRCs it compares are the same function and the host requires its PASS.
+On the standard `BYTE_CRC=1` build they are not (a word CRC against a
+byte-wise CRC), so `TIMER_STATUS.VERDICT_VALID` reads 0, the timer still
+times the run, and the byte-wise goldens remain the data check. The
+bitstreams listed under Status predate the timer; rebuild to get it.
+
 ## Layout
 
 ```

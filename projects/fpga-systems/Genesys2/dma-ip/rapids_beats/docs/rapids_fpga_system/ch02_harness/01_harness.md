@@ -43,7 +43,7 @@ master. A decode on address bits 19:16 splits that master into three regions:
 |--------|-------------|-------------------|
 | DUT-REG | `0x0_0000` | an APB window into the DUT through `apb4_master`: address bits 12:0 are the APB byte address, so the SOURCE register space at 0x0000, the SINK space at 0x1000 and the per-channel kick windows are all reachable |
 | DESC-LOAD | `0x1_0000` | eight 32-bit holding words assemble one 256-bit descriptor; `DESC_KICK` issues a single-beat AXI4 write of it into the SOURCE or SINK descriptor RAM; `DESC_STATUS` reports the write landed |
-| HARNESS CSR | `0x2_0000` | generator, checker, memory and monitor control, the status and CRC readback, the meter counts, `BUILD`, `ID` |
+| HARNESS CSR | `0x2_0000` | generator, checker, memory and monitor control, the status and CRC readback, the meter counts, the run timer and verdict (`0x160`-`0x180`), `BUILD`, `ID` |
 
 : Table 2.1: The three regions
 
@@ -99,10 +99,34 @@ board and the simulator see the same bytes.
 The golden model on the host, `rapids_char_golden.py`, runs the same LFSR and
 computes the CRCs a correct DMA must produce. PASS is anchored on the data
 path: the sink's write CRC and the source's egress CRC must equal the model.
-On chip, `char_run_timer` (shared with the STREAM harness) times the run and
-compares each half's input CRC with its output CRC: `RD_CRC` against the egress
-checker on SOURCE, the generator's expected CRC against `WR_CRC` on SINK. The
-host requires that on-chip PASS as well as the golden match.
+
+## The run timer and the on-chip verdict
+
+`char_run_timer` (`u_char_run_timer`, from `projects/components/utility-ip/misc/rtl/`)
+is the same module the STREAM harness uses, so both DMAs are timed and judged
+the same way. A RAPIDS run tests one half, and the timer is fed that half's
+input and output side, selected by `KICK_CFG.HALF`:
+
+| Half | Input side | Output side | Stop count |
+|------|------------|-------------|------------|
+| SOURCE | `RD_CRC`, the LFSR source behind `m_axi_rd` | `CHK_ACT_CRC`, the egress pattern check on `m_axis` | egress beats |
+| SINK | `GEN_EXP_CRC`, the AXIS generator | `WR_CRC`, the write CRC check behind `m_axi_wr` | write beats |
+
+: Table 2.3: What the run timer compares, per half
+
+- **Clear and start:** GO clears the timer and starts it one cycle later.
+- **Stop:** the output-side beat count reaching `OBS_TARGET`, the same target
+  that closes the meter window. `TIMER_CYC_LO/HI` freeze there.
+- **Pass:** latched 32 cycles after the stop. Every channel that ran must have
+  both CRCs valid and equal; a channel that never ran neither passes nor fails.
+- **Stamps:** `TIMER_R_*` / `TIMER_W_*` hold the cycle of the first and last
+  input-side and output-side beat.
+
+The host requires `TIMER_STATUS.pass` and every active channel in
+`CRC_MATCH_MASK`, as well as the golden match. A board run that fails only the
+on-chip check is a real mismatch between what entered a half and what left it.
+`BUILD.RUN_TIMER` says whether a bitstream carries the timer; the host skips
+the on-chip check on one that does not.
 
 ## Memories the DUT owns
 
@@ -112,7 +136,7 @@ host requires that on-chip PASS as well as the golden match.
 | control semaphore RAM (`sdpram_slave_axi4_axi4`) | 2 | one per half; the control-write master writes and the control-read master reads the same store, so a doorbell write is observable by a gate read |
 | always-accept AXI4-Lite responder | 1 | terminates the DUT's `m_axil_mon` MonBus egress so it never stalls |
 
-: Table 2.3: Memories
+: Table 2.4: Memories
 
 ## Measurement
 

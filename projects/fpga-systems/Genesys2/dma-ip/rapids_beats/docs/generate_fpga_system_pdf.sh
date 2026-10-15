@@ -7,7 +7,7 @@
 # assets/graphviz/regenerate_all_graphviz.sh; run that first after a .dot edit.
 set -euo pipefail
 
-REV="1.0"
+REV="1.1"
 DOC="rapids_fpga_system"
 ASSETS="${DOC}/assets"
 SPEC_INDEX="${DOC}/${DOC}_index.md"

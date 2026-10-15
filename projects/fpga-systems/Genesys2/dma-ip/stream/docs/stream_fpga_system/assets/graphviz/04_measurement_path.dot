@@ -3,7 +3,7 @@
 // steps run down the center, the transfer fans out to one result path per
 // build (a parallel rank, each arrow labeled with the build it belongs to),
 // and all three converge on the verdict. Each step says where it runs.
-// Sources: stream_harness.sv (harness_csr CTRL, desc_ram, u_stream_tally,
+// Sources: stream_harness.sv (harness_csr CTRL, desc_ram, u_char_run_timer, u_stream_tally,
 // u_slave_tally, u_comp_sram), bin/harness_kick.py, build-*/host/.
 digraph measurement_path {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
@@ -21,7 +21,7 @@ digraph measurement_path {
     mon   [group=C, label="4. build-mon result\nMonBus -> stream_tally + comp_sram:\nevery legal packet identity counted per\nagent; compressed capture downloaded\nand decoded (host_mon_coverage,\nhost_mon_compress)"];
     obs   [label="4. build-obs result\nobserver taps -> slave_tally + histograms:\nthe same identities seen from outside\nthe DUT (host_obs_campaign,\nhost_obs_matrix)"];
 
-    verdict [group=C, label="5. Verdict (host)\nCRC_WR_COMPUTED == CRC_WR_EXPECTED, any_error clear,\ntally coverage matrix complete, cosim reference agrees"];
+    verdict [group=C, label="5. Verdict (host)\nTIMER_STATUS.pass from char_run_timer (on chip: every active channel's\nsink CRC == source CRC, latched after the last beat), any_error clear,\ntally coverage matrix complete, cosim reference agrees"];
 
     { rank=same; perf; mon; obs; }
     perf -> mon -> obs [style=invis];

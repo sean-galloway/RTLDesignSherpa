@@ -4,7 +4,7 @@
 // loop climbing the right edge dashed. Each step says where it runs (host or
 // on chip); color carries no meaning.
 // Sources: host/run_characterization.py, rtl/rapids_char_harness.sv
-// (CSR_GO, CSR_OBS_TARGET, obs_meter_freeze).
+// (CSR_GO, CSR_OBS_TARGET, obs_meter_freeze, u_char_run_timer).
 digraph measurement_path {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.40", ranksep="0.40", splines=ortho, newrank=true,
@@ -16,8 +16,8 @@ digraph measurement_path {
     stage  [group=C, label="1. Stage (host, over UART)\nCHANNEL_RESET both halves; descriptors -> DESC-LOAD -> descriptor RAM;\nGEN_SEED / NBEATS / CHMASK / MODE, RESP_DELAY, AXI_XFER_CONFIG;\nOBS_TARGET = expected productive beats"];
     go     [group=C, label="2. GO (one CSR write; on chip within a few aclk)\narm the meter window, start the generator, fire every staged kick"];
     run    [group=C, label="3. The transfer (on chip)\nSINK: generator -> s_axis -> SRAM -> m_axi_wr -> CRC check\nSOURCE: m_axi_rd -> SRAM -> m_axis -> pattern check\nreturns through the RESP_DELAY latency model"];
-    freeze [group=C, label="4. Deterministic close (on chip)\nthe meters freeze the cycle after the completion\ninterface reaches OBS_TARGET: the window brackets the transfer"];
-    read   [group=C, label="5. Read back (host, over UART)\nWR / RD_BEATS_T, CRCs vs rapids_char_golden.py,\nmeter buckets, observer histograms, BUILD geometry"];
+    freeze [group=C, label="4. Deterministic close (on chip)\nthe meters freeze the cycle after the completion\ninterface reaches OBS_TARGET: the window brackets the transfer;\nchar_run_timer stops on the same target and latches PASS\n(the half's input CRC == output CRC, every active channel)"];
+    read   [group=C, label="5. Read back (host, over UART)\nWR / RD_BEATS_T, CRCs vs rapids_char_golden.py,\nTIMER_STATUS.pass + CRC_MATCH_MASK (both required),\nmeter buckets, observer histograms, BUILD geometry"];
     json   [group=C, label="6. Results JSON (host)\none row per config: pass / fail, utilization, effective GB/s,\nbuckets, xfer_axlen_effective, the 'design' record"];
     report [group=C, label="7. Report (host)\nreport_tables.py / report_figures.py -> reports/perf/README.md\n-> generate_reports_pdf.sh --rev X --only perf"];
 
@@ -31,7 +31,7 @@ digraph measurement_path {
     stage  -> go     [penwidth=1.8, xlabel="every CSR and kick staged"];
     go     -> run    [penwidth=1.8, xlabel="kicks + generator start"];
     run    -> freeze [penwidth=1.8, xlabel="productive beats counted"];
-    freeze -> read   [penwidth=1.8, xlabel="frozen counts, CRCs"];
+    freeze -> read   [penwidth=1.8, xlabel="frozen counts, CRCs, verdict"];
     read   -> json   [penwidth=1.8, xlabel="scored row"];
     json   -> report [penwidth=1.8, xlabel="perf/json/*.json"];
 

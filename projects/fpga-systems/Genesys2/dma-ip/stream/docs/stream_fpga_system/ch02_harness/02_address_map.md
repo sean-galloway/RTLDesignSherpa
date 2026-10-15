@@ -84,7 +84,7 @@ hardware decode.
 | `0x024` | `BUILD_ID` | R | `0x5354_5243` ("STRC") -- harness family |
 | `0x028` | `TIMER_CTRL` | W | Timer clear pulse |
 | `0x02C` | `TIMER_STATUS` | R | `done`, `running`, `pass` |
-| `0x030` / `0x034` | `TIMER_CYCLES_LO` / `HI` | R | 64-bit free-running cycle counter |
+| `0x030` / `0x034` | `TIMER_CYCLES_LO` / `HI` | R | Run length in cycles, first descriptor AR to the expected write beat (`char_run_timer`; frozen at the end of the run, not free-running) |
 | `0x038` | `TIMER_EXPECTED_BEATS` | RW | Sink beat count that stops the timer |
 | `0x03C` | `RESP_DELAY` | RW | `rd_delay[15:0]`, `wr_delay[31:16]` latency knobs |
 | `0x040` - `0x05C` | `TIMER_R_FIRST_*` / `TIMER_R_LAST_*` / `TIMER_W_FIRST_*` / `TIMER_W_LAST_*` | R | Per-engine first/last beat cycle stamps |

@@ -13,6 +13,10 @@
 //     only their MonBus taps are gated (OBS_ENABLE_MON_TAPS).
 //   - Tallies and capture are read back through the bridge (named in their
 //     labels, not drawn as N edges back to the top).
+//   - The run timer and CRC verdict (char_run_timer, utility-ip/misc, the same
+//     module the RAPIDS harnesses use) sits beside the DUT on the left: its
+//     start is a tap on the descriptor AR handshake (named in its label), its CRCs and beat counts climb from
+//     the memory model, and harness_csr reads its result.
 digraph harness_blocks {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
@@ -25,10 +29,11 @@ digraph harness_blocks {
     uart  [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart"];
     brg   [group=C, label="Generated 1 -> N Bridge\nbridge_stream_mon_axil - u_bridge (regen_bridges.sh)\nfixed map: stream_apb 0x0, harness_csr 0x1_0000, desc_ram 0x2_0000,\nerr drains, tallies + their CAM configs, observer APBs, comp_sram 0x1A_0000", width=6];
 
-    csr   [group=L, label="Harness CSRs\nharness_csr - u_csr\nCTRL: start, clear_stats, freeze_trace,\nsoft_reset, cam_clear; STATUS, timer +\nbeat stamps, per-channel CRCs, RESP_DELAY"];
+    csr   [group=L, label="Harness CSRs\nharness_csr - u_csr\nCTRL: start, clear_stats, freeze_trace,\nsoft_reset, cam_clear; STATUS, RESP_DELAY;\nreads back the run timer, beat stamps,\nper-channel CRCs and the verdict"];
     desc  [group=L2, label="Descriptor RAM\nsdpram_slave_axi4_axi4 - u_desc_ram\n256-bit; host preloads 32 B / descriptor"];
     tally [group=R, label="Packet Tallies + Capture\nmonbus_tally_axil x2: u_stream_tally, u_slave_tally\n(CAM of legal {agent, protocol, type, event})\nsdpram_slave_axil_axil - u_comp_sram (MonBus capture)\nall read back through the bridge"];
 
+    tmr   [group=L, label="Run Timer + CRC Verdict\nchar_run_timer - u_char_run_timer\n(utility-ip/misc; also in RAPIDS)\nstart: first m_axi_desc AR\nhandshake (tapped)\nstop: expected write beats\nPASS: every active channel's\nsink CRC == source CRC"];
     dut   [group=C, label="DUT - stream_top_ch8 - u_stream\nscatter-gather DMA, 8 channels (4 on build-obs): m_axi_rd -> SRAM -> m_axi_wr\nin-core datapath meters (STREAM perf CSRs); in-core monitors when USE_AXI_MONITORS=1", width=7, penwidth=1.8];
 
     mobs  [group=R, label="Master-side Observer\naxi4_intf_master_observer - u_dma_observer\nsnoops STREAM's rd / wr port: bus meters +\nlatency histograms always (read through\nits own obs_apb window); MonBus taps\nonly with OBS_ENABLE_MON_TAPS=1"];
@@ -44,9 +49,9 @@ digraph harness_blocks {
            fillcolor="white", width=9];
 
     { rank=same; csr; desc; tally; }
-    desc -> csr -> tally [style=invis];
-    { rank=same; dut; mobs; }
-    dut -> mobs [style=invis];
+    csr -> desc -> tally [style=invis];
+    { rank=same; tmr; dut; mobs; }
+    tmr -> dut -> mobs [style=invis];
     { rank=same; p_aw; wdly; p_ar; rdly; sobs; }
     p_aw -> wdly -> p_ar -> rdly -> sobs [style=invis];
 
@@ -57,6 +62,8 @@ digraph harness_blocks {
     brg  -> tally [dir=back, xlabel="tally / capture readback"];
     brg  -> dut  [xlabel="stream_apb: config + kicks"];
     csr  -> dut  [style=dashed, xlabel="start, soft_reset, cam_clear"];
+    csr  -> tmr  [style=dashed, dir=both, xlabel="clear, target /\nresult"];
+    tmr  -> bar  [style=dashed, dir=back, xlabel="per-channel CRCs\n+ beat counts"];
     desc -> dut  [dir=both, xlabel="m_axi_desc: 256-bit fetch\n(AR up, descriptors down)"];
 
     dut  -> p_aw [dir=none];

@@ -39,10 +39,10 @@
 {\Large The FPGA System: Harness, Builds, Flow\par}
 \vspace{1cm}
 
-{\Large\bfseries Version 1.0\par}
+{\Large\bfseries Version 1.1\par}
 \vspace{2cm}
 
-{\large September 2026\par}
+{\large October 2026\par}
 
 \vfill
 \end{titlepage}

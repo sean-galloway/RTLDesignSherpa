@@ -73,7 +73,8 @@ records the effective value in every row, so a table never labels a
 For each configuration the driver resets both halves, loads the descriptors,
 programs the generator and the knobs, stages the kicks and the productive
 beat target, writes GO, polls the completion counter, and scores: beat
-totals, CRCs against the golden model, meter buckets, and on the observers
+totals, CRCs against the golden model, the on-chip verdict from the run
+timer (Section 2), meter buckets, and on the observers
 build the histograms. The row goes into the results JSON. The report scripts
 turn the JSON files under `reports/perf/json/` into the tables and figures of
 `reports/perf/README.md`, and `reports/generate_reports_pdf.sh --rev X --only
