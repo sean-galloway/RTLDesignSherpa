@@ -217,6 +217,7 @@ module formal_amber_control (
     l1_control dut (
         .clk                     (clk),
         .rst_n                   (rst_n),
+        .ctrl_fill_inflight      (1'b1), // formal env: fills complete without a fabric; BUG-002 class out of scope
         .req_valid               (req_valid),
         .req_addr                (req_addr),
         .req_we                  (req_we),

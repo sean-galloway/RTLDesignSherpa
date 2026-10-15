@@ -132,6 +132,10 @@ module l1_core
     parameter int AXI_ID_WIDTH   = 8,
     parameter int AXI_USER_WIDTH = 1,
     parameter bit USE_MONITOR    = 1'b1,
+    // BUG-002: set when this core sits behind a coherence fabric that can
+    // hold fill ARs unaccepted (amber_top sets this; standalone l1_core
+    // benches leave it 0 -- see l1_control PF_GUARD).
+    parameter bit PF_GUARD       = 1'b0,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int TAG_WIDTH         = ADDR_WIDTH - SET_INDEX_WIDTH
@@ -350,6 +354,7 @@ module l1_core
     logic [2:0]                            ctrl_req_class;
     logic                                  ctrl_fill_done;
     logic                                  ctrl_fill_pass_dirty;
+    logic                                  ctrl_fill_inflight;
     logic                                  ctrl_fill_beat_valid;
     logic [BEAT_INDEX_WIDTH-1:0]           ctrl_fill_beat_idx;
     logic [BUS_WIDTH-1:0]                  fill_beat_data;
@@ -373,7 +378,8 @@ module l1_core
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
-        .BUS_WIDTH  (BUS_WIDTH)
+        .BUS_WIDTH  (BUS_WIDTH),
+        .PF_GUARD   (PF_GUARD)
     ) u_control (
         .clk                     (clk),
         .rst_n                   (rst_n),
@@ -419,6 +425,7 @@ module l1_core
         .ctrl_req_class          (ctrl_req_class),
         .ctrl_fill_done          (ctrl_fill_done),
         .ctrl_fill_pass_dirty    (ctrl_fill_pass_dirty),
+        .ctrl_fill_inflight      (ctrl_fill_inflight),
         .ctrl_fill_beat_valid    (ctrl_fill_beat_valid),
         .ctrl_fill_beat_idx      (ctrl_fill_beat_idx),
         .ctrl_drain_start        (ctrl_drain_start),
@@ -557,6 +564,7 @@ module l1_core
         .fill_req_class    (ctrl_req_class),
         .fill_done         (ctrl_fill_done),
         .fill_pass_dirty   (ctrl_fill_pass_dirty),
+        .fill_inflight     (ctrl_fill_inflight),
         .fill_beat_valid   (ctrl_fill_beat_valid),
         .fill_beat_data    (fill_beat_data),
         .fill_beat_idx     (ctrl_fill_beat_idx),

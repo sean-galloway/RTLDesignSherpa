@@ -219,6 +219,7 @@ module amber_miss_fill_macro_test
     // data array (beat payload, muxed against control's CPU merge)
     logic [BUS_WIDTH-1:0]                  fill_beat_data;
     logic                                  fill_pass_dirty;
+    logic                                  w_fill_inflight;
 
     l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
@@ -229,6 +230,7 @@ module amber_miss_fill_macro_test
     ) u_control (
         .clk                     (clk),
         .rst_n                   (rst_n),
+        .ctrl_fill_inflight    (w_fill_inflight),
         .req_valid               (req_valid),
         .req_addr                (req_addr),
         .req_we                  (req_we),
@@ -330,6 +332,7 @@ module amber_miss_fill_macro_test
         .fill_req_class    (fill_req_class),
         .fill_done         (fill_done),
         .fill_pass_dirty   (fill_pass_dirty),
+        .fill_inflight     (w_fill_inflight),
         .fill_beat_valid   (fill_beat_valid),
         .fill_beat_data    (fill_beat_data),
         .fill_beat_idx     (fill_beat_idx),

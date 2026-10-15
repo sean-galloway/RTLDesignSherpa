@@ -185,6 +185,7 @@ module amber_fill_drain_th
         .fill_req_class    (fill_req_class),
         .fill_done         (fill_done),
         .fill_pass_dirty   (fill_pass_dirty),
+        .fill_inflight     (),
         .fill_beat_valid   (fill_beat_valid),
         .fill_beat_data    (fill_beat_data),
         .fill_beat_idx     (fill_beat_idx),

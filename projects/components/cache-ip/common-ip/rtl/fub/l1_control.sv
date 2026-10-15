@@ -138,6 +138,14 @@ module l1_control
     parameter int WAYS       = AMBER_WAYS,
     parameter int LINE_BYTES = AMBER_LINE_BYTES,
     parameter int BUS_WIDTH  = AMBER_BUS_WIDTH,
+    // BUG-002 guard: when the cache sits behind a coherence fabric that
+    // can hold its fill AR unaccepted (pair rig / any snoopy interconnect),
+    // a snoop granted against a fill whose AR has not been accepted yet is
+    // answered from the installed tag (I, no data) instead of promising
+    // fill data that can never arrive while the fabric parks on this very
+    // response. Standalone benches (direct l1_control instantiation, no
+    // fabric) keep the classic always-answer-from-armed-fill behavior.
+    parameter bit PF_GUARD   = 1'b0,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int TAG_WIDTH         = ADDR_WIDTH - SET_INDEX_WIDTH - LINE_OFFSET_WIDTH,
@@ -213,6 +221,9 @@ module l1_control
     output logic [2:0]                  ctrl_req_class,
     input  logic                        ctrl_fill_done,
     input  logic                        ctrl_fill_pass_dirty,
+    // l1_fill fill_inflight: AR accepted, response phase begun. Qualifies
+    // the pending-fill snoop bypass (see sn_pf_gnt_match).
+    input  logic                        ctrl_fill_inflight,
     input  logic                        ctrl_fill_beat_valid,
     input  logic [BEAT_INDEX_WIDTH-1:0] ctrl_fill_beat_idx,
     output logic                        ctrl_drain_start,
@@ -524,9 +535,20 @@ module l1_control
         end
     end
 
-    // pending-fill bypass match (only meaningful while a fill is armed)
+    // pending-fill bypass match (only meaningful while a fill is armed).
+    // The bypass answer path may only promise snoop data when the fill is
+    // actually in flight (its AR has been accepted and the response phase
+    // begun). A fill whose AR is still seeking acceptance can never produce
+    // beats while the pair fabric parks in F_RESP waiting for this very
+    // snoop's response -- promising data from it deadlocks the rig
+    // (BUG-002: same-line miss in both caches, snoop granted against a
+    // pre-AR fill). Pre-acceptance, answer from the installed tag state
+    // instead; the fabric then passes the requester to memory and
+    // serializes the two fills through its pending/kill logic. Environments
+    // without such a fabric (PF_GUARD=0) keep the classic behavior.
     logic sn_pf_gnt_match;
-    assign sn_pf_gnt_match = pf_match && (state_q == OH_MISS_FILL);
+    assign sn_pf_gnt_match = pf_match && (state_q == OH_MISS_FILL)
+                             && (!PF_GUARD || ctrl_fill_inflight);
 
     // stale victim entry: during a fill the tag still shows the evicted
     // victim at the fill way, and the fill beats are overwriting its data

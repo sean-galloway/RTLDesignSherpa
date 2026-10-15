@@ -132,6 +132,11 @@ module l1_fill
     output logic [BEAT_INDEX_WIDTH-1:0] fill_beat_idx,
     output logic                        fill_last,
     output logic                        fill_pass_dirty,
+    // AR accepted and the response phase begun (F_R/F_DONE). l1_control
+    // qualifies the pending-fill snoop bypass with this: a fill whose AR
+    // is still seeking acceptance can never produce beats while the pair
+    // fabric parks on the snoop's own response (BUG-002).
+    output logic                        fill_inflight,
 
     // fub_axi upstream side of axi4_master_rd (DECISION D3)
     output logic [IW-1:0]   fub_axi_arid,
@@ -297,6 +302,7 @@ module l1_fill
     // control side
     assign fill_done        = (state_q == F_DONE);
     assign fill_pass_dirty  = pass_dirty_q;
+    assign fill_inflight    = (state_q == F_R) || (state_q == F_DONE);
     assign fill_beat_valid  = stage_rd_valid;
     assign fill_beat_data   = stage_rd_data;
     assign fill_beat_idx    = pop_cnt_q;

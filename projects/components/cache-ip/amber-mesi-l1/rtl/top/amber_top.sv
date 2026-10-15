@@ -291,7 +291,10 @@ module amber_top
         .REPL_POLICY    (REPL_POLICY),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
-        .USE_MONITOR    (USE_MONITOR)
+        .USE_MONITOR    (USE_MONITOR),
+        // amber_top always sits behind a coherence fabric (pair rig,
+        // Genesys2 harness): enable the BUG-002 pending-fill snoop guard.
+        .PF_GUARD       (1'b1)
     ) u_core (
         .clk               (aclk),
         .rst_n             (w_aresetn),

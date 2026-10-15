@@ -241,6 +241,7 @@ module amber_eviction_macro_test
     ) u_control (
         .clk                     (clk),
         .rst_n                   (rst_n),
+        .ctrl_fill_inflight    (1'b1),   // no real fill partner: bypass answers as armed (BUG-002 deadlock class needs the pair fabric)
         .req_valid               (req_valid),
         .req_addr                (req_addr),
         .req_we                  (req_we),

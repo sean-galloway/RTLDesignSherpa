@@ -344,6 +344,10 @@ module amber_ace_top
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
         .USE_MONITOR    (USE_MONITOR)
+        // PF_GUARD stays 0 here: the ACE rig's TB interconnect never
+        // blocks fill ARs on snoop responses, and its directed snoop
+        // scenarios encode the classic bypass answer. Enable the guard
+        // when a real ACE fabric integration appears (BUG-002).
     ) u_core (
         .clk               (aclk),
         .rst_n             (w_aresetn),
