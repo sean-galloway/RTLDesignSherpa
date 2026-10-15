@@ -29,14 +29,20 @@ Feature sources: four-book survey of the calibre NoC library
 ### 2.1 Hierarchy
 
 - **Cell** — the one and only RTL design delta emits (`delta_mesh_cell`).
-- **Tile** — 2×2×1 cells (4). Routing/config grouping, not separate RTL.
-- **Confluence** — 2×2×1 tiles = 4×4×1 cells (16). Connects to rapids at
-  boundary cells' local ports. (Owner-named 2026-10-13.)
-- **Fabric** — 4×4×K confluences stacked in Z. The recursion is planar;
-  the Z dimension lives entirely between confluence layers.
+- **Tetrad** — 2×2×1 cells (4). Owner-named 2026-10-15 (was "tile");
+  every tetrad is fully connected K4 (§2.2). Routing/config grouping,
+  not separate RTL.
+- **Tile** — 2×2×1 tetrads = 4×4×1 cells (16). Owner-named 2026-10-15
+  (was "confluence"); K4 at the tetrad level too — each tetrad connects
+  to the other three tetrads of its tile (§2.2 P_DIA2). Connects to
+  rapids at boundary cells' local ports.
+- **Fabric** — 4×4×K tiles stacked in Z. The recursion is planar;
+  the Z dimension lives entirely between tile layers.
 
-Rapids attaches at boundary cells' local ports; any boundary cell can be
-a rapids attachment. Intra-tile and intra-confluence hops are hops like
+Rapids attaches at tile boundary cells' local ports; any boundary cell
+can be a rapids attachment. Hive configuration (owner, 2026-10-15): one
+or more tiles — only one for now — connect to a single rapids DMA.
+Intra-tetrad and intra-tile hops are hops like
 any other — the hierarchy exists to bound table sizes and to name
 address regions, not to add wrapper hardware. (The superswitch idea —
 grouping 2×2 switches so a message reaches any switch in the local
@@ -53,7 +59,16 @@ the grouping but not the single-cycle guarantee.)
   One link per cell, always emitted; the fabric draws one diagonal wire
   pair per tetrad between (x,y,z) and (x^1,y^1,z). In 3-D, tetrads are
   planar (X/Y only); Z expansion stays axis-routed.
-- 1 local port (host-facing; rapids at boundary cells).
+- 1 inter-tetrad diagonal port: P_DIA2 (owner decision 2026-10-15):
+  the four tetrads of a tile are themselves fully connected K4. The
+  link joins adjacent tetrad corner cells — (x,y,z) to the diagonally
+  adjacent cell of the diagonally-neighboring tetrad, e.g. (1,1,0)↔
+  (2,2,0) and (1,2,0)↔(2,1,0) per tile — direction set by the cell's
+  position within its tetrad. Always emitted; edge cells whose mate
+  tetrad is out of grid tie P_DIA2 off (provably never selected: the
+  mate coordinate is out of grid, and mode images only name in-grid
+  ports).
+- 1 local port (host-facing; rapids at tile boundary cells).
 - All ports AXI4-Stream: `TDATA/TVALID/TREADY/TLAST` + header sideband in
   `TUSER` (§4). Optional AMBA 5 check/TWAKEUP richness carries over from
   flat mode unchanged.
@@ -182,7 +197,7 @@ per-cell unicast tables of §5.2) coexists; mode 0 = custom, mode
 switches among standard images, custom tables unaffected by broadcast
 switches.
 
-Standard mode catalog (modes 1-8 owner-confirmed 2026-10-13; mode 9 added 2026-10-15):
+Standard mode catalog (modes 1-8 owner-confirmed 2026-10-13; modes 9-10 added 2026-10-15):
 
 | Mode | Pattern | Routing/table content | Sources |
 |---|---|---|---|
@@ -195,11 +210,12 @@ Standard mode catalog (modes 1-8 owner-confirmed 2026-10-13; mode 9 added 2026-1
 | 7 All-to-all/transpose | permutations: transpose, shuffle/butterfly stages | per-stage table images | [P1] |
 | 8 Pipeline + rapids-stream | boustrophedon serpentine chain; boundary↔rapids DMA streaming | fixed chain + boundary tables | [P8][Q9] |
 | 9 Tetrad all-to-all (K4) | every 2×2×1 tetrad fully connected: perimeter via ±X/±Y, both diagonals via P_DIA | intra-tetrad table entries route edge-mates 1 hop and the diagonal mate via P_DIA (1 hop); inter-tetrad dsts DOR | owner, 2026-10-15 |
+| 10 Tile all-to-all (K4 of tetrads) | the 4 tetrads of a tile fully connected: edge-adjacent tetrads via shared ±X/±Y boundaries, diagonal tetrad pairs via P_DIA2 | intra-tile table entries route to any cell of any tetrad of the tile 1..2 hops (diagonal-of-tetrad pairs via P_DIA2 single hop); inter-tile dsts DOR | owner, 2026-10-15 |
 
 Mode images are data — the same table RAMs and mechanisms as §5.1;
 adding a mode = adding an image + a verification suite, no new hardware
-per mode. (Exception, mode 9: the P_DIA diagonal port of §2.2 is mode-9's
-enabling hardware, emitted in every build.)
+per mode. (Exception, modes 9-10: the P_DIA/P_DIA2 diagonal ports of
+§2.2 are their enabling hardware, emitted in every build.)
 
 ## 6. Deadlock, livelock, QoS
 
@@ -389,7 +405,7 @@ assertion (packet atomicity, as flat mode does).
 | Flat xbar | kept; mesh is a mode | — |
 | Book pulls now | systolic package, perf model, ocelus counters, DFT mode | §15 |
 | Book pulls deferred | §11 | — |
-| Standard modes | broadcast mode-switch w/ ack barrier; catalog §5.4 (modes 1-8 confirmed 2026-10-13; mode 9 tetrad K4 added 2026-10-15 with P_DIA diagonal port) | [P8][P17][D9][N3] |
+| Standard modes | broadcast mode-switch w/ ack barrier; catalog §5.4 (modes 1-8 confirmed 2026-10-13; modes 9-10 added 2026-10-15: tetrad K4 via P_DIA, tile K4-of-tetrads via P_DIA2) | [P8][P17][D9][N3] |
 
 ## 15. References
 

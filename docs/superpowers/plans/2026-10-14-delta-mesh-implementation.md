@@ -176,6 +176,23 @@ def test_header_width_formula():
 - [ ] **Step 4: Run full gate: modes + tetrad + cell + fabric + flow-control + tables + flat AMBA5 — all green. Verify artifacts byte-reproducible.**
 - [ ] **Step 5: Commit.**
 
+### Task 6c: Inter-tetrad diagonal links (P_DIA2) + mode 10 (tile K4 of tetrads)
+
+**Files:**
+- Modify: `.../bin/delta_mesh/cell.py` (9th port), `.../bin/delta_mesh/fabric.py` (P_DIA2 wiring), `.../bin/delta_mesh/tables.py` (mode 10 image)
+- Modify (generated): `rtl/delta_mesh_cell.sv`, `rtl/delta_mesh_fabric_4x4x1.sv`, harnesses
+- Test: extend `.../dv/tests/test_delta_mesh_tetrad.py` (or new `test_delta_mesh_tile.py`)
+
+**Interfaces:**
+- Consumes: Task 6b port infrastructure (8 ports) + mode machinery.
+- Produces: cell port list becomes 9: `P_X_NEG=0..P_Z_POS=5, P_DIA=6, P_DIA2=7, P_LOCAL=8` (P_LOCAL index moves AGAIN; sweep every assumption). `NUM_PORTS=9`. Fabric wires P_DIA2 between adjacent tetrad corner cells: cell (x,y,z) mate = (x + (tx? +1 : -1), y + (ty? +1 : -1), z) where (tx,ty) = (x&1, y&1) — i.e. (1,1,0)↔(2,2,0), (0,0,0)↔(-1,-1,0) [tie off], (1,0,0)↔(2,-1,0) [tie off], etc.; in-grid only, both parities wired, one wire pair per unordered pair. Odd-grid edges tie off (same three-legged proof as 6b: mate naming + acyclicity + guard). `mode_image(cfg, 10)`: intra-tile dsts — edge-adjacent-tetrad cells route via existing axis ports (1 hop for the shared boundary, else DOR within the 4×4 tile), diagonal-tetrad-pair cells route via P_DIA2 (1 hop); inter-tile dsts DOR. Guard extended: modes 1-8 and the power-on image name neither P_DIA nor P_DIA2... (mode 9 names P_DIA — guard per-mode, not blanket).
+
+- [ ] **Step 1: Failing tests** — (a) on 4x4x1 (needs a fabric harness for 4x4x1 OR cell-level multi-instance test — if no 4x4 harness exists, build a minimal 4x4x1 fabric test harness this task): all intra-tile cell pairs reachable; diagonal-tetrad corner pairs (e.g. (1,1)↔(2,2)) delivered in exactly 1 hop under mode 10 (latency + witness instruments as in 6b). (b) P_DIA2 full-rate between a diagonal-tetrad pair with all axis ports witness-idle. (c) mode 9/regressions unchanged; power-on DOR never selects P_DIA2. (d) `check_acyclic(mode 10)` positive + negative; odd-grid (3×3×1, 1×1×1) elaboration + acyclicity.
+- [ ] **Step 2: Run, verify fail.**
+- [ ] **Step 3: Implement** port addition + wiring + mode 10, regenerate artifacts + harnesses.
+- [ ] **Step 4: Run full gate: tetrad/tile + modes + cell + fabric + flow-control + tables + qos + flat AMBA5 — all green. Byte-reproducible.**
+- [ ] **Step 5: Commit.**
+
 ### Task 7: QoS — strict priority, aging, bulk minimum reservation
 
 **Files:**
