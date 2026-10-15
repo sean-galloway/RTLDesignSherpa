@@ -714,7 +714,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
-    parser.add_argument("--topology", choices=["flat", "tree", "both"], default="flat")
+    parser.add_argument("--topology", choices=["flat", "tree", "both", "mesh"], default="flat")
     parser.add_argument("--masters", type=int, required=True)
     parser.add_argument("--slaves", type=int, required=True)
     parser.add_argument("--data-width", type=int, default=64)
@@ -726,6 +726,16 @@ def main():
                              "check signals (TDATACHK, TSTRBCHK, TLASTCHK, TIDCHK, TDESTCHK, "
                              "TUSERCHK, TVALIDCHK, TREADYCHK, TWAKEUPCHK; odd parity). "
                              "Requires a whole-byte --data-width.")
+    parser.add_argument("--cells-x", type=int, default=2, help="Mesh cells along X")
+    parser.add_argument("--cells-y", type=int, default=2, help="Mesh cells along Y")
+    parser.add_argument("--cells-z", type=int, default=1, help="Mesh cells along Z")
+    parser.add_argument("--torus-x", action="store_true", help="Wrap X dimension")
+    parser.add_argument("--torus-y", action="store_true", help="Wrap Y dimension")
+    parser.add_argument("--torus-z", action="store_true", help="Wrap Z dimension")
+    parser.add_argument("--source-route", action="store_true", help="Use source routing")
+    parser.add_argument("--speculation", action="store_true", help="Enable speculative routing")
+    parser.add_argument("--fifo-impl", choices=["reg", "sram"], default="reg",
+                        help="Mesh router FIFO implementation")
     parser.add_argument("--output-dir", type=str, default="../rtl")
     parser.add_argument("--nodes", action="store_true")
     parser.add_argument("--no-counters", action="store_true")
@@ -764,6 +774,25 @@ def main():
             generator = DeltaFlatCrossbar(config)
             generator.verilog(args.output_dir)
             print(f"Generated flat topology: {args.output_dir}/delta_axis_flat_{args.masters}x{args.slaves}.sv")
+        elif topo == "mesh":
+            from delta_mesh import DeltaMeshConfig, generate_mesh, validate_mesh
+            mesh_cfg = DeltaMeshConfig(
+                cells_x=args.cells_x,
+                cells_y=args.cells_y,
+                cells_z=args.cells_z,
+                torus_x=args.torus_x,
+                torus_y=args.torus_y,
+                torus_z=args.torus_z,
+                source_route=args.source_route,
+                speculation=args.speculation,
+                fifo_impl=args.fifo_impl,
+                data_width=args.data_width,
+                user_width=args.user_width,
+                amba5=args.amba5,
+                add_counters=not args.no_counters,
+            )
+            validate_mesh(mesh_cfg)
+            generate_mesh(mesh_cfg, args.output_dir)
         else:
             print(f"Tree topology generation not yet implemented in framework version")
 
