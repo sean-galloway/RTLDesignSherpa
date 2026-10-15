@@ -93,6 +93,25 @@ module axi_bus_meter #(
 );
 
     // =========================================================================
+    // Boundary reset synchronization
+    // =========================================================================
+    // The port aresetn is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync produces the internal reset every
+    // block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
+    // =========================================================================
     // Bucket selection
     // =========================================================================
     logic w_prod, w_bp, w_starv, w_idle;
@@ -106,8 +125,8 @@ module axi_bus_meter #(
     // =========================================================================
     logic [31:0] r_agg_prod, r_agg_bp, r_agg_starv, r_agg_idle;
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_agg_prod  <= '0;
             r_agg_bp    <= '0;
             r_agg_starv <= '0;
@@ -139,8 +158,8 @@ module axi_bus_meter #(
     logic [15:0] r_ch_idle   [NUM_CHANNELS];
     logic [3:0]  r_ch_overflow [NUM_CHANNELS];  // {prod, bp, starv, idle}
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             for (int c = 0; c < NUM_CHANNELS; c++) begin
                 r_ch_prod    [c] <= '0;
                 r_ch_bp      [c] <= '0;

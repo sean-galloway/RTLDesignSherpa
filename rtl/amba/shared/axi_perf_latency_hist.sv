@@ -94,13 +94,32 @@ module axi_perf_latency_hist #(
     output logic                 o_cmd_block
 );
 
+    // =========================================================================
+    // Boundary reset synchronization
+    // =========================================================================
+    // The port aresetn is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync produces the internal reset every
+    // block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     localparam int NUM_METRICS = IS_READ ? 2 : 1;
 
     // Free-running timestamp (NOT frozen -- absolute cycle clock).
     logic [31:0] r_time;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_time <= 32'h0;
-        else                        r_time <= r_time + 32'h1;
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) r_time <= 32'h0;
+        else                          r_time <= r_time + 32'h1;
     )
 
     // log2 bin: floor(log2(lat)) clamped to NUM_BINS-1. lat=0,1 -> bin 0.
@@ -198,8 +217,8 @@ module axi_perf_latency_hist #(
     logic [BINW-1:0] s2_bin;
 
     integer ci, bi;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn) || i_clear) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn) || i_clear) begin
             // Reset on hard reset or window open (RUN rising edge / i_clear).
             for (ci = 0; ci < NUM_CHANNELS; ci++) begin
                 r_head[ci]         <= '0;

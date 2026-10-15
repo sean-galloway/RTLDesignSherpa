@@ -134,6 +134,25 @@ module axi4_slave_rd_injector #(
 );
 
     //==========================================================================
+    // Boundary reset synchronization
+    //==========================================================================
+    // The port aresetn is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync produces the internal reset every
+    // block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
+    //==========================================================================
     // Local Parameters
     //==========================================================================
 
@@ -214,7 +233,7 @@ module axi4_slave_rd_injector #(
                 .TAP_COUNT(LFSR_TAP_COUNT)
             ) u_lfsr (
                 .clk      (aclk),
-                .rst_n    (aresetn),
+                .rst_n    (w_aresetn),
                 .enable   (ch_enable),
                 .seed_load(crc_lfsr_reset),
                 .seed_data(LFSR_SEED ^ 32'(gch)),  // unique seed per channel
@@ -275,7 +294,7 @@ module axi4_slave_rd_injector #(
                 .POLY_INIT        (CRC_INIT),
                 .XOROUT           (CRC_XOROUT),
                 .clk              (aclk),
-                .rst_n            (aresetn),
+                .rst_n            (w_aresetn),
                 .load_crc_start   (crc_lfsr_reset),
                 .load_from_cascade(ch_load_from_cascade),
                 .cascade_sel      (4'b1000),  // process all 4 bytes of 32-bit slice
@@ -284,8 +303,8 @@ module axi4_slave_rd_injector #(
             );
 
             // Per-channel CRC-valid + beat counter
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     r_ch_crc_valid  <= 1'b0;
                     r_ch_beat_count <= '0;
                 end else begin
@@ -360,8 +379,8 @@ module axi4_slave_rd_injector #(
 
             assign fub_axi_rresp = r_rd_resp;
 
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     r_err_count  <= '0;
                     r_err_done   <= 1'b0;
                     r_rd_resp    <= 2'b00;
@@ -401,8 +420,8 @@ module axi4_slave_rd_injector #(
     assign fub_axi_rlast = (r_rd_state == RD_BURST) && (r_rd_beats_remaining == 8'd0);
     assign fub_axi_rvalid = (r_rd_state == RD_BURST);
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_rd_state <= RD_IDLE;
             r_rd_id <= '0;
             r_rd_user <= '0;
@@ -458,7 +477,7 @@ module axi4_slave_rd_injector #(
         .AXI_USER_WIDTH     (AXI_USER_WIDTH)
     ) u_axi4_slave_rd (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
 
         .s_axi_arid         (s_axi_arid),
         .s_axi_araddr       (s_axi_araddr),

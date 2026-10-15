@@ -85,6 +85,25 @@ module sdpram_slave_axi4_axil #(
     output logic                        o_dbg_busy_rd
 );
 
+    // ---------------------------------------------------------------
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    // ---------------------------------------------------------------
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     localparam int STRB_W            = DATA_WIDTH / 8;
     localparam int FUB_ARSIZE_DEFAULT = $clog2(STRB_W);
 
@@ -142,7 +161,7 @@ module sdpram_slave_axi4_axil #(
         .SKID_DEPTH_B   (SKID_DEPTH_B)
     ) u_axi4_wr (
         .aclk            (aclk),
-        .aresetn         (aresetn),
+        .aresetn         (w_aresetn),
 
         .s_axi_awid      (s_axi_awid),
         .s_axi_awaddr    (s_axi_awaddr),
@@ -211,7 +230,7 @@ module sdpram_slave_axi4_axil #(
         .SKID_DEPTH_R    (SKID_DEPTH_R)
     ) u_axil_rd (
         .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aresetn        (w_aresetn),
 
         .s_axil_araddr  (s_axil_araddr),
         .s_axil_arprot  (s_axil_arprot),
@@ -246,7 +265,7 @@ module sdpram_slave_axi4_axil #(
         .MEM_DEPTH    (MEM_DEPTH)
     ) u_core (
         .aclk    (aclk),
-        .aresetn (aresetn),
+        .aresetn (w_aresetn),
 
         .fub_awid     (fub_awid),
         .fub_awaddr   (fub_awaddr),
@@ -301,7 +320,7 @@ module sdpram_slave_axi4_axil #(
     // WRAP-burst sim assertion on the AXI4 write side
     // synopsys translate_off
     always_ff @(posedge aclk) begin
-        if (aresetn && s_axi_awvalid && s_axi_awready) begin
+        if (w_aresetn && s_axi_awvalid && s_axi_awready) begin
             assert (s_axi_awburst != 2'b10)
                 else $warning("%m: AW WRAP burst (awburst=%b) supported by axi_gen_addr but not yet validated", s_axi_awburst);
         end

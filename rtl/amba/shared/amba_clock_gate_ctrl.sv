@@ -40,13 +40,32 @@ module amba_clock_gate_ctrl #(
     output logic idle     // All buffers empty indicator
 );
 
+    // ---------------------------------------------------------------
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    // ---------------------------------------------------------------
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (clk_in),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     // Internal signals
     logic r_wakeup;
 
     // Combine activity signals
     // flop the wakeup signal
-    `ALWAYS_FF_RST(clk_in, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_wakeup <= 'h1;
+    `ALWAYS_FF_RST(clk_in, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) r_wakeup <= 'h1;
         else r_wakeup <= user_valid || axi_valid;
     )
 
@@ -59,7 +78,7 @@ module amba_clock_gate_ctrl #(
         .IDLE_CNTR_WIDTH    (ICW)
     ) u_clock_gate_ctrl (
         .clk_in             (clk_in),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
         .cfg_cg_enable      (cfg_cg_enable),
         .cfg_cg_idle_count  (cfg_cg_idle_count),
         .wakeup             (r_wakeup),

@@ -161,6 +161,25 @@ module axi4_slave_wr_crc_check #(
     logic                        fub_axi_bready;
 
     //==========================================================================
+    // Boundary reset synchronization
+    //==========================================================================
+    // The port aresetn is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync produces the internal reset every
+    // block below sees.
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
+    //==========================================================================
     // Extract 32-bit Slice from AXI Data
     //==========================================================================
 
@@ -229,8 +248,8 @@ module axi4_slave_wr_crc_check #(
     end
     assign w_bc_take = (r_bc_left > 8'd4) ? 8'd4 : r_bc_left;
     assign w_bc_sel  = 4'(4'b0001 << (w_bc_take - 8'd1));
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_bc_busy <= 1'b0;
             r_bc_data <= '0;
             r_bc_left <= '0;
@@ -276,7 +295,7 @@ module axi4_slave_wr_crc_check #(
                 .POLY_INIT        (CRC_INIT),
                 .XOROUT           (CRC_XOROUT),
                 .clk              (aclk),
-                .rst_n            (aresetn),
+                .rst_n            (w_aresetn),
                 .load_crc_start   (crc_reset),
                 .load_from_cascade(BYTE_CRC ? (r_bc_busy && (r_bc_ch == gch[CIW-1:0])) : ch_load_from_cascade),
                 .cascade_sel      (BYTE_CRC ? w_bc_sel : 4'b1000),
@@ -284,8 +303,8 @@ module axi4_slave_wr_crc_check #(
                 .crc              (crc_out_per_ch[gch])
             );
 
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     r_ch_crc_valid  <= 1'b0;
                     r_ch_beat_count <= '0;
                 end else begin
@@ -372,8 +391,8 @@ module axi4_slave_wr_crc_check #(
 
             assign fub_axi_bresp = r_bfifo_resp[r_bfifo_rptr];
 
-            `ALWAYS_FF_RST(aclk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
+            `ALWAYS_FF_RST(aclk, w_aresetn,
+                if (`RST_ASSERTED(w_aresetn)) begin
                     r_err_count  <= '0;
                     r_err_done   <= 1'b0;
                     err_injected <= 1'b0;
@@ -414,8 +433,8 @@ module axi4_slave_wr_crc_check #(
     assign fub_axi_bvalid = w_bfifo_rd_valid;
     assign {fub_axi_buser, fub_axi_bid} = r_bfifo_mem[r_bfifo_rptr];
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_bfifo_wptr  <= '0;
             r_bfifo_rptr  <= '0;
             r_bfifo_count <= '0;
@@ -435,8 +454,8 @@ module axi4_slave_wr_crc_check #(
         end
     )
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_wr_active <= 1'b0;
             r_wr_id <= '0;
             r_wr_user <= '0;
@@ -477,7 +496,7 @@ module axi4_slave_wr_crc_check #(
         .AXI_USER_WIDTH     (AXI_USER_WIDTH)
     ) u_axi4_slave_wr (
         .aclk               (aclk),
-        .aresetn            (aresetn),
+        .aresetn            (w_aresetn),
 
         .s_axi_awid         (s_axi_awid),
         .s_axi_awaddr       (s_axi_awaddr),

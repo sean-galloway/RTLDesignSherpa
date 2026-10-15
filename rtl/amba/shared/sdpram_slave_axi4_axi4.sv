@@ -121,6 +121,25 @@ module sdpram_slave_axi4_axi4 #(
 );
 
     // ---------------------------------------------------------------
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    // ---------------------------------------------------------------
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
+    // ---------------------------------------------------------------
     // FUB-side nets between the AXI4 skid leaf modules and sdpram_core
     // ---------------------------------------------------------------
     logic [AXI_ID_WIDTH-1:0]   fub_awid;
@@ -185,7 +204,7 @@ module sdpram_slave_axi4_axi4 #(
         .SKID_DEPTH_B   (SKID_DEPTH_B)
     ) u_axi4_wr (
         .aclk            (aclk),
-        .aresetn         (aresetn),
+        .aresetn         (w_aresetn),
 
         .s_axi_awid      (s_axi_awid),
         .s_axi_awaddr    (s_axi_awaddr),
@@ -256,7 +275,7 @@ module sdpram_slave_axi4_axi4 #(
         .SKID_DEPTH_R   (SKID_DEPTH_R)
     ) u_axi4_rd (
         .aclk            (aclk),
-        .aresetn         (aresetn),
+        .aresetn         (w_aresetn),
 
         .s_axi_arid      (s_axi_arid),
         .s_axi_araddr    (s_axi_araddr),
@@ -316,7 +335,7 @@ module sdpram_slave_axi4_axi4 #(
         .USE_WSTRB    (USE_WSTRB)
     ) u_core (
         .aclk    (aclk),
-        .aresetn (aresetn),
+        .aresetn (w_aresetn),
 
         .fub_awid     (fub_awid),
         .fub_awaddr   (fub_awaddr),
@@ -368,11 +387,11 @@ module sdpram_slave_axi4_axi4 #(
     // WRAP-burst sim assertions
     // synopsys translate_off
     always_ff @(posedge aclk) begin
-        if (aresetn && s_axi_awvalid && s_axi_awready) begin
+        if (w_aresetn && s_axi_awvalid && s_axi_awready) begin
             assert (s_axi_awburst != 2'b10)
                 else $warning("%m: AW WRAP burst (awburst=%b) supported by axi_gen_addr but not yet validated", s_axi_awburst);
         end
-        if (aresetn && s_axi_arvalid && s_axi_arready) begin
+        if (w_aresetn && s_axi_arvalid && s_axi_arready) begin
             assert (s_axi_arburst != 2'b10)
                 else $warning("%m: AR WRAP burst (arburst=%b) supported by axi_gen_addr but not yet validated", s_axi_arburst);
         end

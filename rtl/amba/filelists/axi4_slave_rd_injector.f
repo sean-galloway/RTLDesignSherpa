@@ -7,6 +7,10 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd.f
 -f $REPO_ROOT/rtl/common/filelists/dataint_crc.f
 -f $REPO_ROOT/rtl/common/filelists/shifter_lfsr_fibonacci.f

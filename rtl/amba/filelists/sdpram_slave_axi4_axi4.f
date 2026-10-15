@@ -12,6 +12,10 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 +incdir+$REPO_ROOT/rtl/common
 
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv

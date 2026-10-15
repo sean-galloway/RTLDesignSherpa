@@ -149,6 +149,25 @@ module axis4_master_injector #(
     logic [31:0] lfsr_out_per_ch [NUM_CHANNELS];
     logic [31:0] crc_out_per_ch  [NUM_CHANNELS];
 
+    //==========================================================================
+    // Boundary reset synchronization
+    //==========================================================================
+    // The port rst_n is treated as an asynchronous-assert input of unknown
+    // deassert quality: an N=3 reset_sync produces the internal reset every
+    // block below sees.
+    logic w_rst_n;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .sync_rst_n (w_rst_n)
+    );
+
     assign w_load = (r_state == IDLE) && cfg_start;
     assign w_seed = (cfg_lfsr_seed == '0) ? LFSR_SEED[LFSR_WIDTH-1:0] : cfg_lfsr_seed;
     assign w_beat = m_axis_tvalid && m_axis_tready;
@@ -218,7 +237,7 @@ module axis4_master_injector #(
                 .TAP_COUNT      (LFSR_TAP_COUNT)
             ) u_lfsr (
                 .clk      (clk),
-                .rst_n    (rst_n),
+                .rst_n    (w_rst_n),
                 .enable   (ch_beat || w_load),
                 .seed_load(w_load),
                 .seed_data(w_seed ^ 32'(gch)),   // unique seed per channel
@@ -237,7 +256,7 @@ module axis4_master_injector #(
                 .POLY_INIT        (CRC_INIT),
                 .XOROUT           (CRC_XOROUT),
                 .clk              (clk),
-                .rst_n            (rst_n),
+                .rst_n            (w_rst_n),
                 .load_crc_start   (w_load),
                 .load_from_cascade(ch_beat),
                 .cascade_sel      (4'b1000),          // process all 4 bytes of 32-bit slice
@@ -245,8 +264,8 @@ module axis4_master_injector #(
                 .crc              (crc_out_per_ch[gch])
             );
 
-            `ALWAYS_FF_RST(clk, rst_n,
-                if (`RST_ASSERTED(rst_n)) begin
+            `ALWAYS_FF_RST(clk, w_rst_n,
+                if (`RST_ASSERTED(w_rst_n)) begin
                     r_ch_crc_valid  <= 1'b0;
                     r_ch_beat_count <= '0;
                 end else if (w_load) begin
@@ -299,8 +318,8 @@ module axis4_master_injector #(
     // Scheduling FSM
     //==========================================================================
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    `ALWAYS_FF_RST(clk, w_rst_n,
+        if (`RST_ASSERTED(w_rst_n)) begin
             r_state           <= IDLE;
             r_ch              <= '0;
             r_beats_remaining <= '0;

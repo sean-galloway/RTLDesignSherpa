@@ -6,6 +6,10 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv

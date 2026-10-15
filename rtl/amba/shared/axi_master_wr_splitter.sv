@@ -210,6 +210,25 @@ module axi_master_wr_splitter
     input  logic                       fub_split_ready
 );
 
+    // ---------------------------------------------------------------
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    // ---------------------------------------------------------------
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
     logic r_split_fifo_overflow;   // sticky: a split record was LOST
     assign o_split_fifo_overflow = r_split_fifo_overflow;
 
@@ -322,7 +341,7 @@ module axi_master_wr_splitter
     ) inst_axi_split_combi (
         // Clock and reset for assertions
         .aclk                      (aclk),
-        .aresetn                   (aresetn),
+        .aresetn                   (w_aresetn),
 
         // Inputs
         .current_addr              (w_current_addr),
@@ -354,8 +373,8 @@ module axi_master_wr_splitter
 
     assign w_split_boundary_reached = (r_beat_counter + 1 >= r_expected_beats);
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_split_state <= IDLE;
             r_current_addr <= '0;
             r_current_len <= '0;
@@ -693,8 +712,8 @@ module axi_master_wr_splitter
     // Sticky overflow, sole driving process for this register: a split
     // record arrived while the FIFO was full. The integration-validation
     // block at the end of the file only ASSERTS on the event.
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
             r_split_fifo_overflow <= 1'b0;
         end else if (w_split_fifo_valid && !w_split_fifo_ready) begin
             r_split_fifo_overflow <= 1'b1;
@@ -734,7 +753,7 @@ module axi_master_wr_splitter
         .DEPTH(SPLIT_FIFO_DEPTH)
     ) inst_split_info_fifo (
         .axi_aclk(aclk),
-        .axi_aresetn(aresetn),
+        .axi_aresetn(w_aresetn),
         .wr_valid(w_split_fifo_valid),
         .wr_data(split_fifo_din),
         .rd_ready(fub_split_ready),
@@ -752,7 +771,7 @@ module axi_master_wr_splitter
 
     always_ff @(posedge aclk) begin
         /* verilator lint_off SYNCASYNCNET */
-        if (aresetn) begin
+        if (w_aresetn) begin
             // Verify split count is reasonable
             /* verilator lint_off CMPCONST */
             /* verilator lint_off UNSIGNED */

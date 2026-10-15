@@ -7,4 +7,8 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# Boundary reset synchronizer (block input reset is async-assert,
+# synchronized internally; complete closure)
+-f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
+
 $REPO_ROOT/rtl/amba/shared/axis_bus_meter.sv

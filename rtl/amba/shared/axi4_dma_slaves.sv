@@ -149,6 +149,25 @@ module axi4_dma_slaves #(
 );
 
     // ---------------------------------------------------------------
+    // Boundary reset synchronization. The port aresetn is treated as an
+    // asynchronous-assert input of unknown deassert quality: an N=3
+    // reset_sync (rtl/cdc, formally proven) produces the internal reset
+    // every block below sees.
+    // ---------------------------------------------------------------
+    logic w_aresetn;
+    reset_sync #(
+        .N             (3),
+        .KEEP_ATTRS    (1'b1),
+        .IN_ACTIVE_LOW (1'b1),
+        .OUT_ACTIVE_LOW(1'b1),
+        .ASYNC_ASSERT  (1'b1)
+    ) u_reset_sync (
+        .clk        (aclk),
+        .rst_n      (aresetn),
+        .sync_rst_n (w_aresetn)
+    );
+
+    // ---------------------------------------------------------------
     // Read side: LFSR-driven synthetic data + CRC accumulator
     // ---------------------------------------------------------------
     axi4_slave_rd_injector #(
@@ -172,7 +191,7 @@ module axi4_dma_slaves #(
         .REPLICATION_FACTOR (REPLICATION_FACTOR)
     ) u_rd_injector (
         .aclk                  (aclk),
-        .aresetn               (aresetn),
+        .aresetn               (w_aresetn),
         .crc_lfsr_reset        (read_lfsr_reset),
         .read_crc_value        (read_crc_value),
         .read_crc_valid        (read_crc_valid),
@@ -234,7 +253,7 @@ module axi4_dma_slaves #(
         .CRC_SLICE_OFFSET(CRC_SLICE_OFFSET)
     ) u_wr_crc_check (
         .aclk                   (aclk),
-        .aresetn                (aresetn),
+        .aresetn                (w_aresetn),
         .crc_reset              (write_crc_reset),
         .write_crc_value        (write_crc_value),
         .write_crc_valid        (write_crc_valid),
