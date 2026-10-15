@@ -79,7 +79,7 @@ through the FPGA-to-HPS SDRAM interface (f2sdram), whose ports are
 configurable as AXI-3 or Avalon-MM, 32 to 256 bits, with at most 256 bits
 per direction across all ports (Cyclone V HPS TRM, "FPGA-to-HPS SDRAM
 Interface"). This is the only AXI3 boundary in the data path, and it is
-held OUTSIDE both fabrics (§5.3).
+held OUTSIDE both fabrics (§5.4).
 
 ## 3. Definitions and constants
 
@@ -88,24 +88,24 @@ held OUTSIDE both fabrics (§5.3).
 | Board / device | Terasic DE10-Standard, Cyclone V 5CSXFC6D6F31C8 |
 | Toolchain | Quartus Prime 24.1 Standard (`/home/seang/intelFPGA_lite/24.1std`) |
 | HPS + hard memory controller | Intel DDR3 controller via HPS f2sdram, one AXI-3 port; identical HPS config both legs |
-| Clock plan | One fabric clock (same frequency both legs); the LFSR source and CRC sink on their own clock behind CDC (§5.2) |
+| Clock plan | One fabric clock (same frequency both legs); the LFSR source and CRC sink on their own clock behind CDC (§5.3) |
 | Mover | `stream` (`stream_top_ch8`, the Genesys 2 harness configuration from `stream_cfg_pkg`) |
 | Descriptors | `desc_ram` (`sdpram_slave_axi4_axi4`): host preloads over the control plane, `stream`'s descriptor master fetches across the fabric under test |
 | LFSR source | `axi4_slave_rd_injector` behind `axi4_cdc_rd` |
 | CRC sink | `axi4_slave_wr_crc_check` behind `axi4_cdc_wr` |
-| Write injector (W3 only) | `axi4_master_wr_injector`, same config both legs |
+| Write injector (W3 only) | `char_engine_block` (`char_gen_unit`, `NUM_GEN = 1`, its `axi4_master_wr_injector`) — the DDR2/LiteDRAM characterization's generator block, with its `chargen_regs` config; same config both legs |
 | Fabric-edge converter | `axi4_to_axi3` between the fabric's DDR port and f2sdram, same RTL both legs |
-| Host control path | Intel JTAG to Avalon Master Bridge → `avmm_to_axil4` → generated AXI4-Lite config bridge; control only, never data (§5.1) |
+| Host control path | Intel JTAG to Avalon Master Bridge → `avmm_to_axil4` → generated configuration bridge; control only, never data (§5.2) |
 | obs blocks | Identical `axi4_intf_master_observer` / `axi4_intf_slave_observer` RTL at the same probe points both legs |
 | Traffic | Identical sequence files, transaction counts, burst sequences, LFSR seeds |
 
 | The one variable | Leg A | Leg B |
 | --- | --- | --- |
-| The data fabric between the masters and slaves of §5.2 | Bridge-generated AXI4 crossbar | Platform Designer AXI4 interconnect |
+| The data fabric between the masters and slaves of §5.3 | Bridge-generated AXI4 crossbar | Platform Designer AXI4 interconnect |
 
 Matching rule: Leg A's bridge config (TOML) mirrors the PD system's topology
 — same master/slave count, same data widths, same ID widths, same address
-map (§5.2). No wider or fancier bridge than the PD fabric it replaces. Any PD
+map (Table 5.1). No wider or fancier bridge than the PD fabric it replaces. Any PD
 feature with no bridge equivalent (e.g. default slave, topology display) is
 matched functionally or documented as a difference.
 
@@ -206,7 +206,7 @@ normalized delta table (% difference, Leg A vs Leg B).
 - Same Quartus version, device, pin/clock constraints, and SDC.
 - Same sequence files and transaction streams both legs (identical counts,
   identical LFSR seeds both flavors and both legs), run first against the
-  sim harness and then on the board (§5.4).
+  sim harness and then on the board (§5.5).
 - Warm-up excluded: measurements taken over a fixed steady-state window.
 - N = 5 runs per point; report median and spread.
 - No hand-tuning a leg's constraints to win; constraint files are shared.
@@ -221,27 +221,53 @@ Two planes. The **control plane** carries the host's configuration and
 readout and is never measured. The **data plane** is the fabric under
 test and everything that moves data through it.
 
-### 5.1 Control plane
+### 5.1 System address map
+
+One 32-bit map for the whole design. The data fabric under test decodes the
+lower regions; the configuration bridge decodes the top region. They are two
+interconnects, but no address means two things, and every block the host or
+`stream` can reach is in this one table.
+
+| Base | Size | Block | Reached by | Behind the port |
+| --- | ---: | --- | --- | --- |
+| `0x0000_0000` | 1 GB | DDR3 | data fabric (`stream` rd/wr, injector) | `axi4_to_axi3` → f2sdram AXI-3 port (128-bit) → HPS DDR3 controller. Benchmark regions in `0x2000_0000`–`0x3FFF_FFFF`; the lower 512 MB stays with the HPS preloader/software |
+| `0x8000_0000` | 64 KB | `desc_ram` read port | data fabric (`stream` m_axi_desc) | `sdpram_slave_axi4_axi4`, the RAM the host preloads at `0xF002_0000` |
+| `0x9000_0000` | 256 MB | LFSR source | data fabric (`stream` m_axi_rd) | `axi4_cdc_rd` → `axi4_slave_rd_injector` (read-only; data is address-independent, the window only has to cover a run) |
+| `0xA000_0000` | 256 MB | CRC sink | data fabric (`stream` m_axi_wr) | `axi4_cdc_wr` → `axi4_slave_wr_crc_check` (write-only) |
+| `0xF000_0000` | 8 KB | `stream_apb` | config bridge (host) | STREAM's own registers: channel enables, scheduler and engine config, KICK, status, in-core perf CSRs |
+| `0xF001_0000` | 4 KB | `harness_csr` | config bridge (host) | the harness's own block: CTRL (start, clear_stats, soft_reset), STATUS, `CRC_RD_EXPECTED` / `CRC_WR_EXPECTED` / `CRC_WR_COMPUTED` |
+| `0xF002_0000` | 64 KB | `desc_ram` write port | config bridge (host) | descriptor preload, 32 bytes per descriptor |
+| `0xF018_0000` | 4 KB | `obs_slave` config | config bridge (host) | `axi4_intf_slave_observer` at the fabric's slave ports: rd ports DDR3, LFSR source; wr ports DDR3, CRC sink |
+| `0xF019_0000` | 4 KB | `obs_master` config | config bridge (host) | `axi4_intf_master_observer` at the fabric's master ports: rd port `stream` m_axi_rd; wr ports `stream` m_axi_wr, injector |
+| `0xF01C_0000` | 4 KB | `obs_desc` config | config bridge (host) | `axi4_intf_master_observer` on `stream` m_axi_desc (256-bit, read only) |
+| `0xF01D_0000` | 4 KB | `chargen` config | config bridge (host) | `char_engine_block`'s APB → cpuif → `chargen_regs`: the W3 injector's start address, stride, burst length, transaction count, ID mode, data mode, enable |
+
+: Table 5.1: System address map. The configuration region keeps the Genesys 2 harness offsets (`bridge_stream_mon_axil`) under a `0xF000_0000` base, so the generated regmaps carry over unchanged and only the base moves; the host takes the bases from the DE10 bridge TOML's generated map, never from constants. DDR3 is at base 0 so fabric addresses are SDRAM physical addresses at f2sdram with no translation. The LFSR polynomial and seed and the CRC configuration are parameters of the source and sink, not registers, and are identical in both legs.
+
+**Observer placement is the measurement.** Master-side observers sit
+between the masters and the fabric; slave-side observers sit between the
+fabric and the slaves. The same transaction is stamped on both sides, so
+bandwidth is measured where it is delivered and the difference between the
+two is the fabric's own latency. Both are outside the fabric instance and
+identical in both legs. These are the perf build's meters
+(`OBS_ENABLE_MON_TAPS = 0`); a monitor-flavor build would add the Genesys 2
+tally, error-drain and capture windows at their Genesys 2 offsets under the
+same base (`0xF003_0000`–`0xF017_FFFF`, `0xF01A_0000`), and none of those
+blocks is in v1.
+
+### 5.2 Control path
 
 Intel parts have no JTAG-to-AXI master; the Quartus debug master is the
 **JTAG to Avalon Master Bridge**, an Avalon-MM master driven from System
 Console. `avmm_to_axil4`
 (`projects/components/utility-ip/converters/rtl/`) converts it to the
-AXI4-Lite master the harness expects — the same front-end contract the
-Genesys 2 harness gets from `uart_axil_bridge`. Writes are non-posted (the
-converter holds waitrequest until BRESP), so configuration lands in the
-order the host wrote it. A generated AXI4-Lite bridge fans out to the
-harness slaves; this bridge is identical in both legs and is not the fabric
-under test.
-
-| Base | Size | Slave |
-| --- | ---: | --- |
-| `0x0000_0000` | 8 KB | `stream_apb`: STREAM configuration and kicks |
-| `0x0001_0000` | 4 KB | `harness_csr`: CTRL / STATUS / CRC expected and computed |
-| `0x0002_0000` | 64 KB | `desc_ram` host write port: descriptor preload |
-| `0x0019_0000` | 4 KB | `obs_apb`: observer configuration and the bandwidth / latency readout |
-
-: Table 5.1: Control-plane address map (AXI4-Lite, 32-bit). A subset of the Genesys 2 harness map (`bridge_stream_mon_axil`, which both Genesys 2 builds use) at the same offsets, so the generated regmaps and host libraries carry over. The LFSR polynomial and seed and the CRC configuration are parameters of the source and sink, not registers, and are identical in both legs.
+AXI4-Lite master the configuration bridge expects — the same front-end
+contract the Genesys 2 harness gets from `uart_axil_bridge`. Writes are
+non-posted (the converter holds waitrequest until BRESP), so configuration
+lands in the order the host wrote it. The configuration bridge is generated
+(AXI4-Lite in; APB out to `stream_apb`, the observers and `chargen`, AXI4-Lite to
+`harness_csr`, AXI4 to the `desc_ram` write port), is
+identical in both legs, and is not the fabric under test.
 
 Host transport: the shared stack's by-name register layer
 (`UartRegisterMap` / `Device` / `DeviceBus`) takes any bridge object with
@@ -251,27 +277,16 @@ serves the board; the sim harness drives the same register calls into
 sequence files on both sides — the equivalence property of the shared
 host stack, at the register-call level rather than the UART byte level.
 
-### 5.2 Data plane — the fabric under test
-
-Masters (AXI4, fabric clock):
+### 5.3 Data path — the fabric under test
 
 | Master | Width | Role |
 | --- | ---: | --- |
 | `stream` m_axi_desc | 256 | descriptor fetch from `desc_ram` |
 | `stream` m_axi_rd | 128 | source reads (DDR3 or LFSR source) |
 | `stream` m_axi_wr | 128 | sink writes (DDR3 or CRC sink) |
-| `axi4_master_wr_injector` | 128 | W3 contention writes only |
+| `char_engine_block` (`axi4_master_wr_injector`) | 128 | W3 contention writes only |
 
-Slaves and the data-plane address map:
-
-| Base | Size | Slave | Path behind the fabric port |
-| --- | ---: | --- | --- |
-| `0x0000_0000` | 1 GB | DDR3 | `axi4_to_axi3` → f2sdram AXI-3 port (128-bit) → HPS DDR3 controller. Benchmark regions live in `0x2000_0000`–`0x3FFF_FFFF`; the lower 512 MB stays with the HPS preloader/software |
-| `0x8000_0000` | 64 KB | `desc_ram` read port | `sdpram_slave_axi4_axi4`, the same RAM the host preloads over the control plane |
-| `0x9000_0000` | 256 MB | LFSR source | `axi4_cdc_rd` → `axi4_slave_rd_injector` (read-only; data is address-independent, the window only has to cover a run) |
-| `0xA000_0000` | 256 MB | CRC sink | `axi4_cdc_wr` → `axi4_slave_wr_crc_check` (write-only) |
-
-: Table 5.2: Data-plane address map (AXI4, 32-bit address). DDR3 is at base 0 so fabric addresses are SDRAM physical addresses at f2sdram with no translation.
+: Table 5.2: Data-fabric masters (AXI4, fabric clock). The slaves are the first four rows of Table 5.1.
 
 The LFSR source and CRC sink run on their own clock behind the CDC
 crossings so they cannot be the bottleneck; the crossings are the same RTL
@@ -281,7 +296,7 @@ real workload. (On the Genesys 2 the descriptor master is wired straight to
 `desc_ram`; that wiring is one `desc_ram` port move if a run wants it
 removed from the measurement.)
 
-### 5.3 The protocol boundary
+### 5.4 The protocol boundary
 
 Both fabrics are AXI4 on every port. The one AXI3 boundary, f2sdram, is
 crossed by the repo's `axi4_to_axi3` sitting between the fabric's DDR3
@@ -292,7 +307,7 @@ Keeping the conversion outside both fabrics is what makes bursts above 16
 beats a fair point: they are split by the same RTL in both legs, and neither
 fabric's size or latency carries a converter the other does not.
 
-### 5.4 Simulation before silicon
+### 5.5 Simulation before silicon
 
 Both legs run in the sim harness before any bitstream, under the house FPGA
 method (`vault/handbook/fpga/cmn-infra/`): the same harness RTL, the same
@@ -352,7 +367,7 @@ AXI5; backpressure pacing (A2 deferred).
 | Risk | Mitigation |
 | --- | --- |
 | HPS boot complexity (the controller needs HPS configuration) | Vendor reference boot flow from the collateral; bare-metal preloader if Linux is overkill |
-| f2sdram port count/width differs from the 128-bit AXI-3 assumed in §5.2 | M0 fixes it; the fabric-edge converter and the TOML follow the measured port |
+| f2sdram port count/width differs from the 128-bit AXI-3 assumed in Table 5.1 | M0 fixes it; the fabric-edge converter and the TOML follow the measured port |
 | PD leg emits features the bridge can't match | Match functionally or document as a difference in the analysis; never let Leg A exceed Leg B's configured capability |
 | Leg A fmax below Leg B on Cyclone V (different RAM inference styles) | Report achieved fmax at the shared clock target plus a best-effort column; the comparison is primarily at-equal-clock |
 | Mirror flavors disagree (real asymmetry) | That is a finding, not a failure: attribute it with W2 (fabric only) against W1 (with the controller) |

@@ -1,38 +1,47 @@
 // DE10-Standard fabric benchmark architecture (PRD.md section 5, Figure 5.1).
-// PLANNED: no RTL or build exists yet; this draws PRD v0.4's control plane,
-// data plane and address map. House style: vault/handbook/authoring/block-diagrams.md
-// ("(planned)" in the title; the fabric under test in the center, emphasized).
+// PLANNED: no RTL or build exists yet; this draws PRD v0.4's system address
+// map (Table 5.1): the configuration region at 0xF000_0000 and the data fabric
+// below it, with the observers at the fabric's master and slave ports.
+// House style: vault/handbook/authoring/block-diagrams.md ("(planned)" in the
+// title; the fabric under test in the center, emphasized).
 digraph de10_fabric_benchmark_planned {
-    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="DE10-Standard (Cyclone V 5CSX) fabric benchmark (planned)"];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="DE10-Standard (Cyclone V 5CSX) fabric benchmark (planned)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     subgraph cluster_ctl {
-        label="Control plane - identical both legs, never measured"; fontsize=10; style=dashed;
+        label="Configuration path - identical both legs, never measured"; fontsize=10; style=dashed;
         jtag [label="JTAG to Avalon Master Bridge\n(System Console host)", fillcolor="white"];
         av   [label="avmm_to_axil4"];
-        cbr  [label="AXI4-Lite config bridge (generated)\nstream_apb 0x0  harness_csr 0x1_0000\ndesc_ram wr 0x2_0000  obs_apb 0x19_0000"];
+        cbr  [label="Configuration bridge (generated), base 0xF000_0000\nstream_apb 0xF000_0000   harness_csr 0xF001_0000   desc_ram wr 0xF002_0000\nobs_slave 0xF018_0000   obs_master 0xF019_0000   obs_desc 0xF01C_0000   chargen 0xF01D_0000"];
+        hcsr [label="harness_csr\nCTRL, STATUS, CRC expected / computed"];
         jtag -> av [xlabel="Avalon-MM"];
         av -> cbr [xlabel="AXI4-Lite"];
+        cbr -> hcsr;
     }
 
-    str  [label="stream (stream_top_ch8)\nm_axi_desc 256  m_axi_rd 128  m_axi_wr 128"];
-    inj  [label="axi4_master_wr_injector\n(W3 only)"];
+    str  [label="stream (stream_top_ch8)\nconfig: stream_apb\nm_axi_desc 256  m_axi_rd 128  m_axi_wr 128"];
+    inj  [label="char_engine_block (W3 injector)\nconfig: chargen"];
+    obm  [label="obs_master + obs_desc\n(master-side meters)", fillcolor="#FFF2CC"];
     fab  [label="DATA FABRIC under test - AXI4 on every port\nA: bridge crossbar    B: Platform Designer interconnect", penwidth=1.8, width=6.5];
+    obs  [label="obs_slave\n(slave-side meters)", fillcolor="#FFF2CC"];
 
     ddr  [label="DDR3  0x0000_0000 (1 GB)\naxi4_to_axi3 -> f2sdram AXI-3\n-> HPS DDR3 controller", fillcolor="white"];
     dsc  [label="desc_ram rd  0x8000_0000\nsdpram_slave_axi4_axi4"];
     src  [label="LFSR source  0x9000_0000\naxi4_cdc_rd -> axi4_slave_rd_injector"];
     snk  [label="CRC sink  0xA000_0000\naxi4_cdc_wr -> axi4_slave_wr_crc_check"];
 
-    cbr -> str [xlabel="APB config / kick"];
+    cbr -> str [xlabel="APB"];
+    cbr -> inj [xlabel="APB"];
     cbr -> dsc [style=dashed, xlabel="preload"];
-    str -> fab [penwidth=1.6];
-    inj -> fab;
-    fab -> ddr [dir=both];
+    str -> obm [penwidth=1.6];
+    inj -> obm;
+    obm -> fab [penwidth=1.6];
+    fab -> obs [penwidth=1.6];
+    obs -> ddr [dir=both];
     fab -> dsc;
-    fab -> src;
-    fab -> snk;
+    obs -> src;
+    obs -> snk;
 
     { rank=same; str; inj; }
     { rank=same; ddr; dsc; src; snk; }
