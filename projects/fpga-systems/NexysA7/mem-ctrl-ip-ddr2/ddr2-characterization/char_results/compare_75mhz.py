@@ -24,7 +24,9 @@ def bytes_per_cycle(bytes_moved, cycles):
     return float(bytes_moved) / float(cycles)
 
 pumice = read_csv(ROOT / 'char_pumice_soak_2026-10-13.csv')
-granite = read_csv(ROOT / 'char_granite_soak_2026-10-13.csv')
+import sys
+granite_csv = sys.argv[1] if len(sys.argv) > 1 else 'char_granite_soak_2026-10-13.csv'
+granite = read_csv(ROOT / granite_csv)
 litedram = read_csv(ROOT / 'char_litedram75_soak_2026-10-13.csv')
 
 pumice_best = best_per_scenario(pumice)

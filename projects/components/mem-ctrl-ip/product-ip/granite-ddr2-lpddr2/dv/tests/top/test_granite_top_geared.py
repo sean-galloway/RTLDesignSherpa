@@ -282,11 +282,32 @@ async def _dfi_model(dut, cap):
                 state = "idle"
 
 
-@pytest.mark.parametrize("test_level", reg_level_grid())
-def test_granite_top_geared(request, test_level):
+def _run_matrix():
+    """(test_level, num_entries, many) cells.
+
+    The level grid runs at the environment/default NUM_ENTRIES (1). When that
+    default is in force, one extra cell always runs the N-deep configuration
+    with MORE outstanding bursts than entries: slot recycling is what the
+    commit/issue-ready contract deadlock needed, and N=1 self-heals it (the
+    2026-10-13/14 granite hang). GRANITE_NUM_ENTRIES in the env replaces the
+    whole matrix for directed runs.
+    """
+    lvl = reg_level_grid()
+    n_env = os.environ.get("GRANITE_NUM_ENTRIES", "1")
+    many_env = os.environ.get("GRANITE_MANY", "0")
+    runs = [(l, n_env, many_env) for l in lvl]
+    if n_env == "1":
+        runs.append((lvl[0], "8", "12"))
+    return runs
+
+
+@pytest.mark.parametrize("test_level,num_entries,many", _run_matrix())
+def test_granite_top_geared(request, test_level, num_entries, many):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "granite_top_geared"
-    test_name = f"cocotb_test_granite_top_geared_{test_level}"
+    test_name = f"cocotb_test_granite_top_geared_{test_level}_n{num_entries}"
+    if many != "0":
+        test_name += f"_m{many}"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -297,11 +318,12 @@ def test_granite_top_geared(request, test_level):
               "ROW_WIDTH": "14", "COL_WIDTH": "10",
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT),
               "DRAM_DEVICE_WIDTH": str(DRAM_DEV), "DRAM_BL": str(BL),
-              "NUM_ENTRIES": os.environ.get("GRANITE_NUM_ENTRIES", "1"),
+              "NUM_ENTRIES": num_entries,
               "RD_RET_DEPTH": "32", "CSR_ADDR_W": "16"}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 "GRANITE_MANY": many,
                  **level_env(test_level)}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,

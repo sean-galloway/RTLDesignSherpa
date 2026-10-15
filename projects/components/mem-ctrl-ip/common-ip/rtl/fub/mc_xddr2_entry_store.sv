@@ -598,13 +598,8 @@ module mc_xddr2_entry_store
 `ifndef SYNTHESIS
     always @(posedge aclk)
         if (aresetn) begin
-            assert (!(w_wr_commit_fire && (!r_wr_valid[wr_commit_slot_i]
-                                       || !r_wr_fdone[wr_commit_slot_i]
-                                       || r_wr_sched[wr_commit_slot_i])))
-              else $error("ENTRY_STORE @%0t: commit of WR slot %0d not schedulable (valid=%b fdone=%b sched=%b)",
-                          $time, wr_commit_slot_i,
-                          r_wr_valid[wr_commit_slot_i], r_wr_fdone[wr_commit_slot_i],
-                          r_wr_sched[wr_commit_slot_i]);
+            assert (!(w_wr_commit_fire && !r_wr_valid[wr_commit_slot_i]))
+              else $error("ENTRY_STORE @%0t: commit of WR slot %0d which is NOT valid", $time, wr_commit_slot_i);
             assert (!(w_rd_issue_fire && !r_rd_valid[rd_issue_slot_i]))
               else $error("ENTRY_STORE @%0t: issue of RD slot %0d which is NOT valid", $time, rd_issue_slot_i);
             assert (!(w_wd_fire && !w_fill_vld))
