@@ -37,7 +37,7 @@ slave each AW selected and steers the data beats to match.
 ### Implementation
 
 There is no IDLE/WRITING state machine. Each master width-path has a
-16-entry W destination FIFO in the crossbar (`<master>_<w>b_wdest_*`),
+`max_outstanding`-entry W destination FIFO in the crossbar (`<master>_<w>b_wdest_*`),
 and each master adapter has a matching `w_trk` FIFO of slave selects:
 
 ```systemverilog
@@ -66,7 +66,7 @@ on the W beat carrying WLAST, and several bursts can be queued at once.
 
 > **Not built.** There is no per-master outstanding-transaction counter and no
 > flow control derived from one. Outstanding depth is bounded by the per-slave
-> bridge_id tracker (CAM or FIFO, 16 deep), whose fullness gates the address handshake (bridge BUG-009, was BRIDGE-011).
+> bridge_id tracker (CAM or FIFO, `max_outstanding` deep, default 16), whose fullness gates the address handshake (bridge BUG-009, was BRIDGE-011).
 > Searching the generated RTL for a response-pending counter returns nothing.
 
 ### Purpose

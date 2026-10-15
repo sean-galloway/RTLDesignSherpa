@@ -105,7 +105,7 @@ Action: Force transaction completion
 
 > **Built as backpressure, not as an error.** Each slave adapter's response
 > tracker (`bridge_cam` for a multi-master AXI4/AXI5 slave, an in-order FIFO
-> otherwise) is 16 deep; when it is full the slave's AWREADY / ARREADY toward
+> otherwise) is the slave's `max_outstanding` deep (default 16); when it is full the slave's AWREADY / ARREADY toward
 > the crossbar drops (bridge BUG-009). No error response is generated. See
 > ch04.
 

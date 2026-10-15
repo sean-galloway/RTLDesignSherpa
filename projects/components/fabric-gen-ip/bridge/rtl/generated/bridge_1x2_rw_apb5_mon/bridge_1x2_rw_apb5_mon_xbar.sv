@@ -484,7 +484,7 @@ module bridge_1x2_rw_apb5_mon_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu 32b path -> sram, periph5, subtractive
+    // cpu 32b path -> sram, periph5, subtractive (16 deep: max_outstanding)
     logic [1:0] cpu_32b_wdest_mem [16];
     logic [4:0] cpu_32b_wdest_wptr, cpu_32b_wdest_rptr;
     wire [1:0] cpu_32b_wdest_enc = cpu_32b_aw_to_periph5 ? 2'd1 : cpu_32b_aw_to_subtractive ? 2'd2 : 2'd0;

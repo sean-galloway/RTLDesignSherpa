@@ -80,6 +80,14 @@ class SlaveAdapterGenerator:
         self.skid_depth_r = 2
         self.skid_depth_b = 2
 
+
+    @property
+    def max_outstanding(self) -> int:
+        """Response tracker depth (bridge_cam or in-order FIFO): this slave's
+        max_outstanding, power of two 2..64 (a fixed 16 until bridge GitHub
+        #119 L5)."""
+        return int(getattr(self.slave, 'max_outstanding', 16))
+
     def generate(self) -> str:
         """
         Generate complete slave adapter module.
@@ -839,7 +847,7 @@ class SlaveAdapterGenerator:
         lines.append("    bridge_cam #(")
         lines.append("        .TAG_WIDTH(ID_WIDTH),")
         lines.append("        .DATA_WIDTH(BRIDGE_ID_WIDTH),")
-        lines.append("        .DEPTH(16),")
+        lines.append(f"        .DEPTH({self.max_outstanding}),  // max_outstanding")
         lines.append("        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support")
         lines.append("        .PIPELINE_EVICT(0)")
         lines.append("    ) u_wr_cam (")
@@ -894,7 +902,7 @@ class SlaveAdapterGenerator:
         lines.append("    // own ready, masked before it reaches the crossbar.")
         lines.append("    logic wr_trk_full;")
         lines.append("    logic w_sub_awready;")
-        lines.append("    localparam WR_FIFO_DEPTH = 16;")
+        lines.append(f"    localparam WR_FIFO_DEPTH = {self.max_outstanding};  // max_outstanding")
         lines.append("    logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];")
         lines.append("    logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;")
         lines.append("")
@@ -993,7 +1001,7 @@ class SlaveAdapterGenerator:
         lines.append("    bridge_cam #(")
         lines.append("        .TAG_WIDTH(ID_WIDTH),")
         lines.append("        .DATA_WIDTH(BRIDGE_ID_WIDTH),")
-        lines.append("        .DEPTH(16),")
+        lines.append(f"        .DEPTH({self.max_outstanding}),  // max_outstanding")
         lines.append("        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support")
         lines.append("        .PIPELINE_EVICT(0)")
         lines.append("    ) u_rd_cam (")
@@ -1060,7 +1068,7 @@ class SlaveAdapterGenerator:
         lines.append("    // bridge BUG-009 (was BRIDGE-011) not-full gating -- see the write channel.")
         lines.append("    logic rd_trk_full;")
         lines.append("    logic w_sub_arready;")
-        lines.append("    localparam RD_FIFO_DEPTH = 16;")
+        lines.append(f"    localparam RD_FIFO_DEPTH = {self.max_outstanding};  // max_outstanding")
         lines.append("    logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];")
         lines.append("    logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;")
         lines.append("")

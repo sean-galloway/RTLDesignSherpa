@@ -26,8 +26,8 @@ digraph id_management {
     { rank=same; arb; rmux; }
     arb -> rmux [style=invis];
 
-    cam [label="CAM Mode - <slave>_adapter\nu_wr_cam / u_rd_cam: bridge_cam, tag = AXI ID,\ndata = bridge_id, 16 deep, duplicates allowed;\nlooked up by BID / RID, freed at B / last R.\nBuilt for an AXI4 / AXI5 slave of a multi-master\nbridge, or any slave with enable_ooo", style="filled,dashed"];
-    fifo [label="FIFO Mode - <slave>_adapter\nwr_fifo / rd_fifo of bridge_id, 16 deep,\nwritten at AW / AR accept;\nthe head answers the next B / last R\n(the slave must respond in request order).\nBuilt for a single-master bridge, shim\nslaves and the catch-all", style="filled,dashed", group=R];
+    cam [label="CAM Mode - <slave>_adapter\nu_wr_cam / u_rd_cam: bridge_cam, tag = AXI ID,\ndata = bridge_id, max_outstanding deep, duplicates allowed;\nlooked up by BID / RID, freed at B / last R.\nBuilt for an AXI4 / AXI5 slave of a multi-master\nbridge, or any slave with enable_ooo", style="filled,dashed"];
+    fifo [label="FIFO Mode - <slave>_adapter\nwr_fifo / rd_fifo of bridge_id, max_outstanding deep,\nwritten at AW / AR accept;\nthe head answers the next B / last R\n(the slave must respond in request order).\nBuilt for a single-master bridge, shim\nslaves and the catch-all", style="filled,dashed", group=R];
     { rank=same; cam; fifo; }
 
     bar [label="Slave Port - <slave>_s_axi_*: AW / AR leave with ID = {BRIDGE_ID, id}; B / R return carrying the same ID",

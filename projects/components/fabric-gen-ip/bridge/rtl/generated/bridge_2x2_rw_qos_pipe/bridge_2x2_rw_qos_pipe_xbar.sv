@@ -627,15 +627,16 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign xs_ddr_axi_awvalid = cpu_32b_aw_gnt_ddr || dma_32b_aw_gnt_ddr;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
-    logic [0:0] ddr_wowner_mem [16];
-    logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
+    // (32 deep: max_outstanding 16 + 2 skid)
+    logic [0:0] ddr_wowner_mem [32];
+    logic [5:0] ddr_wowner_wptr, ddr_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             ddr_wowner_wptr <= '0;
             ddr_wowner_rptr <= '0;
         end else begin
             if (xs_ddr_axi_awvalid && xs_ddr_axi_awready) begin
-                ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
+                ddr_wowner_mem[ddr_wowner_wptr[4:0]] <= ddr_aw_arb_gnt;
                 ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
             end
             if (xs_ddr_axi_wvalid && xs_ddr_axi_wready && xs_ddr_axi_wlast) begin
@@ -644,7 +645,7 @@ module bridge_2x2_rw_qos_pipe_xbar
         end
     )
     wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
-    wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
+    wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[4:0]];
     assign cpu_32b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && cpu_32b_w_to_ddr;
     assign dma_32b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd1) && dma_32b_w_to_ddr;
 
@@ -847,15 +848,16 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign xs_sram_axi_awvalid = cpu_32b_aw_gnt_sram || dma_32b_aw_gnt_sram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
-    logic [0:0] sram_wowner_mem [16];
-    logic [4:0] sram_wowner_wptr, sram_wowner_rptr;
+    // (32 deep: max_outstanding 16 + 2 skid)
+    logic [0:0] sram_wowner_mem [32];
+    logic [5:0] sram_wowner_wptr, sram_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             sram_wowner_wptr <= '0;
             sram_wowner_rptr <= '0;
         end else begin
             if (xs_sram_axi_awvalid && xs_sram_axi_awready) begin
-                sram_wowner_mem[sram_wowner_wptr[3:0]] <= sram_aw_arb_gnt;
+                sram_wowner_mem[sram_wowner_wptr[4:0]] <= sram_aw_arb_gnt;
                 sram_wowner_wptr <= sram_wowner_wptr + 1'b1;
             end
             if (xs_sram_axi_wvalid && xs_sram_axi_wready && xs_sram_axi_wlast) begin
@@ -864,7 +866,7 @@ module bridge_2x2_rw_qos_pipe_xbar
         end
     )
     wire sram_wowner_valid = (sram_wowner_wptr != sram_wowner_rptr);
-    wire [0:0] sram_wowner_head = sram_wowner_mem[sram_wowner_rptr[3:0]];
+    wire [0:0] sram_wowner_head = sram_wowner_mem[sram_wowner_rptr[4:0]];
     assign cpu_32b_w_sel_sram = sram_wowner_valid && (sram_wowner_head == 1'd0) && cpu_32b_w_to_sram;
     assign dma_32b_w_sel_sram = sram_wowner_valid && (sram_wowner_head == 1'd1) && dma_32b_w_to_sram;
 
@@ -1067,15 +1069,16 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign xs_subtractive_axi_awvalid = cpu_32b_aw_gnt_subtractive || dma_32b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
-    logic [0:0] subtractive_wowner_mem [16];
-    logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    // (32 deep: max_outstanding 16 + 2 skid)
+    logic [0:0] subtractive_wowner_mem [32];
+    logic [5:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             subtractive_wowner_wptr <= '0;
             subtractive_wowner_rptr <= '0;
         end else begin
             if (xs_subtractive_axi_awvalid && xs_subtractive_axi_awready) begin
-                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+                subtractive_wowner_mem[subtractive_wowner_wptr[4:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
             end
             if (xs_subtractive_axi_wvalid && xs_subtractive_axi_wready && xs_subtractive_axi_wlast) begin
@@ -1084,7 +1087,7 @@ module bridge_2x2_rw_qos_pipe_xbar
         end
     )
     wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
-    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[4:0]];
     assign cpu_32b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd0) && cpu_32b_w_to_subtractive;
     assign dma_32b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd1) && dma_32b_w_to_subtractive;
 
@@ -1198,7 +1201,7 @@ module bridge_2x2_rw_qos_pipe_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu 32b path -> ddr, sram, subtractive
+    // cpu 32b path -> ddr, sram, subtractive (16 deep: max_outstanding)
     logic [1:0] cpu_32b_wdest_mem [16];
     logic [4:0] cpu_32b_wdest_wptr, cpu_32b_wdest_rptr;
     wire [1:0] cpu_32b_wdest_enc = cpu_32b_aw_to_sram ? 2'd1 : cpu_32b_aw_to_subtractive ? 2'd2 : 2'd0;
@@ -1224,7 +1227,7 @@ module bridge_2x2_rw_qos_pipe_xbar
     assign cpu_32b_w_to_sram = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd1);
     assign cpu_32b_w_to_subtractive = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd2);
 
-    // dma 32b path -> ddr, sram, subtractive
+    // dma 32b path -> ddr, sram, subtractive (16 deep: max_outstanding)
     logic [1:0] dma_32b_wdest_mem [16];
     logic [4:0] dma_32b_wdest_wptr, dma_32b_wdest_rptr;
     wire [1:0] dma_32b_wdest_enc = dma_32b_aw_to_sram ? 2'd1 : dma_32b_aw_to_subtractive ? 2'd2 : 2'd0;

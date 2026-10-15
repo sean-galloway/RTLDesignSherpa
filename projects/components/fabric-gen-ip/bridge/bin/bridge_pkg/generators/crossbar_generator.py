@@ -523,9 +523,17 @@ class CrossbarGenerator:
             base = f"{m.name}_{suffix}_wdest"
             n = len(slaves)
             j = max(1, (n - 1).bit_length())
-            lines.append(f"    // {m.name} {suffix} path -> {', '.join(s.name for s in slaves)}")
-            lines.append(f"    logic [{j-1}:0] {base}_mem [16];")
-            lines.append(f"    logic [4:0] {base}_wptr, {base}_rptr;")
+            # An entry lives from this path's AW handshake to its WLAST, both
+            # here; the B that frees the master adapter's outstanding slot
+            # comes after that WLAST, so live entries <= the master's
+            # max_outstanding. No full check, so the FIFO covers that bound
+            # (a fixed 16 until bridge GitHub #119 L5).
+            ddepth = 1 << (int(getattr(m, 'max_outstanding', 16)) - 1).bit_length()
+            db = ddepth.bit_length() - 1
+            lines.append(f"    // {m.name} {suffix} path -> {', '.join(s.name for s in slaves)}"
+                         f" ({ddepth} deep: max_outstanding)")
+            lines.append(f"    logic [{j-1}:0] {base}_mem [{ddepth}];")
+            lines.append(f"    logic [{db}:0] {base}_wptr, {base}_rptr;")
             enc = f"{j}'d0"
             for code, s in reversed(list(enumerate(slaves))):
                 if code == 0:
@@ -540,7 +548,7 @@ class CrossbarGenerator:
             lines.append(f"            {base}_rptr <= '0;")
             lines.append(f"        end else begin")
             lines.append(f"            if ({base}_push) begin")
-            lines.append(f"                {base}_mem[{base}_wptr[3:0]] <= {base}_enc;")
+            lines.append(f"                {base}_mem[{base}_wptr[{db-1}:0]] <= {base}_enc;")
             lines.append(f"                {base}_wptr <= {base}_wptr + 1'b1;")
             lines.append(f"            end")
             lines.append(f"            if ({base}_pop) begin")
@@ -549,7 +557,7 @@ class CrossbarGenerator:
             lines.append(f"        end")
             lines.append(f"    )")
             lines.append(f"    wire {base}_valid = ({base}_wptr != {base}_rptr);")
-            lines.append(f"    wire [{j-1}:0] {base}_head = {base}_mem[{base}_rptr[3:0]];")
+            lines.append(f"    wire [{j-1}:0] {base}_head = {base}_mem[{base}_rptr[{db-1}:0]];")
             for code, s in enumerate(slaves):
                 lines.append(f"    assign {m.name}_{suffix}_w_to_{s.name} = {base}_valid && ({base}_head == {j}'d{code});")
             lines.append("")
@@ -789,16 +797,29 @@ class CrossbarGenerator:
             n = len(wr_masters)
             k = max(1, (n - 1).bit_length())
             own = f"{slave.name}_wowner"
+            # Depth bound: an entry lives from the AW handshake here to its
+            # WLAST here, and WLAST precedes the B that frees the slave
+            # tracker, so live entries <= the slave's max_outstanding plus
+            # what sits between this point and the tracker -- the 2-deep AW
+            # skid of a registered crossbar. No full check, so the FIFO
+            # covers that bound. A fixed 16 could overflow on a pipelined
+            # bridge (16 + 2) and on any slave deeper than 16
+            # (bridge GitHub #119 L5).
+            omo = int(getattr(slave, 'max_outstanding', 16))
+            bound = omo + (2 if self.pipeline else 0)
+            odepth = 1 << (bound - 1).bit_length()
+            ob = odepth.bit_length() - 1
             lines.append(f"    // W owner FIFO: slave-side AW accept order owns the W channel")
-            lines.append(f"    logic [{k-1}:0] {own}_mem [16];")
-            lines.append(f"    logic [4:0] {own}_wptr, {own}_rptr;")
+            lines.append(f"    // ({odepth} deep: max_outstanding {omo}" + (" + 2 skid)" if self.pipeline else ")"))
+            lines.append(f"    logic [{k-1}:0] {own}_mem [{odepth}];")
+            lines.append(f"    logic [{ob}:0] {own}_wptr, {own}_rptr;")
             lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
             lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
             lines.append(f"            {own}_wptr <= '0;")
             lines.append(f"            {own}_rptr <= '0;")
             lines.append(f"        end else begin")
             lines.append(f"            if ({prefix}awvalid && {prefix}awready) begin")
-            lines.append(f"                {own}_mem[{own}_wptr[3:0]] <= {slave.name}_aw_arb_gnt;")
+            lines.append(f"                {own}_mem[{own}_wptr[{ob-1}:0]] <= {slave.name}_aw_arb_gnt;")
             lines.append(f"                {own}_wptr <= {own}_wptr + 1'b1;")
             lines.append(f"            end")
             lines.append(f"            if ({prefix}wvalid && {prefix}wready && {prefix}wlast) begin")
@@ -807,7 +828,7 @@ class CrossbarGenerator:
             lines.append(f"        end")
             lines.append(f"    )")
             lines.append(f"    wire {own}_valid = ({own}_wptr != {own}_rptr);")
-            lines.append(f"    wire [{k-1}:0] {own}_head = {own}_mem[{own}_rptr[3:0]];")
+            lines.append(f"    wire [{k-1}:0] {own}_head = {own}_mem[{own}_rptr[{ob-1}:0]];")
             for i, m in enumerate(wr_masters):
                 lines.append(f"    assign {m.name}_{suffix}_w_sel_{slave.name} = "
                              f"{own}_valid && ({own}_head == {k}'d{i}) && {m.name}_{suffix}_w_to_{slave.name};")

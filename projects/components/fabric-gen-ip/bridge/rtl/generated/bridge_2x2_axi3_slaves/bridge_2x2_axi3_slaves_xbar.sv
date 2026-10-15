@@ -447,6 +447,7 @@ module bridge_2x2_axi3_slaves_xbar
     assign ddr_axi3_axi_awvalid = cpu_axi4_64b_aw_gnt_ddr_axi3 || host_axil_64b_aw_gnt_ddr_axi3;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] ddr_axi3_wowner_mem [16];
     logic [4:0] ddr_axi3_wowner_wptr, ddr_axi3_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -613,6 +614,7 @@ module bridge_2x2_axi3_slaves_xbar
     assign sram_axi3_axi_awvalid = cpu_axi4_64b_aw_gnt_sram_axi3 || host_axil_64b_aw_gnt_sram_axi3;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] sram_axi3_wowner_mem [16];
     logic [4:0] sram_axi3_wowner_wptr, sram_axi3_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -779,6 +781,7 @@ module bridge_2x2_axi3_slaves_xbar
     assign subtractive_axi_awvalid = cpu_axi4_64b_aw_gnt_subtractive || host_axil_64b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -883,7 +886,7 @@ module bridge_2x2_axi3_slaves_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu_axi4 64b path -> ddr_axi3, sram_axi3, subtractive
+    // cpu_axi4 64b path -> ddr_axi3, sram_axi3, subtractive (16 deep: max_outstanding)
     logic [1:0] cpu_axi4_64b_wdest_mem [16];
     logic [4:0] cpu_axi4_64b_wdest_wptr, cpu_axi4_64b_wdest_rptr;
     wire [1:0] cpu_axi4_64b_wdest_enc = cpu_axi4_64b_aw_to_sram_axi3 ? 2'd1 : cpu_axi4_64b_aw_to_subtractive ? 2'd2 : 2'd0;
@@ -909,7 +912,7 @@ module bridge_2x2_axi3_slaves_xbar
     assign cpu_axi4_64b_w_to_sram_axi3 = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 2'd1);
     assign cpu_axi4_64b_w_to_subtractive = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 2'd2);
 
-    // host_axil 64b path -> ddr_axi3, sram_axi3, subtractive
+    // host_axil 64b path -> ddr_axi3, sram_axi3, subtractive (16 deep: max_outstanding)
     logic [1:0] host_axil_64b_wdest_mem [16];
     logic [4:0] host_axil_64b_wdest_wptr, host_axil_64b_wdest_rptr;
     wire [1:0] host_axil_64b_wdest_enc = host_axil_64b_aw_to_sram_axi3 ? 2'd1 : host_axil_64b_aw_to_subtractive ? 2'd2 : 2'd0;

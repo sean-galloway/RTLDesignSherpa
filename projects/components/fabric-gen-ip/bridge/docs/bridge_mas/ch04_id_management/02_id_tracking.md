@@ -76,7 +76,8 @@ ordering count for duplicate IDs.
 
 ### Sizing
 
-Every tracker, CAM or FIFO, is 16 entries per direction per slave adapter:
+Every tracker, CAM or FIFO, is the slave's `max_outstanding` entries (default 16;
+configurable since bridge GitHub #119 L5) per direction per slave adapter:
 
 ```
 CAM:   TAG_WIDTH = XBAR_ID_WIDTH, DATA_WIDTH = BRIDGE_ID_WIDTH, DEPTH = 16
@@ -144,7 +145,7 @@ oldest first using the per-entry ordering count.
 
 ### Resource Utilization
 
-Per CAM-tracked slave adapter: two 16-entry CAMs of
+Per CAM-tracked slave adapter (default depth): two 16-entry CAMs of
 `XBAR_ID_WIDTH + BRIDGE_ID_WIDTH` bits plus valid and ordering count, in
 distributed RAM and flops (no block RAM). Per FIFO-tracked slave adapter:
 two 16-entry FIFOs of `BRIDGE_ID_WIDTH` bits. Measured totals per fixture

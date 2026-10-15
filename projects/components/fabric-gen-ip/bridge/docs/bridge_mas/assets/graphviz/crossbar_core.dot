@@ -17,14 +17,14 @@ digraph crossbar_core {
     { rank=same; pw; p0; pn; pr; }
     pw -> p0 -> pn -> pr [style=invis];
 
-    wdest [label="W Destination FIFO\n(one per master path, 16 deep)\nholds each AW's target slave;\npopped at WLAST", group=L];
+    wdest [label="W Destination FIFO\n(one per master path, max_outstanding deep)\nholds each AW's target slave;\npopped at WLAST", group=L];
     d0 [label="Re-decode - master 0\n<m0>_aw_to_<s> / _ar_to_<s>\non the held address"];
     dn [label="Re-decode - master M-1\n<mN>_aw_to_<s> / _ar_to_<s>\non the held address"];
     rmux [label="Response OR-Mux (per master path)\nslave s's B / R pass where the\nreturned bridge_id names this master;\nready routed back the same way", group=R];
     { rank=same; wdest; d0; dn; rmux; }
     wdest -> d0 -> dn -> rmux [style=invis];
 
-    wown [label="W Owner FIFO + W Mux\n(per slave, 16 deep) pushed with the\ngrant at slave-side AW accept;\nonly the head master's W passes", group=L];
+    wown [label="W Owner FIFO + W Mux\n(per slave, max_outstanding deep) pushed with the\ngrant at slave-side AW accept;\nonly the head master's W passes", group=L];
     arb [label="AW Arbiter and AR Arbiter for slave s\nround-robin (or qos); grant locked from valid to the address handshake",
          shape=invtrapezium, width=6.0, height=0.7];
     pr2 [shape=point, width=0.01, label="", group=R];

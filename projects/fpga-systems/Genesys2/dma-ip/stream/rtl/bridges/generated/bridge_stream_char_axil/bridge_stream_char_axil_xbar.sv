@@ -882,6 +882,7 @@ module bridge_stream_char_axil_xbar
     assign desc_ram_axi_awvalid = host_256b_aw_gnt_desc_ram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] desc_ram_wowner_mem [16];
     logic [4:0] desc_ram_wowner_wptr, desc_ram_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1103,6 +1104,7 @@ module bridge_stream_char_axil_xbar
     assign debug_sram_axi_awvalid = host_64b_aw_gnt_debug_sram || monbus_wr_64b_aw_gnt_debug_sram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] debug_sram_wowner_mem [16];
     logic [4:0] debug_sram_wowner_wptr, debug_sram_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1318,6 +1320,7 @@ module bridge_stream_char_axil_xbar
     assign subtractive_axi_awvalid = host_256b_aw_gnt_subtractive || monbus_wr_256b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1422,7 +1425,7 @@ module bridge_stream_char_axil_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> stream_apb, harness_csr, stream_err, dma_axil
+    // host 32b path -> stream_apb, harness_csr, stream_err, dma_axil (16 deep: max_outstanding)
     logic [1:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
     wire [1:0] host_32b_wdest_enc = host_32b_aw_to_harness_csr ? 2'd1 : host_32b_aw_to_stream_err ? 2'd2 : host_32b_aw_to_dma_axil ? 2'd3 : 2'd0;
@@ -1449,7 +1452,7 @@ module bridge_stream_char_axil_xbar
     assign host_32b_w_to_stream_err = host_32b_wdest_valid && (host_32b_wdest_head == 2'd2);
     assign host_32b_w_to_dma_axil = host_32b_wdest_valid && (host_32b_wdest_head == 2'd3);
 
-    // host 64b path -> debug_sram
+    // host 64b path -> debug_sram (16 deep: max_outstanding)
     logic [0:0] host_64b_wdest_mem [16];
     logic [4:0] host_64b_wdest_wptr, host_64b_wdest_rptr;
     wire [0:0] host_64b_wdest_enc = 1'd0;
@@ -1473,7 +1476,7 @@ module bridge_stream_char_axil_xbar
     wire [0:0] host_64b_wdest_head = host_64b_wdest_mem[host_64b_wdest_rptr[3:0]];
     assign host_64b_w_to_debug_sram = host_64b_wdest_valid && (host_64b_wdest_head == 1'd0);
 
-    // host 256b path -> desc_ram, subtractive
+    // host 256b path -> desc_ram, subtractive (16 deep: max_outstanding)
     logic [0:0] host_256b_wdest_mem [16];
     logic [4:0] host_256b_wdest_wptr, host_256b_wdest_rptr;
     wire [0:0] host_256b_wdest_enc = host_256b_aw_to_subtractive ? 1'd1 : 1'd0;
@@ -1498,7 +1501,7 @@ module bridge_stream_char_axil_xbar
     assign host_256b_w_to_desc_ram = host_256b_wdest_valid && (host_256b_wdest_head == 1'd0);
     assign host_256b_w_to_subtractive = host_256b_wdest_valid && (host_256b_wdest_head == 1'd1);
 
-    // monbus_wr 64b path -> debug_sram
+    // monbus_wr 64b path -> debug_sram (16 deep: max_outstanding)
     logic [0:0] monbus_wr_64b_wdest_mem [16];
     logic [4:0] monbus_wr_64b_wdest_wptr, monbus_wr_64b_wdest_rptr;
     wire [0:0] monbus_wr_64b_wdest_enc = 1'd0;
@@ -1522,7 +1525,7 @@ module bridge_stream_char_axil_xbar
     wire [0:0] monbus_wr_64b_wdest_head = monbus_wr_64b_wdest_mem[monbus_wr_64b_wdest_rptr[3:0]];
     assign monbus_wr_64b_w_to_debug_sram = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 1'd0);
 
-    // monbus_wr 256b path -> subtractive
+    // monbus_wr 256b path -> subtractive (16 deep: max_outstanding)
     logic [0:0] monbus_wr_256b_wdest_mem [16];
     logic [4:0] monbus_wr_256b_wdest_wptr, monbus_wr_256b_wdest_rptr;
     wire [0:0] monbus_wr_256b_wdest_enc = 1'd0;

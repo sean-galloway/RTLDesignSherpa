@@ -474,6 +474,7 @@ module bridge_2x2_rw_qos_xbar
     assign ddr_axi_awvalid = cpu_32b_aw_gnt_ddr || dma_32b_aw_gnt_ddr;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -694,6 +695,7 @@ module bridge_2x2_rw_qos_xbar
     assign sram_axi_awvalid = cpu_32b_aw_gnt_sram || dma_32b_aw_gnt_sram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] sram_wowner_mem [16];
     logic [4:0] sram_wowner_wptr, sram_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -914,6 +916,7 @@ module bridge_2x2_rw_qos_xbar
     assign subtractive_axi_awvalid = cpu_32b_aw_gnt_subtractive || dma_32b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1045,7 +1048,7 @@ module bridge_2x2_rw_qos_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu 32b path -> ddr, sram, subtractive
+    // cpu 32b path -> ddr, sram, subtractive (16 deep: max_outstanding)
     logic [1:0] cpu_32b_wdest_mem [16];
     logic [4:0] cpu_32b_wdest_wptr, cpu_32b_wdest_rptr;
     wire [1:0] cpu_32b_wdest_enc = cpu_32b_aw_to_sram ? 2'd1 : cpu_32b_aw_to_subtractive ? 2'd2 : 2'd0;
@@ -1071,7 +1074,7 @@ module bridge_2x2_rw_qos_xbar
     assign cpu_32b_w_to_sram = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd1);
     assign cpu_32b_w_to_subtractive = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd2);
 
-    // dma 32b path -> ddr, sram, subtractive
+    // dma 32b path -> ddr, sram, subtractive (16 deep: max_outstanding)
     logic [1:0] dma_32b_wdest_mem [16];
     logic [4:0] dma_32b_wdest_wptr, dma_32b_wdest_rptr;
     wire [1:0] dma_32b_wdest_enc = dma_32b_aw_to_sram ? 2'd1 : dma_32b_aw_to_subtractive ? 2'd2 : 2'd0;

@@ -158,7 +158,7 @@ print(f"BREADY: {dut.s0_axi_bready.value}")
 - **W is still owed to a different slave.** `aw_gate_ok` low with `aw_id_ok`
   high and `w_trk_*` non-empty: the AW waits for the earlier W bursts.
 - Slave not responding
-- Port at its outstanding limit (`aw_out_cnt == AW_TRK_DEPTH`, 16)
+- Port at its outstanding limit (`aw_out_cnt == AW_TRK_DEPTH`, the port's `max_outstanding`)
 
 #### Issue: Wrong Response Routing
 

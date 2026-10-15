@@ -18,14 +18,14 @@ digraph w_tracking {
     pw -> pc [style=invis];
 
     // rank 1
-    wdest [label="W Destination FIFO - <bridge>_xbar\n<m>_<w>b_wdest_* (one per master path, 16 deep)\npush: target slave, at the master-side AW accept\npop: the W beat carrying WLAST\nhead = slave this master's current W burst goes to", group=L];
+    wdest [label="W Destination FIFO - <bridge>_xbar\n<m>_<w>b_wdest_* (one per master path, max_outstanding deep)\npush: target slave, at the master-side AW accept\npop: the W beat carrying WLAST\nhead = slave this master's current W burst goes to", group=L];
     arb [shape=invtrapezium, width=3.2, label="Per-slave AW Arbiter\n<s>_aw_arb (round robin)", group=C];
     { rank=same; wdest; arb; }
     wdest -> arb [style=invis];
 
     // rank 2
     pl2 [shape=point, width=0.01, label="", group=L];
-    wown [label="W Owner FIFO - <bridge>_xbar\n<s>_wowner_* (one per slave, 16 deep)\npush: granted master, at the slave-side AW accept\npop: the slave's W beat carrying WLAST\nhead = master that owns this slave's W channel", group=M];
+    wown [label="W Owner FIFO - <bridge>_xbar\n<s>_wowner_* (one per slave, max_outstanding deep)\npush: granted master, at the slave-side AW accept\npop: the slave's W beat carrying WLAST\nhead = master that owns this slave's W channel", group=M];
     pc2 [shape=point, width=0.01, label="", group=C];
     { rank=same; pl2; wown; pc2; }
     pl2 -> wown -> pc2 [style=invis];

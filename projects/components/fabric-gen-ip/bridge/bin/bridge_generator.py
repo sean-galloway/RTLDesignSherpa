@@ -814,6 +814,7 @@ def _emit_bridge_variant(
             # _mon variant so the genvar-if inside axi_monitor_reporter
             # drops the unused detection cones at synthesis.
             mon_enables=master_spec.get_mon_enables(config.mon_preset),
+            max_outstanding=getattr(master_spec, 'max_outstanding', 16),
         )
         master_configs.append(master_config)
 
@@ -828,6 +829,7 @@ def _emit_bridge_variant(
             addr_width=slave_spec.addr_width,
             protocol=slave_spec.protocol,
             enable_ooo=slave_spec.enable_ooo,
+            max_outstanding=getattr(slave_spec, 'max_outstanding', 16),
             cdc=bool(getattr(slave_spec, 'cdc', False)),
             use_monitor=getattr(slave_spec, 'use_monitor', True),
             mon_enables=slave_spec.get_mon_enables(config.mon_preset),

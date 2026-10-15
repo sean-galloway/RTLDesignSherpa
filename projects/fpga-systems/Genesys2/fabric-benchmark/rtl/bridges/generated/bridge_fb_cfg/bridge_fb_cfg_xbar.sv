@@ -1058,7 +1058,7 @@ module bridge_fb_cfg_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> stream_apb, harness_csr, stream_err, slvmon_apb, obs_apb
+    // host 32b path -> stream_apb, harness_csr, stream_err, slvmon_apb, obs_apb (16 deep: max_outstanding)
     logic [2:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
     wire [2:0] host_32b_wdest_enc = host_32b_aw_to_harness_csr ? 3'd1 : host_32b_aw_to_stream_err ? 3'd2 : host_32b_aw_to_slvmon_apb ? 3'd3 : host_32b_aw_to_obs_apb ? 3'd4 : 3'd0;
@@ -1086,7 +1086,7 @@ module bridge_fb_cfg_xbar
     assign host_32b_w_to_slvmon_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd3);
     assign host_32b_w_to_obs_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd4);
 
-    // host 128b path -> desc_ram, subtractive
+    // host 128b path -> desc_ram, subtractive (16 deep: max_outstanding)
     logic [0:0] host_128b_wdest_mem [16];
     logic [4:0] host_128b_wdest_wptr, host_128b_wdest_rptr;
     wire [0:0] host_128b_wdest_enc = host_128b_aw_to_subtractive ? 1'd1 : 1'd0;

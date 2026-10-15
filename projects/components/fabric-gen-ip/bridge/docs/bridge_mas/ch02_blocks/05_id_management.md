@@ -210,7 +210,7 @@ BRAM-based CAM variants this chapter once compared were never built.
 
 ### In-Order FIFO Tracker (built)
 
-Slaves that do not get the CAM keep a 16-entry FIFO of `bridge_id`,
+Slaves that do not get the CAM keep a `max_outstanding`-entry (default 16) FIFO of `bridge_id`,
 pushed on the address handshake and popped on B / RLAST. Routing uses the
 FIFO head, so such a slave must complete in request order; a
 simulation-only check flags a returned ID that does not match the head
@@ -238,7 +238,7 @@ HAS Table 5.7) includes whichever tracker the slave uses.
 ### Resource Utilization
 
 The per-master prefix is wiring. Each CAM-tracked slave adapter carries
-two 16-entry `bridge_cam` instances built in distributed RAM and flops (no
+two `bridge_cam` instances (16 entries at the default `max_outstanding`) built in distributed RAM and flops (no
 block RAM); the FIFO tracker is two 16-entry FIFOs of `BRIDGE_ID_WIDTH`
 bits. Measured totals for the fixtures are in HAS 5.3.
 

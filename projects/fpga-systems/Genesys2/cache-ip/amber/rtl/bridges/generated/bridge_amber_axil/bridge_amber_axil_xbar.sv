@@ -1058,7 +1058,7 @@ module bridge_amber_axil_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> harness_csr, cycle_injector0, cycle_injector1
+    // host 32b path -> harness_csr, cycle_injector0, cycle_injector1 (16 deep: max_outstanding)
     logic [1:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
     wire [1:0] host_32b_wdest_enc = host_32b_aw_to_cycle_injector0 ? 2'd1 : host_32b_aw_to_cycle_injector1 ? 2'd2 : 2'd0;
@@ -1084,7 +1084,7 @@ module bridge_amber_axil_xbar
     assign host_32b_w_to_cycle_injector0 = host_32b_wdest_valid && (host_32b_wdest_head == 2'd1);
     assign host_32b_w_to_cycle_injector1 = host_32b_wdest_valid && (host_32b_wdest_head == 2'd2);
 
-    // host 64b path -> tally_cnt, tally_cfgw, tally_cfgr, subtractive
+    // host 64b path -> tally_cnt, tally_cfgw, tally_cfgr, subtractive (16 deep: max_outstanding)
     logic [1:0] host_64b_wdest_mem [16];
     logic [4:0] host_64b_wdest_wptr, host_64b_wdest_rptr;
     wire [1:0] host_64b_wdest_enc = host_64b_aw_to_tally_cfgw ? 2'd1 : host_64b_aw_to_tally_cfgr ? 2'd2 : host_64b_aw_to_subtractive ? 2'd3 : 2'd0;

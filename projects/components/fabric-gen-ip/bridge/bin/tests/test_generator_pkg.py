@@ -2224,3 +2224,46 @@ def test_alignment_test_emitted_only_for_aligner_paths(tmp_path):
     assert "def test_b_narrow_to_wide_alignment(" in axil
     assert "enumerate([0, 4, 8, 12])" in axil
     assert "narrow_to_wide_alignment" not in gen("axi4", "axi4")
+
+
+# --- bridge GitHub #119 L5: configurable outstanding limits ------------------
+
+def test_max_outstanding_defaults_and_overrides(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"\nmax_outstanding = 32')
+    _with_bridge_key(toml, "max_outstanding = 4")
+    cfg = load_config(toml, conn)
+    assert cfg.masters[0].max_outstanding == 4      # inherits [bridge]
+    assert cfg.slaves[0].max_outstanding == 32      # port override
+
+
+@pytest.mark.parametrize("bad", [1, 3, 24, 128, "x"])
+def test_max_outstanding_rejects_non_power_of_two_or_out_of_range(tmp_path, bad):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    _with_bridge_key(toml, f"max_outstanding = {bad!r}" if isinstance(bad, str) else f"max_outstanding = {bad}")
+    with pytest.raises(ValueError, match="max_outstanding"):
+        load_config(toml, conn)
+
+
+def test_max_outstanding_sizes_every_tracker(tmp_path):
+    """bridge_2x2_rw_depth: [bridge] 4, cpu 64, ddr 32. Master trackers,
+    slave trackers, and the crossbar's W-owner (per slave) and W-destination
+    (per master path) FIFOs all follow the configured limits."""
+    out = tmp_path / "gen"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_2x2_rw_depth.toml"),
+         "--connectivity", _fixture("bridge_2x2_rw_depth_connectivity.csv"),
+         "--name", "d", "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr
+    d = out / "d"
+    cpu = (d / "cpu_adapter.sv").read_text()
+    dma = (d / "dma_adapter.sv").read_text()
+    x = (d / "d_xbar.sv").read_text()
+    assert "localparam int AW_TRK_DEPTH = 64;" in cpu
+    assert "localparam int AW_TRK_DEPTH = 4;" in dma
+    assert ".DEPTH(32)" in (d / "ddr_adapter.sv").read_text()
+    assert ".DEPTH(4)" in (d / "sram_adapter.sv").read_text()
+    assert "ddr_wowner_mem [32];" in x and "sram_wowner_mem [4];" in x
+    assert "cpu_32b_wdest_mem [64];" in x and "dma_32b_wdest_mem [4];" in x

@@ -611,7 +611,7 @@ module bridge_bch_loop_axil_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> bch_loop_apb, bch_regs_apb, obs_apb, subtractive
+    // host 32b path -> bch_loop_apb, bch_regs_apb, obs_apb, subtractive (16 deep: max_outstanding)
     logic [1:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
     wire [1:0] host_32b_wdest_enc = host_32b_aw_to_bch_regs_apb ? 2'd1 : host_32b_aw_to_obs_apb ? 2'd2 : host_32b_aw_to_subtractive ? 2'd3 : 2'd0;

@@ -479,6 +479,7 @@ module bridge_2x2_wb4_mon_xbar
     assign mem_axi_awvalid = wbm_64b_aw_gnt_mem || cpu_64b_aw_gnt_mem;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] mem_wowner_mem [16];
     logic [4:0] mem_wowner_wptr, mem_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -645,6 +646,7 @@ module bridge_2x2_wb4_mon_xbar
     assign wbp_axi_awvalid = wbm_32b_aw_gnt_wbp || cpu_32b_aw_gnt_wbp;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] wbp_wowner_mem [16];
     logic [4:0] wbp_wowner_wptr, wbp_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -811,6 +813,7 @@ module bridge_2x2_wb4_mon_xbar
     assign subtractive_axi_awvalid = wbm_64b_aw_gnt_subtractive || cpu_64b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -915,7 +918,7 @@ module bridge_2x2_wb4_mon_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // wbm 32b path -> wbp
+    // wbm 32b path -> wbp (16 deep: max_outstanding)
     logic [0:0] wbm_32b_wdest_mem [16];
     logic [4:0] wbm_32b_wdest_wptr, wbm_32b_wdest_rptr;
     wire [0:0] wbm_32b_wdest_enc = 1'd0;
@@ -939,7 +942,7 @@ module bridge_2x2_wb4_mon_xbar
     wire [0:0] wbm_32b_wdest_head = wbm_32b_wdest_mem[wbm_32b_wdest_rptr[3:0]];
     assign wbm_32b_w_to_wbp = wbm_32b_wdest_valid && (wbm_32b_wdest_head == 1'd0);
 
-    // wbm 64b path -> mem, subtractive
+    // wbm 64b path -> mem, subtractive (16 deep: max_outstanding)
     logic [0:0] wbm_64b_wdest_mem [16];
     logic [4:0] wbm_64b_wdest_wptr, wbm_64b_wdest_rptr;
     wire [0:0] wbm_64b_wdest_enc = wbm_64b_aw_to_subtractive ? 1'd1 : 1'd0;
@@ -964,7 +967,7 @@ module bridge_2x2_wb4_mon_xbar
     assign wbm_64b_w_to_mem = wbm_64b_wdest_valid && (wbm_64b_wdest_head == 1'd0);
     assign wbm_64b_w_to_subtractive = wbm_64b_wdest_valid && (wbm_64b_wdest_head == 1'd1);
 
-    // cpu 32b path -> wbp
+    // cpu 32b path -> wbp (16 deep: max_outstanding)
     logic [0:0] cpu_32b_wdest_mem [16];
     logic [4:0] cpu_32b_wdest_wptr, cpu_32b_wdest_rptr;
     wire [0:0] cpu_32b_wdest_enc = 1'd0;
@@ -988,7 +991,7 @@ module bridge_2x2_wb4_mon_xbar
     wire [0:0] cpu_32b_wdest_head = cpu_32b_wdest_mem[cpu_32b_wdest_rptr[3:0]];
     assign cpu_32b_w_to_wbp = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 1'd0);
 
-    // cpu 64b path -> mem, subtractive
+    // cpu 64b path -> mem, subtractive (16 deep: max_outstanding)
     logic [0:0] cpu_64b_wdest_mem [16];
     logic [4:0] cpu_64b_wdest_wptr, cpu_64b_wdest_rptr;
     wire [0:0] cpu_64b_wdest_enc = cpu_64b_aw_to_subtractive ? 1'd1 : 1'd0;

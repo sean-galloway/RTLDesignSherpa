@@ -79,7 +79,8 @@ What happens to a transaction depends on the master/slave protocol pairing:
 MAS -- is renumbered to one common rev, 1.1; entries below keep the numbers
 they were published under. Content: masters may have several slaves in
 flight (the one-target-per-master limitation fixed, GitHub #119 L1:
-per-ID tracking, `id_track_bits`, B/R response arbiters).
+per-ID tracking, `id_track_bits`, B/R response arbiters); configurable
+outstanding limits, `max_outstanding` (the fixed 16 removed, GitHub #119 L5).
 
 **Version 1.2 (2026-09-07):** qc round_1/round_2 correctness pass. Retired the
 ID-extension architecture from every page that claimed it (IDs are

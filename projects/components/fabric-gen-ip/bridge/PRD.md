@@ -103,6 +103,9 @@ Core AXI4 features that matter:
 - Burst transactions (INCR, WRAP, FIXED)
 - In-order completion. Responses are routed by a per-master `bridge_id`
   sideband and an in-order FIFO, NOT by matching AXI IDs -- see FR-2.
+- Outstanding limits per port: `max_outstanding` (power of two 2..64, default
+  16 from `[bridge].max_outstanding`) sizes every master and slave tracker --
+  fixed limitation, GitHub #119 L5 (was a hard 16).
 - Multiple outstanding transactions per master, **to several slaves at
   once** -- fixed limitation, GitHub #119 L1 (2026-10-15). The master adapter tracks per ID
   (`[bridge].id_track_bits`, default 4): a new AW/AR waits only when its ID is

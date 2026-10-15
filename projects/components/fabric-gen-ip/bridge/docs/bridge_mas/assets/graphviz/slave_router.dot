@@ -21,7 +21,7 @@ digraph slave_router {
     { rank=same; p1; dec; }
     p1 -> dec [style=invis];
 
-    wdest [label="W Destination FIFO - <bridge>_xbar\n(per master path, 16 deep) pushed with the\nAW's target at the master-side AW accept,\npopped at WLAST", group=L];
+    wdest [label="W Destination FIFO - <bridge>_xbar\n(per master path, max_outstanding deep) pushed with the\nAW's target at the master-side AW accept,\npopped at WLAST", group=L];
     rdec [label="Re-decode on the Held Address - <bridge>_xbar\n<m>_aw_to_<s> / <m>_ar_to_<s>: the address is stable\nwhile valid, so the request gates into one slave's arbiter", group=C];
     { rank=same; wdest; rdec; }
     wdest -> rdec [style=invis];

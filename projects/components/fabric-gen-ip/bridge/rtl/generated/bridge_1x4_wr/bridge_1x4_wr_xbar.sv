@@ -489,7 +489,7 @@ module bridge_1x4_wr_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu_wr 32b path -> periph_wr, apb_periph
+    // cpu_wr 32b path -> periph_wr, apb_periph (16 deep: max_outstanding)
     logic [0:0] cpu_wr_32b_wdest_mem [16];
     logic [4:0] cpu_wr_32b_wdest_wptr, cpu_wr_32b_wdest_rptr;
     wire [0:0] cpu_wr_32b_wdest_enc = cpu_wr_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
@@ -514,7 +514,7 @@ module bridge_1x4_wr_xbar
     assign cpu_wr_32b_w_to_periph_wr = cpu_wr_32b_wdest_valid && (cpu_wr_32b_wdest_head == 1'd0);
     assign cpu_wr_32b_w_to_apb_periph = cpu_wr_32b_wdest_valid && (cpu_wr_32b_wdest_head == 1'd1);
 
-    // cpu_wr 64b path -> ddr_wr
+    // cpu_wr 64b path -> ddr_wr (16 deep: max_outstanding)
     logic [0:0] cpu_wr_64b_wdest_mem [16];
     logic [4:0] cpu_wr_64b_wdest_wptr, cpu_wr_64b_wdest_rptr;
     wire [0:0] cpu_wr_64b_wdest_enc = 1'd0;
@@ -538,7 +538,7 @@ module bridge_1x4_wr_xbar
     wire [0:0] cpu_wr_64b_wdest_head = cpu_wr_64b_wdest_mem[cpu_wr_64b_wdest_rptr[3:0]];
     assign cpu_wr_64b_w_to_ddr_wr = cpu_wr_64b_wdest_valid && (cpu_wr_64b_wdest_head == 1'd0);
 
-    // cpu_wr 128b path -> hbm_wr, subtractive
+    // cpu_wr 128b path -> hbm_wr, subtractive (16 deep: max_outstanding)
     logic [0:0] cpu_wr_128b_wdest_mem [16];
     logic [4:0] cpu_wr_128b_wdest_wptr, cpu_wr_128b_wdest_rptr;
     wire [0:0] cpu_wr_128b_wdest_enc = cpu_wr_128b_aw_to_subtractive ? 1'd1 : 1'd0;

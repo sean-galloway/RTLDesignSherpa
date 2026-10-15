@@ -104,16 +104,16 @@ on that. Which store a slave gets is fixed at generation:
 
 | Slave | Tracker | Order the slave may complete in |
 |---|---|---|
-| AXI4 / AXI5 slave, more than one master | `bridge_cam` (`u_wr_cam` / `u_rd_cam`), tag = AXI ID, data = `bridge_id`, 16 deep | any order across IDs |
+| AXI4 / AXI5 slave, more than one master | `bridge_cam` (`u_wr_cam` / `u_rd_cam`), tag = AXI ID, data = `bridge_id`, `max_outstanding` deep (default 16) | any order across IDs |
 | any slave with `enable_ooo = true` | `bridge_cam` | any order across IDs |
-| single-master bridge, apb / axil / wb shim slaves, internal subtractive slave | in-order `bridge_id` FIFO, 16 deep | request order across all IDs |
+| single-master bridge, apb / axil / wb shim slaves, internal subtractive slave | in-order `bridge_id` FIFO, `max_outstanding` deep (default 16) | request order across all IDs |
 
 : Response Routing
 
 ```systemverilog
 // CAM form (multi-master AXI4 slave)
 bridge_cam #(.TAG_WIDTH(ID_WIDTH), .DATA_WIDTH(BRIDGE_ID_WIDTH),
-             .DEPTH(16), .ALLOW_DUPLICATES(1)) u_wr_cam (
+             .DEPTH(16), .ALLOW_DUPLICATES(1)) u_wr_cam (  // the slave's max_outstanding
     .allocate_tag  (xbar_ddr_axi_awid),   .allocate_data  (xbar_bridge_id_aw),
     .deallocate_tag(xbar_ddr_axi_bid),    .deallocate_data(bid_bridge_id), ...);
 

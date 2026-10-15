@@ -593,6 +593,7 @@ module bridge_mix_d_mon_xbar
     assign ddr_axi_awvalid = cpu_axi4_64b_aw_gnt_ddr || trace_axil_64b_aw_gnt_ddr;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -759,6 +760,7 @@ module bridge_mix_d_mon_xbar
     assign doorbell_axi_awvalid = cpu_axi4_32b_aw_gnt_doorbell || trace_axil_32b_aw_gnt_doorbell;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] doorbell_wowner_mem [16];
     logic [4:0] doorbell_wowner_wptr, doorbell_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -988,6 +990,7 @@ module bridge_mix_d_mon_xbar
     assign subtractive_axi_awvalid = cpu_axi4_64b_aw_gnt_subtractive || trace_axil_64b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1092,7 +1095,7 @@ module bridge_mix_d_mon_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu_axi4 32b path -> doorbell, apb_periph
+    // cpu_axi4 32b path -> doorbell, apb_periph (16 deep: max_outstanding)
     logic [0:0] cpu_axi4_32b_wdest_mem [16];
     logic [4:0] cpu_axi4_32b_wdest_wptr, cpu_axi4_32b_wdest_rptr;
     wire [0:0] cpu_axi4_32b_wdest_enc = cpu_axi4_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
@@ -1117,7 +1120,7 @@ module bridge_mix_d_mon_xbar
     assign cpu_axi4_32b_w_to_doorbell = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
     assign cpu_axi4_32b_w_to_apb_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd1);
 
-    // cpu_axi4 64b path -> ddr, subtractive
+    // cpu_axi4 64b path -> ddr, subtractive (16 deep: max_outstanding)
     logic [0:0] cpu_axi4_64b_wdest_mem [16];
     logic [4:0] cpu_axi4_64b_wdest_wptr, cpu_axi4_64b_wdest_rptr;
     wire [0:0] cpu_axi4_64b_wdest_enc = cpu_axi4_64b_aw_to_subtractive ? 1'd1 : 1'd0;
@@ -1142,7 +1145,7 @@ module bridge_mix_d_mon_xbar
     assign cpu_axi4_64b_w_to_ddr = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
     assign cpu_axi4_64b_w_to_subtractive = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd1);
 
-    // trace_axil 32b path -> doorbell
+    // trace_axil 32b path -> doorbell (16 deep: max_outstanding)
     logic [0:0] trace_axil_32b_wdest_mem [16];
     logic [4:0] trace_axil_32b_wdest_wptr, trace_axil_32b_wdest_rptr;
     wire [0:0] trace_axil_32b_wdest_enc = 1'd0;
@@ -1166,7 +1169,7 @@ module bridge_mix_d_mon_xbar
     wire [0:0] trace_axil_32b_wdest_head = trace_axil_32b_wdest_mem[trace_axil_32b_wdest_rptr[3:0]];
     assign trace_axil_32b_w_to_doorbell = trace_axil_32b_wdest_valid && (trace_axil_32b_wdest_head == 1'd0);
 
-    // trace_axil 64b path -> ddr, subtractive
+    // trace_axil 64b path -> ddr, subtractive (16 deep: max_outstanding)
     logic [0:0] trace_axil_64b_wdest_mem [16];
     logic [4:0] trace_axil_64b_wdest_wptr, trace_axil_64b_wdest_rptr;
     wire [0:0] trace_axil_64b_wdest_enc = trace_axil_64b_aw_to_subtractive ? 1'd1 : 1'd0;

@@ -55,6 +55,7 @@ Each master and slave is described by a TOML table under `[[bridge.masters]]` or
 | `interface` | table | none | see below | Timing-isolation wrapper configuration. |
 | `cdc` | boolean | `false` | `cdc` | Run this slave port on its own clock behind `axi4_cdc_{wr,rd}`. Legal only for `protocol="axi4"` slave ports. |
 | `enable_ooo` | boolean | `false` | `enable_ooo` | Mark slave as out-of-order capable. (No generated fixture currently uses this.) |
+| `max_outstanding` | int, power of two 2..64 | `[bridge].max_outstanding` (16) | `max_outstanding` | This port's outstanding limit per direction (master: tracker depth; slave: response-tracker depth). The internal subtractive slave stays at 16. |
 | `use_monitor` | boolean | `true` | `use_monitor` | Per-port monitor enable; meaningful only for `"mon"` variants. |
 | `mon_add` | list of strings | `[]` | `mon_add` | Additive reporter cones beyond the preset. Names come from `MON_CONES`: `error`, `timeout`, `compl`, `threshold`, `perf`, `debug`. |
 | `mon_remove` | list of strings | `[]` | `mon_remove` | Reporter cones to remove from the preset. |

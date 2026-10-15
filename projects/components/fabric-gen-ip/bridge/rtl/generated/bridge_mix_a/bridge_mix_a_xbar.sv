@@ -656,6 +656,7 @@ module bridge_mix_a_xbar
     assign axil_periph_axi_awvalid = cpu_axi4_32b_aw_gnt_axil_periph || host_axil_32b_aw_gnt_axil_periph;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] axil_periph_wowner_mem [16];
     logic [4:0] axil_periph_wowner_wptr, axil_periph_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -822,6 +823,7 @@ module bridge_mix_a_xbar
     assign apb_periph_axi_awvalid = cpu_axi4_32b_aw_gnt_apb_periph || host_axil_32b_aw_gnt_apb_periph;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] apb_periph_wowner_mem [16];
     logic [4:0] apb_periph_wowner_wptr, apb_periph_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -988,6 +990,7 @@ module bridge_mix_a_xbar
     assign subtractive_axi_awvalid = cpu_axi4_64b_aw_gnt_subtractive || host_axil_64b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1092,7 +1095,7 @@ module bridge_mix_a_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu_axi4 32b path -> axil_periph, apb_periph
+    // cpu_axi4 32b path -> axil_periph, apb_periph (16 deep: max_outstanding)
     logic [0:0] cpu_axi4_32b_wdest_mem [16];
     logic [4:0] cpu_axi4_32b_wdest_wptr, cpu_axi4_32b_wdest_rptr;
     wire [0:0] cpu_axi4_32b_wdest_enc = cpu_axi4_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
@@ -1117,7 +1120,7 @@ module bridge_mix_a_xbar
     assign cpu_axi4_32b_w_to_axil_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
     assign cpu_axi4_32b_w_to_apb_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd1);
 
-    // cpu_axi4 64b path -> ddr, subtractive
+    // cpu_axi4 64b path -> ddr, subtractive (16 deep: max_outstanding)
     logic [0:0] cpu_axi4_64b_wdest_mem [16];
     logic [4:0] cpu_axi4_64b_wdest_wptr, cpu_axi4_64b_wdest_rptr;
     wire [0:0] cpu_axi4_64b_wdest_enc = cpu_axi4_64b_aw_to_subtractive ? 1'd1 : 1'd0;
@@ -1142,7 +1145,7 @@ module bridge_mix_a_xbar
     assign cpu_axi4_64b_w_to_ddr = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
     assign cpu_axi4_64b_w_to_subtractive = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd1);
 
-    // host_axil 32b path -> axil_periph, apb_periph
+    // host_axil 32b path -> axil_periph, apb_periph (16 deep: max_outstanding)
     logic [0:0] host_axil_32b_wdest_mem [16];
     logic [4:0] host_axil_32b_wdest_wptr, host_axil_32b_wdest_rptr;
     wire [0:0] host_axil_32b_wdest_enc = host_axil_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
@@ -1167,7 +1170,7 @@ module bridge_mix_a_xbar
     assign host_axil_32b_w_to_axil_periph = host_axil_32b_wdest_valid && (host_axil_32b_wdest_head == 1'd0);
     assign host_axil_32b_w_to_apb_periph = host_axil_32b_wdest_valid && (host_axil_32b_wdest_head == 1'd1);
 
-    // host_axil 64b path -> subtractive
+    // host_axil 64b path -> subtractive (16 deep: max_outstanding)
     logic [0:0] host_axil_64b_wdest_mem [16];
     logic [4:0] host_axil_64b_wdest_wptr, host_axil_64b_wdest_rptr;
     wire [0:0] host_axil_64b_wdest_enc = 1'd0;

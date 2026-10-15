@@ -97,7 +97,7 @@ module bridge_1x2_wr_axi5a_sram_wr_adapter
     // own ready, masked before it reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
-    localparam WR_FIFO_DEPTH = 16;
+    localparam WR_FIFO_DEPTH = 16;  // max_outstanding
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
 

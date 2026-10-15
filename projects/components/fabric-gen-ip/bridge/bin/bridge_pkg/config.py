@@ -150,6 +150,12 @@ class PortSpec:
     # the AXI4 signal set; AXI5 sideband and the shim protocols are not yet
     # routed through it).
     cdc: bool = False
+    # Outstanding-transaction limit per direction (bridge GitHub #119 L5,
+    # which fixes the hard 16): a master adapter's tracker depth and the
+    # count width of its per-ID table; a slave adapter's response tracker
+    # (bridge_cam or in-order FIFO) depth. Power of two, 2..64. Resolved
+    # in config_loader from the port key or [bridge].max_outstanding.
+    max_outstanding: int = 16
     # An internal port has no top-level pins: the generator instantiates
     # something inside the bridge and wires the crossbar to it. Used by the
     # subtractive (catch-all) slave, which must be routable like any other

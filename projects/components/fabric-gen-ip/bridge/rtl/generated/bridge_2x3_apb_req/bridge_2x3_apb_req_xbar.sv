@@ -517,6 +517,7 @@ module bridge_2x3_apb_req_xbar
     assign mem_axi_awvalid = apb4m_32b_aw_gnt_mem || apb5m_32b_aw_gnt_mem;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] mem_wowner_mem [16];
     logic [4:0] mem_wowner_wptr, mem_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -683,6 +684,7 @@ module bridge_2x3_apb_req_xbar
     assign lregs_axi_awvalid = apb4m_32b_aw_gnt_lregs || apb5m_32b_aw_gnt_lregs;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] lregs_wowner_mem [16];
     logic [4:0] lregs_wowner_wptr, lregs_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -849,6 +851,7 @@ module bridge_2x3_apb_req_xbar
     assign periph_axi_awvalid = apb4m_32b_aw_gnt_periph || apb5m_32b_aw_gnt_periph;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] periph_wowner_mem [16];
     logic [4:0] periph_wowner_wptr, periph_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1015,6 +1018,7 @@ module bridge_2x3_apb_req_xbar
     assign subtractive_axi_awvalid = apb4m_32b_aw_gnt_subtractive || apb5m_32b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1119,7 +1123,7 @@ module bridge_2x3_apb_req_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // apb4m 32b path -> mem, lregs, periph, subtractive
+    // apb4m 32b path -> mem, lregs, periph, subtractive (16 deep: max_outstanding)
     logic [1:0] apb4m_32b_wdest_mem [16];
     logic [4:0] apb4m_32b_wdest_wptr, apb4m_32b_wdest_rptr;
     wire [1:0] apb4m_32b_wdest_enc = apb4m_32b_aw_to_lregs ? 2'd1 : apb4m_32b_aw_to_periph ? 2'd2 : apb4m_32b_aw_to_subtractive ? 2'd3 : 2'd0;
@@ -1146,7 +1150,7 @@ module bridge_2x3_apb_req_xbar
     assign apb4m_32b_w_to_periph = apb4m_32b_wdest_valid && (apb4m_32b_wdest_head == 2'd2);
     assign apb4m_32b_w_to_subtractive = apb4m_32b_wdest_valid && (apb4m_32b_wdest_head == 2'd3);
 
-    // apb5m 32b path -> mem, lregs, periph, subtractive
+    // apb5m 32b path -> mem, lregs, periph, subtractive (16 deep: max_outstanding)
     logic [1:0] apb5m_32b_wdest_mem [16];
     logic [4:0] apb5m_32b_wdest_wptr, apb5m_32b_wdest_rptr;
     wire [1:0] apb5m_32b_wdest_enc = apb5m_32b_aw_to_lregs ? 2'd1 : apb5m_32b_aw_to_periph ? 2'd2 : apb5m_32b_aw_to_subtractive ? 2'd3 : 2'd0;

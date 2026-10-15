@@ -295,7 +295,7 @@ module bridge_1x2_wr_axi5_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu_wr 32b path -> ddr_wr, sram_wr, subtractive
+    // cpu_wr 32b path -> ddr_wr, sram_wr, subtractive (16 deep: max_outstanding)
     logic [1:0] cpu_wr_32b_wdest_mem [16];
     logic [4:0] cpu_wr_32b_wdest_wptr, cpu_wr_32b_wdest_rptr;
     wire [1:0] cpu_wr_32b_wdest_enc = cpu_wr_32b_aw_to_sram_wr ? 2'd1 : cpu_wr_32b_aw_to_subtractive ? 2'd2 : 2'd0;

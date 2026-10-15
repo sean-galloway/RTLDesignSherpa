@@ -117,7 +117,7 @@ pairs the k-th AW accepted at the master port with the k-th BVALID there:
 : Write latency under load, `bridge_2x2_rw`, 32-bit direct path
 
 The queue exists because the bridge accepts AWs ahead of their W data --
-the master adapter's AW skid, the slave adapter's 16-entry response-tracking
+the master adapter's AW skid, the slave adapter's `max_outstanding`-entry (default 16) response-tracking
 FIFO and its AW skid together hold about 20 bursts -- so a requester that
 issues many AWs before its data sees its B responses spaced by the data
 time, not by the fabric. Read latency does not queue the same way: the R

@@ -56,7 +56,8 @@ registered_mux = false             # true = +1 cycle, better timing
 registered_demux = false           # true = +1 cycle, better timing
 # NOTE: there is no enable_cam / cam_depth key. The CAM is chosen per slave by the
 # generator (multi-master AXI4/AXI5 slave, or enable_ooo = true on [[bridge.slaves]])
-# and is always 16 deep.
+# and is the slave's max_outstanding deep (default 16; [bridge] or per-port
+# key, power of two 2..64 -- bridge GitHub #119 L5).
 ```
 
 ## Functional Description
@@ -236,8 +237,8 @@ its tracker:
 
 | Slave | Tracker | Lookup |
 |---|---|---|
-| AXI4 / AXI5, multi-master (or `enable_ooo`) | `bridge_cam`, 16 deep, duplicates allowed | by the returned BID / RID, same cycle |
-| single master, apb / axil / wb shim, subtractive | in-order FIFO, 16 deep | FIFO head |
+| AXI4 / AXI5, multi-master (or `enable_ooo`) | `bridge_cam`, `max_outstanding` deep (default 16), duplicates allowed | by the returned BID / RID, same cycle |
+| single master, apb / axil / wb shim, subtractive | in-order FIFO, `max_outstanding` deep (default 16) | FIFO head |
 
 : Bridge ID and Response Routing
 

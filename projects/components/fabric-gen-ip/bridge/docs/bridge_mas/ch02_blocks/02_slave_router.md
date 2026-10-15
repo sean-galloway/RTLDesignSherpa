@@ -230,7 +230,7 @@ Figure 2.2 shows the W side: the W destination FIFO is pushed with the AW's targ
 
 There is no state machine on the W path. The crossbar keeps one W
 destination FIFO per master width-path (`<master>_<w>b_wdest_*` in
-`<bridge>_xbar.sv`, 16 entries):
+`<bridge>_xbar.sv`, the master's `max_outstanding` entries, default 16):
 
 ```
 Push:  on the AW handshake, write the encoded target slave

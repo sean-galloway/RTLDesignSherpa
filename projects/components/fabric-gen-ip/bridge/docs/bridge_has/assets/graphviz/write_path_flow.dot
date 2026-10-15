@@ -18,14 +18,14 @@ digraph write_path_flow {
     mR [label="B Skid Buffer - axi4_slave_wr\n<master>_adapter", group=R];
     { rank=same; mW; others; mC; mR; }
     mW -> others -> mC -> mR [style=invis];
-    wdest [label="W Destination FIFO - <bridge>_xbar\n(per master path, 16 deep) pushed\nwith the decoded slave at AW accept,\npopped at WLAST", group=L];
+    wdest [label="W Destination FIFO - <bridge>_xbar\n(per master path, max_outstanding deep) pushed\nwith the decoded slave at AW accept,\npopped at WLAST", group=L];
     arb [label="AW Arbiter (one per slave) - <bridge>_xbar\nround-robin; grant locked from AWVALID to the AW handshake", shape=invtrapezium, width=6.4, height=0.7, group=C];
     rmux [label="B Response Mux - <bridge>_xbar\nB and BREADY routed to the\nmaster whose bridge_id came back", group=R];
     { rank=same; wdest; arb; rmux; }
     wdest -> arb -> rmux [style=invis];
-    wown [label="W Owner FIFO + W Mux - <bridge>_xbar\n(per slave, 16 deep) pushed with the\ngrant at slave-side AW accept, popped\nat WLAST; only the owner's W passes", group=L];
+    wown [label="W Owner FIFO + W Mux - <bridge>_xbar\n(per slave, max_outstanding deep) pushed with the\ngrant at slave-side AW accept, popped\nat WLAST; only the owner's W passes", group=L];
     pc3 [shape=point, width=0.01, label="", group=C];
-    trk [label="Write Tracker - <slave>_adapter\nu_wr_cam: bridge_cam (tag AWID,\ndata bridge_id, 16 deep); a bridge_id\nFIFO when there is one master.\nFull holds AWREADY low", group=R];
+    trk [label="Write Tracker - <slave>_adapter\nu_wr_cam: bridge_cam (tag AWID,\ndata bridge_id, max_outstanding deep); a bridge_id\nFIFO when there is one master.\nFull holds AWREADY low", group=R];
     { rank=same; wown; pc3; trk; }
     wown -> pc3 [style=invis];
     sW [label="W Skid Buffer - axi4_master_wr\n<slave>_adapter", group=L];

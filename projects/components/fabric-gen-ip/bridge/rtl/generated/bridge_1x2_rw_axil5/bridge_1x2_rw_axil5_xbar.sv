@@ -484,7 +484,7 @@ module bridge_1x2_rw_axil5_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu 32b path -> ddr, cfg, subtractive
+    // cpu 32b path -> ddr, cfg, subtractive (16 deep: max_outstanding)
     logic [1:0] cpu_32b_wdest_mem [16];
     logic [4:0] cpu_32b_wdest_wptr, cpu_32b_wdest_rptr;
     wire [1:0] cpu_32b_wdest_enc = cpu_32b_aw_to_cfg ? 2'd1 : cpu_32b_aw_to_subtractive ? 2'd2 : 2'd0;

@@ -208,7 +208,7 @@ module bridge_mix_d_mon_ddr_adapter
     bridge_cam #(
         .TAG_WIDTH(ID_WIDTH),
         .DATA_WIDTH(BRIDGE_ID_WIDTH),
-        .DEPTH(16),
+        .DEPTH(16),  // max_outstanding
         .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
         .PIPELINE_EVICT(0)
     ) u_wr_cam (
@@ -242,7 +242,7 @@ module bridge_mix_d_mon_ddr_adapter
     bridge_cam #(
         .TAG_WIDTH(ID_WIDTH),
         .DATA_WIDTH(BRIDGE_ID_WIDTH),
-        .DEPTH(16),
+        .DEPTH(16),  // max_outstanding
         .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
         .PIPELINE_EVICT(0)
     ) u_rd_cam (

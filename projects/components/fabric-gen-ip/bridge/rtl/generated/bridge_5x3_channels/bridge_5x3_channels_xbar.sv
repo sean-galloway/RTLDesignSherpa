@@ -700,6 +700,7 @@ module bridge_5x3_channels_xbar
     assign sram_buffer_axi_awvalid = descr_wr_master_256b_aw_gnt_sram_buffer || sink_wr_master_256b_aw_gnt_sram_buffer || stream_master_256b_aw_gnt_sram_buffer || cpu_master_256b_aw_gnt_sram_buffer;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [1:0] sram_buffer_wowner_mem [16];
     logic [4:0] sram_buffer_wowner_wptr, sram_buffer_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -927,6 +928,7 @@ module bridge_5x3_channels_xbar
     assign ddr_controller_axi_awvalid = descr_wr_master_256b_aw_gnt_ddr_controller || sink_wr_master_256b_aw_gnt_ddr_controller || stream_master_256b_aw_gnt_ddr_controller || cpu_master_256b_aw_gnt_ddr_controller;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [1:0] ddr_controller_wowner_mem [16];
     logic [4:0] ddr_controller_wowner_wptr, ddr_controller_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1217,6 +1219,7 @@ module bridge_5x3_channels_xbar
     assign subtractive_axi_awvalid = descr_wr_master_256b_aw_gnt_subtractive || sink_wr_master_256b_aw_gnt_subtractive || stream_master_256b_aw_gnt_subtractive || cpu_master_256b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [1:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1350,7 +1353,7 @@ module bridge_5x3_channels_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // descr_wr_master 256b path -> sram_buffer, ddr_controller, subtractive
+    // descr_wr_master 256b path -> sram_buffer, ddr_controller, subtractive (16 deep: max_outstanding)
     logic [1:0] descr_wr_master_256b_wdest_mem [16];
     logic [4:0] descr_wr_master_256b_wdest_wptr, descr_wr_master_256b_wdest_rptr;
     wire [1:0] descr_wr_master_256b_wdest_enc = descr_wr_master_256b_aw_to_ddr_controller ? 2'd1 : descr_wr_master_256b_aw_to_subtractive ? 2'd2 : 2'd0;
@@ -1376,7 +1379,7 @@ module bridge_5x3_channels_xbar
     assign descr_wr_master_256b_w_to_ddr_controller = descr_wr_master_256b_wdest_valid && (descr_wr_master_256b_wdest_head == 2'd1);
     assign descr_wr_master_256b_w_to_subtractive = descr_wr_master_256b_wdest_valid && (descr_wr_master_256b_wdest_head == 2'd2);
 
-    // sink_wr_master 256b path -> sram_buffer, ddr_controller, subtractive
+    // sink_wr_master 256b path -> sram_buffer, ddr_controller, subtractive (16 deep: max_outstanding)
     logic [1:0] sink_wr_master_256b_wdest_mem [16];
     logic [4:0] sink_wr_master_256b_wdest_wptr, sink_wr_master_256b_wdest_rptr;
     wire [1:0] sink_wr_master_256b_wdest_enc = sink_wr_master_256b_aw_to_ddr_controller ? 2'd1 : sink_wr_master_256b_aw_to_subtractive ? 2'd2 : 2'd0;
@@ -1402,7 +1405,7 @@ module bridge_5x3_channels_xbar
     assign sink_wr_master_256b_w_to_ddr_controller = sink_wr_master_256b_wdest_valid && (sink_wr_master_256b_wdest_head == 2'd1);
     assign sink_wr_master_256b_w_to_subtractive = sink_wr_master_256b_wdest_valid && (sink_wr_master_256b_wdest_head == 2'd2);
 
-    // stream_master 256b path -> sram_buffer, ddr_controller, subtractive
+    // stream_master 256b path -> sram_buffer, ddr_controller, subtractive (16 deep: max_outstanding)
     logic [1:0] stream_master_256b_wdest_mem [16];
     logic [4:0] stream_master_256b_wdest_wptr, stream_master_256b_wdest_rptr;
     wire [1:0] stream_master_256b_wdest_enc = stream_master_256b_aw_to_ddr_controller ? 2'd1 : stream_master_256b_aw_to_subtractive ? 2'd2 : 2'd0;
@@ -1428,7 +1431,7 @@ module bridge_5x3_channels_xbar
     assign stream_master_256b_w_to_ddr_controller = stream_master_256b_wdest_valid && (stream_master_256b_wdest_head == 2'd1);
     assign stream_master_256b_w_to_subtractive = stream_master_256b_wdest_valid && (stream_master_256b_wdest_head == 2'd2);
 
-    // cpu_master 32b path -> apb_periph
+    // cpu_master 32b path -> apb_periph (16 deep: max_outstanding)
     logic [0:0] cpu_master_32b_wdest_mem [16];
     logic [4:0] cpu_master_32b_wdest_wptr, cpu_master_32b_wdest_rptr;
     wire [0:0] cpu_master_32b_wdest_enc = 1'd0;
@@ -1452,7 +1455,7 @@ module bridge_5x3_channels_xbar
     wire [0:0] cpu_master_32b_wdest_head = cpu_master_32b_wdest_mem[cpu_master_32b_wdest_rptr[3:0]];
     assign cpu_master_32b_w_to_apb_periph = cpu_master_32b_wdest_valid && (cpu_master_32b_wdest_head == 1'd0);
 
-    // cpu_master 256b path -> sram_buffer, ddr_controller, subtractive
+    // cpu_master 256b path -> sram_buffer, ddr_controller, subtractive (16 deep: max_outstanding)
     logic [1:0] cpu_master_256b_wdest_mem [16];
     logic [4:0] cpu_master_256b_wdest_wptr, cpu_master_256b_wdest_rptr;
     wire [1:0] cpu_master_256b_wdest_enc = cpu_master_256b_aw_to_ddr_controller ? 2'd1 : cpu_master_256b_aw_to_subtractive ? 2'd2 : 2'd0;

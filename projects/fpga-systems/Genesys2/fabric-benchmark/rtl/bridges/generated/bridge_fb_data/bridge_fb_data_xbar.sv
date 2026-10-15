@@ -475,6 +475,7 @@ module bridge_fb_data_xbar
     assign ddr_axi_awvalid = stream_wr_128b_aw_gnt_ddr || inj_wr_128b_aw_gnt_ddr;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -730,6 +731,7 @@ module bridge_fb_data_xbar
     assign subtractive_axi_awvalid = stream_wr_128b_aw_gnt_subtractive || inj_wr_128b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -834,7 +836,7 @@ module bridge_fb_data_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // stream_wr 128b path -> ddr, crc_snk, subtractive
+    // stream_wr 128b path -> ddr, crc_snk, subtractive (16 deep: max_outstanding)
     logic [1:0] stream_wr_128b_wdest_mem [16];
     logic [4:0] stream_wr_128b_wdest_wptr, stream_wr_128b_wdest_rptr;
     wire [1:0] stream_wr_128b_wdest_enc = stream_wr_128b_aw_to_crc_snk ? 2'd1 : stream_wr_128b_aw_to_subtractive ? 2'd2 : 2'd0;
@@ -860,7 +862,7 @@ module bridge_fb_data_xbar
     assign stream_wr_128b_w_to_crc_snk = stream_wr_128b_wdest_valid && (stream_wr_128b_wdest_head == 2'd1);
     assign stream_wr_128b_w_to_subtractive = stream_wr_128b_wdest_valid && (stream_wr_128b_wdest_head == 2'd2);
 
-    // inj_wr 128b path -> ddr, subtractive
+    // inj_wr 128b path -> ddr, subtractive (16 deep: max_outstanding)
     logic [0:0] inj_wr_128b_wdest_mem [16];
     logic [4:0] inj_wr_128b_wdest_wptr, inj_wr_128b_wdest_rptr;
     wire [0:0] inj_wr_128b_wdest_enc = inj_wr_128b_aw_to_subtractive ? 1'd1 : 1'd0;

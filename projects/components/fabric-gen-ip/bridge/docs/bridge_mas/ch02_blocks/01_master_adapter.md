@@ -335,7 +335,8 @@ the ordering AXI requires:
   slave. The W term exists because W has no ID and follows AW order. Two
   masters each owing W to two slaves would otherwise wait on each other at
   the slaves' W ports.
-- **Outstanding limit**: `aw_out_cnt` / `ar_out_cnt` cap the port at 16 in
+- **Outstanding limit**: `aw_out_cnt` / `ar_out_cnt` cap the port at its
+  `max_outstanding` (default 16; bridge GitHub #119 L5) in
   flight (bridge BUG-009's not-full rule), so no count wraps.
 - **Path arbiter**: with more than one width path, `b_pgnt` / `r_pgnt` pick a
   path round robin. A grant holds while offered and not taken; an R grant

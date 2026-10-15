@@ -65,7 +65,8 @@ The slave may therefore complete different IDs in any order.
 
 ### CAM Sizing
 
-As generated, every CAM is 16 entries deep regardless of master count:
+As generated, every CAM is the slave's `max_outstanding` entries deep (default
+16, power of two 2..64, bridge GitHub #119 L5) regardless of master count:
 
 ```
 bridge_cam #(.TAG_WIDTH(ID_WIDTH),          // XBAR_ID_WIDTH, 5 in bridge_2x2_rw

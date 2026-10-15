@@ -814,7 +814,7 @@ module bridge_2x2_rw
 3. **Response routing:** each slave adapter records, per direction, the
    `bridge_id` of the master whose request was accepted. With more than one
    master an AXI4/AXI5 slave uses `bridge_cam` (tag = fabric ID, data =
-   `bridge_id`, DEPTH 16, duplicates allowed), looked up by the returned
+   `bridge_id`, DEPTH = the slave's `max_outstanding`, default 16, duplicates allowed), looked up by the returned
    BID/RID. Single-master bridges, apb/axil/wb shim slaves and the internal
    subtractive slave use a small in-order FIFO instead (`enable_ooo` forces
    the CAM on any slave).
@@ -865,6 +865,8 @@ with monitor interfaces, monbus traffic / WRITE_BP / ERR_BP phases scaled
 by level.
 
 **Hand-written**: bridge BUG-009 (was BRIDGE-011) tracking + latency on 2x2;
+configurable outstanding limits (`test_bridge_2x2_rw_depth_limits.py`, GitHub
+#119 L5);
 several-targets-in-flight (`test_bridge_2x2_rw_multitarget.py`: overlap,
 same-ID order, mixed stress -- the fix for the one-target-per-master
 limitation, GitHub #119 L1); the AMBA5 sign-off

@@ -899,6 +899,7 @@ module bridge_4x4_rw_xbar
     assign periph_slave_axi_awvalid = cpu_master_32b_aw_gnt_periph_slave || dma0_master_32b_aw_gnt_periph_slave || gpu_master_32b_aw_gnt_periph_slave;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [1:0] periph_slave_wowner_mem [16];
     logic [4:0] periph_slave_wowner_wptr, periph_slave_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1119,6 +1120,7 @@ module bridge_4x4_rw_xbar
     assign ddr0_slave_axi_awvalid = cpu_master_64b_aw_gnt_ddr0_slave || dma0_master_64b_aw_gnt_ddr0_slave || dma1_master_64b_aw_gnt_ddr0_slave || gpu_master_64b_aw_gnt_ddr0_slave;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [1:0] ddr0_slave_wowner_mem [16];
     logic [4:0] ddr0_slave_wowner_wptr, ddr0_slave_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1345,6 +1347,7 @@ module bridge_4x4_rw_xbar
     assign sram_slave_axi_awvalid = cpu_master_128b_aw_gnt_sram_slave || dma0_master_128b_aw_gnt_sram_slave || dma1_master_128b_aw_gnt_sram_slave;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [1:0] sram_slave_wowner_mem [16];
     logic [4:0] sram_slave_wowner_wptr, sram_slave_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1549,6 +1552,7 @@ module bridge_4x4_rw_xbar
     assign gpu_mem_slave_axi_awvalid = cpu_master_256b_aw_gnt_gpu_mem_slave || dma1_master_256b_aw_gnt_gpu_mem_slave || gpu_master_256b_aw_gnt_gpu_mem_slave;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [1:0] gpu_mem_slave_wowner_mem [16];
     logic [4:0] gpu_mem_slave_wowner_wptr, gpu_mem_slave_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1769,6 +1773,7 @@ module bridge_4x4_rw_xbar
     assign subtractive_axi_awvalid = cpu_master_256b_aw_gnt_subtractive || dma0_master_256b_aw_gnt_subtractive || dma1_master_256b_aw_gnt_subtractive || gpu_master_256b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [1:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1917,7 +1922,7 @@ module bridge_4x4_rw_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu_master 32b path -> periph_slave
+    // cpu_master 32b path -> periph_slave (16 deep: max_outstanding)
     logic [0:0] cpu_master_32b_wdest_mem [16];
     logic [4:0] cpu_master_32b_wdest_wptr, cpu_master_32b_wdest_rptr;
     wire [0:0] cpu_master_32b_wdest_enc = 1'd0;
@@ -1941,7 +1946,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] cpu_master_32b_wdest_head = cpu_master_32b_wdest_mem[cpu_master_32b_wdest_rptr[3:0]];
     assign cpu_master_32b_w_to_periph_slave = cpu_master_32b_wdest_valid && (cpu_master_32b_wdest_head == 1'd0);
 
-    // cpu_master 64b path -> ddr0_slave
+    // cpu_master 64b path -> ddr0_slave (16 deep: max_outstanding)
     logic [0:0] cpu_master_64b_wdest_mem [16];
     logic [4:0] cpu_master_64b_wdest_wptr, cpu_master_64b_wdest_rptr;
     wire [0:0] cpu_master_64b_wdest_enc = 1'd0;
@@ -1965,7 +1970,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] cpu_master_64b_wdest_head = cpu_master_64b_wdest_mem[cpu_master_64b_wdest_rptr[3:0]];
     assign cpu_master_64b_w_to_ddr0_slave = cpu_master_64b_wdest_valid && (cpu_master_64b_wdest_head == 1'd0);
 
-    // cpu_master 128b path -> sram_slave
+    // cpu_master 128b path -> sram_slave (16 deep: max_outstanding)
     logic [0:0] cpu_master_128b_wdest_mem [16];
     logic [4:0] cpu_master_128b_wdest_wptr, cpu_master_128b_wdest_rptr;
     wire [0:0] cpu_master_128b_wdest_enc = 1'd0;
@@ -1989,7 +1994,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] cpu_master_128b_wdest_head = cpu_master_128b_wdest_mem[cpu_master_128b_wdest_rptr[3:0]];
     assign cpu_master_128b_w_to_sram_slave = cpu_master_128b_wdest_valid && (cpu_master_128b_wdest_head == 1'd0);
 
-    // cpu_master 256b path -> gpu_mem_slave, subtractive
+    // cpu_master 256b path -> gpu_mem_slave, subtractive (16 deep: max_outstanding)
     logic [0:0] cpu_master_256b_wdest_mem [16];
     logic [4:0] cpu_master_256b_wdest_wptr, cpu_master_256b_wdest_rptr;
     wire [0:0] cpu_master_256b_wdest_enc = cpu_master_256b_aw_to_subtractive ? 1'd1 : 1'd0;
@@ -2014,7 +2019,7 @@ module bridge_4x4_rw_xbar
     assign cpu_master_256b_w_to_gpu_mem_slave = cpu_master_256b_wdest_valid && (cpu_master_256b_wdest_head == 1'd0);
     assign cpu_master_256b_w_to_subtractive = cpu_master_256b_wdest_valid && (cpu_master_256b_wdest_head == 1'd1);
 
-    // dma0_master 32b path -> periph_slave
+    // dma0_master 32b path -> periph_slave (16 deep: max_outstanding)
     logic [0:0] dma0_master_32b_wdest_mem [16];
     logic [4:0] dma0_master_32b_wdest_wptr, dma0_master_32b_wdest_rptr;
     wire [0:0] dma0_master_32b_wdest_enc = 1'd0;
@@ -2038,7 +2043,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma0_master_32b_wdest_head = dma0_master_32b_wdest_mem[dma0_master_32b_wdest_rptr[3:0]];
     assign dma0_master_32b_w_to_periph_slave = dma0_master_32b_wdest_valid && (dma0_master_32b_wdest_head == 1'd0);
 
-    // dma0_master 64b path -> ddr0_slave
+    // dma0_master 64b path -> ddr0_slave (16 deep: max_outstanding)
     logic [0:0] dma0_master_64b_wdest_mem [16];
     logic [4:0] dma0_master_64b_wdest_wptr, dma0_master_64b_wdest_rptr;
     wire [0:0] dma0_master_64b_wdest_enc = 1'd0;
@@ -2062,7 +2067,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma0_master_64b_wdest_head = dma0_master_64b_wdest_mem[dma0_master_64b_wdest_rptr[3:0]];
     assign dma0_master_64b_w_to_ddr0_slave = dma0_master_64b_wdest_valid && (dma0_master_64b_wdest_head == 1'd0);
 
-    // dma0_master 128b path -> sram_slave
+    // dma0_master 128b path -> sram_slave (16 deep: max_outstanding)
     logic [0:0] dma0_master_128b_wdest_mem [16];
     logic [4:0] dma0_master_128b_wdest_wptr, dma0_master_128b_wdest_rptr;
     wire [0:0] dma0_master_128b_wdest_enc = 1'd0;
@@ -2086,7 +2091,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma0_master_128b_wdest_head = dma0_master_128b_wdest_mem[dma0_master_128b_wdest_rptr[3:0]];
     assign dma0_master_128b_w_to_sram_slave = dma0_master_128b_wdest_valid && (dma0_master_128b_wdest_head == 1'd0);
 
-    // dma0_master 256b path -> subtractive
+    // dma0_master 256b path -> subtractive (16 deep: max_outstanding)
     logic [0:0] dma0_master_256b_wdest_mem [16];
     logic [4:0] dma0_master_256b_wdest_wptr, dma0_master_256b_wdest_rptr;
     wire [0:0] dma0_master_256b_wdest_enc = 1'd0;
@@ -2110,7 +2115,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma0_master_256b_wdest_head = dma0_master_256b_wdest_mem[dma0_master_256b_wdest_rptr[3:0]];
     assign dma0_master_256b_w_to_subtractive = dma0_master_256b_wdest_valid && (dma0_master_256b_wdest_head == 1'd0);
 
-    // dma1_master 64b path -> ddr0_slave
+    // dma1_master 64b path -> ddr0_slave (16 deep: max_outstanding)
     logic [0:0] dma1_master_64b_wdest_mem [16];
     logic [4:0] dma1_master_64b_wdest_wptr, dma1_master_64b_wdest_rptr;
     wire [0:0] dma1_master_64b_wdest_enc = 1'd0;
@@ -2134,7 +2139,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma1_master_64b_wdest_head = dma1_master_64b_wdest_mem[dma1_master_64b_wdest_rptr[3:0]];
     assign dma1_master_64b_w_to_ddr0_slave = dma1_master_64b_wdest_valid && (dma1_master_64b_wdest_head == 1'd0);
 
-    // dma1_master 128b path -> sram_slave
+    // dma1_master 128b path -> sram_slave (16 deep: max_outstanding)
     logic [0:0] dma1_master_128b_wdest_mem [16];
     logic [4:0] dma1_master_128b_wdest_wptr, dma1_master_128b_wdest_rptr;
     wire [0:0] dma1_master_128b_wdest_enc = 1'd0;
@@ -2158,7 +2163,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma1_master_128b_wdest_head = dma1_master_128b_wdest_mem[dma1_master_128b_wdest_rptr[3:0]];
     assign dma1_master_128b_w_to_sram_slave = dma1_master_128b_wdest_valid && (dma1_master_128b_wdest_head == 1'd0);
 
-    // dma1_master 256b path -> gpu_mem_slave, subtractive
+    // dma1_master 256b path -> gpu_mem_slave, subtractive (16 deep: max_outstanding)
     logic [0:0] dma1_master_256b_wdest_mem [16];
     logic [4:0] dma1_master_256b_wdest_wptr, dma1_master_256b_wdest_rptr;
     wire [0:0] dma1_master_256b_wdest_enc = dma1_master_256b_aw_to_subtractive ? 1'd1 : 1'd0;
@@ -2183,7 +2188,7 @@ module bridge_4x4_rw_xbar
     assign dma1_master_256b_w_to_gpu_mem_slave = dma1_master_256b_wdest_valid && (dma1_master_256b_wdest_head == 1'd0);
     assign dma1_master_256b_w_to_subtractive = dma1_master_256b_wdest_valid && (dma1_master_256b_wdest_head == 1'd1);
 
-    // gpu_master 32b path -> periph_slave
+    // gpu_master 32b path -> periph_slave (16 deep: max_outstanding)
     logic [0:0] gpu_master_32b_wdest_mem [16];
     logic [4:0] gpu_master_32b_wdest_wptr, gpu_master_32b_wdest_rptr;
     wire [0:0] gpu_master_32b_wdest_enc = 1'd0;
@@ -2207,7 +2212,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] gpu_master_32b_wdest_head = gpu_master_32b_wdest_mem[gpu_master_32b_wdest_rptr[3:0]];
     assign gpu_master_32b_w_to_periph_slave = gpu_master_32b_wdest_valid && (gpu_master_32b_wdest_head == 1'd0);
 
-    // gpu_master 64b path -> ddr0_slave
+    // gpu_master 64b path -> ddr0_slave (16 deep: max_outstanding)
     logic [0:0] gpu_master_64b_wdest_mem [16];
     logic [4:0] gpu_master_64b_wdest_wptr, gpu_master_64b_wdest_rptr;
     wire [0:0] gpu_master_64b_wdest_enc = 1'd0;
@@ -2231,7 +2236,7 @@ module bridge_4x4_rw_xbar
     wire [0:0] gpu_master_64b_wdest_head = gpu_master_64b_wdest_mem[gpu_master_64b_wdest_rptr[3:0]];
     assign gpu_master_64b_w_to_ddr0_slave = gpu_master_64b_wdest_valid && (gpu_master_64b_wdest_head == 1'd0);
 
-    // gpu_master 256b path -> gpu_mem_slave, subtractive
+    // gpu_master 256b path -> gpu_mem_slave, subtractive (16 deep: max_outstanding)
     logic [0:0] gpu_master_256b_wdest_mem [16];
     logic [4:0] gpu_master_256b_wdest_wptr, gpu_master_256b_wdest_rptr;
     wire [0:0] gpu_master_256b_wdest_enc = gpu_master_256b_aw_to_subtractive ? 1'd1 : 1'd0;

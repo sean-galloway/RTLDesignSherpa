@@ -479,6 +479,7 @@ module bridge_2x2_lite_req_xbar
     assign mem_axi_awvalid = lite4_64b_aw_gnt_mem || lite5_64b_aw_gnt_mem;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] mem_wowner_mem [16];
     logic [4:0] mem_wowner_wptr, mem_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -645,6 +646,7 @@ module bridge_2x2_lite_req_xbar
     assign regs_axi_awvalid = lite4_32b_aw_gnt_regs || lite5_32b_aw_gnt_regs;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] regs_wowner_mem [16];
     logic [4:0] regs_wowner_wptr, regs_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -811,6 +813,7 @@ module bridge_2x2_lite_req_xbar
     assign subtractive_axi_awvalid = lite4_64b_aw_gnt_subtractive || lite5_64b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
+    // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -915,7 +918,7 @@ module bridge_2x2_lite_req_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // lite4 32b path -> regs
+    // lite4 32b path -> regs (16 deep: max_outstanding)
     logic [0:0] lite4_32b_wdest_mem [16];
     logic [4:0] lite4_32b_wdest_wptr, lite4_32b_wdest_rptr;
     wire [0:0] lite4_32b_wdest_enc = 1'd0;
@@ -939,7 +942,7 @@ module bridge_2x2_lite_req_xbar
     wire [0:0] lite4_32b_wdest_head = lite4_32b_wdest_mem[lite4_32b_wdest_rptr[3:0]];
     assign lite4_32b_w_to_regs = lite4_32b_wdest_valid && (lite4_32b_wdest_head == 1'd0);
 
-    // lite4 64b path -> mem, subtractive
+    // lite4 64b path -> mem, subtractive (16 deep: max_outstanding)
     logic [0:0] lite4_64b_wdest_mem [16];
     logic [4:0] lite4_64b_wdest_wptr, lite4_64b_wdest_rptr;
     wire [0:0] lite4_64b_wdest_enc = lite4_64b_aw_to_subtractive ? 1'd1 : 1'd0;
@@ -964,7 +967,7 @@ module bridge_2x2_lite_req_xbar
     assign lite4_64b_w_to_mem = lite4_64b_wdest_valid && (lite4_64b_wdest_head == 1'd0);
     assign lite4_64b_w_to_subtractive = lite4_64b_wdest_valid && (lite4_64b_wdest_head == 1'd1);
 
-    // lite5 32b path -> regs
+    // lite5 32b path -> regs (16 deep: max_outstanding)
     logic [0:0] lite5_32b_wdest_mem [16];
     logic [4:0] lite5_32b_wdest_wptr, lite5_32b_wdest_rptr;
     wire [0:0] lite5_32b_wdest_enc = 1'd0;
@@ -988,7 +991,7 @@ module bridge_2x2_lite_req_xbar
     wire [0:0] lite5_32b_wdest_head = lite5_32b_wdest_mem[lite5_32b_wdest_rptr[3:0]];
     assign lite5_32b_w_to_regs = lite5_32b_wdest_valid && (lite5_32b_wdest_head == 1'd0);
 
-    // lite5 64b path -> mem, subtractive
+    // lite5 64b path -> mem, subtractive (16 deep: max_outstanding)
     logic [0:0] lite5_64b_wdest_mem [16];
     logic [4:0] lite5_64b_wdest_wptr, lite5_64b_wdest_rptr;
     wire [0:0] lite5_64b_wdest_enc = lite5_64b_aw_to_subtractive ? 1'd1 : 1'd0;

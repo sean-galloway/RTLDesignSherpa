@@ -484,7 +484,7 @@ module bridge_1x2_axi3_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu 64b path -> s0, s1, subtractive
+    // cpu 64b path -> s0, s1, subtractive (16 deep: max_outstanding)
     logic [1:0] cpu_64b_wdest_mem [16];
     logic [4:0] cpu_64b_wdest_wptr, cpu_64b_wdest_rptr;
     wire [1:0] cpu_64b_wdest_enc = cpu_64b_aw_to_s1 ? 2'd1 : cpu_64b_aw_to_subtractive ? 2'd2 : 2'd0;

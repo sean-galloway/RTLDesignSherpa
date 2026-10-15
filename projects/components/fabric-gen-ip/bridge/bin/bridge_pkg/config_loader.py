@@ -117,6 +117,27 @@ def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
     return _parse_port_data(data, yaml_path)
 
 
+_MAX_OUTSTANDING_RANGE = (2, 64)
+
+
+def _max_outstanding(value, config_path, where) -> int:
+    """Validate a max_outstanding value: a power of two in 2..64.
+
+    Power of two because every tracker it sizes is a pointer FIFO whose
+    full/empty test uses an extra wrap bit; 64 because bridge_cam is a
+    fully associative compare per entry, and its cost grows linearly."""
+    lo, hi = _MAX_OUTSTANDING_RANGE
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{config_path}: {where} max_outstanding must be an integer, got {value!r}")
+    if not (lo <= v <= hi) or v & (v - 1):
+        raise ValueError(
+            f"{config_path}: {where} max_outstanding must be a power of two in "
+            f"{lo}..{hi}, got {v}")
+    return v
+
+
 def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool]:
     """
     Parse port data from loaded config (YAML or TOML).
@@ -134,6 +155,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     connectivity_data = None
 
     bridge_data = data.get('bridge')
+    _mo_default = _max_outstanding(
+        (bridge_data or {}).get('max_outstanding', 16), config_path, '[bridge]')
     if not bridge_data:
         raise ValueError("Config file must contain 'bridge' key")
 
@@ -234,6 +257,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             # carried so the validator can reject it -- a master's `cdc`
             # would otherwise be dropped here and never seen
             cdc=bool(m.get('cdc', False)),
+            max_outstanding=_max_outstanding(
+                m.get('max_outstanding', _mo_default), config_path, f"master '{port_name}'"),
         )
 
         masters.append(port)
@@ -309,6 +334,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             addr_range=addr_range,
             enable_ooo=enable_ooo,
             cdc=bool(s.get('cdc', False)),
+            max_outstanding=_max_outstanding(
+                s.get('max_outstanding', _mo_default), config_path, f"slave '{port_name}'"),
             use_monitor=bool(s.get('use_monitor', True)),
             mon_add=list(s.get('mon_add', [])),
             mon_remove=list(s.get('mon_remove', [])),

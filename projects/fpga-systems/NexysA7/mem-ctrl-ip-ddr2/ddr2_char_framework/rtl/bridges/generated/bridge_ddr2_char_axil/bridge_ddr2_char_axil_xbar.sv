@@ -1058,7 +1058,7 @@ module bridge_ddr2_char_axil_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> ddr2_apb, harness_csr, dfi_mon_ram, obs_apb, chargen_apb
+    // host 32b path -> ddr2_apb, harness_csr, dfi_mon_ram, obs_apb, chargen_apb (16 deep: max_outstanding)
     logic [2:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
     wire [2:0] host_32b_wdest_enc = host_32b_aw_to_harness_csr ? 3'd1 : host_32b_aw_to_dfi_mon_ram ? 3'd2 : host_32b_aw_to_obs_apb ? 3'd3 : host_32b_aw_to_chargen_apb ? 3'd4 : 3'd0;
@@ -1086,7 +1086,7 @@ module bridge_ddr2_char_axil_xbar
     assign host_32b_w_to_obs_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd3);
     assign host_32b_w_to_chargen_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd4);
 
-    // host 64b path -> debug_sram, subtractive
+    // host 64b path -> debug_sram, subtractive (16 deep: max_outstanding)
     logic [0:0] host_64b_wdest_mem [16];
     logic [4:0] host_64b_wdest_wptr, host_64b_wdest_rptr;
     wire [0:0] host_64b_wdest_enc = host_64b_aw_to_subtractive ? 1'd1 : 1'd0;

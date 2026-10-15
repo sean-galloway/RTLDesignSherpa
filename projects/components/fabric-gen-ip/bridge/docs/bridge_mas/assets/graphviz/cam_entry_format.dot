@@ -5,7 +5,7 @@
 // ALLOW_DUPLICATES = 1). Packed field layout (not a block diagram).
 digraph cam_entry_format {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, labelloc=t,
-           label="bridge_cam entry - one per outstanding transaction, DEPTH = 16 entries per CAM\n(u_wr_cam and u_rd_cam in each CAM-tracked slave adapter)"];
+           label="bridge_cam entry - one per outstanding transaction, DEPTH = the slave's max_outstanding (default 16) per CAM\n(u_wr_cam and u_rd_cam in each CAM-tracked slave adapter)"];
     node  [fontname="Helvetica", fontsize=10, shape=plaintext];
 
     entry [label=<

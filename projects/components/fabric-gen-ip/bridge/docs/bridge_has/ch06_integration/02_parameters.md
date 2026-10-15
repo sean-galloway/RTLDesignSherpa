@@ -50,12 +50,14 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 | `arbitration` | `"rr"` / `"qos"` | `"rr"` | Per-slave arbitration policy. `"qos"` grants the highest `AxQOS` plus aging (MAS 2.3, Per-Slave Request Arbitration); it decides among requests pending at the arbiter, so it shows at a slave that backpressures AW, not at one that accepts every AW on arrival; equals share round-robin. |
 | `qos_aging_shift` | int 0..7 | 4 | With `"qos"`: a waiting request gains one priority level every `2**shift` cycles, so the worst wait for a QoS-0 request is `15 * 2**shift` cycles. |
 | `id_track_bits` | int 0..8 | 4 | Per-ID target tracking in every master adapter: `2**id_track_bits` entries indexed by the ID's low bits (never more bits than the port's ID). A request waits only when its ID is in flight to a different slave; IDs sharing the index bits are treated as one ID, which is safe and at worst stalls needlessly. 0 orders every ID as one. Not used by read-return-atomic or trace-echo ports (MAS 2.1). |
+| `max_outstanding` | int, power of two 2..64 | 16 | Outstanding limit per direction, the default for every port; a port overrides it with its own `max_outstanding`. A master holds at most this many AWs and ARs in flight; a slave tracks at most this many (its `bridge_cam` or in-order FIFO), and its AWREADY/ARREADY drop when full. Fixes the fixed 16 (GitHub #119 L5); measured exactly by `test_bridge_2x2_rw_depth_limits`. |
 
 : Crossbar options (bridge TASK-006, was BRIDGE-017)
 
 | TOML key (`[[bridge.slaves]]`) | Type | Default | Effect |
 |---|---|---|---|
 | `cdc` | bool | `false` | `true` gives this AXI4 slave port its own clock: `<name>_aclk` / `<name>_aresetn` on the top, `axi4_cdc_{wr,rd}` between the adapter's timing wrapper and the port (HAS 4.5a). Slave ports, `protocol = "axi4"` only. |
+| `max_outstanding` | int, power of two 2..64 | `[bridge].max_outstanding` | This slave's response-tracker depth (`bridge_cam` or in-order FIFO), and so its outstanding limit. The same key on a `[[bridge.masters]]` entry sets that master adapter's limit. |
 
 : CDC slave port option (bridge TASK-006, was BRIDGE-017)
 

@@ -125,7 +125,7 @@ module bridge_2x2_wb4_wbp_adapter
     // own ready, masked before it reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
-    localparam WR_FIFO_DEPTH = 16;
+    localparam WR_FIFO_DEPTH = 16;  // max_outstanding
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
 
@@ -205,7 +205,7 @@ module bridge_2x2_wb4_wbp_adapter
     // bridge BUG-009 (was BRIDGE-011) not-full gating -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
-    localparam RD_FIFO_DEPTH = 16;
+    localparam RD_FIFO_DEPTH = 16;  // max_outstanding
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
 

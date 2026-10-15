@@ -78,6 +78,7 @@ class SlaveInfo:
     addr_width: int  # Address width in bits
     protocol: str = 'axi4'  # Protocol type: 'axi4', 'axi5', 'apb', or 'axil'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
+    max_outstanding: int = 16  # response tracker depth (PortSpec.max_outstanding)
     cdc: bool = False  # bridge TASK-006 (was BRIDGE-017): own clock; axi4_cdc_{wr,rd} before the boundary
     use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
     # Internal slaves have no top-level pins -- the bridge instantiates
@@ -120,6 +121,8 @@ class MasterConfig:
     # AXI5 sideband features exposed on this port (protocol='axi5' only;
     # validated upstream to the A5-1 set: nsaid/trace/mpam/mecid/unique).
     axi5_features: Optional[List[str]] = None
+    # Tracker depth / outstanding limit per direction (PortSpec.max_outstanding).
+    max_outstanding: int = 16
 
 
 class AdapterGenerator:
@@ -2103,10 +2106,11 @@ class AdapterGenerator:
 
         num_slaves = len(self.slaves)
 
-        # FIFO depth: needs to cover max outstanding requests. 16 is a safe default;
-        # adapter wrappers typically don't accept more outstanding than this anyway.
-        fifo_depth = 16
-        fifo_aw_bits = 4  # $clog2(16)
+        # Tracker depth = this port's outstanding limit per direction
+        # ([bridge]/port max_outstanding, power of two 2..64; was a fixed 16
+        # until bridge GitHub #119 L5).
+        fifo_depth = int(getattr(self.master, 'max_outstanding', 16))
+        fifo_aw_bits = fifo_depth.bit_length() - 1
 
         # Generate response-tracking FIFOs (one per channel direction).
         # The FIFO captures `comb_slave_select_{ar,aw}` at the {ar,aw}
