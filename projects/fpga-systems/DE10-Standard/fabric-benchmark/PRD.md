@@ -253,9 +253,20 @@ normalized delta table (% difference, Leg A vs Leg B).
 
 ![DE10-Standard fabric benchmark (planned)](docs/assets/graphviz/de10_fabric_benchmark_planned.png)
 
-Two planes. The **control plane** carries the host's configuration and
-readout and is never measured. The **data plane** is the fabric under
-test and everything that moves data through it.
+**Source:** [de10_fabric_benchmark_planned.dot](docs/assets/graphviz/de10_fabric_benchmark_planned.dot)
+
+Two planes. The **control plane** (top, dashed) carries the host's
+configuration and readout and is never measured: JTAG to Avalon Master
+Bridge → `avmm_to_axil4` → the generated configuration bridge, which
+configures `stream`, the injector and the meters, preloads `desc_ram`, and
+holds `harness_csr`. The **data plane** is the fabric under test and
+everything that moves data through it. Requests run down the center, from
+the masters through the master-side meters, the fabric, the slave-side
+meters and the crossings to the endpoints. Read data and write responses
+climb back up the right on their own lane, through the same crossings,
+meters and fabric. `axi4_to_axi3` sits below the slave-side meters, outside
+both fabrics. The W3 injector is dashed because it only drives traffic in
+the contention run.
 
 ### 5.1 System address map
 

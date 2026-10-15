@@ -1,48 +1,101 @@
 // DE10-Standard fabric benchmark architecture (PRD.md section 5, Figure 5.1).
-// PLANNED: no RTL or build exists yet; this draws PRD v0.4's system address
-// map (Table 5.1): the configuration region at 0xF000_0000 and the data fabric
-// below it, with the observers at the fabric's master and slave ports.
-// House style: vault/handbook/authoring/block-diagrams.md ("(planned)" in the
-// title; the fabric under test in the center, emphasized).
+// PLANNED: no RTL or build exists yet. Draws PRD v0.4 as ruled:
+//   - control plane (top, dashed): JTAG-to-Avalon -> avmm_to_axil4 -> the
+//     generated configuration bridge at 0xF000_0000; configuration only, never data
+//   - data plane (center): requests top-down from the masters through the
+//     master-side meters, the fabric under test, the slave-side meters, the
+//     crossings, to the endpoints (Table 5.1 bases)
+//   - return (right): read data and write responses climb back on their own lane
+//   - axi4_to_axi3 sits OUTSIDE the fabric: both legs are AXI4 on every port
+//   - the W3 injector is dashed: in the build, active only in the contention run
+// House style: vault/handbook/authoring/block-diagrams.md.
 digraph de10_fabric_benchmark_planned {
-    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="DE10-Standard (Cyclone V 5CSX) fabric benchmark (planned)"];
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.5", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
+           label="DE10-Standard (Cyclone V 5CSX) fabric benchmark - control plane, data plane, return lane (planned)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
+    // ---------------- control plane ----------------
     subgraph cluster_ctl {
-        label="Configuration path - identical both legs, never measured"; fontsize=10; style=dashed;
-        jtag [label="JTAG to Avalon Master Bridge\n(System Console host)", fillcolor="white"];
-        av   [label="avmm_to_axil4"];
-        cbr  [label="Configuration bridge (generated), base 0xF000_0000\nstream_apb 0xF000_0000   harness_csr 0xF001_0000   desc_ram wr 0xF002_0000\nobs_slave 0xF018_0000   obs_master 0xF019_0000   obs_desc 0xF01C_0000   chargen 0xF01D_0000"];
-        hcsr [label="harness_csr\nCTRL, STATUS, CRC expected / computed"];
-        jtag -> av [xlabel="Avalon-MM"];
-        av -> cbr [xlabel="AXI4-Lite"];
-        cbr -> hcsr;
+        label="Control plane - configuration and readout only, never measured, identical both legs"; fontsize=10; style=dashed;
+        jtag [label="Host debug master\nJTAG to Avalon Master Bridge (System Console)", fillcolor="white"];
+        av   [label="Avalon-MM to AXI4-Lite\navmm_to_axil4 (non-posted writes)"];
+        cbr  [label="Configuration bridge (generated) at 0xF000_0000\lstream_apb 0xF000_0000   harness_csr 0xF001_0000   desc_ram wr 0xF002_0000\lobs_slave 0xF018_0000   obs_master 0xF019_0000   obs_desc 0xF01C_0000   chargen 0xF01D_0000\l"];
+        hcsr [label="Harness control and CRC readout\lharness_csr: start, clear_stats, soft_reset,\lCRC_RD_EXPECTED / CRC_WR_EXPECTED / CRC_WR_COMPUTED\l(computed CRC read from the CRC sink)\l"];
+        jtag -> av  [xlabel="config RD / WR (Avalon-MM)"];
+        av   -> cbr [xlabel="config RD / WR (AXI4-Lite)"];
+        cbr  -> hcsr [xlabel="config RD / WR"];
     }
 
-    str  [label="stream (stream_top_ch8)\nconfig: stream_apb\nm_axi_desc 256  m_axi_rd 128  m_axi_wr 128"];
-    inj  [label="char_engine_block (W3 injector)\nconfig: chargen"];
-    obm  [label="obs_master + obs_desc\n(master-side meters)", fillcolor="#FFF2CC"];
-    fab  [label="DATA FABRIC under test - AXI4 on every port\nA: bridge crossbar    B: Platform Designer interconnect", penwidth=1.8, width=6.5];
-    obs  [label="obs_slave\n(slave-side meters)", fillcolor="#FFF2CC"];
+    // ---------------- data plane: request direction, top-down ----------------
+    str  [label="DMA mover - stream_top_ch8\lm_axi_desc 256   m_axi_rd 128   m_axi_wr 128\l", group=C];
+    inj  [label="W3 write injector (contention run)\nchar_engine_block, NUM_GEN=1, 128-bit", style="filled,dashed"];
+    obm  [label="Master-side meters\nobs_master (rd, wr, injector wr) + obs_desc (desc rd)", fillcolor="#FFF2CC", group=C];
+    fab  [label="DATA FABRIC under test - AXI4 on every port, fabric clock\nLeg A: bridge-generated crossbar      Leg B: Platform Designer interconnect", penwidth=2.2, width=7.0, group=C];
+    obs  [label="Slave-side meters\nobs_slave (rd: DDR3, LFSR   wr: DDR3, CRC)", fillcolor="#FFF2CC", group=C];
+    dsc  [label="Descriptor store - desc_ram rd 0x8000_0000\nsdpram_slave_axi4_axi4 (host preloads at 0xF002_0000)"];
 
-    ddr  [label="DDR3  0x0000_0000 (1 GB)\naxi4_to_axi3 -> f2sdram AXI-3\n-> HPS DDR3 controller", fillcolor="white"];
-    dsc  [label="desc_ram rd  0x8000_0000\nsdpram_slave_axi4_axi4"];
-    src  [label="LFSR source  0x9000_0000\naxi4_cdc_rd -> axi4_slave_rd_injector"];
-    snk  [label="CRC sink  0xA000_0000\naxi4_cdc_wr -> axi4_slave_wr_crc_check"];
+    a2a  [label="AXI4 to AXI3 (outside both fabrics)\naxi4_to_axi3"];
+    cdr  [label="Read crossing\naxi4_cdc_rd"];
+    cdw  [label="Write crossing\naxi4_cdc_wr"];
 
-    cbr -> str [xlabel="APB"];
-    cbr -> inj [xlabel="APB"];
-    cbr -> dsc [style=dashed, xlabel="preload"];
-    str -> obm [penwidth=1.6];
-    inj -> obm;
-    obm -> fab [penwidth=1.6];
-    fab -> obs [penwidth=1.6];
-    obs -> ddr [dir=both];
-    fab -> dsc;
-    obs -> src;
-    obs -> snk;
+    ddr  [label="DDR3 0x0000_0000 (1 GB; bench 0x2000_0000+)\lf2sdram AXI-3 128 -> HPS DDR3 controller\l", fillcolor="white"];
+    src  [label="LFSR source 0x9000_0000\naxi4_slave_rd_injector (srcsnk_clk)"];
+    snk  [label="CRC sink 0xA000_0000\naxi4_slave_wr_crc_check (srcsnk_clk)"];
 
-    { rank=same; str; inj; }
-    { rank=same; ddr; dsc; src; snk; }
+    str -> obm [xlabel="desc RD, data RD, data WR", penwidth=1.6];
+    inj -> obm [xlabel="W3 WR"];
+    obm -> fab [xlabel="desc RD, data RD, data WR, W3 WR", penwidth=1.6];
+    fab -> obs [xlabel="data RD, data WR, W3 WR", penwidth=1.6];
+    fab -> dsc [xlabel="desc RD"];
+    obs -> a2a [xlabel="DDR3 RD / WR (AXI4)"];
+    obs -> cdr [xlabel="LFSR RD"];
+    obs -> cdw [xlabel="CRC WR"];
+    a2a -> ddr [xlabel="DDR3 RD / WR (AXI-3)"];
+    cdr -> src [xlabel="LFSR RD"];
+    cdw -> snk [xlabel="CRC WR"];
+
+    // ---------------- return lane: up the right side ----------------
+    r0 [shape=point, width=0.03, label="", group=R];
+    r1 [shape=point, width=0.03, label="", group=R];
+    r2 [shape=point, width=0.03, label="", group=R];
+    r3 [shape=point, width=0.03, label="", group=R];
+    r4 [shape=point, width=0.03, label="", group=R];
+    rm [shape=point, width=0.03, label="", group=R];
+    pd [shape=point, width=0.03, label=""];
+    ps [shape=point, width=0.03, label=""];
+    pk [shape=point, width=0.03, label=""];
+    ddr -> pd [dir=none, xlabel="DDR3 R / B"];
+    src -> ps [dir=none, xlabel="LFSR R"];
+    snk -> pk [dir=none, xlabel="CRC B"];
+    pd -> ps -> pk -> rm [dir=none, penwidth=1.6];
+    dsc -> r3 [dir=none, xlabel="desc R"];
+    str -> r0 [dir=back, xlabel="R data, B resp (back through the\lsame crossings, meters and fabric)\l", penwidth=1.6];
+    r0 -> r1 [dir=back, penwidth=1.6];
+    r1 -> r2 [dir=back, penwidth=1.6];
+    r2 -> r3 [dir=back, penwidth=1.6];
+    r3 -> r4 [dir=back, penwidth=1.6];
+    r4 -> rm [dir=back, penwidth=1.6];
+
+    // ---------------- configuration sideband (dashed) ----------------
+    cbr -> str [style=dashed, xlabel="config (APB)"];
+    cbr -> inj [style=dashed, xlabel="chargen (APB)"];
+    cbr -> obm [style=dashed, xlabel="meter config / readout"];
+    cbr -> obs [style=dashed, xlabel="meter config / readout"];
+    cbr -> dsc [style=dashed, xlabel="preload (AXI4)"];
+
+    { rank=same; inj; str; hcsr; }
+    { rank=same; obm; r0; }
+    { rank=same; fab; r1; }
+    { rank=same; obs; dsc; r2; }
+    { rank=same; a2a; cdr; cdw; r3; }
+    { rank=same; ddr; src; snk; r4; }
+    { rank=same; pd; ps; pk; rm; }
+    // column order: harness readout and injector left, mover center, return lane right
+    hcsr -> inj -> str [style=invis];
+    obm -> r0 [style=invis];
+    fab -> r1 [style=invis];
+    obs -> dsc -> r2 [style=invis];
+    a2a -> cdr -> cdw -> r3 [style=invis];
+    ddr -> src -> snk -> r4 [style=invis];
 }
