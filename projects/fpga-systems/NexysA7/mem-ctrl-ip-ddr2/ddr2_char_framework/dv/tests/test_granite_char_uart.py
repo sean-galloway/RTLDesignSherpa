@@ -88,9 +88,11 @@ def _make_dfi_slave(dut):
                         strict_read_timing=_strict_rd, read_latency=_rdlat,
                         dfi_phase_bytes=DRAM_BEAT_BYTES)
     # Demote HARD JEDEC violations to SOFT: we validate data loopback, not
-    # the controller's exact tRCD/tFAW here.
+    # the controller's exact tRCD/tFAW here. Soft violations are COUNTED and
+    # LOGGED (visible in results["viol"]) -- silent without the logger.
     slave.dram = DramStateModel(timings=base.timings, num_banks=NUM_BANKS,
-                                policy=ViolationPolicy(hard=frozenset()))
+                                policy=ViolationPolicy(hard=frozenset()),
+                                log=dut._log)
     return slave, memory
 
 

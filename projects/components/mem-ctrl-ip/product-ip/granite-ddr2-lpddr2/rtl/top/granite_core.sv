@@ -236,6 +236,7 @@ module granite_core
     logic                      w_ret_v, w_ret_rdy, w_ret_last;
     logic [DW-1:0]             w_ret_data;
     logic [1:0]                w_ret_resp;
+    logic                      w_rd_ret_busy;
 
     // ---- scheduler cmd stream -> DFI cmd ----
     logic                      w_cmd_v, w_cmd_rdy;
@@ -583,13 +584,10 @@ module granite_core
         .HAS_MODE_REGISTER (1'b0),
         .MAINT_EXTRA_WIDTH(1),
         .CLOSE_ON_DRAIN(1'b1),
-        // BANK_FIFO (the per-bank in-order product core) is validated to
-        // 13/14 on the A7 after two deadlock-class fixes (see MC-003), with
-        // one known blocker: col_major_bl8_gap hangs the write engine (idle-
-        // gap + refresh interaction, root-cause pending), and the tCCD
-        // forward-admission that restores full-rate columns needs a loop-free
-        // form (its comb version wedged the base path). Granite ships on the
-        // FRFCFS core until those close.
+        // BANK_FIFO (the per-bank in-order product core): MC-003 next round —
+        // enabling to root-cause the refresh-adjacent residual
+        // (col_major_bl8_gap write hang / tREFI=50 read error). NOT the
+        // shipping value until 14/14.
         .BANK_FIFO     (1'b0),
         .HAS_CMD_HISTORY(1'b0),
         .REF_HAS_POSTPONE(1'b0),
@@ -719,6 +717,7 @@ module granite_core
         .rd_issue_ready_i   (w_rd_issue_rdy),
         .rd_issue_valid_o   (w_rd_issue_v),
         .rd_issue_slot_o    (w_rd_issue_slot),
+        .rd_ret_busy_i      (w_rd_ret_busy),
         .sched_order_mode_i (sched_order_mode_i),
         .sched_row_sel_i    (sched_row_sel_i),
         .sched_col_sel_i    (sched_col_sel_i),
@@ -838,6 +837,7 @@ module granite_core
         .rd_valid_o         (w_ret_v),
         .rd_ready_i         (w_ret_rdy),
         .rd_data_o          ({w_ret_last, w_ret_resp, w_ret_data}),
+        .rd_ret_busy_o      (w_rd_ret_busy),
         .init_start_i       (w_init_start),
         .init_complete_o    (w_init_complete),
         .dfi_clk            (dfi_clk),

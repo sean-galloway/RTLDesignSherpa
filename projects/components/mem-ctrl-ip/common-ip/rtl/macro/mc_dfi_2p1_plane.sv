@@ -126,6 +126,9 @@ module mc_dfi_2p1_plane
     output logic                       rd_valid_o,
     input  logic                       rd_ready_i,
     output logic [RD_DW-1:0]           rd_data_o,
+    // read-return busy indicator to scheduler (asserted while a read burst is
+    // still in flight / returning from the PHY)
+    output logic                       rd_ret_busy_o,
     // init handshake (controller side)
     input  logic                       init_start_i,
     output logic                       init_complete_o,
@@ -369,7 +372,8 @@ module mc_dfi_2p1_plane
         .rd_dbi_o          (),
         .cal_expect_i      (cal_expect_i),
         .cal_data_o        (cal_data_o),
-        .cal_valid_o       (cal_valid_o)
+        .cal_valid_o       (cal_valid_o),
+        .rd_ret_busy_o     (rd_ret_busy_o)
     );
 
     wire unused = &{1'b0, w_fire_rank, 1'b0};

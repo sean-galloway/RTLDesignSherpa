@@ -497,6 +497,7 @@ module scoria_scheduler_plane
         .rd_issue_ready_i   (rd_issue_ready_i),
         .rd_issue_valid_o   (rd_issue_valid_o),
         .rd_issue_slot_o    (rd_issue_slot_o),
+        .rd_ret_busy_i      (1'b0),
         .cmd_valid_o        (cmd_valid_o),
         .cmd_ready_i        (cmd_ready_i),
         .cmd_op_o           (cmd_op_o),

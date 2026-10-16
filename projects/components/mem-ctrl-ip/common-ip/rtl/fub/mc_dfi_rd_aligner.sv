@@ -81,7 +81,11 @@ module mc_dfi_rd_aligner #(
     // calibration capture sideband (dfi_clk domain; unused when HAS_CAL_CAPTURE=0)
     input  logic                        cal_expect_i,
     output logic [DFI_DATA_WIDTH-1:0]   cal_data_o,
-    output logic                        cal_valid_o
+    output logic                        cal_valid_o,
+
+    // read-return busy indicator to scheduler (true while any read burst is
+    // still returning; used to keep REF out of the open return window)
+    output logic                        rd_ret_busy_o
 );
 
     localparam logic [1:0] RESP_OKAY = 2'b00;
@@ -165,6 +169,7 @@ module mc_dfi_rd_aligner #(
     assign rd_resp_o  = RESP_OKAY;
     assign rd_last_o  = rd_valid_o && (r_rcnt == (CNTW+1)'(BL_WORDS - 1));
     assign rd_dbi_o   = (HAS_DBI != 0) ? (rd_dbi_en_i ? dfi_rddata_dbi_i : '0) : '0;
+    assign rd_ret_busy_o = (r_outstanding != '0);
 
     // ---- calibration capture sideband ---------------------------------------
     // Armed by a single-cycle cal_expect pulse; captures the first valid beat

@@ -249,6 +249,9 @@ module mc_scheduler_plane
     output logic                                rd_issue_valid_o,
     output logic [PTRW-1:0]                     rd_issue_slot_o,
 
+    // ---- read-return busy from DFI plane (BANK_FIFO core only) ----
+    input  logic                                rd_ret_busy_i,
+
     // ---- output command stream (to DFI plane) ----
     output logic                      cmd_valid_o,
     input  logic                      cmd_ready_i,
@@ -607,6 +610,19 @@ module mc_scheduler_plane
     // else the FRFCFS research core. Both drive the plane outputs directly
     // (exactly one branch elaborates).
     // ======================================================================
+    // rd_ret_busy_i originates in the DFI plane's dfi_clk domain; synchronize
+    // to aclk before gating the per-bank scheduler's refresh grant.
+    logic r_rd_ret_busy_sync0, r_rd_ret_busy_sync1;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rd_ret_busy_sync0 <= 1'b0;
+            r_rd_ret_busy_sync1 <= 1'b0;
+        end else begin
+            r_rd_ret_busy_sync0 <= rd_ret_busy_i;
+            r_rd_ret_busy_sync1 <= r_rd_ret_busy_sync0;
+        end
+    )
+
     generate if (BANK_FIFO) begin : g_bank_sched
         mc_bank_sched #(
             .NUM_RANKS   (NUM_RANKS),
@@ -652,6 +668,7 @@ module mc_scheduler_plane
             .rd_issue_ready_i   (rd_issue_ready_i),
             .rd_issue_valid_o   (rd_issue_valid_o),
             .rd_issue_slot_o    (rd_issue_slot_o),
+            .rd_ret_busy_i      (r_rd_ret_busy_sync1),
             .init_done_i        (init_done),
             .init_cmd_valid_i   (init_cmd_valid),
             .init_cmd_op_i      (init_cmd_op),

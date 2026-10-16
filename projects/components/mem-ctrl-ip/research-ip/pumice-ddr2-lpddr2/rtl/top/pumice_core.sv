@@ -322,6 +322,7 @@ module pumice_core
     logic                      w_ret_v, w_ret_rdy, w_ret_last;
     logic [DW-1:0]             w_ret_data;
     logic [1:0]                w_ret_resp;
+    logic                      w_rd_ret_busy;
 
     // ---- scheduler cmd stream -> DFI cmd (packed) ----
     logic                      w_cmd_v, w_cmd_rdy;
@@ -784,6 +785,7 @@ module pumice_core
         .rd_issue_ready_i   (w_rd_issue_rdy),
         .rd_issue_valid_o   (w_rd_issue_v),
         .rd_issue_slot_o    (w_rd_issue_slot),
+        .rd_ret_busy_i      (w_rd_ret_busy),
         // scheduling knobs
         .sched_order_mode_i (sched_order_mode_i),
         .sched_row_sel_i    (sched_row_sel_i),
@@ -915,6 +917,7 @@ module pumice_core
         .rd_valid_o         (w_ret_v),
         .rd_ready_i         (w_ret_rdy),
         .rd_data_o          ({w_ret_last, w_ret_resp, w_ret_data}),
+        .rd_ret_busy_o      (w_rd_ret_busy),
         .init_start_i       (w_init_start),
         .init_complete_o    (w_init_complete),
         .dfi_clk            (dfi_clk),

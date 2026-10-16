@@ -105,6 +105,9 @@ module mc_bank_sched
     input  logic [15:0]               t_rfc_i,
     input  logic [7:0]                t_rfc_pb_i,
 
+    // ---- read-return busy from DFI plane (keeps REF out of open return window)
+    input  logic                      rd_ret_busy_i,
+
     // ---- ZQ (present when HAS_ZQ=1; granite ties off) ----
     input  logic                      zq_req_i,
     output logic                      zq_grant_o,
@@ -354,6 +357,39 @@ module mc_bank_sched
             end
     end
 
+    // Read-return window tracking. The DFI-side rd_aligner derives rd_last
+    // from a modulo word counter (r_rcnt == BL_WORDS-1) with NO resync: if a
+    // REF fires while a read's return window is open, the clipped return
+    // shortens the count, rd_last reframes onto the wrong word, and every
+    // later read lands mis-framed in the return ring (MC-003 2026-10-15: a
+    // couple of mismatched beats + the final txn's RLAST never firing = read-
+    // engine hang; the per-bank core hits the read-in-flight-across-REF window
+    // every refresh boundary because its decode-to-fire path is 0-cycle, where
+    // the FRFCFS 5-stage pipe almost never does). So the controller must never
+    // grant REF into an open return window.
+    //
+    // The DFI plane supplies rd_ret_busy_i = (aligner r_outstanding != 0), true
+    // from the first read admitted by the aligner until the last burst word is
+    // captured. That is exact for the return window, but a read issued by this
+    // scheduler takes several cycles to reach the aligner (command FIFO + DFI
+    // cmd path). To cover that scheduler-to-DFI pipeline, arm a local
+    // aclk-domain flag on rd_issue_valid_o and hold it until rd_ret_busy_i has
+    // been low for at least one cycle. The combined w_rdret_busy therefore stays
+    // asserted from scheduler issue through aligner completion, preventing REF
+    // from clipping either the in-flight command or the returning data.
+    //
+    // JEDEC-wise this is refresh postponement (tREFI is a maximum; the refresh
+    // controller's own postpone/pending credits are the upstream bound against
+    // starvation).
+    logic r_rd_pipe_busy;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))            r_rd_pipe_busy <= 1'b0;
+        else if (rd_issue_valid_o)             r_rd_pipe_busy <= 1'b1;
+        else if (!rd_ret_busy_i)               r_rd_pipe_busy <= 1'b0;
+    )
+    logic w_rdret_busy;
+    assign w_rdret_busy = r_rd_pipe_busy || rd_ret_busy_i;
+
     // All-idle gates for the override grants. Rows closed (+ recovery windows)
     // is the JEDEC requirement and matches the FRFCFS core's w_ref_safe /
     // w_maint_safe exactly: PENDING DEMAND DOES NOT BLOCK REFRESH. A pending
@@ -362,9 +398,12 @@ module mc_bank_sched
     // holds any_head_vld forever and REFab can never grant (found on the A7:
     // engines hung from the first scenario under the real tREFI=585,
     // 2026-10-15). The pending entries simply wait out the tRFC.
+    //
+    // w_rdret_busy additionally holds REF out of the open read-return window
+    // (see above) -- its own slip would reframe the aligner's last framing.
     logic w_ref_safe, w_refpb_safe, w_maint_safe;
-    assign w_ref_safe   = !w_any_active && !w_rfc_busy;
-    assign w_refpb_safe = !r_row_act[RK0][refresh_bank_i] && !w_rfc_busy;
+    assign w_ref_safe   = !w_any_active && !w_rfc_busy && !w_rdret_busy;
+    assign w_refpb_safe = !r_row_act[RK0][refresh_bank_i] && !w_rfc_busy && !w_rdret_busy;
     assign w_maint_safe = !w_any_active && !w_rfc_busy && !w_zq_busy && !maint_busy_i;
 
     logic        w_ovr_vld;
@@ -480,6 +519,29 @@ module mc_bank_sched
                                   : wr_cand(int'(w_sel_bank));
     end
 
+    // Stale-skid detect — the store's live head view disagrees with the
+    // seated skid. Two ways to go stale: (1) an older same-bank entry
+    // finished filling AFTER the skid seated (the skid holds a younger
+    // entry and shadows the true head), (2) the slot was freed and recycled
+    // (same slot number, different entry -- caught by the ROW compare).
+    // Without this gate a column fire commits a non-head slot: out-of-order
+    // per-bank commits corrupt the write drain, and the next fire
+    // double-commits the freed slot (ENTRY_STORE "commit of WR slot N which
+    // is NOT valid", MC-003 2026-10-15, proven at the harness level with real
+    // JEDEC timings). The FRFCFS core cannot go stale: it recomputes oldest
+    // from the full valid/age matrix every cycle and caches no head.
+    logic [NUM_BANKS-1:0] w_ws_stale, w_rs_stale;
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            w_ws_stale[b] = r_ws[b].vld && wr_bh_valid_i[b]
+                && ((wr_bh_slot_i[b*PTRW +: PTRW] != r_ws[b].slot)
+                 || (wr_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH] != r_ws[b].row));
+            w_rs_stale[b] = r_rs[b].vld && rd_bh_valid_i[b]
+                && ((rd_bh_slot_i[b*PTRW +: PTRW] != r_rs[b].slot)
+                 || (rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH] != r_rs[b].row));
+        end
+    end
+
     logic        w_fis_col, w_fis_act, w_fis_pre;
     logic        w_fsafe;
     always_comb begin
@@ -501,7 +563,9 @@ module mc_bank_sched
                 w_fsafe = bank_rdwr_ready_i[RK0][w_sel_bank] && tccd_ok_i
                           && (w_sel_is_rd ? (twtr_ok_i && !w_rd_turn_block)
                                           : (trtw_ok_i && !w_wr_turn_block))
-                          && !w_ref_col_block[w_sel_bank];
+                          && !w_ref_col_block[w_sel_bank]
+                          && (w_sel_is_rd ? !w_rs_stale[w_sel_bank]
+                                          : !w_ws_stale[w_sel_bank]);
             else if (w_fis_pre)
                 w_fsafe = bank_pre_ready_i[RK0][w_sel_bank];
         end
@@ -592,6 +656,10 @@ module mc_bank_sched
                     r_ws[b].col  <= wr_bh2_col_i [b*COL_WIDTH +: COL_WIDTH];
                     r_ws[b].id   <= wr_bh2_id_i  [b*IW +: IW];
                     r_ws[b].last <= wr_bh2_last_i[b];
+                end else if (w_ws_stale[b]) begin
+                    // Drop the stale skid; the !vld branch re-seats the true
+                    // head from the live view next cycle.
+                    r_ws[b].vld <= 1'b0;
                 end else if (!r_ws[b].vld) begin
                     r_ws[b].vld  <= wr_bh_valid_i[b];
                     r_ws[b].slot <= wr_bh_slot_i[b*PTRW +: PTRW];
@@ -603,7 +671,7 @@ module mc_bank_sched
                 // RD skid: same discipline (r_op, not w_op -- the RD fire
                 // releases the RD head; checking the WR decode here held the
                 // head past its fire and re-issued the freed slot, MC-003
-                // 2026-10-15).
+                // 2026-10-15). Same stale-drop as the WR skid.
                 if (w_fire && !w_ovr_vld && (cmd_bank_o == BKW'(b))
                     && (r_op[b] == OP_RD)) begin
                     r_rs[b].vld  <= rd_bh2_valid_i[b];
@@ -612,6 +680,8 @@ module mc_bank_sched
                     r_rs[b].col  <= rd_bh2_col_i [b*COL_WIDTH +: COL_WIDTH];
                     r_rs[b].id   <= rd_bh2_id_i  [b*IW +: IW];
                     r_rs[b].last <= 1'b0;
+                end else if (w_rs_stale[b]) begin
+                    r_rs[b].vld <= 1'b0;
                 end else if (!r_rs[b].vld) begin
                     r_rs[b].vld  <= rd_bh_valid_i[b];
                     r_rs[b].slot <= rd_bh_slot_i[b*PTRW +: PTRW];
