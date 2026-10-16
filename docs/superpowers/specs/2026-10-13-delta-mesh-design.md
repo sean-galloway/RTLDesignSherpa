@@ -90,15 +90,20 @@ ECLIPSE [N7]; we take the grouping but not the single-cycle guarantee.)
 - All ports AXI4-Stream: `TDATA/TVALID/TREADY/TLAST` + header sideband in
   `TUSER` (§4). Optional AMBA 5 check/TWAKEUP richness carries over from
   flat mode unchanged.
-- **CXS migration (owner plan, 2026-10-15):** rapids gains a CXS
-  interface variant (`rapids_cxs`, a separate model alongside the AXIS
-  one) replacing its AXIS interfaces, and the delta network ports move
-  to CXS to match. AMBA 5 CXS (credit-controlled expandable stream)
-  replaces the raw AXI4-Stream pin contract at both sides; the
-  header/sideband content of §4 is unchanged. Sequencing: rapids_cxs
-  first (it has a working AXIS model to diff against), then delta.
-  Until both sides land, cells/fabric stay AXI4-Stream as described
-  above.
+- **Interface planes (owner decision 2026-10-16):** each port carries an
+  interface plane, mirroring the rapids pattern
+  (`rapids/rtl/plane/rapids_plane_{axis,cxs}_{tx,rx}.sv`): the
+  core-facing side of the plane is identical in both modes; the outer
+  side is native per mode. `--ifc {axis,cxs}` selects per build
+  (default `axis`). AXIS mode = the raw AXI4-Stream contract above.
+  CXS mode = AMBA 5 CXS (credit-controlled expandable stream) flits
+  natively on every port — `cxs_valid/cxs_ready/cxs_data/cxs_cntl/
+  cxs_srcid/cxs_tgtid/cxs_user` with explicit credit return, matching
+  the house `rtl/amba/cxs/` suite and `rapids_cxs` so a CXS rapids
+  attaches without adapters. Port count and topology are unchanged;
+  the header/sideband content of §4 is unchanged (it rides the CXS
+  flit's sideband/CNTL framing). Modes coexist as separate generated
+  models exactly as rapids ships `rapids_top_base` and `rapids_cxs_top`.
 
 Single clock domain, active-low async `aresetn` (house `ALWAYS_FF_RST`).
 Single clock is a deliberate simplification *contrary* to the GALS

@@ -53,6 +53,13 @@ Bit Range    Field Name           Width  Description
 
 : 256-Bit Descriptor Layout (`rapids_pkg::descriptor_t`)
 
+**Proposed (2026-10-16, not implemented):** `ptype` at the reserved bits
+`[214:213]` and, on SOURCE descriptors, a destination coordinate and target
+address in `dst_addr`, which is unused there today. They would supply the
+tile packet header defined in the compute-engine tile's
+[`TILE_SPEC.md`](../../../../../compute-eng-ip/tile/docs/TILE_SPEC.md) Section 11. The bit positions are the same as in RAPIDS
+Beats; see its Descriptor Format chapter.
+
 The authoritative definition is `rapids_pkg::descriptor_t` in `rtl/includes/rapids_pkg.sv`. Only bits `[255:0]` are fetched and used. Every field position is the same as in RAPIDS Beats, so a descriptor builder needs one change: the value written to `length`.
 
 ## Field Descriptions

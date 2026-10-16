@@ -280,3 +280,21 @@ def test_header_width_formula():
 - [ ] **Step 3: Perf-model calibration** (spec §13 suite 8): run the tornado pattern at three loads on the generated 4x4x1 fabric; record measured vs `bin/delta_mesh_perf.py` modeled latency/throughput deltas in the suite log; fail if measured zero-load latency exceeds the model by > 20% (lookahead regression tripwire).
 - [ ] **Step 3: Docs** — GAS ch02/04/06 and HAS ch07/MAS ch06: replace `> **PLANNED**` with implemented status where the feature landed (keep the spec-link); note §11 deferrals as still deferred. Rebuild the three PDFs per docs methodology (`: <Title>` captions, `### Figure` headings — the books were just conformance-fixed; do not regress that).
 - [ ] **Step 4: Commit** (md + pdf/docx + filelist).
+
+### Task 13: Interface planes — AXIS mode + CXS mode
+
+**Files:**
+- Create: `.../bin/delta_mesh/plane.py` (plane emitters), generated `rtl/delta_mesh_plane_axis.sv`, `rtl/delta_mesh_plane_cxs.sv` (or inline per-port in the cell — decide by what mirrors rapids more closely; rapids emits separate plane modules, mirror that)
+- Modify: `.../bin/delta_mesh/cell.py` (per-port plane instantiation behind `IFC_MODE` param), `.../bin/delta_mesh/fabric.py` (wire outer interface per mode), `.../bin/delta_mesh/config.py` (`ifc: str` field, validation `{axis,cxs}`), `delta_generator.py` (`--ifc {axis,cxs}` flag, default axis)
+- Modify (generated): cell + fabric artifacts for BOTH modes (checked-in: axis 4x4x1 as today + cxs 4x4x1 variant), filelists
+- Test: `.../dv/tests/test_delta_mesh_cxs.py` (+ reuse of the existing suites against the CXS build where BFM support allows)
+
+**Interfaces:**
+- Consumes: all prior tasks (the cell core is unchanged — planes wrap ports).
+- Produces: cell parameter `IFC_MODE` (localparam str-equivalent: `IFC_AXIS=0, IFC_CXS=1`); CXS-mode ports replace AXIS ports per port: `cxs_valid/cxs_ready/cxs_data/cxs_cntl/cxs_srcid/cxs_tgtid/cxs_user` + credit return signal(s), matching the house `rtl/amba/cxs/cxs_master.sv`/`cxs_slave.sv` pin contract and `rapids_plane_cxs_*` parameterization (CXS Issue D, TSTRB rides CXSUSER, TID→CXSSRCID, TDEST→CXSTGTID, CXSMAXPKTPERFLIT=2, 16-byte start alignment, explicit credit return). The §4 header content is carried in the flit sideband exactly as in AXIS mode (TUSER equivalent). Credit sideband for mesh flow control coexists with CXS link credits — pinned: mesh per-VC credits remain the INTER-cell flow control; CXS link credit is the plane's port-level mechanism (document the layering).
+
+- [ ] **Step 1: Failing tests** — CXS build of the 2x2 fabric: (a) all-pairs delivery through CXS ports (BFM: drive CXS flits directly — check whether TBClasses has CXS BFMs; if not, drive the flit pins with a thin cocotb driver modeled on cxs_master's contract); (b) packet-atomicity + multi-beat under CXS framing; (c) credit return behavior under saturation; (d) AXIS-mode regression unchanged (full existing func gate still green on the axis artifacts).
+- [ ] **Step 2: Run, verify fail.**
+- [ ] **Step 3: Implement** planes + generator flag + both artifact sets; regenerate; byte-reproducible.
+- [ ] **Step 4: Run full gate: cxs suite + existing axis suites (axis artifacts untouched) + flat AMBA5 + offline pytest — all green.**
+- [ ] **Step 5: Commit** (code + both artifact sets + filelists + docs CLI mention in GAS — full GAS/HAS s2.2 doc update rides with the final review's doc pass or lands here minimally).

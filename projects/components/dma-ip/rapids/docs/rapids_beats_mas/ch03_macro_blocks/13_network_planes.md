@@ -146,13 +146,14 @@ entries deep; when events outrun it the lite drops and counts them (an
 Error / EVENT_DROPPED packet), so a check on completions counts delivered plus
 dropped.
 
-## Planned Changes
+## Proposed Changes
 
-The ID mapping above is provisional. The ID fields, and possibly other fields
-or new signals, are expected to change so that a flit can carry routing and
-payload type: delta configuration and delta memory traffic as distinct from
-endpoint or cell configuration and endpoint or cell memory traffic. The
-encoding is not yet defined, and this chapter will be revised when it is.
+A proposal (2026-10-16, not implemented) puts a tile packet header at the
+front of every packet: destination and source coordinates, payload type
+(`cfg` / `prog` / `mem`), length and target address. It is described once in
+the compute-engine tile's [`TILE_SPEC.md`](../../../../../compute-eng-ip/tile/docs/TILE_SPEC.md) Section 11; CXS carries it
+as the first flit. The link signals, credits and per-stream framing on this
+page do not change, because `CXSSRCID` keeps the channel.
 
 ## Verification
 

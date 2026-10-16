@@ -81,8 +81,8 @@
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`
 - `projects/components/dma-ip/rapids/docs/rapids_beats_mas/` - Micro-architecture spec (MAS); index: `rapids_beats_mas_index.md`
 - `projects/components/dma-ip/rapids/docs/rapids_has/` and `rapids_mas/` - the byte-granular RAPIDS books (index: `rapids_has_index.md`, `rapids_mas_index.md`); chapters identical to Beats are linked from the `rapids_beats_*` books, not copied
-- Built PDFs: `docs/RAPIDS_HAS_v0.4.pdf`, `docs/RAPIDS_MAS_v0.3.pdf` (byte design); `docs/RAPIDS_Beats_HAS_v0.11.pdf`, `docs/RAPIDS_Beats_MAS_v0.9.pdf` (beats design)
-- Network planes / CXS: HAS `rapids_beats_has/ch03_interfaces/06_cxs_interface.md`, MAS `rapids_beats_mas/ch03_macro_blocks/13_network_planes.md` and `ch04_interfaces/04_cxs_interface_spec.md` (all shared by the byte books). The CXS ID mapping is provisional: routing and payload-type fields are planned, encoding not yet defined
+- Built PDFs: `docs/RAPIDS_HAS_v0.5.pdf`, `docs/RAPIDS_MAS_v0.4.pdf` (byte design); `docs/RAPIDS_Beats_HAS_v0.12.pdf`, `docs/RAPIDS_Beats_MAS_v0.10.pdf` (beats design)
+- Network planes / CXS: HAS `rapids_beats_has/ch03_interfaces/06_cxs_interface.md`, MAS `rapids_beats_mas/ch03_macro_blocks/13_network_planes.md` and `ch04_interfaces/04_cxs_interface_spec.md` (all shared by the byte books). Routing / payload-type PROPOSAL (2026-10-16, not implemented) is defined ONLY in `compute-eng-ip/tile/docs/TILE_SPEC.md` §11 (CXS is just the transport); RAPIDS docs hold only the descriptor fields (beats HAS Descriptor Format) and pointers
 
 ---
 

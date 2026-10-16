@@ -134,12 +134,13 @@ sink, 0x0A source). Its packets are tagged `PROTOCOL_CXS` and join the half's
 3:1 `monbus_arbiter` as client 1, exactly where the AXIS plane's packets go.
 See the Monitor Bus Interface chapter.
 
-## Planned Changes
+## Routing and Payload Type (Proposed)
 
-The CXS mapping above is the first cut. The ID fields, and possibly other
-fields or new signals, are expected to change so that a flit can carry
-**routing** and **payload type**. Payload types under consideration
-distinguish delta configuration and delta memory traffic from endpoint or cell
-configuration and endpoint or cell memory traffic. The encoding is not yet
-defined. Until it is, treat `CXSSRCID` = channel and `CXSTGTID` = `tdest` as
-provisional.
+A proposal (2026-10-16, not implemented) gives every packet a header carrying
+its destination coordinate, source coordinate, payload type (`cfg` / `prog` /
+`mem`), length and target address. The header belongs to the tile network,
+not to CXS, and is described once in the compute-engine tile's
+[`TILE_SPEC.md`](../../../../../compute-eng-ip/tile/docs/TILE_SPEC.md) Section 11. CXS only transports it, as the first flit
+of the packet. Nothing on this page changes: `CXSSRCID` keeps the channel, so
+per-stream framing is the same. The descriptor fields that supply the header
+are in the Descriptor Format chapter.

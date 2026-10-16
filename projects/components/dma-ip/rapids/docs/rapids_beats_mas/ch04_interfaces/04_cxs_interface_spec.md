@@ -107,10 +107,11 @@ stalls for lack of credit. This is the CXS form of the AXIS sink's
 descriptor has been fetched. On the source link, the plane stalls the core's
 egress (`fub_axis_tready = 0`) while it has no credit.
 
-## Planned Changes
+## Proposed Changes
 
-The `CXSSRCID` = channel and `CXSTGTID` = `tdest` mapping is provisional. The
-ID fields, and possibly other fields or new signals, will change to carry
-routing and payload type (delta configuration or memory traffic, as distinct
-from endpoint or cell configuration or memory traffic). The encoding is not yet
-defined.
+A proposal (2026-10-16, not implemented) puts a tile packet header at the
+front of every packet: destination and source coordinates, payload type
+(`cfg` / `prog` / `mem`), length and target address. It is described once in
+the compute-engine tile's [`TILE_SPEC.md`](../../../../../compute-eng-ip/tile/docs/TILE_SPEC.md) Section 11; CXS carries it
+as the first flit. The link signals, credits and per-stream framing on this
+page do not change, because `CXSSRCID` keeps the channel.

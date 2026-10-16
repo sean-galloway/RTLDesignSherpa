@@ -32,6 +32,7 @@
 | 0.9 | 2026-09-21 | RTL Design Sherpa | Removed a vestigial diagram-asset layer: 19 image references and 35 `**Source:**` links pointed at `assets/mermaid/` and `assets/wavedrom/` files that were never created, while a live fenced mermaid or wavedrom block sat immediately below each one carrying the same diagram. No diagram content changed -- all 31 mermaid and 39 wavedrom fences render as before. |
 | 0.10 | 2026-10-16 | RTL Design Sherpa | `SRAM_DEPTH` stated as beats per channel, per direction |
 | 0.11 | 2026-10-16 | RTL Design Sherpa | Network planes and CXS: new CXS Network Interface chapter (planes, link profile, credits, signals, monitoring, planned routing / payload-type fields); interface summary, block diagram, hierarchy, system context, key features and MonBus agent table updated for the AXIS / CXS planes; the Top-Level MonBus Delivery section corrected (the data masters carry no monitors); all block diagrams updated and a network-planes figure added |
+| 0.12 | 2026-10-16 | RTL Design Sherpa | Routing and payload-type PROPOSAL (not implemented): the tile packet header is defined in the compute-engine tile's TILE_SPEC Section 11; CXS only transports it. Descriptor Format adds the proposed `ptype`, destination-coordinate and target-address fields; the CXS Network Interface chapter points at TILE_SPEC |
 
 : Document Revision History
 

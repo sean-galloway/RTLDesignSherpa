@@ -51,6 +51,24 @@ Bit Range    Field Name           Width  Description
 
 : 256-Bit Descriptor Layout (`rapids_pkg::descriptor_t`)
 
+**Proposed (2026-10-16, not implemented):** three descriptor fields would
+supply the tile packet header defined in the compute-engine tile's
+[`TILE_SPEC.md`](../../../../../compute-eng-ip/tile/docs/TILE_SPEC.md) Section 11. They use bits that are unused today.
+
+| Field | Descriptor bits | Meaning |
+|-------|-----------------|---------|
+| `ptype` | `[214:213]` (from the reserved `[255:213]`) | 0 = `cfg`, 1 = `prog`, 2 = `mem`, 3 = reserved |
+| Destination coordinate | `dst_addr[63:50]` = descriptor `[127:114]` | `{level, X, Y, Z}` (TILE_SPEC Section 11.3) |
+| Target address | `dst_addr[49:0]` = descriptor `[113:64]` | Byte address inside the addressed node or cell |
+
+: Proposed Descriptor Fields
+
+The coordinate and target address apply to SOURCE descriptors, whose
+`dst_addr` is unused today. The source half would build the header from
+these fields and send it ahead of the payload. A source descriptor that pairs
+a cell's X and Y with a `level` other than 0 would be rejected with a
+descriptor error.
+
 The authoritative definition is `rapids_pkg::descriptor_t` in
 `rtl/includes/rapids_pkg.sv`; the same layout is restated in the scheduler's
 header comment. Note the struct is declared 272 bits wide with a 16-bit pad

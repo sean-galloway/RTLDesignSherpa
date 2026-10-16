@@ -29,7 +29,7 @@
 > For the datapath these are placement and naming; the tetrad/tile wrappers
 > exist only to aggregate MonBus observation streams and live in the
 > compute-engine tile IP, not in delta. The canonical tile definition is
-> [`TILE_SPEC.md`](../../../../compute-eng-ip/tile/docs/TILE_SPEC.md).
+> [`TILE_SPEC.md`](../../../../../compute-eng-ip/tile/docs/TILE_SPEC.md).
 > This chapter's old name "confluence" is pre-2026-10-15 history.
 
 ## Placement Levels
