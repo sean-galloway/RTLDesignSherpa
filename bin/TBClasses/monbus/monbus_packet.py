@@ -191,6 +191,10 @@ class MonbusPacket:
         """Check if this is a Wishbone B4 protocol packet"""
         return self.protocol == ProtocolType.PROTOCOL_WB.value
 
+    def is_cxs_protocol(self) -> bool:
+        """Check if this is a CXS (Arm IHI 0079) protocol packet"""
+        return self.protocol == ProtocolType.PROTOCOL_CXS.value
+
     def get_protocol_name(self) -> str:
         """Get human-readable protocol name"""
         try:

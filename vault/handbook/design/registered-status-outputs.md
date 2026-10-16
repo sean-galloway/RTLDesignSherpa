@@ -87,3 +87,17 @@ neighbour, and it belongs there rather than as a workaround here.
 Related: [[valid-ready-contracts]] (who may stall whom),
 [[signal-contracts-and-kmaps]] (writing a block's published contract down at
 all), [[minimal-fsm]] (one next-state function per piece of state).
+
+## An episode stamp cannot be read in the cycle that writes it
+
+A monitor that times an episode (a stall, a starvation) usually stamps the
+time on the episode's FIRST cycle and compares `now - stamp` each cycle after.
+In that first cycle the stamp register still holds the PREVIOUS episode's
+time, so an age computed then is the gap since the last episode, not this
+one's length -- and a one-cycle episode long after the last fires a false
+timeout. Qualify the compare on an episode that already started (a cycle
+counter that is nonzero, or a registered "pending" flag).
+*Case (2026-10-15): `cxs_monitor_lite`'s credit timeout fired on one-cycle
+starvations with a one-credit receiver (payload: 0 starved cycles, age 11 us);
+only the FULL grid's CXS_MAX_CREDIT=1 cell exposed it. `axis_monitor_lite`'s
+stall timeout was already guarded by `r_valid_pend`.*

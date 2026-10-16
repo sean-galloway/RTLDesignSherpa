@@ -197,3 +197,16 @@ reset of each side alone with a transfer in flight, and a stop-then-restart
 of the far clock with the request already inside the destination's
 synchronizer. Tests that reset both sides together, or stop the clock before
 the request is issued, pass on both broken designs.
+
+## A check bit crosses with its signal -- and must survive the reset value
+
+When a protected signal is asynchronous (CXSACTIVEREQ, IHI 0079D 5.5) its
+parity/check bit has to cross through the SAME synchronizer, so the pair
+stays coherent. But `glitch_free_n_dff_arn` resets its flops to 0, and the
+check of a reset-low one-bit signal is 1: carried true, the pair reads
+`{0,0}` -- a parity error -- for every cycle the synchronizer flushes after
+reset, and a sticky error flag latches it. Carry the check bit INVERTED
+(`d = {sig, ~chk}`, `chk_s = ~q[0]`) so the reset value is the correct one.
+*Case (2026-10-15): `cxs_slave` flagged parity_error on every run with
+CXS_CHECK=1 until the inversion; the first GATE run of the CXS family found
+it.* The same applies to any pair whose reset values are not a legal codeword.

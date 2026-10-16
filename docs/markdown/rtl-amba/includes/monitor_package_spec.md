@@ -97,7 +97,8 @@ event. The enum is defined in `monitor_common_pkg`:
 | 4'h3  | `PROTOCOL_ARB`   | Arbiter-specific events |
 | 4'h4  | `PROTOCOL_CORE`  | Core / custom subsystem events |
 | 4'h5  | `PROTOCOL_WB`    | Wishbone B4 events (`wb4_monitor`; event codes in `monitor_wb4_pkg`, not re-exported by `monitor_pkg`) |
-| 4'h5–4'hF | (reserved)   | Forward-compat slack — 16 protocols max. |
+| 4'h6  | `PROTOCOL_CXS`   | CXS, Arm IHI 0079 (`cxs_monitor_lite`; event codes in [`monitor_cxs_pkg`](monitor_cxs_pkg.md), not re-exported by `monitor_pkg`) |
+| 4'h7–4'hF | (reserved)   | Forward-compat slack — 16 protocols max. |
 
 ```systemverilog
 typedef enum logic [3:0] {
@@ -106,7 +107,8 @@ typedef enum logic [3:0] {
     PROTOCOL_APB   = 4'h2,
     PROTOCOL_ARB   = 4'h3,
     PROTOCOL_CORE  = 4'h4,
-    PROTOCOL_WB    = 4'h5
+    PROTOCOL_WB    = 4'h5,
+    PROTOCOL_CXS   = 4'h6
 } protocol_type_t;
 ```
 

@@ -26,6 +26,7 @@
 - [AXI-Stream Slave Pattern Checker](shared/axis4_slave_pattern_check.md)
 - [AXIS Bus Meter](shared/axis_bus_meter.md)
 - [Clock-Gated Variants Guide](shared/clock_gated_variants.md)
+- [CXS Pattern Injector and Checker](shared/cxs_injectors.md)
 - [SDPRAM Core](shared/sdpram_core.md)
 - [Simple Dual-Port BRAM Slave Family](shared/sdpram_slave.md)
 - [SDPRAM Slave — AXI4 Write / AXI4 Read](shared/sdpram_slave_axi4_axi4.md)

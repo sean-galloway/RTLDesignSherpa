@@ -54,6 +54,7 @@ packet format and per-protocol event-code enums.
 | [`monitor_amba5_pkg.md`](./monitor_amba5_pkg.md)       | AMBA5 extensions: AXI5 atomic / trace, APB5 wakeup / parity / user, AXIS5 wakeup / parity / CRC (8 enums). | `rtl/amba/includes/ocelus_amba5_pkg.sv` |
 | [`monitor_arbiter_pkg.md`](./monitor_arbiter_pkg.md)   | ARB and CORE event codes for arbiter monitors and custom subsystems (12 enums + unified union). | `rtl/amba/includes/ocelus_arbiter_pkg.sv` |
 | [`monitor_wb4_pkg.md`](./monitor_wb4_pkg.md)           | Wishbone B4 event codes for `wb4_monitor` (5 enums). NOT re-exported by `monitor_pkg`. | `rtl/amba/includes/ocelus_wb4_pkg.sv` |
+| [`monitor_cxs_pkg.md`](./monitor_cxs_pkg.md)           | CXS event codes for `cxs_monitor_lite` (6 enums, `PROTOCOL_CXS`). NOT re-exported by `monitor_pkg`. | `rtl/amba/includes/ocelus_cxs_pkg.sv` |
 
 The aggregating wrapper `monitor_pkg` re-exports every type from the four
 split packages, so legacy code that imports `monitor_pkg::*;` continues

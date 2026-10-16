@@ -163,6 +163,7 @@ class MonbusSlave(GAXISlave):
             'axis_packets': 0,
             'arb_packets': 0,
             'wb_packets': 0,
+            'cxs_packets': 0,
             'unknown_packets': 0,  # ADD: For unexpected protocols
 
             # Packet type breakdown - FIXED KEYS  
@@ -325,6 +326,7 @@ class MonbusSlave(GAXISlave):
                 'PROTOCOL_AXIS': 'axis_packets',
                 'PROTOCOL_ARB': 'arb_packets',
                 'PROTOCOL_WB': 'wb_packets',
+                'PROTOCOL_CXS': 'cxs_packets',
             }
             
             protocol_key = protocol_mapping.get(protocol.name, 'unknown_packets')

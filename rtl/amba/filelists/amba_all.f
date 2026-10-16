@@ -28,6 +28,10 @@ $REPO_ROOT/rtl/amba/includes/ocelus_pkg.sv
 # monitor_wb4_pkg is NOT re-exported by monitor_pkg (only wb4_monitor imports
 # it), but the lint gate needs it declared before that module is elaborated.
 $REPO_ROOT/rtl/amba/includes/ocelus_wb4_pkg.sv
+# cxs_pkg: CXSCNTL layout + per-issue legality, imported by the cxs endpoints
+$REPO_ROOT/rtl/amba/includes/cxs_pkg.sv
+# monitor_cxs_pkg: CXS ocelus event codes (PROTOCOL_CXS); not re-exported by monitor_pkg
+$REPO_ROOT/rtl/amba/includes/ocelus_cxs_pkg.sv
 # Protocol packages
 $REPO_ROOT/rtl/amba/wb4/wb4_pkg.sv
 
@@ -45,6 +49,8 @@ $REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
 $REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
 $REPO_ROOT/rtl/amba/shared/axis4_master_injector.sv
 $REPO_ROOT/rtl/amba/shared/axis4_slave_pattern_check.sv
+$REPO_ROOT/rtl/amba/shared/cxs_master_injector.sv
+$REPO_ROOT/rtl/amba/shared/cxs_slave_pattern_check.sv
 $REPO_ROOT/rtl/amba/shared/axis_bus_meter.sv
 $REPO_ROOT/rtl/amba/shared/sdpram_core.sv
 $REPO_ROOT/rtl/amba/shared/sdpram_slave_axi4_axi4.sv
@@ -272,6 +278,23 @@ $REPO_ROOT/rtl/amba/axis5/axis5_master.sv
 $REPO_ROOT/rtl/amba/axis5/axis5_master_cg.sv
 $REPO_ROOT/rtl/amba/axis5/axis5_slave.sv
 $REPO_ROOT/rtl/amba/axis5/axis5_slave_cg.sv
+
+# =============================================================================
+# CXS - Credited eXtensible Stream (Arm IHI 0079, Issues A-D)
+# =============================================================================
+$REPO_ROOT/rtl/amba/cxs/cxs_odd_byte_parity.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_cntl_track.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_stream_key.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_link_snoop.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_master.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_master_cg.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_slave.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_slave_cg.sv
+$REPO_ROOT/rtl/amba/ocelus/cxs_monitor_lite.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_master_monlite.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_slave_monlite.sv
+$REPO_ROOT/rtl/amba/cxs/axis_to_cxs.sv
+$REPO_ROOT/rtl/amba/cxs/cxs_to_axis.sv
 
 # =============================================================================
 # CDC - Clock Domain Crossing primitives

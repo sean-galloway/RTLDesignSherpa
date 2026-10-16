@@ -45,6 +45,8 @@ from .monbus_types import (
     # Wishbone B4
     WBErrorCode, WBTimeoutCode, WBCompletionCode,
     WBPerformanceCode, WBDebugCode,
+    CXSErrorCode, CXSTimeoutCode, CXSCompletionCode,
+    CXSCreditCode, CXSChannelCode, CXSStreamCode,
     # Standalone parser (no cocotb dep)
     MonitorPacket,
     # Field accessors (work on raw int)
@@ -255,6 +257,8 @@ __all__ = [
     "AXISCreditCode", "AXISChannelCode", "AXISStreamCode",
     "WBErrorCode", "WBTimeoutCode", "WBCompletionCode",
     "WBPerformanceCode", "WBDebugCode",
+    "CXSErrorCode", "CXSTimeoutCode", "CXSCompletionCode",
+    "CXSCreditCode", "CXSChannelCode", "CXSStreamCode",
     # Raw accessors
     "get_packet_type", "get_protocol", "get_event_code",
     "get_channel_id", "get_unit_id", "get_agent_id", "get_event_data",

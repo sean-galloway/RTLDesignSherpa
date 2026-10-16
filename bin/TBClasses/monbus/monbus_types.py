@@ -48,7 +48,8 @@ class ProtocolType(IntEnum):
     PROTOCOL_ARB  = 0b011  # 0x3
     PROTOCOL_CORE = 0b100  # 0x4
     PROTOCOL_WB   = 0b101  # 0x5  Wishbone B4 (event codes: monitor_wb4_pkg.sv)
-    # 0b110-0b111 reserved for future use
+    PROTOCOL_CXS  = 0b110  # 0x6  CXS, Arm IHI 0079 (event codes: ocelus_cxs_pkg.sv)
+    # 0x7-0xF reserved for future use
 
 
 # =============================================================================
@@ -713,6 +714,131 @@ class WBDebugCode(IntEnum):
 
 
 # =============================================================================
+# CXS EVENT CODES (ocelus_cxs_pkg.sv, package monitor_cxs_pkg) - PROTOCOL_CXS
+# =============================================================================
+# Extracted mechanically from the SV enums; tests/test_monbus_cxs.py re-parses
+# the package and fails on any difference.
+
+class CXSErrorCode(IntEnum):
+    """Auto-extracted from monitor_cxs_pkg::cxs_error_code_t."""
+    CXS_ERR_PROTOCOL               = 0x0  # the endpoint's protocol_error rose (credit/link/CXSCNTL rule broken)
+    CXS_ERR_PARITY                 = 0x1  # the endpoint's parity_error rose (an Odd_Byte_Parity check failed)
+    CXS_ERR_ENDERROR               = 0x2  # a flit ended one or more packets with ENDERROR
+    CXS_ERR_RESERVED_3             = 0x3
+    CXS_ERR_RESERVED_4             = 0x4
+    CXS_ERR_RESERVED_5             = 0x5
+    CXS_ERR_RESERVED_6             = 0x6
+    CXS_ERR_RESERVED_7             = 0x7
+    CXS_ERR_RESERVED_8             = 0x8
+    CXS_ERR_RESERVED_9             = 0x9
+    CXS_ERR_RESERVED_A             = 0xA
+    CXS_ERR_RESERVED_B             = 0xB
+    CXS_ERR_RESERVED_C             = 0xC
+    CXS_ERR_RESERVED_D             = 0xD
+    CXS_ERR_EVENT_DROPPED          = 0xE  # events lost to monbus backpressure (event_data = count)
+    CXS_ERR_USER_DEFINED           = 0xF
+
+
+class CXSTimeoutCode(IntEnum):
+    """Auto-extracted from monitor_cxs_pkg::cxs_timeout_code_t."""
+    CXS_TIMEOUT_CREDIT             = 0x0  # a flit waited for a credit (TX) / the pool stayed exhausted (RX)
+    CXS_TIMEOUT_LINK               = 0x1  # the link sat in ACTIVATE or DEACTIVATE (a stuck 4-phase handshake)
+    CXS_TIMEOUT_PACKET             = 0x2  # a packet open with no flit
+    CXS_TIMEOUT_RESERVED_3         = 0x3
+    CXS_TIMEOUT_RESERVED_4         = 0x4
+    CXS_TIMEOUT_RESERVED_5         = 0x5
+    CXS_TIMEOUT_RESERVED_6         = 0x6
+    CXS_TIMEOUT_RESERVED_7         = 0x7
+    CXS_TIMEOUT_RESERVED_8         = 0x8
+    CXS_TIMEOUT_RESERVED_9         = 0x9
+    CXS_TIMEOUT_RESERVED_A         = 0xA
+    CXS_TIMEOUT_RESERVED_B         = 0xB
+    CXS_TIMEOUT_RESERVED_C         = 0xC
+    CXS_TIMEOUT_RESERVED_D         = 0xD
+    CXS_TIMEOUT_RESERVED_E         = 0xE
+    CXS_TIMEOUT_USER_DEFINED       = 0xF
+
+
+class CXSCompletionCode(IntEnum):
+    """Auto-extracted from monitor_cxs_pkg::cxs_completion_code_t."""
+    CXS_COMPL_PACKET_END           = 0x0  # a flit ended one or more packets (CXS-Lite: every flit)
+    CXS_COMPL_RESERVED_1           = 0x1
+    CXS_COMPL_RESERVED_2           = 0x2
+    CXS_COMPL_RESERVED_3           = 0x3
+    CXS_COMPL_RESERVED_4           = 0x4
+    CXS_COMPL_RESERVED_5           = 0x5
+    CXS_COMPL_RESERVED_6           = 0x6
+    CXS_COMPL_RESERVED_7           = 0x7
+    CXS_COMPL_RESERVED_8           = 0x8
+    CXS_COMPL_RESERVED_9           = 0x9
+    CXS_COMPL_RESERVED_A           = 0xA
+    CXS_COMPL_RESERVED_B           = 0xB
+    CXS_COMPL_RESERVED_C           = 0xC
+    CXS_COMPL_RESERVED_D           = 0xD
+    CXS_COMPL_RESERVED_E           = 0xE
+    CXS_COMPL_USER_DEFINED         = 0xF
+
+
+class CXSCreditCode(IntEnum):
+    """Auto-extracted from monitor_cxs_pkg::cxs_credit_code_t."""
+    CXS_CREDIT_STARVED             = 0x0  # credit starvation lasted cfg_stall_threshold cycles
+    CXS_CREDIT_BACKPRESSURE        = 0x1  # the FUB handshake stalled cfg_stall_threshold cycles
+    CXS_CREDIT_RESERVED_2          = 0x2
+    CXS_CREDIT_RESERVED_3          = 0x3
+    CXS_CREDIT_RESERVED_4          = 0x4
+    CXS_CREDIT_RESERVED_5          = 0x5
+    CXS_CREDIT_RESERVED_6          = 0x6
+    CXS_CREDIT_RESERVED_7          = 0x7
+    CXS_CREDIT_RESERVED_8          = 0x8
+    CXS_CREDIT_RESERVED_9          = 0x9
+    CXS_CREDIT_RESERVED_A          = 0xA
+    CXS_CREDIT_RESERVED_B          = 0xB
+    CXS_CREDIT_RESERVED_C          = 0xC
+    CXS_CREDIT_RESERVED_D          = 0xD
+    CXS_CREDIT_RESERVED_E          = 0xE
+    CXS_CREDIT_USER_DEFINED        = 0xF
+
+
+class CXSChannelCode(IntEnum):
+    """Auto-extracted from monitor_cxs_pkg::cxs_channel_code_t."""
+    CXS_CHAN_STREAM_CHANGE         = 0x0  # CXSPRCLTYPE / CXSSRCID / CXSTGTID differ from the previous flit (2.5.2)
+    CXS_CHAN_RESERVED_1            = 0x1
+    CXS_CHAN_RESERVED_2            = 0x2
+    CXS_CHAN_RESERVED_3            = 0x3
+    CXS_CHAN_RESERVED_4            = 0x4
+    CXS_CHAN_RESERVED_5            = 0x5
+    CXS_CHAN_RESERVED_6            = 0x6
+    CXS_CHAN_RESERVED_7            = 0x7
+    CXS_CHAN_RESERVED_8            = 0x8
+    CXS_CHAN_RESERVED_9            = 0x9
+    CXS_CHAN_RESERVED_A            = 0xA
+    CXS_CHAN_RESERVED_B            = 0xB
+    CXS_CHAN_RESERVED_C            = 0xC
+    CXS_CHAN_RESERVED_D            = 0xD
+    CXS_CHAN_RESERVED_E            = 0xE
+    CXS_CHAN_USER_DEFINED          = 0xF
+
+
+class CXSStreamCode(IntEnum):
+    """Auto-extracted from monitor_cxs_pkg::cxs_stream_code_t."""
+    CXS_STREAM_LINK_ACTIVATE       = 0x0  # STOP -> ACTIVATE (ACTIVEREQ rose)
+    CXS_STREAM_LINK_UP             = 0x1  # -> RUN (ACTIVEACK rose)
+    CXS_STREAM_LINK_DEACTIVATE     = 0x2  # RUN -> DEACTIVATE (ACTIVEREQ fell)
+    CXS_STREAM_LINK_DOWN           = 0x3  # -> STOP (ACTIVEACK fell, every credit home)
+    CXS_STREAM_RESERVED_4          = 0x4
+    CXS_STREAM_RESERVED_5          = 0x5
+    CXS_STREAM_RESERVED_6          = 0x6
+    CXS_STREAM_RESERVED_7          = 0x7
+    CXS_STREAM_RESERVED_8          = 0x8
+    CXS_STREAM_RESERVED_9          = 0x9
+    CXS_STREAM_RESERVED_A          = 0xA
+    CXS_STREAM_RESERVED_B          = 0xB
+    CXS_STREAM_RESERVED_C          = 0xC
+    CXS_STREAM_RESERVED_D          = 0xD
+    CXS_STREAM_RESERVED_E          = 0xE
+    CXS_STREAM_USER_DEFINED        = 0xF
+
+# =============================================================================
 # PACKET FIELD EXTRACTION FUNCTIONS — 128-bit format
 # =============================================================================
 #
@@ -836,6 +962,12 @@ _EVENT_CODE_ENUM_LOOKUP = {
     (ProtocolType.PROTOCOL_WB,   PktType.PktTypeCompletion): WBCompletionCode,
     (ProtocolType.PROTOCOL_WB,   PktType.PktTypePerf):       WBPerformanceCode,
     (ProtocolType.PROTOCOL_WB,   PktType.PktTypeDebug):      WBDebugCode,
+    (ProtocolType.PROTOCOL_CXS,  PktType.PktTypeError):      CXSErrorCode,
+    (ProtocolType.PROTOCOL_CXS,  PktType.PktTypeTimeout):    CXSTimeoutCode,
+    (ProtocolType.PROTOCOL_CXS,  PktType.PktTypeCompletion): CXSCompletionCode,
+    (ProtocolType.PROTOCOL_CXS,  PktType.PktTypeCredit):     CXSCreditCode,
+    (ProtocolType.PROTOCOL_CXS,  PktType.PktTypeChannel):    CXSChannelCode,
+    (ProtocolType.PROTOCOL_CXS,  PktType.PktTypeStream):     CXSStreamCode,
 }
 
 

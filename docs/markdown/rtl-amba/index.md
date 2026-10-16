@@ -247,6 +247,20 @@ AXI4 extended with coherent transaction types and snoop channels, for the `cache
 
 ---
 
+### CXS (Credited eXtensible Stream)
+
+Credited point-to-point packet streaming for wide links (on-chip interconnect to a PCIe/CCIX/CXL controller). One family covers spec Issues A-D and CXS-Lite, selected by `CXS_ISSUE`.
+
+**[CXS Module Documentation](cxs/README.md)**
+
+- **[cxs_master](cxs/cxs_master.md)** - CXS transmitter: credit counter, link activation, check-signal generation
+- **[cxs_master_cg](cxs/cxs_master_cg.md)** - Clock-gated transmitter (gates in link STOP)
+- **[cxs_slave](cxs/cxs_slave.md)** - CXS receiver: the receive FIFO is the credit pool
+- **[cxs_slave_cg](cxs/cxs_slave_cg.md)** - Clock-gated receiver (CXSACTIVEREQ wakes it)
+- **cxs_master_monlite / cxs_slave_monlite** - the endpoints with the CXS lite Ocelus ([cxs_monitor_lite](monitor/cxs_monitor_lite.md))
+
+---
+
 ## Shared Infrastructure and Utilities
 
 Infrastructure components used across all AMBA protocols.

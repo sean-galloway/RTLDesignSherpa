@@ -112,6 +112,11 @@ RTL AMBA Library Architecture (148 modules under rtl/amba/)
        Front-side read/write masters and slaves, snoop-side movers,
        and lite-monitor wrappers for the cache-ip family
 
+ CXS (9 modules) -- rtl/amba/cxs/
+    Credited stream transmitter and receiver, clock-gated and lite-monitor
+    variants, and the shared CXSCNTL tracker, odd-byte-parity helper and
+    package; Issues A-D (monitor core: ocelus/cxs_monitor_lite)
+
  Other bus protocols (9 modules)
     Wishbone B4 (9 modules) -- rtl/amba/wb4/
       Pipelined master and slave behind the APB4-style command/response queues, monitor, RTY retry block and retrying master, clock-gated and CDC variants, status package

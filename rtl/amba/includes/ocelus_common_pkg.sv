@@ -49,7 +49,8 @@ package monitor_common_pkg;
         PROTOCOL_APB    = 4'h2,  // Advanced Peripheral Bus
         PROTOCOL_ARB    = 4'h3,  // Arbiter specific packets
         PROTOCOL_CORE   = 4'h4,  // Core specific packets
-        PROTOCOL_WB     = 4'h5   // Wishbone B4 (event codes: monitor_wb4_pkg)
+        PROTOCOL_WB     = 4'h5,  // Wishbone B4 (event codes: monitor_wb4_pkg)
+        PROTOCOL_CXS    = 4'h6   // CXS, Arm IHI 0079 (event codes: monitor_cxs_pkg)
     } protocol_type_t;
 
     // Ocelus bus packet types (used in packet_type field [127:124])
@@ -84,7 +85,7 @@ package monitor_common_pkg;
     // 128-bit ocelus packet format:
     // [127:124] - packet_type:  4 bits (error, timeout, completion, etc.)
     // [123:109] - reserved:    15 bits (forward-compat slack)
-    // [108:105] - protocol:     4 bits (AXI/AXIS/APB/ARB/CORE)
+    // [108:105] - protocol:     4 bits (AXI/AXIS/APB/ARB/CORE/WB/CXS)
     // [104: 97] - event_code:   8 bits (specific error or event code)
     // [ 96: 88] - channel_id:   9 bits (channel ID and AXI ID)
     // [ 87: 72] - agent_id:    16 bits (module identifier)
@@ -285,6 +286,7 @@ package monitor_common_pkg;
             PROTOCOL_ARB   : return "ARB";
             PROTOCOL_CORE  : return "CORE";
             PROTOCOL_WB    : return "WB";
+            PROTOCOL_CXS   : return "CXS";
             default        : return "UNKNOWN";
         endcase
     endfunction
