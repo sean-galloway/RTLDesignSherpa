@@ -302,8 +302,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             mon_add=list(m.get('mon_add', [])),
             mon_remove=list(m.get('mon_remove', [])),
             axi5_features=axi5_features,
-            # carried so the validator can reject it -- a master's `cdc`
-            # would otherwise be dropped here and never seen
+            # own clock domain (GitHub #119 L2): axi4_cdc_{wr,rd} between
+            # the boundary and the master adapter's timing wrapper
             cdc=bool(m.get('cdc', False)),
             max_outstanding=_max_outstanding(
                 m.get('max_outstanding', _mo_default), config_path, f"master '{port_name}'"),

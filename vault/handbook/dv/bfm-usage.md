@@ -278,3 +278,25 @@ driven on the pins in one helper that says so, with the BFM idle around it.
 The proper home for that is an injection control on `AXISMaster` in RDS-DV;
 until it exists, keep such a helper to one place, name the violation in it,
 and never let it touch a pin the BFM is mid-transaction on.
+
+## A protocol checker armed in the constructor judges the reset window (2026-10-16)
+
+`AXI4ComplianceChecker` and `AXI5ComplianceChecker` start sampling in their
+constructors. A TB that builds them in `__init__` therefore checks from sim
+time 0, inside reset and before the first clock edge has applied any async
+reset. A simulator does not see an async reset that is already low at time 0
+as an edge, so every flop holds its initial value (0 under Verilator) until
+the first clock. Most VALIDs are flops and read 0, but an async FIFO's
+VALID is its inverted empty flag, so it reads 1. The first edge then resets
+it to 0 with READY low, and the checker records "VALID deasserted before
+handshake completed". The bridge's CDC master ports (`axi4_cdc_{wr,rd}`,
+GitHub #119 L2) hit this on their first run: B and R on the CDC ports only,
+on all three tests. Silicon is unaffected, because an async-reset flop
+clears while reset is held.
+
+Build checkers after reset is released (the bridge TB template stores a
+factory per port and builds it in `setup_clocks_and_reset`), and make
+`assert_compliance` fail if a declared checker was never built. An empty
+set of checkers passes vacuously (see [[test-review]]). Calling
+`setup_monitors()` on a checker that its constructor already armed starts
+every loop twice.

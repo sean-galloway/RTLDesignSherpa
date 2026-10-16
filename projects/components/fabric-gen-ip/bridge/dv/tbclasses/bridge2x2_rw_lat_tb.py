@@ -186,8 +186,11 @@ class Bridge2x2RwLatTB(TBBase):
         self.master_apb = {}
         # Wishbone B4 requester ports (one WB4Master per port).
         self.master_wb = {}
-        # AXI5ComplianceChecker per AXI5 master port (see _setup_master_*).
+        # AXI4/AXI5 protocol checker per master port. _setup_master_* only
+        # records how to build each one; setup_clocks_and_reset builds them
+        # once reset is released (a checker arms in its constructor).
         self.compliance = {}
+        self._compliance_factory = {}
 
         self._setup_slave_0_ddr()
         self._setup_slave_1_sram()
@@ -444,9 +447,9 @@ class Bridge2x2RwLatTB(TBBase):
             multi_sig=True,
         )
         # Protocol checker on the AXI4 boundary: handshake stability, burst
-        # length/size, xLAST, ID ordering and response codes. Armed in
-        # setup_clocks_and_reset; assert_compliance() reads the verdict.
-        self.compliance[0] = AXI4ComplianceChecker(
+        # length/size, xLAST, ID ordering and response codes. Built (and so
+        # armed) in setup_clocks_and_reset; assert_compliance() reads the verdict.
+        self._compliance_factory[0] = lambda: AXI4ComplianceChecker(
             self.dut, self.clock,
             prefix="cpu_m_axi",
             log=self.log,
@@ -478,9 +481,9 @@ class Bridge2x2RwLatTB(TBBase):
             multi_sig=True,
         )
         # Protocol checker on the AXI4 boundary: handshake stability, burst
-        # length/size, xLAST, ID ordering and response codes. Armed in
-        # setup_clocks_and_reset; assert_compliance() reads the verdict.
-        self.compliance[1] = AXI4ComplianceChecker(
+        # length/size, xLAST, ID ordering and response codes. Built (and so
+        # armed) in setup_clocks_and_reset; assert_compliance() reads the verdict.
+        self._compliance_factory[1] = lambda: AXI4ComplianceChecker(
             self.dut, self.clock,
             prefix="dma_m_axi",
             log=self.log,
@@ -581,11 +584,16 @@ class Bridge2x2RwLatTB(TBBase):
         await self.wait_clocks(self.clock_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clock_name, 5)
-        for idx, checker in self.compliance.items():
-            # setup_monitors binds the five channel monitors AND starts the
-            # transaction / handshake / cycle loops itself (and raises if it
-            # cannot bind). Starting the loops again here doubled every count.
-            checker.setup_monitors()
+        for idx, make_checker in self._compliance_factory.items():
+            # The checker's constructor binds the channel monitors and starts
+            # its loops, so it is built only now, after reset. Built in
+            # __init__ it sampled from time 0: inside reset, before the first
+            # clock edge had applied any async reset, a CDC port's response
+            # VALID (an async FIFO's inverted empty flag, 0-initialised by the
+            # simulator) read 1 and the first edge "dropped" it (GitHub #119
+            # L2). Calling setup_monitors() on top of the constructor also
+            # started every loop twice.
+            self.compliance[idx] = make_checker()
             self.log.info(f"AXI protocol checker armed on master {idx}")
 
     def assert_compliance(self, allow: dict = None) -> dict:
@@ -600,6 +608,11 @@ class Bridge2x2RwLatTB(TBBase):
         implicitly; the generated tests never pass it."""
         reports = {}
         allow = dict(allow or {})
+        # An empty set would pass vacuously: every declared checker must exist.
+        missing = sorted(set(self._compliance_factory) - set(self.compliance))
+        assert not missing, (
+            f"protocol checker(s) for master(s) {missing} were never built -- "
+            f"setup_clocks_and_reset() builds them after reset")
         for idx, checker in self.compliance.items():
             report = checker.get_compliance_report()
             reports[idx] = report

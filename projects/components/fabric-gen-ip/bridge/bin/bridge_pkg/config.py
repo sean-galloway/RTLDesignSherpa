@@ -147,10 +147,11 @@ class PortSpec:
     # (poison/mte/chunking -> A5-2 native sideband) and atomics
     # (atomic -> A5-3) are rejected by validate_axi5.
     axi5_features: List[str] = field(default_factory=list)
-    # bridge TASK-006 (was BRIDGE-017): this slave port runs on its own clock. The bridge top gains
-    # `<name>_aclk` / `<name>_aresetn` and the slave adapter carries the AXI4
-    # channels across with axi4_cdc_{wr,rd} between the crossbar-side wrapper
-    # and the boundary. Slave ports only, protocol axi4 (the CDC pair carries
+    # This port runs on its own clock: slave ports since bridge TASK-006
+    # (was BRIDGE-017), master ports since GitHub #119 L2. The bridge top gains
+    # `<name>_aclk` / `<name>_aresetn`; a slave adapter puts axi4_cdc_{wr,rd}
+    # between its timing wrapper and the port, a master adapter between the
+    # port and its timing wrapper. Protocol axi4 only (the CDC pair carries
     # the AXI4 signal set; AXI5 sideband and the shim protocols are not yet
     # routed through it).
     cdc: bool = False

@@ -1,0 +1,69 @@
+# Bridge Configuration: CDC on master AND slave ports (GitHub #119 L2).
+#
+# Three 32-bit AXI4 masters, two 32-bit AXI4 slaves. cpu (rw) and lfsr (rd
+# only) are CDC master ports: the bridge top gains <name>_aclk /
+# <name>_aresetn and each master adapter carries its port onto aclk through
+# axi4_cdc_{wr,rd} AHEAD of its timing wrapper (which, with its monitor,
+# stays on aclk). ddr is a CDC slave port as in bridge_2x2_rw_cdc. dma and
+# sram are ordinary same-clock ports beside them, so one fixture holds
+# every kind and a cpu -> ddr transaction crosses two domains each way.
+# The generated TB runs the CDC slave at BRIDGE_CDC_PERIOD_NS (default 7 ns)
+# and the CDC masters from BRIDGE_CDC_MASTER_PERIOD_NS (default 13 ns, +2 ns
+# per further port) against the fabric's 10 ns.
+
+[bridge]
+name = "bridge_3x2_rw_mcdc"
+variants = ["no"]
+description = "3 master x 2 slave bridge, cpu/lfsr masters and the ddr slave on their own clocks"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+cdc = true
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "lfsr"
+prefix = "lfsr_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"
+cdc = true
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_s_axi"
+id_width = 6  # {master index, master id}: 4-bit ID + 2 prefix bits
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+cdc = true
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_s_axi"
+id_width = 6  # {master index, master id}: 4-bit ID + 2 prefix bits
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"

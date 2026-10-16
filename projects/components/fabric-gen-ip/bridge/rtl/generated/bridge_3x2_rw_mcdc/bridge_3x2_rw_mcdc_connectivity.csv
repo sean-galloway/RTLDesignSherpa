@@ -1,0 +1,4 @@
+master\slave,ddr,sram
+cpu,1,1
+dma,1,1
+lfsr,1,1

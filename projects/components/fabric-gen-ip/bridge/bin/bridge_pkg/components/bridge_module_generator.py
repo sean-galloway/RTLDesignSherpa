@@ -1104,6 +1104,10 @@ class BridgeModuleGenerator:
         for i, master in enumerate(self.masters):
             lines.append(f"    // Master {i}: {master.name} ({master.channels})")
             master_ports = self._generate_master_ports(master)
+            if getattr(master, 'cdc', False):
+                # GitHub #119 L2: the port's own clock domain.
+                master_ports = [f"    input  logic                  {master.name}_aclk,",
+                                f"    input  logic                  {master.name}_aresetn,"] + master_ports
             # Add comma if there are more masters or any slaves
             if i < len(self.masters) - 1 or len(self.slaves) > 0:
                 master_ports[-1] = master_ports[-1] + ","
@@ -2014,6 +2018,9 @@ class BridgeModuleGenerator:
                 lines.append(f"    {adapter_module_name(self.bridge_name, master.name)} u_{master.name}_adapter (")
             lines.append("        .aclk(aclk),")
             lines.append("        .aresetn(aresetn),")
+            if getattr(master, 'cdc', False):
+                lines.append(f"        .ext_aclk({master.name}_aclk),")
+                lines.append(f"        .ext_aresetn({master.name}_aresetn),")
             lines.append("")
             lines.append("        // External interface")
 

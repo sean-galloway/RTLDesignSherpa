@@ -56,6 +56,6 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x2_rw_
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_wr.f
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axil_to_axi4_wide_align_rd.f
 
-# AXI4 clock-domain crossing (slaves with cdc = true)
+# AXI4 clock-domain crossing (ports with cdc = true)
 -f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_rd.f

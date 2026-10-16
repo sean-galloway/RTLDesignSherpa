@@ -816,6 +816,7 @@ def _emit_bridge_variant(
             mon_enables=master_spec.get_mon_enables(config.mon_preset),
             max_outstanding=getattr(master_spec, 'max_outstanding', 16),
             skid_depths=dict(getattr(master_spec, 'skid_depths', {}) or {}),
+            cdc=bool(getattr(master_spec, 'cdc', False)),
         )
         master_configs.append(master_config)
 
@@ -1272,11 +1273,12 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil5_rd.f")
         filelist_lines.append("-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil5_wr.f")
 
-    # CDC slave ports (bridge TASK-006, was BRIDGE-017): axi4_cdc_{wr,rd} between the crossbar-side
-    # wrapper and the boundary; their closures bring rtl/cdc's async FIFO.
-    if any(getattr(slave, 'cdc', False) for slave in config.slaves):
+    # CDC ports: axi4_cdc_{wr,rd} between the wrapper and the boundary, on
+    # slave ports (bridge TASK-006, was BRIDGE-017) and master ports (GitHub
+    # #119 L2); their closures bring rtl/cdc's async FIFO.
+    if any(getattr(p, 'cdc', False) for p in list(config.slaves) + list(config.masters)):
         filelist_lines.append("")
-        filelist_lines.append("# AXI4 clock-domain crossing (slaves with cdc = true)")
+        filelist_lines.append("# AXI4 clock-domain crossing (ports with cdc = true)")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_rd.f")
 

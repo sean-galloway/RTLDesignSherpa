@@ -127,6 +127,10 @@ class MasterConfig:
     max_outstanding: int = 16
     # Timing-wrapper skid depths {aw,w,b,ar,r}; 0 = stage cut (PortSpec.latency)
     skid_depths: Optional[Dict[str, int]] = None
+    # Own clock domain (GitHub #119 L2): the bridge top gains `<name>_aclk` /
+    # `<name>_aresetn` and axi4_cdc_{wr,rd} carry the port onto aclk ahead
+    # of the timing wrapper. AXI4 only (validate_cdc_constraints).
+    cdc: bool = False
 
 
 class AdapterGenerator:
@@ -337,6 +341,10 @@ class AdapterGenerator:
         lines.append(") (")
         lines.append("    input  logic aclk,")
         lines.append("    input  logic aresetn,")
+        if self.is_cdc:
+            # GitHub #119 L2: the external port's own clock domain.
+            lines.append("    input  logic ext_aclk,")
+            lines.append("    input  logic ext_aresetn,")
         lines.append("")
 
         # External AXI interface
@@ -533,6 +541,67 @@ class AdapterGenerator:
         if self.master.protocol == 'axi3':
             return self.AXI3_AXI_PREFIX
         return self.APB_AXI_PREFIX
+
+    # ------------------------------------------------------------------
+    # CDC master ports (GitHub #119 L2)
+    # ------------------------------------------------------------------
+
+    CDC_AXI_PREFIX = 'cdcx_axi_'
+    _CDC_WR_SIGS = ('awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock', 'awcache',
+                    'awprot', 'awqos', 'awregion', 'awuser', 'awvalid', 'awready',
+                    'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid', 'wready',
+                    'bid', 'bresp', 'buser', 'bvalid', 'bready')
+    _CDC_RD_SIGS = ('arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock', 'arcache',
+                    'arprot', 'arqos', 'arregion', 'aruser', 'arvalid', 'arready',
+                    'rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready')
+
+    @property
+    def is_cdc(self) -> bool:
+        """The external port runs on ext_aclk; axi4_cdc_{wr,rd} carry it
+        onto aclk ahead of the timing wrapper (GitHub #119 L2)."""
+        return bool(getattr(self.master, 'cdc', False))
+
+    def _generate_cdc_stage(self, ext_prefix: str, int_prefix: str) -> List[str]:
+        """axi4_cdc_wr / axi4_cdc_rd: `ext_prefix` (ext_aclk, the external
+        port) -> `int_prefix` (aclk, the timing wrapper's external side).
+        Everything downstream -- wrapper, monitor, decode, ID tracking --
+        stays on aclk and does not know the port crosses. One instance per
+        direction present; only that direction's nets are declared."""
+        wr = self.master.channels in ('wr', 'rw')
+        rd = self.master.channels in ('rd', 'rw')
+        keep = set((self._CDC_WR_SIGS if wr else ()) + (self._CDC_RD_SIGS if rd else ()))
+        lines: List[str] = []
+        lines.append("    // ================================================================")
+        lines.append(f"    // Clock-domain crossing from the {self.master.name} port (ext_aclk)")
+        lines.append("    // onto aclk, ahead of the timing wrapper (GitHub #119 L2)")
+        lines.append("    // ================================================================")
+        lines.extend(d for d in self._apb_axi_net_decls(int_prefix)
+                     if d.rstrip(';').split()[-1][len(int_prefix):] in keep)
+        lines.append("")
+        common = [f"        .AXI_ID_WIDTH({self.fub_id_width}),",
+                  "        .AXI_ADDR_WIDTH(32),",
+                  f"        .AXI_DATA_WIDTH({self.master.data_width}),",
+                  "        .AXI_USER_WIDTH(1),",
+                  "        .CDC_DEPTH(8),",
+                  "        .USE_JOHNSON(0)"]
+        clocks = ["        .s_aclk(ext_aclk), .s_aresetn(ext_aresetn),",
+                  "        .m_aclk(aclk), .m_aresetn(aresetn),"]
+        for present, module, inst, sigs in ((wr, 'axi4_cdc_wr', 'u_cdc_wr', self._CDC_WR_SIGS),
+                                            (rd, 'axi4_cdc_rd', 'u_cdc_rd', self._CDC_RD_SIGS)):
+            if not present:
+                continue
+            lines.append(f"    {module} #(")
+            lines.extend(common)
+            lines.append(f"    ) {inst} (")
+            lines.extend(clocks)
+            for sig in sigs:
+                lines.append(f"        .s_axi_{sig}({ext_prefix}{sig}),")
+            for i, sig in enumerate(sigs):
+                sep = ',' if i < len(sigs) - 1 else ''
+                lines.append(f"        .m_axi_{sig}({int_prefix}{sig}){sep}")
+            lines.append("    );")
+            lines.append("")
+        return lines
 
     def _generate_wb4_external_ports(self) -> List[str]:
         """Wishbone B4 completer surface (the bridge is the completer): the
@@ -1519,6 +1588,12 @@ class AdapterGenerator:
         if self.is_front_end_master:
             lines.extend(self._generate_front_end())
             signal_prefix = self.front_end_prefix
+
+        # A CDC port (GitHub #119 L2) is crossed onto aclk first; the
+        # wrapper's external side then takes the aclk-side nets.
+        if self.is_cdc:
+            lines.extend(self._generate_cdc_stage(signal_prefix, self.CDC_AXI_PREFIX))
+            signal_prefix = self.CDC_AXI_PREFIX
 
         # Monitor identity: UNIT_ID=2 marks every master-side wrapper
         # (axi4_slave_*_mon -- the bridge looks like a slave to the

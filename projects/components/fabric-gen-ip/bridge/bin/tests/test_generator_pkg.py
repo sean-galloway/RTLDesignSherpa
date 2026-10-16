@@ -2001,7 +2001,23 @@ def test_qos_generation_smoke(tmp_path):
 # CDC slave ports (bridge TASK-006 (was BRIDGE-017) cdc = true)
 # ---------------------------------------------------------------------
 
-def test_cdc_on_master_rejected(tmp_path):
+def test_cdc_on_axi5_master_rejected(tmp_path):
+    """A CDC master port (GitHub #119 L2) must be AXI4: axi4_cdc_{wr,rd}
+    carry the AXI4 signal set and would drop an AXI5 port's sideband."""
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi5"
+cdc = true
+""")
+    with pytest.raises(ValidationError, match=r"Master 'm0': cdc = true needs protocol = \"axi4\""):
+        load_config(toml, conn)
+
+
+def test_cdc_master_latency_mode_rejected(tmp_path):
+    """A CDC master keeps cut_all: the latency modes are same-clock only."""
     toml, conn = _write_req_toml(tmp_path, """
 addr_width = 32
 data_width = 32
@@ -2009,8 +2025,9 @@ id_width = 4
 channels = "rw"
 protocol = "axi4"
 cdc = true
+latency = "cut_none"
 """)
-    with pytest.raises(ValidationError, match="only legal on a slave port"):
+    with pytest.raises(ValueError, match="same-clock"):
         load_config(toml, conn)
 
 
@@ -2056,6 +2073,37 @@ def test_cdc_generation_smoke(tmp_path):
     assert ".m_aclk(s_aclk), .m_aresetn(s_aresetn)" in ddr
     sram = (gen / "sram_adapter.sv").read_text()
     assert "axi4_cdc" not in sram and "s_aclk" not in sram
+    text = fl.read_text()
+    assert "axi4_cdc_wr.f" in text and "axi4_cdc_rd.f" in text
+
+
+def test_master_cdc_generation_smoke(tmp_path):
+    """bridge_3x2_rw_mcdc (GitHub #119 L2): cpu (rw) and lfsr (rd) master
+    ports have their own clock pins; each adapter takes ext_aclk/ext_aresetn
+    and crosses the port onto aclk AHEAD of its timing wrapper, one CDC per
+    direction present; dma is unchanged; the ddr slave CDC still emits."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_3x2_rw_mcdc")
+    top = (gen / "bridge_3x2_rw_mcdc.sv").read_text()
+    for port in ("cpu", "lfsr", "ddr"):
+        assert re.search(rf"input\s+logic[^\n]*{port}_aclk,", top), port
+        assert re.search(rf"input\s+logic[^\n]*{port}_aresetn,", top), port
+    assert "dma_aclk" not in top and "sram_aclk" not in top
+    assert ".ext_aclk(cpu_aclk)" in top and ".ext_aresetn(lfsr_aresetn)" in top
+    cpu = (gen / "cpu_adapter.sv").read_text()
+    assert "input  logic ext_aclk" in cpu
+    assert "axi4_cdc_wr #(" in cpu and "axi4_cdc_rd #(" in cpu
+    assert ".s_aclk(ext_aclk), .s_aresetn(ext_aresetn)" in cpu
+    assert ".m_aclk(aclk), .m_aresetn(aresetn)" in cpu
+    assert ".s_axi_awvalid(cpu_m_axi_awvalid)" in cpu            # the port enters the crossing ...
+    assert ".m_axi_awvalid(cdcx_axi_awvalid)" in cpu             # ... which drives an aclk net
+    # ... that the timing wrapper takes as its external side
+    wrapper = cpu[cpu.index("u_timing_wrapper_wr"):]
+    assert "(cdcx_axi_awvalid)" in wrapper and "(cpu_m_axi_awvalid)" not in wrapper
+    lfsr = (gen / "lfsr_adapter.sv").read_text()
+    assert "axi4_cdc_rd #(" in lfsr and "axi4_cdc_wr" not in lfsr
+    assert "cdcx_axi_awvalid" not in lfsr                       # rd-only: no write-side nets
+    dma = (gen / "dma_adapter.sv").read_text()
+    assert "axi4_cdc" not in dma and "ext_aclk" not in dma
     text = fl.read_text()
     assert "axi4_cdc_wr.f" in text and "axi4_cdc_rd.f" in text
 

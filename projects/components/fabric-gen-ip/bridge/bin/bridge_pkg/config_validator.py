@@ -464,23 +464,20 @@ def validate_axi5_wide_features(port: PortSpec) -> None:
 
 
 def validate_cdc_constraints(port: PortSpec) -> None:
-    """bridge TASK-006 (was BRIDGE-017) CDC slave ports: `cdc = true` is legal on an external
-    AXI4 slave port only. The crossing is axi4_cdc_{wr,rd}, which carries the
-    AXI4 signal set; a master port, an AXI5 port's sideband and the shim
-    protocols would each need their own crossing, and none has one yet.
-    AXI3 CDC is rejected separately by validate_axi3 (bridge GitHub #97)
-    with an AXI3-specific message."""
+    """CDC ports: `cdc = true` is legal on an external AXI4 port, slave
+    (bridge TASK-006, was BRIDGE-017) or master (GitHub #119 L2). The
+    crossing is axi4_cdc_{wr,rd}, which carries the AXI4 signal set; an AXI5
+    port's sideband and the front-end/shim protocols would each need their
+    own crossing, and none has one yet. AXI3 CDC is rejected separately by
+    validate_axi3 (bridge GitHub #97) with an AXI3-specific message."""
     if not getattr(port, 'cdc', False):
         return
-    if port.direction != 'slave':
-        raise ValidationError(
-            f"Master '{port.port_name}': cdc = true is only legal on a slave port "
-            f"(the crossing sits between the crossbar and the slave boundary)")
     if port.protocol == 'axi3':
         return  # validate_axi3 handles AXI3 CDC with a dedicated message
+    kind = 'Slave' if port.direction == 'slave' else 'Master'
     if port.protocol != 'axi4':
         raise ValidationError(
-            f"Slave '{port.port_name}': cdc = true needs protocol = \"axi4\" "
+            f"{kind} '{port.port_name}': cdc = true needs protocol = \"axi4\" "
             f"(got '{port.protocol}'); axi4_cdc_{{wr,rd}} carries the AXI4 signal set only")
     if getattr(port, 'internal', False):
         raise ValidationError(f"Slave '{port.port_name}': an internal slave cannot be a CDC port")
