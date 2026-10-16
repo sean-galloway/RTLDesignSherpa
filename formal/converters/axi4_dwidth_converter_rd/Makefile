@@ -13,7 +13,8 @@ PKGS :=
 
 # RTL dependencies (gaxi_skid_buffer used for timing closure; the data-width
 # primitives are instantiated by the DUT and must be in the flat or prep fails)
-DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
+DEPS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
+        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv \
         $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv
 

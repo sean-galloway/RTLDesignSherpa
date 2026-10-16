@@ -510,9 +510,31 @@ module axi4_dwidth_converter_rd #(
     //   the shared pool need only hold RASM_MAX_OUTSTANDING full bursts.
     //==========================================================================
 
-    // Shared beat pool memories.
+    // Shared beat pool memories. data/resp/last are written by their own
+    // reset-free process (see "beat store" below): a memory written inside an
+    // async-reset process cannot be inferred as RAM, and at the default sizing
+    // (16 x 272 x M_AXI_DATA_WIDTH) the flop fallback does not fit -- the
+    // Genesys 2 fabric benchmark (4 x 272 x 128 = 139,264 bits) failed synthesis
+    // with Synth 8-3391. No entry is read before a push writes it, so these
+    // need no reset. rasm_pool_next stays in the reset process: the reset
+    // seeds the free list through it.
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`elsif SYNTH_PRAGMA
+    /* synthesis ramstyle = "MLAB" */
+`endif
     logic [M_AXI_DATA_WIDTH-1:0] rasm_pool_data [RASM_POOL_DEPTH];
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`elsif SYNTH_PRAGMA
+    /* synthesis ramstyle = "MLAB" */
+`endif
     logic [1:0]                  rasm_pool_resp [RASM_POOL_DEPTH];
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`elsif SYNTH_PRAGMA
+    /* synthesis ramstyle = "MLAB" */
+`endif
     logic                        rasm_pool_last [RASM_POOL_DEPTH];
     logic [RASM_PTRW-1:0]        rasm_pool_next [RASM_POOL_DEPTH];
 
@@ -575,6 +597,17 @@ module axi4_dwidth_converter_rd #(
     assign w_old_free_head = rasm_free_head;
     assign w_old_free_next = rasm_pool_next[rasm_free_head];
 
+    // Beat store: one write port (the push), one combinational read port (the
+    // feed, w_feed_ptr) -- the LUTRAM pattern. No reset, by design (see the
+    // declarations above).
+    always_ff @(posedge aclk) begin
+        if (w_push) begin
+            rasm_pool_data[w_alloc_ptr] <= m_axi_rdata;
+            rasm_pool_resp[w_alloc_ptr] <= m_axi_rresp;
+            rasm_pool_last[w_alloc_ptr] <= m_axi_rlast;
+        end
+    end
+
     `ALWAYS_FF_RST(aclk, w_aresetn,
         if (`RST_ASSERTED(w_aresetn)) begin
             rasm_free_head <= '0;
@@ -628,10 +661,7 @@ module axi4_dwidth_converter_rd #(
 
             // Push arriving beat into the per-ID queue.
             if (w_push) begin
-                // Store the beat.
-                rasm_pool_data[w_alloc_ptr] <= m_axi_rdata;
-                rasm_pool_resp[w_alloc_ptr] <= m_axi_rresp;
-                rasm_pool_last[w_alloc_ptr] <= m_axi_rlast;
+                // The beat itself is stored by the reset-free process below.
                 rasm_pool_next[w_alloc_ptr] <= '0;  // becomes new tail
 
                 // Link into the per-ID list.
