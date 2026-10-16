@@ -303,6 +303,35 @@ class DeltaMeshCountersTB(DeltaMeshModesTB):
             self._group_frames('b3', f"{tag}:p2")[counts2[3]:],
             f"{tag}:p2-local-precedence")
 
+        # --- Pattern 2 non-local DOR-to-root override proof ---
+        # Install a custom table entry at b3 that would normally deliver a
+        # b3 -> b0 packet locally. With DFT pattern 2 enabled, the override
+        # must ignore that entry and route DOR toward (0,0,0): b3 -> b2 -> b0.
+        # 2x2x1 coords: COORD_W=1, table index = {qos[1:0], z, y, x}.
+        rt_index_b3_b0 = (1 << 3) | 0  # qos=1, dst=(0,0,0)
+        rt_entry_local = 1 << 8        # P_LOCAL, VC0
+        rt_entry_xneg = 1 << 0         # P_X_NEG, VC0 (default DOR restore)
+        await self._config_op(3, True, rt_index_b3_b0, rt_entry_local,
+                              f"{tag}:b3-rt-b0-local")
+
+        header_p2nl = self.build_header(
+            dst=self.BOUNDARY_COORDS[0],
+            src=self.BOUNDARY_COORDS[3],
+            qos=1, packet_id=self._next_pid())
+        payload_p2nl = [0xA2C0_0000_0000_0001]
+        counts2nl = self._data_frame_counts()
+        await self._send_packet('b3', header_p2nl, payload_p2nl)
+        await self._wait_frames('b0', counts2nl[0] + 1)
+        await self.wait_clocks('aclk', 10)
+        self._match_expected_frames(
+            'b0', 0, {(3, 0): (header_p2nl, payload_p2nl)},
+            self._group_frames('b0', f"{tag}:p2nl")[counts2nl[0]:],
+            f"{tag}:p2-root-override")
+
+        # Restore default DOR entry so later tests are not contaminated.
+        await self._config_op(3, True, rt_index_b3_b0, rt_entry_xneg,
+                              f"{tag}:b3-rt-b0-restore")
+
         # --- Disable DFT on all cells and verify normal traffic resumes ---
         for bidx in range(len(self.BOUNDARY_COORDS)):
             await self._write_dft(bidx, False, 0, f"{tag}:disable-b{bidx}")
