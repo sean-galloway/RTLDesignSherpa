@@ -17,8 +17,10 @@
 #       b  = channel bandwidth (bytes/cycle)
 #   Loaded latency (M/D/1 deterministic flit service, [P20]):
 #       T(load) = T0 * (2 - rho) / (2 * (1 - rho)), rho = load
-#   Saturation throughput gamma is capped at 1.0; below saturation it is
-#   modeled as rho/(1 - rho) per the brief pin at load=0.5.
+#   Saturation throughput gamma:
+#       gamma_max = 1 / max_channel_load, where each flow is routed with the
+#       same DOR the RTL uses (X then Y then Z, negative first) and per-link
+#       load is accumulated across the grid's undirected channels (spec §10).
 #
 # Default tr = 4 cycles/hop is the measured ring latency from Task 9.
 # The aspirational 1 cycle/hop lookahead target is deferred (issue #120).
@@ -29,8 +31,8 @@
 
 import argparse
 import sys
-from dataclasses import dataclass
-from typing import Iterable, List, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, Iterable, List, Tuple
 
 
 @dataclass
@@ -44,6 +46,12 @@ class MeshPerfParams:
     l: float
     b: float
     load: float
+
+    def __post_init__(self):
+        if self.v <= 0:
+            raise ValueError(f"v must be > 0, got {self.v}")
+        if self.b <= 0:
+            raise ValueError(f"b must be > 0, got {self.b}")
 
 
 def latency(params: MeshPerfParams) -> float:
@@ -65,19 +73,74 @@ def loaded_latency(params: MeshPerfParams) -> float:
     return t0 * (2.0 - rho) / (2.0 * (1.0 - rho))
 
 
-def throughput_gamma(params: MeshPerfParams) -> float:
-    """Return saturation throughput gamma (normalized to channel capacity).
+def _to_3d(node: Tuple[int, ...], dims: Tuple[int, int, int]) -> Tuple[int, int, int]:
+    if len(node) == 3:
+        return node  # type: ignore[return-value]
+    if len(node) == 2:
+        return (node[0], node[1], 0)
+    raise ValueError("node must be 2-D or 3-D")
 
-    Per spec §10, gamma_max is the saturation throughput from max channel load.
-    The brief pins throughput_gamma(load=0.5) == 0.5/(1 - 0.5) == 1.0 and
-    requires saturation at load >= 1.0.  Below the saturation knee the curve
-    follows rho/(1 - rho); it is clamped to 1.0 once it reaches capacity.
+
+def _dor_next(pos: Tuple[int, int, int], dst: Tuple[int, int, int]) -> Tuple[int, int, int]:
+    """Return the next hop moving X then Y then Z, negative first toward zero."""
+    dx, dy, dz = (dst[0] - pos[0], dst[1] - pos[1], dst[2] - pos[2])
+    if dx < 0:
+        return (pos[0] - 1, pos[1], pos[2])
+    if dx > 0:
+        return (pos[0] + 1, pos[1], pos[2])
+    if dy < 0:
+        return (pos[0], pos[1] - 1, pos[2])
+    if dy > 0:
+        return (pos[0], pos[1] + 1, pos[2])
+    if dz < 0:
+        return (pos[0], pos[1], pos[2] - 1)
+    if dz > 0:
+        return (pos[0], pos[1], pos[2] + 1)
+    return pos
+
+
+def _dor_path(src: Tuple[int, int, int], dst: Tuple[int, int, int]) -> List[Tuple[int, int, int]]:
+    """Return the full DOR path from src to dst (inclusive of both endpoints)."""
+    path = [src]
+    pos = src
+    while pos != dst:
+        pos = _dor_next(pos, dst)
+        path.append(pos)
+    return path
+
+
+def _channel_loads(dims: Tuple[int, int, int],
+                   pairs: List[Tuple[Tuple[int, ...], Tuple[int, ...]]]) -> Dict[Tuple[Tuple[int, int, int], Tuple[int, int, int]], int]:
+    """Accumulate per-undirected-link loads for the given traffic pairs under DOR."""
+    loads: Dict[Tuple[Tuple[int, int, int], Tuple[int, int, int]], int] = {}
+    for src, dst in pairs:
+        src3 = _to_3d(src, dims)
+        dst3 = _to_3d(dst, dims)
+        path = _dor_path(src3, dst3)
+        for a, b in zip(path, path[1:]):
+            if a > b:
+                a, b = b, a
+            loads[(a, b)] = loads.get((a, b), 0) + 1
+    return loads
+
+
+def throughput_gamma(dims: Tuple[int, ...], pattern: str,
+                     params: MeshPerfParams) -> float:
+    """Return saturation throughput gamma_max = 1 / max_channel_load.
+
+    Each source/destination pair from ``pattern_traffic(pattern, dims)`` is
+    routed using the same DOR the RTL uses (X then Y then Z, negative first
+    toward zero).  Load is accumulated per undirected grid link; the result is
+    the inverse of the maximum link load, i.e. the minimum delivered flow
+    (spec §10).
     """
-    rho = params.load
-    if rho >= 1.0:
+    x, y, z = _parse_dims(dims)
+    pairs = pattern_traffic(pattern, dims)
+    loads = _channel_loads((x, y, z), pairs)
+    if not loads:
         return 1.0
-    value = rho / (1.0 - rho)
-    return 1.0 if value >= 1.0 else value
+    max_load = max(loads.values())
+    return 1.0 / max_load
 
 
 def _manhattan(src: Tuple[int, ...], dst: Tuple[int, ...]) -> int:
@@ -158,21 +221,21 @@ def _average_hops(pairs: List[Tuple[Tuple[int, ...], Tuple[int, ...]]]) -> float
     return sum(_manhattan(src, dst) for src, dst in pairs) / len(pairs)
 
 
-def _fmt_table(pattern: str, dims: Tuple[int, int, int], params: MeshPerfParams,
+def _fmt_table(pattern: str, dims: Tuple[int, int, int], base_params: MeshPerfParams,
                pairs: List[Tuple[Tuple[int, ...], Tuple[int, ...]]]) -> str:
     avg_hops = _average_hops(pairs)
     params = MeshPerfParams(
         hops=avg_hops,
-        tr=params.tr,
-        serialization_d=params.serialization_d,
-        v=params.v,
-        l=params.l,
-        b=params.b,
-        load=params.load,
+        tr=base_params.tr,
+        serialization_d=base_params.serialization_d,
+        v=base_params.v,
+        l=base_params.l,
+        b=base_params.b,
+        load=base_params.load,
     )
     t0 = latency(params)
     t_load = loaded_latency(params)
-    gamma = throughput_gamma(params)
+    gamma = throughput_gamma(dims, pattern, params)
 
     lines = [
         "Delta mesh performance model",

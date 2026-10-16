@@ -5,7 +5,6 @@
 # (bin/delta_mesh_perf.py): zero-load latency, M/D/1 loaded latency,
 # saturation throughput gamma, and traffic-pattern generators.
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -45,16 +44,38 @@ def test_loaded_latency_MD1_formula():
     assert loaded_latency(p) == pytest.approx(t0 * (2 - 0.5) / (2 * (1 - 0.5)))
 
 
-def test_throughput_gamma_load_half():
-    # Brief pin: gamma at load=0.5 equals 0.5/(1 - 0.5) == 1.0
-    p = MeshPerfParams(hops=3, tr=1, serialization_d=4, v=1, l=64, b=8, load=0.5)
-    assert throughput_gamma(p) == pytest.approx(0.5 / (1 - 0.5))
+def test_params_rejects_non_positive_v_and_b():
+    with pytest.raises(ValueError, match="v must be > 0"):
+        MeshPerfParams(hops=1, tr=1, serialization_d=4, v=0, l=64, b=8, load=0.0)
+    with pytest.raises(ValueError, match="b must be > 0"):
+        MeshPerfParams(hops=1, tr=1, serialization_d=4, v=1, l=64, b=0, load=0.0)
 
 
-def test_throughput_gamma_saturates_at_one_for_overload():
-    for load in (1.0, 1.25, 2.0):
-        p = MeshPerfParams(hops=3, tr=1, serialization_d=4, v=1, l=64, b=8, load=load)
-        assert throughput_gamma(p) == pytest.approx(1.0)
+def test_throughput_gamma_uniform_4x4():
+    # All-to-all uniform on a 4x4 mesh under DOR: max channel load is 32
+    # (central links), so gamma_max = 1/32.
+    p = MeshPerfParams(hops=0, tr=1, serialization_d=4, v=1, l=64, b=8, load=0.0)
+    assert throughput_gamma((4, 4), "uniform", p) == pytest.approx(1.0 / 32.0)
+
+
+def test_throughput_gamma_transpose_4x4():
+    # Transpose on 4x4: DOR paths create max channel load 3, gamma = 1/3.
+    p = MeshPerfParams(hops=0, tr=1, serialization_d=4, v=1, l=64, b=8, load=0.0)
+    assert throughput_gamma((4, 4), "transpose", p) == pytest.approx(1.0 / 3.0)
+
+
+def test_throughput_gamma_tornado_4x4():
+    # Tornado on 4x4 (offset 1): each row's three horizontal links each carry
+    # two flows, so max load = 2 and gamma = 1/2.
+    p = MeshPerfParams(hops=0, tr=1, serialization_d=4, v=1, l=64, b=8, load=0.0)
+    assert throughput_gamma((4, 4), "tornado", p) == pytest.approx(1.0 / 2.0)
+
+
+def test_throughput_gamma_bit_complement_4x4():
+    # Regression pin for a second permutation pattern.
+    p = MeshPerfParams(hops=0, tr=1, serialization_d=4, v=1, l=64, b=8, load=0.0)
+    gamma = throughput_gamma((4, 4), "bit-complement", p)
+    assert gamma == pytest.approx(1.0 / 4.0)
 
 
 def test_pattern_tornado_4x4_rotation():
@@ -98,15 +119,13 @@ def test_pattern_invalid_name_raises():
 
 def test_CLI_table_runs(capsys):
     # Smoke-test the CLI entry point directly; no external deps.
-    sys.argv = [
-        "delta_mesh_perf.py",
+    main(argv=[
         "--cells-x", "4",
         "--cells-y", "4",
         "--cells-z", "1",
         "--pattern", "tornado",
         "--load", "0.5",
-    ]
-    main()
+    ])
     captured = capsys.readouterr()
     assert "T0" in captured.out or "latency" in captured.out.lower()
     assert "gamma" in captured.out.lower() or "throughput" in captured.out.lower()
