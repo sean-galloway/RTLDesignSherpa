@@ -163,7 +163,7 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 
 ## 6. Milestones
 
-**Status (2026-10-16):** K0 done in sim on legs A and B1; K1 and K2 done on the board -- W2, all three legs, 36/36 runs pass; K3 done on the board on all three legs: the DDR3 chain (W1-F2, W1-F1, W4) 144/144 steps, on the LiteDRAM controller, and W3 contention 24/24 points. K4 is next.
+**Status (2026-10-16):** K0-K4 done. K0 in sim on legs A and B1; K1/K2 on the board -- W2, all three legs; K3 on the board on all three legs -- the DDR3 chain (W1-F2, W1-F1, W4) 144/144 steps on the LiteDRAM controller, W3 contention 24/24 points; K4 -- the v1 sweep x5 (45/45 sweeps pass) and the analysis, §8.
 
 - K0: `rtl/fb_harness.sv` (`dv/tests/test_fb_harness.py`) is the harness of
   §4. The Genesys 2 STREAM characterization runner drives it unchanged over
@@ -190,11 +190,10 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 - First size and timing comparison, every leg alone out of context on the
   board's part: [reports/ooc/README.md](reports/ooc/README.md) (`make ooc-all`).
   At the 100 MHz board clock all three close; at a 4 ns target B1 and B2
-  close (est. Fmax ~256 and ~268 MHz) and Leg A does not (~161 MHz, a
-  15-level path from a master adapter's AW skid into the DDR slave's write
-  CAM count; ~186 MHz and 12 levels before the bridge lifted its
-  one-target-per-master limitation, GitHub #119 L1, which added the B/R
-  response arbiters). Leg A is ~3.8x B1's LUTs; B2 is ~3.1x B1's LUTs plus
+  close (est. Fmax ~256 and ~268 MHz) and Leg A does not (~148 MHz on
+  2026-10-16, a 15-level path from the injector port's per-ID tracking
+  pointer into the DDR slave's write CAM count; ~161 MHz after GitHub #119
+  L1 and ~186 MHz / 12 levels before it -- §8). Leg A is ~3.8x B1's LUTs; B2 is ~3.1x B1's LUTs plus
   3,959 LUTRAM and ~5.3x its flops.
 - S0's DDR3 controller is LiteDRAM, generated (`fb_litedram`,
   `rtl/litedram/fb_litedram.yml`, `bin/gen_litedram.sh`; the core is
@@ -329,8 +328,7 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   50%). S0's total write rate is about the same on every leg (~365-375
   MiB/s), so the difference is who gets the slave, not how much it moves.
 
-Next: K4 -- size and timing parses, the v1 sweep x5, and the analysis
-section (owner decision 2026-10-16: a PRD section plus CSVs).
+K4: §8 (owner decision 2026-10-16: a PRD section plus CSVs).
 
 | K | Content | Gate |
 | --- | --- | --- |
@@ -338,7 +336,7 @@ section (owner decision 2026-10-16: a PRD section plus CSVs).
 | K1 | Leg B1 (AXI Crossbar) in the same sim; then both legs on the board, W2 headline sweep | same host program both legs, sim then board |
 | K2 | Leg B2 (SmartConnect): IP integrator generation, sim decision, board W2 | as K1 |
 | K3 | DDR3 at S0; W1-F1, W1-F2, W4, W3 on all legs | sim with the memory model, then board |
-| K4 | Size and timing parses (Vivado utilization / timing reports), v1 sweep × 5, analysis section for the Kintex-7 legs | — |
+| K4 | Size and timing parses (Vivado utilization / timing reports), v1 sweep × 5, analysis section for the Kintex-7 legs | done: §8 |
 
 The DE10 milestones resume after K1: the harness, host programs and
 sequence files are then proven, and the DE10 work is the Quartus flow, the
@@ -362,3 +360,118 @@ JTAG front end and the Platform Designer leg.
   `{slot, id}` (checked at every slave handshake by the fabric test); B2
   delivers no ID, so the endpoints select channels by address in every leg
   (`CH_SEL_ADDR`, §4, §5.1).
+
+## 8. Analysis -- the Kintex-7 legs (K4)
+
+All figures are from the Genesys 2 at the 100 MHz fabric clock, the
+2026-10-16 bitstreams of every leg, the same harness and the same host
+programs; only the fabric instance differs. CSVs: `reports/k4/`
+(`python3 bin/fb_k4.py size` / `aggregate --since 20261016_100000`), the
+per-run files they summarize in `reports/board/`, and the fabric alone in
+`reports/ooc/README.md` (`make ooc-all`).
+
+### 8.1 Size and timing
+
+The fabric alone, placed and routed out of context (`make ooc-all`,
+2026-10-16):
+
+| Leg | LUT | LUTRAM | FF | WNS at 10 ns | WNS at 4 ns | Fmax est. |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| A (bridge) | 10,337 | 0 | 7,268 | +1.494 | -2.753 | ~148 MHz |
+| B1 (AXI Crossbar) | 2,688 | 10 | 2,190 | +4.658 | +0.088 | ~256 MHz |
+| B2 (SmartConnect) | 8,333 | 3,959 | 11,616 | +4.286 | +0.268 | ~268 MHz |
+
+The whole board design, post-route (harness, STREAM, the injector and
+LiteDRAM are the same in every leg; the differences are the fabric's):
+
+| Leg | WNS (ns) | WHS (ns) | LUTs | LUTRAM | FFs | BRAM | DSP |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A (bridge) | +0.021 | +0.027 | 111,567 | 10,120 | 78,938 | 43.5 | 71 |
+| B1 (AXI Crossbar) | +0.285 | +0.047 | 107,283 | 10,166 | 75,356 | 43.5 | 71 |
+| B2 (SmartConnect) | +0.378 | +0.023 | 112,491 | 12,009 | 83,133 | 43.5 | 71 |
+
+Leg A is the largest fabric in logic (3.8x B1's LUTs) and the only one
+that does not reach 4 ns; B2 spends fewer LUTs than A but adds 3,959
+LUTRAM and the most flops. Leg A's estimate fell from ~161 to ~148 MHz between
+2026-10-15 and 2026-10-16 with its size unchanged: the generated fabric
+took the bridge's per-port latency modes and outstanding limits (#119 L5,
+L7, L1b), and the worst path now starts at the injector port's per-ID
+tracking pointer rather than its AW skid -- still 15 levels into the DDR
+slave's write CAM count.
+
+### 8.2 W2 -- the fabric alone (5 runs per point)
+
+MiB/s, mean (min-max) over 5 runs; peak 1525.9 MiB/s (128 bit x 100 MHz,
+one direction). Every run passed its on-chip verdict and per-channel CRC.
+
+| Point | A (bridge) | B1 (AXI Crossbar) | B2 (SmartConnect) |
+| --- | ---: | ---: | ---: |
+| 1 ch x 4 x 4 KB | 1416.6 (1415.3-1417.9) | 1420.7 (1416.6-1424.3) | 1358.5 (1355.2-1362.2) |
+| 8 ch x 4 x 4 KB | 1512.1 (1511.7-1512.4) | 1511.6 (1511.1-1512.4) | 1503.2 (1502.8-1503.5) |
+| 1 ch x 4 x 64 KB | 1518.8 (1518.6-1519.0) | 1518.9 (1518.6-1519.2) | 1514.3 (1514.0-1514.6) |
+| 8 ch x 4 x 64 KB | 1525.0 (1524.9-1525.0) | 1525.0 (1525.0-1525.0) | 1524.4 (1524.4-1524.5) |
+| 1 ch x 4 x 1 MB | 1525.4 (1525.4-1525.4) | 1525.4 (1525.4-1525.5) | 1525.2 (1525.1-1525.2) |
+| 8 ch x 4 x 1 MB | 1525.8 (1525.8-1525.8) | 1525.8 (1525.8-1525.8) | 1525.8 (1525.8-1525.8) |
+
+In steady state no fabric costs bandwidth: all three reach 100.0% of peak
+at 1 MB, and slave-side utilization equals master-side on every run with
+a measurement window. What separates them is the fixed cost per
+descriptor, visible only at small transfers: A and B1 are within noise of
+each other, and B2 is 4.1% slower at 1 channel x 4 KB (~50 cycles per
+4-descriptor run, measured with the on-chip timer), which disappears once
+several channels overlap or transfers grow -- consistent with a longer
+per-request latency through SmartConnect. (Not instrumented further: B2
+does not simulate, and its internals are encrypted.)
+
+### 8.3 W3 -- two masters into one slave (5 runs per point)
+
+Injector share of S0 in STREAM's window; identical to 0.1% across the 5
+runs (min-max shown only where they differ). 50/50 = injector unthrottled;
+90/10 = idle 1280 cycles (f3) / 480 (mirror) between its 16-beat bursts.
+
+| Flavor, offered mix, outstanding | A (bridge) | B1 (AXI Crossbar) | B2 (SmartConnect) |
+| --- | ---: | ---: | ---: |
+| f3, 50/50, 2 or 4 | 50.0% | 50.0% | 50.0% |
+| f3, 90/10, 2 or 4 | 10.1% | 10.1% | 10.1% |
+| mirror, 50/50, 2 | 40.0% | 50.0% | 11.1% |
+| mirror, 50/50, 4 | 50.0% | 50.0% | 20.0% |
+| mirror, 90/10, 2 | 10.6% | 11.8% (11.8-11.9) | 11.1% |
+| mirror, 90/10, 4 | 10.6% | 11.8% (11.8-11.9) | 13.4% |
+
+f3 is the controller's split, not the fabric's: STREAM's reads and the
+injector's writes travel on different AXI channels, so no fabric
+arbitrates between them. The mirror -- two writers into one slave -- is
+the fabric's arbitration, and the outcome is deterministic per leg:
+
+- B1 splits a contended slave evenly regardless of outstanding.
+- A splits evenly when the injector may keep 4 writes outstanding, and
+  gives it 40% at 2. Why the limit moves A's split and not B1's is not
+  established; it is the first thing to look at in the bridge's write
+  arbitration.
+- B2 favours STREAM heavily under full load: the injector gets 11-20%
+  where B1 gives it 50%. Total S0 write throughput is about the same on
+  every leg (~365-375 MiB/s), so this is who gets the slave, not how much
+  it moves.
+
+### 8.4 W1 and W4
+
+Integrity checks only (§6, K3): 144/144 chain steps pass on every leg, but
+their rates are LiteDRAM's (7-26% of peak, identical across legs) and say
+nothing about the fabrics.
+
+### 8.5 Summary
+
+| | A (bridge) | B1 (AXI Crossbar) | B2 (SmartConnect) |
+| --- | --- | --- | --- |
+| Steady-state bandwidth | 100% of peak | 100% of peak | 100% of peak |
+| Small-transfer cost | baseline | = A | 4.1% slower at 1 ch x 4 KB |
+| Contended-slave fairness | even at 4 outstanding, 40/60 at 2 | even | biased to STREAM (11-20%) |
+| Size (fabric, OOC) | 10.3k LUT, 7.3k FF | 2.7k LUT, 2.2k FF | 8.3k LUT, 4.0k LUTRAM, 11.6k FF |
+| Fmax est. (fabric, OOC) | ~148 MHz | ~256 MHz | ~268 MHz |
+| Simulatable | yes | yes | no (encrypted) |
+
+On this port set and clock, the generated bridge matches the Xilinx
+crossbar on bandwidth and per-transfer latency, is fairer than
+SmartConnect under contention, and costs about 3.8x B1's logic and the
+lowest Fmax of the three -- its 15-level write-CAM path is the item to
+take back to the bridge.

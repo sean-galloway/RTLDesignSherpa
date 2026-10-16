@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Thu Oct 15 08:56:29 2026
+| Date         : Fri Oct 16 10:10:45 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_timing_summary -max_paths 10 -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/sc/4.0ns/timing_summary.txt
 | Design       : fb_data_fabric

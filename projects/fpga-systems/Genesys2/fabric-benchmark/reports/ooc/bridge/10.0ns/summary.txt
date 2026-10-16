@@ -1,11 +1,11 @@
 leg bridge
 part xc7k325tffg900-2
 period_ns 10.0
-wns_ns 1.126
-whs_ns 0.082
-worst_levels 15
-worst_start u_fabric/u_inj_wr_adapter/u_timing_wrapper_wr/i_aw_channel/g_slot[0].r_data_reg[0][62]/C
-worst_end u_fabric/u_ddr_adapter/u_wr_cam/r_count_array_reg[15][4]/D
+wns_ns 1.494
+whs_ns 0.081
+worst_levels 13
+worst_start u_fabric/u_stream_wr_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[0].r_data_reg[0][60]/C
+worst_end u_fabric/u_ddr_adapter/u_wr_cam/r_count_array_reg[12][4]/D
 lut 10337
 lutram 0
 srl 0
