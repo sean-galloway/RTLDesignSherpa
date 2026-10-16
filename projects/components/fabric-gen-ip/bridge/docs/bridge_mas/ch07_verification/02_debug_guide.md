@@ -111,7 +111,7 @@ async def test_with_debug(dut):
 | Arbitration | `<slave>_aw_arb_gnt`, `_locked`, `_rr`, `_req`, `_pick` | Grant, lock and round-robin state, per slave, AW and AR |
 | Response routing | `<slave>_axi_bid_bridge_id`, `<slave>_axi_rid_bridge_id` | The `bridge_id` a B/R beat is muxed to. This is the routing decision -- the AXI ID is not used |
 | Response arbitration | `<master>_<W>b_{b,r}_rarb_gnt`, `_locked`, `_rgnt_<slave>` (xbar); `b_pgnt` / `r_pgnt`, `r_{b,r}_hold` (adapter, multi-path masters) | Which slave, then which width path, a master's B/R comes from |
-| Outstanding tracking | `aw_out_cnt` / `ar_out_cnt`, `aw_idt_cnt[]` / `aw_idt_tgt[]` (adapter); `aw_trk_*` / `ar_trk_*` FIFO on rr_atomic / trace-echo ports | In flight per port and per ID |
+| Outstanding tracking | `aw_out_cnt` / `ar_out_cnt`, `aw_idt_cnt[]` / `aw_idt_tgt[]` (adapter); `ar_idt_push_aw`, `lr_*` local-DECERR queue on read-return-atomic ports | In flight per port and per ID |
 | Target gating | `aw_gate_ok` / `ar_gate_ok`, `aw_id_ok` / `ar_id_ok`, `w_trk_*` (adapter) | Why a new AW/AR is being held off |
 
 : Debug Signals That Exist

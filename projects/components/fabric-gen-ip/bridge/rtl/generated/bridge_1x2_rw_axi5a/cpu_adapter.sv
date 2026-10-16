@@ -417,13 +417,13 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     logic [NUM_SLAVES-1:0] w_slave_select;
     logic [NUM_SLAVES-1:0] r_slave_select;
     // A5-3b: a read-return atomic (AWATOP[5]) answers on R, so its AW
-    // also claims a slot in the AR->R tracking FIFO and must satisfy the
-    // read side's single-outstanding-target gate. Declared here, driven
-    // in the read-tracking section, consumed by aw_gate_ok.
+    // is also counted in the AR per-ID table under its AWID and must pass
+    // the read side's per-ID gate. Declared here, driven in the
+    // read-tracking section, consumed by aw_gate_ok.
     wire  aw_rr_atomic = fub_axi_awatop[5];
     logic aw_rr_gate_ok;
     // ... and one that decoded to the subtractive slave is answered locally
-    // on R (DECERR); r_local_head marks its turn at the tracker head.
+    // on R (DECERR); r_local_head is the R path arbiter's grant to it.
     logic r_local_head;
 
     // ================================================================
@@ -571,73 +571,60 @@ module bridge_1x2_rw_axi5a_cpu_adapter
 
     localparam int AW_TRK_DEPTH = 16;
     localparam int AW_TRK_AW    = 4;
-    // -------- AW->B slave_select tracking FIFO --------
-    logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];
-    logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;
-    logic aw_trk_push, aw_trk_pop;
-
-    assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;
-    assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;
+    // -------- AW per-ID target table (fixes bridge GitHub #119 L1) --------
+    // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
+    // in flight may only add more to the SAME slave (AXI same-ID order);
+    // any other ID may go to any slave. IDs that share the index bits are
+    // treated as one ID: safe, at worst a needless stall.
+    localparam int AW_IDT_N = 16;
+    logic [AW_TRK_AW:0]   aw_idt_cnt [AW_IDT_N];
+    logic [NUM_SLAVES-1:0] aw_idt_tgt [AW_IDT_N];
+    logic [AW_TRK_AW:0]   aw_out_cnt;
+    logic [3:0] aw_idt_widx, aw_idt_ridx;
+    logic                  aw_idt_trace [AW_IDT_N];  // trace of the in-flight ID
+    logic aw_idt_push, aw_idt_pop;
+    assign aw_idt_widx = fub_axi_awid[3:0];
+    assign aw_idt_ridx = fub_axi_bid[3:0];
+    assign aw_idt_push = fub_axi_awvalid && fub_axi_awready;
+    assign aw_idt_pop  = fub_axi_bvalid && fub_axi_bready;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            aw_trk_wptr <= '0;
-            aw_trk_rptr <= '0;
+            for (int i = 0; i < AW_IDT_N; i++) begin
+                aw_idt_cnt[i] <= '0;
+                aw_idt_tgt[i] <= '0;
+                aw_idt_trace[i] <= 1'b0;
+            end
+            aw_out_cnt <= '0;
         end else begin
-            if (aw_trk_push) begin
-                aw_trk_mem[aw_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
-                aw_trk_wptr <= aw_trk_wptr + 1'b1;
+            if (aw_idt_push) aw_idt_tgt[aw_idt_widx] <= comb_slave_select_aw;
+            if (aw_idt_push) aw_idt_trace[aw_idt_widx] <= fub_axi_awtrace;
+            for (int i = 0; i < AW_IDT_N; i++) begin
+                aw_idt_cnt[i] <= aw_idt_cnt[i]
+                    + (AW_TRK_AW+1)'(aw_idt_push && (aw_idt_widx == 4'(i)))
+                    - (AW_TRK_AW+1)'(aw_idt_pop  && (aw_idt_ridx == 4'(i)));
             end
-            if (aw_trk_pop) begin
-                aw_trk_rptr <= aw_trk_rptr + 1'b1;
-            end
+            aw_out_cnt <= aw_out_cnt + (AW_TRK_AW+1)'(aw_idt_push)
+                                          - (AW_TRK_AW+1)'(aw_idt_pop);
         end
     )
 
-    assign b_slave_select = (aw_trk_wptr != aw_trk_rptr)
-                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
-                          : '0;
+    // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no
+    // count wraps; AW_TRK_DEPTH is the port's outstanding limit.
+    logic aw_trk_full, aw_id_ok;
+    assign aw_trk_full = (aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH));
+    assign aw_id_ok    = (aw_idt_cnt[aw_idt_widx] == '0) ||
+                           ((aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw) &&
+                            (aw_idt_trace[aw_idt_widx] == fub_axi_awtrace));
 
-    // -------- AW->B trace tracking (bridge BUG-010, was BRIDGE-012) --------
-    // Same push/pop as the slave_select FIFO above, so the head is the
-    // request being answered. Echoed onto btrace at the port below.
-    logic aw_trk_trace [AW_TRK_DEPTH];
+    // One width path: every response arrives on it; the crossbar has
+    // already chosen among the slaves behind it.
+    assign b_slave_select = 3'b001;
+
+    // bridge BUG-010 (was BRIDGE-012): the B echoes its request's trace,
+    // looked up by the returning ID (single-valued per in-flight ID).
     logic b_trk_trace;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            for (int i = 0; i < AW_TRK_DEPTH; i++) aw_trk_trace[i] <= 1'b0;
-        end else if (aw_trk_push) begin
-            aw_trk_trace[aw_trk_wptr[AW_TRK_AW-1:0]] <= fub_axi_awtrace;
-        end
-    )
-
-    assign b_trk_trace = (aw_trk_wptr != aw_trk_rptr)
-                          ? aw_trk_trace[aw_trk_rptr[AW_TRK_AW-1:0]]
-                          : 1'b0;
-
-    // Single-outstanding-target (writes): only accept a new AW
-    // while every outstanding write targets the SAME slave. The
-    // B response mux replays responses in AW issue order; slaves
-    // respond in their own accept order, so cross-slave outstanding
-    // writes from several masters can deadlock the heads against
-    // each other. Same-slave pipelining is unaffected.
-    logic [NUM_SLAVES-1:0] r_aw_active_target;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_aw_active_target <= '0;
-        end else if (aw_trk_push) begin
-            r_aw_active_target <= comb_slave_select_aw;
-        end
-    )
-    logic aw_trk_full;
-    assign aw_trk_full = (aw_trk_wptr[AW_TRK_AW] != aw_trk_rptr[AW_TRK_AW]) &&
-                         (aw_trk_wptr[AW_TRK_AW-1:0] == aw_trk_rptr[AW_TRK_AW-1:0]);
-    assign aw_gate_ok = ((aw_trk_wptr == aw_trk_rptr) ||
-                         (comb_slave_select_aw == r_aw_active_target)) &&
-                        !aw_trk_full &&
-                        // A5-3b: a read-return atomic also lives in the AR->R FIFO
-                        (!aw_rr_atomic || aw_rr_gate_ok);
+    assign b_trk_trace = aw_idt_trace[aw_idt_ridx];
 
     // -------- AW->W slave_select tracking FIFO --------
     // Same push as AW (records slave_select at handshake);
@@ -671,118 +658,166 @@ module bridge_1x2_rw_axi5a_cpu_adapter
                           ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]
                           : '0;
 
+    // A new AW may target a different slave only once every W burst
+    // already accepted has gone: W carries no ID and follows AW order,
+    // so two masters each with W owed to two slaves could otherwise
+    // wait on each other at the slaves' W ports (crossed W deadlock).
+    assign aw_gate_ok = aw_id_ok && !aw_trk_full &&
+                        ((w_trk_wptr == w_trk_rptr) ||
+                         (w_slave_select == comb_slave_select_aw)) &&
+                        // A5-3b: a read-return atomic also takes an AR-table slot
+                        (!aw_rr_atomic || aw_rr_gate_ok);
+
     // OUTPUT slave_select_ar mirrors the live combinational decode.
     assign slave_select_ar = comb_slave_select_ar;
 
     localparam int AR_TRK_DEPTH = 16;
     localparam int AR_TRK_AW    = 4;
-    // -------- AR->R slave_select tracking FIFO --------
-    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];
-    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;
-    logic ar_trk_push, ar_trk_pop;
-    logic ar_trk_push_aw;
-    // A5-3b: entries that must be answered locally (see r_local_head)
-    logic ar_trk_local [AR_TRK_DEPTH];
-    logic [3:0] ar_trk_id [AR_TRK_DEPTH];
-    wire  aw_rr_local = aw_rr_atomic && comb_slave_select_aw[2];
-
-    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;
-    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
-    // A5-3b: a read-return atomic's AW claims an R-return slot too.
-    assign ar_trk_push_aw = fub_axi_awvalid && fub_axi_awready && aw_rr_atomic;
+    // -------- AR per-ID target table (fixes bridge GitHub #119 L1) --------
+    // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
+    // in flight may only add more to the SAME slave (AXI same-ID order);
+    // any other ID may go to any slave. IDs that share the index bits are
+    // treated as one ID: safe, at worst a needless stall.
+    localparam int AR_IDT_N = 16;
+    logic [AR_TRK_AW:0]   ar_idt_cnt [AR_IDT_N];
+    logic [NUM_SLAVES-1:0] ar_idt_tgt [AR_IDT_N];
+    logic [AR_TRK_AW:0]   ar_out_cnt;
+    logic [3:0] ar_idt_widx, ar_idt_ridx;
+    logic                  ar_idt_trace [AR_IDT_N];  // trace of the in-flight ID
+    // A5-3b: a read-return atomic AW answers on R with its AWID, so it
+    // is counted here too (second push port).
+    logic [3:0] ar_idt_widx_aw;
+    logic ar_idt_push_aw;
+    assign ar_idt_widx_aw = fub_axi_awid[3:0];
+    assign ar_idt_push_aw = fub_axi_awvalid && fub_axi_awready && aw_rr_atomic;
+    logic ar_idt_push, ar_idt_pop;
+    assign ar_idt_widx = fub_axi_arid[3:0];
+    assign ar_idt_ridx = fub_axi_rid[3:0];
+    assign ar_idt_push = fub_axi_arvalid && fub_axi_arready;
+    assign ar_idt_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            ar_trk_wptr <= '0;
-            ar_trk_rptr <= '0;
+            for (int i = 0; i < AR_IDT_N; i++) begin
+                ar_idt_cnt[i] <= '0;
+                ar_idt_tgt[i] <= '0;
+                ar_idt_trace[i] <= 1'b0;
+            end
+            ar_out_cnt <= '0;
         end else begin
-            if (ar_trk_push && ar_trk_push_aw) begin
-                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;
-                ar_trk_mem[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= comb_slave_select_aw;
-                ar_trk_local[ar_trk_wptr[AR_TRK_AW-1:0]] <= 1'b0;
-                ar_trk_local[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= aw_rr_local;
-                ar_trk_id[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= fub_axi_awid;
-                ar_trk_wptr <= ar_trk_wptr + (AR_TRK_AW+1)'(2);
-            end else if (ar_trk_push) begin
-                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;
-                ar_trk_local[ar_trk_wptr[AR_TRK_AW-1:0]] <= 1'b0;
-                ar_trk_wptr <= ar_trk_wptr + 1'b1;
-            end else if (ar_trk_push_aw) begin
-                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_aw;
-                ar_trk_local[ar_trk_wptr[AR_TRK_AW-1:0]] <= aw_rr_local;
-                ar_trk_id[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_awid;
-                ar_trk_wptr <= ar_trk_wptr + 1'b1;
+            if (ar_idt_push) ar_idt_tgt[ar_idt_widx] <= comb_slave_select_ar;
+            if (ar_idt_push) ar_idt_trace[ar_idt_widx] <= fub_axi_artrace;
+            if (ar_idt_push_aw) ar_idt_tgt[ar_idt_widx_aw] <= comb_slave_select_aw;
+            if (ar_idt_push_aw) ar_idt_trace[ar_idt_widx_aw] <= fub_axi_awtrace;
+            for (int i = 0; i < AR_IDT_N; i++) begin
+                ar_idt_cnt[i] <= ar_idt_cnt[i]
+                    + (AR_TRK_AW+1)'(ar_idt_push && (ar_idt_widx == 4'(i)))
+                    + (AR_TRK_AW+1)'(ar_idt_push_aw && (ar_idt_widx_aw == 4'(i)))
+                    - (AR_TRK_AW+1)'(ar_idt_pop  && (ar_idt_ridx == 4'(i)));
             end
-            if (ar_trk_pop) begin
-                ar_trk_rptr <= ar_trk_rptr + 1'b1;
+            ar_out_cnt <= ar_out_cnt + (AR_TRK_AW+1)'(ar_idt_push) + (AR_TRK_AW+1)'(ar_idt_push_aw)
+                                          - (AR_TRK_AW+1)'(ar_idt_pop);
+        end
+    )
+
+    // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no
+    // count wraps; AR_TRK_DEPTH is the port's outstanding limit.
+    logic ar_trk_full, ar_id_ok;
+    assign ar_trk_full = (ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH));
+    assign ar_id_ok    = (ar_idt_cnt[ar_idt_widx] == '0) ||
+                           ((ar_idt_tgt[ar_idt_widx] == comb_slave_select_ar) &&
+                            (ar_idt_trace[ar_idt_widx] == fub_axi_artrace));
+    assign ar_gate_ok = ar_id_ok && !ar_trk_full;
+
+    // A5-3b: the read-return atomic AW's own gate, against the AR table
+    // under its AWID: same per-ID rule as AR, one free slot counting an AR
+    // that pushes this cycle, and it yields to an AR pushing the SAME ID
+    // index this cycle (two pushes would race for one entry's target).
+    logic ar_id_ok_aw;
+    assign ar_id_ok_aw = (ar_idt_cnt[ar_idt_widx_aw] == '0) ||
+                         ((ar_idt_tgt[ar_idt_widx_aw] == comb_slave_select_aw) &&
+                                 (ar_idt_trace[ar_idt_widx_aw] == fub_axi_awtrace));
+    assign aw_rr_gate_ok = ar_id_ok_aw &&
+                           ((ar_out_cnt + (AR_TRK_AW+1)'(ar_idt_push)) <
+                            (AR_TRK_AW+1)'(AR_TRK_DEPTH)) &&
+                           !(ar_idt_push && (ar_idt_widx == ar_idt_widx_aw));
+
+    // A5-3b: a read-return atomic that decoded to the subtractive slave
+    // is answered HERE with one DECERR R beat (that slave answers B only).
+    // Its ID waits in this queue; the R path arbiter grants it like a path.
+    wire  aw_rr_local = aw_rr_atomic && comb_slave_select_aw[2];
+    logic [3:0] lr_mem [AR_TRK_DEPTH];
+    logic [AR_TRK_AW:0] lr_wptr, lr_rptr;
+    logic lr_valid;
+    logic [3:0] r_local_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            lr_wptr <= '0;
+            lr_rptr <= '0;
+        end else begin
+            if (fub_axi_awvalid && fub_axi_awready && aw_rr_local) begin
+                lr_mem[lr_wptr[AR_TRK_AW-1:0]] <= fub_axi_awid;
+                lr_wptr <= lr_wptr + 1'b1;
+            end
+            if (r_local_head && fub_axi_rvalid && fub_axi_rready) begin
+                lr_rptr <= lr_rptr + 1'b1;
+            end
+        end
+    )
+    assign lr_valid   = (lr_wptr != lr_rptr);
+    assign r_local_id = lr_mem[lr_rptr[AR_TRK_AW-1:0]];
+
+    // -------- R path arbiter (fixes bridge GitHub #119 L1) --------
+    // Round robin over the 2 width paths. A grant holds while its
+    // response is offered and not taken, and through RLAST.
+    logic [1:0] r_pv, r_pgnt, r_r_held;
+    logic           r_r_hold;
+    logic [0:0] r_r_last;
+    assign r_pv[0] = cpu_32b_rvalid;  // 32b path
+    assign r_pv[1] = lr_valid;  // local DECERR queue
+    always_comb begin
+        r_pgnt = '0;
+        if (r_r_hold) begin
+            r_pgnt = r_r_held;
+        end else begin
+            case (r_r_last)
+                1'd0: begin
+                    if (r_pv[0]) r_pgnt = 2'b01;
+                    if (r_pv[1]) r_pgnt = 2'b10;
+                end
+                1'd1: begin
+                    if (r_pv[1]) r_pgnt = 2'b10;
+                    if (r_pv[0]) r_pgnt = 2'b01;
+                end
+                default: ;
+            endcase
+        end
+    end
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_r_hold <= 1'b0;
+            r_r_held <= '0;
+            r_r_last <= '0;
+        end else begin
+            r_r_hold <= r_r_hold
+                ? !(fub_axi_rvalid && fub_axi_rready && fub_axi_rlast)
+                : (fub_axi_rvalid && !(fub_axi_rready && fub_axi_rlast));
+            r_r_held <= r_pgnt;
+            if (fub_axi_rvalid && fub_axi_rready) begin
+                if (r_pgnt[0]) r_r_last <= 1'd0;
+                if (r_pgnt[1]) r_r_last <= 1'd1;
             end
         end
     )
 
-    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)
-                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
-                          : '0;
-    assign r_local_head = (ar_trk_wptr != ar_trk_rptr) &&
-                          ar_trk_local[ar_trk_rptr[AR_TRK_AW-1:0]];
+    assign r_slave_select = ({NUM_SLAVES{r_pgnt[0]}} & 3'b001);
 
-    // -------- AR->R trace tracking (bridge BUG-010, was BRIDGE-012) --------
-    // Same push/pop as the slave_select FIFO above, so the head is the
-    // request being answered. Echoed onto rtrace at the port below.
-    logic ar_trk_trace [AR_TRK_DEPTH];
+    assign r_local_head = r_pgnt[1];  // the local queue holds R
+
+    // bridge BUG-010: the R echoes its request's trace (an atomic's AW trace).
     logic r_trk_trace;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            for (int i = 0; i < AR_TRK_DEPTH; i++) ar_trk_trace[i] <= 1'b0;
-        end else if (ar_trk_push && ar_trk_push_aw) begin
-            ar_trk_trace[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_artrace;
-            ar_trk_trace[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= fub_axi_awtrace;
-        end else if (ar_trk_push_aw) begin
-            ar_trk_trace[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_awtrace;
-        end else if (ar_trk_push) begin
-            ar_trk_trace[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_artrace;
-        end
-    )
-
-    assign r_trk_trace = (ar_trk_wptr != ar_trk_rptr)
-                          ? ar_trk_trace[ar_trk_rptr[AR_TRK_AW-1:0]]
-                          : 1'b0;
-
-    // Single-outstanding-target (reads) — see aw_gate_ok comment.
-    logic [NUM_SLAVES-1:0] r_ar_active_target;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_ar_active_target <= '0;
-        end else if (ar_trk_push_aw) begin
-            r_ar_active_target <= comb_slave_select_aw;
-        end else if (ar_trk_push) begin
-            r_ar_active_target <= comb_slave_select_ar;
-        end
-    )
-    logic ar_trk_full;
-    assign ar_trk_full = (ar_trk_wptr[AR_TRK_AW] != ar_trk_rptr[AR_TRK_AW]) &&
-                         (ar_trk_wptr[AR_TRK_AW-1:0] == ar_trk_rptr[AR_TRK_AW-1:0]);
-    assign ar_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||
-                         (comb_slave_select_ar == r_ar_active_target)) &&
-                        !ar_trk_full;
-
-    // A5-3b: the read-return atomic AW's own gate. Same target rule as
-    // AR, but it needs TWO free slots so an AR handshaking in the same
-    // cycle still fits (AR takes the first, the AW the second).
-    //
-    // The last term is load-bearing. With the FIFO empty, an AR and an
-    // atomic AW to DIFFERENT slaves both pass their target rule in the same
-    // cycle, and a dual push would then hold two targets at once. Every
-    // slave whose tracker head belongs to this master drives the crossbar's
-    // OR-merged response mux, so two live targets corrupt the R payload
-    // (found as a seed-dependent read starvation in the A5-3b sign-off).
-    // The AW yields in that cycle; it gets its turn once the FIFO drains.
-    logic [AR_TRK_AW:0] ar_trk_count;
-    assign ar_trk_count = ar_trk_wptr - ar_trk_rptr;
-    assign aw_rr_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||
-                            (comb_slave_select_aw == r_ar_active_target)) &&
-                           (ar_trk_count <= (AR_TRK_AW+1)'(AR_TRK_DEPTH - 2)) &&
-                           !(ar_trk_push && (comb_slave_select_ar != comb_slave_select_aw));
+    assign r_trk_trace = ar_idt_trace[ar_idt_ridx];
 
     // AW-ready MUX (combinational comb_slave_select_aw — awaddr is live during awvalid)
     always_comb begin
@@ -867,7 +902,7 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     // A slave that DOES implement trace must echo it too. Echoing at the
     // boundary keeps this port correct whatever the slave does, but it
     // must not launder a trace-capable slave that returns the wrong bit.
-    localparam logic [NUM_SLAVES-1:0] B_TRACE_CAPABLE = 3'b001;
+    localparam logic [NUM_SLAVES-1:0] B_TRACE_CAPABLE = 3'b000;
     always_ff @(posedge aclk) begin
         if (aresetn && fub_axi_bvalid && fub_axi_bready &&
             |(b_slave_select & B_TRACE_CAPABLE) &&
@@ -943,7 +978,7 @@ module bridge_1x2_rw_axi5a_cpu_adapter
         // slave is answered here -- DECERR, one beat, the AW's ID. The
         // subtractive slave has already been held off via r_path_active.
         if (r_local_head) begin
-            fub_axi_rid    = ar_trk_id[ar_trk_rptr[AR_TRK_AW-1:0]];
+            fub_axi_rid    = r_local_id;
             fub_axi_rdata  = 32'd0;
             fub_axi_rresp  = 2'b11;
             fub_axi_rlast  = 1'b1;
@@ -959,7 +994,7 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     // A slave that DOES implement trace must echo it too. Echoing at the
     // boundary keeps this port correct whatever the slave does, but it
     // must not launder a trace-capable slave that returns the wrong bit.
-    localparam logic [NUM_SLAVES-1:0] R_TRACE_CAPABLE = 3'b001;
+    localparam logic [NUM_SLAVES-1:0] R_TRACE_CAPABLE = 3'b000;
     always_ff @(posedge aclk) begin
         if (aresetn && fub_axi_rvalid && fub_axi_rready &&
             |(r_slave_select & R_TRACE_CAPABLE) &&
@@ -978,8 +1013,7 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     // Pure observation; compiled out unless AMBER_ILA_DBG is defined.
 `ifdef AMBER_ILA_DBG
     (* mark_debug = "true" *) logic             dbg_ad_ar_trk_full;
-    (* mark_debug = "true" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_wptr;
-    (* mark_debug = "true" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_rptr;
+    (* mark_debug = "true" *) logic [AR_TRK_AW:0] dbg_ad_ar_out_cnt;
     (* mark_debug = "true" *) logic             dbg_ad_ar_gate_ok;
     (* mark_debug = "true" *) logic             dbg_ad_ar_push;
     (* mark_debug = "true" *) logic             dbg_ad_ar_pop;
@@ -993,11 +1027,10 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     (* mark_debug = "true" *) logic             dbg_ad_fub_rlast;
 
     assign dbg_ad_ar_trk_full      = ar_trk_full;
-    assign dbg_ad_ar_trk_wptr      = ar_trk_wptr;
-    assign dbg_ad_ar_trk_rptr      = ar_trk_rptr;
+    assign dbg_ad_ar_out_cnt       = ar_out_cnt;
     assign dbg_ad_ar_gate_ok       = ar_gate_ok;
-    assign dbg_ad_ar_push          = ar_trk_push;
-    assign dbg_ad_ar_pop           = ar_trk_pop;
+    assign dbg_ad_ar_push          = ar_idt_push;
+    assign dbg_ad_ar_pop           = ar_idt_pop;
     assign dbg_ad_host_arvalid     = host_axi_arvalid;
     assign dbg_ad_host_arready     = host_axi_arready;
     assign dbg_ad_fub_arvalid      = fub_axi_arvalid;

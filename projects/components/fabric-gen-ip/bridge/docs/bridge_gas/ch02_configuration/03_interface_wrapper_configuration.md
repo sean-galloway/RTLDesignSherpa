@@ -49,6 +49,27 @@ The `_monlite` wrappers are used unconditionally since 2026-09-26; the old non-l
 
 : interface.skid_depths table
 
+## `latency` (port key)
+
+`latency` selects which channels of the port's timing wrapper are registered
+(GitHub #119 L7). A cut channel's skid depth becomes 0, which
+`gaxi_skid_buffer` builds as a combinational pass-through.
+
+| Value | Registered channels | Port adds |
+|-------|---------------------|-----------|
+| `cut_all` (default) | AW, W, B, AR, R | 1 cycle per direction |
+| `cut_ax` | AW, AR | 1 cycle on requests, 0 on W / B / R |
+| `cut_none` | none | 0 cycles: the port boundary is wires |
+
+: latency modes
+
+Legal only on a same-clock `axi4` / `axi5` port; a converted port (AXI-Lite,
+APB, Wishbone, AXI3) or a `cdc = true` port has buffers of its own that the
+mode does not reach, so the loader rejects it there. The master adapter keeps
+the resolved depths as module parameters (`SKID_DEPTH_*`), so a single
+generated adapter can still be re-timed by overriding them at elaboration.
+Measured on `bridge_2x2_rw_lat` by `test_bridge_2x2_rw_lat_modes`.
+
 Example:
 
 ```toml

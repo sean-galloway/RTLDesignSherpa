@@ -1428,16 +1428,19 @@ def _generate(tmp_path, name):
 
 def test_axi5_rr_atomic_generation(tmp_path):
     """A5-3b fixture: the rw atomic master has NO boundary filter and its
-    AR->R tracker takes a slot at the atomic AW; the atomic slaves route the
+    AR per-ID table counts the atomic AW under its AWID (GitHub #119 L1b --
+    this was an AR->R slot FIFO with a dual push); the atomic slaves route the
     R beat by ID through axi5_atomic_rr_tracker; the filelist pulls the
     tracker and not the filter."""
     out = _generate(tmp_path, "bridge_1x2_rw_axi5a")
 
     cpu = (out / "cpu_adapter.sv").read_text()
     assert "u_atomic_filter" not in cpu, "rw atomic master must not filter read-return atomics"
-    assert "ar_trk_push_aw" in cpu, "atomic AW must claim an AR->R tracker slot"
-    assert "aw_rr_gate_ok" in cpu, "atomic AW must pass the read-side single-target gate"
-    assert "ar_trk_wptr + (AR_TRK_AW+1)'(2)" in cpu, "dual push (AR + atomic AW in one cycle) missing"
+    assert "ar_idt_push_aw" in cpu, "atomic AW must be counted in the AR per-ID table"
+    assert "aw_rr_gate_ok = ar_id_ok_aw" in cpu, "atomic AW must pass the read-side per-ID gate"
+    assert "+ (AR_TRK_AW+1)'(ar_idt_push_aw)" in cpu, "AR outstanding count misses the atomic AW"
+    assert "ar_idt_trace[ar_idt_widx_aw] <= fub_axi_awtrace" in cpu, "atomic R must echo the AW trace"
+    assert "ar_trk_wptr" not in cpu, "the one-target AR->R FIFO is gone"
 
     for slave in ("ddr", "sram"):
         sv = (out / f"{slave}_adapter.sv").read_text()
@@ -2267,3 +2270,69 @@ def test_max_outstanding_sizes_every_tracker(tmp_path):
     assert ".DEPTH(4)" in (d / "sram_adapter.sv").read_text()
     assert "ddr_wowner_mem [32];" in x and "sram_wowner_mem [4];" in x
     assert "cpu_32b_wdest_mem [64];" in x and "dma_32b_wdest_mem [4];" in x
+
+
+# --- bridge GitHub #119 L7: per-port latency modes, honoured skid depths ----
+
+def _timing_toml(tmp_path, bridge_extra="", master_extra="", slave_extra='channels = "rw"',
+                 master_proto="axi4"):
+    toml, conn = _write_min_toml(tmp_path, slave_extra=slave_extra,
+                                 master_extra=f'protocol = "{master_proto}"\n' + master_extra,
+                                 master_channels="rw")
+    if master_proto in ("axil", "apb"):
+        p = Path(toml)
+        p.write_text(p.read_text().replace("id_width = 4\nchannels = \"rw\"",
+                                           "id_width = 0\nchannels = \"rw\"", 1))
+    if bridge_extra:
+        _with_bridge_key(toml, bridge_extra)
+    return toml, conn
+
+
+def test_skid_depths_resolve_defaults_bridge_port_then_latency(tmp_path):
+    toml, conn = _timing_toml(
+        tmp_path,
+        bridge_extra="[bridge.defaults.skid_depths]\nr = 4",
+        master_extra='latency = "cut_ax"\n[bridge.masters.interface.skid_depths]\naw = 6',
+    )
+    cfg = load_config(toml, conn)
+    m, s = cfg.masters[0], cfg.slaves[0]
+    assert m.latency == "cut_ax"
+    assert m.skid_depths == {'aw': 6, 'w': 0, 'b': 0, 'ar': 2, 'r': 0}
+    assert s.latency == "cut_all"
+    assert s.skid_depths == {'aw': 2, 'w': 4, 'b': 2, 'ar': 2, 'r': 4}
+
+
+@pytest.mark.parametrize("extra,match", [
+    ('latency = "fast"', "latency must be one of"),
+    ('[bridge.masters.interface.skid_depths]\naw = 1', "must be an integer 2..8"),
+    ('[bridge.masters.interface.skid_depths]\nq = 2', "unknown channel"),
+])
+def test_latency_and_skid_validation(tmp_path, extra, match):
+    toml, conn = _timing_toml(tmp_path, master_extra=extra)
+    with pytest.raises(ValueError, match=match):
+        load_config(toml, conn)
+
+
+def test_latency_rejected_on_converted_ports(tmp_path):
+    """A converted port has buffers the mode does not reach -- reject, don't
+    half-apply."""
+    toml, conn = _timing_toml(tmp_path, master_extra='latency = "cut_none"', master_proto="axil")
+    with pytest.raises(ValueError, match="only legal on a same-clock axi4/axi5 port"):
+        load_config(toml, conn)
+
+
+def test_latency_cut_reaches_the_rtl(tmp_path):
+    toml, conn = _timing_toml(tmp_path, master_extra='latency = "cut_none"',
+                              slave_extra='channels = "rw"\nlatency = "cut_ax"')
+    out = tmp_path / "gen"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"), "--ports", toml,
+         "--connectivity", conn, "--name", "b", "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr
+    m = next((out / "b").glob("m0*adapter.sv")).read_text()
+    s = next((out / "b").glob("s0*adapter.sv")).read_text()
+    for ch in ("AW", "W", "B", "AR", "R"):
+        assert f"parameter SKID_DEPTH_{ch} = 0" in m
+    assert ".SKID_DEPTH_AW(2)" in s and ".SKID_DEPTH_W(0)" in s and ".SKID_DEPTH_R(0)" in s

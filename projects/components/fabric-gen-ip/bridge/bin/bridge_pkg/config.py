@@ -27,6 +27,10 @@ MON_PRESETS = {
 MON_CONES = ("error", "timeout", "compl", "threshold", "perf", "debug")
 
 
+# Timing-wrapper skid depths when nothing overrides them (bridge GitHub #119
+# L7 made [bridge.defaults.skid_depths] and interface.skid_depths take effect).
+_DEFAULT_SKID_DEPTHS = {'aw': 2, 'w': 4, 'b': 2, 'ar': 2, 'r': 2}
+
 @dataclass
 class MonGroupConfig:
     """Protocol + sizing config for the bridge's internal monbus group.
@@ -156,6 +160,13 @@ class PortSpec:
     # (bridge_cam or in-order FIFO) depth. Power of two, 2..64. Resolved
     # in config_loader from the port key or [bridge].max_outstanding.
     max_outstanding: int = 16
+    # Per-port pipeline stages (bridge GitHub #119 L7). latency picks which
+    # channels of the port's timing wrapper are registered: "cut_all" (every
+    # channel, the default), "cut_ax" (AW/AR only), "cut_none" (pass-through,
+    # zero cycles at this port). skid_depths is the resolved per-channel depth
+    # ({aw, w, b, ar, r}; 2..8, or 0 where latency cuts the stage).
+    latency: str = 'cut_all'
+    skid_depths: Dict[str, int] = field(default_factory=lambda: dict(_DEFAULT_SKID_DEPTHS))
     # An internal port has no top-level pins: the generator instantiates
     # something inside the bridge and wires the crossbar to it. Used by the
     # subtractive (catch-all) slave, which must be routable like any other

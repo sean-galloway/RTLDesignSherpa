@@ -316,7 +316,7 @@ module bridge_5x3_channels_descr_wr_master_adapter
     logic aw_trk_full, aw_id_ok;
     assign aw_trk_full = (aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH));
     assign aw_id_ok    = (aw_idt_cnt[aw_idt_widx] == '0) ||
-                           (aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw);
+                           ((aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw));
 
     // One width path: every response arrives on it; the crossbar has
     // already chosen among the slaves behind it.

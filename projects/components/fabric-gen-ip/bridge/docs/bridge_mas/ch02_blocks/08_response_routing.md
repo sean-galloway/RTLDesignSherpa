@@ -47,10 +47,10 @@ Responses for one master climb from the slaves. Each slave adapter's tracker sup
 
 ### Architecture: FIFO-Tracked Master Routing
 
-> **Scope since the one-target limitation was fixed (GitHub #119 L1, 2026-10-15):** this FIFO steering is
-> used only on master ports with a read-return atomic or a trace echo. Every
-> other port has per-ID tracking and a path arbiter instead (MAS 2.1, and
-> Response Arbitration below).
+> **Retired (GitHub #119 L1 and L1b, 2026-10-15).** No port steers B/R with
+> this FIFO any more: every master adapter has per-ID tracking and a path
+> arbiter (MAS 2.1, and Response Arbitration below). The section is kept as
+> the history of why the decode is captured at the handshake.
 
 For multi-slave masters, responses are routed based on a **stable slave-select value** captured at request time, not the current address decode:
 

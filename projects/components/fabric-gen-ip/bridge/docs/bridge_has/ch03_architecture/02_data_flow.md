@@ -163,8 +163,8 @@ crossbar arbitrates among the slaves on each master width path, and the
 adapter among its paths. A new AW also waits while W is still owed to a
 different slave: W carries no ID and follows AW order, so two masters each
 owing W to two slaves could otherwise wait on each other at the slaves' W
-ports. Ports with a read-return atomic or a trace echo keep the earlier
-one-target-at-a-time rule (MAS 2.1). The rule was lifted 2026-10-15 (limitation fixed: GitHub #119 L1); before that every master held one target slave at a time.
+ports. Read-return-atomic and trace-echo ports work the same way (their
+per-request state is held per ID too, MAS 2.1; GitHub #119 L1b). The rule was lifted 2026-10-15 (limitation fixed: GitHub #119 L1); before that every master held one target slave at a time.
 
 **Per FIFO-tracked slave -- responses must come back in order.** See "The
 requirement the FIFO form creates" above.

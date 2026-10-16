@@ -74,11 +74,14 @@ class SlaveAdapterGenerator:
         self.has_read = channels in ["rd", "rw"]
 
         # Skid buffer depths (configurable)
-        self.skid_depth_aw = 2
-        self.skid_depth_ar = 2
-        self.skid_depth_w = 4
-        self.skid_depth_r = 2
-        self.skid_depth_b = 2
+        # Per-port timing-wrapper depths (bridge GitHub #119 L7: these were a
+        # fixed 2/4/2/2/2 and the TOML skid_depths were silently ignored).
+        sd = getattr(self.slave, 'skid_depths', None) or {}
+        self.skid_depth_aw = sd.get('aw', 2)
+        self.skid_depth_ar = sd.get('ar', 2)
+        self.skid_depth_w = sd.get('w', 4)
+        self.skid_depth_r = sd.get('r', 2)
+        self.skid_depth_b = sd.get('b', 2)
 
 
     @property

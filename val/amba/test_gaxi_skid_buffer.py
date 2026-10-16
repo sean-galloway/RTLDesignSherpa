@@ -418,13 +418,16 @@ def generate_test_params():
         clk_periods = [10]
         test_levels = ['gate', 'func']
 
-        return list(product(widths, depths, clk_periods, test_levels))
-        # Result: 2 widths × 1 depth × 2 levels = 4 tests
+        # DEPTH 0 = combinational pass-through (bridge per-port latency
+        # modes, GitHub #119 L7): one cell at FUNC so the mode is always run.
+        return (list(product(widths, depths, clk_periods, test_levels))
+                + [(32, 0, 10, 'func')])
+        # Result: 2 widths × 1 depth × 2 levels + 1 pass-through = 5 tests
 
     else:  # FULL
         # Comprehensive testing - all meaningful combinations
         widths = [8, 16, 32, 64]
-        depths = [2, 3, 4, 8]   # 3 = odd-depth regression: contract is 2..8 inclusive, not evens-only
+        depths = [0, 2, 3, 4, 8]   # 3 = odd-depth regression: contract is 2..8 inclusive, not evens-only; 0 = pass-through
         clk_periods = [10]
         test_levels = ['gate', 'func', 'full']
 
@@ -513,7 +516,9 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
         'TEST_LEVEL': test_level,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
         'TEST_DATA_WIDTH': str(data_width),
-        'TEST_DEPTH': str(depth),
+        # A pass-through (DEPTH 0) is driven as one slot: the TB scales every
+        # loop count by TEST_DEPTH, and 0 would make the test do no work.
+        'TEST_DEPTH': str(max(depth, 1)),
         'TEST_CLK_WR': str(clk_period),
         'TEST_CLK_RD': str(clk_period),
         'TEST_MODE': 'skid',
@@ -618,7 +623,9 @@ def test_gaxi_skid_buffer_wavedrom(request, data_width, depth, clk_period):
         'COCOTB_LOG_LEVEL': 'INFO',
         'ENABLE_WAVEDROM': '1',
         'TEST_DATA_WIDTH': str(data_width),
-        'TEST_DEPTH': str(depth),
+        # A pass-through (DEPTH 0) is driven as one slot: the TB scales every
+        # loop count by TEST_DEPTH, and 0 would make the test do no work.
+        'TEST_DEPTH': str(max(depth, 1)),
         'COCOTB_TEST_TIMEOUT': '10000'
     }
 

@@ -477,7 +477,10 @@ The primary format is now **TOML** (preferred over CSV for better structure and 
   - `type` - "axi4_master", "axi4_slave", "axi4_master_mon", "axi4_slave_mon", or omit for direct connection
   - `skid_depths` - Per-channel buffer depths: {ar, r, aw, w, b}.
     Valid range is **2..8 inclusive, any integer** -- odd depths are legal.
-    `gaxi_skid_buffer` says so at its parameter: "Must be 2..8 inclusive".
+    `gaxi_skid_buffer` says so at its parameter. Depths take effect since
+    GitHub #119 L7 (they were parsed and ignored before), and a port's
+    `latency = "cut_ax" | "cut_none"` sets the cut channels to 0, a
+    pass-through.
     An earlier `{2, 4, 6, 8}` here was an inference, not the contract.
 
 **CSV Connectivity Matrix:**
@@ -865,6 +868,8 @@ with monitor interfaces, monbus traffic / WRITE_BP / ERR_BP phases scaled
 by level.
 
 **Hand-written**: bridge BUG-009 (was BRIDGE-011) tracking + latency on 2x2;
+per-port latency modes (`test_bridge_2x2_rw_lat_modes.py`, GitHub #119 L7);
+atomic/trace ports with several targets (`test_bridge_1x2_rw_axi5a_multitarget.py`, L1b);
 configurable outstanding limits (`test_bridge_2x2_rw_depth_limits.py`, GitHub
 #119 L5);
 several-targets-in-flight (`test_bridge_2x2_rw_multitarget.py`: overlap,
@@ -922,8 +927,8 @@ of them is built:
   all IDs (bridge BUG-008, was BRIDGE-010). A multi-master AXI4/AXI5 slave is
   CAM-tracked and may reorder across IDs. A master may have several slaves
   in flight at once; only a same-ID request to a DIFFERENT slave waits
-  (`aw_gate_ok` / `ar_gate_ok`, `[bridge].id_track_bits`). rr_atomic and
-  trace-echo ports keep the older one-target FIFO path.
+  (`aw_gate_ok` / `ar_gate_ok`, `[bridge].id_track_bits`). Read-return-atomic and
+  trace-echo ports too (GitHub #119 L1b).
 - Burst-locked arbitration. The grant releases at the address handshake, as
   item 4 above already said -- this bullet contradicted it directly.
 - (Arbitration policy IS configurable now: `arbitration = "qos"`, HAS 6.8a.)

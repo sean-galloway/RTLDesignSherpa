@@ -168,35 +168,34 @@ R-return tracker in it is fed by AR handshakes:
 
 ![Read-Return Atomics](../assets/graphviz/rr_atomics.png)
 
-**Master adapter.** The AR->R tracking FIFO that drives `r_slave_select`
-takes an entry at the atomic AW handshake as well as at AR. An AR and an
-atomic AW can handshake in the same cycle, so the FIFO has a dual push: AR
-takes the first slot, the AW the second, and the AW's own gate
-(`aw_rr_gate_ok`) demands two free slots and the same
-single-outstanding-target rule the read side already applies. The AW is
-the last entry pushed, so it becomes the active target. The B/W paths are
-unchanged. The trace tracker mirrors the dual push so the R beat echoes
-the AW's trace (bridge BUG-010, was BRIDGE-012).
+**Master adapter.** The AR per-ID table (MAS 2.1) counts the atomic AW too,
+under its AWID, because its R returns with that ID: a second push port
+(`ar_idt_push_aw`) beside the AR's own. The AW's gate (`aw_rr_gate_ok`) is
+the read side's per-ID rule -- that ID idle, or in flight to the same slave
+with the same trace -- plus a free AR slot counting an AR that pushes this
+cycle, and it yields to an AR pushing the same ID index in the same cycle.
+The B/W paths are unchanged. The table's trace bit is written from AWTRACE,
+so the R beat echoes the AW's trace (bridge BUG-010, was BRIDGE-012). Until
+GitHub #119 L1b (2026-10-15) an AR->R slot FIFO did this job and held the
+port to one target at a time.
 
 **Out of range.** A read-return atomic that decodes to the subtractive
 slave would otherwise wedge the port: that slave answers DECERR on B and
-knows nothing about R, while the master adapter is holding an R-return slot
-for the beat. The tracker entry therefore carries a `local` flag and the
-AW's ID, and when it reaches the head the R mux presents a single DECERR
-beat with that ID itself, holding every slave's `rready` off
-(`r_path_active && !r_local_head`) for that cycle. B and R both report
+knows nothing about R, while the master adapter is counting an R for the
+beat. The atomic's ID therefore goes into a local-DECERR queue (`lr_*`),
+which joins the R path arbiter as one more source; when it is granted
+(`r_local_head`) the R mux presents a single DECERR beat with that ID
+itself, holding every slave's `rready` off (`r_path_active && !r_local_head`)
+for that cycle. B and R both report
 DECERR, and the port keeps working. This is bridge BUG-007 (was BRIDGE-009)'s rule applied to
 the atomic path.
 
-**The invariant underneath.** This port keeps the one-target-at-a-time
-FIFO path (MAS 2.1): the R-return FIFO entry carries the atomic's local flag
-and ID, which the per-ID table of the other ports does not. The atomic AW's
-gate therefore yields when an AR to a different slave handshakes in the same
-cycle, the one way a dual push could hold two targets. The crossbar's
-response mux no longer depends on this: since the one-target limitation was fixed
-(GitHub #119 L1) it is a
-grant-driven mux behind a per-path response arbiter, not an OR-merge, so the
-old simulation-only `$countones` guard on the select vector is gone.
+**The invariant underneath.** Nothing here depends on one target at a
+time any more. The crossbar's response mux is a grant-driven mux behind a
+per-path response arbiter (GitHub #119 L1), and the master adapter steers by
+ID (L1b), so an atomic at one slave and reads at another are in flight
+together -- `test_bridge_1x2_rw_axi5a_multitarget` measures exactly that,
+and fails on the pre-L1b RTL.
 
 **Slave adapter.** `axi5_atomic_rr_tracker` (module doc:
 `docs/markdown/rtl-amba/axi5/axi5_atomic_rr_tracker.md`) records

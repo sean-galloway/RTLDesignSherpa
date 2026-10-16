@@ -48,7 +48,7 @@ The skid buffer is the simplest useful elastic buffer: it decouples a producer f
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `DATA_WIDTH` | int | 32 | Data bus width in bits |
-| `DEPTH` | int | 2 | Buffer depth (must be 2..8 inclusive; odd depths are legal, and elaboration fails outside that range) |
+| `DEPTH` | int | 2 | Buffer depth: 2..8 inclusive (odd depths are legal), or 0 for a combinational pass-through (no register: `wr_ready = rd_ready`, `rd_valid = wr_valid`, `rd_data = wr_data`, counts read 0). Elaboration fails on 1 and above 8. Depth 0 serves the bridge's per-port latency modes. |
 
 **Derived Parameters:**
 - `DW` = DATA_WIDTH
@@ -62,7 +62,7 @@ The skid buffer is the simplest useful elastic buffer: it decouples a producer f
 ```systemverilog
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
-    parameter int DEPTH = 2,        // Must be 2..8 inclusive (any integer)
+    parameter int DEPTH = 2,        // 2..8 inclusive, or 0 = pass-through
     parameter int DW = DATA_WIDTH,
     parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
     parameter int BW = BUF_WIDTH

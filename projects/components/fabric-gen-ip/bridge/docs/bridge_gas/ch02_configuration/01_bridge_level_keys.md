@@ -91,4 +91,4 @@ The `defaults.skid_depths` sub-table provides default skid depths for interface 
 skid_depths = {ar = 2, r = 4, aw = 2, w = 4, b = 2}
 ```
 
-Per-port `interface.skid_depths` overrides these defaults. Valid per-channel depths are integers in the range `2..8` inclusive.
+Per-port `interface.skid_depths` overrides these defaults, and a port's `latency` mode then sets the channels it cuts to 0 (pass-through). Valid per-channel depths are integers in the range `2..8` inclusive. Until GitHub #119 L7 (2026-10-15) both tables were parsed and ignored -- every wrapper was built 2/4/2/2/2; they take effect now. Any other key under `[bridge.defaults]` is reported and ignored.

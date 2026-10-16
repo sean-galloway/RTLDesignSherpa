@@ -118,6 +118,48 @@ def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
 
 
 _MAX_OUTSTANDING_RANGE = (2, 64)
+_LATENCY_MODES = {
+    # mode: channels whose skid stage is CUT (depth 0, pass-through)
+    'cut_all': (),
+    'cut_ax': ('w', 'b', 'r'),
+    'cut_none': ('aw', 'w', 'b', 'ar', 'r'),
+}
+_SKID_KEYS = ('aw', 'w', 'b', 'ar', 'r')
+
+
+def _skid_depths(base, override, config_path, where):
+    """Merge an interface.skid_depths table over `base`; each depth 2..8."""
+    out = dict(base)
+    for k, v in (override or {}).items():
+        if k not in _SKID_KEYS:
+            raise ValueError(f"{config_path}: {where} skid_depths has unknown channel "
+                             f"'{k}' (expected {', '.join(_SKID_KEYS)})")
+        if not isinstance(v, int) or not (2 <= v <= 8):
+            raise ValueError(f"{config_path}: {where} skid_depths.{k} must be an "
+                             f"integer 2..8, got {v!r} (use latency to cut a stage)")
+        out[k] = v
+    return out
+
+
+def _port_timing(p, protocol, cdc, base_depths, config_path, where):
+    """Resolve (latency, skid_depths) for one port.
+
+    latency cuts stages only on a plain AXI4/AXI5 port: there the timing
+    wrapper is the whole port boundary. A converted port (axil/apb/wb4/axi3)
+    or a CDC port has buffers of its own the mode does not reach, so it is
+    rejected there rather than half-applied."""
+    latency = p.get('latency', 'cut_all')
+    if latency not in _LATENCY_MODES:
+        raise ValueError(f"{config_path}: {where} latency must be one of "
+                         f"{', '.join(_LATENCY_MODES)}, got {latency!r}")
+    if latency != 'cut_all' and (protocol not in ('axi4', 'axi5') or cdc):
+        raise ValueError(f"{config_path}: {where} latency='{latency}' is only legal on a "
+                         f"same-clock axi4/axi5 port (protocol={protocol}, cdc={cdc})")
+    depths = _skid_depths(base_depths, (p.get('interface') or {}).get('skid_depths'),
+                          config_path, where)
+    for ch in _LATENCY_MODES[latency]:
+        depths[ch] = 0
+    return latency, depths
 
 
 def _max_outstanding(value, config_path, where) -> int:
@@ -157,6 +199,10 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     bridge_data = data.get('bridge')
     _mo_default = _max_outstanding(
         (bridge_data or {}).get('max_outstanding', 16), config_path, '[bridge]')
+    from .config import _DEFAULT_SKID_DEPTHS
+    _skid_base = _skid_depths(_DEFAULT_SKID_DEPTHS,
+                              ((bridge_data or {}).get('defaults') or {}).get('skid_depths'),
+                              config_path, '[bridge.defaults]')
     if not bridge_data:
         raise ValueError("Config file must contain 'bridge' key")
 
@@ -202,11 +248,12 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             )
         seen.add(v)
 
-    # [bridge.defaults] is not implemented — warn instead of
-    # silently accepting a section that does nothing.
-    if bridge_data.get('defaults'):
-        print("  WARNING: [bridge.defaults] is not implemented — "
-              "section ignored")
+    # [bridge.defaults]: only skid_depths is implemented (bridge GitHub #119
+    # L7, resolved in _port_timing). Warn on anything else rather than
+    # silently accepting a key that does nothing.
+    _other = sorted(set((bridge_data.get('defaults') or {})) - {'skid_depths'})
+    if _other:
+        print(f"  WARNING: [bridge.defaults] keys not implemented — ignored: {', '.join(_other)}")
 
     # Parse masters
     for m in bridge_data.get('masters', []):
@@ -230,7 +277,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
                 f"Master '{port_name}': 'axi5_features' is only legal on "
                 f"protocol=\"axi5\"/\"axil5\" ports (got protocol='{protocol}')")
 
-        # Interface config (store for Phase 2, don't use yet)
+        # Interface config: interface.skid_depths takes effect (see _port_timing);
+        # interface.type is only reported, it selects nothing.
         interface_config = m.get('interface')
 
         # Invalid channels is a config error, not a warning — the old
@@ -260,10 +308,12 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             max_outstanding=_max_outstanding(
                 m.get('max_outstanding', _mo_default), config_path, f"master '{port_name}'"),
         )
+        port.latency, port.skid_depths = _port_timing(
+            m, protocol, port.cdc, _skid_base, config_path, f"master '{port_name}'")
 
         masters.append(port)
         channels_str = f"[{channels.upper()}]" if channels != 'rw' else ""
-        interface_str = f" [IF: {interface_config['type']}]" if interface_config else ""
+        interface_str = f" [IF: {interface_config.get('type', 'skid only')}]" if interface_config else ""
         mon_str = "" if port.use_monitor else " [USE_MONITOR=0]"
         print(f"  Master: {port_name} ({protocol.upper()}, {data_width}b data, {channels.upper()}, prefix: {prefix}){interface_str}{mon_str}")
 
@@ -310,7 +360,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
                 f"Slave '{port_name}': 'axi5_features' is only legal on "
                 f"protocol=\"axi5\"/\"axil5\" ports (got protocol='{protocol}')")
 
-        # Interface config (store for Phase 2, don't use yet)
+        # Interface config: interface.skid_depths takes effect (see _port_timing);
+        # interface.type is only reported, it selects nothing.
         interface_config = s.get('interface')
 
         # Invalid (non-empty) channels is a config error; an EMPTY
@@ -321,6 +372,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
                 f"Slave '{port_name}': invalid channels '{channels}' "
                 f"(must be 'rw', 'rd', or 'wr')")
 
+        s_latency, s_depths = _port_timing(s, protocol, bool(s.get('cdc', False)), _skid_base,
+                                           config_path, f"slave '{port_name}'")
         port = PortSpec(
             port_name=port_name,
             direction='slave',
@@ -336,6 +389,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             cdc=bool(s.get('cdc', False)),
             max_outstanding=_max_outstanding(
                 s.get('max_outstanding', _mo_default), config_path, f"slave '{port_name}'"),
+            latency=s_latency,
+            skid_depths=s_depths,
             use_monitor=bool(s.get('use_monitor', True)),
             mon_add=list(s.get('mon_add', [])),
             mon_remove=list(s.get('mon_remove', [])),
@@ -345,7 +400,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         slaves.append(port)
         ooo_str = " [OOO]" if enable_ooo else ""
         ooo_str += " [CDC: own clock]" if port.cdc else ""
-        interface_str = f" [IF: {interface_config['type']}]" if interface_config else ""
+        interface_str = f" [IF: {interface_config.get('type', 'skid only')}]" if interface_config else ""
         addr_str = f" [0x{base_addr:08X}+0x{addr_range:X}]" if addr_range > 0 else ""
         mon_str = "" if port.use_monitor else " [USE_MONITOR=0]"
         print(f"  Slave:  {port_name} ({protocol.upper()}, {data_width}b data, prefix: {prefix}){addr_str}{ooo_str}{interface_str}{mon_str}")

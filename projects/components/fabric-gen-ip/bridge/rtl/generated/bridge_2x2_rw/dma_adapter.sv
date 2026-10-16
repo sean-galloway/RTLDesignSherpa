@@ -13,12 +13,12 @@ module bridge_2x2_rw_dma_adapter
     parameter NUM_SLAVES = 3,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,
-    parameter SKID_DEPTH_AW = 2,
-    parameter SKID_DEPTH_W = 4,
-    parameter SKID_DEPTH_B = 2
+    parameter SKID_DEPTH_AW = 4,
+    parameter SKID_DEPTH_W = 8,
+    parameter SKID_DEPTH_B = 4
     ,
-    parameter SKID_DEPTH_AR = 2,
-    parameter SKID_DEPTH_R = 2
+    parameter SKID_DEPTH_AR = 4,
+    parameter SKID_DEPTH_R = 8
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -486,7 +486,7 @@ module bridge_2x2_rw_dma_adapter
     logic aw_trk_full, aw_id_ok;
     assign aw_trk_full = (aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH));
     assign aw_id_ok    = (aw_idt_cnt[aw_idt_widx] == '0) ||
-                           (aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw);
+                           ((aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw));
 
     // One width path: every response arrives on it; the crossbar has
     // already chosen among the slaves behind it.
@@ -577,7 +577,7 @@ module bridge_2x2_rw_dma_adapter
     logic ar_trk_full, ar_id_ok;
     assign ar_trk_full = (ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH));
     assign ar_id_ok    = (ar_idt_cnt[ar_idt_widx] == '0) ||
-                           (ar_idt_tgt[ar_idt_widx] == comb_slave_select_ar);
+                           ((ar_idt_tgt[ar_idt_widx] == comb_slave_select_ar));
     assign ar_gate_ok = ar_id_ok && !ar_trk_full;
 
     // One width path: every response arrives on it; the crossbar has
@@ -717,8 +717,7 @@ module bridge_2x2_rw_dma_adapter
     // Pure observation; compiled out unless AMBER_ILA_DBG is defined.
 `ifdef AMBER_ILA_DBG
     (* mark_debug = "true" *) logic             dbg_ad_ar_trk_full;
-    (* mark_debug = "true" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_wptr;
-    (* mark_debug = "true" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_rptr;
+    (* mark_debug = "true" *) logic [AR_TRK_AW:0] dbg_ad_ar_out_cnt;
     (* mark_debug = "true" *) logic             dbg_ad_ar_gate_ok;
     (* mark_debug = "true" *) logic             dbg_ad_ar_push;
     (* mark_debug = "true" *) logic             dbg_ad_ar_pop;
@@ -732,11 +731,10 @@ module bridge_2x2_rw_dma_adapter
     (* mark_debug = "true" *) logic             dbg_ad_fub_rlast;
 
     assign dbg_ad_ar_trk_full      = ar_trk_full;
-    assign dbg_ad_ar_trk_wptr      = ar_trk_wptr;
-    assign dbg_ad_ar_trk_rptr      = ar_trk_rptr;
+    assign dbg_ad_ar_out_cnt       = ar_out_cnt;
     assign dbg_ad_ar_gate_ok       = ar_gate_ok;
-    assign dbg_ad_ar_push          = ar_trk_push;
-    assign dbg_ad_ar_pop           = ar_trk_pop;
+    assign dbg_ad_ar_push          = ar_idt_push;
+    assign dbg_ad_ar_pop           = ar_idt_pop;
     assign dbg_ad_host_arvalid     = host_axi_arvalid;
     assign dbg_ad_host_arready     = host_axi_arready;
     assign dbg_ad_fub_arvalid      = fub_axi_arvalid;

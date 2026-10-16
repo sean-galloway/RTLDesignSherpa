@@ -15,13 +15,13 @@ digraph rr_atomics {
     { rank=same; pc; pr; }
     pc -> pr [style=invis];
 
-    gate [label="Atomic AW Gate - <master>_adapter\naw_rr_gate_ok: two free R-return slots and the\nsingle-outstanding-target rule; the atomic AW\npushes the AR->R slot FIFO (dual push with a\nsame-cycle AR: AR first, AW second)", group=C];
-    rsel [label="R Path Select - <master>_adapter\nr_slave_select = slot FIFO head; a head marked\nlocal (atomic to an unmapped address) sends one\nDECERR beat with the AW's ID itself and holds\nevery slave's rready off (r_local_head)", group=R];
+    gate [label="Atomic AW Gate - <master>_adapter\naw_rr_gate_ok: the AR per-ID rule under the AWID\n(idle, or same slave and trace) and a free AR slot;\nthe atomic AW is counted in the AR table (second\npush port); yields to a same-cycle AR on its ID", group=C];
+    rsel [label="R Path Arbiter - <master>_adapter\nround robin over the width paths and the local\nDECERR queue; an atomic to an unmapped address\nqueues its ID and gets one DECERR beat when\ngranted (r_local_head), every rready held off", group=R];
     { rank=same; gate; rsel; }
-    gate -> rsel [style=dashed, xlabel="slot: target slave,\nor local + ID"];
+    gate -> rsel [style=dashed, xlabel="unmapped: ID into\nthe local queue"];
 
     xa [label="Crossbar - <bridge>_xbar\nthe atomic AW is arbitrated\nlike any write", group=C];
-    xr [label="R OR-Mux - <bridge>_xbar\nR to the master named by\nrid_bridge_id", group=R];
+    xr [label="R Response Arbiter - <bridge>_xbar\nR to the master named by\nrid_bridge_id, one slave at a time", group=R];
     { rank=same; xa; xr; }
     xa -> xr [style=invis];
 
@@ -40,7 +40,7 @@ digraph rr_atomics {
     pc3 -> bar [xlabel="granted AW + bridge_id", penwidth=1.8];
 
     pr -> rsel [dir=back, label="R"];
-    rsel -> xr [dir=back, label="R of the head slave"];
+    rsel -> xr [dir=back, label="R of the granted path"];
     xr -> rret [dir=back, label="R + rid_bridge_id"];
     rret -> bar [dir=back, xlabel="R (RID = AWID)"];
 }

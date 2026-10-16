@@ -51,7 +51,7 @@
 
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
-    parameter int DEPTH = 2, // Must be 2..8 inclusive -- guarded below
+    parameter int DEPTH = 2, // 2..8 inclusive, or 0 = combinational pass-through -- guarded below
     // Legacy shorthand params (kept for source-compatibility)
     parameter int DW = DATA_WIDTH
 ) (
@@ -72,8 +72,14 @@ module gaxi_skid_buffer #(
     output logic [DW-1:0] rd_data
 );
 
+    // DEPTH == 0 is a combinational pass-through (no register, no latency):
+    // the bridge's per-port latency modes (GitHub #119 L7) cut a channel's
+    // stage by setting its skid depth to 0. Storage stays declared (one slot)
+    // so every hierarchical name below exists at every depth.
+    localparam int SLOTS = (DEPTH == 0) ? 1 : DEPTH;
+
     // Storage as an UNPACKED array — each slot is an independent register.
-    logic [DW-1:0]  r_data [DEPTH];
+    logic [DW-1:0]  r_data [SLOTS];
     logic [3:0]     r_data_count;
     logic           w_wr_xfer;
     logic           w_rd_xfer;
@@ -97,91 +103,108 @@ module gaxi_skid_buffer #(
     // wrap it in `initial`, which is runtime and never fires during lint
     // (same note as fifo_async's g_bad_depth guard, the pattern this copies).
     generate
-        if (DEPTH < 2 || DEPTH > 8) begin : gen_depth_guard
-            $error("gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+        if (DEPTH != 0 && (DEPTH < 2 || DEPTH > 8)) begin : gen_depth_guard
+            $error("gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
         end
     endgenerate
 
     generate
-        for (genvar gi = 0; gi < DEPTH; gi++) begin : g_slot
-            `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                if (`RST_ASSERTED(axi_aresetn)) begin
-                    r_data[gi] <= '0;
-                end else begin
-                    unique case ({w_wr_xfer, w_rd_xfer})
-                        2'b10: begin
-                            // Write only: new data lands at the tail
-                            // (index == current count).
-                            if (r_data_count == gi[3:0]) begin
-                                r_data[gi] <= wr_data;
+        if (DEPTH == 0) begin : g_bypass
+            // Pass-through: the channel is a wire. count/rd_count read 0.
+            assign wr_ready     = rd_ready;
+            assign rd_valid     = wr_valid;
+            assign rd_data      = wr_data;
+            assign r_data_count = '0;
+            assign r_data[0]    = '0;
+            assign rd_count     = '0;
+            assign count        = '0;
+            // Clock, reset and the one storage slot have no reader here.
+            /* verilator lint_off UNUSED */
+            logic w_bypass_unused;
+            assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0],
+                                       r_data_count, w_wr_xfer, w_rd_xfer};
+            /* verilator lint_on UNUSED */
+        end else begin : g_skid
+            for (genvar gi = 0; gi < DEPTH; gi++) begin : g_slot
+                `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+                    if (`RST_ASSERTED(axi_aresetn)) begin
+                        r_data[gi] <= '0;
+                    end else begin
+                        unique case ({w_wr_xfer, w_rd_xfer})
+                            2'b10: begin
+                                // Write only: new data lands at the tail
+                                // (index == current count).
+                                if (r_data_count == gi[3:0]) begin
+                                    r_data[gi] <= wr_data;
+                                end
+                                // else: hold — no shift on write-only.
                             end
-                            // else: hold — no shift on write-only.
-                        end
-                        2'b01: begin
-                            // Read only: shift down one slot.
-                            if (gi < DEPTH-1) begin
-                                r_data[gi] <= r_data[gi+1];
-                            end else begin
-                                r_data[gi] <= '0;  // clear the vacated tail
+                            2'b01: begin
+                                // Read only: shift down one slot.
+                                if (gi < DEPTH-1) begin
+                                    r_data[gi] <= r_data[gi+1];
+                                end else begin
+                                    r_data[gi] <= '0;  // clear the vacated tail
+                                end
                             end
-                        end
-                        2'b11: begin
-                            // Simultaneous r+w: shift, and the slot that
-                            // would land at count-1 after the shift takes
-                            // wr_data instead. For i == count-1 we load
-                            // wr_data; for every other slot we shift.
-                            if (r_data_count >= 1 &&
-                                gi[3:0] == (r_data_count - 4'd1)) begin
-                                r_data[gi] <= wr_data;
-                            end else if (gi < DEPTH-1) begin
-                                r_data[gi] <= r_data[gi+1];
-                            end else begin
-                                r_data[gi] <= '0;
+                            2'b11: begin
+                                // Simultaneous r+w: shift, and the slot that
+                                // would land at count-1 after the shift takes
+                                // wr_data instead. For i == count-1 we load
+                                // wr_data; for every other slot we shift.
+                                if (r_data_count >= 1 &&
+                                    gi[3:0] == (r_data_count - 4'd1)) begin
+                                    r_data[gi] <= wr_data;
+                                end else if (gi < DEPTH-1) begin
+                                    r_data[gi] <= r_data[gi+1];
+                                end else begin
+                                    r_data[gi] <= '0;
+                                end
                             end
-                        end
-                        default: begin
-                            // 2'b00 — hold.
-                        end
-                    endcase
-                end
-            )
+                            default: begin
+                                // 2'b00 — hold.
+                            end
+                        endcase
+                    end
+                )
+            end
+
+        // =========================================================================
+        // Count tracking + handshake outputs. Count is 4 bits (DEPTH ≤ 8 +1 for
+        // the "full+1" transient), so the arithmetic is trivial.
+        // =========================================================================
+        `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+            if (`RST_ASSERTED(axi_aresetn)) begin
+                r_data_count <= '0;
+            end else begin
+                unique case ({w_wr_xfer, w_rd_xfer})
+                    2'b10:   r_data_count <= r_data_count + 4'd1;
+                    2'b01:   r_data_count <= r_data_count - 4'd1;
+                    default: ;  // 2'b00 or 2'b11 — count unchanged
+                endcase
+            end
+        )
+
+        `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+            if (`RST_ASSERTED(axi_aresetn)) begin
+                wr_ready <= 1'b0;
+                rd_valid <= 1'b0;
+            end else begin
+                wr_ready <= (32'(r_data_count) <= DEPTH-2) ||
+                                (32'(r_data_count) == DEPTH-1 && (~w_wr_xfer || w_rd_xfer)) ||
+                                (32'(r_data_count) == DEPTH && w_rd_xfer);
+
+                rd_valid <= (r_data_count >= 2) ||
+                                (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||
+                                (r_data_count == 4'b0000 && w_wr_xfer);
+            end
+        )
+
+        // Head of the shift register is always slot 0.
+        assign rd_data  = r_data[0];
+        assign rd_count = r_data_count;
+        assign count    = r_data_count;
         end
     endgenerate
-
-    // =========================================================================
-    // Count tracking + handshake outputs. Count is 4 bits (DEPTH ≤ 8 +1 for
-    // the "full+1" transient), so the arithmetic is trivial.
-    // =========================================================================
-    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-        if (`RST_ASSERTED(axi_aresetn)) begin
-            r_data_count <= '0;
-        end else begin
-            unique case ({w_wr_xfer, w_rd_xfer})
-                2'b10:   r_data_count <= r_data_count + 4'd1;
-                2'b01:   r_data_count <= r_data_count - 4'd1;
-                default: ;  // 2'b00 or 2'b11 — count unchanged
-            endcase
-        end
-    )
-
-    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-        if (`RST_ASSERTED(axi_aresetn)) begin
-            wr_ready <= 1'b0;
-            rd_valid <= 1'b0;
-        end else begin
-            wr_ready <= (32'(r_data_count) <= DEPTH-2) ||
-                            (32'(r_data_count) == DEPTH-1 && (~w_wr_xfer || w_rd_xfer)) ||
-                            (32'(r_data_count) == DEPTH && w_rd_xfer);
-
-            rd_valid <= (r_data_count >= 2) ||
-                            (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||
-                            (r_data_count == 4'b0000 && w_wr_xfer);
-        end
-    )
-
-    // Head of the shift register is always slot 0.
-    assign rd_data  = r_data[0];
-    assign rd_count = r_data_count;
-    assign count    = r_data_count;
 
 endmodule : gaxi_skid_buffer

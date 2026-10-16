@@ -103,6 +103,9 @@ Core AXI4 features that matter:
 - Burst transactions (INCR, WRAP, FIXED)
 - In-order completion. Responses are routed by a per-master `bridge_id`
   sideband and an in-order FIFO, NOT by matching AXI IDs -- see FR-2.
+- Per-port latency modes: `latency = "cut_all" | "cut_ax" | "cut_none"` on
+  axi4/axi5 ports, and the TOML skid depths now take effect -- fixed
+  limitation, GitHub #119 L7.
 - Outstanding limits per port: `max_outstanding` (power of two 2..64, default
   16 from `[bridge].max_outstanding`) sizes every master and slave tracker --
   fixed limitation, GitHub #119 L5 (was a hard 16).
@@ -112,8 +115,7 @@ Core AXI4 features that matter:
   already in flight to a DIFFERENT slave, which is AXI's same-ID ordering rule.
   A new AW also waits while W is still owed to a different slave (W carries no
   ID). Responses from different slaves return in whatever order they arrive.
-  Ports with a read-return atomic or a trace echo keep the older
-  one-target-at-a-time FIFO path (MAS 2.1).
+  Read-return-atomic and trace-echo ports included (GitHub #119 L1b).
 - Channel-specific masters (write-only, read-only, read-write)
 - Data width conversion (32b ↔ 64b ↔ 128b ↔ 256b ↔ 512b)
 - Configurable M×N topology (1-32 masters, 1-256 slaves)

@@ -815,6 +815,7 @@ def _emit_bridge_variant(
             # drops the unused detection cones at synthesis.
             mon_enables=master_spec.get_mon_enables(config.mon_preset),
             max_outstanding=getattr(master_spec, 'max_outstanding', 16),
+            skid_depths=dict(getattr(master_spec, 'skid_depths', {}) or {}),
         )
         master_configs.append(master_config)
 
@@ -830,6 +831,7 @@ def _emit_bridge_variant(
             protocol=slave_spec.protocol,
             enable_ooo=slave_spec.enable_ooo,
             max_outstanding=getattr(slave_spec, 'max_outstanding', 16),
+            skid_depths=dict(getattr(slave_spec, 'skid_depths', {}) or {}),
             cdc=bool(getattr(slave_spec, 'cdc', False)),
             use_monitor=getattr(slave_spec, 'use_monitor', True),
             mon_enables=slave_spec.get_mon_enables(config.mon_preset),

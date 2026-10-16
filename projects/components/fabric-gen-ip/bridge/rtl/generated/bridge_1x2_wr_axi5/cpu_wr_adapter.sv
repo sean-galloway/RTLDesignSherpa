@@ -333,71 +333,60 @@ module bridge_1x2_wr_axi5_cpu_wr_adapter
 
     localparam int AW_TRK_DEPTH = 16;
     localparam int AW_TRK_AW    = 4;
-    // -------- AW->B slave_select tracking FIFO --------
-    logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];
-    logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;
-    logic aw_trk_push, aw_trk_pop;
-
-    assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;
-    assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;
+    // -------- AW per-ID target table (fixes bridge GitHub #119 L1) --------
+    // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
+    // in flight may only add more to the SAME slave (AXI same-ID order);
+    // any other ID may go to any slave. IDs that share the index bits are
+    // treated as one ID: safe, at worst a needless stall.
+    localparam int AW_IDT_N = 16;
+    logic [AW_TRK_AW:0]   aw_idt_cnt [AW_IDT_N];
+    logic [NUM_SLAVES-1:0] aw_idt_tgt [AW_IDT_N];
+    logic [AW_TRK_AW:0]   aw_out_cnt;
+    logic [3:0] aw_idt_widx, aw_idt_ridx;
+    logic                  aw_idt_trace [AW_IDT_N];  // trace of the in-flight ID
+    logic aw_idt_push, aw_idt_pop;
+    assign aw_idt_widx = fub_axi_awid[3:0];
+    assign aw_idt_ridx = fub_axi_bid[3:0];
+    assign aw_idt_push = fub_axi_awvalid && fub_axi_awready;
+    assign aw_idt_pop  = fub_axi_bvalid && fub_axi_bready;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            aw_trk_wptr <= '0;
-            aw_trk_rptr <= '0;
+            for (int i = 0; i < AW_IDT_N; i++) begin
+                aw_idt_cnt[i] <= '0;
+                aw_idt_tgt[i] <= '0;
+                aw_idt_trace[i] <= 1'b0;
+            end
+            aw_out_cnt <= '0;
         end else begin
-            if (aw_trk_push) begin
-                aw_trk_mem[aw_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
-                aw_trk_wptr <= aw_trk_wptr + 1'b1;
+            if (aw_idt_push) aw_idt_tgt[aw_idt_widx] <= comb_slave_select_aw;
+            if (aw_idt_push) aw_idt_trace[aw_idt_widx] <= fub_axi_awtrace;
+            for (int i = 0; i < AW_IDT_N; i++) begin
+                aw_idt_cnt[i] <= aw_idt_cnt[i]
+                    + (AW_TRK_AW+1)'(aw_idt_push && (aw_idt_widx == 4'(i)))
+                    - (AW_TRK_AW+1)'(aw_idt_pop  && (aw_idt_ridx == 4'(i)));
             end
-            if (aw_trk_pop) begin
-                aw_trk_rptr <= aw_trk_rptr + 1'b1;
-            end
+            aw_out_cnt <= aw_out_cnt + (AW_TRK_AW+1)'(aw_idt_push)
+                                          - (AW_TRK_AW+1)'(aw_idt_pop);
         end
     )
 
-    assign b_slave_select = (aw_trk_wptr != aw_trk_rptr)
-                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
-                          : '0;
+    // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no
+    // count wraps; AW_TRK_DEPTH is the port's outstanding limit.
+    logic aw_trk_full, aw_id_ok;
+    assign aw_trk_full = (aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH));
+    assign aw_id_ok    = (aw_idt_cnt[aw_idt_widx] == '0) ||
+                           ((aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw) &&
+                            (aw_idt_trace[aw_idt_widx] == fub_axi_awtrace));
 
-    // -------- AW->B trace tracking (bridge BUG-010, was BRIDGE-012) --------
-    // Same push/pop as the slave_select FIFO above, so the head is the
-    // request being answered. Echoed onto btrace at the port below.
-    logic aw_trk_trace [AW_TRK_DEPTH];
+    // One width path: every response arrives on it; the crossbar has
+    // already chosen among the slaves behind it.
+    assign b_slave_select = 3'b001;
+
+    // bridge BUG-010 (was BRIDGE-012): the B echoes its request's trace,
+    // looked up by the returning ID (single-valued per in-flight ID).
     logic b_trk_trace;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            for (int i = 0; i < AW_TRK_DEPTH; i++) aw_trk_trace[i] <= 1'b0;
-        end else if (aw_trk_push) begin
-            aw_trk_trace[aw_trk_wptr[AW_TRK_AW-1:0]] <= fub_axi_awtrace;
-        end
-    )
-
-    assign b_trk_trace = (aw_trk_wptr != aw_trk_rptr)
-                          ? aw_trk_trace[aw_trk_rptr[AW_TRK_AW-1:0]]
-                          : 1'b0;
-
-    // Single-outstanding-target (writes): only accept a new AW
-    // while every outstanding write targets the SAME slave. The
-    // B response mux replays responses in AW issue order; slaves
-    // respond in their own accept order, so cross-slave outstanding
-    // writes from several masters can deadlock the heads against
-    // each other. Same-slave pipelining is unaffected.
-    logic [NUM_SLAVES-1:0] r_aw_active_target;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_aw_active_target <= '0;
-        end else if (aw_trk_push) begin
-            r_aw_active_target <= comb_slave_select_aw;
-        end
-    )
-    logic aw_trk_full;
-    assign aw_trk_full = (aw_trk_wptr[AW_TRK_AW] != aw_trk_rptr[AW_TRK_AW]) &&
-                         (aw_trk_wptr[AW_TRK_AW-1:0] == aw_trk_rptr[AW_TRK_AW-1:0]);
-    assign aw_gate_ok = ((aw_trk_wptr == aw_trk_rptr) ||
-                         (comb_slave_select_aw == r_aw_active_target)) &&
-                        !aw_trk_full;
+    assign b_trk_trace = aw_idt_trace[aw_idt_ridx];
 
     // -------- AW->W slave_select tracking FIFO --------
     // Same push as AW (records slave_select at handshake);
@@ -430,6 +419,14 @@ module bridge_1x2_wr_axi5_cpu_wr_adapter
     assign w_slave_select = (w_trk_wptr != w_trk_rptr)
                           ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]
                           : '0;
+
+    // A new AW may target a different slave only once every W burst
+    // already accepted has gone: W carries no ID and follows AW order,
+    // so two masters each with W owed to two slaves could otherwise
+    // wait on each other at the slaves' W ports (crossed W deadlock).
+    assign aw_gate_ok = aw_id_ok && !aw_trk_full &&
+                        ((w_trk_wptr == w_trk_rptr) ||
+                         (w_slave_select == comb_slave_select_aw));
 
     // AW-ready MUX (combinational comb_slave_select_aw — awaddr is live during awvalid)
     always_comb begin

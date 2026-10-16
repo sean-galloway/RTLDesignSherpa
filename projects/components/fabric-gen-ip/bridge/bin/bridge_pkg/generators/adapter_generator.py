@@ -79,6 +79,8 @@ class SlaveInfo:
     protocol: str = 'axi4'  # Protocol type: 'axi4', 'axi5', 'apb', or 'axil'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
     max_outstanding: int = 16  # response tracker depth (PortSpec.max_outstanding)
+    # Timing-wrapper skid depths {aw,w,b,ar,r}; 0 = stage cut (PortSpec.latency)
+    skid_depths: Optional[Dict[str, int]] = None
     cdc: bool = False  # bridge TASK-006 (was BRIDGE-017): own clock; axi4_cdc_{wr,rd} before the boundary
     use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
     # Internal slaves have no top-level pins -- the bridge instantiates
@@ -123,6 +125,8 @@ class MasterConfig:
     axi5_features: Optional[List[str]] = None
     # Tracker depth / outstanding limit per direction (PortSpec.max_outstanding).
     max_outstanding: int = 16
+    # Timing-wrapper skid depths {aw,w,b,ar,r}; 0 = stage cut (PortSpec.latency)
+    skid_depths: Optional[Dict[str, int]] = None
 
 
 class AdapterGenerator:
@@ -175,11 +179,14 @@ class AdapterGenerator:
         self.sb_own = port_features(self.master) & self.sb_union
 
         # Skid buffer depths (configurable)
-        self.skid_depth_aw = 2
-        self.skid_depth_ar = 2
-        self.skid_depth_w = 4
-        self.skid_depth_r = 2
-        self.skid_depth_b = 2
+        # Per-port timing-wrapper depths (bridge GitHub #119 L7: these were a
+        # fixed 2/4/2/2/2 and the TOML skid_depths were silently ignored).
+        sd = getattr(master_config, 'skid_depths', None) or {}
+        self.skid_depth_aw = sd.get('aw', 2)
+        self.skid_depth_ar = sd.get('ar', 2)
+        self.skid_depth_w = sd.get('w', 4)
+        self.skid_depth_r = sd.get('r', 2)
+        self.skid_depth_b = sd.get('b', 2)
 
     def generate(self) -> str:
         """
@@ -244,8 +251,7 @@ class AdapterGenerator:
         lines.append("    // Pure observation; compiled out unless AMBER_ILA_DBG is defined.")
         lines.append("`ifdef AMBER_ILA_DBG")
         lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_ar_trk_full;")
-        lines.append("    (* mark_debug = \"true\" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_wptr;")
-        lines.append("    (* mark_debug = \"true\" *) logic [AR_TRK_AW:0] dbg_ad_ar_trk_rptr;")
+        lines.append("    (* mark_debug = \"true\" *) logic [AR_TRK_AW:0] dbg_ad_ar_out_cnt;")
         lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_ar_gate_ok;")
         lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_ar_push;")
         lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_ar_pop;")
@@ -259,11 +265,10 @@ class AdapterGenerator:
         lines.append("    (* mark_debug = \"true\" *) logic             dbg_ad_fub_rlast;")
         lines.append("")
         lines.append("    assign dbg_ad_ar_trk_full      = ar_trk_full;")
-        lines.append("    assign dbg_ad_ar_trk_wptr      = ar_trk_wptr;")
-        lines.append("    assign dbg_ad_ar_trk_rptr      = ar_trk_rptr;")
+        lines.append("    assign dbg_ad_ar_out_cnt       = ar_out_cnt;")
         lines.append("    assign dbg_ad_ar_gate_ok       = ar_gate_ok;")
-        lines.append("    assign dbg_ad_ar_push          = ar_trk_push;")
-        lines.append("    assign dbg_ad_ar_pop           = ar_trk_pop;")
+        lines.append("    assign dbg_ad_ar_push          = ar_idt_push;")
+        lines.append("    assign dbg_ad_ar_pop           = ar_idt_pop;")
         lines.append("    assign dbg_ad_host_arvalid     = host_axi_arvalid;")
         lines.append("    assign dbg_ad_host_arready     = host_axi_arready;")
         lines.append("    assign dbg_ad_fub_arvalid      = fub_axi_arvalid;")
@@ -1009,6 +1014,23 @@ class AdapterGenerator:
         return None
 
     def _trace_capable_mask(self) -> str:
+        """Representative-slave mask of width paths whose EVERY connected
+        slave implements trace. {b,r}_slave_select names a path by one
+        representative slave (the response mux is per path), so a per-slave
+        mask would check the wrong slave whenever a path mixes trace-capable
+        and trace-less slaves; such a path is simply not checked."""
+        from bridge_pkg.sideband import port_features
+        conn = [i for i in self.master.slave_connections]
+        groups = {}
+        for i in conn:
+            groups.setdefault(self.slaves[i].data_width, []).append(i)
+        rep_ok = {g[0] for g in groups.values()
+                  if all('trace' in port_features(self.slaves[i]) for i in g)}
+        bits = ''.join('1' if i in rep_ok else '0'
+                       for i in range(len(self.slaves) - 1, -1, -1))
+        return f"{len(self.slaves)}'b{bits}"
+
+    def _trace_capable_slave_mask(self) -> str:
         """One-hot mask of connected slaves that implement trace themselves."""
         from bridge_pkg.sideband import port_features
         bits = ''.join(
@@ -1016,41 +1038,6 @@ class AdapterGenerator:
                     and 'trace' in port_features(self.slaves[i])) else '0'
             for i in range(len(self.slaves) - 1, -1, -1))
         return f"{len(self.slaves)}'b{bits}"
-
-    def _trace_track_lines(self, chan: str) -> List[str]:
-        """Parallel trace FIFO beside the {aw,ar} slave_select FIFO: same
-        push, same pop, same head, so no extra ordering to reason about."""
-        resp = 'b' if chan == 'aw' else 'r'
-        up = chan.upper()
-        return [
-            "",
-            f"    // -------- {up}->{resp.upper()} trace tracking (bridge BUG-010, was BRIDGE-012) --------",
-            f"    // Same push/pop as the slave_select FIFO above, so the head is the",
-            f"    // request being answered. Echoed onto {resp}trace at the port below.",
-            f"    logic {chan}_trk_trace [{up}_TRK_DEPTH];",
-            f"    logic {resp}_trk_trace;",
-            "",
-            "    `ALWAYS_FF_RST(aclk, aresetn,",
-            "        if (`RST_ASSERTED(aresetn)) begin",
-            f"            for (int i = 0; i < {up}_TRK_DEPTH; i++) {chan}_trk_trace[i] <= 1'b0;",
-            *([
-                # A5-3b: the read-return atomic's R echoes the AW's trace;
-                # mirror the dual push of the slave_select FIFO exactly.
-                "        end else if (ar_trk_push && ar_trk_push_aw) begin",
-                "            ar_trk_trace[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_artrace;",
-                "            ar_trk_trace[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= fub_axi_awtrace;",
-                "        end else if (ar_trk_push_aw) begin",
-                "            ar_trk_trace[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_awtrace;",
-            ] if (chan == 'ar' and self.rr_atomic) else []),
-            f"        end else if ({chan}_trk_push) begin",
-            f"            {chan}_trk_trace[{chan}_trk_wptr[{up}_TRK_AW-1:0]] <= fub_axi_{chan}trace;",
-            "        end",
-            "    )",
-            "",
-            f"    assign {resp}_trk_trace = ({chan}_trk_wptr != {chan}_trk_rptr)",
-            f"                          ? {chan}_trk_trace[{chan}_trk_rptr[{up}_TRK_AW-1:0]]",
-            "                          : 1'b0;",
-        ]
 
     def _trace_echo_lines(self, resp: str) -> List[str]:
         """Drive {b,r}trace from the tracked request trace, and check the
@@ -1688,14 +1675,14 @@ class AdapterGenerator:
             lines.append("    logic [NUM_SLAVES-1:0] r_slave_select;")
         if self.rr_atomic:
             lines.append("    // A5-3b: a read-return atomic (AWATOP[5]) answers on R, so its AW")
-            lines.append("    // also claims a slot in the AR->R tracking FIFO and must satisfy the")
-            lines.append("    // read side's single-outstanding-target gate. Declared here, driven")
-            lines.append("    // in the read-tracking section, consumed by aw_gate_ok.")
+            lines.append("    // is also counted in the AR per-ID table under its AWID and must pass")
+            lines.append("    // the read side's per-ID gate. Declared here, driven in the")
+            lines.append("    // read-tracking section, consumed by aw_gate_ok.")
             lines.append("    wire  aw_rr_atomic = fub_axi_awatop[5];")
             lines.append("    logic aw_rr_gate_ok;")
             if self.rr_local_idx is not None:
                 lines.append("    // ... and one that decoded to the subtractive slave is answered locally")
-                lines.append("    // on R (DECERR); r_local_head marks its turn at the tracker head.")
+                lines.append("    // on R (DECERR); r_local_head is the R path arbiter's grant to it.")
                 lines.append("    logic r_local_head;")
         lines.append("")
 
@@ -1928,21 +1915,29 @@ class AdapterGenerator:
     # bits) holds a request whose ID is already in flight to a DIFFERENT
     # slave; requests with other IDs flow to any slave.
     #
-    # Ports with a read-return atomic (rr_atomic) or a trace echo keep the
-    # FIFO path: both hang per-request state off the FIFO entry that routes
-    # the response, which the per-ID table does not carry.
+    # Every port takes this path (GitHub #119 L1b). Read-return-atomic and
+    # trace-echo ports used to keep an in-order FIFO, because their
+    # per-request state rode the FIFO entry; the per-ID table now carries it:
+    # a trace bit per ID (a request whose ID is in flight with a DIFFERENT
+    # trace waits, so the bit is single-valued per ID), an atomic AW counted
+    # in the AR table under its AWID (its R comes back with that ID), and a
+    # local-DECERR queue that joins the R path arbiter as one more source.
     @property
     def multi_target(self) -> bool:
-        return not self.rr_atomic and not self._trace_echo
+        return True
 
     @property
     def id_track_k(self) -> int:
         """Index bits of the per-ID table: never more than the port's ID."""
         return max(0, min(self.id_track_bits, self.fub_id_width))
 
-    def _id_table_lines(self, chan: str, resp_hs: str, resp_id: str) -> List[str]:
-        """Per-ID {count, target} table and outstanding counter for 'aw'/'ar'.
-        Declares {chan}_id_ok and {chan}_trk_full; the caller builds the gate."""
+    def _id_table_lines(self, chan: str, resp_hs: str, resp_id: str,
+                        trace: Optional[str] = None, atomic: bool = False) -> List[str]:
+        """Per-ID {count, target[, trace]} table and outstanding counter for
+        'aw'/'ar'. Declares {chan}_id_ok and {chan}_trk_full; the caller
+        builds the gate. `trace` is the request's trace signal (trace-echo
+        ports). `atomic` (AR table of an rr_atomic port) adds a second push,
+        ar_idt_push_aw, for read-return atomic AWs, which answer on R."""
         up, k = chan.upper(), self.id_track_k
         widx = f"fub_axi_{chan}id[{k-1}:0]" if k else "1'b0"
         ridx = f"{resp_id}[{k-1}:0]" if k else "1'b0"
@@ -1958,6 +1953,15 @@ class AdapterGenerator:
             f"    logic [NUM_SLAVES-1:0] {chan}_idt_tgt [{up}_IDT_N];",
             f"    logic [{up}_TRK_AW:0]   {chan}_out_cnt;",
             f"    logic [{iw-1}:0] {chan}_idt_widx, {chan}_idt_ridx;",
+        ] + ([f"    logic                  {chan}_idt_trace [{up}_IDT_N];  // trace of the in-flight ID"]
+             if trace else []) + ([
+            f"    // A5-3b: a read-return atomic AW answers on R with its AWID, so it",
+            f"    // is counted here too (second push port).",
+            f"    logic [{iw-1}:0] ar_idt_widx_aw;",
+            f"    logic ar_idt_push_aw;",
+            f"    assign ar_idt_widx_aw = " + (f"fub_axi_awid[{k-1}:0];" if k else "1'b0;"),
+            f"    assign ar_idt_push_aw = fub_axi_awvalid && fub_axi_awready && aw_rr_atomic;",
+        ] if atomic else []) + [
             f"    logic {chan}_idt_push, {chan}_idt_pop;",
             f"    assign {chan}_idt_widx = {widx};",
             f"    assign {chan}_idt_ridx = {ridx};",
@@ -1969,16 +1973,23 @@ class AdapterGenerator:
             f"            for (int i = 0; i < {up}_IDT_N; i++) begin",
             f"                {chan}_idt_cnt[i] <= '0;",
             f"                {chan}_idt_tgt[i] <= '0;",
+        ] + ([f"                {chan}_idt_trace[i] <= 1'b0;"] if trace else []) + [
             "            end",
             f"            {chan}_out_cnt <= '0;",
             "        end else begin",
             f"            if ({chan}_idt_push) {chan}_idt_tgt[{chan}_idt_widx] <= comb_slave_select_{chan};",
+        ] + ([f"            if ({chan}_idt_push) {chan}_idt_trace[{chan}_idt_widx] <= {trace};"] if trace else []) + ([
+            "            if (ar_idt_push_aw) ar_idt_tgt[ar_idt_widx_aw] <= comb_slave_select_aw;",
+        ] + (["            if (ar_idt_push_aw) ar_idt_trace[ar_idt_widx_aw] <= fub_axi_awtrace;"] if trace else [])
+            if atomic else []) + [
             f"            for (int i = 0; i < {up}_IDT_N; i++) begin",
             f"                {chan}_idt_cnt[i] <= {chan}_idt_cnt[i]",
             f"                    + ({up}_TRK_AW+1)'({chan}_idt_push && ({chan}_idt_widx == {iw}'(i)))",
+        ] + ([f"                    + ({up}_TRK_AW+1)'(ar_idt_push_aw && (ar_idt_widx_aw == {iw}'(i)))"] if atomic else []) + [
             f"                    - ({up}_TRK_AW+1)'({chan}_idt_pop  && ({chan}_idt_ridx == {iw}'(i)));",
             "            end",
-            f"            {chan}_out_cnt <= {chan}_out_cnt + ({up}_TRK_AW+1)'({chan}_idt_push)",
+            f"            {chan}_out_cnt <= {chan}_out_cnt + ({up}_TRK_AW+1)'({chan}_idt_push)"
+            + (f" + ({up}_TRK_AW+1)'(ar_idt_push_aw)" if atomic else ""),
             f"                                          - ({up}_TRK_AW+1)'({chan}_idt_pop);",
             "        end",
             "    )",
@@ -1988,15 +1999,18 @@ class AdapterGenerator:
             f"    logic {chan}_trk_full, {chan}_id_ok;",
             f"    assign {chan}_trk_full = ({chan}_out_cnt == ({up}_TRK_AW+1)'({up}_TRK_DEPTH));",
             f"    assign {chan}_id_ok    = ({chan}_idt_cnt[{chan}_idt_widx] == '0) ||",
-            f"                           ({chan}_idt_tgt[{chan}_idt_widx] == comb_slave_select_{chan});",
+            f"                           (({chan}_idt_tgt[{chan}_idt_widx] == comb_slave_select_{chan})"
+            + (f" &&\n                            ({chan}_idt_trace[{chan}_idt_widx] == {trace}));" if trace else ");"),
         ]
         return lines
 
     def _path_arb_lines(self, resp: str, slave_widths: List[int],
-                        width_to_slaves) -> List[str]:
+                        width_to_slaves, local: Optional[str] = None) -> List[str]:
         """{b,r}_slave_select for multi-target mode: which width path's
         response goes to the master. Values are a representative slave of
-        the path (the response mux muxes per path, not per slave)."""
+        the path (the response mux muxes per path, not per slave). `local`
+        is the valid of one more source with no path behind it (the R side's
+        local DECERR queue); its grant is r_local_head and selects no slave."""
         sel = f"{resp}_slave_select"
         widths = sorted(set(slave_widths))
         n = len(self.slaves)
@@ -2004,7 +2018,7 @@ class AdapterGenerator:
         for w in widths:
             i = width_to_slaves[w][0]
             reps.append(f"{n}'b" + ''.join('1' if j == i else '0' for j in range(n - 1, -1, -1)))
-        p = len(widths)
+        p = len(widths) + (1 if local else 0)
         if p == 1:
             return [f"    // One width path: every response arrives on it; the crossbar has",
                     f"    // already chosen among the slaves behind it.",
@@ -2012,6 +2026,10 @@ class AdapterGenerator:
         mw = self.master.data_width
         valids = [f"{self.master.name}_{w}b_{resp}valid" if w == mw else f"conv_{w}b_{resp}valid"
                   for w in widths]
+        labels = [f"{w}b path" for w in widths]
+        if local:
+            valids.append(local)
+            labels.append("local DECERR queue")
         pw = max(1, (p - 1).bit_length())
         L = [f"    // -------- {resp.upper()} path arbiter (fixes bridge GitHub #119 L1) --------",
              f"    // Round robin over the {p} width paths. A grant holds while its",
@@ -2020,7 +2038,7 @@ class AdapterGenerator:
              f"    logic           r_{resp}_hold;",
              f"    logic [{pw-1}:0] r_{resp}_last;"]
         for i, v in enumerate(valids):
-            L.append(f"    assign {resp}_pv[{i}] = {v};  // {widths[i]}b path")
+            L.append(f"    assign {resp}_pv[{i}] = {v};  // {labels[i]}")
         L += ["    always_comb begin",
               f"        {resp}_pgnt = '0;",
               f"        if (r_{resp}_hold) begin",
@@ -2059,8 +2077,10 @@ class AdapterGenerator:
               "    )",
               "",
               f"    assign {sel} = " + "\n                          | ".join(
-                  f"({{NUM_SLAVES{{{resp}_pgnt[{i}]}}}} & {reps[i]})" for i in range(p)) + ";",
+                  f"({{NUM_SLAVES{{{resp}_pgnt[{i}]}}}} & {reps[i]})" for i in range(len(reps))) + ";",
               ""]
+        if local:
+            L += [f"    assign r_local_head = {resp}_pgnt[{p-1}];  // the local queue holds R", ""]
         return L
 
     def _generate_response_mux(self, slave_widths: List[int]) -> List[str]:
@@ -2129,77 +2149,18 @@ class AdapterGenerator:
             lines.append("")
             lines.append(f"    localparam int AW_TRK_DEPTH = {fifo_depth};")
             lines.append(f"    localparam int AW_TRK_AW    = {fifo_aw_bits};")
-        if self.master.channels in ("wr", "rw") and self.multi_target:
-            lines.extend(self._id_table_lines('aw', "fub_axi_bvalid && fub_axi_bready", "fub_axi_bid"))
+        tr = "fub_axi_awtrace" if self._trace_echo else None
+        if self.master.channels in ("wr", "rw"):
+            lines.extend(self._id_table_lines('aw', "fub_axi_bvalid && fub_axi_bready", "fub_axi_bid",
+                                              trace=tr))
             lines.append("")
             lines.extend(self._path_arb_lines('b', slave_widths, width_to_slaves))
-        elif self.master.channels in ("wr", "rw"):
-            lines.append("    // -------- AW->B slave_select tracking FIFO --------")
-            lines.append(f"    logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];")
-            lines.append("    logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;")
-            lines.append("    logic aw_trk_push, aw_trk_pop;")
-            # b_slave_select declared at the top of the module (see
-            # _generate_address_decode) so width-adaptation can use it.
-            lines.append("")
-            lines.append("    assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;")
-            lines.append("    assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;")
-            lines.append("")
-            lines.append("    `ALWAYS_FF_RST(aclk, aresetn,")
-            lines.append("        if (`RST_ASSERTED(aresetn)) begin")
-            lines.append("            aw_trk_wptr <= '0;")
-            lines.append("            aw_trk_rptr <= '0;")
-            lines.append("        end else begin")
-            lines.append("            if (aw_trk_push) begin")
-            lines.append("                aw_trk_mem[aw_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;")
-            lines.append("                aw_trk_wptr <= aw_trk_wptr + 1'b1;")
-            lines.append("            end")
-            lines.append("            if (aw_trk_pop) begin")
-            lines.append("                aw_trk_rptr <= aw_trk_rptr + 1'b1;")
-            lines.append("            end")
-            lines.append("        end")
-            lines.append("    )")
-            lines.append("")
-            lines.append("    assign b_slave_select = (aw_trk_wptr != aw_trk_rptr)")
-            lines.append("                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]")
-            lines.append("                          : '0;")
             if self._trace_echo:
-                lines.extend(self._trace_track_lines('aw'))
-            lines.append("")
-            lines.append("    // Single-outstanding-target (writes): only accept a new AW")
-            lines.append("    // while every outstanding write targets the SAME slave. The")
-            lines.append("    // B response mux replays responses in AW issue order; slaves")
-            lines.append("    // respond in their own accept order, so cross-slave outstanding")
-            lines.append("    // writes from several masters can deadlock the heads against")
-            lines.append("    // each other. Same-slave pipelining is unaffected.")
-            lines.append("    logic [NUM_SLAVES-1:0] r_aw_active_target;")
-            lines.append("    `ALWAYS_FF_RST(aclk, aresetn,")
-            lines.append("        if (`RST_ASSERTED(aresetn)) begin")
-            lines.append("            r_aw_active_target <= '0;")
-            lines.append("        end else if (aw_trk_push) begin")
-            lines.append("            r_aw_active_target <= comb_slave_select_aw;")
-            lines.append("        end")
-            lines.append("    )")
-            # bridge BUG-009 (was BRIDGE-011): the tracking FIFO has no full check of its own, and
-            # push is unconditional on the AW handshake. Past AW_TRK_DEPTH a
-            # live entry is overwritten; at 2*AW_TRK_DEPTH the pointers lap and
-            # `wr != rd` reads EMPTY, so b_slave_select falls to '0 and B stops
-            # flowing. Fold not-full into aw_gate_ok: it already gates BOTH the
-            # downstream awvalid (via aw_path_active_*) and the upstream
-            # awready, so one term closes both directions. Deepening the FIFO
-            # only moves the cliff.
-            lines.append("    logic aw_trk_full;")
-            lines.append("    assign aw_trk_full = (aw_trk_wptr[AW_TRK_AW] != aw_trk_rptr[AW_TRK_AW]) &&")
-            lines.append("                         (aw_trk_wptr[AW_TRK_AW-1:0] == aw_trk_rptr[AW_TRK_AW-1:0]);")
-            lines.append("    assign aw_gate_ok = ((aw_trk_wptr == aw_trk_rptr) ||")
-            lines.append("                         (comb_slave_select_aw == r_aw_active_target)) &&")
-            if self.rr_atomic:
-                lines.append("                        !aw_trk_full &&")
-                lines.append("                        // A5-3b: a read-return atomic also lives in the AR->R FIFO")
-                lines.append("                        (!aw_rr_atomic || aw_rr_gate_ok);")
-            else:
-                lines.append("                        !aw_trk_full;")
-            lines.append("")
-        if self.master.channels in ("wr", "rw"):
+                lines.append("    // bridge BUG-010 (was BRIDGE-012): the B echoes its request's trace,")
+                lines.append("    // looked up by the returning ID (single-valued per in-flight ID).")
+                lines.append("    logic b_trk_trace;")
+                lines.append("    assign b_trk_trace = aw_idt_trace[aw_idt_ridx];")
+                lines.append("")
             lines.append("    // -------- AW->W slave_select tracking FIFO --------")
             lines.append("    // Same push as AW (records slave_select at handshake);")
             lines.append("    // pops on wlast so W#2's path-active gating doesn't wait")
@@ -2232,15 +2193,19 @@ class AdapterGenerator:
             lines.append("                          ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]")
             lines.append("                          : '0;")
             lines.append("")
-            if self.multi_target:
-                lines.append("    // A new AW may target a different slave only once every W burst")
-                lines.append("    // already accepted has gone: W carries no ID and follows AW order,")
-                lines.append("    // so two masters each with W owed to two slaves could otherwise")
-                lines.append("    // wait on each other at the slaves' W ports (crossed W deadlock).")
-                lines.append("    assign aw_gate_ok = aw_id_ok && !aw_trk_full &&")
-                lines.append("                        ((w_trk_wptr == w_trk_rptr) ||")
+            lines.append("    // A new AW may target a different slave only once every W burst")
+            lines.append("    // already accepted has gone: W carries no ID and follows AW order,")
+            lines.append("    // so two masters each with W owed to two slaves could otherwise")
+            lines.append("    // wait on each other at the slaves' W ports (crossed W deadlock).")
+            lines.append("    assign aw_gate_ok = aw_id_ok && !aw_trk_full &&")
+            lines.append("                        ((w_trk_wptr == w_trk_rptr) ||")
+            if self.rr_atomic:
+                lines.append("                         (w_slave_select == comb_slave_select_aw)) &&")
+                lines.append("                        // A5-3b: a read-return atomic also takes an AR-table slot")
+                lines.append("                        (!aw_rr_atomic || aw_rr_gate_ok);")
+            else:
                 lines.append("                         (w_slave_select == comb_slave_select_aw));")
-                lines.append("")
+            lines.append("")
 
         if self.master.channels in ("rd", "rw"):
             lines.append("    // OUTPUT slave_select_ar mirrors the live combinational decode.")
@@ -2248,127 +2213,63 @@ class AdapterGenerator:
             lines.append("")
             lines.append(f"    localparam int AR_TRK_DEPTH = {fifo_depth};")
             lines.append(f"    localparam int AR_TRK_AW    = {fifo_aw_bits};")
-        if self.master.channels in ("rd", "rw") and self.multi_target:
             lines.extend(self._id_table_lines(
-                'ar', "fub_axi_rvalid && fub_axi_rready && fub_axi_rlast", "fub_axi_rid"))
+                'ar', "fub_axi_rvalid && fub_axi_rready && fub_axi_rlast", "fub_axi_rid",
+                trace=("fub_axi_artrace" if self._trace_echo else None), atomic=self.rr_atomic))
             lines.append("    assign ar_gate_ok = ar_id_ok && !ar_trk_full;")
             lines.append("")
-            lines.extend(self._path_arb_lines('r', slave_widths, width_to_slaves))
-        elif self.master.channels in ("rd", "rw"):
-            lines.append("    // -------- AR->R slave_select tracking FIFO --------")
-            lines.append(f"    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];")
-            lines.append("    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;")
-            lines.append("    logic ar_trk_push, ar_trk_pop;")
             if self.rr_atomic:
-                lines.append("    logic ar_trk_push_aw;")
-            if self.rr_local_idx is not None:
-                lines.append("    // A5-3b: entries that must be answered locally (see r_local_head)")
-                lines.append("    logic ar_trk_local [AR_TRK_DEPTH];")
-                lines.append(f"    logic [{self.fub_id_width-1}:0] ar_trk_id [AR_TRK_DEPTH];")
-                lines.append(f"    wire  aw_rr_local = aw_rr_atomic && comb_slave_select_aw[{self.rr_local_idx}];")
-            # r_slave_select declared at the top of the module.
-            lines.append("")
-            lines.append("    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;")
-            lines.append("    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;")
-            if self.rr_atomic:
-                lines.append("    // A5-3b: a read-return atomic's AW claims an R-return slot too.")
-                lines.append("    assign ar_trk_push_aw = fub_axi_awvalid && fub_axi_awready && aw_rr_atomic;")
-            lines.append("")
-            lines.append("    `ALWAYS_FF_RST(aclk, aresetn,")
-            lines.append("        if (`RST_ASSERTED(aresetn)) begin")
-            lines.append("            ar_trk_wptr <= '0;")
-            lines.append("            ar_trk_rptr <= '0;")
-            lines.append("        end else begin")
-            if self.rr_atomic:
-                # Two pushes can land in one cycle (an AR and a read-return
-                # atomic AW). Both answer on R; AR takes the first slot and
-                # the AW the second, and aw_rr_gate_ok guarantees two free.
-                loc = self.rr_local_idx is not None
-                lines.append("            if (ar_trk_push && ar_trk_push_aw) begin")
-                lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;")
-                lines.append("                ar_trk_mem[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= comb_slave_select_aw;")
-                if loc:
-                    lines.append("                ar_trk_local[ar_trk_wptr[AR_TRK_AW-1:0]] <= 1'b0;")
-                    lines.append("                ar_trk_local[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= aw_rr_local;")
-                    lines.append("                ar_trk_id[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= fub_axi_awid;")
-                lines.append("                ar_trk_wptr <= ar_trk_wptr + (AR_TRK_AW+1)'(2);")
-                lines.append("            end else if (ar_trk_push) begin")
-                lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;")
-                if loc:
-                    lines.append("                ar_trk_local[ar_trk_wptr[AR_TRK_AW-1:0]] <= 1'b0;")
-                lines.append("                ar_trk_wptr <= ar_trk_wptr + 1'b1;")
-                lines.append("            end else if (ar_trk_push_aw) begin")
-                lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_aw;")
-                if loc:
-                    lines.append("                ar_trk_local[ar_trk_wptr[AR_TRK_AW-1:0]] <= aw_rr_local;")
-                    lines.append("                ar_trk_id[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_awid;")
-                lines.append("                ar_trk_wptr <= ar_trk_wptr + 1'b1;")
-                lines.append("            end")
-            else:
-                lines.append("            if (ar_trk_push) begin")
-                lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;")
-                lines.append("                ar_trk_wptr <= ar_trk_wptr + 1'b1;")
-                lines.append("            end")
-            lines.append("            if (ar_trk_pop) begin")
-            lines.append("                ar_trk_rptr <= ar_trk_rptr + 1'b1;")
-            lines.append("            end")
-            lines.append("        end")
-            lines.append("    )")
-            lines.append("")
-            lines.append("    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)")
-            lines.append("                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]")
-            lines.append("                          : '0;")
-            if self.rr_local_idx is not None:
-                lines.append("    assign r_local_head = (ar_trk_wptr != ar_trk_rptr) &&")
-                lines.append("                          ar_trk_local[ar_trk_rptr[AR_TRK_AW-1:0]];")
-            if self._trace_echo:
-                lines.extend(self._trace_track_lines('ar'))
-            lines.append("")
-            lines.append("    // Single-outstanding-target (reads) — see aw_gate_ok comment.")
-            lines.append("    logic [NUM_SLAVES-1:0] r_ar_active_target;")
-            lines.append("    `ALWAYS_FF_RST(aclk, aresetn,")
-            lines.append("        if (`RST_ASSERTED(aresetn)) begin")
-            lines.append("            r_ar_active_target <= '0;")
-            if self.rr_atomic:
-                # The AW is the LAST entry pushed in a dual-push cycle, so it
-                # is the target later requests must match.
-                lines.append("        end else if (ar_trk_push_aw) begin")
-                lines.append("            r_ar_active_target <= comb_slave_select_aw;")
-                lines.append("        end else if (ar_trk_push) begin")
-                lines.append("            r_ar_active_target <= comb_slave_select_ar;")
-                lines.append("        end")
-            else:
-                lines.append("        end else if (ar_trk_push) begin")
-                lines.append("            r_ar_active_target <= comb_slave_select_ar;")
-                lines.append("        end")
-            lines.append("    )")
-            # bridge BUG-009 (was BRIDGE-011), read side -- see the aw_gate_ok comment above.
-            lines.append("    logic ar_trk_full;")
-            lines.append("    assign ar_trk_full = (ar_trk_wptr[AR_TRK_AW] != ar_trk_rptr[AR_TRK_AW]) &&")
-            lines.append("                         (ar_trk_wptr[AR_TRK_AW-1:0] == ar_trk_rptr[AR_TRK_AW-1:0]);")
-            lines.append("    assign ar_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||")
-            lines.append("                         (comb_slave_select_ar == r_ar_active_target)) &&")
-            lines.append("                        !ar_trk_full;")
-            if self.rr_atomic:
+                k = self.id_track_k
+                lines.append("    // A5-3b: the read-return atomic AW's own gate, against the AR table")
+                lines.append("    // under its AWID: same per-ID rule as AR, one free slot counting an AR")
+                lines.append("    // that pushes this cycle, and it yields to an AR pushing the SAME ID")
+                lines.append("    // index this cycle (two pushes would race for one entry's target).")
+                trace_term = (" &&\n                                 (ar_idt_trace[ar_idt_widx_aw] == fub_axi_awtrace)"
+                              if self._trace_echo else "")
+                lines.append("    logic ar_id_ok_aw;")
+                lines.append("    assign ar_id_ok_aw = (ar_idt_cnt[ar_idt_widx_aw] == '0) ||")
+                lines.append("                         ((ar_idt_tgt[ar_idt_widx_aw] == comb_slave_select_aw)"
+                             + trace_term + ");")
+                lines.append("    assign aw_rr_gate_ok = ar_id_ok_aw &&")
+                lines.append("                           ((ar_out_cnt + (AR_TRK_AW+1)'(ar_idt_push)) <")
+                lines.append("                            (AR_TRK_AW+1)'(AR_TRK_DEPTH)) &&")
+                lines.append("                           !(ar_idt_push && (ar_idt_widx == ar_idt_widx_aw));")
                 lines.append("")
-                lines.append("    // A5-3b: the read-return atomic AW's own gate. Same target rule as")
-                lines.append("    // AR, but it needs TWO free slots so an AR handshaking in the same")
-                lines.append("    // cycle still fits (AR takes the first, the AW the second).")
-                lines.append("    //")
-                lines.append("    // The last term is load-bearing. With the FIFO empty, an AR and an")
-                lines.append("    // atomic AW to DIFFERENT slaves both pass their target rule in the same")
-                lines.append("    // cycle, and a dual push would then hold two targets at once. Every")
-                lines.append("    // slave whose tracker head belongs to this master drives the crossbar's")
-                lines.append("    // OR-merged response mux, so two live targets corrupt the R payload")
-                lines.append("    // (found as a seed-dependent read starvation in the A5-3b sign-off).")
-                lines.append("    // The AW yields in that cycle; it gets its turn once the FIFO drains.")
-                lines.append("    logic [AR_TRK_AW:0] ar_trk_count;")
-                lines.append("    assign ar_trk_count = ar_trk_wptr - ar_trk_rptr;")
-                lines.append("    assign aw_rr_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||")
-                lines.append("                            (comb_slave_select_aw == r_ar_active_target)) &&")
-                lines.append("                           (ar_trk_count <= (AR_TRK_AW+1)'(AR_TRK_DEPTH - 2)) &&")
-                lines.append("                           !(ar_trk_push && (comb_slave_select_ar != comb_slave_select_aw));")
-            lines.append("")
+            local = None
+            if self.rr_local_idx is not None:
+                local = "lr_valid"
+                idw = self.fub_id_width
+                lines.append("    // A5-3b: a read-return atomic that decoded to the subtractive slave")
+                lines.append("    // is answered HERE with one DECERR R beat (that slave answers B only).")
+                lines.append("    // Its ID waits in this queue; the R path arbiter grants it like a path.")
+                lines.append(f"    wire  aw_rr_local = aw_rr_atomic && comb_slave_select_aw[{self.rr_local_idx}];")
+                lines.append(f"    logic [{idw-1}:0] lr_mem [AR_TRK_DEPTH];")
+                lines.append("    logic [AR_TRK_AW:0] lr_wptr, lr_rptr;")
+                lines.append("    logic lr_valid;")
+                lines.append(f"    logic [{idw-1}:0] r_local_id;")
+                lines.append("    `ALWAYS_FF_RST(aclk, aresetn,")
+                lines.append("        if (`RST_ASSERTED(aresetn)) begin")
+                lines.append("            lr_wptr <= '0;")
+                lines.append("            lr_rptr <= '0;")
+                lines.append("        end else begin")
+                lines.append("            if (fub_axi_awvalid && fub_axi_awready && aw_rr_local) begin")
+                lines.append("                lr_mem[lr_wptr[AR_TRK_AW-1:0]] <= fub_axi_awid;")
+                lines.append("                lr_wptr <= lr_wptr + 1'b1;")
+                lines.append("            end")
+                lines.append("            if (r_local_head && fub_axi_rvalid && fub_axi_rready) begin")
+                lines.append("                lr_rptr <= lr_rptr + 1'b1;")
+                lines.append("            end")
+                lines.append("        end")
+                lines.append("    )")
+                lines.append("    assign lr_valid   = (lr_wptr != lr_rptr);")
+                lines.append("    assign r_local_id = lr_mem[lr_rptr[AR_TRK_AW-1:0]];")
+                lines.append("")
+            lines.extend(self._path_arb_lines('r', slave_widths, width_to_slaves, local=local))
+            if self._trace_echo:
+                lines.append("    // bridge BUG-010: the R echoes its request's trace (an atomic's AW trace).")
+                lines.append("    logic r_trk_trace;")
+                lines.append("    assign r_trk_trace = ar_idt_trace[ar_idt_ridx];")
+                lines.append("")
 
         # Write channel MUX
         if self.master.channels in ["wr", "rw"]:
@@ -2592,7 +2493,7 @@ class AdapterGenerator:
                 lines.append("        // slave is answered here -- DECERR, one beat, the AW's ID. The")
                 lines.append("        // subtractive slave has already been held off via r_path_active.")
                 lines.append("        if (r_local_head) begin")
-                lines.append(f"            fub_axi_rid    = ar_trk_id[ar_trk_rptr[AR_TRK_AW-1:0]];")
+                lines.append(f"            fub_axi_rid    = r_local_id;")
                 lines.append(f"            fub_axi_rdata  = {master_width}'d0;")
                 lines.append("            fub_axi_rresp  = 2'b11;")
                 lines.append("            fub_axi_rlast  = 1'b1;")

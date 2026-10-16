@@ -193,11 +193,13 @@ end
 - No combinatorial paths between upstream and downstream
 
 #### Pipeline Depth
-- Default: 2 (the `gaxi_skid_buffer` minimum)
-- Range: **2..8 inclusive, any integer**. The value is the skid buffer's
-  `DEPTH`, and its elaboration guard rejects anything outside that:
-  `if (DEPTH < 2 || DEPTH > 8) $error(...)`. A depth of 1 does not elaborate,
-  so the "default 1" this line used to claim was never buildable.
+- Default: AW 2, W 4, B 2, AR 2, R 2; `[bridge.defaults.skid_depths]` and the
+  port's `interface.skid_depths` override them (they were parsed and ignored
+  until GitHub #119 L7).
+- Range: **2..8 inclusive, any integer**, or **0** where the port's
+  `latency` mode cuts the stage (`cut_ax`: W/B/R; `cut_none`: all five).
+  `gaxi_skid_buffer` builds DEPTH 0 as a combinational pass-through; its
+  elaboration guard rejects 1 and anything above 8.
 - Trade-off: Latency vs. timing closure
 
 **Performance Impact**:
@@ -289,34 +291,19 @@ The Master Adapter enforces several protocol requirements:
 
 Here's the part that bites people. The master adapter decodes the incoming address combinationally to pick a target slave. When the wrapper's skid buffer pops and `fub_axi_awaddr`/`fub_axi_araddr` reverts, the decode changes even though the converter is still in flight pushing the request to the crossbar. This causes the response MUX to route read/write responses from the wrong slave.
 
-#### Solution: Per-Channel Response-Tracking FIFOs
+#### Solution: Capture at the Handshake, Steer by What Returns
 
-Added separate FIFOs for AR and AW channels that capture the slave index (`comb_slave_select_ar/aw`) at the moment of the FUB-level handshake:
+The decode is captured when the request is accepted, never re-read later.
+The W path keeps a FIFO of it (`w_trk_*`, pushed at AW, popped at WLAST),
+because W carries no ID and follows AW order. B and R are no longer steered
+by a FIFO of targets at all: they are taken in the order the width paths
+offer them (path arbiter below), and what the adapter keeps per request is
+indexed by ID. Until 2026-10-15 an AW/AR -> B/R FIFO of targets steered the
+response mux, which is why a master could hold only one target at a time;
+read-return-atomic and trace-echo ports kept that FIFO a little longer
+(GitHub #119 L1b), because their per-request state rode its entries.
 
-```systemverilog
-// At request time (when fub_axi_arvalid && fub_axi_arready)
-ar_trk_push <= comb_slave_select_ar;  // Capture decoded slave index
-
-// At response time (when m_axi_rvalid && m_axi_rready && m_axi_rlast)
-r_slave_select <= ar_trk_pop;  // Stable slave index for response MUX
-```
-
-**Benefits**:
-- R/B responses route correctly even after address reverts
-- Supports multi-slave masters spanning different widths
-- Stable path for both data width and target slave
-
-**Implementation**:
-- One FIFO per (master, AW/AR channel)
-- Width: `clog2(NUM_SLAVES)` bits (4 bits typical for 16-slave systems)
-- Depth: Matches maximum outstanding transactions (8-16 typical)
-
-The FIFOs above steer responses ONLY on ports that carry a read-return atomic
-(`rr_atomic`) or a trace echo. Those ports hang per-request state on the FIFO
-entry, and they still hold one target slave at a time. Every other port uses
-the scheme below.
-
-### Several Targets in Flight (limitation fixed: GitHub #119 L1)
+### Several Targets in Flight (limitation fixed: GitHub #119 L1, L1b)
 
 A master used to be held to one target slave at a time, because B / R were
 replayed in issue order from the tracking FIFO. Now the adapter keeps only
@@ -344,6 +331,19 @@ the ordering AXI requires:
   as a representative slave of the path, so the response mux and the path
   readies are unchanged. One width path needs no arbiter. Among the slaves
   on one path, the crossbar's response arbiter has already chosen (MAS 2.3).
+- **Trace echo** (ports with AXI5 `trace`): each table entry also holds the
+  in-flight ID's trace bit. A request whose ID is in flight with a DIFFERENT
+  trace waits, so the bit is single-valued per ID, and B/R echo
+  `aw_idt_trace[BID]` / `ar_idt_trace[RID]` -- also for a slave that has no
+  trace of its own.
+- **Read-return atomics** (rw AXI5 ports with `atomic`): an atomic AW is also
+  counted in the AR table under its AWID (`ar_idt_push_aw`), since its R comes
+  back with that ID. Its gate `aw_rr_gate_ok` is the AR per-ID rule plus a
+  free AR slot, and it yields to an AR pushing the same ID index in the same
+  cycle. An atomic that decodes to the subtractive slave queues its ID in a
+  local-DECERR FIFO (`lr_*`), which the R path arbiter grants like one more
+  path (`r_local_head`). These two were the last ports on the one-target FIFO
+  (GitHub #119 L1b, 2026-10-15).
 
 ## Timing
 

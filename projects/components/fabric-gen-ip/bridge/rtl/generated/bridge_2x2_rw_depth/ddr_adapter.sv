@@ -283,7 +283,7 @@ module bridge_2x2_rw_depth_ddr_adapter
     // AXI4 Master Read Timing Wrapper
     axi4_master_rd #(
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(2),
+        .SKID_DEPTH_R(4),
         .AXI_ID_WIDTH(5),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),

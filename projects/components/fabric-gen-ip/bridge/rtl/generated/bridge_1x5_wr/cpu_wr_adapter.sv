@@ -513,7 +513,7 @@ module bridge_1x5_wr_cpu_wr_adapter
     logic aw_trk_full, aw_id_ok;
     assign aw_trk_full = (aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH));
     assign aw_id_ok    = (aw_idt_cnt[aw_idt_widx] == '0) ||
-                           (aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw);
+                           ((aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw));
 
     // -------- B path arbiter (fixes bridge GitHub #119 L1) --------
     // Round robin over the 3 width paths. A grant holds while its
