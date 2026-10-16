@@ -1831,10 +1831,14 @@ end
 // Registers (house ALWAYS_FF_RST: async assert, sync release)
 // ==========================================================================
 // Per-output release bubble: set on the TLAST handshake
-// cycle, clear otherwise. While set, the arbiter's still-
-// held retiring grant is masked off the visible grant and
-// serves as the grant_ack that schedules the same-cycle
-// handoff onto the bubble cycle's requests.
+// cycle or on a speculative revoke, clear otherwise. A
+// committed speculative grant must hold the output until
+// the packet's TLAST just like a non-speculative grant;
+// only a revoke (the captured head never left) releases
+// the arbiter early. While set, the arbiter's still-held
+// retiring grant is masked off the visible grant and serves
+// as the grant_ack that schedules the same-cycle handoff
+// onto the bubble cycle's requests.
 generate
     for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_release_bubble
         `ALWAYS_FF_RST(aclk, aresetn,
@@ -1842,7 +1846,7 @@ generate
                 bubble[q] <= 1'b0;
             end else begin
                 bubble[q] <= out_xfer_last[q] ||
-                           spec_commit[q] || spec_revoke[q];
+                           spec_revoke[q];
             end
         )
     end
