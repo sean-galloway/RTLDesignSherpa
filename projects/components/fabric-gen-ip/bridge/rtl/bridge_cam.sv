@@ -29,6 +29,14 @@
 //   DEPTH            - Number of CAM entries (default: 16)
 //   ALLOW_DUPLICATES - 0=Mode 1 (simple), 1=Mode 2 (FIFO with count)
 //   PIPELINE_EVICT   - 0=Combinational evict, 1=Pipelined (adds 1 cycle latency)
+//   PIPELINE_ALLOC   - 0=Combinational insert, 1=Registered insert. allocate
+//                      only captures tag/data; the tag match, duplicate count
+//                      and entry write happen the next cycle, off a flop, so
+//                      the caller's handshake logic (a crossbar's arbitrated
+//                      ID) no longer drives the 16-way match + popcount.
+//                      The pending entry is visible to the eviction port the
+//                      whole time (a response may follow its request by one
+//                      cycle), and tags_full counts it.
 //
 // Mode 1 Usage (Simple - Block Duplicates):
 //   External arbiter checks cam_hit and blocks allocation if tag exists.
@@ -38,9 +46,9 @@
 //   Allows duplicate transaction IDs with FIFO ordering via count field.
 //   Handles out-of-order slave responses by always deallocating count=0 first.
 //
-// Version: 1.2
+// Version: 1.3 (PIPELINE_ALLOC)
 // Author: RTL Design Sherpa
-// Date: 2025-10-26
+// Date: 2025-10-26 (1.3: 2026-10-16)
 //==============================================================================
 
 module bridge_cam #(
@@ -48,7 +56,8 @@ module bridge_cam #(
     parameter int DATA_WIDTH = 8,          // Master index width
     parameter int DEPTH = 16,              // Number of CAM entries
     parameter int ALLOW_DUPLICATES = 0,    // 0=Mode 1, 1=Mode 2
-    parameter int PIPELINE_EVICT = 0       // 0=Comb, 1=Pipelined (for timing)
+    parameter int PIPELINE_EVICT = 0,      // 0=Comb, 1=Pipelined (for timing)
+    parameter int PIPELINE_ALLOC = 0       // 0=Comb, 1=Registered insert (for timing)
 ) (
     input  logic                        clk,
     input  logic                        rst_n,
@@ -137,6 +146,18 @@ module bridge_cam #(
     logic w_evict_match_found;
     logic w_evict_count0_found;
 
+    // Insert port: what is written this cycle (the allocate itself, or the
+    // registered one under PIPELINE_ALLOC), and the pending-entry bypass.
+    logic                  w_alloc_fire;    // allocate accepted this cycle
+    logic                  w_ins_v;         // an entry is written this cycle
+    logic [TAG_WIDTH-1:0]  w_ins_tag;
+    logic [DATA_WIDTH-1:0] w_ins_data;
+    logic                  w_pend_v;        // a registered insert is pending
+    logic [TAG_WIDTH-1:0]  w_pend_tag;
+    logic [DATA_WIDTH-1:0] w_pend_data;
+    logic                  w_pend_hit;      // the eviction port takes the pending entry
+    logic [DEPTH-1:0]      w_alloc_matches; // allocate_tag vs stored (cam_hit only)
+
 
     //==========================================================================
     // Single CAM Search Loop - TWO Lookup Ports
@@ -145,10 +166,52 @@ module bridge_cam #(
 
     always_comb begin
         for (i = 0; i < DEPTH; i++) begin
-            w_entry_matches[i] = r_valid[i] && (allocate_tag == r_tag_array[i]);
+            w_entry_matches[i] = r_valid[i] && (w_ins_tag == r_tag_array[i]);
+            w_alloc_matches[i] = r_valid[i] && (allocate_tag == r_tag_array[i]);
             w_evict_matches[i] = r_valid[i] && (deallocate_tag == r_tag_array[i]);
         end
     end
+
+    //==========================================================================
+    // Insert Port: combinational or registered (PIPELINE_ALLOC)
+    //==========================================================================
+    assign w_alloc_fire = allocate && !tags_full;
+
+    generate
+        if (PIPELINE_ALLOC == 1) begin : gen_alloc_pipe
+            logic                  r_pend_v;
+            logic [TAG_WIDTH-1:0]  r_pend_tag;
+            logic [DATA_WIDTH-1:0] r_pend_data;
+            `ALWAYS_FF_RST(clk, rst_n,
+                if (`RST_ASSERTED(rst_n)) begin
+                    r_pend_v    <= 1'b0;
+                    r_pend_tag  <= '0;
+                    r_pend_data <= '0;
+                end else begin
+                    r_pend_v <= w_alloc_fire;
+                    if (w_alloc_fire) begin
+                        r_pend_tag  <= allocate_tag;
+                        r_pend_data <= allocate_data;
+                    end
+                end
+            )
+            assign w_pend_v    = r_pend_v;
+            assign w_pend_tag  = r_pend_tag;
+            assign w_pend_data = r_pend_data;
+            // The pending entry is written this cycle unless the eviction
+            // port takes it (its response arrived before it reached the CAM).
+            assign w_ins_v    = r_pend_v && !(w_pend_hit && w_deallocate_active);
+            assign w_ins_tag  = r_pend_tag;
+            assign w_ins_data = r_pend_data;
+        end else begin : gen_alloc_comb
+            assign w_pend_v    = 1'b0;
+            assign w_pend_tag  = '0;
+            assign w_pend_data = '0;
+            assign w_ins_v     = w_alloc_fire;
+            assign w_ins_tag   = allocate_tag;
+            assign w_ins_data  = allocate_data;
+        end
+    endgenerate
 
     //==========================================================================
     // Optional Pipeline Stage for Eviction (Timing Optimization)
@@ -186,7 +249,9 @@ module bridge_cam #(
     // Entry Port: CAM Hit Detection
     //==========================================================================
 
-    assign cam_hit = |w_entry_matches;
+    // cam_hit reports allocate_tag against the stored entries (plus a
+    // pending insert of the same tag), whichever insert mode is built.
+    assign cam_hit = |w_alloc_matches || (w_pend_v && (w_pend_tag == allocate_tag));
 
     //==========================================================================
     // Priority Encoder: Find Next Free Slot
@@ -274,10 +339,20 @@ module bridge_cam #(
     logic w_same_tag_retire;
     assign w_same_tag_retire = (ALLOW_DUPLICATES == 1) &&
                                w_deallocate_active && w_evict_count0_found &&
-                               (w_deallocate_tag_active == allocate_tag);
+                               (w_deallocate_tag_active == w_ins_tag);
+
+    // Pending-entry bypass (PIPELINE_ALLOC). A response may follow its request
+    // by one cycle, before the registered insert reaches the CAM. It belongs
+    // to the pending entry only if no stored entry carries that tag: a stored
+    // one is older (Mode 2: its count-0 entry retires first; Mode 1: any
+    // match). Taken, the pending entry is never written.
+    logic w_cam_evict_found;
+    assign w_cam_evict_found = (ALLOW_DUPLICATES == 0) ? w_evict_match_found : w_evict_count0_found;
+    assign w_pend_hit = w_pend_v && !w_cam_evict_found &&
+                        (w_deallocate_tag_active == w_pend_tag);
 
     // Eviction port outputs
-    assign deallocate_valid = (ALLOW_DUPLICATES == 0) ? w_evict_match_found : w_evict_count0_found;
+    assign deallocate_valid = w_cam_evict_found || w_pend_hit;
 
     logic [DATA_WIDTH-1:0] w_evict_count0_data;
     always_comb begin
@@ -286,7 +361,8 @@ module bridge_cam #(
             if (w_evict_count0_hits[qd]) w_evict_count0_data = w_evict_count0_data | r_data_array[qd];
         end
     end
-    assign deallocate_data = (ALLOW_DUPLICATES == 0)
+    assign deallocate_data = w_pend_hit ? w_pend_data
+                           : (ALLOW_DUPLICATES == 0)
                            ? (w_evict_match_found ? r_data_array[w_evict_match_loc] : '0)
                            : w_evict_count0_data;
     // the retiring entry is the count-0 one by construction
@@ -309,9 +385,9 @@ module bridge_cam #(
             end
         end else begin
             // Allocate: Store new transaction
-            if (allocate && !tags_full) begin
-                r_tag_array[w_next_free_loc] <= allocate_tag;
-                r_data_array[w_next_free_loc] <= allocate_data;
+            if (w_ins_v) begin
+                r_tag_array[w_next_free_loc] <= w_ins_tag;
+                r_data_array[w_next_free_loc] <= w_ins_data;
                 r_valid[w_next_free_loc] <= 1'b1;
 
                 if (ALLOW_DUPLICATES == 1) begin
@@ -353,9 +429,10 @@ module bridge_cam #(
             end
 
             // Occupancy counter update
-            case ({allocate && !tags_full,
-                   w_deallocate_active && (ALLOW_DUPLICATES == 0 ? w_evict_match_found
-                                                                  : w_evict_count0_found)})
+            // (A pending entry taken by the eviction port is neither
+            // written nor counted: it never entered r_count.)
+            case ({w_ins_v,
+                   w_deallocate_active && w_cam_evict_found})
                 2'b10: r_count <= r_count + 1'b1;  // Allocate only
                 2'b01: r_count <= r_count - 1'b1;  // Deallocate only
                 default: r_count <= r_count;       // Both or neither
@@ -367,8 +444,12 @@ module bridge_cam #(
     // Status Outputs
     //==========================================================================
 
-    assign tags_empty = (r_count == '0);
-    assign tags_full = (r_count == COUNT_WIDTH'(DEPTH));  // Physical capacity only (both modes)
-    assign tags_count = r_count;
+    // A pending insert holds a slot: it is counted here so an allocate can
+    // never be accepted into a CAM whose last free entry it is about to take.
+    logic [COUNT_WIDTH-1:0] w_occupied;
+    assign w_occupied = r_count + COUNT_WIDTH'(w_pend_v);
+    assign tags_empty = (w_occupied == '0);
+    assign tags_full  = (w_occupied == COUNT_WIDTH'(DEPTH));  // Physical capacity only (both modes)
+    assign tags_count = w_occupied;
 
 endmodule : bridge_cam

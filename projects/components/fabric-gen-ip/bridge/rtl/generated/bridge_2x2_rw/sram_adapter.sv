@@ -153,7 +153,12 @@ module bridge_2x2_rw_sram_adapter
         .DATA_WIDTH(BRIDGE_ID_WIDTH),
         .DEPTH(16),  // max_outstanding
         .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
-        .PIPELINE_EVICT(0)
+        .PIPELINE_EVICT(0),
+        // Registered insert: the crossbar's arbitrated ID only reaches a
+        // register here; the 16-way match + duplicate popcount run the next
+        // cycle (GitHub #119: this was the 15-level worst path, master AW
+        // gate -> crossbar grant -> CAM count, on the fabric benchmark).
+        .PIPELINE_ALLOC(1)
     ) u_wr_cam (
         .clk(aclk),
         .rst_n(aresetn),
@@ -187,7 +192,12 @@ module bridge_2x2_rw_sram_adapter
         .DATA_WIDTH(BRIDGE_ID_WIDTH),
         .DEPTH(16),  // max_outstanding
         .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
-        .PIPELINE_EVICT(0)
+        .PIPELINE_EVICT(0),
+        // Registered insert: the crossbar's arbitrated ID only reaches a
+        // register here; the 16-way match + duplicate popcount run the next
+        // cycle (GitHub #119: this was the 15-level worst path, master AW
+        // gate -> crossbar grant -> CAM count, on the fabric benchmark).
+        .PIPELINE_ALLOC(1)
     ) u_rd_cam (
         .clk(aclk),
         .rst_n(aresetn),

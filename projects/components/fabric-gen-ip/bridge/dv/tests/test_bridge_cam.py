@@ -13,6 +13,10 @@
 # the tag's counts became {0, 2} and the next-but-one deallocate found no
 # count-0 entry. deallocate_valid stayed low, the crossbar never raised
 # bready, and the slave's B sat unaccepted until the BFM gave up on it.
+#
+# Every test runs with PIPELINE_ALLOC 0 and 1 (registered insert, GitHub
+# #119): the same per-tag model holds in both, and cam_response_next_cycle_test
+# pins the pending-entry bypass a registered insert needs.
 
 import os
 import random
@@ -100,6 +104,39 @@ async def cam_same_cycle_alloc_dealloc_test(dut):
     dut._log.info("bridge_cam: same-cycle allocate+deallocate keeps the per-tag order dense")
 
 
+@cocotb.test(timeout_time=10, timeout_unit="ms")
+async def cam_response_next_cycle_test(dut):
+    """A response may follow its request by one cycle. Under PIPELINE_ALLOC
+    that is before the entry reaches the CAM, so the eviction port must take
+    the pending entry -- and must NOT take it when an older entry with the same
+    tag is stored, which retires first. Holds in both insert modes."""
+    cam = Cam(dut)
+    await cam.reset()
+    A, B = 3, 9
+    await cam.step(alloc=(A, 1))
+    v, data = await cam.step(dealloc=A)                 # the very next cycle
+    assert (v, data) == (1, 1), f"response one cycle after its request: {(v, data)}"
+    v, _ = await cam.lookup(A)
+    assert v == 0, "the entry was retired but is still found (pending entry written anyway?)"
+    assert int(dut.tags_empty.value) == 1, "occupancy counted a pending entry that was taken"
+    await cam.step(alloc=(B, 1))                        # older B
+    await cam.step(alloc=(B, 2))                        # younger B, possibly still pending
+    v, data = await cam.step(dealloc=B)
+    assert (v, data) == (1, 1), f"same tag: the older entry must retire first: {(v, data)}"
+    v, data = await cam.step(dealloc=B)
+    assert (v, data) == (1, 2), f"same tag, second response: {(v, data)}"
+    v, _ = await cam.lookup(B)
+    assert v == 0 and int(dut.tags_empty.value) == 1
+    # Fill to DEPTH with back-to-back allocates: full must assert on the last
+    # one even while it is still pending.
+    for t in range(DEPTH):
+        await cam.step(alloc=(t, t & 3))
+    await ReadOnly()
+    assert int(dut.tags_full.value) == 1, "full must count a pending insert"
+    await RisingEdge(dut.clk)
+    dut._log.info("bridge_cam: next-cycle responses and pending-entry occupancy correct")
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cam_random_test(dut):
     """Random allocate/deallocate traffic against a per-tag FIFO model; every
@@ -136,8 +173,9 @@ async def cam_random_test(dut):
     dut._log.info(f"bridge_cam random: {rounds} rounds, model matched throughout")
 
 
+@pytest.mark.parametrize("pipeline_alloc", [0, 1])
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_bridge_cam(request, test_level):
+def test_bridge_cam(request, test_level, pipeline_alloc):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../rtl',
         'rtl_amba_includes': 'rtl/amba/includes',
@@ -150,7 +188,7 @@ def test_bridge_cam(request, test_level):
         filelist_path='projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cam.f')
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    sim_build_name = f"test_{dut_name}_{test_level}{worker_suffix}"
+    sim_build_name = f"test_{dut_name}_pa{pipeline_alloc}_{test_level}{worker_suffix}"
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
     sim_build = sim_build_path(tests_dir, sim_build_name)
@@ -163,14 +201,15 @@ def test_bridge_cam(request, test_level):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        # testcase=None runs EVERY @cocotb.test in this module (both of them).
+        # testcase=None runs EVERY @cocotb.test in this module (all three).
         # A comma-joined list is not a list to cocotb 2.x: the repo conftest
         # anchors testcase= as one exact name (r"\b<name>$"), so
         # "a,b" matched no test, zero tests ran, and the wrapper reported a
         # false green.
         testcase=None,
         parameters={'TAG_WIDTH': TAG_W, 'DATA_WIDTH': DATA_W, 'DEPTH': DEPTH,
-                    'ALLOW_DUPLICATES': 1, 'PIPELINE_EVICT': 0},
+                    'ALLOW_DUPLICATES': 1, 'PIPELINE_EVICT': 0,
+                    'PIPELINE_ALLOC': pipeline_alloc},
         sim_build=sim_build,
         waves=False,
         extra_args=['--assert'] + waves['extra_args'],
