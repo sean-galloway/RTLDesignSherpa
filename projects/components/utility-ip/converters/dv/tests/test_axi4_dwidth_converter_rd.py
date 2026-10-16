@@ -226,6 +226,18 @@ def generate_test_params():
         params.append({'s_data_width': s, 'm_data_width': m, 'test_level': 'gate',
                        'testcase': 'axi4_dwidth_converter_rd_ooo_r_test'})
 
+    # R_INTERLEAVE = 0 (no reassembly pool; the bridge's setting, GitHub
+    # #119): R bursts arrive contiguously but may complete out of order
+    # across IDs -- the OOO-R test is exactly that contract -- plus the
+    # ordinary traffic tests, both directions, at gate and func.
+    for (s, m) in [(128, 32), (32, 128), (256, 64), (64, 256)]:
+        for level in ['gate', 'func']:
+            params.append({'s_data_width': s, 'm_data_width': m, 'test_level': level,
+                           'testcase': 'axi4_dwidth_converter_rd_test', 'r_interleave': 0})
+    for (s, m) in [(128, 32), (32, 128)]:
+        params.append({'s_data_width': s, 'm_data_width': m, 'test_level': 'gate',
+                       'testcase': 'axi4_dwidth_converter_rd_ooo_r_test', 'r_interleave': 0})
+
     # Comprehensive coverage (uncomment for exhaustive testing)
     # test_levels = ['gate', 'func', 'full']
     # width_pairs = [
@@ -289,6 +301,7 @@ def test_axi4_dwidth_converter_rd(request, params):
     m_data_width = params['m_data_width']
     test_level = params['test_level']
     testcase = params.get('testcase', 'axi4_dwidth_converter_rd_test')
+    r_interleave = int(params.get('r_interleave', 1))
 
     # Calculate conversion characteristics
     width_ratio = max(s_data_width, m_data_width) // min(s_data_width, m_data_width)
@@ -298,7 +311,8 @@ def test_axi4_dwidth_converter_rd(request, params):
     testcase_tag = testcase.replace('axi4_dwidth_converter_rd_', '')
     test_name_plus_params = (f"test_axi4_dwidth_converter_rd_"
                             f"{s_data_width}to{m_data_width}_"
-                            f"{mode}_{width_ratio}x_{test_level}_{testcase_tag}")
+                            f"{mode}_{width_ratio}x_{test_level}_{testcase_tag}"
+                            f"{'' if r_interleave else '_ri0'}")
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
@@ -323,6 +337,7 @@ def test_axi4_dwidth_converter_rd(request, params):
         'AXI_ID_WIDTH': '8',
         'AXI_ADDR_WIDTH': '32',
         'AXI_USER_WIDTH': '1',
+        'R_INTERLEAVE': str(r_interleave),
     }
 
     # Calculate timeout based on test level

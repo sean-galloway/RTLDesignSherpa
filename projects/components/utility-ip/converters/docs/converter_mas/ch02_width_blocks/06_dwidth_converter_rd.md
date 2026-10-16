@@ -55,6 +55,7 @@ The read converter combines the generic `axi_data_dnsize` with AXI4 protocol han
 | SKID_DEPTH_R | int | 4 | R skid buffer depth |
 | RASM_DEPTH | int | 272 | Per-ID beat capacity; must cover the 256-beat AXI4 master-burst maximum (BUG-009) |
 | RASM_MAX_OUTSTANDING | int | 16 | Shared reassembly pool capacity in bursts (BUG-009) |
+| R_INTERLEAVE | bit | 1 | 1: the `m_axi` R source may interleave beats across IDs; the reassembly layer (2.6.9) is built. 0: R bursts arrive contiguously (in any order across IDs); no pool, beats pass straight to the data primitive (2.6.9a) |
 
 : Table 2.17: Read Converter Parameters
 
@@ -389,6 +390,43 @@ converter no longer assumes a contiguous master R stream. Between
 Protocol violations (R with no outstanding AR, more beats than the AR
 promised, premature RLAST) are flagged by `SIMULATION`-guarded `$error`
 checks and consumed without deadlock.
+
+The layer is store-and-forward and its pool is large: at the default
+sizing every instance holds 4,352 beats of data in LUTRAM and a 4,352-entry
+13-bit next-pointer list in flops. Synthesized inside a generated bridge
+that was about 128k LUTs per instance on the Artix-7, and a bridge with
+ten read converters did not finish synthesis.
+
+## 2.6.9a No-Reassembly Mode (`R_INTERLEAVE = 0`, 2026-10-16)
+
+When the `m_axi` R source never interleaves beats of different bursts --
+the bridge's master adapters, whose crossbar R arbiter holds a path
+through RLAST and whose slaves may not interleave (bridge PRD FR-9) --
+the pool and scheduler are not built:
+
+1. **Pass-through.** Each R beat goes straight to the data primitive as it
+   arrives; no burst is buffered.
+2. **Records and reservation kept.** Bursts of different IDs may still
+   return in any order, so the per-ID AR record is looked up by the
+   arriving beat's RID, and the one-burst-per-ID reservation stays.
+3. **Attribution in the sideband.** The primitive's sideband carries
+   `{RRESP, RID, RUSER}` (RRESP in the top field, so the upsize
+   primitive's numeric-max fold still keeps the worst response), so
+   every converted beat carries its own burst's ID.
+4. **Downsize accepts other IDs between splits.** Every master burst is a
+   whole number of wide beats from lane 0 (splits are 256 narrow beats),
+   so no wide beat spans two bursts. Another ID's burst arriving between
+   the splits of a slave burst is taken; refusing it would hold an R
+   arbiter that locks through RLAST and the waiting split could never
+   arrive.
+5. **Upsize takes one burst at a time.** The dnsize primitive frames
+   from `burst_len`, so a new burst enters once the previous one has
+   left the primitive.
+
+A `SIMULATION` check flags an interleaved beat. Covered by the converter
+suite's `_ri0` rows (ordinary traffic both directions at gate and func,
+and the burst-atomic out-of-order R test) and the full bridge regression.
+The formal proof covers the default mode only.
 
 ## 2.6.10 Resource Utilization
 

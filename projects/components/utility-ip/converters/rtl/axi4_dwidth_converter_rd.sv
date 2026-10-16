@@ -41,6 +41,14 @@
 //   SKID_DEPTH_R: R channel skid buffer depth (2-8, default 4)
 //   RASM_DEPTH: Per-ID beat capacity, >= max master burst (default 272)
 //   RASM_MAX_OUTSTANDING: Shared pool capacity in bursts (default 16)
+//   R_INTERLEAVE: 1 (default) = the m_axi R source may interleave beats of
+//     different ARIDs; the BUG-009 reassembly layer is built.  0 = the
+//     source promises every R burst arrives contiguously (bursts of
+//     different IDs may still return in any order); the beat pool is not
+//     built and R beats go straight to the data primitive, with RID/RUSER
+//     carried through its sideband.  The bridge's master adapters use 0:
+//     the crossbar's R arbiter holds a master path through RLAST (bridge
+//     GitHub #119).
 //
 // Author: RTL Design Sherpa
 // Created: 2025-10-24
@@ -69,6 +77,10 @@ module axi4_dwidth_converter_rd #(
     parameter int RASM_DEPTH             = 272,
     parameter int RASM_MAX_OUTSTANDING   = 16,
 
+    // R_INTERLEAVE = 0: contiguous R bursts only, no reassembly pool (see
+    // the header). 1 keeps the BUG-009 reassembly layer.
+    parameter bit R_INTERLEAVE           = 1'b1,
+
     // Calculated Parameters
     localparam int S_STRB_WIDTH = S_AXI_DATA_WIDTH / 8,
     localparam int M_STRB_WIDTH = M_AXI_DATA_WIDTH / 8,
@@ -82,6 +94,11 @@ module axi4_dwidth_converter_rd #(
     localparam int RASM_POOL_DEPTH = RASM_MAX_OUTSTANDING * RASM_DEPTH,
     localparam int RASM_PTRW    = $clog2(RASM_POOL_DEPTH),
     localparam int RASM_CNTW    = $clog2(RASM_DEPTH + 1),
+    // Primitive sideband: RRESP alone with reassembly (RID/RUSER are held
+    // per burst); {RRESP, RID, RUSER} without it, so every converted beat
+    // carries its own burst's ID.  RRESP is the MSB field: the upsize
+    // primitive folds by numeric max, which then keeps the worst response.
+    localparam int PSB_W        = R_INTERLEAVE ? 2 : (2 + AXI_ID_WIDTH + AXI_USER_WIDTH),
 
     // Skid buffer packed widths
     localparam int AR_WIDTH = AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + AXI_USER_WIDTH,
@@ -257,6 +274,15 @@ module axi4_dwidth_converter_rd #(
     logic [AXI_USER_WIDTH-1:0]   prim_ruser;
     logic                        prim_rvalid;
     logic                        prim_rready;
+
+    // Mode interface: what the R primitives need from whichever R-side
+    // front end is built (gen_rasm or gen_rbypass below).
+    logic                        w_cur_final;   // DOWNSIZE: this master burst ends its slave burst
+    logic                        w_bstart;      // UPSIZE: first wide beat of a burst is presented
+    logic [7:0]                  w_blen;        // UPSIZE: that burst's narrow ARLEN
+    logic [7:0]                  w_blane;       // UPSIZE: its start lane
+    logic [PSB_W-1:0]            prim_sb;
+    logic [PSB_W-1:0]            int_sb;
 
     //==========================================================================
     // AR Channel Skid Buffer (Timing Closure)
@@ -510,311 +536,417 @@ module axi4_dwidth_converter_rd #(
     //   the shared pool need only hold RASM_MAX_OUTSTANDING full bursts.
     //==========================================================================
 
-    // Shared beat pool memories. data/resp/last are written by their own
-    // reset-free process (see "beat store" below): a memory written inside an
-    // async-reset process cannot be inferred as RAM, and at the default sizing
-    // (16 x 272 x M_AXI_DATA_WIDTH) the flop fallback does not fit -- the
-    // Genesys 2 fabric benchmark (4 x 272 x 128 = 139,264 bits) failed synthesis
-    // with Synth 8-3391. No entry is read before a push writes it, so these
-    // need no reset. rasm_pool_next stays in the reset process: the reset
-    // seeds the free list through it.
+    generate if (R_INTERLEAVE) begin : gen_rasm
+        // Shared beat pool memories. data/resp/last are written by their own
+        // reset-free process (see "beat store" below): a memory written inside an
+        // async-reset process cannot be inferred as RAM, and at the default sizing
+        // (16 x 272 x M_AXI_DATA_WIDTH) the flop fallback does not fit -- the
+        // Genesys 2 fabric benchmark (4 x 272 x 128 = 139,264 bits) failed synthesis
+        // with Synth 8-3391. No entry is read before a push writes it, so these
+        // need no reset. rasm_pool_next stays in the reset process: the reset
+        // seeds the free list through it.
 `ifdef XILINX
-    (* ram_style = "distributed" *)
+        (* ram_style = "distributed" *)
 `elsif SYNTH_PRAGMA
-    /* synthesis ramstyle = "MLAB" */
+        /* synthesis ramstyle = "MLAB" */
 `endif
-    logic [M_AXI_DATA_WIDTH-1:0] rasm_pool_data [RASM_POOL_DEPTH];
+        logic [M_AXI_DATA_WIDTH-1:0] rasm_pool_data [RASM_POOL_DEPTH];
 `ifdef XILINX
-    (* ram_style = "distributed" *)
+        (* ram_style = "distributed" *)
 `elsif SYNTH_PRAGMA
-    /* synthesis ramstyle = "MLAB" */
+        /* synthesis ramstyle = "MLAB" */
 `endif
-    logic [1:0]                  rasm_pool_resp [RASM_POOL_DEPTH];
+        logic [1:0]                  rasm_pool_resp [RASM_POOL_DEPTH];
 `ifdef XILINX
-    (* ram_style = "distributed" *)
+        (* ram_style = "distributed" *)
 `elsif SYNTH_PRAGMA
-    /* synthesis ramstyle = "MLAB" */
+        /* synthesis ramstyle = "MLAB" */
 `endif
-    logic                        rasm_pool_last [RASM_POOL_DEPTH];
-    logic [RASM_PTRW-1:0]        rasm_pool_next [RASM_POOL_DEPTH];
+        logic                        rasm_pool_last [RASM_POOL_DEPTH];
+        logic [RASM_PTRW-1:0]        rasm_pool_next [RASM_POOL_DEPTH];
 
-    // Free list.
-    logic [RASM_PTRW-1:0]        rasm_free_head;
-    logic [RASM_PTRW:0]          rasm_free_count;
+        // Free list.
+        logic [RASM_PTRW-1:0]        rasm_free_head;
+        logic [RASM_PTRW:0]          rasm_free_count;
 
-    // Per-ID queue state.
-    logic [RASM_PTRW-1:0]        rasm_head    [NUM_IDS];
-    logic [RASM_PTRW-1:0]        rasm_tail    [NUM_IDS];
-    logic [RASM_CNTW-1:0]        rasm_count   [NUM_IDS];
-    logic                        rasm_assembled [NUM_IDS];
-    logic [AXI_USER_WIDTH-1:0]   rasm_ruser   [NUM_IDS];
+        // Per-ID queue state.
+        logic [RASM_PTRW-1:0]        rasm_head    [NUM_IDS];
+        logic [RASM_PTRW-1:0]        rasm_tail    [NUM_IDS];
+        logic [RASM_CNTW-1:0]        rasm_count   [NUM_IDS];
+        logic                        rasm_assembled [NUM_IDS];
+        logic [AXI_USER_WIDTH-1:0]   rasm_ruser   [NUM_IDS];
 
-    // Scheduler state.
-    logic [AXI_ID_WIDTH-1:0]     rasm_sched_ptr;
-    logic [AXI_ID_WIDTH-1:0]     rasm_feed_id;
-    logic                        rasm_feed_active;
+        // Scheduler state.
+        logic [AXI_ID_WIDTH-1:0]     rasm_sched_ptr;
+        logic [AXI_ID_WIDTH-1:0]     rasm_feed_id;
+        logic                        rasm_feed_active;
 
-    // Output tracking: holds the ID of the burst whose converted beats are
-    // currently emerging from the primitive.  Loaded at the first output beat
-    // from the ID being fed, so it remains stable for the entire output burst
-    // even if the scheduler moves on to the next burst.
-    logic [AXI_ID_WIDTH-1:0]     rasm_out_id;
-    logic                        rasm_out_active;
+        // Output tracking: holds the ID of the burst whose converted beats are
+        // currently emerging from the primitive.  Loaded at the first output beat
+        // from the ID being fed, so it remains stable for the entire output burst
+        // even if the scheduler moves on to the next burst.
+        logic [AXI_ID_WIDTH-1:0]     rasm_out_id;
+        logic                        rasm_out_active;
 
-    // Upsize burst-start pulse: asserted from scheduler selection until the
-    // first wide beat of the burst is accepted by the dnsize primitive.  This
-    // gives a clean pulse for axi_data_dnsize's burst_start input and avoids
-    // the boundary race where rasm_feed_active clears on int_rlast in the same
-    // cycle r_burst_active goes low.
-    logic                        rasm_bstart_pending;
+        // Upsize burst-start pulse: asserted from scheduler selection until the
+        // first wide beat of the burst is accepted by the dnsize primitive.  This
+        // gives a clean pulse for axi_data_dnsize's burst_start input and avoids
+        // the boundary race where rasm_feed_active clears on int_rlast in the same
+        // cycle r_burst_active goes low.
+        logic                        rasm_bstart_pending;
 
-    // Combinational: can we accept a beat for this ID?
-    logic w_id_has_room;
-    assign w_id_has_room = (rasm_count[m_axi_rid] < RASM_CNTW'(RASM_DEPTH))
-                           && (rasm_free_count > '0);
+        // Combinational: can we accept a beat for this ID?
+        logic w_id_has_room;
+        assign w_id_has_room = (rasm_count[m_axi_rid] < RASM_CNTW'(RASM_DEPTH))
+                               && (rasm_free_count > '0);
 
-    // m_axi_rready is low only when the arriving ID's queue is full.
-    // Cannot happen for legal traffic under the reservation rule.
-    assign m_axi_rready = m_axi_rvalid && w_id_has_room;
+        // m_axi_rready is low only when the arriving ID's queue is full.
+        // Cannot happen for legal traffic under the reservation rule.
+        assign m_axi_rready = m_axi_rvalid && w_id_has_room;
 
-    // Push logic: allocate from the free list and append to the ID's queue.
-    logic [RASM_PTRW-1:0] w_alloc_ptr;
-    logic [RASM_PTRW-1:0] w_feed_next;
-    logic                 w_push;
-    logic                 w_pop;
-    logic [RASM_PTRW-1:0] w_old_free_head;
-    logic [RASM_PTRW-1:0] w_old_free_next;
-    // Scheduler / feed pointers (declared before the reassembly block that
-    // consumes them — house declaration-order rule).
-    logic [AXI_ID_WIDTH-1:0] w_sched_pick;
-    logic                    w_sched_found;
-    logic [RASM_PTRW-1:0]    w_feed_ptr;
+        // Push logic: allocate from the free list and append to the ID's queue.
+        logic [RASM_PTRW-1:0] w_alloc_ptr;
+        logic [RASM_PTRW-1:0] w_feed_next;
+        logic                 w_push;
+        logic                 w_pop;
+        logic [RASM_PTRW-1:0] w_old_free_head;
+        logic [RASM_PTRW-1:0] w_old_free_next;
+        // Scheduler / feed pointers (declared before the reassembly block that
+        // consumes them — house declaration-order rule).
+        logic [AXI_ID_WIDTH-1:0] w_sched_pick;
+        logic                    w_sched_found;
+        logic [RASM_PTRW-1:0]    w_feed_ptr;
 
-    assign w_alloc_ptr     = rasm_free_head;
-    assign w_feed_next     = rasm_pool_next[w_feed_ptr];
-    assign w_push          = m_axi_rvalid && m_axi_rready;
-    assign w_pop           = rasm_feed_active && prim_rready;
-    assign w_old_free_head = rasm_free_head;
-    assign w_old_free_next = rasm_pool_next[rasm_free_head];
+        assign w_alloc_ptr     = rasm_free_head;
+        assign w_feed_next     = rasm_pool_next[w_feed_ptr];
+        assign w_push          = m_axi_rvalid && m_axi_rready;
+        assign w_pop           = rasm_feed_active && prim_rready;
+        assign w_old_free_head = rasm_free_head;
+        assign w_old_free_next = rasm_pool_next[rasm_free_head];
 
-    // Beat store: one write port (the push), one combinational read port (the
-    // feed, w_feed_ptr) -- the LUTRAM pattern. No reset, by design (see the
-    // declarations above).
-    always_ff @(posedge aclk) begin
-        if (w_push) begin
-            rasm_pool_data[w_alloc_ptr] <= m_axi_rdata;
-            rasm_pool_resp[w_alloc_ptr] <= m_axi_rresp;
-            rasm_pool_last[w_alloc_ptr] <= m_axi_rlast;
+        // Beat store: one write port (the push), one combinational read port (the
+        // feed, w_feed_ptr) -- the LUTRAM pattern. No reset, by design (see the
+        // declarations above).
+        always_ff @(posedge aclk) begin
+            if (w_push) begin
+                rasm_pool_data[w_alloc_ptr] <= m_axi_rdata;
+                rasm_pool_resp[w_alloc_ptr] <= m_axi_rresp;
+                rasm_pool_last[w_alloc_ptr] <= m_axi_rlast;
+            end
         end
-    end
 
-    `ALWAYS_FF_RST(aclk, w_aresetn,
-        if (`RST_ASSERTED(w_aresetn)) begin
-            rasm_free_head <= '0;
-            rasm_free_count <= (RASM_PTRW+1)'(RASM_POOL_DEPTH);
-            for (int i = 0; i < RASM_POOL_DEPTH; i++) begin
-                rasm_pool_next[i] <= RASM_PTRW'(i + 1);
-            end
-            // rasm_rec_valid is owned here (single driver); the AR generate
-            // blocks drive w_rasm_push and the payload fields.
-            for (int i = 0; i < NUM_IDS; i++) begin
-                rasm_rec_valid[i] <= 1'b0;
-            end
-            for (int i = 0; i < NUM_IDS; i++) begin
-                rasm_head[i]      <= '0;
-                rasm_tail[i]      <= '0;
-                rasm_count[i]     <= '0;
-                rasm_assembled[i] <= 1'b0;
-                rasm_ruser[i]     <= '0;
-            end
-            rasm_sched_ptr      <= '0;
-            rasm_feed_active    <= 1'b0;
-            rasm_feed_id        <= '0;
-            rasm_out_active     <= 1'b0;
-            rasm_out_id         <= '0;
-            rasm_bstart_pending <= 1'b0;
-        end else begin
-            // AR record push: set the valid bit for the ID whose record the
-            // AR generate block just wrote (payload fields live there).
-            if (w_rasm_push)
-                rasm_rec_valid[w_rasm_push_id] <= 1'b1;
-
-            // Free-list maintenance: must be atomic with respect to simultaneous
-            // push and pop.  The old code had two NBAs to rasm_free_head, so a
-            // push+pop cycle lost the node after the allocated head and silently
-            // corrupted per-ID queues.
-            if (w_push || w_pop) begin
-                if (w_push && w_pop) begin
-                    // Allocate old head, return fed node to the head of the free
-                    // list; the node after the old head becomes the fed node's next.
-                    rasm_free_head             <= w_feed_ptr;
-                    rasm_pool_next[w_feed_ptr] <= w_old_free_next;
-                end else if (w_push) begin
-                    rasm_free_head <= w_old_free_next;
-                end else begin
-                    rasm_free_head             <= w_feed_ptr;
-                    rasm_pool_next[w_feed_ptr] <= w_old_free_head;
+        `ALWAYS_FF_RST(aclk, w_aresetn,
+            if (`RST_ASSERTED(w_aresetn)) begin
+                rasm_free_head <= '0;
+                rasm_free_count <= (RASM_PTRW+1)'(RASM_POOL_DEPTH);
+                for (int i = 0; i < RASM_POOL_DEPTH; i++) begin
+                    rasm_pool_next[i] <= RASM_PTRW'(i + 1);
                 end
-                rasm_free_count <= rasm_free_count + (RASM_PTRW+1)'(w_pop ? 1 : 0)
-                                                - (RASM_PTRW+1)'(w_push ? 1 : 0);
-            end
-
-            // Push arriving beat into the per-ID queue.
-            if (w_push) begin
-                // The beat itself is stored by the reset-free process below.
-                rasm_pool_next[w_alloc_ptr] <= '0;  // becomes new tail
-
-                // Link into the per-ID list.
-                if (rasm_count[m_axi_rid] == '0) begin
-                    rasm_head[m_axi_rid] <= w_alloc_ptr;
-                end else begin
-                    rasm_pool_next[rasm_tail[m_axi_rid]] <= w_alloc_ptr;
+                // rasm_rec_valid is owned here (single driver); the AR generate
+                // blocks drive w_rasm_push and the payload fields.
+                for (int i = 0; i < NUM_IDS; i++) begin
+                    rasm_rec_valid[i] <= 1'b0;
                 end
-                rasm_tail[m_axi_rid]  <= w_alloc_ptr;
-                rasm_count[m_axi_rid] <= rasm_count[m_axi_rid] + RASM_CNTW'(1);
-
-                // Capture RUSER on the first beat of each burst (pre-push
-                // count is zero on beat #1; single-beat bursts must update
-                // it too, else they present the previous burst's value).
-                if (rasm_count[m_axi_rid] == '0)
-                    rasm_ruser[m_axi_rid] <= m_axi_ruser;
-            end
-
-            // Assembly detection: a burst is assembled when its beat count
-            // matches the per-ID record and the arrived beat carries RLAST.
-            // rasm_rec_beats stores master-beat count in both directions
-            // (narrow beats for downsize, wide beats for upsize).
-            if (w_push) begin
-                if (rasm_rec_valid[m_axi_rid]) begin
-                    if ((rasm_count[m_axi_rid] + RASM_CNTW'(1) == RASM_CNTW'(rasm_rec_beats[m_axi_rid]))
-                        && m_axi_rlast) begin
-                        rasm_assembled[m_axi_rid] <= 1'b1;
-                    end
+                for (int i = 0; i < NUM_IDS; i++) begin
+                    rasm_head[i]      <= '0;
+                    rasm_tail[i]      <= '0;
+                    rasm_count[i]     <= '0;
+                    rasm_assembled[i] <= 1'b0;
+                    rasm_ruser[i]     <= '0;
                 end
-            end
-
-            // Advance the feed pointer and free consumed beats.
-            if (w_pop) begin
-                rasm_count[rasm_feed_id]   <= rasm_count[rasm_feed_id] - RASM_CNTW'(1);
-                rasm_head[rasm_feed_id]    <= w_feed_next;
-
-                if (prim_rlast) begin
-                    // End of this master burst feeding: release the primitive
-                    // input side.  The per-ID reservation clears here for
-                    // downsize so the next split of the same slave AR can
-                    // issue; for upsize it stays until int_rlast to keep the
-                    // output RID exact and to hold burst_start valid.
-                    rasm_assembled[rasm_feed_id] <= 1'b0;
-                    rasm_bstart_pending          <= 1'b0;
-                    if (DOWNSIZE) begin
-                        rasm_feed_active             <= 1'b0;
-                        rasm_rec_valid[rasm_feed_id] <= 1'b0;
-                    end
-                end
-            end
-
-            // Track which burst is currently emerging from the primitive.
-            // Load the output ID when feeding starts while no output is active;
-            // this is before the first output beat so int_rid is exact from the
-            // first beat.  rasm_out_active follows int_r_valid to mark the
-            // output window.
-            if (!rasm_out_active && rasm_feed_active) begin
-                rasm_out_active <= 1'b1;
-                rasm_out_id     <= rasm_feed_id;
-            end
-            if (int_r_valid && int_r_ready && int_rlast)
-                rasm_out_active <= 1'b0;
-
-            // Upsize only: release the feed side and per-ID reassembly record
-            // when the converted slave R burst completes.
-            if (!DOWNSIZE && int_r_valid && int_r_ready && int_rlast) begin
-                rasm_feed_active            <= 1'b0;
-                rasm_rec_valid[rasm_feed_id] <= 1'b0;
-            end
-
-            // Clear the upsize burst-start pulse once the first wide beat of
-            // the burst has been accepted by the primitive.
-            if (rasm_feed_active && prim_rready && rasm_bstart_pending)
+                rasm_sched_ptr      <= '0;
+                rasm_feed_active    <= 1'b0;
+                rasm_feed_id        <= '0;
+                rasm_out_active     <= 1'b0;
+                rasm_out_id         <= '0;
                 rasm_bstart_pending <= 1'b0;
+            end else begin
+                // AR record push: set the valid bit for the ID whose record the
+                // AR generate block just wrote (payload fields live there).
+                if (w_rasm_push)
+                    rasm_rec_valid[w_rasm_push_id] <= 1'b1;
 
-            // Start feeding a newly assembled burst when idle.  For downsize
-            // a slave burst spans multiple master splits, so keep feeding the
-            // same output ID until int_rlast completes that slave burst;
-            // otherwise another ID's split would corrupt the contiguous
-            // upsize accumulation.
-            if (!rasm_feed_active && w_sched_found) begin
-                if (!DOWNSIZE || !rasm_out_active || (w_sched_pick == rasm_out_id)) begin
-                    rasm_feed_active    <= 1'b1;
-                    rasm_feed_id        <= w_sched_pick;
-                    rasm_sched_ptr      <= w_sched_pick + AXI_ID_WIDTH'(1);
-                    rasm_bstart_pending <= !DOWNSIZE;
+                // Free-list maintenance: must be atomic with respect to simultaneous
+                // push and pop.  The old code had two NBAs to rasm_free_head, so a
+                // push+pop cycle lost the node after the allocated head and silently
+                // corrupted per-ID queues.
+                if (w_push || w_pop) begin
+                    if (w_push && w_pop) begin
+                        // Allocate old head, return fed node to the head of the free
+                        // list; the node after the old head becomes the fed node's next.
+                        rasm_free_head             <= w_feed_ptr;
+                        rasm_pool_next[w_feed_ptr] <= w_old_free_next;
+                    end else if (w_push) begin
+                        rasm_free_head <= w_old_free_next;
+                    end else begin
+                        rasm_free_head             <= w_feed_ptr;
+                        rasm_pool_next[w_feed_ptr] <= w_old_free_head;
+                    end
+                    rasm_free_count <= rasm_free_count + (RASM_PTRW+1)'(w_pop ? 1 : 0)
+                                                    - (RASM_PTRW+1)'(w_push ? 1 : 0);
+                end
+
+                // Push arriving beat into the per-ID queue.
+                if (w_push) begin
+                    // The beat itself is stored by the reset-free process below.
+                    rasm_pool_next[w_alloc_ptr] <= '0;  // becomes new tail
+
+                    // Link into the per-ID list.
+                    if (rasm_count[m_axi_rid] == '0) begin
+                        rasm_head[m_axi_rid] <= w_alloc_ptr;
+                    end else begin
+                        rasm_pool_next[rasm_tail[m_axi_rid]] <= w_alloc_ptr;
+                    end
+                    rasm_tail[m_axi_rid]  <= w_alloc_ptr;
+                    rasm_count[m_axi_rid] <= rasm_count[m_axi_rid] + RASM_CNTW'(1);
+
+                    // Capture RUSER on the first beat of each burst (pre-push
+                    // count is zero on beat #1; single-beat bursts must update
+                    // it too, else they present the previous burst's value).
+                    if (rasm_count[m_axi_rid] == '0)
+                        rasm_ruser[m_axi_rid] <= m_axi_ruser;
+                end
+
+                // Assembly detection: a burst is assembled when its beat count
+                // matches the per-ID record and the arrived beat carries RLAST.
+                // rasm_rec_beats stores master-beat count in both directions
+                // (narrow beats for downsize, wide beats for upsize).
+                if (w_push) begin
+                    if (rasm_rec_valid[m_axi_rid]) begin
+                        if ((rasm_count[m_axi_rid] + RASM_CNTW'(1) == RASM_CNTW'(rasm_rec_beats[m_axi_rid]))
+                            && m_axi_rlast) begin
+                            rasm_assembled[m_axi_rid] <= 1'b1;
+                        end
+                    end
+                end
+
+                // Advance the feed pointer and free consumed beats.
+                if (w_pop) begin
+                    rasm_count[rasm_feed_id]   <= rasm_count[rasm_feed_id] - RASM_CNTW'(1);
+                    rasm_head[rasm_feed_id]    <= w_feed_next;
+
+                    if (prim_rlast) begin
+                        // End of this master burst feeding: release the primitive
+                        // input side.  The per-ID reservation clears here for
+                        // downsize so the next split of the same slave AR can
+                        // issue; for upsize it stays until int_rlast to keep the
+                        // output RID exact and to hold burst_start valid.
+                        rasm_assembled[rasm_feed_id] <= 1'b0;
+                        rasm_bstart_pending          <= 1'b0;
+                        if (DOWNSIZE) begin
+                            rasm_feed_active             <= 1'b0;
+                            rasm_rec_valid[rasm_feed_id] <= 1'b0;
+                        end
+                    end
+                end
+
+                // Track which burst is currently emerging from the primitive.
+                // Load the output ID when feeding starts while no output is active;
+                // this is before the first output beat so int_rid is exact from the
+                // first beat.  rasm_out_active follows int_r_valid to mark the
+                // output window.
+                if (!rasm_out_active && rasm_feed_active) begin
+                    rasm_out_active <= 1'b1;
+                    rasm_out_id     <= rasm_feed_id;
+                end
+                if (int_r_valid && int_r_ready && int_rlast)
+                    rasm_out_active <= 1'b0;
+
+                // Upsize only: release the feed side and per-ID reassembly record
+                // when the converted slave R burst completes.
+                if (!DOWNSIZE && int_r_valid && int_r_ready && int_rlast) begin
+                    rasm_feed_active            <= 1'b0;
+                    rasm_rec_valid[rasm_feed_id] <= 1'b0;
+                end
+
+                // Clear the upsize burst-start pulse once the first wide beat of
+                // the burst has been accepted by the primitive.
+                if (rasm_feed_active && prim_rready && rasm_bstart_pending)
+                    rasm_bstart_pending <= 1'b0;
+
+                // Start feeding a newly assembled burst when idle.  For downsize
+                // a slave burst spans multiple master splits, so keep feeding the
+                // same output ID until int_rlast completes that slave burst;
+                // otherwise another ID's split would corrupt the contiguous
+                // upsize accumulation.
+                if (!rasm_feed_active && w_sched_found) begin
+                    if (!DOWNSIZE || !rasm_out_active || (w_sched_pick == rasm_out_id)) begin
+                        rasm_feed_active    <= 1'b1;
+                        rasm_feed_id        <= w_sched_pick;
+                        rasm_sched_ptr      <= w_sched_pick + AXI_ID_WIDTH'(1);
+                        rasm_bstart_pending <= !DOWNSIZE;
+                    end
+                end
+            end
+        )
+
+        // Scheduler: round-robin over IDs, select one with an assembled burst.
+        always_comb begin
+            w_sched_found = 1'b0;
+            w_sched_pick  = rasm_sched_ptr;
+            for (int i = 0; i < NUM_IDS; i++) begin
+                automatic int raw_idx = int'(rasm_sched_ptr) + i;
+                automatic int idx     = raw_idx % NUM_IDS;
+                if (!w_sched_found && rasm_assembled[idx]) begin
+                    w_sched_found = 1'b1;
+                    w_sched_pick  = AXI_ID_WIDTH'(idx);
                 end
             end
         end
-    )
 
-    // Scheduler: round-robin over IDs, select one with an assembled burst.
-    always_comb begin
-        w_sched_found = 1'b0;
-        w_sched_pick  = rasm_sched_ptr;
-        for (int i = 0; i < NUM_IDS; i++) begin
-            automatic int raw_idx = int'(rasm_sched_ptr) + i;
-            automatic int idx     = raw_idx % NUM_IDS;
-            if (!w_sched_found && rasm_assembled[idx]) begin
-                w_sched_found = 1'b1;
-                w_sched_pick  = AXI_ID_WIDTH'(idx);
-            end
-        end
-    end
+        // Feed logic: drive the primitive from the head of the selected ID's queue.
+        assign w_feed_ptr = rasm_head[rasm_feed_id];
 
-    // Feed logic: drive the primitive from the head of the selected ID's queue.
-    assign w_feed_ptr = rasm_head[rasm_feed_id];
-
-    assign prim_rvalid = rasm_feed_active;
-    assign prim_rdata  = rasm_pool_data[w_feed_ptr];
-    assign prim_rresp  = rasm_pool_resp[w_feed_ptr];
-    assign prim_rlast  = rasm_pool_last[w_feed_ptr];
-    assign prim_rid    = rasm_feed_id;
-    assign prim_ruser  = rasm_ruser[rasm_feed_id];
+        assign prim_rvalid = rasm_feed_active;
+        assign prim_rdata  = rasm_pool_data[w_feed_ptr];
+        assign prim_rresp  = rasm_pool_resp[w_feed_ptr];
+        assign prim_rlast  = rasm_pool_last[w_feed_ptr];
+        assign prim_rid    = rasm_feed_id;
+        assign prim_ruser  = rasm_ruser[rasm_feed_id];
 
 `ifdef SIMULATION
-    // Protocol checks: flag violations without deadlocking.
-    always_ff @(posedge aclk) begin
-        if (w_aresetn && m_axi_rvalid && m_axi_rready) begin
-            automatic int idv = int'(m_axi_rid);
-            if (!rasm_rec_valid[idv]) begin
-                $error("axi4_dwidth_converter_rd: R beat for ID %0d with no outstanding AR record", idv);
-            end
-            if (rasm_count[idv] >= RASM_CNTW'(RASM_DEPTH)) begin
-                $error("axi4_dwidth_converter_rd: ID %0d reassembly queue overflow", idv);
-            end
-            if (rasm_count[idv] + RASM_CNTW'(1) > RASM_CNTW'(rasm_rec_beats[idv])) begin
-                $error("axi4_dwidth_converter_rd: ID %0d received more R beats than AR promised", idv);
-            end
-            if ((rasm_count[idv] + RASM_CNTW'(1) < RASM_CNTW'(rasm_rec_beats[idv])) && m_axi_rlast) begin
-                $error("axi4_dwidth_converter_rd: ID %0d unexpected RLAST (beat %0d of %0d)",
-                       idv, rasm_count[idv] + RASM_CNTW'(1), rasm_rec_beats[idv]);
+        // Protocol checks: flag violations without deadlocking.
+        always_ff @(posedge aclk) begin
+            if (w_aresetn && m_axi_rvalid && m_axi_rready) begin
+                automatic int idv = int'(m_axi_rid);
+                if (!rasm_rec_valid[idv]) begin
+                    $error("axi4_dwidth_converter_rd: R beat for ID %0d with no outstanding AR record", idv);
+                end
+                if (rasm_count[idv] >= RASM_CNTW'(RASM_DEPTH)) begin
+                    $error("axi4_dwidth_converter_rd: ID %0d reassembly queue overflow", idv);
+                end
+                if (rasm_count[idv] + RASM_CNTW'(1) > RASM_CNTW'(rasm_rec_beats[idv])) begin
+                    $error("axi4_dwidth_converter_rd: ID %0d received more R beats than AR promised", idv);
+                end
+                if ((rasm_count[idv] + RASM_CNTW'(1) < RASM_CNTW'(rasm_rec_beats[idv])) && m_axi_rlast) begin
+                    $error("axi4_dwidth_converter_rd: ID %0d unexpected RLAST (beat %0d of %0d)",
+                           idv, rasm_count[idv] + RASM_CNTW'(1), rasm_rec_beats[idv]);
+                end
             end
         end
-    end
 `endif
 
-    //==========================================================================
-    // R Channel ID / USER Carry
-    //
-    //   The validated axi_data_{upsize,dnsize} primitives handle the data
-    //   payload, RRESP sideband, and LAST signalling. They do NOT carry
-    //   AXI4 transaction id (rid) or the optional ruser sideband, so we
-    //   register them on every *primitive* R handshake.  Because the
-    //   reassembly layer feeds one contiguous burst at a time, "most recent"
-    //   is exact even when master R beats arrived interleaved across IDs.
-    //==========================================================================
+        //==========================================================================
+        // R Channel ID / USER Carry
+        //
+        //   The validated axi_data_{upsize,dnsize} primitives handle the data
+        //   payload, RRESP sideband, and LAST signalling. They do NOT carry
+        //   AXI4 transaction id (rid) or the optional ruser sideband, so we
+        //   register them on every *primitive* R handshake.  Because the
+        //   reassembly layer feeds one contiguous burst at a time, "most recent"
+        //   is exact even when master R beats arrived interleaved across IDs.
+        //==========================================================================
 
-    // rasm_out_id is loaded when feeding starts while no output is active,
-    // so it is stable before the first output beat of each burst and is
-    // therefore exact for both upsize and downsize.
-    assign int_rid   = rasm_out_id;
-    assign int_ruser = rasm_ruser[rasm_out_id];
+        // rasm_out_id is loaded when feeding starts while no output is active,
+        // so it is stable before the first output beat of each burst and is
+        // therefore exact for both upsize and downsize.
+        assign int_rid   = rasm_out_id;
+        assign int_ruser = rasm_ruser[rasm_out_id];
+
+        // Mode interface.
+        assign w_cur_final = rasm_rec_final[rasm_feed_id];
+        assign w_bstart    = rasm_bstart_pending;
+        assign w_blen      = rasm_rec_nlen[rasm_feed_id];
+        assign w_blane     = 8'(rasm_rec_lane[rasm_feed_id]);
+        assign prim_sb     = prim_rresp;
+
+    end else begin : gen_rbypass
+        //======================================================================
+        // R_INTERLEAVE = 0: no reassembly.
+        //
+        //   The source never interleaves beats of different R bursts, so
+        //   each burst reaches the primitive contiguously as it arrives:
+        //   no pool, no store-and-forward.  Bursts of different IDs may
+        //   still come back in any order, so the per-ID AR records and the
+        //   one-burst-per-ID reservation are kept, looked up by the
+        //   ARRIVING beat's RID.
+        //
+        //   DOWNSIZE (narrow master bursts folded into wide beats): every
+        //   master burst is a whole number of wide beats from lane 0
+        //   (splits are 256 narrow beats, 256 is a multiple of the ratio),
+        //   so no wide beat spans two bursts and another ID's burst may
+        //   arrive between the splits of a slave burst.  It must be
+        //   accepted: refusing it would hold an R arbiter that holds
+        //   through RLAST, and the waiting split could never arrive.
+        //
+        //   UPSIZE (wide master beats sliced to narrow): the dnsize
+        //   primitive frames one burst at a time from burst_len, so a new
+        //   burst enters only once the previous one has left it.
+        //======================================================================
+        logic r_in_open;    // a burst has entered the primitive, RLAST not yet
+        logic r_out_open;   // UPSIZE: a burst is still leaving the primitive
+        logic w_gate;
+        logic w_prim_hs;
+        logic w_out_hs;
+
+        assign w_gate    = DOWNSIZE ? 1'b1 : (r_in_open || !r_out_open);
+        assign w_prim_hs = prim_rvalid && prim_rready;
+        assign w_out_hs  = int_r_valid && int_r_ready;
+
+        assign prim_rvalid  = m_axi_rvalid && w_gate;
+        assign m_axi_rready = prim_rready && w_gate;
+        assign prim_rid     = m_axi_rid;
+        assign prim_rdata   = m_axi_rdata;
+        assign prim_rresp   = m_axi_rresp;
+        assign prim_rlast   = m_axi_rlast;
+        assign prim_ruser   = m_axi_ruser;
+
+        assign w_cur_final = rasm_rec_final[m_axi_rid];
+        assign w_bstart    = m_axi_rvalid && w_gate && !r_in_open;
+        assign w_blen      = rasm_rec_nlen[m_axi_rid];
+        assign w_blane     = 8'(rasm_rec_lane[m_axi_rid]);
+        assign prim_sb     = {prim_rresp, prim_rid, prim_ruser};
+
+        assign int_rid   = int_sb[AXI_USER_WIDTH +: AXI_ID_WIDTH];
+        assign int_ruser = int_sb[AXI_USER_WIDTH-1:0];
+
+        `ALWAYS_FF_RST(aclk, w_aresetn,
+            if (`RST_ASSERTED(w_aresetn)) begin
+                for (int i = 0; i < NUM_IDS; i++) begin
+                    rasm_rec_valid[i] <= 1'b0;
+                end
+                r_in_open  <= 1'b0;
+                r_out_open <= 1'b0;
+            end else begin
+                if (w_prim_hs)
+                    r_in_open <= !prim_rlast;
+                if (!DOWNSIZE) begin
+                    if (w_out_hs && int_rlast)
+                        r_out_open <= 1'b0;
+                    if (w_prim_hs && !r_in_open)
+                        r_out_open <= 1'b1;
+                end
+                // Release the reservation where gen_rasm does: a master
+                // burst fully taken (DOWNSIZE), or its converted slave
+                // burst fully sent (UPSIZE).  An ID's AR is gated on its
+                // slot being free, so set and clear never meet on one ID.
+                if (DOWNSIZE && w_prim_hs && prim_rlast)
+                    rasm_rec_valid[m_axi_rid] <= 1'b0;
+                if (!DOWNSIZE && w_out_hs && int_rlast)
+                    rasm_rec_valid[int_rid] <= 1'b0;
+                if (w_rasm_push)
+                    rasm_rec_valid[w_rasm_push_id] <= 1'b1;
+            end
+        )
+
+`ifdef SIMULATION
+        logic [AXI_ID_WIDTH-1:0] r_in_id;
+        always_ff @(posedge aclk)
+            if (m_axi_rvalid && m_axi_rready && !r_in_open)
+                r_in_id <= m_axi_rid;
+        always_ff @(posedge aclk) begin
+            if (w_aresetn && m_axi_rvalid && m_axi_rready && !rasm_rec_valid[m_axi_rid])
+                $error("axi4_dwidth_converter_rd: R beat for ID %0d with no outstanding AR record (R_INTERLEAVE=0)",
+                       m_axi_rid);
+            if (w_aresetn && m_axi_rvalid && r_in_open && (m_axi_rid != r_in_id))
+                $error("axi4_dwidth_converter_rd: R_INTERLEAVE=0 but ID %0d interleaved into ID %0d's burst",
+                       m_axi_rid, r_in_id);
+        end
+`endif
+    end endgenerate
+
+    // RRESP leaves the primitive in the sideband's top field in both modes.
+    assign int_rresp = int_sb[PSB_W-1 -: 2];
 
     //==========================================================================
     // R Channel Data Conversion (delegates to validated primitives)
@@ -830,15 +962,14 @@ module axi4_dwidth_converter_rd #(
             // reassembly scheduler. narrow_last is gated by the per-ID
             // record's final flag so only the last split of a slave burst
             // terminates the upsize accumulation.
-            assign arsplit_final = rasm_rec_final[rasm_feed_id];
-            assign arsplit_pop   = rasm_feed_active && prim_rready && prim_rlast
-                                   && rasm_rec_final[rasm_feed_id];
+            assign arsplit_final = w_cur_final;
+            assign arsplit_pop   = prim_rvalid && prim_rready && prim_rlast && w_cur_final;
 
             axi_data_upsize #(
                 .NARROW_WIDTH    (M_AXI_DATA_WIDTH),
                 .WIDE_WIDTH      (S_AXI_DATA_WIDTH),
-                .NARROW_SB_WIDTH (2),
-                .WIDE_SB_WIDTH   (2),
+                .NARROW_SB_WIDTH (PSB_W),
+                .WIDE_SB_WIDTH   (PSB_W),
                 .SB_OR_MODE      (1)
             ) u_r_upsize (
                 .aclk            (aclk),
@@ -846,13 +977,13 @@ module axi4_dwidth_converter_rd #(
                 .narrow_valid    (prim_rvalid),
                 .narrow_ready    (prim_rready),
                 .narrow_data     (prim_rdata),
-                .narrow_sideband (prim_rresp),
+                .narrow_sideband (prim_sb),
                 .narrow_last     (prim_rlast && arsplit_final),
                 .start_lane      ('0),  // narrow master fetches from the exact addresses
                 .wide_valid      (int_r_valid),
                 .wide_ready      (int_r_ready),
                 .wide_data       (int_rdata),
-                .wide_sideband   (int_rresp),
+                .wide_sideband   (int_sb),
                 .wide_last       (int_rlast)
             );
 
@@ -885,20 +1016,20 @@ module axi4_dwidth_converter_rd #(
             // cleanly without a boundary race between rasm_feed_active and
             // the primitive's internal r_burst_active flag.
             assign w_blen_wr_ready = 1'b1;
-            assign w_blen_rd_valid = rasm_bstart_pending;
-            assign w_blen_rd_data  = rasm_rec_nlen[rasm_feed_id];
-            assign w_blen_rd_lane  = 8'(rasm_rec_lane[rasm_feed_id]);
+            assign w_blen_rd_valid = w_bstart;
+            assign w_blen_rd_data  = w_blen;
+            assign w_blen_rd_lane  = w_blane;
 
             // Burst record pop: the per-ID slot is already cleared by the
             // reassembly scheduler when the fed last beat is consumed, but
             // keep a legacy pulse for documentation.
-            assign w_blen_pop = rasm_feed_active && prim_rready && prim_rlast;
+            assign w_blen_pop = prim_rvalid && prim_rready && prim_rlast;
 
             axi_data_dnsize #(
                 .WIDE_WIDTH       (M_AXI_DATA_WIDTH),
                 .NARROW_WIDTH     (S_AXI_DATA_WIDTH),
-                .WIDE_SB_WIDTH    (2),
-                .NARROW_SB_WIDTH  (2),
+                .WIDE_SB_WIDTH    (PSB_W),
+                .NARROW_SB_WIDTH  (PSB_W),
                 .SB_BROADCAST     (1),
                 .TRACK_BURSTS     (1),
                 .BURST_LEN_WIDTH  (8)
@@ -911,12 +1042,12 @@ module axi4_dwidth_converter_rd #(
                 .wide_valid      (prim_rvalid),
                 .wide_ready      (prim_rready),
                 .wide_data       (prim_rdata),
-                .wide_sideband   (prim_rresp),
+                .wide_sideband   (prim_sb),
                 .wide_last       (prim_rlast),
                 .narrow_valid    (int_r_valid),
                 .narrow_ready    (int_r_ready),
                 .narrow_data     (int_rdata),
-                .narrow_sideband (int_rresp),
+                .narrow_sideband (int_sb),
                 .narrow_last     (int_rlast)
             );
         end

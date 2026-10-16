@@ -613,7 +613,8 @@ module bridge_4x4_rw_dma0_master_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(4)
+        .SKID_DEPTH_R(4),
+        .R_INTERLEAVE(0)
     ) u_rd_conv_64b (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -753,7 +754,8 @@ module bridge_4x4_rw_dma0_master_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(4)
+        .SKID_DEPTH_R(4),
+        .R_INTERLEAVE(0)
     ) u_rd_conv_128b (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -893,7 +895,8 @@ module bridge_4x4_rw_dma0_master_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(4)
+        .SKID_DEPTH_R(4),
+        .R_INTERLEAVE(0)
     ) u_rd_conv_256b (
         .aclk(aclk),
         .aresetn(aresetn),

@@ -499,7 +499,8 @@ module bridge_5x3_channels_cpu_master_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(4)
+        .SKID_DEPTH_R(4),
+        .R_INTERLEAVE(0)
     ) u_rd_conv_32b (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -639,7 +640,8 @@ module bridge_5x3_channels_cpu_master_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(4)
+        .SKID_DEPTH_R(4),
+        .R_INTERLEAVE(0)
     ) u_rd_conv_256b (
         .aclk(aclk),
         .aresetn(aresetn),

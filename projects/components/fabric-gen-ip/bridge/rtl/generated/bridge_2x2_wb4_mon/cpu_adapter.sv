@@ -674,7 +674,8 @@ module bridge_2x2_wb4_mon_cpu_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(4)
+        .SKID_DEPTH_R(4),
+        .R_INTERLEAVE(0)
     ) u_rd_conv_64b (
         .aclk(aclk),
         .aresetn(aresetn),

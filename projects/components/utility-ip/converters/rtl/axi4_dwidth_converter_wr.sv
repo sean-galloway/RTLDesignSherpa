@@ -685,12 +685,14 @@ module axi4_dwidth_converter_wr #(
                 logic [AXI_ID_WIDTH-1:0] id;
                 logic [7:0]              count;
                 logic [1:0]              worst;
-                logic [B_CAM_AW:0]       age;
             } b_cam_entry_t;
 
             b_cam_entry_t b_cam [B_CAM_DEPTH];
             logic [B_CAM_DEPTH-1:0]  b_cam_valid;
-            logic [B_CAM_AW:0]       r_b_cam_next_age;
+            // b_cam_older[i]: the entries of i's ID that were live when i
+            // was pushed -- all older than i.  i is its ID's oldest live
+            // entry once none of them is still valid.
+            logic [B_CAM_DEPTH-1:0]  b_cam_older [B_CAM_DEPTH];
 
             // The burst currently being split.  The AW splitter finishes one
             // slave burst before accepting the next, so a single open-burst
@@ -722,33 +724,30 @@ module axi4_dwidth_converter_wr #(
             assign w_b_cam_slot_free = w_b_cam_free_found;
 
             // Find the oldest outstanding burst matching the current B ID.
-            // bridge BUG-016: best_age must be one bit WIDER than the entry
-            // age field. Entries take ages 0..31; with best_age the same
-            // width, its '1 init is 31 and an entry aged exactly 31 fails
-            // the strict `<` -- every 32nd burst's B then matches nothing,
-            // is swallowed (m_axi_bready's no-match arm is 1'b1), and the
-            // master waits for a B that has already been consumed.
-            // INVARIANT (owner, 2026-10-04): same-ID bursts are ALWAYS
-            // serialized (AXI same-ID ordering, enforced by the AW
-            // splitter), so at most one entry per ID is ever live and the
-            // age order within an ID can never be observed. Ages only
-            // order candidates during the search; the wrap at 32 is moot.
-            logic [B_CAM_AW-1:0] w_b_cam_idx;
-            logic                w_b_cam_match;
-            logic [B_CAM_AW+1:0] w_b_cam_best_age;
+            // Same-ID B responses return in order, so the B belongs to that
+            // ID's oldest live entry: the one whose older-set has fully
+            // retired.  Exactly one entry qualifies, so the index is an OR
+            // reduction (GitHub #119).  This replaced a 16-way serial
+            // age-compare loop that synthesized to a ~32-LUT chain (WNS
+            // -30 ns at 100 MHz on the Artix-7) and whose 5-bit age wrapped
+            // at 32 (bridge BUG-016).  Correct whether or not same-ID bursts
+            // are serialized: with at most one live entry per ID (the owner
+            // invariant recorded at BUG-016) every older-set is empty.
+            logic [B_CAM_DEPTH-1:0] w_b_cam_hit;
+            logic [B_CAM_AW-1:0]    w_b_cam_idx;
+            logic                   w_b_cam_match;
+            logic [B_CAM_DEPTH-1:0] w_b_cam_same_id;   // live entries of the pushed AWID
             always_comb begin
-                w_b_cam_match    = 1'b0;
-                w_b_cam_idx      = '0;
-                w_b_cam_best_age = '1;
+                w_b_cam_idx = '0;
                 for (int i = 0; i < B_CAM_DEPTH; i++) begin
-                    if (b_cam_valid[i] && (b_cam[i].id == m_axi_bid) &&
-                        ({1'b0, b_cam[i].age} < w_b_cam_best_age)) begin
-                        w_b_cam_best_age = {1'b0, b_cam[i].age};
-                        w_b_cam_idx      = B_CAM_AW'(i);
-                        w_b_cam_match    = 1'b1;
-                    end
+                    w_b_cam_hit[i] = b_cam_valid[i] && (b_cam[i].id == m_axi_bid) &&
+                                     ((b_cam_older[i] & b_cam_valid) == '0);
+                    w_b_cam_same_id[i] = b_cam_valid[i] && (b_cam[i].id == int_awid);
+                    if (w_b_cam_hit[i])
+                        w_b_cam_idx = w_b_cam_idx | B_CAM_AW'(i);
                 end
             end
+            assign w_b_cam_match = |w_b_cam_hit;
 
             // Drive B channel outputs.
             assign int_bid      = m_axi_bid;
@@ -766,10 +765,10 @@ module axi4_dwidth_converter_wr #(
                     r_b_open_valid   <= 1'b0;
                     r_b_open_id      <= '0;
                     r_b_open_count   <= '0;
-                    r_b_cam_next_age <= '0;
                     for (int i = 0; i < B_CAM_DEPTH; i++) begin
                         b_cam_valid[i] <= 1'b0;
                         b_cam[i]       <= '0;
+                        b_cam_older[i] <= '0;
                     end
                 end else begin
                     // Track the burst currently being split.
@@ -798,8 +797,12 @@ module axi4_dwidth_converter_wr #(
                             b_cam[w_b_cam_free_idx].id    <= int_awid;
                             b_cam[w_b_cam_free_idx].count <= w_b_cam_push_count;
                             b_cam[w_b_cam_free_idx].worst <= 2'b00;
-                            b_cam[w_b_cam_free_idx].age   <= r_b_cam_next_age;
-                            r_b_cam_next_age <= r_b_cam_next_age + 1'b1;
+                            // The slot's previous occupant is gone: drop it
+                            // from every older-set, then record which live
+                            // entries of this ID the new one waits behind.
+                            for (int i = 0; i < B_CAM_DEPTH; i++)
+                                b_cam_older[i][w_b_cam_free_idx] <= 1'b0;
+                            b_cam_older[w_b_cam_free_idx] <= w_b_cam_same_id;
                         end
                     end
 

@@ -362,9 +362,14 @@ one slave B response. This is now done with a per-burst CAM keyed by AWID:
   with the same AWID, decrements that entry's counter, folds the response
   (worst-case BRESP wins), and forwards a slave B only when the counter
   reaches zero.
-- Same-ID bursts complete in issue order because they share one age-ordered
-  chain per ID. Cross-ID bursts can complete in any order because each ID is
-  matched independently.
+- Same-ID bursts complete in issue order: each entry records, when it is
+  pushed, which live entries of its ID are older, and a B matches the entry
+  whose older entries have all retired. Exactly one entry qualifies, so the
+  index is an OR reduction. Cross-ID bursts can complete in any order
+  because each ID is matched independently. (Until 2026-10-16 this was a
+  16-way serial age compare; inside a bridge it synthesized to a ~32-LUT
+  chain, -30 ns at 100 MHz on the Artix-7, and its 5-bit age wrapped at
+  32 -- bridge BUG-016.)
 - The CAM drains on B return while the split queue drains on W framing, so
   split-queue space does not bound CAM occupancy: a burst's FINAL master AW
   is gated on a free CAM slot (`w_b_cam_slot_free`). Without the gate a flood
