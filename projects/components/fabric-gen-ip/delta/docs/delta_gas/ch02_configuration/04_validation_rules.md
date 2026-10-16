@@ -28,10 +28,14 @@ The generator validates CLI arguments through `argparse` and additional checks i
 
 | Rule | Behavior |
 |------|----------|
-| `--topology` must be `flat`, `tree`, or `both`. | Enforced by `choices`. |
+| `--topology` must be `flat`, `tree`, `both`, or `mesh`. | Enforced by `choices`. |
 | `--masters` and `--slaves` are required integers. | Enforced by `required=True`. |
 | `--strb-width` must be >= 0. | Custom check; negative values raise an error. |
 | `--amba5` requires `--data-width % 8 == 0`. | Custom check; `TDATACHK` is one bit per `TDATA` byte (IHI 0051B Table 5-1). |
+| `--cells-x`, `--cells-y`, `--cells-z` must be >= 1 | Mesh-only; enforced in `validate_mesh`. |
+| A torus wrap on a dimension requires >= 2 cells in that dimension | Mesh-only; enforced in `validate_mesh`. |
+| `--fifo-impl` must be `reg` or `sram` | Mesh-only; enforced in `validate_mesh`. |
+| `--user-width` must be >= the mesh header width | Mesh-only; enforced in `validate_mesh`; header width is `6 * COORD_W + 32`. |
 
 : CLI-Level Validation Rules
 
@@ -49,9 +53,9 @@ The generator validates CLI arguments through `argparse` and additional checks i
 
 The generator does **not** currently validate that `strb_width` matches `data_width/8`; callers must ensure the width is consistent with their byte-qualifier policy.
 
-## Mesh topology validation (planned)
+## Mesh topology validation
 
-> **PLANNED** These rules apply to the mesh CLI defined in the [2026-10-13 mesh design spec](../../../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md). They are not enforced until mesh mode is implemented.
+> **IMPLEMENTED** These rules apply to the mesh CLI defined in the [2026-10-13 mesh design spec](../../../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md). They are enforced by `validate_mesh` in `bin/delta_mesh/config.py`.
 
 | Rule | Rationale |
 |------|-----------|
@@ -59,25 +63,26 @@ The generator does **not** currently validate that `strb_width` matches `data_wi
 | `torus` wrap in a dimension requires `>= 2` cells in that dimension | A one-cell dimension cannot form a ring. |
 | `data-width > 0` | Same baseline requirement as flat mode. |
 | `user-width` must fit the mesh flit header | The head-flit `TUSER` carries dest/src coordinates, QoS class, VC, multicast flag, misroute budget, source-route pointer, and packet ID. |
+| `--fifo-impl` must be `reg` or `sram` | Selects the input buffer implementation style. The `sram` choice is accepted by validation but not yet wired to the cell (issue #118). |
 | `--amba5` still requires whole-byte `data-width` | AMBA 5 sidebands carry over unchanged from flat mode. |
 
 : Mesh Topology Validation Rules
 
 ### Header width budget
 
-The planned flit header uses these fields on the head beat:
+The implemented flit header uses these fields on the head beat:
 
 | Field | Width |
 |---|---|
-| dest coord | `3 * COORD_W` |
-| src coord | `3 * COORD_W` |
+| `dst_x`, `dst_y`, `dst_z` | `3 * COORD_W` |
+| `src_x`, `src_y`, `src_z` | `3 * COORD_W` |
 | QoS class | 2 |
-| VC | 1 |
 | multicast | 1 |
-| misroute budget | 3 |
-| source-route pointer | 4 |
-| packet ID | 4 |
+| VC | 1 |
+| misroute budget | 4 |
+| source-route pointer | 8 |
+| packet ID | 16 |
 
-: Planned Head-Flit Header Fields
+: Implemented Head-Flit Header Fields
 
-`COORD_W` is sized by the fabric dimensions. The total header width is `6 * COORD_W + 15`. Validation will reject a `--user-width` smaller than this value. The two VCs and three QoS classes are fixed; the header must encode VC (1 bit) and QoS (2 bits) without truncation.
+`COORD_W = max(1, ceil(log2(max(cells-x, cells-y, cells-z))))`. The total header width is `6 * COORD_W + 32`. Validation rejects a `--user-width` smaller than this value. The two VCs and three QoS classes are fixed; the header must encode VC (1 bit) and QoS (2 bits) without truncation.

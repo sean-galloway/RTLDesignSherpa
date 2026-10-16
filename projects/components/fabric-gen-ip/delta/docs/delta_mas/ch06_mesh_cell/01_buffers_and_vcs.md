@@ -23,18 +23,18 @@
 
 # Buffers and Virtual Channels
 
-> **PLANNED:** This chapter describes the planned `delta_mesh_cell` microarchitecture per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). No RTL implementation exists yet.
+> **IMPLEMENTED:** This chapter describes the `delta_mesh_cell` microarchitecture as built. The design is per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
 ## Per-Port Input Buffer Organization
 
-Each `delta_mesh_cell` has seven AXI4-Stream input ports: six neighbor ports (±X, ±Y, ±Z) and one local port. Every input port keeps two virtual channels, so the buffering resource is `7 ports × 2 VCs`. Each VC is a physically separate buffer partition with its own single-port readout; the two partitions on one port share only the incoming flit stream up to the VC demux.
+Each `delta_mesh_cell` has nine AXI4-Stream input ports: six axis neighbor ports (±X, ±Y, ±Z), one diagonal tetrad port (P_DIA), one diagonal tile port (P_DIA2), and one local port. P_DIA and P_DIA2 are the two instances of the single conceptual diagonal axis. Every input port keeps two virtual channels, so the buffering resource is `9 ports × 2 VCs`. Each VC is a physically separate buffer partition with its own single-port readout; the two partitions on one port share only the incoming flit stream up to the VC demux.
 
 | Resource | Count per cell | Notes |
 |---|---|---|
-| Input ports | 7 | 6 neighbor + 1 local |
+| Input ports | 9 | 6 axis + P_DIA + P_DIA2 + 1 local |
 | VCs per port | 2 | VC0 = escape, VC1 = adaptive/QoS alternate |
-| Buffer partitions | 14 | one single-port readout array per VC |
-| Read ports consumed | 7 | one per input port, multiplexing its two VCs into the pipeline |
+| Buffer partitions | 18 | one single-port readout array per VC |
+| Read ports consumed | 9 | one per input port, multiplexing its two VCs into the pipeline |
 
 : Input buffer organization
 

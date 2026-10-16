@@ -25,9 +25,9 @@
 
 ## Routing Tables
 
-> **PLANNED** — The mesh cell RTL and its routing tables are not yet implemented. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
+> **IMPLEMENTED** — `delta_mesh_cell` contains a RAM routing table. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
-Each `delta_mesh_cell` holds a RAM routing table. The lookup key is `(destination coordinate, QoS class)` and the result is `(output port mask, VC)`. Because QoS classes are isolated, each class can have an independent route to the same destination, giving path diversity without changing the cell datapath.
+Each `delta_mesh_cell` holds a RAM routing table. The lookup key is `(destination coordinate, QoS class)` and the result is `(output port mask, VC)`. Because QoS classes are isolated, each class can have an independent route to the same destination, giving path diversity without changing the cell datapath. The output port mask is 9 bits wide, one bit per cell port.
 
 The table is a standard node-table implementation: one lookup per hop. That lookup penalty is why source-route mode (§7.3) exists for latency-critical systolic schedules.
 
@@ -53,4 +53,4 @@ Per-cell unicast loading is the primary way to install custom routes: N cells ×
 
 A broadcast mode-switch message switches the entire fabric to one of the standard modes. Every cell stores generator-emitted images for the standard modes in ROM or preloaded RAM. The new mode applies only after a fabric-wide ack barrier: each cell returns a config read-response ack, and the injector treats the mode as active only when all acks are in. No packet straddles two modes.
 
-Mode 0 is custom — the per-cell unicast tables. Modes 1-8 are the standard fabric modes. Switching among standard modes does not touch the custom tables.
+Mode 0 is custom — the per-cell unicast tables. Modes 1-10 are the standard fabric modes (modes 9 and 10 added 2026-10-15 for the P_DIA/P_DIA2 diagonal-axis K4 images). Switching among standard modes does not touch the custom tables.

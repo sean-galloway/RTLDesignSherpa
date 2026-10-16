@@ -25,7 +25,7 @@
 
 ## Three Traffic Classes
 
-> **PLANNED** — The mesh cell RTL is not yet implemented. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
+> **IMPLEMENTED** — QoS arbitration is built into `delta_mesh_cell`. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
 Delta's mesh defines 3 QoS classes:
 

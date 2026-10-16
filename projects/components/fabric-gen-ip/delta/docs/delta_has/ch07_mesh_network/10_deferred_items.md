@@ -23,9 +23,14 @@
 
 # Deferred Items
 
-> **PLANNED** — The mesh cell RTL is not yet implemented. The items below are recorded from the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`) and are explicitly not part of the current design.
+> **STATUS** — The mesh cell RTL is implemented. The items below remain deferred or are tracked in other workstreams.
 
 The following features were considered and deferred:
+
+- **CXS migration** — rapids gains a CXS interface variant first; delta ports move to CXS only after both sides are ready (owner plan, 2026-10-15; parallel rapids_cxs work).
+- **MonBus observation aggregation** — the tetrad/tile wrappers that merge cell MonBus streams live in the compute-eng-ip tile IP, not in delta (parallel session; datapath unchanged).
+- **Route lookahead to 1 cycle/hop** — the aspirational systolic target; current measured pipeline is 4 cycles/hop (issue #120).
+- **SRAM FIFO_IMPL** — the `--fifo-impl sram` option hangs in the current RTL (issue #118); regression uses `--fifo-impl reg`.
 
 - **GT/TDM slot-table circuits** — Ethereal/NoC slot tables, headerless GT flits, end-to-end credit flow control, and optional VOQ. Phase-2 candidate.
 - **Fault-tolerant routing** — block fault regions, software absorb/reinject, and fault-status registers.

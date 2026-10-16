@@ -23,22 +23,26 @@
 
 # Verification Targets
 
-> **PLANNED:** This chapter describes the planned `delta_mesh_cell` verification strategy per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). No RTL implementation exists yet.
+> **IMPLEMENTED:** This chapter describes the `delta_mesh_cell` verification suites as built. The design is per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
 ## cocotb Suites
 
-The mesh verification plan is eight cocotb suites, each driven by a different generator configuration.
+The mesh verification plan is ten cocotb suites, each driven by a different generator configuration.
 
 | Suite | Focus | Pass criteria |
 |---|---|---|
-| Routing | Reset DOR, programmed tables, config load + readback | Correct output port per table; readback matches write |
+| Cell routing | Reset DOR, programmed tables, config load + readback | Correct output port per table; readback matches write |
+| Fabric 2x2 | All-pairs delivery across multi-hop paths | Every packet delivers exactly once |
+| Flow control | Credit exhaustion, atomicity, steady-state throughput | No loss, no interleaving, sustained 1 flit/clk |
+| Tables | Malformed-dst drop, cross-VC drop drain, table reroute | Drop counted once; drain stays on its own VC |
+| Modes | Broadcast mode-switch, ack barrier, mode images 1/2/3/5/6 | Barrier completes; traffic routes per selected image |
+| Tetrad | Mode 9 K4 all-to-all, P_DIA one-hop latency | All 12 ordered pairs deliver in 1 hop |
+| Tile | Mode 10 K4-of-tetrads, P_DIA2 one-hop latency | Diagonal-tetrad pairs deliver in 1 hop |
 | QoS | Strict priority, aging inversion, bulk reservation | Class order under saturation; bulk minimum bandwidth |
-| Multicast | Fanout correctness, no-response rule, delivery-VC soak | All destinations receive exactly one copy; no deadlock |
-| Deadlock soak | Random adversarial-but-valid tables, VC1 stress with VC0 escape | No hangs to N × 10^6 flits |
-| Systolic | Torus ring, wavefront, source-route fixed latency, 3-D stencil | 1 cycle/hop steady state where lookahead applies |
-| Counters | Every ocelus counter against golden model | Count match over scripted traffic |
-| DFT mode | Three patterns route correctly | Pattern count and `test_active` behavior |
-| Perf model calibration | Measured vs modeled latency/throughput | Reported deltas within tolerance |
+| Multicast | Fanout correctness, no-response rule, deadlock soak | All destinations receive exactly one copy; 10^6-flit soak green |
+| Counters | Counter bank readback, DFT escape | Readback matches scripted traffic; DFT pattern switches |
+| Systolic | Torus ring, dateline, source-route, speculation | Ring latency measured; dateline forces VC0; SR bypasses table drop; speculation parity |
+| Perf model calibration | Tornado pattern at three loads vs `bin/delta_mesh_perf.py` | Zero-load T0 within 20% of model; loaded deltas recorded |
 
 : Mesh cocotb verification suites
 

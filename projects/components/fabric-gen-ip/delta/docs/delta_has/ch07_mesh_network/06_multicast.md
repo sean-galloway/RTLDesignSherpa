@@ -25,7 +25,7 @@
 
 ## VC0 Only
 
-> **PLANNED** — The mesh cell RTL is not yet implemented. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
+> **IMPLEMENTED** — multicast is built into `delta_mesh_cell`. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
 Multicast packets use VC0 only. Restricting multicast to the escape channel keeps the multicast paths inside the same connected, acyclic subrelation used by unicast traffic, so multicast adds no new channel dependencies beyond the unicast deadlock proof.
 

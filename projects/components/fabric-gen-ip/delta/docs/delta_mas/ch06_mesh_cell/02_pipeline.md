@@ -23,7 +23,7 @@
 
 # Pipeline Stages
 
-> **PLANNED:** This chapter describes the planned `delta_mesh_cell` microarchitecture per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). No RTL implementation exists yet.
+> **IMPLEMENTED:** This chapter describes the `delta_mesh_cell` pipeline as built. The design is per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
 The cell pipeline is organized as five stages. Each stage is a valid/ready skid so a downstream stall does not corrupt state.
 
@@ -46,9 +46,9 @@ The cell pipeline is organized as five stages. Each stage is a valid/ready skid 
 
 ## Route Lookahead
 
-The steady-state target is one cycle per hop. That only works if the route decision for hop `n+1` is computed while the flit is still traversing hop `n`. The head flit carries enough sideband in `TUSER` to let the next cell determine its own output port without an extra lookup cycle [P17]. Body flits follow the same path until `TLAST` releases the switch grant. If lookahead is disabled or the head flit arrives on a non-default VC, the cell pays the full table-lookup latency and throughput drops to one flit every two or three cycles.
+The steady-state target is one cycle per hop. That only works if the route decision for hop `n+1` is computed while the flit is still traversing hop `n`. The head flit carries enough sideband in `TUSER` to let the next cell determine its own output port without an extra lookup cycle [P17]. Body flits follow the same path until `TLAST` releases the switch grant.
 
-> **Design note:** Lookahead works only when the route is known statically or can be derived from the destination coordinate alone. Adaptive VC1 routes that depend on local congestion cannot be lookahead-computed by the previous hop; those packets take the slower path.
+Measured latency on the ring and tetrad suites is 4 cycles/hop today (issue #120). The 1 cycle/hop steady-state target is deferred; the current pipeline pays the full table-lookup and grant latency per hop. Source-route mode can bypass the table lookup for fixed-latency systolic schedules.
 
 ## Speculative VC and Switch Allocation
 

@@ -30,7 +30,7 @@ python3 delta_generator.py --masters 2 --slaves 4 --data-width 64 --output-dir .
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--topology` | `flat` | `flat` (implemented), `tree` (retired scaffolding), `both` (legacy alias; retired), or `mesh` (planned). |
+| `--topology` | `flat` | `flat` (implemented), `tree` (retired scaffolding), `both` (legacy alias; retired), or `mesh` (implemented). |
 | `--masters` | required | Number of master interfaces. |
 | `--slaves` | required | Number of slave interfaces. |
 | `--data-width` | 64 | `TDATA` width in bits. |
@@ -53,16 +53,22 @@ python3 delta_generator.py --masters 2 --slaves 4 --data-width 64 --output-dir .
 
 : complete_tree_generator.py CLI Flags
 
-> **PLANNED** The mesh CLI below is the interface proposed by the [2026-10-13 mesh design spec](../../../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md). It is not implemented yet and is subject to change when implementation starts.
+> **IMPLEMENTED** The mesh CLI below is implemented and exercised in regression. It is per the [2026-10-13 mesh design spec](../../../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md).
 >
 > ```bash
-> delta_generator.py --topology mesh \
->   --cells-x 4 --cells-y 4 --cells-z K \
->   [--torus=x,y,z] [--source-route] [--speculation] \
->   [--data-width N] [--user-width N] [--amba5] [--no-counters] ...
+> python3 delta_generator.py --topology mesh \
+>   --cells-x 4 --cells-y 4 --cells-z 1 \
+>   [--torus-x] [--torus-y] [--torus-z] \
+>   [--torus x,y,z] \
+>   [--source-route] [--speculation] \
+>   [--fifo-impl reg|sram] \
+>   [--data-width N] [--user-width N] [--amba5] [--no-counters] \
+>   --output-dir ../rtl
 > ```
 >
-> Mesh mode emits one cell module, `delta_mesh_cell`, and a fabric top that instantiates the `cells-x` × `cells-y` × `cells-z` grid. The hierarchy names (cell, tile, confluence, fabric) are for placement and documentation; the generator does not emit wrapper RTL for each level. The cell input buffers will expose a FIFO implementation knob (register file vs. SRAM).
+> Mesh mode emits one cell module, `delta_mesh_cell.sv`, and a fabric top, `delta_mesh_fabric_<X>x<Y>x<Z>.sv`, that instantiates the `cells-x` × `cells-y` × `cells-z` grid. The hierarchy names (cell, tile, confluence, fabric) are for placement and documentation; the generator does not emit wrapper RTL for each level. The `--fifo-impl` knob selects register-file (`reg`, default) or SRAM (`sram`) input buffers; the SRAM option is not yet wired to the cell (issue #118).
+>
+> `--masters` and `--slaves` are not used in mesh mode; the fabric dimensions define the topology instead.
 
 ## Programmatic API
 
@@ -88,6 +94,30 @@ cfg = DeltaConfig(
 
 gen = DeltaFlatCrossbar(cfg)
 gen.verilog("../rtl")
+```
+
+## Programmatic API for mesh
+
+```python
+from delta_mesh import DeltaMeshConfig, generate_mesh, validate_mesh
+
+cfg = DeltaMeshConfig(
+    cells_x=4,
+    cells_y=4,
+    cells_z=1,
+    torus_x=False,
+    torus_y=False,
+    torus_z=False,
+    source_route=False,
+    speculation=False,
+    fifo_impl="reg",
+    data_width=64,
+    user_width=44,   # must be >= 6*COORD_W + 32; here COORD_W = 2
+    amba5=False,
+    add_counters=True,
+)
+validate_mesh(cfg)
+generate_mesh(cfg, "../rtl")
 ```
 
 `dest_width` and `id_width` are normally calculated from `num_slaves` and `num_masters` but may be overridden if the caller supplies them explicitly.

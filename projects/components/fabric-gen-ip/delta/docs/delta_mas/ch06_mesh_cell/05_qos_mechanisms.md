@@ -23,7 +23,7 @@
 
 # QoS Mechanisms
 
-> **PLANNED:** This chapter describes the planned `delta_mesh_cell` microarchitecture per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). No RTL implementation exists yet.
+> **IMPLEMENTED:** This chapter describes the `delta_mesh_cell` QoS mechanisms as built. The design is per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
 Delta defines three QoS classes with strict priority at every output port. The split follows the control/data-plane separation common in NPU practice: class 0 for config, class 1 for latency traffic, class 2 for bulk [Q4][Q5].
 

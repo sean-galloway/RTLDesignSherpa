@@ -69,13 +69,15 @@ The generator is a Python script (`bin/delta_generator.py`) that reuses the unif
 
 ## Mesh-Mode Features
 
-> **PLANNED** — Mesh mode is a planned generator option, not yet implemented RTL. The design below is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). The flat TDEST crossbar remains the default and is untouched.
+> **IMPLEMENTED** — Mesh mode is a generator option that emits `delta_mesh_cell` and a fabric top. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). The flat TDEST crossbar remains the default and is untouched.
+>
+> Still deferred: CXS migration (owner plan, parallel rapids_cxs work), MonBus observation aggregation in the tile IP (parallel session), 1 cycle/hop lookahead (issue #120), and SRAM FIFO_IMPL (issue #118).
 
-- **3-D table-routed mesh of identical cells** — one `delta_mesh_cell` per fabric coordinate, connected to ±X/±Y/±Z neighbors plus one local port.
-- **Placement hierarchy** — cell → tile (`2×2×1` = 4 cells) → confluence (`4×4×1` = 16 cells) → fabric (`4×4×K` confluences stacked in Z). The hierarchy names regions and bounds table size; there is no wrapper RTL between tile or confluence boundaries.
+- **3-D table-routed mesh of identical cells** — one `delta_mesh_cell` per fabric coordinate, connected to ±X/±Y/±Z neighbors, the two diagonal-axis links (P_DIA for tetrad-scale, P_DIA2 for tile-scale), and one local port.
+- **Placement hierarchy** — cell → tetrad (`2×2×1` = 4 cells, fully-connected K4) → tile (`2×2×1` tetrads = 16 cells, K4 at the tetrad level). Owner-named 2026-10-15; the datapath stays one module per cell, and the tetrad/tile wrappers exist only for MonBus observation aggregation (outside delta).
 - **2 VCs with escape-channel deadlock freedom** — VC0 carries the connected, acyclic escape subrelation; VC1 carries minimal-or-budgeted adaptive routes. VC1 may drain into VC0, but VC0 may never enter VC1.
 - **3 QoS classes** — config, latency, and bulk traffic get separate VCs and injection buffers, with strict priority, programmable aging, and a bulk minimum reservation.
-- **In-band config with broadcast mode-switch** — per-cell RAM tables load through the data path; a broadcast mode-switch message switches all cells to one of 8 standard fabric modes atomically after a fabric-wide ack barrier.
-- **8 standard fabric modes** — mesh, systolic-1D, wavefront-2D, stencil-3D, broadcast, convergecast/reduce, all-to-all/transpose, and pipeline+rapids-stream.
+- **In-band config with broadcast mode-switch** — per-cell RAM tables load through the data path; a broadcast mode-switch message switches all cells to one of 10 standard fabric modes atomically after a fabric-wide ack barrier.
+- **10 standard fabric modes** — mesh, systolic-1D, wavefront-2D, stencil-3D, broadcast, convergecast/reduce, all-to-all/transpose, pipeline+rapids-stream, tetrad all-to-all (K4 via P_DIA), and tile all-to-all (K4-of-tetrads via P_DIA2).
 - **Multicast** — VC0-only, BRCP-conformed paths with source-side replication, multiple delivery VCs, and no responses.
-- **Systolic/torus package** — per-dimension torus wrap (`--torus=x,y,z`), route lookahead, and source-route mode for fixed-latency systolic schedules.
+- **Systolic/torus package** — per-dimension torus wrap (`--torus=x,y,z`), source-route mode (`--source-route`), and speculative allocation (`--speculation`). Route lookahead is the remaining latency step (issue #120).

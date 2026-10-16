@@ -23,7 +23,7 @@
 
 # Routing Table
 
-> **PLANNED:** This chapter describes the planned `delta_mesh_cell` microarchitecture per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). No RTL implementation exists yet.
+> **IMPLEMENTED:** This chapter describes the `delta_mesh_cell` routing table as built. The design is per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
 ## RAM Table Structure
 
@@ -33,7 +33,7 @@ Each cell contains a RAM lookup table. The key is the packet's destination coord
 |---|---|---|
 | Key: `dest_x`, `dest_y`, `dest_z` | `3 × COORD_W` | Destination coordinate, sized by fabric dimensions |
 | Key: QoS class | 2 | 0=config, 1=latency, 2=bulk |
-| Entry: output port mask | 7 bits (one per output port) | Next-hop direction(s); one-hot for unicast, multi-hot for multicast |
+| Entry: output port mask | 9 bits (one per output port) | Next-hop direction(s); one-hot for unicast, multi-hot for multicast |
 | Entry: VC | 1 | 0 or 1, assigned by the table |
 
 : Routing table entry layout
@@ -58,7 +58,7 @@ When a dimension is configured as a torus (`--torus=x,y,z`), the wrap link creat
 
 ## Standard Fabric Modes
 
-Alongside custom per-cell tables, the generator defines eight standard modes switched by a broadcast mode-switch message. Each cell holds generator-emitted images; the switch applies only after a fabric-wide ack barrier returns through the config read-response path.
+Alongside custom per-cell tables, the generator defines ten standard modes switched by a broadcast mode-switch message. Each cell holds generator-emitted images; the switch applies only after a fabric-wide ack barrier returns through the config read-response path.
 
 | Mode | Pattern | Routing source |
 |---|---|---|
@@ -70,6 +70,8 @@ Alongside custom per-cell tables, the generator defines eight standard modes swi
 | 6 | Convergecast/reduce | Reverse-broadcast tables |
 | 7 | All-to-all/transpose | Per-stage table images |
 | 8 | Pipeline + rapids-stream | Fixed chain + boundary tables |
+| 9 | Tetrad all-to-all (K4) | P_DIA for diagonal mates; DOR for inter-tetrad dsts |
+| 10 | Tile all-to-all (K4 of tetrads) | P_DIA2 for diagonal-tetrad mates; DOR for inter-tile dsts |
 
 : Standard fabric mode catalog
 

@@ -23,9 +23,9 @@
 
 # Multicast Path
 
-> **PLANNED:** This chapter describes the planned `delta_mesh_cell` microarchitecture per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`). No RTL implementation exists yet.
+> **IMPLEMENTED:** This chapter describes the `delta_mesh_cell` multicast path as built. The design is per the 2026-10-13 design spec (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
-Multicast is restricted to VC0. The routing table supplies a multi-hot output port mask, and the cell builds a BRCP-conformed path: every branch follows the base unicast routing function so multicast adds no new channel dependencies beyond the unicast proof [D9].
+Multicast is restricted to VC0. The routing table supplies a multi-hot output port mask, and the cell builds a BRCP-conformed path: every branch follows the base unicast routing function so multicast adds no new channel dependencies beyond the unicast proof [D9]. The implementation floods a multicast packet along a BFS tree from the source, replicating at branching cells.
 
 ## Source-Side Replication
 

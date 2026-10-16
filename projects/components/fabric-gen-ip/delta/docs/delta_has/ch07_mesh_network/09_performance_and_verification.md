@@ -25,7 +25,7 @@
 
 ## Performance Model
 
-> **PLANNED** — The mesh cell RTL is not yet implemented. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
+> **IMPLEMENTED** — `bin/delta_mesh_perf.py` models the mesh and is calibrated by the regression suite. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
 The `bin/delta_mesh_perf.py` model uses the standard interconnection-network cost model:
 

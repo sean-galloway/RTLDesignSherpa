@@ -25,7 +25,7 @@
 
 ## Credit-Based Flow Control
 
-> **PLANNED** — The mesh cell RTL is not yet implemented. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
+> **IMPLEMENTED** — `delta_mesh_cell` uses credit-based flow control per VC. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
 
 Delta's mesh uses credit-based flow control per VC. Each output port tracks the number of free buffer slots in the downstream neighbor. A flit leaves only when a credit is available, and a credit returns only after the downstream cell has consumed the flit. Credit-counter depth is sized to cover round-trip latency; undersizing drops the channel duty factor below one.
 
