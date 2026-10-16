@@ -15,9 +15,8 @@ $REPO_ROOT/rtl/amba/includes/ocelus_pkg.sv
 -f $REPO_ROOT/rtl/common/filelists/counter_load_clear.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 -f $REPO_ROOT/rtl/common/filelists/counter_freq_invariant.f
--f $REPO_ROOT/rtl/common/filelists/icg.f
--f $REPO_ROOT/rtl/common/filelists/clock_gate_ctrl.f
-$REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv
+# amba_clock_gate_ctrl owns its closure (reset_sync, icg, clock_gate_ctrl): -f, never hand-list
+-f $REPO_ROOT/rtl/amba/filelists/amba_clock_gate_ctrl.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axi5/axi5_master_rd.sv

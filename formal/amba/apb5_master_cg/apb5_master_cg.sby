@@ -15,6 +15,7 @@ cover: smtbmc z3
 [script]
 read -formal -sv -Iincludes icg.sv
 read -formal -sv -Iincludes clock_gate_ctrl.sv
+read -formal -sv -Iincludes reset_sync.sv
 read -formal -sv -Iincludes amba_clock_gate_ctrl.sv
 read -formal -sv -Iincludes dataint_parity.sv
 read -formal -sv -Iincludes gaxi_skid_buffer.sv
@@ -26,6 +27,7 @@ prep -top formal_apb5_master_cg
 [files]
 icg.sv ../../../rtl/common/icg.sv
 clock_gate_ctrl.sv ../../../rtl/common/clock_gate_ctrl.sv
+reset_sync.sv ../../../rtl/cdc/reset_sync.sv
 amba_clock_gate_ctrl.sv ../../../rtl/amba/shared/amba_clock_gate_ctrl.sv
 dataint_parity.sv ../../../rtl/common/dataint_parity.sv
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv

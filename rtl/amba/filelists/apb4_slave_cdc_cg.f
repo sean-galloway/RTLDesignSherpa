@@ -12,12 +12,11 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 
--f $REPO_ROOT/rtl/common/filelists/icg.f
--f $REPO_ROOT/rtl/common/filelists/clock_gate_ctrl.f
 
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 -f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 
-$REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv
+# amba_clock_gate_ctrl owns its closure (reset_sync, icg, clock_gate_ctrl): -f, never hand-list
+-f $REPO_ROOT/rtl/amba/filelists/amba_clock_gate_ctrl.f
 $REPO_ROOT/rtl/amba/apb4/apb4_slave.sv
 $REPO_ROOT/rtl/amba/apb4/apb4_slave_cdc_cg.sv

@@ -6,9 +6,8 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
--f $REPO_ROOT/rtl/common/filelists/icg.f
--f $REPO_ROOT/rtl/common/filelists/clock_gate_ctrl.f
-$REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv
+# amba_clock_gate_ctrl owns its closure (reset_sync, icg, clock_gate_ctrl): -f, never hand-list
+-f $REPO_ROOT/rtl/amba/filelists/amba_clock_gate_ctrl.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axis4/axis4_slave.sv
 $REPO_ROOT/rtl/amba/axis4/axis4_slave_cg.sv
