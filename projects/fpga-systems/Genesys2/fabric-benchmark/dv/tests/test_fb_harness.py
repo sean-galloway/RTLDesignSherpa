@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""fb_harness (K0): fabric-only mode W2, every simulatable leg, the board's runner.
+"""fb_harness: W2 (K0) and the DDR3 workload chain (K3), every simulatable leg.
 
 The Genesys 2 STREAM characterization runner drives the harness over the sim
 UART exactly as it drives the board; the leg is chosen only by which harness
@@ -16,7 +16,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from tbclasses.fb_harness_tb import FbHarnessTB
+from tbclasses.fb_harness_tb import FbHarnessTB, CharConfig, fb_workloads
 
 AREA = 'projects/fpga-systems/Genesys2/fabric-benchmark'
 # (channels, descriptors per channel, bytes per descriptor), cumulative by level
@@ -25,25 +25,41 @@ RUNS = {
     'func': [(1, 1, 4096), (4, 2, 8192), (8, 2, 8192)],
     'full': [(1, 1, 4096), (4, 2, 8192), (8, 2, 8192), (8, 4, 65536)],
 }
+# K3 chain configs (bin/fb_workloads.py: W1-F2, W1-F1, W4, W4's drain). S0 is
+# a dense memory model in sim, so these stay at two channels or fewer.
+CHAINS = {
+    'gate': [(1, 1, 4096)],
+    'func': [(1, 1, 4096), (2, 2, 8192)],
+    'full': [(1, 1, 4096), (2, 2, 8192), (2, 4, 65536)],
+}
 SIM_FPGA_CLK_HZ = 100_000_000
 SIM_UART_BAUD = 25_000_000           # CLKS_PER_BIT = 4, the measured floor
 
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_fb_harness(dut):
-    tb = FbHarnessTB(dut)
     level = os.environ.get('TEST_LEVEL', 'gate').lower()
     runs = RUNS.get(level, RUNS['gate'])
+    chains = CHAINS.get(level, CHAINS['gate'])
     # FB_RUNS="ch:desc:bytes,..." replaces the level's list (debug / A-B only)
     if os.environ.get('FB_RUNS'):
         runs = [tuple(int(x) for x in r.split(':')) for r in os.environ['FB_RUNS'].split(',')]
+    if os.environ.get('FB_CHAINS') is not None:
+        chains = [tuple(int(x) for x in r.split(':'))
+                  for r in os.environ['FB_CHAINS'].split(',') if r]
+    tb = FbHarnessTB(dut, ddr_bytes=max(
+        [fb_workloads.ddr_span(CharConfig(name='', num_channels=c, descriptors_per_channel=d,
+                                          transfer_bytes=b)) for c, d, b in chains] or [0]))
     await tb.setup_clocks_and_reset()
     ok = await tb.ping()
     if ok:
         for ch, desc, nbytes in runs:
             await tb.run(ch, desc, nbytes)
+        for ch, desc, nbytes in chains:
+            await tb.chain(ch, desc, nbytes)
     assert tb.report(), f"{len(tb.errors)} error(s); first: {tb.errors[0] if tb.errors else ''}"
-    assert len(tb.results) == len(runs), "not every run executed"
+    assert len(tb.results) == len(runs) + len(fb_workloads.CHAIN) * len(chains), \
+        "not every run executed"
 
 
 def generate_test_params():
@@ -76,8 +92,9 @@ def test_fb_harness(request, leg, test_level):
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{name}.xml'),
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
-    if os.environ.get('FB_RUNS'):
-        extra_env['FB_RUNS'] = os.environ['FB_RUNS']
+    for k in ('FB_RUNS', 'FB_CHAINS'):
+        if os.environ.get(k) is not None:
+            extra_env[k] = os.environ[k]
     compile_args = ["-Wno-fatal", "-Wno-lint", "-Wno-style", "-Wno-MULTIDRIVEN",
                     "-Wno-TIMESCALEMOD", "-Wno-UNOPTFLAT"]
     if enable_waves:

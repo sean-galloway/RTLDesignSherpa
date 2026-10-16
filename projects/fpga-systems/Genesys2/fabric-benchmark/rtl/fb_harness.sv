@@ -123,6 +123,12 @@ module fb_harness #(
     output logic          ddr_rready,
 
     // Board status (LEDs)
+    // Board status for fb_ctl STATUS (sim ties them high). init_calib_complete
+    // is MIG's, on ui_clk == aclk; the two locks are asynchronous.
+    input  logic          i_mig_calib_done,
+    input  logic          i_mig_mmcm_locked,
+    input  logic          i_ep_mmcm_locked,
+
     output logic          o_timer_done,
     output logic          o_timer_pass,
     output logic          o_stream_irq
@@ -360,6 +366,10 @@ module fb_harness #(
     logic [31:0] obs_apb_PADDR, obs_apb_PWDATA, obs_apb_PRDATA;
     logic [3:0]  obs_apb_PSTRB;
     logic [2:0]  obs_apb_PPROT;
+    logic        fb_ctl_apb_PSEL, fb_ctl_apb_PENABLE, fb_ctl_apb_PWRITE, fb_ctl_apb_PREADY, fb_ctl_apb_PSLVERR;
+    logic [31:0] fb_ctl_apb_PADDR, fb_ctl_apb_PWDATA, fb_ctl_apb_PRDATA;
+    logic [3:0]  fb_ctl_apb_PSTRB;
+    logic [2:0]  fb_ctl_apb_PPROT;
 
     bridge_fb_cfg u_cfg (
         .aclk(aclk), .aresetn(aresetn),
@@ -432,6 +442,11 @@ module fb_harness #(
         .obs_apb_PWDATA(obs_apb_PWDATA), .obs_apb_PSTRB(obs_apb_PSTRB),
         .obs_apb_PPROT(obs_apb_PPROT), .obs_apb_PRDATA(obs_apb_PRDATA),
         .obs_apb_PREADY(obs_apb_PREADY), .obs_apb_PSLVERR(obs_apb_PSLVERR),
+        .fb_ctl_apb_PSEL(fb_ctl_apb_PSEL), .fb_ctl_apb_PADDR(fb_ctl_apb_PADDR),
+        .fb_ctl_apb_PENABLE(fb_ctl_apb_PENABLE), .fb_ctl_apb_PWRITE(fb_ctl_apb_PWRITE),
+        .fb_ctl_apb_PWDATA(fb_ctl_apb_PWDATA), .fb_ctl_apb_PSTRB(fb_ctl_apb_PSTRB),
+        .fb_ctl_apb_PPROT(fb_ctl_apb_PPROT), .fb_ctl_apb_PRDATA(fb_ctl_apb_PRDATA),
+        .fb_ctl_apb_PREADY(fb_ctl_apb_PREADY), .fb_ctl_apb_PSLVERR(fb_ctl_apb_PSLVERR),
         .unmapped_irq(), .unmapped_addr(), .unmapped_count(), .unmapped_clear(1'b0)
     );
 
@@ -1115,6 +1130,142 @@ module fb_harness #(
     );
 
     // =========================================================================
+    // Workload select (fb_ctl) and the S0 beat counters
+    // =========================================================================
+    // STREAM's descriptors already choose each run's endpoints; fb_ctl tells
+    // the run timer which ones to watch (PRD §4.1). W2 times the LFSR source
+    // and the CRC sink, as before; a run that reads or writes DDR3 times the
+    // fabric's S0 port instead -- the same slave-side vantage point, so W1/W4
+    // and W2 are timed alike. STOP is then the last write beat accepted at
+    // S0, which for W1-F2/W4 is the controller taking the last beat.
+    //
+    // The S0 counters run on aclk at the fabric's S0 boundary and clear with
+    // the endpoint counters (CLEAR_STATS or the soft reset), so both sources
+    // start from zero on every run.
+    logic        fb_ctl_cpuif_req, fb_ctl_cpuif_req_is_wr;
+    logic [11:0] fb_ctl_cpuif_addr;
+    logic [31:0] fb_ctl_cpuif_wr_data, fb_ctl_cpuif_wr_biten, fb_ctl_cpuif_rd_data;
+    logic        fb_ctl_cpuif_req_stall_wr, fb_ctl_cpuif_req_stall_rd;
+    logic        fb_ctl_cpuif_rd_ack, fb_ctl_cpuif_rd_err, fb_ctl_cpuif_wr_ack, fb_ctl_cpuif_wr_err;
+    fb_ctl_regs_pkg::fb_ctl_regs__in_t  fb_ctl_in;
+    fb_ctl_regs_pkg::fb_ctl_regs__out_t fb_ctl_out;
+    logic [31:0] r_s0_rd_beats, r_s0_wr_beats, r_s0_aw, r_s0_b, r_s0_ar, r_s0_rvalid_cyc;
+    logic [1:0]  r_mig_lock_sync, r_ep_lock_sync;
+    logic [31:0] timer_rd_beats, timer_wr_beats;
+
+    apb4_to_peakrdl #(
+        .ADDR_WIDTH (12),
+        .DATA_WIDTH (32),
+        .PROT_WIDTH (3)
+    ) u_fb_ctl_shim (
+        .aclk (aclk), .aresetn (aresetn),
+        .pclk (aclk), .presetn (aresetn),
+        .s_apb_PSEL  (fb_ctl_apb_PSEL),        .s_apb_PENABLE(fb_ctl_apb_PENABLE),
+        .s_apb_PREADY(fb_ctl_apb_PREADY),      .s_apb_PADDR  (fb_ctl_apb_PADDR[11:0]),
+        .s_apb_PWRITE(fb_ctl_apb_PWRITE),      .s_apb_PWDATA (fb_ctl_apb_PWDATA),
+        .s_apb_PSTRB (fb_ctl_apb_PSTRB),       .s_apb_PPROT  (fb_ctl_apb_PPROT),
+        .s_apb_PRDATA(fb_ctl_apb_PRDATA),      .s_apb_PSLVERR(fb_ctl_apb_PSLVERR),
+        .cpuif_req         (fb_ctl_cpuif_req),
+        .cpuif_req_is_wr   (fb_ctl_cpuif_req_is_wr),
+        .cpuif_addr        (fb_ctl_cpuif_addr),
+        .cpuif_wr_data     (fb_ctl_cpuif_wr_data),
+        .cpuif_wr_biten    (fb_ctl_cpuif_wr_biten),
+        .cpuif_req_stall_wr(fb_ctl_cpuif_req_stall_wr),
+        .cpuif_req_stall_rd(fb_ctl_cpuif_req_stall_rd),
+        .cpuif_rd_ack      (fb_ctl_cpuif_rd_ack),
+        .cpuif_rd_err      (fb_ctl_cpuif_rd_err),
+        .cpuif_rd_data     (fb_ctl_cpuif_rd_data),
+        .cpuif_wr_ack      (fb_ctl_cpuif_wr_ack),
+        .cpuif_wr_err      (fb_ctl_cpuif_wr_err)
+    );
+    wire unused_fb_ctl_paddr = ^fb_ctl_apb_PADDR[31:12];
+
+    fb_ctl_regs u_fb_ctl_regs (
+        .clk                 (aclk),
+        .rst                 (~aresetn),
+        .s_cpuif_req         (fb_ctl_cpuif_req),
+        .s_cpuif_req_is_wr   (fb_ctl_cpuif_req_is_wr),
+        .s_cpuif_addr        (fb_ctl_cpuif_addr[4:0]),
+        .s_cpuif_wr_data     (fb_ctl_cpuif_wr_data),
+        .s_cpuif_wr_biten    (fb_ctl_cpuif_wr_biten),
+        .s_cpuif_req_stall_wr(fb_ctl_cpuif_req_stall_wr),
+        .s_cpuif_req_stall_rd(fb_ctl_cpuif_req_stall_rd),
+        .s_cpuif_rd_ack      (fb_ctl_cpuif_rd_ack),
+        .s_cpuif_rd_err      (fb_ctl_cpuif_rd_err),
+        .s_cpuif_rd_data     (fb_ctl_cpuif_rd_data),
+        .s_cpuif_wr_ack      (fb_ctl_cpuif_wr_ack),
+        .s_cpuif_wr_err      (fb_ctl_cpuif_wr_err),
+        .hwif_in             (fb_ctl_in),
+        .hwif_out            (fb_ctl_out)
+    );
+    wire unused_fb_ctl_addr = ^fb_ctl_cpuif_addr[11:5];
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_s0_rd_beats <= '0;
+            r_s0_wr_beats <= '0;
+            r_s0_aw       <= '0;
+            r_s0_b        <= '0;
+            r_s0_ar       <= '0;
+            r_s0_rvalid_cyc <= '0;
+        end else if (csr_clear_pulse | csr_soft_reset) begin
+            r_s0_rd_beats <= '0;
+            r_s0_wr_beats <= '0;
+            r_s0_aw       <= '0;
+            r_s0_b        <= '0;
+            r_s0_ar       <= '0;
+            r_s0_rvalid_cyc <= '0;
+        end else begin
+            if (ddr_rvalid  & ddr_rready)  r_s0_rd_beats <= r_s0_rd_beats + 32'd1;
+            if (ddr_wvalid  & ddr_wready)  r_s0_wr_beats <= r_s0_wr_beats + 32'd1;
+            if (ddr_awvalid & ddr_awready) r_s0_aw       <= r_s0_aw + 32'd1;
+            if (ddr_bvalid  & ddr_bready)  r_s0_b        <= r_s0_b + 32'd1;
+            if (ddr_arvalid & ddr_arready) r_s0_ar       <= r_s0_ar + 32'd1;
+            if (ddr_rvalid)                r_s0_rvalid_cyc <= r_s0_rvalid_cyc + 32'd1;
+        end
+    )
+
+    // Two-flop synchronizers for the asynchronous lock inputs (status only).
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_mig_lock_sync <= '0;
+            r_ep_lock_sync  <= '0;
+        end else begin
+            r_mig_lock_sync <= {r_mig_lock_sync[0], i_mig_mmcm_locked};
+            r_ep_lock_sync  <= {r_ep_lock_sync[0],  i_ep_mmcm_locked};
+        end
+    )
+    assign fb_ctl_in.STATUS.INIT_CALIB_COMPLETE.next = i_mig_calib_done;
+    assign fb_ctl_in.STATUS.MIG_MMCM_LOCKED.next     = r_mig_lock_sync[1];
+    assign fb_ctl_in.STATUS.EP_MMCM_LOCKED.next      = r_ep_lock_sync[1];
+    assign fb_ctl_in.S0_AW_COUNT.VALUE.next = r_s0_aw;
+    assign fb_ctl_in.S0_B_COUNT.VALUE.next  = r_s0_b;
+    assign fb_ctl_in.S0_AR_COUNT.VALUE.next = r_s0_ar;
+    assign fb_ctl_in.S0_RVALID_CYCLES.VALUE.next = r_s0_rvalid_cyc;
+    // Live S0 handshake levels (registered once, for timing; status only).
+    logic [9:0] r_s0_live;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_s0_live <= '0;
+        else r_s0_live <= {ddr_bready, ddr_bvalid, ddr_wready, ddr_wvalid, ddr_awready,
+                           ddr_awvalid, ddr_rready, ddr_rvalid, ddr_arready, ddr_arvalid};
+    )
+    assign fb_ctl_in.STATUS.S0_ARVALID.next = r_s0_live[0];
+    assign fb_ctl_in.STATUS.S0_ARREADY.next = r_s0_live[1];
+    assign fb_ctl_in.STATUS.S0_RVALID.next  = r_s0_live[2];
+    assign fb_ctl_in.STATUS.S0_RREADY.next  = r_s0_live[3];
+    assign fb_ctl_in.STATUS.S0_AWVALID.next = r_s0_live[4];
+    assign fb_ctl_in.STATUS.S0_AWREADY.next = r_s0_live[5];
+    assign fb_ctl_in.STATUS.S0_WVALID.next  = r_s0_live[6];
+    assign fb_ctl_in.STATUS.S0_WREADY.next  = r_s0_live[7];
+    assign fb_ctl_in.STATUS.S0_BVALID.next  = r_s0_live[8];
+    assign fb_ctl_in.STATUS.S0_BREADY.next  = r_s0_live[9];
+
+    assign fb_ctl_in.S0_RD_BEATS.VALUE.next = r_s0_rd_beats;
+    assign fb_ctl_in.S0_WR_BEATS.VALUE.next = r_s0_wr_beats;
+    assign timer_rd_beats = fb_ctl_out.WORKLOAD.RD_SRC.value ? r_s0_rd_beats : read_beat_count;
+    assign timer_wr_beats = fb_ctl_out.WORKLOAD.WR_DST.value ? r_s0_wr_beats : write_beat_count;
+
+    // =========================================================================
     // Run timer + per-channel CRC verdict (utility-ip/misc char_run_timer)
     // =========================================================================
     char_run_timer #(
@@ -1128,8 +1279,8 @@ module fb_harness #(
         .i_clear          (csr_timer_clear_pulse),
         .i_start          (sd_arvalid & sd_arready),
         .i_expected_beats (csr_timer_expected_beats),
-        .i_rd_beat_count  (read_beat_count),
-        .i_wr_beat_count  (write_beat_count),
+        .i_rd_beat_count  (timer_rd_beats),
+        .i_wr_beat_count  (timer_wr_beats),
         .i_rd_crc_value   (read_crc_value),
         .i_rd_crc_valid   (read_crc_valid),
         .i_wr_crc_value   (write_crc_value),

@@ -15,7 +15,8 @@ data map:
                   fetched by STREAM at 0x8000_0000 over the data fabric (S1)
 
 S0 (DDR3) is answered by framework AXI4 slave BFMs over a MemoryModel; nothing
-in W2 touches it.
+in W2 touches it. K3's DDR3 workloads (W1-F2, W1-F1, W4) run as the
+CRC-checked chain of bin/fb_workloads.py, the same code the board runs.
 
 A pass means, per run: the runner's verdict is pass, the on-chip run timer
 finished with PASS, and every active channel is in both the CRC valid and
@@ -44,12 +45,13 @@ fb_map.stream_host_path()
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 from descriptor_builder import CharConfig  # noqa: E402
 from fb_slave_meters import read_slave_side  # noqa: E402
+import fb_workloads  # noqa: E402
 
-DDR_BYTES = 0x10000                  # modelled span of S0 (W2 never reaches it)
+DDR_BYTES = 0x10000                  # modelled span of S0 when no chain runs
 
 
 class FbHarnessTB(TBBase):
-    def __init__(self, dut):
+    def __init__(self, dut, ddr_bytes: int = DDR_BYTES):
         super().__init__(dut)
         self.aclk_ns = float(os.environ.get('ACLK_PERIOD_NS', '10'))
         self.ep_ns = float(os.environ.get('EP_PERIOD_NS', '8'))
@@ -61,7 +63,8 @@ class FbHarnessTB(TBBase):
                                          log=self.log)
         self.bridge = UARTAxiBridge(channel=self.channel)
         self.builder = fb_map.make_builder()
-        self.ddr = MemoryModel(num_lines=DDR_BYTES // 16, bytes_per_line=16, log=self.log)
+        self.ddr = MemoryModel(num_lines=max(ddr_bytes, DDR_BYTES) // 16, bytes_per_line=16,
+                               log=self.log)
         kw = dict(dut=dut, clock=dut.aclk, prefix='ddr', log=self.log, id_width=10,
                   addr_width=32, data_width=128, user_width=1, memory_model=self.ddr,
                   base_addr=0)
@@ -74,6 +77,10 @@ class FbHarnessTB(TBBase):
     # ---- mandatory ----------------------------------------------------------
     async def setup_clocks_and_reset(self):
         self.dut.i_uart_rx.value = 1
+        # Board status for fb_ctl STATUS: the sim's S0 model is always ready.
+        self.dut.i_mig_calib_done.value = 1
+        self.dut.i_mig_mmcm_locked.value = 1
+        self.dut.i_ep_mmcm_locked.value = 1
         await self.start_clock('aclk', self.aclk_ns, 'ns')
         await self.start_clock('ep_clk', self.ep_ns, 'ns')
         await self.assert_reset()
@@ -135,12 +142,28 @@ class FbHarnessTB(TBBase):
                                    f"slave {s_prod}, want {want_beats}")
         res['slave_side'] = slv
         self.log.info(f"{cfg.name}: pass={res.get('pass')} "
-                      f"cycles={res.get('cycles_total')} "
+                      f"cycles={res.get('bus_cycles_total')} "
                       f"bus_mbps={res.get('bus_throughput_mbps')} "
                       f"valid=0x{crc.get('valid_mask', 0):X} match=0x{crc.get('match_mask', 0):X} "
                       f"util m r/w {met.get('datapath_utilization_r')}/{met.get('datapath_utilization_w')} "
                       f"s r/w {slv['r_util']:.4f}/{slv['w_util']:.4f}")
         return res
+
+    async def chain(self, num_channels: int, descriptors: int, transfer_bytes: int) -> list:
+        """The DDR3 workload chain (fb_workloads.CHAIN) on one config."""
+        cfg = CharConfig(name=f"k3_{num_channels}ch_{descriptors}desc_{transfer_bytes // 1024}KB",
+                         num_channels=num_channels, descriptors_per_channel=descriptors,
+                         transfer_bytes=transfer_bytes)
+        runner = self.runner
+        steps = await bridge(lambda: fb_workloads.run_chain(
+            runner, self.bridge, cfg, log=lambda m: self.log.info(f"{cfg.name}{m}")))()
+        for r in steps:
+            self.results.append(r)
+            if not r['verdict']:
+                self.errors.append(f"{cfg.name} {r['step']}: {'; '.join(r['why'])}")
+        if len(steps) != len(fb_workloads.CHAIN):
+            self.errors.append(f"{cfg.name}: {len(steps)} of {len(fb_workloads.CHAIN)} steps ran")
+        return steps
 
     def report(self) -> bool:
         for e in self.errors:

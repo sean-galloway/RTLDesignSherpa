@@ -1,2 +1,2 @@
-master\slave,stream_apb,harness_csr,desc_ram,stream_err,slvmon_apb,obs_apb
-host,1,1,1,1,1,1
+master\slave,stream_apb,harness_csr,desc_ram,stream_err,slvmon_apb,obs_apb,fb_ctl
+host,1,1,1,1,1,1,1

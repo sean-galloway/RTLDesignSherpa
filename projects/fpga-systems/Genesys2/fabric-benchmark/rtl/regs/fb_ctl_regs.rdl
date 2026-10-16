@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Genesys 2 fabric benchmark -- WORKLOAD control, PeakRDL source.
+//
+// The harness_csr block is the STREAM harness's, shared unchanged so the
+// STREAM host stack resolves every register; this block holds what only the
+// fabric benchmark has: which endpoint each run's data comes from and goes to.
+// STREAM's addresses already choose the endpoint; this tells the run timer
+// where to watch, so the timer stops on the beats that reach the destination
+// the run actually writes (PRD §4.1: W1-F1, W1-F2, W2, W4).
+//
+// Regenerate (never raw peakrdl -- the wrapper emits RTL, docs and the regmap
+// together):
+//   cd $REPO_ROOT && source env_python
+//   python3 bin/peakrdl_generate.py \
+//       projects/fpga-systems/Genesys2/fabric-benchmark/rtl/regs/fb_ctl_regs.rdl \
+//       -o projects/fpga-systems/Genesys2/fabric-benchmark/rtl/regs/generated --no-html
+//
+// Offsets are relative to the fb_ctl window on the configuration bridge
+// (bridge_fb_cfg.toml).
+
+addrmap fb_ctl_regs {
+    name = "Fabric benchmark workload control";
+    desc = "Run-timer endpoint select, board status and the S0 (DDR3) counters";
+
+    default regwidth = 32;
+    default accesswidth = 32;
+    default alignment = 4;
+
+    reg {
+        desc = "Where the run timer counts. Set before the run; the defaults are W2.";
+        field {
+            sw = rw; hw = r;
+            desc = "Read beats (first/last read timestamps): 0 = LFSR source (S2), 1 = DDR3 (S0).";
+        } RD_SRC[0:0] = 0;
+        field {
+            sw = rw; hw = r;
+            desc = "Write beats (first/last write timestamps and STOP): 0 = CRC sink (S3), 1 = DDR3 (S0).";
+        } WR_DST[1:1] = 0;
+    } WORKLOAD @ 0x000;
+
+    reg {
+        desc = "Read beats accepted at the fabric's S0 port since CLEAR_STATS / soft reset.";
+        field { sw = r; hw = w; } VALUE[31:0] = 0;
+    } S0_RD_BEATS @ 0x004;
+
+    reg {
+        desc = "Write beats accepted at the fabric's S0 port since CLEAR_STATS / soft reset.";
+        field { sw = r; hw = w; } VALUE[31:0] = 0;
+    } S0_WR_BEATS @ 0x008;
+
+    reg {
+        desc = "Board status, live (not latched). DDR3 runs need INIT_CALIB_COMPLETE.";
+        field { sw = r; hw = w; desc = "MIG init_calib_complete (ui_clk domain)."; } INIT_CALIB_COMPLETE[0:0] = 0;
+        field { sw = r; hw = w; desc = "MIG MMCM locked (synchronized to aclk)."; } MIG_MMCM_LOCKED[1:1] = 0;
+        field { sw = r; hw = w; desc = "Endpoint-clock MMCM locked (synchronized to aclk)."; } EP_MMCM_LOCKED[2:2] = 0;
+        field { sw = r; hw = w; desc = "S0 ARVALID, live (a stalled run shows which side holds the channel)."; } S0_ARVALID[8:8] = 0;
+        field { sw = r; hw = w; desc = "S0 ARREADY, live."; } S0_ARREADY[9:9] = 0;
+        field { sw = r; hw = w; desc = "S0 RVALID, live."; } S0_RVALID[10:10] = 0;
+        field { sw = r; hw = w; desc = "S0 RREADY, live."; } S0_RREADY[11:11] = 0;
+        field { sw = r; hw = w; desc = "S0 AWVALID, live."; } S0_AWVALID[12:12] = 0;
+        field { sw = r; hw = w; desc = "S0 AWREADY, live."; } S0_AWREADY[13:13] = 0;
+        field { sw = r; hw = w; desc = "S0 WVALID, live."; } S0_WVALID[14:14] = 0;
+        field { sw = r; hw = w; desc = "S0 WREADY, live."; } S0_WREADY[15:15] = 0;
+        field { sw = r; hw = w; desc = "S0 BVALID, live."; } S0_BVALID[16:16] = 0;
+        field { sw = r; hw = w; desc = "S0 BREADY, live."; } S0_BREADY[17:17] = 0;
+    } STATUS @ 0x00C;
+
+    reg {
+        desc = "AW handshakes at S0 since CLEAR_STATS / soft reset.";
+        field { sw = r; hw = w; } VALUE[31:0] = 0;
+    } S0_AW_COUNT @ 0x010;
+
+    reg {
+        desc = "B handshakes at S0 since CLEAR_STATS / soft reset.";
+        field { sw = r; hw = w; } VALUE[31:0] = 0;
+    } S0_B_COUNT @ 0x014;
+
+    reg {
+        desc = "AR handshakes at S0 since CLEAR_STATS / soft reset.";
+        field { sw = r; hw = w; } VALUE[31:0] = 0;
+    } S0_AR_COUNT @ 0x018;
+
+    reg {
+        desc = "Cycles S0 RVALID was high since CLEAR_STATS / soft reset (with S0_RD_BEATS: cycles the fabric held RREADY low).";
+        field { sw = r; hw = w; } VALUE[31:0] = 0;
+    } S0_RVALID_CYCLES @ 0x01C;
+};

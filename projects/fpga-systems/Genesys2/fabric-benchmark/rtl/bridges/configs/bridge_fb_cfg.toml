@@ -16,6 +16,8 @@
 #   0x0003_0000  stream_err    4 KB   STREAM error FIFO
 #   0x0018_0000  slvmon_apb    4 KB   slave-side observer (fabric -> endpoints)
 #   0x0019_0000  obs_apb       4 KB   master-side observer (STREAM -> fabric)
+#   0x0020_0000  fb_ctl        4 KB   workload select + S0 beat counters
+#                                     (fb_ctl_regs.rdl; past every STREAM window)
 #==============================================================================
 
 [bridge]
@@ -107,4 +109,16 @@ addr_width  = 32
 data_width  = 32
 user_width  = 0
 base_addr   = "0x00190000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "fb_ctl"
+prefix      = "fb_ctl_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00200000"
 addr_range  = "0x00001000"

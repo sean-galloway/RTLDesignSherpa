@@ -36,9 +36,10 @@ def stream_host_path() -> str:
     return stream_bin
 
 
-def make_builder():
-    """The DescriptorBuilder for this fabric's map (same in every leg)."""
+def make_builder(src_base: int = SRC_BASE, dst_base: int = DST_BASE):
+    """The DescriptorBuilder for this fabric's map (same in every leg). The
+    bases default to W2's endpoints; fb_workloads passes DDR3 regions."""
     stream_host_path()
     from descriptor_builder import DescriptorBuilder
-    return DescriptorBuilder(data_width=DATA_WIDTH, src_base=SRC_BASE, dst_base=DST_BASE,
+    return DescriptorBuilder(data_width=DATA_WIDTH, src_base=src_base, dst_base=dst_base,
                              desc_dma_base=DESC_DMA_BASE, channel_stride=1 << CH_ADDR_LSB)

@@ -199,6 +199,9 @@ module fb_genesys2_top #(
         .ddr_arlock, .ddr_arcache, .ddr_arprot, .ddr_arqos, .ddr_arvalid,
         .ddr_arready,
         .ddr_rid, .ddr_rdata, .ddr_rresp, .ddr_rlast, .ddr_rvalid, .ddr_rready,
+        .i_mig_calib_done (init_calib_complete),
+        .i_mig_mmcm_locked(mig_mmcm_locked),
+        .i_ep_mmcm_locked (ep_locked),
         .o_timer_done (w_timer_done),
         .o_timer_pass (w_timer_pass),
         .o_stream_irq (w_stream_irq)

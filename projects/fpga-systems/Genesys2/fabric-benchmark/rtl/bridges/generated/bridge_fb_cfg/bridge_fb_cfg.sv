@@ -176,6 +176,19 @@ module bridge_fb_cfg
     input  logic [31:0]  obs_apb_PRDATA,
     input  logic         obs_apb_PREADY,
     input  logic         obs_apb_PSLVERR,
+
+    // Slave 6: fb_ctl
+    // APB Slave: fb_ctl
+    output  logic         fb_ctl_apb_PSEL,
+    output  logic [31:0]  fb_ctl_apb_PADDR,
+    output  logic         fb_ctl_apb_PENABLE,
+    output  logic         fb_ctl_apb_PWRITE,
+    output  logic [31:0]  fb_ctl_apb_PWDATA,
+    output  logic [3:0]  fb_ctl_apb_PSTRB,
+    output  logic [2:0]  fb_ctl_apb_PPROT,
+    input  logic [31:0]  fb_ctl_apb_PRDATA,
+    input  logic         fb_ctl_apb_PREADY,
+    input  logic         fb_ctl_apb_PSLVERR,
     // Unmapped-address status (subtractive slave).
     // unmapped_irq is STICKY: it latches on the first
     // unmapped access and holds until unmapped_clear,
@@ -189,7 +202,7 @@ module bridge_fb_cfg
     input  logic        unmapped_clear
 );
 
-    localparam NUM_SLAVES = 7;
+    localparam NUM_SLAVES = 8;
 
     // host Adapter outputs
     logic [NUM_SLAVES-1:0] host_slave_select_aw;
@@ -542,6 +555,58 @@ module bridge_fb_cfg
     logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_rid_bridge_id;
     logic                       obs_apb_axi_rid_valid;
 
+    // fb_ctl (APB, 32b AXI4 interface)
+    logic [0:0]            xbar_fb_ctl_axi_awid;
+    logic [31:0]               xbar_fb_ctl_axi_awaddr;
+    logic [7:0]                xbar_fb_ctl_axi_awlen;
+    logic [2:0]                xbar_fb_ctl_axi_awsize;
+    logic [1:0]                xbar_fb_ctl_axi_awburst;
+    logic                      xbar_fb_ctl_axi_awlock;
+    logic [3:0]                xbar_fb_ctl_axi_awcache;
+    logic [2:0]                xbar_fb_ctl_axi_awprot;
+    logic [3:0]                xbar_fb_ctl_axi_awqos;
+    logic [3:0]                xbar_fb_ctl_axi_awregion;
+    logic                      xbar_fb_ctl_axi_awuser;
+    logic                      xbar_fb_ctl_axi_awvalid;
+    logic                      xbar_fb_ctl_axi_awready;
+    logic [31:0] xbar_fb_ctl_axi_wdata;
+    logic [3:0] xbar_fb_ctl_axi_wstrb;
+    logic                      xbar_fb_ctl_axi_wlast;
+    logic                      xbar_fb_ctl_axi_wuser;
+    logic                      xbar_fb_ctl_axi_wvalid;
+    logic                      xbar_fb_ctl_axi_wready;
+    logic [0:0]            xbar_fb_ctl_axi_bid;
+    logic [1:0]                xbar_fb_ctl_axi_bresp;
+    logic                      xbar_fb_ctl_axi_buser;
+    logic                      xbar_fb_ctl_axi_bvalid;
+    logic                      xbar_fb_ctl_axi_bready;
+    logic [0:0]            xbar_fb_ctl_axi_arid;
+    logic [31:0]               xbar_fb_ctl_axi_araddr;
+    logic [7:0]                xbar_fb_ctl_axi_arlen;
+    logic [2:0]                xbar_fb_ctl_axi_arsize;
+    logic [1:0]                xbar_fb_ctl_axi_arburst;
+    logic                      xbar_fb_ctl_axi_arlock;
+    logic [3:0]                xbar_fb_ctl_axi_arcache;
+    logic [2:0]                xbar_fb_ctl_axi_arprot;
+    logic [3:0]                xbar_fb_ctl_axi_arqos;
+    logic [3:0]                xbar_fb_ctl_axi_arregion;
+    logic                      xbar_fb_ctl_axi_aruser;
+    logic                      xbar_fb_ctl_axi_arvalid;
+    logic                      xbar_fb_ctl_axi_arready;
+    logic [0:0]            xbar_fb_ctl_axi_rid;
+    logic [31:0] xbar_fb_ctl_axi_rdata;
+    logic [1:0]                xbar_fb_ctl_axi_rresp;
+    logic                      xbar_fb_ctl_axi_rlast;
+    logic                      xbar_fb_ctl_axi_ruser;
+    logic                      xbar_fb_ctl_axi_rvalid;
+    logic                      xbar_fb_ctl_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] fb_ctl_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] fb_ctl_axi_bid_bridge_id;
+    logic                       fb_ctl_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] fb_ctl_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] fb_ctl_axi_rid_bridge_id;
+    logic                       fb_ctl_axi_rid_valid;
+
     // subtractive (AXI4, 128b AXI4 interface)
     logic [0:0]            xbar_subtractive_axi_awid;
     logic [31:0]               xbar_subtractive_axi_awaddr;
@@ -595,7 +660,7 @@ module bridge_fb_cfg
     logic                       subtractive_axi_rid_valid;
 
 
-    // ---- Slave 6: subtractive (subtractive catch-all, internal) ----
+    // ---- Slave 7: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (bridge BUG-007, was BRIDGE-009). Always answers DECERR.
     logic         subtractive_awid;
@@ -653,7 +718,7 @@ module bridge_fb_cfg
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (128),
         .AXI_USER_WIDTH (1),
-        .UNIT_ID        (8'd6),
+        .UNIT_ID        (8'd7),
         .AGENT_ID       (16'h5B00)
     ) u_subtractive (
         .aclk          (aclk),
@@ -1155,7 +1220,60 @@ module bridge_fb_cfg
         .obs_apb_axi_rid_bridge_id(obs_apb_axi_rid_bridge_id),
         .obs_apb_axi_rid_valid(obs_apb_axi_rid_valid),
 
-        // Slave 6: subtractive
+        // Slave 6: fb_ctl
+        .fb_ctl_axi_awid(xbar_fb_ctl_axi_awid),
+        .fb_ctl_axi_awaddr(xbar_fb_ctl_axi_awaddr),
+        .fb_ctl_axi_awlen(xbar_fb_ctl_axi_awlen),
+        .fb_ctl_axi_awsize(xbar_fb_ctl_axi_awsize),
+        .fb_ctl_axi_awburst(xbar_fb_ctl_axi_awburst),
+        .fb_ctl_axi_awlock(xbar_fb_ctl_axi_awlock),
+        .fb_ctl_axi_awcache(xbar_fb_ctl_axi_awcache),
+        .fb_ctl_axi_awprot(xbar_fb_ctl_axi_awprot),
+        .fb_ctl_axi_awqos(xbar_fb_ctl_axi_awqos),
+        .fb_ctl_axi_awregion(xbar_fb_ctl_axi_awregion),
+        .fb_ctl_axi_awuser(xbar_fb_ctl_axi_awuser),
+        .fb_ctl_axi_awvalid(xbar_fb_ctl_axi_awvalid),
+        .fb_ctl_axi_awready(xbar_fb_ctl_axi_awready),
+        .fb_ctl_axi_wdata(xbar_fb_ctl_axi_wdata),
+        .fb_ctl_axi_wstrb(xbar_fb_ctl_axi_wstrb),
+        .fb_ctl_axi_wlast(xbar_fb_ctl_axi_wlast),
+        .fb_ctl_axi_wuser(xbar_fb_ctl_axi_wuser),
+        .fb_ctl_axi_wvalid(xbar_fb_ctl_axi_wvalid),
+        .fb_ctl_axi_wready(xbar_fb_ctl_axi_wready),
+        .fb_ctl_axi_bid(xbar_fb_ctl_axi_bid),
+        .fb_ctl_axi_bresp(xbar_fb_ctl_axi_bresp),
+        .fb_ctl_axi_buser(xbar_fb_ctl_axi_buser),
+        .fb_ctl_axi_bvalid(xbar_fb_ctl_axi_bvalid),
+        .fb_ctl_axi_bready(xbar_fb_ctl_axi_bready),
+        .fb_ctl_axi_arid(xbar_fb_ctl_axi_arid),
+        .fb_ctl_axi_araddr(xbar_fb_ctl_axi_araddr),
+        .fb_ctl_axi_arlen(xbar_fb_ctl_axi_arlen),
+        .fb_ctl_axi_arsize(xbar_fb_ctl_axi_arsize),
+        .fb_ctl_axi_arburst(xbar_fb_ctl_axi_arburst),
+        .fb_ctl_axi_arlock(xbar_fb_ctl_axi_arlock),
+        .fb_ctl_axi_arcache(xbar_fb_ctl_axi_arcache),
+        .fb_ctl_axi_arprot(xbar_fb_ctl_axi_arprot),
+        .fb_ctl_axi_arqos(xbar_fb_ctl_axi_arqos),
+        .fb_ctl_axi_arregion(xbar_fb_ctl_axi_arregion),
+        .fb_ctl_axi_aruser(xbar_fb_ctl_axi_aruser),
+        .fb_ctl_axi_arvalid(xbar_fb_ctl_axi_arvalid),
+        .fb_ctl_axi_arready(xbar_fb_ctl_axi_arready),
+        .fb_ctl_axi_rid(xbar_fb_ctl_axi_rid),
+        .fb_ctl_axi_rdata(xbar_fb_ctl_axi_rdata),
+        .fb_ctl_axi_rresp(xbar_fb_ctl_axi_rresp),
+        .fb_ctl_axi_rlast(xbar_fb_ctl_axi_rlast),
+        .fb_ctl_axi_ruser(xbar_fb_ctl_axi_ruser),
+        .fb_ctl_axi_rvalid(xbar_fb_ctl_axi_rvalid),
+        .fb_ctl_axi_rready(xbar_fb_ctl_axi_rready),
+        .fb_ctl_axi_bridge_id_aw(fb_ctl_axi_bridge_id_aw),
+        .fb_ctl_axi_bid_bridge_id(fb_ctl_axi_bid_bridge_id),
+        .fb_ctl_axi_bid_valid(fb_ctl_axi_bid_valid),
+
+        .fb_ctl_axi_bridge_id_ar(fb_ctl_axi_bridge_id_ar),
+        .fb_ctl_axi_rid_bridge_id(fb_ctl_axi_rid_bridge_id),
+        .fb_ctl_axi_rid_valid(fb_ctl_axi_rid_valid),
+
+        // Slave 7: subtractive
         .subtractive_axi_awid(xbar_subtractive_axi_awid),
         .subtractive_axi_awaddr(xbar_subtractive_axi_awaddr),
         .subtractive_axi_awlen(xbar_subtractive_axi_awlen),
@@ -1698,6 +1816,78 @@ module bridge_fb_cfg
         .xbar_bridge_id_ar(obs_apb_axi_bridge_id_ar),
         .rid_bridge_id(obs_apb_axi_rid_bridge_id),
         .rid_valid(obs_apb_axi_rid_valid)
+    );
+
+    // fb_ctl adapter (APB, crossbar → external slave)
+    bridge_fb_cfg_fb_ctl_adapter u_fb_ctl_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_fb_ctl_axi_*)
+        .xbar_fb_ctl_axi_awid(xbar_fb_ctl_axi_awid),
+        .xbar_fb_ctl_axi_awaddr(xbar_fb_ctl_axi_awaddr),
+        .xbar_fb_ctl_axi_awlen(xbar_fb_ctl_axi_awlen),
+        .xbar_fb_ctl_axi_awsize(xbar_fb_ctl_axi_awsize),
+        .xbar_fb_ctl_axi_awburst(xbar_fb_ctl_axi_awburst),
+        .xbar_fb_ctl_axi_awlock(xbar_fb_ctl_axi_awlock),
+        .xbar_fb_ctl_axi_awcache(xbar_fb_ctl_axi_awcache),
+        .xbar_fb_ctl_axi_awprot(xbar_fb_ctl_axi_awprot),
+        .xbar_fb_ctl_axi_awqos(xbar_fb_ctl_axi_awqos),
+        .xbar_fb_ctl_axi_awregion(xbar_fb_ctl_axi_awregion),
+        .xbar_fb_ctl_axi_awuser(xbar_fb_ctl_axi_awuser),
+        .xbar_fb_ctl_axi_awvalid(xbar_fb_ctl_axi_awvalid),
+        .xbar_fb_ctl_axi_awready(xbar_fb_ctl_axi_awready),
+        .xbar_fb_ctl_axi_wdata(xbar_fb_ctl_axi_wdata),
+        .xbar_fb_ctl_axi_wstrb(xbar_fb_ctl_axi_wstrb),
+        .xbar_fb_ctl_axi_wlast(xbar_fb_ctl_axi_wlast),
+        .xbar_fb_ctl_axi_wuser(xbar_fb_ctl_axi_wuser),
+        .xbar_fb_ctl_axi_wvalid(xbar_fb_ctl_axi_wvalid),
+        .xbar_fb_ctl_axi_wready(xbar_fb_ctl_axi_wready),
+        .xbar_fb_ctl_axi_bid(xbar_fb_ctl_axi_bid),
+        .xbar_fb_ctl_axi_bresp(xbar_fb_ctl_axi_bresp),
+        .xbar_fb_ctl_axi_buser(xbar_fb_ctl_axi_buser),
+        .xbar_fb_ctl_axi_bvalid(xbar_fb_ctl_axi_bvalid),
+        .xbar_fb_ctl_axi_bready(xbar_fb_ctl_axi_bready),
+        .xbar_fb_ctl_axi_arid(xbar_fb_ctl_axi_arid),
+        .xbar_fb_ctl_axi_araddr(xbar_fb_ctl_axi_araddr),
+        .xbar_fb_ctl_axi_arlen(xbar_fb_ctl_axi_arlen),
+        .xbar_fb_ctl_axi_arsize(xbar_fb_ctl_axi_arsize),
+        .xbar_fb_ctl_axi_arburst(xbar_fb_ctl_axi_arburst),
+        .xbar_fb_ctl_axi_arlock(xbar_fb_ctl_axi_arlock),
+        .xbar_fb_ctl_axi_arcache(xbar_fb_ctl_axi_arcache),
+        .xbar_fb_ctl_axi_arprot(xbar_fb_ctl_axi_arprot),
+        .xbar_fb_ctl_axi_arqos(xbar_fb_ctl_axi_arqos),
+        .xbar_fb_ctl_axi_arregion(xbar_fb_ctl_axi_arregion),
+        .xbar_fb_ctl_axi_aruser(xbar_fb_ctl_axi_aruser),
+        .xbar_fb_ctl_axi_arvalid(xbar_fb_ctl_axi_arvalid),
+        .xbar_fb_ctl_axi_arready(xbar_fb_ctl_axi_arready),
+        .xbar_fb_ctl_axi_rid(xbar_fb_ctl_axi_rid),
+        .xbar_fb_ctl_axi_rdata(xbar_fb_ctl_axi_rdata),
+        .xbar_fb_ctl_axi_rresp(xbar_fb_ctl_axi_rresp),
+        .xbar_fb_ctl_axi_rlast(xbar_fb_ctl_axi_rlast),
+        .xbar_fb_ctl_axi_ruser(xbar_fb_ctl_axi_ruser),
+        .xbar_fb_ctl_axi_rvalid(xbar_fb_ctl_axi_rvalid),
+        .xbar_fb_ctl_axi_rready(xbar_fb_ctl_axi_rready),
+
+        // External APB interface (fb_ctl_apb_*)
+        .fb_ctl_apb_PADDR(fb_ctl_apb_PADDR),
+        .fb_ctl_apb_PSEL(fb_ctl_apb_PSEL),
+        .fb_ctl_apb_PENABLE(fb_ctl_apb_PENABLE),
+        .fb_ctl_apb_PWRITE(fb_ctl_apb_PWRITE),
+        .fb_ctl_apb_PWDATA(fb_ctl_apb_PWDATA),
+        .fb_ctl_apb_PSTRB(fb_ctl_apb_PSTRB),
+        .fb_ctl_apb_PPROT(fb_ctl_apb_PPROT),
+        .fb_ctl_apb_PRDATA(fb_ctl_apb_PRDATA),
+        .fb_ctl_apb_PSLVERR(fb_ctl_apb_PSLVERR),
+        .fb_ctl_apb_PREADY(fb_ctl_apb_PREADY),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(fb_ctl_axi_bridge_id_aw),
+        .bid_bridge_id(fb_ctl_axi_bid_bridge_id),
+        .bid_valid(fb_ctl_axi_bid_valid),
+        .xbar_bridge_id_ar(fb_ctl_axi_bridge_id_ar),
+        .rid_bridge_id(fb_ctl_axi_rid_bridge_id),
+        .rid_valid(fb_ctl_axi_rid_valid)
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)
