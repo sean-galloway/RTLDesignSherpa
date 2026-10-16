@@ -54,7 +54,7 @@ Beyond the wrapped AXIS block's parameters:
 
 | Parameter | Block | Default | Description |
 |---|---|---|---|
-| CXS_MAX_CREDIT | both | 15 | Credits the link carries |
+| CXS_MAX_CREDIT | both | 32 | Credits the link carries (one credit = one flit) |
 | CXS_CREDIT_BEYOND_SPEC | both | 0 | Allow more than 63 credits; both ends must agree |
 | STREAM_SRCID_BITS | both | `$clog2(NUM_CHANNELS)` | Per-stream framing key on `CXSSRCID` |
 | CXS_IDLE_CYCLES | injector | 32 | Idle RUN cycles before the link deactivates |

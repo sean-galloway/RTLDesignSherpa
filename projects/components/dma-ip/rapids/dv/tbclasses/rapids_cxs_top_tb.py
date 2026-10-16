@@ -53,9 +53,9 @@ class _CXSNetworkMixin:
     def cxs_config(self):
         sw = self.DATA_WIDTH // 8
         carry_tuser = sw + AXIS_USER_WIDTH <= 128
-        # The tops default CXS_MAX_CREDIT to SRAM_DEPTH (one channel's SRAM);
-        # past the spec's 63 the link is built beyond spec at both ends.
-        credits = int(os.environ.get('TEST_CXS_MAX_CREDIT', '512'))   # the runner sets it from SRAM_DEPTH
+        # The tops default CXS_MAX_CREDIT to 32; past the spec's 63 the link
+        # is built beyond spec at both ends.
+        credits = int(os.environ.get('TEST_CXS_MAX_CREDIT', '32'))     # the runner passes the top's value
         return CXSConfig(issue='D', data_width=self.DATA_WIDTH, max_pkt_per_flit=2, start_align=16,
                          srcid_width=AXIS_ID_WIDTH, tgtid_width=AXIS_DEST_WIDTH,
                          user_width=sw + (AXIS_USER_WIDTH if carry_tuser else 0),

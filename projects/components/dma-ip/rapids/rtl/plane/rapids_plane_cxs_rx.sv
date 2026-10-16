@@ -43,7 +43,7 @@ module rapids_plane_cxs_rx #(
     /* verilator lint_off UNUSEDPARAM */
     parameter int SKID_DEPTH       = 4,
     /* verilator lint_on UNUSEDPARAM */
-    parameter int CXS_MAX_CREDIT   = 15,      // credits the link carries (1..63, or more with CXS_CREDIT_BEYOND_SPEC)
+    parameter int CXS_MAX_CREDIT   = 32,      // credits the link carries (1..63, or more with CXS_CREDIT_BEYOND_SPEC)
     parameter bit CXS_CREDIT_BEYOND_SPEC = (CXS_MAX_CREDIT > 63),
     // Channels interleave on the link (CXSSRCID = TID = channel), so packets
     // are framed per stream on the low CXSSRCID bits (IHI 0079D 2.5.2)

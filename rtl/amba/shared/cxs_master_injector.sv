@@ -51,7 +51,7 @@ module cxs_master_injector #(
     parameter int          CRC_REFIN        = 1,
     parameter int          CRC_REFOUT       = 1,
     parameter int          BEAT_COUNT_WIDTH = 32,
-    parameter int          CXS_MAX_CREDIT   = 15,
+    parameter int          CXS_MAX_CREDIT   = 32,
     // Per-stream framing key: channels interleave on the link and TID ->
     // CXSSRCID carries the channel, so the channel bits of CXSSRCID tell the
     // streams apart (IHI 0079D 2.5.2). Both ends must use the same value.

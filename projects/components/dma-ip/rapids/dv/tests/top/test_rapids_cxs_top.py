@@ -230,9 +230,9 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
         'TEST_AXI_ID_WIDTH': '8',
         'TEST_APB_ADDR_WIDTH': '13',
         'TEST_APB_DATA_WIDTH': '32',
-        # CXS_MAX_CREDIT defaults to SRAM_DEPTH (one channel's SRAM); the
-        # BFMs must build the same (beyond-spec) link
-        'TEST_CXS_MAX_CREDIT': str(rtl_parameters.get('CXS_MAX_CREDIT', rtl_parameters['SRAM_DEPTH'])),
+        # The BFMs must build the same link as the top: CXS_MAX_CREDIT
+        # (top default 32) unless the cell overrides it
+        'TEST_CXS_MAX_CREDIT': str(rtl_parameters.get('CXS_MAX_CREDIT', 32)),
     }
 
     compile_args = [

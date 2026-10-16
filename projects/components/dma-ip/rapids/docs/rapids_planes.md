@@ -81,7 +81,7 @@ The CXS planes use one fixed link profile. It is Arm IHI 0079 Issue D, chosen be
 
 CXS top parameters:
 
-- `CXS_MAX_CREDIT` defaults to `SRAM_DEPTH`, one channel's SRAM in beats. Override it lower if you like.
+- `CXS_MAX_CREDIT` defaults to 32. One credit is one flit (IHI 0079D 2.1), and the grant -> flit -> free round trip between the endpoints is about 3 cycles, so 32 keeps one flit per cycle with about 29 cycles to spare for link pipelining or a CDC. The receiver needn't grant one credit per buffer slot; each granted credit only has to be backed by space, so the SRAM can be deeper than the pool.
 - `CXS_RX_FIFO_DEPTH` defaults to the credit count; the receive FIFO is the credit pool.
 - `CXS_CREDIT_BEYOND_SPEC` is derived as `CXS_MAX_CREDIT > 63`: past the spec's 63 the link is built beyond spec, and the far end must be too.
 - `CXS_IDLE_CYCLES` is 32.

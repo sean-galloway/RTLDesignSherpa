@@ -39,7 +39,7 @@ module rapids_plane_cxs_tx #(
     parameter int AXIS_DEST_WIDTH  = 4,
     parameter int AXIS_USER_WIDTH  = 1,
     parameter int SKID_DEPTH       = 4,
-    parameter int CXS_MAX_CREDIT   = 15,      // credits the link carries (1..63, or more with CXS_CREDIT_BEYOND_SPEC)
+    parameter int CXS_MAX_CREDIT   = 32,      // credits the link carries (1..63, or more with CXS_CREDIT_BEYOND_SPEC)
     parameter bit CXS_CREDIT_BEYOND_SPEC = (CXS_MAX_CREDIT > 63),
     // Channels interleave on the link (CXSSRCID = TID = channel), so packets
     // are framed per stream on the low CXSSRCID bits (IHI 0079D 2.5.2)

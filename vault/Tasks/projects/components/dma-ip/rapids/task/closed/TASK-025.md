@@ -9,6 +9,16 @@ source egress interleaves channels mid-packet, which the TASK-024 planes
 emitted as CXS the family rejected (single-context framing) -- missed because
 every CXS cell ran one channel at a time.
 
+## Amendment (2026-10-16, owner)
+
+CXS_MAX_CREDIT defaults to **32**, not SRAM_DEPTH. One CXS credit is one flit
+(IHI 0079D 2.1: "Each credit permits one flit of data transfer"), so a credit
+cannot stand for several beats on a compliant link. The credit round trip
+between the endpoints is about 3 cycles (registered grant -> flit next cycle
+-> next-state occupancy), so 32 runs full rate with ~29 cycles of slack, and
+stays inside the spec's 63. SRAM_DEPTH is beats per channel; the board design
+point is 4 KB/channel (128 x 32 B), set by hand in create_project.tcl.
+
 ## Done
 
 - Planes and generated tops: CXS_STREAM_SRCID_BITS = CIW (amba TASK-045);

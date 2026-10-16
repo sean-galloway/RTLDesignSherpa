@@ -45,7 +45,7 @@ class CxsPatternPairTB(Axis4PatternPairTB):
         return CXSConfig(issue='D', data_width=self.DW, max_pkt_per_flit=2, start_align=16,
                          srcid_width=AXIS_ID_WIDTH, tgtid_width=AXIS_DEST_WIDTH,
                          user_width=sw + (AXIS_USER_WIDTH if carry_tuser else 0),
-                         max_credit=15, link_control=True, check=False).validate()
+                         max_credit=32, link_control=True, check=False).validate()   # the injector/checker default
 
     async def setup_clocks_and_reset(self):
         await super().setup_clocks_and_reset()

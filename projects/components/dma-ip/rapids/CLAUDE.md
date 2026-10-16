@@ -73,7 +73,8 @@
 >
 > **rapids TASK-025 (2026-10-16):** ONE CXS link per direction, CXSSRCID = channel. Packets are framed
 > per stream on the channel bits (the byte source interleaves channels mid-packet). `CXS_MAX_CREDIT`
-> defaults to `SRAM_DEPTH` (overridable lower), beyond the spec's 63 via `CXS_CREDIT_BEYOND_SPEC`.
+> defaults to 32 (one credit = one flit; ~3-cycle credit round trip), owner 2026-10-16; above 63 needs
+> `CXS_CREDIT_BEYOND_SPEC`. It is not tied to SRAM_DEPTH, which is beats per channel.
 > CXS cells must include a concurrent-channel case: single-channel cells hid the framing bug.
 
 **Complete Specification:**

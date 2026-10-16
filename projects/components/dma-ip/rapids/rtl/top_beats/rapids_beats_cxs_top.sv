@@ -82,11 +82,12 @@ module rapids_beats_cxs_top
     parameter int SCW = $clog2(SRAM_DEPTH) + 1,
     parameter int SW  = DW / 8,
     // CXS link (rtl/plane/rapids_plane_cxs_*): Issue D, credits, idle timeout.
-    // One link per direction; CXSSRCID carries the channel. The credit pool
-    // defaults to one channel's SRAM (SRAM_DEPTH beats) and may be set lower.
+    // One link per direction; CXSSRCID carries the channel. One credit is one
+    // flit (IHI 0079D 2.1). 32 covers the ~3-cycle grant->flit->free round
+    // trip with ~29 cycles to spare (link pipelining or a CDC) at full rate.
     // Above the spec's 63 the link is built CXS_CREDIT_BEYOND_SPEC (both ends
     // of the link must agree). The receive FIFO is the pool.
-    parameter int CXS_MAX_CREDIT       = SRAM_DEPTH,
+    parameter int CXS_MAX_CREDIT       = 32,
     parameter int CXS_RX_FIFO_DEPTH    = CXS_MAX_CREDIT,
     parameter bit CXS_CREDIT_BEYOND_SPEC = (CXS_MAX_CREDIT > 63),
     parameter logic [7:0] CXS_IDLE_CYCLES = 8'd32,
