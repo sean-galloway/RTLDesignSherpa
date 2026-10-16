@@ -19,8 +19,9 @@ when the verdict is PASS and every active channel's CRC is valid and matches.
     python3 bin/fb_char.py --leg a --chain               # W1-F2, W1-F1, W4, drain
 
 --chain runs bin/fb_workloads.CHAIN on every sweep point instead of W2: each
-step reads or writes DDR3 through MIG at S0, and both drains end in a per-channel
-CRC check against the fill's LFSR CRCs (fb_workloads has the verdict rules).
+step reads or writes DDR3 at S0, and both drains end in a per-channel CRC check
+against the fill's LFSR CRCs (fb_workloads has the verdict rules). It is an
+integrity check: its rows carry the verdict and S0 counts, no bandwidth.
 
 Output: reports/board/w2_<leg>_<YYYYMMDD_HHMMSS>.csv (one row per run; k3_ for
 --chain, one row per step) and the same rows as JSON beside it. The exit code is
@@ -87,10 +88,10 @@ def row(leg, cfg, res, slv) -> dict:
     mbps = res.get('bus_throughput_mbps')
     crc = res.get('crc') or {}
     met = res.get('metrics') or {}
-    # STREAM's perf window opens on DMA activity and closes after 16 quiet
-    # cycles; a descriptor fetch slower than that through the fabric (B2,
-    # 1 channel) shuts it early and the buckets cover a sliver of the run.
-    # Report no utilization rather than a wrong one.
+    # STREAM's perf window measures data movement only: it opens at the kick
+    # and closes after 16 quiet cycles. A descriptor fetch slower than that
+    # (B2, 1 channel) closes it before the first data beat, so the buckets
+    # hold none of the run's data. Report no utilization rather than a wrong one.
     short = [s for s in ('r', 'w')
              if (met.get(f'{s}_window_cycles') or 0) < (met.get(f'{s}_firstlast_cycles') or 0) // 2]
     util = (lambda v: None) if short else (lambda v: v)
@@ -112,23 +113,14 @@ def row(leg, cfg, res, slv) -> dict:
 
 
 def chain_row(leg, cfg, res) -> dict:
-    """One chain step. Utilization is the master side only: the slave-side
-    observer watches S2/S3, which a DDR3 step does not use in both directions."""
-    peak = res.get('bus_max_one_dir_mbps')
-    mbps = res.get('bus_throughput_mbps')
-    met = res.get('metrics') or {}
+    """One chain step: an integrity verdict, not a bandwidth figure. W1/W4
+    rates are set by S0's controller, not the fabric (PRD §6, K3), so the
+    throughput and utilization columns are left empty on purpose."""
     crc = res.get('crc') or {}
     return {'leg': leg, 'name': cfg.name, 'step': res['step'], 'channels': cfg.num_channels,
             'descriptors': cfg.descriptors_per_channel, 'bytes_per_desc': cfg.transfer_bytes,
             'pass': res['verdict'], 'crc_valid': f"0x{crc.get('valid_mask', 0):X}",
             'crc_match': f"0x{crc.get('match_mask', 0):X}",
-            'cycles_total': res.get('bus_cycles_total'),
-            'bus_throughput_mbps': round(mbps, 1) if mbps else mbps,
-            'peak_mbps': round(peak, 1) if peak else peak,
-            'pct_of_peak': round(100 * mbps / peak, 1) if mbps and peak else None,
-            'm_rd_util': met.get('datapath_utilization_r'),
-            'm_wr_util': met.get('datapath_utilization_w'),
-            's_rd_util': None, 's_wr_util': None,
             's0_rd_beats': res.get('s0_rd_beats'), 's0_wr_beats': res.get('s0_wr_beats'),
             'error': '; '.join(res['why'])}
 

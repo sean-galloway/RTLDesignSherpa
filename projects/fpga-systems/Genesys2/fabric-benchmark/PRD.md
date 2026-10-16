@@ -246,46 +246,40 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   at 4 KB (B2 takes 47-50 more cycles per run than A, e.g. 1146 vs 1099
   at 1 channel).
 
-  On B2, 1-channel runs report no utilization: STREAM's perf window closes
-  after 16 quiet cycles and does not count a descriptor fetch as busy, and
-  SmartConnect's fetch latency exceeds that, so the window shuts at cycle
-  ~31 (`fb_char` flags it; throughput and CRC are unaffected). The fix
-  belongs in `stream_core`'s busy term (descriptor fetch outstanding).
+  On B2, 1-channel runs report no utilization. STREAM's perf window
+  measures data movement only, by design -- a descriptor fetch is not
+  activity. It opens on the scheduler's first non-idle cycle (the kick) and
+  closes after 16 quiet cycles; on B2 at 1 channel the descriptor fetch
+  through SmartConnect is longer than that, so the window closes at cycle
+  ~31, before the first data beat, and the run's data is not in it.
+  `fb_char` flags those rows; throughput (on-chip timer) and CRC are
+  unaffected. Left as is (owner decision 2026-10-16); opening the window on
+  the first data beat would fit the data-only rule, but it is a
+  `stream_core` change and moves STREAM's own board measurements.
 
-- K3 (W1/W4 done; W3 next): the DDR3 workloads run as one CRC-checked chain
-  (`bin/fb_workloads.py`, the same code in sim and on the board): W1-F2 fills
-  DDR3 region A from the LFSR source; W1-F1 drains A into the CRC sink, whose
-  per-channel CRC must equal the fill's LFSR CRC; W4 copies A to region B;
-  a second drain checks B the same way. `fb_ctl` (`rtl/regs/fb_ctl_regs.rdl`,
-  config window 0x0020_0000) points the run timer at the endpoints a step
-  uses (WORKLOAD), counts S0 handshakes and beats, and reports the DDR3
-  controller's calibration and the S0 handshake levels live (STATUS). The chain passes in
-  sim on legs A and B1 (func). `fb_char.py --chain` runs it on the board.
+- K3 (integrity chain done; W3 next): the DDR3 workloads run as one
+  CRC-checked chain (`bin/fb_workloads.py`, the same code in sim and on the
+  board): W1-F2 fills DDR3 region A from the LFSR source; W1-F1 drains A
+  into the CRC sink, whose per-channel CRC must equal the fill's LFSR CRC;
+  W4 copies A to region B; a second drain checks B the same way. `fb_ctl`
+  (`rtl/regs/fb_ctl_regs.rdl`, config window 0x0020_0000) points the run
+  timer at the endpoints a step uses (WORKLOAD), counts S0 handshakes and
+  beats, and reports the DDR3 controller's calibration and the S0
+  handshake levels live (STATUS). The chain passes in sim on legs A and B1
+  (func), and on the board on LiteDRAM, 144/144 steps on all three legs
+  (`fb_char.py --leg X --chain`, 1/2/4/8 channels x 4 KB/64 KB/1 MB):
+  every drain reproduces the fill's per-channel LFSR CRC, including after
+  the copy, and every S0 count is exact.
 
-  On the board, on LiteDRAM (`fb_char.py --leg X --chain`, 4 descriptors
-  per channel, 1/2/4/8 channels x 4 KB/64 KB/1 MB): **144/144 steps pass on
-  all three legs** -- every drain reproduces the fill's per-channel LFSR CRC,
-  including after the copy, and every S0 count is exact. MiB/s (% of the
-  1525.9 MiB/s path peak: the fabric's one direction; DDR3-800 x32 is
-  3051.8 MiB/s, shared by both directions):
-
-  | Step | 1 ch, 1 MB | 8 ch, 1 MB | 1 ch, 4 KB | 8 ch, 4 KB |
-  | --- | ---: | ---: | ---: | ---: |
-  | W1-F2 fill (LFSR -> DDR3) | 396.5 (26.0) | 365.5 (24.0) | 395.5 (25.9) | 365.4 (23.9) |
-  | W1-F1 drain (DDR3 -> CRC) | 187.3 (12.3) | 179.5 (11.8) | 185.4 (12.2) | 179.4 (11.8) |
-  | W4 copy (DDR3 -> DDR3) | 112.8 (7.4) | 112.4 (7.4) | 113.2 (7.4) | 112.5 (7.4) |
-
-  (Leg A shown; B1 and B2 are within 0.5 MiB/s of it at every point except
-  B2 at 1 ch x 4 KB, ~1-5 MiB/s lower -- its descriptor-fetch latency.
-  CSVs: `reports/board/k3_<leg>_*.csv`.)
-
-  **With DDR3 in the path the three fabrics are indistinguishable: S0's
-  controller is the bottleneck, by 3.8-13.6x.** W2 reaches 100% of the same
-  peak through the same fabrics, so the shortfall is LiteDRAM's AXI user
-  port, not the fabric -- reads at 12% suggest it serves read bursts one at
-  a time at full latency. W1/W4 therefore measure the controller until that
-  is lifted; the fabric comparison stays W2's, and W3's arbitration story
-  (two masters into one slow S0) does not depend on S0 being fast.
+  **W1 and W4 are integrity checks, not bandwidth measurements** (owner
+  decision 2026-10-16). With DDR3 in the path the three legs measured
+  identically, all at 7-26% of the path peak that W2 reaches through the
+  same fabrics: S0's controller (LiteDRAM's AXI port), not the fabric,
+  sets the rate, so a W1/W4 bandwidth figure would describe LiteDRAM and
+  nothing about the legs. The fabric comparison is W2's; W3 measures how
+  each fabric shares one slow slave between two masters, which does not
+  need S0 to be fast. `fb_char --chain` reports pass/fail and the S0 counts
+  only.
 
   MIG 7-series was the first S0 controller. It calibrated and completed
   writes, but its read path usually returned no data: an ILA
