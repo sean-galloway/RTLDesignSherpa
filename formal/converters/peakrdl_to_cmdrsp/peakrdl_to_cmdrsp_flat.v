@@ -1,3 +1,87 @@
+module reset_sync (
+	clk,
+	rst_n,
+	sync_rst_n
+);
+	reg _sv2v_0;
+	parameter signed [31:0] N = 3;
+	parameter [0:0] KEEP_ATTRS = 1'b1;
+	parameter [0:0] IN_ACTIVE_LOW = 1'b1;
+	parameter [0:0] OUT_ACTIVE_LOW = 1'b1;
+	parameter [0:0] ASYNC_ASSERT = 1'b1;
+	input wire clk;
+	input wire rst_n;
+	output reg sync_rst_n;
+	generate
+		if (N < 2) begin : g_illegal
+			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+		end
+	endgenerate
+	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
+	generate
+		if (ASYNC_ASSERT) begin : g_async_assert
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+		else begin : g_sync_only
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
 module peakrdl_to_cmdrsp (
 	aclk,
 	aresetn,
@@ -51,6 +135,18 @@ module peakrdl_to_cmdrsp (
 	input wire [DATA_WIDTH - 1:0] regblk_rd_data;
 	input wire regblk_wr_ack;
 	input wire regblk_wr_err;
+	wire w_aresetn;
+	reset_sync #(
+		.N(3),
+		.KEEP_ATTRS(1'b1),
+		.IN_ACTIVE_LOW(1'b1),
+		.OUT_ACTIVE_LOW(1'b1),
+		.ASYNC_ASSERT(1'b1)
+	) u_reset_sync(
+		.clk(aclk),
+		.rst_n(aresetn),
+		.sync_rst_n(w_aresetn)
+	);
 	localparam signed [31:0] STRB_WIDTH = DATA_WIDTH / 8;
 	reg [1:0] cmd_state;
 	reg [1:0] cmd_state_next;
@@ -74,8 +170,8 @@ module peakrdl_to_cmdrsp (
 			strb_to_biten = biten;
 		end
 	endfunction
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn)
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn)
 			cmd_state <= 2'b00;
 		else
 			cmd_state <= cmd_state_next;
@@ -105,8 +201,8 @@ module peakrdl_to_cmdrsp (
 		endcase
 	end
 	assign cmd_ready = cmd_state == 2'b00;
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn) begin
 			r_cmd_pwrite <= 1'sb0;
 			r_cmd_paddr <= 1'sb0;
 			r_cmd_pwdata <= 1'sb0;
@@ -123,8 +219,8 @@ module peakrdl_to_cmdrsp (
 	assign regblk_addr = (cmd_state == 2'b00 ? cmd_paddr : r_cmd_paddr);
 	assign regblk_wr_data = (cmd_state == 2'b00 ? cmd_pwdata : r_cmd_pwdata);
 	assign regblk_wr_biten = (cmd_state == 2'b00 ? strb_to_biten(cmd_pstrb) : r_cmd_wr_biten);
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn)
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn)
 			rsp_state <= 1'b0;
 		else
 			rsp_state <= rsp_state_next;
@@ -142,8 +238,8 @@ module peakrdl_to_cmdrsp (
 			default: rsp_state_next = 1'b0;
 		endcase
 	end
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn) begin
 			r_rsp_prdata <= 1'sb0;
 			r_rsp_pslverr <= 1'sb0;
 		end

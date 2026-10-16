@@ -1,3 +1,87 @@
+module reset_sync (
+	clk,
+	rst_n,
+	sync_rst_n
+);
+	reg _sv2v_0;
+	parameter signed [31:0] N = 3;
+	parameter [0:0] KEEP_ATTRS = 1'b1;
+	parameter [0:0] IN_ACTIVE_LOW = 1'b1;
+	parameter [0:0] OUT_ACTIVE_LOW = 1'b1;
+	parameter [0:0] ASYNC_ASSERT = 1'b1;
+	input wire clk;
+	input wire rst_n;
+	output reg sync_rst_n;
+	generate
+		if (N < 2) begin : g_illegal
+			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+		end
+	endgenerate
+	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
+	generate
+		if (ASYNC_ASSERT) begin : g_async_assert
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+		else begin : g_sync_only
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -310,74 +394,96 @@ module gaxi_skid_buffer (
 	input wire rd_ready;
 	output wire [3:0] rd_count;
 	output wire [DW - 1:0] rd_data;
-	reg [DW - 1:0] r_data [0:DEPTH - 1];
+	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
+	reg [DW - 1:0] r_data [0:SLOTS - 1];
 	reg [3:0] r_data_count;
 	wire w_wr_xfer;
 	wire w_rd_xfer;
 	assign w_wr_xfer = wr_valid & wr_ready;
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
-		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
-	genvar _gv_gi_1;
-	generate
-		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
-			localparam gi = _gv_gi_1;
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_data[gi] <= 1'sb0;
-				else
-					(* full_case, parallel_case *)
-					case ({w_wr_xfer, w_rd_xfer})
-						2'b10:
-							if (r_data_count == gi[3:0])
-								r_data[gi] <= wr_data;
-						2'b01:
-							if (gi < (DEPTH - 1))
-								r_data[gi] <= r_data[gi + 1];
-							else
-								r_data[gi] <= 1'sb0;
-						2'b11:
-							if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
-								r_data[gi] <= wr_data;
-							else if (gi < (DEPTH - 1))
-								r_data[gi] <= r_data[gi + 1];
-							else
-								r_data[gi] <= 1'sb0;
-						default:
-							;
-					endcase
-		end
-	endgenerate
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn)
-			r_data_count <= 1'sb0;
-		else
-			(* full_case, parallel_case *)
-			case ({w_wr_xfer, w_rd_xfer})
-				2'b10: r_data_count <= r_data_count + 4'd1;
-				2'b01: r_data_count <= r_data_count - 4'd1;
-				default:
-					;
-			endcase
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn) begin
-			wr_ready <= 1'b0;
-			rd_valid <= 1'b0;
+	generate
+		if (DEPTH == 0) begin : g_bypass
+			wire [1:1] sv2v_tmp_B1958;
+			assign sv2v_tmp_B1958 = rd_ready;
+			always @(*) wr_ready = sv2v_tmp_B1958;
+			wire [1:1] sv2v_tmp_00E98;
+			assign sv2v_tmp_00E98 = wr_valid;
+			always @(*) rd_valid = sv2v_tmp_00E98;
+			assign rd_data = wr_data;
+			wire [4:1] sv2v_tmp_953DA;
+			assign sv2v_tmp_953DA = 1'sb0;
+			always @(*) r_data_count = sv2v_tmp_953DA;
+			wire [DW:1] sv2v_tmp_D35D5;
+			assign sv2v_tmp_D35D5 = 1'sb0;
+			always @(*) r_data[0] = sv2v_tmp_D35D5;
+			assign rd_count = 1'sb0;
+			assign count = 1'sb0;
+			wire w_bypass_unused;
+			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
 		end
-		else begin
-			wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
-			rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+		else begin : g_skid
+			genvar _gv_gi_1;
+			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+				localparam gi = _gv_gi_1;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_data[gi] <= 1'sb0;
+					else
+						(* full_case, parallel_case *)
+						case ({w_wr_xfer, w_rd_xfer})
+							2'b10:
+								if (r_data_count == gi[3:0])
+									r_data[gi] <= wr_data;
+							2'b01:
+								if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							2'b11:
+								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+									r_data[gi] <= wr_data;
+								else if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							default:
+								;
+						endcase
+			end
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data_count <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10: r_data_count <= r_data_count + 4'd1;
+						2'b01: r_data_count <= r_data_count - 4'd1;
+						default:
+							;
+					endcase
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn) begin
+					wr_ready <= 1'b0;
+					rd_valid <= 1'b0;
+				end
+				else begin
+					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
+					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+				end
+			assign rd_data = r_data[0];
+			assign rd_count = r_data_count;
+			assign count = r_data_count;
 		end
-	assign rd_data = r_data[0];
-	assign rd_count = r_data_count;
-	assign count = r_data_count;
+	endgenerate
 endmodule
 module axi_gen_addr (
 	curr_addr,
@@ -473,6 +579,397 @@ module axi_gen_addr (
 	wire [AW - 1:0] w_alignment_mask = sv2v_cast_DE851_signed(ODWBYTES) - 1;
 	assign next_addr_align = next_addr & ~w_alignment_mask;
 	initial _sv2v_0 = 0;
+endmodule
+module gray2bin (
+	gray,
+	binary
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire [WIDTH - 1:0] gray;
+	output wire [WIDTH - 1:0] binary;
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < WIDTH; _gv_i_1 = _gv_i_1 + 1) begin : gen_gray_to_bin
+			localparam i = _gv_i_1;
+			assign binary[i] = ^(gray >> i);
+		end
+	endgenerate
+endmodule
+module johnson2bin (
+	clk,
+	rst_n,
+	gray,
+	binary
+);
+	reg _sv2v_0;
+	parameter signed [31:0] JCW = 10;
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire [JCW - 1:0] gray;
+	output wire [WIDTH - 1:0] binary;
+	localparam signed [31:0] N = $clog2(JCW);
+	localparam signed [31:0] PAD_WIDTH = (WIDTH > (N + 1) ? (WIDTH - N) - 1 : 0);
+	wire [N - 1:0] w_leading_one;
+	wire [N - 1:0] w_trailing_one;
+	reg [WIDTH - 1:0] w_binary;
+	wire w_all_zeroes;
+	wire w_all_ones;
+	wire w_valid;
+	leading_one_trailing_one #(.WIDTH(JCW)) u_leading_one_trailing_one(
+		.data(gray),
+		.leadingone(w_leading_one),
+		.leadingone_vector(),
+		.trailingone(w_trailing_one),
+		.trailingone_vector(),
+		.all_zeroes(w_all_zeroes),
+		.all_ones(w_all_ones),
+		.valid(w_valid)
+	);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (w_all_zeroes || w_all_ones)
+			w_binary = {WIDTH {1'b0}};
+		else if (gray[JCW - 1])
+			w_binary = {{WIDTH - N {1'b0}}, w_trailing_one};
+		else
+			w_binary = {{WIDTH - N {1'b0}}, w_leading_one + 1'b1};
+	end
+	assign binary[WIDTH - 1] = gray[JCW - 1];
+	assign binary[WIDTH - 2:0] = w_binary[WIDTH - 2:0];
+	initial _sv2v_0 = 0;
+endmodule
+module counter_bingray (
+	clk,
+	rst_n,
+	enable,
+	counter_bin,
+	counter_bin_next,
+	counter_gray
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_bin;
+	output wire [WIDTH - 1:0] counter_bin_next;
+	output reg [WIDTH - 1:0] counter_gray;
+	wire [WIDTH - 1:0] w_counter_bin;
+	wire [WIDTH - 1:0] w_counter_gray;
+	assign w_counter_bin = (enable ? counter_bin + 1 : counter_bin);
+	assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
+	assign counter_bin_next = w_counter_bin;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			counter_bin <= 'b0;
+			counter_gray <= 'b0;
+		end
+		else begin
+			counter_bin <= w_counter_bin;
+			counter_gray <= w_counter_gray;
+		end
+endmodule
+module counter_johnson (
+	clk,
+	rst_n,
+	enable,
+	counter_gray
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_gray;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_gray <= {WIDTH {1'b0}};
+		else if (enable)
+			counter_gray <= {counter_gray[WIDTH - 2:0], ~counter_gray[WIDTH - 1]};
+endmodule
+module glitch_free_n_dff_arn (
+	clk,
+	rst_n,
+	d,
+	q
+);
+	parameter signed [31:0] FLOP_COUNT = 3;
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire [WIDTH - 1:0] d;
+	output reg [WIDTH - 1:0] q;
+	localparam signed [31:0] FC = FLOP_COUNT;
+	localparam signed [31:0] DW = WIDTH;
+	reg [(FC * WIDTH) - 1:0] r_q_array;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_q_array <= {FC {{DW {1'b0}}}};
+		else begin
+			r_q_array[0+:WIDTH] <= d;
+			begin : sv2v_autoblock_1
+				reg signed [31:0] i;
+				for (i = 1; i < FC; i = i + 1)
+					r_q_array[i * WIDTH+:WIDTH] <= r_q_array[(i - 1) * WIDTH+:WIDTH];
+			end
+		end
+	wire [WIDTH:1] sv2v_tmp_60F54;
+	assign sv2v_tmp_60F54 = r_q_array[(FC - 1) * WIDTH+:WIDTH];
+	always @(*) q = sv2v_tmp_60F54;
+	wire [(DW * FC) - 1:0] flat_r_q;
+	genvar _gv_i_2;
+	generate
+		for (_gv_i_2 = 0; _gv_i_2 < FC; _gv_i_2 = _gv_i_2 + 1) begin : gen_flatten_memory
+			localparam i = _gv_i_2;
+			assign flat_r_q[i * DW+:DW] = r_q_array[i * WIDTH+:WIDTH];
+		end
+	endgenerate
+endmodule
+module gaxi_fifo_async (
+	axi_wr_aclk,
+	axi_wr_aresetn,
+	axi_rd_aclk,
+	axi_rd_aresetn,
+	wr_valid,
+	wr_ready,
+	wr_data,
+	rd_ready,
+	rd_valid,
+	rd_data
+);
+	parameter signed [31:0] MEM_STYLE = 32'sd0;
+	parameter signed [31:0] REGISTERED = 0;
+	parameter signed [31:0] DATA_WIDTH = 8;
+	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] USE_JOHNSON = 0;
+	parameter signed [31:0] N_FLOP_CROSS = 2;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] D = DEPTH;
+	parameter signed [31:0] AW = $clog2(DEPTH);
+	parameter signed [31:0] JCW = D;
+	parameter signed [31:0] N = N_FLOP_CROSS;
+	input wire axi_wr_aclk;
+	input wire axi_wr_aresetn;
+	input wire axi_rd_aclk;
+	input wire axi_rd_aresetn;
+	input wire wr_valid;
+	output wire wr_ready;
+	input wire [DW - 1:0] wr_data;
+	input wire rd_ready;
+	output wire rd_valid;
+	output wire [DW - 1:0] rd_data;
+	wire [AW - 1:0] r_wr_addr;
+	wire [AW - 1:0] r_rd_addr;
+	localparam signed [31:0] PTRW = (USE_JOHNSON != 0 ? JCW : AW + 1);
+	generate
+		if ((USE_JOHNSON == 0) && ((DEPTH & (DEPTH - 1)) != 0)) begin : g_bad_depth
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/cdc/gaxi_fifo_async.sv:83:9 - gaxi_fifo_async.g_bad_depth\n msg: ", "gaxi_fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
+		end
+	endgenerate
+	wire [PTRW - 1:0] r_wr_ptr_gray;
+	wire [PTRW - 1:0] r_wdom_rd_ptr_gray;
+	wire [PTRW - 1:0] r_rd_ptr_gray;
+	wire [PTRW - 1:0] r_rdom_wr_ptr_gray;
+	wire [AW:0] r_wr_ptr_bin;
+	wire [AW:0] w_wdom_rd_ptr_bin;
+	wire [AW:0] r_rd_ptr_bin;
+	wire [AW:0] w_rdom_wr_ptr_bin;
+	wire [AW:0] w_wr_ptr_bin_next;
+	wire [AW:0] w_rd_ptr_bin_next;
+	wire r_wr_full;
+	wire r_wr_almost_full;
+	wire r_rd_empty;
+	wire r_rd_almost_empty;
+	wire w_write;
+	wire w_read;
+	wire [AW:0] w_count;
+	assign w_write = wr_valid && wr_ready;
+	assign w_read = rd_valid && rd_ready;
+	generate
+		if (USE_JOHNSON != 0) begin : g_ptr_johnson
+			counter_bin #(
+				.MAX(D),
+				.WIDTH(AW + 1)
+			) wr_ptr_counter_bin(
+				.clk(axi_wr_aclk),
+				.rst_n(axi_wr_aresetn),
+				.enable(w_write && !r_wr_full),
+				.counter_bin_next(w_wr_ptr_bin_next),
+				.counter_bin_curr(r_wr_ptr_bin)
+			);
+			counter_bin #(
+				.MAX(D),
+				.WIDTH(AW + 1)
+			) rd_ptr_counter_bin(
+				.clk(axi_rd_aclk),
+				.rst_n(axi_rd_aresetn),
+				.enable(w_read && !r_rd_empty),
+				.counter_bin_next(w_rd_ptr_bin_next),
+				.counter_bin_curr(r_rd_ptr_bin)
+			);
+			counter_johnson #(.WIDTH(JCW)) wr_ptr_counter_gray(
+				.clk(axi_wr_aclk),
+				.rst_n(axi_wr_aresetn),
+				.enable(w_write && !r_wr_full),
+				.counter_gray(r_wr_ptr_gray)
+			);
+			counter_johnson #(.WIDTH(JCW)) rd_ptr_counter_gray(
+				.clk(axi_rd_aclk),
+				.rst_n(axi_rd_aresetn),
+				.enable(w_read && !r_rd_empty),
+				.counter_gray(r_rd_ptr_gray)
+			);
+		end
+		else begin : g_ptr_gray
+			counter_bingray #(.WIDTH(AW + 1)) wr_ptr_counter_bingray(
+				.clk(axi_wr_aclk),
+				.rst_n(axi_wr_aresetn),
+				.enable(w_write && !r_wr_full),
+				.counter_bin(r_wr_ptr_bin),
+				.counter_bin_next(w_wr_ptr_bin_next),
+				.counter_gray(r_wr_ptr_gray)
+			);
+			counter_bingray #(.WIDTH(AW + 1)) rd_ptr_counter_bingray(
+				.clk(axi_rd_aclk),
+				.rst_n(axi_rd_aresetn),
+				.enable(w_read && !r_rd_empty),
+				.counter_bin(r_rd_ptr_bin),
+				.counter_bin_next(w_rd_ptr_bin_next),
+				.counter_gray(r_rd_ptr_gray)
+			);
+		end
+	endgenerate
+	glitch_free_n_dff_arn #(
+		.FLOP_COUNT(N),
+		.WIDTH(PTRW)
+	) rd_ptr_gray_cross_inst(
+		.q(r_wdom_rd_ptr_gray),
+		.d(r_rd_ptr_gray),
+		.clk(axi_wr_aclk),
+		.rst_n(axi_wr_aresetn)
+	);
+	glitch_free_n_dff_arn #(
+		.FLOP_COUNT(N),
+		.WIDTH(PTRW)
+	) wr_ptr_gray_cross_inst(
+		.q(r_rdom_wr_ptr_gray),
+		.d(r_wr_ptr_gray),
+		.clk(axi_rd_aclk),
+		.rst_n(axi_rd_aresetn)
+	);
+	generate
+		if (USE_JOHNSON != 0) begin : g_cvt_johnson
+			johnson2bin #(
+				.JCW(JCW),
+				.WIDTH(AW + 1)
+			) rd_ptr_gray2bin_inst(
+				.binary(w_wdom_rd_ptr_bin),
+				.gray(r_wdom_rd_ptr_gray),
+				.clk(axi_wr_aclk),
+				.rst_n(axi_wr_aresetn)
+			);
+			johnson2bin #(
+				.JCW(JCW),
+				.WIDTH(AW + 1)
+			) wr_ptr_gray2bin_inst(
+				.binary(w_rdom_wr_ptr_bin),
+				.gray(r_rdom_wr_ptr_gray),
+				.clk(axi_rd_aclk),
+				.rst_n(axi_rd_aresetn)
+			);
+		end
+		else begin : g_cvt_gray
+			gray2bin #(.WIDTH(AW + 1)) rd_ptr_gray2bin_inst(
+				.binary(w_wdom_rd_ptr_bin),
+				.gray(r_wdom_rd_ptr_gray)
+			);
+			gray2bin #(.WIDTH(AW + 1)) wr_ptr_gray2bin_inst(
+				.binary(w_rdom_wr_ptr_bin),
+				.gray(r_rdom_wr_ptr_gray)
+			);
+		end
+	endgenerate
+	assign r_wr_addr = r_wr_ptr_bin[AW - 1:0];
+	assign r_rd_addr = r_rd_ptr_bin[AW - 1:0];
+	fifo_control #(
+		.DEPTH(D),
+		.ADDR_WIDTH(AW),
+		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
+		.REGISTERED(REGISTERED)
+	) fifo_control_inst(
+		.wr_clk(axi_wr_aclk),
+		.wr_rst_n(axi_wr_aresetn),
+		.rd_clk(axi_rd_aclk),
+		.rd_rst_n(axi_rd_aresetn),
+		.wr_ptr_bin(w_wr_ptr_bin_next),
+		.wdom_rd_ptr_bin(w_wdom_rd_ptr_bin),
+		.rd_ptr_bin(w_rd_ptr_bin_next),
+		.rdom_wr_ptr_bin(w_rdom_wr_ptr_bin),
+		.wr_full(r_wr_full),
+		.wr_almost_full(r_wr_almost_full),
+		.rd_empty(r_rd_empty),
+		.rd_almost_empty(r_rd_almost_empty),
+		.count(w_count)
+	);
+	assign wr_ready = !r_wr_full;
+	assign rd_valid = !r_rd_empty;
+	generate
+		if (MEM_STYLE == 32'sd1) begin : gen_srl
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_wr_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_rd_aclk or negedge axi_rd_aresetn)
+					if (!axi_rd_aresetn)
+						r_rd_data <= 1'sb0;
+					else
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
+			end
+			else begin : g_mux
+				assign rd_data = mem[r_rd_addr];
+			end
+		end
+		else if (MEM_STYLE == 32'sd2) begin : gen_bram
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_wr_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_rd_aclk or negedge axi_rd_aresetn)
+				if (!axi_rd_aresetn)
+					r_rd_data <= 1'sb0;
+				else
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
+		end
+		else begin : gen_auto
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_wr_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_rd_aclk or negedge axi_rd_aresetn)
+					if (!axi_rd_aresetn)
+						r_rd_data <= 1'sb0;
+					else
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
+			end
+			else begin : g_mux
+				assign rd_data = mem[r_rd_addr];
+			end
+		end
+	endgenerate
+	always @(posedge axi_rd_aclk)
+		if (w_read && r_rd_empty)
+			;
 endmodule
 module cdc_2_phase_handshake (
 	clk_src,
@@ -1034,7 +1531,7 @@ module apb4_master_stub (
 	);
 	always @(posedge pclk)
 		if ((presetn && (cmd_valid && cmd_ready)) && !fl_in_ready)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/amba/apb4/apb4_master_stub.sv:142:13 - apb4_master_stub.<unnamed_block>.<unnamed_block>\n msg: ", $time, "apb4_master_stub: first/last side FIFO overflow -- framing record dropped");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/amba/apb4/apb4_master_stub.sv:142:13 - apb4_master_stub.<unnamed_block>.<unnamed_block>\n msg: ", $time, "apb4_master_stub: first/last side FIFO overflow -- framing record dropped");
 	assign rsp_data = {out_cmd_last, out_cmd_first, rsp_pslverr, rsp_prdata};
 	apb4_master #(
 		.ADDR_WIDTH(ADDR_WIDTH),
@@ -1622,6 +2119,18 @@ module axi4_to_apb4_convert (
 	input wire r_rsp_valid;
 	output reg w_rsp_ready;
 	input wire [APBRspWidth - 1:0] r_rsp_data;
+	wire w_aresetn;
+	reset_sync #(
+		.N(3),
+		.KEEP_ATTRS(1'b1),
+		.IN_ACTIVE_LOW(1'b1),
+		.OUT_ACTIVE_LOW(1'b1),
+		.ASYNC_ASSERT(1'b1)
+	) u_reset_sync(
+		.clk(aclk),
+		.rst_n(aresetn),
+		.sync_rst_n(w_aresetn)
+	);
 	wire [IW - 1:0] r_s_axi_awid;
 	wire [AW - 1:0] r_s_axi_awaddr;
 	wire [7:0] r_s_axi_awlen;
@@ -1746,8 +2255,8 @@ module axi4_to_apb4_convert (
 		input reg [APBAW - 1:0] inp;
 		sv2v_cast_A2C65 = inp;
 	endfunction
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn) begin
 			r_apb_state <= 3'b001;
 			r_apb_last_state <= 3'b001;
 			r_rsp_state <= 2'b01;
@@ -1935,7 +2444,7 @@ module axi4_to_apb4_convert (
 		.DEPTH(SIDE_DEPTH)
 	) side_fifo_inst(
 		.axi_aclk(aclk),
-		.axi_aresetn(aresetn),
+		.axi_aresetn(w_aresetn),
 		.wr_valid(w_side_in_valid),
 		.wr_ready(r_side_in_ready),
 		.wr_data(r_side_in_data),
@@ -2098,6 +2607,30 @@ module axi4_to_apb4_shim (
 	input wire [APB_DATA_WIDTH - 1:0] m_apb_PRDATA;
 	input wire m_apb_PREADY;
 	input wire m_apb_PSLVERR;
+	wire w_aresetn;
+	wire w_aresetn_pclk;
+	reset_sync #(
+		.N(3),
+		.KEEP_ATTRS(1'b1),
+		.IN_ACTIVE_LOW(1'b1),
+		.OUT_ACTIVE_LOW(1'b1),
+		.ASYNC_ASSERT(1'b1)
+	) u_reset_sync(
+		.clk(aclk),
+		.rst_n(aresetn),
+		.sync_rst_n(w_aresetn)
+	);
+	reset_sync #(
+		.N(3),
+		.KEEP_ATTRS(1'b1),
+		.IN_ACTIVE_LOW(1'b1),
+		.OUT_ACTIVE_LOW(1'b1),
+		.ASYNC_ASSERT(1'b1)
+	) u_reset_sync_pclk(
+		.clk(pclk),
+		.rst_n(presetn),
+		.sync_rst_n(w_aresetn_pclk)
+	);
 	wire [AWSize - 1:0] r_s_axi_aw_pkt;
 	wire [3:0] r_s_axi_aw_count;
 	wire r_s_axi_awvalid;
@@ -2139,7 +2672,7 @@ module axi4_to_apb4_shim (
 		.AXI_USER_WIDTH(UW)
 	) axi_slave_stub_inst(
 		.aclk(aclk),
-		.aresetn(aresetn),
+		.aresetn(w_aresetn),
 		.s_axi_awid(s_axi_awid),
 		.s_axi_awaddr(s_axi_awaddr),
 		.s_axi_awlen(s_axi_awlen),
@@ -2214,7 +2747,7 @@ module axi4_to_apb4_shim (
 		.APB_WSTRB_WIDTH(APB_WSTRB_WIDTH)
 	) axi4_to_apb4_convert_inst(
 		.aclk(aclk),
-		.aresetn(aresetn),
+		.aresetn(w_aresetn),
 		.r_s_axi_aw_pkt(r_s_axi_aw_pkt),
 		.r_s_axi_aw_count(r_s_axi_aw_count),
 		.r_s_axi_awvalid(r_s_axi_awvalid),
@@ -2248,9 +2781,9 @@ module axi4_to_apb4_shim (
 		.N_FLOP_CROSS(2)
 	) u_cmd_cdc_fifo(
 		.axi_wr_aclk(aclk),
-		.axi_wr_aresetn(aresetn),
+		.axi_wr_aresetn(w_aresetn),
 		.axi_rd_aclk(pclk),
-		.axi_rd_aresetn(presetn),
+		.axi_rd_aresetn(w_aresetn_pclk),
 		.wr_valid(w_cmd_valid),
 		.wr_ready(r_cmd_ready),
 		.wr_data(r_cmd_data),
@@ -2265,9 +2798,9 @@ module axi4_to_apb4_shim (
 		.N_FLOP_CROSS(2)
 	) u_rsp_cdc_fifo(
 		.axi_wr_aclk(pclk),
-		.axi_wr_aresetn(presetn),
+		.axi_wr_aresetn(w_aresetn_pclk),
 		.axi_rd_aclk(aclk),
-		.axi_rd_aresetn(aresetn),
+		.axi_rd_aresetn(w_aresetn),
 		.wr_valid(r_rsp_valid_apb),
 		.wr_ready(w_rsp_ready_apb),
 		.wr_data(r_rsp_data_apb),
@@ -2285,7 +2818,7 @@ module axi4_to_apb4_shim (
 		.RESP_PACKET_WIDTH(APBRspWidth)
 	) apb4_master_inst(
 		.pclk(pclk),
-		.presetn(presetn),
+		.presetn(w_aresetn_pclk),
 		.m_apb_PSEL(m_apb_PSEL),
 		.m_apb_PENABLE(m_apb_PENABLE),
 		.m_apb_PADDR(m_apb_PADDR),

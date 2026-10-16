@@ -13,7 +13,8 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 PKGS :=
 
 # RTL dependencies
-DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
+DEPS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
+        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/axil4/axil4_master_rd.sv \
         $(REPO_ROOT)/rtl/amba/axil4/axil4_master_wr.sv \
         $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/uart_to_axil4/uart_rx.sv \

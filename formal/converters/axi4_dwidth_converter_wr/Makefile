@@ -12,7 +12,8 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 PKGS :=
 
 # RTL dependencies (gaxi_skid_buffer + data-width primitives used by the DUT)
-DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
+DEPS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
+        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv \
         $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv
 

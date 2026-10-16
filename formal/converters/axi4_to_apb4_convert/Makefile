@@ -5,7 +5,8 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 
 PKGS :=
 
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
+DEPS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
+        $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/shared/axi_gen_addr.sv

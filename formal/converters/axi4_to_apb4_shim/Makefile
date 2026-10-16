@@ -5,11 +5,18 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 
 PKGS :=
 
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
+DEPS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
+        $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/shared/axi_gen_addr.sv \
+        $(REPO_ROOT)/rtl/cdc/gray2bin.sv \
+        $(REPO_ROOT)/rtl/cdc/johnson2bin.sv \
+        $(REPO_ROOT)/rtl/cdc/counter_bingray.sv \
+        $(REPO_ROOT)/rtl/cdc/counter_johnson.sv \
+        $(REPO_ROOT)/rtl/cdc/glitch_free_n_dff_arn.sv \
+        $(REPO_ROOT)/rtl/cdc/gaxi_fifo_async.sv \
         $(REPO_ROOT)/rtl/cdc/cdc_2_phase_handshake.sv \
         $(REPO_ROOT)/rtl/cdc/cdc_4_phase_handshake.sv \
         $(REPO_ROOT)/rtl/amba/apb4/apb4_master.sv \

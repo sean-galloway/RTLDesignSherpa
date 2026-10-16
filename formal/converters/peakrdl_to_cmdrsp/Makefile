@@ -12,7 +12,7 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 PKGS :=
 
 # RTL dependencies (none -- standalone module)
-DEPS :=
+DEPS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv
 
 # Device under test
 DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/peakrdl_to_cmdrsp.sv
