@@ -2,7 +2,7 @@
 
 # amber — bugs
 
-**Next ID: BUG-004** — never recycle a number, even when its item closed.
+**Next ID: BUG-005** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,13 +14,23 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 (none)
+
+## Closed
+
+- [BUG-004](closed/BUG-004.md) — G2 harness drove the MonBus group filter
+  masks all-ones; the group reads them as drop masks, so the tally counted
+  nothing (board + sim, never before asserted). CLOSED 2026-10-16: masks
+  -> 16'h0000, group flush watermark 16'hFF00 -> 48 (drain was ~4x under
+  arrival rate; ~11.2k/11.2k records delivered post-fix), tally profile
+  re-keyed from wire truth, cosim asserts sum(bins) > 0, board perf sweep
+  verified.
 
 ## Closed
 

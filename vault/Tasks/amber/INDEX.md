@@ -8,4 +8,5 @@ state table.
 
 | Kind | Count open | Index |
 |---|---|---|
-| [bug/](bug/) | 1 | [bug/INDEX.md](bug/INDEX.md) |
+| [bug/](bug/) | 0 | [bug/INDEX.md](bug/INDEX.md) |
+| [task/](task/) | 1 | [task/INDEX.md](task/INDEX.md) |
