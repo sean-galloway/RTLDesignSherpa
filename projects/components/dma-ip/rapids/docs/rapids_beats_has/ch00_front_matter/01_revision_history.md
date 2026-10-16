@@ -30,6 +30,8 @@
 | 0.7 | 2026-07-13 | RTL Design Sherpa | Added the control-descriptor feature (CTRL_READ consumer gate / CTRL_WRITE producer doorbell) |
 | 0.8 | 2026-07-13 | RTL Design Sherpa | Added Chapter 6: Performance (throughput targets, latency characteristics, measured resource estimates) |
 | 0.9 | 2026-09-21 | RTL Design Sherpa | Removed a vestigial diagram-asset layer: 19 image references and 35 `**Source:**` links pointed at `assets/mermaid/` and `assets/wavedrom/` files that were never created, while a live fenced mermaid or wavedrom block sat immediately below each one carrying the same diagram. No diagram content changed -- all 31 mermaid and 39 wavedrom fences render as before. |
+| 0.10 | 2026-10-16 | RTL Design Sherpa | `SRAM_DEPTH` stated as beats per channel, per direction |
+| 0.11 | 2026-10-16 | RTL Design Sherpa | Network planes and CXS: new CXS Network Interface chapter (planes, link profile, credits, signals, monitoring, planned routing / payload-type fields); interface summary, block diagram, hierarchy, system context, key features and MonBus agent table updated for the AXIS / CXS planes; the Top-Level MonBus Delivery section corrected (the data masters carry no monitors); all block diagrams updated and a network-planes figure added |
 
 : Document Revision History
 

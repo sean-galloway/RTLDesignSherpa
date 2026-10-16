@@ -30,6 +30,11 @@ RAPIDS Beats uses AXI-Stream interfaces for network data transfer:
 1. **Sink AXIS Slave** - Receives data from network (ingress)
 2. **Source AXIS Master** - Sends data to network (egress)
 
+These are the ports of the AXIS tops (`rapids_beats_top`, `rapids_top`). The
+same AXIS stream, with `tid` = channel, is also what every network plane
+presents to the core, so the contract below holds inside a CXS top too: the CXS
+planes convert it to and from CXS flits (see the CXS Network Interface chapter).
+
 ## Sink AXIS Slave
 
 ### Purpose

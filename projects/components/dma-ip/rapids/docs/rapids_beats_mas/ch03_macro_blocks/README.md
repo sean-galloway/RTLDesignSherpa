@@ -71,6 +71,7 @@ rapids_core_beats (Top Level)
 | `rapids_regs` | 3.10 | Generated register block |
 | `rapids_config_block` | 3.11 | Configuration distribution |
 | `rapids_beats_top` | 3.12 | Top-level integration |
+| `rapids_plane_*` | 3.13 | Network planes (AXIS or CXS) between the core and the pins |
 
 : Table 3.0.1: Macro Block Reference
 
@@ -90,6 +91,7 @@ rapids_core_beats (Top Level)
 - [RAPIDS Registers](10_rapids_regs.md)
 - [RAPIDS Config Block](11_rapids_config_block.md)
 - [RAPIDS Beats Top](12_rapids_beats_top.md)
+- [Network Planes](13_network_planes.md)
 
 ---
 

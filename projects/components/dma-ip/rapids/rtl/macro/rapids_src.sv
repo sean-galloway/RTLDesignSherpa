@@ -11,8 +11,9 @@
 //   Source-only variant of rapids_core. Combines:
 //   - scheduler_group_array: 8 scheduler groups (read-only, EN_WRITE=0)
 //   - source_data_path: AXI Read -> SRAM -> AXIS Master (memory-to-network)
-//   - axis4_master_monlite: the m_axis_* skid stage plus, when USE_AXI_MONITORS,
-//     the source-egress AXIS monitor-lite (rapids TASK-015, agent 0x0A)
+//   - plane_mon_* in: the source network plane's monitor packets (rtl/plane,
+//     rapids TASK-024), client 1 of the half's monbus_arbiter; the plane and
+//     its monitor-lite (agent 0x0A) live in the top, not here
 //
 //   The sink (network-to-memory) data path is intentionally absent. The
 //   scheduler array's sink-facing (write) scheduler inputs are tied off and its

@@ -72,6 +72,7 @@ Flow control is unchanged: both designs rely on backpressure, and neither has cr
 4. **Dual Data Paths** - Simultaneous sink (write) and source (read)
 5. **Monitor Integration** - Real-time event reporting via MonBus
 6. **Error Detection** - AXI error propagation, and a packet-length check on the sink
+7. **Swappable Network Plane** - AXI-Stream or CXS (Arm IHI 0079 Issue D) at the top, same core
 
 ## Permanent Limitation
 

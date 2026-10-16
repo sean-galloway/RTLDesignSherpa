@@ -90,6 +90,7 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`,
 - [RAPIDS Registers](../rapids_beats_mas/ch03_macro_blocks/10_rapids_regs.md) (shared with RAPIDS Beats)
 - [RAPIDS Config Block](../rapids_beats_mas/ch03_macro_blocks/11_rapids_config_block.md) (shared with RAPIDS Beats)
 - [RAPIDS Top](ch03_macro_blocks/12_rapids_top.md)
+- [Network Planes](../rapids_beats_mas/ch03_macro_blocks/13_network_planes.md) (shared with RAPIDS Beats)
 
 ### Chapter 4: Interfaces
 
@@ -97,6 +98,7 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`,
 - [AXIS Interface Specification](ch04_interfaces/02_axis_interface_spec.md)
 - [MonBus Interface Specification](../rapids_beats_mas/ch04_interfaces/03_monbus_interface_spec.md) (shared with RAPIDS Beats)
 - [Packet Record Interface Specification](ch04_interfaces/04_packet_record_interface_spec.md)
+- [CXS Interface Specification](../rapids_beats_mas/ch04_interfaces/04_cxs_interface_spec.md) (shared with RAPIDS Beats)
 
 ---
 

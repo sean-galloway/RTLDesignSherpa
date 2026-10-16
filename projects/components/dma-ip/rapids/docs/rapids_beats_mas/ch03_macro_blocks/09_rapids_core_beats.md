@@ -209,9 +209,12 @@ and driven to AXI defaults. 21 ports in total.
 
 ### Sink Ingress -- AXIS Slave
 
-The sink takes network traffic on a standard AXI-Stream slave port. There is no
-`snk_fill_*` port at core level: the fill handshake is internal to
-`snk_data_path_axis_beats`, which converts AXIS into it.
+The sink takes network traffic on a standard AXI-Stream slave port. In a top
+this port is driven by the RX network plane (`fub_axis_*`), whichever protocol
+the plane speaks on the pins, so the core is the same in the AXIS and CXS tops
+(see [Network Planes](13_network_planes.md)). There is no `snk_fill_*` port at
+core level: the fill handshake is internal to `snk_data_path_axis_beats`, which
+converts AXIS into it.
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|

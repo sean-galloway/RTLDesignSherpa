@@ -60,6 +60,7 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`).
 - [AXIS Interface](ch03_interfaces/03_axis_interface.md)
 - [APB Configuration Interface](../rapids_beats_has/ch03_interfaces/04_apb_interface.md) (shared with RAPIDS Beats)
 - [Monitor Bus Interface](../rapids_beats_has/ch03_interfaces/05_monbus_interface.md) (shared with RAPIDS Beats)
+- [CXS Network Interface](../rapids_beats_has/ch03_interfaces/06_cxs_interface.md) (shared with RAPIDS Beats)
 
 ### Chapter 4: Use Cases
 - [Network-to-Memory Transfer](ch04_use_cases/01_network_to_memory.md)

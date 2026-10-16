@@ -23,7 +23,7 @@
 
 # RAPIDS Beats Top Specification
 
-**Module:** `rapids_beats_top.sv`
+**Module:** `rapids_beats_top.sv`, `rapids_beats_cxs_top.sv` (generated), `rapids_beats_top_base.sv`
 **Location:** `projects/components/dma-ip/rapids/rtl/top_beats/`
 **Status:** Implemented
 
@@ -37,6 +37,12 @@ with a single APB slave for all software access, and adds optional AXI transacti
 monitors whose events are merged with the core's descriptor-monitor packet and
 delivered through a MonBus AXI-Lite group (error-drain slave, capture master,
 and interrupt).
+
+The top is generated (rapids TASK-024). `rapids_beats_top_base` holds everything
+described on this page; `bin/gen_plane_tops.py` wraps it with one RX and one TX
+network plane to make `rapids_beats_top` (AXIS planes) and
+`rapids_beats_cxs_top` (CXS planes). The planes are described in the Network
+Planes chapter; edit the base or the generator, never a generated top.
 
 ---
 
@@ -84,21 +90,23 @@ When `USE_AXI_MONITORS = 1` the top builds the `monbus_axil4_axil4_group` and
 feeds it the core's MonBus stream. That stream carries the scheduler groups'
 completion and error events and two monitor-lite instances per half:
 `axi4_master_rd_monlite` on the half's descriptor read master, inside
-`scheduler_group_array_beats` (agent 0x08), and an AXIS monitor-lite on the
-half's network port (rapids TASK-015): `axis4_slave_monlite` on the sink's
-`s_axis_*` (agent 0x09, configured by `SNK.MON.WRMON_*`) and
-`axis4_master_monlite` on the source's `m_axis_*` (agent 0x0A, configured by
-`SRC.MON.RDMON_*`). Each half merges its scheduler array, its AXIS monitor and
-a tied-off placeholder client in a 3:1 `monbus_arbiter`; the core merges the two
-halves 2:1. The AXIS wrappers also place an `axis4_slave` / `axis4_master` skid
-stage (depth 4) on the network port in every build; only the tap is gated by
-`USE_AXI_MONITORS`. The data masters `m_axi_rd` and `m_axi_wr` carry NO
+`scheduler_group_array_beats` (agent 0x08), and a network monitor-lite in the
+half's network plane (rapids TASK-015, moved to the planes by TASK-024): the
+sink plane's lite on `s_axis_*` or `s_cxs_*` (agent 0x09, configured by
+`SNK.MON.WRMON_*`) and the source plane's lite on `m_axis_*` or `m_cxs_*`
+(agent 0x0A, configured by `SRC.MON.RDMON_*`). The plane's packets enter the
+core on `snk_plane_mon_*` / `src_plane_mon_*`. Each half merges its scheduler
+array (client 0), its plane monitor (client 1) and a tied-off placeholder client
+in a 3:1 `monbus_arbiter`; the core merges the two halves 2:1. The AXIS planes
+also place an `axis4_slave` / `axis4_master` skid stage (`SKID_DEPTH` = 4) on the
+network port in every build; the CXS planes buffer in the receive FIFO instead.
+Only the monitor tap is gated by `USE_AXI_MONITORS`. The data masters `m_axi_rd` and `m_axi_wr` carry NO
 monitors (an earlier revision of this page said rd/wr monitor-lite blocks sat
 on the data masters; the RTL has never had them). Data-master observation lives
 in the characterization harness as external instruments (`axi_bus_meter`,
 `axis_bus_meter`, and the interface observers on `USE_OBSERVERS` builds). The
 group's AXIS filter slot is fed from `SRC.MON.RDMON_*`, so it filters both
-halves' AXIS packets; `*_PKT_MASK` masks on a set bit and resets to all-masked
+halves' network packets (a CXS plane's `PROTOCOL_CXS` packets ride the AXIS slot); `*_PKT_MASK` masks on a set bit and resets to all-masked
 (rapids BUG-008 corrected its description). The group provides:
 
 - `s_axil_err_*` -- AXI-Lite (32-bit) **error-drain slave**: CPU reads captured
@@ -107,8 +115,8 @@ halves' AXIS packets; `*_PKT_MASK` masks on a set bit and resets to all-masked
   trace to system memory (base/limit/watermark from `cfg_mon_*`).
 - `mon_irq` -- interrupt on error/threshold events.
 
-When `USE_AXI_MONITORS = 0` the descriptor and AXIS monitor-lites are omitted
-(the AXIS skid stages stay), the core
+When `USE_AXI_MONITORS = 0` the descriptor and network monitor-lites are omitted
+(the AXIS skid stages and CXS receive FIFO stay), the core
 MonBus is dropped (always-ready), and the AXI-Lite group outputs are tied off
 (`s_axil_err` read-inactive, `m_axil_mon` write-inactive, `mon_irq = 0`).
 
@@ -136,14 +144,22 @@ parameter int DATA_WIDTH          = 512;
 parameter int ADDR_WIDTH          = 64;
 parameter int AXI_ID_WIDTH        = 8;
 parameter int SRAM_DEPTH          = 4096;
-parameter int APB_ADDR_WIDTH      = 12;   // must be >= 13 to reach MON regfile @ 0x1000
+parameter int APB_ADDR_WIDTH      = 13;   // bit 12 selects SRC (0) / SNK (1)
 parameter int APB_DATA_WIDTH      = 32;
-parameter bit USE_AXI_MONITORS    = 0;    // 1 = insert rd/wr monitors + MonBus group
+parameter int USE_AXI_MONITORS    = 1;    // 1 = descriptor + network monitor-lites + MonBus group
 parameter bit USE_MON_REGS        = (USE_AXI_MONITORS != 0); // 0 = MON windows answer PSLVERR
 parameter int MON_MAX_TRANSACTIONS = 16;
 parameter int AR_MAX_OUTSTANDING  = 8;
 parameter int AW_MAX_OUTSTANDING  = 8;
 parameter int PIPELINE            = 1;   // write-engine pipelining; see the note below
+parameter int AXIS_ID_WIDTH       = 8;   // network stream tid (carries the channel)
+parameter int AXIS_DEST_WIDTH     = 4;
+parameter int AXIS_USER_WIDTH     = 1;
+// rapids_beats_cxs_top only (see the Network Planes chapter):
+parameter int CXS_MAX_CREDIT      = 32;  // one credit = one flit
+parameter int CXS_RX_FIFO_DEPTH   = CXS_MAX_CREDIT;
+parameter bit CXS_CREDIT_BEYOND_SPEC = (CXS_MAX_CREDIT > 63);
+parameter logic [7:0] CXS_IDLE_CYCLES = 8'd32;
 ```
 
 : Table 3.12.2: RAPIDS Beats Top Parameters
@@ -157,10 +173,12 @@ parameter int PIPELINE            = 1;   // write-engine pipelining; see the not
 | Clock / reset | `aclk`, `aresetn`, `cam_clear` | Single clock domain; `cam_clear` for monitor CAMs |
 | APB slave | `s_apb_paddr` (APB_ADDR_WIDTH), `s_apb_psel/penable/pwrite/pwdata/pstrb`, `s_apb_prdata/pready/pslverr` | 32-bit data |
 | Descriptor AXI (master) | `m_axi_desc_ar*`, `m_axi_desc_r*` | 256-bit read data |
-| Data read AXI (master) | `m_axi_rd_ar*`, `m_axi_rd_r*` | DATA_WIDTH; monitored when enabled |
-| Data write AXI (master) | `m_axi_wr_aw*`, `m_axi_wr_w*`, `m_axi_wr_b*` | DATA_WIDTH; monitored when enabled |
-| Sink fill | `snk_fill_alloc_*`, `snk_fill_valid/ready/id/data`, `snk_fill_space_free` | Network ingress |
-| Source drain | `src_drain_data_avail/req/size`, `src_drain_valid/read/id/data` | Network egress |
+| Data read AXI (master) | `m_axi_rd_ar*`, `m_axi_rd_r*` | DATA_WIDTH; no monitor |
+| Data write AXI (master) | `m_axi_wr_aw*`, `m_axi_wr_w*`, `m_axi_wr_b*` | DATA_WIDTH; no monitor |
+| Network in (AXIS top) | `s_axis_tdata/tstrb/tlast/tid/tdest/tuser/tvalid/tready` | Sink ingress, `tid` = channel |
+| Network out (AXIS top) | `m_axis_tdata/tstrb/tlast/tid/tdest/tuser/tvalid/tready` | Source egress, `tid` = channel |
+| Network in (CXS top) | `s_cxs_*`, `snk_cxs_link_state`, `snk_cxs_protocol_error`, `snk_cxs_unsupported` | CXS receiver, `CXSSRCID` = channel |
+| Network out (CXS top) | `m_cxs_*`, `src_cxs_link_state`, `src_cxs_protocol_error` | CXS transmitter, `CXSSRCID` = channel |
 | MonBus error-drain slave | `s_axil_err_ar*`, `s_axil_err_r*` | AXI-Lite, 32-bit read |
 | MonBus capture master | `m_axil_mon_aw*`, `m_axil_mon_w*` (64-bit `wdata`), `m_axil_mon_b*` | AXI-Lite write |
 | MonBus interrupt | `mon_irq` | Error/threshold interrupt |
@@ -171,4 +189,4 @@ parameter int PIPELINE            = 1;   // write-engine pipelining; see the not
 
 ---
 
-**Last Updated:** 2026-07-02
+**Last Updated:** 2026-10-16

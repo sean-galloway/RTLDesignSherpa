@@ -5,13 +5,13 @@
 digraph rapids_beats_channel_resources {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.45", ranksep="0.55", splines=ortho,
-           label="One sink-half channel: per-channel and shared resources (8 channels per half)\nthe source half mirrors it: the read engine fills the channel FIFO and the AXIS egress drains it",
+           label="One sink-half channel: per-channel and shared resources (8 channels per half)\nthe source half mirrors it: the read engine fills the channel FIFO and the network egress drains it",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    data_in [label="Network In - s_axis_*\nbeats with tid = n", fillcolor="white", group=L];
+    data_in [label="Network In - s_axis_* beats with tid = n\n(CXS top: flits with CXSSRCID = n, via the RX plane)", fillcolor="white", group=L];
     kick    [label="Kick - CHn_DESC_ADDR + KICK_ENABLE\n(from rapids_regs)", fillcolor="white", group=C];
 
     desc  [label="Descriptor Engine (per channel)\ndescriptor_engine_beats", group=C];

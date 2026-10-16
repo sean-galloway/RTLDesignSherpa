@@ -7,7 +7,9 @@
 //                       descriptor/control arbiter -> memory (heavy)
 //   source read data  - re-enters at the bar and climbs the RIGHT lane to m_axis
 // Scheduler commands reach the two engines one rank down (no same-rank edges).
-// Verified against rtl/top_beats/rapids_beats_top.sv, rtl/macro_beats/*.sv.
+// The network endpoint and its monitor-lite live in the planes (rtl/plane),
+// outside the core; their monitor packets enter as half-arbiter client 1.
+// Verified against rtl/top_beats/rapids_beats_top_base.sv, rtl/macro_beats/*.sv.
 digraph rapids_core_beats {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.40", ranksep="0.75", splines=ortho,
@@ -18,9 +20,13 @@ digraph rapids_core_beats {
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external ports (white) ----
-    s_axis [label="Network In - s_axis_*\n(AXIS slave, tid = channel)", fillcolor="white", group=L];
+    s_axis [label="Network In - s_axis_*, from the sink RX plane
+(AXIS, tid = channel; the plane is
+AXIS or CXS, see the network-planes figure)", fillcolor="white", group=L];
     s_apb  [label="Configuration In (from rapids_config_block x 2)\nsrc_ / snk_ cfg_*, per-channel kick (apb_valid / apb_addr)", fillcolor="white", group=C];
-    m_axis [label="Network Out - m_axis_*\n(AXIS master, tid = channel)", fillcolor="white", group=R];
+    m_axis [label="Network Out - m_axis_*, to the source TX plane
+(AXIS, tid = channel; the plane is
+AXIS or CXS, see the network-planes figure)", fillcolor="white", group=R];
 
     // ---- rank 1 ----
     ingress [label="Sink Ingress\nsnk_data_path_axis_beats\n(tid picks the channel FIFO)", group=L];
@@ -36,7 +42,11 @@ digraph rapids_core_beats {
     wr_eng [label="AXI Write Engine\naxi_write_engine_beats\n(round-robin over channels)", group=L];
     arb    [label="Descriptor / Control Arbiters\narbiter_round_robin x 3 per half",
             shape=invtrapezium, width=4.2, fillcolor="#BFD7EE", group=C];
-    mon    [label="MonBus\nhalf 3:1 arbiters ->\ncore 2:1 monbus_arbiter", style="filled,dashed"];
+    mon    [label="MonBus
+half 3:1 arbiters (client 1 = the
+network plane's monitor packets,
+src_/snk_plane_mon_*) ->
+core 2:1 monbus_arbiter", style="filled,dashed"];
     rd_eng [label="AXI Read Engine\naxi_read_engine_beats\n(round-robin over channels)", group=R];
 
     // ---- boundary bar ----

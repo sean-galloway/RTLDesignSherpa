@@ -11,8 +11,9 @@
 //   Sink-only RAPIDS "beats" core combining:
 //   - scheduler_group_array: 8 scheduler groups (write-only: EN_READ=0)
 //   - snk_data_path_axis: AXIS -> SRAM -> AXI Write (network-to-memory)
-//   - axis4_slave_monlite: the s_axis_* skid stage plus, when USE_AXI_MONITORS,
-//     the sink-ingress AXIS monitor-lite (rapids TASK-015, agent 0x09)
+//   - plane_mon_* in: the sink network plane's monitor packets (rtl/plane,
+//     rapids TASK-024), client 1 of the half's monbus_arbiter; the plane and
+//     its monitor-lite (agent 0x09) live in the top, not here
 //
 //   Derived from rapids_core by removing the source (read) data path and
 //   configuring the scheduler array as write-only. This module contains

@@ -1,0 +1,62 @@
+// CXS network planes (rtl/plane/rapids_plane_cxs_rx.sv, rapids_plane_cxs_tx.sv):
+// what sits between the CXS pins and the core's AXIS network stream.
+// Flow geography:
+//   RX (sink)   - s_cxs_* enters top-left and drops down the LEFT lane
+//   TX (source) - leaves the core and climbs the RIGHT lane to m_cxs_*
+//   monitor     - both monitor-lites send dashed packets down the CENTER
+// The core boundary is the bar: fub_axis_* and the plane_mon_* clients.
+digraph rapids_cxs_planes {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.70", splines=ortho,
+           label="CXS network planes - one CXS link per direction, CXSSRCID = channel, per-stream framing on the channel bits\n(Arm IHI 0079 Issue D profile; CXS_MAX_CREDIT = 32 by default, one credit = one flit)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external pins (white) ----
+    s_cxs [label="Sink CXS Link - s_cxs_*\nVALID, DATA, CNTL, SRCID, TGTID, USER\nCRDGNT out, CRDRTN in, ACTIVEREQ / ACK, DEACTHINT", fillcolor="white", group=L];
+    m_cxs [label="Source CXS Link - m_cxs_*\nVALID, DATA, CNTL, SRCID, TGTID, USER\nCRDGNT in, CRDRTN out, ACTIVEREQ / ACK, DEACTHINT", fillcolor="white", group=R];
+
+    // ---- rank 1: endpoints ----
+    rx_ep [label="cxs_slave_monlite (u_endpoint)\ncxs_slave: grants credits, RX FIFO = credit pool\n(RX_FIFO_DEPTH = CXS_MAX_CREDIT)\n+ cxs_monitor_lite tap (agent 0x09)", group=L];
+    tx_ep [label="cxs_master_monlite (u_endpoint)\ncxs_master: spends credits, activation,\nidle deactivation after CXS_IDLE_CYCLES\n+ cxs_monitor_lite tap (agent 0x0A)", group=R];
+
+    // ---- rank 2: adapters ----
+    c2a [label="cxs_to_axis (u_cxs_to_axis)\nflits -> AXIS beats, framed per stream\nCXSSRCID -> tid, CXSTGTID -> tdest\nCXSUSER -> {tuser, tstrb}", group=L];
+    mon [label="Plane monitor packets\n(monbus_* out of each plane)", style="filled,dashed", group=C];
+    a2c [label="axis_to_cxs (u_axis_to_cxs)\nAXIS beats -> flits, framed per stream\ntid -> CXSSRCID, tdest -> CXSTGTID\n{tuser, tstrb} -> CXSUSER", group=R];
+
+    // ---- boundary bar ----
+    core [label="Core Boundary (rapids_*_top_base)\nsnk fub_axis_* (to the sink ingress)  |  snk_plane_mon_*  |  src_plane_mon_* (half monbus_arbiter client 1)  |  src fub_axis_* (from the source egress)\ncfg_mon_* in, sts_mon_* out (SNK.WRMON_* / SRC.RDMON_* via rapids_config_block)\nstatus pins: snk_/src_cxs_link_state, *_cxs_protocol_error, snk_cxs_unsupported",
+          fillcolor="white", width=13.0, fontsize=11, group=C];
+
+    // ---- RX down the left ----
+    s_cxs -> rx_ep [label="flits, credit\nreturns"];
+    rx_ep -> c2a   [label="flits (FUB side)"];
+    p_rx [shape=point, width=0.01, group=L];
+    c2a  -> p_rx   [arrowhead=none, headclip=false];
+    p_rx -> core   [xlabel="fub_axis_*\n(tid = channel)", tailclip=false];
+
+    // ---- config / monitor down the center ----
+    rx_ep -> mon  [style=dashed, xlabel="sink events"];
+    tx_ep -> mon  [style=dashed, xlabel="source events"];
+    mon   -> core [style=dashed, label="client 1 of each\nhalf's monbus_arbiter"];
+
+    // ---- TX up the right ----
+    m_cxs -> tx_ep [dir=back, label="flits, credit\nreturns"];
+    tx_ep -> a2c   [dir=back, label="flits (FUB side)"];
+    p_tx [shape=point, width=0.01, group=R];
+    a2c  -> p_tx   [dir=back, headclip=false];
+    p_tx -> core   [dir=none, xlabel="fub_axis_*\n(tid = channel)", tailclip=false];
+
+    // ---- rank pinning ----
+    { rank=same; s_cxs; top_c; m_cxs; }
+    top_c [style=invis, label="", width=3.0, group=C];
+    s_cxs -> top_c -> m_cxs [style=invis];
+    { rank=same; rx_ep; tx_ep; }
+    rx_ep -> tx_ep [style=invis, minlen=3];
+    { rank=same; c2a; mon; a2c; }
+    c2a -> mon -> a2c [style=invis];
+    { rank=same; p_rx; p_tx; }
+}

@@ -23,7 +23,7 @@
 
 # Interface Overview
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-10-16
 
 ---
 
@@ -45,10 +45,12 @@ The RAPIDS Beats architecture exposes the following external interfaces:
 
 | Interface | Type | Purpose |
 |-----------|------|---------|
-| Fill Interface | Custom | Network data ingress (to SRAM) |
-| Drain Interface | Custom | Network data egress (from SRAM) |
-| AXIS Sink | AXI-Stream Slave | Optional AXIS wrapper for fill |
-| AXIS Source | AXI-Stream Master | Optional AXIS wrapper for drain |
+| Fill Interface | Custom | Network data ingress (to SRAM), inside the core |
+| Drain Interface | Custom | Network data egress (from SRAM), inside the core |
+| AXIS Sink | AXI-Stream Slave | Network ingress on the AXIS tops; the core-facing stream of every plane |
+| AXIS Source | AXI-Stream Master | Network egress on the AXIS tops; the core-facing stream of every plane |
+| CXS Sink | CXS receiver | Network ingress on the CXS tops (one link, `CXSSRCID` = channel) |
+| CXS Source | CXS transmitter | Network egress on the CXS tops (one link, `CXSSRCID` = channel) |
 
 : Table 4.0.2: Streaming Interfaces
 
@@ -70,6 +72,7 @@ The RAPIDS Beats architecture exposes the following external interfaces:
 - [AXI4 Interface Specification](01_axi4_interface_spec.md) - Descriptor, sink write, source read
 - [AXIS Interface Specification](02_axis_interface_spec.md) - Optional streaming wrappers
 - [MonBus Interface Specification](03_monbus_interface_spec.md) - Monitor packet format
+- [CXS Interface Specification](04_cxs_interface_spec.md) - CXS network links (CXS tops)
 
 ---
 
@@ -81,6 +84,8 @@ The RAPIDS Beats architecture exposes the following external interfaces:
 | `s_axi_` | AXI slave port | `s_axi_awready` |
 | `m_axis_` | AXIS master port | `m_axis_tvalid` |
 | `s_axis_` | AXIS slave port | `s_axis_tready` |
+| `m_cxs_` | CXS transmitter port | `m_cxs_valid` |
+| `s_cxs_` | CXS receiver port | `s_cxs_crdgnt` |
 | `cfg_` | Configuration input | `cfg_enable` |
 | `snk_` | Sink data path | `snk_fill_valid` |
 | `src_` | Source data path | `src_drain_ready` |
@@ -91,4 +96,4 @@ The RAPIDS Beats architecture exposes the following external interfaces:
 
 ---
 
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-10-16

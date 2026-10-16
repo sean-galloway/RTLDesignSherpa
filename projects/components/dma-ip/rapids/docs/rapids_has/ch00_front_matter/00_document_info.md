@@ -119,6 +119,7 @@ Timing diagrams use WaveDrom format with the following conventions:
 | RAPIDS Beats HAS | Architecture specification for the beat-granular design; source of every shared chapter |
 | ARM AMBA AXI4 Specification | AXI4 protocol reference |
 | ARM AMBA AXI-Stream Specification | AXIS protocol reference |
+| Arm AMBA CXS Protocol Specification (IHI 0079, Issue D) | CXS protocol reference (CXS tops) |
 | RAPIDS PRD | Product Requirements Document |
 
 : Reference Documents

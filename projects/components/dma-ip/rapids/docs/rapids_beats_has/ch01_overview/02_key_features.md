@@ -57,6 +57,7 @@
 - **State Transition Reports** track FSM activity
 - **Error Event Codes** for fault diagnosis
 - **Performance Metrics** for throughput analysis
+- **Network Monitor-Lite** in each network plane (AXIS or CXS), agents 0x09 / 0x0A
 
 ## Feature Details
 
@@ -93,8 +94,8 @@ The defaults are a simulation size. The Genesys 2 builds use 128 beats of 32 byt
 
 **Buffer Operation:**
 
-- **Sink Path:** Fill from AXIS, drain to AXI write engine
-- **Source Path:** Fill from AXI read engine, drain to AXIS
+- **Sink Path:** Fill from AXIS (from the RX network plane, AXIS or CXS), drain to AXI write engine
+- **Source Path:** Fill from AXI read engine, drain to AXIS (to the TX network plane, AXIS or CXS)
 - **Flow Control:** Backpressure when buffer full/empty
 
 ### AXI Burst Optimization

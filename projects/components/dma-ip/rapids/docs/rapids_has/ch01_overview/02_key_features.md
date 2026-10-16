@@ -102,8 +102,8 @@ The buffer holds `SRAM_DEPTH x DATA_WIDTH/8` bytes per channel per direction. At
 
 **Buffer Operation:**
 
-- **Sink Path:** Fill from AXIS through the ingress shifter, drain to the AXI write engine
-- **Source Path:** Fill from the AXI read engine, drain through the egress re-packer to AXIS
+- **Sink Path:** Fill from AXIS (from the RX network plane, AXIS or CXS) through the ingress shifter, drain to the AXI write engine
+- **Source Path:** Fill from the AXI read engine, drain through the egress re-packer to AXIS (to the TX network plane, AXIS or CXS)
 - **Flow Control:** Backpressure when the buffer is full or empty
 
 ### AXI Burst Optimization

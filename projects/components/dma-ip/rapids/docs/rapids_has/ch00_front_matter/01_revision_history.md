@@ -25,6 +25,8 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 0.4 | 2026-10-16 | RTL Design Sherpa | Network planes and CXS: links the shared CXS Network Interface chapter; block diagram, hierarchy, system context and key features updated for `rapids_top` / `rapids_cxs_top`; all block diagrams updated |
+| 0.3 | 2026-10-16 | RTL Design Sherpa | `SRAM_DEPTH` stated as beats per channel, per direction |
 | 0.2 | 2026-09-30 | RTL Design Sherpa | Channel reset recovers every error class; the aresetn-only caveats are removed from Error Handling |
 | 0.1 | 2026-09-30 | RTL Design Sherpa | Initial release: the byte-granular RAPIDS, split from the RAPIDS Beats HAS |
 

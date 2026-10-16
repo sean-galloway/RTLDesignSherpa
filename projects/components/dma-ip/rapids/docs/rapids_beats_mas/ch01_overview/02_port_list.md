@@ -26,7 +26,7 @@
 **Module:** `rapids_core_beats.sv`
 **Location:** `projects/components/dma-ip/rapids/rtl/macro_beats/`
 **Status:** Implemented
-**Last Updated:** 2026-10-15
+**Last Updated:** 2026-10-16
 
 ---
 
@@ -56,9 +56,6 @@ what the port widths below are written in (`NC`, `AW`, `DW`, `IW`, `SCW`, `CIW`,
 | `DESC_MON_BASE_AGENT_ID` | int | `16` | 0x10 - Descriptor Engines (16-23) |
 | `SCHED_MON_BASE_AGENT_ID` | int | `48` | 0x30 - Schedulers (48-55) |
 | `DESC_AXI_MON_AGENT_ID` | int | `8` | 0x08 - Descriptor AXI Master Monitor |
-| `SNK_AXIS_MON_AGENT_ID` | int | `9` | 0x09 - Sink-ingress AXIS monitor (rapids TASK-015) |
-| `SRC_AXIS_MON_AGENT_ID` | int | `10` | 0x0A - Source-egress AXIS monitor (rapids TASK-015) |
-| `ACLK_MHZ` | int | `100` | clk in MHz: the AXIS monitors' microsecond tick |
 | `MON_UNIT_ID` | int | `1` | 0x1 |
 | `MON_MAX_TRANSACTIONS` | int | `16` | - |
 | `USE_AXI_MONITORS` | int | `1` | - |

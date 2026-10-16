@@ -83,6 +83,7 @@
 - [RAPIDS Registers](ch03_macro_blocks/10_rapids_regs.md)
 - [RAPIDS Config Block](ch03_macro_blocks/11_rapids_config_block.md)
 - [RAPIDS Beats Top](ch03_macro_blocks/12_rapids_beats_top.md)
+- [Network Planes](ch03_macro_blocks/13_network_planes.md)
 
 ### Chapter 4: Interfaces
 
@@ -90,6 +91,7 @@
 - [AXI4 Interface Specification](ch04_interfaces/01_axi4_interface_spec.md)
 - [AXIS Interface Specification](ch04_interfaces/02_axis_interface_spec.md)
 - [MonBus Interface Specification](ch04_interfaces/03_monbus_interface_spec.md)
+- [CXS Interface Specification](ch04_interfaces/04_cxs_interface_spec.md)
 
 ---
 

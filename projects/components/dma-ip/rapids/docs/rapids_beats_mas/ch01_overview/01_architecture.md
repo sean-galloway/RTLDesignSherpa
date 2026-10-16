@@ -151,7 +151,18 @@ The alloc_ctrl and drain_ctrl modules are "virtual FIFOs" that track space/data 
 
 ## Module Hierarchy
 
+The core is wrapped by a generated top: `rapids_beats_top` (AXIS network
+planes) or `rapids_beats_cxs_top` (CXS network planes), each
+`rapids_beats_top_base` plus an RX plane in front of the sink half and a TX
+plane behind the source half. See [Network Planes](../ch03_macro_blocks/13_network_planes.md).
+
 ```
+rapids_beats_top | rapids_beats_cxs_top  (generated, bin/gen_plane_tops.py)
+├── u_base: rapids_beats_top_base        (regs, config blocks, monbus group)
+│   └── u_core: rapids_core_beats        (below)
+├── u_snk_plane: rapids_plane_axis_rx | rapids_plane_cxs_rx
+└── u_src_plane: rapids_plane_axis_tx | rapids_plane_cxs_tx
+
 rapids_core_beats
 ├── monbus_arbiter                       (merges the two halves' monbus)
 ├── rapids_src_beats                     (SOURCE half)
@@ -164,6 +175,7 @@ rapids_core_beats
 │   │   ├── arbiter_round_robin [x3]     (desc / ctrlrd / ctrlwr AXI masters)
 │   │   ├── axi4_master_rd_monlite       (descriptor-fetch monitor)
 │   │   └── axi_bus_meter
+│   ├── monbus_arbiter (3:1)             (client 1 = src_plane_mon_*)
 │   └── src_data_path_axis_beats
 │       └── src_data_path_beats
 │           ├── axi_read_engine_beats
@@ -177,6 +189,7 @@ rapids_core_beats
 └── rapids_snk_beats                     (SINK half, same shape)
     ├── scheduler_group_array_beats
     │   └── ...
+    ├── monbus_arbiter (3:1)             (client 1 = snk_plane_mon_*)
     └── snk_data_path_axis_beats
         └── snk_data_path_beats
             ├── axi_write_engine_beats

@@ -10,15 +10,15 @@ digraph rapids_beats_bidirectional {
            fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    nic_rx [label="Network Interface - receive\n(drives s_axis_*, tid = 0)", fillcolor="white"];
-    nic_tx [label="Network Interface - transmit\n(takes m_axis_*, tid = 1)", fillcolor="white"];
+    nic_rx [label="Network Interface - receive\n(drives s_axis_*, tid = 0, or\ns_cxs_*, CXSSRCID = 0)", fillcolor="white"];
+    nic_tx [label="Network Interface - transmit\n(takes m_axis_*, tid = 1, or\nm_cxs_*, CXSSRCID = 1)", fillcolor="white"];
     snk [label="Sink Channel 0 (RX)\nrapids_snk_beats: ingress -> FIFO 0\n-> AXI write engine"];
     src [label="Source Channel 1 (TX)\nrapids_src_beats: AXI read engine\n-> FIFO 1 -> egress"];
     mem [label="System Memory\nRX buffer (written by sink channel 0)   |   TX buffer (read by source channel 1)", fillcolor="white", width=8.0];
 
-    nic_rx -> snk [label="AXIS packets in"];
+    nic_rx -> snk [label="network packets in\n(AXIS or CXS)"];
     snk -> mem [label="AXI write (AW + W)"];
-    nic_tx -> src [dir=back, label="AXIS packets out"];
+    nic_tx -> src [dir=back, label="network packets out\n(AXIS or CXS)"];
     p_ar [shape=point, width=0.01];
     p_r  [shape=point, width=0.01];
     { rank=same; p_ar; p_r; }

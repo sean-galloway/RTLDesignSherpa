@@ -20,7 +20,7 @@ digraph rapids_beats_load_balancing {
     mem [label="System Memory - one buffer chain per channel\n(written through the shared AXI write engine)", fillcolor="white", width=7.0];
 
     pkts -> dist [label="packets"];
-    dist -> ing  [label="s_axis_* (tid set)"];
+    dist -> ing  [label="s_axis_* (tid set) or\ns_cxs_* (CXSSRCID set)"];
     ing -> c0 [label="tid = 0"];
     ing -> c1 [label="tid = 1"];
     ing -> c2 [label="tid = 2"];

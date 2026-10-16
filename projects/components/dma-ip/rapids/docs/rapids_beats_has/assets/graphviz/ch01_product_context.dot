@@ -10,22 +10,22 @@ digraph rapids_beats_product_context {
            fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    net_in  [label="Network Interface\n(ingress)", fillcolor="white", group=L];
+    net_in  [label="Network (ingress)\nAXIS stream or CXS link", fillcolor="white", group=L];
     cpu     [label="Host CPU\nbuilds descriptor chains in memory,\nprograms and kicks over APB", fillcolor="white", group=C];
-    net_out [label="Network Interface\n(egress)", fillcolor="white", group=R];
+    net_out [label="Network (egress)\nAXIS stream or CXS link", fillcolor="white", group=R];
 
-    sink  [label="Sink Data Path\nAXIS slave -> SRAM -> AXI write engine", group=L];
+    sink  [label="Sink Data Path\nRX network plane (AXIS | CXS) -> SRAM -> AXI write engine", group=L];
     sched [label="Scheduler Group Arrays (8 channels per half)\ndescriptor engines + schedulers", group=C];
-    src   [label="Source Data Path\nAXI read engine -> SRAM -> AXIS master", group=R];
+    src   [label="Source Data Path\nAXI read engine -> SRAM -> TX network plane (AXIS | CXS)", group=R];
 
     mem [label="System Memory (through the AXI interconnect)\ndata buffers and descriptor chains",
          fillcolor="white", width=9.5, group=C];
 
-    net_in -> sink  [label="AXIS packets"];
+    net_in -> sink  [label="network packets"];
     cpu    -> sched [label="APB: config, kick"];
     sched  -> sink  [xlabel="write commands"];
     sched  -> src   [xlabel="read commands"];
-    net_out -> src  [dir=back, label="AXIS packets"];
+    net_out -> src  [dir=back, label="network packets"];
 
     p_w  [shape=point, width=0.01, group=L];
     p_d  [shape=point, width=0.01, group=C];

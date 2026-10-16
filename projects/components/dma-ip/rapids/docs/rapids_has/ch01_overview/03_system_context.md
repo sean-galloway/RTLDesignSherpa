@@ -61,7 +61,7 @@ master (`m_axil_mon`) also writes the monitor log:
 
 ### Network Interface
 
-RAPIDS uses standard AXI-Stream for network connectivity:
+The network side is a swappable plane. The AXIS tops use standard AXI-Stream, below; the CXS tops (`*_cxs_top`) replace the two streams with one CXS link per direction, with `CXSSRCID` carrying the channel (see the CXS Network Interface chapter):
 
 | Interface | Role | Signals |
 |-----------|------|---------|

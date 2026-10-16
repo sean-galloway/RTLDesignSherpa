@@ -11,18 +11,22 @@
 digraph rapids_byte_whole_unit {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.40", ranksep="0.75", splines=ortho,
-           label="RAPIDS whole unit (byte-granular) - rapids_top (single clock: aclk, aresetn)\nsink: AXIS -> memory down the left; source: memory -> AXIS up the right; descriptors and control down the center",
+           label="RAPIDS whole unit (byte-granular) - rapids_top / rapids_cxs_top (single clock: aclk, aresetn)\nsink: AXIS -> memory down the left; source: memory -> AXIS up the right; descriptors and control down the center",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external ports (white) ----
-    s_axis [label="Network In - s_axis_*\n(AXIS slave, tid = channel,\npacked bytes, tstrb)", fillcolor="white", group=L];
+    s_axis [label="Network In\ns_axis_* (AXIS top) or s_cxs_* (CXS top)\ntid / CXSSRCID = channel,\npacked bytes, tstrb", fillcolor="white", group=L];
     s_apb  [label="Host Configuration - s_apb_*\n(APB4 slave)", fillcolor="white", group=C];
-    m_axis [label="Network Out - m_axis_*\n(AXIS master, tid = channel,\npacked bytes, tstrb, tlast)", fillcolor="white", group=R];
+    m_axis [label="Network Out\nm_axis_* (AXIS top) or m_cxs_* (CXS top)\ntid / CXSSRCID = channel,\npacked bytes, tstrb, tlast", fillcolor="white", group=R];
 
     // ---- rank 1 ----
+    // ---- network planes (rtl/plane): the top's module names pick AXIS or CXS ----
+    plane_rx [label="Sink Network Plane (RX)\nrapids_plane_axis_rx | rapids_plane_cxs_rx\nendpoint + monitor-lite (packets to\nthe sink half's MonBus, client 1)", group=L];
+    plane_tx [label="Source Network Plane (TX)\nrapids_plane_axis_tx | rapids_plane_cxs_tx\nendpoint + monitor-lite (packets to\nthe source half's MonBus, client 1)", group=R];
+
     ingress [label="Sink Ingress Shifter - snk_data_path_axis\nbytes to lane (offset + l), spill held,\nflushed after tlast; tid picks the channel", group=L];
     regs    [label="Registers + Config Mapping\napb4_slave -> rapids_regs (PeakRDL)\n-> rapids_config_block x 2 (src, snk)\ncfg_* sideband to every block", group=C];
     egress  [label="Source Egress Re-Packer\nsrc_data_path_axis: round-robin\nchannel pick; drop the offset,\npack from lane 0",
@@ -45,7 +49,8 @@ digraph rapids_byte_whole_unit {
          fillcolor="white", width=18.6, fontsize=11, group=C];
 
     // ---- sink write data, down the left ----
-    s_axis   -> ingress  [label="packet beats"];
+    s_axis   -> plane_rx [label="network packets in"];
+    plane_rx -> ingress  [label="packet beats (AXIS)"];
     ingress  -> snk_sram [label="fill beats\n(per channel)"];
     snk_sram -> wr_eng   [label="drain beats"];
 
@@ -60,7 +65,8 @@ digraph rapids_byte_whole_unit {
     sga   -> mon    [style=dashed, xlabel="monitor\npackets"];
 
     // ---- source read data, up the right ----
-    m_axis   -> egress   [dir=back, label="packet beats, tlast"];
+    m_axis   -> plane_tx [dir=back, label="network packets out"];
+    plane_tx -> egress   [dir=back, label="packet beats, tlast"];
     egress   -> src_sram [dir=back, label="drain beats"];
     src_sram -> rd_eng   [dir=back, label="R data\n(per channel)"];
 
@@ -91,6 +97,8 @@ digraph rapids_byte_whole_unit {
     // ---- rank pinning ----
     { rank=same; s_axis; s_apb; m_axis; }
     s_axis -> s_apb -> m_axis [style=invis];
+    { rank=same; plane_rx; plane_tx; }
+    plane_rx -> plane_tx [style=invis];
     { rank=same; ingress; regs; egress; }
     ingress -> regs -> egress [style=invis];
     { rank=same; snk_sram; sga; src_sram; }

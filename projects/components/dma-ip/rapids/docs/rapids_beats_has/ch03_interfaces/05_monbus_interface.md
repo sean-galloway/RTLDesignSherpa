@@ -78,8 +78,8 @@ RAPIDS modules use the following Agent IDs:
 | Agent ID | Module | Description |
 |----------|--------|-------------|
 | 0x08 | Descriptor AXI monitor | `axi4_master_rd_monlite` on the descriptor read master (per half, `USE_AXI_MONITORS`) |
-| 0x09 | Sink-ingress AXIS monitor | `axis4_slave_monlite` on `s_axis_*` in `rapids_snk_beats` (`USE_AXI_MONITORS`; config `SNK.MON.WRMON_*`) |
-| 0x0A | Source-egress AXIS monitor | `axis4_master_monlite` on `m_axis_*` in `rapids_src_beats` (`USE_AXI_MONITORS`; config `SRC.MON.RDMON_*`) |
+| 0x09 | Sink-ingress network monitor | The sink RX plane's monitor-lite: `axis4_slave_monlite` on `s_axis_*` (AXIS top) or `cxs_monitor_lite` in `cxs_slave_monlite` on `s_cxs_*` (CXS top) (`USE_AXI_MONITORS`; config `SNK.MON.WRMON_*`) |
+| 0x0A | Source-egress network monitor | The source TX plane's monitor-lite: `axis4_master_monlite` on `m_axis_*` (AXIS top) or `cxs_monitor_lite` in `cxs_master_monlite` on `m_cxs_*` (CXS top) (`USE_AXI_MONITORS`; config `SRC.MON.RDMON_*`) |
 | 0x10-0x17 | Descriptor Engine | Channels 0-7 |
 | 0x20 | Control Read Engine | ctrlrd (one per half) |
 | 0x21 | Control Write Engine | ctrlwr (one per half) |
@@ -90,10 +90,14 @@ RAPIDS modules use the following Agent IDs:
 These are the values the scheduler group array and the halves pass down
 (`DESC_AXI_MON_AGENT_ID`, `DESC_MON_BASE_AGENT_ID`, `CTRLRD_MON_AGENT_ID`,
 `CTRLWR_MON_AGENT_ID`, `SCHED_MON_BASE_AGENT_ID`); the module defaults inside
-the engines differ and are overridden at instantiation. An earlier revision of
-this table listed data-path agents at 0x40-0x57, which nothing emits: the data
-paths carry no MonBus emitters, and the AXIS ports are monitored only by the
-characterization harness's instruments until TASK-015 lands.
+the engines differ and are overridden at instantiation. The data paths carry no
+MonBus emitters (an earlier revision listed data-path agents at 0x40-0x57,
+which nothing emits). Agents 0x09 and 0x0A live in the network planes, outside
+the core; their packets enter each half's 3:1 `monbus_arbiter` as client 1 on
+`snk_plane_mon_*` / `src_plane_mon_*`. A CXS plane's packets carry protocol
+`PROTOCOL_CXS`, which the top's monitor group filters through its AXIS mask
+slot. A CXS PACKET_END completion carries the channel (`CXSSRCID`) in
+`event_data[55:48]`; its `channel_id` field holds `{PRCLTYPE[2:0], TGTID[5:0]}`.
 
 ## Event Codes
 
@@ -192,18 +196,13 @@ Multiple RAPIDS modules generate MonBus packets. Internal arbitration ensures or
 
 ## Top-Level MonBus Delivery (monbus_axil4_axil4_group)
 
-At the top level (`rapids_beats_top`), the internal MonBus is not exposed as a
-raw 64-bit port. Instead, when `USE_AXI_MONITORS = 1`, packets are combined and
-delivered through a `monbus_axil4_axil4_group`:
-
-1. **AXI monitors:** `axi4_master_rd_monlite` and `axi4_master_wr_monlite` (axi_monitor_lite: error, timeout, completion, threshold and the optional address-range checker; no perf or debug class) observe the
-   read (`m_axi_rd`) and write (`m_axi_wr`) data masters and emit monitor
-   packets. When `USE_AXI_MONITORS = 0`, these taps are bypassed and the
-   MonBus outputs below are tied off (`mon_irq = 0`).
-2. **Arbitration:** a 3-input `monbus_arbiter` merges the read-monitor packet,
-   the write-monitor packet, and the core's descriptor-monitor packet.
-3. **Delivery:** the combined stream feeds `monbus_axil4_axil4_group`, which
-   presents three external interfaces:
+At the top level (`rapids_beats_top`, `rapids_beats_cxs_top`), the internal
+MonBus is not exposed as a raw 64-bit port. Instead, when `USE_AXI_MONITORS = 1`,
+the core's single merged stream (`core_mon_*`, which already carries the
+descriptor-monitor and network-plane packets) feeds a `monbus_axil4_axil4_group`.
+The data masters `m_axi_rd` and `m_axi_wr` carry no monitors. When
+`USE_AXI_MONITORS = 0`, the group is not built and its outputs are tied off
+(`mon_irq = 0`). The group presents three external interfaces:
 
 | Interface | Signals | Purpose |
 |-----------|---------|---------|

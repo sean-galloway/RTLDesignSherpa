@@ -59,7 +59,7 @@ The Beats architecture prioritizes simplicity over feature completeness:
 | **Transfer Unit** | Full beats only | Chunk-level alignment |
 | **Flow Control** | Backpressure-based | Credit management |
 | **Address Alignment** | Pre-aligned required | Hardware alignment fixup |
-| **Network Interface** | Direct AXIS | Protocol conversion |
+| **Network Interface** | Direct AXIS, or CXS through a swappable network plane | Protocol conversion inside the core |
 
 : Phase 1 Simplifications
 
@@ -69,4 +69,5 @@ The Beats architecture prioritizes simplicity over feature completeness:
 2. **Descriptor Chaining** - Automatic next-descriptor fetch
 3. **Dual Data Paths** - Simultaneous sink (write) and source (read)
 4. **Monitor Integration** - Real-time event reporting via MonBus
-5. **Error Detection** - Address range checking, AXI error propagation
+5. **Swappable Network Plane** - AXI-Stream or CXS (Arm IHI 0079 Issue D) at the top, same core
+6. **Error Detection** - Address range checking, AXI error propagation

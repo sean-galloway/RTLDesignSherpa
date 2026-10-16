@@ -9,19 +9,19 @@ digraph rapids_beats_system_integration {
            fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    nic_in  [label="Network Interface\n(receive side)", fillcolor="white", group=L];
+    nic_in  [label="Network (receive side)\nAXIS stream (rapids_beats_top) or\nCXS link (rapids_beats_cxs_top)", fillcolor="white", group=L];
     cpu     [label="Host CPU\n(also a master on the interconnect)", fillcolor="white", group=C];
-    nic_out [label="Network Interface\n(transmit side)", fillcolor="white", group=R];
+    nic_out [label="Network (transmit side)\nAXIS stream (rapids_beats_top) or\nCXS link (rapids_beats_cxs_top)", fillcolor="white", group=R];
 
-    rapids [label="RAPIDS Beats - rapids_beats_top\nsink half (AXIS -> memory)  |  registers + monitor egress  |  source half (memory -> AXIS)\nsingle clock domain (aclk, aresetn)",
+    rapids [label="RAPIDS Beats - rapids_beats_top / rapids_beats_cxs_top\nsink half (network -> memory)  |  registers + monitor egress  |  source half (memory -> network)\nsingle clock domain (aclk, aresetn)",
             width=9.0, height=0.9, group=C];
 
     xbar [label="AXI Interconnect\n(the RAPIDS masters may share one physical port)", width=10.8, group=C];
     ddr  [label="DDR Memory - data buffers, descriptor chains, monitor log", fillcolor="white", width=10.8, group=C];
 
-    nic_in  -> rapids [xlabel="s_axis_* (packets in)"];
+    nic_in  -> rapids [xlabel="s_axis_* or s_cxs_*\n(packets in)"];
     cpu     -> rapids [dir=both, label="s_apb_* config + kick, s_axil_err reads;\nmon_irq back", penwidth=1.8];
-    nic_out -> rapids [dir=back, xlabel="m_axis_* (packets out)"];
+    nic_out -> rapids [dir=back, xlabel="m_axis_* or m_cxs_*\n(packets out)"];
 
     p_wr  [shape=point, width=0.01, group=L];
     p_ctl [shape=point, width=0.01];

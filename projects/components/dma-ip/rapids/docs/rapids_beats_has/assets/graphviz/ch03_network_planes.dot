@@ -1,0 +1,59 @@
+// Network planes: one generated top = the tree's base + an RX plane + a TX
+// plane, picked by module name (bin/gen_plane_tops.py). Shared by the byte
+// (rapids_top / rapids_cxs_top) and beats (rapids_beats_top /
+// rapids_beats_cxs_top) trees.
+// Flow geography:
+//   network in   - enters top-left, drops down the LEFT lane into the base
+//   config       - APB down the CENTER into the base
+//   network out  - leaves the base and climbs the RIGHT lane
+// Verified against rtl/plane/rapids_plane_*.sv and bin/gen_plane_tops.py.
+digraph rapids_network_planes {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.70", splines=ortho,
+           label="RAPIDS network planes - every top is the tree's base plus one RX and one TX plane\nAXIS tops: rapids_top, rapids_beats_top  |  CXS tops: rapids_cxs_top, rapids_beats_cxs_top (generated, never hand-edited)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external ports (white) ----
+    net_in  [label="Network In\nAXIS top: s_axis_* (tid = channel)\nCXS top: s_cxs_* (CXSSRCID = channel)", fillcolor="white", group=L];
+    apb     [label="Host CPU\ns_apb_* config + kick", fillcolor="white", group=C];
+    net_out [label="Network Out\nAXIS top: m_axis_* (tid = channel)\nCXS top: m_cxs_* (CXSSRCID = channel)", fillcolor="white", group=R];
+
+    // ---- planes ----
+    rx [label="RX Plane (pick one by module name)\nrapids_plane_axis_rx: axis4_slave_monlite\nrapids_plane_cxs_rx: cxs_slave_monlite + cxs_to_axis", group=L];
+    tx [label="TX Plane (pick one by module name)\nrapids_plane_axis_tx: axis4_master_monlite\nrapids_plane_cxs_tx: axis_to_cxs + cxs_master_monlite", group=R];
+
+    // ---- base ----
+    base [label="Tree Base - rapids_top_base (byte) / rapids_beats_top_base (beats)\ncore (sink half | scheduler groups | source half), rapids_regs + rapids_config_block, monbus group\nidentical in the AXIS and CXS tops", width=10.5, group=C];
+
+    // ---- boundary bar ----
+    mem [label="Top Boundary - AXI masters to memory\nm_axi_wr  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axil_mon, s_axil_err, mon_irq  |  m_axi_rd",
+         fillcolor="white", width=12.0, fontsize=11, group=C];
+
+    // ---- network in, down the left ----
+    net_in -> rx   [label="packets in"];
+    p_rx [shape=point, width=0.01, group=L];
+    rx   -> p_rx [arrowhead=none, headclip=false];
+    p_rx -> base [xlabel="fub_axis_*\n(AXIS, tid = channel)", tailclip=false];
+
+    // ---- config, down the center ----
+    apb -> base [label="APB writes, reads", penwidth=1.8];
+
+    // ---- network out, up the right ----
+    net_out -> tx   [dir=back, label="packets out"];
+    p_tx [shape=point, width=0.01, group=R];
+    tx   -> p_tx [dir=back, headclip=false];
+    p_tx -> base [dir=none, xlabel="fub_axis_*\n(AXIS, tid = channel)", tailclip=false];
+
+    // ---- memory, down the center ----
+    base -> mem [label="AXI reads and writes", penwidth=1.8];
+
+    // ---- rank pinning ----
+    { rank=same; net_in; apb; net_out; }
+    net_in -> apb -> net_out [style=invis];
+    { rank=same; rx; tx; }
+    rx -> tx [style=invis, minlen=4];
+    { rank=same; p_rx; p_tx; }
+}

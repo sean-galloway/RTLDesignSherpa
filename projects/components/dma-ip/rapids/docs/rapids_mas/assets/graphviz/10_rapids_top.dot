@@ -5,20 +5,25 @@
 // Center: APB register path (request flow) into the core.
 // Left: sink AXIS ingress drops into the core; right: source egress climbs out.
 // Bottom bar: the memory-side masters and the monitor outputs.
-// Verified against rtl/top/rapids_top.sv.
+// The tops are generated (bin/gen_plane_tops.py) from rapids_top_base + two
+// network planes; the plane module names pick AXIS or CXS. The sink ingress
+// drops through the RX plane, the source egress climbs out through the TX plane.
+// Verified against rtl/top/rapids_top_base.sv, rtl/plane/*.sv.
 digraph rapids_top_integration {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.45", ranksep="0.55", splines=ortho,
-           label="rapids_top - registers, configuration and monitor egress around rapids_core (byte-granular)\n(single clock: aclk, aresetn)",
+           label="rapids_top / rapids_cxs_top - network planes, registers, configuration and monitor egress around rapids_core (byte-granular)\n(single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    s_axis [label="Network In - s_axis_*\n(AXIS slave)", fillcolor="white", group=L];
+    s_axis [label="Network In\ns_axis_* (AXIS top) or\ns_cxs_* (CXS top, credits granted)", fillcolor="white", group=L];
     s_apb  [label="Host Configuration - s_apb_*\n(APB4 slave)", fillcolor="white", group=C];
-    m_axis [label="Network Out - m_axis_*\n(AXIS master)", fillcolor="white", group=R];
+    m_axis [label="Network Out\nm_axis_* (AXIS top) or\nm_cxs_* (CXS top, credits received)", fillcolor="white", group=R];
 
+    plane_rx [label="Sink Network Plane (RX)\nrapids_plane_axis_rx | rapids_plane_cxs_rx\nendpoint + monitor-lite; its packets\njoin the core MonBus (client 1)", group=L];
+    plane_tx [label="Source Network Plane (TX)\nrapids_plane_axis_tx | rapids_plane_cxs_tx\nendpoint + monitor-lite; its packets\njoin the core MonBus (client 1)", group=R];
     apb    [label="APB Slave + Register Adapter\napb4_slave -> peakrdl_to_cmdrsp", group=C];
     regs   [label="Register Block - rapids_regs (PeakRDL)\nSRC block 0x0000, SNK block 0x1000;\neach: kick 0x000-0x040, engine config 0x100+,\nMON regfile", group=C];
     meters [label="Data-Master Bus Meters (sideband)\naxi_bus_meter x 2 (u_rd_bus_meter,\nu_wr_bus_meter): observe m_axi_rd R\nand m_axi_wr W, nothing driven back;\nperf counts read back through rapids_regs", style="filled,dashed"];
@@ -26,7 +31,7 @@ digraph rapids_top_integration {
     core   [label="RAPIDS Core - rapids_core (u_core)\nsource half + sink half (see the core figure)", width=6.5, height=0.8, group=C];
     mon    [label="Monitor Egress (USE_AXI_MONITORS=1 only)\nmonbus_axil4_axil4_group:\nerror FIFO + capture writer + irq", style="filled,dashed"];
 
-    bar [label="Module Boundary\ns_axil_err, m_axil_mon, mon_irq  |  m_axi_wr (AW, W / B)  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)",
+    bar [label="Module Boundary\ns_axil_err, m_axil_mon, mon_irq  |  m_axi_wr (AW, W / B)  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)\nCXS top only: src_/snk_cxs_link_state, *_cxs_protocol_error, snk_cxs_unsupported (from the planes)",
          fillcolor="white", width=13.0, fontsize=11, group=C];
 
     // ---- register path, down the center ----
@@ -36,10 +41,10 @@ digraph rapids_top_integration {
     cfg   -> core [label="cfg_*, kick\n(descriptor address)", penwidth=1.8];
 
     // ---- network data ----
-    s_axis -> core [xlabel="packet beats (tid = channel)"];
-    p_m [shape=point, width=0.01, group=R];
-    m_axis -> p_m [dir=back, xlabel="packet beats\n(tid = channel)", headclip=false];
-    p_m -> core [dir=none, tailclip=false];
+    s_axis   -> plane_rx [xlabel="network packets in\n(AXIS beats, or CXS flits\nwith CXSSRCID = channel)"];
+    plane_rx -> core     [xlabel="packet beats\n(AXIS, tid = channel)"];
+    m_axis   -> plane_tx [dir=back, xlabel="network packets out\n(AXIS beats, or CXS flits\nwith CXSSRCID = channel)"];
+    plane_tx -> core     [dir=back, xlabel="packet beats\n(AXIS, tid = channel)"];
 
     // ---- core status back up to the registers ----
     regs -> core [dir=back, style=dashed, constraint=false, xlabel="status:\nidle, state,\nerrors"];
@@ -69,7 +74,7 @@ digraph rapids_top_integration {
 
     { rank=same; s_axis; s_apb; m_axis; }
     s_axis -> s_apb -> m_axis [style=invis];
-    { rank=same; regs; p_m; meters; }
-    regs -> p_m -> meters [style=invis];
+    { rank=same; plane_rx; regs; plane_tx; meters; }
+    plane_rx -> regs -> plane_tx -> meters [style=invis];
     { rank=same; p_wr; mon; }
 }

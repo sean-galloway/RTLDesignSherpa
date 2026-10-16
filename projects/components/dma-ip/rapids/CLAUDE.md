@@ -81,7 +81,8 @@
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`
 - `projects/components/dma-ip/rapids/docs/rapids_beats_mas/` - Micro-architecture spec (MAS); index: `rapids_beats_mas_index.md`
 - `projects/components/dma-ip/rapids/docs/rapids_has/` and `rapids_mas/` - the byte-granular RAPIDS books (index: `rapids_has_index.md`, `rapids_mas_index.md`); chapters identical to Beats are linked from the `rapids_beats_*` books, not copied
-- Built PDFs: `docs/RAPIDS_HAS_v0.3.pdf`, `docs/RAPIDS_MAS_v0.2.pdf` (byte design); `docs/RAPIDS_Beats_HAS_v0.10.pdf`, `docs/RAPIDS_Beats_MAS_v0.8.pdf` (beats design)
+- Built PDFs: `docs/RAPIDS_HAS_v0.4.pdf`, `docs/RAPIDS_MAS_v0.3.pdf` (byte design); `docs/RAPIDS_Beats_HAS_v0.11.pdf`, `docs/RAPIDS_Beats_MAS_v0.9.pdf` (beats design)
+- Network planes / CXS: HAS `rapids_beats_has/ch03_interfaces/06_cxs_interface.md`, MAS `rapids_beats_mas/ch03_macro_blocks/13_network_planes.md` and `ch04_interfaces/04_cxs_interface_spec.md` (all shared by the byte books). The CXS ID mapping is provisional: routing and payload-type fields are planned, encoding not yet defined
 
 ---
 
@@ -311,6 +312,7 @@ RAPIDS Beats Architecture (rtl/)
 | **AXI4 (Source)** | Master | Configurable | Read from system memory | `docs/rapids_beats_mas/ch04_interfaces/01_axi4_interface_spec.md` |
 | **AXIS (Sink)** | Slave | Configurable | Network ingress (tid = channel) | `docs/rapids_beats_mas/ch04_interfaces/02_axis_interface_spec.md` |
 | **AXIS (Source)** | Master | Configurable | Network egress (tid = channel) | `docs/rapids_beats_mas/ch04_interfaces/02_axis_interface_spec.md` |
+| **CXS (Sink / Source)** | Receiver / Transmitter | DATA_WIDTH <= 1024 | Network on the `*_cxs_top` (one link per direction, CXSSRCID = channel) | `docs/rapids_beats_mas/ch04_interfaces/04_cxs_interface_spec.md` |
 | **MonBus** | Master | 64-bit | Monitor packet output | `docs/rapids_beats_mas/ch04_interfaces/03_monbus_interface_spec.md` |
 
 ---

@@ -22,7 +22,7 @@ digraph rapids_beats_monbus_tree {
     dam [label="Descriptor AXI\nMonitor-Lite\n(USE_AXI_\nMONITORS=1)", style="filled,dashed"];
     t2  [label="Array Arbiter, 9:1\nscheduler_group_array_beats", shape=polygon, sides=4, distortion=0.25, width=8.6, group=C, fillcolor="#BFD7EE"];
 
-    axm [label="AXIS\nMonitor-Lite\n(axis4_slave_ /\nmaster_monlite)", style="filled,dashed"];
+    axm [label="Network-Plane\nMonitor-Lite\n(AXIS or CXS\nplane, client 1)", style="filled,dashed"];
     t3  [label="Half Arbiter, 3:1 (third input reserved, tied off)\nrapids_snk_beats / rapids_src_beats", shape=polygon, sides=4, distortion=0.25, width=11.0, group=C, fillcolor="#BFD7EE"];
 
     oth [label="Other\nHalf\n(same tree)"];
@@ -38,7 +38,7 @@ digraph rapids_beats_monbus_tree {
     g17 -> t2 [xlabel="groups 1-7"];
     dam -> t2 [xlabel="AXI monitor\npackets", style=dashed];
     t2  -> t3 [label="array packets", penwidth=1.8];
-    axm -> t3 [xlabel="AXIS monitor\npackets", style=dashed];
+    axm -> t3 [xlabel="plane monitor\npackets", style=dashed];
     t3  -> t4 [label="this half", penwidth=1.8];
     oth -> t4 [xlabel="other half"];
     t4  -> bar [label="merged MonBus (core_mon_*)", penwidth=1.8];

@@ -59,6 +59,7 @@
 - [AXIS Interface](ch03_interfaces/03_axis_interface.md)
 - [APB Configuration Interface](ch03_interfaces/04_apb_interface.md)
 - [Monitor Bus Interface](ch03_interfaces/05_monbus_interface.md)
+- [CXS Network Interface](ch03_interfaces/06_cxs_interface.md)
 
 ### Chapter 4: Use Cases
 

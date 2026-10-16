@@ -110,7 +110,7 @@ title_page:
   logo_width: 2.5
   company: "RTL Design Sherpa"
   title: "RAPIDS"
-  subtitle: "Micro-Architecture Specification 0.1"
+  subtitle: "Micro-Architecture Specification 0.3"
   date: "September 30, 2026"
   # Colors reference the colors section above
   company_color: primary
