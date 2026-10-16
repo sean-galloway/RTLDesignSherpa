@@ -2,7 +2,7 @@
 
 # projects/components/utility-ip/misc — bugs
 
-**Next ID: BUG-001** — never recycle a number, even when its item closed.
+**Next ID: BUG-002** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,9 +14,15 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+(none)
+
+## Closed
+
+- **BUG-001** — error_injector CLUSTERS mismatch on SEED=33472: stale draw-walk
+  done released the block-start beat one cycle early; closed 2026-10-16

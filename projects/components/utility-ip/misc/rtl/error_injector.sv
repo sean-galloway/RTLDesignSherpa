@@ -266,7 +266,19 @@ module error_injector #(
     // is complete.
     assign w_b_ready = !r_b_v || (w_c_ready && !w_count_mode)
                        || (w_count_mode && w_dec_fire);
-    assign w_a_ready = !r_a_v || (w_b_ready && !w_draw_hold);
+    // A block-start beat accepted mid-walk (possible via the empty-A path
+    // while a stale walk still runs -- snapshots fire for every mode, so a
+    // non-app phase leaves the walk busy across the next app block's first
+    // beat) used to let the stale walk's end-of-walk done pulse release the
+    // held beat one cycle before the new walk's start branch cleared it, and
+    // the block decided against the previous table (BUG-001, seed 33472).
+    // Serialize instead: never accept a block-start beat while a walk runs,
+    // so every snapshot lands at draw_busy==0 and the start branch's
+    // invalidation is in force before the beat can reach stage B.  Steady
+    // state is unaffected -- a block's own first beat already sits in A for
+    // the whole walk, which blocks this path except in the race above.
+    assign w_a_ready = (!r_a_v || (w_b_ready && !w_draw_hold))
+                       && !(w_app_mode && r_draw_busy && r_first);
     assign in_ready  = w_a_ready;
     assign w_a_fire  = in_valid && w_a_ready;
     assign w_b_fire  = r_a_v && w_b_ready;
