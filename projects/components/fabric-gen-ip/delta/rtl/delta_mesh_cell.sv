@@ -781,11 +781,13 @@ always_comb begin
                              resp_drop_req[p];
         special_consume[p] = drop_req[p] || bad_cfg_req[p] ||
                              cfg_req[p] || msw_consume[p] ||
-                             mcast_ok_req[p] || mcast_bad_req[p] ||
-                             resp_drop_req[p] ||
+                             mcast_bad_req[p] || resp_drop_req[p] ||
+                             (mcast_consume &&
+                              (PORT_W'(p) == mcast_hold_in_port)) ||
                              (drop_active[p] && pres_valid[p]);
         drop_active_next[p] = drop_active[p];
-        if (drop_req[p] || bad_cfg_req[p] || resp_drop_req[p]) begin
+        if (drop_req[p] || bad_cfg_req[p] ||
+            mcast_bad_req[p] || resp_drop_req[p]) begin
             drop_active_next[p] = !pres_last[p];
         end else if (drop_active[p] && pres_valid[p] &&
                    pres_last[p]) begin
@@ -997,28 +999,36 @@ logic                 mcast_fire;
 logic                 mcast_consume;
 
 // Pick one valid multicast head per cycle (lowest port
-// wins) and consume it from the input FIFO.
+// wins) only when the hold register is empty.  A held
+// packet that is waiting for an output port leaves its
+// head-of-line position in the input FIFO, so it cannot
+// be overwritten by a newly arriving multicast.
 always_comb begin
     mcast_latch = 1'b0;
     mcast_hold_in_port = PORT_W'(P_LOCAL);
-    for (int p = NUM_PORTS-1; p >= 0; p--) begin
-        if (mcast_ok_req[p]) begin
-            mcast_latch = 1'b1;
-            mcast_hold_in_port = PORT_W'(p);
+    if (!mcast_hold_valid) begin
+        for (int p = NUM_PORTS-1; p >= 0; p--) begin
+            if (mcast_ok_req[p]) begin
+                mcast_latch = 1'b1;
+                mcast_hold_in_port = PORT_W'(p);
+            end
         end
     end
     mcast_consume = mcast_latch;
 end
 
-// Fire when every target output is idle and has VC0
-// credit (the local output must also be free of a pending
-// config response).
+// Fire when the hold register is valid and every target
+// output is idle, has VC0 credit, and is AXI-ready (the
+// local output must also be free of a pending config
+// response).
 always_comb begin
-    mcast_fire_next = (mcast_hold_child_mask != '0);
+    mcast_fire_next = mcast_hold_valid &&
+                      (mcast_hold_child_mask != '0);
     for (int q = 0; q < NUM_PORTS; q++) begin
         if (mcast_hold_child_mask[q]) begin
             mcast_fire_next = mcast_fire_next && !packet_active[q] &&
                               s_credit[q][0] &&
+                              m_axis_tready[q] &&
                               ((q != P_LOCAL) || !cfg_resp_present);
         end
     end

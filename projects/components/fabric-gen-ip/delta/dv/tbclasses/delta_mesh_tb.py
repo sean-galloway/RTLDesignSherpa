@@ -87,6 +87,7 @@ class DeltaMeshCellTB(TBBase):
         super().__init__(dut)
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '64'))
         self.USER_WIDTH = self.convert_to_int(os.environ.get('TEST_USER_WIDTH', '64'))
+        self.NUM_VC = self.convert_to_int(os.environ.get('TEST_NUM_VC', '2'))
         self.COORD_W = self.convert_to_int(os.environ.get('TEST_COORD_W', '2'))
         self.POS = (
             self.convert_to_int(os.environ.get('TEST_POS_X', '1')),
@@ -103,6 +104,7 @@ class DeltaMeshCellTB(TBBase):
         self.BEATS_PER_PKT = {'gate': 2, 'func': 3, 'full': 4}[self.TEST_LEVEL]
         self.rng = random.Random(self.SEED)
         self.hdr_offsets = build_header_offsets(self.COORD_W)
+        self._pid = 0x6000
 
         self.aclk = dut.aclk
         self.aresetn = dut.aresetn
@@ -251,9 +253,86 @@ class DeltaMeshCellTB(TBBase):
                     f"{tag}: port '{name}' observed {slave.packets_received} "
                     f"beats, expected 0 (misrouted flit)")
 
+    def _data_frame_count(self, port):
+        """Complete data frames observed at a port."""
+        return self.slaves[port].frames_received
+
+    async def _wait_frames(self, port, n):
+        """Wait until a port holds `n` complete data frames."""
+        for _ in range(6000):
+            if self._data_frame_count(port) >= n:
+                return
+            await RisingEdge(self.aclk)
+        raise AssertionError(
+            f"cell: port '{port}' saw {self._data_frame_count(port)} "
+            f"complete data frames, expected {n}")
+
     def _random_payload(self):
         return [self.rng.getrandbits(self.DATA_WIDTH)
                 for _ in range(self.BEATS_PER_PKT)]
+
+    def build_mcast_header(self, src, packet_id, qos=1, vc=0):
+        """Header for a multicast packet; dst is rewritten to the source
+        coordinate so it is not mistaken for an ordinary unicast."""
+        return self.build_header(dst=src, src=src, qos=qos, vc=vc,
+                                 packet_id=packet_id, mcast=1)
+
+    def _next_pid(self):
+        self._pid += 1
+        return self._pid
+
+    async def run_mcast_cell_hold_overlap(self):
+        """Two multicasts arrive at the same cell while the local output is
+        starved of credit.  The held packet fires first; the second stays
+        queued in its input FIFO and both deliver to the local output after
+        credit returns."""
+        tag = "mcast-cell-hold-overlap"
+        before = self._data_frame_count('local')
+        before_err = int(self.dut.err_drop_cnt.value)
+
+        # Starve the local output of VC0 credit so the first multicast's
+        # copy into this cell cannot fire P_LOCAL.
+        self.dut.local_s_credit.value = 0
+
+        # First multicast arrives on P_Y_NEG from src=(1,0,0).
+        src_a = (1, 0, 0)
+        header_a = self.build_mcast_header(src=src_a,
+                                           packet_id=self._next_pid())
+        payload_a = [0xCAFE_AAAA_0000_0000]
+        await self._send_packet('yneg', header_a, payload_a)
+
+        # Let it propagate to and be held at this cell.
+        await self.wait_clocks('aclk', 10)
+
+        # Second multicast arrives on P_X_NEG from src=(0,1,0).
+        src_b = (0, 1, 0)
+        header_b = self.build_mcast_header(src=src_b,
+                                           packet_id=self._next_pid())
+        payload_b = [0xCAFE_BBBB_0000_0000]
+
+        await self._send_packet('xneg', header_b, payload_b)
+
+        # Give the second packet a few cycles to attempt latching; it must
+        # remain in its input FIFO.
+        await self.wait_clocks('aclk', 10)
+
+        # Restore credit and drain both multicasts.
+        self.dut.local_s_credit.value = (1 << self.NUM_VC) - 1
+        await self._wait_frames('local', before + 2)
+
+        await self.wait_clocks('aclk', 30)
+        got = self._data_frame_count('local')
+        if got != before + 2:
+            raise AssertionError(
+                f"{tag}: local received {got} data frames, "
+                f"expected {before + 2}")
+        if int(self.dut.err_drop_cnt.value) != before_err:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt moved from {before_err} to "
+                f"{int(self.dut.err_drop_cnt.value)}")
+        self.log.info(
+            "delta mesh multicast (d): cell hold overlap passed -- both "
+            "multicasts delivered to local exactly once")
 
     # ------------------------------------------------------------------
     # Test scenarios
@@ -2997,3 +3076,43 @@ class DeltaMeshMulticastTB(DeltaMeshModesTB):
             f"delta mesh multicast (c): deadlock soak passed -- "
             f"{bg_pkts} background packets + {len(b0_mcasts)} multicasts "
             "delivered exactly")
+
+    async def run_mcast_malformed_multi_beat(self, src_bidx=0):
+        """A multi-beat multicast head is malformed (single-beat is the
+        spec); the head is counted once in err_drop_cnt and the trailing
+        body beat drains without mis-delivery."""
+        tag = "mcast-malformed-multi-beat"
+        nb = len(self.BOUNDARY_COORDS)
+        before = self._data_frame_counts()
+        before_err = self._err(src_bidx)
+        src_coord = self.BOUNDARY_COORDS[src_bidx]
+
+        header = self.build_mcast_header(
+            src=src_coord, packet_id=self._next_pid())
+        payload = [0xDEAD_0000_0000_0000, 0xBEEF_0000_0000_0000]
+        await self._send_packet(f'b{src_bidx}', header, payload)
+
+        for _ in range(200):
+            await RisingEdge(self.aclk)
+            if self._err(src_bidx) == before_err + 1:
+                break
+        else:
+            raise AssertionError(
+                f"{tag}: err_drop_cnt at b{src_bidx} == "
+                f"{self._err(src_bidx)}, expected {before_err + 1}")
+
+        await self.wait_clocks('aclk', 50)
+        after = self._data_frame_counts()
+        for bidx, count in after.items():
+            if count != before[bidx]:
+                raise AssertionError(
+                    f"{tag}: boundary b{bidx} gained "
+                    f"{count - before[bidx]} unexpected data frames")
+        for bidx in range(nb):
+            exp = before_err + 1 if bidx == src_bidx else 0
+            if self._err(bidx) != exp:
+                raise AssertionError(
+                    f"{tag}: b{bidx}_err == {self._err(bidx)}, expected {exp}")
+        self.log.info(
+            "delta mesh multicast (e): malformed multi-beat mcast dropped "
+            f"at b{src_bidx}, err_drop_cnt = {self._err(src_bidx)}")

@@ -7,9 +7,12 @@
 # dv/tb/delta_mesh_fabric_2x2_th.sv, with RDS-DV AXIS BFMs on all four
 # boundary locals.
 #
-#   full_fabric   one multicast from (0,0,0) reaches every local exactly once
-#   response_drop response-shaped packet dropped at injection + err_drop_cnt
-#   deadlock_soak random unicast background + periodic multicast, no deadlock
+#   full_fabric     one multicast from (0,0,0) reaches every local exactly once
+#   response_drop   response-shaped packet dropped at injection + err_drop_cnt
+#   cell_overlap    two multicasts at one cell with local credit stall; both
+#                   deliver once after credit returns
+#   malformed       multi-beat multicast head drops once, body drains cleanly
+#   deadlock_soak   random unicast background + periodic multicast, no deadlock
 
 import os
 import subprocess
@@ -18,13 +21,14 @@ import sys
 import cocotb
 import pytest
 from cocotb_test.simulator import run
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 
 _TBCLASSES = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'tbclasses'))
 if _TBCLASSES not in sys.path:
     sys.path.insert(0, _TBCLASSES)
-from delta_mesh_tb import DeltaMeshMulticastTB
+from delta_mesh_tb import DeltaMeshCellTB, DeltaMeshMulticastTB
 
 DELTA_GENERATOR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..', 'bin', 'delta_generator.py'))
@@ -39,6 +43,10 @@ FIFO_DEPS = (
     'rtl/amba/gaxi/gaxi_fifo_sync.sv',
     'rtl/common/arbiter_matrix.sv',
 )
+
+CELL_FILELIST = 'projects/components/fabric-gen-ip/delta/rtl/filelists/delta_mesh.f'
+CELL_HARNESS = 'projects/components/fabric-gen-ip/delta/dv/tb/delta_mesh_cell_th.sv'
+CELL_DUT_TOP = 'delta_mesh_cell_th'
 
 
 @pytest.fixture(scope="module")
@@ -89,6 +97,13 @@ async def cocotb_test_delta_mesh_multicast_deadlock_soak(dut):
     await tb.run_mcast_deadlock_soak()
 
 
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_delta_mesh_multicast_malformed_multi_beat(dut):
+    tb = DeltaMeshMulticastTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.run_mcast_malformed_multi_beat(src_bidx=0)
+
+
 def _run(testcase, test_level, gen_dir):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     verilog_sources = [
@@ -134,8 +149,58 @@ def _run(testcase, test_level, gen_dir):
 @pytest.mark.parametrize("testcase", (
     "cocotb_test_delta_mesh_multicast_full_fabric",
     "cocotb_test_delta_mesh_multicast_response_drop",
+    "cocotb_test_delta_mesh_multicast_malformed_multi_beat",
     "cocotb_test_delta_mesh_multicast_deadlock_soak",
 ))
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_delta_mesh_multicast(request, testcase, test_level, fabric_gen_dir):
     _run(testcase, test_level, fabric_gen_dir)
+
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_delta_mesh_cell_hold_overlap(dut):
+    tb = DeltaMeshCellTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.run_mcast_cell_hold_overlap()
+
+
+def _run_cell(testcase, test_level):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=CELL_FILELIST)
+    verilog_sources = verilog_sources + [os.path.join(repo_root, CELL_HARNESS)]
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    worker_suffix = f"_{worker_id}" if worker_id else ""
+    sim_build_name = f"test_{CELL_DUT_TOP}_{testcase}_{test_level}{worker_suffix}"
+    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
+    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    sim_build = sim_build_path(tests_dir, sim_build_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    waves = get_wave_config(sim_build)
+    run(
+        python_search=[tests_dir, os.path.join(tests_dir, '..', 'tbclasses')],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=CELL_DUT_TOP,
+        module=module,
+        testcase=testcase,
+        sim_build=sim_build,
+        waves=False,
+        extra_args=['--assert', '-Wno-WIDTHEXPAND', '-Wno-DECLFILENAME'] + waves['extra_args'],
+        plus_args=waves['sim_args'],
+        extra_env={
+            'COCOTB_LOG_LEVEL': 'INFO',
+            'LOG_PATH': log_path,
+            'COCOTB_RESULTS_FILE': results_path,
+            **level_env(test_level),
+            **waves['extra_env'],
+        },
+    )
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_delta_mesh_cell_hold_overlap(request, test_level):
+    _run_cell("cocotb_test_delta_mesh_cell_hold_overlap", test_level)
