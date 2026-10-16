@@ -215,7 +215,11 @@ module bridge_mix_a_mon_ddr_adapter
         // register here; the 16-way match + duplicate popcount run the next
         // cycle (GitHub #119: this was the 15-level worst path, master AW
         // gate -> crossbar grant -> CAM count, on the fabric benchmark).
-        .PIPELINE_ALLOC(1)
+        .PIPELINE_ALLOC(1),
+        // Registered free: the response's lookup still routes it this
+        // cycle; the entry free and same-ID decrements land the next
+        // (GitHub #119: the eviction was the next worst path).
+        .PIPELINE_FREE(1)
     ) u_wr_cam (
         .clk(aclk),
         .rst_n(aresetn),
@@ -254,7 +258,11 @@ module bridge_mix_a_mon_ddr_adapter
         // register here; the 16-way match + duplicate popcount run the next
         // cycle (GitHub #119: this was the 15-level worst path, master AW
         // gate -> crossbar grant -> CAM count, on the fabric benchmark).
-        .PIPELINE_ALLOC(1)
+        .PIPELINE_ALLOC(1),
+        // Registered free: the response's lookup still routes it this
+        // cycle; the entry free and same-ID decrements land the next
+        // (GitHub #119: the eviction was the next worst path).
+        .PIPELINE_FREE(1)
     ) u_rd_cam (
         .clk(aclk),
         .rst_n(aresetn),

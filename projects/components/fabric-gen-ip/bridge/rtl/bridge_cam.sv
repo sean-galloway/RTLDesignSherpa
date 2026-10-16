@@ -37,6 +37,14 @@
 //                      The pending entry is visible to the eviction port the
 //                      whole time (a response may follow its request by one
 //                      cycle), and tags_full counts it.
+//   PIPELINE_FREE    - 0=Combinational free, 1=Registered free. The lookup
+//                      stays combinational (deallocate_valid / _data route the
+//                      response in the same cycle); the entry free and the
+//                      same-tag count decrements are applied the next cycle.
+//                      Until then every lookup sees the post-free state: the
+//                      freed entry no longer matches and pending decrements
+//                      are already in the counts. Occupancy drops a cycle
+//                      later (tags_full is conservative for one cycle).
 //
 // Mode 1 Usage (Simple - Block Duplicates):
 //   External arbiter checks cam_hit and blocks allocation if tag exists.
@@ -46,7 +54,7 @@
 //   Allows duplicate transaction IDs with FIFO ordering via count field.
 //   Handles out-of-order slave responses by always deallocating count=0 first.
 //
-// Version: 1.3 (PIPELINE_ALLOC)
+// Version: 1.4 (PIPELINE_ALLOC, PIPELINE_FREE)
 // Author: RTL Design Sherpa
 // Date: 2025-10-26 (1.3: 2026-10-16)
 //==============================================================================
@@ -57,7 +65,8 @@ module bridge_cam #(
     parameter int DEPTH = 16,              // Number of CAM entries
     parameter int ALLOW_DUPLICATES = 0,    // 0=Mode 1, 1=Mode 2
     parameter int PIPELINE_EVICT = 0,      // 0=Comb, 1=Pipelined (for timing)
-    parameter int PIPELINE_ALLOC = 0       // 0=Comb, 1=Registered insert (for timing)
+    parameter int PIPELINE_ALLOC = 0,      // 0=Comb, 1=Registered insert (for timing)
+    parameter int PIPELINE_FREE  = 0       // 0=Comb, 1=Registered free (for timing)
 ) (
     input  logic                        clk,
     input  logic                        rst_n,
@@ -158,6 +167,18 @@ module bridge_cam #(
     logic                  w_pend_hit;      // the eviction port takes the pending entry
     logic [DEPTH-1:0]      w_alloc_matches; // allocate_tag vs stored (cam_hit only)
 
+    // Free port: what this cycle's deallocate frees (w_free_*), what is
+    // applied to storage this cycle (w_apply_*: the same, or last cycle's
+    // under PIPELINE_FREE), and the storage as lookups must see it.
+    logic                   w_free_now;
+    logic [DEPTH-1:0]       w_free_oh;      // the entry freed
+    logic [DEPTH-1:0]       w_free_dec;     // same-tag entries stepping down (Mode 2)
+    logic                   w_apply_free;
+    logic [DEPTH-1:0]       w_apply_oh;
+    logic [DEPTH-1:0]       w_apply_dec;
+    logic [DEPTH-1:0]       w_valid_eff;
+    logic [COUNT_WIDTH-1:0] w_count_eff [DEPTH];
+
 
     //==========================================================================
     // Single CAM Search Loop - TWO Lookup Ports
@@ -166,9 +187,9 @@ module bridge_cam #(
 
     always_comb begin
         for (i = 0; i < DEPTH; i++) begin
-            w_entry_matches[i] = r_valid[i] && (w_ins_tag == r_tag_array[i]);
-            w_alloc_matches[i] = r_valid[i] && (allocate_tag == r_tag_array[i]);
-            w_evict_matches[i] = r_valid[i] && (deallocate_tag == r_tag_array[i]);
+            w_entry_matches[i] = w_valid_eff[i] && (w_ins_tag == r_tag_array[i]);
+            w_alloc_matches[i] = w_valid_eff[i] && (allocate_tag == r_tag_array[i]);
+            w_evict_matches[i] = w_valid_eff[i] && (deallocate_tag == r_tag_array[i]);
         end
     end
 
@@ -320,7 +341,7 @@ module bridge_cam #(
         w_evict_count0_hits = '0;
         if (ALLOW_DUPLICATES == 1) begin
             for (q = 0; q < DEPTH; q++) begin
-                w_evict_count0_hits[q] = w_evict_matches_active[q] && (r_count_array[q] == 0);
+                w_evict_count0_hits[q] = w_evict_matches_active[q] && (w_count_eff[q] == 0);
             end
             w_evict_count0_found = |w_evict_count0_hits;
             for (q = 0; q < DEPTH; q++) begin
@@ -400,30 +421,18 @@ module bridge_cam #(
                 end
             end
 
-            // Deallocate: Free entry (independent from allocate)
-            if (w_deallocate_active) begin
-                if (ALLOW_DUPLICATES == 0) begin
-                    // Mode 1: Simple deallocation - free any matching entry
-                    if (w_evict_match_found) begin
-                        r_valid[w_evict_match_loc] <= 1'b0;
-                        r_tag_array[w_evict_match_loc] <= '0;  // Optional: waveform clarity
-                        r_data_array[w_evict_match_loc] <= '0;
-                    end
-                end else begin
-                    // Mode 2: FIFO deallocation - free count=0, decrement others
-                    if (w_evict_count0_found) begin
-                        // Free the count=0 entry (oldest)
-                        r_valid[w_evict_count0_loc] <= 1'b0;
-                        r_tag_array[w_evict_count0_loc] <= '0;
-                        r_data_array[w_evict_count0_loc] <= '0;
-                        r_count_array[w_evict_count0_loc] <= '0;
-
-                        // Decrement ONLY matching entries (use match vector)
-                        for (j = 0; j < DEPTH; j++) begin
-                            if (j != w_evict_count0_loc && w_evict_matches_active[j]) begin
-                                r_count_array[j] <= r_count_array[j] - 1'b1;
-                            end
-                        end
+            // Free: the entry w_apply_oh leaves, same-tag survivors step
+            // down (Mode 2). Independent from the insert: the insert writes a
+            // free slot, the decrements touch only live entries.
+            if (w_apply_free) begin
+                for (j = 0; j < DEPTH; j++) begin
+                    if (w_apply_oh[j]) begin
+                        r_valid[j]       <= 1'b0;
+                        r_tag_array[j]   <= '0;   // waveform clarity
+                        r_data_array[j]  <= '0;
+                        r_count_array[j] <= '0;
+                    end else if (w_apply_dec[j]) begin
+                        r_count_array[j] <= r_count_array[j] - 1'b1;
                     end
                 end
             end
@@ -431,14 +440,71 @@ module bridge_cam #(
             // Occupancy counter update
             // (A pending entry taken by the eviction port is neither
             // written nor counted: it never entered r_count.)
-            case ({w_ins_v,
-                   w_deallocate_active && w_cam_evict_found})
+            case ({w_ins_v, w_apply_free})
                 2'b10: r_count <= r_count + 1'b1;  // Allocate only
                 2'b01: r_count <= r_count - 1'b1;  // Deallocate only
                 default: r_count <= r_count;       // Both or neither
             endcase
         end
     )
+
+    //==========================================================================
+    // Free Port: combinational or registered (PIPELINE_FREE)
+    //==========================================================================
+    // What this cycle's deallocate frees, as vectors. Mode 1 frees one match;
+    // Mode 2 frees the count-0 entry and steps the other matches down.
+    always_comb begin
+        w_free_oh  = '0;
+        w_free_dec = '0;
+        w_free_now = w_deallocate_active && w_cam_evict_found;
+        if (w_free_now) begin
+            if (ALLOW_DUPLICATES == 0) begin
+                w_free_oh[w_evict_match_loc] = 1'b1;
+            end else begin
+                w_free_oh  = w_evict_count0_hits;
+                w_free_dec = w_evict_matches_active & ~w_evict_count0_hits;
+            end
+        end
+    end
+
+    generate
+        if (PIPELINE_FREE == 1) begin : gen_free_pipe
+            logic             r_pf_v;
+            logic [DEPTH-1:0] r_pf_oh;
+            logic [DEPTH-1:0] r_pf_dec;
+            `ALWAYS_FF_RST(clk, rst_n,
+                if (`RST_ASSERTED(rst_n)) begin
+                    r_pf_v   <= 1'b0;
+                    r_pf_oh  <= '0;
+                    r_pf_dec <= '0;
+                end else begin
+                    r_pf_v   <= w_free_now;
+                    r_pf_oh  <= w_free_oh;
+                    r_pf_dec <= w_free_dec;
+                end
+            )
+            assign w_apply_free = r_pf_v;
+            assign w_apply_oh   = r_pf_oh;
+            assign w_apply_dec  = r_pf_dec;
+            // Lookups this cycle see last cycle's free as done.
+            always_comb begin
+                for (int e = 0; e < DEPTH; e++) begin
+                    w_valid_eff[e] = r_valid[e] && !(r_pf_v && r_pf_oh[e]);
+                    w_count_eff[e] = r_count_array[e] - COUNT_WIDTH'(r_pf_v && r_pf_dec[e]);
+                end
+            end
+        end else begin : gen_free_comb
+            assign w_apply_free = w_free_now;
+            assign w_apply_oh   = w_free_oh;
+            assign w_apply_dec  = w_free_dec;
+            always_comb begin
+                for (int e = 0; e < DEPTH; e++) begin
+                    w_valid_eff[e] = r_valid[e];
+                    w_count_eff[e] = r_count_array[e];
+                end
+            end
+        end
+    endgenerate
 
     //==========================================================================
     // Status Outputs

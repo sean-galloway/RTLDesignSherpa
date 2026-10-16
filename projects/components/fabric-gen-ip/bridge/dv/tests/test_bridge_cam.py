@@ -14,9 +14,11 @@
 # count-0 entry. deallocate_valid stayed low, the crossbar never raised
 # bready, and the slave's B sat unaccepted until the BFM gave up on it.
 #
-# Every test runs with PIPELINE_ALLOC 0 and 1 (registered insert, GitHub
-# #119): the same per-tag model holds in both, and cam_response_next_cycle_test
-# pins the pending-entry bypass a registered insert needs.
+# Every test runs with PIPELINE_ALLOC and PIPELINE_FREE each 0 and 1
+# (registered insert / registered free, GitHub #119): the same per-tag model
+# holds in all four (with full/empty one cycle late under a registered free),
+# and cam_response_next_cycle_test pins the pending-entry bypass a registered
+# insert needs.
 
 import os
 import random
@@ -69,6 +71,15 @@ class Cam:
         d.deallocate.value = 0
         return res
 
+    async def empty_settled(self) -> int:
+        """tags_empty one cycle on: a registered free (PIPELINE_FREE) drops
+        the occupancy a cycle after the deallocate. Holds in every mode."""
+        await RisingEdge(self.dut.clk)
+        await ReadOnly()
+        v = int(self.dut.tags_empty.value)
+        await RisingEdge(self.dut.clk)
+        return v
+
     async def lookup(self, tag):
         d = self.dut
         d.deallocate_tag.value = tag
@@ -100,7 +111,7 @@ async def cam_same_cycle_alloc_dealloc_test(dut):
         f"this is bready never rising for a valid B")
     v, _ = await cam.lookup(T)
     assert v == 0, "tag still present after all three were retired"
-    assert int(dut.tags_empty.value) == 1
+    assert await cam.empty_settled() == 1
     dut._log.info("bridge_cam: same-cycle allocate+deallocate keeps the per-tag order dense")
 
 
@@ -118,7 +129,7 @@ async def cam_response_next_cycle_test(dut):
     assert (v, data) == (1, 1), f"response one cycle after its request: {(v, data)}"
     v, _ = await cam.lookup(A)
     assert v == 0, "the entry was retired but is still found (pending entry written anyway?)"
-    assert int(dut.tags_empty.value) == 1, "occupancy counted a pending entry that was taken"
+    assert await cam.empty_settled() == 1, "occupancy still counts an entry that was taken"
     await cam.step(alloc=(B, 1))                        # older B
     await cam.step(alloc=(B, 2))                        # younger B, possibly still pending
     v, data = await cam.step(dealloc=B)
@@ -126,7 +137,7 @@ async def cam_response_next_cycle_test(dut):
     v, data = await cam.step(dealloc=B)
     assert (v, data) == (1, 2), f"same tag, second response: {(v, data)}"
     v, _ = await cam.lookup(B)
-    assert v == 0 and int(dut.tags_empty.value) == 1
+    assert v == 0 and await cam.empty_settled() == 1
     # Fill to DEPTH with back-to-back allocates: full must assert on the last
     # one even while it is still pending.
     for t in range(DEPTH):
@@ -149,10 +160,15 @@ async def cam_random_test(dut):
     rng = random.Random(int(os.environ.get('SEED', '0') or 0))
     model = {}          # tag -> [data,...] oldest first
     live = 0
-    dut._log.info(f"random: level={level} rounds={rounds}")
+    # PIPELINE_FREE applies a free one cycle late, so for that cycle the CAM
+    # still counts the freed entry: full/empty lag by one, and an allocate is
+    # refused while the count says full.
+    pipe_free = os.environ.get('PIPELINE_FREE', '0') == '1'
+    freed_prev = 0
+    dut._log.info(f"random: level={level} rounds={rounds} pipeline_free={int(pipe_free)}")
     for r in range(rounds):
         alloc = dealloc = None
-        if live < DEPTH and rng.random() < 0.6:
+        if live + freed_prev < DEPTH and rng.random() < 0.6:
             alloc = (rng.randrange(1 << TAG_W), rng.randrange(1 << DATA_W))
         live_tags = [t for t, q in model.items() if q]
         if live_tags and rng.random() < 0.5:
@@ -166,16 +182,19 @@ async def cam_random_test(dut):
         if alloc is not None:
             model.setdefault(alloc[0], []).append(alloc[1])
             live += 1
+        freed_prev = 1 if (pipe_free and dealloc is not None) else 0
         await ReadOnly()
-        assert int(dut.tags_full.value) == (1 if live == DEPTH else 0), f"round {r}: full flag vs {live} live"
-        assert int(dut.tags_empty.value) == (1 if live == 0 else 0), f"round {r}: empty flag vs {live} live"
+        occ = live + freed_prev
+        assert int(dut.tags_full.value) == (1 if occ == DEPTH else 0), f"round {r}: full flag vs {occ} occupied"
+        assert int(dut.tags_empty.value) == (1 if occ == 0 else 0), f"round {r}: empty flag vs {occ} occupied"
         await RisingEdge(dut.clk)
     dut._log.info(f"bridge_cam random: {rounds} rounds, model matched throughout")
 
 
+@pytest.mark.parametrize("pipeline_free", [0, 1])
 @pytest.mark.parametrize("pipeline_alloc", [0, 1])
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_bridge_cam(request, test_level, pipeline_alloc):
+def test_bridge_cam(request, test_level, pipeline_alloc, pipeline_free):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../rtl',
         'rtl_amba_includes': 'rtl/amba/includes',
@@ -188,7 +207,7 @@ def test_bridge_cam(request, test_level, pipeline_alloc):
         filelist_path='projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cam.f')
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    sim_build_name = f"test_{dut_name}_pa{pipeline_alloc}_{test_level}{worker_suffix}"
+    sim_build_name = f"test_{dut_name}_pa{pipeline_alloc}_pf{pipeline_free}_{test_level}{worker_suffix}"
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
     sim_build = sim_build_path(tests_dir, sim_build_name)
@@ -209,11 +228,12 @@ def test_bridge_cam(request, test_level, pipeline_alloc):
         testcase=None,
         parameters={'TAG_WIDTH': TAG_W, 'DATA_WIDTH': DATA_W, 'DEPTH': DEPTH,
                     'ALLOW_DUPLICATES': 1, 'PIPELINE_EVICT': 0,
-                    'PIPELINE_ALLOC': pipeline_alloc},
+                    'PIPELINE_ALLOC': pipeline_alloc, 'PIPELINE_FREE': pipeline_free},
         sim_build=sim_build,
         waves=False,
         extra_args=['--assert'] + waves['extra_args'],
         plus_args=waves['sim_args'],
         extra_env={'COCOTB_LOG_LEVEL': 'INFO', 'LOG_PATH': log_path,
-                   'COCOTB_RESULTS_FILE': results_path, **level_env(test_level), **waves['extra_env']},
+                   'COCOTB_RESULTS_FILE': results_path, 'PIPELINE_FREE': str(pipeline_free),
+                   **level_env(test_level), **waves['extra_env']},
     )
