@@ -79,15 +79,17 @@ stateDiagram-v2
 
 ### SRAM Buffering
 
-Each data path includes dedicated SRAM buffering:
+Each channel has its own buffer in each data path (sink and source), `SRAM_DEPTH` beats deep:
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
-| SRAM_DEPTH | 512 | 64-4096 | Entries per channel |
-| Data Width | 512 | Fixed | Bits per entry |
-| Total Size | 32KB | 4KB-256KB | Per data path |
+| SRAM_DEPTH | 4096 | 64-4096 | Beats per channel, per direction (parameter of `rapids_beats_top`) |
+| Data Width | 512 | 256 / 512 | Bits per beat (`DATA_WIDTH`) |
+| Buffer size | 256 KB | 2 KB-256 KB | Per channel, per direction: `SRAM_DEPTH x DATA_WIDTH/8` |
 
 : SRAM Buffer Parameters
+
+The defaults are a simulation size. The Genesys 2 builds use 128 beats of 32 bytes, 4 KB per channel.
 
 **Buffer Operation:**
 

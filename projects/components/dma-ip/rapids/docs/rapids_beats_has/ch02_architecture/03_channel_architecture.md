@@ -43,8 +43,8 @@ Each channel has dedicated:
 |----------|-------------|---------------|
 | **Scheduler** | Transfer coordination FSM | 1 instance |
 | **Descriptor Engine** | Descriptor fetch/parse | 8-deep FIFO |
-| **Sink SRAM Unit** | Sink buffer partition | SRAM_DEPTH/8 entries |
-| **Source SRAM Unit** | Source buffer partition | SRAM_DEPTH/8 entries |
+| **Sink SRAM Unit** | Sink buffer, its own `sram_controller` | `SRAM_DEPTH` beats |
+| **Source SRAM Unit** | Source buffer, its own `sram_controller` | `SRAM_DEPTH` beats |
 | **Configuration Registers** | Per-channel config | ~16 registers |
 
 : Per-Channel Resources

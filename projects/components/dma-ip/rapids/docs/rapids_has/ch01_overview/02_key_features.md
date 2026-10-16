@@ -88,15 +88,17 @@ The scheduler leaves the descriptor-fetch state only when every data path the de
 
 ### SRAM Buffering
 
-Each data path includes dedicated SRAM buffering:
+Each channel has its own buffer in each data path (sink and source), `SRAM_DEPTH` beats deep:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `SRAM_DEPTH` | 4096 | Entries per data path (parameter of `rapids_top`) |
+| `SRAM_DEPTH` | 4096 | Beats per channel, per direction (parameter of `rapids_top`); one beat is one `DATA_WIDTH` entry |
 | Source entry | `DATA_WIDTH` bits | Data only |
 | Sink entry | `DATA_WIDTH + DATA_WIDTH/8` bits | Data plus one byte-enable bit per lane |
 
 : SRAM Buffer Parameters
+
+The buffer holds `SRAM_DEPTH x DATA_WIDTH/8` bytes per channel per direction. At the defaults (4096 beats, 512 bits) that is 256 KB, a simulation size. The Genesys 2 builds use 128 beats of 32 bytes, 4 KB per channel.
 
 **Buffer Operation:**
 
