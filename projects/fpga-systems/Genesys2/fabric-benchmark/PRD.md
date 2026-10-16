@@ -188,10 +188,12 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 - First size and timing comparison, every leg alone out of context on the
   board's part: [reports/ooc/README.md](reports/ooc/README.md) (`make ooc-all`).
   At the 100 MHz board clock all three close; at a 4 ns target B1 and B2
-  close (est. Fmax ~256 and ~268 MHz) and Leg A does not (~186 MHz, a
-  12-level path from a master adapter's AW skid into the DDR slave's write
-  CAM count). Leg A is ~3.8x B1's LUTs; B2 is ~3.1x B1's LUTs plus 3,959
-  LUTRAM and ~5.3x its flops.
+  close (est. Fmax ~256 and ~268 MHz) and Leg A does not (~161 MHz, a
+  15-level path from a master adapter's AW skid into the DDR slave's write
+  CAM count; ~186 MHz and 12 levels before the bridge lifted its
+  one-target-per-master limitation, GitHub #119 L1, which added the B/R
+  response arbiters). Leg A is ~3.8x B1's LUTs; B2 is ~3.1x B1's LUTs plus
+  3,959 LUTRAM and ~5.3x its flops.
 - S0's MIG DDR3 controller is generated (`fb_mig`, §3): DDR3-800, 4:1, so
   its `ui_clk` is the 100 MHz fabric clock and S0 needs no clock crossing.
   MIG's own example design (controller + AXI traffic generator) places and
