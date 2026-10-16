@@ -116,7 +116,7 @@ module monbus_group_core
     input  logic [15:0]                   cfg_axi_perf_mask,
     input  logic [15:0]                   cfg_axi_addr_mask,
     input  logic [15:0]                   cfg_axi_debug_mask,
-    // AXIS (protocol 1)
+    // AXIS (protocol 1) -- also filters CXS (protocol 6), see the case below
     input  logic [15:0]                   cfg_axis_pkt_mask,
     input  logic [15:0]                   cfg_axis_err_select,
     input  logic [15:0]                   cfg_axis_error_mask,
@@ -329,7 +329,12 @@ module monbus_group_core
                         endcase
                     end
                 end
-                PROTOCOL_AXIS: begin
+                // CXS is a stream protocol with exactly the AXIS packet-type
+                // set (Error/Timeout/Completion/Credit/Channel/Stream), so it
+                // shares the stream filter slot rather than adding eight more
+                // mask ports to every group wrapper. Event masks index the
+                // low nibble of each protocol's own codes.
+                PROTOCOL_AXIS, PROTOCOL_CXS: begin
                     pkt_drop        = cfg_axis_pkt_mask[pkt_type];
                     pkt_to_err_fifo = cfg_axis_err_select[pkt_type] && !pkt_drop;
                     if (ec_in_mask_range) begin

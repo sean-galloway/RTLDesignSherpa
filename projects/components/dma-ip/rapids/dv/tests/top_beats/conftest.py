@@ -54,6 +54,7 @@ MARKERS = (
     'protocol_coverage: Tests that collect protocol coverage',
     'top_beats: Top-level beats architecture tests',
     'rapids_beats_top: rapids_beats_top tests',
+    'rapids_beats_cxs_top: rapids_beats_cxs_top tests (CXS network planes)',
     'rapids_core_beats: rapids_core_beats tests',
 )
 

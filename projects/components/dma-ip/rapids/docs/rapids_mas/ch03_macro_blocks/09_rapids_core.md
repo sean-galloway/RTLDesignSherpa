@@ -102,15 +102,14 @@ The core ports that carry the beat-count unit are renamed. Everything else keeps
 | `DESC_MON_BASE_AGENT_ID` | 16 | Descriptor engine agents. |
 | `SCHED_MON_BASE_AGENT_ID` | 48 | Scheduler agents. |
 | `DESC_AXI_MON_AGENT_ID` | 8 | Descriptor AXI monitor. |
-| `SNK_AXIS_MON_AGENT_ID` | 9 | Sink ingress AXIS monitor. |
-| `SRC_AXIS_MON_AGENT_ID` | 10 | Source egress AXIS monitor. |
-| `ACLK_MHZ` | 100 | Clock in MHz for the AXIS monitors' microsecond tick. |
 | `MON_UNIT_ID`, `MON_MAX_TRANSACTIONS` | 1, 16 | Monitor unit id and table depth. |
 | `USE_AXI_MONITORS` | 1 | 0 omits the monitor hardware. |
 | `USE_ROW_COL_MAJOR_ADDRESSING` | 1 | 0 compiles out extended addressing. |
 | `GEN_MON` | 1 | 0 omits the completion and error emitters. |
 
 : Table 3.9.4: Core Parameters
+
+The network endpoint and its monitor-lite moved to the top's network planes (rapids TASK-024), so `SNK_AXIS_MON_AGENT_ID`, `SRC_AXIS_MON_AGENT_ID` and `ACLK_MHZ` are top parameters now. The core takes each plane's monbus packets on `src_plane_mon_*` / `snk_plane_mon_*`. See `docs/rapids_planes.md`.
 
 ### Channel Reset Routing
 

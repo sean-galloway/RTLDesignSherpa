@@ -2,7 +2,7 @@
 
 # projects/components/utility-ip/misc — tasks
 
-**Next ID: TASK-006** — never recycle a number, even when its item closed.
+**Next ID: TASK-007** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 5 | done (kept for history) |
+| [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -26,6 +26,7 @@ None.
 
 ## Closed
 
+- **TASK-006** — CLOSED 2026-10-16: cxs_intf_observer (cxs_link_snoop + cxs_monitor_lite per port, CXS-mapped meter); 3/3
 - **TASK-003** — CLOSED 2026-10-08: axis4_intf_observer on per-port
   axis_monitor_lite; board packet-class matrix ACCEPT via the reed-solomon
   Genesys 2 route (commit a4d9affa0) — per-port class counts identical

@@ -37,7 +37,7 @@ This core is the single source of truth for filtering, FIFO management, optional
 
 ### Key Features
 
-- Single MonBus ingress with per-protocol filter masks (AXI, AXIS, CORE)
+- Single MonBus ingress with per-protocol filter masks (AXI, AXIS, CORE); CXS shares the AXIS masks
 - Free-running timestamp generator distributed to every monitor (`mon_time_out`)
 - Error/interrupt FIFO: record-granular (192-bit records = 128-bit packet + 64-bit timestamp)
 - Write FIFO: beat-granular (one entry = one 64-bit beat)
@@ -117,7 +117,7 @@ Aggregated monitor packets have to serve two consumers with very different needs
 
 ### Per-Protocol Filter Masks
 
-Three protocol groups (AXI = protocol 0, AXIS = protocol 1, CORE = protocol 4), each with a packet-drop mask, an error-select mask, and per-packet-type event masks. All are 16 bits.
+Three protocol groups (AXI = protocol 0, AXIS = protocol 1, CORE = protocol 4), each with a packet-drop mask, an error-select mask, and per-packet-type event masks. All are 16 bits. CXS (protocol 6) packets go through the AXIS masks: CXS is a stream protocol with the same packet types as AXIS (Error, Timeout, Completion, Credit, Channel, Stream), so it uses the AXIS slot instead of adding another eight mask ports to every group wrapper. Each event-mask bit indexes the low nibble of the packet's own protocol's event code, so one AXIS bit masks both the AXIS event and the CXS event with the same code number.
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -221,7 +221,7 @@ Each incoming packet is decomposed into `pkt_type`, `pkt_protocol` (bits [108:10
 2. **Error-select** (`cfg_*_err_select[pkt_type]`) — if set (and not dropped), the packet routes to the error FIFO; otherwise it routes to the write path.
 3. **Event mask** — when the event code's high nibble is 0 (`ec_in_mask_range`), the low nibble indexes a per-packet-type event mask; a set bit forces a drop and clears the error-FIFO routing.
 
-An unrecognized protocol drops the packet. The final routing decision is `pkt_to_write_path = !pkt_drop && !pkt_to_err_fifo`.
+An unrecognized protocol drops the packet. Before 2026-10-15 that included CXS, which meant every `PROTOCOL_CXS` packet was dropped without any sign that it had been. The final routing decision is `pkt_to_write_path = !pkt_drop && !pkt_to_err_fifo`.
 
 ### Error FIFO and Slave-Read Drain
 

@@ -48,7 +48,7 @@ import cocotb
 from cocotb.triggers import RisingEdge
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.monbus import (parse, axis_completion_accounting,
+from TBClasses.monbus import (parse, create_monitor_packet, axis_completion_accounting,
                               axis_completions_consistent)
 from TBClasses.monbus.monbus_types import ProtocolType, PktType, AXISErrorCode
 from CocoTBFramework.components.shared.memory_model import MemoryModel
@@ -187,17 +187,11 @@ class RapidsCoreBeatsTB(TBBase):
         for m in ('err', 'timeout', 'compl', 'thresh', 'perf', 'addr', 'debug'):
             getattr(d, f'{pfx}_cfg_desc_mon_{m}_mask').value = 0xFF
 
-        # AXIS data-path monitor-lite (rapids TASK-015): one Completion/STREAM_END
-        # per packet and the error classes on; perf (stream start/pause,
-        # backpressure) and the microsecond timeouts off for the basic tests.
-        s('cfg_axis_mon_enable', 1)
-        s('cfg_axis_mon_err_enable', 1)
-        s('cfg_axis_mon_compl_enable', 1)
-        s('cfg_axis_mon_perf_enable', 0)
-        s('cfg_axis_mon_timeout_enable', 0)
-        s('cfg_axis_mon_timeout_cycles', 0)
-        s('cfg_axis_mon_latency_thresh', 1000)
-        s('cfg_axis_mon_pkt_mask', 0)        # bit[type] = 1 DROPS that type
+        # The network plane (rtl/plane) is outside the core: its monbus input
+        # idles here and check_plane_monbus() drives it.
+        s('plane_mon_valid', 0)
+        s('plane_mon_packet', 0)
+        s('plane_mon_timestamp', 0)
 
     def _configure(self):
         """Drive cfg_* before reset for BOTH halves + direction-unique cfg."""
@@ -401,37 +395,38 @@ class RapidsCoreBeatsTB(TBBase):
     def finalize_test(self):
         self._mon_active = False
 
-    def check_axis_mon(self, agent_id: int, channel: int, expect_beats: List[int], name: str) -> List[str]:
-        """rapids TASK-015: the AXIS monitor-lite with this agent id must have
-        reported one Completion/STREAM_END per AXIS packet just moved, each
-        carrying tid = channel and that packet's beat count (data =
-        {tid[16], tdest[16], beats[32]}), and nothing else. expect_beats lists
-        the packets: the sink ingress is one packet, the source egress cuts a
-        descriptor into drain-size packets (m_axis_tlast per drain burst).
-        Errors come back as strings so the caller's scoreboard owns the verdict."""
-        mine = [p for p in getattr(self, 'mon_packets', []) if p.agent_id == agent_id]
-        # A monitor-lite REPORTS events it loses to monbus backpressure
-        # (AXIS_ERR_EVENT_DROPPED, count in event_data); counting only
-        # completions turned that honest report into a phantom lost packet,
-        # and listed it as an "unexpected packet" besides -- rapids BUG-010.
-        seen, dropped = axis_completion_accounting(mine)
-        drops = [p for p in mine if p.packet_type == PktType.PktTypeError
-                 and p.event_code == AXISErrorCode.AXIS_ERR_EVENT_DROPPED]
-        other = [p for p in mine if p not in seen and p not in drops]
-        errs = []
-        tids = [(p.event_data >> 48) & 0xFFFF for p in seen]
-        cnts = sorted(p.event_data & 0xFFFF_FFFF for p in seen)
-        if not axis_completions_consistent(cnts, sorted(expect_beats), dropped):
-            errs.append(f"{name} AXIS monitor (agent 0x{agent_id:02X}): completion beat counts "
-                        f"{cnts}, expected {sorted(expect_beats)} "
-                        f"(monitor reported {dropped} dropped event(s))")
-        if any(t != channel for t in tids):
-            errs.append(f"{name} AXIS monitor: completion tids {tids}, expected all {channel}")
-        if other:
-            errs.append(f"{name} AXIS monitor: {len(other)} unexpected packets: "
-                        + ", ".join(f"{p.get_packet_type_name()}/0x{p.event_code:02X}" for p in other[:4]))
-        self.log.info(f"  MONBUS: {name} AXIS monitor agent 0x{agent_id:02X}: "
-                      f"{len(seen)} completion {cnts}, {len(other)} other")
+    async def check_plane_monbus(self, agent_id: int, channel: int, name: str) -> List[str]:
+        """The network plane (rtl/plane) -- and with it the AXIS or CXS
+        monitor-lite -- sits outside the core now; the plane monitors are
+        judged end to end by the top tests (rapids_top_tb / rapids_cxs_top).
+        What the CORE owns is the plane's monbus slot: client 1 of the half's
+        monbus_arbiter. Prove it carries the plane's packets: drive four tagged
+        packets on {pfx}_plane_mon_* with a real valid/ready handshake and
+        require exactly those four, in order, out of the merged monitor stream,
+        and nothing else under this agent id."""
+        pfx = 'src' if agent_id == self.SRC_AXIS_MON_AGENT_ID else 'snk'
+        d = self.dut
+        tags = [0xC0DE_0000_0000_0000 | (agent_id << 24) | (channel << 16) | k for k in range(4)]
+        for tag in tags:
+            raw = create_monitor_packet(int(PktType.PktTypeCompletion), int(ProtocolType.PROTOCOL_AXIS),
+                                        0, channel, 1, agent_id, tag)
+            getattr(d, f'{pfx}_plane_mon_packet').value = raw
+            getattr(d, f'{pfx}_plane_mon_valid').value = 1
+            while True:
+                await RisingEdge(d.clk)
+                if int(getattr(d, f'{pfx}_plane_mon_ready').value):
+                    break
+            getattr(d, f'{pfx}_plane_mon_valid').value = 0
+        for _ in range(400):
+            got = [p.event_data for p in self.mon_packets if p.agent_id == agent_id]
+            if len(got) >= len(tags):
+                break
+            await RisingEdge(d.clk)
+        got = [p.event_data for p in self.mon_packets if p.agent_id == agent_id]
+        errs = [] if got == tags else [
+            f"{name} plane monbus (agent 0x{agent_id:02X}): core passed {[hex(g) for g in got]}, "
+            f"injected {[hex(t) for t in tags]}"]
+        self.log.info(f"  MONBUS: {name} plane slot carried {len(got)}/{len(tags)} injected packets")
         return errs
 
     @staticmethod
@@ -504,10 +499,8 @@ class RapidsCoreBeatsTB(TBBase):
                 for i, (a, b) in enumerate(zip(got[:beats], pattern)):
                     if a != b:
                         self.log.error(f"  beat[{i}] got=0x{a:X} exp=0x{b:X}")
-        # rapids TASK-015: the source-egress AXIS monitor-lite saw this packet.
-        errors += self.check_axis_mon(self.SRC_AXIS_MON_AGENT_ID, channel,
-                                      self.drain_chunks(beats, int(self.dut.cfg_drain_size.value)),
-                                      'source-egress')
+        # The plane's monbus slot (client 1 of the SOURCE arbiter) carries packets.
+        errors += await self.check_plane_monbus(self.SRC_AXIS_MON_AGENT_ID, channel, 'source-egress')
         stats = {'captured': len(got), 'expected': beats, 'errors': errors}
         if errors:
             for e in errors:
@@ -545,8 +538,8 @@ class RapidsCoreBeatsTB(TBBase):
             for i, (a, b) in enumerate(zip(got, pattern)):
                 if a != b:
                     self.log.error(f"  beat[{i}] got=0x{a:X} exp=0x{b:X}")
-        # rapids TASK-015: the sink-ingress AXIS monitor-lite saw this packet.
-        errors += self.check_axis_mon(self.SNK_AXIS_MON_AGENT_ID, channel, [beats], 'sink-ingress')
+        # The plane's monbus slot (client 1 of the SINK arbiter) carries packets.
+        errors += await self.check_plane_monbus(self.SNK_AXIS_MON_AGENT_ID, channel, 'sink-ingress')
         stats = {'errors': errors}
         if errors:
             for e in errors:

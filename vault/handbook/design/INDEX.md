@@ -10,6 +10,8 @@ summary: RTL rules with the failures that taught them.
 - [[cdc]] - crossing rules, gray pointers, handshakes
 - [[valid-ready-contracts]] - stability rules; who may stall whom
 - [[observers-do-not-drive]] - a parallel snoop must not gate the bus it taps
+- [[new-monbus-protocol]] - a new PROTOCOL_* value must be passed by every monbus filter (the group core drops unknown ones silently)
+- [[frame-per-stream]] - packet-open state must be per stream wherever streams can interleave (CXS 2.5.2, AXIS TID)
   (in-path `*_mon` wrappers own ready by design; the rule is not about them)
 - [[streaming-no-fsm]] - the pipeline pattern for datapaths
 - [[block-boundary-dead-cycles]] - a framed datapath is pipelined only at `beats`/block; measure the SLOPE over two block counts, then account every excess cycle to a named mechanism (RS decoder, 2026-09-30)

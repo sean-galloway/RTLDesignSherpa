@@ -42,7 +42,8 @@ module formal_monbus_group_core (
     localparam int FLUSH_TIMEOUT    = 8;    // short so the timeout-flush cover is reachable at depth 40
 
     // packet field positions (monitor_common_pkg)
-    localparam [3:0] PROTOCOL_AXI = 4'h0, PROTOCOL_AXIS = 4'h1, PROTOCOL_CORE = 4'h4;
+    localparam [3:0] PROTOCOL_AXI = 4'h0, PROTOCOL_AXIS = 4'h1, PROTOCOL_CORE = 4'h4,
+                     PROTOCOL_CXS = 4'h6;   // filtered through the AXIS slot
     localparam [3:0] T_ERROR = 4'h0, T_COMPL = 4'h1, T_THRESH = 4'h2, T_TIMEOUT = 4'h3,
                      T_PERF = 4'h4, T_CREDIT = 4'h5, T_CHANNEL = 4'h6, T_STREAM = 4'h7,
                      T_ADDRM = 4'h8, T_DEBUG = 4'hF;
@@ -242,7 +243,7 @@ module formal_monbus_group_core (
                     default:   m_masked = 1'b0;
                 endcase
             end
-            PROTOCOL_AXIS: begin
+            PROTOCOL_AXIS, PROTOCOL_CXS: begin
                 m_drop = cfg_axis_pkt_mask[p_type];
                 m_err  = cfg_axis_err_select[p_type] && !m_drop;
                 if (ec_rng) case (p_type)
@@ -420,6 +421,7 @@ module formal_monbus_group_core (
         cp_to_err:          cover (rec_push);
         cp_to_write_axis:   cover (mb_hs && m_to_write && p_proto == PROTOCOL_AXIS);
         cp_to_write_core:   cover (mb_hs && m_to_write && p_proto == PROTOCOL_CORE);
+        cp_to_write_cxs:    cover (mb_hs && m_to_write && p_proto == PROTOCOL_CXS);
         cp_irq:             cover (irq_out);
         cp_err_full:        cover (err_fifo_full);
         cp_record_read:     cover (rec_pop && s_rlast);

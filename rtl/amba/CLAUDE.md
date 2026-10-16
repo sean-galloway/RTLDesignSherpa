@@ -235,6 +235,33 @@ The snoop movers are new channels (AC/CR/CD), not variants. Only base +
 | `axi4ace_*_monlite.sv` (8) | Each mover wrapped with the lite ocelus; front-side taps reuse `axi_monitor_lite` | `docs/markdown/rtl-amba/monitor/axi_monitor_lite_wrappers.md` |
 | `ocelus/axi4ace_snoop_monitor_lite.sv` | ACE-aware lite ocelus core: snoops have no ID — CR/CD correlate to ACs in issue order; COMPL/ERROR/TIMEOUT packets, drop-and-count, never stalls | `docs/markdown/rtl-amba/monitor/axi4ace_snoop_monitor_lite.md` |
 
+### CXS -- Credited eXtensible Stream (`rtl/amba/cxs/`, 2026-10-15)
+
+Arm IHI 0079, every issue (A-D) in ONE parameterised family: an issue is a
+set of legal property values, checked at elaboration by
+`cxs_pkg::config_error` (rule numbers shared with the RDS-DV `CXSConfig`).
+No READY: the receive FIFO is the credit pool. Base + `_cg` + `_monlite`
+(no `_monlite_cg`: clock gating is FPGA-only). The monitor is
+`ocelus/cxs_monitor_lite.sv`, packets tagged `PROTOCOL_CXS` (4'h6) with codes
+in `includes/ocelus_cxs_pkg.sv` (package `monitor_cxs_pkg`, not re-exported);
+Python decode in `bin/TBClasses/monbus` is checked against that file.
+
+| Module | Purpose | Documentation |
+|---|---|---|
+| `cxs_master.sv` / `cxs_master_cg.sv` | Transmitter: FUB valid/ready in, credited link out; `_cg` gates only in STOP | `docs/markdown/rtl-amba/cxs/cxs_master.md` |
+| `cxs_slave.sv` / `cxs_slave_cg.sv` | Receiver: credited link in, FUB out; `_cg` wakes on CXSACTIVEREQ | `docs/markdown/rtl-amba/cxs/cxs_slave.md` |
+| `includes/cxs_pkg.sv`, `cxs_cntl_track.sv`, `cxs_odd_byte_parity.sv` | CXSCNTL layout + legality; packet-open tracking; Odd_Byte_Parity | `docs/markdown/rtl-amba/cxs/README.md` |
+| `cxs_{master,slave}_monlite.sv`, `ocelus/cxs_monitor_lite.sv` | Endpoints with the CXS lite Ocelus tapping FUB handshake + core status | `docs/markdown/rtl-amba/monitor/cxs_monitor_lite.md` |
+| `axis_to_cxs.sv` / `cxs_to_axis.sv` | AXIS beats <-> CXS flits (one packet per TLAST run, TSTRB in CXSUSER, Issue D); used by the RAPIDS CXS planes | `docs/markdown/rtl-amba/cxs/axis_to_cxs.md` |
+| `cxs_stream_key.sv`, `cxs_link_snoop.sv` | Per-stream framing key; passive wire-level link model (credits, link state, checks) | `docs/markdown/rtl-amba/cxs/README.md` |
+| `shared/cxs_master_injector.sv` / `shared/cxs_slave_pattern_check.sv` | CXS pattern source / checker, CRC-identical to the AXIS pair | `docs/markdown/rtl-amba/shared/cxs_injectors.md` |
+
+Traps: packet framing is PER STREAM (`CXS_STREAM_*_BITS`, default 0 = one stream); both ends and every monitor on a link must use the same key, and interleaved channels need it ([[frame-per-stream]]). `CXS_CREDIT_BEYOND_SPEC` lifts the 63-credit cap only. `monbus_group_core` filters `PROTOCOL_CXS` through the AXIS mask slot
+(before 2026-10-15 it dropped every CXS packet silently). With `CXS_LINK_CTRL=0` the `_cg` wrappers can NEVER gate (a credit or
+flit may arrive any cycle) -- by design, tested. `gaxi_fifo_sync` cannot be
+built 1 deep; `cxs_slave` floors its FIFO at 2 and keeps accounting at
+`RX_FIFO_DEPTH`.
+
 ### Supporting Infrastructure — `rtl/amba/ocelus/` + `rtl/amba/shared/`
 
 All protocol-agnostic. The ocelus core, monbus infrastructure and monbus arbiters live in `rtl/amba/ocelus/`. The protocol `*_mon` wrappers do NOT -- each lives with the protocol it wraps (`axi4/`, `axi5/`, `axil4/`, `apb/`, `apb5/`), because a wrapper pairs one protocol block with the shared core and belongs to the protocol, not to the core; observation/storage/test helpers live in `rtl/amba/shared/`; CDC helpers moved OUT to the top-level `rtl/cdc/` area (AMBA-CDC-REORG) -- see `rtl/cdc/CLAUDE.md`. The wrappers instantiate the ocelus-core pieces below.

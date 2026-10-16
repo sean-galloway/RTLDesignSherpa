@@ -9,7 +9,8 @@
 -f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro_beats/src_data_path_axis_beats.f
 
 # Source-egress AXIS monitor-lite wrapper (axis4_master skid + axis_monitor_lite tap), rapids TASK-015
--f $REPO_ROOT/rtl/amba/filelists/axis4_master_monlite.f
+# plane_mon_* port types; the network endpoint itself is in rtl/plane (filelists/plane)
+-f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 
 # Includes
 +incdir+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/includes

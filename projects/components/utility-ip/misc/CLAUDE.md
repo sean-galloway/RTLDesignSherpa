@@ -185,7 +185,7 @@ forbids. Build against what is actually here.
 | Module | What it is |
 |---|---|
 | `axi4_slave_rom.sv`, `rom.sv` | the ROM, behind a standard AXI4 slave wrapper |
-| `axi4_intf_master_observer.sv`, `axi4_intf_slave_observer.sv` | bus observers |
+| `axi4_intf_master_observer.sv`, `axi4_intf_slave_observer.sv`, `axis4_intf_observer.sv`, `cxs_intf_observer.sv` | bus observers (AXI4, AXI-Stream, CXS link); one obs_regs map for all |
 | `dma_address_gen.sv`, `stream_run_addr_gen.sv` | address generators. The idea of driving STREAM's scheduler with two `dma_address_gen` instances (strided / 2-D / circular / transpose DMA, gated by `USE_ROW_COL_MAJOR_ADDRESSING`) is STREAM TASK-101 in `projects/components/dma-ip/stream/TASKS.md`; the `FUTURE.md` that used to point there from this directory was folded into that row 2026-09-29 (misc TASK-004) |
 | `monbus_legal_cam.sv`, `monbus_pkt_tally.sv`, `monbus_tally_axil.sv` | monbus collateral |
 | `char_run_timer.sv` | characterization run timer + per-channel CRC verdict, shared by every harness built on the LFSR source / CRC sink pair (Genesys 2 STREAM, Genesys 2 fabric benchmark) |

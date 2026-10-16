@@ -310,74 +310,96 @@ module gaxi_skid_buffer (
 	input wire rd_ready;
 	output wire [3:0] rd_count;
 	output wire [DW - 1:0] rd_data;
-	reg [DW - 1:0] r_data [0:DEPTH - 1];
+	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
+	reg [DW - 1:0] r_data [0:SLOTS - 1];
 	reg [3:0] r_data_count;
 	wire w_wr_xfer;
 	wire w_rd_xfer;
 	assign w_wr_xfer = wr_valid & wr_ready;
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
-		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
-	genvar _gv_gi_1;
-	generate
-		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
-			localparam gi = _gv_gi_1;
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_data[gi] <= 1'sb0;
-				else
-					(* full_case, parallel_case *)
-					case ({w_wr_xfer, w_rd_xfer})
-						2'b10:
-							if (r_data_count == gi[3:0])
-								r_data[gi] <= wr_data;
-						2'b01:
-							if (gi < (DEPTH - 1))
-								r_data[gi] <= r_data[gi + 1];
-							else
-								r_data[gi] <= 1'sb0;
-						2'b11:
-							if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
-								r_data[gi] <= wr_data;
-							else if (gi < (DEPTH - 1))
-								r_data[gi] <= r_data[gi + 1];
-							else
-								r_data[gi] <= 1'sb0;
-						default:
-							;
-					endcase
-		end
-	endgenerate
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn)
-			r_data_count <= 1'sb0;
-		else
-			(* full_case, parallel_case *)
-			case ({w_wr_xfer, w_rd_xfer})
-				2'b10: r_data_count <= r_data_count + 4'd1;
-				2'b01: r_data_count <= r_data_count - 4'd1;
-				default:
-					;
-			endcase
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn) begin
-			wr_ready <= 1'b0;
-			rd_valid <= 1'b0;
+	generate
+		if (DEPTH == 0) begin : g_bypass
+			wire [1:1] sv2v_tmp_B1958;
+			assign sv2v_tmp_B1958 = rd_ready;
+			always @(*) wr_ready = sv2v_tmp_B1958;
+			wire [1:1] sv2v_tmp_00E98;
+			assign sv2v_tmp_00E98 = wr_valid;
+			always @(*) rd_valid = sv2v_tmp_00E98;
+			assign rd_data = wr_data;
+			wire [4:1] sv2v_tmp_953DA;
+			assign sv2v_tmp_953DA = 1'sb0;
+			always @(*) r_data_count = sv2v_tmp_953DA;
+			wire [DW:1] sv2v_tmp_D35D5;
+			assign sv2v_tmp_D35D5 = 1'sb0;
+			always @(*) r_data[0] = sv2v_tmp_D35D5;
+			assign rd_count = 1'sb0;
+			assign count = 1'sb0;
+			wire w_bypass_unused;
+			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
 		end
-		else begin
-			wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
-			rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+		else begin : g_skid
+			genvar _gv_gi_1;
+			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+				localparam gi = _gv_gi_1;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_data[gi] <= 1'sb0;
+					else
+						(* full_case, parallel_case *)
+						case ({w_wr_xfer, w_rd_xfer})
+							2'b10:
+								if (r_data_count == gi[3:0])
+									r_data[gi] <= wr_data;
+							2'b01:
+								if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							2'b11:
+								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+									r_data[gi] <= wr_data;
+								else if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							default:
+								;
+						endcase
+			end
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data_count <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10: r_data_count <= r_data_count + 4'd1;
+						2'b01: r_data_count <= r_data_count - 4'd1;
+						default:
+							;
+					endcase
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn) begin
+					wr_ready <= 1'b0;
+					rd_valid <= 1'b0;
+				end
+				else begin
+					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
+					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+				end
+			assign rd_data = r_data[0];
+			assign rd_count = r_data_count;
+			assign count = r_data_count;
 		end
-	assign rd_data = r_data[0];
-	assign rd_count = r_data_count;
-	assign count = r_data_count;
+	endgenerate
 endmodule
 module math_adder_carry_save_nbit (
 	i_a,
@@ -1630,7 +1652,7 @@ module monbus_group_core (
 							default: pkt_event_masked = 1'b0;
 						endcase
 				end
-				4'h1: begin
+				4'h1, 4'h6: begin
 					pkt_drop = cfg_axis_pkt_mask[pkt_type];
 					pkt_to_err_fifo = cfg_axis_err_select[pkt_type] && !pkt_drop;
 					if (ec_in_mask_range)
@@ -1952,9 +1974,9 @@ module monbus_group_core (
 	wire w_epoch_roll;
 	wire w_geo_blocked;
 	wire w_stub_at_base;
-	wire [3:0] w_win_rem3;
-	wire [3:0] w_4kb_rem3;
-	wire [3:0] w_epoch_rem3;
+	wire [1:0] w_win_rem3;
+	wire [1:0] w_4kb_rem3;
+	wire [1:0] w_epoch_rem3;
 	wire flush_trigger_watermark;
 	wire flush_trigger_timeout;
 	wire have_one_unit;
@@ -1979,15 +2001,15 @@ module monbus_group_core (
 			r_cfg_base_d1 <= r_cfg_base_addr;
 			r_cfg_limit_d1 <= r_cfg_limit_addr;
 		end
-	function automatic [15:0] sv2v_cast_16;
-		input reg [15:0] inp;
-		sv2v_cast_16 = inp;
-	endfunction
-	assign w_4kb_beats = sv2v_cast_16((13'h1000 - {1'b0, r_wr_addr[11:0]}) >> 3);
+	assign w_4kb_beats = (16'h1000 - {4'b0000, r_wr_addr[11:0]}) >> 3;
 	wire w_aw_issue;
 	wire w_w_issue;
 	wire w_b_issue;
 	reg w_ws_pop;
+	function automatic [15:0] sv2v_cast_16;
+		input reg [15:0] inp;
+		sv2v_cast_16 = inp;
+	endfunction
 	assign w_win_units = (w_use_comp ? r_win_beats : r_win_beats - sv2v_cast_16(w_win_rem3));
 	assign w_4kb_units = (w_use_comp ? w_4kb_beats : w_4kb_beats - sv2v_cast_16(w_4kb_rem3));
 	function automatic [16:0] sv2v_cast_17;

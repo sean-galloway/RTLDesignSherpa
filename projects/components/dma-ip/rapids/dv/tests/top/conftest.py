@@ -54,6 +54,7 @@ MARKERS = (
     'protocol_coverage: Tests that collect protocol coverage',
     'top: Top-level tests of the byte-granular RAPIDS (rapids TASK-019)',
     'rapids_top: rapids_top tests',
+    'rapids_cxs_top: rapids_cxs_top tests (CXS network planes)',
     'rapids_core: rapids_core tests',
 )
 

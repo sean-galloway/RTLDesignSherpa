@@ -26,7 +26,7 @@
 **Module:** `rapids_core_beats.sv`
 **Location:** `projects/components/dma-ip/rapids/rtl/macro_beats/`
 **Status:** Implemented
-**Last Updated:** 2025-01-10
+**Last Updated:** 2026-10-15
 
 ---
 
@@ -175,20 +175,20 @@ page and the module side by side. Widths use the parameter aliases.
 
 : Table 1.2.8: Descriptor AXI Monitor Configuration
 
-### AXIS data-path monitor-lite configuration (rapids TASK-015)
+### Network-plane monitor input (rapids TASK-024)
+
+The network endpoint and its monitor-lite live in the plane (`rtl/plane/`) in the top. Its monbus
+packets enter here as client 1 of this half's monbus arbiter; the plane's monitor configuration
+and status come from this half's register block in the top.
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `src_cfg_axis_mon_enable` | input | 1 | - |
-| `src_cfg_axis_mon_err_enable` | input | 1 | - |
-| `src_cfg_axis_mon_compl_enable` | input | 1 | - |
-| `src_cfg_axis_mon_perf_enable` | input | 1 | - |
-| `src_cfg_axis_mon_timeout_enable` | input | 1 | - |
-| `src_cfg_axis_mon_timeout_cycles` | input | 32 | - |
-| `src_cfg_axis_mon_latency_thresh` | input | 32 | - |
-| `src_cfg_axis_mon_pkt_mask` | input | 16 | - |
+| `src_plane_mon_valid` | input | 1 | - |
+| `src_plane_mon_ready` | output | 1 | - |
+| `src_plane_mon_packet` | input | 128 | `monitor_packet_t` |
+| `src_plane_mon_timestamp` | input | 64 | `monbus_timestamp_t` |
 
-: Table 1.2.9: AXIS data-path monitor-lite configuration (rapids TASK-015)
+: Table 1.2.9: Network-plane monitor input (rapids TASK-024)
 
 ### Status
 
@@ -214,17 +214,6 @@ page and the module side by side. Widths use the parameter aliases.
 
 : Table 1.2.11: Descriptor AXI Monitor Status
 
-### AXIS data-path monitor-lite status (rapids TASK-015)
-
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
-| `src_cfg_sts_axis_mon_busy` | output | 1 | - |
-| `src_cfg_sts_axis_mon_packet_count` | output | 32 | - |
-| `src_cfg_sts_axis_mon_error_count` | output | 16 | - |
-| `src_cfg_sts_axis_mon_dropped_count` | output | 16 | - |
-
-: Table 1.2.12: AXIS data-path monitor-lite status (rapids TASK-015)
-
 ### Descriptor AXI Monitor perf window (feeds SRC_.MON.DAXMON_PERF_*).
 
 | Signal | Direction | Width | Description |
@@ -239,7 +228,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `src_sts_desc_mon_byte_count` | output | 64 | - |
 | `src_sts_desc_mon_burst_count` | output | 32 | - |
 
-: Table 1.2.13: Descriptor AXI Monitor perf window (feeds SRC_.MON.DAXMON_PERF_*).
+: Table 1.2.12: Descriptor AXI Monitor perf window (feeds SRC_.MON.DAXMON_PERF_*).
 
 ### Descriptor Fetch AXI Master
 
@@ -264,7 +253,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `src_m_axi_desc_rlast` | input | 1 | - |
 | `src_m_axi_desc_rid` | input | IW | - |
 
-: Table 1.2.14: Descriptor Fetch AXI Master
+: Table 1.2.13: Descriptor Fetch AXI Master
 
 ### Control Read AXI Master (32-bit) [Phase 2]
 
@@ -289,7 +278,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `src_m_axi_ctrlrd_rlast` | input | 1 | - |
 | `src_m_axi_ctrlrd_rid` | input | IW | - |
 
-: Table 1.2.15: Control Read AXI Master (32-bit) [Phase 2]
+: Table 1.2.14: Control Read AXI Master (32-bit) [Phase 2]
 
 ### Control Write AXI Master (32-bit) [Phase 2]
 
@@ -317,7 +306,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `src_m_axi_ctrlwr_bid` | input | IW | - |
 | `src_m_axi_ctrlwr_bresp` | input | 2 | - |
 
-: Table 1.2.16: Control Write AXI Master (32-bit) [Phase 2]
+: Table 1.2.15: Control Write AXI Master (32-bit) [Phase 2]
 
 ## SOURCE HALF (u_src) - direction-unique ports (no prefix)
 
@@ -328,7 +317,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `cfg_axi_rd_xfer_beats` | input | 8 | - |
 | `cfg_drain_size` | input | 8 | source: beats drained per AXIS packet |
 
-: Table 1.2.17: AXI Transfer Configuration (source-only)
+: Table 1.2.16: AXI Transfer Configuration (source-only)
 
 ### Source Path - AXIS Master Interface (SRAM -> Network); tid = channel id
 
@@ -343,7 +332,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `m_axis_tvalid` | output | 1 | - |
 | `m_axis_tready` | input | 1 | - |
 
-: Table 1.2.18: Source Path - AXIS Master Interface (SRAM -> Network); tid = channel id
+: Table 1.2.17: Source Path - AXIS Master Interface (SRAM -> Network); tid = channel id
 
 ### AXI4 Master - Data Read (Memory -> Source SRAM)
 
@@ -363,7 +352,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `m_axi_rd_rvalid` | input | 1 | - |
 | `m_axi_rd_rready` | output | 1 | - |
 
-: Table 1.2.19: AXI4 Master - Data Read (Memory -> Source SRAM)
+: Table 1.2.18: AXI4 Master - Data Read (Memory -> Source SRAM)
 
 ## SINK HALF (u_snk) - shared-infrastructure ports (snk_ prefixed)
 
@@ -375,7 +364,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_apb_ready` | output | NC | - |
 | `snk_apb_addr` | input | NC x AW | - |
 
-: Table 1.2.20: APB Programming Interface
+: Table 1.2.19: APB Programming Interface
 
 ### Per-channel configuration
 
@@ -384,7 +373,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_cfg_channel_enable` | input | NC | - |
 | `snk_cfg_channel_reset` | input | NC | - |
 
-: Table 1.2.21: Per-channel configuration
+: Table 1.2.20: Per-channel configuration
 
 ### Scheduler Configuration (global)
 
@@ -398,7 +387,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_cfg_sched_compl_enable` | input | 1 | - |
 | `snk_cfg_sched_perf_enable` | input | 1 | - |
 
-: Table 1.2.22: Scheduler Configuration (global)
+: Table 1.2.21: Scheduler Configuration (global)
 
 ### Descriptor Engine Configuration (global)
 
@@ -412,7 +401,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_cfg_desceng_addr1_base` | input | AW | - |
 | `snk_cfg_desceng_addr1_limit` | input | AW | - |
 
-: Table 1.2.23: Descriptor Engine Configuration (global)
+: Table 1.2.22: Descriptor Engine Configuration (global)
 
 ### Control Engine Configuration (Phase 2, global)
 
@@ -421,7 +410,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_cfg_ctrlrd_max_try` | input | 9 | - |
 | `snk_tick_1us` | input | 1 | - |
 
-: Table 1.2.24: Control Engine Configuration (Phase 2, global)
+: Table 1.2.23: Control Engine Configuration (Phase 2, global)
 
 ### Descriptor AXI Monitor Configuration
 
@@ -444,22 +433,22 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_cfg_desc_mon_addr_mask` | input | 8 | - |
 | `snk_cfg_desc_mon_debug_mask` | input | 8 | - |
 
-: Table 1.2.25: Descriptor AXI Monitor Configuration
+: Table 1.2.24: Descriptor AXI Monitor Configuration
 
-### AXIS data-path monitor-lite configuration (rapids TASK-015)
+### Network-plane monitor input (rapids TASK-024)
+
+The network endpoint and its monitor-lite live in the plane (`rtl/plane/`) in the top. Its monbus
+packets enter here as client 1 of this half's monbus arbiter; the plane's monitor configuration
+and status come from this half's register block in the top.
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `snk_cfg_axis_mon_enable` | input | 1 | - |
-| `snk_cfg_axis_mon_err_enable` | input | 1 | - |
-| `snk_cfg_axis_mon_compl_enable` | input | 1 | - |
-| `snk_cfg_axis_mon_perf_enable` | input | 1 | - |
-| `snk_cfg_axis_mon_timeout_enable` | input | 1 | - |
-| `snk_cfg_axis_mon_timeout_cycles` | input | 32 | - |
-| `snk_cfg_axis_mon_latency_thresh` | input | 32 | - |
-| `snk_cfg_axis_mon_pkt_mask` | input | 16 | - |
+| `snk_plane_mon_valid` | input | 1 | - |
+| `snk_plane_mon_ready` | output | 1 | - |
+| `snk_plane_mon_packet` | input | 128 | `monitor_packet_t` |
+| `snk_plane_mon_timestamp` | input | 64 | `monbus_timestamp_t` |
 
-: Table 1.2.26: AXIS data-path monitor-lite configuration (rapids TASK-015)
+: Table 1.2.25: Network-plane monitor input (rapids TASK-024)
 
 ### Status
 
@@ -471,7 +460,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_scheduler_state` | output | NC x 7 | - |
 | `snk_sched_error` | output | NC | - |
 
-: Table 1.2.27: Status
+: Table 1.2.26: Status
 
 ### Descriptor AXI Monitor Status
 
@@ -483,18 +472,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_cfg_sts_desc_mon_txn_count` | output | 32 | - |
 | `snk_cfg_sts_desc_mon_conflict_error` | output | 1 | - |
 
-: Table 1.2.28: Descriptor AXI Monitor Status
-
-### AXIS data-path monitor-lite status (rapids TASK-015)
-
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
-| `snk_cfg_sts_axis_mon_busy` | output | 1 | - |
-| `snk_cfg_sts_axis_mon_packet_count` | output | 32 | - |
-| `snk_cfg_sts_axis_mon_error_count` | output | 16 | - |
-| `snk_cfg_sts_axis_mon_dropped_count` | output | 16 | - |
-
-: Table 1.2.29: AXIS data-path monitor-lite status (rapids TASK-015)
+: Table 1.2.27: Descriptor AXI Monitor Status
 
 ### Descriptor AXI Monitor perf window (feeds SNK_.MON.DAXMON_PERF_*).
 
@@ -510,7 +488,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_sts_desc_mon_byte_count` | output | 64 | - |
 | `snk_sts_desc_mon_burst_count` | output | 32 | - |
 
-: Table 1.2.30: Descriptor AXI Monitor perf window (feeds SNK_.MON.DAXMON_PERF_*).
+: Table 1.2.28: Descriptor AXI Monitor perf window (feeds SNK_.MON.DAXMON_PERF_*).
 
 ### Descriptor Fetch AXI Master
 
@@ -535,7 +513,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_m_axi_desc_rlast` | input | 1 | - |
 | `snk_m_axi_desc_rid` | input | IW | - |
 
-: Table 1.2.31: Descriptor Fetch AXI Master
+: Table 1.2.29: Descriptor Fetch AXI Master
 
 ### Control Read AXI Master (32-bit) [Phase 2]
 
@@ -560,7 +538,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_m_axi_ctrlrd_rlast` | input | 1 | - |
 | `snk_m_axi_ctrlrd_rid` | input | IW | - |
 
-: Table 1.2.32: Control Read AXI Master (32-bit) [Phase 2]
+: Table 1.2.30: Control Read AXI Master (32-bit) [Phase 2]
 
 ### Control Write AXI Master (32-bit) [Phase 2]
 
@@ -588,7 +566,7 @@ page and the module side by side. Widths use the parameter aliases.
 | `snk_m_axi_ctrlwr_bid` | input | IW | - |
 | `snk_m_axi_ctrlwr_bresp` | input | 2 | - |
 
-: Table 1.2.33: Control Write AXI Master (32-bit) [Phase 2]
+: Table 1.2.31: Control Write AXI Master (32-bit) [Phase 2]
 
 ## Monitor Bus (SINGLE aggregated stream for the whole core)
 
@@ -603,7 +581,7 @@ The two halves' monitor outputs are merged through a top-level monbus_arbiter, s
 | `mon_packet` | output | `monitor_common_pkg::monitor_packet_t` | - |
 | `mon_timestamp` | output | `monitor_common_pkg::monbus_timestamp_t` | - |
 
-: Table 1.2.34: Monitor Bus
+: Table 1.2.32: Monitor Bus
 
 ## SINK HALF (u_snk) - direction-unique ports (no prefix)
 
@@ -614,7 +592,7 @@ The two halves' monitor outputs are merged through a top-level monbus_arbiter, s
 | `cfg_axi_wr_xfer_beats` | input | 8 | - |
 | `cfg_alloc_size` | input | 8 | sink: SRAM alloc size per AXIS fill |
 
-: Table 1.2.35: AXI Transfer Configuration (sink-only)
+: Table 1.2.33: AXI Transfer Configuration (sink-only)
 
 ### Sink Path - AXIS Slave Interface (Network -> SRAM); tid = channel id
 
@@ -629,7 +607,7 @@ The two halves' monitor outputs are merged through a top-level monbus_arbiter, s
 | `s_axis_tvalid` | input | 1 | - |
 | `s_axis_tready` | output | 1 | - |
 
-: Table 1.2.36: Sink Path - AXIS Slave Interface (Network -> SRAM); tid = channel id
+: Table 1.2.34: Sink Path - AXIS Slave Interface (Network -> SRAM); tid = channel id
 
 ### AXI4 Master - Data Write (Sink SRAM -> Memory)
 
@@ -657,7 +635,7 @@ The two halves' monitor outputs are merged through a top-level monbus_arbiter, s
 | `m_axi_wr_bvalid` | input | 1 | - |
 | `m_axi_wr_bready` | output | 1 | - |
 
-: Table 1.2.37: AXI4 Master - Data Write (Sink SRAM -> Memory)
+: Table 1.2.35: AXI4 Master - Data Write (Sink SRAM -> Memory)
 
 ## Debug Interface (per half, src_dbg_ / snk_dbg_ prefixed)
 
@@ -674,7 +652,7 @@ The two halves' monitor outputs are merged through a top-level monbus_arbiter, s
 | `src_dbg_axis_beats_sent` | output | 32 | - |
 | `src_dbg_axis_packets_sent` | output | 32 | - |
 
-: Table 1.2.38: Source half debug
+: Table 1.2.36: Source half debug
 
 ### Sink half debug
 
@@ -685,7 +663,7 @@ The two halves' monitor outputs are merged through a top-level monbus_arbiter, s
 | `snk_dbg_axis_beats_received` | output | 32 | - |
 | `snk_dbg_axis_packets_received` | output | 32 | - |
 
-: Table 1.2.39: Sink half debug
+: Table 1.2.37: Sink half debug
 
 ### Active-channel sideband for per-channel bus instrumentation
 
@@ -696,7 +674,7 @@ The two halves' monitor outputs are merged through a top-level monbus_arbiter, s
 | `snk_active_channel_id` | output | CIW | - |
 | `snk_active_channel_valid` | output | 1 | - |
 
-: Table 1.2.40: Active-channel sideband for per-channel bus instrumentation
+: Table 1.2.38: Active-channel sideband for per-channel bus instrumentation
 
 ---
 

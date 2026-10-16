@@ -196,9 +196,9 @@ class RapidsBeatsTopTB(TBBase):
         d.s_apb_pwdata.value = 0
         d.s_apb_pstrb.value = 0
 
-        # AXIS ingress idle until the master BFM takes over.
-        d.s_axis_tvalid.value = 0
-        # m_axis_tready and m_axil_mon_* belong to the AXIS / AXI-Lite slave BFMs.
+        # Network ingress idle until its BFM takes over (AXIS or CXS plane).
+        self._idle_network_inputs()
+        # The egress side and m_axil_mon_* belong to the slave BFMs.
 
         # MonBus AXI-Lite group: err-drain slave quiescent.
         d.s_axil_err_arvalid.value = 0
@@ -274,17 +274,8 @@ class RapidsBeatsTopTB(TBBase):
                 addr_width=self.ADDR_WIDTH, user_width=1, multi_sig=True,
                 memory_model=self.sem_mem[half], base_addr=0))
 
-        # AXIS master drives s_axis_* (sink ingress).
-        self.axis_master = create_axis_master(
-            dut=d, clock=self.clk, prefix="s_axis_", log=self.log,
-            data_width=self.DATA_WIDTH, id_width=8, dest_width=4, user_width=1)
-
-        # AXIS slave consumes m_axis_* (source egress): owns tready, files each
-        # beat under its tid via the framework callback (rapids TASK-013).
-        self.axis_slave = create_axis_slave(
-            dut=d, clock=self.clk, prefix="m_axis_", log=self.log,
-            data_width=self.DATA_WIDTH, id_width=8, dest_width=4, user_width=1)
-        self.axis_slave['slave'].add_callback(self._on_axis_egress)
+        # The network BFMs: AXIS here, CXS in RapidsCxsTopTB (rtl/plane).
+        self._create_network_bfms()
 
         # AXI-Lite write slave on m_axil_mon_* (the monbus group's bulk-capture
         # master): always-accept, OKAY responses -- the same framework slave the
@@ -661,6 +652,25 @@ class RapidsBeatsTopTB(TBBase):
     # =========================================================================
     # STIMULUS: AXIS send, egress capture, m_axil_mon sink
     # =========================================================================
+
+    def _idle_network_inputs(self):
+        """Network ingress inputs idle before the BFMs exist (AXIS plane)."""
+        self.dut.s_axis_tvalid.value = 0
+
+    def _create_network_bfms(self):
+        """The AXIS plane's BFMs. RapidsCxsTopTB overrides this for the CXS plane."""
+        d = self.dut
+        # AXIS master drives s_axis_* (sink ingress).
+        self.axis_master = create_axis_master(
+            dut=d, clock=self.clk, prefix="s_axis_", log=self.log,
+            data_width=self.DATA_WIDTH, id_width=8, dest_width=4, user_width=1)
+
+        # AXIS slave consumes m_axis_* (source egress): owns tready, files each
+        # beat under its tid via the framework callback (rapids TASK-013).
+        self.axis_slave = create_axis_slave(
+            dut=d, clock=self.clk, prefix="m_axis_", log=self.log,
+            data_width=self.DATA_WIDTH, id_width=8, dest_width=4, user_width=1)
+        self.axis_slave['slave'].add_callback(self._on_axis_egress)
 
     async def send_axis_packet(self, channel, beats: List[int]):
         """Drive a sink-ingress packet on s_axis (tid=channel; tlast on final)."""
@@ -1050,10 +1060,11 @@ class RapidsBeatsTopTB(TBBase):
                 self.log.info(f"    other record: agent 0x{p.agent_id:02X} unit {p.unit_id} "
                               f"{p.get_protocol_name()}/{p.get_packet_type_name()}/0x{p.event_code:02X} "
                               f"ch {p.channel_id} data 0x{p.event_data:X}")
-        # The lites' own counters (internal to the halves; no register yet).
-        for half, inst in (('src', 'u_axis_egress_mon'), ('snk', 'u_axis_ingress_mon')):
+        # The lites' own counters (inside the planes; no register yet).
+        # The endpoint lives in the network plane (rtl/plane) of the thin top.
+        for half in ('src', 'snk'):
             try:
-                m = getattr(getattr(self.dut.u_core, f'u_{half}'), inst)
+                m = getattr(self.dut, f'u_{half}_plane').u_endpoint
                 self.log.info(f"  {half} AXIS lite: packet_count={int(m.packet_count.value)} "
                               f"error_count={int(m.error_count.value)} dropped_count={int(m.dropped_count.value)}")
             except (AttributeError, TypeError) as e:

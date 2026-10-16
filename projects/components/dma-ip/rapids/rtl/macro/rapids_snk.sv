@@ -57,8 +57,6 @@ module rapids_snk #(
     parameter int DESC_MON_BASE_AGENT_ID = 16,   // 0x10 - Descriptor Engines (16-23)
     parameter int SCHED_MON_BASE_AGENT_ID = 48,  // 0x30 - Schedulers (48-55)
     parameter int DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
-    parameter int AXIS_MON_AGENT_ID = 9,         // 0x09 - Sink-ingress AXIS monitor (rapids TASK-015)
-    parameter int ACLK_MHZ = 100,                // clk in MHz: the AXIS monitor's microsecond tick
     parameter int MON_UNIT_ID = 1,               // 0x1
     // Monitor synthesis gates (default 1 = production unchanged); see
     // scheduler_group_array.
@@ -139,17 +137,14 @@ module rapids_snk #(
     input  logic [7:0]                          cfg_desc_mon_addr_mask,
     input  logic [7:0]                          cfg_desc_mon_debug_mask,
 
-    // AXIS data-path monitor-lite configuration (rapids TASK-015). Enables map
-    // onto the wrapper's class enables; timeout_cycles[15:0] is MICROSECONDS
-    // (0 = never), latency_thresh is the stall CYCLES that raise Credit/BACKPRESSURE.
-    input  logic                                cfg_axis_mon_enable,
-    input  logic                                cfg_axis_mon_err_enable,
-    input  logic                                cfg_axis_mon_compl_enable,
-    input  logic                                cfg_axis_mon_perf_enable,
-    input  logic                                cfg_axis_mon_timeout_enable,
-    input  logic [31:0]                         cfg_axis_mon_timeout_cycles,
-    input  logic [31:0]                         cfg_axis_mon_latency_thresh,
-    input  logic [15:0]                         cfg_axis_mon_pkt_mask,
+    // Network plane monitor bus. The plane (rtl/plane: AXIS or CXS) owns
+    // the network endpoint and its monitor-lite; its packets come back in
+    // here as client 1 of this half's monbus_arbiter, exactly where the
+    // in-module AXIS monitor used to sit (rapids TASK-015).
+    input  logic                                plane_mon_valid,
+    output logic                                plane_mon_ready,
+    input  monitor_common_pkg::monitor_packet_t   plane_mon_packet,
+    input  monitor_common_pkg::monbus_timestamp_t plane_mon_timestamp,
 
     // AXI Transfer Configuration
     input  logic [7:0]                          cfg_axi_wr_xfer_beats,
@@ -171,11 +166,6 @@ module rapids_snk #(
     output logic [31:0]                         cfg_sts_desc_mon_txn_count,
     output logic                                cfg_sts_desc_mon_conflict_error,
 
-    // AXIS data-path monitor-lite status (rapids TASK-015)
-    output logic                                cfg_sts_axis_mon_busy,
-    output logic [31:0]                         cfg_sts_axis_mon_packet_count,
-    output logic [15:0]                         cfg_sts_axis_mon_error_count,
-    output logic [15:0]                         cfg_sts_axis_mon_dropped_count,
 
     // Descriptor AXI Monitor perf window (DAXMON_PERF_* CSRs). The monitor
     // computes these; nothing collected them, so the CSRs read 0 in every
@@ -363,11 +353,6 @@ module rapids_snk #(
     logic                                    arr_mon_ready;
     monitor_common_pkg::monitor_packet_t     arr_mon_packet;
     monitor_common_pkg::monbus_timestamp_t   arr_mon_timestamp;
-    // AXIS data-path monitor-lite (rapids TASK-015), client 1 of the arbiter below
-    logic                                    axis_mon_valid;
-    logic                                    axis_mon_ready;
-    monitor_common_pkg::monitor_packet_t     axis_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t   axis_mon_timestamp;
 
     //=========================================================================
     // Beats Scheduler Group Array (write-only: EN_READ=0, EN_WRITE=1)
@@ -585,11 +570,11 @@ module rapids_snk #(
     assign mon_arb_timestamp_in[0] = arr_mon_timestamp;
     assign arr_mon_ready           = mon_arb_ready_in[0];
 
-    // Client 1: AXIS data-path monitor-lite (rapids TASK-015)
-    assign mon_arb_valid_in[1]     = axis_mon_valid;
-    assign mon_arb_packet_in[1]    = axis_mon_packet;
-    assign mon_arb_timestamp_in[1] = axis_mon_timestamp;
-    assign axis_mon_ready          = mon_arb_ready_in[1];
+    // Client 1: the network plane's monitor-lite (AXIS or CXS)
+    assign mon_arb_valid_in[1]     = plane_mon_valid;
+    assign mon_arb_packet_in[1]    = plane_mon_packet;
+    assign mon_arb_timestamp_in[1] = plane_mon_timestamp;
+    assign plane_mon_ready         = mon_arb_ready_in[1];
 
     // Client 2: tied-off placeholder (future data-path AXI monitor tap)
     assign mon_arb_valid_in[2]     = 1'b0;
@@ -642,84 +627,10 @@ module rapids_snk #(
     assign m_axi_wr_awregion = 4'b0000;
 
     //=========================================================================
-    // Sink-ingress AXIS monitor-lite (rapids TASK-015, agent AXIS_MON_AGENT_ID)
+    // The network endpoint lives in the plane (rtl/plane/rapids_plane_*), one
+    // level up: the s_axis_* ports of this module are the plane-facing
+    // AXIS stream, driven straight from the data path.
     //=========================================================================
-    // axis4_slave_monlite = the axis4_slave skid stage (SKID_DEPTH deep, present
-    // in every build, like the axi4_master_rd skids inside the descriptor
-    // monlite) plus an axis_monitor_lite TAP on s_axis_* that is built only
-    // when USE_AXI_MONITORS. The tap gates nothing: tready is an input to it.
-    // Its packets are client 1 of this half's monbus_arbiter.
-    logic [DW-1:0]               w_axis_in_tdata;
-    logic [SW-1:0]               w_axis_in_tstrb;
-    logic                        w_axis_in_tlast;
-    logic [AXIS_ID_WIDTH-1:0]    w_axis_in_tid;
-    logic [AXIS_DEST_WIDTH-1:0]  w_axis_in_tdest;
-    logic [AXIS_USER_WIDTH-1:0]  w_axis_in_tuser;
-    logic                        w_axis_in_tvalid;
-    logic                        w_axis_in_tready;
-
-    // The lite's timeout is 16 bits of microseconds; the register is 32 wide.
-    /* verilator lint_off UNUSEDSIGNAL */
-    logic [15:0] unused_axis_mon_timeout_hi;
-    assign unused_axis_mon_timeout_hi = cfg_axis_mon_timeout_cycles[31:16];
-    /* verilator lint_on UNUSEDSIGNAL */
-
-    axis4_slave_monlite #(
-        .USE_MONITOR      (USE_AXI_MONITORS == 1),
-        .UNIT_ID          (8'(MON_UNIT_ID)),
-        .AGENT_ID         (16'(AXIS_MON_AGENT_ID)),
-        .OUT_DEPTH        (4),
-        .ACLK_MHZ         (ACLK_MHZ),
-        .SKID_DEPTH       (4),
-        .AXIS_DATA_WIDTH  (DW),
-        .AXIS_ID_WIDTH    (AXIS_ID_WIDTH),
-        .AXIS_DEST_WIDTH  (AXIS_DEST_WIDTH),
-        .AXIS_USER_WIDTH  (AXIS_USER_WIDTH)
-    ) u_axis_ingress_mon (
-        .aclk                  (clk),
-        .aresetn               (rst_n),
-        .s_axis_tdata          (s_axis_tdata),
-        .s_axis_tstrb          (s_axis_tstrb),
-        .s_axis_tlast          (s_axis_tlast),
-        .s_axis_tid            (s_axis_tid),
-        .s_axis_tdest          (s_axis_tdest),
-        .s_axis_tuser          (s_axis_tuser),
-        .s_axis_tvalid         (s_axis_tvalid),
-        .s_axis_tready         (s_axis_tready),
-        .fub_axis_tdata        (w_axis_in_tdata),
-        .fub_axis_tstrb        (w_axis_in_tstrb),
-        .fub_axis_tlast        (w_axis_in_tlast),
-        .fub_axis_tid          (w_axis_in_tid),
-        .fub_axis_tdest        (w_axis_in_tdest),
-        .fub_axis_tuser        (w_axis_in_tuser),
-        .fub_axis_tvalid       (w_axis_in_tvalid),
-        .fub_axis_tready       (w_axis_in_tready),
-        .busy                  (cfg_sts_axis_mon_busy),
-        .cam_clear             (1'b0),
-        .cfg_monitor_enable    (cfg_axis_mon_enable),
-        .cfg_error_enable      (cfg_axis_mon_err_enable),
-        .cfg_timeout_enable    (cfg_axis_mon_timeout_enable),
-        .cfg_compl_enable      (cfg_axis_mon_compl_enable),
-        .cfg_credit_enable     (cfg_axis_mon_perf_enable),
-        .cfg_channel_enable    (cfg_axis_mon_err_enable),
-        .cfg_stream_enable     (cfg_axis_mon_perf_enable),
-        .cfg_strb_check_enable (cfg_axis_mon_err_enable),
-        .cfg_timeout_cycles    (cfg_axis_mon_timeout_cycles[15:0]),
-        .cfg_freq_sel          (4'b0000),
-        .cfg_axis_pkt_mask     (cfg_axis_mon_pkt_mask),
-        .cfg_stall_threshold   (cfg_axis_mon_latency_thresh),
-        .i_mon_time            ('0),
-        .monbus_valid          (axis_mon_valid),
-        .monbus_ready          (axis_mon_ready),
-        .monbus_packet         (axis_mon_packet),
-        .monbus_timestamp      (axis_mon_timestamp),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .in_packet             (),
-        /* verilator lint_on PINCONNECTEMPTY */
-        .packet_count          (cfg_sts_axis_mon_packet_count),
-        .error_count           (cfg_sts_axis_mon_error_count),
-        .dropped_count         (cfg_sts_axis_mon_dropped_count)
-    );
 
     snk_data_path_axis #(
         .NUM_CHANNELS       (NC),
@@ -745,14 +656,14 @@ module rapids_snk #(
         .cfg_channel_reset  (cfg_channel_reset),
 
         // AXIS Slave Interface (Network ingress; tid = channel id)
-        .s_axis_tdata       (w_axis_in_tdata),
-        .s_axis_tstrb       (w_axis_in_tstrb),
-        .s_axis_tlast       (w_axis_in_tlast),
-        .s_axis_tid         (w_axis_in_tid),
-        .s_axis_tdest       (w_axis_in_tdest),
-        .s_axis_tuser       (w_axis_in_tuser),
-        .s_axis_tvalid      (w_axis_in_tvalid),
-        .s_axis_tready      (w_axis_in_tready),
+        .s_axis_tdata       (s_axis_tdata),
+        .s_axis_tstrb       (s_axis_tstrb),
+        .s_axis_tlast       (s_axis_tlast),
+        .s_axis_tid         (s_axis_tid),
+        .s_axis_tdest       (s_axis_tdest),
+        .s_axis_tuser       (s_axis_tuser),
+        .s_axis_tvalid      (s_axis_tvalid),
+        .s_axis_tready      (s_axis_tready),
 
         // Scheduler Interface
         .sched_wr_valid     (sched_wr_valid),
