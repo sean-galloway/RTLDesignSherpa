@@ -26,10 +26,12 @@
 > **SUPERSEDED in part (2026-10-15)** — the owner re-defined the hierarchy
 > and made the wrappers real: tetrad (2×2×1 cells, K4) and tile (2×2×1
 > tetrads, K4) are now RTL modules with MonBus aggregation, not naming-only
-> groupings. The canonical definition is
-> [`../../TILE_SPEC.md`](../TILE_SPEC.md); this chapter's "no wrapper RTL"
-> statements and old names ("confluence") hold only as pre-2026-10-15
-> history.
+> groupings. The tile is a compute-engine IP
+> ([`compute-eng-ip/tile`](../../../../compute-eng-ip/tile/README.md)) —
+> delta is just the node. The canonical definition is
+> [`TILE_SPEC.md`](../../../../compute-eng-ip/tile/docs/TILE_SPEC.md);
+> this chapter's "no wrapper RTL" statements and old names ("confluence")
+> hold only as pre-2026-10-15 history.
 
 ## Placement Levels
 

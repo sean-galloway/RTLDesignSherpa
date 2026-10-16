@@ -41,7 +41,7 @@ This specification contains the complete Delta project documentation including o
 
 [PRD.md](PRD.md)
 
-[Tile Spec — mesh tile subsystem uarch (owner-defined 2026-10-15)](docs/TILE_SPEC.md)
+[Tile IP — moved to compute-eng-ip 2026-10-15 (delta is the node; the tile assembles 16 of them)](../../compute-eng-ip/tile/README.md)
 
 [DELTA_COMPLETE_SUMMARY.md](DELTA_COMPLETE_SUMMARY.md)
 

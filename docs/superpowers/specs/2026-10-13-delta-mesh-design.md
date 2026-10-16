@@ -34,14 +34,17 @@ Feature sources: four-book survey of the calibre NoC library
   (owner, 2026-10-15): it instantiates the four cells of its 2×2×1 group
   and carries the first level of observation aggregation — the four
   cell-level MonBus streams merge into one tetrad-level MonBus
-  (§2.3).
+  (§2.3). Lives in the compute-eng-ip **tile** IP, not in delta.
 - **Tile** — 2×2×1 tetrads = 4×4×1 cells (16). Owner-named 2026-10-15
   (was "confluence"); K4 at the tetrad level too — each tetrad connects
   to the other three tetrads of its tile (§2.2 P_DIA2). **A real RTL
   module** (owner, 2026-10-15): it instantiates the four tetrads and
   merges their four tetrad-level MonBus streams into the single
   tile-top-level MonBus (§2.3). Connects to rapids at boundary cells'
-  local ports.
+  local ports. Also the tile IP — owner re-home 2026-10-15: **delta is
+  just the node**; the tile is a compute-engine IP
+  (`projects/components/compute-eng-ip/tile/`, canonical spec
+  `docs/TILE_SPEC.md`).
 - **Fabric** — 4×4×K tiles stacked in Z. The recursion is planar;
   the Z dimension lives entirely between tile layers.
 
@@ -109,12 +112,16 @@ Owner decision 2026-10-15. Every cell emits **one** MonBus observer
 stream. Observation aggregates up the same hierarchy as the datapath,
 one level at a time:
 
-- **Tetrad** (`delta_mesh_tetrad`, new module): instantiates the 2×2×1
+- **Tetrad** (`tetrad`, tile IP): instantiates the 2×2×1
   cells of its group and merges the four cell MonBus streams into a
   **single tetrad-level MonBus**.
-- **Tile** (`delta_mesh_tile`, new module): instantiates the 2×2×1
+- **Tile** (`tile_top`, tile IP): instantiates the 2×2×1
   tetrads and merges the four tetrad-level streams into the **single
   tile-top-level MonBus** — the only MonBus a board/sim host sees.
+
+(Tetrad/tile are the compute-eng-ip **tile** IP — owner re-home
+2026-10-15: the tile is an IP, delta is just the node. Canonical spec:
+`projects/components/compute-eng-ip/tile/docs/TILE_SPEC.md`.)
 
 Aggregation uses the house AXIL MonBus component family (the
 `monbus_group_core` / `monbus_*_group` wrappers of `rtl/amba/ocelus/`,
@@ -125,7 +132,8 @@ tile top unchanged. Exact leaf selection inside the wrappers is the
 module's implementation detail; the architectural contract is the
 4→1 merge per level and one MonBus per level boundary.
 
-Connectivity shape (owner's figure, `docs/3d-mesh-tile.drawio`): the
+Connectivity shape (owner's figure,
+`projects/components/compute-eng-ip/tile/docs/assets/3d-mesh-tile.drawio`): the
 four cells of a tetrad are fully meshed — each cell links to the other
 three — and the four tetrads of a tile repeat that same K4 pattern one
 scale up. The figure and §2.2's P_DIA/P_DIA2 ports describe the same

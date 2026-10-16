@@ -33,8 +33,11 @@ is a *system*, not a core, and it is the control half of this family.
 |---|---|---|
 | [`hive-serv/`](hive-serv/) | Hierarchical control/monitoring system: 1 VexRiscv master (HIVE-C) + 16 SERV per-tile monitors; inband descriptor injection into delta; coordinates RAPIDS and cell | HAS/MAS v0.2; Phase 1 RTL in progress (vault hive-serv TASK-000) |
 | [`cell/`](cell/) | Compute engine: `cgra` reconfigurable array (TBD) + `axon` SERV/delta result router | Scaffold (README + axon spec sketch) |
+| [`tile/`](tile/) | Compute-engine tile: 16 cells as 2×2×1 tetrads (K4 at both scales) + per-level MonBus aggregation + rapids attach; **delta is the node**, instantiated 16× | [Tile Spec](tile/docs/TILE_SPEC.md) v1.1 (owner-defined 2026-10-15) |
 
-The pair forms the compute system: **cell** is the data plane (the CGRA),
-**hive-serv** is the control plane, **delta** is the fabric between them, and
-**RAPIDS** moves bulk data. See the [hive-serv HAS](hive-serv/docs/hive_has/hive_has_index.md)
-and the [cell README](cell/README.md).
+The trio forms the compute system: **cell** is the data plane (the CGRA),
+**hive-serv** is the control plane, **tile** is the subsystem that assembles
+cells onto delta nodes at scale, and **delta** is the fabric between them —
+nodes collectively form the network, tile is the IP that instantiates one
+network segment. **RAPIDS** moves bulk data. See the [hive-serv HAS](hive-serv/docs/hive_has/hive_has_index.md),
+the [cell README](cell/README.md), and the [tile spec](tile/docs/TILE_SPEC.md).
