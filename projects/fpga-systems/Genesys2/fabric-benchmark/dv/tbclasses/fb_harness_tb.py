@@ -35,17 +35,16 @@ from TBClasses.harness.cocotb_axil_bridge import make_uart_channel
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_repo_root
 
-_STREAM_BIN = os.path.join(get_repo_root(), 'projects/fpga-systems/Genesys2/dma-ip/stream/bin')
-if _STREAM_BIN not in sys.path:
-    sys.path.insert(0, _STREAM_BIN)
-import stream_env  # noqa: E402,F401  (puts fpga-systems/bin on sys.path)
+# The data map is shared with the board program: bin/fb_map.py.
+_AREA_BIN = os.path.join(get_repo_root(), 'projects/fpga-systems/Genesys2/fabric-benchmark/bin')
+if _AREA_BIN not in sys.path:
+    sys.path.insert(0, _AREA_BIN)
+import fb_map  # noqa: E402
+fb_map.stream_host_path()
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
-from descriptor_builder import DescriptorBuilder, CharConfig  # noqa: E402
+from descriptor_builder import CharConfig  # noqa: E402
+from fb_slave_meters import read_slave_side  # noqa: E402
 
-SRC_BASE = 0x9000_0000
-DST_BASE = 0xA000_0000
-DESC_DMA_BASE = 0x8000_0000
-CH_ADDR_LSB = 25                     # fb_harness CH_ADDR_LSB
 DDR_BYTES = 0x10000                  # modelled span of S0 (W2 never reaches it)
 
 
@@ -61,9 +60,7 @@ class FbHarnessTB(TBBase):
                                          rx_signal='i_uart_rx', tx_signal='o_uart_tx',
                                          log=self.log)
         self.bridge = UARTAxiBridge(channel=self.channel)
-        self.builder = DescriptorBuilder(data_width=128, src_base=SRC_BASE, dst_base=DST_BASE,
-                                         desc_dma_base=DESC_DMA_BASE,
-                                         channel_stride=1 << CH_ADDR_LSB)
+        self.builder = fb_map.make_builder()
         self.ddr = MemoryModel(num_lines=DDR_BYTES // 16, bytes_per_line=16, log=self.log)
         kw = dict(dut=dut, clock=dut.aclk, prefix='ddr', log=self.log, id_width=10,
                   addr_width=32, data_width=128, user_width=1, memory_model=self.ddr,
@@ -123,10 +120,26 @@ class FbHarnessTB(TBBase):
         if crc.get('valid_mask') != active or crc.get('match_mask') != active:
             self.errors.append(f"{cfg.name}: crc valid 0x{crc.get('valid_mask', 0):X} "
                                f"match 0x{crc.get('match_mask', 0):X}, want 0x{active:X}")
+        # Slave-side observer (the fabric's output): every beat crosses the
+        # fabric once at the same width, so over the shared window its
+        # productive count must equal the master side's AND the transfer size
+        # in beats. A dead or mis-wired observer cannot pass this.
+        slv = await bridge(lambda: read_slave_side(self.bridge))()
+        met = res.get('metrics') or {}
+        want_beats = num_channels * descriptors * transfer_bytes // (fb_map.DATA_WIDTH // 8)
+        for side, key in (('r', 'r_aggregate'), ('w', 'w_aggregate')):
+            m_prod = (met.get(key) or {}).get('productive')
+            s_prod = slv[side]['productive']
+            if not (m_prod == s_prod == want_beats):
+                self.errors.append(f"{cfg.name}: {side} productive beats master {m_prod}, "
+                                   f"slave {s_prod}, want {want_beats}")
+        res['slave_side'] = slv
         self.log.info(f"{cfg.name}: pass={res.get('pass')} "
                       f"cycles={res.get('cycles_total')} "
                       f"bus_mbps={res.get('bus_throughput_mbps')} "
-                      f"valid=0x{crc.get('valid_mask', 0):X} match=0x{crc.get('match_mask', 0):X}")
+                      f"valid=0x{crc.get('valid_mask', 0):X} match=0x{crc.get('match_mask', 0):X} "
+                      f"util m r/w {met.get('datapath_utilization_r')}/{met.get('datapath_utilization_w')} "
+                      f"s r/w {slv['r_util']:.4f}/{slv['w_util']:.4f}")
         return res
 
     def report(self) -> bool:

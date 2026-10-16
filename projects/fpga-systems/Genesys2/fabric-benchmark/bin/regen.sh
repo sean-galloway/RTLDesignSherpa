@@ -21,6 +21,15 @@ AREA="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(git -C "$AREA" rev-parse --show-toplevel)}"
 CFG="$AREA/rtl/bridges/configs"
 
+# Serialize: every build-<leg> runs this as its PREBUILD, and the bridge
+# generator rmtree()s each output directory before rewriting it, so two builds
+# regenerating at once delete each other's files mid-write (the STREAM area's
+# regen_bridges.sh hit exactly this). Blocking: a second caller waits and then
+# writes the same bytes. *.lock is gitignored.
+if [ -z "${FB_REGEN_LOCKED:-}" ]; then
+    exec env FB_REGEN_LOCKED=1 flock "$AREA/rtl/.regen.lock" bash "$0" "$@"
+fi
+
 echo "[regen] bridge_fb_data (Leg A fabric)"
 python3 "$REPO_ROOT/projects/components/fabric-gen-ip/bridge/bin/bridge_generator.py" \
     --ports "$CFG/bridge_fb_data.toml" \

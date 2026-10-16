@@ -52,95 +52,11 @@ if {$bad} { exit 1 }
 generate_target {instantiation_template synthesis simulation} [get_ips fb_xbar]
 
 # ---- leg B2: SmartConnect block design ------------------------------------------
-puts "\n--- fb_sc (smartconnect block design) ---"
-create_bd_design fb_sc
-set sc [create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 sc]
-set_property -dict [list CONFIG.NUM_SI [llength $FB_MASTERS] CONFIG.NUM_MI [llength $FB_SLAVES] \
-                         CONFIG.NUM_CLKS 1] $sc
-set clk [create_bd_port -dir I -type clk -freq_hz $FB_FREQ_HZ aclk]
-set rst [create_bd_port -dir I -type rst aresetn]
-set_property CONFIG.POLARITY ACTIVE_LOW $rst
-connect_bd_net $clk [get_bd_pins sc/aclk]
-connect_bd_net $rst [get_bd_pins sc/aresetn]
-
-set busifs {}
-set i 0
-foreach m $FB_MASTERS {
-    lassign $m name mode
-    set p [create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 $name]
-    set_property -dict [list CONFIG.PROTOCOL AXI4 CONFIG.DATA_WIDTH $FB_DW CONFIG.ADDR_WIDTH $FB_AW \
-        CONFIG.ID_WIDTH $FB_MID \
-        CONFIG.READ_WRITE_MODE $mode CONFIG.HAS_REGION 0 CONFIG.FREQ_HZ $FB_FREQ_HZ \
-        CONFIG.NUM_READ_OUTSTANDING $FB_ACCEPT CONFIG.NUM_WRITE_OUTSTANDING $FB_ACCEPT] $p
-    connect_bd_intf_net $p [get_bd_intf_pins [format "sc/S%02d_AXI" $i]]
-    lappend busifs $name
-    incr i
-}
-set i 0
-foreach s $FB_SLAVES {
-    lassign $s name mode base range
-    set p [create_bd_intf_port -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 $name]
-    set_property -dict [list CONFIG.PROTOCOL AXI4 CONFIG.DATA_WIDTH $FB_DW CONFIG.ADDR_WIDTH $FB_AW \
-        CONFIG.READ_WRITE_MODE $mode CONFIG.HAS_REGION 0 CONFIG.FREQ_HZ $FB_FREQ_HZ] $p
-    connect_bd_intf_net [get_bd_intf_pins [format "sc/M%02d_AXI" $i]] $p
-    lappend busifs $name
-    incr i
-}
-set_property CONFIG.ASSOCIATED_BUSIF [join $busifs ":"] $clk
-set_property CONFIG.ASSOCIATED_RESET aresetn $clk
-
-# Windows: map every slave into every master's space, then exclude the pairs
-# the connectivity CSV does not connect. An excluded pair answers DECERR, as an
-# unconnected pair does in the other two legs.
-foreach m $FB_MASTERS {
-    set mname [lindex $m 0]
-    set reach [dict get $FB_CONN $mname]
-    foreach s $FB_SLAVES {
-        lassign $s sname mode base range
-        set seg [get_bd_addr_segs /$sname/Reg]
-        assign_bd_address -offset $base -range $range -target_address_space [get_bd_addr_spaces /$mname] $seg -force
-        if {[lsearch -exact $reach $sname] < 0} {
-            exclude_bd_addr_seg -target_address_space [get_bd_addr_spaces /$mname] $seg
-        }
-    }
-}
-
-validate_bd_design
-# The leg wrapper ties every slave-side ID to 0 because SmartConnect drives
-# none. If a Vivado release starts driving one, that assumption is stale.
-foreach s $FB_SLAVES {
-    set sname [lindex $s 0]
-    foreach key {ID_WIDTH ARUSER_WIDTH AWUSER_WIDTH} {
-        set w [get_property CONFIG.$key [get_bd_intf_ports /$sname]]
-        if {$w != 0} {
-            puts stderr "ERROR: fb_sc $sname $key = $w; the leg wrapper assumes 0 (regenerate it to match)"
-            exit 1
-        }
-    }
-}
-save_bd_design
-set bd_file [get_files fb_sc.bd]
-set_property synth_checkpoint_mode None $bd_file
-generate_target all $bd_file
-make_wrapper -files $bd_file -top -import
+source "$script_dir/fb_sc_bd.tcl"
+fb_create_sc_bd
 
 # ---- S0 memory controller: MIG 7-series DDR3 --------------------------------------
-puts "\n--- fb_mig (mig_7series) ---"
-create_ip -name mig_7series -vendor xilinx.com -library ip -version 4.2 -module_name fb_mig
-set mig_dir [get_property IP_DIR [get_ips fb_mig]]
-file copy -force "$area/rtl/generated/fb_mig_prj/fb_mig.prj" [file join $mig_dir mig_a.prj]
-set_property -dict [list CONFIG.XML_INPUT_FILE {mig_a.prj} CONFIG.RESET_BOARD_INTERFACE {Custom} \
-                         CONFIG.MIG_DONT_TOUCH_PARAM {Custom} CONFIG.BOARD_MIG_PARAM {Custom}] [get_ips fb_mig]
-generate_target {instantiation_template synthesis simulation} [get_ips fb_mig]
-# MIG ignores a .prj it cannot parse and falls back to its defaults without an
-# error, so read the generated core back: the design point must have landed.
-set mig_v [glob "$ip_dir/fb_vendor_ip.gen/sources_1/ip/fb_mig/fb_mig/user_design/rtl/fb_mig_mig.v"]
-set text [read [set fh [open $mig_v]]]; close $fh
-foreach {param want} [list tCK 2500 nCK_PER_CLK 4 DQ_WIDTH 32 C_S_AXI_DATA_WIDTH $FB_DW C_S_AXI_ID_WIDTH $FB_SID] {
-    if {![regexp "parameter\\s+$param\\s+=\\s+(\\d+)" $text -> got] || $got != $want} {
-        puts stderr "ERROR: fb_mig $param = [expr {[info exists got] ? $got : {missing}}], expected $want"
-        exit 1
-    }
-}
+source "$script_dir/fb_mig_ip.tcl"
+fb_create_mig $area $FB_DW $FB_SID
 
 puts "\nvendor_ip: fb_xbar + fb_sc + fb_mig generated under $ip_dir"

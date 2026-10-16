@@ -22,6 +22,5 @@ $STREAM_CHAR_FRAMEWORK_ROOT/rtl/harness_csr.sv
 -f $MISC_ROOT/rtl/filelists/char_run_timer.f
 -f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
 $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/fb_axil_wr_sink.sv
-$REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/fb_apb_stub.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/fb_axi4_rd_stub.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/fb_harness.sv

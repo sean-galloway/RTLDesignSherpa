@@ -18,8 +18,8 @@
 //     harness_csr  0x0001_0000  the STREAM harness's CSR block, unchanged
 //     desc_ram     0x0002_0000  descriptor preload (write port)
 //     stream_err   0x0003_0000  STREAM error FIFO
-//     slvmon_apb   0x0018_0000  slave-side observer window: stubbed until that
-//                               observer lands (fb_apb_stub reads 0 = absent)
+//     slvmon_apb   0x0018_0000  slave-side observer (the fabric's S2/S3 output):
+//                               bus meters over the master-side window
 //     obs_apb      0x0019_0000  master-side observer (STREAM's rd/wr port): bus
 //                               meters + latency histograms, read by the host's
 //                               bus_meters exactly as in the STREAM build
@@ -435,12 +435,8 @@ module fb_harness #(
         .unmapped_irq(), .unmapped_addr(), .unmapped_count(), .unmapped_clear(1'b0)
     );
 
-    // Slave-side observer window: present in the map, nothing behind it yet.
-    fb_apb_stub u_slvmon_stub (
-        .psel(slvmon_apb_PSEL), .penable(slvmon_apb_PENABLE), .pwrite(slvmon_apb_PWRITE),
-        .paddr(slvmon_apb_PADDR), .pwdata(slvmon_apb_PWDATA), .pstrb(slvmon_apb_PSTRB),
-        .pprot(slvmon_apb_PPROT), .prdata(slvmon_apb_PRDATA), .pready(slvmon_apb_PREADY),
-        .pslverr(slvmon_apb_PSLVERR));
+    // (slvmon_apb: the slave-side observer, u_slv_observer, below)
+    wire unused_slvmon_pprot = ^slvmon_apb_PPROT;
     // (obs_apb: the master-side observer, u_dma_observer, below)
     wire unused_obs_pprot = ^obs_apb_PPROT;
 
@@ -831,15 +827,144 @@ module fb_harness #(
         .s_bvalid(dmamon_bvalid), .s_bready(dmamon_bready));
 
     // =========================================================================
+    // Slave-side observer on the fabric's OUTPUT: S2 (lfsr_src, the reads
+    // STREAM's rd port sent through the fabric) and S3 (crc_snk, the writes).
+    // The same observer module as u_dma_observer, so the same register layout
+    // -- the host reads it with obs_addrs' names rebased onto slvmon_apb
+    // (0x0018_0000). It shares u_dma_observer's measurement window
+    // (obs_meter_clear / obs_meter_freeze), so both sides count over the SAME
+    // cycles and master- vs slave-side utilization compares directly: the gap
+    // is what the fabric itself costs. Bus meters only -- no latency
+    // histograms: SmartConnect (leg B2) delivers no ID at its slaves, so a
+    // per-ID latency view would not be comparable across legs.
+    // =========================================================================
+    localparam int SLV_ID_WIDTH = 10;              // fabric slave-side ID ({slot, id})
+    logic [SLV_ID_WIDTH-1:0] slv_cfg_rd_rid       [1][OBS_NUM_CHANNELS];
+    logic                    slv_cfg_rd_rid_valid [1][OBS_NUM_CHANNELS];
+    always_comb begin
+        for (int c = 0; c < OBS_NUM_CHANNELS; c++) begin
+            slv_cfg_rd_rid[0][c]       = '0;
+            slv_cfg_rd_rid_valid[0][c] = 1'b0;
+        end
+    end
+    logic        slvmon_awvalid, slvmon_awready, slvmon_wvalid, slvmon_wready;
+    logic        slvmon_bvalid, slvmon_bready;
+    logic [31:0] slvmon_awaddr;
+    logic [2:0]  slvmon_awprot;
+    logic [63:0] slvmon_wdata;
+    logic [7:0]  slvmon_wstrb;
+    logic [1:0]  slvmon_bresp;
+
+    axi4_intf_master_observer #(
+        .NUM_RD_PORTS        (1),
+        .NUM_WR_PORTS        (1),
+        .ADDR_WIDTH          (ADDR_WIDTH),
+        .DATA_WIDTH          (DATA_WIDTH),
+        .AXI_ID_WIDTH        (SLV_ID_WIDTH),
+        .AXI_USER_WIDTH      (1),
+        .OBS_AXI_ID_WIDTH    (4),
+        .MAX_BURST_BEATS     (64),
+        .USE_COMPRESSION     (0),
+        .EGRESS_AXIL         (1'b1),
+        .ENABLE_MON_TAPS     (1'b0),
+        .TAP_ENABLE_ERROR_LOGIC     (1'b0),
+        .TAP_ENABLE_TIMEOUT_LOGIC   (1'b0),
+        .TAP_ENABLE_COMPL_LOGIC     (1'b0),
+        .TAP_ENABLE_THRESHOLD_LOGIC (1'b0),
+        .TAP_ENABLE_DEBUG_LOGIC     (1'b0),
+        .MAX_TRANSACTIONS    (stream_char_cfg_pkg::CFG_OBS_MAX_TRANSACTIONS),
+        .NUM_BANKS           (stream_char_cfg_pkg::CFG_OBS_NUM_BANKS),
+        .USE_WDATA_ORDER_Q   (stream_char_cfg_pkg::CFG_OBS_USE_WDATA_ORDER_Q),
+        .ACLK_MHZ            (OBS_ACLK_MHZ),
+        .ENABLE_BUS_METER    (1),
+        .WR_CH_FROM_AWID     (0),
+        .NUM_CHANNELS        (OBS_NUM_CHANNELS),
+        .ENABLE_LATENCY_HIST (0),
+        .HIST_NUM_BINS       (16),
+        .HIST_MAX_OUTSTANDING(OBS_MAX_OUTSTANDING),
+        .N_ADDR_RANGES       (0)
+    ) u_slv_observer (
+        .aclk(aclk), .aresetn(unit_aresetn), .cam_clear(1'b0),
+        .obs_rd_arid(lfsr_src_arid), .obs_rd_araddr(lfsr_src_araddr),
+        .obs_rd_arlen(lfsr_src_arlen), .obs_rd_arsize(lfsr_src_arsize),
+        .obs_rd_arburst(lfsr_src_arburst), .obs_rd_arlock(lfsr_src_arlock),
+        .obs_rd_arcache(lfsr_src_arcache), .obs_rd_arprot(lfsr_src_arprot),
+        .obs_rd_arqos(lfsr_src_arqos), .obs_rd_arregion('0),
+        .obs_rd_aruser('0), .obs_rd_arvalid(lfsr_src_arvalid),
+        .obs_rd_arready(lfsr_src_arready),
+        .obs_rd_rid(lfsr_src_rid), .obs_rd_rdata(lfsr_src_rdata),
+        .obs_rd_rresp(lfsr_src_rresp), .obs_rd_rlast(lfsr_src_rlast),
+        .obs_rd_ruser('0), .obs_rd_rvalid(lfsr_src_rvalid),
+        .obs_rd_rready(lfsr_src_rready),
+        .obs_wr_awid(crc_snk_awid), .obs_wr_awaddr(crc_snk_awaddr),
+        .obs_wr_awlen(crc_snk_awlen), .obs_wr_awsize(crc_snk_awsize),
+        .obs_wr_awburst(crc_snk_awburst), .obs_wr_awlock(crc_snk_awlock),
+        .obs_wr_awcache(crc_snk_awcache), .obs_wr_awprot(crc_snk_awprot),
+        .obs_wr_awqos(crc_snk_awqos), .obs_wr_awregion('0),
+        .obs_wr_awuser('0), .obs_wr_awvalid(crc_snk_awvalid),
+        .obs_wr_wdata(crc_snk_wdata), .obs_wr_wstrb(crc_snk_wstrb),
+        .obs_wr_wlast(crc_snk_wlast), .obs_wr_wuser('0),
+        .obs_wr_wvalid(crc_snk_wvalid),
+        .obs_wr_awready(crc_snk_awready), .obs_wr_wready(crc_snk_wready),
+        .obs_wr_bid(crc_snk_bid), .obs_wr_bresp(crc_snk_bresp),
+        .obs_wr_buser('0), .obs_wr_bvalid(crc_snk_bvalid),
+        .obs_wr_bready(crc_snk_bready),
+        .obs_wr_active_ch_id(obs_wr_active_ch_id),
+        .obs_wr_active_ch_valid(obs_wr_active_ch_valid),
+        .s_axil_arvalid(1'b0), .s_axil_arready(), .s_axil_araddr('0), .s_axil_arprot('0),
+        .s_axil_rvalid(), .s_axil_rready(1'b0), .s_axil_rdata(), .s_axil_rresp(),
+        .m_axi_awid(), .m_axi_awaddr(), .m_axi_awlen(), .m_axi_awsize(), .m_axi_awburst(),
+        .m_axi_awlock(), .m_axi_awcache(), .m_axi_awprot(), .m_axi_awqos(),
+        .m_axi_awregion(), .m_axi_awuser(), .m_axi_awvalid(), .m_axi_awready(1'b0),
+        .m_axi_wdata(), .m_axi_wstrb(), .m_axi_wlast(), .m_axi_wuser(), .m_axi_wvalid(),
+        .m_axi_wready(1'b0), .m_axi_bid('0), .m_axi_bresp('0), .m_axi_buser(1'b0),
+        .m_axi_bvalid(1'b0), .m_axi_bready(),
+        .irq_out(),
+        .s_apb_psel(slvmon_apb_PSEL), .s_apb_penable(slvmon_apb_PENABLE),
+        .s_apb_pready(slvmon_apb_PREADY), .s_apb_paddr(slvmon_apb_PADDR[11:0]),
+        .s_apb_pwrite(slvmon_apb_PWRITE), .s_apb_pwdata(slvmon_apb_PWDATA),
+        .s_apb_pstrb(slvmon_apb_PSTRB), .s_apb_prdata(slvmon_apb_PRDATA),
+        .s_apb_pslverr(slvmon_apb_PSLVERR),
+        .i_meter_clear(obs_meter_clear), .i_meter_freeze(obs_meter_freeze),
+        .cfg_rd_rid_per_channel(slv_cfg_rd_rid),
+        .cfg_rd_rid_per_channel_valid(slv_cfg_rd_rid_valid),
+        .m_axil_awaddr(slvmon_awaddr), .m_axil_awprot(slvmon_awprot),
+        .m_axil_awready(slvmon_awready), .m_axil_awvalid(slvmon_awvalid),
+        .m_axil_bready(slvmon_bready), .m_axil_bresp(slvmon_bresp),
+        .m_axil_bvalid(slvmon_bvalid), .m_axil_wdata(slvmon_wdata),
+        .m_axil_wready(slvmon_wready), .m_axil_wstrb(slvmon_wstrb),
+        .m_axil_wvalid(slvmon_wvalid)
+    );
+    fb_axil_wr_sink #(.AW(32), .DW(64)) u_slvmon_sink (
+        .aclk(aclk), .aresetn(unit_aresetn),
+        .s_awaddr(slvmon_awaddr), .s_awprot(slvmon_awprot), .s_awvalid(slvmon_awvalid),
+        .s_awready(slvmon_awready), .s_wdata(slvmon_wdata), .s_wstrb(slvmon_wstrb),
+        .s_wvalid(slvmon_wvalid), .s_wready(slvmon_wready), .s_bresp(slvmon_bresp),
+        .s_bvalid(slvmon_bvalid), .s_bready(slvmon_bready));
+
+    // =========================================================================
     // M0: STREAM's 256-bit descriptor fetch, narrowed to the fabric's 128 bits
     // OUTSIDE the fabric (the same converter in every leg). USER (STREAM's
     // channel) is not on the fabric port set.
     // =========================================================================
+    // The converter keeps per-ID reassembly state for all 2**AXI_ID_WIDTH IDs;
+    // at the port's 8 bits that is 256 IDs and ~46k LUTs on the K7 (measured
+    // OOC). STREAM's descriptor ARID is {zeros, channel}
+    // (scheduler_group_array: desc_axi_int_arid), so only the low
+    // DESC_ID_WIDTH bits ever vary: the converter runs at that width, the ID
+    // is truncated in and zero-extended out. The RID coming back carries the
+    // same zero high bits (the fabric returns the ID it was given).
+    localparam int DESC_ID_WIDTH = AXI_USER_WIDTH;   // $clog2(NUM_CHANNELS), >= 1
+    logic [DESC_ID_WIDTH-1:0]  sd_arid_n, sd_rid_n, stream_desc_arid_n, stream_desc_rid_n;
+    assign sd_arid_n         = sd_arid[DESC_ID_WIDTH-1:0];
+    assign sd_rid            = AXI_ID_WIDTH'(sd_rid_n);
+    assign stream_desc_arid  = 8'(stream_desc_arid_n);
+    assign stream_desc_rid_n = stream_desc_rid[DESC_ID_WIDTH-1:0];
     logic [AXI_USER_WIDTH-1:0] m0_aruser_unused;
     axi4_dwidth_converter_rd #(
         .S_AXI_DATA_WIDTH     (DESC_WIDTH),
         .M_AXI_DATA_WIDTH     (DATA_WIDTH),
-        .AXI_ID_WIDTH         (AXI_ID_WIDTH),
+        .AXI_ID_WIDTH         (DESC_ID_WIDTH),
         .AXI_ADDR_WIDTH       (ADDR_WIDTH),
         .AXI_USER_WIDTH       (AXI_USER_WIDTH),
         // The converter's contract: RASM_DEPTH covers a 256-beat burst (its
@@ -849,22 +974,22 @@ module fb_harness #(
         .RASM_MAX_OUTSTANDING (4)
     ) u_desc_narrow (
         .aclk(aclk), .aresetn(unit_aresetn),
-        .s_axi_arid(sd_arid), .s_axi_araddr(sd_araddr), .s_axi_arlen(sd_arlen),
+        .s_axi_arid(sd_arid_n), .s_axi_araddr(sd_araddr), .s_axi_arlen(sd_arlen),
         .s_axi_arsize(sd_arsize), .s_axi_arburst(sd_arburst), .s_axi_arlock(sd_arlock),
         .s_axi_arcache(sd_arcache), .s_axi_arprot(sd_arprot), .s_axi_arqos(sd_arqos),
         .s_axi_arregion(sd_arregion), .s_axi_aruser(sd_aruser),
         .s_axi_arvalid(sd_arvalid), .s_axi_arready(sd_arready),
-        .s_axi_rid(sd_rid), .s_axi_rdata(sd_rdata), .s_axi_rresp(sd_rresp),
+        .s_axi_rid(sd_rid_n), .s_axi_rdata(sd_rdata), .s_axi_rresp(sd_rresp),
         .s_axi_rlast(sd_rlast), .s_axi_ruser(sd_ruser),
         .s_axi_rvalid(sd_rvalid), .s_axi_rready(sd_rready),
-        .m_axi_arid(stream_desc_arid), .m_axi_araddr(stream_desc_araddr),
+        .m_axi_arid(stream_desc_arid_n), .m_axi_araddr(stream_desc_araddr),
         .m_axi_arlen(stream_desc_arlen), .m_axi_arsize(stream_desc_arsize),
         .m_axi_arburst(stream_desc_arburst), .m_axi_arlock(stream_desc_arlock),
         .m_axi_arcache(stream_desc_arcache), .m_axi_arprot(stream_desc_arprot),
         .m_axi_arqos(stream_desc_arqos), .m_axi_arregion(),
         .m_axi_aruser(m0_aruser_unused),
         .m_axi_arvalid(stream_desc_arvalid), .m_axi_arready(stream_desc_arready),
-        .m_axi_rid(stream_desc_rid), .m_axi_rdata(stream_desc_rdata),
+        .m_axi_rid(stream_desc_rid_n), .m_axi_rdata(stream_desc_rdata),
         .m_axi_rresp(stream_desc_rresp), .m_axi_rlast(stream_desc_rlast),
         .m_axi_ruser('0), .m_axi_rvalid(stream_desc_rvalid),
         .m_axi_rready(stream_desc_rready)

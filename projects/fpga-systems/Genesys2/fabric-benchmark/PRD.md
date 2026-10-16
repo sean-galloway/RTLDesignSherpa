@@ -23,7 +23,7 @@
 
 # Genesys 2 (Kintex-7) Fabric Benchmark — PRD
 
-**Version:** 0.2 (draft) · **Date:** 2026-10-15 · **Status:** K0 done in sim (legs A, B1); vendor legs and MIG generated
+**Version:** 0.3 (draft) · **Date:** 2026-10-15 · **Status:** K0 done in sim (legs A, B1); K1/K2 W2 on the board, all three legs
 
 ## 1. Purpose
 
@@ -163,7 +163,7 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 
 ## 6. Milestones
 
-**Status (2026-10-15):** K0 done in sim on legs A and B1; the Vivado side of K1-K3 is generated.
+**Status (2026-10-15):** K0 done in sim on legs A and B1; K1 and K2 done on the board -- W2, all three legs, 36/36 runs pass.
 
 - K0: `rtl/fb_harness.sv` (`dv/tests/test_fb_harness.py`) is the harness of
   §4. The Genesys 2 STREAM characterization runner drives it unchanged over
@@ -174,7 +174,9 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   8ch x 2 x 8 KB all pass with the on-chip PASS and every active channel
   in the CRC valid and match masks; datapath utilization from the
   master-side observer 79.5 / 98.4 / 99.2 % (A) and 80.0 / 98.5 / 99.2 % (B1).
-  The slave-side observer window is stubbed (reads 0) until it is built in;
+  The slave-side observer (`u_slv_observer`, S2 reads / S3 writes, bus
+  meter only, sharing the master observer's window) reads the same
+  utilization as the master side in sim on both legs, which the TB asserts;
   the W3 injector on M3 is idle until K3.
 
 - All three data fabrics exist, every one from
@@ -201,7 +203,50 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   ([reports/mig_example/](reports/mig_example/), `make mig-example`); its only
   DRC criticals are the example's one status port with no board pin.
 
-Next: the board top and bitstreams (K1).
+- K1/K2 board: `rtl/fb_genesys2_top.sv` -- MIG at S0 (`ui_clk` 100 MHz is
+  `aclk`), `ep_clk` 125 MHz from a second MMCM on `ui_clk`, LEDs from
+  `led_status_driver` -- built per leg by `build-{a,b1,b2}/` (`make
+  bitstream`, `make program`). Post-route, every leg meets timing:
+
+  | Leg | WNS (ns) | WHS (ns) | LUTs | FFs | BRAM | DSP |
+  | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+  | A (bridge) | +0.273 | +0.027 | 101,555 | 71,542 | 16 | 64 |
+  | B1 (AXI Crossbar) | +0.006 | +0.022 | 97,636 | 68,501 | 16 | 64 |
+  | B2 (SmartConnect) | +0.201 | +0.026 | 102,690 | 75,678 | 16 | 64 |
+
+  The harness around the fabric is the same in every leg, so these totals
+  differ by the fabric alone (the OOC figures above isolate it).
+
+  W2 headline sweep (`bin/fb_char.py --leg X`, 4 descriptors per channel,
+  bus throughput from the on-chip timer; peak = 128 bit x 100 MHz one
+  direction = 1525.9 MiB/s, which W2 can reach because reads and writes go
+  to separate endpoints). Per-leg CSVs: `reports/board/w2_<leg>_*.csv`.
+
+  | Bytes/desc | Ch | A MiB/s (% peak) | B1 MiB/s (% peak) | B2 MiB/s (% peak) |
+  | --- | ---: | ---: | ---: | ---: |
+  | 4 KB | 1 | 1421.7 (93.2) | 1419.2 (93.0) | 1363.4 (89.4) |
+  | 4 KB | 8 | 1511.3 (99.0) | 1512.2 (99.1) | 1502.2 (98.4) |
+  | 64 KB | 1 | 1518.7 (99.5) | 1518.7 (99.5) | 1514.5 (99.3) |
+  | 64 KB | 8 | 1525.0 (99.9) | 1525.0 (99.9) | 1524.4 (99.9) |
+  | 1 MB | 1 | 1525.4 (100.0) | 1525.4 (100.0) | 1525.1 (100.0) |
+  | 1 MB | 8 | 1525.8 (100.0) | 1525.8 (100.0) | 1525.8 (100.0) |
+
+  Every run passes with the on-chip verdict and every active channel in the
+  CRC valid and match masks, and on every run with a valid window the
+  slave-side utilization equals the master-side to the fourth place: with
+  one STREAM master and ID 0 the fabric adds no bubbles in steady state, and
+  what separates the legs is the fixed per-descriptor latency, visible only
+  at 4 KB (B2 takes 47-50 more cycles per run than A, e.g. 1146 vs 1099
+  at 1 channel).
+
+  On B2, 1-channel runs report no utilization: STREAM's perf window closes
+  after 16 quiet cycles and does not count a descriptor fetch as busy, and
+  SmartConnect's fetch latency exceeds that, so the window shuts at cycle
+  ~31 (`fb_char` flags it; throughput and CRC are unaffected). The fix
+  belongs in `stream_core`'s busy term (descriptor fetch outstanding).
+
+Next: K3 -- MIG at S0 in the workloads (W1-F1, W1-F2, W4) and the W3
+injector on M3.
 
 | K | Content | Gate |
 | --- | --- | --- |
@@ -220,10 +265,11 @@ JTAG front end and the Platform Designer leg.
 - **Memory controller:** MIG 7-series, generated (`fb_mig`). LiteDRAM is
   proven on this board and stays the fallback if MIG calibration stalls
   K3; either way it is one controller held constant across the legs.
-- **Board-clock plan:** with `ui_clk` at 100 MHz the harness and fabric run
-  on MIG's `ui_clk`, and the endpoint clock (`ep_clk` >= fabric clock) comes
-  from MIG's spare MMCM output or a separate MMCM on the 200 MHz input --
-  decided with the K1 top.
+- *Closed 2026-10-15:* board-clock plan -- the harness and fabric run on
+  MIG's 100 MHz `ui_clk`; `ep_clk` (125 MHz) comes from a separate MMCM
+  cascaded from `ui_clk` (`rtl/fb_genesys2_top.sv`). The two cross only
+  through synchronizers, bounded by `set_max_delay -datapath_only` rather
+  than clock groups so the Gray-pointer skew stays timed.
 - *Closed 2026-10-15:* SmartConnect simulation -- board-only (§5).
 - *Closed 2026-10-15:* per-channel CRC through a fabric -- A and B1 forward
   `{slot, id}` (checked at every slave handshake by the fabric test); B2
