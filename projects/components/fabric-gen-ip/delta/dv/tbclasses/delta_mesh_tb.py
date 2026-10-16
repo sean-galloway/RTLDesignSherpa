@@ -3025,7 +3025,9 @@ class DeltaMeshMulticastTB(DeltaMeshModesTB):
         Seed is locked via self.SEED so the run is reproducible."""
         tag = "mcast-deadlock-soak"
         nb = len(self.BOUNDARY_COORDS)
-        bg_pkts = {'gate': 1000, 'func': 100000, 'full': 200000}[
+        # Task 12: full-level soak is 10^6 flits on the 2x2x1 fabric.
+        # Gate/func stay light for fast iteration; full is the regression soak.
+        bg_pkts = {'gate': 1000, 'func': 100000, 'full': 1000000}[
             self.TEST_LEVEL]
         bg_per_src = bg_pkts // nb
         mcast_interval = max(1, bg_per_src // 10)

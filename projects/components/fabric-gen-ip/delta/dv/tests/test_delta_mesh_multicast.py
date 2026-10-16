@@ -90,7 +90,7 @@ async def cocotb_test_delta_mesh_multicast_response_drop(dut):
     await tb.run_mcast_response_drop(src_bidx=0)
 
 
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=120000, timeout_unit="ms")
 async def cocotb_test_delta_mesh_multicast_deadlock_soak(dut):
     tb = DeltaMeshMulticastTB(dut)
     await tb.setup_clocks_and_reset()
@@ -133,6 +133,7 @@ def _run(testcase, test_level, gen_dir):
         testcase=testcase,
         sim_build=sim_build,
         waves=False,
+        make_args=["-j", str(os.cpu_count())],
         extra_args=['--assert', '-Wno-WIDTHEXPAND', '-Wno-DECLFILENAME'] + waves['extra_args'],
         plus_args=waves['sim_args'],
         extra_env={
@@ -189,6 +190,7 @@ def _run_cell(testcase, test_level):
         testcase=testcase,
         sim_build=sim_build,
         waves=False,
+        make_args=["-j", str(os.cpu_count())],
         extra_args=['--assert', '-Wno-WIDTHEXPAND', '-Wno-DECLFILENAME'] + waves['extra_args'],
         plus_args=waves['sim_args'],
         extra_env={

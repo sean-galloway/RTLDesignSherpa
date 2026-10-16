@@ -7,9 +7,10 @@
 # Usage:   verilator --lint-only -f filelists/delta_all.f
 #
 # `-f` includes each module's own filelist; never hand-list sources here.
-# Verified when written: rtl/ declares exactly one module
-# (delta_axis_flat_4x16) and it is reachable below. rtl_test/ holds other
-# generated shapes and is deliberately NOT in this closure.
+# Verified when written: rtl/ declares the flat 4x16 module and the mesh
+# cell + 4x4x1 fabric. rtl_test/ holds other generated shapes and is
+# deliberately NOT in this closure.
 # ==============================================================================
 
 -f $REPO_ROOT/projects/components/fabric-gen-ip/delta/rtl/filelists/delta_axis_flat_4x16.f
+-f $REPO_ROOT/projects/components/fabric-gen-ip/delta/rtl/filelists/delta_mesh.f
