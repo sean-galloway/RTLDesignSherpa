@@ -8,7 +8,12 @@ parameter string  FIFO_IMPL = "reg",
 parameter int     ENABLE_COUNTERS = 1,
 parameter int     AGING_LIMIT = 64,
 parameter int     BULK_MIN_CREDITS = 1,
-parameter int     NUM_BOUNDARY = 16 )(
+parameter int     NUM_BOUNDARY = 16,
+parameter bit     TORUS_X = 0,
+parameter bit     TORUS_Y = 0,
+parameter bit     TORUS_Z = 0,
+parameter bit     SOURCE_ROUTE = 0,
+parameter bit     SPECULATION = 0 )(
     input  logic                  aclk,
     input  logic                  aresetn,
     input  logic [DATA_WIDTH-1:0] s_local_tdata  [NUM_BOUNDARY],
@@ -255,7 +260,7 @@ generate
         for (genvar gy = 0; gy < Y_DIM; gy++) begin : gen_y
             for (genvar gx = 0; gx < X_DIM; gx++) begin : gen_x
 
-                if (gx > 0) begin : gen_x_neg_conn
+                if (gx > 0) begin : gen_xneg_conn
                     assign cell_s_tdata[gx][gy][gz][P_X_NEG]  =
                         cell_m_tdata[gx-1][gy][gz][P_X_POS];
                     assign cell_s_tvalid[gx][gy][gz][P_X_NEG] =
@@ -268,7 +273,20 @@ generate
                         cell_m_credit[gx-1][gy][gz][P_X_POS];
                     assign cell_m_tready[gx][gy][gz][P_X_NEG] =
                         cell_s_tready[gx-1][gy][gz][P_X_POS];
-                end else begin : gen_x_neg_tieoff
+                end else if (TORUS_X) begin : gen_xneg_wrap
+                    assign cell_s_tdata[gx][gy][gz][P_X_NEG]  =
+                        cell_m_tdata[X_DIM-1][gy][gz][P_X_POS];
+                    assign cell_s_tvalid[gx][gy][gz][P_X_NEG] =
+                        cell_m_tvalid[X_DIM-1][gy][gz][P_X_POS];
+                    assign cell_s_tlast[gx][gy][gz][P_X_NEG]  =
+                        cell_m_tlast[X_DIM-1][gy][gz][P_X_POS];
+                    assign cell_s_tuser[gx][gy][gz][P_X_NEG]  =
+                        cell_m_tuser[X_DIM-1][gy][gz][P_X_POS];
+                    assign cell_s_credit[gx][gy][gz][P_X_NEG] =
+                        cell_m_credit[X_DIM-1][gy][gz][P_X_POS];
+                    assign cell_m_tready[gx][gy][gz][P_X_NEG] =
+                        cell_s_tready[X_DIM-1][gy][gz][P_X_POS];
+                end else begin : gen_xneg_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_X_NEG]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_X_NEG] = 1'b0;
                     assign cell_s_tlast[gx][gy][gz][P_X_NEG]  = 1'b0;
@@ -276,7 +294,7 @@ generate
                     assign cell_s_credit[gx][gy][gz][P_X_NEG] = {NUM_VC{1'b1}};
                     assign cell_m_tready[gx][gy][gz][P_X_NEG] = 1'b0;
                 end
-                if (gx < X_DIM-1) begin : gen_x_pos_conn
+                if (gx < X_DIM-1) begin : gen_xpos_conn
                     assign cell_s_tdata[gx][gy][gz][P_X_POS]  =
                         cell_m_tdata[gx+1][gy][gz][P_X_NEG];
                     assign cell_s_tvalid[gx][gy][gz][P_X_POS] =
@@ -289,7 +307,20 @@ generate
                         cell_m_credit[gx+1][gy][gz][P_X_NEG];
                     assign cell_m_tready[gx][gy][gz][P_X_POS] =
                         cell_s_tready[gx+1][gy][gz][P_X_NEG];
-                end else begin : gen_x_pos_tieoff
+                end else if (TORUS_X) begin : gen_xpos_wrap
+                    assign cell_s_tdata[gx][gy][gz][P_X_POS]  =
+                        cell_m_tdata[0][gy][gz][P_X_NEG];
+                    assign cell_s_tvalid[gx][gy][gz][P_X_POS] =
+                        cell_m_tvalid[0][gy][gz][P_X_NEG];
+                    assign cell_s_tlast[gx][gy][gz][P_X_POS]  =
+                        cell_m_tlast[0][gy][gz][P_X_NEG];
+                    assign cell_s_tuser[gx][gy][gz][P_X_POS]  =
+                        cell_m_tuser[0][gy][gz][P_X_NEG];
+                    assign cell_s_credit[gx][gy][gz][P_X_POS] =
+                        cell_m_credit[0][gy][gz][P_X_NEG];
+                    assign cell_m_tready[gx][gy][gz][P_X_POS] =
+                        cell_s_tready[0][gy][gz][P_X_NEG];
+                end else begin : gen_xpos_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_X_POS]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_X_POS] = 1'b0;
                     assign cell_s_tlast[gx][gy][gz][P_X_POS]  = 1'b0;
@@ -297,7 +328,7 @@ generate
                     assign cell_s_credit[gx][gy][gz][P_X_POS] = {NUM_VC{1'b1}};
                     assign cell_m_tready[gx][gy][gz][P_X_POS] = 1'b0;
                 end
-                if (gy > 0) begin : gen_y_neg_conn
+                if (gy > 0) begin : gen_yneg_conn
                     assign cell_s_tdata[gx][gy][gz][P_Y_NEG]  =
                         cell_m_tdata[gx][gy-1][gz][P_Y_POS];
                     assign cell_s_tvalid[gx][gy][gz][P_Y_NEG] =
@@ -310,7 +341,20 @@ generate
                         cell_m_credit[gx][gy-1][gz][P_Y_POS];
                     assign cell_m_tready[gx][gy][gz][P_Y_NEG] =
                         cell_s_tready[gx][gy-1][gz][P_Y_POS];
-                end else begin : gen_y_neg_tieoff
+                end else if (TORUS_Y) begin : gen_yneg_wrap
+                    assign cell_s_tdata[gx][gy][gz][P_Y_NEG]  =
+                        cell_m_tdata[gx][Y_DIM-1][gz][P_Y_POS];
+                    assign cell_s_tvalid[gx][gy][gz][P_Y_NEG] =
+                        cell_m_tvalid[gx][Y_DIM-1][gz][P_Y_POS];
+                    assign cell_s_tlast[gx][gy][gz][P_Y_NEG]  =
+                        cell_m_tlast[gx][Y_DIM-1][gz][P_Y_POS];
+                    assign cell_s_tuser[gx][gy][gz][P_Y_NEG]  =
+                        cell_m_tuser[gx][Y_DIM-1][gz][P_Y_POS];
+                    assign cell_s_credit[gx][gy][gz][P_Y_NEG] =
+                        cell_m_credit[gx][Y_DIM-1][gz][P_Y_POS];
+                    assign cell_m_tready[gx][gy][gz][P_Y_NEG] =
+                        cell_s_tready[gx][Y_DIM-1][gz][P_Y_POS];
+                end else begin : gen_yneg_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_Y_NEG]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_Y_NEG] = 1'b0;
                     assign cell_s_tlast[gx][gy][gz][P_Y_NEG]  = 1'b0;
@@ -318,7 +362,7 @@ generate
                     assign cell_s_credit[gx][gy][gz][P_Y_NEG] = {NUM_VC{1'b1}};
                     assign cell_m_tready[gx][gy][gz][P_Y_NEG] = 1'b0;
                 end
-                if (gy < Y_DIM-1) begin : gen_y_pos_conn
+                if (gy < Y_DIM-1) begin : gen_ypos_conn
                     assign cell_s_tdata[gx][gy][gz][P_Y_POS]  =
                         cell_m_tdata[gx][gy+1][gz][P_Y_NEG];
                     assign cell_s_tvalid[gx][gy][gz][P_Y_POS] =
@@ -331,7 +375,20 @@ generate
                         cell_m_credit[gx][gy+1][gz][P_Y_NEG];
                     assign cell_m_tready[gx][gy][gz][P_Y_POS] =
                         cell_s_tready[gx][gy+1][gz][P_Y_NEG];
-                end else begin : gen_y_pos_tieoff
+                end else if (TORUS_Y) begin : gen_ypos_wrap
+                    assign cell_s_tdata[gx][gy][gz][P_Y_POS]  =
+                        cell_m_tdata[gx][0][gz][P_Y_NEG];
+                    assign cell_s_tvalid[gx][gy][gz][P_Y_POS] =
+                        cell_m_tvalid[gx][0][gz][P_Y_NEG];
+                    assign cell_s_tlast[gx][gy][gz][P_Y_POS]  =
+                        cell_m_tlast[gx][0][gz][P_Y_NEG];
+                    assign cell_s_tuser[gx][gy][gz][P_Y_POS]  =
+                        cell_m_tuser[gx][0][gz][P_Y_NEG];
+                    assign cell_s_credit[gx][gy][gz][P_Y_POS] =
+                        cell_m_credit[gx][0][gz][P_Y_NEG];
+                    assign cell_m_tready[gx][gy][gz][P_Y_POS] =
+                        cell_s_tready[gx][0][gz][P_Y_NEG];
+                end else begin : gen_ypos_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_Y_POS]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_Y_POS] = 1'b0;
                     assign cell_s_tlast[gx][gy][gz][P_Y_POS]  = 1'b0;
@@ -339,7 +396,7 @@ generate
                     assign cell_s_credit[gx][gy][gz][P_Y_POS] = {NUM_VC{1'b1}};
                     assign cell_m_tready[gx][gy][gz][P_Y_POS] = 1'b0;
                 end
-                if (gz > 0) begin : gen_z_neg_conn
+                if (gz > 0) begin : gen_zneg_conn
                     assign cell_s_tdata[gx][gy][gz][P_Z_NEG]  =
                         cell_m_tdata[gx][gy][gz-1][P_Z_POS];
                     assign cell_s_tvalid[gx][gy][gz][P_Z_NEG] =
@@ -352,7 +409,20 @@ generate
                         cell_m_credit[gx][gy][gz-1][P_Z_POS];
                     assign cell_m_tready[gx][gy][gz][P_Z_NEG] =
                         cell_s_tready[gx][gy][gz-1][P_Z_POS];
-                end else begin : gen_z_neg_tieoff
+                end else if (TORUS_Z) begin : gen_zneg_wrap
+                    assign cell_s_tdata[gx][gy][gz][P_Z_NEG]  =
+                        cell_m_tdata[gx][gy][Z_DIM-1][P_Z_POS];
+                    assign cell_s_tvalid[gx][gy][gz][P_Z_NEG] =
+                        cell_m_tvalid[gx][gy][Z_DIM-1][P_Z_POS];
+                    assign cell_s_tlast[gx][gy][gz][P_Z_NEG]  =
+                        cell_m_tlast[gx][gy][Z_DIM-1][P_Z_POS];
+                    assign cell_s_tuser[gx][gy][gz][P_Z_NEG]  =
+                        cell_m_tuser[gx][gy][Z_DIM-1][P_Z_POS];
+                    assign cell_s_credit[gx][gy][gz][P_Z_NEG] =
+                        cell_m_credit[gx][gy][Z_DIM-1][P_Z_POS];
+                    assign cell_m_tready[gx][gy][gz][P_Z_NEG] =
+                        cell_s_tready[gx][gy][Z_DIM-1][P_Z_POS];
+                end else begin : gen_zneg_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_Z_NEG]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_Z_NEG] = 1'b0;
                     assign cell_s_tlast[gx][gy][gz][P_Z_NEG]  = 1'b0;
@@ -360,7 +430,7 @@ generate
                     assign cell_s_credit[gx][gy][gz][P_Z_NEG] = {NUM_VC{1'b1}};
                     assign cell_m_tready[gx][gy][gz][P_Z_NEG] = 1'b0;
                 end
-                if (gz < Z_DIM-1) begin : gen_z_pos_conn
+                if (gz < Z_DIM-1) begin : gen_zpos_conn
                     assign cell_s_tdata[gx][gy][gz][P_Z_POS]  =
                         cell_m_tdata[gx][gy][gz+1][P_Z_NEG];
                     assign cell_s_tvalid[gx][gy][gz][P_Z_POS] =
@@ -373,7 +443,20 @@ generate
                         cell_m_credit[gx][gy][gz+1][P_Z_NEG];
                     assign cell_m_tready[gx][gy][gz][P_Z_POS] =
                         cell_s_tready[gx][gy][gz+1][P_Z_NEG];
-                end else begin : gen_z_pos_tieoff
+                end else if (TORUS_Z) begin : gen_zpos_wrap
+                    assign cell_s_tdata[gx][gy][gz][P_Z_POS]  =
+                        cell_m_tdata[gx][gy][0][P_Z_NEG];
+                    assign cell_s_tvalid[gx][gy][gz][P_Z_POS] =
+                        cell_m_tvalid[gx][gy][0][P_Z_NEG];
+                    assign cell_s_tlast[gx][gy][gz][P_Z_POS]  =
+                        cell_m_tlast[gx][gy][0][P_Z_NEG];
+                    assign cell_s_tuser[gx][gy][gz][P_Z_POS]  =
+                        cell_m_tuser[gx][gy][0][P_Z_NEG];
+                    assign cell_s_credit[gx][gy][gz][P_Z_POS] =
+                        cell_m_credit[gx][gy][0][P_Z_NEG];
+                    assign cell_m_tready[gx][gy][gz][P_Z_POS] =
+                        cell_s_tready[gx][gy][0][P_Z_NEG];
+                end else begin : gen_zpos_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_Z_POS]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_Z_POS] = 1'b0;
                     assign cell_s_tlast[gx][gy][gz][P_Z_POS]  = 1'b0;
@@ -441,6 +524,17 @@ generate
                     assign cell_m_tready[gx][gy][gz][P_DIA2] = 1'b0;
                 end
 
+//         // Per-cell wrap-mask (Task 9): which of this
+//         // instance's ports are torus wrap links. Computed
+//         // from the cell's position and the TORUS_* params.
+                localparam logic [8:0] WRAP_MASK =
+                    (((gx == 0) && TORUS_X) ? (9'(1) << P_X_NEG) : 9'h000) |
+                    (((gx == X_DIM-1) && TORUS_X) ? (9'(1) << P_X_POS) : 9'h000) |
+                    (((gy == 0) && TORUS_Y) ? (9'(1) << P_Y_NEG) : 9'h000) |
+                    (((gy == Y_DIM-1) && TORUS_Y) ? (9'(1) << P_Y_POS) : 9'h000) |
+                    (((gz == 0) && TORUS_Z) ? (9'(1) << P_Z_NEG) : 9'h000) |
+                    (((gz == Z_DIM-1) && TORUS_Z) ? (9'(1) << P_Z_POS) : 9'h000);
+
                 if (is_boundary(gx, gy, gz)) begin : gen_local_conn
                     localparam int BIDX = boundary_index(gx, gy, gz);
                     assign cell_s_tdata[gx][gy][gz][P_LOCAL]  = s_local_tdata[BIDX];
@@ -484,7 +578,12 @@ generate
                     .FIFO_IMPL(FIFO_IMPL),
                     .ENABLE_COUNTERS(ENABLE_COUNTERS),
                     .AGING_LIMIT(AGING_LIMIT),
-                    .BULK_MIN_CREDITS(BULK_MIN_CREDITS)
+                    .BULK_MIN_CREDITS(BULK_MIN_CREDITS),
+                    .TORUS_X(TORUS_X),
+                    .TORUS_Y(TORUS_Y),
+                    .TORUS_Z(TORUS_Z),
+                    .SOURCE_ROUTE(SOURCE_ROUTE),
+                    .SPECULATION(SPECULATION)
                 ) u_cell (
                     .aclk(aclk),
                     .aresetn(aresetn),
@@ -500,9 +599,11 @@ generate
                     .m_axis_tuser (cell_m_tuser [gx][gy][gz]),
                     .s_credit(cell_s_credit[gx][gy][gz]),
                     .m_credit(cell_m_credit[gx][gy][gz]),
+                    .wrap_mask(WRAP_MASK),
                     .o_err_drop_cnt(cell_err_drop[gx][gy][gz]),
                     .o_mode_acks(cell_mode_acks[gx][gy][gz]),
-                    .o_bulk_starved(cell_bulk_starved[gx][gy][gz])
+                    .o_bulk_starved(cell_bulk_starved[gx][gy][gz]),
+                    .o_spec_active()
                 );
             end
         end

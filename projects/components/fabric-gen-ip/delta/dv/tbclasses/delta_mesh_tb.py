@@ -150,6 +150,10 @@ class DeltaMeshCellTB(TBBase):
             credit = getattr(dut, f"{name}_s_credit", None)
             if credit is not None:
                 credit.value = (1 << 2) - 1  # NUM_VC=2: 2'b11 per port
+        # Task 9: cell harness exposes wrap_mask; tie off (non-torus tests).
+        wrap_mask = getattr(dut, 'wrap_mask', None)
+        if wrap_mask is not None:
+            wrap_mask.value = 0
 
     def _build_bfms(self):
         # The cell carries no TSTRB/TID/TDEST: id_width=0/dest_width=0 drop
@@ -184,7 +188,7 @@ class DeltaMeshCellTB(TBBase):
     # Header / packet helpers
     # ------------------------------------------------------------------
     def build_header(self, dst, src, qos=0, vc=0, packet_id=0, sr_ptr=0,
-                     mcast=0):
+                     mcast=0, misroute_budget=0):
         """Pack a head-flit header int per delta_mesh.header layout."""
         hdr = 0
         for value, fields in ((dst, ('dst_x', 'dst_y', 'dst_z')),
@@ -193,6 +197,7 @@ class DeltaMeshCellTB(TBBase):
                 lo, width = self.hdr_offsets[field]
                 hdr |= (coord & ((1 << width) - 1)) << lo
         for field, value in (('qos', qos), ('mcast', mcast), ('vc', vc),
+                             ('misroute_budget', misroute_budget),
                              ('sr_ptr', sr_ptr), ('packet_id', packet_id)):
             lo, width = self.hdr_offsets[field]
             hdr |= (value & ((1 << width) - 1)) << lo

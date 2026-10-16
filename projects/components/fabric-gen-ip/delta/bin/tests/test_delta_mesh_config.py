@@ -47,7 +47,9 @@ def test_mesh_parses_without_masters_or_slaves(tmp_path):
     assert (tmp_path / "filelists" / "delta_mesh.f").is_file()
 
 
-def test_mesh_fabric_rejects_torus_until_task_9(tmp_path):
+def test_mesh_fabric_supports_torus_task_9(tmp_path):
+    # Torus wrap links are now supported (Task 9); generation succeeds and
+    # emits the expected artifacts.
     result = subprocess.run(
         [
             sys.executable,
@@ -64,13 +66,10 @@ def test_mesh_fabric_rejects_torus_until_task_9(tmp_path):
         text=True,
         check=False,
     )
-    assert result.returncode == 2
-    err = result.stdout + result.stderr
-    assert "torus" in err.lower()
-    assert "Task 9" in err
-    # validate-before-emitting: no artifacts from the rejected run
-    assert not (tmp_path / "delta_mesh_cell.sv").exists()
-    assert not (tmp_path / "delta_mesh_fabric_2x2x1.sv").exists()
+    assert result.returncode == 0
+    assert (tmp_path / "delta_mesh_cell.sv").is_file()
+    assert (tmp_path / "delta_mesh_fabric_2x2x1.sv").is_file()
+    assert (tmp_path / "filelists" / "delta_mesh.f").is_file()
 
 
 def test_flat_requires_masters_and_slaves(tmp_path):

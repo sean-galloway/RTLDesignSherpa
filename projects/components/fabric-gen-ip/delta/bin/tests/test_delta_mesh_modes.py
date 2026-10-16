@@ -114,18 +114,30 @@ def test_mode1_mesh_equals_default_dor():
 
 
 def test_mode2_systolic_pinned_gating():
-    # Pinned minimal image (no torus wrap until Task 9): +X when
-    # dst_x > pos_x, else P_LOCAL. On a 2-wide grid the right column
-    # therefore delivers every dst locally (the systolic PE is the
-    # endpoint; leftward delivery needs the wrap link).
+    # Mode 2 is a unidirectional +X ring on the same y/z face.
+    # Without torus: forward +X only when dst is on the same row and to
+    # the right; otherwise deliver locally. Leftward / off-row delivery
+    # needs the torus wrap (Task 9) or another mode.
     cfg = CFG_2X2X1
     origin = (0, 0, 0)
     right = (1, 0, 0)
     assert mode_port(2, (1, 0, 0), origin, cfg) == PORT_TO_MASK[P_X_POS]
-    assert mode_port(2, (1, 1, 0), origin, cfg) == PORT_TO_MASK[P_X_POS]
+    assert mode_port(2, (1, 1, 0), origin, cfg) == PORT_TO_MASK[P_LOCAL]
     assert mode_port(2, (0, 1, 0), origin, cfg) == PORT_TO_MASK[P_LOCAL]
     assert mode_port(2, (0, 0, 0), right, cfg) == PORT_TO_MASK[P_LOCAL]
     assert mode_port(2, (1, 1, 0), right, cfg) == PORT_TO_MASK[P_LOCAL]
+
+
+def test_mode2_torus_ring_wraps_x():
+    # With TORUS_X, mode 2 closes the +X ring: any same-row dst that is
+    # not the current cell is reached by wrapping around at the right edge.
+    cfg = DeltaMeshConfig(cells_x=2, cells_y=2, cells_z=1, torus_x=True)
+    origin = (0, 0, 0)
+    right = (1, 0, 0)
+    assert mode_port(2, (1, 0, 0), origin, cfg) == PORT_TO_MASK[P_X_POS]
+    assert mode_port(2, (0, 0, 0), right, cfg) == PORT_TO_MASK[P_X_POS]
+    # Off-row dsts still deliver locally (mode 2 is strictly 1-D).
+    assert mode_port(2, (0, 1, 0), origin, cfg) == PORT_TO_MASK[P_LOCAL]
 
 
 def test_mode5_broadcast_placeholder_is_dor():

@@ -245,11 +245,18 @@ def mode_port(mode_id: int, dst: tuple[int, int, int],
             and dst[2] < cfg.cells_z):
         return 0
     if mode_id == 2:
-        # Systolic-1D pinned minimal image: stream +X when the dst sits
-        # to the right, else deliver to the local PE. Without the torus
-        # wrap (Task 9) the right edge consumes every dst.
-        if dst[0] > pos[0]:
-            return PORT_TO_MASK[P_X_POS]
+        # Systolic-1D pinned minimal image: unidirectional +X ring.
+        # Without torus (Task 6) packets stream right while the dst sits
+        # to the right; with --torus=x (Task 9) the ring closes and the
+        # cell keeps forwarding +X until the dst is reached.
+        if (dst[1] != pos[1]) or (dst[2] != pos[2]):
+            return PORT_TO_MASK[P_LOCAL]
+        if cfg.torus_x:
+            if dst[0] != pos[0]:
+                return PORT_TO_MASK[P_X_POS]
+        else:
+            if dst[0] > pos[0]:
+                return PORT_TO_MASK[P_X_POS]
         return PORT_TO_MASK[P_LOCAL]
     if mode_id == 6:
         # Convergecast: every packet walks the DOR path toward the root
@@ -432,17 +439,17 @@ def check_acyclic(image: list[TableEntry], cfg: DeltaMeshConfig,
     def step(pos: tuple[int, int, int], port: int) -> tuple[int, int, int]:
         x, y, z = pos
         if port == P_X_NEG:
-            return (x - 1, y, z)
+            return ((x - 1) % cfg.cells_x if cfg.torus_x else x - 1, y, z)
         if port == P_X_POS:
-            return (x + 1, y, z)
+            return ((x + 1) % cfg.cells_x if cfg.torus_x else x + 1, y, z)
         if port == P_Y_NEG:
-            return (x, y - 1, z)
+            return (x, (y - 1) % cfg.cells_y if cfg.torus_y else y - 1, z)
         if port == P_Y_POS:
-            return (x, y + 1, z)
+            return (x, (y + 1) % cfg.cells_y if cfg.torus_y else y + 1, z)
         if port == P_Z_NEG:
-            return (x, y, z - 1)
+            return (x, y, (z - 1) % cfg.cells_z if cfg.torus_z else z - 1)
         if port == P_Z_POS:
-            return (x, y, z + 1)
+            return (x, y, (z + 1) % cfg.cells_z if cfg.torus_z else z + 1)
         if port == P_DIA:
             return (x ^ 1, y ^ 1, z)
         if port == P_DIA2:

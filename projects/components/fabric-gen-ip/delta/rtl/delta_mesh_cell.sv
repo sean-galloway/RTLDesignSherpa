@@ -16,7 +16,12 @@ parameter int     NUM_VC = 2,
 parameter string  FIFO_IMPL = "reg",
 parameter int     ENABLE_COUNTERS = 1,
 parameter int     AGING_LIMIT = 64,
-parameter int     BULK_MIN_CREDITS = 1 )(
+parameter int     BULK_MIN_CREDITS = 1,
+parameter bit     TORUS_X = 0,
+parameter bit     TORUS_Y = 0,
+parameter bit     TORUS_Z = 0,
+parameter bit     SOURCE_ROUTE = 0,
+parameter bit     SPECULATION = 0 )(
     input  logic                  aclk,
     input  logic                  aresetn,
     input  logic [DATA_WIDTH-1:0] s_axis_tdata   [9],
@@ -31,9 +36,11 @@ parameter int     BULK_MIN_CREDITS = 1 )(
     output logic [USER_WIDTH-1:0] m_axis_tuser   [9],
     input  logic [NUM_VC-1:0]     s_credit       [9],
     output logic [NUM_VC-1:0]     m_credit       [9],
+    input  logic [8:0]            wrap_mask,
     output logic [31:0]           o_err_drop_cnt,
     output logic [31:0]           o_mode_acks,
-    output logic [8:0]            o_bulk_starved
+    output logic [8:0]            o_bulk_starved,
+    output logic [31:0]           o_spec_active
 );
 // ==============================================================================
 // Module: delta_mesh_cell
@@ -239,8 +246,14 @@ localparam int HDR_VC_W  = 1;
 localparam int HDR_QOS_LO = 12;
 localparam int HDR_QOS_W  = 2;
 localparam int HDR_SR_PTR_LO = 20;
+localparam int HDR_MRB_LO = 16;
+localparam int HDR_MRB_W  = 4;
 localparam int HDR_MCAST_LO = 14;
 localparam int HDR_PID_LO = 28;
+
+// Source-route constants (Task 9): 4-bit port index per
+// hop; 4'hF marks an invalid/exhausted hop.
+localparam logic [3:0] SR_INVALID = 4'hF;
 
 // Route table organization (Task 5): key {qos, dst_z, dst_y,
 // dst_x} -> entry {port_mask[8:0], vc}; an all-zero mask is
@@ -526,7 +539,19 @@ function automatic logic [ENTRY_W-1:0] mode_default_entry(
         port = P_LOCAL;
         case (mode)
 //         // Mode 2: systolic-1D pinned minimal image.
-            4'd2: port = (int'(d_x) > POS_X) ? P_X_POS : P_LOCAL;
+//         // Task 9: with TORUS_X the ring closes and the
+//         // cell keeps forwarding +X until the dst is reached;
+//         // otherwise only forward within the mesh face.
+            4'd2: begin
+                if ((int'(d_y) == POS_Y) && (int'(d_z) == POS_Z)) begin
+                    if (TORUS_X) begin
+                        if (int'(d_x) != POS_X)
+                            port = P_X_POS;
+                    end else if (int'(d_x) > POS_X) begin
+                        port = P_X_POS;
+                    end
+                end
+            end
 //         // Mode 6: convergecast toward the root.
             4'd6: begin
                 if (POS_X > 0)      port = P_X_NEG;
@@ -671,6 +696,75 @@ always_comb begin
     end
 end
 
+// Task 9: source-route override + dateline rule.
+// Source-route packets ride VC1 (SOURCE_ROUTE=1, sr_ptr[0]=0,
+// sel_vc==1) and bypass the table: sr_ptr[3:0] is the absolute
+// output port for this hop. The cell rewrites sr_ptr to
+// (sr_ptr>>4)|8'hF0 so the next cell sees the next hop; 4'hF
+// means the path is exhausted and the packet is dropped. A flit
+// whose chosen output is a wrap link (wrap_mask bit set) crosses
+// the dateline: it is forced to VC0, its misroute_budget is
+// decremented, and if the budget is already zero it is dropped.
+// The forwarded TUSER is rewritten accordingly for the next hop.
+logic [7:0]           head_sr_ptr   [NUM_PORTS];
+logic [HDR_MRB_W-1:0] head_mrb      [NUM_PORTS];
+logic [3:0]           sr_hop        [NUM_PORTS];
+logic                 sr_eligible   [NUM_PORTS];
+logic                 sr_bad        [NUM_PORTS];
+logic [PORT_W-1:0]    route_req_final [NUM_PORTS];
+logic [VC_W-1:0]      out_vc        [NUM_PORTS];
+logic                 dateline_cross [NUM_PORTS];
+logic                 dateline_drop  [NUM_PORTS];
+logic [USER_WIDTH-1:0] fwd_tuser    [NUM_PORTS];
+
+always_comb begin
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        head_sr_ptr[p] = pres_tuser[p][HDR_SR_PTR_LO +: 8];
+        head_mrb[p]    = pres_tuser[p][HDR_MRB_LO +: HDR_MRB_W];
+        sr_hop[p]      = head_sr_ptr[p][3:0];
+//         Source-route eligibility: VC1 data packet, the
+//         source-route parameter is on, and sr_ptr[0] is not
+//         the control-plane marker. Body beats have tuser==0
+//         and are never eligible; they follow the packet lock.
+        sr_eligible[p] = (SOURCE_ROUTE != 0) &&
+                         pres_valid[p] && !lock_active[p] &&
+                         !drop_active[p] &&
+                         (sel_vc[p] == VC_W'(1)) &&
+                         !pres_tuser[p][HDR_SR_PTR_LO] &&
+                         !head_mcast[p];
+        sr_bad[p] = sr_eligible[p] && (sr_hop[p] == SR_INVALID);
+        route_req_final[p] = route_req[p];
+        if (sr_eligible[p] && !sr_bad[p]) begin
+            route_req_final[p] = PORT_W'(sr_hop[p]);
+        end
+        dateline_cross[p] = wrap_mask[route_req_final[p]];
+        dateline_drop[p]  = 1'b0;
+        out_vc[p] = sel_vc[p];
+        fwd_tuser[p] = pres_tuser[p];
+        if ((sr_eligible[p] || pres_tuser[p][HDR_SR_PTR_LO]) &&
+            !sr_bad[p] && !dateline_drop[p]) begin
+//             // Source-route rewrite on every eligible hop;
+//             // control packets also carry sr_ptr[0]=1 and do
+//             // not use the port list, so leave their sr_ptr alone.
+            if (sr_eligible[p]) begin
+                fwd_tuser[p][HDR_SR_PTR_LO +: 8] =
+                    (head_sr_ptr[p] >> 4) | 8'hF0;
+            end
+        end
+        if (dateline_cross[p] && !sr_bad[p]) begin
+//             // Dateline crossing: force VC0 and decrement budget.
+            out_vc[p] = VC_W'(0);
+            fwd_tuser[p][HDR_VC_LO +: HDR_VC_W] = VC_W'(0);
+            if (head_mrb[p] == '0) begin
+                dateline_drop[p] = 1'b1;
+            end else begin
+                fwd_tuser[p][HDR_MRB_LO +: HDR_MRB_W] =
+                    head_mrb[p] - 1'b1;
+            end
+        end
+    end
+end
+
 // Special consumers: drop heads (out-of-range dst or empty
 // mask), malformed config (multi-beat config shape), and
 // well-formed config commands. All are consumed straight
@@ -749,7 +843,9 @@ always_comb begin
         drop_req[p] = pres_valid[p] && !lock_active[p] &&
                       !drop_active[p] && !head_cfg[p] &&
                       !msw_wellformed[p] &&
-                      (!dst_in_range[p] || head_no_route[p]);
+                      ((!sr_eligible[p] &&
+                        (!dst_in_range[p] || head_no_route[p])) ||
+                       sr_bad[p] || dateline_drop[p]);
 //         Malformed config shapes drop whole (head counted,
 //         op not executed) so body beats with tuser=0 can
 //         never be misread as fresh headers: a multi-beat
@@ -1329,7 +1425,7 @@ always_comb begin
         request_matrix[q] = '0;
     end
     for (int p = 0; p < NUM_PORTS; p++) begin
-        req_port[p] = lock_active[p] ? lock_port[p] : route_req[p];
+        req_port[p] = lock_active[p] ? lock_port[p] : route_req_final[p];
         if (pres_valid[p] && !special_req[p] &&
             !drop_active[p]) begin
             request_matrix[req_port[p]][p] = 1'b1;
@@ -1459,6 +1555,21 @@ logic               bubble     [NUM_PORTS];
 logic [NUM_PORTS-1:0] gnt_ack    [NUM_PORTS];
 logic               block_arb  [NUM_PORTS];
 
+// Speculative VA+SA (Task 9): a VC1 request whose output
+// credit is currently high may be granted speculatively;
+// the grant is held one cycle and committed only if the
+// credit is still present, otherwise it is revoked and the
+// arbiter re-runs. Non-speculative grants pass through
+// unchanged. The spec_active counter exposes how many
+// speculative grants were attempted.
+logic [NUM_PORTS-1:0] spec_req_vec  [NUM_PORTS];
+logic [NUM_PORTS-1:0] spec_grant    [NUM_PORTS];
+logic                 spec_valid    [NUM_PORTS];
+logic [VC_W-1:0]      spec_vc       [NUM_PORTS];
+logic                 spec_capture  [NUM_PORTS];
+logic                 spec_commit   [NUM_PORTS];
+logic                 spec_revoke   [NUM_PORTS];
+
 // The visible grant: the arbiter's held grant, masked
 // to nothing during the release bubble. Everything
 // downstream of arbitration (crossbar steering, input
@@ -1574,15 +1685,35 @@ endgenerate
 // packet is in flight) for the starve-counter reset.
 always_comb begin
     for (int q = 0; q < NUM_PORTS; q++) begin
-        grant_matrix[q]  = arb_valid[q] && !bubble[q] ?
-                           arb_grant[q] : '0;
+//         // Speculative request: VC1 data with the output
+//         // credit currently high (the 1-bit credit sideband
+//         // uses 'high' as its available level in v1).
+        spec_req_vec[q] = '0;
+        for (int p = 0; p < NUM_PORTS; p++) begin
+            if ((SPECULATION != 0) && request_matrix[q][p] &&
+                (sel_vc[p] == VC_W'(1)) &&
+                s_credit[q][out_vc[p]]) begin
+                spec_req_vec[q][p] = 1'b1;
+            end
+        end
+        spec_capture[q] = arb_valid[q] && !bubble[q] &&
+                          (|(arb_grant[q] & spec_req_vec[q]));
+        spec_commit[q]  = spec_valid[q] && s_credit[q][spec_vc[q]];
+        spec_revoke[q]  = spec_valid[q] && !s_credit[q][spec_vc[q]];
+        grant_matrix[q] = '0;
+        if (spec_valid[q]) begin
+            if (spec_commit[q]) grant_matrix[q] = spec_grant[q];
+        end else if (arb_valid[q] && !bubble[q]) begin
+            grant_matrix[q] = arb_grant[q] & ~spec_req_vec[q];
+        end
         gnt_ack[q]       = bubble[q] ? arb_grant[q] : '0;
         packet_active[q] = |grant_matrix[q];
 //         A pending config response owns the idle local
 //         output: block fresh grant registration until
 //         it drains (a held grant is undisturbed).
         block_arb[q]     = ((q == P_LOCAL) && cfg_resp_rd_valid) ||
-                          mcast_hold_child_mask[q];
+                          mcast_hold_child_mask[q] ||
+                          spec_valid[q] || spec_capture[q];
         winner_bulk[q]   = 1'b0;
         for (int p = 0; p < NUM_PORTS; p++) begin
             winner_bulk[q] = winner_bulk[q] ||
@@ -1643,9 +1774,9 @@ always_comb begin
                 m_axis_tdata[q]  =
                     w_fifo_rd_data[p][sel_vc[p]][DATA_WIDTH-1:0];
                 m_axis_tvalid[q] = pres_valid[p] &&
-                    s_credit[q][sel_vc[p]];
+                    s_credit[q][out_vc[p]];
                 m_axis_tlast[q]  = pres_last[p];
-                m_axis_tuser[q]  = pres_tuser[p];
+                m_axis_tuser[q]  = fwd_tuser[p];
             end
         end
         end
@@ -1662,7 +1793,7 @@ always_comb begin
         for (int p = 0; p < NUM_PORTS; p++) begin
             if (grant_matrix[q][p]) begin
                 w_fifo_rd_ready[p][sel_vc[p]] =
-                    m_axis_tready[q] && s_credit[q][sel_vc[p]];
+                    m_axis_tready[q] && s_credit[q][out_vc[p]];
             end
         end
     end
@@ -1691,7 +1822,35 @@ generate
             if (!aresetn) begin
                 bubble[q] <= 1'b0;
             end else begin
-                bubble[q] <= out_xfer_last[q];
+                bubble[q] <= out_xfer_last[q] ||
+                           spec_commit[q] || spec_revoke[q];
+            end
+        )
+    end
+
+// Speculative grant holding register (Task 9): captures
+// the arbiter's speculative winner, then commits or
+// revokes on the next cycle based on actual credit.
+    for (genvar q = 0; q < NUM_PORTS; q++) begin : gen_spec_hold
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (!aresetn) begin
+                spec_valid[q] <= 1'b0;
+                spec_grant[q] <= '0;
+                spec_vc[q]    <= '0;
+            end else begin
+                if (spec_capture[q]) begin
+                    spec_valid[q] <= 1'b1;
+                    spec_grant[q] <= arb_grant[q];
+                    spec_vc[q] <= '0;
+                    for (int p = 0; p < NUM_PORTS; p++) begin
+                        if (arb_grant[q][p]) begin
+                            spec_vc[q] <= out_vc[p];
+                        end
+                    end
+                end else if (spec_commit[q] || spec_revoke[q]) begin
+                    spec_valid[q] <= 1'b0;
+                    spec_grant[q] <= '0;
+                end
             end
         )
     end
@@ -1835,6 +1994,28 @@ end
         if (drop_fire_cnt != 4'd0 &&
             (o_err_drop_cnt <= (32'hFFFF_FFFF - 32'(drop_fire_cnt)))) begin
             o_err_drop_cnt <= o_err_drop_cnt + 32'(drop_fire_cnt);
+        end
+    end
+)
+
+// Speculative grant activity counter (Task 9): counts
+// speculative capture events across all outputs.
+logic [3:0] spec_capture_cnt;
+
+always_comb begin
+    spec_capture_cnt = 4'd0;
+    for (int q = 0; q < NUM_PORTS; q++) begin
+        spec_capture_cnt = spec_capture_cnt + 4'(spec_capture[q]);
+    end
+end
+
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (!aresetn) begin
+        o_spec_active <= '0;
+    end else if (ENABLE_COUNTERS != 0) begin
+        if (spec_capture_cnt != 4'd0 &&
+            (o_spec_active <= (32'hFFFF_FFFF - 32'(spec_capture_cnt)))) begin
+            o_spec_active <= o_spec_active + 32'(spec_capture_cnt);
         end
     end
 )

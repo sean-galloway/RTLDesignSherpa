@@ -178,7 +178,10 @@ module delta_mesh_cell_th #(
 
     output logic [31:0]           err_drop_cnt,
     output logic [31:0]           mode_acks,
-    output logic [8:0]            bulk_starved
+    output logic [8:0]            bulk_starved,
+    output logic [31:0]           spec_active,
+
+    input  logic [8:0]            wrap_mask
 );
 
     // DUT port index map (pinned localparams in delta_mesh_cell, Task 6c):
@@ -346,9 +349,11 @@ module delta_mesh_cell_th #(
         .m_axis_tuser(w_m_tuser),
         .s_credit(w_s_credit),
         .m_credit(w_m_credit),
+        .wrap_mask(wrap_mask),
         .o_err_drop_cnt(err_drop_cnt),
         .o_mode_acks(mode_acks),
-        .o_bulk_starved(bulk_starved)
+        .o_bulk_starved(bulk_starved),
+        .o_spec_active(spec_active)
     );
 
 endmodule : delta_mesh_cell_th

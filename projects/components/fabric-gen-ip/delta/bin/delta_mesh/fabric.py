@@ -82,11 +82,8 @@ def boundary_cells(cfg: DeltaMeshConfig) -> list[tuple[int, int, int]]:
 
 
 def validate_fabric(cfg: DeltaMeshConfig) -> None:
-    """Reject configurations the Task 3 fabric emitter does not cover."""
-    if cfg.torus_x or cfg.torus_y or cfg.torus_z:
-        raise NotImplementedError(
-            "torus mesh fabric is not yet supported: wrap links land in "
-            "Task 9 -- re-run without --torus-x/--torus-y/--torus-z")
+    """Reject configurations the fabric emitter does not cover."""
+    # Task 9: torus wrap links are now supported; nothing to reject here.
 
 
 class DeltaMeshFabric(Module):
@@ -114,7 +111,12 @@ class DeltaMeshFabric(Module):
             parameter int ENABLE_COUNTERS = {1 if config.add_counters else 0},
             parameter int AGING_LIMIT = 64,
             parameter int BULK_MIN_CREDITS = 1,
-            parameter int NUM_BOUNDARY = {self.num_boundary}
+            parameter int NUM_BOUNDARY = {self.num_boundary},
+            parameter bit TORUS_X = {1 if config.torus_x else 0},
+            parameter bit TORUS_Y = {1 if config.torus_y else 0},
+            parameter bit TORUS_Z = {1 if config.torus_z else 0},
+            parameter bit SOURCE_ROUTE = {1 if config.source_route else 0},
+            parameter bit SPECULATION = {1 if config.speculation else 0}
         '''
         self.params.add_param_string(param_str)
 
@@ -415,24 +417,84 @@ class DeltaMeshFabric(Module):
         self.instruction("                        cell_bulk_starved[gx][gy][gz];")
 
     def _emit_neighbor_hookups(self):
-        """Emit the six if-generate neighbor hookups (genvar-relative)."""
-        # (port, neighbor port, genvar, exists-condition)
-        neighbors = (
-            ("P_X_NEG", "P_X_POS", ("gx-1", "gy", "gz"), "gx > 0"),
-            ("P_X_POS", "P_X_NEG", ("gx+1", "gy", "gz"), "gx < X_DIM-1"),
-            ("P_Y_NEG", "P_Y_POS", ("gx", "gy-1", "gz"), "gy > 0"),
-            ("P_Y_POS", "P_Y_NEG", ("gx", "gy+1", "gz"), "gy < Y_DIM-1"),
-            ("P_Z_NEG", "P_Z_POS", ("gx", "gy", "gz-1"), "gz > 0"),
-            ("P_Z_POS", "P_Z_NEG", ("gx", "gy", "gz+1"), "gz < Z_DIM-1"),
-        )
-        for port, nport, (nx, ny, nz), cond in neighbors:
-            tag = port.replace("P_", "").lower()
-            self.instruction(f"                if ({cond}) begin : gen_{tag}_conn")
-            self._emit_port_connection("gx", "gy", "gz", port, nx, ny, nz, nport)
-            self.instruction("                end else begin : "
-                             f"gen_{tag}_tieoff")
-            self._emit_port_tieoff("gx", "gy", "gz", port)
-            self.instruction("                end")
+        """Emit the six if-generate neighbor hookups (genvar-relative).
+
+        Task 9: torus wrap links connect boundary cells' opposite faces:
+        x==0 P_X_NEG <-> x==X_DIM-1 P_X_POS when TORUS_X, etc.
+        Diagonal ports (P_DIA/P_DIA2) do not wrap -- planar tetrads break
+        at wrap boundaries and those ports tie off as before.
+        """
+        # X negative port: toward x-1, or wrap to x==X_DIM-1 on TORUS_X.
+        self.instruction("                if (gx > 0) begin : gen_xneg_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_X_NEG",
+                                   "gx-1", "gy", "gz", "P_X_POS")
+        self.instruction("                end else if (TORUS_X) begin : "
+                         "gen_xneg_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_X_NEG",
+                                   "X_DIM-1", "gy", "gz", "P_X_POS")
+        self.instruction("                end else begin : gen_xneg_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_X_NEG")
+        self.instruction("                end")
+
+        # X positive port: toward x+1, or wrap to x==0 on TORUS_X.
+        self.instruction("                if (gx < X_DIM-1) begin : gen_xpos_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_X_POS",
+                                   "gx+1", "gy", "gz", "P_X_NEG")
+        self.instruction("                end else if (TORUS_X) begin : "
+                         "gen_xpos_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_X_POS",
+                                   "0", "gy", "gz", "P_X_NEG")
+        self.instruction("                end else begin : gen_xpos_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_X_POS")
+        self.instruction("                end")
+
+        # Y negative port: toward y-1, or wrap to y==Y_DIM-1 on TORUS_Y.
+        self.instruction("                if (gy > 0) begin : gen_yneg_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_Y_NEG",
+                                   "gx", "gy-1", "gz", "P_Y_POS")
+        self.instruction("                end else if (TORUS_Y) begin : "
+                         "gen_yneg_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_Y_NEG",
+                                   "gx", "Y_DIM-1", "gz", "P_Y_POS")
+        self.instruction("                end else begin : gen_yneg_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_Y_NEG")
+        self.instruction("                end")
+
+        # Y positive port: toward y+1, or wrap to y==0 on TORUS_Y.
+        self.instruction("                if (gy < Y_DIM-1) begin : gen_ypos_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_Y_POS",
+                                   "gx", "gy+1", "gz", "P_Y_NEG")
+        self.instruction("                end else if (TORUS_Y) begin : "
+                         "gen_ypos_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_Y_POS",
+                                   "gx", "0", "gz", "P_Y_NEG")
+        self.instruction("                end else begin : gen_ypos_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_Y_POS")
+        self.instruction("                end")
+
+        # Z negative port: toward z-1, or wrap to z==Z_DIM-1 on TORUS_Z.
+        self.instruction("                if (gz > 0) begin : gen_zneg_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_Z_NEG",
+                                   "gx", "gy", "gz-1", "P_Z_POS")
+        self.instruction("                end else if (TORUS_Z) begin : "
+                         "gen_zneg_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_Z_NEG",
+                                   "gx", "gy", "Z_DIM-1", "P_Z_POS")
+        self.instruction("                end else begin : gen_zneg_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_Z_NEG")
+        self.instruction("                end")
+
+        # Z positive port: toward z+1, or wrap to z==0 on TORUS_Z.
+        self.instruction("                if (gz < Z_DIM-1) begin : gen_zpos_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_Z_POS",
+                                   "gx", "gy", "gz+1", "P_Z_NEG")
+        self.instruction("                end else if (TORUS_Z) begin : "
+                         "gen_zpos_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_Z_POS",
+                                   "gx", "gy", "0", "P_Z_NEG")
+        self.instruction("                end else begin : gen_zpos_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_Z_POS")
+        self.instruction("                end")
         self.comment("        // Tetrad diagonal (Task 6b): the mate (gx^1,")
         self.comment("        // gy^1, gz) of this cell's aligned 2x2x1 block.")
         self.comment("        // Both parities execute this block (each drives")
@@ -485,6 +547,17 @@ class DeltaMeshFabric(Module):
         self.instruction("")
         self._emit_neighbor_hookups()
         self.instruction("")
+        self.comment("        // Per-cell wrap-mask (Task 9): which of this")
+        self.comment("        // instance's ports are torus wrap links. Computed")
+        self.comment("        // from the cell's position and the TORUS_* params.")
+        self.instruction("                localparam logic [8:0] WRAP_MASK =")
+        self.instruction("                    (((gx == 0) && TORUS_X) ? (9'(1) << P_X_NEG) : 9'h000) |")
+        self.instruction("                    (((gx == X_DIM-1) && TORUS_X) ? (9'(1) << P_X_POS) : 9'h000) |")
+        self.instruction("                    (((gy == 0) && TORUS_Y) ? (9'(1) << P_Y_NEG) : 9'h000) |")
+        self.instruction("                    (((gy == Y_DIM-1) && TORUS_Y) ? (9'(1) << P_Y_POS) : 9'h000) |")
+        self.instruction("                    (((gz == 0) && TORUS_Z) ? (9'(1) << P_Z_NEG) : 9'h000) |")
+        self.instruction("                    (((gz == Z_DIM-1) && TORUS_Z) ? (9'(1) << P_Z_POS) : 9'h000);")
+        self.instruction("")
         self.instruction("                if (is_boundary(gx, gy, gz)) begin : gen_local_conn")
         self._emit_local_connection()
         self.instruction("                end else begin : gen_local_tieoff")
@@ -505,7 +578,12 @@ class DeltaMeshFabric(Module):
         self.instruction("                    .FIFO_IMPL(FIFO_IMPL),")
         self.instruction("                    .ENABLE_COUNTERS(ENABLE_COUNTERS),")
         self.instruction("                    .AGING_LIMIT(AGING_LIMIT),")
-        self.instruction("                    .BULK_MIN_CREDITS(BULK_MIN_CREDITS)")
+        self.instruction("                    .BULK_MIN_CREDITS(BULK_MIN_CREDITS),")
+        self.instruction("                    .TORUS_X(TORUS_X),")
+        self.instruction("                    .TORUS_Y(TORUS_Y),")
+        self.instruction("                    .TORUS_Z(TORUS_Z),")
+        self.instruction("                    .SOURCE_ROUTE(SOURCE_ROUTE),")
+        self.instruction("                    .SPECULATION(SPECULATION)")
         self.instruction("                ) u_cell (")
         self.instruction("                    .aclk(aclk),")
         self.instruction("                    .aresetn(aresetn),")
@@ -521,9 +599,11 @@ class DeltaMeshFabric(Module):
         self.instruction("                    .m_axis_tuser (cell_m_tuser [gx][gy][gz]),")
         self.instruction("                    .s_credit(cell_s_credit[gx][gy][gz]),")
         self.instruction("                    .m_credit(cell_m_credit[gx][gy][gz]),")
+        self.instruction("                    .wrap_mask(WRAP_MASK),")
         self.instruction("                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz]),")
         self.instruction("                    .o_mode_acks(cell_mode_acks[gx][gy][gz]),")
-        self.instruction("                    .o_bulk_starved(cell_bulk_starved[gx][gy][gz])")
+        self.instruction("                    .o_bulk_starved(cell_bulk_starved[gx][gy][gz]),")
+        self.instruction("                    .o_spec_active()")
         self.instruction("                );")
         self.instruction("            end")
         self.instruction("        end")
