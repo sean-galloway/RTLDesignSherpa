@@ -76,17 +76,24 @@ def _key(agent: int, protocol: int, pkt_type: int, event: int) -> int:
            ((pkt_type & 0xF) << 8) | (event & 0xFF)
 
 
-def _amber_agent(unit: int) -> int:
-    return (unit << 8) | 0xA0
-
-
 def _default_profile():
+    # Wire-truth keys (BUG-004 board capture): all amber monlites emit agent
+    # 0x00A0; control events are CORE/PktTypePerf with l1_pkg codes 0x00-0x09;
+    # the AXI rd/wr monlites share PktTypeCompletion code 0 and merge into one
+    # CAM bin because unit_id is not part of the tally key.
+    a = 0x00A0
     return [
-        (_key(_amber_agent(0x01), 4, 0, 0x00), 0),
-        (_key(_amber_agent(0x01), 4, 0, 0x01), 1),
-        (_key(_amber_agent(0x01), 4, 0, 0x02), 2),
-        (_key(_amber_agent(0x02), 0, 0, 0x00), 3),
-        (_key(_amber_agent(0x03), 0, 0, 0x00), 4),
+        (_key(a, 4, 4, 0x00), 0),  # hit
+        (_key(a, 4, 4, 0x01), 1),  # miss
+        (_key(a, 4, 4, 0x02), 2),  # snoop accepted
+        (_key(a, 4, 4, 0x03), 3),  # evict
+        (_key(a, 4, 4, 0x04), 5),  # tag state transition
+        (_key(a, 0, 0, 0x0E), 4),  # AXI monlite drop report (health bin)
+        (_key(a, 4, 4, 0x05), 6),  # fill start
+        (_key(a, 4, 4, 0x06), 7),  # fill end
+        (_key(a, 4, 4, 0x07), 8),  # drain start
+        (_key(a, 4, 4, 0x08), 9),  # drain end
+        (_key(a, 4, 0, 0x09), 10),  # control monlite drop report
     ]
 
 
@@ -275,9 +282,19 @@ async def smoke_test(dut):
     dut._log.info(f"ci1 status=0x{status1:08x} err=0x{err1:08x} rsp_crc=0x{rsp_crc1:016x}")
 
     # Read a few tally bins
+    bins = []
     for i in range(8):
         val = await tb.read64(ADDR_TALLY_CNT + i * 8)
+        bins.append(val)
         dut._log.info(f"tally bin[{i}] = {val}")
+
+    # Observation-alive check: the MonBus path (cache monlite -> arbiter ->
+    # group -> tally) must actually count events. A config mistake that
+    # silences it (BUG-004: group filter masks all-ones, which the group
+    # interprets as "drop every packet type") passes every other assertion
+    # in this test -- only the bins catch it.
+    assert sum(bins) > 0, \
+        "tally bins all zero: MonBus observation path is silent"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

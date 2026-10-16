@@ -117,6 +117,22 @@ The smoke test:
 4. Polls `STATUS` until both report `done`.
 5. Dumps injector status, read/write CRCs, and tally bins.
 
+## Performance sweep (board analysis)
+
+```bash
+# Run the 11-config matrix (region size x write mix x sharing) and save JSON
+python3 host/amber_perf_sweep.py
+```
+
+The sweep is the stream-perf-analog for amber: it walks the working set
+from 64 B (one line, maximal coherence ping-pong) through 128 KB (4x
+capacity, thrash) at several write mixes, taking MonBus tally bins as
+per-run differentials (tally_clear is tied off in the harness, so counts
+accumulate run over run). From the bins it derives hit rate, snoop rate,
+evictions, fills, drains, and AXI transaction counts per configuration.
+The tally legal-set profile is keyed from wire truth — see
+`build_default_profile()` in `host/amber_board.py`.
+
 ## Simulation
 
 ```bash

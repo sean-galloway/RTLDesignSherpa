@@ -1,0 +1,497 @@
+{
+  "count": 20000,
+  "results": [
+    {
+      "config": "smoke4k_we64",
+      "count": 20000,
+      "mask": "0x000fff",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 64,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        32,
+        33,
+        29,
+        0,
+        66,
+        33,
+        33,
+        29,
+        29,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 1840959154,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 39879239,
+        "wdata_crc": 4207605698
+      }
+    },
+    {
+      "config": "r4k_we0",
+      "count": 20000,
+      "mask": "0x000fff",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 0,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        16,
+        16,
+        11,
+        0,
+        32,
+        16,
+        16,
+        11,
+        11,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 1992282679,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 3266800666,
+        "wdata_crc": 4207605698
+      }
+    },
+    {
+      "config": "r4k_we255",
+      "count": 20000,
+      "mask": "0x000fff",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 255,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        39985,
+        64,
+        128,
+        9,
+        0,
+        245,
+        115,
+        128,
+        9,
+        9,
+        0,
+        0
+      ],
+      "unexpected": 5,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 2732696767,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 1668500077,
+        "wdata_crc": 4207605698
+      }
+    },
+    {
+      "config": "r1k_we64",
+      "count": 20000,
+      "mask": "0x0003ff",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 64,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        21,
+        21,
+        8,
+        0,
+        42,
+        21,
+        21,
+        8,
+        8,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 3631923648,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 144202856,
+        "wdata_crc": 4207605698
+      }
+    },
+    {
+      "config": "r64b_we64",
+      "count": 20000,
+      "mask": "0x00003f",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 64,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        3,
+        4,
+        0,
+        0,
+        8,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 590849265,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 2909152001,
+        "wdata_crc": 4207605698
+      }
+    },
+    {
+      "config": "r16k_we64",
+      "count": 20000,
+      "mask": "0x003fff",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 64,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        411,
+        416,
+        66,
+        0,
+        534,
+        416,
+        416,
+        66,
+        66,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 947692945,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 1016953163,
+        "wdata_crc": 4207605698
+      }
+    },
+    {
+      "config": "r64k_we64",
+      "count": 20000,
+      "mask": "0x00ffff",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 64,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        22031,
+        22031,
+        5363,
+        0,
+        22203,
+        22031,
+        22031,
+        5363,
+        5363,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 2526815673,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 683426015,
+        "wdata_crc": 4207605698
+      },
+      "latch": {
+        "fill": 4,
+        "events": [
+          {
+            "pkt_type": 4,
+            "protocol": "CORE",
+            "event": "miss",
+            "agent": "0x00a0",
+            "unit": 1,
+            "addr": "0x0000000000330019",
+            "ts_cycles": 499621811
+          },
+          {
+            "pkt_type": 4,
+            "protocol": "CORE",
+            "event": "0x05",
+            "agent": "0x00a0",
+            "unit": 1,
+            "addr": "0x0000000000000019",
+            "ts_cycles": 499621811
+          },
+          {
+            "pkt_type": 4,
+            "protocol": "CORE",
+            "event": "snoop",
+            "agent": "0x00a0",
+            "unit": 1,
+            "addr": "0x0000000000000000",
+            "ts_cycles": 499621814
+          },
+          {
+            "pkt_type": 4,
+            "protocol": "CORE",
+            "event": "0x06",
+            "agent": "0x00a0",
+            "unit": 1,
+            "addr": "0x0000000000000019",
+            "ts_cycles": 499621832
+          }
+        ]
+      }
+    },
+    {
+      "config": "r64k_we255",
+      "count": 20000,
+      "mask": "0x00ffff",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 255,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        22141,
+        22305,
+        21284,
+        0,
+        23153,
+        22305,
+        22305,
+        21284,
+        21284,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 2015938471,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 1355333105,
+        "wdata_crc": 4207605698
+      }
+    },
+    {
+      "config": "r128k_we64",
+      "count": 20000,
+      "mask": "0x01ffff",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 64,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        31254,
+        31254,
+        7594,
+        0,
+        31788,
+        31254,
+        31254,
+        7594,
+        7594,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 983157990,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 4188143346,
+        "wdata_crc": 4207605698
+      }
+    },
+    {
+      "config": "disjoint64k_we64",
+      "count": 20000,
+      "mask": "0x00ffff",
+      "base0": "0x00000",
+      "base1": "0x40000",
+      "we_mix": 64,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        22215,
+        22215,
+        5335,
+        0,
+        22269,
+        22215,
+        22215,
+        5335,
+        5335,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 742428379,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 2228389984,
+        "wdata_crc": 4207605698
+      }
+    },
+    {
+      "config": "smoke4k_we64_repeat",
+      "count": 20000,
+      "mask": "0x000fff",
+      "base0": "0x00000",
+      "base1": "0x00000",
+      "we_mix": 64,
+      "done": true,
+      "wall_s": 0.048,
+      "delta_bins": [
+        40000,
+        104,
+        104,
+        29,
+        0,
+        120,
+        104,
+        104,
+        29,
+        29,
+        0,
+        0
+      ],
+      "unexpected": 0,
+      "ci0": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 11312886,
+        "wdata_crc": 3707051763
+      },
+      "ci1": {
+        "status": 1,
+        "acc_count": 20000,
+        "rsp_count": 20000,
+        "err_flag": 0,
+        "rsp_crc": 2369641177,
+        "wdata_crc": 4207605698
+      }
+    }
+  ]
+}

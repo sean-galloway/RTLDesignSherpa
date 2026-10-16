@@ -195,21 +195,32 @@ def _key(agent: int, protocol: int, pkt_type: int, event: int) -> int:
            ((pkt_type & 0xF) << 8) | (event & 0xFF)
 
 
-def _amber_agent(unit: int) -> int:
-    return (unit << 8) | 0xA0
-
-
 def build_default_profile() -> List[Tuple[int, int]]:
-    """Minimal legal-set profile for amber pair-rig smoke runs.
-
-    Keys are {agent_id[15:0], protocol[3:0], pkt_type[3:0], event_code[7:0]}.
+    """Legal-set profile for amber pair-rig runs, keyed from WIRE TRUTH
+    (BUG-004 board capture): every amber monlite emits agent 0x00A0 with
+    unit_id as a separate packet field the tally CAM key does not carry.
+    Control events are proto CORE / PktTypePerf with the l1_pkg event
+    codes (0x00-0x09: hit/miss/snoop/evict/transition/fill*/drain*).
+    The AXI rd/wr monlites both emit PktTypeCompletion code 0 and cannot
+    be separated by the CAM key, so they share one bin.
     """
+    a = 0x00A0
     return [
-        (_key(_amber_agent(0x01), 4, 0, 0x00), 0),  # l1 hit
-        (_key(_amber_agent(0x01), 4, 0, 0x01), 1),  # l1 miss
-        (_key(_amber_agent(0x01), 4, 0, 0x02), 2),  # l1 snoop
-        (_key(_amber_agent(0x02), 0, 0, 0x00), 3),  # rd monlite event
-        (_key(_amber_agent(0x03), 0, 0, 0x00), 4),  # wr monlite event
+        (_key(a, 4, 4, 0x00), 0),  # hit
+        (_key(a, 4, 4, 0x01), 1),  # miss
+        (_key(a, 4, 4, 0x02), 2),  # snoop accepted
+        (_key(a, 4, 4, 0x03), 3),  # evict: dirty victim staged
+        (_key(a, 4, 4, 0x04), 5),  # tag state transition
+        (_key(a, 0, 0, 0x0E), 4),  # AXI monlite drop report (backpressure
+                                   # health; completions are tied off in
+                                   # amber_top, fills/drains cover traffic)
+        (_key(a, 4, 4, 0x05), 6),  # fill start
+        (_key(a, 4, 4, 0x06), 7),  # fill end
+        (_key(a, 4, 4, 0x07), 8),  # drain start
+        (_key(a, 4, 4, 0x08), 9),  # drain end
+        (_key(a, 4, 0, 0x09), 10),  # control monlite drop report
+                                   # (PktTypeError/DROP_CODE; saw 5 under a
+                                   # 4 KB write storm - queue backpressure)
     ]
 
 
