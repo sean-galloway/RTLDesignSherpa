@@ -73,7 +73,7 @@ module axi_monitor_lite
     parameter bit          IS_AXI           = 1'b1,  // 0: AXI-Lite (single beat, no ID)
     parameter int          TS_WIDTH         = 16,    // cycle timestamp: ordering + latency
     parameter int          AGE_WIDTH        = 16,    // microsecond age: timeout (cfg is 16 bits)
-    parameter int          OUT_DEPTH        = 4,     // output queue of event entries, a power of two; deeper absorbs longer stalls
+    parameter int          OUT_DEPTH        = 4,     // output queue of event entries (gaxi_fifo_sync), any depth >= 2; deeper absorbs longer stalls
     // Write monitors: width of the AW/W burst sequence numbers that let the W
     // stream skip the bursts of REFUSED AWs (amba #105). AW may lead W by up
     // to 2**(WSEQ_WIDTH-1)-1 bursts, refused ones included (minimum width 2);
@@ -862,6 +862,8 @@ module axi_monitor_lite
     // does not count against the offered total (the earlier form subtracted
     // it and underflowed the 4-bit count by 15 when a held event went out).
     logic            w_wr_ready;
+    logic            w_q_valid;                         // the output queue (below) is not empty
+    wire             w_q_empty = !w_q_valid;
     wire [3:0] w_offered = w_err_fired + 4'(w_tmo_fired) + 4'(w_cmp_fresh) + 4'(w_thr_fired);
     wire       w_take    = w_evt_v && w_wr_ready;
     assign     w_lat_take = w_take && w_thr_v && !w_err_v && !w_tmo_v && !w_cmp_v && !r_e_thresh;   // the winner was the held latency event
@@ -945,35 +947,39 @@ module axi_monitor_lite
         w_out_data[63:48]  = w_entry_out.hi;
     end
 
-    // The output queue: OUT_DEPTH entries in an UNRESET array with two
-    // wrapping pointers. Storage without a reset infers distributed RAM (or
-    // plain flops with no reset mux); a generic skid buffer at this width
-    // and depth synthesized to 346 LUTs -- forty percent of the whole block
-    // -- which is what this replaces. The read is a mux (data valid with
-    // rd_valid in the same cycle), as the monbus consumers expect.
-    localparam int OQW = (OUT_DEPTH > 1) ? $clog2(OUT_DEPTH) : 1;
-    logic [$bits(lite_entry_t)-1:0] r_q [OUT_DEPTH];
-    logic [OQW:0] r_q_wp, r_q_rp;                         // one extra bit tells full from empty
-    wire          w_q_empty = (r_q_wp == r_q_rp);
-    wire          w_q_full  = (r_q_wp[OQW-1:0] == r_q_rp[OQW-1:0]) && (r_q_wp[OQW] != r_q_rp[OQW]);
+    // The output queue: a gaxi_fifo_sync, OUT_DEPTH entries of unreset
+    // storage (distributed RAM, or plain flops with no reset mux) with a mux
+    // read, so data is valid with rd_valid in the same cycle, as the monbus
+    // consumers expect. A generic skid buffer at this width and depth
+    // synthesized to 346 LUTs -- forty percent of the whole block. Writes are
+    // gated on wr_ready only: in mux mode gaxi's count is combinational from
+    // the next-state pointers, so gating on it would close a loop through
+    // wr_valid.
+    logic              w_q_fifo_ready;
+    logic [$bits(lite_entry_t)-1:0] w_q_rd_data;
+    wire          w_q_full  = !w_q_fifo_ready;
     wire          w_q_push  = (w_take || w_drop_rpt);
     wire          w_q_pop   = w_q_valid && w_q_ready;           // w_q_ready from the monbus mux below
     assign w_wr_ready  = !w_q_full;
-    assign w_entry_out  = r_q[r_q_rp[OQW-1:0]];
-    logic w_q_valid;
-    assign w_q_valid    = !w_q_empty;
+    assign w_entry_out = lite_entry_t'(w_q_rd_data);
 
-    always_ff @(posedge aclk) begin
-        if (w_q_push) r_q[r_q_wp[OQW-1:0]] <= w_entry_in;
-    end
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_q_wp <= '0; r_q_rp <= '0;
-        end else begin
-            if (w_q_push) r_q_wp <= r_q_wp + 1'b1;
-            if (w_q_pop)  r_q_rp <= r_q_rp + 1'b1;
-        end
-    )
+    gaxi_fifo_sync #(
+        .REGISTERED (0),
+        .DATA_WIDTH ($bits(lite_entry_t)),
+        .DEPTH      (OUT_DEPTH)
+    ) u_out_q (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (w_q_push),
+        .wr_ready    (w_q_fifo_ready),
+        .wr_data     (w_entry_in),
+        .rd_ready    (w_q_pop),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (w_q_valid),
+        .rd_data     (w_q_rd_data)
+    );
 
     monitor_packet_t w_q_packet;
     assign w_q_packet = create_monitor_packet(w_entry_out.ptype, PROTOCOL_AXI, w_entry_out.code,

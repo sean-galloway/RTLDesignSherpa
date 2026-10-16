@@ -104,6 +104,22 @@ The ACE family adds AXI Coherency Extensions to the AXI4 movers (`AxSNOOP`, `AxD
 
 : Table 3: The eight ACE wrappers
 
+### The two CXS wrappers (2026-10-15)
+
+CXS (Arm IHI 0079) is credited, not valid/ready, so neither the AXI cores nor
+`axis_monitor_lite` fit. These wrap [`cxs_monitor_lite`](cxs_monitor_lite.md)
+(amba TASK-044). The monitor taps the endpoint's FUB handshake and its
+registered status outputs (`link_state`, credits, `credit_starved`, the
+sticky error flags), never the link pins. There are no `_cg` variants:
+clock gating is an FPGA-only concern here.
+
+| Family | Role | Lite wrapper | Wraps | Tapped |
+|---|---|---|---|---|
+| CXS | transmitter | `cxs_master_monlite` | `cxs_master` | `fub_cxs_*` (upstream of the skid) + core status |
+| CXS | receiver | `cxs_slave_monlite` | `cxs_slave` | `fub_cxs_*` (downstream of the receive FIFO) + core status |
+
+: Table 4: The two CXS wrappers
+
 There are no `_cg` ACE wrappers in this release. The front-side ACE wrappers carry the same monitor port list as the AXI4 wrappers (with the core's ACE fields passed through). The snoop-side wrappers expose the smaller control set of `axi4ace_snoop_monitor_lite`: `clear`, `cfg_monitor_enable`, `cfg_error_enable`, `cfg_timeout_enable`, `cfg_compl_enable`, `cfg_timeout_cycles`, `cfg_freq_sel`, `i_mon_time`, plus the monbus and status outputs.
 
 The AXIS wrappers' monitor section is the AXIS core's, not the AXI one's: parameters
@@ -157,7 +173,7 @@ completion packets.
 | `AGENT_ID` | logic [15:0] | `16'h000A` | Agent id in every packet |
 | `MAX_TRANSACTIONS` | int | `8` | table entries; a command finding none is counted, not tracked |
 | `ACTIVE_TRANS_THRESHOLD` | int | `MAX_TRANSACTIONS / 2` | Table occupancy that fires a threshold packet (rising edge) |
-| `OUT_DEPTH` | int | `4` | monbus output queue, a power of two. `16` on `axi4_master_rd_monlite` / `axi4_master_wr_monlite` (2026-10-08, amba BUG-039): 16 rides out the ~8-cycle observer-egress stall measured at ~1.1 events/cycle, the same margin the interface observers already run their AXIS taps at |
+| `OUT_DEPTH` | int | `4` | monbus output queue (`gaxi_fifo_sync`), any depth the lite allows (>= 2; >= 1 on the AXIS/CXS lites). `16` on `axi4_master_rd_monlite` / `axi4_master_wr_monlite` (2026-10-08, amba BUG-039): 16 rides out the ~8-cycle observer-egress stall measured at ~1.1 events/cycle, the same margin the interface observers already run their AXIS taps at |
 | `N_ADDR_RANGES` | int | `0` | address-range checker windows; 0 = not built |
 | `ADDR_RANGE_IS_ERROR` | logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] | `'0` | per range: 1 = miss is an error, 0 = hit is a match |
 | `ACLK_MHZ` | int | `100` | Clock in MHz; keeps the 1 us tick exact |

@@ -67,7 +67,7 @@ module axi4ace_snoop_monitor_lite
     parameter logic [7:0]  UNIT_ID          = 8'h01,
     parameter logic [15:0] AGENT_ID         = 16'h000A,
     parameter int          MAX_SNOOPS       = 8,      // outstanding-snoop table depth
-    parameter int          OUT_DEPTH        = 4,      // monbus output queue, a power of two
+    parameter int          OUT_DEPTH        = 4,      // monbus output queue (gaxi_fifo_sync), any depth >= 2
     parameter int          ACLK_MHZ         = 100,
     parameter int          CFI_MIN_FREQ_MHZ = ACLK_MHZ,
     parameter int          CFI_MAX_FREQ_MHZ = ACLK_MHZ,
@@ -356,13 +356,13 @@ module axi4ace_snoop_monitor_lite
         logic [AW-1:0] addr;
     } lite_entry_t;
 
-    localparam int OQW = (OUT_DEPTH > 1) ? $clog2(OUT_DEPTH) : 1;
-    logic [$bits(lite_entry_t)-1:0] r_q [OUT_DEPTH];
-    logic [OQW:0] r_q_wp, r_q_rp;
-
-    wire          w_q_empty = (r_q_wp == r_q_rp);
-    wire          w_q_full  = (r_q_wp[OQW-1:0] == r_q_rp[OQW-1:0]) && (r_q_wp[OQW] != r_q_rp[OQW]);
-    wire          w_wr_ready = !w_q_full;
+    // The output queue: a gaxi_fifo_sync (unreset storage, mux read), any
+    // OUT_DEPTH >= 2. Writes are gated on wr_ready only; in mux mode gaxi's
+    // count comes from the next-state pointers.
+    logic         w_q_fifo_ready, w_q_rd_valid;
+    logic [$bits(lite_entry_t)-1:0] w_q_rd_data;
+    wire          w_q_empty  = !w_q_rd_valid;
+    wire          w_wr_ready = w_q_fifo_ready;
     wire          w_take     = w_evt_v && w_wr_ready;
     wire [3:0]    w_offered  = 4'(w_evt_v);
     wire [3:0]    w_lost     = w_offered - 4'(w_take);
@@ -381,21 +381,26 @@ module axi4ace_snoop_monitor_lite
                            chan: 9'd0, hi: 16'd0, addr: AW'(r_dropped)};
     end
 
-    always_ff @(posedge aclk) begin
-        if (w_take || w_drop_rpt) r_q[r_q_wp[OQW-1:0]] <= w_entry_in;
-    end
+    logic w_q_pop;
+    gaxi_fifo_sync #(
+        .REGISTERED (0),
+        .DATA_WIDTH ($bits(lite_entry_t)),
+        .DEPTH      (OUT_DEPTH)
+    ) u_out_q (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (w_take || w_drop_rpt),
+        .wr_ready    (w_q_fifo_ready),
+        .wr_data     (w_entry_in),
+        .rd_ready    (w_q_pop),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (w_q_rd_valid),
+        .rd_data     (w_q_rd_data)
+    );
 
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_q_wp <= '0;
-            r_q_rp <= '0;
-        end else begin
-            if (w_take || w_drop_rpt) r_q_wp <= r_q_wp + 1'b1;
-            if (w_q_pop)              r_q_rp <= r_q_rp + 1'b1;
-        end
-    )
-
-    assign w_entry_out = r_q[r_q_rp[OQW-1:0]];
+    assign w_entry_out = lite_entry_t'(w_q_rd_data);
 
     // Source hold: once a packet is presented to the monbus it stays stable
     // until the consumer takes it.
@@ -404,7 +409,7 @@ module axi4ace_snoop_monitor_lite
 
     wire w_q_valid = !w_q_empty;
     wire w_present_take = (w_q_valid || w_drop_rpt) && !r_presented;
-    wire w_q_pop = r_presented ? (monbus_valid && monbus_ready)
+    assign w_q_pop = r_presented ? (monbus_valid && monbus_ready)
                                : (w_q_valid && !(w_drop_rpt && !w_q_valid));
 
     `ALWAYS_FF_RST(aclk, aresetn,

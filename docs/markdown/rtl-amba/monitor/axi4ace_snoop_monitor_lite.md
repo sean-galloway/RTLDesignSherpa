@@ -53,7 +53,7 @@ The monitor only observes the snoop channels. Each AC handshake adds an entry at
 | UNIT_ID | logic [7:0] | 8'h01 | Unit ID in every emitted packet |
 | AGENT_ID | logic [15:0] | 16'h000A | Agent ID in every emitted packet |
 | MAX_SNOOPS | int | 8 | Outstanding-snoop table depth |
-| OUT_DEPTH | int | 4 | monbus output queue depth, a power of two |
+| OUT_DEPTH | int | 4 | monbus output queue depth (a `gaxi_fifo_sync`), any depth >= 2 |
 | ACLK_MHZ | int | 100 | Clock frequency in MHz for the frequency-invariant us tick |
 | CFI_MIN_FREQ_MHZ | int | ACLK_MHZ | Frequency-invariant tick LUT lower bound |
 | CFI_MAX_FREQ_MHZ | int | ACLK_MHZ | Frequency-invariant tick LUT upper bound |

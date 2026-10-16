@@ -91,7 +91,7 @@ the handshake that causes it:
 | Timeout | three 16-bit timers per entry, all counting | one microsecond stamp per entry (a copy of a shared tick counter), one rotating subtract-and-compare |
 | Latency | three 32-bit timestamps per entry | one 16-bit cycle stamp per entry, one shared subtractor at completion |
 | Event detection | reporter scans the table with priority encoders | computed on the handshake, no scan; the cycle's events are registered, and the packet is picked and formatted from flops the next cycle |
-| Output | 8-deep FIFO of 85-bit entries plus a table copy | `OUT_DEPTH`-deep queue (default 4) of 66-bit entries (type, code, id, latency, address) in an unreset array; the constant fields are added at the output |
+| Output | 8-deep FIFO of 85-bit entries plus a table copy | `OUT_DEPTH`-deep `gaxi_fifo_sync` (default 4) of 66-bit entries (type, code, id, latency, address), unreset storage and a mux read; the constant fields are added at the output |
 | Backpressure | admission stall (`block_ready`) | drop and count, reported as `Error/EVENT_DROPPED` |
 | Address-range checker | `axi_monitor_addr_check`, N ranges, muxed onto the monbus | the same module, optional (`N_ADDR_RANGES`), its packets muxed onto the monbus with a presented-packet hold (Sean, 2026-09-26: STREAM's data ports use it) |
 
@@ -229,7 +229,7 @@ until it learns to ask; that is the tool, not the monitor.
 | `IS_AXI` | bit | 1 | 0 = AXI-Lite: no ID compare |
 | `TS_WIDTH` | int | 16 | Cycle stamp width: ordering and latency (latency saturates at 2^16 cycles) |
 | `AGE_WIDTH` | int | 16 | Microsecond age width for the timeout (`cfg_timeout_cnt` is 16 bits) |
-| `OUT_DEPTH` | int | 4 | Output queue depth in 66-bit entries; a power of two |
+| `OUT_DEPTH` | int | 4 | Output queue depth in 66-bit entries (a `gaxi_fifo_sync`), any depth >= 2 |
 | `WSEQ_WIDTH` | int | 8 | Write monitors: width of the AW/W burst sequence numbers (amba #105). AW may lead W by up to 2^(WSEQ_WIDTH-1)-1 bursts, refused AWs included (minimum width 2); unused on reads |
 | `N_ADDR_RANGES` | int | 0 | Address-range checker windows (`axi_monitor_addr_check`, the full monitor's); 0 = not built, zero area |
 | `ADDR_RANGE_IS_ERROR` | logic [N-1:0] | '0 | Per range: 1 = a MISS is an `Error/ADDR_RANGE` packet, 0 = a HIT is an `AddrMatch` packet |

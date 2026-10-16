@@ -7,7 +7,10 @@ DEPS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
         $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
         $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_addr_check.sv
+        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_addr_check.sv \
+        $(REPO_ROOT)/rtl/common/counter_bin.sv \
+        $(REPO_ROOT)/rtl/common/fifo_control.sv \
+        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
 DUT  := $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_lite.sv
 .PHONY: prove cover all clean
 all: prove cover

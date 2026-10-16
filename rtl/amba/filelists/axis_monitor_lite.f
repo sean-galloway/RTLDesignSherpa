@@ -10,4 +10,5 @@
 $REPO_ROOT/rtl/amba/includes/ocelus_common_pkg.sv
 $REPO_ROOT/rtl/amba/includes/ocelus_amba4_pkg.sv
 -f $REPO_ROOT/rtl/common/filelists/counter_freq_invariant.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 $REPO_ROOT/rtl/amba/ocelus/axis_monitor_lite.sv

@@ -75,7 +75,7 @@ module axis_monitor_lite
     parameter int          ID_WIDTH     = 8,      // 0 legal: tid is then a 1-bit tie-off
     parameter int          DEST_WIDTH   = 4,      // 0 legal: tdest is then a 1-bit tie-off
     parameter int          AGE_WIDTH    = 16,     // microsecond age (cfg_timeout_cnt is 16 bits)
-    parameter int          OUT_DEPTH    = 4,      // output queue of event entries, a power of two
+    parameter int          OUT_DEPTH    = 4,      // output queue of event entries, two interleaved gaxi_fifo_sync banks, any depth >= 1
     // Frequency-invariant microsecond tick (same knobs as axi_monitor_lite)
     parameter int          CFI_MIN_FREQ_MHZ     = 5,
     parameter int          CFI_MAX_FREQ_MHZ     = 220,
@@ -379,16 +379,23 @@ module axis_monitor_lite
     )
 
     // ------------------------------------------------------------------
-    // The output queue: OUT_DEPTH entries with two wrapping pointers, two
-    // write slots a cycle (wp and wp+1) and one read. Storage is unreset.
-    // ------------------------------------------------------------------
-    localparam int OQW = (OUT_DEPTH > 1) ? $clog2(OUT_DEPTH) : 1;
-    logic [$bits(axis_entry_t)-1:0] r_q [OUT_DEPTH];
-    logic [OQW:0] r_q_wp, r_q_rp;                         // one extra bit tells full from empty
-    wire  [OQW:0] w_q_count = r_q_wp - r_q_rp;
+    // The output queue: two interleaved gaxi_fifo_sync banks (unreset
+    // storage, mux read). Two picks can be queued in one cycle and gaxi has
+    // one write port, so entry k goes to bank k mod 2 and reads alternate:
+    // the same entries in the same order as one two-write queue. r_q_count
+    // is the registered occupancy and the only capacity gate, so capacity is
+    // exactly OUT_DEPTH (any value >= 1); each bank holds ceil(OUT_DEPTH/2),
+    // at least the 2 gaxi_fifo_sync needs, so a bank never refuses a write
+    // the count admits. Gating on gaxi's own count would close a loop: in mux
+    // mode it is combinational from the next-state pointers.
+    localparam int OQW   = (OUT_DEPTH > 1) ? $clog2(OUT_DEPTH) : 1;
+    localparam int OQ_BD = ((OUT_DEPTH + 1) / 2 < 2) ? 2 : (OUT_DEPTH + 1) / 2;
+    logic [OQW:0] r_q_count;
+    logic         r_q_wb, r_q_rb;                         // bank the next write / read uses
+    wire  [OQW:0] w_q_count = r_q_count;
     wire          w_q_empty = (w_q_count == '0);
     wire          w_room1   = (w_q_count <= (OQW+1)'(OUT_DEPTH - 1));
-    wire          w_room2   = (w_q_count <= (OQW+1)'(OUT_DEPTH - 2));
+    wire          w_room2   = (OUT_DEPTH >= 2) && (w_q_count <= (OQW+1)'(OUT_DEPTH - 2));
 
     // ------------------------------------------------------------------
     // Drop accounting and the pending drop report: every candidate the two
@@ -428,18 +435,47 @@ module axis_monitor_lite
     wire w_push1 = w_take1 || w_drop_rpt;
     wire w_push2 = w_take2;
     wire w_q_pop = monbus_valid && monbus_ready;
-    assign w_entry_out = r_q[r_q_rp[OQW-1:0]];
+    assign w_entry_out = axis_entry_t'(w_bank_rd_data[r_q_rb]);
 
-    always_ff @(posedge aclk) begin
-        if (w_push1) r_q[r_q_wp[OQW-1:0]]              <= w_slot1;
-        if (w_push2) r_q[OQW'(r_q_wp[OQW-1:0] + 1'b1)] <= w_e2;
+    // push1 (slot 1) goes to bank r_q_wb, push2 to the other; a push2 never
+    // happens without a push1 (room2 implies room1, the second pick implies
+    // the first, and a drop report only goes out with no live pick)
+    logic [1:0]                    w_bank_wr, w_bank_rd_valid;
+    logic [$bits(axis_entry_t)-1:0]    w_bank_wr_data [2];
+    logic [$bits(axis_entry_t)-1:0]    w_bank_rd_data [2];
+    for (genvar b = 0; b < 2; b++) begin : g_bank
+        wire w_mine1 = (r_q_wb == 1'(b));
+        assign w_bank_wr[b]      = w_mine1 ? w_push1 : w_push2;
+        assign w_bank_wr_data[b] = w_mine1 ? w_slot1 : w_e2;
+        gaxi_fifo_sync #(
+            .REGISTERED (0),
+            .DATA_WIDTH ($bits(axis_entry_t)),
+            .DEPTH      (OQ_BD)
+        ) u_out_q (
+            .axi_aclk    (aclk),
+            .axi_aresetn (aresetn),
+            .wr_valid    (w_bank_wr[b]),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .wr_ready    (),
+            .count       (),
+            /* verilator lint_on PINCONNECTEMPTY */
+            .wr_data     (w_bank_wr_data[b]),
+            .rd_ready    (w_q_pop && (r_q_rb == 1'(b))),
+            .rd_valid    (w_bank_rd_valid[b]),
+            .rd_data     (w_bank_rd_data[b])
+        );
     end
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire unused_bank_rd_valid = ^w_bank_rd_valid;   // r_q_count is the occupancy; a bank is non-empty whenever it says so
+    /* verilator lint_on UNUSEDSIGNAL */
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_q_wp <= '0; r_q_rp <= '0;
+            r_q_count <= '0; r_q_wb <= 1'b0; r_q_rb <= 1'b0;
         end else begin
-            r_q_wp <= r_q_wp + (OQW+1)'(w_push1) + (OQW+1)'(w_push2);
-            if (w_q_pop) r_q_rp <= r_q_rp + 1'b1;
+            r_q_count <= r_q_count + (OQW+1)'(w_push1) + (OQW+1)'(w_push2) - (OQW+1)'(w_q_pop);
+            r_q_wb    <= r_q_wb ^ (w_push1 ^ w_push2);
+            if (w_q_pop) r_q_rb <= !r_q_rb;
         end
     )
 

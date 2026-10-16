@@ -72,7 +72,7 @@ counted.
 | `ID_WIDTH` | 8 | TID width; 0 is legal (a 1-bit tie-off) |
 | `DEST_WIDTH` | 4 | TDEST width; 0 is legal |
 | `AGE_WIDTH` | 16 | microsecond age counter (cfg_timeout_cnt is 16 bits) |
-| `OUT_DEPTH` | 4 | output queue depth, a power of two |
+| `OUT_DEPTH` | 4 | output queue depth, any depth >= 1 |
 | `CFI_MIN_FREQ_MHZ`, `CFI_MAX_FREQ_MHZ`, `CFI_NUM_FREQ_ENTRIES`, `CFI_FREQ_STRATEGY` | 5, 220, 16, 0 | the `counter_freq_invariant` table behind the microsecond tick, as on `axi_monitor_lite` |
 
 ## Ports
@@ -199,9 +199,15 @@ the counters instead.
 - **Everything is a handshake or a level.** No counters per packet beyond the
   32-bit beat count, one shared microsecond counter, two stamps. The pick is
   shallow enough not to need the lite's registered event stage.
-- **Unreset queue storage**, as on `axi_monitor_lite`: pointers reset, the
-  array does not. With two write ports it is flops, not LUTRAM; `OUT_DEPTH`
-  is the knob if that matters somewhere.
+- **Queue = two interleaved `gaxi_fifo_sync` banks.** `gaxi_fifo_sync` has
+  one write port and the pick queues up to two events a cycle, so entry k
+  goes to bank k mod 2 and reads alternate between the banks: the same entries
+  in the same order as a two-write queue. A registered occupancy count is the
+  only capacity gate, so capacity is exactly `OUT_DEPTH` at any depth (each
+  bank holds ceil(OUT_DEPTH/2), at least the 2 gaxi needs). Storage is
+  unreset and the read is a mux, as before. The count cannot come from gaxi:
+  in mux mode its `count` is combinational from the next-state pointers, and
+  gating writes on it would close a loop.
 - **Standalone area** (yosys generic `synth` on the sv2v-flattened core,
   NAND-2 equivalents from `bin/yosys_to_nand_equiv.py`, default parameters):
   about 45 k NAND2 and 539 flops, against the AXI lite's 91 k and 1,209 in the

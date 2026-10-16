@@ -2,7 +2,7 @@
 
 # amba — tasks
 
-**Next ID: TASK-043** — never recycle a number, even when its item closed.
+**Next ID: TASK-048** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 40 | done (kept for history) |
+| [closed/](closed/) | 45 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -28,6 +28,11 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-047** — CXS pattern injector + checker (cxs_master_injector / cxs_slave_pattern_check) -- CLOSED 2026-10-16: pair test 3/3, CRCs = AXIS pair
+- **TASK-046** — monitor-lite output queues -> gaxi_fifo_sync (any depth) -- CLOSED 2026-10-16: monitor-lite FULL 440/440, lite formal PASS
+- **TASK-045** — CXS per-stream packet framing + CXS_CREDIT_BEYOND_SPEC -- CLOSED 2026-10-16: interleave test proves the key (on clean, off errors)
+- **TASK-044** — CXS `_monlite` wrappers + cxs_monitor_lite + PROTOCOL_CXS -- CLOSED 2026-10-15: FULL 24/24, seven mutations killed
+- **TASK-043** — CXS family (IHI 0079 Issues A-D): RTL, filelists, tests, docs -- CLOSED 2026-10-15: FULL 58/58, six mutations killed, RTL_AMBA_CXS.pdf
 - **TASK-034** — Performance Characterization -- CLOSED 2026-09-28: docs/markdown/rtl-amba/monitor/monitor_characterization.md from the new rtl/amba/fpga sweep (39 OOC runs, both parts); full ~7,000 LUTs vs lite ~1,100; AXIS lite Artix miss filed as monitor-lite ISSUE-003
 - **TASK-036** — Write Monitor System Whitepaper -- CLOSED 2026-09-28: v1.0 draft at docs/markdown/rtl-amba/monitor_system_whitepaper.md (six sections, seven diagrams, every number cited); Sean edits in place as author
 - **TASK-035** — Make APB Crossbar Variants Functional -- CLOSED 2026-09-28: satisfied by apbx-xbar TASK-001..004; re-measured (5 variants, 9/9 GATE from clean, lint clean under the area recipe, HAS/MAS v1.0)
