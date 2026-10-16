@@ -40,7 +40,8 @@ parameter bit     SPECULATION = 0 )(
     output logic [31:0]           o_err_drop_cnt,
     output logic [31:0]           o_mode_acks,
     output logic [8:0]            o_bulk_starved,
-    output logic [31:0]           o_spec_active
+    output logic [31:0]           o_spec_active,
+    output logic                  o_dft_active
 );
 // ==============================================================================
 // Module: delta_mesh_cell
@@ -203,6 +204,21 @@ parameter bit     SPECULATION = 0 )(
 //     on (every qos table region holds the same DOR
 //     image); per-class routing tables / spec QoS path
 //     diversity are a deferred follow-on.
+//   - Ocelus counter bank + DFT test mode (Task 10):
+//     eleven 32-bit saturating counters readable via
+//     the config plane (table_index[15] = 1), frozen
+//     when ENABLE_COUNTERS == 0. Counter indices are
+//     flits_in, flits_out, packets_in, packets_out,
+//     stall_cycles, credit_stall_cycles, err_drop,
+//     mode_acks, bulk_starve_cycles, spec_commits,
+//     spec_revokes. A DFT escape write
+//     (table_index[15:12] = 4'hD, sr_ptr[0] = 1) sets
+//     r_dft_en and r_dft_pattern[1:0]; when enabled,
+//     data-plane heads route via fixed pattern
+//     (local loopback / +X ring drop-at-edge / DOR-to-
+//     root) while control traffic (sr_ptr[0] = 1)
+//     continues DOR. o_dft_active exposes the enabled
+//     state per cell.
 //
 // ==============================================================================
 
@@ -264,7 +280,7 @@ localparam int ROUTE_ADDR_W = 3*COORD_W + 2;
 localparam int ROUTE_DEPTH  = 2**ROUTE_ADDR_W;
 localparam int ENTRY_MASK_W = 9;
 localparam int ENTRY_W      = ENTRY_MASK_W + VC_W;
-localparam int RESP_W       = 16 + ENTRY_W;
+localparam int RESP_W       = 16 + 32;  // Task 10: full 32-bit counter values
 
 // Standard-mode + control-plane constants (Task 6)
 // 16'hC0DE = mode-switch magic (the pinned 'M0DE' is not a
@@ -289,6 +305,31 @@ localparam int AGE_W = $clog2(AGING_LIMIT + 2);
 localparam int STARVE_DUE =
     (AGING_LIMIT > (BULK_MIN_CREDITS + 2)) ?
         (AGING_LIMIT - BULK_MIN_CREDITS - 2) : 1;
+
+// Counter bank + DFT mode (Task 10)
+// Counter bank is accessed through the config-read path
+// using a reserved index space: table_index[15] = 1 selects
+// the counter bank; table_index[14:0] is the counter index.
+// Index 0..10 are the defined counters; indices above 10
+// read back 0. Writes to the counter-bank space are ignored
+// unless table_index[15:12] = 4'hD, which is the DFT escape
+// that writes r_dft_en (payload bit 0) and r_dft_pattern[1:0]
+// (payload bits 2:1).
+localparam int NUM_COUNTERS      = 11;
+localparam int COUNTER_IDX_W     = $clog2(NUM_COUNTERS);
+localparam logic [15:0] COUNTER_BANK_BIT = 16'h8000;
+localparam logic [15:0] DFT_INDEX        = 16'hD000;
+localparam int C_FLITS_IN        = 0;
+localparam int C_FLITS_OUT       = 1;
+localparam int C_PKTS_IN         = 2;
+localparam int C_PKTS_OUT        = 3;
+localparam int C_STALL_CYCLES    = 4;
+localparam int C_CREDIT_STALL    = 5;
+localparam int C_ERR_DROP        = 6;
+localparam int C_MODE_ACKS       = 7;
+localparam int C_BULK_STARVE     = 8;
+localparam int C_SPEC_COMMITS    = 9;
+localparam int C_SPEC_REVOKES    = 10;
 
 // ==========================================================================
 // Input buffers - one house FIFO per port per VC
@@ -625,6 +666,8 @@ end
 // default), 1-10 = the standard-mode image; written by the
 // mode-switch fan-out section below.
 logic [3:0]         r_mode;
+logic               r_dft_en;
+logic [1:0]         r_dft_pattern;
 logic [COORD_W-1:0] head_dst_x [NUM_PORTS];
 logic [COORD_W-1:0] head_dst_y [NUM_PORTS];
 logic [COORD_W-1:0] head_dst_z [NUM_PORTS];
@@ -682,6 +725,37 @@ always_comb begin
             head_entry[p] = mode_default_entry(
                 int'(r_mode), {head_qos[p], head_dst_z[p],
                                head_dst_y[p], head_dst_x[p]});
+        end
+//         DFT mode override (Task 10): when r_dft_en is
+//         set, data-plane heads bypass the mode mux and
+//         route_table and use one of three fixed patterns.
+//         Local delivery takes precedence: a packet whose
+//         destination equals this cell's coordinate is always
+//         delivered locally, even under DFT. Control traffic
+//         (sr_ptr[0] = 1) always routes DOR and is never
+//         overridden. Pattern 0 = local loopback for non-local
+//         dsts; pattern 1 = +X ring (drop at X-max edge) for
+//         non-local dsts; pattern 2 = all-to-root (DOR toward
+//         0,0,0) for non-local dsts.
+        if (!pres_tuser[p][HDR_SR_PTR_LO] && r_dft_en) begin
+            if (int'(head_dst_x[p]) == POS_X &&
+                int'(head_dst_y[p]) == POS_Y &&
+                int'(head_dst_z[p]) == POS_Z) begin
+                head_entry[p] = {VC_W'(0), 9'(32'd1 << P_LOCAL)};
+            end else begin
+                case (r_dft_pattern)
+                    2'd0: head_entry[p] =
+                        {VC_W'(0), 9'(32'd1 << P_LOCAL)};
+                    2'd1: head_entry[p] =
+                        (POS_X < GRID_X - 1) ?
+                            {VC_W'(0), 9'(32'd1 << P_X_POS)} : '0;
+                    2'd2: head_entry[p] =
+                        dor_default_entry({head_qos[p], COORD_W'(0),
+                                           COORD_W'(0), COORD_W'(0)});
+                    default: head_entry[p] =
+                        {VC_W'(0), 9'(32'd1 << P_LOCAL)};
+                endcase
+            end
         end
         head_no_route[p] =
             (head_entry[p][ENTRY_MASK_W-1:0] == '0);
@@ -911,30 +985,50 @@ end
 // {table_index[15:0], entry[ENTRY_W-1:0]}; sr_ptr[0] selects
 // write (1) / read (0). The response beat carries the same
 // {table_index, entry} shape (write: echo of the written
-// entry; read: the table value, 0 for an out-of-depth
-// index) with tlast = 1 and tuser = 0.
+// entry; read: the table value or counter-bank value, 0 for
+// an out-of-range index) with tlast = 1 and tuser = 0.
+// Task 10: table_index[15] = 1 selects the read-only counter
+// bank; table_index[15:12] = 4'hD with sr_ptr[0]=1 is the
+// DFT escape write that sets r_dft_en (entry bit 0) and
+// r_dft_pattern[1:0] (entry bits 2:1).
 logic [15:0]        cfg_index;
 logic [ENTRY_W-1:0] cfg_entry;
 logic               cfg_write_op;
+logic               cfg_is_counter_bank;
+logic               cfg_is_dft_write;
+logic [31:0]        cfg_counter_rd_data;
 logic [RESP_W-1:0]  cfg_resp_wr_data;
 logic [RESP_W-1:0]  cfg_resp_rd_data;
 logic               cfg_resp_rd_valid;
 logic               cfg_resp_rd_ready;
 logic               cfg_resp_wr_ready;
 logic               cfg_resp_present;
+logic [31:0]        counter_bank [NUM_COUNTERS];
 
 always_comb begin
     cfg_index    = pres_tdata[P_LOCAL][15:0];
     cfg_entry    = pres_tdata[P_LOCAL][16 +: ENTRY_W];
 //     sr_ptr[0] lives in the header (TUSER), not the payload:
     cfg_write_op = pres_tuser[P_LOCAL][HDR_SR_PTR_LO];
+    cfg_is_counter_bank = cfg_index[15];
+    cfg_is_dft_write = cfg_is_counter_bank &&
+                       (cfg_index[15:12] == 4'hD) &&
+                       cfg_write_op;
+    cfg_counter_rd_data =
+        (int'(cfg_index[COUNTER_IDX_W-1:0]) < NUM_COUNTERS)
+            ? counter_bank[cfg_index[COUNTER_IDX_W-1:0]]
+            : 32'd0;
     cfg_resp_wr_data = {cfg_write_op ?
 //         // write: echo the entry that committed
-                            cfg_entry :
-//         // read: current table value (0 out of depth)
-                            ((int'(cfg_index) < ROUTE_DEPTH)
-                                ? route_table[cfg_index[ROUTE_ADDR_W-1:0]]
-                                : ENTRY_W'(0)),
+                            {{(32-ENTRY_W){1'b0}}, cfg_entry} :
+//         // read: counter bank (full 32 bits) or route
+//         // table value (padded to 32 bits)
+                            (cfg_is_counter_bank ?
+                                cfg_counter_rd_data :
+                                ((int'(cfg_index) < ROUTE_DEPTH)
+                                    ? {{(32-ENTRY_W){1'b0}},
+                                       route_table[cfg_index[ROUTE_ADDR_W-1:0]]}
+                                    : 32'd0)),
                         cfg_index};
 end
 
@@ -1398,6 +1492,7 @@ gaxi_fifo_sync #(
 // bits, leaving on the local output. Counted at every cell;
 // only the origin's value is the barrier. Saturating;
 // frozen at ENABLE_COUNTERS == 0 (o_err_drop_cnt policy).
+// Task 10: also mirrors into counter_bank[C_MODE_ACKS].
 logic ack_fire;
 
 always_comb begin
@@ -1414,9 +1509,11 @@ end
 `ALWAYS_FF_RST(aclk, aresetn,
     if (!aresetn) begin
         o_mode_acks <= '0;
+        counter_bank[C_MODE_ACKS] <= '0;
     end else if (ENABLE_COUNTERS != 0) begin
         if (ack_fire && (o_mode_acks != 32'hFFFF_FFFF)) begin
             o_mode_acks <= o_mode_acks + 32'd1;
+            counter_bank[C_MODE_ACKS] <= counter_bank[C_MODE_ACKS] + 32'd1;
         end
     end
 )
@@ -1994,29 +2091,55 @@ end
 // commits on the accepting clock edge (single-cycle
 // write -- no batching barrier); the response beat leaves
 // after the commit, so a master that awaits the ack never
-// steers against a stale entry. The table is not reset --
-// the power-on image (initial block) remains the config
-// plane's baseline across aresetn.
+// steers against a stale entry. Counter-bank space is read-
+// only; the DFT escape write updates r_dft_en/r_dft_pattern
+// instead. The table is not reset -- the power-on image
+// (initial block) remains the config plane's baseline across
+// aresetn.
 `ALWAYS_FF_RST(aclk, aresetn,
     if (!aresetn) begin
     end else begin
         if (cfg_req[P_LOCAL] && cfg_write_op &&
+            !cfg_is_counter_bank &&
             (int'(cfg_index) < ROUTE_DEPTH)) begin
             route_table[cfg_index[ROUTE_ADDR_W-1:0]] <= cfg_entry;
         end
     end
 )
 
+// DFT control registers (Task 10): updated only by the
+// counter-bank escape write (table_index[15:12] = 4'hD).
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (!aresetn) begin
+        r_dft_en <= 1'b0;
+        r_dft_pattern <= 2'd0;
+    end else begin
+        if (cfg_req[P_LOCAL] && cfg_is_dft_write) begin
+            r_dft_en      <= cfg_entry[0];
+            r_dft_pattern <= cfg_entry[2:1];
+        end
+    end
+)
+
+// DFT active indicator (Task 10): exposed to the fabric top
+// so the controller can observe which boundary cells are in
+// DFT test mode.
+assign o_dft_active = r_dft_en;
+
 // err_drop_cnt: heads dropped this cycle (out-of-range
 // dst, empty-mask in-range dst, malformed config).
 // Saturating 32-bit; frozen when ENABLE_COUNTERS == 0.
+// Task 10: also mirrors into counter_bank[C_ERR_DROP].
 `ALWAYS_FF_RST(aclk, aresetn,
     if (!aresetn) begin
         o_err_drop_cnt <= '0;
+        counter_bank[C_ERR_DROP] <= '0;
     end else if (ENABLE_COUNTERS != 0) begin
         if (drop_fire_cnt != 4'd0 &&
             (o_err_drop_cnt <= (32'hFFFF_FFFF - 32'(drop_fire_cnt)))) begin
             o_err_drop_cnt <= o_err_drop_cnt + 32'(drop_fire_cnt);
+            counter_bank[C_ERR_DROP] <= counter_bank[C_ERR_DROP] +
+                                        32'(drop_fire_cnt);
         end
     end
 )
@@ -2039,6 +2162,153 @@ end
         if (spec_capture_cnt != 4'd0 &&
             (o_spec_active <= (32'hFFFF_FFFF - 32'(spec_capture_cnt)))) begin
             o_spec_active <= o_spec_active + 32'(spec_capture_cnt);
+        end
+    end
+)
+
+// Ocelus counter bank (Task 10): eleven 32-bit saturating
+// counters, frozen when ENABLE_COUNTERS == 0. C_ERR_DROP
+// and C_MODE_ACKS are updated with their dedicated mirrors
+// above; the remaining nine counters are updated here.
+logic [3:0] flits_in_cnt;
+logic [3:0] flits_out_cnt;
+logic [3:0] pkts_in_cnt;
+logic [3:0] pkts_out_cnt;
+logic       stall_any;
+logic       credit_stall_any;
+logic       bulk_starve_any;
+logic [3:0] spec_commit_cnt;
+logic [3:0] spec_revoke_cnt;
+
+always_comb begin
+    flits_in_cnt = 4'd0;
+    pkts_in_cnt  = 4'd0;
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        if (s_axis_tvalid[p] && s_axis_tready[p]) begin
+            flits_in_cnt = flits_in_cnt + 4'd1;
+            if (s_axis_tlast[p]) begin
+                pkts_in_cnt = pkts_in_cnt + 4'd1;
+            end
+        end
+    end
+end
+
+always_comb begin
+    flits_out_cnt = 4'd0;
+    pkts_out_cnt  = 4'd0;
+    for (int q = 0; q < NUM_PORTS; q++) begin
+        if (m_axis_tvalid[q] && m_axis_tready[q]) begin
+            flits_out_cnt = flits_out_cnt + 4'd1;
+            if (m_axis_tlast[q]) begin
+                pkts_out_cnt = pkts_out_cnt + 4'd1;
+            end
+        end
+    end
+end
+
+always_comb begin
+    stall_any = 1'b0;
+    for (int p = 0; p < NUM_PORTS; p++) begin
+        if (req_active[p] && !in_granted[p]) begin
+            stall_any = 1'b1;
+        end
+    end
+end
+
+always_comb begin
+    credit_stall_any = 1'b0;
+    for (int q = 0; q < NUM_PORTS; q++) begin
+        if (|grant_matrix[q]) begin
+            for (int p = 0; p < NUM_PORTS; p++) begin
+                if (grant_matrix[q][p] &&
+                    !s_credit[q][out_vc[p]]) begin
+                    credit_stall_any = 1'b1;
+                end
+            end
+        end
+    end
+end
+
+always_comb begin
+    bulk_starve_any = 1'b0;
+    for (int q = 0; q < NUM_PORTS; q++) begin
+        if (o_bulk_starved[q]) begin
+            bulk_starve_any = 1'b1;
+        end
+    end
+end
+
+always_comb begin
+    spec_commit_cnt = 4'd0;
+    spec_revoke_cnt = 4'd0;
+    for (int q = 0; q < NUM_PORTS; q++) begin
+        spec_commit_cnt = spec_commit_cnt + 4'(spec_commit[q]);
+        spec_revoke_cnt = spec_revoke_cnt + 4'(spec_revoke[q]);
+    end
+end
+
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (!aresetn) begin
+        counter_bank[C_FLITS_IN]     <= '0;
+        counter_bank[C_FLITS_OUT]    <= '0;
+        counter_bank[C_PKTS_IN]      <= '0;
+        counter_bank[C_PKTS_OUT]     <= '0;
+        counter_bank[C_STALL_CYCLES] <= '0;
+        counter_bank[C_CREDIT_STALL] <= '0;
+        counter_bank[C_BULK_STARVE]  <= '0;
+        counter_bank[C_SPEC_COMMITS] <= '0;
+        counter_bank[C_SPEC_REVOKES] <= '0;
+    end else if (ENABLE_COUNTERS != 0) begin
+        if (flits_in_cnt != 4'd0 &&
+            (counter_bank[C_FLITS_IN] <=
+                (32'hFFFF_FFFF - 32'(flits_in_cnt)))) begin
+            counter_bank[C_FLITS_IN] <=
+                counter_bank[C_FLITS_IN] + 32'(flits_in_cnt);
+        end
+        if (flits_out_cnt != 4'd0 &&
+            (counter_bank[C_FLITS_OUT] <=
+                (32'hFFFF_FFFF - 32'(flits_out_cnt)))) begin
+            counter_bank[C_FLITS_OUT] <=
+                counter_bank[C_FLITS_OUT] + 32'(flits_out_cnt);
+        end
+        if (pkts_in_cnt != 4'd0 &&
+            (counter_bank[C_PKTS_IN] <=
+                (32'hFFFF_FFFF - 32'(pkts_in_cnt)))) begin
+            counter_bank[C_PKTS_IN] <=
+                counter_bank[C_PKTS_IN] + 32'(pkts_in_cnt);
+        end
+        if (pkts_out_cnt != 4'd0 &&
+            (counter_bank[C_PKTS_OUT] <=
+                (32'hFFFF_FFFF - 32'(pkts_out_cnt)))) begin
+            counter_bank[C_PKTS_OUT] <=
+                counter_bank[C_PKTS_OUT] + 32'(pkts_out_cnt);
+        end
+        if (stall_any &&
+            (counter_bank[C_STALL_CYCLES] != 32'hFFFF_FFFF)) begin
+            counter_bank[C_STALL_CYCLES] <=
+                counter_bank[C_STALL_CYCLES] + 32'd1;
+        end
+        if (credit_stall_any &&
+            (counter_bank[C_CREDIT_STALL] != 32'hFFFF_FFFF)) begin
+            counter_bank[C_CREDIT_STALL] <=
+                counter_bank[C_CREDIT_STALL] + 32'd1;
+        end
+        if (bulk_starve_any &&
+            (counter_bank[C_BULK_STARVE] != 32'hFFFF_FFFF)) begin
+            counter_bank[C_BULK_STARVE] <=
+                counter_bank[C_BULK_STARVE] + 32'd1;
+        end
+        if (spec_commit_cnt != 4'd0 &&
+            (counter_bank[C_SPEC_COMMITS] <=
+                (32'hFFFF_FFFF - 32'(spec_commit_cnt)))) begin
+            counter_bank[C_SPEC_COMMITS] <=
+                counter_bank[C_SPEC_COMMITS] + 32'(spec_commit_cnt);
+        end
+        if (spec_revoke_cnt != 4'd0 &&
+            (counter_bank[C_SPEC_REVOKES] <=
+                (32'hFFFF_FFFF - 32'(spec_revoke_cnt)))) begin
+            counter_bank[C_SPEC_REVOKES] <=
+                counter_bank[C_SPEC_REVOKES] + 32'(spec_revoke_cnt);
         end
     end
 )

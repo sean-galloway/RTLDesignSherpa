@@ -30,7 +30,8 @@ parameter bit     SPECULATION = 0 )(
     output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY],
     output logic [31:0]           o_err          [NUM_BOUNDARY],
     output logic [31:0]           o_mode_acks    [NUM_BOUNDARY],
-    output logic [8:0]            o_bulk_starved [NUM_BOUNDARY]
+    output logic [8:0]            o_bulk_starved [NUM_BOUNDARY],
+    output logic                  o_dft_active   [NUM_BOUNDARY]
 );
 // ==============================================================================
 // Module: delta_mesh_fabric_4x4x1
@@ -75,6 +76,9 @@ parameter bit     SPECULATION = 0 )(
 //     bit p of a boundary cell's entry = that cell's
 //     output port p reservation is due) ride out as
 //     o_bulk_starved[NUM_BOUNDARY], same index order.
+//   - Per-cell DFT-active flag (delta_mesh_cell's
+//     o_dft_active, Task 10) rides out as
+//     o_dft_active[NUM_BOUNDARY], same index order.
 //
 // Tie-off policy (no torus this task -- wrap links land in
 // Task 9; --torus-* is rejected at generation time):
@@ -240,6 +244,12 @@ logic [31:0]           cell_mode_acks [X_DIM][Y_DIM][Z_DIM];
 // in the same fashion as cell_err_drop.
 /* verilator lint_off UNUSEDSIGNAL */
 logic [8:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];
+/* verilator lint_on UNUSEDSIGNAL */
+// Per-cell DFT-active flag (delta_mesh_cell's
+// o_dft_active, Task 10), boundary cells exposed in the
+// same fashion as cell_err_drop.
+/* verilator lint_off UNUSEDSIGNAL */
+logic                  cell_dft_active [X_DIM][Y_DIM][Z_DIM];
 /* verilator lint_on UNUSEDSIGNAL */
 
 // ==========================================================================
@@ -555,6 +565,8 @@ generate
                         cell_mode_acks[gx][gy][gz];
                     assign o_bulk_starved[BIDX] =
                         cell_bulk_starved[gx][gy][gz];
+                    assign o_dft_active[BIDX] =
+                        cell_dft_active[gx][gy][gz];
                 end else begin : gen_local_tieoff
                     assign cell_s_tdata[gx][gy][gz][P_LOCAL]  = '0;
                     assign cell_s_tvalid[gx][gy][gz][P_LOCAL] = 1'b0;
@@ -603,7 +615,8 @@ generate
                     .o_err_drop_cnt(cell_err_drop[gx][gy][gz]),
                     .o_mode_acks(cell_mode_acks[gx][gy][gz]),
                     .o_bulk_starved(cell_bulk_starved[gx][gy][gz]),
-                    .o_spec_active()
+                    .o_spec_active(),
+                    .o_dft_active(cell_dft_active[gx][gy][gz])
                 );
             end
         end

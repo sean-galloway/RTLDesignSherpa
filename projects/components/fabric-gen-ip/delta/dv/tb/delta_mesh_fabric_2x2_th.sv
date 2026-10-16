@@ -104,7 +104,11 @@ module delta_mesh_fabric_2x2_th #(
     output logic [8:0]            b0_bulk_starved,
     output logic [8:0]            b1_bulk_starved,
     output logic [8:0]            b2_bulk_starved,
-    output logic [8:0]            b3_bulk_starved
+    output logic [8:0]            b3_bulk_starved,
+    output logic                  b0_dft_active,
+    output logic                  b1_dft_active,
+    output logic                  b2_dft_active,
+    output logic                  b3_dft_active
 );
 
     // Fabric boundary index map (pinned by the generator, x-major then y
@@ -206,6 +210,14 @@ module delta_mesh_fabric_2x2_th #(
     assign b2_bulk_starved = w_o_bulk_starved[2];
     assign b3_bulk_starved = w_o_bulk_starved[3];
 
+    // Per-cell DFT-active flags (Task 10): exposed per boundary cell.
+    logic w_o_dft_active [NUM_BOUNDARY];
+
+    assign b0_dft_active = w_o_dft_active[0];
+    assign b1_dft_active = w_o_dft_active[1];
+    assign b2_dft_active = w_o_dft_active[2];
+    assign b3_dft_active = w_o_dft_active[3];
+
     delta_mesh_fabric_2x2x1 #(
         .DATA_WIDTH(DATA_WIDTH),
         .USER_WIDTH(USER_WIDTH),
@@ -228,7 +240,8 @@ module delta_mesh_fabric_2x2_th #(
         .m_local_credit(w_m_local_credit),
         .o_err(w_o_err),
         .o_mode_acks(w_o_mode_acks),
-        .o_bulk_starved(w_o_bulk_starved)
+        .o_bulk_starved(w_o_bulk_starved),
+        .o_dft_active(w_o_dft_active)
     );
 
 endmodule : delta_mesh_fabric_2x2_th

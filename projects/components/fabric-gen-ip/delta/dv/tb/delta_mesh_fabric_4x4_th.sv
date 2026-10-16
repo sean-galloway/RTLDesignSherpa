@@ -294,7 +294,23 @@ module delta_mesh_fabric_4x4_th #(
     output logic [8:0]            b12_bulk_starved,
     output logic [8:0]            b13_bulk_starved,
     output logic [8:0]            b14_bulk_starved,
-    output logic [8:0]            b15_bulk_starved
+    output logic [8:0]            b15_bulk_starved,
+    output logic                  b0_dft_active,
+    output logic                  b1_dft_active,
+    output logic                  b2_dft_active,
+    output logic                  b3_dft_active,
+    output logic                  b4_dft_active,
+    output logic                  b5_dft_active,
+    output logic                  b6_dft_active,
+    output logic                  b7_dft_active,
+    output logic                  b8_dft_active,
+    output logic                  b9_dft_active,
+    output logic                  b10_dft_active,
+    output logic                  b11_dft_active,
+    output logic                  b12_dft_active,
+    output logic                  b13_dft_active,
+    output logic                  b14_dft_active,
+    output logic                  b15_dft_active
 );
 
     // Fabric boundary index map (pinned by the generator, x-major then y
@@ -577,6 +593,26 @@ module delta_mesh_fabric_4x4_th #(
     assign b14_bulk_starved = w_o_bulk_starved[14];
     assign b15_bulk_starved = w_o_bulk_starved[15];
 
+    // Per-cell DFT-active flags (Task 10): exposed per boundary cell.
+    logic w_o_dft_active [NUM_BOUNDARY];
+
+    assign b0_dft_active  = w_o_dft_active[0];
+    assign b1_dft_active  = w_o_dft_active[1];
+    assign b2_dft_active  = w_o_dft_active[2];
+    assign b3_dft_active  = w_o_dft_active[3];
+    assign b4_dft_active  = w_o_dft_active[4];
+    assign b5_dft_active  = w_o_dft_active[5];
+    assign b6_dft_active  = w_o_dft_active[6];
+    assign b7_dft_active  = w_o_dft_active[7];
+    assign b8_dft_active  = w_o_dft_active[8];
+    assign b9_dft_active  = w_o_dft_active[9];
+    assign b10_dft_active = w_o_dft_active[10];
+    assign b11_dft_active = w_o_dft_active[11];
+    assign b12_dft_active = w_o_dft_active[12];
+    assign b13_dft_active = w_o_dft_active[13];
+    assign b14_dft_active = w_o_dft_active[14];
+    assign b15_dft_active = w_o_dft_active[15];
+
     delta_mesh_fabric_4x4x1 #(
         .DATA_WIDTH(DATA_WIDTH),
         .USER_WIDTH(USER_WIDTH),
@@ -599,7 +635,8 @@ module delta_mesh_fabric_4x4_th #(
         .m_local_credit(w_m_local_credit),
         .o_err(w_o_err),
         .o_mode_acks(w_o_mode_acks),
-        .o_bulk_starved(w_o_bulk_starved)
+        .o_bulk_starved(w_o_bulk_starved),
+        .o_dft_active(w_o_dft_active)
     );
 
 endmodule : delta_mesh_fabric_4x4_th

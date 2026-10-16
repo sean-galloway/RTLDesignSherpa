@@ -180,6 +180,7 @@ module delta_mesh_cell_th #(
     output logic [31:0]           mode_acks,
     output logic [8:0]            bulk_starved,
     output logic [31:0]           spec_active,
+    output logic                  dft_active,
 
     input  logic [8:0]            wrap_mask
 );
@@ -353,7 +354,8 @@ module delta_mesh_cell_th #(
         .o_err_drop_cnt(err_drop_cnt),
         .o_mode_acks(mode_acks),
         .o_bulk_starved(bulk_starved),
-        .o_spec_active(spec_active)
+        .o_spec_active(spec_active),
+        .o_dft_active(dft_active)
     );
 
 endmodule : delta_mesh_cell_th

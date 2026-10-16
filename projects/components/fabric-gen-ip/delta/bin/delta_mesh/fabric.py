@@ -141,7 +141,8 @@ class DeltaMeshFabric(Module):
 
             output logic [31:0]           o_err          [NUM_BOUNDARY],
             output logic [31:0]           o_mode_acks    [NUM_BOUNDARY],
-            output logic [8:0]            o_bulk_starved [NUM_BOUNDARY]
+            output logic [8:0]            o_bulk_starved [NUM_BOUNDARY],
+            output logic                  o_dft_active   [NUM_BOUNDARY]
         '''
         self.ports.add_port_string(port_str)
 
@@ -195,6 +196,9 @@ class DeltaMeshFabric(Module):
         self.comment("    bit p of a boundary cell's entry = that cell's")
         self.comment("    output port p reservation is due) ride out as")
         self.comment("    o_bulk_starved[NUM_BOUNDARY], same index order.")
+        self.comment("  - Per-cell DFT-active flag (delta_mesh_cell's")
+        self.comment("    o_dft_active, Task 10) rides out as")
+        self.comment("    o_dft_active[NUM_BOUNDARY], same index order.")
         self.comment("")
         self.comment("Tie-off policy (no torus this task -- wrap links land in")
         self.comment("Task 9; --torus-* is rejected at generation time):")
@@ -359,6 +363,12 @@ class DeltaMeshFabric(Module):
         self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
         self.instruction("logic [8:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];")
         self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
+        self.comment("Per-cell DFT-active flag (delta_mesh_cell's")
+        self.comment("o_dft_active, Task 10), boundary cells exposed in the")
+        self.comment("same fashion as cell_err_drop.")
+        self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
+        self.instruction("logic                  cell_dft_active [X_DIM][Y_DIM][Z_DIM];")
+        self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
         self.instruction("")
 
     # ------------------------------------------------------------------
@@ -415,6 +425,8 @@ class DeltaMeshFabric(Module):
         self.instruction("                        cell_mode_acks[gx][gy][gz];")
         self.instruction("                    assign o_bulk_starved[BIDX] =")
         self.instruction("                        cell_bulk_starved[gx][gy][gz];")
+        self.instruction("                    assign o_dft_active[BIDX] =")
+        self.instruction("                        cell_dft_active[gx][gy][gz];")
 
     def _emit_neighbor_hookups(self):
         """Emit the six if-generate neighbor hookups (genvar-relative).
@@ -603,7 +615,8 @@ class DeltaMeshFabric(Module):
         self.instruction("                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz]),")
         self.instruction("                    .o_mode_acks(cell_mode_acks[gx][gy][gz]),")
         self.instruction("                    .o_bulk_starved(cell_bulk_starved[gx][gy][gz]),")
-        self.instruction("                    .o_spec_active()")
+        self.instruction("                    .o_spec_active(),")
+        self.instruction("                    .o_dft_active(cell_dft_active[gx][gy][gz])")
         self.instruction("                );")
         self.instruction("            end")
         self.instruction("        end")
