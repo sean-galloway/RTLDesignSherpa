@@ -23,6 +23,14 @@
 
 # Mesh Hierarchy
 
+> **SUPERSEDED in part (2026-10-15)** — the owner re-defined the hierarchy
+> and made the wrappers real: tetrad (2×2×1 cells, K4) and tile (2×2×1
+> tetrads, K4) are now RTL modules with MonBus aggregation, not naming-only
+> groupings. The canonical definition is
+> [`../../TILE_SPEC.md`](../TILE_SPEC.md); this chapter's "no wrapper RTL"
+> statements and old names ("confluence") hold only as pre-2026-10-15
+> history.
+
 ## Placement Levels
 
 > **PLANNED** — Mesh mode is a planned generator option. The only RTL delta is expected to emit is `delta_mesh_cell`; the hierarchy below is placement and naming, not wrapper RTL. The design is per the delta mesh design spec dated 2026-10-13 (`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`).
