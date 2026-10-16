@@ -1,11 +1,10 @@
 #==============================================================================
 # build_ila.tcl -- fabric benchmark ILA debug build (any leg)
 #==============================================================================
-# The normal leg build plus one ILA on aclk (MIG's ui_clk) watching S0: MIG's
-# AXI4 slave port, taken at MIG's own pins so synthesis renaming cannot hide
-# it, and MIG's native app interface underneath its AXI shim. That pair splits
-# "the AXI request never became a DRAM command" from "the command ran and the
-# data never came back".
+# The normal leg build plus one ILA on aclk watching S0: the AXI4 port between
+# the fabric and the DDR3 controller (fb_litedram), taken from the top-level
+# ddr_* nets, which exist whatever controller sits behind them. It splits "the
+# fabric never issued it" from "the controller never answered".
 #
 # Published next to the normal bitstream as <flow>_ila.{bit,ltx}.
 # Capture: tcl/capture_ila.tcl. Usage: make -C build-<leg> bitstream-ila
@@ -23,50 +22,21 @@ if {[get_property PROGRESS [get_runs synth_1]] != "100%"} {
 }
 open_run synth_1 -name synth_1
 
-set dbg_clk [get_nets -of_objects [get_pins u_mig/ui_clk]]
+set dbg_clk [get_nets -of_objects [get_pins u_ep_mmcm/CLKIN1]]
 puts "ILA clock net: $dbg_clk"
 
-# Probe name -> nets. MIG AXI pins first (exact), then app-interface nets
-# inside the IP (patterns; a miss shrinks the view and is reported).
 set probes {}
-foreach p {s_axi_arvalid s_axi_arready s_axi_araddr s_axi_arlen s_axi_arid
-           s_axi_rvalid s_axi_rready s_axi_rlast s_axi_rid s_axi_rresp
-           s_axi_awvalid s_axi_awready s_axi_wvalid s_axi_wready
-           s_axi_bvalid s_axi_bready init_calib_complete} {
-    set pins [get_pins -quiet "u_mig/${p}*"]
-    if {$p in {s_axi_arvalid s_axi_arready s_axi_rvalid s_axi_rready s_axi_rlast
-               s_axi_awvalid s_axi_awready s_axi_wvalid s_axi_wready
-               s_axi_bvalid s_axi_bready init_calib_complete}} {
-        set pins [get_pins -quiet "u_mig/$p"]
-    }
-    set nets [get_nets -quiet -of_objects $pins]
-    if {[llength $nets] == 0} { puts "NOTE: no net on u_mig/$p"; continue }
-    lappend probes $p [lsort $nets]
+foreach p {arvalid arready araddr arlen arid rvalid rready rlast rid rresp
+           awvalid awready awaddr awlen wvalid wready wlast bvalid bready bresp} {
+    set nets [get_nets -quiet "ddr_${p}"]
+    if {[llength $nets] == 0} { set nets [get_nets -quiet "ddr_${p}\[*\]"] }
+    if {[llength $nets] == 0} { puts "NOTE: no top-level net ddr_$p"; continue }
+    lappend probes "ddr_$p" [lsort -dictionary $nets]
 }
-foreach {name pat} {
-    app_en            "*u_mig/*app_en"
-    app_rdy           "*u_mig/*app_rdy"
-    app_cmd           "*u_mig/*app_cmd[*]"
-    app_rd_data_valid "*u_mig/*app_rd_data_valid"
-    app_rd_data_end   "*u_mig/*app_rd_data_end"
-    app_wdf_wren      "*u_mig/*app_wdf_wren"
-    app_wdf_rdy       "*u_mig/*app_wdf_rdy"
-} {
-    set nets [get_nets -quiet -hier -filter "NAME =~ $pat"]
-    if {[llength $nets] == 0} { puts "NOTE: pattern found no nets: $pat"; continue }
-    # The same signal is visible at several hierarchy levels; keep the
-    # shortest-named copy (one probe per signal).
-    set best {}
-    set bestlen 100000
-    foreach n $nets {
-        set base [regsub {\[\d+\]$} $n {}]
-        set l [string length $base]
-        if {$l < $bestlen} { set bestlen $l; set best $base }
-    }
-    set sel {}
-    foreach n $nets { if {[regsub {\[\d+\]$} $n {}] eq $best} { lappend sel $n } }
-    puts "  $name <- $best ([llength $sel] bit(s))"
-    lappend probes $name [lsort -dictionary $sel]
+foreach p {ddr_init_done ddr_init_error ddr_pll_locked} {
+    set nets [get_nets -quiet $p]
+    if {[llength $nets] == 0} { puts "NOTE: no top-level net $p"; continue }
+    lappend probes $p $nets
 }
 
 set depth 8192

@@ -197,9 +197,10 @@ module fb_ctl_regs (
     assign readback_array[1][31:0] = (decoded_reg_strb.S0_RD_BEATS && !decoded_req_is_wr) ? hwif_in.S0_RD_BEATS.VALUE.next : '0;
     assign readback_array[2][31:0] = (decoded_reg_strb.S0_WR_BEATS && !decoded_req_is_wr) ? hwif_in.S0_WR_BEATS.VALUE.next : '0;
     assign readback_array[3][0:0] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.INIT_CALIB_COMPLETE.next : '0;
-    assign readback_array[3][1:1] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.MIG_MMCM_LOCKED.next : '0;
+    assign readback_array[3][1:1] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.DDR_PLL_LOCKED.next : '0;
     assign readback_array[3][2:2] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.EP_MMCM_LOCKED.next : '0;
-    assign readback_array[3][7:3] = '0;
+    assign readback_array[3][3:3] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.DDR_INIT_ERROR.next : '0;
+    assign readback_array[3][7:4] = '0;
     assign readback_array[3][8:8] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.S0_ARVALID.next : '0;
     assign readback_array[3][9:9] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.S0_ARREADY.next : '0;
     assign readback_array[3][10:10] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.S0_RVALID.next : '0;

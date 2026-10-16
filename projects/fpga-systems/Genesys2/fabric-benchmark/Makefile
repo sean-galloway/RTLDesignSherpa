@@ -7,11 +7,10 @@
 # context.
 #
 #   make regen            every generated file from the TOML (bin/regen.sh)
-#   make vendor-ip        fb_xbar, fb_sc (SmartConnect BD), fb_mig -> fpga/ip/build
+#   make vendor-ip        fb_xbar, fb_sc (SmartConnect BD) -> fpga/ip/build
 #   make check-xbar       prove the leg B1 HDL wrapper == the IP-catalog crossbar
 #   make ooc LEG=sc PERIOD=4.0   one leg out of context -> reports/ooc/<leg>/<p>ns
 #   make ooc-all          every leg at 10.0 ns (board target) and 4.0 ns (Fmax)
-#   make mig-example      place and route MIG's example design -> reports/mig_example
 #   make ooc-report       reports/ooc/README.md from every finished build
 #   make sim              the cocotb tests (dv/tests)
 #
@@ -29,7 +28,7 @@ PERIODS   := 10.0 4.0
 LEG       ?= bridge
 PERIOD    ?= 10.0
 
-.PHONY: help regen vendor-ip check-xbar ooc ooc-all ooc-report mig-example sim
+.PHONY: help regen vendor-ip check-xbar ooc ooc-all ooc-report sim
 
 help:
 	@sed -n '/^#   make/s/^#   //p' $(lastword $(MAKEFILE_LIST))
@@ -59,11 +58,6 @@ ooc-%:
 
 ooc-report:
 	python3 $(AREA)/bin/parse_ooc.py
-
-mig-example:
-	mkdir -p $(AREA)/reports/mig_example
-	flock $(AREA)/fpga/ip/.lock $(VIVADO) -log $(AREA)/reports/mig_example/impl.log \
-	    -source $(AREA)/fpga/tcl/mig_example_impl.tcl
 
 sim:
 	cd $(AREA)/dv/tests && $(MAKE) clean-all && $(MAKE) run-all-func

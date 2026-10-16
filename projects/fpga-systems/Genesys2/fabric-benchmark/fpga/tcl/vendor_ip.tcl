@@ -15,10 +15,6 @@
 #             the connectivity CSV excluded (DECERR). No AxUSER: SmartConnect's
 #             MI ID width is 0 and read-only, so the endpoints select channels
 #             by address and B2 carries nothing the other legs do not.
-#   fb_mig    MIG 7-series DDR3 for S0 (K3), from
-#             rtl/generated/fb_mig_prj/fb_mig.prj (bin/gen_mig_prj.py: the
-#             board-proven Genesys 2 pinout, DDR3-800, 4:1 so ui_clk = 100 MHz
-#             = the fabric clock, AXI4 128-bit, ID = the fabric's slave ID).
 #
 # Output: $FB_IP_DIR (default fpga/ip/build), a Vivado project holding both,
 # with output products generated. Regenerable, so not committed.
@@ -55,8 +51,5 @@ generate_target {instantiation_template synthesis simulation} [get_ips fb_xbar]
 source "$script_dir/fb_sc_bd.tcl"
 fb_create_sc_bd
 
-# ---- S0 memory controller: MIG 7-series DDR3 --------------------------------------
-source "$script_dir/fb_mig_ip.tcl"
-fb_create_mig $area $FB_DW $FB_SID
 
-puts "\nvendor_ip: fb_xbar + fb_sc + fb_mig generated under $ip_dir"
+puts "\nvendor_ip: fb_xbar + fb_sc generated under $ip_dir"

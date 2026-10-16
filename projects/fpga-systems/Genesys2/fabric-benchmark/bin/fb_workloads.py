@@ -91,6 +91,20 @@ def calib_complete(bridge) -> bool:
     return bool((bridge.read(C('STATUS')) >> int(f['offset'])) & 1)
 
 
+def wait_calib(bridge, timeout_s: float = 20.0) -> bool:
+    """Wait for the S0 controller to finish calibrating. fb_litedram's BIOS
+    calibrates the PHY after every configuration, which takes a few seconds,
+    so a program started right after `make program` would otherwise find
+    STATUS.INIT_CALIB_COMPLETE still 0 and refuse every DDR3 step."""
+    import time
+    end = time.monotonic() + timeout_s
+    while not calib_complete(bridge):
+        if time.monotonic() > end:
+            return False
+        time.sleep(0.25)
+    return True
+
+
 def run_step(runner, bridge, cfg, src: str, dst: str) -> dict:
     """One step: point the timer and the descriptors at (src, dst) and run.
     A step that touches DDR3 is refused, not run, before MIG calibrates: a
@@ -151,6 +165,8 @@ def run_chain(runner, bridge, cfg, log=print) -> list[dict]:
     """Every step of CHAIN on one config; each result carries 'step',
     'verdict' and 'why'. The timer is left watching W2's endpoints."""
     out, by_step = [], {}
+    if not wait_calib(bridge):
+        log("  DDR3 never finished calibrating (fb_ctl STATUS); the steps will be refused")
     try:
         for step, src, dst in CHAIN:
             res = run_step(runner, bridge, cfg, src, dst)

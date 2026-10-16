@@ -1,0 +1,36 @@
+# fb_litedram -- the Genesys 2 fabric benchmark's S0 DDR3 controller (LiteDRAM).
+#
+# The PHY, module, clocks and CPU are the board-proven LiteDRAM memtest build's
+# (mem-ctrl-ip/scoria/build-litedram/litedram_genesys2_ddr3.yml), unchanged:
+# K7DDRPHY, 2 x MT41J256M16 (32-bit DQ, 1 GB), DDR3-800 at 1:4, 100 MHz sys
+# from the board's 200 MHz clock. The VexRiscv + BIOS calibrate the PHY at
+# boot (read/write leveling) and then idle; init_done is the "S0 ready" flag.
+#
+# What differs is the user port, sized to the fabric's S0 port: 128-bit AXI4,
+# ID width 10 (bridge_fb_data.toml slave ddr). sys_clk = user_clk = the fabric
+# clock (aclk), so S0 needs no clock crossing -- the role MIG's ui_clk had.
+#
+# Replaces the MIG 7-series controller (owner decision 2026-10-16): MIG
+# calibrated but its read path returned no data on this board (PRD §6, K3).
+{
+    "speedgrade":       -2,
+    "cpu":              "vexriscv",
+    "memtype":          "DDR3",
+    "uart":             "rs232",
+
+    "cmd_latency":      0,
+    "sdram_module":     "MT41J256M16",
+    "sdram_module_nb":  4,
+    "sdram_rank_nb":    1,
+    "sdram_phy":        "K7DDRPHY",
+
+    "input_clk_freq":   200e6,
+    "sys_clk_freq":     100e6,
+    "iodelay_clk_freq": 200e6,
+
+    "cmd_buffer_depth": 16,
+
+    "user_ports": {
+        "axi_0": { "type": "axi", "data_width": 128, "id_width": 10 }
+    }
+}

@@ -79,8 +79,9 @@ Don't override. Generated from: $root
 |Bits|     Identifier    |Access|Reset|Name|
 |----|-------------------|------|-----|----|
 |  0 |INIT_CALIB_COMPLETE|   r  | 0x0 |  — |
-|  1 |  MIG_MMCM_LOCKED  |   r  | 0x0 |  — |
+|  1 |   DDR_PLL_LOCKED  |   r  | 0x0 |  — |
 |  2 |   EP_MMCM_LOCKED  |   r  | 0x0 |  — |
+|  3 |   DDR_INIT_ERROR  |   r  | 0x0 |  — |
 |  8 |     S0_ARVALID    |   r  | 0x0 |  — |
 |  9 |     S0_ARREADY    |   r  | 0x0 |  — |
 | 10 |     S0_RVALID     |   r  | 0x0 |  — |
@@ -94,15 +95,19 @@ Don't override. Generated from: $root
 
 #### INIT_CALIB_COMPLETE field
 
-<p>MIG init_calib_complete (ui_clk domain).</p>
+<p>S0 controller initialized and calibrated without error (LiteDRAM init_done and not init_error).</p>
 
-#### MIG_MMCM_LOCKED field
+#### DDR_PLL_LOCKED field
 
-<p>MIG MMCM locked (synchronized to aclk).</p>
+<p>S0 controller PLL locked (synchronized to aclk).</p>
 
 #### EP_MMCM_LOCKED field
 
 <p>Endpoint-clock MMCM locked (synchronized to aclk).</p>
+
+#### DDR_INIT_ERROR field
+
+<p>S0 controller calibration finished with an error (LiteDRAM init_error).</p>
 
 #### S0_ARVALID field
 

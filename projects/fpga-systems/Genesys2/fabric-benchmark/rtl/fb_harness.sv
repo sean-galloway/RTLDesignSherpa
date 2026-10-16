@@ -123,10 +123,12 @@ module fb_harness #(
     output logic          ddr_rready,
 
     // Board status (LEDs)
-    // Board status for fb_ctl STATUS (sim ties them high). init_calib_complete
-    // is MIG's, on ui_clk == aclk; the two locks are asynchronous.
-    input  logic          i_mig_calib_done,
-    input  logic          i_mig_mmcm_locked,
+    // Board status for fb_ctl STATUS (sim ties done/locks high). The DDR
+    // controller's init flags are on its user_clk == aclk; the two locks are
+    // asynchronous.
+    input  logic          i_ddr_init_done,
+    input  logic          i_ddr_init_error,
+    input  logic          i_ddr_pll_locked,
     input  logic          i_ep_mmcm_locked,
 
     output logic          o_timer_done,
@@ -1150,7 +1152,7 @@ module fb_harness #(
     fb_ctl_regs_pkg::fb_ctl_regs__in_t  fb_ctl_in;
     fb_ctl_regs_pkg::fb_ctl_regs__out_t fb_ctl_out;
     logic [31:0] r_s0_rd_beats, r_s0_wr_beats, r_s0_aw, r_s0_b, r_s0_ar, r_s0_rvalid_cyc;
-    logic [1:0]  r_mig_lock_sync, r_ep_lock_sync;
+    logic [1:0]  r_ddr_lock_sync, r_ep_lock_sync;
     logic [31:0] timer_rd_beats, timer_wr_beats;
 
     apb4_to_peakrdl #(
@@ -1228,15 +1230,16 @@ module fb_harness #(
     // Two-flop synchronizers for the asynchronous lock inputs (status only).
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_mig_lock_sync <= '0;
+            r_ddr_lock_sync <= '0;
             r_ep_lock_sync  <= '0;
         end else begin
-            r_mig_lock_sync <= {r_mig_lock_sync[0], i_mig_mmcm_locked};
+            r_ddr_lock_sync <= {r_ddr_lock_sync[0], i_ddr_pll_locked};
             r_ep_lock_sync  <= {r_ep_lock_sync[0],  i_ep_mmcm_locked};
         end
     )
-    assign fb_ctl_in.STATUS.INIT_CALIB_COMPLETE.next = i_mig_calib_done;
-    assign fb_ctl_in.STATUS.MIG_MMCM_LOCKED.next     = r_mig_lock_sync[1];
+    assign fb_ctl_in.STATUS.INIT_CALIB_COMPLETE.next = i_ddr_init_done & ~i_ddr_init_error;
+    assign fb_ctl_in.STATUS.DDR_INIT_ERROR.next      = i_ddr_init_error;
+    assign fb_ctl_in.STATUS.DDR_PLL_LOCKED.next      = r_ddr_lock_sync[1];
     assign fb_ctl_in.STATUS.EP_MMCM_LOCKED.next      = r_ep_lock_sync[1];
     assign fb_ctl_in.S0_AW_COUNT.VALUE.next = r_s0_aw;
     assign fb_ctl_in.S0_B_COUNT.VALUE.next  = r_s0_b;

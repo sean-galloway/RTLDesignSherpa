@@ -78,8 +78,9 @@ class FbHarnessTB(TBBase):
     async def setup_clocks_and_reset(self):
         self.dut.i_uart_rx.value = 1
         # Board status for fb_ctl STATUS: the sim's S0 model is always ready.
-        self.dut.i_mig_calib_done.value = 1
-        self.dut.i_mig_mmcm_locked.value = 1
+        self.dut.i_ddr_init_done.value = 1
+        self.dut.i_ddr_init_error.value = 0
+        self.dut.i_ddr_pll_locked.value = 1
         self.dut.i_ep_mmcm_locked.value = 1
         await self.start_clock('aclk', self.aclk_ns, 'ns')
         await self.start_clock('ep_clk', self.ep_ns, 'ns')

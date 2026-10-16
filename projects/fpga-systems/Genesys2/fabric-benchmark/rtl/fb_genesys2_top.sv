@@ -1,30 +1,34 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 // Module: fb_genesys2_top
-// Purpose: Genesys 2 board top of the fabric benchmark (K1): fb_harness on the
-//          MIG DDR3 controller's ui_clk, the endpoint clock from a second
+// Purpose: Genesys 2 board top of the fabric benchmark: fb_harness on the
+//          LiteDRAM DDR3 controller's user_clk, the endpoint clock from a second
 //          MMCM, UART to the host, status on the LEDs.
 // Documentation: projects/fpga-systems/Genesys2/fabric-benchmark/PRD.md
 // Author: sean galloway
 // Created: 2026-10-15
 //==============================================================================
+// S0 controller: fb_litedram (rtl/litedram/fb_litedram.yml, bin/gen_litedram.sh)
+//   -- the board-proven LiteDRAM memtest configuration (K7DDRPHY, DDR3-800 at
+//   1:4) with a 128-bit / ID-10 AXI port. Its VexRiscv BIOS calibrates the PHY
+//   at boot; init_done (and not init_error) is "S0 ready". It replaced MIG on
+//   2026-10-16 (MIG's read path returned no data on this board; PRD §6).
 // Clocks
-//   sys_clk_p/n  200 MHz LVDS (AD12/AD11) -> fb_mig (its own IBUFDS + MMCM;
-//                MIG's XDC places these pins, so the names are MIG's)
-//   aclk         fb_mig ui_clk, 100 MHz (DDR3-800 at 4:1): STREAM, the fabric
-//                under test, the harness -- and S0 needs no clock crossing
-//   ep_clk       125 MHz from u_ep_mmcm (ui_clk x10 / 8), the endpoints' clock
+//   sys_clk_p/n  200 MHz LVDS (AD12/AD11) -> IBUFDS -> fb_litedram's PLL
+//   aclk         fb_litedram user_clk, 100 MHz: STREAM, the fabric under test,
+//                the harness -- and S0 needs no clock crossing
+//   ep_clk       125 MHz from u_ep_mmcm (aclk x10 / 8), the endpoints' clock
 //                (fb_endpoints crosses into it through axi4_cdc_{rd,wr}). The
 //                K0 sim ran the same 100 / 125 MHz pair.
 // Reset
-//   cpu_resetn (R19) resets MIG (sys_rst, active low). The harness leaves reset
-//   once ui_clk is stable (~ui_clk_sync_rst), NOT on calibration: W2 runs need
-//   no DDR, and a calibration problem then shows on LED 7 instead of a dead
-//   board. A transaction to S0 before calibration simply waits for MIG.
+//   cpu_resetn (R19) resets the controller (rst, active high inside). The
+//   harness leaves reset with user_rst, NOT on calibration: W2 runs need no
+//   DDR, and a calibration problem then shows on LED 7 / fb_ctl STATUS
+//   instead of a dead board.
 // LEDs
 //   run finished: 0x23 PASS / 0x99 FAIL (the STREAM boards' patterns)
-//   otherwise:    [0] stream_irq  [5] ep MMCM locked  [6] MIG MMCM locked
-//                 [7] DDR3 init_calib_complete
+//   otherwise:    [0] stream_irq  [4] DDR init error  [5] ep MMCM locked
+//                 [6] DDR PLL locked  [7] DDR init done
 //==============================================================================
 
 `timescale 1ns / 1ps
@@ -32,7 +36,7 @@
 `include "reset_defs.svh"
 
 module fb_genesys2_top #(
-    parameter int FPGA_CLK_HZ = 100_000_000,   // ui_clk
+    parameter int FPGA_CLK_HZ = 100_000_000,   // user_clk
     parameter int UART_BAUD   = 115_200
 ) (
     input  logic        sys_clk_p,
@@ -43,29 +47,30 @@ module fb_genesys2_top #(
     output logic        uart_rx_out,    // FPGA -> host (Y23)
     output logic [7:0]  led,
 
-    // DDR3 (2 x MT41J256M16, 32-bit) -- pins placed by fb_mig's XDC
-    output logic [14:0] ddr3_addr,
-    output logic [2:0]  ddr3_ba,
-    output logic        ddr3_cas_n,
-    output logic [0:0]  ddr3_ck_n,
-    output logic [0:0]  ddr3_ck_p,
-    output logic [0:0]  ddr3_cke,
-    output logic        ddr3_ras_n,
-    output logic        ddr3_reset_n,
-    output logic        ddr3_we_n,
-    inout  wire  [31:0] ddr3_dq,
-    inout  wire  [3:0]  ddr3_dqs_n,
-    inout  wire  [3:0]  ddr3_dqs_p,
-    output logic [0:0]  ddr3_cs_n,
-    output logic [3:0]  ddr3_dm,
-    output logic [0:0]  ddr3_odt
+    // DDR3 (2 x MT41J256M16, 32-bit) -- names and pins are the generated
+    // Genesys 2 pin file's (mem-ctrl-ip/scoria/build-litedram/.../ddr3_pins.xdc)
+    output logic [14:0] ddram_a,
+    output logic [2:0]  ddram_ba,
+    output logic        ddram_ras_n,
+    output logic        ddram_cas_n,
+    output logic        ddram_we_n,
+    output logic        ddram_cs_n,
+    output logic [3:0]  ddram_dm,
+    inout  wire  [31:0] ddram_dq,
+    inout  wire  [3:0]  ddram_dqs_p,
+    inout  wire  [3:0]  ddram_dqs_n,
+    output logic        ddram_clk_p,
+    output logic        ddram_clk_n,
+    output logic        ddram_cke,
+    output logic        ddram_odt,
+    output logic        ddram_reset_n
 );
 
     // =========================================================================
     // DDR3 controller (S0) and the fabric clock
     // =========================================================================
-    logic        ui_clk, ui_clk_sync_rst, mig_mmcm_locked, init_calib_complete;
-    logic        r_mig_aresetn;
+    logic         w_clk200;
+    logic         user_clk, user_rst, ddr_pll_locked, ddr_init_done, ddr_init_error;
 
     logic [9:0]   ddr_awid,   ddr_arid,   ddr_bid,   ddr_rid;
     logic [31:0]  ddr_awaddr, ddr_araddr;
@@ -80,66 +85,68 @@ module fb_genesys2_top #(
     logic [127:0] ddr_wdata, ddr_rdata;
     logic [15:0]  ddr_wstrb;
 
-    fb_mig u_mig (
-        .ddr3_addr, .ddr3_ba, .ddr3_cas_n, .ddr3_ck_n, .ddr3_ck_p, .ddr3_cke,
-        .ddr3_ras_n, .ddr3_reset_n, .ddr3_we_n, .ddr3_dq, .ddr3_dqs_n,
-        .ddr3_dqs_p, .ddr3_cs_n, .ddr3_dm, .ddr3_odt,
-        .sys_clk_p, .sys_clk_n,
-        .sys_rst             (cpu_resetn),        // ACTIVE LOW (fb_mig.prj)
-        .init_calib_complete (init_calib_complete),
-        .ui_clk              (ui_clk),
-        .ui_clk_sync_rst     (ui_clk_sync_rst),
-        .mmcm_locked         (mig_mmcm_locked),
-        .aresetn             (r_mig_aresetn),
-        .app_sr_req          (1'b0),
-        .app_ref_req         (1'b0),
-        .app_zq_req          (1'b0),
-        .app_sr_active       (),
-        .app_ref_ack         (),
-        .app_zq_ack          (),
-        // The fabric's slave port is 32-bit addressed; S0's window is 1 GB, so
-        // the controller sees the low 30 bits (C0_S_AXI_ADDR_WIDTH = 30).
-        .s_axi_awid    (ddr_awid),    .s_axi_awaddr  (ddr_awaddr[29:0]),
-        .s_axi_awlen   (ddr_awlen),   .s_axi_awsize  (ddr_awsize),
-        .s_axi_awburst (ddr_awburst), .s_axi_awlock  (ddr_awlock),
-        .s_axi_awcache (ddr_awcache), .s_axi_awprot  (ddr_awprot),
-        .s_axi_awqos   (ddr_awqos),   .s_axi_awvalid (ddr_awvalid),
-        .s_axi_awready (ddr_awready),
-        .s_axi_wdata   (ddr_wdata),   .s_axi_wstrb   (ddr_wstrb),
-        .s_axi_wlast   (ddr_wlast),   .s_axi_wvalid  (ddr_wvalid),
-        .s_axi_wready  (ddr_wready),
-        .s_axi_bid     (ddr_bid),     .s_axi_bresp   (ddr_bresp),
-        .s_axi_bvalid  (ddr_bvalid),  .s_axi_bready  (ddr_bready),
-        .s_axi_arid    (ddr_arid),    .s_axi_araddr  (ddr_araddr[29:0]),
-        .s_axi_arlen   (ddr_arlen),   .s_axi_arsize  (ddr_arsize),
-        .s_axi_arburst (ddr_arburst), .s_axi_arlock  (ddr_arlock),
-        .s_axi_arcache (ddr_arcache), .s_axi_arprot  (ddr_arprot),
-        .s_axi_arqos   (ddr_arqos),   .s_axi_arvalid (ddr_arvalid),
-        .s_axi_arready (ddr_arready),
-        .s_axi_rid     (ddr_rid),     .s_axi_rdata   (ddr_rdata),
-        .s_axi_rresp   (ddr_rresp),   .s_axi_rlast   (ddr_rlast),
-        .s_axi_rvalid  (ddr_rvalid),  .s_axi_rready  (ddr_rready)
+    IBUFDS #(
+        .DIFF_TERM    ("FALSE"),
+        .IBUF_LOW_PWR ("TRUE"),
+        .IOSTANDARD   ("LVDS")
+    ) u_clk200_ibufds (
+        .I  (sys_clk_p),
+        .IB (sys_clk_n),
+        .O  (w_clk200)
     );
 
-    // Fabric reset: ui_clk_sync_rst is already synchronous to ui_clk. Assert
-    // with it, release one cycle later from a flop, so the fan-out starts from
-    // a clean register. MIG's own AXI shim takes the same reset.
+    fb_litedram u_litedram (
+        .clk            (w_clk200),
+        .rst            (~cpu_resetn),       // board button is active LOW
+        .pll_locked     (ddr_pll_locked),
+        .init_done      (ddr_init_done),
+        .init_error     (ddr_init_error),
+        // The BIOS console is not brought out: the board has one host UART and
+        // it is the harness's. The BIOS calibrates and idles without a host.
+        .uart_rx        (1'b1),
+        .uart_tx        (),
+        .user_clk       (user_clk),
+        .user_rst       (user_rst),
+        // The fabric's slave port is 32-bit addressed; S0's window is 1 GB, so
+        // the controller sees the low 30 bits. LiteDRAM's AXI port carries no
+        // lock/cache/prot/qos (dropped here, as MIG ignored them).
+        .user_port_axi_0_awvalid (ddr_awvalid), .user_port_axi_0_awready (ddr_awready),
+        .user_port_axi_0_awaddr  (ddr_awaddr[29:0]),
+        .user_port_axi_0_awburst (ddr_awburst), .user_port_axi_0_awlen   (ddr_awlen),
+        .user_port_axi_0_awsize  (ddr_awsize),  .user_port_axi_0_awid    (ddr_awid),
+        .user_port_axi_0_wvalid  (ddr_wvalid),  .user_port_axi_0_wready  (ddr_wready),
+        .user_port_axi_0_wdata   (ddr_wdata),   .user_port_axi_0_wstrb   (ddr_wstrb),
+        .user_port_axi_0_wlast   (ddr_wlast),
+        .user_port_axi_0_bvalid  (ddr_bvalid),  .user_port_axi_0_bready  (ddr_bready),
+        .user_port_axi_0_bresp   (ddr_bresp),   .user_port_axi_0_bid     (ddr_bid),
+        .user_port_axi_0_arvalid (ddr_arvalid), .user_port_axi_0_arready (ddr_arready),
+        .user_port_axi_0_araddr  (ddr_araddr[29:0]),
+        .user_port_axi_0_arburst (ddr_arburst), .user_port_axi_0_arlen   (ddr_arlen),
+        .user_port_axi_0_arsize  (ddr_arsize),  .user_port_axi_0_arid    (ddr_arid),
+        .user_port_axi_0_rvalid  (ddr_rvalid),  .user_port_axi_0_rready  (ddr_rready),
+        .user_port_axi_0_rdata   (ddr_rdata),   .user_port_axi_0_rresp   (ddr_rresp),
+        .user_port_axi_0_rlast   (ddr_rlast),   .user_port_axi_0_rid     (ddr_rid),
+        .ddram_a, .ddram_ba, .ddram_ras_n, .ddram_cas_n, .ddram_we_n, .ddram_cs_n,
+        .ddram_dm, .ddram_dq, .ddram_dqs_p, .ddram_dqs_n, .ddram_clk_p, .ddram_clk_n,
+        .ddram_cke, .ddram_odt, .ddram_reset_n
+    );
+    wire unused_ddr_attr = ^{ddr_awaddr[31:30], ddr_araddr[31:30], ddr_awlock, ddr_arlock,
+                             ddr_awcache, ddr_arcache, ddr_awprot, ddr_arprot,
+                             ddr_awqos, ddr_arqos};
+
+    // Fabric reset: user_rst is synchronous to user_clk. Assert with it,
+    // release one cycle later from a flop, so the fan-out starts clean.
     logic r_aresetn;
-    wire  w_ui_rst_n = ~ui_clk_sync_rst;
-    `ALWAYS_FF_RST(ui_clk, w_ui_rst_n,
-        if (`RST_ASSERTED(w_ui_rst_n)) begin
-            r_aresetn     <= 1'b0;
-            r_mig_aresetn <= 1'b0;
-        end else begin
-            r_aresetn     <= 1'b1;
-            r_mig_aresetn <= 1'b1;
-        end
+    wire  w_user_rst_n = ~user_rst;
+    `ALWAYS_FF_RST(user_clk, w_user_rst_n,
+        if (`RST_ASSERTED(w_user_rst_n)) r_aresetn <= 1'b0;
+        else                             r_aresetn <= 1'b1;
     )
-    wire aclk    = ui_clk;
+    wire aclk    = user_clk;
     wire aresetn = r_aresetn;
 
     // =========================================================================
-    // Endpoint clock: 125 MHz from ui_clk (VCO 1000 MHz)
+    // Endpoint clock: 125 MHz from aclk (VCO 1000 MHz)
     // =========================================================================
     logic ep_clkfb, ep_clkfb_buf, ep_clk_unbuf, ep_clk, ep_locked;
     MMCME2_BASE #(
@@ -148,7 +155,7 @@ module fb_genesys2_top #(
         .DIVCLK_DIVIDE    (1),
         .CLKOUT0_DIVIDE_F (8.000)
     ) u_ep_mmcm (
-        .CLKIN1   (ui_clk),
+        .CLKIN1   (aclk),
         .CLKFBIN  (ep_clkfb_buf),
         .CLKFBOUT (ep_clkfb),
         .CLKFBOUTB(),
@@ -156,7 +163,7 @@ module fb_genesys2_top #(
         .CLKOUT0B (), .CLKOUT1 (), .CLKOUT1B(), .CLKOUT2 (), .CLKOUT2B(),
         .CLKOUT3  (), .CLKOUT3B(), .CLKOUT4 (), .CLKOUT5 (), .CLKOUT6 (),
         .LOCKED   (ep_locked),
-        .RST      (ui_clk_sync_rst),
+        .RST      (user_rst),
         .PWRDWN   (1'b0)
     );
     BUFG u_ep_bufg_fb (.I(ep_clkfb),     .O(ep_clkfb_buf));
@@ -199,8 +206,9 @@ module fb_genesys2_top #(
         .ddr_arlock, .ddr_arcache, .ddr_arprot, .ddr_arqos, .ddr_arvalid,
         .ddr_arready,
         .ddr_rid, .ddr_rdata, .ddr_rresp, .ddr_rlast, .ddr_rvalid, .ddr_rready,
-        .i_mig_calib_done (init_calib_complete),
-        .i_mig_mmcm_locked(mig_mmcm_locked),
+        .i_ddr_init_done  (ddr_init_done),
+        .i_ddr_init_error (ddr_init_error),
+        .i_ddr_pll_locked (ddr_pll_locked),
         .i_ep_mmcm_locked (ep_locked),
         .o_timer_done (w_timer_done),
         .o_timer_pass (w_timer_pass),
@@ -215,7 +223,7 @@ module fb_genesys2_top #(
     logic [7:0] w_led_status;
     assign w_led_status = w_timer_done
         ? (w_timer_pass ? LED_PATTERN_PASS : LED_PATTERN_FAIL)
-        : {init_calib_complete, mig_mmcm_locked, ep_locked, 4'h0, w_stream_irq};
+        : {ddr_init_done, ddr_pll_locked, ep_locked, ddr_init_error, 3'h0, w_stream_irq};
 
     led_status_driver #(
         .FPGA_CLK_HZ  (FPGA_CLK_HZ),

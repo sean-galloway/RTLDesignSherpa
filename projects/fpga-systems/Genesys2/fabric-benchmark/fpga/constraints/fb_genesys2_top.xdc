@@ -1,10 +1,21 @@
 ## =============================================================================
 ## fb_genesys2_top.xdc -- Genesys 2 (xc7k325tffg900-2), fabric benchmark board
 ## =============================================================================
-## sys_clk_p/n (AD12/AD11, 200 MHz) and every ddr3_* pin are placed and timed
-## by fb_mig's own XDC (generated from rtl/generated/fb_mig_prj/fb_mig.prj),
-## so they are not repeated here. This file holds the board I/O the MIG core
-## does not own, and the clock-crossing rules of the top.
+## The DDR3 pins are the generated Genesys 2 pin file the LiteDRAM memtest
+## proved on this board (mem-ctrl-ip/scoria/build-litedram/fpga/constraints/
+## ddr3_pins.xdc, added by create_project.tcl), and fb_litedram's own XDC
+## carries its CDC false paths. This file holds the board clock and I/O and
+## the clock-crossing rules of the top.
+
+## ---- Board clock: 200 MHz LVDS into fb_litedram's PLL ------------------------
+set_property -dict {PACKAGE_PIN AD12 IOSTANDARD LVDS} [get_ports sys_clk_p]
+set_property -dict {PACKAGE_PIN AD11 IOSTANDARD LVDS} [get_ports sys_clk_n]
+create_clock -period 5.000 -name clk200 [get_ports sys_clk_p]
+
+## DDR3 banks: internal VREF (as the memtest build).
+set_property INTERNAL_VREF 0.750 [get_iobanks 32]
+set_property INTERNAL_VREF 0.750 [get_iobanks 33]
+set_property INTERNAL_VREF 0.750 [get_iobanks 34]
 
 ## ---- Board I/O (same pins as the STREAM Genesys 2 top) ----------------------
 set_property -dict {PACKAGE_PIN R19 IOSTANDARD LVCMOS33} [get_ports cpu_resetn]
@@ -25,15 +36,26 @@ set_property -dict {PACKAGE_PIN W24 IOSTANDARD LVCMOS33} [get_ports {led[6]}]
 set_property -dict {PACKAGE_PIN W23 IOSTANDARD LVCMOS33} [get_ports {led[7]}]
 set_false_path -to [get_ports {led[*]}]
 
-## ---- aclk (ui_clk) <-> ep_clk ------------------------------------------------
-## ep_clk is cascaded from ui_clk (u_ep_mmcm), so Vivado would time the two as
+## fb_litedram's reset chain (FDCE -> FDCE_1 ... FDCE_7) runs on the 200 MHz
+## input clock; only its first stage takes D from another domain (the sys
+## domain's CSR soft-reset strobe), so that one pin is the crossing point and
+## is asynchronous by design. Same constraint and reasoning as the LiteDRAM
+## memtest build (mem-ctrl-ip/scoria/build-litedram/fpga/constraints/
+## board_pins.xdc). No -quiet: a renamed cell matches nothing and the build
+## then reports timing not met, so the constraint checks itself.
+set_false_path -to [get_pins u_litedram/FDCE/D]
+
+## ---- aclk (fb_litedram user_clk) <-> ep_clk -----------------------------------
+## ep_clk is cascaded from aclk (u_ep_mmcm), so Vivado would time the two as
 ## related clocks. They are crossed only through synchronizers -- the
 ## axi4_cdc_{rd,wr} async FIFOs (Gray pointers), pulse and snapshot crossings in
 ## fb_endpoints, and the ep reset synchronizer -- so every path between them is
 ## bounded by the DESTINATION period instead of being timed as synchronous.
 ## Not set_clock_groups: that would drop the Gray-pointer paths entirely, and
 ## their skew must stay under one destination cycle.
-set clk_a  [get_clocks -of_objects [get_pins u_mig/ui_clk]]
+## aclk is taken where it enters u_ep_mmcm: the LiteDRAM core is flattened in
+## synthesis, so its user_clk port is not a pin that survives.
+set clk_a  [get_clocks -of_objects [get_pins u_ep_mmcm/CLKIN1]]
 set clk_ep [get_clocks -of_objects [get_pins u_ep_bufg/O]]
 set_max_delay -datapath_only -from $clk_a  -to $clk_ep 8.000
 set_max_delay -datapath_only -from $clk_ep -to $clk_a  10.000

@@ -29,11 +29,15 @@ package fb_ctl_regs_pkg;
 
     typedef struct {
         logic next;
-    } fb_ctl_regs__STATUS__MIG_MMCM_LOCKED__in_t;
+    } fb_ctl_regs__STATUS__DDR_PLL_LOCKED__in_t;
 
     typedef struct {
         logic next;
     } fb_ctl_regs__STATUS__EP_MMCM_LOCKED__in_t;
+
+    typedef struct {
+        logic next;
+    } fb_ctl_regs__STATUS__DDR_INIT_ERROR__in_t;
 
     typedef struct {
         logic next;
@@ -77,8 +81,9 @@ package fb_ctl_regs_pkg;
 
     typedef struct {
         fb_ctl_regs__STATUS__INIT_CALIB_COMPLETE__in_t INIT_CALIB_COMPLETE;
-        fb_ctl_regs__STATUS__MIG_MMCM_LOCKED__in_t MIG_MMCM_LOCKED;
+        fb_ctl_regs__STATUS__DDR_PLL_LOCKED__in_t DDR_PLL_LOCKED;
         fb_ctl_regs__STATUS__EP_MMCM_LOCKED__in_t EP_MMCM_LOCKED;
+        fb_ctl_regs__STATUS__DDR_INIT_ERROR__in_t DDR_INIT_ERROR;
         fb_ctl_regs__STATUS__S0_ARVALID__in_t S0_ARVALID;
         fb_ctl_regs__STATUS__S0_ARREADY__in_t S0_ARREADY;
         fb_ctl_regs__STATUS__S0_RVALID__in_t S0_RVALID;

@@ -52,9 +52,10 @@ addrmap fb_ctl_regs {
 
     reg {
         desc = "Board status, live (not latched). DDR3 runs need INIT_CALIB_COMPLETE.";
-        field { sw = r; hw = w; desc = "MIG init_calib_complete (ui_clk domain)."; } INIT_CALIB_COMPLETE[0:0] = 0;
-        field { sw = r; hw = w; desc = "MIG MMCM locked (synchronized to aclk)."; } MIG_MMCM_LOCKED[1:1] = 0;
+        field { sw = r; hw = w; desc = "S0 controller initialized and calibrated without error (LiteDRAM init_done and not init_error)."; } INIT_CALIB_COMPLETE[0:0] = 0;
+        field { sw = r; hw = w; desc = "S0 controller PLL locked (synchronized to aclk)."; } DDR_PLL_LOCKED[1:1] = 0;
         field { sw = r; hw = w; desc = "Endpoint-clock MMCM locked (synchronized to aclk)."; } EP_MMCM_LOCKED[2:2] = 0;
+        field { sw = r; hw = w; desc = "S0 controller calibration finished with an error (LiteDRAM init_error)."; } DDR_INIT_ERROR[3:3] = 0;
         field { sw = r; hw = w; desc = "S0 ARVALID, live (a stalled run shows which side holds the channel)."; } S0_ARVALID[8:8] = 0;
         field { sw = r; hw = w; desc = "S0 ARREADY, live."; } S0_ARREADY[9:9] = 0;
         field { sw = r; hw = w; desc = "S0 RVALID, live."; } S0_RVALID[10:10] = 0;

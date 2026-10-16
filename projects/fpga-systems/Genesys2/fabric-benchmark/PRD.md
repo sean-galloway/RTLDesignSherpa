@@ -73,7 +73,7 @@ rather than one compromise.
 | --- | --- | --- | --- |
 | Device / tools | Cyclone V 5CSX, Quartus 24.1 std | xc7k325tffg900-2, Vivado 2025.1 | per-board facts; legs are compared within one board, never across |
 | Host control path | JTAG to Avalon Master Bridge → `avmm_to_axil4` | UART → `uart_axil_bridge` (the Genesys 2 STREAM front end) | both present the same AXI4-Lite master to the same generated configuration bridge; the host reaches registers by name either way |
-| Memory controller | HPS hard DDR3 controller through f2sdram (AXI-3) | MIG 7-series DDR3, AXI4 slave interface | held constant across legs on each board; MIG's port is AXI4, so the Genesys 2 has **no** AXI3 edge and no `axi4_to_axi3` |
+| Memory controller | HPS hard DDR3 controller through f2sdram (AXI-3) | LiteDRAM DDR3 (`fb_litedram`: K7DDRPHY, DDR3-800), AXI4 slave port | held constant across legs on each board; LiteDRAM's port is AXI4, so the Genesys 2 has **no** AXI3 edge and no `axi4_to_axi3` |
 | DDR3 | 1 GB, 32-bit | 1 GB, 2 × MT41J256M16, 32-bit; DDR3-800 proven by the LiteDRAM memtest (`Genesys2/mem-ctrl-ip/scoria/build-litedram/results/`) | same address window (Table 5.1, `0x0000_0000`, 1 GB) |
 | Fabric data width | mixed (descriptor master 256-bit) | **128-bit on every port** | the Xilinx AXI Crossbar has one data width for all ports, so the descriptor master's 256→128 conversion sits **outside** every fabric (`axi4_dwidth_converter_rd`), same RTL all legs — the same rule that keeps `axi4_to_axi3` outside the fabric on the DE10 |
 | Board clocks | 50 MHz | 200 MHz differential; fabric clock from the MMCM as in the STREAM build | one fabric clock, same frequency all legs |
@@ -95,7 +95,7 @@ not know which fabric it holds.
 | M1 | `stream` data read | rd | 128 | `stream` m_axi_rd |
 | M2 | `stream` data write | wr | 128 | `stream` m_axi_wr |
 | M3 | W3 injector | wr | 128 | `char_engine_block` (contention run only) |
-| S0 | DDR3 `0x0000_0000`, 1 GB | rd/wr | 128 | MIG AXI4 slave (its own width conversion, if any, is the controller's and identical all legs) |
+| S0 | DDR3 `0x0000_0000`, 1 GB | rd/wr | 128 | `fb_litedram` AXI4 user port, 128-bit, ID 10 (its own width conversion to the 256-bit native port is the controller's and identical all legs) |
 | S1 | `desc_ram` read port `0x8000_0000` | rd | 128 | `sdpram_slave_axi4_axi4` |
 | S2 | LFSR source `0x9000_0000` | rd | 128 | `axi4_cdc_rd` → LFSR source |
 | S3 | CRC sink `0xA000_0000` | wr | 128 | `axi4_cdc_wr` → CRC sink |
@@ -140,7 +140,7 @@ the same generated regmaps and the same host programs (over
   read. B2 runs the same host programs on the board; the fabric test's
   checks (data, DECERR, IDs at the slaves) are made there through the
   harness. Vivado's own simulator could run it, but not the cocotb harness.
-- DDR3: MIG does not simulate in Verilator. The sim harness models S0 with
+- DDR3: the controller is not simulated (LiteDRAM's core is Xilinx-primitive Verilog with a CPU and BIOS). The sim harness models S0 with
   an AXI4 memory slave of the same width and ID width; DDR3 timing is
   measured on the board, and fabric-only mode (W2) needs no DDR3 at all.
 
@@ -158,12 +158,12 @@ ID from it. It worked, but it added 10 bits per request that only B2
 carried; dropping it took B2 from 8,438 to 8,333 LUTs, 4,064 to 3,959
 LUTRAM and 11,938 to 11,616 flops.)
 
-The in-order requirement holds: with ID 0 on every request, MIG at S0 must
+The in-order requirement holds: with ID 0 on every request, the controller at S0 must
 answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 
 ## 6. Milestones
 
-**Status (2026-10-15):** K0 done in sim on legs A and B1; K1 and K2 done on the board -- W2, all three legs, 36/36 runs pass. K3 passes in sim; on the board it is blocked on MIG reads.
+**Status (2026-10-16):** K0 done in sim on legs A and B1; K1 and K2 done on the board -- W2, all three legs, 36/36 runs pass; K3's DDR3 chain (W1-F2, W1-F1, W4) passes on the board on all three legs, 144/144 steps, on the LiteDRAM controller. W3 (the injector) is next.
 
 - K0: `rtl/fb_harness.sv` (`dv/tests/test_fb_harness.py`) is the harness of
   §4. The Genesys 2 STREAM characterization runner drives it unchanged over
@@ -196,23 +196,30 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   one-target-per-master limitation, GitHub #119 L1, which added the B/R
   response arbiters). Leg A is ~3.8x B1's LUTs; B2 is ~3.1x B1's LUTs plus
   3,959 LUTRAM and ~5.3x its flops.
-- S0's MIG DDR3 controller is generated (`fb_mig`, §3): DDR3-800, 4:1, so
-  its `ui_clk` is the 100 MHz fabric clock and S0 needs no clock crossing.
-  MIG's own example design (controller + AXI traffic generator) places and
-  routes on this pinout with WNS +0.906 ns / WHS +0.050 ns
-  ([reports/mig_example/](reports/mig_example/), `make mig-example`); its only
-  DRC criticals are the example's one status port with no board pin.
+- S0's DDR3 controller is LiteDRAM, generated (`fb_litedram`,
+  `rtl/litedram/fb_litedram.yml`, `bin/gen_litedram.sh`; the core is
+  toolchain output and gitignored, its port blackbox is tracked): the
+  board-proven LiteDRAM memtest configuration (K7DDRPHY, DDR3-800 at 1:4,
+  its VexRiscv BIOS calibrating the PHY at boot) with a 128-bit, ID-10 AXI4
+  port. Its `user_clk` is the 100 MHz fabric clock, so S0 needs no clock
+  crossing. It replaced MIG 7-series on 2026-10-16 (owner decision): MIG
+  calibrated on this board but its read path returned no data (K3 below).
 
-- K1/K2 board: `rtl/fb_genesys2_top.sv` -- MIG at S0 (`ui_clk` 100 MHz is
-  `aclk`), `ep_clk` 125 MHz from a second MMCM on `ui_clk`, LEDs from
+- K1/K2 board: `rtl/fb_genesys2_top.sv` -- the DDR3 controller at S0 (its
+  100 MHz user clock is `aclk`), `ep_clk` 125 MHz from a second MMCM on
+  `aclk`, LEDs from
   `led_status_driver` -- built per leg by `build-{a,b1,b2}/` (`make
   bitstream`, `make program`). Post-route, every leg meets timing:
 
   | Leg | WNS (ns) | WHS (ns) | LUTs | FFs | BRAM | DSP |
   | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-  | A (bridge) | +0.273 | +0.027 | 101,555 | 71,542 | 16 | 64 |
-  | B1 (AXI Crossbar) | +0.006 | +0.022 | 97,636 | 68,501 | 16 | 64 |
-  | B2 (SmartConnect) | +0.201 | +0.026 | 102,690 | 75,678 | 16 | 64 |
+  | A (bridge) | +0.138 | +0.052 | 101,429 | 71,094 | 43.5 | 68 |
+  | B1 (AXI Crossbar) | +0.360 | +0.052 | 97,482 | 68,072 | 43.5 | 68 |
+  | B2 (SmartConnect) | +0.083 | +0.050 | 102,409 | 75,139 | 43.5 | 68 |
+
+  (The LiteDRAM builds of 2026-10-16, which also carry `fb_ctl`. The
+  2026-10-15 MIG builds, without `fb_ctl`, closed at +0.273 / +0.006 /
+  +0.201 ns; W2 measured within 0.5% on both.)
 
   The harness around the fabric is the same in every leg, so these totals
   differ by the fabric alone (the OOC figures above isolate it).
@@ -245,36 +252,55 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   ~31 (`fb_char` flags it; throughput and CRC are unaffected). The fix
   belongs in `stream_core`'s busy term (descriptor fetch outstanding).
 
-- K3 (in progress): the DDR3 workloads run as one CRC-checked chain
+- K3 (W1/W4 done; W3 next): the DDR3 workloads run as one CRC-checked chain
   (`bin/fb_workloads.py`, the same code in sim and on the board): W1-F2 fills
   DDR3 region A from the LFSR source; W1-F1 drains A into the CRC sink, whose
   per-channel CRC must equal the fill's LFSR CRC; W4 copies A to region B;
   a second drain checks B the same way. `fb_ctl` (`rtl/regs/fb_ctl_regs.rdl`,
   config window 0x0020_0000) points the run timer at the endpoints a step
-  uses (WORKLOAD), counts S0 handshakes and beats, and reports MIG
-  calibration and the S0 handshake levels live (STATUS). The chain passes in
+  uses (WORKLOAD), counts S0 handshakes and beats, and reports the DDR3
+  controller's calibration and the S0 handshake levels live (STATUS). The chain passes in
   sim on legs A and B1 (func). `fb_char.py --chain` runs it on the board.
 
-  **Board blocker: MIG returns no read data.** Writes complete (every AW
-  gets its B), calibration completes, and W2 is unaffected, but a drain
-  usually stalls: MIG accepts 7 read requests and returns no R beat. An ILA
-  on MIG (`make bitstream-ila`, `make tcl-capture_ila`) shows the reads
-  reach the memory controller as app-interface read commands and
-  `app_rd_data_valid` never asserts; `app_rdy` then stays low with the
-  queue full. Same on legs A and B1, so it is below the fabric. One 4 KB
-  drain did complete, so it is intermittent, which points at the MIG
-  read path's configuration or margin (generated by `bin/gen_mig_prj.py`)
-  rather than at the AXI side.
+  On the board, on LiteDRAM (`fb_char.py --leg X --chain`, 4 descriptors
+  per channel, 1/2/4/8 channels x 4 KB/64 KB/1 MB): **144/144 steps pass on
+  all three legs** -- every drain reproduces the fill's per-channel LFSR CRC,
+  including after the copy, and every S0 count is exact. MiB/s (% of the
+  1525.9 MiB/s path peak: the fabric's one direction; DDR3-800 x32 is
+  3051.8 MiB/s, shared by both directions):
 
-Next: the MIG read path, then the chain sweep on every leg, then the W3
-injector on M3.
+  | Step | 1 ch, 1 MB | 8 ch, 1 MB | 1 ch, 4 KB | 8 ch, 4 KB |
+  | --- | ---: | ---: | ---: | ---: |
+  | W1-F2 fill (LFSR -> DDR3) | 396.5 (26.0) | 365.5 (24.0) | 395.5 (25.9) | 365.4 (23.9) |
+  | W1-F1 drain (DDR3 -> CRC) | 187.3 (12.3) | 179.5 (11.8) | 185.4 (12.2) | 179.4 (11.8) |
+  | W4 copy (DDR3 -> DDR3) | 112.8 (7.4) | 112.4 (7.4) | 113.2 (7.4) | 112.5 (7.4) |
+
+  (Leg A shown; B1 and B2 are within 0.5 MiB/s of it at every point except
+  B2 at 1 ch x 4 KB, ~1-5 MiB/s lower -- its descriptor-fetch latency.
+  CSVs: `reports/board/k3_<leg>_*.csv`.)
+
+  **With DDR3 in the path the three fabrics are indistinguishable: S0's
+  controller is the bottleneck, by 3.8-13.6x.** W2 reaches 100% of the same
+  peak through the same fabrics, so the shortfall is LiteDRAM's AXI user
+  port, not the fabric -- reads at 12% suggest it serves read bursts one at
+  a time at full latency. W1/W4 therefore measure the controller until that
+  is lifted; the fabric comparison stays W2's, and W3's arbitration story
+  (two masters into one slow S0) does not depend on S0 being fast.
+
+  MIG 7-series was the first S0 controller. It calibrated and completed
+  writes, but its read path usually returned no data: an ILA
+  (`make bitstream-ila`, `make tcl-capture_ila`) showed read commands
+  reaching its app interface and `app_rd_data_valid` never asserting, on
+  legs A and B1 alike. Replaced by LiteDRAM 2026-10-16 (owner decision).
+
+Next: the W3 injector on M3 (contention into S0), then K4.
 
 | K | Content | Gate |
 | --- | --- | --- |
 | K0 | Fabric-only mode (W2) in sim, Leg A: the harness with the port set of §4, S0 tied to a memory model, `CharacterizationRunner` driving it over the UART channel | sim green, CRC verdicts on every run |
 | K1 | Leg B1 (AXI Crossbar) in the same sim; then both legs on the board, W2 headline sweep | same host program both legs, sim then board |
 | K2 | Leg B2 (SmartConnect): IP integrator generation, sim decision, board W2 | as K1 |
-| K3 | MIG DDR3 at S0; W1-F1, W1-F2, W4, W3 on all legs | sim with the memory model, then board |
+| K3 | DDR3 at S0; W1-F1, W1-F2, W4, W3 on all legs | sim with the memory model, then board |
 | K4 | Size and timing parses (Vivado utilization / timing reports), v1 sweep × 5, analysis section for the Kintex-7 legs | — |
 
 The DE10 milestones resume after K1: the harness, host programs and
@@ -283,12 +309,15 @@ JTAG front end and the Platform Designer leg.
 
 ## 7. Open questions
 
-- **Memory controller:** MIG 7-series, generated (`fb_mig`). LiteDRAM is
-  proven on this board and stays the fallback if MIG calibration stalls
-  K3; either way it is one controller held constant across the legs.
+- *Closed 2026-10-16:* memory controller -- LiteDRAM (`fb_litedram`),
+  owner decision after MIG's read path returned no data on this board
+  (an ILA showed read commands reaching MIG's app interface and
+  `app_rd_data_valid` never asserting). One controller, held constant
+  across the legs.
 - *Closed 2026-10-15:* board-clock plan -- the harness and fabric run on
-  MIG's 100 MHz `ui_clk`; `ep_clk` (125 MHz) comes from a separate MMCM
-  cascaded from `ui_clk` (`rtl/fb_genesys2_top.sv`). The two cross only
+  the DDR3 controller's 100 MHz user clock (MIG's `ui_clk`, LiteDRAM's
+  `user_clk` since 2026-10-16); `ep_clk` (125 MHz) comes from a separate MMCM
+  cascaded from it (`rtl/fb_genesys2_top.sv`). The two cross only
   through synchronizers, bounded by `set_max_delay -datapath_only` rather
   than clock groups so the Gray-pointer skew stays timed.
 - *Closed 2026-10-15:* SmartConnect simulation -- board-only (§5).
