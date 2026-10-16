@@ -732,6 +732,9 @@ def main():
     parser.add_argument("--torus-x", action="store_true", help="Wrap X dimension")
     parser.add_argument("--torus-y", action="store_true", help="Wrap Y dimension")
     parser.add_argument("--torus-z", action="store_true", help="Wrap Z dimension")
+    parser.add_argument("--torus", type=str, default=None,
+                        help="Comma-separated torus flags, e.g. x,y,z or 1,0,1. "
+                             "Overrides/extends --torus-x/--torus-y/--torus-z.")
     parser.add_argument("--source-route", action="store_true", help="Use source routing")
     parser.add_argument("--speculation", action="store_true", help="Enable speculative routing")
     parser.add_argument("--fifo-impl", choices=["reg", "sram"], default="reg",
@@ -741,6 +744,32 @@ def main():
     parser.add_argument("--no-counters", action="store_true")
 
     args = parser.parse_args()
+
+    if args.torus is not None:
+        parts = [p.strip().lower() for p in args.torus.split(",")]
+        if len(parts) != 3:
+            parser.error("--torus must have exactly three comma-separated entries, "
+                         "e.g. x,y,z or 1,0,1")
+        for idx, part in enumerate(parts):
+            if part in ("x", "y", "z"):
+                # positional letter form: x,y,z maps to the three dimensions
+                if idx == 0:
+                    args.torus_x = True
+                elif idx == 1:
+                    args.torus_y = True
+                elif idx == 2:
+                    args.torus_z = True
+            elif part in ("1", "true", "yes"):
+                if idx == 0:
+                    args.torus_x = True
+                elif idx == 1:
+                    args.torus_y = True
+                elif idx == 2:
+                    args.torus_z = True
+            elif part in ("0", "false", "no", ""):
+                pass
+            else:
+                parser.error(f"invalid --torus component: {parts[idx]!r}")
 
     if args.topology != "mesh":
         if args.masters is None:

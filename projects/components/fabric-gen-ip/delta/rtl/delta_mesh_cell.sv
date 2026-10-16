@@ -701,15 +701,18 @@ end
 // sel_vc==1) and bypass the table: sr_ptr[3:0] is the absolute
 // output port for this hop. The cell rewrites sr_ptr to
 // (sr_ptr>>4)|8'hF0 so the next cell sees the next hop; 4'hF
-// means the path is exhausted and the packet is dropped. A flit
-// whose chosen output is a wrap link (wrap_mask bit set) crosses
-// the dateline: it is forced to VC0, its misroute_budget is
-// decremented, and if the budget is already zero it is dropped.
-// The forwarded TUSER is rewritten accordingly for the next hop.
+// is a local-termination marker when this cell matches the
+// destination, otherwise the path is exhausted and the packet
+// is dropped. A flit whose chosen output is a wrap link
+// (wrap_mask bit set) crosses the dateline: it is forced to VC0,
+// its misroute_budget is decremented, and if the budget is already
+// zero it is dropped. The dateline rule is applied only on the
+// head beat; body beats follow the locked VC and port.
 logic [7:0]           head_sr_ptr   [NUM_PORTS];
 logic [HDR_MRB_W-1:0] head_mrb      [NUM_PORTS];
 logic [3:0]           sr_hop        [NUM_PORTS];
 logic                 sr_eligible   [NUM_PORTS];
+logic                 sr_local_term [NUM_PORTS];
 logic                 sr_bad        [NUM_PORTS];
 logic [PORT_W-1:0]    route_req_final [NUM_PORTS];
 logic [VC_W-1:0]      out_vc        [NUM_PORTS];
@@ -722,36 +725,48 @@ always_comb begin
         head_sr_ptr[p] = pres_tuser[p][HDR_SR_PTR_LO +: 8];
         head_mrb[p]    = pres_tuser[p][HDR_MRB_LO +: HDR_MRB_W];
         sr_hop[p]      = head_sr_ptr[p][3:0];
-//         Source-route eligibility: VC1 data packet, the
-//         source-route parameter is on, and sr_ptr[0] is not
-//         the control-plane marker. Body beats have tuser==0
-//         and are never eligible; they follow the packet lock.
+//         Source-route eligibility: VC1 data packet with
+//         the source-route parameter on. Control packets are
+//         VC0/qos=0 and are never eligible. Body beats have
+//         tuser==0 and are never eligible; they follow the
+//         packet lock.
         sr_eligible[p] = (SOURCE_ROUTE != 0) &&
                          pres_valid[p] && !lock_active[p] &&
                          !drop_active[p] &&
                          (sel_vc[p] == VC_W'(1)) &&
-                         !pres_tuser[p][HDR_SR_PTR_LO] &&
                          !head_mcast[p];
-        sr_bad[p] = sr_eligible[p] && (sr_hop[p] == SR_INVALID);
+//         4'hF terminates cleanly at the destination cell; anywhere
+//         else it is an exhausted path. Values 9-14 are invalid
+//         for a 9-port cell and also drop.
+        sr_local_term[p] = (sr_hop[p] == SR_INVALID) &&
+                           (int'(head_dst_x[p]) == POS_X) &&
+                           (int'(head_dst_y[p]) == POS_Y) &&
+                           (int'(head_dst_z[p]) == POS_Z);
+        sr_bad[p] = sr_eligible[p] &&
+                    (sr_hop[p] >= 4'd9) && !sr_local_term[p];
         route_req_final[p] = route_req[p];
         if (sr_eligible[p] && !sr_bad[p]) begin
-            route_req_final[p] = PORT_W'(sr_hop[p]);
+            if (sr_local_term[p]) begin
+                route_req_final[p] = PORT_W'(P_LOCAL);
+            end else begin
+                route_req_final[p] = PORT_W'(sr_hop[p]);
+            end
         end
         dateline_cross[p] = wrap_mask[route_req_final[p]];
         dateline_drop[p]  = 1'b0;
         out_vc[p] = sel_vc[p];
         fwd_tuser[p] = pres_tuser[p];
-        if ((sr_eligible[p] || pres_tuser[p][HDR_SR_PTR_LO]) &&
-            !sr_bad[p] && !dateline_drop[p]) begin
-//             // Source-route rewrite on every eligible hop;
-//             // control packets also carry sr_ptr[0]=1 and do
-//             // not use the port list, so leave their sr_ptr alone.
+        if (sr_eligible[p] && !sr_bad[p] &&
+            !dateline_drop[p]) begin
+//             // Source-route rewrite on every eligible hop.
             if (sr_eligible[p]) begin
                 fwd_tuser[p][HDR_SR_PTR_LO +: 8] =
                     (head_sr_ptr[p] >> 4) | 8'hF0;
             end
         end
-        if (dateline_cross[p] && !sr_bad[p]) begin
+//         Dateline crossing is evaluated only on the head beat;
+//         body beats are locked to the same VC/port as the head.
+        if (!lock_active[p] && dateline_cross[p] && !sr_bad[p]) begin
 //             // Dateline crossing: force VC0 and decrement budget.
             out_vc[p] = VC_W'(0);
             fwd_tuser[p][HDR_VC_LO +: HDR_VC_W] = VC_W'(0);
@@ -1690,7 +1705,11 @@ always_comb begin
 //         // uses 'high' as its available level in v1).
         spec_req_vec[q] = '0;
         for (int p = 0; p < NUM_PORTS; p++) begin
+//             // Only fresh heads may speculate; a locked input
+//             // already owns a non-speculative grant and must not
+//             // be re-captured speculatively mid-packet.
             if ((SPECULATION != 0) && request_matrix[q][p] &&
+                !lock_active[p] &&
                 (sel_vc[p] == VC_W'(1)) &&
                 s_credit[q][out_vc[p]]) begin
                 spec_req_vec[q][p] = 1'b1;

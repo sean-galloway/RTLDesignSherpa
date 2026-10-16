@@ -72,6 +72,51 @@ def test_mesh_fabric_supports_torus_task_9(tmp_path):
     assert (tmp_path / "filelists" / "delta_mesh.f").is_file()
 
 
+def test_mesh_fabric_accepts_torus_comma_form(tmp_path):
+    # --torus=x,y,z is the spec CLI form; it must produce the same artifacts
+    # as the boolean --torus-x/--torus-y/--torus-z aliases.
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(DELTA_GENERATOR),
+            "--topology", "mesh",
+            "--cells-x", "2",
+            "--cells-y", "2",
+            "--cells-z", "2",
+            "--torus", "x,y,z",
+            "--user-width", "64",
+            "--output-dir", str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert (tmp_path / "delta_mesh_cell.sv").is_file()
+    assert (tmp_path / "delta_mesh_fabric_2x2x2.sv").is_file()
+    assert (tmp_path / "filelists" / "delta_mesh.f").is_file()
+
+
+def test_mesh_fabric_rejects_bad_torus_comma_form(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(DELTA_GENERATOR),
+            "--topology", "mesh",
+            "--cells-x", "2",
+            "--cells-y", "2",
+            "--cells-z", "1",
+            "--torus", "x,y",
+            "--user-width", "64",
+            "--output-dir", str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+
+
 def test_flat_requires_masters_and_slaves(tmp_path):
     result = subprocess.run(
         [

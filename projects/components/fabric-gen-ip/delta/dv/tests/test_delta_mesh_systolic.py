@@ -29,7 +29,7 @@ _TBCLASSES = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'tbcl
 if _TBCLASSES not in sys.path:
     sys.path.insert(0, _TBCLASSES)
 from delta_mesh_tb import DeltaMeshModesTB
-from delta_mesh.tables import P_LOCAL, P_X_NEG, table_index
+from delta_mesh.tables import P_LOCAL, P_X_NEG, P_X_POS, table_index
 
 DELTA_GENERATOR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..', 'bin', 'delta_generator.py'))
@@ -365,36 +365,37 @@ class DeltaMeshSystolicTB(DeltaMeshModesTB):
             "delta mesh systolic (b): dateline crossed -> vc=0, budget=4")
 
     # ------------------------------------------------------------------
-    # Scenario (c): source-route bypasses a table drop
+    # Scenario (c): source-route bypasses a table drop (clean 2-hop path)
     # ------------------------------------------------------------------
     async def run_source_route(self):
         tag = "source-route"
-        # Configure b1 so that a normal b1->b0 packet sees an empty mask.
-        idx = table_index((0, 0, 0), 1, self.COORD_W)
+        # 4x1 mesh: b0 -> b1 -> b2.  Configure b1's table so a normal
+        # b0->b2 packet is dropped, then show the source-route path bypasses it.
+        idx = table_index((2, 0, 0), 1, self.COORD_W)
         await self._config_op(1, True, idx, 0, f"{tag}:drop-entry")
 
-        # Normal VC0 packet should be dropped by the empty table entry.
+        # Normal VC0 packet should be dropped by the empty table entry at b1.
         header_drop = self.build_header(
-            dst=(0, 0, 0), src=(1, 0, 0),
+            dst=(2, 0, 0), src=(0, 0, 0),
             qos=1, vc=0, packet_id=0x400)
-        await self._send_packet('b1', header_drop, [0xDEAD_BEEF])
+        await self._send_packet('b0', header_drop, [0xDEAD_BEEF])
         await self.wait_clocks('aclk', 30)
         if self._err(1) != 1:
             raise AssertionError(
                 f"{tag}: b1_err = {self._err(1)}, expected 1 after table drop")
 
-        # VC1 source-route packet bypasses the table: b1 -> P_X_NEG -> b0.
-        # sr_ptr = {P_LOCAL, P_X_NEG}: lower nibble is the first hop; after
-        # the first cell the list is shifted and padded with 4'hF, so b0
-        # sees P_LOCAL and delivers.
-        sr_ptr = (P_LOCAL << 4) | P_X_NEG
+        # VC1 source-route packet bypasses the table: b0 -> P_X_POS -> b1
+        # -> P_X_POS -> b2.  sr_ptr = {P_X_POS, P_X_POS}: lower nibble is the
+        # first hop; after the second cell the list is 0xFF, so b2 sees 4'hF
+        # and treats it as a clean local termination (dst matches b2).
+        sr_ptr = (P_X_POS << 4) | P_X_POS
         header_sr = self.build_header(
-            dst=(0, 0, 0), src=(1, 0, 0),
+            dst=(2, 0, 0), src=(0, 0, 0),
             qos=1, vc=1, packet_id=0x401,
             sr_ptr=sr_ptr)
         data_sr = 0xCAFE_0000_0000_0001
         _inj, _ej, _lat, got_user = await self._raw_pair_latency(
-            1, 0, header_sr, data_sr, tag, capture_user=True)
+            0, 2, header_sr, data_sr, tag, capture_user=True)
 
         if self._err(1) != 1:
             raise AssertionError(
@@ -402,7 +403,54 @@ class DeltaMeshSystolicTB(DeltaMeshModesTB):
                 f"count as a drop")
         self.log.info(
             f"delta mesh systolic (c): source-route bypassed table drop "
-            f"(arrived at b0, sr_ptr final = 0x{got_user >> self.hdr_offsets['sr_ptr'][0] & 0xFF:02x})")
+            f"(arrived at b2, sr_ptr final = 0x{(got_user >> self.hdr_offsets['sr_ptr'][0]) & 0xFF:02x})")
+
+    # ------------------------------------------------------------------
+    # Scenario (c-negative): exhausted source-route path is dropped
+    # ------------------------------------------------------------------
+    async def run_source_route_exhausted(self):
+        tag = "source-route-exhausted"
+        # 4x1 mesh: b0 -> b3 needs three +X hops, but sr_ptr only holds two.
+        # sr_ptr = {P_X_POS, P_X_POS}; b2 sees 4'hF with dst != b2, so it
+        # treats the packet as sr_bad and drops it.
+        sr_ptr = (P_X_POS << 4) | P_X_POS
+        header = self.build_header(
+            dst=(3, 0, 0), src=(0, 0, 0),
+            qos=1, vc=1, packet_id=0x402,
+            sr_ptr=sr_ptr)
+        data = 0xD15A_0000_0000_0001
+
+        sv = self._sig(0, 's_axis_tvalid')
+        sr = self._sig(0, 's_axis_tready')
+        sd = self._sig(0, 's_axis_tdata')
+        su = self._sig(0, 's_axis_tuser')
+        sl = self._sig(0, 's_axis_tlast')
+
+        sv.value = 1
+        sd.value = data
+        su.value = header
+        sl.value = 1
+        await RisingEdge(self.aclk)
+        if not (int(sv.value) and int(sr.value)):
+            await RisingEdge(self.aclk)
+        sv.value = 0
+        sl.value = 0
+        su.value = 0
+        sd.value = 0
+
+        await self.wait_clocks('aclk', 40)
+
+        if self._err(2) != 1:
+            raise AssertionError(
+                f"{tag}: b2_err = {self._err(2)}, expected 1 after exhausted "
+                f"source-route drop")
+        if self._err(3) != 0:
+            raise AssertionError(
+                f"{tag}: b3_err = {self._err(3)}, expected 0 (packet must not "
+                f"leak to destination)")
+        self.log.info(
+            f"delta mesh systolic (c-negative): exhausted 3-hop source-route "
+            f"dropped cleanly at b2")
 
     # ------------------------------------------------------------------
     # Scenario (d): speculation parity on VC1 all-pairs traffic
@@ -483,9 +531,16 @@ async def cocotb_test_delta_mesh_systolic_dateline(dut):
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def cocotb_test_delta_mesh_systolic_source_route(dut):
-    tb = DeltaMeshSystolic2x2TB(dut)
+    tb = DeltaMeshSystolic4x1TB(dut)
     await tb.setup_clocks_and_reset()
     await tb.run_source_route()
+
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_delta_mesh_systolic_source_route_exhausted(dut):
+    tb = DeltaMeshSystolic4x1TB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.run_source_route_exhausted()
 
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")
@@ -532,9 +587,9 @@ def fabric_gen_2x2_torus(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def fabric_gen_2x2_sr(tmp_path_factory):
+def fabric_gen_4x1_sr(tmp_path_factory):
     return _generate_mesh([
-        "--cells-x", "2", "--cells-y", "2", "--cells-z", "1",
+        "--cells-x", "4", "--cells-y", "1", "--cells-z", "1",
         "--source-route",
         "--user-width", "64",
     ], tmp_path_factory)
@@ -627,15 +682,27 @@ def test_delta_mesh_systolic_dateline(request, test_level, fabric_gen_2x2_torus)
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_delta_mesh_systolic_source_route(request, test_level, fabric_gen_2x2_sr):
+def test_delta_mesh_systolic_source_route(request, test_level, fabric_gen_4x1_sr):
     _run(
         "cocotb_test_delta_mesh_systolic_source_route",
         test_level,
-        fabric_gen_2x2_sr,
-        'delta_mesh_fabric_2x2_th',
-        HARNESS_2X2,
-        'delta_mesh_fabric_2x2x1.sv',
-        1)
+        fabric_gen_4x1_sr,
+        'delta_mesh_fabric_4x1x1_th',
+        HARNESS_4X1,
+        'delta_mesh_fabric_4x1x1.sv',
+        2)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_delta_mesh_systolic_source_route_exhausted(request, test_level, fabric_gen_4x1_sr):
+    _run(
+        "cocotb_test_delta_mesh_systolic_source_route_exhausted",
+        test_level,
+        fabric_gen_4x1_sr,
+        'delta_mesh_fabric_4x1x1_th',
+        HARNESS_4X1,
+        'delta_mesh_fabric_4x1x1.sv',
+        2)
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
