@@ -369,6 +369,72 @@ async def cocotb_test_observer_consumer_sustained(dut):
             curve.append((cyc, len(tb.packets) - start))
     cocotb.start_soon(_curve_sampler())
 
+    # BUG-040 evidence: live handshake counts at every observation-path
+    # boundary, so a silent loss localizes to exactly one segment.
+    arb = dut.u_arbiter
+    grp = dut.g_egress_axil.u_group
+    rd_mon = dut.gen_rd_mon[0].u_rd_mon.gen_monitor_lite.axi_monitor_lite_inst
+    wr_mon = dut.gen_wr_mon[0].u_wr_mon.gen_monitor_lite.axi_monitor_lite_inst
+    arb_accepted = [0, 0]
+    group_accepted = [0]
+    m_axil_aw = [0]
+    m_axil_w = [0]
+    mon_compl = [0, 0]
+    mon_push = [0, 0]
+    mon_alloc = [0, 0]
+    mon_raw_done = [0, 0]
+    mon_orph = [0, 0]
+    alloc_cycles = [[], []]
+    done_cycles = [[], []]
+    alloc_keys = [[], []]
+    done_keys = [[], []]
+    cyc = [0]
+
+    async def _count_boundary_handshakes():
+        while True:
+            await RisingEdge(dut.aclk)
+            v_in = arb.monbus_valid_in.value
+            r_in = arb.monbus_ready_in.value
+            for i in range(2):
+                if int(v_in[i]) and int(r_in[i]):
+                    arb_accepted[i] += 1
+            if int(grp.monbus_valid.value) and int(grp.monbus_ready.value):
+                group_accepted[0] += 1
+            if int(dut.m_axil_awvalid.value) and int(dut.m_axil_awready.value):
+                m_axil_aw[0] += 1
+            if int(dut.m_axil_wvalid.value) and int(dut.m_axil_wready.value):
+                m_axil_w[0] += 1
+            if int(rd_mon.w_compl.value):
+                mon_compl[0] += 1
+            if int(wr_mon.w_compl.value):
+                mon_compl[1] += 1
+            if int(rd_mon.w_q_push.value) and int(rd_mon.w_q_fifo_ready.value):
+                mon_push[0] += 1
+            if int(wr_mon.w_q_push.value) and int(wr_mon.w_q_fifo_ready.value):
+                mon_push[1] += 1
+            if int(rd_mon.w_alloc.value):
+                mon_alloc[0] += 1
+                alloc_cycles[0].append(cyc[0])
+                alloc_keys[0].append(int(rd_mon.cmd_id.value))
+            if int(wr_mon.w_alloc.value):
+                mon_alloc[1] += 1
+                alloc_cycles[1].append(cyc[0])
+                alloc_keys[1].append(int(wr_mon.cmd_id.value))
+            if int(rd_mon.data_hs.value) and int(rd_mon.data_last.value):
+                mon_raw_done[0] += 1
+                done_cycles[0].append(cyc[0])
+                done_keys[0].append(int(rd_mon.data_id.value))
+            if int(wr_mon.resp_hs.value):
+                mon_raw_done[1] += 1
+                done_cycles[1].append(cyc[0])
+                done_keys[1].append(int(wr_mon.resp_id.value))
+            cyc[0] += 1
+            if int(rd_mon.w_data_orph.value):
+                mon_orph[0] += 1
+            if int(wr_mon.w_resp_orph.value):
+                mon_orph[1] += 1
+    cocotb.start_soon(_count_boundary_handshakes())
+
     for i in range(n_pairs):
         # gap=1: one settle cycle after AR/AW -- the monitor must register the
         # address before its data arrives (drive_read_burst's docstring; gap=0
@@ -386,6 +452,38 @@ async def cocotb_test_observer_consumer_sustained(dut):
     await tb.wait_clocks("aclk", 400 * duty + 2000)
     sample_on = False
     await tb.wait_clocks("aclk", 250)   # let the sampler observe the flag
+
+    # BUG-040 evidence: per-tap refuse/drop counters via hierarchy probe.
+    # No CSR count readback exists -- only the sticky OBS_STICKY.TAP_BLOCKED
+    # bit -- so a refusal (command finding no free table entry: counted,
+    # never tracked, no packet ever emitted) is invisible to the
+    # packet-level accounting below.
+    rd_ref = int(dut.obs_rd_refused[0].value)
+    wr_ref = int(dut.obs_wr_refused[0].value)
+    rd_drp = int(dut.obs_rd_dropped[0].value)
+    wr_drp = int(dut.obs_wr_dropped[0].value)
+    tb.log.info(f"[BUG-040 taps] duty={duty} pace={pace} "
+                f"rd_refused={rd_ref} wr_refused={wr_ref} "
+                f"rd_dropped={rd_drp} wr_dropped={wr_drp}")
+    tb.log.info(f"[BUG-040 path] duty={duty} pace={pace} "
+                f"arb_in_accepted={list(arb_accepted)} "
+                f"group_ingress_accepted={group_accepted[0]} "
+                f"m_axil_aw={m_axil_aw[0]} m_axil_wbeats={m_axil_w[0]} "
+                f"mon_compl={list(mon_compl)} mon_qpush={list(mon_push)} "
+                f"mon_alloc={list(mon_alloc)} mon_raw_done={list(mon_raw_done)} "
+                f"mon_orph={list(mon_orph)}")
+    tb.log.info(f"[BUG-040 endstate] rd_data_valid={int(rd_mon.data_valid.value)} "
+                f"rd_data_ready={int(rd_mon.data_ready.value)} "
+                f"wr_resp_valid={int(wr_mon.resp_valid.value)} "
+                f"wr_resp_ready={int(wr_mon.resp_ready.value)}")
+    for ch, name in ((0, "rd"), (1, "wr")):
+        from collections import Counter
+        ca, cd = Counter(alloc_keys[ch]), Counter(done_keys[ch])
+        short = sorted((i for i in ca if cd[i] < ca[i]),
+                       key=lambda i: -ca[i])
+        tb.log.info(f"[BUG-040 ids-{name}] alloc_ids={dict(sorted(ca.items()))}")
+        tb.log.info(f"[BUG-040 ids-{name}] done_ids={dict(sorted(cd.items()))}")
+        tb.log.info(f"[BUG-040 ids-{name}] shortfall_ids={short}")
 
     delivered = 0
     reported_drops = 0
@@ -435,11 +533,23 @@ async def cocotb_test_observer_egress_ceiling(dut):
     # offer faster than any plausible egress (flat out, gap=1); records may
     # complete DURING the offer now that the write path pipelines, so the
     # elapsed window must cover offering plus drain (sink-local cycles).
-    for i in range(n):
-        await tb.drive_read_burst(addr=0x1000 + (i % 64) * 0x40, arid=i % 16,
-                                  beats=2, gap=1)
-        await tb.drive_write_burst(addr=0x2000 + (i % 64) * 0x40,
-                                   awid=(i + 8) % 16, beats=2, gap=1)
+    async def _offer_reads():
+        for i in range(n):
+            await tb.drive_read_burst(addr=0x1000 + (i % 64) * 0x40,
+                                      arid=i % 16, beats=2, gap=1)
+
+    async def _offer_writes():
+        for i in range(n):
+            await tb.drive_write_burst(addr=0x2000 + (i % 64) * 0x40,
+                                       awid=(i + 8) % 16, beats=2, gap=1)
+
+    # Reads and writes are independent channels: offer them concurrently so
+    # the per-burst BUG-040 ready-holds (6-8 cycles per RECORD) do not pace
+    # the tail below the egress rate this test exists to measure.
+    rd_task = cocotb.start_soon(_offer_reads())
+    wr_task = cocotb.start_soon(_offer_writes())
+    await rd_task
+    await wr_task
     # wait for the nth record to complete (poll in slices)
     polls = 0
     while len(tb.packets) < start + n and polls < 20000:

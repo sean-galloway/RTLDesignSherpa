@@ -2,7 +2,7 @@
 
 # amba — bugs
 
-**Next ID: BUG-040** — never recycle a number, even when its item closed.
+**Next ID: BUG-041** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 39 | done (kept for history) |
+| [closed/](closed/) | 40 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -23,6 +23,15 @@ by construction rather than by discipline.
 (none)
 
 ## Closed
+
+- **BUG-040** — BUG-039's consumer test fails at HEAD: 2 of 800 events
+  unaccounted — CLOSED 2026-10-16: NOT an observation-path defect. The
+  FUB-side tap move (6c0bc51f7) exposed a stimulus bug: the TB modelled the
+  master with one-cycle RREADY/BREADY blips, one cycle short of the
+  registered tap's core-side handshake; the final burst of each channel
+  parked its last beat forever (one silent completion loss per channel).
+  Fix: hold RREADY/BREADY through the tap handshake in the TB; egress
+  ceiling test offers read/write channels concurrently. 15/15 green.
 
 - **BUG-039** — arming cfg_error_enable made the axi_monitor_lite shared output
   queue lossy (~90% of completions dropped, reported as EVENT_DROPPED) — CLOSED

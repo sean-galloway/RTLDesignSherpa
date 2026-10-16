@@ -255,6 +255,14 @@ class AXI4IntfObserverTB(TBBase):
         otherwise clean traffic -- the monitor had not finished registering
         the address when the data arrived, which is a real protocol
         complaint about the stimulus, not a DUT fault.
+
+        RREADY is HELD, not blipped per beat (amba BUG-040): the observer's
+        R path is a registered tap, so the core-side handshake for beat k
+        can land one cycle after the source-side beat. A real master holds
+        xREADY until the transfer, and must keep accepting while a beat is
+        presented; a one-cycle blip parks the final beat of the final burst
+        in the observer's register with no ready to complete it -- one
+        completion per channel silently never emitted.
         """
         d = self.dut
         d.obs_rd_araddr.value = addr; d.obs_rd_arid.value = arid
@@ -264,14 +272,16 @@ class AXI4IntfObserverTB(TBBase):
         d.obs_rd_arvalid.value = 0
         for _ in range(gap):
             await RisingEdge(d.aclk)
+        d.obs_rd_rready.value = 1
         for i in range(beats):
             d.obs_rd_rid.value = arid; d.obs_rd_rdata.value = 0xA5A5_0000 + i
             d.obs_rd_rresp.value = rresp
             d.obs_rd_rlast.value = 1 if i == beats - 1 else 0
-            d.obs_rd_rvalid.value = 1; d.obs_rd_rready.value = 1
+            d.obs_rd_rvalid.value = 1
             await RisingEdge(d.aclk)
-        d.obs_rd_rvalid.value = 0; d.obs_rd_rready.value = 0
-        d.obs_rd_rlast.value = 0; d.obs_rd_rresp.value = 0
+        d.obs_rd_rvalid.value = 0; d.obs_rd_rlast.value = 0; d.obs_rd_rresp.value = 0
+        await RisingEdge(d.aclk)   # last beat's core-side handshake
+        d.obs_rd_rready.value = 0
         for _ in range(gap):
             await RisingEdge(d.aclk)
 
@@ -296,7 +306,9 @@ class AXI4IntfObserverTB(TBBase):
         d.obs_wr_bid.value = awid; d.obs_wr_bresp.value = bresp
         d.obs_wr_bvalid.value = 1; d.obs_wr_bready.value = 1
         await RisingEdge(d.aclk)
-        d.obs_wr_bvalid.value = 0; d.obs_wr_bready.value = 0; d.obs_wr_bresp.value = 0
+        d.obs_wr_bvalid.value = 0
+        await RisingEdge(d.aclk)   # B's core-side handshake (BUG-040)
+        d.obs_wr_bready.value = 0; d.obs_wr_bresp.value = 0
         for _ in range(gap):
             await RisingEdge(d.aclk)
 
