@@ -30,12 +30,18 @@ Feature sources: four-book survey of the calibre NoC library
 
 - **Cell** — the one and only RTL design delta emits (`delta_mesh_cell`).
 - **Tetrad** — 2×2×1 cells (4). Owner-named 2026-10-15 (was "tile");
-  every tetrad is fully connected K4 (§2.2). Routing/config grouping,
-  not separate RTL.
+  every tetrad is fully connected K4 (§2.2). **A real RTL module**
+  (owner, 2026-10-15): it instantiates the four cells of its 2×2×1 group
+  and carries the first level of observation aggregation — the four
+  cell-level MonBus streams merge into one tetrad-level MonBus
+  (§2.3).
 - **Tile** — 2×2×1 tetrads = 4×4×1 cells (16). Owner-named 2026-10-15
   (was "confluence"); K4 at the tetrad level too — each tetrad connects
-  to the other three tetrads of its tile (§2.2 P_DIA2). Connects to
-  rapids at boundary cells' local ports.
+  to the other three tetrads of its tile (§2.2 P_DIA2). **A real RTL
+  module** (owner, 2026-10-15): it instantiates the four tetrads and
+  merges their four tetrad-level MonBus streams into the single
+  tile-top-level MonBus (§2.3). Connects to rapids at boundary cells'
+  local ports.
 - **Fabric** — 4×4×K tiles stacked in Z. The recursion is planar;
   the Z dimension lives entirely between tile layers.
 
@@ -43,11 +49,13 @@ Rapids attaches at tile boundary cells' local ports; any boundary cell
 can be a rapids attachment. Hive configuration (owner, 2026-10-15): one
 or more tiles — only one for now — connect to a single rapids DMA.
 Intra-tetrad and intra-tile hops are hops like
-any other — the hierarchy exists to bound table sizes and to name
-address regions, not to add wrapper hardware. (The superswitch idea —
-grouping 2×2 switches so a message reaches any switch in the local
-group in one cycle — is the same recursion seen in ECLIPSE [N7]; we take
-the grouping but not the single-cycle guarantee.)
+any other — for the data path, the hierarchy exists to bound table
+sizes and to name address regions, not to add datapath wrapper
+hardware. The one place the hierarchy DOES add hardware is observation:
+the tetrad and tile wrappers exist to aggregate MonBus (§2.3).
+(The superswitch idea — grouping 2×2 switches so a message reaches any
+switch in the local group in one cycle — is the same recursion seen in
+ECLIPSE [N7]; we take the grouping but not the single-cycle guarantee.)
 
 ### 2.2 Cell ports
 
@@ -74,15 +82,54 @@ the grouping but not the single-cycle guarantee.)
   links + local = 9 ports. P_DIA and P_DIA2 are that single diagonal
   axis realized at tetrad and tile scale respectively.
 - 1 local port (host-facing; rapids at tile boundary cells).
+- 1 MonBus observer port: each cell emits exactly one MonBus stream,
+  which the tetrad wrapper aggregates (§2.3).
 - All ports AXI4-Stream: `TDATA/TVALID/TREADY/TLAST` + header sideband in
   `TUSER` (§4). Optional AMBA 5 check/TWAKEUP richness carries over from
   flat mode unchanged.
+- **CXS migration (owner plan, 2026-10-15):** rapids gains a CXS
+  interface variant (`rapids_cxs`, a separate model alongside the AXIS
+  one) replacing its AXIS interfaces, and the delta network ports move
+  to CXS to match. AMBA 5 CXS (credit-controlled expandable stream)
+  replaces the raw AXI4-Stream pin contract at both sides; the
+  header/sideband content of §4 is unchanged. Sequencing: rapids_cxs
+  first (it has a working AXIS model to diff against), then delta.
+  Until both sides land, cells/fabric stay AXI4-Stream as described
+  above.
 
 Single clock domain, active-low async `aresetn` (house `ALWAYS_FF_RST`).
 Single clock is a deliberate simplification *contrary* to the GALS
 assumption in the NoC literature [N1][N8: GALS §3.1] — documented
 trade: timing closure and generator predictability over clock
 flexibility.
+
+### 2.3 Observation aggregation (MonBus hierarchy)
+
+Owner decision 2026-10-15. Every cell emits **one** MonBus observer
+stream. Observation aggregates up the same hierarchy as the datapath,
+one level at a time:
+
+- **Tetrad** (`delta_mesh_tetrad`, new module): instantiates the 2×2×1
+  cells of its group and merges the four cell MonBus streams into a
+  **single tetrad-level MonBus**.
+- **Tile** (`delta_mesh_tile`, new module): instantiates the 2×2×1
+  tetrads and merges the four tetrad-level streams into the **single
+  tile-top-level MonBus** — the only MonBus a board/sim host sees.
+
+Aggregation uses the house AXIL MonBus component family (the
+`monbus_group_core` / `monbus_*_group` wrappers of `rtl/amba/ocelus/`,
+AXIL host-read flavor) — the same observation path the amber tally
+harness uses (`monbus_arbiter` merge → group → AXIL read-out), so the
+standard host tooling (`monbus_tally_axil`, regmaps) attaches at the
+tile top unchanged. Exact leaf selection inside the wrappers is the
+module's implementation detail; the architectural contract is the
+4→1 merge per level and one MonBus per level boundary.
+
+Connectivity shape (owner's figure, `docs/3d-mesh-tile.drawio`): the
+four cells of a tetrad are fully meshed — each cell links to the other
+three — and the four tetrads of a tile repeat that same K4 pattern one
+scale up. The figure and §2.2's P_DIA/P_DIA2 ports describe the same
+structure: the K4 clique drawn as perimeter edges plus diagonals.
 
 ## 3. Cell microarchitecture
 
