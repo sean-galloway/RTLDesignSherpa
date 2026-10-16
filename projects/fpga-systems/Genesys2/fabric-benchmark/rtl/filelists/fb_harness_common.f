@@ -16,6 +16,8 @@ $STREAM_CHAR_FRAMEWORK_ROOT/rtl/harness_csr.sv
 -f $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/filelists/bridge_fb_cfg.f
 # Workload select (which endpoints the run timer watches) + S0 beat counters
 -f $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/filelists/fb_ctl_regs.f
+# The W3 injector on M3 (the characterization flows' traffic generator)
+-f $REPO_ROOT/projects/fpga-systems/rtl/mem_char_framework/rtl/filelists/char_engine_block.f
 # Descriptor path: 256 -> 128 outside the fabric, descriptor RAM at S1
 -f $CONVERTERS_ROOT/rtl/filelists/axi4_dwidth_converter_rd.f
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f

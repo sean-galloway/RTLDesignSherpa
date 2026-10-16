@@ -7,7 +7,7 @@ module fb_ctl_regs (
 
         input wire s_cpuif_req,
         input wire s_cpuif_req_is_wr,
-        input wire [4:0] s_cpuif_addr,
+        input wire [5:0] s_cpuif_addr,
         input wire [31:0] s_cpuif_wr_data,
         input wire [31:0] s_cpuif_wr_biten,
         output wire s_cpuif_req_stall_wr,
@@ -27,7 +27,7 @@ module fb_ctl_regs (
     //--------------------------------------------------------------------------
     logic cpuif_req;
     logic cpuif_req_is_wr;
-    logic [4:0] cpuif_addr;
+    logic [5:0] cpuif_addr;
     logic [31:0] cpuif_wr_data;
     logic [31:0] cpuif_wr_biten;
     logic cpuif_req_stall_wr;
@@ -74,6 +74,10 @@ module fb_ctl_regs (
         logic S0_B_COUNT;
         logic S0_AR_COUNT;
         logic S0_RVALID_CYCLES;
+        logic INJ_WR_PROD;
+        logic INJ_WR_BP;
+        logic INJ_WR_STARV;
+        logic INJ_WR_IDLE;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -82,14 +86,18 @@ module fb_ctl_regs (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
-        decoded_reg_strb.WORKLOAD = cpuif_req_masked & (cpuif_addr == 5'h0);
-        decoded_reg_strb.S0_RD_BEATS = cpuif_req_masked & (cpuif_addr == 5'h4);
-        decoded_reg_strb.S0_WR_BEATS = cpuif_req_masked & (cpuif_addr == 5'h8);
-        decoded_reg_strb.STATUS = cpuif_req_masked & (cpuif_addr == 5'hc);
-        decoded_reg_strb.S0_AW_COUNT = cpuif_req_masked & (cpuif_addr == 5'h10);
-        decoded_reg_strb.S0_B_COUNT = cpuif_req_masked & (cpuif_addr == 5'h14);
-        decoded_reg_strb.S0_AR_COUNT = cpuif_req_masked & (cpuif_addr == 5'h18);
-        decoded_reg_strb.S0_RVALID_CYCLES = cpuif_req_masked & (cpuif_addr == 5'h1c);
+        decoded_reg_strb.WORKLOAD = cpuif_req_masked & (cpuif_addr == 6'h0);
+        decoded_reg_strb.S0_RD_BEATS = cpuif_req_masked & (cpuif_addr == 6'h4);
+        decoded_reg_strb.S0_WR_BEATS = cpuif_req_masked & (cpuif_addr == 6'h8);
+        decoded_reg_strb.STATUS = cpuif_req_masked & (cpuif_addr == 6'hc);
+        decoded_reg_strb.S0_AW_COUNT = cpuif_req_masked & (cpuif_addr == 6'h10);
+        decoded_reg_strb.S0_B_COUNT = cpuif_req_masked & (cpuif_addr == 6'h14);
+        decoded_reg_strb.S0_AR_COUNT = cpuif_req_masked & (cpuif_addr == 6'h18);
+        decoded_reg_strb.S0_RVALID_CYCLES = cpuif_req_masked & (cpuif_addr == 6'h1c);
+        decoded_reg_strb.INJ_WR_PROD = cpuif_req_masked & (cpuif_addr == 6'h20);
+        decoded_reg_strb.INJ_WR_BP = cpuif_req_masked & (cpuif_addr == 6'h24);
+        decoded_reg_strb.INJ_WR_STARV = cpuif_req_masked & (cpuif_addr == 6'h28);
+        decoded_reg_strb.INJ_WR_IDLE = cpuif_req_masked & (cpuif_addr == 6'h2c);
     end
 
     // Pass down signals to next stage
@@ -108,9 +116,13 @@ module fb_ctl_regs (
                 logic load_next;
             } RD_SRC;
             struct {
-                logic next;
+                logic [1:0] next;
                 logic load_next;
             } WR_DST;
+            struct {
+                logic next;
+                logic load_next;
+            } INJ_SYNC;
         } WORKLOAD;
     } field_combo_t;
     field_combo_t field_combo;
@@ -121,8 +133,11 @@ module fb_ctl_regs (
                 logic value;
             } RD_SRC;
             struct {
-                logic value;
+                logic [1:0] value;
             } WR_DST;
+            struct {
+                logic value;
+            } INJ_SYNC;
         } WORKLOAD;
     } field_storage_t;
     field_storage_t field_storage;
@@ -152,12 +167,12 @@ module fb_ctl_regs (
     assign hwif_out.WORKLOAD.RD_SRC.value = field_storage.WORKLOAD.RD_SRC.value;
     // Field: fb_ctl_regs.WORKLOAD.WR_DST
     always_comb begin
-        automatic logic [0:0] next_c;
+        automatic logic [1:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.WORKLOAD.WR_DST.value;
         load_next_c = '0;
         if(decoded_reg_strb.WORKLOAD && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.WORKLOAD.WR_DST.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            next_c = (field_storage.WORKLOAD.WR_DST.value & ~decoded_wr_biten[2:1]) | (decoded_wr_data[2:1] & decoded_wr_biten[2:1]);
             load_next_c = '1;
         end
         field_combo.WORKLOAD.WR_DST.next = next_c;
@@ -165,7 +180,7 @@ module fb_ctl_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.WORKLOAD.WR_DST.value <= 1'h0;
+            field_storage.WORKLOAD.WR_DST.value <= 2'h0;
         end else begin
             if(field_combo.WORKLOAD.WR_DST.load_next) begin
                 field_storage.WORKLOAD.WR_DST.value <= field_combo.WORKLOAD.WR_DST.next;
@@ -173,6 +188,29 @@ module fb_ctl_regs (
         end
     end
     assign hwif_out.WORKLOAD.WR_DST.value = field_storage.WORKLOAD.WR_DST.value;
+    // Field: fb_ctl_regs.WORKLOAD.INJ_SYNC
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.WORKLOAD.INJ_SYNC.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.WORKLOAD && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.WORKLOAD.INJ_SYNC.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.WORKLOAD.INJ_SYNC.next = next_c;
+        field_combo.WORKLOAD.INJ_SYNC.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.WORKLOAD.INJ_SYNC.value <= 1'h0;
+        end else begin
+            if(field_combo.WORKLOAD.INJ_SYNC.load_next) begin
+                field_storage.WORKLOAD.INJ_SYNC.value <= field_combo.WORKLOAD.INJ_SYNC.next;
+            end
+        end
+    end
+    assign hwif_out.WORKLOAD.INJ_SYNC.value = field_storage.WORKLOAD.INJ_SYNC.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -190,10 +228,11 @@ module fb_ctl_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[8];
+    logic [31:0] readback_array[12];
     assign readback_array[0][0:0] = (decoded_reg_strb.WORKLOAD && !decoded_req_is_wr) ? field_storage.WORKLOAD.RD_SRC.value : '0;
-    assign readback_array[0][1:1] = (decoded_reg_strb.WORKLOAD && !decoded_req_is_wr) ? field_storage.WORKLOAD.WR_DST.value : '0;
-    assign readback_array[0][31:2] = '0;
+    assign readback_array[0][2:1] = (decoded_reg_strb.WORKLOAD && !decoded_req_is_wr) ? field_storage.WORKLOAD.WR_DST.value : '0;
+    assign readback_array[0][3:3] = (decoded_reg_strb.WORKLOAD && !decoded_req_is_wr) ? field_storage.WORKLOAD.INJ_SYNC.value : '0;
+    assign readback_array[0][31:4] = '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.S0_RD_BEATS && !decoded_req_is_wr) ? hwif_in.S0_RD_BEATS.VALUE.next : '0;
     assign readback_array[2][31:0] = (decoded_reg_strb.S0_WR_BEATS && !decoded_req_is_wr) ? hwif_in.S0_WR_BEATS.VALUE.next : '0;
     assign readback_array[3][0:0] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.INIT_CALIB_COMPLETE.next : '0;
@@ -216,6 +255,10 @@ module fb_ctl_regs (
     assign readback_array[5][31:0] = (decoded_reg_strb.S0_B_COUNT && !decoded_req_is_wr) ? hwif_in.S0_B_COUNT.VALUE.next : '0;
     assign readback_array[6][31:0] = (decoded_reg_strb.S0_AR_COUNT && !decoded_req_is_wr) ? hwif_in.S0_AR_COUNT.VALUE.next : '0;
     assign readback_array[7][31:0] = (decoded_reg_strb.S0_RVALID_CYCLES && !decoded_req_is_wr) ? hwif_in.S0_RVALID_CYCLES.VALUE.next : '0;
+    assign readback_array[8][31:0] = (decoded_reg_strb.INJ_WR_PROD && !decoded_req_is_wr) ? hwif_in.INJ_WR_PROD.VALUE.next : '0;
+    assign readback_array[9][31:0] = (decoded_reg_strb.INJ_WR_BP && !decoded_req_is_wr) ? hwif_in.INJ_WR_BP.VALUE.next : '0;
+    assign readback_array[10][31:0] = (decoded_reg_strb.INJ_WR_STARV && !decoded_req_is_wr) ? hwif_in.INJ_WR_STARV.VALUE.next : '0;
+    assign readback_array[11][31:0] = (decoded_reg_strb.INJ_WR_IDLE && !decoded_req_is_wr) ? hwif_in.INJ_WR_IDLE.VALUE.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -223,7 +266,7 @@ module fb_ctl_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<8; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<12; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

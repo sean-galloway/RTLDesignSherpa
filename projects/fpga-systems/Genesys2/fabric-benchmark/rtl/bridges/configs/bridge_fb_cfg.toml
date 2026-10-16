@@ -18,6 +18,7 @@
 #   0x0019_0000  obs_apb       4 KB   master-side observer (STREAM -> fabric)
 #   0x0020_0000  fb_ctl        4 KB   workload select + S0 beat counters
 #                                     (fb_ctl_regs.rdl; past every STREAM window)
+#   0x0021_0000  chargen       4 KB   W3 injector config (chargen_regs)
 #==============================================================================
 
 [bridge]
@@ -121,4 +122,16 @@ addr_width  = 32
 data_width  = 32
 user_width  = 0
 base_addr   = "0x00200000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "chargen"
+prefix      = "chargen_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00210000"
 addr_range  = "0x00001000"

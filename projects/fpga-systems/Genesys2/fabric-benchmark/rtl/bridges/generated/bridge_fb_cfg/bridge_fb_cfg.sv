@@ -189,6 +189,19 @@ module bridge_fb_cfg
     input  logic [31:0]  fb_ctl_apb_PRDATA,
     input  logic         fb_ctl_apb_PREADY,
     input  logic         fb_ctl_apb_PSLVERR,
+
+    // Slave 7: chargen
+    // APB Slave: chargen
+    output  logic         chargen_apb_PSEL,
+    output  logic [31:0]  chargen_apb_PADDR,
+    output  logic         chargen_apb_PENABLE,
+    output  logic         chargen_apb_PWRITE,
+    output  logic [31:0]  chargen_apb_PWDATA,
+    output  logic [3:0]  chargen_apb_PSTRB,
+    output  logic [2:0]  chargen_apb_PPROT,
+    input  logic [31:0]  chargen_apb_PRDATA,
+    input  logic         chargen_apb_PREADY,
+    input  logic         chargen_apb_PSLVERR,
     // Unmapped-address status (subtractive slave).
     // unmapped_irq is STICKY: it latches on the first
     // unmapped access and holds until unmapped_clear,
@@ -202,7 +215,7 @@ module bridge_fb_cfg
     input  logic        unmapped_clear
 );
 
-    localparam NUM_SLAVES = 8;
+    localparam NUM_SLAVES = 9;
 
     // host Adapter outputs
     logic [NUM_SLAVES-1:0] host_slave_select_aw;
@@ -607,6 +620,58 @@ module bridge_fb_cfg
     logic [BRIDGE_ID_WIDTH-1:0] fb_ctl_axi_rid_bridge_id;
     logic                       fb_ctl_axi_rid_valid;
 
+    // chargen (APB, 32b AXI4 interface)
+    logic [0:0]            xbar_chargen_axi_awid;
+    logic [31:0]               xbar_chargen_axi_awaddr;
+    logic [7:0]                xbar_chargen_axi_awlen;
+    logic [2:0]                xbar_chargen_axi_awsize;
+    logic [1:0]                xbar_chargen_axi_awburst;
+    logic                      xbar_chargen_axi_awlock;
+    logic [3:0]                xbar_chargen_axi_awcache;
+    logic [2:0]                xbar_chargen_axi_awprot;
+    logic [3:0]                xbar_chargen_axi_awqos;
+    logic [3:0]                xbar_chargen_axi_awregion;
+    logic                      xbar_chargen_axi_awuser;
+    logic                      xbar_chargen_axi_awvalid;
+    logic                      xbar_chargen_axi_awready;
+    logic [31:0] xbar_chargen_axi_wdata;
+    logic [3:0] xbar_chargen_axi_wstrb;
+    logic                      xbar_chargen_axi_wlast;
+    logic                      xbar_chargen_axi_wuser;
+    logic                      xbar_chargen_axi_wvalid;
+    logic                      xbar_chargen_axi_wready;
+    logic [0:0]            xbar_chargen_axi_bid;
+    logic [1:0]                xbar_chargen_axi_bresp;
+    logic                      xbar_chargen_axi_buser;
+    logic                      xbar_chargen_axi_bvalid;
+    logic                      xbar_chargen_axi_bready;
+    logic [0:0]            xbar_chargen_axi_arid;
+    logic [31:0]               xbar_chargen_axi_araddr;
+    logic [7:0]                xbar_chargen_axi_arlen;
+    logic [2:0]                xbar_chargen_axi_arsize;
+    logic [1:0]                xbar_chargen_axi_arburst;
+    logic                      xbar_chargen_axi_arlock;
+    logic [3:0]                xbar_chargen_axi_arcache;
+    logic [2:0]                xbar_chargen_axi_arprot;
+    logic [3:0]                xbar_chargen_axi_arqos;
+    logic [3:0]                xbar_chargen_axi_arregion;
+    logic                      xbar_chargen_axi_aruser;
+    logic                      xbar_chargen_axi_arvalid;
+    logic                      xbar_chargen_axi_arready;
+    logic [0:0]            xbar_chargen_axi_rid;
+    logic [31:0] xbar_chargen_axi_rdata;
+    logic [1:0]                xbar_chargen_axi_rresp;
+    logic                      xbar_chargen_axi_rlast;
+    logic                      xbar_chargen_axi_ruser;
+    logic                      xbar_chargen_axi_rvalid;
+    logic                      xbar_chargen_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] chargen_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] chargen_axi_bid_bridge_id;
+    logic                       chargen_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] chargen_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] chargen_axi_rid_bridge_id;
+    logic                       chargen_axi_rid_valid;
+
     // subtractive (AXI4, 128b AXI4 interface)
     logic [0:0]            xbar_subtractive_axi_awid;
     logic [31:0]               xbar_subtractive_axi_awaddr;
@@ -660,7 +725,7 @@ module bridge_fb_cfg
     logic                       subtractive_axi_rid_valid;
 
 
-    // ---- Slave 7: subtractive (subtractive catch-all, internal) ----
+    // ---- Slave 8: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (bridge BUG-007, was BRIDGE-009). Always answers DECERR.
     logic         subtractive_awid;
@@ -718,7 +783,7 @@ module bridge_fb_cfg
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (128),
         .AXI_USER_WIDTH (1),
-        .UNIT_ID        (8'd7),
+        .UNIT_ID        (8'd8),
         .AGENT_ID       (16'h5B00)
     ) u_subtractive (
         .aclk          (aclk),
@@ -1273,7 +1338,60 @@ module bridge_fb_cfg
         .fb_ctl_axi_rid_bridge_id(fb_ctl_axi_rid_bridge_id),
         .fb_ctl_axi_rid_valid(fb_ctl_axi_rid_valid),
 
-        // Slave 7: subtractive
+        // Slave 7: chargen
+        .chargen_axi_awid(xbar_chargen_axi_awid),
+        .chargen_axi_awaddr(xbar_chargen_axi_awaddr),
+        .chargen_axi_awlen(xbar_chargen_axi_awlen),
+        .chargen_axi_awsize(xbar_chargen_axi_awsize),
+        .chargen_axi_awburst(xbar_chargen_axi_awburst),
+        .chargen_axi_awlock(xbar_chargen_axi_awlock),
+        .chargen_axi_awcache(xbar_chargen_axi_awcache),
+        .chargen_axi_awprot(xbar_chargen_axi_awprot),
+        .chargen_axi_awqos(xbar_chargen_axi_awqos),
+        .chargen_axi_awregion(xbar_chargen_axi_awregion),
+        .chargen_axi_awuser(xbar_chargen_axi_awuser),
+        .chargen_axi_awvalid(xbar_chargen_axi_awvalid),
+        .chargen_axi_awready(xbar_chargen_axi_awready),
+        .chargen_axi_wdata(xbar_chargen_axi_wdata),
+        .chargen_axi_wstrb(xbar_chargen_axi_wstrb),
+        .chargen_axi_wlast(xbar_chargen_axi_wlast),
+        .chargen_axi_wuser(xbar_chargen_axi_wuser),
+        .chargen_axi_wvalid(xbar_chargen_axi_wvalid),
+        .chargen_axi_wready(xbar_chargen_axi_wready),
+        .chargen_axi_bid(xbar_chargen_axi_bid),
+        .chargen_axi_bresp(xbar_chargen_axi_bresp),
+        .chargen_axi_buser(xbar_chargen_axi_buser),
+        .chargen_axi_bvalid(xbar_chargen_axi_bvalid),
+        .chargen_axi_bready(xbar_chargen_axi_bready),
+        .chargen_axi_arid(xbar_chargen_axi_arid),
+        .chargen_axi_araddr(xbar_chargen_axi_araddr),
+        .chargen_axi_arlen(xbar_chargen_axi_arlen),
+        .chargen_axi_arsize(xbar_chargen_axi_arsize),
+        .chargen_axi_arburst(xbar_chargen_axi_arburst),
+        .chargen_axi_arlock(xbar_chargen_axi_arlock),
+        .chargen_axi_arcache(xbar_chargen_axi_arcache),
+        .chargen_axi_arprot(xbar_chargen_axi_arprot),
+        .chargen_axi_arqos(xbar_chargen_axi_arqos),
+        .chargen_axi_arregion(xbar_chargen_axi_arregion),
+        .chargen_axi_aruser(xbar_chargen_axi_aruser),
+        .chargen_axi_arvalid(xbar_chargen_axi_arvalid),
+        .chargen_axi_arready(xbar_chargen_axi_arready),
+        .chargen_axi_rid(xbar_chargen_axi_rid),
+        .chargen_axi_rdata(xbar_chargen_axi_rdata),
+        .chargen_axi_rresp(xbar_chargen_axi_rresp),
+        .chargen_axi_rlast(xbar_chargen_axi_rlast),
+        .chargen_axi_ruser(xbar_chargen_axi_ruser),
+        .chargen_axi_rvalid(xbar_chargen_axi_rvalid),
+        .chargen_axi_rready(xbar_chargen_axi_rready),
+        .chargen_axi_bridge_id_aw(chargen_axi_bridge_id_aw),
+        .chargen_axi_bid_bridge_id(chargen_axi_bid_bridge_id),
+        .chargen_axi_bid_valid(chargen_axi_bid_valid),
+
+        .chargen_axi_bridge_id_ar(chargen_axi_bridge_id_ar),
+        .chargen_axi_rid_bridge_id(chargen_axi_rid_bridge_id),
+        .chargen_axi_rid_valid(chargen_axi_rid_valid),
+
+        // Slave 8: subtractive
         .subtractive_axi_awid(xbar_subtractive_axi_awid),
         .subtractive_axi_awaddr(xbar_subtractive_axi_awaddr),
         .subtractive_axi_awlen(xbar_subtractive_axi_awlen),
@@ -1888,6 +2006,78 @@ module bridge_fb_cfg
         .xbar_bridge_id_ar(fb_ctl_axi_bridge_id_ar),
         .rid_bridge_id(fb_ctl_axi_rid_bridge_id),
         .rid_valid(fb_ctl_axi_rid_valid)
+    );
+
+    // chargen adapter (APB, crossbar → external slave)
+    bridge_fb_cfg_chargen_adapter u_chargen_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_chargen_axi_*)
+        .xbar_chargen_axi_awid(xbar_chargen_axi_awid),
+        .xbar_chargen_axi_awaddr(xbar_chargen_axi_awaddr),
+        .xbar_chargen_axi_awlen(xbar_chargen_axi_awlen),
+        .xbar_chargen_axi_awsize(xbar_chargen_axi_awsize),
+        .xbar_chargen_axi_awburst(xbar_chargen_axi_awburst),
+        .xbar_chargen_axi_awlock(xbar_chargen_axi_awlock),
+        .xbar_chargen_axi_awcache(xbar_chargen_axi_awcache),
+        .xbar_chargen_axi_awprot(xbar_chargen_axi_awprot),
+        .xbar_chargen_axi_awqos(xbar_chargen_axi_awqos),
+        .xbar_chargen_axi_awregion(xbar_chargen_axi_awregion),
+        .xbar_chargen_axi_awuser(xbar_chargen_axi_awuser),
+        .xbar_chargen_axi_awvalid(xbar_chargen_axi_awvalid),
+        .xbar_chargen_axi_awready(xbar_chargen_axi_awready),
+        .xbar_chargen_axi_wdata(xbar_chargen_axi_wdata),
+        .xbar_chargen_axi_wstrb(xbar_chargen_axi_wstrb),
+        .xbar_chargen_axi_wlast(xbar_chargen_axi_wlast),
+        .xbar_chargen_axi_wuser(xbar_chargen_axi_wuser),
+        .xbar_chargen_axi_wvalid(xbar_chargen_axi_wvalid),
+        .xbar_chargen_axi_wready(xbar_chargen_axi_wready),
+        .xbar_chargen_axi_bid(xbar_chargen_axi_bid),
+        .xbar_chargen_axi_bresp(xbar_chargen_axi_bresp),
+        .xbar_chargen_axi_buser(xbar_chargen_axi_buser),
+        .xbar_chargen_axi_bvalid(xbar_chargen_axi_bvalid),
+        .xbar_chargen_axi_bready(xbar_chargen_axi_bready),
+        .xbar_chargen_axi_arid(xbar_chargen_axi_arid),
+        .xbar_chargen_axi_araddr(xbar_chargen_axi_araddr),
+        .xbar_chargen_axi_arlen(xbar_chargen_axi_arlen),
+        .xbar_chargen_axi_arsize(xbar_chargen_axi_arsize),
+        .xbar_chargen_axi_arburst(xbar_chargen_axi_arburst),
+        .xbar_chargen_axi_arlock(xbar_chargen_axi_arlock),
+        .xbar_chargen_axi_arcache(xbar_chargen_axi_arcache),
+        .xbar_chargen_axi_arprot(xbar_chargen_axi_arprot),
+        .xbar_chargen_axi_arqos(xbar_chargen_axi_arqos),
+        .xbar_chargen_axi_arregion(xbar_chargen_axi_arregion),
+        .xbar_chargen_axi_aruser(xbar_chargen_axi_aruser),
+        .xbar_chargen_axi_arvalid(xbar_chargen_axi_arvalid),
+        .xbar_chargen_axi_arready(xbar_chargen_axi_arready),
+        .xbar_chargen_axi_rid(xbar_chargen_axi_rid),
+        .xbar_chargen_axi_rdata(xbar_chargen_axi_rdata),
+        .xbar_chargen_axi_rresp(xbar_chargen_axi_rresp),
+        .xbar_chargen_axi_rlast(xbar_chargen_axi_rlast),
+        .xbar_chargen_axi_ruser(xbar_chargen_axi_ruser),
+        .xbar_chargen_axi_rvalid(xbar_chargen_axi_rvalid),
+        .xbar_chargen_axi_rready(xbar_chargen_axi_rready),
+
+        // External APB interface (chargen_apb_*)
+        .chargen_apb_PADDR(chargen_apb_PADDR),
+        .chargen_apb_PSEL(chargen_apb_PSEL),
+        .chargen_apb_PENABLE(chargen_apb_PENABLE),
+        .chargen_apb_PWRITE(chargen_apb_PWRITE),
+        .chargen_apb_PWDATA(chargen_apb_PWDATA),
+        .chargen_apb_PSTRB(chargen_apb_PSTRB),
+        .chargen_apb_PPROT(chargen_apb_PPROT),
+        .chargen_apb_PRDATA(chargen_apb_PRDATA),
+        .chargen_apb_PSLVERR(chargen_apb_PSLVERR),
+        .chargen_apb_PREADY(chargen_apb_PREADY),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(chargen_axi_bridge_id_aw),
+        .bid_bridge_id(chargen_axi_bid_bridge_id),
+        .bid_valid(chargen_axi_bid_valid),
+        .xbar_bridge_id_ar(chargen_axi_bridge_id_ar),
+        .rid_bridge_id(chargen_axi_rid_bridge_id),
+        .rid_valid(chargen_axi_rid_valid)
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)

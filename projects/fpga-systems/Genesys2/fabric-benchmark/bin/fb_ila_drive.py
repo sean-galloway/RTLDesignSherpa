@@ -26,7 +26,7 @@ COUNTS = ('S0_AW_COUNT', 'S0_B_COUNT', 'S0_AR_COUNT', 'S0_RD_BEATS', 'S0_WR_BEAT
 def snapshot(bridge) -> str:
     regs = fb_workloads._regs()['STATUS']
     st = bridge.read(fb_workloads.C('STATUS'))
-    live = ' '.join(f"{n}={(st >> int(regs['S0_' + n]['offset'])) & 1}" for n in LIVE)
+    live = ' '.join(f"{n}={(st >> fb_workloads._lsb(regs['S0_' + n])) & 1}" for n in LIVE)
     cnt = ' '.join(f"{k}={bridge.read(fb_workloads.C(k))}" for k in COUNTS)
     return f"status=0x{st:X} {live} | {cnt}"
 

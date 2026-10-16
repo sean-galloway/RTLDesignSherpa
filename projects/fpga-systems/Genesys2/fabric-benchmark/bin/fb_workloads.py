@@ -61,9 +61,21 @@ def C(name: str) -> int:
     return FB_CTL_BASE + int(_regs()[name]['address'], 16)
 
 
-def workload_word(rd_ddr: bool, wr_ddr: bool) -> int:
+# WORKLOAD.WR_DST codes (fb_ctl_regs.rdl)
+WR_DST_SINK, WR_DST_S0, WR_DST_M2 = 0, 1, 2
+
+
+def _lsb(field: dict) -> int:
+    return int(str(field['offset']).split(':')[-1])
+
+
+def workload_word(rd_ddr: bool, wr_dst, inj_sync: bool = False) -> int:
+    """wr_dst: a WR_DST_* code, or a bool (True = S0) for the chain's steps.
+    inj_sync holds W3's injector until STREAM's measurement window opens."""
     f = _regs()['WORKLOAD']
-    return (int(rd_ddr) << int(f['RD_SRC']['offset'])) | (int(wr_ddr) << int(f['WR_DST']['offset']))
+    code = int(wr_dst) if not isinstance(wr_dst, bool) else (WR_DST_S0 if wr_dst else WR_DST_SINK)
+    return ((int(rd_ddr) << _lsb(f['RD_SRC'])) | (code << _lsb(f['WR_DST']))
+            | (int(inj_sync) << _lsb(f['INJ_SYNC'])))
 
 
 def region_b_base(cfg) -> int:
@@ -82,13 +94,13 @@ def _base(where: str, cfg) -> int:
             'A': DDR_A_BASE, 'B': region_b_base(cfg)}[where]
 
 
-def set_workload(bridge, rd_ddr: bool, wr_ddr: bool) -> None:
-    bridge.write(C('WORKLOAD'), workload_word(rd_ddr, wr_ddr))
+def set_workload(bridge, rd_ddr: bool, wr_dst, inj_sync: bool = False) -> None:
+    bridge.write(C('WORKLOAD'), workload_word(rd_ddr, wr_dst, inj_sync))
 
 
 def calib_complete(bridge) -> bool:
     f = _regs()['STATUS']['INIT_CALIB_COMPLETE']
-    return bool((bridge.read(C('STATUS')) >> int(f['offset'])) & 1)
+    return bool((bridge.read(C('STATUS')) >> _lsb(f)) & 1)
 
 
 def wait_calib(bridge, timeout_s: float = 20.0) -> bool:
@@ -105,19 +117,24 @@ def wait_calib(bridge, timeout_s: float = 20.0) -> bool:
     return True
 
 
-def run_step(runner, bridge, cfg, src: str, dst: str) -> dict:
+def run_step(runner, bridge, cfg, src: str, dst: str, *, wr_dst=None, pre_kick=None,
+             inj_sync: bool = False) -> dict:
     """One step: point the timer and the descriptors at (src, dst) and run.
-    A step that touches DDR3 is refused, not run, before MIG calibrates: a
-    transaction to an uncalibrated MIG never completes and leaves its AXI
-    shim holding work the next run inherits."""
+    A step that touches DDR3 is refused, not run, before the controller has
+    calibrated: a transaction to an uncalibrated controller need not complete
+    and can leave work the next run inherits.
+
+    wr_dst overrides the timer's write source (a WR_DST_* code; W3's mirror
+    uses WR_DST_M2); pre_kick is the runner's hook, after its soft reset and
+    before the kick (W3 programs and starts the injector there)."""
     rd_ddr, wr_ddr = src in ('A', 'B'), dst in ('A', 'B')
     if (rd_ddr or wr_ddr) and not calib_complete(bridge):
         return {'error': 'DDR3 not calibrated (fb_ctl STATUS.INIT_CALIB_COMPLETE = 0)',
                 's0_rd_beats': None, 's0_wr_beats': None, 'rd_ddr': rd_ddr, 'wr_ddr': wr_ddr}
-    set_workload(bridge, rd_ddr, wr_ddr)
+    set_workload(bridge, rd_ddr, wr_ddr if wr_dst is None else wr_dst, inj_sync)
     runner.builder = fb_map.make_builder(src_base=_base(src, cfg), dst_base=_base(dst, cfg))
     try:
-        res = runner.run_config(cfg)
+        res = runner.run_config(cfg, pre_kick=pre_kick)
     finally:
         runner.builder = fb_map.make_builder()
     res['s0_rd_beats'] = bridge.read(C('S0_RD_BEATS'))

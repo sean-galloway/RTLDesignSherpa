@@ -12,7 +12,7 @@
 module bridge_fb_cfg_xbar
     import bridge_fb_cfg_pkg::*;
 #(
-    parameter int NUM_SLAVES = 8
+    parameter int NUM_SLAVES = 9
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -461,7 +461,65 @@ module bridge_fb_cfg_xbar
     input  logic         fb_ctl_axi_rvalid,
     output  logic         fb_ctl_axi_rready,
 
-    // Slave 7: subtractive
+    // Slave 7: chargen
+    output logic [BRIDGE_ID_WIDTH-1:0] chargen_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] chargen_axi_bid_bridge_id,
+    input  logic                       chargen_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] chargen_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] chargen_axi_rid_bridge_id,
+    input  logic                       chargen_axi_rid_valid,
+
+    output  logic         chargen_axi_awid,
+    output  logic [31:0]  chargen_axi_awaddr,
+    output  logic [7:0]  chargen_axi_awlen,
+    output  logic [2:0]  chargen_axi_awsize,
+    output  logic [1:0]  chargen_axi_awburst,
+    output  logic         chargen_axi_awlock,
+    output  logic [3:0]  chargen_axi_awcache,
+    output  logic [2:0]  chargen_axi_awprot,
+    output  logic [3:0]  chargen_axi_awqos,
+    output  logic [3:0]  chargen_axi_awregion,
+    output  logic         chargen_axi_awuser,
+    output  logic         chargen_axi_awvalid,
+    input  logic         chargen_axi_awready,
+
+    output  logic [31:0]  chargen_axi_wdata,
+    output  logic [3:0]  chargen_axi_wstrb,
+    output  logic         chargen_axi_wlast,
+    output  logic         chargen_axi_wuser,
+    output  logic         chargen_axi_wvalid,
+    input  logic         chargen_axi_wready,
+
+    input  logic         chargen_axi_bid,
+    input  logic [1:0]  chargen_axi_bresp,
+    input  logic         chargen_axi_buser,
+    input  logic         chargen_axi_bvalid,
+    output  logic         chargen_axi_bready,
+
+    output  logic         chargen_axi_arid,
+    output  logic [31:0]  chargen_axi_araddr,
+    output  logic [7:0]  chargen_axi_arlen,
+    output  logic [2:0]  chargen_axi_arsize,
+    output  logic [1:0]  chargen_axi_arburst,
+    output  logic         chargen_axi_arlock,
+    output  logic [3:0]  chargen_axi_arcache,
+    output  logic [2:0]  chargen_axi_arprot,
+    output  logic [3:0]  chargen_axi_arqos,
+    output  logic [3:0]  chargen_axi_arregion,
+    output  logic         chargen_axi_aruser,
+    output  logic         chargen_axi_arvalid,
+    input  logic         chargen_axi_arready,
+
+    input  logic         chargen_axi_rid,
+    input  logic [31:0]  chargen_axi_rdata,
+    input  logic [1:0]  chargen_axi_rresp,
+    input  logic         chargen_axi_rlast,
+    input  logic         chargen_axi_ruser,
+    input  logic         chargen_axi_rvalid,
+    output  logic         chargen_axi_rready,
+
+    // Slave 8: subtractive
     output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_aw,
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bid_bridge_id,
     input  logic                       subtractive_axi_bid_valid,
@@ -537,6 +595,8 @@ module bridge_fb_cfg_xbar
     logic host_32b_w_sel_obs_apb;
     logic host_32b_w_to_fb_ctl;
     logic host_32b_w_sel_fb_ctl;
+    logic host_32b_w_to_chargen;
+    logic host_32b_w_sel_chargen;
     logic host_128b_w_to_desc_ram;
     logic host_128b_w_sel_desc_ram;
     logic host_128b_w_to_subtractive;
@@ -547,16 +607,17 @@ module bridge_fb_cfg_xbar
     // ================================================================
 
     // ---- B response arbiter, master host 32b: round-robin, lock until taken ----
-    logic [5:0] host_32b_b_rarb_req;
-    assign host_32b_b_rarb_req = {((fb_ctl_axi_bid_bridge_id == 0) && fb_ctl_axi_bid_valid) && fb_ctl_axi_bvalid, ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid) && obs_apb_axi_bvalid, ((slvmon_apb_axi_bid_bridge_id == 0) && slvmon_apb_axi_bid_valid) && slvmon_apb_axi_bvalid, ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid) && stream_err_axi_bvalid, ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) && harness_csr_axi_bvalid, ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid) && stream_apb_axi_bvalid};
+    logic [6:0] host_32b_b_rarb_req;
+    assign host_32b_b_rarb_req = {((chargen_axi_bid_bridge_id == 0) && chargen_axi_bid_valid) && chargen_axi_bvalid, ((fb_ctl_axi_bid_bridge_id == 0) && fb_ctl_axi_bid_valid) && fb_ctl_axi_bvalid, ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid) && obs_apb_axi_bvalid, ((slvmon_apb_axi_bid_bridge_id == 0) && slvmon_apb_axi_bid_valid) && slvmon_apb_axi_bvalid, ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid) && stream_err_axi_bvalid, ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) && harness_csr_axi_bvalid, ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid) && stream_apb_axi_bvalid};
     logic [2:0] host_32b_b_rarb_lock, host_32b_b_rarb_rr;
     logic host_32b_b_rarb_locked;
-    wire [2:0] host_32b_b_rarb_pick = (host_32b_b_rarb_rr == 3'd0) ? (host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : 3'd5) : 
-        (host_32b_b_rarb_rr == 3'd1) ? (host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : 3'd0) : 
-        (host_32b_b_rarb_rr == 3'd2) ? (host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[0] ? 3'd0 : 3'd1) : 
-        (host_32b_b_rarb_rr == 3'd3) ? (host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : 3'd2) : 
-        (host_32b_b_rarb_rr == 3'd4) ? (host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : 3'd3) : 
-        host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : 3'd4;
+    wire [2:0] host_32b_b_rarb_pick = (host_32b_b_rarb_rr == 3'd0) ? (host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : 3'd6) : 
+        (host_32b_b_rarb_rr == 3'd1) ? (host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : 3'd0) : 
+        (host_32b_b_rarb_rr == 3'd2) ? (host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : 3'd1) : 
+        (host_32b_b_rarb_rr == 3'd3) ? (host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : 3'd2) : 
+        (host_32b_b_rarb_rr == 3'd4) ? (host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : 3'd3) : 
+        (host_32b_b_rarb_rr == 3'd5) ? (host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : 3'd4) : 
+        host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : 3'd5;
     wire [2:0] host_32b_b_rarb_gnt = host_32b_b_rarb_locked ? host_32b_b_rarb_lock : host_32b_b_rarb_pick;
     wire host_32b_b_rarb_gnt_valid = host_32b_b_rarb_locked || (|host_32b_b_rarb_req);
     wire host_32b_b_rgnt_stream_apb = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd0);
@@ -565,7 +626,8 @@ module bridge_fb_cfg_xbar
     wire host_32b_b_rgnt_slvmon_apb = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd3);
     wire host_32b_b_rgnt_obs_apb = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd4);
     wire host_32b_b_rgnt_fb_ctl = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd5);
-    wire host_32b_b_rarb_vld = (host_32b_b_rgnt_stream_apb && host_32b_b_rarb_req[0]) || (host_32b_b_rgnt_harness_csr && host_32b_b_rarb_req[1]) || (host_32b_b_rgnt_stream_err && host_32b_b_rarb_req[2]) || (host_32b_b_rgnt_slvmon_apb && host_32b_b_rarb_req[3]) || (host_32b_b_rgnt_obs_apb && host_32b_b_rarb_req[4]) || (host_32b_b_rgnt_fb_ctl && host_32b_b_rarb_req[5]);
+    wire host_32b_b_rgnt_chargen = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd6);
+    wire host_32b_b_rarb_vld = (host_32b_b_rgnt_stream_apb && host_32b_b_rarb_req[0]) || (host_32b_b_rgnt_harness_csr && host_32b_b_rarb_req[1]) || (host_32b_b_rgnt_stream_err && host_32b_b_rarb_req[2]) || (host_32b_b_rgnt_slvmon_apb && host_32b_b_rarb_req[3]) || (host_32b_b_rgnt_obs_apb && host_32b_b_rarb_req[4]) || (host_32b_b_rgnt_fb_ctl && host_32b_b_rarb_req[5]) || (host_32b_b_rgnt_chargen && host_32b_b_rarb_req[6]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_32b_b_rarb_lock   <= '0;
@@ -573,7 +635,7 @@ module bridge_fb_cfg_xbar
             host_32b_b_rarb_locked <= 1'b0;
         end else if (host_32b_b_rarb_vld && host_32b_bready) begin
             host_32b_b_rarb_locked <= 1'b0;
-            host_32b_b_rarb_rr <= (host_32b_b_rarb_gnt == 3'd5) ? 3'd0 : host_32b_b_rarb_gnt + 1'b1;
+            host_32b_b_rarb_rr <= (host_32b_b_rarb_gnt == 3'd6) ? 3'd0 : host_32b_b_rarb_gnt + 1'b1;
         end else if (host_32b_b_rarb_vld) begin
             host_32b_b_rarb_lock   <= host_32b_b_rarb_gnt;       // offered, not taken: hold
             host_32b_b_rarb_locked <= 1'b1;
@@ -581,16 +643,17 @@ module bridge_fb_cfg_xbar
     )
 
     // ---- R response arbiter, master host 32b: round-robin, lock through RLAST ----
-    logic [5:0] host_32b_r_rarb_req;
-    assign host_32b_r_rarb_req = {((fb_ctl_axi_rid_bridge_id == 0) && fb_ctl_axi_rid_valid) && fb_ctl_axi_rvalid, ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid) && obs_apb_axi_rvalid, ((slvmon_apb_axi_rid_bridge_id == 0) && slvmon_apb_axi_rid_valid) && slvmon_apb_axi_rvalid, ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid) && stream_err_axi_rvalid, ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) && harness_csr_axi_rvalid, ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid) && stream_apb_axi_rvalid};
+    logic [6:0] host_32b_r_rarb_req;
+    assign host_32b_r_rarb_req = {((chargen_axi_rid_bridge_id == 0) && chargen_axi_rid_valid) && chargen_axi_rvalid, ((fb_ctl_axi_rid_bridge_id == 0) && fb_ctl_axi_rid_valid) && fb_ctl_axi_rvalid, ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid) && obs_apb_axi_rvalid, ((slvmon_apb_axi_rid_bridge_id == 0) && slvmon_apb_axi_rid_valid) && slvmon_apb_axi_rvalid, ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid) && stream_err_axi_rvalid, ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) && harness_csr_axi_rvalid, ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid) && stream_apb_axi_rvalid};
     logic [2:0] host_32b_r_rarb_lock, host_32b_r_rarb_rr;
     logic host_32b_r_rarb_locked;
-    wire [2:0] host_32b_r_rarb_pick = (host_32b_r_rarb_rr == 3'd0) ? (host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : 3'd5) : 
-        (host_32b_r_rarb_rr == 3'd1) ? (host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : 3'd0) : 
-        (host_32b_r_rarb_rr == 3'd2) ? (host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[0] ? 3'd0 : 3'd1) : 
-        (host_32b_r_rarb_rr == 3'd3) ? (host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : 3'd2) : 
-        (host_32b_r_rarb_rr == 3'd4) ? (host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : 3'd3) : 
-        host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : 3'd4;
+    wire [2:0] host_32b_r_rarb_pick = (host_32b_r_rarb_rr == 3'd0) ? (host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : 3'd6) : 
+        (host_32b_r_rarb_rr == 3'd1) ? (host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : 3'd0) : 
+        (host_32b_r_rarb_rr == 3'd2) ? (host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : 3'd1) : 
+        (host_32b_r_rarb_rr == 3'd3) ? (host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : 3'd2) : 
+        (host_32b_r_rarb_rr == 3'd4) ? (host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : 3'd3) : 
+        (host_32b_r_rarb_rr == 3'd5) ? (host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : 3'd4) : 
+        host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : 3'd5;
     wire [2:0] host_32b_r_rarb_gnt = host_32b_r_rarb_locked ? host_32b_r_rarb_lock : host_32b_r_rarb_pick;
     wire host_32b_r_rarb_gnt_valid = host_32b_r_rarb_locked || (|host_32b_r_rarb_req);
     wire host_32b_r_rgnt_stream_apb = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd0);
@@ -599,8 +662,9 @@ module bridge_fb_cfg_xbar
     wire host_32b_r_rgnt_slvmon_apb = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd3);
     wire host_32b_r_rgnt_obs_apb = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd4);
     wire host_32b_r_rgnt_fb_ctl = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd5);
-    wire host_32b_r_rarb_vld = (host_32b_r_rgnt_stream_apb && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_harness_csr && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_stream_err && host_32b_r_rarb_req[2]) || (host_32b_r_rgnt_slvmon_apb && host_32b_r_rarb_req[3]) || (host_32b_r_rgnt_obs_apb && host_32b_r_rarb_req[4]) || (host_32b_r_rgnt_fb_ctl && host_32b_r_rarb_req[5]);
-    wire host_32b_r_rarb_last = (host_32b_r_rgnt_stream_apb && stream_apb_axi_rlast) || (host_32b_r_rgnt_harness_csr && harness_csr_axi_rlast) || (host_32b_r_rgnt_stream_err && stream_err_axi_rlast) || (host_32b_r_rgnt_slvmon_apb && slvmon_apb_axi_rlast) || (host_32b_r_rgnt_obs_apb && obs_apb_axi_rlast) || (host_32b_r_rgnt_fb_ctl && fb_ctl_axi_rlast);
+    wire host_32b_r_rgnt_chargen = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd6);
+    wire host_32b_r_rarb_vld = (host_32b_r_rgnt_stream_apb && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_harness_csr && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_stream_err && host_32b_r_rarb_req[2]) || (host_32b_r_rgnt_slvmon_apb && host_32b_r_rarb_req[3]) || (host_32b_r_rgnt_obs_apb && host_32b_r_rarb_req[4]) || (host_32b_r_rgnt_fb_ctl && host_32b_r_rarb_req[5]) || (host_32b_r_rgnt_chargen && host_32b_r_rarb_req[6]);
+    wire host_32b_r_rarb_last = (host_32b_r_rgnt_stream_apb && stream_apb_axi_rlast) || (host_32b_r_rgnt_harness_csr && harness_csr_axi_rlast) || (host_32b_r_rgnt_stream_err && stream_err_axi_rlast) || (host_32b_r_rgnt_slvmon_apb && slvmon_apb_axi_rlast) || (host_32b_r_rgnt_obs_apb && obs_apb_axi_rlast) || (host_32b_r_rgnt_fb_ctl && fb_ctl_axi_rlast) || (host_32b_r_rgnt_chargen && chargen_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_32b_r_rarb_lock   <= '0;
@@ -609,7 +673,7 @@ module bridge_fb_cfg_xbar
         end else if (host_32b_r_rarb_vld && host_32b_rready) begin
             if (host_32b_r_rarb_last) begin
                 host_32b_r_rarb_locked <= 1'b0;
-                host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 3'd5) ? 3'd0 : host_32b_r_rarb_gnt + 1'b1;
+                host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 3'd6) ? 3'd0 : host_32b_r_rarb_gnt + 1'b1;
             end else begin
                 host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
                 host_32b_r_rarb_locked <= 1'b1;
@@ -1120,14 +1184,77 @@ module bridge_fb_cfg_xbar
 
 
     // ================================================================
-    // Slave 7: subtractive (128b)
+    // Slave 7: chargen (32b)
+    // ================================================================
+    // Single master: host → chargen
+    // Master width: 32b, Slave width: 32b
+    // Using 32b path from adapter (APB LCD width)
+
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_chargen = ((host_32b_aw.addr >= 32'h00210000) && (host_32b_aw.addr <= 32'h00210fff));
+    wire host_32b_aw_gnt_chargen = host_32b_aw_to_chargen;
+    assign chargen_axi_awid     = host_32b_aw_to_chargen ? host_32b_aw.id : '0;
+    assign chargen_axi_awaddr   = host_32b_aw_to_chargen ? host_32b_aw.addr : '0;
+    assign chargen_axi_awlen    = host_32b_aw_to_chargen ? host_32b_aw.len : '0;
+    assign chargen_axi_awsize   = host_32b_aw_to_chargen ? host_32b_aw.size : '0;
+    assign chargen_axi_awburst  = host_32b_aw_to_chargen ? host_32b_aw.burst : '0;
+    assign chargen_axi_awlock   = host_32b_aw_to_chargen ? host_32b_aw.lock : '0;
+    assign chargen_axi_awcache  = host_32b_aw_to_chargen ? host_32b_aw.cache : '0;
+    assign chargen_axi_awprot   = host_32b_aw_to_chargen ? host_32b_aw.prot : '0;
+    assign chargen_axi_awqos    = host_32b_aw_to_chargen ? host_32b_aw.qos : '0;
+    assign chargen_axi_awregion = host_32b_aw_to_chargen ? host_32b_aw.region : '0;
+    assign chargen_axi_awuser   = host_32b_aw_to_chargen ? host_32b_aw.user : '0;
+    assign chargen_axi_awvalid  = host_32b_aw_to_chargen && host_32b_awvalid;
+
+    assign host_32b_w_sel_chargen = host_32b_w_to_chargen;
+
+    // W channel (gated by the W destination FIFO head)
+    assign chargen_axi_wdata  = host_32b_w_to_chargen ? host_32b_w.data : '0;
+    assign chargen_axi_wstrb  = host_32b_w_to_chargen ? host_32b_w.strb : '0;
+    assign chargen_axi_wlast  = host_32b_w_to_chargen ? host_32b_w.last : '0;
+    assign chargen_axi_wuser  = host_32b_w_to_chargen ? host_32b_w.user : '0;
+    assign chargen_axi_wvalid = host_32b_w_to_chargen && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign chargen_axi_bready = host_32b_b_rgnt_chargen ? host_32b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign chargen_axi_bridge_id_aw = host_32b_aw_to_chargen ? host_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_chargen = ((host_32b_ar.addr >= 32'h00210000) && (host_32b_ar.addr <= 32'h00210fff));
+    wire host_32b_ar_gnt_chargen = host_32b_ar_to_chargen;
+    assign chargen_axi_arid     = host_32b_ar_to_chargen ? host_32b_ar.id : '0;
+    assign chargen_axi_araddr   = host_32b_ar_to_chargen ? host_32b_ar.addr : '0;
+    assign chargen_axi_arlen    = host_32b_ar_to_chargen ? host_32b_ar.len : '0;
+    assign chargen_axi_arsize   = host_32b_ar_to_chargen ? host_32b_ar.size : '0;
+    assign chargen_axi_arburst  = host_32b_ar_to_chargen ? host_32b_ar.burst : '0;
+    assign chargen_axi_arlock   = host_32b_ar_to_chargen ? host_32b_ar.lock : '0;
+    assign chargen_axi_arcache  = host_32b_ar_to_chargen ? host_32b_ar.cache : '0;
+    assign chargen_axi_arprot   = host_32b_ar_to_chargen ? host_32b_ar.prot : '0;
+    assign chargen_axi_arqos    = host_32b_ar_to_chargen ? host_32b_ar.qos : '0;
+    assign chargen_axi_arregion = host_32b_ar_to_chargen ? host_32b_ar.region : '0;
+    assign chargen_axi_aruser   = host_32b_ar_to_chargen ? host_32b_ar.user : '0;
+    assign chargen_axi_arvalid  = host_32b_ar_to_chargen && host_32b_arvalid;
+
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign chargen_axi_rready = host_32b_r_rgnt_chargen ? host_32b_rready : '0;
+
+    // Bridge ID (master → slave)
+    assign chargen_axi_bridge_id_ar = host_32b_ar_to_chargen ? host_bridge_id_ar : '0;
+
+
+    // ================================================================
+    // Slave 8: subtractive (128b)
     // ================================================================
     // Single master: host → subtractive
     // Master width: 32b, Slave width: 128b
     // Using 128b path from adapter
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_128b_aw_to_subtractive = !(((host_128b_aw.addr <= 32'h00001fff)) || (((host_128b_aw.addr >= 32'h00010000) && (host_128b_aw.addr <= 32'h00010fff))) || (((host_128b_aw.addr >= 32'h00020000) && (host_128b_aw.addr <= 32'h0002ffff))) || (((host_128b_aw.addr >= 32'h00030000) && (host_128b_aw.addr <= 32'h00030fff))) || (((host_128b_aw.addr >= 32'h00180000) && (host_128b_aw.addr <= 32'h00180fff))) || (((host_128b_aw.addr >= 32'h00190000) && (host_128b_aw.addr <= 32'h00190fff))) || (((host_128b_aw.addr >= 32'h00200000) && (host_128b_aw.addr <= 32'h00200fff))));
+    wire host_128b_aw_to_subtractive = !(((host_128b_aw.addr <= 32'h00001fff)) || (((host_128b_aw.addr >= 32'h00010000) && (host_128b_aw.addr <= 32'h00010fff))) || (((host_128b_aw.addr >= 32'h00020000) && (host_128b_aw.addr <= 32'h0002ffff))) || (((host_128b_aw.addr >= 32'h00030000) && (host_128b_aw.addr <= 32'h00030fff))) || (((host_128b_aw.addr >= 32'h00180000) && (host_128b_aw.addr <= 32'h00180fff))) || (((host_128b_aw.addr >= 32'h00190000) && (host_128b_aw.addr <= 32'h00190fff))) || (((host_128b_aw.addr >= 32'h00200000) && (host_128b_aw.addr <= 32'h00200fff))) || (((host_128b_aw.addr >= 32'h00210000) && (host_128b_aw.addr <= 32'h00210fff))));
     wire host_128b_aw_gnt_subtractive = host_128b_aw_to_subtractive;
     assign subtractive_axi_awid     = host_128b_aw_to_subtractive ? host_128b_aw.id : '0;
     assign subtractive_axi_awaddr   = host_128b_aw_to_subtractive ? host_128b_aw.addr : '0;
@@ -1159,7 +1286,7 @@ module bridge_fb_cfg_xbar
     assign subtractive_axi_bridge_id_aw = host_128b_aw_to_subtractive ? host_bridge_id_aw : '0;
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_128b_ar_to_subtractive = !(((host_128b_ar.addr <= 32'h00001fff)) || (((host_128b_ar.addr >= 32'h00010000) && (host_128b_ar.addr <= 32'h00010fff))) || (((host_128b_ar.addr >= 32'h00020000) && (host_128b_ar.addr <= 32'h0002ffff))) || (((host_128b_ar.addr >= 32'h00030000) && (host_128b_ar.addr <= 32'h00030fff))) || (((host_128b_ar.addr >= 32'h00180000) && (host_128b_ar.addr <= 32'h00180fff))) || (((host_128b_ar.addr >= 32'h00190000) && (host_128b_ar.addr <= 32'h00190fff))) || (((host_128b_ar.addr >= 32'h00200000) && (host_128b_ar.addr <= 32'h00200fff))));
+    wire host_128b_ar_to_subtractive = !(((host_128b_ar.addr <= 32'h00001fff)) || (((host_128b_ar.addr >= 32'h00010000) && (host_128b_ar.addr <= 32'h00010fff))) || (((host_128b_ar.addr >= 32'h00020000) && (host_128b_ar.addr <= 32'h0002ffff))) || (((host_128b_ar.addr >= 32'h00030000) && (host_128b_ar.addr <= 32'h00030fff))) || (((host_128b_ar.addr >= 32'h00180000) && (host_128b_ar.addr <= 32'h00180fff))) || (((host_128b_ar.addr >= 32'h00190000) && (host_128b_ar.addr <= 32'h00190fff))) || (((host_128b_ar.addr >= 32'h00200000) && (host_128b_ar.addr <= 32'h00200fff))) || (((host_128b_ar.addr >= 32'h00210000) && (host_128b_ar.addr <= 32'h00210fff))));
     wire host_128b_ar_gnt_subtractive = host_128b_ar_to_subtractive;
     assign subtractive_axi_arid     = host_128b_ar_to_subtractive ? host_128b_ar.id : '0;
     assign subtractive_axi_araddr   = host_128b_ar_to_subtractive ? host_128b_ar.addr : '0;
@@ -1185,10 +1312,10 @@ module bridge_fb_cfg_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> stream_apb, harness_csr, stream_err, slvmon_apb, obs_apb, fb_ctl (16 deep: max_outstanding)
+    // host 32b path -> stream_apb, harness_csr, stream_err, slvmon_apb, obs_apb, fb_ctl, chargen (16 deep: max_outstanding)
     logic [2:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
-    wire [2:0] host_32b_wdest_enc = host_32b_aw_to_harness_csr ? 3'd1 : host_32b_aw_to_stream_err ? 3'd2 : host_32b_aw_to_slvmon_apb ? 3'd3 : host_32b_aw_to_obs_apb ? 3'd4 : host_32b_aw_to_fb_ctl ? 3'd5 : 3'd0;
+    wire [2:0] host_32b_wdest_enc = host_32b_aw_to_harness_csr ? 3'd1 : host_32b_aw_to_stream_err ? 3'd2 : host_32b_aw_to_slvmon_apb ? 3'd3 : host_32b_aw_to_obs_apb ? 3'd4 : host_32b_aw_to_fb_ctl ? 3'd5 : host_32b_aw_to_chargen ? 3'd6 : 3'd0;
     wire host_32b_wdest_push = host_32b_awvalid && host_32b_awready;
     wire host_32b_wdest_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1213,6 +1340,7 @@ module bridge_fb_cfg_xbar
     assign host_32b_w_to_slvmon_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd3);
     assign host_32b_w_to_obs_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd4);
     assign host_32b_w_to_fb_ctl = host_32b_wdest_valid && (host_32b_wdest_head == 3'd5);
+    assign host_32b_w_to_chargen = host_32b_wdest_valid && (host_32b_wdest_head == 3'd6);
 
     // host 128b path -> desc_ram, subtractive (16 deep: max_outstanding)
     logic [0:0] host_128b_wdest_mem [16];
@@ -1250,7 +1378,8 @@ module bridge_fb_cfg_xbar
         (host_32b_aw_gnt_stream_err ? stream_err_axi_awready : '0) |
         (host_32b_aw_gnt_slvmon_apb ? slvmon_apb_axi_awready : '0) |
         (host_32b_aw_gnt_obs_apb ? obs_apb_axi_awready : '0) |
-        (host_32b_aw_gnt_fb_ctl ? fb_ctl_axi_awready : '0);
+        (host_32b_aw_gnt_fb_ctl ? fb_ctl_axi_awready : '0) |
+        (host_32b_aw_gnt_chargen ? chargen_axi_awready : '0);
 
     assign host_32b_wready = 
         (host_32b_w_sel_stream_apb ? stream_apb_axi_wready : '0) |
@@ -1258,7 +1387,8 @@ module bridge_fb_cfg_xbar
         (host_32b_w_sel_stream_err ? stream_err_axi_wready : '0) |
         (host_32b_w_sel_slvmon_apb ? slvmon_apb_axi_wready : '0) |
         (host_32b_w_sel_obs_apb ? obs_apb_axi_wready : '0) |
-        (host_32b_w_sel_fb_ctl ? fb_ctl_axi_wready : '0);
+        (host_32b_w_sel_fb_ctl ? fb_ctl_axi_wready : '0) |
+        (host_32b_w_sel_chargen ? chargen_axi_wready : '0);
 
     assign host_32b_b.id = 
         (host_32b_b_rgnt_stream_apb ? stream_apb_axi_bid : '0) |
@@ -1266,7 +1396,8 @@ module bridge_fb_cfg_xbar
         (host_32b_b_rgnt_stream_err ? stream_err_axi_bid : '0) |
         (host_32b_b_rgnt_slvmon_apb ? slvmon_apb_axi_bid : '0) |
         (host_32b_b_rgnt_obs_apb ? obs_apb_axi_bid : '0) |
-        (host_32b_b_rgnt_fb_ctl ? fb_ctl_axi_bid : '0);
+        (host_32b_b_rgnt_fb_ctl ? fb_ctl_axi_bid : '0) |
+        (host_32b_b_rgnt_chargen ? chargen_axi_bid : '0);
 
     assign host_32b_b.resp = 
         (host_32b_b_rgnt_stream_apb ? stream_apb_axi_bresp : '0) |
@@ -1274,7 +1405,8 @@ module bridge_fb_cfg_xbar
         (host_32b_b_rgnt_stream_err ? stream_err_axi_bresp : '0) |
         (host_32b_b_rgnt_slvmon_apb ? slvmon_apb_axi_bresp : '0) |
         (host_32b_b_rgnt_obs_apb ? obs_apb_axi_bresp : '0) |
-        (host_32b_b_rgnt_fb_ctl ? fb_ctl_axi_bresp : '0);
+        (host_32b_b_rgnt_fb_ctl ? fb_ctl_axi_bresp : '0) |
+        (host_32b_b_rgnt_chargen ? chargen_axi_bresp : '0);
 
     assign host_32b_b.user = 
         (host_32b_b_rgnt_stream_apb ? stream_apb_axi_buser : '0) |
@@ -1282,7 +1414,8 @@ module bridge_fb_cfg_xbar
         (host_32b_b_rgnt_stream_err ? stream_err_axi_buser : '0) |
         (host_32b_b_rgnt_slvmon_apb ? slvmon_apb_axi_buser : '0) |
         (host_32b_b_rgnt_obs_apb ? obs_apb_axi_buser : '0) |
-        (host_32b_b_rgnt_fb_ctl ? fb_ctl_axi_buser : '0);
+        (host_32b_b_rgnt_fb_ctl ? fb_ctl_axi_buser : '0) |
+        (host_32b_b_rgnt_chargen ? chargen_axi_buser : '0);
 
     assign host_32b_bvalid = 
         (host_32b_b_rgnt_stream_apb ? stream_apb_axi_bvalid : '0) |
@@ -1290,7 +1423,8 @@ module bridge_fb_cfg_xbar
         (host_32b_b_rgnt_stream_err ? stream_err_axi_bvalid : '0) |
         (host_32b_b_rgnt_slvmon_apb ? slvmon_apb_axi_bvalid : '0) |
         (host_32b_b_rgnt_obs_apb ? obs_apb_axi_bvalid : '0) |
-        (host_32b_b_rgnt_fb_ctl ? fb_ctl_axi_bvalid : '0);
+        (host_32b_b_rgnt_fb_ctl ? fb_ctl_axi_bvalid : '0) |
+        (host_32b_b_rgnt_chargen ? chargen_axi_bvalid : '0);
 
     assign host_32b_arready = 
         (host_32b_ar_gnt_stream_apb ? stream_apb_axi_arready : '0) |
@@ -1298,7 +1432,8 @@ module bridge_fb_cfg_xbar
         (host_32b_ar_gnt_stream_err ? stream_err_axi_arready : '0) |
         (host_32b_ar_gnt_slvmon_apb ? slvmon_apb_axi_arready : '0) |
         (host_32b_ar_gnt_obs_apb ? obs_apb_axi_arready : '0) |
-        (host_32b_ar_gnt_fb_ctl ? fb_ctl_axi_arready : '0);
+        (host_32b_ar_gnt_fb_ctl ? fb_ctl_axi_arready : '0) |
+        (host_32b_ar_gnt_chargen ? chargen_axi_arready : '0);
 
     assign host_32b_r.id = 
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rid : '0) |
@@ -1306,7 +1441,8 @@ module bridge_fb_cfg_xbar
         (host_32b_r_rgnt_stream_err ? stream_err_axi_rid : '0) |
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rid : '0) |
         (host_32b_r_rgnt_obs_apb ? obs_apb_axi_rid : '0) |
-        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rid : '0);
+        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rid : '0) |
+        (host_32b_r_rgnt_chargen ? chargen_axi_rid : '0);
 
     assign host_32b_r.data = 
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rdata : 32'b0) |
@@ -1314,7 +1450,8 @@ module bridge_fb_cfg_xbar
         (host_32b_r_rgnt_stream_err ? stream_err_axi_rdata : 32'b0) |
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rdata : 32'b0) |
         (host_32b_r_rgnt_obs_apb ? obs_apb_axi_rdata : 32'b0) |
-        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rdata : 32'b0);
+        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rdata : 32'b0) |
+        (host_32b_r_rgnt_chargen ? chargen_axi_rdata : 32'b0);
 
     assign host_32b_r.resp = 
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rresp : '0) |
@@ -1322,7 +1459,8 @@ module bridge_fb_cfg_xbar
         (host_32b_r_rgnt_stream_err ? stream_err_axi_rresp : '0) |
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rresp : '0) |
         (host_32b_r_rgnt_obs_apb ? obs_apb_axi_rresp : '0) |
-        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rresp : '0);
+        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rresp : '0) |
+        (host_32b_r_rgnt_chargen ? chargen_axi_rresp : '0);
 
     assign host_32b_r.last = 
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rlast : '0) |
@@ -1330,7 +1468,8 @@ module bridge_fb_cfg_xbar
         (host_32b_r_rgnt_stream_err ? stream_err_axi_rlast : '0) |
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rlast : '0) |
         (host_32b_r_rgnt_obs_apb ? obs_apb_axi_rlast : '0) |
-        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rlast : '0);
+        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rlast : '0) |
+        (host_32b_r_rgnt_chargen ? chargen_axi_rlast : '0);
 
     assign host_32b_r.user = 
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_ruser : '0) |
@@ -1338,7 +1477,8 @@ module bridge_fb_cfg_xbar
         (host_32b_r_rgnt_stream_err ? stream_err_axi_ruser : '0) |
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_ruser : '0) |
         (host_32b_r_rgnt_obs_apb ? obs_apb_axi_ruser : '0) |
-        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_ruser : '0);
+        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_ruser : '0) |
+        (host_32b_r_rgnt_chargen ? chargen_axi_ruser : '0);
 
     assign host_32b_rvalid = 
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rvalid : '0) |
@@ -1346,7 +1486,8 @@ module bridge_fb_cfg_xbar
         (host_32b_r_rgnt_stream_err ? stream_err_axi_rvalid : '0) |
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rvalid : '0) |
         (host_32b_r_rgnt_obs_apb ? obs_apb_axi_rvalid : '0) |
-        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rvalid : '0);
+        (host_32b_r_rgnt_fb_ctl ? fb_ctl_axi_rvalid : '0) |
+        (host_32b_r_rgnt_chargen ? chargen_axi_rvalid : '0);
 
 
     // Master: host, Width path: 128b

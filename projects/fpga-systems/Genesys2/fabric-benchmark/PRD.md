@@ -163,7 +163,7 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 
 ## 6. Milestones
 
-**Status (2026-10-16):** K0 done in sim on legs A and B1; K1 and K2 done on the board -- W2, all three legs, 36/36 runs pass; K3's DDR3 chain (W1-F2, W1-F1, W4) passes on the board on all three legs, 144/144 steps, on the LiteDRAM controller. W3 (the injector) is next.
+**Status (2026-10-16):** K0 done in sim on legs A and B1; K1 and K2 done on the board -- W2, all three legs, 36/36 runs pass; K3 done on the board on all three legs: the DDR3 chain (W1-F2, W1-F1, W4) 144/144 steps, on the LiteDRAM controller, and W3 contention 24/24 points. K4 is next.
 
 - K0: `rtl/fb_harness.sv` (`dv/tests/test_fb_harness.py`) is the harness of
   §4. The Genesys 2 STREAM characterization runner drives it unchanged over
@@ -257,7 +257,7 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   the first data beat would fit the data-only rule, but it is a
   `stream_core` change and moves STREAM's own board measurements.
 
-- K3 (integrity chain done; W3 next): the DDR3 workloads run as one
+- K3 (done): the DDR3 workloads run as one
   CRC-checked chain (`bin/fb_workloads.py`, the same code in sim and on the
   board): W1-F2 fills DDR3 region A from the LFSR source; W1-F1 drains A
   into the CRC sink, whose per-channel CRC must equal the fill's LFSR CRC;
@@ -287,7 +287,50 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   reaching its app interface and `app_rd_data_valid` never asserting, on
   legs A and B1 alike. Replaced by LiteDRAM 2026-10-16 (owner decision).
 
-Next: the W3 injector on M3 (contention into S0), then K4.
+- W3 (contention, `bin/fb_w3.py`, `bin/fb_w3_char.py`): STREAM and the
+  injector (`char_engine_block` on M3, config window 0x0021_0000) share S0.
+  f3 = STREAM drains DDR3 while the injector writes another region; the
+  mirror = STREAM fills DDR3 while the injector writes. Every point also
+  ends in a CRC data check (f3 drains an uncontended fill; the mirror's
+  contended fill is drained afterwards). The share is productive beats in
+  one window -- STREAM's observer and the injector's own meter -- and
+  `fb_ctl` WORKLOAD.INJ_SYNC lets the injector start bursts only while
+  STREAM's window is open (the host's GO precedes the kick by tens of UART
+  transactions, long enough for the injector to finish alone).
+
+  The mix is set by the injector's gap (owner decision 2026-10-16). Two
+  injector fixes came out of it (`2a0e1a465`): the 4-bit gap could not
+  throttle the writer below what S0 absorbs (the split stayed 50/50 at
+  every value), so the gap is now `gap << gap_shift` (up to 1920 idle
+  cycles); and a gapped injector pipelined AWs ahead of its W data, which
+  then waited out the gap at S0 and -- AXI4 W following AW order -- paced
+  STREAM's writes to the injector's gap. Calibrated on leg A and held for
+  every leg: 50/50 = idle 0; 90/10 = idle 1280 (f3) and 480 (mirror).
+
+  Board, 24/24 points pass (CSVs `reports/board/w3_<leg>_*.csv`), injector
+  share of S0 in STREAM's window (8 ch x 4 x 128 KB):
+
+  | Flavor, offered mix, outstanding | A (bridge) | B1 (AXI Crossbar) | B2 (SmartConnect) |
+  | --- | ---: | ---: | ---: |
+  | f3, 50/50, 2 or 4 | 50.0% | 50.0% | 50.0% |
+  | f3, 90/10, 2 or 4 | 10.1% | 10.1% | 10.1% |
+  | mirror, 50/50, 2 | 40.0% | 50.0% | 11.1% |
+  | mirror, 50/50, 4 | 50.0% | 50.0% | 20.0% |
+  | mirror, 90/10, 2 | 10.6% | 11.9% | 11.1% |
+  | mirror, 90/10, 4 | 10.6% | 11.9% | 13.4% |
+
+  **f3 does not measure the fabric**: STREAM's reads and the injector's
+  writes travel on different AXI channels, so no fabric arbitrates between
+  them; the identical split on every leg is S0's controller alternating
+  reads and writes. **The mirror is the fabric's arbitration** (two writers
+  into one slave) and the legs differ: B1 splits evenly; A splits evenly at
+  4 outstanding but gives the injector 40% at 2; SmartConnect favours
+  STREAM heavily when both offer full load (injector 11-20% where B1 gives
+  50%). S0's total write rate is about the same on every leg (~365-375
+  MiB/s), so the difference is who gets the slave, not how much it moves.
+
+Next: K4 -- size and timing parses, the v1 sweep x5, and the analysis
+section (owner decision 2026-10-16: a PRD section plus CSVs).
 
 | K | Content | Gate |
 | --- | --- | --- |

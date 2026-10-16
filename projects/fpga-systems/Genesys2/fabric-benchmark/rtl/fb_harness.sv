@@ -32,7 +32,7 @@
 //     M0 stream_desc  STREAM m_axi_desc 256 -> axi4_dwidth_converter_rd -> 128
 //     M1 stream_rd    STREAM m_axi_rd
 //     M2 stream_wr    STREAM m_axi_wr
-//     M3 inj_wr       W3 injector; held idle in K0 (fabric-only mode, W2)
+//     M3 inj_wr       W3 injector (char_engine_block); idle until the host fires GO
 //     S0 ddr          0x0000_0000  1 GB  -> the ddr_* ports (MIG on the board,
 //                                          a memory model in sim)
 //     S1 desc_ram     0x8000_0000  64 KB -> the descriptor RAM's read port
@@ -372,6 +372,10 @@ module fb_harness #(
     logic [31:0] fb_ctl_apb_PADDR, fb_ctl_apb_PWDATA, fb_ctl_apb_PRDATA;
     logic [3:0]  fb_ctl_apb_PSTRB;
     logic [2:0]  fb_ctl_apb_PPROT;
+    logic        chargen_apb_PSEL, chargen_apb_PENABLE, chargen_apb_PWRITE, chargen_apb_PREADY, chargen_apb_PSLVERR;
+    logic [31:0] chargen_apb_PADDR, chargen_apb_PWDATA, chargen_apb_PRDATA;
+    logic [3:0]  chargen_apb_PSTRB;
+    logic [2:0]  chargen_apb_PPROT;
 
     bridge_fb_cfg u_cfg (
         .aclk(aclk), .aresetn(aresetn),
@@ -449,6 +453,11 @@ module fb_harness #(
         .fb_ctl_apb_PWDATA(fb_ctl_apb_PWDATA), .fb_ctl_apb_PSTRB(fb_ctl_apb_PSTRB),
         .fb_ctl_apb_PPROT(fb_ctl_apb_PPROT), .fb_ctl_apb_PRDATA(fb_ctl_apb_PRDATA),
         .fb_ctl_apb_PREADY(fb_ctl_apb_PREADY), .fb_ctl_apb_PSLVERR(fb_ctl_apb_PSLVERR),
+        .chargen_apb_PSEL(chargen_apb_PSEL), .chargen_apb_PADDR(chargen_apb_PADDR),
+        .chargen_apb_PENABLE(chargen_apb_PENABLE), .chargen_apb_PWRITE(chargen_apb_PWRITE),
+        .chargen_apb_PWDATA(chargen_apb_PWDATA), .chargen_apb_PSTRB(chargen_apb_PSTRB),
+        .chargen_apb_PPROT(chargen_apb_PPROT), .chargen_apb_PRDATA(chargen_apb_PRDATA),
+        .chargen_apb_PREADY(chargen_apb_PREADY), .chargen_apb_PSLVERR(chargen_apb_PSLVERR),
         .unmapped_irq(), .unmapped_addr(), .unmapped_count(), .unmapped_clear(1'b0)
     );
 
@@ -713,12 +722,30 @@ module fb_harness #(
     localparam int OBS_ACLK_MHZ        = FPGA_CLK_HZ / 1_000_000;
 
     // Measurement window: opens on the first STREAM rd/wr activity after a
-    // soft reset, closes 16 idle cycles after the last (the STREAM harness's
-    // controller, unchanged).
+    // soft reset, closes 16 idle cycles after the last. Busy includes reads
+    // and writes still OUTSTANDING, not only valid signals: against a slow
+    // S0 (DDR3) a read's latency is a gap with no AR/R valid while its data
+    // is owed, and closing then cut the last bursts out of the window (2-74
+    // beats short of the transfer on the board). Data owed is data moving.
     logic       obs_busy, obs_win_active, obs_started, obs_meter_clear, obs_meter_freeze;
     logic [4:0] obs_settle;
+    logic [15:0] r_obs_rd_out, r_obs_wr_out;   // AR minus RLAST, AW minus B
+    `ALWAYS_FF_RST(aclk, unit_aresetn,
+        if (`RST_ASSERTED(unit_aresetn)) begin
+            r_obs_rd_out <= '0;
+            r_obs_wr_out <= '0;
+        end else begin
+            r_obs_rd_out <= r_obs_rd_out
+                          + 16'(stream_rd_arvalid & stream_rd_arready)
+                          - 16'(stream_rd_rvalid & stream_rd_rready & stream_rd_rlast);
+            r_obs_wr_out <= r_obs_wr_out
+                          + 16'(stream_wr_awvalid & stream_wr_awready)
+                          - 16'(stream_wr_bvalid & stream_wr_bready);
+        end
+    )
     assign obs_busy = stream_rd_arvalid | stream_rd_rvalid | stream_wr_awvalid |
-                      stream_wr_wvalid | stream_wr_bvalid;
+                      stream_wr_wvalid | stream_wr_bvalid |
+                      (r_obs_rd_out != '0) | (r_obs_wr_out != '0);
     `ALWAYS_FF_RST(aclk, unit_aresetn,
         if (`RST_ASSERTED(unit_aresetn)) begin
             obs_win_active <= 1'b0; obs_started <= 1'b0; obs_settle <= 5'd0;
@@ -1012,22 +1039,120 @@ module fb_harness #(
         .m_axi_rready(stream_desc_rready)
     );
 
-    // M3: the W3 injector is K3 work; in fabric-only mode the port is idle.
-    assign inj_wr_awid    = '0;
-    assign inj_wr_awaddr  = '0;
-    assign inj_wr_awlen   = '0;
-    assign inj_wr_awsize  = 3'd4;
-    assign inj_wr_awburst = 2'b01;
-    assign inj_wr_awlock  = 1'b0;
-    assign inj_wr_awcache = '0;
-    assign inj_wr_awprot  = '0;
-    assign inj_wr_awqos   = '0;
-    assign inj_wr_awvalid = 1'b0;
-    assign inj_wr_wdata   = '0;
-    assign inj_wr_wstrb   = '0;
-    assign inj_wr_wlast   = 1'b0;
-    assign inj_wr_wvalid  = 1'b0;
-    assign inj_wr_bready  = 1'b1;
+    // =========================================================================
+    // M3: the W3 injector (char_engine_block, one write generator)
+    // =========================================================================
+    // The same traffic generator the DDR2/DDR3 characterization flows use,
+    // configured by name through its chargen window (bridge_fb_cfg, 0x0021_0000;
+    // chargen_regs). Idle until the host fires GO, so W2/W1/W4 are unaffected.
+    // W3 sets the mix with the generator's inter-burst gap. The port is
+    // write-only (§4): the block's reader is never started, and its AR/R side
+    // is tied off here. Its own bus meter on the port counts over the SAME
+    // window as the STREAM observers (obs_meter_clear / freeze), so the
+    // per-master share under contention is one window's numbers.
+    localparam int INJ_GEN_MAX_OUTSTANDING = 8;   // W3 sweeps 2 and 4
+    // Window alignment (WORKLOAD.INJ_SYNC). The host fires GO before STREAM's
+    // kick, and the kick takes tens of UART transactions -- long enough on
+    // the board for the injector to finish before STREAM moved a beat. So
+    // with INJ_SYNC set the injector may only START bursts while STREAM's
+    // measurement window is open:
+    //   AW: held (valid off to the fabric, ready off to the injector) before
+    //       the window opens AND after it closes -- the injector stops
+    //       issuing when STREAM is done, rather than running on into the next
+    //       step's soft reset with S0 transactions in flight (S0's controller
+    //       is not in the soft-reset domain, so that wedges the fabric).
+    //   W:  held only before the window opens; afterwards the bursts already
+    //       issued complete, so S0 is left with no partial transaction.
+    // AW is enabled ONLY by INJ_SYNC and an open window: clearing INJ_SYNC
+    // holds the injector rather than releasing it. (Releasing it let a
+    // still-armed injector issue bursts between the host clearing the bit
+    // and the next soft reset, which then cut them off mid-transaction at S0.)
+    logic inj_e_awvalid, inj_e_awready, inj_e_wvalid, inj_e_wready;
+    logic inj_aw_hold, inj_w_hold;
+    logic w_inj_sync;                     // fb_ctl WORKLOAD.INJ_SYNC (assigned below)
+    assign inj_aw_hold    = ~(w_inj_sync & obs_win_active);
+    assign inj_w_hold     = ~obs_started;
+    assign inj_wr_awvalid = inj_e_awvalid & ~inj_aw_hold;
+    assign inj_e_awready  = inj_wr_awready & ~inj_aw_hold;
+    assign inj_wr_wvalid  = inj_e_wvalid & ~inj_w_hold;
+    assign inj_e_wready   = inj_wr_wready & ~inj_w_hold;
+    logic [31:0] inj_perf_wr_prod, inj_perf_wr_bp, inj_perf_wr_starv, inj_perf_wr_idle;
+    logic [3:0]  inj_awregion;
+    logic [7:0]  inj_awuser, inj_wuser, inj_aruser;
+    logic [7:0]  inj_arid;
+    logic [31:0] inj_araddr;
+    logic [7:0]  inj_arlen;
+    logic [2:0]  inj_arsize, inj_arprot;
+    logic [1:0]  inj_arburst;
+    logic        inj_arlock, inj_arvalid, inj_rready;
+    logic [3:0]  inj_arcache, inj_arqos, inj_arregion;
+
+    char_engine_block #(
+        .AXI_ADDR_WIDTH      (32),
+        .AXI_DATA_WIDTH      (128),
+        .AXI_ID_WIDTH        (8),
+        .AXI_USER_WIDTH      (8),
+        .APB_ADDR_WIDTH      (12),
+        .NUM_BANKS           (1),
+        .NUM_GEN             (1),
+        .GEN_MAX_OUTSTANDING (INJ_GEN_MAX_OUTSTANDING)
+    ) u_injector (
+        .mc_clk (aclk), .mc_rst_n (unit_aresetn),
+        .pclk   (aclk), .presetn  (aresetn),
+        .s_chargen_apb_PSEL   (chargen_apb_PSEL),
+        .s_chargen_apb_PENABLE(chargen_apb_PENABLE),
+        .s_chargen_apb_PREADY (chargen_apb_PREADY),
+        .s_chargen_apb_PADDR  (chargen_apb_PADDR[11:0]),
+        .s_chargen_apb_PWRITE (chargen_apb_PWRITE),
+        .s_chargen_apb_PWDATA (chargen_apb_PWDATA),
+        .s_chargen_apb_PSTRB  (chargen_apb_PSTRB),
+        .s_chargen_apb_PPROT  (chargen_apb_PPROT),
+        .s_chargen_apb_PRDATA (chargen_apb_PRDATA),
+        .s_chargen_apb_PSLVERR(chargen_apb_PSLVERR),
+        .gen_wr_started (), .gen_rd_started (), .gen_wr_done (), .gen_rd_done (),
+        .gen_any_error  (), .gen_crc_match  (),
+        .rd_dbg_valid   (), .rd_dbg_ready (1'b1), .rd_dbg_actual (),
+        .rd_dbg_expected(), .rd_dbg_mismatch(),
+        .perf_clear     (obs_meter_clear),
+        .perf_freeze    (obs_meter_freeze),
+        .perf_wr_prod   (inj_perf_wr_prod),
+        .perf_wr_bp     (inj_perf_wr_bp),
+        .perf_wr_starv  (inj_perf_wr_starv),
+        .perf_wr_idle   (inj_perf_wr_idle),
+        .perf_rd_prod   (), .perf_rd_bp (), .perf_rd_starv (), .perf_rd_idle (),
+        .i_hist_metric  (1'b0), .i_hist_bin (4'd0),
+        .perf_wr_hist_count(), .perf_wr_hist_total(),
+        .perf_rd_hist_count(), .perf_rd_hist_total(),
+        .m_axi_awid   (inj_wr_awid),    .m_axi_awaddr (inj_wr_awaddr),
+        .m_axi_awlen  (inj_wr_awlen),   .m_axi_awsize (inj_wr_awsize),
+        .m_axi_awburst(inj_wr_awburst), .m_axi_awlock (inj_wr_awlock),
+        .m_axi_awcache(inj_wr_awcache), .m_axi_awprot (inj_wr_awprot),
+        .m_axi_awqos  (inj_wr_awqos),   .m_axi_awregion(inj_awregion),
+        .m_axi_awuser (inj_awuser),     .m_axi_awvalid(inj_e_awvalid),
+        .m_axi_awready(inj_e_awready),
+        .m_axi_wdata  (inj_wr_wdata),   .m_axi_wstrb  (inj_wr_wstrb),
+        .m_axi_wlast  (inj_wr_wlast),   .m_axi_wuser  (inj_wuser),
+        .m_axi_wvalid (inj_e_wvalid),   .m_axi_wready (inj_e_wready),
+        .m_axi_bid    (inj_wr_bid),     .m_axi_bresp  (inj_wr_bresp),
+        .m_axi_buser  (8'd0),           .m_axi_bvalid (inj_wr_bvalid),
+        .m_axi_bready (inj_wr_bready),
+        // Write-only port: the reader is never started; never grant its AR.
+        .m_axi_arid   (inj_arid),       .m_axi_araddr (inj_araddr),
+        .m_axi_arlen  (inj_arlen),      .m_axi_arsize (inj_arsize),
+        .m_axi_arburst(inj_arburst),    .m_axi_arlock (inj_arlock),
+        .m_axi_arcache(inj_arcache),    .m_axi_arprot (inj_arprot),
+        .m_axi_arqos  (inj_arqos),      .m_axi_arregion(inj_arregion),
+        .m_axi_aruser (inj_aruser),     .m_axi_arvalid(inj_arvalid),
+        .m_axi_arready(1'b0),
+        .m_axi_rid    (8'd0),           .m_axi_rdata  (128'd0),
+        .m_axi_rresp  (2'd0),           .m_axi_rlast  (1'b0),
+        .m_axi_ruser  (8'd0),           .m_axi_rvalid (1'b0),
+        .m_axi_rready (inj_rready)
+    );
+    wire unused_inj = ^{inj_awregion, inj_awuser, inj_wuser, inj_aruser, inj_arid,
+                        inj_araddr, inj_arlen, inj_arsize, inj_arprot, inj_arburst,
+                        inj_arlock, inj_arvalid, inj_rready, inj_arcache, inj_arqos,
+                        inj_arregion, chargen_apb_PADDR[31:12]};
 
     // =========================================================================
     // The data fabric under test
@@ -1139,7 +1264,9 @@ module fb_harness #(
     // and the CRC sink, as before; a run that reads or writes DDR3 times the
     // fabric's S0 port instead -- the same slave-side vantage point, so W1/W4
     // and W2 are timed alike. STOP is then the last write beat accepted at
-    // S0, which for W1-F2/W4 is the controller taking the last beat.
+    // S0, which for W1-F2/W4 is the controller taking the last beat. The W3
+    // mirror (STREAM and the injector both writing S0) times STREAM's own
+    // write port instead (WR_DST = 2): S0 cannot tell the two writers apart.
     //
     // The S0 counters run on aclk at the fabric's S0 boundary and clear with
     // the endpoint counters (CLEAR_STATS or the soft reset), so both sources
@@ -1152,6 +1279,7 @@ module fb_harness #(
     fb_ctl_regs_pkg::fb_ctl_regs__in_t  fb_ctl_in;
     fb_ctl_regs_pkg::fb_ctl_regs__out_t fb_ctl_out;
     logic [31:0] r_s0_rd_beats, r_s0_wr_beats, r_s0_aw, r_s0_b, r_s0_ar, r_s0_rvalid_cyc;
+    logic [31:0] r_m2_wr_beats;   // STREAM's own W beats (M2), for WR_DST = 2
     logic [1:0]  r_ddr_lock_sync, r_ep_lock_sync;
     logic [31:0] timer_rd_beats, timer_wr_beats;
 
@@ -1187,7 +1315,7 @@ module fb_harness #(
         .rst                 (~aresetn),
         .s_cpuif_req         (fb_ctl_cpuif_req),
         .s_cpuif_req_is_wr   (fb_ctl_cpuif_req_is_wr),
-        .s_cpuif_addr        (fb_ctl_cpuif_addr[4:0]),
+        .s_cpuif_addr        (fb_ctl_cpuif_addr[5:0]),
         .s_cpuif_wr_data     (fb_ctl_cpuif_wr_data),
         .s_cpuif_wr_biten    (fb_ctl_cpuif_wr_biten),
         .s_cpuif_req_stall_wr(fb_ctl_cpuif_req_stall_wr),
@@ -1200,7 +1328,7 @@ module fb_harness #(
         .hwif_in             (fb_ctl_in),
         .hwif_out            (fb_ctl_out)
     );
-    wire unused_fb_ctl_addr = ^fb_ctl_cpuif_addr[11:5];
+    wire unused_fb_ctl_addr = ^fb_ctl_cpuif_addr[11:6];
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -1210,6 +1338,7 @@ module fb_harness #(
             r_s0_b        <= '0;
             r_s0_ar       <= '0;
             r_s0_rvalid_cyc <= '0;
+            r_m2_wr_beats <= '0;
         end else if (csr_clear_pulse | csr_soft_reset) begin
             r_s0_rd_beats <= '0;
             r_s0_wr_beats <= '0;
@@ -1217,6 +1346,7 @@ module fb_harness #(
             r_s0_b        <= '0;
             r_s0_ar       <= '0;
             r_s0_rvalid_cyc <= '0;
+            r_m2_wr_beats <= '0;
         end else begin
             if (ddr_rvalid  & ddr_rready)  r_s0_rd_beats <= r_s0_rd_beats + 32'd1;
             if (ddr_wvalid  & ddr_wready)  r_s0_wr_beats <= r_s0_wr_beats + 32'd1;
@@ -1224,6 +1354,7 @@ module fb_harness #(
             if (ddr_bvalid  & ddr_bready)  r_s0_b        <= r_s0_b + 32'd1;
             if (ddr_arvalid & ddr_arready) r_s0_ar       <= r_s0_ar + 32'd1;
             if (ddr_rvalid)                r_s0_rvalid_cyc <= r_s0_rvalid_cyc + 32'd1;
+            if (stream_wr_wvalid & stream_wr_wready) r_m2_wr_beats <= r_m2_wr_beats + 32'd1;
         end
     )
 
@@ -1245,6 +1376,11 @@ module fb_harness #(
     assign fb_ctl_in.S0_B_COUNT.VALUE.next  = r_s0_b;
     assign fb_ctl_in.S0_AR_COUNT.VALUE.next = r_s0_ar;
     assign fb_ctl_in.S0_RVALID_CYCLES.VALUE.next = r_s0_rvalid_cyc;
+    assign w_inj_sync = fb_ctl_out.WORKLOAD.INJ_SYNC.value;
+    assign fb_ctl_in.INJ_WR_PROD.VALUE.next  = inj_perf_wr_prod;
+    assign fb_ctl_in.INJ_WR_BP.VALUE.next    = inj_perf_wr_bp;
+    assign fb_ctl_in.INJ_WR_STARV.VALUE.next = inj_perf_wr_starv;
+    assign fb_ctl_in.INJ_WR_IDLE.VALUE.next  = inj_perf_wr_idle;
     // Live S0 handshake levels (registered once, for timing; status only).
     logic [9:0] r_s0_live;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1266,7 +1402,13 @@ module fb_harness #(
     assign fb_ctl_in.S0_RD_BEATS.VALUE.next = r_s0_rd_beats;
     assign fb_ctl_in.S0_WR_BEATS.VALUE.next = r_s0_wr_beats;
     assign timer_rd_beats = fb_ctl_out.WORKLOAD.RD_SRC.value ? r_s0_rd_beats : read_beat_count;
-    assign timer_wr_beats = fb_ctl_out.WORKLOAD.WR_DST.value ? r_s0_wr_beats : write_beat_count;
+    always_comb begin
+        case (fb_ctl_out.WORKLOAD.WR_DST.value)
+            2'd1:    timer_wr_beats = r_s0_wr_beats;
+            2'd2:    timer_wr_beats = r_m2_wr_beats;
+            default: timer_wr_beats = write_beat_count;
+        endcase
+    end
 
     // =========================================================================
     // Run timer + per-channel CRC verdict (utility-ip/misc char_run_timer)

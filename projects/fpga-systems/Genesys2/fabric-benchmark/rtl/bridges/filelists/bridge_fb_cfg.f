@@ -15,6 +15,7 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/generated
 $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/generated/bridge_fb_cfg/host_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/generated/bridge_fb_cfg/bridge_fb_cfg.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/generated/bridge_fb_cfg/bridge_fb_cfg_xbar.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/generated/bridge_fb_cfg/chargen_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/generated/bridge_fb_cfg/desc_ram_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/generated/bridge_fb_cfg/fb_ctl_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/generated/bridge_fb_cfg/harness_csr_adapter.sv

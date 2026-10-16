@@ -46,6 +46,7 @@ from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 from descriptor_builder import CharConfig  # noqa: E402
 from fb_slave_meters import read_slave_side  # noqa: E402
 import fb_workloads  # noqa: E402
+import fb_w3  # noqa: E402
 
 DDR_BYTES = 0x10000                  # modelled span of S0 when no chain runs
 
@@ -165,6 +166,22 @@ class FbHarnessTB(TBBase):
         if len(steps) != len(fb_workloads.CHAIN):
             self.errors.append(f"{cfg.name}: {len(steps)} of {len(fb_workloads.CHAIN)} steps ran")
         return steps
+
+    async def w3(self, flavor: str, gap: int, outstanding: int,
+                 num_channels: int, descriptors: int, transfer_bytes: int) -> dict:
+        """One W3 contention point (fb_w3.run_point): STREAM and the injector
+        share S0; the verdict includes the drained-data CRC check."""
+        cfg = CharConfig(name=f"w3_{flavor}_g{gap}_o{outstanding}_{num_channels}ch",
+                         num_channels=num_channels, descriptors_per_channel=descriptors,
+                         transfer_bytes=transfer_bytes)
+        runner = self.runner
+        inj = fb_w3.Inj(gap=gap, outstanding=outstanding)
+        r = await bridge(lambda: fb_w3.run_point(
+            runner, self.bridge, cfg, flavor, inj, log=lambda m: self.log.info(f"{cfg.name}{m}")))()
+        self.results.append(r)
+        if not r['verdict']:
+            self.errors.append(f"{cfg.name}: {'; '.join(r['why'])}")
+        return r
 
     def report(self) -> bool:
         for e in self.errors:

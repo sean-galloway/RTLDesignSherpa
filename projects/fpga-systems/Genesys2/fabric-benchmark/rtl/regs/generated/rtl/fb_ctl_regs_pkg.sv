@@ -4,8 +4,8 @@
 package fb_ctl_regs_pkg;
 
     localparam FB_CTL_REGS_DATA_WIDTH = 32;
-    localparam FB_CTL_REGS_MIN_ADDR_WIDTH = 5;
-    localparam FB_CTL_REGS_SIZE = 'h20;
+    localparam FB_CTL_REGS_MIN_ADDR_WIDTH = 6;
+    localparam FB_CTL_REGS_SIZE = 'h30;
 
     typedef struct {
         logic [31:0] next;
@@ -129,6 +129,38 @@ package fb_ctl_regs_pkg;
     } fb_ctl_regs__S0_RVALID_CYCLES__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } fb_ctl_regs__INJ_WR_PROD__VALUE__in_t;
+
+    typedef struct {
+        fb_ctl_regs__INJ_WR_PROD__VALUE__in_t VALUE;
+    } fb_ctl_regs__INJ_WR_PROD__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } fb_ctl_regs__INJ_WR_BP__VALUE__in_t;
+
+    typedef struct {
+        fb_ctl_regs__INJ_WR_BP__VALUE__in_t VALUE;
+    } fb_ctl_regs__INJ_WR_BP__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } fb_ctl_regs__INJ_WR_STARV__VALUE__in_t;
+
+    typedef struct {
+        fb_ctl_regs__INJ_WR_STARV__VALUE__in_t VALUE;
+    } fb_ctl_regs__INJ_WR_STARV__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } fb_ctl_regs__INJ_WR_IDLE__VALUE__in_t;
+
+    typedef struct {
+        fb_ctl_regs__INJ_WR_IDLE__VALUE__in_t VALUE;
+    } fb_ctl_regs__INJ_WR_IDLE__in_t;
+
+    typedef struct {
         fb_ctl_regs__S0_RD_BEATS__in_t S0_RD_BEATS;
         fb_ctl_regs__S0_WR_BEATS__in_t S0_WR_BEATS;
         fb_ctl_regs__STATUS__in_t STATUS;
@@ -136,6 +168,10 @@ package fb_ctl_regs_pkg;
         fb_ctl_regs__S0_B_COUNT__in_t S0_B_COUNT;
         fb_ctl_regs__S0_AR_COUNT__in_t S0_AR_COUNT;
         fb_ctl_regs__S0_RVALID_CYCLES__in_t S0_RVALID_CYCLES;
+        fb_ctl_regs__INJ_WR_PROD__in_t INJ_WR_PROD;
+        fb_ctl_regs__INJ_WR_BP__in_t INJ_WR_BP;
+        fb_ctl_regs__INJ_WR_STARV__in_t INJ_WR_STARV;
+        fb_ctl_regs__INJ_WR_IDLE__in_t INJ_WR_IDLE;
     } fb_ctl_regs__in_t;
 
     typedef struct {
@@ -143,12 +179,17 @@ package fb_ctl_regs_pkg;
     } fb_ctl_regs__WORKLOAD__RD_SRC__out_t;
 
     typedef struct {
-        logic value;
+        logic [1:0] value;
     } fb_ctl_regs__WORKLOAD__WR_DST__out_t;
+
+    typedef struct {
+        logic value;
+    } fb_ctl_regs__WORKLOAD__INJ_SYNC__out_t;
 
     typedef struct {
         fb_ctl_regs__WORKLOAD__RD_SRC__out_t RD_SRC;
         fb_ctl_regs__WORKLOAD__WR_DST__out_t WR_DST;
+        fb_ctl_regs__WORKLOAD__INJ_SYNC__out_t INJ_SYNC;
     } fb_ctl_regs__WORKLOAD__out_t;
 
     typedef struct {

@@ -36,8 +36,12 @@ addrmap fb_ctl_regs {
         } RD_SRC[0:0] = 0;
         field {
             sw = rw; hw = r;
-            desc = "Write beats (first/last write timestamps and STOP): 0 = CRC sink (S3), 1 = DDR3 (S0).";
-        } WR_DST[1:1] = 0;
+            desc = "Write beats (first/last write timestamps and STOP): 0 = CRC sink (S3), 1 = DDR3 (S0), 2 = STREAM's own write port (M2, master side: the W3 mirror, where the injector also writes S0 and S0 cannot tell the two apart), 3 = reserved (as 0).";
+        } WR_DST[2:1] = 0;
+        field {
+            sw = rw; hw = r;
+            desc = "W3: the injector may start bursts only while this bit is set AND STREAM's measurement window is open (its AW is held otherwise; its W only before the window opens, so issued bursts complete). Both masters start together, the injector stops when STREAM is done, and clearing the bit holds it. With the bit clear the injector never issues.";
+        } INJ_SYNC[3:3] = 0;
     } WORKLOAD @ 0x000;
 
     reg {
@@ -87,4 +91,16 @@ addrmap fb_ctl_regs {
         desc = "Cycles S0 RVALID was high since CLEAR_STATS / soft reset (with S0_RD_BEATS: cycles the fabric held RREADY low).";
         field { sw = r; hw = w; } VALUE[31:0] = 0;
     } S0_RVALID_CYCLES @ 0x01C;
+
+    // The W3 injector's own bus meter on its M3 port (char_engine_block
+    // perf_wr_*), counting over the STREAM observers' window: productive /
+    // backpressure / starvation / idle cycles of the injector's W channel.
+    reg { desc = "Injector W productive cycles (beats) in the observer window.";
+          field { sw = r; hw = w; } VALUE[31:0] = 0; } INJ_WR_PROD  @ 0x020;
+    reg { desc = "Injector W backpressure cycles in the observer window.";
+          field { sw = r; hw = w; } VALUE[31:0] = 0; } INJ_WR_BP    @ 0x024;
+    reg { desc = "Injector W starvation cycles in the observer window.";
+          field { sw = r; hw = w; } VALUE[31:0] = 0; } INJ_WR_STARV @ 0x028;
+    reg { desc = "Injector W idle cycles in the observer window.";
+          field { sw = r; hw = w; } VALUE[31:0] = 0; } INJ_WR_IDLE  @ 0x02C;
 };

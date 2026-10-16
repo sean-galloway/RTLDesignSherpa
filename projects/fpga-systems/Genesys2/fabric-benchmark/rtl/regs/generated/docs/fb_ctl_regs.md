@@ -8,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x20
+- Size: 0x30
 
 <p>Run-timer endpoint select, board status and the S0 (DDR3) counters</p>
 
@@ -22,6 +22,10 @@ Don't override. Generated from: $root
 | 0x14 |   S0_B_COUNT   |  — |
 | 0x18 |   S0_AR_COUNT  |  — |
 | 0x1C |S0_RVALID_CYCLES|  — |
+| 0x20 |   INJ_WR_PROD  |  — |
+| 0x24 |    INJ_WR_BP   |  — |
+| 0x28 |  INJ_WR_STARV  |  — |
+| 0x2C |   INJ_WR_IDLE  |  — |
 
 ### WORKLOAD register
 
@@ -34,7 +38,8 @@ Don't override. Generated from: $root
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
 |  0 |  RD_SRC  |  rw  | 0x0 |  — |
-|  1 |  WR_DST  |  rw  | 0x0 |  — |
+| 2:1|  WR_DST  |  rw  | 0x0 |  — |
+|  3 | INJ_SYNC |  rw  | 0x0 |  — |
 
 #### RD_SRC field
 
@@ -42,7 +47,11 @@ Don't override. Generated from: $root
 
 #### WR_DST field
 
-<p>Write beats (first/last write timestamps and STOP): 0 = CRC sink (S3), 1 = DDR3 (S0).</p>
+<p>Write beats (first/last write timestamps and STOP): 0 = CRC sink (S3), 1 = DDR3 (S0), 2 = STREAM's own write port (M2, master side: the W3 mirror, where the injector also writes S0 and S0 cannot tell the two apart), 3 = reserved (as 0).</p>
+
+#### INJ_SYNC field
+
+<p>W3: the injector may start bursts only while this bit is set AND STREAM's measurement window is open (its AW is held otherwise; its W only before the window opens, so issued bursts complete). Both masters start together, the injector stops when STREAM is done, and clearing the bit holds it. With the bit clear the injector never issues.</p>
 
 ### S0_RD_BEATS register
 
@@ -192,6 +201,54 @@ Don't override. Generated from: $root
 - Size: 0x4
 
 <p>Cycles S0 RVALID was high since CLEAR_STATS / soft reset (with S0_RD_BEATS: cycles the fabric held RREADY low).</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |   r  | 0x0 |  — |
+
+### INJ_WR_PROD register
+
+- Absolute Address: 0x20
+- Base Offset: 0x20
+- Size: 0x4
+
+<p>Injector W productive cycles (beats) in the observer window.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |   r  | 0x0 |  — |
+
+### INJ_WR_BP register
+
+- Absolute Address: 0x24
+- Base Offset: 0x24
+- Size: 0x4
+
+<p>Injector W backpressure cycles in the observer window.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |   r  | 0x0 |  — |
+
+### INJ_WR_STARV register
+
+- Absolute Address: 0x28
+- Base Offset: 0x28
+- Size: 0x4
+
+<p>Injector W starvation cycles in the observer window.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |   r  | 0x0 |  — |
+
+### INJ_WR_IDLE register
+
+- Absolute Address: 0x2C
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>Injector W idle cycles in the observer window.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
