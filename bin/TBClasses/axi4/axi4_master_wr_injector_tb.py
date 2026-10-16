@@ -274,7 +274,8 @@ class WrInjectorTB(TBBase):
         self.dut.cfg_hash_seed0.value       = hash_seed0 & 0xFFFFFFFF
         self.dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
         self.dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
-        self.dut.cfg_wr_gap.value           = wr_gap & 0xF
+        # GAP_WIDTH: the build's cfg_wr_gap width (4 unless the runner widens it).
+        self.dut.cfg_wr_gap.value           = wr_gap & ((1 << int(os.environ.get('GAP_WIDTH', '4'))) - 1)
         self.dut.cfg_max_outstanding.value  = max_outstanding
         # Stash for the post-run CRC cross-check in wait_done()
         self._last_total_beats = burst_len * txn_count

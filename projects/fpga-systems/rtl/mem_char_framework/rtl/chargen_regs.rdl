@@ -123,6 +123,13 @@ addrmap chargen_regs {
         field { sw = rw; hw = r; } burst_len[7:0]   = 0;
         field { sw = rw; hw = r; } txn_count[23:8]  = 0;
         field { sw = rw; hw = r; } gap[27:24]       = 0;
+        // Write generators only: the idle gap between bursts is
+        // gap << gap_shift cycles (0..15 x 1..128). 0 -- the reset value --
+        // keeps the original 0..15. A 4-bit gap cannot throttle a writer
+        // below what a slow memory absorbs (the Genesys 2 fabric benchmark's
+        // W3 mix needs ~960 idle cycles between 16-beat bursts). The read
+        // generators ignore it.
+        field { sw = rw; hw = r; } gap_shift[30:28] = 0;
     };
 
     reg axi_attr_t {

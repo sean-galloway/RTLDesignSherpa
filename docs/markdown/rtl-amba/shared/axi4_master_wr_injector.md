@@ -82,6 +82,7 @@ Bringing up a memory controller means driving it with realistic, deterministic w
 | TXN_COUNT_WIDTH | int | 16 | Width of `cfg_txn_count` (up to 64K bursts) |
 | INDEX_WIDTH | int | 16 | `dma_address_gen` index width |
 | STRIDE_WIDTH | int | 24 | `dma_address_gen` signed stride width |
+| GAP_WIDTH | int | 4 | Width of `cfg_wr_gap`; 4 gives 0..15 idle cycles. `char_gen_unit` builds 11 (`gap << gap_shift`, up to 1920) |
 | IW / AW / DW / UW / SW | int | — | Aliases for id/addr/data/user/strobe widths |
 
 **Note:** LFSR + CRC parameters mirror `axi4_master_rd_crc_check` exactly so the two blocks' CRC values are interchangeable. Internally `REP = (DW+31)/32` 32-bit slices per beat and `HSTAGES = 4` hash-pipeline stages.
@@ -115,7 +116,7 @@ Bringing up a memory controller means driving it with realistic, deterministic w
 | cfg_lfsr_seed | input | LFSR_WIDTH | Seed override (0 → use `LFSR_SEED` param) |
 | cfg_data_mode | input | 1 | 0 = phase-counter LFSR; 1 = address-derived hash (OOO-safe) |
 | cfg_hash_seed0/1/2 | input | 32 each | Murmur3-fmix mixer seeds (hash mode) |
-| cfg_wr_gap | input | 4 | Inter-burst idle cycles (0..15) |
+| cfg_wr_gap | input | GAP_WIDTH | Inter-burst idle cycles (0..2^GAP_WIDTH-1; 0..15 at the default width) |
 | cfg_start | input | 1 | Pulse to begin the workload |
 | cfg_done | output | 1 | High once all B responses received |
 
@@ -162,7 +163,7 @@ A four-state FSM (`S_IDLE`, `S_RUN`, `S_GAP`, `S_DONE`) sequences a run. On `cfg
 
 ### Decoupled AW and W Address Generation
 
-Two independent `dma_address_gen` instances (`u_addr_gen_aw`, `u_addr_gen_w`) walk the *same* descriptor with the same indices, so both produce the identical address sequence. The AW path issues one AW per index at `awready` rate; the W path produces the current burst's base address for the hash datapath, popped on WLAST. `awvalid` stays continuously asserted from its first cycle to the last AW handshake when `cfg_wr_gap = 0` — the address generator produces one result per cycle once warmed. Outstanding depth is bounded by the slave's `awready` throttling, not by this block. Only `index_0` is walked (`index_1` held at 0); a second instance with a different `cfg_addr_stride_1` would exercise the 2D path.
+Two independent `dma_address_gen` instances (`u_addr_gen_aw`, `u_addr_gen_w`) walk the *same* descriptor with the same indices, so both produce the identical address sequence. The AW path issues one AW per index at `awready` rate; the W path produces the current burst's base address for the hash datapath, popped on WLAST. `awvalid` stays continuously asserted from its first cycle to the last AW handshake when `cfg_wr_gap = 0` — the address generator produces one result per cycle once warmed. With a non-zero gap an AW never runs ahead of the previous burst's W: the next AW issues only after the gap and after every earlier burst's last beat has left the generator. An AW pipelined ahead of a gap would reach the slave and wait there for W data the gap is holding, and since AXI4 W follows AW order at the slave, every other master's write behind it would wait too. Outstanding depth is bounded by the slave's `awready` throttling, not by this block. Only `index_0` is walked (`index_1` held at 0); a second instance with a different `cfg_addr_stride_1` would exercise the 2D path.
 
 ### Data Path: LFSR vs Address Hash
 

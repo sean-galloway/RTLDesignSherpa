@@ -210,6 +210,10 @@ module chargen_regs (
                     logic [3:0] next;
                     logic load_next;
                 } gap;
+                struct {
+                    logic [2:0] next;
+                    logic load_next;
+                } gap_shift;
             } BLEN_TXN;
             struct {
                 struct {
@@ -316,6 +320,10 @@ module chargen_regs (
                     logic [3:0] next;
                     logic load_next;
                 } gap;
+                struct {
+                    logic [2:0] next;
+                    logic load_next;
+                } gap_shift;
             } BLEN_TXN;
             struct {
                 struct {
@@ -452,6 +460,9 @@ module chargen_regs (
                 struct {
                     logic [3:0] value;
                 } gap;
+                struct {
+                    logic [2:0] value;
+                } gap_shift;
             } BLEN_TXN;
             struct {
                 struct {
@@ -538,6 +549,9 @@ module chargen_regs (
                 struct {
                     logic [3:0] value;
                 } gap;
+                struct {
+                    logic [2:0] value;
+                } gap_shift;
             } BLEN_TXN;
             struct {
                 struct {
@@ -802,6 +816,29 @@ module chargen_regs (
             end
         end
         assign hwif_out.WR_GEN[i0].BLEN_TXN.gap.value = field_storage.WR_GEN[i0].BLEN_TXN.gap.value;
+        // Field: chargen_regs.WR_GEN[].BLEN_TXN.gap_shift
+        always_comb begin
+            automatic logic [2:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.WR_GEN[i0].BLEN_TXN.gap_shift.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.WR_GEN[i0].BLEN_TXN && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.WR_GEN[i0].BLEN_TXN.gap_shift.value & ~decoded_wr_biten[30:28]) | (decoded_wr_data[30:28] & decoded_wr_biten[30:28]);
+                load_next_c = '1;
+            end
+            field_combo.WR_GEN[i0].BLEN_TXN.gap_shift.next = next_c;
+            field_combo.WR_GEN[i0].BLEN_TXN.gap_shift.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.WR_GEN[i0].BLEN_TXN.gap_shift.value <= 3'h0;
+            end else begin
+                if(field_combo.WR_GEN[i0].BLEN_TXN.gap_shift.load_next) begin
+                    field_storage.WR_GEN[i0].BLEN_TXN.gap_shift.value <= field_combo.WR_GEN[i0].BLEN_TXN.gap_shift.next;
+                end
+            end
+        end
+        assign hwif_out.WR_GEN[i0].BLEN_TXN.gap_shift.value = field_storage.WR_GEN[i0].BLEN_TXN.gap_shift.value;
         // Field: chargen_regs.WR_GEN[].AXI_ATTR.axi_id
         always_comb begin
             automatic logic [7:0] next_c;
@@ -1264,6 +1301,29 @@ module chargen_regs (
             end
         end
         assign hwif_out.RD_GEN[i0].BLEN_TXN.gap.value = field_storage.RD_GEN[i0].BLEN_TXN.gap.value;
+        // Field: chargen_regs.RD_GEN[].BLEN_TXN.gap_shift
+        always_comb begin
+            automatic logic [2:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.RD_GEN[i0].BLEN_TXN.gap_shift.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.RD_GEN[i0].BLEN_TXN && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.RD_GEN[i0].BLEN_TXN.gap_shift.value & ~decoded_wr_biten[30:28]) | (decoded_wr_data[30:28] & decoded_wr_biten[30:28]);
+                load_next_c = '1;
+            end
+            field_combo.RD_GEN[i0].BLEN_TXN.gap_shift.next = next_c;
+            field_combo.RD_GEN[i0].BLEN_TXN.gap_shift.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.RD_GEN[i0].BLEN_TXN.gap_shift.value <= 3'h0;
+            end else begin
+                if(field_combo.RD_GEN[i0].BLEN_TXN.gap_shift.load_next) begin
+                    field_storage.RD_GEN[i0].BLEN_TXN.gap_shift.value <= field_combo.RD_GEN[i0].BLEN_TXN.gap_shift.next;
+                end
+            end
+        end
+        assign hwif_out.RD_GEN[i0].BLEN_TXN.gap_shift.value = field_storage.RD_GEN[i0].BLEN_TXN.gap_shift.value;
         // Field: chargen_regs.RD_GEN[].AXI_ATTR.axi_id
         always_comb begin
             automatic logic [7:0] next_c;
@@ -1778,7 +1838,8 @@ module chargen_regs (
         assign readback_array[i0 * 14 + 5][7:0] = (decoded_reg_strb.WR_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].BLEN_TXN.burst_len.value : '0;
         assign readback_array[i0 * 14 + 5][23:8] = (decoded_reg_strb.WR_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].BLEN_TXN.txn_count.value : '0;
         assign readback_array[i0 * 14 + 5][27:24] = (decoded_reg_strb.WR_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].BLEN_TXN.gap.value : '0;
-        assign readback_array[i0 * 14 + 5][31:28] = '0;
+        assign readback_array[i0 * 14 + 5][30:28] = (decoded_reg_strb.WR_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].BLEN_TXN.gap_shift.value : '0;
+        assign readback_array[i0 * 14 + 5][31:31] = '0;
         assign readback_array[i0 * 14 + 6][7:0] = (decoded_reg_strb.WR_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].AXI_ATTR.axi_id.value : '0;
         assign readback_array[i0 * 14 + 6][9:8] = (decoded_reg_strb.WR_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].AXI_ATTR.id_mode.value : '0;
         assign readback_array[i0 * 14 + 6][12:10] = (decoded_reg_strb.WR_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].AXI_ATTR.axi_size.value : '0;
@@ -1809,7 +1870,8 @@ module chargen_regs (
         assign readback_array[i0 * 17 + 61][7:0] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.burst_len.value : '0;
         assign readback_array[i0 * 17 + 61][23:8] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.txn_count.value : '0;
         assign readback_array[i0 * 17 + 61][27:24] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.gap.value : '0;
-        assign readback_array[i0 * 17 + 61][31:28] = '0;
+        assign readback_array[i0 * 17 + 61][30:28] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.gap_shift.value : '0;
+        assign readback_array[i0 * 17 + 61][31:31] = '0;
         assign readback_array[i0 * 17 + 62][7:0] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.axi_id.value : '0;
         assign readback_array[i0 * 17 + 62][9:8] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.id_mode.value : '0;
         assign readback_array[i0 * 17 + 62][12:10] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.axi_size.value : '0;

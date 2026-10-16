@@ -11,7 +11,7 @@
 //          Accumulates a CRC-32 over the data written so the read-side
 //          (axi4_master_rd_crc_check) has an expected value to compare against.
 //
-// Documentation: projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/README.md
+// Documentation: projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2-characterization/README.md
 // Subsystem: amba (shared characterization harness blocks)
 //
 // Author: sean galloway
@@ -49,7 +49,9 @@
 //   addr-gen pipeline allow; W runs at slave's wready rate. awvalid
 //   stays asserted from its first cycle to the last AW handshake when
 //   cfg_wr_gap = 0 — the addr-gen produces 1 result/cycle once warmed
-//   up. cfg_wr_gap > 0 pauses both AW and W together. AXI4 outstanding
+//   up. cfg_wr_gap > 0 pauses both AW and W together, and an AW never runs
+//   ahead of the previous burst's W (no AW waits at the slave for W data
+//   held by the gap). AXI4 outstanding
 //   is bounded by MAX_OUTSTANDING (AWs issued minus Bs received) and by
 //   the slave's awready throttling.
 //
@@ -103,6 +105,10 @@ module axi4_master_wr_injector #(
     parameter int TXN_COUNT_WIDTH = 16,
     parameter int INDEX_WIDTH     = 16,
     parameter int STRIDE_WIDTH    = 24,
+    // Width of cfg_wr_gap. 4 (0..15 idle cycles) is the original port and
+    // every existing instance's; a wider gap lets a characterization harness
+    // throttle the writer far below what 15 cycles between bursts can.
+    parameter int GAP_WIDTH       = 4,
 
     // Legal-AxLEN quantum: the number of AXI beats that make one DRAM burst, i.e.
     // cfg_burst_len MUST be a nonzero integer multiple of this (one AXI burst maps
@@ -180,10 +186,11 @@ module axi4_master_wr_injector #(
     input  logic [31:0]                         cfg_hash_seed1,
     input  logic [31:0]                         cfg_hash_seed2,
 
-    // Inter-burst idle gap. Adds 0..15 idle cycles between the end of one
-    // burst (wlast accepted) and the next AW request. Used to vary the
-    // throughput stress on the downstream controller during sweeps.
-    input  logic [3:0]                          cfg_wr_gap,
+    // Inter-burst idle gap. Adds 0..2^GAP_WIDTH-1 idle cycles (0..15 at the
+    // default width) between the end of one burst (wlast accepted) and the
+    // next AW request. Used to vary the throughput stress on the downstream
+    // controller during sweeps.
+    input  logic [GAP_WIDTH-1:0]                cfg_wr_gap,
 
     // ---- Runtime cap on bursts in flight ----
     // MAX_OUTSTANDING is the hardware ceiling (queues and counters are built
@@ -291,7 +298,7 @@ module axi4_master_wr_injector #(
     logic signed [STRIDE_WIDTH-1:0] r_stride_0, r_stride_1;
     logic [AW-1:0]                r_wrap_0, r_wrap_1;
     logic [7:0]                   r_burst_len;
-    logic [3:0]                   r_wr_gap;
+    logic [GAP_WIDTH-1:0]         r_wr_gap;
     logic [TXN_COUNT_WIDTH-1:0]   r_txn_count;
     logic [IW-1:0]                r_axi_id;
     logic [2:0]                   r_axi_size;
@@ -315,7 +322,7 @@ module axi4_master_wr_injector #(
     logic [TXN_COUNT_WIDTH-1:0]   r_w_bursts_done;    // wlast handshakes
     logic [TXN_COUNT_WIDTH-1:0]   r_b_received;       // B handshakes
     logic [7:0]                   r_w_beat_idx;       // beat in current W burst
-    logic [3:0]                   r_gap_left;         // S_GAP countdown
+    logic [GAP_WIDTH-1:0]         r_gap_left;         // S_GAP countdown
 
     //==========================================================================
     // dma_address_gen — two independent instances walking the same
@@ -533,9 +540,20 @@ module axi4_master_wr_injector #(
     // awvalid stays asserted as long as we have AWs left and the addr-gen
     // has produced the next address. No outstanding cap — slave's awready
     // throttles. Gap pauses by switching state away from S_RUN.
+    //
+    // With a gap, an AW may not run ahead of the W data: the next burst's AW
+    // issues only once every earlier burst's W has finished (wlast accepted).
+    // Otherwise AWs pipelined during burst k reach the slave and then wait
+    // out the gap for their W data -- and AXI4 W follows AW order at the
+    // slave (no WID), so every OTHER master's write behind them waits too.
+    // On a shared slave that turned the gap into head-of-line blocking: a
+    // second writer was paced to the injector's gap instead of using the
+    // idle time (Genesys 2 fabric benchmark W3 mirror, 2026-10-16). At gap 0
+    // AWs still pipeline freely.
     assign fub_awvalid       = (r_state == S_RUN)
                             && (r_aw_issued < r_txn_count)
                             && ((r_aw_issued - r_b_received) < TXN_COUNT_WIDTH'(w_os_limit))
+                            && ((r_wr_gap == '0) || (r_aw_issued == r_w_bursts_done))
                             && w_aw_addr_result_valid;
     assign w_aw_addr_result_ready = fub_awvalid && fub_awready;
 
@@ -689,7 +707,7 @@ module axi4_master_wr_injector #(
             r_wrap_0          <= '0;
             r_wrap_1          <= '0;
             r_burst_len       <= 8'd0;
-            r_wr_gap          <= 4'd0;
+            r_wr_gap          <= '0;
             r_txn_count       <= '0;
             r_axi_id          <= '0;
             r_axi_size        <= 3'd0;
@@ -709,7 +727,7 @@ module axi4_master_wr_injector #(
             r_w_bursts_done   <= '0;
             r_b_received      <= '0;
             r_w_beat_idx      <= 8'd0;
-            r_gap_left        <= 4'd0;
+            r_gap_left        <= '0;
             o_expected_crc       <= '0;
             o_expected_crc_valid <= 1'b0;
             r_crc_capture_pending <= 2'b00;
@@ -745,7 +763,7 @@ module axi4_master_wr_injector #(
                         r_w_bursts_done  <= '0;
                         r_b_received     <= '0;
                         r_w_beat_idx     <= 8'd0;
-                        r_gap_left       <= 4'd0;
+                        r_gap_left       <= '0;
                         o_expected_crc_valid <= 1'b0;
                         o_bresp_error        <= 1'b0;
                         r_state         <= (cfg_txn_count == '0) ? S_DONE : S_RUN;
@@ -778,7 +796,7 @@ module axi4_master_wr_injector #(
                             r_w_bursts_done <= r_w_bursts_done + 1'b1;
                             if (r_w_bursts_done + 1'b1 == r_txn_count) begin
                                 r_state <= S_DONE;
-                            end else if (r_wr_gap != 4'd0) begin
+                            end else if (r_wr_gap != '0) begin
                                 r_state    <= S_GAP;
                                 r_gap_left <= r_wr_gap;
                             end
@@ -789,11 +807,11 @@ module axi4_master_wr_injector #(
                 end
 
                 S_GAP: begin
-                    if (r_gap_left == 4'd1) begin
+                    if (r_gap_left == GAP_WIDTH'(1)) begin
                         r_state    <= S_RUN;
-                        r_gap_left <= 4'd0;
+                        r_gap_left <= '0;
                     end else begin
-                        r_gap_left <= r_gap_left - 4'd1;
+                        r_gap_left <= r_gap_left - GAP_WIDTH'(1);
                     end
                 end
 
@@ -826,7 +844,7 @@ module axi4_master_wr_injector #(
                         r_w_bursts_done  <= '0;
                         r_b_received     <= '0;
                         r_w_beat_idx     <= 8'd0;
-                        r_gap_left       <= 4'd0;
+                        r_gap_left       <= '0;
                         o_expected_crc_valid <= 1'b0;
                         o_bresp_error        <= 1'b0;
                         r_state              <= (cfg_txn_count == '0) ? S_DONE : S_RUN;

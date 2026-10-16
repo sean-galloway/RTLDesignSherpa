@@ -180,9 +180,14 @@ package chargen_regs_pkg;
     } chargen_regs__blen_txn_t__gap__out_t;
 
     typedef struct {
+        logic [2:0] value;
+    } chargen_regs__blen_txn_t__gap_shift__out_t;
+
+    typedef struct {
         chargen_regs__blen_txn_t__burst_len__out_t burst_len;
         chargen_regs__blen_txn_t__txn_count__out_t txn_count;
         chargen_regs__blen_txn_t__gap__out_t gap;
+        chargen_regs__blen_txn_t__gap_shift__out_t gap_shift;
     } chargen_regs__blen_txn_t__out_t;
 
     typedef struct {

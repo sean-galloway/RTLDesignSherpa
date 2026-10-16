@@ -48,6 +48,8 @@ async def cocotb_test_axi4_master_wr_injector(dut):
         "bresp_error_sticky": _bresp_error_sticky,
         "rerun_after_done":  _rerun_after_done,
         "wr_gap_inserts_idle": _wr_gap_inserts_idle,
+        "wide_gap": _wide_gap,
+        "gap_no_aw_ahead": _gap_no_aw_ahead,
         "hash_mode_data":    _hash_mode_data,
         "awvalid_no_drop":   _awvalid_no_drop,
         "id_mode_counter":   _id_mode_counter,
@@ -192,6 +194,96 @@ async def _wr_gap_inserts_idle(tb: WrInjectorTB):
     await tb.wait_done()
     assert len(tb.aw_log) == N
     assert len(tb.w_log)  == N * BURST
+
+
+async def _wide_gap(tb: WrInjectorTB):
+    """GAP_WIDTH widens cfg_wr_gap past 4 bits, and the full value is honoured.
+
+    Built with GAP_WIDTH=11 (the runner sets it for this scenario only, so
+    every other scenario keeps the 4-bit default every instance uses) at gap
+    200 -- a value the 4-bit port cannot express; truncated it would be 8.
+
+    The engine counts the gap from when its W generator emits a burst's last
+    beat into the output skid, not from the port, so the idle time AT THE
+    PORT depends on how long the slave stalled the beats still in the skid.
+    Two checks, therefore:
+      - every profile: the last burst cannot start before (N-1) gaps have
+        elapsed since start -- the generator cannot get ahead of its own
+        counter. Truncation to 8 would miss this by more than 10x.
+      - back-to-back slave (nothing stalls W): each gap is >= cfg_wr_gap
+        idle W cycles at the port.
+    """
+    from cocotb.triggers import FallingEdge as _FallingEdge
+    GAP, BURST, N = 200, 4, 4
+    await tb.program(start_addr=0x400, stride_0=BURST * 8,
+                     burst_len=BURST, txn_count=N, wr_gap=GAP)
+    await tb.pulse_start()
+    cycle, beats, last_end, first_starts = 0, 0, [], []
+    for _ in range(N * (GAP + 64) + 20000):
+        await _FallingEdge(tb.dut.aclk)
+        cycle += 1
+        if int(tb.dut.m_axi_wvalid.value) and int(tb.dut.m_axi_wready.value):
+            if beats % BURST == 0:
+                first_starts.append(cycle)
+            beats += 1
+            if int(tb.dut.m_axi_wlast.value):
+                last_end.append(cycle)
+            if beats == N * BURST:
+                break
+    assert beats == N * BURST, f"only {beats}/{N * BURST} W beats seen"
+    assert first_starts[-1] >= (N - 1) * GAP, (
+        f"last burst started at cycle {first_starts[-1]}, before (N-1) gaps "
+        f"= {(N - 1) * GAP} cycles could elapse (a 4-bit truncation to "
+        f"{GAP & 0xF} would allow ~{(N - 1) * ((GAP & 0xF) + BURST)})")
+    if os.environ.get("SLAVE_PROFILE") == "backtoback":
+        gaps = [first_starts[k] - last_end[k - 1] - 1 for k in range(1, N)]
+        assert all(g >= GAP for g in gaps), (
+            f"idle W cycles between bursts {gaps}, want >= {GAP} each")
+    await tb.wait_done()
+
+
+async def _gap_no_aw_ahead(tb: WrInjectorTB):
+    """With a gap, no AW is issued before the previous burst's W finished.
+
+    An AW pipelined ahead of a gap reaches the slave and waits there for W
+    data the gap is holding; AXI4 W follows AW order at the slave, so every
+    other master's write queued behind it waits too (head-of-line blocking
+    on a shared slave). The engine issues an AW only after the gap AND after
+    its generator has finished the previous burst.
+
+    At the port that is exact only when nothing stalls W: under a slave that
+    stalls W, the previous burst's last beats can still be in the 4-deep
+    output skid when the next AW leaves -- legal, since that AW's W data is
+    queued right behind them, not held by the gap. So the ordering check
+    (AW k after the wlast of burst k-1) runs on the back-to-back profile,
+    where the pre-fix engine issued AWs 1..5 ahead; every profile checks the
+    run completes with every AW and wlast seen. Gap 5, default 4-bit port.
+    """
+    from cocotb.triggers import FallingEdge as _FallingEdge
+    GAP, BURST, N = 5, 4, 6
+    await tb.program(start_addr=0x800, stride_0=BURST * 8,
+                     burst_len=BURST, txn_count=N, wr_gap=GAP, max_outstanding=4)
+    await tb.pulse_start()
+    cycle, aw_cycles, wlast_cycles = 0, [], []
+    for _ in range(50_000):
+        await _FallingEdge(tb.dut.aclk)
+        cycle += 1
+        if int(tb.dut.m_axi_awvalid.value) and int(tb.dut.m_axi_awready.value):
+            aw_cycles.append(cycle)
+        if (int(tb.dut.m_axi_wvalid.value) and int(tb.dut.m_axi_wready.value)
+                and int(tb.dut.m_axi_wlast.value)):
+            wlast_cycles.append(cycle)
+            if len(wlast_cycles) == N:
+                break
+    assert len(aw_cycles) == N and len(wlast_cycles) == N, (
+        f"saw {len(aw_cycles)} AWs / {len(wlast_cycles)} wlasts, want {N}")
+    early = [k for k in range(1, N) if aw_cycles[k] <= wlast_cycles[k - 1]]
+    if os.environ.get("SLAVE_PROFILE") != "backtoback":
+        early = []
+    assert not early, (
+        f"AW {early} issued before the previous burst's wlast "
+        f"(AW cycles {aw_cycles}, wlast cycles {wlast_cycles})")
+    await tb.wait_done()
 
 
 async def _outstanding_dial(tb: WrInjectorTB):
@@ -600,7 +692,7 @@ _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
               "wr_gap_inserts_idle", "hash_mode_data",
               "awvalid_no_drop", "id_mode_counter",
               "id_mode_lfsr", "hammer_mode", "fill_mode",
-              "kb4", "kb32", "outstanding_dial"]
+              "kb4", "kb32", "outstanding_dial", "wide_gap", "gap_no_aw_ahead"]
 _GATE = ["smoke", "multi_burst", "address_walk"]
 _FUNC = list(_ALL_TYPES)
 _FULL = list(_ALL_TYPES)
@@ -653,6 +745,11 @@ def test_axi4_master_wr_injector(request, test_type, slave_profile):
         # default it does not state stops testing the moment the default moves.
         "MAX_OUTSTANDING": "8",
     }
+    # wide_gap builds the widened gap port; every other scenario keeps the
+    # 4-bit default every existing instance uses.
+    if test_type == "wide_gap":
+        parameters["GAP_WIDTH"] = "11"
+        extra_env["GAP_WIDTH"] = "11"
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = ["+define+USE_ASYNC_RESET", "-Wno-WIDTHTRUNC"]

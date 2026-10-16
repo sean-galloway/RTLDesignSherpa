@@ -127,6 +127,7 @@ Don't override. Generated from: $root
 | 7:0 | burst_len|  rw  | 0x0 |  — |
 | 23:8| txn_count|  rw  | 0x0 |  — |
 |27:24|    gap   |  rw  | 0x0 |  — |
+|30:28| gap_shift|  rw  | 0x0 |  — |
 
 ### AXI_ATTR register
 
@@ -331,6 +332,7 @@ Don't override. Generated from: $root
 | 7:0 | burst_len|  rw  | 0x0 |  — |
 | 23:8| txn_count|  rw  | 0x0 |  — |
 |27:24|    gap   |  rw  | 0x0 |  — |
+|30:28| gap_shift|  rw  | 0x0 |  — |
 
 ### AXI_ATTR register
 
@@ -535,6 +537,7 @@ Don't override. Generated from: $root
 | 7:0 | burst_len|  rw  | 0x0 |  — |
 | 23:8| txn_count|  rw  | 0x0 |  — |
 |27:24|    gap   |  rw  | 0x0 |  — |
+|30:28| gap_shift|  rw  | 0x0 |  — |
 
 ### AXI_ATTR register
 
@@ -739,6 +742,7 @@ Don't override. Generated from: $root
 | 7:0 | burst_len|  rw  | 0x0 |  — |
 | 23:8| txn_count|  rw  | 0x0 |  — |
 |27:24|    gap   |  rw  | 0x0 |  — |
+|30:28| gap_shift|  rw  | 0x0 |  — |
 
 ### AXI_ATTR register
 
@@ -946,6 +950,7 @@ Don't override. Generated from: $root
 | 7:0 | burst_len|  rw  | 0x0 |  — |
 | 23:8| txn_count|  rw  | 0x0 |  — |
 |27:24|    gap   |  rw  | 0x0 |  — |
+|30:28| gap_shift|  rw  | 0x0 |  — |
 
 ### AXI_ATTR register
 
@@ -1191,6 +1196,7 @@ Don't override. Generated from: $root
 | 7:0 | burst_len|  rw  | 0x0 |  — |
 | 23:8| txn_count|  rw  | 0x0 |  — |
 |27:24|    gap   |  rw  | 0x0 |  — |
+|30:28| gap_shift|  rw  | 0x0 |  — |
 
 ### AXI_ATTR register
 
@@ -1436,6 +1442,7 @@ Don't override. Generated from: $root
 | 7:0 | burst_len|  rw  | 0x0 |  — |
 | 23:8| txn_count|  rw  | 0x0 |  — |
 |27:24|    gap   |  rw  | 0x0 |  — |
+|30:28| gap_shift|  rw  | 0x0 |  — |
 
 ### AXI_ATTR register
 
@@ -1681,6 +1688,7 @@ Don't override. Generated from: $root
 | 7:0 | burst_len|  rw  | 0x0 |  — |
 | 23:8| txn_count|  rw  | 0x0 |  — |
 |27:24|    gap   |  rw  | 0x0 |  — |
+|30:28| gap_shift|  rw  | 0x0 |  — |
 
 ### AXI_ATTR register
 
