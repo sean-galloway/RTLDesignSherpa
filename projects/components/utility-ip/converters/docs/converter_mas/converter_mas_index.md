@@ -69,6 +69,7 @@ This specification covers the Converters component — the configurable data-wid
 - [Wishbone B4 to AXI4](ch03_protocol_blocks/14_wb4_to_axi4.md)
 - [AXI4 to AXI3](ch03_protocol_blocks/15_axi4_to_axi3.md)
 - [AXI3 to AXI4](ch03_protocol_blocks/16_axi3_to_axi4.md)
+- [AXI-Stream to CXS Adapters](ch03_protocol_blocks/17_axis_to_cxs.md)
 
 ### Chapter 4: FSM Design
 

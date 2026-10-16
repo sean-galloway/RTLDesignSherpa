@@ -8,8 +8,8 @@
 // Purpose: CXS flits (from a cxs_slave's FUB side) -> AXI-Stream beats; the
 //          inverse of axis_to_cxs
 //
-// Documentation: docs/markdown/rtl-amba/cxs/axis_to_cxs.md
-// Subsystem: amba
+// Documentation: projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/17_axis_to_cxs.md
+// Subsystem: converters
 //
 //   TDATA = CXSDATA,  TID = CXSSRCID,  TDEST = CXSTGTID
 //   {TUSER, TSTRB} = CXSUSER          (the strobes axis_to_cxs carried)

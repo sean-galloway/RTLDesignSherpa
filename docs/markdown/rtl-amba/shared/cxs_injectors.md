@@ -42,7 +42,7 @@ Every `cfg_*` and status port is the wrapped AXIS block's, unchanged, so the exp
 
 ## The Link
 
-The link profile is the RAPIDS CXS plane's (see [AXIS to CXS Adapters](../cxs/axis_to_cxs.md)): Issue D, `CXSMAXPKTPERFLIT` = 2, 16-byte start alignment, `TID` -> `CXSSRCID` (the channel), `TDEST` -> `CXSTGTID`, `CXSUSER` = `{TUSER, TSTRB}` (TUSER dropped above 1016-bit flits), link activation on, no parity.
+The link profile is the RAPIDS CXS plane's (see [AXIS to CXS Adapters](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/17_axis_to_cxs.md), Converters MAS 3.17): Issue D, `CXSMAXPKTPERFLIT` = 2, 16-byte start alignment, `TID` -> `CXSSRCID` (the channel), `TDEST` -> `CXSTGTID`, `CXSUSER` = `{TUSER, TSTRB}` (TUSER dropped above 1016-bit flits), link activation on, no parity.
 
 `cfg_interleave` round-robins channels beat by beat, so packets of different channels are open at the same time on the one link. That is legal CXS because packets are framed per stream (IHI 0079D 2.5.2). Both blocks key on the channel bits of `CXSSRCID` (`STREAM_SRCID_BITS`, default `$clog2(NUM_CHANNELS)`), and both ends must use the same value.
 

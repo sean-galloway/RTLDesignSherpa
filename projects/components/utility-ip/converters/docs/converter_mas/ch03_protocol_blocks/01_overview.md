@@ -60,6 +60,7 @@ Protocol converters bridge components that speak different bus protocols — the
 | apb_cmdrsp_to_axi4 | The requester half of the two above: APB cmd/rsp stream to one AXI4 transaction per transfer | Implemented (covered by the wrappers' tests) |
 | axi4_to_wb4 | Full AXI4 completer in, Wishbone B4 requester out: the AXI4-Lite decomposers + axil4_to_wb4 | Implemented (`dv/tests/test_axi4_to_wb4.py`; the bridge's WB4 slave ports, bridge TASK-008 (was BRIDGE-019)) |
 | wb4_to_axi4 | Wishbone B4 completer in, single-beat AXI4 requester out: wb4_to_axil4 + the AXI4 promotion | Implemented (`dv/tests/test_wb4_to_axi4.py`; the bridge's WB4 master ports, bridge TASK-008 (was BRIDGE-019)) |
+| axis_to_cxs / cxs_to_axis | AXI-Stream beats to CXS flits and back: one packet per TLAST run, TSTRB/TUSER in CXSUSER, per-stream framing (section 3.17) | Implemented (covered by `val/amba/test_cxs_pattern_pair.py` and the RAPIDS CXS tops) |
 
 : Table 3.3: Other Protocol Converters
 

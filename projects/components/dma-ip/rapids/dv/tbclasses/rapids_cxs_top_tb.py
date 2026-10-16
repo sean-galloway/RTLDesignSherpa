@@ -23,7 +23,7 @@ Only the network BFMs differ (the `_create_network_bfms` hook):
   both links     CXSMonitor     -- credit model, link handshake, placement
 
 The AXIS beats a scenario sends become CXS flits by the planes' own mapping
-(rtl/amba/cxs/axis_to_cxs): one packet per TLAST run, START at pointer 0 on
+(projects/components/utility-ip/converters/rtl/axis_to_cxs.sv): one packet per TLAST run, START at pointer 0 on
 the first beat, END on the last with END0PTR = the last strobed 4-byte word,
 TID -> CXSSRCID, TDEST -> CXSTGTID, {TUSER, TSTRB} -> CXSUSER. Received flits
 are turned back into (data, strb, last) beats and filed under CXSSRCID, so the

@@ -252,7 +252,7 @@ Python decode in `bin/TBClasses/monbus` is checked against that file.
 | `cxs_slave.sv` / `cxs_slave_cg.sv` | Receiver: credited link in, FUB out; `_cg` wakes on CXSACTIVEREQ | `docs/markdown/rtl-amba/cxs/cxs_slave.md` |
 | `includes/cxs_pkg.sv`, `cxs_cntl_track.sv`, `cxs_odd_byte_parity.sv` | CXSCNTL layout + legality; packet-open tracking; Odd_Byte_Parity | `docs/markdown/rtl-amba/cxs/README.md` |
 | `cxs_{master,slave}_monlite.sv`, `ocelus/cxs_monitor_lite.sv` | Endpoints with the CXS lite Ocelus tapping FUB handshake + core status | `docs/markdown/rtl-amba/monitor/cxs_monitor_lite.md` |
-| `axis_to_cxs.sv` / `cxs_to_axis.sv` | AXIS beats <-> CXS flits (one packet per TLAST run, TSTRB in CXSUSER, Issue D); used by the RAPIDS CXS planes | `docs/markdown/rtl-amba/cxs/axis_to_cxs.md` |
+| (moved) `axis_to_cxs` / `cxs_to_axis` | AXIS <-> CXS adapters now live in `projects/components/utility-ip/converters/rtl/` (owner 2026-10-16, 4d15269a8); consumers `-f` the converters filelists | Converters MAS 3.17 |
 | `cxs_stream_key.sv`, `cxs_link_snoop.sv` | Per-stream framing key; passive wire-level link model (credits, link state, checks) | `docs/markdown/rtl-amba/cxs/README.md` |
 | `shared/cxs_master_injector.sv` / `shared/cxs_slave_pattern_check.sv` | CXS pattern source / checker, CRC-identical to the AXIS pair | `docs/markdown/rtl-amba/shared/cxs_injectors.md` |
 

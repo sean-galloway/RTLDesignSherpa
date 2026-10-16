@@ -86,7 +86,7 @@ CXS top parameters:
 - `CXS_CREDIT_BEYOND_SPEC` is derived as `CXS_MAX_CREDIT > 63`: past the spec's 63 the link is built beyond spec, and the far end must be too.
 - `CXS_IDLE_CYCLES` is 32.
 
-Credits are a single pool for the whole link: a grant carries no ID, so it can't be reserved for one channel. Status pins: `src_cxs_link_state`, `snk_cxs_link_state`, `*_cxs_protocol_error` (sticky), and `snk_cxs_unsupported` (sticky: a flit that AXIS framing cannot represent arrived; see [the adapters](../../../../../docs/markdown/rtl-amba/cxs/axis_to_cxs.md)).
+Credits are a single pool for the whole link: a grant carries no ID, so it can't be reserved for one channel. Status pins: `src_cxs_link_state`, `snk_cxs_link_state`, `*_cxs_protocol_error` (sticky), and `snk_cxs_unsupported` (sticky: a flit that AXIS framing cannot represent arrived; see [the adapters](../../../utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/17_axis_to_cxs.md), in `projects/components/utility-ip/converters/rtl/`).
 
 Carrying `TSTRB` in `CXSUSER` is what keeps the byte-granular RAPIDS exact over CXS. Its partial last beats and unaligned starts cross the link intact. The cost is a `DATA_WIDTH` limit of 1024: CXSUSER is at most 128 bits.
 

@@ -58,7 +58,7 @@ This directory holds one family covering **every published issue**. Each issue i
 | `cxs_stream_key` | The tracked part of a flit's stream identity: `{PRCLTYPE, SRCID, TGTID}` low bits | this page |
 | `cxs_link_snoop` | Passive model of a link from its wires alone: credits in flight, link state, credit/link/per-stream framing checks (feeds `cxs_intf_observer`) | this page |
 | `cxs_master_monlite` / `cxs_slave_monlite` | The endpoints with [`cxs_monitor_lite`](../monitor/cxs_monitor_lite.md) tapping their FUB handshake and status; packets tagged `PROTOCOL_CXS` | [cxs_monitor_lite.md](../monitor/cxs_monitor_lite.md) |
-| `axis_to_cxs` / `cxs_to_axis` | AXI-Stream beats to CXS flits and back (one packet per TLAST run, `TSTRB` carried in `CXSUSER`) for a stream design on a CXS link | [axis_to_cxs.md](axis_to_cxs.md) |
+| `axis_to_cxs` / `cxs_to_axis` | AXI-Stream beats to CXS flits and back (one packet per TLAST run, `TSTRB` carried in `CXSUSER`). They live in `projects/components/utility-ip/converters/rtl/` | Converters MAS 3.17 ([17_axis_to_cxs.md](../../../../projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/17_axis_to_cxs.md)) |
 
 The monitor wrappers have no `_cg` variants (clock gating is an FPGA-only concern here). Both endpoints export `credit_starved` for the monitor: on the transmitter, a flit is waiting in RUN with no credit; on the receiver, no credit can be granted because the FIFO holds every slot.
 

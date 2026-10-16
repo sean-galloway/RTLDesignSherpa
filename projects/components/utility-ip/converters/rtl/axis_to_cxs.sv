@@ -8,8 +8,8 @@
 // Purpose: AXI-Stream beats -> CXS flits (one packet per TLAST run), for the
 //          FUB side of a cxs_master
 //
-// Documentation: docs/markdown/rtl-amba/cxs/axis_to_cxs.md
-// Subsystem: amba
+// Documentation: projects/components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/17_axis_to_cxs.md
+// Subsystem: converters
 //
 // One AXIS beat is one CXS flit; one TLAST-delimited AXIS packet is one CXS
 // packet. The valid/ready handshake passes straight through (combinational:

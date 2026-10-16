@@ -293,8 +293,6 @@ $REPO_ROOT/rtl/amba/cxs/cxs_slave_cg.sv
 $REPO_ROOT/rtl/amba/ocelus/cxs_monitor_lite.sv
 $REPO_ROOT/rtl/amba/cxs/cxs_master_monlite.sv
 $REPO_ROOT/rtl/amba/cxs/cxs_slave_monlite.sv
-$REPO_ROOT/rtl/amba/cxs/axis_to_cxs.sv
-$REPO_ROOT/rtl/amba/cxs/cxs_to_axis.sv
 
 # =============================================================================
 # CDC - Clock Domain Crossing primitives
