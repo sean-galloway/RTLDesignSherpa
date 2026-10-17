@@ -280,7 +280,7 @@ async def cocotb_test_scheduler(dut):
 
     elif test_type == 'disabled_channel':
         result = await tb.test_disabled_channel_holds()
-        tb.generate_test_report()
+        assert tb.generate_test_report(), "Scheduler TB recorded errors"
         assert result, "Disabled channel lost or ran its descriptor early"
 
     elif test_type == 'varying_lengths':
