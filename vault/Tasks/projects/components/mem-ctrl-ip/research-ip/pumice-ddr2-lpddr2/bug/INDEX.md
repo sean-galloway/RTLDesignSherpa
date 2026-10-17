@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-026** — never recycle a number, even when its item closed.
+**Next ID: BUG-028** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
@@ -20,6 +20,13 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
+- **BUG-027** — six core_dfi perf-shape cells red (fixed_open,
+  perf_write_ceiling, perf_paging_sched_cross, refresh_credit,
+  perf_read_inflight, perf_paging_sweep). PROVEN PRE-EXISTING (fail
+  identically with mc_bank_sched reverted to the pre-MC-003 state;
+  filed 2026-10-17 during the MC-003 verification). Likely fallout from
+  the MC-003-era common-plane work, made visible when the BUG-015
+  vacuous-pass window closed.
 - **BUG-025** — OBS_ROW_HIT counters read zero: the BUG-020 regression net
   was dark (vacuous pass).
 - **BUG-024** — pumice_zq_ctrl random_soak loses exactly one grant at some
