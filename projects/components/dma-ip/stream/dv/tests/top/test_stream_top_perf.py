@@ -46,9 +46,10 @@ def _status(word):
     }
 
 
-def _parse_high(word):
-    """PERF_DATA_HIGH = {28'b0, event_type, channel_id[2:0]}."""
-    return word & 0x7, (word >> 3) & 0x1
+def _parse_high(word, num_channels=8):
+    """PERF_DATA_HIGH = {0, event_type, channel_id[CHID_W-1:0]}, CHID_W = max(3, clog2(NC))."""
+    chid_w = max(3, (num_channels - 1).bit_length())
+    return word & ((1 << chid_w) - 1), (word >> chid_w) & 0x1
 
 
 @cocotb.test(timeout_time=2000, timeout_unit="us")
@@ -144,7 +145,7 @@ async def cocotb_test_perf_fifo_pairing(dut):
     assert after_pair == start_count - 1, (
         f"completing the LOW/HIGH pair should retire exactly one entry: "
         f"count {start_count} -> {after_pair}")
-    ch_a, ev_a = _parse_high(high_a)
+    ch_a, ev_a = _parse_high(high_a, num_channels)
     assert ch_a == channel, f"entry channel_id {ch_a} != kicked channel {channel}"
     assert ev_a in (0, 1), f"event_type {ev_a} out of range"
     # DATA COHERENCE, not just the pop protocol. Before 45fa4972e the LOW
@@ -169,7 +170,7 @@ async def cocotb_test_perf_fifo_pairing(dut):
         assert after_rev == after_pair - 1, (
             f"HIGH-then-LOW should retire exactly one entry: "
             f"count {after_pair} -> {after_rev}")
-        ch_b, ev_b = _parse_high(high_b)
+        ch_b, ev_b = _parse_high(high_b, num_channels)
         assert ch_b == channel, f"entry channel_id {ch_b} != kicked channel {channel}"
         tb.log.info(f"entry B (reverse order): ts=0x{low_b:08X} ch={ch_b} ev={ev_b}")
         assert low_b != low_a or ev_b != ev_a, (
@@ -194,7 +195,9 @@ async def cocotb_test_perf_fifo_pairing(dut):
     tb.log.info("PASSED: perf FIFO both-read pop protocol")
 
 
-def test_stream_top_perf_fifo(request):
+# (num_channels, channel): channel 13 needs the fourth channel-ID bit
+@pytest.mark.parametrize("num_channels, perf_channel", [(8, 0), (16, 13)])
+def test_stream_top_perf_fifo(request, num_channels, perf_channel):
     """Pytest wrapper -- drives the perf FIFO non-empty (TASK-086)."""
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_top': '../../../../rtl/stream_top',
@@ -203,18 +206,18 @@ def test_stream_top_perf_fifo(request):
         'rtl_amba': '../../../../../rtl/amba',
     })
 
-    dut_name = "stream_top_ch8"
+    dut_name = f"stream_top_ch{num_channels}"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_,
-        filelist_path='projects/components/dma-ip/stream/rtl/filelists/top/stream_top_ch8.f')
+        filelist_path=f'projects/components/dma-ip/stream/rtl/filelists/top/{dut_name}.f')
 
     rtl_parameters = {
-        'NUM_CHANNELS': 8, 'DATA_WIDTH': 512, 'ADDR_WIDTH': 64,
+        'NUM_CHANNELS': num_channels, 'DATA_WIDTH': 512, 'ADDR_WIDTH': 64,
         'SRAM_DEPTH': 4096, 'APB_ADDR_WIDTH': 13, 'APB_DATA_WIDTH': 32,
         'USE_AXI_MONITORS': 0, 'CDC_ENABLE': 0,
     }
 
-    test_name_plus_params = f"test_{dut_name}_perf_fifo"
+    test_name_plus_params = f"test_{dut_name}_perf_fifo_ch{perf_channel}"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
@@ -227,9 +230,9 @@ def test_stream_top_perf_fifo(request):
 
     extra_env = {
         **level_env(os.environ.get('REG_LEVEL', 'func').lower()),
-        'NUM_CHANNELS': '8', 'DATA_WIDTH': '512', 'FIFO_DEPTH': '4096',
+        'NUM_CHANNELS': str(num_channels), 'DATA_WIDTH': '512', 'FIFO_DEPTH': '4096',
         'AXI_ID_WIDTH': '8', 'APB_ADDR_WIDTH': '13', 'APB_DATA_WIDTH': '32',
-        'PERF_CHANNEL': '0', 'PERF_BEATS': '16',
+        'PERF_CHANNEL': str(perf_channel), 'PERF_BEATS': '16',
         'DUT': dut_name, 'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO', 'COCOTB_RESULTS_FILE': results_path,
     }

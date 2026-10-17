@@ -38,6 +38,8 @@
 
 module stream_config_block #(
     parameter int NUM_CHANNELS = 8,
+    // Channel bits in the register map (8 or 16); NUM_CHANNELS <= REG_NCH
+    parameter int REG_NCH = 8,
     parameter int ADDR_WIDTH = 64,
     // When 0, every monitor configuration output is strapped off regardless of
     // the MON register contents, so a build that omits the monitors cannot be
@@ -58,8 +60,8 @@ module stream_config_block #(
     input  logic                        reg_global_ctrl_global_rst,
 
     // Channel Control
-    input  logic [7:0]                  reg_channel_enable_ch_en,
-    input  logic [7:0]                  reg_channel_reset_ch_rst,
+    input  logic [REG_NCH-1:0]          reg_channel_enable_ch_en,
+    input  logic [REG_NCH-1:0]          reg_channel_reset_ch_rst,
 
     // Scheduler Configuration
     input  logic [31:0]                 reg_sched_timeout_cycles_timeout_cycles,
@@ -147,7 +149,7 @@ module stream_config_block #(
     input  logic                        reg_perf_config_perf_clear,
 
     // Channel-Observation Mux (from OBS_CTRL register; routed into stream_core)
-    input  logic [2:0]                  reg_obs_ctrl_ch_sel,
+    input  logic [((REG_NCH > 8) ? 4 : 3)-1:0] reg_obs_ctrl_ch_sel,
     input  logic [1:0]                  reg_obs_ctrl_cat_sel,
 
     // Channel-Observation Mux (from stream_core; drives OBS_FLAGS/DATA0/DATA1)
@@ -249,7 +251,7 @@ module stream_config_block #(
     output logic                        cfg_perf_clear,
 
     // Channel-Observation Mux Selector (drives stream_core)
-    output logic [2:0]                  cfg_obs_ch_sel,
+    output logic [((REG_NCH > 8) ? 4 : 3)-1:0] cfg_obs_ch_sel,
     output logic [1:0]                  cfg_obs_cat_sel,
 
     // Channel-Observation Mux Status (forwarded to hwif_in.OBS_*)
@@ -268,13 +270,13 @@ module stream_config_block #(
     // Global and Channel Control
     //-------------------------------------------------------------------------
 
-    // Gate all channel enables by global enable. The CSR field is always 8 bits
+    // Gate all channel enables by global enable. The CSR field is REG_NCH bits
     // wide; slice it to the channels this build actually has, so bits for
     // non-existent channels are dropped explicitly rather than by inference.
     assign cfg_channel_enable = reg_channel_enable_ch_en[NUM_CHANNELS-1:0]
                               & {NUM_CHANNELS{reg_global_ctrl_global_en}};
 
-    // Channel resets are OR'd with global reset (same 8-bit CSR slice as above).
+    // Channel resets are OR'd with global reset (same CSR slice as above).
     assign cfg_channel_reset = reg_channel_reset_ch_rst[NUM_CHANNELS-1:0]
                              | {NUM_CHANNELS{reg_global_ctrl_global_rst}};
 

@@ -396,7 +396,7 @@ module stream_core #(
     //   cat=3  sram     data0=rd_alloc_space_free   data1=wr_drain_data_avail
     // obs_flags is always live; see comment block above the mux for bit map.
     //=========================================================================
-    input  logic [2:0]                          cfg_obs_ch_sel,
+    input  logic [((NUM_CHANNELS > 8) ? 4 : 3)-1:0] cfg_obs_ch_sel,   // OBS_CTRL.CH_SEL: 3 bits (8-ch map) or 4 (16-ch)
     input  logic [1:0]                          cfg_obs_cat_sel,
     output logic [31:0]                         obs_flags,
     output logic [31:0]                         obs_data0,
@@ -1966,7 +1966,7 @@ module stream_core #(
     //   [20]   dbg_write_error_sticky        (sticky)
     //   [21]   dbg_timeout_expired           (live)
     //   [31:22] reserved (0)
-    // cfg_obs_ch_sel is a fixed 3 bits (NC <= 8), but the arrays below are only
+    // cfg_obs_ch_sel is 3 bits (4 above 8 channels), but the arrays below are only
     // NC entries wide. Indexing them with the raw 3-bit value reads PAST THE END
     // on any build with NC < 8 -- X in simulation, undefined logic on the FPGA --
     // which surfaces as corrupt telemetry rather than as a rejected request.

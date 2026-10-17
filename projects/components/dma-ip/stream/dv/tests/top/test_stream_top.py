@@ -156,6 +156,24 @@ def _params_for_level(test_level):
                 'scenario': tag,
             })
 
+    # 16-channel build (stream_top_ch16, the 16-channel register map) at every
+    # level, on channels that exist only in that map (CH8..CH15_CTRL,
+    # KICK8..15, the 16-bit status fields).
+    hi_channels = {'gate': [8, 15], 'func': [0, 7, 8, 15]}.get(test_level, [8, 9, 10, 11, 12, 13, 14, 15])
+    params.append({
+        'num_channels': 16,
+        'data_width': data_width,
+        'fifo_depth': 4096,
+        'axi_id_width': 8,
+        'apb_addr_width': 12,
+        'apb_data_width': 32,
+        'desc_count': config['desc_count'],
+        'test_channels': hi_channels,
+        'transfer_sizes': config['transfer_sizes'],
+        'timing_profile': config['timing_profile'],
+        'scenario': '16ch',
+    })
+
     for _p in params:
         _p['test_level'] = test_level
     return params
@@ -599,12 +617,13 @@ def test_stream_top_basic(request, params):
         'rtl_amba': '../../../../../rtl/amba',
     })
 
-    dut_name = "stream_top_ch8"
+    # stream_top_ch16 (the 16-channel register map) above 8 channels
+    dut_name = "stream_top_ch16" if params['num_channels'] > 8 else "stream_top_ch8"
 
     # Get sources from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dma-ip/stream/rtl/filelists/top/stream_top_ch8.f'
+        filelist_path=f'projects/components/dma-ip/stream/rtl/filelists/top/{dut_name}.f'
     )
 
     # RTL parameters (stream_top has fixed parameters in module definition)

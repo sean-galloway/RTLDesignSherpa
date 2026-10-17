@@ -34,6 +34,14 @@ from TBClasses.apb.register_map import RegisterMap
 # needs NO DV changes -- only stream_regmap.py is regenerated.
 STREAM_REGMAP_PATH = os.path.join(
     repo_root, 'projects/components/dma-ip/stream/rtl/stream_regmap.py')
+# The 16-channel map (stream_top_ch16), derived by bin/gen_stream_regs_16ch.py
+STREAM_REGMAP_16CH_PATH = os.path.join(
+    repo_root, 'projects/components/dma-ip/stream/rtl/stream_regmap_16ch.py')
+
+
+def stream_regmap_path(num_channels: int) -> str:
+    """The register map a build with this many channels uses."""
+    return STREAM_REGMAP_PATH if num_channels <= 8 else STREAM_REGMAP_16CH_PATH
 
 
 # Reverse address -> name, built from the GENERATED regmap (TASK-084).
@@ -314,7 +322,7 @@ class StreamCoreTB(TBBase):
         # By-name register map (RegisterMap). Register addresses come ONLY from
         # stream_regmap.py, so a register split/relocation needs no TB changes.
         self.reg_map = RegisterMap(
-            STREAM_REGMAP_PATH,
+            stream_regmap_path(self.num_channels),
             apb_data_width=self.apb_data_width,
             apb_addr_width=self.apb_addr_width,
             start_address=0,
@@ -554,19 +562,22 @@ class StreamCoreTB(TBBase):
 
         # Create memory models
         self.desc_memory_model = MemoryModel(
-            num_lines=16384,   # 512KB (16384 * 32 bytes)
+            num_lines=16384 * max(1, (self.num_channels + 7) // 8),   # 512KB per 8 channels (32-byte lines)
             bytes_per_line=32, # 256-bit descriptors
             log=self.log
         )
 
+        # Per-channel buffers sit at fixed strides, so the models grow with the
+        # channel count: 32MB per 8 channels (64MB on a 16-channel build).
+        mem_lines = 524288 * max(1, (self.num_channels + 7) // 8)
         self.src_memory_model = MemoryModel(
-            num_lines=524288,  # 32MB (524288 * data_bytes when data_bytes=64)
+            num_lines=mem_lines,  # 32MB per 8 channels (data_bytes=64)
             bytes_per_line=self.data_bytes,
             log=self.log
         )
 
         self.dst_memory_model = MemoryModel(
-            num_lines=524288,  # 32MB (524288 * data_bytes when data_bytes=64)
+            num_lines=mem_lines,  # 32MB per 8 channels (data_bytes=64)
             bytes_per_line=self.data_bytes,
             log=self.log
         )

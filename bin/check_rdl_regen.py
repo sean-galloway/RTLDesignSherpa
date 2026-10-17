@@ -126,6 +126,34 @@ MANIFEST = [
         ],
     },
     {
+        # The 16-channel map, DERIVED from the 8-channel RDL by
+        # projects/components/dma-ip/stream/bin/gen_stream_regs_16ch.py (run that
+        # first when an 8-channel source changes; --check reports staleness).
+        "name": "stream_regs_16ch (regblock + docs + regmap)",
+        "rdl": f"{STREAM}/rtl/macro/generated_16ch/stream_regs_16ch.rdl",
+        "sources": [f"{STREAM}/rtl/macro/generated_16ch/stream_regs_16ch.rdl",
+                    f"{STREAM}/rtl/macro/generated_16ch/stream_mon_regs_16ch.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            (f"{STREAM}/regs/generated_16ch/rtl/stream_regs_16ch.sv", "rtl/stream_regs_16ch.sv"),
+            (f"{STREAM}/regs/generated_16ch/rtl/stream_regs_16ch_pkg.sv", "rtl/stream_regs_16ch_pkg.sv"),
+            (f"{STREAM}/regs/generated_16ch/stream_regs_16ch_regmap.py", "stream_regs_16ch_regmap.py"),
+            (f"{STREAM}/regs/generated_16ch/docs/stream_regs_16ch.md", "docs/stream_regs_16ch.md"),
+        ],
+    },
+    {
+        "name": "stream_regs_16ch (DV-facing regmap copy)",
+        "rdl": f"{STREAM}/rtl/macro/generated_16ch/stream_regs_16ch.rdl",
+        "sources": [f"{STREAM}/rtl/macro/generated_16ch/stream_regs_16ch.rdl",
+                    f"{STREAM}/rtl/macro/generated_16ch/stream_mon_regs_16ch.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "stream_regmap_16ch.py",
+        "compare": [
+            (f"{STREAM}/rtl/stream_regmap_16ch.py", "stream_regmap_16ch.py"),
+        ],
+    },
+    {
         "name": "pumice_csr (regblock + docs + regmap)",
         "rdl": f"{PUMICE}/rtl/macro/pumice_csr.rdl",
         "sources": PUMICE_SOURCES,

@@ -281,8 +281,8 @@ async def run_two_register_read_interface(tb):
     await RisingEdge(tb.clk)
 
     # Parse
-    channel_id = data_high & 0x7
-    event_type = (data_high >> 3) & 1
+    channel_id = data_high & ((1 << tb.chid_w) - 1)
+    event_type = (data_high >> tb.chid_w) & 1
 
     tb.log.info(f"Two-register read: LOW=0x{data_low:08X}, HIGH=0x{data_high:08X}")
     tb.log.info(f"  Parsed: Ch{channel_id}, Event={'END' if event_type else 'START'}")
@@ -292,6 +292,25 @@ async def run_two_register_read_interface(tb):
     assert event_type == 0, f"Expected START event (0), got {event_type}"
 
     tb.log.info("PASSED: Two-register read interface")
+
+
+async def run_high_channel_id(tb):
+    """Every channel reports its own ID, start and end (channels 8..15 at NC=16).
+
+    The FIFO entry once packed the ID as 3'(channel), so at 16 channels
+    channel 13 reported as 5.
+    """
+    await tb.enable_profiler(mode=0)
+    for ch in range(tb.num_channels):
+        await tb.channel_active_pulse(channel=ch, duration_cycles=6)
+        await ClockCycles(tb.clk, 3)
+    await tb.wait_for_events(2 * tb.num_channels)
+    entries = await tb.read_all_fifo_entries()
+
+    seen = [(cid, ev) for _, cid, ev in entries]
+    expected = [(ch, ev) for ch in range(tb.num_channels) for ev in (0, 1)]
+    assert seen == expected, f"channel/event sequence: got {seen}, expected {expected}"
+    tb.log.info(f"PASSED: {tb.num_channels} channels report their own ID")
 
 
 async def run_counter_increment(tb):
@@ -440,6 +459,9 @@ async def cocotb_test_perf_profiler(dut):
     elif test_type == 'counter_increment':
         await run_counter_increment(tb)
 
+    elif test_type == 'high_channel_id':
+        await run_high_channel_id(tb)
+
     elif test_type == 'full_protocol_coverage':
         await run_full_protocol_coverage(tb, coverage)
 
@@ -453,7 +475,8 @@ async def cocotb_test_perf_profiler(dut):
 # PARAMETER GENERATION
 # ===========================================================================
 
-_GATE_TYPES = ('single_channel_timestamp_mode', 'fifo_full_behavior', 'full_protocol_coverage')
+_GATE_TYPES = ('single_channel_timestamp_mode', 'fifo_full_behavior', 'full_protocol_coverage',
+               'high_channel_id')
 
 
 def generate_perf_profiler_test_params():
@@ -470,7 +493,8 @@ def generate_perf_profiler_test_params():
         'fifo_full_behavior',
         'two_register_read_interface',
         'counter_increment',
-        'full_protocol_coverage'
+        'full_protocol_coverage',
+        'high_channel_id',
     ]
     base_params = [
         # (num_channels, timestamp_width, fifo_depth)
@@ -492,6 +516,10 @@ def generate_perf_profiler_test_params():
     for test_type in test_types:
         for base in base_params:
             params.append((test_type,) + base)
+    # 16 channels: the channel ID needs a fourth bit (stream_top_ch16)
+    for test_type in ('high_channel_id', 'two_register_read_interface'):
+        if test_type in test_types:
+            params.append((test_type, 16, 32, 256))
 
     return params
 

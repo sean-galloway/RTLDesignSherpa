@@ -57,6 +57,8 @@ class PerfProfilerTB(TBBase):
 
         # Profiler configuration
         self.num_channels = int(dut.NUM_CHANNELS.value) if hasattr(dut, 'NUM_CHANNELS') else 8
+        # PERF_DATA_HIGH = {event_type, channel_id[CHID_W-1:0]}, CHID_W = max(3, clog2(NC))
+        self.chid_w = max(3, (self.num_channels - 1).bit_length())
 
         # Event tracking
         self.expected_events = []
@@ -185,8 +187,8 @@ class PerfProfilerTB(TBBase):
         await RisingEdge(self.clk)
 
         # Parse metadata
-        channel_id = data_high & 0x7
-        event_type = (data_high >> 3) & 1
+        channel_id = data_high & ((1 << self.chid_w) - 1)
+        event_type = (data_high >> self.chid_w) & 1
 
         event = {
             'timestamp': data_low,

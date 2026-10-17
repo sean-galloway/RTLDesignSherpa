@@ -36,13 +36,13 @@
 //   3. Monitor transitions and FIFO fills
 //   4. Read FIFO via two-register sequence, in EITHER order:
 //      a. Read PERF_DATA_LOW  -> timestamp or elapsed time [31:0]
-//      b. Read PERF_DATA_HIGH -> {28'b0, event_type, channel_id[2:0]}
+//      b. Read PERF_DATA_HIGH -> {0, event_type, channel_id[CHID_W-1:0]} (CHID_W = 3 at 8 channels, 4 at 16)
 //      Both return the head entry. The FIFO is popped once BOTH have
 //      been read, so the halves always belong to the same entry.
 //   5. Parse data:
 //      - timestamp/elapsed = perf_fifo_data_low[31:0]
-//      - channel_id = perf_fifo_data_high[2:0]
-//      - event_type = perf_fifo_data_high[3] (timestamp mode only)
+//      - channel_id = perf_fifo_data_high[CHID_W-1:0]
+//      - event_type = perf_fifo_data_high[CHID_W] (timestamp mode only)
 //                     0 = idle→active (start), 1 = active→idle (end)
 //   6. Software processes FIFO data to analyze performance
 //
@@ -67,7 +67,13 @@ module perf_profiler #(
     parameter int CHANNEL_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int TIMESTAMP_WIDTH = 32,
     parameter int FIFO_DEPTH = 256,
-    parameter int FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH)
+    parameter int FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH),
+    // FIFO entry = {event_type, channel_id[CHID_W-1:0], timestamp[31:0]}.
+    // CHID_W is at least 3 so the 8-channel layout of PERF_DATA_HIGH,
+    // {event_type[3], channel_id[2:0]}, is unchanged; 16 channels give
+    // {event_type[4], channel_id[3:0]}.
+    parameter int CHID_W = (CHANNEL_WIDTH > 3) ? CHANNEL_WIDTH : 3,
+    parameter int ENTRY_W = 32 + 1 + CHID_W
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -87,7 +93,7 @@ module perf_profiler #(
     //   2. Read PERF_FIFO_DATA_HIGH -> Returns latched metadata
     input  logic                        perf_fifo_rd,         // Read strobe (single cycle, pops FIFO)
     output logic [31:0]                 perf_fifo_data_low,   // Timestamp or elapsed time [31:0]
-    output logic [31:0]                 perf_fifo_data_high,  // {28'b0, event_type, channel_id[2:0]}
+    output logic [31:0]                 perf_fifo_data_high,  // {0, event_type, channel_id[CHID_W-1:0]}
     output logic                        perf_fifo_empty,
     output logic                        perf_fifo_full,
     output logic [15:0]                 perf_fifo_count       // Number of entries in FIFO
@@ -128,13 +134,13 @@ module perf_profiler #(
 
     // FIFO write interface
     logic                       w_fifo_wr;
-    logic [35:0]                w_fifo_wr_data;
+    logic [ENTRY_W-1:0]         w_fifo_wr_data;
     logic                       w_fifo_wr_ready_internal;  // FIFO ready to accept writes
     logic                       w_fifo_full_internal;      // Derived from !wr_ready
 
     // FIFO read interface
     logic                       w_fifo_rd_valid_internal;  // FIFO has data available
-    logic [35:0]                w_fifo_rd_data;            // Direct FIFO output
+    logic [ENTRY_W-1:0]         w_fifo_rd_data;            // Direct FIFO output
     logic [FIFO_ADDR_WIDTH:0]   w_fifo_count_internal;    // FIFO count (9 bits for 256-entry)
 
     // Priority encoder for handling multiple channels changing simultaneously
@@ -265,10 +271,10 @@ module perf_profiler #(
     //=========================================================================
     // FIFO Write Data Generation
     //=========================================================================
-    // Package event data into 36-bit FIFO entry:
+    // Package event data into ENTRY_W-bit FIFO entry (36 bits at 8 channels):
     //   Bits [31:0]:  Timestamp or elapsed time
-    //   Bits [34:32]: Channel ID (0-7 for 8 channels)
-    //   Bit  [35]:    Event type (timestamp mode only):
+    //   Bits [32+CHID_W-1:32]: Channel ID ([34:32] at 8 channels, [35:32] at 16)
+    //   Bit  [32+CHID_W]:      Event type (timestamp mode only):
     //                 0 = idle→active (start)
     //                 1 = active→idle (end)
     //
@@ -295,15 +301,15 @@ module perf_profiler #(
             if (cfg_mode == MODE_TIMESTAMP) begin
                 // Timestamp mode: Record current timestamp with event type
                 w_fifo_wr_data = {
-                    w_idle_rising[w_active_channel] ? EVENT_END : EVENT_START,  // [35]: Event type
-                    3'(w_active_channel),                                        // [34:32]: Channel ID (zero-extended for NUM_CHANNELS < 8)
+                    w_idle_rising[w_active_channel] ? EVENT_END : EVENT_START,  // Event type, above the ID
+                    CHID_W'(w_active_channel),                                   // Channel ID (zero-extended below 8 channels)
                     r_timestamp_counter                                          // [31:0]: Timestamp
                 };
             end else begin
                 // Elapsed mode: Record pre-computed elapsed time
                 w_fifo_wr_data = {
-                    EVENT_END,                  // [35]: Always end event for elapsed mode
-                    3'(w_active_channel),       // [34:32]: Channel ID (zero-extended for NUM_CHANNELS < 8)
+                    EVENT_END,                  // Always end event for elapsed mode
+                    CHID_W'(w_active_channel),  // Channel ID (zero-extended below 8 channels)
                     w_elapsed_time              // [31:0]: Elapsed time in clock cycles
                 };
             end
@@ -315,21 +321,21 @@ module perf_profiler #(
     //=========================================================================
     // Buffers performance events for later retrieval via APB
     // Depth: 256 entries (configurable via FIFO_DEPTH parameter)
-    // Width: 36 bits (timestamp/elapsed + channel_id + event_type)
+    // Width: ENTRY_W bits (timestamp/elapsed + channel_id + event_type)
     //
     // Software reads FIFO via APB (two-register sequence):
     //   1. Check perf_fifo_empty == 0 (data available)
     //   2. Read PERF_FIFO_DATA_LOW:
     //      - APB slave asserts perf_fifo_rd for one cycle
-    //      - FIFO pops and latches 36-bit entry
+    //      - FIFO pops and latches the entry
     //      - Returns timestamp/elapsed [31:0]
     //   3. Read PERF_FIFO_DATA_HIGH:
-    //      - Returns latched {28'b0, event_type, channel_id[2:0]}
+    //      - Returns latched {0, event_type, channel_id[CHID_W-1:0]} (CHID_W = 3 at 8 channels, 4 at 16)
     //      - No FIFO pop occurs
     //   4. Parse data:
     //      - timestamp/elapsed = PERF_FIFO_DATA_LOW[31:0]
-    //      - channel_id = PERF_FIFO_DATA_HIGH[2:0]
-    //      - event_type = PERF_FIFO_DATA_HIGH[3] (timestamp mode only)
+    //      - channel_id = PERF_FIFO_DATA_HIGH[CHID_W-1:0]
+    //      - event_type = PERF_FIFO_DATA_HIGH[CHID_W] (timestamp mode only)
     //
     // FIFO full handling:
     //   - When full, new events are DROPPED (no backpressure to schedulers)
@@ -337,7 +343,7 @@ module perf_profiler #(
     //   - Alternative: Interrupt on FIFO half-full threshold
 
     gaxi_fifo_sync #(
-        .DATA_WIDTH(36),
+        .DATA_WIDTH(ENTRY_W),
         .DEPTH(FIFO_DEPTH)
     ) u_perf_fifo (
         .axi_aclk      (clk),
@@ -350,7 +356,7 @@ module perf_profiler #(
 
         // Read interface (to APB config space)
         .rd_valid      (w_fifo_rd_valid_internal),  // Data available
-        .rd_data       (w_fifo_rd_data),            // 36-bit FIFO output
+        .rd_data       (w_fifo_rd_data),            // ENTRY_W-bit FIFO output
         .rd_ready      (perf_fifo_rd),              // Pop FIFO on read strobe
 
         // Status
@@ -368,19 +374,19 @@ module perf_profiler #(
     //=========================================================================
     // FIFO Data Latching and Splitting
     //=========================================================================
-    // Two-register read sequence for 36-bit data over 32-bit APB bus:
+    // Two-register read sequence for ENTRY_W-bit data over 32-bit APB bus:
     //
     // 1. Software reads PERF_FIFO_DATA_LOW (APB address 0xXXX):
     //    - APB slave asserts perf_fifo_rd for one cycle
-    //    - FIFO pops and provides 36-bit data on w_fifo_rd_data
+    //    - FIFO pops and provides the entry on w_fifo_rd_data
     //    - Both halves read the FIFO head; no capture register
     //    - APB returns lower 32 bits (timestamp/elapsed)
     //
     // 2. Software reads PERF_FIFO_DATA_HIGH (APB address 0xXXX+4):
-    //    - APB returns upper 4 bits from latched data
+    //    - APB returns the upper ENTRY_W-32 bits (event type and channel ID)
     //    - No FIFO pop occurs
     //
-    // This ensures atomic access to 36-bit FIFO entries across two 32-bit reads.
+    // This ensures atomic access to FIFO entries across two 32-bit reads.
 
     // Both halves read the FIFO HEAD combinationally; there is no capture
     // register. The entry is retired only once software has read BOTH halves
@@ -394,7 +400,7 @@ module perf_profiler #(
     //
     // Gated on empty so the outputs read 0 when there is nothing to return.
     assign perf_fifo_data_low  = perf_fifo_empty ? 32'h0 : w_fifo_rd_data[31:0];
-    assign perf_fifo_data_high = perf_fifo_empty ? 32'h0 : {28'b0, w_fifo_rd_data[35:32]};
+    assign perf_fifo_data_high = perf_fifo_empty ? 32'h0 : 32'(w_fifo_rd_data[ENTRY_W-1:32]);
 
     //=========================================================================
     // Assertions for Verification
