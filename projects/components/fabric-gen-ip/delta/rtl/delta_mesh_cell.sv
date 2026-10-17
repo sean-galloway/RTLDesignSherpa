@@ -244,8 +244,12 @@ localparam int P_LOCAL = 8;
 localparam int FIFO_DEPTH = 4;
 localparam int FLIT_W     = DATA_WIDTH + USER_WIDTH + 1;
 localparam int VC_W       = (NUM_VC > 1) ? $clog2(NUM_VC) : 1;
-// FIFO memory style from the FIFO_IMPL knob: 'reg' -> AUTO
-// (register array, mux read); 'sram' -> BRAM (registered read)
+// FIFO memory style: ALWAYS flops for the mesh input buffers.
+// They are shallow by design (FIFO_DEPTH=4, a few hundred flops
+// each) -- a 4-deep BRAM is physically nonsensical and buys a
+// registered-read skew the drop path would have to absorb (#118).
+// Do not map fifo-impl to a memory style here; validation rejects
+// 'sram' for mesh mode, so P_FIFO_MEM_STYLE is always FIFO_AUTO.
 localparam fifo_mem_t P_FIFO_MEM_STYLE =
     (FIFO_IMPL == "sram") ? FIFO_BRAM : FIFO_AUTO;
 

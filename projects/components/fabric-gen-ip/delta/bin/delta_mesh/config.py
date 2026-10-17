@@ -52,8 +52,11 @@ def validate_mesh(cfg: DeltaMeshConfig) -> None:
 
     if cfg.fifo_impl == "sram":
         raise ValueError(
-            "fifo-impl 'sram' is not supported in mesh mode: the BRAM "
-            "registered-read path hangs the drop FSM (issue #118); use 'reg'")
+            "fifo-impl 'sram' is not supported in mesh mode: the mesh input "
+            "buffers are shallow by design (FIFO_DEPTH=4) and always flop-"
+            "implemented -- a 4-deep BRAM's registered-read skew buys nothing "
+            "and hangs the drop FSM (issue #118, closed: rejected + flop-only "
+            "by design). Use 'reg'.")
 
     if cfg.amba5:
         raise ValueError(

@@ -80,8 +80,8 @@ parameter bit     SPECULATION = 0 )(
 //     o_dft_active, Task 10) rides out as
 //     o_dft_active[NUM_BOUNDARY], same index order.
 //
-// Tie-off policy (no torus this task -- wrap links land in
-// Task 9; --torus-* is rejected at generation time):
+// Tie-off policy (torus wrap links land per --torus=x,y,z
+// in Task 9; absent non-wrap neighbors tie off):
 //   - An absent boundary-neighbor port ties its s-side to
 //     '0 (tvalid low) and s_credit to all-ones, and its
 //     m-side tready to 1'b0: never ready, so a misroute
