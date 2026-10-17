@@ -172,6 +172,14 @@ if [ "${VERILATOR_PIN:-}" = "5.020" ]; then
     export PATH="$RTLDS_TOOLS_PREFIX/verilator-5.020/bin:$PATH"
 fi
 
+# The venv's bin/ goes back in front of the toolchain. oss-cad-suite ships its
+# own Python entry points (cocotb-config, find_libpython, pyserial-*), and
+# prepending the suite above put its cocotb 2.1.0.dev build ahead of the venv's
+# cocotb -- `cocotb-config --lib-dir` named oss-cad-suite's python3.11 libs
+# while the tests imported the venv's python3.12 cocotb. The venv has no
+# yosys/verilator/sby, so this shadows only those Python tools.
+export PATH="$VIRTUAL_ENV/bin:$PATH"
+
 # Do NOT let ccache cache Verilator's precompiled header.
 #
 # verilated.mk sets `CCACHE_SLOPPINESS ?= pch_defines,time_macros`. The
