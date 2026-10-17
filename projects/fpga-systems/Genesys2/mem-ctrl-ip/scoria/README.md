@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-**[← Back to Genesys2](../README.md)** | **[← FPGA Systems Index](../../index.md)**
+**[← Back to Genesys2](../../)** | **[← FPGA Systems Index](../../../index.md)**
 
 # scoria DDR3 on the Genesys 2
 

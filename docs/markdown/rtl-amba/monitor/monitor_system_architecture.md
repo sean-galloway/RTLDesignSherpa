@@ -36,7 +36,7 @@ which is not a bus protocol at all -- rides the same infrastructure as AXI4.
 
 **Scope of this document.** The architecture and what it can do. Per-module
 detail lives in the module pages; the packet field map and event-code
-assignments live in [monitor_package_spec](../includes/ocelus_package_spec.md).
+assignments live in [monitor_package_spec](../includes/monitor_package_spec.md).
 
 ---
 
@@ -613,7 +613,7 @@ Two that have bitten before:
 ## Related Modules
 | For | Read |
 |---|---|
-| Packet fields, event-code assignments | [monitor_package_spec](../includes/ocelus_package_spec.md) |
+| Packet fields, event-code assignments | [monitor_package_spec](../includes/monitor_package_spec.md) |
 | The monitor core | [axi_monitor_base](axi_monitor_base.md) |
 | Filtering | [axi_monitor_filtered](axi_monitor_filtered.md) |
 | Capture back end | [monbus_group_core](monbus_group_core.md) |

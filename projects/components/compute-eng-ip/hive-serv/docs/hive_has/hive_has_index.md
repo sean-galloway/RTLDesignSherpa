@@ -83,7 +83,7 @@ monitors) coordinating RAPIDS and Delta.
 - **[HIVE CLAUDE](../../CLAUDE.md)** - AI assistance guide for this subsystem
 - **[RAPIDS Beats HAS](../../../../dma-ip/rapids/docs/rapids_beats_has/rapids_beats_has_index.md)** - the DMA engine HIVE-C controls
 - **[Delta HAS](../../../../fabric-gen-ip/delta/docs/delta_has/delta_has_index.md)** - the network fabric HIVE configures
-- **[RISC-V Falcon Suite README](../../../riscv-ip/README.md)** - suite overview (hive-serv moved to the compute-eng-ip family 2026-10-13)
+- **[RISC-V Falcon Suite README](../../../../riscv-ip/README.md)** - suite overview (hive-serv moved to the compute-eng-ip family 2026-10-13)
 
 ---
 

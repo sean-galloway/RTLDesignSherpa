@@ -61,8 +61,8 @@ The Genesys2 harness has the same loop internals and already provides house-
 style block diagrams for both integration flavours:
 
 - AXIS flavour:
-  [`../../../Genesys2/ecc-ip/reed-solomon/docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png`](../../../Genesys2/ecc-ip/reed-solomon/docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png)
+  [`../../../Genesys2/ecc-ip/reed-solomon/docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png`](../../../../Genesys2/ecc-ip/reed-solomon/docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png)
 - AXI4 memory-to-memory flavour: see the Genesys2 harness guide and RTL
   (`rs_axi4_pipeline.sv`).
 - Harness guide:
-  [`../../../Genesys2/ecc-ip/reed-solomon/docs/UART_HARNESS.md`](../../../Genesys2/ecc-ip/reed-solomon/docs/UART_HARNESS.md)
+  [`../../../Genesys2/ecc-ip/reed-solomon/docs/UART_HARNESS.md`](../../../../Genesys2/ecc-ip/reed-solomon/docs/UART_HARNESS.md)

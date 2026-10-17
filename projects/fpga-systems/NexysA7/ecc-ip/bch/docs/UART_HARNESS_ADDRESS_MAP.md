@@ -90,10 +90,10 @@ The address map is extracted from:
 ## Related documents
 
 - Harness architecture and datapath diagrams:
-  [`../../../Genesys2/ecc-ip/bch/docs/bch_uart_harness/assets/graphviz/01_bch_axis_loop.png`](../../../Genesys2/ecc-ip/bch/docs/bch_uart_harness/assets/graphviz/01_bch_axis_loop.png)
+  [`../../../Genesys2/ecc-ip/bch/docs/bch_uart_harness/assets/graphviz/01_bch_axis_loop.png`](../../../../Genesys2/ecc-ip/bch/docs/bch_uart_harness/assets/graphviz/01_bch_axis_loop.png)
   and
-  [`02_bch_axi4_loop.png`](../../../Genesys2/ecc-ip/bch/docs/bch_uart_harness/assets/graphviz/02_bch_axi4_loop.png).
+  [`02_bch_axi4_loop.png`](../../../../Genesys2/ecc-ip/bch/docs/bch_uart_harness/assets/graphviz/02_bch_axi4_loop.png).
 - Harness user guide:
-  [`../../../Genesys2/ecc-ip/bch/docs/UART_HARNESS.md`](../../../Genesys2/ecc-ip/bch/docs/UART_HARNESS.md).
+  [`../../../Genesys2/ecc-ip/bch/docs/UART_HARNESS.md`](../../../../Genesys2/ecc-ip/bch/docs/UART_HARNESS.md).
 - Component math / algorithm docs:
-  [`projects/components/ecc-ip/bch/docs/`](../../../../components/ecc-ip/bch/docs/).
+  [`projects/components/ecc-ip/bch/docs/`](../../../../../components/ecc-ip/bch/docs/).

@@ -573,7 +573,7 @@ axi5_slave_rd_mon #(
 - **[AXI5 Slave Read Monitor CG](axi5_slave_rd_mon_cg.md)** - Clock-gated variant
 - **[AXI5 Slave Write Monitor](axi5_slave_wr_mon.md)** - Write monitor
 - **[AXI Monitor Filtered](../monitor/axi_monitor_filtered.md)** - Monitor core
-- **[Monitor Package Spec](../includes/ocelus_package_spec.md)** - Packet format details
+- **[Monitor Package Spec](../includes/monitor_package_spec.md)** - Packet format details
 
 ---
 

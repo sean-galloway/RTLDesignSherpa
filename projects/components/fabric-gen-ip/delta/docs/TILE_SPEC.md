@@ -31,7 +31,7 @@ subsystem. Where this document and `delta_has/ch07_mesh_network/01_hierarchy.md`
 disagree, this document wins — the hierarchy chapter predates the
 2026-10-15 owner decisions (tetrad/tile naming, real wrapper modules,
 MonBus aggregation). The working design record with full citations is
-[`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`](../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md)
+[`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`](../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md)
 (§2 in particular); this spec is its distilled, decision-frozen form.
 
 ---
@@ -180,10 +180,10 @@ predictability win over clock flexibility (design spec §2 close).
 
 ## References
 
-- [`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`](../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md) — working design record (§2 architecture, §5.4 mode catalog).
+- [`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`](../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md) — working design record (§2 architecture, §5.4 mode catalog).
 - [`3d-mesh-tile.drawio`](3d-mesh-tile.drawio) — owner's K4-at-both-scales figure.
 - `delta_has/ch07_mesh_network/` — mesh-network chapters (cell/flit, routing, flow control, QoS, multicast, modes, observability, verification).
-- [`../noc-ip/delta_spec`](../../noc-ip/delta_spec) — the aspirational NoC draft this subsystem grew out of.
+- [`../noc-ip/delta_spec`](../../../noc-ip/delta_spec) — the aspirational NoC draft this subsystem grew out of.
 
 ---
 

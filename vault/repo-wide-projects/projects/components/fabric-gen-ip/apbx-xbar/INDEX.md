@@ -6,7 +6,7 @@ repo: projects/components/fabric-gen-ip/apbx-xbar
 
 # projects/components/fabric-gen-ip/apbx-xbar
 
-**Code:** [`projects/components/fabric-gen-ip/apbx-xbar/`](../../../../../../projects/components/fabric-gen-ip/apbx-xbar)
+**Code:** [`projects/components/fabric-gen-ip/lattice-apbx-xbar/`](../../../../../../projects/components/fabric-gen-ip/lattice-apbx-xbar)
 
 APB crossbar
 

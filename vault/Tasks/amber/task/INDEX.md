@@ -21,7 +21,7 @@ by construction rather than by discipline.
 
 ## Open
 
-- [TASK-001](open/TASK-001.md) — G2 rig measurement upgrade: wire
+- **TASK-001** ([page](open/TASK-001.md)) — G2 rig measurement upgrade: wire
   tally_clear/freeze to the harness CSR, injector latency counters
   (stream-perf-profiler analog), bigger/re-armable latch bank, RDL entries
   for the latch readback words.

@@ -41,7 +41,7 @@ modes 9–10 diagonal ports) has landed in
 [`../../fabric-gen-ip/delta`](../../fabric-gen-ip/delta). With §11
 adopted (2026-10-16) the tile RTL is the hierarchical shape — tetrad
 routing nodes, two roots, root mux, tile I/O — not the §2/§4 wrapper
-pair; module boundaries follow the [`cell` PRD](cell/docs/PRD.md)
+pair; module boundaries follow the [`cell` PRD](../cell/docs/PRD.md)
 blocks. The CXS migration (amba lane, in flight) moves the transports
 per §6 without changing the header (§11.6).
 

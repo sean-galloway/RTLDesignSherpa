@@ -27,7 +27,7 @@ Every documentation book source in the repo — the markdown trees the PDFs are
 rendered from — directly linked, organized by area. Rendered PDFs (latest
 revision only) are indexed in the [Docs Library](docs-library.md),
 [Components Library](../projects/components/components-library.md), and
-[FPGA Systems Library](../projects/fpga-library.md).
+[FPGA Systems Library](../projects/fpga-systems/fpga-library.md).
 
 ## RTL Library Books (`docs/markdown/`)
 

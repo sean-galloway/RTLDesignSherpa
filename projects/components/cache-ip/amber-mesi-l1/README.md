@@ -50,7 +50,7 @@ closes the implementation decisions the HAS deferred.
 - **DV:** 19 test roots in the flat `dv/tests/` directory, on the repo-wide
   `make/tests.mk` rails — `make clean-all && make run-all-full-parallel` is
   the sign-off run (350/350 green at 2026-10-15). The D9 SymbiYosys targets
-  (control layer, tiny geometry) are defined under [`../../formal/`](../../../formal/).
+  (control layer, tiny geometry) are defined under [`../../formal/`](../../../../formal/).
 - **Board:** the Genesys 2 pair-rig bring-up is verified end to end — both
   cycle injectors 20000/20000 with clean error flags and live read data in
   the smoke sequence. See the
@@ -99,7 +99,7 @@ caching, ECC integration, virtual memory / TLB handling. See
 ## Layout
 
 `rtl/`, `dv/`, `docs/` follow the per-component layout of
-[`../dma-ip/stream/`](../dma-ip/stream/README.md) (fub/macro/top split,
+[`../dma-ip/stream/`](../../dma-ip/stream/README.md) (fub/macro/top split,
 filelists registry, Pattern-B cocotb tests) and the mandatory rules in
 [`../../CLAUDE.md`](../../CLAUDE.md) (reset macros, shared `sdpram_core` /
 FIFO primitives, array syntax).

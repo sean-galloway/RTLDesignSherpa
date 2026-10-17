@@ -82,7 +82,7 @@ the RTL that has not been written yet.
 - **[HIVE PRD](../../PRD.md)** - Product requirements and roadmap
 - **[RAPIDS Beats MAS](../../../../dma-ip/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md)** - the DMA engine's internals HIVE-C drives
 - **[Delta MAS](../../../../fabric-gen-ip/delta/docs/delta_mas/delta_mas_index.md)** - router/NI internals HIVE configures and monitors
-- **[RISC-V Falcon Suite README](../../../riscv-ip/README.md)** - suite overview (hive-serv moved to the compute-eng-ip family 2026-10-13)
+- **[RISC-V Falcon Suite README](../../../../riscv-ip/README.md)** - suite overview (hive-serv moved to the compute-eng-ip family 2026-10-13)
 
 ---
 

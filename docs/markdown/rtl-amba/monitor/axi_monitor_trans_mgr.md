@@ -529,7 +529,7 @@ Further reading:
 
 - **Monitor Architecture:** [`docs/markdown/rtl-amba/overview.md`](../overview.md)
 - **Monitor Configuration Guide:** [`axi_monitor_base.md`](./axi_monitor_base.md)
-- **Packet Format Specification:** [`monitor_package_spec.md`](../includes/ocelus_package_spec.md)
+- **Packet Format Specification:** [`monitor_package_spec.md`](../includes/monitor_package_spec.md)
 - **Saturation-recovery contract:** [`axi_monitor_base.md`](./axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) and `monitor_common_pkg::cmd_entry_reserve()`
 
 ---

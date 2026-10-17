@@ -233,7 +233,7 @@ per packet type — not by the 128-bit packet width. A **set bit drops** that
 packet type (`pkt_drop = cfg_axi_pkt_mask[pkt_type]` in `axi_monitor_filtered`).
 So `16'b1111_1111_1111_0110` clears bit 0 (`PktTypeError`) and bit 3
 (`PktTypeTimeout`) to let those through and drops everything else. See the
-[Monitor Packet Specification](../includes/ocelus_package_spec.md) for the
+[Monitor Packet Specification](../includes/monitor_package_spec.md) for the
 packet-type enum.
 
 ---
@@ -411,7 +411,7 @@ pytest val/amba/test_axil4_master_rd.py --vcd=waves.vcd -v
 
 ### Configuration and Integration
 - **[AXI Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Monitor setup strategies
-- **[Monitor Packet Specification](../includes/ocelus_package_spec.md)** - 128-bit packet plus 64-bit side-band timestamp
+- **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 128-bit packet plus 64-bit side-band timestamp
 
 ### Source Code
 - RTL: `rtl/amba/axil4/`

@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-021** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-022** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,11 +12,16 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
+
+## Open
+
+- **ISSUE-021** — mc_training_plane ties ZQ demand to 0, so the defer/ZQCL/
+  overdue policy is unreachable.
 
 ## Closed
 

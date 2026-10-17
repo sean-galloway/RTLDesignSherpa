@@ -26,7 +26,7 @@ The Delta generator uses the `Module` framework from `bin/rtl_generators/verilog
 
 ### Figure 3.1: Delta Generator Pipeline
 
-![Delta Generator Pipeline](assets/graphviz/delta_generator_pipeline.png)
+![Delta Generator Pipeline](../assets/graphviz/delta_generator_pipeline.png)
 
 The generator parses its flags into a `DeltaConfig`, builds the `DeltaFlatCrossbar` module skeleton, and `verilog()` appends the sections in file order: the always-present datapath, the AMBA 5 sections (`--amba5`), the counters (unless `--no-counters`) and the `FORMAL`-guarded assertions. `--nodes` also writes the 1:2 splitter. `complete_tree_generator.py`, the retired tree prototype, is a separate script that writes its primitives as strings.
 

@@ -384,7 +384,7 @@ width. `axi_monitor_filtered` computes
 `pkt_drop = cfg_axi_pkt_mask[pkt_type]`, so a set bit **drops** that type. To
 pass only `PktTypeError` (4'h0) and `PktTypeTimeout` (4'h3), clear bits 0 and 3
 and set the rest: `16'b1111_1111_1111_0110`. See the
-[Monitor Packet Specification](../includes/ocelus_package_spec.md) for the
+[Monitor Packet Specification](../includes/monitor_package_spec.md) for the
 full packet-type enum.
 
 ---

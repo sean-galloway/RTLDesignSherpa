@@ -92,7 +92,7 @@ reference is *for* in HIVE terms.
 ## Ideas the library suggests for HIVE (explored 2026-10-13)
 
 Explored in depth with owner input — see
-[design-notes/kick-flow-fifo-deadlock-tlm.md](../design-notes/kick-flow-fifo-deadlock-tlm.md)
+[design-notes/kick-flow-fifo-deadlock-tlm.md](design-notes/kick-flow-fifo-deadlock-tlm.md)
 (kick-vs-pacing separation, FIFO sizing framework, deadlock obligations,
 TLM measurability). In brief:
 

@@ -29,7 +29,7 @@
 > into `projects/components/legacy-ip/retro_legacy_blocks/`; this directory is now
 > `projects/components/legacy-ip/retro_legacy_blocks/known_issues/`. The old `resolved/` and `active/`
 > subdirectories (including `resolved/timer_cleanup_issue.md`) were not carried over -
-> the timer-cleanup fix is documented as TASK-001 in [RLB/hpet TASK-001](../../../../vault/Tasks/RLB/hpet/INDEX.md).
+> the timer-cleanup fix is documented as TASK-001 in [RLB/hpet TASK-001](../../../../../vault/Tasks/RLB/hpet/INDEX.md).
 > Subdirectories are recreated on demand when new issues are filed. Paths below have been
 > updated to the new location.
 

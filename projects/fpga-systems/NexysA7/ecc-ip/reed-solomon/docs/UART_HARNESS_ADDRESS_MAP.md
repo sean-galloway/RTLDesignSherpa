@@ -96,8 +96,8 @@ The address map is extracted from:
 ## Related documents
 
 - Harness datapath diagram:
-  [`../../../Genesys2/ecc-ip/reed-solomon/docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png`](../../../Genesys2/ecc-ip/reed-solomon/docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png)
+  [`../../../Genesys2/ecc-ip/reed-solomon/docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png`](../../../../Genesys2/ecc-ip/reed-solomon/docs/rs_uart_harness/assets/graphviz/01_rs_axis_loop.png)
 - Harness user guide:
-  [`../../../Genesys2/ecc-ip/reed-solomon/docs/UART_HARNESS.md`](../../../Genesys2/ecc-ip/reed-solomon/docs/UART_HARNESS.md)
+  [`../../../Genesys2/ecc-ip/reed-solomon/docs/UART_HARNESS.md`](../../../../Genesys2/ecc-ip/reed-solomon/docs/UART_HARNESS.md)
 - Component math / algorithm docs:
-  [`../../../../components/ecc-ip/reed-solomon/docs/`](../../../../components/ecc-ip/reed-solomon/docs/)
+  [`../../../../components/ecc-ip/reed-solomon/docs/`](../../../../../components/ecc-ip/reed-solomon/docs/)

@@ -64,7 +64,7 @@ with `UartRegisterMap` over the generated `bch_loop_regs_regmap.py`. The only
 raw addresses are the two expansion-window bases (`OBS_AXI4_BASE = 0x00010000`
 and `OBS_AXIS_BASE = 0x00020000`), which match the bridge fabric definition.
 The full address map and register list live in the harness book:
-[Address Map](../bch_uart_harness/ch02_the_harness/03_address_map.md).
+[Address Map](../../bch_uart_harness/ch02_the_harness/03_address_map.md).
 
 Clock and reset come from `bch_loop_genesys2_top`: the 200 MHz LVDS system
 clock passes through `IBUFDS` and an `MMCME2_BASE` with `CLKFBOUT_MULT_F = 6`

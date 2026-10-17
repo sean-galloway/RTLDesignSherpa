@@ -73,7 +73,7 @@ above the mux (§11.1, §8 below). The table's RTL column names predate
 that decision; the wrapper-shaped `tetrad`/`tile_top` plan built on it
 is superseded. The hierarchy's leaves are the cells, defined by the
 cell PRD
-([`compute-eng-ip/cell/docs/PRD.md`](../cell/docs/PRD.md)) — each a
+([`compute-eng-ip/cell/docs/PRD.md`](../../cell/docs/PRD.md)) — each a
 self-contained IP whose only tie to delta is one node instantiated
 inside it.
 

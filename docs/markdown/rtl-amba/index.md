@@ -347,15 +347,15 @@ on-chip counting).
 ## Package Definitions
 
 ### Documented packages
-- **[monitor_amba4_pkg](includes/ocelus_amba4_pkg.md)** - AMBA4 monitor types and packet layout
-- **[monitor_amba5_pkg](includes/ocelus_amba5_pkg.md)** - AMBA5 monitor types and packet layout
-- **[monitor_arbiter_pkg](includes/ocelus_arbiter_pkg.md)** - Monitor-bus arbitration types
-- **[monitor_package_spec](includes/ocelus_package_spec.md)** - The package family, specified
+- **[monitor_amba4_pkg](includes/monitor_amba4_pkg.md)** - AMBA4 monitor types and packet layout
+- **[monitor_amba5_pkg](includes/monitor_amba5_pkg.md)** - AMBA5 monitor types and packet layout
+- **[monitor_arbiter_pkg](includes/monitor_arbiter_pkg.md)** - Monitor-bus arbitration types
+- **[monitor_package_spec](includes/monitor_package_spec.md)** - The package family, specified
 
 ### The other two packages are documented, just not under their own names
 
 `monitor_common_pkg` and `monitor_pkg` have no same-named page and do not need
-one -- [monitor_package_spec](includes/ocelus_package_spec.md) IS their page:
+one -- [monitor_package_spec](includes/monitor_package_spec.md) IS their page:
 
 - **`monitor_common_pkg`** (165 importers, the workhorse) is the subject of
   that whole document -- the 128-bit record, the protocol and packet-type

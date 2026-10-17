@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-**[← Back to Genesys 2](../README.md)** | **[← FPGA Systems Index](../../index.md)**
+**[← Back to Genesys 2](../../)** | **[← FPGA Systems Index](../../../index.md)**
 
 # STREAM DMA on the Genesys 2
 

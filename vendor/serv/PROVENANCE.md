@@ -12,6 +12,9 @@ Vendored copy of the SERV RISC-V core, used by the HIVE subsystem
 - **Dropped:** FuseSoC/Zephyr/wrapper/bench trees (`.git`, `bench/`,
   `servant/`, `servile/`, `serving/`, `sw/`, `zephyr/`, `verif/`, `doc/`,
   `data/`, `west.yml`) — HIVE wraps the core directly.
+- **Local edit:** `README.md` links to `sw/` and `verif/` point at the
+  upstream 1.4.0 tree, since those directories are not vendored. Re-apply
+  after an update (the rsync below restores upstream's root-relative links).
 
 ## Update procedure
 

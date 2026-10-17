@@ -29,7 +29,7 @@
 note 2026-10-16)
 **Status:** Pre-HAS PRD. This document is the cell's product definition;
 the HAS/MAS follow it. The tile architecture it plugs into is the adopted
-hierarchy of [`tile/docs/TILE_SPEC.md`](../tile/docs/TILE_SPEC.md) §11
+hierarchy of [`tile/docs/TILE_SPEC.md`](../../tile/docs/TILE_SPEC.md) §11
 (owner decision 2026-10-16); the packet header, payload types, coordinate,
 and credit/grant protocols referenced below are defined there and are not
 restated except where the cell consumes them.
@@ -288,12 +288,12 @@ face), force credits and grants from the TB, and check the credit loop
 
 ## References
 
-- [`tile/docs/TILE_SPEC.md`](../tile/docs/TILE_SPEC.md) — adopted tile
+- [`tile/docs/TILE_SPEC.md`](../../tile/docs/TILE_SPEC.md) — adopted tile
   hierarchy, §11 packet header, credits/grants (normative for §§3, 5, 6).
-- [`delta_has/ch07_mesh_network/`](../../fabric-gen-ip/delta/docs/delta_has/ch07_mesh_network/)
+- [`delta_has/ch07_mesh_network/`](../../../fabric-gen-ip/delta/docs/delta_has/ch07_mesh_network/)
   — the node the cell instantiates.
 - [`axon_spec.md`](axon_spec.md) — superseded 2026-10-16 (decision trail).
-- [`2026-10-13-delta-mesh-design.md`](../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md)
+- [`2026-10-13-delta-mesh-design.md`](../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md)
   — working design record.
 
 ---

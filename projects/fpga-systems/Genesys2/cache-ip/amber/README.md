@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-**[← Back to Genesys2](../README.md)** | **[← FPGA Systems Index](../../index.md)**
+**[← Back to Genesys2](../../)** | **[← FPGA Systems Index](../../../index.md)**
 
 # Amber MESI L1 Pair-Rig on Genesys 2
 

@@ -322,7 +322,7 @@ wb4_monitor #(
 - [apb_monitor_addr_check](../monitor/apb_monitor_addr_check.md) — the
   shared range checker, tagged `PROTOCOL_WB` here through its `PROTOCOL`
   parameter
-- [monitor_package_spec](../includes/ocelus_package_spec.md) — packet
+- [monitor_package_spec](../includes/monitor_package_spec.md) — packet
   format and protocol ids
 
 ## Testing

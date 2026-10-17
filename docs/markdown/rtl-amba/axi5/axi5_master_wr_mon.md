@@ -635,7 +635,7 @@ Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 - **[AXI5 Master Write Monitor CG](axi5_master_wr_mon_cg.md)** - Monitor + clock gating
 - **[AXI5 Master Read Monitor](axi5_master_rd_mon.md)** - Read variant
 - **[AXI Monitor Filtered](../monitor/axi_monitor_filtered.md)** - Monitor core specification
-- **[Monitor Package Spec](../includes/ocelus_package_spec.md)** - Packet format details
+- **[Monitor Package Spec](../includes/monitor_package_spec.md)** - Packet format details
 - **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Complete configuration reference
 
 ---

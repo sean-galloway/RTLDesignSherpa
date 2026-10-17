@@ -141,12 +141,12 @@ For a more advanced example, we can also run the Dining philosophers demo
 
 
 
-If the [toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain) is installed, other applications can be tested by compiling the assembly program and converting to bin and then hex with makehex.py found in [`$SERV/sw`](/sw/). 
+If the [toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain) is installed, other applications can be tested by compiling the assembly program and converting to bin and then hex with makehex.py found in [`$SERV/sw`](https://github.com/olofk/serv/tree/1.4.0/sw). 
 
 :bulb:RISC-V Compressed Extension can be enabled by passing `--compressed=1` parameter. 
 
 ## Verification
-SERV is verified using RISC-V compliance tests for the base ISA (RV32I) and the implemented extensions (M, C, Zicsr). The instructions on running Compliance tests using RISCOF framework are given in [verif](/verif/) directory.
+SERV is verified using RISC-V compliance tests for the base ISA (RV32I) and the implemented extensions (M, C, Zicsr). The instructions on running Compliance tests using RISCOF framework are given in [verif](https://github.com/olofk/serv/tree/1.4.0/verif) directory.
 
 
 ## Other targets
