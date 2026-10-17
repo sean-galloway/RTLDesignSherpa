@@ -23,7 +23,13 @@
 
 # Axon — Cell Result Router (spec sketch)
 
-**Codename:** axon · **Owner block:** cell · **Status:** pre-HAS sketch
+**Codename:** axon · **Owner block:** cell · **Status:** SUPERSEDED
+2026-10-16 — kept for the decision trail. The cell PRD's output path
+(result memory + packetizer, [`PRD.md`](PRD.md) §§2–3, 6.3) performs the
+collect/packetize/stream role axon sketched, against the adopted
+tile-spec §11 header and credit/grant protocols; the SERV-agent approach
+and the AXIS-only interfaces below predate those adoptions and do not
+apply.
 
 Axon is the block that gets a CGRA's results off the array and onto the
 network: a SERV agent (or a small group of them) paired with the delta AXIS
