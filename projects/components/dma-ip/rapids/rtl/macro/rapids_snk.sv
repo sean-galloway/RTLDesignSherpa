@@ -68,6 +68,9 @@ module rapids_snk #(
     // linear addressing verbatim.
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     parameter bit GEN_MON          = 1'b1,
+    // Engine sharing (see scheduler_group_array): 1 = one descriptor / ctrlrd /
+    // ctrlwr engine per half instead of one per channel.
+    parameter int SHARED_ENGINES   = 1,
     parameter int MON_MAX_TRANSACTIONS = 16,
 
     // Short aliases
@@ -374,7 +377,8 @@ module rapids_snk #(
         .EN_WRITE               (1'b1),
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
-        .GEN_MON                (GEN_MON)
+        .GEN_MON                (GEN_MON),
+        .SHARED_ENGINES         (SHARED_ENGINES)
     ) u_scheduler_group_array (
         .clk                    (clk),
         .rst_n                  (rst_n),

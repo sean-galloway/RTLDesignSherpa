@@ -9,6 +9,14 @@
 
 -f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro/scheduler_group.f
 
+# Shared engines (SHARED_ENGINES=1): one descriptor / ctrlrd / ctrlwr engine per
+# array. Their dependencies (rapids_pkg, gaxi_fifo_sync, ctrlrd_engine,
+# ctrlwr_engine) already arrive through scheduler_group.f, so the modules are
+# listed directly; including the *_shared.f lists would compile those twice.
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/descriptor_engine_shared.sv
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/ctrlrd_engine_shared.sv
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/ctrlwr_engine_shared.sv
+
 # Additional common RTL dependencies (not in axi4_master_rd_mon.f)
 -f $REPO_ROOT/rtl/common/filelists/counter_freq_invariant.f
 

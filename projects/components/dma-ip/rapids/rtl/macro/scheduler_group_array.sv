@@ -63,6 +63,12 @@ module scheduler_group_array #(
     // linear addressing verbatim.
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     parameter bit GEN_MON          = 1'b1,
+    // Engine sharing. 0: one descriptor / ctrlrd / ctrlwr engine per channel,
+    // their AXI masters merged by AXI-side arbiters (the original structure).
+    // 1: one of each engine for the whole array, picking among the channels'
+    // schedulers round-robin (descriptor_engine_shared, ctrlrd_engine_shared,
+    // ctrlwr_engine_shared); the engines own the AXI masters outright.
+    parameter int SHARED_ENGINES   = 1,
     parameter int OFF_W = $clog2(DATA_WIDTH / 8)     // byte offset width (TASK-019)
 ) (
     // Clock and Reset
@@ -394,8 +400,21 @@ module scheduler_group_array #(
     monitor_common_pkg::monitor_packet_t        desc_axi_mon_packet;
     monitor_common_pkg::monbus_timestamp_t      desc_axi_mon_timestamp;
 
+    // Shared engines' MonBus streams (driven only when SHARED_ENGINES != 0)
+    logic                                       sh_desc_mon_valid,   sh_desc_mon_ready;
+    monitor_common_pkg::monitor_packet_t        sh_desc_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      sh_desc_mon_timestamp;
+    logic                                       sh_ctrlrd_mon_valid, sh_ctrlrd_mon_ready;
+    monitor_common_pkg::monitor_packet_t        sh_ctrlrd_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      sh_ctrlrd_mon_timestamp;
+    logic                                       sh_ctrlwr_mon_valid, sh_ctrlwr_mon_ready;
+    monitor_common_pkg::monitor_packet_t        sh_ctrlwr_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      sh_ctrlwr_mon_timestamp;
+
     // Combined MonBus arrays (9 sources: 8 channels + 1 desc AXI monitor)
-    localparam int MONBUS_SOURCES = NUM_CHANNELS + 1;
+    //   per-channel engines: one stream per scheduler_group + desc AXI monitor
+    //   shared engines: one per scheduler + desc / ctrlrd / ctrlwr engines + monitor
+    localparam int MONBUS_SOURCES = (SHARED_ENGINES != 0) ? NUM_CHANNELS + 4 : NUM_CHANNELS + 1;
     // Use unpacked arrays to match monbus_arbiter port types
     logic                                       monbus_valid_all     [MONBUS_SOURCES];
     logic                                       monbus_ready_all     [MONBUS_SOURCES];
@@ -407,6 +426,7 @@ module scheduler_group_array #(
     //=========================================================================
 
     generate
+    if (SHARED_ENGINES == 0) begin : g_per_channel
         for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_scheduler_groups
             scheduler_group #(
                 .CHANNEL_ID             (ch),
@@ -567,7 +587,6 @@ module scheduler_group_array #(
                 .mon_timestamp          (mon_timestamp_ch[ch])
             );
         end
-    endgenerate
 
     //=========================================================================
     // Descriptor AXI AR Channel Arbitration
@@ -835,6 +854,291 @@ module scheduler_group_array #(
         end
     end
 
+    end else begin : g_shared
+        //---------------------------------------------------------------------
+        // Shared engines: one scheduler per channel, ONE descriptor engine,
+        // ONE ctrlrd engine and ONE ctrlwr engine for the whole array. Each
+        // engine picks among the schedulers round-robin and owns its AXI
+        // master outright, so the AXI-side arbiters of the per-channel
+        // structure are gone.
+        //---------------------------------------------------------------------
+        logic [NUM_CHANNELS-1:0]                  s_desc_valid, s_desc_ready, s_desc_error;
+        logic [NUM_CHANNELS-1:0][255:0]           s_desc_packet, s_desc_ext;
+        logic [NUM_CHANNELS-1:0]                  s_ctrlrd_valid, s_ctrlrd_ready;
+        logic [NUM_CHANNELS-1:0]                  s_ctrlrd_error, s_ctrlrd_idle;
+        logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]  s_ctrlrd_addr;
+        logic [NUM_CHANNELS-1:0][31:0]            s_ctrlrd_data, s_ctrlrd_mask;
+        logic [NUM_CHANNELS-1:0]                  s_ctrlwr_valid, s_ctrlwr_ready;
+        logic [NUM_CHANNELS-1:0]                  s_ctrlwr_error, s_ctrlwr_idle;
+        logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]  s_ctrlwr_addr;
+        logic [NUM_CHANNELS-1:0][31:0]            s_ctrlwr_data;
+
+        logic                                     s_dmon_valid, s_dmon_ready;
+        monitor_common_pkg::monitor_packet_t      s_dmon_packet;
+        monitor_common_pkg::monbus_timestamp_t    s_dmon_timestamp;
+
+        for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_schedulers
+            logic                                   w_smon_valid, w_smon_ready;
+            monitor_common_pkg::monitor_packet_t    w_smon_packet;
+            logic                                   w_smon_pass;
+
+            scheduler #(
+                .CHANNEL_ID             (ch),
+                .NUM_CHANNELS           (NUM_CHANNELS),
+                .CHAN_WIDTH             (CHAN_WIDTH),
+                .ADDR_WIDTH             (ADDR_WIDTH),
+                .DATA_WIDTH             (DATA_WIDTH),
+                .MON_AGENT_ID           (16'(SCHED_MON_BASE_AGENT_ID + ch)),
+                .MON_UNIT_ID            (8'(MON_UNIT_ID)),
+                .MON_CHANNEL_ID         (9'(ch)),
+                .EN_READ                (EN_READ),
+                .EN_WRITE               (EN_WRITE),
+                .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING)
+            ) u_scheduler (
+                .clk                     (clk),
+                .rst_n                   (rst_n),
+                .cfg_channel_enable      (cfg_channel_enable[ch]),
+                .cfg_channel_reset       (cfg_channel_reset[ch]),
+                .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+                .cfg_sched_timeout_limit (cfg_sched_timeout_limit),
+                .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
+                .scheduler_idle          (scheduler_idle[ch]),
+                .scheduler_state         (scheduler_state[ch]),
+                .sched_error             (sched_error[ch]),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .dbg_descriptor_error    (),
+                .dbg_read_error_sticky   (),
+                .dbg_write_error_sticky  (),
+                .dbg_timeout_expired     (),
+                /* verilator lint_on PINCONNECTEMPTY */
+                .descriptor_valid        (s_desc_valid[ch]),
+                .descriptor_ready        (s_desc_ready[ch]),
+                .descriptor_packet       (s_desc_packet[ch]),
+                .descriptor_ext_packet   (s_desc_ext[ch]),
+                .descriptor_error        (s_desc_error[ch]),
+                .sched_rd_valid          (sched_rd_valid[ch]),
+                .sched_rd_addr           (sched_rd_addr[ch]),
+                .sched_rd_beats          (sched_rd_beats[ch]),
+                .sched_rd_pkt_valid      (sched_rd_pkt_valid[ch]),
+                .sched_rd_pkt_ready      (sched_rd_pkt_ready[ch]),
+                .sched_rd_pkt_bytes      (sched_rd_pkt_bytes[ch]),
+                .sched_rd_pkt_offset     (sched_rd_pkt_offset[ch]),
+                .sched_wr_valid          (sched_wr_valid[ch]),
+                .sched_wr_ready          (sched_wr_ready[ch]),
+                .sched_wr_addr           (sched_wr_addr[ch]),
+                .sched_wr_beats          (sched_wr_beats[ch]),
+                .sched_wr_pkt_valid      (sched_wr_pkt_valid[ch]),
+                .sched_wr_pkt_ready      (sched_wr_pkt_ready[ch]),
+                .sched_wr_pkt_bytes      (sched_wr_pkt_bytes[ch]),
+                .sched_wr_pkt_offset     (sched_wr_pkt_offset[ch]),
+                .sched_rd_done_strobe    (sched_rd_done_strobe[ch]),
+                .sched_rd_beats_done     (sched_rd_beats_done[ch]),
+                .sched_wr_done_strobe    (sched_wr_done_strobe[ch]),
+                .sched_wr_beats_done     (sched_wr_beats_done[ch]),
+                .sched_wr_commit_strobe  (sched_wr_commit_strobe[ch]),
+                .sched_wr_commit_beats   (sched_wr_commit_beats[ch]),
+                .sched_rd_error          (sched_rd_error[ch]),
+                .sched_wr_error          (sched_wr_error[ch]),
+                .ctrlrd_valid            (s_ctrlrd_valid[ch]),
+                .ctrlrd_ready            (s_ctrlrd_ready[ch]),
+                .ctrlrd_addr             (s_ctrlrd_addr[ch]),
+                .ctrlrd_data             (s_ctrlrd_data[ch]),
+                .ctrlrd_mask             (s_ctrlrd_mask[ch]),
+                .ctrlrd_error            (s_ctrlrd_error[ch]),
+                .ctrlrd_idle             (s_ctrlrd_idle[ch]),
+                .ctrlwr_valid            (s_ctrlwr_valid[ch]),
+                .ctrlwr_ready            (s_ctrlwr_ready[ch]),
+                .ctrlwr_addr             (s_ctrlwr_addr[ch]),
+                .ctrlwr_data             (s_ctrlwr_data[ch]),
+                .ctrlwr_error            (s_ctrlwr_error[ch]),
+                .ctrlwr_idle             (s_ctrlwr_idle[ch]),
+                .i_mon_time              (i_mon_time),
+                .mon_valid               (w_smon_valid),
+                .mon_ready               (w_smon_ready),
+                .mon_packet              (w_smon_packet),
+                .mon_timestamp           (mon_timestamp_ch[ch])
+            );
+
+            // SCHED_CONFIG.COMPL_EN gates Completion packets (rapids ISSUE-005),
+            // GEN_MON gates the stream entirely -- as scheduler_group does.
+            assign w_smon_pass        = cfg_sched_compl_enable ||
+                                        (monitor_common_pkg::get_packet_type(w_smon_packet)
+                                         != monitor_common_pkg::PktTypeCompletion);
+            assign mon_valid_ch[ch]   = w_smon_valid && w_smon_pass && GEN_MON;
+            assign w_smon_ready       = (w_smon_pass && GEN_MON) ? mon_ready_ch[ch] : 1'b1;
+            assign mon_packet_ch[ch]  = w_smon_packet;
+        end
+
+        descriptor_engine_shared #(
+            .NUM_CHANNELS   (NUM_CHANNELS),
+            .CHAN_WIDTH     ((CHAN_WIDTH > 0) ? CHAN_WIDTH : 1),
+            .ADDR_WIDTH     (ADDR_WIDTH),
+            .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+            .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
+            .MON_AGENT_BASE (16'(DESC_MON_BASE_AGENT_ID)),
+            .MON_UNIT_ID    (8'(MON_UNIT_ID))
+        ) u_desc_engine (
+            .clk                    (clk),
+            .rst_n                  (rst_n),
+            .apb_valid              (apb_valid),
+            .apb_ready              (apb_ready),
+            .apb_addr               (apb_addr),
+            .channel_idle           (scheduler_idle),
+            .descriptor_valid       (s_desc_valid),
+            .descriptor_ready       (s_desc_ready),
+            .descriptor_packet      (s_desc_packet),
+            .descriptor_ext_packet  (s_desc_ext),
+            .descriptor_error       (s_desc_error),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .descriptor_eos         (),
+            .descriptor_eol         (),
+            .descriptor_eod         (),
+            .descriptor_type        (),
+            /* verilator lint_on PINCONNECTEMPTY */
+            .ar_valid               (desc_axi_int_arvalid),
+            .ar_ready               (desc_axi_int_arready),
+            .ar_addr                (desc_axi_int_araddr),
+            .ar_len                 (desc_axi_int_arlen),
+            .ar_size                (desc_axi_int_arsize),
+            .ar_burst               (desc_axi_int_arburst),
+            .ar_id                  (desc_axi_int_arid),
+            .ar_lock                (desc_axi_int_arlock),
+            .ar_cache               (desc_axi_int_arcache),
+            .ar_prot                (desc_axi_int_arprot),
+            .ar_qos                 (desc_axi_int_arqos),
+            .ar_region              (desc_axi_int_arregion),
+            .r_valid                (desc_axi_int_rvalid),
+            .r_ready                (desc_axi_int_rready),
+            .r_data                 (desc_axi_int_rdata),
+            .r_resp                 (desc_axi_int_rresp),
+            .r_last                 (desc_axi_int_rlast),
+            .r_id                   (desc_axi_int_rid),
+            .cfg_prefetch_enable    (cfg_desceng_prefetch),
+            .cfg_fifo_threshold     (cfg_desceng_fifo_thresh),
+            .cfg_addr0_base         (cfg_desceng_addr0_base),
+            .cfg_addr0_limit        (cfg_desceng_addr0_limit),
+            .cfg_addr1_base         (cfg_desceng_addr1_base),
+            .cfg_addr1_limit        (cfg_desceng_addr1_limit),
+            .cfg_channel_reset      (cfg_channel_reset),
+            .descriptor_engine_idle (descriptor_engine_idle),
+            .i_mon_time             (i_mon_time),
+            .mon_valid              (s_dmon_valid),
+            .mon_ready              (s_dmon_ready),
+            .mon_packet             (s_dmon_packet),
+            .mon_timestamp          (s_dmon_timestamp)
+        );
+
+        // Descriptor-engine stream: COMPL_EN and GEN_MON gating, as before
+        logic w_dmon_pass;
+        assign w_dmon_pass             = cfg_sched_compl_enable ||
+                                         (monitor_common_pkg::get_packet_type(s_dmon_packet)
+                                          != monitor_common_pkg::PktTypeCompletion);
+        assign sh_desc_mon_valid       = s_dmon_valid && w_dmon_pass && GEN_MON;
+        assign s_dmon_ready            = (w_dmon_pass && GEN_MON) ? sh_desc_mon_ready : 1'b1;
+        assign sh_desc_mon_packet      = s_dmon_packet;
+        assign sh_desc_mon_timestamp   = s_dmon_timestamp;
+
+        logic w_crmon_valid, w_cwmon_valid;
+        logic w_crmon_ready, w_cwmon_ready;
+
+        ctrlrd_engine_shared #(
+            .NUM_CHANNELS   (NUM_CHANNELS),
+            .CHAN_WIDTH     ((CHAN_WIDTH > 0) ? CHAN_WIDTH : 1),
+            .ADDR_WIDTH     (ADDR_WIDTH),
+            .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+            .MON_AGENT_BASE (16'h0020),
+            .MON_UNIT_ID    (8'(MON_UNIT_ID))
+        ) u_ctrlrd_engine (
+            .clk                (clk),
+            .rst_n              (rst_n),
+            .ctrlrd_valid       (s_ctrlrd_valid),
+            .ctrlrd_ready       (s_ctrlrd_ready),
+            .ctrlrd_addr        (s_ctrlrd_addr),
+            .ctrlrd_data        (s_ctrlrd_data),
+            .ctrlrd_mask        (s_ctrlrd_mask),
+            .ctrlrd_error       (s_ctrlrd_error),
+            .ctrlrd_idle        (s_ctrlrd_idle),
+            .cfg_ctrlrd_max_try (cfg_ctrlrd_max_try),
+            .cfg_channel_reset  (cfg_channel_reset),
+            .tick_1us           (tick_1us),
+            .ar_valid           (ctrlrd_axi_arvalid),
+            .ar_ready           (ctrlrd_axi_arready),
+            .ar_addr            (ctrlrd_axi_araddr),
+            .ar_len             (ctrlrd_axi_arlen),
+            .ar_size            (ctrlrd_axi_arsize),
+            .ar_burst           (ctrlrd_axi_arburst),
+            .ar_id              (ctrlrd_axi_arid),
+            .ar_lock            (ctrlrd_axi_arlock),
+            .ar_cache           (ctrlrd_axi_arcache),
+            .ar_prot            (ctrlrd_axi_arprot),
+            .ar_qos             (ctrlrd_axi_arqos),
+            .ar_region          (ctrlrd_axi_arregion),
+            .r_valid            (ctrlrd_axi_rvalid),
+            .r_ready            (ctrlrd_axi_rready),
+            .r_data             (ctrlrd_axi_rdata),
+            .r_id               (ctrlrd_axi_rid),
+            .r_resp             (ctrlrd_axi_rresp),
+            .r_last             (ctrlrd_axi_rlast),
+            .i_mon_time         (i_mon_time),
+            .mon_valid          (w_crmon_valid),
+            .mon_ready          (w_crmon_ready),
+            .mon_packet         (sh_ctrlrd_mon_packet),
+            .mon_timestamp      (sh_ctrlrd_mon_timestamp)
+        );
+
+        ctrlwr_engine_shared #(
+            .NUM_CHANNELS   (NUM_CHANNELS),
+            .CHAN_WIDTH     ((CHAN_WIDTH > 0) ? CHAN_WIDTH : 1),
+            .ADDR_WIDTH     (ADDR_WIDTH),
+            .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+            .MON_AGENT_BASE (16'h0028),
+            .MON_UNIT_ID    (8'(MON_UNIT_ID))
+        ) u_ctrlwr_engine (
+            .clk                (clk),
+            .rst_n              (rst_n),
+            .ctrlwr_valid       (s_ctrlwr_valid),
+            .ctrlwr_ready       (s_ctrlwr_ready),
+            .ctrlwr_addr        (s_ctrlwr_addr),
+            .ctrlwr_data        (s_ctrlwr_data),
+            .ctrlwr_error       (s_ctrlwr_error),
+            .ctrlwr_idle        (s_ctrlwr_idle),
+            .cfg_channel_reset  (cfg_channel_reset),
+            .aw_valid           (ctrlwr_axi_awvalid),
+            .aw_ready           (ctrlwr_axi_awready),
+            .aw_addr            (ctrlwr_axi_awaddr),
+            .aw_len             (ctrlwr_axi_awlen),
+            .aw_size            (ctrlwr_axi_awsize),
+            .aw_burst           (ctrlwr_axi_awburst),
+            .aw_id              (ctrlwr_axi_awid),
+            .aw_lock            (ctrlwr_axi_awlock),
+            .aw_cache           (ctrlwr_axi_awcache),
+            .aw_prot            (ctrlwr_axi_awprot),
+            .aw_qos             (ctrlwr_axi_awqos),
+            .aw_region          (ctrlwr_axi_awregion),
+            .w_valid            (ctrlwr_axi_wvalid),
+            .w_ready            (ctrlwr_axi_wready),
+            .w_data             (ctrlwr_axi_wdata),
+            .w_strb             (ctrlwr_axi_wstrb),
+            .w_last             (ctrlwr_axi_wlast),
+            .b_valid            (ctrlwr_axi_bvalid),
+            .b_ready            (ctrlwr_axi_bready),
+            .b_id               (ctrlwr_axi_bid),
+            .b_resp             (ctrlwr_axi_bresp),
+            .i_mon_time         (i_mon_time),
+            .mon_valid          (w_cwmon_valid),
+            .mon_ready          (w_cwmon_ready),
+            .mon_packet         (sh_ctrlwr_mon_packet),
+            .mon_timestamp      (sh_ctrlwr_mon_timestamp)
+        );
+
+        // GEN_MON gates the control engines' streams (scheduler_group did)
+        assign sh_ctrlrd_mon_valid = w_crmon_valid && GEN_MON;
+        assign w_crmon_ready       = GEN_MON ? sh_ctrlrd_mon_ready : 1'b1;
+        assign sh_ctrlwr_mon_valid = w_cwmon_valid && GEN_MON;
+        assign w_cwmon_ready       = GEN_MON ? sh_ctrlwr_mon_ready : 1'b1;
+    end
+    endgenerate
+
     //=========================================================================
     // Data Read/Write Interface - Direct Passthrough (NO ARBITRATION)
     //=========================================================================
@@ -1019,23 +1323,54 @@ module scheduler_group_array #(
     // Monitor Bus Aggregation
     //=========================================================================
 
-    // Combine channel monitor buses + descriptor AXI monitor
-    // Each source contributes packet + side-band timestamp.
-    always_comb begin
-        // 8 channel monitors
-        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
-            monbus_valid_all[ch]     = mon_valid_ch[ch];
-            mon_ready_ch[ch]         = monbus_ready_all[ch];
-            monbus_packet_all[ch]    = mon_packet_ch[ch];
-            monbus_timestamp_all[ch] = mon_timestamp_ch[ch];
+    // Combine the channel streams, the descriptor AXI monitor and (shared
+    // engines only) the three engines' streams. Each source contributes packet
+    // + side-band timestamp. One complete always_comb per build so no index is
+    // ever out of range.
+    generate
+    if (SHARED_ENGINES == 0) begin : g_agg_per_channel
+        always_comb begin
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+                monbus_valid_all[ch]     = mon_valid_ch[ch];
+                mon_ready_ch[ch]         = monbus_ready_all[ch];
+                monbus_packet_all[ch]    = mon_packet_ch[ch];
+                monbus_timestamp_all[ch] = mon_timestamp_ch[ch];
+            end
+            monbus_valid_all[NUM_CHANNELS]     = desc_axi_mon_valid;
+            desc_axi_mon_ready                 = monbus_ready_all[NUM_CHANNELS];
+            monbus_packet_all[NUM_CHANNELS]    = desc_axi_mon_packet;
+            monbus_timestamp_all[NUM_CHANNELS] = desc_axi_mon_timestamp;
         end
-
-        // Descriptor AXI monitor (source 8)
-        monbus_valid_all[NUM_CHANNELS]     = desc_axi_mon_valid;
-        desc_axi_mon_ready                 = monbus_ready_all[NUM_CHANNELS];
-        monbus_packet_all[NUM_CHANNELS]    = desc_axi_mon_packet;
-        monbus_timestamp_all[NUM_CHANNELS] = desc_axi_mon_timestamp;
+        assign sh_desc_mon_ready   = 1'b1;
+        assign sh_ctrlrd_mon_ready = 1'b1;
+        assign sh_ctrlwr_mon_ready = 1'b1;
+    end else begin : g_agg_shared
+        always_comb begin
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+                monbus_valid_all[ch]     = mon_valid_ch[ch];
+                mon_ready_ch[ch]         = monbus_ready_all[ch];
+                monbus_packet_all[ch]    = mon_packet_ch[ch];
+                monbus_timestamp_all[ch] = mon_timestamp_ch[ch];
+            end
+            monbus_valid_all[NUM_CHANNELS]       = desc_axi_mon_valid;
+            desc_axi_mon_ready                   = monbus_ready_all[NUM_CHANNELS];
+            monbus_packet_all[NUM_CHANNELS]      = desc_axi_mon_packet;
+            monbus_timestamp_all[NUM_CHANNELS]   = desc_axi_mon_timestamp;
+            monbus_valid_all[NUM_CHANNELS+1]     = sh_desc_mon_valid;
+            sh_desc_mon_ready                    = monbus_ready_all[NUM_CHANNELS+1];
+            monbus_packet_all[NUM_CHANNELS+1]    = sh_desc_mon_packet;
+            monbus_timestamp_all[NUM_CHANNELS+1] = sh_desc_mon_timestamp;
+            monbus_valid_all[NUM_CHANNELS+2]     = sh_ctrlrd_mon_valid;
+            sh_ctrlrd_mon_ready                  = monbus_ready_all[NUM_CHANNELS+2];
+            monbus_packet_all[NUM_CHANNELS+2]    = sh_ctrlrd_mon_packet;
+            monbus_timestamp_all[NUM_CHANNELS+2] = sh_ctrlrd_mon_timestamp;
+            monbus_valid_all[NUM_CHANNELS+3]     = sh_ctrlwr_mon_valid;
+            sh_ctrlwr_mon_ready                  = monbus_ready_all[NUM_CHANNELS+3];
+            monbus_packet_all[NUM_CHANNELS+3]    = sh_ctrlwr_mon_packet;
+            monbus_timestamp_all[NUM_CHANNELS+3] = sh_ctrlwr_mon_timestamp;
+        end
     end
+    endgenerate
 
     // Aggregate all monitor sources (packet + side-band timestamp)
     monbus_arbiter #(

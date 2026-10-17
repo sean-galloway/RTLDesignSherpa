@@ -57,6 +57,7 @@ MARKERS = (
     'ctrlrd: Control read engine tests',
     'scheduler: Scheduler tests',
     'descriptor_engine: Descriptor-engine tests',
+    'descriptor_engine_shared: Shared descriptor-engine tests (one engine, every channel)',
     'alloc_ctrl: Alloc-ctrl tests',
     'drain_ctrl: Drain-ctrl tests',
     'latency_bridge: Latency-bridge tests',

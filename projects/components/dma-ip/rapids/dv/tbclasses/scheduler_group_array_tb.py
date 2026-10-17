@@ -714,6 +714,71 @@ class SchedulerGroupArrayTB(TBBase):
             self._ctrl_resp_active = False
             await self.wait_clocks(self.clk_name, 3)
 
+    async def test_ctrl_error_handoff(self, ch_fail: int = 0, ch_ok: int = 1) -> Tuple[bool, Dict[str, Any]]:
+        """A failed CTRL_READ on one channel must not fail the next channel.
+
+        ch_fail's gate never matches, so it exhausts cfg_ctrlrd_max_try and errors.
+        ch_ok then issues a gate that matches. With one ctrlrd engine shared by the
+        array (SHARED_ENGINES=1) the engine still holds the ch_fail error when ch_ok
+        takes it over; ch_ok must still complete without a scheduler error (the
+        regression for the shared-engine stale-error bug). It also passes on the
+        per-channel build, where the engines are separate.
+        """
+        self.log.info(f"=== Control Error Handoff Test: fail=ch{ch_fail} ok=ch{ch_ok} ===")
+        self.clear_descriptor_lookup()
+        a_fail, a_ok = 0x3000 + ch_fail * 0x100, 0x3000 + ch_ok * 0x100
+        self.ctrlrd_reads = []
+        self.ctrlrd_memory.write(a_fail, bytearray((0x0).to_bytes(4, 'little')))   # never matches
+        self.ctrlrd_memory.write(a_ok,   bytearray((0x1).to_bytes(4, 'little')))   # matches
+        self.dut.cfg_ctrlrd_max_try.value = 2
+        state = {'ticking': True}
+
+        async def tick_driver():
+            while state['ticking']:
+                await self.wait_clocks(self.clk_name, 15)
+                self.dut.tick_1us.value = 1
+                await self.wait_clocks(self.clk_name, 1)
+                self.dut.tick_1us.value = 0
+
+        tick_task = cocotb.start_soon(tick_driver())
+        errors = 0
+        try:
+            # 1. ch_fail: a gate that never opens -> retries exhausted -> error
+            desc = self.create_descriptor(src_addr=a_fail, dst_addr=((0x1 << 32) | 0x1), length=1, opcode=1)
+            self.register_descriptor(32 * (ch_fail + 1), desc)
+            await self.send_apb_request(ch_fail, 32 * (ch_fail + 1))
+            await self.respond_to_descriptor_read()
+            for _ in range(5000):
+                if self.has_scheduler_error(ch_fail):
+                    break
+                await self.wait_clocks(self.clk_name, 1)
+            if not self.has_scheduler_error(ch_fail):
+                self.log.error(f"ch{ch_fail}: the non-matching gate never errored")
+                errors += 1
+
+            # 2. ch_ok: a gate that opens on the first read
+            desc = self.create_descriptor(src_addr=a_ok, dst_addr=((0x1 << 32) | 0x1), length=1, opcode=1)
+            self.register_descriptor(32 * (ch_ok + 1), desc)
+            await self.send_apb_request(ch_ok, 32 * (ch_ok + 1))
+            await self.respond_to_descriptor_read()
+            if not await self._wait_busy_then_idle([ch_ok], timeout=3000):
+                self.log.error(f"ch{ch_ok}: gate did not complete")
+                errors += 1
+            if self.has_scheduler_error(ch_ok):
+                self.log.error(f"ch{ch_ok}: inherited the ch{ch_fail} ctrlrd error (stale engine error)")
+                errors += 1
+            if not any(ch == ch_ok for (ch, _a) in self.ctrlrd_reads):
+                self.log.error(f"ch{ch_ok} never issued a ctrlrd poll")
+                errors += 1
+            success = errors == 0
+            self.log.info(f"Control error handoff test: {'PASSED' if success else 'FAILED'}")
+            return (success, {'reads': len(self.ctrlrd_reads)})
+        finally:
+            state['ticking'] = False
+            await self.wait_clocks(self.clk_name, 20)
+            tick_task.cancel()
+            self.dut.cfg_ctrlrd_max_try.value = 16
+
     # ==========================================================================
     # TEST METHODS
     # ==========================================================================

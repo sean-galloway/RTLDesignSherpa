@@ -87,6 +87,9 @@ module rapids_top_base #(
     // linear addressing verbatim.
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     parameter bit GEN_MON              = 1'b1,
+    // Engine sharing (see scheduler_group_array): 1 = one descriptor / ctrlrd /
+    // ctrlwr engine per half instead of one per channel.
+    parameter int SHARED_ENGINES   = 1,
     //   USE_MON_REGS: whether the MON register windows (SRC and SNK, each at
     //   +0x800 of its 4 KB regfile) are wired to monitor logic. Defaults to
     //   USE_AXI_MONITORS, as in STREAM. When 0 the config blocks strap every
@@ -1578,7 +1581,8 @@ module rapids_top_base #(
         .MON_MAX_TRANSACTIONS (MON_MAX_TRANSACTIONS),
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS     (USE_AXI_MONITORS),
-        .GEN_MON              (GEN_MON)
+        .GEN_MON              (GEN_MON),
+        .SHARED_ENGINES       (SHARED_ENGINES)
     ) u_core (
         .clk    (aclk),
         .rst_n  (w_aresetn),

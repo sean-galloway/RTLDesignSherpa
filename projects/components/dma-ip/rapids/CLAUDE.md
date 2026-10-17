@@ -76,6 +76,16 @@
 > defaults to 32 (one credit = one flit; ~3-cycle credit round trip), owner 2026-10-16; above 63 needs
 > `CXS_CREDIT_BEYOND_SPEC`. It is not tied to SRAM_DEPTH, which is beats per channel.
 > CXS cells must include a concurrent-channel case: single-channel cells hid the framing bug.
+>
+> **Shared engines (2026-10-16, byte tree):** `scheduler_group_array` has `SHARED_ENGINES` (default 1,
+> threaded through `rapids_src`/`rapids_snk`/`rapids_core`/`rapids_top_base` and the generated tops):
+> ONE `descriptor_engine_shared`, `ctrlrd_engine_shared`, `ctrlwr_engine_shared` per half (`rtl/fub/`),
+> arbitrating on the scheduler side and owning their AXI masters; 0 restores the per-channel engines and
+> AXI-side arbiters. Measured OOC synthesis, rapids_core 256-bit, monitors off: 16 channels = 77.6k LUTs
+> shared vs 109.5k per-channel. Traps: a shared ctrl engine keeps its error until the next success, so the
+> wrapper clears a stale error before handing the engine to another channel (`test_..._ctrl_error_handoff`
+> guards it, mutation-checked); the descriptor engine registers its pick in an issue slot because the
+> unregistered pick -> 16:1 mux -> range compare path missed 100 MHz at 16 channels.
 
 **Complete Specification:**
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`

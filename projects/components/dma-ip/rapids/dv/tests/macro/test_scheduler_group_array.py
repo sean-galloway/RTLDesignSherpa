@@ -97,6 +97,18 @@ async def cocotb_test_ctrl_multi_channel_gate(dut):
     assert result, f"Multi-channel gate test failed: {stats}"
 
 
+@cocotb.test(timeout_time=500, timeout_unit="ms")
+async def cocotb_test_ctrl_error_handoff(dut):
+    """A failed CTRL_READ on one channel must not fail the next channel (shared-engine stale error)"""
+    tb = SchedulerGroupArrayTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result, stats = await tb.test_ctrl_error_handoff(ch_fail=0, ch_ok=1)
+    tb.finalize_test()
+    tb.print_test_summary()
+    assert result, f"Control error handoff test failed: {stats}"
+
+
 @cocotb.test(timeout_time=400, timeout_unit="ms")
 async def cocotb_test_multi_channel_concurrent(dut):
     """Test concurrent operations on multiple channels"""
@@ -232,6 +244,16 @@ def test_scheduler_group_array_ctrl_multi_channel_doorbell(request, num_channels
 def test_scheduler_group_array_ctrl_multi_channel_gate(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
     """Pytest: multi-channel CTRL_READ gates through the shared arbitrated ctrlrd master"""
     _run_scheduler_group_array_test(request, "cocotb_test_ctrl_multi_channel_gate",
+                                           num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
+
+
+@pytest.mark.macro
+@pytest.mark.scheduler_group_array
+@pytest.mark.parametrize("num_channels, addr_width, data_width, axi_id_width, timing_profile", scheduler_group_array_params)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_group_array_ctrl_error_handoff(request, num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level):
+    """Pytest: a failed CTRL_READ on one channel must not fail the next channel"""
+    _run_scheduler_group_array_test(request, "cocotb_test_ctrl_error_handoff",
                                            num_channels, addr_width, data_width, axi_id_width, timing_profile, test_level=test_level)
 
 

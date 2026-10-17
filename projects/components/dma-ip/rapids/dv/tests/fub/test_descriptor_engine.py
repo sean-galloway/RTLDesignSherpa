@@ -326,7 +326,7 @@ def test_descriptor_engine_long_chain(request, channel_id, num_channels, axi_id_
 # ===========================================================================
 
 def _run_descriptor_engine_test(request, testcase_name, channel_id, num_channels, axi_id_width,
-                                timing_profile='default', test_level='gate'):
+                                timing_profile='default', test_level='gate', dut_name="descriptor_engine"):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run descriptor engine tests with AMBA pattern.
 
@@ -344,12 +344,16 @@ def _run_descriptor_engine_test(request, testcase_name, channel_id, num_channels
         'rtl_fub': '../../rtl/fub'
     })
 
-    dut_name = "descriptor_engine"
+    # dut_name selects the per-channel engine or descriptor_engine_shared,
+    # which runs these same cocotb tests as a one-channel build (the
+    # single-channel equivalence check; multi-channel behaviour is covered by
+    # the scheduler_group_array, core and top suites).
+    shared = (dut_name == "descriptor_engine_shared")
 
     # Get Verilog sources from file list
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dma-ip/rapids/rtl/filelists/fub/descriptor_engine.f'
+        filelist_path=f'projects/components/dma-ip/rapids/rtl/filelists/fub/{dut_name}.f'
     )
 
     # Format parameters for unique test name (AMBA pattern with TBBase.format_dec())
@@ -385,6 +389,16 @@ def _run_descriptor_engine_test(request, testcase_name, channel_id, num_channels
         'DESC_ADDR_FIFO_DEPTH': 2,
         'TIMEOUT_CYCLES': 1000,
     }
+    if shared:
+        # One channel: channel 0, ARID 0, the same port widths as the
+        # per-channel engine.
+        rtl_parameters = {
+            'NUM_CHANNELS': 1,
+            'CHAN_WIDTH': 1,
+            'ADDR_WIDTH': 64,
+            'AXI_ID_WIDTH': axi_id_width,
+            'FIFO_DEPTH': 8,
+        }
 
     extra_env = {
         'LOG_PATH': log_path,
