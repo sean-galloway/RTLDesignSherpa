@@ -53,6 +53,7 @@ COCOTB_TESTS = [
     "basic_descriptor_flow", "control_descriptor_decode", "descriptor_chaining",
     "address_range_validation", "channel_reset", "invalid_descriptor",
     "monitor_bus_events", "rapid_descriptors", "long_chain",
+    "inject_owed_beat",     # shared-only: the injection port (INJ_EN)
 ]
 
 

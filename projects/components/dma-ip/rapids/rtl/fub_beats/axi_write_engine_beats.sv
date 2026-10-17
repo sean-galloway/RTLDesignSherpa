@@ -606,7 +606,14 @@ module axi_write_engine_beats #(
             // Accept new command from arbiter; gate by live sched_wr_valid so
             // a stale grant (from the 1-cycle r_arb_request pipeline) cannot
             // capture an AW for a channel the scheduler is no longer driving.
-            if (w_arb_grant_valid && !r_aw_valid && w_arb_request[w_arb_grant_id]) begin
+            //
+            // ...and only with room in the W-phase FIFO: the AW handshake
+            // pushes there unconditionally, so an AW issued into a full FIFO
+            // loses its W burst. In-flight AWs reach NUM_CHANNELS *
+            // AW_MAX_OUTSTANDING, which can pass W_PHASE_FIFO_DEPTH. One AW is
+            // held at a time, so a free entry at capture is free at the push.
+            if (w_arb_grant_valid && !r_aw_valid && w_arb_request[w_arb_grant_id] &&
+                w_phase_txn_fifo_wr_ready) begin
                 r_aw_valid <= 1'b1;
                 r_aw_channel_id <= w_arb_grant_id;
                 r_aw_len <= w_transfer_size[w_arb_grant_id];  // cfg_axi_wr_xfer_beats stores AWLEN value directly

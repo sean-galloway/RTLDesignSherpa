@@ -646,6 +646,146 @@ regfile rapids_engine_regs_16ch {
 
     } OBS_DATA1 @ 0x2CC;
 
+    //=========================================================================
+    // Tile packet header status (byte RAPIDS, TILE_HDR = 1; TILE_SPEC 11.12).
+    // Read zero when TILE_HDR = 0 and in RAPIDS Beats. The W1C fields are LIVE
+    // MIRRORS of sticky bits owned by the RTL (sw=rw, hw=w, precedence=sw,
+    // woclr, reset 0): the top decodes the write and clears the RTL bit, as
+    // the retro_legacy_blocks status registers do. TILE_STATUS is meaningful
+    // in the SNK half (the sink port), TILE_DESC_DROPPED in the SRC half.
+    //=========================================================================
+    reg {
+        name = "Tile Header Status";
+        desc = "Sink-port tile header status (SNK half). Sticky; write 1 to clear.";
+
+        field {
+            desc = "A packet the sink port consumed without acting on it: a read request to RAPIDS, a reserved ptype, a desc packet with no payload, a tag past NUM_CHANNELS or DATA_WIDTH < 256, or extra desc payload. Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } UNSUPPORTED[0:0] = 1'b0;
+
+        field {
+            desc = "A data packet whose header tag differed from its stream ID (delivered by stream ID). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } TAG_MISMATCH[1:1] = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:2] = 30'h0;
+
+    } TILE_STATUS @ 0x2D0;
+
+    reg {
+        name = "Cell Descriptor Drops";
+        desc = "Per source channel: a cell-issued descriptor was dropped (SRC half). Sticky; write 1 to clear.";
+
+        field {
+            desc = "Channel 0: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP0[0:0] = 1'b0;
+
+        field {
+            desc = "Channel 1: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP1[1:1] = 1'b0;
+
+        field {
+            desc = "Channel 2: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP2[2:2] = 1'b0;
+
+        field {
+            desc = "Channel 3: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP3[3:3] = 1'b0;
+
+        field {
+            desc = "Channel 4: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP4[4:4] = 1'b0;
+
+        field {
+            desc = "Channel 5: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP5[5:5] = 1'b0;
+
+        field {
+            desc = "Channel 6: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP6[6:6] = 1'b0;
+
+        field {
+            desc = "Channel 7: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP7[7:7] = 1'b0;
+
+        field {
+            desc = "Channel 8: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP8[8:8] = 1'b0;
+
+        field {
+            desc = "Channel 9: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP9[9:9] = 1'b0;
+
+        field {
+            desc = "Channel 10: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP10[10:10] = 1'b0;
+
+        field {
+            desc = "Channel 11: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP11[11:11] = 1'b0;
+
+        field {
+            desc = "Channel 12: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP12[12:12] = 1'b0;
+
+        field {
+            desc = "Channel 13: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP13[13:13] = 1'b0;
+
+        field {
+            desc = "Channel 14: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP14[14:14] = 1'b0;
+
+        field {
+            desc = "Channel 15: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear";
+            sw = rw; hw = w; precedence = sw; onwrite = woclr;
+        } DROP15[15:15] = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } TILE_DESC_DROPPED @ 0x2D4;
+
+    reg {
+        name = "Tile Packet Counts";
+        desc = "Sink-port packets passed on or consumed (SNK half); 16-bit counters that wrap";
+
+        field {
+            desc = "desc packets passed to the source half";
+            sw = r;
+            hw = w;
+        } DESC_COUNT[15:0];
+
+        field {
+            desc = "credit packets received (counted, not acted on: end-to-end credits are not built)";
+            sw = r;
+            hw = w;
+        } CREDIT_COUNT[31:16];
+
+    } TILE_COUNTS @ 0x2D8;
+
     reg {
         name = "Per-Channel Perf Bucket Readout Select";
         desc = "Selects which channel's buckets appear in RD/WRMON_PERF_CH_*";

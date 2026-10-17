@@ -145,6 +145,7 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 | 0.8 | 2026-09-21 | seang | Documentation hygiene: removed 30 `**Source:**` links pointing at `assets/mermaid/*.mmd` files that were never created (authored dead in `a1760aaf6`, 2026-07-17). None had an image above it, so no figure was lost; the 3 source links that resolve are unchanged. |
 | 0.9 | 2026-10-16 | seang | Network planes (rapids TASK-024/025): new Section 3.13 Network Planes (the four `rapids_plane_*` modules, generated tops, CXS plane internals and parameters, per-stream framing, monitoring, test cells) and Section 4.4 CXS Interface Specification (link profile, signals, credit flow, activation, backpressure); `rapids_beats_top` page covers the base / generated split, the plane monitors on client 1 and the AXIS / CXS network ports, and its parameter and interface tables are resynced (the fill / drain rows were never top ports); core hierarchy and port list drop the monitor-lite and its three parameters, which moved to the planes. All block diagrams updated for the planes. The CXS ID mapping is marked provisional: routing and payload-type fields are planned. |
 | 0.10 | 2026-10-16 | seang | Sections 3.13 and 4.4 point at the routing and payload-type proposal in the tile's TILE_SPEC Section 11 (`CXSSRCID` keeps the channel) |
+| 0.11 | 2026-10-17 | seang | CXS interface spec names the sink and source ports |
 
 : Table 0.2: RAPIDS Beats MAS Document Revision History
 

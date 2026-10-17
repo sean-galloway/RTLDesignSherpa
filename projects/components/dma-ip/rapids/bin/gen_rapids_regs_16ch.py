@@ -16,6 +16,7 @@ never hand-edited:
                                      would overrun SCHED_ERROR at 0x170)
     VERSION.NUM_CHANNELS             8 -> 16
     PERF_CH_SEL.CH_SEL               [2:0] -> [3:0]
+    TILE_DESC_DROPPED                DROP0..DROP7 -> DROP0..DROP15
     {RD,WR}MON_PERF_CH_OVERFLOW_HI   new, MON +0x1F8 / +0x1FC: channels 8..15
                                      (4 bits per channel no longer fit 32)
 
@@ -105,6 +106,17 @@ def engine_16ch(src: str) -> str:
     t = sub(t, '} CH_STATE[8] @ 0x150 += 0x4;', '} CH_STATE[16] @ 0x180 += 0x4;')
     t = sub(t, "} NUM_CHANNELS[23:16] = 8'h08;", "} NUM_CHANNELS[23:16] = 8'h10;")
     t = sub(t, "} CH_SEL[2:0] = 3'h0;", "} CH_SEL[3:0] = 4'h0;")
+
+    # Cell-descriptor drop bits: one W1C field per channel
+    d7 = re.search(r"\n        field \{\n            desc = \"Channel 7: [^\n]*\n[^\n]*\n        \} DROP7\[7:7\] = 1'b0;\n", t)
+    if not d7:
+        sys.exit("gen_rapids_regs_16ch: DROP7 field not found")
+    blk = d7.group(0)
+    more = ''.join(blk.replace('Channel 7:', f'Channel {c}:').replace('DROP7[7:7]', f'DROP{c}[{c}:{c}]')
+                   for c in range(8, 16))
+    t = t[:d7.end()] + more + t[d7.end():]
+    t = sub(t, "        } RSVD[31:8] = 24'h0;\n\n    } TILE_DESC_DROPPED @ 0x2D4;",
+             "        } RSVD[31:16] = 16'h0;\n\n    } TILE_DESC_DROPPED @ 0x2D4;")
     t = sub(t, "} RSVD[31:3] = 29'h0;\n\n    } PERF_CH_SEL", "} RSVD[31:4] = 28'h0;\n\n    } PERF_CH_SEL")
     return STAMP + t
 
@@ -173,6 +185,8 @@ def regsel(nch: int) -> dict:
             kick += (f'        w_staged_{half}_addr[{c}] = {{hwif_out.{H}.CH{c}_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,\n'
                      f'                        hwif_out.{H}.CH{c}_DESC_ADDR_LOW.DESC_ADDR_LOW.value}};\n')
     status = hdr + '// Inside the hwif_in always_comb of rapids_top_base: per-variant status fields.\n'
+    for c in range(nch):
+        status += f'        hwif_in.SRC.TILE_DESC_DROPPED.DROP{c}.next = w_tile_dropped_reg[{c}];\n'
     if nch == 16:
         status += ('        hwif_in.SRC.MON.RDMON_PERF_CH_OVERFLOW_HI.VAL.next = '
                    '32\'(64\'(w_rd_ch_overflow) >> 32);\n'

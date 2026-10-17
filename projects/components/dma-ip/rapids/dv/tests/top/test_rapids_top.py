@@ -504,6 +504,17 @@ async def cocotb_test_channel_map(dut):
     assert not errors, f"channel map: {errors}"
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_disabled_channel_holds(dut):
+    """A descriptor kicked to a disabled channel waits and runs on enable."""
+    tb = RapidsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    ok, stats = await tb.test_disabled_channel_holds(channel=3, beats=4)
+    tb.finalize_test()
+    assert ok, f"disabled channel lost its descriptor: {stats.get('errors')}"
+
+
 # ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
@@ -744,3 +755,11 @@ def test_rapids_nch_top_channel_map(request, nch, test_level):
     """VERSION / CHANNEL_ENABLE / CH_STATE match the register map's size."""
     _run_top("cocotb_test_channel_map", f"test_rapids_{nch}ch_top_channel_map",
              test_level=test_level, dut=f"rapids_{nch}ch_top", nch=nch)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_top_disabled_channel(request, test_level):
+    """A disabled channel keeps a kicked descriptor until it is enabled."""
+    _run_top("cocotb_test_disabled_channel_holds", "test_rapids_top_disabled_channel", test_level=test_level)

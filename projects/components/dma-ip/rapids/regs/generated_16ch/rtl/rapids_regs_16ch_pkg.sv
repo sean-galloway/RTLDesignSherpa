@@ -100,6 +100,115 @@ package rapids_regs_16ch_pkg;
     } rapids_engine_regs_16ch__OBS_DATA1__in_t;
 
     typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_STATUS__UNSUPPORTED__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_STATUS__TAG_MISMATCH__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_STATUS__UNSUPPORTED__in_t UNSUPPORTED;
+        rapids_engine_regs_16ch__TILE_STATUS__TAG_MISMATCH__in_t TAG_MISMATCH;
+    } rapids_engine_regs_16ch__TILE_STATUS__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP0__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP1__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP2__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP3__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP4__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP5__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP6__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP7__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP8__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP9__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP10__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP11__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP12__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP13__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP14__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP15__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP0__in_t DROP0;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP1__in_t DROP1;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP2__in_t DROP2;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP3__in_t DROP3;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP4__in_t DROP4;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP5__in_t DROP5;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP6__in_t DROP6;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP7__in_t DROP7;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP8__in_t DROP8;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP9__in_t DROP9;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP10__in_t DROP10;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP11__in_t DROP11;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP12__in_t DROP12;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP13__in_t DROP13;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP14__in_t DROP14;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__DROP15__in_t DROP15;
+    } rapids_engine_regs_16ch__TILE_DESC_DROPPED__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } rapids_engine_regs_16ch__TILE_COUNTS__DESC_COUNT__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } rapids_engine_regs_16ch__TILE_COUNTS__CREDIT_COUNT__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_COUNTS__DESC_COUNT__in_t DESC_COUNT;
+        rapids_engine_regs_16ch__TILE_COUNTS__CREDIT_COUNT__in_t CREDIT_COUNT;
+    } rapids_engine_regs_16ch__TILE_COUNTS__in_t;
+
+    typedef struct {
         logic [31:0] next;
     } rapids_engine_regs_16ch__HIST_DATA__VAL__in_t;
 
@@ -505,6 +614,9 @@ package rapids_regs_16ch_pkg;
         rapids_engine_regs_16ch__OBS_FLAGS__in_t OBS_FLAGS;
         rapids_engine_regs_16ch__OBS_DATA0__in_t OBS_DATA0;
         rapids_engine_regs_16ch__OBS_DATA1__in_t OBS_DATA1;
+        rapids_engine_regs_16ch__TILE_STATUS__in_t TILE_STATUS;
+        rapids_engine_regs_16ch__TILE_DESC_DROPPED__in_t TILE_DESC_DROPPED;
+        rapids_engine_regs_16ch__TILE_COUNTS__in_t TILE_COUNTS;
         rapids_engine_regs_16ch__HIST_DATA__in_t HIST_DATA;
         rapids_engine_regs_16ch__HIST_TOTAL__in_t HIST_TOTAL;
         rapids_mon_regs_16ch__in_t MON;

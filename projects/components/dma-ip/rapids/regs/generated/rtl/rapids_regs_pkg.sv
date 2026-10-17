@@ -100,6 +100,75 @@ package rapids_regs_pkg;
     } rapids_engine_regs__OBS_DATA1__in_t;
 
     typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_STATUS__UNSUPPORTED__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_STATUS__TAG_MISMATCH__in_t;
+
+    typedef struct {
+        rapids_engine_regs__TILE_STATUS__UNSUPPORTED__in_t UNSUPPORTED;
+        rapids_engine_regs__TILE_STATUS__TAG_MISMATCH__in_t TAG_MISMATCH;
+    } rapids_engine_regs__TILE_STATUS__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_DESC_DROPPED__DROP0__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_DESC_DROPPED__DROP1__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_DESC_DROPPED__DROP2__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_DESC_DROPPED__DROP3__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_DESC_DROPPED__DROP4__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_DESC_DROPPED__DROP5__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_DESC_DROPPED__DROP6__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs__TILE_DESC_DROPPED__DROP7__in_t;
+
+    typedef struct {
+        rapids_engine_regs__TILE_DESC_DROPPED__DROP0__in_t DROP0;
+        rapids_engine_regs__TILE_DESC_DROPPED__DROP1__in_t DROP1;
+        rapids_engine_regs__TILE_DESC_DROPPED__DROP2__in_t DROP2;
+        rapids_engine_regs__TILE_DESC_DROPPED__DROP3__in_t DROP3;
+        rapids_engine_regs__TILE_DESC_DROPPED__DROP4__in_t DROP4;
+        rapids_engine_regs__TILE_DESC_DROPPED__DROP5__in_t DROP5;
+        rapids_engine_regs__TILE_DESC_DROPPED__DROP6__in_t DROP6;
+        rapids_engine_regs__TILE_DESC_DROPPED__DROP7__in_t DROP7;
+    } rapids_engine_regs__TILE_DESC_DROPPED__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } rapids_engine_regs__TILE_COUNTS__DESC_COUNT__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } rapids_engine_regs__TILE_COUNTS__CREDIT_COUNT__in_t;
+
+    typedef struct {
+        rapids_engine_regs__TILE_COUNTS__DESC_COUNT__in_t DESC_COUNT;
+        rapids_engine_regs__TILE_COUNTS__CREDIT_COUNT__in_t CREDIT_COUNT;
+    } rapids_engine_regs__TILE_COUNTS__in_t;
+
+    typedef struct {
         logic [31:0] next;
     } rapids_engine_regs__HIST_DATA__VAL__in_t;
 
@@ -487,6 +556,9 @@ package rapids_regs_pkg;
         rapids_engine_regs__OBS_FLAGS__in_t OBS_FLAGS;
         rapids_engine_regs__OBS_DATA0__in_t OBS_DATA0;
         rapids_engine_regs__OBS_DATA1__in_t OBS_DATA1;
+        rapids_engine_regs__TILE_STATUS__in_t TILE_STATUS;
+        rapids_engine_regs__TILE_DESC_DROPPED__in_t TILE_DESC_DROPPED;
+        rapids_engine_regs__TILE_COUNTS__in_t TILE_COUNTS;
         rapids_engine_regs__HIST_DATA__in_t HIST_DATA;
         rapids_engine_regs__HIST_TOTAL__in_t HIST_TOTAL;
         rapids_mon_regs__in_t MON;

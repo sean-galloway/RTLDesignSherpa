@@ -23,7 +23,7 @@
 
 # RAPIDS Beats Architecture HAS
 
-**Version:** 0.8
+**Version:** 0.13
 **Date:** 2026-07-13
 **Purpose:** Hardware Architecture Specification for RAPIDS Phase 1 "Beats" Architecture
 **Classification:** External Interface Specification

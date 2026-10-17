@@ -42,6 +42,7 @@ async def cocotb_test_axi_write_engine(dut):
     dispatch = {
         'single': tb.test_single_channel,
         'all': tb.test_all_channels,
+        'wphase': tb.test_wphase_overflow,
         'odd': tb.test_odd_sizes,
         'trickle': tb.test_trickle,
         'cap': tb.test_burst_cap,
@@ -82,6 +83,9 @@ def generate_params():
     # (SEG_COUNT_WIDTH 8, the Genesys 2 design point). The engine must clamp
     # the burst to the buffer instead of wrapping its size to 0.
     params.append(('cap', 4, 256, 1, 255, 'default'))
+    # More AWs in flight than the W-phase FIFO holds, at every level: 4 ch x 8
+    # outstanding against a 4-deep FIFO, W backpressured, 4-beat bursts
+    params.append(('wphase', 4, 256, 1, 3, 'gaxi_backpressure'))
     # byte-granular RAPIDS (rapids TASK-019) at every level: byte offsets,
     # partial strobes and a single-byte transfer; bursts split at 4 KB
     params.append(('strobes', 4, 256, 1, 7, 'default'))
@@ -129,9 +133,11 @@ def test_axi_write_engine(request, test_type, num_channels, data_width, pipeline
         # for the sweep, 128-deep (the Genesys 2 build) for the burst-cap cell
         'SEG_COUNT_WIDTH': '8' if test_type == 'cap' else '10',
         'PIPELINE': str(pipeline),
-        'AW_MAX_OUTSTANDING': '4',
+        'AW_MAX_OUTSTANDING': '8' if test_type == 'wphase' else '4',
         'USER_WIDTH': '8',
     }
+    if test_type == 'wphase':
+        parameters['W_PHASE_FIFO_DEPTH'] = '4'
     extra_env = {
         'TEST_TYPE': test_type,
         'TEST_XFER_CFG': str(xfer_cfg),

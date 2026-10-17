@@ -116,6 +116,17 @@ async def cocotb_test_address_range_validation(dut):
 # ===========================================================================
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
+async def cocotb_test_inject_owed_beat(dut):
+    """descriptor_engine_shared only: injection while a reset left an R beat owed"""
+    tb = DescriptorEngineTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result = await tb.test_inject_owed_beat()
+    report_ok = tb.generate_test_report()
+    assert result and report_ok, "Injection with an owed beat failed"
+
+
+@cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_channel_reset(dut):
     """Test channel reset functionality"""
     tb = DescriptorEngineTB(dut)
@@ -392,9 +403,11 @@ def _run_descriptor_engine_test(request, testcase_name, channel_id, num_channels
     if shared:
         # One channel: channel 0, ARID 0, the same port widths as the
         # per-channel engine.
+        # INJ_EN = 1: the injection port is built (and idle) in every shared cell
         rtl_parameters = {
             'NUM_CHANNELS': 1,
             'CHAN_WIDTH': 1,
+            'INJ_EN': 1,
             'ADDR_WIDTH': 64,
             'AXI_ID_WIDTH': axi_id_width,
             'FIFO_DEPTH': 8,

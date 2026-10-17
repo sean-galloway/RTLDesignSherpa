@@ -1,7 +1,7 @@
 # TASK-026: Cell-issued descriptors into the source half (the `desc` path)
 
 **Priority:** P2
-**Status:** active
+**Status:** closed (2026-10-17)
 **Owner:** sean galloway
 
 A tile cell can hand RAPIDS a complete 256-bit source descriptor; RAPIDS reads
@@ -80,4 +80,15 @@ tile header of TILE_SPEC 11.5 on both ports (TILE_SPEC 11.12 has the status tabl
   write, cell descriptors idle/busy/chained on four channels, slot overflow, source
   ptype refusal, credit/unsupported), each mutation-checked. Not covered by a test:
   the owed-beat guard (reset mid-fetch then inject) and header/pop fairness.
-- Still to do for "Done when": grants, the MAS chapters, a CSR for `sts_tile_*`.
+- 2026-10-17 later: `sts_tile_*` are CSRs too (SNK.TILE_STATUS, SRC.TILE_DESC_DROPPED as
+  W1C mirrors of the RTL stickies, SNK.TILE_COUNTS); owed-beat guard covered by
+  `test_descriptor_engine_shared` `inject_owed_beat` (mutation-checked).
+- Grants moved to rapids TASK-027. Still to do here: the MAS chapters for the
+  header blocks.
+
+## Closed (2026-10-17)
+
+Items 1-3 and 5 built; item 4 (descriptor-slot grants) moved to rapids TASK-027
+with the end-to-end credits. MAS Section 3.14 Tile Packet Header; HAS and
+TILE_SPEC 11.12 updated; CSRs for the status. Byte and beats regressions
+clean-all FULL green.

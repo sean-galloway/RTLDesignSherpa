@@ -78,6 +78,9 @@ Don't override. Generated from: $root
 | 0x2C4|      OBS_FLAGS     |           Observation Flags          |
 | 0x2C8|      OBS_DATA0     |          Observation Data 0          |
 | 0x2CC|      OBS_DATA1     |          Observation Data 1          |
+| 0x2D0|     TILE_STATUS    |          Tile Header Status          |
+| 0x2D4|  TILE_DESC_DROPPED |         Cell Descriptor Drops        |
+| 0x2D8|     TILE_COUNTS    |          Tile Packet Counts          |
 | 0x35C|     PERF_CH_SEL    |Per-Channel Perf Bucket Readout Select|
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
@@ -1164,6 +1167,109 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 #### DATA field
 
 <p>Observation data 1</p>
+
+### TILE_STATUS register
+
+- Absolute Address: 0x2D0
+- Base Offset: 0x2D0
+- Size: 0x4
+
+<p>Sink-port tile header status (SNK half). Sticky; write 1 to clear.</p>
+
+|Bits| Identifier |  Access |Reset|Name|
+|----|------------|---------|-----|----|
+|  0 | UNSUPPORTED|rw, woclr| 0x0 |  — |
+|  1 |TAG_MISMATCH|rw, woclr| 0x0 |  — |
+|31:2|    RSVD    |    r    | 0x0 |  — |
+
+#### UNSUPPORTED field
+
+<p>A packet the sink port consumed without acting on it: a read request to RAPIDS, a reserved ptype, a desc packet with no payload, a tag past NUM_CHANNELS or DATA_WIDTH &lt; 256, or extra desc payload. Sticky; write 1 to clear</p>
+
+#### TAG_MISMATCH field
+
+<p>A data packet whose header tag differed from its stream ID (delivered by stream ID). Sticky; write 1 to clear</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### TILE_DESC_DROPPED register
+
+- Absolute Address: 0x2D4
+- Base Offset: 0x2D4
+- Size: 0x4
+
+<p>Per source channel: a cell-issued descriptor was dropped (SRC half). Sticky; write 1 to clear.</p>
+
+|Bits|Identifier|  Access |Reset|Name|
+|----|----------|---------|-----|----|
+|  0 |   DROP0  |rw, woclr| 0x0 |  — |
+|  1 |   DROP1  |rw, woclr| 0x0 |  — |
+|  2 |   DROP2  |rw, woclr| 0x0 |  — |
+|  3 |   DROP3  |rw, woclr| 0x0 |  — |
+|  4 |   DROP4  |rw, woclr| 0x0 |  — |
+|  5 |   DROP5  |rw, woclr| 0x0 |  — |
+|  6 |   DROP6  |rw, woclr| 0x0 |  — |
+|  7 |   DROP7  |rw, woclr| 0x0 |  — |
+|31:8|   RSVD   |    r    | 0x0 |  — |
+
+#### DROP0 field
+
+<p>Channel 0: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP1 field
+
+<p>Channel 1: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP2 field
+
+<p>Channel 2: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP3 field
+
+<p>Channel 3: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP4 field
+
+<p>Channel 4: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP5 field
+
+<p>Channel 5: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP6 field
+
+<p>Channel 6: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP7 field
+
+<p>Channel 7: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### TILE_COUNTS register
+
+- Absolute Address: 0x2D8
+- Base Offset: 0x2D8
+- Size: 0x4
+
+<p>Sink-port packets passed on or consumed (SNK half); 16-bit counters that wrap</p>
+
+| Bits| Identifier |Access|Reset|Name|
+|-----|------------|------|-----|----|
+| 15:0| DESC_COUNT |   r  |  —  |  — |
+|31:16|CREDIT_COUNT|   r  |  —  |  — |
+
+#### DESC_COUNT field
+
+<p>desc packets passed to the source half</p>
+
+#### CREDIT_COUNT field
+
+<p>credit packets received (counted, not acted on: end-to-end credits are not built)</p>
 
 ### PERF_CH_SEL register
 
@@ -2727,6 +2833,9 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 | 0x2C4|      OBS_FLAGS     |           Observation Flags          |
 | 0x2C8|      OBS_DATA0     |          Observation Data 0          |
 | 0x2CC|      OBS_DATA1     |          Observation Data 1          |
+| 0x2D0|     TILE_STATUS    |          Tile Header Status          |
+| 0x2D4|  TILE_DESC_DROPPED |         Cell Descriptor Drops        |
+| 0x2D8|     TILE_COUNTS    |          Tile Packet Counts          |
 | 0x35C|     PERF_CH_SEL    |Per-Channel Perf Bucket Readout Select|
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
@@ -3813,6 +3922,109 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 #### DATA field
 
 <p>Observation data 1</p>
+
+### TILE_STATUS register
+
+- Absolute Address: 0x12D0
+- Base Offset: 0x2D0
+- Size: 0x4
+
+<p>Sink-port tile header status (SNK half). Sticky; write 1 to clear.</p>
+
+|Bits| Identifier |  Access |Reset|Name|
+|----|------------|---------|-----|----|
+|  0 | UNSUPPORTED|rw, woclr| 0x0 |  — |
+|  1 |TAG_MISMATCH|rw, woclr| 0x0 |  — |
+|31:2|    RSVD    |    r    | 0x0 |  — |
+
+#### UNSUPPORTED field
+
+<p>A packet the sink port consumed without acting on it: a read request to RAPIDS, a reserved ptype, a desc packet with no payload, a tag past NUM_CHANNELS or DATA_WIDTH &lt; 256, or extra desc payload. Sticky; write 1 to clear</p>
+
+#### TAG_MISMATCH field
+
+<p>A data packet whose header tag differed from its stream ID (delivered by stream ID). Sticky; write 1 to clear</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### TILE_DESC_DROPPED register
+
+- Absolute Address: 0x12D4
+- Base Offset: 0x2D4
+- Size: 0x4
+
+<p>Per source channel: a cell-issued descriptor was dropped (SRC half). Sticky; write 1 to clear.</p>
+
+|Bits|Identifier|  Access |Reset|Name|
+|----|----------|---------|-----|----|
+|  0 |   DROP0  |rw, woclr| 0x0 |  — |
+|  1 |   DROP1  |rw, woclr| 0x0 |  — |
+|  2 |   DROP2  |rw, woclr| 0x0 |  — |
+|  3 |   DROP3  |rw, woclr| 0x0 |  — |
+|  4 |   DROP4  |rw, woclr| 0x0 |  — |
+|  5 |   DROP5  |rw, woclr| 0x0 |  — |
+|  6 |   DROP6  |rw, woclr| 0x0 |  — |
+|  7 |   DROP7  |rw, woclr| 0x0 |  — |
+|31:8|   RSVD   |    r    | 0x0 |  — |
+
+#### DROP0 field
+
+<p>Channel 0: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP1 field
+
+<p>Channel 1: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP2 field
+
+<p>Channel 2: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP3 field
+
+<p>Channel 3: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP4 field
+
+<p>Channel 4: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP5 field
+
+<p>Channel 5: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP6 field
+
+<p>Channel 6: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### DROP7 field
+
+<p>Channel 7: a cell-issued descriptor was dropped (no free slot, EXT, or during channel reset). Sticky; write 1 to clear</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### TILE_COUNTS register
+
+- Absolute Address: 0x12D8
+- Base Offset: 0x2D8
+- Size: 0x4
+
+<p>Sink-port packets passed on or consumed (SNK half); 16-bit counters that wrap</p>
+
+| Bits| Identifier |Access|Reset|Name|
+|-----|------------|------|-----|----|
+| 15:0| DESC_COUNT |   r  |  —  |  — |
+|31:16|CREDIT_COUNT|   r  |  —  |  — |
+
+#### DESC_COUNT field
+
+<p>desc packets passed to the source half</p>
+
+#### CREDIT_COUNT field
+
+<p>credit packets received (counted, not acted on: end-to-end credits are not built)</p>
 
 ### PERF_CH_SEL register
 

@@ -874,8 +874,52 @@ module rapids_top_base #(
     // exactly this twice (SCHED_ERROR and AXI_{RD,WR}_COMPLETE existed, the
     // core drove the sources, nothing connected them); the shape below is its
     // fix -- default everything, then drive each field from its real source.
+    //=========================================================================
+    // Tile header status CSRs (TILE_HDR): W1C mirrors of RTL-owned stickies
+    //=========================================================================
+    // SNK.TILE_STATUS and SRC.TILE_DESC_DROPPED read the stickies below
+    // (hw=w, woclr, precedence=sw). A write-1 must clear the RTL bit itself,
+    // or the mirror reloads it the next cycle, so the write is decoded here
+    // from the register block's own request -- the retro_legacy_blocks
+    // pm_acpi_config_regs pattern: mask = wr_data & wr_biten at the
+    // register's address, one cycle on the rising edge of the decode
+    // (peakrdl_to_cmdrsp holds the request two cycles), set wins in the owner.
+    // Offsets: rtl/macro_beats/rapids_engine_regs.rdl (TILE_STATUS 0x2D0,
+    // TILE_DESC_DROPPED 0x2D4), SNK half at +0x1000.
+    localparam logic [12:0] A_SNK_TILE_STATUS  = 13'h1000 + 13'h2D0;
+    localparam logic [12:0] A_SRC_TILE_DROPPED = 13'h0000 + 13'h2D4;
+    logic          w_tile_wr_status, w_tile_wr_dropped;
+    logic          r_tile_wr_status_d, r_tile_wr_dropped_d;
+    logic [31:0]   w_tile_clr_mask;
+    logic          w_tile_clr_unsupported, w_tile_clr_tag_mismatch;
+    logic [NC-1:0] w_tile_clr_dropped;
+    logic [`RAPIDS_REGS_NCH-1:0] w_tile_dropped_reg;   // padded to the map for the DROPn glue
+    assign w_tile_wr_status  = regblk_req && regblk_req_is_wr && (13'(regblk_addr) == A_SNK_TILE_STATUS);
+    assign w_tile_wr_dropped = regblk_req && regblk_req_is_wr && (13'(regblk_addr) == A_SRC_TILE_DROPPED);
+    assign w_tile_clr_mask   = 32'(regblk_wr_data & regblk_wr_biten);
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
+            r_tile_wr_status_d  <= 1'b0;
+            r_tile_wr_dropped_d <= 1'b0;
+        end else begin
+            r_tile_wr_status_d  <= w_tile_wr_status;
+            r_tile_wr_dropped_d <= w_tile_wr_dropped;
+        end
+    )
+    assign w_tile_clr_unsupported  = w_tile_wr_status && !r_tile_wr_status_d && w_tile_clr_mask[0];
+    assign w_tile_clr_tag_mismatch = w_tile_wr_status && !r_tile_wr_status_d && w_tile_clr_mask[1];
+    assign w_tile_clr_dropped      = (w_tile_wr_dropped && !r_tile_wr_dropped_d) ? NC'(w_tile_clr_mask) : '0;
+    assign w_tile_dropped_reg      = `RAPIDS_REGS_NCH'(sts_tile_desc_dropped);
+
     always_comb begin
         hwif_in = '{default: '0};
+
+        // Tile header status (zero unless TILE_HDR); SRC DROPn are in the
+        // per-variant status include below
+        hwif_in.SNK.TILE_STATUS.UNSUPPORTED.next  = sts_tile_unsupported;
+        hwif_in.SNK.TILE_STATUS.TAG_MISMATCH.next = sts_tile_tag_mismatch;
+        hwif_in.SNK.TILE_COUNTS.DESC_COUNT.next   = sts_tile_desc_count;
+        hwif_in.SNK.TILE_COUNTS.CREDIT_COUNT.next = sts_tile_credit_count;
 
         hwif_in.SRC.GLOBAL_STATUS.SYSTEM_IDLE.next   = src_system_idle;
         hwif_in.SRC.DESC_ENGINE_IDLE.DESC_IDLE.next  = `RAPIDS_REGS_NCH'(src_desc_engine_idle);
@@ -1920,7 +1964,10 @@ module rapids_top_base #(
         .sts_tile_tag_mismatch            (sts_tile_tag_mismatch),
         .sts_tile_desc_count              (sts_tile_desc_count),
         .sts_tile_credit_count            (sts_tile_credit_count),
-        .sts_tile_desc_dropped            (sts_tile_desc_dropped)
+        .sts_tile_desc_dropped            (sts_tile_desc_dropped),
+        .tile_clr_unsupported             (w_tile_clr_unsupported),
+        .tile_clr_tag_mismatch            (w_tile_clr_tag_mismatch),
+        .tile_clr_desc_dropped            (w_tile_clr_dropped)
     );
 
     //=========================================================================

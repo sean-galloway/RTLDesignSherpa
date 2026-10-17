@@ -883,7 +883,13 @@ module scheduler_beats #(
     // Descriptor Engine Interface
     //=========================================================================
 
-    assign descriptor_ready = (r_current_state == rapids_pkg::CH_IDLE) || (r_current_state == rapids_pkg::CH_NEXT_DESC);
+    // IDLE takes a descriptor only while the channel is enabled: the capture
+    // below runs on this handshake, and IDLE -> FETCH_DESC needs the enable, so
+    // a disabled channel used to pop and discard every descriptor that reached
+    // its queue (a host kick to a disabled channel lost its descriptor). It now
+    // waits in the queue and runs once the channel is enabled.
+    assign descriptor_ready = ((r_current_state == rapids_pkg::CH_IDLE) && cfg_channel_enable) ||
+                              (r_current_state == rapids_pkg::CH_NEXT_DESC);
 
     //=========================================================================
     // Timeout and Error Management

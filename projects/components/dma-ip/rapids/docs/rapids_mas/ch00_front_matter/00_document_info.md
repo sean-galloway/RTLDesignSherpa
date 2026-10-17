@@ -31,6 +31,7 @@ This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
+| 0.5 | 2026-10-17 | RTL Design Sherpa | New Section 3.14 Tile Packet Header (`TILE_HDR`: header build and decode, cell-issued descriptors, status registers). Scheduler group array: shared descriptor / control-read / control-write engines per half (`SHARED_ENGINES`, default 1), with block diagram |
 | 0.4 | 2026-10-16 | RTL Design Sherpa | Shared Sections 3.13 and 4.4 point at the routing and payload-type proposal in the tile's TILE_SPEC Section 11 |
 | 0.3 | 2026-10-16 | RTL Design Sherpa | Network planes (rapids TASK-024/025): `rapids_top` / `rapids_cxs_top` generated from `rapids_top_base`; links the shared Network Planes chapter and CXS Interface Specification; block diagrams updated for the planes; the CXS ID mapping is marked provisional. |
 | 0.2 | 2026-09-30 | RTL Design Sherpa | Channel reset recovers every error class: `cfg_channel_reset` routed into the AXI read and write engines, both data paths and the SRAM wrappers; scheduler clears sticky flags on the reset. |

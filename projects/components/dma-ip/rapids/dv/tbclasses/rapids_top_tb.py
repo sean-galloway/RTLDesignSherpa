@@ -937,6 +937,45 @@ class RapidsTopTB(TBBase):
             self.log.info(f"  SCOREBOARD: source verified ({beats} beats)")
         return (len(errors) == 0), stats
 
+    async def test_disabled_channel_holds(self, channel=3, beats=4) -> Tuple[bool, Dict[str, Any]]:
+        """A descriptor kicked to a DISABLED source channel must wait, not be
+        lost: nothing leaves while the channel is disabled, and enabling it
+        sends exactly the descriptor's packet. (The scheduler used to take and
+        discard every descriptor reaching a disabled channel's queue.)"""
+        self.log.info(f"=== disabled channel holds its descriptor: ch{channel} ===")
+        all_ch = (1 << self.NUM_CHANNELS) - 1
+        await self.write_fields('src', 'CHANNEL_ENABLE', CH_EN=all_ch & ~(1 << channel))
+        desc_addr = self.DESC_BASE + channel * 0x1000
+        src_addr = self.SRC_BASE + channel * self.CHANNEL_OFFSET
+        pattern = [(0x7D00_0000_0000_0000 + (channel << 40) + i) for i in range(beats)]
+        self.preload_source(src_addr, pattern)
+        self.register_descriptor(self.desc_src_mem, desc_addr,
+                                 self.create_descriptor(src_addr, 0, beats, channel_id=channel))
+        await self.kick_off_channel('src', channel, desc_addr)
+        await self.wait_clocks(self.clk_name, 1000)
+        errors = list(self.test_errors)
+        early = len(self.captured_axis.get(channel, []))
+        if early:
+            errors.append(f"disabled ch{channel} sent {early} beats")
+        if not self.desc_fetch_addrs['src']:
+            errors.append("the kick never fetched the descriptor")
+        await self.write_fields('src', 'CHANNEL_ENABLE', CH_EN=all_ch)
+        for _ in range(4000):
+            await self.wait_clocks(self.clk_name, 1)
+            if len(self.captured_axis.get(channel, [])) >= beats:
+                break
+        await self.wait_clocks(self.clk_name, 200)
+        got = self.captured_axis.get(channel, [])
+        if got != pattern:
+            errors.append(f"after enable, ch{channel} sent {len(got)}/{beats} beats "
+                          f"({sum(1 for a, b in zip(got, pattern) if a != b)} mismatches)")
+        se = self.read_sched_error('src')
+        if se not in (0, -1):
+            errors.append(f"src_sched_error=0x{se:X}")
+        for e in errors:
+            self.log.error(f"  SCOREBOARD: {e}")
+        return not errors, {'errors': errors}
+
     async def test_perf_ch_readout(self) -> Tuple[bool, Dict[str, Any]]:
         """Per-channel perf readout: PERF_CH_SEL must actually select.
 

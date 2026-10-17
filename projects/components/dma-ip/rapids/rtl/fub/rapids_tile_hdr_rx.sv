@@ -88,7 +88,10 @@ module rapids_tile_hdr_rx #(
     output logic [CIW-1:0]              desc_inj_ch,
     output logic [255:0]                desc_inj_data,
 
-    // Status
+    // Status. The two stickies clear on a one-cycle clr_* pulse (the CSR's
+    // write-1-to-clear); an event in the same cycle wins.
+    input  logic                        clr_unsupported,
+    input  logic                        clr_tag_mismatch,
     output logic                        sts_unsupported,     // sticky
     output logic                        sts_tag_mismatch,    // sticky
     output logic [15:0]                 sts_desc_count,      // desc packets passed to the source half
@@ -232,10 +235,12 @@ module rapids_tile_hdr_rx #(
             sts_desc_count   <= '0;
             sts_credit_count <= '0;
         end else begin
-            if (w_fire && w_is_hdr && w_hdr_unsup) sts_unsupported <= 1'b1;
-            if (w_desc_extra)                       sts_unsupported <= 1'b1;
+            if ((w_fire && w_is_hdr && w_hdr_unsup) || w_desc_extra) sts_unsupported <= 1'b1;
+            else if (clr_unsupported)                               sts_unsupported <= 1'b0;
             if (w_fire && w_is_hdr && w_s_ok && (w_hdr_route == R_DATA) && (w_tag != 4'(w_s)))
                 sts_tag_mismatch <= 1'b1;
+            else if (clr_tag_mismatch)
+                sts_tag_mismatch <= 1'b0;
             if (w_desc_take)                        sts_desc_count <= sts_desc_count + 16'd1;
             if (w_fire && w_is_hdr && w_s_ok && (w_ptype == rapids_pkg::TILE_PTYPE_CREDIT))
                 sts_credit_count <= sts_credit_count + 16'd1;

@@ -23,7 +23,7 @@
 
 # RAPIDS Architecture MAS
 
-**Version:** 0.2
+**Version:** 0.5
 **Date:** 2026-09-30
 **Purpose:** Module Architecture Specification for byte-granular RAPIDS, the product design that succeeds the RAPIDS Beats stepping stone
 
@@ -91,6 +91,7 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`,
 - [RAPIDS Config Block](../rapids_beats_mas/ch03_macro_blocks/11_rapids_config_block.md) (shared with RAPIDS Beats)
 - [RAPIDS Top](ch03_macro_blocks/12_rapids_top.md)
 - [Network Planes](../rapids_beats_mas/ch03_macro_blocks/13_network_planes.md) (shared with RAPIDS Beats)
+- [Tile Packet Header](ch03_macro_blocks/14_tile_header.md)
 
 ### Chapter 4: Interfaces
 

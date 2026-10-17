@@ -320,7 +320,8 @@ module rapids_src #(
     input  logic                        desc_inj_valid,
     input  logic [CIW-1:0]              desc_inj_ch,
     input  logic [255:0]                desc_inj_data,
-    output logic [NC-1:0]               desc_inj_dropped    // sticky: a desc had no free slot
+    output logic [NC-1:0]               desc_inj_dropped,   // sticky: a desc had no free slot
+    input  logic [NC-1:0]               desc_inj_dropped_clr // CSR write-1-to-clear pulse, per channel
 );
 
     //=========================================================================
@@ -519,6 +520,7 @@ module rapids_src #(
         .desc_inj_ch            (desc_inj_ch),
         .desc_inj_data          (desc_inj_data),
         .desc_inj_dropped       (desc_inj_dropped),
+        .desc_inj_dropped_clr   (desc_inj_dropped_clr),
 
         // Data Write Interface (Sink) - UNUSED in source-only build
         //   Outputs left unconnected; inputs tied off (no write engine present)

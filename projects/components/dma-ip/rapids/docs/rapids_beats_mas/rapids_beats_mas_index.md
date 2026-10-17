@@ -23,7 +23,7 @@
 
 # RAPIDS Beats Architecture MAS
 
-**Version:** 0.7
+**Version:** 0.11
 **Date:** 2026-07-13
 **Purpose:** Module Architecture Specification for RAPIDS Phase 1 "Beats" Architecture
 

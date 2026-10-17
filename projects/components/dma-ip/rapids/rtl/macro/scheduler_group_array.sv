@@ -244,6 +244,7 @@ module scheduler_group_array #(
     input  logic [((CHAN_WIDTH > 0) ? CHAN_WIDTH : 1)-1:0] desc_inj_ch,
     input  logic [255:0]                                desc_inj_data,
     output logic [NUM_CHANNELS-1:0]                     desc_inj_dropped,   // sticky per channel
+    input  logic [NUM_CHANNELS-1:0]                     desc_inj_dropped_clr,
 
     // Shared Data Write Interface (to AXI Write Engine)
     // Per-channel arrays - direct passthrough to engines
@@ -451,7 +452,7 @@ module scheduler_group_array #(
         assign sched_rd_pkt_tile = '0;
         assign desc_inj_dropped  = '0;
         logic unused_inj;
-        assign unused_inj = &{1'b0, desc_inj_valid, desc_inj_ch, desc_inj_data};
+        assign unused_inj = &{1'b0, desc_inj_valid, desc_inj_ch, desc_inj_data, desc_inj_dropped_clr};
         for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_scheduler_groups
             scheduler_group #(
                 .CHANNEL_ID             (ch),
@@ -1052,6 +1053,7 @@ module scheduler_group_array #(
             .inj_ch                 (desc_inj_ch),
             .inj_data               (desc_inj_data),
             .inj_dropped            (desc_inj_dropped),
+            .inj_dropped_clr        (desc_inj_dropped_clr),
             .descriptor_engine_idle (descriptor_engine_idle),
             .i_mon_time             (i_mon_time),
             .mon_valid              (s_dmon_valid),

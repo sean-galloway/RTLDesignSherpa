@@ -819,6 +819,72 @@ class DescriptorEngineTB(TBBase):
             self.log.error("✗ Channel reset test FAILED: Engine not idle")
             return False
 
+    async def test_inject_owed_beat(self):
+        """descriptor_engine_shared with INJ_EN: an injected descriptor must not
+        start a chain fetch while the channel still owes an R beat from a fetch
+        a channel reset aborted. If it did, the late beat (same ARID) would be
+        taken as the answer to the new fetch and a descriptor from the aborted
+        chain would run. Order out of the engine must be: injected, then the
+        descriptor its next pointer names -- never the aborted one.
+        (RTL review 2026-10-17, HIGH 1; the guard is !r_owe in w_inj_wr.)"""
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        self.log.info("=== Injection while an R beat is owed ===")
+        if not hasattr(self.dut, 'inj_valid'):
+            self.log.error("DUT has no injection port (descriptor_engine_shared only)")
+            return False
+        self.dut.inj_valid.value = 0
+        self.dut.inj_ch.value = 0
+        self.dut.inj_data.value = 0
+        # Long R latency so the aborted fetch's beat is still in flight
+        self.axi_slave['interface'].r_channel.randomizer = FlexRandomizer({'valid_delay': ([(80, 80)], [1])})
+
+        addr_a, addr_b = 0x10200, 0x10400
+        desc_a = self.create_descriptor(src_addr=0xA0A000, dst_addr=0, length_beats=4, valid=True, last=True)
+        desc_b = self.create_descriptor(src_addr=0xB0B000, dst_addr=0, length_beats=4, valid=True, last=True)
+        desc_i = self.create_descriptor(src_addr=0x101000, dst_addr=0, length_beats=4, next_ptr=addr_b,
+                                        valid=True, last=False)
+        self.write_descriptor_to_memory(addr_a, desc_a)
+        self.write_descriptor_to_memory(addr_b, desc_b)
+
+        got = []
+
+        async def capture():
+            while True:
+                await RisingEdge(self.clk)
+                if int(self.dut.descriptor_valid.value) and int(self.dut.descriptor_ready.value):
+                    got.append(int(self.dut.descriptor_packet.value) & ((1 << 64) - 1))
+        cap = cocotb.start_soon(capture())
+
+        n_ar = len(self.desc_ar_seen)
+        await self.send_apb_request(addr_a)
+        for _ in range(100):
+            await RisingEdge(self.clk)
+            if len(self.desc_ar_seen) > n_ar:
+                break
+        else:
+            self.log.error("the kick never issued its fetch")
+            cap.kill()
+            return False
+        # Abort the fetch while its beat is owed, then inject
+        self.dut.cfg_channel_reset.value = 1
+        await self.wait_clocks(self.clk_name, 2)
+        self.dut.cfg_channel_reset.value = 0
+        await self.wait_clocks(self.clk_name, 3)
+        self.dut.inj_valid.value = 1
+        self.dut.inj_data.value = desc_i
+        await RisingEdge(self.clk)
+        self.dut.inj_valid.value = 0
+        await self.wait_clocks(self.clk_name, 600)
+        cap.kill()
+
+        want = [0x101000, 0xB0B000]
+        if got != want:
+            self.log.error(f"✗ descriptors out {[hex(g) for g in got]}, expected {[hex(w) for w in want]}"
+                           + (" -- the aborted fetch's beat ran" if 0xA0A000 in got else ""))
+            return False
+        self.log.info("✓ injected descriptor, then its chain target; the owed beat was drained")
+        return True
+
     async def test_monitor_bus_events(self):
         """Test monitor bus event generation."""
         self.log.info("=== Scenario DESC-07: Rapid descriptor submission ===")

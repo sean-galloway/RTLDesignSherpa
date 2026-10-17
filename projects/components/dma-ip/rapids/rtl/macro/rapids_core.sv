@@ -515,7 +515,11 @@ module rapids_core #(
     output logic                        sts_tile_tag_mismatch,   // sticky
     output logic [15:0]                 sts_tile_desc_count,
     output logic [15:0]                 sts_tile_credit_count,
-    output logic [NC-1:0]               sts_tile_desc_dropped    // sticky per source channel
+    output logic [NC-1:0]               sts_tile_desc_dropped,   // sticky per source channel
+    // CSR write-1-to-clear pulses for the stickies above
+    input  logic                        tile_clr_unsupported,
+    input  logic                        tile_clr_tag_mismatch,
+    input  logic [NC-1:0]               tile_clr_desc_dropped
 );
 
     // Cell-issued descriptors: sink half -> source half (TILE_HDR)
@@ -747,7 +751,8 @@ module rapids_core #(
         .desc_inj_valid                (w_desc_inj_valid),
         .desc_inj_ch                   (w_desc_inj_ch),
         .desc_inj_data                 (w_desc_inj_data),
-        .desc_inj_dropped              (sts_tile_desc_dropped)
+        .desc_inj_dropped              (sts_tile_desc_dropped),
+        .desc_inj_dropped_clr          (tile_clr_desc_dropped)
     );
 
     //=========================================================================
@@ -973,7 +978,9 @@ module rapids_core #(
         .sts_tile_unsupported          (sts_tile_unsupported),
         .sts_tile_tag_mismatch         (sts_tile_tag_mismatch),
         .sts_tile_desc_count           (sts_tile_desc_count),
-        .sts_tile_credit_count         (sts_tile_credit_count)
+        .sts_tile_credit_count         (sts_tile_credit_count),
+        .tile_clr_unsupported          (tile_clr_unsupported),
+        .tile_clr_tag_mismatch         (tile_clr_tag_mismatch)
     );
 
     //=========================================================================

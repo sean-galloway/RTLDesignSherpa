@@ -142,6 +142,22 @@ that succeeded would tell the host a monitor is configured that does not exist.
 
 : DESCENG_CONFIG Register
 
+### Tile Header Status (0x2D0-0x2D8) - byte-granular RAPIDS with `TILE_HDR` = 1
+
+These registers exist in both halves and read zero in RAPIDS Beats and in a
+`TILE_HDR` = 0 build. The sticky bits are write-1-to-clear.
+
+| Register | Half | Fields |
+|----------|------|--------|
+| `TILE_STATUS` (0x2D0) | SNK | `UNSUPPORTED` [0]: the sink port consumed a packet it could not act on. `TAG_MISMATCH` [1]: a data packet's tag differed from its stream ID |
+| `TILE_DESC_DROPPED` (0x2D4) | SRC | `DROPn` [n]: channel n dropped a cell-issued descriptor (no free slot, EXT, or during channel reset) |
+| `TILE_COUNTS` (0x2D8) | SNK | `DESC_COUNT` [15:0]: `desc` packets passed to the source half. `CREDIT_COUNT` [31:16]: `credit` packets received. Both wrap |
+
+: Tile Header Status Registers
+
+A drop does not error the channel; `TILE_DESC_DROPPED` is the only record of
+it. See the compute-engine tile's TILE_SPEC Section 11.12.
+
 ## Register Access Timing
 
 ```wavedrom

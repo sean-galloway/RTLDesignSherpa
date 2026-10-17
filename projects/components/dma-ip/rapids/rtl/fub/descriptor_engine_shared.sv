@@ -133,6 +133,7 @@ module descriptor_engine_shared #(
     input  logic [CW-1:0]                     inj_ch,
     input  logic [255:0]                      inj_data,
     output logic [NC-1:0]                     inj_dropped,   // sticky per channel
+    input  logic [NC-1:0]                     inj_dropped_clr, // one-cycle W1C clear (a drop wins)
 
     output logic [NC-1:0]                     descriptor_engine_idle,
 
@@ -452,8 +453,8 @@ module descriptor_engine_shared #(
 
                 // Sticky drop flag: a channel reset clears it, a drop (even
                 // one during that reset) sets it
-                if (w_inj_drop)          inj_dropped[c] <= 1'b1;
-                else if (r_reset[c])     inj_dropped[c] <= 1'b0;
+                if (w_inj_drop)                              inj_dropped[c] <= 1'b1;
+                else if (r_reset[c] || inj_dropped_clr[c])   inj_dropped[c] <= 1'b0;
 
                 if (w_inj_take) begin
                     r_inj_v[c]     <= 1'b1;

@@ -331,7 +331,9 @@ module rapids_snk #(
     output logic                        sts_tile_unsupported,
     output logic                        sts_tile_tag_mismatch,
     output logic [15:0]                 sts_tile_desc_count,
-    output logic [15:0]                 sts_tile_credit_count
+    output logic [15:0]                 sts_tile_credit_count,
+    input  logic                        tile_clr_unsupported,      // CSR write-1-to-clear pulses
+    input  logic                        tile_clr_tag_mismatch
 );
 
     //=========================================================================
@@ -543,6 +545,7 @@ module rapids_snk #(
         .desc_inj_data          ('0),
         /* verilator lint_off PINCONNECTEMPTY */
         .desc_inj_dropped       (),
+        .desc_inj_dropped_clr   ('0),
         /* verilator lint_on PINCONNECTEMPTY */
 
         // Data Write Interface (to Sink Data Path)
@@ -702,6 +705,8 @@ module rapids_snk #(
             .desc_inj_valid   (desc_inj_valid),
             .desc_inj_ch      (desc_inj_ch),
             .desc_inj_data    (desc_inj_data),
+            .clr_unsupported  (tile_clr_unsupported),
+            .clr_tag_mismatch (tile_clr_tag_mismatch),
             .sts_unsupported  (sts_tile_unsupported),
             .sts_tag_mismatch (sts_tile_tag_mismatch),
             .sts_desc_count   (sts_tile_desc_count),
@@ -723,6 +728,8 @@ module rapids_snk #(
         assign sts_tile_tag_mismatch = 1'b0;
         assign sts_tile_desc_count   = '0;
         assign sts_tile_credit_count = '0;
+        logic unused_tile_clr;
+        assign unused_tile_clr = &{1'b0, tile_clr_unsupported, tile_clr_tag_mismatch};
     end
     endgenerate
 

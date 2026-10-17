@@ -159,6 +159,24 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
             errs.append(f"sts_tile_credit_count={st['credit_count']}, expected {want_credit}")
         return errs
 
+    async def check_w1c(self, half: str, reg: str, bit: int, port: str, port_bit: int = 0) -> List[str]:
+        """A tile status CSR bit reads 1, a write of 1 clears it in the CSR
+        AND in the RTL sticky it mirrors (the top-level port drops too), and
+        it stays clear afterwards."""
+        errs = []
+        v = await self.read_reg(half, reg)
+        if not (v >> bit) & 1:
+            errs.append(f"{half}.{reg} = 0x{v:X}: bit {bit} not set")
+        await self.write_reg(half, reg, 1 << bit)
+        await self.wait_clocks(self.clk_name, 10)
+        v = await self.read_reg(half, reg)
+        if (v >> bit) & 1:
+            errs.append(f"{half}.{reg} = 0x{v:X}: bit {bit} still set after a write-1 clear")
+        p = int(getattr(self.dut, port).value)
+        if (p >> port_bit) & 1:
+            errs.append(f"{port} still set after {half}.{reg} was cleared (the RTL sticky did not clear)")
+        return errs
+
     def _finish(self, errors: List[str], what: str) -> Tuple[bool, Dict[str, Any]]:
         errors = list(self.test_errors) + errors + self.cxs_link_errors()
         for e in errors:
@@ -382,6 +400,10 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
         if se not in (0, -1):
             errors.append(f"src_sched_error=0x{se:X}: a dropped descriptor must not error a channel")
         errors += self._status_errors(want_desc=n)
+        counts = await self.read_reg('snk', 'TILE_COUNTS')
+        if counts & 0xFFFF != n:
+            errors.append(f"SNK.TILE_COUNTS.DESC_COUNT = {counts & 0xFFFF}, expected {n}")
+        errors += await self.check_w1c('src', 'TILE_DESC_DROPPED', channel, 'sts_tile_desc_dropped', channel)
         # The link is still live: a sink write on another channel completes
         ok, st = await self.test_sink_write(channel=1, beats=2, want_desc=n)
         errors += [] if ok else [f"after overflow: {e}" for e in st['errors']]
@@ -424,4 +446,9 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
         ok, st = await self.test_sink_write(channel=channel, beats=2, want_credit=1,
                                             want_unsupported=1)
         errors += [] if ok else [f"after unsupported: {e}" for e in st['errors']]
+        # The same status through the CSRs, and the write-1 clear
+        counts = await self.read_reg('snk', 'TILE_COUNTS')
+        if (counts >> 16) & 0xFFFF != 1:
+            errors.append(f"SNK.TILE_COUNTS.CREDIT_COUNT = {(counts >> 16) & 0xFFFF}, expected 1")
+        errors += await self.check_w1c('snk', 'TILE_STATUS', 0, 'sts_tile_unsupported')
         return self._finish(errors, "credit / unsupported")
