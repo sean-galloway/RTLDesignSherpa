@@ -41,7 +41,7 @@ The `perf_profiler` module captures timing information for channel activity to e
 - **Two Profiling Modes:**
   - Mode 0 (TIMESTAMP): Captures timestamps on idle signal edges
   - Mode 1 (ELAPSED): Captures elapsed time directly
-- **Per-Channel Profiling:** Tracks all 8 channels independently
+- **Per-Channel Profiling:** Tracks all NUM_CHANNELS channels (8 or 16) independently
 - **256-Entry FIFO:** Buffers performance data for software polling
 - **Channel ID Tagging:** Each entry includes source channel
 - **Configurable via APB:** Enable, mode, and clear controls
@@ -87,15 +87,24 @@ Advantages:
   - Direct performance metric
 ```
 
-### FIFO Entry Format (36-bit)
+### FIFO Entry Format (ENTRY_W bits)
 
-| Bits | Field | Description |
-|------|-------|-------------|
-| [31:0] | timestamp/elapsed | Timestamp or elapsed time |
-| [34:32] | channel_id | Source channel (0-7) |
-| [35] | event_type | 0=start, 1=end (timestamp mode) |
+The channel ID field is `CHID_W = max(3, CHANNEL_WIDTH)` bits, and the event
+type sits directly above it. An 8-channel build keeps the original 36-bit
+layout. A 16-channel build adds one ID bit, so its entries are 37 bits.
+
+| Bits | Field | 8 channels | 16 channels |
+|------|-------|------------|-------------|
+| [31:0] | timestamp/elapsed | [31:0] | [31:0] |
+| channel_id | Source channel | [34:32] (0-7) | [35:32] (0-15) |
+| event_type | 0=start, 1=end (timestamp mode) | [35] | [36] |
 
 : FIFO Entry Format
+
+PERF_DATA_HIGH returns the bits above 31, zero-extended:
+`{event_type[3], channel_id[2:0]}` at 8 channels and
+`{event_type[4], channel_id[3:0]}` at 16. Software takes the channel count from
+`VERSION.NUM_CHANNELS`.
 
 ---
 
@@ -148,7 +157,7 @@ Advantages:
 |--------|-----------|-------|-------------|
 | `perf_fifo_rd` | input | 1 | Read strobe (pops FIFO) |
 | `perf_fifo_data_low` | output | 32 | Timestamp/elapsed [31:0] |
-| `perf_fifo_data_high` | output | 32 | {28'b0, event_type, channel_id} |
+| `perf_fifo_data_high` | output | 32 | {0, event_type, channel_id[CHID_W-1:0]} |
 | `perf_fifo_empty` | output | 1 | FIFO empty flag |
 | `perf_fifo_full` | output | 1 | FIFO full flag |
 | `perf_fifo_count` | output | 16 | Number of entries |
@@ -213,7 +222,7 @@ Software reads FIFO via APB:
 2. Read PERF_DATA_LOW (0x2D0) and PERF_DATA_HIGH (0x2D4), in EITHER order:
    - Both return the entry at the HEAD of the FIFO
    - LOW  = timestamp/elapsed [31:0]
-   - HIGH = {28'b0, event_type, channel_id[2:0]}
+   - HIGH = {0, event_type, channel_id[CHID_W-1:0]} (CHID_W = 3 at 8 channels, 4 at 16)
 3. The FIFO pops once BOTH have been read, so the two halves always
    belong to the same entry and the read order does not matter
 4. Parse data and repeat
@@ -327,9 +336,10 @@ if (end_time < start_time)
 |---------|------|--------|-------------|
 | 0.90 | 2025-11-22 | seang | Initial block specification |
 | 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+| 0.92 | 2026-10-17 | seang | Channel ID field widens with the channel count (`CHID_W`); 16-channel builds were reporting channels 8-15 as 0-7 |
 
 : Performance Profiler Revision History
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-10-17

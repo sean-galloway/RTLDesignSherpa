@@ -26,7 +26,7 @@
 ## STREAM Hardware Architecture Specification
 
 **Document Number:** STREAM-HAS-001
-**Version:** 0.95
+**Version:** 0.96
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -69,7 +69,7 @@ This Hardware Architecture Specification (HAS) provides a high-level architectur
 | APB | Advanced Peripheral Bus - ARM AMBA low-power configuration bus |
 | Beat | Single data transfer on AXI bus (one clock cycle of valid data) |
 | Burst | Sequence of consecutive beats forming a single AXI transaction |
-| Channel | Independent DMA transfer context (STREAM supports 8 channels) |
+| Channel | Independent DMA transfer context (STREAM is built with 8 or 16 channels) |
 | Descriptor | 256-bit data structure defining a single DMA transfer operation |
 | DMA | Direct Memory Access - data transfer without CPU involvement |
 | HAS | Hardware Architecture Specification |
@@ -91,9 +91,10 @@ This Hardware Architecture Specification (HAS) provides a high-level architectur
 | 0.93 | 2026-07-02 | seang | Monitor registers relocated to a separate `stream_mon_regs` regfile at 0x1000 (single APB slave); APB address decode widened to 13 bits / 8 KB so the monitor block is addressable (`ch04_interfaces/02_apb4_slave.md`). Companion MAS documents `SCHED_TIMEOUT_LIMIT` + the recoverable scheduler write-progress timeout and functional descriptor prefetch. |
 | 0.94 | 2026-07-07 | seang | Documented the kick-burst fast-path interface (top-level `i_kick_burst_mask` / `i_kick_burst_addr` ports) that starts any subset of channels on a single clock cycle, bypassing the serial APB `CHn_CTRL` kick — added the interface signal table + semantics to `ch04_interfaces/02_apb4_slave.md`. Reference integration is the NexysA7 char harness (`CH_KICK_ADDR` shadow registers + `KICK_GO` bitmask CSR). |
 | 0.95 | 2026-07-09 | seang | Documented read-ahead descriptor prefetch: the scheduler read side advances to the next chained legacy descriptor while the write side drains the current one, eliminating the per-descriptor boundary bubble (cross-descriptor streaming). Added a section to `ch05_performance/01_throughput.md` with on-silicon A/B (Nexys A7, single bitstream: 95.3% datapath util prefetch-on vs 76.1% off at 64-beat descriptors; row-major EXT 99.7% util bubble-free; transpose single-beat latency-bound). Runtime `SCHED_CONFIG.RD_PREFETCH_EN`, default on. |
+| 0.96 | 2026-10-17 | seang | 8- or 16-channel builds (`stream_top_ch8` / `stream_top_ch16`) and the 16-channel register map; one shared descriptor engine by default (`SHARED_ENGINES`), with measured area (8 channels 25.8k -> 20.7k LUTs; 16 channels 36.8k) in `ch05_performance/03_resources.md`. Corrected three pages that did not match the RTL: the channel FSM (six states, read and write concurrent in CH_XFER_DATA), SRAM buffering (`SRAM_DEPTH` is per channel, with no dynamic reallocation), and interrupts (one `stream_irq`, no per-channel vector). Diagrams ch02_system_context, ch03_whole_unit, ch03_channel_architecture and 05_channel_fsm redrawn. |
 
 : Document Revision History
 
 ---
 
-**Last Updated:** 2026-07-02
+**Last Updated:** 2026-10-17

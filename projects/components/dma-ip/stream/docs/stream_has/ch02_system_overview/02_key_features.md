@@ -27,7 +27,7 @@
 
 | Feature | Specification |
 |---------|---------------|
-| **Channels** | 8 independent channels |
+| **Channels** | 8 or 16 independent channels (`stream_top_ch8` / `stream_top_ch16`) |
 | **Descriptor Size** | 256 bits (32 bytes) |
 | **Data Width** | Parameterizable (default 512 bits) |
 | **Address Width** | 64 bits |
@@ -153,4 +153,4 @@ Errors in one channel do not affect other channels. Each channel has independent
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-10-17

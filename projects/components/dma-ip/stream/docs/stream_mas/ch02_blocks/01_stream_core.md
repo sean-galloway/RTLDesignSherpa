@@ -32,11 +32,12 @@
 
 ## Overview
 
-The STREAM Core is the top-level integration module that combines all STREAM components into a complete scatter-gather DMA engine. It provides 8 independent channels with descriptor-based memory-to-memory transfers.
+The STREAM Core is the top-level integration module that combines all STREAM components into a complete scatter-gather DMA engine. It provides 8 or 16 independent channels (`NUM_CHANNELS`; the shipped tops are `stream_top_ch8` and `stream_top_ch16`) with descriptor-based memory-to-memory transfers.
 
 ### Key Features
 
-- **8 Independent Channels:** Concurrent descriptor-based transfers
+- **8 or 16 Independent Channels:** Concurrent descriptor-based transfers
+- **Shared Descriptor Engine:** By default (`SHARED_ENGINES = 1`), one `descriptor_engine_shared` fetches for every channel; see [Scheduler Group Array](02_scheduler_group_array.md)
 - **Shared AXI Masters:** Three shared AXI4 masters for efficiency
   - Descriptor fetch (256-bit fixed)
   - Data read (parameterizable, default 512-bit)
@@ -102,14 +103,14 @@ The STREAM Core integrates the following major components:
 sequenceDiagram
     participant APB as APB Write
     participant SCHED as Scheduler
-    participant DESC as Descriptor Engine
+    participant DESC as Descriptor Engine (shared)
     participant MEM as m_axi_desc_*
 
-    APB->>SCHED: descriptor address
-    SCHED->>DESC: fetch request
-    DESC->>MEM: AXI read
-    MEM-->>DESC: 256-bit descriptor
-    DESC->>SCHED: parsed descriptor
+    APB->>DESC: kick: descriptor address (channel n)
+    DESC->>MEM: AXI read, ARID = n
+    MEM-->>DESC: 256-bit descriptor, RID = n
+    DESC->>SCHED: descriptor into channel n's FIFO
+    SCHED->>DESC: descriptor_ready (CH_IDLE and enabled)
 ```
 
 **Data Transfer Flow:**
@@ -143,11 +144,12 @@ sequenceDiagram
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `NUM_CHANNELS` | int | 8 | Number of independent DMA channels |
-| `CHAN_WIDTH` | int | $clog2(NUM_CHANNELS) | Channel ID width (3 for 8 channels) |
+| `CHAN_WIDTH` | int | $clog2(NUM_CHANNELS) | Channel ID width (3 for 8 channels, 4 for 16) |
 | `ADDR_WIDTH` | int | 64 | Address bus width |
 | `DATA_WIDTH` | int | 512 | Data bus width (must match memory interface) |
 | `AXI_ID_WIDTH` | int | 8 | AXI transaction ID width |
 | `FIFO_DEPTH` | int | 512 | Per-channel FIFO depth |
+| `SHARED_ENGINES` | int | 1 | 1: one shared descriptor engine; 0: one `descriptor_engine` per channel behind an AR arbiter |
 
 : Primary Configuration
 
@@ -627,7 +629,7 @@ The following diagram shows the complete data flow through the STREAM core, from
 **Key Test Scenarios:**
 
 1. **Single channel transfer** - Basic end-to-end operation
-2. **Multi-channel concurrent** - 2-8 channels simultaneously
+2. **Multi-channel concurrent** - 2 to 16 channels simultaneously (the 16-channel top runs the high channels and all channels at once)
 3. **Descriptor chaining** - 2-5 descriptors linked
 4. **FIFO overflow prevention** - Large transfer with small FIFO
 5. **Error handling** - AXI errors, timeouts
@@ -648,17 +650,13 @@ cfg_axi_wr_xfer_beats = 16
 
 ## Resource Utilization
 
-**Estimated Resources (8 channels, 512-bit data, 512-deep FIFOs):**
+**Measured (out-of-context Vivado, 256-bit data, monitors off, 100 MHz):**
 
-| Component | Quantity | Est. Size |
-|-----------|----------|-----------|
-| Schedulers | 8 | 8 × ~500 FFs |
-| Descriptor Engine | 1 | ~1000 FFs |
-| SRAM FIFOs | 8 | 8 × 512 × 512-bit = 256KB |
-| AXI Engines | 2 | 2 × ~2000 FFs |
-| Skid Buffers | 3 sets | ~2000 FFs |
-| Monitors | 3 | 3 × ~1000 FFs |
-| **Total** | | ~20K FFs + 256KB SRAM |
+| Build | LUTs | Flops | Worst slack |
+|-------|-----:|------:|------------:|
+| 8 channels, `SHARED_ENGINES = 0` | 25.8k | 14.9k | +3.24 ns |
+| 8 channels, `SHARED_ENGINES = 1` | 20.7k | 11.7k | +2.50 ns |
+| 16 channels, `SHARED_ENGINES = 1` | 36.8k | 19.4k | +1.79 ns |
 
 : Resource Utilization
 
@@ -739,9 +737,10 @@ stream_core #(
 |---------|------|--------|-------------|
 | 0.90 | 2025-11-22 | seang | Initial block specification |
 | 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+| 0.92 | 2026-10-17 | seang | 8 or 16 channels; `SHARED_ENGINES` parameter and shared descriptor fetch flow; measured area |
 
 : STREAM Core Specification Revision History
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-10-17

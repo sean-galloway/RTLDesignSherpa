@@ -67,9 +67,9 @@ Descriptor 2: src=0x8180, dst=0x5000, len=16 beats  (chained, last)
 **Description:** Execute multiple independent transfer operations simultaneously.
 
 **Operation:**
-- Up to 8 channels operate concurrently
+- Up to 8 or 16 channels (by top) operate concurrently
 - Each channel processes its own descriptor chain
-- Shared resources (SRAM, AXI masters) arbitrated by priority
+- Shared AXI masters picked round-robin; each channel has its own SRAM FIFO
 
 **Use Cases:**
 - Parallel DMA for multi-stream applications

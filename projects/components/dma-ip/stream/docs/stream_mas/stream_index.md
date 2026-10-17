@@ -101,7 +101,8 @@
 
 | Module | File | Purpose | Lines | Status |
 |--------|------|---------|-------|--------|
-| descriptor_engine | `rtl/fub/descriptor_engine.sv` | Descriptor fetch/parse (256-bit) | ~300 | [Done] |
+| descriptor_engine | `rtl/fub/descriptor_engine.sv` | Descriptor fetch/parse (256-bit), one per channel (`SHARED_ENGINES=0`) | ~300 | [Done] |
+| descriptor_engine_shared | `rtl/fub/descriptor_engine_shared.sv` | One descriptor fetch engine for every channel (`SHARED_ENGINES=1`, default; ported from RAPIDS) | ~600 | [Done] |
 | scheduler | `rtl/fub/scheduler.sv` | Transfer coordinator | ~400 | [Done] Created (corrected) |
 | axi_read_engine | `rtl/fub/axi_read_engine.sv` | AXI read master | ~350 | [Done] Created (no FSM - streaming pipeline) |
 | axi_write_engine | `rtl/fub/axi_write_engine.sv` | AXI write master | ~400 | [Done] Created (no FSM - streaming pipeline) |
@@ -113,10 +114,12 @@
 
 | Module | File | Purpose | Lines | Status |
 |--------|------|---------|-------|--------|
-| scheduler_group_array | `rtl/macro/scheduler_group_array.sv` | 8-channel array + round-robin channel arbitration (no separate channel_arbiter module) | ~500 | [Done] |
+| scheduler_group_array | `rtl/macro/scheduler_group_array.sv` | NUM_CHANNELS (8 or 16) scheduler array + descriptor fetch, shared or per channel (`SHARED_ENGINES`) | ~500 | [Done] |
 | apb_config | `rtl/macro/stream_regs.rdl` + generated wrapper (`regs/generated/`) | Config registers | ~350 | [Done] PeakRDL-based |
 | monbus_axil_group | `rtl/amba/ocelus/monbus_axil4_axil4_group.sv` (shared AMBA monitor block) | MonBus + AXIL | ~800 | [Done] |
 | stream_top | `rtl/top/stream_top_ch8.sv` | Top-level (8-channel) | ~500 | [Done] |
+| stream_top_ch16 | `rtl/top/stream_top_ch16.sv` | Top-level (16-channel); generated from `stream_top_ch8.sv` by `bin/gen_stream_regs_16ch.py` | ~500 | [Done] |
+| apb_config (16ch) | `rtl/macro/generated_16ch/stream_regs_16ch.rdl` (derived) + `regs/generated_16ch/` | 16-channel config registers | - | [Done] PeakRDL-based |
 
 ---
 

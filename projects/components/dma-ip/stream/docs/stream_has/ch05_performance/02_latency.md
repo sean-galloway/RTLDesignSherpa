@@ -113,7 +113,7 @@ At 200 MHz: ~400 ns first-byte latency (typical)
 
 Conditions for worst-case latency:
 
-1. All 8 channels active (maximum arbitration delay)
+1. All channels active (maximum arbitration delay: 8 or 16 channels, by top)
 2. Memory system fully loaded (maximum memory latency)
 3. Small transfer size (maximum overhead ratio)
 4. Low priority descriptor (maximum wait time)

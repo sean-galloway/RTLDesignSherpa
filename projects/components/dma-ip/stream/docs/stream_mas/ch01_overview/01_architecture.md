@@ -37,7 +37,7 @@ STREAM is a high-performance, multi-channel descriptor-based DMA engine designed
 
 1. **Tutorial Focus** - Intentional simplifications for learning
 2. **Production Quality** - Industry-standard interfaces and verification
-3. **Scalability** - 8 independent channels with shared resource arbitration
+3. **Scalability** - 8 or 16 independent channels (`stream_top_ch8` / `stream_top_ch16`) with shared resource arbitration and, by default, one shared descriptor engine
 4. **Modularity** - Clear separation of concerns across functional blocks
 
 ---
@@ -200,16 +200,22 @@ sequenceDiagram
 
 ## Component Hierarchy
 
-### Top-Level Integration (stream_top_ch8.sv)
+### Top-Level Integration (stream_top_ch8.sv / stream_top_ch16.sv)
+
+`stream_top_ch16.sv` is `stream_top_ch8.sv` with `NUM_CHANNELS = 16`, generated
+by `bin/gen_stream_regs_16ch.py`. The two differ only in the register block
+they instantiate (`stream_regs` or `stream_regs_16ch`), chosen by the filelist
+through the `regsel_{8,16}ch` include directory.
 
 ```
-stream_top_ch8 (Top-Level Wrapper)
+stream_top_ch8 / stream_top_ch16 (Top-Level Wrapper)
 ├── APB Interface Path
 │   ├── apb4_slave_cdc        (CDC_ENABLE=1: APB clock domain crossing)
 │   └── peakrdl_to_cmdrsp     (CMD/RSP → PeakRDL passthrough; ALL accesses.
 │       │                     No router: the kick is register state at
 │       │                     0x000-0x03F plus 0x128 KICK_ENABLE)
-│       └── stream_regs       (PeakRDL-generated register file)
+│       └── stream_regs       (PeakRDL-generated register file;
+│                             stream_regs_16ch in the 16-channel top)
 ├── stream_config_block      (Register → config signal mapping)
 ├── stream_core              (Main DMA engine - see below)
 └── monbus_axil_group        (USE_AXI_MONITORS=1: MonBus → AXI-Lite)
@@ -223,14 +229,19 @@ stream_top_ch8 (Top-Level Wrapper)
 
 ```
 stream_core
-├── scheduler_group_array
-│   ├── scheduler_group [0..7]
+├── scheduler_group_array         (SHARED_ENGINES = 1, the default)
+│   ├── scheduler [0..NUM_CHANNELS-1]
+│   ├── descriptor_engine_shared  (one fetch engine for every channel)
+│   ├── axi4_master_rd_monlite    (descriptor port monitor)
+│   └── monbus_arbiter            (NUM_CHANNELS + 2 sources)
+│   -- or, SHARED_ENGINES = 0 --
+│   ├── scheduler_group [0..NUM_CHANNELS-1]
 │   │   ├── descriptor_engine
 │   │   ├── scheduler
 │   │   └── monbus_arbiter
-│   ├── arbiter_round_robin       (descriptor AR, 8:1)
+│   ├── arbiter_round_robin       (descriptor AR, NUM_CHANNELS:1)
 │   ├── axi4_master_rd_monlite    (descriptor port monitor)
-│   └── monbus_arbiter            (9 sources)
+│   └── monbus_arbiter            (NUM_CHANNELS + 1 sources)
 ├── monbus_arbiter                (core MonBus merge)
 ├── axi_read_engine
 │   └── arbiter_round_robin       (space-aware channel pick)
@@ -238,7 +249,7 @@ stream_core
 │   ├── arbiter_round_robin       (data-aware channel pick)
 │   └── gaxi_fifo_sync            (W-phase queue, per-channel B-phase queues)
 ├── sram_controller
-│   └── sram_controller_unit [0..7]
+│   └── sram_controller_unit [0..NUM_CHANNELS-1]
 │       ├── stream_alloc_ctrl
 │       ├── gaxi_fifo_sync
 │       ├── stream_drain_ctrl
@@ -255,7 +266,7 @@ stream_core
 
 ## Interface Summary
 
-### External Interfaces (stream_top_ch8.sv)
+### External Interfaces (stream_top_ch8.sv / stream_top_ch16.sv)
 
 | Interface | Type | Width | Purpose |
 |-----------|------|-------|---------|
@@ -281,10 +292,16 @@ stream_core
 
 **APB Address Map:**
 ```
-0x000-0x03F: Channel descriptor addresses (staged); 0x128: KICK_ENABLE (launch)
-0x040-0x0FF: Reserved
+0x000-0x03F: Channel 0-7 descriptor addresses (staged); 0x128: KICK_ENABLE (launch)
+0x040-0x07F: Channel 8-15 descriptor addresses (16-channel map; reserved in the 8-channel map)
+0x080-0x0FF: Reserved
 0x100-0x3FF: PeakRDL configuration registers
 ```
+
+The 16-channel map is derived from the 8-channel one and differs only where a
+channel count shows: per-channel fields widen from `[7:0]` to `[15:0]`, and
+`CH_STATE` moves from 0x150 to 0x180. See the
+[Register Map](../ch04_registers/register_map.md) for the full list.
 
 **Key Register Groups:**
 - 0x100: Global Control (enable, reset, version)
@@ -305,21 +322,22 @@ stream_core
 
 ## Resource Utilization
 
-### Area Breakdown (Typical 512-bit Data Width)
+### Measured Area (stream_core)
 
-| Component | Quantity | Logic (LUTs) | Memory |
-|-----------|----------|--------------|--------|
-| Descriptor Engine | 8 | ~300 each | Minimal |
-| Scheduler | 8 | ~400 each | Minimal |
-| AXI Read Engine | 1 | ~800 | Minimal |
-| AXI Write Engine | 1 | ~800 | Minimal |
-| SRAM Controller | 1 | ~600 | 8 × 64KB = 512KB |
-| Arbiters | 3 | ~150 each | Minimal |
-| APB Config | 1 | ~400 | Register file |
-| MonBus Aggregator | 1 | ~200 | Small FIFO |
-| **Total** | - | **~10K LUTs** | **~512KB RAM** |
+Out-of-context Vivado synthesis of `stream_core` at 256-bit data, with
+monitors off and a 100 MHz clock:
 
-: STREAM Resource Utilization Breakdown
+| Build | LUTs | Flops | Worst slack |
+|-------|-----:|------:|------------:|
+| 8 channels, per-channel descriptor engines (`SHARED_ENGINES = 0`) | 25.8k | 14.9k | +3.24 ns |
+| 8 channels, shared descriptor engine (default) | 20.7k | 11.7k | +2.50 ns |
+| 16 channels, shared descriptor engine | 36.8k | 19.4k | +1.79 ns |
+
+: STREAM Core Measured Area
+
+The shared engine saves about 20% of the 8-channel core's LUTs. The
+per-channel structures that remain are the schedulers, the SRAM controller
+units and the descriptor FIFOs.
 
 **Notes:**
 - SRAM depth configurable (typical: 512 entries × 512 bits × 8 channels = 512KB)
@@ -334,7 +352,7 @@ stream_core
 
 **Theoretical Maximum (512-bit @ 250MHz):**
 - Single channel: 16 GB/s (512 bits × 250 MHz)
-- 8 channels concurrent: Limited by memory bandwidth, not DMA
+- 8 or 16 channels concurrent: Limited by memory bandwidth, not DMA
 
 **Practical Performance:**
 - Dependent on:
@@ -444,13 +462,13 @@ If extending STREAM for production use, consider:
 - [AXI Write Engine](../ch02_blocks/12_axi_write_engine.md) - Destination data write
 - [SRAM Controller](../ch02_blocks/08_sram_controller.md) - Buffering and flow control
 - [Scheduler Group](../ch02_blocks/03_scheduler_group.md) - Per-channel wrapper
-- [Scheduler Group Array](../ch02_blocks/02_scheduler_group_array.md) - 8-channel array
+- [Scheduler Group Array](../ch02_blocks/02_scheduler_group_array.md) - Channel array and descriptor fetch (shared or per channel)
 
 
 ---
 
-**Last Updated:** 2025-12-01
-**Document Version:** 0.91
+**Last Updated:** 2026-10-17
+**Document Version:** 0.92
 ---
 
 ## Revision History
@@ -459,9 +477,10 @@ If extending STREAM for production use, consider:
 |---------|------|--------|-------------|
 | 0.90 | 2025-11-22 | seang | Initial block specification |
 | 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+| 0.92 | 2026-10-17 | seang | 16-channel top and register map; shared descriptor engine in the hierarchy; measured area replaces the estimate |
 
 : STREAM Architecture Overview Revision History
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-10-17

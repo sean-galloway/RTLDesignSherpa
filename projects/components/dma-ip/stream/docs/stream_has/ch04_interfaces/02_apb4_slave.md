@@ -52,18 +52,24 @@ STREAM provides an APB slave interface for software configuration and control. T
 
 ## Register Map Overview
 
+Two register maps exist: `stream_regs` for `stream_top_ch8` and
+`stream_regs_16ch` for `stream_top_ch16`. The 16-channel map adds
+`CH8..CH15_CTRL_{LOW,HIGH}` at 0x040-0x07C, widens the per-channel fields to
+[15:0], and moves `CH_STATE` to 0x180. The full list of differences is in the
+MAS register-map chapter. The table below is the 8-channel map.
+
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|
 | 0x000 | `CH0_CTRL_LOW` | RW | Channel 0 descriptor address [31:0] (staged) |
 | 0x004 | `CH0_CTRL_HIGH` | RW | Channel 0 descriptor address [63:32] (staged) |
 | 0x100 | `GLOBAL_CTRL` | RW | Global enable / reset |
 | 0x104 | `GLOBAL_STATUS` | RO | SYSTEM_IDLE |
-| 0x120 | `CHANNEL_ENABLE` | RW | Per-channel enable [7:0] |
-| 0x124 | `CHANNEL_RESET` | RW | Per-channel reset [7:0] |
+| 0x120 | `CHANNEL_ENABLE` | RW | Per-channel enable [7:0] ([15:0] in the 16-channel map) |
+| 0x124 | `CHANNEL_RESET` | RW | Per-channel reset [7:0] ([15:0] in the 16-channel map) |
 | 0x128 | `KICK_ENABLE` | RW | Launch staged addresses, one bit per channel |
-| 0x140 | `CHANNEL_IDLE` | RO | Per-channel idle [7:0] |
+| 0x140 | `CHANNEL_IDLE` | RO | Per-channel idle [7:0] ([15:0] in the 16-channel map) |
 | 0x148 | `SCHEDULER_IDLE` | RO | Scheduler idle |
-| 0x150 | `CH_STATE0_STATE` | RO | Channel 0 scheduler state [6:0], one-hot |
+| 0x150 | `CH_STATE0_STATE` | RO | Channel 0 scheduler state [6:0], one-hot (0x180 in the 16-channel map) |
 | 0x170 | `SCHED_ERROR` | RO | Scheduler error status |
 | 0x174 | `AXI_RD_COMPLETE` | RO | Read completion, one bit per channel |
 | 0x178 | `AXI_WR_COMPLETE` | RO | Write completion, one bit per channel |

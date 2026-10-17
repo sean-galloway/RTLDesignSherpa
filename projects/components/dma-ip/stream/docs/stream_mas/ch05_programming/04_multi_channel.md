@@ -39,11 +39,11 @@ STREAM supports 8 independent DMA channels that share common resources. This gui
 
 ### Shared Resources
 
-All 8 channels share the following resources:
+All channels (8 or 16, by top) share the following resources:
 
 | Resource | Type | Impact |
 |----------|------|--------|
-| Descriptor Fetch AXI Master | 256-bit read | Channels take turns fetching descriptors |
+| Descriptor Fetch AXI Master | 256-bit read | One shared engine picks channels round-robin; fetches from different channels overlap (ARID = channel) |
 | Data Read AXI Master | 512-bit (configurable) | Shared bandwidth for source reads |
 | Data Write AXI Master | 512-bit (configurable) | Shared bandwidth for destination writes |
 | SRAM Buffer | Configurable depth | Shared storage for in-flight data |
@@ -71,12 +71,12 @@ Enable/disable individual channels:
 #define REG_CHANNEL_ENABLE  0x120
 
 // Enable specific channels
-void enable_channels(uint8_t channel_mask) {
+void enable_channels(uint16_t channel_mask) {  // [15:0] in the 16-channel map
     write32(STREAM_BASE + REG_CHANNEL_ENABLE, channel_mask);
 }
 
 // Examples:
-enable_channels(0xFF);  // All 8 channels
+enable_channels(0xFF);  // All 8 channels (0xFFFF: all 16 in the 16-channel map)
 enable_channels(0x0F);  // Channels 0-3 only
 enable_channels(0x01);  // Channel 0 only
 ```

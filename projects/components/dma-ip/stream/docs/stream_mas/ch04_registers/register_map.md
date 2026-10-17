@@ -40,6 +40,11 @@
 
 ## Overview
 
+This chapter documents the 8-channel map (`stream_regs`, used by
+`stream_top_ch8`). The 16-channel map (`stream_regs_16ch`, used by
+`stream_top_ch16`) differs only where a channel count shows; see
+[16-Channel Register Map](#16-channel-register-map) at the end of the chapter.
+
 The STREAM DMA engine register interface consists of three distinct regions:
 
 1. **Channel Kick-off Registers** (0x000 - 0x03F) - Direct routing to descriptor engines
@@ -71,9 +76,10 @@ Base Address (configurable parameter)
 │  ├─ 0x038: CH7_CTRL_LOW  - Channel 7 descriptor address [31:0]
 │  └─ 0x03C: CH7_CTRL_HIGH - Channel 7 descriptor address [63:32]
 │
+├─ 0x040 - 0x07F: CH8..CH15_CTRL_{LOW,HIGH} (16-channel map only; reserved in the 8-channel map)
 │
 ├─ 0x128: KICK_ENABLE - write bit[ch]=1 to launch that channel (self-clearing)
-├─ 0x040 - 0x0FF: Reserved
+├─ 0x080 - 0x0FF: Reserved
 │
 ├─ 0x100 - 0x3FF: Configuration and Status Registers (base regfile)
 │  ├─ 0x100 - 0x11F: Global Control and Status
@@ -997,7 +1003,7 @@ This generates:
 
 | Offset | Register | Type | Reset | Description |
 |--------|----------|------|-------|-------------|
-| 0x2C0 | OBS_CTRL | RW | 0x0 | Channel observation mux selector [2:0] = channel index |
+| 0x2C0 | OBS_CTRL | RW | 0x0 | CH_SEL [2:0] = channel index, CAT_SEL [4:3] = data category (16-channel map: CH_SEL [3:0], CAT_SEL [5:4]) |
 | 0x2C4 | OBS_FLAGS | RO | 0x0 | Observation flags for selected channel (error sticky, timeout) |
 | 0x2C8 | OBS_DATA0 | RO | 0x0 | Per-channel diagnostic data 0 (low 32 bits) |
 | 0x2CC | OBS_DATA1 | RO | 0x0 | Per-channel diagnostic data 1 (high 32 bits) |
@@ -1005,12 +1011,42 @@ This generates:
 : Channel Observation Registers
 
 **Usage:**
-1. Write channel index (0-7) to OBS_CTRL[2:0]
+1. Write channel index to OBS_CTRL.CH_SEL ([2:0], channels 0-7; [3:0], channels 0-15 in the 16-channel map)
 2. Read OBS_FLAGS, OBS_DATA0, OBS_DATA1 (muxed views of selected channel)
 3. OBS_FLAGS[0] = `SCH_ERROR_STICKY` (persists until cfg_channel_reset)
 4. OBS_FLAGS[1] = `SCH_TIMEOUT` (current timeout state)
 
-**Implementation:** `stream_config_block.sv` implements the 8:1 mux for per-channel state observation (commit 0c979c35 exposes scheduler error/timeout signals into OBS_FLAGS).
+**Implementation:** `stream_config_block.sv` implements the NUM_CHANNELS:1 mux for per-channel state observation (commit 0c979c35 exposes scheduler error/timeout signals into OBS_FLAGS).
+
+---
+
+## 16-Channel Register Map
+
+`stream_top_ch16` uses `stream_regs_16ch` and `stream_mon_regs_16ch`, which
+`bin/gen_stream_regs_16ch.py` derives from the 8-channel RDL
+(`rtl/macro/generated_16ch/`). Never edit them by hand: edit the 8-channel RDL,
+rerun the script, then regenerate both regblocks with
+`bin/peakrdl_generate.py`. `bin/check_rdl_regen.py` checks both maps. Software
+uses `rtl/stream_regmap_16ch.py` (registers by name), so the moved offsets
+below do not reach test code.
+
+Everything not listed here is identical to the 8-channel map.
+
+| Register | 8-channel map | 16-channel map |
+|----------|---------------|----------------|
+| CH8..CH15_CTRL_{LOW,HIGH} | reserved (0x040-0x07F) | 0x040-0x07C, same layout as CH0..CH7 |
+| KICK_ENABLE (0x128) | KICK0..KICK7 | KICK0..KICK15 (offset unchanged) |
+| CHANNEL_ENABLE, CHANNEL_RESET, CHANNEL_IDLE, DESC_ENGINE_IDLE, SCHEDULER_IDLE, SCHED_ERROR, AXI_RD_COMPLETE, AXI_WR_COMPLETE | fields [7:0] | fields [15:0] |
+| CH_STATE | 8 entries at 0x150-0x16C | 16 entries at 0x180-0x1BC (16 entries at 0x150 would overrun SCHED_ERROR at 0x170) |
+| VERSION.NUM_CHANNELS | 8 | 16 |
+| OBS_CTRL (0x2C0) | CH_SEL [2:0], CAT_SEL [4:3] | CH_SEL [3:0], CAT_SEL [5:4] |
+| PERF_CH_SEL.CH_SEL (0x35C) | [2:0] | [3:0] |
+| RDMON_PERF_CH_OVERFLOW_HI / WRMON_PERF_CH_OVERFLOW_HI | not present | 0x11F8 / 0x11FC: channels 8..15, 4 bits per channel, channel 8 in the low nibble |
+
+: 16-Channel Register Map Differences
+
+Software that reads OBS_DATA must use the CAT_SEL position for its map: the
+field moved up one bit to make room for the fourth CH_SEL bit.
 
 ---
 
@@ -1028,5 +1064,7 @@ This generates:
 |         |            |                | stream_mon_regs regfile at 0x1000 (same APB      |
 |         |            |                | slave, 13-bit/8 KB decode); added                |
 |         |            |                | SCHED_TIMEOUT_LIMIT @ 0x208                       |
+| 1.3     | 2026-10-17 | sean galloway  | 16-channel register map (stream_regs_16ch);       |
+|         |            |                | OBS_CTRL CH_SEL/CAT_SEL layout per map            |
 
 : PeakRDL Generation

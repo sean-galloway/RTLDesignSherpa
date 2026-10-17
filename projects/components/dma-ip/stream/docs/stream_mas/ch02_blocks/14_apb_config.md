@@ -91,6 +91,7 @@ stream_config_block
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `NUM_CHANNELS` | int | 8 | Number of DMA channels |
+| `REG_NCH` | int | 8 | Channel bits in the register map: 8 (`stream_regs`) or 16 (`stream_regs_16ch`). `NUM_CHANNELS <= REG_NCH` |
 | `ADDR_WIDTH` | int | 64 | Address width for config outputs |
 
 : Parameters
@@ -116,8 +117,8 @@ stream_config_block
 |--------|-----------|-------|-------------|
 | `reg_global_ctrl_global_en` | input | 1 | Global enable |
 | `reg_global_ctrl_global_rst` | input | 1 | Global reset |
-| `reg_channel_enable_ch_en` | input | 8 | Per-channel enable bits |
-| `reg_channel_reset_ch_rst` | input | 8 | Per-channel reset bits |
+| `reg_channel_enable_ch_en` | input | REG_NCH | Per-channel enable bits |
+| `reg_channel_reset_ch_rst` | input | REG_NCH | Per-channel reset bits |
 
 : PeakRDL Register Inputs
 
@@ -236,7 +237,8 @@ Each monitor outputs ~16 configuration signals covering:
 
 ```systemverilog
 // Gate all channel enables by global enable
-assign cfg_channel_enable = reg_channel_enable_ch_en & {NUM_CHANNELS{reg_global_ctrl_global_en}};
+assign cfg_channel_enable = reg_channel_enable_ch_en[NUM_CHANNELS-1:0]
+                          & {NUM_CHANNELS{reg_global_ctrl_global_en}};
 
 // Gate scheduler enable
 assign cfg_sched_enable = reg_sched_config_sched_en & reg_global_ctrl_global_en;
@@ -249,7 +251,8 @@ assign cfg_desc_mon_enable = reg_daxmon_enable_mon_en & reg_global_ctrl_global_e
 
 ```systemverilog
 // Channel resets are OR'd with global reset
-assign cfg_channel_reset = reg_channel_reset_ch_rst | {NUM_CHANNELS{reg_global_ctrl_global_rst}};
+assign cfg_channel_reset = reg_channel_reset_ch_rst[NUM_CHANNELS-1:0]
+                         | {NUM_CHANNELS{reg_global_ctrl_global_rst}};
 ```
 
 ### Address Zero Extension
@@ -259,6 +262,18 @@ assign cfg_channel_reset = reg_channel_reset_ch_rst | {NUM_CHANNELS{reg_global_c
 assign cfg_desceng_addr0_base = {{(ADDR_WIDTH-32){1'b0}}, reg_desceng_addr0_base_addr0_base};
 assign cfg_desceng_addr0_limit = {{(ADDR_WIDTH-32){1'b0}}, reg_desceng_addr0_limit_addr0_limit};
 ```
+
+---
+
+### Register-Map Width (REG_NCH)
+
+The per-channel CSR fields are `REG_NCH` bits wide, which is 8 or 16
+depending on the register map. The block uses the low `NUM_CHANNELS` bits, so
+an 8-channel core can also sit behind the 16-channel map. The observer
+channel select (`reg_obs_ctrl_ch_sel` / `cfg_obs_ch_sel`) is 3 bits in the
+8-channel map and 4 bits in the 16-channel map (`REG_NCH > 8`). The top
+passes `REG_NCH` from the register map it was built with, through the
+`regsel_{8,16}ch` include that the filelist selects.
 
 ---
 
@@ -303,9 +318,10 @@ stream_config_block #(
 |---------|------|--------|-------------|
 | 0.90 | 2025-11-22 | seang | Initial block specification |
 | 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+| 0.92 | 2026-10-17 | seang | `REG_NCH` parameter (8- or 16-channel register map); per-channel input widths; observer channel-select width |
 
 : APB Configuration Block Revision History
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-10-17

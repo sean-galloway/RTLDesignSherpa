@@ -26,9 +26,10 @@
 **Module:** `descriptor_engine.sv`
 **Location:** `projects/components/dma-ip/stream/rtl/fub/`
 **Category:** FUB (Functional Unit Block)
-**Parent:** `scheduler_group.sv`
+**Parent:** `scheduler_group.sv` (`SHARED_ENGINES=0`); the shared variant
+`descriptor_engine_shared.sv` sits in `scheduler_group_array.sv` (`SHARED_ENGINES=1`, the default)
 **Status:** Implemented
-**Last Updated:** 2025-11-30
+**Last Updated:** 2026-10-17
 
 ---
 
@@ -412,11 +413,62 @@ Both monitors emit MonBus packets with identical protocol-independent structure 
 
 ---
 
+## Shared Variant: descriptor_engine_shared
+
+With `SHARED_ENGINES=1` (the default), `scheduler_group_array` builds one
+`descriptor_engine_shared` instead of `NUM_CHANNELS` copies of
+`descriptor_engine`. Each scheduler sees the same behaviour, channel for
+channel: the same kick policy, range check on the kicked address, EXT
+second-chunk fetch, prefetch throttle, autonomous chaining, error pulse,
+channel reset and MonBus completion and error packets. The per-channel
+interface signals are the ones in the Port List with a `[NC-1:0]` dimension
+added.
+
+**Shared by all channels:**
+
+- One AR issuer. It picks round-robin among the channels that have an address
+  to fetch and owns the descriptor AXI master outright, so no arbiter sits
+  behind it.
+- The address-range comparators, used for the kick address at issue and the
+  next pointer at chaining time.
+- The R path. Each beat is routed by RID to its channel and written straight
+  into that channel's descriptor FIFO, so no channel needs a 256-bit holding
+  register. The exception is EXT chunk 0, which must wait for chunk 1.
+- The MonBus reporter. The agent is `MON_AGENT_BASE + channel` and the
+  channel_id is the channel.
+
+**Per channel:** a state code, one pending fetch address, the kick-in-progress
+flag, the descriptor FIFO, and the EXT chunk-1 FIFO.
+
+Fetches carry `ARID = channel`. Different channels' fetches overlap on the
+bus, while each channel keeps one fetch in flight and stays in order.
+
+**Difference from `descriptor_engine`:** an R beat that arrives for a channel
+that is not waiting (one reset mid-fetch) is accepted and dropped. Leaving it
+on the shared R channel would stall every other channel.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `NUM_CHANNELS` | 8 | Channels served (8 or 16 in the shipped tops) |
+| `FIFO_DEPTH` | 8 | Per-channel descriptor FIFO depth |
+| `MON_AGENT_BASE` | 16'h0010 | MonBus agent of channel 0; channel n reports `MON_AGENT_BASE + n` |
+| `GEN_MON` | 1 | 0 = no MonBus packets |
+
+: descriptor_engine_shared Parameters (differences from descriptor_engine)
+
+The engine is ported from RAPIDS (`rapids/rtl/fub/descriptor_engine_shared.sv`)
+without the RAPIDS tile injection port. The EXT type field is STREAM's
+`[210:208]`, and the descriptor type sideband is always 0 because STREAM has no
+opcode. Area and timing for the shared and per-channel builds are in
+[Scheduler Group Array](02_scheduler_group_array.md).
+
+---
+
 ## Related Documentation
 
 - **Parent:** `03_scheduler_group.md` - Channel wrapper
 - **Consumer:** `04_scheduler.md` - Scheduler that receives descriptors
-- **Arbiter:** `02_scheduler_group_array.md` - Descriptor AXI arbitration
+- **Arbiter:** `02_scheduler_group_array.md` - Descriptor AXI arbitration (per-channel build) and the shared engine's placement
 ---
 
 ## Revision History
@@ -426,9 +478,10 @@ Both monitors emit MonBus packets with identical protocol-independent structure 
 | 0.90 | 2025-11-22 | seang | Initial block specification |
 | 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
 | 0.93 | 2026-07-02 | seang | `cfg_prefetch_enable` / `cfg_fifo_threshold` are now functional; documented prefetch-throttle gate (on-demand vs. buffer-ahead) and deferred-chain (`r_chain_pending`) behavior |
+| 0.94 | 2026-10-17 | seang | Added the shared variant, `descriptor_engine_shared` (`SHARED_ENGINES=1`, the default) |
 
 : Descriptor Engine Revision History
 
 ---
 
-**Last Updated:** 2026-07-02
+**Last Updated:** 2026-10-17

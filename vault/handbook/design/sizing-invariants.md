@@ -68,5 +68,19 @@ summary: Shared-resource capacity math lives in ONE place, never a comment.
   and the sink hung waiting for B responses with every channel in
   XFER_DATA. The tell was in the bus counts, not the engine: 128 AWs
   (1024 beats) against 776 W beats. STREAM's and RAPIDS Beats' write engines
-  carry the same ungated push and are safe only while NUM_CHANNELS x
-  AW_MAX_OUTSTANDING <= W_PHASE_FIFO_DEPTH.*
+  carried the same ungated push; all three are gated now.*
+
+- **A field packed with a literal-width cast does not grow with the parameter
+  it holds.** `3'(channel)` (or `{28'b0, x[35:32]}`) is correct while the
+  value fits and silently drops the high bit once it doesn't. Size the field
+  from the parameter, e.g. `CHID_W = max(3, CHANNEL_WIDTH)`, keeping the old
+  minimum so existing software layouts stay the same at the old
+  configuration. When a design gains a larger configuration, grep the
+  per-channel paths for literal-width casts and fixed slices, not just for
+  parameters.
+  *Case (2026-10-17): STREAM `perf_profiler` packed the FIFO entry as
+  `{event, 3'(channel), timestamp}`. At 16 channels, channel 13 read back as 5,
+  and because software parsed the event from bit [3], an END on channel 0 read
+  as a START on channel 8. The full 16-channel regression was green, because no
+  top test pulled a profiler entry for a channel above 7. A fub cell that walks
+  every channel and checks the (channel, event) sequence caught it at once.*

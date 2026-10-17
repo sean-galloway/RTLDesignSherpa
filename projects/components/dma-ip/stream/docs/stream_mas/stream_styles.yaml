@@ -110,7 +110,7 @@ title_page:
   logo_width: 2.5
   company: "RTL Design Sherpa"
   title: "STREAM Subsystem"
-  subtitle: "Micro-Architecture Specification 0.90"
+  subtitle: "Micro-Architecture Specification"
   date: "January 2, 2026"
   # Colors reference the colors section above
   company_color: primary

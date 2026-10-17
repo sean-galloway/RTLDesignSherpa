@@ -28,7 +28,7 @@
 **Category:** FUB (Functional Unit Block)
 **Parent:** `stream_core.sv`
 **Status:** Implemented
-**Last Updated:** 2026-09-29
+**Last Updated:** 2026-10-17
 
 ---
 
@@ -286,6 +286,21 @@ if (m_axi_awvalid && m_axi_awready) begin
 end
 ```
 
+**Room gate.** The AW handshake pushes this FIFO unconditionally, so the engine
+captures a new AW only while the FIFO has a free entry
+(`w_phase_txn_fifo_wr_ready`). The engine holds one AW at a time, so an entry
+that is free at capture is still free at the push. Without the gate, an AW
+issued into a full FIFO loses its W burst, and that channel waits for a B
+response that never comes. In-flight AWs can reach
+`NUM_CHANNELS x AW_MAX_OUTSTANDING`:
+
+| Build | In-flight AWs (8 outstanding) | `W_PHASE_FIFO_DEPTH` | Without the gate |
+|-------|-------------------------------|----------------------|------------------|
+| 8 channels | 64 | 64 | cannot overflow |
+| 16 channels | 128 | 64 | overflows; the sink hangs |
+
+: W-Phase FIFO Occupancy Bound
+
 ### B-Phase Transaction FIFOs
 
 Per-channel FIFOs track beats and last flag for completion:
@@ -464,6 +479,20 @@ The write engine now uses **post-flop gating on wvalid** to defeat a stale-view 
 
 ---
 
+## Bug Fixes (v0.93)
+
+### W-Phase FIFO Overflow Above 64 In-Flight AWs (2026-10-17)
+
+The W-phase FIFO was pushed on every AW handshake without a room check, so
+entries were dropped once in-flight AWs passed `W_PHASE_FIFO_DEPTH`. This
+cannot happen at 8 channels with 8 outstanding (64 = 64). It was found in
+RAPIDS, whose 16-channel all-channels test hung with 128 AWs on the bus against
+776 W beats. AW capture now waits for a free entry; see W-Phase Transaction
+FIFO above. `test_axi_write_engine` covers it with `wphase` cells, which drive
+more in-flight AWs than the FIFO holds.
+
+---
+
 ## Related Documentation
 
 - **Parent:** `01_stream_core.md` - Top-level integration
@@ -479,9 +508,10 @@ The write engine now uses **post-flop gating on wvalid** to defeat a stale-view 
 |---------|------|--------|-------------|
 | 0.90 | 2025-11-22 | seang | Initial block specification |
 | 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+| 0.93 | 2026-10-17 | seang | W-phase FIFO room gate on AW capture; occupancy bound for 8 and 16 channels |
 
 : AXI Write Engine Revision History
 
 ---
 
-**Last Updated:** 2026-09-29
+**Last Updated:** 2026-10-17

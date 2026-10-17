@@ -314,7 +314,8 @@ input  logic                        descriptor_error;       // Error from descri
 ```
 
 **Descriptor Handshake:**
-- `descriptor_ready` asserted in CH_IDLE or CH_NEXT_DESC
+- `descriptor_ready` asserted in CH_IDLE (only while `cfg_channel_enable` is set) or CH_NEXT_DESC
+- A disabled channel holds `descriptor_ready` low, so a descriptor the engine has already fetched waits in its FIFO until the channel is re-enabled; it is not consumed and dropped
 - Descriptor captured when `valid && ready`
 - Supports descriptor chaining (next_descriptor_ptr)
 
@@ -471,7 +472,7 @@ CH_ERROR       - Error condition
 
 **CH_IDLE:**
 - **Wait for:** `descriptor_valid && cfg_channel_enable`
-- **Action:** Assert `descriptor_ready`
+- **Action:** Assert `descriptor_ready` (gated by `cfg_channel_enable`)
 - **Next:** CH_FETCH_DESC (when handshake occurs)
 
 **CH_FETCH_DESC:**
@@ -979,9 +980,10 @@ Channel-specific diagnostic data is mirrored into the APB registers to enable so
 | 2025-11-21 | 2.0 | **Merged documentation:**<br>- Updated all signal names (sched_rd_*, sched_wr_*)<br>- Added runtime timeout configuration (cfg_sched_timeout_cycles/enable)<br>- Registered ready signal timing clarification<br>- Added multiple requests per descriptor section<br>- Enhanced beat tracking and error handling details<br>- Updated all code examples and timing diagrams<br>- Added timing examples for chained descriptors<br>- Combined best content from multiple documentation sources |
 | 2025-11-30 | 2.1 | **RTL Sync Update:**<br>- CH_ERROR is now STICKY (requires reset to recover)<br>- scheduler_idle asserts in CH_ERROR state<br>- Updated related documentation references |
 | 2026-07-02 | 2.2 | **RTL Sync Update:**<br>- Added `cfg_sched_timeout_limit` port (SCHED_TIMEOUT_LIMIT @ 0x208)<br>- Write completion now gated on B-response commit (`r_write_beats_to_commit`); `sched_wr_valid` gated on remaining issue beats<br>- Write-progress timeout is now recoverable: re-arms per window, escalates to CH_ERROR only after `cfg_sched_timeout_limit` consecutive stalled windows<br>- `scheduler_idle` now EXCLUDES CH_ERROR (a faulted channel is no longer reported idle) — corrects the 2.1 note |
+| 2026-10-17 | 2.3 | **RTL Sync Update:**<br>- `descriptor_ready` in CH_IDLE now requires `cfg_channel_enable`. Before, a disabled channel accepted the handshake and discarded the descriptor while it stayed in CH_IDLE |
 
 : Revision History
 
 ---
 
-**Last Updated:** 2026-07-02 (matched to current RTL implementation)
+**Last Updated:** 2026-10-17 (matched to current RTL implementation)

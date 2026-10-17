@@ -37,10 +37,10 @@
 
 | Block | Function | Key Interfaces |
 |-------|----------|----------------|
-| **APB Config Slave + Registers** | `apb4_slave_cdc` (or `apb4_slave`), `stream_regs`, `stream_config_block` | APB slave, kick-off signals |
-| **Descriptor Engine** | Fetch and parse descriptors | AXI read, descriptor output |
+| **APB Config Slave + Registers** | `apb4_slave_cdc` (or `apb4_slave`), `stream_regs` (`stream_regs_16ch` in the 16-channel top), `stream_config_block` | APB slave, kick-off signals |
+| **Descriptor Engine** | Fetch and parse descriptors. One shared engine serves every channel by default (`SHARED_ENGINES = 1`) | AXI read, per-channel descriptor output |
 | **Scheduler** | Coordinate transfer phases | Control signals to all blocks |
-| **Descriptor AR Arbiter** | Round-robin over the 8 descriptor engines (no priority) | Grant signals |
+| **Descriptor AR Arbiter** | `SHARED_ENGINES = 0` only: round-robin over the per-channel descriptor engines (no priority). The shared engine makes the same pick internally | Grant signals |
 | **AXI Read Engine** | Read source data to SRAM | AXI read master |
 | **SRAM Buffer** | Temporary data storage | Read/write ports |
 | **AXI Write Engine** | Write SRAM data to destination | AXI write master |
@@ -69,12 +69,13 @@ Scheduler groups and monitor-lites -> `monbus_arbiter` -> `monbus_axil4_axil4_gr
 
 | Parameter | Description | Default | Range |
 |-----------|-------------|---------|-------|
-| `NUM_CHANNELS` | Number of DMA channels | 8 | 1-8 |
+| `NUM_CHANNELS` | Number of DMA channels | 8 (`stream_top_ch8`), 16 (`stream_top_ch16`) | 1-16 (8-channel register map up to 8) |
+| `SHARED_ENGINES` | One shared descriptor engine (1) or one per channel (0) | 1 | 0, 1 |
 | `DATA_WIDTH` | AXI data bus width | 512 | 128, 256, 512 |
 | `ADDR_WIDTH` | Address width | 64 | 32, 64 |
-| `SRAM_DEPTH` | Buffer depth in entries | 4096 | 256-8192 |
+| `SRAM_DEPTH` | Buffer depth in entries, per channel | 4096 | 256-8192 |
 | `DESC_FIFO_DEPTH` | Descriptor FIFO depth | 4 | 2-8 |
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-10-17

@@ -25,7 +25,7 @@
 
 ## Channel Organization
 
-STREAM supports 8 independent DMA channels, each capable of processing its own descriptor chain:
+STREAM supports 8 or 16 independent DMA channels (`stream_top_ch8` / `stream_top_ch16`), each processing its own descriptor chain:
 
 ### Figure 3.3.1: Channel Architecture
 
@@ -55,10 +55,10 @@ All channels share the following resources:
 
 | Resource | Arbitration | Capacity |
 |----------|-------------|----------|
-| **Descriptor AXI Master** | Round-robin | 1 outstanding transaction |
+| **Descriptor AXI Master** | Round-robin pick in the shared descriptor engine | One fetch in flight per channel; fetches from different channels overlap (ARID = channel) |
 | **Data Read AXI Master** | Round-robin over channels with SRAM space | Configurable outstanding |
 | **Data Write AXI Master** | Round-robin over channels with SRAM data | Configurable outstanding |
-| **SRAM Buffer** | Partitioned by channel | SRAM_DEPTH entries |
+| **SRAM Buffer** | None: one FIFO per channel | SRAM_DEPTH entries per channel |
 | **MonBus** | Round-robin (`monbus_arbiter`) | One packet per grant |
 
 ---
@@ -80,7 +80,7 @@ mask a channel out of their pick until its SRAM FIFO has room (read) or data
 
 Arbitration occurs at:
 
-1. **Descriptor Fetch:** When channel needs to fetch descriptor
+1. **Descriptor Fetch:** When a channel has a descriptor address to fetch. In the default build (`SHARED_ENGINES = 1`) the pick is inside the one shared descriptor engine; with `SHARED_ENGINES = 0` each channel has its own engine and an arbiter merges their AR requests
 2. **Read Phase Start:** When channel ready to read source data
 3. **Write Phase Start:** When channel ready to write destination
 
@@ -98,6 +98,19 @@ Each channel FSM traverses these states:
 
 | State | Description | Transitions |
 |-------|-------------|-------------|
+| **CH_IDLE** | No active transfer | Descriptor ready and channel enabled -> CH_FETCH_DESC |
+| **CH_FETCH_DESC** | Latch and check the descriptor (one cycle) | Valid bit set -> CH_XFER_DATA; clear -> CH_ERROR |
+| **CH_XFER_DATA** | Read (source to SRAM) and write (SRAM to destination) run concurrently | All beats read and all writes committed -> CH_COMPLETE |
+| **CH_COMPLETE** | Descriptor done; check for a chain | Chained -> CH_NEXT_DESC; last, once every write has committed -> CH_IDLE |
+| **CH_NEXT_DESC** | Wait for the next chained descriptor | Descriptor ready -> CH_FETCH_DESC |
+| **CH_ERROR** | Sticky fault (engine error, invalid descriptor, escalated timeout) | Channel reset -> CH_IDLE |
+
+: Channel FSM States
+
+A disabled channel does not take a descriptor in CH_IDLE. A descriptor already
+fetched for it waits in the engine's FIFO until the channel is enabled.
+
+-------|-------------|-------------|
 | **IDLE** | No active transfer | Kick-off -> FETCH |
 | **FETCH** | Fetching descriptor | Complete -> PARSE |
 | **PARSE** | Validating descriptor | Valid -> ARB_READ, Invalid -> ERROR |
@@ -111,35 +124,23 @@ Each channel FSM traverses these states:
 
 ---
 
-## SRAM Partitioning
+## SRAM Buffering
 
-The shared SRAM buffer is partitioned among active channels:
+Each channel has its own SRAM FIFO (one `sram_controller_unit` per channel),
+`SRAM_DEPTH` entries deep. The top-level parameter is a per-channel depth, not
+a pool divided among the channels, and it is fixed at build time. An idle
+channel's FIFO is not lent to a busy one.
 
-### Static Partitioning (Default)
+| Build | FIFOs | Entries per channel | Total entries |
+|-------|-------|---------------------|---------------|
+| `stream_top_ch8` | 8 | `SRAM_DEPTH` | 8 x `SRAM_DEPTH` |
+| `stream_top_ch16` | 16 | `SRAM_DEPTH` | 16 x `SRAM_DEPTH` |
 
-SRAM Buffer (4096 entries) is divided equally among 8 channels:
+: SRAM Buffering by Build
 
-| Partition | Entries |
-|-----------|---------|
-| Channel 0 | 512 |
-| Channel 1 | 512 |
-| Channel 2 | 512 |
-| Channel 3 | 512 |
-| Channel 4 | 512 |
-| Channel 5 | 512 |
-| Channel 6 | 512 |
-| Channel 7 | 512 |
-
-### Dynamic Allocation (Optional)
-
-When fewer than 8 channels are active, partitions can be expanded:
-
-| Active Channels | Entries Per Channel |
-|-----------------|---------------------|
-| 1 | 4096 |
-| 2 | 2048 |
-| 4 | 1024 |
-| 8 | 512 |
+The read engine issues a burst for a channel only when that channel's FIFO
+has room for it. The write engine issues only when the FIFO holds the data.
+One channel's full or empty FIFO therefore never stalls another channel.
 
 ---
 
@@ -147,10 +148,10 @@ When fewer than 8 channels are active, partitions can be expanded:
 
 Errors are isolated to the affected channel:
 
-- Error in Channel N does not affect Channels 0..(N-1), (N+1)..7
+- Error in Channel N does not affect the other channels (0..NUM_CHANNELS-1)
 - Shared resource errors logged but don't block other channels
 - Software must clear error and re-kick to resume
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-10-17

@@ -113,14 +113,21 @@ Source and destination regions must be accessible via the appropriate AXI master
 
 | Signal | Description |
 |--------|-------------|
-| `irq[7:0]` | Per-channel completion/error interrupt |
-| `irq_combined` | OR of all channel interrupts |
+| `stream_irq` | The single interrupt output: the error/interrupt FIFO of `monbus_axil4_axil4_group` is not empty. Tied to 0 when `USE_AXI_MONITORS = 0` |
+
+: Interrupt Signals
+
+There is no per-channel interrupt vector, at 8 or at 16 channels.
 
 ### Interrupt Conditions
 
-- Descriptor with `interrupt` flag completes successfully
-- Channel encounters error condition
-- Software-triggered interrupt (via control register)
+- A MonBus packet the group classifies as an error or interrupt (for example a
+  descriptor completion with the descriptor's `interrupt` flag, or a channel
+  error) is pushed into the error FIFO, which raises `stream_irq`
+- Software reads the FIFO through `s_axil_err` to find the channel and cause,
+  and the interrupt drops when the FIFO is empty
+- Per-channel completion is also visible by polling `AXI_RD_COMPLETE`,
+  `AXI_WR_COMPLETE` and `CHANNEL_IDLE`
 
 ---
 

@@ -81,7 +81,7 @@ STREAM verification follows a hierarchical approach:
 | Scenario | Description |
 |----------|-------------|
 | Sequential | Channels operate one at a time |
-| Concurrent | All 8 channels active simultaneously |
+| Concurrent | All channels active simultaneously (8 on `stream_top_ch8`, 16 on `stream_top_ch16`) |
 | Priority | High priority preempts low priority |
 | Fairness | Equal priority channels share fairly |
 | Error isolation | Error in one channel, others continue |

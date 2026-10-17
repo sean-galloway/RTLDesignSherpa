@@ -9,7 +9,7 @@ digraph stream_system_context {
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     cpu    [label="Host CPU\nbuilds descriptor chains in memory,\nprograms and kicks over APB", fillcolor="white"];
     apbic  [label="APB Interconnect", fillcolor="white"];
-    stream [label="STREAM - stream_top_ch8\n8 channels, one shared data loop\n(read engine -> SRAM -> write engine)", width=6.0];
+    stream [label="STREAM - stream_top_ch8 / stream_top_ch16\n8 or 16 channels, one shared data loop\n(read engine -> SRAM -> write engine)", width=6.0];
     mon    [label="Monitor Consumer\n(error FIFO reader, log memory)", fillcolor="white", style="filled,dashed"];
     xbar   [label="AXI Interconnect", fillcolor="white", width=9.0];
     mem    [label="Memory System - source buffers, destination buffers, descriptor chains\n(one or more memory controllers)", fillcolor="white", width=9.0];

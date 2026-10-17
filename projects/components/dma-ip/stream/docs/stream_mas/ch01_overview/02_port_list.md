@@ -33,7 +33,7 @@
 
 This document provides a complete reference for all top-level ports of the STREAM Core module, organized by interface type. All port names, directions, widths, and descriptions are extracted directly from the RTL implementation.
 
-**Note:** This documents `stream_core.sv` which is instantiated inside `stream_top_ch8.sv`. The top-level wrapper adds:
+**Note:** This documents `stream_core.sv` which is instantiated inside `stream_top_ch8.sv` (and `stream_top_ch16.sv`, with `NUM_CHANNELS = 16`). The top-level wrapper adds:
 - APB slave interface (replaces apb_valid/ready/addr with standard APB protocol)
 - AXI-Lite interfaces for monitor bus (s_axil_err_*, m_axil_mon_*)
 - Optional APB CDC crossing (CDC_ENABLE parameter)
@@ -96,7 +96,7 @@ apb_valid[0] = 1'b0;
 - Standard valid/ready handshake protocol
 - Descriptor address must be aligned to descriptor size (32 bytes)
 - Channel starts operation immediately after handshake
-- Default: NUM_CHANNELS = 8, ADDR_WIDTH = 64
+- Default: NUM_CHANNELS = 8, ADDR_WIDTH = 64 (the 16-channel top sets NUM_CHANNELS = 16)
 
 ---
 
@@ -285,9 +285,8 @@ channel_complete = scheduler_idle[ch] &&
 - Elapsed mode: Elapsed time in clock cycles
 
 **High Word [31:0]:**
-- Bits [31:4]: Reserved (0)
-- Bit [3]: Event type (0=start, 1=end)
-- Bits [2:0]: Channel ID (0-7)
+- 8 channels: bit [3] = event type (0=start, 1=end), bits [2:0] = channel ID (0-7), bits [31:4] = 0
+- 16 channels: bit [4] = event type, bits [3:0] = channel ID (0-15), bits [31:5] = 0
 
 **Read Sequence:**
 ```systemverilog
@@ -301,8 +300,8 @@ if (!perf_fifo_empty) begin
     // Sample data on next cycle
     timestamp = perf_fifo_data_low;
     metadata = perf_fifo_data_high;
-    channel_id = metadata[2:0];
-    event_type = metadata[3];
+    channel_id = metadata[CHID_W-1:0];   // CHID_W = 3 (8 ch) or 4 (16 ch)
+    event_type = metadata[CHID_W];
 end
 ```
 

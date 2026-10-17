@@ -23,9 +23,29 @@
 
 # Resource Estimates
 
-## FPGA Resource Summary
+## Measured Core Area
 
-Estimates for typical configuration (8 channels, 512-bit data width, 4096-entry SRAM):
+Out-of-context Vivado synthesis of `stream_core` at 256-bit data, with
+monitors off and a 100 MHz clock (2026-10-17):
+
+| Build | LUTs | Flops | Worst slack |
+|-------|-----:|------:|------------:|
+| 8 channels, one descriptor engine per channel (`SHARED_ENGINES = 0`) | 25.8k | 14.9k | +3.24 ns |
+| 8 channels, shared descriptor engine (default) | 20.7k | 11.7k | +2.50 ns |
+| 16 channels, shared descriptor engine | 36.8k | 19.4k | +1.79 ns |
+
+: Measured stream_core Area and Timing
+
+Sharing the descriptor engine removes about a fifth of the 8-channel core's
+LUTs and flops: the per-channel AR issue logic, the address-range comparators,
+the 256-bit holding registers and the MonBus reporters. The 16-channel build
+costs about 1.8 times the 8-channel build and still closes at 100 MHz.
+
+## FPGA Resource Summary (Estimates)
+
+The estimates below predate the measurements above and are kept for the
+per-block breakdown. Typical configuration (8 channels, 512-bit data width,
+4096-entry SRAM per channel):
 
 | Resource | Estimate | Notes |
 |----------|----------|-------|
@@ -47,6 +67,8 @@ Estimates for typical configuration (8 channels, 512-bit data width, 4096-entry 
 | BRAM | 0 |
 
 ### Descriptor Engine
+
+One shared engine for every channel in the default build.
 
 | Resource | Estimate |
 |----------|----------|
@@ -128,6 +150,7 @@ SRAM buffer size depends on configuration:
 | 2 | +500 | +800 |
 | 4 | +1,500 | +2,400 |
 | 8 | +3,500 | +5,600 |
+| 16 | measured: see Measured Core Area | |
 
 ### Data Width Impact
 

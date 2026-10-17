@@ -54,7 +54,7 @@
 |------|------------|
 | **Beat** | A single data transfer on an AXI bus, corresponding to one clock cycle where valid data is transferred. For a 512-bit data bus, one beat transfers 64 bytes. |
 | **Burst** | A sequence of consecutive beats forming a single AXI transaction. STREAM supports burst lengths up to 256 beats (AXI4 maximum). |
-| **Channel** | An independent DMA transfer context. STREAM supports 8 channels, each capable of processing its own descriptor chain. |
+| **Channel** | An independent DMA transfer context. STREAM is built with 8 or 16 channels, each capable of processing its own descriptor chain. |
 | **Descriptor** | A 256-bit data structure in memory that defines a single DMA transfer operation, including source address, destination address, length, and chaining information. |
 | **Descriptor Chain** | A linked list of descriptors where each descriptor points to the next, enabling complex scatter-gather transfer patterns. |
 | **Scatter-Gather** | A DMA technique where data is transferred to/from non-contiguous memory locations using a list of descriptors. |
@@ -101,4 +101,4 @@
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-10-17

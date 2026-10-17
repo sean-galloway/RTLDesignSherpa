@@ -164,8 +164,11 @@ class SchedulerTB(TBBase):
 
 ### Rule #3: Know the Shared Resources
 
-**All 8 channels share:**
-1. Descriptor fetch AXI master
+**All channels (8 or 16, by top) share:**
+1. Descriptor fetch AXI master -- and, by default (`SHARED_ENGINES=1`), ONE
+   `descriptor_engine_shared` that fetches for every channel (ARID = channel).
+   `SHARED_ENGINES=0` restores one `descriptor_engine` per channel behind an
+   AR arbiter.
 2. Data read AXI master
 3. Data write AXI master
 4. SRAM buffer
@@ -185,7 +188,8 @@ class SchedulerTB(TBBase):
 ```
 STREAM Architecture (as implemented)
 ├── rtl/fub/                        # Functional unit blocks
-│   ├── descriptor_engine.sv        # Descriptor fetch/parse (derived from RAPIDS)
+│   ├── descriptor_engine.sv        # Descriptor fetch/parse, one per channel (SHARED_ENGINES=0)
+│   ├── descriptor_engine_shared.sv # One fetch engine for all channels (default; ported from RAPIDS)
 │   ├── scheduler.sv                # Simplified per-channel scheduler
 │   ├── axi_read_engine.sv          # Data read engine
 │   ├── axi_write_engine.sv         # Data write engine
@@ -198,14 +202,25 @@ STREAM Architecture (as implemented)
 │
 ├── rtl/macro/                      # Integration blocks
 │   ├── scheduler_group.sv          # Per-channel scheduler group
-│   ├── scheduler_group_array.sv    # 8-channel array
+│   ├── scheduler_group_array.sv    # NUM_CHANNELS array + descriptor fetch (SHARED_ENGINES)
 │   ├── stream_core.sv              # Core integration
-│   └── stream_regs.rdl             # PeakRDL register source
+│   ├── stream_regs.rdl             # PeakRDL register source (8-channel, hand-written)
+│   └── generated_16ch/             # 16-channel RDL, DERIVED by bin/gen_stream_regs_16ch.py
 │
 └── rtl/top/                        # Top level
-    ├── stream_top_ch8.sv           # 8-channel top-level wrapper
+    ├── stream_top_ch8.sv           # 8-channel top-level wrapper (hand-written)
+    ├── stream_top_ch16.sv          # 16-channel top, GENERATED from stream_top_ch8.sv
+    ├── generated/regsel_{8,16}ch/  # regblock/hwif/kick glue includes; the filelist picks one
     └── stream_config_block.sv      # Configuration block
 ```
+
+**16 channels:** edit the 8-channel sources (`stream_regs.rdl`,
+`stream_mon_regs.rdl`, `stream_top_ch8.sv`), then run
+`python3 bin/gen_stream_regs_16ch.py` and regenerate BOTH regblocks with
+`bin/peakrdl_generate.py`; `--check` and `bin/check_rdl_regen.py` catch a stale
+16-channel copy. Software and tests go by register name
+(`rtl/stream_regmap.py` / `rtl/stream_regmap_16ch.py`): the 16-channel map
+moves CH_STATE to 0x180 and OBS_CTRL.CAT_SEL to [5:4].
 
 Monitoring uses the shared monbus group modules from `rtl/amba/ocelus/` (e.g. `monbus_axil4_axil4_group.sv`) rather than a STREAM-local reporter.
 
@@ -270,7 +285,7 @@ Descriptor 1 @ 0x1000_0100:
 
 ### Q: "How many channels can I use?"
 
-**A: Maximum 8 independent channels:**
+**A: 8 or 16 independent channels, by top (`stream_top_ch8` / `stream_top_ch16`):**
 
 **Channel Operation:**
 - Each channel has own FSM state
@@ -643,7 +658,7 @@ find projects/components/dma-ip/stream/rtl/ -name "*.sv" -exec grep -H "^module"
 3. 📏 **Length in beats** - Not bytes or chunks!
 4. 🔗 **Aligned addresses** - No fixup logic
 5. ⛓️ **Chained descriptors** - No circular buffers
-6. 🎯 **8 channels** - Shared resources, arbitration required
+6. 🎯 **8 or 16 channels** - Shared resources, arbitration required
 7. 🔍 **MonBus standard** - Same format as AMBA/RAPIDS
 8. 🏗️ **Testbench reuse** - Always create TB classes in `projects/components/dma-ip/stream/dv/tbclasses/` (project area, not the framework)
 
