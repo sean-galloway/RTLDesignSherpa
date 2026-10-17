@@ -1,0 +1,55 @@
+# Bridge Configuration: bridge_2x2_rw with a watchdog on the ddr slave
+# (GitHub #119 L3, timeout_cycles = 64).
+#
+# The same two 32-bit AXI4 masters and two 32-bit AXI4 slaves as
+# bridge_2x2_rw. ddr sits behind axi4_slave_watchdog: after 64 cycles of
+# silence with work outstanding it cuts ddr off, answers everything
+# outstanding and later with DECERR and raises ddr_timeout. sram has no
+# watchdog. test_bridge_2x2_rw_wdog_trip hangs ddr and checks all of it.
+# Connectivity comes from bridge_2x2_rw_wdog_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_rw_wdog"
+variants = ["no"]
+description = "2 master x 2 slave rw bridge, ddr behind a 64-cycle slave watchdog"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+timeout_cycles = 64
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"

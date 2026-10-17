@@ -483,6 +483,25 @@ def validate_cdc_constraints(port: PortSpec) -> None:
         raise ValidationError(f"Slave '{port.port_name}': an internal slave cannot be a CDC port")
 
 
+def validate_timeout_constraints(port: PortSpec) -> None:
+    """Slave watchdog (GitHub #119 L3): `timeout_cycles` is legal on an
+    external AXI4 slave port only; the watchdog carries the AXI4 signal set.
+    At least 2 cycles; 0 means no watchdog."""
+    t = int(getattr(port, 'timeout_cycles', 0) or 0)
+    if t == 0:
+        return
+    kind = 'Slave' if port.direction == 'slave' else 'Master'
+    if port.direction != 'slave':
+        raise ValidationError(f"Master '{port.port_name}': timeout_cycles is a slave-port option")
+    if port.protocol != 'axi4':
+        raise ValidationError(
+            f"{kind} '{port.port_name}': timeout_cycles needs protocol = \"axi4\" (got '{port.protocol}')")
+    if getattr(port, 'internal', False):
+        raise ValidationError(f"{kind} '{port.port_name}': an internal slave has no watchdog")
+    if t < 2:
+        raise ValidationError(f"{kind} '{port.port_name}': timeout_cycles must be 0 or >= 2 (got {t})")
+
+
 def validate_wb4_constraints(port: PortSpec) -> None:
     """Wishbone B4 port rules (bridge TASK-008, was BRIDGE-019), master or slave.
 
@@ -814,6 +833,7 @@ def validate_config(
         validate_apb_constraints(slave)
         validate_wb4_constraints(slave)
         validate_cdc_constraints(slave)
+        validate_timeout_constraints(slave)
 
     # Validate explicit channel specification for slaves
     validate_slave_channels_explicit(slaves)

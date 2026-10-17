@@ -2384,3 +2384,88 @@ def test_latency_cut_reaches_the_rtl(tmp_path):
     for ch in ("AW", "W", "B", "AR", "R"):
         assert f"parameter SKID_DEPTH_{ch} = 0" in m
     assert ".SKID_DEPTH_AW(2)" in s and ".SKID_DEPTH_W(0)" in s and ".SKID_DEPTH_R(0)" in s
+
+
+# ---------------------------------------------------------------------
+# Slave watchdog and protocol-checker binds (GitHub #119 L3)
+# ---------------------------------------------------------------------
+
+def test_timeout_needs_axi4_slave(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi4"
+""", slave_block="""
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "apb"
+timeout_cycles = 64
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+""")
+    with pytest.raises(ValidationError, match='timeout_cycles needs protocol = "axi4"'):
+        load_config(toml, conn)
+
+
+def test_timeout_minimum(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi4"
+""", slave_block="""
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi4"
+timeout_cycles = 1
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+""")
+    with pytest.raises(ValidationError, match="must be 0 or >= 2"):
+        load_config(toml, conn)
+
+
+def test_watchdog_generation_smoke(tmp_path):
+    """bridge_2x2_rw_wdog: ddr's adapter carries axi4_slave_watchdog between
+    its timing wrapper and the port, the top gains ddr_timeout, sram has no
+    watchdog, and the filelist pulls the watchdog's closure."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_2x2_rw_wdog")
+    top = (gen / "bridge_2x2_rw_wdog.sv").read_text()
+    assert re.search(r"output\s+logic[^\n]*ddr_timeout,", top)
+    assert ".o_wdog_tripped(ddr_timeout)" in top and "sram_timeout" not in top
+    ddr = (gen / "ddr_adapter.sv").read_text()
+    assert "axi4_slave_watchdog #(" in ddr and ".TIMEOUT_CYCLES(64)" in ddr
+    assert ".m_axi_awvalid(wdg_ddr_axi_awvalid)" in ddr       # wrapper -> watchdog
+    assert ".s_axi_awvalid(wdg_ddr_axi_awvalid)" in ddr       # watchdog takes it ...
+    assert ".m_axi_awvalid(ddr_s_axi_awvalid)" in ddr         # ... and drives the port
+    assert "axi4_slave_watchdog" not in (gen / "sram_adapter.sv").read_text()
+    assert "axi4_slave_watchdog.f" in fl.read_text()
+
+
+def test_checker_binds_smoke(tmp_path):
+    """Every AXI4/AXI5 port gets a bind on its own clock; the checker
+    filelist adds the checker and the bind file to the bridge filelist."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_3x2_rw_mcdc")
+    binds = (gen / "bridge_3x2_rw_mcdc_checkers.sv").read_text()
+    for port, clk in (("cpu", "cpu_aclk"), ("dma", "aclk"), ("lfsr", "lfsr_aclk"),
+                      ("ddr", "ddr_aclk"), ("sram", "aclk")):
+        block = binds[binds.index(f"u_chk_{port} ("):]
+        assert f".aclk({clk})" in block.split(");")[0], port
+    lfsr = binds[binds.index("u_chk_lfsr ("):].split(");")[0]
+    assert ".awvalid(1'b0)" in lfsr and ".arvalid(lfsr_m_axi_arvalid)" in lfsr  # rd-only ties W
+    chk_fl = (fl.parent / "bridge_3x2_rw_mcdc_checkers.f").read_text()
+    assert "axi4_protocol_checker.sv" in chk_fl and "bridge_3x2_rw_mcdc_checkers.sv" in chk_fl
+    assert "bridge_3x2_rw_mcdc.f" in chk_fl

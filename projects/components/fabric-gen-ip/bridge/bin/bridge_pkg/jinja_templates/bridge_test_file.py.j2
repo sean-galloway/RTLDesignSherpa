@@ -29,6 +29,14 @@ from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 
+
+def _filelist():
+    """The bridge's filelist, with its protocol checkers bound to every
+    AXI4/AXI5 port (GitHub #119 L3) unless BRIDGE_CHECKERS=0. A failed
+    check stops the simulation and fails the test."""
+    fl = '{{ filelist_path }}'
+    return fl if os.environ.get('BRIDGE_CHECKERS', '1') == '0' else fl[:-2] + '_checkers.f'
+
 # Import generated testbench class
 {{ tb_import_block }}
 {% if num_masters > 1 %}
@@ -392,7 +400,7 @@ def test_{{ rtl_module_name }}_basic_connectivity(request, test_level):
     # Get sources from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='{{ filelist_path }}'
+        filelist_path=_filelist()
     )
 
     # Per-test naming follows the q32 canonical pattern
@@ -458,7 +466,7 @@ def test_{{ rtl_module_name }}_boundary_probe(request, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='{{ filelist_path }}'
+        filelist_path=_filelist()
     )
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -518,7 +526,7 @@ def test_{{ rtl_module_name }}_narrow_to_wide_alignment(request, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='{{ filelist_path }}'
+        filelist_path=_filelist()
     )
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -574,7 +582,7 @@ def test_{{ rtl_module_name }}_arbitration(request, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='{{ filelist_path }}'
+        filelist_path=_filelist()
     )
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

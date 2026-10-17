@@ -205,6 +205,9 @@ class SlaveAdapterGenerator:
             lines.append("    // downstream of axi4_cdc_{wr,rd}).")
             lines.append("    input  logic s_aclk,")
             lines.append("    input  logic s_aresetn,")
+        if self.has_watchdog:
+            lines.append("    // GitHub #119 L3: axi4_slave_watchdog tripped (sticky until reset).")
+            lines.append("    output logic o_wdog_tripped,")
         lines.append("")
 
         # Crossbar-facing interface (AXI4 input from crossbar)
@@ -1168,6 +1171,70 @@ class SlaveAdapterGenerator:
         face crosses to it through axi4_cdc_{wr,rd}."""
         return bool(getattr(self.slave, 'cdc', False))
 
+    @property
+    def has_watchdog(self) -> bool:
+        """GitHub #119 L3: axi4_slave_watchdog between the timing wrapper and
+        the port (or the clock crossing), on aclk."""
+        return int(getattr(self.slave, 'timeout_cycles', 0) or 0) > 0
+
+    def _generate_watchdog(self, in_prefix: str, out_prefix: str) -> List[str]:
+        """axi4_slave_watchdog: `in_prefix` (the wrapper's m_axi side, aclk)
+        -> `out_prefix` (the port, or the CDC's aclk side)."""
+        sigs = []
+        if self.has_write:
+            sigs += ['awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock', 'awcache',
+                     'awprot', 'awqos', 'awregion', 'awuser', 'awvalid', 'awready',
+                     'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid', 'wready',
+                     'bid', 'bresp', 'buser', 'bvalid', 'bready']
+        if self.has_read:
+            sigs += ['arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock', 'arcache',
+                     'arprot', 'arqos', 'arregion', 'aruser', 'arvalid', 'arready',
+                     'rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready']
+        dw = self.slave.data_width
+        tie = {}
+        if not self.has_write:
+            tie = {'s_axi_awid': "'0", 's_axi_awaddr': "'0", 's_axi_awlen': "'0", 's_axi_awsize': "'0",
+                   's_axi_awburst': "'0", 's_axi_awlock': "1'b0", 's_axi_awcache': "'0",
+                   's_axi_awprot': "'0", 's_axi_awqos': "'0", 's_axi_awregion': "'0",
+                   's_axi_awuser': "'0", 's_axi_awvalid': "1'b0", 's_axi_wdata': "'0",
+                   's_axi_wstrb': "'0", 's_axi_wlast': "1'b0", 's_axi_wuser': "'0",
+                   's_axi_wvalid': "1'b0", 's_axi_bready': "1'b1",
+                   'm_axi_awready': "1'b0", 'm_axi_wready': "1'b0", 'm_axi_bid': "'0",
+                   'm_axi_bresp': "'0", 'm_axi_buser': "'0", 'm_axi_bvalid': "1'b0"}
+        if not self.has_read:
+            tie = {'s_axi_arid': "'0", 's_axi_araddr': "'0", 's_axi_arlen': "'0", 's_axi_arsize': "'0",
+                   's_axi_arburst': "'0", 's_axi_arlock': "1'b0", 's_axi_arcache': "'0",
+                   's_axi_arprot': "'0", 's_axi_arqos': "'0", 's_axi_arregion': "'0",
+                   's_axi_aruser': "'0", 's_axi_arvalid': "1'b0", 's_axi_rready': "1'b1",
+                   'm_axi_arready': "1'b0", 'm_axi_rid': "'0", 'm_axi_rdata': "'0",
+                   'm_axi_rresp': "'0", 'm_axi_rlast': "1'b0", 'm_axi_ruser': "'0",
+                   'm_axi_rvalid': "1'b0"}
+        lines = ["    // ============================================================",
+                 f"    // Slave watchdog (GitHub #119 L3): {self.slave.timeout_cycles} cycles of",
+                 "    // silence with work outstanding -> answer everything with DECERR",
+                 "    // ============================================================",
+                 "    axi4_slave_watchdog #(",
+                 f"        .IW({self.id_width}),",
+                 f"        .AW({self.slave.addr_width}),",
+                 f"        .DW({dw}),",
+                 "        .UW(1),",
+                 f"        .MAX_OUTSTANDING({self.slave.max_outstanding}),",
+                 f"        .TIMEOUT_CYCLES({self.slave.timeout_cycles})",
+                 "    ) u_watchdog (",
+                 "        .aclk(aclk), .aresetn(aresetn),"]
+        conns = []
+        for sig in sigs:
+            conns.append(f".s_axi_{sig}({in_prefix}{sig})")
+        for sig in sigs:
+            conns.append(f".m_axi_{sig}({out_prefix}{sig})")
+        conns += [f".{k}({v})" for k, v in tie.items()]
+        # outputs of the absent direction: leave unconnected
+        conns.append(".o_tripped(o_wdog_tripped)")
+        for i, c in enumerate(conns):
+            lines.append(f"        {c}{',' if i < len(conns) - 1 else ''}")
+        lines += ["    );", ""]
+        return lines
+
     def _generate_axi4_timing_wrapper(self) -> List[str]:
         """Generate axi4_master_wr/rd timing wrapper instantiation.
 
@@ -1181,6 +1248,8 @@ class SlaveAdapterGenerator:
         crossbar_prefix = f"xbar_{self.slave.name}_axi_"
         slave_prefix = self.slave.prefix
         ext_prefix = f"cdc_{self.slave.name}_axi_" if self.is_cdc else slave_prefix
+        # GitHub #119 L3: the watchdog sits between the wrapper and ext_prefix.
+        wrap_prefix = f"wdg_{self.slave.name}_axi_" if self.has_watchdog else ext_prefix
 
         if self.is_cdc:
             lines.append("    // ============================================================")
@@ -1188,12 +1257,21 @@ class SlaveAdapterGenerator:
             lines.append("    // ============================================================")
             lines.extend(self._shim_axi_intermediate_signal_decls(ext_prefix))
             lines.append("")
+        if self.has_watchdog:
+            lines.append("    // ============================================================")
+            lines.append("    // aclk-side nets between the timing wrapper and the watchdog")
+            lines.append("    // ============================================================")
+            lines.extend(self._shim_axi_intermediate_signal_decls(wrap_prefix))
+            lines.append("")
 
         if self.channels in ["wr", "rw"]:
-            lines.extend(self._generate_master_wr_wrapper(crossbar_prefix, ext_prefix))
+            lines.extend(self._generate_master_wr_wrapper(crossbar_prefix, wrap_prefix))
 
         if self.channels in ["rd", "rw"]:
-            lines.extend(self._generate_master_rd_wrapper(crossbar_prefix, ext_prefix))
+            lines.extend(self._generate_master_rd_wrapper(crossbar_prefix, wrap_prefix))
+
+        if self.has_watchdog:
+            lines.extend(self._generate_watchdog(wrap_prefix, ext_prefix))
 
         if self.is_cdc:
             lines.extend(self._generate_cdc_stage(ext_prefix, slave_prefix))

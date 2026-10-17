@@ -387,6 +387,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             addr_range=addr_range,
             enable_ooo=enable_ooo,
             cdc=bool(s.get('cdc', False)),
+            timeout_cycles=int(s.get('timeout_cycles', 0)),
             max_outstanding=_max_outstanding(
                 s.get('max_outstanding', _mo_default), config_path, f"slave '{port_name}'"),
             latency=s_latency,

@@ -155,6 +155,11 @@ class PortSpec:
     # the AXI4 signal set; AXI5 sideband and the shim protocols are not yet
     # routed through it).
     cdc: bool = False
+    # Slave ports (GitHub #119 L3): > 0 puts axi4_slave_watchdog in front of
+    # this AXI4 slave. After that many cycles of silence with work
+    # outstanding it cuts the slave off and answers everything with DECERR;
+    # the bridge top gains `<name>_timeout` (sticky until reset). 0 = none.
+    timeout_cycles: int = 0
     # Outstanding-transaction limit per direction (bridge GitHub #119 L5,
     # which fixes the hard 16): a master adapter's tracker depth and the
     # count width of its per-ID table; a slave adapter's response tracker

@@ -834,6 +834,7 @@ def _emit_bridge_variant(
             max_outstanding=getattr(slave_spec, 'max_outstanding', 16),
             skid_depths=dict(getattr(slave_spec, 'skid_depths', {}) or {}),
             cdc=bool(getattr(slave_spec, 'cdc', False)),
+            timeout_cycles=int(getattr(slave_spec, 'timeout_cycles', 0) or 0),
             use_monitor=getattr(slave_spec, 'use_monitor', True),
             mon_enables=slave_spec.get_mon_enables(config.mon_preset),
             # AXI5 sideband features (A5-2 slice 1) -- validated upstream
@@ -1282,6 +1283,12 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_rd.f")
 
+    # Slave watchdogs (GitHub #119 L3).
+    if any(int(getattr(s, 'timeout_cycles', 0) or 0) > 0 for s in config.slaves):
+        filelist_lines.append("")
+        filelist_lines.append("# AXI4 slave watchdog (slaves with timeout_cycles > 0)")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_slave_watchdog.f")
+
     # Wishbone B4 slaves (bridge TASK-008, was BRIDGE-019): axi4_to_wb4, whose closure brings the
     # AXI4-Lite decomposers and axil4_to_wb4 (and through it the rtl/amba
     # wb4 family).
@@ -1360,6 +1367,19 @@ def _emit_bridge_variant(
         f.write(filelist_content)
 
     print(f"  Generated filelist: {filelist_path}")
+
+    # Opt-in protocol checkers (GitHub #119 L3): a bind file beside the RTL
+    # and a filelist that adds it, for simulation and formal only.
+    from bridge_pkg.generators.checker_bind_generator import (
+        generate_checker_binds, generate_checker_filelist)
+    bind_path = os.path.join(bridge_dir, f"{output_name}_checkers.sv")
+    with open(bind_path, 'w') as f:
+        f.write(generate_checker_binds(output_name, masters, slaves))
+    chk_fl_path = os.path.join(filelist_dir, f"{output_name}_checkers.f")
+    with open(chk_fl_path, 'w') as f:
+        f.write(generate_checker_filelist(output_name, _bridge_file_path(filelist_path),
+                                          _bridge_file_path(bind_path)))
+    print(f"  Generated checker binds: {bind_path}")
 
 
 def parse_bulk_csv(bulk_file):

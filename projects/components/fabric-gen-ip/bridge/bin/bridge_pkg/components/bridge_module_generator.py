@@ -1131,6 +1131,9 @@ class BridgeModuleGenerator:
                 # bridge TASK-006 (was BRIDGE-017): the port's own clock domain.
                 slave_ports = [f"    input  logic                  {slave.name}_aclk,",
                                f"    input  logic                  {slave.name}_aresetn,"] + slave_ports
+            if int(getattr(slave, 'timeout_cycles', 0) or 0) > 0:
+                # GitHub #119 L3: the watchdog tripped (sticky until reset).
+                slave_ports = [f"    output logic                  {slave.name}_timeout,"] + slave_ports
             if n < len(external_slaves) - 1:
                 slave_ports[-1] = slave_ports[-1] + ","
             lines.extend(slave_ports)
@@ -2508,6 +2511,7 @@ class BridgeModuleGenerator:
                 axi5_features=getattr(slave, 'axi5_features', None),
                 cdc=bool(getattr(slave, 'cdc', False)),
                 module_name=adapter_module_name(self.bridge_name, slave.name),
+                watchdog=int(getattr(slave, 'timeout_cycles', 0) or 0) > 0,
             )
             inst.connect_clocks_and_resets()
             inst.connect_xbar_interface()

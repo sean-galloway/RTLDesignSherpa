@@ -29,6 +29,14 @@ from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 
+
+def _filelist():
+    """The bridge's filelist, with its protocol checkers bound to every
+    AXI4/AXI5 port (GitHub #119 L3) unless BRIDGE_CHECKERS=0. A failed
+    check stops the simulation and fails the test."""
+    fl = 'projects/components/fabric-gen-ip/bridge/rtl/filelists/bridge_mix_c.f'
+    return fl if os.environ.get('BRIDGE_CHECKERS', '1') == '0' else fl[:-2] + '_checkers.f'
+
 # Import generated testbench class
 # The TB class lives on a path that is not dotted-importable (a
 # directory component is not a legal Python identifier, e.g.
@@ -555,7 +563,7 @@ def test_bridge_mix_c_basic_connectivity(request, test_level):
     # Get sources from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/fabric-gen-ip/bridge/rtl/filelists/bridge_mix_c.f'
+        filelist_path=_filelist()
     )
 
     # Per-test naming follows the q32 canonical pattern
@@ -621,7 +629,7 @@ def test_bridge_mix_c_boundary_probe(request, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/fabric-gen-ip/bridge/rtl/filelists/bridge_mix_c.f'
+        filelist_path=_filelist()
     )
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -681,7 +689,7 @@ def test_bridge_mix_c_arbitration(request, test_level):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/fabric-gen-ip/bridge/rtl/filelists/bridge_mix_c.f'
+        filelist_path=_filelist()
     )
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

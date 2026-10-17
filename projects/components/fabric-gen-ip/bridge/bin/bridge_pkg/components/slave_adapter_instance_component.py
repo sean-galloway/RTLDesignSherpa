@@ -80,7 +80,7 @@ class SlaveAdapterInstance:
 
     def __init__(self, slave_name: str, slave_prefix: str, protocol: str,
                  has_write: bool, has_read: bool, axi5_features=None,
-                 cdc: bool = False, module_name: str = None):
+                 cdc: bool = False, module_name: str = None, watchdog: bool = False):
         if protocol not in ('axi4', 'axi5', 'axi3', 'apb', 'apb5', 'axil', 'axil5', 'wb4'):
             raise ValueError(f"unsupported protocol: {protocol!r}")
         if not (has_write or has_read):
@@ -93,6 +93,7 @@ class SlaveAdapterInstance:
         self.slave_name = slave_name
         self.slave_prefix = slave_prefix
         self.cdc = bool(cdc)
+        self.watchdog = bool(watchdog)
         self.protocol = protocol
         self.has_write = has_write
         self.has_read = has_read
@@ -118,6 +119,9 @@ class SlaveAdapterInstance:
             # bridge TASK-006 (was BRIDGE-017): the slave's own domain, from the bridge-top pins.
             pairs += [('s_aclk', f'{self.slave_name}_aclk'),
                       ('s_aresetn', f'{self.slave_name}_aresetn')]
+        if self.watchdog:
+            # GitHub #119 L3: the watchdog's sticky trip, to the bridge top.
+            pairs += [('o_wdog_tripped', f'{self.slave_name}_timeout')]
         self._sections.append((None, pairs))
 
     def connect_xbar_interface(self) -> None:
