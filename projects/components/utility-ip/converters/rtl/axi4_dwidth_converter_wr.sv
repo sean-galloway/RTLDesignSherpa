@@ -664,6 +664,38 @@ module axi4_dwidth_converter_wr #(
 
     generate
         if (DOWNSIZE) begin : gen_b_fold
+            // B is registered on entry (a 2-deep skid, GitHub #119): the CAM
+            // match and fold start from a flop and m_axi_bready is the skid's
+            // registered ready, not a function of the CAM match. In a bridge
+            // the unregistered form put a slave's CAM lookup, the crossbar's
+            // B arbiter, this CAM match and the slave CAM's free in one
+            // cycle -- the worst path of every fixture with a write
+            // converter (4-7.5 ns over at 100 MHz on the Artix-7).
+            localparam int BQ_W = AXI_ID_WIDTH + 2 + AXI_USER_WIDTH;
+            logic                      q_bvalid;
+            logic                      q_bready;
+            logic [AXI_ID_WIDTH-1:0]   q_bid;
+            logic [1:0]                q_bresp;
+            logic [AXI_USER_WIDTH-1:0] q_buser;
+            logic [BQ_W-1:0]           q_bpkt;
+
+            gaxi_skid_buffer #(
+                .DEPTH      (2),
+                .DATA_WIDTH (BQ_W)
+            ) b_in_skid (
+                .axi_aclk   (aclk),
+                .axi_aresetn(w_aresetn),
+                .wr_valid   (m_axi_bvalid),
+                .wr_ready   (m_axi_bready),
+                .wr_data    ({m_axi_bid, m_axi_bresp, m_axi_buser}),
+                .rd_valid   (q_bvalid),
+                .rd_ready   (q_bready),
+                .rd_data    (q_bpkt),
+                .count      (),
+                .rd_count   ()
+            );
+            assign {q_bid, q_bresp, q_buser} = q_bpkt;
+
             // A split slave burst gets several master B responses; the
             // slave expects ONE.  The old implementation walked a single
             // split-queue read pointer and assumed B responses arrived in
@@ -740,7 +772,7 @@ module axi4_dwidth_converter_wr #(
             always_comb begin
                 w_b_cam_idx = '0;
                 for (int i = 0; i < B_CAM_DEPTH; i++) begin
-                    w_b_cam_hit[i] = b_cam_valid[i] && (b_cam[i].id == m_axi_bid) &&
+                    w_b_cam_hit[i] = b_cam_valid[i] && (b_cam[i].id == q_bid) &&
                                      ((b_cam_older[i] & b_cam_valid) == '0);
                     w_b_cam_same_id[i] = b_cam_valid[i] && (b_cam[i].id == int_awid);
                     if (w_b_cam_hit[i])
@@ -750,13 +782,13 @@ module axi4_dwidth_converter_wr #(
             assign w_b_cam_match = |w_b_cam_hit;
 
             // Drive B channel outputs.
-            assign int_bid      = m_axi_bid;
-            assign int_buser    = m_axi_buser;
-            assign int_b_valid  = m_axi_bvalid && w_b_cam_match &&
+            assign int_bid      = q_bid;
+            assign int_buser    = q_buser;
+            assign int_b_valid  = q_bvalid && w_b_cam_match &&
                                   (b_cam[w_b_cam_idx].count == 8'd1);
-            assign int_bresp    = (m_axi_bresp > b_cam[w_b_cam_idx].worst)
-                                  ? m_axi_bresp : b_cam[w_b_cam_idx].worst;
-            assign m_axi_bready = (m_axi_bvalid && w_b_cam_match &&
+            assign int_bresp    = (q_bresp > b_cam[w_b_cam_idx].worst)
+                                  ? q_bresp : b_cam[w_b_cam_idx].worst;
+            assign q_bready = (q_bvalid && w_b_cam_match &&
                                    (b_cam[w_b_cam_idx].count == 8'd1))
                                   ? int_b_ready : 1'b1;
 
@@ -807,14 +839,14 @@ module axi4_dwidth_converter_wr #(
                     end
 
                     // Process an incoming master B response.
-                    if (m_axi_bvalid && m_axi_bready && w_b_cam_match) begin
+                    if (q_bvalid && q_bready && w_b_cam_match) begin
                         if (b_cam[w_b_cam_idx].count == 8'd1) begin
                             b_cam_valid[w_b_cam_idx] <= 1'b0;
                         end else begin
                             b_cam[w_b_cam_idx].count <=
                                 b_cam[w_b_cam_idx].count - 8'd1;
-                            if (m_axi_bresp > b_cam[w_b_cam_idx].worst)
-                                b_cam[w_b_cam_idx].worst <= m_axi_bresp;
+                            if (q_bresp > b_cam[w_b_cam_idx].worst)
+                                b_cam[w_b_cam_idx].worst <= q_bresp;
                         end
                     end
                 end

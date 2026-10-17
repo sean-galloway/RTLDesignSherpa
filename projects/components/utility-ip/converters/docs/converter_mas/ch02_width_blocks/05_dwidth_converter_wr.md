@@ -370,6 +370,11 @@ one slave B response. This is now done with a per-burst CAM keyed by AWID:
   16-way serial age compare; inside a bridge it synthesized to a ~32-LUT
   chain, -30 ns at 100 MHz on the Artix-7, and its 5-bit age wrapped at
   32 -- bridge BUG-016.)
+- Master B enters through a 2-deep skid, so the CAM match and fold start
+  from a flop and `m_axi_bready` is the skid's registered ready rather than
+  a function of the match. Without it, a bridge put a slave CAM lookup, the
+  crossbar's B arbiter, this match and the slave CAM's free in one cycle.
+  Cost: one cycle of B latency on a downsize path.
 - The CAM drains on B return while the split queue drains on W framing, so
   split-queue space does not bound CAM occupancy: a burst's FINAL master AW
   is gated on a free CAM slot (`w_b_cam_slot_free`). Without the gate a flood

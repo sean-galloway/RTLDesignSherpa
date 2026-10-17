@@ -82,6 +82,7 @@ class SlaveInfo:
     # Timing-wrapper skid depths {aw,w,b,ar,r}; 0 = stage cut (PortSpec.latency)
     skid_depths: Optional[Dict[str, int]] = None
     cdc: bool = False  # bridge TASK-006 (was BRIDGE-017): own clock; axi4_cdc_{wr,rd} before the boundary
+    timeout_cycles: int = 0  # GitHub #119 L3: > 0 = axi4_slave_watchdog before the boundary
     use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
     # Internal slaves have no top-level pins -- the bridge instantiates
     # something for them and wires the crossbar to it. See PortSpec.internal.
@@ -2027,6 +2028,13 @@ class AdapterGenerator:
             f"    logic [{up}_TRK_AW:0]   {chan}_idt_cnt [{up}_IDT_N];",
             f"    logic [NUM_SLAVES-1:0] {chan}_idt_tgt [{up}_IDT_N];",
             f"    logic [{up}_TRK_AW:0]   {chan}_out_cnt;",
+            f"    // Next counts, and registered flags taken from them, so the gate a",
+            f"    // request sees is a 1-bit lookup and a one-hot AND, not a counter",
+            f"    // mux and compare in series with the crossbar's arbitration.",
+            f"    logic [{up}_TRK_AW:0]   {chan}_idt_cnt_nx [{up}_IDT_N];",
+            f"    logic [{up}_TRK_AW:0]   {chan}_out_cnt_nx;",
+            f"    logic [{up}_IDT_N-1:0] {chan}_idt_busy;",
+            f"    logic                  {chan}_trk_full;",
             f"    logic [{iw-1}:0] {chan}_idt_widx, {chan}_idt_ridx;",
         ] + ([f"    logic                  {chan}_idt_trace [{up}_IDT_N];  // trace of the in-flight ID"]
              if trace else []) + ([
@@ -2043,6 +2051,18 @@ class AdapterGenerator:
             f"    assign {chan}_idt_push = fub_axi_{chan}valid && fub_axi_{chan}ready;",
             f"    assign {chan}_idt_pop  = {resp_hs};",
             "",
+            "    always_comb begin",
+            f"        for (int i = 0; i < {up}_IDT_N; i++) begin",
+            f"            {chan}_idt_cnt_nx[i] = {chan}_idt_cnt[i]",
+            f"                + ({up}_TRK_AW+1)'({chan}_idt_push && ({chan}_idt_widx == {iw}'(i)))",
+        ] + ([f"                + ({up}_TRK_AW+1)'(ar_idt_push_aw && (ar_idt_widx_aw == {iw}'(i)))"] if atomic else []) + [
+            f"                - ({up}_TRK_AW+1)'({chan}_idt_pop  && ({chan}_idt_ridx == {iw}'(i)));",
+            "        end",
+            f"        {chan}_out_cnt_nx = {chan}_out_cnt + ({up}_TRK_AW+1)'({chan}_idt_push)"
+            + (f" + ({up}_TRK_AW+1)'(ar_idt_push_aw)" if atomic else ""),
+            f"                          - ({up}_TRK_AW+1)'({chan}_idt_pop);",
+            "    end",
+            "",
             "    `ALWAYS_FF_RST(aclk, aresetn,",
             "        if (`RST_ASSERTED(aresetn)) begin",
             f"            for (int i = 0; i < {up}_IDT_N; i++) begin",
@@ -2050,7 +2070,9 @@ class AdapterGenerator:
             f"                {chan}_idt_tgt[i] <= '0;",
         ] + ([f"                {chan}_idt_trace[i] <= 1'b0;"] if trace else []) + [
             "            end",
+            f"            {chan}_idt_busy <= '0;",
             f"            {chan}_out_cnt <= '0;",
+            f"            {chan}_trk_full <= 1'b0;",
             "        end else begin",
             f"            if ({chan}_idt_push) {chan}_idt_tgt[{chan}_idt_widx] <= comb_slave_select_{chan};",
         ] + ([f"            if ({chan}_idt_push) {chan}_idt_trace[{chan}_idt_widx] <= {trace};"] if trace else []) + ([
@@ -2058,23 +2080,21 @@ class AdapterGenerator:
         ] + (["            if (ar_idt_push_aw) ar_idt_trace[ar_idt_widx_aw] <= fub_axi_awtrace;"] if trace else [])
             if atomic else []) + [
             f"            for (int i = 0; i < {up}_IDT_N; i++) begin",
-            f"                {chan}_idt_cnt[i] <= {chan}_idt_cnt[i]",
-            f"                    + ({up}_TRK_AW+1)'({chan}_idt_push && ({chan}_idt_widx == {iw}'(i)))",
-        ] + ([f"                    + ({up}_TRK_AW+1)'(ar_idt_push_aw && (ar_idt_widx_aw == {iw}'(i)))"] if atomic else []) + [
-            f"                    - ({up}_TRK_AW+1)'({chan}_idt_pop  && ({chan}_idt_ridx == {iw}'(i)));",
+            f"                {chan}_idt_cnt[i]  <= {chan}_idt_cnt_nx[i];",
+            f"                {chan}_idt_busy[i] <= ({chan}_idt_cnt_nx[i] != '0);",
             "            end",
-            f"            {chan}_out_cnt <= {chan}_out_cnt + ({up}_TRK_AW+1)'({chan}_idt_push)"
-            + (f" + ({up}_TRK_AW+1)'(ar_idt_push_aw)" if atomic else ""),
-            f"                                          - ({up}_TRK_AW+1)'({chan}_idt_pop);",
+            f"            {chan}_out_cnt  <= {chan}_out_cnt_nx;",
+            f"            {chan}_trk_full <= ({chan}_out_cnt_nx == ({up}_TRK_AW+1)'({up}_TRK_DEPTH));",
             "        end",
             "    )",
             "",
             f"    // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no",
             f"    // count wraps; {up}_TRK_DEPTH is the port's outstanding limit.",
-            f"    logic {chan}_trk_full, {chan}_id_ok;",
-            f"    assign {chan}_trk_full = ({chan}_out_cnt == ({up}_TRK_AW+1)'({up}_TRK_DEPTH));",
-            f"    assign {chan}_id_ok    = ({chan}_idt_cnt[{chan}_idt_widx] == '0) ||",
-            f"                           (({chan}_idt_tgt[{chan}_idt_widx] == comb_slave_select_{chan})"
+            f"    // Target match is a one-hot AND: the stored target and the decode",
+            f"    // are both one-hot (no hit selects the catch-all).",
+            f"    logic {chan}_id_ok;",
+            f"    assign {chan}_id_ok    = !{chan}_idt_busy[{chan}_idt_widx] ||",
+            f"                           ((|({chan}_idt_tgt[{chan}_idt_widx] & comb_slave_select_{chan}))"
             + (f" &&\n                            ({chan}_idt_trace[{chan}_idt_widx] == {trace}));" if trace else ");"),
         ]
         return lines
@@ -2275,11 +2295,11 @@ class AdapterGenerator:
             lines.append("    assign aw_gate_ok = aw_id_ok && !aw_trk_full &&")
             lines.append("                        ((w_trk_wptr == w_trk_rptr) ||")
             if self.rr_atomic:
-                lines.append("                         (w_slave_select == comb_slave_select_aw)) &&")
+                lines.append("                         (|(w_slave_select & comb_slave_select_aw))) &&")
                 lines.append("                        // A5-3b: a read-return atomic also takes an AR-table slot")
                 lines.append("                        (!aw_rr_atomic || aw_rr_gate_ok);")
             else:
-                lines.append("                         (w_slave_select == comb_slave_select_aw));")
+                lines.append("                         (|(w_slave_select & comb_slave_select_aw)));")
             lines.append("")
 
         if self.master.channels in ("rd", "rw"):
@@ -2302,8 +2322,8 @@ class AdapterGenerator:
                 trace_term = (" &&\n                                 (ar_idt_trace[ar_idt_widx_aw] == fub_axi_awtrace)"
                               if self._trace_echo else "")
                 lines.append("    logic ar_id_ok_aw;")
-                lines.append("    assign ar_id_ok_aw = (ar_idt_cnt[ar_idt_widx_aw] == '0) ||")
-                lines.append("                         ((ar_idt_tgt[ar_idt_widx_aw] == comb_slave_select_aw)"
+                lines.append("    assign ar_id_ok_aw = !ar_idt_busy[ar_idt_widx_aw] ||")
+                lines.append("                         ((|(ar_idt_tgt[ar_idt_widx_aw] & comb_slave_select_aw))"
                              + trace_term + ");")
                 lines.append("    assign aw_rr_gate_ok = ar_id_ok_aw &&")
                 lines.append("                           ((ar_out_cnt + (AR_TRK_AW+1)'(ar_idt_push)) <")

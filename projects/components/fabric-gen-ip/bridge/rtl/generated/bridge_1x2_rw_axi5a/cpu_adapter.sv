@@ -580,6 +580,13 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     logic [AW_TRK_AW:0]   aw_idt_cnt [AW_IDT_N];
     logic [NUM_SLAVES-1:0] aw_idt_tgt [AW_IDT_N];
     logic [AW_TRK_AW:0]   aw_out_cnt;
+    // Next counts, and registered flags taken from them, so the gate a
+    // request sees is a 1-bit lookup and a one-hot AND, not a counter
+    // mux and compare in series with the crossbar's arbitration.
+    logic [AW_TRK_AW:0]   aw_idt_cnt_nx [AW_IDT_N];
+    logic [AW_TRK_AW:0]   aw_out_cnt_nx;
+    logic [AW_IDT_N-1:0] aw_idt_busy;
+    logic                  aw_trk_full;
     logic [3:0] aw_idt_widx, aw_idt_ridx;
     logic                  aw_idt_trace [AW_IDT_N];  // trace of the in-flight ID
     logic aw_idt_push, aw_idt_pop;
@@ -588,6 +595,16 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     assign aw_idt_push = fub_axi_awvalid && fub_axi_awready;
     assign aw_idt_pop  = fub_axi_bvalid && fub_axi_bready;
 
+    always_comb begin
+        for (int i = 0; i < AW_IDT_N; i++) begin
+            aw_idt_cnt_nx[i] = aw_idt_cnt[i]
+                + (AW_TRK_AW+1)'(aw_idt_push && (aw_idt_widx == 4'(i)))
+                - (AW_TRK_AW+1)'(aw_idt_pop  && (aw_idt_ridx == 4'(i)));
+        end
+        aw_out_cnt_nx = aw_out_cnt + (AW_TRK_AW+1)'(aw_idt_push)
+                          - (AW_TRK_AW+1)'(aw_idt_pop);
+    end
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             for (int i = 0; i < AW_IDT_N; i++) begin
@@ -595,26 +612,28 @@ module bridge_1x2_rw_axi5a_cpu_adapter
                 aw_idt_tgt[i] <= '0;
                 aw_idt_trace[i] <= 1'b0;
             end
+            aw_idt_busy <= '0;
             aw_out_cnt <= '0;
+            aw_trk_full <= 1'b0;
         end else begin
             if (aw_idt_push) aw_idt_tgt[aw_idt_widx] <= comb_slave_select_aw;
             if (aw_idt_push) aw_idt_trace[aw_idt_widx] <= fub_axi_awtrace;
             for (int i = 0; i < AW_IDT_N; i++) begin
-                aw_idt_cnt[i] <= aw_idt_cnt[i]
-                    + (AW_TRK_AW+1)'(aw_idt_push && (aw_idt_widx == 4'(i)))
-                    - (AW_TRK_AW+1)'(aw_idt_pop  && (aw_idt_ridx == 4'(i)));
+                aw_idt_cnt[i]  <= aw_idt_cnt_nx[i];
+                aw_idt_busy[i] <= (aw_idt_cnt_nx[i] != '0);
             end
-            aw_out_cnt <= aw_out_cnt + (AW_TRK_AW+1)'(aw_idt_push)
-                                          - (AW_TRK_AW+1)'(aw_idt_pop);
+            aw_out_cnt  <= aw_out_cnt_nx;
+            aw_trk_full <= (aw_out_cnt_nx == (AW_TRK_AW+1)'(AW_TRK_DEPTH));
         end
     )
 
     // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no
     // count wraps; AW_TRK_DEPTH is the port's outstanding limit.
-    logic aw_trk_full, aw_id_ok;
-    assign aw_trk_full = (aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH));
-    assign aw_id_ok    = (aw_idt_cnt[aw_idt_widx] == '0) ||
-                           ((aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw) &&
+    // Target match is a one-hot AND: the stored target and the decode
+    // are both one-hot (no hit selects the catch-all).
+    logic aw_id_ok;
+    assign aw_id_ok    = !aw_idt_busy[aw_idt_widx] ||
+                           ((|(aw_idt_tgt[aw_idt_widx] & comb_slave_select_aw)) &&
                             (aw_idt_trace[aw_idt_widx] == fub_axi_awtrace));
 
     // One width path: every response arrives on it; the crossbar has
@@ -664,7 +683,7 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     // wait on each other at the slaves' W ports (crossed W deadlock).
     assign aw_gate_ok = aw_id_ok && !aw_trk_full &&
                         ((w_trk_wptr == w_trk_rptr) ||
-                         (w_slave_select == comb_slave_select_aw)) &&
+                         (|(w_slave_select & comb_slave_select_aw))) &&
                         // A5-3b: a read-return atomic also takes an AR-table slot
                         (!aw_rr_atomic || aw_rr_gate_ok);
 
@@ -682,6 +701,13 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     logic [AR_TRK_AW:0]   ar_idt_cnt [AR_IDT_N];
     logic [NUM_SLAVES-1:0] ar_idt_tgt [AR_IDT_N];
     logic [AR_TRK_AW:0]   ar_out_cnt;
+    // Next counts, and registered flags taken from them, so the gate a
+    // request sees is a 1-bit lookup and a one-hot AND, not a counter
+    // mux and compare in series with the crossbar's arbitration.
+    logic [AR_TRK_AW:0]   ar_idt_cnt_nx [AR_IDT_N];
+    logic [AR_TRK_AW:0]   ar_out_cnt_nx;
+    logic [AR_IDT_N-1:0] ar_idt_busy;
+    logic                  ar_trk_full;
     logic [3:0] ar_idt_widx, ar_idt_ridx;
     logic                  ar_idt_trace [AR_IDT_N];  // trace of the in-flight ID
     // A5-3b: a read-return atomic AW answers on R with its AWID, so it
@@ -696,6 +722,17 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     assign ar_idt_push = fub_axi_arvalid && fub_axi_arready;
     assign ar_idt_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
 
+    always_comb begin
+        for (int i = 0; i < AR_IDT_N; i++) begin
+            ar_idt_cnt_nx[i] = ar_idt_cnt[i]
+                + (AR_TRK_AW+1)'(ar_idt_push && (ar_idt_widx == 4'(i)))
+                + (AR_TRK_AW+1)'(ar_idt_push_aw && (ar_idt_widx_aw == 4'(i)))
+                - (AR_TRK_AW+1)'(ar_idt_pop  && (ar_idt_ridx == 4'(i)));
+        end
+        ar_out_cnt_nx = ar_out_cnt + (AR_TRK_AW+1)'(ar_idt_push) + (AR_TRK_AW+1)'(ar_idt_push_aw)
+                          - (AR_TRK_AW+1)'(ar_idt_pop);
+    end
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             for (int i = 0; i < AR_IDT_N; i++) begin
@@ -703,29 +740,30 @@ module bridge_1x2_rw_axi5a_cpu_adapter
                 ar_idt_tgt[i] <= '0;
                 ar_idt_trace[i] <= 1'b0;
             end
+            ar_idt_busy <= '0;
             ar_out_cnt <= '0;
+            ar_trk_full <= 1'b0;
         end else begin
             if (ar_idt_push) ar_idt_tgt[ar_idt_widx] <= comb_slave_select_ar;
             if (ar_idt_push) ar_idt_trace[ar_idt_widx] <= fub_axi_artrace;
             if (ar_idt_push_aw) ar_idt_tgt[ar_idt_widx_aw] <= comb_slave_select_aw;
             if (ar_idt_push_aw) ar_idt_trace[ar_idt_widx_aw] <= fub_axi_awtrace;
             for (int i = 0; i < AR_IDT_N; i++) begin
-                ar_idt_cnt[i] <= ar_idt_cnt[i]
-                    + (AR_TRK_AW+1)'(ar_idt_push && (ar_idt_widx == 4'(i)))
-                    + (AR_TRK_AW+1)'(ar_idt_push_aw && (ar_idt_widx_aw == 4'(i)))
-                    - (AR_TRK_AW+1)'(ar_idt_pop  && (ar_idt_ridx == 4'(i)));
+                ar_idt_cnt[i]  <= ar_idt_cnt_nx[i];
+                ar_idt_busy[i] <= (ar_idt_cnt_nx[i] != '0);
             end
-            ar_out_cnt <= ar_out_cnt + (AR_TRK_AW+1)'(ar_idt_push) + (AR_TRK_AW+1)'(ar_idt_push_aw)
-                                          - (AR_TRK_AW+1)'(ar_idt_pop);
+            ar_out_cnt  <= ar_out_cnt_nx;
+            ar_trk_full <= (ar_out_cnt_nx == (AR_TRK_AW+1)'(AR_TRK_DEPTH));
         end
     )
 
     // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no
     // count wraps; AR_TRK_DEPTH is the port's outstanding limit.
-    logic ar_trk_full, ar_id_ok;
-    assign ar_trk_full = (ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH));
-    assign ar_id_ok    = (ar_idt_cnt[ar_idt_widx] == '0) ||
-                           ((ar_idt_tgt[ar_idt_widx] == comb_slave_select_ar) &&
+    // Target match is a one-hot AND: the stored target and the decode
+    // are both one-hot (no hit selects the catch-all).
+    logic ar_id_ok;
+    assign ar_id_ok    = !ar_idt_busy[ar_idt_widx] ||
+                           ((|(ar_idt_tgt[ar_idt_widx] & comb_slave_select_ar)) &&
                             (ar_idt_trace[ar_idt_widx] == fub_axi_artrace));
     assign ar_gate_ok = ar_id_ok && !ar_trk_full;
 
@@ -734,8 +772,8 @@ module bridge_1x2_rw_axi5a_cpu_adapter
     // that pushes this cycle, and it yields to an AR pushing the SAME ID
     // index this cycle (two pushes would race for one entry's target).
     logic ar_id_ok_aw;
-    assign ar_id_ok_aw = (ar_idt_cnt[ar_idt_widx_aw] == '0) ||
-                         ((ar_idt_tgt[ar_idt_widx_aw] == comb_slave_select_aw) &&
+    assign ar_id_ok_aw = !ar_idt_busy[ar_idt_widx_aw] ||
+                         ((|(ar_idt_tgt[ar_idt_widx_aw] & comb_slave_select_aw)) &&
                                  (ar_idt_trace[ar_idt_widx_aw] == fub_axi_awtrace));
     assign aw_rr_gate_ok = ar_id_ok_aw &&
                            ((ar_out_cnt + (AR_TRK_AW+1)'(ar_idt_push)) <
