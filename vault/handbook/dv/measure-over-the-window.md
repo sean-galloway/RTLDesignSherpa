@@ -64,3 +64,15 @@ running at 94% of its real rate. Sample on `RisingEdge` alone: the values
 read there are the ones the edge captured. The tracking test's "best-effort
 B-channel watcher ... misses roughly a third" note was the same defect
 observed and not yet understood.
+
+## Contention: score the window where both contend (2026-10-17)
+
+The same mistake with a time window instead of a counter. The bridge
+fairness case runs two masters into one slave with different numbers in
+flight (8 vs 1) and first floored the slave's rate over the whole run --
+which includes the tail after the deep stream finishes, when the shallow
+one runs alone at the 1-in-flight rate. Every 8/1 shape "missed" (0.49 to
+0.83 against 0.97) with a fabric that was saturating the slave the whole
+time both were active. Floor the rate between the later first beat and the
+earlier last beat of the two streams; the contention case already did, and
+passed.

@@ -325,3 +325,34 @@ code.
 bursts, but do not mix it with concurrent `*_transaction` calls on one ID.
 Before blaming the DUT for swapped same-ID data, trace AR/R or AW/B order at
 the port.
+
+## A requester has two timeouts, and the inner one drops the transaction (2026-10-17)
+
+An AXI4 requester BFM (`AXI4MasterRead` / `AXI4MasterWrite`) times out in
+two places. `timeout_cycles` on the requester (default 5000) bounds a
+call's wait for its response. Each channel driver underneath it --
+`aw_channel`, `w_channel`, `ar_channel`, all `GAXIMaster` -- has its OWN
+`timeout_cycles` (default 1000) for the READY wait of one beat. Raising the
+first does not raise the second. When the inner one fires, the transmit
+pipeline logs `Phase2: TIMEOUT waiting for ready`, drops that beat, and
+moves on to the next queued one; the call that owned it then waits for a
+response to a request the DUT never received.
+
+Where it bit: a bridge bandwidth run of eight 256-beat writes over an 8:1
+downsize. The bridge legitimately holds AWREADY low ~2047 cycles while its
+converter drains one burst into the narrow slave. The AW driver gave up
+after 1000, dropped AWs 6 and 7, and the test hung waiting for their B --
+which read as a bridge deadlock for most of a day, and drew one wrong RTL
+"fix" before a waveform showed every AW the bridge accepted got its B.
+Until RDS-DV 1.2.4 the timeout raised `cocotb.result.TestFailure`, gone in
+cocotb 2.x, so the log said "module 'cocotb' has no attribute 'result'"
+instead of naming the timeout. **Before suspecting the DUT in a hang, grep
+the log for `Phase2: TIMEOUT`**, and when a long legal stall is the point
+of the test, raise both timeouts (the bridge perf harness's `pipeline()`
+does).
+
+For bandwidth, set `pipelined=True` on the requester (RDS-DV 1.2.4): each
+call then queues its address and W beats on the driver instead of waiting
+for the pipeline to drain, so back-to-back calls keep VALID high. Without
+it the requester itself caps a write stream at 0.89 beats/cycle and the
+gap gets blamed on the fabric.
