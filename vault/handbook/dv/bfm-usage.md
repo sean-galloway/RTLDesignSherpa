@@ -313,9 +313,15 @@ responses even though the DUT returned them in order. The bridge's
 write took an earlier one's B, started its read early and took that read's
 R. The bridge's port trace showed both returned in order.
 
-Until the BFM serves same-ID waiters in issue order, keep at most one
-transaction per (port, ID) in flight in test code (a `cocotb.triggers.Lock`
-per ID), or give each in-flight transaction its own ID. Issuing every
-same-ID call up front, in order, happens to be safe (wake order follows call
-order), but that is luck, not a contract. Before blaming the DUT for swapped
-same-ID data, trace AR/R or AW/B order at the port.
+**Fixed in cocotb-framework 1.2.3 (RDS-DV #94).** The AXI3, AXI4, AXI5 and
+ACE requesters now give each call a ticket when its address is queued, and a
+call takes beats only at the head of its ID's line, so concurrent same-ID
+calls are served in issue order. The wakeup test dropped its per-ID `Lock`
+workaround; with the Lock removed, SEED=80505 fails on 1.2.2 and passes on
+1.2.3. Before 1.2.3, keep one transaction per (port, ID) in flight in test
+code.
+
+`axi4_sequence.py` still pops `_response_by_id` directly. It orders its own
+bursts, but do not mix it with concurrent `*_transaction` calls on one ID.
+Before blaming the DUT for swapped same-ID data, trace AR/R or AW/B order at
+the port.

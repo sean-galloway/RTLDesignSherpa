@@ -30,7 +30,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 import cocotb
-from cocotb.triggers import ClockCycles, RisingEdge, ReadOnly, Lock
+from cocotb.triggers import ClockCycles, RisingEdge, ReadOnly
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -106,23 +106,14 @@ async def cocotb_test_bridge_2x2_axi5_wakeup(dut):
     cocotb.start_soon(chk.run())
     tb.set_slave_response_delay(SRAM, 16)
     done = []
-    # One write+read pair in flight per (master, ID). The requester BFMs keep
-    # one response queue per ID and hand a beat to whichever waiting call
-    # wakes first, not to the oldest; two concurrent same-ID calls could swap
-    # responses (seed 80505 at full: a later write took an earlier write's B,
-    # started its read early and took that read's R). The bridge returned
-    # them in order -- verified at the cpu port -- so this is a test-side
-    # constraint until the BFM serves same-ID waiters in issue order.
-    id_locks = {(m, k): Lock() for m in (CPU, DMA) for k in range(8)}
 
     async def _rw(m, i):
         addr = SRAM_BASE + m * 0x1000 + 4 * i
         data = 0x3A00_0000 | (m << 16) | i
-        async with id_locks[(m, i % 8)]:
-            r = await tb.master_wr[m].write_transaction(addr, data, size=2, id=(m << 3) | (i % 8))
-            assert r.get('success'), f"master {m} write @0x{addr:08x}: {r}"
-            resp = await tb.master_rd[m].read_transaction(addr, size=2, id=(m << 3) | (i % 8))
-            assert resp[0]['data'] == data, f"master {m} read @0x{addr:08x}: {resp[0]['data']:#x}"
+        r = await tb.master_wr[m].write_transaction(addr, data, size=2, id=(m << 3) | (i % 8))
+        assert r.get('success'), f"master {m} write @0x{addr:08x}: {r}"
+        resp = await tb.master_rd[m].read_transaction(addr, size=2, id=(m << 3) | (i % 8))
+        assert resp[0]['data'] == data, f"master {m} read @0x{addr:08x}: {resp[0]['data']:#x}"
         done.append(m)
 
     for m in (CPU, DMA):
