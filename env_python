@@ -25,7 +25,7 @@
 _rtlds_self="${BASH_SOURCE[0]:-$0}"
 export REPO_ROOT="$(cd "$(dirname "$_rtlds_self")" && pwd)"
 
-export APB_XBAR_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/apbx-xbar
+export APB_XBAR_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/lattice-apbx-xbar
 export BCH_ROOT=$REPO_ROOT/projects/components/bch
 export BRIDGE_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/bridge
 export CONVERTERS_ROOT=$REPO_ROOT/projects/components/utility-ip/converters

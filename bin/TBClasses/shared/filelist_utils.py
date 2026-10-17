@@ -173,14 +173,14 @@ def get_sources_from_filelist(repo_root, filelist_path=None, *, module=None):
     components_root = os.path.join(repo_root, 'projects', 'components')
     nexys_root = os.path.join(repo_root, 'projects', 'NexysA7')
 
-    genesys2_stream = os.path.join(repo_root, 'projects', 'fpga-systems', 'Genesys2', 'stream')
+    genesys2_stream = os.path.join(repo_root, 'projects', 'fpga-systems', 'Genesys2', 'dma-ip', 'stream')
 
     defaults = {
-        'APB_XBAR_ROOT': os.path.join(components_root, 'apbx_xbar'),
+        'APB_XBAR_ROOT': os.path.join(components_root, 'fabric-gen-ip', 'lattice-apbx-xbar'),
         'BCH_ROOT': os.path.join(components_root, 'bch'),
-        'BRIDGE_ROOT': os.path.join(components_root, 'bridge'),
+        'BRIDGE_ROOT': os.path.join(components_root, 'fabric-gen-ip', 'bridge'),
         'CONVERTERS_ROOT': os.path.join(components_root, 'utility-ip', 'converters'),
-        'DELTA_ROOT': os.path.join(components_root, 'noc-ip', 'delta'),
+        'DELTA_ROOT': os.path.join(components_root, 'fabric-gen-ip', 'delta'),
         'AMBER_ROOT': os.path.join(components_root, 'cache-ip', 'amber-mesi-l1'),
         'CACHE_COMMON_ROOT': os.path.join(components_root, 'cache-ip', 'common-ip'),
         'KESTREL_ROOT': os.path.join(components_root, 'riscv-ip', 'kestrel-rv32i'),
