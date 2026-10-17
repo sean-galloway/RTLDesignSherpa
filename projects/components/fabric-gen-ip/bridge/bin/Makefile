@@ -48,6 +48,10 @@ help:
 	@echo "  make single           Generate single bridge (see variables below)"
 	@echo "  make batch            Create/update bridge_batch.csv with defaults"
 	@echo ""
+	@echo "PACKAGING:"
+	@echo "  make package-check    Build the wheel, install it in a clean venv, generate +"
+	@echo "                        flatten + lint outside the repo (FIXTURES=... to override)"
+	@echo ""
 	@echo "SINGLE BRIDGE VARIABLES (for 'make single'):"
 	@echo "  PORTS=<path>          Path to ports.csv (required)"
 	@echo "  CONN=<path>           Path to connectivity.csv (required)"
@@ -177,3 +181,11 @@ test:
 	@echo "Running bridge generator unit tests..."
 	@python3 -m pytest $(BIN_DIR)/tests -q
 	@echo "Generator unit tests passed"
+
+# Out-of-repo proof for the installable wheel (GitHub #119 L6): build, install
+# into a clean venv, generate inside a foreign git repo, flatten, lint, and
+# byte-compare with the committed bridges. Needs network for PyPI deps.
+# FIXTURES="bridge_2x2_rw ..." overrides the default set.
+.PHONY: package-check
+package-check:
+	@$(BIN_DIR)/package_check.sh $(FIXTURES)

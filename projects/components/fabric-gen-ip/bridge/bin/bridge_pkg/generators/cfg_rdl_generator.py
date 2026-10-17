@@ -213,8 +213,8 @@ class CfgRdlGenerator:
         already forbade that; this is the generator holding up its half.
         """
         import tempfile
-        repo_root = Path(__file__).resolve().parents[7]
-        tool = repo_root / 'bin' / 'peakrdl_generate.py'
+        from bridge_pkg._paths import regmap_tool
+        tool = regmap_tool()
         with tempfile.TemporaryDirectory() as tmp:
             cmd = [sys.executable, str(tool), str(rdl_abs),
                    '--docs-only', '--no-html', '--no-markdown',

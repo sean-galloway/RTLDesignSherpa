@@ -32,6 +32,17 @@ Architecture:
 - templates/ - Jinja2 templates for tests/TB
 """
 
+# rtl_generators (the Module infrastructure) lives in the repo's bin/. Inside a
+# checkout it is on PYTHONPATH (env_python) or found from the checkout root;
+# an installed wheel carries a build-time copy under bridge_pkg/_vendor/.
+import sys as _sys
+try:
+    import rtl_generators.verilog.module  # noqa: F401
+except ImportError:
+    from . import _paths as _p
+    _root = _p.rds_root()
+    _sys.path.insert(0, str(_root / 'bin') if _root is not None else str(_p.VENDOR_DIR))
+
 from .config import PortSpec, BridgeConfig
 from .csv_parser import parse_connectivity_csv
 from .config_loader import load_config

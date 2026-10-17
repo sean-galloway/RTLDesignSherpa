@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 sean galloway
+#
+# The bridge generator as an installable wheel (GitHub #119 L6).
+#
+# Build from an RTL Design Sherpa checkout only:
+#   python3 -m build --wheel projects/components/fabric-gen-ip/bridge
+# setup.py bundles, at build time, the RTL a generated bridge can reference
+# (bridge_pkg/ip/, repo-relative) and two helpers from the repo's bin/
+# (rtl_generators.verilog, peakrdl_generate.py). Nothing is checked in twice:
+# the copies exist only inside the wheel. An sdist is not supported -- it
+# could not carry files from outside this directory.
+
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rds-bridge-gen"
+dynamic = ["version"]
+description = "AXI3/AXI4/AXI5, AXI-Lite, APB and Wishbone crossbar generator from RTL Design Sherpa"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "sean galloway" }]
+# The two PeakRDL packages that shape the emitted cfg regblock are pinned to
+# the repo's validated versions (requirements.txt): the generator post-patches
+# that RTL, and regeneration is promised byte-identical. peakrdl-regblock
+# 1.3.1 changed the response-buffer reset template and the patch refused it.
+dependencies = [
+    "jinja2>=3.1",
+    "pyyaml>=6.0",
+    "tomli>=2.0; python_version < '3.11'",
+    "systemrdl-compiler==1.30.1",
+    "peakrdl-regblock==1.1.1",
+    "peakrdl>=1.5,<1.6",
+    "peakrdl-html>=2.11",
+    "peakrdl-markdown>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sean-galloway/RTLDesignSherpa"
+
+[project.scripts]
+bridge-gen = "bridge_generator:main"
+
+[tool.setuptools]
+package-dir = { "" = "bin" }
+py-modules = ["bridge_generator"]
+
+[tool.setuptools.packages.find]
+where = ["bin"]
+include = ["bridge_pkg*"]
+
+[tool.setuptools.package-data]
+bridge_pkg = ["jinja_templates/*.j2", "peakrdl/*.rdl"]
+
+[tool.setuptools.dynamic]
+version = { attr = "bridge_pkg.__version__" }

@@ -42,6 +42,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from bridge_pkg import (BridgeConfig, load_config,
                         BridgeModuleGenerator, MasterConfig, SlaveInfo)
+from bridge_pkg._paths import ip_root, rds_root
 
 
 # ==============================================================================
@@ -1055,9 +1056,16 @@ def _emit_bridge_variant(
     # against the outer filelist's base, so a nested `generated/...`
     # path resolves wrong. Using $REPO_ROOT-anchored paths matches
     # every other entry in the filelist (axi4_slave_*, gaxi_*, ...).
+    # Only the RTL Design Sherpa checkout itself: the shipped filelists use
+    # $REPO_ROOT for the IP root, so an installed user's own repository must
+    # not claim the token too -- their bridge files stay filelist-relative.
     try:
         repo_root_for_bridge = str(get_repo_root_for_path(Path(bridge_dir)))
     except (RuntimeError, OSError):
+        repo_root_for_bridge = None
+    _rds = rds_root()
+    if repo_root_for_bridge is not None and (
+            _rds is None or Path(repo_root_for_bridge).resolve() != _rds):
         repo_root_for_bridge = None
 
     def _bridge_file_path(fp: str) -> str:
@@ -1067,7 +1075,10 @@ def _emit_bridge_variant(
                 return f"$REPO_ROOT/{rel.as_posix()}"
             except ValueError:
                 pass  # bridge_dir lives outside the repo for some reason
-        return os.path.relpath(fp, rtl_dir)
+        # Relative to the filelist's own directory, so tools that resolve a
+        # .f entry against its file (Verilator -F, bridge-gen --flat-filelist)
+        # find it wherever the bridge was generated.
+        return os.path.relpath(fp, filelist_dir)
 
     # Package must be first for compile order
     if 'package' in generated_files:
@@ -1466,6 +1477,15 @@ Bulk Generation CSV Format:
                            help="Path to bulk generation CSV file (see format above)")
     mode_group.add_argument("--ports", type=str,
                            help="Path to ports.csv configuration file (single mode)")
+    mode_group.add_argument("--ip-root", action="store_true",
+                           help="Print the RTL IP root to export as REPO_ROOT when "
+                                "compiling a generated bridge, then exit")
+    mode_group.add_argument("--flat-filelist", type=str, metavar="FILELIST",
+                           help="Print FILELIST's -f tree flattened to unique absolute "
+                                "entries (what a simulator or synthesis tool should read), "
+                                "then exit")
+    parser.add_argument("--version", action="version",
+                        version=f"bridge-gen {__import__('bridge_pkg').__version__}")
 
     # Single mode arguments (only used when --ports specified)
     parser.add_argument("--connectivity", type=str,
@@ -1483,6 +1503,14 @@ Bulk Generation CSV Format:
                        help="Output directory for test files (default: ../dv/tests)")
 
     args = parser.parse_args()
+
+    if args.ip_root:
+        print(ip_root())
+        return 0
+    if args.flat_filelist:
+        from bridge_pkg.flatten import flatten
+        print("\n".join(flatten(Path(args.flat_filelist))))
+        return 0
 
     print("="*70)
     print("Bridge Generator (CSV/YAML)")
