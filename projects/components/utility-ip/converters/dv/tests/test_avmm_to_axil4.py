@@ -39,7 +39,7 @@ async def cocotb_test_avmm_to_axil4(dut):
         ok = await tb.run_back_to_back(rng, pairs=max(4, n // 10))
         tb.log.info(f"back-to-back: {'ok' if ok else 'FAILED'}")
 
-    await tb.wait_idle()
+    assert await tb.wait_idle(), "busy never dropped after traffic"
     assert tb.report(), f"{len(tb.errors)} error(s); first: {tb.errors[0] if tb.errors else ''}"
     assert tb.stats['okay'] and tb.stats['slverr'], \
         f"both response kinds must be exercised: {tb.stats}"

@@ -24,6 +24,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 from TBClasses.shared.test_levels import level_env, reg_level_grid
+from TBClasses.shared.filelist_utils import get_sources_from_multiple_filelists
 from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 
 _DELTA_BIN = os.path.abspath(
@@ -42,23 +43,17 @@ PLANE_TX_SV = 'delta_mesh_plane_cxs_tx.sv'
 PLANE_RX_SV = 'delta_mesh_plane_cxs_rx.sv'
 FABRIC_CXS_SV = 'delta_mesh_fabric_2x2x1_cxs.sv'
 RESET_DEFS_INCDIR = 'rtl/amba/includes'
-# House deps the CXS planes + endpoints instantiate (mirrors
-# rtl/filelists/delta_mesh_cxs.f, resolved repo-relative here).
-CXS_DEPS = (
-    'rtl/common/counter_bin.sv',
-    'rtl/common/fifo_control.sv',
-    'rtl/amba/gaxi/gaxi_fifo_sync.sv',
-    'rtl/amba/gaxi/gaxi_skid_buffer.sv',
-    'rtl/common/arbiter_matrix.sv',
-    'rtl/cdc/glitch_free_n_dff_arn.sv',
-    'rtl/amba/includes/cxs_pkg.sv',
-    'rtl/amba/cxs/cxs_odd_byte_parity.sv',
-    'rtl/amba/cxs/cxs_cntl_track.sv',
-    'rtl/amba/cxs/cxs_stream_key.sv',
-    'rtl/amba/cxs/cxs_master.sv',
-    'rtl/amba/cxs/cxs_slave.sv',
-    'projects/components/utility-ip/converters/rtl/axis_to_cxs.sv',
-    'projects/components/utility-ip/converters/rtl/cxs_to_axis.sv',
+# The cell's dependencies, from their owning areas' filelists (mirrors the
+# -f set in rtl/filelists/delta_mesh_cxs.f).
+DEP_FILELISTS = (
+    'rtl/amba/filelists/reset_defs.f',
+    'rtl/amba/filelists/cxs_pkg.f',
+    'rtl/amba/filelists/gaxi_skid_buffer.f',
+    'rtl/common/filelists/arbiter_matrix.f',
+    'rtl/amba/filelists/cxs_master.f',
+    'rtl/amba/filelists/cxs_slave.f',
+    'projects/components/utility-ip/converters/rtl/filelists/axis_to_cxs.f',
+    'projects/components/utility-ip/converters/rtl/filelists/cxs_to_axis.f',
 )
 
 COORDS = [(0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0)]  # b0..b3, x-major
@@ -219,8 +214,10 @@ def cxs_gen_dir(tmp_path_factory):
 
 def _run(testcase, test_level, gen_dir):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dep_sources, dep_includes = get_sources_from_multiple_filelists(
+        repo_root=repo_root, filelist_paths=list(DEP_FILELISTS))
     verilog_sources = [
-        *[os.path.join(repo_root, dep) for dep in CXS_DEPS],
+        *dep_sources,
         str(gen_dir / CELL_SV),
         str(gen_dir / CELL_CXS_SV),
         str(gen_dir / PLANE_TX_SV),
@@ -228,7 +225,7 @@ def _run(testcase, test_level, gen_dir):
         str(gen_dir / FABRIC_CXS_SV),
         os.path.join(repo_root, HARNESS),
     ]
-    includes = [os.path.join(repo_root, RESET_DEFS_INCDIR)]
+    includes = list(dict.fromkeys([os.path.join(repo_root, RESET_DEFS_INCDIR), *dep_includes]))
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f'_{worker_id}' if worker_id else ''

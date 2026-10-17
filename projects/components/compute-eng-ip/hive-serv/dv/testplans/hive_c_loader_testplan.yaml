@@ -2,7 +2,7 @@
 # STATUS: planned — RTL not written yet (Phase 1 bring-up, per HAS ch7 roadmap).
 
 module: hive_c_loader
-rtl_file: projects/components/compute-eng-ip/hive-serv/rtl/hive_c_controller/hive_c_loader.sv
+rtl_file: projects/components/compute-eng-ip/hive-serv/rtl/hive_c_controller/hive_c_loader.sv (PLANNED - RTL not written yet, vault hive-serv TASK-000)
 test_file: projects/components/compute-eng-ip/hive-serv/dv/tests/test_hive_c_loader.py
 
 # Module description:

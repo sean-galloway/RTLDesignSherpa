@@ -22,6 +22,7 @@ import cocotb
 import pytest
 from cocotb_test.simulator import run
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.filelist_utils import get_sources_from_multiple_filelists
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 
@@ -37,11 +38,12 @@ DUT_TOP = 'delta_mesh_fabric_2x2_th'
 FABRIC_SV = 'delta_mesh_fabric_2x2x1.sv'
 CELL_SV = 'delta_mesh_cell.sv'
 RESET_DEFS_INCDIR = 'rtl/amba/includes'
-FIFO_DEPS = (
-    'rtl/common/counter_bin.sv',
-    'rtl/common/fifo_control.sv',
-    'rtl/amba/gaxi/gaxi_fifo_sync.sv',
-    'rtl/common/arbiter_matrix.sv',
+# The cell's dependencies, from their owning areas' filelists (mirrors the
+# -f set in rtl/filelists/delta_mesh.f).
+DEP_FILELISTS = (
+    'rtl/amba/filelists/reset_defs.f',
+    'rtl/amba/filelists/gaxi_skid_buffer.f',
+    'rtl/common/filelists/arbiter_matrix.f',
 )
 
 CELL_FILELIST = 'projects/components/fabric-gen-ip/delta/rtl/filelists/delta_mesh.f'
@@ -106,13 +108,15 @@ async def cocotb_test_delta_mesh_multicast_malformed_multi_beat(dut):
 
 def _run(testcase, test_level, gen_dir):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dep_sources, dep_includes = get_sources_from_multiple_filelists(
+        repo_root=repo_root, filelist_paths=list(DEP_FILELISTS))
     verilog_sources = [
-        *[os.path.join(repo_root, dep) for dep in FIFO_DEPS],
+        *dep_sources,
         str(gen_dir / CELL_SV),
         str(gen_dir / FABRIC_SV),
         os.path.join(repo_root, HARNESS),
     ]
-    includes = [os.path.join(repo_root, RESET_DEFS_INCDIR)]
+    includes = list(dict.fromkeys([os.path.join(repo_root, RESET_DEFS_INCDIR), *dep_includes]))
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""

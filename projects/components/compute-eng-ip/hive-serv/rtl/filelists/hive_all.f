@@ -15,8 +15,17 @@
 # bin/filelists.toml; the DIRECTORY is hive-serv.
 # ==============================================================================
 
-+incdir+$REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/includes
-
 # --- Block RTL (appended as modules land; Phase 1 bring-up) ------------------
-# -f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/core/hive_c_controller.f
-# -f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/core/serv_monitor.f
+# Block 1, hive_c_controller (hive_c_loader not written yet)
+-f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/hive_axis_cda_master.f
+-f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/hive_descriptor_gen.f
+
+# Block 2, serv_monitor leaves (the serv_monitor top not written yet)
+-f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/traffic_counter.f
+-f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/trigger_logic.f
+-f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/axis_injector.f
+-f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/local_mem.f
+-f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/ctrl_net_slave.f
+
+# Block 3, control network
+-f $REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/filelists/hive_ctrl_network.f

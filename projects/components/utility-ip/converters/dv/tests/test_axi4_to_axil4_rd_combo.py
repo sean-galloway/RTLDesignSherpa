@@ -16,6 +16,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 
 
 from TBClasses.shared.utilities import create_view_cmd, sim_build_path
 from TBClasses.shared.test_levels import reg_level_grid, level_env
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
@@ -99,12 +100,10 @@ def test_axi4_to_axil4_rd_combo(request, test_level):
     log_path = os.path.join(log_dir, f"{test_name}.log")
     results_path = os.path.join(log_dir, f"results_{test_name}.xml")
 
-    verilog_sources = [
-        os.path.join(dv_root, "axi4_to_axil4_rd_combo_tb.sv"),
-        os.path.join(repo_root, "rtl", "amba", "includes", "reset_defs.svh"),
-        os.path.join(repo_root, "projects", "components", "utility-ip", "converters", "rtl", "axi4_to_axil4_rd.sv"),
-    ]
-    includes = [os.path.join(repo_root, "rtl", "amba", "includes")]
+    dut_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4_rd.f')
+    verilog_sources = [os.path.join(dv_root, "axi4_to_axil4_rd_combo_tb.sv"), *dut_sources]
 
     extra_env = {
         'DUT': dut_name,

@@ -30,7 +30,8 @@ async def cocotb_test_char_run_timer(dut):
     tb = CharRunTimerTB(dut)
     level = os.environ.get('TEST_LEVEL', 'gate').lower()
     await tb.setup_clocks_and_reset()
-    await tb.run_all(RUNS.get(level, RUNS['gate']))
+    assert await tb.run_all(RUNS.get(level, RUNS['gate'])), \
+        f"run_all failed; first error: {tb.errors[0] if tb.errors else '(verdict sweep)'}"
     assert tb.report(), f"{len(tb.errors)} error(s); first: {tb.errors[0] if tb.errors else ''}"
     # A pass must have exercised both verdicts and compared real cycles.
     assert tb.stats['pass1'] > 0 and tb.stats['pass0'] > 0, tb.stats

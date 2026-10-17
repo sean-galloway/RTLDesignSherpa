@@ -23,6 +23,7 @@ from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 from CocoTBFramework.components.axis4.axis_packet import AXISPacket
 from TBClasses.shared.test_levels import level_env, reg_level_grid
+from TBClasses.shared.filelist_utils import get_sources_from_multiple_filelists
 from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 
 _TBCLASSES = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'tbclasses'))
@@ -34,11 +35,12 @@ from delta_mesh.tables import P_LOCAL, P_X_NEG, P_X_POS, table_index
 DELTA_GENERATOR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..', 'bin', 'delta_generator.py'))
 
-FIFO_DEPS = (
-    'rtl/common/counter_bin.sv',
-    'rtl/common/fifo_control.sv',
-    'rtl/amba/gaxi/gaxi_fifo_sync.sv',
-    'rtl/common/arbiter_matrix.sv',
+# The cell's dependencies, from their owning areas' filelists (mirrors the
+# -f set in rtl/filelists/delta_mesh.f).
+DEP_FILELISTS = (
+    'rtl/amba/filelists/reset_defs.f',
+    'rtl/amba/filelists/gaxi_skid_buffer.f',
+    'rtl/common/filelists/arbiter_matrix.f',
 )
 RESET_DEFS_INCDIR = 'rtl/amba/includes'
 
@@ -610,13 +612,15 @@ def fabric_gen_2x2_spec(tmp_path_factory):
 def _run(testcase, test_level, gen_dir, dut_top, harness_path, fabric_sv,
          coord_w):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dep_sources, dep_includes = get_sources_from_multiple_filelists(
+        repo_root=repo_root, filelist_paths=list(DEP_FILELISTS))
     verilog_sources = [
-        *[os.path.join(repo_root, dep) for dep in FIFO_DEPS],
+        *dep_sources,
         str(gen_dir / 'delta_mesh_cell.sv'),
         str(gen_dir / fabric_sv),
         os.path.join(repo_root, harness_path),
     ]
-    includes = [os.path.join(repo_root, RESET_DEFS_INCDIR)]
+    includes = list(dict.fromkeys([os.path.join(repo_root, RESET_DEFS_INCDIR), *dep_includes]))
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""

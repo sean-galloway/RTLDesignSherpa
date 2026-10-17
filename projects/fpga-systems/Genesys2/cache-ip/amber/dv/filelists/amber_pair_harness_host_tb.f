@@ -6,9 +6,6 @@
 # the wrapper instantiates amber_pair_harness directly with USE_DIRECT_HOST=1).
 #==============================================================================
 
-# Framework root for the amber Genesys2 area.
-+incdir+$AMBER_FRAMEWORK_ROOT/rtl/includes
-
 -f $AMBER_FRAMEWORK_ROOT/rtl/filelists/amber_pair_genesys2_top.f
 
 # Testbench wrapper

@@ -6,9 +6,6 @@
 # with USE_DIRECT_HOST=0 and exposes the UART rx/tx pins.
 #==============================================================================
 
-# Framework root for the amber Genesys2 area.
-+incdir+$AMBER_FRAMEWORK_ROOT/rtl/includes
-
 -f $AMBER_FRAMEWORK_ROOT/rtl/filelists/amber_pair_genesys2_top.f
 
 # Testbench wrapper

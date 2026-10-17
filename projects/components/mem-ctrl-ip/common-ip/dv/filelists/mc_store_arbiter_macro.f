@@ -9,9 +9,7 @@
 
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/includes/mc_common_pkg.sv
 
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_xddr2_entry_store.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_cmd_arbiter.sv

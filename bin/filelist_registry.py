@@ -861,9 +861,12 @@ def cmd_blindspots(reg: dict, ratchet: bool = False,
         except SyntaxError:
             continue
 
+        # Both filelist_utils entry points count: get_sources_from_multiple_filelists
+        # is the same resolver over several .f, merged and deduped.
         uses_filelist = any(
             isinstance(n, ast.Call) and
-            getattr(n.func, "id", getattr(n.func, "attr", None)) == "get_sources_from_filelist"
+            getattr(n.func, "id", getattr(n.func, "attr", None)) in (
+                "get_sources_from_filelist", "get_sources_from_multiple_filelists")
             for n in ast.walk(tree))
 
         # Every expression that flows into verilog_sources: the assignment RHS

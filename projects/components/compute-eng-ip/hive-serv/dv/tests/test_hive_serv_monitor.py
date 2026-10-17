@@ -32,6 +32,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from cov_utils.conftest_coverage import get_coverage_compile_args
 
 repo_root = get_repo_root()
@@ -477,43 +478,20 @@ def test_hive_serv_monitor(request, test_level):
     os.makedirs(sim_build, exist_ok=True)
 
     rtl_root = os.path.join(repo_root, 'projects/components/compute-eng-ip/hive-serv/rtl/serv_monitor')
-    serv_root = os.path.join(repo_root, 'vendor/serv/rtl')
-    cdc_root = os.path.join(repo_root, 'rtl/cdc')
 
-    verilog_sources = [
-        # HIVE serv_monitor block RTL
-        os.path.join(rtl_root, 'serv_monitor.sv'),
-        os.path.join(rtl_root, 'traffic_counter.sv'),
-        os.path.join(rtl_root, 'trigger_logic.sv'),
-        os.path.join(rtl_root, 'axis_injector.sv'),
-        os.path.join(rtl_root, 'local_mem.sv'),
-        os.path.join(rtl_root, 'serv_wrapper.sv'),
-        os.path.join(rtl_root, 'ctrl_net_slave.sv'),
-        # CDC primitives used by the monitor
-        os.path.join(cdc_root, 'cdc_synchronizer.sv'),
-        os.path.join(cdc_root, 'glitch_free_n_dff_arn.sv'),
-        # Vendored SERV core (only needed for SM-07, compiled anyway)
-        os.path.join(serv_root, 'serv_rf_top.v'),
-        os.path.join(serv_root, 'serv_top.v'),
-        os.path.join(serv_root, 'serv_aligner.v'),
-        os.path.join(serv_root, 'serv_alu.v'),
-        os.path.join(serv_root, 'serv_bufreg.v'),
-        os.path.join(serv_root, 'serv_bufreg2.v'),
-        os.path.join(serv_root, 'serv_compdec.v'),
-        os.path.join(serv_root, 'serv_csr.v'),
-        os.path.join(serv_root, 'serv_ctrl.v'),
-        os.path.join(serv_root, 'serv_decode.v'),
-        os.path.join(serv_root, 'serv_immdec.v'),
-        os.path.join(serv_root, 'serv_mem_if.v'),
-        os.path.join(serv_root, 'serv_rf_if.v'),
-        os.path.join(serv_root, 'serv_rf_ram_if.v'),
-        os.path.join(serv_root, 'serv_rf_ram.v'),
-        os.path.join(serv_root, 'serv_state.v'),
-    ]
-
-    includes = [
-        os.path.join(repo_root, 'rtl/amba/includes'),
-    ]
+    # Block leaves that exist, plus the vendored SERV core, from their filelists.
+    verilog_sources, includes = [], []
+    for fl in ('projects/components/compute-eng-ip/hive-serv/rtl/filelists/traffic_counter.f', 'projects/components/compute-eng-ip/hive-serv/rtl/filelists/trigger_logic.f', 'projects/components/compute-eng-ip/hive-serv/rtl/filelists/axis_injector.f', 'projects/components/compute-eng-ip/hive-serv/rtl/filelists/local_mem.f', 'projects/components/compute-eng-ip/hive-serv/rtl/filelists/ctrl_net_slave.f',
+               'vendor/filelists/serv.f'):
+        srcs, incs = get_sources_from_filelist(repo_root=repo_root, filelist_path=fl)
+        verilog_sources += [x for x in srcs if x not in verilog_sources]
+        includes += [x for x in incs if x not in includes]
+    # serv_monitor.sv and serv_wrapper.sv are not written yet (the module skip
+    # above). When they land, serv_monitor.f lands with them and replaces this.
+    verilog_sources += [os.path.join(rtl_root, 'serv_monitor.sv'),
+                        os.path.join(rtl_root, 'serv_wrapper.sv')]
+    if os.path.join(repo_root, 'rtl/amba/includes') not in includes:
+        includes.append(os.path.join(repo_root, 'rtl/amba/includes'))
 
     parameters = {
         'TILE_ID': TILE_ID,

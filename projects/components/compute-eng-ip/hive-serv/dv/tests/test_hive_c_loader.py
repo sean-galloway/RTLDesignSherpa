@@ -38,6 +38,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from cov_utils.conftest_coverage import get_coverage_compile_args
 
 repo_root = get_repo_root()
@@ -425,13 +426,12 @@ def test_hive_c_loader(request, test_level):
     """Pytest wrapper for hive_c_loader TDD test."""
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
-    rtl_path = os.path.join(
-        repo_root,
-        'projects/components/compute-eng-ip/hive-serv/rtl/hive_c_controller/hive_c_loader.sv'
-    )
-    vex_path = os.path.join(repo_root, 'vendor/vexriscv/VexRiscv.v')
-    verilog_sources = [rtl_path, vex_path]
-    includes = [os.path.join(repo_root, 'rtl/amba/includes')]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path='vendor/filelists/vexriscv.f')
+    # hive_c_loader.sv is not written yet (the module skip above). When it
+    # lands, its hive_c_loader.f lands with it and replaces this line.
+    verilog_sources.append(rtl_under_test)
+    includes.append(os.path.join(repo_root, 'rtl/amba/includes'))
 
     compile_args = [
         "--trace",

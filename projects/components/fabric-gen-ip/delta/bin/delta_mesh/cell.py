@@ -18,8 +18,8 @@
 """
 Delta mesh cell generator using the unified verilog framework.
 
-Task 4 scope: per-port per-VC input buffers (house gaxi_fifo_sync, one per
-port per VC, DEPTH=4) between the port's s_axis acceptance and the
+Task 4 scope: per-port per-VC input buffers (house gaxi_skid_buffer, one per
+port per VC, DEPTH=4 -- flop-only elastic buffers, owner rule 2026-10-16) between the port's s_axis acceptance and the
 route/grant stage; credit flow control on the pinned credit sidebands (one
 credit level per VC: m_credit advertises "my input buffer for this VC is
 not full", a flit is presented on an output only while the corresponding
@@ -262,8 +262,8 @@ class DeltaMeshCell(Module):
         self.comment(f"  - Coordinate Width: {self.coord_w} bits")
         self.comment("")
         self.comment("Features (Task 4):")
-        self.comment("  - Per-port per-VC input buffers: one house gaxi_fifo_sync per")
-        self.comment("    port per VC (9 x NUM_VC, DEPTH=4) between s_axis acceptance")
+        self.comment("  - Per-port per-VC input buffers: one house gaxi_skid_buffer per")
+        self.comment("    port per VC (9 x NUM_VC, DEPTH=4, flops only) between s_axis acceptance")
         self.comment("    and the route/grant stage; a flit word is")
         self.comment("    {TUSER, TLAST, TDATA}. Acceptance is unconditional on")
         self.comment("    downstream state (credits govern the output side of each")
@@ -442,14 +442,13 @@ class DeltaMeshCell(Module):
         self.instruction("localparam int FIFO_DEPTH = 4;")
         self.instruction("localparam int FLIT_W     = DATA_WIDTH + USER_WIDTH + 1;")
         self.instruction("localparam int VC_W       = (NUM_VC > 1) ? $clog2(NUM_VC) : 1;")
-        self.comment("FIFO memory style: ALWAYS flops for the mesh input buffers.")
-        self.comment("They are shallow by design (FIFO_DEPTH=4, a few hundred flops")
-        self.comment("each) -- a 4-deep BRAM is physically nonsensical and buys a")
-        self.comment("registered-read skew the drop path would have to absorb (#118).")
-        self.comment("Do not map fifo-impl to a memory style here; validation rejects")
-        self.comment("'sram' for mesh mode, so P_FIFO_MEM_STYLE is always FIFO_AUTO.")
-        self.instruction('localparam fifo_mem_t P_FIFO_MEM_STYLE =')
-        self.instruction('    (FIFO_IMPL == "sram") ? FIFO_BRAM : FIFO_AUTO;')
+        self.comment("Input buffers: the house gaxi_skid_buffer elastic buffer")
+        self.comment("(DEPTH=4). Skid buffers are flops-only by construction --")
+        self.comment("no memory-style knob exists -- so the 'sram vs reg' question")
+        self.comment("does not arise here (owner rule 2026-10-16: mesh input")
+        self.comment("buffers stay shallow and always flop-implemented; #118).")
+        self.comment("The fall-through (empty-buffer bypass) also removes one")
+        self.comment("cycle of head visibility latency vs a registered FIFO.")
         self.instruction("")
         self.comment("Head-flit header field offsets in TUSER, LSB-first")
         self.comment("(single source of truth: bin/delta_mesh/header.py)")
@@ -535,6 +534,22 @@ class DeltaMeshCell(Module):
         self.instruction("localparam int C_BULK_STARVE     = 8;")
         self.instruction("localparam int C_SPEC_COMMITS    = 9;")
         self.instruction("localparam int C_SPEC_REVOKES    = 10;")
+        self.instruction("")
+        self.comment("Forward declarations: signals an earlier section reads before the")
+        self.comment("section that drives them (SV requires declaration before use).")
+        self.instruction("logic              lock_active [NUM_PORTS];")
+        self.instruction("logic [PORT_W-1:0] lock_port [NUM_PORTS];")
+        self.instruction("logic [VC_W-1:0]   lock_vc [NUM_PORTS];")
+        self.instruction("logic drop_active     [NUM_PORTS];")
+        self.instruction("logic               msw_hold_valid;")
+        self.instruction("logic               cfg_resp_wr_ready;")
+        self.instruction("logic                 mcast_ok_req [NUM_PORTS];")
+        self.instruction("logic                 mcast_bad_req [NUM_PORTS];")
+        self.instruction("logic                 resp_drop_req [NUM_PORTS];")
+        self.instruction("logic                 mcast_consume;")
+        self.instruction("logic [PORT_W-1:0]    mcast_hold_in_port;")
+        self.instruction("logic                 packet_active [NUM_PORTS];")
+        self.instruction("logic [NUM_PORTS-1:0] grant_matrix [NUM_PORTS];  // [output][input]")
         self.instruction("")
 
     def generate_input_buffers(self):
@@ -622,15 +637,14 @@ class DeltaMeshCell(Module):
         self.instruction("    end")
         self.instruction("end")
         self.instruction("")
-        self.comment("Per-port per-VC input FIFOs (house gaxi_fifo_sync)")
+        self.comment("Per-port per-VC input buffers (house gaxi_skid_buffer, flops only)")
         self.instruction("generate")
         self.instruction("    for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_input_fifo")
         self.instruction("        for (genvar v = 0; v < NUM_VC; v++) begin : gen_vc")
-        self.instruction("            gaxi_fifo_sync #(")
-        self.instruction("                .MEM_STYLE (P_FIFO_MEM_STYLE),")
+        self.instruction("            gaxi_skid_buffer #(")
         self.instruction("                .DATA_WIDTH(FLIT_W),")
         self.instruction("                .DEPTH     (FIFO_DEPTH)")
-        self.instruction("            ) u_input_fifo (")
+        self.instruction("            ) u_input_buffer (")
         self.instruction("                .axi_aclk   (aclk),")
         self.instruction("                .axi_aresetn(aresetn),")
         self.instruction("                .wr_valid   (w_fifo_wr_valid[p][v]),")
@@ -638,6 +652,7 @@ class DeltaMeshCell(Module):
         self.instruction("                .wr_data    (w_fifo_wr_data[p][v]),")
         self.instruction("                .rd_ready   (w_fifo_rd_ready[p][v]),")
         self.instruction("                .count      (),")
+        self.instruction("                .rd_count   (),")
         self.instruction("                .rd_valid   (w_fifo_rd_valid[p][v]),")
         self.instruction("                .rd_data    (w_fifo_rd_data[p][v])")
         self.instruction("            );")
@@ -1092,7 +1107,6 @@ class DeltaMeshCell(Module):
         self.instruction("logic               msw_will_process;")
         self.instruction("logic special_req     [NUM_PORTS];")
         self.instruction("logic special_consume [NUM_PORTS];")
-        self.instruction("logic drop_active     [NUM_PORTS];")
         self.instruction("logic drop_active_next [NUM_PORTS];")
         self.instruction("")
         self.comment("Mode-switch decode (Task 6): the mcast-flagged config")
@@ -1210,7 +1224,6 @@ class DeltaMeshCell(Module):
         self.instruction("logic [RESP_W-1:0]  cfg_resp_rd_data;")
         self.instruction("logic               cfg_resp_rd_valid;")
         self.instruction("logic               cfg_resp_rd_ready;")
-        self.instruction("logic               cfg_resp_wr_ready;")
         self.instruction("logic               cfg_resp_present;")
         self.instruction("logic [31:0]        counter_bank [NUM_COUNTERS];")
         self.instruction("")
@@ -1244,8 +1257,7 @@ class DeltaMeshCell(Module):
         self.comment("Response skid: config responses wait here for the idle")
         self.comment("local output; grant registration on P_LOCAL stalls")
         self.comment("while any response is pending (see arbitration).")
-        self.instruction("gaxi_fifo_sync #(")
-        self.instruction("    .MEM_STYLE (FIFO_AUTO),")
+        self.instruction("gaxi_skid_buffer #(")
         self.instruction("    .DATA_WIDTH(RESP_W),")
         self.instruction("    .DEPTH     (FIFO_DEPTH)")
         self.instruction(") u_config_resp_fifo (")
@@ -1256,6 +1268,7 @@ class DeltaMeshCell(Module):
         self.instruction("    .wr_data    (cfg_resp_wr_data),")
         self.instruction("    .rd_ready   (cfg_resp_rd_ready),")
         self.instruction("    .count      (),")
+        self.instruction("    .rd_count   (),")
         self.instruction("    .rd_valid   (cfg_resp_rd_valid),")
         self.instruction("    .rd_data    (cfg_resp_rd_data)")
         self.instruction(");")
@@ -1296,9 +1309,6 @@ class DeltaMeshCell(Module):
         self.instruction("logic               mcast_single [NUM_PORTS];")
         self.instruction("logic               mcast_parent_port [NUM_PORTS];")
         self.instruction("logic [NUM_PORTS-1:0] mcast_child_mask [NUM_PORTS];")
-        self.instruction("logic                 mcast_ok_req [NUM_PORTS];")
-        self.instruction("logic                 mcast_bad_req [NUM_PORTS];")
-        self.instruction("logic                 resp_drop_req [NUM_PORTS];")
         self.instruction("")
         self.comment("Per-input multicast classification and spanning-tree")
         self.comment("parent/child computation.")
@@ -1408,11 +1418,9 @@ class DeltaMeshCell(Module):
         self.instruction("logic [USER_WIDTH-1:0] mcast_hold_tuser;")
         self.instruction("logic                 mcast_hold_last;")
         self.instruction("logic [NUM_PORTS-1:0] mcast_hold_child_mask;")
-        self.instruction("logic [PORT_W-1:0]    mcast_hold_in_port;")
         self.instruction("logic                 mcast_latch;")
         self.instruction("logic                 mcast_fire_next;")
         self.instruction("logic                 mcast_fire;")
-        self.instruction("logic                 mcast_consume;")
         self.instruction("")
         self.comment("Pick one valid multicast head per cycle (lowest port")
         self.comment("wins) only when the hold register is empty.  A held")
@@ -1541,7 +1549,6 @@ class DeltaMeshCell(Module):
         self.instruction("localparam int N_NEIGH = n_neighbors();")
         self.instruction("")
         self.comment("Fan-out holding register + sequence index.")
-        self.instruction("logic               msw_hold_valid;")
         self.instruction("logic [3:0]         msw_hold_mode;")
         self.instruction("logic [COORD_W-1:0] msw_hold_src_x;")
         self.instruction("logic [COORD_W-1:0] msw_hold_src_y;")
@@ -1632,8 +1639,7 @@ class DeltaMeshCell(Module):
         self.instruction("                        gen_fifo_wr_ready;")
         self.instruction("end")
         self.instruction("")
-        self.instruction("gaxi_fifo_sync #(")
-        self.instruction("    .MEM_STYLE (FIFO_AUTO),")
+        self.instruction("gaxi_skid_buffer #(")
         self.instruction("    .DATA_WIDTH(FLIT_W),")
         self.instruction("    .DEPTH     (GEN_FIFO_DEPTH)")
         self.instruction(") u_gen_fifo (")
@@ -1646,6 +1652,7 @@ class DeltaMeshCell(Module):
         self.comment("    // between external packets.")
         self.instruction("    .rd_ready   (gen_take),")
         self.instruction("    .count      (),")
+        self.instruction("    .rd_count   (),")
         self.instruction("    .rd_valid   (gen_fifo_rd_valid),")
         self.instruction("    .rd_data    (gen_fifo_rd_data)")
         self.instruction(");")
@@ -1845,8 +1852,6 @@ class DeltaMeshCell(Module):
         self.comment("registered state (arbiter output + bubble flop), so")
         self.comment("it is stable across the cycle exactly like the pre-")
         self.comment("Task-7 grant register.")
-        self.instruction("logic [NUM_PORTS-1:0] grant_matrix [NUM_PORTS];  // [output][input]")
-        self.instruction("logic                 packet_active [NUM_PORTS];")
         self.instruction("logic                 out_xfer_last [NUM_PORTS];")
         self.instruction("")
         self.comment("TLAST handshake on an output this cycle")
@@ -2019,11 +2024,8 @@ class DeltaMeshCell(Module):
         self.comment("head chose.")
         self.comment("==========================================================================")
         self.instruction("")
-        self.instruction("logic              lock_active [NUM_PORTS];")
         self.instruction("logic              lock_active_next [NUM_PORTS];")
-        self.instruction("logic [PORT_W-1:0] lock_port [NUM_PORTS];")
         self.instruction("logic [PORT_W-1:0] lock_port_next [NUM_PORTS];")
-        self.instruction("logic [VC_W-1:0]   lock_vc [NUM_PORTS];")
         self.instruction("logic [VC_W-1:0]   lock_vc_next [NUM_PORTS];")
         self.instruction("logic              in_xfer [NUM_PORTS];")
         self.instruction("logic              in_xfer_last [NUM_PORTS];")
@@ -2608,11 +2610,10 @@ class DeltaMeshCell(Module):
         self.generate_registers()
 
         self.start()
-        # reset_defs.svh must precede the module (house ALWAYS_FF_RST macro);
-        # fifo_defs.svh provides fifo_mem_t for the MEM_STYLE localparam.
+        # reset_defs.svh must precede the module (house ALWAYS_FF_RST macro).
         self.start_instructions[0] = self.start_instructions[0].replace(
             f'module {self.module_str} #(',
-            '`include "reset_defs.svh"\n`include "fifo_defs.svh"\n\n'
+            '`include "reset_defs.svh"\n\n'
             f'module {self.module_str} #(')
         self.end()
         # House style: no trailing whitespace (the framework's comment("")
@@ -2624,12 +2625,16 @@ class DeltaMeshCell(Module):
 
 
 def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
-    """Write rtl/filelists/delta_mesh.f next to the generated cell + fabric.
+    """Write rtl/filelists/delta_mesh.f (or delta_mesh_cxs.f) next to the
+    generated cell + fabric.
 
-    Sources: the FIFO primitives the cell's input buffers instantiate, then
-    the cell (the fabric top instantiates it), then the fabric. The list is
-    self-contained outside the area flow: it carries the include path for
-    the macro headers itself.
+    Dependencies come in as -f includes of the owning areas' filelists (the
+    filelist contract: never hand-list another area's sources), then this
+    area's generated sources. The -f graph overlaps (cxs_master.f and
+    cxs_slave.f share their helpers), so a tool must read it through the
+    deduping resolvers -- bin/flatten_filelist.py, the make flows, or
+    get_sources_from_filelist -- never as a raw -f (handbook
+    generated-rtl-discipline).
     """
     filelists_dir = os.path.join(output_dir, 'filelists')
     os.makedirs(filelists_dir, exist_ok=True)
@@ -2644,9 +2649,6 @@ def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
                     if not rel.startswith(os.pardir) else abs_path)
         except ValueError:
             return abs_path
-
-    def _repo_entry(rel_repo_path: str) -> str:
-        return f"$REPO_ROOT/{rel_repo_path}"
 
     if config.ifc == "cxs":
         fabric_name = (f"delta_mesh_fabric_{config.cells_x}"
@@ -2663,39 +2665,28 @@ def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
             "#",
             "# Generated by projects/components/fabric-gen-ip/delta/bin/delta_generator.py",
             f"#   --topology mesh --cells-x {config.cells_x} --cells-y {config.cells_y}",
-            f"#   --cells-z {config.cells_z} --user-width {config.user_width} --ifc cxs",
+            f"#   --cells-z {config.cells_z} --data-width {config.data_width} --user-width {config.user_width} --ifc cxs",
             f"#   (checked-in artifact from the default {config.cells_x}x{config.cells_y}x{config.cells_z} config).",
             "#",
-            "# Sources: the house CXS link endpoints and their dependencies as a",
-            "# FLAT explicit list -- the nested -f form (cxs_master.f + cxs_slave.f",
-            "# + the converters' -f lists) double-includes the shared helpers and",
-            "# trips MODDUP in strict external flows. Order: package + macros first,",
-            "# then primitives, then the cxs helpers + endpoints + framers, then",
-            "# the delta planes, the AXIS core cell (the CXS wrapper overrides its",
-            "# width parameters at instantiation), the CXS wrapper, and the CXS",
-            "# fabric top. Root path token is $REPO_ROOT.",
+            "# Sources: the house CXS endpoints, converters and primitives as -f",
+            "# includes of their owning areas' filelists, then this area's planes,",
+            "# the AXIS core cell (the CXS wrapper overrides its width parameters",
+            "# at instantiation), the CXS wrapper, and the CXS fabric top.",
+            "# The -f graph overlaps (cxs_master.f and cxs_slave.f share helpers):",
+            "# resolve it with bin/flatten_filelist.py or the make flows, which",
+            "# dedupe -- never hand this file to a tool as a raw -f.",
+            "# Root path token is $REPO_ROOT.",
             "",
-            "+incdir+$REPO_ROOT/rtl/amba/includes",
             "+incdir+$REPO_ROOT/rtl/common",
             "",
-            "$REPO_ROOT/rtl/amba/includes/reset_defs.svh",
-            "$REPO_ROOT/rtl/amba/includes/fifo_defs.svh",
-            "$REPO_ROOT/rtl/amba/includes/cxs_pkg.sv",
-            "",
-            "$REPO_ROOT/rtl/common/counter_bin.sv",
-            "$REPO_ROOT/rtl/common/fifo_control.sv",
-            "$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv",
-            "$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv",
-            "$REPO_ROOT/rtl/cdc/glitch_free_n_dff_arn.sv",
-            "$REPO_ROOT/rtl/common/arbiter_matrix.sv",
-            "",
-            "$REPO_ROOT/rtl/amba/cxs/cxs_odd_byte_parity.sv",
-            "$REPO_ROOT/rtl/amba/cxs/cxs_cntl_track.sv",
-            "$REPO_ROOT/rtl/amba/cxs/cxs_stream_key.sv",
-            "$REPO_ROOT/rtl/amba/cxs/cxs_master.sv",
-            "$REPO_ROOT/rtl/amba/cxs/cxs_slave.sv",
-            "$REPO_ROOT/projects/components/utility-ip/converters/rtl/axis_to_cxs.sv",
-            "$REPO_ROOT/projects/components/utility-ip/converters/rtl/cxs_to_axis.sv",
+            "-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f",
+            "-f $REPO_ROOT/rtl/amba/filelists/cxs_pkg.f",
+            "-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f",
+            "-f $REPO_ROOT/rtl/common/filelists/arbiter_matrix.f",
+            "-f $REPO_ROOT/rtl/amba/filelists/cxs_master.f",
+            "-f $REPO_ROOT/rtl/amba/filelists/cxs_slave.f",
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axis_to_cxs.f",
+            "-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/cxs_to_axis.f",
             "",
             _entry('delta_mesh_plane_axis_tx.sv'),
             _entry('delta_mesh_plane_axis_rx.sv'),
@@ -2713,13 +2704,11 @@ def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
             f.write('\n'.join(lines))
         return filelist_path
 
-    fifo_entries = "\n".join([
-        _repo_entry('rtl/common/counter_bin.sv'),
-        _repo_entry('rtl/common/fifo_control.sv'),
-        _repo_entry('rtl/amba/gaxi/gaxi_fifo_sync.sv'),
+    dep_entries = "\n".join([
+        "-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f",
+        "-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f",
+        "-f $REPO_ROOT/rtl/common/filelists/arbiter_matrix.f",
     ])
-
-    arbiter_entry = _repo_entry('rtl/common/arbiter_matrix.sv')
 
     cell_entry = _entry('delta_mesh_cell.sv')
     fabric_name = (f"delta_mesh_fabric_{config.cells_x}"
@@ -2742,24 +2731,15 @@ def write_filelist(config: DeltaMeshConfig, output_dir: str) -> str:
         f"#   --cells-z {config.cells_z} --user-width {config.user_width}",
         f"#   (checked-in artifact from the default {config.cells_x}x{config.cells_y}x{config.cells_z} config).",
         "#",
-        "# Sources: FIFO primitives first (the cell's per-port per-VC input",
-        "# buffers instantiate gaxi_fifo_sync, which needs fifo_control and",
-        "# counter_bin), then the house arbiter_matrix (Task 7: one instance",
-        "# per output port), then the cell -- the fabric top references the",
-        "# cell module. The only other dependencies are `reset_defs.svh` and",
-        "# `fifo_defs.svh`, included below so the list is self-contained",
-        "# outside the area flow.",
+        "# Sources: dependencies as -f includes of their owning areas'",
+        "# filelists -- reset_defs (house ALWAYS_FF_RST macros), the house",
+        "# gaxi_skid_buffer (the per-port per-VC input buffers: flops only)",
+        "# and arbiter_matrix (Task 7: one per output port) -- then the cell",
+        "# (the fabric top instantiates it), then the fabric. Resolve with",
+        "# bin/flatten_filelist.py or the make flows, not as a raw -f.",
         "# Root path token is $REPO_ROOT.",
         "",
-        "+incdir+$REPO_ROOT/rtl/amba/includes",
-        "",
-        "# Header files with macros (MUST be compiled first)",
-        "$REPO_ROOT/rtl/amba/includes/reset_defs.svh",
-        "$REPO_ROOT/rtl/amba/includes/fifo_defs.svh",
-        "",
-        fifo_entries,
-        "",
-        arbiter_entry,
+        dep_entries,
         "",
         cell_entry,
         "",

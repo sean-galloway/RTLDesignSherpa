@@ -1,0 +1,8 @@
+# Filelist for hive_cdc_fifo
+# Location: projects/components/compute-eng-ip/hive-serv/rtl/filelists/hive_cdc_fifo.f
+#
+# Control-network CDC FIFO (Block 3).
+
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
+$REPO_ROOT/projects/components/compute-eng-ip/hive-serv/rtl/control_network/hive_cdc_fifo.sv

@@ -1,7 +1,6 @@
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
-`include "fifo_defs.svh"
 
 module delta_mesh_cell #(parameter int     DATA_WIDTH = 64,
 parameter int     USER_WIDTH = 64,
@@ -59,8 +58,8 @@ parameter bit     SPECULATION = 0 )(
 //   - Coordinate Width: 2 bits
 //
 // Features (Task 4):
-//   - Per-port per-VC input buffers: one house gaxi_fifo_sync per
-//     port per VC (9 x NUM_VC, DEPTH=4) between s_axis acceptance
+//   - Per-port per-VC input buffers: one house gaxi_skid_buffer per
+//     port per VC (9 x NUM_VC, DEPTH=4, flops only) between s_axis acceptance
 //     and the route/grant stage; a flit word is
 //     {TUSER, TLAST, TDATA}. Acceptance is unconditional on
 //     downstream state (credits govern the output side of each
@@ -244,14 +243,13 @@ localparam int P_LOCAL = 8;
 localparam int FIFO_DEPTH = 4;
 localparam int FLIT_W     = DATA_WIDTH + USER_WIDTH + 1;
 localparam int VC_W       = (NUM_VC > 1) ? $clog2(NUM_VC) : 1;
-// FIFO memory style: ALWAYS flops for the mesh input buffers.
-// They are shallow by design (FIFO_DEPTH=4, a few hundred flops
-// each) -- a 4-deep BRAM is physically nonsensical and buys a
-// registered-read skew the drop path would have to absorb (#118).
-// Do not map fifo-impl to a memory style here; validation rejects
-// 'sram' for mesh mode, so P_FIFO_MEM_STYLE is always FIFO_AUTO.
-localparam fifo_mem_t P_FIFO_MEM_STYLE =
-    (FIFO_IMPL == "sram") ? FIFO_BRAM : FIFO_AUTO;
+// Input buffers: the house gaxi_skid_buffer elastic buffer
+// (DEPTH=4). Skid buffers are flops-only by construction --
+// no memory-style knob exists -- so the 'sram vs reg' question
+// does not arise here (owner rule 2026-10-16: mesh input
+// buffers stay shallow and always flop-implemented; #118).
+// The fall-through (empty-buffer bypass) also removes one
+// cycle of head visibility latency vs a registered FIFO.
 
 // Head-flit header field offsets in TUSER, LSB-first
 // (single source of truth: bin/delta_mesh/header.py)
@@ -334,6 +332,22 @@ localparam int C_MODE_ACKS       = 7;
 localparam int C_BULK_STARVE     = 8;
 localparam int C_SPEC_COMMITS    = 9;
 localparam int C_SPEC_REVOKES    = 10;
+
+// Forward declarations: signals an earlier section reads before the
+// section that drives them (SV requires declaration before use).
+logic              lock_active [NUM_PORTS];
+logic [PORT_W-1:0] lock_port [NUM_PORTS];
+logic [VC_W-1:0]   lock_vc [NUM_PORTS];
+logic drop_active     [NUM_PORTS];
+logic               msw_hold_valid;
+logic               cfg_resp_wr_ready;
+logic                 mcast_ok_req [NUM_PORTS];
+logic                 mcast_bad_req [NUM_PORTS];
+logic                 resp_drop_req [NUM_PORTS];
+logic                 mcast_consume;
+logic [PORT_W-1:0]    mcast_hold_in_port;
+logic                 packet_active [NUM_PORTS];
+logic [NUM_PORTS-1:0] grant_matrix [NUM_PORTS];  // [output][input]
 
 // ==========================================================================
 // Input buffers - one house FIFO per port per VC
@@ -419,15 +433,14 @@ always_comb begin
     end
 end
 
-// Per-port per-VC input FIFOs (house gaxi_fifo_sync)
+// Per-port per-VC input buffers (house gaxi_skid_buffer, flops only)
 generate
     for (genvar p = 0; p < NUM_PORTS; p++) begin : gen_input_fifo
         for (genvar v = 0; v < NUM_VC; v++) begin : gen_vc
-            gaxi_fifo_sync #(
-                .MEM_STYLE (P_FIFO_MEM_STYLE),
+            gaxi_skid_buffer #(
                 .DATA_WIDTH(FLIT_W),
                 .DEPTH     (FIFO_DEPTH)
-            ) u_input_fifo (
+            ) u_input_buffer (
                 .axi_aclk   (aclk),
                 .axi_aresetn(aresetn),
                 .wr_valid   (w_fifo_wr_valid[p][v]),
@@ -435,6 +448,7 @@ generate
                 .wr_data    (w_fifo_wr_data[p][v]),
                 .rd_ready   (w_fifo_rd_ready[p][v]),
                 .count      (),
+                .rd_count   (),
                 .rd_valid   (w_fifo_rd_valid[p][v]),
                 .rd_data    (w_fifo_rd_data[p][v])
             );
@@ -887,7 +901,6 @@ logic [PORT_W-1:0]  msw_winner;
 logic               msw_will_process;
 logic special_req     [NUM_PORTS];
 logic special_consume [NUM_PORTS];
-logic drop_active     [NUM_PORTS];
 logic drop_active_next [NUM_PORTS];
 
 // Mode-switch decode (Task 6): the mcast-flagged config
@@ -1005,7 +1018,6 @@ logic [RESP_W-1:0]  cfg_resp_wr_data;
 logic [RESP_W-1:0]  cfg_resp_rd_data;
 logic               cfg_resp_rd_valid;
 logic               cfg_resp_rd_ready;
-logic               cfg_resp_wr_ready;
 logic               cfg_resp_present;
 logic [31:0]        counter_bank [NUM_COUNTERS];
 
@@ -1039,8 +1051,7 @@ end
 // Response skid: config responses wait here for the idle
 // local output; grant registration on P_LOCAL stalls
 // while any response is pending (see arbitration).
-gaxi_fifo_sync #(
-    .MEM_STYLE (FIFO_AUTO),
+gaxi_skid_buffer #(
     .DATA_WIDTH(RESP_W),
     .DEPTH     (FIFO_DEPTH)
 ) u_config_resp_fifo (
@@ -1051,6 +1062,7 @@ gaxi_fifo_sync #(
     .wr_data    (cfg_resp_wr_data),
     .rd_ready   (cfg_resp_rd_ready),
     .count      (),
+    .rd_count   (),
     .rd_valid   (cfg_resp_rd_valid),
     .rd_data    (cfg_resp_rd_data)
 );
@@ -1089,9 +1101,6 @@ logic               mcast_is_vc0 [NUM_PORTS];
 logic               mcast_single [NUM_PORTS];
 logic               mcast_parent_port [NUM_PORTS];
 logic [NUM_PORTS-1:0] mcast_child_mask [NUM_PORTS];
-logic                 mcast_ok_req [NUM_PORTS];
-logic                 mcast_bad_req [NUM_PORTS];
-logic                 resp_drop_req [NUM_PORTS];
 
 // Per-input multicast classification and spanning-tree
 // parent/child computation.
@@ -1201,11 +1210,9 @@ logic [DATA_WIDTH-1:0] mcast_hold_tdata;
 logic [USER_WIDTH-1:0] mcast_hold_tuser;
 logic                 mcast_hold_last;
 logic [NUM_PORTS-1:0] mcast_hold_child_mask;
-logic [PORT_W-1:0]    mcast_hold_in_port;
 logic                 mcast_latch;
 logic                 mcast_fire_next;
 logic                 mcast_fire;
-logic                 mcast_consume;
 
 // Pick one valid multicast head per cycle (lowest port
 // wins) only when the hold register is empty.  A held
@@ -1332,7 +1339,6 @@ endfunction
 localparam int N_NEIGH = n_neighbors();
 
 // Fan-out holding register + sequence index.
-logic               msw_hold_valid;
 logic [3:0]         msw_hold_mode;
 logic [COORD_W-1:0] msw_hold_src_x;
 logic [COORD_W-1:0] msw_hold_src_y;
@@ -1423,8 +1429,7 @@ always_comb begin
                         gen_fifo_wr_ready;
 end
 
-gaxi_fifo_sync #(
-    .MEM_STYLE (FIFO_AUTO),
+gaxi_skid_buffer #(
     .DATA_WIDTH(FLIT_W),
     .DEPTH     (GEN_FIFO_DEPTH)
 ) u_gen_fifo (
@@ -1437,6 +1442,7 @@ gaxi_fifo_sync #(
 //     // between external packets.
     .rd_ready   (gen_take),
     .count      (),
+    .rd_count   (),
     .rd_valid   (gen_fifo_rd_valid),
     .rd_data    (gen_fifo_rd_data)
 );
@@ -1561,11 +1567,8 @@ end
 // head chose.
 // ==========================================================================
 
-logic              lock_active [NUM_PORTS];
 logic              lock_active_next [NUM_PORTS];
-logic [PORT_W-1:0] lock_port [NUM_PORTS];
 logic [PORT_W-1:0] lock_port_next [NUM_PORTS];
-logic [VC_W-1:0]   lock_vc [NUM_PORTS];
 logic [VC_W-1:0]   lock_vc_next [NUM_PORTS];
 logic              in_xfer [NUM_PORTS];
 logic              in_xfer_last [NUM_PORTS];
@@ -1693,8 +1696,6 @@ logic                 spec_revoke   [NUM_PORTS];
 // registered state (arbiter output + bubble flop), so
 // it is stable across the cycle exactly like the pre-
 // Task-7 grant register.
-logic [NUM_PORTS-1:0] grant_matrix [NUM_PORTS];  // [output][input]
-logic                 packet_active [NUM_PORTS];
 logic                 out_xfer_last [NUM_PORTS];
 
 // TLAST handshake on an output this cycle

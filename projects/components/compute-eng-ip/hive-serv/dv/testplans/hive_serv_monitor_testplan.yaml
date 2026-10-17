@@ -4,7 +4,7 @@
 # tap synchronizers decision 2026-10-13).
 
 module: hive_serv_monitor
-rtl_file: projects/components/compute-eng-ip/hive-serv/rtl/serv_monitor/serv_monitor.sv
+rtl_file: projects/components/compute-eng-ip/hive-serv/rtl/serv_monitor/serv_monitor.sv (PLANNED - RTL not written yet, vault hive-serv TASK-000)
 test_file: projects/components/compute-eng-ip/hive-serv/dv/tests/test_hive_serv_monitor.py
 
 # Module description:

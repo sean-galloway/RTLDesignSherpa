@@ -34,6 +34,7 @@ from cocotb_test.simulator import run
 # Import framework utilities (PYTHONPATH includes bin/)
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from cov_utils.conftest_coverage import get_coverage_compile_args
 
 # Add repo root to Python path using robust git-based method
@@ -217,12 +218,9 @@ def test_hive_axis_cda_master(request, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for hive_axis_cda_master"""
 
-    rtl_path = os.path.join(
-        repo_root,
-        'projects/components/compute-eng-ip/hive-serv/rtl/hive_c_controller/axis4_master.sv'
-    )
-    verilog_sources = [rtl_path]
-    includes = [os.path.join(repo_root, 'rtl/amba/includes')]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/compute-eng-ip/hive-serv/rtl/filelists/hive_axis_cda_master.f')
 
     compile_args = [
         "--trace",

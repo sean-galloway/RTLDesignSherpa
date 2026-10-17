@@ -13,26 +13,17 @@
 #   --cells-z 1 --user-width 64
 #   (checked-in artifact from the default 4x4x1 config).
 #
-# Sources: FIFO primitives first (the cell's per-port per-VC input
-# buffers instantiate gaxi_fifo_sync, which needs fifo_control and
-# counter_bin), then the house arbiter_matrix (Task 7: one instance
-# per output port), then the cell -- the fabric top references the
-# cell module. The only other dependencies are `reset_defs.svh` and
-# `fifo_defs.svh`, included below so the list is self-contained
-# outside the area flow.
+# Sources: dependencies as -f includes of their owning areas'
+# filelists -- reset_defs (house ALWAYS_FF_RST macros), the house
+# gaxi_skid_buffer (the per-port per-VC input buffers: flops only)
+# and arbiter_matrix (Task 7: one per output port) -- then the cell
+# (the fabric top instantiates it), then the fabric. Resolve with
+# bin/flatten_filelist.py or the make flows, not as a raw -f.
 # Root path token is $REPO_ROOT.
 
-+incdir+$REPO_ROOT/rtl/amba/includes
-
-# Header files with macros (MUST be compiled first)
-$REPO_ROOT/rtl/amba/includes/reset_defs.svh
-$REPO_ROOT/rtl/amba/includes/fifo_defs.svh
-
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-
-$REPO_ROOT/rtl/common/arbiter_matrix.sv
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
+-f $REPO_ROOT/rtl/common/filelists/arbiter_matrix.f
 
 $REPO_ROOT/projects/components/fabric-gen-ip/delta/rtl/delta_mesh_cell.sv
 

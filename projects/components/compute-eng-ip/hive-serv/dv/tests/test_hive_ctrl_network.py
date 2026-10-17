@@ -366,21 +366,11 @@ async def cocotb_test_hive_ctrl_network(dut):
 def test_hive_ctrl_network(request, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
-    # Component-local CDC FIFO (workaround for the filed gaxi_fifo_async
-    # small-depth bug; see the header comment in control_network.sv).
-    rtl_dir = os.path.join(
-        repo_root, 'projects', 'components', 'compute-eng-ip', 'hive-serv', 'rtl', 'control_network'
-    )
-    own_sources = [
-        os.path.join(rtl_dir, 'hive_cdc_fifo.sv'),
-        os.path.join(rtl_dir, 'control_packetizer.sv'),
-        os.path.join(rtl_dir, 'control_router.sv'),
-        os.path.join(rtl_dir, 'control_arbiter.sv'),
-        os.path.join(rtl_dir, 'control_network.sv'),
-    ]
-
-    verilog_sources = list(dict.fromkeys(own_sources))
-    includes = [os.path.join(repo_root, 'rtl', 'amba', 'includes')]
+    # hive_ctrl_network.f carries the component-local CDC FIFO (workaround for
+    # the filed gaxi_fifo_async small-depth bug; see control_network.sv).
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/compute-eng-ip/hive-serv/rtl/filelists/hive_ctrl_network.f')
 
     parameters = {
         'SLAVE_COUNT': _SLAVES,
