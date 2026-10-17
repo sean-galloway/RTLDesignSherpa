@@ -441,7 +441,12 @@ async def cocotb_test_granite_col_major_gap(dut):
         results.update(exp=exp, act=act, match=match, valid=valid,
                        mism=drv.beats_mismatched(),
                        errors=drv.chargen.read("ERRORS"),
-                       viol=dict(getattr(_dfi.dram, "soft_violation_counts", {})))
+                       # the counts live on the dram's ViolationPolicy, not the
+                       # DramStateModel -- getattr on the model always fell
+                       # back to {} and the dict was silently empty (the
+                       # 2026-10-17 tREFI=100 debug found 1527 logged
+                       # violations behind an empty viol)
+                       viol=dict(_dfi.dram.policy.soft_violation_counts))
         return results
 
     r = await bridge(prog)()

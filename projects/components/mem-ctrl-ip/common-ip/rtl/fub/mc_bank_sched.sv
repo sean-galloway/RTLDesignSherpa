@@ -203,21 +203,32 @@ module mc_bank_sched
     assign w_rfc_busy = (r_rfc_cnt  != 16'd0);
     assign w_zq_busy  = (r_zqcs_cnt != 16'd0);
 
-    // Refresh-pending column block — the FRFCFS core's w_ref_col_block
-    // (mc_cmd_arbiter.sv), mirrored. While a refresh is requested or
-    // draining, demand columns to the affected bank(s) must not fire: a
-    // column launched into the refresh window returns data the aligner
-    // mis-captures and the AR-order return ring wedges behind the lost beat
-    // (MC-003 2026-10-15: READ ENGINE HANG + mismatched beats under tight
-    // tREFI; the FRFCFS core has always blocked these). REFab blocks all
-    // banks; REFpb blocks only the target bank. ACT/PRE are unaffected, so
-    // the refresh drain still completes and the override still grants; the
-    // blocked column waits out the tRFC in its skid — no deadlock (the
-    // all-idle grant does not depend on demand firing).
-    logic [NUM_BANKS-1:0] w_ref_col_block;
+    // Refresh-episode demand block — the FRFCFS core's w_ref_col_block
+    // (mc_cmd_arbiter.sv), extended from columns to ALL demand classes.
+    // While a refresh is requested or draining, demand ops to the affected
+    // bank(s) must not fire: a column launched into the refresh window
+    // returns data the aligner mis-captures and the AR-order return ring
+    // wedges behind the lost beat (MC-003 2026-10-15: READ ENGINE HANG +
+    // mismatched beats under tight tREFI; the FRFCFS core has always blocked
+    // these). REFab blocks all banks; REFpb blocks only the target bank.
+    //
+    // ACT/PRE are blocked too, not just columns (MC-003 2026-10-17, the
+    // tREFI=100 corner): the drain closes every active bank and grants REF
+    // from the rows-closed image, but in the gap cycles where the override
+    // holds no op (REF deferred by the read-return window, w_ref_safe low)
+    // a demand ACT still fired. It entered the command FIFO AHEAD of the
+    // deferred REF, the REF closed the bank at the model, and the RTL row
+    // state stayed open (REF sends no row-clear to the bank timers):
+    // post-tRFC columns fired into a model-closed bank (row-0 fallback
+    // data, no_act_before_rd), with duplicate ACTs as the downstream
+    // fallout. Pending heads simply wait out the tRFC in their skids —
+    // no deadlock: the all-idle grant does not depend on demand firing
+    // (the 2026-10-15 all-idle ruling carries; the override still owns the
+    // episode: drain PREs and the REF itself are override ops).
+    logic [NUM_BANKS-1:0] w_ref_dmd_block;
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++)
-            w_ref_col_block[b] = (refresh_req_i || refresh_drain_i)
+            w_ref_dmd_block[b] = (refresh_req_i || refresh_drain_i)
                               && (!refresh_kind_i || (BKW'(b) == refresh_bank_i));
     end
 
@@ -228,6 +239,38 @@ module mc_bank_sched
                          ? {8'h0, t_rfc_pb_i} : t_rfc_i;
         else if (w_rfc_busy)             r_rfc_cnt <= r_rfc_cnt - 16'd1;
     )
+
+    // tRFC window demand block (the per-bank core half of the fix; the other
+    // half is w_ref_dmd_block above). The granted refresh closes the affected
+    // bank(s) at the DEVICE, but the bank timers keep serving their rows
+    // (row state is only cleared by PRE/AP -- REF sends no row-clear), so a
+    // demand column decoded against an "open" row image fires into a
+    // refreshing/closed bank at the model (row-0 fallback data,
+    // cmd_during_refresh, MC-003 2026-10-17 tREFI=100: 1527 model violations,
+    // 24 corrupted beats; cycle-cited: ACT 1 cyc before REFab, RD 2 cyc after
+    // into a closed bank). The FRFCFS core avoids this only structurally (its
+    // all-idle grant leaves every row closed, so safe_rd self-blocks); the
+    // per-bank core must close the same hole explicitly because a slipped ACT
+    // (previously) could open a row inside the window. REFab blocks all banks;
+    // REFpb blocks only the target -- other banks stay accessible per-bank
+    // refresh's whole point (parity with the FRFCFS core's behavior there).
+    logic r_rfc_ab;
+    logic [BKW-1:0] r_rfc_bank;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rfc_ab    <= 1'b1;
+            r_rfc_bank  <= '0;
+        end else if (refresh_grant_o) begin
+            r_rfc_ab   <= (cmd_op_o == OP_REF);
+            r_rfc_bank <= refresh_bank_i;
+        end
+    )
+    logic [NUM_BANKS-1:0] w_rfc_dmd_block;
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++)
+            w_rfc_dmd_block[b] = w_rfc_busy
+                              && (r_rfc_ab || (BKW'(b) == r_rfc_bank));
+    end
     generate if (HAS_ZQ) begin : g_zq
         `ALWAYS_FF_RST(aclk, aresetn,
             if (`RST_ASSERTED(aresetn))  r_zqcs_cnt <= '0;
@@ -558,16 +601,20 @@ module mc_bank_sched
         end else if (w_pick_vld) begin
             if (w_fis_act)
                 w_fsafe = bank_act_ready_i[RK0][w_sel_bank] && tfaw_ok_i[RK0]
-                          && trrd_ok_i[RK0] && !w_rfc_busy && !maint_busy_i;
+                          && trrd_ok_i[RK0] && !w_rfc_busy && !maint_busy_i
+                          && !w_ref_dmd_block[w_sel_bank];
             else if (w_fis_col)
                 w_fsafe = bank_rdwr_ready_i[RK0][w_sel_bank] && tccd_ok_i
                           && (w_sel_is_rd ? (twtr_ok_i && !w_rd_turn_block)
                                           : (trtw_ok_i && !w_wr_turn_block))
-                          && !w_ref_col_block[w_sel_bank]
+                          && !w_ref_dmd_block[w_sel_bank]
+                          && !w_rfc_dmd_block[w_sel_bank]
                           && (w_sel_is_rd ? !w_rs_stale[w_sel_bank]
                                           : !w_ws_stale[w_sel_bank]);
             else if (w_fis_pre)
-                w_fsafe = bank_pre_ready_i[RK0][w_sel_bank];
+                w_fsafe = bank_pre_ready_i[RK0][w_sel_bank]
+                          && !w_ref_dmd_block[w_sel_bank]
+                          && !w_rfc_dmd_block[w_sel_bank];
         end
     end
 

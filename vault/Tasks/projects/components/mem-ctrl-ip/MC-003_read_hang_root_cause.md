@@ -240,3 +240,112 @@ this density, so mid-txn reads get AP set.  Also observed: duplicate ACTs
 ~9–13 cycles apart (ACT-to-open-bank; the model's JEDEC audit does not
 flag bank-state violations).  Not hit at tREFI ≥ 200.  Next MC-003 item;
 the tREFI ≥ 200 enablement corners are otherwise green with the §7.3 fix.
+
+---
+
+## 8. Session 2026-10-17 — tREFI=100 corner ROOT-CAUSED + FIXED (two-part demand/refresh block)
+
+### 8.1 Reproduction and the viol={} red herring
+
+Same repro (`TEST_TREFI=100`, txn=64, gap=8, seed 0xABCD1234): deterministic
+`mism=24, errors=256`, read-engine hang.  This time the results dict reported
+`viol={}` — which sent the first hour of analysis down a wrong path (a clean
+audit was taken to mean the command stream was clean).  **It is a test
+artifact**: `test_granite_char_gap.py` read
+`getattr(_dfi.dram, "soft_violation_counts", {})`, but the property lives on
+the dram's **ViolationPolicy**, not the DramStateModel — the getattr fell back
+to `{}` on every run, past and present.  The model's own log for the failing
+run carries **1527 `cmd_during_refresh` violations**.  Fixed in the test
+(`_dfi.dram.policy.soft_violation_counts`).  Lesson recorded per
+superpowers/systematic-debugging: the harness's summary dict is not evidence;
+the model's log is.
+
+### 8.2 Beat-exact localization (three journals, one truth)
+
+- `_pin_trace` (DFI pins): the WR/RD command stream carries **two address
+  encodings** — plain `0xNNN` and `0x4NN|0xNNN` (A10 set = RD/WRA
+  auto-precharge).  The harness journal mislabels REF as "ACT b0 r0" and
+  real-ACT as "PRE" (its decode table swaps (0,0,1)/(0,1,1)); do not trust its
+  op names — use the model decode.
+- `_rd_trace` (scheduler fire stage): WCMD/RCMD rows+cols are **correct per
+  the walk**; WFILL/WDRAIN data per slot is the clean LFSR stream.  Joining
+  512 RCMDs with 512 RETs by order: exactly **24 bad reads**, matching the
+  engine's mism=24:
+  - reads of (bk1, r0, c20-28) returned the data drained for (bk1, **r1**, c20-28);
+  - reads of (bk1, r1, c20-28) returned **zeros** (never written);
+  - reads of (bk4, r2/r3/r6/r7, c4..c20) all returned the data drained for (bk4, **r0**, c4..c20).
+- `DFI_CMD_TRACE=1` (the model's own decode + open_row per command — the
+  authority) shows the exact corrupting sequence, cycle-cited:
+
+  ```
+  t=523555.0  ACT  bank=4 addr=0x2  open_row=closed   <- demand ACT opens row 2
+  t=523565.0  REF  bank=0                             <- REFab grants ONE cycle later
+  t=523585.0  RD   bank=4 addr=0x4  open_row=closed   <- RD 2 cyc after REF: model bank CLOSED
+  ```
+
+  and the row-walk audit shows the per-row ACTs of the read phase arriving
+  AFTER the row's own columns, with the in-between columns landing on
+  `open_row=closed` (row-0 fallback in the model: writes destroy real row-0
+  data, reads return row-0/foreign data — exactly the 24 beats).
+
+### 8.3 Root cause (two cooperating holes in mc_bank_sched)
+
+1. **The slipped demand ACT.** While a refresh episode is open
+   (`refresh_req_i || refresh_drain_i`) the override owns the stream — but in
+   the gap cycles where the override holds no op (drain done, REF grant
+   deferred by the read-return window `w_rdret_busy`), demand was blocked
+   only for COLUMNS (`w_ref_col_block`).  A demand **ACT decoded for a
+   drain-closed bank fired in that gap**, entered the command FIFO AHEAD of
+   the deferred REF, the REF closed the just-opened bank at the device, and
+   the RTL bank timers kept the row state — **REF sends no row-clear to the
+   timers** (rows are only cleared by PRE/AP), so the controller and the model
+   diverged with no JEDEC-timed complaint.
+2. **No tRFC window on the column path.** `w_rfc_busy` gated only ACTs.  With
+   a row open in the RTL image (via hole 1, or any in-window reopen), demand
+   columns kept firing through the 14-cycle tRFC window at tREFI=100 (~14% of
+   all cycles) into refreshing/closed model banks.
+
+The FRFCFS core avoids hole 2 only **structurally**: its all-idle grant leaves
+every row closed, so `safe_rd` self-blocks columns until the next ACT (which
+`!w_rfc_busy` holds).  The per-bank core had the same invariant only until a
+slipped ACT (hole 1) broke it — and the FRFCFS core has the same hole-1 shape
+latently (its `pool_act_m` has no episode term either; not exercised at these
+corners — recorded as a family-hazard note, NOT changed here).
+
+Also corrected from §7.5: the "duplicate ACTs" are the re-ACTs the scheduler
+issues after its own spurious RDAs close a row mid-stream (CLOSE_ON_DRAIN AP
+keying on the live `rd_bh_empty` — behaviorally legal, perf-relevant only);
+and the "model audit does not flag bank-state violations" claim was the
+broken `viol` dict, not the audit.
+
+### 8.4 Fix (mc_bank_sched.sv, BANK_FIFO core only)
+
+- `w_ref_dmd_block` — ALL demand classes (ACT/PRE/columns) blocked for the
+  affected banks during the request/drain episode.  Deadlock-free per the
+  2026-10-15 all-idle ruling (grants never depend on demand firing).
+- `w_rfc_dmd_block` — demand columns/PREs blocked for the affected banks
+  during the tRFC recovery window (registered grant kind/bank: REFab blocks
+  all banks, REFpb only the target, preserving per-bank refresh concurrency).
+
+### 8.5 Verification
+
+- Repro tREFI=100: **4/4 PASS** (one anomalous fail traced to the build-kill
+  of the verification run itself, not the RTL), **0 model violations** (was 1527).
+- Wider nets (all PASS):
+  | net | result |
+  |---|---|
+  | gap repro tREFI=200 | PASS |
+  | gap repro tREFI=400 | PASS |
+  | gap repro tREFI=585 | PASS |
+  | perf txn=1024 tREFI=585 (the col_ilv `mismatched=17` reproducer; asserts integrity only, gates informational) | PASS, mismatched=0 all families |
+  | store-arbiter contract | PASS |
+  | uart smoke | PASS |
+  | granite top suite | 6 passed, 1 xfailed |
+  | integrity families_x16 | PASS |
+- FRFCFS control (BANK_FIFO=0) not rerun: the fix touches the BANK_FIFO
+  branch only; the control was green at 100 and 200 on 2026-10-16 and the
+  branch is structurally untouched.
+- Bandwidth note: the post-fix perf run reproduces the pre-fix numbers
+  exactly (row_major 289/282 MB/s vs FRFCFS 568/570) with integrity clean —
+  the ~0.5x row_major gap is refresh-independent and tracked as the next
+  MC-003 item (CLOSE_ON_DRAIN eager-AP suspect; see the tracker).
