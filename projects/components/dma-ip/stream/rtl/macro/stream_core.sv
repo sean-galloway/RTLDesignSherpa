@@ -46,6 +46,8 @@
 
 module stream_core #(
     parameter int NUM_CHANNELS = 8,
+    // One shared descriptor engine for every channel (scheduler_group_array)
+    parameter int SHARED_ENGINES = 1,
     parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
@@ -909,6 +911,7 @@ module stream_core #(
     scheduler_group_array #(
         .GEN_MON                (GEN_MON),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
+        .SHARED_ENGINES         (SHARED_ENGINES),
         .NUM_CHANNELS           (NC),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (AW),

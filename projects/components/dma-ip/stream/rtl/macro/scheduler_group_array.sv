@@ -48,6 +48,12 @@ module scheduler_group_array #(
     parameter bit USE_DESC_AXI_MONITOR = 1'b0,
     parameter int NUM_CHANNELS = 8,
     parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
+    // Engine sharing (ported from RAPIDS, 2026-10-17). 0: one descriptor
+    // engine per channel inside each scheduler_group, their AXI masters merged
+    // by a round-robin arbiter (the original structure). 1: one
+    // descriptor_engine_shared for every channel, picking among the
+    // schedulers round-robin and owning the descriptor AXI master.
+    parameter int SHARED_ENGINES = 1,
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,  // TASK-101 STREAM Extended
@@ -223,27 +229,9 @@ module scheduler_group_array #(
     //=========================================================================
 
     // Descriptor AR channel (per channel)
-    logic [NUM_CHANNELS-1:0]                     desc_ar_valid;
-    logic [NUM_CHANNELS-1:0]                     desc_ar_ready;
-    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]     desc_ar_addr;
-    logic [NUM_CHANNELS-1:0][7:0]                desc_ar_len;
-    logic [NUM_CHANNELS-1:0][2:0]                desc_ar_size;
-    logic [NUM_CHANNELS-1:0][1:0]                desc_ar_burst;
-    logic [NUM_CHANNELS-1:0][AXI_ID_WIDTH-1:0]   desc_ar_id;
-    logic [NUM_CHANNELS-1:0]                     desc_ar_lock;
-    logic [NUM_CHANNELS-1:0][3:0]                desc_ar_cache;
-    logic [NUM_CHANNELS-1:0][2:0]                desc_ar_prot;
-    logic [NUM_CHANNELS-1:0][3:0]                desc_ar_qos;
-    logic [NUM_CHANNELS-1:0][3:0]                desc_ar_region;
 
     // Descriptor R channel (per channel)
     // NOTE: Descriptors are FIXED at 256-bit width (not DATA_WIDTH)
-    logic [NUM_CHANNELS-1:0]                     desc_r_valid;
-    logic [NUM_CHANNELS-1:0]                     desc_r_ready;
-    logic [NUM_CHANNELS-1:0][255:0]              desc_r_data;  // 256-bit descriptors
-    logic [NUM_CHANNELS-1:0][1:0]                desc_r_resp;
-    logic [NUM_CHANNELS-1:0]                     desc_r_last;
-    logic [NUM_CHANNELS-1:0][AXI_ID_WIDTH-1:0]   desc_r_id;
 
     //=========================================================================
     // Internal Signals - Per-Channel Data Interfaces
@@ -264,10 +252,6 @@ module scheduler_group_array #(
     // Internal Signals - Descriptor AXI Arbitration
     //=========================================================================
 
-    logic                                        desc_ar_grant_valid;
-    logic [NUM_CHANNELS-1:0]                     desc_ar_grant;
-    logic [NUM_CHANNELS-1:0]                     desc_ar_grant_ack;
-    logic [CHAN_WIDTH-1:0]                       desc_ar_grant_id;
 
     // Internal AXI signals (post-arbitration, pre-monitor)
     logic                                        desc_axi_int_arvalid;
@@ -306,7 +290,12 @@ module scheduler_group_array #(
     monitor_common_pkg::monbus_timestamp_t      desc_axi_mon_timestamp;
 
     // Combined MonBus arrays (9 sources: 8 channels + 1 desc AXI monitor)
-    localparam int MONBUS_SOURCES = NUM_CHANNELS + 1;
+    // per channel: one stream per channel (scheduler_group) + desc AXI monitor;
+    // shared: one per scheduler + the shared descriptor engine + the monitor
+    localparam int MONBUS_SOURCES = (SHARED_ENGINES != 0) ? NUM_CHANNELS + 2 : NUM_CHANNELS + 1;
+    logic                                       sh_desc_mon_valid, sh_desc_mon_ready;
+    monitor_common_pkg::monitor_packet_t        sh_desc_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      sh_desc_mon_timestamp;
     // Use unpacked arrays to match monbus_arbiter port types
     logic                                       monbus_valid_all     [MONBUS_SOURCES];
     logic                                       monbus_ready_all     [MONBUS_SOURCES];
@@ -318,6 +307,30 @@ module scheduler_group_array #(
     //=========================================================================
 
     generate
+    if (SHARED_ENGINES == 0) begin : g_per_channel
+        // Per-channel descriptor AXI ports and their round-robin arbiter
+        logic [NUM_CHANNELS-1:0]                     desc_ar_valid;
+        logic [NUM_CHANNELS-1:0]                     desc_ar_ready;
+        logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]     desc_ar_addr;
+        logic [NUM_CHANNELS-1:0][7:0]                desc_ar_len;
+        logic [NUM_CHANNELS-1:0][2:0]                desc_ar_size;
+        logic [NUM_CHANNELS-1:0][1:0]                desc_ar_burst;
+        logic [NUM_CHANNELS-1:0][AXI_ID_WIDTH-1:0]   desc_ar_id;
+        logic [NUM_CHANNELS-1:0]                     desc_ar_lock;
+        logic [NUM_CHANNELS-1:0][3:0]                desc_ar_cache;
+        logic [NUM_CHANNELS-1:0][2:0]                desc_ar_prot;
+        logic [NUM_CHANNELS-1:0][3:0]                desc_ar_qos;
+        logic [NUM_CHANNELS-1:0][3:0]                desc_ar_region;
+        logic [NUM_CHANNELS-1:0]                     desc_r_valid;
+        logic [NUM_CHANNELS-1:0]                     desc_r_ready;
+        logic [NUM_CHANNELS-1:0][255:0]              desc_r_data;  // 256-bit descriptors
+        logic [NUM_CHANNELS-1:0][1:0]                desc_r_resp;
+        logic [NUM_CHANNELS-1:0]                     desc_r_last;
+        logic [NUM_CHANNELS-1:0][AXI_ID_WIDTH-1:0]   desc_r_id;
+        logic                                        desc_ar_grant_valid;
+        logic [NUM_CHANNELS-1:0]                     desc_ar_grant;
+        logic [NUM_CHANNELS-1:0]                     desc_ar_grant_ack;
+        logic [CHAN_WIDTH-1:0]                       desc_ar_grant_id;
         for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_scheduler_groups
             scheduler_group #(
                 .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
@@ -428,7 +441,6 @@ module scheduler_group_array #(
                 .mon_timestamp          (mon_timestamp_ch[ch])
             );
         end
-    endgenerate
 
     //=========================================================================
     // Descriptor AXI AR Channel Arbitration
@@ -438,7 +450,6 @@ module scheduler_group_array #(
     // A single channel needs no arbitration; grant the lone client directly
     // (and avoid the arbiter's $clog2(1)=0 grant_id underflow). Mirrors the
     // gen_single_channel pattern already used in axi_read_engine/axi_write_engine.
-    generate
         if (NUM_CHANNELS == 1) begin : gen_single_channel
             arbiter_single_client #(
                 .WAIT_GNT_ACK (1)
@@ -468,7 +479,6 @@ module scheduler_group_array #(
                 .last_grant             (/* unused */)
             );
         end
-    endgenerate
 
     // Grant acknowledgment: asserted when granted client's AR request is accepted
     always_comb begin
@@ -547,6 +557,135 @@ module scheduler_group_array #(
 
     // R channel ready: OR of all channel readies (only routed channel should be ready)
     assign desc_axi_int_rready = |desc_r_ready;
+        assign sh_desc_mon_valid     = 1'b0;
+        assign sh_desc_mon_packet    = '0;
+        assign sh_desc_mon_timestamp = '0;
+        logic unused_sh_mon;
+        assign unused_sh_mon = sh_desc_mon_ready;
+    end else begin : g_shared
+        // One scheduler per channel and ONE descriptor engine for the array:
+        // the engine picks among the schedulers round-robin and owns the
+        // descriptor AXI master, so the AXI-side arbiter above is gone.
+        logic [NUM_CHANNELS-1:0]                  s_desc_valid, s_desc_ready, s_desc_error;
+        logic [NUM_CHANNELS-1:0][255:0]           s_desc_packet, s_desc_ext;
+
+        for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_schedulers
+            scheduler #(
+                .CHANNEL_ID             (ch),
+                .GEN_MON                (GEN_MON),
+                .NUM_CHANNELS           (NUM_CHANNELS),
+                .CHAN_WIDTH             (CHAN_WIDTH),
+                .ADDR_WIDTH             (ADDR_WIDTH),
+                .DATA_WIDTH             (DATA_WIDTH),
+                .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
+                .MON_AGENT_ID           (16'(SCHED_MON_BASE_AGENT_ID + ch)),
+                .MON_UNIT_ID            (8'(MON_UNIT_ID)),
+                .MON_CHANNEL_ID         (9'(ch))
+            ) u_scheduler (
+                .clk                    (clk),
+                .rst_n                  (rst_n),
+                .cfg_channel_enable     (cfg_channel_enable[ch]),
+                .cfg_channel_reset      (cfg_channel_reset[ch]),
+                .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+                .cfg_sched_timeout_limit(cfg_sched_timeout_limit),
+                .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
+                .cfg_rd_prefetch_enable (cfg_rd_prefetch_enable),
+                .scheduler_idle         (scheduler_idle[ch]),
+                .scheduler_state        (scheduler_state[ch]),
+                .sched_error            (sched_error[ch]),
+                .dbg_descriptor_error   (dbg_descriptor_error[ch]),
+                .dbg_read_error_sticky  (dbg_read_error_sticky[ch]),
+                .dbg_write_error_sticky (dbg_write_error_sticky[ch]),
+                .dbg_timeout_expired    (dbg_timeout_expired[ch]),
+                .descriptor_valid       (s_desc_valid[ch]),
+                .descriptor_ready       (s_desc_ready[ch]),
+                .descriptor_packet      (s_desc_packet[ch]),
+                .descriptor_ext_packet  (s_desc_ext[ch]),
+                .descriptor_error       (s_desc_error[ch]),
+                .sched_rd_valid         (sched_rd_valid[ch]),
+                .sched_rd_addr          (sched_rd_addr[ch]),
+                .sched_rd_beats         (sched_rd_beats[ch]),
+                .sched_wr_valid         (sched_wr_valid[ch]),
+                .sched_wr_ready         (sched_wr_ready[ch]),
+                .sched_wr_addr          (sched_wr_addr[ch]),
+                .sched_wr_beats         (sched_wr_beats[ch]),
+                .sched_rd_done_strobe   (sched_rd_done_strobe[ch]),
+                .sched_rd_beats_done    (sched_rd_beats_done[ch]),
+                .sched_wr_done_strobe   (sched_wr_done_strobe[ch]),
+                .sched_wr_beats_done    (sched_wr_beats_done[ch]),
+                .sched_wr_commit_strobe (sched_wr_commit_strobe[ch]),
+                .sched_wr_commit_beats  (sched_wr_commit_beats[ch]),
+                .sched_rd_error         (sched_rd_error[ch]),
+                .sched_wr_error         (sched_wr_error[ch]),
+                .i_mon_time             (i_mon_time),
+                .mon_valid              (mon_valid_ch[ch]),
+                .mon_ready              (mon_ready_ch[ch]),
+                .mon_packet             (mon_packet_ch[ch]),
+                .mon_timestamp          (mon_timestamp_ch[ch])
+            );
+        end
+
+        descriptor_engine_shared #(
+            .NUM_CHANNELS   (NUM_CHANNELS),
+            .CHAN_WIDTH     (CHAN_WIDTH),
+            .ADDR_WIDTH     (ADDR_WIDTH),
+            .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+            .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
+            .MON_AGENT_BASE (16'(DESC_MON_BASE_AGENT_ID)),
+            .MON_UNIT_ID    (8'(MON_UNIT_ID)),
+            .GEN_MON        (GEN_MON)
+        ) u_desc_engine (
+            .clk                    (clk),
+            .rst_n                  (rst_n),
+            .apb_valid              (apb_valid),
+            .apb_ready              (apb_ready),
+            .apb_addr               (apb_addr),
+            .channel_idle           (scheduler_idle),
+            .descriptor_valid       (s_desc_valid),
+            .descriptor_ready       (s_desc_ready),
+            .descriptor_packet      (s_desc_packet),
+            .descriptor_ext_packet  (s_desc_ext),
+            .descriptor_error       (s_desc_error),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .descriptor_eos         (),
+            .descriptor_eol         (),
+            .descriptor_eod         (),
+            .descriptor_type        (),
+            /* verilator lint_on PINCONNECTEMPTY */
+            .ar_valid               (desc_axi_int_arvalid),
+            .ar_ready               (desc_axi_int_arready),
+            .ar_addr                (desc_axi_int_araddr),
+            .ar_len                 (desc_axi_int_arlen),
+            .ar_size                (desc_axi_int_arsize),
+            .ar_burst               (desc_axi_int_arburst),
+            .ar_id                  (desc_axi_int_arid),
+            .ar_lock                (desc_axi_int_arlock),
+            .ar_cache               (desc_axi_int_arcache),
+            .ar_prot                (desc_axi_int_arprot),
+            .ar_qos                 (desc_axi_int_arqos),
+            .ar_region              (desc_axi_int_arregion),
+            .r_valid                (desc_axi_int_rvalid),
+            .r_ready                (desc_axi_int_rready),
+            .r_data                 (desc_axi_int_rdata),
+            .r_resp                 (desc_axi_int_rresp),
+            .r_last                 (desc_axi_int_rlast),
+            .r_id                   (desc_axi_int_rid),
+            .cfg_prefetch_enable    (cfg_desceng_prefetch),
+            .cfg_fifo_threshold     (cfg_desceng_fifo_thresh),
+            .cfg_addr0_base         (cfg_desceng_addr0_base),
+            .cfg_addr0_limit        (cfg_desceng_addr0_limit),
+            .cfg_addr1_base         (cfg_desceng_addr1_base),
+            .cfg_addr1_limit        (cfg_desceng_addr1_limit),
+            .cfg_channel_reset      (cfg_channel_reset),
+            .descriptor_engine_idle (descriptor_engine_idle),
+            .i_mon_time             (i_mon_time),
+            .mon_valid              (sh_desc_mon_valid),
+            .mon_ready              (sh_desc_mon_ready),
+            .mon_packet             (sh_desc_mon_packet),
+            .mon_timestamp          (sh_desc_mon_timestamp)
+        );
+    end
+    endgenerate
 
     //=========================================================================
     // Data Read/Write Interface - Direct Passthrough (NO ARBITRATION)
@@ -680,6 +819,13 @@ module scheduler_group_array #(
         desc_axi_mon_ready                 = monbus_ready_all[NUM_CHANNELS];
         monbus_packet_all[NUM_CHANNELS]    = desc_axi_mon_packet;
         monbus_timestamp_all[NUM_CHANNELS] = desc_axi_mon_timestamp;
+        sh_desc_mon_ready                  = 1'b1;
+        if (SHARED_ENGINES != 0) begin
+            monbus_valid_all[MONBUS_SOURCES-1]     = sh_desc_mon_valid;
+            sh_desc_mon_ready                      = monbus_ready_all[MONBUS_SOURCES-1];
+            monbus_packet_all[MONBUS_SOURCES-1]    = sh_desc_mon_packet;
+            monbus_timestamp_all[MONBUS_SOURCES-1] = sh_desc_mon_timestamp;
+        end
     end
 
     // Aggregate all monitor sources (packet + side-band timestamp)

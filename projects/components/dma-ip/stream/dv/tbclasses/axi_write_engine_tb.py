@@ -430,6 +430,16 @@ class AxiWriteEngineTB(TBBase):
         lo, hi = self._depth()
         await self.run_transfer({ch: random.randint(lo, hi) for ch in range(self.NC)})
 
+    async def test_wphase_overflow(self):
+        """More AWs in flight than the W-phase FIFO holds. The runner builds
+        NUM_CHANNELS x AW_MAX_OUTSTANDING (4 x 8 = 32) against
+        W_PHASE_FIFO_DEPTH 4 and backpressures W, so AWs run ahead of their
+        data; every channel queues 8 bursts. An AW issued into a full W-phase
+        FIFO loses its W burst and the channel never finishes (found in RAPIDS
+        at 16 channels x 8 outstanding against the default depth 64)."""
+        burst = self.xfer_cfg + 1
+        await self.run_transfer({ch: 8 * burst for ch in range(self.NC)})
+
     async def test_odd_sizes(self):
         burst = self.xfer_cfg + 1
         sizes = [1, burst - 1, burst + 1, 2 * burst + 3]

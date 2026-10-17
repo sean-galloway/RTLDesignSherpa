@@ -310,6 +310,10 @@ def generate_test_params():
     out = []
     for _lvl in reg_level_grid():
         out.extend(_params_for_level(_lvl))
+    # The per-channel descriptor engines (SHARED_ENGINES=0) stay under test:
+    # the first two configurations again with the original structure. The
+    # rest build the shared engine, the RTL default.
+    out += [dict(p, shared_engines=0) for p in out[:2]]
     return out
 
 
@@ -760,6 +764,7 @@ def test_stream_core_single_channel(request, params):
         'FIFO_DEPTH': params['fifo_depth'],
         'AXI_ID_WIDTH': params['axi_id_width'],
         'ADDR_WIDTH': 64,
+        'SHARED_ENGINES': params.get('shared_engines', 1),
     }
 
     # Create unique test name with scenario and timing profile
@@ -771,6 +776,8 @@ def test_stream_core_single_channel(request, params):
     scenario = params.get('scenario', 'standard')
     timing = params.get('timing_profile', 'fast')
     test_name_plus_params = f"test_{dut_name}_single_nc{nc_str}_dw{dw_str}_fd{fd_str}_dc{dc_str}_{scenario}_{timing}"
+    if params.get('shared_engines', 1) == 0:
+        test_name_plus_params += '_perch'
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -883,6 +890,7 @@ def test_stream_core_multi_channel(request, params):
         'FIFO_DEPTH': params['fifo_depth'],
         'AXI_ID_WIDTH': params['axi_id_width'],
         'ADDR_WIDTH': 64,
+        'SHARED_ENGINES': params.get('shared_engines', 1),
     }
 
     # Create unique test name
@@ -895,6 +903,8 @@ def test_stream_core_multi_channel(request, params):
     scenario = params.get('scenario', 'standard')
     timing = params.get('timing_profile', 'fast')
     test_name_plus_params = f"test_{dut_name}_multi_nc{nc_str}_dw{dw_str}_fd{fd_str}_dc{dc_str}_nch{nch_str}_{scenario}_{timing}"
+    if params.get('shared_engines', 1) == 0:
+        test_name_plus_params += '_perch'
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -997,6 +1007,7 @@ def test_stream_core_variable_sizes(request, params):
         'FIFO_DEPTH': params['fifo_depth'],
         'AXI_ID_WIDTH': params['axi_id_width'],
         'ADDR_WIDTH': 64,
+        'SHARED_ENGINES': params.get('shared_engines', 1),
     }
 
     # Create unique test name
@@ -1008,6 +1019,8 @@ def test_stream_core_variable_sizes(request, params):
     scenario = params.get('scenario', 'standard')
     timing = params.get('timing_profile', 'fast')
     test_name_plus_params = f"test_{dut_name}_varsizes_nc{nc_str}_dw{dw_str}_fd{fd_str}_sz{sizes_str}_{scenario}_{timing}"
+    if params.get('shared_engines', 1) == 0:
+        test_name_plus_params += '_perch'
 
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

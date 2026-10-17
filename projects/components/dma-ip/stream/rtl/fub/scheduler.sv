@@ -1077,7 +1077,11 @@ module scheduler #(
     // Pop the descriptor FIFO in CH_IDLE / CH_NEXT_DESC (normal path) and, with
     // USE_RD_PREFETCH, on an in-place write advance (w_wr_advance drains the head
     // read peeked earlier). w_wr_advance is constant 0 when the feature is off.
-    assign descriptor_ready = (r_current_state == CH_IDLE) ||
+    // CH_IDLE pops only while the channel is enabled: IDLE -> FETCH_DESC needs
+    // the enable, so a disabled channel used to pop and discard every
+    // descriptor reaching its queue (a kick to a disabled channel lost its
+    // descriptor; found in RAPIDS 2026-10-17). It now waits until enabled.
+    assign descriptor_ready = ((r_current_state == CH_IDLE) && cfg_channel_enable) ||
                               (r_current_state == CH_NEXT_DESC) ||
                               w_wr_advance;
 

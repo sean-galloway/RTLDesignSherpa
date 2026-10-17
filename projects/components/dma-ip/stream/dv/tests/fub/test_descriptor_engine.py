@@ -260,6 +260,28 @@ descriptor_engine_params = generate_descriptor_engine_test_params()
 
 @pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile, prefetch", descriptor_engine_params)
 def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile, prefetch, test_level):
+    """Pytest wrapper for descriptor engine tests - handles all test types."""
+    _run_descriptor_engine(request, test_type, channel_id, num_channels, addr_width, axi_id_width,
+                           fifo_depth, timing_profile, prefetch, test_level)
+
+
+# descriptor_engine_shared (SHARED_ENGINES=1 in scheduler_group_array) through
+# the same cocotb scenarios, built for ONE channel: the single-channel
+# equivalence check. Multi-channel behaviour is covered by the core and top
+# suites, which build the shared engine by default.
+descriptor_engine_shared_params = [p for p in descriptor_engine_params if p[1] == 0]
+
+
+@pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile, prefetch", descriptor_engine_shared_params)
+def test_descriptor_engine_shared(request, test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile, prefetch, test_level):
+    """descriptor_engine_shared (NUM_CHANNELS=1) through the descriptor engine scenarios."""
+    _run_descriptor_engine(request, test_type, channel_id, num_channels, addr_width, axi_id_width,
+                           fifo_depth, timing_profile, prefetch, test_level,
+                           dut_name="descriptor_engine_shared")
+
+
+def _run_descriptor_engine(request, test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, timing_profile, prefetch, test_level,
+                           dut_name="descriptor_engine"):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for descriptor engine tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -267,11 +289,10 @@ def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_wi
         'rtl_stream_includes': '../../../../rtl/includes'
     })
 
-    dut_name = "descriptor_engine"
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dma-ip/stream/rtl/filelists/fub/descriptor_engine.f'
+        filelist_path=f'projects/components/dma-ip/stream/rtl/filelists/fub/{dut_name}.f'
     )
 
     # Format parameters for unique test name
@@ -302,6 +323,15 @@ def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_wi
         'AXI_ID_WIDTH': axi_id_width,
         'FIFO_DEPTH': fifo_depth,
     }
+    if dut_name == "descriptor_engine_shared":
+        # one channel: channel 0, ARID 0, the per-channel engine's port widths
+        rtl_parameters = {
+            'NUM_CHANNELS': 1,
+            'CHAN_WIDTH': 1,
+            'ADDR_WIDTH': addr_width,
+            'AXI_ID_WIDTH': axi_id_width,
+            'FIFO_DEPTH': fifo_depth,
+        }
 
     extra_env = {
         'TEST_TYPE': test_type,  # ← Pass test type to cocotb

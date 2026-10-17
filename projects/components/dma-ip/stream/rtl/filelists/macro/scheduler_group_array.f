@@ -34,4 +34,6 @@ $STREAM_ROOT/rtl/includes/stream_pkg.sv
 -f $STREAM_ROOT/rtl/filelists/macro/scheduler_group.f
 
 # Macro Component - This module
+# Shared descriptor engine (SHARED_ENGINES=1); its deps arrive via scheduler_group.f
+$STREAM_ROOT/rtl/fub/descriptor_engine_shared.sv
 $STREAM_ROOT/rtl/macro/scheduler_group_array.sv

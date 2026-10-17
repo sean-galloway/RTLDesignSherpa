@@ -595,6 +595,44 @@ class SchedulerTB(TBBase):
 
         return completed == num_descriptors
 
+    async def test_disabled_channel_holds(self):
+        """A descriptor offered to a DISABLED channel must stay in the queue:
+        no descriptor handshake while cfg_channel_enable is low, and enabling
+        the channel then takes and runs it. The scheduler used to pop in
+        CH_IDLE regardless of the enable and drop the descriptor (found in
+        RAPIDS 2026-10-17; STREAM had the same rule)."""
+        self.log.info("=== Disabled channel holds its descriptor ===")
+        taken = {'n': 0, 'busy': False}
+
+        async def watch():
+            while True:
+                await RisingEdge(self.clk)
+                if int(self.dut.descriptor_valid.value) and int(self.dut.descriptor_ready.value):
+                    taken['n'] += 1
+                if int(self.dut.scheduler_idle.value) == 0:
+                    taken['busy'] = True
+        w = cocotb.start_soon(watch())
+        self.dut.cfg_channel_enable.value = 0
+        desc = self.create_descriptor(src_addr=0x30000, dst_addr=0x40000, length=0x40, last=True)
+        send = cocotb.start_soon(self.send_descriptor(desc))
+        await self.wait_clocks(self.clk_name, 300)
+        ok = True
+        if taken['n']:
+            self.log.error(f"disabled channel took {taken['n']} descriptor(s)")
+            ok = False
+        self.dut.cfg_channel_enable.value = 1
+        for _ in range(400):
+            await self.wait_clocks(self.clk_name, 1)
+            if taken['n']:
+                break
+        idle = await self.wait_for_idle(timeout_cycles=500)
+        w.kill()
+        send.kill()
+        if taken['n'] != 1 or not taken['busy'] or not idle:
+            self.log.error(f"after enable: taken={taken['n']} ran={taken['busy']} idle={idle}")
+            ok = False
+        return ok
+
     async def test_extended_addressing(self):
         """TASK-101: verify run-contiguous and per-beat 2-D extended addressing.
 
