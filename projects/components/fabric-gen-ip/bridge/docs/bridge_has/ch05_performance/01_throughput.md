@@ -76,6 +76,43 @@ The current performance tests measure throughput floors under uniform-style
 patterns; a full saturation study (accepted traffic vs. applied load, latency
 vs. offered load) is tracked as bridge vault TASK-014.
 
+### On Silicon: the Genesys 2 Fabric Benchmark (2026-10-16)
+
+The fabric benchmark (`projects/fpga-systems/Genesys2/fabric-benchmark`,
+PRD §8) compares a generated bridge, `bridge_fb_data`, with the Xilinx AXI
+Crossbar and SmartConnect. All three use the same port set and the same
+harness on the same board, at 128 bits and 100 MHz, with only the fabric
+instance changed. Every figure is the mean of 5 runs. Peak is 1525.9 MiB/s,
+one direction.
+
+| Measure | Bridge | AXI Crossbar | SmartConnect |
+|---|---:|---:|---:|
+| One DMA, 8 ch x 4 x 1 MB, MiB/s | 1525.8 | 1525.8 | 1525.8 |
+| One DMA, 1 ch x 4 x 4 KB, MiB/s | 1416.6 | 1420.7 | 1358.5 |
+| Two writers into one slave, both full rate, writer B limited to 4 outstanding: B's share | 50.0% | 50.0% | 20.0% |
+| The same, writer B limited to 2 outstanding: B's share | 40.0% | 50.0% | 11.1% |
+
+: The bridge against the vendor fabrics on the Genesys 2
+
+In steady state the bridge costs no bandwidth, and its per-transfer
+overhead matches the Xilinx crossbar. Under contention it is fairer than
+SmartConnect. One case is not at parity with the crossbar: a writer limited
+to 2 outstanding transactions gets 40% of a contended slave rather than 50%.
+The cause measured so far is a longer write round trip. STREAM's AW-to-B
+time is 256-511 cycles through the bridge against 64-127 through the
+crossbar at the same throughput, which bounds a 2-outstanding writer. It is
+not the slave tracker's depth: capping it at 4 changed nothing. Where the
+extra time goes is open (GitHub #119).
+
+The fabric is also larger and slower than the crossbar. Placed and routed
+alone, out of context on the Genesys 2's part, the bridge is 10,450 LUTs and
+7,479 flops with an estimated Fmax of ~179 MHz; the AXI Crossbar is 2,688
+LUTs and 2,190 flops at ~256 MHz; SmartConnect is 8,333 LUTs, 3,959 LUTRAM
+and 11,616 flops at ~268 MHz. The bridge's estimate was ~148 MHz before the
+slave adapters' CAM insert and free were registered (MAS 4.1); its worst
+path now runs from a master's R skid through the response routing into the
+read CAM. All three close at the board's 100 MHz.
+
 ### Factors Affecting Throughput
 
 | Factor | Impact | Mitigation |

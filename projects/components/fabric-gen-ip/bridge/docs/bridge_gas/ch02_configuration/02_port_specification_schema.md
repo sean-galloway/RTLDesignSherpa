@@ -36,6 +36,7 @@ Each master and slave is described by a TOML table under `[[bridge.masters]]` or
 | `addr_width` | int | required | `addr_width` | Address bus width in bits. |
 | `id_width` | int | `0` | `id_width` | AXI ID width. Required > 0 for `axi4`/`axi5` masters; must be 0 for APB, AXI-Lite, and Wishbone. |
 | `user_width` | int | `0` | (passed to wrapper) | AXI4 user signal width. |
+| `cdc` | boolean | `false` | `cdc` | Run this port on its own clock (`<name>_aclk` / `<name>_aresetn`) behind `axi4_cdc_{wr,rd}`: on a slave between the timing wrapper and the port, on a master between the port and the timing wrapper (GitHub #119 L2). `protocol="axi4"` only. |
 
 : Common port fields
 
@@ -53,7 +54,6 @@ Each master and slave is described by a TOML table under `[[bridge.masters]]` or
 | Field | Type | Default | `PortSpec` attribute | Description |
 |-------|------|---------|----------------------|-------------|
 | `interface` | table | none | see below | Timing-isolation wrapper configuration. |
-| `cdc` | boolean | `false` | `cdc` | Run this slave port on its own clock behind `axi4_cdc_{wr,rd}`. Legal only for `protocol="axi4"` slave ports. |
 | `enable_ooo` | boolean | `false` | `enable_ooo` | Mark slave as out-of-order capable. (No generated fixture currently uses this.) |
 | `max_outstanding` | int, power of two 2..64 | `[bridge].max_outstanding` (16) | `max_outstanding` | This port's outstanding limit per direction (master: tracker depth; slave: response-tracker depth). The internal subtractive slave stays at 16. |
 | `use_monitor` | boolean | `true` | `use_monitor` | Per-port monitor enable; meaningful only for `"mon"` variants. |

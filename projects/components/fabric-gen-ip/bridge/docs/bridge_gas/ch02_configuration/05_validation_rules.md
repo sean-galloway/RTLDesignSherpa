@@ -91,7 +91,7 @@ widest_master_id_width + clog2(num_masters)
 
 ## CDC constraints (`validate_cdc_constraints`)
 
-- `cdc=true` is legal only on external AXI4 slave ports.
+- `cdc=true` is legal only on AXI4 ports, master (GitHub #119 L2) or external slave.
 - Internal slaves cannot be CDC ports.
 
 ## Warning for dropped sideband (`warn_axi5_dropped_sideband`)

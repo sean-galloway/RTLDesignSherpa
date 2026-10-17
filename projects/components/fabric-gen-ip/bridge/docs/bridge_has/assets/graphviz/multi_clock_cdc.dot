@@ -1,6 +1,7 @@
 // Where a clock crossing sits when the system has more than one clock (HAS 4.2).
-// The bridge generates a crossing only for a cdc = true AXI4 slave port; every
-// other port on a foreign clock needs one supplied outside the bridge.
+// The bridge generates a crossing for a cdc = true AXI4 port, master (GitHub
+// #119 L2) or slave (bridge TASK-006); every other port on a foreign clock
+// needs one supplied outside the bridge.
 // House style: vault/handbook/authoring/block-diagrams.md
 digraph multi_clock_cdc {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
@@ -10,9 +11,15 @@ digraph multi_clock_cdc {
            fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, dir=both];
 
-    m    [label="Master\non clk_a", fillcolor="white"];
-    xm   [label="External Clock Crossing (integrator-supplied)\nfor example axi4_cdc_wr / axi4_cdc_rd from rtl/amba/axi4\n(clk_a side up, aclk side down)", style="filled,dashed"];
-    br   [label="Generated Bridge - <name>.sv\nevery master port and the whole fabric on aclk", width=6];
+    m1   [label="AXI4 Master\non clk_a", fillcolor="white"];
+    m2   [label="Other Master\non clk_d", fillcolor="white"];
+    { rank=same; m1; m2; }
+    m1 -> m2 [style=invis, dir=none];
+    xm1  [label="Built-in Crossing (inside the bridge)\n<master>_adapter, generated when cdc = true on an AXI4 master:\naxi4_cdc_wr / _rd, port on <master>_aclk"];
+    xm2  [label="External Clock Crossing (integrator-supplied)\nany other master on a foreign clock\n(APB, AXI4-Lite, WB4, AXI3, AXI5, or AXI4 without cdc)", style="filled,dashed"];
+    { rank=same; xm1; xm2; }
+    xm1 -> xm2 [style=invis, dir=none];
+    br   [label="Generated Bridge - <name>.sv\nthe whole fabric on aclk", width=6];
     xs1  [label="Built-in Crossing (inside the bridge)\n<slave>_adapter, generated when cdc = true on an AXI4 slave:\naxi4_cdc_wr / _rd, port on <slave>_aclk"];
     xs2  [label="External Clock Crossing (integrator-supplied)\nany other slave on a foreign clock\n(APB, AXI4-Lite, WB4, AXI5, or AXI4 without cdc)", style="filled,dashed"];
     { rank=same; xs1; xs2; }
@@ -22,8 +29,10 @@ digraph multi_clock_cdc {
     { rank=same; s1; s2; }
     s1 -> s2 [style=invis, dir=none];
 
-    m   -> xm  [penwidth=1.8, xlabel="AXI4 (clk_a)"];
-    xm  -> br  [xlabel="AXI4 (aclk)"];
+    m1  -> xm1 [penwidth=1.8, xlabel="AXI4 (clk_a)"];
+    m2  -> xm2 [penwidth=1.8, xlabel="master protocol (clk_d)"];
+    xm1 -> br  [xlabel="AXI4 (aclk)"];
+    xm2 -> br  [xlabel="master protocol (aclk)"];
     br  -> xs1 [xlabel="AXI4 (aclk)"];
     br  -> xs2 [xlabel="slave protocol (aclk)"];
     xs1 -> s1  [penwidth=1.8, xlabel="AXI4 (clk_b)"];

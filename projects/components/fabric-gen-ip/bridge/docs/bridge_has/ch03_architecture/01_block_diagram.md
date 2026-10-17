@@ -41,6 +41,7 @@ One per master (`<master>_adapter`), receives transactions from the upstream mas
 - **Address decode** - a one-hot slave select from each slave's `base_addr` / `addr_range`; no hit selects the catch-all
 - **Width conversion** - `axi4_dwidth_converter_wr` / `_rd`, one path per distinct slave width, only where the widths differ
 - **Fabric ID** - the AXI ID is prefixed with the master's `BRIDGE_ID` (`{BRIDGE_ID, id}`), so a slave port's ID is wider than a master port's
+- **Clock crossing** - `axi4_cdc_wr` / `_rd` ahead of the skid buffers when the master port is `cdc = true` (GitHub #119 L2)
 
 ### Crossbar Core
 

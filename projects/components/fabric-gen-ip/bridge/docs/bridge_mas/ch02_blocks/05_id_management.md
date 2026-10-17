@@ -187,9 +187,11 @@ The master adapter then returns the low `MASTER_ID_WIDTH` bits
 |---|---|
 | `TAG_WIDTH` | `ID_WIDTH` (fabric ID width, 5 in `bridge_2x2_rw`) |
 | `DATA_WIDTH` | `BRIDGE_ID_WIDTH` |
-| `DEPTH` | 16 |
+| `DEPTH` | the slave's `max_outstanding` (default 16, GitHub #119 L5) |
 | `ALLOW_DUPLICATES` | 1 (same ID may be outstanding more than once; oldest freed first) |
 | `PIPELINE_EVICT` | 0 (lookup result in the same cycle) |
+| `PIPELINE_ALLOC` | 1 (registered insert: the match and count run the cycle after the handshake; a response in that cycle still finds the pending entry) |
+| `PIPELINE_FREE` | 1 (registered free: the lookup still routes the response this cycle; the entry free and same-ID decrements land the next) |
 
 : Content Addressable Memory: bridge_cam
 
@@ -200,8 +202,15 @@ Allocate:   on the AW / AR handshake from the crossbar
             tag = awid / arid, data = xbar_bridge_id_aw / _ar
 Deallocate: write on B handshake; read on the R handshake with RLAST
             tag = bid / rid -> deallocate_data = bid_bridge_id / rid_bridge_id
-Full:       tags_full gates the crossbar-side AWREADY / ARREADY (bridge BUG-009)
+Full:       tags_full gates the crossbar-side AWREADY / ARREADY (bridge BUG-009);
+            it counts a pending insert and frees a slot a cycle after the
+            response, so it is early, never late
 ```
+
+The insert and free registers (GitHub #119) take the CAM's match-and-count
+logic out of the crossbar's grant path and out of the response path. The
+mechanism and the bypass that keeps them correct: [CAM Architecture](../ch04_id_management/01_cam_architecture.md),
+Figure 4.2.
 
 An entry holds only the tag, the master index and the duplicate-ordering
 count. There is no timestamp, transaction-type field or timeout, and only
@@ -218,8 +227,9 @@ simulation-only check flags a returned ID that does not match the head
 
 ### Outstanding Transaction Limits
 
-The limit per slave is the tracker depth: 16 writes and 16 reads
-outstanding at each slave adapter, CAM or FIFO. When the tracker is full
+The limit per slave is the tracker depth: `max_outstanding` writes and
+`max_outstanding` reads (default 16 each) outstanding at each slave adapter,
+CAM or FIFO. When the tracker is full
 the slave's AWREADY / ARREADY toward the crossbar drops until a response
 frees an entry. There is no per-master outstanding limit key.
 
@@ -228,6 +238,10 @@ frees an entry. There is no per-master outstanding limit key.
 - **ID injection / stripping**: 0 cycles (concatenation and bit-select).
 - **CAM lookup**: 0 added cycles (`PIPELINE_EVICT = 0`; the deallocate
   data is combinational in the response cycle).
+- **CAM insert / free**: 0 added cycles on any request or response. The
+  registered insert and free are internal; a response the cycle after its
+  request is routed from the pending entry. The only visible effect is
+  `tags_full` releasing a slot one cycle after the response.
 - **FIFO head**: 0 added cycles.
 
 The measured end-to-end latency (2 cycles each way in `bridge_2x2_rw`,

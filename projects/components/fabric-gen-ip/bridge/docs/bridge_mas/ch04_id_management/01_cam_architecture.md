@@ -71,14 +71,17 @@ As generated, every CAM is the slave's `max_outstanding` entries deep (default
 ```
 bridge_cam #(.TAG_WIDTH(ID_WIDTH),          // XBAR_ID_WIDTH, 5 in bridge_2x2_rw
              .DATA_WIDTH(BRIDGE_ID_WIDTH),  // 1 in bridge_2x2_rw
-             .DEPTH(16),
+             .DEPTH(16),                    // the slave's max_outstanding
              .ALLOW_DUPLICATES(1),
-             .PIPELINE_EVICT(0))
+             .PIPELINE_EVICT(0),
+             .PIPELINE_ALLOC(1),            // registered insert (below)
+             .PIPELINE_FREE(1))             // registered free (below)
 ```
 
 The formula once proposed here (`DEPTH = MAX_OUTSTANDING x NUM_MASTERS`,
-with a metadata field in each entry) was never built; there is no
-`max_outstanding` key and no metadata field.
+with a metadata field in each entry) was never built. Depth is the slave's
+own `max_outstanding` (GitHub #119 L5), whatever the master count, and no
+entry carries a metadata field.
 
 ### Insertion (AW / AR Acceptance)
 
@@ -91,6 +94,22 @@ fabric ID against the granted master's index (from the generated
 .allocate_tag (xbar_ddr_axi_awid),     // {BRIDGE_ID, id}
 .allocate_data(xbar_bridge_id_aw),     // master index sideband
 ```
+
+**The insert is registered (`PIPELINE_ALLOC = 1`, GitHub #119).** The
+handshake only captures the tag and master index into a pending-insert
+register. The tag match against every entry, the duplicate popcount and the
+entry write run the next cycle, from that register. Before this, the
+crossbar's arbitrated ID drove the whole match and count in the handshake
+cycle. On the Genesys 2 fabric benchmark that made a 15-level path: master
+AW gate, crossbar grant, then the DDR slave's CAM count. Out of context at
+4 ns, the registered insert moved WNS from -2.753 to -2.056 ns.
+
+AXI allows a response one cycle after its request, before the pending entry
+reaches the table, so the eviction port also checks the pending register. A
+response whose tag has no stored entry takes the pending one, which is then
+never written. A stored entry with the same tag is older, so it retires
+first. `tags_full` and `tags_count` include a pending insert, so an
+allocate cannot claim the slot it is about to use.
 
 ### Lookup and Deletion (B / last R)
 
@@ -108,6 +127,21 @@ by the returned ID and returns the stored master index combinationally
 
 A response whose ID is not in the CAM leaves `deallocate_valid` low and
 routes nowhere; it means the slave returned an ID it was never sent.
+
+**The free is registered (`PIPELINE_FREE = 1`, GitHub #119).** The lookup
+above stays combinational, because it routes the response in its own cycle.
+What a deallocate changes in storage is applied the next cycle: the
+count-0 entry is cleared and the same-tag survivors step down. Until then,
+every lookup and insert sees the post-free state. The freed entry no longer
+matches, and the pending decrements are already reflected in the counts
+used by the count-0 search and by the new entry's count. Occupancy drops a
+cycle later, so `tags_full` is conservative for that one cycle. This moved
+the fabric benchmark's WNS at 4 ns from -2.056 to -1.599 ns (about 148 to
+179 MHz for the two changes together).
+
+### Figure 4.2: CAM Insert and Free Pipeline
+
+![CAM Insert and Free Pipeline](../assets/graphviz/cam_pipeline.png)
 
 ### Duplicate IDs: the Ordering Counter (Mode 2)
 
@@ -136,9 +170,11 @@ Only one form exists: a parallel comparator array in distributed RAM and
 flops (no block RAM), every entry compared at once:
 
 ```systemverilog
-// bridge_cam.sv (simplified): one match vector per lookup port
-w_evict_matches[i] = r_valid[i] && (r_tag_array[i] == deallocate_tag);
-w_entry_matches[i] = r_valid[i] && (r_tag_array[i] == allocate_tag);
+// bridge_cam.sv (simplified): one match vector per lookup port.
+// w_valid_eff hides an entry whose free is pending (PIPELINE_FREE);
+// w_ins_tag is the pending insert's tag (PIPELINE_ALLOC).
+w_evict_matches[i] = w_valid_eff[i] && (r_tag_array[i] == deallocate_tag);
+w_entry_matches[i] = w_valid_eff[i] && (r_tag_array[i] == w_ins_tag);
 ```
 
 The block-RAM sequential-search variant that an earlier revision proposed
@@ -154,7 +190,15 @@ assign xbar_ddr_axi_awready = w_sub_awready && !wr_trk_full;  // wr_trk_full = u
 ```
 
 The address phase waits until a B or last R frees an entry. Nothing is
-dropped and no error response is generated.
+dropped and no error response is generated. With the registered insert and
+free, a pending insert counts as occupied and a pending free does not yet
+release its slot, so the flag can only be early, never late.
+
+The four combinations of `PIPELINE_ALLOC` and `PIPELINE_FREE` are each
+verified by `dv/tests/test_bridge_cam.py`. The random test checks a per-tag
+FIFO model, with full and empty one cycle late under a registered free.
+A directed test covers a response arriving the cycle after its request,
+both alone and behind an older entry with the same tag.
 
 ## Related Modules
 

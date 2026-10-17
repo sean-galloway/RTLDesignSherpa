@@ -94,6 +94,12 @@ a `bridge_cam` looked up by BID/RID for a multi-master AXI4/AXI5 slave (any
 completion order), or an in-order FIFO for single-master bridges and shim
 slaves (request order required, bridge BUG-008). See HAS 3.2.
 
+Either way a slave returns each R burst contiguously: beats of different
+IDs must not interleave. The per-master-path R arbiters hold through
+RLAST, and the read width converters rely on it (they are built with
+`R_INTERLEAVE = 0`, without a reassembly pool, GitHub #119); the
+converter flags an interleaved beat in simulation.
+
 ## Channel-Specific Interfaces
 
 ### Write-Only Master (wr)

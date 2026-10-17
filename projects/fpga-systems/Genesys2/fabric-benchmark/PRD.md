@@ -190,10 +190,11 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 - First size and timing comparison, every leg alone out of context on the
   board's part: [reports/ooc/README.md](reports/ooc/README.md) (`make ooc-all`).
   At the 100 MHz board clock all three close; at a 4 ns target B1 and B2
-  close (est. Fmax ~256 and ~268 MHz) and Leg A does not (~148 MHz on
-  2026-10-16, a 15-level path from the injector port's per-ID tracking
-  pointer into the DDR slave's write CAM count; ~161 MHz after GitHub #119
-  L1 and ~186 MHz / 12 levels before it -- §8). Leg A is ~3.8x B1's LUTs; B2 is ~3.1x B1's LUTs plus
+  close (est. Fmax ~256 and ~268 MHz) and Leg A does not (~179 MHz on
+  2026-10-16 after the registered CAM insert and free, GitHub #119, an
+  11-level path from a master's R skid into the DDR slave's read CAM; ~148
+  MHz / 15 levels before them, ~161 MHz after GitHub #119 L1 and ~186 MHz /
+  12 levels before it -- §8). Leg A is ~3.9x B1's LUTs; B2 is ~3.1x B1's LUTs plus
   3,959 LUTRAM and ~5.3x its flops.
 - S0's DDR3 controller is LiteDRAM, generated (`fb_litedram`,
   `rtl/litedram/fb_litedram.yml`, `bin/gen_litedram.sh`; the core is
@@ -377,7 +378,7 @@ The fabric alone, placed and routed out of context (`make ooc-all`,
 
 | Leg | LUT | LUTRAM | FF | WNS at 10 ns | WNS at 4 ns | Fmax est. |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| A (bridge) | 10,337 | 0 | 7,268 | +1.494 | -2.753 | ~148 MHz |
+| A (bridge) | 10,450 | 0 | 7,479 | +2.225 | -1.599 | ~179 MHz |
 | B1 (AXI Crossbar) | 2,688 | 10 | 2,190 | +4.658 | +0.088 | ~256 MHz |
 | B2 (SmartConnect) | 8,333 | 3,959 | 11,616 | +4.286 | +0.268 | ~268 MHz |
 
@@ -390,14 +391,19 @@ LiteDRAM are the same in every leg; the differences are the fabric's):
 | B1 (AXI Crossbar) | +0.285 | +0.047 | 107,283 | 10,166 | 75,356 | 43.5 | 71 |
 | B2 (SmartConnect) | +0.378 | +0.023 | 112,491 | 12,009 | 83,133 | 43.5 | 71 |
 
-Leg A is the largest fabric in logic (3.8x B1's LUTs) and the only one
+Leg A is the largest fabric in logic (3.9x B1's LUTs) and the only one
 that does not reach 4 ns; B2 spends fewer LUTs than A but adds 3,959
 LUTRAM and the most flops. Leg A's estimate fell from ~161 to ~148 MHz between
 2026-10-15 and 2026-10-16 with its size unchanged: the generated fabric
 took the bridge's per-port latency modes and outstanding limits (#119 L5,
 L7, L1b), and the worst path now starts at the injector port's per-ID
 tracking pointer rather than its AW skid -- still 15 levels into the DDR
-slave's write CAM count.
+slave's write CAM count. Registering the slave adapters' CAM insert and
+free (GitHub #119, `bridge_cam` `PIPELINE_ALLOC` / `PIPELINE_FREE`) took
+that path out: ~148 -> ~165 -> ~179 MHz (WNS at 4 ns -2.753 -> -2.056 ->
+-1.599 ns) for ~110 LUTs and ~210 flops. The worst path is now 11 levels,
+from a master's R skid through the response routing into the read CAM's
+tag-array enable.
 
 ### 8.2 W2 -- the fabric alone (5 runs per point)
 
@@ -466,12 +472,13 @@ nothing about the fabrics.
 | Steady-state bandwidth | 100% of peak | 100% of peak | 100% of peak |
 | Small-transfer cost | baseline | = A | 4.1% slower at 1 ch x 4 KB |
 | Contended-slave fairness | even at 4 outstanding, 40/60 at 2 | even | biased to STREAM (11-20%) |
-| Size (fabric, OOC) | 10.3k LUT, 7.3k FF | 2.7k LUT, 2.2k FF | 8.3k LUT, 4.0k LUTRAM, 11.6k FF |
-| Fmax est. (fabric, OOC) | ~148 MHz | ~256 MHz | ~268 MHz |
+| Size (fabric, OOC) | 10.5k LUT, 7.5k FF | 2.7k LUT, 2.2k FF | 8.3k LUT, 4.0k LUTRAM, 11.6k FF |
+| Fmax est. (fabric, OOC) | ~179 MHz | ~256 MHz | ~268 MHz |
 | Simulatable | yes | yes | no (encrypted) |
 
 On this port set and clock, the generated bridge matches the Xilinx
 crossbar on bandwidth and per-transfer latency, is fairer than
-SmartConnect under contention, and costs about 3.8x B1's logic and the
-lowest Fmax of the three -- its 15-level write-CAM path is the item to
-take back to the bridge.
+SmartConnect under contention, and costs about 3.9x B1's logic and the
+lowest Fmax of the three. The 15-level write-CAM path found here went back
+to the bridge as the registered CAM insert and free (~148 -> ~179 MHz);
+the remaining gap to B1 is the response routing into the read CAM.

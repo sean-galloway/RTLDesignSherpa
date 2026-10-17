@@ -31,7 +31,7 @@ Everything your system owes the bridge before it will do its job: one clean cloc
 
 | Requirement | Specification |
 |-------------|---------------|
-| Clock source | One fabric clock (`aclk`) for the fabric and every master port; a `cdc = true` AXI4 slave port brings its own `<slave>_aclk` (HAS 4.5a) |
+| Clock source | One fabric clock (`aclk`) for the fabric; a `cdc = true` AXI4 master or slave port brings its own `<port>_aclk` (HAS 4.5a) |
 | Clock quality | Low jitter, stable frequency |
 | Clock distribution | Must reach all Bridge ports |
 

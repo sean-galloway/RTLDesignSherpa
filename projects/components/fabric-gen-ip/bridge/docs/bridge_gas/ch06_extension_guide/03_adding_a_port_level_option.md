@@ -64,4 +64,4 @@ If the option requires additional IP, add conditional filelist lines in `bridge_
 
 ## Example: `cdc`
 
-The `cdc` port option is a `PortSpec` field. It is validated as AXI4-slave-only, passed through `SlaveInfo`, and used by `SlaveAdapterGenerator` to insert `axi4_cdc_{wr,rd}`. The filelist conditionally pulls in `axi4_cdc_wr.f` and `axi4_cdc_rd.f`.
+The `cdc` port option is a `PortSpec` field. It is validated as AXI4-only, passed through `SlaveInfo` and `MasterConfig`, and used by `SlaveAdapterGenerator` and `AdapterGenerator` to insert `axi4_cdc_{wr,rd}` (behind the slave wrapper, ahead of the master wrapper); the bridge top adds the port clock pins and the TB template starts and resets each port clock. The filelist conditionally pulls in `axi4_cdc_wr.f` and `axi4_cdc_rd.f`.

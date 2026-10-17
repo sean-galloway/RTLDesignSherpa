@@ -39,40 +39,41 @@ has synthesized yet, and the flow takes minutes to answer for it.
 
 | Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
 |---|---:|---:|---:|---:|---:|---:|
-| `bridge_2x2_axi5` | 4,441 | 3,325 | 0 | +0.40 | 104.2 | 8 |
-| `bridge_2x2_axi5_native` | 8,007 | 6,213 | 0 | +0.04 | 100.4 | 12 |
-| `bridge_2x2_rw` | 4,615 | 3,253 | 0 | +0.12 | 101.2 | 9 |
-| `bridge_2x2_rw_cdc` | 4,851 | 3,413 | 0 | +0.27 | 102.7 | 9 |
-| `bridge_2x2_rw_pipe` | 5,646 | 4,227 | 0 | +1.27 | 114.6 | 6 |
-| `bridge_2x2_rw_qos` | 5,136 | 3,317 | 0 | -2.91 | 77.4 | 14 |
-| `bridge_2x2_rw_qos_pipe` | 5,494 | 4,291 | 0 | +0.17 | 101.7 | 9 |
-| `bridge_4x4_rw` | 30,278 | 29,508 | 0 | -1.57 | 86.4 | 14 |
-| `bridge_5x3_channels` | 19,243 | 16,932 | 0 | -2.66 | 79.0 | 16 |
-| `bridge_mix_a` | 6,456 | 5,697 | 0 | -0.29 | 97.1 | 16 |
+| `bridge_2x2_axi5` | 5,060 | 3,945 | 0 | -0.06 | 99.4 | 10 |
+| `bridge_2x2_axi5_native` | 8,054 | 6,705 | 0 | -0.53 | 95.0 | 12 |
+| `bridge_2x2_rw` | 5,719 | 4,537 | 0 | +0.05 | 100.5 | 9 |
+| `bridge_2x2_rw_cdc` | 5,334 | 3,953 | 0 | +0.05 | 100.5 | 10 |
+| `bridge_2x2_rw_pipe` | 5,492 | 4,801 | 0 | +0.69 | 107.5 | 8 |
+| `bridge_2x2_rw_qos` | 5,195 | 3,857 | 0 | -0.63 | 94.1 | 12 |
+| `bridge_2x2_rw_qos_pipe` | 5,938 | 4,865 | 0 | -0.62 | 94.2 | 12 |
+| `bridge_4x4_rw` | 39,642 | 37,968 | 0 | -7.48 | 57.2 | 20 |
+| `bridge_5x3_channels` | 30,138 | 27,875 | 0 | -3.96 | 71.6 | 15 |
+| `bridge_mix_a` | 7,632 | 6,551 | 0 | -4.51 | 68.9 | 16 |
 
 : Measured utilization and timing, Artix-7 100T -1 at 10 ns (HAS 6.4 flow)
 
 | Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
 |---|---:|---:|---:|---:|---:|---:|
-| `bridge_2x2_axi5` | 4,430 | 3,325 | 0 | +0.69 | 167.4 | 9 |
-| `bridge_2x2_axi5_native` | 7,969 | 6,213 | 0 | +0.26 | 156.1 | 12 |
-| `bridge_2x2_rw` | 4,612 | 3,253 | 0 | +0.97 | 175.6 | 9 |
-| `bridge_2x2_rw_cdc` | 4,842 | 3,413 | 0 | +0.55 | 163.4 | 9 |
-| `bridge_2x2_rw_pipe` | 5,647 | 4,227 | 0 | +1.73 | 202.6 | 6 |
-| `bridge_2x2_rw_qos` | 4,963 | 3,317 | 0 | -0.18 | 146.0 | 13 |
-| `bridge_2x2_rw_qos_pipe` | 5,475 | 4,291 | 0 | +0.70 | 167.6 | 9 |
-| `bridge_4x4_rw` | 29,719 | 29,508 | 0 | +0.28 | 156.5 | 13 |
-| `bridge_5x3_channels` | 19,035 | 16,932 | 0 | -0.13 | 147.1 | 17 |
-| `bridge_mix_a` | 6,375 | 5,697 | 0 | +0.53 | 162.9 | 8 |
+| `bridge_2x2_axi5` | 4,911 | 3,945 | 0 | +0.40 | 159.6 | 11 |
+| `bridge_2x2_axi5_native` | 7,889 | 6,705 | 0 | +0.41 | 159.9 | 12 |
+| `bridge_2x2_rw` | 5,617 | 4,537 | 0 | +0.21 | 155.0 | 11 |
+| `bridge_2x2_rw_cdc` | 5,202 | 3,953 | 0 | +0.38 | 159.2 | 10 |
+| `bridge_2x2_rw_pipe` | 5,494 | 4,801 | 0 | +1.14 | 180.8 | 7 |
+| `bridge_2x2_rw_qos` | 4,986 | 3,857 | 0 | +0.46 | 161.1 | 12 |
+| `bridge_2x2_rw_qos_pipe` | 5,852 | 4,865 | 0 | +0.24 | 155.7 | 12 |
+| `bridge_4x4_rw` | 39,671 | 37,968 | 0 | -2.73 | 106.4 | 20 |
+| `bridge_5x3_channels` | 30,001 | 27,875 | 0 | -0.62 | 137.3 | 16 |
+| `bridge_mix_a` | 7,524 | 6,551 | 0 | -1.11 | 128.6 | 16 |
 
 : Measured utilization and timing, Kintex-7 325T -2 at 6.667 ns
 
 Fmax is an estimate from the register-to-register slack at the constrained
-period; the I/O budget and the reading of each row are in HAS 6.4. The
-rows that miss on the Artix-7 all fail on one path -- master adapter,
-crossbar arbitration and mux, slave CAM allocate -- and `xbar_pipeline`
-is the register that splits it: `bridge_2x2_rw_qos` at -2.91 ns becomes
-`bridge_2x2_rw_qos_pipe` at +0.17 ns.
+period; the I/O budget and the reading of each row are in HAS 6.4.
+Re-measured 2026-10-16. The 2x2s stay near 100 MHz on the Artix-7 and meet
+150 MHz on the Kintex-7. The fixtures with width converters miss on one
+structure, the write converter's B-response fold in series with a slave
+CAM, and its fix is open (GitHub #119). The September path through the
+slave CAM allocate is gone, taken out by the registered CAM insert.
 
 ### Scaling
 

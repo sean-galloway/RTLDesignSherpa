@@ -113,7 +113,8 @@ on that. Which store a slave gets is fixed at generation:
 ```systemverilog
 // CAM form (multi-master AXI4 slave)
 bridge_cam #(.TAG_WIDTH(ID_WIDTH), .DATA_WIDTH(BRIDGE_ID_WIDTH),
-             .DEPTH(16), .ALLOW_DUPLICATES(1)) u_wr_cam (  // the slave's max_outstanding
+             .DEPTH(16), .ALLOW_DUPLICATES(1),             // DEPTH: the slave's max_outstanding
+             .PIPELINE_ALLOC(1), .PIPELINE_FREE(1)) u_wr_cam (  // registered insert / free (MAS 4.1)
     .allocate_tag  (xbar_ddr_axi_awid),   .allocate_data  (xbar_bridge_id_aw),
     .deallocate_tag(xbar_ddr_axi_bid),    .deallocate_data(bid_bridge_id), ...);
 

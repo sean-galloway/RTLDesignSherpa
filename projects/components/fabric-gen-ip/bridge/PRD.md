@@ -473,8 +473,9 @@ address_map = {
 
 **FR-9: Interleaving Constraints**
 - W channel follows the AW owner via a per-slave W-owner FIFO (not a held grant)
-- R channel routed by in-order `bridge_id` FIFO position, NOT by transaction ID. IDs are pass-through: the slave port is the same width as the master port. `bridge_cam.sv` exists but is instantiated in zero generated bridges.
-- ID-based interleaving is NOT supported. Each slave port must return B/R in request order across ALL IDs -- see bridge BUG-008 (was BRIDGE-010).
+- B and R are routed by the `bridge_id` each slave adapter records at the address handshake: a `bridge_cam` looked up by the returned BID/RID for an AXI4/AXI5 slave of a multi-master bridge (or any `enable_ooo` slave), an in-order FIFO otherwise. Fabric IDs are `{BRIDGE_ID, id}`, so a slave port's ID is wider than a master's.
+- A CAM-tracked slave may complete bursts out of order across IDs; a FIFO-tracked slave must return B/R in request order across all IDs (bridge BUG-008, was BRIDGE-010).
+- Beat-level R interleaving across IDs is NOT supported: a slave returns each R burst contiguously. The per-master-path R arbiters hold through RLAST, and the read width converters rely on it (`R_INTERLEAVE = 0`, no reassembly pool, GitHub #119).
 
 ---
 

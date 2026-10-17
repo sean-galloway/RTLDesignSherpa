@@ -136,7 +136,7 @@ Example (prefix = "ddr_s_axi"):
   ddr_s_axi_wdata
   ddr_s_axi_bvalid
 
-CDC slave port (cdc = true, bridge TASK-006 (was BRIDGE-017)) adds two clock pins for that port:
+A CDC port (cdc = true; slave: bridge TASK-006, master: GitHub #119 L2) adds two clock pins:
   {name}_aclk            - the port's own clock
   {name}_aresetn         - its active-low reset
 ```
@@ -146,8 +146,15 @@ A `cdc = true` slave port's adapter takes `s_aclk`/`s_aresetn` beside
 stay on `aclk`, driving `cdc_{name}_axi_*` nets; `axi4_cdc_wr` and
 `axi4_cdc_rd` carry those to the external port on `s_aclk`, one
 `gaxi_fifo_async` per channel. Nothing upstream of the wrapper knows the
-port is in another domain. Slave ports only, `protocol = "axi4"` only (HAS
-4.5a).
+port is in another domain. `protocol = "axi4"` only (HAS 4.5a).
+
+A `cdc = true` master port's adapter takes `ext_aclk`/`ext_aresetn` beside
+`aclk`/`aresetn`, and the crossing sits on the other side of the wrapper:
+`axi4_cdc_wr` / `axi4_cdc_rd` take the external port on `ext_aclk` and drive
+`cdcx_axi_*` nets on `aclk`, which the timing wrapper takes as its external
+side. Only the crossing for a direction the port has is built. Everything
+from the wrapper on -- monitor, decode, per-ID target tracking, width paths
+-- is the same-clock adapter (GitHub #119 L2).
 
 ## Functional Description
 

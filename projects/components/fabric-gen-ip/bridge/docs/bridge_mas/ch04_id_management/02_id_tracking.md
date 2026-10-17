@@ -65,7 +65,7 @@ BUG-008, was BRIDGE-010); it cannot fire in silicon.
 
 ## Functional Description
 
-### Figure 4.2: ID Table Structure
+### Figure 4.3: ID Table Structure
 
 ![ID Table Structure](../assets/mermaid/id_table_structure.png)
 

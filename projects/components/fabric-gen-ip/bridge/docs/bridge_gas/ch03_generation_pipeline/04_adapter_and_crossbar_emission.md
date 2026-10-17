@@ -41,7 +41,7 @@ After validation, `bridge_generator.py` calls `_emit_bridge_variant()` for each 
 | `use_monitor` | bool | bool |
 | `mon_enables` | dict | dict |
 | `axi5_features` | list | list |
-| `cdc` | — | bool |
+| `cdc` | bool | bool |
 | `enable_ooo` | — | bool |
 | `internal` | — | bool |
 

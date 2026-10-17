@@ -46,7 +46,7 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 
 | TOML key (`[bridge]`) | Type | Default | Effect |
 |---|---|---|---|
-| `xbar_pipeline` | bool | `false` | `true` puts a 2-deep skid stage on every slave-side channel (AW, W, AR, B, R) inside the crossbar. Propagation 3/3 cycles instead of 2/2 (Table 5.7), throughput unchanged. For high-fanout or wide fabrics that miss timing on the arbiter-plus-mux or the response OR-merge cone. Measured (HAS 6.4): the register that splits the arbitration-mux-CAM path; on the Artix-7 at 100 MHz any configuration beyond a plain 2x2 -- QoS, wide ports, more masters -- needs it. |
+| `xbar_pipeline` | bool | `false` | `true` puts a 2-deep skid stage on every slave-side channel (AW, W, AR, B, R) inside the crossbar. Propagation 3/3 cycles instead of 2/2 (Table 5.7), throughput unchanged. For high-fanout or wide fabrics that miss timing on the arbiter-plus-mux or the response OR-merge cone. Measured (HAS 6.4): +0.69 ns against +0.05 ns on the plain 2x2 at 100 MHz on the Artix-7. Since the registered CAM insert it no longer rescues QoS there (the QoS compare and the per-ID gate sit before it), and it does not reach the width-converter B-fold path the larger fixtures miss on. |
 | `arbitration` | `"rr"` / `"qos"` | `"rr"` | Per-slave arbitration policy. `"qos"` grants the highest `AxQOS` plus aging (MAS 2.3, Per-Slave Request Arbitration); it decides among requests pending at the arbiter, so it shows at a slave that backpressures AW, not at one that accepts every AW on arrival; equals share round-robin. |
 | `qos_aging_shift` | int 0..7 | 4 | With `"qos"`: a waiting request gains one priority level every `2**shift` cycles, so the worst wait for a QoS-0 request is `15 * 2**shift` cycles. |
 | `id_track_bits` | int 0..8 | 4 | Per-ID target tracking in every master adapter: `2**id_track_bits` entries indexed by the ID's low bits (never more bits than the port's ID). A request waits only when its ID is in flight to a different slave; IDs sharing the index bits are treated as one ID, which is safe and at worst stalls needlessly. 0 orders every ID as one. Every port, read-return-atomic and trace-echo ports included (GitHub #119 L1b). |
@@ -56,11 +56,11 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 
 | TOML key (`[[bridge.slaves]]`) | Type | Default | Effect |
 |---|---|---|---|
-| `cdc` | bool | `false` | `true` gives this AXI4 slave port its own clock: `<name>_aclk` / `<name>_aresetn` on the top, `axi4_cdc_{wr,rd}` between the adapter's timing wrapper and the port (HAS 4.5a). Slave ports, `protocol = "axi4"` only. |
+| `cdc` | bool | `false` | `true` gives this AXI4 slave port its own clock: `<name>_aclk` / `<name>_aresetn` on the top, `axi4_cdc_{wr,rd}` between the adapter's timing wrapper and the port (HAS 4.5a). The same key on a `[[bridge.masters]]` entry does the same for a master port, with the crossing ahead of its wrapper (GitHub #119 L2). `protocol = "axi4"` only. |
 | `latency` | `"cut_all"` / `"cut_ax"` / `"cut_none"` | `"cut_all"` | Which channels of this port's timing wrapper are registered (masters take the same key). `cut_ax` keeps AW/AR, `cut_none` makes the port boundary wires: 0 cycles. Same-clock axi4/axi5 ports only. GitHub #119 L7; `test_bridge_2x2_rw_lat_modes` measures every pair. |
 | `max_outstanding` | int, power of two 2..64 | `[bridge].max_outstanding` | This slave's response-tracker depth (`bridge_cam` or in-order FIFO), and so its outstanding limit. The same key on a `[[bridge.masters]]` entry sets that master adapter's limit. |
 
-: CDC slave port option (bridge TASK-006, was BRIDGE-017)
+: Per-port options: CDC (bridge TASK-006, GitHub #119 L2), latency, outstanding limit
 
 | TOML key (`[bridge]`) | Type | Default | Effect |
 |---|---|---|---|
