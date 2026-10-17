@@ -872,7 +872,38 @@ module axi4_dwidth_converter_rd #(
         //   UPSIZE (wide master beats sliced to narrow): the dnsize
         //   primitive frames one burst at a time from burst_len, so a new
         //   burst enters only once the previous one has left it.
+        //
+        //   R is registered on entry (a 2-deep skid): the record lookup by
+        //   RID and the primitive's burst framing then start from a flop,
+        //   not from the crossbar's R mux (in a bridge that combined path
+        //   was the worst one, 19 levels on the Artix-7).
         //======================================================================
+        localparam int RQ_W = AXI_ID_WIDTH + M_AXI_DATA_WIDTH + 2 + 1 + AXI_USER_WIDTH;
+        logic                        q_rvalid;
+        logic                        q_rready;
+        logic [AXI_ID_WIDTH-1:0]     q_rid;
+        logic [M_AXI_DATA_WIDTH-1:0] q_rdata;
+        logic [1:0]                  q_rresp;
+        logic                        q_rlast;
+        logic [AXI_USER_WIDTH-1:0]   q_ruser;
+        logic [RQ_W-1:0]             q_rpkt;
+
+        gaxi_skid_buffer #(
+            .DEPTH      (2),
+            .DATA_WIDTH (RQ_W)
+        ) r_in_skid (
+            .axi_aclk   (aclk),
+            .axi_aresetn(w_aresetn),
+            .wr_valid   (m_axi_rvalid),
+            .wr_ready   (m_axi_rready),
+            .wr_data    ({m_axi_rid, m_axi_rdata, m_axi_rresp, m_axi_rlast, m_axi_ruser}),
+            .rd_valid   (q_rvalid),
+            .rd_ready   (q_rready),
+            .rd_data    (q_rpkt),
+            .count      (),
+            .rd_count   ()
+        );
+        assign {q_rid, q_rdata, q_rresp, q_rlast, q_ruser} = q_rpkt;
         logic r_in_open;    // a burst has entered the primitive, RLAST not yet
         logic r_out_open;   // UPSIZE: a burst is still leaving the primitive
         logic w_gate;
@@ -883,18 +914,18 @@ module axi4_dwidth_converter_rd #(
         assign w_prim_hs = prim_rvalid && prim_rready;
         assign w_out_hs  = int_r_valid && int_r_ready;
 
-        assign prim_rvalid  = m_axi_rvalid && w_gate;
-        assign m_axi_rready = prim_rready && w_gate;
-        assign prim_rid     = m_axi_rid;
-        assign prim_rdata   = m_axi_rdata;
-        assign prim_rresp   = m_axi_rresp;
-        assign prim_rlast   = m_axi_rlast;
-        assign prim_ruser   = m_axi_ruser;
+        assign prim_rvalid  = q_rvalid && w_gate;
+        assign q_rready     = prim_rready && w_gate;
+        assign prim_rid     = q_rid;
+        assign prim_rdata   = q_rdata;
+        assign prim_rresp   = q_rresp;
+        assign prim_rlast   = q_rlast;
+        assign prim_ruser   = q_ruser;
 
-        assign w_cur_final = rasm_rec_final[m_axi_rid];
-        assign w_bstart    = m_axi_rvalid && w_gate && !r_in_open;
-        assign w_blen      = rasm_rec_nlen[m_axi_rid];
-        assign w_blane     = 8'(rasm_rec_lane[m_axi_rid]);
+        assign w_cur_final = rasm_rec_final[q_rid];
+        assign w_bstart    = q_rvalid && w_gate && !r_in_open;
+        assign w_blen      = rasm_rec_nlen[q_rid];
+        assign w_blane     = 8'(rasm_rec_lane[q_rid]);
         assign prim_sb     = {prim_rresp, prim_rid, prim_ruser};
 
         assign int_rid   = int_sb[AXI_USER_WIDTH +: AXI_ID_WIDTH];
@@ -921,7 +952,7 @@ module axi4_dwidth_converter_rd #(
                 // burst fully sent (UPSIZE).  An ID's AR is gated on its
                 // slot being free, so set and clear never meet on one ID.
                 if (DOWNSIZE && w_prim_hs && prim_rlast)
-                    rasm_rec_valid[m_axi_rid] <= 1'b0;
+                    rasm_rec_valid[q_rid] <= 1'b0;
                 if (!DOWNSIZE && w_out_hs && int_rlast)
                     rasm_rec_valid[int_rid] <= 1'b0;
                 if (w_rasm_push)
@@ -932,15 +963,15 @@ module axi4_dwidth_converter_rd #(
 `ifdef SIMULATION
         logic [AXI_ID_WIDTH-1:0] r_in_id;
         always_ff @(posedge aclk)
-            if (m_axi_rvalid && m_axi_rready && !r_in_open)
-                r_in_id <= m_axi_rid;
+            if (q_rvalid && q_rready && !r_in_open)
+                r_in_id <= q_rid;
         always_ff @(posedge aclk) begin
-            if (w_aresetn && m_axi_rvalid && m_axi_rready && !rasm_rec_valid[m_axi_rid])
+            if (w_aresetn && q_rvalid && q_rready && !rasm_rec_valid[q_rid])
                 $error("axi4_dwidth_converter_rd: R beat for ID %0d with no outstanding AR record (R_INTERLEAVE=0)",
-                       m_axi_rid);
-            if (w_aresetn && m_axi_rvalid && r_in_open && (m_axi_rid != r_in_id))
+                       q_rid);
+            if (w_aresetn && q_rvalid && r_in_open && (q_rid != r_in_id))
                 $error("axi4_dwidth_converter_rd: R_INTERLEAVE=0 but ID %0d interleaved into ID %0d's burst",
-                       m_axi_rid, r_in_id);
+                       q_rid, r_in_id);
         end
 `endif
     end endgenerate

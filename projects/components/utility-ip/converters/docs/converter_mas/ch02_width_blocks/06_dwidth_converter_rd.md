@@ -404,8 +404,10 @@ the bridge's master adapters, whose crossbar R arbiter holds a path
 through RLAST and whose slaves may not interleave (bridge PRD FR-9) --
 the pool and scheduler are not built:
 
-1. **Pass-through.** Each R beat goes straight to the data primitive as it
-   arrives; no burst is buffered.
+1. **Pass-through.** Each R beat goes to the data primitive as it
+   arrives, through one 2-deep skid that registers it (so the record
+   lookup and the primitive's burst framing start from a flop rather than
+   from the source's R mux); no burst is buffered.
 2. **Records and reservation kept.** Bursts of different IDs may still
    return in any order, so the per-ID AR record is looked up by the
    arriving beat's RID, and the one-burst-per-ID reservation stays.
