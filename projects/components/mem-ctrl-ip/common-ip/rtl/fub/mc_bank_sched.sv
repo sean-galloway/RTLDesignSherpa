@@ -138,7 +138,16 @@ module mc_bank_sched
     input  logic [NUM_RANKS-1:0]      trrd_ok_i,
     input  logic                      twtr_ok_i,
     input  logic                      trtw_ok_i,
-    input  logic                      tccd_ok_i,
+    // Raw tCCD CSR value for the FORWARD column-spacing counter: the flopped
+    // tccd_ok_i window carries a built-in +1 lag (see "ONE NEXT-STATE
+    // FUNCTION, TWO FLOPS" in mc_global_timers.sv), which a 0-stage
+    // pick==fire core eats as real spacing -- tCCD=1 became 2-cycle gaps and
+    // halved single-bank streaming bandwidth (MC-003 2026-10-17: row_major
+    // 289 vs 568 MB/s, uniform gap-2 histogram, zero ACTs). The FRFCFS core
+    // gates on its own r_tccd_fwd forward counter instead; this core mirrors
+    // that accounting exactly (spacing = tCCD for tCCD > 1, full rate for
+    // tCCD <= 1 -- the board- and model-validated semantics).
+    input  logic [7:0]                t_ccd_i,
 
     // ---- event strobes to bank + global timers ----
     output logic                      evt_act_o,
@@ -585,8 +594,36 @@ module mc_bank_sched
         end
     end
 
+    // Declared ahead of the forward tCCD counter (which keys w_col_fire_now
+    // off w_fire/w_fis_col); assigned below per the house declare-before-use
+    // rule.
     logic        w_fis_col, w_fis_act, w_fis_pre;
     logic        w_fsafe;
+    logic        w_fire;
+
+    // FORWARD tCCD counter (column spacing at fire time). Replaces the raw
+    // tccd_ok_i window in the column gate — that output is a flopped
+    // next-state whose +1 lag doubles as real spacing for this 0-stage core
+    // (tCCD=1 -> 2-cycle gaps -> half-rate single-bank streaming, MC-003
+    // 2026-10-17). Accounting mirrors the FRFCFS core's r_tccd_fwd
+    // (mc_cmd_arbiter.sv): load tCCD-1 on a demand column fire (so tCCD<=1
+    // reloads to 0 = full rate; tCCD=N>1 enforces N-cycle spacing), free-run
+    // down to 0, gate the next column on r_tccd_fwd==0. A demand RD and WR
+    // in consecutive cycles are spaced by the direction turnarounds
+    // (tWTR/tRTW + the 1-deep fire history), not by this counter — same as
+    // the FRFCFS core, where w_col_sel_now also counts both directions and
+    // the turnarounds cover the mix.
+    logic [7:0] r_tccd_fwd;
+    logic       w_col_fire_now, w_tccd_fwd_ok;
+    assign w_col_fire_now = w_fire && !w_ovr_vld && w_fis_col;
+    assign w_tccd_fwd_ok  = (r_tccd_fwd == 8'd0);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))  r_tccd_fwd <= 8'd0;
+        else if (w_col_fire_now)
+            r_tccd_fwd <= (t_ccd_i > 8'd1) ? (t_ccd_i - 8'd1) : 8'd0;
+        else if (r_tccd_fwd != 8'd0) r_tccd_fwd <= r_tccd_fwd - 8'd1;
+    )
+
     always_comb begin
         w_fis_col = (w_sel_op == OP_RD) || (w_sel_op == OP_WR);
         w_fis_act = (w_sel_op == OP_ACT);
@@ -604,7 +641,7 @@ module mc_bank_sched
                           && trrd_ok_i[RK0] && !w_rfc_busy && !maint_busy_i
                           && !w_ref_dmd_block[w_sel_bank];
             else if (w_fis_col)
-                w_fsafe = bank_rdwr_ready_i[RK0][w_sel_bank] && tccd_ok_i
+                w_fsafe = bank_rdwr_ready_i[RK0][w_sel_bank] && w_tccd_fwd_ok
                           && (w_sel_is_rd ? (twtr_ok_i && !w_rd_turn_block)
                                           : (trtw_ok_i && !w_wr_turn_block))
                           && !w_ref_dmd_block[w_sel_bank]
@@ -618,7 +655,6 @@ module mc_bank_sched
         end
     end
 
-    logic w_fire;
     assign w_fire      = (w_ovr_vld || w_pick_vld) && w_fsafe && cmd_ready_i;
     assign cmd_valid_o = w_fire;
 
@@ -759,7 +795,7 @@ module mc_bank_sched
             if (refresh_req_i || refresh_drain_i)        stall_refresh_o    <= stall_refresh_o + 1;
             else if (!w_any_pending)                     stall_noreq_o      <= stall_noreq_o + 1;
             else if (!twtr_ok_i || !trtw_ok_i)           stall_turnaround_o <= stall_turnaround_o + 1;
-            else if (!tccd_ok_i)                         stall_tccd_o       <= stall_tccd_o + 1;
+            else if (!w_tccd_fwd_ok)                     stall_tccd_o       <= stall_tccd_o + 1;
             else if (!tfaw_ok_i[RK0] || !trrd_ok_i[RK0]) stall_actlimit_o   <= stall_actlimit_o + 1;
             else                                         stall_banktimer_o  <= stall_banktimer_o + 1;
         end

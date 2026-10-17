@@ -704,7 +704,7 @@ module mc_scheduler_plane
             .trrd_ok_i          (w_trrd_ok),
             .twtr_ok_i          (w_twtr_ok),
             .trtw_ok_i          (w_trtw_ok),
-            .tccd_ok_i          (w_tccd_ok),
+            .t_ccd_i            (t_ccd_i),
             .evt_act_o          (evt_act),
             .evt_rd_o           (evt_rd),
             .evt_wr_o           (evt_wr),
