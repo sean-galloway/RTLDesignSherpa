@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""MC-003 board-free perf proxy: row_major / col_ilv / col_major at 75 MHz.
+"""MC-003 board-free perf proxy: incremental / row_major / col_ilv / col_major.
 
-Measures the three access-pattern families the silicon perf gates use
+Measures the four access-pattern families the silicon perf gates use
 (`row_major >= 570`, `col_ilv >= 354 held`, `col_major toward the 369 MB/s
-floor`) entirely in simulation -- no physical board -- on the GRANITE
+floor`; incremental informational) entirely in simulation -- no physical
+board -- on the GRANITE
 whole-harness sim at the BOARD clock and geometry.
 
 Fidelity argument (why this is a valid proxy, unlike test_ddr2_char_char.py):
@@ -83,6 +84,7 @@ _FILELIST = ("projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/"
 GATES = {"row_major": 570, "col_ilv": 354, "col_major": 369}
 
 _FAMILIES = {
+    "incremental": pc.FAM_INCREMENTAL,
     "row_major": pc.FAM_ROW_MAJOR,
     "col_ilv":   pc.FAM_COL_INTERLEAVE,
     "col_major": pc.FAM_COL_MAJOR,
@@ -139,7 +141,7 @@ async def _gate_trace(dut, path, max_fires=40):
             rop0 = int(bs.r_op[0].value)
             rdw_reg = int(bs.r_rdwr_rdy[0][0].value)
             rdw_live = int(bs.bank_rdwr_ready_i[0][0].value)
-            tccd = int(bs.tccd_ok_i.value)
+            tccd = int(bs.w_tccd_fwd_ok.value)
             rdf0 = int(bs.r_rdfire0.value)
             wrf0 = int(bs.r_wrfire0.value)
             bh0v = int(bs.rd_bh_valid_i.value)
@@ -176,6 +178,32 @@ def _gap_stats(log, kind):
             "hist": dict(sorted(hist.items()))}
 
 
+async def _mism_probe(dut, log):
+    """MISM_PROBE=1: latch (beat, exp, act) for every mismatching read beat
+    on the gen0 debug tap -- localizes corruption in the read stream without
+    touching RTL. beat is the R-beat ordinal from stream start."""
+    try:
+        sig_v = dut.u_dut.u_dut.rd_dbg_valid
+        sig_r = dut.u_dut.u_dut.rd_dbg_ready
+        sig_m = dut.u_dut.u_dut.rd_dbg_mismatch
+        sig_e = dut.u_dut.u_dut.rd_dbg_expected
+        sig_a = dut.u_dut.u_dut.rd_dbg_actual
+    except AttributeError:
+        dut._log.info("MISM_PROBE: dbg tap absent")
+        return
+    beat = 0
+    while True:
+        await RisingEdge(dut.aclk)
+        try:
+            if int(sig_v.value):
+                log.append({"beat": beat, "mism": int(sig_m.value),
+                            "exp": int(sig_e.value),
+                            "act": int(sig_a.value)})
+                beat += 1
+        except Exception:
+            pass
+
+
 async def _bringup(dut):
     """Identical to the granite uart bringup but at the 75 MHz board period."""
     h = UartSimHarness(dut, clks_per_bit=CLKS_PER_BIT,
@@ -207,7 +235,7 @@ async def cocotb_test_granite_perf(dut):
     clk_mhz = CLK_ACTUAL_HZ / 1e6
     fam_names = [f.strip() for f in
                  os.environ.get("TEST_FAMILIES",
-                                "row_major,col_ilv,col_major").split(",")]
+                                "incremental,row_major,col_ilv,col_major").split(",")]
     geom = pc.DEFAULT_GEOM
     dump_path = os.environ.get("PERF_DUMP", "")
 
@@ -289,11 +317,19 @@ async def cocotb_test_granite_perf(dut):
     tracing = os.environ.get("PERF_CMD_TRACE", "0") == "1"
     if tracing:
         cocotb.start_soon(_cmd_probe(dut, cmd_log))
+    mism_log = []
+    if os.environ.get("MISM_PROBE", "0") == "1":
+        cocotb.start_soon(_mism_probe(dut, mism_log))
     gate_path = os.environ.get("PERF_GATE_TRACE", "")
     if gate_path:
         cocotb.start_soon(_gate_trace(dut, gate_path))
 
     r = await bridge(prog)()
+    if mism_log:
+        mism_dump = os.environ.get("MISM_DUMP", "/tmp/mc003_mism.json")
+        with open(mism_dump, "w") as fh:
+            json.dump(mism_log, fh, indent=2)
+        dut._log.info("mism probe: %d bad beats -> %s", len(mism_log), mism_dump)
     fams = r["families"]
 
     if tracing and cmd_log:
@@ -354,7 +390,7 @@ def test_granite_char_perf(request):
         "TEST_TXN": os.environ.get("TEST_TXN", "256"),
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),
         "TEST_BURST_LEN": os.environ.get("TEST_BURST_LEN", "8"),
-        "TEST_FAMILIES": os.environ.get("TEST_FAMILIES", "row_major,col_ilv,col_major"),
+        "TEST_FAMILIES": os.environ.get("TEST_FAMILIES", "incremental,row_major,col_ilv,col_major"),
         "TEST_CMD_DELAY": os.environ.get("TEST_CMD_DELAY", "0"),
         "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),
         "TEST_T_RDDATA_EN": os.environ.get("TEST_T_RDDATA_EN", "4"),

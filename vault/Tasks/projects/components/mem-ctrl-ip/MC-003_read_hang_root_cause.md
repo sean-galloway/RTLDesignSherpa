@@ -349,3 +349,69 @@ broken `viol` dict, not the audit.
   exactly (row_major 289/282 MB/s vs FRFCFS 568/570) with integrity clean —
   the ~0.5x row_major gap is refresh-independent and tracked as the next
   MC-003 item (CLOSE_ON_DRAIN eager-AP suspect; see the tracker).
+
+## 9. Session 2026-10-17 (later) — refresh-grant lookahead hole: REFab granted one cycle after a demand ACT
+
+Found by the col_major perf investigation (`test_granite_char_perf.py`,
+standalone col_major, tREFI=585, any txn count: 72 mismatched beats at
+txn=256, 264 at txn=1024, deterministic; PASSES at tREFI=100000 and when
+col_major runs after other families in one prog()). (Also updates the §8.5
+bandwidth note: the tCCD forward-counter fix `8a03b7b95` landed earlier this
+session — row_major is now 577.9/563.5 MB/s, gate MET; §8.5's 289/282 figure
+is pre-that-fix.)
+
+### 9.1 Mechanism (beat-exact, from DFI_CMD_TRACE at the model)
+
+Every refresh episode that lined up one cycle after a demand ACT produced the
+same illegal sequence:
+
+```
+39679  PRE            (row N-1)          ← normal close-page stream
+39682  ACT  row N     (open_row=closed)  ← demand ACT fires; RTL seats head N
+39683  REF            (open_row=row N!)  ← REFab granted WITH THE BANK ACTIVE
+39695..39702  WR x8  (open_row=closed)   ← head N's columns fire post-tRFC
+                                         into the model-CLOSED bank
+```
+
+Root cause: the grant predicate `w_ref_safe = !w_any_active && ...` reads the
+REGISTERED row-active image, which lags one cycle behind a demand ACT fire.
+The refresh counter can assert `refresh_req_i` in that exact window (the
+Oct-17 `w_ref_dmd_block` only covers ops firing during req/drain, nothing
+covers the cycle before the request). REF then closes the bank at the model
+while the RTL image keeps it open (REF sends no row-clear — by design), and
+after `w_rfc_dmd_block` lifts at tRFC-end, the squeezed-through head's row
+still matches the stale image, so its columns fire without a re-ACT.
+
+Damage per episode: the model's closed-bank fallback applies the whole write
+burst to row 0 (`banks[b].row or 0`), so (a) the burst's txn is miswritten
+(read-back mismatches, 8 beats) and (b) row 0 = txn 0's row is clobbered
+(8 more beats, counted once). Arithmetic checks exactly: 8 episodes → 8×8 + 8
+= **72**. Read phase never corrupted (RD-into-closed count 0): reads drain
+before grant via `w_rdret_busy`; only the single-cycle ACT lag was unguarded.
+
+### 9.2 Fix (mc_bank_sched.sv, BANK_FIFO core only)
+
+Same fire-history shape as the existing `r_wrfire0/r_rdfire0` turnaround
+registers: new `r_actfire0` + `r_actfire0_bank`, set on demand ACT fires.
+`w_ref_safe` gains `!r_actfire0`; `w_refpb_safe` gains
+`!(r_actfire0 && r_actfire0_bank == refresh_bank_i)`. A request asserting in
+the lag window now defers; the next cycle the registered image shows the bank
+active and the normal drain-PRE path closes it before the grant — the head
+then re-ACTs post-tRFC and streams cleanly. No deadlock (the all-idle grant
+still does not depend on demand firing).
+
+### 9.3 Verification
+
+- Failing config (col_major txn=256 tREFI=585): **PASS, mismatched=0** (was 72,
+  deterministic). Bandwidth unchanged (260.2/283.4 — the corruption sat off
+  the critical path).
+- 4-family perf txn=1024 tREFI=585: **PASS, all families mism=0** —
+  incremental 559.6/511.3, row_major 577.9/563.5 (gate ≥570 held), col_ilv
+  316.3/229.3, col_major 260.8/293.2 MB/s.
+- Gap battery col_major cell: tREFI 100/200/400/585 **4/4 PASS** (the fix
+  interacts with the exact req/drain machinery these cells stress).
+- Storage-backend co-verification (AGENTS.md): store-arbiter contract PASS;
+  granite top geared 2 passed + 1 xfailed; uart smoke PASS.
+- Pumice `run-all-func`: 210 passed / 7 failed — the same seven pre-existing
+  cells (BUG-025 + six BUG-027); byte-identical, as expected (mc_bank_sched
+  is not in pumice's committed configuration path).

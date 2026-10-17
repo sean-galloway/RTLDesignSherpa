@@ -442,6 +442,17 @@ module mc_bank_sched
     logic w_rdret_busy;
     assign w_rdret_busy = r_rd_pipe_busy || rd_ret_busy_i;
 
+    // Demand-ACT fire history. The registered row-active image (r_row_act)
+    // lags one cycle behind a demand ACT fire, so a refresh request asserting
+    // in that window used to grant REFab with a bank actually ACTIVE at the
+    // model: ACT@X, REF@X+1, the bank closed at the model while the RTL image
+    // still showed it open, and the squeezed-through head's columns fired
+    // post-tRFC into the closed bank (row-0 fallback -> one miswritten burst
+    // per episode plus a clobbered row 0; 72 beats at col_major txn=256,
+    // MC-003 2026-10-17). Same fire-history shape as r_wrfire0/r_rdfire0.
+    logic           r_actfire0;
+    logic [BKW-1:0] r_actfire0_bank;
+
     // All-idle gates for the override grants. Rows closed (+ recovery windows)
     // is the JEDEC requirement and matches the FRFCFS core's w_ref_safe /
     // w_maint_safe exactly: PENDING DEMAND DOES NOT BLOCK REFRESH. A pending
@@ -454,8 +465,10 @@ module mc_bank_sched
     // w_rdret_busy additionally holds REF out of the open read-return window
     // (see above) -- its own slip would reframe the aligner's last framing.
     logic w_ref_safe, w_refpb_safe, w_maint_safe;
-    assign w_ref_safe   = !w_any_active && !w_rfc_busy && !w_rdret_busy;
-    assign w_refpb_safe = !r_row_act[RK0][refresh_bank_i] && !w_rfc_busy && !w_rdret_busy;
+    assign w_ref_safe   = !w_any_active && !r_actfire0
+                       && !w_rfc_busy && !w_rdret_busy;
+    assign w_refpb_safe = !r_row_act[RK0][refresh_bank_i] && !w_rfc_busy && !w_rdret_busy
+                       && !(r_actfire0 && (r_actfire0_bank == refresh_bank_i));
     assign w_maint_safe = !w_any_active && !w_rfc_busy && !w_zq_busy && !maint_busy_i;
 
     logic        w_ovr_vld;
@@ -727,6 +740,8 @@ module mc_bank_sched
             r_rotor   <= '0;
             r_wrfire0 <= 1'b0;
             r_rdfire0 <= 1'b0;
+            r_actfire0      <= 1'b0;
+            r_actfire0_bank <= '0;
         end else begin
             for (int b = 0; b < NUM_BANKS; b++) begin
                 // WR skid: column fire releases the head (seat the reserve);
@@ -778,6 +793,8 @@ module mc_bank_sched
                 r_rotor <= w_pick_pair + PAIRW'(1);
             r_wrfire0 <= w_fire && !w_ovr_vld && w_fis_col && !w_fis_rd;
             r_rdfire0 <= w_fire && !w_ovr_vld && w_fis_col &&  w_fis_rd;
+            r_actfire0      <= w_fire && !w_ovr_vld && w_fis_act;
+            r_actfire0_bank <= w_sel_bank;
         end
     )
 
