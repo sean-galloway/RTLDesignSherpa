@@ -115,6 +115,25 @@ async def cocotb_test_basic_write(dut):
 
 : Test Categories
 
+#### Protocol Checkers on Every Port
+
+Every generated bridge also gets `<bridge>_checkers.sv`: one SystemVerilog
+`bind` per external AXI4/AXI5 port, attaching
+`formal/bridge/axi4_protocol_checker` to that port on its own clock (GitHub
+#119 L3). It checks VALID held until READY, payload stable while VALID waits,
+VALID low after reset, and legal burst type and size. On a master port it
+checks the requester; on a slave port it checks the bridge, which no other
+checker in the suite does. `<bridge>_checkers.f` is the bridge filelist plus
+the checker and the binds. It is for simulation and formal only: nothing is
+added to the RTL or the synthesis filelist, which keeps assertions out of
+the RTL.
+
+Generated tests build with it by default; `BRIDGE_CHECKERS=0` builds the bare
+bridge. A failed check stops the simulation and fails the test. A mutation
+showed the checkers watch: wiring `cpu`'s AWREADY to 0 at its checker fails
+`basic_connectivity` on `u_chk_cpu.aw_valid_stable`. APB, AXI4-Lite, AXI3
+and WB4 ports have no checker yet.
+
 ### Test Execution Model
 
 #### Serial Execution

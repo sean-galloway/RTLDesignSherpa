@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Fri Oct 16 14:52:05 2026
+| Date         : Fri Oct 16 19:46:26 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_2x2_axi5_native__xc7k325tffg900-2/utilization_hier.txt
 | Design       : bridge_2x2_axi5_native
@@ -22,13 +22,13 @@ Table of Contents
 +----------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
 |          Instance          |                Module               | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
 +----------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
-| bridge_2x2_axi5_native     |                               (top) |       7889 |       7889 |       0 |    0 | 6705 |      0 |      0 |          0 |
+| bridge_2x2_axi5_native     |                               (top) |       8119 |       8119 |       0 |    0 | 6773 |      0 |      0 |          0 |
 |   (bridge_2x2_axi5_native) |                               (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
-|   u_cpu_adapter            |  bridge_2x2_axi5_native_cpu_adapter |       1639 |       1639 |       0 |    0 | 1576 |      0 |      0 |          0 |
-|   u_ddr_adapter            |  bridge_2x2_axi5_native_ddr_adapter |       1840 |       1840 |       0 |    0 | 1677 |      0 |      0 |          0 |
-|   u_dma_adapter            |  bridge_2x2_axi5_native_dma_adapter |       1339 |       1339 |       0 |    0 | 1576 |      0 |      0 |          0 |
-|   u_sram_adapter           | bridge_2x2_axi5_native_sram_adapter |       1860 |       1860 |       0 |    0 | 1679 |      0 |      0 |          0 |
-|   u_xbar                   |         bridge_2x2_axi5_native_xbar |       1158 |       1158 |       0 |    0 |  136 |      0 |      0 |          0 |
+|   u_cpu_adapter            |  bridge_2x2_axi5_native_cpu_adapter |       1766 |       1766 |       0 |    0 | 1610 |      0 |      0 |          0 |
+|   u_ddr_adapter            |  bridge_2x2_axi5_native_ddr_adapter |       1831 |       1831 |       0 |    0 | 1677 |      0 |      0 |          0 |
+|   u_dma_adapter            |  bridge_2x2_axi5_native_dma_adapter |       1458 |       1458 |       0 |    0 | 1610 |      0 |      0 |          0 |
+|   u_sram_adapter           | bridge_2x2_axi5_native_sram_adapter |       1875 |       1875 |       0 |    0 | 1679 |      0 |      0 |          0 |
+|   u_xbar                   |         bridge_2x2_axi5_native_xbar |       1139 |       1139 |       0 |    0 |  136 |      0 |      0 |          0 |
 +----------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
 * Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
 

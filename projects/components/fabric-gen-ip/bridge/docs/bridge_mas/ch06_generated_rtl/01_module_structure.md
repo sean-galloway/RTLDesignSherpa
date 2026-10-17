@@ -139,7 +139,17 @@ Example (prefix = "ddr_s_axi"):
 A CDC port (cdc = true; slave: bridge TASK-006, master: GitHub #119 L2) adds two clock pins:
   {name}_aclk            - the port's own clock
   {name}_aresetn         - its active-low reset
+
+A watchdog slave (timeout_cycles > 0, GitHub #119 L3) adds one status pin:
+  {name}_timeout         - axi4_slave_watchdog tripped, sticky until reset
 ```
+
+A watchdog slave's adapter instantiates `axi4_slave_watchdog` between its
+timing wrapper (driving `wdg_{name}_axi_*`) and the port, or the clock
+crossing on a CDC port, on `aclk`; its `o_wdog_tripped` is the top's
+`{name}_timeout`. Beside the RTL, every bridge also gets
+`{bridge}_checkers.sv`, protocol-checker binds for simulation and formal
+(HAS, Verification Strategy).
 
 A `cdc = true` slave port's adapter takes `s_aclk`/`s_aresetn` beside
 `aclk`/`aresetn`. Inside it the timing wrapper (and the monitor, when built)

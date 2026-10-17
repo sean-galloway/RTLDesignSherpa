@@ -1,4 +1,4 @@
 bridge=bridge_2x2_axi5 part=xc7a100tcsg324-1 clk_ns=10.0
-luts=5060 ffs=3945 bram_tiles=0 dsps=0
-wns_ns=-0.056 wns_reg2reg_ns=-0.056 fmax_reg2reg_mhz=99.4 worst_logic_levels=10 unrouted_nets=0
-clocks=aclk io_delay_ns=3.0 seconds=104
+luts=5120 ffs=4013 bram_tiles=0 dsps=0
+wns_ns=-0.11 wns_reg2reg_ns=-0.11 fmax_reg2reg_mhz=98.9 worst_logic_levels=10 unrouted_nets=0
+clocks=aclk io_delay_ns=3.0 seconds=282

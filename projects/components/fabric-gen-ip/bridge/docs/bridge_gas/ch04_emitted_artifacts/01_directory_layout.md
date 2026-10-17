@@ -37,12 +37,19 @@ rtl/generated/<bridge_name>/
 ├── ...
 ├── <bridge_name>.toml              (copied source config)
 ├── <bridge_name>_connectivity.csv  (copied connectivity matrix)
+├── <bridge_name>_checkers.sv       (protocol-checker binds; simulation/formal only)
 ├── <bridge_name>_cfg_pkg.sv        (when use_cfg_regblock=true)
 └── <bridge_name>_cfg.sv            (when use_cfg_regblock=true)
 
 rtl/filelists/
-└── <bridge_name>.f
+├── <bridge_name>.f
+└── <bridge_name>_checkers.f        (the bridge + checker + binds; never synthesis)
 ```
+
+`<bridge_name>_checkers.sv` binds `formal/bridge/axi4_protocol_checker` to
+every external AXI4/AXI5 port on that port's clock (GitHub #119 L3,
+`CheckerBindGenerator`). Generated tests compile `<bridge_name>_checkers.f`
+unless `BRIDGE_CHECKERS=0`.
 
 If `--generate-tests` is used, the following are also written:
 

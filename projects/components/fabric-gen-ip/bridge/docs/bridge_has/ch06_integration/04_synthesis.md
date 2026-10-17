@@ -157,84 +157,78 @@ block RAM and zero DSPs.
 
 | Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
 |---|---:|---:|---:|---:|---:|---:|
-| `bridge_2x2_axi5` | 5,060 | 3,945 | 0 | -0.06 | 99.4 | 10 |
-| `bridge_2x2_axi5_native` | 8,054 | 6,705 | 0 | -0.53 | 95.0 | 12 |
-| `bridge_2x2_rw` | 5,719 | 4,537 | 0 | +0.05 | 100.5 | 9 |
-| `bridge_2x2_rw_cdc` | 5,334 | 3,953 | 0 | +0.05 | 100.5 | 10 |
-| `bridge_2x2_rw_pipe` | 5,492 | 4,801 | 0 | +0.69 | 107.5 | 8 |
-| `bridge_2x2_rw_qos` | 5,195 | 3,857 | 0 | -0.63 | 94.1 | 12 |
-| `bridge_2x2_rw_qos_pipe` | 5,938 | 4,865 | 0 | -0.62 | 94.2 | 12 |
-| `bridge_4x4_rw` | 39,642 | 37,968 | 0 | -7.48 | 57.2 | 20 |
-| `bridge_5x3_channels` | 30,138 | 27,875 | 0 | -3.96 | 71.6 | 15 |
-| `bridge_mix_a` | 7,632 | 6,551 | 0 | -4.51 | 68.9 | 16 |
+| `bridge_2x2_axi5` | 5,120 | 4,013 | 0 | -0.11 | 98.9 | 10 |
+| `bridge_2x2_axi5_native` | 8,252 | 6,773 | 0 | -1.20 | 89.3 | 11 |
+| `bridge_2x2_rw` | 5,832 | 4,605 | 0 | -0.04 | 99.6 | 11 |
+| `bridge_2x2_rw_cdc` | 5,184 | 4,021 | 0 | +0.07 | 100.7 | 11 |
+| `bridge_2x2_rw_pipe` | 5,569 | 4,869 | 0 | +0.57 | 106.1 | 8 |
+| `bridge_2x2_rw_qos` | 5,344 | 3,925 | 0 | -0.28 | 97.3 | 11 |
+| `bridge_2x2_rw_qos_pipe` | 5,932 | 4,933 | 0 | -0.02 | 99.8 | 12 |
+| `bridge_4x4_rw` | 40,239 | 38,241 | 0 | -3.01 | 76.9 | 15 |
+| `bridge_5x3_channels` | 30,835 | 28,051 | 0 | -3.21 | 75.7 | 15 |
+| `bridge_mix_a` | 7,994 | 6,623 | 0 | -2.10 | 82.6 | 13 |
 
 : Reference set on the Artix-7 100T -1 (Nexys A7), constrained at 10 ns
 
 | Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
 |---|---:|---:|---:|---:|---:|---:|
-| `bridge_2x2_axi5` | 4,911 | 3,945 | 0 | +0.40 | 159.6 | 11 |
-| `bridge_2x2_axi5_native` | 7,889 | 6,705 | 0 | +0.41 | 159.9 | 12 |
-| `bridge_2x2_rw` | 5,617 | 4,537 | 0 | +0.21 | 155.0 | 11 |
-| `bridge_2x2_rw_cdc` | 5,202 | 3,953 | 0 | +0.38 | 159.2 | 10 |
-| `bridge_2x2_rw_pipe` | 5,494 | 4,801 | 0 | +1.14 | 180.8 | 7 |
-| `bridge_2x2_rw_qos` | 4,986 | 3,857 | 0 | +0.46 | 161.1 | 12 |
-| `bridge_2x2_rw_qos_pipe` | 5,852 | 4,865 | 0 | +0.24 | 155.7 | 12 |
-| `bridge_4x4_rw` | 39,671 | 37,968 | 0 | -2.73 | 106.4 | 20 |
-| `bridge_5x3_channels` | 30,001 | 27,875 | 0 | -0.62 | 137.3 | 16 |
-| `bridge_mix_a` | 7,524 | 6,551 | 0 | -1.11 | 128.6 | 16 |
+| `bridge_2x2_axi5` | 4,949 | 4,013 | 0 | +0.59 | 164.6 | 11 |
+| `bridge_2x2_axi5_native` | 8,119 | 6,773 | 0 | +0.47 | 161.3 | 12 |
+| `bridge_2x2_rw` | 5,682 | 4,605 | 0 | +0.56 | 163.8 | 10 |
+| `bridge_2x2_rw_cdc` | 5,030 | 4,021 | 0 | +0.26 | 156.0 | 10 |
+| `bridge_2x2_rw_pipe` | 5,564 | 4,869 | 0 | +1.14 | 180.8 | 9 |
+| `bridge_2x2_rw_qos` | 5,176 | 3,925 | 0 | +0.48 | 161.6 | 11 |
+| `bridge_2x2_rw_qos_pipe` | 5,886 | 4,933 | 0 | +0.53 | 163.0 | 11 |
+| `bridge_4x4_rw` | 40,042 | 38,241 | 0 | -0.14 | 146.8 | 13 |
+| `bridge_5x3_channels` | 30,712 | 28,051 | 0 | -0.68 | 136.1 | 15 |
+| `bridge_mix_a` | 7,844 | 6,623 | 0 | +0.30 | 157.1 | 13 |
 
 : Reference set on the Kintex-7 325T -2 (Genesys 2), constrained at 6.667 ns
 
 ### Reading the rows
 
-Re-measured 2026-10-16 on the generator of that date (rev 1.2): one-target
-lifted and per-ID target tracking (GitHub #119 L1), per-port trackers sized
-by `max_outstanding` (L5), latency modes (L7), the registered CAM insert and
-free, and the read width converters built without their reassembly pool.
-The 2026-09-11 rows these replace predate all of it.
+Re-measured 2026-10-16 (rev 1.3) on the generator of that date: per-ID
+target tracking (GitHub #119 L1), trackers sized by `max_outstanding` (L5),
+latency modes (L7), the registered CAM insert and free, the per-ID gate
+built from registered flags, and width converters without the read
+reassembly pool and with a registered B input. The 2026-09-11 rows these
+replace predate all of it. Rows within about 0.3 ns of zero move by that
+much from run to run with placement; read them as "at the target".
 
-- **The 2x2s grew by a quarter and stayed near 100 MHz.** `bridge_2x2_rw`
-  went from 4,615 LUTs and 3,253 FFs to 5,719 and 4,537: the per-ID target
-  tables in each master adapter (`2**id_track_bits` entries per direction)
-  and the CAM's pending-insert and pending-free registers. It still meets
-  10 ns on the Artix-7, as do the CDC and registered-crossbar variants; the
-  AXI5 pair misses by 0.06 ns and the native-AXI5 fixture by 0.53 ns. Every
-  2x2 meets 6.667 ns on the Kintex-7.
-- **The CAM-allocate miss path is gone.** The rows that missed in
-  September all failed on master request register, crossbar arbitration
-  and mux, slave CAM allocate. The registered CAM insert takes that path
-  out, and no row's worst path ends at a CAM allocate any more.
-- **The response return is the path now.** In the 2x2s it runs from a
-  slave's R or B skid through the CAM lookup and the crossbar's response
-  routing into either the CAM's count array or the master's per-ID target
-  counter (`ar_idt_cnt`, L1), 9 to 12 levels.
-- **QoS no longer closes the Artix-7 behind the registered crossbar.**
-  `bridge_2x2_rw_qos` improved from -2.91 ns to -0.63 ns, but
-  `bridge_2x2_rw_qos_pipe` went from +0.17 ns to -0.62 ns. Its worst path is
-  now on the request side, before the pipeline register: a master's AR skid
-  through the address decode, L1's per-ID gate (`ar_gate_ok`) and the QoS
-  compare into the registered crossbar's AR stage. The per-ID gate sits in
-  series with arbitration.
-- **Fixtures with width converters were unmeasurable until 2026-10-16.**
-  Since 2026-10-04 every read width converter carried a store-and-forward
-  reassembly pool sized for 16 x 272 beats, about 128k LUTs per instance
-  in synthesis. `bridge_mix_a` (one converter) needed 134,657 LUTs on a
-  63,400-LUT part, and `bridge_4x4_rw` (ten) did not finish synthesis. The
-  bridge now builds its read converters with `R_INTERLEAVE = 0` (no pool:
-  its R arbiters hold through RLAST and slaves may not interleave R), and
-  the write converter's B-response search is parallel. That closed a
-  58-level, -30 ns path.
-- **Those fixtures now miss on the write converter's B fold.**
-  `bridge_mix_a`, `bridge_5x3_channels` and `bridge_4x4_rw` all fail on
-  one structure: a slave's B response runs through the crossbar's B
-  arbiter into the write converter's B CAM (its `m_axi_bready` depends
-  combinationally on its own CAM match), and back into the slave adapter's
-  CAM free. That is two CAM lookups in one cycle. They miss by 4-7.5 ns on
-  the Artix-7 and 0.6-2.7 ns on the Kintex-7. Registering the converter's
-  B input is the open fix (GitHub #119).
-- **Width steps still set the size.** The 4x4, with 32/64/128/256-bit
-  ports, is seven times the 2x2: every converter carries a full wide beat
-  in each direction, per path.
+- **The 2x2s are at 100 MHz on the Artix-7 and 150 MHz on the Kintex-7.**
+  On the Artix-7 every 2x2 except the native-AXI5 one is within 0.3 ns of
+  10 ns, and `bridge_2x2_rw_pipe` closes with +0.57 ns. Every 2x2 meets
+  6.667 ns on the Kintex-7. `bridge_2x2_rw` grew from 4,615 LUTs and 3,253
+  FFs to about 5,800 and 4,600: the per-ID target tables, the CAM's
+  pending-insert and pending-free registers, and the gate's registered
+  flags.
+- **The September CAM-allocate path is gone,** taken out by the registered
+  CAM insert; no row's worst path ends at a CAM allocate.
+- **QoS is back at 100 MHz.** In September it missed by 2.91 ns
+  (`bridge_2x2_rw_qos`). The per-ID gate the arbitration sees in series is
+  now a 1-bit lookup and a one-hot AND (registered busy and full flags), so
+  QoS and QoS behind the registered crossbar are at the target on the
+  Artix-7 and close on the Kintex-7.
+- **The native-AXI5 2x2 misses the Artix-7 by 1.2 ns:** 128-bit beats with
+  every AMBA5 feature on every port, route-dominated. It meets the Kintex-7.
+- **Converter fixtures are measurable again and much closer.** Until
+  2026-10-16, every read width converter carried a 16 x 272-beat
+  reassembly pool (about 128k LUTs each). `bridge_mix_a` did not fit the
+  Artix-7 and `bridge_4x4_rw` did not finish synthesis. With the pool gone
+  (`R_INTERLEAVE = 0`, legal because slaves may not interleave R), the
+  write converter's B input registered and its CAM match one-hot:
+  - `bridge_4x4_rw` went from -7.5 to -3.0 ns on the Artix-7 and is at the
+    target on the Kintex-7 (-0.14 ns);
+  - `bridge_5x3_channels` is -3.2 / -0.7 ns;
+  - `bridge_mix_a` is -2.1 ns / met.
+- **What those three still miss on is wide-path routing.** Their worst paths
+  are route-dominated (78-83% route): the 256-bit R data return through a
+  crossbar response mux into a master's R skid (5x3), and a slave CAM's
+  pending free into its count array (mix_a). `xbar_pipeline` registers the
+  response path, and none of these three fixtures uses it.
+- **Width steps set the size.** The 4x4 with 32/64/128/256-bit ports is
+  about seven times the 2x2: every converter carries a full wide beat each
+  way, per path.
 - **No block RAM, no DSPs, anywhere.** The CAMs, trackers and FIFOs are
   LUT arrays; there is no arithmetic.
 

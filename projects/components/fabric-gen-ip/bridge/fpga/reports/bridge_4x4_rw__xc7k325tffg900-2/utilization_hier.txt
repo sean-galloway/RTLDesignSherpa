@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Fri Oct 16 17:17:16 2026
+| Date         : Fri Oct 16 20:48:39 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_4x4_rw__xc7k325tffg900-2/utilization_hier.txt
 | Design       : bridge_4x4_rw
@@ -22,19 +22,19 @@ Table of Contents
 +---------------------------+-------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
 |          Instance         |                Module               | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
 +---------------------------+-------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
-| bridge_4x4_rw             |                               (top) |      39671 |      39671 |       0 |    0 | 37968 |      0 |      0 |          0 |
+| bridge_4x4_rw             |                               (top) |      40042 |      40042 |       0 |    0 | 38241 |      0 |      0 |          0 |
 |   (bridge_4x4_rw)         |                               (top) |          0 |          0 |       0 |    0 |     0 |      0 |      0 |          0 |
-|   u_cpu_master_adapter    |    bridge_4x4_rw_cpu_master_adapter |       6118 |       6118 |       0 |    0 |  6890 |      0 |      0 |          0 |
-|   u_ddr0_slave_adapter    |    bridge_4x4_rw_ddr0_slave_adapter |       2156 |       2156 |       0 |    0 |  1454 |      0 |      0 |          0 |
-|   u_dma0_master_adapter   |   bridge_4x4_rw_dma0_master_adapter |       3596 |       3596 |       0 |    0 |  4523 |      0 |      0 |          0 |
-|   u_dma1_master_adapter   |   bridge_4x4_rw_dma1_master_adapter |       6499 |       6499 |       0 |    0 |  7294 |      0 |      0 |          0 |
-|   u_gpu_master_adapter    |    bridge_4x4_rw_gpu_master_adapter |      10882 |      10882 |       0 |    0 | 10796 |      0 |      0 |          0 |
-|   u_gpu_mem_slave_adapter | bridge_4x4_rw_gpu_mem_slave_adapter |       3142 |       3142 |       0 |    0 |  3048 |      0 |      0 |          0 |
-|   u_periph_slave_adapter  |  bridge_4x4_rw_periph_slave_adapter |       1747 |       1747 |       0 |    0 |  1180 |      0 |      0 |          0 |
-|   u_sram_slave_adapter    |    bridge_4x4_rw_sram_slave_adapter |       2882 |       2882 |       0 |    0 |  1960 |      0 |      0 |          0 |
+|   u_cpu_master_adapter    |    bridge_4x4_rw_cpu_master_adapter |       6451 |       6451 |       0 |    0 |  6962 |      0 |      0 |          0 |
+|   u_ddr0_slave_adapter    |    bridge_4x4_rw_ddr0_slave_adapter |       2121 |       2121 |       0 |    0 |  1454 |      0 |      0 |          0 |
+|   u_dma0_master_adapter   |   bridge_4x4_rw_dma0_master_adapter |       3617 |       3617 |       0 |    0 |  4557 |      0 |      0 |          0 |
+|   u_dma1_master_adapter   |   bridge_4x4_rw_dma1_master_adapter |       6613 |       6613 |       0 |    0 |  7351 |      0 |      0 |          0 |
+|   u_gpu_master_adapter    |    bridge_4x4_rw_gpu_master_adapter |      10920 |      10920 |       0 |    0 | 10906 |      0 |      0 |          0 |
+|   u_gpu_mem_slave_adapter | bridge_4x4_rw_gpu_mem_slave_adapter |       3133 |       3133 |       0 |    0 |  3048 |      0 |      0 |          0 |
+|   u_periph_slave_adapter  |  bridge_4x4_rw_periph_slave_adapter |       1682 |       1682 |       0 |    0 |  1180 |      0 |      0 |          0 |
+|   u_sram_slave_adapter    |    bridge_4x4_rw_sram_slave_adapter |       2879 |       2879 |       0 |    0 |  1960 |      0 |      0 |          0 |
 |   u_subtractive           |              axi4_subtractive_slave |         35 |         35 |       0 |    0 |    65 |      0 |      0 |          0 |
-|   u_subtractive_adapter   |   bridge_4x4_rw_subtractive_adapter |        350 |        350 |       0 |    0 |   308 |      0 |      0 |          0 |
-|   u_xbar                  |                  bridge_4x4_rw_xbar |       2277 |       2277 |       0 |    0 |   450 |      0 |      0 |          0 |
+|   u_subtractive_adapter   |   bridge_4x4_rw_subtractive_adapter |        348 |        348 |       0 |    0 |   308 |      0 |      0 |          0 |
+|   u_xbar                  |                  bridge_4x4_rw_xbar |       2265 |       2265 |       0 |    0 |   450 |      0 |      0 |          0 |
 +---------------------------+-------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
 * Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
 

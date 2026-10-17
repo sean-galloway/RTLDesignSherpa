@@ -33,7 +33,7 @@
 
 **Before making ANY changes to bridge generator or understanding signal flow:**
 
-**READ:** `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.2.pdf`)
+**READ:** `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.3.pdf`)
 
 These documents contain the **definitive bridge architecture** including:
 - Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
@@ -57,8 +57,8 @@ taking TOML or CSV configuration. There is no second generator: the separate
 1. `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` ← **START HERE** (generator build mechanics; the design lives in the MAS below)
 2. `projects/components/fabric-gen-ip/bridge/PRD.md` ← Product requirements
 3. `vault/Tasks/bridge/INDEX.md` ← Task tracking (open / closed / dropped; the old TASKS.md was folded in 2026-09-10)
-4. `projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.2.pdf`)
-5. `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.2.pdf`)
+4. `projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.3.pdf`)
+5. `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.3.pdf`)
 
 (The older BRIDGE_ARCHITECTURE.md, BRIDGE_CURRENT_STATE.md, BRIDGE_ARCHITECTURE_DIAGRAMS.md, CSV_BRIDGE_STATUS.md, and docs/bridge_spec/ documents were superseded by the HAS/MAS above.)
 
@@ -920,6 +920,13 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
   HAS 5.3
 - Subtractive catch-all: an unmapped address gets DECERR + 0xDEADBEEF and a
   sticky status/IRQ instead of hanging the master (HAS 4.5)
+- Slave watchdog (GitHub #119 L3): `timeout_cycles = N` on an AXI4 slave
+  answers everything DECERR after N silent cycles and raises a sticky
+  `<slave>_timeout` (HAS "Slave Watchdog", `rtl/amba/axi4/axi4_slave_watchdog.sv`)
+- Protocol checkers (GitHub #119 L3): every bridge has `<bridge>_checkers.sv`
+  binding `formal/bridge/axi4_protocol_checker` to each AXI4/AXI5 port;
+  generated tests compile `<bridge>_checkers.f` unless `BRIDGE_CHECKERS=0`.
+  Never put `_checkers.f` in a synthesis flow
 
 **Deliberately NOT supported** -- these were claimed here for months and none
 of them is built:

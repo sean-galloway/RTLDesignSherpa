@@ -56,6 +56,7 @@ The slave adapter sits between the crossbar and an external slave. Its responsib
 - Convert the internal AXI4 face to the external protocol.
 - Carry the `bridge_id` response tracker: `bridge_cam` or an in-order FIFO.
 - Handle CDC if `cdc=true`.
+- Insert `axi4_slave_watchdog` between the timing wrapper and the port (or the CDC) if `timeout_cycles > 0`, with `o_wdog_tripped` to the top's `<name>_timeout`.
 - Expose APB, AXI-Lite, AXI3, AXI5, or Wishbone pins as configured.
 
 ### Response routing

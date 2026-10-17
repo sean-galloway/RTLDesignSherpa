@@ -89,6 +89,11 @@ With more than one master, every AXI slave port's ID is widened by `$clog2(NUM_M
 widest_master_id_width + clog2(num_masters)
 ```
 
+## Watchdog constraints (`validate_timeout_constraints`)
+
+- `timeout_cycles` is a slave option, legal on external AXI4 slaves only.
+- It is 0 (no watchdog) or at least 2.
+
 ## CDC constraints (`validate_cdc_constraints`)
 
 - `cdc=true` is legal only on AXI4 ports, master (GitHub #119 L2) or external slave.

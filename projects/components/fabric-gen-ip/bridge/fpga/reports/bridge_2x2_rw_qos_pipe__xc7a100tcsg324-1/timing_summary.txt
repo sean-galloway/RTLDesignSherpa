@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Fri Oct 16 14:54:16 2026
+| Date         : Fri Oct 16 19:23:01 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_timing_summary -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_2x2_rw_qos_pipe__xc7a100tcsg324-1/timing_summary.txt -max_paths 10
 | Design       : bridge_2x2_rw_qos_pipe
@@ -138,7 +138,7 @@ Table of Contents
 
     WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
     -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-     -0.620     -254.877                   1311                 9291        0.098        0.000                      0                 9291        4.500        0.000                       0                  4865  
+     -0.018       -0.029                      3                 9359        0.096        0.000                      0                 9359        4.500        0.000                       0                  4933  
 
 
 Timing constraints are not met.
@@ -161,7 +161,7 @@ aclk   {0.000 5.000}      10.000          100.000
 
 Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
 -----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-aclk               -0.620     -254.877                   1311                 9291        0.098        0.000                      0                 9291        4.500        0.000                       0                  4865  
+aclk               -0.018       -0.029                      3                 9359        0.096        0.000                      0                 9359        4.500        0.000                       0                  4933  
 
 
 ------------------------------------------------------------------------------------------------
@@ -192,24 +192,24 @@ Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing 
 From Clock:  aclk
   To Clock:  aclk
 
-Setup :         1311  Failing Endpoints,  Worst Slack       -0.620ns,  Total Violation     -254.877ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.098ns,  Total Violation        0.000ns
+Setup :            3  Failing Endpoints,  Worst Slack       -0.018ns,  Total Violation       -0.029ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.096ns,  Total Violation        0.000ns
 PW    :            0  Failing Endpoints,  Worst Slack        4.500ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (VIOLATED) :        -0.620ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
+Slack (VIOLATED) :        -0.018ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][25]/CE
+  Destination:            u_cpu_adapter/aw_idt_cnt_reg[13][1]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.331ns  (logic 2.411ns (23.338%)  route 7.920ns (76.662%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
+  Data Path Delay:        9.965ns  (logic 2.549ns (25.580%)  route 7.416ns (74.420%))
+  Logic Levels:           12  (LUT4=2 LUT5=2 LUT6=6 MUXF7=1 MUXF8=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -224,671 +224,669 @@ Slack (VIOLATED) :        -0.620ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.617    10.422    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I3_O)        0.124    10.546 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data[1][67]_i_1__2/O
-                         net (fo=67, routed)          0.758    11.304    u_xbar/u_xs_sram_ar/r_data
-    SLICE_X48Y126        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][25]/CE
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 f  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.439     7.901    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I1_O)        0.124     8.025 r  u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr[4]_i_3/O
+                         net (fo=68, routed)          0.661     8.686    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]_0
+    SLICE_X42Y34         LUT5 (Prop_lut5_I1_O)        0.124     8.810 r  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_4__2/O
+                         net (fo=133, routed)         1.036     9.846    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.wr_ready_reg_1
+    SLICE_X46Y32         LUT5 (Prop_lut5_I2_O)        0.117     9.963 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[13][3]_i_2/O
+                         net (fo=7, routed)           0.627    10.590    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[13][3]_i_2_n_0
+    SLICE_X48Y31         LUT4 (Prop_lut4_I1_O)        0.348    10.938 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[13][1]_i_1/O
+                         net (fo=1, routed)           0.000    10.938    u_cpu_adapter/u_timing_wrapper_wr_n_159
+    SLICE_X48Y31         FDCE                                         r  u_cpu_adapter/aw_idt_cnt_reg[13][1]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)      10.000    10.000 r  
                                                       0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X48Y126        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][25]/C
+                         net (fo=4932, unset)         0.924    10.924    u_cpu_adapter/aclk
+    SLICE_X48Y31         FDCE                                         r  u_cpu_adapter/aw_idt_cnt_reg[13][1]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X48Y126        FDCE (Setup_fdce_C_CE)      -0.205    10.684    u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][25]
+    SLICE_X48Y31         FDCE (Setup_fdce_C_D)        0.031    10.920    u_cpu_adapter/aw_idt_cnt_reg[13][1]
+  -------------------------------------------------------------------
+                         required time                         10.920    
+                         arrival time                         -10.938    
+  -------------------------------------------------------------------
+                         slack                                 -0.018    
+
+Slack (VIOLATED) :        -0.007ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_cpu_adapter/aw_idt_tgt_reg[13][0]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        10.000ns  (logic 2.549ns (25.490%)  route 7.451ns (74.510%))
+  Logic Levels:           12  (LUT3=1 LUT4=1 LUT5=2 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 f  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.439     7.901    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I1_O)        0.124     8.025 r  u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr[4]_i_3/O
+                         net (fo=68, routed)          0.661     8.686    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]_0
+    SLICE_X42Y34         LUT5 (Prop_lut5_I1_O)        0.124     8.810 r  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_4__2/O
+                         net (fo=133, routed)         1.036     9.846    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.wr_ready_reg_1
+    SLICE_X46Y32         LUT5 (Prop_lut5_I2_O)        0.117     9.963 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[13][3]_i_2/O
+                         net (fo=7, routed)           0.662    10.625    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[13][3]_i_2_n_0
+    SLICE_X46Y33         LUT3 (Prop_lut3_I1_O)        0.348    10.973 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt[13][0]_i_1/O
+                         net (fo=1, routed)           0.000    10.973    u_cpu_adapter/u_timing_wrapper_wr_n_292
+    SLICE_X46Y33         FDCE                                         r  u_cpu_adapter/aw_idt_tgt_reg[13][0]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.924    10.924    u_cpu_adapter/aclk
+    SLICE_X46Y33         FDCE                                         r  u_cpu_adapter/aw_idt_tgt_reg[13][0]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X46Y33         FDCE (Setup_fdce_C_D)        0.077    10.966    u_cpu_adapter/aw_idt_tgt_reg[13][0]
+  -------------------------------------------------------------------
+                         required time                         10.966    
+                         arrival time                         -10.973    
+  -------------------------------------------------------------------
+                         slack                                 -0.007    
+
+Slack (VIOLATED) :        -0.005ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_cpu_adapter/aw_idt_tgt_reg[4][1]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        9.874ns  (logic 2.332ns (23.618%)  route 7.542ns (76.382%))
+  Logic Levels:           12  (LUT3=1 LUT4=1 LUT5=2 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 f  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.439     7.901    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I1_O)        0.124     8.025 f  u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr[4]_i_3/O
+                         net (fo=68, routed)          0.661     8.686    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]_0
+    SLICE_X42Y34         LUT5 (Prop_lut5_I1_O)        0.124     8.810 f  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_4__2/O
+                         net (fo=133, routed)         0.853     9.663    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.wr_ready_reg_1
+    SLICE_X41Y34         LUT3 (Prop_lut3_I2_O)        0.124     9.787 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[4][1]_i_2/O
+                         net (fo=10, routed)          0.468    10.255    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[4][1]_i_2_n_0
+    SLICE_X43Y32         LUT5 (Prop_lut5_I3_O)        0.124    10.379 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt[4][1]_i_1/O
+                         net (fo=1, routed)           0.468    10.847    u_cpu_adapter/u_timing_wrapper_wr_n_273
+    SLICE_X45Y30         FDCE                                         r  u_cpu_adapter/aw_idt_tgt_reg[4][1]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.924    10.924    u_cpu_adapter/aclk
+    SLICE_X45Y30         FDCE                                         r  u_cpu_adapter/aw_idt_tgt_reg[4][1]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X45Y30         FDCE (Setup_fdce_C_D)       -0.047    10.842    u_cpu_adapter/aw_idt_tgt_reg[4][1]
+  -------------------------------------------------------------------
+                         required time                         10.842    
+                         arrival time                         -10.847    
+  -------------------------------------------------------------------
+                         slack                                 -0.005    
+
+Slack (MET) :             0.010ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_cpu_adapter/w_trk_mem_reg[1][1]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        9.935ns  (logic 2.528ns (25.444%)  route 7.407ns (74.556%))
+  Logic Levels:           12  (LUT2=1 LUT4=1 LUT5=1 LUT6=7 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 f  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.439     7.901    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I1_O)        0.124     8.025 r  u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr[4]_i_3/O
+                         net (fo=68, routed)          0.661     8.686    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]_0
+    SLICE_X42Y34         LUT5 (Prop_lut5_I1_O)        0.124     8.810 r  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_4__2/O
+                         net (fo=133, routed)         1.005     9.815    u_xbar/u_xs_ddr_aw/g_skid.wr_ready_reg_0[0]
+    SLICE_X51Y33         LUT2 (Prop_lut2_I1_O)        0.118     9.933 r  u_xbar/u_xs_ddr_aw/w_trk_mem[15][1]_i_2/O
+                         net (fo=32, routed)          0.650    10.582    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/w_trk_mem_reg[15][1]
+    SLICE_X49Y33         LUT6 (Prop_lut6_I3_O)        0.326    10.908 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/w_trk_mem[1][1]_i_1/O
+                         net (fo=1, routed)           0.000    10.908    u_cpu_adapter/u_timing_wrapper_wr_n_261
+    SLICE_X49Y33         FDRE                                         r  u_cpu_adapter/w_trk_mem_reg[1][1]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.924    10.924    u_cpu_adapter/aclk
+    SLICE_X49Y33         FDRE                                         r  u_cpu_adapter/w_trk_mem_reg[1][1]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X49Y33         FDRE (Setup_fdre_C_D)        0.029    10.918    u_cpu_adapter/w_trk_mem_reg[1][1]
+  -------------------------------------------------------------------
+                         required time                         10.918    
+                         arrival time                         -10.908    
+  -------------------------------------------------------------------
+                         slack                                  0.010    
+
+Slack (MET) :             0.015ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_cpu_adapter/w_trk_mem_reg[2][1]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        9.932ns  (logic 2.528ns (25.452%)  route 7.404ns (74.548%))
+  Logic Levels:           12  (LUT2=1 LUT4=1 LUT5=1 LUT6=7 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 f  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.439     7.901    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I1_O)        0.124     8.025 r  u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr[4]_i_3/O
+                         net (fo=68, routed)          0.661     8.686    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]_0
+    SLICE_X42Y34         LUT5 (Prop_lut5_I1_O)        0.124     8.810 r  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_4__2/O
+                         net (fo=133, routed)         1.005     9.815    u_xbar/u_xs_ddr_aw/g_skid.wr_ready_reg_0[0]
+    SLICE_X51Y33         LUT2 (Prop_lut2_I1_O)        0.118     9.933 r  u_xbar/u_xs_ddr_aw/w_trk_mem[15][1]_i_2/O
+                         net (fo=32, routed)          0.647    10.579    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/w_trk_mem_reg[15][1]
+    SLICE_X49Y33         LUT6 (Prop_lut6_I3_O)        0.326    10.905 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/w_trk_mem[2][1]_i_1/O
+                         net (fo=1, routed)           0.000    10.905    u_cpu_adapter/u_timing_wrapper_wr_n_259
+    SLICE_X49Y33         FDRE                                         r  u_cpu_adapter/w_trk_mem_reg[2][1]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.924    10.924    u_cpu_adapter/aclk
+    SLICE_X49Y33         FDRE                                         r  u_cpu_adapter/w_trk_mem_reg[2][1]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X49Y33         FDRE (Setup_fdre_C_D)        0.031    10.920    u_cpu_adapter/w_trk_mem_reg[2][1]
+  -------------------------------------------------------------------
+                         required time                         10.920    
+                         arrival time                         -10.905    
+  -------------------------------------------------------------------
+                         slack                                  0.015    
+
+Slack (MET) :             0.020ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_dma_adapter/aw_trk_full_reg/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        9.927ns  (logic 2.528ns (25.465%)  route 7.399ns (74.535%))
+  Logic Levels:           12  (LUT4=2 LUT5=2 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 f  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.435     7.897    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I0_O)        0.124     8.021 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_3__2/O
+                         net (fo=70, routed)          0.684     8.704    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]
+    SLICE_X40Y37         LUT5 (Prop_lut5_I1_O)        0.124     8.828 r  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_3__4/O
+                         net (fo=68, routed)          1.013     9.842    u_xbar/u_xs_ddr_b/aw_out_cnt_reg[0]_0
+    SLICE_X44Y41         LUT4 (Prop_lut4_I1_O)        0.118     9.960 f  u_xbar/u_xs_ddr_b/aw_out_cnt[4]_i_3__0/O
+                         net (fo=2, routed)           0.615    10.574    u_dma_adapter/aw_out_cnt_reg[4]_0
+    SLICE_X45Y41         LUT5 (Prop_lut5_I4_O)        0.326    10.900 r  u_dma_adapter/aw_trk_full_i_1__0/O
+                         net (fo=1, routed)           0.000    10.900    u_dma_adapter/aw_trk_full0
+    SLICE_X45Y41         FDCE                                         r  u_dma_adapter/aw_trk_full_reg/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.924    10.924    u_dma_adapter/aclk
+    SLICE_X45Y41         FDCE                                         r  u_dma_adapter/aw_trk_full_reg/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X45Y41         FDCE (Setup_fdce_C_D)        0.031    10.920    u_dma_adapter/aw_trk_full_reg
+  -------------------------------------------------------------------
+                         required time                         10.920    
+                         arrival time                         -10.900    
+  -------------------------------------------------------------------
+                         slack                                  0.020    
+
+Slack (MET) :             0.021ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_cpu_adapter/aw_trk_full_reg/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        9.924ns  (logic 2.531ns (25.504%)  route 7.393ns (74.496%))
+  Logic Levels:           12  (LUT4=2 LUT5=2 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 f  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.439     7.901    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I1_O)        0.124     8.025 r  u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr[4]_i_3/O
+                         net (fo=68, routed)          0.661     8.686    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]_0
+    SLICE_X42Y34         LUT5 (Prop_lut5_I1_O)        0.124     8.810 r  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_4__2/O
+                         net (fo=133, routed)         1.220    10.030    u_xbar/u_xs_subtractive_b/aw_out_cnt_reg[1]_0
+    SLICE_X51Y30         LUT4 (Prop_lut4_I1_O)        0.120    10.150 f  u_xbar/u_xs_subtractive_b/aw_out_cnt[4]_i_3/O
+                         net (fo=2, routed)           0.420    10.570    u_cpu_adapter/aw_out_cnt_reg[4]_0
+    SLICE_X51Y29         LUT5 (Prop_lut5_I4_O)        0.327    10.897 r  u_cpu_adapter/aw_trk_full_i_1/O
+                         net (fo=1, routed)           0.000    10.897    u_cpu_adapter/aw_trk_full0
+    SLICE_X51Y29         FDCE                                         r  u_cpu_adapter/aw_trk_full_reg/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.924    10.924    u_cpu_adapter/aclk
+    SLICE_X51Y29         FDCE                                         r  u_cpu_adapter/aw_trk_full_reg/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X51Y29         FDCE (Setup_fdce_C_D)        0.029    10.918    u_cpu_adapter/aw_trk_full_reg
+  -------------------------------------------------------------------
+                         required time                         10.918    
+                         arrival time                         -10.897    
+  -------------------------------------------------------------------
+                         slack                                  0.021    
+
+Slack (MET) :             0.027ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_dma_adapter/aw_out_cnt_reg[4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        9.918ns  (logic 2.528ns (25.489%)  route 7.390ns (74.511%))
+  Logic Levels:           12  (LUT4=2 LUT5=2 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 f  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.435     7.897    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I0_O)        0.124     8.021 f  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_3__2/O
+                         net (fo=70, routed)          0.684     8.704    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]
+    SLICE_X40Y37         LUT5 (Prop_lut5_I1_O)        0.124     8.828 f  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_3__4/O
+                         net (fo=68, routed)          1.013     9.842    u_xbar/u_xs_ddr_b/aw_out_cnt_reg[0]_0
+    SLICE_X44Y41         LUT4 (Prop_lut4_I1_O)        0.118     9.960 r  u_xbar/u_xs_ddr_b/aw_out_cnt[4]_i_3__0/O
+                         net (fo=2, routed)           0.605    10.565    u_dma_adapter/aw_out_cnt_reg[4]_0
+    SLICE_X45Y41         LUT5 (Prop_lut5_I2_O)        0.326    10.891 r  u_dma_adapter/aw_out_cnt[4]_i_1__0/O
+                         net (fo=1, routed)           0.000    10.891    u_dma_adapter/aw_out_cnt[4]_i_1__0_n_0
+    SLICE_X45Y41         FDCE                                         r  u_dma_adapter/aw_out_cnt_reg[4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.924    10.924    u_dma_adapter/aclk
+    SLICE_X45Y41         FDCE                                         r  u_dma_adapter/aw_out_cnt_reg[4]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X45Y41         FDCE (Setup_fdce_C_D)        0.029    10.918    u_dma_adapter/aw_out_cnt_reg[4]
+  -------------------------------------------------------------------
+                         required time                         10.918    
+                         arrival time                         -10.891    
+  -------------------------------------------------------------------
+                         slack                                  0.027    
+
+Slack (MET) :             0.031ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_cpu_adapter/aw_idt_cnt_reg[13][2]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        9.960ns  (logic 2.544ns (25.543%)  route 7.416ns (74.457%))
+  Logic Levels:           12  (LUT4=1 LUT5=3 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 f  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.439     7.901    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I1_O)        0.124     8.025 r  u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr[4]_i_3/O
+                         net (fo=68, routed)          0.661     8.686    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]_0
+    SLICE_X42Y34         LUT5 (Prop_lut5_I1_O)        0.124     8.810 r  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_4__2/O
+                         net (fo=133, routed)         1.036     9.846    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.wr_ready_reg_1
+    SLICE_X46Y32         LUT5 (Prop_lut5_I2_O)        0.117     9.963 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[13][3]_i_2/O
+                         net (fo=7, routed)           0.627    10.590    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[13][3]_i_2_n_0
+    SLICE_X48Y31         LUT5 (Prop_lut5_I0_O)        0.343    10.933 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_cnt[13][2]_i_1/O
+                         net (fo=1, routed)           0.000    10.933    u_cpu_adapter/u_timing_wrapper_wr_n_158
+    SLICE_X48Y31         FDCE                                         r  u_cpu_adapter/aw_idt_cnt_reg[13][2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.924    10.924    u_cpu_adapter/aclk
+    SLICE_X48Y31         FDCE                                         r  u_cpu_adapter/aw_idt_cnt_reg[13][2]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X48Y31         FDCE (Setup_fdce_C_D)        0.075    10.964    u_cpu_adapter/aw_idt_cnt_reg[13][2]
+  -------------------------------------------------------------------
+                         required time                         10.964    
+                         arrival time                         -10.933    
+  -------------------------------------------------------------------
+                         slack                                  0.031    
+
+Slack (MET) :             0.033ns  (required time - arrival time)
+  Source:                 u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data_reg[1][10]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        9.678ns  (logic 2.208ns (22.814%)  route 7.470ns (77.186%))
+  Logic Levels:           11  (LUT4=1 LUT5=1 LUT6=7 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.973ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.973     0.973    u_dma_adapter/aclk
+    SLICE_X45Y39         FDCE                                         r  u_dma_adapter/aw_idt_tgt_reg[11][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X45Y39         FDCE (Prop_fdce_C_Q)         0.419     1.392 r  u_dma_adapter/aw_idt_tgt_reg[11][0]/Q
+                         net (fo=2, routed)           1.012     2.404    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aw_idt_tgt_reg[11]_30[0]
+    SLICE_X45Y38         LUT6 (Prop_lut6_I0_O)        0.299     2.703 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22/O
+                         net (fo=1, routed)           0.000     2.703    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_22_n_0
+    SLICE_X45Y38         MUXF7 (Prop_muxf7_I0_O)      0.212     2.915 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13/O
+                         net (fo=1, routed)           0.000     2.915    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_13_n_0
+    SLICE_X45Y38         MUXF8 (Prop_muxf8_I1_O)      0.094     3.009 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8/O
+                         net (fo=1, routed)           0.677     3.686    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1_reg[7]_i_8_n_0
+    SLICE_X42Y37         LUT6 (Prop_lut6_I2_O)        0.316     4.002 f  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6/O
+                         net (fo=9, routed)           0.536     4.539    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/sram_aw_arb_age_1[7]_i_6_n_0
+    SLICE_X43Y37         LUT4 (Prop_lut4_I0_O)        0.124     4.663 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/ddr_aw_arb_locked_i_2/O
+                         net (fo=20, routed)          0.771     5.433    u_xbar/u_xs_ddr_aw/ddr_aw_arb_lock_reg[0]_1
+    SLICE_X43Y33         LUT6 (Prop_lut6_I3_O)        0.124     5.557 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_18/O
+                         net (fo=5, routed)           0.842     6.399    u_xbar/u_xs_ddr_aw/ddr_aw_arb_age_0_reg[7]_0
+    SLICE_X40Y33         LUT6 (Prop_lut6_I0_O)        0.124     6.523 f  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_8/O
+                         net (fo=2, routed)           0.815     7.338    u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_3__2
+    SLICE_X43Y33         LUT6 (Prop_lut6_I1_O)        0.124     7.462 r  u_cpu_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][67]_i_5/O
+                         net (fo=2, routed)           0.435     7.897    u_xbar/u_xs_ddr_aw/cpu_32b_wdest_wptr_reg[0]
+    SLICE_X40Y34         LUT6 (Prop_lut6_I0_O)        0.124     8.021 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data[1][67]_i_3__2/O
+                         net (fo=70, routed)          0.684     8.704    u_xbar/u_xs_ddr_aw/ddr_aw_arb_rr_reg[0]
+    SLICE_X40Y37         LUT5 (Prop_lut5_I1_O)        0.124     8.828 r  u_xbar/u_xs_ddr_aw/g_skid.wr_ready_i_3__4/O
+                         net (fo=68, routed)          0.807     9.635    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.wr_ready_reg_1
+    SLICE_X40Y41         LUT6 (Prop_lut6_I5_O)        0.124     9.759 r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][65]_i_1__1/O
+                         net (fo=66, routed)          0.892    10.651    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data[1][65]_i_1__1_n_0
+    SLICE_X41Y36         FDCE                                         r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data_reg[1][10]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.924    10.924    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/aclk
+    SLICE_X41Y36         FDCE                                         r  u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data_reg[1][10]/C
+                         clock pessimism              0.000    10.924    
+                         clock uncertainty           -0.035    10.889    
+    SLICE_X41Y36         FDCE (Setup_fdce_C_CE)      -0.205    10.684    u_dma_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[1].r_data_reg[1][10]
   -------------------------------------------------------------------
                          required time                         10.684    
-                         arrival time                         -11.304    
+                         arrival time                         -10.651    
   -------------------------------------------------------------------
-                         slack                                 -0.620    
-
-Slack (VIOLATED) :        -0.620ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][26]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.331ns  (logic 2.411ns (23.338%)  route 7.920ns (76.662%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.973ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.617    10.422    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I3_O)        0.124    10.546 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data[1][67]_i_1__2/O
-                         net (fo=67, routed)          0.758    11.304    u_xbar/u_xs_sram_ar/r_data
-    SLICE_X48Y126        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][26]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X48Y126        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][26]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X48Y126        FDCE (Setup_fdce_C_CE)      -0.205    10.684    u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][26]
-  -------------------------------------------------------------------
-                         required time                         10.684    
-                         arrival time                         -11.304    
-  -------------------------------------------------------------------
-                         slack                                 -0.620    
-
-Slack (VIOLATED) :        -0.620ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][8]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.331ns  (logic 2.411ns (23.338%)  route 7.920ns (76.662%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.973ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.617    10.422    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I3_O)        0.124    10.546 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data[1][67]_i_1__2/O
-                         net (fo=67, routed)          0.758    11.304    u_xbar/u_xs_sram_ar/r_data
-    SLICE_X48Y126        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][8]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X48Y126        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][8]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X48Y126        FDCE (Setup_fdce_C_CE)      -0.205    10.684    u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][8]
-  -------------------------------------------------------------------
-                         required time                         10.684    
-                         arrival time                         -11.304    
-  -------------------------------------------------------------------
-                         slack                                 -0.620    
-
-Slack (VIOLATED) :        -0.620ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][9]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.331ns  (logic 2.411ns (23.338%)  route 7.920ns (76.662%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.973ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.617    10.422    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I3_O)        0.124    10.546 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data[1][67]_i_1__2/O
-                         net (fo=67, routed)          0.758    11.304    u_xbar/u_xs_sram_ar/r_data
-    SLICE_X48Y126        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][9]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X48Y126        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][9]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X48Y126        FDCE (Setup_fdce_C_CE)      -0.205    10.684    u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][9]
-  -------------------------------------------------------------------
-                         required time                         10.684    
-                         arrival time                         -11.304    
-  -------------------------------------------------------------------
-                         slack                                 -0.620    
-
-Slack (VIOLATED) :        -0.618ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][43]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.365ns  (logic 2.411ns (23.262%)  route 7.954ns (76.738%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.973ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.617    10.422    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I3_O)        0.124    10.546 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data[1][67]_i_1__2/O
-                         net (fo=67, routed)          0.792    11.338    u_xbar/u_xs_sram_ar/r_data
-    SLICE_X50Y121        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][43]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X50Y121        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][43]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X50Y121        FDCE (Setup_fdce_C_CE)      -0.169    10.720    u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][43]
-  -------------------------------------------------------------------
-                         required time                         10.720    
-                         arrival time                         -11.338    
-  -------------------------------------------------------------------
-                         slack                                 -0.618    
-
-Slack (VIOLATED) :        -0.618ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][44]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.365ns  (logic 2.411ns (23.262%)  route 7.954ns (76.738%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.973ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.617    10.422    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I3_O)        0.124    10.546 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data[1][67]_i_1__2/O
-                         net (fo=67, routed)          0.792    11.338    u_xbar/u_xs_sram_ar/r_data
-    SLICE_X50Y121        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][44]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X50Y121        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][44]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X50Y121        FDCE (Setup_fdce_C_CE)      -0.169    10.720    u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][44]
-  -------------------------------------------------------------------
-                         required time                         10.720    
-                         arrival time                         -11.338    
-  -------------------------------------------------------------------
-                         slack                                 -0.618    
-
-Slack (VIOLATED) :        -0.601ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][51]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.312ns  (logic 2.411ns (23.380%)  route 7.901ns (76.620%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.973ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.617    10.422    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I3_O)        0.124    10.546 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data[1][67]_i_1__2/O
-                         net (fo=67, routed)          0.740    11.285    u_xbar/u_xs_sram_ar/r_data
-    SLICE_X48Y122        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][51]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X48Y122        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][51]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X48Y122        FDCE (Setup_fdce_C_CE)      -0.205    10.684    u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][51]
-  -------------------------------------------------------------------
-                         required time                         10.684    
-                         arrival time                         -11.285    
-  -------------------------------------------------------------------
-                         slack                                 -0.601    
-
-Slack (VIOLATED) :        -0.601ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][52]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.312ns  (logic 2.411ns (23.380%)  route 7.901ns (76.620%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.973ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.617    10.422    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I3_O)        0.124    10.546 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data[1][67]_i_1__2/O
-                         net (fo=67, routed)          0.740    11.285    u_xbar/u_xs_sram_ar/r_data
-    SLICE_X48Y122        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][52]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X48Y122        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][52]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X48Y122        FDCE (Setup_fdce_C_CE)      -0.205    10.684    u_xbar/u_xs_sram_ar/g_skid.g_slot[1].r_data_reg[1][52]
-  -------------------------------------------------------------------
-                         required time                         10.684    
-                         arrival time                         -11.285    
-  -------------------------------------------------------------------
-                         slack                                 -0.601    
-
-Slack (VIOLATED) :        -0.591ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data_reg[0][5]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.302ns  (logic 2.411ns (23.404%)  route 7.891ns (76.596%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.973ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.576    10.381    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I4_O)        0.124    10.505 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data[0][67]_i_1__2/O
-                         net (fo=67, routed)          0.770    11.275    u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data[0][67]_i_1__2_n_0
-    SLICE_X49Y127        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data_reg[0][5]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X49Y127        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data_reg[0][5]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X49Y127        FDCE (Setup_fdce_C_CE)      -0.205    10.684    u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data_reg[0][5]
-  -------------------------------------------------------------------
-                         required time                         10.684    
-                         arrival time                         -11.275    
-  -------------------------------------------------------------------
-                         slack                                 -0.591    
-
-Slack (VIOLATED) :        -0.567ns  (required time - arrival time)
-  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data_reg[0][24]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
-  Data Path Delay:        10.278ns  (logic 2.411ns (23.459%)  route 7.867ns (76.541%))
-  Logic Levels:           12  (LUT3=1 LUT4=2 LUT5=1 LUT6=7 MUXF7=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
-    Source Clock Delay      (SCD):    0.973ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.973     0.973    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/aclk
-    SLICE_X42Y121        FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y121        FDCE (Prop_fdce_C_Q)         0.478     1.451 f  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][63]/Q
-                         net (fo=62, routed)          0.807     2.258    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[0].r_data_reg[0][65]_0[63]
-    SLICE_X40Y122        LUT4 (Prop_lut4_I0_O)        0.301     2.559 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31/O
-                         net (fo=1, routed)           0.781     3.340    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_31_n_0
-    SLICE_X40Y121        LUT6 (Prop_lut6_I3_O)        0.124     3.464 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15/O
-                         net (fo=1, routed)           0.855     4.319    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_15_n_0
-    SLICE_X40Y123        LUT6 (Prop_lut6_I2_O)        0.124     4.443 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8/O
-                         net (fo=2, routed)           0.512     4.955    u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_8_n_0
-    SLICE_X41Y123        LUT6 (Prop_lut6_I0_O)        0.124     5.079 r  u_dma_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_1[7]_i_6/O
-                         net (fo=11, routed)          0.773     5.852    u_xbar/u_xs_sram_ar/p_0_in156_in
-    SLICE_X43Y125        LUT6 (Prop_lut6_I4_O)        0.124     5.976 r  u_xbar/u_xs_sram_ar/sram_ar_arb_rr[0]_i_29/O
-                         net (fo=1, routed)           0.797     6.773    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_11
-    SLICE_X43Y126        LUT5 (Prop_lut5_I0_O)        0.124     6.897 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_16/O
-                         net (fo=4, routed)           0.187     7.084    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_age_0_reg[6]
-    SLICE_X43Y126        LUT6 (Prop_lut6_I5_O)        0.124     7.208 r  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_6/O
-                         net (fo=2, routed)           0.583     7.791    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/u_xbar/sram_ar_arb_best[0]
-    SLICE_X43Y125        LUT6 (Prop_lut6_I2_O)        0.124     7.915 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_rr[0]_i_3/O
-                         net (fo=4, routed)           0.000     7.915    u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/sram_ar_arb_elig[0]
-    SLICE_X43Y125        MUXF7 (Prop_muxf7_I1_O)      0.217     8.132 f  u_cpu_adapter/u_timing_wrapper_rd/i_ar_channel/g_skid.g_slot[1].r_data_reg[1][67]_i_5__0/O
-                         net (fo=4, routed)           0.451     8.584    u_xbar/u_xs_sram_ar/sram_ar_arb_pick
-    SLICE_X44Y125        LUT4 (Prop_lut4_I2_O)        0.299     8.883 r  u_xbar/u_xs_sram_ar/sram_ar_arb_locked_i_2/O
-                         net (fo=69, routed)          0.798     9.681    u_xbar/u_xs_sram_ar/cpu_32b_ar_gnt_sram
-    SLICE_X47Y125        LUT3 (Prop_lut3_I0_O)        0.124     9.805 r  u_xbar/u_xs_sram_ar/g_skid.r_data_count[3]_i_4__7/O
-                         net (fo=145, routed)         0.576    10.381    u_xbar/u_xs_sram_ar/g_skid.wr_ready_reg_0
-    SLICE_X47Y124        LUT6 (Prop_lut6_I4_O)        0.124    10.505 r  u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data[0][67]_i_1__2/O
-                         net (fo=67, routed)          0.746    11.251    u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data[0][67]_i_1__2_n_0
-    SLICE_X51Y122        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data_reg[0][24]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)      10.000    10.000 r  
-                                                      0.000    10.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.924    10.924    u_xbar/u_xs_sram_ar/aclk
-    SLICE_X51Y122        FDCE                                         r  u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data_reg[0][24]/C
-                         clock pessimism              0.000    10.924    
-                         clock uncertainty           -0.035    10.889    
-    SLICE_X51Y122        FDCE (Setup_fdce_C_CE)      -0.205    10.684    u_xbar/u_xs_sram_ar/g_skid.g_slot[0].r_data_reg[0][24]
-  -------------------------------------------------------------------
-                         required time                         10.684    
-                         arrival time                         -11.251    
-  -------------------------------------------------------------------
-                         slack                                 -0.567    
+                         slack                                  0.033    
 
 
 
@@ -896,10 +894,92 @@ Slack (VIOLATED) :        -0.567ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.098ns  (arrival time - required time)
-  Source:                 u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][8]/C
+Slack (MET) :             0.096ns  (arrival time - required time)
+  Source:                 u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][52]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][8]/D
+  Destination:            u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][52]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.238ns  (logic 0.186ns (78.117%)  route 0.052ns (21.883%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.432ns
+    Source Clock Delay      (SCD):    0.410ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.410     0.410    u_sram_adapter/u_master_rd/ar_channel/aclk
+    SLICE_X43Y1          FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][52]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X43Y1          FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][52]/Q
+                         net (fo=1, routed)           0.052     0.603    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg_n_0_[1][52]
+    SLICE_X42Y1          LUT5 (Prop_lut5_I4_O)        0.045     0.648 r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][52]_i_1__7/O
+                         net (fo=1, routed)           0.000     0.648    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][52]_i_1__7_n_0
+    SLICE_X42Y1          FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][52]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.432     0.432    u_sram_adapter/u_master_rd/ar_channel/aclk
+    SLICE_X42Y1          FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][52]/C
+                         clock pessimism              0.000     0.432    
+    SLICE_X42Y1          FDCE (Hold_fdce_C_D)         0.121     0.553    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][52]
+  -------------------------------------------------------------------
+                         required time                         -0.553    
+                         arrival time                           0.648    
+  -------------------------------------------------------------------
+                         slack                                  0.096    
+
+Slack (MET) :             0.096ns  (arrival time - required time)
+  Source:                 u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][9]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][9]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.238ns  (logic 0.186ns (78.117%)  route 0.052ns (21.883%))
+  Logic Levels:           1  (LUT5=1)
+  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.432ns
+    Source Clock Delay      (SCD):    0.410ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.410     0.410    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X11Y40         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][9]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X11Y40         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][9]/Q
+                         net (fo=1, routed)           0.052     0.603    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2]_2[9]
+    SLICE_X10Y40         LUT5 (Prop_lut5_I4_O)        0.045     0.648 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data[1][9]_i_1__20/O
+                         net (fo=1, routed)           0.000     0.648    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data[1][9]_i_1__20_n_0
+    SLICE_X10Y40         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][9]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.432     0.432    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X10Y40         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][9]/C
+                         clock pessimism              0.000     0.432    
+    SLICE_X10Y40         FDCE (Hold_fdce_C_D)         0.121     0.553    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][9]
+  -------------------------------------------------------------------
+                         required time                         -0.553    
+                         arrival time                           0.648    
+  -------------------------------------------------------------------
+                         slack                                  0.096    
+
+Slack (MET) :             0.098ns  (arrival time - required time)
+  Source:                 u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][38]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][38]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -915,22 +995,22 @@ Slack (MET) :             0.098ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_ddr_adapter/u_master_rd/ar_channel/aclk
-    SLICE_X31Y114        FDCE                                         r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][8]/C
+                         net (fo=4932, unset)         0.410     0.410    u_ddr_adapter/u_master_rd/ar_channel/aclk
+    SLICE_X31Y6          FDCE                                         r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][38]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X31Y114        FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][8]/Q
-                         net (fo=1, routed)           0.054     0.605    u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg_n_0_[1][8]
-    SLICE_X30Y114        LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][8]_i_1__17/O
-                         net (fo=1, routed)           0.000     0.650    u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][8]_i_1__17_n_0
-    SLICE_X30Y114        FDCE                                         r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][8]/D
+    SLICE_X31Y6          FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][38]/Q
+                         net (fo=1, routed)           0.054     0.605    u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg_n_0_[1][38]
+    SLICE_X30Y6          LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][38]_i_1__9/O
+                         net (fo=1, routed)           0.000     0.650    u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][38]_i_1__9_n_0
+    SLICE_X30Y6          FDCE                                         r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][38]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_ddr_adapter/u_master_rd/ar_channel/aclk
-    SLICE_X30Y114        FDCE                                         r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][8]/C
+                         net (fo=4932, unset)         0.432     0.432    u_ddr_adapter/u_master_rd/ar_channel/aclk
+    SLICE_X30Y6          FDCE                                         r  u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][38]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X30Y114        FDCE (Hold_fdce_C_D)         0.121     0.553    u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][8]
+    SLICE_X30Y6          FDCE (Hold_fdce_C_D)         0.121     0.553    u_ddr_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][38]
   -------------------------------------------------------------------
                          required time                         -0.553    
                          arrival time                           0.650    
@@ -938,9 +1018,50 @@ Slack (MET) :             0.098ns  (arrival time - required time)
                          slack                                  0.098    
 
 Slack (MET) :             0.098ns  (arrival time - required time)
-  Source:                 u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[1].r_data_reg[1][44]/C
+  Source:                 u_dma_adapter/u_timing_wrapper_rd/i_r_channel/g_skid.g_slot[1].r_data_reg[1][21]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data_reg[0][44]/D
+  Destination:            u_dma_adapter/u_timing_wrapper_rd/i_r_channel/g_skid.g_slot[0].r_data_reg[0][21]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.240ns  (logic 0.186ns (77.466%)  route 0.054ns (22.534%))
+  Logic Levels:           1  (LUT6=1)
+  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.432ns
+    Source Clock Delay      (SCD):    0.410ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.410     0.410    u_dma_adapter/u_timing_wrapper_rd/i_r_channel/aclk
+    SLICE_X13Y16         FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_r_channel/g_skid.g_slot[1].r_data_reg[1][21]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X13Y16         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_dma_adapter/u_timing_wrapper_rd/i_r_channel/g_skid.g_slot[1].r_data_reg[1][21]/Q
+                         net (fo=1, routed)           0.054     0.605    u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data_reg[0][39]_3[3]
+    SLICE_X12Y16         LUT6 (Prop_lut6_I5_O)        0.045     0.650 r  u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data[0][21]_i_1__3/O
+                         net (fo=1, routed)           0.000     0.650    u_dma_adapter/u_timing_wrapper_rd/i_r_channel/g_skid.g_slot[0].r_data_reg[0][39]_2[3]
+    SLICE_X12Y16         FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_r_channel/g_skid.g_slot[0].r_data_reg[0][21]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=4932, unset)         0.432     0.432    u_dma_adapter/u_timing_wrapper_rd/i_r_channel/aclk
+    SLICE_X12Y16         FDCE                                         r  u_dma_adapter/u_timing_wrapper_rd/i_r_channel/g_skid.g_slot[0].r_data_reg[0][21]/C
+                         clock pessimism              0.000     0.432    
+    SLICE_X12Y16         FDCE (Hold_fdce_C_D)         0.121     0.553    u_dma_adapter/u_timing_wrapper_rd/i_r_channel/g_skid.g_slot[0].r_data_reg[0][21]
+  -------------------------------------------------------------------
+                         required time                         -0.553    
+                         arrival time                           0.650    
+  -------------------------------------------------------------------
+                         slack                                  0.098    
+
+Slack (MET) :             0.098ns  (arrival time - required time)
+  Source:                 u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][58]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][58]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -956,22 +1077,22 @@ Slack (MET) :             0.098ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_ddr_adapter/u_master_wr/aw_channel/aclk
-    SLICE_X39Y53         FDCE                                         r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[1].r_data_reg[1][44]/C
+                         net (fo=4932, unset)         0.410     0.410    u_sram_adapter/u_master_rd/ar_channel/aclk
+    SLICE_X35Y3          FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][58]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y53         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[1].r_data_reg[1][44]/Q
-                         net (fo=1, routed)           0.054     0.605    u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[1].r_data_reg[1]_0[44]
-    SLICE_X38Y53         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data[0][44]_i_1__5/O
-                         net (fo=1, routed)           0.000     0.650    u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data[0][44]_i_1__5_n_0
-    SLICE_X38Y53         FDCE                                         r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data_reg[0][44]/D
+    SLICE_X35Y3          FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][58]/Q
+                         net (fo=1, routed)           0.054     0.605    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg_n_0_[1][58]
+    SLICE_X34Y3          LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][58]_i_1__7/O
+                         net (fo=1, routed)           0.000     0.650    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][58]_i_1__7_n_0
+    SLICE_X34Y3          FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][58]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_ddr_adapter/u_master_wr/aw_channel/aclk
-    SLICE_X38Y53         FDCE                                         r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data_reg[0][44]/C
+                         net (fo=4932, unset)         0.432     0.432    u_sram_adapter/u_master_rd/ar_channel/aclk
+    SLICE_X34Y3          FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][58]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X38Y53         FDCE (Hold_fdce_C_D)         0.121     0.553    u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data_reg[0][44]
+    SLICE_X34Y3          FDCE (Hold_fdce_C_D)         0.121     0.553    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][58]
   -------------------------------------------------------------------
                          required time                         -0.553    
                          arrival time                           0.650    
@@ -979,9 +1100,9 @@ Slack (MET) :             0.098ns  (arrival time - required time)
                          slack                                  0.098    
 
 Slack (MET) :             0.098ns  (arrival time - required time)
-  Source:                 u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][36]/C
+  Source:                 u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][17]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][36]/D
+  Destination:            u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][17]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -997,22 +1118,22 @@ Slack (MET) :             0.098ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_ddr_adapter/u_master_wr/w_channel/aclk
-    SLICE_X43Y20         FDCE                                         r  u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][36]/C
+                         net (fo=4932, unset)         0.410     0.410    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X11Y37         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][17]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X43Y20         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][36]/Q
-                         net (fo=1, routed)           0.054     0.605    u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg_n_0_[1][36]
-    SLICE_X42Y20         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data[0][36]_i_1__14/O
-                         net (fo=1, routed)           0.000     0.650    u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data[0][36]_i_1__14_n_0
-    SLICE_X42Y20         FDCE                                         r  u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][36]/D
+    SLICE_X11Y37         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][17]/Q
+                         net (fo=1, routed)           0.054     0.605    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg_n_0_[1][17]
+    SLICE_X10Y37         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data[0][17]_i_1__17/O
+                         net (fo=1, routed)           0.000     0.650    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data[0][17]_i_1__17_n_0
+    SLICE_X10Y37         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][17]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_ddr_adapter/u_master_wr/w_channel/aclk
-    SLICE_X42Y20         FDCE                                         r  u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][36]/C
+                         net (fo=4932, unset)         0.432     0.432    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X10Y37         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][17]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X42Y20         FDCE (Hold_fdce_C_D)         0.121     0.553    u_ddr_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][36]
+    SLICE_X10Y37         FDCE (Hold_fdce_C_D)         0.121     0.553    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][17]
   -------------------------------------------------------------------
                          required time                         -0.553    
                          arrival time                           0.650    
@@ -1020,9 +1141,9 @@ Slack (MET) :             0.098ns  (arrival time - required time)
                          slack                                  0.098    
 
 Slack (MET) :             0.098ns  (arrival time - required time)
-  Source:                 u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][40]/C
+  Source:                 u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][36]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][40]/D
+  Destination:            u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][36]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -1038,22 +1159,22 @@ Slack (MET) :             0.098ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_sram_adapter/u_master_rd/ar_channel/aclk
-    SLICE_X47Y130        FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][40]/C
+                         net (fo=4932, unset)         0.410     0.410    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X15Y43         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][36]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X47Y130        FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][40]/Q
-                         net (fo=1, routed)           0.054     0.605    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg_n_0_[1][40]
-    SLICE_X46Y130        LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][40]_i_1__9/O
-                         net (fo=1, routed)           0.000     0.650    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][40]_i_1__9_n_0
-    SLICE_X46Y130        FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][40]/D
+    SLICE_X15Y43         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][36]/Q
+                         net (fo=1, routed)           0.054     0.605    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg_n_0_[1][36]
+    SLICE_X14Y43         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data[0][36]_i_1__17/O
+                         net (fo=1, routed)           0.000     0.650    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data[0][36]_i_1__17_n_0
+    SLICE_X14Y43         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][36]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_sram_adapter/u_master_rd/ar_channel/aclk
-    SLICE_X46Y130        FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][40]/C
+                         net (fo=4932, unset)         0.432     0.432    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X14Y43         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][36]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X46Y130        FDCE (Hold_fdce_C_D)         0.121     0.553    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][40]
+    SLICE_X14Y43         FDCE (Hold_fdce_C_D)         0.121     0.553    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[0].r_data_reg[0][36]
   -------------------------------------------------------------------
                          required time                         -0.553    
                          arrival time                           0.650    
@@ -1061,9 +1182,9 @@ Slack (MET) :             0.098ns  (arrival time - required time)
                          slack                                  0.098    
 
 Slack (MET) :             0.098ns  (arrival time - required time)
-  Source:                 u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][54]/C
+  Source:                 u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][31]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][54]/D
+  Destination:            u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][31]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -1079,22 +1200,22 @@ Slack (MET) :             0.098ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_sram_adapter/u_master_rd/ar_channel/aclk
-    SLICE_X51Y129        FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][54]/C
+                         net (fo=4932, unset)         0.410     0.410    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X11Y42         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][31]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X51Y129        FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg[1][54]/Q
-                         net (fo=1, routed)           0.054     0.605    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[1].r_data_reg_n_0_[1][54]
-    SLICE_X50Y129        LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][54]_i_1__8/O
-                         net (fo=1, routed)           0.000     0.650    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data[0][54]_i_1__8_n_0
-    SLICE_X50Y129        FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][54]/D
+    SLICE_X11Y42         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][31]/Q
+                         net (fo=1, routed)           0.054     0.605    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2]_2[31]
+    SLICE_X10Y42         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data[1][31]_i_1__20/O
+                         net (fo=1, routed)           0.000     0.650    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data[1][31]_i_1__20_n_0
+    SLICE_X10Y42         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][31]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_sram_adapter/u_master_rd/ar_channel/aclk
-    SLICE_X50Y129        FDCE                                         r  u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][54]/C
+                         net (fo=4932, unset)         0.432     0.432    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X10Y42         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][31]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X50Y129        FDCE (Hold_fdce_C_D)         0.121     0.553    u_sram_adapter/u_master_rd/ar_channel/g_skid.g_slot[0].r_data_reg[0][54]
+    SLICE_X10Y42         FDCE (Hold_fdce_C_D)         0.121     0.553    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[1].r_data_reg[1][31]
   -------------------------------------------------------------------
                          required time                         -0.553    
                          arrival time                           0.650    
@@ -1102,9 +1223,9 @@ Slack (MET) :             0.098ns  (arrival time - required time)
                          slack                                  0.098    
 
 Slack (MET) :             0.098ns  (arrival time - required time)
-  Source:                 u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data_reg[1][64]/C
+  Source:                 u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[3].r_data_reg[3][6]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_ddr_aw/g_skid.g_slot[0].r_data_reg[0][64]/D
+  Destination:            u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][6]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -1120,114 +1241,32 @@ Slack (MET) :             0.098ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_xbar/u_xs_ddr_aw/aclk
-    SLICE_X47Y44         FDCE                                         r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data_reg[1][64]/C
+                         net (fo=4932, unset)         0.410     0.410    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X11Y39         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[3].r_data_reg[3][6]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X47Y44         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data_reg[1][64]/Q
-                         net (fo=1, routed)           0.054     0.605    u_xbar/u_xs_ddr_aw/g_skid.g_slot[1].r_data_reg[1]_66[64]
-    SLICE_X46Y44         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[0].r_data[0][64]_i_1__1/O
-                         net (fo=1, routed)           0.000     0.650    u_xbar/u_xs_ddr_aw/g_skid.g_slot[0].r_data[0][64]_i_1__1_n_0
-    SLICE_X46Y44         FDCE                                         r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[0].r_data_reg[0][64]/D
+    SLICE_X11Y39         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[3].r_data_reg[3][6]/Q
+                         net (fo=1, routed)           0.054     0.605    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[3].r_data_reg[3]_1[6]
+    SLICE_X10Y39         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data[2][6]_i_1__2/O
+                         net (fo=1, routed)           0.000     0.650    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data[2][6]_i_1__2_n_0
+    SLICE_X10Y39         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][6]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_xbar/u_xs_ddr_aw/aclk
-    SLICE_X46Y44         FDCE                                         r  u_xbar/u_xs_ddr_aw/g_skid.g_slot[0].r_data_reg[0][64]/C
+                         net (fo=4932, unset)         0.432     0.432    u_sram_adapter/u_master_wr/w_channel/aclk
+    SLICE_X10Y39         FDCE                                         r  u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][6]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X46Y44         FDCE (Hold_fdce_C_D)         0.121     0.553    u_xbar/u_xs_ddr_aw/g_skid.g_slot[0].r_data_reg[0][64]
+    SLICE_X10Y39         FDCE (Hold_fdce_C_D)         0.121     0.553    u_sram_adapter/u_master_wr/w_channel/g_skid.g_slot[2].r_data_reg[2][6]
   -------------------------------------------------------------------
                          required time                         -0.553    
                          arrival time                           0.650    
   -------------------------------------------------------------------
                          slack                                  0.098    
-
-Slack (MET) :             0.098ns  (arrival time - required time)
-  Source:                 u_xbar/u_xs_ddr_r/g_skid.g_slot[1].r_data_reg[1][3]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_ddr_r/g_skid.g_slot[0].r_data_reg[0][3]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Hold (Min at Fast Process Corner)
-  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
-  Data Path Delay:        0.240ns  (logic 0.186ns (77.466%)  route 0.054ns (22.534%))
-  Logic Levels:           1  (LUT5=1)
-  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.432ns
-    Source Clock Delay      (SCD):    0.410ns
-    Clock Pessimism Removal (CPR):    -0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_xbar/u_xs_ddr_r/aclk
-    SLICE_X31Y93         FDCE                                         r  u_xbar/u_xs_ddr_r/g_skid.g_slot[1].r_data_reg[1][3]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X31Y93         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_xbar/u_xs_ddr_r/g_skid.g_slot[1].r_data_reg[1][3]/Q
-                         net (fo=1, routed)           0.054     0.605    u_xbar/u_xs_ddr_r/g_skid.g_slot[1].r_data_reg[1]_69[3]
-    SLICE_X30Y93         LUT5 (Prop_lut5_I4_O)        0.045     0.650 r  u_xbar/u_xs_ddr_r/g_skid.g_slot[0].r_data[0][3]_i_1__11/O
-                         net (fo=1, routed)           0.000     0.650    u_xbar/u_xs_ddr_r/g_skid.g_slot[0].r_data[0][3]_i_1__11_n_0
-    SLICE_X30Y93         FDCE                                         r  u_xbar/u_xs_ddr_r/g_skid.g_slot[0].r_data_reg[0][3]/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_xbar/u_xs_ddr_r/aclk
-    SLICE_X30Y93         FDCE                                         r  u_xbar/u_xs_ddr_r/g_skid.g_slot[0].r_data_reg[0][3]/C
-                         clock pessimism              0.000     0.432    
-    SLICE_X30Y93         FDCE (Hold_fdce_C_D)         0.121     0.553    u_xbar/u_xs_ddr_r/g_skid.g_slot[0].r_data_reg[0][3]
-  -------------------------------------------------------------------
-                         required time                         -0.553    
-                         arrival time                           0.650    
-  -------------------------------------------------------------------
-                         slack                                  0.098    
-
-Slack (MET) :             0.101ns  (arrival time - required time)
-  Source:                 u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[1].r_data_reg[1][48]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data_reg[0][48]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Hold (Min at Fast Process Corner)
-  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
-  Data Path Delay:        0.242ns  (logic 0.186ns (76.826%)  route 0.056ns (23.173%))
-  Logic Levels:           1  (LUT5=1)
-  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.432ns
-    Source Clock Delay      (SCD):    0.410ns
-    Clock Pessimism Removal (CPR):    -0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_ddr_adapter/u_master_wr/aw_channel/aclk
-    SLICE_X43Y52         FDCE                                         r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[1].r_data_reg[1][48]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X43Y52         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[1].r_data_reg[1][48]/Q
-                         net (fo=1, routed)           0.056     0.607    u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[1].r_data_reg[1]_0[48]
-    SLICE_X42Y52         LUT5 (Prop_lut5_I4_O)        0.045     0.652 r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data[0][48]_i_1__5/O
-                         net (fo=1, routed)           0.000     0.652    u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data[0][48]_i_1__5_n_0
-    SLICE_X42Y52         FDCE                                         r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data_reg[0][48]/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_ddr_adapter/u_master_wr/aw_channel/aclk
-    SLICE_X42Y52         FDCE                                         r  u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data_reg[0][48]/C
-                         clock pessimism              0.000     0.432    
-    SLICE_X42Y52         FDCE (Hold_fdce_C_D)         0.120     0.552    u_ddr_adapter/u_master_wr/aw_channel/g_skid.g_slot[0].r_data_reg[0][48]
-  -------------------------------------------------------------------
-                         required time                         -0.552    
-                         arrival time                           0.652    
-  -------------------------------------------------------------------
-                         slack                                  0.101    
 
 Slack (MET) :             0.123ns  (arrival time - required time)
-  Source:                 u_xbar/u_xs_sram_r/g_skid.g_slot[1].r_data_reg[1][1]/C
+  Source:                 u_xbar/u_xs_sram_w/g_skid.g_slot[1].r_data_reg[1][32]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data_reg[0][1]/D
+  Destination:            u_xbar/u_xs_sram_w/g_skid.g_slot[0].r_data_reg[0][32]/D
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             aclk
   Path Type:              Hold (Min at Fast Process Corner)
@@ -1243,63 +1282,22 @@ Slack (MET) :             0.123ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_xbar/u_xs_sram_r/aclk
-    SLICE_X36Y98         FDCE                                         r  u_xbar/u_xs_sram_r/g_skid.g_slot[1].r_data_reg[1][1]/C
+                         net (fo=4932, unset)         0.410     0.410    u_xbar/u_xs_sram_w/aclk
+    SLICE_X16Y40         FDCE                                         r  u_xbar/u_xs_sram_w/g_skid.g_slot[1].r_data_reg[1][32]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X36Y98         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_xbar/u_xs_sram_r/g_skid.g_slot[1].r_data_reg[1][1]/Q
-                         net (fo=1, routed)           0.051     0.602    u_xbar/u_xs_sram_r/g_skid.g_slot[1].r_data_reg[1]_73[1]
-    SLICE_X37Y98         LUT5 (Prop_lut5_I4_O)        0.045     0.647 r  u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data[0][1]_i_1__16/O
-                         net (fo=1, routed)           0.000     0.647    u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data[0][1]_i_1__16_n_0
-    SLICE_X37Y98         FDCE                                         r  u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data_reg[0][1]/D
+    SLICE_X16Y40         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_xbar/u_xs_sram_w/g_skid.g_slot[1].r_data_reg[1][32]/Q
+                         net (fo=1, routed)           0.051     0.602    u_xbar/u_xs_sram_w/g_skid.g_slot[1].r_data_reg[1]_71[32]
+    SLICE_X17Y40         LUT5 (Prop_lut5_I4_O)        0.045     0.647 r  u_xbar/u_xs_sram_w/g_skid.g_slot[0].r_data[0][32]_i_1__9/O
+                         net (fo=1, routed)           0.000     0.647    u_xbar/u_xs_sram_w/g_skid.g_slot[0].r_data[0][32]_i_1__9_n_0
+    SLICE_X17Y40         FDCE                                         r  u_xbar/u_xs_sram_w/g_skid.g_slot[0].r_data_reg[0][32]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_xbar/u_xs_sram_r/aclk
-    SLICE_X37Y98         FDCE                                         r  u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data_reg[0][1]/C
+                         net (fo=4932, unset)         0.432     0.432    u_xbar/u_xs_sram_w/aclk
+    SLICE_X17Y40         FDCE                                         r  u_xbar/u_xs_sram_w/g_skid.g_slot[0].r_data_reg[0][32]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X37Y98         FDCE (Hold_fdce_C_D)         0.092     0.524    u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data_reg[0][1]
-  -------------------------------------------------------------------
-                         required time                         -0.524    
-                         arrival time                           0.647    
-  -------------------------------------------------------------------
-                         slack                                  0.123    
-
-Slack (MET) :             0.123ns  (arrival time - required time)
-  Source:                 u_xbar/u_xs_sram_r/g_skid.g_slot[1].r_data_reg[1][7]/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data_reg[0][7]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             aclk
-  Path Type:              Hold (Min at Fast Process Corner)
-  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
-  Data Path Delay:        0.237ns  (logic 0.186ns (78.504%)  route 0.051ns (21.496%))
-  Logic Levels:           1  (LUT5=1)
-  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.432ns
-    Source Clock Delay      (SCD):    0.410ns
-    Clock Pessimism Removal (CPR):    -0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.410     0.410    u_xbar/u_xs_sram_r/aclk
-    SLICE_X36Y96         FDCE                                         r  u_xbar/u_xs_sram_r/g_skid.g_slot[1].r_data_reg[1][7]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X36Y96         FDCE (Prop_fdce_C_Q)         0.141     0.551 r  u_xbar/u_xs_sram_r/g_skid.g_slot[1].r_data_reg[1][7]/Q
-                         net (fo=1, routed)           0.051     0.602    u_xbar/u_xs_sram_r/g_skid.g_slot[1].r_data_reg[1]_73[7]
-    SLICE_X37Y96         LUT5 (Prop_lut5_I4_O)        0.045     0.647 r  u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data[0][7]_i_1__12/O
-                         net (fo=1, routed)           0.000     0.647    u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data[0][7]_i_1__12_n_0
-    SLICE_X37Y96         FDCE                                         r  u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data_reg[0][7]/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=4864, unset)         0.432     0.432    u_xbar/u_xs_sram_r/aclk
-    SLICE_X37Y96         FDCE                                         r  u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data_reg[0][7]/C
-                         clock pessimism              0.000     0.432    
-    SLICE_X37Y96         FDCE (Hold_fdce_C_D)         0.092     0.524    u_xbar/u_xs_sram_r/g_skid.g_slot[0].r_data_reg[0][7]
+    SLICE_X17Y40         FDCE (Hold_fdce_C_D)         0.092     0.524    u_xbar/u_xs_sram_w/g_skid.g_slot[0].r_data_reg[0][32]
   -------------------------------------------------------------------
                          required time                         -0.524    
                          arrival time                           0.647    
@@ -1317,37 +1315,37 @@ Waveform(ns):       { 0.000 5.000 }
 Period(ns):         10.000
 Sources:            { aclk }
 
-Check Type        Corner  Lib Pin  Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location       Pin
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][0]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][1]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][2]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][3]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X35Y124  u_cpu_adapter/ar_idt_cnt_reg[0][4]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X36Y126  u_cpu_adapter/ar_idt_cnt_reg[10][0]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X36Y126  u_cpu_adapter/ar_idt_cnt_reg[10][1]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X39Y125  u_cpu_adapter/ar_idt_cnt_reg[10][2]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X38Y126  u_cpu_adapter/ar_idt_cnt_reg[10][3]/C
-Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X36Y126  u_cpu_adapter/ar_idt_cnt_reg[10][4]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][0]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][0]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][1]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][1]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][2]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][2]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][3]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][3]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X35Y124  u_cpu_adapter/ar_idt_cnt_reg[0][4]/C
-Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X35Y124  u_cpu_adapter/ar_idt_cnt_reg[0][4]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][0]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][0]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][1]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X30Y127  u_cpu_adapter/ar_idt_cnt_reg[0][1]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][2]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][2]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][3]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X31Y127  u_cpu_adapter/ar_idt_cnt_reg[0][3]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X35Y124  u_cpu_adapter/ar_idt_cnt_reg[0][4]/C
-High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X35Y124  u_cpu_adapter/ar_idt_cnt_reg[0][4]/C
+Check Type        Corner  Lib Pin  Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location      Pin
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X42Y15  u_cpu_adapter/ar_idt_busy_reg[0]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X41Y15  u_cpu_adapter/ar_idt_busy_reg[10]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X39Y16  u_cpu_adapter/ar_idt_busy_reg[11]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y18  u_cpu_adapter/ar_idt_busy_reg[12]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X41Y16  u_cpu_adapter/ar_idt_busy_reg[13]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X43Y17  u_cpu_adapter/ar_idt_busy_reg[14]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X42Y17  u_cpu_adapter/ar_idt_busy_reg[15]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X41Y15  u_cpu_adapter/ar_idt_busy_reg[1]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X41Y17  u_cpu_adapter/ar_idt_busy_reg[2]/C
+Min Period        n/a     FDCE/C   n/a            1.000         10.000      9.000      SLICE_X38Y16  u_cpu_adapter/ar_idt_busy_reg[3]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X42Y15  u_cpu_adapter/ar_idt_busy_reg[0]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X42Y15  u_cpu_adapter/ar_idt_busy_reg[0]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X41Y15  u_cpu_adapter/ar_idt_busy_reg[10]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X41Y15  u_cpu_adapter/ar_idt_busy_reg[10]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X39Y16  u_cpu_adapter/ar_idt_busy_reg[11]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X39Y16  u_cpu_adapter/ar_idt_busy_reg[11]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y18  u_cpu_adapter/ar_idt_busy_reg[12]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y18  u_cpu_adapter/ar_idt_busy_reg[12]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X41Y16  u_cpu_adapter/ar_idt_busy_reg[13]/C
+Low Pulse Width   Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X41Y16  u_cpu_adapter/ar_idt_busy_reg[13]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X42Y15  u_cpu_adapter/ar_idt_busy_reg[0]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X42Y15  u_cpu_adapter/ar_idt_busy_reg[0]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X41Y15  u_cpu_adapter/ar_idt_busy_reg[10]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X41Y15  u_cpu_adapter/ar_idt_busy_reg[10]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X39Y16  u_cpu_adapter/ar_idt_busy_reg[11]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X39Y16  u_cpu_adapter/ar_idt_busy_reg[11]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y18  u_cpu_adapter/ar_idt_busy_reg[12]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X43Y18  u_cpu_adapter/ar_idt_busy_reg[12]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X41Y16  u_cpu_adapter/ar_idt_busy_reg[13]/C
+High Pulse Width  Fast    FDCE/C   n/a            0.500         5.000       4.500      SLICE_X41Y16  u_cpu_adapter/ar_idt_busy_reg[13]/C
 
 
 

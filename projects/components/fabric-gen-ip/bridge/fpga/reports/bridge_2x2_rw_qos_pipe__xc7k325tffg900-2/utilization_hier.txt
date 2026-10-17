@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Fri Oct 16 14:56:16 2026
+| Date         : Fri Oct 16 19:24:58 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_2x2_rw_qos_pipe__xc7k325tffg900-2/utilization_hier.txt
 | Design       : bridge_2x2_rw_qos_pipe
@@ -22,13 +22,13 @@ Table of Contents
 +----------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
 |          Instance          |                Module               | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
 +----------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
-| bridge_2x2_rw_qos_pipe     |                               (top) |       5852 |       5852 |       0 |    0 | 4865 |      0 |      0 |          0 |
+| bridge_2x2_rw_qos_pipe     |                               (top) |       5886 |       5886 |       0 |    0 | 4933 |      0 |      0 |          0 |
 |   (bridge_2x2_rw_qos_pipe) |                               (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
-|   u_cpu_adapter            |  bridge_2x2_rw_qos_pipe_cpu_adapter |        734 |        734 |       0 |    0 |  812 |      0 |      0 |          0 |
-|   u_ddr_adapter            |  bridge_2x2_rw_qos_pipe_ddr_adapter |       1268 |       1268 |       0 |    0 |  984 |      0 |      0 |          0 |
-|   u_dma_adapter            |  bridge_2x2_rw_qos_pipe_dma_adapter |        790 |        790 |       0 |    0 |  812 |      0 |      0 |          0 |
-|   u_sram_adapter           | bridge_2x2_rw_qos_pipe_sram_adapter |       1269 |       1269 |       0 |    0 |  986 |      0 |      0 |          0 |
-|   u_xbar                   |         bridge_2x2_rw_qos_pipe_xbar |       1723 |       1723 |       0 |    0 | 1198 |      0 |      0 |          0 |
+|   u_cpu_adapter            |  bridge_2x2_rw_qos_pipe_cpu_adapter |        763 |        763 |       0 |    0 |  846 |      0 |      0 |          0 |
+|   u_ddr_adapter            |  bridge_2x2_rw_qos_pipe_ddr_adapter |       1263 |       1263 |       0 |    0 |  984 |      0 |      0 |          0 |
+|   u_dma_adapter            |  bridge_2x2_rw_qos_pipe_dma_adapter |        814 |        814 |       0 |    0 |  846 |      0 |      0 |          0 |
+|   u_sram_adapter           | bridge_2x2_rw_qos_pipe_sram_adapter |       1265 |       1265 |       0 |    0 |  986 |      0 |      0 |          0 |
+|   u_xbar                   |         bridge_2x2_rw_qos_pipe_xbar |       1715 |       1715 |       0 |    0 | 1198 |      0 |      0 |          0 |
 +----------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
 * Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
 

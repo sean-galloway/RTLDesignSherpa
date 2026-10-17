@@ -46,6 +46,7 @@ Each master and slave is described by a TOML table under `[[bridge.masters]]` or
 |-------|------|---------|----------------------|-------------|
 | `base_addr` | hex string/int | required for slaves | `base_addr` | Start of the slave address window. Must be 4 KiB-aligned. |
 | `addr_range` | hex string/int | required for slaves | `addr_range` | Size of the slave window. Must be a non-zero multiple of 4 KiB. |
+| `timeout_cycles` | int | `0` | `timeout_cycles` | > 0 puts `axi4_slave_watchdog` in front of this AXI4 slave (DECERR for everything after that many silent cycles; top output `<name>_timeout`). 0 or >= 2. GitHub #119 L3. |
 
 : Slave-only fields
 
