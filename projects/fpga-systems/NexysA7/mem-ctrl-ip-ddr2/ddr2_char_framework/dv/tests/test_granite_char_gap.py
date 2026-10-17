@@ -16,11 +16,12 @@ harness, like the smoke).
 
 import os
 import sys
+from collections import deque
 
 import pytest
 import cocotb
 from cocotb._bridge import bridge
-from cocotb.triggers import RisingEdge, ReadOnly
+from cocotb.triggers import RisingEdge, FallingEdge, ReadOnly
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 
@@ -205,6 +206,184 @@ async def _sched_trace(dut):
     fh.close()
 
 
+async def _rd_trace(dut):
+    """MC-003 read-side journal (TRACE=1): one line per return-path event,
+    joining bank-sched fire -> entry-store issue -> ring push/return/drain
+    with the DFI aligner's admission/capture. Localizes the first mis-framed
+    beat to a stage: a PUSH without a sched FIRE, a RET burst whose last
+    lands off beat 3, an ADMIT/CAP imbalance, or a ring drain that stalls."""
+    core = dut.u_dut.u_dut.u_ctrl.u_core
+    ring = core.u_axi_plane.u_rd_ring
+    store = core.u_entry_store
+    try:
+        bs = core.u_sched_plane.g_bank_sched.u_bank_sched
+    except AttributeError:
+        bs = None
+    try:
+        al = core.u_dfi_plane.u_rd
+    except AttributeError:
+        al = None
+    PTRW = 3
+    fh = open("/tmp/mc003_rd_trace.txt", "w")
+    fh.write("# t_ps events: ALLOC tkt | PUSH tkt | RET tkt beat last occ | "
+             "DRAIN last | FIRE slot bk rdy [skid/bh/bh2/stale/ovr/ref] | "
+             "ISSU slot tkt vld | ADMIT outst | CAP rcnt last outst credit\n")
+    fh.flush()
+    while True:
+        await ReadOnly()
+        t = get_sim_time("ps")
+        ev = []
+        try:
+            if int(ring.w_alloc.value):
+                ev.append(f"ALLOC {int(ring.alloc_ticket_o.value)}")
+            if int(ring.issue_valid_i.value) and int(ring.w_iq_wr_ready.value):
+                ev.append(f"PUSH {int(ring.issue_ticket_i.value)}")
+            if int(ring.w_ret_fire.value):
+                ev.append(f"RET {int(ring.w_iq_rd_ticket.value)} "
+                          f"{int(ring.r_ret_beat.value)} "
+                          f"{int(ring.dfi_ret_last_i.value)} "
+                          f"occ{int(ring.r_occ.value)} "
+                          f"wi{int(ring.w_ret_idx.value)} "
+                          f"d{int(ring.dfi_ret_data_i.value):016x}")
+            if int(ring.w_dr_fire.value):
+                ev.append(f"DRAIN {int(ring.w_hd_blast.value)} "
+                          f"wi{int(ring.w_dr_idx.value)} "
+                          f"d{int(ring.drain_data_o.value):016x}")
+        except Exception as e:
+            ev.append(f"ringerr {e!r}")
+        try:
+            if int(store.w_rd_issue_fire.value):
+                slot = int(store.rd_issue_slot_i.value)
+                try:
+                    vld = int(store.r_rd_valid[slot].value)
+                except Exception:
+                    vld = -1
+                ev.append(f"ISSU sl{slot} v{vld}")
+        except Exception as e:
+            ev.append(f"storeerr {e!r}")
+        if bs is not None:
+            try:
+                if int(bs.wr_commit_valid_o.value):
+                    ev.append(
+                        f"WCMD sl{int(bs.wr_commit_slot_o.value)} "
+                        f"b{int(bs.cmd_bank_o.value)} "
+                        f"r{int(bs.cmd_row_o.value)} "
+                        f"c{int(bs.cmd_col_o.value)}")
+                if int(bs.rd_issue_valid_o.value):
+                    ev.append(
+                        f"RCMD sl{int(bs.rd_issue_slot_o.value)} "
+                        f"b{int(bs.cmd_bank_o.value)} "
+                        f"r{int(bs.cmd_row_o.value)} "
+                        f"c{int(bs.cmd_col_o.value)}")
+            except Exception as e:
+                ev.append(f"bserr {e!r}")
+        if al is not None:
+            try:
+                if int(al.w_admit.value):
+                    ev.append(f"ADMIT outst{int(al.r_outstanding.value)}")
+                if int(al.w_cap_fire.value):
+                    ev.append(f"CAP rc{int(al.r_rcnt.value)} "
+                              f"lt{int(al.rd_last_o.value)} "
+                              f"outst{int(al.r_outstanding.value)} "
+                              f"cr{int(al.r_credit.value)}")
+            except Exception as e:
+                ev.append(f"alerr {e!r}")
+        try:
+            if int(store.w_aw_fire.value):
+                ev.append(f"WAW sl{int(store.w_wr_free_slot.value)}")
+            if int(store.w_wd_fire.value):
+                ev.append(f"WFILL sl{int(store.w_fill_slot.value)} "
+                          f"d{int(store.wd_data_i.value) & 0xFFFFFFFF:08x}")
+            if int(store.w_wr_commit_fire.value):
+                slot = int(store.wr_commit_slot_i.value)
+                try:
+                    row = int(store.r_wr_row[slot].value)
+                    col = int(store.r_wr_col[slot].value)
+                    bk = int(store.r_wr_bank[slot].value)
+                except Exception:
+                    row = col = bk = -1
+                ev.append(f"WCMIT sl{slot} b{bk} r{row} c{col}")
+            if int(store.w_fetch.value):
+                ev.append(f"WFTCH sl{int(store.w_dq_rd_slot.value)} "
+                          f"i{int(store.w_cm_idx.value)}")
+            if int(store.w_cm_fire.value):
+                ev.append(f"WDRAIN sl{int(store.w_dq_rd_slot.value)} "
+                          f"d{int(store.w_hd_data.value) & 0xFFFFFFFF:08x}")
+        except Exception as e:
+            ev.append(f"wrerr {e!r}")
+        try:
+            if int(core.s_axi_rvalid.value) and int(core.s_axi_rready.value):
+                ev.append(f"RBEAT lt{int(core.s_axi_rlast.value)}")
+        except Exception as e:
+            ev.append(f"rerr {e!r}")
+        if ev:
+            fh.write(f"{t:>12} " + " ".join(ev) + "\n")
+            fh.flush()
+        await RisingEdge(dut.aclk)
+
+
+async def _pin_trace(dut):
+    """MC-003 pin-level journal (TRACE=1): every WR/RD command decoded from
+    the DFI pins with its data beat(s), in order. Final arbiter before the
+    memory model: (bank,col,wrdata) per WR command and (bank,col,rddata) per
+    RD command."""
+    fh = open("/tmp/mc003_pin_trace.txt", "w")
+    fh.write("# t_ps | WRCMD bk col | WRDAT d | RDCMD bk col | RDDAT d\n")
+    fh.flush()
+    wr_pending = 0
+    rd_pending = 0
+    while True:
+        await RisingEdge(dut.aclk)
+        try:
+            cs = int(dut.phy_dfi_cs_n.value)
+            r = int(dut.phy_dfi_ras_n.value)
+            c = int(dut.phy_dfi_cas_n.value)
+            w = int(dut.phy_dfi_we_n.value)
+            addr = int(dut.phy_dfi_address.value)
+            bank = int(dut.phy_dfi_bank.value)
+            wen = int(dut.phy_dfi_wrdata_en.value)
+            rvs = int(dut.phy_dfi_rddata_valid.value)
+        except Exception:
+            continue
+        t = get_sim_time("ps")
+        ev = []
+        for p in range(DFI_RATE):
+            if (cs >> p) & 1:
+                continue
+            key = ((r >> p) & 1, (c >> p) & 1, (w >> p) & 1)
+            bk = (bank >> (p * 3)) & 0x7
+            ad = (addr >> (p * 14)) & 0x3FFF
+            if key == (1, 0, 0):
+                ev.append(f"WRCMD b{bk} c{ad}")
+                wr_pending += 1
+            elif key == (1, 0, 1):
+                ev.append(f"RDCMD b{bk} c{ad}")
+                rd_pending += 1
+            elif key == (0, 0, 1):
+                ev.append(f"ACT b{bk} r{ad}")
+            elif key == (0, 1, 1):
+                ev.append(f"PRE b{bk}")
+        if wen:
+            d = int(dut.phy_dfi_wrdata.value)
+            for p in range(DFI_RATE):
+                if (wen >> p) & 1:
+                    ev.append(f"WRDAT d{(d >> (p * 128)) & 0xFFFFFFFFFFFFFFFF:016x}")
+                    wr_pending -= 1
+        if rvs:
+            d = int(dut.phy_dfi_rddata.value)
+            for p in range(DFI_RATE):
+                if (rvs >> p) & 1:
+                    ev.append(f"RDDAT d{(d >> (p * 128)) & 0xFFFFFFFFFFFFFFFF:016x}")
+                    rd_pending -= 1
+        if ev:
+            fh.write(f"{t:>12} " + " ".join(ev) + "\n")
+            fh.flush()
+        elif os.environ.get("TRACE", "0") == "2" and cs != 3:
+            fh.write(f"{t:>12} RAW cs{cs:02b} r{r:02b} c{c:02b} w{w:02b} "
+                     f"a{addr:x} b{bank:02b}\n")
+            fh.flush()
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_granite_col_major_gap(dut):
     drv, chan, _dfi, _mem = await _bringup(dut)
@@ -217,6 +396,10 @@ async def cocotb_test_granite_col_major_gap(dut):
     mismatches = []
     if os.environ.get("TRACE", "0") == "1":
         cocotb.start_soon(_dfi_monitor(dut))
+        cocotb.start_soon(_rd_trace(dut))
+        cocotb.start_soon(_pin_trace(dut))
+    elif os.environ.get("TRACE", "0") == "2":
+        cocotb.start_soon(_pin_trace(dut))
     # col-major: one row in the SAME bank per txn; wrap at the device.
     stride = (1 << COL_W) * DRAM_DEVICE_BYTES          # one row, same bank
     wrap = (1 << ROW_W) * stride - 1                   # device boundary

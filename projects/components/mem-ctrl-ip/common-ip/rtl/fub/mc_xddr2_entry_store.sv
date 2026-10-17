@@ -291,20 +291,31 @@ module mc_xddr2_entry_store
 
     // WR fill target: oldest valid entry that has not yet seen its last beat.
     // AXI4 write data is non-interleaved and arrives in AW order, so the
-    // filling entry is the lowest-index valid !fdone one (allocation is
-    // lowest-first). First match wins -- a newer descriptor may be pushed
-    // while an older burst is still filling, and its beats must not be
-    // redirected.
+    // filling entry is the OLDEST valid !fdone one by the age matrix. Slot
+    // order is NOT age order once slots recycle (a freed low slot goes to a
+    // young entry), and lowest-first fill lets a young entry in a recycled
+    // low slot steal an older entry's beats -- a one-position rotation of the
+    // write data stream vs addresses (MC-003 2026-10-16, proven at the pins
+    // of test_granite_char_gap: WFILL journal showed beats staged into
+    // {9,10,11,12,13,14,8} while entries 8..14 owned them).
     logic            w_fill_vld;
     logic [PTRW-1:0] w_fill_slot;
     always_comb begin
         w_fill_vld  = 1'b0;
         w_fill_slot = '0;
-        for (int i = 0; i < NUM_ENTRIES; i++)
-            if (!w_fill_vld && r_wr_valid[i] && !r_wr_fdone[i]) begin
-                w_fill_vld  = 1'b1;
-                w_fill_slot = PTRW'(i);
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            if (r_wr_valid[i] && !r_wr_fdone[i]) begin
+                automatic logic older_unfilled = 1'b0;
+                for (int j = 0; j < NUM_ENTRIES; j++)
+                    if ((j != i) && r_wr_valid[j] && !r_wr_fdone[j]
+                        && r_wr_older[j][i])
+                        older_unfilled = 1'b1;
+                if (!older_unfilled) begin
+                    w_fill_vld  = 1'b1;
+                    w_fill_slot = PTRW'(i);
+                end
             end
+        end
     end
 
     // SRAM flat index of the fill beat (32-bit width, mirroring mc_wr_data_cam)

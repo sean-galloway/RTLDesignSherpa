@@ -163,3 +163,80 @@ If adding a new scheduler input is undesirable, route `dfi_ret_valid_i` (or the 
 ---
 
 *No RTL changes were made.  This report is based on the current state of the repo (stale-skid fix already in `mc_bank_sched.sv`).*
+
+---
+
+## 7. Session 2026-10-16 — root cause CONFIRMED + fixed; one refresh-density corner remains
+
+Repro per §1 with `BANK_FIFO=1` (local working-tree flip of the granite_core
+param; the committed value stays `1'b0` until enablement is decided, see
+MC-003.md).
+
+### 7.1 Instrumentation (all testbench-side, `TRACE=1`-gated, in `test_granite_char_gap.py`)
+
+`_rd_trace` event journal joining every stage: ring ALLOC/PUSH/RET/DRAIN
+(with beat index + data), entry-store WAW/WFILL/WCMIT/WFTCH/WDRAIN (with
+slot, commit descriptor bank/row/col, data), sched WCMD/RCMD command
+addresses, aligner ADMIT/CAP, host R beats.  Golden model for the data: the
+WR/RD engines' 32-bit Fibonacci LFSR (taps {23,3,2,1} 1-indexed, seed =
+TEST_SEED) gives the expected 64-bit beat value at all 512 positions in AR
+order (first beats verified exactly: tkt0=abcd1234, tkt1=55e6891a, ...).
+
+### 7.2 Read-side exonerated, then the write fill caught
+
+Clean, in order, all 512, at every tREFI tried: RD_ALIGNER probe
+(valids=512 captured=512 blocked=0 en_cycles=512); ring (PUSH==FIRE==ISSU
+512, RET ticket order == PUSH order, one complete burst per ticket, drains
+in AR order with correct LASTs); sched command addresses (WCMD/RCMD slot +
+bank/row/col == store descriptor, per-bank in-order, no dups/misses);
+pin-level WR stream (512 commands, data == LFSR except the 12 rotated
+beats below).
+
+**Root cause: the entry store's WR fill target was the lowest-index valid
+!fdone SLOT, not the OLDEST entry.**  Slot number ≠ age once slots recycle
+(a freed low slot goes to a young entry).  WFILL journal, tREFI=200,
+t=365260000–365320000: beats `LFSR[8..14]` staged into slots holding
+entries **{9,10,11,12,13,14,8}** — a one-position rotation per event; the
+young entry in a recycled low slot steals the older entry's beats.  The
+DRAM then holds beat k−1's data at address k across the affected run, which
+is exactly the observed "beats land in the wrong AR slots + final-txn
+RLAST never fires" signature (the RLAST leg is the RD engine's sticky
+data-error status, not a protocol hang — the R channel delivered all 512
+beats + 64 RLASTs even in failing runs).
+
+### 7.3 Fix (committed)
+
+`mc_xddr2_entry_store.sv`: WR fill target = oldest `!fdone` entry by the
+age matrix (`r_wr_older`), replacing lowest-slot-index selection.  Exact by
+construction: W beats arrive in AW order, so the oldest unfilled entry owns
+the arriving beat; with no unfilled entry `wd_ready` deasserts.  Same-file
+test fix: `from collections import deque` (NameError under TRACE=1).
+
+### 7.4 Verification
+
+| net | result |
+|---|---|
+| repro tREFI=200 (the MC-003 corner) | PASS (was mism=18 + rd-hang) |
+| repro tREFI=400, 585 (board) | PASS |
+| fixed-run journals | fill_bad=0, drain_bad=0, drain==LFSR @512/512 |
+| FRFCFS control (BANK_FIFO=0) tREFI=200 **and** 100 | PASS (fix does not disturb the parked core) |
+| store-arbiter contract | 1/1 |
+| uart smoke | 1/1 |
+| granite top (`dv/tests/top/`) | 6 passed, 1 xfail |
+| integrity `test_ddr2_char_char_families_x16` | PASS |
+
+### 7.5 Residual: tREFI=100 refresh-density corner (root-caused, NOT fixed)
+
+At tREFI=100 (refresh every 100 cycles vs tRFC=14; the board runs 585)
+BANK_FIFO=1 still fails (mism=24; FRFCFS clean at 100).  Model-side command
+trace (`DFI_CMD_TRACE=1` — authoritative: the model's own decode + open
+row per command) shows: refresh-drain **override PREs interleave with
+per-bank demand reads mid-row**; RD columns reach the model while it has
+the bank closed (`open_row=None` → the model falls back to row 0 → returns
+that row's data: pos161-164 ← LFSR[33-36], etc.; reads of never-written
+rows return 0).  Compounding factor: the read-side CLOSE_ON_DRAIN
+auto-precharge keys on the LIVE `rd_bh_empty`, which lags the AR feed at
+this density, so mid-txn reads get AP set.  Also observed: duplicate ACTs
+~9–13 cycles apart (ACT-to-open-bank; the model's JEDEC audit does not
+flag bank-state violations).  Not hit at tREFI ≥ 200.  Next MC-003 item;
+the tREFI ≥ 200 enablement corners are otherwise green with the §7.3 fix.
