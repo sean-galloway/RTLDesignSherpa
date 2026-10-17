@@ -19,6 +19,7 @@ class DeltaMeshConfig:
     user_width: int = 1
     amba5: bool = False
     add_counters: bool = True
+    ifc: str = "axis"
 
 
 def header_width(cfg: DeltaMeshConfig) -> int:
@@ -45,6 +46,19 @@ def validate_mesh(cfg: DeltaMeshConfig) -> None:
 
     if cfg.fifo_impl not in {"reg", "sram"}:
         raise ValueError(f"fifo-impl must be 'reg' or 'sram', got {cfg.fifo_impl!r}")
+
+    if cfg.ifc not in {"axis", "cxs"}:
+        raise ValueError(f"ifc must be 'axis' or 'cxs', got {cfg.ifc!r}")
+
+    if cfg.ifc == "cxs":
+        # AMBA CXS multi-packet flits (CXSMAXPKTPERFLIT >= 2, required by the
+        # house framers for TLAST framing) restrict CXSDATAWIDTH to 256/512/
+        # 1024 (2048 also legal at Issue D) -- cxs_pkg::config_error rule 6.
+        if cfg.data_width not in {256, 512, 1024, 2048}:
+            raise ValueError(
+                f"ifc 'cxs' requires --data-width 256/512/1024/2048 "
+                f"(CXS multi-packet flits; cxs_pkg::config_error rule 6), "
+                f"got {cfg.data_width}")
 
     min_user_width = header_width(cfg)
     if cfg.user_width < min_user_width:

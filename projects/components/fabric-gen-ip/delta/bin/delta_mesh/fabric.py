@@ -49,6 +49,7 @@ from rtl_generators.verilog.module import Module
 
 from .cell import NUM_PORTS, PORT_IDS
 from .config import DeltaMeshConfig
+from .plane import cxs_widths
 
 # Boundary test and boundary-index map (single source of truth, mirrored in
 # the emitted constant functions and consumed by the DV TB):
@@ -643,8 +644,447 @@ class DeltaMeshFabric(Module):
         self.write(file_path, f'{self.module_name}.sv')
 
 
+class DeltaMeshFabricCxs(Module):
+    """CXS fabric top: grid of delta_mesh_cell_cxs instances with CXS outer ports."""
+
+    def __init__(self, config: DeltaMeshConfig):
+        validate_fabric(config)
+        self.cfg = config
+        self.module_str = (f'delta_mesh_fabric_{config.cells_x}'
+                           f'x{config.cells_y}x{config.cells_z}_cxs')
+
+        Module.__init__(self, module_name=self.module_str)
+
+        coord_w = max(1, (max(config.cells_x, config.cells_y, config.cells_z)
+                          - 1).bit_length())
+        self.coord_w = coord_w
+        self.num_boundary = len(boundary_cells(config))
+
+        param_str = f'''
+            parameter int DATA_WIDTH = {config.data_width},
+            parameter int USER_WIDTH = {config.user_width},
+            parameter int COORD_W = {coord_w},
+            parameter int NUM_VC = 2,
+            parameter string FIFO_IMPL = "{config.fifo_impl}",
+            parameter int ENABLE_COUNTERS = {1 if config.add_counters else 0},
+            parameter int AGING_LIMIT = 64,
+            parameter int BULK_MIN_CREDITS = 1,
+            parameter int NUM_BOUNDARY = {self.num_boundary},
+            parameter int CXS_MAX_CREDIT = 32,
+            parameter bit TORUS_X = {1 if config.torus_x else 0},
+            parameter bit TORUS_Y = {1 if config.torus_y else 0},
+            parameter bit TORUS_Z = {1 if config.torus_z else 0},
+            parameter bit SOURCE_ROUTE = {1 if config.source_route else 0},
+            parameter bit SPECULATION = {1 if config.speculation else 0},
+            parameter int NUM_PORTS = 9,
+            parameter int SW = DATA_WIDTH / 8,
+            parameter int CNTL_W = {cxs_widths(config.data_width, config.user_width)[0]},
+            parameter int CNTL_PW = {cxs_widths(config.data_width, config.user_width)[1]},
+            parameter int CXS_UW = {cxs_widths(config.data_width, config.user_width)[2]}
+        '''
+        self.params.add_param_string(param_str)
+
+        port_str = '''
+            input  logic aclk,
+            input  logic aresetn,
+
+            input  logic                  s_local_cxs_valid   [NUM_BOUNDARY],
+            input  logic [DATA_WIDTH-1:0] s_local_cxs_data    [NUM_BOUNDARY],
+            input  logic [CNTL_PW-1:0]    s_local_cxs_cntl    [NUM_BOUNDARY],
+            input  logic [0:0]            s_local_cxs_srcid   [NUM_BOUNDARY],
+            input  logic [0:0]            s_local_cxs_tgtid   [NUM_BOUNDARY],
+            input  logic [CXS_UW-1:0]     s_local_cxs_user    [NUM_BOUNDARY],
+            output logic                  s_local_cxs_crdgnt  [NUM_BOUNDARY],
+            input  logic                  s_local_cxs_crdrtn  [NUM_BOUNDARY],
+            input  logic                  s_local_cxs_activereq [NUM_BOUNDARY],
+            output logic                  s_local_cxs_activeack [NUM_BOUNDARY],
+            output logic                  s_local_cxs_deacthint [NUM_BOUNDARY],
+
+            output logic                  m_local_cxs_valid   [NUM_BOUNDARY],
+            output logic [DATA_WIDTH-1:0] m_local_cxs_data    [NUM_BOUNDARY],
+            output logic [CNTL_PW-1:0]    m_local_cxs_cntl    [NUM_BOUNDARY],
+            output logic [0:0]            m_local_cxs_srcid   [NUM_BOUNDARY],
+            output logic [0:0]            m_local_cxs_tgtid   [NUM_BOUNDARY],
+            output logic [CXS_UW-1:0]     m_local_cxs_user    [NUM_BOUNDARY],
+            input  logic                  m_local_cxs_crdgnt  [NUM_BOUNDARY],
+            output logic                  m_local_cxs_crdrtn  [NUM_BOUNDARY],
+            output logic                  m_local_cxs_activereq [NUM_BOUNDARY],
+            input  logic                  m_local_cxs_activeack [NUM_BOUNDARY],
+            input  logic                  m_local_cxs_deacthint [NUM_BOUNDARY],
+
+            input  logic [NUM_VC-1:0]     s_local_credit [NUM_BOUNDARY],
+            output logic [NUM_VC-1:0]     m_local_credit [NUM_BOUNDARY],
+
+            output logic [31:0]           o_err          [NUM_BOUNDARY],
+            output logic [31:0]           o_mode_acks    [NUM_BOUNDARY],
+            output logic [8:0]            o_bulk_starved [NUM_BOUNDARY],
+            output logic                  o_dft_active   [NUM_BOUNDARY]
+        '''
+        self.ports.add_port_string(port_str)
+
+    def generate_header_comment(self):
+        cfg = self.cfg
+        self.comment("==============================================================================")
+        self.comment(f"Module: {self.module_str}")
+        self.comment("Project: Delta - AXI-Stream Crossbar Generator (mesh topology)")
+        self.comment("==============================================================================")
+        self.comment(f"Description: CXS mesh fabric top for a {cfg.cells_x}x{cfg.cells_y}x"
+                     f"{cfg.cells_z} grid of delta_mesh_cell_cxs instances")
+        self.comment("")
+        self.comment("Delta: Where data flows split and merge like river deltas")
+        self.comment("")
+        self.comment("Generated by: delta_generator.py --topology mesh --ifc cxs")
+        self.comment("Configuration:")
+        self.comment(f"  - Topology: mesh ({cfg.cells_x}x{cfg.cells_y}x{cfg.cells_z})")
+        self.comment(f"  - Data Width: {cfg.data_width} bits")
+        self.comment(f"  - User Width: {cfg.user_width} bits (head-flit header sideband)")
+        self.comment(f"  - Coordinate Width: {self.coord_w} bits")
+        self.comment(f"  - Boundary Cells: {self.num_boundary} of "
+                     f"{cfg.cells_x * cfg.cells_y * cfg.cells_z}")
+        self.comment("")
+        self.comment("Boundary locals present native CXS flit ports.")
+        self.comment("See delta_mesh_cell_cxs for the plane layering note.")
+        self.comment("==============================================================================")
+        self.instruction("")
+
+    def generate_localparams(self):
+        cfg = self.cfg
+        self.comment("==========================================================================")
+        self.comment("Local parameters")
+        self.comment("==========================================================================")
+        self.instruction(f"localparam int X_DIM = {cfg.cells_x};")
+        self.instruction(f"localparam int Y_DIM = {cfg.cells_y};")
+        self.instruction(f"localparam int Z_DIM = {cfg.cells_z};")
+        self.instruction("")
+        for name, value in PORT_IDS:
+            self.instruction(f"localparam int {name} = {value};")
+        self.instruction("")
+        self.instruction("function automatic logic is_boundary(int x, int y, int z);")
+        self.instruction("    return (x == 0) || (x == X_DIM-1) ||")
+        self.instruction("           (y == 0) || (y == Y_DIM-1) ||")
+        self.instruction("           (z == 0) || (z == Z_DIM-1);")
+        self.instruction("endfunction")
+        self.instruction("")
+        self.instruction("function automatic int linear_idx(int x, int y, int z);")
+        self.instruction("    return (z*Y_DIM + y)*X_DIM + x;")
+        self.instruction("endfunction")
+        self.instruction("")
+        self.instruction("function automatic int boundary_index(int x, int y, int z);")
+        self.instruction("    int idx = 0;")
+        self.instruction("    for (int zz = 0; zz < Z_DIM; zz++) begin")
+        self.instruction("        for (int yy = 0; yy < Y_DIM; yy++) begin")
+        self.instruction("            for (int xx = 0; xx < X_DIM; xx++) begin")
+        self.instruction("                if (linear_idx(xx, yy, zz) < linear_idx(x, y, z))")
+        self.instruction("                    if (is_boundary(xx, yy, zz))")
+        self.instruction("                        idx++;")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("    return idx;")
+        self.instruction("endfunction")
+        self.instruction("")
+        self.instruction("function automatic int dia2_mate(int c);")
+        self.instruction("    dia2_mate = ((c & 1) != 0) ? (c + 1) : (c - 1);")
+        self.instruction("endfunction")
+        self.instruction("")
+
+    def generate_wire_declarations(self):
+        self.comment("==========================================================================")
+        self.comment("Inter-cell CXS wiring (unpacked [X][Y][Z][port])")
+        self.comment("==========================================================================")
+        self.instruction("/* verilator lint_off UNOPTFLAT */")
+        self.instruction("logic                  cell_s_cxs_valid   [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [DATA_WIDTH-1:0] cell_s_cxs_data    [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [CNTL_PW-1:0]    cell_s_cxs_cntl    [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [0:0]            cell_s_cxs_srcid   [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [0:0]            cell_s_cxs_tgtid   [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [CXS_UW-1:0]     cell_s_cxs_user    [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_s_cxs_crdgnt  [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_s_cxs_crdrtn  [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_s_cxs_activereq [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_s_cxs_activeack [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_s_cxs_deacthint [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [NUM_VC-1:0]     cell_s_credit      [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
+        self.instruction("logic                  cell_m_cxs_valid   [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [DATA_WIDTH-1:0] cell_m_cxs_data    [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [CNTL_PW-1:0]    cell_m_cxs_cntl    [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [0:0]            cell_m_cxs_srcid   [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [0:0]            cell_m_cxs_tgtid   [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [CXS_UW-1:0]     cell_m_cxs_user    [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_m_cxs_crdgnt  [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_m_cxs_crdrtn  [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_m_cxs_activereq [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_m_cxs_activeack [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic                  cell_m_cxs_deacthint [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("logic [NUM_VC-1:0]     cell_m_credit      [X_DIM][Y_DIM][Z_DIM][NUM_PORTS];")
+        self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
+        self.instruction("/* verilator lint_on UNOPTFLAT */")
+        self.instruction("/* verilator lint_off UNUSEDSIGNAL */")
+        self.instruction("logic [31:0]           cell_err_drop [X_DIM][Y_DIM][Z_DIM];")
+        self.instruction("logic [31:0]           cell_mode_acks [X_DIM][Y_DIM][Z_DIM];")
+        self.instruction("logic [8:0]            cell_bulk_starved [X_DIM][Y_DIM][Z_DIM];")
+        self.instruction("logic                  cell_dft_active [X_DIM][Y_DIM][Z_DIM];")
+        self.instruction("/* verilator lint_on UNUSEDSIGNAL */")
+        self.instruction("")
+
+    def _emit_port_tieoff(self, x, y, z, port):
+        """Tie off every side of an absent neighbor/local CXS port."""
+        p = f"[{x}][{y}][{z}][{port}]"
+        self.instruction(f"                    assign cell_s_cxs_valid{p}   = 1'b0;")
+        self.instruction(f"                    assign cell_s_cxs_data{p}    = '0;")
+        self.instruction(f"                    assign cell_s_cxs_cntl{p}    = '0;")
+        self.instruction(f"                    assign cell_s_cxs_srcid{p}   = '0;")
+        self.instruction(f"                    assign cell_s_cxs_tgtid{p}   = '0;")
+        self.instruction(f"                    assign cell_s_cxs_user{p}    = '0;")
+        self.instruction(f"                    assign cell_s_cxs_crdrtn{p}  = 1'b0;")
+        self.instruction(f"                    assign cell_s_cxs_activereq{p} = 1'b0;")
+        self.instruction(f"                    assign cell_s_credit{p}      = {{NUM_VC{{1'b1}}}};")
+        self.instruction(f"                    assign cell_m_cxs_crdgnt{p}  = 1'b0;")
+        self.instruction(f"                    assign cell_m_cxs_activeack{p} = 1'b0;")
+        self.instruction(f"                    assign cell_m_cxs_deacthint{p} = 1'b0;")
+
+    def _emit_port_connection(self, x, y, z, port, nx, ny, nz, nport):
+        """Connect port `port` of cell (x,y,z) to port `nport` of its neighbor."""
+        p = f"[{x}][{y}][{z}][{port}]"
+        q = f"[{nx}][{ny}][{nz}][{nport}]"
+        self.instruction(f"                    assign cell_s_cxs_valid{p}   = cell_m_cxs_valid{q};")
+        self.instruction(f"                    assign cell_s_cxs_data{p}    = cell_m_cxs_data{q};")
+        self.instruction(f"                    assign cell_s_cxs_cntl{p}    = cell_m_cxs_cntl{q};")
+        self.instruction(f"                    assign cell_s_cxs_srcid{p}   = cell_m_cxs_srcid{q};")
+        self.instruction(f"                    assign cell_s_cxs_tgtid{p}   = cell_m_cxs_tgtid{q};")
+        self.instruction(f"                    assign cell_s_cxs_user{p}    = cell_m_cxs_user{q};")
+        self.instruction(f"                    assign cell_s_cxs_crdrtn{p}  = cell_m_cxs_crdrtn{q};")
+        self.instruction(f"                    assign cell_s_cxs_activereq{p} = cell_m_cxs_activereq{q};")
+        self.instruction(f"                    assign cell_s_credit{p}      = cell_m_credit{q};")
+        self.instruction(f"                    assign cell_m_cxs_crdgnt{p}  = cell_s_cxs_crdgnt{q};")
+        self.instruction(f"                    assign cell_m_cxs_activeack{p} = cell_s_cxs_activeack{q};")
+        self.instruction(f"                    assign cell_m_cxs_deacthint{p} = cell_s_cxs_deacthint{q};")
+
+    def _emit_local_connection(self):
+        """Wire a boundary cell's local CXS port to its boundary-local slot."""
+        self.instruction("                    localparam int BIDX = boundary_index(gx, gy, gz);")
+        p = "[gx][gy][gz][P_LOCAL]"
+        self.instruction(f"                    assign cell_s_cxs_valid{p}   = s_local_cxs_valid[BIDX];")
+        self.instruction(f"                    assign cell_s_cxs_data{p}    = s_local_cxs_data[BIDX];")
+        self.instruction(f"                    assign cell_s_cxs_cntl{p}    = s_local_cxs_cntl[BIDX];")
+        self.instruction(f"                    assign cell_s_cxs_srcid{p}   = s_local_cxs_srcid[BIDX];")
+        self.instruction(f"                    assign cell_s_cxs_tgtid{p}   = s_local_cxs_tgtid[BIDX];")
+        self.instruction(f"                    assign cell_s_cxs_user{p}    = s_local_cxs_user[BIDX];")
+        self.instruction(f"                    assign cell_s_cxs_crdrtn{p}  = s_local_cxs_crdrtn[BIDX];")
+        self.instruction(f"                    assign cell_s_cxs_activereq{p} = s_local_cxs_activereq[BIDX];")
+        self.instruction(f"                    assign cell_s_credit{p}      = s_local_credit[BIDX];")
+        self.instruction(f"                    assign s_local_cxs_crdgnt[BIDX]  = cell_s_cxs_crdgnt{p};")
+        self.instruction(f"                    assign s_local_cxs_activeack[BIDX] = cell_s_cxs_activeack{p};")
+        self.instruction(f"                    assign s_local_cxs_deacthint[BIDX] = cell_s_cxs_deacthint{p};")
+        self.instruction("")
+        self.instruction(f"                    assign m_local_cxs_valid[BIDX]   = cell_m_cxs_valid{p};")
+        self.instruction(f"                    assign m_local_cxs_data[BIDX]    = cell_m_cxs_data{p};")
+        self.instruction(f"                    assign m_local_cxs_cntl[BIDX]    = cell_m_cxs_cntl{p};")
+        self.instruction(f"                    assign m_local_cxs_srcid[BIDX]   = cell_m_cxs_srcid{p};")
+        self.instruction(f"                    assign m_local_cxs_tgtid[BIDX]   = cell_m_cxs_tgtid{p};")
+        self.instruction(f"                    assign m_local_cxs_user[BIDX]    = cell_m_cxs_user{p};")
+        self.instruction(f"                    assign m_local_cxs_crdrtn[BIDX]  = cell_m_cxs_crdrtn{p};")
+        self.instruction(f"                    assign m_local_cxs_activereq[BIDX] = cell_m_cxs_activereq{p};")
+        self.instruction(f"                    assign cell_m_cxs_crdgnt{p}  = m_local_cxs_crdgnt[BIDX];")
+        self.instruction(f"                    assign cell_m_cxs_activeack{p} = m_local_cxs_activeack[BIDX];")
+        self.instruction(f"                    assign cell_m_cxs_deacthint{p} = m_local_cxs_deacthint[BIDX];")
+        self.instruction(f"                    assign m_local_credit[BIDX] = cell_m_credit{p};")
+        self.instruction(f"                    assign o_err[BIDX] = cell_err_drop[gx][gy][gz];")
+        self.instruction(f"                    assign o_mode_acks[BIDX] = cell_mode_acks[gx][gy][gz];")
+        self.instruction(f"                    assign o_bulk_starved[BIDX] = cell_bulk_starved[gx][gy][gz];")
+        self.instruction(f"                    assign o_dft_active[BIDX] = cell_dft_active[gx][gy][gz];")
+
+    def _emit_neighbor_hookups(self):
+        """Emit the six if-generate neighbor hookups (genvar-relative)."""
+        self.instruction("                if (gx > 0) begin : gen_xneg_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_X_NEG",
+                                   "gx-1", "gy", "gz", "P_X_POS")
+        self.instruction("                end else if (TORUS_X) begin : gen_xneg_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_X_NEG",
+                                   "X_DIM-1", "gy", "gz", "P_X_POS")
+        self.instruction("                end else begin : gen_xneg_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_X_NEG")
+        self.instruction("                end")
+
+        self.instruction("                if (gx < X_DIM-1) begin : gen_xpos_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_X_POS",
+                                   "gx+1", "gy", "gz", "P_X_NEG")
+        self.instruction("                end else if (TORUS_X) begin : gen_xpos_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_X_POS",
+                                   "0", "gy", "gz", "P_X_NEG")
+        self.instruction("                end else begin : gen_xpos_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_X_POS")
+        self.instruction("                end")
+
+        self.instruction("                if (gy > 0) begin : gen_yneg_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_Y_NEG",
+                                   "gx", "gy-1", "gz", "P_Y_POS")
+        self.instruction("                end else if (TORUS_Y) begin : gen_yneg_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_Y_NEG",
+                                   "gx", "Y_DIM-1", "gz", "P_Y_POS")
+        self.instruction("                end else begin : gen_yneg_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_Y_NEG")
+        self.instruction("                end")
+
+        self.instruction("                if (gy < Y_DIM-1) begin : gen_ypos_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_Y_POS",
+                                   "gx", "gy+1", "gz", "P_Y_NEG")
+        self.instruction("                end else if (TORUS_Y) begin : gen_ypos_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_Y_POS",
+                                   "gx", "0", "gz", "P_Y_NEG")
+        self.instruction("                end else begin : gen_ypos_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_Y_POS")
+        self.instruction("                end")
+
+        self.instruction("                if (gz > 0) begin : gen_zneg_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_Z_NEG",
+                                   "gx", "gy", "gz-1", "P_Z_POS")
+        self.instruction("                end else if (TORUS_Z) begin : gen_zneg_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_Z_NEG",
+                                   "gx", "gy", "Z_DIM-1", "P_Z_POS")
+        self.instruction("                end else begin : gen_zneg_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_Z_NEG")
+        self.instruction("                end")
+
+        self.instruction("                if (gz < Z_DIM-1) begin : gen_zpos_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_Z_POS",
+                                   "gx", "gy", "gz+1", "P_Z_NEG")
+        self.instruction("                end else if (TORUS_Z) begin : gen_zpos_wrap")
+        self._emit_port_connection("gx", "gy", "gz", "P_Z_POS",
+                                   "gx", "gy", "0", "P_Z_NEG")
+        self.instruction("                end else begin : gen_zpos_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_Z_POS")
+        self.instruction("                end")
+
+        self.instruction("                if (((gx^1) < X_DIM) && ((gy^1) < Y_DIM)) begin : gen_dia_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_DIA",
+                                   "gx^1", "gy^1", "gz", "P_DIA")
+        self.instruction("                end else begin : gen_dia_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_DIA")
+        self.instruction("                end")
+
+        self.instruction("                if ((dia2_mate(gx) >= 0) &&")
+        self.instruction("                    (dia2_mate(gx) < X_DIM) &&")
+        self.instruction("                    (dia2_mate(gy) >= 0) &&")
+        self.instruction("                    (dia2_mate(gy) < Y_DIM))")
+        self.instruction("                    begin : gen_dia2_conn")
+        self._emit_port_connection("gx", "gy", "gz", "P_DIA2",
+                                   "dia2_mate(gx)", "dia2_mate(gy)", "gz", "P_DIA2")
+        self.instruction("                end else begin : gen_dia2_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_DIA2")
+        self.instruction("                end")
+
+    def generate_grid(self):
+        self.comment("==========================================================================")
+        self.comment("Cell grid -- nested generate loops over x, y, z")
+        self.comment("==========================================================================")
+        self.instruction("generate")
+        self.instruction("    for (genvar gz = 0; gz < Z_DIM; gz++) begin : gen_z")
+        self.instruction("        for (genvar gy = 0; gy < Y_DIM; gy++) begin : gen_y")
+        self.instruction("            for (genvar gx = 0; gx < X_DIM; gx++) begin : gen_x")
+        self.instruction("")
+        self._emit_neighbor_hookups()
+        self.instruction("")
+        self.instruction("                localparam logic [8:0] WRAP_MASK =")
+        self.instruction("                    (((gx == 0) && TORUS_X) ? (9'(1) << P_X_NEG) : 9'h000) |")
+        self.instruction("                    (((gx == X_DIM-1) && TORUS_X) ? (9'(1) << P_X_POS) : 9'h000) |")
+        self.instruction("                    (((gy == 0) && TORUS_Y) ? (9'(1) << P_Y_NEG) : 9'h000) |")
+        self.instruction("                    (((gy == Y_DIM-1) && TORUS_Y) ? (9'(1) << P_Y_POS) : 9'h000) |")
+        self.instruction("                    (((gz == 0) && TORUS_Z) ? (9'(1) << P_Z_NEG) : 9'h000) |")
+        self.instruction("                    (((gz == Z_DIM-1) && TORUS_Z) ? (9'(1) << P_Z_POS) : 9'h000);")
+        self.instruction("")
+        self.instruction("                if (is_boundary(gx, gy, gz)) begin : gen_local_conn")
+        self._emit_local_connection()
+        self.instruction("                end else begin : gen_local_tieoff")
+        self._emit_port_tieoff("gx", "gy", "gz", "P_LOCAL")
+        self.instruction("                end")
+        self.instruction("")
+        self.instruction("                delta_mesh_cell_cxs #(")
+        self.instruction("                    .DATA_WIDTH(DATA_WIDTH),")
+        self.instruction("                    .USER_WIDTH(USER_WIDTH),")
+        self.instruction("                    .COORD_W(COORD_W),")
+        self.instruction("                    .POS_X(gx),")
+        self.instruction("                    .POS_Y(gy),")
+        self.instruction("                    .POS_Z(gz),")
+        self.instruction("                    .GRID_X(X_DIM),")
+        self.instruction("                    .GRID_Y(Y_DIM),")
+        self.instruction("                    .GRID_Z(Z_DIM),")
+        self.instruction("                    .NUM_VC(NUM_VC),")
+        self.instruction("                    .FIFO_IMPL(FIFO_IMPL),")
+        self.instruction("                    .ENABLE_COUNTERS(ENABLE_COUNTERS),")
+        self.instruction("                    .AGING_LIMIT(AGING_LIMIT),")
+        self.instruction("                    .BULK_MIN_CREDITS(BULK_MIN_CREDITS),")
+        self.instruction("                    .TORUS_X(TORUS_X),")
+        self.instruction("                    .TORUS_Y(TORUS_Y),")
+        self.instruction("                    .TORUS_Z(TORUS_Z),")
+        self.instruction("                    .SOURCE_ROUTE(SOURCE_ROUTE),")
+        self.instruction("                    .SPECULATION(SPECULATION),")
+        self.instruction("                    .CXS_MAX_CREDIT(CXS_MAX_CREDIT)")
+        self.instruction("                ) u_cell (")
+        self.instruction("                    .aclk(aclk),")
+        self.instruction("                    .aresetn(aresetn),")
+        self.instruction("                    .s_cxs_valid(cell_s_cxs_valid[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_data(cell_s_cxs_data[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_cntl(cell_s_cxs_cntl[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_srcid(cell_s_cxs_srcid[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_tgtid(cell_s_cxs_tgtid[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_user(cell_s_cxs_user[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_crdgnt(cell_s_cxs_crdgnt[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_crdrtn(cell_s_cxs_crdrtn[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_activereq(cell_s_cxs_activereq[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_activeack(cell_s_cxs_activeack[gx][gy][gz]),")
+        self.instruction("                    .s_cxs_deacthint(cell_s_cxs_deacthint[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_valid(cell_m_cxs_valid[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_data(cell_m_cxs_data[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_cntl(cell_m_cxs_cntl[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_srcid(cell_m_cxs_srcid[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_tgtid(cell_m_cxs_tgtid[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_user(cell_m_cxs_user[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_crdgnt(cell_m_cxs_crdgnt[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_crdrtn(cell_m_cxs_crdrtn[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_activereq(cell_m_cxs_activereq[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_activeack(cell_m_cxs_activeack[gx][gy][gz]),")
+        self.instruction("                    .m_cxs_deacthint(cell_m_cxs_deacthint[gx][gy][gz]),")
+        self.instruction("                    .s_credit(cell_s_credit[gx][gy][gz]),")
+        self.instruction("                    .m_credit(cell_m_credit[gx][gy][gz]),")
+        self.instruction("                    .wrap_mask(WRAP_MASK),")
+        self.instruction("                    .o_err_drop_cnt(cell_err_drop[gx][gy][gz]),")
+        self.instruction("                    .o_mode_acks(cell_mode_acks[gx][gy][gz]),")
+        self.instruction("                    .o_bulk_starved(cell_bulk_starved[gx][gy][gz]),")
+        self.instruction("                    .o_spec_active(),")
+        self.instruction("                    .o_dft_active(cell_dft_active[gx][gy][gz])")
+        self.instruction("                );")
+        self.instruction("            end")
+        self.instruction("        end")
+        self.instruction("    end")
+        self.instruction("endgenerate")
+        self.instruction("")
+
+    def verilog(self, file_path):
+        self.generate_header_comment()
+        self.generate_localparams()
+        self.generate_wire_declarations()
+        self.generate_grid()
+
+        self.start()
+        self.end()
+        self.start_instructions = [s.rstrip() for s in self.start_instructions]
+        self.instructions = [s.rstrip() for s in self.instructions]
+        self.end_instructions = [s.rstrip() for s in self.end_instructions]
+        self.write(file_path, f'{self.module_name}.sv')
+
+
+def write_fabric_cxs(config: DeltaMeshConfig, output_dir: str) -> str:
+    """Emit delta_mesh_fabric_<X>x<Y>x<Z>_cxs.sv into output_dir; return its path."""
+    validate_fabric(config)
+    generator = DeltaMeshFabricCxs(config)
+    generator.verilog(output_dir)
+    return os.path.join(output_dir, f'{generator.module_name}.sv')
+
+
 def write_fabric(config: DeltaMeshConfig, output_dir: str) -> str:
-    """Emit delta_mesh_fabric_<X>x<Y>x<Z>.sv into output_dir; return its path."""
+    """Emit delta_mesh_fabric_<X>x<Y>x<Z>.sv (AXIS) into output_dir; return its path."""
     validate_fabric(config)
     generator = DeltaMeshFabric(config)
     generator.verilog(output_dir)

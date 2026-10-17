@@ -62,11 +62,14 @@ python3 delta_generator.py --masters 2 --slaves 4 --data-width 64 --output-dir .
 >   [--torus x,y,z] \
 >   [--source-route] [--speculation] \
 >   [--fifo-impl reg|sram] \
+>   [--ifc axis|cxs] \
 >   [--data-width N] [--user-width N] [--amba5] [--no-counters] \
 >   --output-dir ../rtl
 > ```
 >
 > Mesh mode emits one cell module, `delta_mesh_cell.sv`, and a fabric top, `delta_mesh_fabric_<X>x<Y>x<Z>.sv`, that instantiates the `cells-x` × `cells-y` × `cells-z` grid. The hierarchy names (cell, tile, confluence, fabric) are for placement and documentation; the generator does not emit wrapper RTL for each level. The `--fifo-impl` knob selects register-file (`reg`, default) or SRAM (`sram`) input buffers; the SRAM option is not yet wired to the cell (issue #118).
+>
+> `--ifc` selects the interface plane (owner decision 2026-10-16, mirroring the rapids network-plane pattern): `axis` (default) emits the raw AXI4-Stream ports; `cxs` additionally emits `delta_mesh_cell_cxs.sv` (a wrapper around the unchanged AXIS core), four plane modules, and `delta_mesh_fabric_<X>x<Y>x<Z>_cxs.sv` with native AMBA 5 CXS flit ports (Issue D framing, credit grant/return, activation handshake) so a CXS rapids attaches without adapters. CXS mode requires `--data-width 256/512/1024/2048` — AMBA CXS multi-packet flits (`CXSMAXPKTPERFLIT >= 2`, required for TLAST framing) restrict `CXSDATAWIDTH` to those values (`cxs_pkg::config_error` rule 6); the generator rejects other widths. The §4 header content rides the flit sideband in both modes. Mesh credit sidebands remain the inter-cell flow control; CXS link credit is the plane's port-level mechanism. `axis` remains the default and the checked-in `delta_mesh.f` artifacts are unchanged; the CXS artifacts ship under `delta_mesh_cxs.f`.
 >
 > `--masters` and `--slaves` are not used in mesh mode; the fabric dimensions define the topology instead.
 

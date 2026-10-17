@@ -739,6 +739,8 @@ def main():
     parser.add_argument("--speculation", action="store_true", help="Enable speculative routing")
     parser.add_argument("--fifo-impl", choices=["reg", "sram"], default="reg",
                         help="Mesh router FIFO implementation")
+    parser.add_argument("--ifc", choices=["axis", "cxs"], default="axis",
+                        help="Mesh interface plane: axis (default) or cxs")
     parser.add_argument("--output-dir", type=str, default="../rtl")
     parser.add_argument("--nodes", action="store_true")
     parser.add_argument("--no-counters", action="store_true")
@@ -825,6 +827,7 @@ def main():
                 user_width=args.user_width,
                 amba5=args.amba5,
                 add_counters=not args.no_counters,
+                ifc=args.ifc,
             )
             validate_mesh(mesh_cfg)
             try:
