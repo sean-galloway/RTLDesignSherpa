@@ -21,6 +21,11 @@ module formal_axi4_dwidth_converter_rd (
     localparam int AXI_USER_WIDTH   = 1;
     localparam int SKID_DEPTH_AR    = 2;
     localparam int SKID_DEPTH_R     = 2;
+`ifdef FORMAL_RBYPASS
+    localparam bit F_R_INTERLEAVE   = 1'b0;
+`else
+    localparam bit F_R_INTERLEAVE   = 1'b1;
+`endif
 
     localparam int S_STRB_WIDTH     = S_AXI_DATA_WIDTH / 8;
     localparam int M_STRB_WIDTH     = M_AXI_DATA_WIDTH / 8;
@@ -99,7 +104,10 @@ module formal_axi4_dwidth_converter_rd (
         // buffers; the 256-beat AXI4 sizing bound is waived under FORMAL
         // in the DUT's elaboration checks.
         .RASM_DEPTH             (8),
-        .RASM_MAX_OUTSTANDING   (2)
+        .RASM_MAX_OUTSTANDING   (2),
+        // The prove_rbypass / cover_rbypass tasks build the R_INTERLEAVE=0
+        // bypass (no reassembly pool) -- the configuration every bridge uses.
+        .R_INTERLEAVE           (F_R_INTERLEAVE)
     ) dut (
         .aclk            (aclk),
         .aresetn         (aresetn),
@@ -177,6 +185,53 @@ module formal_axi4_dwidth_converter_rd (
     always @(*) begin
         assume (s_axi_arsize == 3'($clog2(S_AXI_DATA_WIDTH / 8)));
     end
+
+`ifdef FORMAL_RBYPASS
+    // =========================================================================
+    // A legal slave on m_axi, for the R_INTERLEAVE=0 build. The bypass has no
+    // reassembly pool to absorb a misbehaving slave, so its contract (the
+    // DUT's own SIMULATION checks) is a slave that answers only issued ARs,
+    // in order, with RLAST on the right beat. s_axi_arid is anyconst, so
+    // there is one ID and nothing to interleave.
+    // =========================================================================
+    reg [7:0] f_slv_len [4];
+    reg [1:0] f_slv_wr, f_slv_rd;
+    reg [2:0] f_slv_out;
+    reg [8:0] f_slv_beat;
+    always @(posedge aclk) begin
+        if (!aresetn) begin
+            f_slv_wr <= '0; f_slv_rd <= '0; f_slv_out <= '0; f_slv_beat <= '0;
+        end else begin
+            if (m_axi_arvalid_o && m_axi_arready) begin
+                f_slv_len[f_slv_wr] <= m_axi_arlen_o;
+                f_slv_wr <= f_slv_wr + 2'd1;
+            end
+            if (m_axi_rvalid && m_axi_rready_o) begin
+                if (m_axi_rlast) begin
+                    f_slv_beat <= '0;
+                    f_slv_rd   <= f_slv_rd + 2'd1;
+                end else begin
+                    f_slv_beat <= f_slv_beat + 9'd1;
+                end
+            end
+            f_slv_out <= f_slv_out + 3'(m_axi_arvalid_o && m_axi_arready)
+                                   - 3'(m_axi_rvalid && m_axi_rready_o && m_axi_rlast);
+        end
+    end
+    always @(*) begin
+        assume (f_slv_out < 3'd4);                        // at most 4 ARs in flight
+        if (f_slv_out >= 3'd3) assume (!m_axi_arready);
+        if (m_axi_rvalid) begin
+            assume (f_slv_out != 3'd0);                   // only issued ARs are answered
+            assume (m_axi_rid == s_axi_arid);
+            assume (m_axi_rlast == (f_slv_beat == {1'b0, f_slv_len[f_slv_rd]}));
+        end
+    end
+    always @(posedge aclk)
+        if (aresetn && $past(aresetn) && $past(m_axi_rvalid && !m_axi_rready_o))
+            assume (m_axi_rvalid && m_axi_rid == $past(m_axi_rid) &&
+                    m_axi_rlast == $past(m_axi_rlast) && m_axi_rdata == $past(m_axi_rdata));
+`endif
 
     // =========================================================================
     // Shadow model: track whether any AXI activity has occurred

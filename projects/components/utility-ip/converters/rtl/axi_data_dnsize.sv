@@ -104,14 +104,25 @@ module axi_data_dnsize #(
     logic [PTR_WIDTH-1:0] r_beat_ptr;
 
     // Burst tracking (if enabled, shared by both modes)
-    logic [BURST_LEN_WIDTH-1:0] r_slave_beat_count;
-    logic [BURST_LEN_WIDTH-1:0] r_slave_total_beats;
+    // One bit wider than burst_len: the count runs to burst_len+1, which is
+    // 2**BURST_LEN_WIDTH for the longest burst (256 for AXI4 ARLEN=255).
+    logic [BURST_LEN_WIDTH:0]   r_slave_beat_count;
+    logic [BURST_LEN_WIDTH:0]   r_slave_total_beats;
     logic                       r_burst_active;
     // The next wide beat accepted is the FIRST of its burst -- its slice
     // pointer starts at start_lane instead of 0 (mid-word burst start).
     logic                       r_first_wide_of_burst;
     logic                       w_burst_opening;
-    assign w_burst_opening = (TRACK_BURSTS != 0) && burst_start && !r_burst_active;
+    logic                       w_burst_final;     // the burst's final narrow beat is presented
+    logic                       w_burst_closing;   // ... and is taken this cycle
+    // A burst may open on the cycle the previous one closes, so a stream of
+    // bursts has no dead cycle at each boundary (it had exactly one: the next
+    // burst's first wide beat waited for the buffer to empty).
+    assign w_burst_final   = (TRACK_BURSTS != 0) && r_burst_active &&
+                             ((r_slave_beat_count + 1'b1) >= r_slave_total_beats);
+    assign w_burst_closing = narrow_valid && narrow_ready && w_burst_final;   // narrow_valid == the buffer flag
+    assign w_burst_opening = (TRACK_BURSTS != 0) && burst_start &&
+                             (!r_burst_active || w_burst_closing);
 
     // Single-buffer mode registers
     generate
@@ -166,7 +177,7 @@ module axi_data_dnsize #(
                 end else begin
                     // Burst tracking logic
                     if (w_burst_opening) begin
-                        r_slave_total_beats <= burst_len + 1'b1;
+                        r_slave_total_beats <= {1'b0, burst_len} + 1'b1;
                         r_slave_beat_count <= '0;
                         r_burst_active <= 1'b1;
                         r_first_wide_of_burst <= 1'b1;
@@ -180,7 +191,9 @@ module axi_data_dnsize #(
                                 gen_single_buffer.r_wide_buffered <= 1'b0;
                                 r_beat_ptr <= '0;
                                 r_slave_beat_count <= '0;
-                                r_burst_active <= 1'b0;
+                                // A burst opening on this same cycle keeps it set.
+                                if (!w_burst_opening)
+                                    r_burst_active <= 1'b0;
                             end else if (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1)) begin
                                 gen_single_buffer.r_wide_buffered <= 1'b0;
                                 r_beat_ptr <= '0;
@@ -307,8 +320,11 @@ module axi_data_dnsize #(
                 wire mid_burst_replace = r_burst_active &&
                                          (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1)) &&
                                          ((r_slave_beat_count + 1'b1) < r_slave_total_beats);
+                // On the burst's final narrow beat the buffer may take the
+                // NEXT burst's first wide beat, if that burst is opening now.
                 assign wide_ready = !gen_single_buffer.r_wide_buffered ||
-                                    (narrow_ready && mid_burst_replace);
+                                    (narrow_ready && mid_burst_replace) ||
+                                    (narrow_ready && w_burst_final && burst_start);
             end else begin : gen_wide_ready_simple
                 assign wide_ready = !gen_single_buffer.r_wide_buffered ||
                                     (narrow_ready && w_last_narrow_beat);

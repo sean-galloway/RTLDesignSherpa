@@ -639,19 +639,41 @@ class AXIDataDnsizeTB(TBBase):
         """Test continuous streaming without gaps"""
         self.log.info(f"Starting continuous streaming test ({num_wide_beats} wide beats)")
 
+        # Start from an empty queue: the DUT and BFMs persist across the
+        # scenarios of one simulation, so leftover beats would be counted.
+        self.get_narrow_beats(clear=True)
+
         # Send multiple wide beats back-to-back
+        sent = []
         for beat in range(num_wide_beats):
             wide_data = random.randint(0, (1 << self.wide_width) - 1)
+            sent.append(wide_data)
             await self.send_wide_beat(wide_data, 0, last=False)
 
-        # Wait for all narrow beats to complete
+        # Poll for the tail rather than waiting a fixed window: the narrow
+        # side's READY is randomized, so on a slow seed the last beats are
+        # still in flight after expected+20 cycles (seed 42935 on
+        # 128to32_wstrb_slice_simple counted 31 of 32 that way). Then settle
+        # and require the count exactly, so a duplicated beat fails too.
         expected_narrow_beats = num_wide_beats * self.width_ratio
-        await self.wait_clocks(self.clk_name, expected_narrow_beats + 20)
+        for _ in range(expected_narrow_beats * 8 + 200):
+            if len(self.narrow_slave._recvQ) >= expected_narrow_beats:
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        await self.wait_clocks(self.clk_name, 20)
 
-        # Verify count
         actual_narrow_beats = len(self.narrow_slave._recvQ)
         if actual_narrow_beats != expected_narrow_beats:
             self.log.error(f"Continuous streaming: Expected {expected_narrow_beats} beats, got {actual_narrow_beats}")
+            return False
+
+        # Each wide word leaves as its narrow lanes, low lane first.
+        mask = (1 << self.narrow_width) - 1
+        want = [(w >> (k * self.narrow_width)) & mask for w in sent for k in range(self.width_ratio)]
+        got = [b[0] for b in self.get_narrow_beats(clear=True)]
+        if got != want:
+            first = next(i for i, (a, b) in enumerate(zip(got, want)) if a != b)
+            self.log.error(f"Continuous streaming: narrow beat {first} is 0x{got[first]:X}, expected 0x{want[first]:X}")
             return False
 
         self.log.info(f"Continuous streaming test PASSED ({num_wide_beats} wide beats)")

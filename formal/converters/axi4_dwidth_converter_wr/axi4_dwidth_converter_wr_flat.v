@@ -14,7 +14,7 @@ module reset_sync (
 	output reg sync_rst_n;
 	generate
 		if (N < 2) begin : g_illegal
-			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+			initial $display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
 		end
 	endgenerate
 	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
@@ -116,7 +116,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -237,11 +237,11 @@ module axi_data_upsize (
 	output wire wide_last;
 	initial begin
 		if (WIDE_WIDTH <= NARROW_WIDTH)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:87:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:87:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if ((WIDE_WIDTH % NARROW_WIDTH) != 0)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:89:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:89:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:91:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:91:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 	end
 	reg [WIDE_WIDTH - 1:0] r_data_accumulator;
 	reg [WIDE_SB_PORT_WIDTH - 1:0] r_sideband_accumulator;
@@ -369,19 +369,23 @@ module axi_data_dnsize (
 	output wire narrow_last;
 	initial begin
 		if (NARROW_WIDTH >= WIDE_WIDTH)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:91:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "NARROW_WIDTH (%0d) must be < WIDE_WIDTH (%0d)", NARROW_WIDTH, WIDE_WIDTH);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:91:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "NARROW_WIDTH (%0d) must be < WIDE_WIDTH (%0d)", NARROW_WIDTH, WIDE_WIDTH);
 		if ((WIDE_WIDTH % NARROW_WIDTH) != 0)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:93:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:93:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:95:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:95:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 	end
 	reg [PTR_WIDTH - 1:0] r_beat_ptr;
-	reg [BURST_LEN_WIDTH - 1:0] r_slave_beat_count;
-	reg [BURST_LEN_WIDTH - 1:0] r_slave_total_beats;
+	reg [BURST_LEN_WIDTH:0] r_slave_beat_count;
+	reg [BURST_LEN_WIDTH:0] r_slave_total_beats;
 	reg r_burst_active;
 	reg r_first_wide_of_burst;
 	wire w_burst_opening;
-	assign w_burst_opening = ((TRACK_BURSTS != 0) && burst_start) && !r_burst_active;
+	wire w_burst_final;
+	wire w_burst_closing;
+	assign w_burst_final = ((TRACK_BURSTS != 0) && r_burst_active) && ((r_slave_beat_count + 1'b1) >= r_slave_total_beats);
+	assign w_burst_closing = (narrow_valid && narrow_ready) && w_burst_final;
+	assign w_burst_opening = ((TRACK_BURSTS != 0) && burst_start) && (!r_burst_active || w_burst_closing);
 	generate
 		if (1) begin : gen_single_buffer
 			reg [WIDE_WIDTH - 1:0] r_data_buffer;
@@ -411,7 +415,7 @@ module axi_data_dnsize (
 				end
 				else begin
 					if (w_burst_opening) begin
-						r_slave_total_beats <= burst_len + 1'b1;
+						r_slave_total_beats <= {1'b0, burst_len} + 1'b1;
 						r_slave_beat_count <= 1'sb0;
 						r_burst_active <= 1'b1;
 						r_first_wide_of_burst <= 1'b1;
@@ -422,7 +426,8 @@ module axi_data_dnsize (
 								gen_single_buffer.r_wide_buffered <= 1'b0;
 								r_beat_ptr <= 1'sb0;
 								r_slave_beat_count <= 1'sb0;
-								r_burst_active <= 1'b0;
+								if (!w_burst_opening)
+									r_burst_active <= 1'b0;
 							end
 							else if (r_beat_ptr == sv2v_cast_62A53_signed(WIDTH_RATIO - 1)) begin
 								gen_single_buffer.r_wide_buffered <= 1'b0;
@@ -489,7 +494,7 @@ module axi_data_dnsize (
 			assign narrow_valid = gen_single_buffer.r_wide_buffered;
 			if (TRACK_BURSTS != 0) begin : gen_wide_ready_tracked
 				wire mid_burst_replace = (r_burst_active && (r_beat_ptr == sv2v_cast_62A53_signed(WIDTH_RATIO - 1))) && ((r_slave_beat_count + 1'b1) < r_slave_total_beats);
-				assign wide_ready = !gen_single_buffer.r_wide_buffered || (narrow_ready && mid_burst_replace);
+				assign wide_ready = (!gen_single_buffer.r_wide_buffered || (narrow_ready && mid_burst_replace)) || ((narrow_ready && w_burst_final) && burst_start);
 			end
 			else begin : gen_wide_ready_simple
 				assign wide_ready = !gen_single_buffer.r_wide_buffered || (narrow_ready && w_last_narrow_beat);
@@ -630,13 +635,13 @@ module axi4_dwidth_converter_wr (
 	);
 	initial begin
 		if (S_AXI_DATA_WIDTH != (2 ** $clog2(S_AXI_DATA_WIDTH)))
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv:160:13 - axi4_dwidth_converter_wr.<unnamed_block>.<unnamed_block>\n msg: ", $time, "S_AXI_DATA_WIDTH must be power of 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv:160:13 - axi4_dwidth_converter_wr.<unnamed_block>.<unnamed_block>\n msg: ", $time, "S_AXI_DATA_WIDTH must be power of 2");
 		if (M_AXI_DATA_WIDTH != (2 ** $clog2(M_AXI_DATA_WIDTH)))
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv:162:13 - axi4_dwidth_converter_wr.<unnamed_block>.<unnamed_block>\n msg: ", $time, "M_AXI_DATA_WIDTH must be power of 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv:162:13 - axi4_dwidth_converter_wr.<unnamed_block>.<unnamed_block>\n msg: ", $time, "M_AXI_DATA_WIDTH must be power of 2");
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv:164:13 - axi4_dwidth_converter_wr.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv:164:13 - axi4_dwidth_converter_wr.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 		if (!UPSIZE && !DOWNSIZE)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv:166:13 - axi4_dwidth_converter_wr.<unnamed_block>.<unnamed_block>\n msg: ", $time, "Must be either UPSIZE or DOWNSIZE mode");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv:166:13 - axi4_dwidth_converter_wr.<unnamed_block>.<unnamed_block>\n msg: ", $time, "Must be either UPSIZE or DOWNSIZE mode");
 	end
 	wire [AW_WIDTH - 1:0] int_aw_data;
 	wire int_aw_valid;
@@ -927,14 +932,14 @@ module axi4_dwidth_converter_wr (
 				.narrow_last()
 			);
 			reg [8:0] r_w_beats_left;
-			assign split_w_pop = (r_w_beats_left == 9'd0) && split_w_avail;
+			wire w_last_hs;
+			assign w_last_hs = (m_axi_wvalid && m_axi_wready) && (r_w_beats_left == 9'd1);
+			assign split_w_pop = split_w_avail && ((r_w_beats_left == 9'd0) || w_last_hs);
 			always @(posedge aclk or negedge w_aresetn)
 				if (!w_aresetn)
 					r_w_beats_left <= 9'd0;
-				else if (r_w_beats_left == 9'd0) begin
-					if (split_w_avail)
-						r_w_beats_left <= split_w_beats;
-				end
+				else if (split_w_pop)
+					r_w_beats_left <= split_w_beats;
 				else if (m_axi_wvalid && m_axi_wready)
 					r_w_beats_left <= r_w_beats_left - 9'd1;
 			assign m_axi_wvalid = w_dnsize_valid && (r_w_beats_left != 9'd0);
@@ -968,11 +973,35 @@ module axi4_dwidth_converter_wr (
 			);
 		end
 		if (DOWNSIZE) begin : gen_b_fold
+			localparam signed [31:0] BQ_W = (AXI_ID_WIDTH + 2) + AXI_USER_WIDTH;
+			wire q_bvalid;
+			wire q_bready;
+			wire [AXI_ID_WIDTH - 1:0] q_bid;
+			wire [1:0] q_bresp;
+			wire [AXI_USER_WIDTH - 1:0] q_buser;
+			wire [BQ_W - 1:0] q_bpkt;
+			gaxi_skid_buffer #(
+				.DEPTH(2),
+				.DATA_WIDTH(BQ_W)
+			) b_in_skid(
+				.axi_aclk(aclk),
+				.axi_aresetn(w_aresetn),
+				.wr_valid(m_axi_bvalid),
+				.wr_ready(m_axi_bready),
+				.wr_data({m_axi_bid, m_axi_bresp, m_axi_buser}),
+				.rd_valid(q_bvalid),
+				.rd_ready(q_bready),
+				.rd_data(q_bpkt),
+				.count(),
+				.rd_count()
+			);
+			assign {q_bid, q_bresp, q_buser} = q_bpkt;
 			localparam signed [31:0] B_CAM_DEPTH = SPLITQ_DEPTH;
 			localparam signed [31:0] B_CAM_AW = 4;
-			reg [AXI_ID_WIDTH + 14:0] b_cam [0:15];
+			reg [AXI_ID_WIDTH + 9:0] b_cam [0:15];
 			reg [15:0] b_cam_valid;
-			reg [B_CAM_AW:0] r_b_cam_next_age;
+			reg [15:0] b_cam_older [0:15];
+			reg [15:0] b_cam_last;
 			reg r_b_open_valid;
 			reg [AXI_ID_WIDTH - 1:0] r_b_open_id;
 			reg [7:0] r_b_open_count;
@@ -999,46 +1028,46 @@ module axi4_dwidth_converter_wr (
 				end
 			end
 			assign w_b_cam_slot_free = w_b_cam_free_found;
-			reg [3:0] w_b_cam_idx;
-			reg w_b_cam_match;
-			reg [5:0] w_b_cam_best_age;
+			reg [15:0] w_b_cam_hit;
+			wire w_b_cam_match;
+			wire w_b_cam_last;
+			reg [1:0] w_b_cam_worst;
+			reg [15:0] w_b_cam_same_id;
 			always @(*) begin
 				if (_sv2v_0)
 					;
-				w_b_cam_match = 1'b0;
-				w_b_cam_idx = 1'sb0;
-				w_b_cam_best_age = 1'sb1;
+				w_b_cam_worst = 1'sb0;
 				begin : sv2v_autoblock_5
 					reg signed [31:0] i;
 					for (i = 0; i < B_CAM_DEPTH; i = i + 1)
-						if ((b_cam_valid[i] && (b_cam[i][AXI_ID_WIDTH + 14-:((AXI_ID_WIDTH + 14) >= 15 ? AXI_ID_WIDTH : 16 - (AXI_ID_WIDTH + 14))] == m_axi_bid)) && ({1'b0, b_cam[i][4-:5]} < w_b_cam_best_age)) begin
-							w_b_cam_best_age = {1'b0, b_cam[i][4-:5]};
-							begin : sv2v_autoblock_6
-								reg signed [3:0] sv2v_tmp_cast;
-								sv2v_tmp_cast = i;
-								w_b_cam_idx = sv2v_tmp_cast;
-							end
-							w_b_cam_match = 1'b1;
+						begin
+							w_b_cam_hit[i] = (b_cam_valid[i] && (b_cam[i][AXI_ID_WIDTH + 9-:((AXI_ID_WIDTH + 9) >= 10 ? AXI_ID_WIDTH + 0 : 11 - (AXI_ID_WIDTH + 9))] == q_bid)) && ((b_cam_older[i] & b_cam_valid) == {16 {1'sb0}});
+							w_b_cam_same_id[i] = b_cam_valid[i] && (b_cam[i][AXI_ID_WIDTH + 9-:((AXI_ID_WIDTH + 9) >= 10 ? AXI_ID_WIDTH + 0 : 11 - (AXI_ID_WIDTH + 9))] == int_awid);
+							if (w_b_cam_hit[i])
+								w_b_cam_worst = w_b_cam_worst | b_cam[i][1-:2];
 						end
 				end
 			end
-			assign int_bid = m_axi_bid;
-			assign int_buser = m_axi_buser;
-			assign int_b_valid = (m_axi_bvalid && w_b_cam_match) && (b_cam[w_b_cam_idx][14-:8] == 8'd1);
-			assign int_bresp = (m_axi_bresp > b_cam[w_b_cam_idx][6-:2] ? m_axi_bresp : b_cam[w_b_cam_idx][6-:2]);
-			assign m_axi_bready = ((m_axi_bvalid && w_b_cam_match) && (b_cam[w_b_cam_idx][14-:8] == 8'd1) ? int_b_ready : 1'b1);
+			assign w_b_cam_match = |w_b_cam_hit;
+			assign w_b_cam_last = |(w_b_cam_hit & b_cam_last);
+			assign int_bid = q_bid;
+			assign int_buser = q_buser;
+			assign int_b_valid = q_bvalid && w_b_cam_last;
+			assign int_bresp = (q_bresp > w_b_cam_worst ? q_bresp : w_b_cam_worst);
+			assign q_bready = (q_bvalid && w_b_cam_last ? int_b_ready : 1'b1);
 			always @(posedge aclk or negedge w_aresetn)
 				if (!w_aresetn) begin
 					r_b_open_valid <= 1'b0;
 					r_b_open_id <= 1'sb0;
 					r_b_open_count <= 1'sb0;
-					r_b_cam_next_age <= 1'sb0;
-					begin : sv2v_autoblock_7
+					begin : sv2v_autoblock_6
 						reg signed [31:0] i;
 						for (i = 0; i < B_CAM_DEPTH; i = i + 1)
 							begin
 								b_cam_valid[i] <= 1'b0;
 								b_cam[i] <= 1'sb0;
+								b_cam_older[i] <= 1'sb0;
+								b_cam_last[i] <= 1'b0;
 							end
 					end
 				end
@@ -1057,21 +1086,31 @@ module axi4_dwidth_converter_wr (
 					if (w_aw_issue && w_this_last) begin
 						if (w_b_cam_free_found) begin
 							b_cam_valid[w_b_cam_free_idx] <= 1'b1;
-							b_cam[w_b_cam_free_idx][AXI_ID_WIDTH + 14-:((AXI_ID_WIDTH + 14) >= 15 ? AXI_ID_WIDTH : 16 - (AXI_ID_WIDTH + 14))] <= int_awid;
-							b_cam[w_b_cam_free_idx][14-:8] <= w_b_cam_push_count;
-							b_cam[w_b_cam_free_idx][6-:2] <= 2'b00;
-							b_cam[w_b_cam_free_idx][4-:5] <= r_b_cam_next_age;
-							r_b_cam_next_age <= r_b_cam_next_age + 1'b1;
+							b_cam[w_b_cam_free_idx][AXI_ID_WIDTH + 9-:((AXI_ID_WIDTH + 9) >= 10 ? AXI_ID_WIDTH + 0 : 11 - (AXI_ID_WIDTH + 9))] <= int_awid;
+							b_cam[w_b_cam_free_idx][9-:8] <= w_b_cam_push_count;
+							b_cam_last[w_b_cam_free_idx] <= w_b_cam_push_count == 8'd1;
+							b_cam[w_b_cam_free_idx][1-:2] <= 2'b00;
+							begin : sv2v_autoblock_7
+								reg signed [31:0] i;
+								for (i = 0; i < B_CAM_DEPTH; i = i + 1)
+									b_cam_older[i][w_b_cam_free_idx] <= 1'b0;
+							end
+							b_cam_older[w_b_cam_free_idx] <= w_b_cam_same_id;
 						end
 					end
-					if ((m_axi_bvalid && m_axi_bready) && w_b_cam_match) begin
-						if (b_cam[w_b_cam_idx][14-:8] == 8'd1)
-							b_cam_valid[w_b_cam_idx] <= 1'b0;
-						else begin
-							b_cam[w_b_cam_idx][14-:8] <= b_cam[w_b_cam_idx][14-:8] - 8'd1;
-							if (m_axi_bresp > b_cam[w_b_cam_idx][6-:2])
-								b_cam[w_b_cam_idx][6-:2] <= m_axi_bresp;
-						end
+					begin : sv2v_autoblock_8
+						reg signed [31:0] i;
+						for (i = 0; i < B_CAM_DEPTH; i = i + 1)
+							if ((q_bvalid && q_bready) && w_b_cam_hit[i]) begin
+								if (b_cam_last[i])
+									b_cam_valid[i] <= 1'b0;
+								else begin
+									b_cam[i][9-:8] <= b_cam[i][9-:8] - 8'd1;
+									b_cam_last[i] <= b_cam[i][9-:8] == 8'd2;
+									if (q_bresp > b_cam[i][1-:2])
+										b_cam[i][1-:2] <= q_bresp;
+								end
+							end
 					end
 				end
 		end

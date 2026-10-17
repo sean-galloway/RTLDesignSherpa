@@ -1,6 +1,8 @@
 [tasks]
 prove
 cover
+prove_rbypass prove rbypass
+cover_rbypass cover rbypass
 
 [options]
 prove: mode bmc
@@ -14,7 +16,9 @@ cover: smtbmc z3
 
 [script]
 read_verilog -formal axi4_dwidth_converter_rd_flat.v
-read -formal -sv formal_axi4_dwidth_converter_rd.sv
+~rbypass: read -formal -sv formal_axi4_dwidth_converter_rd.sv
+prove_rbypass: read -formal -D FORMAL_RBYPASS -sv formal_axi4_dwidth_converter_rd.sv
+cover_rbypass: read -formal -D FORMAL_RBYPASS -sv formal_axi4_dwidth_converter_rd.sv
 prep -top formal_axi4_dwidth_converter_rd
 
 [files]

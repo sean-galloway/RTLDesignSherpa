@@ -599,19 +599,21 @@ module axi4_dwidth_converter_wr #(
             // version of this fix).
             //
             // W data is held until its burst's entry has been loaded, so
-            // no beat can slip through unframed. For an unsplit burst
-            // the queue holds exactly one entry and this degenerates to
-            // the old passthrough with one idle cycle at burst start.
+            // no beat can slip through unframed. The next entry loads on the
+            // current burst's last W handshake when it is already queued (AW
+            // runs ahead of W), so back-to-back bursts stream without a dead
+            // cycle; it loads from empty otherwise.
             logic [8:0] r_w_beats_left;
+            logic       w_last_hs;
 
-            assign split_w_pop = (r_w_beats_left == 9'd0) && split_w_avail;
+            assign w_last_hs   = m_axi_wvalid && m_axi_wready && (r_w_beats_left == 9'd1);
+            assign split_w_pop = split_w_avail && ((r_w_beats_left == 9'd0) || w_last_hs);
 
             `ALWAYS_FF_RST(aclk, w_aresetn,
                 if (`RST_ASSERTED(w_aresetn)) begin
                     r_w_beats_left <= 9'd0;
-                end else if (r_w_beats_left == 9'd0) begin
-                    if (split_w_avail)
-                        r_w_beats_left <= split_w_beats;
+                end else if (split_w_pop) begin
+                    r_w_beats_left <= split_w_beats;
                 end else if (m_axi_wvalid && m_axi_wready) begin
                     r_w_beats_left <= r_w_beats_left - 9'd1;
                 end

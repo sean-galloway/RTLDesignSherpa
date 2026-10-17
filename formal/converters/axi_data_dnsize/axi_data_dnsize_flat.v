@@ -50,12 +50,16 @@ module axi_data_dnsize (
 			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:95:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 	end
 	reg [PTR_WIDTH - 1:0] r_beat_ptr;
-	reg [BURST_LEN_WIDTH - 1:0] r_slave_beat_count;
-	reg [BURST_LEN_WIDTH - 1:0] r_slave_total_beats;
+	reg [BURST_LEN_WIDTH:0] r_slave_beat_count;
+	reg [BURST_LEN_WIDTH:0] r_slave_total_beats;
 	reg r_burst_active;
 	reg r_first_wide_of_burst;
 	wire w_burst_opening;
-	assign w_burst_opening = ((TRACK_BURSTS != 0) && burst_start) && !r_burst_active;
+	wire w_burst_final;
+	wire w_burst_closing;
+	assign w_burst_final = ((TRACK_BURSTS != 0) && r_burst_active) && ((r_slave_beat_count + 1'b1) >= r_slave_total_beats);
+	assign w_burst_closing = (narrow_valid && narrow_ready) && w_burst_final;
+	assign w_burst_opening = ((TRACK_BURSTS != 0) && burst_start) && (!r_burst_active || w_burst_closing);
 	generate
 		if (1) begin : gen_single_buffer
 			reg [WIDE_WIDTH - 1:0] r_data_buffer;
@@ -85,7 +89,7 @@ module axi_data_dnsize (
 				end
 				else begin
 					if (w_burst_opening) begin
-						r_slave_total_beats <= burst_len + 1'b1;
+						r_slave_total_beats <= {1'b0, burst_len} + 1'b1;
 						r_slave_beat_count <= 1'sb0;
 						r_burst_active <= 1'b1;
 						r_first_wide_of_burst <= 1'b1;
@@ -96,7 +100,8 @@ module axi_data_dnsize (
 								gen_single_buffer.r_wide_buffered <= 1'b0;
 								r_beat_ptr <= 1'sb0;
 								r_slave_beat_count <= 1'sb0;
-								r_burst_active <= 1'b0;
+								if (!w_burst_opening)
+									r_burst_active <= 1'b0;
 							end
 							else if (r_beat_ptr == sv2v_cast_62A53_signed(WIDTH_RATIO - 1)) begin
 								gen_single_buffer.r_wide_buffered <= 1'b0;
@@ -163,7 +168,7 @@ module axi_data_dnsize (
 			assign narrow_valid = gen_single_buffer.r_wide_buffered;
 			if (TRACK_BURSTS != 0) begin : gen_wide_ready_tracked
 				wire mid_burst_replace = (r_burst_active && (r_beat_ptr == sv2v_cast_62A53_signed(WIDTH_RATIO - 1))) && ((r_slave_beat_count + 1'b1) < r_slave_total_beats);
-				assign wide_ready = !gen_single_buffer.r_wide_buffered || (narrow_ready && mid_burst_replace);
+				assign wide_ready = (!gen_single_buffer.r_wide_buffered || (narrow_ready && mid_burst_replace)) || ((narrow_ready && w_burst_final) && burst_start);
 			end
 			else begin : gen_wide_ready_simple
 				assign wide_ready = !gen_single_buffer.r_wide_buffered || (narrow_ready && w_last_narrow_beat);

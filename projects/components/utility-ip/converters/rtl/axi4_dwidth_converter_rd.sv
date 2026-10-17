@@ -871,7 +871,9 @@ module axi4_dwidth_converter_rd #(
         //
         //   UPSIZE (wide master beats sliced to narrow): the dnsize
         //   primitive frames one burst at a time from burst_len, so a new
-        //   burst enters only once the previous one has left it.
+        //   burst enters once the previous one is leaving it -- on the cycle
+        //   its last narrow beat goes, not the cycle after (that cost one
+        //   dead cycle per burst).
         //
         //   R is registered on entry (a 2-deep skid): the record lookup by
         //   RID and the primitive's burst framing then start from a flop,
@@ -910,9 +912,10 @@ module axi4_dwidth_converter_rd #(
         logic w_prim_hs;
         logic w_out_hs;
 
-        assign w_gate    = DOWNSIZE ? 1'b1 : (r_in_open || !r_out_open);
         assign w_prim_hs = prim_rvalid && prim_rready;
         assign w_out_hs  = int_r_valid && int_r_ready;
+        assign w_gate    = DOWNSIZE ? 1'b1
+                         : (r_in_open || !r_out_open || (w_out_hs && int_rlast));
 
         assign prim_rvalid  = q_rvalid && w_gate;
         assign q_rready     = prim_rready && w_gate;

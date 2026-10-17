@@ -3,7 +3,7 @@
 //
 // Formal proof for axi_data_dnsize -- Wide-to-narrow splitter
 // Configuration: WIDE_WIDTH=64, NARROW_WIDTH=32 (ratio=2),
-//   DUAL_BUFFER=0, TRACK_BURSTS=0, no sideband
+//   TRACK_BURSTS=0, no sideband (the RTL is single-buffer only)
 // Verifies reset, data unpacking, LAST regeneration, pointer management
 // Uses sv2v-flattened Verilog (reset_defs.svh inlined)
 
@@ -22,7 +22,6 @@ module formal_axi_data_dnsize (
     localparam int SB_BROADCAST     = 1;
     localparam int TRACK_BURSTS     = 0;
     localparam int BURST_LEN_WIDTH  = 8;
-    localparam int DUAL_BUFFER      = 0;
 
     localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH;  // 2
 
@@ -56,8 +55,7 @@ module formal_axi_data_dnsize (
         .NARROW_SB_WIDTH (NARROW_SB_WIDTH),
         .SB_BROADCAST    (SB_BROADCAST),
         .TRACK_BURSTS    (TRACK_BURSTS),
-        .BURST_LEN_WIDTH (BURST_LEN_WIDTH),
-        .DUAL_BUFFER     (DUAL_BUFFER)
+        .BURST_LEN_WIDTH (BURST_LEN_WIDTH)
     ) dut (
         .aclk           (aclk),
         .aresetn        (aresetn),
