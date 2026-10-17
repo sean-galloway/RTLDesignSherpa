@@ -343,6 +343,15 @@ module mc_bank_sched
     // head's row differs from the open row, every older same-bank request has
     // issued: PRE is always safe to decide immediately (no demand wait).
     // CLOSE_ON_DRAIN uses the LIVE store empty flag (count==1 in the bank).
+    // Per-bank op decode on the LIVE timer outputs (BANK_LA=0 collapses the
+    // la twins to the live set, so the old flopped image lagged the fire
+    // stage by a full cycle and every row transition -- PRE/tRP, ACT/tRCD --
+    // paid minimum+1. col_major measured it as a 9-cycle inter-burst bubble
+    // vs the 6-cycle JEDEC floor = the 369 MB/s gate exactly; MC-003
+    // 2026-10-17). The fire stage re-checks the SAME live inputs, so decode
+    // can never violate JEDEC -- a live term that guesses wrong costs one
+    // dropped pick (a bubble), nothing more (the timer's own contract).
+    // The flopped r_* image stays for the refresh drain/override scan only.
     dram_op_e w_op [NUM_BANKS];
     dram_op_e r_op [NUM_BANKS];
     logic     w_ap [NUM_BANKS];
@@ -356,26 +365,32 @@ module mc_bank_sched
             w_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE);
             r_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE);
             if (wc.vld) begin
-                if (r_row_act[RK0][b] && (r_open_row[RK0][b] == wc.row)
-                    && r_rdwr_rdy[RK0][b]) begin
+                if (bank_row_active_i[RK0][b]
+                    && (bank_open_row_i[RK0][b] == wc.row)
+                    && bank_rdwr_ready_i[RK0][b]) begin
                     w_op[b] = OP_WR;
                     w_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE)
                             || (CLOSE_ON_DRAIN && wr_bh_empty_i[b]);
-                end else if (r_row_act[RK0][b] && r_pre_rdy[RK0][b]) begin
+                end else if (bank_row_active_i[RK0][b]
+                             && bank_pre_ready_i[RK0][b]) begin
                     w_op[b] = OP_PRE;
-                end else if (!r_row_act[RK0][b] && r_act_rdy[RK0][b]) begin
+                end else if (!bank_row_active_i[RK0][b]
+                             && bank_act_ready_i[RK0][b]) begin
                     w_op[b] = OP_ACT;
                 end
             end
             if (rc.vld) begin
-                if (r_row_act[RK0][b] && (r_open_row[RK0][b] == rc.row)
-                    && r_rdwr_rdy[RK0][b]) begin
+                if (bank_row_active_i[RK0][b]
+                    && (bank_open_row_i[RK0][b] == rc.row)
+                    && bank_rdwr_ready_i[RK0][b]) begin
                     r_op[b] = OP_RD;
                     r_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE)
                             || (CLOSE_ON_DRAIN && rd_bh_empty_i[b]);
-                end else if (r_row_act[RK0][b] && r_pre_rdy[RK0][b]) begin
+                end else if (bank_row_active_i[RK0][b]
+                             && bank_pre_ready_i[RK0][b]) begin
                     r_op[b] = OP_PRE;
-                end else if (!r_row_act[RK0][b] && r_act_rdy[RK0][b]) begin
+                end else if (!bank_row_active_i[RK0][b]
+                             && bank_act_ready_i[RK0][b]) begin
                     r_op[b] = OP_ACT;
                 end
             end

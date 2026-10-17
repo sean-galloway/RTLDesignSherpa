@@ -415,3 +415,36 @@ still does not depend on demand firing).
 - Pumice `run-all-func`: 210 passed / 7 failed — the same seven pre-existing
   cells (BUG-025 + six BUG-027); byte-identical, as expected (mc_bank_sched
   is not in pumice's committed configuration path).
+
+## 10. Session 2026-10-17 (later still) — live op decode + the col_major floor
+
+Perf-proxy continuation on the clean (§9-fixed) RTL.
+
+### 10.1 Live op decode (col_ilv gate met)
+
+The demand op decode selected PRE/ACT/columns off a bank-timer image flopped
+from the la outputs; with BANK_LA=0 the la twins equal the live set, so the
+image lagged the fire stage by a cycle. Decode now reads the live
+bank_*_ready / row_active / open_row inputs directly (the fire stage re-checks
+the same live inputs, so JEDEC authority is unchanged; the flopped image
+remains for the refresh drain/override scan only). Effect: bank-parallel
+transitions (col_ilv) overlap a cycle earlier in every bank — **col_ilv
+316.3/229.3 -> 452.4/358.6 MB/s (wr/rd; the >=354 rd gate is met)**; row_major
+577.9/562.3 and incremental held; all integrity clean. col_major single-bank
+thrash did NOT move (see 10.2). Verified: 4-family perf, gap tREFI
+100/200/400/585 4/4, store-arbiter contract, granite top (2+1xfail), uart
+smoke. PAGE_POLICY_CLOSE remains pathological in this core (53/64 MB/s) — not
+the thrash answer.
+
+### 10.2 col_major floor analysis (BL4 AND BL8)
+
+Per-txn read = 16 cycles at BL4: 8 single-beat column fires (gap 1) + a
+9-cycle inter-burst bubble. The bubble is the live JEDEC chain measured from
+the LAST column fire: tRTP window (preblk 2 -> safe at +3) + tRP (+3) +
+tRCD (+3). The timers load N and decrement to zero, so "safe" lands at
+command+N+1 — one cycle conservative per transition (the load-t-1 semantics
+the tCCD forward counter already uses: `r_tccd_fwd <= t_ccd_i - 1`). BL8
+(board-faithful) does NOT rescue it: 304.3 rd / 275.2 wr — the chain is
+per-command-count, not per-byte. So at exact JEDEC the floor is 13 cyc/txn =
+369.2 MB/s — exactly the tracker gate; with the conservative +1s it is 16
+cyc/txn = ~292 (measured 292.3, 97% of the +1 floor).

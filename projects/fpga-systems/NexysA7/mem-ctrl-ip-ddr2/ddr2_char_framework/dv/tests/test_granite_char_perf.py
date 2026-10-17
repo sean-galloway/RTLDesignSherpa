@@ -123,6 +123,7 @@ async def _gate_trace(dut, path, max_fires=40):
     try:
         bs = dut.u_dut.u_dut.u_ctrl.u_core.u_sched_plane.g_bank_sched.u_bank_sched
     except AttributeError:
+        dut._log.info("gate_trace: path absent (BANK_FIFO=0)")
         return
     hdr = ("cyc fire pick fsafe selop wop0 rop0 rdwREG0 rdwLIVE0 tccd "
            "rdfire0 wrfire0 bh0_v bh2_v skid_v")
@@ -299,6 +300,10 @@ async def cocotb_test_granite_perf(dut):
                                t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "0")),
                                t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
                                rd_in_order=True)
+        page_pol = os.environ.get("TEST_PAGE_POLICY", "")
+        if page_pol:
+            drv.set_page_policy(int(page_pol, 0))
+            out["page_policy"] = int(page_pol, 0)
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL)
@@ -315,12 +320,13 @@ async def cocotb_test_granite_perf(dut):
 
     cmd_log = []
     tracing = os.environ.get("PERF_CMD_TRACE", "0") == "1"
+    mism_probe = os.environ.get("MISM_PROBE", "0") == "1"
+    gate_path = os.environ.get("PERF_GATE_TRACE", "")
     if tracing:
         cocotb.start_soon(_cmd_probe(dut, cmd_log))
     mism_log = []
-    if os.environ.get("MISM_PROBE", "0") == "1":
+    if mism_probe:
         cocotb.start_soon(_mism_probe(dut, mism_log))
-    gate_path = os.environ.get("PERF_GATE_TRACE", "")
     if gate_path:
         cocotb.start_soon(_gate_trace(dut, gate_path))
 
@@ -386,6 +392,10 @@ def test_granite_char_perf(request):
         # trace knobs must ride extra_env to reliably reach the sim process
         "PERF_CMD_TRACE": os.environ.get("PERF_CMD_TRACE", "0"),
         "PERF_GATE_TRACE": os.environ.get("PERF_GATE_TRACE", ""),
+        "MISM_PROBE": os.environ.get("MISM_PROBE", "0"),
+        "MISM_DUMP": os.environ.get("MISM_DUMP", ""),
+        "DFI_CMD_TRACE": os.environ.get("DFI_CMD_TRACE", "0"),
+        "TEST_PAGE_POLICY": os.environ.get("TEST_PAGE_POLICY", ""),
         "TEST_TREFI": os.environ.get("TEST_TREFI", "585"),
         "TEST_TXN": os.environ.get("TEST_TXN", "256"),
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),
