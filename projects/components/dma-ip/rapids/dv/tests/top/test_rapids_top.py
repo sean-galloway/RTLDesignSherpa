@@ -464,11 +464,51 @@ async def cocotb_test_perf_window(dut):
     tb.finalize_test()
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_high_channels(dut):
+    """The top channels of the build: source on the last channel, sink on the
+    one below it. On the 16-channel top these exist only in the 16-channel
+    register map (CH8..CH15_DESC_ADDR, KICK8..15 at KICK_ENABLE 0x080)."""
+    tb = RapidsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    top = tb.NUM_CHANNELS - 1
+    ok_s, st_s = await tb.test_source_path(channel=top, beats=4)
+    ok_k, st_k = await tb.test_sink_path(channel=top - 1, beats=4)
+    tb.finalize_test()
+    assert ok_s and ok_k, f"high channels failed: {st_s.get('errors')} {st_k.get('errors')}"
+    tb.assert_descriptors_fetched()
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_channel_map(dut):
+    """The register map matches the build: VERSION.NUM_CHANNELS reads the map's
+    size, every channel's enable bit reads back, and CH_STATE of the last
+    channel reports idle (one-hot bit 0) after reset."""
+    tb = RapidsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    nch = tb.NUM_CHANNELS
+    errors = []
+    for half in ('src', 'snk'):
+        ver = await tb.read_reg(half, 'VERSION')
+        if (ver >> 16) & 0xFF != nch:
+            errors.append(f"{half} VERSION.NUM_CHANNELS = {(ver >> 16) & 0xFF}, expected {nch}")
+        en = await tb.read_reg(half, 'CHANNEL_ENABLE')
+        if en & ((1 << nch) - 1) != (1 << nch) - 1:
+            errors.append(f"{half} CHANNEL_ENABLE = 0x{en:X}, expected all {nch} channels set")
+        st = await tb.read_reg(half, f'CH_STATE{nch - 1}_STATE')
+        if st & 0x7F != 0x01:
+            errors.append(f"{half} CH_STATE{nch - 1} = 0x{st:X}, expected idle (0x01)")
+    tb.finalize_test()
+    assert not errors, f"channel map: {errors}"
+
+
 # ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
 
-def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
+def _run_top(testcase, test_name, extra_params=None, test_level='gate', dut='rapids_top', nch=8):
     test_name = f"{test_name}_{test_level}"
     """Shared runner: compile rapids_top (split core) and run a testcase.
 
@@ -480,11 +520,11 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_top': '../../rtl/top',
     })
-    dut_name = "rapids_top"
+    dut_name = dut   # rapids_{8,16}ch_*top builds pick their register map by filelist
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dma-ip/rapids/rtl/filelists/top/rapids_top.f'
+        filelist_path=f'projects/components/dma-ip/rapids/rtl/filelists/top/{dut_name}.f'
     )
 
     # Encode RTL parameter overrides into the test name BEFORE any path is
@@ -506,7 +546,7 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
     os.makedirs(log_dir, exist_ok=True)
 
     rtl_parameters = {
-        'NUM_CHANNELS': 8,
+        'NUM_CHANNELS': nch,
         'DATA_WIDTH': 512,
         'ADDR_WIDTH': 64,
         'AXI_ID_WIDTH': 8,
@@ -527,7 +567,7 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         **level_env(test_level),
-        'TEST_NUM_CHANNELS': '8',
+        'TEST_NUM_CHANNELS': str(nch),
         'TEST_ADDR_WIDTH': '64',
         'TEST_DATA_WIDTH': '512',
         'TEST_AXI_ID_WIDTH': '8',
@@ -683,3 +723,24 @@ if __name__ == "__main__":
     test_rapids_top_source(MockRequest())
     test_rapids_top_sink(MockRequest())
     test_rapids_top_control(MockRequest())
+
+
+# ---- channel-count variants: rapids_8ch_top / rapids_16ch_top ---------------
+@pytest.mark.top
+@pytest.mark.rapids_top
+@pytest.mark.parametrize("nch", [8, 16])
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_nch_top_high_channels(request, nch, test_level):
+    """Source and sink on the build's top channels."""
+    _run_top("cocotb_test_high_channels", f"test_rapids_{nch}ch_top_high_channels",
+             test_level=test_level, dut=f"rapids_{nch}ch_top", nch=nch)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_top
+@pytest.mark.parametrize("nch", [8, 16])
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_nch_top_channel_map(request, nch, test_level):
+    """VERSION / CHANNEL_ENABLE / CH_STATE match the register map's size."""
+    _run_top("cocotb_test_channel_map", f"test_rapids_{nch}ch_top_channel_map",
+             test_level=test_level, dut=f"rapids_{nch}ch_top", nch=nch)

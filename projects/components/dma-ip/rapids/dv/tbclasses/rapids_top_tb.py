@@ -78,6 +78,15 @@ sys.path.insert(0, repo_root)
 # a register relocation needs NO TB changes -- only rapids_regmap.py is regenerated.
 RAPIDS_REGMAP_PATH = os.path.join(
     repo_root, 'projects/components/dma-ip/rapids/rtl/rapids_regmap.py')
+# The 16-channel register map (rapids_16ch_top / rapids_16ch_cxs_top, rtl/rapids_regmap_16ch.py)
+RAPIDS_REGMAP_16CH_PATH = os.path.join(
+    repo_root, 'projects/components/dma-ip/rapids/rtl/rapids_regmap_16ch.py')
+
+
+def rapids_regmap_path(num_channels: int) -> str:
+    """The register map a top with this many channels is built with: the
+    8-channel map up to 8 channels, the 16-channel map above that."""
+    return RAPIDS_REGMAP_PATH if num_channels <= 8 else RAPIDS_REGMAP_16CH_PATH
 
 # APB address bit[12] selects the half: SRC config/kick at 0x0000, SNK at 0x1000.
 SRC_BASE_ADDR = 0x0000
@@ -149,10 +158,10 @@ class RapidsTopTB(TBBase):
         self.kicked_desc_addrs = {'src': {}, 'snk': {}}
 
         # Two by-name register maps: SRC half @ 0x0000, SNK half @ 0x1000.
-        self.src_regs = RegisterMap(RAPIDS_REGMAP_PATH, apb_data_width=self.apb_data_width,
+        self.src_regs = RegisterMap(rapids_regmap_path(self.NUM_CHANNELS), apb_data_width=self.apb_data_width,
                                     apb_addr_width=self.apb_addr_width,
                                     start_address=SRC_BASE_ADDR, log=self.log)
-        self.snk_regs = RegisterMap(RAPIDS_REGMAP_PATH, apb_data_width=self.apb_data_width,
+        self.snk_regs = RegisterMap(rapids_regmap_path(self.NUM_CHANNELS), apb_data_width=self.apb_data_width,
                                     apb_addr_width=self.apb_addr_width,
                                     start_address=SNK_BASE_ADDR, log=self.log)
         # get_register_offset_map() returns the RAW (start_address-agnostic) offset,

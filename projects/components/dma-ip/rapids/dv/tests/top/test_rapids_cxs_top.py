@@ -246,11 +246,30 @@ async def cocotb_test_tile_unsupported(dut):
     _finish(tb, ok, stats, "credit / unsupported")
 
 
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_all_channels_concurrent(dut):
+    """Every channel of the build at once, both halves: one KICK_ENABLE write
+    launches all of them (16 on rapids_16ch_cxs_top)."""
+    tb = await _bring_up(dut)
+    chans = tuple(range(tb.NUM_CHANNELS))
+    ok_s, st_s = await tb.test_source_concurrent(channels=chans, beats=4 * _beats())
+    ok_k, st_k = await tb.test_sink_concurrent(channels=chans, beats=4 * _beats())
+    _finish(tb, ok_s and ok_k, {'errors': st_s['errors'] + st_k['errors']}, "all channels concurrent")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_high_channel_descriptors(dut):
+    """Cell-issued descriptors on the build's top channels (tag 15 on 16)."""
+    tb = await _bring_up_tile(dut)
+    ok, stats = await tb.test_cell_descriptors(beats=_beats(), base_channel=tb.NUM_CHANNELS - 4)
+    _finish(tb, ok, stats, "high-channel cell descriptors")
+
+
 # ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
 
-def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
+def _run_top(testcase, test_name, extra_params=None, test_level='gate', dut='rapids_cxs_top', nch=8):
     """Compile rapids_cxs_top and run one testcase (13-bit APB, as the AXIS top)."""
     test_name = f"{test_name}_{test_level}"
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -258,11 +277,11 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_top': '../../rtl/top',
     })
-    dut_name = "rapids_cxs_top"
+    dut_name = dut   # rapids_{8,16}ch_*top builds pick their register map by filelist
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dma-ip/rapids/rtl/filelists/top/rapids_cxs_top.f'
+        filelist_path=f'projects/components/dma-ip/rapids/rtl/filelists/top/{dut_name}.f'
     )
 
     # RTL overrides go into test_name before any path: sim_build is keyed on it.
@@ -280,7 +299,7 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
     os.makedirs(log_dir, exist_ok=True)
 
     rtl_parameters = {
-        'NUM_CHANNELS': 8,
+        'NUM_CHANNELS': nch,
         'DATA_WIDTH': 512,
         'ADDR_WIDTH': 64,
         'AXI_ID_WIDTH': 8,
@@ -297,7 +316,7 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate'):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         **level_env(test_level),
-        'TEST_NUM_CHANNELS': '8',
+        'TEST_NUM_CHANNELS': str(nch),
         'TEST_ADDR_WIDTH': '64',
         'TEST_DATA_WIDTH': '512',
         'TEST_AXI_ID_WIDTH': '8',
@@ -473,3 +492,23 @@ def test_rapids_cxs_top_tile_source_bad_ptype(request, test_level):
     """A source descriptor with ptype credit is refused."""
     _run_top("cocotb_test_tile_source_bad_ptype", "test_rapids_cxs_top_tile_source_bad_ptype",
              extra_params=_TILE, test_level=test_level)
+
+
+# ---- 16-channel CXS top ----------------------------------------------------
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("nch", [8, 16])
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_nch_cxs_top_all_channels(request, nch, test_level):
+    """Every channel at once (8 or 16), both halves, one link each way."""
+    _run_top("cocotb_test_all_channels_concurrent", f"test_rapids_{nch}ch_cxs_top_all_channels",
+             test_level=test_level, dut=f"rapids_{nch}ch_cxs_top", nch=nch)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_16ch_cxs_top_tile_high_channels(request, test_level):
+    """Tile header + cell-issued descriptors on channels 12..15."""
+    _run_top("cocotb_test_tile_high_channel_descriptors", "test_rapids_16ch_cxs_top_tile_high_channels",
+             extra_params=_TILE, test_level=test_level, dut="rapids_16ch_cxs_top", nch=16)

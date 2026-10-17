@@ -71,6 +71,7 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`).
 ### Chapter 5: Programming Model
 - [Descriptor Format](ch05_programming/01_descriptor_format.md)
 - [Register Map](../rapids_beats_has/ch05_programming/02_register_map.md) (shared with RAPIDS Beats)
+- [16-Channel Register Map](ch05_programming/02_register_map_16ch.md)
 - [Initialization Sequence](../rapids_beats_has/ch05_programming/03_initialization.md) (shared with RAPIDS Beats)
 - [Error Handling](ch05_programming/04_error_handling.md)
 

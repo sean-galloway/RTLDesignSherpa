@@ -261,12 +261,14 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
                                       want_unsupported=want_unsupported)
         return self._finish(errors, "tile sink write")
 
-    async def test_cell_descriptors(self, beats=4) -> Tuple[bool, Dict[str, Any]]:
+    async def test_cell_descriptors(self, beats=4, base_channel=0) -> Tuple[bool, Dict[str, Any]]:
         """Cell-issued descriptors (TILE_SPEC 11.11) on several source channels:
-          ch0, ch1  idle channels, injected together
-          ch2       busy: a host-kicked descriptor runs first, the injected one after it
-          ch3       the injected descriptor chains on into a memory-resident one
-        Each packet must reach the coordinate its descriptor names, in order."""
+          b+0, b+1  idle channels, injected together
+          b+2       busy: a host-kicked descriptor runs first, the injected one after it
+          b+3       the injected descriptor chains on into a memory-resident one
+        (b = base_channel). Each packet must reach the coordinate its
+        descriptor names, in order."""
+        c0, c1, c2, c3 = (base_channel + i for i in range(4))
         self.log.info("=== TILE cell-issued descriptors ===")
         bpb = self.STRB_WIDTH
         nbytes = beats * bpb
@@ -285,27 +287,27 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
 
         # ch2 busy: a long host-kicked transfer first
         host_beats = 8 * beats
-        host_pat = self._pattern(0x99, 2, host_beats)
-        self.preload_source(src(2, 9), host_pat)
+        host_pat = self._pattern(0x99, c2, host_beats)
+        self.preload_source(src(c2, 9), host_pat)
         host_dst = coord(0, 3, 3, 0)
-        expect[2] = [(TileHeader(host_dst, RAPIDS_COORD, PTYPE_MEM, 0, host_beats * bpb, 0x10, 2),
-                      host_pat)]
-        self.register_descriptor(self.desc_src_mem, self.DESC_BASE + 2 * 0x1000,
-                                 self.create_tile_descriptor(src(2, 9), host_beats * bpb, host_dst,
-                                                             0x10, channel_id=2))
-        await self.kick_off_channel('src', 2, self.DESC_BASE + 2 * 0x1000)
+        expect[c2] = [(TileHeader(host_dst, RAPIDS_COORD, PTYPE_MEM, 0, host_beats * bpb, 0x10, c2),
+                       host_pat)]
+        self.register_descriptor(self.desc_src_mem, self.DESC_BASE + c2 * 0x1000,
+                                 self.create_tile_descriptor(src(c2, 9), host_beats * bpb, host_dst,
+                                                             0x10, channel_id=c2))
+        await self.kick_off_channel('src', c2, self.DESC_BASE + c2 * 0x1000)
         await self.wait_clocks(self.clk_name, 30)
 
         # ch3 chain target: a memory-resident descriptor the injected one points at
-        chain_addr = self.DESC_BASE + 3 * 0x1000
-        d_ch3a = inj(3, 0, coord(0, 0, 2, 0), 0x80, next_ptr=chain_addr, last=False)
-        d_ch3b = inj(3, 1, coord(0, 1, 2, 0), 0x90)
+        chain_addr = self.DESC_BASE + c3 * 0x1000
+        d_ch3a = inj(c3, 0, coord(0, 0, 2, 0), 0x80, next_ptr=chain_addr, last=False)
+        d_ch3b = inj(c3, 1, coord(0, 1, 2, 0), 0x90)
         self.register_descriptor(self.desc_src_mem, chain_addr, d_ch3b)
 
-        for d_ch, d in ((0, inj(0, 0, coord(0, 1, 1, 0), 0x100)),
-                        (1, inj(1, 0, coord(0, 2, 1, 0), 0x200)),
-                        (2, inj(2, 0, coord(0, 3, 1, 0), 0x300)),
-                        (3, d_ch3a)):
+        for d_ch, d in ((c0, inj(c0, 0, coord(0, 1, 1, 0), 0x100)),
+                        (c1, inj(c1, 0, coord(0, 2, 1, 0), 0x200)),
+                        (c2, inj(c2, 0, coord(0, 3, 1, 0), 0x300)),
+                        (c3, d_ch3a)):
             await self.cell_send_descriptor(d_ch, d)
 
         errors = []

@@ -274,6 +274,34 @@ MANIFEST = [
         "compare": [("projects/components/dma-ip/rapids/rtl/rapids_regmap.py", "rapids_regmap.py", "semantic")],
     },
     {
+        # The 16-channel map. Its RDL is DERIVED from the 8-channel one by
+        # projects/components/dma-ip/rapids/bin/gen_rapids_regs_16ch.py (run
+        # that first when an 8-channel source changes; --check reports a
+        # stale derived RDL), so the 8-channel files are sources here too.
+        "name": "rapids_regs_16ch (regblock + docs)",
+        "rdl": "projects/components/dma-ip/rapids/rtl/macro_beats/generated_16ch/rapids_regs_16ch.rdl",
+        "sources": ["projects/components/dma-ip/rapids/rtl/macro_beats/generated_16ch/rapids_regs_16ch.rdl",
+                    "projects/components/dma-ip/rapids/rtl/macro_beats/generated_16ch/rapids_engine_regs_16ch.rdl",
+                    "projects/components/dma-ip/rapids/rtl/macro_beats/generated_16ch/rapids_mon_regs_16ch.rdl"],
+        "flags": ["--no-html", "--no-regmap"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/components/dma-ip/rapids/regs/generated_16ch/rtl/rapids_regs_16ch.sv", "rtl/rapids_regs_16ch.sv"),
+            ("projects/components/dma-ip/rapids/regs/generated_16ch/rtl/rapids_regs_16ch_pkg.sv", "rtl/rapids_regs_16ch_pkg.sv"),
+            ("projects/components/dma-ip/rapids/regs/generated_16ch/docs/rapids_regs_16ch.md", "docs/rapids_regs_16ch.md"),
+        ],
+    },
+    {
+        "name": "rapids_regmap_16ch (DV-facing regmap, 16 channels)",
+        "rdl": "projects/components/dma-ip/rapids/rtl/macro_beats/generated_16ch/rapids_regmap_16ch.rdl",
+        "sources": ["projects/components/dma-ip/rapids/rtl/macro_beats/generated_16ch/rapids_regmap_16ch.rdl",
+                    "projects/components/dma-ip/rapids/rtl/macro_beats/generated_16ch/rapids_engine_regs_16ch.rdl",
+                    "projects/components/dma-ip/rapids/rtl/macro_beats/generated_16ch/rapids_mon_regs_16ch.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": "rapids_regmap_16ch.py",
+        "compare": [("projects/components/dma-ip/rapids/rtl/rapids_regmap_16ch.py", "rapids_regmap_16ch.py")],
+    },
+    {
         # REGMAP ONLY: the demo tracks no generated RTL or docs for this block,
         # only the TB-facing regmap. Comparing artifacts the tree does not
         # carry would report permanent staleness.

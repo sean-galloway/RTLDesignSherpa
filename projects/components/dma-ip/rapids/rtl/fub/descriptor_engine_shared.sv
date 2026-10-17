@@ -245,14 +245,16 @@ module descriptor_engine_shared #(
         end
     end
 
-    // Issue slot. The pick, the 16:1 address mux and the chunk-1 +32 end at
-    // this register; the range check runs on the registered address in the
-    // next cycle and drives ARVALID. Splitting the path there keeps the pick
+    // Issue slot. The pick and the 16:1 address mux end at this register;
+    // the range check runs on the registered address in the next cycle and
+    // drives ARVALID. The chunk-1 +32 is not on this path: it is applied on
+    // the R side when chunk 0 arrives (one beat per cycle, one shared adder),
+    // so a channel in S_PEND2 already holds its chunk-1 address. Splitting the path there keeps the pick
     // and the four 64-bit compares out of one cycle, and the AR outputs come
     // straight from registers, so ARADDR/ARID are stable while waiting.
     logic                  r_slot_v;
     logic [CW-1:0]         r_slot_ch;
-    logic [ADDR_WIDTH-1:0] r_slot_addr;     // chunk-1 address already +32
+    logic [ADDR_WIDTH-1:0] r_slot_addr;
     logic                  r_slot_c1;
     logic                  w_slot_range_ok;
     logic                  w_range_refuse;  // slot holds a chunk-0 address outside both ranges
@@ -291,8 +293,7 @@ module descriptor_engine_shared #(
                 r_slot_v    <= 1'b1;
                 r_slot_ch   <= w_pick;
                 r_slot_c1   <= (r_st[w_pick] == S_PEND2);
-                r_slot_addr <= (r_st[w_pick] == S_PEND2) ?
-                               (r_pend_addr[w_pick] + ADDR_WIDTH'(32)) : r_pend_addr[w_pick];
+                r_slot_addr <= r_pend_addr[w_pick];
                 r_rr_ptr    <= w_pick;
             end else if (w_ar_fire || w_range_refuse) begin
                 r_slot_v    <= 1'b0;
@@ -348,6 +349,16 @@ module descriptor_engine_shared #(
     endgenerate
 
     assign w_chunk0      = w_rc_chunk1 ? w_hold_rc : r_data;
+
+    // The waiting channel's fetch address: +32 is its chunk-1 address (stored
+    // when chunk 0 arrives); a chunk-1 completion reports the descriptor's own
+    // address, 32 below what is stored.
+    logic [ADDR_WIDTH-1:0] w_rc_pend;
+    logic [ADDR_WIDTH-1:0] w_rc_pend_p32;
+    logic [ADDR_WIDTH-1:0] w_rc_desc_addr;
+    assign w_rc_pend      = r_pend_addr[w_rc];
+    assign w_rc_pend_p32  = w_rc_pend + ADDR_WIDTH'(32);
+    assign w_rc_desc_addr = w_rc_chunk1 ? (w_rc_pend - ADDR_WIDTH'(32)) : w_rc_pend;
     assign w_ext_wr_data = r_data;   // chunk 1 when completing an EXT; don't-care otherwise
     assign w_fifo_wr_data = {w_chunk0,
                              1'b0, 1'b0, 1'b0,   // eos / eol / eod (reserved)
@@ -501,7 +512,10 @@ module descriptor_engine_shared #(
                         end
                         S_WAIT: if (w_r_here) begin
                             if (!w_resp_ok)      r_st[c] <= S_IDLE;
-                            else if (w_want_ext) r_st[c] <= S_PEND2;
+                            else if (w_want_ext) begin
+                                r_st[c]        <= S_PEND2;
+                                r_pend_addr[c] <= w_rc_pend_p32;   // chunk-1 address
+                            end
                             else if (w_chain) begin
                                 r_st[c]        <= S_PEND;
                                 r_pend_addr[c] <= w_next_addr;
@@ -598,7 +612,7 @@ module descriptor_engine_shared #(
     assign w_pkt_r = w_resp_ok ?
         create_monitor_packet(PktTypeCompletion, PROTOCOL_CORE, CORE_COMPL_DESCRIPTOR_LOADED,
                               9'(w_rc), MON_UNIT_ID, MON_AGENT_BASE + 16'(w_rc),
-                              64'(r_pend_addr[w_rc])) :
+                              64'(w_rc_desc_addr)) :
         create_monitor_packet(PktTypeError, PROTOCOL_CORE, CORE_ERR_DESCRIPTOR_ENGINE,
                               9'(w_rc), MON_UNIT_ID, MON_AGENT_BASE + 16'(w_rc),
                               {46'h0, r_resp, 16'h0});

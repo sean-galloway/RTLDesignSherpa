@@ -97,6 +97,19 @@
 > Traps: the planes are untouched (CXS is just transport); a disabled channel's scheduler still pops and
 > discards descriptors from its queue in IDLE (pre-existing, also hits host kicks), so a slot-overflow test
 > must hold the channel busy, not disabled; credits/grants (TILE_SPEC 11.9-11.10) are NOT built.
+>
+> **8- and 16-channel builds (2026-10-17, byte tree):** one `rapids_top_base`, two register maps. The
+> 8-channel map is today's hand-written RDL (`rtl/macro_beats/rapids_{regs,engine_regs,mon_regs,regmap}.rdl`,
+> regblock `rapids_regs`, `rtl/rapids_regmap.py`). The 16-channel map is DERIVED by `bin/gen_rapids_regs_16ch.py`
+> into `rtl/macro_beats/generated_16ch/` (regblock `rapids_regs_16ch` in `regs/generated_16ch/`,
+> `rtl/rapids_regmap_16ch.py`); edit the 8-ch files, rerun it (`--check`), then regenerate both regblocks with
+> `bin/peakrdl_generate.py` (`check_rdl_regen.py` covers both). The base picks its regblock and the
+> per-channel-by-name glue (KICKn, CHn_DESC_ADDR) from `rtl/top/generated/regsel_{8,16}ch/`, chosen by
+> +incdir in `rtl/filelists/top/rapids_top_base{,_16ch}.f`. Tops: `rapids_top`/`rapids_cxs_top` (8, unchanged,
+> used by the FPGA flows) plus generated `rapids_{8,16}ch_top` and `rapids_{8,16}ch_cxs_top`. The 16-ch map
+> moves KICK_ENABLE to 0x080 and CH_STATE to 0x180: by-name access only. HAS: `rapids_has/ch05_programming/02_register_map_16ch.md`.
+> Measured OOC synthesis, rapids_core 256-bit, 16 channels shared: 77.1k LUTs, +0.56 ns at 100 MHz once the
+> descriptor engine's chunk-1 +32 moved to the R side.
 
 **Complete Specification:**
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`

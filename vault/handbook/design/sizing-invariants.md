@@ -51,3 +51,22 @@ summary: Shared-resource capacity math lives in ONE place, never a comment.
   where the flags agree and the payload does not is worth suspecting a width
   before suspecting the algorithm.*
 
+- **A tracking FIFO that is pushed unconditionally must be sized to the
+  worst-case product of the limits that feed it, or gate the push.** A queue
+  that records each issued request so a later phase can follow it (AW ->
+  W-phase, AR -> R reorder) is often pushed "on handshake" with no `wr_ready`
+  check, on the assumption it can never fill. That assumption is a product:
+  channels x per-channel outstanding limit. It holds at the configuration it
+  was written for and silently breaks when either factor grows. Gate the
+  issue on FIFO room (a free entry at capture stays free until the push if
+  only one request is held), or assert the product against the depth at
+  elaboration.
+  *Case (2026-10-17): RAPIDS `axi_write_engine` pushed its W-phase FIFO
+  (depth 64) on every AW handshake. 8 channels x AW_MAX_OUTSTANDING 8 = 64,
+  exactly the depth, so the 8-channel design could never overflow it; the
+  16-channel build (128) dropped entries, those bursts' W data was never sent,
+  and the sink hung waiting for B responses with every channel in
+  XFER_DATA. The tell was in the bus counts, not the engine: 128 AWs
+  (1024 beats) against 776 W beats. STREAM's and RAPIDS Beats' write engines
+  carry the same ungated push and are safe only while NUM_CHANNELS x
+  AW_MAX_OUTSTANDING <= W_PHASE_FIFO_DEPTH.*

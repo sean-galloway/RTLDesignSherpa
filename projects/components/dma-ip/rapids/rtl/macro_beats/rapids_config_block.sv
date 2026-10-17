@@ -38,6 +38,8 @@
 
 module rapids_config_block #(
     parameter int NUM_CHANNELS = 8,
+    // Channel bits in the register map (8 or 16); NUM_CHANNELS <= REG_NCH
+    parameter int REG_NCH = 8,
     parameter int ADDR_WIDTH = 64,
     // When 0, the monitor configuration outputs are strapped off (monitors
     // disabled) regardless of the MON register contents — lets a half drop its
@@ -57,8 +59,8 @@ module rapids_config_block #(
     input  logic                        reg_global_ctrl_global_rst,
 
     // Channel Control
-    input  logic [7:0]                  reg_channel_enable_ch_en,
-    input  logic [7:0]                  reg_channel_reset_ch_rst,
+    input  logic [REG_NCH-1:0]          reg_channel_enable_ch_en,
+    input  logic [REG_NCH-1:0]          reg_channel_reset_ch_rst,
 
     // Scheduler Configuration
     input  logic [31:0]                 reg_sched_timeout_cycles_timeout_cycles,
@@ -265,10 +267,10 @@ module rapids_config_block #(
     //-------------------------------------------------------------------------
 
     // Gate all channel enables by global enable
-    assign cfg_channel_enable = reg_channel_enable_ch_en & {NUM_CHANNELS{reg_global_ctrl_global_en}};
+    assign cfg_channel_enable = NUM_CHANNELS'(reg_channel_enable_ch_en) & {NUM_CHANNELS{reg_global_ctrl_global_en}};
 
     // Channel resets are OR'd with global reset
-    assign cfg_channel_reset = reg_channel_reset_ch_rst | {NUM_CHANNELS{reg_global_ctrl_global_rst}};
+    assign cfg_channel_reset = NUM_CHANNELS'(reg_channel_reset_ch_rst) | {NUM_CHANNELS{reg_global_ctrl_global_rst}};
 
     //-------------------------------------------------------------------------
     // Scheduler Configuration

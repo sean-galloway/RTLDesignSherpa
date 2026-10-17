@@ -559,6 +559,20 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
 
         return failed == 0, stats
 
+    async def _wait_counter_delta(self, sig, before: int, want: int,
+                                  timeout_cycles: int = 4000, settle_cycles: int = 50) -> int:
+        """Wait until a cumulative DUT counter has moved by `want`, then hold
+        `settle_cycles` more so an over-delivery still shows; return the delta.
+        A fixed window misattributes a late beat to the next operation under
+        slow_producer timing (SEED=1004, 2026-10-17: reads 0 and 1 counted 3
+        and 5); the byte tree's testbench has the same helper."""
+        for _ in range(timeout_cycles):
+            if int(sig.value) - before >= want:
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        await self.wait_clocks(self.clk_name, settle_cycles)
+        return int(sig.value) - before
+
     async def test_axi_read_operations(self, num_operations: int = 12) -> Tuple[bool, Dict[str, Any]]:
         """Test AXI read operations"""
         self.log.info(f"Testing AXI read operations ({num_operations})...")
@@ -573,9 +587,8 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                 beats = 4
                 reads_before = int(self.dut.dbg_r_beats_rcvd.value)
                 await self.send_descriptor(channel, addr, beats)
-                await self.wait_clocks(self.clk_name, 100)
                 # this descriptor's read must add exactly its beats to the cumulative counter
-                dbg_reads = int(self.dut.dbg_r_beats_rcvd.value) - reads_before
+                dbg_reads = await self._wait_counter_delta(self.dut.dbg_r_beats_rcvd, reads_before, beats)
                 if dbg_reads != beats:
                     self.log.error(f"AXI read {i}: {dbg_reads} R beats for a {beats}-beat descriptor")
                 if dbg_reads == beats:
@@ -617,9 +630,8 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                 beats = random.randint(1, 4)
                 sent_before = int(self.dut.dbg_axis_beats_sent.value)
                 await self.send_descriptor(channel, addr, beats)
-                await self.wait_clocks(self.clk_name, 150)
                 # this descriptor must add exactly its beats to the egress counter
-                axis_sent = int(self.dut.dbg_axis_beats_sent.value) - sent_before
+                axis_sent = await self._wait_counter_delta(self.dut.dbg_axis_beats_sent, sent_before, beats)
                 if axis_sent != beats:
                     self.log.error(f"AXIS packet {i}: {axis_sent} beats out for a {beats}-beat descriptor")
                 if axis_sent == beats:
