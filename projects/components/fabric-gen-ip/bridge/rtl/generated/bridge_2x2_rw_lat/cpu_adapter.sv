@@ -468,6 +468,8 @@ module bridge_2x2_rw_lat_cpu_adapter
     assign aw_idt_ridx = fub_axi_bid[3:0];
     assign aw_idt_push = fub_axi_awvalid && fub_axi_awready;
     assign aw_idt_pop  = fub_axi_bvalid && fub_axi_bready;
+    logic [1:0] aw_inc_n;   // pushes this cycle
+    assign aw_inc_n = 2'(aw_idt_push);
 
     always_comb begin
         for (int i = 0; i < AW_IDT_N; i++) begin
@@ -492,10 +494,15 @@ module bridge_2x2_rw_lat_cpu_adapter
             if (aw_idt_push) aw_idt_tgt[aw_idt_widx] <= comb_slave_select_aw;
             for (int i = 0; i < AW_IDT_N; i++) begin
                 aw_idt_cnt[i]  <= aw_idt_cnt_nx[i];
-                aw_idt_busy[i] <= (aw_idt_cnt_nx[i] != '0);
+                aw_idt_busy[i] <= (aw_idt_push && (aw_idt_widx == 4'(i)))
+                                    || (aw_idt_cnt[i] > (AW_TRK_AW+1)'(1))
+                                    || ((aw_idt_cnt[i] == (AW_TRK_AW+1)'(1)) &&
+                                        !(aw_idt_pop && (aw_idt_ridx == 4'(i))));
             end
             aw_out_cnt  <= aw_out_cnt_nx;
-            aw_trk_full <= (aw_out_cnt_nx == (AW_TRK_AW+1)'(AW_TRK_DEPTH));
+            aw_trk_full <=
+                ((aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH))   && (aw_inc_n == 2'(aw_idt_pop))) ||
+                ((aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH-1)) && (aw_inc_n == 2'(aw_idt_pop) + 2'd1));
         end
     )
 
@@ -578,6 +585,8 @@ module bridge_2x2_rw_lat_cpu_adapter
     assign ar_idt_ridx = fub_axi_rid[3:0];
     assign ar_idt_push = fub_axi_arvalid && fub_axi_arready;
     assign ar_idt_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
+    logic [1:0] ar_inc_n;   // pushes this cycle
+    assign ar_inc_n = 2'(ar_idt_push);
 
     always_comb begin
         for (int i = 0; i < AR_IDT_N; i++) begin
@@ -602,10 +611,15 @@ module bridge_2x2_rw_lat_cpu_adapter
             if (ar_idt_push) ar_idt_tgt[ar_idt_widx] <= comb_slave_select_ar;
             for (int i = 0; i < AR_IDT_N; i++) begin
                 ar_idt_cnt[i]  <= ar_idt_cnt_nx[i];
-                ar_idt_busy[i] <= (ar_idt_cnt_nx[i] != '0);
+                ar_idt_busy[i] <= (ar_idt_push && (ar_idt_widx == 4'(i)))
+                                    || (ar_idt_cnt[i] > (AR_TRK_AW+1)'(1))
+                                    || ((ar_idt_cnt[i] == (AR_TRK_AW+1)'(1)) &&
+                                        !(ar_idt_pop && (ar_idt_ridx == 4'(i))));
             end
             ar_out_cnt  <= ar_out_cnt_nx;
-            ar_trk_full <= (ar_out_cnt_nx == (AR_TRK_AW+1)'(AR_TRK_DEPTH));
+            ar_trk_full <=
+                ((ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH))   && (ar_inc_n == 2'(ar_idt_pop))) ||
+                ((ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH-1)) && (ar_inc_n == 2'(ar_idt_pop) + 2'd1));
         end
     )
 

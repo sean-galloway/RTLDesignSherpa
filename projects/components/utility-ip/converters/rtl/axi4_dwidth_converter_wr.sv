@@ -725,6 +725,9 @@ module axi4_dwidth_converter_wr #(
             // was pushed -- all older than i.  i is its ID's oldest live
             // entry once none of them is still valid.
             logic [B_CAM_DEPTH-1:0]  b_cam_older [B_CAM_DEPTH];
+            // b_cam_last[i]: entry i's count is 1 -- its next B is the slave
+            // B. Registered so the decision is an AND with the hit vector.
+            logic [B_CAM_DEPTH-1:0]  b_cam_last;
 
             // The burst currently being split.  The AW splitter finishes one
             // slave burst before accepting the next, so a single open-burst
@@ -766,30 +769,32 @@ module axi4_dwidth_converter_wr #(
             // are serialized: with at most one live entry per ID (the owner
             // invariant recorded at BUG-016) every older-set is empty.
             logic [B_CAM_DEPTH-1:0] w_b_cam_hit;
-            logic [B_CAM_AW-1:0]    w_b_cam_idx;
             logic                   w_b_cam_match;
+            logic                   w_b_cam_last;     // the hit entry ends its slave burst
+            logic [1:0]             w_b_cam_worst;    // the hit entry's folded response
             logic [B_CAM_DEPTH-1:0] w_b_cam_same_id;   // live entries of the pushed AWID
+            // Consumers read the one-hot hit vector directly (AND-OR), never
+            // an encoded index: encode-then-decode fanned out to every
+            // entry's enable and was the converter's worst path in a bridge.
             always_comb begin
-                w_b_cam_idx = '0;
+                w_b_cam_worst = '0;
                 for (int i = 0; i < B_CAM_DEPTH; i++) begin
                     w_b_cam_hit[i] = b_cam_valid[i] && (b_cam[i].id == q_bid) &&
                                      ((b_cam_older[i] & b_cam_valid) == '0);
                     w_b_cam_same_id[i] = b_cam_valid[i] && (b_cam[i].id == int_awid);
                     if (w_b_cam_hit[i])
-                        w_b_cam_idx = w_b_cam_idx | B_CAM_AW'(i);
+                        w_b_cam_worst = w_b_cam_worst | b_cam[i].worst;
                 end
             end
             assign w_b_cam_match = |w_b_cam_hit;
+            assign w_b_cam_last  = |(w_b_cam_hit & b_cam_last);
 
             // Drive B channel outputs.
             assign int_bid      = q_bid;
             assign int_buser    = q_buser;
-            assign int_b_valid  = q_bvalid && w_b_cam_match &&
-                                  (b_cam[w_b_cam_idx].count == 8'd1);
-            assign int_bresp    = (q_bresp > b_cam[w_b_cam_idx].worst)
-                                  ? q_bresp : b_cam[w_b_cam_idx].worst;
-            assign q_bready = (q_bvalid && w_b_cam_match &&
-                                   (b_cam[w_b_cam_idx].count == 8'd1))
+            assign int_b_valid  = q_bvalid && w_b_cam_last;
+            assign int_bresp    = (q_bresp > w_b_cam_worst) ? q_bresp : w_b_cam_worst;
+            assign q_bready = (q_bvalid && w_b_cam_last)
                                   ? int_b_ready : 1'b1;
 
             `ALWAYS_FF_RST(aclk, w_aresetn,
@@ -801,6 +806,7 @@ module axi4_dwidth_converter_wr #(
                         b_cam_valid[i] <= 1'b0;
                         b_cam[i]       <= '0;
                         b_cam_older[i] <= '0;
+                        b_cam_last[i]  <= 1'b0;
                     end
                 end else begin
                     // Track the burst currently being split.
@@ -828,6 +834,7 @@ module axi4_dwidth_converter_wr #(
                             b_cam_valid[w_b_cam_free_idx] <= 1'b1;
                             b_cam[w_b_cam_free_idx].id    <= int_awid;
                             b_cam[w_b_cam_free_idx].count <= w_b_cam_push_count;
+                            b_cam_last[w_b_cam_free_idx]  <= (w_b_cam_push_count == 8'd1);
                             b_cam[w_b_cam_free_idx].worst <= 2'b00;
                             // The slot's previous occupant is gone: drop it
                             // from every older-set, then record which live
@@ -839,14 +846,16 @@ module axi4_dwidth_converter_wr #(
                     end
 
                     // Process an incoming master B response.
-                    if (q_bvalid && q_bready && w_b_cam_match) begin
-                        if (b_cam[w_b_cam_idx].count == 8'd1) begin
-                            b_cam_valid[w_b_cam_idx] <= 1'b0;
-                        end else begin
-                            b_cam[w_b_cam_idx].count <=
-                                b_cam[w_b_cam_idx].count - 8'd1;
-                            if (q_bresp > b_cam[w_b_cam_idx].worst)
-                                b_cam[w_b_cam_idx].worst <= q_bresp;
+                    for (int i = 0; i < B_CAM_DEPTH; i++) begin
+                        if (q_bvalid && q_bready && w_b_cam_hit[i]) begin
+                            if (b_cam_last[i]) begin
+                                b_cam_valid[i] <= 1'b0;
+                            end else begin
+                                b_cam[i].count <= b_cam[i].count - 8'd1;
+                                b_cam_last[i]  <= (b_cam[i].count == 8'd2);
+                                if (q_bresp > b_cam[i].worst)
+                                    b_cam[i].worst <= q_bresp;
+                            end
                         end
                     end
                 end

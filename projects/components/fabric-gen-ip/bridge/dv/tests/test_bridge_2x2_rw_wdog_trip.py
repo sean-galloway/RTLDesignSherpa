@@ -10,8 +10,10 @@
 #   1. healthy: ddr answering 20 cycles late (under the timeout) is passed
 #      through untouched -- OKAY, data correct, ddr_timeout low;
 #   2. trip: ddr stops answering with a write and a 4-beat read outstanding
-#      from different masters. Both complete with DECERR (the read with all
-#      four beats), shortly after the timeout, and ddr_timeout rises;
+#      from different masters. ddr_timeout rises exactly TIMEOUT cycles after
+#      the last handshake ddr made (the timer restarts on every one), and
+#      both complete with DECERR (the read with all four beats) promptly
+#      after it;
 #   3. isolated: a new write and read to ddr are answered DECERR at once,
 #      and the neighbour sram still reads back what was written to it;
 #   4. the master ports' protocol checkers saw no violation throughout.
@@ -26,7 +28,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 import cocotb
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, RisingEdge
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
@@ -34,6 +36,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 from bridge2x2_rw_wdog_tb import Bridge2x2RwWdogTB, AxiResponseError
+from bridge_perf_probe import hi, saturate
 
 CPU, DMA = 0, 1
 DDR, SRAM = 0, 1
@@ -59,6 +62,10 @@ async def expect_decerr(coro, what):
 async def cocotb_test_bridge_2x2_rw_wdog_trip(dut):
     tb = Bridge2x2RwWdogTB(dut)
     await tb.setup_clocks_and_reset()
+    # Requesters always ready, so how fast the DECERRs drain measures the
+    # bridge, not the BFM's randomized RREADY/BREADY. (saturate also zeroes
+    # the slaves' response delay; the phases below set ddr's.)
+    saturate(tb)
 
     # 1. Healthy, slow but alive.
     tb.set_slave_response_delay(DDR, 20)
@@ -73,6 +80,22 @@ async def cocotb_test_bridge_2x2_rw_wdog_trip(dut):
     tb.set_slave_response_delay(DDR, 1_000_000)
     t0 = cycles_now()
     done = {}
+    seen = {'last_hs': None, 'trip': None}
+
+    async def watch_ddr():
+        # The slave's last handshake on any channel, and the cycle the trip
+        # shows on ddr_timeout (sampled at the clock edge, like the RTL).
+        chans = [(getattr(dut, f'ddr_s_axi_{c}valid'), getattr(dut, f'ddr_s_axi_{c}ready'))
+                 for c in ('aw', 'w', 'b', 'ar', 'r')]
+        while seen['trip'] is None:
+            await RisingEdge(dut.aclk)
+            now = cycles_now()
+            if any(hi(v) and hi(r) for v, r in chans):
+                seen['last_hs'] = now
+            if hi(dut.ddr_timeout):
+                seen['trip'] = now
+
+    cocotb.start_soon(watch_ddr())
 
     async def hung_write():
         await expect_decerr(tb.master_write(CPU, DDR_BASE + 0x80, 0xCAFE_0001), "hung write")
@@ -96,10 +119,17 @@ async def cocotb_test_bridge_2x2_rw_wdog_trip(dut):
         await ClockCycles(dut.aclk, 25)
     assert 'w' in done and 'r' in done, f"outstanding transactions not answered: {done}"
     assert int(dut.ddr_timeout.value) == 1, "ddr_timeout did not rise"
-    lat_w, lat_r = done['w'] - t0, done['r'] - t0
-    tb.log.info(f"trip: write answered DECERR after {lat_w} cycles, read after {lat_r}")
-    assert TIMEOUT <= max(lat_w, lat_r) <= TIMEOUT + 60, \
-        f"DECERR came {lat_w}/{lat_r} cycles after issue, timeout is {TIMEOUT}"
+    assert seen['last_hs'] is not None and seen['trip'] is not None
+    silence = seen['trip'] - seen['last_hs']
+    lat_w, lat_r = done['w'] - seen['trip'], done['r'] - seen['trip']
+    tb.log.info(f"trip: {silence} cycles after ddr's last handshake; write answered DECERR "
+                f"{lat_w} cycles later, read {lat_r} (issue to answer: {done['w'] - t0}/{done['r'] - t0})")
+    # Trip registered on the edge after TIMEOUT stalled cycles; the flag is
+    # seen one edge later by this sampler.
+    assert TIMEOUT <= silence <= TIMEOUT + 2, \
+        f"tripped {silence} cycles after ddr's last handshake, timeout is {TIMEOUT}"
+    assert 0 <= max(lat_w, lat_r) <= 16, \
+        f"DECERR {lat_w}/{lat_r} cycles after the trip"
 
     # 3. Isolated: new requests answered at once; sram unaffected.
     t1 = cycles_now()

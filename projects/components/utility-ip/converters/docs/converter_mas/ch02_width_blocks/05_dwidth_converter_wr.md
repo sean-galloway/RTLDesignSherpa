@@ -375,6 +375,11 @@ one slave B response. This is now done with a per-burst CAM keyed by AWID:
   a function of the match. Without it, a bridge put a slave CAM lookup, the
   crossbar's B arbiter, this match and the slave CAM's free in one cycle.
   Cost: one cycle of B latency on a downsize path.
+- Every consumer of the match reads the one-hot hit vector directly: the
+  per-entry updates, the folded response (an AND-OR), and the "this B ends
+  the slave burst" decision, an AND with a registered per-entry `count == 1`
+  flag. No index is encoded and decoded back; that round trip fanned out to
+  every entry's enable.
 - The CAM drains on B return while the split queue drains on W framing, so
   split-queue space does not bound CAM occupancy: a burst's FINAL master AW
   is gated on a free CAM slot (`w_b_cam_slot_free`). Without the gate a flood

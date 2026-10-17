@@ -300,3 +300,22 @@ factory per port and builds it in `setup_clocks_and_reset`), and make
 set of checkers passes vacuously (see [[test-review]]). Calling
 `setup_monitors()` on a checker that its constructor already armed starts
 every loop twice.
+
+## Same-ID calls in flight can swap responses (2026-10-16)
+
+The AXI4 and AXI5 requester BFMs keep one response queue per ID. Every
+`read_transaction` / `write_transaction` waiting on that ID polls the same
+queue, and the first call to wake takes the beats, not the oldest request.
+`send()` returns before the address handshake, so a later call is often
+already waiting. Two calls on one ID from one port can therefore swap
+responses even though the DUT returned them in order. The bridge's
+`test_bridge_2x2_axi5_wakeup[full]` (SEED=80505) failed this way: a later
+write took an earlier one's B, started its read early and took that read's
+R. The bridge's port trace showed both returned in order.
+
+Until the BFM serves same-ID waiters in issue order, keep at most one
+transaction per (port, ID) in flight in test code (a `cocotb.triggers.Lock`
+per ID), or give each in-flight transaction its own ID. Issuing every
+same-ID call up front, in order, happens to be safe (wake order follows call
+order), but that is luck, not a contract. Before blaming the DUT for swapped
+same-ID data, trace AR/R or AW/B order at the port.

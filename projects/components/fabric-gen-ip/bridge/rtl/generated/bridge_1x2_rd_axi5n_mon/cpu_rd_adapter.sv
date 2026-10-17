@@ -400,6 +400,8 @@ module bridge_1x2_rd_axi5n_mon_cpu_rd_adapter
     assign ar_idt_ridx = fub_axi_rid[3:0];
     assign ar_idt_push = fub_axi_arvalid && fub_axi_arready;
     assign ar_idt_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
+    logic [1:0] ar_inc_n;   // pushes this cycle
+    assign ar_inc_n = 2'(ar_idt_push);
 
     always_comb begin
         for (int i = 0; i < AR_IDT_N; i++) begin
@@ -426,10 +428,15 @@ module bridge_1x2_rd_axi5n_mon_cpu_rd_adapter
             if (ar_idt_push) ar_idt_trace[ar_idt_widx] <= fub_axi_artrace;
             for (int i = 0; i < AR_IDT_N; i++) begin
                 ar_idt_cnt[i]  <= ar_idt_cnt_nx[i];
-                ar_idt_busy[i] <= (ar_idt_cnt_nx[i] != '0);
+                ar_idt_busy[i] <= (ar_idt_push && (ar_idt_widx == 4'(i)))
+                                    || (ar_idt_cnt[i] > (AR_TRK_AW+1)'(1))
+                                    || ((ar_idt_cnt[i] == (AR_TRK_AW+1)'(1)) &&
+                                        !(ar_idt_pop && (ar_idt_ridx == 4'(i))));
             end
             ar_out_cnt  <= ar_out_cnt_nx;
-            ar_trk_full <= (ar_out_cnt_nx == (AR_TRK_AW+1)'(AR_TRK_DEPTH));
+            ar_trk_full <=
+                ((ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH))   && (ar_inc_n == 2'(ar_idt_pop))) ||
+                ((ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH-1)) && (ar_inc_n == 2'(ar_idt_pop) + 2'd1));
         end
     )
 

@@ -2050,6 +2050,8 @@ class AdapterGenerator:
             f"    assign {chan}_idt_ridx = {ridx};",
             f"    assign {chan}_idt_push = fub_axi_{chan}valid && fub_axi_{chan}ready;",
             f"    assign {chan}_idt_pop  = {resp_hs};",
+            f"    logic [1:0] {chan}_inc_n;   // pushes this cycle",
+            f"    assign {chan}_inc_n = 2'({chan}_idt_push)" + (" + 2'(ar_idt_push_aw);" if atomic else ";"),
             "",
             "    always_comb begin",
             f"        for (int i = 0; i < {up}_IDT_N; i++) begin",
@@ -2079,12 +2081,26 @@ class AdapterGenerator:
             "            if (ar_idt_push_aw) ar_idt_tgt[ar_idt_widx_aw] <= comb_slave_select_aw;",
         ] + (["            if (ar_idt_push_aw) ar_idt_trace[ar_idt_widx_aw] <= fub_axi_awtrace;"] if trace else [])
             if atomic else []) + [
+            # The flags compare the REGISTERED counts; push and pop, which
+            # depend on the crossbar's grant this cycle, only select between
+            # the compares. Deriving them from the next counts put the
+            # grant through the counter adder and a compare.
             f"            for (int i = 0; i < {up}_IDT_N; i++) begin",
             f"                {chan}_idt_cnt[i]  <= {chan}_idt_cnt_nx[i];",
-            f"                {chan}_idt_busy[i] <= ({chan}_idt_cnt_nx[i] != '0);",
+            f"                {chan}_idt_busy[i] <= ({chan}_idt_push && ({chan}_idt_widx == {iw}'(i)))",
+        ] + ([f"                                    || (ar_idt_push_aw && (ar_idt_widx_aw == {iw}'(i)))"] if atomic else []) + [
+            f"                                    || ({chan}_idt_cnt[i] > ({up}_TRK_AW+1)'(1))",
+            f"                                    || (({chan}_idt_cnt[i] == ({up}_TRK_AW+1)'(1)) &&",
+            f"                                        !({chan}_idt_pop && ({chan}_idt_ridx == {iw}'(i))));",
             "            end",
             f"            {chan}_out_cnt  <= {chan}_out_cnt_nx;",
-            f"            {chan}_trk_full <= ({chan}_out_cnt_nx == ({up}_TRK_AW+1)'({up}_TRK_DEPTH));",
+            f"            {chan}_trk_full <=",
+            f"                (({chan}_out_cnt == ({up}_TRK_AW+1)'({up}_TRK_DEPTH))   && ({chan}_inc_n == 2'({chan}_idt_pop))) ||",
+            f"                (({chan}_out_cnt == ({up}_TRK_AW+1)'({up}_TRK_DEPTH-1)) && ({chan}_inc_n == 2'({chan}_idt_pop) + 2'd1))"
+            + (" ||" if atomic else ";"),
+        ] + ([
+            f"                (({chan}_out_cnt == ({up}_TRK_AW+1)'({up}_TRK_DEPTH-2)) && ({chan}_inc_n == 2'd2) && !{chan}_idt_pop);",
+        ] if atomic else []) + [
             "        end",
             "    )",
             "",
