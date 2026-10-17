@@ -21,6 +21,11 @@
 #   USE_AXI_MONITORS=1  build-mon      monitors exist; their registers must work
 #   USE_AXI_MONITORS=0  build-perf     monitors do NOT exist
 #
+# (2026-10-13: USE_MON_REGS now defaults to 1 regardless of USE_AXI_MONITORS, so
+# the MON window answers on a default monitors-off build -- it carries the
+# always-built bus-meter perf windows. The "does NOT answer" case below is the
+# explicit USE_MON_REGS=0 override, and a third build walks the default.)
+#
 # For the second, "the register accepts a write and reads it back" is the WRONG
 # answer. Read-back success is the strongest evidence a host has that config
 # took effect; returning it for a monitor that was never built is affirmatively
@@ -130,7 +135,11 @@ def _default(reg):
 @cocotb.test(timeout_time=4000, timeout_unit="us")
 async def cocotb_test_reg_walk(dut):
     """Every register: reset value, writable bits take, read-only bits do not."""
-    monitors = os.environ.get('USE_AXI_MONITORS', '1') == '1'
+    # Whether the MON window answers. That is USE_MON_REGS, NOT
+    # USE_AXI_MONITORS: since 2026-10-13 USE_MON_REGS defaults to 1, so a
+    # default monitors-off build answers the window too. The wrapper passes
+    # MON_WINDOW=0 only for the explicit USE_MON_REGS=0 build.
+    monitors = os.environ.get('MON_WINDOW', '1') == '1'
 
     # apb_addr_width is a CONSTRUCTOR kwarg (default 12) and is NOT read from the
     # environment. At 12 bits every MON address (0x1000+) truncates back into the
@@ -242,7 +251,7 @@ async def cocotb_test_reg_walk(dut):
                 responded.append(f"{name} @ {reg.get('address')} -> 0x{got:08X}")
         if responded:
             fails.append(
-                f"USE_AXI_MONITORS=0 but {len(responded)} monitor registers "
+                f"USE_MON_REGS=0 but {len(responded)} monitor registers "
                 f"still respond, e.g. {responded[:3]}. A host cannot tell a "
                 f"configured monitor from an absent one: it writes, reads back "
                 f"what it wrote, and concludes the monitor is armed. "
@@ -268,7 +277,8 @@ async def cocotb_test_reg_walk(dut):
         + ("\n  ..." if len(fails) > 25 else ""))
 
 
-def _run_regs(request, use_monitors, test_level):
+def _run_regs(request, use_monitors, test_level, use_mon_regs=None):
+    """use_mon_regs=None leaves USE_MON_REGS at its RTL default (1)."""
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_top': '../../../../rtl/top',
         'rtl_stream_macro': '../../../../rtl/macro',
@@ -281,6 +291,18 @@ def _run_regs(request, use_monitors, test_level):
 
     dut_name = "stream_top_ch8"
     test_name = f"test_stream_top_regs_mon{use_monitors}"
+    if use_mon_regs is not None:
+        test_name = f"{test_name}_monregs{use_mon_regs}"
+    parameters = {
+        'NUM_CHANNELS': 4,
+        'DATA_WIDTH': 128,
+        'AXI_ID_WIDTH': 8,
+        'USE_AXI_MONITORS': use_monitors,
+        'APB_ADDR_WIDTH': 13,     # 8 KB: the MON block lives at 0x1000+
+    }
+    if use_mon_regs is not None:
+        parameters['USE_MON_REGS'] = use_mon_regs
+    mon_window = 1 if use_mon_regs is None else use_mon_regs
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
         test_name = f"{test_name}_{worker_id}"
@@ -297,13 +319,7 @@ def _run_regs(request, use_monitors, test_level):
         toplevel=dut_name,
         module=os.path.splitext(os.path.basename(__file__))[0],
         testcase="cocotb_test_reg_walk",
-        parameters={
-            'NUM_CHANNELS': 4,
-            'DATA_WIDTH': 128,
-            'AXI_ID_WIDTH': 8,
-            'USE_AXI_MONITORS': use_monitors,
-            'APB_ADDR_WIDTH': 13,     # 8 KB: the MON block lives at 0x1000+
-        },
+        parameters=parameters,
         sim_build=sim_build,
         extra_env={
             **level_env(test_level),
@@ -312,6 +328,7 @@ def _run_regs(request, use_monitors, test_level):
             'DATA_WIDTH': '128',
             'APB_ADDR_WIDTH': '13',
             'USE_AXI_MONITORS': str(use_monitors),
+            'MON_WINDOW': str(mon_window),
             'LOG_PATH': log_path,
             'COCOTB_LOG_LEVEL': 'INFO',
             'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{test_name}.xml'),
@@ -333,7 +350,18 @@ def test_stream_top_regs_monitors_present(request, test_level):
 # xfail removed 2026-09-24: TASK-002 landed (USE_MON_REGS gates the MON window),
 # so this gate is expected to PASS. It stayed XFAIL even after the fix until its
 # detection predicate moved off the 0xDEADBEEF sentinel -- see the header.
+# Since 2026-10-13 USE_MON_REGS defaults to 1, so the gated build is an explicit
+# override and is pinned here.
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_stream_top_regs_monitors_absent(request, test_level):
-    """Monitors NOT built: the MON window must not answer."""
+    """Monitors NOT built, USE_MON_REGS=0: the MON window must not answer."""
+    _run_regs(request, 0, test_level, use_mon_regs=0)
+
+
+# The DEFAULT monitors-off build (owner ruling 2026-10-13): USE_MON_REGS left at
+# its default of 1, so all 139 registers -- MON window included -- must answer
+# and hold their RDL reset values; the bus-meter perf windows live there.
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_stream_top_regs_monitors_off_default(request, test_level):
+    """Monitors NOT built, default USE_MON_REGS: every register answers."""
     _run_regs(request, 0, test_level)

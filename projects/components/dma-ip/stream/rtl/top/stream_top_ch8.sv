@@ -63,10 +63,17 @@ module stream_top_ch8 #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int AXI_USER_WIDTH = 3,    // $clog2(NUM_CHANNELS) for channel ID
     parameter int USE_AXI_MONITORS = 0,  // 0 = Disable monitors, 1 = Enable monitors
-    // Monitor REGISTER block hookup. Defaults to USE_AXI_MONITORS so the
-    // registers and the hardware they configure move together: with it 0 the
-    // MON config outputs are strapped off in stream_config_block.
-    parameter bit USE_MON_REGS = (USE_AXI_MONITORS != 0),
+    // Monitor REGISTER block hookup. Default 1, INDEPENDENT of
+    // USE_AXI_MONITORS (owner ruling 2026-10-13): the MON window at 0x1000
+    // also carries the RUN controls and readbacks of the always-built
+    // axi_bus_meter perf windows (RD/WRMON_PERF_*), so a default monitors-off
+    // build must answer it or those meters are built but unreachable. On such
+    // a build the monitor CONFIG registers (DAXMON/RDMON/WRMON enable, masks,
+    // timeouts) read back what was written but configure nothing -- the
+    // monitor-lite logic is not there. Override to 0 to strap the MON config
+    // outputs off in stream_config_block AND make the whole window answer
+    // PSLVERR (the TASK-002 guard below), at the cost of the meters.
+    parameter bit USE_MON_REGS = 1'b1,
     // In-core monitor address-range (allowlist) checker. MON_N_ADDR_RANGES=0
     // (default) leaves it un-synthesised -> OFF on the perf harness; the
     // monitor-validation harness sets 4. MON_ADDR_RANGE_IS_ERROR is the
@@ -849,9 +856,9 @@ module stream_top_ch8 #(
     // the IDLE->BUSY edge and consumes the response in BUSY, and
     // apb4_slave_cdc wraps that same FSM behind its two CDC FIFOs.
     //
-    // With USE_MON_REGS=1 (the default, = USE_AXI_MONITORS) w_mon_blocked is a
-    // constant 0, so all of this folds away to the straight-through wiring it
-    // replaces and existing builds stay bit-identical.
+    // With USE_MON_REGS=1 (the default, independent of USE_AXI_MONITORS since
+    // 2026-10-13) w_mon_blocked is a constant 0, so all of this folds away to
+    // the straight-through wiring it replaces.
     localparam int MON_WINDOW_BIT = 12;  // MON @ 0x1000, APB_ADDR_WIDTH 13
 
     logic w_mon_blocked;
@@ -1075,6 +1082,20 @@ module stream_top_ch8 #(
         // not tell "no transactions completed" from "this CSR is not wired".
         hwif_in.AXI_RD_COMPLETE.RD_COMPLETE.next = 8'(axi_rd_all_complete);
         hwif_in.AXI_WR_COMPLETE.WR_COMPLETE.next = 8'(axi_wr_all_complete);
+
+        // MON_FIFO_STATUS / MON_FIFO_COUNT @ 0x1000/0x1004. Same defect class
+        // as the two above: nothing drove these hwif_in fields, so they read
+        // X in a 4-state simulator and whatever synthesis tied them to. Now
+        // that the MON window answers on every default build, they report the
+        // monitor error/interrupt FIFO (the one the host drains over
+        // s_axil_err). On a monitors-off build g_monbus_tieoff ties its full
+        // and count to 0, so the register reads EMPTY=1, count 0. The group
+        // exposes no overflow/underflow flags, so OVFL/UNFL read 0.
+        hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next  = mon_err_fifo_full;
+        hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next = (mon_err_fifo_count == 8'h00);
+        hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next  = 1'b0;
+        hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next  = 1'b0;
+        hwif_in.MON.MON_FIFO_COUNT.FIFO_COUNT.next      = 16'(mon_err_fifo_count);
 
         // Descriptor AXI monitor perf-window readback (RFC Stage E CSR route;
         // see DAXMON_PERF_CTRL @ 0x2D0 for the run control).

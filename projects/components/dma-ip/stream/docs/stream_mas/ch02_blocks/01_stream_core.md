@@ -178,10 +178,13 @@ histograms. It does **not** gate the bus meters. When `USE_AXI_MONITORS = 0`:
 - The per-channel completion/error MonBus emitters are controlled by `GEN_MON`,
   not by `USE_AXI_MONITORS`.
 - The meters' registers sit in the MON window (0x1000). At top level,
-  `USE_MON_REGS` defaults to `USE_AXI_MONITORS`. In a monitors-off build left at
-  that default, every MON-window access returns `PSLVERR`, so the meters are
-  built but cannot be reached. To read them, a build without monitors must set
-  `USE_MON_REGS = 1`.
+  `USE_MON_REGS` defaults to 1, independent of `USE_AXI_MONITORS`, so a default
+  monitors-off build answers the window and the meters can be armed and read.
+  The monitor configuration registers in the same window (DAXMON / RDMON / WRMON
+  enable, masks, timeouts) then read back what was written but configure
+  nothing, because the monitor-lite logic is not built. Setting
+  `USE_MON_REGS = 0` straps those outputs off and makes every MON-window access
+  return `PSLVERR`, which also makes the meters unreachable.
 
 ### Outstanding Transaction Limits
 

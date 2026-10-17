@@ -3,7 +3,9 @@
 #
 # Module: test_stream_top_mon_gate
 # Purpose: The NEGATIVE direction of the monitor register contract (TASK-002).
-#          On a monitors-OFF build the MON window must FAIL, not answer.
+#          On a build with USE_MON_REGS=0 the MON window must FAIL, not answer.
+#          (USE_MON_REGS defaults to 1 since 2026-10-13, so this is now an
+#          explicit override, not the monitors-off default.)
 #
 # WHY A SEPARATE FILE FROM test_stream_top_mon_cfg.py
 # ---------------------------------------------------
@@ -162,9 +164,8 @@ async def cocotb_test_mon_window_gated(dut):
 
     assert not failures, (
         "monitor register window is not gated:\n  " + "\n  ".join(failures)
-        + "\n\nUSE_MON_REGS defaults to (USE_AXI_MONITORS != 0) and is "
-          "deliberately NOT passed by this test, so a failure here can also "
-          "mean that default was broken.")
+        + "\n\nThis build passes USE_MON_REGS=0 explicitly; the default is 1 "
+          "since 2026-10-13 (see test_stream_top_mon_window_default.py).")
     tb.log.info("MON window correctly errors with the monitors not built")
 
 
@@ -196,11 +197,14 @@ def test_stream_top_mon_gate(request, test_level):
         'NUM_CHANNELS': 4,
         'DATA_WIDTH': 128,
         'AXI_ID_WIDTH': 8,
-        # The point of the test. USE_MON_REGS is NOT set here on purpose: it
-        # defaults to (USE_AXI_MONITORS != 0), and that derivation is part of
-        # what TASK-002 asked for, so the test should exercise it rather than
-        # pin it.
+        # The point of the test: monitors off AND the window explicitly
+        # gated. USE_MON_REGS used to default to (USE_AXI_MONITORS != 0); the
+        # owner ruled on 2026-10-13 that it defaults to 1 so a default build
+        # can reach the always-built bus meters. The gated build is still a
+        # supported override, so it is pinned here. The default direction is
+        # test_stream_top_mon_window_default.py.
         'USE_AXI_MONITORS': 0,
+        'USE_MON_REGS': 0,
         # 13 bits = 8 KB, so paddr[12] exists and MON at 0x1000+ is addressable.
         # At 12 bits the MON addresses would TRUNCATE into the functional block
         # (WRMON_ENABLE 0x1100 -> 0x100 = GLOBAL_CTRL) and this test would be

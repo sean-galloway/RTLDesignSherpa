@@ -360,21 +360,34 @@ Per-channel AXI write engine completion status.
 
 `USE_AXI_MONITORS` gates the monitor-lite logic and the latency histograms, but
 not the bus meters. Some registers in this block are therefore active only when
-`USE_AXI_MONITORS=1`: FIFO status, the DAXMON / RDMON / WRMON enable / mask /
-timeout configuration, and the latency-histogram readback. The **datapath
-perf-window registers** are populated by the in-core `axi_bus_meter`
-instances, which are always built. These are the DAXMON / RDMON / WRMON
+`USE_AXI_MONITORS=1`: the DAXMON / RDMON / WRMON enable / mask / timeout
+configuration and the monitor-group window (`MON_GROUP_*`). The latency
+histograms (`HIST_DATA` / `HIST_TOTAL`, outside this window) are also built only
+with monitors and read 0 otherwise. The FIFO status
+registers report the monitor error FIFO, which a monitors-off build does not
+have; there they read `MON_FIFO_STATUS = 0x2` (EMPTY) and `MON_FIFO_COUNT = 0`.
+The **datapath perf-window registers** are populated by the in-core
+`axi_bus_meter` instances, which are always built. These are the RDMON / WRMON
 `PERF_CTRL` registers and their `PROD/BP/STARV/IDLE_CYCLES`,
-`BEAT/BYTE/BURST_COUNT` and `WINDOW_*` readbacks. Reaching them over APB is a
-separate question. `USE_MON_REGS` defaults to `USE_AXI_MONITORS`, and with it at
-0 the whole MON window answers every access with `PSLVERR`. A monitors-off build
-that needs the meters must therefore set `USE_MON_REGS = 1`.
+`BEAT/BYTE/BURST_COUNT` and `WINDOW_*` readbacks. The DAXMON `PERF_*` readbacks
+read 0 in every build, because the descriptor monitor-lite has no perf window.
+
+`USE_MON_REGS` defaults to 1, independent of `USE_AXI_MONITORS`, so a default
+monitors-off build answers the whole MON window and the meters can be armed and
+read. On such a build the monitor configuration registers accept writes and
+read them back but drive nothing. Setting `USE_MON_REGS = 0` straps the monitor
+configuration outputs off and makes the whole MON window answer every access
+with `PSLVERR`, so "not built" is distinguishable from "set to zero"; the
+meters are then unreachable.
 
 **Monitor register block relocation (v0.93):** All monitor and per-monitor performance registers now live in a separate `stream_mon_regs` regfile instantiated at **0x1000** within the same PeakRDL addrmap (served by the same APB slave). Addresses below reflect the new base; the previous layout placed these registers at 0x180-0x2FF. The mapping is `new = old - 0x180 + 0x1000`.
 
 #### MON_FIFO_STATUS (0x1000)
 
-Monitor bus FIFO status indicators.
+Monitor bus FIFO status indicators. These report the monitor error/interrupt
+FIFO (the one drained over `s_axil_err`). The monitor group exposes no overflow
+or underflow flag, so `MON_FIFO_OVFL` and `MON_FIFO_UNFL` read 0. With
+`USE_AXI_MONITORS = 0` the register reads 0x2 (EMPTY).
 
 | Bits  | Field          | Type | Description                           |
 |-------|----------------|------|---------------------------------------|
