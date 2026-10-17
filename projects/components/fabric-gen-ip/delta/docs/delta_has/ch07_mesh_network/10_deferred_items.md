@@ -27,7 +27,7 @@
 
 The following features were considered and deferred:
 
-- **CXS migration** — rapids gains a CXS interface variant first; delta ports move to CXS only after both sides are ready (owner plan, 2026-10-15; parallel rapids_cxs work).
+- **CXS interface mode** — IMPLEMENTED (owner decision 2026-10-16): `--ifc {axis,cxs}` selects the interface plane; CXS mode wraps the unchanged AXIS core with native AMBA 5 CXS ports so a CXS rapids attaches without adapters. Validated for directed traffic; concurrent-load CXS shows a duplication/loss corner tracked as issue #122.
 - **MonBus observation aggregation** — the tetrad/tile wrappers that merge cell MonBus streams live in the compute-eng-ip tile IP, not in delta (parallel session; datapath unchanged).
 - **Route lookahead to 1 cycle/hop** — the aspirational systolic target; current measured pipeline is 4 cycles/hop (issue #120).
 - **SRAM FIFO_IMPL** — the `--fifo-impl sram` option hangs in the current RTL (issue #118); regression uses `--fifo-impl reg`.

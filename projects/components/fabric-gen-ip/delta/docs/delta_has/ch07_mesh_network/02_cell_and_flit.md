@@ -36,7 +36,7 @@ Each cell has nine AXI4-Stream interfaces:
 
 Conceptually, P_DIA and P_DIA2 are two instances of a single diagonal axis: one in-plane diagonal axis at tetrad scale and one at tile scale, plus the out-of-plane Z axis and the in-plane X/Y axes, give the cell four axes and nine ports.
 
-All ports carry `TDATA`, `TVALID`, `TREADY`, and `TLAST`. The head beat also carries the packet header in `TUSER`. Optional AMBA 5 sidebands (`TWAKEUP`, `TDATACHK` and the chapter 5 check signals) carry over from flat mode unchanged when `--amba5` is enabled.
+All ports carry `TDATA`, `TVALID`, `TREADY`, and `TLAST`. The head beat also carries the packet header in `TUSER`. AMBA 5 sidebands (`TWAKEUP`, `TDATACHK` and the chapter 5 check signals) are flat-mode only in v1 — mesh mode rejects `--amba5` at generation time (mesh ports carry no sidebands; the check-signal budget is an open item if a monitored mesh port is needed).
 
 ## Clock and Reset
 

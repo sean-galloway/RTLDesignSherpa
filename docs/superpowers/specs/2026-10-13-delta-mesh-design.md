@@ -170,6 +170,17 @@ Credit-based flow control per VC. Credit counter depth sized to cover
 round-trip latency: `F · Lf / tcrt ≥ b`, else the channel duty factor
 drops below one [P10][P15].
 
+**v1 sideband encoding (implemented):** the per-port per-VC credit
+sideband is a 1-bit *level* per VC — the receiver's input FIFO
+not-full flag — not a running count. For the direct-wire, 1-cycle-link
+fabric this is exact (presentation and acceptance test the same
+predicate; DEPTH=4 absorbs the single stop-latency flit). Consequence:
+senders get no multi-credit foresight, so sender-side rate features
+(burst budgeting) have no count to consume; a count encoding (wider
+sideband, touching cell + fabric + harness ports) is a future option.
+CXS mode layers the CXS link credit (grant/return) at the port level
+under this inter-cell credit; the two do not merge.
+
 ## 4. Flit format
 
 Flit = one `DATA_WIDTH` beat. Packet = head flit + body flits + TLAST.
@@ -342,6 +353,14 @@ skipped — little use at our radix [P6].)
 ### 7.2 Route lookahead
 
 §3 [P17] — the latency-critical piece for systolic repeat-cycle timing.
+
+**v1 measured baseline (2026-10-16):** the shipped five-stage pipeline
+(buffer write → route compute → VC allocation → switch allocation →
+crossbar) measures **4 cycles/hop** steady-state on the torus ring, not
+the 1-cycle lookahead target. The perf model (`bin/delta_mesh_perf.py`)
+defaults `tr=4` accordingly. The 1-cycle lookahead pipeline
+(pre-route stage ahead of the present/arbiter path) is tracked as issue
+#120 — a performance investment, not a functional defect.
 
 ### 7.3 Source-route mode
 

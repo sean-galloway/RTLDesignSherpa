@@ -21,6 +21,16 @@ def test_user_width_below_header_rejected():
         validate_mesh(DeltaMeshConfig(cells_x=4, cells_y=4, cells_z=1, user_width=8))
 
 
+def test_fifo_impl_sram_rejected_in_mesh():
+    with pytest.raises(ValueError, match="sram.*not supported in mesh"):
+        validate_mesh(DeltaMeshConfig(cells_x=2, cells_y=2, fifo_impl="sram"))
+
+
+def test_amba5_rejected_in_mesh():
+    with pytest.raises(ValueError, match="amba5.*not supported in mesh"):
+        validate_mesh(DeltaMeshConfig(cells_x=2, cells_y=2, amba5=True))
+
+
 def test_header_width_formula():
     assert header_width(DeltaMeshConfig(cells_x=4, cells_y=4, cells_z=1)) == 6 * 2 + 32
 

@@ -50,6 +50,16 @@ def validate_mesh(cfg: DeltaMeshConfig) -> None:
     if cfg.ifc not in {"axis", "cxs"}:
         raise ValueError(f"ifc must be 'axis' or 'cxs', got {cfg.ifc!r}")
 
+    if cfg.fifo_impl == "sram":
+        raise ValueError(
+            "fifo-impl 'sram' is not supported in mesh mode: the BRAM "
+            "registered-read path hangs the drop FSM (issue #118); use 'reg'")
+
+    if cfg.amba5:
+        raise ValueError(
+            "amba5 is not supported in mesh mode (flat mode only in v1; "
+            "mesh ports carry no TWAKEUP/check sidebands)")
+
     if cfg.ifc == "cxs":
         # AMBA CXS multi-packet flits (CXSMAXPKTPERFLIT >= 2, required by the
         # house framers for TLAST framing) restrict CXSDATAWIDTH to 256/512/
