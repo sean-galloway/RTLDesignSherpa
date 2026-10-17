@@ -86,6 +86,12 @@ module rapids_core #(
     // Engine sharing (see scheduler_group_array): 1 = one descriptor / ctrlrd /
     // ctrlwr engine per half instead of one per channel.
     parameter int SHARED_ENGINES   = 1,
+    // Tile packet header (TILE_SPEC 11.5 / 11.11): headers on both network
+    // ports, and the sink-to-source path for cell-issued descriptors. Needs
+    // SHARED_ENGINES = 1 and DATA_WIDTH >= 128 (>= 256 to take descriptors).
+    parameter int TILE_HDR         = 0,
+    parameter logic [rapids_pkg::TILE_COORD_W-1:0] TILE_SRC_COORD =
+        {rapids_pkg::TILE_LEVEL_IO, 12'h000},
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -502,8 +508,20 @@ module rapids_core #(
     // (axi_bus_meter). The W bus carries no wid, so the write engine's
     // channel index must travel out of band to reach the meter at the top.
     output logic [CIW-1:0]              snk_active_channel_id,
-    output logic                        snk_active_channel_valid
+    output logic                        snk_active_channel_valid,
+
+    // Tile header status (sink port; constant 0 unless TILE_HDR)
+    output logic                        sts_tile_unsupported,    // sticky
+    output logic                        sts_tile_tag_mismatch,   // sticky
+    output logic [15:0]                 sts_tile_desc_count,
+    output logic [15:0]                 sts_tile_credit_count,
+    output logic [NC-1:0]               sts_tile_desc_dropped    // sticky per source channel
 );
+
+    // Cell-issued descriptors: sink half -> source half (TILE_HDR)
+    logic                               w_desc_inj_valid;
+    logic [CIW-1:0]                     w_desc_inj_ch;
+    logic [255:0]                       w_desc_inj_data;
 
     //=========================================================================
     // Per-half Monitor Bus (each half already arbitrates its own sources)
@@ -542,7 +560,9 @@ module rapids_core #(
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON),
-        .SHARED_ENGINES         (SHARED_ENGINES)
+        .SHARED_ENGINES         (SHARED_ENGINES),
+        .TILE_HDR               (TILE_HDR),
+        .TILE_SRC_COORD         (TILE_SRC_COORD)
     ) u_src (
         .clk                        (clk),
         .rst_n                      (rst_n),
@@ -721,7 +741,13 @@ module rapids_core #(
         .dbg_src_sram_bridge_pending   (src_dbg_src_sram_bridge_pending),
         .dbg_src_sram_bridge_out_valid (src_dbg_src_sram_bridge_out_valid),
         .dbg_axis_beats_sent           (src_dbg_axis_beats_sent),
-        .dbg_axis_packets_sent         (src_dbg_axis_packets_sent)
+        .dbg_axis_packets_sent         (src_dbg_axis_packets_sent),
+
+        // Cell-issued descriptors from the sink half
+        .desc_inj_valid                (w_desc_inj_valid),
+        .desc_inj_ch                   (w_desc_inj_ch),
+        .desc_inj_data                 (w_desc_inj_data),
+        .desc_inj_dropped              (sts_tile_desc_dropped)
     );
 
     //=========================================================================
@@ -750,7 +776,8 @@ module rapids_core #(
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON),
-        .SHARED_ENGINES         (SHARED_ENGINES)
+        .SHARED_ENGINES         (SHARED_ENGINES),
+        .TILE_HDR               (TILE_HDR)
     ) u_snk (
         .clk                        (clk),
         .rst_n                      (rst_n),
@@ -937,7 +964,16 @@ module rapids_core #(
 
         // Active-channel sideband (RAPIDS TASK-001)
         .o_active_channel_id           (snk_active_channel_id),
-        .o_active_channel_valid        (snk_active_channel_valid)
+        .o_active_channel_valid        (snk_active_channel_valid),
+
+        // Tile header: descriptors to the source half, status
+        .desc_inj_valid                (w_desc_inj_valid),
+        .desc_inj_ch                   (w_desc_inj_ch),
+        .desc_inj_data                 (w_desc_inj_data),
+        .sts_tile_unsupported          (sts_tile_unsupported),
+        .sts_tile_tag_mismatch         (sts_tile_tag_mismatch),
+        .sts_tile_desc_count           (sts_tile_desc_count),
+        .sts_tile_credit_count         (sts_tile_credit_count)
     );
 
     //=========================================================================

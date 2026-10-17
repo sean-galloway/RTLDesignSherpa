@@ -36,6 +36,22 @@
 //   waiting (one that was reset mid-fetch) is accepted and dropped rather than
 //   left on the shared R channel, where it would stall every other channel.
 //
+//   Injection (INJ_EN = 1, the tile's cell-issued descriptors, TILE_SPEC
+//   11.11): inj_* hands in a complete descriptor for one channel, a pulse with
+//   no backpressure. It waits in that channel's one-entry slot and is written
+//   into the channel's FIFO, with no fetch, once the channel's fetch side is
+//   idle and the FIFO has room. Idle means no fetch in flight, so an
+//   injection never takes the entry an R beat needs. An idle channel starts
+//   on it as if kicked; behind a running chain it goes after what that chain
+//   queued. Its next pointer chains on into memory as a fetched descriptor's
+//   does (the decision is taken at capture). Kicks wait while the slot is
+//   full, and the slot waits while a beat is owed (r_owe), so a stale R beat
+//   can never answer the chain fetch it starts. A descriptor arriving while
+//   the slot is full, while the channel is held in reset, or an EXT one (its
+//   second chunk cannot arrive this way) is dropped and sets the channel's
+//   sticky inj_dropped bit (cleared by channel reset). A drop is not a
+//   descriptor_error: the channel and the work it already holds carry on.
+//
 // Documentation: projects/components/dma-ip/rapids/docs/rapids_mas/
 // Subsystem: rapids_fub
 //
@@ -58,6 +74,8 @@ module descriptor_engine_shared #(
     parameter logic [15:0] MON_AGENT_BASE = 16'h0010,
     parameter logic [7:0]  MON_UNIT_ID    = 8'h01,
     parameter int MON_FIFO_DEPTH = 4,
+    // Second writer into the descriptor FIFOs (cell-issued descriptors)
+    parameter bit INJ_EN = 1'b0,
     parameter int NC = NUM_CHANNELS,
     parameter int CW = CHAN_WIDTH
 ) (
@@ -110,6 +128,12 @@ module descriptor_engine_shared #(
     input  logic [ADDR_WIDTH-1:0]             cfg_addr1_limit,
     input  logic [NC-1:0]                     cfg_channel_reset,
 
+    // Injected descriptor (INJ_EN): a pulse, never backpressured
+    input  logic                              inj_valid,
+    input  logic [CW-1:0]                     inj_ch,
+    input  logic [255:0]                      inj_data,
+    output logic [NC-1:0]                     inj_dropped,   // sticky per channel
+
     output logic [NC-1:0]                     descriptor_engine_idle,
 
     // MonBus (one stream for every channel)
@@ -147,6 +171,10 @@ module descriptor_engine_shared #(
     logic [NC-1:0]                r_reset;
     logic [NC-1:0]                r_err;
     logic [NC-1:0]                r_owe;   // reset mid-fetch: one R beat still owed
+    // Injection slot, one descriptor per channel (constant 0 unless INJ_EN)
+    logic [NC-1:0]                r_inj_v;
+    logic [NC-1:0]                r_inj_chain;   // its next pointer chains (decided at capture)
+    logic [255:0]                 r_inj_d     [NC];
 
     // Per-channel FIFO taps
     logic [NC-1:0]                w_fifo_wr_valid;
@@ -339,6 +367,23 @@ module descriptor_engine_shared #(
                                      cfg_addr1_base, cfg_addr1_limit);
 
     //=========================================================================
+    // Injection capture decode. At most one injection arrives per cycle, so
+    // one set of comparators serves every channel: EXT refusal and the
+    // chaining decision are taken here and stored with the slot.
+    //=========================================================================
+    logic                  w_inj_ext;
+    logic [ADDR_WIDTH-1:0] w_inj_next_addr;
+    logic                  w_inj_chain;
+
+    assign w_inj_ext       = EXT_EN &&
+                             (inj_data[rapids_pkg::DESC_TYPE_HI:rapids_pkg::DESC_TYPE_LO] ==
+                              rapids_pkg::RAPIDS_DESC_TYPE_EXT);
+    assign w_inj_next_addr = {{(ADDR_WIDTH-32){1'b0}}, inj_data[191:160]};
+    assign w_inj_chain     = (inj_data[191:160] != '0) && !inj_data[194] && inj_data[192] &&
+                             in_range(w_inj_next_addr, cfg_addr0_base, cfg_addr0_limit,
+                                      cfg_addr1_base, cfg_addr1_limit);
+
+    //=========================================================================
     // Per-channel state, kick policy, FIFOs
     //=========================================================================
     generate
@@ -350,9 +395,24 @@ module descriptor_engine_shared #(
         logic w_slot_refuses;
         logic w_r_here;
         logic w_err_event;
+        logic w_inj_here;     // an injected descriptor for this channel arrives
+        logic w_inj_take;     // ...and is captured into the slot
+        logic w_inj_drop;     // ...and is refused (slot full, or EXT)
+        logic w_inj_wr;       // the slot is written into the FIFO this cycle
+        logic [FW-1:0] w_wr_data_c;
+
+        logic w_inj_arrive;
+        assign w_inj_arrive = INJ_EN && inj_valid && (inj_ch == CW'(c));
+        assign w_inj_here = w_inj_arrive && !r_reset[c];
+        assign w_inj_take = w_inj_here && !r_inj_v[c] && !w_inj_ext;
+        assign w_inj_drop = w_inj_arrive && (r_reset[c] || r_inj_v[c] || w_inj_ext);
+        // S_IDLE: no fetch of this channel is in flight, so the R path cannot
+        // be writing this FIFO and needs none of its entries.
+        assign w_inj_wr   = INJ_EN && r_inj_v[c] && (r_st[c] == S_IDLE) && !r_reset[c] &&
+                            !r_owe[c] && w_fifo_wr_ready[c];
 
         assign apb_ready[c] = (r_st[c] == S_IDLE) && !r_reset[c] && channel_idle[c] && !r_apb_ip[c] &&
-                              !r_owe[c];
+                              !r_owe[c] && !r_inj_v[c];
         assign w_kick        = apb_valid[c] && apb_ready[c];
         assign w_load_here    = w_load && (w_pick == CW'(c));
         assign w_issue_here   = w_ar_fire && (r_slot_ch == CW'(c));
@@ -372,8 +432,25 @@ module descriptor_engine_shared #(
                 r_reset[c]     <= 1'b0;
                 r_err[c]       <= 1'b0;
                 r_owe[c]       <= 1'b0;
+                r_inj_v[c]     <= 1'b0;
+                r_inj_chain[c] <= 1'b0;
+                r_inj_d[c]     <= '0;
+                inj_dropped[c] <= 1'b0;
             end else begin
                 r_reset[c]     <= cfg_channel_reset[c];
+
+                // Sticky drop flag: a channel reset clears it, a drop (even
+                // one during that reset) sets it
+                if (w_inj_drop)          inj_dropped[c] <= 1'b1;
+                else if (r_reset[c])     inj_dropped[c] <= 1'b0;
+
+                if (w_inj_take) begin
+                    r_inj_v[c]     <= 1'b1;
+                    r_inj_d[c]     <= inj_data;
+                    r_inj_chain[c] <= w_inj_chain;
+                end else if (w_inj_wr) begin
+                    r_inj_v[c]     <= 1'b0;
+                end
 
                 // Owed beat: a reset mid-fetch leaves the beat in flight. It
                 // is drained when it arrives (the channel is no longer
@@ -399,6 +476,7 @@ module descriptor_engine_shared #(
                     r_st[c]     <= S_IDLE;
                     r_apb_ip[c] <= 1'b0;
                     r_err[c]    <= 1'b0;
+                    r_inj_v[c]  <= 1'b0;
                 end else begin
                     // Kick-in-progress: set on accept, cleared when the
                     // scheduler returns to idle (rising edge).
@@ -411,6 +489,10 @@ module descriptor_engine_shared #(
                         S_IDLE: if (w_kick) begin
                             r_st[c]        <= S_PEND;
                             r_pend_addr[c] <= apb_addr[c];
+                        end else if (w_inj_wr && r_inj_chain[c]) begin
+                            // the injected descriptor chains on into memory
+                            r_st[c]        <= S_PEND;
+                            r_pend_addr[c] <= {{(ADDR_WIDTH-32){1'b0}}, r_inj_d[c][191:160]};
                         end
                         S_PEND:  if (w_load_here) r_st[c] <= S_ISSUE;
                         S_ISSUE: begin
@@ -440,7 +522,12 @@ module descriptor_engine_shared #(
             end
         )
 
-        assign w_fifo_wr_valid[c] = w_push && (w_rc == CW'(c));
+        // Two writers, never at once: the R path writes only a waiting
+        // channel, the injection slot only an idle one.
+        assign w_fifo_wr_valid[c] = (w_push && (w_rc == CW'(c))) || w_inj_wr;
+        assign w_wr_data_c        = w_inj_wr ? {r_inj_d[c], 3'b000,
+                                                r_inj_d[c][DESC_OPCODE_HI:DESC_OPCODE_LO]}
+                                             : w_fifo_wr_data;
         // While the channel is reset its FIFO drains, so descriptors
         // prefetched for the aborted chain are not delivered afterwards.
         assign w_fifo_rd_ready[c] = r_reset[c] ? 1'b1 : descriptor_ready[c];
@@ -453,7 +540,7 @@ module descriptor_engine_shared #(
             .axi_aresetn (rst_n),
             .wr_valid    (w_fifo_wr_valid[c]),
             .wr_ready    (w_fifo_wr_ready[c]),
-            .wr_data     (w_fifo_wr_data),
+            .wr_data     (w_wr_data_c),
             .rd_valid    (w_fifo_rd_valid[c]),
             .rd_ready    (w_fifo_rd_ready[c]),
             .rd_data     (w_fifo_rd_data[c]),
@@ -486,7 +573,8 @@ module descriptor_engine_shared #(
         assign descriptor_eod[c]         = w_fifo_rd_data[c][2];
         assign descriptor_type[c]        = w_fifo_rd_data[c][1:0];
         assign descriptor_error[c]       = r_err[c];
-        assign descriptor_engine_idle[c] = (r_st[c] == S_IDLE) && !r_reset[c] && !w_fifo_rd_valid[c];
+        assign descriptor_engine_idle[c] = (r_st[c] == S_IDLE) && !r_reset[c] && !w_fifo_rd_valid[c] &&
+                                           !r_inj_v[c];
     end
     endgenerate
 

@@ -29,6 +29,8 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Half module cores (instantiated by the wrapper DUT)
+# Tile header decode in the sink half (TILE_HDR); deps already above
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_hdr_rx.sv
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_snk.sv
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_src.sv
 

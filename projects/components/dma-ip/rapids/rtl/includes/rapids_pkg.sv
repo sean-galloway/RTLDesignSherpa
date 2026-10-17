@@ -146,6 +146,72 @@ package rapids_pkg;
     endfunction
 
     //=========================================================================
+    // Tile packet header (TILE_HDR = 1)
+    //=========================================================================
+    // Defined by projects/components/compute-eng-ip/tile/docs/TILE_SPEC.md
+    // Section 11.5 (fields and packing) and 11.2 (payload types). The header
+    // is the first beat of every packet on the source and sink ports; it
+    // occupies bits [127:0] of that beat, so TILE_HDR needs DATA_WIDTH >= 128
+    // (and >= 256 to receive a cell-issued descriptor in one beat).
+    //
+    // Descriptor fields that supply it (SOURCE descriptors only):
+    //   ptype  = descriptor [215:213]
+    //   op     = descriptor [216]      0 = write (payload), 1 = read (header only)
+    //   dst_addr [63:50] = destination coordinate {level, X, Y, Z}
+    //   dst_addr [49:0]  = target address
+    // The tag is the issuing channel and the source coordinate is RAPIDS's
+    // own (level 3); neither comes from the descriptor.
+    localparam int DESC_TILE_PTYPE_LO = 213;
+    localparam int DESC_TILE_PTYPE_HI = 215;
+    localparam int DESC_TILE_OP       = 216;
+
+    localparam int TILE_COORD_W    = 14;                    // {level[1:0], X[3:0], Y[3:0], Z[3:0]}
+    localparam int TILE_TARGET_W   = 64 - TILE_COORD_W;     // the rest of dst_addr
+    localparam int TILE_HDR_BYTES  = 16;                    // header beat strobe: bytes [15:0]
+    localparam logic [1:0] TILE_LEVEL_IO = 2'd3;            // tile I/O = RAPIDS
+
+    // Payload types (TILE_SPEC 11.2)
+    localparam logic [2:0] TILE_PTYPE_CFG    = 3'd0;
+    localparam logic [2:0] TILE_PTYPE_PROG   = 3'd1;
+    localparam logic [2:0] TILE_PTYPE_MEM    = 3'd2;
+    localparam logic [2:0] TILE_PTYPE_CREDIT = 3'd3;
+    localparam logic [2:0] TILE_PTYPE_DESC   = 3'd4;
+
+    // Header field positions (TILE_SPEC 11.5, "Proposed header packing")
+    localparam int TILE_HDR_DST_LO    = 0;
+    localparam int TILE_HDR_SRC_LO    = 14;
+    localparam int TILE_HDR_PTYPE_LO  = 28;
+    localparam int TILE_HDR_OP        = 31;
+    localparam int TILE_HDR_LEN_LO    = 32;
+    localparam int TILE_HDR_TGT_LO    = 64;
+    localparam int TILE_HDR_TAG_LO    = 114;
+    // bits [117:0] are the fields above; [127:118] (delta's head-flit fields) are zero
+
+    // Descriptor-side header fields as the scheduler hands them to the
+    // source data path: {op, ptype, dst_addr}.
+    localparam int TILE_PKT_W = 1 + 3 + 64;
+
+    function automatic logic [127:0] tile_hdr_pack(
+        input logic [TILE_COORD_W-1:0]  dst_coord,
+        input logic [TILE_COORD_W-1:0]  src_coord,
+        input logic [2:0]               ptype,
+        input logic                     op,
+        input logic [31:0]              length,
+        input logic [TILE_TARGET_W-1:0] target,
+        input logic [3:0]               tag);
+        logic [127:0] h;
+        h = '0;
+        h[TILE_HDR_DST_LO   +: TILE_COORD_W]  = dst_coord;
+        h[TILE_HDR_SRC_LO   +: TILE_COORD_W]  = src_coord;
+        h[TILE_HDR_PTYPE_LO +: 3]             = ptype;
+        h[TILE_HDR_OP]                        = op;
+        h[TILE_HDR_LEN_LO   +: 32]            = length;
+        h[TILE_HDR_TGT_LO   +: TILE_TARGET_W] = target;
+        h[TILE_HDR_TAG_LO   +: 4]             = tag;
+        return h;
+    endfunction
+
+    //=========================================================================
     // Channel State Enumeration (ONE-HOT ENCODED - for Phase 1 scheduler)
     //=========================================================================
     // CRITICAL: CH_XFER_DATA runs read and write engines CONCURRENTLY

@@ -105,7 +105,11 @@ module scheduler #(
     // Byte-granular RAPIDS (rapids TASK-019): the descriptor length is in
     // BYTES and src/dst addresses carry a byte offset within the first beat.
     parameter int BYTE_LANES = DATA_WIDTH / 8,
-    parameter int OFF_W = (BYTE_LANES > 1) ? $clog2(BYTE_LANES) : 1
+    parameter int OFF_W = (BYTE_LANES > 1) ? $clog2(BYTE_LANES) : 1,
+    // Tile packet header (TILE_SPEC 11.5). When 1, a source descriptor's
+    // ptype / op / dst_addr ride the packet record (sched_rd_pkt_tile) and
+    // op = 1 (read request) moves no memory: the packet is the header alone.
+    parameter int TILE_HDR = 0
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -142,6 +146,8 @@ module scheduler #(
     input  logic                        sched_rd_pkt_ready,
     output logic [31:0]                 sched_rd_pkt_bytes,
     output logic [OFF_W-1:0]            sched_rd_pkt_offset,
+    // {op, ptype, dst_addr} of the descriptor, for the tile header (TILE_HDR)
+    output logic [rapids_pkg::TILE_PKT_W-1:0] sched_rd_pkt_tile,
 
     // Data Write Interface (to AXI Write Engine)
     // NOTE: Engine decides burst length internally, scheduler just tracks beats remaining
@@ -309,7 +315,20 @@ module scheduler #(
     assign w_wr_off  = r_descriptor.dst_addr[OFF_W-1:0];
     assign w_rd_span = 33'(w_rd_off) + 33'(r_descriptor.length) + 33'(BYTE_LANES - 1);
     assign w_wr_span = 33'(w_wr_off) + 33'(r_descriptor.length) + 33'(BYTE_LANES - 1);
-    assign w_rd_beats_total = (r_descriptor.length == 32'd0) ? 32'd0 : 32'(w_rd_span >> OFF_W);
+    // Tile header fields, latched with the descriptor. A read request
+    // (op = 1) is a header-only packet: it reads no memory.
+    logic [2:0] r_tile_ptype;
+    logic       r_tile_op;
+    logic       w_hdr_only;
+    assign w_hdr_only = (TILE_HDR != 0) && r_tile_op;
+    // A source descriptor carries cfg / prog / mem only: credit and desc
+    // packets are built by the tile, and 5-7 are reserved (TILE_SPEC 11.2).
+    // Anything else is refused as an invalid descriptor would be.
+    logic w_tile_bad;
+    assign w_tile_bad = (TILE_HDR != 0) && EN_READ && (r_desc_opcode == DESC_OP_DATA) &&
+                        (r_tile_ptype > rapids_pkg::TILE_PTYPE_MEM);
+    assign w_rd_beats_total = ((r_descriptor.length == 32'd0) || w_hdr_only) ? 32'd0
+                                                                            : 32'(w_rd_span >> OFF_W);
     assign w_wr_beats_total = (r_descriptor.length == 32'd0) ? 32'd0 : 32'(w_wr_span >> OFF_W);
     logic [31:0] r_read_beats_remaining;          // Beats left to read from source
     logic [31:0] r_write_beats_remaining;         // Beats left to ISSUE to destination (drives engine + dst address)
@@ -434,7 +453,7 @@ module scheduler #(
                     rapids_pkg::CH_FETCH_DESC: begin
                         // Descriptor latched from descriptor_packet in one cycle
                         // Validate descriptor.valid bit before proceeding
-                        if (r_descriptor.valid) begin
+                        if (r_descriptor.valid && !w_tile_bad) begin
                             // Valid descriptor -> start the concurrent transfer, once the
                             // data paths can take its packet record (TASK-019); until then
                             // hold here, the record pulse fires the cycle we leave.
@@ -647,6 +666,8 @@ module scheduler #(
             r_write_beats_remaining <= 32'h0;
             r_write_beats_to_commit <= 32'h0;
             r_desc_opcode <= 2'b00;
+            r_tile_ptype <= 3'b000;
+            r_tile_op <= 1'b0;
             r_ctrl_issued <= 1'b0;
             r_descriptor_ext <= '0;
             r_is_ext <= 1'b0;
@@ -675,6 +696,8 @@ module scheduler #(
                 // Latch the opcode; ctrl addr/data/mask are read from the src/dst
                 // slots (see completion/output logic). Fresh control op -> not issued.
                 r_desc_opcode <= descriptor_packet[DESC_OPCODE_HI:DESC_OPCODE_LO];
+                r_tile_ptype  <= descriptor_packet[rapids_pkg::DESC_TILE_PTYPE_HI:rapids_pkg::DESC_TILE_PTYPE_LO];
+                r_tile_op     <= descriptor_packet[rapids_pkg::DESC_TILE_OP];
 
                 // Extended descriptor: type at [212:210], chunk 1 arrives in
                 // lockstep on descriptor_ext_packet. Precompute the per-beat
@@ -924,9 +947,11 @@ module scheduler #(
     // descriptor, the cycle it leaves CH_FETCH_DESC. Both directions share
     // w_pkt_ok, so each enabled direction sees exactly one pulse.
     assign sched_rd_pkt_valid  = w_state_fetch_desc && r_descriptor.valid && w_is_data && EN_READ &&
-                                 w_pkt_ok && (r_descriptor.length != 32'd0);
+                                 w_pkt_ok && (r_descriptor.length != 32'd0) && !w_tile_bad;
     assign sched_rd_pkt_bytes  = r_descriptor.length;
     assign sched_rd_pkt_offset = w_rd_off;
+    assign sched_rd_pkt_tile   = (TILE_HDR != 0) ? {r_tile_op, r_tile_ptype, r_descriptor.dst_addr}
+                                                 : '0;
     assign sched_wr_pkt_valid  = w_state_fetch_desc && r_descriptor.valid && w_is_data && EN_WRITE &&
                                  w_pkt_ok && (r_descriptor.length != 32'd0);
     assign sched_wr_pkt_bytes  = r_descriptor.length;

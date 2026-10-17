@@ -61,6 +61,13 @@ module src_data_path_axis #(
     parameter int AXIS_DEST_WIDTH = 4,
     parameter int AXIS_USER_WIDTH = 1,
 
+    // Tile packet header (TILE_SPEC 11.5). 1: every packet starts with a
+    // header beat built from its record's tile fields; a read request (op = 1)
+    // is that header alone. TILE_SRC_COORD is RAPIDS's own coordinate.
+    parameter int TILE_HDR = 0,
+    parameter logic [rapids_pkg::TILE_COORD_W-1:0] TILE_SRC_COORD =
+        {rapids_pkg::TILE_LEVEL_IO, 12'h000},
+
     // Short aliases
     parameter int NC = NUM_CHANNELS,
     parameter int AW = ADDR_WIDTH,
@@ -96,6 +103,7 @@ module src_data_path_axis #(
     output logic [NC-1:0]               sched_rd_pkt_ready,
     input  logic [NC-1:0][31:0]         sched_rd_pkt_bytes,
     input  logic [NC-1:0][OFF_W-1:0]    sched_rd_pkt_offset,
+    input  logic [NC-1:0][rapids_pkg::TILE_PKT_W-1:0] sched_rd_pkt_tile,   // {op, ptype, dst_addr}
 
     //=========================================================================
     // Completion Interface (to Schedulers)
@@ -148,6 +156,13 @@ module src_data_path_axis #(
     output logic [31:0]                 dbg_axis_beats_sent,
     output logic [31:0]                 dbg_axis_packets_sent
 );
+
+    initial begin
+        if ((TILE_HDR != 0) && (DW < 128))
+            $fatal(1, "TILE_HDR needs DATA_WIDTH >= 128 (the header is one 128-bit beat)");
+        if ((TILE_HDR != 0) && (NC > 16))
+            $fatal(1, "TILE_HDR carries the channel in a 4-bit tag: NUM_CHANNELS <= 16");
+    end
 
     //=========================================================================
     // Internal Signals
@@ -241,6 +256,10 @@ module src_data_path_axis #(
     logic [NC-1:0]                          w_pq_empty, w_pq_full, w_pq_push, w_pq_pop;
     logic [NC-1:0][OFF_W-1:0]               w_head_off;
     logic [NC-1:0][31:0]                    w_head_bytes;
+    // Tile fields of each record (constant 0 unless TILE_HDR)
+    localparam int TPW = rapids_pkg::TILE_PKT_W;
+    logic [NC-1:0][PQ_DEPTH-1:0][TPW-1:0]   r_pq_tile;
+    logic [NC-1:0][TPW-1:0]                 w_head_tile;
 
     always_comb begin
         for (int ch = 0; ch < NC; ch++) begin
@@ -250,6 +269,7 @@ module src_data_path_axis #(
             w_pq_push[ch]    = sched_rd_pkt_valid[ch] && !w_pq_full[ch] && !w_rst[ch];
             w_head_off[ch]   = r_pq_off[ch][r_pq_rp[ch][PQ_PW-1:0]];
             w_head_bytes[ch] = r_pq_bytes[ch][r_pq_rp[ch][PQ_PW-1:0]];
+            w_head_tile[ch]  = (TILE_HDR != 0) ? r_pq_tile[ch][r_pq_rp[ch][PQ_PW-1:0]] : '0;
         end
     end
     assign sched_rd_pkt_ready = ~w_pq_full;
@@ -312,11 +332,84 @@ module src_data_path_axis #(
         end
     end
 
+    //=========================================================================
+    // Tile header (TILE_HDR): the head record's header beat goes out before
+    // its first data beat.
+    //   - A data packet's header waits until its first memory beat is at the
+    //     drain stage, so header and payload leave back to back: a channel
+    //     reset cannot strand a header for long, and only the channel the
+    //     drain stage is parked on can need one.
+    //   - A header-only packet (read request) can go at any time; when it
+    //     contends with a data pop, the two take turns, so neither a flood of
+    //     read requests nor a long data run starves the other. Header-only
+    //     channels are scanned round-robin.
+    //=========================================================================
+    logic [NC-1:0]  r_hdr_sent;        // head packet's header is out
+    logic [NC-1:0]  w_hdr_need;
+    logic [NC-1:0]  w_hdr_ok;          // ...and may go this cycle
+    logic           w_hdr_any;
+    logic [CIW-1:0] w_hdr_ch;
+    logic [CIW-1:0] r_hdr_last;        // round-robin base among header-only channels
+    logic           r_hdr_turn;        // 1: a header wins a tie with a data pop
+    logic           w_hdr_only;        // the chosen header is the whole packet (read request)
+    logic [127:0]   w_hdr_word;
+
+    always_comb begin
+        for (int ch = 0; ch < NC; ch++) begin
+            w_hdr_need[ch] = (TILE_HDR != 0) && !w_pq_empty[ch] && !r_hdr_sent[ch] && !w_rst[ch];
+            w_hdr_ok[ch]   = w_hdr_need[ch] &&
+                             (w_head_tile[ch][TPW-1] ||
+                              (r_d_active && (r_d_ch == CIW'(ch)) && drain_valid[ch] && drain_valid_comb[ch]));
+        end
+        w_hdr_any = 1'b0;
+        w_hdr_ch  = '0;
+        if (r_d_active && w_hdr_ok[r_d_ch]) begin
+            w_hdr_any = 1'b1;
+            w_hdr_ch  = r_d_ch;
+        end else begin
+            for (int k = 1; k <= NC; k++) begin
+                if (w_hdr_ok[(int'(r_hdr_last) + k) % NC] && !w_hdr_any) begin
+                    w_hdr_any = 1'b1;
+                    w_hdr_ch  = CIW'((int'(r_hdr_last) + k) % NC);
+                end
+            end
+        end
+    end
+
+    assign w_hdr_only = w_head_tile[w_hdr_ch][TPW-1];
+    assign w_hdr_word = rapids_pkg::tile_hdr_pack(
+        w_head_tile[w_hdr_ch][63 -: rapids_pkg::TILE_COORD_W],     // dst_addr[63:50]: coordinate
+        TILE_SRC_COORD,
+        w_head_tile[w_hdr_ch][66:64],                               // ptype
+        w_hdr_only,                                                 // op
+        w_head_bytes[w_hdr_ch],
+        w_head_tile[w_hdr_ch][rapids_pkg::TILE_TARGET_W-1:0],       // dst_addr[49:0]: target
+        4'(w_hdr_ch));
+
     // A memory beat is popped when the drain stage has one, the output
-    // register is free, no flush is pending and the packet record is known.
+    // register is free, no flush is pending, the packet record is known (with
+    // its header already out, under TILE_HDR) and no header takes the cycle.
+    logic w_pop_base;
+    logic w_hdr_go;
     assign w_out_free = !r_out_valid || m_axis_tready;
-    assign w_pop = r_d_active && drain_valid[w_c] && drain_valid_comb[w_c]
-                && w_out_free && !w_flush_any && !w_pq_empty[w_c] && !w_rst[w_c];
+    assign w_pop_base = r_d_active && drain_valid[w_c] && drain_valid_comb[w_c]
+                     && w_out_free && !w_flush_any && !w_pq_empty[w_c] && !w_rst[w_c]
+                     && ((TILE_HDR == 0) || r_hdr_sent[w_c]);
+    assign w_hdr_go   = w_hdr_any && w_out_free && !w_flush_any && (!w_pop_base || r_hdr_turn);
+    assign w_pop      = w_pop_base && !w_hdr_go;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_hdr_turn <= 1'b1;
+            r_hdr_last <= '0;
+        end else begin
+            if (w_pop_base && w_hdr_any && w_out_free && !w_flush_any)
+                r_hdr_turn <= !w_hdr_go;            // the loser goes first next time
+            if (w_hdr_go && w_hdr_only)
+                r_hdr_last <= w_hdr_ch;
+        end
+    )
+
     // offset 0: every pop is a stream beat. offset > 0: the first pop only
     // primes the hold, unless the packet fits in that one memory beat.
     assign w_emit_on_pop = (w_off == '0) || r_hold_valid[w_c] || (w_mem_left == 32'd1);
@@ -331,20 +424,25 @@ module src_data_path_axis #(
     assign w_out_bytes_n    = (w_bytes_left_sel >= 32'(SW)) ? 8'(SW) : 8'(w_bytes_left_sel);
     assign w_out_strb_n     = (w_out_bytes_n >= 8'(SW)) ? {SW{1'b1}} : ~({SW{1'b1}} << w_out_bytes_n);
 
-    logic w_emit;            // an output beat is loaded this cycle
+    logic w_emit;            // a data beat is loaded this cycle
+    logic w_emit_hdr;        // a header beat is loaded this cycle
     logic [CIW-1:0] w_emit_ch;
-    assign w_emit    = (w_flush_any && w_out_free) || (w_pop && w_emit_on_pop);
-    assign w_emit_ch = w_flush_any ? w_flush_ch : w_c;
+    assign w_emit     = (w_flush_any && w_out_free) || (w_pop && w_emit_on_pop);
+    assign w_emit_hdr = w_hdr_go;
+    assign w_emit_ch  = w_flush_any ? w_flush_ch : w_c;
 
     always_comb begin
         w_pq_pop = '0;
         if (w_emit && (w_bytes_left_sel == 32'(w_out_bytes_n))) w_pq_pop[w_emit_ch] = 1'b1;
+        if (w_emit_hdr && w_hdr_only)                            w_pq_pop[w_hdr_ch]  = 1'b1;
     end
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_pq_off        <= '{default:'0};
             r_pq_bytes      <= '{default:'0};
+            r_pq_tile       <= '{default:'0};
+            r_hdr_sent      <= '0;
             r_pq_wp         <= '{default:'0};
             r_pq_rp         <= '{default:'0};
             r_hold_data     <= '{default:'0};
@@ -362,6 +460,8 @@ module src_data_path_axis #(
                 if (w_pq_push[ch]) begin
                     r_pq_off[ch][r_pq_wp[ch][PQ_PW-1:0]]   <= sched_rd_pkt_offset[ch];
                     r_pq_bytes[ch][r_pq_wp[ch][PQ_PW-1:0]] <= sched_rd_pkt_bytes[ch];
+                    if (TILE_HDR != 0)
+                        r_pq_tile[ch][r_pq_wp[ch][PQ_PW-1:0]] <= sched_rd_pkt_tile[ch];
                     r_pq_wp[ch] <= r_pq_wp[ch] + 1'b1;
                 end
             end
@@ -372,6 +472,13 @@ module src_data_path_axis #(
                 r_out_strb  <= w_out_strb_n;
                 r_out_last  <= (w_bytes_left_sel == 32'(w_out_bytes_n));
                 r_out_ch    <= w_emit_ch;
+            end else if (w_emit_hdr) begin
+                r_out_valid <= 1'b1;
+                r_out_data  <= DW'(w_hdr_word);
+                r_out_strb  <= SW'({rapids_pkg::TILE_HDR_BYTES{1'b1}});
+                r_out_last  <= w_hdr_only;
+                r_out_ch    <= w_hdr_ch;
+                r_hdr_sent[w_hdr_ch] <= 1'b1;
             end
             if (w_pop) begin
                 r_eg_started[w_c]  <= 1'b1;
@@ -390,6 +497,7 @@ module src_data_path_axis #(
             for (int ch = 0; ch < NC; ch++) begin
                 if (w_pq_pop[ch]) begin
                     r_pq_rp[ch]         <= r_pq_rp[ch] + 1'b1;
+                    r_hdr_sent[ch]      <= 1'b0;
                     r_eg_started[ch]    <= 1'b0;
                     r_hold_valid[ch]    <= 1'b0;
                     r_hold_data[ch]     <= '0;
@@ -403,6 +511,7 @@ module src_data_path_axis #(
                 if (w_rst[ch]) begin
                     r_pq_wp[ch]         <= '0;
                     r_pq_rp[ch]         <= '0;
+                    r_hdr_sent[ch]      <= 1'b0;
                     r_eg_started[ch]    <= 1'b0;
                     r_hold_valid[ch]    <= 1'b0;
                     r_hold_data[ch]     <= '0;

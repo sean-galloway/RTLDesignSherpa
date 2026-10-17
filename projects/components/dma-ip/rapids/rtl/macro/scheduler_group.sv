@@ -406,6 +406,9 @@ module scheduler_group #(
         .sched_rd_pkt_ready     (sched_rd_pkt_ready),
         .sched_rd_pkt_bytes     (sched_rd_pkt_bytes),
         .sched_rd_pkt_offset    (sched_rd_pkt_offset),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .sched_rd_pkt_tile      (),     // tile header needs the shared engines
+        /* verilator lint_on PINCONNECTEMPTY */
 
         // Data write interface (to AXI write engine)
         .sched_wr_valid         (sched_wr_valid),

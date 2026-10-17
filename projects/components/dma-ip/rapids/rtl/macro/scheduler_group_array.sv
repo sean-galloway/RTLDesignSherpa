@@ -69,6 +69,11 @@ module scheduler_group_array #(
     // schedulers round-robin (descriptor_engine_shared, ctrlrd_engine_shared,
     // ctrlwr_engine_shared); the engines own the AXI masters outright.
     parameter int SHARED_ENGINES   = 1,
+    // Tile packet header (TILE_SPEC 11.5 / 11.11). 1: the packet records carry
+    // the descriptor's tile fields, and cell-issued descriptors are written
+    // into the channels' descriptor queues through desc_inj_*. Needs
+    // SHARED_ENGINES = 1, whose descriptor queue takes the second writer.
+    parameter int TILE_HDR         = 0,
     parameter int OFF_W = $clog2(DATA_WIDTH / 8)     // byte offset width (TASK-019)
 ) (
     // Clock and Reset
@@ -230,6 +235,15 @@ module scheduler_group_array #(
     input  logic [NUM_CHANNELS-1:0]                     sched_rd_pkt_ready,
     output logic [NUM_CHANNELS-1:0][31:0]               sched_rd_pkt_bytes,
     output logic [NUM_CHANNELS-1:0][OFF_W-1:0]          sched_rd_pkt_offset,
+    output logic [NUM_CHANNELS-1:0][rapids_pkg::TILE_PKT_W-1:0] sched_rd_pkt_tile,
+
+    // Cell-issued descriptor injection (TILE_HDR, TILE_SPEC 11.11): one
+    // descriptor for the named channel's queue, a single-cycle pulse with no
+    // backpressure. One that cannot be taken is dropped and errors the channel.
+    input  logic                                        desc_inj_valid,
+    input  logic [((CHAN_WIDTH > 0) ? CHAN_WIDTH : 1)-1:0] desc_inj_ch,
+    input  logic [255:0]                                desc_inj_data,
+    output logic [NUM_CHANNELS-1:0]                     desc_inj_dropped,   // sticky per channel
 
     // Shared Data Write Interface (to AXI Write Engine)
     // Per-channel arrays - direct passthrough to engines
@@ -421,12 +435,23 @@ module scheduler_group_array #(
     monitor_common_pkg::monitor_packet_t        monbus_packet_all    [MONBUS_SOURCES];
     monitor_common_pkg::monbus_timestamp_t      monbus_timestamp_all [MONBUS_SOURCES];
 
+    initial begin
+        if ((TILE_HDR != 0) && (SHARED_ENGINES == 0))
+            $fatal(1, "TILE_HDR = 1 needs SHARED_ENGINES = 1 (the injection port is in descriptor_engine_shared)");
+    end
+
     //=========================================================================
     // Beats Scheduler Group Array Instantiation
     //=========================================================================
 
     generate
     if (SHARED_ENGINES == 0) begin : g_per_channel
+        // No tile header on the per-channel structure (its descriptor engines
+        // have no second writer); TILE_HDR = 1 is refused below.
+        assign sched_rd_pkt_tile = '0;
+        assign desc_inj_dropped  = '0;
+        logic unused_inj;
+        assign unused_inj = &{1'b0, desc_inj_valid, desc_inj_ch, desc_inj_data};
         for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_scheduler_groups
             scheduler_group #(
                 .CHANNEL_ID             (ch),
@@ -893,7 +918,8 @@ module scheduler_group_array #(
                 .MON_CHANNEL_ID         (9'(ch)),
                 .EN_READ                (EN_READ),
                 .EN_WRITE               (EN_WRITE),
-                .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING)
+                .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
+                .TILE_HDR               (TILE_HDR)
             ) u_scheduler (
                 .clk                     (clk),
                 .rst_n                   (rst_n),
@@ -923,6 +949,7 @@ module scheduler_group_array #(
                 .sched_rd_pkt_ready      (sched_rd_pkt_ready[ch]),
                 .sched_rd_pkt_bytes      (sched_rd_pkt_bytes[ch]),
                 .sched_rd_pkt_offset     (sched_rd_pkt_offset[ch]),
+                .sched_rd_pkt_tile       (sched_rd_pkt_tile[ch]),
                 .sched_wr_valid          (sched_wr_valid[ch]),
                 .sched_wr_ready          (sched_wr_ready[ch]),
                 .sched_wr_addr           (sched_wr_addr[ch]),
@@ -976,7 +1003,8 @@ module scheduler_group_array #(
             .AXI_ID_WIDTH   (AXI_ID_WIDTH),
             .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
             .MON_AGENT_BASE (16'(DESC_MON_BASE_AGENT_ID)),
-            .MON_UNIT_ID    (8'(MON_UNIT_ID))
+            .MON_UNIT_ID    (8'(MON_UNIT_ID)),
+            .INJ_EN         (TILE_HDR != 0)
         ) u_desc_engine (
             .clk                    (clk),
             .rst_n                  (rst_n),
@@ -1020,6 +1048,10 @@ module scheduler_group_array #(
             .cfg_addr1_base         (cfg_desceng_addr1_base),
             .cfg_addr1_limit        (cfg_desceng_addr1_limit),
             .cfg_channel_reset      (cfg_channel_reset),
+            .inj_valid              (desc_inj_valid),
+            .inj_ch                 (desc_inj_ch),
+            .inj_data               (desc_inj_data),
+            .inj_dropped            (desc_inj_dropped),
             .descriptor_engine_idle (descriptor_engine_idle),
             .i_mon_time             (i_mon_time),
             .mon_valid              (s_dmon_valid),

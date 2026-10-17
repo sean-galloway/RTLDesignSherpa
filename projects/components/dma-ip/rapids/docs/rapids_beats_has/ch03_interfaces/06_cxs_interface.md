@@ -30,8 +30,9 @@ one transmit (TX) plane, and the plane is chosen by the top's module name:
 
 - `rapids_beats_top`, `rapids_top`: AXI-Stream planes; the `s_axis_*` and
   `m_axis_*` ports described in the AXIS Interface chapter.
-- `rapids_beats_cxs_top`, `rapids_cxs_top`: CXS planes; an `s_cxs_*` link
-  into the sink half and an `m_cxs_*` link out of the source half.
+- `rapids_beats_cxs_top`, `rapids_cxs_top`: CXS planes; the **sink port**
+  (`s_cxs_*`) into the sink half and the **source port** (`m_cxs_*`) out of
+  the source half, one CXS link each.
 
 The core never sees CXS. Every plane presents the same AXIS stream
 (`tid` = channel) to the core, so the descriptor engines, schedulers, SRAM
@@ -52,7 +53,7 @@ needs to carry the channel and the byte strobes.
 
 | Property | Value |
 |----------|-------|
-| Links | One per direction: `s_cxs_*` into the sink half, `m_cxs_*` out of the source half |
+| Links | One per direction: the sink port `s_cxs_*` into the sink half, the source port `m_cxs_*` out of the source half |
 | Channel | `CXSSRCID` carries the RAPIDS channel (the AXIS `tid`) |
 | `CXSTGTID` | The AXIS `tdest` |
 | `CXSUSER` | `{tuser, tstrb}`; `tuser` is dropped when `DATA_WIDTH/8 + AXIS_USER_WIDTH > 128` |
@@ -91,10 +92,10 @@ round trip.
 
 ## Signal List
 
-The sink link (`s_cxs_*`) is a CXS receiver; the source link (`m_cxs_*`) is a
+The sink port (`s_cxs_*`) is a CXS receiver; the source port (`m_cxs_*`) is a
 CXS transmitter. Direction is given at the RAPIDS top.
 
-| Signal | Sink (`s_cxs_*`) | Source (`m_cxs_*`) | Width | Description |
+| Signal | Sink port (`s_cxs_*`) | Source port (`m_cxs_*`) | Width | Description |
 |--------|------------------|--------------------|-------|-------------|
 | `*_cxs_valid` | input | output | 1 | Flit valid |
 | `*_cxs_data` | input | output | `DATA_WIDTH` | Flit data |

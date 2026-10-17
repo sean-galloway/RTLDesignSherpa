@@ -350,6 +350,9 @@ module src_data_path_axis_test #(
                 .sched_rd_pkt_ready     (sched_rd_pkt_ready[i]),
                 .sched_rd_pkt_bytes     (sched_rd_pkt_bytes[i]),
                 .sched_rd_pkt_offset    (sched_rd_pkt_offset[i]),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .sched_rd_pkt_tile      (),            // no tile header in this test
+                /* verilator lint_on PINCONNECTEMPTY */
 
                 // Data write interface (auto-completed for read-only test)
                 .sched_wr_valid         (sched_wr_valid[i]),
@@ -439,6 +442,7 @@ module src_data_path_axis_test #(
         .sched_rd_pkt_ready     (sched_rd_pkt_ready),
         .sched_rd_pkt_bytes     (sched_rd_pkt_bytes),
         .sched_rd_pkt_offset    (sched_rd_pkt_offset),
+        .sched_rd_pkt_tile      ('0),
 
         // Completion Interface
         .sched_rd_done_strobe   (sched_rd_done_strobe),

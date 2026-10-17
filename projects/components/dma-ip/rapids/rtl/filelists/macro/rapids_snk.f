@@ -16,5 +16,10 @@
 +incdir+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# Tile header decode (TILE_HDR). Its dependencies (rapids_pkg, reset_defs,
+# monitor_pkgs) already arrive above, so the module is listed directly;
+# including fub/rapids_tile_hdr_rx.f would compile rapids_pkg twice.
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_hdr_rx.sv
+
 # DUT module
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_snk.sv

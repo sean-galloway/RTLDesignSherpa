@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — tasks
 
-**Next ID: TASK-026** — never recycle a number, even when its item closed.
+**Next ID: TASK-027** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -13,7 +13,7 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 25 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
@@ -21,6 +21,8 @@ by construction rather than by discipline.
 ## Open
 
 ## Active
+
+- **TASK-026** — cell-issued descriptors (`desc` packets) into the source half (TILE_SPEC 11.11). Built behind TILE_HDR = 1 with the tile header on both ports, 2026-10-17; descriptor-slot grants still to do
 
 ## Closed
 

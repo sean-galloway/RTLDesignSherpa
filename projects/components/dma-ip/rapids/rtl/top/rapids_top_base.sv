@@ -90,6 +90,13 @@ module rapids_top_base #(
     // Engine sharing (see scheduler_group_array): 1 = one descriptor / ctrlrd /
     // ctrlwr engine per half instead of one per channel.
     parameter int SHARED_ENGINES   = 1,
+    // Tile packet header (compute-eng-ip tile TILE_SPEC 11.5 / 11.11): every
+    // packet on both network ports starts with a header beat; source
+    // descriptors supply ptype / op / destination, and a cell can hand the
+    // source half a descriptor through the sink port. Needs SHARED_ENGINES = 1
+    // and DATA_WIDTH >= 256. TILE_SRC_COORD is RAPIDS's coordinate.
+    parameter int TILE_HDR         = 0,
+    parameter logic [13:0] TILE_SRC_COORD = 14'h3000,   // {level 3 = tile I/O, X 0, Y 0, Z 0}
     //   USE_MON_REGS: whether the MON register windows (SRC and SNK, each at
     //   +0x800 of its 4 KB regfile) are wired to monitor logic. Defaults to
     //   USE_AXI_MONITORS, as in STREAM. When 0 the config blocks strap every
@@ -414,7 +421,16 @@ module rapids_top_base #(
     output logic                                    src_system_idle,
     output logic [NC-1:0]                           src_sched_error,
     output logic                                    snk_system_idle,
-    output logic [NC-1:0]                           snk_sched_error
+    output logic [NC-1:0]                           snk_sched_error,
+
+    //-------------------------------------------------------------------------
+    // Tile header status (sink port; constant 0 unless TILE_HDR)
+    //-------------------------------------------------------------------------
+    output logic                                    sts_tile_unsupported,    // sticky
+    output logic                                    sts_tile_tag_mismatch,   // sticky
+    output logic [15:0]                             sts_tile_desc_count,
+    output logic [15:0]                             sts_tile_credit_count,
+    output logic [NC-1:0]                           sts_tile_desc_dropped    // sticky per source channel
 );
 
     // Boundary reset synchronization. The port aresetn is treated as an
@@ -1582,7 +1598,9 @@ module rapids_top_base #(
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS     (USE_AXI_MONITORS),
         .GEN_MON              (GEN_MON),
-        .SHARED_ENGINES       (SHARED_ENGINES)
+        .SHARED_ENGINES       (SHARED_ENGINES),
+        .TILE_HDR             (TILE_HDR),
+        .TILE_SRC_COORD       (TILE_SRC_COORD)
     ) u_core (
         .clk    (aclk),
         .rst_n  (w_aresetn),
@@ -1925,7 +1943,14 @@ module rapids_top_base #(
 
         // Active-channel sideband for u_wr_bus_meter (RAPIDS TASK-001)
         .snk_active_channel_id            (w_snk_active_ch_id),
-        .snk_active_channel_valid         (w_snk_active_ch_valid)
+        .snk_active_channel_valid         (w_snk_active_ch_valid),
+
+        // Tile header status (TILE_HDR)
+        .sts_tile_unsupported             (sts_tile_unsupported),
+        .sts_tile_tag_mismatch            (sts_tile_tag_mismatch),
+        .sts_tile_desc_count              (sts_tile_desc_count),
+        .sts_tile_credit_count            (sts_tile_credit_count),
+        .sts_tile_desc_dropped            (sts_tile_desc_dropped)
     );
 
     //=========================================================================

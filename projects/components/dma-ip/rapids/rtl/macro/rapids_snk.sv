@@ -71,6 +71,10 @@ module rapids_snk #(
     // Engine sharing (see scheduler_group_array): 1 = one descriptor / ctrlrd /
     // ctrlwr engine per half instead of one per channel.
     parameter int SHARED_ENGINES   = 1,
+    // Tile packet header on the sink port (TILE_SPEC 11.5): rapids_tile_hdr_rx
+    // strips each packet's header and passes cell-issued descriptors out on
+    // desc_inj_* to the source half.
+    parameter int TILE_HDR         = 0,
     parameter int MON_MAX_TRANSACTIONS = 16,
 
     // Short aliases
@@ -316,7 +320,18 @@ module rapids_snk #(
     // (axi_bus_meter). The W bus carries no wid, so the write engine's
     // channel index must travel out of band to reach the meter at the top.
     output logic [CIW-1:0]              o_active_channel_id,
-    output logic                        o_active_channel_valid
+    output logic                        o_active_channel_valid,
+
+    //=========================================================================
+    // Tile header (TILE_HDR): cell-issued descriptors and sink-port status
+    //=========================================================================
+    output logic                        desc_inj_valid,
+    output logic [CIW-1:0]              desc_inj_ch,
+    output logic [255:0]                desc_inj_data,
+    output logic                        sts_tile_unsupported,
+    output logic                        sts_tile_tag_mismatch,
+    output logic [15:0]                 sts_tile_desc_count,
+    output logic [15:0]                 sts_tile_credit_count
 );
 
     //=========================================================================
@@ -519,8 +534,16 @@ module rapids_snk #(
         .sched_rd_pkt_valid     (),
         .sched_rd_pkt_bytes     (),
         .sched_rd_pkt_offset    (),
+        .sched_rd_pkt_tile      (),
         /* verilator lint_on PINCONNECTEMPTY */
         .sched_rd_pkt_ready     ({NC{1'b1}}),
+        // Sink channels take no injected descriptors
+        .desc_inj_valid         (1'b0),
+        .desc_inj_ch            ('0),
+        .desc_inj_data          ('0),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .desc_inj_dropped       (),
+        /* verilator lint_on PINCONNECTEMPTY */
 
         // Data Write Interface (to Sink Data Path)
         .sched_wr_valid         (sched_wr_valid),
@@ -637,6 +660,72 @@ module rapids_snk #(
     // AXIS stream, driven straight from the data path.
     //=========================================================================
 
+    //=========================================================================
+    // Tile header decode (TILE_HDR): between the plane and the data path
+    //=========================================================================
+    logic [DW-1:0]              w_dp_tdata;
+    logic [SW-1:0]              w_dp_tstrb;
+    logic                       w_dp_tlast;
+    logic [AXIS_ID_WIDTH-1:0]   w_dp_tid;
+    logic [AXIS_DEST_WIDTH-1:0] w_dp_tdest;
+    logic [AXIS_USER_WIDTH-1:0] w_dp_tuser;
+    logic                       w_dp_tvalid;
+    logic                       w_dp_tready;
+
+    generate
+    if (TILE_HDR != 0) begin : g_tile_hdr
+        rapids_tile_hdr_rx #(
+            .NUM_CHANNELS    (NC),
+            .DATA_WIDTH      (DW),
+            .AXIS_ID_WIDTH   (AXIS_ID_WIDTH),
+            .AXIS_DEST_WIDTH (AXIS_DEST_WIDTH),
+            .AXIS_USER_WIDTH (AXIS_USER_WIDTH)
+        ) u_tile_hdr_rx (
+            .clk              (clk),
+            .rst_n            (rst_n),
+            .s_axis_tdata     (s_axis_tdata),
+            .s_axis_tstrb     (s_axis_tstrb),
+            .s_axis_tlast     (s_axis_tlast),
+            .s_axis_tid       (s_axis_tid),
+            .s_axis_tdest     (s_axis_tdest),
+            .s_axis_tuser     (s_axis_tuser),
+            .s_axis_tvalid    (s_axis_tvalid),
+            .s_axis_tready    (s_axis_tready),
+            .m_axis_tdata     (w_dp_tdata),
+            .m_axis_tstrb     (w_dp_tstrb),
+            .m_axis_tlast     (w_dp_tlast),
+            .m_axis_tid       (w_dp_tid),
+            .m_axis_tdest     (w_dp_tdest),
+            .m_axis_tuser     (w_dp_tuser),
+            .m_axis_tvalid    (w_dp_tvalid),
+            .m_axis_tready    (w_dp_tready),
+            .desc_inj_valid   (desc_inj_valid),
+            .desc_inj_ch      (desc_inj_ch),
+            .desc_inj_data    (desc_inj_data),
+            .sts_unsupported  (sts_tile_unsupported),
+            .sts_tag_mismatch (sts_tile_tag_mismatch),
+            .sts_desc_count   (sts_tile_desc_count),
+            .sts_credit_count (sts_tile_credit_count)
+        );
+    end else begin : g_no_tile_hdr
+        assign w_dp_tdata     = s_axis_tdata;
+        assign w_dp_tstrb     = s_axis_tstrb;
+        assign w_dp_tlast     = s_axis_tlast;
+        assign w_dp_tid       = s_axis_tid;
+        assign w_dp_tdest     = s_axis_tdest;
+        assign w_dp_tuser     = s_axis_tuser;
+        assign w_dp_tvalid    = s_axis_tvalid;
+        assign s_axis_tready  = w_dp_tready;
+        assign desc_inj_valid = 1'b0;
+        assign desc_inj_ch    = '0;
+        assign desc_inj_data  = '0;
+        assign sts_tile_unsupported  = 1'b0;
+        assign sts_tile_tag_mismatch = 1'b0;
+        assign sts_tile_desc_count   = '0;
+        assign sts_tile_credit_count = '0;
+    end
+    endgenerate
+
     snk_data_path_axis #(
         .NUM_CHANNELS       (NC),
         .ADDR_WIDTH         (AW),
@@ -661,14 +750,14 @@ module rapids_snk #(
         .cfg_channel_reset  (cfg_channel_reset),
 
         // AXIS Slave Interface (Network ingress; tid = channel id)
-        .s_axis_tdata       (s_axis_tdata),
-        .s_axis_tstrb       (s_axis_tstrb),
-        .s_axis_tlast       (s_axis_tlast),
-        .s_axis_tid         (s_axis_tid),
-        .s_axis_tdest       (s_axis_tdest),
-        .s_axis_tuser       (s_axis_tuser),
-        .s_axis_tvalid      (s_axis_tvalid),
-        .s_axis_tready      (s_axis_tready),
+        .s_axis_tdata       (w_dp_tdata),
+        .s_axis_tstrb       (w_dp_tstrb),
+        .s_axis_tlast       (w_dp_tlast),
+        .s_axis_tid         (w_dp_tid),
+        .s_axis_tdest       (w_dp_tdest),
+        .s_axis_tuser       (w_dp_tuser),
+        .s_axis_tvalid      (w_dp_tvalid),
+        .s_axis_tready      (w_dp_tready),
 
         // Scheduler Interface
         .sched_wr_valid     (sched_wr_valid),

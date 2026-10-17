@@ -42,6 +42,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_top_tb import RapidsCxsTopTB
+from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_tile_tb import RapidsCxsTileTB
 
 
 # ===========================================================================
@@ -171,6 +172,78 @@ async def cocotb_test_ext_addressing(dut):
         errors.append(f"egress {[hex(v) for v in got[:12]]} != expected {[hex(v) for v in expected[:12]]}")
     _finish(tb, not errors, {'errors': errors}, "extended addressing")
     tb.assert_descriptors_fetched()
+
+
+# ===========================================================================
+# TILE HEADER (TILE_HDR = 1): TILE_SPEC 11.5 header on both ports, 11.11
+# cell-issued descriptors. The cells build the top with TILE_HDR = 1.
+# ===========================================================================
+
+async def _bring_up_tile(dut):
+    tb = RapidsCxsTileTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    return tb
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_source_write(dut):
+    """A source descriptor's ptype / op / coordinate / target become its
+    packet's header beat, ahead of the payload."""
+    tb = await _bring_up_tile(dut)
+    ok, stats = await tb.test_source_write(channel=0, beats=_beats())
+    _finish(tb, ok, stats, "tile source write")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_source_read(dut):
+    """op = 1: a header-only read request, and no source-memory read."""
+    tb = await _bring_up_tile(dut)
+    ok, stats = await tb.test_source_read(channel=3, nbytes=200)
+    _finish(tb, ok, stats, "tile read request")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_sink_write(dut):
+    """A cell's mem write: header stripped, payload to memory."""
+    tb = await _bring_up_tile(dut)
+    ok, stats = await tb.test_sink_write(channel=2, beats=_beats())
+    _finish(tb, ok, stats, "tile sink write")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_cell_descriptors(dut):
+    """Cell-issued descriptors on four source channels: idle, busy, and one
+    chaining into memory; each packet reaches the coordinate it names."""
+    tb = await _bring_up_tile(dut)
+    ok, stats = await tb.test_cell_descriptors(beats=_beats())
+    _finish(tb, ok, stats, "cell-issued descriptors")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_desc_overflow(dut):
+    """A desc packet with no free slot is dropped and flagged; the running
+    transfer and the queued descriptors complete, and nothing stalls."""
+    tb = await _bring_up_tile(dut)
+    ok, stats = await tb.test_cell_descriptor_overflow(channel=5)
+    _finish(tb, ok, stats, "descriptor overflow")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_source_bad_ptype(dut):
+    """A source descriptor with ptype credit is refused, not sent."""
+    tb = await _bring_up_tile(dut)
+    ok, stats = await tb.test_source_bad_ptype(channel=6)
+    _finish(tb, ok, stats, "source ptype refusal")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_unsupported(dut):
+    """Credit packets are consumed and counted, a read request to RAPIDS is
+    consumed and flagged, and the stream still carries data afterwards."""
+    tb = await _bring_up_tile(dut)
+    ok, stats = await tb.test_unsupported(channel=4)
+    _finish(tb, ok, stats, "credit / unsupported")
 
 
 # ===========================================================================
@@ -333,3 +406,70 @@ def test_rapids_cxs_top_source_concurrent(request, test_level):
 def test_rapids_cxs_top_sink_concurrent(request, test_level):
     """Concurrent sink channels interleaved on the one CXS link."""
     _run_top("cocotb_test_sink_concurrent", "test_rapids_cxs_top_sink_concurrent", test_level=test_level)
+
+
+# ---- TILE_HDR = 1 cells ---------------------------------------------------
+_TILE = {'TILE_HDR': 1}
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_source_write(request, test_level):
+    """Tile header on the source port, built from the descriptor."""
+    _run_top("cocotb_test_tile_source_write", "test_rapids_cxs_top_tile_source_write",
+             extra_params=_TILE, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_source_read(request, test_level):
+    """Header-only read request (op = 1)."""
+    _run_top("cocotb_test_tile_source_read", "test_rapids_cxs_top_tile_source_read",
+             extra_params=_TILE, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_sink_write(request, test_level):
+    """Tile header stripped on the sink port."""
+    _run_top("cocotb_test_tile_sink_write", "test_rapids_cxs_top_tile_sink_write",
+             extra_params=_TILE, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_cell_descriptors(request, test_level):
+    """Cell-issued descriptors into the source channels' queues."""
+    _run_top("cocotb_test_tile_cell_descriptors", "test_rapids_cxs_top_tile_cell_descriptors",
+             extra_params=_TILE, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_desc_overflow(request, test_level):
+    """Dropped cell-issued descriptor with no free slot."""
+    _run_top("cocotb_test_tile_desc_overflow", "test_rapids_cxs_top_tile_desc_overflow",
+             extra_params=_TILE, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_unsupported(request, test_level):
+    """Credit and unsupported packets never stall the sink port."""
+    _run_top("cocotb_test_tile_unsupported", "test_rapids_cxs_top_tile_unsupported",
+             extra_params=_TILE, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_source_bad_ptype(request, test_level):
+    """A source descriptor with ptype credit is refused."""
+    _run_top("cocotb_test_tile_source_bad_ptype", "test_rapids_cxs_top_tile_source_bad_ptype",
+             extra_params=_TILE, test_level=test_level)

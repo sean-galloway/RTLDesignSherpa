@@ -86,6 +86,17 @@
 > wrapper clears a stale error before handing the engine to another channel (`test_..._ctrl_error_handoff`
 > guards it, mutation-checked); the descriptor engine registers its pick in an issue slot because the
 > unregistered pick -> 16:1 mux -> range compare path missed 100 MHz at 16 channels.
+>
+> **Tile header (2026-10-17, byte tree, rapids TASK-026):** `TILE_HDR` (default 0) on the core / base /
+> generated tops puts the compute-eng-ip tile packet header (TILE_SPEC 11.5; status table 11.12) on both
+> network ports as the FIRST BEAT of every packet, bits [127:0]. Needs `SHARED_ENGINES` = 1 and DW >= 256.
+> Source: the scheduler latches `ptype`/`op` from the descriptor and the packet record carries
+> `{op, ptype, dst_addr}` to `src_data_path_axis`, which emits the header; `op` = 1 is a header-only
+> packet with no memory read. Sink: `rtl/fub/rapids_tile_hdr_rx.sv` (in `rapids_snk`) strips headers and
+> sends `desc` packets over `desc_inj_*` into `descriptor_engine_shared`'s per-channel one-entry slot.
+> Traps: the planes are untouched (CXS is just transport); a disabled channel's scheduler still pops and
+> discards descriptors from its queue in IDLE (pre-existing, also hits host kicks), so a slot-overflow test
+> must hold the channel busy, not disabled; credits/grants (TILE_SPEC 11.9-11.10) are NOT built.
 
 **Complete Specification:**
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`

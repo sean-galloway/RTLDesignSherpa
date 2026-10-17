@@ -31,8 +31,8 @@
 ## Overview
 
 The CXS tops replace the two AXIS network ports with one CXS link per
-direction: `s_cxs_*` (a CXS receiver) into the sink half and `m_cxs_*` (a CXS
-transmitter) out of the source half. One link carries every channel; the
+direction: the **sink port** `s_cxs_*` (a CXS receiver) into the sink half and
+the **source port** `m_cxs_*` (a CXS transmitter) out of the source half. One link carries every channel; the
 channel rides in `CXSSRCID`. The planes that implement the links are described
 in the Network Planes chapter (Section 3.13).
 
@@ -55,7 +55,7 @@ in the Network Planes chapter (Section 3.13).
 
 ## Signal Table
 
-| Signal | Sink link | Source link | Width | Description |
+| Signal | Sink port | Source port | Width | Description |
 |--------|-----------|-------------|-------|-------------|
 | `{s,m}_cxs_valid` | in | out | 1 | Flit valid |
 | `{s,m}_cxs_data` | in | out | `DATA_WIDTH` | Flit data |
@@ -101,10 +101,10 @@ spec and requires `CXS_CREDIT_BEYOND_SPEC` on both ends.
 
 ## Backpressure
 
-On the sink link, a full receive FIFO means no further grants: the transmitter
+On the sink port, a full receive FIFO means no further grants: the transmitter
 stalls for lack of credit. This is the CXS form of the AXIS sink's
 `s_axis_tready = 0`, including the byte-granular sink's hold until a channel's
-descriptor has been fetched. On the source link, the plane stalls the core's
+descriptor has been fetched. On the source port, the plane stalls the core's
 egress (`fub_axis_tready = 0`) while it has no credit.
 
 ## Proposed Changes

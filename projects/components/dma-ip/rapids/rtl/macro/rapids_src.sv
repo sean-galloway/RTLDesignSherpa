@@ -72,6 +72,13 @@ module rapids_src #(
     // Engine sharing (see scheduler_group_array): 1 = one descriptor / ctrlrd /
     // ctrlwr engine per half instead of one per channel.
     parameter int SHARED_ENGINES   = 1,
+    // Tile packet header on the source port (TILE_SPEC 11.5): each packet
+    // starts with a header built from its descriptor, and cell-issued
+    // descriptors arrive on desc_inj_* (from the sink half). TILE_SRC_COORD
+    // is the source coordinate RAPIDS puts in its headers.
+    parameter int TILE_HDR         = 0,
+    parameter logic [rapids_pkg::TILE_COORD_W-1:0] TILE_SRC_COORD =
+        {rapids_pkg::TILE_LEVEL_IO, 12'h000},
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -305,7 +312,15 @@ module rapids_src #(
     output logic [NC-1:0]               dbg_src_sram_bridge_pending,
     output logic [NC-1:0]               dbg_src_sram_bridge_out_valid,
     output logic [31:0]                 dbg_axis_beats_sent,
-    output logic [31:0]                 dbg_axis_packets_sent
+    output logic [31:0]                 dbg_axis_packets_sent,
+
+    //=========================================================================
+    // Cell-issued descriptors (TILE_HDR), from the sink half
+    //=========================================================================
+    input  logic                        desc_inj_valid,
+    input  logic [CIW-1:0]              desc_inj_ch,
+    input  logic [255:0]                desc_inj_data,
+    output logic [NC-1:0]               desc_inj_dropped    // sticky: a desc had no free slot
 );
 
     //=========================================================================
@@ -321,6 +336,7 @@ module rapids_src #(
     logic [NC-1:0]               sched_rd_pkt_ready;
     logic [NC-1:0][31:0]         sched_rd_pkt_bytes;
     logic [NC-1:0][$clog2(DW/8)-1:0] sched_rd_pkt_offset;
+    logic [NC-1:0][rapids_pkg::TILE_PKT_W-1:0] sched_rd_pkt_tile;
 
     // Source Data Path -> Scheduler (Read Completion)
     logic [NC-1:0]               sched_rd_done_strobe;
@@ -356,7 +372,8 @@ module rapids_src #(
         .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON),
-        .SHARED_ENGINES         (SHARED_ENGINES)
+        .SHARED_ENGINES         (SHARED_ENGINES),
+        .TILE_HDR               (TILE_HDR)
     ) u_scheduler_group_array (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -497,6 +514,11 @@ module rapids_src #(
         .sched_rd_pkt_ready     (sched_rd_pkt_ready),
         .sched_rd_pkt_bytes     (sched_rd_pkt_bytes),
         .sched_rd_pkt_offset    (sched_rd_pkt_offset),
+        .sched_rd_pkt_tile      (sched_rd_pkt_tile),
+        .desc_inj_valid         (desc_inj_valid),
+        .desc_inj_ch            (desc_inj_ch),
+        .desc_inj_data          (desc_inj_data),
+        .desc_inj_dropped       (desc_inj_dropped),
 
         // Data Write Interface (Sink) - UNUSED in source-only build
         //   Outputs left unconnected; inputs tied off (no write engine present)
@@ -606,7 +628,9 @@ module rapids_src #(
         .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
         .AXIS_ID_WIDTH      (AXIS_ID_WIDTH),
         .AXIS_DEST_WIDTH    (AXIS_DEST_WIDTH),
-        .AXIS_USER_WIDTH    (AXIS_USER_WIDTH)
+        .AXIS_USER_WIDTH    (AXIS_USER_WIDTH),
+        .TILE_HDR           (TILE_HDR),
+        .TILE_SRC_COORD     (TILE_SRC_COORD)
     ) u_source_data_path (
         .clk                (clk),
         .rst_n              (rst_n),
@@ -624,6 +648,7 @@ module rapids_src #(
         .sched_rd_pkt_ready (sched_rd_pkt_ready),
         .sched_rd_pkt_bytes (sched_rd_pkt_bytes),
         .sched_rd_pkt_offset(sched_rd_pkt_offset),
+        .sched_rd_pkt_tile  (sched_rd_pkt_tile),
 
         // Completion Interface
         .sched_rd_done_strobe(sched_rd_done_strobe),

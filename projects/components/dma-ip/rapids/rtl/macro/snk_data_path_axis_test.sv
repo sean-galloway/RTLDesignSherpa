@@ -352,6 +352,7 @@ module snk_data_path_axis_test #(
                 .sched_rd_pkt_valid     (),
                 .sched_rd_pkt_bytes     (),
                 .sched_rd_pkt_offset    (),
+                .sched_rd_pkt_tile      (),
                 /* verilator lint_on PINCONNECTEMPTY */
                 .sched_rd_pkt_ready     (1'b1),
 
