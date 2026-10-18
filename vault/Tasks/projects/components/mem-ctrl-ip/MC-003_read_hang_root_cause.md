@@ -448,3 +448,25 @@ the tCCD forward counter already uses: `r_tccd_fwd <= t_ccd_i - 1`). BL8
 per-command-count, not per-byte. So at exact JEDEC the floor is 13 cyc/txn =
 369.2 MB/s — exactly the tracker gate; with the conservative +1s it is 16
 cyc/txn = ~292 (measured 292.3, 97% of the +1 floor).
+
+### 10.3 Bank-timer JEDEC-exactness shave (owner-approved)
+
+`mc_bank_timer` loads the full timing value and decrements to zero, so "safe
+at count==0" lands at command+N+1 — one cycle conservative per transition.
+The tCCD forward counter already uses load-(t-1) (`r_tccd_fwd <= t_ccd_i-1`);
+the bank timers were the inconsistent ones. All five countdown loads
+(rcd/ras/rc/rp/preblk) now load t-1 saturating -> "safe" exactly N cycles
+after the commanding command, JEDEC-exact. Owner-approved (2026-10-17) after
+the BL8 control measured 304.3 rd / 275.2 wr — geometry is not the lever.
+
+Measured (perf proxy txn=1024 tREFI=585, integrity clean):
+incremental 575.8/516.4, row_major 579.8/563.4 (gate held), col_ilv
+475.4/348.1, **col_major 311.0 wr / 351.0 rd (13.7 cyc/txn, from
+260.8/292.3)**. The 369.2 figure is the episode-free exact floor (13.0
+cyc/txn); the measured 13.7 carries the ~30 refresh episodes' stalls
+(~0.5/txn) plus stream edges — col_major rd sits at ~95% of the gate.
+
+Verified: gap tREFI 100/200/400/585 4/4; store-arbiter contract, granite top
+(2+1xfail), uart smoke PASS. Pumice `run-all-func` moved 7 failed -> 6
+failed (211 passed): the shave fixed one of the six pre-existing BUG-027
+perf-shape cells; no new failures (see tracker).

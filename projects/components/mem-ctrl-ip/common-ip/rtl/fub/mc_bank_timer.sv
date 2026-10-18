@@ -101,23 +101,30 @@ module mc_bank_timer
             r_rcd <= '0; r_ras <= '0; r_rc <= '0; r_rp <= '0; r_preblk <= '0;
             r_row_valid <= 1'b0; r_open_row <= '0; r_ap_pending <= 1'b0;
         end else begin
-            // tRCD / tRAS / tRC: reload on ACT, else count down (saturate at 0)
-            if (set_act_i)         r_rcd <= t_rcd_i;
+            // tRCD / tRAS / tRC: reload on ACT, else count down (saturate at 0).
+            // Load t-1 (saturating): the command fires in cycle C, the load is
+            // visible at C+1, and "safe at count==0" then lands exactly at
+            // C+t -- JEDEC-exact, the same load-(t-1) semantics the tCCD
+            // forward counter uses (mc_bank_sched r_tccd_fwd). Loading t
+            // would enforce t+1 (one cycle conservative per transition, which
+            // is what made the col_major bubble 9 against a 6-cycle floor;
+            // MC-003 2026-10-17, owner-approved with the BL8 control measured).
+            if (set_act_i)         r_rcd <= (t_rcd_i == '0) ? '0 : (t_rcd_i - 1'b1);
             else if (r_rcd != '0)  r_rcd <= r_rcd - 1'b1;
 
-            if (set_act_i)         r_ras <= t_ras_i;
+            if (set_act_i)         r_ras <= (t_ras_i == '0) ? '0 : (t_ras_i - 1'b1);
             else if (r_ras != '0)  r_ras <= r_ras - 1'b1;
 
-            if (set_act_i)         r_rc  <= t_rc_i;
+            if (set_act_i)         r_rc  <= (t_rc_i == '0) ? '0 : (t_rc_i - 1'b1);
             else if (r_rc  != '0)  r_rc  <= r_rc - 1'b1;
 
             // tRP: reload on explicit PRE or auto-PRE fire, else count down
-            if (set_pre_i || w_ap_fire) r_rp <= t_rp_i;
+            if (set_pre_i || w_ap_fire) r_rp <= (t_rp_i == '0) ? '0 : (t_rp_i - 1'b1);
             else if (r_rp != '0)        r_rp <= r_rp - 1'b1;
 
             // preblk: reload on RD (tRTP) / WR (tWR), else count down
-            if (set_rd_i)              r_preblk <= t_rtp_i;
-            else if (set_wr_i)         r_preblk <= t_wr_i;
+            if (set_rd_i)              r_preblk <= (t_rtp_i == '0) ? '0 : (t_rtp_i - 1'b1);
+            else if (set_wr_i)         r_preblk <= (t_wr_i == '0) ? '0 : (t_wr_i - 1'b1);
             else if (r_preblk != '0)   r_preblk <= r_preblk - 1'b1;
 
             // row-open + auto-precharge bit (ACT > explicit PRE > auto-PRE)
