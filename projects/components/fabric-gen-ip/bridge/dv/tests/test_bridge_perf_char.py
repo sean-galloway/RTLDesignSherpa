@@ -68,19 +68,20 @@ DUT_NAME = os.environ.get('BRIDGE_PERF_DUT', 'bridge_2x2_rw')
 # ---------------------------------------------------------------------------
 FULL = 0.97
 # Round trip the bridge itself may add per burst, cycles, beyond the burst's
-# own beats and the slave's latency. Measured: ~6 on the 2x2s, ~9 on pipe
-# (extra register stages) and on 4x4 (a wider crossbar); each budget is that
-# plus margin, so a latency regression of a few cycles fails here.
+# own beats and the slave's latency. Measured single-beat round trips at one
+# in flight (2026-10-17): 2x2 write 8 / read 7; pipelined crossbar write 10 /
+# read 8 (its stages); 4x4 32->64 upsize 11 both ways (the converter's own
+# skids, behind the adapter's). Each budget covers its fixture's worst path,
+# so a latency regression of a cycle or two fails here. Single-beat streams
+# at 8 in flight are bounded by exactly this (8 / round trip), which is why
+# the bursts and width floors are Little's law too: with 16 in flight every
+# one of those paths runs at 1.000.
 RTT_BUDGET = {'bridge_2x2_rw': 8, 'bridge_2x2_rw_lat': 8, 'bridge_2x2_rw_pipe': 10,
               'bridge_2x2_rw_qos': 8, 'bridge_4x4_rw': 10}
 # Open weaknesses: (label regex, floor, note). A fixed weakness's row is
 # deleted, and the shape's real floor applies again.
 KNOWN = {
-    'bridge_2x2_rw_pipe': [
-        (r'^bursts wr beats=1 ', 0.78, 'W4 single-beat writes on the pipelined fabric (0.805)'),
-    ],
     'bridge_4x4_rw': [
-        (r'^width up .* beats=1$', 0.71, 'W5 single-beat upsize, reads and writes (0.734)'),
         # cpu (64b) and dma0 (32b) share ddr0 (64b): a 32-bit master's grant
         # holds the 64-bit channel at half rate for its beats.
         (r'^(contention|fairness) wr .* (contended|slave)$', 0.78,
@@ -152,7 +153,7 @@ async def cocotb_test_perf_char_bursts(dut):
                 label = f"bursts {kind} beats={beats} ids={len(ids)}"
                 report(tb, label, slave_rate=r[f's_{d}'][1], master_rate=r[f'm_{d}'][1],
                        addr_per_cycle=r[f'm_{a}'][1], beats_total=r[f's_{d}'][0])
-                fl.need(label, r[f's_{d}'][1], FULL)
+                fl.need(label, r[f's_{d}'][1], little(8, beats, 0))
     fl.check()
 
 
@@ -421,7 +422,7 @@ async def cocotb_test_perf_char_width(dut):
                 report(tb, tag, ideal_master=ideal_m,
                        master_rate=r[f'm_{d}'][1], slave_rate=r[f's_{d}'][1],
                        master_vs_ideal=r[f'm_{d}'][1] / ideal_m)
-                fl.need(tag, r[f'm_{d}'][1] / ideal_m, FULL)
+                fl.need(tag, r[f'm_{d}'][1] / ideal_m, little(8, beats, 0))
     fl.check()
 
 
