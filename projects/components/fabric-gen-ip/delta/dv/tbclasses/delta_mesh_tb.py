@@ -548,7 +548,7 @@ class DeltaMeshFabricTB(DeltaMeshCellTB):
         attach cell, which delivers it out of its local port. Each is a
         single-beat control-class packet (qos 1, sr_ptr[0] = 1) whose
         TDATA[127:0] is the tile header of a credit packet: dst level 3
-        (0x3000), src the advertising cell at level 0, ptype 3 (credit),
+        (0x3000), src the advertising cell's external ID (ext 1, level 0), ptype 3 (credit),
         op 1 (set), length = CELL_CREDITS, class 0. No other boundary
         output sees anything, and nothing more arrives later."""
         nb = len(self.BOUNDARY_COORDS)
@@ -581,11 +581,12 @@ class DeltaMeshFabricTB(DeltaMeshCellTB):
                     f"credit advertisement from {src}: not control class "
                     f"(qos {field(user, 'qos')}, sr_ptr {field(user, 'sr_ptr')}, "
                     f"mcast {field(user, 'mcast')})")
+            src_id = (1 << 14) | (src[0] & 0xF) << 8 | (src[1] & 0xF) << 4 | (src[2] & 0xF)
             want = ((0x3000)                                              # dst: level 3
-                    | (((src[0] & 0xF) << 8 | (src[1] & 0xF) << 4 | (src[2] & 0xF)) << 14)
-                    | (3 << 28)                                           # ptype credit
-                    | (1 << 31)                                           # op set
-                    | ((cell_credits & 0xFFFF_FFFF) << 32))               # length; class 0, tag 0
+                    | (src_id << 15)                                      # src: the cell, ext 1
+                    | (3 << 30)                                           # ptype credit
+                    | (1 << 33)                                           # op set
+                    | ((cell_credits & 0xFFFF_FFFF) << 34))               # length; class 0, tag 0
             if data != want:
                 raise AssertionError(
                     f"credit advertisement from {src}: tile header 0x{data:032x}, "

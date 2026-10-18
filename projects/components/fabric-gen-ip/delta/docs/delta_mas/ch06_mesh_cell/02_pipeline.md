@@ -76,8 +76,8 @@ external master is never cut off mid-handshake. Two writers share the FIFO:
   TUSER header addresses the tile I/O's attach cell (`TILE_IO_X/Y/Z`) on the
   control class (QoS 1, `sr_ptr[0]` = 1), which routes DOR on VC0 and is never
   intercepted as in-band config. TDATA[127:0] is the tile header of a credit
-  packet (TILE_SPEC 11.5, 11.10): destination level 3, source this cell at
-  level 0, `ptype` 3, `op` 1 (`set`), length `CELL_CREDITS` flits, class 0. Its
+  packet (TILE_SPEC 11.5, 11.10): destination level 3, source the attached
+  cell's external ID (`ext` 1, level 0), `ptype` 3, `op` 1 (`set`), length `CELL_CREDITS` flits, class 0. Its
   low 16 bits can never equal the mode-ack magic. It takes the next cycle the
   fan-out leaves free.
 

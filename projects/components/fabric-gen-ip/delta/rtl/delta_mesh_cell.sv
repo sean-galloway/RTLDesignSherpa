@@ -1444,9 +1444,10 @@ end
 // TUSER addresses the tile I/O's attach cell (TILE_IO_X/Y/Z)
 // on the control class (qos 1, sr_ptr[0] = 1: DOR on VC0,
 // never intercepted as config), and TDATA[127:0] is the
-// tile header of a credit packet -- dst level 3, src this
-// cell (level 0), op = set, length = CELL_CREDITS flits,
-// class 0. Its low 16 bits are never ACK_MAGIC. A mode-
+// tile header of a credit packet -- dst level 3, src the
+// attached cell's external ID (ext 1, level 0), op = set,
+// length = CELL_CREDITS flits, class 0. Its low 16 bits are
+// never ACK_MAGIC. A mode-
 // switch beat wins the FIFO; the advertisement takes the
 // next free cycle. Otherwise the node stays a conduit: it
 // holds no credit state; the cell returns its own credits.
@@ -1458,11 +1459,11 @@ logic [USER_WIDTH-1:0] adv_hdr;
 always_comb begin
     adv_go = r_adv_pending && gen_fifo_wr_ready && !msw_gen_valid;
     adv_tile_hdr          = '0;
-    adv_tile_hdr[13:0]    = 14'h3000;
-    adv_tile_hdr[27:14]   = {2'd0, 4'(POS_X), 4'(POS_Y), 4'(POS_Z)};
-    adv_tile_hdr[30:28]   = 3'd3;
-    adv_tile_hdr[31]      = 1'b1;
-    adv_tile_hdr[63:32]   = 32'(CELL_CREDITS);
+    adv_tile_hdr[14:0]    = 15'h3000;
+    adv_tile_hdr[29:15]   = {1'b1, 2'd0, 4'(POS_X), 4'(POS_Y), 4'(POS_Z)};
+    adv_tile_hdr[32:30]   = 3'd3;
+    adv_tile_hdr[33]      = 1'b1;
+    adv_tile_hdr[65:34]   = 32'(CELL_CREDITS);
     adv_hdr = '0;
     adv_hdr[HDR_DST_X_LO +: COORD_W] = COORD_W'(TILE_IO_X);
     adv_hdr[HDR_DST_Y_LO +: COORD_W] = COORD_W'(TILE_IO_Y);
