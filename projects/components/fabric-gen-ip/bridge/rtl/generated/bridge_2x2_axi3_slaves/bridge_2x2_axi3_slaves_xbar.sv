@@ -254,6 +254,22 @@ module bridge_2x2_axi3_slaves_xbar
     logic host_axil_64b_w_to_subtractive;
     logic host_axil_64b_w_sel_subtractive;
 
+    // Request slots of the arbitrated slaves (assigned below)
+    axi4_aw_t cpu_axi4_64b_aw_slot_subtractive;
+    logic cpu_axi4_64b_aw_slot_subtractive_valid, cpu_axi4_64b_aw_slot_subtractive_ready, cpu_axi4_64b_aw_slot_subtractive_in_valid, cpu_axi4_64b_aw_slot_subtractive_in_ready;
+    axi4_aw_t host_axil_64b_aw_slot_subtractive;
+    logic host_axil_64b_aw_slot_subtractive_valid, host_axil_64b_aw_slot_subtractive_ready, host_axil_64b_aw_slot_subtractive_in_valid, host_axil_64b_aw_slot_subtractive_in_ready;
+    axi4_ar_t cpu_axi4_64b_ar_slot_subtractive;
+    logic cpu_axi4_64b_ar_slot_subtractive_valid, cpu_axi4_64b_ar_slot_subtractive_ready, cpu_axi4_64b_ar_slot_subtractive_in_valid, cpu_axi4_64b_ar_slot_subtractive_in_ready;
+    axi4_ar_t host_axil_64b_ar_slot_subtractive;
+    logic host_axil_64b_ar_slot_subtractive_valid, host_axil_64b_ar_slot_subtractive_ready, host_axil_64b_ar_slot_subtractive_in_valid, host_axil_64b_ar_slot_subtractive_in_ready;
+    // Write ordering: a master's AW waits while another of its slots
+    // holds an AW (see _generate_request_slots)
+    wire cpu_axi4_64b_aw_hold_ddr_axi3 = cpu_axi4_64b_aw_slot_subtractive_valid;
+    wire cpu_axi4_64b_aw_hold_sram_axi3 = cpu_axi4_64b_aw_slot_subtractive_valid;
+    wire host_axil_64b_aw_hold_ddr_axi3 = host_axil_64b_aw_slot_subtractive_valid;
+    wire host_axil_64b_aw_hold_sram_axi3 = host_axil_64b_aw_slot_subtractive_valid;
+
     // ================================================================
     // Response arbiters (one slave per master path per channel)
     // ================================================================
@@ -396,7 +412,7 @@ module bridge_2x2_axi3_slaves_xbar
 
     // ---- AW arbiter for ddr_axi3: round-robin, lock until handshake ----
     logic [1:0] ddr_axi3_aw_arb_req;
-    assign ddr_axi3_aw_arb_req = {host_axil_64b_aw_to_ddr_axi3 && host_axil_64b_awvalid, cpu_axi4_64b_aw_to_ddr_axi3 && cpu_axi4_64b_awvalid};
+    assign ddr_axi3_aw_arb_req = {host_axil_64b_aw_to_ddr_axi3 && host_axil_64b_awvalid && !host_axil_64b_aw_hold_ddr_axi3, cpu_axi4_64b_aw_to_ddr_axi3 && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_ddr_axi3};
     logic [0:0] ddr_axi3_aw_arb_lock, ddr_axi3_aw_arb_rr;
     logic ddr_axi3_aw_arb_locked;
     wire [0:0] ddr_axi3_aw_arb_pick = (ddr_axi3_aw_arb_rr == 1'd0) ? (ddr_axi3_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -446,7 +462,7 @@ module bridge_2x2_axi3_slaves_xbar
         (host_axil_64b_aw_gnt_ddr_axi3 ? host_axil_64b_aw.user : '0);
     assign ddr_axi3_axi_awvalid = cpu_axi4_64b_aw_gnt_ddr_axi3 || host_axil_64b_aw_gnt_ddr_axi3;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] ddr_axi3_wowner_mem [16];
     logic [4:0] ddr_axi3_wowner_wptr, ddr_axi3_wowner_rptr;
@@ -563,7 +579,7 @@ module bridge_2x2_axi3_slaves_xbar
 
     // ---- AW arbiter for sram_axi3: round-robin, lock until handshake ----
     logic [1:0] sram_axi3_aw_arb_req;
-    assign sram_axi3_aw_arb_req = {host_axil_64b_aw_to_sram_axi3 && host_axil_64b_awvalid, cpu_axi4_64b_aw_to_sram_axi3 && cpu_axi4_64b_awvalid};
+    assign sram_axi3_aw_arb_req = {host_axil_64b_aw_to_sram_axi3 && host_axil_64b_awvalid && !host_axil_64b_aw_hold_sram_axi3, cpu_axi4_64b_aw_to_sram_axi3 && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_sram_axi3};
     logic [0:0] sram_axi3_aw_arb_lock, sram_axi3_aw_arb_rr;
     logic sram_axi3_aw_arb_locked;
     wire [0:0] sram_axi3_aw_arb_pick = (sram_axi3_aw_arb_rr == 1'd0) ? (sram_axi3_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -613,7 +629,7 @@ module bridge_2x2_axi3_slaves_xbar
         (host_axil_64b_aw_gnt_sram_axi3 ? host_axil_64b_aw.user : '0);
     assign sram_axi3_axi_awvalid = cpu_axi4_64b_aw_gnt_sram_axi3 || host_axil_64b_aw_gnt_sram_axi3;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] sram_axi3_wowner_mem [16];
     logic [4:0] sram_axi3_wowner_wptr, sram_axi3_wowner_rptr;
@@ -728,9 +744,29 @@ module bridge_2x2_axi3_slaves_xbar
     wire host_axil_64b_aw_to_subtractive = !(((host_axil_64b_aw.addr <= 32'h7fffffff)) || ((host_axil_64b_aw.addr >= 32'h80000000)));
     wire host_axil_64b_ar_to_subtractive = !(((host_axil_64b_ar.addr <= 32'h7fffffff)) || ((host_axil_64b_ar.addr >= 32'h80000000)));
 
+    // AW request slots for subtractive: arbitration at the slave pins
+    assign cpu_axi4_64b_aw_slot_subtractive_in_valid = cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_64b_aw_slot_subtractive_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_subtractive_in_ready), .wr_data(cpu_axi4_64b_aw),
+        .rd_valid(cpu_axi4_64b_aw_slot_subtractive_valid), .rd_ready(cpu_axi4_64b_aw_slot_subtractive_ready), .rd_data(cpu_axi4_64b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign host_axil_64b_aw_slot_subtractive_in_valid = host_axil_64b_aw_to_subtractive && host_axil_64b_awvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_64b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_axil_64b_aw_slot_subtractive_in_valid), .wr_ready(host_axil_64b_aw_slot_subtractive_in_ready), .wr_data(host_axil_64b_aw),
+        .rd_valid(host_axil_64b_aw_slot_subtractive_valid), .rd_ready(host_axil_64b_aw_slot_subtractive_ready), .rd_data(host_axil_64b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_aw_arb_req;
-    assign subtractive_aw_arb_req = {host_axil_64b_aw_to_subtractive && host_axil_64b_awvalid, cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid};
+    assign subtractive_aw_arb_req = {host_axil_64b_aw_slot_subtractive_valid, cpu_axi4_64b_aw_slot_subtractive_valid};
     logic [0:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
     logic subtractive_aw_arb_locked;
     wire [0:0] subtractive_aw_arb_pick = (subtractive_aw_arb_rr == 1'd0) ? (subtractive_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -754,54 +790,66 @@ module bridge_2x2_axi3_slaves_xbar
     )
     wire cpu_axi4_64b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd0) && subtractive_aw_arb_req[0];
     wire host_axil_64b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd1) && subtractive_aw_arb_req[1];
+    assign cpu_axi4_64b_aw_slot_subtractive_ready = cpu_axi4_64b_aw_gnt_subtractive && subtractive_axi_awready;
+    assign host_axil_64b_aw_slot_subtractive_ready = host_axil_64b_aw_gnt_subtractive && subtractive_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign subtractive_axi_awid = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.id : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.id : '0);
-    assign subtractive_axi_awaddr = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.addr : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.addr : '0);
-    assign subtractive_axi_awlen = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.len : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.len : '0);
-    assign subtractive_axi_awsize = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.size : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.size : '0);
-    assign subtractive_axi_awburst = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.burst : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.burst : '0);
-    assign subtractive_axi_awlock = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.lock : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.lock : '0);
-    assign subtractive_axi_awcache = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.cache : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.cache : '0);
-    assign subtractive_axi_awprot = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.prot : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.prot : '0);
-    assign subtractive_axi_awqos = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.qos : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.qos : '0);
-    assign subtractive_axi_awregion = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.region : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.region : '0);
-    assign subtractive_axi_awuser = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.user : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw.user : '0);
+    assign subtractive_axi_awid = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.id : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.id : '0);
+    assign subtractive_axi_awaddr = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.addr : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.addr : '0);
+    assign subtractive_axi_awlen = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.len : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.len : '0);
+    assign subtractive_axi_awsize = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.size : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.size : '0);
+    assign subtractive_axi_awburst = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.burst : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.burst : '0);
+    assign subtractive_axi_awlock = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.lock : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.lock : '0);
+    assign subtractive_axi_awcache = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.cache : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.cache : '0);
+    assign subtractive_axi_awprot = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.prot : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.prot : '0);
+    assign subtractive_axi_awqos = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.qos : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.qos : '0);
+    assign subtractive_axi_awregion = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.region : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.region : '0);
+    assign subtractive_axi_awuser = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.user : '0) |
+        (host_axil_64b_aw_gnt_subtractive ? host_axil_64b_aw_slot_subtractive.user : '0);
     assign subtractive_axi_awvalid = cpu_axi4_64b_aw_gnt_subtractive || host_axil_64b_aw_gnt_subtractive;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    logic subtractive_wowner_ahead;
+    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
+    wire subtractive_wowner_byp = !subtractive_wowner_valid && !subtractive_wowner_ahead && subtractive_axi_awvalid;
+    wire subtractive_wowner_aw_hs = subtractive_axi_awvalid && subtractive_axi_awready;
+    wire subtractive_wowner_w_end = subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            subtractive_wowner_wptr <= '0;
-            subtractive_wowner_rptr <= '0;
+            subtractive_wowner_wptr  <= '0;
+            subtractive_wowner_rptr  <= '0;
+            subtractive_wowner_ahead <= 1'b0;
         end else begin
-            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+            if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
+                subtractive_wowner_ahead <= 1'b0;   // its W already went
+            end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
                 subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
+            end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
+                subtractive_wowner_ahead <= 1'b1;
             end
-            if (subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast) begin
+            if (subtractive_wowner_valid && subtractive_wowner_w_end) begin
                 subtractive_wowner_rptr <= subtractive_wowner_rptr + 1'b1;
             end
         end
     )
-    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
-    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
-    assign cpu_axi4_64b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd0) && cpu_axi4_64b_w_to_subtractive;
-    assign host_axil_64b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd1) && host_axil_64b_w_to_subtractive;
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
+                                       : subtractive_aw_arb_gnt;
+    assign cpu_axi4_64b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && cpu_axi4_64b_w_to_subtractive;
+    assign host_axil_64b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd1) && host_axil_64b_w_to_subtractive;
 
     // W channel (owner-gated mux across writing masters)
     assign subtractive_axi_wdata = ((cpu_axi4_64b_w_sel_subtractive && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.data : '0) |
@@ -822,9 +870,29 @@ module bridge_2x2_axi3_slaves_xbar
     assign subtractive_axi_bridge_id_aw = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_bridge_id_aw : '0) |
         (host_axil_64b_aw_gnt_subtractive ? host_axil_bridge_id_aw : '0);
 
+    // AR request slots for subtractive: arbitration at the slave pins
+    assign cpu_axi4_64b_ar_slot_subtractive_in_valid = cpu_axi4_64b_ar_to_subtractive && cpu_axi4_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_axi4_64b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_64b_ar_slot_subtractive_in_valid), .wr_ready(cpu_axi4_64b_ar_slot_subtractive_in_ready), .wr_data(cpu_axi4_64b_ar),
+        .rd_valid(cpu_axi4_64b_ar_slot_subtractive_valid), .rd_ready(cpu_axi4_64b_ar_slot_subtractive_ready), .rd_data(cpu_axi4_64b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign host_axil_64b_ar_slot_subtractive_in_valid = host_axil_64b_ar_to_subtractive && host_axil_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_host_axil_64b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_axil_64b_ar_slot_subtractive_in_valid), .wr_ready(host_axil_64b_ar_slot_subtractive_in_ready), .wr_data(host_axil_64b_ar),
+        .rd_valid(host_axil_64b_ar_slot_subtractive_valid), .rd_ready(host_axil_64b_ar_slot_subtractive_ready), .rd_data(host_axil_64b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_ar_arb_req;
-    assign subtractive_ar_arb_req = {host_axil_64b_ar_to_subtractive && host_axil_64b_arvalid, cpu_axi4_64b_ar_to_subtractive && cpu_axi4_64b_arvalid};
+    assign subtractive_ar_arb_req = {host_axil_64b_ar_slot_subtractive_valid, cpu_axi4_64b_ar_slot_subtractive_valid};
     logic [0:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
     logic subtractive_ar_arb_locked;
     wire [0:0] subtractive_ar_arb_pick = (subtractive_ar_arb_rr == 1'd0) ? (subtractive_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -848,30 +916,32 @@ module bridge_2x2_axi3_slaves_xbar
     )
     wire cpu_axi4_64b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd0) && subtractive_ar_arb_req[0];
     wire host_axil_64b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd1) && subtractive_ar_arb_req[1];
+    assign cpu_axi4_64b_ar_slot_subtractive_ready = cpu_axi4_64b_ar_gnt_subtractive && subtractive_axi_arready;
+    assign host_axil_64b_ar_slot_subtractive_ready = host_axil_64b_ar_gnt_subtractive && subtractive_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign subtractive_axi_arid = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.id : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.id : '0);
-    assign subtractive_axi_araddr = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.addr : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.addr : '0);
-    assign subtractive_axi_arlen = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.len : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.len : '0);
-    assign subtractive_axi_arsize = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.size : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.size : '0);
-    assign subtractive_axi_arburst = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.burst : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.burst : '0);
-    assign subtractive_axi_arlock = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.lock : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.lock : '0);
-    assign subtractive_axi_arcache = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.cache : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.cache : '0);
-    assign subtractive_axi_arprot = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.prot : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.prot : '0);
-    assign subtractive_axi_arqos = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.qos : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.qos : '0);
-    assign subtractive_axi_arregion = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.region : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.region : '0);
-    assign subtractive_axi_aruser = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.user : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar.user : '0);
+    assign subtractive_axi_arid = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.id : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.id : '0);
+    assign subtractive_axi_araddr = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.addr : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.addr : '0);
+    assign subtractive_axi_arlen = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.len : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.len : '0);
+    assign subtractive_axi_arsize = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.size : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.size : '0);
+    assign subtractive_axi_arburst = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.burst : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.burst : '0);
+    assign subtractive_axi_arlock = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.lock : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.lock : '0);
+    assign subtractive_axi_arcache = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.cache : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.cache : '0);
+    assign subtractive_axi_arprot = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.prot : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.prot : '0);
+    assign subtractive_axi_arqos = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.qos : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.qos : '0);
+    assign subtractive_axi_arregion = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.region : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.region : '0);
+    assign subtractive_axi_aruser = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.user : '0) |
+        (host_axil_64b_ar_gnt_subtractive ? host_axil_64b_ar_slot_subtractive.user : '0);
     assign subtractive_axi_arvalid = cpu_axi4_64b_ar_gnt_subtractive || host_axil_64b_ar_gnt_subtractive;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -946,7 +1016,7 @@ module bridge_2x2_axi3_slaves_xbar
     assign cpu_axi4_64b_awready = 
         (cpu_axi4_64b_aw_gnt_ddr_axi3 ? ddr_axi3_axi_awready : '0) |
         (cpu_axi4_64b_aw_gnt_sram_axi3 ? sram_axi3_axi_awready : '0) |
-        (cpu_axi4_64b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((cpu_axi4_64b_aw_to_subtractive) ? cpu_axi4_64b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_axi4_64b_wready = 
         (cpu_axi4_64b_w_sel_ddr_axi3 ? ddr_axi3_axi_wready : '0) |
@@ -976,7 +1046,7 @@ module bridge_2x2_axi3_slaves_xbar
     assign cpu_axi4_64b_arready = 
         (cpu_axi4_64b_ar_gnt_ddr_axi3 ? ddr_axi3_axi_arready : '0) |
         (cpu_axi4_64b_ar_gnt_sram_axi3 ? sram_axi3_axi_arready : '0) |
-        (cpu_axi4_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((cpu_axi4_64b_ar_to_subtractive) ? cpu_axi4_64b_ar_slot_subtractive_in_ready : '0);
 
     assign cpu_axi4_64b_r.id = 
         (cpu_axi4_64b_r_rgnt_ddr_axi3 ? ddr_axi3_axi_rid : '0) |
@@ -1013,7 +1083,7 @@ module bridge_2x2_axi3_slaves_xbar
     assign host_axil_64b_awready = 
         (host_axil_64b_aw_gnt_ddr_axi3 ? ddr_axi3_axi_awready : '0) |
         (host_axil_64b_aw_gnt_sram_axi3 ? sram_axi3_axi_awready : '0) |
-        (host_axil_64b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((host_axil_64b_aw_to_subtractive) ? host_axil_64b_aw_slot_subtractive_in_ready : '0);
 
     assign host_axil_64b_wready = 
         (host_axil_64b_w_sel_ddr_axi3 ? ddr_axi3_axi_wready : '0) |
@@ -1043,7 +1113,7 @@ module bridge_2x2_axi3_slaves_xbar
     assign host_axil_64b_arready = 
         (host_axil_64b_ar_gnt_ddr_axi3 ? ddr_axi3_axi_arready : '0) |
         (host_axil_64b_ar_gnt_sram_axi3 ? sram_axi3_axi_arready : '0) |
-        (host_axil_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((host_axil_64b_ar_to_subtractive) ? host_axil_64b_ar_slot_subtractive_in_ready : '0);
 
     assign host_axil_64b_r.id = 
         (host_axil_64b_r_rgnt_ddr_axi3 ? ddr_axi3_axi_rid : '0) |

@@ -331,6 +331,7 @@ class BridgeModuleGenerator:
             enable_monitoring=self.enable_monitoring and not slave_is_internal,
             slave_index=slave_index,
             num_masters=len(self.masters),
+            arbitrated=sum(1 for m in self.masters if slave_index in m.slave_connections) >= 2,
         )
         return slave_adapter_gen.generate()
 

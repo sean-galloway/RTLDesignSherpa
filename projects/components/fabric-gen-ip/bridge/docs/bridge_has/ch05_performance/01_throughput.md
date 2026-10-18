@@ -181,8 +181,14 @@ last.)
 
 ### Multi-Master Scaling
 
-With fair round-robin arbitration (measured above: 0.499 / 0.501 at the
-shared port; the sum stays at one beat per cycle):
+Arbitration is a fair round-robin (measured above: 0.499 / 0.501 at the
+shared port; the sum stays at one beat per cycle). The pick is made at the
+slave's pins from per-master request slots, so the round-robin holds when
+the slave throttles too: against a slave taking two transactions at a time,
+a master with 2 in flight gets 0.50 of it against another master's 8 (it
+got 0.34 while granted requests queued behind the arbiter). A slave that
+accepts many at once keeps its own queue, and the share inside it follows
+each master's outstanding count. Per master, then:
 
 ```
 Per-Master Throughput = Peak Throughput / Active Masters (to same slave)

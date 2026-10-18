@@ -422,6 +422,52 @@ module bridge_mix_b_mon_xbar
     logic host_axil_128b_w_to_subtractive;
     logic host_axil_128b_w_sel_subtractive;
 
+    // Request slots of the arbitrated slaves (assigned below)
+    axi4_aw_t cpu_axi4_128b_aw_slot_ddr;
+    logic cpu_axi4_128b_aw_slot_ddr_valid, cpu_axi4_128b_aw_slot_ddr_ready, cpu_axi4_128b_aw_slot_ddr_in_valid, cpu_axi4_128b_aw_slot_ddr_in_ready;
+    axi4_aw_t dma_axi4_128b_aw_slot_ddr;
+    logic dma_axi4_128b_aw_slot_ddr_valid, dma_axi4_128b_aw_slot_ddr_ready, dma_axi4_128b_aw_slot_ddr_in_valid, dma_axi4_128b_aw_slot_ddr_in_ready;
+    axi4_aw_t cpu_axi4_64b_aw_slot_scratch;
+    logic cpu_axi4_64b_aw_slot_scratch_valid, cpu_axi4_64b_aw_slot_scratch_ready, cpu_axi4_64b_aw_slot_scratch_in_valid, cpu_axi4_64b_aw_slot_scratch_in_ready;
+    axi4_aw_t dma_axi4_64b_aw_slot_scratch;
+    logic dma_axi4_64b_aw_slot_scratch_valid, dma_axi4_64b_aw_slot_scratch_ready, dma_axi4_64b_aw_slot_scratch_in_valid, dma_axi4_64b_aw_slot_scratch_in_ready;
+    axi4_aw_t host_axil_64b_aw_slot_scratch;
+    logic host_axil_64b_aw_slot_scratch_valid, host_axil_64b_aw_slot_scratch_ready, host_axil_64b_aw_slot_scratch_in_valid, host_axil_64b_aw_slot_scratch_in_ready;
+    axi4_aw_t cpu_axi4_128b_aw_slot_subtractive;
+    logic cpu_axi4_128b_aw_slot_subtractive_valid, cpu_axi4_128b_aw_slot_subtractive_ready, cpu_axi4_128b_aw_slot_subtractive_in_valid, cpu_axi4_128b_aw_slot_subtractive_in_ready;
+    axi4_aw_t dma_axi4_128b_aw_slot_subtractive;
+    logic dma_axi4_128b_aw_slot_subtractive_valid, dma_axi4_128b_aw_slot_subtractive_ready, dma_axi4_128b_aw_slot_subtractive_in_valid, dma_axi4_128b_aw_slot_subtractive_in_ready;
+    axi4_aw_t host_axil_128b_aw_slot_subtractive;
+    logic host_axil_128b_aw_slot_subtractive_valid, host_axil_128b_aw_slot_subtractive_ready, host_axil_128b_aw_slot_subtractive_in_valid, host_axil_128b_aw_slot_subtractive_in_ready;
+    axi4_ar_t cpu_axi4_128b_ar_slot_ddr;
+    logic cpu_axi4_128b_ar_slot_ddr_valid, cpu_axi4_128b_ar_slot_ddr_ready, cpu_axi4_128b_ar_slot_ddr_in_valid, cpu_axi4_128b_ar_slot_ddr_in_ready;
+    axi4_ar_t dma_axi4_128b_ar_slot_ddr;
+    logic dma_axi4_128b_ar_slot_ddr_valid, dma_axi4_128b_ar_slot_ddr_ready, dma_axi4_128b_ar_slot_ddr_in_valid, dma_axi4_128b_ar_slot_ddr_in_ready;
+    axi4_ar_t cpu_axi4_64b_ar_slot_scratch;
+    logic cpu_axi4_64b_ar_slot_scratch_valid, cpu_axi4_64b_ar_slot_scratch_ready, cpu_axi4_64b_ar_slot_scratch_in_valid, cpu_axi4_64b_ar_slot_scratch_in_ready;
+    axi4_ar_t dma_axi4_64b_ar_slot_scratch;
+    logic dma_axi4_64b_ar_slot_scratch_valid, dma_axi4_64b_ar_slot_scratch_ready, dma_axi4_64b_ar_slot_scratch_in_valid, dma_axi4_64b_ar_slot_scratch_in_ready;
+    axi4_ar_t host_axil_64b_ar_slot_scratch;
+    logic host_axil_64b_ar_slot_scratch_valid, host_axil_64b_ar_slot_scratch_ready, host_axil_64b_ar_slot_scratch_in_valid, host_axil_64b_ar_slot_scratch_in_ready;
+    axi4_ar_t cpu_axi4_128b_ar_slot_subtractive;
+    logic cpu_axi4_128b_ar_slot_subtractive_valid, cpu_axi4_128b_ar_slot_subtractive_ready, cpu_axi4_128b_ar_slot_subtractive_in_valid, cpu_axi4_128b_ar_slot_subtractive_in_ready;
+    axi4_ar_t dma_axi4_128b_ar_slot_subtractive;
+    logic dma_axi4_128b_ar_slot_subtractive_valid, dma_axi4_128b_ar_slot_subtractive_ready, dma_axi4_128b_ar_slot_subtractive_in_valid, dma_axi4_128b_ar_slot_subtractive_in_ready;
+    axi4_ar_t host_axil_128b_ar_slot_subtractive;
+    logic host_axil_128b_ar_slot_subtractive_valid, host_axil_128b_ar_slot_subtractive_ready, host_axil_128b_ar_slot_subtractive_in_valid, host_axil_128b_ar_slot_subtractive_in_ready;
+    // Write ordering: a master's AW waits while another of its slots
+    // holds an AW (see _generate_request_slots)
+    wire cpu_axi4_32b_aw_hold_apb_periph = cpu_axi4_128b_aw_slot_ddr_valid || cpu_axi4_64b_aw_slot_scratch_valid || cpu_axi4_128b_aw_slot_subtractive_valid;
+    wire cpu_axi4_64b_aw_hold_scratch = cpu_axi4_128b_aw_slot_ddr_valid || cpu_axi4_128b_aw_slot_subtractive_valid;
+    wire cpu_axi4_128b_aw_hold_ddr = cpu_axi4_64b_aw_slot_scratch_valid || cpu_axi4_128b_aw_slot_subtractive_valid;
+    wire cpu_axi4_128b_aw_hold_subtractive = cpu_axi4_128b_aw_slot_ddr_valid || cpu_axi4_64b_aw_slot_scratch_valid;
+    wire dma_axi4_64b_aw_hold_scratch = dma_axi4_128b_aw_slot_ddr_valid || dma_axi4_128b_aw_slot_subtractive_valid;
+    wire dma_axi4_128b_aw_hold_ddr = dma_axi4_64b_aw_slot_scratch_valid || dma_axi4_128b_aw_slot_subtractive_valid;
+    wire dma_axi4_128b_aw_hold_subtractive = dma_axi4_128b_aw_slot_ddr_valid || dma_axi4_64b_aw_slot_scratch_valid;
+    wire host_axil_32b_aw_hold_apb_periph = host_axil_64b_aw_slot_scratch_valid || host_axil_128b_aw_slot_subtractive_valid;
+    wire host_axil_64b_aw_hold_scratch = host_axil_128b_aw_slot_subtractive_valid;
+    wire host_axil_128b_aw_hold_subtractive = host_axil_64b_aw_slot_scratch_valid;
+
     // ================================================================
     // Response arbiters (one slave per master path per channel)
     // ================================================================
@@ -578,9 +624,29 @@ module bridge_mix_b_mon_xbar
     wire dma_axi4_128b_aw_to_ddr = (dma_axi4_128b_aw.addr <= 32'h3fffffff);
     wire dma_axi4_128b_ar_to_ddr = (dma_axi4_128b_ar.addr <= 32'h3fffffff);
 
+    // AW request slots for ddr: arbitration at the slave pins
+    assign cpu_axi4_128b_aw_slot_ddr_in_valid = cpu_axi4_128b_aw_to_ddr && cpu_axi4_128b_awvalid && !cpu_axi4_128b_aw_hold_ddr;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_128b_aw_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_128b_aw_slot_ddr_in_valid), .wr_ready(cpu_axi4_128b_aw_slot_ddr_in_ready), .wr_data(cpu_axi4_128b_aw),
+        .rd_valid(cpu_axi4_128b_aw_slot_ddr_valid), .rd_ready(cpu_axi4_128b_aw_slot_ddr_ready), .rd_data(cpu_axi4_128b_aw_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_axi4_128b_aw_slot_ddr_in_valid = dma_axi4_128b_aw_to_ddr && dma_axi4_128b_awvalid && !dma_axi4_128b_aw_hold_ddr;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_axi4_128b_aw_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_axi4_128b_aw_slot_ddr_in_valid), .wr_ready(dma_axi4_128b_aw_slot_ddr_in_ready), .wr_data(dma_axi4_128b_aw),
+        .rd_valid(dma_axi4_128b_aw_slot_ddr_valid), .rd_ready(dma_axi4_128b_aw_slot_ddr_ready), .rd_data(dma_axi4_128b_aw_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for ddr: round-robin, lock until handshake ----
     logic [1:0] ddr_aw_arb_req;
-    assign ddr_aw_arb_req = {dma_axi4_128b_aw_to_ddr && dma_axi4_128b_awvalid, cpu_axi4_128b_aw_to_ddr && cpu_axi4_128b_awvalid};
+    assign ddr_aw_arb_req = {dma_axi4_128b_aw_slot_ddr_valid, cpu_axi4_128b_aw_slot_ddr_valid};
     logic [0:0] ddr_aw_arb_lock, ddr_aw_arb_rr;
     logic ddr_aw_arb_locked;
     wire [0:0] ddr_aw_arb_pick = (ddr_aw_arb_rr == 1'd0) ? (ddr_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -604,54 +670,66 @@ module bridge_mix_b_mon_xbar
     )
     wire cpu_axi4_128b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd0) && ddr_aw_arb_req[0];
     wire dma_axi4_128b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd1) && ddr_aw_arb_req[1];
+    assign cpu_axi4_128b_aw_slot_ddr_ready = cpu_axi4_128b_aw_gnt_ddr && ddr_axi_awready;
+    assign dma_axi4_128b_aw_slot_ddr_ready = dma_axi4_128b_aw_gnt_ddr && ddr_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign ddr_axi_awid = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.id : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.id : '0);
-    assign ddr_axi_awaddr = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.addr : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.addr : '0);
-    assign ddr_axi_awlen = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.len : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.len : '0);
-    assign ddr_axi_awsize = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.size : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.size : '0);
-    assign ddr_axi_awburst = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.burst : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.burst : '0);
-    assign ddr_axi_awlock = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.lock : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.lock : '0);
-    assign ddr_axi_awcache = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.cache : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.cache : '0);
-    assign ddr_axi_awprot = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.prot : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.prot : '0);
-    assign ddr_axi_awqos = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.qos : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.qos : '0);
-    assign ddr_axi_awregion = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.region : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.region : '0);
-    assign ddr_axi_awuser = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.user : '0) |
-        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.user : '0);
+    assign ddr_axi_awid = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.id : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.id : '0);
+    assign ddr_axi_awaddr = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.addr : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.addr : '0);
+    assign ddr_axi_awlen = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.len : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.len : '0);
+    assign ddr_axi_awsize = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.size : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.size : '0);
+    assign ddr_axi_awburst = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.burst : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.burst : '0);
+    assign ddr_axi_awlock = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.lock : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.lock : '0);
+    assign ddr_axi_awcache = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.cache : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.cache : '0);
+    assign ddr_axi_awprot = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.prot : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.prot : '0);
+    assign ddr_axi_awqos = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.qos : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.qos : '0);
+    assign ddr_axi_awregion = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.region : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.region : '0);
+    assign ddr_axi_awuser = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw_slot_ddr.user : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw_slot_ddr.user : '0);
     assign ddr_axi_awvalid = cpu_axi4_128b_aw_gnt_ddr || dma_axi4_128b_aw_gnt_ddr;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
+    logic ddr_wowner_ahead;
+    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
+    wire ddr_wowner_byp = !ddr_wowner_valid && !ddr_wowner_ahead && ddr_axi_awvalid;
+    wire ddr_wowner_aw_hs = ddr_axi_awvalid && ddr_axi_awready;
+    wire ddr_wowner_w_end = ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            ddr_wowner_wptr <= '0;
-            ddr_wowner_rptr <= '0;
+            ddr_wowner_wptr  <= '0;
+            ddr_wowner_rptr  <= '0;
+            ddr_wowner_ahead <= 1'b0;
         end else begin
-            if (ddr_axi_awvalid && ddr_axi_awready) begin
+            if (ddr_wowner_aw_hs && ddr_wowner_ahead) begin
+                ddr_wowner_ahead <= 1'b0;   // its W already went
+            end else if (ddr_wowner_aw_hs && !(ddr_wowner_byp && ddr_wowner_w_end)) begin
                 ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
                 ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
+            end else if (!ddr_wowner_aw_hs && ddr_wowner_byp && ddr_wowner_w_end) begin
+                ddr_wowner_ahead <= 1'b1;
             end
-            if (ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast) begin
+            if (ddr_wowner_valid && ddr_wowner_w_end) begin
                 ddr_wowner_rptr <= ddr_wowner_rptr + 1'b1;
             end
         end
     )
-    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
-    wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
-    assign cpu_axi4_128b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && cpu_axi4_128b_w_to_ddr;
-    assign dma_axi4_128b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd1) && dma_axi4_128b_w_to_ddr;
+    wire [0:0] ddr_wowner_head = ddr_wowner_valid ? ddr_wowner_mem[ddr_wowner_rptr[3:0]]
+                                       : ddr_aw_arb_gnt;
+    assign cpu_axi4_128b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd0) && cpu_axi4_128b_w_to_ddr;
+    assign dma_axi4_128b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd1) && dma_axi4_128b_w_to_ddr;
 
     // W channel (owner-gated mux across writing masters)
     assign ddr_axi_wdata = ((cpu_axi4_128b_w_sel_ddr && cpu_axi4_128b_wvalid) ? cpu_axi4_128b_w.data : '0) |
@@ -672,9 +750,29 @@ module bridge_mix_b_mon_xbar
     assign ddr_axi_bridge_id_aw = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_bridge_id_aw : '0) |
         (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_bridge_id_aw : '0);
 
+    // AR request slots for ddr: arbitration at the slave pins
+    assign cpu_axi4_128b_ar_slot_ddr_in_valid = cpu_axi4_128b_ar_to_ddr && cpu_axi4_128b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_axi4_128b_ar_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_128b_ar_slot_ddr_in_valid), .wr_ready(cpu_axi4_128b_ar_slot_ddr_in_ready), .wr_data(cpu_axi4_128b_ar),
+        .rd_valid(cpu_axi4_128b_ar_slot_ddr_valid), .rd_ready(cpu_axi4_128b_ar_slot_ddr_ready), .rd_data(cpu_axi4_128b_ar_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_axi4_128b_ar_slot_ddr_in_valid = dma_axi4_128b_ar_to_ddr && dma_axi4_128b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_dma_axi4_128b_ar_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_axi4_128b_ar_slot_ddr_in_valid), .wr_ready(dma_axi4_128b_ar_slot_ddr_in_ready), .wr_data(dma_axi4_128b_ar),
+        .rd_valid(dma_axi4_128b_ar_slot_ddr_valid), .rd_ready(dma_axi4_128b_ar_slot_ddr_ready), .rd_data(dma_axi4_128b_ar_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for ddr: round-robin, lock until handshake ----
     logic [1:0] ddr_ar_arb_req;
-    assign ddr_ar_arb_req = {dma_axi4_128b_ar_to_ddr && dma_axi4_128b_arvalid, cpu_axi4_128b_ar_to_ddr && cpu_axi4_128b_arvalid};
+    assign ddr_ar_arb_req = {dma_axi4_128b_ar_slot_ddr_valid, cpu_axi4_128b_ar_slot_ddr_valid};
     logic [0:0] ddr_ar_arb_lock, ddr_ar_arb_rr;
     logic ddr_ar_arb_locked;
     wire [0:0] ddr_ar_arb_pick = (ddr_ar_arb_rr == 1'd0) ? (ddr_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -698,30 +796,32 @@ module bridge_mix_b_mon_xbar
     )
     wire cpu_axi4_128b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd0) && ddr_ar_arb_req[0];
     wire dma_axi4_128b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd1) && ddr_ar_arb_req[1];
+    assign cpu_axi4_128b_ar_slot_ddr_ready = cpu_axi4_128b_ar_gnt_ddr && ddr_axi_arready;
+    assign dma_axi4_128b_ar_slot_ddr_ready = dma_axi4_128b_ar_gnt_ddr && ddr_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign ddr_axi_arid = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.id : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.id : '0);
-    assign ddr_axi_araddr = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.addr : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.addr : '0);
-    assign ddr_axi_arlen = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.len : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.len : '0);
-    assign ddr_axi_arsize = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.size : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.size : '0);
-    assign ddr_axi_arburst = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.burst : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.burst : '0);
-    assign ddr_axi_arlock = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.lock : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.lock : '0);
-    assign ddr_axi_arcache = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.cache : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.cache : '0);
-    assign ddr_axi_arprot = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.prot : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.prot : '0);
-    assign ddr_axi_arqos = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.qos : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.qos : '0);
-    assign ddr_axi_arregion = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.region : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.region : '0);
-    assign ddr_axi_aruser = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.user : '0) |
-        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.user : '0);
+    assign ddr_axi_arid = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.id : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.id : '0);
+    assign ddr_axi_araddr = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.addr : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.addr : '0);
+    assign ddr_axi_arlen = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.len : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.len : '0);
+    assign ddr_axi_arsize = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.size : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.size : '0);
+    assign ddr_axi_arburst = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.burst : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.burst : '0);
+    assign ddr_axi_arlock = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.lock : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.lock : '0);
+    assign ddr_axi_arcache = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.cache : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.cache : '0);
+    assign ddr_axi_arprot = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.prot : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.prot : '0);
+    assign ddr_axi_arqos = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.qos : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.qos : '0);
+    assign ddr_axi_arregion = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.region : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.region : '0);
+    assign ddr_axi_aruser = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar_slot_ddr.user : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar_slot_ddr.user : '0);
     assign ddr_axi_arvalid = cpu_axi4_128b_ar_gnt_ddr || dma_axi4_128b_ar_gnt_ddr;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -748,9 +848,38 @@ module bridge_mix_b_mon_xbar
     wire host_axil_64b_aw_to_scratch = ((host_axil_64b_aw.addr >= 32'h40000000) && (host_axil_64b_aw.addr <= 32'h400fffff));
     wire host_axil_64b_ar_to_scratch = ((host_axil_64b_ar.addr >= 32'h40000000) && (host_axil_64b_ar.addr <= 32'h400fffff));
 
+    // AW request slots for scratch: arbitration at the slave pins
+    assign cpu_axi4_64b_aw_slot_scratch_in_valid = cpu_axi4_64b_aw_to_scratch && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_scratch;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_scratch (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_64b_aw_slot_scratch_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_scratch_in_ready), .wr_data(cpu_axi4_64b_aw),
+        .rd_valid(cpu_axi4_64b_aw_slot_scratch_valid), .rd_ready(cpu_axi4_64b_aw_slot_scratch_ready), .rd_data(cpu_axi4_64b_aw_slot_scratch),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_axi4_64b_aw_slot_scratch_in_valid = dma_axi4_64b_aw_to_scratch && dma_axi4_64b_awvalid && !dma_axi4_64b_aw_hold_scratch;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_axi4_64b_aw_slot_scratch (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_axi4_64b_aw_slot_scratch_in_valid), .wr_ready(dma_axi4_64b_aw_slot_scratch_in_ready), .wr_data(dma_axi4_64b_aw),
+        .rd_valid(dma_axi4_64b_aw_slot_scratch_valid), .rd_ready(dma_axi4_64b_aw_slot_scratch_ready), .rd_data(dma_axi4_64b_aw_slot_scratch),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign host_axil_64b_aw_slot_scratch_in_valid = host_axil_64b_aw_to_scratch && host_axil_64b_awvalid && !host_axil_64b_aw_hold_scratch;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_64b_aw_slot_scratch (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_axil_64b_aw_slot_scratch_in_valid), .wr_ready(host_axil_64b_aw_slot_scratch_in_ready), .wr_data(host_axil_64b_aw),
+        .rd_valid(host_axil_64b_aw_slot_scratch_valid), .rd_ready(host_axil_64b_aw_slot_scratch_ready), .rd_data(host_axil_64b_aw_slot_scratch),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for scratch: round-robin, lock until handshake ----
     logic [2:0] scratch_aw_arb_req;
-    assign scratch_aw_arb_req = {host_axil_64b_aw_to_scratch && host_axil_64b_awvalid, dma_axi4_64b_aw_to_scratch && dma_axi4_64b_awvalid, cpu_axi4_64b_aw_to_scratch && cpu_axi4_64b_awvalid};
+    assign scratch_aw_arb_req = {host_axil_64b_aw_slot_scratch_valid, dma_axi4_64b_aw_slot_scratch_valid, cpu_axi4_64b_aw_slot_scratch_valid};
     logic [1:0] scratch_aw_arb_lock, scratch_aw_arb_rr;
     logic scratch_aw_arb_locked;
     wire [1:0] scratch_aw_arb_pick = (scratch_aw_arb_rr == 2'd0) ? (scratch_aw_arb_req[0] ? 2'd0 : scratch_aw_arb_req[1] ? 2'd1 : 2'd2) : 
@@ -776,66 +905,79 @@ module bridge_mix_b_mon_xbar
     wire cpu_axi4_64b_aw_gnt_scratch = scratch_aw_arb_gnt_valid && (scratch_aw_arb_gnt == 2'd0) && scratch_aw_arb_req[0];
     wire dma_axi4_64b_aw_gnt_scratch = scratch_aw_arb_gnt_valid && (scratch_aw_arb_gnt == 2'd1) && scratch_aw_arb_req[1];
     wire host_axil_64b_aw_gnt_scratch = scratch_aw_arb_gnt_valid && (scratch_aw_arb_gnt == 2'd2) && scratch_aw_arb_req[2];
+    assign cpu_axi4_64b_aw_slot_scratch_ready = cpu_axi4_64b_aw_gnt_scratch && scratch_axi_awready;
+    assign dma_axi4_64b_aw_slot_scratch_ready = dma_axi4_64b_aw_gnt_scratch && scratch_axi_awready;
+    assign host_axil_64b_aw_slot_scratch_ready = host_axil_64b_aw_gnt_scratch && scratch_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign scratch_axi_awid = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.id : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.id : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.id : '0);
-    assign scratch_axi_awaddr = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.addr : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.addr : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.addr : '0);
-    assign scratch_axi_awlen = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.len : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.len : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.len : '0);
-    assign scratch_axi_awsize = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.size : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.size : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.size : '0);
-    assign scratch_axi_awburst = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.burst : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.burst : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.burst : '0);
-    assign scratch_axi_awlock = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.lock : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.lock : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.lock : '0);
-    assign scratch_axi_awcache = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.cache : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.cache : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.cache : '0);
-    assign scratch_axi_awprot = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.prot : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.prot : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.prot : '0);
-    assign scratch_axi_awqos = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.qos : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.qos : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.qos : '0);
-    assign scratch_axi_awregion = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.region : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.region : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.region : '0);
-    assign scratch_axi_awuser = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.user : '0) |
-        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.user : '0) |
-        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.user : '0);
+    assign scratch_axi_awid = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.id : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.id : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.id : '0);
+    assign scratch_axi_awaddr = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.addr : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.addr : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.addr : '0);
+    assign scratch_axi_awlen = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.len : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.len : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.len : '0);
+    assign scratch_axi_awsize = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.size : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.size : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.size : '0);
+    assign scratch_axi_awburst = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.burst : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.burst : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.burst : '0);
+    assign scratch_axi_awlock = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.lock : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.lock : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.lock : '0);
+    assign scratch_axi_awcache = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.cache : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.cache : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.cache : '0);
+    assign scratch_axi_awprot = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.prot : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.prot : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.prot : '0);
+    assign scratch_axi_awqos = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.qos : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.qos : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.qos : '0);
+    assign scratch_axi_awregion = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.region : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.region : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.region : '0);
+    assign scratch_axi_awuser = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw_slot_scratch.user : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw_slot_scratch.user : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw_slot_scratch.user : '0);
     assign scratch_axi_awvalid = cpu_axi4_64b_aw_gnt_scratch || dma_axi4_64b_aw_gnt_scratch || host_axil_64b_aw_gnt_scratch;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [1:0] scratch_wowner_mem [16];
     logic [4:0] scratch_wowner_wptr, scratch_wowner_rptr;
+    logic scratch_wowner_ahead;
+    wire scratch_wowner_valid = (scratch_wowner_wptr != scratch_wowner_rptr);
+    wire scratch_wowner_byp = !scratch_wowner_valid && !scratch_wowner_ahead && scratch_axi_awvalid;
+    wire scratch_wowner_aw_hs = scratch_axi_awvalid && scratch_axi_awready;
+    wire scratch_wowner_w_end = scratch_axi_wvalid && scratch_axi_wready && scratch_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            scratch_wowner_wptr <= '0;
-            scratch_wowner_rptr <= '0;
+            scratch_wowner_wptr  <= '0;
+            scratch_wowner_rptr  <= '0;
+            scratch_wowner_ahead <= 1'b0;
         end else begin
-            if (scratch_axi_awvalid && scratch_axi_awready) begin
+            if (scratch_wowner_aw_hs && scratch_wowner_ahead) begin
+                scratch_wowner_ahead <= 1'b0;   // its W already went
+            end else if (scratch_wowner_aw_hs && !(scratch_wowner_byp && scratch_wowner_w_end)) begin
                 scratch_wowner_mem[scratch_wowner_wptr[3:0]] <= scratch_aw_arb_gnt;
                 scratch_wowner_wptr <= scratch_wowner_wptr + 1'b1;
+            end else if (!scratch_wowner_aw_hs && scratch_wowner_byp && scratch_wowner_w_end) begin
+                scratch_wowner_ahead <= 1'b1;
             end
-            if (scratch_axi_wvalid && scratch_axi_wready && scratch_axi_wlast) begin
+            if (scratch_wowner_valid && scratch_wowner_w_end) begin
                 scratch_wowner_rptr <= scratch_wowner_rptr + 1'b1;
             end
         end
     )
-    wire scratch_wowner_valid = (scratch_wowner_wptr != scratch_wowner_rptr);
-    wire [1:0] scratch_wowner_head = scratch_wowner_mem[scratch_wowner_rptr[3:0]];
-    assign cpu_axi4_64b_w_sel_scratch = scratch_wowner_valid && (scratch_wowner_head == 2'd0) && cpu_axi4_64b_w_to_scratch;
-    assign dma_axi4_64b_w_sel_scratch = scratch_wowner_valid && (scratch_wowner_head == 2'd1) && dma_axi4_64b_w_to_scratch;
-    assign host_axil_64b_w_sel_scratch = scratch_wowner_valid && (scratch_wowner_head == 2'd2) && host_axil_64b_w_to_scratch;
+    wire [1:0] scratch_wowner_head = scratch_wowner_valid ? scratch_wowner_mem[scratch_wowner_rptr[3:0]]
+                                       : scratch_aw_arb_gnt;
+    assign cpu_axi4_64b_w_sel_scratch = (scratch_wowner_valid || scratch_wowner_byp) && (scratch_wowner_head == 2'd0) && cpu_axi4_64b_w_to_scratch;
+    assign dma_axi4_64b_w_sel_scratch = (scratch_wowner_valid || scratch_wowner_byp) && (scratch_wowner_head == 2'd1) && dma_axi4_64b_w_to_scratch;
+    assign host_axil_64b_w_sel_scratch = (scratch_wowner_valid || scratch_wowner_byp) && (scratch_wowner_head == 2'd2) && host_axil_64b_w_to_scratch;
 
     // W channel (owner-gated mux across writing masters)
     assign scratch_axi_wdata = ((cpu_axi4_64b_w_sel_scratch && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.data : '0) |
@@ -862,9 +1004,38 @@ module bridge_mix_b_mon_xbar
         (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_bridge_id_aw : '0) |
         (host_axil_64b_aw_gnt_scratch ? host_axil_bridge_id_aw : '0);
 
+    // AR request slots for scratch: arbitration at the slave pins
+    assign cpu_axi4_64b_ar_slot_scratch_in_valid = cpu_axi4_64b_ar_to_scratch && cpu_axi4_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_axi4_64b_ar_slot_scratch (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_64b_ar_slot_scratch_in_valid), .wr_ready(cpu_axi4_64b_ar_slot_scratch_in_ready), .wr_data(cpu_axi4_64b_ar),
+        .rd_valid(cpu_axi4_64b_ar_slot_scratch_valid), .rd_ready(cpu_axi4_64b_ar_slot_scratch_ready), .rd_data(cpu_axi4_64b_ar_slot_scratch),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_axi4_64b_ar_slot_scratch_in_valid = dma_axi4_64b_ar_to_scratch && dma_axi4_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_dma_axi4_64b_ar_slot_scratch (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_axi4_64b_ar_slot_scratch_in_valid), .wr_ready(dma_axi4_64b_ar_slot_scratch_in_ready), .wr_data(dma_axi4_64b_ar),
+        .rd_valid(dma_axi4_64b_ar_slot_scratch_valid), .rd_ready(dma_axi4_64b_ar_slot_scratch_ready), .rd_data(dma_axi4_64b_ar_slot_scratch),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign host_axil_64b_ar_slot_scratch_in_valid = host_axil_64b_ar_to_scratch && host_axil_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_host_axil_64b_ar_slot_scratch (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_axil_64b_ar_slot_scratch_in_valid), .wr_ready(host_axil_64b_ar_slot_scratch_in_ready), .wr_data(host_axil_64b_ar),
+        .rd_valid(host_axil_64b_ar_slot_scratch_valid), .rd_ready(host_axil_64b_ar_slot_scratch_ready), .rd_data(host_axil_64b_ar_slot_scratch),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for scratch: round-robin, lock until handshake ----
     logic [2:0] scratch_ar_arb_req;
-    assign scratch_ar_arb_req = {host_axil_64b_ar_to_scratch && host_axil_64b_arvalid, dma_axi4_64b_ar_to_scratch && dma_axi4_64b_arvalid, cpu_axi4_64b_ar_to_scratch && cpu_axi4_64b_arvalid};
+    assign scratch_ar_arb_req = {host_axil_64b_ar_slot_scratch_valid, dma_axi4_64b_ar_slot_scratch_valid, cpu_axi4_64b_ar_slot_scratch_valid};
     logic [1:0] scratch_ar_arb_lock, scratch_ar_arb_rr;
     logic scratch_ar_arb_locked;
     wire [1:0] scratch_ar_arb_pick = (scratch_ar_arb_rr == 2'd0) ? (scratch_ar_arb_req[0] ? 2'd0 : scratch_ar_arb_req[1] ? 2'd1 : 2'd2) : 
@@ -890,41 +1061,44 @@ module bridge_mix_b_mon_xbar
     wire cpu_axi4_64b_ar_gnt_scratch = scratch_ar_arb_gnt_valid && (scratch_ar_arb_gnt == 2'd0) && scratch_ar_arb_req[0];
     wire dma_axi4_64b_ar_gnt_scratch = scratch_ar_arb_gnt_valid && (scratch_ar_arb_gnt == 2'd1) && scratch_ar_arb_req[1];
     wire host_axil_64b_ar_gnt_scratch = scratch_ar_arb_gnt_valid && (scratch_ar_arb_gnt == 2'd2) && scratch_ar_arb_req[2];
+    assign cpu_axi4_64b_ar_slot_scratch_ready = cpu_axi4_64b_ar_gnt_scratch && scratch_axi_arready;
+    assign dma_axi4_64b_ar_slot_scratch_ready = dma_axi4_64b_ar_gnt_scratch && scratch_axi_arready;
+    assign host_axil_64b_ar_slot_scratch_ready = host_axil_64b_ar_gnt_scratch && scratch_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign scratch_axi_arid = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.id : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.id : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.id : '0);
-    assign scratch_axi_araddr = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.addr : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.addr : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.addr : '0);
-    assign scratch_axi_arlen = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.len : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.len : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.len : '0);
-    assign scratch_axi_arsize = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.size : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.size : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.size : '0);
-    assign scratch_axi_arburst = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.burst : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.burst : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.burst : '0);
-    assign scratch_axi_arlock = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.lock : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.lock : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.lock : '0);
-    assign scratch_axi_arcache = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.cache : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.cache : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.cache : '0);
-    assign scratch_axi_arprot = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.prot : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.prot : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.prot : '0);
-    assign scratch_axi_arqos = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.qos : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.qos : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.qos : '0);
-    assign scratch_axi_arregion = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.region : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.region : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.region : '0);
-    assign scratch_axi_aruser = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.user : '0) |
-        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.user : '0) |
-        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.user : '0);
+    assign scratch_axi_arid = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.id : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.id : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.id : '0);
+    assign scratch_axi_araddr = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.addr : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.addr : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.addr : '0);
+    assign scratch_axi_arlen = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.len : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.len : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.len : '0);
+    assign scratch_axi_arsize = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.size : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.size : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.size : '0);
+    assign scratch_axi_arburst = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.burst : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.burst : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.burst : '0);
+    assign scratch_axi_arlock = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.lock : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.lock : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.lock : '0);
+    assign scratch_axi_arcache = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.cache : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.cache : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.cache : '0);
+    assign scratch_axi_arprot = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.prot : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.prot : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.prot : '0);
+    assign scratch_axi_arqos = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.qos : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.qos : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.qos : '0);
+    assign scratch_axi_arregion = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.region : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.region : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.region : '0);
+    assign scratch_axi_aruser = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar_slot_scratch.user : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar_slot_scratch.user : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar_slot_scratch.user : '0);
     assign scratch_axi_arvalid = cpu_axi4_64b_ar_gnt_scratch || dma_axi4_64b_ar_gnt_scratch || host_axil_64b_ar_gnt_scratch;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -952,7 +1126,7 @@ module bridge_mix_b_mon_xbar
 
     // ---- AW arbiter for apb_periph: round-robin, lock until handshake ----
     logic [1:0] apb_periph_aw_arb_req;
-    assign apb_periph_aw_arb_req = {host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid, cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid};
+    assign apb_periph_aw_arb_req = {host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid && !host_axil_32b_aw_hold_apb_periph, cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid && !cpu_axi4_32b_aw_hold_apb_periph};
     logic [0:0] apb_periph_aw_arb_lock, apb_periph_aw_arb_rr;
     logic apb_periph_aw_arb_locked;
     wire [0:0] apb_periph_aw_arb_pick = (apb_periph_aw_arb_rr == 1'd0) ? (apb_periph_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -1002,7 +1176,7 @@ module bridge_mix_b_mon_xbar
         (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.user : '0);
     assign apb_periph_axi_awvalid = cpu_axi4_32b_aw_gnt_apb_periph || host_axil_32b_aw_gnt_apb_periph;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] apb_periph_wowner_mem [16];
     logic [4:0] apb_periph_wowner_wptr, apb_periph_wowner_rptr;
@@ -1120,9 +1294,38 @@ module bridge_mix_b_mon_xbar
     wire host_axil_128b_aw_to_subtractive = !((((host_axil_128b_aw.addr >= 32'h40000000) && (host_axil_128b_aw.addr <= 32'h400fffff))) || (((host_axil_128b_aw.addr >= 32'h40100000) && (host_axil_128b_aw.addr <= 32'h4010ffff))));
     wire host_axil_128b_ar_to_subtractive = !((((host_axil_128b_ar.addr >= 32'h40000000) && (host_axil_128b_ar.addr <= 32'h400fffff))) || (((host_axil_128b_ar.addr >= 32'h40100000) && (host_axil_128b_ar.addr <= 32'h4010ffff))));
 
+    // AW request slots for subtractive: arbitration at the slave pins
+    assign cpu_axi4_128b_aw_slot_subtractive_in_valid = cpu_axi4_128b_aw_to_subtractive && cpu_axi4_128b_awvalid && !cpu_axi4_128b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_128b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_128b_aw_slot_subtractive_in_valid), .wr_ready(cpu_axi4_128b_aw_slot_subtractive_in_ready), .wr_data(cpu_axi4_128b_aw),
+        .rd_valid(cpu_axi4_128b_aw_slot_subtractive_valid), .rd_ready(cpu_axi4_128b_aw_slot_subtractive_ready), .rd_data(cpu_axi4_128b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_axi4_128b_aw_slot_subtractive_in_valid = dma_axi4_128b_aw_to_subtractive && dma_axi4_128b_awvalid && !dma_axi4_128b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_axi4_128b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_axi4_128b_aw_slot_subtractive_in_valid), .wr_ready(dma_axi4_128b_aw_slot_subtractive_in_ready), .wr_data(dma_axi4_128b_aw),
+        .rd_valid(dma_axi4_128b_aw_slot_subtractive_valid), .rd_ready(dma_axi4_128b_aw_slot_subtractive_ready), .rd_data(dma_axi4_128b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign host_axil_128b_aw_slot_subtractive_in_valid = host_axil_128b_aw_to_subtractive && host_axil_128b_awvalid && !host_axil_128b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_128b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_axil_128b_aw_slot_subtractive_in_valid), .wr_ready(host_axil_128b_aw_slot_subtractive_in_ready), .wr_data(host_axil_128b_aw),
+        .rd_valid(host_axil_128b_aw_slot_subtractive_valid), .rd_ready(host_axil_128b_aw_slot_subtractive_ready), .rd_data(host_axil_128b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for subtractive: round-robin, lock until handshake ----
     logic [2:0] subtractive_aw_arb_req;
-    assign subtractive_aw_arb_req = {host_axil_128b_aw_to_subtractive && host_axil_128b_awvalid, dma_axi4_128b_aw_to_subtractive && dma_axi4_128b_awvalid, cpu_axi4_128b_aw_to_subtractive && cpu_axi4_128b_awvalid};
+    assign subtractive_aw_arb_req = {host_axil_128b_aw_slot_subtractive_valid, dma_axi4_128b_aw_slot_subtractive_valid, cpu_axi4_128b_aw_slot_subtractive_valid};
     logic [1:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
     logic subtractive_aw_arb_locked;
     wire [1:0] subtractive_aw_arb_pick = (subtractive_aw_arb_rr == 2'd0) ? (subtractive_aw_arb_req[0] ? 2'd0 : subtractive_aw_arb_req[1] ? 2'd1 : 2'd2) : 
@@ -1148,66 +1351,79 @@ module bridge_mix_b_mon_xbar
     wire cpu_axi4_128b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 2'd0) && subtractive_aw_arb_req[0];
     wire dma_axi4_128b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 2'd1) && subtractive_aw_arb_req[1];
     wire host_axil_128b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 2'd2) && subtractive_aw_arb_req[2];
+    assign cpu_axi4_128b_aw_slot_subtractive_ready = cpu_axi4_128b_aw_gnt_subtractive && subtractive_axi_awready;
+    assign dma_axi4_128b_aw_slot_subtractive_ready = dma_axi4_128b_aw_gnt_subtractive && subtractive_axi_awready;
+    assign host_axil_128b_aw_slot_subtractive_ready = host_axil_128b_aw_gnt_subtractive && subtractive_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign subtractive_axi_awid = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.id : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.id : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.id : '0);
-    assign subtractive_axi_awaddr = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.addr : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.addr : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.addr : '0);
-    assign subtractive_axi_awlen = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.len : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.len : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.len : '0);
-    assign subtractive_axi_awsize = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.size : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.size : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.size : '0);
-    assign subtractive_axi_awburst = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.burst : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.burst : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.burst : '0);
-    assign subtractive_axi_awlock = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.lock : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.lock : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.lock : '0);
-    assign subtractive_axi_awcache = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.cache : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.cache : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.cache : '0);
-    assign subtractive_axi_awprot = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.prot : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.prot : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.prot : '0);
-    assign subtractive_axi_awqos = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.qos : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.qos : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.qos : '0);
-    assign subtractive_axi_awregion = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.region : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.region : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.region : '0);
-    assign subtractive_axi_awuser = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw.user : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw.user : '0) |
-        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw.user : '0);
+    assign subtractive_axi_awid = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.id : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.id : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.id : '0);
+    assign subtractive_axi_awaddr = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.addr : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.addr : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.addr : '0);
+    assign subtractive_axi_awlen = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.len : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.len : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.len : '0);
+    assign subtractive_axi_awsize = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.size : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.size : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.size : '0);
+    assign subtractive_axi_awburst = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.burst : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.burst : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.burst : '0);
+    assign subtractive_axi_awlock = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.lock : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.lock : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.lock : '0);
+    assign subtractive_axi_awcache = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.cache : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.cache : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.cache : '0);
+    assign subtractive_axi_awprot = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.prot : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.prot : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.prot : '0);
+    assign subtractive_axi_awqos = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.qos : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.qos : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.qos : '0);
+    assign subtractive_axi_awregion = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.region : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.region : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.region : '0);
+    assign subtractive_axi_awuser = (cpu_axi4_128b_aw_gnt_subtractive ? cpu_axi4_128b_aw_slot_subtractive.user : '0) |
+        (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_128b_aw_slot_subtractive.user : '0) |
+        (host_axil_128b_aw_gnt_subtractive ? host_axil_128b_aw_slot_subtractive.user : '0);
     assign subtractive_axi_awvalid = cpu_axi4_128b_aw_gnt_subtractive || dma_axi4_128b_aw_gnt_subtractive || host_axil_128b_aw_gnt_subtractive;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [1:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    logic subtractive_wowner_ahead;
+    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
+    wire subtractive_wowner_byp = !subtractive_wowner_valid && !subtractive_wowner_ahead && subtractive_axi_awvalid;
+    wire subtractive_wowner_aw_hs = subtractive_axi_awvalid && subtractive_axi_awready;
+    wire subtractive_wowner_w_end = subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            subtractive_wowner_wptr <= '0;
-            subtractive_wowner_rptr <= '0;
+            subtractive_wowner_wptr  <= '0;
+            subtractive_wowner_rptr  <= '0;
+            subtractive_wowner_ahead <= 1'b0;
         end else begin
-            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+            if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
+                subtractive_wowner_ahead <= 1'b0;   // its W already went
+            end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
                 subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
+            end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
+                subtractive_wowner_ahead <= 1'b1;
             end
-            if (subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast) begin
+            if (subtractive_wowner_valid && subtractive_wowner_w_end) begin
                 subtractive_wowner_rptr <= subtractive_wowner_rptr + 1'b1;
             end
         end
     )
-    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
-    wire [1:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
-    assign cpu_axi4_128b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 2'd0) && cpu_axi4_128b_w_to_subtractive;
-    assign dma_axi4_128b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 2'd1) && dma_axi4_128b_w_to_subtractive;
-    assign host_axil_128b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 2'd2) && host_axil_128b_w_to_subtractive;
+    wire [1:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
+                                       : subtractive_aw_arb_gnt;
+    assign cpu_axi4_128b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 2'd0) && cpu_axi4_128b_w_to_subtractive;
+    assign dma_axi4_128b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 2'd1) && dma_axi4_128b_w_to_subtractive;
+    assign host_axil_128b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 2'd2) && host_axil_128b_w_to_subtractive;
 
     // W channel (owner-gated mux across writing masters)
     assign subtractive_axi_wdata = ((cpu_axi4_128b_w_sel_subtractive && cpu_axi4_128b_wvalid) ? cpu_axi4_128b_w.data : '0) |
@@ -1234,9 +1450,38 @@ module bridge_mix_b_mon_xbar
         (dma_axi4_128b_aw_gnt_subtractive ? dma_axi4_bridge_id_aw : '0) |
         (host_axil_128b_aw_gnt_subtractive ? host_axil_bridge_id_aw : '0);
 
+    // AR request slots for subtractive: arbitration at the slave pins
+    assign cpu_axi4_128b_ar_slot_subtractive_in_valid = cpu_axi4_128b_ar_to_subtractive && cpu_axi4_128b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_axi4_128b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_128b_ar_slot_subtractive_in_valid), .wr_ready(cpu_axi4_128b_ar_slot_subtractive_in_ready), .wr_data(cpu_axi4_128b_ar),
+        .rd_valid(cpu_axi4_128b_ar_slot_subtractive_valid), .rd_ready(cpu_axi4_128b_ar_slot_subtractive_ready), .rd_data(cpu_axi4_128b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_axi4_128b_ar_slot_subtractive_in_valid = dma_axi4_128b_ar_to_subtractive && dma_axi4_128b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_dma_axi4_128b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_axi4_128b_ar_slot_subtractive_in_valid), .wr_ready(dma_axi4_128b_ar_slot_subtractive_in_ready), .wr_data(dma_axi4_128b_ar),
+        .rd_valid(dma_axi4_128b_ar_slot_subtractive_valid), .rd_ready(dma_axi4_128b_ar_slot_subtractive_ready), .rd_data(dma_axi4_128b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign host_axil_128b_ar_slot_subtractive_in_valid = host_axil_128b_ar_to_subtractive && host_axil_128b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_host_axil_128b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_axil_128b_ar_slot_subtractive_in_valid), .wr_ready(host_axil_128b_ar_slot_subtractive_in_ready), .wr_data(host_axil_128b_ar),
+        .rd_valid(host_axil_128b_ar_slot_subtractive_valid), .rd_ready(host_axil_128b_ar_slot_subtractive_ready), .rd_data(host_axil_128b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for subtractive: round-robin, lock until handshake ----
     logic [2:0] subtractive_ar_arb_req;
-    assign subtractive_ar_arb_req = {host_axil_128b_ar_to_subtractive && host_axil_128b_arvalid, dma_axi4_128b_ar_to_subtractive && dma_axi4_128b_arvalid, cpu_axi4_128b_ar_to_subtractive && cpu_axi4_128b_arvalid};
+    assign subtractive_ar_arb_req = {host_axil_128b_ar_slot_subtractive_valid, dma_axi4_128b_ar_slot_subtractive_valid, cpu_axi4_128b_ar_slot_subtractive_valid};
     logic [1:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
     logic subtractive_ar_arb_locked;
     wire [1:0] subtractive_ar_arb_pick = (subtractive_ar_arb_rr == 2'd0) ? (subtractive_ar_arb_req[0] ? 2'd0 : subtractive_ar_arb_req[1] ? 2'd1 : 2'd2) : 
@@ -1262,41 +1507,44 @@ module bridge_mix_b_mon_xbar
     wire cpu_axi4_128b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 2'd0) && subtractive_ar_arb_req[0];
     wire dma_axi4_128b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 2'd1) && subtractive_ar_arb_req[1];
     wire host_axil_128b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 2'd2) && subtractive_ar_arb_req[2];
+    assign cpu_axi4_128b_ar_slot_subtractive_ready = cpu_axi4_128b_ar_gnt_subtractive && subtractive_axi_arready;
+    assign dma_axi4_128b_ar_slot_subtractive_ready = dma_axi4_128b_ar_gnt_subtractive && subtractive_axi_arready;
+    assign host_axil_128b_ar_slot_subtractive_ready = host_axil_128b_ar_gnt_subtractive && subtractive_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign subtractive_axi_arid = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.id : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.id : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.id : '0);
-    assign subtractive_axi_araddr = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.addr : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.addr : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.addr : '0);
-    assign subtractive_axi_arlen = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.len : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.len : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.len : '0);
-    assign subtractive_axi_arsize = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.size : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.size : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.size : '0);
-    assign subtractive_axi_arburst = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.burst : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.burst : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.burst : '0);
-    assign subtractive_axi_arlock = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.lock : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.lock : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.lock : '0);
-    assign subtractive_axi_arcache = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.cache : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.cache : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.cache : '0);
-    assign subtractive_axi_arprot = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.prot : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.prot : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.prot : '0);
-    assign subtractive_axi_arqos = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.qos : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.qos : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.qos : '0);
-    assign subtractive_axi_arregion = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.region : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.region : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.region : '0);
-    assign subtractive_axi_aruser = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar.user : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar.user : '0) |
-        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar.user : '0);
+    assign subtractive_axi_arid = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.id : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.id : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.id : '0);
+    assign subtractive_axi_araddr = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.addr : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.addr : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.addr : '0);
+    assign subtractive_axi_arlen = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.len : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.len : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.len : '0);
+    assign subtractive_axi_arsize = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.size : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.size : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.size : '0);
+    assign subtractive_axi_arburst = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.burst : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.burst : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.burst : '0);
+    assign subtractive_axi_arlock = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.lock : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.lock : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.lock : '0);
+    assign subtractive_axi_arcache = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.cache : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.cache : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.cache : '0);
+    assign subtractive_axi_arprot = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.prot : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.prot : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.prot : '0);
+    assign subtractive_axi_arqos = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.qos : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.qos : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.qos : '0);
+    assign subtractive_axi_arregion = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.region : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.region : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.region : '0);
+    assign subtractive_axi_aruser = (cpu_axi4_128b_ar_gnt_subtractive ? cpu_axi4_128b_ar_slot_subtractive.user : '0) |
+        (dma_axi4_128b_ar_gnt_subtractive ? dma_axi4_128b_ar_slot_subtractive.user : '0) |
+        (host_axil_128b_ar_gnt_subtractive ? host_axil_128b_ar_slot_subtractive.user : '0);
     assign subtractive_axi_arvalid = cpu_axi4_128b_ar_gnt_subtractive || dma_axi4_128b_ar_gnt_subtractive || host_axil_128b_ar_gnt_subtractive;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1554,7 +1802,7 @@ module bridge_mix_b_mon_xbar
 
     // Master: cpu_axi4, Width path: 64b
     assign cpu_axi4_64b_awready = 
-        (cpu_axi4_64b_aw_gnt_scratch ? scratch_axi_awready : '0);
+        ((cpu_axi4_64b_aw_to_scratch && !cpu_axi4_64b_aw_hold_scratch) ? cpu_axi4_64b_aw_slot_scratch_in_ready : '0);
 
     assign cpu_axi4_64b_wready = 
         (cpu_axi4_64b_w_sel_scratch ? scratch_axi_wready : '0);
@@ -1572,7 +1820,7 @@ module bridge_mix_b_mon_xbar
         (cpu_axi4_64b_b_rgnt_scratch ? scratch_axi_bvalid : '0);
 
     assign cpu_axi4_64b_arready = 
-        (cpu_axi4_64b_ar_gnt_scratch ? scratch_axi_arready : '0);
+        ((cpu_axi4_64b_ar_to_scratch) ? cpu_axi4_64b_ar_slot_scratch_in_ready : '0);
 
     assign cpu_axi4_64b_r.id = 
         (cpu_axi4_64b_r_rgnt_scratch ? scratch_axi_rid : '0);
@@ -1595,8 +1843,8 @@ module bridge_mix_b_mon_xbar
 
     // Master: cpu_axi4, Width path: 128b
     assign cpu_axi4_128b_awready = 
-        (cpu_axi4_128b_aw_gnt_ddr ? ddr_axi_awready : '0) |
-        (cpu_axi4_128b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((cpu_axi4_128b_aw_to_ddr && !cpu_axi4_128b_aw_hold_ddr) ? cpu_axi4_128b_aw_slot_ddr_in_ready : '0) |
+        ((cpu_axi4_128b_aw_to_subtractive && !cpu_axi4_128b_aw_hold_subtractive) ? cpu_axi4_128b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_axi4_128b_wready = 
         (cpu_axi4_128b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -1619,8 +1867,8 @@ module bridge_mix_b_mon_xbar
         (cpu_axi4_128b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_axi4_128b_arready = 
-        (cpu_axi4_128b_ar_gnt_ddr ? ddr_axi_arready : '0) |
-        (cpu_axi4_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((cpu_axi4_128b_ar_to_ddr) ? cpu_axi4_128b_ar_slot_ddr_in_ready : '0) |
+        ((cpu_axi4_128b_ar_to_subtractive) ? cpu_axi4_128b_ar_slot_subtractive_in_ready : '0);
 
     assign cpu_axi4_128b_r.id = 
         (cpu_axi4_128b_r_rgnt_ddr ? ddr_axi_rid : '0) |
@@ -1649,7 +1897,7 @@ module bridge_mix_b_mon_xbar
 
     // Master: dma_axi4, Width path: 64b
     assign dma_axi4_64b_awready = 
-        (dma_axi4_64b_aw_gnt_scratch ? scratch_axi_awready : '0);
+        ((dma_axi4_64b_aw_to_scratch && !dma_axi4_64b_aw_hold_scratch) ? dma_axi4_64b_aw_slot_scratch_in_ready : '0);
 
     assign dma_axi4_64b_wready = 
         (dma_axi4_64b_w_sel_scratch ? scratch_axi_wready : '0);
@@ -1667,7 +1915,7 @@ module bridge_mix_b_mon_xbar
         (dma_axi4_64b_b_rgnt_scratch ? scratch_axi_bvalid : '0);
 
     assign dma_axi4_64b_arready = 
-        (dma_axi4_64b_ar_gnt_scratch ? scratch_axi_arready : '0);
+        ((dma_axi4_64b_ar_to_scratch) ? dma_axi4_64b_ar_slot_scratch_in_ready : '0);
 
     assign dma_axi4_64b_r.id = 
         (dma_axi4_64b_r_rgnt_scratch ? scratch_axi_rid : '0);
@@ -1690,8 +1938,8 @@ module bridge_mix_b_mon_xbar
 
     // Master: dma_axi4, Width path: 128b
     assign dma_axi4_128b_awready = 
-        (dma_axi4_128b_aw_gnt_ddr ? ddr_axi_awready : '0) |
-        (dma_axi4_128b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((dma_axi4_128b_aw_to_ddr && !dma_axi4_128b_aw_hold_ddr) ? dma_axi4_128b_aw_slot_ddr_in_ready : '0) |
+        ((dma_axi4_128b_aw_to_subtractive && !dma_axi4_128b_aw_hold_subtractive) ? dma_axi4_128b_aw_slot_subtractive_in_ready : '0);
 
     assign dma_axi4_128b_wready = 
         (dma_axi4_128b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -1714,8 +1962,8 @@ module bridge_mix_b_mon_xbar
         (dma_axi4_128b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign dma_axi4_128b_arready = 
-        (dma_axi4_128b_ar_gnt_ddr ? ddr_axi_arready : '0) |
-        (dma_axi4_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((dma_axi4_128b_ar_to_ddr) ? dma_axi4_128b_ar_slot_ddr_in_ready : '0) |
+        ((dma_axi4_128b_ar_to_subtractive) ? dma_axi4_128b_ar_slot_subtractive_in_ready : '0);
 
     assign dma_axi4_128b_r.id = 
         (dma_axi4_128b_r_rgnt_ddr ? ddr_axi_rid : '0) |
@@ -1785,7 +2033,7 @@ module bridge_mix_b_mon_xbar
 
     // Master: host_axil, Width path: 64b
     assign host_axil_64b_awready = 
-        (host_axil_64b_aw_gnt_scratch ? scratch_axi_awready : '0);
+        ((host_axil_64b_aw_to_scratch && !host_axil_64b_aw_hold_scratch) ? host_axil_64b_aw_slot_scratch_in_ready : '0);
 
     assign host_axil_64b_wready = 
         (host_axil_64b_w_sel_scratch ? scratch_axi_wready : '0);
@@ -1803,7 +2051,7 @@ module bridge_mix_b_mon_xbar
         (host_axil_64b_b_rgnt_scratch ? scratch_axi_bvalid : '0);
 
     assign host_axil_64b_arready = 
-        (host_axil_64b_ar_gnt_scratch ? scratch_axi_arready : '0);
+        ((host_axil_64b_ar_to_scratch) ? host_axil_64b_ar_slot_scratch_in_ready : '0);
 
     assign host_axil_64b_r.id = 
         (host_axil_64b_r_rgnt_scratch ? scratch_axi_rid : '0);
@@ -1826,7 +2074,7 @@ module bridge_mix_b_mon_xbar
 
     // Master: host_axil, Width path: 128b
     assign host_axil_128b_awready = 
-        (host_axil_128b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((host_axil_128b_aw_to_subtractive && !host_axil_128b_aw_hold_subtractive) ? host_axil_128b_aw_slot_subtractive_in_ready : '0);
 
     assign host_axil_128b_wready = 
         (host_axil_128b_w_sel_subtractive ? subtractive_axi_wready : '0);
@@ -1844,7 +2092,7 @@ module bridge_mix_b_mon_xbar
         (host_axil_128b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign host_axil_128b_arready = 
-        (host_axil_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((host_axil_128b_ar_to_subtractive) ? host_axil_128b_ar_slot_subtractive_in_ready : '0);
 
     assign host_axil_128b_r.id = 
         (host_axil_128b_r_rgnt_subtractive ? subtractive_axi_rid : '0);

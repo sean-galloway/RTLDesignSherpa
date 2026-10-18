@@ -254,6 +254,40 @@ module bridge_2x2_rw_cdc_xbar
     logic dma_32b_w_to_subtractive;
     logic dma_32b_w_sel_subtractive;
 
+    // Request slots of the arbitrated slaves (assigned below)
+    axi4_aw_t cpu_32b_aw_slot_ddr;
+    logic cpu_32b_aw_slot_ddr_valid, cpu_32b_aw_slot_ddr_ready, cpu_32b_aw_slot_ddr_in_valid, cpu_32b_aw_slot_ddr_in_ready;
+    axi4_aw_t dma_32b_aw_slot_ddr;
+    logic dma_32b_aw_slot_ddr_valid, dma_32b_aw_slot_ddr_ready, dma_32b_aw_slot_ddr_in_valid, dma_32b_aw_slot_ddr_in_ready;
+    axi4_aw_t cpu_32b_aw_slot_sram;
+    logic cpu_32b_aw_slot_sram_valid, cpu_32b_aw_slot_sram_ready, cpu_32b_aw_slot_sram_in_valid, cpu_32b_aw_slot_sram_in_ready;
+    axi4_aw_t dma_32b_aw_slot_sram;
+    logic dma_32b_aw_slot_sram_valid, dma_32b_aw_slot_sram_ready, dma_32b_aw_slot_sram_in_valid, dma_32b_aw_slot_sram_in_ready;
+    axi4_aw_t cpu_32b_aw_slot_subtractive;
+    logic cpu_32b_aw_slot_subtractive_valid, cpu_32b_aw_slot_subtractive_ready, cpu_32b_aw_slot_subtractive_in_valid, cpu_32b_aw_slot_subtractive_in_ready;
+    axi4_aw_t dma_32b_aw_slot_subtractive;
+    logic dma_32b_aw_slot_subtractive_valid, dma_32b_aw_slot_subtractive_ready, dma_32b_aw_slot_subtractive_in_valid, dma_32b_aw_slot_subtractive_in_ready;
+    axi4_ar_t cpu_32b_ar_slot_ddr;
+    logic cpu_32b_ar_slot_ddr_valid, cpu_32b_ar_slot_ddr_ready, cpu_32b_ar_slot_ddr_in_valid, cpu_32b_ar_slot_ddr_in_ready;
+    axi4_ar_t dma_32b_ar_slot_ddr;
+    logic dma_32b_ar_slot_ddr_valid, dma_32b_ar_slot_ddr_ready, dma_32b_ar_slot_ddr_in_valid, dma_32b_ar_slot_ddr_in_ready;
+    axi4_ar_t cpu_32b_ar_slot_sram;
+    logic cpu_32b_ar_slot_sram_valid, cpu_32b_ar_slot_sram_ready, cpu_32b_ar_slot_sram_in_valid, cpu_32b_ar_slot_sram_in_ready;
+    axi4_ar_t dma_32b_ar_slot_sram;
+    logic dma_32b_ar_slot_sram_valid, dma_32b_ar_slot_sram_ready, dma_32b_ar_slot_sram_in_valid, dma_32b_ar_slot_sram_in_ready;
+    axi4_ar_t cpu_32b_ar_slot_subtractive;
+    logic cpu_32b_ar_slot_subtractive_valid, cpu_32b_ar_slot_subtractive_ready, cpu_32b_ar_slot_subtractive_in_valid, cpu_32b_ar_slot_subtractive_in_ready;
+    axi4_ar_t dma_32b_ar_slot_subtractive;
+    logic dma_32b_ar_slot_subtractive_valid, dma_32b_ar_slot_subtractive_ready, dma_32b_ar_slot_subtractive_in_valid, dma_32b_ar_slot_subtractive_in_ready;
+    // Write ordering: a master's AW waits while another of its slots
+    // holds an AW (see _generate_request_slots)
+    wire cpu_32b_aw_hold_ddr = cpu_32b_aw_slot_sram_valid || cpu_32b_aw_slot_subtractive_valid;
+    wire cpu_32b_aw_hold_sram = cpu_32b_aw_slot_ddr_valid || cpu_32b_aw_slot_subtractive_valid;
+    wire cpu_32b_aw_hold_subtractive = cpu_32b_aw_slot_ddr_valid || cpu_32b_aw_slot_sram_valid;
+    wire dma_32b_aw_hold_ddr = dma_32b_aw_slot_sram_valid || dma_32b_aw_slot_subtractive_valid;
+    wire dma_32b_aw_hold_sram = dma_32b_aw_slot_ddr_valid || dma_32b_aw_slot_subtractive_valid;
+    wire dma_32b_aw_hold_subtractive = dma_32b_aw_slot_ddr_valid || dma_32b_aw_slot_sram_valid;
+
     // ================================================================
     // Response arbiters (one slave per master path per channel)
     // ================================================================
@@ -394,9 +428,29 @@ module bridge_2x2_rw_cdc_xbar
     wire dma_32b_aw_to_ddr = (dma_32b_aw.addr <= 32'h7fffffff);
     wire dma_32b_ar_to_ddr = (dma_32b_ar.addr <= 32'h7fffffff);
 
+    // AW request slots for ddr: arbitration at the slave pins
+    assign cpu_32b_aw_slot_ddr_in_valid = cpu_32b_aw_to_ddr && cpu_32b_awvalid && !cpu_32b_aw_hold_ddr;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_32b_aw_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_32b_aw_slot_ddr_in_valid), .wr_ready(cpu_32b_aw_slot_ddr_in_ready), .wr_data(cpu_32b_aw),
+        .rd_valid(cpu_32b_aw_slot_ddr_valid), .rd_ready(cpu_32b_aw_slot_ddr_ready), .rd_data(cpu_32b_aw_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_32b_aw_slot_ddr_in_valid = dma_32b_aw_to_ddr && dma_32b_awvalid && !dma_32b_aw_hold_ddr;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_32b_aw_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_32b_aw_slot_ddr_in_valid), .wr_ready(dma_32b_aw_slot_ddr_in_ready), .wr_data(dma_32b_aw),
+        .rd_valid(dma_32b_aw_slot_ddr_valid), .rd_ready(dma_32b_aw_slot_ddr_ready), .rd_data(dma_32b_aw_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for ddr: round-robin, lock until handshake ----
     logic [1:0] ddr_aw_arb_req;
-    assign ddr_aw_arb_req = {dma_32b_aw_to_ddr && dma_32b_awvalid, cpu_32b_aw_to_ddr && cpu_32b_awvalid};
+    assign ddr_aw_arb_req = {dma_32b_aw_slot_ddr_valid, cpu_32b_aw_slot_ddr_valid};
     logic [0:0] ddr_aw_arb_lock, ddr_aw_arb_rr;
     logic ddr_aw_arb_locked;
     wire [0:0] ddr_aw_arb_pick = (ddr_aw_arb_rr == 1'd0) ? (ddr_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -420,54 +474,66 @@ module bridge_2x2_rw_cdc_xbar
     )
     wire cpu_32b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd0) && ddr_aw_arb_req[0];
     wire dma_32b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd1) && ddr_aw_arb_req[1];
+    assign cpu_32b_aw_slot_ddr_ready = cpu_32b_aw_gnt_ddr && ddr_axi_awready;
+    assign dma_32b_aw_slot_ddr_ready = dma_32b_aw_gnt_ddr && ddr_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign ddr_axi_awid = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.id : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.id : '0);
-    assign ddr_axi_awaddr = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.addr : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.addr : '0);
-    assign ddr_axi_awlen = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.len : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.len : '0);
-    assign ddr_axi_awsize = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.size : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.size : '0);
-    assign ddr_axi_awburst = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.burst : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.burst : '0);
-    assign ddr_axi_awlock = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.lock : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.lock : '0);
-    assign ddr_axi_awcache = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.cache : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.cache : '0);
-    assign ddr_axi_awprot = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.prot : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.prot : '0);
-    assign ddr_axi_awqos = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.qos : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.qos : '0);
-    assign ddr_axi_awregion = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.region : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.region : '0);
-    assign ddr_axi_awuser = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.user : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw.user : '0);
+    assign ddr_axi_awid = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.id : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.id : '0);
+    assign ddr_axi_awaddr = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.addr : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.addr : '0);
+    assign ddr_axi_awlen = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.len : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.len : '0);
+    assign ddr_axi_awsize = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.size : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.size : '0);
+    assign ddr_axi_awburst = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.burst : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.burst : '0);
+    assign ddr_axi_awlock = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.lock : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.lock : '0);
+    assign ddr_axi_awcache = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.cache : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.cache : '0);
+    assign ddr_axi_awprot = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.prot : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.prot : '0);
+    assign ddr_axi_awqos = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.qos : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.qos : '0);
+    assign ddr_axi_awregion = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.region : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.region : '0);
+    assign ddr_axi_awuser = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.user : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.user : '0);
     assign ddr_axi_awvalid = cpu_32b_aw_gnt_ddr || dma_32b_aw_gnt_ddr;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
+    logic ddr_wowner_ahead;
+    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
+    wire ddr_wowner_byp = !ddr_wowner_valid && !ddr_wowner_ahead && ddr_axi_awvalid;
+    wire ddr_wowner_aw_hs = ddr_axi_awvalid && ddr_axi_awready;
+    wire ddr_wowner_w_end = ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            ddr_wowner_wptr <= '0;
-            ddr_wowner_rptr <= '0;
+            ddr_wowner_wptr  <= '0;
+            ddr_wowner_rptr  <= '0;
+            ddr_wowner_ahead <= 1'b0;
         end else begin
-            if (ddr_axi_awvalid && ddr_axi_awready) begin
+            if (ddr_wowner_aw_hs && ddr_wowner_ahead) begin
+                ddr_wowner_ahead <= 1'b0;   // its W already went
+            end else if (ddr_wowner_aw_hs && !(ddr_wowner_byp && ddr_wowner_w_end)) begin
                 ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
                 ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
+            end else if (!ddr_wowner_aw_hs && ddr_wowner_byp && ddr_wowner_w_end) begin
+                ddr_wowner_ahead <= 1'b1;
             end
-            if (ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast) begin
+            if (ddr_wowner_valid && ddr_wowner_w_end) begin
                 ddr_wowner_rptr <= ddr_wowner_rptr + 1'b1;
             end
         end
     )
-    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
-    wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
-    assign cpu_32b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && cpu_32b_w_to_ddr;
-    assign dma_32b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd1) && dma_32b_w_to_ddr;
+    wire [0:0] ddr_wowner_head = ddr_wowner_valid ? ddr_wowner_mem[ddr_wowner_rptr[3:0]]
+                                       : ddr_aw_arb_gnt;
+    assign cpu_32b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd0) && cpu_32b_w_to_ddr;
+    assign dma_32b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd1) && dma_32b_w_to_ddr;
 
     // W channel (owner-gated mux across writing masters)
     assign ddr_axi_wdata = ((cpu_32b_w_sel_ddr && cpu_32b_wvalid) ? cpu_32b_w.data : '0) |
@@ -488,9 +554,29 @@ module bridge_2x2_rw_cdc_xbar
     assign ddr_axi_bridge_id_aw = (cpu_32b_aw_gnt_ddr ? cpu_bridge_id_aw : '0) |
         (dma_32b_aw_gnt_ddr ? dma_bridge_id_aw : '0);
 
+    // AR request slots for ddr: arbitration at the slave pins
+    assign cpu_32b_ar_slot_ddr_in_valid = cpu_32b_ar_to_ddr && cpu_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_32b_ar_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_32b_ar_slot_ddr_in_valid), .wr_ready(cpu_32b_ar_slot_ddr_in_ready), .wr_data(cpu_32b_ar),
+        .rd_valid(cpu_32b_ar_slot_ddr_valid), .rd_ready(cpu_32b_ar_slot_ddr_ready), .rd_data(cpu_32b_ar_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_32b_ar_slot_ddr_in_valid = dma_32b_ar_to_ddr && dma_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_dma_32b_ar_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_32b_ar_slot_ddr_in_valid), .wr_ready(dma_32b_ar_slot_ddr_in_ready), .wr_data(dma_32b_ar),
+        .rd_valid(dma_32b_ar_slot_ddr_valid), .rd_ready(dma_32b_ar_slot_ddr_ready), .rd_data(dma_32b_ar_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for ddr: round-robin, lock until handshake ----
     logic [1:0] ddr_ar_arb_req;
-    assign ddr_ar_arb_req = {dma_32b_ar_to_ddr && dma_32b_arvalid, cpu_32b_ar_to_ddr && cpu_32b_arvalid};
+    assign ddr_ar_arb_req = {dma_32b_ar_slot_ddr_valid, cpu_32b_ar_slot_ddr_valid};
     logic [0:0] ddr_ar_arb_lock, ddr_ar_arb_rr;
     logic ddr_ar_arb_locked;
     wire [0:0] ddr_ar_arb_pick = (ddr_ar_arb_rr == 1'd0) ? (ddr_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -514,30 +600,32 @@ module bridge_2x2_rw_cdc_xbar
     )
     wire cpu_32b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd0) && ddr_ar_arb_req[0];
     wire dma_32b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd1) && ddr_ar_arb_req[1];
+    assign cpu_32b_ar_slot_ddr_ready = cpu_32b_ar_gnt_ddr && ddr_axi_arready;
+    assign dma_32b_ar_slot_ddr_ready = dma_32b_ar_gnt_ddr && ddr_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign ddr_axi_arid = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.id : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.id : '0);
-    assign ddr_axi_araddr = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.addr : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.addr : '0);
-    assign ddr_axi_arlen = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.len : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.len : '0);
-    assign ddr_axi_arsize = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.size : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.size : '0);
-    assign ddr_axi_arburst = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.burst : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.burst : '0);
-    assign ddr_axi_arlock = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.lock : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.lock : '0);
-    assign ddr_axi_arcache = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.cache : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.cache : '0);
-    assign ddr_axi_arprot = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.prot : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.prot : '0);
-    assign ddr_axi_arqos = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.qos : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.qos : '0);
-    assign ddr_axi_arregion = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.region : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.region : '0);
-    assign ddr_axi_aruser = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.user : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar.user : '0);
+    assign ddr_axi_arid = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.id : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.id : '0);
+    assign ddr_axi_araddr = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.addr : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.addr : '0);
+    assign ddr_axi_arlen = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.len : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.len : '0);
+    assign ddr_axi_arsize = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.size : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.size : '0);
+    assign ddr_axi_arburst = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.burst : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.burst : '0);
+    assign ddr_axi_arlock = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.lock : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.lock : '0);
+    assign ddr_axi_arcache = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.cache : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.cache : '0);
+    assign ddr_axi_arprot = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.prot : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.prot : '0);
+    assign ddr_axi_arqos = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.qos : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.qos : '0);
+    assign ddr_axi_arregion = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.region : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.region : '0);
+    assign ddr_axi_aruser = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.user : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.user : '0);
     assign ddr_axi_arvalid = cpu_32b_ar_gnt_ddr || dma_32b_ar_gnt_ddr;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -561,9 +649,29 @@ module bridge_2x2_rw_cdc_xbar
     wire dma_32b_aw_to_sram = (dma_32b_aw.addr >= 32'h80000000);
     wire dma_32b_ar_to_sram = (dma_32b_ar.addr >= 32'h80000000);
 
+    // AW request slots for sram: arbitration at the slave pins
+    assign cpu_32b_aw_slot_sram_in_valid = cpu_32b_aw_to_sram && cpu_32b_awvalid && !cpu_32b_aw_hold_sram;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_32b_aw_slot_sram (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_32b_aw_slot_sram_in_valid), .wr_ready(cpu_32b_aw_slot_sram_in_ready), .wr_data(cpu_32b_aw),
+        .rd_valid(cpu_32b_aw_slot_sram_valid), .rd_ready(cpu_32b_aw_slot_sram_ready), .rd_data(cpu_32b_aw_slot_sram),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_32b_aw_slot_sram_in_valid = dma_32b_aw_to_sram && dma_32b_awvalid && !dma_32b_aw_hold_sram;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_32b_aw_slot_sram (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_32b_aw_slot_sram_in_valid), .wr_ready(dma_32b_aw_slot_sram_in_ready), .wr_data(dma_32b_aw),
+        .rd_valid(dma_32b_aw_slot_sram_valid), .rd_ready(dma_32b_aw_slot_sram_ready), .rd_data(dma_32b_aw_slot_sram),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for sram: round-robin, lock until handshake ----
     logic [1:0] sram_aw_arb_req;
-    assign sram_aw_arb_req = {dma_32b_aw_to_sram && dma_32b_awvalid, cpu_32b_aw_to_sram && cpu_32b_awvalid};
+    assign sram_aw_arb_req = {dma_32b_aw_slot_sram_valid, cpu_32b_aw_slot_sram_valid};
     logic [0:0] sram_aw_arb_lock, sram_aw_arb_rr;
     logic sram_aw_arb_locked;
     wire [0:0] sram_aw_arb_pick = (sram_aw_arb_rr == 1'd0) ? (sram_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -587,54 +695,66 @@ module bridge_2x2_rw_cdc_xbar
     )
     wire cpu_32b_aw_gnt_sram = sram_aw_arb_gnt_valid && (sram_aw_arb_gnt == 1'd0) && sram_aw_arb_req[0];
     wire dma_32b_aw_gnt_sram = sram_aw_arb_gnt_valid && (sram_aw_arb_gnt == 1'd1) && sram_aw_arb_req[1];
+    assign cpu_32b_aw_slot_sram_ready = cpu_32b_aw_gnt_sram && sram_axi_awready;
+    assign dma_32b_aw_slot_sram_ready = dma_32b_aw_gnt_sram && sram_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign sram_axi_awid = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.id : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.id : '0);
-    assign sram_axi_awaddr = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.addr : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.addr : '0);
-    assign sram_axi_awlen = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.len : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.len : '0);
-    assign sram_axi_awsize = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.size : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.size : '0);
-    assign sram_axi_awburst = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.burst : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.burst : '0);
-    assign sram_axi_awlock = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.lock : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.lock : '0);
-    assign sram_axi_awcache = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.cache : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.cache : '0);
-    assign sram_axi_awprot = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.prot : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.prot : '0);
-    assign sram_axi_awqos = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.qos : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.qos : '0);
-    assign sram_axi_awregion = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.region : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.region : '0);
-    assign sram_axi_awuser = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.user : '0) |
-        (dma_32b_aw_gnt_sram ? dma_32b_aw.user : '0);
+    assign sram_axi_awid = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.id : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.id : '0);
+    assign sram_axi_awaddr = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.addr : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.addr : '0);
+    assign sram_axi_awlen = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.len : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.len : '0);
+    assign sram_axi_awsize = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.size : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.size : '0);
+    assign sram_axi_awburst = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.burst : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.burst : '0);
+    assign sram_axi_awlock = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.lock : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.lock : '0);
+    assign sram_axi_awcache = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.cache : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.cache : '0);
+    assign sram_axi_awprot = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.prot : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.prot : '0);
+    assign sram_axi_awqos = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.qos : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.qos : '0);
+    assign sram_axi_awregion = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.region : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.region : '0);
+    assign sram_axi_awuser = (cpu_32b_aw_gnt_sram ? cpu_32b_aw_slot_sram.user : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw_slot_sram.user : '0);
     assign sram_axi_awvalid = cpu_32b_aw_gnt_sram || dma_32b_aw_gnt_sram;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] sram_wowner_mem [16];
     logic [4:0] sram_wowner_wptr, sram_wowner_rptr;
+    logic sram_wowner_ahead;
+    wire sram_wowner_valid = (sram_wowner_wptr != sram_wowner_rptr);
+    wire sram_wowner_byp = !sram_wowner_valid && !sram_wowner_ahead && sram_axi_awvalid;
+    wire sram_wowner_aw_hs = sram_axi_awvalid && sram_axi_awready;
+    wire sram_wowner_w_end = sram_axi_wvalid && sram_axi_wready && sram_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            sram_wowner_wptr <= '0;
-            sram_wowner_rptr <= '0;
+            sram_wowner_wptr  <= '0;
+            sram_wowner_rptr  <= '0;
+            sram_wowner_ahead <= 1'b0;
         end else begin
-            if (sram_axi_awvalid && sram_axi_awready) begin
+            if (sram_wowner_aw_hs && sram_wowner_ahead) begin
+                sram_wowner_ahead <= 1'b0;   // its W already went
+            end else if (sram_wowner_aw_hs && !(sram_wowner_byp && sram_wowner_w_end)) begin
                 sram_wowner_mem[sram_wowner_wptr[3:0]] <= sram_aw_arb_gnt;
                 sram_wowner_wptr <= sram_wowner_wptr + 1'b1;
+            end else if (!sram_wowner_aw_hs && sram_wowner_byp && sram_wowner_w_end) begin
+                sram_wowner_ahead <= 1'b1;
             end
-            if (sram_axi_wvalid && sram_axi_wready && sram_axi_wlast) begin
+            if (sram_wowner_valid && sram_wowner_w_end) begin
                 sram_wowner_rptr <= sram_wowner_rptr + 1'b1;
             end
         end
     )
-    wire sram_wowner_valid = (sram_wowner_wptr != sram_wowner_rptr);
-    wire [0:0] sram_wowner_head = sram_wowner_mem[sram_wowner_rptr[3:0]];
-    assign cpu_32b_w_sel_sram = sram_wowner_valid && (sram_wowner_head == 1'd0) && cpu_32b_w_to_sram;
-    assign dma_32b_w_sel_sram = sram_wowner_valid && (sram_wowner_head == 1'd1) && dma_32b_w_to_sram;
+    wire [0:0] sram_wowner_head = sram_wowner_valid ? sram_wowner_mem[sram_wowner_rptr[3:0]]
+                                       : sram_aw_arb_gnt;
+    assign cpu_32b_w_sel_sram = (sram_wowner_valid || sram_wowner_byp) && (sram_wowner_head == 1'd0) && cpu_32b_w_to_sram;
+    assign dma_32b_w_sel_sram = (sram_wowner_valid || sram_wowner_byp) && (sram_wowner_head == 1'd1) && dma_32b_w_to_sram;
 
     // W channel (owner-gated mux across writing masters)
     assign sram_axi_wdata = ((cpu_32b_w_sel_sram && cpu_32b_wvalid) ? cpu_32b_w.data : '0) |
@@ -655,9 +775,29 @@ module bridge_2x2_rw_cdc_xbar
     assign sram_axi_bridge_id_aw = (cpu_32b_aw_gnt_sram ? cpu_bridge_id_aw : '0) |
         (dma_32b_aw_gnt_sram ? dma_bridge_id_aw : '0);
 
+    // AR request slots for sram: arbitration at the slave pins
+    assign cpu_32b_ar_slot_sram_in_valid = cpu_32b_ar_to_sram && cpu_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_32b_ar_slot_sram (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_32b_ar_slot_sram_in_valid), .wr_ready(cpu_32b_ar_slot_sram_in_ready), .wr_data(cpu_32b_ar),
+        .rd_valid(cpu_32b_ar_slot_sram_valid), .rd_ready(cpu_32b_ar_slot_sram_ready), .rd_data(cpu_32b_ar_slot_sram),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_32b_ar_slot_sram_in_valid = dma_32b_ar_to_sram && dma_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_dma_32b_ar_slot_sram (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_32b_ar_slot_sram_in_valid), .wr_ready(dma_32b_ar_slot_sram_in_ready), .wr_data(dma_32b_ar),
+        .rd_valid(dma_32b_ar_slot_sram_valid), .rd_ready(dma_32b_ar_slot_sram_ready), .rd_data(dma_32b_ar_slot_sram),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for sram: round-robin, lock until handshake ----
     logic [1:0] sram_ar_arb_req;
-    assign sram_ar_arb_req = {dma_32b_ar_to_sram && dma_32b_arvalid, cpu_32b_ar_to_sram && cpu_32b_arvalid};
+    assign sram_ar_arb_req = {dma_32b_ar_slot_sram_valid, cpu_32b_ar_slot_sram_valid};
     logic [0:0] sram_ar_arb_lock, sram_ar_arb_rr;
     logic sram_ar_arb_locked;
     wire [0:0] sram_ar_arb_pick = (sram_ar_arb_rr == 1'd0) ? (sram_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -681,30 +821,32 @@ module bridge_2x2_rw_cdc_xbar
     )
     wire cpu_32b_ar_gnt_sram = sram_ar_arb_gnt_valid && (sram_ar_arb_gnt == 1'd0) && sram_ar_arb_req[0];
     wire dma_32b_ar_gnt_sram = sram_ar_arb_gnt_valid && (sram_ar_arb_gnt == 1'd1) && sram_ar_arb_req[1];
+    assign cpu_32b_ar_slot_sram_ready = cpu_32b_ar_gnt_sram && sram_axi_arready;
+    assign dma_32b_ar_slot_sram_ready = dma_32b_ar_gnt_sram && sram_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign sram_axi_arid = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.id : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.id : '0);
-    assign sram_axi_araddr = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.addr : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.addr : '0);
-    assign sram_axi_arlen = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.len : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.len : '0);
-    assign sram_axi_arsize = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.size : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.size : '0);
-    assign sram_axi_arburst = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.burst : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.burst : '0);
-    assign sram_axi_arlock = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.lock : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.lock : '0);
-    assign sram_axi_arcache = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.cache : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.cache : '0);
-    assign sram_axi_arprot = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.prot : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.prot : '0);
-    assign sram_axi_arqos = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.qos : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.qos : '0);
-    assign sram_axi_arregion = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.region : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.region : '0);
-    assign sram_axi_aruser = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.user : '0) |
-        (dma_32b_ar_gnt_sram ? dma_32b_ar.user : '0);
+    assign sram_axi_arid = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.id : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.id : '0);
+    assign sram_axi_araddr = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.addr : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.addr : '0);
+    assign sram_axi_arlen = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.len : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.len : '0);
+    assign sram_axi_arsize = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.size : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.size : '0);
+    assign sram_axi_arburst = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.burst : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.burst : '0);
+    assign sram_axi_arlock = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.lock : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.lock : '0);
+    assign sram_axi_arcache = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.cache : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.cache : '0);
+    assign sram_axi_arprot = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.prot : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.prot : '0);
+    assign sram_axi_arqos = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.qos : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.qos : '0);
+    assign sram_axi_arregion = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.region : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.region : '0);
+    assign sram_axi_aruser = (cpu_32b_ar_gnt_sram ? cpu_32b_ar_slot_sram.user : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar_slot_sram.user : '0);
     assign sram_axi_arvalid = cpu_32b_ar_gnt_sram || dma_32b_ar_gnt_sram;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -728,9 +870,29 @@ module bridge_2x2_rw_cdc_xbar
     wire dma_32b_aw_to_subtractive = !(((dma_32b_aw.addr <= 32'h7fffffff)) || ((dma_32b_aw.addr >= 32'h80000000)));
     wire dma_32b_ar_to_subtractive = !(((dma_32b_ar.addr <= 32'h7fffffff)) || ((dma_32b_ar.addr >= 32'h80000000)));
 
+    // AW request slots for subtractive: arbitration at the slave pins
+    assign cpu_32b_aw_slot_subtractive_in_valid = cpu_32b_aw_to_subtractive && cpu_32b_awvalid && !cpu_32b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_32b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_32b_aw_slot_subtractive_in_valid), .wr_ready(cpu_32b_aw_slot_subtractive_in_ready), .wr_data(cpu_32b_aw),
+        .rd_valid(cpu_32b_aw_slot_subtractive_valid), .rd_ready(cpu_32b_aw_slot_subtractive_ready), .rd_data(cpu_32b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_32b_aw_slot_subtractive_in_valid = dma_32b_aw_to_subtractive && dma_32b_awvalid && !dma_32b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_32b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_32b_aw_slot_subtractive_in_valid), .wr_ready(dma_32b_aw_slot_subtractive_in_ready), .wr_data(dma_32b_aw),
+        .rd_valid(dma_32b_aw_slot_subtractive_valid), .rd_ready(dma_32b_aw_slot_subtractive_ready), .rd_data(dma_32b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_aw_arb_req;
-    assign subtractive_aw_arb_req = {dma_32b_aw_to_subtractive && dma_32b_awvalid, cpu_32b_aw_to_subtractive && cpu_32b_awvalid};
+    assign subtractive_aw_arb_req = {dma_32b_aw_slot_subtractive_valid, cpu_32b_aw_slot_subtractive_valid};
     logic [0:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
     logic subtractive_aw_arb_locked;
     wire [0:0] subtractive_aw_arb_pick = (subtractive_aw_arb_rr == 1'd0) ? (subtractive_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -754,54 +916,66 @@ module bridge_2x2_rw_cdc_xbar
     )
     wire cpu_32b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd0) && subtractive_aw_arb_req[0];
     wire dma_32b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd1) && subtractive_aw_arb_req[1];
+    assign cpu_32b_aw_slot_subtractive_ready = cpu_32b_aw_gnt_subtractive && subtractive_axi_awready;
+    assign dma_32b_aw_slot_subtractive_ready = dma_32b_aw_gnt_subtractive && subtractive_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign subtractive_axi_awid = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.id : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.id : '0);
-    assign subtractive_axi_awaddr = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.addr : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.addr : '0);
-    assign subtractive_axi_awlen = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.len : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.len : '0);
-    assign subtractive_axi_awsize = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.size : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.size : '0);
-    assign subtractive_axi_awburst = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.burst : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.burst : '0);
-    assign subtractive_axi_awlock = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.lock : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.lock : '0);
-    assign subtractive_axi_awcache = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.cache : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.cache : '0);
-    assign subtractive_axi_awprot = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.prot : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.prot : '0);
-    assign subtractive_axi_awqos = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.qos : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.qos : '0);
-    assign subtractive_axi_awregion = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.region : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.region : '0);
-    assign subtractive_axi_awuser = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw.user : '0) |
-        (dma_32b_aw_gnt_subtractive ? dma_32b_aw.user : '0);
+    assign subtractive_axi_awid = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.id : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.id : '0);
+    assign subtractive_axi_awaddr = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.addr : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.addr : '0);
+    assign subtractive_axi_awlen = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.len : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.len : '0);
+    assign subtractive_axi_awsize = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.size : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.size : '0);
+    assign subtractive_axi_awburst = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.burst : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.burst : '0);
+    assign subtractive_axi_awlock = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.lock : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.lock : '0);
+    assign subtractive_axi_awcache = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.cache : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.cache : '0);
+    assign subtractive_axi_awprot = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.prot : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.prot : '0);
+    assign subtractive_axi_awqos = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.qos : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.qos : '0);
+    assign subtractive_axi_awregion = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.region : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.region : '0);
+    assign subtractive_axi_awuser = (cpu_32b_aw_gnt_subtractive ? cpu_32b_aw_slot_subtractive.user : '0) |
+        (dma_32b_aw_gnt_subtractive ? dma_32b_aw_slot_subtractive.user : '0);
     assign subtractive_axi_awvalid = cpu_32b_aw_gnt_subtractive || dma_32b_aw_gnt_subtractive;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    logic subtractive_wowner_ahead;
+    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
+    wire subtractive_wowner_byp = !subtractive_wowner_valid && !subtractive_wowner_ahead && subtractive_axi_awvalid;
+    wire subtractive_wowner_aw_hs = subtractive_axi_awvalid && subtractive_axi_awready;
+    wire subtractive_wowner_w_end = subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            subtractive_wowner_wptr <= '0;
-            subtractive_wowner_rptr <= '0;
+            subtractive_wowner_wptr  <= '0;
+            subtractive_wowner_rptr  <= '0;
+            subtractive_wowner_ahead <= 1'b0;
         end else begin
-            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+            if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
+                subtractive_wowner_ahead <= 1'b0;   // its W already went
+            end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
                 subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
+            end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
+                subtractive_wowner_ahead <= 1'b1;
             end
-            if (subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast) begin
+            if (subtractive_wowner_valid && subtractive_wowner_w_end) begin
                 subtractive_wowner_rptr <= subtractive_wowner_rptr + 1'b1;
             end
         end
     )
-    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
-    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
-    assign cpu_32b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd0) && cpu_32b_w_to_subtractive;
-    assign dma_32b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd1) && dma_32b_w_to_subtractive;
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
+                                       : subtractive_aw_arb_gnt;
+    assign cpu_32b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && cpu_32b_w_to_subtractive;
+    assign dma_32b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd1) && dma_32b_w_to_subtractive;
 
     // W channel (owner-gated mux across writing masters)
     assign subtractive_axi_wdata = ((cpu_32b_w_sel_subtractive && cpu_32b_wvalid) ? cpu_32b_w.data : '0) |
@@ -822,9 +996,29 @@ module bridge_2x2_rw_cdc_xbar
     assign subtractive_axi_bridge_id_aw = (cpu_32b_aw_gnt_subtractive ? cpu_bridge_id_aw : '0) |
         (dma_32b_aw_gnt_subtractive ? dma_bridge_id_aw : '0);
 
+    // AR request slots for subtractive: arbitration at the slave pins
+    assign cpu_32b_ar_slot_subtractive_in_valid = cpu_32b_ar_to_subtractive && cpu_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_32b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_32b_ar_slot_subtractive_in_valid), .wr_ready(cpu_32b_ar_slot_subtractive_in_ready), .wr_data(cpu_32b_ar),
+        .rd_valid(cpu_32b_ar_slot_subtractive_valid), .rd_ready(cpu_32b_ar_slot_subtractive_ready), .rd_data(cpu_32b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_32b_ar_slot_subtractive_in_valid = dma_32b_ar_to_subtractive && dma_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_dma_32b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_32b_ar_slot_subtractive_in_valid), .wr_ready(dma_32b_ar_slot_subtractive_in_ready), .wr_data(dma_32b_ar),
+        .rd_valid(dma_32b_ar_slot_subtractive_valid), .rd_ready(dma_32b_ar_slot_subtractive_ready), .rd_data(dma_32b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_ar_arb_req;
-    assign subtractive_ar_arb_req = {dma_32b_ar_to_subtractive && dma_32b_arvalid, cpu_32b_ar_to_subtractive && cpu_32b_arvalid};
+    assign subtractive_ar_arb_req = {dma_32b_ar_slot_subtractive_valid, cpu_32b_ar_slot_subtractive_valid};
     logic [0:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
     logic subtractive_ar_arb_locked;
     wire [0:0] subtractive_ar_arb_pick = (subtractive_ar_arb_rr == 1'd0) ? (subtractive_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -848,30 +1042,32 @@ module bridge_2x2_rw_cdc_xbar
     )
     wire cpu_32b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd0) && subtractive_ar_arb_req[0];
     wire dma_32b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd1) && subtractive_ar_arb_req[1];
+    assign cpu_32b_ar_slot_subtractive_ready = cpu_32b_ar_gnt_subtractive && subtractive_axi_arready;
+    assign dma_32b_ar_slot_subtractive_ready = dma_32b_ar_gnt_subtractive && subtractive_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign subtractive_axi_arid = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.id : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.id : '0);
-    assign subtractive_axi_araddr = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.addr : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.addr : '0);
-    assign subtractive_axi_arlen = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.len : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.len : '0);
-    assign subtractive_axi_arsize = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.size : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.size : '0);
-    assign subtractive_axi_arburst = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.burst : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.burst : '0);
-    assign subtractive_axi_arlock = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.lock : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.lock : '0);
-    assign subtractive_axi_arcache = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.cache : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.cache : '0);
-    assign subtractive_axi_arprot = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.prot : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.prot : '0);
-    assign subtractive_axi_arqos = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.qos : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.qos : '0);
-    assign subtractive_axi_arregion = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.region : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.region : '0);
-    assign subtractive_axi_aruser = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar.user : '0) |
-        (dma_32b_ar_gnt_subtractive ? dma_32b_ar.user : '0);
+    assign subtractive_axi_arid = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.id : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.id : '0);
+    assign subtractive_axi_araddr = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.addr : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.addr : '0);
+    assign subtractive_axi_arlen = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.len : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.len : '0);
+    assign subtractive_axi_arsize = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.size : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.size : '0);
+    assign subtractive_axi_arburst = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.burst : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.burst : '0);
+    assign subtractive_axi_arlock = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.lock : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.lock : '0);
+    assign subtractive_axi_arcache = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.cache : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.cache : '0);
+    assign subtractive_axi_arprot = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.prot : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.prot : '0);
+    assign subtractive_axi_arqos = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.qos : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.qos : '0);
+    assign subtractive_axi_arregion = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.region : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.region : '0);
+    assign subtractive_axi_aruser = (cpu_32b_ar_gnt_subtractive ? cpu_32b_ar_slot_subtractive.user : '0) |
+        (dma_32b_ar_gnt_subtractive ? dma_32b_ar_slot_subtractive.user : '0);
     assign subtractive_axi_arvalid = cpu_32b_ar_gnt_subtractive || dma_32b_ar_gnt_subtractive;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -944,9 +1140,9 @@ module bridge_2x2_rw_cdc_xbar
 
     // Master: cpu, Width path: 32b
     assign cpu_32b_awready = 
-        (cpu_32b_aw_gnt_ddr ? ddr_axi_awready : '0) |
-        (cpu_32b_aw_gnt_sram ? sram_axi_awready : '0) |
-        (cpu_32b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((cpu_32b_aw_to_ddr && !cpu_32b_aw_hold_ddr) ? cpu_32b_aw_slot_ddr_in_ready : '0) |
+        ((cpu_32b_aw_to_sram && !cpu_32b_aw_hold_sram) ? cpu_32b_aw_slot_sram_in_ready : '0) |
+        ((cpu_32b_aw_to_subtractive && !cpu_32b_aw_hold_subtractive) ? cpu_32b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_32b_wready = 
         (cpu_32b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -974,9 +1170,9 @@ module bridge_2x2_rw_cdc_xbar
         (cpu_32b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_32b_arready = 
-        (cpu_32b_ar_gnt_ddr ? ddr_axi_arready : '0) |
-        (cpu_32b_ar_gnt_sram ? sram_axi_arready : '0) |
-        (cpu_32b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((cpu_32b_ar_to_ddr) ? cpu_32b_ar_slot_ddr_in_ready : '0) |
+        ((cpu_32b_ar_to_sram) ? cpu_32b_ar_slot_sram_in_ready : '0) |
+        ((cpu_32b_ar_to_subtractive) ? cpu_32b_ar_slot_subtractive_in_ready : '0);
 
     assign cpu_32b_r.id = 
         (cpu_32b_r_rgnt_ddr ? ddr_axi_rid : '0) |
@@ -1011,9 +1207,9 @@ module bridge_2x2_rw_cdc_xbar
 
     // Master: dma, Width path: 32b
     assign dma_32b_awready = 
-        (dma_32b_aw_gnt_ddr ? ddr_axi_awready : '0) |
-        (dma_32b_aw_gnt_sram ? sram_axi_awready : '0) |
-        (dma_32b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((dma_32b_aw_to_ddr && !dma_32b_aw_hold_ddr) ? dma_32b_aw_slot_ddr_in_ready : '0) |
+        ((dma_32b_aw_to_sram && !dma_32b_aw_hold_sram) ? dma_32b_aw_slot_sram_in_ready : '0) |
+        ((dma_32b_aw_to_subtractive && !dma_32b_aw_hold_subtractive) ? dma_32b_aw_slot_subtractive_in_ready : '0);
 
     assign dma_32b_wready = 
         (dma_32b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -1041,9 +1237,9 @@ module bridge_2x2_rw_cdc_xbar
         (dma_32b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign dma_32b_arready = 
-        (dma_32b_ar_gnt_ddr ? ddr_axi_arready : '0) |
-        (dma_32b_ar_gnt_sram ? sram_axi_arready : '0) |
-        (dma_32b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((dma_32b_ar_to_ddr) ? dma_32b_ar_slot_ddr_in_ready : '0) |
+        ((dma_32b_ar_to_sram) ? dma_32b_ar_slot_sram_in_ready : '0) |
+        ((dma_32b_ar_to_subtractive) ? dma_32b_ar_slot_subtractive_in_ready : '0);
 
     assign dma_32b_r.id = 
         (dma_32b_r_rgnt_ddr ? ddr_axi_rid : '0) |

@@ -454,6 +454,11 @@ class CrossbarGenerator:
         # per-slave addr-decode wires those blocks declare).
         lines.extend(self._generate_w_follow_decls())
 
+        # Per-master request slots of every arbitrated slave: the write
+        # ordering gate of one slave reads the slots of the others, which
+        # are emitted later.
+        lines.extend(self._generate_slot_decls())
+
         # Likewise the registered crossbar's xs_* nets: the slave routing
         # blocks drive them, the stages that consume them come last.
         if self.pipeline:
@@ -563,6 +568,143 @@ class CrossbarGenerator:
             lines.append("")
         return lines
 
+    # ------------------------------------------------------------------
+    # Arbitration at the slave pins (bridge W3)
+    # ------------------------------------------------------------------
+    # A slave that two or more masters reach is arbitrated where it is
+    # served: each master's AW / AR request waits in its own registered
+    # slot here, and the round-robin (or QoS) pick is made among the slots,
+    # straight onto the slave-side nets. There is no address queue past the
+    # pick -- the slave adapter's AW/AR stage and the registered crossbar's
+    # AW/AR stage are cut for these slaves (see arbitrated_slave()).
+    #
+    # The arbiter used to pick from the raw requests and feed a 2-deep
+    # stage (sometimes two) behind it. While the slave held off, those
+    # stages filled with requests already granted, so a master with few
+    # transactions in flight queued behind the others' and its share
+    # followed its outstanding count: 8 vs 2 in flight against a slave that
+    # takes 2 at a time gave the 2-deep master 34%, not 50%.
+    #
+    # Writes need one more rule. AXI4 W has no ID, so each slave's W beats
+    # follow its AW pick order, and a master's W stream follows its own AW
+    # order. If a master could leave AWs waiting at two slaves at once, the
+    # two picks could land in opposite orders for two masters and each slave
+    # would wait on the other's W -- a deadlock. So a master's AW enters a
+    # slot only while none of its other slots holds one: its AWs are picked
+    # in the order it issued them. The master adapter's own rule (a new AW
+    # to another slave waits until every earlier W burst has left the
+    # adapter) gives the same order wherever W cannot be held between the
+    # adapter's tracker and here; this hold makes it true at the pick
+    # itself, whatever a width converter buffers. Removing it alone does not
+    # fail the perf suite's wr_order case on 2x2_rw or 4x4_rw (measured).
+
+    def _connecting_masters(self, slave: SlaveInfo) -> List[MasterConfig]:
+        idx = self.slaves.index(slave)
+        return [m for m in self.masters if idx in m.slave_connections]
+
+    def _is_arbitrated(self, slave: SlaveInfo) -> bool:
+        return len(self._connecting_masters(slave)) >= 2
+
+    def _uses_slots(self, slave: SlaveInfo, ch: str) -> bool:
+        """Arbitrate this slave's AW/AR at its pins from request slots: an
+        arbitrated AXI4/AXI5 slave whose channel had a register to replace
+        (its adapter stage, or the registered crossbar's). A slave cut to a
+        wire (latency = "cut_none") had no queue behind its arbiter and keeps
+        its zero-cycle path; an APB/AXI4-Lite/WB4 shim holds a request of its
+        own whatever the crossbar does, so it keeps the grant-on-entry
+        arbiter too. Must agree with slave_adapter_generator's `arbitrated`
+        stage cut."""
+        if not self._is_arbitrated(slave) or slave.protocol not in ('axi4', 'axi5'):
+            return False
+        depth = int((getattr(slave, 'skid_depths', None) or {}).get(ch, 2))
+        return depth > 0 or self.pipeline
+
+    def _slot(self, m: MasterConfig, suffix: str, ch: str, slave: SlaveInfo) -> str:
+        return f"{m.name}_{suffix}_{ch}_slot_{slave.name}"
+
+    def _slots(self, ch: str):
+        """Yield (master, suffix, slave) for every request slot of channel
+        ch ('aw' or 'ar') in the bridge, slave-index order."""
+        want = ("wr", "rw") if ch == "aw" else ("rd", "rw")
+        for slave in self.slaves:
+            if not self._uses_slots(slave, ch):
+                continue
+            suffix = f"{slave.data_width}b"
+            for m in self._connecting_masters(slave):
+                if m.channels in want:
+                    yield m, suffix, slave
+
+    def _generate_slot_decls(self) -> List[str]:
+        lines = []
+        for ch, typ in (("aw", "axi4_aw_t"), ("ar", "axi4_ar_t")):
+            for m, suffix, slave in self._slots(ch):
+                q = self._slot(m, suffix, ch, slave)
+                lines.append(f"    {typ} {q};")
+                lines.append(f"    logic {q}_valid, {q}_ready, {q}_in_valid, {q}_in_ready;")
+        if not lines:
+            return []   # no slots: these bridges are unchanged
+        holds = []
+        for m, suffix, slaves in self._wr_paths():
+            for sl in slaves:
+                others = self._aw_other_slots(m, sl)
+                if others:
+                    h = self._aw_hold(m, suffix, sl)
+                    holds.append(f"    wire {h} = " + " || ".join(f"{q}_valid" for q in others) + ";")
+        out = ["    // Request slots of the arbitrated slaves (assigned below)"] + lines
+        if holds:
+            out += ["    // Write ordering: a master's AW waits while another of its slots",
+                    "    // holds an AW (see _generate_request_slots)"] + holds
+        return out + [""]
+
+    def _aw_other_slots(self, m: MasterConfig, slave: SlaveInfo) -> List[str]:
+        """m's write slots at every slave other than `slave`, any width path."""
+        return [self._slot(om, osfx, "aw", osl) for om, osfx, osl in self._slots("aw")
+                if om is m and osl is not slave]
+
+    def _aw_hold(self, m: MasterConfig, suffix: str, slave: SlaveInfo) -> str:
+        return f"{m.name}_{suffix}_aw_hold_{slave.name}"
+
+    def _aw_gate(self, m: MasterConfig, suffix: str, slave: SlaveInfo) -> str:
+        """' && !hold' for an AW from m toward `slave`, or '' when m has no
+        other slot. Applies to EVERY path an AW takes -- a slot, a
+        grant-on-entry arbiter, a single-master slave -- because an AW
+        accepted elsewhere while an earlier one still waits in a slot can
+        close the same ordering cycle."""
+        return f" && !{self._aw_hold(m, suffix, slave)}" if self._aw_other_slots(m, slave) else ""
+
+    def _generate_request_slots(self, slave: SlaveInfo, suffix: str, ch: str,
+                                masters: List[MasterConfig]) -> List[str]:
+        """One 2-deep registered slot per master for this slave's AW or AR
+        (full rate: the skid's ready is registered and it reads and writes in
+        one cycle). Its output side is drained by the pin-side arbiter."""
+        lines = [f"    // {ch.upper()} request slots for {slave.name}: arbitration at the slave pins"]
+        typ = "axi4_aw_t" if ch == "aw" else "axi4_ar_t"
+        for m in masters:
+            q = self._slot(m, suffix, ch, slave)
+            gate = self._aw_gate(m, suffix, slave) if ch == "aw" else ""
+            lines.append(f"    assign {q}_in_valid = {m.name}_{suffix}_{ch}_to_{slave.name} && "
+                         f"{m.name}_{suffix}_{ch}valid{gate};")
+            lines.append(f"    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits({typ}))) u_{q} (")
+            lines.append(f"        .axi_aclk(aclk), .axi_aresetn(aresetn),")
+            lines.append(f"        .wr_valid({q}_in_valid), .wr_ready({q}_in_ready), .wr_data({m.name}_{suffix}_{ch}),")
+            lines.append(f"        .rd_valid({q}_valid), .rd_ready({q}_ready), .rd_data({q}),")
+            lines.append(f"        /* verilator lint_off PINCONNECTEMPTY */")
+            lines.append(f"        .count(), .rd_count()")
+            lines.append(f"        /* verilator lint_on PINCONNECTEMPTY */")
+            lines.append(f"    );")
+        lines.append("")
+        return lines
+
+    def _ax_ready_term(self, m: MasterConfig, suffix: str, ch: str, slave: SlaveInfo) -> str:
+        """The master-side AWREADY/ARREADY contribution of one slave."""
+        if self._uses_slots(slave, ch):
+            q = self._slot(m, suffix, ch, slave)
+            gate = self._aw_gate(m, suffix, slave) if ch == "aw" else ""
+            return (f"(({m.name}_{suffix}_{ch}_to_{slave.name}{gate}) ? {q}_in_ready : '0)")
+        # Grant-on-entry (and single-master) slaves: the grant already
+        # carries the write hold (it is in the request / the alias).
+        return f"({m.name}_{suffix}_{ch}_gnt_{slave.name} ? {self._sp(slave)}{ch}ready : '0)"
+
     def _generate_slave_routing(self, slave_idx: int, slave: SlaveInfo) -> List[str]:
         """
         Generate routing logic for one slave.
@@ -620,8 +762,9 @@ class CrossbarGenerator:
 
     def _generate_arbiter(self, slave: SlaveInfo, suffix: str, prefix: str,
                           channel: str, masters: List[MasterConfig]) -> List[str]:
-        """Per-slave request arbiter for one address channel (aw/ar):
-        round-robin pick among requesting masters, grant LOCKED until the
+        """Per-slave request arbiter for one address channel (aw/ar), at the
+        slave pins: round-robin pick among the masters' request slots
+        (_generate_request_slots), grant LOCKED until the
         slave-side handshake completes (switching the mux mid-stall would
         change the request payload under an asserted valid -- an AXI
         violation, and exactly the OR-merge corruption this replaces).
@@ -639,9 +782,15 @@ class CrossbarGenerator:
         qos = (self.arbitration == 'qos')
         policy = "QoS + aging, round-robin ties" if qos else "round-robin"
         lines.append(f"    // ---- {channel.upper()} arbiter for {s}: {policy}, lock until handshake ----")
-        req_bits = ", ".join(
-            f"{m.name}_{suffix}_{channel}_to_{s} && {m.name}_{suffix}_{channel}valid"
-            for m in reversed(masters))
+        slots = self._uses_slots(slave, channel)
+        if slots:
+            req_bits = ", ".join(f"{self._slot(m, suffix, channel, slave)}_valid"
+                                 for m in reversed(masters))
+        else:
+            req_bits = ", ".join(
+                f"{m.name}_{suffix}_{channel}_to_{s} && {m.name}_{suffix}_{channel}valid"
+                + (self._aw_gate(m, suffix, slave) if channel == "aw" else "")
+                for m in reversed(masters))
         lines.append(f"    logic [{n-1}:0] {arb}_req;")
         lines.append(f"    assign {arb}_req = {{{req_bits}}};")
         lines.append(f"    logic [{k-1}:0] {arb}_lock, {arb}_rr;")
@@ -659,7 +808,8 @@ class CrossbarGenerator:
             for i, m in enumerate(masters):
                 lines.append(f"    logic [7:0] {arb}_age_{i};")
                 lines.append(f"    wire  [7:0] {arb}_boost_{i} = {arb}_age_{i} >> {sh};")
-                lines.append(f"    wire  [4:0] {arb}_sum_{i} = 5'({m.name}_{suffix}_{channel}.qos) + "
+                src = self._slot(m, suffix, channel, slave) if slots else f"{m.name}_{suffix}_{channel}"
+                lines.append(f"    wire  [4:0] {arb}_sum_{i} = 5'({src}.qos) + "
                              f"(({arb}_boost_{i} > 8'd15) ? 5'd15 : 5'({arb}_boost_{i}[3:0]));")
                 lines.append(f"    wire  [3:0] {arb}_eff_{i} = {arb}_sum_{i}[4] ? 4'hF : {arb}_sum_{i}[3:0];")
                 lines.append(f"    wire  [3:0] {arb}_cand_{i} = {arb}_req[{i}] ? {arb}_eff_{i} : 4'h0;")
@@ -715,6 +865,10 @@ class CrossbarGenerator:
         for i, m in enumerate(masters):
             lines.append(f"    wire {m.name}_{suffix}_{channel}_gnt_{s} = "
                          f"{arb}_gnt_valid && ({arb}_gnt == {k}'d{i}) && {arb}_req[{i}];")
+        if slots:
+            for m in masters:
+                q = self._slot(m, suffix, channel, slave)
+                lines.append(f"    assign {q}_ready = {m.name}_{suffix}_{channel}_gnt_{s} && {ready};")
         lines.append("")
         return lines
 
@@ -764,6 +918,9 @@ class CrossbarGenerator:
             return " |\n        ".join(parts) if parts else "'0"
 
         if wr_masters:
+            aw_slots = self._uses_slots(slave, "aw")
+            if aw_slots:
+                lines.extend(self._generate_request_slots(slave, suffix, "aw", wr_masters))
             lines.extend(self._generate_arbiter(slave, suffix, prefix, "aw", wr_masters))
 
             aw_gate = f"{{m}}_{{suffix}}_aw_gnt_{slave.name}"
@@ -783,7 +940,8 @@ class CrossbarGenerator:
             aw_pairs += [(base, f".{field}") for field, _w, _f, base
                          in self._sb_fields('aw', self._sb_slave_feats(slave))]
             for sig, fld in aw_pairs:
-                expr = _gnt_merge(fld, "{m}_{suffix}_aw", wr_masters, aw_gate)
+                expr = _gnt_merge(fld, "{m}_{suffix}_aw" + ("_slot_" + slave.name if aw_slots else ""),
+                                  wr_masters, aw_gate)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
             gnt_or = " || ".join(f"{m.name}_{suffix}_aw_gnt_{slave.name}" for m in wr_masters)
             lines.append(f"    assign {prefix}awvalid = {gnt_or};")
@@ -797,41 +955,83 @@ class CrossbarGenerator:
             n = len(wr_masters)
             k = max(1, (n - 1).bit_length())
             own = f"{slave.name}_wowner"
-            # Depth bound: an entry lives from the AW handshake here to its
-            # WLAST here, and WLAST precedes the B that frees the slave
-            # tracker, so live entries <= the slave's max_outstanding plus
-            # what sits between this point and the tracker -- the 2-deep AW
-            # skid of a registered crossbar. No full check, so the FIFO
-            # covers that bound. A fixed 16 could overflow on a pipelined
-            # bridge (16 + 2) and on any slave deeper than 16
-            # (bridge GitHub #119 L5).
+            # Depth bound: an entry lives from the AW pick here to its WLAST
+            # here, and WLAST precedes the B that frees the slave tracker, so
+            # live entries <= the slave's max_outstanding plus what sits
+            # between the pick and the tracker -- nothing: an arbitrated
+            # slave has no AW stage past the pick, even in a registered
+            # crossbar (it was + 2 while one existed). No full check, so the
+            # FIFO covers that bound. A fixed 16 could overflow on any slave
+            # deeper than 16 (bridge GitHub #119 L5).
             omo = int(getattr(slave, 'max_outstanding', 16))
-            bound = omo + (2 if self.pipeline else 0)
-            odepth = 1 << (bound - 1).bit_length()
+            odepth = 1 << (omo - 1).bit_length()
             ob = odepth.bit_length() - 1
-            lines.append(f"    // W owner FIFO: slave-side AW accept order owns the W channel")
-            lines.append(f"    // ({odepth} deep: max_outstanding {omo}" + (" + 2 skid)" if self.pipeline else ")"))
+            lines.append(f"    // W owner FIFO: slave-side AW pick order owns the W channel")
+            lines.append(f"    // ({odepth} deep: max_outstanding {omo})")
             lines.append(f"    logic [{k-1}:0] {own}_mem [{odepth}];")
             lines.append(f"    logic [{ob}:0] {own}_wptr, {own}_rptr;")
-            lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
-            lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
-            lines.append(f"            {own}_wptr <= '0;")
-            lines.append(f"            {own}_rptr <= '0;")
-            lines.append(f"        end else begin")
-            lines.append(f"            if ({prefix}awvalid && {prefix}awready) begin")
-            lines.append(f"                {own}_mem[{own}_wptr[{ob-1}:0]] <= {slave.name}_aw_arb_gnt;")
-            lines.append(f"                {own}_wptr <= {own}_wptr + 1'b1;")
-            lines.append(f"            end")
-            lines.append(f"            if ({prefix}wvalid && {prefix}wready && {prefix}wlast) begin")
-            lines.append(f"                {own}_rptr <= {own}_rptr + 1'b1;")
-            lines.append(f"            end")
-            lines.append(f"        end")
-            lines.append(f"    )")
-            lines.append(f"    wire {own}_valid = ({own}_wptr != {own}_rptr);")
-            lines.append(f"    wire [{k-1}:0] {own}_head = {own}_mem[{own}_rptr[{ob-1}:0]];")
-            for i, m in enumerate(wr_masters):
-                lines.append(f"    assign {m.name}_{suffix}_w_sel_{slave.name} = "
-                             f"{own}_valid && ({own}_head == {k}'d{i}) && {m.name}_{suffix}_w_to_{slave.name};")
+            if not aw_slots:
+                lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
+                lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
+                lines.append(f"            {own}_wptr <= '0;")
+                lines.append(f"            {own}_rptr <= '0;")
+                lines.append(f"        end else begin")
+                lines.append(f"            if ({prefix}awvalid && {prefix}awready) begin")
+                lines.append(f"                {own}_mem[{own}_wptr[{ob-1}:0]] <= {slave.name}_aw_arb_gnt;")
+                lines.append(f"                {own}_wptr <= {own}_wptr + 1'b1;")
+                lines.append(f"            end")
+                lines.append(f"            if ({prefix}wvalid && {prefix}wready && {prefix}wlast) begin")
+                lines.append(f"                {own}_rptr <= {own}_rptr + 1'b1;")
+                lines.append(f"            end")
+                lines.append(f"        end")
+                lines.append(f"    )")
+                lines.append(f"    wire {own}_valid = ({own}_wptr != {own}_rptr);")
+                lines.append(f"    wire [{k-1}:0] {own}_head = {own}_mem[{own}_rptr[{ob-1}:0]];")
+                for i, m in enumerate(wr_masters):
+                    lines.append(f"    assign {m.name}_{suffix}_w_sel_{slave.name} = "
+                                 f"{own}_valid && ({own}_head == {k}'d{i}) && {m.name}_{suffix}_w_to_{slave.name};")
+            else:
+                # Owner bypass: the pick is made at the pins, a cycle after the
+                # AW entered its slot, so the FIFO alone would hand W its owner
+                # a cycle later than the grant-on-entry arbiter did -- one
+                # more cycle of write round trip (8 single-beat writes in
+                # flight ran at 8/9). With the FIFO empty, the AW the arbiter
+                # is presenting owns W now: the grant depends on registered
+                # state only (slot valids, round-robin pointer, lock), never
+                # on a ready, and W ahead of its AW is legal AXI. If that
+                # burst's WLAST goes before the AW handshake, `ahead` marks
+                # it so the handshake does not push an owner it no longer
+                # needs; the grant is locked to that master meanwhile.
+                lines.append(f"    logic {own}_ahead;")
+                lines.append(f"    wire {own}_valid = ({own}_wptr != {own}_rptr);")
+                lines.append(f"    wire {own}_byp = !{own}_valid && !{own}_ahead && {prefix}awvalid;")
+                lines.append(f"    wire {own}_aw_hs = {prefix}awvalid && {prefix}awready;")
+                lines.append(f"    wire {own}_w_end = {prefix}wvalid && {prefix}wready && {prefix}wlast;")
+                lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
+                lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
+                lines.append(f"            {own}_wptr  <= '0;")
+                lines.append(f"            {own}_rptr  <= '0;")
+                lines.append(f"            {own}_ahead <= 1'b0;")
+                lines.append(f"        end else begin")
+                lines.append(f"            if ({own}_aw_hs && {own}_ahead) begin")
+                lines.append(f"                {own}_ahead <= 1'b0;   // its W already went")
+                lines.append(f"            end else if ({own}_aw_hs && !({own}_byp && {own}_w_end)) begin")
+                lines.append(f"                {own}_mem[{own}_wptr[{ob-1}:0]] <= {slave.name}_aw_arb_gnt;")
+                lines.append(f"                {own}_wptr <= {own}_wptr + 1'b1;")
+                lines.append(f"            end else if (!{own}_aw_hs && {own}_byp && {own}_w_end) begin")
+                lines.append(f"                {own}_ahead <= 1'b1;")
+                lines.append(f"            end")
+                lines.append(f"            if ({own}_valid && {own}_w_end) begin")
+                lines.append(f"                {own}_rptr <= {own}_rptr + 1'b1;")
+                lines.append(f"            end")
+                lines.append(f"        end")
+                lines.append(f"    )")
+                lines.append(f"    wire [{k-1}:0] {own}_head = {own}_valid ? {own}_mem[{own}_rptr[{ob-1}:0]]")
+                lines.append(f"                                       : {slave.name}_aw_arb_gnt;")
+                for i, m in enumerate(wr_masters):
+                    lines.append(f"    assign {m.name}_{suffix}_w_sel_{slave.name} = "
+                                 f"({own}_valid || {own}_byp) && ({own}_head == {k}'d{i}) && "
+                                 f"{m.name}_{suffix}_w_to_{slave.name};")
             lines.append("")
 
             w_gate = f"({{m}}_{{suffix}}_w_sel_{slave.name} && {{m}}_{{suffix}}_wvalid)"
@@ -873,6 +1073,9 @@ class CrossbarGenerator:
 
         # Read side: same arbitration story, no W-follow machinery.
         if rd_masters:
+            ar_slots = self._uses_slots(slave, "ar")
+            if ar_slots:
+                lines.extend(self._generate_request_slots(slave, suffix, "ar", rd_masters))
             lines.extend(self._generate_arbiter(slave, suffix, prefix, "ar", rd_masters))
 
             ar_gate = f"{{m}}_{{suffix}}_ar_gnt_{slave.name}"
@@ -885,7 +1088,8 @@ class CrossbarGenerator:
             ar_pairs += [(base, f".{field}") for field, _w, _f, base
                          in self._sb_fields('ar', self._sb_slave_feats(slave))]
             for sig, fld in ar_pairs:
-                expr = _gnt_merge(fld, "{m}_{suffix}_ar", rd_masters, ar_gate)
+                expr = _gnt_merge(fld, "{m}_{suffix}_ar" + ("_slot_" + slave.name if ar_slots else ""),
+                                  rd_masters, ar_gate)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
             gnt_or = " || ".join(f"{m.name}_{suffix}_ar_gnt_{slave.name}" for m in rd_masters)
             lines.append(f"    assign {prefix}arvalid = {gnt_or};")
@@ -1024,7 +1228,8 @@ class CrossbarGenerator:
         lines.append(f"    wire {sig_select} = {addr_dec};")
         # Grant alias: single master needs no arbiter; the response muxes
         # gate on _gnt_ uniformly for single- and multi-master slaves.
-        lines.append(f"    wire {master.name}_{suffix}_aw_gnt_{slave.name} = {sig_select};")
+        lines.append(f"    wire {master.name}_{suffix}_aw_gnt_{slave.name} = "
+                     f"{sig_select}{self._aw_gate(master, suffix, slave)};")
         lines.append(f"    assign {prefix}awid     = {sig_select} ? {master.name}_{suffix}_aw.id : '0;")
         lines.append(f"    assign {prefix}awaddr   = {sig_select} ? {master.name}_{suffix}_aw.addr : '0;")
         lines.append(f"    assign {prefix}awlen    = {sig_select} ? {master.name}_{suffix}_aw.len : '0;")
@@ -1042,7 +1247,11 @@ class CrossbarGenerator:
         for field, w, _feat, base in self._sb_fields('aw', self._sb_slave_feats(slave)):
             src = self._sb_struct_to_port('aw', w, f"{master.name}_{suffix}_aw.{field}", slave.data_width)
             lines.append(f"    assign {prefix}{base}  = {sig_select} ? {src} : '0;  // AXI5 sideband")
-        lines.append(f"    assign {prefix}awvalid  = {sig_select} && {master.name}_{suffix}_awvalid;")
+        if self._aw_gate(master, suffix, slave):
+            lines.append(f"    assign {prefix}awvalid  = {master.name}_{suffix}_aw_gnt_{slave.name} && "
+                         f"{master.name}_{suffix}_awvalid;")
+        else:
+            lines.append(f"    assign {prefix}awvalid  = {sig_select} && {master.name}_{suffix}_awvalid;")
         lines.append("")
 
         # W follows the AW via the per-path W destination FIFO (emitted in
@@ -1309,14 +1518,14 @@ class CrossbarGenerator:
         # Get master index for bridge_id matching
         master_idx = self.masters.index(master)
 
-        # Generate awready MUX -- gated by the arbiter grant (alias of the
-        # address decode for single-master slaves), so a master only sees
-        # ready when it actually owns the slave's AW channel.
+        # Generate awready MUX: an arbitrated slave's term is its request
+        # slot accepting (gated by the write ordering rule); a single-master
+        # slave's is the address decode (the gnt alias) and the slave's ready.
         lines.append(f"    assign {master.name}_{suffix}_awready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_{suffix}_aw_gnt_{slave.name} ? {prefix}awready : '0)")
+            mux_terms.append(f"        {self._ax_ready_term(master, suffix, 'aw', slave)}")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1405,13 +1614,13 @@ class CrossbarGenerator:
         # Get master index for bridge_id matching
         master_idx = self.masters.index(master)
 
-        # Generate arready MUX -- gated by the arbiter grant (alias of the
-        # address decode for single-master slaves).
+        # Generate arready MUX: the arbitrated slave's request slot, or the
+        # single-master slave's decode and ready (see the awready MUX).
         lines.append(f"    assign {master.name}_{suffix}_arready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_{suffix}_ar_gnt_{slave.name} ? {prefix}arready : '0)")
+            mux_terms.append(f"        {self._ax_ready_term(master, suffix, 'ar', slave)}")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1589,6 +1798,16 @@ class CrossbarGenerator:
             # Request stages: xs_ (routing) -> port (slave adapter).
             for ch, label in req:
                 sigs = self._stage_request_signals(slave, ch)
+                if ch in ('aw', 'ar') and self._uses_slots(slave, ch):
+                    # Arbitrated at the pins: the per-master slots ahead of
+                    # the pick are this channel's register, and a stage
+                    # behind the pick would queue granted requests again.
+                    lines.append(f"    // {label}: arbitrated at the pins -- the request slots are its stage")
+                    for b in sigs:
+                        lines.append(f"    assign {port}{b} = {xs}{b};")
+                    lines.append(f"    assign {port}{ch}valid = {xs}{ch}valid;")
+                    lines.append(f"    assign {xs}{ch}ready = {port}{ch}ready;")
+                    continue
                 cat_in = ", ".join(f"{xs}{b}" for b in sigs)
                 cat_out = ", ".join(f"{port}{b}" for b in sigs)
                 inst = f"u_xs_{slave.name}_{ch}"

@@ -19,6 +19,7 @@
 #   backpressure slave READY at 50%, master READY at 50%
 #   width        every width-converted path, 1..256 beats (4x4 only)
 #   split        8:1 downsize writes long enough to split, 1..8 in flight
+#   wr_order     both masters write both slaves, each slave one write at a time
 
 import os
 import sys
@@ -86,9 +87,16 @@ KNOWN = {
          'W2 narrow master throttles the shared wide slave (wr 0.80)'),
         (r'^(contention|fairness) rd .* (contended|slave)$', 0.90,
          'W2 narrow master throttles the shared wide slave (rd 0.93)'),
+        # Writes are fair here (0.50); reads of the 32-bit dma0 through its
+        # 32->64 upsize read converter get 0.34 at 2 in flight (0.29 before
+        # arbitration moved to the pins), so the shortfall is in the
+        # width-converted read path, not the arbiter.
+        (r'^fairness rd .* round_robin$', 0.32,
+         'W2 narrow master upsize read path (0.337; writes 0.50)'),
     ],
 }
 NO_STARVE = 0.05   # a contending master gets at least this share
+FAIR_HALF = 0.45   # round-robin share of two masters that can both fill the slave
 
 
 def little(n_bursts: int, beats: int, lat: int) -> float:
@@ -332,10 +340,58 @@ async def cocotb_test_perf_char_fairness(dut):
                     in_flight = min(limit or 999, cpu_out + dma_out)
                     fl.need(f"{label} contended", contended, little(in_flight, 8, lat))
                     fl.need(f"{label} dma_share", share, NO_STARVE)
+                    # Arbitration at the slave's pins: when the slave takes
+                    # `limit` at a time and each master can keep that many
+                    # in flight, round-robin gives each half (it gave the
+                    # shallow master a third while granted requests queued
+                    # behind the arbiter -- bridge W3).
+                    if limit == 2 and dma_out >= limit:
+                        fl.need(f"{label} round_robin", share, FAIR_HALF)
         if acc:
             acc.stop()
     tb.slave_rd[DDR].response_delay_cycles = 0
     tb.slave_wr[DDR].response_delay_cycles = 0
+    fl.check()
+
+
+@cocotb.test(timeout_time=300, timeout_unit="sec")
+async def cocotb_test_perf_char_wr_order(dut):
+    """Both masters write to both slaves at once while each slave takes one
+    write at a time. AXI4 W has no ID: each slave's W follows its AW pick
+    order and each master's W its own issue order, so if two slaves picked
+    two masters' AWs in opposite orders they would wait on each other's W
+    (a crossed-W deadlock). Every write must complete and land.
+
+    Two rules keep each master's picks in its issue order: the master
+    adapter's (a new AW to another slave waits until every earlier W burst
+    has left the adapter) and the crossbar's write hold (a master's AW waits
+    while another of its request slots holds one). Measured 2026-10-17:
+    removing the crossbar hold alone does NOT make this case fail on 2x2_rw
+    or 4x4_rw -- the adapter rule already covers these paths, so the test
+    guards the pair, and the hold is the guarantee at the pick itself for a
+    path that buffers W past the adapter's tracker."""
+    tb, ch = await _setup(dut)
+    s = ch.sampler({'ddr_w': ('s', DDR, 'w'), 'sram_w': ('s', SRAM, 'w')})
+    fl = floors(tb)
+    accs = [AcceptLimit(ch, DDR, 1), AcceptLimit(ch, SRAM, 1)]
+    for beats in (1, 4, 16):
+        # Distinct IDs per (master, slave): the master adapter keeps one ID on
+        # one slave, which would otherwise serialize the streams it splits.
+        streams = [Stream('wr', CPU, DDR, 24, beats, outstanding=4, ids=(0, 1, 2, 3), region=0),
+                   Stream('wr', CPU, SRAM, 24, beats, outstanding=4, ids=(4, 5, 6, 7), region=0),
+                   Stream('wr', DMA, SRAM, 24, beats, outstanding=4, ids=(0, 1, 2, 3), region=1),
+                   Stream('wr', DMA, DDR, 24, beats, outstanding=4, ids=(4, 5, 6, 7), region=1)]
+        lo = s.cycle + 1
+        await ch.run(streams, timeout_cycles=60_000)   # a deadlock fails here
+        hi = s.cycle
+        label = f"wr_order beats={beats}"
+        rates = {p: _win_rate(s, p, lo, hi)[1] for p in ('ddr_w', 'sram_w')}
+        report(tb, label, ddr_rate=rates['ddr_w'], sram_rate=rates['sram_w'])
+        # One write in service per slave: it pays its W and B round trip.
+        for p, r in rates.items():
+            fl.need(f"{label} {p}", r, 0.5 * little(1, beats, 0))
+    for a in accs:
+        a.stop()
     fl.check()
 
 
@@ -389,7 +445,8 @@ async def cocotb_test_perf_char_split(dut):
     fl.check()
 
 
-CASES = ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'ooo', 'backpressure', 'width', 'split']
+CASES = ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'ooo', 'backpressure', 'width',
+         'split', 'wr_order']
 
 
 def _run(request, test_level, case, dut_name):
@@ -419,11 +476,13 @@ def _run(request, test_level, case, dut_name):
 # widths; lat (no AR/AW skid) and qos exist for the arbitration cases; ooo
 # and backpressure exercise paths every fixture shares, so 2x2_rw covers them.
 MATRIX = {
-    'bridge_2x2_rw':      ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'ooo', 'backpressure'],
+    'bridge_2x2_rw':      ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'ooo', 'backpressure',
+                           'wr_order'],
     'bridge_2x2_rw_lat':  ['bursts', 'outstanding', 'contention', 'fairness'],
-    'bridge_2x2_rw_pipe': ['bursts', 'outstanding', 'duplex', 'contention'],
+    'bridge_2x2_rw_pipe': ['bursts', 'outstanding', 'duplex', 'contention', 'wr_order'],
     'bridge_2x2_rw_qos':  ['bursts', 'contention', 'fairness'],
-    'bridge_4x4_rw':      ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'width', 'split'],
+    'bridge_4x4_rw':      ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'width', 'split',
+                           'wr_order'],
 }
 assert set(DUTS) == set(MATRIX) and all(c in CASES for cs in MATRIX.values() for c in cs)
 

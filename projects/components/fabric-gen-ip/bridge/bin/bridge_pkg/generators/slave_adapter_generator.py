@@ -33,7 +33,8 @@ class SlaveAdapterGenerator:
     def __init__(self, bridge_name: str, slave_config: SlaveInfo, channels: str,
                  id_width: int = 4, data_width: int = 32,
                  num_masters: int = 1,
-                 enable_monitoring: bool = False, slave_index: int = 0):
+                 enable_monitoring: bool = False, slave_index: int = 0,
+                 arbitrated: bool = False):
         """
         Initialize slave adapter generator.
 
@@ -48,6 +49,11 @@ class SlaveAdapterGenerator:
             slave_index: Index of this slave (0..N-1). When monitoring is
                 on, used to derive the per-port AGENT_ID so each slave-side
                 wrapper produces uniquely identifiable monbus packets.
+            arbitrated: Two or more masters reach this slave, so the
+                crossbar arbitrates at its pins from per-master request
+                slots; the timing wrapper's AW/AR stage is then cut (depth
+                0) on AXI4/AXI5 slaves, since a stage behind the pick would
+                queue granted requests again (bridge W3).
         """
         self.bridge_name = bridge_name
         self.slave = slave_config
@@ -82,6 +88,12 @@ class SlaveAdapterGenerator:
         self.skid_depth_w = sd.get('w', 4)
         self.skid_depth_r = sd.get('r', 2)
         self.skid_depth_b = sd.get('b', 2)
+        # Arbitrated at the pins: the crossbar's request slots are this
+        # slave's AW/AR register. APB/AXIL shims keep theirs -- the shim
+        # converts there and holds a request of its own anyway.
+        if arbitrated and slave_config.protocol in ('axi4', 'axi5'):
+            self.skid_depth_aw = 0
+            self.skid_depth_ar = 0
 
 
     @property

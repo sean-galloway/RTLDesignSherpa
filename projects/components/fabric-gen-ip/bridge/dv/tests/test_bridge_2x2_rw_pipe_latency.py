@@ -7,11 +7,15 @@
 # bridge_2x2_rw_pipe is bridge_2x2_rw with a skid stage on every slave-side
 # channel inside the crossbar. Two things define the option and both are
 # asserted EXACTLY here, the way test_bridge_2x2_rw_latency pins the
-# baseline: the structural propagation is one cycle longer each way (3/3
-# against the baseline's 2/2) and not more -- a stage that cost two cycles
-# would be a bug -- and the beat rates are unchanged, which
+# baseline: the response propagation is one cycle longer (3 against the
+# baseline's 2) and not more -- a stage that cost two cycles would be a bug --
+# and the beat rates are unchanged, which
 # test_bridge_2x2_rw_perf checks on both fixtures with the same floors.
 #
+# The request path is NOT longer: ddr is shared by both masters, so it is
+# arbitrated at its pins from per-master request slots, and the slot is the
+# registered crossbar's AW stage (a stage behind the pick would queue granted
+# requests -- bridge W3). Master skid -> slot -> pin is 2, as in the baseline.
 # Same measurement as the baseline test: VALID arrival at the far port, on
 # an idle bridge with a prompt slave, so the figure is pipeline depth and
 # not queueing.
@@ -34,7 +38,7 @@ from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 from bridge2x2_rw_pipe_tb import Bridge2x2RwPipeTB
 
-REQ_CYCLES = 3   # master AW accepted -> AWVALID at the slave port (baseline 2)
+REQ_CYCLES = 2   # master AW accepted -> AWVALID at the slave port (baseline 2; the slot is the stage)
 RSP_CYCLES = 3   # slave B accepted   -> BVALID at the master port (baseline 2)
 
 
@@ -81,10 +85,10 @@ async def cocotb_test_bridge_2x2_rw_pipe_latency(dut):
         req = marks['s_aw_valid'] - marks['m_aw']
         rsp = marks['m_b_valid'] - marks['s_b']
         tb.log.info(f"sample {sample + 1}/{samples}: request {req} cycles, response {rsp} cycles "
-                    f"(baseline combinational crossbar: 2 / 2)")
+                    f"(baseline crossbar: 2 / 2)")
         assert req == REQ_CYCLES, (
             f"registered crossbar: AW propagation is {req} cycles, expected exactly "
-            f"{REQ_CYCLES} (baseline 2 + one request stage)")
+            f"{REQ_CYCLES} (baseline 2; on an arbitrated slave the request slot is the stage)")
         assert rsp == RSP_CYCLES, (
             f"registered crossbar: B propagation is {rsp} cycles, expected exactly "
             f"{RSP_CYCLES} (baseline 2 + one response stage)")

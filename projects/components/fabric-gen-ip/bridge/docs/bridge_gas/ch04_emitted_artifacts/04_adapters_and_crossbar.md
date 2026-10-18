@@ -71,8 +71,9 @@ The crossbar module:
 
 - Accepts per-master decode outputs (`slave_select_*`, `bridge_id_*`).
 - Builds AW/AR request matrices.
-- Instantiates per-slave round-robin arbiters with grant locked to the address handshake.
-- Routes W beats via a per-slave W-owner FIFO.
+- On a slave that two or more masters reach, puts each master's AW and AR in its own registered request slot and arbitrates among the slots at the slave-side nets (round-robin or QoS, grant locked to the address handshake); a master's AW enters a slot only while none of its other slots holds one (the write ordering rule, MAS 2.4).
+- Routes W beats via a per-slave W-owner FIFO, pushed at the AW pick.
+- Tells the slave adapter of an arbitrated AXI4/AXI5 slave to cut its AW/AR stage (`arbitrated=True`): the slots are that register.
 - Muxes responses back to masters using the `bridge_id` sideband.
 - Optionally inserts a registered stage when `xbar_pipeline=true`.
 

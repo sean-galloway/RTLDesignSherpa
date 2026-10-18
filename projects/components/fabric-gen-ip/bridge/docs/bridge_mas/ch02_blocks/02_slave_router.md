@@ -244,8 +244,8 @@ Because the FIFO holds every accepted AW, a master can have several write
 bursts queued to different slaves; each W burst follows its own AW in
 order, with no IDLE/WRITING handshake between them. On the slave side a
 matching W owner FIFO (`<slave>_wowner_*`), pushed with the AW arbiter's
-grant and popped on WLAST, decides which master owns that slave's W
-channel. An out-of-range AW is routed to the subtractive slave like any
+pick at the slave-side handshake and popped on WLAST, decides which master
+owns that slave's W channel. An out-of-range AW is routed to the subtractive slave like any
 other target, so its W beats are drained there and it answers DECERR
 (see below).
 

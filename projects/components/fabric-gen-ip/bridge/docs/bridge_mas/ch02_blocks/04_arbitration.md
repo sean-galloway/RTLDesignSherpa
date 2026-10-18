@@ -92,7 +92,60 @@ Slave 0:
 
 ![Per-Slave Address Arbiter](../assets/graphviz/arbitration.png)
 
-One AW arbiter as generated in `<bridge>_xbar` (the AR arbiter is identical). The request vector holds one bit per master whose AW is valid and re-decodes to this slave. The round-robin pick starts one past the last winner, and the grant is locked from AWVALID until the AW handshake, not until the burst's last beat. With `arbitration = "qos"` a QoS-eligibility stage (dashed) narrows the pick to the requesters at the best AWQOS-plus-age priority.
+One AW arbiter as generated in `<bridge>_xbar` (the AR arbiter is identical). The request vector holds one bit per master whose request slot for this slave holds an AW (see "Where the Pick Is Made" below). The round-robin pick starts one past the last winner, and the grant is locked from AWVALID until the AW handshake, not until the burst's last beat. With `arbitration = "qos"` a QoS-eligibility stage (dashed) narrows the pick to the requesters at the best AWQOS-plus-age priority.
+
+### Where the Pick Is Made: Request Slots at the Slave Pins
+
+On a slave that two or more masters reach, each master's AW and AR request
+first enters its own 2-deep registered slot for that slave
+(`<master>_<w>b_aw_slot_<slave>`, a `gaxi_skid_buffer`), and the arbiter
+picks among the slots straight onto the slave-side nets. Nothing queues
+past the pick: the slave adapter's AW/AR timing stage is cut to depth 0 on
+these slaves (AXI4 and AXI5 slaves; an APB or AXI4-Lite shim keeps its
+own), and so is the registered crossbar's AW/AR stage. The slot is the
+channel's register instead, so the address path still crosses two
+registers (master adapter, slot) and its latency is unchanged.
+
+Why it matters: the pick has to be made where the slave is served. The
+arbiter used to pick from the raw requests and feed a 2-deep stage behind
+it. While the slave held its ready low, that stage filled with requests
+already granted, and a master with few transactions in flight queued
+behind the others' -- its share followed its outstanding count instead of
+the round-robin. Measured on `bridge_2x2_rw` against a slave that accepts
+two transactions at a time, the dma master with 2 in flight against the
+cpu's 8:
+
+| | dma share, writes | dma share, reads |
+|---|---:|---:|
+| arbiter ahead of the stage | 0.340 | 0.337 |
+| arbiter at the slave pins | 0.502 | 0.500 |
+
+: Shared-slave share, 8 vs 2 in flight, slave accepting 2 at a time (bridge_2x2_rw, GATE)
+
+The slave's ready reaching the arbiter is now a combinational input to the
+pick (it was a registered stage's not-full); the master-facing ready is
+still a register, the slot's.
+
+**The write ordering rule.** AXI4 W carries no ID, so a slave's W beats
+follow its AW pick order (the W owner FIFO), and a master's W stream follows
+its own AW issue order. If a master could leave AWs waiting at two slaves at
+once, two masters could have their picks land in opposite orders at two
+slaves, each slave then waiting for W the other master can only send after
+its earlier burst -- a deadlock. So a master's AW enters a slot only while
+none of its other slots holds an AW of its own: each master's AWs are picked
+in the order it issued them. The master adapter already holds a new AW to
+another slave until every earlier W burst has left it, which gives the same
+order wherever no W can wait between the adapter and the crossbar; the
+crossbar's hold makes it true at the pick regardless of what a width
+converter buffers. Removing the crossbar hold alone does not fail the
+`wr_order` perf case on `bridge_2x2_rw` or `bridge_4x4_rw` -- the adapter
+rule covers those paths -- so the case guards the two together. Reads have
+no such constraint (R returns by ID through the slave adapter's tracker).
+
+What is left to the slave: a slave that accepts many transactions holds its
+own queue, and the share inside that queue follows the outstanding count
+whatever the fabric does (with the slave accepting 8, the 2-deep master gets
+0.21).
 
 ### Round-Robin Arbitration
 

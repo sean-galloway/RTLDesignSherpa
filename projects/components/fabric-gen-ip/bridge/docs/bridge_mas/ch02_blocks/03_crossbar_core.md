@@ -39,7 +39,7 @@ The core does five things:
 
 ![Crossbar Core Architecture](../assets/graphviz/crossbar_core.png)
 
-The per-slave side of `<bridge>_xbar` for one slave; every slave repeats it. Each master path re-decodes its held address, the AW and AR arbiters (the trapezium) pick one master per slave, and a grant-selected OR mux forwards the winner with its `bridge_id`. W beats are steered by a W destination FIFO per master path and a W owner FIFO per slave. B / R climb the right lane to the master named by the `bridge_id` the slave adapter returns.
+The per-slave side of `<bridge>_xbar` for one slave; every slave repeats it. Each master path re-decodes its held address into a per-master request slot for the slave (on a slave two or more masters reach), the AW and AR arbiters (the trapezium) pick one slot per slave, and a grant-selected OR mux forwards the winner with its `bridge_id` (see 2.4, "Where the Pick Is Made"). W beats are steered by a W destination FIFO per master path and a W owner FIFO per slave. B / R climb the right lane to the master named by the `bridge_id` the slave adapter returns.
 
 ## Parameters
 
@@ -393,7 +393,10 @@ The paths that will bite you first:
 1. **Registered crossbar** -- BUILT (bridge TASK-006 (was BRIDGE-017), `[bridge] xbar_pipeline = true`).
    Every slave-side channel gets a 2-deep `gaxi_skid_buffer` inside the
    xbar: the request stages (AW, W, AR) sit between the arbitrated mux and
-   the slave port and carry the bridge id in their payload; the response
+   the slave port and carry the bridge id in their payload (except AW and
+   AR of an arbitrated slave, whose register is the per-master request
+   slot ahead of the pick; a stage behind it would queue granted
+   requests); the response
    stages (B, R) sit between the slave port and the OR-merge and carry the
    slave adapter's `bid/rid_bridge_id` and route-open flag WITH the beat, so
    the merge keys on the staged id and the stage's own valid. Both cones --

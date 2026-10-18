@@ -131,9 +131,12 @@ async def cocotb_test_bridge_2x2_rw_depth_slave_deep(dut):
     async def _timing():
         # The CAM's own allocate / deallocate handshakes (adapter fabric side,
         # both ends RTL-driven), not the slave pins.
+        # Sampled AT the edge (no ReadOnly): the values read there are the
+        # ones the edge captured. After ReadOnly they are the next cycle's,
+        # and a one-cycle handshake is gone -- missed outright once ddr's
+        # AWREADY came straight from the slave pin (arbitration at the pins).
         while True:
             await RisingEdge(tb.clock)
-            await ReadOnly()
             timing['cyc'] += 1
             if _int(cam.xbar_ddr_axi_awvalid) and _int(cam.xbar_ddr_axi_awready):
                 timing['aw'].append(timing['cyc'])

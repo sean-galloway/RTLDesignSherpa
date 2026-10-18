@@ -346,6 +346,33 @@ module bridge_mix_d_xbar
     logic trace_axil_64b_w_to_subtractive;
     logic trace_axil_64b_w_sel_subtractive;
 
+    // Request slots of the arbitrated slaves (assigned below)
+    axi4_aw_t cpu_axi4_64b_aw_slot_ddr;
+    logic cpu_axi4_64b_aw_slot_ddr_valid, cpu_axi4_64b_aw_slot_ddr_ready, cpu_axi4_64b_aw_slot_ddr_in_valid, cpu_axi4_64b_aw_slot_ddr_in_ready;
+    axi4_aw_t trace_axil_64b_aw_slot_ddr;
+    logic trace_axil_64b_aw_slot_ddr_valid, trace_axil_64b_aw_slot_ddr_ready, trace_axil_64b_aw_slot_ddr_in_valid, trace_axil_64b_aw_slot_ddr_in_ready;
+    axi4_aw_t cpu_axi4_64b_aw_slot_subtractive;
+    logic cpu_axi4_64b_aw_slot_subtractive_valid, cpu_axi4_64b_aw_slot_subtractive_ready, cpu_axi4_64b_aw_slot_subtractive_in_valid, cpu_axi4_64b_aw_slot_subtractive_in_ready;
+    axi4_aw_t trace_axil_64b_aw_slot_subtractive;
+    logic trace_axil_64b_aw_slot_subtractive_valid, trace_axil_64b_aw_slot_subtractive_ready, trace_axil_64b_aw_slot_subtractive_in_valid, trace_axil_64b_aw_slot_subtractive_in_ready;
+    axi4_ar_t cpu_axi4_64b_ar_slot_ddr;
+    logic cpu_axi4_64b_ar_slot_ddr_valid, cpu_axi4_64b_ar_slot_ddr_ready, cpu_axi4_64b_ar_slot_ddr_in_valid, cpu_axi4_64b_ar_slot_ddr_in_ready;
+    axi4_ar_t trace_axil_64b_ar_slot_ddr;
+    logic trace_axil_64b_ar_slot_ddr_valid, trace_axil_64b_ar_slot_ddr_ready, trace_axil_64b_ar_slot_ddr_in_valid, trace_axil_64b_ar_slot_ddr_in_ready;
+    axi4_ar_t cpu_axi4_64b_ar_slot_subtractive;
+    logic cpu_axi4_64b_ar_slot_subtractive_valid, cpu_axi4_64b_ar_slot_subtractive_ready, cpu_axi4_64b_ar_slot_subtractive_in_valid, cpu_axi4_64b_ar_slot_subtractive_in_ready;
+    axi4_ar_t trace_axil_64b_ar_slot_subtractive;
+    logic trace_axil_64b_ar_slot_subtractive_valid, trace_axil_64b_ar_slot_subtractive_ready, trace_axil_64b_ar_slot_subtractive_in_valid, trace_axil_64b_ar_slot_subtractive_in_ready;
+    // Write ordering: a master's AW waits while another of its slots
+    // holds an AW (see _generate_request_slots)
+    wire cpu_axi4_32b_aw_hold_doorbell = cpu_axi4_64b_aw_slot_ddr_valid || cpu_axi4_64b_aw_slot_subtractive_valid;
+    wire cpu_axi4_32b_aw_hold_apb_periph = cpu_axi4_64b_aw_slot_ddr_valid || cpu_axi4_64b_aw_slot_subtractive_valid;
+    wire cpu_axi4_64b_aw_hold_ddr = cpu_axi4_64b_aw_slot_subtractive_valid;
+    wire cpu_axi4_64b_aw_hold_subtractive = cpu_axi4_64b_aw_slot_ddr_valid;
+    wire trace_axil_32b_aw_hold_doorbell = trace_axil_64b_aw_slot_ddr_valid || trace_axil_64b_aw_slot_subtractive_valid;
+    wire trace_axil_64b_aw_hold_ddr = trace_axil_64b_aw_slot_subtractive_valid;
+    wire trace_axil_64b_aw_hold_subtractive = trace_axil_64b_aw_slot_ddr_valid;
+
     // ================================================================
     // Response arbiters (one slave per master path per channel)
     // ================================================================
@@ -540,9 +567,29 @@ module bridge_mix_d_xbar
     wire trace_axil_64b_aw_to_ddr = (trace_axil_64b_aw.addr <= 32'h3fffffff);
     wire trace_axil_64b_ar_to_ddr = (trace_axil_64b_ar.addr <= 32'h3fffffff);
 
+    // AW request slots for ddr: arbitration at the slave pins
+    assign cpu_axi4_64b_aw_slot_ddr_in_valid = cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_ddr;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_64b_aw_slot_ddr_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_ddr_in_ready), .wr_data(cpu_axi4_64b_aw),
+        .rd_valid(cpu_axi4_64b_aw_slot_ddr_valid), .rd_ready(cpu_axi4_64b_aw_slot_ddr_ready), .rd_data(cpu_axi4_64b_aw_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign trace_axil_64b_aw_slot_ddr_in_valid = trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid && !trace_axil_64b_aw_hold_ddr;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_trace_axil_64b_aw_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(trace_axil_64b_aw_slot_ddr_in_valid), .wr_ready(trace_axil_64b_aw_slot_ddr_in_ready), .wr_data(trace_axil_64b_aw),
+        .rd_valid(trace_axil_64b_aw_slot_ddr_valid), .rd_ready(trace_axil_64b_aw_slot_ddr_ready), .rd_data(trace_axil_64b_aw_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for ddr: round-robin, lock until handshake ----
     logic [1:0] ddr_aw_arb_req;
-    assign ddr_aw_arb_req = {trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid, cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid};
+    assign ddr_aw_arb_req = {trace_axil_64b_aw_slot_ddr_valid, cpu_axi4_64b_aw_slot_ddr_valid};
     logic [0:0] ddr_aw_arb_lock, ddr_aw_arb_rr;
     logic ddr_aw_arb_locked;
     wire [0:0] ddr_aw_arb_pick = (ddr_aw_arb_rr == 1'd0) ? (ddr_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -566,54 +613,66 @@ module bridge_mix_d_xbar
     )
     wire cpu_axi4_64b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd0) && ddr_aw_arb_req[0];
     wire trace_axil_64b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd1) && ddr_aw_arb_req[1];
+    assign cpu_axi4_64b_aw_slot_ddr_ready = cpu_axi4_64b_aw_gnt_ddr && ddr_axi_awready;
+    assign trace_axil_64b_aw_slot_ddr_ready = trace_axil_64b_aw_gnt_ddr && ddr_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign ddr_axi_awid = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.id : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.id : '0);
-    assign ddr_axi_awaddr = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.addr : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.addr : '0);
-    assign ddr_axi_awlen = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.len : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.len : '0);
-    assign ddr_axi_awsize = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.size : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.size : '0);
-    assign ddr_axi_awburst = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.burst : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.burst : '0);
-    assign ddr_axi_awlock = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.lock : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.lock : '0);
-    assign ddr_axi_awcache = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.cache : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.cache : '0);
-    assign ddr_axi_awprot = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.prot : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.prot : '0);
-    assign ddr_axi_awqos = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.qos : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.qos : '0);
-    assign ddr_axi_awregion = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.region : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.region : '0);
-    assign ddr_axi_awuser = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.user : '0) |
-        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.user : '0);
+    assign ddr_axi_awid = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.id : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.id : '0);
+    assign ddr_axi_awaddr = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.addr : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.addr : '0);
+    assign ddr_axi_awlen = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.len : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.len : '0);
+    assign ddr_axi_awsize = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.size : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.size : '0);
+    assign ddr_axi_awburst = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.burst : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.burst : '0);
+    assign ddr_axi_awlock = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.lock : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.lock : '0);
+    assign ddr_axi_awcache = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.cache : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.cache : '0);
+    assign ddr_axi_awprot = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.prot : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.prot : '0);
+    assign ddr_axi_awqos = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.qos : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.qos : '0);
+    assign ddr_axi_awregion = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.region : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.region : '0);
+    assign ddr_axi_awuser = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw_slot_ddr.user : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw_slot_ddr.user : '0);
     assign ddr_axi_awvalid = cpu_axi4_64b_aw_gnt_ddr || trace_axil_64b_aw_gnt_ddr;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
+    logic ddr_wowner_ahead;
+    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
+    wire ddr_wowner_byp = !ddr_wowner_valid && !ddr_wowner_ahead && ddr_axi_awvalid;
+    wire ddr_wowner_aw_hs = ddr_axi_awvalid && ddr_axi_awready;
+    wire ddr_wowner_w_end = ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            ddr_wowner_wptr <= '0;
-            ddr_wowner_rptr <= '0;
+            ddr_wowner_wptr  <= '0;
+            ddr_wowner_rptr  <= '0;
+            ddr_wowner_ahead <= 1'b0;
         end else begin
-            if (ddr_axi_awvalid && ddr_axi_awready) begin
+            if (ddr_wowner_aw_hs && ddr_wowner_ahead) begin
+                ddr_wowner_ahead <= 1'b0;   // its W already went
+            end else if (ddr_wowner_aw_hs && !(ddr_wowner_byp && ddr_wowner_w_end)) begin
                 ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
                 ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
+            end else if (!ddr_wowner_aw_hs && ddr_wowner_byp && ddr_wowner_w_end) begin
+                ddr_wowner_ahead <= 1'b1;
             end
-            if (ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast) begin
+            if (ddr_wowner_valid && ddr_wowner_w_end) begin
                 ddr_wowner_rptr <= ddr_wowner_rptr + 1'b1;
             end
         end
     )
-    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
-    wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
-    assign cpu_axi4_64b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && cpu_axi4_64b_w_to_ddr;
-    assign trace_axil_64b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd1) && trace_axil_64b_w_to_ddr;
+    wire [0:0] ddr_wowner_head = ddr_wowner_valid ? ddr_wowner_mem[ddr_wowner_rptr[3:0]]
+                                       : ddr_aw_arb_gnt;
+    assign cpu_axi4_64b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd0) && cpu_axi4_64b_w_to_ddr;
+    assign trace_axil_64b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd1) && trace_axil_64b_w_to_ddr;
 
     // W channel (owner-gated mux across writing masters)
     assign ddr_axi_wdata = ((cpu_axi4_64b_w_sel_ddr && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.data : '0) |
@@ -634,9 +693,29 @@ module bridge_mix_d_xbar
     assign ddr_axi_bridge_id_aw = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_bridge_id_aw : '0) |
         (trace_axil_64b_aw_gnt_ddr ? trace_axil_bridge_id_aw : '0);
 
+    // AR request slots for ddr: arbitration at the slave pins
+    assign cpu_axi4_64b_ar_slot_ddr_in_valid = cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_axi4_64b_ar_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_64b_ar_slot_ddr_in_valid), .wr_ready(cpu_axi4_64b_ar_slot_ddr_in_ready), .wr_data(cpu_axi4_64b_ar),
+        .rd_valid(cpu_axi4_64b_ar_slot_ddr_valid), .rd_ready(cpu_axi4_64b_ar_slot_ddr_ready), .rd_data(cpu_axi4_64b_ar_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign trace_axil_64b_ar_slot_ddr_in_valid = trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_trace_axil_64b_ar_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(trace_axil_64b_ar_slot_ddr_in_valid), .wr_ready(trace_axil_64b_ar_slot_ddr_in_ready), .wr_data(trace_axil_64b_ar),
+        .rd_valid(trace_axil_64b_ar_slot_ddr_valid), .rd_ready(trace_axil_64b_ar_slot_ddr_ready), .rd_data(trace_axil_64b_ar_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for ddr: round-robin, lock until handshake ----
     logic [1:0] ddr_ar_arb_req;
-    assign ddr_ar_arb_req = {trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid, cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid};
+    assign ddr_ar_arb_req = {trace_axil_64b_ar_slot_ddr_valid, cpu_axi4_64b_ar_slot_ddr_valid};
     logic [0:0] ddr_ar_arb_lock, ddr_ar_arb_rr;
     logic ddr_ar_arb_locked;
     wire [0:0] ddr_ar_arb_pick = (ddr_ar_arb_rr == 1'd0) ? (ddr_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -660,30 +739,32 @@ module bridge_mix_d_xbar
     )
     wire cpu_axi4_64b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd0) && ddr_ar_arb_req[0];
     wire trace_axil_64b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd1) && ddr_ar_arb_req[1];
+    assign cpu_axi4_64b_ar_slot_ddr_ready = cpu_axi4_64b_ar_gnt_ddr && ddr_axi_arready;
+    assign trace_axil_64b_ar_slot_ddr_ready = trace_axil_64b_ar_gnt_ddr && ddr_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign ddr_axi_arid = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.id : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.id : '0);
-    assign ddr_axi_araddr = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.addr : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.addr : '0);
-    assign ddr_axi_arlen = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.len : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.len : '0);
-    assign ddr_axi_arsize = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.size : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.size : '0);
-    assign ddr_axi_arburst = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.burst : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.burst : '0);
-    assign ddr_axi_arlock = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.lock : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.lock : '0);
-    assign ddr_axi_arcache = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.cache : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.cache : '0);
-    assign ddr_axi_arprot = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.prot : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.prot : '0);
-    assign ddr_axi_arqos = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.qos : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.qos : '0);
-    assign ddr_axi_arregion = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.region : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.region : '0);
-    assign ddr_axi_aruser = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.user : '0) |
-        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.user : '0);
+    assign ddr_axi_arid = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.id : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.id : '0);
+    assign ddr_axi_araddr = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.addr : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.addr : '0);
+    assign ddr_axi_arlen = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.len : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.len : '0);
+    assign ddr_axi_arsize = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.size : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.size : '0);
+    assign ddr_axi_arburst = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.burst : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.burst : '0);
+    assign ddr_axi_arlock = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.lock : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.lock : '0);
+    assign ddr_axi_arcache = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.cache : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.cache : '0);
+    assign ddr_axi_arprot = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.prot : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.prot : '0);
+    assign ddr_axi_arqos = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.qos : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.qos : '0);
+    assign ddr_axi_arregion = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.region : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.region : '0);
+    assign ddr_axi_aruser = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar_slot_ddr.user : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar_slot_ddr.user : '0);
     assign ddr_axi_arvalid = cpu_axi4_64b_ar_gnt_ddr || trace_axil_64b_ar_gnt_ddr;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -709,7 +790,7 @@ module bridge_mix_d_xbar
 
     // ---- AW arbiter for doorbell: round-robin, lock until handshake ----
     logic [1:0] doorbell_aw_arb_req;
-    assign doorbell_aw_arb_req = {trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid, cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid};
+    assign doorbell_aw_arb_req = {trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid && !trace_axil_32b_aw_hold_doorbell, cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid && !cpu_axi4_32b_aw_hold_doorbell};
     logic [0:0] doorbell_aw_arb_lock, doorbell_aw_arb_rr;
     logic doorbell_aw_arb_locked;
     wire [0:0] doorbell_aw_arb_pick = (doorbell_aw_arb_rr == 1'd0) ? (doorbell_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -759,7 +840,7 @@ module bridge_mix_d_xbar
         (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.user : '0);
     assign doorbell_axi_awvalid = cpu_axi4_32b_aw_gnt_doorbell || trace_axil_32b_aw_gnt_doorbell;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] doorbell_wowner_mem [16];
     logic [4:0] doorbell_wowner_wptr, doorbell_wowner_rptr;
@@ -871,7 +952,7 @@ module bridge_mix_d_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_axi4_32b_aw_to_apb_periph = ((cpu_axi4_32b_aw.addr >= 32'h40001000) && (cpu_axi4_32b_aw.addr <= 32'h40010fff));
-    wire cpu_axi4_32b_aw_gnt_apb_periph = cpu_axi4_32b_aw_to_apb_periph;
+    wire cpu_axi4_32b_aw_gnt_apb_periph = cpu_axi4_32b_aw_to_apb_periph && !cpu_axi4_32b_aw_hold_apb_periph;
     assign apb_periph_axi_awid     = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.id : '0;
     assign apb_periph_axi_awaddr   = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.addr : '0;
     assign apb_periph_axi_awlen    = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.len : '0;
@@ -883,7 +964,7 @@ module bridge_mix_d_xbar
     assign apb_periph_axi_awqos    = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.qos : '0;
     assign apb_periph_axi_awregion = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.region : '0;
     assign apb_periph_axi_awuser   = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.user : '0;
-    assign apb_periph_axi_awvalid  = cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid;
+    assign apb_periph_axi_awvalid  = cpu_axi4_32b_aw_gnt_apb_periph && cpu_axi4_32b_awvalid;
 
     assign cpu_axi4_32b_w_sel_apb_periph = cpu_axi4_32b_w_to_apb_periph;
 
@@ -937,9 +1018,29 @@ module bridge_mix_d_xbar
     wire trace_axil_64b_aw_to_subtractive = !(((trace_axil_64b_aw.addr <= 32'h3fffffff)) || (((trace_axil_64b_aw.addr >= 32'h40000000) && (trace_axil_64b_aw.addr <= 32'h40000fff))));
     wire trace_axil_64b_ar_to_subtractive = !(((trace_axil_64b_ar.addr <= 32'h3fffffff)) || (((trace_axil_64b_ar.addr >= 32'h40000000) && (trace_axil_64b_ar.addr <= 32'h40000fff))));
 
+    // AW request slots for subtractive: arbitration at the slave pins
+    assign cpu_axi4_64b_aw_slot_subtractive_in_valid = cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_64b_aw_slot_subtractive_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_subtractive_in_ready), .wr_data(cpu_axi4_64b_aw),
+        .rd_valid(cpu_axi4_64b_aw_slot_subtractive_valid), .rd_ready(cpu_axi4_64b_aw_slot_subtractive_ready), .rd_data(cpu_axi4_64b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign trace_axil_64b_aw_slot_subtractive_in_valid = trace_axil_64b_aw_to_subtractive && trace_axil_64b_awvalid && !trace_axil_64b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_trace_axil_64b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(trace_axil_64b_aw_slot_subtractive_in_valid), .wr_ready(trace_axil_64b_aw_slot_subtractive_in_ready), .wr_data(trace_axil_64b_aw),
+        .rd_valid(trace_axil_64b_aw_slot_subtractive_valid), .rd_ready(trace_axil_64b_aw_slot_subtractive_ready), .rd_data(trace_axil_64b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_aw_arb_req;
-    assign subtractive_aw_arb_req = {trace_axil_64b_aw_to_subtractive && trace_axil_64b_awvalid, cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid};
+    assign subtractive_aw_arb_req = {trace_axil_64b_aw_slot_subtractive_valid, cpu_axi4_64b_aw_slot_subtractive_valid};
     logic [0:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
     logic subtractive_aw_arb_locked;
     wire [0:0] subtractive_aw_arb_pick = (subtractive_aw_arb_rr == 1'd0) ? (subtractive_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -963,54 +1064,66 @@ module bridge_mix_d_xbar
     )
     wire cpu_axi4_64b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd0) && subtractive_aw_arb_req[0];
     wire trace_axil_64b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd1) && subtractive_aw_arb_req[1];
+    assign cpu_axi4_64b_aw_slot_subtractive_ready = cpu_axi4_64b_aw_gnt_subtractive && subtractive_axi_awready;
+    assign trace_axil_64b_aw_slot_subtractive_ready = trace_axil_64b_aw_gnt_subtractive && subtractive_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign subtractive_axi_awid = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.id : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.id : '0);
-    assign subtractive_axi_awaddr = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.addr : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.addr : '0);
-    assign subtractive_axi_awlen = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.len : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.len : '0);
-    assign subtractive_axi_awsize = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.size : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.size : '0);
-    assign subtractive_axi_awburst = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.burst : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.burst : '0);
-    assign subtractive_axi_awlock = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.lock : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.lock : '0);
-    assign subtractive_axi_awcache = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.cache : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.cache : '0);
-    assign subtractive_axi_awprot = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.prot : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.prot : '0);
-    assign subtractive_axi_awqos = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.qos : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.qos : '0);
-    assign subtractive_axi_awregion = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.region : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.region : '0);
-    assign subtractive_axi_awuser = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.user : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.user : '0);
+    assign subtractive_axi_awid = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.id : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.id : '0);
+    assign subtractive_axi_awaddr = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.addr : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.addr : '0);
+    assign subtractive_axi_awlen = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.len : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.len : '0);
+    assign subtractive_axi_awsize = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.size : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.size : '0);
+    assign subtractive_axi_awburst = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.burst : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.burst : '0);
+    assign subtractive_axi_awlock = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.lock : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.lock : '0);
+    assign subtractive_axi_awcache = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.cache : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.cache : '0);
+    assign subtractive_axi_awprot = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.prot : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.prot : '0);
+    assign subtractive_axi_awqos = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.qos : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.qos : '0);
+    assign subtractive_axi_awregion = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.region : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.region : '0);
+    assign subtractive_axi_awuser = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw_slot_subtractive.user : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw_slot_subtractive.user : '0);
     assign subtractive_axi_awvalid = cpu_axi4_64b_aw_gnt_subtractive || trace_axil_64b_aw_gnt_subtractive;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    logic subtractive_wowner_ahead;
+    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
+    wire subtractive_wowner_byp = !subtractive_wowner_valid && !subtractive_wowner_ahead && subtractive_axi_awvalid;
+    wire subtractive_wowner_aw_hs = subtractive_axi_awvalid && subtractive_axi_awready;
+    wire subtractive_wowner_w_end = subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            subtractive_wowner_wptr <= '0;
-            subtractive_wowner_rptr <= '0;
+            subtractive_wowner_wptr  <= '0;
+            subtractive_wowner_rptr  <= '0;
+            subtractive_wowner_ahead <= 1'b0;
         end else begin
-            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+            if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
+                subtractive_wowner_ahead <= 1'b0;   // its W already went
+            end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
                 subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
+            end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
+                subtractive_wowner_ahead <= 1'b1;
             end
-            if (subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast) begin
+            if (subtractive_wowner_valid && subtractive_wowner_w_end) begin
                 subtractive_wowner_rptr <= subtractive_wowner_rptr + 1'b1;
             end
         end
     )
-    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
-    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
-    assign cpu_axi4_64b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd0) && cpu_axi4_64b_w_to_subtractive;
-    assign trace_axil_64b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd1) && trace_axil_64b_w_to_subtractive;
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
+                                       : subtractive_aw_arb_gnt;
+    assign cpu_axi4_64b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && cpu_axi4_64b_w_to_subtractive;
+    assign trace_axil_64b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd1) && trace_axil_64b_w_to_subtractive;
 
     // W channel (owner-gated mux across writing masters)
     assign subtractive_axi_wdata = ((cpu_axi4_64b_w_sel_subtractive && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.data : '0) |
@@ -1031,9 +1144,29 @@ module bridge_mix_d_xbar
     assign subtractive_axi_bridge_id_aw = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_bridge_id_aw : '0) |
         (trace_axil_64b_aw_gnt_subtractive ? trace_axil_bridge_id_aw : '0);
 
+    // AR request slots for subtractive: arbitration at the slave pins
+    assign cpu_axi4_64b_ar_slot_subtractive_in_valid = cpu_axi4_64b_ar_to_subtractive && cpu_axi4_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_axi4_64b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_64b_ar_slot_subtractive_in_valid), .wr_ready(cpu_axi4_64b_ar_slot_subtractive_in_ready), .wr_data(cpu_axi4_64b_ar),
+        .rd_valid(cpu_axi4_64b_ar_slot_subtractive_valid), .rd_ready(cpu_axi4_64b_ar_slot_subtractive_ready), .rd_data(cpu_axi4_64b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign trace_axil_64b_ar_slot_subtractive_in_valid = trace_axil_64b_ar_to_subtractive && trace_axil_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_trace_axil_64b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(trace_axil_64b_ar_slot_subtractive_in_valid), .wr_ready(trace_axil_64b_ar_slot_subtractive_in_ready), .wr_data(trace_axil_64b_ar),
+        .rd_valid(trace_axil_64b_ar_slot_subtractive_valid), .rd_ready(trace_axil_64b_ar_slot_subtractive_ready), .rd_data(trace_axil_64b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_ar_arb_req;
-    assign subtractive_ar_arb_req = {trace_axil_64b_ar_to_subtractive && trace_axil_64b_arvalid, cpu_axi4_64b_ar_to_subtractive && cpu_axi4_64b_arvalid};
+    assign subtractive_ar_arb_req = {trace_axil_64b_ar_slot_subtractive_valid, cpu_axi4_64b_ar_slot_subtractive_valid};
     logic [0:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
     logic subtractive_ar_arb_locked;
     wire [0:0] subtractive_ar_arb_pick = (subtractive_ar_arb_rr == 1'd0) ? (subtractive_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -1057,30 +1190,32 @@ module bridge_mix_d_xbar
     )
     wire cpu_axi4_64b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd0) && subtractive_ar_arb_req[0];
     wire trace_axil_64b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd1) && subtractive_ar_arb_req[1];
+    assign cpu_axi4_64b_ar_slot_subtractive_ready = cpu_axi4_64b_ar_gnt_subtractive && subtractive_axi_arready;
+    assign trace_axil_64b_ar_slot_subtractive_ready = trace_axil_64b_ar_gnt_subtractive && subtractive_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign subtractive_axi_arid = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.id : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.id : '0);
-    assign subtractive_axi_araddr = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.addr : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.addr : '0);
-    assign subtractive_axi_arlen = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.len : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.len : '0);
-    assign subtractive_axi_arsize = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.size : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.size : '0);
-    assign subtractive_axi_arburst = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.burst : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.burst : '0);
-    assign subtractive_axi_arlock = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.lock : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.lock : '0);
-    assign subtractive_axi_arcache = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.cache : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.cache : '0);
-    assign subtractive_axi_arprot = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.prot : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.prot : '0);
-    assign subtractive_axi_arqos = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.qos : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.qos : '0);
-    assign subtractive_axi_arregion = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.region : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.region : '0);
-    assign subtractive_axi_aruser = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.user : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.user : '0);
+    assign subtractive_axi_arid = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.id : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.id : '0);
+    assign subtractive_axi_araddr = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.addr : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.addr : '0);
+    assign subtractive_axi_arlen = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.len : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.len : '0);
+    assign subtractive_axi_arsize = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.size : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.size : '0);
+    assign subtractive_axi_arburst = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.burst : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.burst : '0);
+    assign subtractive_axi_arlock = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.lock : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.lock : '0);
+    assign subtractive_axi_arcache = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.cache : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.cache : '0);
+    assign subtractive_axi_arprot = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.prot : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.prot : '0);
+    assign subtractive_axi_arqos = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.qos : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.qos : '0);
+    assign subtractive_axi_arregion = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.region : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.region : '0);
+    assign subtractive_axi_aruser = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar_slot_subtractive.user : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar_slot_subtractive.user : '0);
     assign subtractive_axi_arvalid = cpu_axi4_64b_ar_gnt_subtractive || trace_axil_64b_ar_gnt_subtractive;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1254,8 +1389,8 @@ module bridge_mix_d_xbar
 
     // Master: cpu_axi4, Width path: 64b
     assign cpu_axi4_64b_awready = 
-        (cpu_axi4_64b_aw_gnt_ddr ? ddr_axi_awready : '0) |
-        (cpu_axi4_64b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((cpu_axi4_64b_aw_to_ddr && !cpu_axi4_64b_aw_hold_ddr) ? cpu_axi4_64b_aw_slot_ddr_in_ready : '0) |
+        ((cpu_axi4_64b_aw_to_subtractive && !cpu_axi4_64b_aw_hold_subtractive) ? cpu_axi4_64b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_axi4_64b_wready = 
         (cpu_axi4_64b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -1278,8 +1413,8 @@ module bridge_mix_d_xbar
         (cpu_axi4_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_axi4_64b_arready = 
-        (cpu_axi4_64b_ar_gnt_ddr ? ddr_axi_arready : '0) |
-        (cpu_axi4_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((cpu_axi4_64b_ar_to_ddr) ? cpu_axi4_64b_ar_slot_ddr_in_ready : '0) |
+        ((cpu_axi4_64b_ar_to_subtractive) ? cpu_axi4_64b_ar_slot_subtractive_in_ready : '0);
 
     assign cpu_axi4_64b_r.id = 
         (cpu_axi4_64b_r_rgnt_ddr ? ddr_axi_rid : '0) |
@@ -1349,8 +1484,8 @@ module bridge_mix_d_xbar
 
     // Master: trace_axil, Width path: 64b
     assign trace_axil_64b_awready = 
-        (trace_axil_64b_aw_gnt_ddr ? ddr_axi_awready : '0) |
-        (trace_axil_64b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((trace_axil_64b_aw_to_ddr && !trace_axil_64b_aw_hold_ddr) ? trace_axil_64b_aw_slot_ddr_in_ready : '0) |
+        ((trace_axil_64b_aw_to_subtractive && !trace_axil_64b_aw_hold_subtractive) ? trace_axil_64b_aw_slot_subtractive_in_ready : '0);
 
     assign trace_axil_64b_wready = 
         (trace_axil_64b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -1373,8 +1508,8 @@ module bridge_mix_d_xbar
         (trace_axil_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign trace_axil_64b_arready = 
-        (trace_axil_64b_ar_gnt_ddr ? ddr_axi_arready : '0) |
-        (trace_axil_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((trace_axil_64b_ar_to_ddr) ? trace_axil_64b_ar_slot_ddr_in_ready : '0) |
+        ((trace_axil_64b_ar_to_subtractive) ? trace_axil_64b_ar_slot_subtractive_in_ready : '0);
 
     assign trace_axil_64b_r.id = 
         (trace_axil_64b_r_rgnt_ddr ? ddr_axi_rid : '0) |

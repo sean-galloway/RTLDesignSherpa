@@ -316,6 +316,34 @@ module bridge_2x3_apb_req_xbar
     logic apb5m_32b_w_to_subtractive;
     logic apb5m_32b_w_sel_subtractive;
 
+    // Request slots of the arbitrated slaves (assigned below)
+    axi4_aw_t apb4m_32b_aw_slot_mem;
+    logic apb4m_32b_aw_slot_mem_valid, apb4m_32b_aw_slot_mem_ready, apb4m_32b_aw_slot_mem_in_valid, apb4m_32b_aw_slot_mem_in_ready;
+    axi4_aw_t apb5m_32b_aw_slot_mem;
+    logic apb5m_32b_aw_slot_mem_valid, apb5m_32b_aw_slot_mem_ready, apb5m_32b_aw_slot_mem_in_valid, apb5m_32b_aw_slot_mem_in_ready;
+    axi4_aw_t apb4m_32b_aw_slot_subtractive;
+    logic apb4m_32b_aw_slot_subtractive_valid, apb4m_32b_aw_slot_subtractive_ready, apb4m_32b_aw_slot_subtractive_in_valid, apb4m_32b_aw_slot_subtractive_in_ready;
+    axi4_aw_t apb5m_32b_aw_slot_subtractive;
+    logic apb5m_32b_aw_slot_subtractive_valid, apb5m_32b_aw_slot_subtractive_ready, apb5m_32b_aw_slot_subtractive_in_valid, apb5m_32b_aw_slot_subtractive_in_ready;
+    axi4_ar_t apb4m_32b_ar_slot_mem;
+    logic apb4m_32b_ar_slot_mem_valid, apb4m_32b_ar_slot_mem_ready, apb4m_32b_ar_slot_mem_in_valid, apb4m_32b_ar_slot_mem_in_ready;
+    axi4_ar_t apb5m_32b_ar_slot_mem;
+    logic apb5m_32b_ar_slot_mem_valid, apb5m_32b_ar_slot_mem_ready, apb5m_32b_ar_slot_mem_in_valid, apb5m_32b_ar_slot_mem_in_ready;
+    axi4_ar_t apb4m_32b_ar_slot_subtractive;
+    logic apb4m_32b_ar_slot_subtractive_valid, apb4m_32b_ar_slot_subtractive_ready, apb4m_32b_ar_slot_subtractive_in_valid, apb4m_32b_ar_slot_subtractive_in_ready;
+    axi4_ar_t apb5m_32b_ar_slot_subtractive;
+    logic apb5m_32b_ar_slot_subtractive_valid, apb5m_32b_ar_slot_subtractive_ready, apb5m_32b_ar_slot_subtractive_in_valid, apb5m_32b_ar_slot_subtractive_in_ready;
+    // Write ordering: a master's AW waits while another of its slots
+    // holds an AW (see _generate_request_slots)
+    wire apb4m_32b_aw_hold_mem = apb4m_32b_aw_slot_subtractive_valid;
+    wire apb4m_32b_aw_hold_lregs = apb4m_32b_aw_slot_mem_valid || apb4m_32b_aw_slot_subtractive_valid;
+    wire apb4m_32b_aw_hold_periph = apb4m_32b_aw_slot_mem_valid || apb4m_32b_aw_slot_subtractive_valid;
+    wire apb4m_32b_aw_hold_subtractive = apb4m_32b_aw_slot_mem_valid;
+    wire apb5m_32b_aw_hold_mem = apb5m_32b_aw_slot_subtractive_valid;
+    wire apb5m_32b_aw_hold_lregs = apb5m_32b_aw_slot_mem_valid || apb5m_32b_aw_slot_subtractive_valid;
+    wire apb5m_32b_aw_hold_periph = apb5m_32b_aw_slot_mem_valid || apb5m_32b_aw_slot_subtractive_valid;
+    wire apb5m_32b_aw_hold_subtractive = apb5m_32b_aw_slot_mem_valid;
+
     // ================================================================
     // Response arbiters (one slave per master path per channel)
     // ================================================================
@@ -464,9 +492,29 @@ module bridge_2x3_apb_req_xbar
     wire apb5m_32b_aw_to_mem = (apb5m_32b_aw.addr <= 32'h0fffffff);
     wire apb5m_32b_ar_to_mem = (apb5m_32b_ar.addr <= 32'h0fffffff);
 
+    // AW request slots for mem: arbitration at the slave pins
+    assign apb4m_32b_aw_slot_mem_in_valid = apb4m_32b_aw_to_mem && apb4m_32b_awvalid && !apb4m_32b_aw_hold_mem;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb4m_32b_aw_slot_mem (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb4m_32b_aw_slot_mem_in_valid), .wr_ready(apb4m_32b_aw_slot_mem_in_ready), .wr_data(apb4m_32b_aw),
+        .rd_valid(apb4m_32b_aw_slot_mem_valid), .rd_ready(apb4m_32b_aw_slot_mem_ready), .rd_data(apb4m_32b_aw_slot_mem),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign apb5m_32b_aw_slot_mem_in_valid = apb5m_32b_aw_to_mem && apb5m_32b_awvalid && !apb5m_32b_aw_hold_mem;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb5m_32b_aw_slot_mem (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb5m_32b_aw_slot_mem_in_valid), .wr_ready(apb5m_32b_aw_slot_mem_in_ready), .wr_data(apb5m_32b_aw),
+        .rd_valid(apb5m_32b_aw_slot_mem_valid), .rd_ready(apb5m_32b_aw_slot_mem_ready), .rd_data(apb5m_32b_aw_slot_mem),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for mem: round-robin, lock until handshake ----
     logic [1:0] mem_aw_arb_req;
-    assign mem_aw_arb_req = {apb5m_32b_aw_to_mem && apb5m_32b_awvalid, apb4m_32b_aw_to_mem && apb4m_32b_awvalid};
+    assign mem_aw_arb_req = {apb5m_32b_aw_slot_mem_valid, apb4m_32b_aw_slot_mem_valid};
     logic [0:0] mem_aw_arb_lock, mem_aw_arb_rr;
     logic mem_aw_arb_locked;
     wire [0:0] mem_aw_arb_pick = (mem_aw_arb_rr == 1'd0) ? (mem_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -490,54 +538,66 @@ module bridge_2x3_apb_req_xbar
     )
     wire apb4m_32b_aw_gnt_mem = mem_aw_arb_gnt_valid && (mem_aw_arb_gnt == 1'd0) && mem_aw_arb_req[0];
     wire apb5m_32b_aw_gnt_mem = mem_aw_arb_gnt_valid && (mem_aw_arb_gnt == 1'd1) && mem_aw_arb_req[1];
+    assign apb4m_32b_aw_slot_mem_ready = apb4m_32b_aw_gnt_mem && mem_axi_awready;
+    assign apb5m_32b_aw_slot_mem_ready = apb5m_32b_aw_gnt_mem && mem_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign mem_axi_awid = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.id : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.id : '0);
-    assign mem_axi_awaddr = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.addr : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.addr : '0);
-    assign mem_axi_awlen = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.len : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.len : '0);
-    assign mem_axi_awsize = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.size : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.size : '0);
-    assign mem_axi_awburst = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.burst : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.burst : '0);
-    assign mem_axi_awlock = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.lock : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.lock : '0);
-    assign mem_axi_awcache = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.cache : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.cache : '0);
-    assign mem_axi_awprot = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.prot : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.prot : '0);
-    assign mem_axi_awqos = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.qos : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.qos : '0);
-    assign mem_axi_awregion = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.region : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.region : '0);
-    assign mem_axi_awuser = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw.user : '0) |
-        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw.user : '0);
+    assign mem_axi_awid = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.id : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.id : '0);
+    assign mem_axi_awaddr = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.addr : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.addr : '0);
+    assign mem_axi_awlen = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.len : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.len : '0);
+    assign mem_axi_awsize = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.size : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.size : '0);
+    assign mem_axi_awburst = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.burst : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.burst : '0);
+    assign mem_axi_awlock = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.lock : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.lock : '0);
+    assign mem_axi_awcache = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.cache : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.cache : '0);
+    assign mem_axi_awprot = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.prot : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.prot : '0);
+    assign mem_axi_awqos = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.qos : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.qos : '0);
+    assign mem_axi_awregion = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.region : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.region : '0);
+    assign mem_axi_awuser = (apb4m_32b_aw_gnt_mem ? apb4m_32b_aw_slot_mem.user : '0) |
+        (apb5m_32b_aw_gnt_mem ? apb5m_32b_aw_slot_mem.user : '0);
     assign mem_axi_awvalid = apb4m_32b_aw_gnt_mem || apb5m_32b_aw_gnt_mem;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] mem_wowner_mem [16];
     logic [4:0] mem_wowner_wptr, mem_wowner_rptr;
+    logic mem_wowner_ahead;
+    wire mem_wowner_valid = (mem_wowner_wptr != mem_wowner_rptr);
+    wire mem_wowner_byp = !mem_wowner_valid && !mem_wowner_ahead && mem_axi_awvalid;
+    wire mem_wowner_aw_hs = mem_axi_awvalid && mem_axi_awready;
+    wire mem_wowner_w_end = mem_axi_wvalid && mem_axi_wready && mem_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            mem_wowner_wptr <= '0;
-            mem_wowner_rptr <= '0;
+            mem_wowner_wptr  <= '0;
+            mem_wowner_rptr  <= '0;
+            mem_wowner_ahead <= 1'b0;
         end else begin
-            if (mem_axi_awvalid && mem_axi_awready) begin
+            if (mem_wowner_aw_hs && mem_wowner_ahead) begin
+                mem_wowner_ahead <= 1'b0;   // its W already went
+            end else if (mem_wowner_aw_hs && !(mem_wowner_byp && mem_wowner_w_end)) begin
                 mem_wowner_mem[mem_wowner_wptr[3:0]] <= mem_aw_arb_gnt;
                 mem_wowner_wptr <= mem_wowner_wptr + 1'b1;
+            end else if (!mem_wowner_aw_hs && mem_wowner_byp && mem_wowner_w_end) begin
+                mem_wowner_ahead <= 1'b1;
             end
-            if (mem_axi_wvalid && mem_axi_wready && mem_axi_wlast) begin
+            if (mem_wowner_valid && mem_wowner_w_end) begin
                 mem_wowner_rptr <= mem_wowner_rptr + 1'b1;
             end
         end
     )
-    wire mem_wowner_valid = (mem_wowner_wptr != mem_wowner_rptr);
-    wire [0:0] mem_wowner_head = mem_wowner_mem[mem_wowner_rptr[3:0]];
-    assign apb4m_32b_w_sel_mem = mem_wowner_valid && (mem_wowner_head == 1'd0) && apb4m_32b_w_to_mem;
-    assign apb5m_32b_w_sel_mem = mem_wowner_valid && (mem_wowner_head == 1'd1) && apb5m_32b_w_to_mem;
+    wire [0:0] mem_wowner_head = mem_wowner_valid ? mem_wowner_mem[mem_wowner_rptr[3:0]]
+                                       : mem_aw_arb_gnt;
+    assign apb4m_32b_w_sel_mem = (mem_wowner_valid || mem_wowner_byp) && (mem_wowner_head == 1'd0) && apb4m_32b_w_to_mem;
+    assign apb5m_32b_w_sel_mem = (mem_wowner_valid || mem_wowner_byp) && (mem_wowner_head == 1'd1) && apb5m_32b_w_to_mem;
 
     // W channel (owner-gated mux across writing masters)
     assign mem_axi_wdata = ((apb4m_32b_w_sel_mem && apb4m_32b_wvalid) ? apb4m_32b_w.data : '0) |
@@ -558,9 +618,29 @@ module bridge_2x3_apb_req_xbar
     assign mem_axi_bridge_id_aw = (apb4m_32b_aw_gnt_mem ? apb4m_bridge_id_aw : '0) |
         (apb5m_32b_aw_gnt_mem ? apb5m_bridge_id_aw : '0);
 
+    // AR request slots for mem: arbitration at the slave pins
+    assign apb4m_32b_ar_slot_mem_in_valid = apb4m_32b_ar_to_mem && apb4m_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_apb4m_32b_ar_slot_mem (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb4m_32b_ar_slot_mem_in_valid), .wr_ready(apb4m_32b_ar_slot_mem_in_ready), .wr_data(apb4m_32b_ar),
+        .rd_valid(apb4m_32b_ar_slot_mem_valid), .rd_ready(apb4m_32b_ar_slot_mem_ready), .rd_data(apb4m_32b_ar_slot_mem),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign apb5m_32b_ar_slot_mem_in_valid = apb5m_32b_ar_to_mem && apb5m_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_apb5m_32b_ar_slot_mem (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb5m_32b_ar_slot_mem_in_valid), .wr_ready(apb5m_32b_ar_slot_mem_in_ready), .wr_data(apb5m_32b_ar),
+        .rd_valid(apb5m_32b_ar_slot_mem_valid), .rd_ready(apb5m_32b_ar_slot_mem_ready), .rd_data(apb5m_32b_ar_slot_mem),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for mem: round-robin, lock until handshake ----
     logic [1:0] mem_ar_arb_req;
-    assign mem_ar_arb_req = {apb5m_32b_ar_to_mem && apb5m_32b_arvalid, apb4m_32b_ar_to_mem && apb4m_32b_arvalid};
+    assign mem_ar_arb_req = {apb5m_32b_ar_slot_mem_valid, apb4m_32b_ar_slot_mem_valid};
     logic [0:0] mem_ar_arb_lock, mem_ar_arb_rr;
     logic mem_ar_arb_locked;
     wire [0:0] mem_ar_arb_pick = (mem_ar_arb_rr == 1'd0) ? (mem_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -584,30 +664,32 @@ module bridge_2x3_apb_req_xbar
     )
     wire apb4m_32b_ar_gnt_mem = mem_ar_arb_gnt_valid && (mem_ar_arb_gnt == 1'd0) && mem_ar_arb_req[0];
     wire apb5m_32b_ar_gnt_mem = mem_ar_arb_gnt_valid && (mem_ar_arb_gnt == 1'd1) && mem_ar_arb_req[1];
+    assign apb4m_32b_ar_slot_mem_ready = apb4m_32b_ar_gnt_mem && mem_axi_arready;
+    assign apb5m_32b_ar_slot_mem_ready = apb5m_32b_ar_gnt_mem && mem_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign mem_axi_arid = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.id : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.id : '0);
-    assign mem_axi_araddr = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.addr : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.addr : '0);
-    assign mem_axi_arlen = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.len : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.len : '0);
-    assign mem_axi_arsize = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.size : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.size : '0);
-    assign mem_axi_arburst = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.burst : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.burst : '0);
-    assign mem_axi_arlock = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.lock : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.lock : '0);
-    assign mem_axi_arcache = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.cache : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.cache : '0);
-    assign mem_axi_arprot = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.prot : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.prot : '0);
-    assign mem_axi_arqos = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.qos : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.qos : '0);
-    assign mem_axi_arregion = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.region : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.region : '0);
-    assign mem_axi_aruser = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar.user : '0) |
-        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar.user : '0);
+    assign mem_axi_arid = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.id : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.id : '0);
+    assign mem_axi_araddr = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.addr : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.addr : '0);
+    assign mem_axi_arlen = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.len : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.len : '0);
+    assign mem_axi_arsize = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.size : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.size : '0);
+    assign mem_axi_arburst = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.burst : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.burst : '0);
+    assign mem_axi_arlock = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.lock : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.lock : '0);
+    assign mem_axi_arcache = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.cache : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.cache : '0);
+    assign mem_axi_arprot = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.prot : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.prot : '0);
+    assign mem_axi_arqos = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.qos : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.qos : '0);
+    assign mem_axi_arregion = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.region : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.region : '0);
+    assign mem_axi_aruser = (apb4m_32b_ar_gnt_mem ? apb4m_32b_ar_slot_mem.user : '0) |
+        (apb5m_32b_ar_gnt_mem ? apb5m_32b_ar_slot_mem.user : '0);
     assign mem_axi_arvalid = apb4m_32b_ar_gnt_mem || apb5m_32b_ar_gnt_mem;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -633,7 +715,7 @@ module bridge_2x3_apb_req_xbar
 
     // ---- AW arbiter for lregs: round-robin, lock until handshake ----
     logic [1:0] lregs_aw_arb_req;
-    assign lregs_aw_arb_req = {apb5m_32b_aw_to_lregs && apb5m_32b_awvalid, apb4m_32b_aw_to_lregs && apb4m_32b_awvalid};
+    assign lregs_aw_arb_req = {apb5m_32b_aw_to_lregs && apb5m_32b_awvalid && !apb5m_32b_aw_hold_lregs, apb4m_32b_aw_to_lregs && apb4m_32b_awvalid && !apb4m_32b_aw_hold_lregs};
     logic [0:0] lregs_aw_arb_lock, lregs_aw_arb_rr;
     logic lregs_aw_arb_locked;
     wire [0:0] lregs_aw_arb_pick = (lregs_aw_arb_rr == 1'd0) ? (lregs_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -683,7 +765,7 @@ module bridge_2x3_apb_req_xbar
         (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.user : '0);
     assign lregs_axi_awvalid = apb4m_32b_aw_gnt_lregs || apb5m_32b_aw_gnt_lregs;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] lregs_wowner_mem [16];
     logic [4:0] lregs_wowner_wptr, lregs_wowner_rptr;
@@ -800,7 +882,7 @@ module bridge_2x3_apb_req_xbar
 
     // ---- AW arbiter for periph: round-robin, lock until handshake ----
     logic [1:0] periph_aw_arb_req;
-    assign periph_aw_arb_req = {apb5m_32b_aw_to_periph && apb5m_32b_awvalid, apb4m_32b_aw_to_periph && apb4m_32b_awvalid};
+    assign periph_aw_arb_req = {apb5m_32b_aw_to_periph && apb5m_32b_awvalid && !apb5m_32b_aw_hold_periph, apb4m_32b_aw_to_periph && apb4m_32b_awvalid && !apb4m_32b_aw_hold_periph};
     logic [0:0] periph_aw_arb_lock, periph_aw_arb_rr;
     logic periph_aw_arb_locked;
     wire [0:0] periph_aw_arb_pick = (periph_aw_arb_rr == 1'd0) ? (periph_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -850,7 +932,7 @@ module bridge_2x3_apb_req_xbar
         (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.user : '0);
     assign periph_axi_awvalid = apb4m_32b_aw_gnt_periph || apb5m_32b_aw_gnt_periph;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] periph_wowner_mem [16];
     logic [4:0] periph_wowner_wptr, periph_wowner_rptr;
@@ -965,9 +1047,29 @@ module bridge_2x3_apb_req_xbar
     wire apb5m_32b_aw_to_subtractive = !(((apb5m_32b_aw.addr <= 32'h0fffffff)) || (((apb5m_32b_aw.addr >= 32'h40000000) && (apb5m_32b_aw.addr <= 32'h4000ffff))) || (((apb5m_32b_aw.addr >= 32'h50000000) && (apb5m_32b_aw.addr <= 32'h50000fff))));
     wire apb5m_32b_ar_to_subtractive = !(((apb5m_32b_ar.addr <= 32'h0fffffff)) || (((apb5m_32b_ar.addr >= 32'h40000000) && (apb5m_32b_ar.addr <= 32'h4000ffff))) || (((apb5m_32b_ar.addr >= 32'h50000000) && (apb5m_32b_ar.addr <= 32'h50000fff))));
 
+    // AW request slots for subtractive: arbitration at the slave pins
+    assign apb4m_32b_aw_slot_subtractive_in_valid = apb4m_32b_aw_to_subtractive && apb4m_32b_awvalid && !apb4m_32b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb4m_32b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb4m_32b_aw_slot_subtractive_in_valid), .wr_ready(apb4m_32b_aw_slot_subtractive_in_ready), .wr_data(apb4m_32b_aw),
+        .rd_valid(apb4m_32b_aw_slot_subtractive_valid), .rd_ready(apb4m_32b_aw_slot_subtractive_ready), .rd_data(apb4m_32b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign apb5m_32b_aw_slot_subtractive_in_valid = apb5m_32b_aw_to_subtractive && apb5m_32b_awvalid && !apb5m_32b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb5m_32b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb5m_32b_aw_slot_subtractive_in_valid), .wr_ready(apb5m_32b_aw_slot_subtractive_in_ready), .wr_data(apb5m_32b_aw),
+        .rd_valid(apb5m_32b_aw_slot_subtractive_valid), .rd_ready(apb5m_32b_aw_slot_subtractive_ready), .rd_data(apb5m_32b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_aw_arb_req;
-    assign subtractive_aw_arb_req = {apb5m_32b_aw_to_subtractive && apb5m_32b_awvalid, apb4m_32b_aw_to_subtractive && apb4m_32b_awvalid};
+    assign subtractive_aw_arb_req = {apb5m_32b_aw_slot_subtractive_valid, apb4m_32b_aw_slot_subtractive_valid};
     logic [0:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
     logic subtractive_aw_arb_locked;
     wire [0:0] subtractive_aw_arb_pick = (subtractive_aw_arb_rr == 1'd0) ? (subtractive_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -991,54 +1093,66 @@ module bridge_2x3_apb_req_xbar
     )
     wire apb4m_32b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd0) && subtractive_aw_arb_req[0];
     wire apb5m_32b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd1) && subtractive_aw_arb_req[1];
+    assign apb4m_32b_aw_slot_subtractive_ready = apb4m_32b_aw_gnt_subtractive && subtractive_axi_awready;
+    assign apb5m_32b_aw_slot_subtractive_ready = apb5m_32b_aw_gnt_subtractive && subtractive_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign subtractive_axi_awid = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.id : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.id : '0);
-    assign subtractive_axi_awaddr = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.addr : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.addr : '0);
-    assign subtractive_axi_awlen = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.len : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.len : '0);
-    assign subtractive_axi_awsize = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.size : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.size : '0);
-    assign subtractive_axi_awburst = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.burst : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.burst : '0);
-    assign subtractive_axi_awlock = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.lock : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.lock : '0);
-    assign subtractive_axi_awcache = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.cache : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.cache : '0);
-    assign subtractive_axi_awprot = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.prot : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.prot : '0);
-    assign subtractive_axi_awqos = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.qos : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.qos : '0);
-    assign subtractive_axi_awregion = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.region : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.region : '0);
-    assign subtractive_axi_awuser = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw.user : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw.user : '0);
+    assign subtractive_axi_awid = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.id : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.id : '0);
+    assign subtractive_axi_awaddr = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.addr : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.addr : '0);
+    assign subtractive_axi_awlen = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.len : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.len : '0);
+    assign subtractive_axi_awsize = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.size : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.size : '0);
+    assign subtractive_axi_awburst = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.burst : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.burst : '0);
+    assign subtractive_axi_awlock = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.lock : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.lock : '0);
+    assign subtractive_axi_awcache = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.cache : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.cache : '0);
+    assign subtractive_axi_awprot = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.prot : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.prot : '0);
+    assign subtractive_axi_awqos = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.qos : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.qos : '0);
+    assign subtractive_axi_awregion = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.region : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.region : '0);
+    assign subtractive_axi_awuser = (apb4m_32b_aw_gnt_subtractive ? apb4m_32b_aw_slot_subtractive.user : '0) |
+        (apb5m_32b_aw_gnt_subtractive ? apb5m_32b_aw_slot_subtractive.user : '0);
     assign subtractive_axi_awvalid = apb4m_32b_aw_gnt_subtractive || apb5m_32b_aw_gnt_subtractive;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    logic subtractive_wowner_ahead;
+    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
+    wire subtractive_wowner_byp = !subtractive_wowner_valid && !subtractive_wowner_ahead && subtractive_axi_awvalid;
+    wire subtractive_wowner_aw_hs = subtractive_axi_awvalid && subtractive_axi_awready;
+    wire subtractive_wowner_w_end = subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            subtractive_wowner_wptr <= '0;
-            subtractive_wowner_rptr <= '0;
+            subtractive_wowner_wptr  <= '0;
+            subtractive_wowner_rptr  <= '0;
+            subtractive_wowner_ahead <= 1'b0;
         end else begin
-            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+            if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
+                subtractive_wowner_ahead <= 1'b0;   // its W already went
+            end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
                 subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
+            end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
+                subtractive_wowner_ahead <= 1'b1;
             end
-            if (subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast) begin
+            if (subtractive_wowner_valid && subtractive_wowner_w_end) begin
                 subtractive_wowner_rptr <= subtractive_wowner_rptr + 1'b1;
             end
         end
     )
-    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
-    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
-    assign apb4m_32b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd0) && apb4m_32b_w_to_subtractive;
-    assign apb5m_32b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd1) && apb5m_32b_w_to_subtractive;
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
+                                       : subtractive_aw_arb_gnt;
+    assign apb4m_32b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && apb4m_32b_w_to_subtractive;
+    assign apb5m_32b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd1) && apb5m_32b_w_to_subtractive;
 
     // W channel (owner-gated mux across writing masters)
     assign subtractive_axi_wdata = ((apb4m_32b_w_sel_subtractive && apb4m_32b_wvalid) ? apb4m_32b_w.data : '0) |
@@ -1059,9 +1173,29 @@ module bridge_2x3_apb_req_xbar
     assign subtractive_axi_bridge_id_aw = (apb4m_32b_aw_gnt_subtractive ? apb4m_bridge_id_aw : '0) |
         (apb5m_32b_aw_gnt_subtractive ? apb5m_bridge_id_aw : '0);
 
+    // AR request slots for subtractive: arbitration at the slave pins
+    assign apb4m_32b_ar_slot_subtractive_in_valid = apb4m_32b_ar_to_subtractive && apb4m_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_apb4m_32b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb4m_32b_ar_slot_subtractive_in_valid), .wr_ready(apb4m_32b_ar_slot_subtractive_in_ready), .wr_data(apb4m_32b_ar),
+        .rd_valid(apb4m_32b_ar_slot_subtractive_valid), .rd_ready(apb4m_32b_ar_slot_subtractive_ready), .rd_data(apb4m_32b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign apb5m_32b_ar_slot_subtractive_in_valid = apb5m_32b_ar_to_subtractive && apb5m_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_apb5m_32b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb5m_32b_ar_slot_subtractive_in_valid), .wr_ready(apb5m_32b_ar_slot_subtractive_in_ready), .wr_data(apb5m_32b_ar),
+        .rd_valid(apb5m_32b_ar_slot_subtractive_valid), .rd_ready(apb5m_32b_ar_slot_subtractive_ready), .rd_data(apb5m_32b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_ar_arb_req;
-    assign subtractive_ar_arb_req = {apb5m_32b_ar_to_subtractive && apb5m_32b_arvalid, apb4m_32b_ar_to_subtractive && apb4m_32b_arvalid};
+    assign subtractive_ar_arb_req = {apb5m_32b_ar_slot_subtractive_valid, apb4m_32b_ar_slot_subtractive_valid};
     logic [0:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
     logic subtractive_ar_arb_locked;
     wire [0:0] subtractive_ar_arb_pick = (subtractive_ar_arb_rr == 1'd0) ? (subtractive_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -1085,30 +1219,32 @@ module bridge_2x3_apb_req_xbar
     )
     wire apb4m_32b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd0) && subtractive_ar_arb_req[0];
     wire apb5m_32b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd1) && subtractive_ar_arb_req[1];
+    assign apb4m_32b_ar_slot_subtractive_ready = apb4m_32b_ar_gnt_subtractive && subtractive_axi_arready;
+    assign apb5m_32b_ar_slot_subtractive_ready = apb5m_32b_ar_gnt_subtractive && subtractive_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign subtractive_axi_arid = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.id : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.id : '0);
-    assign subtractive_axi_araddr = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.addr : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.addr : '0);
-    assign subtractive_axi_arlen = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.len : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.len : '0);
-    assign subtractive_axi_arsize = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.size : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.size : '0);
-    assign subtractive_axi_arburst = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.burst : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.burst : '0);
-    assign subtractive_axi_arlock = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.lock : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.lock : '0);
-    assign subtractive_axi_arcache = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.cache : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.cache : '0);
-    assign subtractive_axi_arprot = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.prot : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.prot : '0);
-    assign subtractive_axi_arqos = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.qos : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.qos : '0);
-    assign subtractive_axi_arregion = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.region : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.region : '0);
-    assign subtractive_axi_aruser = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar.user : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar.user : '0);
+    assign subtractive_axi_arid = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.id : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.id : '0);
+    assign subtractive_axi_araddr = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.addr : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.addr : '0);
+    assign subtractive_axi_arlen = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.len : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.len : '0);
+    assign subtractive_axi_arsize = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.size : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.size : '0);
+    assign subtractive_axi_arburst = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.burst : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.burst : '0);
+    assign subtractive_axi_arlock = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.lock : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.lock : '0);
+    assign subtractive_axi_arcache = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.cache : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.cache : '0);
+    assign subtractive_axi_arprot = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.prot : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.prot : '0);
+    assign subtractive_axi_arqos = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.qos : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.qos : '0);
+    assign subtractive_axi_arregion = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.region : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.region : '0);
+    assign subtractive_axi_aruser = (apb4m_32b_ar_gnt_subtractive ? apb4m_32b_ar_slot_subtractive.user : '0) |
+        (apb5m_32b_ar_gnt_subtractive ? apb5m_32b_ar_slot_subtractive.user : '0);
     assign subtractive_axi_arvalid = apb4m_32b_ar_gnt_subtractive || apb5m_32b_ar_gnt_subtractive;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1183,10 +1319,10 @@ module bridge_2x3_apb_req_xbar
 
     // Master: apb4m, Width path: 32b
     assign apb4m_32b_awready = 
-        (apb4m_32b_aw_gnt_mem ? mem_axi_awready : '0) |
+        ((apb4m_32b_aw_to_mem && !apb4m_32b_aw_hold_mem) ? apb4m_32b_aw_slot_mem_in_ready : '0) |
         (apb4m_32b_aw_gnt_lregs ? lregs_axi_awready : '0) |
         (apb4m_32b_aw_gnt_periph ? periph_axi_awready : '0) |
-        (apb4m_32b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((apb4m_32b_aw_to_subtractive && !apb4m_32b_aw_hold_subtractive) ? apb4m_32b_aw_slot_subtractive_in_ready : '0);
 
     assign apb4m_32b_wready = 
         (apb4m_32b_w_sel_mem ? mem_axi_wready : '0) |
@@ -1219,10 +1355,10 @@ module bridge_2x3_apb_req_xbar
         (apb4m_32b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign apb4m_32b_arready = 
-        (apb4m_32b_ar_gnt_mem ? mem_axi_arready : '0) |
+        ((apb4m_32b_ar_to_mem) ? apb4m_32b_ar_slot_mem_in_ready : '0) |
         (apb4m_32b_ar_gnt_lregs ? lregs_axi_arready : '0) |
         (apb4m_32b_ar_gnt_periph ? periph_axi_arready : '0) |
-        (apb4m_32b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((apb4m_32b_ar_to_subtractive) ? apb4m_32b_ar_slot_subtractive_in_ready : '0);
 
     assign apb4m_32b_r.id = 
         (apb4m_32b_r_rgnt_mem ? mem_axi_rid : '0) |
@@ -1263,10 +1399,10 @@ module bridge_2x3_apb_req_xbar
 
     // Master: apb5m, Width path: 32b
     assign apb5m_32b_awready = 
-        (apb5m_32b_aw_gnt_mem ? mem_axi_awready : '0) |
+        ((apb5m_32b_aw_to_mem && !apb5m_32b_aw_hold_mem) ? apb5m_32b_aw_slot_mem_in_ready : '0) |
         (apb5m_32b_aw_gnt_lregs ? lregs_axi_awready : '0) |
         (apb5m_32b_aw_gnt_periph ? periph_axi_awready : '0) |
-        (apb5m_32b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((apb5m_32b_aw_to_subtractive && !apb5m_32b_aw_hold_subtractive) ? apb5m_32b_aw_slot_subtractive_in_ready : '0);
 
     assign apb5m_32b_wready = 
         (apb5m_32b_w_sel_mem ? mem_axi_wready : '0) |
@@ -1299,10 +1435,10 @@ module bridge_2x3_apb_req_xbar
         (apb5m_32b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign apb5m_32b_arready = 
-        (apb5m_32b_ar_gnt_mem ? mem_axi_arready : '0) |
+        ((apb5m_32b_ar_to_mem) ? apb5m_32b_ar_slot_mem_in_ready : '0) |
         (apb5m_32b_ar_gnt_lregs ? lregs_axi_arready : '0) |
         (apb5m_32b_ar_gnt_periph ? periph_axi_arready : '0) |
-        (apb5m_32b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((apb5m_32b_ar_to_subtractive) ? apb5m_32b_ar_slot_subtractive_in_ready : '0);
 
     assign apb5m_32b_r.id = 
         (apb5m_32b_r_rgnt_mem ? mem_axi_rid : '0) |

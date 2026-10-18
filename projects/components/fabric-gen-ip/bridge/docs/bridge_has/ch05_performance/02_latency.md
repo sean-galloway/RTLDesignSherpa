@@ -40,7 +40,7 @@ as bridge vault TASK-014.
 | Master Adapter (skid) | 1 | Pipeline registration |
 | Address Decode | 0 | Combinational |
 | Arbitration | 0-1 | 0 if no contention, 1 if arbitrate |
-| Slave Router | 1 | Pipeline registration |
+| Slave Router | 1 | Pipeline registration: the slave adapter's skid, or on a slave several masters share, the master's request slot ahead of the pick |
 | **Total Address** | **2-3** | Best/worst case |
 
 : Address Path Latency
