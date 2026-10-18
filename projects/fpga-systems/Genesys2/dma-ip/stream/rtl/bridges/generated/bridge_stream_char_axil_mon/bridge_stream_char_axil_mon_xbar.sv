@@ -537,6 +537,32 @@ module bridge_stream_char_axil_mon_xbar
     logic monbus_wr_256b_w_to_subtractive;
     logic monbus_wr_256b_w_sel_subtractive;
 
+    // Request slots of the arbitrated slaves (assigned below)
+    axi4_aw_t host_256b_aw_slot_desc_ram;
+    logic host_256b_aw_slot_desc_ram_valid, host_256b_aw_slot_desc_ram_ready, host_256b_aw_slot_desc_ram_in_valid, host_256b_aw_slot_desc_ram_in_ready;
+    axi4_aw_t host_256b_aw_slot_subtractive;
+    logic host_256b_aw_slot_subtractive_valid, host_256b_aw_slot_subtractive_ready, host_256b_aw_slot_subtractive_in_valid, host_256b_aw_slot_subtractive_in_ready;
+    axi4_aw_t monbus_wr_256b_aw_slot_subtractive;
+    logic monbus_wr_256b_aw_slot_subtractive_valid, monbus_wr_256b_aw_slot_subtractive_ready, monbus_wr_256b_aw_slot_subtractive_in_valid, monbus_wr_256b_aw_slot_subtractive_in_ready;
+    axi4_ar_t host_256b_ar_slot_desc_ram;
+    logic host_256b_ar_slot_desc_ram_valid, host_256b_ar_slot_desc_ram_ready, host_256b_ar_slot_desc_ram_in_valid, host_256b_ar_slot_desc_ram_in_ready;
+    axi4_ar_t stream_desc_256b_ar_slot_desc_ram;
+    logic stream_desc_256b_ar_slot_desc_ram_valid, stream_desc_256b_ar_slot_desc_ram_ready, stream_desc_256b_ar_slot_desc_ram_in_valid, stream_desc_256b_ar_slot_desc_ram_in_ready;
+    axi4_ar_t host_256b_ar_slot_subtractive;
+    logic host_256b_ar_slot_subtractive_valid, host_256b_ar_slot_subtractive_ready, host_256b_ar_slot_subtractive_in_valid, host_256b_ar_slot_subtractive_in_ready;
+    axi4_ar_t stream_desc_256b_ar_slot_subtractive;
+    logic stream_desc_256b_ar_slot_subtractive_valid, stream_desc_256b_ar_slot_subtractive_ready, stream_desc_256b_ar_slot_subtractive_in_valid, stream_desc_256b_ar_slot_subtractive_in_ready;
+    // Write ordering: a master's AW waits while another of its slots
+    // holds an AW (see _generate_request_slots)
+    wire host_32b_aw_hold_stream_apb = host_256b_aw_slot_desc_ram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_32b_aw_hold_harness_csr = host_256b_aw_slot_desc_ram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_32b_aw_hold_stream_err = host_256b_aw_slot_desc_ram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_32b_aw_hold_dma_axil = host_256b_aw_slot_desc_ram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_64b_aw_hold_debug_sram = host_256b_aw_slot_desc_ram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_256b_aw_hold_desc_ram = host_256b_aw_slot_subtractive_valid;
+    wire host_256b_aw_hold_subtractive = host_256b_aw_slot_desc_ram_valid;
+    wire monbus_wr_64b_aw_hold_debug_sram = monbus_wr_256b_aw_slot_subtractive_valid;
+
     // ================================================================
     // Response arbiters (one slave per master path per channel)
     // ================================================================
@@ -714,7 +740,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_stream_apb = (host_32b_aw.addr <= 32'h00001fff);
-    wire host_32b_aw_gnt_stream_apb = host_32b_aw_to_stream_apb;
+    wire host_32b_aw_gnt_stream_apb = host_32b_aw_to_stream_apb && !host_32b_aw_hold_stream_apb;
     assign stream_apb_axi_awid     = host_32b_aw_to_stream_apb ? host_32b_aw.id : '0;
     assign stream_apb_axi_awaddr   = host_32b_aw_to_stream_apb ? host_32b_aw.addr : '0;
     assign stream_apb_axi_awlen    = host_32b_aw_to_stream_apb ? host_32b_aw.len : '0;
@@ -726,7 +752,7 @@ module bridge_stream_char_axil_mon_xbar
     assign stream_apb_axi_awqos    = host_32b_aw_to_stream_apb ? host_32b_aw.qos : '0;
     assign stream_apb_axi_awregion = host_32b_aw_to_stream_apb ? host_32b_aw.region : '0;
     assign stream_apb_axi_awuser   = host_32b_aw_to_stream_apb ? host_32b_aw.user : '0;
-    assign stream_apb_axi_awvalid  = host_32b_aw_to_stream_apb && host_32b_awvalid;
+    assign stream_apb_axi_awvalid  = host_32b_aw_gnt_stream_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_stream_apb = host_32b_w_to_stream_apb;
 
@@ -777,7 +803,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_harness_csr = ((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff));
-    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr;
+    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr && !host_32b_aw_hold_harness_csr;
     assign harness_csr_axi_awid     = host_32b_aw_to_harness_csr ? host_32b_aw.id : '0;
     assign harness_csr_axi_awaddr   = host_32b_aw_to_harness_csr ? host_32b_aw.addr : '0;
     assign harness_csr_axi_awlen    = host_32b_aw_to_harness_csr ? host_32b_aw.len : '0;
@@ -789,7 +815,7 @@ module bridge_stream_char_axil_mon_xbar
     assign harness_csr_axi_awqos    = host_32b_aw_to_harness_csr ? host_32b_aw.qos : '0;
     assign harness_csr_axi_awregion = host_32b_aw_to_harness_csr ? host_32b_aw.region : '0;
     assign harness_csr_axi_awuser   = host_32b_aw_to_harness_csr ? host_32b_aw.user : '0;
-    assign harness_csr_axi_awvalid  = host_32b_aw_to_harness_csr && host_32b_awvalid;
+    assign harness_csr_axi_awvalid  = host_32b_aw_gnt_harness_csr && host_32b_awvalid;
 
     assign host_32b_w_sel_harness_csr = host_32b_w_to_harness_csr;
 
@@ -842,9 +868,20 @@ module bridge_stream_char_axil_mon_xbar
     wire host_256b_ar_to_desc_ram = ((host_256b_ar.addr >= 32'h00020000) && (host_256b_ar.addr <= 32'h0002ffff));
     wire stream_desc_256b_ar_to_desc_ram = ((stream_desc_256b_ar.addr >= 32'h00020000) && (stream_desc_256b_ar.addr <= 32'h0002ffff));
 
+    // AW request slots for desc_ram: arbitration at the slave pins
+    assign host_256b_aw_slot_desc_ram_in_valid = host_256b_aw_to_desc_ram && host_256b_awvalid && !host_256b_aw_hold_desc_ram;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_256b_aw_slot_desc_ram (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_256b_aw_slot_desc_ram_in_valid), .wr_ready(host_256b_aw_slot_desc_ram_in_ready), .wr_data(host_256b_aw),
+        .rd_valid(host_256b_aw_slot_desc_ram_valid), .rd_ready(host_256b_aw_slot_desc_ram_ready), .rd_data(host_256b_aw_slot_desc_ram),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for desc_ram: round-robin, lock until handshake ----
     logic [0:0] desc_ram_aw_arb_req;
-    assign desc_ram_aw_arb_req = {host_256b_aw_to_desc_ram && host_256b_awvalid};
+    assign desc_ram_aw_arb_req = {host_256b_aw_slot_desc_ram_valid};
     logic [0:0] desc_ram_aw_arb_lock, desc_ram_aw_arb_rr;
     logic desc_ram_aw_arb_locked;
     wire [0:0] desc_ram_aw_arb_pick = 1'd0;
@@ -866,42 +903,53 @@ module bridge_stream_char_axil_mon_xbar
         end
     )
     wire host_256b_aw_gnt_desc_ram = desc_ram_aw_arb_gnt_valid && (desc_ram_aw_arb_gnt == 1'd0) && desc_ram_aw_arb_req[0];
+    assign host_256b_aw_slot_desc_ram_ready = host_256b_aw_gnt_desc_ram && desc_ram_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign desc_ram_axi_awid = (host_256b_aw_gnt_desc_ram ? host_256b_aw.id : '0);
-    assign desc_ram_axi_awaddr = (host_256b_aw_gnt_desc_ram ? host_256b_aw.addr : '0);
-    assign desc_ram_axi_awlen = (host_256b_aw_gnt_desc_ram ? host_256b_aw.len : '0);
-    assign desc_ram_axi_awsize = (host_256b_aw_gnt_desc_ram ? host_256b_aw.size : '0);
-    assign desc_ram_axi_awburst = (host_256b_aw_gnt_desc_ram ? host_256b_aw.burst : '0);
-    assign desc_ram_axi_awlock = (host_256b_aw_gnt_desc_ram ? host_256b_aw.lock : '0);
-    assign desc_ram_axi_awcache = (host_256b_aw_gnt_desc_ram ? host_256b_aw.cache : '0);
-    assign desc_ram_axi_awprot = (host_256b_aw_gnt_desc_ram ? host_256b_aw.prot : '0);
-    assign desc_ram_axi_awqos = (host_256b_aw_gnt_desc_ram ? host_256b_aw.qos : '0);
-    assign desc_ram_axi_awregion = (host_256b_aw_gnt_desc_ram ? host_256b_aw.region : '0);
-    assign desc_ram_axi_awuser = (host_256b_aw_gnt_desc_ram ? host_256b_aw.user : '0);
+    assign desc_ram_axi_awid = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.id : '0);
+    assign desc_ram_axi_awaddr = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.addr : '0);
+    assign desc_ram_axi_awlen = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.len : '0);
+    assign desc_ram_axi_awsize = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.size : '0);
+    assign desc_ram_axi_awburst = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.burst : '0);
+    assign desc_ram_axi_awlock = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.lock : '0);
+    assign desc_ram_axi_awcache = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.cache : '0);
+    assign desc_ram_axi_awprot = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.prot : '0);
+    assign desc_ram_axi_awqos = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.qos : '0);
+    assign desc_ram_axi_awregion = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.region : '0);
+    assign desc_ram_axi_awuser = (host_256b_aw_gnt_desc_ram ? host_256b_aw_slot_desc_ram.user : '0);
     assign desc_ram_axi_awvalid = host_256b_aw_gnt_desc_ram;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] desc_ram_wowner_mem [16];
     logic [4:0] desc_ram_wowner_wptr, desc_ram_wowner_rptr;
+    logic desc_ram_wowner_ahead;
+    wire desc_ram_wowner_valid = (desc_ram_wowner_wptr != desc_ram_wowner_rptr);
+    wire desc_ram_wowner_byp = !desc_ram_wowner_valid && !desc_ram_wowner_ahead && desc_ram_axi_awvalid;
+    wire desc_ram_wowner_aw_hs = desc_ram_axi_awvalid && desc_ram_axi_awready;
+    wire desc_ram_wowner_w_end = desc_ram_axi_wvalid && desc_ram_axi_wready && desc_ram_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            desc_ram_wowner_wptr <= '0;
-            desc_ram_wowner_rptr <= '0;
+            desc_ram_wowner_wptr  <= '0;
+            desc_ram_wowner_rptr  <= '0;
+            desc_ram_wowner_ahead <= 1'b0;
         end else begin
-            if (desc_ram_axi_awvalid && desc_ram_axi_awready) begin
+            if (desc_ram_wowner_aw_hs && desc_ram_wowner_ahead) begin
+                desc_ram_wowner_ahead <= 1'b0;   // its W already went
+            end else if (desc_ram_wowner_aw_hs && !(desc_ram_wowner_byp && desc_ram_wowner_w_end)) begin
                 desc_ram_wowner_mem[desc_ram_wowner_wptr[3:0]] <= desc_ram_aw_arb_gnt;
                 desc_ram_wowner_wptr <= desc_ram_wowner_wptr + 1'b1;
+            end else if (!desc_ram_wowner_aw_hs && desc_ram_wowner_byp && desc_ram_wowner_w_end) begin
+                desc_ram_wowner_ahead <= 1'b1;
             end
-            if (desc_ram_axi_wvalid && desc_ram_axi_wready && desc_ram_axi_wlast) begin
+            if (desc_ram_wowner_valid && desc_ram_wowner_w_end) begin
                 desc_ram_wowner_rptr <= desc_ram_wowner_rptr + 1'b1;
             end
         end
     )
-    wire desc_ram_wowner_valid = (desc_ram_wowner_wptr != desc_ram_wowner_rptr);
-    wire [0:0] desc_ram_wowner_head = desc_ram_wowner_mem[desc_ram_wowner_rptr[3:0]];
-    assign host_256b_w_sel_desc_ram = desc_ram_wowner_valid && (desc_ram_wowner_head == 1'd0) && host_256b_w_to_desc_ram;
+    wire [0:0] desc_ram_wowner_head = desc_ram_wowner_valid ? desc_ram_wowner_mem[desc_ram_wowner_rptr[3:0]]
+                                       : desc_ram_aw_arb_gnt;
+    assign host_256b_w_sel_desc_ram = (desc_ram_wowner_valid || desc_ram_wowner_byp) && (desc_ram_wowner_head == 1'd0) && host_256b_w_to_desc_ram;
 
     // W channel (owner-gated mux across writing masters)
     assign desc_ram_axi_wdata = ((host_256b_w_sel_desc_ram && host_256b_wvalid) ? host_256b_w.data : '0);
@@ -916,9 +964,29 @@ module bridge_stream_char_axil_mon_xbar
     // Bridge ID (writes) — the granted master's id
     assign desc_ram_axi_bridge_id_aw = (host_256b_aw_gnt_desc_ram ? host_bridge_id_aw : '0);
 
+    // AR request slots for desc_ram: arbitration at the slave pins
+    assign host_256b_ar_slot_desc_ram_in_valid = host_256b_ar_to_desc_ram && host_256b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_host_256b_ar_slot_desc_ram (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_256b_ar_slot_desc_ram_in_valid), .wr_ready(host_256b_ar_slot_desc_ram_in_ready), .wr_data(host_256b_ar),
+        .rd_valid(host_256b_ar_slot_desc_ram_valid), .rd_ready(host_256b_ar_slot_desc_ram_ready), .rd_data(host_256b_ar_slot_desc_ram),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign stream_desc_256b_ar_slot_desc_ram_in_valid = stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_stream_desc_256b_ar_slot_desc_ram (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(stream_desc_256b_ar_slot_desc_ram_in_valid), .wr_ready(stream_desc_256b_ar_slot_desc_ram_in_ready), .wr_data(stream_desc_256b_ar),
+        .rd_valid(stream_desc_256b_ar_slot_desc_ram_valid), .rd_ready(stream_desc_256b_ar_slot_desc_ram_ready), .rd_data(stream_desc_256b_ar_slot_desc_ram),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for desc_ram: round-robin, lock until handshake ----
     logic [1:0] desc_ram_ar_arb_req;
-    assign desc_ram_ar_arb_req = {stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid, host_256b_ar_to_desc_ram && host_256b_arvalid};
+    assign desc_ram_ar_arb_req = {stream_desc_256b_ar_slot_desc_ram_valid, host_256b_ar_slot_desc_ram_valid};
     logic [0:0] desc_ram_ar_arb_lock, desc_ram_ar_arb_rr;
     logic desc_ram_ar_arb_locked;
     wire [0:0] desc_ram_ar_arb_pick = (desc_ram_ar_arb_rr == 1'd0) ? (desc_ram_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -942,30 +1010,32 @@ module bridge_stream_char_axil_mon_xbar
     )
     wire host_256b_ar_gnt_desc_ram = desc_ram_ar_arb_gnt_valid && (desc_ram_ar_arb_gnt == 1'd0) && desc_ram_ar_arb_req[0];
     wire stream_desc_256b_ar_gnt_desc_ram = desc_ram_ar_arb_gnt_valid && (desc_ram_ar_arb_gnt == 1'd1) && desc_ram_ar_arb_req[1];
+    assign host_256b_ar_slot_desc_ram_ready = host_256b_ar_gnt_desc_ram && desc_ram_axi_arready;
+    assign stream_desc_256b_ar_slot_desc_ram_ready = stream_desc_256b_ar_gnt_desc_ram && desc_ram_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign desc_ram_axi_arid = (host_256b_ar_gnt_desc_ram ? host_256b_ar.id : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.id : '0);
-    assign desc_ram_axi_araddr = (host_256b_ar_gnt_desc_ram ? host_256b_ar.addr : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.addr : '0);
-    assign desc_ram_axi_arlen = (host_256b_ar_gnt_desc_ram ? host_256b_ar.len : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.len : '0);
-    assign desc_ram_axi_arsize = (host_256b_ar_gnt_desc_ram ? host_256b_ar.size : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.size : '0);
-    assign desc_ram_axi_arburst = (host_256b_ar_gnt_desc_ram ? host_256b_ar.burst : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.burst : '0);
-    assign desc_ram_axi_arlock = (host_256b_ar_gnt_desc_ram ? host_256b_ar.lock : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.lock : '0);
-    assign desc_ram_axi_arcache = (host_256b_ar_gnt_desc_ram ? host_256b_ar.cache : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.cache : '0);
-    assign desc_ram_axi_arprot = (host_256b_ar_gnt_desc_ram ? host_256b_ar.prot : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.prot : '0);
-    assign desc_ram_axi_arqos = (host_256b_ar_gnt_desc_ram ? host_256b_ar.qos : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.qos : '0);
-    assign desc_ram_axi_arregion = (host_256b_ar_gnt_desc_ram ? host_256b_ar.region : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.region : '0);
-    assign desc_ram_axi_aruser = (host_256b_ar_gnt_desc_ram ? host_256b_ar.user : '0) |
-        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.user : '0);
+    assign desc_ram_axi_arid = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.id : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.id : '0);
+    assign desc_ram_axi_araddr = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.addr : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.addr : '0);
+    assign desc_ram_axi_arlen = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.len : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.len : '0);
+    assign desc_ram_axi_arsize = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.size : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.size : '0);
+    assign desc_ram_axi_arburst = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.burst : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.burst : '0);
+    assign desc_ram_axi_arlock = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.lock : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.lock : '0);
+    assign desc_ram_axi_arcache = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.cache : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.cache : '0);
+    assign desc_ram_axi_arprot = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.prot : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.prot : '0);
+    assign desc_ram_axi_arqos = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.qos : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.qos : '0);
+    assign desc_ram_axi_arregion = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.region : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.region : '0);
+    assign desc_ram_axi_aruser = (host_256b_ar_gnt_desc_ram ? host_256b_ar_slot_desc_ram.user : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar_slot_desc_ram.user : '0);
     assign desc_ram_axi_arvalid = host_256b_ar_gnt_desc_ram || stream_desc_256b_ar_gnt_desc_ram;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -986,7 +1056,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_stream_err = ((host_32b_aw.addr >= 32'h00030000) && (host_32b_aw.addr <= 32'h00030fff));
-    wire host_32b_aw_gnt_stream_err = host_32b_aw_to_stream_err;
+    wire host_32b_aw_gnt_stream_err = host_32b_aw_to_stream_err && !host_32b_aw_hold_stream_err;
     assign stream_err_axi_awid     = host_32b_aw_to_stream_err ? host_32b_aw.id : '0;
     assign stream_err_axi_awaddr   = host_32b_aw_to_stream_err ? host_32b_aw.addr : '0;
     assign stream_err_axi_awlen    = host_32b_aw_to_stream_err ? host_32b_aw.len : '0;
@@ -998,7 +1068,7 @@ module bridge_stream_char_axil_mon_xbar
     assign stream_err_axi_awqos    = host_32b_aw_to_stream_err ? host_32b_aw.qos : '0;
     assign stream_err_axi_awregion = host_32b_aw_to_stream_err ? host_32b_aw.region : '0;
     assign stream_err_axi_awuser   = host_32b_aw_to_stream_err ? host_32b_aw.user : '0;
-    assign stream_err_axi_awvalid  = host_32b_aw_to_stream_err && host_32b_awvalid;
+    assign stream_err_axi_awvalid  = host_32b_aw_gnt_stream_err && host_32b_awvalid;
 
     assign host_32b_w_sel_stream_err = host_32b_w_to_stream_err;
 
@@ -1053,7 +1123,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // ---- AW arbiter for debug_sram: round-robin, lock until handshake ----
     logic [1:0] debug_sram_aw_arb_req;
-    assign debug_sram_aw_arb_req = {monbus_wr_64b_aw_to_debug_sram && monbus_wr_64b_awvalid, host_64b_aw_to_debug_sram && host_64b_awvalid};
+    assign debug_sram_aw_arb_req = {monbus_wr_64b_aw_to_debug_sram && monbus_wr_64b_awvalid && !monbus_wr_64b_aw_hold_debug_sram, host_64b_aw_to_debug_sram && host_64b_awvalid && !host_64b_aw_hold_debug_sram};
     logic [0:0] debug_sram_aw_arb_lock, debug_sram_aw_arb_rr;
     logic debug_sram_aw_arb_locked;
     wire [0:0] debug_sram_aw_arb_pick = (debug_sram_aw_arb_rr == 1'd0) ? (debug_sram_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -1103,7 +1173,7 @@ module bridge_stream_char_axil_mon_xbar
         (monbus_wr_64b_aw_gnt_debug_sram ? monbus_wr_64b_aw.user : '0);
     assign debug_sram_axi_awvalid = host_64b_aw_gnt_debug_sram || monbus_wr_64b_aw_gnt_debug_sram;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] debug_sram_wowner_mem [16];
     logic [4:0] debug_sram_wowner_wptr, debug_sram_wowner_rptr;
@@ -1200,7 +1270,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_dma_axil = ((host_32b_aw.addr >= 32'h00080000) && (host_32b_aw.addr <= 32'h00080fff));
-    wire host_32b_aw_gnt_dma_axil = host_32b_aw_to_dma_axil;
+    wire host_32b_aw_gnt_dma_axil = host_32b_aw_to_dma_axil && !host_32b_aw_hold_dma_axil;
     assign dma_axil_axi_awid     = host_32b_aw_to_dma_axil ? host_32b_aw.id : '0;
     assign dma_axil_axi_awaddr   = host_32b_aw_to_dma_axil ? host_32b_aw.addr : '0;
     assign dma_axil_axi_awlen    = host_32b_aw_to_dma_axil ? host_32b_aw.len : '0;
@@ -1212,7 +1282,7 @@ module bridge_stream_char_axil_mon_xbar
     assign dma_axil_axi_awqos    = host_32b_aw_to_dma_axil ? host_32b_aw.qos : '0;
     assign dma_axil_axi_awregion = host_32b_aw_to_dma_axil ? host_32b_aw.region : '0;
     assign dma_axil_axi_awuser   = host_32b_aw_to_dma_axil ? host_32b_aw.user : '0;
-    assign dma_axil_axi_awvalid  = host_32b_aw_to_dma_axil && host_32b_awvalid;
+    assign dma_axil_axi_awvalid  = host_32b_aw_gnt_dma_axil && host_32b_awvalid;
 
     assign host_32b_w_sel_dma_axil = host_32b_w_to_dma_axil;
 
@@ -1267,9 +1337,29 @@ module bridge_stream_char_axil_mon_xbar
     wire stream_desc_256b_ar_to_subtractive = !((((stream_desc_256b_ar.addr >= 32'h00020000) && (stream_desc_256b_ar.addr <= 32'h0002ffff))));
     wire monbus_wr_256b_aw_to_subtractive = !((((monbus_wr_256b_aw.addr >= 32'h00040000) && (monbus_wr_256b_aw.addr <= 32'h0007ffff))));
 
+    // AW request slots for subtractive: arbitration at the slave pins
+    assign host_256b_aw_slot_subtractive_in_valid = host_256b_aw_to_subtractive && host_256b_awvalid && !host_256b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_256b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_256b_aw_slot_subtractive_in_valid), .wr_ready(host_256b_aw_slot_subtractive_in_ready), .wr_data(host_256b_aw),
+        .rd_valid(host_256b_aw_slot_subtractive_valid), .rd_ready(host_256b_aw_slot_subtractive_ready), .rd_data(host_256b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign monbus_wr_256b_aw_slot_subtractive_in_valid = monbus_wr_256b_aw_to_subtractive && monbus_wr_256b_awvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_monbus_wr_256b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(monbus_wr_256b_aw_slot_subtractive_in_valid), .wr_ready(monbus_wr_256b_aw_slot_subtractive_in_ready), .wr_data(monbus_wr_256b_aw),
+        .rd_valid(monbus_wr_256b_aw_slot_subtractive_valid), .rd_ready(monbus_wr_256b_aw_slot_subtractive_ready), .rd_data(monbus_wr_256b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_aw_arb_req;
-    assign subtractive_aw_arb_req = {monbus_wr_256b_aw_to_subtractive && monbus_wr_256b_awvalid, host_256b_aw_to_subtractive && host_256b_awvalid};
+    assign subtractive_aw_arb_req = {monbus_wr_256b_aw_slot_subtractive_valid, host_256b_aw_slot_subtractive_valid};
     logic [0:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
     logic subtractive_aw_arb_locked;
     wire [0:0] subtractive_aw_arb_pick = (subtractive_aw_arb_rr == 1'd0) ? (subtractive_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -1293,54 +1383,66 @@ module bridge_stream_char_axil_mon_xbar
     )
     wire host_256b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd0) && subtractive_aw_arb_req[0];
     wire monbus_wr_256b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd1) && subtractive_aw_arb_req[1];
+    assign host_256b_aw_slot_subtractive_ready = host_256b_aw_gnt_subtractive && subtractive_axi_awready;
+    assign monbus_wr_256b_aw_slot_subtractive_ready = monbus_wr_256b_aw_gnt_subtractive && subtractive_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign subtractive_axi_awid = (host_256b_aw_gnt_subtractive ? host_256b_aw.id : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.id : '0);
-    assign subtractive_axi_awaddr = (host_256b_aw_gnt_subtractive ? host_256b_aw.addr : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.addr : '0);
-    assign subtractive_axi_awlen = (host_256b_aw_gnt_subtractive ? host_256b_aw.len : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.len : '0);
-    assign subtractive_axi_awsize = (host_256b_aw_gnt_subtractive ? host_256b_aw.size : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.size : '0);
-    assign subtractive_axi_awburst = (host_256b_aw_gnt_subtractive ? host_256b_aw.burst : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.burst : '0);
-    assign subtractive_axi_awlock = (host_256b_aw_gnt_subtractive ? host_256b_aw.lock : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.lock : '0);
-    assign subtractive_axi_awcache = (host_256b_aw_gnt_subtractive ? host_256b_aw.cache : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.cache : '0);
-    assign subtractive_axi_awprot = (host_256b_aw_gnt_subtractive ? host_256b_aw.prot : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.prot : '0);
-    assign subtractive_axi_awqos = (host_256b_aw_gnt_subtractive ? host_256b_aw.qos : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.qos : '0);
-    assign subtractive_axi_awregion = (host_256b_aw_gnt_subtractive ? host_256b_aw.region : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.region : '0);
-    assign subtractive_axi_awuser = (host_256b_aw_gnt_subtractive ? host_256b_aw.user : '0) |
-        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.user : '0);
+    assign subtractive_axi_awid = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.id : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.id : '0);
+    assign subtractive_axi_awaddr = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.addr : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.addr : '0);
+    assign subtractive_axi_awlen = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.len : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.len : '0);
+    assign subtractive_axi_awsize = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.size : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.size : '0);
+    assign subtractive_axi_awburst = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.burst : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.burst : '0);
+    assign subtractive_axi_awlock = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.lock : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.lock : '0);
+    assign subtractive_axi_awcache = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.cache : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.cache : '0);
+    assign subtractive_axi_awprot = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.prot : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.prot : '0);
+    assign subtractive_axi_awqos = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.qos : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.qos : '0);
+    assign subtractive_axi_awregion = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.region : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.region : '0);
+    assign subtractive_axi_awuser = (host_256b_aw_gnt_subtractive ? host_256b_aw_slot_subtractive.user : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw_slot_subtractive.user : '0);
     assign subtractive_axi_awvalid = host_256b_aw_gnt_subtractive || monbus_wr_256b_aw_gnt_subtractive;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    logic subtractive_wowner_ahead;
+    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
+    wire subtractive_wowner_byp = !subtractive_wowner_valid && !subtractive_wowner_ahead && subtractive_axi_awvalid;
+    wire subtractive_wowner_aw_hs = subtractive_axi_awvalid && subtractive_axi_awready;
+    wire subtractive_wowner_w_end = subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            subtractive_wowner_wptr <= '0;
-            subtractive_wowner_rptr <= '0;
+            subtractive_wowner_wptr  <= '0;
+            subtractive_wowner_rptr  <= '0;
+            subtractive_wowner_ahead <= 1'b0;
         end else begin
-            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+            if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
+                subtractive_wowner_ahead <= 1'b0;   // its W already went
+            end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
                 subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
+            end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
+                subtractive_wowner_ahead <= 1'b1;
             end
-            if (subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast) begin
+            if (subtractive_wowner_valid && subtractive_wowner_w_end) begin
                 subtractive_wowner_rptr <= subtractive_wowner_rptr + 1'b1;
             end
         end
     )
-    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
-    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
-    assign host_256b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd0) && host_256b_w_to_subtractive;
-    assign monbus_wr_256b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd1) && monbus_wr_256b_w_to_subtractive;
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
+                                       : subtractive_aw_arb_gnt;
+    assign host_256b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && host_256b_w_to_subtractive;
+    assign monbus_wr_256b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd1) && monbus_wr_256b_w_to_subtractive;
 
     // W channel (owner-gated mux across writing masters)
     assign subtractive_axi_wdata = ((host_256b_w_sel_subtractive && host_256b_wvalid) ? host_256b_w.data : '0) |
@@ -1361,9 +1463,29 @@ module bridge_stream_char_axil_mon_xbar
     assign subtractive_axi_bridge_id_aw = (host_256b_aw_gnt_subtractive ? host_bridge_id_aw : '0) |
         (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_bridge_id_aw : '0);
 
+    // AR request slots for subtractive: arbitration at the slave pins
+    assign host_256b_ar_slot_subtractive_in_valid = host_256b_ar_to_subtractive && host_256b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_host_256b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_256b_ar_slot_subtractive_in_valid), .wr_ready(host_256b_ar_slot_subtractive_in_ready), .wr_data(host_256b_ar),
+        .rd_valid(host_256b_ar_slot_subtractive_valid), .rd_ready(host_256b_ar_slot_subtractive_ready), .rd_data(host_256b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign stream_desc_256b_ar_slot_subtractive_in_valid = stream_desc_256b_ar_to_subtractive && stream_desc_256b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_stream_desc_256b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(stream_desc_256b_ar_slot_subtractive_in_valid), .wr_ready(stream_desc_256b_ar_slot_subtractive_in_ready), .wr_data(stream_desc_256b_ar),
+        .rd_valid(stream_desc_256b_ar_slot_subtractive_valid), .rd_ready(stream_desc_256b_ar_slot_subtractive_ready), .rd_data(stream_desc_256b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_ar_arb_req;
-    assign subtractive_ar_arb_req = {stream_desc_256b_ar_to_subtractive && stream_desc_256b_arvalid, host_256b_ar_to_subtractive && host_256b_arvalid};
+    assign subtractive_ar_arb_req = {stream_desc_256b_ar_slot_subtractive_valid, host_256b_ar_slot_subtractive_valid};
     logic [0:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
     logic subtractive_ar_arb_locked;
     wire [0:0] subtractive_ar_arb_pick = (subtractive_ar_arb_rr == 1'd0) ? (subtractive_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -1387,30 +1509,32 @@ module bridge_stream_char_axil_mon_xbar
     )
     wire host_256b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd0) && subtractive_ar_arb_req[0];
     wire stream_desc_256b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd1) && subtractive_ar_arb_req[1];
+    assign host_256b_ar_slot_subtractive_ready = host_256b_ar_gnt_subtractive && subtractive_axi_arready;
+    assign stream_desc_256b_ar_slot_subtractive_ready = stream_desc_256b_ar_gnt_subtractive && subtractive_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign subtractive_axi_arid = (host_256b_ar_gnt_subtractive ? host_256b_ar.id : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.id : '0);
-    assign subtractive_axi_araddr = (host_256b_ar_gnt_subtractive ? host_256b_ar.addr : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.addr : '0);
-    assign subtractive_axi_arlen = (host_256b_ar_gnt_subtractive ? host_256b_ar.len : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.len : '0);
-    assign subtractive_axi_arsize = (host_256b_ar_gnt_subtractive ? host_256b_ar.size : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.size : '0);
-    assign subtractive_axi_arburst = (host_256b_ar_gnt_subtractive ? host_256b_ar.burst : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.burst : '0);
-    assign subtractive_axi_arlock = (host_256b_ar_gnt_subtractive ? host_256b_ar.lock : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.lock : '0);
-    assign subtractive_axi_arcache = (host_256b_ar_gnt_subtractive ? host_256b_ar.cache : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.cache : '0);
-    assign subtractive_axi_arprot = (host_256b_ar_gnt_subtractive ? host_256b_ar.prot : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.prot : '0);
-    assign subtractive_axi_arqos = (host_256b_ar_gnt_subtractive ? host_256b_ar.qos : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.qos : '0);
-    assign subtractive_axi_arregion = (host_256b_ar_gnt_subtractive ? host_256b_ar.region : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.region : '0);
-    assign subtractive_axi_aruser = (host_256b_ar_gnt_subtractive ? host_256b_ar.user : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.user : '0);
+    assign subtractive_axi_arid = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.id : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.id : '0);
+    assign subtractive_axi_araddr = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.addr : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.addr : '0);
+    assign subtractive_axi_arlen = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.len : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.len : '0);
+    assign subtractive_axi_arsize = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.size : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.size : '0);
+    assign subtractive_axi_arburst = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.burst : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.burst : '0);
+    assign subtractive_axi_arlock = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.lock : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.lock : '0);
+    assign subtractive_axi_arcache = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.cache : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.cache : '0);
+    assign subtractive_axi_arprot = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.prot : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.prot : '0);
+    assign subtractive_axi_arqos = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.qos : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.qos : '0);
+    assign subtractive_axi_arregion = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.region : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.region : '0);
+    assign subtractive_axi_aruser = (host_256b_ar_gnt_subtractive ? host_256b_ar_slot_subtractive.user : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar_slot_subtractive.user : '0);
     assign subtractive_axi_arvalid = host_256b_ar_gnt_subtractive || stream_desc_256b_ar_gnt_subtractive;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1676,8 +1800,8 @@ module bridge_stream_char_axil_mon_xbar
 
     // Master: host, Width path: 256b
     assign host_256b_awready = 
-        (host_256b_aw_gnt_desc_ram ? desc_ram_axi_awready : '0) |
-        (host_256b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((host_256b_aw_to_desc_ram && !host_256b_aw_hold_desc_ram) ? host_256b_aw_slot_desc_ram_in_ready : '0) |
+        ((host_256b_aw_to_subtractive && !host_256b_aw_hold_subtractive) ? host_256b_aw_slot_subtractive_in_ready : '0);
 
     assign host_256b_wready = 
         (host_256b_w_sel_desc_ram ? desc_ram_axi_wready : '0) |
@@ -1700,8 +1824,8 @@ module bridge_stream_char_axil_mon_xbar
         (host_256b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign host_256b_arready = 
-        (host_256b_ar_gnt_desc_ram ? desc_ram_axi_arready : '0) |
-        (host_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((host_256b_ar_to_desc_ram) ? host_256b_ar_slot_desc_ram_in_ready : '0) |
+        ((host_256b_ar_to_subtractive) ? host_256b_ar_slot_subtractive_in_ready : '0);
 
     assign host_256b_r.id = 
         (host_256b_r_rgnt_desc_ram ? desc_ram_axi_rid : '0) |
@@ -1730,8 +1854,8 @@ module bridge_stream_char_axil_mon_xbar
 
     // Master: stream_desc, Width path: 256b
     assign stream_desc_256b_arready = 
-        (stream_desc_256b_ar_gnt_desc_ram ? desc_ram_axi_arready : '0) |
-        (stream_desc_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((stream_desc_256b_ar_to_desc_ram) ? stream_desc_256b_ar_slot_desc_ram_in_ready : '0) |
+        ((stream_desc_256b_ar_to_subtractive) ? stream_desc_256b_ar_slot_subtractive_in_ready : '0);
 
     assign stream_desc_256b_r.id = 
         (stream_desc_256b_r_rgnt_desc_ram ? desc_ram_axi_rid : '0) |
@@ -1780,7 +1904,7 @@ module bridge_stream_char_axil_mon_xbar
 
     // Master: monbus_wr, Width path: 256b
     assign monbus_wr_256b_awready = 
-        (monbus_wr_256b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((monbus_wr_256b_aw_to_subtractive) ? monbus_wr_256b_aw_slot_subtractive_in_ready : '0);
 
     assign monbus_wr_256b_wready = 
         (monbus_wr_256b_w_sel_subtractive ? subtractive_axi_wready : '0);

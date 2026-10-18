@@ -210,7 +210,16 @@ module bridge_stream_mon_axil_mon_desc_ram_adapter
         .DATA_WIDTH(BRIDGE_ID_WIDTH),
         .DEPTH(16),  // max_outstanding
         .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
-        .PIPELINE_EVICT(0)
+        .PIPELINE_EVICT(0),
+        // Registered insert: the crossbar's arbitrated ID only reaches a
+        // register here; the 16-way match + duplicate popcount run the next
+        // cycle (GitHub #119: this was the 15-level worst path, master AW
+        // gate -> crossbar grant -> CAM count, on the fabric benchmark).
+        .PIPELINE_ALLOC(1),
+        // Registered free: the response's lookup still routes it this
+        // cycle; the entry free and same-ID decrements land the next
+        // (GitHub #119: the eviction was the next worst path).
+        .PIPELINE_FREE(1)
     ) u_wr_cam (
         .clk(aclk),
         .rst_n(aresetn),
@@ -244,7 +253,16 @@ module bridge_stream_mon_axil_mon_desc_ram_adapter
         .DATA_WIDTH(BRIDGE_ID_WIDTH),
         .DEPTH(16),  // max_outstanding
         .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
-        .PIPELINE_EVICT(0)
+        .PIPELINE_EVICT(0),
+        // Registered insert: the crossbar's arbitrated ID only reaches a
+        // register here; the 16-way match + duplicate popcount run the next
+        // cycle (GitHub #119: this was the 15-level worst path, master AW
+        // gate -> crossbar grant -> CAM count, on the fabric benchmark).
+        .PIPELINE_ALLOC(1),
+        // Registered free: the response's lookup still routes it this
+        // cycle; the entry free and same-ID decrements land the next
+        // (GitHub #119: the eviction was the next worst path).
+        .PIPELINE_FREE(1)
     ) u_rd_cam (
         .clk(aclk),
         .rst_n(aresetn),
@@ -270,7 +288,7 @@ module bridge_stream_mon_axil_mon_desc_ram_adapter
 
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr_monlite #(
-        .SKID_DEPTH_AW(2),
+        .SKID_DEPTH_AW(0),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
         .AXI_ID_WIDTH(10),
@@ -375,7 +393,7 @@ module bridge_stream_mon_axil_mon_desc_ram_adapter
 
     // AXI4 Master Read Timing Wrapper
     axi4_master_rd_monlite #(
-        .SKID_DEPTH_AR(2),
+        .SKID_DEPTH_AR(0),
         .SKID_DEPTH_R(2),
         .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),

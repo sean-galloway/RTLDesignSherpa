@@ -379,12 +379,31 @@ module bridge_stream_mon_axil_slave_monbus_wr_adapter
     logic [AW_TRK_AW:0]   aw_idt_cnt [AW_IDT_N];
     logic [NUM_SLAVES-1:0] aw_idt_tgt [AW_IDT_N];
     logic [AW_TRK_AW:0]   aw_out_cnt;
+    // Next counts, and registered flags taken from them, so the gate a
+    // request sees is a 1-bit lookup and a one-hot AND, not a counter
+    // mux and compare in series with the crossbar's arbitration.
+    logic [AW_TRK_AW:0]   aw_idt_cnt_nx [AW_IDT_N];
+    logic [AW_TRK_AW:0]   aw_out_cnt_nx;
+    logic [AW_IDT_N-1:0] aw_idt_busy;
+    logic                  aw_trk_full;
     logic [3:0] aw_idt_widx, aw_idt_ridx;
     logic aw_idt_push, aw_idt_pop;
     assign aw_idt_widx = fub_axi_awid[3:0];
     assign aw_idt_ridx = fub_axi_bid[3:0];
     assign aw_idt_push = fub_axi_awvalid && fub_axi_awready;
     assign aw_idt_pop  = fub_axi_bvalid && fub_axi_bready;
+    logic [1:0] aw_inc_n;   // pushes this cycle
+    assign aw_inc_n = 2'(aw_idt_push);
+
+    always_comb begin
+        for (int i = 0; i < AW_IDT_N; i++) begin
+            aw_idt_cnt_nx[i] = aw_idt_cnt[i]
+                + (AW_TRK_AW+1)'(aw_idt_push && (aw_idt_widx == 4'(i)))
+                - (AW_TRK_AW+1)'(aw_idt_pop  && (aw_idt_ridx == 4'(i)));
+        end
+        aw_out_cnt_nx = aw_out_cnt + (AW_TRK_AW+1)'(aw_idt_push)
+                          - (AW_TRK_AW+1)'(aw_idt_pop);
+    end
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -392,25 +411,32 @@ module bridge_stream_mon_axil_slave_monbus_wr_adapter
                 aw_idt_cnt[i] <= '0;
                 aw_idt_tgt[i] <= '0;
             end
+            aw_idt_busy <= '0;
             aw_out_cnt <= '0;
+            aw_trk_full <= 1'b0;
         end else begin
             if (aw_idt_push) aw_idt_tgt[aw_idt_widx] <= comb_slave_select_aw;
             for (int i = 0; i < AW_IDT_N; i++) begin
-                aw_idt_cnt[i] <= aw_idt_cnt[i]
-                    + (AW_TRK_AW+1)'(aw_idt_push && (aw_idt_widx == 4'(i)))
-                    - (AW_TRK_AW+1)'(aw_idt_pop  && (aw_idt_ridx == 4'(i)));
+                aw_idt_cnt[i]  <= aw_idt_cnt_nx[i];
+                aw_idt_busy[i] <= (aw_idt_push && (aw_idt_widx == 4'(i)))
+                                    || (aw_idt_cnt[i] > (AW_TRK_AW+1)'(1))
+                                    || ((aw_idt_cnt[i] == (AW_TRK_AW+1)'(1)) &&
+                                        !(aw_idt_pop && (aw_idt_ridx == 4'(i))));
             end
-            aw_out_cnt <= aw_out_cnt + (AW_TRK_AW+1)'(aw_idt_push)
-                                          - (AW_TRK_AW+1)'(aw_idt_pop);
+            aw_out_cnt  <= aw_out_cnt_nx;
+            aw_trk_full <=
+                ((aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH))   && (aw_inc_n == 2'(aw_idt_pop))) ||
+                ((aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH-1)) && (aw_inc_n == 2'(aw_idt_pop) + 2'd1));
         end
     )
 
     // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no
     // count wraps; AW_TRK_DEPTH is the port's outstanding limit.
-    logic aw_trk_full, aw_id_ok;
-    assign aw_trk_full = (aw_out_cnt == (AW_TRK_AW+1)'(AW_TRK_DEPTH));
-    assign aw_id_ok    = (aw_idt_cnt[aw_idt_widx] == '0) ||
-                           ((aw_idt_tgt[aw_idt_widx] == comb_slave_select_aw));
+    // Target match is a one-hot AND: the stored target and the decode
+    // are both one-hot (no hit selects the catch-all).
+    logic aw_id_ok;
+    assign aw_id_ok    = !aw_idt_busy[aw_idt_widx] ||
+                           ((|(aw_idt_tgt[aw_idt_widx] & comb_slave_select_aw)));
 
     // -------- B path arbiter (fixes bridge GitHub #119 L1) --------
     // Round robin over the 2 width paths. A grant holds while its
@@ -495,7 +521,7 @@ module bridge_stream_mon_axil_slave_monbus_wr_adapter
     // wait on each other at the slaves' W ports (crossed W deadlock).
     assign aw_gate_ok = aw_id_ok && !aw_trk_full &&
                         ((w_trk_wptr == w_trk_rptr) ||
-                         (w_slave_select == comb_slave_select_aw));
+                         (|(w_slave_select & comb_slave_select_aw)));
 
     // AW-ready MUX (combinational comb_slave_select_aw — awaddr is live during awvalid)
     always_comb begin
