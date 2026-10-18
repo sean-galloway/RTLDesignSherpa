@@ -50,6 +50,21 @@ descriptors) sends `desc` against strapped descriptor-queue entries.
    core restoring its strap.
 6. **Deadlock:** resolved by construction (owner 2026-10-18): credits have
    their own interfaces, so a credit never waits behind data.
+7. **Always return credits** (owner 2026-10-18), including for a packet
+   RAPIDS discards (bad header, bad tag, disabled channel).
+8. **ocelus stall check**: data in the sink SRAM that has not moved for
+   10 us (a cycle threshold) flags an error on MonBus.
+9. **Prompt returns**: coalesce only what is already pending; never hold
+   credits to build a batch while the sender may be waiting.
+10. **Quiescent gating**: resync, resets and partial resets happen only
+    under the global quiescent signal (TILE_SPEC 9, 11.10).
+
+Owner rulings 2026-10-18: strap and parameter agreement is a Hive-level
+contract (the Hive sets and checks it), so RAPIDS adds no cross-check of
+the cells' straps or packet lengths. A duplicated `add` is a user error, not
+a RAPIDS guard. With the scheduler refactor each scheduler keeps a two-deep
+descriptor skid buffer, which absorbs a `desc` for a busy channel at the
+head of the intake FIFO.
 
 ## Done when
 

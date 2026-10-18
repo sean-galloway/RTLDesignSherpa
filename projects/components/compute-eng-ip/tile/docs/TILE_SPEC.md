@@ -229,6 +229,11 @@ throughout the tile — a deliberate simplification against the NoC
 literature's GALS assumption; timing closure and generator
 predictability win over clock flexibility (design spec §2 close).
 
+Resets and partial resets (a tile, a tetrad, RAPIDS or one of its channels)
+happen only during quiescent periods, under the global quiescent signal
+(§11.9, hazard rules). How each partial reset sequences against the credit
+state is still to be worked out (§10).
+
 ## 10. Open items
 
 Decided 2026-10-16 (was §11): the hierarchical tile of §11.1 (tetrad
@@ -241,6 +246,8 @@ batching as a per-cell config with default N=1 (cell PRD §6).
 
 Still open:
 
+- The global quiescent signal (§11.9): how it is formed across every cell
+  and tile, and how each reset and partial reset sequences against it.
 - What switches the root mux (§11.4): software, a watchdog, or the
   root-to-root link.
 - Cell input buffer sizes (the advertisement value) and result-memory
@@ -548,6 +555,26 @@ Requirements this places on the implementation:
   returns; they consume what is addressed to them without stalling.
   `credit` packets travel on their own interface.
 
+**Hazard rules** (owner direction 2026-10-18):
+- **Always return credits.** Every packet RAPIDS consumes returns its full
+  credit, including one it discards (bad header, bad tag, disabled channel).
+  No path consumes a packet silently.
+- **Stalled landing data is a monitor error.** RAPIDS carries an ocelus
+  check: data present in the sink SRAM that has not moved for a long time
+  (10 us; a threshold in cycles) flags an error on MonBus.
+- **Return credits promptly.** RAPIDS may coalesce the returns already
+  pending when it sends one, but never holds credits back to build a batch
+  while the sender may be waiting for them.
+- **Straps are a Hive-level contract.** The Hive sets every strap and
+  parameter (`TILE_LAND_FLITS`, the descriptor credits, the cells' and
+  cores' straps) and checks they agree; it is the final arbiter. A block
+  built on its own (one tetrad, one RAPIDS) is only as consistent as the
+  parameters it is given.
+- **Resync and reset only when quiescent.** A global quiescent signal,
+  covering every cell and tile, gates any resync and any reset or partial
+  reset (§9, §11.10), so no packet is in flight against credits being
+  restored or cleared.
+
 ### 11.10 Credit advertisement
 
 Each side advertises its own credits in-band. Nothing is loaded from CSRs, so
@@ -569,8 +596,8 @@ the counts cannot drift from the hardware.
    advertise: they are legal by topology.
 2. The advertisements ride delta's hardwired reset-default route toward the
    RAPIDS boundary (delta HAS ch07 §3), so no routing table is needed first.
-3. They need no strap credit: credit packets travel on their own virtual
-   channel and the sink port always accepts them.
+3. They need no strap credit: credit packets travel on their own interface
+   and the sink port always accepts them.
 4. The advertisement doubles as the cell's or core's "alive": RAPIDS
    accepts strap traffic only from a sender that advertised in the window.
 5. **Legal destinations** (owner direction 2026-10-18). RAPIDS opens an
@@ -595,8 +622,10 @@ strap instead (§11.9), reserved by construction.
 
 **Resync after root failover:** credit packets in flight in the failed
 root are lost. Without a resync the lost credits leak until the counters
-reach zero and traffic stops.
-1. After the mux switches, RAPIDS sends every cell and core a `set` credit
+reach zero and traffic stops. A resync runs only while the global quiescent
+signal is asserted (§11.9, hazard rules): with nothing in flight, a restored
+strap is never counted twice against data sent under the old one.
+1. After the mux switches and the tile is quiescent, RAPIDS sends every cell and core a `set` credit
    packet, as one multicast, restoring its strap counter to what RAPIDS can
    now accept from it.
 2. Each cell and core answers with a `set` advertisement of its current free
