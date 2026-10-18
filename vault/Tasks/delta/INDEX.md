@@ -1,6 +1,6 @@
 # delta — task rollup
 
-**Next ID: DELTA-002** — never recycle a number, even when its task closed.
+**Next ID: DELTA-011** — never recycle a number, even when its task closed.
 
 Area for the Delta AXI-Stream crossbar generator
 (`projects/components/fabric-gen-ip/delta/`). Re-homed from `noc-ip/` on
@@ -17,7 +17,7 @@ the directory for its state (`open/`, `active/`, `closed/`, `dropped/`,
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 3 | 0 | 0 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
