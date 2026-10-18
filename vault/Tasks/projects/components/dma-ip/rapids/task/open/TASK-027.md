@@ -27,6 +27,10 @@ grant. TILE_SPEC Sections 11.9 and 11.10 define the end-to-end credit scheme
 that closes both; TILE_SPEC 11.12 records that it is not built. Split out of
 rapids TASK-026 (2026-10-17), which delivered the header and the `desc` path.
 
+Owner direction 2026-10-18 (TILE_SPEC 11.14): delta must carry result data
+to `level` 3. A cell's result drain sends only against sink-space grants, so
+item 4 is on the critical path of every result leaving the tile.
+
 ## What to build
 
 1. **64 credit counters** in the source half, one per destination index

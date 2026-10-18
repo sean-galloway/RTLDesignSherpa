@@ -31,7 +31,7 @@ candidate; cell→cell grant mediation added to §10 open items; §11.3 internal
 credits — owner direction 2026-10-18: delta nodes are conduits for transit
 and endpoints for what they consume, 32 RAPIDS credit counters, the
 advertisement window's saved legal-destination mask, and a cell's
-advertisement sent by its delta node from a parameter). Carries 1.4
+advertisement sent by its delta node from a parameter; §11.14 result flush to the tile I/O, delta must carry result data to `level` 3). Carries 1.4
 (tetrad control core recorded 2026-10-17; §11 adopted
 2026-10-16; cell integration decisions 2026-10-16; §11 proposal added
 2026-10-16; re-homed to compute-eng-ip 2026-10-15; v1.0 owner-defined
@@ -259,6 +259,9 @@ Still open:
   its input-buffer credits to peer cells, is undefined. Needed for the
   cell PRD's `DEST` override (cell PRD v0.3 §6.3); v1 result traffic is
   rapids-bound.
+- Result flush (§11.14): how gatling commands a cell's drain controller (an
+  Xcell instruction or a `CTRL` flush-and-send write), how much the drain
+  sends, and how the cell reports the drain complete.
 - Tetrad control core (§11.13): the kick/wait custom-opcode encoding,
   its local memory map, and its program-load conventions — cell/tetrad
   MAS work, per alu-infer PRD §5. **Deferred** (owner direction
@@ -338,7 +341,8 @@ fabric keeps one notion of config traffic.
   as `level = 3`, the tile I/O (`ext` = 0), so replies reach it through
   whichever root is live.
 - Delta's head-flit header carries `{X, Y, Z}` today (ch07 §2). Adding
-  `level` and `ext` is a delta header change, still to be made.
+  `level` and `ext` is a delta header change, still to be made. It is
+  required: delta must deliver result data to `level` 3 (§11.14).
 
 ### 11.4 Root failover
 
@@ -695,6 +699,32 @@ the tile records it:
   tetrad) allow layer pipelining across tetrads and one group-done per
   four cells, without sixteen instruction streams. A tetrad steps as
   4 cells × 2 bf16 lanes = 8 bf16 lanes.
+
+### 11.14 Result flush to the tile I/O (owner direction 2026-10-18)
+
+Delta **must** be able to carry a cell's result data to `level` 3, the tile
+I/O, and so into RAPIDS. It is the path computed results leave the tile by:
+
+1. **Detect.** Gatling, the tetrad engine (§11.13), detects a
+   flush-to-memory condition. When to flush is program policy, not fixed
+   hardware.
+2. **Command.** Gatling sends a flush command to the result drain
+   controller in each cell it applies to.
+3. **Drain.** The controller pushes the cell's result memory out through
+   the packetizer: write-format packets (`op` = 0) to `{ext 0, level 3}`,
+   source = the cell's external ID `{1, 0, X, Y, Z}`, tag = the RAPIDS sink
+   channel, each sent against a grant (§11.9).
+4. **Carry and land.** Delta routes each packet to the tile I/O. RAPIDS's
+   sink strips the header and delivers the data by tag into that sink
+   channel, which writes it to memory.
+
+| Link | State |
+|---|---|
+| Gatling detects and commands | Not defined: gatling PRD v0.1 has no flush instruction, and the engine is deferred until the cell works (§11.13) |
+| Cell drain controller | Not built: the cell PRD has the packetizer and `CTRL` flush-and-send; no cell RTL beyond alu-infer |
+| Delta to `level` 3 | Interim only. Delta has no `level` field, so a packet reaches RAPIDS only if its sender writes the attach cell's coordinate (`TILE_IO_X/Y/Z`) into delta's header; today only the credit advertisement does (delta DELTA-011) |
+| RAPIDS sink delivery by tag | Built (§11.12) |
+| Sink-space grants | Not built (rapids TASK-027 item 4). Without them a drain into a full sink channel stalls in the routers |
 
 ## References
 

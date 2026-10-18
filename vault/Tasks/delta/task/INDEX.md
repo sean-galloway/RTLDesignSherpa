@@ -2,18 +2,22 @@
 
 # delta — tasks
 
-**Next ID: DELTA-011** — never recycle a number, even when its item closed.
+**Next ID: DELTA-012** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
+
+## Open
+- **DELTA-011** — delta delivers result data to level 3, the tile I/O
+  (owner direction 2026-10-18, TILE_SPEC 11.14)
 
 ## Closed
 - **DELTA-010** — `delta_mesh_cell` advertises its cell's input-buffer credits
