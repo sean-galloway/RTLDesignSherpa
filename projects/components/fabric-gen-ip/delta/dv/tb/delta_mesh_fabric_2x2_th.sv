@@ -40,7 +40,13 @@ module delta_mesh_fabric_2x2_th #(
     parameter int USER_WIDTH   = 64,
     parameter int COORD_W      = 1,
     parameter int NUM_VC       = 2,
-    parameter int NUM_BOUNDARY = 4
+    parameter int NUM_BOUNDARY = 4,
+    // Credit advertisement (DELTA-010): each cell advertises CELL_CREDITS
+    // flits to the tile I/O attach cell at reset; 0 = off
+    parameter int CELL_CREDITS = 0,
+    parameter int TILE_IO_X    = 0,
+    parameter int TILE_IO_Y    = 0,
+    parameter int TILE_IO_Z    = 0
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -222,7 +228,11 @@ module delta_mesh_fabric_2x2_th #(
         .DATA_WIDTH(DATA_WIDTH),
         .USER_WIDTH(USER_WIDTH),
         .COORD_W(COORD_W),
-        .NUM_VC(NUM_VC)
+        .NUM_VC(NUM_VC),
+        .CELL_CREDITS(CELL_CREDITS),
+        .TILE_IO_X(TILE_IO_X),
+        .TILE_IO_Y(TILE_IO_Y),
+        .TILE_IO_Z(TILE_IO_Z)
     ) u_dut (
         .aclk(aclk),
         .aresetn(aresetn),

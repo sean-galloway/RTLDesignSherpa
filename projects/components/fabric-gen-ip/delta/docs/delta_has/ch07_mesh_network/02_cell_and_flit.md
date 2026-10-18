@@ -61,6 +61,13 @@ A flit is one `DATA_WIDTH` beat. A packet is a head flit, zero or more body flit
 
 : Head-flit header fields carried in `TUSER` on the head beat.
 
+**Credit advertisement (implemented 2026-10-18):** with `CELL_CREDITS` set, each
+cell advertises its attached cell's input buffer to the tile I/O once after
+reset, as a one-beat control-class packet to `TILE_IO_X/Y/Z` carrying a tile
+credit header in TDATA (TILE_SPEC 11.10; MAS Pipeline Stages). It needs
+`DATA_WIDTH` >= 128. Until delta's header gains `level`, `TILE_IO_X/Y/Z` names
+the cell RAPIDS attaches to.
+
 **Proposed (2026-10-16, not implemented):** the compute-engine tile proposes extending this header with a `level` field in the coordinates, a payload type (`cfg` / `prog` / `mem`), a length and a target address. The description lives in [`TILE_SPEC.md`](../../../../../compute-eng-ip/tile/docs/TILE_SPEC.md) Section 11, not here.
 
 Payload streams pass transparently through the cell once the head beat has supplied the route. This is the same pass-through principle used by flat mode's `TDEST` handling, only the routing information now lives in `TUSER` rather than `TDEST`.

@@ -117,7 +117,11 @@ class DeltaMeshFabric(Module):
             parameter bit TORUS_Y = {1 if config.torus_y else 0},
             parameter bit TORUS_Z = {1 if config.torus_z else 0},
             parameter bit SOURCE_ROUTE = {1 if config.source_route else 0},
-            parameter bit SPECULATION = {1 if config.speculation else 0}
+            parameter bit SPECULATION = {1 if config.speculation else 0},
+            parameter int CELL_CREDITS = 0,
+            parameter int TILE_IO_X = 0,
+            parameter int TILE_IO_Y = 0,
+            parameter int TILE_IO_Z = 0
         '''
         self.params.add_param_string(param_str)
 
@@ -596,7 +600,11 @@ class DeltaMeshFabric(Module):
         self.instruction("                    .TORUS_Y(TORUS_Y),")
         self.instruction("                    .TORUS_Z(TORUS_Z),")
         self.instruction("                    .SOURCE_ROUTE(SOURCE_ROUTE),")
-        self.instruction("                    .SPECULATION(SPECULATION)")
+        self.instruction("                    .SPECULATION(SPECULATION),")
+        self.instruction("                    .CELL_CREDITS(CELL_CREDITS),")
+        self.instruction("                    .TILE_IO_X(TILE_IO_X),")
+        self.instruction("                    .TILE_IO_Y(TILE_IO_Y),")
+        self.instruction("                    .TILE_IO_Z(TILE_IO_Z)")
         self.instruction("                ) u_cell (")
         self.instruction("                    .aclk(aclk),")
         self.instruction("                    .aresetn(aresetn),")
@@ -676,6 +684,10 @@ class DeltaMeshFabricCxs(Module):
             parameter bit TORUS_Z = {1 if config.torus_z else 0},
             parameter bit SOURCE_ROUTE = {1 if config.source_route else 0},
             parameter bit SPECULATION = {1 if config.speculation else 0},
+            parameter int CELL_CREDITS = 0,
+            parameter int TILE_IO_X = 0,
+            parameter int TILE_IO_Y = 0,
+            parameter int TILE_IO_Z = 0,
             parameter int NUM_PORTS = 9,
             parameter int SW = DATA_WIDTH / 8,
             parameter int CNTL_W = {cxs_widths(config.data_width, config.user_width)[0]},
@@ -1020,6 +1032,10 @@ class DeltaMeshFabricCxs(Module):
         self.instruction("                    .TORUS_Z(TORUS_Z),")
         self.instruction("                    .SOURCE_ROUTE(SOURCE_ROUTE),")
         self.instruction("                    .SPECULATION(SPECULATION),")
+        self.instruction("                    .CELL_CREDITS(CELL_CREDITS),")
+        self.instruction("                    .TILE_IO_X(TILE_IO_X),")
+        self.instruction("                    .TILE_IO_Y(TILE_IO_Y),")
+        self.instruction("                    .TILE_IO_Z(TILE_IO_Z),")
         self.instruction("                    .CXS_MAX_CREDIT(CXS_MAX_CREDIT)")
         self.instruction("                ) u_cell (")
         self.instruction("                    .aclk(aclk),")

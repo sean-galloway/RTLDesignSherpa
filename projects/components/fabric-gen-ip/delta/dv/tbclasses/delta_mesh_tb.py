@@ -542,6 +542,65 @@ class DeltaMeshFabricTB(DeltaMeshCellTB):
         self.log.info(
             f"delta mesh fabric all-pairs: {nb}x{nb} ordered pairs passed")
 
+    async def run_credit_advertisement(self, cell_credits, tile_io_idx=0):
+        """DELTA-010 / TILE_SPEC 11.10: with CELL_CREDITS set, every cell's
+        node sends ONE credit advertisement after reset, to the tile I/O's
+        attach cell, which delivers it out of its local port. Each is a
+        single-beat control-class packet (qos 1, sr_ptr[0] = 1) whose
+        TDATA[127:0] is the tile header of a credit packet: dst level 3
+        (0x3000), src the advertising cell at level 0, ptype 3 (credit),
+        op 1 (set), length = CELL_CREDITS, class 0. No other boundary
+        output sees anything, and nothing more arrives later."""
+        nb = len(self.BOUNDARY_COORDS)
+        io_port = f'b{tile_io_idx}'
+        io = self.BOUNDARY_COORDS[tile_io_idx]
+        await self._wait_frames(io_port, nb)
+        await self.wait_clocks('aclk', 300)       # nothing extra may follow
+
+        def field(word, name):
+            lo, width = self.hdr_offsets[name]
+            return (word >> lo) & ((1 << width) - 1)
+
+        frames = self._group_frames(io_port, "credit advertisement")
+        if len(frames) != nb:
+            raise AssertionError(
+                f"credit advertisement: {len(frames)} packets at {io_port}, expected {nb}")
+        seen = set()
+        for frame in frames:
+            if len(frame) != 1:
+                raise AssertionError(
+                    f"credit advertisement: a {len(frame)}-beat packet, expected 1")
+            user = int(frame[0].fields.get('user', 0))
+            data = int(frame[0].fields['data'])
+            src = (field(user, 'src_x'), field(user, 'src_y'), field(user, 'src_z'))
+            dst = (field(user, 'dst_x'), field(user, 'dst_y'), field(user, 'dst_z'))
+            if dst != io:
+                raise AssertionError(f"credit advertisement from {src}: delta dst {dst}, expected {io}")
+            if field(user, 'qos') != 1 or field(user, 'sr_ptr') & 1 != 1 or field(user, 'mcast'):
+                raise AssertionError(
+                    f"credit advertisement from {src}: not control class "
+                    f"(qos {field(user, 'qos')}, sr_ptr {field(user, 'sr_ptr')}, "
+                    f"mcast {field(user, 'mcast')})")
+            want = ((0x3000)                                              # dst: level 3
+                    | (((src[0] & 0xF) << 8 | (src[1] & 0xF) << 4 | (src[2] & 0xF)) << 14)
+                    | (3 << 28)                                           # ptype credit
+                    | (1 << 31)                                           # op set
+                    | ((cell_credits & 0xFFFF_FFFF) << 32))               # length; class 0, tag 0
+            if data != want:
+                raise AssertionError(
+                    f"credit advertisement from {src}: tile header 0x{data:032x}, "
+                    f"expected 0x{want:032x}")
+            if src in seen:
+                raise AssertionError(f"credit advertisement: {src} advertised twice")
+            seen.add(src)
+        if seen != set(self.BOUNDARY_COORDS):
+            raise AssertionError(
+                f"credit advertisement: from {sorted(seen)}, expected every cell")
+        for i in range(nb):
+            if i != tile_io_idx and self.slaves[f'b{i}'].get_observed_packets():
+                raise AssertionError(f"credit advertisement: b{i} received traffic")
+        self.log.info(f"delta credit advertisement: {nb} cells advertised {cell_credits} flits to {io}")
+
 
 class DeltaMeshFlowControlTB(DeltaMeshCellTB):
     """TB for delta_mesh_cell flow control: per-VC input buffers, credit

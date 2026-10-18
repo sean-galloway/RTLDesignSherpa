@@ -1,7 +1,22 @@
 # DELTA-010: delta_mesh_cell advertises its cell's credits from a parameter
 
 **Priority:** P2
-**Status:** open
+**Status:** CLOSED 2026-10-18 -- delta func regression 80/80 from clean-all
+
+## Done 2026-10-18
+
+- `bin/delta_mesh/cell.py` / `fabric.py`: `CELL_CREDITS` (flits, 0 = off),
+  `TILE_IO_X/Y/Z` on the cell, the CXS wrapper and both fabrics. The node
+  writes one advertisement into its generator FIFO as it leaves reset (the
+  mode-switch fan-out keeps priority): delta header to `TILE_IO_X/Y/Z` on the
+  control class (QoS 1, `sr_ptr[0]` = 1: DOR on VC0, never taken as config,
+  owner choice 2026-10-18), TDATA[127:0] a TILE_SPEC 11.5 credit header
+  (dst level 3, src the cell at level 0, ptype 3, op set, length
+  `CELL_CREDITS`, class 0). Needs `DATA_WIDTH` >= 128.
+- Interim addressing: delta has no `level` field, so `TILE_IO_X/Y/Z` names the
+  cell RAPIDS attaches to. Tetrad and root nodes do not exist in delta RTL yet,
+  so their own advertisements wait for the tile RTL.
+- Test: `dv/tests/test_delta_mesh_credit_adv.py` (attach cell b0 and b3), mutation-checked.
 **Owner:** sean galloway
 **Filed from:** owner direction 2026-10-18 on the tile end-to-end credit
 scheme (TILE_SPEC 11.9-11.10; RAPIDS side is rapids TASK-027).

@@ -17,7 +17,7 @@ the directory for its state (`open/`, `active/`, `closed/`, `dropped/`,
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 1 | 0 | 3 | 0 | 0 |
+| [task/](task/INDEX.md) | 0 | 0 | 4 | 0 | 0 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 

@@ -19,6 +19,10 @@ parameter bit     TORUS_Y = 0,
 parameter bit     TORUS_Z = 0,
 parameter bit     SOURCE_ROUTE = 0,
 parameter bit     SPECULATION = 0,
+parameter int     CELL_CREDITS = 0,
+parameter int     TILE_IO_X = 0,
+parameter int     TILE_IO_Y = 0,
+parameter int     TILE_IO_Z = 0,
 parameter int     CXS_MAX_CREDIT = 32,
 parameter int     NUM_PORTS = 9,
 parameter int     SW = DATA_WIDTH / 8,
@@ -186,7 +190,11 @@ delta_mesh_cell #(
     .TORUS_Y        (TORUS_Y),
     .TORUS_Z        (TORUS_Z),
     .SOURCE_ROUTE   (SOURCE_ROUTE),
-    .SPECULATION    (SPECULATION)
+    .SPECULATION    (SPECULATION),
+    .CELL_CREDITS   (CELL_CREDITS),
+    .TILE_IO_X      (TILE_IO_X),
+    .TILE_IO_Y      (TILE_IO_Y),
+    .TILE_IO_Z      (TILE_IO_Z)
 ) u_core (
     .aclk          (aclk),
     .aresetn       (aresetn),
