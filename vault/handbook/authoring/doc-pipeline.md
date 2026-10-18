@@ -119,6 +119,13 @@ the PDF's mtime and text.
 both reported success and left last session's PDF in place. Only the mtime and
 pdftotext checks caught it.*
 
+*Case (2026-10-18): the three bridge books were built in parallel. GAS failed
+outright. HAS and MAS exited 0 with fresh PDFs, but their tables of contents
+were EMPTY: the heading under "Table of Contents" and no entries. That shrank
+each book by 9-14 pages, and its body text had actually grown. An mtime check
+passes this. Count the TOC lines (`pdftotext` lines with dot leaders) against
+the previous revision.*
+
 ## Diagrams: the PDF eats PNG, not SVG
 
 Every `.mmd` needs a rendered `.png` beside it. An SVG-only diagram silently

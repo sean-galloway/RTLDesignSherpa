@@ -86,6 +86,16 @@ beats appear on the slave clock, the sustained rate is set by the slower
 clock (>= 0.85 beat per cycle of it), and the same-clock port beside it is
 unaffected.
 
+`test_bridge_perf_char` characterizes the port at 7 ns and at 13 ns (HAS
+5.1, Bandwidth Characterization). Bursts of two beats or more run at the
+slower side's full rate: 0.700 of the 7 ns slave's cycles, which is the
+fabric's one beat per 10 ns, and 1.000 of the 13 ns slave's. The crossing
+adds about 13 fabric cycles to a round trip, two synchronizer crossings
+each way, so single-beat traffic needs more in flight to fill the port.
+One open limit (W9): the address FIFOs queue granted requests between the
+crossbar's arbiter and the slave, so round-robin shares at a CDC slave
+follow each master's outstanding count once the slave throttles.
+
 ### Clock Domain Crossing: CDC Master Ports
 
 The same crossing works on the request side (GitHub #119 L2): `cdc = true` on

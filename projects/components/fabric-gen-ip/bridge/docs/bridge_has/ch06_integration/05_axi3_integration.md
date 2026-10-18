@@ -67,6 +67,19 @@ the converters MAS:
    - `axi3_to_axi4`: `2'b01 → 1'b1`; `2'b00`, `2'b10` (locked — AXI4 dropped
      locked accesses), and the reserved `2'b11` → `1'b0`.
 
+6. **Bandwidth (measured, HAS 5.1).** An AXI3 master has one write in
+   flight (W7, from item 1), so its writes run at beats / (beats + ~8)
+   beats per cycle: 0.674 at 16 beats, 0.111 single-beat. Its reads are not
+   limited. An AXI3 slave (W8) takes one AR or AW at most every other cycle
+   and one transaction per ID at a time, and loses a W cycle per AXI3
+   burst. With eight IDs in flight, reads reach 0.50 single-beat and 1.000
+   at two beats or more.
+7. **AXI3 slaves do not synthesize yet (W10, HAS 5.1).** `axi4_to_axi3_rd`
+   and `axi4_to_axi3_wr` use SystemVerilog queues, which Vivado rejects. A
+   bridge with an AXI3 slave simulates and passes its regression, but no
+   FPGA build of it is possible until the converter's queues are replaced
+   with FIFOs.
+
 See converters MAS §3.15 *AXI4 to AXI3 Converter*
 ([`15_axi4_to_axi3.md`](../../../../../../components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/15_axi4_to_axi3.md))
 and §3.16 *AXI3 to AXI4 Converter*

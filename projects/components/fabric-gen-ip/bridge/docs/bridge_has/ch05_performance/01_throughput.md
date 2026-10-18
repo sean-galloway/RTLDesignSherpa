@@ -179,6 +179,71 @@ fabric adds no queueing of its own below saturation. (Accepted reads a
 little above offered at light load because the window runs first beat to
 last.)
 
+### Bandwidth Characterization (measured)
+
+`test_bridge_perf_char` drives each fixture with pipelined requesters
+(VALID held high across transactions, so a gap at a port belongs to the
+fabric), a fixed number of transactions in flight and rotating IDs, and
+checks every word. It measures inside each phase's own window and holds
+every figure to a floor: one beat per cycle where the shape can saturate,
+otherwise Little's law for the transactions in flight against the
+fixture's measured round trip. It runs in the FUNC regression. A port on
+its own clock is measured in that clock's cycles. Peak is one beat per
+cycle of the port's clock, or of the slower clock across a crossing.
+
+| Fixture | What it adds | Streams, 2+ beats | Shared slave, both masters active | Single-beat round trip (one in flight) |
+|---|---|---:|---:|---|
+| `bridge_2x2_rw` | the reference | 1.000 | 0.997 writes, 1.000 reads | write 8 / read 7 cycles |
+| `bridge_2x2_rw_pipe` | registered crossbar | 1.000 | 0.996 writes, 1.000 reads | write 10 / read 8 |
+| `bridge_4x4_rw` | mixed widths, rate buffers | 1.000 | 0.995 writes, 1.000 reads | 12 on the upsized paths |
+| `bridge_2x2_axi5` | AXI5 masters, AXI5 and AXI4 slaves | 1.000 | 0.997 writes, 1.000 reads | write 7 / read 6 |
+| `bridge_2x2_rw_cdc`, slave 7 ns | slave faster than the 10 ns fabric | 0.700 at the slave (the fabric's rate), 1.000 at the masters | 0.696 writes, 0.700 reads | ~13 fabric cycles |
+| `bridge_2x2_rw_cdc`, slave 13 ns | slave slower than the fabric | 1.000 at the slave, 0.770 at the masters | 0.993 writes, 0.999 reads | ~12 slave cycles |
+| `bridge_2x2_axi3_masters` | AXI3 masters, 32b and 64b | reads 1.000; writes 0.674 at 16 beats, 0.111 single | writes 0.628 | read 6 |
+| `bridge_mix_e` | AXI3 and AXI4 masters, AXI3, AXI4 and APB slaves | reads 1.000 with 8 IDs, 0.892 at 16 beats on one ID; AXI3-master writes as above | writes 0.887 | read 5 |
+
+: Bandwidth characterization, `test_bridge_perf_char` (FUNC level, 2026-10-18)
+
+Single-beat traffic is bounded by the round trip at a few in flight: eight
+in flight carry 8 / (round trip) beats per cycle, and 16 in flight saturate
+every same-clock path. That is latency, not lost bandwidth. A CDC port pays
+two synchronizer crossings each way. Eight single-beat transactions in
+flight reach 0.58 of the port's peak with the slave at 7 ns and 0.62 at
+13 ns. Bursts of two beats or more saturate the slower side.
+
+Three limits remain open. The suite floors each one at its measured level,
+so none can get worse unnoticed:
+
+- **W7, AXI3 master writes, one at a time.** `axi3_to_axi4_wr` holds AW
+  from acceptance until B, so an AXI3 master has one write in flight. A
+  write stream runs at beats / (beats + ~8): 0.111 single-beat, 0.674 at
+  16 beats. AXI3 reads are not limited.
+- **W8, the AXI3 slave converter.** `axi4_to_axi3_rd` and
+  `axi4_to_axi3_wr`:
+  - issue at most one AR or AW every other cycle (single-beat reads: 0.50);
+  - take one transaction per ID at a time (same-ID reads: 0.334
+    single-beat, 0.892 at 16 beats);
+  - lose a W cycle at the end of every AXI3 burst (8/9 at 8 beats);
+  - queue requests behind the crossbar's arbiter, so against a slave that
+    takes two at a time the shallow master's round-robin share is 0.26.
+- **W9, round-robin share at a CDC slave.** The address channels' async
+  FIFOs (8 deep) sit between the arbiter and the slave's pins. Granted
+  requests queue there, and against a slave that takes two at a time a
+  master with two in flight gets 0.18-0.20 against one with eight.
+  Bandwidth is not affected (the slave stays busy). This is the fairness
+  limit that per-master request slots fixed at same-clock slaves.
+
+One more limit is not about bandwidth, but it blocks any bridge with an
+AXI3 slave:
+
+- **W10, the AXI3 slave converter does not synthesize.** `axi4_to_axi3_rd`
+  and `axi4_to_axi3_wr` keep their request and data queues in
+  SystemVerilog queues (`[$:N]`). Verilator accepts them and Vivado 2025.1
+  does not ("[Synth 8-27] dollar-sign operator not supported";
+  `bridge_2x2_axi3_slaves`, 2026-10-18). The AXI3 master direction
+  synthesizes (`bridge_2x2_axi3_masters`: WNS -0.075 ns at 10 ns on the
+  Artix-7).
+
 ### Multi-Master Scaling
 
 Arbitration is a fair round-robin (measured above: 0.499 / 0.501 at the
@@ -186,7 +251,9 @@ shared port; the sum stays at one beat per cycle). The pick is made at the
 slave's pins from per-master request slots, so the round-robin holds when
 the slave throttles too: against a slave taking two transactions at a time,
 a master with 2 in flight gets 0.50 of it against another master's 8 (it
-got 0.34 while granted requests queued behind the arbiter). A slave that
+got 0.34 while granted requests queued behind the arbiter). CDC slaves and
+AXI3 slaves still queue granted requests in their crossing or converter, so
+there the share follows outstanding counts (W8, W9 above). A slave that
 accepts many at once keeps its own queue, and the share inside it follows
 each master's outstanding count. Per master, then:
 
