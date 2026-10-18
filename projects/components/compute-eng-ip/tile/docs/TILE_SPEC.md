@@ -31,7 +31,7 @@ candidate; cell→cell grant mediation added to §10 open items; §11.3 internal
 credits — owner direction 2026-10-18: delta nodes are conduits for transit
 and endpoints for what they consume, 32 RAPIDS credit counters, the
 advertisement window's saved legal-destination mask, and a cell's
-advertisement sent by its delta node from a parameter; §11.14 result flush to the tile I/O, delta must carry result data to `level` 3). Carries 1.4
+advertisement sent by its delta node from a parameter, then (same day) delta nodes only transport and never originate: a cell or core advertises for itself, nodes are legal by topology, and straps toward RAPIDS replace grants; §11.14 result flush to the tile I/O, delta must carry result data to `level` 3). Carries 1.4
 (tetrad control core recorded 2026-10-17; §11 adopted
 2026-10-16; cell integration decisions 2026-10-16; §11 proposal added
 2026-10-16; re-homed to compute-eng-ip 2026-10-15; v1.0 owner-defined
@@ -216,7 +216,7 @@ ports; any boundary cell can be the attachment. With the CXS migration
 nodes through the root mux, at the single tile I/O — not at a boundary
 cell's local port. Its descriptors, buffers and channel state survive a
 root failover (§11.4); the cell↔rapids protocols (packet header,
-end-to-end credits, grants) are §§11.5–11.10.
+end-to-end credits, straps) are §§11.5–11.10.
 
 **Status (owner, 2026-10-18):** rapids is the DMA running data in and
 out of the tile; RTL **in progress** on a separate lane, alongside the
@@ -235,15 +235,16 @@ Decided 2026-10-16 (was §11): the hierarchical tile of §11.1 (tetrad
 routing nodes, two roots, root mux, tile I/O); the packet header and
 payload types (§11.2, §11.5); the destination coordinate (§11.3);
 end-to-end credits with boot advertisement, per-destination counters,
-and grants gating cell→rapids traffic (§§11.9–11.10); credit-return
+and straps gating cell→rapids traffic (§§11.9–11.10, owner direction
+2026-10-18, replacing grants); credit-return
 batching as a per-cell config with default N=1 (cell PRD §6).
 
 Still open:
 
 - What switches the root mux (§11.4): software, a watchdog, or the
   root-to-root link.
-- Grant allocation policy: pre-granted shares, on-demand grants, or
-  both, and whether a cell can ask for a grant (§11.9).
+- How many descriptor-queue entries each control core is strapped, and
+  whether each tetrad gets its own source channel (§11.9, §11.11).
 - Cell input buffer sizes (the advertisement value) and result-memory
   sizing — cell PRD §12.
 - Resync timing: how long RAPIDS waits for answers before declaring a
@@ -258,8 +259,8 @@ Still open:
   the cell PRD.
 - Cell→cell flow control (§11.9): credit *returns* are sender-generic
   already — a credit goes to the source coordinate of the packet whose
-  flits it frees — but grants are defined only for rapids↔cell. Who
-  grants sink space for cell-destined results, and how a cell advertises
+  flits it frees — but straps are defined only toward RAPIDS. Who
+  reserves space for cell-destined results, and how a cell advertises
   its input-buffer credits to peer cells, is undefined. Needed for the
   cell PRD's `DEST` override (cell PRD v0.3 §6.3); v1 result traffic is
   rapids-bound.
@@ -309,7 +310,7 @@ produced it:
 | 0 | `cfg` | Node or cell configuration (routing tables, mode, CSRs) |
 | 1 | `prog` | Program load |
 | 2 | `mem` | Node or cell memory |
-| 3 | `credit` | End-to-end credit return or grant (§11.9); header only |
+| 3 | `credit` | End-to-end credit advertisement or return (§11.9); header only |
 | 4 | `desc` | A cell-issued RAPIDS source descriptor (§11.11) |
 | 5-7 | reserved | - |
 
@@ -374,7 +375,7 @@ source-route pointer, packet ID) with the fields below.
 | Source coordinate | 15 | Same format; RAPIDS sends as `level` = 3, the tile I/O |
 | `ptype` | 3 | Payload type, §11.2 |
 | `op` | 1 | Data packets: 0 = write (payload follows), 1 = read (header only; the target replies). `credit` packets: 0 = add, 1 = set (§11.10) |
-| Length | 32 | Write: payload bytes that follow. Read: bytes requested. Credit: flits returned or granted. `desc`: 32 (one descriptor). |
+| Length | 32 | Write: payload bytes that follow. Read: bytes requested. Credit: flits (or descriptor entries) advertised or returned. `desc`: 32 (one descriptor). |
 | Target address | 49 | Byte address inside the addressed node or cell. Credit packets: bits [1:0] are the credit class (0 = sink space, 1 = descriptor slots), the rest reserved. |
 | Tag | 4 | The RAPIDS channel. Set by RAPIDS on a request; echoed by the target in its reply, so the reply reaches the right sink channel |
 
@@ -417,30 +418,30 @@ the channel in `CXSSRCID`, so per-stream framing is unchanged.
   coordinate and the target address (RAPIDS HAS, Descriptor Format); the
   tag is the channel that issued the descriptor. The source half builds the
   header and sends it out of the source port, ahead of any payload.
-- **Nodes:** a node answering a `cfg` read builds a reply header addressed
-  to the request's source coordinate.
+- **Nodes:** none. A delta node never originates a packet (§11.9), so it
+  never answers a read; a cell or core answering one builds a reply header
+  addressed to the request's source coordinate.
 - **Open:** whether the RAPIDS sink half strips the header or delivers it
   to memory.
 
 ### 11.8 Operations
 
-Only cells send into RAPIDS's sink port, and only against grants they hold
-(§11.9).
+Only cells and control cores send into RAPIDS's sink port, and only against
+their straps (§11.9); a delta node never does.
 
 | Operation | Source port sends | Target does | Sink port receives |
 |---|---|---|---|
 | Write | Header (`op` = 0, length N, tag) + N bytes | Consumes the data, then returns credits (§11.9) | The credit packet |
-| Read | Header only (`op` = 1, length N, tag = the sink channel that will take the data) | Sends N bytes back: a write-format packet to `level` 3 with the tag echoed | The data, into the tagged sink channel |
-| Grant | Header only (`ptype` = `credit`, destination = the cell, tag = the sink channel, length = N flits) | May send N more flits into that sink channel | - |
-| Cell send | - | Sends a write-format packet to `level` 3 with the tag set, against its grant | The data, into the tagged sink channel |
-| Credit return | - | - | Header only (`ptype` = `credit`) for flits the cell consumed; never stored in a channel |
-| Descriptor grant | Header only (`ptype` = `credit`, class 1, destination = the cell, tag = a source channel, length = N descriptors) | May send N more `desc` packets for that source channel | - |
-| Cell-issued descriptor | - | Sends a `desc` packet to `level` 3: header + one 256-bit source descriptor, tag = the source channel, against a descriptor grant | The descriptor, into that source channel's descriptor queue (§11.11) |
+| Read | Header only (`op` = 1, length N, tag = the sink channel that will take the data); never to a node | Sends N bytes back: a write-format packet to `level` 3 with the tag echoed | The data, into the tagged sink channel |
+| Cell send | - | Sends a write-format packet to `level` 3 with the tag set, against its 16-flit strap | The data, via the cell's landing space, into the tagged sink channel |
+| Credit return to a sender | Header only (`ptype` = `credit`, destination = the cell or core) for what RAPIDS consumed | Adds it to its strap counter | - |
+| Credit return | - | - | Header only (`ptype` = `credit`) for flits the cell or core consumed; never stored in a channel |
+| Core-issued descriptor | - | Sends a `desc` packet to `level` 3: header + one 256-bit source descriptor, tag = the source channel, against its strapped descriptor-queue entries | The descriptor, into that source channel's descriptor queue (§11.11) |
 
 : Proposed operations between RAPIDS and the tile
 
-A read is a request plus an implicit grant: RAPIDS issues it only when the
-tagged sink channel has room for N bytes, and the reply needs no other grant.
+A read carries its own reservation: RAPIDS issues it only when the tagged
+sink channel has room for N bytes, and the reply needs no strap credit.
 
 ### 11.9 End-to-end credits
 
@@ -448,22 +449,25 @@ Link credits (CXS `CRDGNT` / `CRDRTN`) cover one hop and carry no address,
 so they cannot say anything about a cell's buffer. End-to-end credits are
 packets instead.
 
-**delta nodes are conduits for traffic passing through** (owner direction
-2026-10-18). A tetrad or root node routes every packet that is not addressed
-to it, `credit` packets included, on that packet's virtual channel, and holds
-no credit state for it: only the hop-level flow control it already has. For
-packets addressed **to** it (its internal ID, §11.3) a node is an endpoint
-like a cell: it advertises its input buffer and returns credits for what it
-consumes. A node with something attached at its local port also has
-**external credit**: the attachment's buffer, under the node's external ID.
+**delta nodes only transport** (owner direction 2026-10-18). A node carries
+every packet on the data network, `credit` packets included, on that
+packet's virtual channel, and holds no credit state for it: only the
+hop-level flow control it already has. A node never originates a packet on
+the data network; whatever it generates itself (debug, status) goes on
+MonBus. It consumes what is addressed to its internal ID (§11.3) on arrival,
+so it needs no end-to-end credit: it never advertises and never returns
+credits, and it must never stall what is addressed to it. End-to-end credits
+belong to what is attached at a node's local port, under the node's
+external ID: a cell, or a tetrad's control core (gatling).
 
 1. RAPIDS's source half keeps **64 credit counters** (owner direction
    2026-10-18), one per destination index `{ext, n}`: the internal and the
    external ID of every node. A tile uses at most 42 (22 internal: 16
    cell-level nodes, 4 tetrad nodes, 2 root nodes; 20 external: 16 cells, 4
-   tetrad control cores). Every counter starts at 0 and is filled by its
-   destination's advertisement (§11.10), so an external ID with nothing
-   attached is never legal.
+   tetrad control cores). An external counter starts at 0 and is filled by
+   its cell's or core's own advertisement (§11.10), so an external ID with
+   nothing attached is never legal. An internal (node) index is legal by
+   topology: a packet to a node is never held for credits and never charged.
 
    | Index | Destination |
    |---|---|
@@ -479,7 +483,7 @@ consumes. A node with something attached at its local port also has
    : Proposed credit-counter index
 2. Each flit sent to a destination, the header included, spends one credit.
    RAPIDS sends a packet only when the counter covers all of it.
-3. The destination returns credits when it has **consumed** the flits
+3. The cell or core returns credits when it has **consumed** the flits
    (written them to memory, or applied the `cfg`), not when they arrive. It
    may batch them, for example one return per packet.
 4. The return is a `credit` packet to `level` 3 with the count in the length
@@ -488,33 +492,43 @@ consumes. A node with something attached at its local port also has
    destination's counter.
 
 Counters are per destination, not per channel: two channels writing the
-same cell share that cell's buffer. A node's counter covers only what is
-addressed to that node; traffic routed through it never touches a counter. A
-read of a node needs no grant from the node: RAPIDS issues it only when the
-tagged sink channel has room for the reply (§11.8).
+same cell share that cell's buffer. Traffic routed through a node never
+touches a counter. A node never replies, so a read request to a node's
+internal ID is refused as an invalid descriptor; node registers are read
+over MonBus or AXIL.
 
 **Where a credit goes:** a credit packet is routed like any packet, by its
 destination coordinate. A credit return goes to the source coordinate of
 the packet whose flits it frees, so a cell returning credits to RAPIDS always
-addresses `level` 3. A grant goes to whichever cell RAPIDS chooses to give
-sink space to.
+addresses `level` 3, and a credit return from RAPIDS goes to the cell or
+core whose packet it consumed.
 
-**Credits toward cells (grants):** a cell must never send into the sink
-port without guaranteed space. Flits that cannot drain stall in the routers
-and block everything behind them, credit packets included. So cells send
-only against grants issued by RAPIDS:
+**Credits toward RAPIDS: straps, not grants** (owner direction
+2026-10-18). A cell or core must never send into the sink port without
+guaranteed space: flits that cannot drain stall in the routers and block
+everything behind them, credit packets included. The space is fixed by
+construction instead of granted at run time:
 
-1. RAPIDS sends a cell a `credit` packet: destination = the cell, tag = the
-   sink channel, length = N flits.
-2. The cell keeps one grant counter per sink channel it uses, and sends into
-   that channel only while the counter covers the whole packet, header
-   included.
-3. RAPIDS grants only from the channel's free space less what it has
-   granted and not yet received. The space is reserved at grant time, so the
-   sink cannot be overcommitted however many cells send.
-4. RAPIDS decides the allocation. It can pre-grant each cell a share at boot
-   and top up as the channel drains to memory, or grant on demand. Space is
-   never stranded at an idle cell, as it would be under a static split.
+| Sender | Sends to RAPIDS | Credit |
+|---|---|---|
+| Cell (a cell-level node's external ID) | Memory writes (results, §11.14) | A strap of 16 flits, header included |
+| Control core (a tetrad node's external ID) | `desc` packets (§11.11) | Entries in a source channel's descriptor queue |
+| delta node | Nothing | None |
+
+: Credits toward RAPIDS
+
+1. Each sender starts from its strap after reset and sends a packet only
+   while its counter covers the whole packet.
+2. RAPIDS reserves every strap: a landing space of 16 flits per cell, and the
+   descriptor-queue entries per core. The sink cannot be overcommitted
+   however many senders send.
+3. RAPIDS returns credits as it consumes, with a `credit`/`add` packet to the
+   sender: flits when the data moves out of the landing space into its sink
+   channel, one entry when the scheduler takes a descriptor.
+
+The landing space is per sender: a cell whose data targets a full sink
+channel holds only its own 16 flits, never another sender's. A packet to
+RAPIDS is therefore at most 16 flits.
 
 With end-to-end credits in both directions, every packet in the fabric has
 guaranteed space at its destination and always drains.
@@ -523,19 +537,16 @@ Requirements this places on the implementation:
 - **Deadlock:** a credit packet must never wait behind data that is itself
   waiting for credits. Credit packets ride their own virtual channel, and
   the sink port accepts them unconditionally.
-- **RAPIDS:** a new sink-to-source credit-return path inside the core (the
-  two halves share no logic today), the 32-entry counter table (filled by
-  the advertisements), the advertisement window and the saved
-  legal-destination mask (§11.10), and, per sink channel, the
-  free-space-less-outstanding-grants account and the grant issuer on the
-  source port.
-- **Cells:** buffer sizing, return batching, building credit packets, and a
-  grant counter per sink channel used.
-- **delta nodes:** for their own consumption only, an input buffer for
-  node-addressed packets, a boot advertisement of its size, and credit
-  returns as they consume. At the cell level, `delta_mesh_cell` also
-  advertises its cell's buffer from a parameter (§11.10). No credit state for packets passing through, and
-  no grant counters (a node sends into RAPIDS only to answer a read). A
+- **RAPIDS:** the sink-to-source credit path inside the core, the 64-entry
+  counter table (filled by the advertisements), the advertisement window and
+  the saved legal-destination mask (§11.10); and toward RAPIDS, the 16-flit
+  landing space per cell, the descriptor-queue entries per core, and the
+  credit returns on the source port.
+- **Cells and control cores:** buffer sizing, their own boot advertisement,
+  return batching, building credit packets, and a strap counter toward
+  RAPIDS.
+- **delta nodes:** none of it. No credit state, no advertisement, no
+  returns; they consume what is addressed to them without stalling. A
   virtual channel for `credit` packets.
 
 ### 11.10 Credit advertisement
@@ -545,34 +556,29 @@ the counts cannot drift from the hardware.
 
 | `op` in a `credit` packet | Meaning | Used by |
 |---|---|---|
-| 0 = add | Add N to the counter | Credit returns (to RAPIDS), grants (to a cell) |
+| 0 = add | Add N to the counter | Credit returns, both directions |
 | 1 = set | Replace the counter with N | Advertisements at boot, resync |
 
 : Credit packet operations
 
 **Boot:**
-1. After reset every destination (cell, tetrad node, root node) sends one
-   `set` credit packet to `level` 3 carrying its full input-buffer size in
-   flits: a node, the buffer for packets addressed to it. RAPIDS's
-   per-destination counters start at 0, so RAPIDS cannot send to a
-   destination that has not advertised.
-   - **A cell's advertisement comes from its delta node** (owner direction
-     2026-10-18). `delta_mesh_cell` takes a parameter for its cell's input
-     buffer in flits and sends the cell's `set` as it leaves reset, under its
-     external ID, as well as anything it advertises for itself under its
-     internal ID, so a cell needs no logic to advertise. The cell still returns credits as it consumes. A value of 0
-     means no cell is attached, and the node sends no advertisement for it.
+1. After reset every cell and control core sends one `set` credit packet to
+   `level` 3, under its external ID, carrying its full input-buffer size in
+   flits (owner direction 2026-10-18: the cell or core originates it; a
+   delta node never does). RAPIDS's external counters start at 0, so RAPIDS
+   cannot send to a cell or core that has not advertised. delta nodes do not
+   advertise: they are legal by topology.
 2. The advertisements ride delta's hardwired reset-default route toward the
    RAPIDS boundary (delta HAS ch07 §3), so no routing table is needed first.
-3. They need no grant: credit packets travel on their own virtual channel
-   and the sink port always accepts them.
-4. RAPIDS knows its own sink space (`SRAM_DEPTH` per channel) and grants to a
-   cell only after that cell has advertised. The advertisement doubles as the
-   cell's "alive".
+3. They need no strap credit: credit packets travel on their own virtual
+   channel and the sink port always accepts them.
+4. The advertisement doubles as the cell's or core's "alive": RAPIDS
+   accepts strap traffic only from a sender that advertised in the window.
 5. **Legal destinations** (owner direction 2026-10-18). RAPIDS opens an
    advertisement window when it leaves reset. When the window closes, every
-   counter still at 0 marks an **illegal** destination: nothing there
-   advertised, whether a spare index, an absent cell or a dead node. RAPIDS
+   node's internal ID is legal, and every external counter still at 0 marks
+   an **illegal** destination: nothing there advertised, whether an absent
+   cell, an absent core or a spare index. RAPIDS
    saves the result as a 64-bit legal-destination mask, one bit per counter.
    - A descriptor whose destination is illegal is refused as an invalid
      descriptor, not sent and not left waiting for credits that will never
@@ -582,47 +588,35 @@ the counts cannot drift from the hardware.
    - The mask is readable by software (a CSR) and stays as saved until the
      next reset.
 
-**RAPIDS's side: grants, not advertisements.** RAPIDS never advertises its
+**RAPIDS's side: straps, not advertisements.** RAPIDS never advertises its
 free sink space as a total. If it broadcast "channel 3 has 512 flits free",
 every cell would believe it could send 512 flits, and the sink would be
-overcommitted many times over. RAPIDS's space is allocated, so it goes out as
-grants:
+overcommitted many times over. Its space toward each sender is a fixed
+strap instead (§11.9), reserved by construction.
 
-- **Unicast (the default):** a `credit` packet with `op` = add to one cell,
-  tag = the sink channel, length = that cell's share. RAPIDS charges the
-  share against the channel's free space when it sends the grant.
-- **Broadcast, only for equal shares:** using delta's multicast (delta HAS
-  ch07 §6), RAPIDS may grant every cell in a group the same share S of one
-  channel at once. This is safe only when S × (number of recipients) is at
-  most the channel's free space, and RAPIDS charges the whole S × n when it
-  sends. It suits pre-granting at boot.
-- **Who receives grants:** only cells that have advertised, and only for
-  channels RAPIDS has set up to receive (a sink descriptor is waiting, or the
-  channel's SRAM is otherwise reserved for that traffic).
-
-**Resync after root failover:** credit and grant packets in flight in the
-failed root are lost. Without a resync the lost credits leak until the
-counters reach zero and traffic stops.
-1. After the mux switches, RAPIDS sends every destination a `set` credit
-   packet with count 0, as one multicast. This revokes all grants: cells zero
-   their grant counters.
-2. Each destination answers with a `set` advertisement of its current free
+**Resync after root failover:** credit packets in flight in the failed
+root are lost. Without a resync the lost credits leak until the counters
+reach zero and traffic stops.
+1. After the mux switches, RAPIDS sends every cell and core a `set` credit
+   packet, as one multicast, restoring its strap counter to what RAPIDS can
+   now accept from it.
+2. Each cell and core answers with a `set` advertisement of its current free
    input-buffer space.
-3. RAPIDS rebuilds its counters from the answers and re-issues grants from
-   its own free sink space. The saved legal-destination mask stands: a resync
-   does not reopen the window, so it never waits on a destination that was
-   illegal at boot.
+3. RAPIDS rebuilds its counters from the answers. The saved legal-destination
+   mask stands: a resync does not reopen the window, so it never waits on a
+   destination that was illegal at boot.
 
 A destination that leaves reset on its own uses the same path: its fresh
 advertisement replaces RAPIDS's view of it.
 
 ### 11.11 Cell-issued descriptors
 
-A cell can make RAPIDS read memory and send the data to a cell (itself or any
-other) by handing RAPIDS a complete source descriptor. It is a pull: the cell
-asks, the RAPIDS source half does the read and the send.
+A tetrad's control core (gatling) can make RAPIDS read memory and send the
+data to a cell by handing RAPIDS a complete source descriptor (owner
+direction 2026-10-18: gatling creates the descriptors). It is a pull: the
+core asks, the RAPIDS source half does the read and the send.
 
-1. The cell sends a `desc` packet to `level` 3 through RAPIDS's sink port: the
+1. The core sends a `desc` packet to `level` 3 through RAPIDS's sink port: the
    header (tag = the source channel to run it on, length = 32) followed by one
    256-bit RAPIDS source descriptor in the ordinary format. `src_addr` is the
    memory to read; `dst_addr` carries the destination coordinate and target
@@ -637,10 +631,10 @@ asks, the RAPIDS source half does the read and the send.
 4. The source half reads `src_addr` and sends the data, with a header built
    from the descriptor, out of the source port to the destination it names.
 
-Flow control: a source channel's descriptor queue is finite, so a cell sends a
-`desc` packet only against a descriptor grant (credit class 1, tag = that
-source channel), issued and returned the same way as sink-space grants
-(§11.9). The slot is returned when the scheduler takes the descriptor.
+Flow control: a source channel's descriptor queue is finite, so a core sends
+a `desc` packet only against its strapped descriptor-queue entries (§11.9,
+credit class 1, tag = that source channel). RAPIDS returns an entry when the
+scheduler takes the descriptor.
 
 RAPIDS hardware this needs: a second write port into each source channel's
 descriptor queue (the queue is already per channel in the shared descriptor
@@ -659,8 +653,8 @@ Built in the byte-granular RAPIDS behind `TILE_HDR` = 1 (default 0; needs
 | Sink header decode | Built (`rapids_tile_hdr_rx`): `cfg`/`prog`/`mem` writes are stripped and delivered by stream ID; `credit`, read requests into RAPIDS and reserved types are consumed, never stalled, and counted or flagged |
 | Sink stream = tag | On RAPIDS's sink link the stream ID (`CXSSRCID`, the channel) must equal the header tag: the root sets it from the tag. RAPIDS delivers by stream ID and flags a mismatch (`sts_tile_tag_mismatch`) |
 | Cell-issued descriptors (§11.11) | Built, with a one-descriptor slot per source channel instead of descriptor grants: a `desc` with no free slot, one arriving during a channel reset, or an EXT one is dropped and sets that channel's sticky `sts_tile_desc_dropped` bit. The channel and the work it holds carry on |
-| End-to-end credits (§11.9, §11.10) | Built behind `TILE_CREDITS` = 1 (2026-10-18): 64 destination counters in the source half, the internal and external ID of every node (`rapids_tile_credits`; index map §11.9), filled by class-0 `set` / `add` credit packets; a packet leaves only when its destination's counter covers every flit, header included. The advertisement window (`SRC.TILE_ADV_WINDOW`, cycles from reset) closes into the saved 64-bit legal-destination mask (`SRC.TILE_LEGAL_DEST_LO` / `_HI`); tile descriptors wait for it and one to an illegal destination is refused as invalid. A channel reset does not refund credits already charged |
-| Grants to cells (§11.9, §11.11) | Not built: no sink-space grants and no descriptor-slot grants; RAPIDS ignores class-1 credits (rapids TASK-027) |
+| End-to-end credits (§11.9, §11.10) | Built behind `TILE_CREDITS` = 1 (2026-10-18): 64 destination counters in the source half, the internal and external ID of every node (`rapids_tile_credits`; index map §11.9), external counters filled by class-0 `set` / `add` credit packets from cells and cores; a packet to a cell or core leaves only when its counter covers every flit, header included. Node internal IDs are legal by topology, never held or charged, and their credit packets are ignored; a read request to a node is refused. The advertisement window (`SRC.TILE_ADV_WINDOW`, cycles from reset) closes into the saved 64-bit legal-destination mask (`SRC.TILE_LEGAL_DEST_LO` / `_HI`); tile descriptors wait for it and one to an illegal destination is refused as invalid. A channel reset does not refund credits already charged |
+| Straps toward RAPIDS (§11.9, §11.11) | Not built: no per-cell 16-flit landing space, no strapped descriptor-queue entries per core, no credit returns from RAPIDS; RAPIDS ignores class-1 credits (rapids TASK-027) |
 | Status | CSRs: `SNK.TILE_STATUS` and `SRC.TILE_DESC_DROPPED` (W1C), `SNK.TILE_COUNTS`, and for credits `SRC.TILE_LEGAL_DEST_LO` / `_HI` / `SRC.TILE_CREDIT_STATUS`; the same values on the top-level `sts_tile_*` ports |
 
 ### 11.13 Tetrad control core (owner direction 2026-10-17; deferred 2026-10-18)
@@ -720,7 +714,7 @@ I/O, and so into RAPIDS. It is the path computed results leave the tile by:
 3. **Drain.** The controller pushes the cell's result memory out through
    the packetizer: write-format packets (`op` = 0) to `{ext 0, level 3}`,
    source = the cell's external ID `{1, 0, X, Y, Z}`, tag = the RAPIDS sink
-   channel, each sent against a grant (§11.9).
+   channel, each sent against the cell's 16-flit strap (§11.9).
 4. **Carry and land.** Delta routes each packet to the tile I/O. RAPIDS's
    sink strips the header and delivers the data by tag into that sink
    channel, which writes it to memory.
@@ -731,7 +725,7 @@ I/O, and so into RAPIDS. It is the path computed results leave the tile by:
 | Cell drain controller | Not built: the cell PRD has the packetizer and `CTRL` flush-and-send; no cell RTL beyond alu-infer |
 | Delta to `level` 3 | Interim: delta has no `level` field, so the destination gatling hands the cell includes the attach cell's delta coordinate, and the cell writes it into delta's header; delta needs no change for that. Permanent: `level` and `ext` in delta's header (delta DELTA-011) |
 | RAPIDS sink delivery by tag | Built (§11.12) |
-| Sink-space grants | Not built (rapids TASK-027 item 4). Without them a drain into a full sink channel stalls in the routers |
+| Straps toward RAPIDS | Not built (rapids TASK-027). Without the reserved landing space a drain into a full sink channel stalls in the routers |
 
 ## References
 
