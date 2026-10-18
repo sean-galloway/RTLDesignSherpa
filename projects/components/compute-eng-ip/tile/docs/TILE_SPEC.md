@@ -26,8 +26,8 @@
 # Tile — Compute Engine Tile Subsystem Specification
 
 **Version:** 1.5 (2026-10-18; §11.13 tetrad control core **deferred** pending
-the cell — owner direction 2026-10-18, gatling-rv32icell the leading
-candidate; cell→cell grant mediation added to §10 open items; §11.9-11.10
+the cell — owner direction 2026-10-18, gatling-rv32itetrad the leading
+candidate; cell→cell grant mediation added to §10 open items; §11.3 internal/external ID on every node, §11.9-11.10
 credits — owner direction 2026-10-18: delta nodes are conduits for transit
 and endpoints for what they consume, 32 RAPIDS credit counters, the
 advertisement window's saved legal-destination mask, and a cell's
@@ -263,7 +263,7 @@ Still open:
   its local memory map, and its program-load conventions — cell/tetrad
   MAS work, per alu-infer PRD §5. **Deferred** (owner direction
   2026-10-18): the engine is defined after the cell is fully defined and
-  working; gatling-rv32icell is the leading candidate (§11.13).
+  working; gatling-rv32itetrad is the leading candidate (§11.13).
 
 Tile RTL (`tetrad` node, `tile_top` with roots + mux + I/O) is pending
 the adopted-shape module split above; the node RTL (`delta_mesh_cell`,
@@ -312,21 +312,33 @@ fabric keeps one notion of config traffic.
 
 | Field | Width | Meaning |
 |---|---|---|
-| `level` | 2 | 0 = cell, 1 = tetrad node, 2 = root node, 3 = tile I/O (RAPIDS) |
+| `ext` | 1 | Which of the node's two IDs (owner direction 2026-10-18): 0 = internal, the node itself; 1 = external, what is attached at its local port |
+| `level` | 2 | 0 = cell-level node, 1 = tetrad node, 2 = root node, 3 = tile I/O (RAPIDS) |
 | X | `COORD_W` (4) | Cell: its X. Tetrad: its group's X (the cell X with the low bit dropped). Root: root 0 or 1. Tile I/O: reserved. |
 | Y | `COORD_W` (4) | Cell: its Y. Tetrad: its group's Y. Root and tile I/O: reserved. |
 | Z | `COORD_W` (4) | Tile layer, unchanged from delta |
 
-: Proposed destination coordinate, `{level, X, Y, Z}`, 14 bits at COORD_W = 4
+: Proposed destination coordinate, `{ext, level, X, Y, Z}`, 15 bits at COORD_W = 4
 
-- Only cells have cell addresses. Tetrad nodes, roots and the tile I/O
-  are addressed by their own level, never as a cell.
+- **Every node has an internal and an external ID** (owner direction
+  2026-10-18). The internal ID (`ext` = 0) is the node itself: its routing
+  tables, its configuration, the buffer for packets addressed to it. The
+  external ID (`ext` = 1) is what is attached at its local port: at a
+  cell-level node, the cell; at a tetrad node, its control core (§11.13).
+- A cell is therefore the external ID of its cell-level node,
+  `{1, 0, X, Y, Z}`. Tetrad nodes, roots and the tile I/O are addressed by
+  their own level, never as a cell.
+- Only a node with something attached has external credit (§11.9): an
+  external ID with nothing behind it never advertises, so it is never a
+  legal destination.
+- Routing uses `{level, X, Y, Z}` only; `ext` is read at the last hop, to
+  consume the packet in the node or deliver it out of the local port.
 - The mux has no coordinate.
 - A packet's source coordinate uses the same format. RAPIDS always sends
-  as `level = 3`, the tile I/O, so replies reach it through whichever
-  root is live.
+  as `level = 3`, the tile I/O (`ext` = 0), so replies reach it through
+  whichever root is live.
 - Delta's head-flit header carries `{X, Y, Z}` today (ch07 §2). Adding
-  `level` is a delta header change, still to be made.
+  `level` and `ext` is a delta header change, still to be made.
 
 ### 11.4 Root failover
 
@@ -349,12 +361,12 @@ source-route pointer, packet ID) with the fields below.
 
 | Field | Width | Meaning |
 |---|---|---|
-| Destination coordinate | 14 | `{level, X, Y, Z}`, §11.3; adds `level` to delta's `{X, Y, Z}` |
-| Source coordinate | 14 | Same format; RAPIDS sends as `level` = 3, the tile I/O |
+| Destination coordinate | 15 | `{ext, level, X, Y, Z}`, §11.3; adds `ext` and `level` to delta's `{X, Y, Z}` |
+| Source coordinate | 15 | Same format; RAPIDS sends as `level` = 3, the tile I/O |
 | `ptype` | 3 | Payload type, §11.2 |
 | `op` | 1 | Data packets: 0 = write (payload follows), 1 = read (header only; the target replies). `credit` packets: 0 = add, 1 = set (§11.10) |
 | Length | 32 | Write: payload bytes that follow. Read: bytes requested. Credit: flits returned or granted. `desc`: 32 (one descriptor). |
-| Target address | 50 | Byte address inside the addressed node or cell. Credit packets: bits [1:0] are the credit class (0 = sink space, 1 = descriptor slots), the rest reserved. |
+| Target address | 49 | Byte address inside the addressed node or cell. Credit packets: bits [1:0] are the credit class (0 = sink space, 1 = descriptor slots), the rest reserved. |
 | Tag | 4 | The RAPIDS channel. Set by RAPIDS on a request; echoed by the target in its reply, so the reply reaches the right sink channel |
 
 : Proposed tile packet header fields (beyond delta's existing ones)
@@ -363,14 +375,14 @@ Proposed packing, for a transport that carries the header as data:
 
 | Bits | Field |
 |---|---|
-| `[13:0]` | Destination coordinate |
-| `[27:14]` | Source coordinate |
-| `[30:28]` | `ptype` |
-| `[31]` | `op` |
-| `[63:32]` | Length |
-| `[113:64]` | Target address |
-| `[117:114]` | Tag |
-| above `[117]` | Delta's existing head-flit fields, then reserved |
+| `[14:0]` | Destination coordinate |
+| `[29:15]` | Source coordinate |
+| `[32:30]` | `ptype` |
+| `[33]` | `op` |
+| `[65:34]` | Length |
+| `[114:66]` | Target address |
+| `[118:115]` | Tag |
+| above `[118]` | Delta's existing head-flit fields, then reserved |
 
 : Proposed header packing
 
@@ -431,21 +443,29 @@ packets instead.
 2026-10-18). A tetrad or root node routes every packet that is not addressed
 to it, `credit` packets included, on that packet's virtual channel, and holds
 no credit state for it: only the hop-level flow control it already has. For
-packets addressed **to** it (`cfg`, `prog`, `mem` at `level` 1 or 2) a node is
-an endpoint like a cell: it advertises its input buffer and returns credits
-for what it consumes.
+packets addressed **to** it (its internal ID, §11.3) a node is an endpoint
+like a cell: it advertises its input buffer and returns credits for what it
+consumes. A node with something attached at its local port also has
+**external credit**: the attachment's buffer, under the node's external ID.
 
-1. RAPIDS's source half keeps **32 credit counters** (owner direction
-   2026-10-18), one per destination index. A tile uses 22 (16 cells, 4 tetrad
-   nodes, 2 root nodes); the other 10 are spare. Every counter starts at 0
-   and is filled by its destination's advertisement (§11.10).
+1. RAPIDS's source half keeps **64 credit counters** (owner direction
+   2026-10-18), one per destination index `{ext, n}`: the internal and the
+   external ID of every node. A tile uses at most 42 (22 internal: 16
+   cell-level nodes, 4 tetrad nodes, 2 root nodes; 20 external: 16 cells, 4
+   tetrad control cores). Every counter starts at 0 and is filled by its
+   destination's advertisement (§11.10), so an external ID with nothing
+   attached is never legal.
 
    | Index | Destination |
    |---|---|
-   | 0-15 | Cell, `{Y[1:0], X[1:0]}` |
-   | 16-19 | Tetrad node, `{Y[0], X[0]}` of its group |
-   | 20-21 | Root node 0, 1 |
-   | 22-31 | Spare: no destination, never advertises |
+   | 0-15 | Cell-level node (internal), `{Y[1:0], X[1:0]}` |
+   | 16-19 | Tetrad node (internal), `{Y[0], X[0]}` of its group |
+   | 20-21 | Root node 0, 1 (internal) |
+   | 22-31 | Spare |
+   | 32-47 | Cell: the cell-level node's external ID, `32 + {Y[1:0], X[1:0]}` |
+   | 48-51 | Tetrad control core: the tetrad node's external ID |
+   | 52-53 | Root external: none (the root's local side is the tile I/O) |
+   | 54-63 | Spare |
 
    : Proposed credit-counter index
 2. Each flit sent to a destination, the header included, spends one credit.
@@ -529,9 +549,9 @@ the counts cannot drift from the hardware.
    destination that has not advertised.
    - **A cell's advertisement comes from its delta node** (owner direction
      2026-10-18). `delta_mesh_cell` takes a parameter for its cell's input
-     buffer in flits and sends the cell's `set` as it leaves reset, as well
-     as anything it advertises for itself, so a cell needs no logic to
-     advertise. The cell still returns credits as it consumes. A value of 0
+     buffer in flits and sends the cell's `set` as it leaves reset, under its
+     external ID, as well as anything it advertises for itself under its
+     internal ID, so a cell needs no logic to advertise. The cell still returns credits as it consumes. A value of 0
      means no cell is attached, and the node sends no advertisement for it.
 2. The advertisements ride delta's hardwired reset-default route toward the
    RAPIDS boundary (delta HAS ch07 §3), so no routing table is needed first.
@@ -544,7 +564,7 @@ the counts cannot drift from the hardware.
    advertisement window when it leaves reset. When the window closes, every
    counter still at 0 marks an **illegal** destination: nothing there
    advertised, whether a spare index, an absent cell or a dead node. RAPIDS
-   saves the result as a 32-bit legal-destination mask, one bit per counter.
+   saves the result as a 64-bit legal-destination mask, one bit per counter.
    - A descriptor whose destination is illegal is refused as an invalid
      descriptor, not sent and not left waiting for credits that will never
      come.
@@ -630,15 +650,16 @@ Built in the byte-granular RAPIDS behind `TILE_HDR` = 1 (default 0; needs
 | Sink header decode | Built (`rapids_tile_hdr_rx`): `cfg`/`prog`/`mem` writes are stripped and delivered by stream ID; `credit`, read requests into RAPIDS and reserved types are consumed, never stalled, and counted or flagged |
 | Sink stream = tag | On RAPIDS's sink link the stream ID (`CXSSRCID`, the channel) must equal the header tag: the root sets it from the tag. RAPIDS delivers by stream ID and flags a mismatch (`sts_tile_tag_mismatch`) |
 | Cell-issued descriptors (§11.11) | Built, with a one-descriptor slot per source channel instead of descriptor grants: a `desc` with no free slot, one arriving during a channel reset, or an EXT one is dropped and sets that channel's sticky `sts_tile_desc_dropped` bit. The channel and the work it holds carry on |
-| End-to-end credits and grants (§11.9, §11.10) | Not built. RAPIDS sends without checking destination credits; received `credit` packets are only counted |
-| Status | Top-level ports `sts_tile_*` only; no CSR yet, so software cannot read or clear them |
+| End-to-end credits (§11.9, §11.10) | Built behind `TILE_CREDITS` = 1 (2026-10-18): 64 destination counters in the source half, the internal and external ID of every node (`rapids_tile_credits`; index map §11.9), filled by class-0 `set` / `add` credit packets; a packet leaves only when its destination's counter covers every flit, header included. The advertisement window (`SRC.TILE_ADV_WINDOW`, cycles from reset) closes into the saved 64-bit legal-destination mask (`SRC.TILE_LEGAL_DEST_LO` / `_HI`); tile descriptors wait for it and one to an illegal destination is refused as invalid. A channel reset does not refund credits already charged |
+| Grants to cells (§11.9, §11.11) | Not built: no sink-space grants and no descriptor-slot grants; RAPIDS ignores class-1 credits (rapids TASK-027) |
+| Status | CSRs: `SNK.TILE_STATUS` and `SRC.TILE_DESC_DROPPED` (W1C), `SNK.TILE_COUNTS`, and for credits `SRC.TILE_LEGAL_DEST_LO` / `_HI` / `SRC.TILE_CREDIT_STATUS`; the same values on the top-level `sts_tile_*` ports |
 
 ### 11.13 Tetrad control core (owner direction 2026-10-17; deferred 2026-10-18)
 
 **Deferral (owner direction 2026-10-18):** the tetrad engine is defined
 **after the cell is fully defined and working** — the cell is the lowest
 module (cell PRD v0.3 §1). The owner-authored
-[`gatling-rv32icell`](../../../riscv-ip/gatling-rv32icell/PRD.md) barrel-core
+[`gatling-rv32itetrad`](../../../riscv-ip/gatling-rv32itetrad/PRD.md) barrel-core
 PRD (2026-10-17) is the leading candidate, with kestrel-class remaining a
 candidate flavor via `CORE_FLAVOR`. The model below stays recorded — frozen
 — for when the engine work resumes; the in-band-everything rulings are
