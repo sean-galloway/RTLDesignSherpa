@@ -25,9 +25,17 @@
 
 # Tile — Compute Engine Tile Subsystem Specification
 
-**Version:** 1.3 (§11 adopted 2026-10-16; cell integration decisions
-2026-10-16; §11 proposal added 2026-10-16; re-homed to compute-eng-ip
-2026-10-15; v1.0 owner-defined 2026-10-15)
+**Version:** 1.5 (2026-10-18; §11.13 tetrad control core **deferred** pending
+the cell — owner direction 2026-10-18, gatling-rv32icell the leading
+candidate; cell→cell grant mediation added to §10 open items; §11.9-11.10
+credits — owner direction 2026-10-18: delta nodes are conduits for transit
+and endpoints for what they consume, 32 RAPIDS credit counters, the
+advertisement window's saved legal-destination mask, and a cell's
+advertisement sent by its delta node from a parameter). Carries 1.4
+(tetrad control core recorded 2026-10-17; §11 adopted
+2026-10-16; cell integration decisions 2026-10-16; §11 proposal added
+2026-10-16; re-homed to compute-eng-ip 2026-10-15; v1.0 owner-defined
+2026-10-15)
 **Status:** Canonical microarchitecture definition for the compute-engine
 tile. **delta is the node** (`delta_mesh_cell`) — nodes collectively form
 the network; this document defines the tile IP that instantiates 16 of
@@ -77,6 +85,16 @@ cell PRD
 self-contained IP whose only tie to delta is one node instantiated
 inside it.
 
+**Owner direction 2026-10-17:** each tetrad additionally carries **one
+RV32I control core** (kestrel-class, `CORE_FLAVOR`-swappable) at its
+tetrad node's local port — the control agent for the tetrad's four
+cells, defined with its duties and boundaries in
+[alu-infer PRD §5](../../alu-infer/PRD.md). All data, config, and
+programming for the tile blocks — the core's firmware included — arrive
+in-band on delta; the core is a local reaction agent, not a config
+originator. SERV is unchanged in its Ocelus observability role. See
+§11.13.
+
 ## 3. Connectivity
 
 Connectivity is the **same K4 clique at both scales** — the owner's
@@ -122,6 +140,11 @@ tile adds 2 root nodes, a root mux, and the single tile I/O. The
 wrapper-only description above is kept for the decision trail; module
 boundaries for the adopted shape are part of the tile RTL planning and
 follow the cell PRD's block structure.
+
+**Owner direction 2026-10-17:** the tetrad module also instantiates the
+tetrad's **control core** — one kestrel-class RV32I core (this IP)
+attached at the tetrad node's local port, per §11.13 and alu-infer PRD
+§5.
 
 ## 5. Observation (MonBus aggregation)
 
@@ -229,6 +252,18 @@ Still open:
 - Config/address region naming per level — design spec §5, ch07 §3;
   §11.3's coordinate is the addressing answer, register naming follows
   the cell PRD.
+- Cell→cell flow control (§11.9): credit *returns* are sender-generic
+  already — a credit goes to the source coordinate of the packet whose
+  flits it frees — but grants are defined only for rapids↔cell. Who
+  grants sink space for cell-destined results, and how a cell advertises
+  its input-buffer credits to peer cells, is undefined. Needed for the
+  cell PRD's `DEST` override (cell PRD v0.3 §6.3); v1 result traffic is
+  rapids-bound.
+- Tetrad control core (§11.13): the kick/wait custom-opcode encoding,
+  its local memory map, and its program-load conventions — cell/tetrad
+  MAS work, per alu-infer PRD §5. **Deferred** (owner direction
+  2026-10-18): the engine is defined after the cell is fully defined and
+  working; gatling-rv32icell is the leading candidate (§11.13).
 
 Tile RTL (`tetrad` node, `tile_top` with roots + mux + I/O) is pending
 the adopted-shape module split above; the node RTL (`delta_mesh_cell`,
@@ -390,11 +425,29 @@ tagged sink channel has room for N bytes, and the reply needs no other grant.
 
 Link credits (CXS `CRDGNT` / `CRDRTN`) cover one hop and carry no address,
 so they cannot say anything about a cell's buffer. End-to-end credits are
-packets instead:
+packets instead.
 
-1. RAPIDS's source half keeps one credit counter per destination (22 per
-   tile: 16 cells, 4 tetrad nodes, 2 root nodes), initialised to that
-   destination's input buffer size in flits.
+**delta nodes are conduits for traffic passing through** (owner direction
+2026-10-18). A tetrad or root node routes every packet that is not addressed
+to it, `credit` packets included, on that packet's virtual channel, and holds
+no credit state for it: only the hop-level flow control it already has. For
+packets addressed **to** it (`cfg`, `prog`, `mem` at `level` 1 or 2) a node is
+an endpoint like a cell: it advertises its input buffer and returns credits
+for what it consumes.
+
+1. RAPIDS's source half keeps **32 credit counters** (owner direction
+   2026-10-18), one per destination index. A tile uses 22 (16 cells, 4 tetrad
+   nodes, 2 root nodes); the other 10 are spare. Every counter starts at 0
+   and is filled by its destination's advertisement (§11.10).
+
+   | Index | Destination |
+   |---|---|
+   | 0-15 | Cell, `{Y[1:0], X[1:0]}` |
+   | 16-19 | Tetrad node, `{Y[0], X[0]}` of its group |
+   | 20-21 | Root node 0, 1 |
+   | 22-31 | Spare: no destination, never advertises |
+
+   : Proposed credit-counter index
 2. Each flit sent to a destination, the header included, spends one credit.
    RAPIDS sends a packet only when the counter covers all of it.
 3. The destination returns credits when it has **consumed** the flits
@@ -406,7 +459,10 @@ packets instead:
    destination's counter.
 
 Counters are per destination, not per channel: two channels writing the
-same cell share that cell's buffer.
+same cell share that cell's buffer. A node's counter covers only what is
+addressed to that node; traffic routed through it never touches a counter. A
+read of a node needs no grant from the node: RAPIDS issues it only when the
+tagged sink channel has room for the reply (§11.8).
 
 **Where a credit goes:** a credit packet is routed like any packet, by its
 destination coordinate. A credit return goes to the source coordinate of
@@ -439,12 +495,19 @@ Requirements this places on the implementation:
   waiting for credits. Credit packets ride their own virtual channel, and
   the sink port accepts them unconditionally.
 - **RAPIDS:** a new sink-to-source credit-return path inside the core (the
-  two halves share no logic today), the per-destination counter table and
-  its initial buffer sizes (a CSR per level, or per destination), and, per
-  sink channel, the free-space-less-outstanding-grants account and the grant
-  issuer on the source port.
+  two halves share no logic today), the 32-entry counter table (filled by
+  the advertisements), the advertisement window and the saved
+  legal-destination mask (§11.10), and, per sink channel, the
+  free-space-less-outstanding-grants account and the grant issuer on the
+  source port.
 - **Cells:** buffer sizing, return batching, building credit packets, and a
   grant counter per sink channel used.
+- **delta nodes:** for their own consumption only, an input buffer for
+  node-addressed packets, a boot advertisement of its size, and credit
+  returns as they consume. At the cell level, `delta_mesh_cell` also
+  advertises its cell's buffer from a parameter (§11.10). No credit state for packets passing through, and
+  no grant counters (a node sends into RAPIDS only to answer a read). A
+  virtual channel for `credit` packets.
 
 ### 11.10 Credit advertisement
 
@@ -461,8 +524,15 @@ the counts cannot drift from the hardware.
 **Boot:**
 1. After reset every destination (cell, tetrad node, root node) sends one
    `set` credit packet to `level` 3 carrying its full input-buffer size in
-   flits. RAPIDS's per-destination counters start at 0, so RAPIDS cannot send
-   to a node that has not advertised.
+   flits: a node, the buffer for packets addressed to it. RAPIDS's
+   per-destination counters start at 0, so RAPIDS cannot send to a
+   destination that has not advertised.
+   - **A cell's advertisement comes from its delta node** (owner direction
+     2026-10-18). `delta_mesh_cell` takes a parameter for its cell's input
+     buffer in flits and sends the cell's `set` as it leaves reset, as well
+     as anything it advertises for itself, so a cell needs no logic to
+     advertise. The cell still returns credits as it consumes. A value of 0
+     means no cell is attached, and the node sends no advertisement for it.
 2. The advertisements ride delta's hardwired reset-default route toward the
    RAPIDS boundary (delta HAS ch07 §3), so no routing table is needed first.
 3. They need no grant: credit packets travel on their own virtual channel
@@ -470,6 +540,18 @@ the counts cannot drift from the hardware.
 4. RAPIDS knows its own sink space (`SRAM_DEPTH` per channel) and grants to a
    cell only after that cell has advertised. The advertisement doubles as the
    cell's "alive".
+5. **Legal destinations** (owner direction 2026-10-18). RAPIDS opens an
+   advertisement window when it leaves reset. When the window closes, every
+   counter still at 0 marks an **illegal** destination: nothing there
+   advertised, whether a spare index, an absent cell or a dead node. RAPIDS
+   saves the result as a 32-bit legal-destination mask, one bit per counter.
+   - A descriptor whose destination is illegal is refused as an invalid
+     descriptor, not sent and not left waiting for credits that will never
+     come.
+   - Only the window decides legality. A legal destination whose counter
+     later reaches 0 because its credits are spent is waiting, not illegal.
+   - The mask is readable by software (a CSR) and stays as saved until the
+     next reset.
 
 **RAPIDS's side: grants, not advertisements.** RAPIDS never advertises its
 free sink space as a total. If it broadcast "channel 3 has 512 flits free",
@@ -498,7 +580,9 @@ counters reach zero and traffic stops.
 2. Each destination answers with a `set` advertisement of its current free
    input-buffer space.
 3. RAPIDS rebuilds its counters from the answers and re-issues grants from
-   its own free sink space.
+   its own free sink space. The saved legal-destination mask stands: a resync
+   does not reopen the window, so it never waits on a destination that was
+   illegal at boot.
 
 A destination that leaves reset on its own uses the same path: its fresh
 advertisement replaces RAPIDS's view of it.
@@ -549,6 +633,48 @@ Built in the byte-granular RAPIDS behind `TILE_HDR` = 1 (default 0; needs
 | End-to-end credits and grants (§11.9, §11.10) | Not built. RAPIDS sends without checking destination credits; received `credit` packets are only counted |
 | Status | Top-level ports `sts_tile_*` only; no CSR yet, so software cannot read or clear them |
 
+### 11.13 Tetrad control core (owner direction 2026-10-17; deferred 2026-10-18)
+
+**Deferral (owner direction 2026-10-18):** the tetrad engine is defined
+**after the cell is fully defined and working** — the cell is the lowest
+module (cell PRD v0.3 §1). The owner-authored
+[`gatling-rv32icell`](../../../riscv-ip/gatling-rv32icell/PRD.md) barrel-core
+PRD (2026-10-17) is the leading candidate, with kestrel-class remaining a
+candidate flavor via `CORE_FLAVOR`. The model below stays recorded — frozen
+— for when the engine work resumes; the in-band-everything rulings are
+unaffected.
+
+Each tetrad carries **one RV32I control core** — kestrel-class,
+`CORE_FLAVOR`-swappable, defined with its full duty list in
+[alu-infer PRD §5](../../alu-infer/PRD.md). The model, frozen here so
+the tile records it:
+
+- **Attach.** The core sits at its tetrad node's **local port**, the same
+  relationship the cell has with its own node. It is not a routing level,
+  carries no coordinate of its own, and is reached as its tetrad: `prog`
+  and `cfg` packets addressed `{level = 1, tetrad X/Y}` (§11.3) exit the
+  tetrad node's local port into the core. Its firmware load rides the
+  existing `prog` payload type (§11.2) — in-band like everything else.
+- **In-band everything, no config origination.** All data, config, and
+  programming for the tile blocks arrive with the delta traffic (owner
+  ruling 2026-10-17). The core does not originate config traffic: the
+  cells' programming (`FUNC_SEL`, `OP_LINES`, …) arrives in-band
+  addressed to each cell (`level = 0`), carried by the stream. The core
+  is a **local reaction agent**: it reads its four cells' status and IRQs
+  over the local AXIL register plane, runs decision firmware
+  (layer-boundary detection, flush policy), and exercises *operational*
+  registers only (flush-and-send, soft reset, IRQ clear — the
+  AXIL-for-registers plane, not fabric config).
+- **Custom instructions stay minimal** (a custom-0 kick/wait pair for
+  local coordination); encoding lands in the cell/tetrad MAS (§10).
+- **Observability is unchanged.** SERV and the MonBus aggregation (§5)
+  remain the tile's observability plane; the core reads registers and
+  reacts — it takes no MonBus tap by default.
+- **Why per-tetrad.** Four independent control points per tile (one per
+  tetrad) allow layer pipelining across tetrads and one group-done per
+  four cells, without sixteen instruction streams. A tetrad steps as
+  4 cells × 2 bf16 lanes = 8 bf16 lanes.
+
 ## References
 
 - [`docs/superpowers/specs/2026-10-13-delta-mesh-design.md`](../../../../../docs/superpowers/specs/2026-10-13-delta-mesh-design.md) — working design record (§2 architecture, §5.4 mode catalog).
@@ -558,5 +684,5 @@ Built in the byte-granular RAPIDS behind `TILE_HDR` = 1 (default 0; needs
 
 ---
 
-**Last Updated:** 2026-10-16
+**Last Updated:** 2026-10-18
 **Maintained By:** RTL Design Sherpa Project
