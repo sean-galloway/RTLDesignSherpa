@@ -45,6 +45,10 @@
 //                      freed entry no longer matches and pending decrements
 //                      are already in the counts. Occupancy drops a cycle
 //                      later (tags_full is conservative for one cycle).
+//                      A response that takes a still-pending insert, and a
+//                      same-tag retire beside an insert, go through the same
+//                      registered free, so no storage write enable or count
+//                      value depends on the response ID's lookup.
 //
 // Mode 1 Usage (Simple - Block Duplicates):
 //   External arbiter checks cam_hit and blocks allocation if tag exists.
@@ -54,9 +58,10 @@
 //   Allows duplicate transaction IDs with FIFO ordering via count field.
 //   Handles out-of-order slave responses by always deallocating count=0 first.
 //
-// Version: 1.4 (PIPELINE_ALLOC, PIPELINE_FREE)
+// Version: 1.5 (PIPELINE_FREE also carries pending takes and same-tag
+//               retires: no write enable depends on the response ID)
 // Author: RTL Design Sherpa
-// Date: 2025-10-26 (1.3: 2026-10-16)
+// Date: 2025-10-26 (1.3: 2026-10-16, 1.5: 2026-10-18)
 //==============================================================================
 
 module bridge_cam #(
@@ -221,7 +226,12 @@ module bridge_cam #(
             assign w_pend_data = r_pend_data;
             // The pending entry is written this cycle unless the eviction
             // port takes it (its response arrived before it reached the CAM).
-            assign w_ins_v    = r_pend_v && !(w_pend_hit && w_deallocate_active);
+            // Under PIPELINE_FREE it is written regardless and the take frees
+            // its slot through the registered free (w_free_oh below): the
+            // write enable then comes off r_pend_v alone, not off the
+            // response ID's full match (the 13-15 level worst path into the
+            // array clock enables, bridge W12).
+            assign w_ins_v    = r_pend_v && ((PIPELINE_FREE == 1) || !(w_pend_hit && w_deallocate_active));
             assign w_ins_tag  = r_pend_tag;
             assign w_ins_data = r_pend_data;
         end else begin : gen_alloc_comb
@@ -279,6 +289,7 @@ module bridge_cam #(
     //==========================================================================
     // Scan from high to low, last match wins (returns lowest free index)
 
+    logic [DEPTH-1:0] w_next_free_oh;   // one-hot of w_next_free_loc
     always_comb begin
         w_next_free_loc = -1;
         w_has_free_slot = 1'b0;
@@ -287,6 +298,10 @@ module bridge_cam #(
                 w_next_free_loc = m;
                 w_has_free_slot = 1'b1;
             end
+        end
+        w_next_free_oh = '0;
+        for (m = 0; m < DEPTH; m++) begin
+            w_next_free_oh[m] = (m == w_next_free_loc);
         end
     end
 
@@ -415,8 +430,11 @@ module bridge_cam #(
                     // Mode 2: order behind the existing duplicates (count =
                     // how many there are). If the oldest of them retires this
                     // very cycle, every survivor steps down by one, so the
-                    // newcomer takes one less.
-                    r_count_array[w_next_free_loc] <= w_same_tag_retire
+                    // newcomer takes one less: here when the free is
+                    // combinational, and through the registered decrement
+                    // under PIPELINE_FREE (w_free_dec below), which keeps the
+                    // response ID's match out of this write.
+                    r_count_array[w_next_free_loc] <= (PIPELINE_FREE == 0 && w_same_tag_retire)
                         ? (w_dup_count - 1'b1) : w_dup_count;
                 end
             end
@@ -453,6 +471,15 @@ module bridge_cam #(
     //==========================================================================
     // What this cycle's deallocate frees, as vectors. Mode 1 frees one match;
     // Mode 2 frees the count-0 entry and steps the other matches down.
+    //
+    // Under PIPELINE_FREE two more cases ride the registered free, so no
+    // storage write enable or count value depends on this cycle's lookup:
+    //  - the eviction port takes the pending entry: it is written anyway
+    //    (w_ins_v) and its slot is freed here;
+    //  - a same-tag retire beside an insert: the newcomer is written with
+    //    the pre-retire count and steps down with the other survivors.
+    logic w_pend_take;
+    assign w_pend_take = (PIPELINE_FREE == 1) && w_deallocate_active && w_pend_hit;
     always_comb begin
         w_free_oh  = '0;
         w_free_dec = '0;
@@ -463,7 +490,13 @@ module bridge_cam #(
             end else begin
                 w_free_oh  = w_evict_count0_hits;
                 w_free_dec = w_evict_matches_active & ~w_evict_count0_hits;
+                if (PIPELINE_FREE == 1 && w_same_tag_retire && w_ins_v)
+                    w_free_dec = w_free_dec | w_next_free_oh;
             end
+        end
+        if (w_pend_take) begin
+            w_free_now = 1'b1;
+            w_free_oh  = w_next_free_oh;
         end
     end
 
