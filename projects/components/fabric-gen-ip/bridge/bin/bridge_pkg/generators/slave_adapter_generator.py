@@ -61,7 +61,7 @@ class SlaveAdapterGenerator:
         self.id_width = id_width
         # bridge TASK-005 (was BRIDGE-016): with more than one master the fabric IDs are
         # {master index, master id} and unique across masters, so a real AXI
-        # slave is tracked by ID in bridge_cam regardless of enable_ooo. The
+        # slave is tracked by ID regardless of enable_ooo. The
         # in-order FIFO requires the slave to complete in AW/AR order across
         # ALL IDs, which a compliant AXI slave need not do -- and with masters
         # now carrying distinct IDs, a slave that serialises per ID completes
@@ -98,7 +98,7 @@ class SlaveAdapterGenerator:
 
     @property
     def max_outstanding(self) -> int:
-        """Response tracker depth (bridge_cam or in-order FIFO): this slave's
+        """Response tracker depth (by-ID counter or in-order FIFO): this slave's
         max_outstanding, power of two 2..64 (a fixed 16 until bridge GitHub
         #119 L5)."""
         return int(getattr(self.slave, 'max_outstanding', 16))
@@ -121,7 +121,7 @@ class SlaveAdapterGenerator:
         # Internal signals
         lines.extend(self._generate_internal_signals())
 
-        # Bridge ID tracking (CAM or FIFO)
+        # Bridge ID tracking (by ID or FIFO)
         lines.extend(self._generate_bridge_id_tracking())
 
         # Timing wrapper or protocol converter
@@ -722,16 +722,14 @@ class SlaveAdapterGenerator:
                 lines.append("    logic converter_rlast;")
                 lines.append("")
 
-        # Add FIFO/CAM internal signals if needed
+        # Add FIFO internal signals if needed
         # Handle missing enable_ooo attribute (default to False for in-order)
-        enable_ooo = self.use_cam
+        enable_ooo = self.track_by_id
 
-        if enable_ooo:
-            lines.append("    // CAM tracking signals (by-ID mode: enable_ooo or a multi-master fabric)")
-        else:
+        if not enable_ooo:
             lines.append("    // FIFO tracking signals (in-order mode)")
 
-        if self.has_write:
+        if self.has_write and not enable_ooo:
             lines.append("    logic cam_wr_allocate;")
             lines.append("    logic cam_wr_deallocate;")
             lines.append("    logic [ID_WIDTH-1:0] cam_wr_allocate_tag;")
@@ -747,7 +745,7 @@ class SlaveAdapterGenerator:
             lines.append("    logic aw_rr_blocked;")
             lines.append("")
 
-        if self.has_read:
+        if self.has_read and not enable_ooo:
             lines.append("    logic cam_rd_allocate;")
             lines.append("    logic cam_rd_deallocate;")
             lines.append("    logic [ID_WIDTH-1:0] cam_rd_allocate_tag;")
@@ -767,21 +765,21 @@ class SlaveAdapterGenerator:
 
     def _generate_bridge_id_tracking(self) -> List[str]:
         """
-        Generate bridge ID tracking logic (CAM or FIFO).
+        Generate bridge ID tracking logic (by ID or FIFO).
 
         Returns:
-            SystemVerilog for CAM/FIFO instantiation and control logic
+            SystemVerilog for by-ID counters / FIFO instantiation and control logic
         """
         lines = []
         crossbar_prefix = f"xbar_{self.slave.name}_axi_"
         slave_prefix = self.slave.prefix
 
         # Handle missing enable_ooo attribute (default to False for in-order)
-        enable_ooo = self.use_cam
+        enable_ooo = self.track_by_id
 
         lines.append("    // ================================================================")
         if enable_ooo:
-            lines.append("    // Bridge ID Tracking - CAM Mode (Out-of-Order)")
+            lines.append("    // Bridge ID Tracking - By ID (any completion order)")
         else:
             lines.append("    // Bridge ID Tracking - FIFO Mode (In-Order)")
         lines.append("    // ================================================================")
@@ -790,14 +788,14 @@ class SlaveAdapterGenerator:
         # Generate write channel tracking
         if self.has_write:
             if enable_ooo:
-                lines.extend(self._generate_cam_write_tracking(crossbar_prefix, slave_prefix))
+                lines.extend(self._generate_id_write_tracking(crossbar_prefix, slave_prefix))
             else:
                 lines.extend(self._generate_fifo_write_tracking(crossbar_prefix, slave_prefix))
 
         # Generate read channel tracking
         if self.has_read:
             if enable_ooo:
-                lines.extend(self._generate_cam_read_tracking(crossbar_prefix, slave_prefix))
+                lines.extend(self._generate_id_read_tracking(crossbar_prefix, slave_prefix))
             else:
                 lines.extend(self._generate_fifo_read_tracking(crossbar_prefix, slave_prefix))
 
@@ -805,7 +803,7 @@ class SlaveAdapterGenerator:
 
     def _atom_tracker_lines(self, crossbar_prefix: str) -> List[str]:
         """A5-3b: per-ID return tracker for read-return atomics, shared by the
-        FIFO and CAM read-tracking paths. Its outputs (atom_hit /
+        FIFO and by-ID read-tracking paths. Its outputs (atom_hit /
         atom_bridge_id / atom_full) are declared in the internal signals."""
         return [
             "    // A5-3b: read-return atomics answer on R with their AW's ID and no",
@@ -831,15 +829,45 @@ class SlaveAdapterGenerator:
             "",
         ]
 
-    def _generate_cam_write_tracking(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
-        """Generate CAM-based write tracking."""
+    def _id_route_lines(self, resp_id: str) -> str:
+        """The master index a response belongs to, read off its ID: inside the
+        fabric every ID is {master index, master id} (bridge TASK-005), and a
+        compliant slave returns the ID it was given. One master has no prefix
+        and every response is master 0's."""
+        if self.num_masters > 1:
+            return f"{resp_id}[ID_WIDTH-1 -: BRIDGE_ID_WIDTH]"
+        return "'0"
+
+    def _out_counter_lines(self, ch: str, push: str, pop: str) -> List[str]:
+        """Outstanding-transaction counter for one direction: the not-full gate
+        (bridge BUG-009) that bounds this slave to max_outstanding."""
+        d = self.max_outstanding
+        w = (d - 1).bit_length() + 1
+        return [
+            f"    logic [{w-1}:0] {ch}_out_cnt;  // in flight, 0..{d} (max_outstanding)",
+            "    `ALWAYS_FF_RST(aclk, aresetn,",
+            "        if (`RST_ASSERTED(aresetn)) begin",
+            f"            {ch}_out_cnt <= '0;",
+            "        end else begin",
+            f"            {ch}_out_cnt <= {ch}_out_cnt + {w}'({push}) - {w}'({pop});",
+            "        end",
+            "    )",
+            f"    assign {ch}_trk_full = ({ch}_out_cnt == {w}'({d}));",
+        ]
+
+    def _generate_id_write_tracking(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
+        """By-ID write tracking: B is routed by its BID's master-index bits and
+        a counter bounds the writes in flight."""
         lines = []
 
-        lines.append("    // Write Channel CAM")
-        lines.append("    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form: the CAM's own tags_full masks")
-        lines.append("    // the sub-block's ready before it reaches the crossbar. (These two nets")
-        lines.append("    // are what the wrapper override below binds; the FIFO path declares")
-        lines.append("    // its own. Missing here since c64660f47 -- bridge BUG-012 (was BRIDGE-015).)")
+        lines.append("    // Write channel: by-ID tracking")
+        lines.append("    // B is routed by its BID's master-index bits: fabric IDs are")
+        lines.append("    // {master index, master id} (bridge TASK-005) and a slave returns the")
+        lines.append("    // ID it was given, so the routing needs no lookup and any completion")
+        lines.append("    // order works. (A per-ID CAM did this lookup until 2026-10-18; it was the")
+        lines.append("    // fabric's critical path, bridge W12.) The counter is the not-full")
+        lines.append("    // gate (bridge BUG-009): it masks the sub-block's ready before it")
+        lines.append("    // reaches the crossbar.")
         lines.append("    logic wr_trk_full;")
         lines.append("    logic w_sub_awready;")
         if self.rr_atomic:
@@ -848,43 +876,11 @@ class SlaveAdapterGenerator:
             lines.append(f"    assign {crossbar_prefix}awready = w_sub_awready && !wr_trk_full && !aw_rr_blocked;")
         else:
             lines.append(f"    assign {crossbar_prefix}awready = w_sub_awready && !wr_trk_full;")
-        lines.append("    bridge_cam #(")
-        lines.append("        .TAG_WIDTH(ID_WIDTH),")
-        lines.append("        .DATA_WIDTH(BRIDGE_ID_WIDTH),")
-        lines.append(f"        .DEPTH({self.max_outstanding}),  // max_outstanding")
-        lines.append("        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support")
-        lines.append("        .PIPELINE_EVICT(0),")
-        lines.append("        // Registered insert: the crossbar's arbitrated ID only reaches a")
-        lines.append("        // register here; the 16-way match + duplicate popcount run the next")
-        lines.append("        // cycle (GitHub #119: this was the 15-level worst path, master AW")
-        lines.append("        // gate -> crossbar grant -> CAM count, on the fabric benchmark).")
-        lines.append("        .PIPELINE_ALLOC(1),")
-        lines.append("        // Registered free: the response's lookup still routes it this")
-        lines.append("        // cycle; the entry free and same-ID decrements land the next")
-        lines.append("        // (GitHub #119: the eviction was the next worst path).")
-        lines.append("        .PIPELINE_FREE(1)")
-        lines.append("    ) u_wr_cam (")
-        lines.append("        .clk(aclk),")
-        lines.append("        .rst_n(aresetn),")
-        lines.append("")
-        lines.append("        // Allocate on AW (from crossbar)")
-        lines.append(f"        .allocate({crossbar_prefix}awvalid && {crossbar_prefix}awready),")
-        lines.append(f"        .allocate_tag({crossbar_prefix}awid),")
-        lines.append("        .allocate_data(xbar_bridge_id_aw),")
-        lines.append("")
-        lines.append("        // Deallocate on B (from converter)")
-        lines.append(f"        .deallocate({crossbar_prefix}bvalid && {crossbar_prefix}bready),")
-        lines.append(f"        .deallocate_tag({crossbar_prefix}bid),")
-        lines.append("        .deallocate_valid(bid_valid),")
-        lines.append("        .deallocate_data(bid_bridge_id),")
-        lines.append("        .deallocate_count(),")
-        lines.append("")
-        lines.append("        // Status")
-        lines.append("        .cam_hit(),")
-        lines.append("        .tags_empty(),")
-        lines.append("        .tags_full(wr_trk_full),")
-        lines.append("        .tags_count()")
-        lines.append("    );")
+        lines.extend(self._out_counter_lines(
+            "wr", f"{crossbar_prefix}awvalid && {crossbar_prefix}awready",
+            f"{crossbar_prefix}bvalid && {crossbar_prefix}bready"))
+        lines.append(f"    assign bid_bridge_id = {self._id_route_lines(crossbar_prefix + 'bid')};")
+        lines.append("    assign bid_valid     = 1'b1;")
         lines.append("")
 
         return lines
@@ -999,68 +995,29 @@ class SlaveAdapterGenerator:
 
         return lines
 
-    def _generate_cam_read_tracking(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
-        """Generate CAM-based read tracking."""
+    def _generate_id_read_tracking(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
+        """By-ID read tracking: R is routed by its RID's master-index bits and
+        a counter bounds the reads in flight."""
         lines = []
 
-        lines.append("    // Read Channel CAM")
-        lines.append("    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form -- see the write channel.")
+        lines.append("    // Read channel: by-ID tracking -- see the write channel.")
         lines.append("    logic rd_trk_full;")
         lines.append("    logic w_sub_arready;")
         lines.append(f"    assign {crossbar_prefix}arready = w_sub_arready && !rd_trk_full;")
+        pop = f"{crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast"
         if self.rr_atomic:
-            lines.append("    logic cam_rd_valid;")
-            lines.append("    logic [BRIDGE_ID_WIDTH-1:0] cam_rd_bridge_id;")
-        lines.append("    bridge_cam #(")
-        lines.append("        .TAG_WIDTH(ID_WIDTH),")
-        lines.append("        .DATA_WIDTH(BRIDGE_ID_WIDTH),")
-        lines.append(f"        .DEPTH({self.max_outstanding}),  // max_outstanding")
-        lines.append("        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support")
-        lines.append("        .PIPELINE_EVICT(0),")
-        lines.append("        // Registered insert: the crossbar's arbitrated ID only reaches a")
-        lines.append("        // register here; the 16-way match + duplicate popcount run the next")
-        lines.append("        // cycle (GitHub #119: this was the 15-level worst path, master AW")
-        lines.append("        // gate -> crossbar grant -> CAM count, on the fabric benchmark).")
-        lines.append("        .PIPELINE_ALLOC(1),")
-        lines.append("        // Registered free: the response's lookup still routes it this")
-        lines.append("        // cycle; the entry free and same-ID decrements land the next")
-        lines.append("        // (GitHub #119: the eviction was the next worst path).")
-        lines.append("        .PIPELINE_FREE(1)")
-        lines.append("    ) u_rd_cam (")
-        lines.append("        .clk(aclk),")
-        lines.append("        .rst_n(aresetn),")
-        lines.append("")
-        lines.append("        // Allocate on AR (from crossbar)")
-        lines.append(f"        .allocate({crossbar_prefix}arvalid && {crossbar_prefix}arready),")
-        lines.append(f"        .allocate_tag({crossbar_prefix}arid),")
-        lines.append("        .allocate_data(xbar_bridge_id_ar),")
-        lines.append("")
-        lines.append("        // Deallocate on R (from converter)")
+            # A read-return atomic's R was counted on AW by its own tracker,
+            # not here: leave the read count alone for its last beat.
+            pop += " && !atom_hit"
+        lines.extend(self._out_counter_lines(
+            "rd", f"{crossbar_prefix}arvalid && {crossbar_prefix}arready", pop))
         if self.rr_atomic:
-            # A beat the atomic tracker claims is not the CAM's; leave it be.
-            lines.append(f"        .deallocate({crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast && !atom_hit),")
-            lines.append(f"        .deallocate_tag({crossbar_prefix}rid),")
-            lines.append("        .deallocate_valid(cam_rd_valid),")
-            lines.append("        .deallocate_data(cam_rd_bridge_id),")
-        else:
-            lines.append(f"        .deallocate({crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast),")
-            lines.append(f"        .deallocate_tag({crossbar_prefix}rid),")
-            lines.append("        .deallocate_valid(rid_valid),")
-            lines.append("        .deallocate_data(rid_bridge_id),")
-        lines.append("        .deallocate_count(),")
-        lines.append("")
-        lines.append("        // Status")
-        lines.append("        .cam_hit(),")
-        lines.append("        .tags_empty(),")
-        lines.append("        .tags_full(rd_trk_full),")
-        lines.append("        .tags_count()")
-        lines.append("    );")
-        lines.append("")
-        if self.rr_atomic:
-            lines.extend(self._atom_tracker_lines(crossbar_prefix))
-            lines.append("    assign rid_bridge_id = atom_hit ? atom_bridge_id : cam_rd_bridge_id;")
-            lines.append("    assign rid_valid     = atom_hit || cam_rd_valid;")
             lines.append("")
+            lines.extend(self._atom_tracker_lines(crossbar_prefix))
+            lines.append("    // An atomic's R carries its AW's ID, so it routes by ID like any other.")
+        lines.append(f"    assign rid_bridge_id = {self._id_route_lines(crossbar_prefix + 'rid')};")
+        lines.append("    assign rid_valid     = 1'b1;")
+        lines.append("")
 
         return lines
 
@@ -1342,9 +1299,10 @@ class SlaveAdapterGenerator:
         return lines
 
     @property
-    def use_cam(self) -> bool:
-        """Track this slave's responses by ID (bridge_cam) rather than by
-        FIFO position. See the num_masters note in __init__."""
+    def track_by_id(self) -> bool:
+        """Route this slave's responses by the master index in their ID, with
+        a counter bounding the outstanding count, rather than by FIFO
+        position. See the num_masters note in __init__."""
         if getattr(self.slave, 'enable_ooo', False):
             return True
         return (self.num_masters > 1
@@ -1357,8 +1315,8 @@ class SlaveAdapterGenerator:
         (AtomicLoad/Swap/Compare) natively. They arrive on AW and answer on
         R with the AW's ID, which no AR-fed tracker knows about, so the
         adapter adds a per-ID return tracker (axi5_atomic_rr_tracker) beside
-        the read tracker -- the in-order FIFO or, for enable_ooo slaves, the
-        bridge_cam -- so both modes route the beat. Needs an AXI5
+        the read tracker -- the in-order FIFO, or the by-ID counter -- so the
+        beat is routed (FIFO mode) and kept out of the read count. Needs an AXI5
         atomic-enabled slave with both channels."""
         feats = getattr(self.slave, 'axi5_features', None) or []
         return (getattr(self.slave, 'protocol', 'axi4') == 'axi5'

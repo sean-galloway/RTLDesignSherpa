@@ -144,115 +144,52 @@ module bridge_2x2_axi5_sram_adapter
     // Internal Signals
     // ================================================================
 
-    // CAM tracking signals (by-ID mode: enable_ooo or a multi-master fabric)
-    logic cam_wr_allocate;
-    logic cam_wr_deallocate;
-    logic [ID_WIDTH-1:0] cam_wr_allocate_tag;
-    logic [BRIDGE_ID_WIDTH-1:0] cam_wr_allocate_data;
-    logic [ID_WIDTH-1:0] cam_wr_deallocate_tag;
-
-    logic cam_rd_allocate;
-    logic cam_rd_deallocate;
-    logic [ID_WIDTH-1:0] cam_rd_allocate_tag;
-    logic [BRIDGE_ID_WIDTH-1:0] cam_rd_allocate_data;
-    logic [ID_WIDTH-1:0] cam_rd_deallocate_tag;
-
     // Per-wrapper AWAKEUP copies, OR'd onto the port
     logic w_awakeup_wr;
     logic w_awakeup_rd;
 
     // ================================================================
-    // Bridge ID Tracking - CAM Mode (Out-of-Order)
+    // Bridge ID Tracking - By ID (any completion order)
     // ================================================================
 
-    // Write Channel CAM
-    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form: the CAM's own tags_full masks
-    // the sub-block's ready before it reaches the crossbar. (These two nets
-    // are what the wrapper override below binds; the FIFO path declares
-    // its own. Missing here since c64660f47 -- bridge BUG-012 (was BRIDGE-015).)
+    // Write channel: by-ID tracking
+    // B is routed by its BID's master-index bits: fabric IDs are
+    // {master index, master id} (bridge TASK-005) and a slave returns the
+    // ID it was given, so the routing needs no lookup and any completion
+    // order works. (A per-ID CAM did this lookup until 2026-10-18; it was the
+    // fabric's critical path, bridge W12.) The counter is the not-full
+    // gate (bridge BUG-009): it masks the sub-block's ready before it
+    // reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
     assign xbar_sram_axi_awready = w_sub_awready && !wr_trk_full;
-    bridge_cam #(
-        .TAG_WIDTH(ID_WIDTH),
-        .DATA_WIDTH(BRIDGE_ID_WIDTH),
-        .DEPTH(16),  // max_outstanding
-        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
-        .PIPELINE_EVICT(0),
-        // Registered insert: the crossbar's arbitrated ID only reaches a
-        // register here; the 16-way match + duplicate popcount run the next
-        // cycle (GitHub #119: this was the 15-level worst path, master AW
-        // gate -> crossbar grant -> CAM count, on the fabric benchmark).
-        .PIPELINE_ALLOC(1),
-        // Registered free: the response's lookup still routes it this
-        // cycle; the entry free and same-ID decrements land the next
-        // (GitHub #119: the eviction was the next worst path).
-        .PIPELINE_FREE(1)
-    ) u_wr_cam (
-        .clk(aclk),
-        .rst_n(aresetn),
+    logic [4:0] wr_out_cnt;  // in flight, 0..16 (max_outstanding)
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            wr_out_cnt <= '0;
+        end else begin
+            wr_out_cnt <= wr_out_cnt + 5'(xbar_sram_axi_awvalid && xbar_sram_axi_awready) - 5'(xbar_sram_axi_bvalid && xbar_sram_axi_bready);
+        end
+    )
+    assign wr_trk_full = (wr_out_cnt == 5'(16));
+    assign bid_bridge_id = xbar_sram_axi_bid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
+    assign bid_valid     = 1'b1;
 
-        // Allocate on AW (from crossbar)
-        .allocate(xbar_sram_axi_awvalid && xbar_sram_axi_awready),
-        .allocate_tag(xbar_sram_axi_awid),
-        .allocate_data(xbar_bridge_id_aw),
-
-        // Deallocate on B (from converter)
-        .deallocate(xbar_sram_axi_bvalid && xbar_sram_axi_bready),
-        .deallocate_tag(xbar_sram_axi_bid),
-        .deallocate_valid(bid_valid),
-        .deallocate_data(bid_bridge_id),
-        .deallocate_count(),
-
-        // Status
-        .cam_hit(),
-        .tags_empty(),
-        .tags_full(wr_trk_full),
-        .tags_count()
-    );
-
-    // Read Channel CAM
-    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form -- see the write channel.
+    // Read channel: by-ID tracking -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
     assign xbar_sram_axi_arready = w_sub_arready && !rd_trk_full;
-    bridge_cam #(
-        .TAG_WIDTH(ID_WIDTH),
-        .DATA_WIDTH(BRIDGE_ID_WIDTH),
-        .DEPTH(16),  // max_outstanding
-        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
-        .PIPELINE_EVICT(0),
-        // Registered insert: the crossbar's arbitrated ID only reaches a
-        // register here; the 16-way match + duplicate popcount run the next
-        // cycle (GitHub #119: this was the 15-level worst path, master AW
-        // gate -> crossbar grant -> CAM count, on the fabric benchmark).
-        .PIPELINE_ALLOC(1),
-        // Registered free: the response's lookup still routes it this
-        // cycle; the entry free and same-ID decrements land the next
-        // (GitHub #119: the eviction was the next worst path).
-        .PIPELINE_FREE(1)
-    ) u_rd_cam (
-        .clk(aclk),
-        .rst_n(aresetn),
-
-        // Allocate on AR (from crossbar)
-        .allocate(xbar_sram_axi_arvalid && xbar_sram_axi_arready),
-        .allocate_tag(xbar_sram_axi_arid),
-        .allocate_data(xbar_bridge_id_ar),
-
-        // Deallocate on R (from converter)
-        .deallocate(xbar_sram_axi_rvalid && xbar_sram_axi_rready && xbar_sram_axi_rlast),
-        .deallocate_tag(xbar_sram_axi_rid),
-        .deallocate_valid(rid_valid),
-        .deallocate_data(rid_bridge_id),
-        .deallocate_count(),
-
-        // Status
-        .cam_hit(),
-        .tags_empty(),
-        .tags_full(rd_trk_full),
-        .tags_count()
-    );
+    logic [4:0] rd_out_cnt;  // in flight, 0..16 (max_outstanding)
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            rd_out_cnt <= '0;
+        end else begin
+            rd_out_cnt <= rd_out_cnt + 5'(xbar_sram_axi_arvalid && xbar_sram_axi_arready) - 5'(xbar_sram_axi_rvalid && xbar_sram_axi_rready && xbar_sram_axi_rlast);
+        end
+    )
+    assign rd_trk_full = (rd_out_cnt == 5'(16));
+    assign rid_bridge_id = xbar_sram_axi_rid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
+    assign rid_valid     = 1'b1;
 
     // AXI5 Master Write Timing Wrapper
     axi5_master_wr #(

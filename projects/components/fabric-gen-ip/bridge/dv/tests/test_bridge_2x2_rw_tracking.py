@@ -114,15 +114,16 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
     # responses, and a watcher that misses traffic reports "no misroutes"
     # identically to a clean run. One sampler sees every cycle.
     async def _probe():
-        # bridge BUG-012 (was BRIDGE-015)/016: a multi-master bridge's AXI slaves track by ID in
-        # bridge_cam, so occupancy is the CAM's count rather than a pointer
-        # difference. The invariant is the same either way: it never exceeds
-        # DEPTH, because the AW handshake is gated on not-full.
+        # bridge BUG-012 (was BRIDGE-015)/016: a multi-master bridge's AXI slaves track by ID,
+        # so occupancy is the outstanding counter rather than a pointer
+        # difference (bridge W12; a bridge_cam's count before 2026-10-18). The
+        # invariant is the same either way: it never exceeds DEPTH, because
+        # the AW handshake is gated on not-full.
         adapter = tb.dut.u_ddr_adapter
-        cam = getattr(adapter, 'u_wr_cam', None)
-        if cam is not None:
+        cnt = getattr(adapter, 'wr_out_cnt', None)
+        if cnt is not None:
             def occupancy():
-                return int(cam.tags_count.value)
+                return int(cnt.value)
         else:
             wr, rd = adapter.wr_ptr, adapter.rd_ptr
             def occupancy():

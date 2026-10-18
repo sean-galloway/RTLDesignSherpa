@@ -10,7 +10,7 @@
 #   - the fabric's IDs are {master index, master id} (bridge TASK-005, was BRIDGE-016), so the two
 #     masters' id 3 are different IDs at the slave and the slave-side ARID
 #     stream must contain BOTH {0,3} and {1,3};
-#   - the slave adapter tracks by that full ID in bridge_cam (enable_ooo,
+#   - the slave adapter routes by that full ID's master-index bits (enable_ooo,
 #     bridge BUG-012 (was BRIDGE-015)), so a beat that comes back early is routed by who owns its
 #     ID, not by whose request happened to be oldest.
 # Each master checks every returned word against what it wrote there, and the

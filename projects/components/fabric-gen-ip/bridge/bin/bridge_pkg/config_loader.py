@@ -166,8 +166,8 @@ def _max_outstanding(value, config_path, where) -> int:
     """Validate a max_outstanding value: a power of two in 2..64.
 
     Power of two because every tracker it sizes is a pointer FIFO whose
-    full/empty test uses an extra wrap bit; 64 because bridge_cam is a
-    fully associative compare per entry, and its cost grows linearly."""
+    full/empty test uses an extra wrap bit; 64 bounds the per-ID tables a
+    master adapter sizes from it, whose cost grows linearly."""
     lo, hi = _MAX_OUTSTANDING_RANGE
     try:
         v = int(value)

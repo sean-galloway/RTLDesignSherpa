@@ -523,7 +523,7 @@ class Bridge2x2OooTB(TBBase):
             memory_model=self.slave_memory[0],
             base_addr=0x00000000,
             # This slave declares enable_ooo, so the bridge tracks its reads by ID
-            # (bridge_cam). Let the BFM actually reorder across IDs, or the CAM is
+            # (the master index in the ID). Let the BFM actually reorder across IDs, or the by-ID path is
             # never exercised and an in-order FIFO would pass this test just as well.
             enable_ooo=True,
         )
@@ -566,7 +566,7 @@ class Bridge2x2OooTB(TBBase):
             memory_model=self.slave_memory[1],
             base_addr=0x80000000,
             # This slave declares enable_ooo, so the bridge tracks its reads by ID
-            # (bridge_cam). Let the BFM actually reorder across IDs, or the CAM is
+            # (the master index in the ID). Let the BFM actually reorder across IDs, or the by-ID path is
             # never exercised and an in-order FIFO would pass this test just as well.
             enable_ooo=True,
         )

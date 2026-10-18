@@ -1192,22 +1192,6 @@ def _emit_bridge_variant(
         filelist_lines.append("# AXI5 atomic read-return tracker (per-ID R routing for AtomicLoad/Swap/Compare, A5-3b)")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_atomic_rr_tracker.f")
 
-    # Out-of-order slaves (bridge BUG-012, was BRIDGE-015): their adapters track responses in
-    # bridge_cam, the component's own hand-written IP. Never emitted before,
-    # because no fixture used enable_ooo; the mode broke in c64660f47 and
-    # nothing compiled it to notice.
-    uses_cam = any(
-        getattr(s, 'enable_ooo', False)
-        or (len(config.masters) > 1
-            and s.protocol.lower() in ('axi3', 'axi4', 'axi5')
-            and not getattr(s, 'internal', False))
-        for s in config.slaves)
-    if uses_cam:
-        filelist_lines.append("")
-        filelist_lines.append("# Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI")
-        filelist_lines.append("# slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)")
-        filelist_lines.append("-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cam.f")
-
     # AXI5 slave ports (A5-2 slice 1): the slave adapter instantiates
     # the axi5_master_* boundary wrappers instead of axi4_master_*.
     # Same closure story as the axi5_slave_* wrappers above.

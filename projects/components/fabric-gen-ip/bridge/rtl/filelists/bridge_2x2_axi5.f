@@ -38,10 +38,6 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x2_axi
 -f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd.f
 
-# Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI
-# slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)
--f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cam.f
-
 # AXI5 boundary wrappers (slaves with protocol=axi5).
 -f $REPO_ROOT/rtl/amba/filelists/axi5_master_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi5_master_rd.f

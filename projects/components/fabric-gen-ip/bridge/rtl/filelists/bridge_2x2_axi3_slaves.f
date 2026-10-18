@@ -37,10 +37,6 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x2_axi
 # AXI3 completer front end (slaves with protocol=axi3, bridge GitHub #97)
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axi3.f
 
-# Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI
-# slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)
--f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cam.f
-
 # Rate-matching buffers on upsized paths into shared slaves (bridge W2)
 -f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_wr_rate_buf.f
 

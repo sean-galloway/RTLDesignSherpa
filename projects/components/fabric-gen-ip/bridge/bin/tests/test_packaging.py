@@ -40,7 +40,7 @@ def test_paths_find_this_checkout():
 
 def test_closure_resolves_with_the_known_anchors():
     c = ip_closure.closure(REPO_ROOT)
-    for must in ("projects/components/fabric-gen-ip/bridge/rtl/bridge_cam.sv",
+    for must in ("projects/components/fabric-gen-ip/bridge/rtl/bridge_wr_rate_buf.sv",
                  "rtl/amba/axi4/axi4_subtractive_slave.sv",
                  "formal/bridge/axi4_protocol_checker.sv",
                  "rtl/amba/filelists/reset_defs.f"):

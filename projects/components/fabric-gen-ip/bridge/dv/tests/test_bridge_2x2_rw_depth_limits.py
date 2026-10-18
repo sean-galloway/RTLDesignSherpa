@@ -15,7 +15,7 @@
 #                   reaching 4 shows the limit is not below the setting,
 #                   never exceeding it shows it holds.
 #   slave_deep   -- cpu offers 40 writes and 40 reads at once to a slow ddr.
-#                   ddr's CAM must fill to exactly 32 -- past the old fixed
+#                   ddr's tracker must fill to exactly 32 -- past the old fixed
 #                   16 -- and every write must land, every read return the
 #                   seeded word.
 
@@ -122,14 +122,16 @@ async def cocotb_test_bridge_2x2_rw_depth_slave_deep(dut):
     tb.set_slave_response_delay(DDR, DEEP_SLOW)
     cam = dut.u_ddr_adapter
     peaks = {}
-    cocotb.start_soon(_peaks(tb, {'wr': cam.u_wr_cam.tags_count,
-                                  'rd': cam.u_rd_cam.tags_count}, peaks))
-    # When did ddr's CAM free its first entry, and how many had it allocated by then?
-    # The CAM can only reach 32 if 32 AWs arrive before the first B frees one.
+    # ddr tracks by ID: its outstanding counters (bridge W12; a bridge_cam
+    # before 2026-10-18).
+    cocotb.start_soon(_peaks(tb, {'wr': cam.wr_out_cnt,
+                                  'rd': cam.rd_out_cnt}, peaks))
+    # When did ddr's tracker free its first slot, and how many had it taken by then?
+    # The tracker can only reach 32 if 32 AWs arrive before the first B frees one.
     timing = {'cyc': 0, 'aw': [], 'b0': None}
 
     async def _timing():
-        # The CAM's own allocate / deallocate handshakes (adapter fabric side,
+        # The tracker's own count / free handshakes (adapter fabric side,
         # both ends RTL-driven), not the slave pins.
         # Sampled AT the edge (no ReadOnly): the values read there are the
         # ones the edge captured. After ReadOnly they are the next cycle's,
@@ -147,7 +149,7 @@ async def cocotb_test_bridge_2x2_rw_depth_slave_deep(dut):
     words, wr, rd = await _offer(tb, 0, 40, 0x00004000, 0xC0D00000)
     await _wait(tb, wr + rd, 400 * DEEP_SLOW)
 
-    tb.log.info(f"ddr (max_outstanding 32) peak CAM occupancy: {peaks}")
+    tb.log.info(f"ddr (max_outstanding 32) peak tracker occupancy: {peaks}")
     aw_before_b0 = sum(1 for c in timing['aw'] if c < (timing['b0'] or 1 << 30))
     tb.log.info(f"ddr: first B at cycle {timing['b0']}, {aw_before_b0} AWs accepted before it; "
                 f"AW #32 at cycle {timing['aw'][31] if len(timing['aw']) > 31 else None}")
@@ -158,7 +160,7 @@ async def cocotb_test_bridge_2x2_rw_depth_slave_deep(dut):
         f"(cycle {timing['b0']}); raise DEEP_SLOW")
     for ch in ('wr', 'rd'):
         assert peaks[ch] == 32, (
-            f"ddr {ch} CAM peak {peaks[ch]}, want exactly 32: "
+            f"ddr {ch} tracker peak {peaks[ch]}, want exactly 32: "
             f"{'over the configured depth' if peaks[ch] > 32 else 'the tracker never got past ' + str(peaks[ch])}")
     for a, d, _t in words:
         assert tb.slave_mem_read(DDR, a, master_idx=0) == d, f"write lost at 0x{a:08x}"

@@ -1267,17 +1267,17 @@ def test_axi5_rr_atomic_with_ooo_slave_accepted(tmp_path):
 
 
 def test_ooo_slave_adapter_generates_and_gates(tmp_path):
-    """bridge BUG-012 (was BRIDGE-015): CAM-mode tracking lost its not-full nets in c64660f47 and
-    could not elaborate. The CAM paths must declare wr_trk_full / rd_trk_full
-    and drive them from tags_full, and an atomic slave must get the return
-    tracker beside the CAM."""
+    """bridge BUG-012 (was BRIDGE-015): by-ID tracking lost its not-full nets in c64660f47 and
+    could not elaborate. The by-ID paths must declare wr_trk_full / rd_trk_full
+    and drive them from their outstanding counters (bridge_cam's tags_full
+    until bridge W12)."""
     out = _generate(tmp_path, "bridge_2x2_ooo")
     for slave in ("ddr", "sram"):
         sv = (out / f"{slave}_adapter.sv").read_text()
-        assert "u_wr_cam" in sv and "u_rd_cam" in sv, f"{slave}: CAM tracking not selected"
+        assert "wr_out_cnt" in sv and "rd_out_cnt" in sv, f"{slave}: by-ID tracking not selected"
         assert "logic wr_trk_full;" in sv and "logic rd_trk_full;" in sv, f"{slave}: not-full nets undeclared (the c64660f47 regression)"
-        assert ".tags_full(wr_trk_full)" in sv and ".tags_full(rd_trk_full)" in sv, f"{slave}: full flags not driven by the CAM"
-        assert "&& !wr_trk_full" in sv and "&& !rd_trk_full" in sv, f"{slave}: readies not gated on the CAM being full"
+        assert "assign wr_trk_full = (wr_out_cnt ==" in sv and "assign rd_trk_full = (rd_out_cnt ==" in sv, f"{slave}: full flags not driven by the counters"
+        assert "&& !wr_trk_full" in sv and "&& !rd_trk_full" in sv, f"{slave}: readies not gated on the tracker being full"
     sv_files = sorted(tmp_path.glob("bridge_2x2_ooo*/*.sv"))
     chk = subprocess.run(
         [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"), *map(str, sv_files)],
@@ -1384,15 +1384,20 @@ def test_id_prefix_generated_on_multi_master(tmp_path):
 
 def test_multi_master_axi_slaves_track_by_id(tmp_path):
     """bridge BUG-012 (was BRIDGE-015)/016: with more than one master a real AXI slave tracks by
-    ID in bridge_cam even without enable_ooo (the FIFO needs the slave to
-    complete in request order across all IDs); the subtractive slave and a
-    single-master bridge keep the FIFO."""
+    ID even without enable_ooo (the FIFO needs the slave to complete in
+    request order across all IDs); the subtractive slave and a single-master
+    bridge keep the FIFO. By ID means routed by the response ID's
+    master-index bits with an outstanding counter -- no CAM (bridge W12)."""
     out = _generate(tmp_path, "bridge_2x2_rw")
     for slave in ("ddr", "sram"):
-        assert "u_rd_cam" in (out / f"{slave}_adapter.sv").read_text(), f"{slave}: expected CAM tracking"
-    assert "u_rd_cam" not in (out / "subtractive_adapter.sv").read_text()
+        ad = (out / f"{slave}_adapter.sv").read_text()
+        assert "rd_out_cnt" in ad and "wr_out_cnt" in ad, f"{slave}: expected by-ID tracking"
+        assert "assign rid_bridge_id = xbar_" in ad and "rid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];" in ad
+        assert "assign bid_bridge_id = xbar_" in ad and "bid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];" in ad
+        assert "bridge_cam" not in ad
+    assert "rd_out_cnt" not in (out / "subtractive_adapter.sv").read_text()
     out1 = _generate(tmp_path / "single", "bridge_1x2_rd_axi5")
-    assert "u_rd_cam" not in (out1 / "ddr_rd_adapter.sv").read_text()
+    assert "rd_out_cnt" not in (out1 / "ddr_rd_adapter.sv").read_text()
 
 
 def test_id_prefix_absent_on_single_master(tmp_path):
@@ -2376,8 +2381,8 @@ def test_max_outstanding_sizes_every_tracker(tmp_path):
     x = (d / "d_xbar.sv").read_text()
     assert "localparam int AW_TRK_DEPTH = 64;" in cpu
     assert "localparam int AW_TRK_DEPTH = 4;" in dma
-    assert ".DEPTH(32)" in (d / "ddr_adapter.sv").read_text()
-    assert ".DEPTH(4)" in (d / "sram_adapter.sv").read_text()
+    assert "wr_trk_full = (wr_out_cnt == 6'(32));" in (d / "ddr_adapter.sv").read_text()
+    assert "rd_trk_full = (rd_out_cnt == 3'(4));" in (d / "sram_adapter.sv").read_text()
     assert "ddr_wowner_mem [32];" in x and "sram_wowner_mem [4];" in x
     assert "cpu_32b_wdest_mem [64];" in x and "dma_32b_wdest_mem [4];" in x
 
@@ -2536,14 +2541,14 @@ def test_checker_binds_smoke(tmp_path):
 def test_axi3_slave_adapter_is_axi4_shaped(tmp_path):
     """An AXI3 slave adapter is built like an AXI4 one (bridge W11): the
     timing wrapper faces the crossbar, a multi-master slave tracks responses
-    by ID in bridge_cam, the crossbar arbitrates it from request slots, and
+    by ID, the crossbar arbitrates it from request slots, and
     axi4_to_axi3 is the last stage, fed from the wrapper's a3c_* nets. (The
     converter used to face the crossbar directly: R and B were unregistered
     from the pins to the arbiter, and responses were routed by position.)"""
     gen, fl = _generate_fixture(tmp_path, "bridge_2x2_axi3_slaves")
     ad = (gen / "ddr_axi3_adapter.sv").read_text()
     assert "u_master_wr (" in ad and "u_master_rd (" in ad
-    assert "bridge_cam #(" in ad
+    assert "rd_out_cnt" in ad and "bridge_cam" not in ad
     assert "axi4_to_axi3 #(" in ad
     assert ".s_axi_awvalid (a3c_ddr_axi3_axi_awvalid)" in ad
     assert ".s_axi_rready  (a3c_ddr_axi3_axi_rready)" in ad
@@ -2552,4 +2557,4 @@ def test_axi3_slave_adapter_is_axi4_shaped(tmp_path):
     assert ad.index("u_master_wr (") < ad.index("axi4_to_axi3 #(")
     xbar = (gen / "bridge_2x2_axi3_slaves_xbar.sv").read_text()
     assert "u_cpu_axi4_64b_aw_slot_ddr_axi3 (" in xbar
-    assert "bridge_cam.f" in fl.read_text()
+    assert "bridge_cam.f" not in fl.read_text()
