@@ -96,6 +96,10 @@ set use_axi_monitors 0
 if {[info exists ::env(USE_AXI_MONITORS)]} { set use_axi_monitors $::env(USE_AXI_MONITORS) }
 set gen_mon 0
 if {[info exists ::env(GEN_MON)]}          { set gen_mon $::env(GEN_MON) }
+# Descriptor/control engine sharing (1 = shared per half, the IP default;
+# 0 = per channel) -- the knob for before/after area builds.
+set shared_engines 1
+if {[info exists ::env(RAPIDS_SHARED_ENGINES)]} { set shared_engines $::env(RAPIDS_SHARED_ENGINES) }
 # Shared interface observers on the harness (axi4_intf_master_observer +
 # axis4_intf_observer, rapids TASK-001) and their monbus event taps. Default
 # OUT so the characterization bitstream is unchanged; set USE_OBSERVERS=1 to
@@ -199,7 +203,7 @@ puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
 
 # Narrow the board geometry + memory sizing via top-level generics (see header).
-set top_generics "NUM_CHANNELS=$num_channels DATA_WIDTH=$data_width SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon USE_OBSERVERS=$use_observers OBS_ENABLE_MON_TAPS=$obs_enable_mon_taps BYTE_CRC=$byte_crc MON_CAPTURE=$mon_capture"
+set top_generics "NUM_CHANNELS=$num_channels DATA_WIDTH=$data_width SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col USE_AXI_MONITORS=$use_axi_monitors GEN_MON=$gen_mon USE_OBSERVERS=$use_observers OBS_ENABLE_MON_TAPS=$obs_enable_mon_taps BYTE_CRC=$byte_crc MON_CAPTURE=$mon_capture SHARED_ENGINES=$shared_engines"
 # Harness-clock derate (A7 only, default bypass): the Makefile exports the
 # derived pair when A7_CLK_MHZ != 100. 750/10 -> 75 MHz, 600/10 -> 60 MHz.
 if {[info exists ::env(RAPIDS_VCO_MHZ)]}        { append top_generics " VCO_MHZ=$::env(RAPIDS_VCO_MHZ)" }

@@ -46,6 +46,9 @@ module rapids_byte_genesys2_top #(
     // via the USE_AXI_MONITORS / GEN_MON env generics -- the same knob names
     // STREAM's builds export -- to measure what the monitors cost.
     parameter int USE_AXI_MONITORS = 0,
+    // Descriptor/control engines: 1 = one shared set per half (the IP default),
+    // 0 = one per channel. Carried for area A/B builds (RAPIDS_SHARED_ENGINES).
+    parameter int SHARED_ENGINES   = 1,
     parameter bit GEN_MON          = 1'b0,
     // Shared interface observers on the harness (rapids TASK-001), default OUT.
     parameter bit USE_OBSERVERS       = 1'b0,
@@ -126,6 +129,7 @@ module rapids_byte_genesys2_top #(
         .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
         .MON_CAPTURE      (MON_CAPTURE),
         .USE_AXI_MONITORS (USE_AXI_MONITORS),
+        .SHARED_ENGINES   (SHARED_ENGINES),
         .GEN_MON          (GEN_MON),
         .USE_OBSERVERS       (USE_OBSERVERS),
         .OBS_ENABLE_MON_TAPS (OBS_ENABLE_MON_TAPS),

@@ -50,6 +50,9 @@ module stream_char_top #(
     // Same instrument knobs as the Genesys 2 top -- see stream_genesys2_top.sv
     // for the long version. Generic names must match fpga/tcl/create_project.tcl.
     parameter int USE_AXI_MONITORS = stream_char_cfg_pkg::CFG_USE_AXI_MONITORS,
+    // STREAM descriptor fetch: 1 = one shared descriptor engine (the IP default),
+    // 0 = one per channel. Carried for area A/B builds (STREAM_SHARED_ENGINES).
+    parameter int SHARED_ENGINES = 1,
     parameter bit OBS_ENABLE_MON_TAPS = stream_char_cfg_pkg::CFG_OBS_ENABLE_MON_TAPS,
     parameter int MON_NUM_BANKS    = stream_char_cfg_pkg::CFG_MON_NUM_BANKS,
     // Agent-resolved tally legal-set size (both tally memories).
@@ -188,6 +191,7 @@ module stream_char_top #(
         .OBS_NUM_BANKS         (OBS_NUM_BANKS),
         .OBS_USE_WDATA_ORDER_Q (OBS_USE_WDATA_ORDER_Q),
         .USE_AXI_MONITORS      (USE_AXI_MONITORS),
+        .SHARED_ENGINES        (SHARED_ENGINES),
         .OBS_ENABLE_MON_TAPS   (OBS_ENABLE_MON_TAPS),
         .MON_NUM_BANKS         (MON_NUM_BANKS),
         .MON_N_PROFILE         (MON_N_PROFILE),

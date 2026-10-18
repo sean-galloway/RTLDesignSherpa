@@ -128,6 +128,9 @@ if {[info exists ::env(MON_ERROR_FLAVOR)]}         { lappend generics "MON_ERROR
 # monitor CAMs, including the "monitors-off" perf build, whose own Makefile
 # comment reads "no monitor CAMs to fit, so all 8 channels".
 if {[info exists ::env(USE_AXI_MONITORS)]}         { lappend generics "USE_AXI_MONITORS=$::env(USE_AXI_MONITORS)" }
+# Descriptor-engine sharing (1 = shared, the IP default; 0 = per channel) --
+# the knob for before/after area builds.
+if {[info exists ::env(STREAM_SHARED_ENGINES)]}    { lappend generics "SHARED_ENGINES=$::env(STREAM_SHARED_ENGINES)" }
 # Observer transaction-table sizing. OBS_MAX_TRANSACTIONS is the TOTAL slots
 # per tap; the CAM is generated OBS_NUM_BANKS times at TOTAL/BANKS each,
 # because timing scales with the depth of ONE cam. 64/4 = four 16-deep CAMs.

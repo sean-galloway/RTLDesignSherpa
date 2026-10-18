@@ -81,6 +81,9 @@ module rapids_byte_harness #(
     // via the USE_AXI_MONITORS / GEN_MON env generics -- the same knob names
     // STREAM's builds export -- to measure what the monitors cost.
     parameter int USE_AXI_MONITORS = 0,
+    // Descriptor/control engines: 1 = one shared set per half (the IP default),
+    // 0 = one per channel. Carried for area A/B builds (RAPIDS_SHARED_ENGINES).
+    parameter int SHARED_ENGINES   = 1,
     parameter bit GEN_MON          = 1'b0,
     // Shared interface observers beside the DUT's data ports (rapids TASK-001):
     // axi4_intf_master_observer on the rd/wr data masters, axis4_intf_observer
@@ -1400,6 +1403,7 @@ module rapids_byte_harness #(
         // USE_AXI_MONITORS=0). Overridable via the env generics so the monitors'
         // cost can be MEASURED rather than argued.
         .USE_AXI_MONITORS(USE_AXI_MONITORS),
+        .SHARED_ENGINES  (SHARED_ENGINES),
         .GEN_MON         (GEN_MON),
         // Extended addressing compiled OUT. rapids_top defaults this to 1
         // as of the default flip, but this char build is tuned down to close

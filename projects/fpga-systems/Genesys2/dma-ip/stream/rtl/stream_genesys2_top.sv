@@ -61,6 +61,9 @@ module stream_genesys2_top #(
     // stream_char_cfg_pkg so the cosim elaborates the same thing. There is no
     // monitors-off board flavor to keep in step any more.
     parameter int USE_AXI_MONITORS = stream_char_cfg_pkg::CFG_USE_AXI_MONITORS,
+    // STREAM descriptor fetch: 1 = one shared descriptor engine (the IP default),
+    // 0 = one per channel. Carried for area A/B builds (STREAM_SHARED_ENGINES).
+    parameter int SHARED_ENGINES = 1,
     // Observer taps: arms the per-transaction CAM AND builds the reporter
     // cones. MUST be a top-level parameter, not just a harness one. Both
     // Vivado and the linter apply generics to the TOP, and a generic naming a
@@ -226,6 +229,7 @@ module stream_genesys2_top #(
         // In-core rd/wr AXI monitors ON, with banked CAMs (the point of this
         // bitstream, and now the only configuration).
         .USE_AXI_MONITORS      (USE_AXI_MONITORS),
+        .SHARED_ENGINES        (SHARED_ENGINES),
         .OBS_ENABLE_MON_TAPS   (OBS_ENABLE_MON_TAPS),
         .MON_NUM_BANKS         (MON_NUM_BANKS),
         // Agent-resolved tally legal-set size (both tally memories).

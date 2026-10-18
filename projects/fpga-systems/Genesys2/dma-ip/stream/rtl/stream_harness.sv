@@ -56,6 +56,9 @@ module stream_harness #(
     // utilisation. Cosim monitor-validation tests (rw_perf hist tail, obs_equiv,
     // desc_perf) override to 1 to exercise the full monitor suite.
     parameter int USE_AXI_MONITORS = stream_char_cfg_pkg::CFG_USE_AXI_MONITORS,
+    // STREAM descriptor fetch: 1 = one shared descriptor engine (the IP default),
+    // 0 = one per channel. Carried for area A/B builds (STREAM_SHARED_ENGINES).
+    parameter int SHARED_ENGINES = 1,
     // In-core AR/AW monitor CAM banking. From the package: ONE build, monitors
     // on, CAMs banked. See CFG_MON_NUM_BANKS for the depth arithmetic.
     parameter int MON_NUM_BANKS    = stream_char_cfg_pkg::CFG_MON_NUM_BANKS,
@@ -2577,6 +2580,7 @@ module stream_harness #(
         // TASK-101 extended addressing enabled they overflow the xc7a100t LUTs.
         // Removing them (param=0) reclaims the LUTs; the addr-gen logic stays.
         .USE_AXI_MONITORS   (USE_AXI_MONITORS),
+        .SHARED_ENGINES     (SHARED_ENGINES),
         .MON_NUM_BANKS      (MON_NUM_BANKS),
         // Monitor-validation harness: build the in-core address-range checker
         // (4 ranges per rd/wr monitor; ranges 2,3 = ERROR allowlist, 0,1 = DEBUG).

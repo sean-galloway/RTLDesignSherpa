@@ -85,6 +85,7 @@ module stream_top_ch8 #(
     parameter int MON_N_ADDR_RANGES = 0,
     parameter logic [(MON_N_ADDR_RANGES > 0 ? MON_N_ADDR_RANGES : 1)-1:0] MON_ADDR_RANGE_IS_ERROR = '0,
     parameter bit GEN_MON = 1'b1,        // 0 = omit per-channel completion/error MonBus emitters (area)
+    parameter int SHARED_ENGINES = 1,    // 1 = one shared descriptor engine; 0 = one per channel
     parameter int CDC_ENABLE = 1,        // 0 = Same clock (pclk=aclk), 1 = Different clocks (CDC)
     // Bulk-trace MonBus compressor select. Only meaningful when
     // USE_AXI_MONITORS=1; pass-through to monbus_axil4_axil4_group.USE_COMPRESSION.
@@ -1501,6 +1502,7 @@ module stream_top_ch8 #(
                 .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
                 .AXI_ID_WIDTH(AXI_ID_WIDTH),
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
+                .SHARED_ENGINES(SHARED_ENGINES),
                 .MON_NUM_BANKS(MON_NUM_BANKS),
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
@@ -1836,6 +1838,7 @@ module stream_top_ch8 #(
                 .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
                 .AXI_ID_WIDTH(AXI_ID_WIDTH),
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
+                .SHARED_ENGINES(SHARED_ENGINES),
                 .MON_NUM_BANKS(MON_NUM_BANKS),
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),

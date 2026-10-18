@@ -107,7 +107,12 @@ export MON_ERROR_FLAVOR    ?= 0
 FPGA_DIR  := $(SELF_DIR)/fpga
 BOARD_TOKEN := $(if $(filter genesys2,$(BOARD)),genesys2,nexysa7)
 CLK_TOKEN := $(if $(filter 100,$(A7_CLK_MHZ)),,clk$(A7_CLK_MHZ))
-BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(BOARD_TOKEN)$(CLK_TOKEN)_$(STREAM_NUM_CHANNELS)ch.bit
+# STREAM_SHARED_ENGINES=0 builds the per-channel descriptor engines (the
+# structure before the shared engine) for area A/B; it gets its own name so
+# the default bitstream is never overwritten by it.
+export STREAM_SHARED_ENGINES ?= 1
+SE_TOKEN  := $(if $(filter 0,$(STREAM_SHARED_ENGINES)),_pce,)
+BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(BOARD_TOKEN)$(CLK_TOKEN)_$(STREAM_NUM_CHANNELS)ch$(SE_TOKEN).bit
 
 PREBUILD := bash $(FRAMEWORK_ROOT)/bin/regen_bridges.sh bridge_stream_mon_axil
 

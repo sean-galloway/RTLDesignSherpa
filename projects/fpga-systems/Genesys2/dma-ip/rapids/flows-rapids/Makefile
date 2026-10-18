@@ -67,7 +67,11 @@ CLK_TOKEN := $(if $(filter 100,$(A7_CLK_MHZ)),,_clk$(A7_CLK_MHZ))
 
 TCL       := $(SELF_DIR)/tcl
 PROJECT   := $(SELF_DIR)/build/vivado_project/rapids_byte.xpr
-BITSTREAM := $(SELF_DIR)/bitstream/rapids_byte$(CLK_TOKEN).bit
+# RAPIDS_SHARED_ENGINES=0 builds per-channel descriptor/control engines (the
+# structure before sharing) for area A/B, under its own bitstream name.
+export RAPIDS_SHARED_ENGINES ?= 1
+SE_TOKEN  := $(if $(filter 0,$(RAPIDS_SHARED_ENGINES)),_pce,)
+BITSTREAM := $(SELF_DIR)/bitstream/rapids_byte$(CLK_TOKEN)$(SE_TOKEN).bit
 REPORTS   := $(SELF_DIR)/reports
 # Tcl copy destination (build_all.tcl) -- keeps the copied artifact named like
 # the make-level BITSTREAM, derate token included.
