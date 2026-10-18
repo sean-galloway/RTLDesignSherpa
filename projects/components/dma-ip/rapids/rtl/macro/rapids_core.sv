@@ -91,7 +91,11 @@ module rapids_core #(
     // SHARED_ENGINES = 1 and DATA_WIDTH >= 128 (>= 256 to take descriptors).
     parameter int TILE_HDR         = 0,
     parameter logic [rapids_pkg::TILE_COORD_W-1:0] TILE_SRC_COORD =
-        {rapids_pkg::TILE_LEVEL_IO, 12'h000},
+        {1'b0, rapids_pkg::TILE_LEVEL_IO, 12'h000},
+    // End-to-end tile credits (TILE_SPEC 11.9, 11.10; needs TILE_HDR = 1):
+    // credit packets the sink port receives fill the source half's 32
+    // destination counters, and a packet leaves only against them.
+    parameter int TILE_CREDITS     = 0,
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -519,13 +523,25 @@ module rapids_core #(
     // CSR write-1-to-clear pulses for the stickies above
     input  logic                        tile_clr_unsupported,
     input  logic                        tile_clr_tag_mismatch,
-    input  logic [NC-1:0]               tile_clr_desc_dropped
+    input  logic [NC-1:0]               tile_clr_desc_dropped,
+
+    // End-to-end tile credits (TILE_CREDITS): advertisement window length in
+    // cycles from reset (CSR), and the result (zero unless TILE_CREDITS)
+    input  logic [31:0]                 cfg_tile_adv_window,
+    output logic                        sts_tile_adv_done,
+    output logic [rapids_pkg::TILE_NUM_DEST-1:0] sts_tile_dest_legal
 );
 
     // Cell-issued descriptors: sink half -> source half (TILE_HDR)
     logic                               w_desc_inj_valid;
     logic [CIW-1:0]                     w_desc_inj_ch;
     logic [255:0]                       w_desc_inj_data;
+    // Credit packets: sink half -> source half (TILE_CREDITS)
+    logic                               w_credit_valid;
+    logic [rapids_pkg::TILE_COORD_W-1:0] w_credit_src;
+    logic                               w_credit_op;
+    logic [31:0]                        w_credit_count;
+    logic [1:0]                         w_credit_class;
 
     //=========================================================================
     // Per-half Monitor Bus (each half already arbitrates its own sources)
@@ -566,7 +582,8 @@ module rapids_core #(
         .GEN_MON                (GEN_MON),
         .SHARED_ENGINES         (SHARED_ENGINES),
         .TILE_HDR               (TILE_HDR),
-        .TILE_SRC_COORD         (TILE_SRC_COORD)
+        .TILE_SRC_COORD         (TILE_SRC_COORD),
+        .TILE_CREDITS           (TILE_CREDITS)
     ) u_src (
         .clk                        (clk),
         .rst_n                      (rst_n),
@@ -752,7 +769,15 @@ module rapids_core #(
         .desc_inj_ch                   (w_desc_inj_ch),
         .desc_inj_data                 (w_desc_inj_data),
         .desc_inj_dropped              (sts_tile_desc_dropped),
-        .desc_inj_dropped_clr          (tile_clr_desc_dropped)
+        .desc_inj_dropped_clr          (tile_clr_desc_dropped),
+        .credit_valid                  (w_credit_valid),
+        .credit_src                    (w_credit_src),
+        .credit_op                     (w_credit_op),
+        .credit_count                  (w_credit_count),
+        .credit_class                  (w_credit_class),
+        .cfg_tile_adv_window           (cfg_tile_adv_window),
+        .sts_tile_adv_done             (sts_tile_adv_done),
+        .sts_tile_dest_legal           (sts_tile_dest_legal)
     );
 
     //=========================================================================
@@ -975,6 +1000,11 @@ module rapids_core #(
         .desc_inj_valid                (w_desc_inj_valid),
         .desc_inj_ch                   (w_desc_inj_ch),
         .desc_inj_data                 (w_desc_inj_data),
+        .credit_valid                  (w_credit_valid),
+        .credit_src                    (w_credit_src),
+        .credit_op                     (w_credit_op),
+        .credit_count                  (w_credit_count),
+        .credit_class                  (w_credit_class),
         .sts_tile_unsupported          (sts_tile_unsupported),
         .sts_tile_tag_mismatch         (sts_tile_tag_mismatch),
         .sts_tile_desc_count           (sts_tile_desc_count),

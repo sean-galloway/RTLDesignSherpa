@@ -74,6 +74,8 @@ module scheduler_group_array #(
     // into the channels' descriptor queues through desc_inj_*. Needs
     // SHARED_ENGINES = 1, whose descriptor queue takes the second writer.
     parameter int TILE_HDR         = 0,
+    // End-to-end tile credits (TILE_SPEC 11.9, 11.10). Needs TILE_HDR = 1.
+    parameter int TILE_CREDITS     = 0,
     parameter int OFF_W = $clog2(DATA_WIDTH / 8)     // byte offset width (TASK-019)
 ) (
     // Clock and Reset
@@ -245,6 +247,11 @@ module scheduler_group_array #(
     input  logic [255:0]                                desc_inj_data,
     output logic [NUM_CHANNELS-1:0]                     desc_inj_dropped,   // sticky per channel
     input  logic [NUM_CHANNELS-1:0]                     desc_inj_dropped_clr,
+
+    // End-to-end tile credits (TILE_CREDITS): the advertisement window has
+    // closed and the saved legal-destination mask, to every scheduler
+    input  logic                                        tile_adv_done,
+    input  logic [rapids_pkg::TILE_NUM_DEST-1:0]        tile_dest_legal,
 
     // Shared Data Write Interface (to AXI Write Engine)
     // Per-channel arrays - direct passthrough to engines
@@ -452,7 +459,8 @@ module scheduler_group_array #(
         assign sched_rd_pkt_tile = '0;
         assign desc_inj_dropped  = '0;
         logic unused_inj;
-        assign unused_inj = &{1'b0, desc_inj_valid, desc_inj_ch, desc_inj_data, desc_inj_dropped_clr};
+        assign unused_inj = &{1'b0, desc_inj_valid, desc_inj_ch, desc_inj_data, desc_inj_dropped_clr,
+                              tile_adv_done, tile_dest_legal};
         for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_scheduler_groups
             scheduler_group #(
                 .CHANNEL_ID             (ch),
@@ -920,7 +928,8 @@ module scheduler_group_array #(
                 .EN_READ                (EN_READ),
                 .EN_WRITE               (EN_WRITE),
                 .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
-                .TILE_HDR               (TILE_HDR)
+                .TILE_HDR               (TILE_HDR),
+                .TILE_CREDITS           (TILE_CREDITS)
             ) u_scheduler (
                 .clk                     (clk),
                 .rst_n                   (rst_n),
@@ -929,6 +938,8 @@ module scheduler_group_array #(
                 .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
                 .cfg_sched_timeout_limit (cfg_sched_timeout_limit),
                 .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
+                .tile_adv_done           (tile_adv_done),
+                .tile_dest_legal         (tile_dest_legal),
                 .scheduler_idle          (scheduler_idle[ch]),
                 .scheduler_state         (scheduler_state[ch]),
                 .sched_error             (sched_error[ch]),

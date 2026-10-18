@@ -101,7 +101,14 @@ module rapids_top_base #(
     // source half a descriptor through the sink port. Needs SHARED_ENGINES = 1
     // and DATA_WIDTH >= 256. TILE_SRC_COORD is RAPIDS's coordinate.
     parameter int TILE_HDR         = 0,
-    parameter logic [13:0] TILE_SRC_COORD = 14'h3000,   // {level 3 = tile I/O, X 0, Y 0, Z 0}
+    parameter logic [14:0] TILE_SRC_COORD = 15'h3000,   // {ext 0, level 3 = tile I/O, X 0, Y 0, Z 0}
+    // End-to-end tile credits (TILE_SPEC 11.9, 11.10; needs TILE_HDR = 1):
+    // the source half keeps 64 destination credit counters filled by the
+    // destinations' advertisements, and a packet leaves only against them.
+    // When the advertisement window (SRC.TILE_ADV_WINDOW) closes, a counter
+    // still at 0 is an illegal destination (SRC.TILE_LEGAL_DEST_LO/HI) and a
+    // descriptor to it is refused.
+    parameter int TILE_CREDITS     = 0,
     //   USE_MON_REGS: whether the MON register windows (SRC and SNK, each at
     //   +0x800 of its 4 KB regfile) are wired to monitor logic. Defaults to
     //   USE_AXI_MONITORS, as in STREAM. When 0 the config blocks strap every
@@ -893,6 +900,8 @@ module rapids_top_base #(
     logic [31:0]   w_tile_clr_mask;
     logic          w_tile_clr_unsupported, w_tile_clr_tag_mismatch;
     logic [NC-1:0] w_tile_clr_dropped;
+    logic          w_tile_adv_done;                    // end-to-end tile credits (TILE_CREDITS)
+    logic [rapids_pkg::TILE_NUM_DEST-1:0] w_tile_dest_legal;
     logic [`RAPIDS_REGS_NCH-1:0] w_tile_dropped_reg;   // padded to the map for the DROPn glue
     assign w_tile_wr_status  = regblk_req && regblk_req_is_wr && (13'(regblk_addr) == A_SNK_TILE_STATUS);
     assign w_tile_wr_dropped = regblk_req && regblk_req_is_wr && (13'(regblk_addr) == A_SRC_TILE_DROPPED);
@@ -920,6 +929,10 @@ module rapids_top_base #(
         hwif_in.SNK.TILE_STATUS.TAG_MISMATCH.next = sts_tile_tag_mismatch;
         hwif_in.SNK.TILE_COUNTS.DESC_COUNT.next   = sts_tile_desc_count;
         hwif_in.SNK.TILE_COUNTS.CREDIT_COUNT.next = sts_tile_credit_count;
+        // End-to-end tile credits (zero unless TILE_CREDITS): SRC half
+        hwif_in.SRC.TILE_LEGAL_DEST_LO.LEGAL.next    = w_tile_dest_legal[31:0];
+        hwif_in.SRC.TILE_LEGAL_DEST_HI.LEGAL.next    = w_tile_dest_legal[63:32];
+        hwif_in.SRC.TILE_CREDIT_STATUS.ADV_DONE.next = w_tile_adv_done;
 
         hwif_in.SRC.GLOBAL_STATUS.SYSTEM_IDLE.next   = src_system_idle;
         hwif_in.SRC.DESC_ENGINE_IDLE.DESC_IDLE.next  = `RAPIDS_REGS_NCH'(src_desc_engine_idle);
@@ -1614,7 +1627,8 @@ module rapids_top_base #(
         .GEN_MON              (GEN_MON),
         .SHARED_ENGINES       (SHARED_ENGINES),
         .TILE_HDR             (TILE_HDR),
-        .TILE_SRC_COORD       (TILE_SRC_COORD)
+        .TILE_SRC_COORD       (TILE_SRC_COORD),
+        .TILE_CREDITS         (TILE_CREDITS)
     ) u_core (
         .clk    (aclk),
         .rst_n  (w_aresetn),
@@ -1967,7 +1981,12 @@ module rapids_top_base #(
         .sts_tile_desc_dropped            (sts_tile_desc_dropped),
         .tile_clr_unsupported             (w_tile_clr_unsupported),
         .tile_clr_tag_mismatch            (w_tile_clr_tag_mismatch),
-        .tile_clr_desc_dropped            (w_tile_clr_dropped)
+        .tile_clr_desc_dropped            (w_tile_clr_dropped),
+
+        // End-to-end tile credits (TILE_CREDITS)
+        .cfg_tile_adv_window              (hwif_out.SRC.TILE_ADV_WINDOW.CYCLES.value),
+        .sts_tile_adv_done                (w_tile_adv_done),
+        .sts_tile_dest_legal              (w_tile_dest_legal)
     );
 
     //=========================================================================

@@ -55,11 +55,19 @@ Bit Range    Field Name           Width  Description
 
 **Tile header fields (`TILE_HDR` = 1, 2026-10-17):** `ptype` at `[215:213]`,
 `op` (write / read) at `[216]` and, on SOURCE descriptors, a destination
-coordinate and target address in `dst_addr`, which is otherwise unused there.
+coordinate and target address in `dst_addr` (`[63:49]` the 15-bit coordinate
+`{ext, level, X, Y, Z}`, `[48:0]` the target), which is otherwise unused there.
 They supply the tile packet header defined in the compute-engine tile's
 [`TILE_SPEC.md`](../../../../../compute-eng-ip/tile/docs/TILE_SPEC.md) Section 11, and are
 ignored when `TILE_HDR` = 0. The field table is in the RAPIDS Beats Descriptor
 Format chapter (the positions are shared; only this design implements them).
+
+**Tile credits (`TILE_CREDITS` = 1, 2026-10-18):** a tile descriptor waits until
+the advertisement window after reset closes (`SRC.TILE_CREDIT_STATUS.ADV_DONE`).
+Its destination must then be one that advertised credits in the window
+(`SRC.TILE_LEGAL_DEST_LO` / `_HI`), or the descriptor is refused as invalid and its channel
+errors. Its packet leaves only when the destination has returned enough
+credits for every flit, header included.
 
 The authoritative definition is `rapids_pkg::descriptor_t` in `rtl/includes/rapids_pkg.sv`. Only bits `[255:0]` are fetched and used. Every field position is the same as in RAPIDS Beats, so a descriptor builder needs one change: the value written to `length`.
 

@@ -97,6 +97,7 @@ The monitor register windows sit at `+0x800` of each half's 4 KB space. With `US
 | `GEN_MON` | 1 | 0 omits the completion and error emitters. |
 | `SHARED_ENGINES` | 1 | 1: one descriptor, control-read and control-write engine per half. 0: one of each per channel. See [Shared Engines](../ch02_fub_blocks/10_shared_engines.md). |
 | `TILE_HDR`, `TILE_SRC_COORD` | 0, 14'h3000 | Tile packet header; needs `SHARED_ENGINES = 1` and `DATA_WIDTH` of at least 256. See [Tile Packet Header](14_tile_header.md). |
+| `TILE_CREDITS` | 0 | End-to-end tile credits and the legal-destination mask (`SRC.TILE_ADV_WINDOW`, `SRC.TILE_LEGAL_DEST_LO` / `_HI`, `SRC.TILE_CREDIT_STATUS`); needs `TILE_HDR = 1`. See [Tile Packet Header](14_tile_header.md). |
 | `USE_MON_REGS` | `USE_AXI_MONITORS != 0` | Wire the monitor register windows. |
 | `AR_MAX_OUTSTANDING`, `AW_MAX_OUTSTANDING` | 8 | Outstanding bursts. |
 | `PIPELINE` | 1 | Write engine pipelining. |

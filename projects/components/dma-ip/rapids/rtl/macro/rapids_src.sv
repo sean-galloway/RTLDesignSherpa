@@ -78,7 +78,11 @@ module rapids_src #(
     // is the source coordinate RAPIDS puts in its headers.
     parameter int TILE_HDR         = 0,
     parameter logic [rapids_pkg::TILE_COORD_W-1:0] TILE_SRC_COORD =
-        {rapids_pkg::TILE_LEVEL_IO, 12'h000},
+        {1'b0, rapids_pkg::TILE_LEVEL_IO, 12'h000},
+    // End-to-end tile credits (TILE_SPEC 11.9, 11.10; needs TILE_HDR = 1):
+    // the 32 destination counters, the advertisement window and the saved
+    // legal-destination mask live here, in rapids_tile_credits.
+    parameter int TILE_CREDITS     = 0,
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -321,8 +325,57 @@ module rapids_src #(
     input  logic [CIW-1:0]              desc_inj_ch,
     input  logic [255:0]                desc_inj_data,
     output logic [NC-1:0]               desc_inj_dropped,   // sticky: a desc had no free slot
-    input  logic [NC-1:0]               desc_inj_dropped_clr // CSR write-1-to-clear pulse, per channel
+    input  logic [NC-1:0]               desc_inj_dropped_clr, // CSR write-1-to-clear pulse, per channel
+
+    //=========================================================================
+    // End-to-end tile credits (TILE_CREDITS): credit packets from the sink
+    // half, the advertisement window (CSR), and the result
+    //=========================================================================
+    input  logic                        credit_valid,
+    input  logic [rapids_pkg::TILE_COORD_W-1:0] credit_src,
+    input  logic                        credit_op,
+    input  logic [31:0]                 credit_count,
+    input  logic [1:0]                  credit_class,
+    input  logic [31:0]                 cfg_tile_adv_window,
+    output logic                        sts_tile_adv_done,
+    output logic [rapids_pkg::TILE_NUM_DEST-1:0] sts_tile_dest_legal
 );
+
+    //=========================================================================
+    // End-to-end tile credits
+    //=========================================================================
+    logic [NC-1:0]                                  w_tile_acq_req, w_tile_acq_gnt;
+    logic [NC-1:0][rapids_pkg::TILE_DEST_W-1:0]     w_tile_acq_dest;
+    logic [NC-1:0][rapids_pkg::TILE_CREDIT_W-1:0]   w_tile_acq_flits;
+
+    if (TILE_CREDITS != 0) begin : g_tile_credits
+        rapids_tile_credits #(
+            .NUM_CHANNELS   (NC)
+        ) u_tile_credits (
+            .clk            (clk),
+            .rst_n          (rst_n),
+            .cfg_adv_window (cfg_tile_adv_window),
+            .credit_valid   (credit_valid),
+            .credit_src     (credit_src),
+            .credit_op      (credit_op),
+            .credit_count   (credit_count),
+            .credit_class   (credit_class),
+            .acq_req        (w_tile_acq_req),
+            .acq_dest       (w_tile_acq_dest),
+            .acq_flits      (w_tile_acq_flits),
+            .acq_gnt        (w_tile_acq_gnt),
+            .adv_done       (sts_tile_adv_done),
+            .dest_legal     (sts_tile_dest_legal)
+        );
+    end else begin : g_no_tile_credits
+        assign w_tile_acq_gnt      = '0;
+        assign sts_tile_adv_done   = 1'b0;
+        assign sts_tile_dest_legal = '0;
+        logic unused_tile_credits;
+        assign unused_tile_credits = &{1'b0, credit_valid, credit_src, credit_op, credit_count,
+                                       credit_class, cfg_tile_adv_window, w_tile_acq_req,
+                                       w_tile_acq_dest, w_tile_acq_flits};
+    end
 
     //=========================================================================
     // Internal Signals - Scheduler Array <-> Source Data Path
@@ -374,7 +427,8 @@ module rapids_src #(
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON),
         .SHARED_ENGINES         (SHARED_ENGINES),
-        .TILE_HDR               (TILE_HDR)
+        .TILE_HDR               (TILE_HDR),
+        .TILE_CREDITS           (TILE_CREDITS)
     ) u_scheduler_group_array (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -521,6 +575,8 @@ module rapids_src #(
         .desc_inj_data          (desc_inj_data),
         .desc_inj_dropped       (desc_inj_dropped),
         .desc_inj_dropped_clr   (desc_inj_dropped_clr),
+        .tile_adv_done          (sts_tile_adv_done),
+        .tile_dest_legal        (sts_tile_dest_legal),
 
         // Data Write Interface (Sink) - UNUSED in source-only build
         //   Outputs left unconnected; inputs tied off (no write engine present)
@@ -632,7 +688,8 @@ module rapids_src #(
         .AXIS_DEST_WIDTH    (AXIS_DEST_WIDTH),
         .AXIS_USER_WIDTH    (AXIS_USER_WIDTH),
         .TILE_HDR           (TILE_HDR),
-        .TILE_SRC_COORD     (TILE_SRC_COORD)
+        .TILE_SRC_COORD     (TILE_SRC_COORD),
+        .TILE_CREDITS       (TILE_CREDITS)
     ) u_source_data_path (
         .clk                (clk),
         .rst_n              (rst_n),
@@ -651,6 +708,10 @@ module rapids_src #(
         .sched_rd_pkt_bytes (sched_rd_pkt_bytes),
         .sched_rd_pkt_offset(sched_rd_pkt_offset),
         .sched_rd_pkt_tile  (sched_rd_pkt_tile),
+        .tile_acq_req       (w_tile_acq_req),
+        .tile_acq_dest      (w_tile_acq_dest),
+        .tile_acq_flits     (w_tile_acq_flits),
+        .tile_acq_gnt       (w_tile_acq_gnt),
 
         // Completion Interface
         .sched_rd_done_strobe(sched_rd_done_strobe),

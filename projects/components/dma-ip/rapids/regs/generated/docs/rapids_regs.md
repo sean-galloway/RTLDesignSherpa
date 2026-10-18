@@ -81,6 +81,10 @@ Don't override. Generated from: $root
 | 0x2D0|     TILE_STATUS    |          Tile Header Status          |
 | 0x2D4|  TILE_DESC_DROPPED |         Cell Descriptor Drops        |
 | 0x2D8|     TILE_COUNTS    |          Tile Packet Counts          |
+| 0x2DC|   TILE_ADV_WINDOW  |       Tile Advertisement Window      |
+| 0x2E0| TILE_LEGAL_DEST_LO |     Tile Legal Destinations, Low     |
+| 0x2E4| TILE_CREDIT_STATUS |          Tile Credit Status          |
+| 0x2E8| TILE_LEGAL_DEST_HI |     Tile Legal Destinations, High    |
 | 0x35C|     PERF_CH_SEL    |Per-Channel Perf Bucket Readout Select|
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
@@ -1269,7 +1273,76 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 
 #### CREDIT_COUNT field
 
-<p>credit packets received (counted, not acted on: end-to-end credits are not built)</p>
+<p>credit packets received (with TILE_CREDITS = 1 they fill the SRC half's destination counters)</p>
+
+### TILE_ADV_WINDOW register
+
+- Absolute Address: 0x2DC
+- Base Offset: 0x2DC
+- Size: 0x4
+
+<p>Cycles from reset during which destinations advertise their credits (SRC half). When the window closes, a destination whose counter is still 0 is illegal (TILE_LEGAL_DEST_LO/HI).</p>
+
+|Bits|Identifier|Access| Reset|Name|
+|----|----------|------|------|----|
+|31:0|  CYCLES  |  rw  |0x1000|  — |
+
+#### CYCLES field
+
+<p>Window length in cycles from reset. Counted from reset, so a write takes effect only if made before the window closes; 0 closes it at once and makes every destination illegal</p>
+
+### TILE_LEGAL_DEST_LO register
+
+- Absolute Address: 0x2E0
+- Base Offset: 0x2E0
+- Size: 0x4
+
+<p>Saved legal-destination mask, indices 0-31: the nodes' internal IDs (SRC half). 1 = the destination advertised a non-zero credit count in the window. Valid once TILE_CREDIT_STATUS.ADV_DONE is 1; held until reset. A descriptor to an illegal destination is refused as invalid.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   LEGAL  |   r  |  —  |  — |
+
+#### LEGAL field
+
+<p>Bit i: destination index i is legal</p>
+
+### TILE_CREDIT_STATUS register
+
+- Absolute Address: 0x2E4
+- Base Offset: 0x2E4
+- Size: 0x4
+
+<p>End-to-end tile credit status (SRC half)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 | ADV_DONE |   r  |  —  |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### ADV_DONE field
+
+<p>The advertisement window has closed and TILE_LEGAL_DEST_LO/HI are valid. Tile descriptors wait until it is 1</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### TILE_LEGAL_DEST_HI register
+
+- Absolute Address: 0x2E8
+- Base Offset: 0x2E8
+- Size: 0x4
+
+<p>Saved legal-destination mask, indices 32-63: the external IDs, what is attached to each node (SRC half). Same rules as TILE_LEGAL_DEST_LO.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   LEGAL  |   r  |  —  |  — |
+
+#### LEGAL field
+
+<p>Bit i: destination index 32 + i is legal</p>
 
 ### PERF_CH_SEL register
 
@@ -2836,6 +2909,10 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 | 0x2D0|     TILE_STATUS    |          Tile Header Status          |
 | 0x2D4|  TILE_DESC_DROPPED |         Cell Descriptor Drops        |
 | 0x2D8|     TILE_COUNTS    |          Tile Packet Counts          |
+| 0x2DC|   TILE_ADV_WINDOW  |       Tile Advertisement Window      |
+| 0x2E0| TILE_LEGAL_DEST_LO |     Tile Legal Destinations, Low     |
+| 0x2E4| TILE_CREDIT_STATUS |          Tile Credit Status          |
+| 0x2E8| TILE_LEGAL_DEST_HI |     Tile Legal Destinations, High    |
 | 0x35C|     PERF_CH_SEL    |Per-Channel Perf Bucket Readout Select|
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
@@ -4024,7 +4101,76 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 
 #### CREDIT_COUNT field
 
-<p>credit packets received (counted, not acted on: end-to-end credits are not built)</p>
+<p>credit packets received (with TILE_CREDITS = 1 they fill the SRC half's destination counters)</p>
+
+### TILE_ADV_WINDOW register
+
+- Absolute Address: 0x12DC
+- Base Offset: 0x2DC
+- Size: 0x4
+
+<p>Cycles from reset during which destinations advertise their credits (SRC half). When the window closes, a destination whose counter is still 0 is illegal (TILE_LEGAL_DEST_LO/HI).</p>
+
+|Bits|Identifier|Access| Reset|Name|
+|----|----------|------|------|----|
+|31:0|  CYCLES  |  rw  |0x1000|  — |
+
+#### CYCLES field
+
+<p>Window length in cycles from reset. Counted from reset, so a write takes effect only if made before the window closes; 0 closes it at once and makes every destination illegal</p>
+
+### TILE_LEGAL_DEST_LO register
+
+- Absolute Address: 0x12E0
+- Base Offset: 0x2E0
+- Size: 0x4
+
+<p>Saved legal-destination mask, indices 0-31: the nodes' internal IDs (SRC half). 1 = the destination advertised a non-zero credit count in the window. Valid once TILE_CREDIT_STATUS.ADV_DONE is 1; held until reset. A descriptor to an illegal destination is refused as invalid.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   LEGAL  |   r  |  —  |  — |
+
+#### LEGAL field
+
+<p>Bit i: destination index i is legal</p>
+
+### TILE_CREDIT_STATUS register
+
+- Absolute Address: 0x12E4
+- Base Offset: 0x2E4
+- Size: 0x4
+
+<p>End-to-end tile credit status (SRC half)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 | ADV_DONE |   r  |  —  |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### ADV_DONE field
+
+<p>The advertisement window has closed and TILE_LEGAL_DEST_LO/HI are valid. Tile descriptors wait until it is 1</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### TILE_LEGAL_DEST_HI register
+
+- Absolute Address: 0x12E8
+- Base Offset: 0x2E8
+- Size: 0x4
+
+<p>Saved legal-destination mask, indices 32-63: the external IDs, what is attached to each node (SRC half). Same rules as TILE_LEGAL_DEST_LO.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   LEGAL  |   r  |  —  |  — |
+
+#### LEGAL field
+
+<p>Bit i: destination index 32 + i is legal</p>
 
 ### PERF_CH_SEL register
 

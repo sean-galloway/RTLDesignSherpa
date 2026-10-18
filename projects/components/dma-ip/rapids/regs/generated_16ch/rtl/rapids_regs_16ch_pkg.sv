@@ -210,6 +210,30 @@ package rapids_regs_16ch_pkg;
 
     typedef struct {
         logic [31:0] next;
+    } rapids_engine_regs_16ch__TILE_LEGAL_DEST_LO__LEGAL__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_LEGAL_DEST_LO__LEGAL__in_t LEGAL;
+    } rapids_engine_regs_16ch__TILE_LEGAL_DEST_LO__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_CREDIT_STATUS__ADV_DONE__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_CREDIT_STATUS__ADV_DONE__in_t ADV_DONE;
+    } rapids_engine_regs_16ch__TILE_CREDIT_STATUS__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rapids_engine_regs_16ch__TILE_LEGAL_DEST_HI__LEGAL__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_LEGAL_DEST_HI__LEGAL__in_t LEGAL;
+    } rapids_engine_regs_16ch__TILE_LEGAL_DEST_HI__in_t;
+
+    typedef struct {
+        logic [31:0] next;
     } rapids_engine_regs_16ch__HIST_DATA__VAL__in_t;
 
     typedef struct {
@@ -617,6 +641,9 @@ package rapids_regs_16ch_pkg;
         rapids_engine_regs_16ch__TILE_STATUS__in_t TILE_STATUS;
         rapids_engine_regs_16ch__TILE_DESC_DROPPED__in_t TILE_DESC_DROPPED;
         rapids_engine_regs_16ch__TILE_COUNTS__in_t TILE_COUNTS;
+        rapids_engine_regs_16ch__TILE_LEGAL_DEST_LO__in_t TILE_LEGAL_DEST_LO;
+        rapids_engine_regs_16ch__TILE_CREDIT_STATUS__in_t TILE_CREDIT_STATUS;
+        rapids_engine_regs_16ch__TILE_LEGAL_DEST_HI__in_t TILE_LEGAL_DEST_HI;
         rapids_engine_regs_16ch__HIST_DATA__in_t HIST_DATA;
         rapids_engine_regs_16ch__HIST_TOTAL__in_t HIST_TOTAL;
         rapids_mon_regs_16ch__in_t MON;
@@ -1155,6 +1182,14 @@ package rapids_regs_16ch_pkg;
     } rapids_engine_regs_16ch__OBS_CTRL__out_t;
 
     typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs_16ch__TILE_ADV_WINDOW__CYCLES__out_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_ADV_WINDOW__CYCLES__out_t CYCLES;
+    } rapids_engine_regs_16ch__TILE_ADV_WINDOW__out_t;
+
+    typedef struct {
         logic [3:0] value;
     } rapids_engine_regs_16ch__PERF_CH_SEL__CH_SEL__out_t;
 
@@ -1600,6 +1635,7 @@ package rapids_regs_16ch_pkg;
         rapids_engine_regs_16ch__AXI_XFER_CONFIG__out_t AXI_XFER_CONFIG;
         rapids_engine_regs_16ch__PERF_CONFIG__out_t PERF_CONFIG;
         rapids_engine_regs_16ch__OBS_CTRL__out_t OBS_CTRL;
+        rapids_engine_regs_16ch__TILE_ADV_WINDOW__out_t TILE_ADV_WINDOW;
         rapids_engine_regs_16ch__PERF_CH_SEL__out_t PERF_CH_SEL;
         rapids_engine_regs_16ch__HIST_SEL__out_t HIST_SEL;
         rapids_mon_regs_16ch__out_t MON;

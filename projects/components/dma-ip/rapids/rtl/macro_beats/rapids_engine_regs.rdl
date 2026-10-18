@@ -713,12 +713,74 @@ regfile rapids_engine_regs {
         } DESC_COUNT[15:0];
 
         field {
-            desc = "credit packets received (counted, not acted on: end-to-end credits are not built)";
+            desc = "credit packets received (with TILE_CREDITS = 1 they fill the SRC half's destination counters)";
             sw = r;
             hw = w;
         } CREDIT_COUNT[31:16];
 
     } TILE_COUNTS @ 0x2D8;
+
+    //=========================================================================
+    // End-to-end tile credits (byte RAPIDS, TILE_CREDITS = 1; TILE_SPEC 11.9,
+    // 11.10). Meaningful in the SRC half, which keeps the 64 destination
+    // counters, index {ext, n}: n 0-15 cell-level node {Y[1:0],X[1:0]},
+    // 16-19 tetrad node, 20-21 root node, 22-31 spare; ext = 0 the node
+    // itself, ext = 1 what is attached to it (32-47 the cells). Read zero
+    // when TILE_CREDITS = 0.
+    //=========================================================================
+    reg {
+        name = "Tile Advertisement Window";
+        desc = "Cycles from reset during which destinations advertise their credits (SRC half). When the window closes, a destination whose counter is still 0 is illegal (TILE_LEGAL_DEST_LO/HI).";
+
+        field {
+            desc = "Window length in cycles from reset. Counted from reset, so a write takes effect only if made before the window closes; 0 closes it at once and makes every destination illegal";
+            sw = rw;
+            hw = r;
+        } CYCLES[31:0] = 32'h0000_1000;
+
+    } TILE_ADV_WINDOW @ 0x2DC;
+
+    reg {
+        name = "Tile Legal Destinations, Low";
+        desc = "Saved legal-destination mask, indices 0-31: the nodes' internal IDs (SRC half). 1 = the destination advertised a non-zero credit count in the window. Valid once TILE_CREDIT_STATUS.ADV_DONE is 1; held until reset. A descriptor to an illegal destination is refused as invalid.";
+
+        field {
+            desc = "Bit i: destination index i is legal";
+            sw = r;
+            hw = w;
+        } LEGAL[31:0];
+
+    } TILE_LEGAL_DEST_LO @ 0x2E0;
+
+    reg {
+        name = "Tile Credit Status";
+        desc = "End-to-end tile credit status (SRC half)";
+
+        field {
+            desc = "The advertisement window has closed and TILE_LEGAL_DEST_LO/HI are valid. Tile descriptors wait until it is 1";
+            sw = r;
+            hw = w;
+        } ADV_DONE[0:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } TILE_CREDIT_STATUS @ 0x2E4;
+
+    reg {
+        name = "Tile Legal Destinations, High";
+        desc = "Saved legal-destination mask, indices 32-63: the external IDs, what is attached to each node (SRC half). Same rules as TILE_LEGAL_DEST_LO.";
+
+        field {
+            desc = "Bit i: destination index 32 + i is legal";
+            sw = r;
+            hw = w;
+        } LEGAL[31:0];
+
+    } TILE_LEGAL_DEST_HI @ 0x2E8;
 
     reg {
         name = "Per-Channel Perf Bucket Readout Select";

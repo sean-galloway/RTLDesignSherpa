@@ -96,7 +96,17 @@
 > sends `desc` packets over `desc_inj_*` into `descriptor_engine_shared`'s per-channel one-entry slot.
 > Traps: the planes are untouched (CXS is just transport); a disabled channel's scheduler still pops and
 > discards descriptors from its queue in IDLE (pre-existing, also hits host kicks), so a slot-overflow test
-> must hold the channel busy, not disabled; credits/grants (TILE_SPEC 11.9-11.10) are NOT built.
+> must hold the channel busy, not disabled.
+>
+> **Tile credits (2026-10-18, rapids TASK-027 part 1):** `TILE_CREDITS` (default 0, needs `TILE_HDR`) adds
+> `rtl/fub/rapids_tile_credits.sv` in `rapids_src`: 64 destination counters (`rapids_pkg::tile_dest_index` =
+> {ext, n}: n 0-15 cell-level nodes, 16-19 tetrads, 20-21 roots; ext 1 = what is attached, so cells are 32-47) filled by `set`/`add` credit packets the sink's
+> `rapids_tile_hdr_rx` passes over `credit_*`. When `SRC.TILE_ADV_WINDOW` cycles from reset elapse, a counter
+> still at 0 is illegal (`SRC.TILE_LEGAL_DEST_LO/HI`, `SRC.TILE_CREDIT_STATUS.ADV_DONE`); the scheduler holds tile
+> descriptors until then and refuses one to an illegal destination. `src_data_path_axis` charges each head
+> packet's flits (`tile_acq_*`) before its header or further reservations. Traps: the window counts from
+> RESET, so a TB must advertise during bring-up; the tile coordinate is 15 bits {ext, level, X, Y, Z}; a channel reset does not refund charged credits. Sink-space
+> and descriptor-slot GRANTS (TILE_SPEC 11.9, 11.11) are still NOT built (TASK-027 remainder).
 >
 > **8- and 16-channel builds (2026-10-17, byte tree):** one `rapids_top_base`, two register maps. The
 > 8-channel map is today's hand-written RDL (`rtl/macro_beats/rapids_{regs,engine_regs,mon_regs,regmap}.rdl`,

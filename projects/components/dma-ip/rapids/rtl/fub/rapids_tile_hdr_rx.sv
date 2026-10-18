@@ -21,9 +21,11 @@
 //                                       source descriptor for the channel the
 //                                       tag names: a desc_inj_* pulse into the
 //                                       source half; never stored in the sink
-//     credit                            consumed and counted (end-to-end
-//                                       credits, TILE_SPEC 11.9, are not built
-//                                       yet); the sink port accepts them
+//     credit                            consumed and counted; {source
+//                                       coordinate, op, count, class} goes to
+//                                       the source half's credit counters as a
+//                                       credit_* pulse (TILE_SPEC 11.9, 11.10).
+//                                       The sink port accepts them
 //                                       unconditionally
 //     anything else                     consumed, sticky sts_unsupported:
 //                                       a read request to RAPIDS (op = 1), a
@@ -87,6 +89,15 @@ module rapids_tile_hdr_rx #(
     output logic                        desc_inj_valid,
     output logic [CIW-1:0]              desc_inj_ch,
     output logic [255:0]                desc_inj_data,
+
+    // Credit packet to the source half's counters (registered pulse): the
+    // sender's coordinate, op (0 = add, 1 = set), the count from the length
+    // field and the class from target address bits [1:0]
+    output logic                        credit_valid,
+    output logic [rapids_pkg::TILE_COORD_W-1:0] credit_src,
+    output logic                        credit_op,
+    output logic [31:0]                 credit_count,
+    output logic [1:0]                  credit_class,
 
     // Status. The two stickies clear on a one-cycle clr_* pulse (the CSR's
     // write-1-to-clear); an event in the same cycle wins.
@@ -155,7 +166,7 @@ module rapids_tile_hdr_rx #(
                     else       w_hdr_unsup = 1'b1;          // read request to RAPIDS
                 end
                 rapids_pkg::TILE_PTYPE_CREDIT: begin
-                    w_hdr_route = R_DROP;                   // counted, not yet acted on
+                    w_hdr_route = R_DROP;                   // header-only: to the counters
                 end
                 rapids_pkg::TILE_PTYPE_DESC: begin
                     if (!w_op && w_tag_ok && DESC_OK && !s_axis_tlast) w_hdr_route = R_DESC;
@@ -227,6 +238,28 @@ module rapids_tile_hdr_rx #(
         end
     )
 
+    // Credit pulse, registered. A credit packet is header-only; its header
+    // beat is all the counters need.
+    logic w_credit_take;
+    assign w_credit_take = w_fire && w_is_hdr && w_s_ok && (w_ptype == rapids_pkg::TILE_PTYPE_CREDIT);
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            credit_valid <= 1'b0;
+            credit_src   <= '0;
+            credit_op    <= 1'b0;
+            credit_count <= '0;
+            credit_class <= '0;
+        end else begin
+            credit_valid <= w_credit_take;
+            if (w_credit_take) begin
+                credit_src   <= s_axis_tdata[rapids_pkg::TILE_HDR_SRC_LO +: rapids_pkg::TILE_COORD_W];
+                credit_op    <= w_op;
+                credit_count <= s_axis_tdata[rapids_pkg::TILE_HDR_LEN_LO +: 32];
+                credit_class <= s_axis_tdata[rapids_pkg::TILE_HDR_TGT_LO +: 2];
+            end
+        end
+    )
+
     // Status
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
@@ -242,8 +275,7 @@ module rapids_tile_hdr_rx #(
             else if (clr_tag_mismatch)
                 sts_tag_mismatch <= 1'b0;
             if (w_desc_take)                        sts_desc_count <= sts_desc_count + 16'd1;
-            if (w_fire && w_is_hdr && w_s_ok && (w_ptype == rapids_pkg::TILE_PTYPE_CREDIT))
-                sts_credit_count <= sts_credit_count + 16'd1;
+            if (w_credit_take)                      sts_credit_count <= sts_credit_count + 16'd1;
         end
     )
 

@@ -109,7 +109,12 @@ module scheduler #(
     // Tile packet header (TILE_SPEC 11.5). When 1, a source descriptor's
     // ptype / op / dst_addr ride the packet record (sched_rd_pkt_tile) and
     // op = 1 (read request) moves no memory: the packet is the header alone.
-    parameter int TILE_HDR = 0
+    parameter int TILE_HDR = 0,
+    // End-to-end tile credits (TILE_SPEC 11.9, 11.10; needs TILE_HDR = 1).
+    // When 1, a tile descriptor waits in CH_FETCH_DESC until the
+    // advertisement window closes, then is refused as invalid if its
+    // destination is not legal.
+    parameter int TILE_CREDITS = 0
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -121,6 +126,11 @@ module scheduler #(
     input  logic [31:0]                 cfg_sched_timeout_cycles, // Timeout threshold (cycles)
     input  logic [7:0]                  cfg_sched_timeout_limit,  // Consecutive-timeout windows before fatal escalation (0=never)
     input  logic                        cfg_sched_timeout_enable, // Enable timeout detection
+
+    // Tile credits (TILE_CREDITS): the advertisement window has closed, and
+    // the saved legal-destination mask (rapids_tile_credits)
+    input  logic                        tile_adv_done,
+    input  logic [rapids_pkg::TILE_NUM_DEST-1:0] tile_dest_legal,
 
     // Status Interface
     output logic                        scheduler_idle,         // Scheduler idle
@@ -218,6 +228,8 @@ module scheduler #(
         if (DESC_WIDTH != 256) begin
             $fatal(1, "scheduler (RAPIDS): DESC_WIDTH must be 256, got %0d.", DESC_WIDTH);
         end
+        if ((TILE_CREDITS != 0) && (TILE_HDR == 0))
+            $fatal(1, "scheduler (RAPIDS): TILE_CREDITS = 1 needs TILE_HDR = 1");
     end
 
     // RAPIDS Descriptor Format (256-bit)
@@ -324,9 +336,25 @@ module scheduler #(
     // A source descriptor carries cfg / prog / mem only: credit and desc
     // packets are built by the tile, and 5-7 are reserved (TILE_SPEC 11.2).
     // Anything else is refused as an invalid descriptor would be.
+    // With TILE_CREDITS, a tile descriptor that sends a packet waits for the
+    // advertisement window to close (w_tile_wait), then needs a legal
+    // destination: one with a counter index that advertised in the window.
+    logic                               w_tile_cred;
+    logic                               w_tile_wait;
+    logic                               w_tile_illegal;
+    logic [rapids_pkg::TILE_DEST_W:0]   w_tile_dmap;
+    assign w_tile_dmap    = rapids_pkg::tile_dest_index(
+                                r_descriptor.dst_addr[63 -: rapids_pkg::TILE_COORD_W]);
+    assign w_tile_cred    = (TILE_HDR != 0) && (TILE_CREDITS != 0) && EN_READ &&
+                            (r_desc_opcode == DESC_OP_DATA) && (r_descriptor.length != 32'd0);
+    assign w_tile_wait    = w_tile_cred && !tile_adv_done;
+    assign w_tile_illegal = w_tile_cred && tile_adv_done &&
+                            !(w_tile_dmap[rapids_pkg::TILE_DEST_W] &&
+                              tile_dest_legal[w_tile_dmap[rapids_pkg::TILE_DEST_W-1:0]]);
     logic w_tile_bad;
-    assign w_tile_bad = (TILE_HDR != 0) && EN_READ && (r_desc_opcode == DESC_OP_DATA) &&
-                        (r_tile_ptype > rapids_pkg::TILE_PTYPE_MEM);
+    assign w_tile_bad = ((TILE_HDR != 0) && EN_READ && (r_desc_opcode == DESC_OP_DATA) &&
+                         (r_tile_ptype > rapids_pkg::TILE_PTYPE_MEM)) ||
+                        w_tile_illegal;
     assign w_rd_beats_total = ((r_descriptor.length == 32'd0) || w_hdr_only) ? 32'd0
                                                                             : 32'(w_rd_span >> OFF_W);
     assign w_wr_beats_total = (r_descriptor.length == 32'd0) ? 32'd0 : 32'(w_wr_span >> OFF_W);
@@ -857,7 +885,8 @@ module scheduler #(
     // transfers carry no record.
     assign w_pkt_ok = !w_is_data || (r_descriptor.length == 32'd0) ||
                       ((!EN_READ  || sched_rd_pkt_ready) &&
-                       (!EN_WRITE || sched_wr_pkt_ready));
+                       (!EN_WRITE || sched_wr_pkt_ready) &&
+                       !w_tile_wait);
     assign w_is_ctrlrd = (r_desc_opcode == DESC_OP_CTRL_READ);
     assign w_is_ctrlwr = (r_desc_opcode == DESC_OP_CTRL_WRITE);
 

@@ -31,6 +31,8 @@
 # Half module cores (instantiated by the wrapper DUT)
 # Tile header decode in the sink half (TILE_HDR); deps already above
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_hdr_rx.sv
+# End-to-end tile credits in the source half (TILE_CREDITS); deps already above
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_credits.sv
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_snk.sv
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_src.sv
 

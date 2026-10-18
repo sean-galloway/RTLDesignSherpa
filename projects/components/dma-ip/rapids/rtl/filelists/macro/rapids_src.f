@@ -16,5 +16,8 @@
 +incdir+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# End-to-end tile credits in the source half (TILE_CREDITS); deps already above
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_credits.sv
+
 # DUT module
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_src.sv

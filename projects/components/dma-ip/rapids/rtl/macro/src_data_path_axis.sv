@@ -66,7 +66,11 @@ module src_data_path_axis #(
     // is that header alone. TILE_SRC_COORD is RAPIDS's own coordinate.
     parameter int TILE_HDR = 0,
     parameter logic [rapids_pkg::TILE_COORD_W-1:0] TILE_SRC_COORD =
-        {rapids_pkg::TILE_LEVEL_IO, 12'h000},
+        {1'b0, rapids_pkg::TILE_LEVEL_IO, 12'h000},
+    // End-to-end tile credits (TILE_SPEC 11.9; needs TILE_HDR = 1). 1: a
+    // packet leaves only once its destination's counter has been charged
+    // its flits, header included (tile_acq_*, rapids_tile_credits).
+    parameter int TILE_CREDITS = 0,
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -104,6 +108,15 @@ module src_data_path_axis #(
     input  logic [NC-1:0][31:0]         sched_rd_pkt_bytes,
     input  logic [NC-1:0][OFF_W-1:0]    sched_rd_pkt_offset,
     input  logic [NC-1:0][rapids_pkg::TILE_PKT_W-1:0] sched_rd_pkt_tile,   // {op, ptype, dst_addr}
+
+    //=========================================================================
+    // Tile credits (TILE_CREDITS): per channel, charge the head packet's
+    // flits to its destination; held until tile_acq_gnt pulses
+    //=========================================================================
+    output logic [NC-1:0]                              tile_acq_req,
+    output logic [NC-1:0][rapids_pkg::TILE_DEST_W-1:0] tile_acq_dest,
+    output logic [NC-1:0][rapids_pkg::TILE_CREDIT_W-1:0] tile_acq_flits,
+    input  logic [NC-1:0]                              tile_acq_gnt,
 
     //=========================================================================
     // Completion Interface (to Schedulers)
@@ -162,6 +175,8 @@ module src_data_path_axis #(
             $fatal(1, "TILE_HDR needs DATA_WIDTH >= 128 (the header is one 128-bit beat)");
         if ((TILE_HDR != 0) && (NC > 16))
             $fatal(1, "TILE_HDR carries the channel in a 4-bit tag: NUM_CHANNELS <= 16");
+        if ((TILE_CREDITS != 0) && (TILE_HDR == 0))
+            $fatal(1, "TILE_CREDITS = 1 needs TILE_HDR = 1");
     end
 
     //=========================================================================
@@ -275,6 +290,30 @@ module src_data_path_axis #(
     assign sched_rd_pkt_ready = ~w_pq_full;
 
     //=========================================================================
+    // Tile credits (TILE_CREDITS): the head packet asks for its flits -- the
+    // header and ceil(bytes / SW) data beats, or the header alone for a read
+    // request -- from its destination's counter. Until the grant, neither its
+    // header nor any further SRAM reservation of the channel goes ahead, so a
+    // channel waiting for credits does not park the shared drain stage. (A
+    // reservation made under the previous packet can still run into this
+    // one's first beat; the drain stage then waits there for the grant.)
+    //=========================================================================
+    logic [NC-1:0] r_cred_ok;          // head packet's credits are charged
+    logic [NC-1:0] w_cred_ok;          // ...or credits are not in use
+    always_comb begin
+        for (int ch = 0; ch < NC; ch++) begin
+            logic [rapids_pkg::TILE_DEST_W:0] dmap;
+            dmap = rapids_pkg::tile_dest_index(w_head_tile[ch][63 -: rapids_pkg::TILE_COORD_W]);
+            tile_acq_req[ch]   = (TILE_CREDITS != 0) && !w_pq_empty[ch] && !r_cred_ok[ch] && !w_rst[ch];
+            tile_acq_dest[ch]  = dmap[rapids_pkg::TILE_DEST_W-1:0];
+            tile_acq_flits[ch] = w_head_tile[ch][TPW-1]
+                ? rapids_pkg::TILE_CREDIT_W'(1)
+                : rapids_pkg::TILE_CREDIT_W'(32'd1 + 32'((33'(w_head_bytes[ch]) + 33'(SW - 1)) >> OFF_W));
+            w_cred_ok[ch]      = (TILE_CREDITS == 0) || r_cred_ok[ch];
+        end
+    end
+
+    //=========================================================================
     // Egress shifter: beat-aligned memory beats -> packed stream beats
     //=========================================================================
     // Per-channel state for the head packet
@@ -356,7 +395,8 @@ module src_data_path_axis #(
 
     always_comb begin
         for (int ch = 0; ch < NC; ch++) begin
-            w_hdr_need[ch] = (TILE_HDR != 0) && !w_pq_empty[ch] && !r_hdr_sent[ch] && !w_rst[ch];
+            w_hdr_need[ch] = (TILE_HDR != 0) && !w_pq_empty[ch] && !r_hdr_sent[ch] && !w_rst[ch]
+                          && w_cred_ok[ch];
             w_hdr_ok[ch]   = w_hdr_need[ch] &&
                              (w_head_tile[ch][TPW-1] ||
                               (r_d_active && (r_d_ch == CIW'(ch)) && drain_valid[ch] && drain_valid_comb[ch]));
@@ -378,12 +418,12 @@ module src_data_path_axis #(
 
     assign w_hdr_only = w_head_tile[w_hdr_ch][TPW-1];
     assign w_hdr_word = rapids_pkg::tile_hdr_pack(
-        w_head_tile[w_hdr_ch][63 -: rapids_pkg::TILE_COORD_W],     // dst_addr[63:50]: coordinate
+        w_head_tile[w_hdr_ch][63 -: rapids_pkg::TILE_COORD_W],     // dst_addr[63:49]: coordinate
         TILE_SRC_COORD,
         w_head_tile[w_hdr_ch][66:64],                               // ptype
         w_hdr_only,                                                 // op
         w_head_bytes[w_hdr_ch],
-        w_head_tile[w_hdr_ch][rapids_pkg::TILE_TARGET_W-1:0],       // dst_addr[49:0]: target
+        w_head_tile[w_hdr_ch][rapids_pkg::TILE_TARGET_W-1:0],       // dst_addr[48:0]: target
         4'(w_hdr_ch));
 
     // A memory beat is popped when the drain stage has one, the output
@@ -455,7 +495,9 @@ module src_data_path_axis #(
             r_out_strb      <= '0;
             r_out_last      <= 1'b0;
             r_out_ch        <= '0;
+            r_cred_ok       <= '0;
         end else begin
+            r_cred_ok <= r_cred_ok | ((TILE_CREDITS != 0) ? tile_acq_gnt : '0);
             for (int ch = 0; ch < NC; ch++) begin
                 if (w_pq_push[ch]) begin
                     r_pq_off[ch][r_pq_wp[ch][PQ_PW-1:0]]   <= sched_rd_pkt_offset[ch];
@@ -497,6 +539,7 @@ module src_data_path_axis #(
             for (int ch = 0; ch < NC; ch++) begin
                 if (w_pq_pop[ch]) begin
                     r_pq_rp[ch]         <= r_pq_rp[ch] + 1'b1;
+                    r_cred_ok[ch]       <= 1'b0;
                     r_hdr_sent[ch]      <= 1'b0;
                     r_eg_started[ch]    <= 1'b0;
                     r_hold_valid[ch]    <= 1'b0;
@@ -511,6 +554,7 @@ module src_data_path_axis #(
                 if (w_rst[ch]) begin
                     r_pq_wp[ch]         <= '0;
                     r_pq_rp[ch]         <= '0;
+                    r_cred_ok[ch]       <= 1'b0;
                     r_hdr_sent[ch]      <= 1'b0;
                     r_eg_started[ch]    <= 1'b0;
                     r_hold_valid[ch]    <= 1'b0;
@@ -552,7 +596,7 @@ module src_data_path_axis #(
     always_comb begin
         for (int ch = 0; ch < NC; ch++) begin
             w_no_more_fill[ch] = (sched_rd_beats[ch] == 32'd0) && dbg_rd_all_complete[ch];
-            w_ch_grantable[ch] = !w_rst[ch] &&
+            w_ch_grantable[ch] = !w_rst[ch] && w_cred_ok[ch] &&
                                  ((w_effective_avail[ch] >= SCW'(w_eff_drain_size))
                                   || ((w_effective_avail[ch] != '0) && w_no_more_fill[ch]));
             w_grant_size[ch] = (w_effective_avail[ch] >= SCW'(w_eff_drain_size))

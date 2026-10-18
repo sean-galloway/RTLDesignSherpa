@@ -108,6 +108,7 @@ The core ports that carry the beat-count unit are renamed. Everything else keeps
 | `GEN_MON` | 1 | 0 omits the completion and error emitters. |
 | `SHARED_ENGINES` | 1 | 1: one descriptor, control-read and control-write engine per half ([Shared Engines](../ch02_fub_blocks/10_shared_engines.md)). 0: one of each per channel. |
 | `TILE_HDR`, `TILE_SRC_COORD` | 0, 14'h3000 | Tile packet header on both network ports ([Tile Packet Header](14_tile_header.md)). Needs `SHARED_ENGINES = 1`. |
+| `TILE_CREDITS` | 0 | End-to-end tile credits: 64 destination counters (each node's internal and external ID) in the source half, the advertisement window and the legal-destination mask ([Tile Packet Header](14_tile_header.md)). Needs `TILE_HDR = 1`. |
 
 : Table 3.9.4: Core Parameters
 

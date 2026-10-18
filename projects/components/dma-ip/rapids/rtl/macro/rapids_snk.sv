@@ -328,6 +328,12 @@ module rapids_snk #(
     output logic                        desc_inj_valid,
     output logic [CIW-1:0]              desc_inj_ch,
     output logic [255:0]                desc_inj_data,
+    // Credit packets to the source half's counters (TILE_SPEC 11.9)
+    output logic                        credit_valid,
+    output logic [rapids_pkg::TILE_COORD_W-1:0] credit_src,
+    output logic                        credit_op,
+    output logic [31:0]                 credit_count,
+    output logic [1:0]                  credit_class,
     output logic                        sts_tile_unsupported,
     output logic                        sts_tile_tag_mismatch,
     output logic [15:0]                 sts_tile_desc_count,
@@ -547,6 +553,8 @@ module rapids_snk #(
         .desc_inj_dropped       (),
         .desc_inj_dropped_clr   ('0),
         /* verilator lint_on PINCONNECTEMPTY */
+        .tile_adv_done          (1'b0),         // tile credits live in the source half
+        .tile_dest_legal        ('0),
 
         // Data Write Interface (to Sink Data Path)
         .sched_wr_valid         (sched_wr_valid),
@@ -705,6 +713,11 @@ module rapids_snk #(
             .desc_inj_valid   (desc_inj_valid),
             .desc_inj_ch      (desc_inj_ch),
             .desc_inj_data    (desc_inj_data),
+            .credit_valid     (credit_valid),
+            .credit_src       (credit_src),
+            .credit_op        (credit_op),
+            .credit_count     (credit_count),
+            .credit_class     (credit_class),
             .clr_unsupported  (tile_clr_unsupported),
             .clr_tag_mismatch (tile_clr_tag_mismatch),
             .sts_unsupported  (sts_tile_unsupported),
@@ -724,6 +737,11 @@ module rapids_snk #(
         assign desc_inj_valid = 1'b0;
         assign desc_inj_ch    = '0;
         assign desc_inj_data  = '0;
+        assign credit_valid   = 1'b0;
+        assign credit_src     = '0;
+        assign credit_op      = 1'b0;
+        assign credit_count   = '0;
+        assign credit_class   = '0;
         assign sts_tile_unsupported  = 1'b0;
         assign sts_tile_tag_mismatch = 1'b0;
         assign sts_tile_desc_count   = '0;

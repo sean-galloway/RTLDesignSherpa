@@ -64,7 +64,14 @@ module rapids_16ch_top
     // source half a descriptor through the sink port. Needs SHARED_ENGINES = 1
     // and DATA_WIDTH >= 256. TILE_SRC_COORD is RAPIDS's coordinate.
     parameter int TILE_HDR         = 0,
-    parameter logic [13:0] TILE_SRC_COORD = 14'h3000,   // {level 3 = tile I/O, X 0, Y 0, Z 0}
+    parameter logic [14:0] TILE_SRC_COORD = 15'h3000,   // {ext 0, level 3 = tile I/O, X 0, Y 0, Z 0}
+    // End-to-end tile credits (TILE_SPEC 11.9, 11.10; needs TILE_HDR = 1):
+    // the source half keeps 64 destination credit counters filled by the
+    // destinations' advertisements, and a packet leaves only against them.
+    // When the advertisement window (SRC.TILE_ADV_WINDOW) closes, a counter
+    // still at 0 is an illegal destination (SRC.TILE_LEGAL_DEST_LO/HI) and a
+    // descriptor to it is refused.
+    parameter int TILE_CREDITS     = 0,
     //   USE_MON_REGS: whether the MON register windows (SRC and SNK, each at
     //   +0x800 of its 4 KB regfile) are wired to monitor logic. Defaults to
     //   USE_AXI_MONITORS, as in STREAM. When 0 the config blocks strap every
@@ -418,6 +425,7 @@ module rapids_16ch_top
         .SHARED_ENGINES          (SHARED_ENGINES),
         .TILE_HDR                (TILE_HDR),
         .TILE_SRC_COORD          (TILE_SRC_COORD),
+        .TILE_CREDITS            (TILE_CREDITS),
         .USE_MON_REGS            (USE_MON_REGS),
         .AR_MAX_OUTSTANDING      (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING      (AW_MAX_OUTSTANDING),

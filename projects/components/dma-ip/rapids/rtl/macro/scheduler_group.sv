@@ -377,6 +377,8 @@ module scheduler_group #(
         .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
         .cfg_sched_timeout_limit(cfg_sched_timeout_limit),
         .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
+        .tile_adv_done           (1'b0),          // TILE_CREDITS = 0 here
+        .tile_dest_legal         ('0),
 
         // Status
         .scheduler_idle         (scheduler_idle),

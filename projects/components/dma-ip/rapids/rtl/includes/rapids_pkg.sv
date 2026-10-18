@@ -157,15 +157,18 @@ package rapids_pkg;
     // Descriptor fields that supply it (SOURCE descriptors only):
     //   ptype  = descriptor [215:213]
     //   op     = descriptor [216]      0 = write (payload), 1 = read (header only)
-    //   dst_addr [63:50] = destination coordinate {level, X, Y, Z}
-    //   dst_addr [49:0]  = target address
+    //   dst_addr [63:49] = destination coordinate {ext, level, X, Y, Z}
+    //   dst_addr [48:0]  = target address
     // The tag is the issuing channel and the source coordinate is RAPIDS's
     // own (level 3); neither comes from the descriptor.
     localparam int DESC_TILE_PTYPE_LO = 213;
     localparam int DESC_TILE_PTYPE_HI = 215;
     localparam int DESC_TILE_OP       = 216;
 
-    localparam int TILE_COORD_W    = 14;                    // {level[1:0], X[3:0], Y[3:0], Z[3:0]}
+    // A coordinate names one of a node's two IDs: ext = 0 the node itself
+    // (internal), ext = 1 what is attached at its local port (external: a
+    // cell, a tetrad's control core). TILE_SPEC 11.3.
+    localparam int TILE_COORD_W    = 15;                    // {ext, level[1:0], X[3:0], Y[3:0], Z[3:0]}
     localparam int TILE_TARGET_W   = 64 - TILE_COORD_W;     // the rest of dst_addr
     localparam int TILE_HDR_BYTES  = 16;                    // header beat strobe: bytes [15:0]
     localparam logic [1:0] TILE_LEVEL_IO = 2'd3;            // tile I/O = RAPIDS
@@ -179,17 +182,63 @@ package rapids_pkg;
 
     // Header field positions (TILE_SPEC 11.5, "Proposed header packing")
     localparam int TILE_HDR_DST_LO    = 0;
-    localparam int TILE_HDR_SRC_LO    = 14;
-    localparam int TILE_HDR_PTYPE_LO  = 28;
-    localparam int TILE_HDR_OP        = 31;
-    localparam int TILE_HDR_LEN_LO    = 32;
-    localparam int TILE_HDR_TGT_LO    = 64;
-    localparam int TILE_HDR_TAG_LO    = 114;
-    // bits [117:0] are the fields above; [127:118] (delta's head-flit fields) are zero
+    localparam int TILE_HDR_SRC_LO    = 15;
+    localparam int TILE_HDR_PTYPE_LO  = 30;
+    localparam int TILE_HDR_OP        = 33;
+    localparam int TILE_HDR_LEN_LO    = 34;
+    localparam int TILE_HDR_TGT_LO    = 66;
+    localparam int TILE_HDR_TAG_LO    = 115;
+    // bits [118:0] are the fields above; [127:119] (delta's head-flit fields) are zero
 
     // Descriptor-side header fields as the scheduler hands them to the
     // source data path: {op, ptype, dst_addr}.
     localparam int TILE_PKT_W = 1 + 3 + 64;
+
+    // End-to-end credits (TILE_CREDITS = 1; TILE_SPEC 11.9, 11.10). RAPIDS's
+    // source half keeps one counter per destination index {ext, n}:
+    //   n 0-15  cell-level node {Y[1:0], X[1:0]}
+    //   n 16-19 tetrad node, {Y[0], X[0]} of its group
+    //   n 20-21 root node 0, 1
+    //   n 22-31 spare
+    // ext = 0 is the node itself, ext = 1 what is attached to it: 32-47 the
+    // cells, 48-51 the tetrads' control cores. An ID with nothing behind it
+    // (a spare, a node with nothing attached) never advertises, so it is
+    // illegal once the window closes.
+    // Credit packets carry their class in target address bits [1:0]; RAPIDS
+    // receives class 0 (sink space: a destination's input buffer) only.
+    localparam int TILE_NUM_DEST   = 64;
+    localparam int TILE_DEST_W     = 6;
+    localparam int TILE_CREDIT_W   = 32;
+    localparam logic [1:0] TILE_CLASS_SPACE = 2'd0;
+    localparam logic [1:0] TILE_CLASS_DESC  = 2'd1;
+    localparam logic [1:0] TILE_LEVEL_CELL   = 2'd0;
+    localparam logic [1:0] TILE_LEVEL_TETRAD = 2'd1;
+    localparam logic [1:0] TILE_LEVEL_ROOT   = 2'd2;
+
+    // The counter index of a destination coordinate {ext, level, X, Y, Z}. ok = 0
+    // for a coordinate with no index: the tile I/O itself, or an X/Y past the
+    // tile (a cell beyond 4x4, a tetrad past 2x2, a root past 1). Z is the
+    // tile layer and does not select within the tile.
+    function automatic logic [TILE_DEST_W:0] tile_dest_index(
+        input logic [TILE_COORD_W-1:0] coord);
+        logic       ext;
+        logic [1:0] lvl;
+        logic [3:0] x, y;
+        ext = coord[14];
+        lvl = coord[13:12];
+        x   = coord[11:8];
+        y   = coord[7:4];
+        case (lvl)
+            TILE_LEVEL_CELL:
+                return ((x < 4'd4) && (y < 4'd4)) ? {1'b1, ext, 1'b0, y[1:0], x[1:0]} : '0;
+            TILE_LEVEL_TETRAD:
+                return ((x < 4'd2) && (y < 4'd2)) ? {1'b1, ext, 3'b100, y[0], x[0]} : '0;
+            TILE_LEVEL_ROOT:
+                return (x < 4'd2) ? {1'b1, ext, 4'b1010, x[0]} : '0;
+            default:
+                return '0;
+        endcase
+    endfunction
 
     function automatic logic [127:0] tile_hdr_pack(
         input logic [TILE_COORD_W-1:0]  dst_coord,

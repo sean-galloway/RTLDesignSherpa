@@ -43,6 +43,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_top_tb import RapidsCxsTopTB
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_tile_tb import RapidsCxsTileTB
+from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_tile_credits_tb import RapidsCxsTileCreditsTB
 
 
 # ===========================================================================
@@ -263,6 +264,59 @@ async def cocotb_test_tile_high_channel_descriptors(dut):
     tb = await _bring_up_tile(dut)
     ok, stats = await tb.test_cell_descriptors(beats=_beats(), base_channel=tb.NUM_CHANNELS - 4)
     _finish(tb, ok, stats, "high-channel cell descriptors")
+
+
+# ===========================================================================
+# END-TO-END TILE CREDITS (TILE_HDR = 1, TILE_CREDITS = 1): TILE_SPEC 11.9 /
+# 11.10. Every scenario boots its own build: the window counts from reset.
+# ===========================================================================
+
+async def _bring_up_credits(dut):
+    tb = RapidsCxsTileCreditsTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    return tb
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_credit_window(dut):
+    """The advertisement window: legal mask, late and zero advertisements,
+    and a descriptor held until the window closes."""
+    tb = await _bring_up_credits(dut)
+    ok, stats = await tb.test_window()
+    _finish(tb, ok, stats, "advertisement window")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_credit_no_oversend(dut):
+    """A destination is never sent more flits than it advertised and returned."""
+    tb = await _bring_up_credits(dut)
+    ok, stats = await tb.test_no_oversend(beats=_beats())
+    _finish(tb, ok, stats, "no oversend")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_credit_shared_counter(dut):
+    """Two channels writing one cell share its counter."""
+    tb = await _bring_up_credits(dut)
+    ok, stats = await tb.test_shared_counter()
+    _finish(tb, ok, stats, "shared counter")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_credit_node(dut):
+    """A node's counter covers what is addressed to it; a read is one flit."""
+    tb = await _bring_up_credits(dut)
+    ok, stats = await tb.test_node_destination()
+    _finish(tb, ok, stats, "node destination")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_credit_illegal(dut):
+    """A descriptor to an illegal destination is refused."""
+    tb = await _bring_up_credits(dut)
+    ok, stats = await tb.test_illegal_refused()
+    _finish(tb, ok, stats, "illegal destinations")
 
 
 # ===========================================================================
@@ -492,6 +546,29 @@ def test_rapids_cxs_top_tile_source_bad_ptype(request, test_level):
     """A source descriptor with ptype credit is refused."""
     _run_top("cocotb_test_tile_source_bad_ptype", "test_rapids_cxs_top_tile_source_bad_ptype",
              extra_params=_TILE, test_level=test_level)
+
+
+# ---- TILE_CREDITS = 1 cells --------------------------------------------------
+_CREDITS = {'TILE_HDR': 1, 'TILE_CREDITS': 1}
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("scenario", ["window", "no_oversend", "shared_counter", "node", "illegal"])
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_credits(request, scenario, test_level):
+    """End-to-end tile credits and the legal-destination mask (TILE_SPEC 11.9 / 11.10)."""
+    _run_top(f"cocotb_test_tile_credit_{scenario}", f"test_rapids_cxs_top_tile_credit_{scenario}",
+             extra_params=_CREDITS, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_16ch_cxs_top_tile_credits(request, test_level):
+    """The 16-channel map carries the same credit registers and counters."""
+    _run_top("cocotb_test_tile_credit_shared_counter", "test_rapids_16ch_cxs_top_tile_credit_shared",
+             extra_params=_CREDITS, test_level=test_level, dut="rapids_16ch_cxs_top", nch=16)
 
 
 # ---- 16-channel CXS top ----------------------------------------------------

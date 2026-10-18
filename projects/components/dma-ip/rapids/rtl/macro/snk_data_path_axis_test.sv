@@ -318,6 +318,8 @@ module snk_data_path_axis_test #(
                 .cfg_sched_timeout_cycles(32'd1000),
                 .cfg_sched_timeout_limit (8'd1),  // escalate after one window (legacy timeout->error)
                 .cfg_sched_timeout_enable(1'b1),
+                .tile_adv_done           (1'b0),          // TILE_CREDITS = 0 here
+                .tile_dest_legal         ('0),
 
                 // Status
                 .scheduler_idle         (sched_idle[i]),

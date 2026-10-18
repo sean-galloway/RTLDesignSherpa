@@ -29,13 +29,15 @@ from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_top_tb import Rap
 
 # rapids_pkg tile header layout (TILE_SPEC 11.5)
 PTYPE_CFG, PTYPE_PROG, PTYPE_MEM, PTYPE_CREDIT, PTYPE_DESC = 0, 1, 2, 3, 4
-COORD_W, TARGET_W = 14, 50
+COORD_W, TARGET_W = 15, 49       # coordinate {ext, level, X, Y, Z}; dst_addr = {coord, target}
 HDR_BYTES = 16
-RAPIDS_COORD = 0x3000            # {level 3 = tile I/O, X 0, Y 0, Z 0}: the top's default
+RAPIDS_COORD = 0x3000            # {ext 0, level 3 = tile I/O, X 0, Y 0, Z 0}: the top's default
 
 
-def coord(level: int, x: int, y: int, z: int) -> int:
-    return ((level & 3) << 12) | ((x & 0xF) << 8) | ((y & 0xF) << 4) | (z & 0xF)
+def coord(level: int, x: int, y: int, z: int, ext: int = 0) -> int:
+    """A tile coordinate (TILE_SPEC 11.3). ext = 0 names the node itself,
+    ext = 1 what is attached at its local port (a cell, a control core)."""
+    return ((ext & 1) << 14) | ((level & 3) << 12) | ((x & 0xF) << 8) | ((y & 0xF) << 4) | (z & 0xF)
 
 
 @dataclass(frozen=True)
@@ -50,18 +52,19 @@ class TileHeader:
 
     def pack(self) -> int:
         return ((self.dst & ((1 << COORD_W) - 1))
-                | (self.src & ((1 << COORD_W) - 1)) << 14
-                | (self.ptype & 7) << 28
-                | (self.op & 1) << 31
-                | (self.length & 0xFFFF_FFFF) << 32
-                | (self.target & ((1 << TARGET_W) - 1)) << 64
-                | (self.tag & 0xF) << 114)
+                | (self.src & ((1 << COORD_W) - 1)) << 15
+                | (self.ptype & 7) << 30
+                | (self.op & 1) << 33
+                | (self.length & 0xFFFF_FFFF) << 34
+                | (self.target & ((1 << TARGET_W) - 1)) << 66
+                | (self.tag & 0xF) << 115)
 
     @classmethod
     def unpack(cls, word: int) -> 'TileHeader':
-        return cls(dst=word & 0x3FFF, src=(word >> 14) & 0x3FFF, ptype=(word >> 28) & 7,
-                   op=(word >> 31) & 1, length=(word >> 32) & 0xFFFF_FFFF,
-                   target=(word >> 64) & ((1 << TARGET_W) - 1), tag=(word >> 114) & 0xF)
+        m = (1 << COORD_W) - 1
+        return cls(dst=word & m, src=(word >> 15) & m, ptype=(word >> 30) & 7,
+                   op=(word >> 33) & 1, length=(word >> 34) & 0xFFFF_FFFF,
+                   target=(word >> 66) & ((1 << TARGET_W) - 1), tag=(word >> 115) & 0xF)
 
 
 class RapidsCxsTileTB(RapidsCxsTopTB):
@@ -73,7 +76,7 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
                                next_ptr: int = 0, last: bool = True) -> int:
         """A SOURCE descriptor: dst_addr = {coordinate, target address},
         ptype at [215:213], op at [216] (RAPIDS HAS, Descriptor Format)."""
-        dst_addr = ((dst_coord & 0x3FFF) << TARGET_W) | (target & ((1 << TARGET_W) - 1))
+        dst_addr = ((dst_coord & ((1 << COORD_W) - 1)) << TARGET_W) | (target & ((1 << TARGET_W) - 1))
         desc = self.create_descriptor(src_addr, dst_addr, 0, channel_id=channel_id,
                                       length_bytes=nbytes, last=last)
         desc |= (next_ptr & 0xFFFF_FFFF) << 160
@@ -111,8 +114,8 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
         got = TileHeader.unpack(hdr_word)
         if got != want_hdr:
             errs.append(f"{what}: header {got} != expected {want_hdr}")
-        if hdr_word >> 128:
-            errs.append(f"{what}: header beat has data above bit 127: 0x{hdr_word >> 128:X}")
+        if hdr_word >> 119:
+            errs.append(f"{what}: header beat has data above bit 118: 0x{hdr_word >> 119:X}")
         if hdr_strb != (1 << HDR_BYTES) - 1:
             errs.append(f"{what}: header strobe 0x{hdr_strb:X}, expected 0x{(1 << HDR_BYTES) - 1:X}")
         data = [d for d, _s in pkt[1:]]
