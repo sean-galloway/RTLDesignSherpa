@@ -89,8 +89,8 @@ bridge_2x2_rw: cpu_m_axi_awid [3:0]  ->  ddr_s_axi_awid [4:0]
 Each master adapter sends `{BRIDGE_ID, id}` into the fabric and strips the
 prefix from B and R. A slave port's declared `id_width` must be at least
 `XBAR_ID_WIDTH`; the validator rejects a narrower AXI3/AXI4/AXI5 slave.
-Responses are routed by the `bridge_id` sideband the slave adapter stores:
-a `bridge_cam` looked up by BID/RID for a multi-master AXI4/AXI5 slave (any
+Responses are routed by the master index the slave adapter returns with
+them: the BID/RID prefix bits for a multi-master AXI3/AXI4/AXI5 slave (any
 completion order), or an in-order FIFO for single-master bridges and shim
 slaves (request order required, bridge BUG-008). See HAS 3.2.
 

@@ -184,7 +184,7 @@ dma_adapter            u_dma_adapter (...);
 bridge_2x2_rw_xbar     u_xbar (...);                 // decode, per-slave AW/AR arbiters,
                                                      // W owner/destination FIFOs, B/R muxes
 ddr_adapter            u_ddr_adapter (...);          // per slave, named for the port
-sram_adapter           u_sram_adapter (...);         //   (bridge_cam x2 inside, multi-master)
+sram_adapter           u_sram_adapter (...);         //   (by-ID counters inside, multi-master)
 subtractive_adapter    u_subtractive_adapter (...);
 ```
 
@@ -194,8 +194,7 @@ What lives inside the adapters (from `bridge_mix_a_mon`):
 <master>_adapter   axi4_dwidth_converter_{rd,wr}       width paths, where widths differ
                    axil_to_axi4_wide_align_{rd,wr}     AXI4-Lite master ports
                    axi4_slave_{rd,wr}_monlite          monitored variants only
-<slave>_adapter    bridge_cam (u_wr_cam / u_rd_cam)    AXI4/AXI5 slave, multi-master
-                   axi4_master_{rd,wr}[_monlite]       timing wrapper (+ monitor)
+<slave>_adapter    axi4_master_{rd,wr}[_monlite]       timing wrapper (+ monitor)
                    axi4_to_apb4_shim                   apb slave
                    axi4_to_axil4_{rd,wr}               axil slave
 ```
@@ -246,7 +245,7 @@ xbar_{slave}_axi_{aw,w,b,ar,r}{signal}   e.g. xbar_ddr_axi_awid (XBAR_ID_WIDTH b
 {slave}_axi_{bid,rid}_bridge_id / _valid tracker output steering B / R
 
 // ID tracking inside a slave adapter
-u_wr_cam / u_rd_cam                      bridge_cam (multi-master AXI4/AXI5 slave)
+wr_out_cnt / rd_out_cnt                  by-ID counters (multi-master AXI3/AXI4/AXI5 slave)
 wr_fifo / rd_fifo                        in-order bridge_id FIFO (otherwise)
 ```
 
@@ -332,8 +331,7 @@ rtl/generated/bridge_2x2_rw/
 A monitored variant has the same shape with the `_mon` name on the top,
 package and crossbar (`bridge_2x3_apb_req_mon/bridge_2x3_apb_req_mon_xbar.sv`);
 the adapter files keep the port names. The emitted filelist is
-`rtl/filelists/<bridge>.f`. Shared modules (`bridge_cam`,
-`axi4_subtractive_slave`, the converters, shims and monitor wrappers) are
+`rtl/filelists/<bridge>.f`. Shared modules (`axi4_subtractive_slave`, the converters, shims and monitor wrappers) are
 not copied into the directory; the filelist pulls them from their home
 areas.
 

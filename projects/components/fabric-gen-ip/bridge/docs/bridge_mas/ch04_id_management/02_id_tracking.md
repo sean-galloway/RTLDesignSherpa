@@ -33,18 +33,18 @@ bridge does two things:
    across masters at every slave. In `bridge_2x2_rw` the 4-bit
    `cpu_m_axi_awid` becomes the 5-bit `ddr_s_axi_awid`. On B / R the master
    adapter returns the low bits, so the master sees its own ID.
-2. **Records the issuing master per slave.** The granted master's index
-   rides beside the request as `xbar_bridge_id_aw` / `_ar` and is stored by
-   the slave adapter's tracker at the address handshake; the crossbar
-   steers B / R by the index the tracker returns (`bid_bridge_id` /
-   `rid_bridge_id`).
+2. **Names the issuing master on every response.** A by-ID slave adapter
+   reads the master index off the top bits of the returned BID / RID; a
+   FIFO-tracked one stores the granted master's index (`xbar_bridge_id_aw` /
+   `_ar`) at the address handshake and returns its head. Either way the
+   crossbar steers B / R by `bid_bridge_id` / `rid_bridge_id`.
 
 The tracker comes in two forms, chosen at generation:
 
 | Slave | Tracker | Completion order allowed |
 |---|---|---|
-| AXI4 / AXI5 slave, more than one master | `bridge_cam` by fabric ID ([CAM Architecture](01_cam_architecture.md)) | any order across IDs |
-| any slave with `enable_ooo = true` | `bridge_cam` | any order across IDs |
+| AXI3 / AXI4 / AXI5 slave, more than one master | by ID: master index from the ID bits, outstanding counter ([By-ID Response Routing](01_cam_architecture.md)) | any order across IDs |
+| any slave with `enable_ooo = true` | by ID | any order across IDs |
 | single-master bridge, apb / axil / wb shim slave, subtractive slave | in-order `bridge_id` FIFO | request order across all IDs |
 
 : Slave response tracker selection
@@ -65,27 +65,27 @@ BUG-008, was BRIDGE-010); it cannot fire in silicon.
 
 ## Functional Description
 
-### Figure 4.3: ID Table Structure
+### Figure 4.1: Fabric ID Layout
 
-![ID Table Structure](../assets/mermaid/id_table_structure.png)
+![Fabric ID Layout](../assets/mermaid/id_table_structure.png)
 
-The figure shows the contents of one slave's CAM in a 4-master bridge:
-the 6-bit fabric ID (2 master-index bits over a 4-bit master ID), the
-stored master index and the valid bit. `bridge_cam` also keeps a per-entry
-ordering count for duplicate IDs.
+The figure shows the 6-bit fabric ID of a 4-master bridge: 2 master-index
+bits over a 4-bit master ID. A by-ID slave adapter routes on the two top
+bits. (Until 2026-10-18 a per-ID CAM stored each ID beside its master
+index; the ID already carries that index.)
 
 ### Sizing
 
-Every tracker, CAM or FIFO, is the slave's `max_outstanding` entries (default 16;
-configurable since bridge GitHub #119 L5) per direction per slave adapter:
+Every tracker holds the slave's `max_outstanding` (default 16; configurable
+since bridge GitHub #119 L5) per direction per slave adapter:
 
 ```
-CAM:   TAG_WIDTH = XBAR_ID_WIDTH, DATA_WIDTH = BRIDGE_ID_WIDTH, DEPTH = 16
+by ID: a $clog2(16)+1-bit outstanding counter (wr_out_cnt / rd_out_cnt)
 FIFO:  BRIDGE_ID_WIDTH bits x 16 (WR_FIFO_DEPTH / RD_FIFO_DEPTH)
 ```
 
 When it is full the slave adapter drops its AWREADY / ARREADY toward the
-crossbar (bridge BUG-009). There is no `max_outstanding` key.
+crossbar (bridge BUG-009).
 
 ### ID Extension (Master Adapter)
 
@@ -103,8 +103,10 @@ bridge prepends nothing.
 
 ### ID Stripping and Routing
 
-The prefix bits are not decoded to choose the master; the tracker's
-returned index is. The master adapter only narrows the ID:
+On a by-ID slave the prefix bits ARE the routing: the slave adapter hands
+them to the crossbar as `bid_bridge_id` / `rid_bridge_id`. On a
+FIFO-tracked slave the FIFO head is used instead. The master adapter only
+narrows the ID:
 
 ```systemverilog
 fub_axi_bid = cpu_32b_b.id[3:0];   // bridge_2x2_rw: drop the 1-bit prefix
@@ -112,12 +114,12 @@ fub_axi_bid = cpu_32b_b.id[3:0];   // bridge_2x2_rw: drop the 1-bit prefix
 
 ### Tracker Operations
 
-| Event | CAM form | FIFO form |
+| Event | By-ID form | FIFO form |
 |---|---|---|
-| AW / AR accepted from crossbar | allocate tag = fabric ID, data = `bridge_id` | push `bridge_id` |
-| B handshake | deallocate by BID, return master index | pop head |
-| R handshake with RLAST | deallocate by RID, return master index | pop head |
-| full | `tags_full` holds AWREADY / ARREADY low | not-full gate holds AWREADY / ARREADY low |
+| AW / AR accepted from crossbar | count up | push `bridge_id` |
+| B handshake | count down; master index = BID's top bits | pop head |
+| R handshake with RLAST | count down; master index = RID's top bits | pop head |
+| full | counter at `max_outstanding` holds AWREADY / ARREADY low | not-full gate holds AWREADY / ARREADY low |
 
 : Tracker operations by event
 
@@ -132,26 +134,26 @@ Master 2 issues ID=5 -> fabric ID 10_0101
 ```
 
 All three can be outstanding at one slave at once; the prefix keeps them
-distinct, and a CAM-tracked slave may answer them in any order.
+distinct, and a by-ID slave may answer them in any order.
 
 #### Same Fabric ID Twice
 
 One master may reuse an ID while an earlier transaction with it is still
-outstanding (AXI allows this; same-ID responses come back in order). The
-CAM is built with `ALLOW_DUPLICATES = 1` and retires same-tag entries
-oldest first using the per-entry ordering count.
+outstanding (AXI allows this; same-ID responses come back in order). Every
+one of them carries the same master index, so routing by ID needs no
+ordering state.
 
 ## Design Notes
 
 ### Resource Utilization
 
-Per CAM-tracked slave adapter (default depth): two 16-entry CAMs of
-`XBAR_ID_WIDTH + BRIDGE_ID_WIDTH` bits plus valid and ordering count, in
-distributed RAM and flops (no block RAM). Per FIFO-tracked slave adapter:
+Per by-ID slave adapter: two 5-bit counters at the default depth (the
+per-ID CAMs these replaced cost 1,800-2,100 LUTs on the two bridges measured, MAS 4.1). Per
+FIFO-tracked slave adapter:
 two 16-entry FIFOs of `BRIDGE_ID_WIDTH` bits. Measured totals per fixture
 are in HAS 5.3.
 
 ## Related Modules
 
-- [CAM Architecture](01_cam_architecture.md) - `bridge_cam` details
+- [By-ID Response Routing](01_cam_architecture.md) - routing from the ID bits, the outstanding counter
 - [Response Routing](../ch02_blocks/08_response_routing.md) - the crossbar's B / R muxes

@@ -25,7 +25,7 @@ digraph write_path_flow {
     wdest -> arb -> rmux [style=invis];
     wown [label="W Owner FIFO + W Mux - <bridge>_xbar\n(per slave, max_outstanding deep) pushed with the\ngrant at slave-side AW accept, popped\nat WLAST; only the owner's W passes", group=L];
     pc3 [shape=point, width=0.01, label="", group=C];
-    trk [label="Write Tracker - <slave>_adapter\nu_wr_cam: bridge_cam (tag AWID,\ndata bridge_id, max_outstanding deep); a bridge_id\nFIFO when there is one master.\nFull holds AWREADY low", group=R];
+    trk [label="Write Tracker - <slave>_adapter\nroutes B by BID's top bits, wr_out_cnt\ncounts to max_outstanding; a bridge_id\nFIFO when there is one master.\nFull holds AWREADY low", group=R];
     { rank=same; wown; pc3; trk; }
     wown -> pc3 [style=invis];
     sW [label="W Skid Buffer - axi4_master_wr\n<slave>_adapter", group=L];

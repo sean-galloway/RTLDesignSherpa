@@ -986,7 +986,7 @@ When `protocol = "axi3"` is specified, a same-width protocol converter sits at
 the boundary and the crossbar behind it stays AXI4:
 
 - **Slave boundary:** the adapter is built like an AXI4 slave adapter. It
-  has the `axi4_master_{wr,rd}` timing wrapper, `bridge_cam` per-ID tracking
+  has the `axi4_master_{wr,rd}` timing wrapper, by-ID response routing
   when several masters share the slave, and the crossbar's per-master
   request slots. `axi4_to_axi3` is the last stage, between the wrapper's
   `a3c_<slave>_axi_*` nets and the pins, so every channel is registered in

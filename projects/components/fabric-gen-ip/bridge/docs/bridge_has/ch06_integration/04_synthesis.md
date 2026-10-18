@@ -89,8 +89,8 @@ needs nothing written by hand:
   registered; it is not a property of the bridge, which is why the
   register-to-register slack is reported on its own and is the figure the
   tables below quote.
-- **Defines.** `XILINX` is set so `bridge_cam` takes its distributed-RAM
-  attributes; Vivado sets `SYNTHESIS` itself, which removes the
+- **Defines.** `XILINX` is set so the shared FIFOs take their
+  distributed-RAM attributes; Vivado sets `SYNTHESIS` itself, which removes the
   simulation-only checkers in the crossbar and subtractive adapter.
 
 ### Reading the summary line
@@ -195,6 +195,13 @@ reassembly pool and with a registered B input. The 2026-09-11 rows these
 replace predate all of it. Rows within about 0.3 ns of zero move by that
 much from run to run with placement; read them as "at the target".
 
+These rows were built with a per-ID CAM in every shared slave adapter. Rev
+1.6 (2026-10-18, bridge W12) routes those responses by the ID's
+master-index bits instead, which removes the CAM. The tables have not been
+re-measured since. The two fixtures re-run (HAS 5.1) show the direction:
+`bridge_2x2_axi3_slaves` went from -1.006 to +0.001 ns and
+`bridge_mix_e` from -2.686 to -0.669 ns, with 1,800-2,100 fewer LUTs each.
+
 - **The 2x2s are at 100 MHz on the Artix-7 and 150 MHz on the Kintex-7.**
   On the Artix-7 every 2x2 except the native-AXI5 one is within 0.3 ns of
   10 ns, and `bridge_2x2_rw_pipe` closes with +0.57 ns. Every 2x2 meets
@@ -224,13 +231,13 @@ much from run to run with placement; read them as "at the target".
 - **What those three still miss on is wide-path routing.** Their worst paths
   are route-dominated (78-83% route): the 256-bit R data return through a
   crossbar response mux into a master's R skid (5x3), and a slave CAM's
-  pending free into its count array (mix_a). `xbar_pipeline` registers the
+  pending free into its count array (mix_a; that CAM is gone since rev 1.6). `xbar_pipeline` registers the
   response path, and none of these three fixtures uses it.
 - **Width steps set the size.** The 4x4 with 32/64/128/256-bit ports is
   about seven times the 2x2: every converter carries a full wide beat each
   way, per path.
-- **No block RAM, no DSPs, anywhere.** The CAMs, trackers and FIFOs are
-  LUT arrays; there is no arithmetic.
+- **No block RAM, no DSPs, anywhere.** The trackers and FIFOs are LUT
+  arrays; there is no arithmetic.
 
 ## Design Notes
 

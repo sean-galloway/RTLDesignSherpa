@@ -130,7 +130,7 @@ generated.
 
 - **In-order by construction.** Wishbone terminates in issue order and the
   bridge's slave-side tracking is in-order for shim-converted slaves, so a
-  Wishbone completer never needs the CAM. Two masters sharing a Wishbone
+  Wishbone completer never needs by-ID routing. Two masters sharing a Wishbone
   completer are serialised by the crossbar's arbitration and answered in
   that order.
 - **One transfer per beat.** A 16-beat AXI4 burst is sixteen Wishbone

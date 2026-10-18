@@ -33,7 +33,7 @@
 
 **Before making ANY changes to bridge generator or understanding signal flow:**
 
-**READ:** `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.5.pdf`)
+**READ:** `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.6.pdf`)
 
 These documents contain the **definitive bridge architecture** including:
 - Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
@@ -57,8 +57,8 @@ taking TOML or CSV configuration. There is no second generator: the separate
 1. `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` ← **START HERE** (generator build mechanics; the design lives in the MAS below)
 2. `projects/components/fabric-gen-ip/bridge/PRD.md` ← Product requirements
 3. `vault/Tasks/bridge/INDEX.md` ← Task tracking (open / closed / dropped; the old TASKS.md was folded in 2026-09-10)
-4. `projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.5.pdf`)
-5. `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.5.pdf`)
+4. `projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.6.pdf`)
+5. `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.6.pdf`)
 
 (The older BRIDGE_ARCHITECTURE.md, BRIDGE_CURRENT_STATE.md, BRIDGE_ARCHITECTURE_DIAGRAMS.md, CSV_BRIDGE_STATUS.md, and docs/bridge_spec/ documents were superseded by the HAS/MAS above.)
 
@@ -174,9 +174,9 @@ make clean-all && make run-all-func    # ALL tests; bridge runs serial, ~1GB eac
 stale build directory reports green for the old design -- precisely the failure
 this workflow exists to prevent (`vault/handbook/dv/running-regressions.md`).
 
-**Never regenerated:** `rtl/bridge_cam.sv` (hand-written; instantiated by the
-slave adapter of every AXI4/AXI5 slave in a multi-master bridge, and of any
-slave with `enable_ooo`), `rtl/bridge_wr_rate_buf.sv` (hand-written;
+**Never regenerated:** `rtl/bridge_cam.sv` (hand-written per-ID CAM; no
+generated bridge instantiates it since 2026-10-18, bridge W12),
+`rtl/bridge_wr_rate_buf.sv` (hand-written;
 instantiated by a master adapter on an upsized burst path into a shared slave,
 `rate_buffer`, MAS 2.6), and anything in `rtl/` outside `rtl/generated/`.
 Their filelists live in `rtl/filelists_static/`.
@@ -292,7 +292,7 @@ projects/components/fabric-gen-ip/bridge/
 │       ├── conftest.py            # Pytest configuration (MANDATORY)
 │       └── test_bridge_*.py       # Per-config tests (test_bridge_2x2_rw.py, ...)
 ├── rtl/                           # RTL source files
-│   ├── bridge_cam.sv              # Hand-written CAM (multi-master AXI4/AXI5 slave adapters)
+│   ├── bridge_cam.sv              # Hand-written per-ID CAM (unused since bridge W12, 2026-10-18)
 │   ├── bridge_wr_rate_buf.sv      # Hand-written write rate buffer (upsized paths into shared slaves)
 │   ├── filelists_static/          # Hand-written filelists for the two above
 │   ├── filelists/                 # Generated filelists
@@ -393,7 +393,7 @@ memory_model = MemoryModel()  # Unnecessary complexity
 **When to Use Memory Models:**
 - Simple in-order tests → Use queue access
 - Single-master systems → Use queue access
-- Out-of-order responses → a multi-master AXI4/AXI5 slave may reorder across IDs (CAM-tracked); FIFO-tracked slaves must respond in request order
+- Out-of-order responses → a multi-master AXI3/AXI4/AXI5 slave may reorder across IDs (routed by ID); FIFO-tracked slaves must respond in request order
 - Multi-master with address overlap → Memory model tracks state
 
 ---
@@ -741,8 +741,10 @@ cpu,1,1,1              # Connects to all three
 4. **Width Converters** - master-side upsize instances (channel-aware)
 5. **Crossbar Instance** - internal AXI4 crossbar
 6. **Slave Adapters** - one per slave, carrying the `bridge_id` tracker:
-   a `bridge_cam` keyed by ID for AXI4/AXI5 slaves of a multi-master bridge
-   (or any `enable_ooo` slave), an in-order FIFO otherwise
+   by ID for AXI3/AXI4/AXI5 slaves of a multi-master bridge (or any
+   `enable_ooo` slave): the master index is the returned ID's prefix bits,
+   and `wr_out_cnt` / `rd_out_cnt` bound the outstanding count. An in-order
+   FIFO otherwise
 7. **Subtractive slave** - `axi4_subtractive_slave`, ALWAYS emitted, wired to
    the decode `else`; answers unmapped addresses with DECERR (HAS 4.5)
 8. **Protocol shims** - `axi4_to_apb4_shim` / `axi4_to_axil4_*` for apb/axil
@@ -826,13 +828,15 @@ module bridge_2x2_rw
 
 1. **5-Channel Implementation:** Complete AW, W, B, AR, R routing
 2. **Round-Robin Arbitration:** Per-slave arbitration with grant locking
-3. **Response routing:** each slave adapter records, per direction, the
-   `bridge_id` of the master whose request was accepted. With more than one
-   master an AXI4/AXI5 slave uses `bridge_cam` (tag = fabric ID, data =
-   `bridge_id`, DEPTH = the slave's `max_outstanding`, default 16, duplicates allowed), looked up by the returned
-   BID/RID. Single-master bridges, apb/axil/wb shim slaves and the internal
-   subtractive slave use a small in-order FIFO instead (`enable_ooo` forces
-   the CAM on any slave).
+3. **Response routing:** each slave adapter names, per direction, the master
+   a response belongs to. With more than one master an AXI3/AXI4/AXI5 slave
+   routes by ID: the master index is the top `BRIDGE_ID_WIDTH` bits of the
+   returned BID/RID, and a counter bounds the outstanding count at the
+   slave's `max_outstanding` (default 16). Single-master bridges,
+   apb/axil/wb shim slaves and the internal subtractive slave store the
+   `bridge_id` in a small in-order FIFO instead (`enable_ooo` forces by-ID
+   routing on any slave). Until 2026-10-18 the by-ID form was a per-ID CAM
+   (`bridge_cam`), whose lookup was the fabric's critical path (bridge W12).
 4. **ID widening (bridge TASK-005):** inside the fabric every ID is
    `{BRIDGE_ID, master id}` -- the master adapter prepends `$clog2(NUM_MASTERS)`
    index bits and strips them on B/R. In `bridge_2x2_rw` a 4-bit master ID is
@@ -903,18 +907,18 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 1. **Address Decode (AW/AR):** Routes master requests to appropriate slave based on address
 2. **Write Path:** AW → arbitration → slave, W follows locked grant
 3. **Read Path:** AR → arbitration → slave, R returns via the slave adapter's
-   `bridge_id` tracker (CAM or FIFO, see below)
+   tracker (by ID or FIFO, see below)
 4. **Arbitration:** Per-slave round-robin, AW and AR only, with the grant
    locked until the ADDRESS handshake -- not until burst complete. W is
    owned via a FIFO. B and R are arbitrated per master width path (round
    robin, held through RLAST) and again across a master's width paths in its
    adapter.
-5. **Response Routing:** each slave adapter stores the originating
-   master's `bridge_id` on the address handshake. For AXI4/AXI5 slaves of a
-   multi-master bridge (or any `enable_ooo` slave) that store is a
-   `bridge_cam` looked up by the returned BID/RID, so a slave may complete
-   out of order across IDs. Single-master bridges and shim/subtractive
-   slaves use an in-order FIFO keyed on position. IDs are widened to
+5. **Response Routing:** each slave adapter names the originating master.
+   For AXI3/AXI4/AXI5 slaves of a multi-master bridge (or any `enable_ooo`
+   slave) the master index is read off the returned BID/RID's prefix bits,
+   so a slave may complete out of order across IDs. Single-master bridges
+   and shim/subtractive slaves store the `bridge_id` at the address handshake
+   in an in-order FIFO keyed on position. IDs are widened to
    `{BRIDGE_ID, id}` in the fabric (4-bit master ID -> 5-bit slave ID in
    `bridge_2x2_rw`) and narrowed back in the master adapter.
 
@@ -944,8 +948,8 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 of them is built:
 - Out-of-order responses at a FIFO-tracked slave (single-master bridges,
   shim and subtractive slaves): those must return B/R in request order across
-  all IDs (bridge BUG-008, was BRIDGE-010). A multi-master AXI4/AXI5 slave is
-  CAM-tracked and may reorder across IDs. A master may have several slaves
+  all IDs (bridge BUG-008, was BRIDGE-010). A multi-master AXI3/AXI4/AXI5 slave is
+  routed by ID and may reorder across IDs. A master may have several slaves
   in flight at once; only a same-ID request to a DIFFERENT slave waits
   (`aw_gate_ok` / `ar_gate_ok`, `[bridge].id_track_bits`). Read-return-atomic and
   trace-echo ports too (GitHub #119 L1b).

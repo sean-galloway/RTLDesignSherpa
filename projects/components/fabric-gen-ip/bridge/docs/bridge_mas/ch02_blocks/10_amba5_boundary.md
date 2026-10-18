@@ -211,7 +211,9 @@ this fabric does not disambiguate.
 **Validator.** An rw atomic master's connected atomic slaves must be `rw`
 (a write-only slave cannot return read data). The return tracker sits
 beside whichever read tracker the slave uses, the in-order FIFO or the
-`enable_ooo` CAM (bridge BUG-012 (was BRIDGE-015) repaired that mode). A write-only atomic
+by-ID counter (bridge BUG-012 (was BRIDGE-015) repaired that mode). Under by-ID routing an
+atomic's R carries its AW's ID and routes like any other; the tracker only
+keeps it out of the read count. A write-only atomic
 master is not subject to the rule; it keeps the filter.
 
 **Filelist.** `axi5_atomic_filter.f` is pulled only when a write-only

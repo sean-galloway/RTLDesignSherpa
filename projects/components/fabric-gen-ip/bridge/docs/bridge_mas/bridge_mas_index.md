@@ -24,7 +24,7 @@
 # Bridge Micro-Architecture Specification Index
 
 **Component:** Bridge (Multi-Protocol Crossbar Generator)
-**Version:** 1.5
+**Version:** 1.6
 **Date:** 2026-10-18
 **Purpose:** Detailed micro-architecture specification for Bridge component
 
@@ -40,10 +40,10 @@ Bridge is a TOML-driven generator that produces AXI4 crossbars with automatic wi
 - **CSV-Driven Configuration:** Human-readable port and connectivity definitions
 - **Channel-Specific Masters:** Write-only (wr), read-only (rd), or full (rw) support
 - **Automatic Width Conversion:** Upsize/downsize for data width mismatches
-- **Out-of-Order Support:** per slave. A multi-master AXI4/AXI5 slave (or any `enable_ooo` slave) is tracked by `bridge_cam` keyed on the fabric ID `{BRIDGE_ID, id}` and may complete IDs in any order; single-master bridges and shim slaves use an in-order bridge_id FIFO and must answer in request order (bridge BUG-008, was BRIDGE-010)
+- **Out-of-Order Support:** per slave. A multi-master AXI3/AXI4/AXI5 slave (or any `enable_ooo` slave) routes responses by the master index in the fabric ID `{BRIDGE_ID, id}` and may complete IDs in any order; single-master bridges and shim slaves use an in-order bridge_id FIFO and must answer in request order (bridge BUG-008, was BRIDGE-010)
 - **Custom Signal Prefixes:** Unique prefixes per port for clean integration
 
-That out-of-order bullet is the one people skim past and regret. The bridge never sorts responses back into order: a CAM-tracked slave is routed by ID, but a FIFO-tracked slave is routed by position, so there the trust has to be mutual.
+That out-of-order bullet is the one people skim past and regret. The bridge never sorts responses back into order: a by-ID slave is routed by ID, but a FIFO-tracked slave is routed by position, so there the trust has to be mutual.
 
 ### Protocol Conversion Matrix
 
@@ -97,6 +97,12 @@ bridge TASK-005: IDs ARE widened to `{BRIDGE_ID, id}` with more than one
 master, and multi-master AXI4/AXI5 slaves track responses in `bridge_cam`.
 Chapters 2.1, 2.2, 2.5, 2.8, 2.9, 3.2, 4 and 6.1 were corrected to the
 generated RTL; figure numbers were made unique.
+
+**2026-10-18:** those slaves no longer keep a CAM. The master index is the
+returned ID's prefix bits, so the slave adapter reads it off BID / RID and
+bounds its outstanding count with a counter (bridge W12). `bridge_cam`'s
+lookup had been the fabric's critical path. Chapters 2.1, 2.3, 2.5, 2.8,
+2.9, 3.2, 4 and 6.1 follow.
 
 **Version 1.1 (2026-06-04):** content sync to RTL state at that date.
 
@@ -184,7 +190,7 @@ Each chapter below is one source file.
 
 #### Chapter 4: ID Management
 
-- [CAM Architecture](ch04_id_management/01_cam_architecture.md) -- `bridge_cam` as instantiated in multi-master AXI4/AXI5 slave adapters; the sections marked historical were never built
+- [By-ID Response Routing](ch04_id_management/01_cam_architecture.md) -- routing by the ID's master-index bits in multi-master slave adapters, and why it replaced `bridge_cam`
 - [ID Tracking Tables](ch04_id_management/02_id_tracking.md)
 
 #### Chapter 5: Converters

@@ -27,7 +27,7 @@ digraph rr_atomics {
 
     pc3 [shape=point, width=0.01, label="", group=C];
     trk [label="Atomic Tracker - <slave>_adapter\naxi5_atomic_rr_tracker: one entry\nper ID, written at the atomic AW\nhandshake with its bridge_id"];
-    rret [label="Read Return Select - <slave>_adapter\nRID hits the atomic tracker: route by its\nbridge_id, read FIFO / CAM left untouched;\notherwise the read tracker as usual", group=R];
+    rret [label="Read Return Select - <slave>_adapter\nRID hits the atomic tracker: route it (FIFO mode),\nread FIFO / counter left untouched;\notherwise the read tracker as usual", group=R];
     { rank=same; pc3; trk; rret; }
     pc3 -> trk [style=dashed, xlabel="AWID + bridge_id"];
     trk -> rret [style=dashed, xlabel="hit, bridge_id"];

@@ -89,7 +89,7 @@ wide response paths that `xbar_pipeline` registers.
 : Resource Scaling
 
 Block RAM and DSP usage are zero in every configuration measured: the
-per-slave bridge_id FIFOs and the CAM are LUT arrays, and there is no
+per-slave bridge_id FIFOs are LUT arrays, the by-ID trackers are counters, and there is no
 arithmetic.
 
 The current resource figures come from a small set of configurations driven

@@ -96,27 +96,26 @@ master-ID bits, so a master always sees its own ID.
 
 ## Response Routing
 
-The prefix bits are not decoded to route a response. Each slave adapter
-also receives the granted master's index as a sideband (`bridge_id`),
-stores it at the address handshake, and returns it with the response
-(`bid_bridge_id` / `rid_bridge_id`); the crossbar's B and R muxes select
-on that. Which store a slave gets is fixed at generation:
+Each slave adapter hands the crossbar the index of the master a response
+belongs to (`bid_bridge_id` / `rid_bridge_id`), and the crossbar's B and R
+muxes select on that. A by-ID slave adapter reads it off the prefix bits of
+the returned BID / RID. A FIFO-tracked one stores the granted master's index
+(the `bridge_id` sideband) at the address handshake and returns its head.
+Which form a slave gets is fixed at generation:
 
 | Slave | Tracker | Order the slave may complete in |
 |---|---|---|
-| AXI4 / AXI5 slave, more than one master | `bridge_cam` (`u_wr_cam` / `u_rd_cam`), tag = AXI ID, data = `bridge_id`, `max_outstanding` deep (default 16) | any order across IDs |
-| any slave with `enable_ooo = true` | `bridge_cam` | any order across IDs |
+| AXI3 / AXI4 / AXI5 slave, more than one master | by ID: the ID's prefix bits route, `wr_out_cnt` / `rd_out_cnt` count to `max_outstanding` (default 16) | any order across IDs |
+| any slave with `enable_ooo = true` | by ID | any order across IDs |
 | single-master bridge, apb / axil / wb shim slaves, internal subtractive slave | in-order `bridge_id` FIFO, `max_outstanding` deep (default 16) | request order across all IDs |
 
 : Response Routing
 
 ```systemverilog
-// CAM form (multi-master AXI4 slave)
-bridge_cam #(.TAG_WIDTH(ID_WIDTH), .DATA_WIDTH(BRIDGE_ID_WIDTH),
-             .DEPTH(16), .ALLOW_DUPLICATES(1),             // DEPTH: the slave's max_outstanding
-             .PIPELINE_ALLOC(1), .PIPELINE_FREE(1)) u_wr_cam (  // registered insert / free (MAS 4.1)
-    .allocate_tag  (xbar_ddr_axi_awid),   .allocate_data  (xbar_bridge_id_aw),
-    .deallocate_tag(xbar_ddr_axi_bid),    .deallocate_data(bid_bridge_id), ...);
+// by-ID form (multi-master slave)
+assign bid_bridge_id = xbar_ddr_axi_bid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
+wr_out_cnt <= wr_out_cnt + (AW accepted) - (B accepted);     // up to max_outstanding
+assign wr_trk_full = (wr_out_cnt == max_outstanding);
 
 // FIFO form
 wr_fifo[wr_ptr[...]] <= xbar_bridge_id_aw;      // push on AW accept
@@ -126,17 +125,17 @@ assign bid_bridge_id  = wr_fifo[rd_ptr[...]];   // route by FIFO head
 ### B Channel (Write Response)
 
 1. Slave issues B carrying the fabric ID it was sent
-2. The slave adapter looks the BID up in its CAM (or pops its FIFO)
+2. The slave adapter reads the master index off the BID's prefix (or pops its FIFO)
 3. The returned `bridge_id` selects the master
 4. The master adapter strips the prefix and forwards B
 
 ### R Channel (Read Data)
 
 1. Slave issues R carrying the fabric ID
-2. The slave adapter's read tracker names the master; the entry is freed on RLAST
+2. The slave adapter's read tracker names the master; the count drops (or the FIFO pops) on RLAST
 3. The master adapter strips the prefix
 
-Either tracker holds 16 transactions; when it is full the slave's
+Either tracker holds `max_outstanding` transactions (default 16); when it is full the slave's
 AWREADY / ARREADY toward the crossbar drops (bridge BUG-009).
 
 ### The requirement the FIFO form creates
@@ -145,12 +144,14 @@ A FIFO-tracked slave is routed by *position*, so it must return B/R in
 request order across ALL IDs. Those slaves are in order by construction
 (the protocol shims and the subtractive slave) or have a single master;
 a simulation-only check flags a violation (bridge BUG-008, was BRIDGE-010).
-A multi-master AXI4/AXI5 slave has no such requirement: the CAM routes by
-ID.
+A multi-master AXI3/AXI4/AXI5 slave has no such requirement: it is routed
+by ID. (Until 2026-10-18 a per-ID CAM, `bridge_cam`, looked the master index
+up; the ID already carries it, and the lookup was the fabric's critical path
+on the Artix-7, HAS 5.1.)
 
 ## Ordering: what the fabric actually guarantees
 
-Per-ID ordering is the slave's AXI obligation; across IDs a CAM-tracked
+Per-ID ordering is the slave's AXI obligation; across IDs a by-ID
 slave may complete in any order. The fabric adds one structural rule:
 
 **Per master -- per-ID targets.** A master may have transactions in flight

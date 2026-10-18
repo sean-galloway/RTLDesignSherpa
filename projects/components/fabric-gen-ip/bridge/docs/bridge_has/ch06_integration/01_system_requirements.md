@@ -150,17 +150,17 @@ Slaves connecting to Bridge must:
 
 ### Response-Ordering Assumption
 
-Bridge routes B and R by a sideband master index stored per slave. For an
-AXI4/AXI5 slave of a multi-master bridge (or any slave with `enable_ooo`)
-the store is `bridge_cam`, looked up by the returned BID/RID, so the slave
-may complete different IDs in any order (ARM IHI 0022E §A4). Every other
+Bridge routes B and R by the issuing master's index. For an AXI3/AXI4/AXI5
+slave of a multi-master bridge (or any slave with `enable_ooo`) that index
+is the prefix bits of the returned BID/RID, so the slave may complete
+different IDs in any order (ARM IHI 0022E §A4). Every other
 slave -- single-master bridges, AXI4-Lite/APB/Wishbone shim slaves and the
 internal subtractive slave -- uses an in-order FIFO and must return
 responses in request order, which those slaves do by construction.
 
-### Buffer and CAM Depths
+### Buffer and Tracker Depths
 
-All adapter skid depths, response-tracking FIFO depths, and CAM dimensions
+All adapter skid depths and response-tracker depths
 are generation-time constants. There is no runtime sizing API. A
 systematic sizing rule that relates buffer depth to credit-loop latency,
 outstanding-transaction count, and width-converter buffering is tracked

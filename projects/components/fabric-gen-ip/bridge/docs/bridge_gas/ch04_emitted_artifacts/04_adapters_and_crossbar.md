@@ -54,16 +54,16 @@ axi4_w_64b_t  cpu_axi3_64b_w;
 The slave adapter sits between the crossbar and an external slave. Its responsibilities are:
 
 - Convert the internal AXI4 face to the external protocol.
-- Carry the `bridge_id` response tracker: `bridge_cam` or an in-order FIFO.
+- Carry the response tracker: by ID (the ID's master-index bits and an outstanding counter) or an in-order `bridge_id` FIFO.
 - Handle CDC if `cdc=true`.
 - Insert `axi4_slave_watchdog` between the timing wrapper and the port (or the CDC) if `timeout_cycles > 0`, with `o_wdog_tripped` to the top's `<name>_timeout`.
 - Expose APB, AXI-Lite, AXI3, AXI5, or Wishbone pins as configured.
 
 ### Response routing
 
-Each slave adapter stores the issuing master's `bridge_id` on the address handshake and hands it back with the response. For an AXI4/AXI5 slave in a bridge with more than one master (or any slave with `enable_ooo`) the store is a pair of `bridge_cam` instances keyed by the returned BID/RID, so the slave may complete different IDs out of order. Single-master bridges, protocol-shim slaves and the subtractive slave use an in-order FIFO whose head names the master. With more than one master, slave-side AXI IDs are `{BRIDGE_ID, id}`, `clog2(NUM_MASTERS)` bits wider than the master's.
+Each slave adapter hands the crossbar the issuing master's index with every response. For an AXI3/AXI4/AXI5 slave in a bridge with more than one master (or any slave with `enable_ooo`) it routes by ID: slave-side AXI IDs are `{BRIDGE_ID, id}`, `clog2(NUM_MASTERS)` bits wider than the master's, so the index is the top bits of the returned BID/RID and the slave may complete different IDs out of order. Single-master bridges, protocol-shim slaves and the subtractive slave store the `bridge_id` on the address handshake in an in-order FIFO whose head names the master.
 
-`SlaveAdapterGenerator` emits each `bridge_cam` with `DEPTH` set to the slave's `max_outstanding`, `ALLOW_DUPLICATES(1)`, `PIPELINE_EVICT(0)`, `PIPELINE_ALLOC(1)` and `PIPELINE_FREE(1)`. The last two register the CAM's insert and free (GitHub #119), so the crossbar's arbitrated ID and the returning response ID no longer drive the CAM's tag match and count update in their own cycle. Responses are still routed in the cycle they arrive. The mechanism is MAS 4.1. Changing these emitted parameters changes every CAM-tracked slave adapter, so regenerate all bridges (`make regen`) and re-run the full regression (Chapter 5).
+`SlaveAdapterGenerator` emits the by-ID form (`track_by_id`) as two counters, `wr_out_cnt` and `rd_out_cnt`, that count to the slave's `max_outstanding` and gate AWREADY / ARREADY when full, plus `bid_bridge_id` / `rid_bridge_id` assigned from the ID's prefix bits. Until 2026-10-18 it emitted a pair of `bridge_cam` instances instead. Their response lookup was the fabric's critical path, and they stored nothing the ID did not already carry (bridge W12, MAS 4.1). Changing this emission changes every by-ID slave adapter, so regenerate all bridges (`make regen`) and re-run the full regression (Chapter 5).
 
 ## Crossbar (`<bridge_name>_xbar.sv`)
 

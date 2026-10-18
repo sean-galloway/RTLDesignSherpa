@@ -21,7 +21,7 @@ digraph read_path_flow {
     { rank=same; arb; rmux; }
     arb -> rmux [style=invis];
     pc3 [shape=point, width=0.01, label="", group=C];
-    trk [label="Read Tracker - <slave>_adapter\nu_rd_cam: bridge_cam (tag ARID,\ndata bridge_id, max_outstanding deep); a bridge_id\nFIFO when there is one master.\nEntry freed at the last R beat;\nfull holds ARREADY low", group=R];
+    trk [label="Read Tracker - <slave>_adapter\nroutes R by RID's top bits, rd_out_cnt\ncounts to max_outstanding; a bridge_id\nFIFO when there is one master.\nCounted down at the last R beat;\nfull holds ARREADY low", group=R];
     { rank=same; pc3; trk; }
     sC [label="AR Skid Buffer - axi4_master_rd\n<slave>_adapter (or the protocol\nshim's read side)", group=C];
     sR [label="R Skid Buffer - axi4_master_rd\n<slave>_adapter", group=R];

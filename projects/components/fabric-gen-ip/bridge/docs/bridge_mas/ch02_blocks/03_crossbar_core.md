@@ -54,10 +54,11 @@ num_slaves = 3
 arbiter_type = "round_robin"       # "round_robin", "fixed_priority", "weighted"
 registered_mux = false             # true = +1 cycle, better timing
 registered_demux = false           # true = +1 cycle, better timing
-# NOTE: there is no enable_cam / cam_depth key. The CAM is chosen per slave by the
-# generator (multi-master AXI4/AXI5 slave, or enable_ooo = true on [[bridge.slaves]])
-# and is the slave's max_outstanding deep (default 16; [bridge] or per-port
-# key, power of two 2..64 -- bridge GitHub #119 L5).
+# NOTE: there is no enable_cam / cam_depth key. By-ID routing is chosen per
+# slave by the generator (multi-master AXI3/AXI4/AXI5 slave, or enable_ooo =
+# true on [[bridge.slaves]]); its outstanding limit is the slave's
+# max_outstanding (default 16; [bridge] or per-port key, power of two
+# 2..64 -- bridge GitHub #119 L5).
 ```
 
 ## Functional Description
@@ -103,7 +104,7 @@ Responses from slaves are demultiplexed back to masters:
 ```
 Slave 0 Response Outputs (R, B channels):
   - Take the master index the slave adapter's tracker returns
-    (bridge_cam lookup by RID/BID, or in-order FIFO head)
+    (the RID/BID prefix bits, or in-order FIFO head)
   - Route to corresponding master (M0, M1, M2, or M3)
   - Master adapter strips the {BRIDGE_ID} prefix from the ID
 ```
@@ -237,13 +238,14 @@ its tracker:
 
 | Slave | Tracker | Lookup |
 |---|---|---|
-| AXI4 / AXI5, multi-master (or `enable_ooo`) | `bridge_cam`, `max_outstanding` deep (default 16), duplicates allowed | by the returned BID / RID, same cycle |
+| AXI3 / AXI4 / AXI5, multi-master (or `enable_ooo`) | outstanding counter to `max_outstanding` (default 16) | the returned BID / RID's prefix bits (wiring) |
 | single master, apb / axil / wb shim, subtractive | in-order FIFO, `max_outstanding` deep (default 16) | FIFO head |
 
 : Bridge ID and Response Routing
 
-There is no timestamp or transaction-type field in the CAM, no timeout and
-no registered lookup.
+Neither form stores a timestamp or transaction type, and neither has a
+timeout. (Until 2026-10-18 the by-ID form was a per-ID CAM, `bridge_cam`,
+whose same-cycle lookup was the fabric's critical path; MAS 4.1.)
 
 ### Response Arbiters and Demultiplexers
 
@@ -298,8 +300,8 @@ The crossbar maintains AXI ordering rules.
 
 #### Out-of-Order (OOO) Completion
 
-> **Built, per slave.** A multi-master AXI4/AXI5 slave (or one with
-> `enable_ooo`) tracks with `bridge_cam` and may complete out of order across
+> **Built, per slave.** A multi-master AXI3/AXI4/AXI5 slave (or one with
+> `enable_ooo`) routes responses by ID and may complete out of order across
 > IDs; FIFO-tracked slaves (single master, shims, subtractive) must answer in
 > request order. Across slaves a master sees responses in arrival order, and
 > same-ID order is kept by the master adapter's per-ID table.
@@ -420,7 +422,7 @@ The paths that will bite you first:
 ```
 Logic Elements:  ~2000-3500 LEs
 Registers:       ~800-1200 regs
-Block RAM:       0 (no CAM is built)
+Block RAM:       0
 
 Breakdown per slave:
 - Arbiter (4 masters, RR):        ~200 LEs, ~50 regs
@@ -439,7 +441,7 @@ Plus routing overhead: +500 LEs
 **Example**: 8 masters × 6 slaves
 ```
 Estimated:  ~12,000 LEs, ~3000 regs
-Block RAM:  0 (no CAM is built)
+Block RAM:  0
 ```
 
 **Optimization Techniques**:
@@ -515,7 +517,7 @@ Useful metrics for profiling:
 - Section 2.1: Master Adapter (request sources)
 - Section 2.2: Slave Router (address decode before arbitration)
 - Section 2.4: Arbitration (detailed arbiter algorithms)
-- Section 2.5: ID Management (sideband bridge_id tracking; its CAM was never built)
+- Section 2.5: ID Management (by-ID routing and the in-order bridge_id FIFO)
 - Section 3.1: Top-Level Integration (crossbar instantiation)
 
 ## Testing

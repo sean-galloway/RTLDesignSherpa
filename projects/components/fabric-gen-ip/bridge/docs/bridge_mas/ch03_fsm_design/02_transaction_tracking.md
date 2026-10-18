@@ -25,7 +25,7 @@
 
 ## Overview
 
-Despite the chapter title, the generated bridge tracks outstanding transactions with FIFOs and a CAM, not state machines: the W destination and W owner FIFOs in the crossbar, the `aw_trk` / `ar_trk` / `w_trk` slave-select FIFOs in each master adapter, and the per-slave `bridge_id` tracker (`bridge_cam` for multi-master AXI4/AXI5 slaves, an in-order FIFO otherwise). The FSM designs this chapter used to show are kept below only where they are marked as not built.
+Despite the chapter title, the generated bridge tracks outstanding transactions with FIFOs and counters, not state machines: the W destination and W owner FIFOs in the crossbar, the `aw_trk` / `ar_trk` / `w_trk` slave-select FIFOs in each master adapter, and the per-slave `bridge_id` tracker (an outstanding counter, with responses routed by their ID's prefix bits, for multi-master AXI3/AXI4/AXI5 slaves; an in-order FIFO otherwise). The FSM designs this chapter used to show are kept below only where they are marked as not built.
 
 ## Write Data Tracking (FIFO, not an FSM)
 
@@ -66,7 +66,7 @@ on the W beat carrying WLAST, and several bursts can be queued at once.
 
 > **Not built.** There is no per-master outstanding-transaction counter and no
 > flow control derived from one. Outstanding depth is bounded by the per-slave
-> bridge_id tracker (CAM or FIFO, `max_outstanding` deep, default 16), whose fullness gates the address handshake (bridge BUG-009, was BRIDGE-011).
+> bridge_id tracker (counter or FIFO, `max_outstanding`, default 16), whose fullness gates the address handshake (bridge BUG-009, was BRIDGE-011).
 > Searching the generated RTL for a response-pending counter returns nothing.
 
 ### Purpose
@@ -147,4 +147,4 @@ end
 ## Related Documentation
 
 - [Arbiter FSMs](01_arbiter_fsms.md) - Address channel arbitration
-- [ID Management](../ch04_id_management/02_id_tracking.md) - the per-slave response tracker (`bridge_cam` or in-order FIFO)
+- [ID Management](../ch04_id_management/02_id_tracking.md) - the per-slave response tracker (by ID or in-order FIFO)

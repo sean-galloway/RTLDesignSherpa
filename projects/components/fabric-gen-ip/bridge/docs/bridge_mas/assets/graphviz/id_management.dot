@@ -1,5 +1,5 @@
 // ID management and response tracking end to end. Labels from
-// rtl/generated/bridge_2x2_rw/{cpu_adapter,bridge_2x2_rw_xbar,ddr_adapter}.sv (CAM mode)
+// rtl/generated/bridge_2x2_rw/{cpu_adapter,bridge_2x2_rw_xbar,ddr_adapter}.sv (by-ID mode)
 // and bridge_1x2_wr/ddr_wr_adapter.sv (FIFO mode); selection rule from
 // bin/bridge_pkg/generators/slave_adapter_generator.py use_cam.
 // House style: vault/handbook/authoring/block-diagrams.md
@@ -26,7 +26,7 @@ digraph id_management {
     { rank=same; arb; rmux; }
     arb -> rmux [style=invis];
 
-    cam [label="CAM Mode - <slave>_adapter\nu_wr_cam / u_rd_cam: bridge_cam, tag = AXI ID,\ndata = bridge_id, max_outstanding deep, duplicates allowed;\nlooked up by BID / RID, freed at B / last R.\nBuilt for an AXI4 / AXI5 slave of a multi-master\nbridge, or any slave with enable_ooo", style="filled,dashed"];
+    cam [label="By-ID Mode - <slave>_adapter\nbridge_id = the returned BID / RID's top bits;\nwr_out_cnt / rd_out_cnt bound the in-flight count\nto max_outstanding (up at accept, down at B / last R).\nBuilt for an AXI3 / AXI4 / AXI5 slave of a multi-master\nbridge, or any slave with enable_ooo", style="filled,dashed"];
     fifo [label="FIFO Mode - <slave>_adapter\nwr_fifo / rd_fifo of bridge_id, max_outstanding deep,\nwritten at AW / AR accept;\nthe head answers the next B / last R\n(the slave must respond in request order).\nBuilt for a single-master bridge, shim\nslaves and the catch-all", style="filled,dashed", group=R];
     { rank=same; cam; fifo; }
 
@@ -36,12 +36,12 @@ digraph id_management {
     pc -> pre [label="AW / AR"];
     pre -> arb [label="AW / AR, ID = {BRIDGE_ID, id}"];
     arb -> bar [xlabel="granted AW / AR", penwidth=1.8];
-    arb -> cam [style=dashed, label="ID + bridge_id at accept\n(written in either mode)"];
+    arb -> cam [style=dashed, label="accept: count up (by ID)\nor push bridge_id (FIFO)"];
     cam -> fifo [style=invis];
 
     pr -> strip [dir=back, label="B / R"];
     strip -> rmux [dir=back, label="B / R, wide ID"];
-    rmux -> cam [dir=back, xlabel="bridge_id (CAM)"];
+    rmux -> cam [dir=back, xlabel="bridge_id (ID bits)"];
     rmux -> fifo [dir=back, label="bridge_id (FIFO head)"];
     cam -> bar [dir=back, xlabel="B / R + ID"];
     fifo -> bar [dir=back, xlabel="B / R"];

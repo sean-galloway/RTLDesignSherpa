@@ -1,10 +1,10 @@
 %%{init: {'theme': 'neutral'}}%%
 flowchart TB
-    subgraph Table["Slave 0 ID Table"]
-        H["Index | Transaction ID | Master | Valid"]
-        R0["0 | 6'b00_0101 | 0 | 1"]
-        R1["1 | 6'b01_0011 | 1 | 1"]
-        R2["2 | 6'b10_1010 | 2 | 0"]
-        R3["3 | 6'b11_0001 | 3 | 1"]
-        RN["... | ... | ... | ..."]
+    subgraph ID["6-bit fabric ID, 4 masters"]
+        H["bits [5:4] = master index | bits [3:0] = master's own ID"]
+        R0["6'b00_0101 -> master 0, ID 5"]
+        R1["6'b01_0101 -> master 1, ID 5"]
+        R2["6'b10_1010 -> master 2, ID 10"]
+        R3["6'b11_0001 -> master 3, ID 1"]
     end
+    ID --> RT["rid_bridge_id / bid_bridge_id = the returned ID's bits [5:4]"]

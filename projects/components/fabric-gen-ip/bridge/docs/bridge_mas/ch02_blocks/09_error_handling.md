@@ -101,16 +101,16 @@ Response: DECERR after timeout expires
 Action: Force transaction completion
 ```
 
-**CAM Overflow**:
+**Response Tracker Full**:
 
 > **Built as backpressure, not as an error.** Each slave adapter's response
-> tracker (`bridge_cam` for a multi-master AXI4/AXI5 slave, an in-order FIFO
-> otherwise) is the slave's `max_outstanding` deep (default 16); when it is full the slave's AWREADY / ARREADY toward
+> tracker (an outstanding counter for a multi-master AXI3/AXI4/AXI5 slave, an
+> in-order FIFO otherwise) holds the slave's `max_outstanding` (default 16); when it is full the slave's AWREADY / ARREADY toward
 > the crossbar drops (bridge BUG-009). No error response is generated. See
 > ch04.
 
 ```
-Too many outstanding transactions (CAM full)
+Too many outstanding transactions (tracker full)
 Response: Backpressure master (ARREADY/AWREADY=0)
 Action: Wait for responses to free entries
 ```

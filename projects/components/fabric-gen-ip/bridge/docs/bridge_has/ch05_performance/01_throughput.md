@@ -109,9 +109,9 @@ alone, out of context on the Genesys 2's part, the bridge is 10,450 LUTs and
 7,479 flops with an estimated Fmax of ~179 MHz; the AXI Crossbar is 2,688
 LUTs and 2,190 flops at ~256 MHz; SmartConnect is 8,333 LUTs, 3,959 LUTRAM
 and 11,616 flops at ~268 MHz. The bridge's estimate was ~148 MHz before the
-slave adapters' CAM insert and free were registered (MAS 4.1); its worst
-path now runs from a master's R skid through the response routing into the
-read CAM. All three close at the board's 100 MHz.
+slave adapters' CAM insert and free were registered; its worst path then ran
+from a master's R skid through the response routing into the read CAM. (That
+build predates W12, which removed the CAM; it has not been re-measured.) All three close at the board's 100 MHz.
 
 ### Factors Affecting Throughput
 
@@ -236,18 +236,43 @@ flight reach 0.58 of the port's peak with the slave at 7 ns and 0.62 at
 - **W11, no register on the AXI3 slave's R and B.** The converter faced the
   crossbar directly, so `<slave>_rvalid` reached `<slave>_rready` through
   the crossbar's R arbiter (-0.741 ns at 10 ns). An AXI3 slave adapter is
-  now built like an AXI4 one: the timing wrapper, per-ID CAM tracking when
-  several masters share it, and the per-master request slots. The converter
+  now built like an AXI4 one: the timing wrapper, by-ID response routing
+  when several masters share it, and the per-master request slots. The converter
   is the last stage before the pins. Responses are routed by ID through the
   tracker, as for AXI4, instead of by FIFO position.
 
-Built on the Artix-7 at 10 ns: `bridge_2x2_axi3_masters` meets timing
-(+0.060 ns, 6884 LUTs); `bridge_2x2_axi3_slaves` (10636 LUTs) and
-`bridge_mix_e` (17158 LUTs) miss by 1.006 and 2.686 ns. Their worst paths
-are inside `bridge_cam`'s response-free logic, the per-ID tracker every
-shared slave uses, AXI4 included, not in the AXI3 port.
+- **W12, the per-ID CAM in every shared slave was the critical path.** A
+  slave adapter shared by several masters looked each returning BID / RID
+  up in `bridge_cam` to find the master, in series with the crossbar's
+  response arbitration and the master adapter's per-ID counters (14-18 LUT
+  levels). The fabric ID is `{master index, master id}`, so the master is
+  the ID's top bits: the adapter now reads it off the ID and keeps one
+  outstanding counter per direction (MAS 4.1). AXI4 slaves are covered as
+  well as AXI3 ones. Halving the CAM to 8 entries had recovered only
+  0.8-0.9 ns.
+
+Built on the Artix-7 at 10 ns (WNS / LUTs):
+
+| Bridge | Per-ID CAM | By ID |
+|---|---:|---:|
+| `bridge_2x2_axi3_masters` | +0.060 ns / 6,884 | not re-run |
+| `bridge_2x2_axi3_slaves` | -1.006 ns / 10,636 | +0.001 ns / 8,824 |
+| `bridge_mix_e` | -2.686 ns / 17,158 | -0.669 ns / 15,055 |
+
+: AXI3 fixtures before and after by-ID routing, Artix-7 -1 at 10 ns
+
+`bridge_mix_e` still misses (see Open, W13).
 
 #### Open
+
+- **W13, `bridge_mix_e` misses 10 ns by 0.67 ns.** Two paths, both in the
+  AXI3 slave converter `axi4_to_axi3_rd/wr`:
+  - Register to register, -0.387 ns (17 levels, 7 of them carry): the
+    crossbar's AR grant into the read converter's chop-address adder
+    (`active_addr`). With arbitration at the pins the wrapper's AR stage is
+    cut, so the granted AR reaches the converter unregistered.
+  - From the `bid` pin, -0.669 ns: into the write converter's B-merge
+    count (`b_merge_chunks_left`), with the flow's 3 ns input delay.
 
 - **W9, round-robin share at a CDC slave.** The address channels' async
   FIFOs (8 deep) sit between the arbiter and the slave's pins. Granted
@@ -292,8 +317,8 @@ The default of 16 covers 8-beat bursts up to about 110 cycles of slave
 latency. Where it binds is single-beat traffic behind a slow slave: 16 in
 flight carry 16 / (1 + latency + round trip), so 0.22 behind a 64-cycle
 slave. Raise `max_outstanding` (2..64) on those ports only. It sizes every
-tracker on the path, and the per-ID CAM is already the fabric's critical
-path on the Artix-7.
+tracker on the path: the master adapters' per-ID tables grow with it, while
+a shared slave's by-ID tracker is just a counter (W12).
 
 ### Multi-Master Scaling
 

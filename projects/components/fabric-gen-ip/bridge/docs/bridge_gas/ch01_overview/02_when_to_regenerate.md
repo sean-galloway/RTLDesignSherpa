@@ -81,4 +81,4 @@ Each generator class stamps its own header. Grepping for the generator name is m
 
 : Identifying Generated Files
 
-Hand-written files in `rtl/` (for example `bridge_cam.sv`) are never regenerated and must not be deleted by `make clean`.
+Hand-written files in `rtl/` (for example `bridge_wr_rate_buf.sv`) are never regenerated and must not be deleted by `make clean`.

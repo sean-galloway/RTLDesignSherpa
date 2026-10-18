@@ -56,7 +56,7 @@ Central switching fabric (`<bridge>_xbar`):
 
 One per slave (`<slave>_adapter`), delivers transactions to the downstream slave:
 
-- **Response tracking** - `bridge_cam` keyed by AXI ID when several masters share the slave, or an in-order `bridge_id` FIFO when one master does; written at AW / AR accept, read at B / last R
+- **Response tracking** - by ID when several masters share the slave (the returned ID's prefix bits name the master; a counter bounds the outstanding count), or an in-order `bridge_id` FIFO when one master does; counted or written at AW / AR accept, read at B / last R
 - **Skid buffers or protocol conversion** - `axi4_master_wr` / `_rd`, or `axi4_to_apb4_shim`, `axi4_to_axil4_*` / `axi4_to_axil5_*`, `axi4_to_wb4`
 - **Clock crossing** - `axi4_cdc_wr` / `_rd` when the slave port is `cdc = true`
 
@@ -79,7 +79,7 @@ One per slave (`<slave>_adapter`), delivers transactions to the downstream slave
 | NUM_MASTERS | 1-32 | Linear MUX growth |
 | NUM_SLAVES | 1-256 | Linear decoder growth |
 | DATA_WIDTH | 32-512 | Linear data path growth |
-| ID_WIDTH | 1-16 | Scales the ID wires (slave side carries {BRIDGE_ID, id}) and the tracker CAM tags |
+| ID_WIDTH | 1-16 | Scales the ID wires (slave side carries {BRIDGE_ID, id}) and the master-index prefix routed back on B / R |
 
 : Topology Parameter Scaling
 
@@ -93,4 +93,4 @@ One per slave (`<slave>_adapter`), delivers transactions to the downstream slave
 
 * Dally & Towles, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann 2004 — per-slave arbiters on AW and AR as the degenerate case of a separable allocator (ch18 §19.3), and skid buffers as buffered flow control (ch12). ([Reference archive](../../../references/README.md))
 * Roy, *Advanced Digital System Design*, Springer 2023 — AXI permits W to trail AW independently; the W-owner FIFO records the AW grant so the data path follows the address decision (§18.2.3). ([Reference archive](../../../references/README.md))
-* Duato/Yalamanchili/Lionel, *Interconnection Networks*, Morgan Kaufmann 2003 — deterministic routing preserves order only along a single path; safe out-of-order completion requires explicit ID-keyed tracking such as the CAM mode Bridge keeps available (ch3/4). ([Reference archive](../../../references/README.md))
+* Duato/Yalamanchili/Lionel, *Interconnection Networks*, Morgan Kaufmann 2003 — deterministic routing preserves order only along a single path; safe out-of-order completion requires explicit ID-keyed tracking, which Bridge gets from the master-index prefix on every fabric ID (ch3/4). ([Reference archive](../../../references/README.md))

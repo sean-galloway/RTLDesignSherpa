@@ -17,8 +17,8 @@ digraph response_routing {
     pn [label="Response Arbiter, Width Path B - <bridge>_xbar\nsame, for the slaves of width B"];
     { rank=same; p0; pn; }
     p0 -> pn [style=invis];
-    t0 [label="Response Trackers - each path A slave's adapter\nbridge_cam (looked up by BID / RID)\nor bridge_id FIFO head"];
-    tn [label="Response Trackers - each path B slave's adapter\nbridge_cam (looked up by BID / RID)\nor bridge_id FIFO head"];
+    t0 [label="Response Trackers - each path A slave's adapter\nBID / RID top bits (by ID)\nor bridge_id FIFO head"];
+    tn [label="Response Trackers - each path B slave's adapter\nBID / RID top bits (by ID)\nor bridge_id FIFO head"];
     { rank=same; t0; tn; }
     t0 -> tn [style=invis];
     bar [label="Slave Ports - B (one per write) and R beats (RLAST on the last) from each slave, ID = {BRIDGE_ID, id}", fillcolor="white", width=9];

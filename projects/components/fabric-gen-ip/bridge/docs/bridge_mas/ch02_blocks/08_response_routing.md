@@ -23,14 +23,14 @@
 
 # 2.8 Response Routing
 
-Requests are easy to route — the address says where they go. Responses are harder: read data and write acknowledgments have to find their way back to whichever master asked, and by then the address that launched the transaction is ancient history. Response routing does that with Bridge IDs, demultiplexing logic, and optional CAM structures.
+Requests are easy to route — the address says where they go. Responses are harder: read data and write acknowledgments have to find their way back to whichever master asked, and by then the address that launched the transaction is ancient history. Response routing does that with Bridge IDs and demultiplexing logic.
 
 ## 2.8.1 Purpose and Function
 
 Response routing does five things:
 
 1. **Response Direction**: Routes R and B channel responses to correct master
-2. **Tracked Routing**: each slave adapter names the master to answer -- `bridge_cam` looked up with the returned BID/RID on a multi-master AXI4/AXI5 slave, an in-order `bridge_id` FIFO elsewhere
+2. **Tracked Routing**: each slave adapter names the master to answer -- the top bits of the returned BID/RID on a multi-master AXI3/AXI4/AXI5 slave, an in-order `bridge_id` FIFO elsewhere
 3. **Multi-Slave Merging**: Combines responses from multiple slaves to single master
 4. **Flow Control**: Manages backpressure from master on response channels
 5. **Error Propagation**: Ensures error responses reach originating master
@@ -79,13 +79,12 @@ end
 
 ### BID Extraction
 
-The master is not chosen by decoding the prefix bits of the returned ID.
 With more than one master the slave-side ID is `{BRIDGE_ID, id}` (bridge
-TASK-005), but the crossbar steers B / R by the master index the slave
-adapter's tracker returns beside the response (`bid_bridge_id` /
-`rid_bridge_id`). For a CAM-tracked slave that index is looked up BY the
-returned BID/RID; for a FIFO-tracked slave it is the FIFO head. The master
-adapter then strips the prefix:
+TASK-005). The crossbar steers B / R by the master index the slave adapter
+hands it beside the response (`bid_bridge_id` / `rid_bridge_id`). For a
+by-ID slave that index is the prefix bits of the returned BID/RID; for a
+FIFO-tracked slave it is the FIFO head. The master adapter then strips the
+prefix:
 
 ```systemverilog
 // bridge_2x2_rw_xbar.sv: B toward cpu (master index 0)
@@ -95,38 +94,28 @@ adapter then strips the prefix:
 fub_axi_bid = cpu_32b_b.id[3:0];
 ```
 
-### CAM-Based Extraction
+### By-ID Extraction
 
-> **Built (bridge BUG-012 (was BRIDGE-015)/016, 2026-09-10).** Every real AXI slave of a
-> multi-master bridge, and any slave declared `enable_ooo = true`, gets
-> `bridge_cam` for both channels and routes responses by ID; single-master
+> **Built (bridge BUG-012 (was BRIDGE-015)/016, 2026-09-10; by ID bits since
+> 2026-10-18, bridge W12).** Every real AXI slave of a multi-master bridge,
+> and any slave declared `enable_ooo = true`, routes responses by ID: the
+> master index is the top bits of the returned BID / RID. Single-master
 > bridges, shim slaves and the subtractive slave keep the in-order per-slave
-> FIFO. Per-ID tracking is sound across masters because fabric IDs are
+> FIFO. Routing by ID is sound across masters because fabric IDs are
 > `{master index, master id}`; the FIFO would require the slave to complete
 > in request order across ALL IDs, which a compliant AXI slave need not do.
 > Fixture `bridge_2x2_ooo` exercises reordering slaves with two masters
-> sharing IDs; `test_bridge_cam.py` covers the CAM alone. The mode had been
-> unbuildable since c64660f47. See ch04 `02_id_tracking.md`.
-
-For complex configurations with OOO or ID reordering:
+> sharing IDs. Until 2026-10-18 a per-ID CAM (`bridge_cam`) looked the
+> master index up instead. See ch04 `01_cam_architecture.md`.
 
 ```systemverilog
-// CAM lookup for response routing
-logic [TOTAL_RID_WIDTH-1:0] response_id;
-logic [BID_WIDTH-1:0] master_index;
-logic cam_hit;
-
-// Search CAM for matching transaction
-assign {cam_hit, master_index} = cam_lookup(response_id);
-
-// Route response to found master
-if (cam_hit) begin
-    master_rvalid[master_index] = slave_rvalid;
-end else begin
-    // Error: No matching transaction (protocol violation)
-    error_response();
-end
+// ddr_adapter.sv, bridge_2x2_rw: the master index is the ID's prefix
+assign rid_bridge_id = xbar_ddr_axi_rid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
+assign rid_valid     = 1'b1;
 ```
+
+A response whose ID the slave was never sent is not detected: it routes to
+whichever master its prefix names.
 
 ## 2.8.4 Response Demultiplexing
 
@@ -555,16 +544,17 @@ Best for: Real-time systems
 
 ### Response Reordering (Future)
 
-> **Built (bridge BUG-012 (was BRIDGE-015)/016, 2026-09-10).** Every real AXI slave of a
-> multi-master bridge, and any slave declared `enable_ooo = true`, gets
-> `bridge_cam` for both channels and routes responses by ID; single-master
+> **Built (bridge BUG-012 (was BRIDGE-015)/016, 2026-09-10; by ID bits since
+> 2026-10-18, bridge W12).** Every real AXI slave of a multi-master bridge,
+> and any slave declared `enable_ooo = true`, routes responses by ID: the
+> master index is the top bits of the returned BID / RID. Single-master
 > bridges, shim slaves and the subtractive slave keep the in-order per-slave
-> FIFO. Per-ID tracking is sound across masters because fabric IDs are
+> FIFO. Routing by ID is sound across masters because fabric IDs are
 > `{master index, master id}`; the FIFO would require the slave to complete
 > in request order across ALL IDs, which a compliant AXI slave need not do.
 > Fixture `bridge_2x2_ooo` exercises reordering slaves with two masters
-> sharing IDs; `test_bridge_cam.py` covers the CAM alone. The mode had been
-> unbuildable since c64660f47. See ch04 `02_id_tracking.md`.
+> sharing IDs. Until 2026-10-18 a per-ID CAM (`bridge_cam`) looked the
+> master index up instead. See ch04 `01_cam_architecture.md`.
 
 Allow bridge to reorder responses for efficiency:
 
@@ -575,7 +565,7 @@ Scenario:
   Bridge can deliver B before A (if IDs different)
 
 Benefit: Reduced latency for fast responses
-Requirement: CAM to track outstanding in-order constraints
+Requirement: per-ID state at the master to keep same-ID order
 ```
 
 ### Response Coalescing (Future)

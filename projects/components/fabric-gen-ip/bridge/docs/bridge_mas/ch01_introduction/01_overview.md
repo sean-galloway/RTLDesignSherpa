@@ -78,7 +78,7 @@ Bridge NxM
 │   └── Channel muxes
 ├── Slave Adapters (N instances)
 │   ├── Protocol shims (axi4_to_apb4_shim / axi4_to_axil4_*)
-│   └── Response tracker: bridge_cam by ID (multi-master), or bridge_id FIFO
+│   └── Response tracker: by ID bits (multi-master), or bridge_id FIFO
 ├── Subtractive slave (always present, internal)
 │   └── Answers unmapped addresses: DECERR + 0xDEADBEEF + sticky status
 └── Response Routing

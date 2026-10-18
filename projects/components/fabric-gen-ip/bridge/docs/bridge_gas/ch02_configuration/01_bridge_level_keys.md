@@ -51,7 +51,7 @@ The TOML `[bridge]` table configures the bridge as a whole. It is parsed by `bri
 | `arbitration` | string | `"rr"` | `BridgeConfig.arbitration` | Per-slave arbitration policy. `"rr"` = round-robin; `"qos"` = QoS + aging. |
 | `qos_aging_shift` | int | `4` | `BridgeConfig.qos_aging_shift` | For `"qos"`, a waiting request gains one priority level every `2**shift` cycles. |
 | `id_track_bits` | int 0..8 | `4` | `BridgeConfig.id_track_bits` | Per-ID target table in every master adapter: `2**id_track_bits` entries by the ID's low bits (never more than the port's ID). A request waits only while its ID is in flight to a different slave. Fixes the one-target-per-master limitation (GitHub #119 L1). Out of range is a `ValueError` at load. |
-| `max_outstanding` | int, power of two 2..64 | `16` | `PortSpec.max_outstanding` (default for every port) | Outstanding-transaction limit per direction for every port that does not set its own: master-adapter tracker depth and per-ID count width; slave-adapter `bridge_cam` / in-order FIFO depth; the crossbar's W-destination (per master path) and W-owner (per slave, plus 2 on a registered crossbar) FIFOs follow. Fixes the fixed 16 (GitHub #119 L5). |
+| `max_outstanding` | int, power of two 2..64 | `16` | `PortSpec.max_outstanding` (default for every port) | Outstanding-transaction limit per direction for every port that does not set its own: master-adapter tracker depth and per-ID count width; slave-adapter by-ID counter / in-order FIFO depth; the crossbar's W-destination (per master path) and W-owner (per slave, plus 2 on a registered crossbar) FIFOs follow. Fixes the fixed 16 (GitHub #119 L5). |
 
 : Crossbar and arbitration keys
 

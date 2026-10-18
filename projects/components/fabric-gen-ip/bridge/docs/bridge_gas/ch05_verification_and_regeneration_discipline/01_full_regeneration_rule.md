@@ -56,7 +56,8 @@ make clean-all && make run-all-func
 
 ## Files that are never regenerated
 
-- `rtl/bridge_cam.sv` — hand-written CAM, instantiated by the slave adapters of multi-master AXI4/AXI5 slaves.
+- `rtl/bridge_wr_rate_buf.sv` — hand-written rate-matching buffer on upsized paths into shared slaves.
+- `rtl/bridge_cam.sv` — hand-written per-ID CAM. No generated bridge instantiates it since 2026-10-18 (bridge W12).
 - Anything outside `rtl/generated/` and `rtl/filelists/`.
 
 ## Version-mismatch symptoms

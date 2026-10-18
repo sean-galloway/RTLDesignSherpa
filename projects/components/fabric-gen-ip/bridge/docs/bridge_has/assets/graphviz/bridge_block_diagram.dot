@@ -37,7 +37,7 @@ digraph bridge_block_diagram {
 
     wown  [label="W Owner FIFO + W Mux - <bridge>_xbar\n(per slave) AW accept order\nselects whose W beats pass", group=L];
     pc3   [shape=point, width=0.01, label="", group=C];
-    trk   [label="Response Tracker - <slave>_adapter\nbridge_cam by ID (several masters) or a\nbridge_id FIFO (one master): written at\nAW / AR accept, read at B / last R", group=R];
+    trk   [label="Response Tracker - <slave>_adapter\nby ID bits (several masters) or a\nbridge_id FIFO (one master): counted or\nwritten at AW / AR accept, read at B / last R", group=R];
     { rank=same; wown; pc3; trk; }
     wown -> pc3 [style=invis];
 

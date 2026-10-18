@@ -222,10 +222,10 @@ Bridge automates generation of AXI4 crossbar infrastructure:
 - [x] Generates CSV/TOML-configured bridges (bridge_generator.py + bridge_pkg/; the earlier separate bridge_csv_generator.py was merged in)
 - [x] Passes Verilator lint
 - [x] Supports 1-32 masters, 1-256 slaves
-- [ ] Handles out-of-order completion via IDs. NOT IMPLEMENTED: `bridge_cam.sv`
-  exists but is instantiated by no generated module. The slave adapters run
-  "Bridge ID Tracking - FIFO Mode (In-Order)" and 93 generated files still
-  declare `cam_wr_allocate`/`cam_rd_allocate` without driving them.
+- [x] Handles out-of-order completion via IDs: a multi-master AXI3/AXI4/AXI5
+  slave (or any `enable_ooo` slave) routes each response by the master index
+  in its ID, so it may complete IDs in any order (bridge BUG-012; by ID bits
+  since bridge W12, 2026-10-18).
 - [x] Supports burst lengths 1-256 beats
 - [x] Channel-specific masters (wr/rd/rw) for resource optimization (Phase 2)
 - [x] APB converter integration -- DELIVERED. `axi4_to_apb4_shim` is
@@ -309,8 +309,9 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 
 **Additional Resources:**
 - `models/bridge_model/bridge_model.py` - Performance modeling (V1 Flat implemented)
-- `rtl/bridge_cam.sv` - CAM for ID tracking. **Not instantiated by any generated
-  module**; kept for the OOO work FR-2 describes as not implemented.
+- `rtl/bridge_cam.sv` - hand-written per-ID CAM. Not instantiated by any
+  generated module since bridge W12 (2026-10-18): by-ID slaves read the
+  master index off the ID instead.
 - See `bin/GENERATOR_ARCHITECTURE.md` for the generator/build mechanics
 - See `docs/bridge_has/` and `docs/bridge_mas/` for architecture diagrams and specs
   (the older BRIDGE_CURRENT_STATE.md / BRIDGE_ARCHITECTURE_DIAGRAMS.md were superseded)
@@ -380,8 +381,8 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
   response. There is no {Master ID, Transaction ID} map -- routing is by FIFO
   POSITION and the AXI ID is not consulted.
 - Required for routing B/R channels back to correct master
-- ID tables for OUT-OF-ORDER support are not implemented: `bridge_cam.sv`
-  exists but is instantiated in zero generated bridges
+- Out-of-order support needs no ID table: the master index is in every
+  fabric ID, and a by-ID slave adapter reads it back off BID / RID
 
 **5. ~~Optional Performance Counters~~** -- NOT implemented, and no config key enables them
 - Transaction counts per master/slave
@@ -413,10 +414,11 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 - Two masters never alias an ID at a slave: inside the fabric every ID is
   `{master index, master id}` (bridge TASK-005, was BRIDGE-016), so a slave port carries the
   widest master's id_width plus `$clog2(NUM_MASTERS)` bits -- 8-bit masters
-  behind a 16-master bridge give 12-bit IDs at the slaves. The `bridge_id`
-  sideband still routes responses; the prefix is what makes per-ID tracking
-  sound across masters, and every real AXI slave of a multi-master bridge is
-  tracked by ID in `bridge_cam` (bridge BUG-012, was BRIDGE-015). Single-master bridges add no
+  behind a 16-master bridge give 12-bit IDs at the slaves. On a
+  FIFO-tracked slave the `bridge_id` sideband still routes responses; on
+  every real AXI slave of a multi-master bridge the prefix itself does: it is
+  tracked by ID (bridge BUG-012, was BRIDGE-015; the master index read off
+  the ID since bridge W12). Single-master bridges add no
   prefix and keep the in-order FIFO.
 
 **FR-3: Atomic Operations** (the bridge does NOT implement a monitor -- see below)
@@ -473,8 +475,8 @@ address_map = {
 
 **FR-9: Interleaving Constraints**
 - W channel follows the AW owner via a per-slave W-owner FIFO (not a held grant)
-- B and R are routed by the `bridge_id` each slave adapter records at the address handshake: a `bridge_cam` looked up by the returned BID/RID for an AXI4/AXI5 slave of a multi-master bridge (or any `enable_ooo` slave), an in-order FIFO otherwise. Fabric IDs are `{BRIDGE_ID, id}`, so a slave port's ID is wider than a master's.
-- A CAM-tracked slave may complete bursts out of order across IDs; a FIFO-tracked slave must return B/R in request order across all IDs (bridge BUG-008, was BRIDGE-010).
+- B and R are routed by the issuing master's index: the returned BID/RID's prefix bits for an AXI3/AXI4/AXI5 slave of a multi-master bridge (or any `enable_ooo` slave), or the head of an in-order FIFO of the `bridge_id` recorded at the address handshake otherwise. Fabric IDs are `{BRIDGE_ID, id}`, so a slave port's ID is wider than a master's.
+- A by-ID slave may complete bursts out of order across IDs; a FIFO-tracked slave must return B/R in request order across all IDs (bridge BUG-008, was BRIDGE-010).
 - Beat-level R interleaving across IDs is NOT supported: a slave returns each R burst contiguously. The per-master-path R arbiters hold through RLAST, and the read width converters rely on it (`R_INTERLEAVE = 0`, no reassembly pool, GitHub #119).
 
 ---
@@ -510,8 +512,8 @@ HAS 5.3):
 | `bridge_2x2_axi5_native` (128-bit, MTE + chunking) | Artix-7 100T -1 @ 10 ns | 8,007 | 6,213 | 0 / 0 | met, +0.04 ns |
 | `bridge_4x4_rw` (4 x 4, 32..256-bit) | Kintex-7 325T -2 @ 6.667 ns | 29,719 | 29,508 | 0 / 0 | met, +0.28 ns |
 
-No configuration uses block RAM or DSPs: the per-slave bridge_id FIFOs and
-the CAM are LUT arrays. Data width sets the cost -- the 4 x 4 with width
+No configuration uses block RAM or DSPs: the per-slave bridge_id FIFOs are
+LUT arrays and the by-ID trackers are counters. Data width sets the cost -- the 4 x 4 with width
 converters is six times the 2 x 2 -- and on the Artix-7 at 100 MHz any
 configuration beyond a plain 2 x 2 needs `xbar_pipeline = true` to close.
 
@@ -852,7 +854,7 @@ end
 | **Request generation** | Address ranges | TDEST decode | Address ranges |
 | **Response routing** | Grant-based | Grant-based | ID-based |
 | **Burst support** | No | Packet (TLAST) | Yes (AWLEN/ARLEN) |
-| **Out-of-order** | No | No | No -- in-order `bridge_id` FIFO (`bridge_cam` unused) |
+| **Out-of-order** | No | No | Yes -- by ID on multi-master slaves, in-order `bridge_id` FIFO otherwise |
 | **Transaction tracking** | No | No | Yes |
 | **Lines of Python** | ~500 | ~697 | **~900** (est.) |
 | **Lines of generated SV** | ~200 (4×4) | ~250 (4×4) | **~400** (4×4) (est.) |
@@ -1153,4 +1155,4 @@ The shell scripts will automatically:
 * Maaref, *Architecting and Building High-Speed SoCs*, Packt 2022 — backs the AMBA-suite context for read/write channel independence and the AXI ID ordering rules that Bridge's in-order FIFO simplifies (ch3 §4.2). ([Reference archive](./references/README.md))
 * Roy, *Advanced Digital System Design*, Springer 2023 — backs AXI's independent read/write channels (§18.2.2.1) and the decoupling of W from AW with B correlated through the stored transaction ID (§18.2.3). ([Reference archive](./references/README.md))
 * Eschemann, *The FPGA Programming Handbook*, Packt 2023 — backs the secondary, educational framing of AXI4 channel structure and the cost warning that a full crossbar with buffering can become expensive (ch8). ([Reference archive](./references/README.md))
-* ARM, *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022E — the AXI4 protocol authority; backs the ordering rules that permit out-of-order completion across IDs and therefore motivate the CAM-style tracking Bridge documents as future work. ([Reference archive](./references/README.md))
+* ARM, *AMBA AXI and ACE Protocol Specification*, ARM IHI 0022E — the AXI4 protocol authority; backs the ordering rules that permit out-of-order completion across IDs and therefore motivate the by-ID response routing of multi-master slaves. ([Reference archive](./references/README.md))

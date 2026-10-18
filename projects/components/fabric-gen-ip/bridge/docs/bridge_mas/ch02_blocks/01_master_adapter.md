@@ -262,9 +262,9 @@ Routing a response back to the right master does not decode those prefix
 bits. Each slave adapter also receives the originating master's index as
 a sideband (`xbar_bridge_id_aw` / `_ar`) and stores it on the address
 handshake; the crossbar steers B/R by the `bid_bridge_id` / `rid_bridge_id`
-it returns. For an AXI4/AXI5 slave of a multi-master bridge that store is a
-`bridge_cam` looked up by the returned BID/RID; single-master bridges and
-shim/subtractive slaves use an in-order FIFO. See Section 2.5 and ch04.
+it returns. For an AXI3/AXI4/AXI5 slave of a multi-master bridge that is the
+returned BID/RID's prefix bits, with nothing stored; single-master bridges
+and shim/subtractive slaves use an in-order FIFO. See Section 2.5 and ch04.
 
 ### Protocol Normalization
 
@@ -389,7 +389,7 @@ Typical critical paths (if skid buffers not used):
 ```
 Logic Elements:  ~200-400 (depending on ID width and features)
 Registers:       ~150-250 (pipeline stages + control)
-Block RAM:       0 (the master adapter holds no CAM; `bridge_cam` lives in the slave adapters)
+Block RAM:       0
 
 Breakdown:
 - Skid buffers (5 channels × ~30 regs each): ~150 regs
@@ -426,7 +426,7 @@ Resource usage scales with:
 
 - Section 2.3: Crossbar Core (interconnect architecture)
 - Section 2.4: Arbitration (how adapters compete for slaves)
-- Section 2.5: ID Management (fabric ID widening, sideband bridge_id, CAM/FIFO tracking)
+- Section 2.5: ID Management (fabric ID widening, sideband bridge_id, by-ID / FIFO tracking)
 - HAS ch04_interfaces/01_axi4_interface.md (port signals)
 
 ## Testing
