@@ -102,30 +102,8 @@ RTT_BUDGET = {'bridge_2x2_rw': 8, 'bridge_2x2_rw_lat': 8, 'bridge_2x2_rw_pipe': 
 # slave cycles at @13. Bursts of two beats or more saturate either way.
 # Open weaknesses: (label regex, floor, note). A fixed weakness's row is
 # deleted, and the shape's real floor applies again.
-_W7 = 'W7: an AXI3 master has one write in flight (axi3_to_axi4_wr holds AW from acceptance to B)'
-_W8 = ('W8: AXI3 slave converter (axi4_to_axi3_rd/wr) -- AR/AW at most every other cycle, one '
-       'transaction per ID, a dead W cycle per AXI3 burst, and its request queue behind the arbiter')
 _W9 = 'W9: a CDC slave\'s address FIFO queues granted requests behind the arbiter (W3 at a CDC port)'
-_AXI3_WR = [  # W7: write streams from AXI3 masters, measured 2026-10-18
-    (r'^bursts wr beats=1 ', 0.10, _W7), (r'^bursts wr beats=2 ', 0.18, _W7),
-    (r'^bursts wr beats=4 ', 0.30, _W7), (r'^bursts wr beats=8 ', 0.45, _W7),
-    (r'^bursts wr beats=16 ', 0.60, _W7),
-    (r'^outstanding wr lat=0 ', 0.42, _W7), (r'^outstanding wr lat=16 ', 0.21, _W7),
-    (r'^outstanding wr lat=64 ', 0.085, _W7),
-    (r'^duplex .* cpu_w', 0.60, _W7)]
 KNOWN = {
-    'bridge_2x2_axi3_masters': _AXI3_WR + [
-        (r'^duplex .* dma_w', 0.41, _W7),
-        (r'^(contention|fairness) wr .*lat=0 .*slave_contended', 0.56, _W7),
-        (r'^(contention|fairness) wr .*lat=32 .*slave_contended', 0.21, _W7)],
-    'bridge_mix_e': _AXI3_WR + [
-        (r'^duplex all four dma_w', 0.86, _W8),
-        (r'^(contention|fairness) wr .*lat=0 .*slave_contended', 0.80, f'{_W7}; {_W8}'),
-        (r'^(contention|fairness) wr .*lat=32 .*slave_contended', 0.30, f'{_W7}; {_W8}'),
-        (r'^bursts rd beats=1 ids=1:?$', 0.30, _W8), (r'^bursts rd beats=1 ids=8', 0.45, _W8),
-        (r'^bursts rd beats=2 ids=1', 0.45, _W8), (r'^bursts rd beats=4 ids=1', 0.60, _W8),
-        (r'^bursts rd beats=8 ids=1', 0.72, _W8), (r'^bursts rd beats=16 ids=1', 0.80, _W8),
-        (r'^fairness rd .*round_robin', 0.23, _W8)],
     'bridge_2x2_rw_cdc@7': [(r'round_robin', 0.15, _W9)],
     'bridge_2x2_rw_cdc@13': [(r'round_robin', 0.15, _W9)],
 }

@@ -391,6 +391,10 @@ module bridge_mix_e_xbar
     logic host_apb_64b_w_sel_subtractive;
 
     // Request slots of the arbitrated slaves (assigned below)
+    axi4_aw_t cpu_axi3_64b_aw_slot_ddr_axi3;
+    logic cpu_axi3_64b_aw_slot_ddr_axi3_valid, cpu_axi3_64b_aw_slot_ddr_axi3_ready, cpu_axi3_64b_aw_slot_ddr_axi3_in_valid, cpu_axi3_64b_aw_slot_ddr_axi3_in_ready;
+    axi4_aw_t dma_axi4_64b_aw_slot_ddr_axi3;
+    logic dma_axi4_64b_aw_slot_ddr_axi3_valid, dma_axi4_64b_aw_slot_ddr_axi3_ready, dma_axi4_64b_aw_slot_ddr_axi3_in_valid, dma_axi4_64b_aw_slot_ddr_axi3_in_ready;
     axi4_aw_t cpu_axi3_64b_aw_slot_sram_axi4;
     logic cpu_axi3_64b_aw_slot_sram_axi4_valid, cpu_axi3_64b_aw_slot_sram_axi4_ready, cpu_axi3_64b_aw_slot_sram_axi4_in_valid, cpu_axi3_64b_aw_slot_sram_axi4_in_ready;
     axi4_aw_t dma_axi4_64b_aw_slot_sram_axi4;
@@ -401,6 +405,10 @@ module bridge_mix_e_xbar
     logic dma_axi4_64b_aw_slot_subtractive_valid, dma_axi4_64b_aw_slot_subtractive_ready, dma_axi4_64b_aw_slot_subtractive_in_valid, dma_axi4_64b_aw_slot_subtractive_in_ready;
     axi4_aw_t host_apb_64b_aw_slot_subtractive;
     logic host_apb_64b_aw_slot_subtractive_valid, host_apb_64b_aw_slot_subtractive_ready, host_apb_64b_aw_slot_subtractive_in_valid, host_apb_64b_aw_slot_subtractive_in_ready;
+    axi4_ar_t cpu_axi3_64b_ar_slot_ddr_axi3;
+    logic cpu_axi3_64b_ar_slot_ddr_axi3_valid, cpu_axi3_64b_ar_slot_ddr_axi3_ready, cpu_axi3_64b_ar_slot_ddr_axi3_in_valid, cpu_axi3_64b_ar_slot_ddr_axi3_in_ready;
+    axi4_ar_t dma_axi4_64b_ar_slot_ddr_axi3;
+    logic dma_axi4_64b_ar_slot_ddr_axi3_valid, dma_axi4_64b_ar_slot_ddr_axi3_ready, dma_axi4_64b_ar_slot_ddr_axi3_in_valid, dma_axi4_64b_ar_slot_ddr_axi3_in_ready;
     axi4_ar_t cpu_axi3_64b_ar_slot_sram_axi4;
     logic cpu_axi3_64b_ar_slot_sram_axi4_valid, cpu_axi3_64b_ar_slot_sram_axi4_ready, cpu_axi3_64b_ar_slot_sram_axi4_in_valid, cpu_axi3_64b_ar_slot_sram_axi4_in_ready;
     axi4_ar_t dma_axi4_64b_ar_slot_sram_axi4;
@@ -413,14 +421,14 @@ module bridge_mix_e_xbar
     logic host_apb_64b_ar_slot_subtractive_valid, host_apb_64b_ar_slot_subtractive_ready, host_apb_64b_ar_slot_subtractive_in_valid, host_apb_64b_ar_slot_subtractive_in_ready;
     // Write ordering: a master's AW waits while another of its slots
     // holds an AW (see _generate_request_slots)
-    wire cpu_axi3_32b_aw_hold_apb_periph = cpu_axi3_64b_aw_slot_sram_axi4_valid || cpu_axi3_64b_aw_slot_subtractive_valid;
+    wire cpu_axi3_32b_aw_hold_apb_periph = cpu_axi3_64b_aw_slot_ddr_axi3_valid || cpu_axi3_64b_aw_slot_sram_axi4_valid || cpu_axi3_64b_aw_slot_subtractive_valid;
     wire cpu_axi3_64b_aw_hold_ddr_axi3 = cpu_axi3_64b_aw_slot_sram_axi4_valid || cpu_axi3_64b_aw_slot_subtractive_valid;
-    wire cpu_axi3_64b_aw_hold_sram_axi4 = cpu_axi3_64b_aw_slot_subtractive_valid;
-    wire cpu_axi3_64b_aw_hold_subtractive = cpu_axi3_64b_aw_slot_sram_axi4_valid;
-    wire dma_axi4_32b_aw_hold_apb_periph = dma_axi4_64b_aw_slot_sram_axi4_valid || dma_axi4_64b_aw_slot_subtractive_valid;
+    wire cpu_axi3_64b_aw_hold_sram_axi4 = cpu_axi3_64b_aw_slot_ddr_axi3_valid || cpu_axi3_64b_aw_slot_subtractive_valid;
+    wire cpu_axi3_64b_aw_hold_subtractive = cpu_axi3_64b_aw_slot_ddr_axi3_valid || cpu_axi3_64b_aw_slot_sram_axi4_valid;
+    wire dma_axi4_32b_aw_hold_apb_periph = dma_axi4_64b_aw_slot_ddr_axi3_valid || dma_axi4_64b_aw_slot_sram_axi4_valid || dma_axi4_64b_aw_slot_subtractive_valid;
     wire dma_axi4_64b_aw_hold_ddr_axi3 = dma_axi4_64b_aw_slot_sram_axi4_valid || dma_axi4_64b_aw_slot_subtractive_valid;
-    wire dma_axi4_64b_aw_hold_sram_axi4 = dma_axi4_64b_aw_slot_subtractive_valid;
-    wire dma_axi4_64b_aw_hold_subtractive = dma_axi4_64b_aw_slot_sram_axi4_valid;
+    wire dma_axi4_64b_aw_hold_sram_axi4 = dma_axi4_64b_aw_slot_ddr_axi3_valid || dma_axi4_64b_aw_slot_subtractive_valid;
+    wire dma_axi4_64b_aw_hold_subtractive = dma_axi4_64b_aw_slot_ddr_axi3_valid || dma_axi4_64b_aw_slot_sram_axi4_valid;
     wire host_apb_32b_aw_hold_apb_periph = host_apb_64b_aw_slot_subtractive_valid;
 
     // ================================================================
@@ -579,9 +587,29 @@ module bridge_mix_e_xbar
     wire dma_axi4_64b_aw_to_ddr_axi3 = (dma_axi4_64b_aw.addr <= 32'h3fffffff);
     wire dma_axi4_64b_ar_to_ddr_axi3 = (dma_axi4_64b_ar.addr <= 32'h3fffffff);
 
+    // AW request slots for ddr_axi3: arbitration at the slave pins
+    assign cpu_axi3_64b_aw_slot_ddr_axi3_in_valid = cpu_axi3_64b_aw_to_ddr_axi3 && cpu_axi3_64b_awvalid && !cpu_axi3_64b_aw_hold_ddr_axi3;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi3_64b_aw_slot_ddr_axi3 (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi3_64b_aw_slot_ddr_axi3_in_valid), .wr_ready(cpu_axi3_64b_aw_slot_ddr_axi3_in_ready), .wr_data(cpu_axi3_64b_aw),
+        .rd_valid(cpu_axi3_64b_aw_slot_ddr_axi3_valid), .rd_ready(cpu_axi3_64b_aw_slot_ddr_axi3_ready), .rd_data(cpu_axi3_64b_aw_slot_ddr_axi3),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_axi4_64b_aw_slot_ddr_axi3_in_valid = dma_axi4_64b_aw_to_ddr_axi3 && dma_axi4_64b_awvalid && !dma_axi4_64b_aw_hold_ddr_axi3;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_axi4_64b_aw_slot_ddr_axi3 (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_axi4_64b_aw_slot_ddr_axi3_in_valid), .wr_ready(dma_axi4_64b_aw_slot_ddr_axi3_in_ready), .wr_data(dma_axi4_64b_aw),
+        .rd_valid(dma_axi4_64b_aw_slot_ddr_axi3_valid), .rd_ready(dma_axi4_64b_aw_slot_ddr_axi3_ready), .rd_data(dma_axi4_64b_aw_slot_ddr_axi3),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for ddr_axi3: round-robin, lock until handshake ----
     logic [1:0] ddr_axi3_aw_arb_req;
-    assign ddr_axi3_aw_arb_req = {dma_axi4_64b_aw_to_ddr_axi3 && dma_axi4_64b_awvalid && !dma_axi4_64b_aw_hold_ddr_axi3, cpu_axi3_64b_aw_to_ddr_axi3 && cpu_axi3_64b_awvalid && !cpu_axi3_64b_aw_hold_ddr_axi3};
+    assign ddr_axi3_aw_arb_req = {dma_axi4_64b_aw_slot_ddr_axi3_valid, cpu_axi3_64b_aw_slot_ddr_axi3_valid};
     logic [0:0] ddr_axi3_aw_arb_lock, ddr_axi3_aw_arb_rr;
     logic ddr_axi3_aw_arb_locked;
     wire [0:0] ddr_axi3_aw_arb_pick = (ddr_axi3_aw_arb_rr == 1'd0) ? (ddr_axi3_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -605,54 +633,66 @@ module bridge_mix_e_xbar
     )
     wire cpu_axi3_64b_aw_gnt_ddr_axi3 = ddr_axi3_aw_arb_gnt_valid && (ddr_axi3_aw_arb_gnt == 1'd0) && ddr_axi3_aw_arb_req[0];
     wire dma_axi4_64b_aw_gnt_ddr_axi3 = ddr_axi3_aw_arb_gnt_valid && (ddr_axi3_aw_arb_gnt == 1'd1) && ddr_axi3_aw_arb_req[1];
+    assign cpu_axi3_64b_aw_slot_ddr_axi3_ready = cpu_axi3_64b_aw_gnt_ddr_axi3 && ddr_axi3_axi_awready;
+    assign dma_axi4_64b_aw_slot_ddr_axi3_ready = dma_axi4_64b_aw_gnt_ddr_axi3 && ddr_axi3_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign ddr_axi3_axi_awid = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.id : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.id : '0);
-    assign ddr_axi3_axi_awaddr = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.addr : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.addr : '0);
-    assign ddr_axi3_axi_awlen = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.len : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.len : '0);
-    assign ddr_axi3_axi_awsize = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.size : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.size : '0);
-    assign ddr_axi3_axi_awburst = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.burst : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.burst : '0);
-    assign ddr_axi3_axi_awlock = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.lock : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.lock : '0);
-    assign ddr_axi3_axi_awcache = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.cache : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.cache : '0);
-    assign ddr_axi3_axi_awprot = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.prot : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.prot : '0);
-    assign ddr_axi3_axi_awqos = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.qos : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.qos : '0);
-    assign ddr_axi3_axi_awregion = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.region : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.region : '0);
-    assign ddr_axi3_axi_awuser = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw.user : '0) |
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw.user : '0);
+    assign ddr_axi3_axi_awid = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.id : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.id : '0);
+    assign ddr_axi3_axi_awaddr = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.addr : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.addr : '0);
+    assign ddr_axi3_axi_awlen = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.len : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.len : '0);
+    assign ddr_axi3_axi_awsize = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.size : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.size : '0);
+    assign ddr_axi3_axi_awburst = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.burst : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.burst : '0);
+    assign ddr_axi3_axi_awlock = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.lock : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.lock : '0);
+    assign ddr_axi3_axi_awcache = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.cache : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.cache : '0);
+    assign ddr_axi3_axi_awprot = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.prot : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.prot : '0);
+    assign ddr_axi3_axi_awqos = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.qos : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.qos : '0);
+    assign ddr_axi3_axi_awregion = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.region : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.region : '0);
+    assign ddr_axi3_axi_awuser = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_64b_aw_slot_ddr_axi3.user : '0) |
+        (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_64b_aw_slot_ddr_axi3.user : '0);
     assign ddr_axi3_axi_awvalid = cpu_axi3_64b_aw_gnt_ddr_axi3 || dma_axi4_64b_aw_gnt_ddr_axi3;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] ddr_axi3_wowner_mem [16];
     logic [4:0] ddr_axi3_wowner_wptr, ddr_axi3_wowner_rptr;
+    logic ddr_axi3_wowner_ahead;
+    wire ddr_axi3_wowner_valid = (ddr_axi3_wowner_wptr != ddr_axi3_wowner_rptr);
+    wire ddr_axi3_wowner_byp = !ddr_axi3_wowner_valid && !ddr_axi3_wowner_ahead && ddr_axi3_axi_awvalid;
+    wire ddr_axi3_wowner_aw_hs = ddr_axi3_axi_awvalid && ddr_axi3_axi_awready;
+    wire ddr_axi3_wowner_w_end = ddr_axi3_axi_wvalid && ddr_axi3_axi_wready && ddr_axi3_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            ddr_axi3_wowner_wptr <= '0;
-            ddr_axi3_wowner_rptr <= '0;
+            ddr_axi3_wowner_wptr  <= '0;
+            ddr_axi3_wowner_rptr  <= '0;
+            ddr_axi3_wowner_ahead <= 1'b0;
         end else begin
-            if (ddr_axi3_axi_awvalid && ddr_axi3_axi_awready) begin
+            if (ddr_axi3_wowner_aw_hs && ddr_axi3_wowner_ahead) begin
+                ddr_axi3_wowner_ahead <= 1'b0;   // its W already went
+            end else if (ddr_axi3_wowner_aw_hs && !(ddr_axi3_wowner_byp && ddr_axi3_wowner_w_end)) begin
                 ddr_axi3_wowner_mem[ddr_axi3_wowner_wptr[3:0]] <= ddr_axi3_aw_arb_gnt;
                 ddr_axi3_wowner_wptr <= ddr_axi3_wowner_wptr + 1'b1;
+            end else if (!ddr_axi3_wowner_aw_hs && ddr_axi3_wowner_byp && ddr_axi3_wowner_w_end) begin
+                ddr_axi3_wowner_ahead <= 1'b1;
             end
-            if (ddr_axi3_axi_wvalid && ddr_axi3_axi_wready && ddr_axi3_axi_wlast) begin
+            if (ddr_axi3_wowner_valid && ddr_axi3_wowner_w_end) begin
                 ddr_axi3_wowner_rptr <= ddr_axi3_wowner_rptr + 1'b1;
             end
         end
     )
-    wire ddr_axi3_wowner_valid = (ddr_axi3_wowner_wptr != ddr_axi3_wowner_rptr);
-    wire [0:0] ddr_axi3_wowner_head = ddr_axi3_wowner_mem[ddr_axi3_wowner_rptr[3:0]];
-    assign cpu_axi3_64b_w_sel_ddr_axi3 = ddr_axi3_wowner_valid && (ddr_axi3_wowner_head == 1'd0) && cpu_axi3_64b_w_to_ddr_axi3;
-    assign dma_axi4_64b_w_sel_ddr_axi3 = ddr_axi3_wowner_valid && (ddr_axi3_wowner_head == 1'd1) && dma_axi4_64b_w_to_ddr_axi3;
+    wire [0:0] ddr_axi3_wowner_head = ddr_axi3_wowner_valid ? ddr_axi3_wowner_mem[ddr_axi3_wowner_rptr[3:0]]
+                                       : ddr_axi3_aw_arb_gnt;
+    assign cpu_axi3_64b_w_sel_ddr_axi3 = (ddr_axi3_wowner_valid || ddr_axi3_wowner_byp) && (ddr_axi3_wowner_head == 1'd0) && cpu_axi3_64b_w_to_ddr_axi3;
+    assign dma_axi4_64b_w_sel_ddr_axi3 = (ddr_axi3_wowner_valid || ddr_axi3_wowner_byp) && (ddr_axi3_wowner_head == 1'd1) && dma_axi4_64b_w_to_ddr_axi3;
 
     // W channel (owner-gated mux across writing masters)
     assign ddr_axi3_axi_wdata = ((cpu_axi3_64b_w_sel_ddr_axi3 && cpu_axi3_64b_wvalid) ? cpu_axi3_64b_w.data : '0) |
@@ -673,9 +713,29 @@ module bridge_mix_e_xbar
     assign ddr_axi3_axi_bridge_id_aw = (cpu_axi3_64b_aw_gnt_ddr_axi3 ? cpu_axi3_bridge_id_aw : '0) |
         (dma_axi4_64b_aw_gnt_ddr_axi3 ? dma_axi4_bridge_id_aw : '0);
 
+    // AR request slots for ddr_axi3: arbitration at the slave pins
+    assign cpu_axi3_64b_ar_slot_ddr_axi3_in_valid = cpu_axi3_64b_ar_to_ddr_axi3 && cpu_axi3_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_axi3_64b_ar_slot_ddr_axi3 (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi3_64b_ar_slot_ddr_axi3_in_valid), .wr_ready(cpu_axi3_64b_ar_slot_ddr_axi3_in_ready), .wr_data(cpu_axi3_64b_ar),
+        .rd_valid(cpu_axi3_64b_ar_slot_ddr_axi3_valid), .rd_ready(cpu_axi3_64b_ar_slot_ddr_axi3_ready), .rd_data(cpu_axi3_64b_ar_slot_ddr_axi3),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign dma_axi4_64b_ar_slot_ddr_axi3_in_valid = dma_axi4_64b_ar_to_ddr_axi3 && dma_axi4_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_dma_axi4_64b_ar_slot_ddr_axi3 (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(dma_axi4_64b_ar_slot_ddr_axi3_in_valid), .wr_ready(dma_axi4_64b_ar_slot_ddr_axi3_in_ready), .wr_data(dma_axi4_64b_ar),
+        .rd_valid(dma_axi4_64b_ar_slot_ddr_axi3_valid), .rd_ready(dma_axi4_64b_ar_slot_ddr_axi3_ready), .rd_data(dma_axi4_64b_ar_slot_ddr_axi3),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for ddr_axi3: round-robin, lock until handshake ----
     logic [1:0] ddr_axi3_ar_arb_req;
-    assign ddr_axi3_ar_arb_req = {dma_axi4_64b_ar_to_ddr_axi3 && dma_axi4_64b_arvalid, cpu_axi3_64b_ar_to_ddr_axi3 && cpu_axi3_64b_arvalid};
+    assign ddr_axi3_ar_arb_req = {dma_axi4_64b_ar_slot_ddr_axi3_valid, cpu_axi3_64b_ar_slot_ddr_axi3_valid};
     logic [0:0] ddr_axi3_ar_arb_lock, ddr_axi3_ar_arb_rr;
     logic ddr_axi3_ar_arb_locked;
     wire [0:0] ddr_axi3_ar_arb_pick = (ddr_axi3_ar_arb_rr == 1'd0) ? (ddr_axi3_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -699,30 +759,32 @@ module bridge_mix_e_xbar
     )
     wire cpu_axi3_64b_ar_gnt_ddr_axi3 = ddr_axi3_ar_arb_gnt_valid && (ddr_axi3_ar_arb_gnt == 1'd0) && ddr_axi3_ar_arb_req[0];
     wire dma_axi4_64b_ar_gnt_ddr_axi3 = ddr_axi3_ar_arb_gnt_valid && (ddr_axi3_ar_arb_gnt == 1'd1) && ddr_axi3_ar_arb_req[1];
+    assign cpu_axi3_64b_ar_slot_ddr_axi3_ready = cpu_axi3_64b_ar_gnt_ddr_axi3 && ddr_axi3_axi_arready;
+    assign dma_axi4_64b_ar_slot_ddr_axi3_ready = dma_axi4_64b_ar_gnt_ddr_axi3 && ddr_axi3_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign ddr_axi3_axi_arid = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.id : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.id : '0);
-    assign ddr_axi3_axi_araddr = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.addr : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.addr : '0);
-    assign ddr_axi3_axi_arlen = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.len : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.len : '0);
-    assign ddr_axi3_axi_arsize = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.size : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.size : '0);
-    assign ddr_axi3_axi_arburst = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.burst : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.burst : '0);
-    assign ddr_axi3_axi_arlock = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.lock : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.lock : '0);
-    assign ddr_axi3_axi_arcache = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.cache : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.cache : '0);
-    assign ddr_axi3_axi_arprot = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.prot : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.prot : '0);
-    assign ddr_axi3_axi_arqos = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.qos : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.qos : '0);
-    assign ddr_axi3_axi_arregion = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.region : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.region : '0);
-    assign ddr_axi3_axi_aruser = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar.user : '0) |
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar.user : '0);
+    assign ddr_axi3_axi_arid = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.id : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.id : '0);
+    assign ddr_axi3_axi_araddr = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.addr : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.addr : '0);
+    assign ddr_axi3_axi_arlen = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.len : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.len : '0);
+    assign ddr_axi3_axi_arsize = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.size : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.size : '0);
+    assign ddr_axi3_axi_arburst = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.burst : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.burst : '0);
+    assign ddr_axi3_axi_arlock = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.lock : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.lock : '0);
+    assign ddr_axi3_axi_arcache = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.cache : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.cache : '0);
+    assign ddr_axi3_axi_arprot = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.prot : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.prot : '0);
+    assign ddr_axi3_axi_arqos = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.qos : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.qos : '0);
+    assign ddr_axi3_axi_arregion = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.region : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.region : '0);
+    assign ddr_axi3_axi_aruser = (cpu_axi3_64b_ar_gnt_ddr_axi3 ? cpu_axi3_64b_ar_slot_ddr_axi3.user : '0) |
+        (dma_axi4_64b_ar_gnt_ddr_axi3 ? dma_axi4_64b_ar_slot_ddr_axi3.user : '0);
     assign ddr_axi3_axi_arvalid = cpu_axi3_64b_ar_gnt_ddr_axi3 || dma_axi4_64b_ar_gnt_ddr_axi3;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1637,7 +1699,7 @@ module bridge_mix_e_xbar
 
     // Master: cpu_axi3, Width path: 64b
     assign cpu_axi3_64b_awready = 
-        (cpu_axi3_64b_aw_gnt_ddr_axi3 ? ddr_axi3_axi_awready : '0) |
+        ((cpu_axi3_64b_aw_to_ddr_axi3 && !cpu_axi3_64b_aw_hold_ddr_axi3) ? cpu_axi3_64b_aw_slot_ddr_axi3_in_ready : '0) |
         ((cpu_axi3_64b_aw_to_sram_axi4 && !cpu_axi3_64b_aw_hold_sram_axi4) ? cpu_axi3_64b_aw_slot_sram_axi4_in_ready : '0) |
         ((cpu_axi3_64b_aw_to_subtractive && !cpu_axi3_64b_aw_hold_subtractive) ? cpu_axi3_64b_aw_slot_subtractive_in_ready : '0);
 
@@ -1667,7 +1729,7 @@ module bridge_mix_e_xbar
         (cpu_axi3_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_axi3_64b_arready = 
-        (cpu_axi3_64b_ar_gnt_ddr_axi3 ? ddr_axi3_axi_arready : '0) |
+        ((cpu_axi3_64b_ar_to_ddr_axi3) ? cpu_axi3_64b_ar_slot_ddr_axi3_in_ready : '0) |
         ((cpu_axi3_64b_ar_to_sram_axi4) ? cpu_axi3_64b_ar_slot_sram_axi4_in_ready : '0) |
         ((cpu_axi3_64b_ar_to_subtractive) ? cpu_axi3_64b_ar_slot_subtractive_in_ready : '0);
 
@@ -1745,7 +1807,7 @@ module bridge_mix_e_xbar
 
     // Master: dma_axi4, Width path: 64b
     assign dma_axi4_64b_awready = 
-        (dma_axi4_64b_aw_gnt_ddr_axi3 ? ddr_axi3_axi_awready : '0) |
+        ((dma_axi4_64b_aw_to_ddr_axi3 && !dma_axi4_64b_aw_hold_ddr_axi3) ? dma_axi4_64b_aw_slot_ddr_axi3_in_ready : '0) |
         ((dma_axi4_64b_aw_to_sram_axi4 && !dma_axi4_64b_aw_hold_sram_axi4) ? dma_axi4_64b_aw_slot_sram_axi4_in_ready : '0) |
         ((dma_axi4_64b_aw_to_subtractive && !dma_axi4_64b_aw_hold_subtractive) ? dma_axi4_64b_aw_slot_subtractive_in_ready : '0);
 
@@ -1775,7 +1837,7 @@ module bridge_mix_e_xbar
         (dma_axi4_64b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign dma_axi4_64b_arready = 
-        (dma_axi4_64b_ar_gnt_ddr_axi3 ? ddr_axi3_axi_arready : '0) |
+        ((dma_axi4_64b_ar_to_ddr_axi3) ? dma_axi4_64b_ar_slot_ddr_axi3_in_ready : '0) |
         ((dma_axi4_64b_ar_to_sram_axi4) ? dma_axi4_64b_ar_slot_sram_axi4_in_ready : '0) |
         ((dma_axi4_64b_ar_to_subtractive) ? dma_axi4_64b_ar_slot_subtractive_in_ready : '0);
 

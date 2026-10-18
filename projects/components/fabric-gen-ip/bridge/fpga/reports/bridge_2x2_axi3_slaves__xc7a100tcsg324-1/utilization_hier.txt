@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Sun Oct 18 05:10:24 2026
+| Date         : Sun Oct 18 06:53:53 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_2x2_axi3_slaves__xc7a100tcsg324-1/utilization_hier.txt
 | Design       : bridge_2x2_axi3_slaves
@@ -22,14 +22,14 @@ Table of Contents
 +----------------------------+--------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
 |          Instance          |                   Module                   | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
 +----------------------------+--------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
-| bridge_2x2_axi3_slaves     |                                      (top) |       6571 |       6291 |     280 |    0 | 4003 |      0 |      0 |          0 |
+| bridge_2x2_axi3_slaves     |                                      (top) |      10636 |      10516 |     120 |    0 | 7243 |      0 |      0 |          0 |
 |   (bridge_2x2_axi3_slaves) |                                      (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
-|   (u_subtractive_adapter)  | bridge_2x2_axi3_slaves_subtractive_adapter |         70 |         70 |       0 |    0 |   52 |      0 |      0 |          0 |
-|   u_cpu_axi4_adapter       |    bridge_2x2_axi3_slaves_cpu_axi4_adapter |       1110 |       1110 |       0 |    0 | 1022 |      0 |      0 |          0 |
-|   u_ddr_axi3_adapter       |    bridge_2x2_axi3_slaves_ddr_axi3_adapter |       1909 |       1769 |     140 |    0 |  990 |      0 |      0 |          0 |
-|   u_host_axil_adapter      |   bridge_2x2_axi3_slaves_host_axil_adapter |        647 |        647 |       0 |    0 |  746 |      0 |      0 |          0 |
-|   u_sram_axi3_adapter      |   bridge_2x2_axi3_slaves_sram_axi3_adapter |       1869 |       1729 |     140 |    0 |  990 |      0 |      0 |          0 |
-|   u_xbar                   |                bridge_2x2_axi3_slaves_xbar |        927 |        927 |       0 |    0 |  162 |      0 |      0 |          0 |
+|   (u_subtractive_adapter)  | bridge_2x2_axi3_slaves_subtractive_adapter |         65 |         65 |       0 |    0 |   52 |      0 |      0 |          0 |
+|   u_cpu_axi4_adapter       |    bridge_2x2_axi3_slaves_cpu_axi4_adapter |       1007 |       1007 |       0 |    0 | 1023 |      0 |      0 |          0 |
+|   u_ddr_axi3_adapter       |    bridge_2x2_axi3_slaves_ddr_axi3_adapter |       3143 |       3083 |      60 |    0 | 2217 |      0 |      0 |          0 |
+|   u_host_axil_adapter      |   bridge_2x2_axi3_slaves_host_axil_adapter |        681 |        681 |       0 |    0 |  746 |      0 |      0 |          0 |
+|   u_sram_axi3_adapter      |   bridge_2x2_axi3_slaves_sram_axi3_adapter |       3184 |       3124 |      60 |    0 | 2217 |      0 |      0 |          0 |
+|   u_xbar                   |                bridge_2x2_axi3_slaves_xbar |       2512 |       2512 |       0 |    0 |  947 |      0 |      0 |          0 |
 +----------------------------+--------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
 * Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
 

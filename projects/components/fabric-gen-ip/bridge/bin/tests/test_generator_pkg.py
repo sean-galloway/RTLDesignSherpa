@@ -1912,28 +1912,39 @@ def test_xbar_pipeline_off_by_default(tmp_path):
 
 
 def test_xbar_pipeline_generation_smoke(tmp_path):
-    """bridge_2x2_rw_pipe: every slave-side channel gets a skid stage inside
-    the xbar, the routing drives xs_* nets, the ports are driven by the
-    stages, and the bridge id rides in the request payload. The baseline
-    fixture's xbar has none of it."""
+    """bridge_2x2_rw_pipe: every slave-side channel is registered inside the
+    xbar -- W, B and R by an xs_* skid stage; AW and AR of an arbitrated slave
+    by its per-master request slots, which replace the stage (W3: the pick is
+    made at the slave's pins from the slots, so no granted request queues in
+    a stage behind the arbiter). The routing drives xs_* nets, and the bridge
+    id rides in the request payload. The baseline fixture's xbar has none of
+    it."""
     gen, _fl = _generate_fixture(tmp_path, "bridge_2x2_rw_pipe")
     xbar = (gen / "bridge_2x2_rw_pipe_xbar.sv").read_text()
     for slave in ("ddr", "sram"):
-        for ch in ("aw", "w", "ar", "b", "r"):
+        for ch in ("w", "b", "r"):
             assert f"u_xs_{slave}_{ch} (" in xbar, (slave, ch)
+        for ch in ("aw", "ar"):
+            assert f"u_xs_{slave}_{ch} (" not in xbar, (slave, ch)
+            for m in ("cpu_32b", "dma_32b"):
+                assert f"u_{m}_{ch}_slot_{slave} (" in xbar, (m, ch, slave)
         # The routing targets the pre-stage nets ...
         assert f"assign xs_{slave}_axi_awvalid" in xbar
         # ... and the bridge id travels with the AW/AR beats.
         assert f"xs_{slave}_axi_bridge_id_aw" in xbar and f"xs_{slave}_axi_bridge_id_ar" in xbar
         # Response mux keys on the STAGED id/valid, never the raw port flag.
         assert f"xs_{slave}_axi_bid_valid" in xbar and f"xs_{slave}_axi_rid_valid" in xbar
-    # Five channels per slave port, the internal subtractive slave included.
-    assert "u_xs_subtractive_aw (" in xbar
-    assert xbar.count("gaxi_skid_buffer #(.DEPTH(2)") == 15
+    # Per slave port, the internal subtractive slave included: three stages
+    # (W, B, R) and four slots (two masters x AW, AR).
+    assert "u_xs_subtractive_w (" in xbar and "u_cpu_32b_aw_slot_subtractive (" in xbar
+    assert xbar.count("gaxi_skid_buffer #(.DEPTH(2)") == 3 * (3 + 4)
 
     base, _ = _generate_fixture(tmp_path / "base", "bridge_2x2_rw")
     base_xbar = (base / "bridge_2x2_rw_xbar.sv").read_text()
-    assert "gaxi_skid_buffer" not in base_xbar and "xs_ddr_axi_" not in base_xbar
+    # The baseline has the request slots (every arbitrated slave does) but
+    # none of the registered crossbar's stages.
+    assert "u_xs_" not in base_xbar and "xs_ddr_axi_" not in base_xbar
+    assert "u_cpu_32b_aw_slot_ddr (" in base_xbar
 
 
 # ---------------------------------------------------------------------
@@ -1989,8 +2000,9 @@ def test_qos_generation_smoke(tmp_path):
             arb = f"{slave}_{ch}_arb"
             assert f"{arb}_age_0" in xbar and f"{arb}_age_1" in xbar, arb
             assert f"{arb}_best" in xbar and f"{arb}_elig" in xbar, arb
-            # AxQOS is the priority source, aging shifts by the configured amount.
-            assert re.search(rf"5'\(cpu_32b_{ch}\.qos\)", xbar), (slave, ch)
+            # AxQOS is the priority source -- read from the master's request
+            # slot at this slave (W3) -- and aging shifts by the configured amount.
+            assert re.search(rf"5'\(cpu_32b_{ch}_slot_{slave}\.qos\)", xbar), (slave, ch)
             assert f"{arb}_age_0 >> 4" in xbar
     base, _ = _generate_fixture(tmp_path / "base", "bridge_2x2_rw")
     base_xbar = (base / "bridge_2x2_rw_xbar.sv").read_text()
@@ -2519,3 +2531,25 @@ def test_checker_binds_smoke(tmp_path):
     chk_fl = (fl.parent / "bridge_3x2_rw_mcdc_checkers.f").read_text()
     assert "axi4_protocol_checker.sv" in chk_fl and "bridge_3x2_rw_mcdc_checkers.sv" in chk_fl
     assert "bridge_3x2_rw_mcdc.f" in chk_fl
+
+
+def test_axi3_slave_adapter_is_axi4_shaped(tmp_path):
+    """An AXI3 slave adapter is built like an AXI4 one (bridge W11): the
+    timing wrapper faces the crossbar, a multi-master slave tracks responses
+    by ID in bridge_cam, the crossbar arbitrates it from request slots, and
+    axi4_to_axi3 is the last stage, fed from the wrapper's a3c_* nets. (The
+    converter used to face the crossbar directly: R and B were unregistered
+    from the pins to the arbiter, and responses were routed by position.)"""
+    gen, fl = _generate_fixture(tmp_path, "bridge_2x2_axi3_slaves")
+    ad = (gen / "ddr_axi3_adapter.sv").read_text()
+    assert "u_master_wr (" in ad and "u_master_rd (" in ad
+    assert "bridge_cam #(" in ad
+    assert "axi4_to_axi3 #(" in ad
+    assert ".s_axi_awvalid (a3c_ddr_axi3_axi_awvalid)" in ad
+    assert ".s_axi_rready  (a3c_ddr_axi3_axi_rready)" in ad
+    assert "converter_rvalid" not in ad
+    # The wrapper sits before the converter in the file, as in the data path.
+    assert ad.index("u_master_wr (") < ad.index("axi4_to_axi3 #(")
+    xbar = (gen / "bridge_2x2_axi3_slaves_xbar.sv").read_text()
+    assert "u_cpu_axi4_64b_aw_slot_ddr_axi3 (" in xbar
+    assert "bridge_cam.f" in fl.read_text()

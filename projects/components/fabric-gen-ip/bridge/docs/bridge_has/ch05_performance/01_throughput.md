@@ -199,8 +199,8 @@ cycle of the port's clock, or of the slower clock across a crossing.
 | `bridge_2x2_axi5` | AXI5 masters, AXI5 and AXI4 slaves | 1.000 | 0.997 writes, 1.000 reads | write 7 / read 6 |
 | `bridge_2x2_rw_cdc`, slave 7 ns | slave faster than the 10 ns fabric | 0.700 at the slave (the fabric's rate), 1.000 at the masters | 0.696 writes, 0.700 reads | ~13 fabric cycles |
 | `bridge_2x2_rw_cdc`, slave 13 ns | slave slower than the fabric | 1.000 at the slave, 0.770 at the masters | 0.993 writes, 0.999 reads | ~12 slave cycles |
-| `bridge_2x2_axi3_masters` | AXI3 masters, 32b and 64b | reads 1.000; writes 0.674 at 16 beats, 0.111 single | writes 0.628 | read 6 |
-| `bridge_mix_e` | AXI3 and AXI4 masters, AXI3, AXI4 and APB slaves | reads 1.000 with 8 IDs, 0.892 at 16 beats on one ID; AXI3-master writes as above | writes 0.887 | read 5 |
+| `bridge_2x2_axi3_masters` | AXI3 masters, 32b and 64b | 1.000 | 0.995 writes, 1.000 reads | write 7 / read 6 |
+| `bridge_mix_e` | AXI3 and AXI4 masters, AXI3, AXI4 and APB slaves | 1.000; single-beat writes AXI3 to AXI3 0.890 at 8 in flight | 0.997 writes, 1.000 reads | write 8 / read 6 |
 
 : Bandwidth characterization, `test_bridge_perf_char` (FUNC level, 2026-10-18)
 
@@ -211,42 +211,89 @@ two synchronizer crossings each way. Eight single-beat transactions in
 flight reach 0.58 of the port's peak with the slave at 7 ns and 0.62 at
 13 ns. Bursts of two beats or more saturate the slower side.
 
-Three limits remain open. The suite floors each one at its measured level,
-so none can get worse unnoticed:
+#### Limits fixed on 2026-10-18
 
-- **W7, AXI3 master writes, one at a time.** `axi3_to_axi4_wr` holds AW
-  from acceptance until B, so an AXI3 master has one write in flight. A
-  write stream runs at beats / (beats + ~8): 0.111 single-beat, 0.674 at
-  16 beats. AXI3 reads are not limited.
-- **W8, the AXI3 slave converter.** `axi4_to_axi3_rd` and
-  `axi4_to_axi3_wr`:
-  - issue at most one AR or AW every other cycle (single-beat reads: 0.50);
-  - take one transaction per ID at a time (same-ID reads: 0.334
-    single-beat, 0.892 at 16 beats);
-  - lose a W cycle at the end of every AXI3 burst (8/9 at 8 beats);
-  - queue requests behind the crossbar's arbiter, so against a slave that
-    takes two at a time the shallow master's round-robin share is 0.26.
+- **W7, AXI3 master writes one at a time.** `axi3_to_axi4_wr` held AW from
+  acceptance to B. Writes ran at beats / (beats + ~8): 0.111 single-beat,
+  0.674 at 16 beats. It now passes every channel through, so writes
+  overlap; W bursts must still follow AW order (AXI3 write-interleave depth
+  1), and a simulation-only check flags any that do not.
+- **W8, the AXI3 slave converter.** `axi4_to_axi3_rd/wr` issued at most one
+  AR or AW every other cycle (single-beat reads 0.50), took one
+  transaction per ID (same-ID single-beat reads 0.334), lost a W cycle per
+  AXI3 burst, and queued four granted requests behind the arbiter
+  (round-robin share 0.26). Now:
+  - one request per cycle;
+  - an unchopped request passes straight to the pins, so nothing is queued
+    behind the arbiter (round-robin share 0.498 / 0.500);
+  - up to 32 in flight across IDs; a chopped (17+ beat) request waits for
+    its ID to drain;
+  - W and B pass through when nothing is queued ahead.
+- **W10, the AXI3 slave converter did not synthesize.** It kept its queues
+  in SystemVerilog queues (`[$:N]`), which Vivado 2025.1 rejects ("[Synth
+  8-27] dollar-sign operator not supported"). They are `gaxi_fifo_sync`
+  instances now.
+- **W11, no register on the AXI3 slave's R and B.** The converter faced the
+  crossbar directly, so `<slave>_rvalid` reached `<slave>_rready` through
+  the crossbar's R arbiter (-0.741 ns at 10 ns). An AXI3 slave adapter is
+  now built like an AXI4 one: the timing wrapper, per-ID CAM tracking when
+  several masters share it, and the per-master request slots. The converter
+  is the last stage before the pins. Responses are routed by ID through the
+  tracker, as for AXI4, instead of by FIFO position.
+
+Built on the Artix-7 at 10 ns: `bridge_2x2_axi3_masters` meets timing
+(+0.060 ns, 6884 LUTs); `bridge_2x2_axi3_slaves` (10636 LUTs) and
+`bridge_mix_e` (17158 LUTs) miss by 1.006 and 2.686 ns. Their worst paths
+are inside `bridge_cam`'s response-free logic, the per-ID tracker every
+shared slave uses, AXI4 included, not in the AXI3 port.
+
+#### Open
+
 - **W9, round-robin share at a CDC slave.** The address channels' async
   FIFOs (8 deep) sit between the arbiter and the slave's pins. Granted
-  requests queue there, and against a slave that takes two at a time a
-  master with two in flight gets 0.18-0.20 against one with eight.
-  Bandwidth is not affected (the slave stays busy). This is the fairness
-  limit that per-master request slots fixed at same-clock slaves.
+  requests queue there. Against a slave that takes two at a time, a master
+  with two in flight gets 0.18-0.20 against one with eight. Bandwidth is
+  not affected; the slave stays busy. The depth cannot be traded away. A
+  crossing needs about six entries in flight to carry one request per
+  cycle, and those are granted requests. Measured at 13 ns:
 
-Two more items concern the AXI3 slave port's build, not its bandwidth:
+  | CDC depth | Shallow master's share | 4-beat reads | Single-beat reads |
+  |---:|---:|---:|---:|
+  | 8 | 0.20 | 1.000 | 0.671 |
+  | 4 | 0.26 | 0.650 | 0.642 |
+  | 2 | 0.34 | 0.334 | 0.334 |
 
-- **W10, fixed 2026-10-18: the AXI3 slave converter did not synthesize.**
-  `axi4_to_axi3_rd` and `axi4_to_axi3_wr` kept their request, descriptor
-  and early-W storage in SystemVerilog queues (`[$:N]`). Verilator accepts
-  those, but Vivado 2025.1 rejects them ("[Synth 8-27] dollar-sign operator
-  not supported"). They are `gaxi_fifo_sync` instances now.
-  `bridge_2x2_axi3_slaves` builds: 6571 LUTs, 4003 FFs on the Artix-7.
-- **W11, open: no register on the AXI3 slave's R path.** That build misses
-  10 ns by 0.741 ns on a port-to-port path. `<slave>_rvalid` reaches
-  `<slave>_rready` through the converter and the crossbar's R arbiter with
-  no register between them. An AXI4 slave has its timing wrapper's skid
-  there. The AXI3 master direction meets timing more closely
-  (`bridge_2x2_axi3_masters`: WNS -0.075 ns at 10 ns).
+  : CDC depth against round-robin share and bandwidth, `bridge_2x2_rw_cdc`
+
+  A fair share needs the arbitration in the slave's clock domain: per-master
+  crossings for AW and AR, and for W, since W follows the AW pick.
+
+#### Outstanding Depth (`max_outstanding`)
+
+Each port's `max_outstanding` (default 16) bounds the transactions it keeps
+in flight. A stream saturates its port while
+
+```
+max_outstanding * beats >= beats + slave_latency + round_trip
+```
+
+On `bridge_2x2_rw` (round trip 6-7 cycles), 8-beat bursts reach 1.000 with
+4 in flight at 16 cycles of slave latency and with 16 at 64 cycles:
+
+| Slave latency (cycles) | 1 in flight | 2 | 4 | 8 | 16 | 32 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 0.577 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| 16 | 0.271 | 0.544 | 1.000 | 1.000 | 1.000 | 1.000 |
+| 64 | 0.105 | 0.212 | 0.431 | 0.846 | 1.000 | 1.000 |
+
+: 8-beat read rate against transactions in flight, bridge_2x2_rw (FUNC level)
+
+The default of 16 covers 8-beat bursts up to about 110 cycles of slave
+latency. Where it binds is single-beat traffic behind a slow slave: 16 in
+flight carry 16 / (1 + latency + round trip), so 0.22 behind a 64-cycle
+slave. Raise `max_outstanding` (2..64) on those ports only. It sizes every
+tracker on the path, and the per-ID CAM is already the fabric's critical
+path on the Artix-7.
 
 ### Multi-Master Scaling
 
@@ -255,9 +302,9 @@ shared port; the sum stays at one beat per cycle). The pick is made at the
 slave's pins from per-master request slots, so the round-robin holds when
 the slave throttles too: against a slave taking two transactions at a time,
 a master with 2 in flight gets 0.50 of it against another master's 8 (it
-got 0.34 while granted requests queued behind the arbiter). CDC slaves and
-AXI3 slaves still queue granted requests in their crossing or converter, so
-there the share follows outstanding counts (W8, W9 above). A slave that
+got 0.34 while granted requests queued behind the arbiter). A CDC slave
+still queues granted requests in its crossing, so there the share follows
+outstanding counts (W9 above). A slave that
 accepts many at once keeps its own queue, and the share inside it follows
 each master's outstanding count. Per master, then:
 

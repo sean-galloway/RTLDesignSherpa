@@ -120,18 +120,6 @@ module bridge_1x2_axi3_s0_adapter
     // Internal Signals
     // ================================================================
 
-    // Protocol converter intermediate signals
-    // (FIFO tracking monitors these instead of crossbar signals)
-    logic converter_bvalid;
-    logic converter_bready;
-
-    logic converter_rvalid;
-    logic converter_rready;
-    logic converter_rlast;
-
-    logic converter_awready;
-    logic converter_arready;
-
     // FIFO tracking signals (in-order mode)
     logic cam_wr_allocate;
     logic cam_wr_deallocate;
@@ -149,9 +137,7 @@ module bridge_1x2_axi3_s0_adapter
     // Bridge ID Tracking - FIFO Mode (In-Order)
     // ================================================================
 
-    // Write Channel FIFO (In-Order) - AXI3 Protocol
-    // NOTE: Monitors converter output (converter_bvalid), not crossbar input
-    //       This ensures FIFO pops when converter actually produces response
+    // Write Channel FIFO (In-Order) - AXI4 Protocol
     // bridge BUG-009 (was BRIDGE-011) not-full gating: w_sub_awready is the sub-block's
     // own ready, masked before it reaches the crossbar.
     logic wr_trk_full;
@@ -170,11 +156,11 @@ module bridge_1x2_axi3_s0_adapter
         end
     )
 
-    // Pop on B response (converter_bvalid && converter_bready)
+    // Pop on B response (xbar_s0_axi_bvalid && xbar_s0_axi_bready)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             rd_ptr <= '0;
-        end else if (converter_bvalid && converter_bready) begin
+        end else if (xbar_s0_axi_bvalid && xbar_s0_axi_bready) begin
             rd_ptr <= rd_ptr + 1'b1;
         end
     )
@@ -230,9 +216,7 @@ module bridge_1x2_axi3_s0_adapter
     // synthesis translate_on
 `endif
 
-    // Read Channel FIFO (In-Order) - AXI3 Protocol
-    // NOTE: Monitors converter output (converter_rvalid), not crossbar input
-    //       This ensures FIFO pops when converter actually produces response
+    // Read Channel FIFO (In-Order) - AXI4 Protocol
     // bridge BUG-009 (was BRIDGE-011) not-full gating -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
@@ -250,11 +234,11 @@ module bridge_1x2_axi3_s0_adapter
         end
     )
 
-    // Pop on R response (converter_rvalid && converter_rready && converter_rlast)
+    // Pop on R response (xbar_s0_axi_rvalid && xbar_s0_axi_rready && xbar_s0_axi_rlast)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_ptr <= '0;
-        end else if (converter_rvalid && converter_rready && converter_rlast) begin
+        end else if (xbar_s0_axi_rvalid && xbar_s0_axi_rready && xbar_s0_axi_rlast) begin
             r_ptr <= r_ptr + 1'b1;
         end
     )
@@ -299,6 +283,183 @@ module bridge_1x2_axi3_s0_adapter
     // synthesis translate_on
 `endif
 
+    // ============================================================
+    // AXI4 nets between the timing wrapper and the AXI3 converter
+    // ============================================================
+    logic [3:0] a3c_s0_axi_awid;
+    logic [31:0] a3c_s0_axi_awaddr;
+    logic [7:0]  a3c_s0_axi_awlen;
+    logic [2:0]  a3c_s0_axi_awsize;
+    logic [1:0]  a3c_s0_axi_awburst;
+    logic        a3c_s0_axi_awlock;
+    logic [3:0]  a3c_s0_axi_awcache;
+    logic [2:0]  a3c_s0_axi_awprot;
+    logic [3:0]  a3c_s0_axi_awqos;
+    logic [3:0]  a3c_s0_axi_awregion;
+    logic        a3c_s0_axi_awuser;
+    logic        a3c_s0_axi_awvalid;
+    logic        a3c_s0_axi_awready;
+    logic [63:0] a3c_s0_axi_wdata;
+    logic [7:0] a3c_s0_axi_wstrb;
+    logic        a3c_s0_axi_wlast;
+    logic        a3c_s0_axi_wuser;
+    logic        a3c_s0_axi_wvalid;
+    logic        a3c_s0_axi_wready;
+    logic [3:0] a3c_s0_axi_bid;
+    logic [1:0]  a3c_s0_axi_bresp;
+    logic        a3c_s0_axi_buser;
+    logic        a3c_s0_axi_bvalid;
+    logic        a3c_s0_axi_bready;
+    logic [3:0] a3c_s0_axi_arid;
+    logic [31:0] a3c_s0_axi_araddr;
+    logic [7:0]  a3c_s0_axi_arlen;
+    logic [2:0]  a3c_s0_axi_arsize;
+    logic [1:0]  a3c_s0_axi_arburst;
+    logic        a3c_s0_axi_arlock;
+    logic [3:0]  a3c_s0_axi_arcache;
+    logic [2:0]  a3c_s0_axi_arprot;
+    logic [3:0]  a3c_s0_axi_arqos;
+    logic [3:0]  a3c_s0_axi_arregion;
+    logic        a3c_s0_axi_aruser;
+    logic        a3c_s0_axi_arvalid;
+    logic        a3c_s0_axi_arready;
+    logic [3:0] a3c_s0_axi_rid;
+    logic [63:0] a3c_s0_axi_rdata;
+    logic [1:0]  a3c_s0_axi_rresp;
+    logic        a3c_s0_axi_rlast;
+    logic        a3c_s0_axi_ruser;
+    logic        a3c_s0_axi_rvalid;
+    logic        a3c_s0_axi_rready;
+
+    // AXI4 Master Write Timing Wrapper
+    axi4_master_wr #(
+        .SKID_DEPTH_AW(2),
+        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_B(2),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(64),
+        .AXI_USER_WIDTH(1)
+    ) u_master_wr (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Bridge-internal side (fub_axi)
+        .fub_axi_awid(xbar_s0_axi_awid),
+        .fub_axi_awaddr(xbar_s0_axi_awaddr),
+        .fub_axi_awlen(xbar_s0_axi_awlen),
+        .fub_axi_awsize(xbar_s0_axi_awsize),
+        .fub_axi_awburst(xbar_s0_axi_awburst),
+        .fub_axi_awlock(xbar_s0_axi_awlock),
+        .fub_axi_awcache(xbar_s0_axi_awcache),
+        .fub_axi_awprot(xbar_s0_axi_awprot),
+        .fub_axi_awqos(xbar_s0_axi_awqos),
+        .fub_axi_awregion(xbar_s0_axi_awregion),
+        .fub_axi_awuser(xbar_s0_axi_awuser),
+        .fub_axi_awvalid(xbar_s0_axi_awvalid && !wr_trk_full),
+        .fub_axi_awready(w_sub_awready),
+        .fub_axi_wdata(xbar_s0_axi_wdata),
+        .fub_axi_wstrb(xbar_s0_axi_wstrb),
+        .fub_axi_wlast(xbar_s0_axi_wlast),
+        .fub_axi_wuser(xbar_s0_axi_wuser),
+        .fub_axi_wvalid(xbar_s0_axi_wvalid),
+        .fub_axi_wready(xbar_s0_axi_wready),
+        .fub_axi_bid(xbar_s0_axi_bid),
+        .fub_axi_bresp(xbar_s0_axi_bresp),
+        .fub_axi_buser(xbar_s0_axi_buser),
+        .fub_axi_bvalid(xbar_s0_axi_bvalid),
+        .fub_axi_bready(xbar_s0_axi_bready),
+
+        // External side (m_axi)
+        .m_axi_awid(a3c_s0_axi_awid),
+        .m_axi_awaddr(a3c_s0_axi_awaddr),
+        .m_axi_awlen(a3c_s0_axi_awlen),
+        .m_axi_awsize(a3c_s0_axi_awsize),
+        .m_axi_awburst(a3c_s0_axi_awburst),
+        .m_axi_awlock(a3c_s0_axi_awlock),
+        .m_axi_awcache(a3c_s0_axi_awcache),
+        .m_axi_awprot(a3c_s0_axi_awprot),
+        .m_axi_awqos(a3c_s0_axi_awqos),
+        .m_axi_awregion(a3c_s0_axi_awregion),
+        .m_axi_awuser(a3c_s0_axi_awuser),
+        .m_axi_awvalid(a3c_s0_axi_awvalid),
+        .m_axi_awready(a3c_s0_axi_awready),
+        .m_axi_wdata(a3c_s0_axi_wdata),
+        .m_axi_wstrb(a3c_s0_axi_wstrb),
+        .m_axi_wlast(a3c_s0_axi_wlast),
+        .m_axi_wuser(a3c_s0_axi_wuser),
+        .m_axi_wvalid(a3c_s0_axi_wvalid),
+        .m_axi_wready(a3c_s0_axi_wready),
+        .m_axi_bid(a3c_s0_axi_bid),
+        .m_axi_bresp(a3c_s0_axi_bresp),
+        .m_axi_buser(a3c_s0_axi_buser),
+        .m_axi_bvalid(a3c_s0_axi_bvalid),
+        .m_axi_bready(a3c_s0_axi_bready),
+
+        // Status (empty connector = unconnected tie-off)
+        .busy()
+    );
+
+    // AXI4 Master Read Timing Wrapper
+    axi4_master_rd #(
+        .SKID_DEPTH_AR(2),
+        .SKID_DEPTH_R(2),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(64),
+        .AXI_USER_WIDTH(1)
+    ) u_master_rd (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Bridge-internal side (fub_axi)
+        .fub_axi_arid(xbar_s0_axi_arid),
+        .fub_axi_araddr(xbar_s0_axi_araddr),
+        .fub_axi_arlen(xbar_s0_axi_arlen),
+        .fub_axi_arsize(xbar_s0_axi_arsize),
+        .fub_axi_arburst(xbar_s0_axi_arburst),
+        .fub_axi_arlock(xbar_s0_axi_arlock),
+        .fub_axi_arcache(xbar_s0_axi_arcache),
+        .fub_axi_arprot(xbar_s0_axi_arprot),
+        .fub_axi_arqos(xbar_s0_axi_arqos),
+        .fub_axi_arregion(xbar_s0_axi_arregion),
+        .fub_axi_aruser(xbar_s0_axi_aruser),
+        .fub_axi_arvalid(xbar_s0_axi_arvalid && !rd_trk_full),
+        .fub_axi_arready(w_sub_arready),
+        .fub_axi_rid(xbar_s0_axi_rid),
+        .fub_axi_rdata(xbar_s0_axi_rdata),
+        .fub_axi_rresp(xbar_s0_axi_rresp),
+        .fub_axi_rlast(xbar_s0_axi_rlast),
+        .fub_axi_ruser(xbar_s0_axi_ruser),
+        .fub_axi_rvalid(xbar_s0_axi_rvalid),
+        .fub_axi_rready(xbar_s0_axi_rready),
+
+        // External side (m_axi)
+        .m_axi_arid(a3c_s0_axi_arid),
+        .m_axi_araddr(a3c_s0_axi_araddr),
+        .m_axi_arlen(a3c_s0_axi_arlen),
+        .m_axi_arsize(a3c_s0_axi_arsize),
+        .m_axi_arburst(a3c_s0_axi_arburst),
+        .m_axi_arlock(a3c_s0_axi_arlock),
+        .m_axi_arcache(a3c_s0_axi_arcache),
+        .m_axi_arprot(a3c_s0_axi_arprot),
+        .m_axi_arqos(a3c_s0_axi_arqos),
+        .m_axi_arregion(a3c_s0_axi_arregion),
+        .m_axi_aruser(a3c_s0_axi_aruser),
+        .m_axi_arvalid(a3c_s0_axi_arvalid),
+        .m_axi_arready(a3c_s0_axi_arready),
+        .m_axi_rid(a3c_s0_axi_rid),
+        .m_axi_rdata(a3c_s0_axi_rdata),
+        .m_axi_rresp(a3c_s0_axi_rresp),
+        .m_axi_rlast(a3c_s0_axi_rlast),
+        .m_axi_ruser(a3c_s0_axi_ruser),
+        .m_axi_rvalid(a3c_s0_axi_rvalid),
+        .m_axi_rready(a3c_s0_axi_rready),
+
+        // Status (empty connector = unconnected tie-off)
+        .busy()
+    );
+
     // AXI4-to-AXI3 converter
     axi4_to_axi3 #(
         .AXI_ID_WIDTH   (4),
@@ -308,50 +469,50 @@ module bridge_1x2_axi3_s0_adapter
     ) u_s0_axi3_converter (
         .aclk    (aclk),
         .aresetn (aresetn),
-        .s_axi_awid    (xbar_s0_axi_awid),
-        .s_axi_awaddr  (xbar_s0_axi_awaddr),
-        .s_axi_awlen   (xbar_s0_axi_awlen),
-        .s_axi_awsize  (xbar_s0_axi_awsize),
-        .s_axi_awburst (xbar_s0_axi_awburst),
-        .s_axi_awlock  (xbar_s0_axi_awlock),
-        .s_axi_awcache (xbar_s0_axi_awcache),
-        .s_axi_awprot  (xbar_s0_axi_awprot),
-        .s_axi_awqos   (xbar_s0_axi_awqos),
-        .s_axi_awregion(xbar_s0_axi_awregion),
-        .s_axi_awuser  (xbar_s0_axi_awuser),
-        .s_axi_awvalid (xbar_s0_axi_awvalid),
-        .s_axi_awready (converter_awready),
-        .s_axi_wdata   (xbar_s0_axi_wdata),
-        .s_axi_wstrb   (xbar_s0_axi_wstrb),
-        .s_axi_wlast   (xbar_s0_axi_wlast),
-        .s_axi_wuser   (xbar_s0_axi_wuser),
-        .s_axi_wvalid  (xbar_s0_axi_wvalid),
-        .s_axi_wready  (xbar_s0_axi_wready),
-        .s_axi_bid     (xbar_s0_axi_bid),
-        .s_axi_bresp   (xbar_s0_axi_bresp),
-        .s_axi_buser   (xbar_s0_axi_buser),
-        .s_axi_bvalid  (converter_bvalid),
-        .s_axi_bready  (converter_bready),
-        .s_axi_arid    (xbar_s0_axi_arid),
-        .s_axi_araddr  (xbar_s0_axi_araddr),
-        .s_axi_arlen   (xbar_s0_axi_arlen),
-        .s_axi_arsize  (xbar_s0_axi_arsize),
-        .s_axi_arburst (xbar_s0_axi_arburst),
-        .s_axi_arlock  (xbar_s0_axi_arlock),
-        .s_axi_arcache (xbar_s0_axi_arcache),
-        .s_axi_arprot  (xbar_s0_axi_arprot),
-        .s_axi_arqos   (xbar_s0_axi_arqos),
-        .s_axi_arregion(xbar_s0_axi_arregion),
-        .s_axi_aruser  (xbar_s0_axi_aruser),
-        .s_axi_arvalid (xbar_s0_axi_arvalid),
-        .s_axi_arready (converter_arready),
-        .s_axi_rid     (xbar_s0_axi_rid),
-        .s_axi_rdata   (xbar_s0_axi_rdata),
-        .s_axi_rresp   (xbar_s0_axi_rresp),
-        .s_axi_rlast   (converter_rlast),
-        .s_axi_ruser   (xbar_s0_axi_ruser),
-        .s_axi_rvalid  (converter_rvalid),
-        .s_axi_rready  (converter_rready),
+        .s_axi_awid    (a3c_s0_axi_awid),
+        .s_axi_awaddr  (a3c_s0_axi_awaddr),
+        .s_axi_awlen   (a3c_s0_axi_awlen),
+        .s_axi_awsize  (a3c_s0_axi_awsize),
+        .s_axi_awburst (a3c_s0_axi_awburst),
+        .s_axi_awlock  (a3c_s0_axi_awlock),
+        .s_axi_awcache (a3c_s0_axi_awcache),
+        .s_axi_awprot  (a3c_s0_axi_awprot),
+        .s_axi_awqos   (a3c_s0_axi_awqos),
+        .s_axi_awregion(a3c_s0_axi_awregion),
+        .s_axi_awuser  (a3c_s0_axi_awuser),
+        .s_axi_awvalid (a3c_s0_axi_awvalid),
+        .s_axi_awready (a3c_s0_axi_awready),
+        .s_axi_wdata   (a3c_s0_axi_wdata),
+        .s_axi_wstrb   (a3c_s0_axi_wstrb),
+        .s_axi_wlast   (a3c_s0_axi_wlast),
+        .s_axi_wuser   (a3c_s0_axi_wuser),
+        .s_axi_wvalid  (a3c_s0_axi_wvalid),
+        .s_axi_wready  (a3c_s0_axi_wready),
+        .s_axi_bid     (a3c_s0_axi_bid),
+        .s_axi_bresp   (a3c_s0_axi_bresp),
+        .s_axi_buser   (a3c_s0_axi_buser),
+        .s_axi_bvalid  (a3c_s0_axi_bvalid),
+        .s_axi_bready  (a3c_s0_axi_bready),
+        .s_axi_arid    (a3c_s0_axi_arid),
+        .s_axi_araddr  (a3c_s0_axi_araddr),
+        .s_axi_arlen   (a3c_s0_axi_arlen),
+        .s_axi_arsize  (a3c_s0_axi_arsize),
+        .s_axi_arburst (a3c_s0_axi_arburst),
+        .s_axi_arlock  (a3c_s0_axi_arlock),
+        .s_axi_arcache (a3c_s0_axi_arcache),
+        .s_axi_arprot  (a3c_s0_axi_arprot),
+        .s_axi_arqos   (a3c_s0_axi_arqos),
+        .s_axi_arregion(a3c_s0_axi_arregion),
+        .s_axi_aruser  (a3c_s0_axi_aruser),
+        .s_axi_arvalid (a3c_s0_axi_arvalid),
+        .s_axi_arready (a3c_s0_axi_arready),
+        .s_axi_rid     (a3c_s0_axi_rid),
+        .s_axi_rdata   (a3c_s0_axi_rdata),
+        .s_axi_rresp   (a3c_s0_axi_rresp),
+        .s_axi_rlast   (a3c_s0_axi_rlast),
+        .s_axi_ruser   (a3c_s0_axi_ruser),
+        .s_axi_rvalid  (a3c_s0_axi_rvalid),
+        .s_axi_rready  (a3c_s0_axi_rready),
         .m_axi3_awid   (s0_axi_awid),
         .m_axi3_awaddr (s0_axi_awaddr),
         .m_axi3_awlen  (s0_axi_awlen),
@@ -395,12 +556,5 @@ module bridge_1x2_axi3_s0_adapter
         .m_axi3_rready (s0_axi_rready)
     );
 
-    assign w_sub_awready = converter_awready;
-    assign w_sub_arready = converter_arready;
-    assign xbar_s0_axi_bvalid = converter_bvalid;
-    assign converter_bready = xbar_s0_axi_bready;
-    assign xbar_s0_axi_rvalid = converter_rvalid;
-    assign converter_rready = xbar_s0_axi_rready;
-    assign xbar_s0_axi_rlast = converter_rlast;
 
 endmodule : bridge_1x2_axi3_s0_adapter

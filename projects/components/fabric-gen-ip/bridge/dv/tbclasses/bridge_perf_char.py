@@ -75,11 +75,7 @@ def pipeline(tb) -> None:
     between transactions."""
     saturate(tb)
     for bfm in list(tb.master_wr.values()) + list(tb.master_rd.values()):
-        # Except AXI3 writes: axi3_to_axi4_wr takes one write at a time (AW
-        # held from acceptance to B) and stops the simulation if a beat of the
-        # next burst is presented before its AW is taken -- which pipelined
-        # mode does, legally. Unpipelined, each burst's W follows its AW.
-        bfm.pipelined = type(bfm).__name__ != 'AXI3MasterWrite'
+        bfm.pipelined = True
         # A saturated narrow slave behind a wide master legitimately holds a
         # requester off for a long time: one 256-beat burst over an 8:1
         # downsize is 2048 slave beats, so AWREADY stays low ~2k cycles while

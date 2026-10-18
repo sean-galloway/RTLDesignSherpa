@@ -985,11 +985,17 @@ When `protocol = "wb4"` is specified (bridge TASK-008, was BRIDGE-019):
 When `protocol = "axi3"` is specified, a same-width protocol converter sits at
 the boundary and the crossbar behind it stays AXI4:
 
-- **Slave boundary:** the generated adapter instantiates `axi4_to_axi3` between
-  the crossbar core and the external AXI3 slave port. Egress AXI4 bursts
-  longer than 16 beats are chopped into sequential AXI3 bursts; `WID` is
-  stamped per beat; `QoS`/`REGION` are dropped; lock is mapped as the
-  converter documents it.
+- **Slave boundary:** the adapter is built like an AXI4 slave adapter. It
+  has the `axi4_master_{wr,rd}` timing wrapper, `bridge_cam` per-ID tracking
+  when several masters share the slave, and the crossbar's per-master
+  request slots. `axi4_to_axi3` is the last stage, between the wrapper's
+  `a3c_<slave>_axi_*` nets and the pins, so every channel is registered in
+  the wrapper. (Until 2026-10-18 the converter faced the crossbar directly:
+  `rvalid` reached `rready` through the R arbiter with no register, and
+  responses were routed by FIFO position, so the slave had to answer in AW
+  order across IDs.) Egress AXI4 bursts longer than 16 beats are chopped
+  into sequential AXI3 bursts; `WID` is stamped per beat; `QoS`/`REGION`
+  are dropped; lock is mapped as the converter documents it.
 - **Master boundary:** the adapter exposes an AXI3 completer surface and
   instantiates `axi3_to_axi4` in front of the ordinary AXI4 timing wrapper.
   `WID` is stripped, `QoS`/`REGION` are driven to zero, and lock is mapped as
@@ -1003,9 +1009,11 @@ operates on the AXI4 side behind the converter.
 Converter-sourced obligations (for full wording see converters MAS §3.15
 *AXI4 to AXI3 Converter* and §3.16 *AXI3 to AXI4 Converter*):
 
-1. An AXI3 master must not interleave W data across IDs. `axi3_to_axi4_wr`
-   asserts `ASSERT_A3_WID_STABLE` if `WID` changes mid-burst or differs from
-   the active AWID.
+1. An AXI3 master must not interleave W data across IDs: W bursts follow AW
+   order. `axi3_to_axi4_wr` passes every channel through, so writes overlap,
+   and a simulation-only check, `ASSERT_A3_WID_STABLE`, fires if `WID`
+   changes mid-burst or a burst's `WID` is not its AW's ID, pairing in
+   order.
 2. Egress bursts longer than 16 beats are chopped by address regeneration;
    `INCR` and `FIXED` are supported, `WRAP` longer than 16 beats is rejected.
 3. `QoS` and `REGION` are absent on AXI3 pins.

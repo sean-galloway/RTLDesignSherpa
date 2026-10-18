@@ -28,8 +28,10 @@
 The bridge crossbar is AXI4 internally. An AXI3 port is therefore converted at
 the boundary, not natively carried through the fabric:
 
-- **AXI3 slave port** (`protocol = "axi3"` on a slave): the crossbar's AXI4
-  master face drives `axi4_to_axi3`, whose AXI3 master face presents the
+- **AXI3 slave port** (`protocol = "axi3"` on a slave): the adapter is an
+  AXI4 slave adapter, with timing wrapper, per-ID tracking and request
+  slots. Its AXI4 master face drives `axi4_to_axi3`, whose AXI3 master face
+  presents the
   external slave pins.
 - **AXI3 master port** (`protocol = "axi3"` on a master): the external AXI3
   master drives `axi3_to_axi4`, whose AXI4 slave face feeds the ordinary AXI4
@@ -47,11 +49,11 @@ converters and relies on their contracts. The constraints below are taken from
 the converters MAS:
 
 1. **No write-data interleaving across IDs.** `axi4_to_axi3_wr` stamps every
-   AXI3 W beat with the current AWID and does not support interleaved W IDs;
-   `axi3_to_axi4_wr` accepts only one outstanding write transaction at a time
-   and asserts `ASSERT_A3_WID_STABLE` if `WID` changes mid-burst or differs
-   from the active AWID. The upstream AXI3 master must keep W beats in
-   transaction order.
+   AXI3 W beat with its burst's AWID and does not interleave W IDs.
+   `axi3_to_axi4_wr` passes every channel through, so an AXI3 master's
+   writes overlap. Its W bursts must follow AW order (W may lead its AW). A
+   simulation-only check, `ASSERT_A3_WID_STABLE`, fires if `WID` changes
+   mid-burst or a burst's `WID` is not the ID of the AW it pairs with.
 2. **Egress bursts longer than 16 beats are chopped.** `axi4_to_axi3_rd` and
    `axi4_to_axi3_wr` split AXI4 bursts into sequential AXI3 bursts of up to 16
    beats each; `INCR` and `FIXED` bursts are advanced/regenerated, while
@@ -67,18 +69,26 @@ the converters MAS:
    - `axi3_to_axi4`: `2'b01 → 1'b1`; `2'b00`, `2'b10` (locked — AXI4 dropped
      locked accesses), and the reserved `2'b11` → `1'b0`.
 
-6. **Bandwidth (measured, HAS 5.1).** An AXI3 master has one write in
-   flight (W7, from item 1), so its writes run at beats / (beats + ~8)
-   beats per cycle: 0.674 at 16 beats, 0.111 single-beat. Its reads are not
-   limited. An AXI3 slave (W8) takes one AR or AW at most every other cycle
-   and one transaction per ID at a time, and loses a W cycle per AXI3
-   burst. With eight IDs in flight, reads reach 0.50 single-beat and 1.000
-   at two beats or more.
-7. **Building an AXI3 slave (W10 fixed, W11 open; HAS 5.1).** The
-   converter's storage is `gaxi_fifo_sync`, so a bridge with an AXI3 slave
-   synthesizes. Its R path has no register between the slave's pins and
-   the crossbar's R arbiter, so `rvalid` to `rready` is one combinational
-   path through the fabric (-0.741 ns at 10 ns on the Artix-7).
+6. **Bandwidth (measured, HAS 5.1).** Bursts of two beats or more run at
+   1.000 through an AXI3 port in either direction, single-beat ones too
+   behind an AXI3 master. An AXI3 slave takes one request per cycle. Up to
+   32 may be in flight across IDs, and a chopped (17+ beat) request waits
+   for its ID to drain. An unchopped request passes straight to the pins,
+   so round-robin at a shared AXI3 slave holds (0.498 / 0.500). (Fixed
+   2026-10-18: W7, one write at a time behind an AXI3 master; W8, the
+   slave converter's issue rate, one-per-ID ordering, a dead W cycle per
+   burst and its request queue.)
+7. **Building an AXI3 slave (W10 and W11 fixed, HAS 5.1).** The converter's
+   storage is `gaxi_fifo_sync`, so an AXI3 slave synthesizes, and the
+   timing wrapper registers its channels. On the Artix-7 at 10 ns the
+   worst paths of `bridge_2x2_axi3_slaves` and `bridge_mix_e` are inside
+   the shared per-ID tracker, as on any multi-master AXI4 slave, not in the
+   AXI3 port.
+8. **Responses are routed by ID.** Responses from a shared AXI3 slave go
+   through the per-ID tracker, as for AXI4. Until 2026-10-18 they were
+   routed by FIFO position, which required the slave to answer in AW order
+   across IDs. No test yet has an AXI3 slave reorder across IDs; the AXI4
+   reordering fixture (`bridge_2x2_ooo`) exercises the same tracker.
 
 See converters MAS §3.15 *AXI4 to AXI3 Converter*
 ([`15_axi4_to_axi3.md`](../../../../../../components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/15_axi4_to_axi3.md))

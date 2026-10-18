@@ -786,9 +786,8 @@ file beside it (`test_bridge_2x2_rw_tracking.py`,
 The bandwidth gate is `dv/tests/test_bridge_perf_char.py`, which is
 hand-written and runs in FUNC. `MATRIX` lists the fixtures and their cases.
 `RTT_BUDGET` holds each fixture's measured round trip. `KNOWN` holds the
-open limits (W7 AXI3 master writes, W8 AXI3 slave converter, W9 CDC-slave
-round-robin), each floored at its measured level; delete a row when its
-limit is fixed. A fixture key may carry `@<ns>`, the CDC port's clock
+open limits, each floored at its measured level (now only W9, CDC-slave
+round-robin); delete a row when its limit is fixed. A fixture key may carry `@<ns>`, the CDC port's clock
 period. HAS 5.1 has the results.
 
 **For Mixed AXI4/APB:**

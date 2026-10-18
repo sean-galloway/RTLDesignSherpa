@@ -1199,7 +1199,7 @@ def _emit_bridge_variant(
     uses_cam = any(
         getattr(s, 'enable_ooo', False)
         or (len(config.masters) > 1
-            and s.protocol.lower() in ('axi4', 'axi5')
+            and s.protocol.lower() in ('axi3', 'axi4', 'axi5')
             and not getattr(s, 'internal', False))
         for s in config.slaves)
     if uses_cam:

@@ -614,7 +614,7 @@ class CrossbarGenerator:
         own whatever the crossbar does, so it keeps the grant-on-entry
         arbiter too. Must agree with slave_adapter_generator's `arbitrated`
         stage cut."""
-        if not self._is_arbitrated(slave) or slave.protocol not in ('axi4', 'axi5'):
+        if not self._is_arbitrated(slave) or slave.protocol not in ('axi3', 'axi4', 'axi5'):
             return False
         depth = int((getattr(slave, 'skid_depths', None) or {}).get(ch, 2))
         return depth > 0 or self.pipeline

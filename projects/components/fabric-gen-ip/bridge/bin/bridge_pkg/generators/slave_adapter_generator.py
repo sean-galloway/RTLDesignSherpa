@@ -91,7 +91,7 @@ class SlaveAdapterGenerator:
         # Arbitrated at the pins: the crossbar's request slots are this
         # slave's AW/AR register. APB/AXIL shims keep theirs -- the shim
         # converts there and holds a request of its own anyway.
-        if arbitrated and slave_config.protocol in ('axi4', 'axi5'):
+        if arbitrated and slave_config.protocol in ('axi3', 'axi4', 'axi5'):
             self.skid_depth_aw = 0
             self.skid_depth_ar = 0
 
@@ -125,18 +125,16 @@ class SlaveAdapterGenerator:
         lines.extend(self._generate_bridge_id_tracking())
 
         # Timing wrapper or protocol converter
-        if self.slave.protocol in ('axi4', 'axi5'):
+        if self.slave.protocol in ('axi4', 'axi5', 'axi3'):
             # axi5 (A5-2 slice 1): same structure as axi4, but the
             # boundary wrapper is axi5_master_{wr,rd} -- AXI4 fub face
             # toward the crossbar, AXI5 m_axi face toward the external
             # slave, sideband features terminated/defaulted at the
-            # wrapper.
+            # wrapper. axi3 (bridge GitHub #97): the axi4 wrapper, then
+            # axi4_to_axi3 as the last stage before the pins (W11: the
+            # converter used to face the crossbar directly, leaving the
+            # slave's R and B unregistered all the way to the arbiter).
             lines.extend(self._generate_axi4_timing_wrapper())
-        elif self.slave.protocol == 'axi3':
-            # bridge GitHub #97: axi4_to_axi3 at the boundary. The crossbar
-            # stays full AXI4; the converter narrows the external surface
-            # to AXI3 (4-bit len, wid, 2-bit lock, no qos/region).
-            lines.extend(self._generate_axi3_converter())
         elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_converter())
         elif self.slave.protocol == 'wb4':
@@ -711,7 +709,7 @@ class SlaveAdapterGenerator:
 
         # Add protocol converter intermediate signals for APB/AXIL/WB4/AXI3
         # These allow FIFO tracking to monitor converter output instead of crossbar input
-        if self.slave.protocol in ['apb', 'apb5', 'axil', 'axil5', 'wb4', 'axi3']:
+        if self.slave.protocol in ['apb', 'apb5', 'axil', 'axil5', 'wb4']:
             lines.append("    // Protocol converter intermediate signals")
             lines.append("    // (FIFO tracking monitors these instead of crossbar signals)")
             if self.has_write:
@@ -723,18 +721,6 @@ class SlaveAdapterGenerator:
                 lines.append("    logic converter_rready;")
                 lines.append("    logic converter_rlast;")
                 lines.append("")
-            # AXI3 converter: its s_axi awready/arready are outputs that must be
-            # gated with the bridge_id FIFO not-full status before reaching the
-            # crossbar (mirror the axi4_master_* wrapper pattern). In monitored
-            # mode the wrapper already provides the gated ready, so the converter
-            # connects directly to the intermediate nets.
-            if self.slave.protocol == 'axi3' and not self.enable_monitoring:
-                if self.has_write:
-                    lines.append("    logic converter_awready;")
-                if self.has_read:
-                    lines.append("    logic converter_arready;")
-                if self.has_write or self.has_read:
-                    lines.append("")
 
         # Add FIFO/CAM internal signals if needed
         # Handle missing enable_ooo attribute (default to False for in-order)
@@ -915,7 +901,7 @@ class SlaveAdapterGenerator:
         #         `converter_bready` off the shim's AXI4 (s_axi) side
         #         so the FIFO pops the moment the shim actually
         #         produces a response, not when external completes.
-        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4', 'axi3'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_bvalid && converter_bready"
             lines.append(f"    // Write Channel FIFO (In-Order) - {label} Protocol")
@@ -1087,7 +1073,7 @@ class SlaveAdapterGenerator:
         # shims with their own latency; tracking the shim's AXI4
         # (s_axi) output via converter_rvalid keeps the FIFO in
         # lockstep with the actual response.
-        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4', 'axi3'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_rvalid && converter_rready && converter_rlast"
             lines.append(f"    // Read Channel FIFO (In-Order) - {label} Protocol")
@@ -1184,6 +1170,11 @@ class SlaveAdapterGenerator:
         return bool(getattr(self.slave, 'cdc', False))
 
     @property
+    def is_axi3(self) -> bool:
+        """An AXI3 slave: AXI4 up to the pins, axi4_to_axi3 last."""
+        return self.slave.protocol == 'axi3'
+
+    @property
     def has_watchdog(self) -> bool:
         """GitHub #119 L3: axi4_slave_watchdog between the timing wrapper and
         the port (or the clock crossing), on aclk."""
@@ -1258,11 +1249,20 @@ class SlaveAdapterGenerator:
         lines = []
 
         crossbar_prefix = f"xbar_{self.slave.name}_axi_"
-        slave_prefix = self.slave.prefix
+        # The AXI4 face nearest the pins: the pins themselves, or for an
+        # AXI3 slave the AXI4 nets into axi4_to_axi3.
+        slave_prefix = (f"a3c_{self.slave.name}_axi_" if self.is_axi3
+                        else self.slave.prefix)
         ext_prefix = f"cdc_{self.slave.name}_axi_" if self.is_cdc else slave_prefix
         # GitHub #119 L3: the watchdog sits between the wrapper and ext_prefix.
         wrap_prefix = f"wdg_{self.slave.name}_axi_" if self.has_watchdog else ext_prefix
 
+        if self.is_axi3:
+            lines.append("    // ============================================================")
+            lines.append("    // AXI4 nets between the timing wrapper and the AXI3 converter")
+            lines.append("    // ============================================================")
+            lines.extend(self._shim_axi_intermediate_signal_decls(slave_prefix))
+            lines.append("")
         if self.is_cdc:
             lines.append("    // ============================================================")
             lines.append("    // aclk-side nets between the timing wrapper and the clock crossing")
@@ -1287,6 +1287,9 @@ class SlaveAdapterGenerator:
 
         if self.is_cdc:
             lines.extend(self._generate_cdc_stage(ext_prefix, slave_prefix))
+
+        if self.is_axi3:
+            lines.extend(self._generate_axi3_converter(slave_prefix))
 
         lines.extend(self._wakeup_lines())
         return lines
@@ -1345,7 +1348,7 @@ class SlaveAdapterGenerator:
         if getattr(self.slave, 'enable_ooo', False):
             return True
         return (self.num_masters > 1
-                and getattr(self.slave, 'protocol', 'axi4') in ('axi4', 'axi5')
+                and getattr(self.slave, 'protocol', 'axi4') in ('axi3', 'axi4', 'axi5')
                 and not getattr(self.slave, 'internal', False))
 
     @property
@@ -1778,49 +1781,19 @@ class SlaveAdapterGenerator:
         lines.append("")
         return lines
 
-    def _generate_axi3_converter(self) -> List[str]:
-        """axi4_to_axi3 at the slave boundary (bridge GitHub #97).
-
-        The converter has a full AXI4 slave side (facing the crossbar)
-        and a full AXI3 master side (facing the external slave). With
-        monitoring on, axi4_master_*_mon wrappers sit between the
-        crossbar and the converter; with monitoring off the converter
-        faces the crossbar directly. Bridge-ID tracking pops on the
-        converter's AXI4 slave response side via converter_* intercepts,
-        exactly as the APB/AXIL/WB4 shims do."""
-        xbar_prefix = f"xbar_{self.slave.name}_axi_"
+    def _generate_axi3_converter(self, shim_prefix: str) -> List[str]:
+        """axi4_to_axi3 at the slave boundary (bridge GitHub #97): the last
+        stage before the pins. Its AXI4 slave side takes `shim_prefix`, the
+        nets the timing wrapper (and any watchdog) drives -- so the crossbar
+        sees an ordinary AXI4 slave adapter, with every channel registered
+        in the wrapper; its AXI3 master side is the external port."""
         lines: List[str] = []
-
-        if self.enable_monitoring:
-            shim_prefix = f"{self.slave.name}_mon_axi_"
-            lines.append("    // ============================================================")
-            lines.append("    // axi4_master_*_mon wrapper(s) between crossbar and AXI3 converter")
-            lines.append("    // ============================================================")
-            lines.extend(self._shim_axi_intermediate_signal_decls(shim_prefix))
-            lines.append("")
-            if self.has_write:
-                lines.extend(self._generate_master_wr_wrapper(xbar_prefix, shim_prefix))
-            if self.has_read:
-                lines.extend(self._generate_master_rd_wrapper(xbar_prefix, shim_prefix))
-        else:
-            shim_prefix = xbar_prefix
 
         p = self.slave.prefix
         aw = self.slave.addr_width
         id_w = self.id_width
         dw = self.slave.data_width
         sw = dw // 8
-
-        # AXI4 slave-side (crossbar-facing) ready/rlast connections.
-        # In monitored mode the axi4_master_*_mon wrapper drives the
-        # crossbar-facing ready/rlast, so the converter connects directly to
-        # the intermediate nets. In direct mode the converter's raw ready
-        # outputs are captured as converter_*ready and then gated with the
-        # bridge_id FIFO not-full status via the existing w_sub_*ready plumbing.
-        # rlast is always captured as converter_rlast so the FIFO pop logic
-        # can observe it.
-        awready_conn = f"{shim_prefix}awready" if self.enable_monitoring else "converter_awready"
-        arready_conn = f"{shim_prefix}arready" if self.enable_monitoring else "converter_arready"
 
         lines.append("    // AXI4-to-AXI3 converter")
         lines.append(f"    axi4_to_axi3 #(")
@@ -1847,7 +1820,7 @@ class SlaveAdapterGenerator:
                 f"        .s_axi_awregion({shim_prefix}awregion),",
                 f"        .s_axi_awuser  ({shim_prefix}awuser),",
                 f"        .s_axi_awvalid ({shim_prefix}awvalid),",
-                f"        .s_axi_awready ({awready_conn}),",
+                f"        .s_axi_awready ({shim_prefix}awready),",
                 f"        .s_axi_wdata   ({shim_prefix}wdata),",
                 f"        .s_axi_wstrb   ({shim_prefix}wstrb),",
                 f"        .s_axi_wlast   ({shim_prefix}wlast),",
@@ -1857,8 +1830,8 @@ class SlaveAdapterGenerator:
                 f"        .s_axi_bid     ({shim_prefix}bid),",
                 f"        .s_axi_bresp   ({shim_prefix}bresp),",
                 f"        .s_axi_buser   ({shim_prefix}buser),",
-                f"        .s_axi_bvalid  (converter_bvalid),",
-                f"        .s_axi_bready  (converter_bready),",
+                f"        .s_axi_bvalid  ({shim_prefix}bvalid),",
+                f"        .s_axi_bready  ({shim_prefix}bready),",
             ]
         else:
             lines += [
@@ -1901,14 +1874,14 @@ class SlaveAdapterGenerator:
                 f"        .s_axi_arregion({shim_prefix}arregion),",
                 f"        .s_axi_aruser  ({shim_prefix}aruser),",
                 f"        .s_axi_arvalid ({shim_prefix}arvalid),",
-                f"        .s_axi_arready ({arready_conn}),",
+                f"        .s_axi_arready ({shim_prefix}arready),",
                 f"        .s_axi_rid     ({shim_prefix}rid),",
                 f"        .s_axi_rdata   ({shim_prefix}rdata),",
                 f"        .s_axi_rresp   ({shim_prefix}rresp),",
-                f"        .s_axi_rlast   (converter_rlast),",
+                f"        .s_axi_rlast   ({shim_prefix}rlast),",
                 f"        .s_axi_ruser   ({shim_prefix}ruser),",
-                f"        .s_axi_rvalid  (converter_rvalid),",
-                f"        .s_axi_rready  (converter_rready),",
+                f"        .s_axi_rvalid  ({shim_prefix}rvalid),",
+                f"        .s_axi_rready  ({shim_prefix}rready),",
             ]
         else:
             lines += [
@@ -2032,24 +2005,6 @@ class SlaveAdapterGenerator:
         lines.append("    );")
         lines.append("")
 
-        # Wire converter outputs back to the crossbar-facing interface.
-        # In direct (non-monitored) mode the existing bridge_id-tracking FIFO
-        # gates xbar_*ready via w_sub_*ready, so feed the converter's raw
-        # ready outputs into those nets. In monitored mode the wrapper already
-        # provides the gated ready on the intermediate nets and drives
-        # w_sub_*ready itself, so no extra assignment is needed.
-        if not self.enable_monitoring:
-            if self.has_write:
-                lines.append("    assign w_sub_awready = converter_awready;")
-            if self.has_read:
-                lines.append("    assign w_sub_arready = converter_arready;")
-        if self.has_write:
-            lines.append(f"    assign {shim_prefix}bvalid = converter_bvalid;")
-            lines.append(f"    assign converter_bready = {shim_prefix}bready;")
-        if self.has_read:
-            lines.append(f"    assign {shim_prefix}rvalid = converter_rvalid;")
-            lines.append(f"    assign converter_rready = {shim_prefix}rready;")
-            lines.append(f"    assign {shim_prefix}rlast = converter_rlast;")
         lines.append("")
         return lines
 
