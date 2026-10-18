@@ -27,9 +27,12 @@
 //   - Write-only: AW, W, B channels only
 //   - Per-burst WID stamping so an AXI3 slave can demux by WID
 //   - Early-W buffering for AXI4 masters that send W before AW
-//   - W segmentation via a chunk-descriptor FIFO pushed at AW acceptance;
-//     the descriptor FIFO provides context for beats already buffered in
+//   - W segmentation via a descriptor FIFO pushed at AW acceptance (one
+//     entry per AXI4 AW: its ID and total beats); the segmenter cuts it into
+//     AXI3 bursts of up to 16 and gives context to beats already buffered in
 //     the early-W buffer
+//   - All storage is gaxi_fifo_sync (rtl/amba/gaxi): AW queue, descriptor
+//     FIFO, early-W buffer
 //
 // Parameters:
 //   AXI_ID_WIDTH: Transaction ID width on AXI4/AXI3 side (1-16)
@@ -142,9 +145,7 @@ module axi4_to_axi3_wr #(
     localparam int Axi3MaxBeats   = 16;
     localparam int AwQueueDepth   = 4;
     localparam int WBufferDepth   = Axi3MaxBeats;
-    localparam int MaxAxi4Beats   = 256;
-    localparam int MaxChunksPerAw = (MaxAxi4Beats + Axi3MaxBeats - 1) / Axi3MaxBeats;
-    localparam int ChunkFifoDepth = AwQueueDepth * MaxChunksPerAw;
+    localparam int DescFifoDepth  = AwQueueDepth;
     localparam int NumIds         = 1 << AXI_ID_WIDTH;
 
     typedef struct packed {
@@ -162,13 +163,13 @@ module axi4_to_axi3_wr #(
     typedef struct packed {
         logic [AXI_DATA_WIDTH-1:0] data;
         logic [STRB_WIDTH-1:0]     strb;
-        logic                      last;
         logic [AXI_USER_WIDTH-1:0] user;
-    } w_beat_t;
+    } w_beat_t;   // WLAST is not stored: it is regenerated per AXI3 burst
 
+    // One per AXI4 AW: the W segmenter cuts `beats` into AXI3 bursts.
     typedef struct packed {
         logic [AXI_ID_WIDTH-1:0] id;
-        logic [4:0]              beats;
+        logic [8:0]              beats;
     } chunk_desc_t;
 
     //==========================================================================
@@ -176,21 +177,31 @@ module axi4_to_axi3_wr #(
     //==========================================================================
 
     // AW queue and active burst state
-    aw_req_t aw_queue[$:AwQueueDepth-1];
+    logic    awq_wr_ready, awq_rd_valid, awq_rd_ready;
+    aw_req_t awq_wr_data, awq_rd_data;
     aw_req_t active_aw;
     logic    active_valid;
     // Max AXI4 burst is 256 beats (awlen=255), so remaining beats needs 9 bits.
     logic [8:0]                active_remaining;
     logic [AXI_ADDR_WIDTH-1:0] active_addr;
 
-    // Chunk-descriptor FIFO pushed at AW acceptance; consumed by the W segmenter
-    chunk_desc_t desc_fifo[$:ChunkFifoDepth-1];
-    chunk_desc_t cur_desc;
+    // Descriptor FIFO pushed at AW acceptance; consumed by the W segmenter
+    logic        descq_wr_ready, descq_rd_valid, descq_rd_ready;
+    chunk_desc_t descq_wr_data, descq_rd_data;
+    logic [AXI_ID_WIDTH-1:0] cur_desc_id;
     logic        cur_desc_valid;
-    logic [4:0]  cur_desc_beats_remaining;
+    logic [8:0]  cur_desc_beats_remaining;    // in the whole AXI4 burst
+    logic [4:0]  cur_chunk_beats_remaining;   // in the current AXI3 burst
 
     // Early-W buffering
-    w_beat_t w_buffer[$:WBufferDepth-1];
+    logic        wbuf_rd_valid, wbuf_rd_ready;
+    w_beat_t     wbuf_wr_data, wbuf_rd_data;
+
+    logic        aw_handshake;
+    // Idle with the FIFO empty: the new AW (descriptor) loads at once
+    logic        aw_bypass, aw_load, desc_bypass, desc_load;
+    aw_req_t     aw_load_data;
+    chunk_desc_t desc_load_data;
 
     // Per-ID B merge state
     logic       pending_id_busy [NumIds];
@@ -208,7 +219,6 @@ module axi4_to_axi3_wr #(
     logic [4:0] chunk_beats;
 
     // Convenience aliases
-    logic w_handshake;
     logic m_w_handshake;
     logic [AXI_ID_WIDTH-1:0] b_id;
 
@@ -232,9 +242,72 @@ module axi4_to_axi3_wr #(
     // Slave AW Channel Accept Logic
     //==========================================================================
 
-    assign s_axi_awready = (aw_queue.size() < AwQueueDepth) &&
-                           !pending_id_busy[s_axi_awid] &&
-                           ((desc_fifo.size() + MaxChunksPerAw) <= ChunkFifoDepth);
+    assign s_axi_awready = awq_wr_ready && descq_wr_ready &&
+                           !pending_id_busy[s_axi_awid];
+    assign aw_handshake  = s_axi_awvalid && s_axi_awready;
+
+    assign awq_wr_data.id    = s_axi_awid;
+    assign awq_wr_data.addr  = s_axi_awaddr;
+    assign awq_wr_data.len   = s_axi_awlen;
+    assign awq_wr_data.size  = s_axi_awsize;
+    assign awq_wr_data.burst = s_axi_awburst;
+    assign awq_wr_data.lock  = s_axi_awlock;
+    assign awq_wr_data.cache = s_axi_awcache;
+    assign awq_wr_data.prot  = s_axi_awprot;
+    assign awq_wr_data.user  = s_axi_awuser;
+
+    assign descq_wr_data.id    = s_axi_awid;
+    assign descq_wr_data.beats = 9'(s_axi_awlen) + 9'd1;
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH ($bits(aw_req_t)),
+        .DEPTH      (AwQueueDepth)
+    ) u_aw_queue (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (aw_handshake && !aw_bypass),
+        .wr_ready    (awq_wr_ready),
+        .wr_data     (awq_wr_data),
+        .rd_ready    (awq_rd_ready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (awq_rd_valid),
+        .rd_data     (awq_rd_data)
+    );
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH ($bits(chunk_desc_t)),
+        .DEPTH      (DescFifoDepth)
+    ) u_desc_fifo (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (aw_handshake && !desc_bypass),
+        .wr_ready    (descq_wr_ready),
+        .wr_data     (descq_wr_data),
+        .rd_ready    (descq_rd_ready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (descq_rd_valid),
+        .rd_data     (descq_rd_data)
+    );
+
+    // Start chunking the next queued request once the active one is done;
+    // load the next descriptor once the current one is done. An AW arriving
+    // while a stage is idle with its FIFO empty bypasses that FIFO, so it
+    // takes effect the edge it is accepted, as it did before the queues were
+    // FIFOs (a same-ID write waits on the previous one's B, so every cycle
+    // here is a cycle per write). Order holds: a bypass needs an empty FIFO.
+    assign awq_rd_ready   = !active_valid;
+    assign aw_bypass      = aw_handshake && !active_valid && !awq_rd_valid;
+    assign aw_load        = (awq_rd_valid && awq_rd_ready) || aw_bypass;
+    assign aw_load_data   = awq_rd_valid ? awq_rd_data : awq_wr_data;
+
+    assign descq_rd_ready = !cur_desc_valid;
+    assign desc_bypass    = aw_handshake && !cur_desc_valid && !descq_rd_valid;
+    assign desc_load      = (descq_rd_valid && descq_rd_ready) || desc_bypass;
+    assign desc_load_data = descq_rd_valid ? descq_rd_data : descq_wr_data;
 
     //==========================================================================
     // Master AW Channel Chunk Issuance
@@ -258,23 +331,49 @@ module axi4_to_axi3_wr #(
     // Write Data Channel: Segmentation + WID Stamping
     //==========================================================================
 
-    assign w_handshake   = s_axi_wvalid && s_axi_wready;
     assign m_w_handshake = m_axi3_wvalid && m_axi3_wready;
 
     // Accept W beats as long as the early-W buffer has space. When the buffer
     // is full s_axi_wready is deasserted, which is the legal AXI4 mechanism
     // for throttling early W data.
-    assign s_axi_wready = (w_buffer.size() < WBufferDepth);
+    // s_axi_wlast is not stored: the descriptor's beat count places WLAST on
+    // every AXI3 burst, the AXI4 one included.
+    /* verilator lint_off UNUSEDSIGNAL */
+    logic unused_wlast;
+    assign unused_wlast = s_axi_wlast;
+    /* verilator lint_on UNUSEDSIGNAL */
+
+    assign wbuf_wr_data.data = s_axi_wdata;
+    assign wbuf_wr_data.strb = s_axi_wstrb;
+    assign wbuf_wr_data.user = s_axi_wuser;
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH ($bits(w_beat_t)),
+        .DEPTH      (WBufferDepth)
+    ) u_w_buffer (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (s_axi_wvalid),
+        .wr_ready    (s_axi_wready),
+        .wr_data     (wbuf_wr_data),
+        .rd_ready    (wbuf_rd_ready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (wbuf_rd_valid),
+        .rd_data     (wbuf_rd_data)
+    );
+    assign wbuf_rd_ready = cur_desc_valid && m_axi3_wready;
 
     // Forward buffered W beats only when a chunk descriptor is available (so
     // WID and beat count are known). WLAST is forced at descriptor expiry,
     // producing a legal AXI3 WLAST for every chopped burst.
-    assign m_axi3_wid   = cur_desc_valid ? cur_desc.id : '0;
-    assign m_axi3_wdata = w_buffer[0].data;
-    assign m_axi3_wstrb = w_buffer[0].strb;
-    assign m_axi3_wlast = cur_desc_valid && (cur_desc_beats_remaining == 5'd1);
-    assign m_axi3_wuser = w_buffer[0].user;
-    assign m_axi3_wvalid = cur_desc_valid && (w_buffer.size() > 0);
+    assign m_axi3_wid   = cur_desc_valid ? cur_desc_id : '0;
+    assign m_axi3_wdata = wbuf_rd_data.data;
+    assign m_axi3_wstrb = wbuf_rd_data.strb;
+    assign m_axi3_wlast = cur_desc_valid && (cur_chunk_beats_remaining == 5'd1);
+    assign m_axi3_wuser = wbuf_rd_data.user;
+    assign m_axi3_wvalid = cur_desc_valid && wbuf_rd_valid;
 
     //==========================================================================
     // AXI3 to AXI4 Write Response Channel Merge
@@ -304,16 +403,14 @@ module axi4_to_axi3_wr #(
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            aw_queue.delete();
-            desc_fifo.delete();
-            w_buffer.delete();
             active_valid           <= 1'b0;
             active_aw              <= '0;
             active_remaining       <= '0;
             active_addr            <= '0;
             cur_desc_valid         <= 1'b0;
-            cur_desc               <= '0;
+            cur_desc_id            <= '0;
             cur_desc_beats_remaining <= '0;
+            cur_chunk_beats_remaining <= '0;
             b_pending_valid        <= 1'b0;
             b_pending_id           <= '0;
             b_pending_resp         <= '0;
@@ -325,53 +422,24 @@ module axi4_to_axi3_wr #(
                 b_merge_worst[i]       <= 2'b00;
             end
         end else begin
-            // Accept a new slave AW into the queue and push its chunk
-            // descriptors. The descriptors are consumed by the W segmenter and
-            // may be used immediately if W beats have already been buffered.
-            if (s_axi_awvalid && s_axi_awready) begin
-                aw_req_t push;
-                push.id    = s_axi_awid;
-                push.addr  = s_axi_awaddr;
-                push.len   = s_axi_awlen;
-                push.size  = s_axi_awsize;
-                push.burst = s_axi_awburst;
-                push.lock  = s_axi_awlock;
-                push.cache = s_axi_awcache;
-                push.prot  = s_axi_awprot;
-                push.user  = s_axi_awuser;
-                aw_queue.push_back(push);
-
+            // Accept a new slave AW: the AW queue and the descriptor FIFO
+            // take it (above); here, its per-ID B merge state. The descriptor
+            // may be used at once if W beats have already been buffered.
+            if (aw_handshake) begin
                 pending_id_busy[s_axi_awid] <= 1'b1;
                 b_merge_busy[s_axi_awid]    <= 1'b1;
                 b_merge_worst[s_axi_awid]   <= 2'b00;
 
-                begin
-                    logic [8:0] total_beats;
-                    logic [7:0] total_chunks;
-                    int         chunk_idx;
-                    total_beats = 9'(s_axi_awlen) + 9'd1;
-                    total_chunks = 8'(((total_beats + 9'(Axi3MaxBeats) - 9'd1) >> 4));
-                    b_merge_chunks_left[s_axi_awid] <= total_chunks;
-
-                    for (chunk_idx = 0; chunk_idx < total_chunks; chunk_idx++) begin
-                        chunk_desc_t desc;
-                        desc.id = s_axi_awid;
-                        if ((total_beats - (9'(chunk_idx) << 4)) > 9'(Axi3MaxBeats))
-                            desc.beats = 5'(Axi3MaxBeats);
-                        else
-                            desc.beats = 5'(total_beats - (9'(chunk_idx) << 4));
-                        desc_fifo.push_back(desc);
-                    end
-                end
+                // AXI3 bursts this AW is cut into: ceil((awlen+1) / 16)
+                b_merge_chunks_left[s_axi_awid] <=
+                    8'((9'(s_axi_awlen) + 9'd1 + 9'(Axi3MaxBeats) - 9'd1) >> 4);
             end
 
             // Start chunking the next queued request.
-            if (!active_valid && (aw_queue.size() > 0)) begin
-                aw_req_t popped;
-                popped = aw_queue.pop_front();
-                active_aw        <= popped;
-                active_remaining <= 9'(popped.len) + 9'd1;
-                active_addr      <= popped.addr;
+            if (aw_load) begin
+                active_aw        <= aw_load_data;
+                active_remaining <= 9'(aw_load_data.len) + 9'd1;
+                active_addr      <= aw_load_data.addr;
                 active_valid     <= 1'b1;
             end
 
@@ -387,34 +455,27 @@ module axi4_to_axi3_wr #(
                 end
             end
 
-            // Buffer an incoming W beat.
-            if (w_handshake) begin
-                w_beat_t beat;
-                beat.data = s_axi_wdata;
-                beat.strb = s_axi_wstrb;
-                beat.last = s_axi_wlast;
-                beat.user = s_axi_wuser;
-                w_buffer.push_back(beat);
+            // Load the next descriptor when the current one expires.
+            if (desc_load) begin
+                cur_desc_valid            <= 1'b1;
+                cur_desc_id               <= desc_load_data.id;
+                cur_desc_beats_remaining  <= desc_load_data.beats;
+                cur_chunk_beats_remaining <= (desc_load_data.beats > 9'(Axi3MaxBeats)) ?
+                                             5'(Axi3MaxBeats) : 5'(desc_load_data.beats);
             end
 
-            // Load the next chunk descriptor when the current one expires.
-            if (!cur_desc_valid && (desc_fifo.size() > 0)) begin
-                chunk_desc_t d;
-                d = desc_fifo.pop_front();
-                cur_desc_valid         <= 1'b1;
-                cur_desc               <= d;
-                cur_desc_beats_remaining <= d.beats;
-            end
-
-            // Forward a buffered W beat to the AXI3 master.
+            // Forward a buffered W beat to the AXI3 master. WLAST closes each
+            // AXI3 burst; the next one of the same AW starts on the next beat.
             if (m_w_handshake) begin
-                w_buffer.pop_front();
-                if (cur_desc_valid) begin
-                    if (cur_desc_beats_remaining == 5'd1) begin
-                        cur_desc_valid <= 1'b0;
-                    end else begin
-                        cur_desc_beats_remaining <= cur_desc_beats_remaining - 5'd1;
-                    end
+                cur_desc_beats_remaining <= cur_desc_beats_remaining - 9'd1;
+                if (cur_desc_beats_remaining == 9'd1) begin
+                    cur_desc_valid <= 1'b0;
+                end else if (cur_chunk_beats_remaining == 5'd1) begin
+                    cur_chunk_beats_remaining <=
+                        ((cur_desc_beats_remaining - 9'd1) > 9'(Axi3MaxBeats)) ?
+                        5'(Axi3MaxBeats) : 5'(cur_desc_beats_remaining - 9'd1);
+                end else begin
+                    cur_chunk_beats_remaining <= cur_chunk_beats_remaining - 5'd1;
                 end
             end
 

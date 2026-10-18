@@ -74,11 +74,11 @@ the converters MAS:
    and one transaction per ID at a time, and loses a W cycle per AXI3
    burst. With eight IDs in flight, reads reach 0.50 single-beat and 1.000
    at two beats or more.
-7. **AXI3 slaves do not synthesize yet (W10, HAS 5.1).** `axi4_to_axi3_rd`
-   and `axi4_to_axi3_wr` use SystemVerilog queues, which Vivado rejects. A
-   bridge with an AXI3 slave simulates and passes its regression, but no
-   FPGA build of it is possible until the converter's queues are replaced
-   with FIFOs.
+7. **Building an AXI3 slave (W10 fixed, W11 open; HAS 5.1).** The
+   converter's storage is `gaxi_fifo_sync`, so a bridge with an AXI3 slave
+   synthesizes. Its R path has no register between the slave's pins and
+   the crossbar's R arbiter, so `rvalid` to `rready` is one combinational
+   path through the fabric (-0.741 ns at 10 ns on the Artix-7).
 
 See converters MAS §3.15 *AXI4 to AXI3 Converter*
 ([`15_axi4_to_axi3.md`](../../../../../../components/utility-ip/converters/docs/converter_mas/ch03_protocol_blocks/15_axi4_to_axi3.md))

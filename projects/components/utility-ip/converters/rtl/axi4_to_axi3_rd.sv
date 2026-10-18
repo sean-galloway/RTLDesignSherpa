@@ -133,8 +133,13 @@ module axi4_to_axi3_rd #(
     // Internal Signals
     //==========================================================================
 
-    // Slave AR queue and per-ID outstanding tracking
-    ar_req_t ar_queue[$:ArQueueDepth-1];
+    // Slave AR queue (gaxi_fifo_sync) and per-ID outstanding tracking
+    logic    arq_wr_ready, arq_rd_valid, arq_rd_ready;
+    ar_req_t arq_wr_data, arq_rd_data;
+    logic    ar_handshake;
+    logic    ar_bypass;       // idle and the queue empty: start the new AR at once
+    logic    ar_load;
+    ar_req_t ar_load_data;
     logic    pending_id_busy [NumIds];
 
     // Active request being chunked out to the AXI3 master
@@ -178,7 +183,45 @@ module axi4_to_axi3_rd #(
     // Slave AR Channel Accept Logic
     //==========================================================================
 
-    assign s_axi_arready = (ar_queue.size() < ArQueueDepth) && !pending_id_busy[s_axi_arid];
+    assign s_axi_arready = arq_wr_ready && !pending_id_busy[s_axi_arid];
+    assign ar_handshake  = s_axi_arvalid && s_axi_arready;
+
+    assign arq_wr_data.id    = s_axi_arid;
+    assign arq_wr_data.addr  = s_axi_araddr;
+    assign arq_wr_data.len   = s_axi_arlen;
+    assign arq_wr_data.size  = s_axi_arsize;
+    assign arq_wr_data.burst = s_axi_arburst;
+    assign arq_wr_data.lock  = s_axi_arlock;
+    assign arq_wr_data.cache = s_axi_arcache;
+    assign arq_wr_data.prot  = s_axi_arprot;
+    assign arq_wr_data.user  = s_axi_aruser;
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH ($bits(ar_req_t)),
+        .DEPTH      (ArQueueDepth)
+    ) u_ar_queue (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (ar_handshake && !ar_bypass),
+        .wr_ready    (arq_wr_ready),
+        .wr_data     (arq_wr_data),
+        .rd_ready    (arq_rd_ready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (arq_rd_valid),
+        .rd_data     (arq_rd_data)
+    );
+
+    // Start chunking the next queued request once the active one is done.
+    // An AR arriving while idle with the queue empty bypasses it, so it
+    // starts the edge it is accepted, as it did before the queue was a FIFO
+    // (a same-ID read waits on the previous one's last R, so every cycle
+    // here is a cycle per read). Order holds: the bypass needs an empty queue.
+    assign arq_rd_ready = !active_valid;
+    assign ar_bypass    = ar_handshake && !active_valid && !arq_rd_valid;
+    assign ar_load      = (arq_rd_valid && arq_rd_ready) || ar_bypass;
+    assign ar_load_data = arq_rd_valid ? arq_rd_data : arq_wr_data;
 
     //==========================================================================
     // Master AR Channel Chunk Issuance
@@ -228,7 +271,6 @@ module axi4_to_axi3_rd #(
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            ar_queue.delete();
             active_valid      <= 1'b0;
             active_req        <= '0;
             active_remaining  <= '0;
@@ -242,30 +284,17 @@ module axi4_to_axi3_rd #(
                 merge_worst[i]      <= 2'b00;
             end
         end else begin
-            // Accept a new slave AR into the queue.
-            if (s_axi_arvalid && s_axi_arready) begin
-                ar_req_t push;
-                push.id    = s_axi_arid;
-                push.addr  = s_axi_araddr;
-                push.len   = s_axi_arlen;
-                push.size  = s_axi_arsize;
-                push.burst = s_axi_arburst;
-                push.lock  = s_axi_arlock;
-                push.cache = s_axi_arcache;
-                push.prot  = s_axi_arprot;
-                push.user  = s_axi_aruser;
-                ar_queue.push_back(push);
+            // Accept a new slave AR into the queue (above).
+            if (ar_handshake) begin
                 pending_id_busy[s_axi_arid] <= 1'b1;
             end
 
             // Start chunking the next queued request.
-            if (!active_valid && (ar_queue.size() > 0)) begin
-                ar_req_t popped;
-                popped = ar_queue.pop_front();
-                active_req          <= popped;
-                active_remaining    <= 9'(popped.len) + 9'd1;
-                active_addr         <= popped.addr;
-                active_chunks_total <= 8'(((( {1'b0, popped.len} + 9'd1) + 9'd15) >> 4));
+            if (ar_load) begin
+                active_req          <= ar_load_data;
+                active_remaining    <= 9'(ar_load_data.len) + 9'd1;
+                active_addr         <= ar_load_data.addr;
+                active_chunks_total <= 8'(((( {1'b0, ar_load_data.len} + 9'd1) + 9'd15) >> 4));
                 active_chunks_issued <= '0;
                 active_valid        <= 1'b1;
             end

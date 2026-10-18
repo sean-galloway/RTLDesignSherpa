@@ -233,16 +233,20 @@ so none can get worse unnoticed:
   Bandwidth is not affected (the slave stays busy). This is the fairness
   limit that per-master request slots fixed at same-clock slaves.
 
-One more limit is not about bandwidth, but it blocks any bridge with an
-AXI3 slave:
+Two more items concern the AXI3 slave port's build, not its bandwidth:
 
-- **W10, the AXI3 slave converter does not synthesize.** `axi4_to_axi3_rd`
-  and `axi4_to_axi3_wr` keep their request and data queues in
-  SystemVerilog queues (`[$:N]`). Verilator accepts them and Vivado 2025.1
-  does not ("[Synth 8-27] dollar-sign operator not supported";
-  `bridge_2x2_axi3_slaves`, 2026-10-18). The AXI3 master direction
-  synthesizes (`bridge_2x2_axi3_masters`: WNS -0.075 ns at 10 ns on the
-  Artix-7).
+- **W10, fixed 2026-10-18: the AXI3 slave converter did not synthesize.**
+  `axi4_to_axi3_rd` and `axi4_to_axi3_wr` kept their request, descriptor
+  and early-W storage in SystemVerilog queues (`[$:N]`). Verilator accepts
+  those, but Vivado 2025.1 rejects them ("[Synth 8-27] dollar-sign operator
+  not supported"). They are `gaxi_fifo_sync` instances now.
+  `bridge_2x2_axi3_slaves` builds: 6571 LUTs, 4003 FFs on the Artix-7.
+- **W11, open: no register on the AXI3 slave's R path.** That build misses
+  10 ns by 0.741 ns on a port-to-port path. `<slave>_rvalid` reaches
+  `<slave>_rready` through the converter and the crossbar's R arbiter with
+  no register between them. An AXI4 slave has its timing wrapper's skid
+  there. The AXI3 master direction meets timing more closely
+  (`bridge_2x2_axi3_masters`: WNS -0.075 ns at 10 ns).
 
 ### Multi-Master Scaling
 

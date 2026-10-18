@@ -85,7 +85,11 @@ The write path mirrors the read path on AW/W/B:
 
 AXI4 allows W to arrive before AW. The converter buffers up to 16 full W beats ahead of the matching AW handshake. When the buffer is full, `s_axi_wready` is deasserted, which is the legal AXI4 mechanism for throttling early write data.
 
-The write segmenter consumes the buffered beats using a chunk-descriptor FIFO pushed at AW acceptance. The descriptor carries the chunk's AWID and beat count, so WID and WLAST can be generated even for beats that arrived before the AW.
+The write segmenter consumes the buffered beats using a descriptor FIFO pushed at AW acceptance, one entry per AXI4 AW. The descriptor carries the AWID and the burst's total beat count. The segmenter cuts that count into AXI3 bursts of up to 16 and places WID and WLAST on each, even for beats that arrived before the AW. Consecutive AXI3 bursts of one AXI4 AW follow each other without a dead cycle.
+
+### Storage
+
+The AW (AR) queue, the descriptor FIFO and the early-W buffer are `gaxi_fifo_sync` instances from `rtl/amba/gaxi` (depths 4, 4 and 16). They used to be SystemVerilog queues, which Vivado does not synthesize ("[Synth 8-27] dollar-sign operator not supported"). A request arriving while its stage is idle and its FIFO is empty bypasses the FIFO and takes effect the edge it is accepted, so the FIFOs add no latency: a same-ID read or write, which waits for the previous one to finish, costs the same cycles it did with the queues.
 
 ### Single-Active-Write Contract
 
