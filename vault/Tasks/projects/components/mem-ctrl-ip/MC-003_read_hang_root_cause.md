@@ -619,15 +619,15 @@ opt checkpoint: **3a** (AltSpreadLogic_high + double post-route physOpt)
 → **−0.730 ns**, TNS −415, 1,333 endpoints — the placement plateau.
 **3b** (SpreadLogic_high + NoTimingRelaxation + AggressiveFanoutOpt)
 → −1.151 ns, REGRESSION, discarded. Every residual cone shares the
-scan → live-stale-compare → fire prefix (~17 levels of which ~73% routing);
-the live view must stay combinational (a registered authority re-opens the
-one-cycle fill-promotion corruption window — §12.1), so the remaining levers
-are floorplanning (route-dominated debt) or a store-side replacement of the
-O(N²) age-scan head selection with per-bank ordered lists (shorter prefix at
-the source). If insufficient: next RTL cut is a
-pipeline register on the scheduler→cmd-FIFO write path (zero throughput
-cost — the fifo accepts 1 cmd/cycle regardless; the stream shifts one
-cycle), then re-examine the timer/strobe tails.
+scan → live-stale-compare → fire prefix (~17 levels of which ~73% routing).
+
+Floorplan campaign 2026-10-18 (`reports_fp1/`): four pblock variants
+grouping the entry store with the sched plane (± AXI plane, split and
+oversized rectangles) ALL REGRESSED — best −2.607 ns, worst path still
+`r_wr_bank` → scan → fire → bank-timer `r_rcd` CE, 18 levels, 75% routing.
+The pblocks constrained the placer; placement/floorplanning cannot save the
+0-stage shape. Owner ruling: rebuild the pick path as a registered
+pipelined decide→fire core (§14).
 
 ---
 
