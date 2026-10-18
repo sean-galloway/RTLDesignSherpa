@@ -1,0 +1,84 @@
+// DFI 2.1 plane block diagram - mc_dfi_2p1_plane internals
+// House style per vault/handbook/authoring/block-diagrams.md.
+// Flows: command down the center, write data down the left, read data back up the right.
+digraph dfi_plane_blocks {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.40", ranksep="0.65", splines=ortho,
+           label="DFI 2.1 plane - mc_dfi_2p1_plane (granite DDR2/LPDDR2)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external ports (white) ----
+    cmd_in [label="Scheduler command stream\ncmd_valid / cmd_data\n(from u_sched_plane)", fillcolor="white", group=C];
+    wd_in  [label="Write data stream\n{last, strb, data}\n(from u_entry_store)", fillcolor="white", group=W];
+    rd_out [label="Read return stream\n{last, resp, data}\n(to u_axi_plane u_rd_ring)", fillcolor="white", group=R];
+    init_in [label="Init handshake\ninit_start / init_complete", fillcolor="white", group=I];
+    trn_in [label="Training cal sideband\ncal_expect / cal_data / cal_valid", fillcolor="white", group=T];
+
+    // ---- DFI plane blocks ----
+    cdc [label="ctl_clk ↔ dfi_clk CDC\nu_cdc - mc_dfi_cdc\n(cmd/wd/rd async FIFOs)", group=C, width=2.6];
+    cmd [label="DFI command path\nu_cmd - mc_dfi_cmd_path", group=C, width=2.4];
+    wr  [label="Write serializer\nu_wr - mc_dfi_wr_serializer", group=W, width=2.4];
+    rd  [label="Read aligner\nu_rd - mc_dfi_rd_aligner", group=R, width=2.4];
+
+    // ---- boundary bar (DFI PHY) ----
+    phy [label="DFI 2.1 PHY boundary\n(address, bank, ctrl / wrdata / rddata)",
+         fillcolor="white", rank=sink, width=7.5, fontsize=11, group=C];
+
+    // ---- boundary crossing scaffolds ----
+    p_cmd [shape=point, width=0.01, group=C];
+    p_wd  [shape=point, width=0.01, group=W];
+    p_rd  [shape=point, width=0.01, group=R];
+    sp1   [style=invis, fixedsize=true, width=1.6, height=0.02, label=""];
+    sp2   [style=invis, fixedsize=true, width=1.6, height=0.02, label=""];
+
+    // ---- command flow (center, top-down) ----
+    cmd_in -> cdc [xlabel="DDR Command"];
+    cdc -> cmd [xlabel="pcmd_data"];
+    cmd -> p_cmd [dir=none, headclip=false];
+    p_cmd -> phy [xlabel="DDR Command", penwidth=1.8, tailclip=false];
+
+    // ---- write data flow (left, top-down) ----
+    wd_in -> cdc [xlabel="Write data"];
+    cdc -> wr [xlabel="pwd_data"];
+    wr -> p_wd [dir=none, headclip=false];
+    p_wd -> phy [xlabel="Write to DDR", tailclip=false];
+
+    // ---- read data flow (right, back up) ----
+    rd_out -> rd [dir=back, xlabel="Read data"];
+    rd -> cdc [dir=back, xlabel="prd_data"];
+    cdc -> p_rd [dir=back, xlabel="Read from DDR", headclip=false];
+    p_rd -> phy [dir=none, tailclip=false];
+
+    // ---- init handshake (dashed sideband) ----
+    init_in -> cdc [style=dashed, xlabel="init_start"];
+    cdc -> cmd [style=dashed, xlabel="pinit_start"];
+
+    // ---- training cal sideband (dashed) ----
+    trn_in -> rd [style=dashed, xlabel="cal_expect / cal_data"];
+
+    // ---- scaffold order at the boundary ----
+    { rank=same; p_wd; sp1; p_cmd; sp2; p_rd; phy; }
+    p_wd -> sp1 [style=invis];
+    sp1 -> p_cmd [style=invis];
+    p_cmd -> sp2 [style=invis];
+    sp2 -> p_rd [style=invis];
+
+    // ---- rank pinning ----
+    { rank=same; wd_in; cmd_in; init_in; rd_out; trn_in; }
+    wd_in -> cmd_in [style=invis];
+    cmd_in -> init_in [style=invis];
+    init_in -> rd_out [style=invis];
+    rd_out -> trn_in [style=invis];
+
+    { rank=same; wr; cmd; rd; }
+    wr -> cmd [style=invis];
+    cmd -> rd [style=invis];
+
+    // invisible center spine to keep command column straight
+    c0 [shape=point, style=invis, width=0.01, group=C];
+    c1 [shape=point, style=invis, width=0.01, group=C];
+    cmd_in -> c0 -> cdc -> c1 -> cmd -> p_cmd [style=invis, weight=10];
+}

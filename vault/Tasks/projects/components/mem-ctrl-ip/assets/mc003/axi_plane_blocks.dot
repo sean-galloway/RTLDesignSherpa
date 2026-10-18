@@ -1,0 +1,81 @@
+// AXI4 plane block diagram - mc_axi4_plane internals
+// House style per vault/handbook/authoring/block-diagrams.md.
+// Flows: command down the center, write data down the left, read data back up the right.
+digraph axi_plane_blocks {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho,
+           label="AXI4 host plane - mc_axi4_plane (granite DDR2/LPDDR2)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- external AXI ports (white) ----
+    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W];
+    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R];
+
+    // ---- AXI plane blocks ----
+    wr_split  [label="Write burst splitter\nu_wr_split - mc_wr_splitter", group=W, width=2.1];
+    wr_intake [label="Write intake + address map\nu_wr_intake - mc_wr_intake", group=W, width=2.2];
+    rd_split  [label="Read burst chopper\nu_rd_split - mc_axi_burst_chopper", group=R, width=2.1];
+    rd_intake [label="Read intake + snarf probe\nu_rd_intake - mc_rd_intake", group=R, width=2.2];
+    rd_ring   [label="Read return ring\nu_rd_ring - mc_rd_return_ring", group=R, width=2.2];
+
+    // ---- boundary bar (to entry store / DFI return) ----
+    bar [label="AXI plane boundary\n(AW/AR/W to u_entry_store; DFI return in)",
+         fillcolor="white", rank=sink, width=7.0, fontsize=11, group=C];
+
+    // ---- boundary crossing scaffolds ----
+    p_wd [shape=point, width=0.01, group=W];
+    p_aw [shape=point, width=0.01, group=C];
+    p_ar [shape=point, width=0.01, group=C];
+    p_rd [shape=point, width=0.01, group=R];
+    sp1 [style=invis, fixedsize=true, width=1.2, height=0.02, label=""];
+    sp2 [style=invis, fixedsize=true, width=1.0, height=0.02, label=""];
+    sp3 [style=invis, fixedsize=true, width=1.2, height=0.02, label=""];
+
+    // ---- write side: command center + data left ----
+    axi_wr -> wr_split [dir=both, xlabel="AW + W"];
+    wr_split -> wr_intake [dir=both, xlabel="AW + W"];
+    wr_intake -> p_aw [dir=none, headclip=false];
+    p_aw -> bar [xlabel="AW push (cmd)", tailclip=false];
+    wr_intake -> p_wd [dir=none, headclip=false];
+    p_wd -> bar [xlabel="W data", tailclip=false];
+
+    // ---- read side: command down center, data back up right ----
+    axi_rd -> rd_split [xlabel="AR"];
+    rd_split -> rd_intake [xlabel="AR (sub-bursts)"];
+    rd_intake -> p_ar [dir=none, headclip=false];
+    p_ar -> bar [xlabel="AR push (cmd)", tailclip=false];
+
+    axi_rd -> rd_intake [dir=back, xlabel="R channel"];
+    rd_intake -> rd_ring [dir=back, xlabel="Read data (drain order)"];
+    rd_ring -> p_rd [dir=back, xlabel="DFI read return", headclip=false];
+    p_rd -> bar [dir=none, tailclip=false];
+
+    // ---- sideband: B response trigger from entry store ----
+    wr_intake -> bar [dir=back, style=dashed, constraint=false, xlabel="wr_done (B resp)"];
+
+    // ---- sideband: snarf probe / hit + data to entry store ----
+    rd_intake -> bar [style=dashed, dir=both, constraint=false, xlabel="snarf probe / hit + data"];
+
+    // ---- scaffold order at the boundary ----
+    { rank=same; p_wd; sp1; p_aw; sp2; p_ar; sp3; p_rd; bar; }
+    p_wd -> sp1 -> p_aw -> sp2 -> p_ar -> sp3 -> p_rd [style=invis];
+
+    // ---- rank pinning ----
+    { rank=same; axi_wr; axi_rd; }
+    axi_wr -> axi_rd [style=invis];
+
+    { rank=same; wr_split; rd_split; }
+    wr_split -> rd_split [style=invis];
+
+    { rank=same; wr_intake; rd_intake; }
+    wr_intake -> rd_intake [style=invis];
+
+    // invisible spines to keep columns straight
+    c0 [shape=point, style=invis, width=0.01, group=C];
+    c1 [shape=point, style=invis, width=0.01, group=C];
+    axi_wr -> c0 -> wr_split -> wr_intake -> p_aw [style=invis, weight=10];
+    axi_rd -> c1 -> rd_split -> rd_intake -> p_ar [style=invis, weight=10];
+}

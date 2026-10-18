@@ -628,3 +628,31 @@ the source). If insufficient: next RTL cut is a
 pipeline register on the scheduler→cmd-FIFO write path (zero throughput
 cost — the fifo accepts 1 cmd/cycle regardless; the stream shifts one
 cycle), then re-examine the timer/strobe tails.
+
+---
+
+## 13. Block diagrams (2026-10-18)
+
+### 13.1 MC-003 residual timing-cone problem view
+
+![MC-003 residual timing cones - per-bank 0-stage pick core](assets/mc003/mc003_timing_cones.png)
+
+*Red: Vivado failing cones after the seat-pending retime; green: the `r_wp`/`r_rp` register boundary that broke the original 21-level combinational cone.*
+
+### 13.2 AXI4 host plane
+
+![AXI4 host plane - mc_axi4_plane](assets/mc003/axi_plane_blocks.png)
+
+*Command top-down the center, write data down the left, read data back up the right; dashed sidebands are `wr_done` and the snarf probe/hit path.*
+
+### 13.3 Scheduler plane
+
+![Scheduler plane - mc_scheduler_plane / mc_bank_sched](assets/mc003/sched_plane_blocks.png)
+
+*The `u_bank_sched` trapezium takes class-labeled inputs (WR/RD head views, INIT/MRS/REF, timer windows) and issues the DDR command stream; WR commit and RD issue return on the side lanes.*
+
+### 13.4 DFI 2.1 plane
+
+![DFI 2.1 plane - mc_dfi_2p1_plane](assets/mc003/dfi_plane_blocks.png)
+
+*Single async CDC, then command path / write serializer / read aligner; init and training-cal sidebands are dashed.*

@@ -1,0 +1,112 @@
+// MC-003 timing-cone problem view - per-bank scheduler 0-stage pick core
+// House style per vault/handbook/authoring/block-diagrams.md.
+// Red = Vivado failing cones after retime; green = the pending-stage register that broke the 21-level cone.
+digraph mc003_timing_cones {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.55", splines=ortho,
+           label="MC-003 residual timing cones - per-bank 0-stage pick core",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- storage side (above the boundary) ----
+    entry_arrays [label="WR + RD entry arrays\nmc_xddr2_entry_store\n(r_wr_* / r_rd_*)",
+                  fillcolor="white", group=C, width=3.0];
+    commit_reg [label="WR commit register\nu_entry_store r_wr_sched",
+                fillcolor="white", group=W, width=2.2];
+    axi_issue  [label="RD issue / return-ring\nu_axi_plane u_rd_ring",
+                fillcolor="white", group=R, width=2.2];
+
+    head_scan [label="Per-bank head scan\n(oldest + second-oldest)\nmc_xddr2_entry_store (combinational)",
+               group=C, width=3.0];
+
+    // ---- plane boundary bar ----
+    plane_bar [label="Scheduler plane boundary\n(entry-store side ↔ scheduler side)",
+               fillcolor="white", width=7.5, fontsize=11, group=C];
+
+    // ---- boundary crossing scaffolds (sit on the bar) ----
+    p_head [shape=point, width=0.01, group=C];
+    p_wr   [shape=point, width=0.01, group=W];
+    p_rd   [shape=point, width=0.01, group=R];
+
+    // ---- scheduler side (below the boundary) ----
+    pending [label="Seat-pending stage\nr_wp / r_rp\n(REGISTER — breaks cone)",
+             fillcolor="#E2F0D9", group=C, width=2.4];
+    skid [label="Head skid\nr_ws / r_rs", group=C, width=2.0];
+    op_decode [label="Per-bank op decode\nACT / PRE / RD / WR", group=C, width=2.4];
+
+    // pick-core trapezium: rotor + fire combined
+    pick_core [label="mc_bank_sched\nper-bank 0-stage pick core\n(rotor + fire)",
+               shape=invtrapezium, width=5.2, fillcolor="#BFD7EE", fontsize=11, group=C];
+
+    cmd_fifo [label="Output command FIFO\nu_cmd_fifo - gaxi_fifo_sync", group=C, width=2.6];
+    bank_timers [label="Per-bank JEDEC timers\nu_bank_timers\nr_rc / r_rcd / r_rp / r_ras / r_preblk",
+                 group=C, width=2.6];
+
+    // class-input scaffold points on the wide edge of the trapezium
+    p_wr_in [shape=point, width=0.01, group=W];
+    p_rd_in [shape=point, width=0.01, group=R];
+
+    // ---- Vivado corner note ----
+    note [label="Vivado 75 MHz: WNS −0.730 ns after retime+directives;\nresidual cones ~17 logic levels, ~73% routing",
+          fillcolor="white", fontsize=9, group=C];
+
+    // ---- entry arrays -> head scan (red prefix) ----
+    entry_arrays -> head_scan [color="red"];
+
+    // ---- cross-plane head views: live bypass (red) and pending fix (green) ----
+    head_scan -> p_head [dir=none, color="red", headclip=false];
+    p_head -> skid [color="red", xlabel="bh / bh2 (WR + RD)", tailclip=false];
+
+    p_head -> pending [color="green", fontcolor="green", penwidth=1.5,
+                       xlabel="r_wp / r_rp seat pending"];
+    pending -> skid [color="green", fontcolor="green", penwidth=1.5,
+                     xlabel="registered seat"];
+
+    // ---- scheduler pick pipeline (red prefix) ----
+    skid -> op_decode [color="red"];
+
+    op_decode -> p_wr_in [color="red"];
+    op_decode -> p_rd_in [color="red"];
+    p_wr_in -> pick_core [color="red", xlabel="WR / RMW head"];
+    p_rd_in -> pick_core [color="red", xlabel="RD head"];
+
+    // ---- command output leaves the narrow edge (heavy pen) ----
+    pick_core -> cmd_fifo [color="red", penwidth=1.8, xlabel="DDR Command (path a)"];
+
+    // ---- failing path (b): pick core -> bank timers ----
+    pick_core -> bank_timers [color="red", xlabel="evt_wr / evt_ap (path b)"];
+
+    // ---- failing path (c): pick core -> back across boundary ----
+    pick_core -> p_wr [dir=none, color="red", headclip=false];
+    p_wr -> commit_reg [dir=back, color="red", xlabel="wr_commit (path c)", tailclip=false];
+    pick_core -> p_rd [dir=none, color="red", headclip=false];
+    p_rd -> axi_issue [dir=back, color="red", xlabel="rd_issue (path c)", tailclip=false];
+
+    // ---- timer window into the pick (advisory, not red) ----
+    bank_timers -> pick_core [xlabel="timer window"];
+
+    // ---- force the boundary bar to span the crossings ----
+    { rank=same; p_wr; p_head; p_rd; plane_bar; }
+    p_wr -> plane_bar -> p_rd [style=invis, weight=20];
+    p_head -> plane_bar [style=invis, weight=20];
+
+    // ---- rank pinning ----
+    { rank=same; commit_reg; entry_arrays; axi_issue; }
+    commit_reg -> entry_arrays -> axi_issue [style=invis];
+
+    pending -> skid [style=invis];
+
+    { rank=same; p_wr_in; p_rd_in; }
+    p_wr_in -> p_rd_in [style=invis];
+
+    { rank=same; cmd_fifo; note; }
+    cmd_fifo -> note [style=invis];
+
+    // invisible center spine
+    c0 [shape=point, style=invis, width=0.01, group=C];
+    c1 [shape=point, style=invis, width=0.01, group=C];
+    c2 [shape=point, style=invis, width=0.01, group=C];
+    entry_arrays -> c0 -> head_scan -> c1 -> p_head -> skid -> op_decode -> c2 -> pick_core -> cmd_fifo [style=invis, weight=10];
+}
