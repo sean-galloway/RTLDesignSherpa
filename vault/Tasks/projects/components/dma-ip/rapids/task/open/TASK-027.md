@@ -12,12 +12,13 @@ rapids TASK-026 (2026-10-17), which delivered the header and the `desc` path.
 
 ## What to build
 
-1. **Credit counters per cell** in the source half (16 per tile), starting
-   at 0. A packet leaves only when its cell's counter covers every flit,
-   header included. **No counters for tetrad or root nodes:** delta nodes are
-   conduits and never track credits (owner direction 2026-10-18, TILE_SPEC
-   11.9). A packet addressed to a node is sent without a credit check; the
-   node must consume it on arrival.
+1. **Credit counters per destination** in the source half (22 per tile: 16
+   cells, 4 tetrad nodes, 2 root nodes), starting at 0. A packet leaves only
+   when its destination's counter covers every flit, header included. A
+   node's counter covers only packets addressed to it: delta nodes are
+   conduits for traffic passing through and hold no credit state for it, but
+   advertise and return credits for what they consume (owner direction
+   2026-10-18, TILE_SPEC 11.9).
 2. **Credit packets in.** `rapids_tile_hdr_rx` already recognises `credit`
    packets and only counts them (`TILE_COUNTS.CREDIT_COUNT`). Route
    {source coordinate, op (add / set), count} over the sink-to-source path
@@ -34,8 +35,8 @@ rapids TASK-026 (2026-10-17), which delivered the header and the `desc` path.
 ## Done when
 
 - Tests: a cell model that advertises (`set`), returns credits after
-  consuming, and sends only against grants; RAPIDS never oversends a cell;
-  concurrent channels to one cell share its counter; a descriptor grant is
-  consumed and returned; a node-addressed packet goes out with no credit
-  check and no counter changes.
+  consuming, and sends only against grants; RAPIDS never oversends a
+  destination, cell or node; concurrent channels to one cell share its
+  counter; a node model advertises and returns credits for `cfg` writes
+  addressed to it; a descriptor grant is consumed and returned.
 - TILE_SPEC 11.12 updated; HAS/MAS chapters; byte regression clean-all FULL.
