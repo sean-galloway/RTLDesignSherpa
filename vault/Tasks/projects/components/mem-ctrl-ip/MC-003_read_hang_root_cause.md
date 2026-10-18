@@ -610,7 +610,21 @@ paths and the fire → bank-timer `evt_*` load paths. Reports archived at
 Retry 2 (`reports_retry2/`): same congestion-directive recipe as §11.5(1)
 but on the SOUND netlist — placement failed the broken structure by 0.26 ns;
 on the retimed structure the remaining −1.35 ns is route-heavy cross-plane,
-where spread placement has real leverage. If insufficient: next RTL cut is a
+where spread placement has real leverage. WNS −1.346 → **−0.840 ns**, TNS
+−1,416 → −531. Worst class: `r_wr_bank` → scan → live-stale compare →
+fire → `u_bank_timers.r_preblk` load (18 levels, 72% route).
+
+Retry 3 (`reports_retry3a/`, `reports_retry3b/`), two more spins on the same
+opt checkpoint: **3a** (AltSpreadLogic_high + double post-route physOpt)
+→ **−0.730 ns**, TNS −415, 1,333 endpoints — the placement plateau.
+**3b** (SpreadLogic_high + NoTimingRelaxation + AggressiveFanoutOpt)
+→ −1.151 ns, REGRESSION, discarded. Every residual cone shares the
+scan → live-stale-compare → fire prefix (~17 levels of which ~73% routing);
+the live view must stay combinational (a registered authority re-opens the
+one-cycle fill-promotion corruption window — §12.1), so the remaining levers
+are floorplanning (route-dominated debt) or a store-side replacement of the
+O(N²) age-scan head selection with per-bank ordered lists (shorter prefix at
+the source). If insufficient: next RTL cut is a
 pipeline register on the scheduler→cmd-FIFO write path (zero throughput
 cost — the fifo accepts 1 cmd/cycle regardless; the stream shifts one
 cycle), then re-examine the timer/strobe tails.
