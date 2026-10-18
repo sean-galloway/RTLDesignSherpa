@@ -1,0 +1,36 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sun Oct 18 03:54:10 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_2x2_axi3_masters__xc7a100tcsg324-1/utilization_hier.txt
+| Design       : bridge_2x2_axi3_masters
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-----------------------------+---------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|           Instance          |                    Module                   | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++-----------------------------+---------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| bridge_2x2_axi3_masters     |                                       (top) |       6935 |       6799 |     136 |    0 | 5869 |      0 |      0 |          0 |
+|   (bridge_2x2_axi3_masters) |                                       (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   (u_subtractive_adapter)   | bridge_2x2_axi3_masters_subtractive_adapter |         66 |         66 |       0 |    0 |   52 |      0 |      0 |          0 |
+|   u_cpu_adapter             |         bridge_2x2_axi3_masters_cpu_adapter |       2215 |       2079 |     136 |    0 | 1804 |      0 |      0 |          0 |
+|   u_ddr_adapter             |         bridge_2x2_axi3_masters_ddr_adapter |       1226 |       1226 |       0 |    0 |  951 |      0 |      0 |          0 |
+|   u_dma_adapter             |         bridge_2x2_axi3_masters_dma_adapter |        818 |        818 |       0 |    0 | 1010 |      0 |      0 |          0 |
+|   u_sram_adapter            |        bridge_2x2_axi3_masters_sram_adapter |       1213 |       1213 |       0 |    0 |  951 |      0 |      0 |          0 |
+|   u_xbar                    |                bridge_2x2_axi3_masters_xbar |       1344 |       1344 |       0 |    0 | 1060 |      0 |      0 |          0 |
++-----------------------------+---------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

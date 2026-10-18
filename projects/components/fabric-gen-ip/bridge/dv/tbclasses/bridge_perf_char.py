@@ -32,6 +32,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from bridge_perf_probe import Sampler, saturate
 
 _PREFIX = re.compile(r'prefix="([^"]+)"')
+_OWN_CLOCK = re.compile(r'self\.dut\.(\w+_aclk)\b')
 
 
 def port_prefixes(tb) -> Tuple[Dict[int, str], Dict[int, str]]:
@@ -48,12 +49,37 @@ def port_prefixes(tb) -> Tuple[Dict[int, str], Dict[int, str]]:
     return out
 
 
+def port_clocks(tb) -> Tuple[Dict[int, object], Dict[int, object]]:
+    """{index: clock} for masters and slaves on a clock of their own (cdc =
+    true): the generated setup method builds that port's BFMs on
+    self.dut.<name>_aclk instead of the fabric clock."""
+    out: Tuple[Dict[int, object], Dict[int, object]] = ({}, {})
+    for name, fn in inspect.getmembers(type(tb), inspect.isfunction):
+        m = re.match(r'_setup_(master|slave)_(\d+)_', name)
+        if not m:
+            continue
+        clk = _OWN_CLOCK.search(inspect.getsource(fn))
+        if clk:
+            out[0 if m.group(1) == 'master' else 1][int(m.group(2))] = getattr(tb.dut, clk.group(1))
+    return out
+
+
+def max_beats(tb, m: int) -> int:
+    """Longest burst master m may issue: 16 on AXI3, 256 otherwise."""
+    bfm = tb.master_wr.get(m) or tb.master_rd.get(m)
+    return 16 if type(bfm).__name__.startswith('AXI3') else 256
+
+
 def pipeline(tb) -> None:
     """Saturating profiles everywhere, and requesters that never drain
     between transactions."""
     saturate(tb)
     for bfm in list(tb.master_wr.values()) + list(tb.master_rd.values()):
-        bfm.pipelined = True
+        # Except AXI3 writes: axi3_to_axi4_wr takes one write at a time (AW
+        # held from acceptance to B) and stops the simulation if a beat of the
+        # next burst is presented before its AW is taken -- which pipelined
+        # mode does, legally. Unpipelined, each burst's W follows its AW.
+        bfm.pipelined = type(bfm).__name__ != 'AXI3MasterWrite'
         # A saturated narrow slave behind a wide master legitimately holds a
         # requester off for a long time: one 256-beat burst over an 8:1
         # downsize is 2048 slave beats, so AWREADY stays low ~2k cycles while
@@ -105,6 +131,7 @@ class Characterizer:
     def __init__(self, tb):
         self.tb = tb
         self.mpfx, self.spfx = port_prefixes(tb)
+        self.mclk, self.sclk = port_clocks(tb)
         self.cap = getattr(tb, 'SLAVE_MEM_CAP_BYTES', 64 * 1024)
 
     # -- addressing -------------------------------------------------------
@@ -143,7 +170,9 @@ class Characterizer:
                         for b in range(st.beats)]
                 got = await self.tb.master_rd[st.m].read_transaction(
                     addr, burst_len=st.beats, id=txn_id, size=size)
-                if list(got) != want:
+                # AXI5 returns one dict per beat, the others the data words.
+                got = [g['data'] if isinstance(g, dict) else g for g in got]
+                if got != want:
                     st.errors.append(f"m{st.m} read @0x{addr:08X}: data mismatch")
             st.done += 1
 
@@ -182,7 +211,10 @@ class Characterizer:
         """ports: name -> ('m'|'s', index, channel). Started immediately."""
         chans = {name: ((self.mpfx if side == 'm' else self.spfx)[idx], ch)
                  for name, (side, idx, ch) in ports.items()}
-        s = Sampler(self.tb, chans)
+        clocks = {name: (self.mclk if side == 'm' else self.sclk)[idx]
+                  for name, (side, idx, ch) in ports.items()
+                  if idx in (self.mclk if side == 'm' else self.sclk)}
+        s = Sampler(self.tb, chans, clocks)
         cocotb.start_soon(s.run())
         return s
 
@@ -224,6 +256,7 @@ class AcceptLimit:
         self.sig = {n: getattr(d, f"{pfx}_{n}") for n in
                     ('arvalid', 'arready', 'rvalid', 'rready', 'rlast',
                      'awvalid', 'awready', 'bvalid', 'bready')}
+        self.clk = ch.sclk.get(s, tb.clock)    # a CDC slave counts on its own clock
         self.ar_ch = tb.slave_rd[s].ar_channel
         self.aw_ch = tb.slave_wr[s].aw_channel
         self.rd = self.wr = 0
@@ -234,8 +267,9 @@ class AcceptLimit:
     async def _run(self):
         from cocotb.triggers import RisingEdge
         h, g = self._hi, self.sig
+        clk = self.clk
         while self.running:
-            await RisingEdge(self.tb.clock)
+            await RisingEdge(clk)
             self.rd += h(g['arvalid']) and h(g['arready'])
             self.rd -= h(g['rvalid']) and h(g['rready']) and h(g['rlast'])
             self.wr += h(g['awvalid']) and h(g['awready'])

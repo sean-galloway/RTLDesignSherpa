@@ -12,6 +12,7 @@ inside the phase's own window, never from a cumulative counter.
 
 import cocotb
 from cocotb.triggers import ClockCycles, RisingEdge
+from cocotb.utils import get_sim_time
 
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
@@ -62,7 +63,13 @@ class Sampler:
     those two say who owns a gap.
     """
 
-    def __init__(self, tb, channels):
+    def __init__(self, tb, channels, clocks=None):
+        """clocks: {name: clock} for channels on a clock other than the
+        fabric's (a CDC port). Such a channel is sampled on its own clock's
+        edges, and its marks are in fabric cycles too -- fractional, from the
+        sim time -- so one window [lo, hi] spans every channel. scale[name]
+        is its clock period over the fabric's; own_span() turns a window into
+        that channel's own cycles."""
         self.tb = tb
         self.channels = {name: (getattr(tb.dut, f"{pfx}_{ch}valid"),
                                 getattr(tb.dut, f"{pfx}_{ch}ready"))
@@ -70,22 +77,59 @@ class Sampler:
         self.marks = {name: [] for name in channels}
         self.stalled = {name: [] for name in channels}
         self.idle = {name: [] for name in channels}
+        self.scale = {name: 1.0 for name in channels}
+        self._foreign = {}
+        for name, clk in (clocks or {}).items():
+            if clk is not tb.clock:
+                self._foreign.setdefault(clk, []).append(name)
         self.cycle = 0
         self.alive = False
+        self._t_edge = None      # sim time (ps) of the last fabric edge
+        self._period = None      # fabric period, ps
+
+    def _record(self, name, at):
+        v, r = self.channels[name]
+        hv, hr = hi(v), hi(r)
+        if hv and hr:
+            self.marks[name].append(at)
+        elif hv:
+            self.stalled[name].append(at)
+        else:
+            self.idle[name].append(at)
+
+    async def _run_foreign(self, clk, names):
+        last = None
+        while True:
+            await RisingEdge(clk)
+            now = get_sim_time('ps')
+            if last is not None and self._period:
+                for n in names:
+                    self.scale[n] = (now - last) / self._period
+            last = now
+            if self._period is None:
+                continue
+            at = self.cycle + (now - self._t_edge) / self._period
+            for n in names:
+                self._record(n, at)
 
     async def run(self):
         self.alive = True
+        for clk, names in self._foreign.items():
+            cocotb.start_soon(self._run_foreign(clk, names))
+        local = [n for n in self.channels if not any(n in ns for ns in self._foreign.values())]
         while True:
             await RisingEdge(self.tb.clock)
+            now = get_sim_time('ps')
+            if self._t_edge is not None:
+                self._period = now - self._t_edge
+            self._t_edge = now
             self.cycle += 1
-            for name, (v, r) in self.channels.items():
-                hv, hr = hi(v), hi(r)
-                if hv and hr:
-                    self.marks[name].append(self.cycle)
-                elif hv:
-                    self.stalled[name].append(self.cycle)
-                else:
-                    self.idle[name].append(self.cycle)
+            for name in local:
+                self._record(name, self.cycle)
+
+    def own_span(self, name, lo, hi_):
+        """The window [lo, hi_] (fabric cycles) in `name`'s own cycles."""
+        return (hi_ - lo) / self.scale[name] + 1
 
     def start(self):
         cocotb.start_soon(self.run())
@@ -96,7 +140,7 @@ class Sampler:
         m = self.marks[name]
         if len(m) < 2:
             return len(m), 0, 0.0
-        cycles = m[-1] - m[0] + 1
+        cycles = self.own_span(name, m[0], m[-1])
         return len(m), cycles, len(m) / cycles
 
     def count_in(self, name, lo, hi_):

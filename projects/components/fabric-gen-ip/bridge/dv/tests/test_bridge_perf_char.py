@@ -37,27 +37,40 @@ from TBClasses.shared.utilities import get_paths, get_wave_config   # noqa: E402
 from TBClasses.shared.filelist_utils import get_sources_from_filelist  # noqa: E402
 from TBClasses.shared.test_levels import level_env, reg_level_grid  # noqa: E402
 
+from bridge2x2_axi3_masters_tb import Bridge2x2Axi3MastersTB       # noqa: E402
+from bridge2x2_axi5_tb import Bridge2x2Axi5TB                       # noqa: E402
 from bridge2x2_rw_tb import Bridge2x2RwTB                           # noqa: E402
+from bridge2x2_rw_cdc_tb import Bridge2x2RwCdcTB                    # noqa: E402
 from bridge2x2_rw_lat_tb import Bridge2x2RwLatTB                    # noqa: E402
 from bridge2x2_rw_pipe_tb import Bridge2x2RwPipeTB                  # noqa: E402
 from bridge2x2_rw_qos_tb import Bridge2x2RwQosTB                    # noqa: E402
 from bridge4x4_rw_tb import Bridge4x4RwTB                           # noqa: E402
+from bridge_mix_etb import BridgeMixETB                             # noqa: E402
 from bridge_perf_char import (AcceptLimit, Characterizer, Floors,  # noqa: E402
-                              Stream, pipeline, throttle_ready)
+                              Stream, max_beats, pipeline, throttle_ready)
 from bridge_perf_probe import report                                # noqa: E402
 
+# A fixture is a generated bridge, optionally '@<ns>': the period of its CDC
+# ports' own clock (bridge_2x2_rw_cdc runs ddr on ddr_aclk; the fabric is
+# 10 ns). @7 puts the slave ahead of the fabric, @13 behind it.
 FIXTURES = {'bridge_2x2_rw': Bridge2x2RwTB, 'bridge_2x2_rw_lat': Bridge2x2RwLatTB,
             'bridge_2x2_rw_pipe': Bridge2x2RwPipeTB, 'bridge_2x2_rw_qos': Bridge2x2RwQosTB,
-            'bridge_4x4_rw': Bridge4x4RwTB}
+            'bridge_4x4_rw': Bridge4x4RwTB,
+            'bridge_2x2_rw_cdc@7': Bridge2x2RwCdcTB, 'bridge_2x2_rw_cdc@13': Bridge2x2RwCdcTB,
+            'bridge_2x2_axi5': Bridge2x2Axi5TB, 'bridge_2x2_axi3_masters': Bridge2x2Axi3MastersTB,
+            'bridge_mix_e': BridgeMixETB}
 DUTS = list(FIXTURES)
 # Port roles per fixture: (cpu, dma) master indices, (ddr, sram) slave
 # indices. cpu->ddr is width-matched everywhere; on 4x4_rw cpu (64b) ->
-# ddr0 (64b) is matched and dma0 (32b) -> sram (128b) is a 4:1 upsize.
-ROLES = {'bridge_4x4_rw': (0, 1, 1, 2)}
-CPU, DMA, DDR, SRAM = ROLES.get(os.environ.get('BRIDGE_PERF_DUT', 'bridge_2x2_rw'), (0, 1, 0, 1))
+# ddr0 (64b) is matched and dma0 (32b) -> sram (128b) is a 4:1 upsize; on
+# 2x2_axi3_masters the 64-bit AXI3 master plays cpu and the 32-bit one dma
+# (a 2:1 upsize into both slaves).
+ROLES = {'bridge_4x4_rw': (0, 1, 1, 2), 'bridge_2x2_axi3_masters': (1, 0, 0, 1)}
 SCALE = {'gate': 1, 'func': 2, 'full': 4}
 
-DUT_NAME = os.environ.get('BRIDGE_PERF_DUT', 'bridge_2x2_rw')
+FIXTURE = os.environ.get('BRIDGE_PERF_DUT', 'bridge_2x2_rw')
+DUT_NAME, _, CDC_NS = FIXTURE.partition('@')
+CPU, DMA, DDR, SRAM = ROLES.get(DUT_NAME, (0, 1, 0, 1))
 
 # ---------------------------------------------------------------------------
 # Floors. FULL is a saturated link: one beat per cycle, less measurement
@@ -79,33 +92,85 @@ FULL = 0.97
 # the bursts and width floors are Little's law too: with 16 in flight every
 # one of those paths runs at 1.000.
 RTT_BUDGET = {'bridge_2x2_rw': 8, 'bridge_2x2_rw_lat': 8, 'bridge_2x2_rw_pipe': 10,
-              'bridge_2x2_rw_qos': 8, 'bridge_4x4_rw': 11}
+              'bridge_2x2_rw_qos': 8, 'bridge_4x4_rw': 11,
+              'bridge_2x2_rw_cdc@7': 15, 'bridge_2x2_rw_cdc@13': 13,
+              'bridge_2x2_axi5': 8, 'bridge_2x2_axi3_masters': 8, 'bridge_mix_e': 8}
+# CDC (2026-10-18): one in flight, the ddr port's round trip is ~13 fabric
+# cycles at @7 and ~12 slave cycles at @13 -- the two synchronizer crossings
+# each way. The budget is in the floor's units: fabric cycles at @7 (the
+# fabric is the slower side, so the slave port's floor is scaled by 0.7),
+# slave cycles at @13. Bursts of two beats or more saturate either way.
 # Open weaknesses: (label regex, floor, note). A fixed weakness's row is
 # deleted, and the shape's real floor applies again.
+_W7 = 'W7: an AXI3 master has one write in flight (axi3_to_axi4_wr holds AW from acceptance to B)'
+_W8 = ('W8: AXI3 slave converter (axi4_to_axi3_rd/wr) -- AR/AW at most every other cycle, one '
+       'transaction per ID, a dead W cycle per AXI3 burst, and its request queue behind the arbiter')
+_W9 = 'W9: a CDC slave\'s address FIFO queues granted requests behind the arbiter (W3 at a CDC port)'
+_AXI3_WR = [  # W7: write streams from AXI3 masters, measured 2026-10-18
+    (r'^bursts wr beats=1 ', 0.10, _W7), (r'^bursts wr beats=2 ', 0.18, _W7),
+    (r'^bursts wr beats=4 ', 0.30, _W7), (r'^bursts wr beats=8 ', 0.45, _W7),
+    (r'^bursts wr beats=16 ', 0.60, _W7),
+    (r'^outstanding wr lat=0 ', 0.42, _W7), (r'^outstanding wr lat=16 ', 0.21, _W7),
+    (r'^outstanding wr lat=64 ', 0.085, _W7),
+    (r'^duplex .* cpu_w', 0.60, _W7)]
 KNOWN = {
+    'bridge_2x2_axi3_masters': _AXI3_WR + [
+        (r'^duplex .* dma_w', 0.41, _W7),
+        (r'^(contention|fairness) wr .*lat=0 .*slave_contended', 0.56, _W7),
+        (r'^(contention|fairness) wr .*lat=32 .*slave_contended', 0.21, _W7)],
+    'bridge_mix_e': _AXI3_WR + [
+        (r'^duplex all four dma_w', 0.86, _W8),
+        (r'^(contention|fairness) wr .*lat=0 .*slave_contended', 0.80, f'{_W7}; {_W8}'),
+        (r'^(contention|fairness) wr .*lat=32 .*slave_contended', 0.30, f'{_W7}; {_W8}'),
+        (r'^bursts rd beats=1 ids=1:?$', 0.30, _W8), (r'^bursts rd beats=1 ids=8', 0.45, _W8),
+        (r'^bursts rd beats=2 ids=1', 0.45, _W8), (r'^bursts rd beats=4 ids=1', 0.60, _W8),
+        (r'^bursts rd beats=8 ids=1', 0.72, _W8), (r'^bursts rd beats=16 ids=1', 0.80, _W8),
+        (r'^fairness rd .*round_robin', 0.23, _W8)],
+    'bridge_2x2_rw_cdc@7': [(r'round_robin', 0.15, _W9)],
+    'bridge_2x2_rw_cdc@13': [(r'round_robin', 0.15, _W9)],
 }
 NO_STARVE = 0.05   # a contending master gets at least this share
 FAIR_HALF = 0.45   # round-robin share of two masters that can both fill the slave
 
 
 def little(n_bursts: int, beats: int, lat: int) -> float:
-    return FULL * min(1.0, n_bursts * beats / (beats + lat + RTT_BUDGET[DUT_NAME]))
+    return FULL * min(1.0, n_bursts * beats / (beats + lat + RTT_BUDGET[FIXTURE]))
 
 
 def floors(tb) -> Floors:
-    return Floors(tb, KNOWN.get(DUT_NAME, []))
+    return Floors(tb, KNOWN.get(FIXTURE, []))
 
 
 def _tb(dut):
-    return FIXTURES[os.environ.get('BRIDGE_PERF_DUT', 'bridge_2x2_rw')](dut)
+    tb = FIXTURES[FIXTURE](dut)
+    if CDC_NS:
+        tb.CDC_PERIOD_NS = int(CDC_NS)
+    return tb
 
 
 def _win_rate(s, name, lo, hi):
-    """Beats per cycle between the first and last handshake inside [lo, hi]."""
+    """Beats per cycle between the first and last handshake inside [lo, hi],
+    in the port's own clock cycles (a CDC port's clock is not the fabric's)."""
     pts = [c for c in s.marks[name] if lo <= c <= hi]
     if len(pts) < 2:
         return len(pts), 0.0
-    return len(pts), len(pts) / (pts[-1] - pts[0] + 1)
+    return len(pts), len(pts) / s.own_span(name, pts[0], pts[-1])
+
+
+def _cap(s, port, *feeders):
+    """The most a port can carry in its own cycles when only `feeders` drive
+    it, through a crossbar that moves at most one beat per fabric cycle into
+    any port: 1.0 on one clock. Across a CDC port it is the slower of the two
+    in the port's own cycles -- a 7 ns slave behind the 10 ns fabric sees at
+    most 0.7, however many masters feed it."""
+    supply = min(1.0, sum(1.0 / s.scale[f] for f in feeders))   # per fabric cycle
+    return min(1.0, s.scale[port] * supply)
+
+
+def _beats(tb, *bursts):
+    """The burst lengths both roles' masters may issue (AXI3 stops at 16)."""
+    top = min(max_beats(tb, CPU), max_beats(tb, DMA))
+    return [b for b in bursts if b <= top]
 
 
 async def _measure(ch, s, streams, ports):
@@ -133,7 +198,8 @@ async def _contend(ch, s, streams, d):
     sl_n = sum(1 for c in s.marks[f'ddr_{d}'] if w_lo <= c <= w_hi)
     return {'slave_rate': _win_rate(s, f'ddr_{d}', lo, hi)[1],
             'dma_share': d_n / max(1, c_n + d_n),
-            'slave_contended': sl_n / max(1, w_hi - w_lo + 1)}
+            'slave_contended': sl_n / max(1.0, s.own_span(f'ddr_{d}', w_lo, w_hi)),
+            'cap': _cap(s, f'ddr_{d}', f'cpu_{d}', f'dma_{d}')}
 
 
 def _slave_beats(tb, m: int, s: int, beats: int) -> int:
@@ -161,7 +227,7 @@ async def cocotb_test_perf_char_bursts(dut):
     k = SCALE[tb.level]
     fl = floors(tb)
     for kind in ('wr', 'rd'):
-        for beats in (1, 2, 4, 8, 16, 64, 256):
+        for beats in _beats(tb, 1, 2, 4, 8, 16, 64, 256):
             for ids in ((0,), tuple(range(8))):
                 n = max(16, (256 * k) // beats)
                 st = Stream(kind, CPU, DDR, n, beats, outstanding=8, ids=ids)
@@ -171,7 +237,7 @@ async def cocotb_test_perf_char_bursts(dut):
                 label = f"bursts {kind} beats={beats} ids={len(ids)}"
                 report(tb, label, slave_rate=r[f's_{d}'][1], master_rate=r[f'm_{d}'][1],
                        addr_per_cycle=r[f'm_{a}'][1], beats_total=r[f's_{d}'][0])
-                fl.need(label, r[f's_{d}'][1], little(8, beats, 0))
+                fl.need(label, r[f's_{d}'][1], little(8, beats, 0) * _cap(s, f's_{d}', f'm_{d}'))
     fl.check()
 
 
@@ -191,7 +257,7 @@ async def cocotb_test_perf_char_outstanding(dut):
                 r = await _measure(ch, s, [st], [port])
                 label = f"outstanding {kind} lat={lat} n={n_out}"
                 report(tb, label, slave_rate=r[port][1])
-                fl.need(label, r[port][1], little(n_out, 8, lat))
+                fl.need(label, r[port][1], little(n_out, 8, lat) * _cap(s, port, 'm_r'))
     tb.slave_rd[DDR].response_delay_cycles = 0
     tb.slave_wr[DDR].response_delay_cycles = 0
     fl.check()
@@ -225,10 +291,13 @@ async def cocotb_test_perf_char_duplex(dut):
     for label, streams in cases.items():
         r = await _measure(ch, s, streams, ports)
         report(tb, f"duplex {label}", **{p: v[1] for p, v in r.items() if v[0]})
-        # Every requester saturates its own port: no path here shares a channel.
+        # Every requester saturates its own port: no path here shares a channel
+        # (unless the slave on the far side of a CDC port is the slower clock).
+        far = {f"{'cpu' if st.m == CPU else 'dma'}_{st.kind[0]}":
+               f"{'ddr' if st.s == DDR else 'sram'}_{st.kind[0]}" for st in streams}
         for p, v in r.items():
-            if v[0] and p.split('_')[0] in ('cpu', 'dma'):
-                fl.need(f"duplex {label} {p}", v[1], FULL)
+            if v[0] and p in far:
+                fl.need(f"duplex {label} {p}", v[1], FULL * _cap(s, p, far[p]))
     fl.check()
 
 
@@ -256,7 +325,7 @@ async def cocotb_test_perf_char_contention(dut):
                 # a narrow master used to hold the slave at its own rate).
                 sb = min(_slave_beats(tb, CPU, DDR, 8), _slave_beats(tb, DMA, DDR, 8))
                 fl.need(f"{label} slave_contended", r['slave_contended'],
-                        little(cpu_out + dma_out, sb, lat))
+                        little(cpu_out + dma_out, sb, lat) * r['cap'])
                 fl.need(f"{label} dma_share", r['dma_share'], NO_STARVE)
     tb.slave_rd[DDR].response_delay_cycles = 0
     tb.slave_wr[DDR].response_delay_cycles = 0
@@ -342,7 +411,8 @@ async def cocotb_test_perf_char_fairness(dut):
                            peak_in_flight=(acc.peak_rd if kind == 'rd' else acc.peak_wr) if acc else -1)
                     in_flight = min(limit or 999, cpu_out + dma_out)
                     sb = min(_slave_beats(tb, CPU, DDR, 8), _slave_beats(tb, DMA, DDR, 8))
-                    fl.need(f"{label} slave_contended", r['slave_contended'], little(in_flight, sb, lat))
+                    fl.need(f"{label} slave_contended", r['slave_contended'],
+                            little(in_flight, sb, lat) * r['cap'])
                     fl.need(f"{label} dma_share", r['dma_share'], NO_STARVE)
                     # Arbitration at the slave's pins: when the slave takes
                     # `limit` at a time and each master can keep that many
@@ -381,7 +451,7 @@ async def cocotb_test_perf_char_wr_order(dut):
     s = ch.sampler({'ddr_w': ('s', DDR, 'w'), 'sram_w': ('s', SRAM, 'w')})
     fl = floors(tb)
     accs = [AcceptLimit(ch, DDR, 1), AcceptLimit(ch, SRAM, 1)]
-    for beats in (1, 4, 16):
+    for beats in _beats(tb, 1, 4, 16):
         # Distinct IDs per (master, slave): the master adapter keeps one ID on
         # one slave, which would otherwise serialize the streams it splits.
         streams = [Stream('wr', CPU, DDR, 24, beats, outstanding=4, ids=(0, 1, 2, 3), region=0),
@@ -456,14 +526,16 @@ CASES = ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'ooo', 'ba
          'split', 'wr_order']
 
 
-def _run(request, test_level, case, dut_name):
+def _run(request, test_level, case, fixture):
     module, repo_root_, tests_dir, log_dir, _ = get_paths({})
+    dut_name = fixture.partition('@')[0]
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_,
         filelist_path=f'projects/components/fabric-gen-ip/bridge/rtl/filelists/{dut_name}.f')
     worker = os.environ.get('PYTEST_XDIST_WORKER', '')
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
-    name = f"test_{dut_name}_perf_char_{case}_{test_level}_{reg_level}" + (f"_{worker}" if worker else "")
+    name = (f"test_{fixture.replace('@', '_cdc')}_perf_char_{case}_{test_level}_{reg_level}"
+            + (f"_{worker}" if worker else ""))
     log_path = os.path.join(log_dir, f'{name}.log')
     sim_build = sim_build_path(tests_dir, name)
     os.makedirs(sim_build, exist_ok=True)
@@ -475,7 +547,7 @@ def _run(request, test_level, case, dut_name):
         extra_args=['--assert'] + waves['extra_args'],
         extra_env={'COCOTB_LOG_LEVEL': 'INFO', 'LOG_PATH': log_path,
                    'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{name}.xml'),
-                   'BRIDGE_PERF_DUT': dut_name, **level_env(test_level), **waves['extra_env']},
+                   'BRIDGE_PERF_DUT': fixture, **level_env(test_level), **waves['extra_env']},
         plus_args=waves['sim_args'], keep_files=True)
 
 
@@ -490,11 +562,16 @@ MATRIX = {
     'bridge_2x2_rw_qos':  ['bursts', 'contention', 'fairness'],
     'bridge_4x4_rw':      ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'width', 'split',
                            'wr_order'],
+    'bridge_2x2_rw_cdc@7':  ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'wr_order'],
+    'bridge_2x2_rw_cdc@13': ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'wr_order'],
+    'bridge_2x2_axi5':      ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'wr_order'],
+    'bridge_2x2_axi3_masters': ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'wr_order'],
+    'bridge_mix_e':         ['bursts', 'outstanding', 'duplex', 'contention', 'fairness', 'wr_order'],
 }
 assert set(DUTS) == set(MATRIX) and all(c in CASES for cs in MATRIX.values() for c in cs)
 
 
-@pytest.mark.parametrize("dut_name, case", [(d, c) for d, cs in MATRIX.items() for c in cs])
+@pytest.mark.parametrize("fixture, case", [(d, c) for d, cs in MATRIX.items() for c in cs])
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_bridge_perf_char(request, test_level, case, dut_name):
-    _run(request, test_level, case, dut_name)
+def test_bridge_perf_char(request, test_level, case, fixture):
+    _run(request, test_level, case, fixture)
