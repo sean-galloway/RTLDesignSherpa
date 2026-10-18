@@ -10,9 +10,9 @@ condition it commands each cell's drain controller, which pushes the cell's
 result memory out as write packets to `{ext 0, level 3}`.
 
 Today delta routes on `{X, Y, Z}` only. A packet reaches the tile I/O only if
-its sender writes the attach cell's coordinate (`TILE_IO_X/Y/Z`) into delta's
-header; only the DELTA-010 credit advertisement does that, from inside the
-node. A cell injecting at its local port has no way to say "level 3".
+its sender writes the attach cell's delta coordinate into delta's header. A
+delta node never originates a packet (owner direction 2026-10-18; DELTA-012),
+so every packet to level 3 comes from a cell or a control core.
 
 ## What to build
 

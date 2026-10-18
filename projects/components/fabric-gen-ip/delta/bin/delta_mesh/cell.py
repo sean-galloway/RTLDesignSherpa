@@ -207,11 +207,7 @@ class DeltaMeshCell(Module):
             parameter bit TORUS_Y = {1 if config.torus_y else 0},
             parameter bit TORUS_Z = {1 if config.torus_z else 0},
             parameter bit SOURCE_ROUTE = {1 if config.source_route else 0},
-            parameter bit SPECULATION = {1 if config.speculation else 0},
-            parameter int CELL_CREDITS = 0,
-            parameter int TILE_IO_X = 0,
-            parameter int TILE_IO_Y = 0,
-            parameter int TILE_IO_Z = 0
+            parameter bit SPECULATION = {1 if config.speculation else 0}
         '''
         self.params.add_param_string(param_str)
 
@@ -880,8 +876,6 @@ class DeltaMeshCell(Module):
         self.instruction("endfunction")
         self.instruction("")
         self.instruction("initial begin")
-        self.instruction("    if ((CELL_CREDITS != 0) && (DATA_WIDTH < 128))")
-        self.instruction("        $fatal(1, \"CELL_CREDITS needs DATA_WIDTH >= 128: the tile header is one 128-bit beat\");")
         self.comment("    Every QoS region gets the same DOR default (the image")
         self.comment("    ignores the qos key bits); Task 7 overlays per-class")
         self.comment("    routes without reshaping the memory.")
@@ -1567,8 +1561,6 @@ class DeltaMeshCell(Module):
         self.instruction("logic              gen_fifo_wr_valid;")
         self.instruction("logic              gen_fifo_wr_ready;")
         self.instruction("logic [FLIT_W-1:0] gen_fifo_wr_data;")
-        self.instruction("logic              msw_gen_valid;   // a mode-switch beat this cycle")
-        self.instruction("logic [FLIT_W-1:0] msw_gen_data;")
         self.instruction("")
         self.comment("Beat construction: fan index 0 acks the origin; index")
         self.comment("k >= 1 re-emits the switch toward neighbor_port(k-1) with")
@@ -1635,66 +1627,17 @@ class DeltaMeshCell(Module):
         self.instruction("        gen_tdata = {{(DATA_WIDTH-20){1'b0}},")
         self.instruction("                     msw_hold_mode, MSW_MAGIC};")
         self.instruction("    end")
-        self.instruction("    msw_gen_data = {gen_hdr, 1'b1, gen_tdata};")
+        self.instruction("    gen_fifo_wr_data = {gen_hdr, 1'b1, gen_tdata};")
         self.instruction("end")
         self.instruction("")
         self.comment("Fan FSM: one beat per ready cycle -- ack first, then the")
         self.comment("neighbor copies; the holding register frees after the")
         self.comment("last copy pushes.")
         self.instruction("always_comb begin")
-        self.instruction("    msw_gen_valid = msw_hold_valid &&")
-        self.instruction("                    (msw_fan_idx <= 4'(N_NEIGH)) &&")
-        self.instruction("                    gen_fifo_wr_ready;")
+        self.instruction("    gen_fifo_wr_valid = msw_hold_valid &&")
+        self.instruction("                        (msw_fan_idx <= 4'(N_NEIGH)) &&")
+        self.instruction("                        gen_fifo_wr_ready;")
         self.instruction("end")
-        self.instruction("")
-        self.comment("Credit advertisement (TILE_SPEC 11.10, delta DELTA-010):")
-        self.comment("with CELL_CREDITS != 0 the node sends its cell's boot")
-        self.comment("advertisement once, as it leaves reset, so the cell needs")
-        self.comment("no logic to advertise. One beat: the delta header in")
-        self.comment("TUSER addresses the tile I/O's attach cell (TILE_IO_X/Y/Z)")
-        self.comment("on the control class (qos 1, sr_ptr[0] = 1: DOR on VC0,")
-        self.comment("never intercepted as config), and TDATA[127:0] is the")
-        self.comment("tile header of a credit packet -- dst level 3, src the")
-        self.comment("attached cell's external ID (ext 1, level 0), op = set,")
-        self.comment("length = CELL_CREDITS flits, class 0. Its low 16 bits are")
-        self.comment("never ACK_MAGIC. A mode-")
-        self.comment("switch beat wins the FIFO; the advertisement takes the")
-        self.comment("next free cycle. Otherwise the node stays a conduit: it")
-        self.comment("holds no credit state; the cell returns its own credits.")
-        self.instruction("logic                  r_adv_pending;")
-        self.instruction("logic                  adv_go;")
-        self.instruction("logic [127:0]          adv_tile_hdr;")
-        self.instruction("logic [USER_WIDTH-1:0] adv_hdr;")
-        self.instruction("")
-        self.instruction("always_comb begin")
-        self.instruction("    adv_go = r_adv_pending && gen_fifo_wr_ready && !msw_gen_valid;")
-        self.instruction("    adv_tile_hdr          = '0;")
-        self.instruction("    adv_tile_hdr[14:0]    = 15'h3000;")
-        self.instruction("    adv_tile_hdr[29:15]   = {1'b1, 2'd0, 4'(POS_X), 4'(POS_Y), 4'(POS_Z)};")
-        self.instruction("    adv_tile_hdr[32:30]   = 3'd3;")
-        self.instruction("    adv_tile_hdr[33]      = 1'b1;")
-        self.instruction("    adv_tile_hdr[65:34]   = 32'(CELL_CREDITS);")
-        self.instruction("    adv_hdr = '0;")
-        self.instruction("    adv_hdr[HDR_DST_X_LO +: COORD_W] = COORD_W'(TILE_IO_X);")
-        self.instruction("    adv_hdr[HDR_DST_Y_LO +: COORD_W] = COORD_W'(TILE_IO_Y);")
-        self.instruction("    adv_hdr[HDR_DST_Z_LO +: COORD_W] = COORD_W'(TILE_IO_Z);")
-        self.instruction("    adv_hdr[HDR_SRC_X_LO +: COORD_W] = COORD_W'(POS_X);")
-        self.instruction("    adv_hdr[HDR_SRC_Y_LO +: COORD_W] = COORD_W'(POS_Y);")
-        self.instruction("    adv_hdr[HDR_SRC_Z_LO +: COORD_W] = COORD_W'(POS_Z);")
-        self.instruction("    adv_hdr[HDR_QOS_LO +: HDR_QOS_W] = 2'd1;")
-        self.instruction("    adv_hdr[HDR_SR_PTR_LO]           = 1'b1;")
-        self.instruction("    gen_fifo_wr_valid = msw_gen_valid || adv_go;")
-        self.instruction("    gen_fifo_wr_data  = msw_gen_valid ? msw_gen_data")
-        self.instruction("                                      : {adv_hdr, 1'b1, DATA_WIDTH'(adv_tile_hdr)};")
-        self.instruction("end")
-        self.instruction("")
-        self.instruction("`ALWAYS_FF_RST(aclk, aresetn,")
-        self.instruction("    if (!aresetn) begin")
-        self.instruction("        r_adv_pending <= (CELL_CREDITS != 0);")
-        self.instruction("    end else if (adv_go) begin")
-        self.instruction("        r_adv_pending <= 1'b0;")
-        self.instruction("    end")
-        self.instruction(")")
         self.instruction("")
         self.instruction("gaxi_skid_buffer #(")
         self.instruction("    .DATA_WIDTH(FLIT_W),")
@@ -1753,7 +1696,7 @@ class DeltaMeshCell(Module):
         self.instruction("            msw_hold_pid   <=")
         self.instruction("                pres_tuser[msw_winner][HDR_PID_LO +: 16];")
         self.instruction("            msw_fan_idx    <= '0;")
-        self.instruction("        end else if (msw_gen_valid) begin")
+        self.instruction("        end else if (gen_fifo_wr_valid) begin")
         self.instruction("            if (msw_fan_idx == 4'(N_NEIGH)) begin")
         self.instruction("                msw_hold_valid <= 1'b0;")
         self.instruction("                msw_fan_idx    <= '0;")
@@ -2847,10 +2790,6 @@ class DeltaMeshCellCxs(Module):
             parameter bit TORUS_Z = {1 if config.torus_z else 0},
             parameter bit SOURCE_ROUTE = {1 if config.source_route else 0},
             parameter bit SPECULATION = {1 if config.speculation else 0},
-            parameter int CELL_CREDITS = 0,
-            parameter int TILE_IO_X = 0,
-            parameter int TILE_IO_Y = 0,
-            parameter int TILE_IO_Z = 0,
             parameter int CXS_MAX_CREDIT = 32,
             parameter int NUM_PORTS = 9,
             parameter int SW = DATA_WIDTH / 8,
@@ -3035,11 +2974,7 @@ class DeltaMeshCellCxs(Module):
         self.instruction("    .TORUS_Y        (TORUS_Y),")
         self.instruction("    .TORUS_Z        (TORUS_Z),")
         self.instruction("    .SOURCE_ROUTE   (SOURCE_ROUTE),")
-        self.instruction("    .SPECULATION    (SPECULATION),")
-        self.instruction("    .CELL_CREDITS   (CELL_CREDITS),")
-        self.instruction("    .TILE_IO_X      (TILE_IO_X),")
-        self.instruction("    .TILE_IO_Y      (TILE_IO_Y),")
-        self.instruction("    .TILE_IO_Z      (TILE_IO_Z)")
+        self.instruction("    .SPECULATION    (SPECULATION)")
         self.instruction(") u_core (")
         self.instruction("    .aclk          (aclk),")
         self.instruction("    .aresetn       (aresetn),")

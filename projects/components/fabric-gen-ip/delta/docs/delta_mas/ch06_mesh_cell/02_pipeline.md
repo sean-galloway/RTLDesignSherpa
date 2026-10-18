@@ -62,29 +62,6 @@ A granted input holds its output until the packet's `TLAST` handshake completes,
 
 That should never happen. If it does, the cell is in an inconsistent state: the flit has no output port and will be dropped. The verification suite includes a formal assertion that `TLAST` may only be asserted while a switch grant is active for the same input, mirroring the flat-mode packet-atomicity check.
 
-## Generated Packets: Mode Acks and Credit Advertisements
-
-The cell builds some packets itself. They wait in a small generator FIFO and
-enter the local port's VC0 input buffer between external packets, so an
-external master is never cut off mid-handshake. Two writers share the FIFO:
-
-- **Mode-switch fan-out.** The ack to the switch origin, then one copy of the
-  switch per neighbor. These take the FIFO first.
-- **Credit advertisement** (`CELL_CREDITS` != 0, delta DELTA-010). Once, as the
-  cell leaves reset, it advertises its attached cell's input buffer to the tile
-  I/O, so the cell needs no logic to advertise. The packet is one beat. Its
-  TUSER header addresses the tile I/O's attach cell (`TILE_IO_X/Y/Z`) on the
-  control class (QoS 1, `sr_ptr[0]` = 1), which routes DOR on VC0 and is never
-  intercepted as in-band config. TDATA[127:0] is the tile header of a credit
-  packet (TILE_SPEC 11.5, 11.10): destination level 3, source the attached
-  cell's external ID (`ext` 1, level 0), `ptype` 3, `op` 1 (`set`), length `CELL_CREDITS` flits, class 0. Its
-  low 16 bits can never equal the mode-ack magic. It takes the next cycle the
-  fan-out leaves free.
-
-`CELL_CREDITS` needs `DATA_WIDTH` >= 128, an elaboration check. Beyond the
-advertisement the cell is a conduit: it holds no credit state for the traffic
-it routes, and the attached cell returns its own credits as it consumes.
-
 ## References
 
 - Dally & Towles, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004 — router speculation and lookahead [P17].

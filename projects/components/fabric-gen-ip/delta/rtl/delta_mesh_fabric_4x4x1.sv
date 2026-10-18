@@ -13,11 +13,7 @@ parameter bit     TORUS_X = 0,
 parameter bit     TORUS_Y = 0,
 parameter bit     TORUS_Z = 0,
 parameter bit     SOURCE_ROUTE = 0,
-parameter bit     SPECULATION = 0,
-parameter int     CELL_CREDITS = 0,
-parameter int     TILE_IO_X = 0,
-parameter int     TILE_IO_Y = 0,
-parameter int     TILE_IO_Z = 0 )(
+parameter bit     SPECULATION = 0 )(
     input  logic                  aclk,
     input  logic                  aresetn,
     input  logic [DATA_WIDTH-1:0] s_local_tdata  [NUM_BOUNDARY],
@@ -599,11 +595,7 @@ generate
                     .TORUS_Y(TORUS_Y),
                     .TORUS_Z(TORUS_Z),
                     .SOURCE_ROUTE(SOURCE_ROUTE),
-                    .SPECULATION(SPECULATION),
-                    .CELL_CREDITS(CELL_CREDITS),
-                    .TILE_IO_X(TILE_IO_X),
-                    .TILE_IO_Y(TILE_IO_Y),
-                    .TILE_IO_Z(TILE_IO_Z)
+                    .SPECULATION(SPECULATION)
                 ) u_cell (
                     .aclk(aclk),
                     .aresetn(aresetn),

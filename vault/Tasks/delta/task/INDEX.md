@@ -2,7 +2,7 @@
 
 # delta — tasks
 
-**Next ID: DELTA-012** — never recycle a number, even when its item closed.
+**Next ID: DELTA-013** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -11,7 +11,7 @@ cleanup. It starts from intent, not from a failure.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -20,8 +20,12 @@ cleanup. It starts from intent, not from a failure.
   (owner direction 2026-10-18, TILE_SPEC 11.14)
 
 ## Closed
+- **DELTA-012** — node-originated credit advertisement removed (reverts
+  DELTA-010; delta nodes only transport, owner direction 2026-10-18) (closed 2026-10-18)
+
 - **DELTA-010** — `delta_mesh_cell` advertises its cell's input-buffer credits
-  from `CELL_CREDITS` at reset, control class to `TILE_IO_X/Y/Z` (closed 2026-10-18)
+  from `CELL_CREDITS` at reset, control class to `TILE_IO_X/Y/Z` (closed 2026-10-18;
+  reverted by DELTA-012)
 
 - **DELTA-009** — systolic package: torus wrap links, dateline rule, route
   lookahead, source-route override, and speculative VA+SA; speculation parity

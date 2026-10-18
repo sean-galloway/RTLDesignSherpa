@@ -20,11 +20,7 @@ parameter bit     TORUS_X = 0,
 parameter bit     TORUS_Y = 0,
 parameter bit     TORUS_Z = 0,
 parameter bit     SOURCE_ROUTE = 0,
-parameter bit     SPECULATION = 0,
-parameter int     CELL_CREDITS = 0,
-parameter int     TILE_IO_X = 0,
-parameter int     TILE_IO_Y = 0,
-parameter int     TILE_IO_Z = 0 )(
+parameter bit     SPECULATION = 0 )(
     input  logic                  aclk,
     input  logic                  aresetn,
     input  logic [DATA_WIDTH-1:0] s_axis_tdata   [9],
@@ -674,8 +670,6 @@ function automatic logic [ENTRY_W-1:0] mode_default_entry(
 endfunction
 
 initial begin
-    if ((CELL_CREDITS != 0) && (DATA_WIDTH < 128))
-        $fatal(1, "CELL_CREDITS needs DATA_WIDTH >= 128: the tile header is one 128-bit beat");
 //     Every QoS region gets the same DOR default (the image
 //     ignores the qos key bits); Task 7 overlays per-class
 //     routes without reshaping the memory.
@@ -1357,8 +1351,6 @@ logic [3:0]         msw_fan_idx;
 logic              gen_fifo_wr_valid;
 logic              gen_fifo_wr_ready;
 logic [FLIT_W-1:0] gen_fifo_wr_data;
-logic              msw_gen_valid;   // a mode-switch beat this cycle
-logic [FLIT_W-1:0] msw_gen_data;
 
 // Beat construction: fan index 0 acks the origin; index
 // k >= 1 re-emits the switch toward neighbor_port(k-1) with
@@ -1425,66 +1417,17 @@ always_comb begin
         gen_tdata = {{(DATA_WIDTH-20){1'b0}},
                      msw_hold_mode, MSW_MAGIC};
     end
-    msw_gen_data = {gen_hdr, 1'b1, gen_tdata};
+    gen_fifo_wr_data = {gen_hdr, 1'b1, gen_tdata};
 end
 
 // Fan FSM: one beat per ready cycle -- ack first, then the
 // neighbor copies; the holding register frees after the
 // last copy pushes.
 always_comb begin
-    msw_gen_valid = msw_hold_valid &&
-                    (msw_fan_idx <= 4'(N_NEIGH)) &&
-                    gen_fifo_wr_ready;
+    gen_fifo_wr_valid = msw_hold_valid &&
+                        (msw_fan_idx <= 4'(N_NEIGH)) &&
+                        gen_fifo_wr_ready;
 end
-
-// Credit advertisement (TILE_SPEC 11.10, delta DELTA-010):
-// with CELL_CREDITS != 0 the node sends its cell's boot
-// advertisement once, as it leaves reset, so the cell needs
-// no logic to advertise. One beat: the delta header in
-// TUSER addresses the tile I/O's attach cell (TILE_IO_X/Y/Z)
-// on the control class (qos 1, sr_ptr[0] = 1: DOR on VC0,
-// never intercepted as config), and TDATA[127:0] is the
-// tile header of a credit packet -- dst level 3, src the
-// attached cell's external ID (ext 1, level 0), op = set,
-// length = CELL_CREDITS flits, class 0. Its low 16 bits are
-// never ACK_MAGIC. A mode-
-// switch beat wins the FIFO; the advertisement takes the
-// next free cycle. Otherwise the node stays a conduit: it
-// holds no credit state; the cell returns its own credits.
-logic                  r_adv_pending;
-logic                  adv_go;
-logic [127:0]          adv_tile_hdr;
-logic [USER_WIDTH-1:0] adv_hdr;
-
-always_comb begin
-    adv_go = r_adv_pending && gen_fifo_wr_ready && !msw_gen_valid;
-    adv_tile_hdr          = '0;
-    adv_tile_hdr[14:0]    = 15'h3000;
-    adv_tile_hdr[29:15]   = {1'b1, 2'd0, 4'(POS_X), 4'(POS_Y), 4'(POS_Z)};
-    adv_tile_hdr[32:30]   = 3'd3;
-    adv_tile_hdr[33]      = 1'b1;
-    adv_tile_hdr[65:34]   = 32'(CELL_CREDITS);
-    adv_hdr = '0;
-    adv_hdr[HDR_DST_X_LO +: COORD_W] = COORD_W'(TILE_IO_X);
-    adv_hdr[HDR_DST_Y_LO +: COORD_W] = COORD_W'(TILE_IO_Y);
-    adv_hdr[HDR_DST_Z_LO +: COORD_W] = COORD_W'(TILE_IO_Z);
-    adv_hdr[HDR_SRC_X_LO +: COORD_W] = COORD_W'(POS_X);
-    adv_hdr[HDR_SRC_Y_LO +: COORD_W] = COORD_W'(POS_Y);
-    adv_hdr[HDR_SRC_Z_LO +: COORD_W] = COORD_W'(POS_Z);
-    adv_hdr[HDR_QOS_LO +: HDR_QOS_W] = 2'd1;
-    adv_hdr[HDR_SR_PTR_LO]           = 1'b1;
-    gen_fifo_wr_valid = msw_gen_valid || adv_go;
-    gen_fifo_wr_data  = msw_gen_valid ? msw_gen_data
-                                      : {adv_hdr, 1'b1, DATA_WIDTH'(adv_tile_hdr)};
-end
-
-`ALWAYS_FF_RST(aclk, aresetn,
-    if (!aresetn) begin
-        r_adv_pending <= (CELL_CREDITS != 0);
-    end else if (adv_go) begin
-        r_adv_pending <= 1'b0;
-    end
-)
 
 gaxi_skid_buffer #(
     .DATA_WIDTH(FLIT_W),
@@ -1543,7 +1486,7 @@ gaxi_skid_buffer #(
             msw_hold_pid   <=
                 pres_tuser[msw_winner][HDR_PID_LO +: 16];
             msw_fan_idx    <= '0;
-        end else if (msw_gen_valid) begin
+        end else if (gen_fifo_wr_valid) begin
             if (msw_fan_idx == 4'(N_NEIGH)) begin
                 msw_hold_valid <= 1'b0;
                 msw_fan_idx    <= '0;

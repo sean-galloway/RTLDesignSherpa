@@ -3,6 +3,11 @@
 **Priority:** P2
 **Status:** CLOSED 2026-10-18 -- delta func regression 80/80 from clean-all
 
+**Reverted 2026-10-18 (DELTA-012):** owner direction the same day -- delta
+nodes only transport and never originate a packet on the data network; a
+cell or control core sends its own boot advertisement (TILE_SPEC 11.10).
+The advertisement below was removed from the generator and RTL.
+
 ## Done 2026-10-18
 
 - `bin/delta_mesh/cell.py` / `fabric.py`: `CELL_CREDITS` (flits, 0 = off),
