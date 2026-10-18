@@ -243,8 +243,6 @@ Still open:
 
 - What switches the root mux (§11.4): software, a watchdog, or the
   root-to-root link.
-- How many descriptor-queue entries each control core is strapped, and
-  whether each tetrad gets its own source channel (§11.9, §11.11).
 - Cell input buffer sizes (the advertisement value) and result-memory
   sizing — cell PRD §12.
 - Resync timing: how long RAPIDS waits for answers before declaring a
@@ -433,7 +431,7 @@ their straps (§11.9); a delta node never does.
 |---|---|---|---|
 | Write | Header (`op` = 0, length N, tag) + N bytes | Consumes the data, then returns credits (§11.9) | The credit packet |
 | Read | Header only (`op` = 1, length N, tag = the sink channel that will take the data); never to a node | Sends N bytes back: a write-format packet to `level` 3 with the tag echoed | The data, into the tagged sink channel |
-| Cell send | - | Sends a write-format packet to `level` 3 with the tag set, against its 16-flit strap | The data, via the cell's landing space, into the tagged sink channel |
+| Cell send | - | Sends a write-format packet to `level` 3 with the tag set, against its `TILE_LAND_FLITS` strap | The data, via the cell's landing space, into the tagged sink channel |
 | Credit return to a sender | Header only (`ptype` = `credit`, destination = the cell or core) for what RAPIDS consumed | Adds it to its strap counter | - |
 | Credit return | - | - | Header only (`ptype` = `credit`) for flits the cell or core consumed; never stored in a channel |
 | Core-issued descriptor | - | Sends a `desc` packet to `level` 3: header + one 256-bit source descriptor, tag = the source channel, against its strapped descriptor-queue entries | The descriptor, into that source channel's descriptor queue (§11.11) |
@@ -450,8 +448,8 @@ so they cannot say anything about a cell's buffer. End-to-end credits are
 packets instead.
 
 **delta nodes only transport** (owner direction 2026-10-18). A node carries
-every packet on the data network, `credit` packets included, on that
-packet's virtual channel, and holds no credit state for it: only the
+every packet on the data network, and `credit` packets on their own
+interface, and holds no credit state for it: only the
 hop-level flow control it already has. A node never originates a packet on
 the data network; whatever it generates itself (debug, status) goes on
 MonBus. It consumes what is addressed to its internal ID (§11.3) on arrival,
@@ -511,43 +509,44 @@ construction instead of granted at run time:
 
 | Sender | Sends to RAPIDS | Credit |
 |---|---|---|
-| Cell (a cell-level node's external ID) | Memory writes (results, §11.14) | A strap of 16 flits, header included |
-| Control core (a tetrad node's external ID) | `desc` packets (§11.11) | Entries in a source channel's descriptor queue |
+| Cell (a cell-level node's external ID) | Memory writes (results, §11.14) | A strap of `TILE_LAND_FLITS` flits (a RAPIDS parameter, default 16), header included |
+| Control core (a tetrad node's external ID) | `desc` packets (§11.11) | Entries in RAPIDS's `desc` intake queue |
 | delta node | Nothing | None |
 
 : Credits toward RAPIDS
 
 1. Each sender starts from its strap after reset and sends a packet only
    while its counter covers the whole packet.
-2. RAPIDS reserves every strap: a landing space of 16 flits per cell, and the
-   descriptor-queue entries per core. The sink cannot be overcommitted
+2. RAPIDS reserves every strap: a landing space of `TILE_LAND_FLITS` flits
+   per cell, and a `desc` intake queue as deep as the descriptor credits
+   handed out. The sink cannot be overcommitted
    however many senders send.
 3. RAPIDS returns credits as it consumes, with a `credit`/`add` packet to the
    sender: flits when the data moves out of the landing space into its sink
-   channel, one entry when the scheduler takes a descriptor.
+   channel, one entry when a descriptor moves from the intake queue into the
+   descriptor queue. These returns are required, not optional.
 
 The landing space is per sender: a cell whose data targets a full sink
-channel holds only its own 16 flits, never another sender's. A packet to
-RAPIDS is therefore at most 16 flits.
+channel holds only its own landing space, never another sender's. A packet
+to RAPIDS is therefore at most `TILE_LAND_FLITS` flits.
 
 With end-to-end credits in both directions, every packet in the fabric has
 guaranteed space at its destination and always drains.
 
 Requirements this places on the implementation:
-- **Deadlock:** a credit packet must never wait behind data that is itself
-  waiting for credits. Credit packets ride their own virtual channel, and
-  the sink port accepts them unconditionally.
+- **Deadlock:** a credit must never wait behind data that is itself
+  waiting for credits. Credits have their own interfaces (owner
+  2026-10-18), separate from data, so this holds by construction.
 - **RAPIDS:** the sink-to-source credit path inside the core, the 64-entry
   counter table (filled by the advertisements), the advertisement window and
-  the saved legal-destination mask (§11.10); and toward RAPIDS, the 16-flit
-  landing space per cell, the descriptor-queue entries per core, and the
-  credit returns on the source port.
+  the saved legal-destination mask (§11.10); and toward RAPIDS, the `TILE_LAND_FLITS`
+  landing space per cell, the `desc` intake queue, and the credit returns.
 - **Cells and control cores:** buffer sizing, their own boot advertisement,
   return batching, building credit packets, and a strap counter toward
   RAPIDS.
 - **delta nodes:** none of it. No credit state, no advertisement, no
-  returns; they consume what is addressed to them without stalling. A
-  virtual channel for `credit` packets.
+  returns; they consume what is addressed to them without stalling.
+  `credit` packets travel on their own interface.
 
 ### 11.10 Credit advertisement
 
@@ -631,14 +630,13 @@ core asks, the RAPIDS source half does the read and the send.
 4. The source half reads `src_addr` and sends the data, with a header built
    from the descriptor, out of the source port to the destination it names.
 
-Flow control: a source channel's descriptor queue is finite, so a core sends
-a `desc` packet only against its strapped descriptor-queue entries (§11.9,
-credit class 1, tag = that source channel). RAPIDS returns an entry when the
-scheduler takes the descriptor.
-
-RAPIDS hardware this needs: a second write port into each source channel's
-descriptor queue (the queue is already per channel in the shared descriptor
-engine), and the sink-to-source path the credit returns already use.
+Flow control (owner 2026-10-18): there is one descriptor queue, feeding the
+schedulers. `desc` packets land in an intake FIFO as deep as the descriptor
+credits handed out (a parameter); the intake FIFO is muxed into the put side
+of the descriptor queue, beside the memory fetch path. A core sends a `desc`
+packet only against its strapped share of those credits (§11.9, credit class
+1), and RAPIDS returns an entry when the descriptor moves into the
+descriptor queue.
 
 ### 11.12 RAPIDS implementation status (2026-10-17)
 
@@ -654,7 +652,7 @@ Built in the byte-granular RAPIDS behind `TILE_HDR` = 1 (default 0; needs
 | Sink stream = tag | On RAPIDS's sink link the stream ID (`CXSSRCID`, the channel) must equal the header tag: the root sets it from the tag. RAPIDS delivers by stream ID and flags a mismatch (`sts_tile_tag_mismatch`) |
 | Cell-issued descriptors (§11.11) | Built, with a one-descriptor slot per source channel instead of descriptor grants: a `desc` with no free slot, one arriving during a channel reset, or an EXT one is dropped and sets that channel's sticky `sts_tile_desc_dropped` bit. The channel and the work it holds carry on |
 | End-to-end credits (§11.9, §11.10) | Built behind `TILE_CREDITS` = 1 (2026-10-18): 64 destination counters in the source half, the internal and external ID of every node (`rapids_tile_credits`; index map §11.9), external counters filled by class-0 `set` / `add` credit packets from cells and cores; a packet to a cell or core leaves only when its counter covers every flit, header included. Node internal IDs are legal by topology, never held or charged, and their credit packets are ignored; a read request to a node is refused. The advertisement window (`SRC.TILE_ADV_WINDOW`, cycles from reset) closes into the saved 64-bit legal-destination mask (`SRC.TILE_LEGAL_DEST_LO` / `_HI`); tile descriptors wait for it and one to an illegal destination is refused as invalid. A channel reset does not refund credits already charged |
-| Straps toward RAPIDS (§11.9, §11.11) | Not built: no per-cell 16-flit landing space, no strapped descriptor-queue entries per core, no credit returns from RAPIDS; RAPIDS ignores class-1 credits (rapids TASK-027) |
+| Straps toward RAPIDS (§11.9, §11.11) | Not built: no per-cell landing space (`TILE_LAND_FLITS`), no `desc` intake queue, no credit returns from RAPIDS; RAPIDS ignores class-1 credits (rapids TASK-027) |
 | Status | CSRs: `SNK.TILE_STATUS` and `SRC.TILE_DESC_DROPPED` (W1C), `SNK.TILE_COUNTS`, and for credits `SRC.TILE_LEGAL_DEST_LO` / `_HI` / `SRC.TILE_CREDIT_STATUS`; the same values on the top-level `sts_tile_*` ports |
 
 ### 11.13 Tetrad control core (owner direction 2026-10-17; deferred 2026-10-18)
@@ -714,7 +712,7 @@ I/O, and so into RAPIDS. It is the path computed results leave the tile by:
 3. **Drain.** The controller pushes the cell's result memory out through
    the packetizer: write-format packets (`op` = 0) to `{ext 0, level 3}`,
    source = the cell's external ID `{1, 0, X, Y, Z}`, tag = the RAPIDS sink
-   channel, each sent against the cell's 16-flit strap (§11.9).
+   channel, each sent against the cell's `TILE_LAND_FLITS` strap (§11.9).
 4. **Carry and land.** Delta routes each packet to the tile I/O. RAPIDS's
    sink strips the header and delivers the data by tag into that sink
    channel, which writes it to memory.

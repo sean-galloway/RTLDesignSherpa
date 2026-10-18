@@ -34,18 +34,22 @@ descriptors) sends `desc` against strapped descriptor-queue entries.
 ## What to build
 
 1. Done: 64 counters, advertisement window, legal mask, credit intake (above).
-2. **Landing space**: 16 flits per cell, per sender, so a cell whose data
-   targets a full sink channel holds only its own strap. A packet to RAPIDS
-   is at most 16 flits.
-3. **Credit returns from RAPIDS** on the source port: `credit`/`add` to the
-   sender when its data leaves the landing space for its sink channel.
-4. **Descriptor-queue entries per control core** (class 1), one returned
-   when the scheduler takes the descriptor; how many per core, and whether
-   each tetrad gets its own source channel, is open (TILE_SPEC 10).
+2. **Landing space** (owner 2026-10-18: a parameter, `TILE_LAND_FLITS`,
+   default 16): one per sender, so a cell whose data targets a full sink
+   channel holds only its own strap. A packet to RAPIDS is at most
+   `TILE_LAND_FLITS` flits.
+3. **Credit returns from RAPIDS** (owner: a must): `credit`/`add` to the
+   sender when its data leaves the landing space for its sink channel, and
+   when a `desc` entry leaves the intake queue.
+4. **Descriptor intake** (owner 2026-10-18): there is one descriptor queue
+   (the put side of `descriptor_engine_shared`, which already muxes the fetch
+   path and the TILE_HDR injection). A `desc` intake FIFO as deep as the
+   descriptor credits handed out (a parameter) is muxed into that put; an
+   entry's credit returns when it moves into the descriptor queue.
 5. **Resync** after root failover (TILE_SPEC 11.10): `set` to every cell and
    core restoring its strap.
-6. **Deadlock:** credit packets must not wait behind data that waits for
-   credits; on the source port they need priority or their own lane.
+6. **Deadlock:** resolved by construction (owner 2026-10-18): credits have
+   their own interfaces, so a credit never waits behind data.
 
 ## Done when
 
