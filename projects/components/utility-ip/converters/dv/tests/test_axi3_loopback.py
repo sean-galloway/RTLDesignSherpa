@@ -15,7 +15,7 @@ Topology:
 
 This is the integration proof that the converter pair is identity for legal
 AXI4 traffic.  The write side serializes because axi3_to_axi4_wr enforces a
-single-active-write contract; the read side pipelines.
+writes and reads both pipeline.
 """
 
 import os

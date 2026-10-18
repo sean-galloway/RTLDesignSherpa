@@ -16,7 +16,7 @@
 //   - Forwarding WDATA, WSTRB, WUSER unchanged and forcing WLAST at each
 //     chunk boundary
 //   - Buffering early W beats that arrive before the matching AW handshake
-//     (one full AXI3 burst of storage)
+//     (one full AXI3 burst of storage); with none buffered, W passes through
 //   - Merging per-chunk B responses using worst-rank order and returning
 //     exactly one s_axi B response per AXI4 AW after the last chunk's B
 //
@@ -31,8 +31,10 @@
 //     entry per AXI4 AW: its ID and total beats); the segmenter cuts it into
 //     AXI3 bursts of up to 16 and gives context to beats already buffered in
 //     the early-W buffer
-//   - All storage is gaxi_fifo_sync (rtl/amba/gaxi): AW queue, descriptor
-//     FIFO, early-W buffer
+//   - One AW per cycle, and no AW storage for unchopped writes: they pass
+//     straight to the AXI3 port, so no granted request queues behind the
+//     crossbar's arbiter; only a chopped write is registered while it issues
+//   - Descriptor FIFO and early-W buffer are gaxi_fifo_sync (rtl/amba/gaxi)
 //
 // Parameters:
 //   AXI_ID_WIDTH: Transaction ID width on AXI4/AXI3 side (1-16)
@@ -45,8 +47,8 @@
 //   - AXI4 WRAP bursts longer than 16 beats are not supported
 //   - Early-W buffer holds at most 16 beats ahead of the matching AW;
 //     additional early W is backpressured on s_axi_wready (legal AXI4)
-//   - Same-ID AXI4 AWs are serialized (one outstanding per ID); concurrent
-//     AWs with different IDs are supported
+//   - Up to MAX_OUTSTANDING writes in flight; a chopped write (AWLEN > 15)
+//     waits for its ID to drain, since its chunks' Bs are merged into one
 //   - Write-only: No read path support
 //
 // Author: RTL Design Sherpa
@@ -62,6 +64,8 @@ module axi4_to_axi3_wr #(
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
+    // Writes in flight, all IDs together
+    parameter int MAX_OUTSTANDING   = 32,
 
     // Calculated Parameters
     localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8
@@ -143,10 +147,10 @@ module axi4_to_axi3_wr #(
     //==========================================================================
 
     localparam int Axi3MaxBeats   = 16;
-    localparam int AwQueueDepth   = 4;
     localparam int WBufferDepth   = Axi3MaxBeats;
-    localparam int DescFifoDepth  = AwQueueDepth;
+    localparam int DescFifoDepth  = 4;
     localparam int NumIds         = 1 << AXI_ID_WIDTH;
+    localparam int CntW           = $clog2(MAX_OUTSTANDING + 1);
 
     typedef struct packed {
         logic [AXI_ID_WIDTH-1:0]   id;
@@ -176,14 +180,20 @@ module axi4_to_axi3_wr #(
     // Internal Signals
     //==========================================================================
 
-    // AW queue and active burst state
-    logic    awq_wr_ready, awq_rd_valid, awq_rd_ready;
-    aw_req_t awq_wr_data, awq_rd_data;
+    // Active AW being chunked out to the AXI3 master: a chopped write only.
+    // An unchopped AW passes straight through to the AXI3 port (the
+    // converter holds no granted request behind the crossbar's arbiter, so
+    // round-robin at the slave is not skewed by a queue here).
     aw_req_t active_aw;
     logic    active_valid;
     // Max AXI4 burst is 256 beats (awlen=255), so remaining beats needs 9 bits.
     logic [8:0]                active_remaining;
     logic [AXI_ADDR_WIDTH-1:0] active_addr;
+    logic                      aw_last_issue;
+    logic                      aw_chop;      // the incoming AW is longer than 16 beats
+    logic                      aw_id_ok;     // its ID can take it
+    logic                      aw_handshake;
+    logic                      aw_direct;    // an unchopped AW offered straight to the port
 
     // Descriptor FIFO pushed at AW acceptance; consumed by the W segmenter
     logic        descq_wr_ready, descq_rd_valid, descq_rd_ready;
@@ -192,28 +202,39 @@ module axi4_to_axi3_wr #(
     logic        cur_desc_valid;
     logic [8:0]  cur_desc_beats_remaining;    // in the whole AXI4 burst
     logic [4:0]  cur_chunk_beats_remaining;   // in the current AXI3 burst
-
-    // Early-W buffering
-    logic        wbuf_rd_valid, wbuf_rd_ready;
-    w_beat_t     wbuf_wr_data, wbuf_rd_data;
-
-    logic        aw_handshake;
-    // Idle with the FIFO empty: the new AW (descriptor) loads at once
-    logic        aw_bypass, aw_load, desc_bypass, desc_load;
-    aw_req_t     aw_load_data;
+    logic        w_desc_done;                 // the current descriptor's last beat goes out
+    // Idle (or finishing) with the FIFO empty: the new descriptor loads at once
+    logic        desc_bypass, desc_load;
     chunk_desc_t desc_load_data;
 
-    // Per-ID B merge state
-    logic       pending_id_busy [NumIds];
-    logic       b_merge_busy    [NumIds];
-    logic [7:0] b_merge_chunks_left [NumIds];
-    logic [1:0] b_merge_worst   [NumIds];
+    // Early-W buffering
+    logic        wbuf_wr_ready, wbuf_rd_valid, wbuf_rd_ready;
+    w_beat_t     wbuf_wr_data, wbuf_rd_data;
+
+    // Outstanding state. Unchopped writes (AWLEN <= 15) need no per-ID
+    // check: the AXI3 slave returns same-ID Bs in order, one each, and one
+    // queued behind a chopped write of its ID comes back after the chopped
+    // write's last chunk B. A chopped write waits for its ID to drain (an
+    // unchopped write ahead of it would otherwise be absorbed as one of its
+    // chunks). So only the chopped path -- registered -- looks an ID up;
+    // the pass-through path checks one total count.
+    logic [CntW-1:0] id_count [NumIds];
+    logic            id_chop  [NumIds];
+    logic [CntW-1:0] total_count;
+    logic            total_full;
+    logic [7:0]      b_merge_chunks_left [NumIds];
+    logic [1:0]      b_merge_worst   [NumIds];
+
+    // W straight to the port when the early-W buffer is empty and a
+    // descriptor is loaded (order holds: nothing is buffered ahead of it)
+    logic        w_through;
 
     // Forwarded B response register
     logic                    b_pending_valid;
     logic [AXI_ID_WIDTH-1:0] b_pending_id;
     logic [1:0]              b_pending_resp;
     logic [AXI_USER_WIDTH-1:0] b_pending_user;
+    logic                    s_b_handshake;
 
     // Current chunk size (1..16 beats)
     logic [4:0] chunk_beats;
@@ -221,6 +242,10 @@ module axi4_to_axi3_wr #(
     // Convenience aliases
     logic m_w_handshake;
     logic [AXI_ID_WIDTH-1:0] b_id;
+    logic m_b_handshake;
+    logic b_absorb;          // a chopped write's non-final chunk B: merged, not forwarded
+    logic b_txn_done;        // this AXI3 B ends an AXI4 write
+    logic [1:0] b_merged_resp;
 
     //==========================================================================
     // Burst Length Assertion
@@ -242,39 +267,26 @@ module axi4_to_axi3_wr #(
     // Slave AW Channel Accept Logic
     //==========================================================================
 
-    assign s_axi_awready = awq_wr_ready && descq_wr_ready &&
-                           !pending_id_busy[s_axi_awid];
-    assign aw_handshake  = s_axi_awvalid && s_axi_awready;
+    assign chunk_beats = (active_remaining > 9'(Axi3MaxBeats)) ?
+                         5'(Axi3MaxBeats) : 5'(active_remaining);
 
-    assign awq_wr_data.id    = s_axi_awid;
-    assign awq_wr_data.addr  = s_axi_awaddr;
-    assign awq_wr_data.len   = s_axi_awlen;
-    assign awq_wr_data.size  = s_axi_awsize;
-    assign awq_wr_data.burst = s_axi_awburst;
-    assign awq_wr_data.lock  = s_axi_awlock;
-    assign awq_wr_data.cache = s_axi_awcache;
-    assign awq_wr_data.prot  = s_axi_awprot;
-    assign awq_wr_data.user  = s_axi_awuser;
+    assign aw_last_issue = active_valid && m_axi3_awready &&
+                           (active_remaining <= 9'(Axi3MaxBeats));
+    assign aw_chop       = (s_axi_awlen > 8'd15);
+    assign total_full    = (total_count == CntW'(MAX_OUTSTANDING));
+    assign aw_id_ok      = !total_full &&
+                           (!aw_chop || (!id_chop[s_axi_awid] && (id_count[s_axi_awid] == '0)));
+    // Idle: an unchopped AW goes straight to the port and is accepted with
+    // it; a chopped one is taken into the active register. While a chopped
+    // write issues its chunks, new AWs wait (one cycle after a 17+ beat write).
+    assign aw_direct     = !active_valid && s_axi_awvalid && !aw_chop && !total_full &&
+                           descq_wr_ready;
+    assign s_axi_awready = !active_valid && aw_id_ok && descq_wr_ready &&
+                           (aw_chop || m_axi3_awready);
+    assign aw_handshake  = s_axi_awvalid && s_axi_awready;
 
     assign descq_wr_data.id    = s_axi_awid;
     assign descq_wr_data.beats = 9'(s_axi_awlen) + 9'd1;
-
-    gaxi_fifo_sync #(
-        .DATA_WIDTH ($bits(aw_req_t)),
-        .DEPTH      (AwQueueDepth)
-    ) u_aw_queue (
-        .axi_aclk    (aclk),
-        .axi_aresetn (aresetn),
-        .wr_valid    (aw_handshake && !aw_bypass),
-        .wr_ready    (awq_wr_ready),
-        .wr_data     (awq_wr_data),
-        .rd_ready    (awq_rd_ready),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count       (),
-        /* verilator lint_on PINCONNECTEMPTY */
-        .rd_valid    (awq_rd_valid),
-        .rd_data     (awq_rd_data)
-    );
 
     gaxi_fifo_sync #(
         .DATA_WIDTH ($bits(chunk_desc_t)),
@@ -293,19 +305,13 @@ module axi4_to_axi3_wr #(
         .rd_data     (descq_rd_data)
     );
 
-    // Start chunking the next queued request once the active one is done;
-    // load the next descriptor once the current one is done. An AW arriving
-    // while a stage is idle with its FIFO empty bypasses that FIFO, so it
-    // takes effect the edge it is accepted, as it did before the queues were
-    // FIFOs (a same-ID write waits on the previous one's B, so every cycle
-    // here is a cycle per write). Order holds: a bypass needs an empty FIFO.
-    assign awq_rd_ready   = !active_valid;
-    assign aw_bypass      = aw_handshake && !active_valid && !awq_rd_valid;
-    assign aw_load        = (awq_rd_valid && awq_rd_ready) || aw_bypass;
-    assign aw_load_data   = awq_rd_valid ? awq_rd_data : awq_wr_data;
-
-    assign descq_rd_ready = !cur_desc_valid;
-    assign desc_bypass    = aw_handshake && !cur_desc_valid && !descq_rd_valid;
+    // Load the next descriptor when the current one is done -- on the edge
+    // its last beat goes out, so consecutive AXI4 writes stream W with no
+    // dead cycle. An AW arriving then with the FIFO empty bypasses it.
+    // Order holds: the bypass needs an empty FIFO.
+    assign w_desc_done    = m_w_handshake && (cur_desc_beats_remaining == 9'd1);
+    assign descq_rd_ready = !cur_desc_valid || w_desc_done;
+    assign desc_bypass    = aw_handshake && !descq_rd_valid && descq_rd_ready;
     assign desc_load      = (descq_rd_valid && descq_rd_ready) || desc_bypass;
     assign desc_load_data = descq_rd_valid ? descq_rd_data : descq_wr_data;
 
@@ -313,19 +319,16 @@ module axi4_to_axi3_wr #(
     // Master AW Channel Chunk Issuance
     //==========================================================================
 
-    assign chunk_beats = (active_remaining > 9'(Axi3MaxBeats)) ?
-                         5'(Axi3MaxBeats) : 5'(active_remaining);
-
-    assign m_axi3_awid    = active_valid ? active_aw.id    : '0;
-    assign m_axi3_awaddr  = active_valid ? active_addr     : '0;
-    assign m_axi3_awlen   = active_valid ? (4'(chunk_beats - 5'd1)) : '0;
-    assign m_axi3_awsize  = active_valid ? active_aw.size  : '0;
-    assign m_axi3_awburst = active_valid ? active_aw.burst : '0;
-    assign m_axi3_awlock  = active_valid ? (active_aw.lock ? 2'b01 : 2'b00) : '0;
-    assign m_axi3_awcache = active_valid ? active_aw.cache : '0;
-    assign m_axi3_awprot  = active_valid ? active_aw.prot  : '0;
-    assign m_axi3_awuser  = active_valid ? active_aw.user  : '0;
-    assign m_axi3_awvalid = active_valid;
+    assign m_axi3_awid    = active_valid ? active_aw.id    : s_axi_awid;
+    assign m_axi3_awaddr  = active_valid ? active_addr     : s_axi_awaddr;
+    assign m_axi3_awlen   = active_valid ? (4'(chunk_beats - 5'd1)) : s_axi_awlen[3:0];
+    assign m_axi3_awsize  = active_valid ? active_aw.size  : s_axi_awsize;
+    assign m_axi3_awburst = active_valid ? active_aw.burst : s_axi_awburst;
+    assign m_axi3_awlock  = (active_valid ? active_aw.lock : s_axi_awlock) ? 2'b01 : 2'b00;
+    assign m_axi3_awcache = active_valid ? active_aw.cache : s_axi_awcache;
+    assign m_axi3_awprot  = active_valid ? active_aw.prot  : s_axi_awprot;
+    assign m_axi3_awuser  = active_valid ? active_aw.user  : s_axi_awuser;
+    assign m_axi3_awvalid = active_valid || aw_direct;
 
     //==========================================================================
     // Write Data Channel: Segmentation + WID Stamping
@@ -353,8 +356,8 @@ module axi4_to_axi3_wr #(
     ) u_w_buffer (
         .axi_aclk    (aclk),
         .axi_aresetn (aresetn),
-        .wr_valid    (s_axi_wvalid),
-        .wr_ready    (s_axi_wready),
+        .wr_valid    (s_axi_wvalid && !w_through),
+        .wr_ready    (wbuf_wr_ready),
         .wr_data     (wbuf_wr_data),
         .rd_ready    (wbuf_rd_ready),
         /* verilator lint_off PINCONNECTEMPTY */
@@ -365,40 +368,45 @@ module axi4_to_axi3_wr #(
     );
     assign wbuf_rd_ready = cur_desc_valid && m_axi3_wready;
 
-    // Forward buffered W beats only when a chunk descriptor is available (so
-    // WID and beat count are known). WLAST is forced at descriptor expiry,
-    // producing a legal AXI3 WLAST for every chopped burst.
+    // Forward W beats only when a chunk descriptor is available (so WID and
+    // beat count are known). WLAST is forced at descriptor expiry, producing
+    // a legal AXI3 WLAST for every chopped burst. With the buffer empty and
+    // a descriptor loaded a beat goes straight through, so the buffer only
+    // costs a cycle to beats that arrived early.
+    assign w_through    = cur_desc_valid && !wbuf_rd_valid;
+    assign s_axi_wready = w_through ? m_axi3_wready : wbuf_wr_ready;
     assign m_axi3_wid   = cur_desc_valid ? cur_desc_id : '0;
-    assign m_axi3_wdata = wbuf_rd_data.data;
-    assign m_axi3_wstrb = wbuf_rd_data.strb;
+    assign m_axi3_wdata = w_through ? s_axi_wdata : wbuf_rd_data.data;
+    assign m_axi3_wstrb = w_through ? s_axi_wstrb : wbuf_rd_data.strb;
     assign m_axi3_wlast = cur_desc_valid && (cur_chunk_beats_remaining == 5'd1);
-    assign m_axi3_wuser = wbuf_rd_data.user;
-    assign m_axi3_wvalid = cur_desc_valid && wbuf_rd_valid;
+    assign m_axi3_wuser = w_through ? s_axi_wuser : wbuf_rd_data.user;
+    assign m_axi3_wvalid = cur_desc_valid && (wbuf_rd_valid || s_axi_wvalid);
 
     //==========================================================================
     // AXI3 to AXI4 Write Response Channel Merge
     //==========================================================================
 
-    assign b_id = m_axi3_bid;
+    assign b_id          = m_axi3_bid;
+    assign b_absorb      = id_chop[b_id] && (b_merge_chunks_left[b_id] > 8'd1);
+    assign b_merged_resp = (m_axi3_bresp > b_merge_worst[b_id]) ?
+                           m_axi3_bresp : b_merge_worst[b_id];
+    // B goes through a one-entry output register. BREADY is "the register
+    // has room or is emptying": it never depends on BID (no pin-to-pin path)
+    // or on the downstream VALID/READY loop (a downstream that waits for
+    // VALID before READY, as AXI allows, still drains it). A chopped write's
+    // non-final chunk B is merged and absorbed without using the register.
+    assign s_b_handshake = s_axi_bvalid && s_axi_bready;
+    assign m_axi3_bready = !b_pending_valid || s_axi_bready;
+    assign m_b_handshake = m_axi3_bvalid && m_axi3_bready;
+    assign b_txn_done    = m_b_handshake && !b_absorb;
 
     assign s_axi_bvalid = b_pending_valid;
     assign s_axi_bid    = b_pending_valid ? b_pending_id   : '0;
     assign s_axi_bresp  = b_pending_valid ? b_pending_resp : '0;
     assign s_axi_buser  = b_pending_valid ? b_pending_user : '0;
 
-    always_comb begin
-        m_axi3_bready = 1'b0;
-        for (int i = 0; i < NumIds; i++) begin
-            if (b_merge_busy[i] && (b_merge_chunks_left[i] > 0)) begin
-                if ((b_merge_chunks_left[i] > 1) || !b_pending_valid) begin
-                    m_axi3_bready = 1'b1;
-                end
-            end
-        end
-    end
-
     //==========================================================================
-    // Sequential State: AW Queue, Chunk Scheduler, W Segmenter, B Merge
+    // Sequential State: Active AW, W Segmenter, Per-ID State, B Merge
     //==========================================================================
 
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -407,61 +415,54 @@ module axi4_to_axi3_wr #(
             active_aw              <= '0;
             active_remaining       <= '0;
             active_addr            <= '0;
-            cur_desc_valid         <= 1'b0;
-            cur_desc_id            <= '0;
-            cur_desc_beats_remaining <= '0;
-            cur_chunk_beats_remaining <= '0;
+            total_count            <= '0;
             b_pending_valid        <= 1'b0;
             b_pending_id           <= '0;
             b_pending_resp         <= '0;
             b_pending_user         <= '0;
+            cur_desc_valid         <= 1'b0;
+            cur_desc_id            <= '0;
+            cur_desc_beats_remaining <= '0;
+            cur_chunk_beats_remaining <= '0;
             for (int i = 0; i < NumIds; i++) begin
-                pending_id_busy[i]     <= 1'b0;
-                b_merge_busy[i]        <= 1'b0;
+                id_count[i]            <= '0;
+                id_chop[i]             <= 1'b0;
                 b_merge_chunks_left[i] <= '0;
                 b_merge_worst[i]       <= 2'b00;
             end
         end else begin
-            // Accept a new slave AW: the AW queue and the descriptor FIFO
-            // take it (above); here, its per-ID B merge state. The descriptor
-            // may be used at once if W beats have already been buffered.
-            if (aw_handshake) begin
-                pending_id_busy[s_axi_awid] <= 1'b1;
-                b_merge_busy[s_axi_awid]    <= 1'b1;
-                b_merge_worst[s_axi_awid]   <= 2'b00;
-
-                // AXI3 bursts this AW is cut into: ceil((awlen+1) / 16)
-                b_merge_chunks_left[s_axi_awid] <=
-                    8'((9'(s_axi_awlen) + 9'd1 + 9'(Axi3MaxBeats) - 9'd1) >> 4);
-            end
-
-            // Start chunking the next queued request.
-            if (aw_load) begin
-                active_aw        <= aw_load_data;
-                active_remaining <= 9'(aw_load_data.len) + 9'd1;
-                active_addr      <= aw_load_data.addr;
-                active_valid     <= 1'b1;
-            end
-
             // Issue a chunk when the master AW handshake occurs.
-            if (active_valid && m_axi3_awvalid && m_axi3_awready) begin
+            if (active_valid && m_axi3_awready) begin
                 active_remaining <= active_remaining - 9'(chunk_beats);
                 if (active_aw.burst == 2'b01) begin // INCR
                     active_addr <= active_addr +
                                    (AXI_ADDR_WIDTH'(chunk_beats) << active_aw.size);
                 end
-                if (active_remaining <= 9'(Axi3MaxBeats)) begin
+                if (aw_last_issue)
                     active_valid <= 1'b0;
-                end
             end
 
-            // Load the next descriptor when the current one expires.
-            if (desc_load) begin
-                cur_desc_valid            <= 1'b1;
-                cur_desc_id               <= desc_load_data.id;
-                cur_desc_beats_remaining  <= desc_load_data.beats;
-                cur_chunk_beats_remaining <= (desc_load_data.beats > 9'(Axi3MaxBeats)) ?
-                                             5'(Axi3MaxBeats) : 5'(desc_load_data.beats);
+            // Accept a chopped AW into the active register; an unchopped one
+            // has already gone to the port. Per-ID state is claimed at
+            // acceptance either way (below); the descriptor FIFO takes both.
+            if (aw_handshake && aw_chop) begin
+                active_aw.id     <= s_axi_awid;
+                active_aw.addr   <= s_axi_awaddr;
+                active_aw.len    <= s_axi_awlen;
+                active_aw.size   <= s_axi_awsize;
+                active_aw.burst  <= s_axi_awburst;
+                active_aw.lock   <= s_axi_awlock;
+                active_aw.cache  <= s_axi_awcache;
+                active_aw.prot   <= s_axi_awprot;
+                active_aw.user   <= s_axi_awuser;
+                active_remaining <= 9'(s_axi_awlen) + 9'd1;
+                active_addr      <= s_axi_awaddr;
+                active_valid     <= 1'b1;
+                id_chop[s_axi_awid]             <= 1'b1;
+                // AXI3 bursts this AW is cut into: ceil((awlen+1) / 16)
+                b_merge_chunks_left[s_axi_awid] <=
+                    8'((9'(s_axi_awlen) + 9'd1 + 9'(Axi3MaxBeats) - 9'd1) >> 4);
+                b_merge_worst[s_axi_awid]       <= 2'b00;
             end
 
             // Forward a buffered W beat to the AXI3 master. WLAST closes each
@@ -479,32 +480,51 @@ module axi4_to_axi3_wr #(
                 end
             end
 
-            // Update merge state on each chunk's B response.
-            if (m_axi3_bvalid && m_axi3_bready) begin
-                if (b_merge_busy[b_id] && (b_merge_chunks_left[b_id] > 0)) begin
-                    logic [1:0] new_worst;
-                    new_worst = (m_axi3_bresp > b_merge_worst[b_id]) ?
-                                m_axi3_bresp : b_merge_worst[b_id];
-                    b_merge_worst[b_id] <= new_worst;
+            // Load the next descriptor (overrides the clear above when the
+            // current one finishes on this edge).
+            if (desc_load) begin
+                cur_desc_valid            <= 1'b1;
+                cur_desc_id               <= desc_load_data.id;
+                cur_desc_beats_remaining  <= desc_load_data.beats;
+                cur_chunk_beats_remaining <= (desc_load_data.beats > 9'(Axi3MaxBeats)) ?
+                                             5'(Axi3MaxBeats) : 5'(desc_load_data.beats);
+            end
 
-                    if (b_merge_chunks_left[b_id] == 8'd1) begin
+            // B: a chopped write's non-final chunk B is merged and absorbed;
+            // every other B ends an AXI4 write and goes to the output
+            // register, and a chopped write's final one frees its ID.
+            if (s_b_handshake)
+                b_pending_valid <= 1'b0;
+            if (m_b_handshake) begin
+                if (b_absorb) begin
+                    b_merge_worst[b_id]       <= b_merged_resp;
+                    b_merge_chunks_left[b_id] <= b_merge_chunks_left[b_id] - 8'd1;
+                end else begin
+                    b_pending_valid <= 1'b1;
+                    b_pending_id    <= b_id;
+                    b_pending_resp  <= id_chop[b_id] ? b_merged_resp : m_axi3_bresp;
+                    b_pending_user  <= m_axi3_buser;
+                    if (id_chop[b_id]) begin
+                        id_chop[b_id]             <= 1'b0;
                         b_merge_chunks_left[b_id] <= '0;
-                        b_pending_valid <= 1'b1;
-                        b_pending_id    <= b_id;
-                        b_pending_resp  <= new_worst;
-                        b_pending_user  <= m_axi3_buser;
-                    end else begin
-                        b_merge_chunks_left[b_id] <= b_merge_chunks_left[b_id] - 8'd1;
+                        b_merge_worst[b_id]       <= 2'b00;
                     end
                 end
             end
 
-            // Forward the merged B response to the AXI4 slave.
-            if (s_axi_bvalid && s_axi_bready) begin
-                b_pending_valid             <= 1'b0;
-                b_merge_busy[b_pending_id]  <= 1'b0;
-                b_merge_worst[b_pending_id] <= 2'b00;
-                pending_id_busy[b_pending_id] <= 1'b0;
+            // Counts: +1 on acceptance, -1 on the B that ends an AXI4 write.
+            // Both in one cycle leaves a count unchanged.
+            if (aw_handshake && !b_txn_done)
+                total_count <= total_count + CntW'(1);
+            else if (!aw_handshake && b_txn_done)
+                total_count <= total_count - CntW'(1);
+            for (int i = 0; i < NumIds; i++) begin
+                if ((aw_handshake && (s_axi_awid == AXI_ID_WIDTH'(i))) &&
+                    !(b_txn_done && (b_id == AXI_ID_WIDTH'(i))))
+                    id_count[i] <= id_count[i] + CntW'(1);
+                else if (!(aw_handshake && (s_axi_awid == AXI_ID_WIDTH'(i))) &&
+                         (b_txn_done && (b_id == AXI_ID_WIDTH'(i))))
+                    id_count[i] <= id_count[i] - CntW'(1);
             end
         end
     )

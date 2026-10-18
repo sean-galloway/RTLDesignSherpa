@@ -14,10 +14,13 @@
 //   - Passing through WDATA, WSTRB, WLAST, WUSER
 //   - Passing through B channel (bid, bresp, buser)
 //
-//   Enforces a single-active-write contract: s_axi3_awready is deasserted
-//   from the acceptance of an AW burst until the corresponding B response is
-//   accepted. The sequential assertion ASSERT_A3_WID_STABLE fires if
-//   s_axi3_wid changes mid-run or differs from the active AWID.
+//   Every channel passes straight through, so any number of writes may be
+//   in flight. The contract is AXI3 write-interleave depth 1: W bursts come
+//   in AW order (W may lead its AW). A simulation-only check,
+//   ASSERT_A3_WID_STABLE, fires if WID changes inside a burst or a burst's
+//   WID is not the AWID of the AW it pairs with in order. (Until 2026-10-18
+//   the converter took one write at a time, holding AW from acceptance to
+//   B: a master's writes ran at beats / (beats + round trip), bridge W7.)
 //
 //   Standalone write-only implementation. For read conversion, use
 //   axi3_to_axi4_rd.sv.
@@ -31,7 +34,7 @@
 // Limitations:
 //   - Data widths must match (no data width conversion)
 //   - Write-only: No read path support
-//   - One outstanding write transaction at a time
+//   - No write-data interleaving: W bursts must follow AW order
 //
 // Author: RTL Design Sherpa
 // Created: 2026-10-10
@@ -123,28 +126,11 @@ module axi3_to_axi4_wr #(
 );
 
     //==========================================================================
-    // Internal Signals
-    //==========================================================================
-
-    logic                       active;
-    logic [AXI_ID_WIDTH-1:0]    active_awid;
-
-    logic                       aw_handshake;
-    logic                       b_handshake;
-
-    //==========================================================================
-    // Convenience aliases
-    //==========================================================================
-
-    assign aw_handshake = s_axi3_awvalid && s_axi3_awready;
-    assign b_handshake  = s_axi3_bvalid  && s_axi3_bready;
-
-    //==========================================================================
     // AXI3 to AXI4 Write Address Channel Mapping
     //==========================================================================
 
-    assign s_axi3_awready = m_axi_awready && !active;
-    assign m_axi_awvalid  = s_axi3_awvalid && !active;
+    assign s_axi3_awready = m_axi_awready;
+    assign m_axi_awvalid  = s_axi3_awvalid;
 
     assign m_axi_awid     = s_axi3_awid;
     assign m_axi_awaddr   = s_axi3_awaddr;
@@ -162,8 +148,8 @@ module axi3_to_axi4_wr #(
     // AXI3 to AXI4 Write Data Channel: WID Stripping
     //==========================================================================
 
-    assign s_axi3_wready = m_axi_wready && active;
-    assign m_axi_wvalid  = s_axi3_wvalid && active;
+    assign s_axi3_wready = m_axi_wready;
+    assign m_axi_wvalid  = s_axi3_wvalid;
 
     assign m_axi_wdata   = s_axi3_wdata;
     assign m_axi_wstrb   = s_axi3_wstrb;
@@ -177,34 +163,52 @@ module axi3_to_axi4_wr #(
     assign s_axi3_bid    = m_axi_bid;
     assign s_axi3_bresp  = m_axi_bresp;
     assign s_axi3_buser  = m_axi_buser;
-    assign s_axi3_bvalid = m_axi_bvalid && active;
-    assign m_axi_bready  = s_axi3_bready && active;
+    assign s_axi3_bvalid = m_axi_bvalid;
+    assign m_axi_bready  = s_axi3_bready;
 
     //==========================================================================
-    // Single-Active-Write State and WID Stability Assertion
+    // WID Order Check (simulation only)
     //==========================================================================
+    // AXI4 W has no ID, so the WID is dropped; that is only correct if W
+    // bursts arrive in AW order. Pair the n-th AW with the n-th W burst --
+    // in whichever order they arrive -- and compare IDs; also hold WID
+    // stable inside a burst. A contract check on the attached master, not
+    // logic the converter needs: it costs no gates.
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    logic [AXI_ID_WIDTH-1:0] chk_awids [$];
+    logic [AXI_ID_WIDTH-1:0] chk_wids  [$];
+    logic                    chk_in_burst;
+    logic [AXI_ID_WIDTH-1:0] chk_burst_wid;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            active      <= 1'b0;
-            active_awid <= '0;
+            chk_awids.delete();
+            chk_wids.delete();
+            chk_in_burst  <= 1'b0;
+            chk_burst_wid <= '0;
         end else begin
-            if (aw_handshake) begin
-                active      <= 1'b1;
-                active_awid <= s_axi3_awid;
+            if (s_axi3_awvalid && s_axi3_awready)
+                chk_awids.push_back(s_axi3_awid);
+            if (s_axi3_wvalid && s_axi3_wready) begin
+                if (chk_in_burst && (s_axi3_wid != chk_burst_wid))
+                    $error("ASSERT_A3_WID_STABLE: s_axi3_wid (0x%0h) changed mid-burst (burst WID 0x%0h)",
+                           s_axi3_wid, chk_burst_wid);
+                if (!chk_in_burst)
+                    chk_wids.push_back(s_axi3_wid);
+                chk_in_burst  <= !s_axi3_wlast;
+                chk_burst_wid <= s_axi3_wid;
             end
-
-            if (b_handshake) begin
-                active <= 1'b0;
-            end
-
-            // WID must remain stable and equal to the active AWID for every
-            // beat of a write burst.
-            if (active && s_axi3_wvalid && (s_axi3_wid != active_awid)) begin
-                $error("ASSERT_A3_WID_STABLE: s_axi3_wid (0x%0h) differs from active AWID (0x%0h) or changed mid-run",
-                       s_axi3_wid, active_awid);
+            if ((chk_awids.size() > 0) && (chk_wids.size() > 0)) begin
+                if (chk_awids[0] != chk_wids[0])
+                    $error("ASSERT_A3_WID_STABLE: W burst WID 0x%0h differs from its AWID 0x%0h (W out of AW order)",
+                           chk_wids[0], chk_awids[0]);
+                void'(chk_awids.pop_front());
+                void'(chk_wids.pop_front());
             end
         end
     )
+    // synthesis translate_on
+`endif
 
 endmodule : axi3_to_axi4_wr

@@ -24,6 +24,9 @@
 //   - Per-ID merge state so concurrent chopped bursts never cross
 //   - Pipelined chunk issuance: chunk n+1 AR can handshake while chunk n
 //     R beats are still streaming
+//   - One AR per cycle, and no AR storage for unchopped reads: they pass
+//     straight to the AXI3 port, so no granted request queues behind the
+//     crossbar's arbiter; only a chopped read is registered while it issues
 //
 // Parameters:
 //   AXI_ID_WIDTH: Transaction ID width on AXI4/AXI3 side (1-16)
@@ -34,6 +37,8 @@
 // Limitations:
 //   - Data widths must match (no data width conversion)
 //   - AXI4 WRAP bursts longer than 16 beats are not supported
+//   - Up to MAX_OUTSTANDING reads in flight; a chopped read (ARLEN > 15)
+//     waits for its ID to drain, since its chunks' RLASTs are merged into one
 //   - Read-only: No write path support
 //
 // Author: RTL Design Sherpa
@@ -48,7 +53,9 @@ module axi4_to_axi3_rd #(
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
-    parameter int AXI_USER_WIDTH    = 1
+    parameter int AXI_USER_WIDTH    = 1,
+    // Reads in flight, all IDs together
+    parameter int MAX_OUTSTANDING   = 32
 ) (
     // Clock and Reset
     input  logic                        aclk,
@@ -114,8 +121,8 @@ module axi4_to_axi3_rd #(
     //==========================================================================
 
     localparam int Axi3MaxBeats = 16;
-    localparam int ArQueueDepth = 4;
     localparam int NumIds       = 1 << AXI_ID_WIDTH;
+    localparam int CntW         = $clog2(MAX_OUTSTANDING + 1);
 
     typedef struct packed {
         logic [AXI_ID_WIDTH-1:0]   id;
@@ -133,34 +140,44 @@ module axi4_to_axi3_rd #(
     // Internal Signals
     //==========================================================================
 
-    // Slave AR queue (gaxi_fifo_sync) and per-ID outstanding tracking
-    logic    arq_wr_ready, arq_rd_valid, arq_rd_ready;
-    ar_req_t arq_wr_data, arq_rd_data;
-    logic    ar_handshake;
-    logic    ar_bypass;       // idle and the queue empty: start the new AR at once
-    logic    ar_load;
-    ar_req_t ar_load_data;
-    logic    pending_id_busy [NumIds];
+    // Outstanding state. Unchopped reads (ARLEN <= 15) need no per-ID check:
+    // the AXI3 slave returns same-ID reads in order, each with its own RLAST,
+    // and one queued behind a chopped read of its ID comes back after the
+    // chopped read's last chunk. A chopped read waits for its ID to drain
+    // (an unchopped read ahead of it would otherwise be counted as one of its
+    // chunks). So only the chopped path -- registered -- looks an ID up;
+    // the pass-through path checks one total count.
+    logic [CntW-1:0] id_count [NumIds];
+    logic            id_chop  [NumIds];
+    logic [CntW-1:0] total_count;
+    logic            total_full;
 
-    // Active request being chunked out to the AXI3 master
+    // Active request being chunked out to the AXI3 master: a chopped read
+    // only. An unchopped AR passes straight through to the AXI3 port (the
+    // converter holds no granted request behind the crossbar's arbiter, so
+    // round-robin at the slave is not skewed by a queue here).
     ar_req_t active_req;
     logic    active_valid;
     // Max AXI4 burst is 256 beats (arlen=255), so remaining beats needs 9 bits.
     logic [8:0]                active_remaining;
     logic [AXI_ADDR_WIDTH-1:0] active_addr;
-    logic [7:0]                active_chunks_total;
-    logic [7:0]                active_chunks_issued;
 
-    // Per-ID merge state for response merging
-    logic       merge_busy [NumIds];
+    // Per-ID merge state of a chopped read
     logic [7:0] merge_chunks_left [NumIds];
     logic [1:0] merge_worst [NumIds];
 
     // Current chunk size (1..16 beats)
     logic [4:0] chunk_beats;
+    logic       ar_chop;          // the incoming AR is longer than 16 beats
+    logic       ar_id_ok;         // its ID can take it
+    logic       ar_last_issue;    // the active request issues its last chunk
+    logic       ar_handshake;
+    logic       ar_direct;        // an unchopped AR offered straight to the port
 
     // Convenience aliases for the current R beat
     logic [AXI_ID_WIDTH-1:0] r_id;
+    logic                    r_last_hs;
+    logic                    r_txn_done;   // this RLAST ends an AXI4 read
     logic [1:0]              merged_final_resp;
 
     //==========================================================================
@@ -183,63 +200,36 @@ module axi4_to_axi3_rd #(
     // Slave AR Channel Accept Logic
     //==========================================================================
 
-    assign s_axi_arready = arq_wr_ready && !pending_id_busy[s_axi_arid];
+    assign chunk_beats = (active_remaining > 9'(Axi3MaxBeats)) ?
+                         5'(Axi3MaxBeats) : 5'(active_remaining);
+
+    assign ar_last_issue = active_valid && m_axi3_arready &&
+                           (active_remaining <= 9'(Axi3MaxBeats));
+    assign ar_chop       = (s_axi_arlen > 8'd15);
+    assign total_full    = (total_count == CntW'(MAX_OUTSTANDING));
+    assign ar_id_ok      = !total_full &&
+                           (!ar_chop || (!id_chop[s_axi_arid] && (id_count[s_axi_arid] == '0)));
+    // Idle: an unchopped AR goes straight to the port and is accepted with
+    // it; a chopped one is taken into the active register. While a chopped
+    // read issues its chunks, new ARs wait (one cycle after a 17+ beat read).
+    assign ar_direct     = !active_valid && s_axi_arvalid && !ar_chop && !total_full;
+    assign s_axi_arready = !active_valid && ar_id_ok && (ar_chop || m_axi3_arready);
     assign ar_handshake  = s_axi_arvalid && s_axi_arready;
-
-    assign arq_wr_data.id    = s_axi_arid;
-    assign arq_wr_data.addr  = s_axi_araddr;
-    assign arq_wr_data.len   = s_axi_arlen;
-    assign arq_wr_data.size  = s_axi_arsize;
-    assign arq_wr_data.burst = s_axi_arburst;
-    assign arq_wr_data.lock  = s_axi_arlock;
-    assign arq_wr_data.cache = s_axi_arcache;
-    assign arq_wr_data.prot  = s_axi_arprot;
-    assign arq_wr_data.user  = s_axi_aruser;
-
-    gaxi_fifo_sync #(
-        .DATA_WIDTH ($bits(ar_req_t)),
-        .DEPTH      (ArQueueDepth)
-    ) u_ar_queue (
-        .axi_aclk    (aclk),
-        .axi_aresetn (aresetn),
-        .wr_valid    (ar_handshake && !ar_bypass),
-        .wr_ready    (arq_wr_ready),
-        .wr_data     (arq_wr_data),
-        .rd_ready    (arq_rd_ready),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count       (),
-        /* verilator lint_on PINCONNECTEMPTY */
-        .rd_valid    (arq_rd_valid),
-        .rd_data     (arq_rd_data)
-    );
-
-    // Start chunking the next queued request once the active one is done.
-    // An AR arriving while idle with the queue empty bypasses it, so it
-    // starts the edge it is accepted, as it did before the queue was a FIFO
-    // (a same-ID read waits on the previous one's last R, so every cycle
-    // here is a cycle per read). Order holds: the bypass needs an empty queue.
-    assign arq_rd_ready = !active_valid;
-    assign ar_bypass    = ar_handshake && !active_valid && !arq_rd_valid;
-    assign ar_load      = (arq_rd_valid && arq_rd_ready) || ar_bypass;
-    assign ar_load_data = arq_rd_valid ? arq_rd_data : arq_wr_data;
 
     //==========================================================================
     // Master AR Channel Chunk Issuance
     //==========================================================================
 
-    assign chunk_beats = (active_remaining > 9'(Axi3MaxBeats)) ?
-                         5'(Axi3MaxBeats) : 5'(active_remaining);
-
-    assign m_axi3_arid    = active_valid ? active_req.id    : '0;
-    assign m_axi3_araddr  = active_valid ? active_addr      : '0;
-    assign m_axi3_arlen   = active_valid ? (4'(chunk_beats - 5'd1)) : '0;
-    assign m_axi3_arsize  = active_valid ? active_req.size  : '0;
-    assign m_axi3_arburst = active_valid ? active_req.burst : '0;
-    assign m_axi3_arlock  = active_valid ? (active_req.lock ? 2'b01 : 2'b00) : '0;
-    assign m_axi3_arcache = active_valid ? active_req.cache : '0;
-    assign m_axi3_arprot  = active_valid ? active_req.prot  : '0;
-    assign m_axi3_aruser  = active_valid ? active_req.user  : '0;
-    assign m_axi3_arvalid = active_valid;
+    assign m_axi3_arid    = active_valid ? active_req.id    : s_axi_arid;
+    assign m_axi3_araddr  = active_valid ? active_addr      : s_axi_araddr;
+    assign m_axi3_arlen   = active_valid ? (4'(chunk_beats - 5'd1)) : s_axi_arlen[3:0];
+    assign m_axi3_arsize  = active_valid ? active_req.size  : s_axi_arsize;
+    assign m_axi3_arburst = active_valid ? active_req.burst : s_axi_arburst;
+    assign m_axi3_arlock  = (active_valid ? active_req.lock : s_axi_arlock) ? 2'b01 : 2'b00;
+    assign m_axi3_arcache = active_valid ? active_req.cache : s_axi_arcache;
+    assign m_axi3_arprot  = active_valid ? active_req.prot  : s_axi_arprot;
+    assign m_axi3_aruser  = active_valid ? active_req.user  : s_axi_aruser;
+    assign m_axi3_arvalid = active_valid || ar_direct;
 
     //==========================================================================
     // AXI3 to AXI4 Read Data Channel Merge
@@ -251,22 +241,26 @@ module axi4_to_axi3_rd #(
     assign s_axi_rvalid = m_axi3_rvalid;
     assign m_axi3_rready = s_axi_rready;
 
-    assign r_id = m_axi3_rid;
+    assign r_id       = m_axi3_rid;
+    assign r_last_hs  = m_axi3_rvalid && m_axi3_rready && m_axi3_rlast;
+    assign r_txn_done = !id_chop[r_id] || (merge_chunks_left[r_id] == 8'd1);
     assign merged_final_resp = (m_axi3_rresp > merge_worst[r_id]) ?
                                m_axi3_rresp : merge_worst[r_id];
 
     always_comb begin
         s_axi_rresp = m_axi3_rresp;
-        s_axi_rlast = 1'b0;
-        if (m_axi3_rvalid && m_axi3_rlast &&
-            merge_busy[r_id] && (merge_chunks_left[r_id] == 8'd1)) begin
-            s_axi_rresp = merged_final_resp;
-            s_axi_rlast = 1'b1;
+        s_axi_rlast = m_axi3_rlast;
+        if (id_chop[r_id]) begin
+            // A chopped read: one RLAST, on its last chunk, with the worst
+            // RRESP of every chunk.
+            s_axi_rlast = m_axi3_rlast && (merge_chunks_left[r_id] == 8'd1);
+            if (s_axi_rlast)
+                s_axi_rresp = merged_final_resp;
         end
     end
 
     //==========================================================================
-    // Sequential State: AR Queue, Chunk Scheduler, and Per-ID Merge State
+    // Sequential State: Active Request, Chunk Scheduler, Per-ID State
     //==========================================================================
 
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -275,58 +269,68 @@ module axi4_to_axi3_rd #(
             active_req        <= '0;
             active_remaining  <= '0;
             active_addr       <= '0;
-            active_chunks_total <= '0;
-            active_chunks_issued <= '0;
+            total_count       <= '0;
             for (int i = 0; i < NumIds; i++) begin
-                pending_id_busy[i]  <= 1'b0;
-                merge_busy[i]       <= 1'b0;
+                id_count[i]          <= '0;
+                id_chop[i]           <= 1'b0;
                 merge_chunks_left[i] <= '0;
-                merge_worst[i]      <= 2'b00;
+                merge_worst[i]       <= 2'b00;
             end
         end else begin
-            // Accept a new slave AR into the queue (above).
-            if (ar_handshake) begin
-                pending_id_busy[s_axi_arid] <= 1'b1;
-            end
-
-            // Start chunking the next queued request.
-            if (ar_load) begin
-                active_req          <= ar_load_data;
-                active_remaining    <= 9'(ar_load_data.len) + 9'd1;
-                active_addr         <= ar_load_data.addr;
-                active_chunks_total <= 8'(((( {1'b0, ar_load_data.len} + 9'd1) + 9'd15) >> 4));
-                active_chunks_issued <= '0;
-                active_valid        <= 1'b1;
-            end
-
             // Issue a chunk when the master AR handshake occurs.
-            if (active_valid && m_axi3_arvalid && m_axi3_arready) begin
-                if (active_chunks_issued == '0) begin
-                    merge_busy[active_req.id]        <= 1'b1;
-                    merge_chunks_left[active_req.id] <= active_chunks_total;
-                    merge_worst[active_req.id]       <= 2'b00;
-                end
-
+            if (active_valid && m_axi3_arready) begin
                 active_remaining <= active_remaining - 9'(chunk_beats);
                 if (active_req.burst == 2'b01) begin // INCR
                     active_addr <= active_addr +
                                    (AXI_ADDR_WIDTH'(chunk_beats) << active_req.size);
                 end
-                active_chunks_issued <= active_chunks_issued + 8'd1;
-
-                if (active_remaining <= 9'(Axi3MaxBeats)) begin
+                if (ar_last_issue)
                     active_valid <= 1'b0;
-                end
             end
 
-            // Update merge state on each chunk's last R beat.
-            if (m_axi3_rvalid && m_axi3_rready && m_axi3_rlast) begin
+            // Accept a chopped AR into the active register; an unchopped one
+            // has already gone to the port. Per-ID state is claimed at
+            // acceptance either way (below).
+            if (ar_handshake && ar_chop) begin
+                active_req.id    <= s_axi_arid;
+                active_req.addr  <= s_axi_araddr;
+                active_req.len   <= s_axi_arlen;
+                active_req.size  <= s_axi_arsize;
+                active_req.burst <= s_axi_arburst;
+                active_req.lock  <= s_axi_arlock;
+                active_req.cache <= s_axi_arcache;
+                active_req.prot  <= s_axi_arprot;
+                active_req.user  <= s_axi_aruser;
+                active_remaining <= 9'(s_axi_arlen) + 9'd1;
+                active_addr      <= s_axi_araddr;
+                active_valid     <= 1'b1;
+                id_chop[s_axi_arid]           <= 1'b1;
+                merge_chunks_left[s_axi_arid] <= 8'((9'(s_axi_arlen) + 9'd1 + 9'd15) >> 4);
+                merge_worst[s_axi_arid]       <= 2'b00;
+            end
+
+            // Counts: +1 on acceptance, -1 on the RLAST that ends an AXI4
+            // read. Both in one cycle leaves a count unchanged.
+            if (ar_handshake && !(r_last_hs && r_txn_done))
+                total_count <= total_count + CntW'(1);
+            else if (!ar_handshake && (r_last_hs && r_txn_done))
+                total_count <= total_count - CntW'(1);
+            for (int i = 0; i < NumIds; i++) begin
+                if ((ar_handshake && (s_axi_arid == AXI_ID_WIDTH'(i))) &&
+                    !(r_last_hs && r_txn_done && (r_id == AXI_ID_WIDTH'(i))))
+                    id_count[i] <= id_count[i] + CntW'(1);
+                else if (!(ar_handshake && (s_axi_arid == AXI_ID_WIDTH'(i))) &&
+                         (r_last_hs && r_txn_done && (r_id == AXI_ID_WIDTH'(i))))
+                    id_count[i] <= id_count[i] - CntW'(1);
+            end
+
+            // Chopped-read merge state on each chunk's last R beat.
+            if (r_last_hs && id_chop[r_id]) begin
                 merge_worst[r_id] <= merged_final_resp;
-                if (merge_busy[r_id] && (merge_chunks_left[r_id] == 8'd1)) begin
-                    merge_busy[r_id]       <= 1'b0;
+                if (merge_chunks_left[r_id] == 8'd1) begin
+                    id_chop[r_id]           <= 1'b0;
                     merge_chunks_left[r_id] <= '0;
-                    pending_id_busy[r_id]  <= 1'b0;
-                end else if (merge_busy[r_id]) begin
+                end else begin
                     merge_chunks_left[r_id] <= merge_chunks_left[r_id] - 8'd1;
                 end
             end

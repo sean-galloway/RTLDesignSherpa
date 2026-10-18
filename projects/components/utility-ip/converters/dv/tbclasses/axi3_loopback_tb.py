@@ -14,8 +14,8 @@ Topology:
                                     -> AXI4SlaveRead/Write (m_axi_, shared memory)
 
 The integration proof verifies that legal AXI4 traffic is unchanged by the
-converter pair.  The write side serializes because axi3_to_axi4_wr enforces a
-single-active-write contract; the read side pipelines.
+converter pair.  Writes and reads both pipeline: writes overlap through both
+converters, and W bursts follow AW order.
 """
 
 import asyncio
@@ -191,7 +191,7 @@ class AXI3LoopbackTB(TBBase):
 
         Tracks outstanding reads/writes by ID so out-of-order responses across
         different IDs are handled correctly.  Buffers early W beats (legal when
-        W is driven before AW under the converter's single-active-write contract)
+        W is driven before AW; this TB has one early-W run at a time)
         and associates them with the next AW.
         """
         self.log.info("Starting far-side AXI4 monitor")
@@ -678,8 +678,8 @@ class AXI3LoopbackTB(TBBase):
                 'strb': rng.randint(1, (1 << self.strb_width) - 1),
             })
 
-        # Dispatch all writes and reads concurrently; the chain serializes writes
-        # but pipelines reads and different IDs.
+        # Dispatch all writes and reads concurrently; the chain pipelines both
+        # (writes overlap since 2026-10-18; W bursts follow AW order).
         tasks = []
         for desc in descriptors:
             tasks.append(cocotb.start_soon(self._write_and_readback(

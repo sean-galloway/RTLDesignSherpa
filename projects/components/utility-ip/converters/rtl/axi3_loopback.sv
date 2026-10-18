@@ -11,8 +11,8 @@
 //   memory-model responders.  The AXI3 interface between the two converters is
 //   wired internally.
 //
-//   The write side serializes because axi3_to_axi4_wr enforces a single-active-
-//   write contract; the read side pipelines.  This is expected and legal.
+//   Both sides pipeline: writes overlap through both converters, and W
+//   bursts follow AW order (no write interleaving), as the converters require.
 //
 // Parameters:
 //   AXI_ID_WIDTH: Transaction ID width on AXI4/AXI3 side (1-16)

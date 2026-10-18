@@ -89,11 +89,20 @@ The write segmenter consumes the buffered beats using a descriptor FIFO pushed a
 
 ### Storage
 
-The AW (AR) queue, the descriptor FIFO and the early-W buffer are `gaxi_fifo_sync` instances from `rtl/amba/gaxi` (depths 4, 4 and 16). They used to be SystemVerilog queues, which Vivado does not synthesize ("[Synth 8-27] dollar-sign operator not supported"). A request arriving while its stage is idle and its FIFO is empty bypasses the FIFO and takes effect the edge it is accepted, so the FIFOs add no latency: a same-ID read or write, which waits for the previous one to finish, costs the same cycles it did with the queues.
+The descriptor FIFO and the early-W buffer are `gaxi_fifo_sync` instances from `rtl/amba/gaxi` (depths 4 and 16). The read path has no queue. They used to be SystemVerilog queues, which Vivado does not synthesize ("[Synth 8-27] dollar-sign operator not supported"). An AW arriving while the W segmenter is idle, or finishing, with the descriptor FIFO empty bypasses the FIFO, so the FIFOs add no latency.
 
-### Single-Active-Write Contract
+### Request Flow and Per-ID Ordering
 
-The same AWID cannot have two outstanding bursts in flight at the same time: `s_axi_awready` is deasserted for an ID from the acceptance of its AW until the final merged B for that ID is accepted. Different IDs remain concurrent, and the read path is fully pipelined independently.
+Both paths take one request per cycle and hold no granted request behind the bridge's arbiter:
+
+* An unchopped request (`AxLEN ≤ 15`) passes straight to the AXI3 port and is accepted with it.
+* A chopped one (`AxLEN > 15`) is taken into the active register, which issues its AXI3 chunks. New requests wait while it does, one cycle after a 17+ beat burst.
+* Up to `MAX_OUTSTANDING` (default 32) transactions may be in flight per direction, across all IDs. An unchopped transaction needs no per-ID check. The AXI3 slave returns same-ID responses in order, so an unchopped transaction behind a chopped one of its ID comes back after the chopped one's last chunk, and the chunk counter finds that chunk.
+* A chopped transaction waits for its ID to drain: an unchopped one ahead of it would otherwise be counted as one of its chunks. Only this registered path looks an ID up, so no ID-indexed logic sits between the bridge and the AXI3 pins.
+* B goes through a one-entry output register, and BREADY means the register has room or is emptying. So BID never reaches BREADY combinationally, and a downstream that waits for BVALID before BREADY still drains it. A chopped write's non-final chunk Bs are merged and absorbed without using the register.
+* W passes straight through once a descriptor is loaded and nothing is buffered ahead of it.
+
+Until 2026-10-18 both paths took one transaction per ID at a time. They issued at most one AR or AW every other cycle, lost a W cycle per AXI3 burst, and queued four requests behind the arbiter (bridge W8: single-beat reads 0.50, same-ID single-beat reads 0.334, round-robin share 0.26).
 
 ## 3.15.5 Bidirectional Wrapper (axi4_to_axi3)
 
@@ -107,6 +116,7 @@ The top wrapper instantiates the read and write converters, routes the clock and
 | AXI_ADDR_WIDTH | int | 32 | Address width (12–64). |
 | AXI_DATA_WIDTH | int | 32 | Data width; must match on both sides (32/64/128/256). |
 | AXI_USER_WIDTH | int | 1 | User-signal width (0–1024). |
+| MAX_OUTSTANDING | int | 32 | Transactions in flight per direction, all IDs together. |
 
 : Table 3.46: AXI4 to AXI3 parameters
 
@@ -145,7 +155,7 @@ The tables are approximate hand estimates; no post-route characterization has be
 | Burst write ≤ 16 beats | WLAST, B pass-through | Pass |
 | Burst write > 16 beats | AW chopping, per-chunk WLAST, B merge | Pass |
 | Early-W before AW | 16-beat buffer, backpressure on 17th beat | Pass |
-| Multi-outstanding writes across IDs | Single-ID serialization, inter-ID concurrency | Pass |
+| Multi-outstanding writes across IDs | Inter-ID concurrency; same-ID unchopped writes overlap, a chopped one holds its ID | Pass |
 
 : Table 3.48: AXI4 to AXI3 test coverage
 

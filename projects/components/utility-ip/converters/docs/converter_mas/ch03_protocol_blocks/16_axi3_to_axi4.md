@@ -77,18 +77,15 @@ The write path maps the AXI3 AW/W/B channels to AXI4:
 * `WDATA`, `WSTRB`, `WLAST`, and `WUSER` pass through.
 * B channel (`BID`, `BRESP`, `BUSER`) passes through.
 
-### Single-Active-Write Contract
+### Write Ordering Contract
 
-`axi3_to_axi4_wr` enforces exactly one outstanding write transaction at a time:
+`axi3_to_axi4_wr` passes AW, W and B straight through, so any number of writes may be in flight. The contract is AXI3 write-interleave depth 1: W bursts arrive in AW order, and W may lead its AW. AXI3 allows write-data interleaving across IDs, but supporting it would mean demuxing W beats by `WID` into per-ID buffers before AXI4, which has no WID. The upstream AXI3 master must not interleave.
 
-* `s_axi3_awready` is gated by `!active`, where `active` is set on AW handshake and cleared on B handshake.
-* `s_axi3_wready`, `m_axi_wvalid`, `s_axi3_bvalid`, and `m_axi_bready` are all qualified by `active`.
+Until 2026-10-18 the converter took one write at a time: AWREADY was held low from an AW's acceptance until its B. That capped an AXI3 master's writes at beats / (beats + round trip), 0.111 beat/cycle single-beat and 0.674 at 16 beats behind the bridge (bridge W7).
 
-This is a deliberate simplification. AXI3 allows write-data interleaving, but supporting it would require demuxing W beats by `WID` before presenting them to AXI4; the converter instead requires the upstream AXI3 master to present one complete write transaction at a time.
+### WID Order Check
 
-### WID Stability Assertion
-
-Because the converter relies on a single active AWID, it asserts `ASSERT_A3_WID_STABLE` if `s_axi3_wid` changes mid-burst or differs from the active `AWID`. This is enforced by a simulation assertion, and a dedicated negative test (`test_axi3_to_axi4_wr_wid_mismatch`) verifies that the assertion fires.
+A simulation-only check (`ifndef SYNTHESIS`), `ASSERT_A3_WID_STABLE`, fires if `s_axi3_wid` changes inside a burst, or if a burst's WID is not the AWID of the AW it pairs with. Pairing goes in order (n-th AW with n-th W burst), whichever arrives first. A dedicated negative test (`test_axi3_to_axi4_wr_wid_mismatch`) verifies that it fires, and `overlapped_writes` verifies that a second AW is accepted before the first B returns.
 
 ## 3.16.5 Bidirectional Wrapper (axi3_to_axi4)
 
@@ -109,7 +106,7 @@ The top wrapper instantiates the read and write converters, ties off the AXI4-on
 
 The following features are intentionally outside the scope of this converter:
 
-* **Interleaved W IDs.** Only one outstanding write transaction is accepted; interleaved W data from different IDs is rejected by `ASSERT_A3_WID_STABLE`.
+* **Interleaved W IDs.** W bursts must follow AW order; interleaved or reordered W data is flagged by `ASSERT_A3_WID_STABLE` in simulation.
 * **Data-width conversion.** `AXI_DATA_WIDTH` must be identical on both sides.
 * **QoS / REGION generation.** These AXI4-only qualifiers are driven to zero.
 
@@ -135,7 +132,7 @@ The tables are approximate hand estimates; no post-route characterization has be
 | Burst read ≤ 16 beats | Pass-through, RID/RRESP/RLAST integrity | Pass |
 | Single-beat write | Pass-through, WID strip | Pass |
 | Burst write ≤ 16 beats | WLAST/B pass-through | Pass |
-| Single-active-write backpressure | Second AW held off until B accepted | Pass |
+| Overlapped writes | Second AW accepted before the first B returns; both complete in order | Pass |
 | WID mismatch negative test | `ASSERT_A3_WID_STABLE` fires on wrong WID | Pass |
 | Loopback equivalence | `axi4_to_axi3 → axi3_to_axi4` identity for legal AXI4 traffic | Pass |
 

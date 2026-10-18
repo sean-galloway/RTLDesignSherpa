@@ -14,11 +14,11 @@
 AXI3 to AXI4 Write Converter Test Runner - WRITE-ONLY
 
 Test runner for AXI3->AXI4 WRITE protocol upgrade converter with WID stripping
-under a single-active-write contract.
+with writes overlapping.
 Imports testbench class from projects/components/utility-ip/converters/dv/tbclasses/axi3_to_axi4_wr_tb.py
 
 Test Levels:
-- gate: Quick smoke test (WID strip, B pass-through, single-active backpressure)
+- gate: Quick smoke test (WID strip, B pass-through, overlapping writes)
 - func: Adds AWLOCK mapping validation
 - full: Same as func for this core
 
@@ -49,7 +49,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 async def axi3_to_axi4_wr_test(dut):
     """
     AXI3 to AXI4 Write Converter test - WRITE-ONLY with WID stripping and
-    single-active-write contract.
+    writes overlapping.
 
     Tests write path (AW, W, B channels) with:
     - Pass-through for single-beat and burst writes
@@ -233,7 +233,7 @@ def generate_test_params():
 @pytest.mark.parametrize("params", generate_test_params())
 def test_axi3_to_axi4_wr(request, params):
     """
-    AXI3 to AXI4 Write Converter test with WID stripping and single-active-write
+    AXI3 to AXI4 Write Converter test with WID stripping and overlapping writes
     contract validation.
 
     Features:
@@ -343,7 +343,7 @@ def test_axi3_to_axi4_wr(request, params):
     print(f"AXI3->AXI4 Write Converter Test: {test_level.upper()}")
     print(f"Configuration: DW={data_width}, AW={addr_width}, ID={id_width}")
     print(f"Expected Duration: {timeout_ms/1000:.1f}s")
-    print(f"Features: WID strip, single-active-write, B pass-through, AWLOCK mapping")
+    print(f"Features: WID strip, overlapping writes, B pass-through, AWLOCK mapping")
     print(f"{'='*80}")
 
     try:
@@ -375,7 +375,7 @@ def test_axi3_to_axi4_wr(request, params):
 
         # Provide debugging guidance
         if "timeout" in str(e).lower():
-            print(f"   Check for single-active-write deadlocks")
+            print(f"   Check W/AW ordering (WID check) and B pass-through")
         elif "assertion" in str(e).lower():
             print(f"   Check AW/W/B channel mapping in waveforms")
 

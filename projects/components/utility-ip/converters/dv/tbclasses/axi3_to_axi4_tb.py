@@ -126,9 +126,9 @@ class AXI3ToAXI4TB(TBBase):
         self.pending_b_responses = {}
 
         # AXI4 W has no ID, so W beats that arrive before their AW cannot be
-        # associated with a specific transaction until AW arrives. The converter
-        # enforces a single-active-write contract, so a single shared early-W
-        # counter is sufficient for this smoke test.
+        # associated with a specific transaction until AW arrives. This TB's
+        # stimulus has at most one write's W ahead of its AW at a time, so a
+        # single shared early-W counter is sufficient for this smoke test.
         self.early_w_count = 0
         self.early_w_last_seen = False
 
@@ -154,9 +154,8 @@ class AXI3ToAXI4TB(TBBase):
         """Record every AXI4-side handshake and assert protocol basics.
 
         Tracks outstanding reads/writes by ID so out-of-order responses across
-        different IDs are handled correctly. Buffers early W beats (legal when W
-        is driven before AW under the converter's single-active-write contract)
-        and associates them with the next AW.
+        different IDs are handled correctly. Buffers early W beats (legal: W may
+        precede its AW) and associates them with the next AW.
         """
         self.log.info("Starting AXI4 combined monitor")
         while True:
@@ -218,9 +217,9 @@ class AXI3ToAXI4TB(TBBase):
                     'len': aw_len,
                 })
 
-                # Account for any W beats that arrived before this AW. Under the
-                # single-active-write contract there is at most one early-W run,
-                # so it unambiguously belongs to this AW.
+                # Account for any W beats that arrived before this AW. This TB
+                # never has more than one early-W run, so it unambiguously
+                # belongs to this AW.
                 total_beats = aw_len + 1 - self.early_w_count
                 if total_beats < 0:
                     self.log.error(
@@ -491,15 +490,12 @@ class AXI3ToAXI4TB(TBBase):
         # Launch the W burst before the AW handshake.
         w_task = cocotb.start_soon(self.axi3_wr.w_channel.send_burst(w_packets))
 
-        # Give the W channel a cycle to attempt transfer, then confirm backpressure.
+        # The converter passes W straight through, so the beats may cross to
+        # the AXI4 side ahead of their AW (legal AXI4). (Until 2026-10-18 it
+        # held W until its AW, one write at a time, and this checked that.)
         await RisingEdge(self.clk)
-        if int(self.dut.s_axi3_wready.value) != 0:
-            self.log.error("early_w_before_aw: s_axi3_wready was not low before AW")
-            self.stats['write_errors'] += 1
-            self.stats['errors'] += 1
-            return False
 
-        # Now send the matching AW. The buffered W beats should be accepted.
+        # Now send the matching AW.
         aw_pkt = self.axi3_wr.aw_channel.create_packet(
             addr=address,
             len=burst_len - 1,

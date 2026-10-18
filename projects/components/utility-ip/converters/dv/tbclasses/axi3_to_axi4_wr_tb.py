@@ -10,15 +10,15 @@
 """
 Testbench for axi3_to_axi4_wr converter - WRITE-ONLY
 
-Tests AXI3 -> AXI4 protocol upgrade for write path under a single-active-write
-contract:
+Tests AXI3 -> AXI4 protocol upgrade for write path (every channel passed
+through, writes may overlap):
 - AXI3 WID is stripped on the AXI4 W channel
 - AW, W data/strb/last, and B response are passed through
 - AWLEN is zero-extended from 4-bit AXI3 to 8-bit AXI4
 - AWLOCK is mapped from AXI3 2-bit to AXI4 1-bit
   (2'b00 -> 1'b0, 2'b01 -> 1'b1 exclusive, 2'b10 -> 1'b0; AXI4 has
   no locked accesses, so AXI3 locked is demoted to normal)
-- Only one write transaction is active at a time (AW -> W run -> B -> next AW)
+- Writes overlap: a second AW is accepted before the first B returns
 """
 
 import os
@@ -43,7 +43,7 @@ class AXI3ToAXI4WriteTB(TBBase):
     Testbench for axi3_to_axi4_wr converter.
 
     Tests protocol upgrade from AXI3 -> AXI4 for write path with WID stripping
-    under a single-active-write contract.
+    with writes overlapping.
 
     Key Validations:
     - Single-beat and burst write pass-through
@@ -52,7 +52,7 @@ class AXI3ToAXI4WriteTB(TBBase):
     - B response pass-through with ID preserved
     - AWLEN zero-extension (4-bit -> 8-bit)
     - AWLOCK mapping (AXI3 2-bit -> AXI4 1-bit)
-    - Single-active-write backpressure on second AW
+    - Overlapping writes (second AW before the first B)
     """
 
     def __init__(self, dut):
@@ -362,9 +362,11 @@ class AXI3ToAXI4WriteTB(TBBase):
         self.stats['bursts_completed'] += 1
         return True
 
-    async def single_active_backpressure(self):
-        """Second AW is held until the first transaction's B response completes."""
-        self.log.info("TEST: single_active_backpressure")
+    async def overlapped_writes(self):
+        """Writes overlap: a second AW is accepted before the first write's B
+        returns (the converter passes every channel through; until 2026-10-18
+        it took one write at a time, bridge W7), and both complete in order."""
+        self.log.info("TEST: overlapped_writes")
         address0 = 0x2000
         address1 = 0x3000
         burst_len = 8
@@ -378,80 +380,34 @@ class AXI3ToAXI4WriteTB(TBBase):
                  for i in range(1)]
 
         initial_aw = len(self.axi4_aw_transactions)
-        initial_w = len(self.axi4_w_beats)
         initial_b = len(self.axi4_b_responses)
 
-        # Launch the first burst.
         task0 = cocotb.start_soon(self.write_with_result(
             address0, data0, axid=id0, burst_type=1, size=size))
-
-        # Wait until the first AW handshake has been observed.
         cycles_waited = 0
         while len(self.axi4_aw_transactions) - initial_aw < 1:
             await RisingEdge(self.clk)
             cycles_waited += 1
             if cycles_waited > 5000:
-                self.log.error("single_active_backpressure: timeout waiting for first AW")
+                self.log.error("overlapped_writes: timeout waiting for first AW")
                 self.stats['errors'] += 1
                 return False
-
-        # Launch the second write while the first burst is still active.
         task1 = cocotb.start_soon(self.write_with_result(
             address1, data1, axid=id1, burst_type=1, size=size))
 
-        # Give the second write a chance to be accepted, then verify it was not.
-        await self.wait_clocks(self.clk_name, 10)
-        if len(self.axi4_aw_transactions) - initial_aw != 1:
-            self.log.error("single_active_backpressure: second AW was accepted while first burst active")
-            self.stats['backpressure_errors'] += 1
-            self.stats['errors'] += 1
-            return False
-
-        if int(self.dut.s_axi3_awready.value) != 0:
-            self.log.error("single_active_backpressure: s_axi3_awready not deasserted during active burst")
-            self.stats['backpressure_errors'] += 1
-            self.stats['errors'] += 1
-            return False
-
-        # Wait for the final W beat of the first burst to be accepted.
-        cycles_waited = 0
-        while len(self.axi4_w_beats) - initial_w < burst_len:
-            await RisingEdge(self.clk)
-            cycles_waited += 1
-            if cycles_waited > 5000:
-                self.log.error("single_active_backpressure: timeout waiting for WLAST")
-                self.stats['errors'] += 1
-                return False
-
-        # From WLAST acceptance until the first B response, awready must stay low.
-        if int(self.dut.s_axi3_awready.value) != 0:
-            self.log.error("single_active_backpressure: s_axi3_awready high right after WLAST")
-            self.stats['backpressure_errors'] += 1
-            self.stats['errors'] += 1
-            return False
-
-        cycles_waited = 0
-        while len(self.axi4_b_responses) - initial_b < 1:
-            if int(self.dut.s_axi3_awready.value) != 0:
-                self.log.error("single_active_backpressure: s_axi3_awready went high between WLAST and B")
-                self.stats['backpressure_errors'] += 1
-                self.stats['errors'] += 1
-                return False
-            await RisingEdge(self.clk)
-            cycles_waited += 1
-            if cycles_waited > 5000:
-                self.log.error("single_active_backpressure: timeout waiting for first B")
-                self.stats['errors'] += 1
-                return False
-
-        # Now the second transaction should eventually complete.
+        # The second AW must reach the AXI4 side while the first B is still
+        # outstanding.
         cycles_waited = 0
         while len(self.axi4_aw_transactions) - initial_aw < 2:
+            if len(self.axi4_b_responses) - initial_b >= 1:
+                self.log.error("overlapped_writes: second AW held until the first B")
+                self.stats['backpressure_errors'] += 1
+                self.stats['errors'] += 1
+                return False
             await RisingEdge(self.clk)
             cycles_waited += 1
             if cycles_waited > 5000:
-                self.log.error("single_active_backpressure: second AW never accepted after first B")
-                self.stats['backpressure_errors'] += 1
+                self.log.error("overlapped_writes: second AW never accepted")
                 self.stats['errors'] += 1
                 return False
 
@@ -460,7 +416,7 @@ class AXI3ToAXI4WriteTB(TBBase):
         await self.wait_clocks(self.clk_name, 10)
 
         if not (result0.get('success', False) and result1.get('success', False)):
-            self.log.error(f"single_active_backpressure: master failure "
+            self.log.error(f"overlapped_writes: master failure "
                           f"result0={result0} result1={result1}")
             self.stats['errors'] += 1
             return False
@@ -468,12 +424,12 @@ class AXI3ToAXI4WriteTB(TBBase):
         aw0 = self.axi4_aw_transactions[initial_aw]
         aw1 = self.axi4_aw_transactions[initial_aw + 1]
         if aw0['id'] != id0 or aw1['id'] != id1:
-            self.log.error("single_active_backpressure: AWID order mismatch")
+            self.log.error("overlapped_writes: AWID order mismatch")
             self.stats['awid_errors'] += 1
             self.stats['errors'] += 1
             return False
 
-        self.log.info("single_active_backpressure PASSED")
+        self.log.info("overlapped_writes PASSED")
         self.stats['bursts_sent'] += 2
         self.stats['beats_expected'] += burst_len + 1
         self.stats['bursts_completed'] += 2
@@ -599,7 +555,7 @@ class AXI3ToAXI4WriteTB(TBBase):
         return True
 
     async def early_w_before_aw(self):
-        """W beats driven before AW are held and forwarded once AW is accepted."""
+        """W beats driven before AW are forwarded, and the write completes."""
         self.log.info("TEST: early_w_before_aw")
         address = 0x800
         burst_len = 4
@@ -623,19 +579,14 @@ class AXI3ToAXI4WriteTB(TBBase):
                 strb=strb
             ))
 
-        # Launch the W burst before the AW handshake. It must be backpressured
-        # until the converter accepts the AW.
+        # Launch the W burst before the AW handshake. The converter passes W
+        # straight through, so it may cross to the AXI4 side ahead of its AW
+        # (legal AXI4). (Until 2026-10-18 it held W until its AW, one write at
+        # a time, and this checked that.)
         w_task = cocotb.start_soon(self.axi3_master.w_channel.send_burst(w_packets))
-
-        # Give the W channel a cycle to attempt transfer, then confirm backpressure.
         await RisingEdge(self.clk)
-        if int(self.dut.s_axi3_wready.value) != 0:
-            self.log.error("early_w_before_aw: s_axi3_wready was not low before AW acceptance")
-            self.stats['early_w_errors'] += 1
-            self.stats['errors'] += 1
-            return False
 
-        # Now send the matching AW. The buffered W beats should be accepted.
+        # Now send the matching AW.
         aw_pkt = self.axi3_master.aw_channel.create_packet(
             addr=address,
             len=burst_len - 1,
@@ -855,7 +806,7 @@ class AXI3ToAXI4WriteTB(TBBase):
         if not await self.b_passthrough():
             success = False
 
-        if not await self.single_active_backpressure():
+        if not await self.overlapped_writes():
             success = False
 
         return success
