@@ -176,7 +176,10 @@ this workflow exists to prevent (`vault/handbook/dv/running-regressions.md`).
 
 **Never regenerated:** `rtl/bridge_cam.sv` (hand-written; instantiated by the
 slave adapter of every AXI4/AXI5 slave in a multi-master bridge, and of any
-slave with `enable_ooo`) and anything in `rtl/` outside `rtl/generated/`.
+slave with `enable_ooo`), `rtl/bridge_wr_rate_buf.sv` (hand-written;
+instantiated by a master adapter on an upsized burst path into a shared slave,
+`rate_buffer`, MAS 2.6), and anything in `rtl/` outside `rtl/generated/`.
+Their filelists live in `rtl/filelists_static/`.
 
 **Identifying a generated file takes five strings, not one.** Each generator
 class stamps its own header, and `bridge_generator.py` appears in none of them:
@@ -290,6 +293,8 @@ projects/components/fabric-gen-ip/bridge/
 │       └── test_bridge_*.py       # Per-config tests (test_bridge_2x2_rw.py, ...)
 ├── rtl/                           # RTL source files
 │   ├── bridge_cam.sv              # Hand-written CAM (multi-master AXI4/AXI5 slave adapters)
+│   ├── bridge_wr_rate_buf.sv      # Hand-written write rate buffer (upsized paths into shared slaves)
+│   ├── filelists_static/          # Hand-written filelists for the two above
 │   ├── filelists/                 # Generated filelists
 │   └── generated/                 # Generated bridges (one subdir per config)
 ├── CLAUDE.md                      # This file

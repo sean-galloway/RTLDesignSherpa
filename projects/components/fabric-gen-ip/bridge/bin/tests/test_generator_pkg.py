@@ -2295,6 +2295,56 @@ def test_max_outstanding_rejects_non_power_of_two_or_out_of_range(tmp_path, bad)
         load_config(toml, conn)
 
 
+# --- bridge W2: rate-matching buffers on upsized paths into shared slaves ----
+
+def test_rate_buffer_defaults_and_overrides(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"',
+                                 master_extra='rate_buffer = 8')
+    cfg = load_config(toml, conn)
+    assert cfg.masters[0].rate_buffer == 8                  # port override
+    (tmp_path / "d").mkdir()
+    toml2, conn2 = _write_min_toml(tmp_path / "d", slave_extra='channels = "rd"')
+    assert load_config(toml2, conn2).masters[0].rate_buffer == 16   # default
+    _with_bridge_key(toml2, "rate_buffer = 0")
+    assert load_config(toml2, conn2).masters[0].rate_buffer == 0    # [bridge], off
+
+
+@pytest.mark.parametrize("bad", [1, 257, -2, "x"])
+def test_rate_buffer_rejects_out_of_range(tmp_path, bad):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    _with_bridge_key(toml, f"rate_buffer = {bad!r}" if isinstance(bad, str) else f"rate_buffer = {bad}")
+    with pytest.raises(ValueError, match="rate_buffer"):
+        load_config(toml, conn)
+
+
+def test_rate_buffer_only_on_upsized_paths_into_shared_slaves(tmp_path):
+    """bridge_4x4_rw: dma0 (32b) reaches ddr0 (64b, shared with cpu) -- a
+    buffer on its 64b path; cpu (64b) reaches ddr0 width-matched -- none on
+    that path. Every buffer present is on an upsized path."""
+    out = tmp_path / "gen"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_4x4_rw.toml"),
+         "--connectivity", _fixture("bridge_4x4_rw_connectivity.csv"),
+         "--name", "q", "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr
+    d = out / "q"
+    dma0 = (d / "dma0_master_adapter.sv").read_text()
+    cpu = (d / "cpu_master_adapter.sv").read_text()
+    assert "u_wr_rbuf_64b" in dma0 and "u_rd_rbuf_64b" in dma0
+    assert "u_wr_rbuf_64b" not in cpu and "u_rd_rbuf_64b" not in cpu
+    for f in d.glob("*_master_adapter.sv"):
+        mw = int(re.search(r"S_AXI_DATA_WIDTH\((\d+)\)", f.read_text()).group(1)) \
+            if "S_AXI_DATA_WIDTH" in f.read_text() else None
+        for w in re.findall(r"u_wr_rbuf_(\d+)b", f.read_text()):
+            assert mw is not None and int(w) > mw, f"{f.name}: buffer on a non-upsized {w}b path"
+    fl = (out / "filelists" / "q.f") if (out / "filelists" / "q.f").exists() else None
+    if fl is not None:
+        assert "bridge_wr_rate_buf.f" in fl.read_text()
+
+
 def test_max_outstanding_sizes_every_tracker(tmp_path):
     """bridge_2x2_rw_depth: [bridge] 4, cpu 64, ddr 32. Master trackers,
     slave trackers, and the crossbar's W-owner (per slave) and W-destination

@@ -601,6 +601,13 @@ module bridge_2x2_wb4_mon_cpu_adapter
     logic conv_64b_rlast;
     logic conv_64b_rvalid;
 
+    // Write rate buffer (16 x 64b): the converter's wide side
+    // feeds it, and a burst of up to 16 beats reaches the crossbar only once
+    // it is buffered whole, so the shared slave's W runs at its full rate
+    // (bridge W2). Longer bursts pass through.
+    axi4_aw_t cpu_64b_rb_aw;
+    axi4_w_64b_t cpu_64b_rb_w;
+    logic cpu_64b_rb_awvalid, cpu_64b_rb_awready, cpu_64b_rb_wvalid, cpu_64b_rb_wready;
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(64),
@@ -641,25 +648,25 @@ module bridge_2x2_wb4_mon_cpu_adapter
         .s_axi_bready(fub_axi_bready && b_path_active_64b),
 
         // Master side (to crossbar)
-        .m_axi_awid(cpu_64b_aw.id),
-        .m_axi_awaddr(cpu_64b_aw.addr),
-        .m_axi_awlen(cpu_64b_aw.len),
-        .m_axi_awsize(cpu_64b_aw.size),
-        .m_axi_awburst(cpu_64b_aw.burst),
-        .m_axi_awlock(cpu_64b_aw.lock),
-        .m_axi_awcache(cpu_64b_aw.cache),
-        .m_axi_awprot(cpu_64b_aw.prot),
-        .m_axi_awqos(cpu_64b_aw.qos),
-        .m_axi_awregion(cpu_64b_aw.region),
-        .m_axi_awuser(cpu_64b_aw.user),
-        .m_axi_awvalid(cpu_64b_awvalid),
-        .m_axi_awready(cpu_64b_awready),
-        .m_axi_wdata(cpu_64b_w.data),
-        .m_axi_wstrb(cpu_64b_w.strb),
-        .m_axi_wlast(cpu_64b_w.last),
-        .m_axi_wuser(cpu_64b_w.user),
-        .m_axi_wvalid(cpu_64b_wvalid),
-        .m_axi_wready(cpu_64b_wready),
+        .m_axi_awid(cpu_64b_rb_aw.id),
+        .m_axi_awaddr(cpu_64b_rb_aw.addr),
+        .m_axi_awlen(cpu_64b_rb_aw.len),
+        .m_axi_awsize(cpu_64b_rb_aw.size),
+        .m_axi_awburst(cpu_64b_rb_aw.burst),
+        .m_axi_awlock(cpu_64b_rb_aw.lock),
+        .m_axi_awcache(cpu_64b_rb_aw.cache),
+        .m_axi_awprot(cpu_64b_rb_aw.prot),
+        .m_axi_awqos(cpu_64b_rb_aw.qos),
+        .m_axi_awregion(cpu_64b_rb_aw.region),
+        .m_axi_awuser(cpu_64b_rb_aw.user),
+        .m_axi_awvalid(cpu_64b_rb_awvalid),
+        .m_axi_awready(cpu_64b_rb_awready),
+        .m_axi_wdata(cpu_64b_rb_w.data),
+        .m_axi_wstrb(cpu_64b_rb_w.strb),
+        .m_axi_wlast(cpu_64b_rb_w.last),
+        .m_axi_wuser(cpu_64b_rb_w.user),
+        .m_axi_wvalid(cpu_64b_rb_wvalid),
+        .m_axi_wready(cpu_64b_rb_wready),
         .m_axi_bid(cpu_64b_b.id),
         .m_axi_bresp(cpu_64b_b.resp),
         .m_axi_buser(cpu_64b_b.user),
@@ -667,6 +674,36 @@ module bridge_2x2_wb4_mon_cpu_adapter
         .m_axi_bready(cpu_64b_bready)
     );
 
+    bridge_wr_rate_buf #(
+        .AW_WIDTH        ($bits(axi4_aw_t)),
+        .W_WIDTH         ($bits(axi4_w_64b_t)),
+        .DEPTH           (16),
+        .AW_DEPTH        (4),
+        .MAX_OUTSTANDING (16)
+    ) u_wr_rbuf_64b (
+        .aclk      (aclk),
+        .aresetn   (aresetn),
+        .s_aw      (cpu_64b_rb_aw),
+        .s_awlen   (cpu_64b_rb_aw.len),
+        .s_awvalid (cpu_64b_rb_awvalid),
+        .s_awready (cpu_64b_rb_awready),
+        .s_w       (cpu_64b_rb_w),
+        .s_wlast   (cpu_64b_rb_w.last),
+        .s_wvalid  (cpu_64b_rb_wvalid),
+        .s_wready  (cpu_64b_rb_wready),
+        .m_aw      (cpu_64b_aw),
+        .m_awvalid (cpu_64b_awvalid),
+        .m_awready (cpu_64b_awready),
+        .m_w       (cpu_64b_w),
+        .m_wvalid  (cpu_64b_wvalid),
+        .m_wready  (cpu_64b_wready)
+    );
+
+    // Read rate buffer (16 x 64b): R is taken from the crossbar
+    // at the slave's full rate and drained at this master's narrow rate, so
+    // the shared slave's R is not held by a slow consumer (bridge W2).
+    axi4_r_64b_t cpu_64b_rb_r;
+    logic cpu_64b_rb_rvalid, cpu_64b_rb_rready;
     axi4_dwidth_converter_rd #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(64),
@@ -716,13 +753,30 @@ module bridge_2x2_wb4_mon_cpu_adapter
         .m_axi_aruser(cpu_64b_ar.user),
         .m_axi_arvalid(cpu_64b_arvalid),
         .m_axi_arready(cpu_64b_arready),
-        .m_axi_rid(cpu_64b_r.id),
-        .m_axi_rdata(cpu_64b_r.data),
-        .m_axi_rresp(cpu_64b_r.resp),
-        .m_axi_rlast(cpu_64b_r.last),
-        .m_axi_ruser(cpu_64b_r.user),
-        .m_axi_rvalid(cpu_64b_rvalid),
-        .m_axi_rready(cpu_64b_rready)
+        .m_axi_rid(cpu_64b_rb_r.id),
+        .m_axi_rdata(cpu_64b_rb_r.data),
+        .m_axi_rresp(cpu_64b_rb_r.resp),
+        .m_axi_rlast(cpu_64b_rb_r.last),
+        .m_axi_ruser(cpu_64b_rb_r.user),
+        .m_axi_rvalid(cpu_64b_rb_rvalid),
+        .m_axi_rready(cpu_64b_rb_rready)
+    );
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH ($bits(axi4_r_64b_t)),
+        .DEPTH      (16)
+    ) u_rd_rbuf_64b (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (cpu_64b_rvalid),
+        .wr_ready    (cpu_64b_rready),
+        .wr_data     (cpu_64b_r),
+        .rd_ready    (cpu_64b_rb_rready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (cpu_64b_rb_rvalid),
+        .rd_data     (cpu_64b_rb_r)
     );
 
     // ================================================================

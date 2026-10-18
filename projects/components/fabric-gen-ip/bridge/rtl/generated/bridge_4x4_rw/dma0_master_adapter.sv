@@ -540,6 +540,13 @@ module bridge_4x4_rw_dma0_master_adapter
     logic conv_64b_rlast;
     logic conv_64b_rvalid;
 
+    // Write rate buffer (16 x 64b): the converter's wide side
+    // feeds it, and a burst of up to 16 beats reaches the crossbar only once
+    // it is buffered whole, so the shared slave's W runs at its full rate
+    // (bridge W2). Longer bursts pass through.
+    axi4_aw_t dma0_master_64b_rb_aw;
+    axi4_w_64b_t dma0_master_64b_rb_w;
+    logic dma0_master_64b_rb_awvalid, dma0_master_64b_rb_awready, dma0_master_64b_rb_wvalid, dma0_master_64b_rb_wready;
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(64),
@@ -580,25 +587,25 @@ module bridge_4x4_rw_dma0_master_adapter
         .s_axi_bready(fub_axi_bready && b_path_active_64b),
 
         // Master side (to crossbar)
-        .m_axi_awid(dma0_master_64b_aw.id),
-        .m_axi_awaddr(dma0_master_64b_aw.addr),
-        .m_axi_awlen(dma0_master_64b_aw.len),
-        .m_axi_awsize(dma0_master_64b_aw.size),
-        .m_axi_awburst(dma0_master_64b_aw.burst),
-        .m_axi_awlock(dma0_master_64b_aw.lock),
-        .m_axi_awcache(dma0_master_64b_aw.cache),
-        .m_axi_awprot(dma0_master_64b_aw.prot),
-        .m_axi_awqos(dma0_master_64b_aw.qos),
-        .m_axi_awregion(dma0_master_64b_aw.region),
-        .m_axi_awuser(dma0_master_64b_aw.user),
-        .m_axi_awvalid(dma0_master_64b_awvalid),
-        .m_axi_awready(dma0_master_64b_awready),
-        .m_axi_wdata(dma0_master_64b_w.data),
-        .m_axi_wstrb(dma0_master_64b_w.strb),
-        .m_axi_wlast(dma0_master_64b_w.last),
-        .m_axi_wuser(dma0_master_64b_w.user),
-        .m_axi_wvalid(dma0_master_64b_wvalid),
-        .m_axi_wready(dma0_master_64b_wready),
+        .m_axi_awid(dma0_master_64b_rb_aw.id),
+        .m_axi_awaddr(dma0_master_64b_rb_aw.addr),
+        .m_axi_awlen(dma0_master_64b_rb_aw.len),
+        .m_axi_awsize(dma0_master_64b_rb_aw.size),
+        .m_axi_awburst(dma0_master_64b_rb_aw.burst),
+        .m_axi_awlock(dma0_master_64b_rb_aw.lock),
+        .m_axi_awcache(dma0_master_64b_rb_aw.cache),
+        .m_axi_awprot(dma0_master_64b_rb_aw.prot),
+        .m_axi_awqos(dma0_master_64b_rb_aw.qos),
+        .m_axi_awregion(dma0_master_64b_rb_aw.region),
+        .m_axi_awuser(dma0_master_64b_rb_aw.user),
+        .m_axi_awvalid(dma0_master_64b_rb_awvalid),
+        .m_axi_awready(dma0_master_64b_rb_awready),
+        .m_axi_wdata(dma0_master_64b_rb_w.data),
+        .m_axi_wstrb(dma0_master_64b_rb_w.strb),
+        .m_axi_wlast(dma0_master_64b_rb_w.last),
+        .m_axi_wuser(dma0_master_64b_rb_w.user),
+        .m_axi_wvalid(dma0_master_64b_rb_wvalid),
+        .m_axi_wready(dma0_master_64b_rb_wready),
         .m_axi_bid(dma0_master_64b_b.id),
         .m_axi_bresp(dma0_master_64b_b.resp),
         .m_axi_buser(dma0_master_64b_b.user),
@@ -606,6 +613,36 @@ module bridge_4x4_rw_dma0_master_adapter
         .m_axi_bready(dma0_master_64b_bready)
     );
 
+    bridge_wr_rate_buf #(
+        .AW_WIDTH        ($bits(axi4_aw_t)),
+        .W_WIDTH         ($bits(axi4_w_64b_t)),
+        .DEPTH           (16),
+        .AW_DEPTH        (4),
+        .MAX_OUTSTANDING (16)
+    ) u_wr_rbuf_64b (
+        .aclk      (aclk),
+        .aresetn   (aresetn),
+        .s_aw      (dma0_master_64b_rb_aw),
+        .s_awlen   (dma0_master_64b_rb_aw.len),
+        .s_awvalid (dma0_master_64b_rb_awvalid),
+        .s_awready (dma0_master_64b_rb_awready),
+        .s_w       (dma0_master_64b_rb_w),
+        .s_wlast   (dma0_master_64b_rb_w.last),
+        .s_wvalid  (dma0_master_64b_rb_wvalid),
+        .s_wready  (dma0_master_64b_rb_wready),
+        .m_aw      (dma0_master_64b_aw),
+        .m_awvalid (dma0_master_64b_awvalid),
+        .m_awready (dma0_master_64b_awready),
+        .m_w       (dma0_master_64b_w),
+        .m_wvalid  (dma0_master_64b_wvalid),
+        .m_wready  (dma0_master_64b_wready)
+    );
+
+    // Read rate buffer (16 x 64b): R is taken from the crossbar
+    // at the slave's full rate and drained at this master's narrow rate, so
+    // the shared slave's R is not held by a slow consumer (bridge W2).
+    axi4_r_64b_t dma0_master_64b_rb_r;
+    logic dma0_master_64b_rb_rvalid, dma0_master_64b_rb_rready;
     axi4_dwidth_converter_rd #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(64),
@@ -655,13 +692,30 @@ module bridge_4x4_rw_dma0_master_adapter
         .m_axi_aruser(dma0_master_64b_ar.user),
         .m_axi_arvalid(dma0_master_64b_arvalid),
         .m_axi_arready(dma0_master_64b_arready),
-        .m_axi_rid(dma0_master_64b_r.id),
-        .m_axi_rdata(dma0_master_64b_r.data),
-        .m_axi_rresp(dma0_master_64b_r.resp),
-        .m_axi_rlast(dma0_master_64b_r.last),
-        .m_axi_ruser(dma0_master_64b_r.user),
-        .m_axi_rvalid(dma0_master_64b_rvalid),
-        .m_axi_rready(dma0_master_64b_rready)
+        .m_axi_rid(dma0_master_64b_rb_r.id),
+        .m_axi_rdata(dma0_master_64b_rb_r.data),
+        .m_axi_rresp(dma0_master_64b_rb_r.resp),
+        .m_axi_rlast(dma0_master_64b_rb_r.last),
+        .m_axi_ruser(dma0_master_64b_rb_r.user),
+        .m_axi_rvalid(dma0_master_64b_rb_rvalid),
+        .m_axi_rready(dma0_master_64b_rb_rready)
+    );
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH ($bits(axi4_r_64b_t)),
+        .DEPTH      (16)
+    ) u_rd_rbuf_64b (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (dma0_master_64b_rvalid),
+        .wr_ready    (dma0_master_64b_rready),
+        .wr_data     (dma0_master_64b_r),
+        .rd_ready    (dma0_master_64b_rb_rready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (dma0_master_64b_rb_rvalid),
+        .rd_data     (dma0_master_64b_rb_r)
     );
 
     // ================================================================
@@ -681,6 +735,13 @@ module bridge_4x4_rw_dma0_master_adapter
     logic conv_128b_rlast;
     logic conv_128b_rvalid;
 
+    // Write rate buffer (16 x 128b): the converter's wide side
+    // feeds it, and a burst of up to 16 beats reaches the crossbar only once
+    // it is buffered whole, so the shared slave's W runs at its full rate
+    // (bridge W2). Longer bursts pass through.
+    axi4_aw_t dma0_master_128b_rb_aw;
+    axi4_w_128b_t dma0_master_128b_rb_w;
+    logic dma0_master_128b_rb_awvalid, dma0_master_128b_rb_awready, dma0_master_128b_rb_wvalid, dma0_master_128b_rb_wready;
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(128),
@@ -721,25 +782,25 @@ module bridge_4x4_rw_dma0_master_adapter
         .s_axi_bready(fub_axi_bready && b_path_active_128b),
 
         // Master side (to crossbar)
-        .m_axi_awid(dma0_master_128b_aw.id),
-        .m_axi_awaddr(dma0_master_128b_aw.addr),
-        .m_axi_awlen(dma0_master_128b_aw.len),
-        .m_axi_awsize(dma0_master_128b_aw.size),
-        .m_axi_awburst(dma0_master_128b_aw.burst),
-        .m_axi_awlock(dma0_master_128b_aw.lock),
-        .m_axi_awcache(dma0_master_128b_aw.cache),
-        .m_axi_awprot(dma0_master_128b_aw.prot),
-        .m_axi_awqos(dma0_master_128b_aw.qos),
-        .m_axi_awregion(dma0_master_128b_aw.region),
-        .m_axi_awuser(dma0_master_128b_aw.user),
-        .m_axi_awvalid(dma0_master_128b_awvalid),
-        .m_axi_awready(dma0_master_128b_awready),
-        .m_axi_wdata(dma0_master_128b_w.data),
-        .m_axi_wstrb(dma0_master_128b_w.strb),
-        .m_axi_wlast(dma0_master_128b_w.last),
-        .m_axi_wuser(dma0_master_128b_w.user),
-        .m_axi_wvalid(dma0_master_128b_wvalid),
-        .m_axi_wready(dma0_master_128b_wready),
+        .m_axi_awid(dma0_master_128b_rb_aw.id),
+        .m_axi_awaddr(dma0_master_128b_rb_aw.addr),
+        .m_axi_awlen(dma0_master_128b_rb_aw.len),
+        .m_axi_awsize(dma0_master_128b_rb_aw.size),
+        .m_axi_awburst(dma0_master_128b_rb_aw.burst),
+        .m_axi_awlock(dma0_master_128b_rb_aw.lock),
+        .m_axi_awcache(dma0_master_128b_rb_aw.cache),
+        .m_axi_awprot(dma0_master_128b_rb_aw.prot),
+        .m_axi_awqos(dma0_master_128b_rb_aw.qos),
+        .m_axi_awregion(dma0_master_128b_rb_aw.region),
+        .m_axi_awuser(dma0_master_128b_rb_aw.user),
+        .m_axi_awvalid(dma0_master_128b_rb_awvalid),
+        .m_axi_awready(dma0_master_128b_rb_awready),
+        .m_axi_wdata(dma0_master_128b_rb_w.data),
+        .m_axi_wstrb(dma0_master_128b_rb_w.strb),
+        .m_axi_wlast(dma0_master_128b_rb_w.last),
+        .m_axi_wuser(dma0_master_128b_rb_w.user),
+        .m_axi_wvalid(dma0_master_128b_rb_wvalid),
+        .m_axi_wready(dma0_master_128b_rb_wready),
         .m_axi_bid(dma0_master_128b_b.id),
         .m_axi_bresp(dma0_master_128b_b.resp),
         .m_axi_buser(dma0_master_128b_b.user),
@@ -747,6 +808,36 @@ module bridge_4x4_rw_dma0_master_adapter
         .m_axi_bready(dma0_master_128b_bready)
     );
 
+    bridge_wr_rate_buf #(
+        .AW_WIDTH        ($bits(axi4_aw_t)),
+        .W_WIDTH         ($bits(axi4_w_128b_t)),
+        .DEPTH           (16),
+        .AW_DEPTH        (4),
+        .MAX_OUTSTANDING (16)
+    ) u_wr_rbuf_128b (
+        .aclk      (aclk),
+        .aresetn   (aresetn),
+        .s_aw      (dma0_master_128b_rb_aw),
+        .s_awlen   (dma0_master_128b_rb_aw.len),
+        .s_awvalid (dma0_master_128b_rb_awvalid),
+        .s_awready (dma0_master_128b_rb_awready),
+        .s_w       (dma0_master_128b_rb_w),
+        .s_wlast   (dma0_master_128b_rb_w.last),
+        .s_wvalid  (dma0_master_128b_rb_wvalid),
+        .s_wready  (dma0_master_128b_rb_wready),
+        .m_aw      (dma0_master_128b_aw),
+        .m_awvalid (dma0_master_128b_awvalid),
+        .m_awready (dma0_master_128b_awready),
+        .m_w       (dma0_master_128b_w),
+        .m_wvalid  (dma0_master_128b_wvalid),
+        .m_wready  (dma0_master_128b_wready)
+    );
+
+    // Read rate buffer (16 x 128b): R is taken from the crossbar
+    // at the slave's full rate and drained at this master's narrow rate, so
+    // the shared slave's R is not held by a slow consumer (bridge W2).
+    axi4_r_128b_t dma0_master_128b_rb_r;
+    logic dma0_master_128b_rb_rvalid, dma0_master_128b_rb_rready;
     axi4_dwidth_converter_rd #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(128),
@@ -796,13 +887,30 @@ module bridge_4x4_rw_dma0_master_adapter
         .m_axi_aruser(dma0_master_128b_ar.user),
         .m_axi_arvalid(dma0_master_128b_arvalid),
         .m_axi_arready(dma0_master_128b_arready),
-        .m_axi_rid(dma0_master_128b_r.id),
-        .m_axi_rdata(dma0_master_128b_r.data),
-        .m_axi_rresp(dma0_master_128b_r.resp),
-        .m_axi_rlast(dma0_master_128b_r.last),
-        .m_axi_ruser(dma0_master_128b_r.user),
-        .m_axi_rvalid(dma0_master_128b_rvalid),
-        .m_axi_rready(dma0_master_128b_rready)
+        .m_axi_rid(dma0_master_128b_rb_r.id),
+        .m_axi_rdata(dma0_master_128b_rb_r.data),
+        .m_axi_rresp(dma0_master_128b_rb_r.resp),
+        .m_axi_rlast(dma0_master_128b_rb_r.last),
+        .m_axi_ruser(dma0_master_128b_rb_r.user),
+        .m_axi_rvalid(dma0_master_128b_rb_rvalid),
+        .m_axi_rready(dma0_master_128b_rb_rready)
+    );
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH ($bits(axi4_r_128b_t)),
+        .DEPTH      (16)
+    ) u_rd_rbuf_128b (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (dma0_master_128b_rvalid),
+        .wr_ready    (dma0_master_128b_rready),
+        .wr_data     (dma0_master_128b_r),
+        .rd_ready    (dma0_master_128b_rb_rready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (dma0_master_128b_rb_rvalid),
+        .rd_data     (dma0_master_128b_rb_r)
     );
 
     // ================================================================
@@ -822,6 +930,13 @@ module bridge_4x4_rw_dma0_master_adapter
     logic conv_256b_rlast;
     logic conv_256b_rvalid;
 
+    // Write rate buffer (16 x 256b): the converter's wide side
+    // feeds it, and a burst of up to 16 beats reaches the crossbar only once
+    // it is buffered whole, so the shared slave's W runs at its full rate
+    // (bridge W2). Longer bursts pass through.
+    axi4_aw_t dma0_master_256b_rb_aw;
+    axi4_w_256b_t dma0_master_256b_rb_w;
+    logic dma0_master_256b_rb_awvalid, dma0_master_256b_rb_awready, dma0_master_256b_rb_wvalid, dma0_master_256b_rb_wready;
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(256),
@@ -862,25 +977,25 @@ module bridge_4x4_rw_dma0_master_adapter
         .s_axi_bready(fub_axi_bready && b_path_active_256b),
 
         // Master side (to crossbar)
-        .m_axi_awid(dma0_master_256b_aw.id),
-        .m_axi_awaddr(dma0_master_256b_aw.addr),
-        .m_axi_awlen(dma0_master_256b_aw.len),
-        .m_axi_awsize(dma0_master_256b_aw.size),
-        .m_axi_awburst(dma0_master_256b_aw.burst),
-        .m_axi_awlock(dma0_master_256b_aw.lock),
-        .m_axi_awcache(dma0_master_256b_aw.cache),
-        .m_axi_awprot(dma0_master_256b_aw.prot),
-        .m_axi_awqos(dma0_master_256b_aw.qos),
-        .m_axi_awregion(dma0_master_256b_aw.region),
-        .m_axi_awuser(dma0_master_256b_aw.user),
-        .m_axi_awvalid(dma0_master_256b_awvalid),
-        .m_axi_awready(dma0_master_256b_awready),
-        .m_axi_wdata(dma0_master_256b_w.data),
-        .m_axi_wstrb(dma0_master_256b_w.strb),
-        .m_axi_wlast(dma0_master_256b_w.last),
-        .m_axi_wuser(dma0_master_256b_w.user),
-        .m_axi_wvalid(dma0_master_256b_wvalid),
-        .m_axi_wready(dma0_master_256b_wready),
+        .m_axi_awid(dma0_master_256b_rb_aw.id),
+        .m_axi_awaddr(dma0_master_256b_rb_aw.addr),
+        .m_axi_awlen(dma0_master_256b_rb_aw.len),
+        .m_axi_awsize(dma0_master_256b_rb_aw.size),
+        .m_axi_awburst(dma0_master_256b_rb_aw.burst),
+        .m_axi_awlock(dma0_master_256b_rb_aw.lock),
+        .m_axi_awcache(dma0_master_256b_rb_aw.cache),
+        .m_axi_awprot(dma0_master_256b_rb_aw.prot),
+        .m_axi_awqos(dma0_master_256b_rb_aw.qos),
+        .m_axi_awregion(dma0_master_256b_rb_aw.region),
+        .m_axi_awuser(dma0_master_256b_rb_aw.user),
+        .m_axi_awvalid(dma0_master_256b_rb_awvalid),
+        .m_axi_awready(dma0_master_256b_rb_awready),
+        .m_axi_wdata(dma0_master_256b_rb_w.data),
+        .m_axi_wstrb(dma0_master_256b_rb_w.strb),
+        .m_axi_wlast(dma0_master_256b_rb_w.last),
+        .m_axi_wuser(dma0_master_256b_rb_w.user),
+        .m_axi_wvalid(dma0_master_256b_rb_wvalid),
+        .m_axi_wready(dma0_master_256b_rb_wready),
         .m_axi_bid(dma0_master_256b_b.id),
         .m_axi_bresp(dma0_master_256b_b.resp),
         .m_axi_buser(dma0_master_256b_b.user),
@@ -888,6 +1003,36 @@ module bridge_4x4_rw_dma0_master_adapter
         .m_axi_bready(dma0_master_256b_bready)
     );
 
+    bridge_wr_rate_buf #(
+        .AW_WIDTH        ($bits(axi4_aw_t)),
+        .W_WIDTH         ($bits(axi4_w_256b_t)),
+        .DEPTH           (16),
+        .AW_DEPTH        (4),
+        .MAX_OUTSTANDING (16)
+    ) u_wr_rbuf_256b (
+        .aclk      (aclk),
+        .aresetn   (aresetn),
+        .s_aw      (dma0_master_256b_rb_aw),
+        .s_awlen   (dma0_master_256b_rb_aw.len),
+        .s_awvalid (dma0_master_256b_rb_awvalid),
+        .s_awready (dma0_master_256b_rb_awready),
+        .s_w       (dma0_master_256b_rb_w),
+        .s_wlast   (dma0_master_256b_rb_w.last),
+        .s_wvalid  (dma0_master_256b_rb_wvalid),
+        .s_wready  (dma0_master_256b_rb_wready),
+        .m_aw      (dma0_master_256b_aw),
+        .m_awvalid (dma0_master_256b_awvalid),
+        .m_awready (dma0_master_256b_awready),
+        .m_w       (dma0_master_256b_w),
+        .m_wvalid  (dma0_master_256b_wvalid),
+        .m_wready  (dma0_master_256b_wready)
+    );
+
+    // Read rate buffer (16 x 256b): R is taken from the crossbar
+    // at the slave's full rate and drained at this master's narrow rate, so
+    // the shared slave's R is not held by a slow consumer (bridge W2).
+    axi4_r_256b_t dma0_master_256b_rb_r;
+    logic dma0_master_256b_rb_rvalid, dma0_master_256b_rb_rready;
     axi4_dwidth_converter_rd #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(256),
@@ -937,13 +1082,30 @@ module bridge_4x4_rw_dma0_master_adapter
         .m_axi_aruser(dma0_master_256b_ar.user),
         .m_axi_arvalid(dma0_master_256b_arvalid),
         .m_axi_arready(dma0_master_256b_arready),
-        .m_axi_rid(dma0_master_256b_r.id),
-        .m_axi_rdata(dma0_master_256b_r.data),
-        .m_axi_rresp(dma0_master_256b_r.resp),
-        .m_axi_rlast(dma0_master_256b_r.last),
-        .m_axi_ruser(dma0_master_256b_r.user),
-        .m_axi_rvalid(dma0_master_256b_rvalid),
-        .m_axi_rready(dma0_master_256b_rready)
+        .m_axi_rid(dma0_master_256b_rb_r.id),
+        .m_axi_rdata(dma0_master_256b_rb_r.data),
+        .m_axi_rresp(dma0_master_256b_rb_r.resp),
+        .m_axi_rlast(dma0_master_256b_rb_r.last),
+        .m_axi_ruser(dma0_master_256b_rb_r.user),
+        .m_axi_rvalid(dma0_master_256b_rb_rvalid),
+        .m_axi_rready(dma0_master_256b_rb_rready)
+    );
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH ($bits(axi4_r_256b_t)),
+        .DEPTH      (16)
+    ) u_rd_rbuf_256b (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (dma0_master_256b_rvalid),
+        .wr_ready    (dma0_master_256b_rready),
+        .wr_data     (dma0_master_256b_r),
+        .rd_ready    (dma0_master_256b_rb_rready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (dma0_master_256b_rb_rvalid),
+        .rd_data     (dma0_master_256b_rb_r)
     );
 
     // ================================================================

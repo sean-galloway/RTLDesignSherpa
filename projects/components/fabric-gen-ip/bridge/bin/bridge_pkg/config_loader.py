@@ -180,6 +180,22 @@ def _max_outstanding(value, config_path, where) -> int:
     return v
 
 
+_RATE_BUFFER_RANGE = (2, 256)
+
+
+def _rate_buffer(value, config_path, where) -> int:
+    """Validate a rate_buffer depth: 0 (off) or 2..256 wide beats. Any
+    integer: the buffer is a gaxi_fifo_sync, which takes any depth."""
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{config_path}: {where} rate_buffer must be an integer, got {value!r}")
+    lo, hi = _RATE_BUFFER_RANGE
+    if v != 0 and not (lo <= v <= hi):
+        raise ValueError(f"{config_path}: {where} rate_buffer must be 0 (off) or {lo}..{hi}, got {v}")
+    return v
+
+
 def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool]:
     """
     Parse port data from loaded config (YAML or TOML).
@@ -199,6 +215,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     bridge_data = data.get('bridge')
     _mo_default = _max_outstanding(
         (bridge_data or {}).get('max_outstanding', 16), config_path, '[bridge]')
+    _rb_default = _rate_buffer(
+        (bridge_data or {}).get('rate_buffer', 16), config_path, '[bridge]')
     from .config import _DEFAULT_SKID_DEPTHS
     _skid_base = _skid_depths(_DEFAULT_SKID_DEPTHS,
                               ((bridge_data or {}).get('defaults') or {}).get('skid_depths'),
@@ -307,6 +325,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             cdc=bool(m.get('cdc', False)),
             max_outstanding=_max_outstanding(
                 m.get('max_outstanding', _mo_default), config_path, f"master '{port_name}'"),
+            rate_buffer=_rate_buffer(
+                m.get('rate_buffer', _rb_default), config_path, f"master '{port_name}'"),
         )
         port.latency, port.skid_depths = _port_timing(
             m, protocol, port.cdc, _skid_base, config_path, f"master '{port_name}'")

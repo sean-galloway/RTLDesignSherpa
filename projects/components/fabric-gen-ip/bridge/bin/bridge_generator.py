@@ -816,6 +816,7 @@ def _emit_bridge_variant(
             # drops the unused detection cones at synthesis.
             mon_enables=master_spec.get_mon_enables(config.mon_preset),
             max_outstanding=getattr(master_spec, 'max_outstanding', 16),
+            rate_buffer=getattr(master_spec, 'rate_buffer', 16),
             skid_depths=dict(getattr(master_spec, 'skid_depths', {}) or {}),
             cdc=bool(getattr(master_spec, 'cdc', False)),
         )
@@ -1216,6 +1217,16 @@ def _emit_bridge_variant(
         filelist_lines.append("# AXI5 boundary wrappers (slaves with protocol=axi5).")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_master_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_master_rd.f")
+
+    # Rate-matching buffers (bridge W2): on a master's upsized burst path
+    # into a shared slave. Listed whenever a master that has one is narrower
+    # than some slave -- a superset of where the adapter instantiates it.
+    max_slave_dw = max((s.data_width for s in config.slaves), default=0)
+    if any(int(getattr(m, 'rate_buffer', 0) or 0) and m.data_width < max_slave_dw
+           for m in config.masters):
+        filelist_lines.append("")
+        filelist_lines.append("# Rate-matching buffers on upsized paths into shared slaves (bridge W2)")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_wr_rate_buf.f")
 
     filelist_lines.append("")
     filelist_lines.append("# GAXI skid buffers (used by wrappers and converters)")

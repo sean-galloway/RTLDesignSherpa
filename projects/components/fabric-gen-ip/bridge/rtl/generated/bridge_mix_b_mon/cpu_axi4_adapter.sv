@@ -780,6 +780,13 @@ module bridge_mix_b_mon_cpu_axi4_adapter
     logic conv_128b_rlast;
     logic conv_128b_rvalid;
 
+    // Write rate buffer (16 x 128b): the converter's wide side
+    // feeds it, and a burst of up to 16 beats reaches the crossbar only once
+    // it is buffered whole, so the shared slave's W runs at its full rate
+    // (bridge W2). Longer bursts pass through.
+    axi4_aw_t cpu_axi4_128b_rb_aw;
+    axi4_w_128b_t cpu_axi4_128b_rb_w;
+    logic cpu_axi4_128b_rb_awvalid, cpu_axi4_128b_rb_awready, cpu_axi4_128b_rb_wvalid, cpu_axi4_128b_rb_wready;
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(64),
         .M_AXI_DATA_WIDTH(128),
@@ -820,25 +827,25 @@ module bridge_mix_b_mon_cpu_axi4_adapter
         .s_axi_bready(fub_axi_bready && b_path_active_128b),
 
         // Master side (to crossbar)
-        .m_axi_awid(cpu_axi4_128b_aw.id),
-        .m_axi_awaddr(cpu_axi4_128b_aw.addr),
-        .m_axi_awlen(cpu_axi4_128b_aw.len),
-        .m_axi_awsize(cpu_axi4_128b_aw.size),
-        .m_axi_awburst(cpu_axi4_128b_aw.burst),
-        .m_axi_awlock(cpu_axi4_128b_aw.lock),
-        .m_axi_awcache(cpu_axi4_128b_aw.cache),
-        .m_axi_awprot(cpu_axi4_128b_aw.prot),
-        .m_axi_awqos(cpu_axi4_128b_aw.qos),
-        .m_axi_awregion(cpu_axi4_128b_aw.region),
-        .m_axi_awuser(cpu_axi4_128b_aw.user),
-        .m_axi_awvalid(cpu_axi4_128b_awvalid),
-        .m_axi_awready(cpu_axi4_128b_awready),
-        .m_axi_wdata(cpu_axi4_128b_w.data),
-        .m_axi_wstrb(cpu_axi4_128b_w.strb),
-        .m_axi_wlast(cpu_axi4_128b_w.last),
-        .m_axi_wuser(cpu_axi4_128b_w.user),
-        .m_axi_wvalid(cpu_axi4_128b_wvalid),
-        .m_axi_wready(cpu_axi4_128b_wready),
+        .m_axi_awid(cpu_axi4_128b_rb_aw.id),
+        .m_axi_awaddr(cpu_axi4_128b_rb_aw.addr),
+        .m_axi_awlen(cpu_axi4_128b_rb_aw.len),
+        .m_axi_awsize(cpu_axi4_128b_rb_aw.size),
+        .m_axi_awburst(cpu_axi4_128b_rb_aw.burst),
+        .m_axi_awlock(cpu_axi4_128b_rb_aw.lock),
+        .m_axi_awcache(cpu_axi4_128b_rb_aw.cache),
+        .m_axi_awprot(cpu_axi4_128b_rb_aw.prot),
+        .m_axi_awqos(cpu_axi4_128b_rb_aw.qos),
+        .m_axi_awregion(cpu_axi4_128b_rb_aw.region),
+        .m_axi_awuser(cpu_axi4_128b_rb_aw.user),
+        .m_axi_awvalid(cpu_axi4_128b_rb_awvalid),
+        .m_axi_awready(cpu_axi4_128b_rb_awready),
+        .m_axi_wdata(cpu_axi4_128b_rb_w.data),
+        .m_axi_wstrb(cpu_axi4_128b_rb_w.strb),
+        .m_axi_wlast(cpu_axi4_128b_rb_w.last),
+        .m_axi_wuser(cpu_axi4_128b_rb_w.user),
+        .m_axi_wvalid(cpu_axi4_128b_rb_wvalid),
+        .m_axi_wready(cpu_axi4_128b_rb_wready),
         .m_axi_bid(cpu_axi4_128b_b.id),
         .m_axi_bresp(cpu_axi4_128b_b.resp),
         .m_axi_buser(cpu_axi4_128b_b.user),
@@ -846,6 +853,36 @@ module bridge_mix_b_mon_cpu_axi4_adapter
         .m_axi_bready(cpu_axi4_128b_bready)
     );
 
+    bridge_wr_rate_buf #(
+        .AW_WIDTH        ($bits(axi4_aw_t)),
+        .W_WIDTH         ($bits(axi4_w_128b_t)),
+        .DEPTH           (16),
+        .AW_DEPTH        (4),
+        .MAX_OUTSTANDING (16)
+    ) u_wr_rbuf_128b (
+        .aclk      (aclk),
+        .aresetn   (aresetn),
+        .s_aw      (cpu_axi4_128b_rb_aw),
+        .s_awlen   (cpu_axi4_128b_rb_aw.len),
+        .s_awvalid (cpu_axi4_128b_rb_awvalid),
+        .s_awready (cpu_axi4_128b_rb_awready),
+        .s_w       (cpu_axi4_128b_rb_w),
+        .s_wlast   (cpu_axi4_128b_rb_w.last),
+        .s_wvalid  (cpu_axi4_128b_rb_wvalid),
+        .s_wready  (cpu_axi4_128b_rb_wready),
+        .m_aw      (cpu_axi4_128b_aw),
+        .m_awvalid (cpu_axi4_128b_awvalid),
+        .m_awready (cpu_axi4_128b_awready),
+        .m_w       (cpu_axi4_128b_w),
+        .m_wvalid  (cpu_axi4_128b_wvalid),
+        .m_wready  (cpu_axi4_128b_wready)
+    );
+
+    // Read rate buffer (16 x 128b): R is taken from the crossbar
+    // at the slave's full rate and drained at this master's narrow rate, so
+    // the shared slave's R is not held by a slow consumer (bridge W2).
+    axi4_r_128b_t cpu_axi4_128b_rb_r;
+    logic cpu_axi4_128b_rb_rvalid, cpu_axi4_128b_rb_rready;
     axi4_dwidth_converter_rd #(
         .S_AXI_DATA_WIDTH(64),
         .M_AXI_DATA_WIDTH(128),
@@ -895,13 +932,30 @@ module bridge_mix_b_mon_cpu_axi4_adapter
         .m_axi_aruser(cpu_axi4_128b_ar.user),
         .m_axi_arvalid(cpu_axi4_128b_arvalid),
         .m_axi_arready(cpu_axi4_128b_arready),
-        .m_axi_rid(cpu_axi4_128b_r.id),
-        .m_axi_rdata(cpu_axi4_128b_r.data),
-        .m_axi_rresp(cpu_axi4_128b_r.resp),
-        .m_axi_rlast(cpu_axi4_128b_r.last),
-        .m_axi_ruser(cpu_axi4_128b_r.user),
-        .m_axi_rvalid(cpu_axi4_128b_rvalid),
-        .m_axi_rready(cpu_axi4_128b_rready)
+        .m_axi_rid(cpu_axi4_128b_rb_r.id),
+        .m_axi_rdata(cpu_axi4_128b_rb_r.data),
+        .m_axi_rresp(cpu_axi4_128b_rb_r.resp),
+        .m_axi_rlast(cpu_axi4_128b_rb_r.last),
+        .m_axi_ruser(cpu_axi4_128b_rb_r.user),
+        .m_axi_rvalid(cpu_axi4_128b_rb_rvalid),
+        .m_axi_rready(cpu_axi4_128b_rb_rready)
+    );
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH ($bits(axi4_r_128b_t)),
+        .DEPTH      (16)
+    ) u_rd_rbuf_128b (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (cpu_axi4_128b_rvalid),
+        .wr_ready    (cpu_axi4_128b_rready),
+        .wr_data     (cpu_axi4_128b_r),
+        .rd_ready    (cpu_axi4_128b_rb_rready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .rd_valid    (cpu_axi4_128b_rb_rvalid),
+        .rd_data     (cpu_axi4_128b_rb_r)
     );
 
     // ================================================================

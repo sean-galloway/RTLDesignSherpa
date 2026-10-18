@@ -353,7 +353,51 @@ Three things drive the cost:
   Throughput halved (crossbar becomes bottleneck)
 ```
 
-Upsizing is free; downsizing costs you the width ratio. Keep that asymmetry in mind when you pick port widths.
+Downsizing costs you the width ratio. Upsizing is free for the narrow master
+itself -- but not, on its own, for a slave it SHARES: once the narrow master's
+AW is picked, the slave's W channel belongs to its burst, and the converter
+can only fill one wide beat every R cycles (R the width ratio), so the slave
+idles R-1 cycles in R for the whole burst while every other master waits. A
+64-bit slave shared between a 64-bit and a 32-bit master ran at 0.80 of its
+beats on writes and 0.93 on reads (`bridge_4x4_rw`, both masters saturating).
+The rate-matching buffer below removes that.
+
+### Rate-Matching Buffer (Shared Slaves)
+
+On a master's **upsized** burst path into a slave that another master also
+reaches, the master adapter puts a buffer of `rate_buffer` wide beats
+(default 16) between the converter's wide side and the crossbar:
+
+- **Writes** -- `bridge_wr_rate_buf` (hand-written, `rtl/`; proof
+  `formal/bridge/bridge_wr_rate_buf/`). Each AW is held until its burst's W
+  beats are all buffered, then offered; when picked, the burst streams at the
+  slave's full rate. A burst longer than the buffer is offered at once and
+  runs as before (its W can drain only after its AW is picked, so holding it
+  would deadlock). Holding an AW cannot cross another master's W: the burst's
+  W has already left the master's single W stream. One signed counter --
+  WLASTs buffered minus AWs released -- decides release: W and AW are both in
+  burst order, and a long burst cannot complete before it is released.
+- **Reads** -- a `gaxi_fifo_sync` of the same depth on R: the slave's beats
+  are taken at its full rate and drained into the converter at the narrow
+  rate.
+
+Measured on `bridge_4x4_rw`, both masters saturating ddr0, the slave's beat
+rate inside the window where both are active:
+
+| | writes | reads |
+|---|---:|---:|
+| no buffer | 0.80 | 0.93 |
+| `rate_buffer = 16` | 0.995 | 1.000 |
+
+: Shared 64-bit slave, 64-bit and 32-bit masters contending (GATE)
+
+Cost: `rate_buffer` x slave-width bits per buffered direction, plus latency
+on the narrow master -- a held write waits for its burst to arrive at the
+narrow rate, and the buffered paths' single-beat round trip is one cycle
+longer (12 against 11 on the 4x4's upsize paths). With few writes in flight
+that latency bounds the narrow master's own share. Paths that are not upsized,
+or whose slaves no other master reaches, get no buffer; `rate_buffer = 0`
+(per master, or `[bridge]`) turns it off.
 
 ## 2.6.10 Configuration Parameters
 
@@ -368,6 +412,7 @@ enable_width_conversion = true  # Allow width differences
 name = "cpu_32bit"
 data_width = 32                 # Narrower than crossbar (upsizing)
 addr_width = 32
+rate_buffer = 16                # wide beats; 0 = off; [bridge].rate_buffer sets the default
 
 [[bridge.masters]]
 name = "dma_64bit"

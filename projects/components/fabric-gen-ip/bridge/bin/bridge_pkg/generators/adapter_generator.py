@@ -126,6 +126,9 @@ class MasterConfig:
     axi5_features: Optional[List[str]] = None
     # Tracker depth / outstanding limit per direction (PortSpec.max_outstanding).
     max_outstanding: int = 16
+    # Rate-matching buffer depth, wide beats, on upsized paths into a shared
+    # slave (PortSpec.rate_buffer; 0 = off).
+    rate_buffer: int = 16
     # Timing-wrapper skid depths {aw,w,b,ar,r}; 0 = stage cut (PortSpec.latency)
     skid_depths: Optional[Dict[str, int]] = None
     # Own clock domain (GitHub #119 L2): the bridge top gains `<name>_aclk` /
@@ -2717,6 +2720,27 @@ class AdapterGenerator:
 
         return lines
 
+    def _rate_buffer_depth(self, slave_width: int, use_aligner: bool) -> int:
+        """Wide beats of rate-matching buffer on this width path, or 0.
+
+        Only an UPSIZED burst path into a slave that another master also
+        reaches: there the shared slave's channel would otherwise run at
+        this master's narrow rate for the whole burst (bridge W2). A slave
+        this master has to itself loses nothing to the narrow rate, and the
+        single-beat aligners (AXI4-Lite / APB / WB4 requesters) have no
+        burst to buffer."""
+        depth = int(getattr(self.master, 'rate_buffer', 0) or 0)
+        if depth == 0 or use_aligner or self.master.data_width >= slave_width:
+            return 0
+        for si in self.master.slave_connections:
+            sl = self.slaves[si]
+            if sl.data_width != slave_width:
+                continue
+            sharers = sum(1 for m in self.all_masters if si in m.slave_connections)
+            if sharers >= 2:
+                return depth
+        return 0
+
     def _generate_converter_instance(self, slave_width: int) -> List[str]:
         """Generate width converter instance for mismatched width with proper signal isolation."""
         lines = []
@@ -2797,14 +2821,52 @@ class AdapterGenerator:
                     b_intercept_prefix=f'conv_{suffix}',
                     bready_expr=f'fub_axi_bready && b_path_active_{slave_width}b',
                 )
+                rb = self._rate_buffer_depth(slave_width, use_aligner)
+                rbp = f'{struct_prefix}_rb'
                 conv_wr.connect_m_axi_write(
                     struct_prefix=struct_prefix,
-                    valid_signal=f'{struct_prefix}_awvalid',
-                    ready_signal=f'{struct_prefix}_awready',
+                    valid_signal=(f'{rbp}_awvalid' if rb else f'{struct_prefix}_awvalid'),
+                    ready_signal=(f'{rbp}_awready' if rb else f'{struct_prefix}_awready'),
                     bvalid_signal=f'{struct_prefix}_bvalid',
                     bready_signal=f'{struct_prefix}_bready',
+                    aw_w_prefix=(rbp if rb else None),
                 )
+                if rb:
+                    lines.append(f"    // Write rate buffer ({rb} x {slave_width}b): the converter's wide side")
+                    lines.append(f"    // feeds it, and a burst of up to {rb} beats reaches the crossbar only once")
+                    lines.append(f"    // it is buffered whole, so the shared slave's W runs at its full rate")
+                    lines.append(f"    // (bridge W2). Longer bursts pass through.")
+                    lines.append(f"    axi4_aw_t {rbp}_aw;")
+                    lines.append(f"    axi4_w_{suffix}_t {rbp}_w;")
+                    lines.append(f"    logic {rbp}_awvalid, {rbp}_awready, {rbp}_wvalid, {rbp}_wready;")
                 lines.extend(conv_wr.generate_lines())
+                if rb:
+                    mo = int(getattr(self.master, 'max_outstanding', 16))
+                    lines.append(f"    bridge_wr_rate_buf #(")
+                    lines.append(f"        .AW_WIDTH        ($bits(axi4_aw_t)),")
+                    lines.append(f"        .W_WIDTH         ($bits(axi4_w_{suffix}_t)),")
+                    lines.append(f"        .DEPTH           ({rb}),")
+                    lines.append(f"        .AW_DEPTH        (4),")
+                    lines.append(f"        .MAX_OUTSTANDING ({mo})")
+                    lines.append(f"    ) u_wr_rbuf_{suffix} (")
+                    lines.append(f"        .aclk      (aclk),")
+                    lines.append(f"        .aresetn   (aresetn),")
+                    lines.append(f"        .s_aw      ({rbp}_aw),")
+                    lines.append(f"        .s_awlen   ({rbp}_aw.len),")
+                    lines.append(f"        .s_awvalid ({rbp}_awvalid),")
+                    lines.append(f"        .s_awready ({rbp}_awready),")
+                    lines.append(f"        .s_w       ({rbp}_w),")
+                    lines.append(f"        .s_wlast   ({rbp}_w.last),")
+                    lines.append(f"        .s_wvalid  ({rbp}_wvalid),")
+                    lines.append(f"        .s_wready  ({rbp}_wready),")
+                    lines.append(f"        .m_aw      ({struct_prefix}_aw),")
+                    lines.append(f"        .m_awvalid ({struct_prefix}_awvalid),")
+                    lines.append(f"        .m_awready ({struct_prefix}_awready),")
+                    lines.append(f"        .m_w       ({struct_prefix}_w),")
+                    lines.append(f"        .m_wvalid  ({struct_prefix}_wvalid),")
+                    lines.append(f"        .m_wready  ({struct_prefix}_wready)")
+                    lines.append(f"    );")
+                    lines.append("")
 
         # Read converter
         if self.master.channels in ["rd", "rw"]:
@@ -2834,14 +2896,41 @@ class AdapterGenerator:
                     r_intercept_prefix=f'conv_{suffix}',
                     rready_expr=f'fub_axi_rready && r_path_active_{slave_width}b',
                 )
+                rb = self._rate_buffer_depth(slave_width, use_aligner)
+                rbp = f'{struct_prefix}_rb'
                 conv_rd.connect_m_axi_read(
                     struct_prefix=struct_prefix,
                     arvalid_signal=f'{struct_prefix}_arvalid',
                     arready_signal=f'{struct_prefix}_arready',
-                    rvalid_signal=f'{struct_prefix}_rvalid',
-                    rready_signal=f'{struct_prefix}_rready',
+                    rvalid_signal=(f'{rbp}_rvalid' if rb else f'{struct_prefix}_rvalid'),
+                    rready_signal=(f'{rbp}_rready' if rb else f'{struct_prefix}_rready'),
+                    r_prefix=(rbp if rb else None),
                 )
+                if rb:
+                    lines.append(f"    // Read rate buffer ({rb} x {slave_width}b): R is taken from the crossbar")
+                    lines.append(f"    // at the slave's full rate and drained at this master's narrow rate, so")
+                    lines.append(f"    // the shared slave's R is not held by a slow consumer (bridge W2).")
+                    lines.append(f"    axi4_r_{suffix}_t {rbp}_r;")
+                    lines.append(f"    logic {rbp}_rvalid, {rbp}_rready;")
                 lines.extend(conv_rd.generate_lines())
+                if rb:
+                    lines.append(f"    gaxi_fifo_sync #(")
+                    lines.append(f"        .DATA_WIDTH ($bits(axi4_r_{suffix}_t)),")
+                    lines.append(f"        .DEPTH      ({rb})")
+                    lines.append(f"    ) u_rd_rbuf_{suffix} (")
+                    lines.append(f"        .axi_aclk    (aclk),")
+                    lines.append(f"        .axi_aresetn (aresetn),")
+                    lines.append(f"        .wr_valid    ({struct_prefix}_rvalid),")
+                    lines.append(f"        .wr_ready    ({struct_prefix}_rready),")
+                    lines.append(f"        .wr_data     ({struct_prefix}_r),")
+                    lines.append(f"        .rd_ready    ({rbp}_rready),")
+                    lines.append(f"        /* verilator lint_off PINCONNECTEMPTY */")
+                    lines.append(f"        .count       (),")
+                    lines.append(f"        /* verilator lint_on PINCONNECTEMPTY */")
+                    lines.append(f"        .rd_valid    ({rbp}_rvalid),")
+                    lines.append(f"        .rd_data     ({rbp}_r)")
+                    lines.append(f"    );")
+                    lines.append("")
 
         return lines
 

@@ -193,12 +193,16 @@ class Axi4DwidthConverter:
 
     def connect_m_axi_write(self, struct_prefix: str,
                             valid_signal: str, ready_signal: str,
-                            bvalid_signal: str, bready_signal: str) -> None:
+                            bvalid_signal: str, bready_signal: str,
+                            aw_w_prefix: str = None) -> None:
         """Wire the m_axi-side write channels to the per-width crossbar
         input. `struct_prefix` is the path that owns `.id`/.addr` etc.
         (e.g. 'cpu_master_256b_aw' -- the AW struct -- and similarly
         '_w' / '_b' substituted internally). `valid_signal` /
-        `ready_signal` are the scalar valid/ready going to the xbar."""
+        `ready_signal` are the scalar valid/ready going to the xbar.
+        `aw_w_prefix`, when given, takes AW and W (structs and the W
+        valid/ready) instead -- a rate buffer between the converter and the
+        crossbar; B stays on `struct_prefix`."""
         if self.direction != 'wr':
             raise RuntimeError("connect_m_axi_write requires direction='wr'")
         aw = struct_prefix.replace('_aw', '_aw')   # alias, kept readable
@@ -206,7 +210,8 @@ class Axi4DwidthConverter:
         # the AW struct is f'{struct_prefix}_aw'
         # the W struct is f'{struct_prefix}_w'
         # the B struct is f'{struct_prefix}_b'
-        sp = struct_prefix
+        sp = aw_w_prefix or struct_prefix
+        bp = struct_prefix
         pairs = [
             ('m_axi_awid', f'{sp}_aw.id'),
             ('m_axi_awaddr', f'{sp}_aw.addr'),
@@ -227,9 +232,9 @@ class Axi4DwidthConverter:
             ('m_axi_wuser', f'{sp}_w.user'),
             ('m_axi_wvalid', f'{sp}_wvalid'),
             ('m_axi_wready', f'{sp}_wready'),
-            ('m_axi_bid', f'{sp}_b.id'),
-            ('m_axi_bresp', f'{sp}_b.resp'),
-            ('m_axi_buser', f'{sp}_b.user'),
+            ('m_axi_bid', f'{bp}_b.id'),
+            ('m_axi_bresp', f'{bp}_b.resp'),
+            ('m_axi_buser', f'{bp}_b.user'),
             ('m_axi_bvalid', bvalid_signal),
             ('m_axi_bready', bready_signal),
         ]
@@ -237,10 +242,14 @@ class Axi4DwidthConverter:
 
     def connect_m_axi_read(self, struct_prefix: str,
                            arvalid_signal: str, arready_signal: str,
-                           rvalid_signal: str, rready_signal: str) -> None:
+                           rvalid_signal: str, rready_signal: str,
+                           r_prefix: str = None) -> None:
+        """`r_prefix`, when given, takes the R struct (a rate buffer between
+        the crossbar and the converter); AR stays on `struct_prefix`."""
         if self.direction != 'rd':
             raise RuntimeError("connect_m_axi_read requires direction='rd'")
         sp = struct_prefix
+        rp = r_prefix or struct_prefix
         pairs = [
             ('m_axi_arid', f'{sp}_ar.id'),
             ('m_axi_araddr', f'{sp}_ar.addr'),
@@ -255,11 +264,11 @@ class Axi4DwidthConverter:
             ('m_axi_aruser', f'{sp}_ar.user'),
             ('m_axi_arvalid', arvalid_signal),
             ('m_axi_arready', arready_signal),
-            ('m_axi_rid', f'{sp}_r.id'),
-            ('m_axi_rdata', f'{sp}_r.data'),
-            ('m_axi_rresp', f'{sp}_r.resp'),
-            ('m_axi_rlast', f'{sp}_r.last'),
-            ('m_axi_ruser', f'{sp}_r.user'),
+            ('m_axi_rid', f'{rp}_r.id'),
+            ('m_axi_rdata', f'{rp}_r.data'),
+            ('m_axi_rresp', f'{rp}_r.resp'),
+            ('m_axi_rlast', f'{rp}_r.last'),
+            ('m_axi_ruser', f'{rp}_r.user'),
             ('m_axi_rvalid', rvalid_signal),
             ('m_axi_rready', rready_signal),
         ]

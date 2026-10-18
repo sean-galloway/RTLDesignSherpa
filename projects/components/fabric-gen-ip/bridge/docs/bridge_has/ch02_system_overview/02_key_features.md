@@ -125,7 +125,10 @@ Generate all five channels for complete read/write capability.
 
 Bridge automatically inserts width converters:
 
-- **Upsize** - Narrow master to wide slave (e.g., 64b to 512b)
+- **Upsize** - Narrow master to wide slave (e.g., 64b to 512b). Into a slave
+  other masters share, a rate-matching buffer (`rate_buffer`, default 16 wide
+  beats) keeps that slave at its full rate during the narrow master's bursts
+  (MAS 2.6)
 - **Downsize** - Wide master to narrow slave (e.g., 512b to 32b)
 - **Per-path** - Only where needed, not global conversion
 

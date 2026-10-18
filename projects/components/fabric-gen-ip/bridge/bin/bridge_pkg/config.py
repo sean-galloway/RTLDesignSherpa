@@ -166,6 +166,13 @@ class PortSpec:
     # (bridge_cam or in-order FIFO) depth. Power of two, 2..64. Resolved
     # in config_loader from the port key or [bridge].max_outstanding.
     max_outstanding: int = 16
+    # Rate-matching buffer (bridge W2) on a master's UPSIZED path into a
+    # slave other masters share, in wide beats: a write burst that fits is
+    # released to the crossbar only once it is buffered whole, and reads are
+    # taken at the slave's full rate, so a narrow master does not hold the
+    # shared slave at its own rate. 0 = off. Resolved in config_loader from
+    # the port key or [bridge].rate_buffer. Masters only.
+    rate_buffer: int = 16
     # Per-port pipeline stages (bridge GitHub #119 L7). latency picks which
     # channels of the port's timing wrapper are registered: "cut_all" (every
     # channel, the default), "cut_ax" (AW/AR only), "cut_none" (pass-through,
