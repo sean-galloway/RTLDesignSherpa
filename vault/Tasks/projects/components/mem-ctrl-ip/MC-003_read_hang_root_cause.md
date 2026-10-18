@@ -470,3 +470,147 @@ Verified: gap tREFI 100/200/400/585 4/4; store-arbiter contract, granite top
 (2+1xfail), uart smoke PASS. Pumice `run-all-func` moved 7 failed -> 6
 failed (211 passed): the shave fixed one of the six pre-existing BUG-027
 perf-shape cells; no new failures (see tracker).
+
+## 11. Session 2026-10-17 (night) — board-blocker timing debt on the per-bank core (N=4 build)
+
+### 11.1 The failure
+
+The first per-bank-core Vivado build checked for timing (N=4, `make bitstream`
+in `targets/granite`, 64 min, 75 MHz w_sys_i @ 13.333 ns) **fails setup**:
+
+| Clock | WNS (ns) | TNS (ns) | Failing endpoints | Total endpoints |
+|---|---|---|---|---|
+| `w_sys_i` (75 MHz) | **−5.929** | **−11,714.162** | **3,725** | 73,766 |
+| `sys_clk_pin` (100 MHz pin domain) | +9.262 | 0 | 0 | 1 |
+
+Hold is clean (WHS +0.025). Reports archived at
+`targets/granite/fpga/reports_n4_2026-10-17/`. **The N=4 bitstream at
+`targets/granite/fpga/bitstream/ddr2_char.bit` must NOT be programmed.**
+
+All 12 worst paths are ONE class (worst-path dump
+`reports_n4_2026-10-17/timing_worst.txt`, routed checkpoint): entry-store
+control registers (`r_wr_sched[2]`, `r_rd_older[4][2]`, `r_rd_bank[0][0]`,
+`r_wr_valid[0]`) → cross-plane FIFO control/write ports (sched `u_cmd_fifo`
+LUTRAM write port, axi `u_rd_ring/u_issue_q` RAM ports and `rd_empty`, axi
+`u_wr_drain_q` `rd_empty`). 19.4 ns data path, 22 logic levels, ~80% routing
+delay. **None of the 12 traverse the §8–§10 edited logic** — this is the
+MC-003 0-stage "pick == fire" per-bank structure itself: the head-view /
+skid-bypass cone fans out of the entry store across all three planes in one
+cycle. Pre-existing; the functional fixes of §8–§10 are timing-orthogonal.
+
+### 11.2 The "100 MHz pass" was an artifact
+
+Tracker §2026-10-15 records "100 MHz pass WNS +9.26" for the per-bank core.
+That number fingerprint-matches today's trivial `sys_clk_pin` input-pin
+domain: WNS **+9.262**, exactly **1 endpoint** — versus the 73,766-endpoint
+`w_sys_i` domain at −5.929. The pass recorded the wrong row of the clock
+table. Honest state: **per-bank-core `w_sys_i` timing was never verified
+green**; the Oct 14–15 board bits ran unchecked-timing builds. (The FRFCFS
+core's clean timing pass is genuine and remains the only board-safe core
+today.)
+
+### 11.3 N=4 depth verdict (side experiment)
+
+`GRANITE_SEAM_N` 8→4 at owner request: perf proxy **byte-identical** to N=8
+across all four families (zero perf cost), but area strictly worse — entry
+store +1,114 LUT, u_core 9,528 vs 8,340 placed-to-placed. Depth 4 reverted to
+8 (`granite_pkg.sv`, committed `c4c59d7b2`).
+
+### 11.4 Area workbook
+
+`ddr2-characterization/char_results/area_granite_vs_litedram_2026-10-17.xlsx`
+(4 sheets). Concentration: entry store 140 LUT (FRFCFS) → 4,725 (per-bank
+N=8) → 5,839 (N=4) — the per-bank head-view structure, not entry count.
+
+### 11.5 Attack (owner picked option 1, then option 2)
+
+1. **Retry 1 (done, INSUFFICIENT):** same N=4 netlist from the `opt`
+   checkpoint with congestion-focused directives — `place_design -directive
+   AltSpreadLogic_high` → `phys_opt_design -directive Explore` → `route_design
+   -directive Explore` → post-route `phys_opt_design -directive
+   AggressiveExplore`. WNS −5.929 → −5.672 ns, TNS −11,714 → −11,054,
+   failing endpoints 3,725 → 3,641: the class is identical (21 levels, 79%
+   routing) and placement is not the lever. Reports in `reports_retry1/`.
+2. Retime (implemented — see §12): a one-deep **seat pending stage** inside
+   `mc_bank_sched`, not output registers on the store. Recon had flagged
+   that the worst class also contains an internal store path; the pending
+   cut keeps the LIVE view as the authority, which a registered store view
+   could not do without opening a one-cycle out-of-order shadow during fill
+   promotions.
+3. Board-safe fallback meanwhile: FRFCFS core (the only honest timing pass).
+
+## 12. Session 2026-10-18 — seat-pending retime of mc_bank_sched: the 21-level cone broken
+
+### 12.1 Design
+
+The failing class was ONE single-cycle cone: store entry arrays →
+combinational per-bank head scan (`mc_xddr2_entry_store.sv:746–812`) →
+cross-plane → `wr_cand`/`rd_cand` zero-load bypass → op decode → rotor →
+fire stage → command encode → `u_cmd_fifo` write port (and the same fire
+fanning back into the store's commit register and the AXI plane issue
+FIFOs). 21 logic levels, 19.4 ns, 79% routing.
+
+The cut: **a one-deep pending stage (`r_wp`/`r_rp`) inside `mc_bank_sched` is
+now the skid's ONLY seat source.** The store is untouched — the head views
+stay purely combinational and remain the live authority:
+
+- `wr_cand`/`rd_cand` return the skid only; the live-view bypass is gone, so
+  decode can never run straight off the scan in one cycle.
+- The pending stage captures the live view while the skid is empty and is
+  **consumed or stale-dropped the cycle after capture**, so its fields can
+  never be recycled underneath a seat (the freed-slot-reuse hazard that
+  motivated the 2026-10-15 stale machinery).
+- Seats are additionally gated on the LIVE view: `bh_valid && !wp_stale`.
+- Both skid and pending are stale-checked against the live view EVERY cycle
+  (slot+row compare, exactly the pre-existing `w_ws_stale` semantics) — the
+  fill-promotion shadow that a registered store view would have introduced
+  cannot fire a non-head column, because the authority comparison is still
+  combinational-now.
+- The column-fire reserve seat (second-oldest `bh2`) is UNCHANGED: a bank
+  with ≥2 schedulable entries keeps 1 command/cycle with zero added latency.
+- Cold start (skid drained empty, successor not yet visible at fire time)
+  pays +1 cycle of seat latency — expected to hide inside JEDEC gaps.
+
+Cost: +2 head_t register arrays (8 banks × 2 dirs × ~37 bits ≈ 600 FF).
+
+### 12.2 Battery (all green)
+
+- `test_granite_bankfifo_debug` PASS; `test_mc_store_arbiter_contract`
+  (N=8, real arbiter) PASS; `test_granite_top_geared` 2 passed + 1 xfailed
+  (identical to baseline); uart smoke PASS; gap tREFI 100/200/400/585 4/4
+  PASS; pumice `run-all-func` 6 failed / 211 passed — byte-identical to the
+  pre-change baseline (granite-only change, no movement).
+
+### 12.3 Perf proxy A/B (txn=1024, tREFI=585, mism=0 everywhere)
+
+| family | baseline (b409f364e) wr/rd | retime wr/rd | delta |
+|---|---|---|---|
+| incremental | 575.8 / 516.4 | 575.8 / 512.1 | 0 / −4.3 |
+| row_major | 579.8 / 563.4 | 578.4 / 562.1 | −1.4 / −1.3 |
+| col_ilv | 475.4 / 348.1 | 474.3 / 350.8 | −1.1 / +2.7 |
+| col_major | 311.0 / 351.0 | **311.0 / 351.0** | 0 / 0 |
+
+The +1-cycle cold seat hides entirely in the JEDEC gaps: worst family delta
+is incremental rd −4.3 MB/s (−0.8%), col_major is byte-identical, col_ilv rd
+improved. row_major wr gate (≥570) held at 578.4.
+
+### 12.4 Board closure
+
+Vivado N=8 rebuild with the retimed core (2026-10-18 05:52): **WNS −1.346 ns,
+TNS −1,415.6, 1,814 failing endpoints** on `w_sys_i` (from −5.929 / −11,714 /
+3,725 pre-retime — 78% of the debt gone). The single 21-level class is broken;
+the residual is spread: `r_rd_valid` → head-scan → live-stale compare →
+fire → `u_cmd_fifo` WE (the authority gate re-admits the scan into the fire
+cycle, ~8 levels shorter than before), plus the `bh2` reserve → skid-seat
+paths and the fire → bank-timer `evt_*` load paths. Reports archived at
+`reports_retime_2026-10-18/`. The retimed bitstream at
+`targets/granite/fpga/bitstream/ddr2_char.bit` still MUST NOT be programmed
+(timing red).
+
+Retry 2 (`reports_retry2/`): same congestion-directive recipe as §11.5(1)
+but on the SOUND netlist — placement failed the broken structure by 0.26 ns;
+on the retimed structure the remaining −1.35 ns is route-heavy cross-plane,
+where spread placement has real leverage. If insufficient: next RTL cut is a
+pipeline register on the scheduler→cmd-FIFO write path (zero throughput
+cost — the fifo accepts 1 cmd/cycle regardless; the stream shifts one
+cycle), then re-examine the timer/strobe tails.

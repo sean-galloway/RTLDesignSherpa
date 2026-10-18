@@ -293,11 +293,19 @@ module mc_bank_sched
     end endgenerate
 
     // ======================================================================
-    // Per-(dir,bank) head skid. Slot 1 is the candidate; when empty the mux
-    // reads the store's head view combinationally (zero-load-latency start);
-    // on the head's COLUMN fire, slot 1 seats the second-oldest view so the
-    // successor is already in place next cycle -- sustaining 1 command/cycle
-    // on a single bank with no store round-trip per pick. ACT/PRE fires do
+    // Per-(dir,bank) head skid + one-deep seat pending. The pending stage is
+    // a REGISTERED copy of the store's live head view and is the skid's ONLY
+    // load source: the store-array -> scan -> cross-plane -> skid-seat cone
+    // is broken by a bank-sched register (MC-003 2026-10-18: loading the skid
+    // from the live view let that cone chain straight through the op decode
+    // and fire stage in one cycle -- 21 logic levels, 19 ns data path, 75 MHz
+    // WNS -5.9 ns / 3,725 failing endpoints on the A7). The LIVE view stays
+    // the authority: both stages are stale-checked against it every cycle,
+    // exactly as before, and the pending stage is consumed within one cycle
+    // of capture (fields cannot recycle underneath it). Cold start pays +1
+    // cycle per head (zero-load start becomes one-load); steady-state
+    // 1 command/cycle on one bank is untouched because the column-fire
+    // reserve seat (second-oldest, bh2) path is unchanged. ACT/PRE fires do
     // NOT release the head (its columns are still to come).
     // ======================================================================
     typedef struct packed {
@@ -311,32 +319,14 @@ module mc_bank_sched
 
     head_t r_ws [NUM_BANKS];
     head_t r_rs [NUM_BANKS];
+    head_t r_wp [NUM_BANKS];
+    head_t r_rp [NUM_BANKS];
 
     function automatic head_t wr_cand(input int b);
-        head_t c;
-        c = r_ws[b];
-        if (!c.vld && wr_bh_valid_i[b]) begin
-            c.vld  = 1'b1;
-            c.slot = wr_bh_slot_i[b*PTRW +: PTRW];
-            c.row  = wr_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
-            c.col  = wr_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
-            c.id   = wr_bh_id_i  [b*IW +: IW];
-            c.last = wr_bh_last_i[b];
-        end
-        return c;
+        return r_ws[b];
     endfunction
     function automatic head_t rd_cand(input int b);
-        head_t c;
-        c = r_rs[b];
-        if (!c.vld && rd_bh_valid_i[b]) begin
-            c.vld  = 1'b1;
-            c.slot = rd_bh_slot_i[b*PTRW +: PTRW];
-            c.row  = rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
-            c.col  = rd_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
-            c.id   = rd_bh_id_i  [b*IW +: IW];
-            c.last = 1'b0;
-        end
-        return c;
+        return r_rs[b];
     endfunction
 
     // Per-bank op decode on the registered image. In-order queue => when the
@@ -408,6 +398,7 @@ module mc_bank_sched
         for (int b = 0; b < NUM_BANKS; b++) begin
             if (wr_bh_valid_i[b] || rd_bh_valid_i[b]) any_head_vld = 1'b1;
             if (r_ws[b].vld || r_rs[b].vld)           any_head_vld = 1'b1;
+            if (r_wp[b].vld || r_rp[b].vld)           any_head_vld = 1'b1;
         end
     end
 
@@ -611,6 +602,7 @@ module mc_bank_sched
     // JEDEC timings). The FRFCFS core cannot go stale: it recomputes oldest
     // from the full valid/age matrix every cycle and caches no head.
     logic [NUM_BANKS-1:0] w_ws_stale, w_rs_stale;
+    logic [NUM_BANKS-1:0] w_wp_stale, w_rp_stale;
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
             w_ws_stale[b] = r_ws[b].vld && wr_bh_valid_i[b]
@@ -619,6 +611,16 @@ module mc_bank_sched
             w_rs_stale[b] = r_rs[b].vld && rd_bh_valid_i[b]
                 && ((rd_bh_slot_i[b*PTRW +: PTRW] != r_rs[b].slot)
                  || (rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH] != r_rs[b].row));
+            // Same live-view authority over the pending stage (the seat
+            // source). A pending older than one cycle is impossible by
+            // construction (it is consumed or cleared the cycle after
+            // capture), so the slot+row compare suffices here too.
+            w_wp_stale[b] = r_wp[b].vld && wr_bh_valid_i[b]
+                && ((wr_bh_slot_i[b*PTRW +: PTRW] != r_wp[b].slot)
+                 || (wr_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH] != r_wp[b].row));
+            w_rp_stale[b] = r_rp[b].vld && rd_bh_valid_i[b]
+                && ((rd_bh_slot_i[b*PTRW +: PTRW] != r_rp[b].slot)
+                 || (rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH] != r_rp[b].row));
         end
     end
 
@@ -751,6 +753,8 @@ module mc_bank_sched
             for (int b = 0; b < NUM_BANKS; b++) begin
                 r_ws[b] <= '0;
                 r_rs[b] <= '0;
+                r_wp[b] <= '0;
+                r_rp[b] <= '0;
             end
             r_rotor   <= '0;
             r_wrfire0 <= 1'b0;
@@ -759,8 +763,27 @@ module mc_bank_sched
             r_actfire0_bank <= '0;
         end else begin
             for (int b = 0; b < NUM_BANKS; b++) begin
+                // WR pending: one-deep registered copy of the live head view
+                // and the skid's ONLY seat source. Captured while the skid is
+                // empty; consumed or stale-dropped the cycle after capture, so
+                // its fields can never recycle underneath a seat.
+                if (w_wp_stale[b]) begin
+                    r_wp[b].vld <= 1'b0;
+                end else if (!r_ws[b].vld) begin
+                    if (!r_wp[b].vld) begin
+                        r_wp[b].vld  <= wr_bh_valid_i[b];
+                        r_wp[b].slot <= wr_bh_slot_i[b*PTRW +: PTRW];
+                        r_wp[b].row  <= wr_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
+                        r_wp[b].col  <= wr_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
+                        r_wp[b].id   <= wr_bh_id_i  [b*IW +: IW];
+                        r_wp[b].last <= wr_bh_last_i[b];
+                    end else begin
+                        r_wp[b].vld <= 1'b0;   // consumed by the skid seat
+                    end
+                end
                 // WR skid: column fire releases the head (seat the reserve);
-                // otherwise load the head view when empty. ACT/PRE fires hold.
+                // otherwise seat the pending stage when empty. ACT/PRE fires
+                // hold the head.
                 if (w_fire && !w_ovr_vld && (cmd_bank_o == BKW'(b))
                     && (w_op[b] == OP_WR)) begin
                     r_ws[b].vld  <= wr_bh2_valid_i[b];
@@ -770,21 +793,36 @@ module mc_bank_sched
                     r_ws[b].id   <= wr_bh2_id_i  [b*IW +: IW];
                     r_ws[b].last <= wr_bh2_last_i[b];
                 end else if (w_ws_stale[b]) begin
-                    // Drop the stale skid; the !vld branch re-seats the true
-                    // head from the live view next cycle.
+                    // Drop the stale skid; the empty branch re-seats the true
+                    // head from the pending stage next cycle.
                     r_ws[b].vld <= 1'b0;
-                end else if (!r_ws[b].vld) begin
-                    r_ws[b].vld  <= wr_bh_valid_i[b];
-                    r_ws[b].slot <= wr_bh_slot_i[b*PTRW +: PTRW];
-                    r_ws[b].row  <= wr_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
-                    r_ws[b].col  <= wr_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
-                    r_ws[b].id   <= wr_bh_id_i  [b*IW +: IW];
-                    r_ws[b].last <= wr_bh_last_i[b];
+                end else if (!r_ws[b].vld && r_wp[b].vld && wr_bh_valid_i[b]
+                             && !w_wp_stale[b]) begin
+                    // Seat from the pending stage, never the live view (that
+                    // combinational load is the cone this register breaks).
+                    // The live-valid gate + live stale compare make a capture
+                    // older than one cycle un-seat-able, so a freed/recycled
+                    // slot can never be seated from stale fields.
+                    r_ws[b] <= r_wp[b];
                 end
-                // RD skid: same discipline (r_op, not w_op -- the RD fire
-                // releases the RD head; checking the WR decode here held the
-                // head past its fire and re-issued the freed slot, MC-003
-                // 2026-10-15). Same stale-drop as the WR skid.
+                // RD pending + skid: same discipline (r_op, not w_op -- the RD
+                // fire releases the RD head; checking the WR decode here held
+                // the head past its fire and re-issued the freed slot,
+                // MC-003 2026-10-15). Same stale-drop as the WR skid.
+                if (w_rp_stale[b]) begin
+                    r_rp[b].vld <= 1'b0;
+                end else if (!r_rs[b].vld) begin
+                    if (!r_rp[b].vld) begin
+                        r_rp[b].vld  <= rd_bh_valid_i[b];
+                        r_rp[b].slot <= rd_bh_slot_i[b*PTRW +: PTRW];
+                        r_rp[b].row  <= rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
+                        r_rp[b].col  <= rd_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
+                        r_rp[b].id   <= rd_bh_id_i  [b*IW +: IW];
+                        r_rp[b].last <= 1'b0;
+                    end else begin
+                        r_rp[b].vld <= 1'b0;   // consumed by the skid seat
+                    end
+                end
                 if (w_fire && !w_ovr_vld && (cmd_bank_o == BKW'(b))
                     && (r_op[b] == OP_RD)) begin
                     r_rs[b].vld  <= rd_bh2_valid_i[b];
@@ -795,13 +833,9 @@ module mc_bank_sched
                     r_rs[b].last <= 1'b0;
                 end else if (w_rs_stale[b]) begin
                     r_rs[b].vld <= 1'b0;
-                end else if (!r_rs[b].vld) begin
-                    r_rs[b].vld  <= rd_bh_valid_i[b];
-                    r_rs[b].slot <= rd_bh_slot_i[b*PTRW +: PTRW];
-                    r_rs[b].row  <= rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
-                    r_rs[b].col  <= rd_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
-                    r_rs[b].id   <= rd_bh_id_i  [b*IW +: IW];
-                    r_rs[b].last <= 1'b0;
+                end else if (!r_rs[b].vld && r_rp[b].vld && rd_bh_valid_i[b]
+                             && !w_rp_stale[b]) begin
+                    r_rs[b] <= r_rp[b];
                 end
             end
             if (w_fire && w_pick_vld)
@@ -816,6 +850,8 @@ module mc_bank_sched
     // ======================================================================
     // Stall-cause attribution (same buckets as the FRFCFS core)
     // ======================================================================
+    // any_head_vld above includes the pending stages (r_wp/r_rp), so demand
+    // captured mid-seat is still counted as pending here.
     logic w_any_pending;
     assign w_any_pending = (|wr_bh_valid_i) || (|rd_bh_valid_i) || any_head_vld;
     `ALWAYS_FF_RST(aclk, aresetn,
