@@ -559,9 +559,12 @@ Requirements this places on the implementation:
 - **Always return credits.** Every packet RAPIDS consumes returns its full
   credit, including one it discards (bad header, bad tag, disabled channel).
   No path consumes a packet silently.
-- **Stalled landing data is a monitor error.** RAPIDS carries an ocelus
-  check: data present in the sink SRAM that has not moved for a long time
-  (10 us; a threshold in cycles) flags an error on MonBus.
+- **Stalled data is a monitor error, both directions.** RAPIDS carries
+  ocelus checks, each a threshold in cycles (10 us) that flags an error on
+  MonBus:
+  - Sink: data present in the sink SRAM that has not moved.
+  - Source: a source channel expecting data (reads outstanding) whose SRAM
+    has received none.
 - **Return credits promptly.** RAPIDS may coalesce the returns already
   pending when it sends one, but never holds credits back to build a batch
   while the sender may be waiting for them.

@@ -52,8 +52,11 @@ descriptors) sends `desc` against strapped descriptor-queue entries.
    their own interfaces, so a credit never waits behind data.
 7. **Always return credits** (owner 2026-10-18), including for a packet
    RAPIDS discards (bad header, bad tag, disabled channel).
-8. **ocelus stall check**: data in the sink SRAM that has not moved for
-   10 us (a cycle threshold) flags an error on MonBus.
+8. **ocelus stall checks**, 10 us (a cycle threshold), error on MonBus:
+   sink, data in the sink SRAM that has not moved; source, a channel
+   expecting data (reads outstanding) whose SRAM has received none. The
+   scheduler's existing `cfg_sched_timeout_*` watches write-engine grant
+   progress, not data arrival, so it does not cover the source case.
 9. **Prompt returns**: coalesce only what is already pending; never hold
    credits to build a batch while the sender may be waiting.
 10. **Quiescent gating**: resync, resets and partial resets happen only
