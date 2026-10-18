@@ -16,10 +16,10 @@ node. A cell injecting at its local port has no way to say "level 3".
 
 ## What to build
 
-1. Interim (flat mesh): a cell's local-port packet whose destination is the
-   tile I/O is routed to `TILE_IO_X/Y/Z` without the cell knowing where
-   RAPIDS attaches. The selection mechanism (a local-port sideband, or the
-   node reading the tile header's `level`) is the design choice to make first.
+1. Interim (flat mesh): no delta change. Gatling tells the cell the
+   destination (owner direction 2026-10-18), including the attach cell's
+   delta coordinate, and the cell writes it into delta's header like any
+   other local-port packet. The done-when test below still applies.
 2. Permanent: delta's head-flit header gains `level` and `ext` (TILE_SPEC
    11.3), routing on `{level, X, Y, Z}`; the interim parameters go away when
    the tetrad/root/tile I/O RTL lands.

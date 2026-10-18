@@ -218,6 +218,10 @@ cell's local port. Its descriptors, buffers and channel state survive a
 root failover (§11.4); the cell↔rapids protocols (packet header,
 end-to-end credits, grants) are §§11.5–11.10.
 
+**Status (owner, 2026-10-18):** rapids is the DMA running data in and
+out of the tile; RTL **in progress** on a separate lane, alongside the
+delta backbone (an agent is building that).
+
 ## 9. Clocking and reset
 
 Single clock domain, active-low async `aresetn` (house `ALWAYS_FF_RST`)
@@ -260,8 +264,9 @@ Still open:
   cell PRD's `DEST` override (cell PRD v0.3 §6.3); v1 result traffic is
   rapids-bound.
 - Result flush (§11.14): how gatling commands a cell's drain controller (an
-  Xcell instruction or a `CTRL` flush-and-send write), how much the drain
-  sends, and how the cell reports the drain complete.
+  Xcell instruction or a `CTRL` flush-and-send write) and passes it the
+  destination, how much the drain sends, and how the cell reports the drain
+  complete.
 - Tetrad control core (§11.13): the kick/wait custom-opcode encoding,
   its local memory map, and its program-load conventions — cell/tetrad
   MAS work, per alu-infer PRD §5. **Deferred** (owner direction
@@ -709,7 +714,9 @@ I/O, and so into RAPIDS. It is the path computed results leave the tile by:
    flush-to-memory condition. When to flush is program policy, not fixed
    hardware.
 2. **Command.** Gatling sends a flush command to the result drain
-   controller in each cell it applies to.
+   controller in each cell it applies to. **Gatling tells the cell the
+   destination** (owner direction 2026-10-18): the cell does not choose it
+   and does not need to know where RAPIDS attaches.
 3. **Drain.** The controller pushes the cell's result memory out through
    the packetizer: write-format packets (`op` = 0) to `{ext 0, level 3}`,
    source = the cell's external ID `{1, 0, X, Y, Z}`, tag = the RAPIDS sink
@@ -722,7 +729,7 @@ I/O, and so into RAPIDS. It is the path computed results leave the tile by:
 |---|---|
 | Gatling detects and commands | Not defined: gatling PRD v0.1 has no flush instruction, and the engine is deferred until the cell works (§11.13) |
 | Cell drain controller | Not built: the cell PRD has the packetizer and `CTRL` flush-and-send; no cell RTL beyond alu-infer |
-| Delta to `level` 3 | Interim only. Delta has no `level` field, so a packet reaches RAPIDS only if its sender writes the attach cell's coordinate (`TILE_IO_X/Y/Z`) into delta's header; today only the credit advertisement does (delta DELTA-011) |
+| Delta to `level` 3 | Interim: delta has no `level` field, so the destination gatling hands the cell includes the attach cell's delta coordinate, and the cell writes it into delta's header; delta needs no change for that. Permanent: `level` and `ext` in delta's header (delta DELTA-011) |
 | RAPIDS sink delivery by tag | Built (§11.12) |
 | Sink-space grants | Not built (rapids TASK-027 item 4). Without them a drain into a full sink channel stalls in the routers |
 
