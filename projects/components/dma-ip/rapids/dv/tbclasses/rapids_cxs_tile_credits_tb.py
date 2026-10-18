@@ -15,18 +15,22 @@
 # Created: 2026-10-18
 """RAPIDS as the tile I/O, with end-to-end credits.
 
-The testbench plays the destinations: after reset each one that is present
-sends a `set` credit packet (its input buffer in flits) into the sink port,
-and later `add` packets as it consumes. RAPIDS must then
-  * send a packet only when its destination's counter covers every flit,
-    header included, and charge it that many;
-  * when the advertisement window closes, save every destination still at 0
-    as illegal, and refuse a descriptor to it.
+The testbench plays the cells and control cores: after reset each one that
+is present sends a `set` credit packet (its input buffer in flits) into the
+sink port, and later `add` packets as it consumes. delta nodes only
+transport and never originate a packet: they never advertise or return
+credits, consume what is addressed to them on arrival, and are legal by
+topology. RAPIDS must then
+  * send a packet to a cell or core only when its counter covers every flit,
+    header included, and charge it that many; never hold or charge a packet
+    to a node;
+  * when the advertisement window closes, save every node as legal and every
+    cell or core still at 0 as illegal, and refuse a descriptor to it.
 Counter index (rapids_pkg::tile_dest_index) is {ext, n}: n = cell-level node
 {Y[1:0], X[1:0]}, tetrad node 16 + {Y[0], X[0]}, root node 20 + X[0], 22-31
 spare; ext = 0 the node itself, ext = 1 what is attached to it, so a cell is
-32 + {Y, X}. Every node has both IDs; only one with something attached
-advertises an external one.
+32 + {Y, X}. Every node has both IDs; only the external one, when
+something is attached, carries credits.
 """
 
 from typing import Any, Dict, List, Tuple
@@ -49,6 +53,9 @@ def dest_index(c: int) -> int:
     else:
         n = 20 + (x & 1)
     return ext << 5 | n
+
+
+NODE_MASK = (1 << 22) - 1      # internal IDs 0-21: legal by topology
 
 
 def cell(x: int, y: int) -> int:
@@ -85,7 +92,8 @@ class RapidsCxsTileCreditsTB(RapidsCxsTileTB):
 
     async def open_window(self, buffers: Dict[int, int]) -> List[str]:
         """The boot sequence: the window must still be open, the present
-        destinations advertise, and the window closes with exactly them legal."""
+        cells and cores advertise, and the window closes with exactly them and
+        every node legal."""
         errs = []
         done, legal = await self.adv_status()
         if done:
@@ -97,7 +105,7 @@ class RapidsCxsTileCreditsTB(RapidsCxsTileTB):
         if not await self.wait_window_closed():
             return errs + ["the advertisement window never closed"]
         _, legal = await self.adv_status()
-        want = sum(1 << dest_index(c) for c, n in buffers.items() if n)
+        want = NODE_MASK | sum(1 << dest_index(c) for c, n in buffers.items() if n)
         if legal != want:
             errs.append(f"TILE_LEGAL_DEST = 0x{legal:016X}, expected 0x{want:016X}")
         return errs
@@ -130,10 +138,12 @@ class RapidsCxsTileCreditsTB(RapidsCxsTileTB):
     # Scenarios
     # =====================================================================
     async def test_window(self) -> Tuple[bool, Dict[str, Any]]:
-        """Boot: the destinations that advertise a non-zero count are legal;
-        one that advertises 0, the spares and one that advertises after the
-        window are not. A descriptor kicked while the window is open waits for
-        it to close, then goes."""
+        """Boot: every node is legal without advertising, and an
+        advertisement carrying a node's coordinate changes nothing; the cells
+        and cores that advertise a non-zero count are legal; one that
+        advertises 0, the spares and one that advertises after the window are
+        not. A descriptor kicked while the window is open waits for it to
+        close, then goes."""
         self.log.info("=== TILE credits: advertisement window and legal mask ===")
         cell_a, cell_b, cell_zero = cell(1, 1), cell(2, 3), cell(3, 0)
         node_a = coord(LEVEL_CELL, 1, 1, 0)             # cell_a's own node: internal
@@ -149,8 +159,9 @@ class RapidsCxsTileCreditsTB(RapidsCxsTileTB):
         await self.settle(200)
         if self.egress_packets(0):
             errors.append("a tile packet left before the advertisement window closed")
-        errors += await self.open_window({cell_a: 64, cell_b: 64, node_a: 4, tetrad: 8, core: 2,
-                                          root: 8, cell_zero: 0})
+        for c in (node_a, tetrad, root):                 # a node's credit is ignored
+            await self.send_credit(c, 8, op=OP_SET)
+        errors += await self.open_window({cell_a: 64, cell_b: 64, core: 2, cell_zero: 0})
         late = cell(0, 2)
         await self.send_credit(late, 64, op=OP_SET)
         await self.settle(100)
@@ -228,40 +239,43 @@ class RapidsCxsTileCreditsTB(RapidsCxsTileTB):
         return self._finish(errors, "shared counter")
 
     async def test_node_destination(self) -> Tuple[bool, Dict[str, Any]]:
-        """A tetrad node is an endpoint for what is addressed to it: it
-        advertises its buffer, a cfg write to it spends against it, and the
-        next waits for its return. A read request spends one flit."""
+        """A delta node consumes what is addressed to it on arrival and never
+        sends a credit: with nothing advertised by or for it, cfg writes to a
+        tetrad node go out, uncharged, and its control core (its external ID)
+        is still illegal. A node never originates a packet, so a read request
+        to it is refused: its channel errors and sends nothing."""
         self.log.info("=== TILE credits: node-addressed packets ===")
         node = coord(LEVEL_TETRAD, 0, 1, 0)
-        errors = await self.open_window({node: 4})
-        d0, h0, p0 = self._src_desc(4, 0, 2, node, 0x8, ptype=PTYPE_CFG)     # 3 flits
-        d1, _h1, _ = self._src_desc(4, 1, 2, node, 0xC, ptype=PTYPE_CFG)     # 3 more
+        errors = await self.open_window({})
+        _, legal = await self.adv_status()
+        if legal >> dest_index(coord(LEVEL_TETRAD, 0, 1, 0, ext=1)) & 1:
+            errors.append("a control core that never advertised is legal")
+        d0, h0, p0 = self._src_desc(4, 0, 2, node, 0x8, ptype=PTYPE_CFG)
+        d1, h1, p1 = self._src_desc(4, 1, 2, node, 0xC, ptype=PTYPE_CFG)
+        d2, _h2, _ = self._src_desc(5, 0, 8, node, 0x0, op=1)
+        await self.kick(5, d2)
         await self.kick(4, d0)
         if not await self.wait_egress_packets(4, 1):
-            errors.append("the cfg write did not go out against the node's credits")
-        await self.kick(4, d1)
-        await self.settle()
-        if len(self.egress_packets(4)) != 1:
-            errors.append("a second cfg write went out with 1 credit left")
-        d2, h2, _ = self._src_desc(5, 0, 8, node, 0x0, op=1)                 # read: 1 flit
-        await self.kick(5, d2)
-        if not await self.wait_egress_packets(5, 1):
-            errors.append("a read request (1 flit) did not go out on the last credit")
-        await self.send_credit(node, 3)
+            errors.append("a cfg write to an uncredited node did not go out")
+        await self.kick(4, d1)                           # kick() addresses by packets sent
         if not await self.wait_egress_packets(4, 2):
-            errors.append("the second cfg write did not go out after the node returned credits")
-        await self.settle(200)
-        if self.egress_packets(4):
-            errors += self.check_packet(self.egress_packets(4)[0], h0, p0, "cfg write")
+            errors.append(f"{len(self.egress_packets(4))} of 2 cfg writes to an uncredited node went out")
+        await self.settle(800)
         if self.egress_packets(5):
-            errors += self.check_packet(self.egress_packets(5)[0], h2, [], "read request")
+            errors.append("a read request to a node went out; a node never replies")
+        se = self.read_sched_error('src')
+        if se != 1 << 5:
+            errors.append(f"src_sched_error=0x{se:X}, expected 0x20 (the node read refused)")
+        for k, (hdr, pat) in enumerate(((h0, p0), (h1, p1))):
+            if k < len(self.egress_packets(4)):
+                errors += self.check_packet(self.egress_packets(4)[k], hdr, pat, f"cfg write {k}")
         return self._finish(errors, "node destination")
 
     async def test_illegal_refused(self) -> Tuple[bool, Dict[str, Any]]:
-        """After the window: a descriptor to a destination that never
-        advertised, to one that advertised 0, to a spare index and to a
-        coordinate with no index is refused -- its channel errors and sends
-        nothing -- while one to a legal destination still goes."""
+        """After the window: a descriptor to a cell or core that never
+        advertised, to one that advertised 0 and to a coordinate with no index
+        is refused -- its channel errors and sends nothing -- while one to a
+        legal cell and one to a node (legal by topology) still go."""
         self.log.info("=== TILE credits: illegal destinations refused ===")
         good = cell(1, 2)
         zero = cell(3, 3)
@@ -270,12 +284,15 @@ class RapidsCxsTileCreditsTB(RapidsCxsTileTB):
                1: zero,                             # advertised 0
                2: coord(LEVEL_ROOT, 3, 0, 0),       # root past 1: no index
                3: coord(3, 0, 0, 0),                # level 3, the tile I/O itself
-               4: coord(LEVEL_CELL, 1, 2, 0)}       # the good cell's own node: internal, never advertised
+               4: coord(LEVEL_TETRAD, 0, 0, 0, ext=1)}  # a control core that never advertised
         for ch, dst in bad.items():
             desc, _, _ = self._src_desc(ch, 0, 1, dst, 0)
             await self.kick(ch, desc)
         desc, hdr, pat = self._src_desc(6, 0, 1, good, 0x4)
         await self.kick(6, desc)
+        ndesc, nhdr, npat = self._src_desc(5, 0, 1, coord(LEVEL_CELL, 1, 2, 0), 0x8,
+                                           ptype=PTYPE_CFG)  # the good cell's own node
+        await self.kick(5, ndesc)
         await self.settle(800)
         se = self.read_sched_error('src')
         want = sum(1 << ch for ch in bad)
@@ -288,4 +305,8 @@ class RapidsCxsTileCreditsTB(RapidsCxsTileTB):
             errors.append("the descriptor to a legal destination did not go out")
         else:
             errors += self.check_packet(self.egress_packets(6)[0], hdr, pat, "legal destination")
+        if not self.egress_packets(5):
+            errors.append("the descriptor to a node did not go out")
+        else:
+            errors += self.check_packet(self.egress_packets(5)[0], nhdr, npat, "node destination")
         return self._finish(errors, "illegal destinations")

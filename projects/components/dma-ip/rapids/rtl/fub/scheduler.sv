@@ -339,6 +339,8 @@ module scheduler #(
     // With TILE_CREDITS, a tile descriptor that sends a packet waits for the
     // advertisement window to close (w_tile_wait), then needs a legal
     // destination: one with a counter index that advertised in the window.
+    // A read request (op = 1) to a delta node's internal ID is refused too: a
+    // node only transports and never originates a packet, so no reply comes.
     logic                               w_tile_cred;
     logic                               w_tile_wait;
     logic                               w_tile_illegal;
@@ -351,10 +353,14 @@ module scheduler #(
     assign w_tile_illegal = w_tile_cred && tile_adv_done &&
                             !(w_tile_dmap[rapids_pkg::TILE_DEST_W] &&
                               tile_dest_legal[w_tile_dmap[rapids_pkg::TILE_DEST_W-1:0]]);
+    logic w_tile_node_rd;
+    assign w_tile_node_rd = (TILE_HDR != 0) && EN_READ && (r_desc_opcode == DESC_OP_DATA) &&
+                            r_tile_op && w_tile_dmap[rapids_pkg::TILE_DEST_W] &&
+                            rapids_pkg::tile_dest_is_node(w_tile_dmap[rapids_pkg::TILE_DEST_W-1:0]);
     logic w_tile_bad;
     assign w_tile_bad = ((TILE_HDR != 0) && EN_READ && (r_desc_opcode == DESC_OP_DATA) &&
                          (r_tile_ptype > rapids_pkg::TILE_PTYPE_MEM)) ||
-                        w_tile_illegal;
+                        w_tile_illegal || w_tile_node_rd;
     assign w_rd_beats_total = ((r_descriptor.length == 32'd0) || w_hdr_only) ? 32'd0
                                                                             : 32'(w_rd_span >> OFF_W);
     assign w_wr_beats_total = (r_descriptor.length == 32'd0) ? 32'd0 : 32'(w_wr_span >> OFF_W);

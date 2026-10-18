@@ -8,19 +8,26 @@
 // Purpose: End-to-end tile credits in the source half (TILE_SPEC 11.9, 11.10)
 //
 // Description:
-//   One credit counter per destination index (rapids_pkg::tile_dest_index:
-//   16 cells, 4 tetrad nodes, 2 root nodes, 10 spare), in flits. Every counter
-//   starts at 0 and is filled by the destination's own advertisement: a
-//   credit packet with op = set at boot, op = add as it consumes. delta nodes
-//   advertise and return credits only for packets addressed to them; traffic
-//   routed through a node never touches a counter.
+//   One credit counter per destination index {ext, n}
+//   (rapids_pkg::tile_dest_index), in flits.
+//
+//   External IDs (ext = 1: cells, tetrad control cores) start at 0 and are
+//   filled by the cell or core itself: a credit packet with op = set at
+//   boot, op = add as it consumes.
+//
+//   Internal IDs (ext = 0) are delta nodes. A node only transports and never
+//   originates a packet, so it neither advertises nor returns credits; it
+//   consumes what is addressed to it on arrival. Its index is legal by
+//   topology, a packet to it is never held for credits and never charged,
+//   and a credit packet carrying a node's coordinate is ignored.
 //
 //   Advertisement window: counts cycles from reset to cfg_adv_window. When it
-//   closes, every counter still at 0 is an illegal destination; the result is
-//   saved in dest_legal until the next reset. A later advertisement updates
-//   the count but never makes a destination legal. Before the window closes
-//   adv_done is 0, dest_legal reads 0 and nothing is spent: the schedulers
-//   hold tile descriptors until it closes.
+//   closes, every node index is legal and every other counter still at 0 is
+//   an illegal destination; the result is saved in dest_legal until the next
+//   reset. A later advertisement updates the count but never makes a
+//   destination legal. Before the window closes adv_done is 0, dest_legal
+//   reads 0 and nothing is spent: the schedulers hold tile descriptors until
+//   it closes.
 //
 //   Spending: each source channel asks for its head packet's flits (header
 //   included) against one destination. One request is granted per cycle,
@@ -29,8 +36,9 @@
 //   A channel whose grant is pulsing is not considered again that cycle, so
 //   one packet is charged once.
 //
-//   Only class 0 (sink space) credits are received here; class 1 (descriptor
-//   slots) and credits from a coordinate with no index are ignored.
+//   Only class 0 (sink space) credits from an external ID are received here;
+//   class 1 (descriptor slots), credits from a node's internal ID and from a
+//   coordinate with no index are ignored.
 //
 // Parameters:
 //   - NUM_CHANNELS: source channels, 1..16
@@ -95,8 +103,15 @@ module rapids_tile_credits #(
     logic           w_cok;
     logic [DIW-1:0] w_cidx;
     assign w_cmap = rapids_pkg::tile_dest_index(credit_src);
-    assign w_cok  = credit_valid && (credit_class == rapids_pkg::TILE_CLASS_SPACE) && w_cmap[DIW];
     assign w_cidx = w_cmap[DIW-1:0];
+    assign w_cok  = credit_valid && (credit_class == rapids_pkg::TILE_CLASS_SPACE) && w_cmap[DIW]
+                 && !rapids_pkg::tile_dest_is_node(w_cidx);
+
+    // Node indices: legal by topology, never gated or charged
+    logic [ND-1:0] w_node;
+    always_comb begin
+        for (int i = 0; i < ND; i++) w_node[i] = rapids_pkg::tile_dest_is_node(DIW'(i));
+    end
 
     // Spend: round-robin over channels whose destination covers the packet
     logic [NC-1:0]  w_cand;
@@ -104,7 +119,8 @@ module rapids_tile_credits #(
     logic [CIW-1:0] w_sch;
     always_comb begin
         for (int ch = 0; ch < NC; ch++)
-            w_cand[ch] = r_done && acq_req[ch] && !r_gnt[ch] && (r_cnt[acq_dest[ch]] >= acq_flits[ch]);
+            w_cand[ch] = r_done && acq_req[ch] && !r_gnt[ch]
+                      && (w_node[acq_dest[ch]] || (r_cnt[acq_dest[ch]] >= acq_flits[ch]));
         w_spend = 1'b0;
         w_sch   = '0;
         for (int k = 1; k <= NC; k++) begin
@@ -128,7 +144,7 @@ module rapids_tile_credits #(
                 else           base = {1'b0, r_cnt[i]} + (CRW+1)'(credit_count);
                 if (base[CRW]) base = {1'b0, {CRW{1'b1}}};
             end
-            if (w_spend && (acq_dest[w_sch] == DIW'(i)))
+            if (w_spend && (acq_dest[w_sch] == DIW'(i)) && !w_node[i])
                 base = (base >= (CRW+1)'(acq_flits[w_sch])) ? (base - (CRW+1)'(acq_flits[w_sch])) : '0;
             w_cnt_n[i] = base[CRW-1:0];
         end
@@ -153,7 +169,7 @@ module rapids_tile_credits #(
                 r_win <= r_win + 32'd1;
                 if (r_win >= cfg_adv_window) begin
                     r_done <= 1'b1;
-                    for (int i = 0; i < ND; i++) r_legal[i] <= (r_cnt[i] != '0);
+                    for (int i = 0; i < ND; i++) r_legal[i] <= w_node[i] || (r_cnt[i] != '0);
                 end
             end
         end

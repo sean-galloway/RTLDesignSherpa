@@ -230,7 +230,7 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
         ar_seen = []
         self.rd_slave['AR'].add_callback(lambda t: ar_seen.append(t))
         desc_addr = self.DESC_BASE + channel * 0x1000
-        dst, target = coord(0, 1, 0, 0), 0x400
+        dst, target = coord(0, 1, 0, 0, ext=1), 0x400   # a cell: a node never replies
         self.register_descriptor(self.desc_src_mem, desc_addr, self.create_tile_descriptor(
             self.SRC_BASE, nbytes, dst, target, ptype=PTYPE_MEM, op=1, channel_id=channel))
         await self.kick_off_channel('src', channel, desc_addr)

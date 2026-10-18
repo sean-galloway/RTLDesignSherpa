@@ -1,7 +1,7 @@
-# TASK-027: End-to-end credits and descriptor-slot grants for the tile header
+# TASK-027: End-to-end credits and straps toward RAPIDS for the tile header
 
 **Priority:** P2
-**Status:** open -- items 1-3 built 2026-10-18 (`TILE_CREDITS`); grants (4-6) remain
+**Status:** open -- counters, window and legal mask built 2026-10-18 (`TILE_CREDITS`); straps toward RAPIDS remain
 **Owner:** sean galloway
 
 ## Progress 2026-10-18
@@ -18,56 +18,41 @@ shared-counter cell, mutation-checked. The cell-side advertisement is delta
 DELTA-010. Known limit: a channel reset does not refund charged credits.
 
 Owner direction 2026-10-18: every node has an internal and an external ID
-(the coordinate's `ext` bit, TILE_SPEC 11.3); only a node with something
-attached has external credit. Hence 64 counters, 42 usable.
-
-RAPIDS sends tile packets (TILE_HDR = 1) without checking whether the
-destination has room, and a cell can send a `desc` packet without a slot
-grant. TILE_SPEC Sections 11.9 and 11.10 define the end-to-end credit scheme
-that closes both; TILE_SPEC 11.12 records that it is not built. Split out of
-rapids TASK-026 (2026-10-17), which delivered the header and the `desc` path.
+(the coordinate's `ext` bit, TILE_SPEC 11.3). delta nodes only transport and
+never originate a packet on the data network (their own data goes on
+MonBus): they never advertise or return credits and consume what is
+addressed to them on arrival. So a node's internal ID is legal by topology
+and never charged, and a read request to a node is refused (built
+2026-10-18). Only the external IDs (cells, control cores) carry credits, and
+each cell or core sends its own boot advertisement.
 
 Owner direction 2026-10-18 (TILE_SPEC 11.14): delta must carry result data
-to `level` 3. A cell's result drain sends only against sink-space grants, so
-item 4 is on the critical path of every result leaving the tile.
+to `level` 3. Toward RAPIDS the credits are **straps, not grants**: a cell
+writes against a 16-flit strap, a control core (gatling, which creates the
+descriptors) sends `desc` against strapped descriptor-queue entries.
 
 ## What to build
 
-1. **64 credit counters** in the source half, one per destination index
-   {ext, n} (TILE_SPEC 11.9: internal 0-21 nodes, external 32-47 cells and
-   48-51 tetrad control cores, the rest spare), starting at 0. A packet
-   leaves only when its destination's counter covers every flit, header
-   included. A node's counter covers only packets
-   addressed to it: delta nodes are conduits for traffic passing through and
-   hold no credit state for it, but advertise and return credits for what
-   they consume (owner direction 2026-10-18, TILE_SPEC 11.9). A cell's
-   advertisement comes from its delta node's parameter (delta DELTA-010).
-2. **Advertisement window and legal-destination mask** (owner direction
-   2026-10-18, TILE_SPEC 11.10). When the window after reset closes, every
-   counter still at 0 is an illegal destination. Save the 64-bit mask, expose
-   it as a CSR, and refuse a descriptor that targets an illegal destination as
-   an invalid descriptor. A legal counter that later reaches 0 is waiting, not
-   illegal; a failover resync keeps the saved mask.
-3. **Credit packets in.** `rapids_tile_hdr_rx` already recognises `credit`
-   packets and only counts them (`TILE_COUNTS.CREDIT_COUNT`). Route
-   {source coordinate, op (add / set), count} over the sink-to-source path
-   (the one `desc_inj_*` uses) into the counters.
-4. **Grants out.** Per sink channel, free space less outstanding grants; a
-   grant issuer that sends `credit` packets (class 0) out of the source port.
-5. **Descriptor-slot grants** (class 1) for the per-channel injection slot in
-   `descriptor_engine_shared`, returned when the scheduler takes the
-   descriptor. A `desc` without a slot stays a counted drop
-   (`TILE_DESC_DROPPED`).
+1. Done: 64 counters, advertisement window, legal mask, credit intake (above).
+2. **Landing space**: 16 flits per cell, per sender, so a cell whose data
+   targets a full sink channel holds only its own strap. A packet to RAPIDS
+   is at most 16 flits.
+3. **Credit returns from RAPIDS** on the source port: `credit`/`add` to the
+   sender when its data leaves the landing space for its sink channel.
+4. **Descriptor-queue entries per control core** (class 1), one returned
+   when the scheduler takes the descriptor; how many per core, and whether
+   each tetrad gets its own source channel, is open (TILE_SPEC 10).
+5. **Resync** after root failover (TILE_SPEC 11.10): `set` to every cell and
+   core restoring its strap.
 6. **Deadlock:** credit packets must not wait behind data that waits for
    credits; on the source port they need priority or their own lane.
 
 ## Done when
 
 - Tests: a cell model that advertises (`set`), returns credits after
-  consuming, and sends only against grants; RAPIDS never oversends a
+  consuming, and sends only against its strap; RAPIDS never oversends a
   destination, cell or node; concurrent channels to one cell share its
-  counter; a node model advertises and returns credits for `cfg` writes
-  addressed to it; a descriptor grant is consumed and returned; a spare index and a
+  counter; a node is never charged and never advertises; a descriptor entry is consumed and returned; a spare index and a
   destination that never advertises end the window illegal, and a descriptor
   to either is refused.
 - TILE_SPEC 11.12 updated; HAS/MAS chapters; byte regression clean-all FULL.

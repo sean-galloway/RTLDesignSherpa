@@ -305,7 +305,7 @@ async def cocotb_test_tile_credit_shared_counter(dut):
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_tile_credit_node(dut):
-    """A node's counter covers what is addressed to it; a read is one flit."""
+    """A delta node is never charged and never replies: writes to it go uncredited, a read is refused."""
     tb = await _bring_up_credits(dut)
     ok, stats = await tb.test_node_destination()
     _finish(tb, ok, stats, "node destination")

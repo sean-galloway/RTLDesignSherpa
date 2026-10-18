@@ -201,9 +201,11 @@ package rapids_pkg;
     //   n 20-21 root node 0, 1
     //   n 22-31 spare
     // ext = 0 is the node itself, ext = 1 what is attached to it: 32-47 the
-    // cells, 48-51 the tetrads' control cores. An ID with nothing behind it
-    // (a spare, a node with nothing attached) never advertises, so it is
-    // illegal once the window closes.
+    // cells, 48-51 the tetrads' control cores. A delta node only transports:
+    // it never originates a packet, so it neither advertises nor returns
+    // credits. It consumes what is addressed to it on arrival, so its
+    // internal ID (0-21) is legal by topology and needs no counter. An
+    // external ID is legal only if its cell or core advertised; a spare never is.
     // Credit packets carry their class in target address bits [1:0]; RAPIDS
     // receives class 0 (sink space: a destination's input buffer) only.
     localparam int TILE_NUM_DEST   = 64;
@@ -214,6 +216,12 @@ package rapids_pkg;
     localparam logic [1:0] TILE_LEVEL_CELL   = 2'd0;
     localparam logic [1:0] TILE_LEVEL_TETRAD = 2'd1;
     localparam logic [1:0] TILE_LEVEL_ROOT   = 2'd2;
+    localparam int TILE_NUM_NODES  = 22;                    // internal IDs 0-21
+
+    // A destination index that is a delta node's internal ID
+    function automatic logic tile_dest_is_node(input logic [TILE_DEST_W-1:0] idx);
+        return !idx[TILE_DEST_W-1] && (idx[TILE_DEST_W-2:0] < (TILE_DEST_W-1)'(TILE_NUM_NODES));
+    endfunction
 
     // The counter index of a destination coordinate {ext, level, X, Y, Z}. ok = 0
     // for a coordinate with no index: the tile I/O itself, or an X/Y past the

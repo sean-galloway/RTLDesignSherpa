@@ -64,10 +64,12 @@ Format chapter (the positions are shared; only this design implements them).
 
 **Tile credits (`TILE_CREDITS` = 1, 2026-10-18):** a tile descriptor waits until
 the advertisement window after reset closes (`SRC.TILE_CREDIT_STATUS.ADV_DONE`).
-Its destination must then be one that advertised credits in the window
-(`SRC.TILE_LEGAL_DEST_LO` / `_HI`), or the descriptor is refused as invalid and its channel
-errors. Its packet leaves only when the destination has returned enough
-credits for every flit, header included.
+Its destination must then be legal (`SRC.TILE_LEGAL_DEST_LO` / `_HI`): a delta
+node's internal ID always is, and a cell or control core is if it advertised
+credits in the window. Otherwise the descriptor is refused as invalid and its
+channel errors. A packet to a cell or core leaves only when it has returned
+enough credits for every flit, header included; a packet to a node is never
+held. A read request (`op` = 1) to a node is refused: a node never replies.
 
 The authoritative definition is `rapids_pkg::descriptor_t` in `rtl/includes/rapids_pkg.sv`. Only bits `[255:0]` are fetched and used. Every field position is the same as in RAPIDS Beats, so a descriptor builder needs one change: the value written to `length`.
 

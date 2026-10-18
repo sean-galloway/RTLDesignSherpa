@@ -135,13 +135,14 @@ one-descriptor slot:
 
 With `TILE_CREDITS` = 1 (it needs `TILE_HDR` = 1), a packet leaves the source
 port only when its destination has room for it (TILE_SPEC 11.9, 11.10). The
-credits are end to end, between RAPIDS and the destinations. A delta node holds
-no credit state for traffic passing through it. For packets addressed to it, it
-is an endpoint like a cell.
+credits are end to end, between RAPIDS and the cells and control cores. A delta
+node only transports: it never originates a packet, so it never advertises or
+returns credits, and it consumes what is addressed to it on arrival.
 
 **Counters.** The source half keeps 64 counters in flits, one per destination
 index `{ext, n}` (`rapids_pkg::tile_dest_index`): the internal and the external
-ID of every node. Only a node with something attached has external credit; an
+ID of every node. Only the external IDs carry credits: a node's internal ID is
+legal by topology, and a packet to it is never held for credits or charged. An
 external ID with nothing behind it never advertises and so is never legal.
 
 | Index | Destination |
@@ -156,14 +157,16 @@ external ID with nothing behind it never advertises and so is never legal.
 : Table 3.14.3: Credit Counter Index
 
 A coordinate outside this map (the tile I/O itself, a cell past 4x4, a tetrad
-past 2x2, a root past 1) has no index. Every counter starts at 0. A class-0
-credit packet from an indexed coordinate fills it: `op` = 1 (`set`) replaces the
-count and `op` = 0 (`add`) adds to it, saturating. Class-1 credits (descriptor
-slots) and credits from a coordinate with no index are ignored.
+past 2x2, a root past 1) has no index. Every external counter starts at 0. A
+class-0 credit packet from an external ID fills it: `op` = 1 (`set`) replaces
+the count and `op` = 0 (`add`) adds to it, saturating. Class-1 credits
+(descriptor entries), credits carrying a node's internal ID and credits from a
+coordinate with no index are ignored.
 
 **Advertisement window.** `rapids_tile_credits` counts cycles from reset up to
-`SRC.TILE_ADV_WINDOW` (default 4096). When the window closes, every counter
-still at 0 marks an illegal destination, and the 64-bit result is saved in
+`SRC.TILE_ADV_WINDOW` (default 4096). When the window closes, every node index
+is legal and every external counter still at 0 marks an illegal destination,
+and the 64-bit result is saved in
 `SRC.TILE_LEGAL_DEST_LO` (internal IDs) and `_HI` (external IDs) until the next
 reset. `SRC.TILE_CREDIT_STATUS.ADV_DONE`
 reports the close. A later advertisement updates the count but never makes a
@@ -172,13 +175,15 @@ destination legal.
 **Scheduler.** A tile data descriptor with a non-zero length waits in
 `CH_FETCH_DESC` until the window closes. Its destination must then be legal (an
 index whose bit is set in the mask), or the descriptor is refused as invalid
-(CH_ERROR) and nothing is sent.
+(CH_ERROR) and nothing is sent. A read request to a node's internal ID is
+refused the same way, with or without `TILE_CREDITS`: a node never replies.
 
 **Source data path.** Each channel asks for its head packet's flits, the header
 and `ceil(bytes / beat)` data beats or the header alone for a read request,
 against its destination (`tile_acq_*`). `rapids_tile_credits` grants one request
 per cycle, round-robin, and only when the counter covers the whole packet. It
-charges the counter in the same cycle and pulses `tile_acq_gnt` the next. Until
+charges the counter in the same cycle and pulses `tile_acq_gnt` the next. A
+request to a node is granted without a count check and charges nothing. Until
 the grant, neither the packet's header nor any further SRAM reservation of the
 channel goes ahead, so a channel waiting for credits does not hold the shared
 drain stage. A reservation made under the previous packet can still run into
@@ -187,8 +192,9 @@ Counters are per destination, so concurrent channels to one cell share its
 buffer.
 
 **Limits.** A channel reset that discards a packet whose credits are already
-charged does not refund them. Sink-space grants to cells and descriptor-slot
-grants (TILE_SPEC 11.9, 11.11) are not built: rapids TASK-027.
+charged does not refund them. The straps toward RAPIDS (a 16-flit landing space
+per cell, descriptor-queue entries per control core, and the credit returns
+for both; TILE_SPEC 11.9, 11.11) are not built: rapids TASK-027.
 
 ## Status Registers
 
@@ -214,11 +220,11 @@ with `TILE_HDR` = 1:
 | `tile_desc_overflow` | A slot overflow drops, flags `DROPn` (and clears it by W1C); the running transfer and queued work finish |
 | `tile_source_bad_ptype` | A source descriptor with `ptype` `credit` is refused |
 | `tile_unsupported` | `credit` counted, a read request to RAPIDS flagged and cleared by W1C, the stream still carries data |
-| `tile_credits[window]` | `TILE_CREDITS`: the legal mask from the advertisements; a zero and a late advertisement stay illegal; a descriptor kicked during the window waits for it |
+| `tile_credits[window]` | `TILE_CREDITS`: every node legal unadvertised, node credits ignored; the cells and core that advertise are legal; a zero and a late advertisement stay illegal; a descriptor kicked during the window waits for it |
 | `tile_credits[no_oversend]` | A destination takes only what it advertised and returned; one flit short holds the packet; class-1 and unindexed credits change nothing |
 | `tile_credits[shared_counter]` | Two channels to one cell share its counter (also on `rapids_16ch_cxs_top`) |
-| `tile_credits[node]` | A tetrad node's counter covers `cfg` writes to it; a read request spends one flit |
-| `tile_credits[illegal]` | Descriptors to an unadvertised, zero-advertised, out-of-map or tile-I/O destination, and to a legal cell's own (unadvertised) node, are refused; a legal one still goes |
+| `tile_credits[node]` | `cfg` writes to an unadvertised tetrad node go out uncharged; its control core stays illegal; a read request to the node is refused |
+| `tile_credits[illegal]` | Descriptors to an unadvertised cell or core, a zero-advertised cell, an out-of-map or the tile-I/O destination are refused; one to a legal cell and one to that cell's node still go |
 
 : Table 3.14.4: Tile Header Test Cells
 

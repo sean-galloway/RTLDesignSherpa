@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-027** — end-to-end credits and descriptor-slot grants for the tile header (TILE_SPEC 11.9-11.10)
+- **TASK-027** — end-to-end tile credits (counters, window, legal mask built) and straps toward RAPIDS (TILE_SPEC 11.9-11.11)
 
 ## Active
 
