@@ -110,7 +110,7 @@ title_page:
   logo_width: 2.5
   company: "RTL Design Sherpa"
   title: "RAPIDS"
-  subtitle: "Hardware Architecture Specification 0.5"
+  subtitle: "Hardware Architecture Specification"
   date: "September 30, 2026"
   # Colors reference the colors section above
   company_color: primary

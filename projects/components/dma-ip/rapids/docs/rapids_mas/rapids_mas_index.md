@@ -23,8 +23,8 @@
 
 # RAPIDS Architecture MAS
 
-**Version:** 0.5
-**Date:** 2026-09-30
+**Version:** 0.6
+**Date:** 2026-10-17
 **Purpose:** Module Architecture Specification for byte-granular RAPIDS, the product design that succeeds the RAPIDS Beats stepping stone
 
 ---
@@ -68,6 +68,7 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`,
 **Control Engines:**
 - [Control-Read Engine](../rapids_beats_mas/ch02_fub_blocks/08_ctrlrd_engine.md) (shared with RAPIDS Beats)
 - [Control-Write Engine](../rapids_beats_mas/ch02_fub_blocks/09_ctrlwr_engine.md) (shared with RAPIDS Beats)
+- [Shared Engines](ch02_fub_blocks/10_shared_engines.md) (descriptor, control-read and control-write engines per half; `SHARED_ENGINES = 1`)
 
 ### Chapter 3: Macro (Integration Blocks)
 
@@ -116,6 +117,8 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`,
 | alloc_ctrl / drain_ctrl / latency_bridge | (Beats modules) | Kept and tested; not in the SRAM path | Shared with Beats |
 | ctrlrd_engine | `ctrlrd_engine.sv` | Control-read consumer gate; same as Beats | Implemented |
 | ctrlwr_engine | `ctrlwr_engine.sv` | Control-write producer doorbell; same as Beats | Implemented |
+| descriptor_engine_shared | `descriptor_engine_shared.sv` | One descriptor fetch path per half; per-channel FIFOs, ARID = channel, injection slot | Implemented |
+| ctrlrd_engine_shared / ctrlwr_engine_shared | `ctrlrd_engine_shared.sv`, `ctrlwr_engine_shared.sv` | One control engine per half behind a round-robin pick and owner register | Implemented |
 
 : FUB Module Summary
 
@@ -123,8 +126,8 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`,
 
 | Module | File | Purpose | Status |
 |--------|------|---------|--------|
-| scheduler_group | `scheduler_group.sv` | Scheduler + Descriptor Engine wrapper; packet-record ports | Implemented |
-| scheduler_group_array | `scheduler_group_array.sv` | 8-channel scheduler array with arbitration; per-channel packet-record ports | Implemented |
+| scheduler_group | `scheduler_group.sv` | Per-channel scheduler and engines (`SHARED_ENGINES = 0` only); packet-record ports | Implemented |
+| scheduler_group_array | `scheduler_group_array.sv` | Per-half scheduler array: shared engines or per-channel groups; per-channel packet-record ports | Implemented |
 | snk_data_path | `snk_data_path.sv` | Sink path integration; SRAM entry is `{strb, data}` | Implemented |
 | snk_data_path_axis | `snk_data_path_axis.sv` | AXIS ingress shifter, packet records, length check | Implemented |
 | src_data_path | `src_data_path.sv` | Source path integration; same as Beats | Shared with Beats |
@@ -135,6 +138,7 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`,
 | rapids_regs | (Beats register block) | PeakRDL register block; unchanged | Shared with Beats |
 | rapids_config_block | (Beats module) | Maps register `hwif_out` to `cfg_*`; unchanged | Shared with Beats |
 | rapids_top | `top/rapids_top.sv` | Top-level: APB slave, kickoff, monitors, MonBus AXI-Lite group | Implemented |
+| rapids_8ch_top / rapids_16ch_top (+ `_cxs`) | `top/rapids_{8,16}ch[_cxs]_top.sv` | Fixed channel count paired with its register map | Implemented |
 
 : Macro Module Summary
 

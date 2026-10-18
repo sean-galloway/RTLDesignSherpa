@@ -23,7 +23,7 @@
 
 # Document Information
 
-This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band Descriptor System. RAPIDS provides network-to-memory and memory-to-network data transfer using descriptor-based DMA with 8 channels. A descriptor length is a byte count, source and destination addresses are byte addresses, and the sink write master drives byte enables. The earlier "Beats" architecture, which counted everything in beats, was the stepping stone to this design and is documented separately in the RAPIDS Beats MAS.
+This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band Descriptor System. RAPIDS provides network-to-memory and memory-to-network data transfer using descriptor-based DMA with 8 or 16 channels. A descriptor length is a byte count, source and destination addresses are byte addresses, and the sink write master drives byte enables. The earlier "Beats" architecture, which counted everything in beats, was the stepping stone to this design and is documented separately in the RAPIDS Beats MAS.
 
 ---
 
@@ -31,6 +31,7 @@ This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
+| 0.6 | 2026-10-17 | RTL Design Sherpa | New Section 2.10 Shared Engines (`descriptor_engine_shared`, `ctrlrd_engine_shared`, `ctrlwr_engine_shared`: parameters, ports, per-channel state, operation, measured cost). `SHARED_ENGINES` and `TILE_HDR` added to the core and top parameter tables; 8- and 16-channel top variants; scheduler group marked per-channel-build only; scheduler group array overview corrected (one engine of each kind per array, not per channel) |
 | 0.5 | 2026-10-17 | RTL Design Sherpa | New Section 3.14 Tile Packet Header (`TILE_HDR`: header build and decode, cell-issued descriptors, status registers). Scheduler group array: shared descriptor / control-read / control-write engines per half (`SHARED_ENGINES`, default 1), with block diagram |
 | 0.4 | 2026-10-16 | RTL Design Sherpa | Shared Sections 3.13 and 4.4 point at the routing and payload-type proposal in the tile's TILE_SPEC Section 11 |
 | 0.3 | 2026-10-16 | RTL Design Sherpa | Network planes (rapids TASK-024/025): `rapids_top` / `rapids_cxs_top` generated from `rapids_top_base`; links the shared Network Planes chapter and CXS Interface Specification; block diagrams updated for the planes; the CXS ID mapping is marked provisional. |

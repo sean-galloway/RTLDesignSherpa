@@ -106,6 +106,8 @@ The core ports that carry the beat-count unit are renamed. Everything else keeps
 | `USE_AXI_MONITORS` | 1 | 0 omits the monitor hardware. |
 | `USE_ROW_COL_MAJOR_ADDRESSING` | 1 | 0 compiles out extended addressing. |
 | `GEN_MON` | 1 | 0 omits the completion and error emitters. |
+| `SHARED_ENGINES` | 1 | 1: one descriptor, control-read and control-write engine per half ([Shared Engines](../ch02_fub_blocks/10_shared_engines.md)). 0: one of each per channel. |
+| `TILE_HDR`, `TILE_SRC_COORD` | 0, 14'h3000 | Tile packet header on both network ports ([Tile Packet Header](14_tile_header.md)). Needs `SHARED_ENGINES = 1`. |
 
 : Table 3.9.4: Core Parameters
 

@@ -32,7 +32,7 @@
 
 ## Overview
 
-The scheduler group array runs one scheduler per channel and three engines that issue the array's AXI traffic: the descriptor fetch engine, the control-read engine and the control-write engine. `SHARED_ENGINES` (default 1) selects how the engines are built. With 1, the array has one of each engine for every channel, and each engine picks among the schedulers round-robin (see Shared Engines below). With 0, every channel has its own three engines inside a scheduler group, and three AXI-side arbiters merge their masters (the original structure). It also owns the descriptor-AXI monitor and merges every channel's MonBus output with the monitor's into one stream.
+The scheduler group array runs one scheduler per channel and three engines that issue the array's AXI traffic: the descriptor fetch engine, the control-read engine and the control-write engine. `SHARED_ENGINES` (default 1) selects how the engines are built. With 1, the array has one of each engine for all of its channels, and each engine picks among the schedulers round-robin (see Shared Engines below and the [Shared Engines](../ch02_fub_blocks/10_shared_engines.md) chapter). With 0, every channel has its own three engines inside a scheduler group, and three AXI-side arbiters merge their masters (the original structure). It also owns the descriptor-AXI monitor and merges every channel's MonBus output with the monitor's into one stream.
 
 Compared with the RAPIDS Beats array, the sharing, arbitration and monitoring are unchanged. The array adds one parameter, `OFF_W`, and the per-channel packet-record ports, which it connects to each group by channel index.
 

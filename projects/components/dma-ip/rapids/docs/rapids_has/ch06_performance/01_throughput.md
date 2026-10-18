@@ -161,6 +161,35 @@ matched in every row on both halves. These rows prove correctness. They are
 runs of one to seven beats, so their utilization figures are dominated by
 launch and are not throughput.
 
+### Shared Engines on the Board
+
+Source: the two Genesys 2 bitstreams of the Resource Estimates chapter, `rapids_byte_pce.bit` (`SHARED_ENGINES = 0`) and `rapids_byte.bit` (`SHARED_ENGINES = 1`). Both were run back to back on 2026-10-17 on the same board, with the same host program. The records are `projects/fpga-systems/Genesys2/dma-ip/rapids/reports/perf/json/rapids_byte_perf_20261017_shared_engines0.json` and `..._shared_engines1.json`. Each run is the 117-point byte performance profile (`--byte-perf --profile standard`, 8 channels, byte-wise checkers) and then every directed sequence (`--byte-seq all`).
+
+| Measure | Per-channel engines | Shared engines |
+|---------|---------------------|----------------|
+| Byte performance points passed | 117 of 117 | 117 of 117 |
+| Directed sequences passed | 5 of 5 (378 checks) | 5 of 5 (378 checks) |
+| Highest sink rate | 2560 MB/s | 2560 MB/s |
+| Highest source rate | 356 MB/s | 356 MB/s |
+
+: Board Results, SHARED_ENGINES 0 and 1
+
+Every point is compared with itself across the two bitstreams:
+
+| Half | Points compared | Geometric mean, shared / per-channel | Within 2 % | Shared slower by more than 2 % | Shared faster by more than 2 % |
+|------|-----------------|---------------------------------------|------------|--------------------------------|--------------------------------|
+| Sink | 109 | 1.000 | 99 | 6 (at most -2.4 %) | 4 (at most +5.8 %) |
+| Source | 97 | 1.002 | 95 | 1 (-2.1 %) | 1 (+22.2 %) |
+
+: Per-Point Comparison
+
+The source rates are capped by the harness: the byte-wise checker takes 9 cycles per 32-byte beat, so 356 MB/s is 3200 / 9. The points that moved by more than 2 % are small transfers whose time is dominated by launch and descriptor fetch:
+
+- The six slower sink points are all 8-channel, 33-byte, single-descriptor transfers (129.4 to 126.3 MB/s). All eight channels kick together, and the likely cause is that their first descriptor fetches now take turns at one AR issuer instead of eight. This has not been confirmed with a capture.
+- The faster points are single-channel 203-byte sink transfers (up to +5.8 %) and a chain of 16 one-byte descriptors on 4 channels at the source (+22.2 %, 38.8 to 47.4 MB/s). These are consistent with the shared engine's R path, which writes each descriptor straight into its channel's FIFO, but the cause has not been isolated.
+
+On sustained transfers the two builds measure the same. Sharing the engines costs no measurable throughput on this board.
+
 ### RAPIDS Beats Performance Report
 
 Source: `projects/fpga-systems/Genesys2/dma-ip/rapids_beats/reports/perf/README.md`,

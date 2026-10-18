@@ -106,6 +106,31 @@ strobes, so it is compared with the beats golden; byte-level integrity comes
 from the byte-wise campaign. Both runs are in the throughput chapter and the
 characterization report (`reports/perf/README.md`, v0.2).
 
+## Shared Engines: Before and After
+
+Source: two Genesys 2 builds made on 2026-10-17 from the same RTL, differing only in `SHARED_ENGINES`. The bitstreams are `rapids_byte_pce.bit` (`SHARED_ENGINES = 0`, per-channel engines) and `rapids_byte.bit` (`SHARED_ENGINES = 1`, the default). Both builds use 8 channels per half, 256 bits, 128 entries per channel, `BYTE_CRC = 1`, AXI monitors off and observer taps off, at 100 MHz with Vivado 2025.1. The RAPIDS rows are the `u_dut` instance of the hierarchical post-route report, so they exclude the harness. These builds come from newer RTL and harness than the 2026-09-30 build above, so the two sets of numbers do not compare directly.
+
+| Resource | Per-channel engines | Shared engines | Change |
+|----------|---------------------|----------------|--------|
+| Whole design, Slice LUTs | 79,724 | 68,520 | -11,204 (-14.1 %) |
+| Whole design, Slice registers | 58,107 | 41,497 | -16,610 (-28.6 %) |
+| RAPIDS (`u_dut`), LUTs | 55,152 | 44,128 | -11,024 (-20.0 %) |
+| RAPIDS (`u_dut`), flip-flops | 44,650 | 28,167 | -16,483 (-36.9 %) |
+| `rapids_core`, LUTs / flip-flops | 46,350 / 37,984 | 35,595 / 21,507 | -10,755 / -16,477 |
+| Sink half, LUTs / flip-flops | 23,892 / 19,559 | 18,626 / 11,320 | -5,266 / -8,239 |
+| Source half, LUTs / flip-flops | 22,458 / 18,425 | 16,969 / 10,187 | -5,489 / -8,238 |
+| Block RAM tiles | 68 | 68 | 0 |
+| DSP | 0 | 0 | 0 |
+| Worst slack, setup and recovery (WNS) | +0.251 ns | +0.016 ns | |
+| Worst synchronous setup slack (clock group) | +0.259 ns | +0.593 ns | |
+| Worst hold slack | +0.040 ns | +0.009 ns | |
+
+: Post-Route Utilization, SHARED_ENGINES 0 and 1
+
+Almost all of the saving is in the engines. In the per-channel build the 16 descriptor engines (8 per half) take 11,009 LUTs and 7,360 flip-flops, the 16 control-read engines 2,388 and 7,038, and the 16 control-write engines 1,886 and 4,910. The shared build has one of each per half. The descriptor FIFOs stay per channel, which is why the descriptor saving is smaller than the control-engine saving. Block RAM and DSP are unchanged because none of the engines uses either.
+
+Both builds meet timing at 100 MHz with no failing endpoint. The shared build's worst slack is thinner (+0.016 ns), but that path is not in a shared engine: it is the asynchronous reset recovery path from the reset synchronizer to the sink write engine's data registers. On synchronous setup paths the shared build has more margin than the per-channel build, +0.593 ns against +0.259 ns.
+
 ## Comparison with the Beats Build
 
 The RAPIDS Beats performance report lists the resources of its 256-bit build
@@ -130,12 +155,12 @@ byte granularity.
 
 ## What Depends on What
 
-The reports do not break the design down by block, and this chapter does not
-invent a breakdown. The relationships that follow from the design are these.
+Apart from the engine breakdown above, the reports used here do not break the design down by block, and this chapter does not invent a breakdown. The relationships that follow from the design are these.
 
 | Change | Effect |
 |--------|--------|
-| Channels 8 to fewer | Scheduler, descriptor and buffer resources scale with channel count |
+| Channels 8 to fewer, or 16 | Scheduler and buffer resources scale with channel count. With shared engines only the per-channel engine state scales; with per-channel engines every engine does |
+| `SHARED_ENGINES` 1 to 0 | Adds 11,024 LUTs and 16,483 flip-flops at 8 channels (above) |
 | Buffer depth | Block RAM scales with entries per channel, per direction, and with the entry width |
 | Data width | Datapath logic and buffer width scale with it. The line rate scales with it. |
 | Interface observers off | Removes the observer logic and its histograms |

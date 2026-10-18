@@ -62,6 +62,22 @@
 
 **Note:** Aggregate limited by shared AXI masters. Individual channel throughput scales inversely with active channel count.
 
+### Measured on the Genesys 2: Shared and Per-Channel Descriptor Engines
+
+Source: the two bitstreams of the Resource Estimates chapter, `stream_perf_genesys2_8ch_pce.bit` (`SHARED_ENGINES = 0`) and `stream_perf_genesys2_8ch.bit` (`SHARED_ENGINES = 1`): 8 channels, 128-bit data, 100 MHz. Both ran back to back on 2026-10-17 on the same board under the same host sweep (`host_characterize.py`): 1, 2, 4, 8 and 16 descriptors per channel, 1 to 8 active channels, 1 MiB per channel, and no added memory latency. That is 40 configurations. The records are `projects/fpga-systems/Genesys2/dma-ip/stream/reports/perf/json/stream_sweep_20261017_shared_engines0.json` and `..._shared_engines1.json`.
+
+| Measure | Per-channel engines | Shared engine |
+|---------|---------------------|---------------|
+| Configurations passed | 40 of 40 | 40 of 40 |
+| Data rate, first read to last read and first write to last write | 1525.9 MiB/s | 1525.9 MiB/s |
+| Theoretical peak, 16 bytes x 100 MHz | 1525.9 MiB/s (1600 MB/s) | 1525.9 MiB/s (1600 MB/s) |
+| Lowest end-to-end rate, kick to done | 1524.8 MiB/s | 1524.8 MiB/s |
+| Total cycles, shared minus per-channel | | -1 in every configuration |
+
+: Genesys 2 Board Results, SHARED_ENGINES 0 and 1
+
+Both builds move one beat per cycle from the first beat to the last on both AXI masters, which is the line rate. The data-phase cycle counts are identical in all 40 configurations. The only difference is that every run with the shared engine finishes exactly one cycle sooner, a fixed start-up difference in the descriptor path. Sharing the descriptor engine costs no throughput.
+
 ---
 
 ## Throughput Limiting Factors

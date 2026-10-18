@@ -41,6 +41,25 @@ LUTs and flops: the per-channel AR issue logic, the address-range comparators,
 the 256-bit holding registers and the MonBus reporters. The 16-channel build
 costs about 1.8 times the 8-channel build and still closes at 100 MHz.
 
+## Measured Board Build (Genesys 2)
+
+Source: two placed-and-routed Genesys 2 builds made on 2026-10-17 from the same RTL, differing only in `SHARED_ENGINES`. The bitstreams are `stream_perf_genesys2_8ch_pce.bit` (`SHARED_ENGINES = 0`) and `stream_perf_genesys2_8ch.bit` (`SHARED_ENGINES = 1`). Both builds use 8 channels, 128-bit data, 256 entries per channel, 8 outstanding reads and writes, AXI monitors off and `GEN_MON = 0`, at 100 MHz on the `xc7k325tffg900-2` with Vivado 2025.1. The STREAM rows are the `u_stream` instance of the hierarchical post-route report; the whole-design rows include the characterization harness.
+
+| Resource | Per-channel engines | Shared engine | Change |
+|----------|---------------------|---------------|--------|
+| Whole design, Slice LUTs | 63,642 | 62,111 | -1,531 (-2.4 %) |
+| Whole design, Slice registers | 56,536 | 54,111 | -2,425 (-4.3 %) |
+| STREAM (`u_stream`), LUTs | 30,781 | 29,247 | -1,534 (-5.0 %) |
+| STREAM (`u_stream`), flip-flops | 23,079 | 20,654 | -2,425 (-10.5 %) |
+| Descriptor engines, LUTs / flip-flops | 4,974 / 4,120 (8 engines) | 3,825 / 1,725 (1 engine) | -1,149 / -2,395 |
+| Block RAM tiles | 26 | 26 | 0 |
+| DSP | 64 | 64 | 0 |
+| Worst setup slack | +0.612 ns | +0.377 ns | |
+
+: Post-Route Utilization, SHARED_ENGINES 0 and 1
+
+The board saving is smaller than the out-of-context figure above for two reasons. The board build has `GEN_MON = 0`, so the per-channel MonBus reporters that sharing removes are not built in either case. And the shared engine keeps a descriptor FIFO and an extended-descriptor FIFO per channel; together they are 1,840 LUTs of distributed RAM, almost half the engine. Block RAM and DSP are unchanged because the descriptor engine uses neither. Both builds meet timing with no failing endpoint.
+
 ## FPGA Resource Summary (Estimates)
 
 The estimates below predate the measurements above and are kept for the

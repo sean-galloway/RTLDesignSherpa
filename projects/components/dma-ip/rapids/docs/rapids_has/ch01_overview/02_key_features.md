@@ -27,9 +27,9 @@
 
 ### Multi-Channel Architecture
 
-- **8 Independent Channels** with dedicated schedulers
+- **8 or 16 Independent Channels** per direction, each with its own scheduler. The 16-channel tops use the 16-channel register map.
 - **Per-Channel State Machines** for concurrent operation
-- **Shared AXI Infrastructure** with arbitrated access
+- **Shared Engines:** each direction has one descriptor engine, one control-read engine and one control-write engine for all its channels (`SHARED_ENGINES = 1`, the default). Each engine picks channels round-robin and owns its AXI master. `SHARED_ENGINES = 0` builds one of each per channel instead. On the Genesys 2 board build, sharing saves 20% of the RAPIDS LUTs and 37% of its flip-flops, and the 117-point board profile measures the same throughput on both builds (geometric-mean change under 0.2%).
 - **Channel Isolation** prevents cross-channel interference
 
 ### Byte-Granular Data Movement

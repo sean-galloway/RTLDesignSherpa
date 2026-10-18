@@ -139,6 +139,8 @@ Measured out-of-context, `stream_core` at 256 bits with monitors off and a
 
 : Area and Timing by Structure
 
+On the Genesys 2 board build (8 channels, 128 bits, `GEN_MON = 0`, placed and routed) the eight per-channel engines take 4,974 LUTs and 4,120 flip-flops, and the shared engine 3,825 LUTs and 1,725 flip-flops, of which 1,840 LUTs are the per-channel FIFOs in distributed RAM. The saving there is smaller than the out-of-context figure because `GEN_MON = 0` removes the per-channel MonBus reporters from both builds. The full before-and-after is in the HAS Resource Estimates chapter.
+
 ### Descriptor AXI Arbitration (`SHARED_ENGINES = 0`)
 
 **AR Channel Flow:**

@@ -36,7 +36,8 @@ RAPIDS moves data between AXI-Stream and system memory in units of bytes. A desc
 
 ### Key Features
 
-- **8 Independent Channels:** Each channel has its own descriptor chain and SRAM allocation.
+- **8 or 16 Independent Channels:** Each channel has its own descriptor chain and SRAM allocation. The 16-channel tops use the 16-channel register map.
+- **Shared Engines:** By default each half has one descriptor engine, one control-read engine and one control-write engine for all its channels (`SHARED_ENGINES = 1`).
 - **Separate Data Paths:** Sink (network to memory) and source (memory to network).
 - **Byte Granularity:** Length in bytes, byte addresses, any starting offset for linear descriptors.
 - **Byte Enables:** The sink SRAM entry is `{strb, data}`; the write engine drives `WSTRB` from it.
@@ -47,7 +48,7 @@ RAPIDS moves data between AXI-Stream and system memory in units of bytes. A desc
 
 ### What Is Shared with RAPIDS Beats
 
-The descriptor engine, the control-read and control-write engines, the SRAM controllers, the register block and config block, and the MonBus specification are unchanged. Those chapters are linked from the RAPIDS Beats MAS.
+The SRAM controllers, the register block and config block, and the MonBus specification are unchanged. Those chapters are linked from the RAPIDS Beats MAS. The per-channel descriptor, control-read and control-write engines are also unchanged and are built when `SHARED_ENGINES = 0`. The default build replaces them with the [Shared Engines](../ch02_fub_blocks/10_shared_engines.md), which keep their per-channel behaviour.
 
 ---
 

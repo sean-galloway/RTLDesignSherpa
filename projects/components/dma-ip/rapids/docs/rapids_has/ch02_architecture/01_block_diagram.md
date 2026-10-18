@@ -33,27 +33,31 @@ RAPIDS has the same block structure as RAPIDS Beats: a scheduler group array per
 
 **Source:** [01_byte_block_diagram.dot](../assets/graphviz/01_byte_block_diagram.dot)
 
-## Top-Level Integration (rapids_top, rapids_cxs_top)
+## Top-Level Integration (rapids_top, rapids_cxs_top and the 8- and 16-channel tops)
 
 `rapids_core` is wrapped by `rapids_top`, which adds the software register interface, configuration mapping, and monitoring infrastructure. The integration is identical to `rapids_beats_top`: a single APB slave feeds a command/response router into the `rapids_regs` register block, `rapids_config_block` translates the register outputs into the `cfg_*` signals, and a `monbus_axil4_axil4_group` delivers the merged monitor stream to an AXI-Lite error-drain slave, an AXI-Lite capture master, and a `mon_irq` interrupt. The register map, the APB interface and the MonBus interface are shared with RAPIDS Beats; see the linked chapters.
 
 The top-level ports have the same names as `rapids_beats_top`. The only port-level differences are the byte enables: the sink write master's `m_axi_wr_wstrb` is driven from the buffered byte enables instead of all ones, and the two AXI-Stream ports use `tstrb` as a real byte mask.
 
-The network endpoints sit in two network planes outside the core, exactly as in RAPIDS Beats: `rapids_top` uses the AXIS planes and `rapids_cxs_top` the CXS planes, both generated from `rapids_top_base`. The CXS planes carry `tstrb` in `CXSUSER`, so partial last beats and unaligned starts cross the CXS link intact. See the shared CXS Network Interface chapter.
+The network endpoints sit in two network planes outside the core, exactly as in RAPIDS Beats: `rapids_top` uses the AXIS planes and `rapids_cxs_top` the CXS planes, both generated from `rapids_top_base`. The generator also emits `rapids_8ch_top`, `rapids_16ch_top` and their CXS twins, which fix `NUM_CHANNELS` and compile the matching register map. The CXS planes carry `tstrb` in `CXSUSER`, so partial last beats and unaligned starts cross the CXS link intact. See the shared CXS Network Interface chapter.
 
 ## Component Summary
 
 ### Scheduler Group Array
 
-The scheduler group array manages 8 independent channels per direction:
+The scheduler group array manages `NUM_CHANNELS` (8 or 16) independent channels per direction. `SHARED_ENGINES` selects how its engines are built:
 
-| Component | Instance Count | Purpose |
-|-----------|----------------|---------|
-| `scheduler` | 8 | Transfer coordination per channel; converts bytes to beats, issues the packet record |
-| `descriptor_engine` | 8 | Descriptor fetch and parse (unchanged from RAPIDS Beats) |
-| Descriptor AXI Arbiter | 1 | Shared AXI4 for descriptor fetch |
+| Component | `SHARED_ENGINES = 1` (default) | `SHARED_ENGINES = 0` | Purpose |
+|-----------|-------------------------------|----------------------|---------|
+| `scheduler` | `NUM_CHANNELS` | `NUM_CHANNELS` | Transfer coordination per channel; converts bytes to beats, issues the packet record |
+| Descriptor engine | 1 `descriptor_engine_shared` | `NUM_CHANNELS` `descriptor_engine` | Descriptor fetch and parse |
+| Control-read engine | 1 `ctrlrd_engine_shared` | `NUM_CHANNELS` `ctrlrd_engine` | `CTRL_READ` consumer gate |
+| Control-write engine | 1 `ctrlwr_engine_shared` | `NUM_CHANNELS` `ctrlwr_engine` | `CTRL_WRITE` producer doorbell |
+| AXI-side arbiters | none (each engine owns its master) | 3 round-robin | Merge the per-channel masters onto the descriptor, control-read and control-write ports |
 
 : Scheduler Array Components
+
+A shared engine keeps each channel's behaviour: the same kick policy, chaining, prefetch, errors and channel reset. Fetches carry the channel in ARID, so channels overlap on the bus while each stays in order. The only visible difference is that a polling `CTRL_READ` holds the control-read engine, so other channels' control reads wait behind it; data transfers do not. The MAS Shared Engines chapter has the detail.
 
 ### Sink Data Path
 
@@ -96,7 +100,11 @@ rapids_core
 ├── monbus_arbiter
 ├── rapids_src
 │   ├── scheduler_group_array
-│   │   └── scheduler_group [0..7]
+│   │   ├── scheduler [0..NC-1]                   (SHARED_ENGINES = 1, default)
+│   │   ├── descriptor_engine_shared
+│   │   ├── ctrlrd_engine_shared
+│   │   ├── ctrlwr_engine_shared
+│   │   └── scheduler_group [0..NC-1]             (SHARED_ENGINES = 0 instead)
 │   │       ├── scheduler
 │   │       ├── descriptor_engine
 │   │       ├── ctrlrd_engine

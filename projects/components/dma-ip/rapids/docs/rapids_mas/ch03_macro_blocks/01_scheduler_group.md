@@ -32,7 +32,7 @@
 
 ## Overview
 
-The scheduler group wraps one channel: a descriptor engine, the scheduler, the two control engines (control read and control write) and a MonBus arbiter that merges their monitor packets. It is the unit the scheduler group array instantiates once per channel.
+The scheduler group is used only when `SHARED_ENGINES = 0`. The default build instantiates the schedulers directly and uses the [Shared Engines](../ch02_fub_blocks/10_shared_engines.md) instead. The scheduler group wraps one channel: a descriptor engine, the scheduler, the two control engines (control read and control write) and a MonBus arbiter that merges their monitor packets. It is the unit the scheduler group array instantiates once per channel.
 
 The structure is identical to the RAPIDS Beats group. The one change is the packet-record port set: the scheduler now publishes a per-direction record of the packet's byte length and start offset, and the group passes it through unchanged.
 

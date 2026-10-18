@@ -36,13 +36,13 @@ AXIS or CXS, see the network-planes figure)", fillcolor="white", group=R];
 
     // ---- rank 2 ----
     snk_sram [label="Sink SRAM Buffer\nsnk_sram_controller\n(8 FIFOs of {strb, data})", height=0.9, group=L];
-    sga      [label="Scheduler Group Arrays\nscheduler_group_array x 2 (sink, source)\neach 8 x scheduler_group: descriptor_engine\n+ scheduler (bytes -> beats + packet record)\n+ ctrlrd_engine + ctrlwr_engine", group=C];
+    sga      [label="Scheduler Group Arrays\nscheduler_group_array x 2 (sink, source)\neach NUM_CHANNELS (8 or 16) x scheduler\n(bytes -> beats + packet record)", group=C];
     src_sram [label="Source SRAM Buffer\nsrc_sram_controller\n(8 per-channel FIFOs)", height=0.9, group=R];
 
     // ---- rank 3 ----
     wr_eng [label="AXI Write Engine\naxi_write_engine (round-robin;\nAWADDR beat-aligned, WSTRB\nfrom the buffer, 4 KB cap)", group=L];
-    arb    [label="Descriptor / Control Arbiters\narbiter_round_robin x 3 per half",
-            shape=invtrapezium, width=4.2, fillcolor="#BFD7EE", group=C];
+    arb    [label="Shared Engines, per half (SHARED_ENGINES = 1)\ndescriptor_engine_shared + ctrlrd_engine_shared\n+ ctrlwr_engine_shared, round-robin over channels\n(SHARED_ENGINES = 0: per-channel engines\n+ arbiter_round_robin x 3)",
+            shape=invtrapezium, width=5.2, fillcolor="#BFD7EE", group=C];
     mon    [label="MonBus
 half 3:1 arbiters (client 1 = the
 network plane's monitor packets,
@@ -61,7 +61,7 @@ core 2:1 monbus_arbiter", style="filled,dashed"];
 
     // ---- command / control, down the center ----
     s_apb -> sga  [label="kick: descriptor address,\ncfg_* (per half)"];
-    sga   -> arb  [label="desc fetch / ctrl RD / ctrl WR\n(8 channels)"];
+    sga   -> arb  [label="per-channel kick / descriptor /\nctrl RD / ctrl WR requests"];
     sga   -> wr_eng [xlabel="write cmd: addr,\nbeats (sink half)"];
     sga   -> rd_eng [xlabel="read cmd: addr,\nbeats (source half)"];
     ingress -> sga  [dir=back, style=dashed, xlabel="packet record\n{bytes, offset}"];
