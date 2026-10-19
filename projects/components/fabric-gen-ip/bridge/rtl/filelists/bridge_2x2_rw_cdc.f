@@ -55,3 +55,6 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x2_rw_
 # AXI4 clock-domain crossing (ports with cdc = true)
 -f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_rd.f
+
+# Slave-domain arbitration for multi-master cdc slaves (bridge W9)
+-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cdc_slave_arb.f

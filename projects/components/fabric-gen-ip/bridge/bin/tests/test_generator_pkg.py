@@ -2073,25 +2073,42 @@ addr_range = "0x0001_0000"
 
 
 def test_cdc_generation_smoke(tmp_path):
-    """bridge_2x2_rw_cdc: ddr has its own clock pins on the top, its adapter
-    takes s_aclk/s_aresetn and puts axi4_cdc_{wr,rd} between the wrapper and
-    the port; sram is unchanged; the filelist pulls the CDC closures."""
+    """bridge_2x2_rw_cdc: ddr has its own clock pins on the top, and its
+    adapter takes s_aclk/s_aresetn. Two masters share ddr, so the adapter
+    crosses per-master lanes and arbitrates on s_aclk (bridge W9; see
+    test_cdc_slave_arbitrates_on_its_own_clock); sram is unchanged."""
     gen, fl = _generate_fixture(tmp_path, "bridge_2x2_rw_cdc")
     top = (gen / "bridge_2x2_rw_cdc.sv").read_text()
     assert re.search(r"input\s+logic[^\n]*ddr_aclk,", top) and re.search(r"input\s+logic[^\n]*ddr_aresetn,", top)
     assert "sram_aclk" not in top
     assert ".s_aclk(ddr_aclk)" in top and ".s_aresetn(ddr_aresetn)" in top
     ddr = (gen / "ddr_adapter.sv").read_text()
-    assert "input  logic s_aclk" in ddr and "axi4_cdc_wr #(" in ddr and "axi4_cdc_rd #(" in ddr
-    # wrapper drives the aclk-side nets; the crossing drives the port
-    assert ".m_axi_awvalid(cdc_ddr_axi_awvalid)" in ddr          # wrapper -> aclk-side net
-    assert ".s_axi_awvalid(cdc_ddr_axi_awvalid)" in ddr          # crossing takes it ...
-    assert ".m_axi_awvalid(ddr_s_axi_awvalid)" in ddr            # ... and drives the port
-    assert ".m_aclk(s_aclk), .m_aresetn(s_aresetn)" in ddr
+    assert "input  logic s_aclk" in ddr
+    assert ".s_aclk(s_aclk), .s_aresetn(s_aresetn)," in ddr
+    assert ".m_axi_awvalid(ddr_s_axi_awvalid)" in ddr            # the pick drives the port
     sram = (gen / "sram_adapter.sv").read_text()
     assert "axi4_cdc" not in sram and "s_aclk" not in sram
-    text = fl.read_text()
-    assert "axi4_cdc_wr.f" in text and "axi4_cdc_rd.f" in text
+    assert "bridge_cdc_slave_arb.f" in fl.read_text()
+
+
+def test_single_master_cdc_slave_keeps_one_crossing(tmp_path):
+    """With one master there is nothing to arbitrate: the cdc slave keeps the
+    timing wrapper on aclk and one axi4_cdc_{wr,rd} to the port."""
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rw"\ncdc = true',
+                                 master_channels="rw")
+    out = tmp_path / "gen"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", toml, "--connectivity", conn, "--name", "b",
+         "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    s0 = next((out / "b").glob("s0*adapter.sv")).read_text()
+    assert "axi4_cdc_wr #(" in s0 and "axi4_cdc_rd #(" in s0
+    assert ".m_axi_awvalid(cdc_s0_axi_awvalid)" in s0            # wrapper -> aclk-side net
+    assert ".m_axi_awvalid(s0_awvalid)" in s0                    # crossing -> port
+    assert "bridge_cdc_slave_arb" not in s0
 
 
 def test_master_cdc_generation_smoke(tmp_path):
@@ -2558,3 +2575,33 @@ def test_axi3_slave_adapter_is_axi4_shaped(tmp_path):
     xbar = (gen / "bridge_2x2_axi3_slaves_xbar.sv").read_text()
     assert "u_cpu_axi4_64b_aw_slot_ddr_axi3 (" in xbar
     assert "bridge_cam.f" not in fl.read_text()
+
+
+def test_cdc_slave_arbitrates_on_its_own_clock(tmp_path):
+    """bridge W9: a cdc slave that two masters share is arbitrated on its own
+    clock. The crossbar picks nothing for it -- each master's AW / W / AR
+    leaves on a lane of its own -- and the slave adapter's
+    bridge_cdc_slave_arb crosses the lanes and arbitrates on s_aclk. A
+    single-clock slave of the same bridge keeps the crossbar's pick."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_2x2_rw_cdc")
+    xbar = (gen / "bridge_2x2_rw_cdc_xbar.sv").read_text()
+    ddr = (gen / "ddr_adapter.sv").read_text()
+    sram = (gen / "sram_adapter.sv").read_text()
+    assert "output logic [1:0] ddr_axi_lane_awvalid," in xbar
+    assert "ddr_aw_arb" not in xbar and "ddr_wowner" not in xbar, "ddr still picked on aclk"
+    assert "sram_aw_arb" in xbar, "the single-clock slave lost its arbiter"
+    assert "bridge_cdc_slave_arb #(" in ddr and ".NM(2)," in ddr
+    assert "axi4_cdc_wr" not in ddr, "one crossing behind a fabric-side pick (W9)"
+    assert "bridge_cdc_slave_arb" not in sram
+    assert "bridge_cdc_slave_arb.f" in fl.read_text()
+
+
+def test_shim_slave_is_picked_from_slots(tmp_path):
+    """bridge W14: an APB / AXI4-Lite / WB4 slave that several masters share
+    is picked from registered request slots, like an AXI slave. Picked from
+    the masters' live requests, one master's request gate ran through the
+    grant into another master's accept (bridge_mix_e's worst path)."""
+    gen, _fl = _generate_fixture(tmp_path, "bridge_mix_e")
+    xbar = (gen / "bridge_mix_e_xbar.sv").read_text()
+    assert "u_cpu_axi3_64b_aw_slot_apb_periph (" in xbar or "_aw_slot_apb_periph (" in xbar
+    assert "_ar_slot_apb_periph (" in xbar

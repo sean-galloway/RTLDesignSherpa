@@ -1289,6 +1289,15 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_cdc_rd.f")
 
+    # Multi-master cdc slaves arbitrate on their own clock (bridge W9).
+    if any(getattr(s, 'cdc', False)
+           and sum(1 for m in config.masters
+                   if s.port_name in config.connectivity.get(m.port_name, [])) >= 2
+           for s in config.slaves):
+        filelist_lines.append("")
+        filelist_lines.append("# Slave-domain arbitration for multi-master cdc slaves (bridge W9)")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cdc_slave_arb.f")
+
     # Slave watchdogs (GitHub #119 L3).
     if any(int(getattr(s, 'timeout_cycles', 0) or 0) > 0 for s in config.slaves):
         filelist_lines.append("")

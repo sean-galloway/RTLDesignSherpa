@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from bridge_pkg.generators.adapter_generator import MasterConfig, SlaveInfo
 from bridge_pkg.width_utils import get_connected_slave_widths, get_masters_connecting_to_slave
 from bridge_pkg.signal_naming import SignalNaming, Direction, AXI4Channel, AXI4_SLAVE_SIGNALS, AXI4_MASTER_SIGNALS
+from bridge_pkg import cdc_lanes
 
 
 class CrossbarGenerator:
@@ -368,6 +369,8 @@ class CrossbarGenerator:
             lines.append(f"    input  logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_rid_bridge_id,")
             lines.append(f"    input  logic                       {slave.name}_axi_rid_valid,")
         lines.append("")
+        if self._is_lane(slave):
+            lines.extend(self._lane_ports(slave, has_write, has_read, master_id_width, addr_width))
 
         # AXI5 native sideband (A5-2 slice 2): discrete signals only for
         # slaves that enable the feature. Request-direction = outputs,
@@ -610,11 +613,20 @@ class CrossbarGenerator:
         arbitrated AXI4/AXI5 slave whose channel had a register to replace
         (its adapter stage, or the registered crossbar's). A slave cut to a
         wire (latency = "cut_none") had no queue behind its arbiter and keeps
-        its zero-cycle path; an APB/AXI4-Lite/WB4 shim holds a request of its
-        own whatever the crossbar does, so it keeps the grant-on-entry
-        arbiter too. Must agree with slave_adapter_generator's `arbitrated`
-        stage cut."""
-        if not self._is_arbitrated(slave) or slave.protocol not in ('axi3', 'axi4', 'axi5'):
+        its zero-cycle path. An APB/AXI4-Lite/WB4 shim takes slots too (bridge
+        W14): picked from the masters' live requests, one master's request
+        gating ran through the grant into another master's accept -- the
+        worst path of bridge_mix_e. The shim holds one request of its own, so
+        the slot costs it one cycle of address latency and nothing else.
+        Must agree with slave_adapter_generator's `arbitrated` stage cut
+        (AXI slaves only; a shim has no stage to cut)."""
+        if not self._is_arbitrated(slave):
+            return False
+        if self._is_lane(slave):
+            return False   # arbitrated on its own clock (bridge W9)
+        if slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4'):
+            return True
+        if slave.protocol not in ('axi3', 'axi4', 'axi5'):
             return False
         depth = int((getattr(slave, 'skid_depths', None) or {}).get(ch, 2))
         return depth > 0 or self.pipeline
@@ -697,6 +709,11 @@ class CrossbarGenerator:
 
     def _ax_ready_term(self, m: MasterConfig, suffix: str, ch: str, slave: SlaveInfo) -> str:
         """The master-side AWREADY/ARREADY contribution of one slave."""
+        if self._is_lane(slave):
+            i = self._lane_index(m, slave)
+            gate = self._aw_gate(m, suffix, slave) if ch == "aw" else ""
+            return (f"(({m.name}_{suffix}_{ch}_to_{slave.name}{gate}) ? "
+                    f"{slave.name}_axi_lane_{ch}ready[{i}] : '0)")
         if self._uses_slots(slave, ch):
             q = self._slot(m, suffix, ch, slave)
             gate = self._aw_gate(m, suffix, slave) if ch == "aw" else ""
@@ -756,8 +773,129 @@ class CrossbarGenerator:
             # follow-up. Response-side routing already uses the
             # slave_adapter's bid_bridge_id/rid_bridge_id tracking
             # to pick the right destination master.
-            lines.extend(self._generate_multi_master_routing(slave_idx, slave, connecting_masters))
+            if self._is_lane(slave):
+                lines.extend(self._generate_lane_routing(slave, connecting_masters))
+            else:
+                lines.extend(self._generate_multi_master_routing(slave_idx, slave, connecting_masters))
 
+        return lines
+
+    # ------------------------------------------------------------------
+    # Lanes into a multi-master slave on its own clock (bridge W9)
+    # ------------------------------------------------------------------
+    # Arbitration belongs in the slave's clock domain. For a cdc slave the
+    # crossbar does not pick: each master's AW / W / AR leaves on a lane of
+    # its own, and the slave adapter's bridge_cdc_slave_arb crosses the
+    # lanes and arbitrates on s_aclk. (Picked here, the granted requests
+    # queued in the one crossing behind the pick and a master's share
+    # followed its outstanding count.) W needs no owner here: each lane
+    # carries only its master's W, in that master's AW order (its W
+    # destination FIFO), and the slave side follows its own AW pick.
+
+    def _is_lane(self, slave: SlaveInfo) -> bool:
+        return cdc_lanes.is_lane_slave(slave, self.slaves.index(slave), self.masters)
+
+    def _lane_masters(self, slave: SlaveInfo) -> List[MasterConfig]:
+        return cdc_lanes.lane_masters(self.slaves.index(slave), self.masters)
+
+    def _lane_index(self, m: MasterConfig, slave: SlaveInfo) -> int:
+        return self._lane_masters(slave).index(m)
+
+    def _lane_ports(self, slave: SlaveInfo, has_write: bool, has_read: bool,
+                    id_w: int, addr_w: int) -> List[str]:
+        n = len(self._lane_masters(slave))
+        axw = cdc_lanes.ax_width(id_w, addr_w)
+        ww = cdc_lanes.w_width(slave.data_width)
+        p = f"{slave.name}_axi_lane_"
+        lines = [f"    // Per-master lanes: {slave.name} arbitrates on its own clock (bridge W9)"]
+        if has_write:
+            lines += [f"    output logic [{n-1}:0] {p}awvalid,",
+                      f"    input  logic [{n-1}:0] {p}awready,",
+                      f"    output logic [{n * axw - 1}:0] {p}aw,",
+                      f"    output logic [{n-1}:0] {p}wvalid,",
+                      f"    input  logic [{n-1}:0] {p}wready,",
+                      f"    output logic [{n * ww - 1}:0] {p}w,"]
+        if has_read:
+            lines += [f"    output logic [{n-1}:0] {p}arvalid,",
+                      f"    input  logic [{n-1}:0] {p}arready,",
+                      f"    output logic [{n * axw - 1}:0] {p}ar,"]
+        return lines + [""]
+
+    def _generate_lane_routing(self, slave: SlaveInfo, masters: List[MasterConfig]) -> List[str]:
+        """Drive the per-master lanes of a multi-master cdc slave. The
+        ordinary request nets are tied off; B and R come back on the
+        ordinary ports and route by the ID's master bits as for any slave."""
+        lines = []
+        suffix = f"{slave.data_width}b"
+        prefix = self._sp(slave)
+        s = slave.name
+        p = f"{s}_axi_lane_"
+        from bridge_pkg.width_utils import xbar_id_width
+        axw = cdc_lanes.ax_width(xbar_id_width(self.masters), self._determine_slave_interface_width(slave)[1])
+        ww = cdc_lanes.w_width(slave.data_width)
+        channels = self._determine_slave_channels(slave)
+        has_write = AXI4Channel.AW in channels
+        has_read = AXI4Channel.AR in channels
+        lines.append(f"    // {s}: {len(masters)} masters on per-master lanes, arbitrated on "
+                     f"{s}'s own clock in its slave adapter (bridge W9)")
+        for m in masters:
+            if has_write and m.channels in ("wr", "rw"):
+                lines.append(f"    wire {m.name}_{suffix}_aw_to_{s} = "
+                             f"{self._addr_decode_expr(m.name, suffix, 'aw', slave)};")
+            if has_read and m.channels in ("rd", "rw"):
+                lines.append(f"    wire {m.name}_{suffix}_ar_to_{s} = "
+                             f"{self._addr_decode_expr(m.name, suffix, 'ar', slave)};")
+        ax = ", ".join(f"{{src}}.{f}" for f in cdc_lanes.AX_FIELDS)
+        wf = ", ".join(f"{{src}}.{f}" for f in cdc_lanes.W_FIELDS)
+        for i, m in enumerate(masters):
+            if has_write:
+                if m.channels in ("wr", "rw"):
+                    src = f"{m.name}_{suffix}_aw"
+                    gate = self._aw_gate(m, suffix, slave)
+                    lines.append(f"    assign {p}awvalid[{i}] = {m.name}_{suffix}_aw_to_{s}{gate} && "
+                                 f"{m.name}_{suffix}_awvalid;")
+                    lines.append(f"    assign {p}aw[{i}*{axw} +: {axw}] = {{{ax.format(src=src)}}};")
+                    lines.append(f"    assign {m.name}_{suffix}_w_sel_{s} = {m.name}_{suffix}_w_to_{s};")
+                    lines.append(f"    assign {p}wvalid[{i}] = {m.name}_{suffix}_w_to_{s} && "
+                                 f"{m.name}_{suffix}_wvalid;")
+                    lines.append(f"    assign {p}w[{i}*{ww} +: {ww}] = "
+                                 f"{{{wf.format(src=m.name + '_' + suffix + '_w')}}};")
+                else:
+                    lines.append(f"    assign {p}awvalid[{i}] = 1'b0;")
+                    lines.append(f"    assign {p}aw[{i}*{axw} +: {axw}] = '0;")
+                    lines.append(f"    assign {p}wvalid[{i}] = 1'b0;")
+                    lines.append(f"    assign {p}w[{i}*{ww} +: {ww}] = '0;")
+            if has_read:
+                if m.channels in ("rd", "rw"):
+                    src = f"{m.name}_{suffix}_ar"
+                    lines.append(f"    assign {p}arvalid[{i}] = {m.name}_{suffix}_ar_to_{s} && "
+                                 f"{m.name}_{suffix}_arvalid;")
+                    lines.append(f"    assign {p}ar[{i}*{axw} +: {axw}] = {{{ax.format(src=src)}}};")
+                else:
+                    lines.append(f"    assign {p}arvalid[{i}] = 1'b0;")
+                    lines.append(f"    assign {p}ar[{i}*{axw} +: {axw}] = '0;")
+        # The ordinary request nets carry nothing for this slave.
+        req = []
+        if has_write:
+            req += ['awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock', 'awcache',
+                    'awprot', 'awqos', 'awregion', 'awuser', 'awvalid',
+                    'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid', 'bridge_id_aw']
+        if has_read:
+            req += ['arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock', 'arcache',
+                    'arprot', 'arqos', 'arregion', 'aruser', 'arvalid', 'bridge_id_ar']
+        for sig in req:
+            lines.append(f"    assign {prefix}{sig} = '0;")
+        wr_masters = [m for m in masters if m.channels in ("wr", "rw")]
+        rd_masters = [m for m in masters if m.channels in ("rd", "rw")]
+        if has_write:
+            terms = [f"({self._rgnt(m, suffix, 'b', slave)} ? {m.name}_{suffix}_bready : '0)"
+                     for m in wr_masters]
+            lines.append(f"    assign {prefix}bready = " + " |\n        ".join(terms) + ";")
+        if has_read:
+            terms = [f"({self._rgnt(m, suffix, 'r', slave)} ? {m.name}_{suffix}_rready : '0)"
+                     for m in rd_masters]
+            lines.append(f"    assign {prefix}rready = " + " |\n        ".join(terms) + ";")
+        lines.append("")
         return lines
 
     def _generate_arbiter(self, slave: SlaveInfo, suffix: str, prefix: str,
@@ -970,7 +1108,11 @@ class CrossbarGenerator:
             lines.append(f"    // ({odepth} deep: max_outstanding {omo})")
             lines.append(f"    logic [{k-1}:0] {own}_mem [{odepth}];")
             lines.append(f"    logic [{ob}:0] {own}_wptr, {own}_rptr;")
-            if not aw_slots:
+            # The owner bypass sends W ahead of its AW handshake; an AXI slave
+            # adapter takes that, an APB/AXI4-Lite/WB4 shim does not (it
+            # deadlocked bridge_2x2_wb4's concurrent test, bridge W14).
+            shim = slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4')
+            if not aw_slots or shim:
                 lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
                 lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
                 lines.append(f"            {own}_wptr <= '0;")
@@ -1536,7 +1678,9 @@ class CrossbarGenerator:
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_{suffix}_w_sel_{slave.name} ? {prefix}wready : '0)")
+            wready = (f"{slave.name}_axi_lane_wready[{self._lane_index(master, slave)}]"
+                      if self._is_lane(slave) else f"{prefix}wready")
+            mux_terms.append(f"        ({master.name}_{suffix}_w_sel_{slave.name} ? {wready} : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 

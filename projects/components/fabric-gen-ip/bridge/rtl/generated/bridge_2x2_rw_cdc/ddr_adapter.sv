@@ -76,6 +76,18 @@ module bridge_2x2_rw_cdc_ddr_adapter
     output logic [BRIDGE_ID_WIDTH-1:0] rid_bridge_id,
     output logic                       rid_valid,
 
+    // Per-master lanes (bridge W9): lane i is the i-th master that
+    // reaches this slave; arbitrated on s_aclk below
+    input  logic [1:0] ddr_axi_lane_awvalid,
+    output logic [1:0] ddr_axi_lane_awready,
+    input  logic [133:0] ddr_axi_lane_aw,
+    input  logic [1:0] ddr_axi_lane_wvalid,
+    output logic [1:0] ddr_axi_lane_wready,
+    input  logic [75:0] ddr_axi_lane_w,
+    input  logic [1:0] ddr_axi_lane_arvalid,
+    output logic [1:0] ddr_axi_lane_arready,
+    input  logic [133:0] ddr_axi_lane_ar,
+
     // External slave interface (AXI4)
     output  logic [4:0]  ddr_s_axi_awid,
     output  logic [31:0]  ddr_s_axi_awaddr,
@@ -128,262 +140,45 @@ module bridge_2x2_rw_cdc_ddr_adapter
     // ================================================================
 
     // ================================================================
-    // Bridge ID Tracking - By ID (any completion order)
+    // Bridge ID Tracking - By ID, requests on per-master lanes (bridge W9)
     // ================================================================
-
-    // Write channel: by-ID tracking
-    // B is routed by its BID's master-index bits: fabric IDs are
-    // {master index, master id} (bridge TASK-005) and a slave returns the
-    // ID it was given, so the routing needs no lookup and any completion
-    // order works. (A per-ID CAM did this lookup until 2026-10-18; it was the
-    // fabric's critical path, bridge W12.) The counter is the not-full
-    // gate (bridge BUG-009): it masks the sub-block's ready before it
-    // reaches the crossbar.
-    logic wr_trk_full;
-    logic w_sub_awready;
-    assign xbar_ddr_axi_awready = w_sub_awready && !wr_trk_full;
-    logic [4:0] wr_out_cnt;  // in flight, 0..16 (max_outstanding)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            wr_out_cnt <= '0;
-        end else begin
-            wr_out_cnt <= wr_out_cnt + 5'(xbar_ddr_axi_awvalid && xbar_ddr_axi_awready) - 5'(xbar_ddr_axi_bvalid && xbar_ddr_axi_bready);
-        end
-    )
-    assign wr_trk_full = (wr_out_cnt == 5'(16));
+    // The crossbar sends this slave's requests on the lanes; its
+    // ordinary request ports carry nothing and are never ready. The
+    // outstanding limit is kept on s_aclk by bridge_cdc_slave_arb.
+    assign xbar_ddr_axi_awready = 1'b0;
+    assign xbar_ddr_axi_wready  = 1'b0;
     assign bid_bridge_id = xbar_ddr_axi_bid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
     assign bid_valid     = 1'b1;
-
-    // Read channel: by-ID tracking -- see the write channel.
-    logic rd_trk_full;
-    logic w_sub_arready;
-    assign xbar_ddr_axi_arready = w_sub_arready && !rd_trk_full;
-    logic [4:0] rd_out_cnt;  // in flight, 0..16 (max_outstanding)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            rd_out_cnt <= '0;
-        end else begin
-            rd_out_cnt <= rd_out_cnt + 5'(xbar_ddr_axi_arvalid && xbar_ddr_axi_arready) - 5'(xbar_ddr_axi_rvalid && xbar_ddr_axi_rready && xbar_ddr_axi_rlast);
-        end
-    )
-    assign rd_trk_full = (rd_out_cnt == 5'(16));
+    assign xbar_ddr_axi_arready = 1'b0;
     assign rid_bridge_id = xbar_ddr_axi_rid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
     assign rid_valid     = 1'b1;
 
     // ============================================================
-    // aclk-side nets between the timing wrapper and the clock crossing
+    // Slave-domain arbitration for ddr (bridge W9): per-master
+    // crossings, AW / AR picked on s_aclk, W follows the AW pick
     // ============================================================
-    logic [4:0] cdc_ddr_axi_awid;
-    logic [31:0] cdc_ddr_axi_awaddr;
-    logic [7:0]  cdc_ddr_axi_awlen;
-    logic [2:0]  cdc_ddr_axi_awsize;
-    logic [1:0]  cdc_ddr_axi_awburst;
-    logic        cdc_ddr_axi_awlock;
-    logic [3:0]  cdc_ddr_axi_awcache;
-    logic [2:0]  cdc_ddr_axi_awprot;
-    logic [3:0]  cdc_ddr_axi_awqos;
-    logic [3:0]  cdc_ddr_axi_awregion;
-    logic        cdc_ddr_axi_awuser;
-    logic        cdc_ddr_axi_awvalid;
-    logic        cdc_ddr_axi_awready;
-    logic [31:0] cdc_ddr_axi_wdata;
-    logic [3:0] cdc_ddr_axi_wstrb;
-    logic        cdc_ddr_axi_wlast;
-    logic        cdc_ddr_axi_wuser;
-    logic        cdc_ddr_axi_wvalid;
-    logic        cdc_ddr_axi_wready;
-    logic [4:0] cdc_ddr_axi_bid;
-    logic [1:0]  cdc_ddr_axi_bresp;
-    logic        cdc_ddr_axi_buser;
-    logic        cdc_ddr_axi_bvalid;
-    logic        cdc_ddr_axi_bready;
-    logic [4:0] cdc_ddr_axi_arid;
-    logic [31:0] cdc_ddr_axi_araddr;
-    logic [7:0]  cdc_ddr_axi_arlen;
-    logic [2:0]  cdc_ddr_axi_arsize;
-    logic [1:0]  cdc_ddr_axi_arburst;
-    logic        cdc_ddr_axi_arlock;
-    logic [3:0]  cdc_ddr_axi_arcache;
-    logic [2:0]  cdc_ddr_axi_arprot;
-    logic [3:0]  cdc_ddr_axi_arqos;
-    logic [3:0]  cdc_ddr_axi_arregion;
-    logic        cdc_ddr_axi_aruser;
-    logic        cdc_ddr_axi_arvalid;
-    logic        cdc_ddr_axi_arready;
-    logic [4:0] cdc_ddr_axi_rid;
-    logic [31:0] cdc_ddr_axi_rdata;
-    logic [1:0]  cdc_ddr_axi_rresp;
-    logic        cdc_ddr_axi_rlast;
-    logic        cdc_ddr_axi_ruser;
-    logic        cdc_ddr_axi_rvalid;
-    logic        cdc_ddr_axi_rready;
-
-    // AXI4 Master Write Timing Wrapper
-    axi4_master_wr #(
-        .SKID_DEPTH_AW(0),
-        .SKID_DEPTH_W(4),
-        .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(5),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1)
-    ) u_master_wr (
-        .aclk(aclk),
-        .aresetn(aresetn),
-
-        // Bridge-internal side (fub_axi)
-        .fub_axi_awid(xbar_ddr_axi_awid),
-        .fub_axi_awaddr(xbar_ddr_axi_awaddr),
-        .fub_axi_awlen(xbar_ddr_axi_awlen),
-        .fub_axi_awsize(xbar_ddr_axi_awsize),
-        .fub_axi_awburst(xbar_ddr_axi_awburst),
-        .fub_axi_awlock(xbar_ddr_axi_awlock),
-        .fub_axi_awcache(xbar_ddr_axi_awcache),
-        .fub_axi_awprot(xbar_ddr_axi_awprot),
-        .fub_axi_awqos(xbar_ddr_axi_awqos),
-        .fub_axi_awregion(xbar_ddr_axi_awregion),
-        .fub_axi_awuser(xbar_ddr_axi_awuser),
-        .fub_axi_awvalid(xbar_ddr_axi_awvalid && !wr_trk_full),
-        .fub_axi_awready(w_sub_awready),
-        .fub_axi_wdata(xbar_ddr_axi_wdata),
-        .fub_axi_wstrb(xbar_ddr_axi_wstrb),
-        .fub_axi_wlast(xbar_ddr_axi_wlast),
-        .fub_axi_wuser(xbar_ddr_axi_wuser),
-        .fub_axi_wvalid(xbar_ddr_axi_wvalid),
-        .fub_axi_wready(xbar_ddr_axi_wready),
-        .fub_axi_bid(xbar_ddr_axi_bid),
-        .fub_axi_bresp(xbar_ddr_axi_bresp),
-        .fub_axi_buser(xbar_ddr_axi_buser),
-        .fub_axi_bvalid(xbar_ddr_axi_bvalid),
-        .fub_axi_bready(xbar_ddr_axi_bready),
-
-        // External side (m_axi)
-        .m_axi_awid(cdc_ddr_axi_awid),
-        .m_axi_awaddr(cdc_ddr_axi_awaddr),
-        .m_axi_awlen(cdc_ddr_axi_awlen),
-        .m_axi_awsize(cdc_ddr_axi_awsize),
-        .m_axi_awburst(cdc_ddr_axi_awburst),
-        .m_axi_awlock(cdc_ddr_axi_awlock),
-        .m_axi_awcache(cdc_ddr_axi_awcache),
-        .m_axi_awprot(cdc_ddr_axi_awprot),
-        .m_axi_awqos(cdc_ddr_axi_awqos),
-        .m_axi_awregion(cdc_ddr_axi_awregion),
-        .m_axi_awuser(cdc_ddr_axi_awuser),
-        .m_axi_awvalid(cdc_ddr_axi_awvalid),
-        .m_axi_awready(cdc_ddr_axi_awready),
-        .m_axi_wdata(cdc_ddr_axi_wdata),
-        .m_axi_wstrb(cdc_ddr_axi_wstrb),
-        .m_axi_wlast(cdc_ddr_axi_wlast),
-        .m_axi_wuser(cdc_ddr_axi_wuser),
-        .m_axi_wvalid(cdc_ddr_axi_wvalid),
-        .m_axi_wready(cdc_ddr_axi_wready),
-        .m_axi_bid(cdc_ddr_axi_bid),
-        .m_axi_bresp(cdc_ddr_axi_bresp),
-        .m_axi_buser(cdc_ddr_axi_buser),
-        .m_axi_bvalid(cdc_ddr_axi_bvalid),
-        .m_axi_bready(cdc_ddr_axi_bready),
-
-        // Status (empty connector = unconnected tie-off)
-        .busy()
-    );
-
-    // AXI4 Master Read Timing Wrapper
-    axi4_master_rd #(
-        .SKID_DEPTH_AR(0),
-        .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(5),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1)
-    ) u_master_rd (
-        .aclk(aclk),
-        .aresetn(aresetn),
-
-        // Bridge-internal side (fub_axi)
-        .fub_axi_arid(xbar_ddr_axi_arid),
-        .fub_axi_araddr(xbar_ddr_axi_araddr),
-        .fub_axi_arlen(xbar_ddr_axi_arlen),
-        .fub_axi_arsize(xbar_ddr_axi_arsize),
-        .fub_axi_arburst(xbar_ddr_axi_arburst),
-        .fub_axi_arlock(xbar_ddr_axi_arlock),
-        .fub_axi_arcache(xbar_ddr_axi_arcache),
-        .fub_axi_arprot(xbar_ddr_axi_arprot),
-        .fub_axi_arqos(xbar_ddr_axi_arqos),
-        .fub_axi_arregion(xbar_ddr_axi_arregion),
-        .fub_axi_aruser(xbar_ddr_axi_aruser),
-        .fub_axi_arvalid(xbar_ddr_axi_arvalid && !rd_trk_full),
-        .fub_axi_arready(w_sub_arready),
-        .fub_axi_rid(xbar_ddr_axi_rid),
-        .fub_axi_rdata(xbar_ddr_axi_rdata),
-        .fub_axi_rresp(xbar_ddr_axi_rresp),
-        .fub_axi_rlast(xbar_ddr_axi_rlast),
-        .fub_axi_ruser(xbar_ddr_axi_ruser),
-        .fub_axi_rvalid(xbar_ddr_axi_rvalid),
-        .fub_axi_rready(xbar_ddr_axi_rready),
-
-        // External side (m_axi)
-        .m_axi_arid(cdc_ddr_axi_arid),
-        .m_axi_araddr(cdc_ddr_axi_araddr),
-        .m_axi_arlen(cdc_ddr_axi_arlen),
-        .m_axi_arsize(cdc_ddr_axi_arsize),
-        .m_axi_arburst(cdc_ddr_axi_arburst),
-        .m_axi_arlock(cdc_ddr_axi_arlock),
-        .m_axi_arcache(cdc_ddr_axi_arcache),
-        .m_axi_arprot(cdc_ddr_axi_arprot),
-        .m_axi_arqos(cdc_ddr_axi_arqos),
-        .m_axi_arregion(cdc_ddr_axi_arregion),
-        .m_axi_aruser(cdc_ddr_axi_aruser),
-        .m_axi_arvalid(cdc_ddr_axi_arvalid),
-        .m_axi_arready(cdc_ddr_axi_arready),
-        .m_axi_rid(cdc_ddr_axi_rid),
-        .m_axi_rdata(cdc_ddr_axi_rdata),
-        .m_axi_rresp(cdc_ddr_axi_rresp),
-        .m_axi_rlast(cdc_ddr_axi_rlast),
-        .m_axi_ruser(cdc_ddr_axi_ruser),
-        .m_axi_rvalid(cdc_ddr_axi_rvalid),
-        .m_axi_rready(cdc_ddr_axi_rready),
-
-        // Status (empty connector = unconnected tie-off)
-        .busy()
-    );
-
-    // ============================================================
-    // Clock-domain crossing to the ddr port (s_aclk)
-    // ============================================================
-    axi4_cdc_wr #(
-        .AXI_ID_WIDTH(5),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1),
+    bridge_cdc_slave_arb #(
+        .NM(2),
+        .IW(ID_WIDTH),
+        .ADDR_W(32),
+        .DW(32),
+        .UW(1),
+        .MAX_OUTSTANDING(16),
         .CDC_DEPTH(8),
-        .USE_JOHNSON(0)
-    ) u_cdc_wr (
-        .s_aclk(aclk), .s_aresetn(aresetn),
-        .m_aclk(s_aclk), .m_aresetn(s_aresetn),
-        .s_axi_awid(cdc_ddr_axi_awid),
-        .s_axi_awaddr(cdc_ddr_axi_awaddr),
-        .s_axi_awlen(cdc_ddr_axi_awlen),
-        .s_axi_awsize(cdc_ddr_axi_awsize),
-        .s_axi_awburst(cdc_ddr_axi_awburst),
-        .s_axi_awlock(cdc_ddr_axi_awlock),
-        .s_axi_awcache(cdc_ddr_axi_awcache),
-        .s_axi_awprot(cdc_ddr_axi_awprot),
-        .s_axi_awqos(cdc_ddr_axi_awqos),
-        .s_axi_awregion(cdc_ddr_axi_awregion),
-        .s_axi_awuser(cdc_ddr_axi_awuser),
-        .s_axi_awvalid(cdc_ddr_axi_awvalid),
-        .s_axi_awready(cdc_ddr_axi_awready),
-        .s_axi_wdata(cdc_ddr_axi_wdata),
-        .s_axi_wstrb(cdc_ddr_axi_wstrb),
-        .s_axi_wlast(cdc_ddr_axi_wlast),
-        .s_axi_wuser(cdc_ddr_axi_wuser),
-        .s_axi_wvalid(cdc_ddr_axi_wvalid),
-        .s_axi_wready(cdc_ddr_axi_wready),
-        .s_axi_bid(cdc_ddr_axi_bid),
-        .s_axi_bresp(cdc_ddr_axi_bresp),
-        .s_axi_buser(cdc_ddr_axi_buser),
-        .s_axi_bvalid(cdc_ddr_axi_bvalid),
-        .s_axi_bready(cdc_ddr_axi_bready),
+        .HAS_WR(1),
+        .HAS_RD(1)
+    ) u_cdc_arb (
+        .aclk(aclk), .aresetn(aresetn),
+        .s_aclk(s_aclk), .s_aresetn(s_aresetn),
+        .lane_awvalid(ddr_axi_lane_awvalid),
+        .lane_awready(ddr_axi_lane_awready),
+        .lane_aw(ddr_axi_lane_aw),
+        .lane_wvalid(ddr_axi_lane_wvalid),
+        .lane_wready(ddr_axi_lane_wready),
+        .lane_w(ddr_axi_lane_w),
+        .fab_bvalid(xbar_ddr_axi_bvalid),
+        .fab_bready(xbar_ddr_axi_bready),
+        .fab_b({xbar_ddr_axi_bid, xbar_ddr_axi_bresp, xbar_ddr_axi_buser}),
         .m_axi_awid(ddr_s_axi_awid),
         .m_axi_awaddr(ddr_s_axi_awaddr),
         .m_axi_awlen(ddr_s_axi_awlen),
@@ -407,38 +202,13 @@ module bridge_2x2_rw_cdc_ddr_adapter
         .m_axi_bresp(ddr_s_axi_bresp),
         .m_axi_buser(ddr_s_axi_buser),
         .m_axi_bvalid(ddr_s_axi_bvalid),
-        .m_axi_bready(ddr_s_axi_bready)
-    );
-    axi4_cdc_rd #(
-        .AXI_ID_WIDTH(5),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .CDC_DEPTH(8),
-        .USE_JOHNSON(0)
-    ) u_cdc_rd (
-        .s_aclk(aclk), .s_aresetn(aresetn),
-        .m_aclk(s_aclk), .m_aresetn(s_aresetn),
-        .s_axi_arid(cdc_ddr_axi_arid),
-        .s_axi_araddr(cdc_ddr_axi_araddr),
-        .s_axi_arlen(cdc_ddr_axi_arlen),
-        .s_axi_arsize(cdc_ddr_axi_arsize),
-        .s_axi_arburst(cdc_ddr_axi_arburst),
-        .s_axi_arlock(cdc_ddr_axi_arlock),
-        .s_axi_arcache(cdc_ddr_axi_arcache),
-        .s_axi_arprot(cdc_ddr_axi_arprot),
-        .s_axi_arqos(cdc_ddr_axi_arqos),
-        .s_axi_arregion(cdc_ddr_axi_arregion),
-        .s_axi_aruser(cdc_ddr_axi_aruser),
-        .s_axi_arvalid(cdc_ddr_axi_arvalid),
-        .s_axi_arready(cdc_ddr_axi_arready),
-        .s_axi_rid(cdc_ddr_axi_rid),
-        .s_axi_rdata(cdc_ddr_axi_rdata),
-        .s_axi_rresp(cdc_ddr_axi_rresp),
-        .s_axi_rlast(cdc_ddr_axi_rlast),
-        .s_axi_ruser(cdc_ddr_axi_ruser),
-        .s_axi_rvalid(cdc_ddr_axi_rvalid),
-        .s_axi_rready(cdc_ddr_axi_rready),
+        .m_axi_bready(ddr_s_axi_bready),
+        .lane_arvalid(ddr_axi_lane_arvalid),
+        .lane_arready(ddr_axi_lane_arready),
+        .lane_ar(ddr_axi_lane_ar),
+        .fab_rvalid(xbar_ddr_axi_rvalid),
+        .fab_rready(xbar_ddr_axi_rready),
+        .fab_r({xbar_ddr_axi_rid, xbar_ddr_axi_rdata, xbar_ddr_axi_rresp, xbar_ddr_axi_rlast, xbar_ddr_axi_ruser}),
         .m_axi_arid(ddr_s_axi_arid),
         .m_axi_araddr(ddr_s_axi_araddr),
         .m_axi_arlen(ddr_s_axi_arlen),

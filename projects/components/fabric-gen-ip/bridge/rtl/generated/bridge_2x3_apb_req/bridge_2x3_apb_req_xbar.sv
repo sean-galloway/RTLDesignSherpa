@@ -321,6 +321,14 @@ module bridge_2x3_apb_req_xbar
     logic apb4m_32b_aw_slot_mem_valid, apb4m_32b_aw_slot_mem_ready, apb4m_32b_aw_slot_mem_in_valid, apb4m_32b_aw_slot_mem_in_ready;
     axi4_aw_t apb5m_32b_aw_slot_mem;
     logic apb5m_32b_aw_slot_mem_valid, apb5m_32b_aw_slot_mem_ready, apb5m_32b_aw_slot_mem_in_valid, apb5m_32b_aw_slot_mem_in_ready;
+    axi4_aw_t apb4m_32b_aw_slot_lregs;
+    logic apb4m_32b_aw_slot_lregs_valid, apb4m_32b_aw_slot_lregs_ready, apb4m_32b_aw_slot_lregs_in_valid, apb4m_32b_aw_slot_lregs_in_ready;
+    axi4_aw_t apb5m_32b_aw_slot_lregs;
+    logic apb5m_32b_aw_slot_lregs_valid, apb5m_32b_aw_slot_lregs_ready, apb5m_32b_aw_slot_lregs_in_valid, apb5m_32b_aw_slot_lregs_in_ready;
+    axi4_aw_t apb4m_32b_aw_slot_periph;
+    logic apb4m_32b_aw_slot_periph_valid, apb4m_32b_aw_slot_periph_ready, apb4m_32b_aw_slot_periph_in_valid, apb4m_32b_aw_slot_periph_in_ready;
+    axi4_aw_t apb5m_32b_aw_slot_periph;
+    logic apb5m_32b_aw_slot_periph_valid, apb5m_32b_aw_slot_periph_ready, apb5m_32b_aw_slot_periph_in_valid, apb5m_32b_aw_slot_periph_in_ready;
     axi4_aw_t apb4m_32b_aw_slot_subtractive;
     logic apb4m_32b_aw_slot_subtractive_valid, apb4m_32b_aw_slot_subtractive_ready, apb4m_32b_aw_slot_subtractive_in_valid, apb4m_32b_aw_slot_subtractive_in_ready;
     axi4_aw_t apb5m_32b_aw_slot_subtractive;
@@ -329,20 +337,28 @@ module bridge_2x3_apb_req_xbar
     logic apb4m_32b_ar_slot_mem_valid, apb4m_32b_ar_slot_mem_ready, apb4m_32b_ar_slot_mem_in_valid, apb4m_32b_ar_slot_mem_in_ready;
     axi4_ar_t apb5m_32b_ar_slot_mem;
     logic apb5m_32b_ar_slot_mem_valid, apb5m_32b_ar_slot_mem_ready, apb5m_32b_ar_slot_mem_in_valid, apb5m_32b_ar_slot_mem_in_ready;
+    axi4_ar_t apb4m_32b_ar_slot_lregs;
+    logic apb4m_32b_ar_slot_lregs_valid, apb4m_32b_ar_slot_lregs_ready, apb4m_32b_ar_slot_lregs_in_valid, apb4m_32b_ar_slot_lregs_in_ready;
+    axi4_ar_t apb5m_32b_ar_slot_lregs;
+    logic apb5m_32b_ar_slot_lregs_valid, apb5m_32b_ar_slot_lregs_ready, apb5m_32b_ar_slot_lregs_in_valid, apb5m_32b_ar_slot_lregs_in_ready;
+    axi4_ar_t apb4m_32b_ar_slot_periph;
+    logic apb4m_32b_ar_slot_periph_valid, apb4m_32b_ar_slot_periph_ready, apb4m_32b_ar_slot_periph_in_valid, apb4m_32b_ar_slot_periph_in_ready;
+    axi4_ar_t apb5m_32b_ar_slot_periph;
+    logic apb5m_32b_ar_slot_periph_valid, apb5m_32b_ar_slot_periph_ready, apb5m_32b_ar_slot_periph_in_valid, apb5m_32b_ar_slot_periph_in_ready;
     axi4_ar_t apb4m_32b_ar_slot_subtractive;
     logic apb4m_32b_ar_slot_subtractive_valid, apb4m_32b_ar_slot_subtractive_ready, apb4m_32b_ar_slot_subtractive_in_valid, apb4m_32b_ar_slot_subtractive_in_ready;
     axi4_ar_t apb5m_32b_ar_slot_subtractive;
     logic apb5m_32b_ar_slot_subtractive_valid, apb5m_32b_ar_slot_subtractive_ready, apb5m_32b_ar_slot_subtractive_in_valid, apb5m_32b_ar_slot_subtractive_in_ready;
     // Write ordering: a master's AW waits while another of its slots
     // holds an AW (see _generate_request_slots)
-    wire apb4m_32b_aw_hold_mem = apb4m_32b_aw_slot_subtractive_valid;
-    wire apb4m_32b_aw_hold_lregs = apb4m_32b_aw_slot_mem_valid || apb4m_32b_aw_slot_subtractive_valid;
-    wire apb4m_32b_aw_hold_periph = apb4m_32b_aw_slot_mem_valid || apb4m_32b_aw_slot_subtractive_valid;
-    wire apb4m_32b_aw_hold_subtractive = apb4m_32b_aw_slot_mem_valid;
-    wire apb5m_32b_aw_hold_mem = apb5m_32b_aw_slot_subtractive_valid;
-    wire apb5m_32b_aw_hold_lregs = apb5m_32b_aw_slot_mem_valid || apb5m_32b_aw_slot_subtractive_valid;
-    wire apb5m_32b_aw_hold_periph = apb5m_32b_aw_slot_mem_valid || apb5m_32b_aw_slot_subtractive_valid;
-    wire apb5m_32b_aw_hold_subtractive = apb5m_32b_aw_slot_mem_valid;
+    wire apb4m_32b_aw_hold_mem = apb4m_32b_aw_slot_lregs_valid || apb4m_32b_aw_slot_periph_valid || apb4m_32b_aw_slot_subtractive_valid;
+    wire apb4m_32b_aw_hold_lregs = apb4m_32b_aw_slot_mem_valid || apb4m_32b_aw_slot_periph_valid || apb4m_32b_aw_slot_subtractive_valid;
+    wire apb4m_32b_aw_hold_periph = apb4m_32b_aw_slot_mem_valid || apb4m_32b_aw_slot_lregs_valid || apb4m_32b_aw_slot_subtractive_valid;
+    wire apb4m_32b_aw_hold_subtractive = apb4m_32b_aw_slot_mem_valid || apb4m_32b_aw_slot_lregs_valid || apb4m_32b_aw_slot_periph_valid;
+    wire apb5m_32b_aw_hold_mem = apb5m_32b_aw_slot_lregs_valid || apb5m_32b_aw_slot_periph_valid || apb5m_32b_aw_slot_subtractive_valid;
+    wire apb5m_32b_aw_hold_lregs = apb5m_32b_aw_slot_mem_valid || apb5m_32b_aw_slot_periph_valid || apb5m_32b_aw_slot_subtractive_valid;
+    wire apb5m_32b_aw_hold_periph = apb5m_32b_aw_slot_mem_valid || apb5m_32b_aw_slot_lregs_valid || apb5m_32b_aw_slot_subtractive_valid;
+    wire apb5m_32b_aw_hold_subtractive = apb5m_32b_aw_slot_mem_valid || apb5m_32b_aw_slot_lregs_valid || apb5m_32b_aw_slot_periph_valid;
 
     // ================================================================
     // Response arbiters (one slave per master path per channel)
@@ -713,9 +729,29 @@ module bridge_2x3_apb_req_xbar
     wire apb5m_32b_aw_to_lregs = ((apb5m_32b_aw.addr >= 32'h40000000) && (apb5m_32b_aw.addr <= 32'h4000ffff));
     wire apb5m_32b_ar_to_lregs = ((apb5m_32b_ar.addr >= 32'h40000000) && (apb5m_32b_ar.addr <= 32'h4000ffff));
 
+    // AW request slots for lregs: arbitration at the slave pins
+    assign apb4m_32b_aw_slot_lregs_in_valid = apb4m_32b_aw_to_lregs && apb4m_32b_awvalid && !apb4m_32b_aw_hold_lregs;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb4m_32b_aw_slot_lregs (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb4m_32b_aw_slot_lregs_in_valid), .wr_ready(apb4m_32b_aw_slot_lregs_in_ready), .wr_data(apb4m_32b_aw),
+        .rd_valid(apb4m_32b_aw_slot_lregs_valid), .rd_ready(apb4m_32b_aw_slot_lregs_ready), .rd_data(apb4m_32b_aw_slot_lregs),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign apb5m_32b_aw_slot_lregs_in_valid = apb5m_32b_aw_to_lregs && apb5m_32b_awvalid && !apb5m_32b_aw_hold_lregs;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb5m_32b_aw_slot_lregs (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb5m_32b_aw_slot_lregs_in_valid), .wr_ready(apb5m_32b_aw_slot_lregs_in_ready), .wr_data(apb5m_32b_aw),
+        .rd_valid(apb5m_32b_aw_slot_lregs_valid), .rd_ready(apb5m_32b_aw_slot_lregs_ready), .rd_data(apb5m_32b_aw_slot_lregs),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for lregs: round-robin, lock until handshake ----
     logic [1:0] lregs_aw_arb_req;
-    assign lregs_aw_arb_req = {apb5m_32b_aw_to_lregs && apb5m_32b_awvalid && !apb5m_32b_aw_hold_lregs, apb4m_32b_aw_to_lregs && apb4m_32b_awvalid && !apb4m_32b_aw_hold_lregs};
+    assign lregs_aw_arb_req = {apb5m_32b_aw_slot_lregs_valid, apb4m_32b_aw_slot_lregs_valid};
     logic [0:0] lregs_aw_arb_lock, lregs_aw_arb_rr;
     logic lregs_aw_arb_locked;
     wire [0:0] lregs_aw_arb_pick = (lregs_aw_arb_rr == 1'd0) ? (lregs_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -739,30 +775,32 @@ module bridge_2x3_apb_req_xbar
     )
     wire apb4m_32b_aw_gnt_lregs = lregs_aw_arb_gnt_valid && (lregs_aw_arb_gnt == 1'd0) && lregs_aw_arb_req[0];
     wire apb5m_32b_aw_gnt_lregs = lregs_aw_arb_gnt_valid && (lregs_aw_arb_gnt == 1'd1) && lregs_aw_arb_req[1];
+    assign apb4m_32b_aw_slot_lregs_ready = apb4m_32b_aw_gnt_lregs && lregs_axi_awready;
+    assign apb5m_32b_aw_slot_lregs_ready = apb5m_32b_aw_gnt_lregs && lregs_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign lregs_axi_awid = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.id : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.id : '0);
-    assign lregs_axi_awaddr = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.addr : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.addr : '0);
-    assign lregs_axi_awlen = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.len : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.len : '0);
-    assign lregs_axi_awsize = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.size : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.size : '0);
-    assign lregs_axi_awburst = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.burst : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.burst : '0);
-    assign lregs_axi_awlock = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.lock : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.lock : '0);
-    assign lregs_axi_awcache = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.cache : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.cache : '0);
-    assign lregs_axi_awprot = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.prot : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.prot : '0);
-    assign lregs_axi_awqos = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.qos : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.qos : '0);
-    assign lregs_axi_awregion = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.region : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.region : '0);
-    assign lregs_axi_awuser = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw.user : '0) |
-        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw.user : '0);
+    assign lregs_axi_awid = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.id : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.id : '0);
+    assign lregs_axi_awaddr = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.addr : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.addr : '0);
+    assign lregs_axi_awlen = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.len : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.len : '0);
+    assign lregs_axi_awsize = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.size : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.size : '0);
+    assign lregs_axi_awburst = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.burst : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.burst : '0);
+    assign lregs_axi_awlock = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.lock : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.lock : '0);
+    assign lregs_axi_awcache = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.cache : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.cache : '0);
+    assign lregs_axi_awprot = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.prot : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.prot : '0);
+    assign lregs_axi_awqos = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.qos : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.qos : '0);
+    assign lregs_axi_awregion = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.region : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.region : '0);
+    assign lregs_axi_awuser = (apb4m_32b_aw_gnt_lregs ? apb4m_32b_aw_slot_lregs.user : '0) |
+        (apb5m_32b_aw_gnt_lregs ? apb5m_32b_aw_slot_lregs.user : '0);
     assign lregs_axi_awvalid = apb4m_32b_aw_gnt_lregs || apb5m_32b_aw_gnt_lregs;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
@@ -807,9 +845,29 @@ module bridge_2x3_apb_req_xbar
     assign lregs_axi_bridge_id_aw = (apb4m_32b_aw_gnt_lregs ? apb4m_bridge_id_aw : '0) |
         (apb5m_32b_aw_gnt_lregs ? apb5m_bridge_id_aw : '0);
 
+    // AR request slots for lregs: arbitration at the slave pins
+    assign apb4m_32b_ar_slot_lregs_in_valid = apb4m_32b_ar_to_lregs && apb4m_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_apb4m_32b_ar_slot_lregs (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb4m_32b_ar_slot_lregs_in_valid), .wr_ready(apb4m_32b_ar_slot_lregs_in_ready), .wr_data(apb4m_32b_ar),
+        .rd_valid(apb4m_32b_ar_slot_lregs_valid), .rd_ready(apb4m_32b_ar_slot_lregs_ready), .rd_data(apb4m_32b_ar_slot_lregs),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign apb5m_32b_ar_slot_lregs_in_valid = apb5m_32b_ar_to_lregs && apb5m_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_apb5m_32b_ar_slot_lregs (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb5m_32b_ar_slot_lregs_in_valid), .wr_ready(apb5m_32b_ar_slot_lregs_in_ready), .wr_data(apb5m_32b_ar),
+        .rd_valid(apb5m_32b_ar_slot_lregs_valid), .rd_ready(apb5m_32b_ar_slot_lregs_ready), .rd_data(apb5m_32b_ar_slot_lregs),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for lregs: round-robin, lock until handshake ----
     logic [1:0] lregs_ar_arb_req;
-    assign lregs_ar_arb_req = {apb5m_32b_ar_to_lregs && apb5m_32b_arvalid, apb4m_32b_ar_to_lregs && apb4m_32b_arvalid};
+    assign lregs_ar_arb_req = {apb5m_32b_ar_slot_lregs_valid, apb4m_32b_ar_slot_lregs_valid};
     logic [0:0] lregs_ar_arb_lock, lregs_ar_arb_rr;
     logic lregs_ar_arb_locked;
     wire [0:0] lregs_ar_arb_pick = (lregs_ar_arb_rr == 1'd0) ? (lregs_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -833,30 +891,32 @@ module bridge_2x3_apb_req_xbar
     )
     wire apb4m_32b_ar_gnt_lregs = lregs_ar_arb_gnt_valid && (lregs_ar_arb_gnt == 1'd0) && lregs_ar_arb_req[0];
     wire apb5m_32b_ar_gnt_lregs = lregs_ar_arb_gnt_valid && (lregs_ar_arb_gnt == 1'd1) && lregs_ar_arb_req[1];
+    assign apb4m_32b_ar_slot_lregs_ready = apb4m_32b_ar_gnt_lregs && lregs_axi_arready;
+    assign apb5m_32b_ar_slot_lregs_ready = apb5m_32b_ar_gnt_lregs && lregs_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign lregs_axi_arid = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.id : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.id : '0);
-    assign lregs_axi_araddr = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.addr : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.addr : '0);
-    assign lregs_axi_arlen = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.len : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.len : '0);
-    assign lregs_axi_arsize = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.size : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.size : '0);
-    assign lregs_axi_arburst = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.burst : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.burst : '0);
-    assign lregs_axi_arlock = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.lock : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.lock : '0);
-    assign lregs_axi_arcache = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.cache : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.cache : '0);
-    assign lregs_axi_arprot = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.prot : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.prot : '0);
-    assign lregs_axi_arqos = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.qos : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.qos : '0);
-    assign lregs_axi_arregion = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.region : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.region : '0);
-    assign lregs_axi_aruser = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar.user : '0) |
-        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar.user : '0);
+    assign lregs_axi_arid = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.id : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.id : '0);
+    assign lregs_axi_araddr = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.addr : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.addr : '0);
+    assign lregs_axi_arlen = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.len : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.len : '0);
+    assign lregs_axi_arsize = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.size : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.size : '0);
+    assign lregs_axi_arburst = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.burst : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.burst : '0);
+    assign lregs_axi_arlock = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.lock : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.lock : '0);
+    assign lregs_axi_arcache = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.cache : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.cache : '0);
+    assign lregs_axi_arprot = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.prot : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.prot : '0);
+    assign lregs_axi_arqos = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.qos : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.qos : '0);
+    assign lregs_axi_arregion = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.region : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.region : '0);
+    assign lregs_axi_aruser = (apb4m_32b_ar_gnt_lregs ? apb4m_32b_ar_slot_lregs.user : '0) |
+        (apb5m_32b_ar_gnt_lregs ? apb5m_32b_ar_slot_lregs.user : '0);
     assign lregs_axi_arvalid = apb4m_32b_ar_gnt_lregs || apb5m_32b_ar_gnt_lregs;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -880,9 +940,29 @@ module bridge_2x3_apb_req_xbar
     wire apb5m_32b_aw_to_periph = ((apb5m_32b_aw.addr >= 32'h50000000) && (apb5m_32b_aw.addr <= 32'h50000fff));
     wire apb5m_32b_ar_to_periph = ((apb5m_32b_ar.addr >= 32'h50000000) && (apb5m_32b_ar.addr <= 32'h50000fff));
 
+    // AW request slots for periph: arbitration at the slave pins
+    assign apb4m_32b_aw_slot_periph_in_valid = apb4m_32b_aw_to_periph && apb4m_32b_awvalid && !apb4m_32b_aw_hold_periph;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb4m_32b_aw_slot_periph (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb4m_32b_aw_slot_periph_in_valid), .wr_ready(apb4m_32b_aw_slot_periph_in_ready), .wr_data(apb4m_32b_aw),
+        .rd_valid(apb4m_32b_aw_slot_periph_valid), .rd_ready(apb4m_32b_aw_slot_periph_ready), .rd_data(apb4m_32b_aw_slot_periph),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign apb5m_32b_aw_slot_periph_in_valid = apb5m_32b_aw_to_periph && apb5m_32b_awvalid && !apb5m_32b_aw_hold_periph;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb5m_32b_aw_slot_periph (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb5m_32b_aw_slot_periph_in_valid), .wr_ready(apb5m_32b_aw_slot_periph_in_ready), .wr_data(apb5m_32b_aw),
+        .rd_valid(apb5m_32b_aw_slot_periph_valid), .rd_ready(apb5m_32b_aw_slot_periph_ready), .rd_data(apb5m_32b_aw_slot_periph),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for periph: round-robin, lock until handshake ----
     logic [1:0] periph_aw_arb_req;
-    assign periph_aw_arb_req = {apb5m_32b_aw_to_periph && apb5m_32b_awvalid && !apb5m_32b_aw_hold_periph, apb4m_32b_aw_to_periph && apb4m_32b_awvalid && !apb4m_32b_aw_hold_periph};
+    assign periph_aw_arb_req = {apb5m_32b_aw_slot_periph_valid, apb4m_32b_aw_slot_periph_valid};
     logic [0:0] periph_aw_arb_lock, periph_aw_arb_rr;
     logic periph_aw_arb_locked;
     wire [0:0] periph_aw_arb_pick = (periph_aw_arb_rr == 1'd0) ? (periph_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -906,30 +986,32 @@ module bridge_2x3_apb_req_xbar
     )
     wire apb4m_32b_aw_gnt_periph = periph_aw_arb_gnt_valid && (periph_aw_arb_gnt == 1'd0) && periph_aw_arb_req[0];
     wire apb5m_32b_aw_gnt_periph = periph_aw_arb_gnt_valid && (periph_aw_arb_gnt == 1'd1) && periph_aw_arb_req[1];
+    assign apb4m_32b_aw_slot_periph_ready = apb4m_32b_aw_gnt_periph && periph_axi_awready;
+    assign apb5m_32b_aw_slot_periph_ready = apb5m_32b_aw_gnt_periph && periph_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign periph_axi_awid = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.id : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.id : '0);
-    assign periph_axi_awaddr = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.addr : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.addr : '0);
-    assign periph_axi_awlen = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.len : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.len : '0);
-    assign periph_axi_awsize = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.size : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.size : '0);
-    assign periph_axi_awburst = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.burst : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.burst : '0);
-    assign periph_axi_awlock = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.lock : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.lock : '0);
-    assign periph_axi_awcache = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.cache : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.cache : '0);
-    assign periph_axi_awprot = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.prot : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.prot : '0);
-    assign periph_axi_awqos = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.qos : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.qos : '0);
-    assign periph_axi_awregion = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.region : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.region : '0);
-    assign periph_axi_awuser = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw.user : '0) |
-        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw.user : '0);
+    assign periph_axi_awid = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.id : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.id : '0);
+    assign periph_axi_awaddr = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.addr : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.addr : '0);
+    assign periph_axi_awlen = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.len : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.len : '0);
+    assign periph_axi_awsize = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.size : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.size : '0);
+    assign periph_axi_awburst = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.burst : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.burst : '0);
+    assign periph_axi_awlock = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.lock : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.lock : '0);
+    assign periph_axi_awcache = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.cache : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.cache : '0);
+    assign periph_axi_awprot = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.prot : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.prot : '0);
+    assign periph_axi_awqos = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.qos : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.qos : '0);
+    assign periph_axi_awregion = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.region : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.region : '0);
+    assign periph_axi_awuser = (apb4m_32b_aw_gnt_periph ? apb4m_32b_aw_slot_periph.user : '0) |
+        (apb5m_32b_aw_gnt_periph ? apb5m_32b_aw_slot_periph.user : '0);
     assign periph_axi_awvalid = apb4m_32b_aw_gnt_periph || apb5m_32b_aw_gnt_periph;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
@@ -974,9 +1056,29 @@ module bridge_2x3_apb_req_xbar
     assign periph_axi_bridge_id_aw = (apb4m_32b_aw_gnt_periph ? apb4m_bridge_id_aw : '0) |
         (apb5m_32b_aw_gnt_periph ? apb5m_bridge_id_aw : '0);
 
+    // AR request slots for periph: arbitration at the slave pins
+    assign apb4m_32b_ar_slot_periph_in_valid = apb4m_32b_ar_to_periph && apb4m_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_apb4m_32b_ar_slot_periph (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb4m_32b_ar_slot_periph_in_valid), .wr_ready(apb4m_32b_ar_slot_periph_in_ready), .wr_data(apb4m_32b_ar),
+        .rd_valid(apb4m_32b_ar_slot_periph_valid), .rd_ready(apb4m_32b_ar_slot_periph_ready), .rd_data(apb4m_32b_ar_slot_periph),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign apb5m_32b_ar_slot_periph_in_valid = apb5m_32b_ar_to_periph && apb5m_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_apb5m_32b_ar_slot_periph (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(apb5m_32b_ar_slot_periph_in_valid), .wr_ready(apb5m_32b_ar_slot_periph_in_ready), .wr_data(apb5m_32b_ar),
+        .rd_valid(apb5m_32b_ar_slot_periph_valid), .rd_ready(apb5m_32b_ar_slot_periph_ready), .rd_data(apb5m_32b_ar_slot_periph),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for periph: round-robin, lock until handshake ----
     logic [1:0] periph_ar_arb_req;
-    assign periph_ar_arb_req = {apb5m_32b_ar_to_periph && apb5m_32b_arvalid, apb4m_32b_ar_to_periph && apb4m_32b_arvalid};
+    assign periph_ar_arb_req = {apb5m_32b_ar_slot_periph_valid, apb4m_32b_ar_slot_periph_valid};
     logic [0:0] periph_ar_arb_lock, periph_ar_arb_rr;
     logic periph_ar_arb_locked;
     wire [0:0] periph_ar_arb_pick = (periph_ar_arb_rr == 1'd0) ? (periph_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -1000,30 +1102,32 @@ module bridge_2x3_apb_req_xbar
     )
     wire apb4m_32b_ar_gnt_periph = periph_ar_arb_gnt_valid && (periph_ar_arb_gnt == 1'd0) && periph_ar_arb_req[0];
     wire apb5m_32b_ar_gnt_periph = periph_ar_arb_gnt_valid && (periph_ar_arb_gnt == 1'd1) && periph_ar_arb_req[1];
+    assign apb4m_32b_ar_slot_periph_ready = apb4m_32b_ar_gnt_periph && periph_axi_arready;
+    assign apb5m_32b_ar_slot_periph_ready = apb5m_32b_ar_gnt_periph && periph_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign periph_axi_arid = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.id : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.id : '0);
-    assign periph_axi_araddr = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.addr : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.addr : '0);
-    assign periph_axi_arlen = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.len : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.len : '0);
-    assign periph_axi_arsize = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.size : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.size : '0);
-    assign periph_axi_arburst = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.burst : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.burst : '0);
-    assign periph_axi_arlock = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.lock : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.lock : '0);
-    assign periph_axi_arcache = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.cache : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.cache : '0);
-    assign periph_axi_arprot = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.prot : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.prot : '0);
-    assign periph_axi_arqos = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.qos : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.qos : '0);
-    assign periph_axi_arregion = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.region : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.region : '0);
-    assign periph_axi_aruser = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar.user : '0) |
-        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar.user : '0);
+    assign periph_axi_arid = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.id : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.id : '0);
+    assign periph_axi_araddr = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.addr : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.addr : '0);
+    assign periph_axi_arlen = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.len : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.len : '0);
+    assign periph_axi_arsize = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.size : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.size : '0);
+    assign periph_axi_arburst = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.burst : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.burst : '0);
+    assign periph_axi_arlock = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.lock : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.lock : '0);
+    assign periph_axi_arcache = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.cache : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.cache : '0);
+    assign periph_axi_arprot = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.prot : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.prot : '0);
+    assign periph_axi_arqos = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.qos : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.qos : '0);
+    assign periph_axi_arregion = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.region : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.region : '0);
+    assign periph_axi_aruser = (apb4m_32b_ar_gnt_periph ? apb4m_32b_ar_slot_periph.user : '0) |
+        (apb5m_32b_ar_gnt_periph ? apb5m_32b_ar_slot_periph.user : '0);
     assign periph_axi_arvalid = apb4m_32b_ar_gnt_periph || apb5m_32b_ar_gnt_periph;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1320,8 +1424,8 @@ module bridge_2x3_apb_req_xbar
     // Master: apb4m, Width path: 32b
     assign apb4m_32b_awready = 
         ((apb4m_32b_aw_to_mem && !apb4m_32b_aw_hold_mem) ? apb4m_32b_aw_slot_mem_in_ready : '0) |
-        (apb4m_32b_aw_gnt_lregs ? lregs_axi_awready : '0) |
-        (apb4m_32b_aw_gnt_periph ? periph_axi_awready : '0) |
+        ((apb4m_32b_aw_to_lregs && !apb4m_32b_aw_hold_lregs) ? apb4m_32b_aw_slot_lregs_in_ready : '0) |
+        ((apb4m_32b_aw_to_periph && !apb4m_32b_aw_hold_periph) ? apb4m_32b_aw_slot_periph_in_ready : '0) |
         ((apb4m_32b_aw_to_subtractive && !apb4m_32b_aw_hold_subtractive) ? apb4m_32b_aw_slot_subtractive_in_ready : '0);
 
     assign apb4m_32b_wready = 
@@ -1356,8 +1460,8 @@ module bridge_2x3_apb_req_xbar
 
     assign apb4m_32b_arready = 
         ((apb4m_32b_ar_to_mem) ? apb4m_32b_ar_slot_mem_in_ready : '0) |
-        (apb4m_32b_ar_gnt_lregs ? lregs_axi_arready : '0) |
-        (apb4m_32b_ar_gnt_periph ? periph_axi_arready : '0) |
+        ((apb4m_32b_ar_to_lregs) ? apb4m_32b_ar_slot_lregs_in_ready : '0) |
+        ((apb4m_32b_ar_to_periph) ? apb4m_32b_ar_slot_periph_in_ready : '0) |
         ((apb4m_32b_ar_to_subtractive) ? apb4m_32b_ar_slot_subtractive_in_ready : '0);
 
     assign apb4m_32b_r.id = 
@@ -1400,8 +1504,8 @@ module bridge_2x3_apb_req_xbar
     // Master: apb5m, Width path: 32b
     assign apb5m_32b_awready = 
         ((apb5m_32b_aw_to_mem && !apb5m_32b_aw_hold_mem) ? apb5m_32b_aw_slot_mem_in_ready : '0) |
-        (apb5m_32b_aw_gnt_lregs ? lregs_axi_awready : '0) |
-        (apb5m_32b_aw_gnt_periph ? periph_axi_awready : '0) |
+        ((apb5m_32b_aw_to_lregs && !apb5m_32b_aw_hold_lregs) ? apb5m_32b_aw_slot_lregs_in_ready : '0) |
+        ((apb5m_32b_aw_to_periph && !apb5m_32b_aw_hold_periph) ? apb5m_32b_aw_slot_periph_in_ready : '0) |
         ((apb5m_32b_aw_to_subtractive && !apb5m_32b_aw_hold_subtractive) ? apb5m_32b_aw_slot_subtractive_in_ready : '0);
 
     assign apb5m_32b_wready = 
@@ -1436,8 +1540,8 @@ module bridge_2x3_apb_req_xbar
 
     assign apb5m_32b_arready = 
         ((apb5m_32b_ar_to_mem) ? apb5m_32b_ar_slot_mem_in_ready : '0) |
-        (apb5m_32b_ar_gnt_lregs ? lregs_axi_arready : '0) |
-        (apb5m_32b_ar_gnt_periph ? periph_axi_arready : '0) |
+        ((apb5m_32b_ar_to_lregs) ? apb5m_32b_ar_slot_lregs_in_ready : '0) |
+        ((apb5m_32b_ar_to_periph) ? apb5m_32b_ar_slot_periph_in_ready : '0) |
         ((apb5m_32b_ar_to_subtractive) ? apb5m_32b_ar_slot_subtractive_in_ready : '0);
 
     assign apb5m_32b_r.id = 

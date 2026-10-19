@@ -22,6 +22,7 @@ from bridge_pkg.generators.package_generator import PackageGenerator
 from bridge_pkg.generators.adapter_generator import AdapterGenerator, MasterConfig, SlaveInfo, _MONITOR_CFG_WIDTHS, _ensure_trailing_comma
 from bridge_pkg.generators.slave_adapter_generator import SlaveAdapterGenerator
 from bridge_pkg.generators.crossbar_generator import CrossbarGenerator
+from bridge_pkg import cdc_lanes
 from bridge_pkg.signal_naming import SignalNaming, Direction, AXI4Channel, Protocol, AXI4_MASTER_SIGNALS, PortDirection, SignalInfo
 from bridge_pkg.components.axi4_timing_wrapper_component import Axi4TimingWrapper, axi5_exposed_ext_signals
 from bridge_pkg.width_utils import get_connected_slave_widths, get_masters_connecting_to_slave
@@ -321,6 +322,12 @@ class BridgeModuleGenerator:
         # feature, not a repair -- it needs an extra arbiter source and moves
         # the _mon tests' packet expectations.
         slave_is_internal = getattr(slave, 'internal', False)
+        if (self.enable_monitoring and not slave_is_internal
+                and cdc_lanes.is_lane_slave(slave, slave_index, self.masters)):
+            raise ValueError(
+                f"{self.bridge_name}: slave '{slave.name}' is a cdc slave that several masters "
+                f"share; it is arbitrated on its own clock (bridge W9) and has no aclk-side "
+                f"stream for a monitor. Monitored variants with such a slave are not supported.")
 
         slave_adapter_gen = SlaveAdapterGenerator(
             bridge_name=self.bridge_name,
@@ -332,6 +339,10 @@ class BridgeModuleGenerator:
             slave_index=slave_index,
             num_masters=len(self.masters),
             arbitrated=sum(1 for m in self.masters if slave_index in m.slave_connections) >= 2,
+            # bridge W9: a multi-master cdc slave takes per-master lanes and
+            # arbitrates on its own clock.
+            lanes=(len(cdc_lanes.lane_masters(slave_index, self.masters))
+                   if cdc_lanes.is_lane_slave(slave, slave_index, self.masters) else 0),
         )
         return slave_adapter_gen.generate()
 
@@ -1954,6 +1965,21 @@ class BridgeModuleGenerator:
                     lines.append(f"    logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_rid_bridge_id;")
                     lines.append(f"    logic                       {slave.name}_axi_rid_valid;")
 
+            # Per-master lanes into a multi-master cdc slave (bridge W9)
+            sidx = self.slaves.index(slave)
+            if cdc_lanes.is_lane_slave(slave, sidx, self.masters):
+                n = len(cdc_lanes.lane_masters(sidx, self.masters))
+                axw = cdc_lanes.ax_width(crossbar_id_width, slave.addr_width)
+                ww = cdc_lanes.w_width(axi_data_width)
+                lp = f"{slave.name}_axi_lane_"
+                if has_write:
+                    lines.append(f"    logic [{n-1}:0] {lp}awvalid, {lp}awready, {lp}wvalid, {lp}wready;")
+                    lines.append(f"    logic [{n * axw - 1}:0] {lp}aw;")
+                    lines.append(f"    logic [{n * ww - 1}:0] {lp}w;")
+                if has_read:
+                    lines.append(f"    logic [{n-1}:0] {lp}arvalid, {lp}arready;")
+                    lines.append(f"    logic [{n * axw - 1}:0] {lp}ar;")
+
             lines.append("")
 
         # Note: Old APB and AXI4 slave signal declaration code removed.
@@ -2427,6 +2453,16 @@ class BridgeModuleGenerator:
                         for _f, _w, _feat, base in channel_fields(sb_feats, ch):
                             lines.append(f"        .{slave.name}_axi_{base}({signal_prefix}{base}),")
 
+                # Per-master lanes into a multi-master cdc slave (bridge W9);
+                # bridge_id ports always follow, so trailing commas are safe.
+                sidx = self.slaves.index(slave)
+                if cdc_lanes.is_lane_slave(slave, sidx, self.masters):
+                    lp = f"{slave.name}_axi_lane_"
+                    bases = ((['awvalid', 'awready', 'aw', 'wvalid', 'wready', 'w'] if has_write else [])
+                             + (['arvalid', 'arready', 'ar'] if has_read else []))
+                    for b in bases:
+                        lines.append(f"        .{lp}{b}({lp}{b}),")
+
                 # Bridge ID tracking signals (connect crossbar outputs to slave adapter inputs)
                 # All slave adapters have bridge_id tracking (AXI4 interface on crossbar side)
                 if True:  # All slaves with adapters need bridge_id
@@ -2518,6 +2554,8 @@ class BridgeModuleGenerator:
             inst.connect_xbar_interface()
             inst.connect_external_interface()
             inst.connect_bridge_id_tracking()
+            if cdc_lanes.is_lane_slave(slave, self.slaves.index(slave), self.masters):
+                inst.connect_lanes()
             # AWAKEUP (A14.1.1): a wake-capable AXI5 slave port is woken by
             # any connected master that carries AWAKEUP. The bridge cannot
             # know which slave a request will decode to before it arrives,

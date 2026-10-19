@@ -351,6 +351,10 @@ module bridge_mix_d_xbar
     logic cpu_axi4_64b_aw_slot_ddr_valid, cpu_axi4_64b_aw_slot_ddr_ready, cpu_axi4_64b_aw_slot_ddr_in_valid, cpu_axi4_64b_aw_slot_ddr_in_ready;
     axi4_aw_t trace_axil_64b_aw_slot_ddr;
     logic trace_axil_64b_aw_slot_ddr_valid, trace_axil_64b_aw_slot_ddr_ready, trace_axil_64b_aw_slot_ddr_in_valid, trace_axil_64b_aw_slot_ddr_in_ready;
+    axi4_aw_t cpu_axi4_32b_aw_slot_doorbell;
+    logic cpu_axi4_32b_aw_slot_doorbell_valid, cpu_axi4_32b_aw_slot_doorbell_ready, cpu_axi4_32b_aw_slot_doorbell_in_valid, cpu_axi4_32b_aw_slot_doorbell_in_ready;
+    axi4_aw_t trace_axil_32b_aw_slot_doorbell;
+    logic trace_axil_32b_aw_slot_doorbell_valid, trace_axil_32b_aw_slot_doorbell_ready, trace_axil_32b_aw_slot_doorbell_in_valid, trace_axil_32b_aw_slot_doorbell_in_ready;
     axi4_aw_t cpu_axi4_64b_aw_slot_subtractive;
     logic cpu_axi4_64b_aw_slot_subtractive_valid, cpu_axi4_64b_aw_slot_subtractive_ready, cpu_axi4_64b_aw_slot_subtractive_in_valid, cpu_axi4_64b_aw_slot_subtractive_in_ready;
     axi4_aw_t trace_axil_64b_aw_slot_subtractive;
@@ -359,6 +363,10 @@ module bridge_mix_d_xbar
     logic cpu_axi4_64b_ar_slot_ddr_valid, cpu_axi4_64b_ar_slot_ddr_ready, cpu_axi4_64b_ar_slot_ddr_in_valid, cpu_axi4_64b_ar_slot_ddr_in_ready;
     axi4_ar_t trace_axil_64b_ar_slot_ddr;
     logic trace_axil_64b_ar_slot_ddr_valid, trace_axil_64b_ar_slot_ddr_ready, trace_axil_64b_ar_slot_ddr_in_valid, trace_axil_64b_ar_slot_ddr_in_ready;
+    axi4_ar_t cpu_axi4_32b_ar_slot_doorbell;
+    logic cpu_axi4_32b_ar_slot_doorbell_valid, cpu_axi4_32b_ar_slot_doorbell_ready, cpu_axi4_32b_ar_slot_doorbell_in_valid, cpu_axi4_32b_ar_slot_doorbell_in_ready;
+    axi4_ar_t trace_axil_32b_ar_slot_doorbell;
+    logic trace_axil_32b_ar_slot_doorbell_valid, trace_axil_32b_ar_slot_doorbell_ready, trace_axil_32b_ar_slot_doorbell_in_valid, trace_axil_32b_ar_slot_doorbell_in_ready;
     axi4_ar_t cpu_axi4_64b_ar_slot_subtractive;
     logic cpu_axi4_64b_ar_slot_subtractive_valid, cpu_axi4_64b_ar_slot_subtractive_ready, cpu_axi4_64b_ar_slot_subtractive_in_valid, cpu_axi4_64b_ar_slot_subtractive_in_ready;
     axi4_ar_t trace_axil_64b_ar_slot_subtractive;
@@ -366,12 +374,12 @@ module bridge_mix_d_xbar
     // Write ordering: a master's AW waits while another of its slots
     // holds an AW (see _generate_request_slots)
     wire cpu_axi4_32b_aw_hold_doorbell = cpu_axi4_64b_aw_slot_ddr_valid || cpu_axi4_64b_aw_slot_subtractive_valid;
-    wire cpu_axi4_32b_aw_hold_apb_periph = cpu_axi4_64b_aw_slot_ddr_valid || cpu_axi4_64b_aw_slot_subtractive_valid;
-    wire cpu_axi4_64b_aw_hold_ddr = cpu_axi4_64b_aw_slot_subtractive_valid;
-    wire cpu_axi4_64b_aw_hold_subtractive = cpu_axi4_64b_aw_slot_ddr_valid;
+    wire cpu_axi4_32b_aw_hold_apb_periph = cpu_axi4_64b_aw_slot_ddr_valid || cpu_axi4_32b_aw_slot_doorbell_valid || cpu_axi4_64b_aw_slot_subtractive_valid;
+    wire cpu_axi4_64b_aw_hold_ddr = cpu_axi4_32b_aw_slot_doorbell_valid || cpu_axi4_64b_aw_slot_subtractive_valid;
+    wire cpu_axi4_64b_aw_hold_subtractive = cpu_axi4_64b_aw_slot_ddr_valid || cpu_axi4_32b_aw_slot_doorbell_valid;
     wire trace_axil_32b_aw_hold_doorbell = trace_axil_64b_aw_slot_ddr_valid || trace_axil_64b_aw_slot_subtractive_valid;
-    wire trace_axil_64b_aw_hold_ddr = trace_axil_64b_aw_slot_subtractive_valid;
-    wire trace_axil_64b_aw_hold_subtractive = trace_axil_64b_aw_slot_ddr_valid;
+    wire trace_axil_64b_aw_hold_ddr = trace_axil_32b_aw_slot_doorbell_valid || trace_axil_64b_aw_slot_subtractive_valid;
+    wire trace_axil_64b_aw_hold_subtractive = trace_axil_64b_aw_slot_ddr_valid || trace_axil_32b_aw_slot_doorbell_valid;
 
     // ================================================================
     // Response arbiters (one slave per master path per channel)
@@ -788,9 +796,29 @@ module bridge_mix_d_xbar
     wire trace_axil_32b_aw_to_doorbell = ((trace_axil_32b_aw.addr >= 32'h40000000) && (trace_axil_32b_aw.addr <= 32'h40000fff));
     wire trace_axil_32b_ar_to_doorbell = ((trace_axil_32b_ar.addr >= 32'h40000000) && (trace_axil_32b_ar.addr <= 32'h40000fff));
 
+    // AW request slots for doorbell: arbitration at the slave pins
+    assign cpu_axi4_32b_aw_slot_doorbell_in_valid = cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid && !cpu_axi4_32b_aw_hold_doorbell;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_32b_aw_slot_doorbell (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_32b_aw_slot_doorbell_in_valid), .wr_ready(cpu_axi4_32b_aw_slot_doorbell_in_ready), .wr_data(cpu_axi4_32b_aw),
+        .rd_valid(cpu_axi4_32b_aw_slot_doorbell_valid), .rd_ready(cpu_axi4_32b_aw_slot_doorbell_ready), .rd_data(cpu_axi4_32b_aw_slot_doorbell),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign trace_axil_32b_aw_slot_doorbell_in_valid = trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid && !trace_axil_32b_aw_hold_doorbell;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_trace_axil_32b_aw_slot_doorbell (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(trace_axil_32b_aw_slot_doorbell_in_valid), .wr_ready(trace_axil_32b_aw_slot_doorbell_in_ready), .wr_data(trace_axil_32b_aw),
+        .rd_valid(trace_axil_32b_aw_slot_doorbell_valid), .rd_ready(trace_axil_32b_aw_slot_doorbell_ready), .rd_data(trace_axil_32b_aw_slot_doorbell),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for doorbell: round-robin, lock until handshake ----
     logic [1:0] doorbell_aw_arb_req;
-    assign doorbell_aw_arb_req = {trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid && !trace_axil_32b_aw_hold_doorbell, cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid && !cpu_axi4_32b_aw_hold_doorbell};
+    assign doorbell_aw_arb_req = {trace_axil_32b_aw_slot_doorbell_valid, cpu_axi4_32b_aw_slot_doorbell_valid};
     logic [0:0] doorbell_aw_arb_lock, doorbell_aw_arb_rr;
     logic doorbell_aw_arb_locked;
     wire [0:0] doorbell_aw_arb_pick = (doorbell_aw_arb_rr == 1'd0) ? (doorbell_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -814,30 +842,32 @@ module bridge_mix_d_xbar
     )
     wire cpu_axi4_32b_aw_gnt_doorbell = doorbell_aw_arb_gnt_valid && (doorbell_aw_arb_gnt == 1'd0) && doorbell_aw_arb_req[0];
     wire trace_axil_32b_aw_gnt_doorbell = doorbell_aw_arb_gnt_valid && (doorbell_aw_arb_gnt == 1'd1) && doorbell_aw_arb_req[1];
+    assign cpu_axi4_32b_aw_slot_doorbell_ready = cpu_axi4_32b_aw_gnt_doorbell && doorbell_axi_awready;
+    assign trace_axil_32b_aw_slot_doorbell_ready = trace_axil_32b_aw_gnt_doorbell && doorbell_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign doorbell_axi_awid = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.id : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.id : '0);
-    assign doorbell_axi_awaddr = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.addr : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.addr : '0);
-    assign doorbell_axi_awlen = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.len : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.len : '0);
-    assign doorbell_axi_awsize = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.size : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.size : '0);
-    assign doorbell_axi_awburst = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.burst : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.burst : '0);
-    assign doorbell_axi_awlock = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.lock : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.lock : '0);
-    assign doorbell_axi_awcache = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.cache : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.cache : '0);
-    assign doorbell_axi_awprot = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.prot : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.prot : '0);
-    assign doorbell_axi_awqos = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.qos : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.qos : '0);
-    assign doorbell_axi_awregion = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.region : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.region : '0);
-    assign doorbell_axi_awuser = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.user : '0) |
-        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.user : '0);
+    assign doorbell_axi_awid = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.id : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.id : '0);
+    assign doorbell_axi_awaddr = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.addr : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.addr : '0);
+    assign doorbell_axi_awlen = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.len : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.len : '0);
+    assign doorbell_axi_awsize = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.size : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.size : '0);
+    assign doorbell_axi_awburst = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.burst : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.burst : '0);
+    assign doorbell_axi_awlock = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.lock : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.lock : '0);
+    assign doorbell_axi_awcache = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.cache : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.cache : '0);
+    assign doorbell_axi_awprot = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.prot : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.prot : '0);
+    assign doorbell_axi_awqos = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.qos : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.qos : '0);
+    assign doorbell_axi_awregion = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.region : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.region : '0);
+    assign doorbell_axi_awuser = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw_slot_doorbell.user : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw_slot_doorbell.user : '0);
     assign doorbell_axi_awvalid = cpu_axi4_32b_aw_gnt_doorbell || trace_axil_32b_aw_gnt_doorbell;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
@@ -882,9 +912,29 @@ module bridge_mix_d_xbar
     assign doorbell_axi_bridge_id_aw = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_bridge_id_aw : '0) |
         (trace_axil_32b_aw_gnt_doorbell ? trace_axil_bridge_id_aw : '0);
 
+    // AR request slots for doorbell: arbitration at the slave pins
+    assign cpu_axi4_32b_ar_slot_doorbell_in_valid = cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_axi4_32b_ar_slot_doorbell (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_32b_ar_slot_doorbell_in_valid), .wr_ready(cpu_axi4_32b_ar_slot_doorbell_in_ready), .wr_data(cpu_axi4_32b_ar),
+        .rd_valid(cpu_axi4_32b_ar_slot_doorbell_valid), .rd_ready(cpu_axi4_32b_ar_slot_doorbell_ready), .rd_data(cpu_axi4_32b_ar_slot_doorbell),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign trace_axil_32b_ar_slot_doorbell_in_valid = trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_trace_axil_32b_ar_slot_doorbell (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(trace_axil_32b_ar_slot_doorbell_in_valid), .wr_ready(trace_axil_32b_ar_slot_doorbell_in_ready), .wr_data(trace_axil_32b_ar),
+        .rd_valid(trace_axil_32b_ar_slot_doorbell_valid), .rd_ready(trace_axil_32b_ar_slot_doorbell_ready), .rd_data(trace_axil_32b_ar_slot_doorbell),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for doorbell: round-robin, lock until handshake ----
     logic [1:0] doorbell_ar_arb_req;
-    assign doorbell_ar_arb_req = {trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid, cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid};
+    assign doorbell_ar_arb_req = {trace_axil_32b_ar_slot_doorbell_valid, cpu_axi4_32b_ar_slot_doorbell_valid};
     logic [0:0] doorbell_ar_arb_lock, doorbell_ar_arb_rr;
     logic doorbell_ar_arb_locked;
     wire [0:0] doorbell_ar_arb_pick = (doorbell_ar_arb_rr == 1'd0) ? (doorbell_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -908,30 +958,32 @@ module bridge_mix_d_xbar
     )
     wire cpu_axi4_32b_ar_gnt_doorbell = doorbell_ar_arb_gnt_valid && (doorbell_ar_arb_gnt == 1'd0) && doorbell_ar_arb_req[0];
     wire trace_axil_32b_ar_gnt_doorbell = doorbell_ar_arb_gnt_valid && (doorbell_ar_arb_gnt == 1'd1) && doorbell_ar_arb_req[1];
+    assign cpu_axi4_32b_ar_slot_doorbell_ready = cpu_axi4_32b_ar_gnt_doorbell && doorbell_axi_arready;
+    assign trace_axil_32b_ar_slot_doorbell_ready = trace_axil_32b_ar_gnt_doorbell && doorbell_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign doorbell_axi_arid = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.id : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.id : '0);
-    assign doorbell_axi_araddr = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.addr : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.addr : '0);
-    assign doorbell_axi_arlen = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.len : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.len : '0);
-    assign doorbell_axi_arsize = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.size : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.size : '0);
-    assign doorbell_axi_arburst = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.burst : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.burst : '0);
-    assign doorbell_axi_arlock = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.lock : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.lock : '0);
-    assign doorbell_axi_arcache = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.cache : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.cache : '0);
-    assign doorbell_axi_arprot = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.prot : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.prot : '0);
-    assign doorbell_axi_arqos = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.qos : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.qos : '0);
-    assign doorbell_axi_arregion = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.region : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.region : '0);
-    assign doorbell_axi_aruser = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.user : '0) |
-        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.user : '0);
+    assign doorbell_axi_arid = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.id : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.id : '0);
+    assign doorbell_axi_araddr = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.addr : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.addr : '0);
+    assign doorbell_axi_arlen = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.len : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.len : '0);
+    assign doorbell_axi_arsize = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.size : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.size : '0);
+    assign doorbell_axi_arburst = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.burst : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.burst : '0);
+    assign doorbell_axi_arlock = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.lock : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.lock : '0);
+    assign doorbell_axi_arcache = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.cache : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.cache : '0);
+    assign doorbell_axi_arprot = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.prot : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.prot : '0);
+    assign doorbell_axi_arqos = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.qos : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.qos : '0);
+    assign doorbell_axi_arregion = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.region : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.region : '0);
+    assign doorbell_axi_aruser = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar_slot_doorbell.user : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar_slot_doorbell.user : '0);
     assign doorbell_axi_arvalid = cpu_axi4_32b_ar_gnt_doorbell || trace_axil_32b_ar_gnt_doorbell;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1335,7 +1387,7 @@ module bridge_mix_d_xbar
 
     // Master: cpu_axi4, Width path: 32b
     assign cpu_axi4_32b_awready = 
-        (cpu_axi4_32b_aw_gnt_doorbell ? doorbell_axi_awready : '0) |
+        ((cpu_axi4_32b_aw_to_doorbell && !cpu_axi4_32b_aw_hold_doorbell) ? cpu_axi4_32b_aw_slot_doorbell_in_ready : '0) |
         (cpu_axi4_32b_aw_gnt_apb_periph ? apb_periph_axi_awready : '0);
 
     assign cpu_axi4_32b_wready = 
@@ -1359,7 +1411,7 @@ module bridge_mix_d_xbar
         (cpu_axi4_32b_b_rgnt_apb_periph ? apb_periph_axi_bvalid : '0);
 
     assign cpu_axi4_32b_arready = 
-        (cpu_axi4_32b_ar_gnt_doorbell ? doorbell_axi_arready : '0) |
+        ((cpu_axi4_32b_ar_to_doorbell) ? cpu_axi4_32b_ar_slot_doorbell_in_ready : '0) |
         (cpu_axi4_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0);
 
     assign cpu_axi4_32b_r.id = 
@@ -1443,7 +1495,7 @@ module bridge_mix_d_xbar
 
     // Master: trace_axil, Width path: 32b
     assign trace_axil_32b_awready = 
-        (trace_axil_32b_aw_gnt_doorbell ? doorbell_axi_awready : '0);
+        ((trace_axil_32b_aw_to_doorbell && !trace_axil_32b_aw_hold_doorbell) ? trace_axil_32b_aw_slot_doorbell_in_ready : '0);
 
     assign trace_axil_32b_wready = 
         (trace_axil_32b_w_sel_doorbell ? doorbell_axi_wready : '0);
@@ -1461,7 +1513,7 @@ module bridge_mix_d_xbar
         (trace_axil_32b_b_rgnt_doorbell ? doorbell_axi_bvalid : '0);
 
     assign trace_axil_32b_arready = 
-        (trace_axil_32b_ar_gnt_doorbell ? doorbell_axi_arready : '0);
+        ((trace_axil_32b_ar_to_doorbell) ? trace_axil_32b_ar_slot_doorbell_in_ready : '0);
 
     assign trace_axil_32b_r.id = 
         (trace_axil_32b_r_rgnt_doorbell ? doorbell_axi_rid : '0);

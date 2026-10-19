@@ -337,6 +337,15 @@ class SlaveAdapterInstance:
             ])
         self._sections.append(("Bridge ID tracking", pairs))
 
+    def connect_lanes(self) -> None:
+        """Bind the per-master lanes of a multi-master cdc slave (bridge
+        W9): the adapter's port and the bridge-top net share one name."""
+        p = f"{self.slave_name}_axi_lane_"
+        bases = ((['awvalid', 'awready', 'aw', 'wvalid', 'wready', 'w'] if self.has_write else [])
+                 + (['arvalid', 'arready', 'ar'] if self.has_read else []))
+        self._sections.append(("Per-master lanes (slave-domain arbitration, bridge W9)",
+                               [(f"{p}{b}", f"{p}{b}") for b in bases]))
+
     def connect_wakeup(self, wakeup_expr: str) -> None:
         """Bind the adapter's wakeup_req input (AXI5 slave with the
         'wakeup' feature only): the OR of the connected masters' AWAKEUP

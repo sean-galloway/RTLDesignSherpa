@@ -502,6 +502,22 @@ def validate_timeout_constraints(port: PortSpec) -> None:
         raise ValidationError(f"{kind} '{port.port_name}': timeout_cycles must be 0 or >= 2 (got {t})")
 
 
+def validate_cdc_lane_slaves(masters: List[PortSpec], slaves: List[PortSpec],
+                             connectivity: Dict[str, Set[str]]) -> None:
+    """bridge W9: a cdc slave that two or more masters reach is arbitrated on
+    its own clock from per-master lanes (bridge_cdc_slave_arb). That form has
+    no aclk-side merged stream for the slave watchdog to sit on, so the two
+    do not combine yet."""
+    for slave in slaves:
+        if not getattr(slave, 'cdc', False):
+            continue
+        n = sum(1 for m in masters if slave.port_name in connectivity.get(m.port_name, set()))
+        if n >= 2 and int(getattr(slave, 'timeout_cycles', 0) or 0) > 0:
+            raise ValidationError(
+                f"Slave '{slave.port_name}': timeout_cycles is not supported on a cdc slave "
+                f"that {n} masters share (it is arbitrated on its own clock, bridge W9)")
+
+
 def validate_wb4_constraints(port: PortSpec) -> None:
     """Wishbone B4 port rules (bridge TASK-008, was BRIDGE-019), master or slave.
 
@@ -855,6 +871,7 @@ def validate_config(
     validate_axi5_poison_connectivity(masters, slaves, connectivity)
     validate_axi5_atomic_read_return(masters, slaves, connectivity)
     validate_slave_id_widths(masters, slaves)
+    validate_cdc_lane_slaves(masters, slaves, connectivity)
     warn_axi5_dropped_sideband(masters, slaves, connectivity)
 
     # Validate address map

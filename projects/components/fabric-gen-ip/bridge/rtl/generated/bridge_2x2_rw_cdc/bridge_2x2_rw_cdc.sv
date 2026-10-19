@@ -337,6 +337,11 @@ module bridge_2x2_rw_cdc
     logic [BRIDGE_ID_WIDTH-1:0] ddr_axi_bridge_id_ar;
     logic [BRIDGE_ID_WIDTH-1:0] ddr_axi_rid_bridge_id;
     logic                       ddr_axi_rid_valid;
+    logic [1:0] ddr_axi_lane_awvalid, ddr_axi_lane_awready, ddr_axi_lane_wvalid, ddr_axi_lane_wready;
+    logic [133:0] ddr_axi_lane_aw;
+    logic [75:0] ddr_axi_lane_w;
+    logic [1:0] ddr_axi_lane_arvalid, ddr_axi_lane_arready;
+    logic [133:0] ddr_axi_lane_ar;
 
     // sram (AXI4, 32b AXI4 interface)
     logic [4:0]            xbar_sram_axi_awid;
@@ -796,6 +801,15 @@ module bridge_2x2_rw_cdc
         .ddr_axi_ruser(xbar_ddr_axi_ruser),
         .ddr_axi_rvalid(xbar_ddr_axi_rvalid),
         .ddr_axi_rready(xbar_ddr_axi_rready),
+        .ddr_axi_lane_awvalid(ddr_axi_lane_awvalid),
+        .ddr_axi_lane_awready(ddr_axi_lane_awready),
+        .ddr_axi_lane_aw(ddr_axi_lane_aw),
+        .ddr_axi_lane_wvalid(ddr_axi_lane_wvalid),
+        .ddr_axi_lane_wready(ddr_axi_lane_wready),
+        .ddr_axi_lane_w(ddr_axi_lane_w),
+        .ddr_axi_lane_arvalid(ddr_axi_lane_arvalid),
+        .ddr_axi_lane_arready(ddr_axi_lane_arready),
+        .ddr_axi_lane_ar(ddr_axi_lane_ar),
         .ddr_axi_bridge_id_aw(ddr_axi_bridge_id_aw),
         .ddr_axi_bid_bridge_id(ddr_axi_bid_bridge_id),
         .ddr_axi_bid_valid(ddr_axi_bid_valid),
@@ -1023,7 +1037,18 @@ module bridge_2x2_rw_cdc
         .bid_valid(ddr_axi_bid_valid),
         .xbar_bridge_id_ar(ddr_axi_bridge_id_ar),
         .rid_bridge_id(ddr_axi_rid_bridge_id),
-        .rid_valid(ddr_axi_rid_valid)
+        .rid_valid(ddr_axi_rid_valid),
+
+        // Per-master lanes (slave-domain arbitration, bridge W9)
+        .ddr_axi_lane_awvalid(ddr_axi_lane_awvalid),
+        .ddr_axi_lane_awready(ddr_axi_lane_awready),
+        .ddr_axi_lane_aw(ddr_axi_lane_aw),
+        .ddr_axi_lane_wvalid(ddr_axi_lane_wvalid),
+        .ddr_axi_lane_wready(ddr_axi_lane_wready),
+        .ddr_axi_lane_w(ddr_axi_lane_w),
+        .ddr_axi_lane_arvalid(ddr_axi_lane_arvalid),
+        .ddr_axi_lane_arready(ddr_axi_lane_arready),
+        .ddr_axi_lane_ar(ddr_axi_lane_ar)
     );
 
     // sram adapter (AXI4, crossbar → external slave)

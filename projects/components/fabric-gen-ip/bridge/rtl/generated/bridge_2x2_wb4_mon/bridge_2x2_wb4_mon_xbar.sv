@@ -291,6 +291,10 @@ module bridge_2x2_wb4_mon_xbar
     logic wbm_64b_aw_slot_mem_valid, wbm_64b_aw_slot_mem_ready, wbm_64b_aw_slot_mem_in_valid, wbm_64b_aw_slot_mem_in_ready;
     axi4_aw_t cpu_64b_aw_slot_mem;
     logic cpu_64b_aw_slot_mem_valid, cpu_64b_aw_slot_mem_ready, cpu_64b_aw_slot_mem_in_valid, cpu_64b_aw_slot_mem_in_ready;
+    axi4_aw_t wbm_32b_aw_slot_wbp;
+    logic wbm_32b_aw_slot_wbp_valid, wbm_32b_aw_slot_wbp_ready, wbm_32b_aw_slot_wbp_in_valid, wbm_32b_aw_slot_wbp_in_ready;
+    axi4_aw_t cpu_32b_aw_slot_wbp;
+    logic cpu_32b_aw_slot_wbp_valid, cpu_32b_aw_slot_wbp_ready, cpu_32b_aw_slot_wbp_in_valid, cpu_32b_aw_slot_wbp_in_ready;
     axi4_aw_t wbm_64b_aw_slot_subtractive;
     logic wbm_64b_aw_slot_subtractive_valid, wbm_64b_aw_slot_subtractive_ready, wbm_64b_aw_slot_subtractive_in_valid, wbm_64b_aw_slot_subtractive_in_ready;
     axi4_aw_t cpu_64b_aw_slot_subtractive;
@@ -299,6 +303,10 @@ module bridge_2x2_wb4_mon_xbar
     logic wbm_64b_ar_slot_mem_valid, wbm_64b_ar_slot_mem_ready, wbm_64b_ar_slot_mem_in_valid, wbm_64b_ar_slot_mem_in_ready;
     axi4_ar_t cpu_64b_ar_slot_mem;
     logic cpu_64b_ar_slot_mem_valid, cpu_64b_ar_slot_mem_ready, cpu_64b_ar_slot_mem_in_valid, cpu_64b_ar_slot_mem_in_ready;
+    axi4_ar_t wbm_32b_ar_slot_wbp;
+    logic wbm_32b_ar_slot_wbp_valid, wbm_32b_ar_slot_wbp_ready, wbm_32b_ar_slot_wbp_in_valid, wbm_32b_ar_slot_wbp_in_ready;
+    axi4_ar_t cpu_32b_ar_slot_wbp;
+    logic cpu_32b_ar_slot_wbp_valid, cpu_32b_ar_slot_wbp_ready, cpu_32b_ar_slot_wbp_in_valid, cpu_32b_ar_slot_wbp_in_ready;
     axi4_ar_t wbm_64b_ar_slot_subtractive;
     logic wbm_64b_ar_slot_subtractive_valid, wbm_64b_ar_slot_subtractive_ready, wbm_64b_ar_slot_subtractive_in_valid, wbm_64b_ar_slot_subtractive_in_ready;
     axi4_ar_t cpu_64b_ar_slot_subtractive;
@@ -306,11 +314,11 @@ module bridge_2x2_wb4_mon_xbar
     // Write ordering: a master's AW waits while another of its slots
     // holds an AW (see _generate_request_slots)
     wire wbm_32b_aw_hold_wbp = wbm_64b_aw_slot_mem_valid || wbm_64b_aw_slot_subtractive_valid;
-    wire wbm_64b_aw_hold_mem = wbm_64b_aw_slot_subtractive_valid;
-    wire wbm_64b_aw_hold_subtractive = wbm_64b_aw_slot_mem_valid;
+    wire wbm_64b_aw_hold_mem = wbm_32b_aw_slot_wbp_valid || wbm_64b_aw_slot_subtractive_valid;
+    wire wbm_64b_aw_hold_subtractive = wbm_64b_aw_slot_mem_valid || wbm_32b_aw_slot_wbp_valid;
     wire cpu_32b_aw_hold_wbp = cpu_64b_aw_slot_mem_valid || cpu_64b_aw_slot_subtractive_valid;
-    wire cpu_64b_aw_hold_mem = cpu_64b_aw_slot_subtractive_valid;
-    wire cpu_64b_aw_hold_subtractive = cpu_64b_aw_slot_mem_valid;
+    wire cpu_64b_aw_hold_mem = cpu_32b_aw_slot_wbp_valid || cpu_64b_aw_slot_subtractive_valid;
+    wire cpu_64b_aw_hold_subtractive = cpu_64b_aw_slot_mem_valid || cpu_32b_aw_slot_wbp_valid;
 
     // ================================================================
     // Response arbiters (one slave per master path per channel)
@@ -673,9 +681,29 @@ module bridge_2x2_wb4_mon_xbar
     wire cpu_32b_aw_to_wbp = ((cpu_32b_aw.addr >= 32'h50000000) && (cpu_32b_aw.addr <= 32'h5000ffff));
     wire cpu_32b_ar_to_wbp = ((cpu_32b_ar.addr >= 32'h50000000) && (cpu_32b_ar.addr <= 32'h5000ffff));
 
+    // AW request slots for wbp: arbitration at the slave pins
+    assign wbm_32b_aw_slot_wbp_in_valid = wbm_32b_aw_to_wbp && wbm_32b_awvalid && !wbm_32b_aw_hold_wbp;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_wbm_32b_aw_slot_wbp (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(wbm_32b_aw_slot_wbp_in_valid), .wr_ready(wbm_32b_aw_slot_wbp_in_ready), .wr_data(wbm_32b_aw),
+        .rd_valid(wbm_32b_aw_slot_wbp_valid), .rd_ready(wbm_32b_aw_slot_wbp_ready), .rd_data(wbm_32b_aw_slot_wbp),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign cpu_32b_aw_slot_wbp_in_valid = cpu_32b_aw_to_wbp && cpu_32b_awvalid && !cpu_32b_aw_hold_wbp;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_32b_aw_slot_wbp (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_32b_aw_slot_wbp_in_valid), .wr_ready(cpu_32b_aw_slot_wbp_in_ready), .wr_data(cpu_32b_aw),
+        .rd_valid(cpu_32b_aw_slot_wbp_valid), .rd_ready(cpu_32b_aw_slot_wbp_ready), .rd_data(cpu_32b_aw_slot_wbp),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for wbp: round-robin, lock until handshake ----
     logic [1:0] wbp_aw_arb_req;
-    assign wbp_aw_arb_req = {cpu_32b_aw_to_wbp && cpu_32b_awvalid && !cpu_32b_aw_hold_wbp, wbm_32b_aw_to_wbp && wbm_32b_awvalid && !wbm_32b_aw_hold_wbp};
+    assign wbp_aw_arb_req = {cpu_32b_aw_slot_wbp_valid, wbm_32b_aw_slot_wbp_valid};
     logic [0:0] wbp_aw_arb_lock, wbp_aw_arb_rr;
     logic wbp_aw_arb_locked;
     wire [0:0] wbp_aw_arb_pick = (wbp_aw_arb_rr == 1'd0) ? (wbp_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -699,30 +727,32 @@ module bridge_2x2_wb4_mon_xbar
     )
     wire wbm_32b_aw_gnt_wbp = wbp_aw_arb_gnt_valid && (wbp_aw_arb_gnt == 1'd0) && wbp_aw_arb_req[0];
     wire cpu_32b_aw_gnt_wbp = wbp_aw_arb_gnt_valid && (wbp_aw_arb_gnt == 1'd1) && wbp_aw_arb_req[1];
+    assign wbm_32b_aw_slot_wbp_ready = wbm_32b_aw_gnt_wbp && wbp_axi_awready;
+    assign cpu_32b_aw_slot_wbp_ready = cpu_32b_aw_gnt_wbp && wbp_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign wbp_axi_awid = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.id : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.id : '0);
-    assign wbp_axi_awaddr = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.addr : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.addr : '0);
-    assign wbp_axi_awlen = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.len : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.len : '0);
-    assign wbp_axi_awsize = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.size : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.size : '0);
-    assign wbp_axi_awburst = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.burst : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.burst : '0);
-    assign wbp_axi_awlock = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.lock : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.lock : '0);
-    assign wbp_axi_awcache = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.cache : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.cache : '0);
-    assign wbp_axi_awprot = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.prot : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.prot : '0);
-    assign wbp_axi_awqos = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.qos : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.qos : '0);
-    assign wbp_axi_awregion = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.region : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.region : '0);
-    assign wbp_axi_awuser = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw.user : '0) |
-        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw.user : '0);
+    assign wbp_axi_awid = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.id : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.id : '0);
+    assign wbp_axi_awaddr = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.addr : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.addr : '0);
+    assign wbp_axi_awlen = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.len : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.len : '0);
+    assign wbp_axi_awsize = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.size : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.size : '0);
+    assign wbp_axi_awburst = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.burst : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.burst : '0);
+    assign wbp_axi_awlock = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.lock : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.lock : '0);
+    assign wbp_axi_awcache = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.cache : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.cache : '0);
+    assign wbp_axi_awprot = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.prot : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.prot : '0);
+    assign wbp_axi_awqos = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.qos : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.qos : '0);
+    assign wbp_axi_awregion = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.region : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.region : '0);
+    assign wbp_axi_awuser = (wbm_32b_aw_gnt_wbp ? wbm_32b_aw_slot_wbp.user : '0) |
+        (cpu_32b_aw_gnt_wbp ? cpu_32b_aw_slot_wbp.user : '0);
     assign wbp_axi_awvalid = wbm_32b_aw_gnt_wbp || cpu_32b_aw_gnt_wbp;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
@@ -767,9 +797,29 @@ module bridge_2x2_wb4_mon_xbar
     assign wbp_axi_bridge_id_aw = (wbm_32b_aw_gnt_wbp ? wbm_bridge_id_aw : '0) |
         (cpu_32b_aw_gnt_wbp ? cpu_bridge_id_aw : '0);
 
+    // AR request slots for wbp: arbitration at the slave pins
+    assign wbm_32b_ar_slot_wbp_in_valid = wbm_32b_ar_to_wbp && wbm_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_wbm_32b_ar_slot_wbp (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(wbm_32b_ar_slot_wbp_in_valid), .wr_ready(wbm_32b_ar_slot_wbp_in_ready), .wr_data(wbm_32b_ar),
+        .rd_valid(wbm_32b_ar_slot_wbp_valid), .rd_ready(wbm_32b_ar_slot_wbp_ready), .rd_data(wbm_32b_ar_slot_wbp),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign cpu_32b_ar_slot_wbp_in_valid = cpu_32b_ar_to_wbp && cpu_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_32b_ar_slot_wbp (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_32b_ar_slot_wbp_in_valid), .wr_ready(cpu_32b_ar_slot_wbp_in_ready), .wr_data(cpu_32b_ar),
+        .rd_valid(cpu_32b_ar_slot_wbp_valid), .rd_ready(cpu_32b_ar_slot_wbp_ready), .rd_data(cpu_32b_ar_slot_wbp),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for wbp: round-robin, lock until handshake ----
     logic [1:0] wbp_ar_arb_req;
-    assign wbp_ar_arb_req = {cpu_32b_ar_to_wbp && cpu_32b_arvalid, wbm_32b_ar_to_wbp && wbm_32b_arvalid};
+    assign wbp_ar_arb_req = {cpu_32b_ar_slot_wbp_valid, wbm_32b_ar_slot_wbp_valid};
     logic [0:0] wbp_ar_arb_lock, wbp_ar_arb_rr;
     logic wbp_ar_arb_locked;
     wire [0:0] wbp_ar_arb_pick = (wbp_ar_arb_rr == 1'd0) ? (wbp_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -793,30 +843,32 @@ module bridge_2x2_wb4_mon_xbar
     )
     wire wbm_32b_ar_gnt_wbp = wbp_ar_arb_gnt_valid && (wbp_ar_arb_gnt == 1'd0) && wbp_ar_arb_req[0];
     wire cpu_32b_ar_gnt_wbp = wbp_ar_arb_gnt_valid && (wbp_ar_arb_gnt == 1'd1) && wbp_ar_arb_req[1];
+    assign wbm_32b_ar_slot_wbp_ready = wbm_32b_ar_gnt_wbp && wbp_axi_arready;
+    assign cpu_32b_ar_slot_wbp_ready = cpu_32b_ar_gnt_wbp && wbp_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign wbp_axi_arid = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.id : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.id : '0);
-    assign wbp_axi_araddr = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.addr : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.addr : '0);
-    assign wbp_axi_arlen = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.len : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.len : '0);
-    assign wbp_axi_arsize = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.size : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.size : '0);
-    assign wbp_axi_arburst = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.burst : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.burst : '0);
-    assign wbp_axi_arlock = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.lock : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.lock : '0);
-    assign wbp_axi_arcache = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.cache : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.cache : '0);
-    assign wbp_axi_arprot = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.prot : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.prot : '0);
-    assign wbp_axi_arqos = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.qos : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.qos : '0);
-    assign wbp_axi_arregion = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.region : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.region : '0);
-    assign wbp_axi_aruser = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar.user : '0) |
-        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar.user : '0);
+    assign wbp_axi_arid = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.id : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.id : '0);
+    assign wbp_axi_araddr = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.addr : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.addr : '0);
+    assign wbp_axi_arlen = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.len : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.len : '0);
+    assign wbp_axi_arsize = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.size : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.size : '0);
+    assign wbp_axi_arburst = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.burst : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.burst : '0);
+    assign wbp_axi_arlock = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.lock : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.lock : '0);
+    assign wbp_axi_arcache = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.cache : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.cache : '0);
+    assign wbp_axi_arprot = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.prot : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.prot : '0);
+    assign wbp_axi_arqos = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.qos : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.qos : '0);
+    assign wbp_axi_arregion = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.region : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.region : '0);
+    assign wbp_axi_aruser = (wbm_32b_ar_gnt_wbp ? wbm_32b_ar_slot_wbp.user : '0) |
+        (cpu_32b_ar_gnt_wbp ? cpu_32b_ar_slot_wbp.user : '0);
     assign wbp_axi_arvalid = wbm_32b_ar_gnt_wbp || cpu_32b_ar_gnt_wbp;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1156,7 +1208,7 @@ module bridge_2x2_wb4_mon_xbar
 
     // Master: wbm, Width path: 32b
     assign wbm_32b_awready = 
-        (wbm_32b_aw_gnt_wbp ? wbp_axi_awready : '0);
+        ((wbm_32b_aw_to_wbp && !wbm_32b_aw_hold_wbp) ? wbm_32b_aw_slot_wbp_in_ready : '0);
 
     assign wbm_32b_wready = 
         (wbm_32b_w_sel_wbp ? wbp_axi_wready : '0);
@@ -1174,7 +1226,7 @@ module bridge_2x2_wb4_mon_xbar
         (wbm_32b_b_rgnt_wbp ? wbp_axi_bvalid : '0);
 
     assign wbm_32b_arready = 
-        (wbm_32b_ar_gnt_wbp ? wbp_axi_arready : '0);
+        ((wbm_32b_ar_to_wbp) ? wbm_32b_ar_slot_wbp_in_ready : '0);
 
     assign wbm_32b_r.id = 
         (wbm_32b_r_rgnt_wbp ? wbp_axi_rid : '0);
@@ -1251,7 +1303,7 @@ module bridge_2x2_wb4_mon_xbar
 
     // Master: cpu, Width path: 32b
     assign cpu_32b_awready = 
-        (cpu_32b_aw_gnt_wbp ? wbp_axi_awready : '0);
+        ((cpu_32b_aw_to_wbp && !cpu_32b_aw_hold_wbp) ? cpu_32b_aw_slot_wbp_in_ready : '0);
 
     assign cpu_32b_wready = 
         (cpu_32b_w_sel_wbp ? wbp_axi_wready : '0);
@@ -1269,7 +1321,7 @@ module bridge_2x2_wb4_mon_xbar
         (cpu_32b_b_rgnt_wbp ? wbp_axi_bvalid : '0);
 
     assign cpu_32b_arready = 
-        (cpu_32b_ar_gnt_wbp ? wbp_axi_arready : '0);
+        ((cpu_32b_ar_to_wbp) ? cpu_32b_ar_slot_wbp_in_ready : '0);
 
     assign cpu_32b_r.id = 
         (cpu_32b_r_rgnt_wbp ? wbp_axi_rid : '0);

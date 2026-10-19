@@ -102,10 +102,17 @@ RTT_BUDGET = {'bridge_2x2_rw': 8, 'bridge_2x2_rw_lat': 8, 'bridge_2x2_rw_pipe': 
 # slave cycles at @13. Bursts of two beats or more saturate either way.
 # Open weaknesses: (label regex, floor, note). A fixed weakness's row is
 # deleted, and the shape's real floor applies again.
-_W9 = 'W9: a CDC slave\'s address FIFO queues granted requests behind the arbiter (W3 at a CDC port)'
+# W9 (fixed 2026-10-18): a CDC slave is arbitrated on its own clock from
+# per-master lanes (bridge_cdc_slave_arb), so no granted request queues in
+# the crossing. What is left is the shallow master's own loop: with 2 in
+# flight against a slave that answers at once, each of its transactions
+# spends its turnaround in two crossings, and its lane is empty at some
+# picks. 8/8 is 0.498, and at 32 cycles of slave latency 2 in flight get
+# 0.496-0.500; at zero latency 8/2 and 16/2 get 0.40-0.41 (it was 0.18-0.20).
+_W9 = 'W9 residue: 2 in flight cannot cover two crossings at zero slave latency'
 KNOWN = {
-    'bridge_2x2_rw_cdc@7': [(r'round_robin', 0.15, _W9)],
-    'bridge_2x2_rw_cdc@13': [(r'round_robin', 0.15, _W9)],
+    'bridge_2x2_rw_cdc@7': [(r'accept=2 lat=0 .*round_robin', 0.38, _W9)],
+    'bridge_2x2_rw_cdc@13': [(r'accept=2 lat=0 .*round_robin', 0.38, _W9)],
 }
 NO_STARVE = 0.05   # a contending master gets at least this share
 FAIR_HALF = 0.45   # round-robin share of two masters that can both fill the slave

@@ -433,6 +433,10 @@ module bridge_mix_b_mon_xbar
     logic dma_axi4_64b_aw_slot_scratch_valid, dma_axi4_64b_aw_slot_scratch_ready, dma_axi4_64b_aw_slot_scratch_in_valid, dma_axi4_64b_aw_slot_scratch_in_ready;
     axi4_aw_t host_axil_64b_aw_slot_scratch;
     logic host_axil_64b_aw_slot_scratch_valid, host_axil_64b_aw_slot_scratch_ready, host_axil_64b_aw_slot_scratch_in_valid, host_axil_64b_aw_slot_scratch_in_ready;
+    axi4_aw_t cpu_axi4_32b_aw_slot_apb_periph;
+    logic cpu_axi4_32b_aw_slot_apb_periph_valid, cpu_axi4_32b_aw_slot_apb_periph_ready, cpu_axi4_32b_aw_slot_apb_periph_in_valid, cpu_axi4_32b_aw_slot_apb_periph_in_ready;
+    axi4_aw_t host_axil_32b_aw_slot_apb_periph;
+    logic host_axil_32b_aw_slot_apb_periph_valid, host_axil_32b_aw_slot_apb_periph_ready, host_axil_32b_aw_slot_apb_periph_in_valid, host_axil_32b_aw_slot_apb_periph_in_ready;
     axi4_aw_t cpu_axi4_128b_aw_slot_subtractive;
     logic cpu_axi4_128b_aw_slot_subtractive_valid, cpu_axi4_128b_aw_slot_subtractive_ready, cpu_axi4_128b_aw_slot_subtractive_in_valid, cpu_axi4_128b_aw_slot_subtractive_in_ready;
     axi4_aw_t dma_axi4_128b_aw_slot_subtractive;
@@ -449,6 +453,10 @@ module bridge_mix_b_mon_xbar
     logic dma_axi4_64b_ar_slot_scratch_valid, dma_axi4_64b_ar_slot_scratch_ready, dma_axi4_64b_ar_slot_scratch_in_valid, dma_axi4_64b_ar_slot_scratch_in_ready;
     axi4_ar_t host_axil_64b_ar_slot_scratch;
     logic host_axil_64b_ar_slot_scratch_valid, host_axil_64b_ar_slot_scratch_ready, host_axil_64b_ar_slot_scratch_in_valid, host_axil_64b_ar_slot_scratch_in_ready;
+    axi4_ar_t cpu_axi4_32b_ar_slot_apb_periph;
+    logic cpu_axi4_32b_ar_slot_apb_periph_valid, cpu_axi4_32b_ar_slot_apb_periph_ready, cpu_axi4_32b_ar_slot_apb_periph_in_valid, cpu_axi4_32b_ar_slot_apb_periph_in_ready;
+    axi4_ar_t host_axil_32b_ar_slot_apb_periph;
+    logic host_axil_32b_ar_slot_apb_periph_valid, host_axil_32b_ar_slot_apb_periph_ready, host_axil_32b_ar_slot_apb_periph_in_valid, host_axil_32b_ar_slot_apb_periph_in_ready;
     axi4_ar_t cpu_axi4_128b_ar_slot_subtractive;
     logic cpu_axi4_128b_ar_slot_subtractive_valid, cpu_axi4_128b_ar_slot_subtractive_ready, cpu_axi4_128b_ar_slot_subtractive_in_valid, cpu_axi4_128b_ar_slot_subtractive_in_ready;
     axi4_ar_t dma_axi4_128b_ar_slot_subtractive;
@@ -458,15 +466,15 @@ module bridge_mix_b_mon_xbar
     // Write ordering: a master's AW waits while another of its slots
     // holds an AW (see _generate_request_slots)
     wire cpu_axi4_32b_aw_hold_apb_periph = cpu_axi4_128b_aw_slot_ddr_valid || cpu_axi4_64b_aw_slot_scratch_valid || cpu_axi4_128b_aw_slot_subtractive_valid;
-    wire cpu_axi4_64b_aw_hold_scratch = cpu_axi4_128b_aw_slot_ddr_valid || cpu_axi4_128b_aw_slot_subtractive_valid;
-    wire cpu_axi4_128b_aw_hold_ddr = cpu_axi4_64b_aw_slot_scratch_valid || cpu_axi4_128b_aw_slot_subtractive_valid;
-    wire cpu_axi4_128b_aw_hold_subtractive = cpu_axi4_128b_aw_slot_ddr_valid || cpu_axi4_64b_aw_slot_scratch_valid;
+    wire cpu_axi4_64b_aw_hold_scratch = cpu_axi4_128b_aw_slot_ddr_valid || cpu_axi4_32b_aw_slot_apb_periph_valid || cpu_axi4_128b_aw_slot_subtractive_valid;
+    wire cpu_axi4_128b_aw_hold_ddr = cpu_axi4_64b_aw_slot_scratch_valid || cpu_axi4_32b_aw_slot_apb_periph_valid || cpu_axi4_128b_aw_slot_subtractive_valid;
+    wire cpu_axi4_128b_aw_hold_subtractive = cpu_axi4_128b_aw_slot_ddr_valid || cpu_axi4_64b_aw_slot_scratch_valid || cpu_axi4_32b_aw_slot_apb_periph_valid;
     wire dma_axi4_64b_aw_hold_scratch = dma_axi4_128b_aw_slot_ddr_valid || dma_axi4_128b_aw_slot_subtractive_valid;
     wire dma_axi4_128b_aw_hold_ddr = dma_axi4_64b_aw_slot_scratch_valid || dma_axi4_128b_aw_slot_subtractive_valid;
     wire dma_axi4_128b_aw_hold_subtractive = dma_axi4_128b_aw_slot_ddr_valid || dma_axi4_64b_aw_slot_scratch_valid;
     wire host_axil_32b_aw_hold_apb_periph = host_axil_64b_aw_slot_scratch_valid || host_axil_128b_aw_slot_subtractive_valid;
-    wire host_axil_64b_aw_hold_scratch = host_axil_128b_aw_slot_subtractive_valid;
-    wire host_axil_128b_aw_hold_subtractive = host_axil_64b_aw_slot_scratch_valid;
+    wire host_axil_64b_aw_hold_scratch = host_axil_32b_aw_slot_apb_periph_valid || host_axil_128b_aw_slot_subtractive_valid;
+    wire host_axil_128b_aw_hold_subtractive = host_axil_64b_aw_slot_scratch_valid || host_axil_32b_aw_slot_apb_periph_valid;
 
     // ================================================================
     // Response arbiters (one slave per master path per channel)
@@ -1124,9 +1132,29 @@ module bridge_mix_b_mon_xbar
     wire host_axil_32b_aw_to_apb_periph = ((host_axil_32b_aw.addr >= 32'h40100000) && (host_axil_32b_aw.addr <= 32'h4010ffff));
     wire host_axil_32b_ar_to_apb_periph = ((host_axil_32b_ar.addr >= 32'h40100000) && (host_axil_32b_ar.addr <= 32'h4010ffff));
 
+    // AW request slots for apb_periph: arbitration at the slave pins
+    assign cpu_axi4_32b_aw_slot_apb_periph_in_valid = cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid && !cpu_axi4_32b_aw_hold_apb_periph;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_32b_aw_slot_apb_periph (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_32b_aw_slot_apb_periph_in_valid), .wr_ready(cpu_axi4_32b_aw_slot_apb_periph_in_ready), .wr_data(cpu_axi4_32b_aw),
+        .rd_valid(cpu_axi4_32b_aw_slot_apb_periph_valid), .rd_ready(cpu_axi4_32b_aw_slot_apb_periph_ready), .rd_data(cpu_axi4_32b_aw_slot_apb_periph),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign host_axil_32b_aw_slot_apb_periph_in_valid = host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid && !host_axil_32b_aw_hold_apb_periph;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_32b_aw_slot_apb_periph (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_axil_32b_aw_slot_apb_periph_in_valid), .wr_ready(host_axil_32b_aw_slot_apb_periph_in_ready), .wr_data(host_axil_32b_aw),
+        .rd_valid(host_axil_32b_aw_slot_apb_periph_valid), .rd_ready(host_axil_32b_aw_slot_apb_periph_ready), .rd_data(host_axil_32b_aw_slot_apb_periph),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for apb_periph: round-robin, lock until handshake ----
     logic [1:0] apb_periph_aw_arb_req;
-    assign apb_periph_aw_arb_req = {host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid && !host_axil_32b_aw_hold_apb_periph, cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid && !cpu_axi4_32b_aw_hold_apb_periph};
+    assign apb_periph_aw_arb_req = {host_axil_32b_aw_slot_apb_periph_valid, cpu_axi4_32b_aw_slot_apb_periph_valid};
     logic [0:0] apb_periph_aw_arb_lock, apb_periph_aw_arb_rr;
     logic apb_periph_aw_arb_locked;
     wire [0:0] apb_periph_aw_arb_pick = (apb_periph_aw_arb_rr == 1'd0) ? (apb_periph_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -1150,30 +1178,32 @@ module bridge_mix_b_mon_xbar
     )
     wire cpu_axi4_32b_aw_gnt_apb_periph = apb_periph_aw_arb_gnt_valid && (apb_periph_aw_arb_gnt == 1'd0) && apb_periph_aw_arb_req[0];
     wire host_axil_32b_aw_gnt_apb_periph = apb_periph_aw_arb_gnt_valid && (apb_periph_aw_arb_gnt == 1'd1) && apb_periph_aw_arb_req[1];
+    assign cpu_axi4_32b_aw_slot_apb_periph_ready = cpu_axi4_32b_aw_gnt_apb_periph && apb_periph_axi_awready;
+    assign host_axil_32b_aw_slot_apb_periph_ready = host_axil_32b_aw_gnt_apb_periph && apb_periph_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign apb_periph_axi_awid = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.id : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.id : '0);
-    assign apb_periph_axi_awaddr = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.addr : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.addr : '0);
-    assign apb_periph_axi_awlen = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.len : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.len : '0);
-    assign apb_periph_axi_awsize = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.size : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.size : '0);
-    assign apb_periph_axi_awburst = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.burst : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.burst : '0);
-    assign apb_periph_axi_awlock = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.lock : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.lock : '0);
-    assign apb_periph_axi_awcache = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.cache : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.cache : '0);
-    assign apb_periph_axi_awprot = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.prot : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.prot : '0);
-    assign apb_periph_axi_awqos = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.qos : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.qos : '0);
-    assign apb_periph_axi_awregion = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.region : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.region : '0);
-    assign apb_periph_axi_awuser = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.user : '0) |
-        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.user : '0);
+    assign apb_periph_axi_awid = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.id : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.id : '0);
+    assign apb_periph_axi_awaddr = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.addr : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.addr : '0);
+    assign apb_periph_axi_awlen = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.len : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.len : '0);
+    assign apb_periph_axi_awsize = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.size : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.size : '0);
+    assign apb_periph_axi_awburst = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.burst : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.burst : '0);
+    assign apb_periph_axi_awlock = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.lock : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.lock : '0);
+    assign apb_periph_axi_awcache = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.cache : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.cache : '0);
+    assign apb_periph_axi_awprot = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.prot : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.prot : '0);
+    assign apb_periph_axi_awqos = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.qos : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.qos : '0);
+    assign apb_periph_axi_awregion = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.region : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.region : '0);
+    assign apb_periph_axi_awuser = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw_slot_apb_periph.user : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw_slot_apb_periph.user : '0);
     assign apb_periph_axi_awvalid = cpu_axi4_32b_aw_gnt_apb_periph || host_axil_32b_aw_gnt_apb_periph;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
@@ -1218,9 +1248,29 @@ module bridge_mix_b_mon_xbar
     assign apb_periph_axi_bridge_id_aw = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_bridge_id_aw : '0) |
         (host_axil_32b_aw_gnt_apb_periph ? host_axil_bridge_id_aw : '0);
 
+    // AR request slots for apb_periph: arbitration at the slave pins
+    assign cpu_axi4_32b_ar_slot_apb_periph_in_valid = cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_axi4_32b_ar_slot_apb_periph (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(cpu_axi4_32b_ar_slot_apb_periph_in_valid), .wr_ready(cpu_axi4_32b_ar_slot_apb_periph_in_ready), .wr_data(cpu_axi4_32b_ar),
+        .rd_valid(cpu_axi4_32b_ar_slot_apb_periph_valid), .rd_ready(cpu_axi4_32b_ar_slot_apb_periph_ready), .rd_data(cpu_axi4_32b_ar_slot_apb_periph),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign host_axil_32b_ar_slot_apb_periph_in_valid = host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_host_axil_32b_ar_slot_apb_periph (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_axil_32b_ar_slot_apb_periph_in_valid), .wr_ready(host_axil_32b_ar_slot_apb_periph_in_ready), .wr_data(host_axil_32b_ar),
+        .rd_valid(host_axil_32b_ar_slot_apb_periph_valid), .rd_ready(host_axil_32b_ar_slot_apb_periph_ready), .rd_data(host_axil_32b_ar_slot_apb_periph),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for apb_periph: round-robin, lock until handshake ----
     logic [1:0] apb_periph_ar_arb_req;
-    assign apb_periph_ar_arb_req = {host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid, cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid};
+    assign apb_periph_ar_arb_req = {host_axil_32b_ar_slot_apb_periph_valid, cpu_axi4_32b_ar_slot_apb_periph_valid};
     logic [0:0] apb_periph_ar_arb_lock, apb_periph_ar_arb_rr;
     logic apb_periph_ar_arb_locked;
     wire [0:0] apb_periph_ar_arb_pick = (apb_periph_ar_arb_rr == 1'd0) ? (apb_periph_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -1244,30 +1294,32 @@ module bridge_mix_b_mon_xbar
     )
     wire cpu_axi4_32b_ar_gnt_apb_periph = apb_periph_ar_arb_gnt_valid && (apb_periph_ar_arb_gnt == 1'd0) && apb_periph_ar_arb_req[0];
     wire host_axil_32b_ar_gnt_apb_periph = apb_periph_ar_arb_gnt_valid && (apb_periph_ar_arb_gnt == 1'd1) && apb_periph_ar_arb_req[1];
+    assign cpu_axi4_32b_ar_slot_apb_periph_ready = cpu_axi4_32b_ar_gnt_apb_periph && apb_periph_axi_arready;
+    assign host_axil_32b_ar_slot_apb_periph_ready = host_axil_32b_ar_gnt_apb_periph && apb_periph_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign apb_periph_axi_arid = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.id : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.id : '0);
-    assign apb_periph_axi_araddr = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.addr : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.addr : '0);
-    assign apb_periph_axi_arlen = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.len : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.len : '0);
-    assign apb_periph_axi_arsize = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.size : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.size : '0);
-    assign apb_periph_axi_arburst = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.burst : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.burst : '0);
-    assign apb_periph_axi_arlock = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.lock : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.lock : '0);
-    assign apb_periph_axi_arcache = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.cache : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.cache : '0);
-    assign apb_periph_axi_arprot = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.prot : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.prot : '0);
-    assign apb_periph_axi_arqos = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.qos : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.qos : '0);
-    assign apb_periph_axi_arregion = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.region : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.region : '0);
-    assign apb_periph_axi_aruser = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.user : '0) |
-        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.user : '0);
+    assign apb_periph_axi_arid = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.id : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.id : '0);
+    assign apb_periph_axi_araddr = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.addr : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.addr : '0);
+    assign apb_periph_axi_arlen = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.len : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.len : '0);
+    assign apb_periph_axi_arsize = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.size : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.size : '0);
+    assign apb_periph_axi_arburst = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.burst : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.burst : '0);
+    assign apb_periph_axi_arlock = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.lock : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.lock : '0);
+    assign apb_periph_axi_arcache = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.cache : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.cache : '0);
+    assign apb_periph_axi_arprot = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.prot : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.prot : '0);
+    assign apb_periph_axi_arqos = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.qos : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.qos : '0);
+    assign apb_periph_axi_arregion = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.region : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.region : '0);
+    assign apb_periph_axi_aruser = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar_slot_apb_periph.user : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar_slot_apb_periph.user : '0);
     assign apb_periph_axi_arvalid = cpu_axi4_32b_ar_gnt_apb_periph || host_axil_32b_ar_gnt_apb_periph;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1761,7 +1813,7 @@ module bridge_mix_b_mon_xbar
 
     // Master: cpu_axi4, Width path: 32b
     assign cpu_axi4_32b_awready = 
-        (cpu_axi4_32b_aw_gnt_apb_periph ? apb_periph_axi_awready : '0);
+        ((cpu_axi4_32b_aw_to_apb_periph && !cpu_axi4_32b_aw_hold_apb_periph) ? cpu_axi4_32b_aw_slot_apb_periph_in_ready : '0);
 
     assign cpu_axi4_32b_wready = 
         (cpu_axi4_32b_w_sel_apb_periph ? apb_periph_axi_wready : '0);
@@ -1779,7 +1831,7 @@ module bridge_mix_b_mon_xbar
         (cpu_axi4_32b_b_rgnt_apb_periph ? apb_periph_axi_bvalid : '0);
 
     assign cpu_axi4_32b_arready = 
-        (cpu_axi4_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0);
+        ((cpu_axi4_32b_ar_to_apb_periph) ? cpu_axi4_32b_ar_slot_apb_periph_in_ready : '0);
 
     assign cpu_axi4_32b_r.id = 
         (cpu_axi4_32b_r_rgnt_apb_periph ? apb_periph_axi_rid : '0);
@@ -1992,7 +2044,7 @@ module bridge_mix_b_mon_xbar
 
     // Master: host_axil, Width path: 32b
     assign host_axil_32b_awready = 
-        (host_axil_32b_aw_gnt_apb_periph ? apb_periph_axi_awready : '0);
+        ((host_axil_32b_aw_to_apb_periph && !host_axil_32b_aw_hold_apb_periph) ? host_axil_32b_aw_slot_apb_periph_in_ready : '0);
 
     assign host_axil_32b_wready = 
         (host_axil_32b_w_sel_apb_periph ? apb_periph_axi_wready : '0);
@@ -2010,7 +2062,7 @@ module bridge_mix_b_mon_xbar
         (host_axil_32b_b_rgnt_apb_periph ? apb_periph_axi_bvalid : '0);
 
     assign host_axil_32b_arready = 
-        (host_axil_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0);
+        ((host_axil_32b_ar_to_apb_periph) ? host_axil_32b_ar_slot_apb_periph_in_ready : '0);
 
     assign host_axil_32b_r.id = 
         (host_axil_32b_r_rgnt_apb_periph ? apb_periph_axi_rid : '0);

@@ -291,6 +291,10 @@ module bridge_2x2_lite_req_xbar
     logic lite4_64b_aw_slot_mem_valid, lite4_64b_aw_slot_mem_ready, lite4_64b_aw_slot_mem_in_valid, lite4_64b_aw_slot_mem_in_ready;
     axi4_aw_t lite5_64b_aw_slot_mem;
     logic lite5_64b_aw_slot_mem_valid, lite5_64b_aw_slot_mem_ready, lite5_64b_aw_slot_mem_in_valid, lite5_64b_aw_slot_mem_in_ready;
+    axi4_aw_t lite4_32b_aw_slot_regs;
+    logic lite4_32b_aw_slot_regs_valid, lite4_32b_aw_slot_regs_ready, lite4_32b_aw_slot_regs_in_valid, lite4_32b_aw_slot_regs_in_ready;
+    axi4_aw_t lite5_32b_aw_slot_regs;
+    logic lite5_32b_aw_slot_regs_valid, lite5_32b_aw_slot_regs_ready, lite5_32b_aw_slot_regs_in_valid, lite5_32b_aw_slot_regs_in_ready;
     axi4_aw_t lite4_64b_aw_slot_subtractive;
     logic lite4_64b_aw_slot_subtractive_valid, lite4_64b_aw_slot_subtractive_ready, lite4_64b_aw_slot_subtractive_in_valid, lite4_64b_aw_slot_subtractive_in_ready;
     axi4_aw_t lite5_64b_aw_slot_subtractive;
@@ -299,6 +303,10 @@ module bridge_2x2_lite_req_xbar
     logic lite4_64b_ar_slot_mem_valid, lite4_64b_ar_slot_mem_ready, lite4_64b_ar_slot_mem_in_valid, lite4_64b_ar_slot_mem_in_ready;
     axi4_ar_t lite5_64b_ar_slot_mem;
     logic lite5_64b_ar_slot_mem_valid, lite5_64b_ar_slot_mem_ready, lite5_64b_ar_slot_mem_in_valid, lite5_64b_ar_slot_mem_in_ready;
+    axi4_ar_t lite4_32b_ar_slot_regs;
+    logic lite4_32b_ar_slot_regs_valid, lite4_32b_ar_slot_regs_ready, lite4_32b_ar_slot_regs_in_valid, lite4_32b_ar_slot_regs_in_ready;
+    axi4_ar_t lite5_32b_ar_slot_regs;
+    logic lite5_32b_ar_slot_regs_valid, lite5_32b_ar_slot_regs_ready, lite5_32b_ar_slot_regs_in_valid, lite5_32b_ar_slot_regs_in_ready;
     axi4_ar_t lite4_64b_ar_slot_subtractive;
     logic lite4_64b_ar_slot_subtractive_valid, lite4_64b_ar_slot_subtractive_ready, lite4_64b_ar_slot_subtractive_in_valid, lite4_64b_ar_slot_subtractive_in_ready;
     axi4_ar_t lite5_64b_ar_slot_subtractive;
@@ -306,11 +314,11 @@ module bridge_2x2_lite_req_xbar
     // Write ordering: a master's AW waits while another of its slots
     // holds an AW (see _generate_request_slots)
     wire lite4_32b_aw_hold_regs = lite4_64b_aw_slot_mem_valid || lite4_64b_aw_slot_subtractive_valid;
-    wire lite4_64b_aw_hold_mem = lite4_64b_aw_slot_subtractive_valid;
-    wire lite4_64b_aw_hold_subtractive = lite4_64b_aw_slot_mem_valid;
+    wire lite4_64b_aw_hold_mem = lite4_32b_aw_slot_regs_valid || lite4_64b_aw_slot_subtractive_valid;
+    wire lite4_64b_aw_hold_subtractive = lite4_64b_aw_slot_mem_valid || lite4_32b_aw_slot_regs_valid;
     wire lite5_32b_aw_hold_regs = lite5_64b_aw_slot_mem_valid || lite5_64b_aw_slot_subtractive_valid;
-    wire lite5_64b_aw_hold_mem = lite5_64b_aw_slot_subtractive_valid;
-    wire lite5_64b_aw_hold_subtractive = lite5_64b_aw_slot_mem_valid;
+    wire lite5_64b_aw_hold_mem = lite5_32b_aw_slot_regs_valid || lite5_64b_aw_slot_subtractive_valid;
+    wire lite5_64b_aw_hold_subtractive = lite5_64b_aw_slot_mem_valid || lite5_32b_aw_slot_regs_valid;
 
     // ================================================================
     // Response arbiters (one slave per master path per channel)
@@ -673,9 +681,29 @@ module bridge_2x2_lite_req_xbar
     wire lite5_32b_aw_to_regs = ((lite5_32b_aw.addr >= 32'h40000000) && (lite5_32b_aw.addr <= 32'h4000ffff));
     wire lite5_32b_ar_to_regs = ((lite5_32b_ar.addr >= 32'h40000000) && (lite5_32b_ar.addr <= 32'h4000ffff));
 
+    // AW request slots for regs: arbitration at the slave pins
+    assign lite4_32b_aw_slot_regs_in_valid = lite4_32b_aw_to_regs && lite4_32b_awvalid && !lite4_32b_aw_hold_regs;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_lite4_32b_aw_slot_regs (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(lite4_32b_aw_slot_regs_in_valid), .wr_ready(lite4_32b_aw_slot_regs_in_ready), .wr_data(lite4_32b_aw),
+        .rd_valid(lite4_32b_aw_slot_regs_valid), .rd_ready(lite4_32b_aw_slot_regs_ready), .rd_data(lite4_32b_aw_slot_regs),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign lite5_32b_aw_slot_regs_in_valid = lite5_32b_aw_to_regs && lite5_32b_awvalid && !lite5_32b_aw_hold_regs;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_lite5_32b_aw_slot_regs (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(lite5_32b_aw_slot_regs_in_valid), .wr_ready(lite5_32b_aw_slot_regs_in_ready), .wr_data(lite5_32b_aw),
+        .rd_valid(lite5_32b_aw_slot_regs_valid), .rd_ready(lite5_32b_aw_slot_regs_ready), .rd_data(lite5_32b_aw_slot_regs),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for regs: round-robin, lock until handshake ----
     logic [1:0] regs_aw_arb_req;
-    assign regs_aw_arb_req = {lite5_32b_aw_to_regs && lite5_32b_awvalid && !lite5_32b_aw_hold_regs, lite4_32b_aw_to_regs && lite4_32b_awvalid && !lite4_32b_aw_hold_regs};
+    assign regs_aw_arb_req = {lite5_32b_aw_slot_regs_valid, lite4_32b_aw_slot_regs_valid};
     logic [0:0] regs_aw_arb_lock, regs_aw_arb_rr;
     logic regs_aw_arb_locked;
     wire [0:0] regs_aw_arb_pick = (regs_aw_arb_rr == 1'd0) ? (regs_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -699,30 +727,32 @@ module bridge_2x2_lite_req_xbar
     )
     wire lite4_32b_aw_gnt_regs = regs_aw_arb_gnt_valid && (regs_aw_arb_gnt == 1'd0) && regs_aw_arb_req[0];
     wire lite5_32b_aw_gnt_regs = regs_aw_arb_gnt_valid && (regs_aw_arb_gnt == 1'd1) && regs_aw_arb_req[1];
+    assign lite4_32b_aw_slot_regs_ready = lite4_32b_aw_gnt_regs && regs_axi_awready;
+    assign lite5_32b_aw_slot_regs_ready = lite5_32b_aw_gnt_regs && regs_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign regs_axi_awid = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.id : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.id : '0);
-    assign regs_axi_awaddr = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.addr : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.addr : '0);
-    assign regs_axi_awlen = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.len : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.len : '0);
-    assign regs_axi_awsize = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.size : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.size : '0);
-    assign regs_axi_awburst = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.burst : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.burst : '0);
-    assign regs_axi_awlock = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.lock : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.lock : '0);
-    assign regs_axi_awcache = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.cache : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.cache : '0);
-    assign regs_axi_awprot = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.prot : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.prot : '0);
-    assign regs_axi_awqos = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.qos : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.qos : '0);
-    assign regs_axi_awregion = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.region : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.region : '0);
-    assign regs_axi_awuser = (lite4_32b_aw_gnt_regs ? lite4_32b_aw.user : '0) |
-        (lite5_32b_aw_gnt_regs ? lite5_32b_aw.user : '0);
+    assign regs_axi_awid = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.id : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.id : '0);
+    assign regs_axi_awaddr = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.addr : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.addr : '0);
+    assign regs_axi_awlen = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.len : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.len : '0);
+    assign regs_axi_awsize = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.size : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.size : '0);
+    assign regs_axi_awburst = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.burst : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.burst : '0);
+    assign regs_axi_awlock = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.lock : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.lock : '0);
+    assign regs_axi_awcache = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.cache : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.cache : '0);
+    assign regs_axi_awprot = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.prot : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.prot : '0);
+    assign regs_axi_awqos = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.qos : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.qos : '0);
+    assign regs_axi_awregion = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.region : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.region : '0);
+    assign regs_axi_awuser = (lite4_32b_aw_gnt_regs ? lite4_32b_aw_slot_regs.user : '0) |
+        (lite5_32b_aw_gnt_regs ? lite5_32b_aw_slot_regs.user : '0);
     assign regs_axi_awvalid = lite4_32b_aw_gnt_regs || lite5_32b_aw_gnt_regs;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
@@ -767,9 +797,29 @@ module bridge_2x2_lite_req_xbar
     assign regs_axi_bridge_id_aw = (lite4_32b_aw_gnt_regs ? lite4_bridge_id_aw : '0) |
         (lite5_32b_aw_gnt_regs ? lite5_bridge_id_aw : '0);
 
+    // AR request slots for regs: arbitration at the slave pins
+    assign lite4_32b_ar_slot_regs_in_valid = lite4_32b_ar_to_regs && lite4_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_lite4_32b_ar_slot_regs (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(lite4_32b_ar_slot_regs_in_valid), .wr_ready(lite4_32b_ar_slot_regs_in_ready), .wr_data(lite4_32b_ar),
+        .rd_valid(lite4_32b_ar_slot_regs_valid), .rd_ready(lite4_32b_ar_slot_regs_ready), .rd_data(lite4_32b_ar_slot_regs),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign lite5_32b_ar_slot_regs_in_valid = lite5_32b_ar_to_regs && lite5_32b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_lite5_32b_ar_slot_regs (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(lite5_32b_ar_slot_regs_in_valid), .wr_ready(lite5_32b_ar_slot_regs_in_ready), .wr_data(lite5_32b_ar),
+        .rd_valid(lite5_32b_ar_slot_regs_valid), .rd_ready(lite5_32b_ar_slot_regs_ready), .rd_data(lite5_32b_ar_slot_regs),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for regs: round-robin, lock until handshake ----
     logic [1:0] regs_ar_arb_req;
-    assign regs_ar_arb_req = {lite5_32b_ar_to_regs && lite5_32b_arvalid, lite4_32b_ar_to_regs && lite4_32b_arvalid};
+    assign regs_ar_arb_req = {lite5_32b_ar_slot_regs_valid, lite4_32b_ar_slot_regs_valid};
     logic [0:0] regs_ar_arb_lock, regs_ar_arb_rr;
     logic regs_ar_arb_locked;
     wire [0:0] regs_ar_arb_pick = (regs_ar_arb_rr == 1'd0) ? (regs_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -793,30 +843,32 @@ module bridge_2x2_lite_req_xbar
     )
     wire lite4_32b_ar_gnt_regs = regs_ar_arb_gnt_valid && (regs_ar_arb_gnt == 1'd0) && regs_ar_arb_req[0];
     wire lite5_32b_ar_gnt_regs = regs_ar_arb_gnt_valid && (regs_ar_arb_gnt == 1'd1) && regs_ar_arb_req[1];
+    assign lite4_32b_ar_slot_regs_ready = lite4_32b_ar_gnt_regs && regs_axi_arready;
+    assign lite5_32b_ar_slot_regs_ready = lite5_32b_ar_gnt_regs && regs_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign regs_axi_arid = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.id : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.id : '0);
-    assign regs_axi_araddr = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.addr : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.addr : '0);
-    assign regs_axi_arlen = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.len : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.len : '0);
-    assign regs_axi_arsize = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.size : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.size : '0);
-    assign regs_axi_arburst = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.burst : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.burst : '0);
-    assign regs_axi_arlock = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.lock : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.lock : '0);
-    assign regs_axi_arcache = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.cache : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.cache : '0);
-    assign regs_axi_arprot = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.prot : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.prot : '0);
-    assign regs_axi_arqos = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.qos : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.qos : '0);
-    assign regs_axi_arregion = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.region : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.region : '0);
-    assign regs_axi_aruser = (lite4_32b_ar_gnt_regs ? lite4_32b_ar.user : '0) |
-        (lite5_32b_ar_gnt_regs ? lite5_32b_ar.user : '0);
+    assign regs_axi_arid = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.id : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.id : '0);
+    assign regs_axi_araddr = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.addr : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.addr : '0);
+    assign regs_axi_arlen = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.len : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.len : '0);
+    assign regs_axi_arsize = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.size : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.size : '0);
+    assign regs_axi_arburst = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.burst : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.burst : '0);
+    assign regs_axi_arlock = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.lock : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.lock : '0);
+    assign regs_axi_arcache = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.cache : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.cache : '0);
+    assign regs_axi_arprot = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.prot : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.prot : '0);
+    assign regs_axi_arqos = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.qos : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.qos : '0);
+    assign regs_axi_arregion = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.region : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.region : '0);
+    assign regs_axi_aruser = (lite4_32b_ar_gnt_regs ? lite4_32b_ar_slot_regs.user : '0) |
+        (lite5_32b_ar_gnt_regs ? lite5_32b_ar_slot_regs.user : '0);
     assign regs_axi_arvalid = lite4_32b_ar_gnt_regs || lite5_32b_ar_gnt_regs;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1156,7 +1208,7 @@ module bridge_2x2_lite_req_xbar
 
     // Master: lite4, Width path: 32b
     assign lite4_32b_awready = 
-        (lite4_32b_aw_gnt_regs ? regs_axi_awready : '0);
+        ((lite4_32b_aw_to_regs && !lite4_32b_aw_hold_regs) ? lite4_32b_aw_slot_regs_in_ready : '0);
 
     assign lite4_32b_wready = 
         (lite4_32b_w_sel_regs ? regs_axi_wready : '0);
@@ -1174,7 +1226,7 @@ module bridge_2x2_lite_req_xbar
         (lite4_32b_b_rgnt_regs ? regs_axi_bvalid : '0);
 
     assign lite4_32b_arready = 
-        (lite4_32b_ar_gnt_regs ? regs_axi_arready : '0);
+        ((lite4_32b_ar_to_regs) ? lite4_32b_ar_slot_regs_in_ready : '0);
 
     assign lite4_32b_r.id = 
         (lite4_32b_r_rgnt_regs ? regs_axi_rid : '0);
@@ -1251,7 +1303,7 @@ module bridge_2x2_lite_req_xbar
 
     // Master: lite5, Width path: 32b
     assign lite5_32b_awready = 
-        (lite5_32b_aw_gnt_regs ? regs_axi_awready : '0);
+        ((lite5_32b_aw_to_regs && !lite5_32b_aw_hold_regs) ? lite5_32b_aw_slot_regs_in_ready : '0);
 
     assign lite5_32b_wready = 
         (lite5_32b_w_sel_regs ? regs_axi_wready : '0);
@@ -1269,7 +1321,7 @@ module bridge_2x2_lite_req_xbar
         (lite5_32b_b_rgnt_regs ? regs_axi_bvalid : '0);
 
     assign lite5_32b_arready = 
-        (lite5_32b_ar_gnt_regs ? regs_axi_arready : '0);
+        ((lite5_32b_ar_to_regs) ? lite5_32b_ar_slot_regs_in_ready : '0);
 
     assign lite5_32b_r.id = 
         (lite5_32b_r_rgnt_regs ? regs_axi_rid : '0);

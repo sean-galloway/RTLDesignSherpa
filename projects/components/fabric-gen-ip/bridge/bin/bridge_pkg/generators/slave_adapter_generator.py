@@ -34,7 +34,7 @@ class SlaveAdapterGenerator:
                  id_width: int = 4, data_width: int = 32,
                  num_masters: int = 1,
                  enable_monitoring: bool = False, slave_index: int = 0,
-                 arbitrated: bool = False):
+                 arbitrated: bool = False, lanes: int = 0):
         """
         Initialize slave adapter generator.
 
@@ -71,6 +71,9 @@ class SlaveAdapterGenerator:
         # slaves (apb/axil, in order by construction) and the internal
         # subtractive slave keep it too.
         self.num_masters = num_masters
+        # bridge W9: a multi-master cdc slave takes one lane per master
+        # (cdc_lanes) and arbitrates on its own clock (bridge_cdc_slave_arb).
+        self.lanes = int(lanes)
         self.data_width = data_width
         self.enable_monitoring = enable_monitoring
         self.slave_index = slave_index
@@ -122,10 +125,16 @@ class SlaveAdapterGenerator:
         lines.extend(self._generate_internal_signals())
 
         # Bridge ID tracking (by ID or FIFO)
-        lines.extend(self._generate_bridge_id_tracking())
+        if self.is_lane:
+            lines.extend(self._generate_lane_tracking())
+        else:
+            lines.extend(self._generate_bridge_id_tracking())
 
         # Timing wrapper or protocol converter
-        if self.slave.protocol in ('axi4', 'axi5', 'axi3'):
+        if self.is_lane:
+            # bridge W9: per-master crossings and the arbitration on s_aclk.
+            lines.extend(self._generate_lane_arb())
+        elif self.slave.protocol in ('axi4', 'axi5', 'axi3'):
             # axi5 (A5-2 slice 1): same structure as axi4, but the
             # boundary wrapper is axi5_master_{wr,rd} -- AXI4 fub face
             # toward the crossbar, AXI5 m_axi face toward the external
@@ -229,6 +238,8 @@ class SlaveAdapterGenerator:
         lines.append(f"    // Bridge ID tracking signals")
         lines.extend(self._generate_bridge_id_ports())
         lines.append("")
+        if self.is_lane:
+            lines.extend(self._generate_lane_ports())
 
         # External slave interface
         lines.append(f"    // External slave interface ({self.slave.protocol.upper()})")
@@ -1125,6 +1136,126 @@ class SlaveAdapterGenerator:
         """bridge TASK-006 (was BRIDGE-017): the external port runs on s_aclk; the wrapper's m_axi
         face crosses to it through axi4_cdc_{wr,rd}."""
         return bool(getattr(self.slave, 'cdc', False))
+
+    @property
+    def is_lane(self) -> bool:
+        """bridge W9: two or more masters reach this cdc slave, so it is
+        arbitrated on its own clock from per-master lanes."""
+        return self.lanes >= 2
+
+    def _lane_widths(self):
+        from bridge_pkg import cdc_lanes
+        axw = cdc_lanes.ax_width(self.id_width, self.slave.addr_width)
+        return axw, cdc_lanes.w_width(self.slave.data_width)
+
+    def _generate_lane_ports(self) -> List[str]:
+        n = self.lanes
+        axw, ww = self._lane_widths()
+        p = f"{self.slave.name}_axi_lane_"
+        lines = ["    // Per-master lanes (bridge W9): lane i is the i-th master that",
+                 "    // reaches this slave; arbitrated on s_aclk below"]
+        if self.has_write:
+            lines += [f"    input  logic [{n-1}:0] {p}awvalid,",
+                      f"    output logic [{n-1}:0] {p}awready,",
+                      f"    input  logic [{n * axw - 1}:0] {p}aw,",
+                      f"    input  logic [{n-1}:0] {p}wvalid,",
+                      f"    output logic [{n-1}:0] {p}wready,",
+                      f"    input  logic [{n * ww - 1}:0] {p}w,"]
+        if self.has_read:
+            lines += [f"    input  logic [{n-1}:0] {p}arvalid,",
+                      f"    output logic [{n-1}:0] {p}arready,",
+                      f"    input  logic [{n * axw - 1}:0] {p}ar,"]
+        return lines + [""]
+
+    def _generate_lane_tracking(self) -> List[str]:
+        """Lane mode: requests arrive on the lanes, so the ordinary request
+        ports are never ready; B / R route by their ID's master bits."""
+        x = f"xbar_{self.slave.name}_axi_"
+        lines = ["    // ================================================================",
+                 "    // Bridge ID Tracking - By ID, requests on per-master lanes (bridge W9)",
+                 "    // ================================================================",
+                 "    // The crossbar sends this slave's requests on the lanes; its",
+                 "    // ordinary request ports carry nothing and are never ready. The",
+                 "    // outstanding limit is kept on s_aclk by bridge_cdc_slave_arb."]
+        if self.has_write:
+            lines += [f"    assign {x}awready = 1'b0;",
+                      f"    assign {x}wready  = 1'b0;",
+                      f"    assign bid_bridge_id = {self._id_route_lines(x + 'bid')};",
+                      "    assign bid_valid     = 1'b1;"]
+        if self.has_read:
+            lines += [f"    assign {x}arready = 1'b0;",
+                      f"    assign rid_bridge_id = {self._id_route_lines(x + 'rid')};",
+                      "    assign rid_valid     = 1'b1;"]
+        return lines + [""]
+
+    def _generate_lane_arb(self) -> List[str]:
+        """bridge_cdc_slave_arb: the lanes cross to s_aclk, AW / AR are
+        picked there (arbiter_matrix), W follows the AW pick, and B / R
+        cross back onto the ordinary xbar response ports."""
+        n = self.lanes
+        axw, ww = self._lane_widths()
+        x = f"xbar_{self.slave.name}_axi_"
+        p = f"{self.slave.name}_axi_lane_"
+        pin = self.slave.prefix
+        lines = ["    // ============================================================",
+                 f"    // Slave-domain arbitration for {self.slave.name} (bridge W9): per-master",
+                 "    // crossings, AW / AR picked on s_aclk, W follows the AW pick",
+                 "    // ============================================================",
+                 "    bridge_cdc_slave_arb #(",
+                 f"        .NM({n}),",
+                 "        .IW(ID_WIDTH),",
+                 f"        .ADDR_W({self.slave.addr_width}),",
+                 f"        .DW({self.slave.data_width}),",
+                 "        .UW(1),",
+                 f"        .MAX_OUTSTANDING({self.max_outstanding}),",
+                 "        .CDC_DEPTH(8),",
+                 f"        .HAS_WR({1 if self.has_write else 0}),",
+                 f"        .HAS_RD({1 if self.has_read else 0})",
+                 "    ) u_cdc_arb (",
+                 "        .aclk(aclk), .aresetn(aresetn),",
+                 "        .s_aclk(s_aclk), .s_aresetn(s_aresetn),"]
+        c = []
+        if self.has_write:
+            c += [f".lane_awvalid({p}awvalid)", f".lane_awready({p}awready)", f".lane_aw({p}aw)",
+                  f".lane_wvalid({p}wvalid)", f".lane_wready({p}wready)", f".lane_w({p}w)",
+                  f".fab_bvalid({x}bvalid)", f".fab_bready({x}bready)",
+                  f".fab_b({{{x}bid, {x}bresp, {x}buser}})"]
+            for sig in ('awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock', 'awcache',
+                        'awprot', 'awqos', 'awregion', 'awuser', 'awvalid', 'awready',
+                        'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid', 'wready',
+                        'bid', 'bresp', 'buser', 'bvalid', 'bready'):
+                c.append(f".m_axi_{sig}({pin}{sig})")
+        else:
+            c += [f".lane_awvalid('0)", ".lane_awready()", f".lane_aw('0)",
+                  f".lane_wvalid('0)", ".lane_wready()", f".lane_w('0)",
+                  ".fab_bvalid()", ".fab_bready(1'b1)", ".fab_b()"]
+            for sig in ('awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock', 'awcache',
+                        'awprot', 'awqos', 'awregion', 'awuser', 'awvalid',
+                        'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid', 'bready'):
+                c.append(f".m_axi_{sig}()")
+            c += [".m_axi_awready(1'b0)", ".m_axi_wready(1'b0)", ".m_axi_bid('0)",
+                  ".m_axi_bresp('0)", ".m_axi_buser('0)", ".m_axi_bvalid(1'b0)"]
+        if self.has_read:
+            c += [f".lane_arvalid({p}arvalid)", f".lane_arready({p}arready)", f".lane_ar({p}ar)",
+                  f".fab_rvalid({x}rvalid)", f".fab_rready({x}rready)",
+                  f".fab_r({{{x}rid, {x}rdata, {x}rresp, {x}rlast, {x}ruser}})"]
+            for sig in ('arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock', 'arcache',
+                        'arprot', 'arqos', 'arregion', 'aruser', 'arvalid', 'arready',
+                        'rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready'):
+                c.append(f".m_axi_{sig}({pin}{sig})")
+        else:
+            c += [f".lane_arvalid('0)", ".lane_arready()", f".lane_ar('0)",
+                  ".fab_rvalid()", ".fab_rready(1'b1)", ".fab_r()"]
+            for sig in ('arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock', 'arcache',
+                        'arprot', 'arqos', 'arregion', 'aruser', 'arvalid', 'rready'):
+                c.append(f".m_axi_{sig}()")
+            c += [".m_axi_arready(1'b0)", ".m_axi_rid('0)", ".m_axi_rdata('0)",
+                  ".m_axi_rresp('0)", ".m_axi_rlast(1'b0)", ".m_axi_ruser('0)",
+                  ".m_axi_rvalid(1'b0)"]
+        for i, conn in enumerate(c):
+            lines.append(f"        {conn}{',' if i < len(c) - 1 else ''}")
+        lines += ["    );", ""]
+        return lines
 
     @property
     def is_axi3(self) -> bool:

@@ -81,6 +81,17 @@ module bridge_3x2_rw_mcdc_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] ddr_axi_rid_bridge_id,
     input  logic                       ddr_axi_rid_valid,
 
+    // Per-master lanes: ddr arbitrates on its own clock (bridge W9)
+    output logic [2:0] ddr_axi_lane_awvalid,
+    input  logic [2:0] ddr_axi_lane_awready,
+    output logic [203:0] ddr_axi_lane_aw,
+    output logic [2:0] ddr_axi_lane_wvalid,
+    input  logic [2:0] ddr_axi_lane_wready,
+    output logic [113:0] ddr_axi_lane_w,
+    output logic [2:0] ddr_axi_lane_arvalid,
+    input  logic [2:0] ddr_axi_lane_arready,
+    output logic [203:0] ddr_axi_lane_ar,
+
     output  logic [5:0]  ddr_axi_awid,
     output  logic [31:0]  ddr_axi_awaddr,
     output  logic [7:0]  ddr_axi_awlen,
@@ -266,10 +277,6 @@ module bridge_3x2_rw_mcdc_xbar
     logic dma_32b_w_sel_subtractive;
 
     // Request slots of the arbitrated slaves (assigned below)
-    axi4_aw_t cpu_32b_aw_slot_ddr;
-    logic cpu_32b_aw_slot_ddr_valid, cpu_32b_aw_slot_ddr_ready, cpu_32b_aw_slot_ddr_in_valid, cpu_32b_aw_slot_ddr_in_ready;
-    axi4_aw_t dma_32b_aw_slot_ddr;
-    logic dma_32b_aw_slot_ddr_valid, dma_32b_aw_slot_ddr_ready, dma_32b_aw_slot_ddr_in_valid, dma_32b_aw_slot_ddr_in_ready;
     axi4_aw_t cpu_32b_aw_slot_sram;
     logic cpu_32b_aw_slot_sram_valid, cpu_32b_aw_slot_sram_ready, cpu_32b_aw_slot_sram_in_valid, cpu_32b_aw_slot_sram_in_ready;
     axi4_aw_t dma_32b_aw_slot_sram;
@@ -278,12 +285,6 @@ module bridge_3x2_rw_mcdc_xbar
     logic cpu_32b_aw_slot_subtractive_valid, cpu_32b_aw_slot_subtractive_ready, cpu_32b_aw_slot_subtractive_in_valid, cpu_32b_aw_slot_subtractive_in_ready;
     axi4_aw_t dma_32b_aw_slot_subtractive;
     logic dma_32b_aw_slot_subtractive_valid, dma_32b_aw_slot_subtractive_ready, dma_32b_aw_slot_subtractive_in_valid, dma_32b_aw_slot_subtractive_in_ready;
-    axi4_ar_t cpu_32b_ar_slot_ddr;
-    logic cpu_32b_ar_slot_ddr_valid, cpu_32b_ar_slot_ddr_ready, cpu_32b_ar_slot_ddr_in_valid, cpu_32b_ar_slot_ddr_in_ready;
-    axi4_ar_t dma_32b_ar_slot_ddr;
-    logic dma_32b_ar_slot_ddr_valid, dma_32b_ar_slot_ddr_ready, dma_32b_ar_slot_ddr_in_valid, dma_32b_ar_slot_ddr_in_ready;
-    axi4_ar_t lfsr_32b_ar_slot_ddr;
-    logic lfsr_32b_ar_slot_ddr_valid, lfsr_32b_ar_slot_ddr_ready, lfsr_32b_ar_slot_ddr_in_valid, lfsr_32b_ar_slot_ddr_in_ready;
     axi4_ar_t cpu_32b_ar_slot_sram;
     logic cpu_32b_ar_slot_sram_valid, cpu_32b_ar_slot_sram_ready, cpu_32b_ar_slot_sram_in_valid, cpu_32b_ar_slot_sram_in_ready;
     axi4_ar_t dma_32b_ar_slot_sram;
@@ -299,11 +300,11 @@ module bridge_3x2_rw_mcdc_xbar
     // Write ordering: a master's AW waits while another of its slots
     // holds an AW (see _generate_request_slots)
     wire cpu_32b_aw_hold_ddr = cpu_32b_aw_slot_sram_valid || cpu_32b_aw_slot_subtractive_valid;
-    wire cpu_32b_aw_hold_sram = cpu_32b_aw_slot_ddr_valid || cpu_32b_aw_slot_subtractive_valid;
-    wire cpu_32b_aw_hold_subtractive = cpu_32b_aw_slot_ddr_valid || cpu_32b_aw_slot_sram_valid;
+    wire cpu_32b_aw_hold_sram = cpu_32b_aw_slot_subtractive_valid;
+    wire cpu_32b_aw_hold_subtractive = cpu_32b_aw_slot_sram_valid;
     wire dma_32b_aw_hold_ddr = dma_32b_aw_slot_sram_valid || dma_32b_aw_slot_subtractive_valid;
-    wire dma_32b_aw_hold_sram = dma_32b_aw_slot_ddr_valid || dma_32b_aw_slot_subtractive_valid;
-    wire dma_32b_aw_hold_subtractive = dma_32b_aw_slot_ddr_valid || dma_32b_aw_slot_sram_valid;
+    wire dma_32b_aw_hold_sram = dma_32b_aw_slot_subtractive_valid;
+    wire dma_32b_aw_hold_subtractive = dma_32b_aw_slot_sram_valid;
 
     // ================================================================
     // Response arbiters (one slave per master path per channel)
@@ -470,249 +471,68 @@ module bridge_3x2_rw_mcdc_xbar
     // ================================================================
     // Slave 0: ddr (32b)
     // ================================================================
-    // Multi-master (3 masters) → ddr
-    //   - cpu (rw)
-    //   - dma (rw)
-    //   - lfsr (rd)
-
+    // ddr: 3 masters on per-master lanes, arbitrated on ddr's own clock in its slave adapter (bridge W9)
     wire cpu_32b_aw_to_ddr = (cpu_32b_aw.addr <= 32'h7fffffff);
     wire cpu_32b_ar_to_ddr = (cpu_32b_ar.addr <= 32'h7fffffff);
     wire dma_32b_aw_to_ddr = (dma_32b_aw.addr <= 32'h7fffffff);
     wire dma_32b_ar_to_ddr = (dma_32b_ar.addr <= 32'h7fffffff);
     wire lfsr_32b_ar_to_ddr = (lfsr_32b_ar.addr <= 32'h7fffffff);
-
-    // AW request slots for ddr: arbitration at the slave pins
-    assign cpu_32b_aw_slot_ddr_in_valid = cpu_32b_aw_to_ddr && cpu_32b_awvalid && !cpu_32b_aw_hold_ddr;
-    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_32b_aw_slot_ddr (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(cpu_32b_aw_slot_ddr_in_valid), .wr_ready(cpu_32b_aw_slot_ddr_in_ready), .wr_data(cpu_32b_aw),
-        .rd_valid(cpu_32b_aw_slot_ddr_valid), .rd_ready(cpu_32b_aw_slot_ddr_ready), .rd_data(cpu_32b_aw_slot_ddr),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count(), .rd_count()
-        /* verilator lint_on PINCONNECTEMPTY */
-    );
-    assign dma_32b_aw_slot_ddr_in_valid = dma_32b_aw_to_ddr && dma_32b_awvalid && !dma_32b_aw_hold_ddr;
-    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_32b_aw_slot_ddr (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(dma_32b_aw_slot_ddr_in_valid), .wr_ready(dma_32b_aw_slot_ddr_in_ready), .wr_data(dma_32b_aw),
-        .rd_valid(dma_32b_aw_slot_ddr_valid), .rd_ready(dma_32b_aw_slot_ddr_ready), .rd_data(dma_32b_aw_slot_ddr),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count(), .rd_count()
-        /* verilator lint_on PINCONNECTEMPTY */
-    );
-
-    // ---- AW arbiter for ddr: round-robin, lock until handshake ----
-    logic [1:0] ddr_aw_arb_req;
-    assign ddr_aw_arb_req = {dma_32b_aw_slot_ddr_valid, cpu_32b_aw_slot_ddr_valid};
-    logic [0:0] ddr_aw_arb_lock, ddr_aw_arb_rr;
-    logic ddr_aw_arb_locked;
-    wire [0:0] ddr_aw_arb_pick = (ddr_aw_arb_rr == 1'd0) ? (ddr_aw_arb_req[0] ? 1'd0 : 1'd1) : 
-        ddr_aw_arb_req[1] ? 1'd1 : 1'd0;
-    wire ddr_aw_arb_gnt_valid = ddr_aw_arb_locked || (|ddr_aw_arb_req);
-    wire [0:0] ddr_aw_arb_gnt = ddr_aw_arb_locked ? ddr_aw_arb_lock : ddr_aw_arb_pick;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            ddr_aw_arb_lock   <= '0;
-            ddr_aw_arb_rr     <= '0;
-            ddr_aw_arb_locked <= 1'b0;
-        end else begin
-            if (ddr_axi_awvalid && ddr_axi_awready) begin
-                ddr_aw_arb_locked <= 1'b0;
-                ddr_aw_arb_rr <= (ddr_aw_arb_gnt == 1'd1) ? 1'd0 : ddr_aw_arb_gnt + 1'b1;
-            end else if (ddr_axi_awvalid) begin
-                ddr_aw_arb_lock   <= ddr_aw_arb_gnt;
-                ddr_aw_arb_locked <= 1'b1;
-            end
-        end
-    )
-    wire cpu_32b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd0) && ddr_aw_arb_req[0];
-    wire dma_32b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd1) && ddr_aw_arb_req[1];
-    assign cpu_32b_aw_slot_ddr_ready = cpu_32b_aw_gnt_ddr && ddr_axi_awready;
-    assign dma_32b_aw_slot_ddr_ready = dma_32b_aw_gnt_ddr && ddr_axi_awready;
-
-    // AW channel (arbitrated mux across writing masters)
-    assign ddr_axi_awid = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.id : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.id : '0);
-    assign ddr_axi_awaddr = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.addr : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.addr : '0);
-    assign ddr_axi_awlen = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.len : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.len : '0);
-    assign ddr_axi_awsize = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.size : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.size : '0);
-    assign ddr_axi_awburst = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.burst : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.burst : '0);
-    assign ddr_axi_awlock = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.lock : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.lock : '0);
-    assign ddr_axi_awcache = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.cache : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.cache : '0);
-    assign ddr_axi_awprot = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.prot : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.prot : '0);
-    assign ddr_axi_awqos = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.qos : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.qos : '0);
-    assign ddr_axi_awregion = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.region : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.region : '0);
-    assign ddr_axi_awuser = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw_slot_ddr.user : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_32b_aw_slot_ddr.user : '0);
-    assign ddr_axi_awvalid = cpu_32b_aw_gnt_ddr || dma_32b_aw_gnt_ddr;
-
-    // W owner FIFO: slave-side AW pick order owns the W channel
-    // (16 deep: max_outstanding 16)
-    logic [0:0] ddr_wowner_mem [16];
-    logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
-    logic ddr_wowner_ahead;
-    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
-    wire ddr_wowner_byp = !ddr_wowner_valid && !ddr_wowner_ahead && ddr_axi_awvalid;
-    wire ddr_wowner_aw_hs = ddr_axi_awvalid && ddr_axi_awready;
-    wire ddr_wowner_w_end = ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            ddr_wowner_wptr  <= '0;
-            ddr_wowner_rptr  <= '0;
-            ddr_wowner_ahead <= 1'b0;
-        end else begin
-            if (ddr_wowner_aw_hs && ddr_wowner_ahead) begin
-                ddr_wowner_ahead <= 1'b0;   // its W already went
-            end else if (ddr_wowner_aw_hs && !(ddr_wowner_byp && ddr_wowner_w_end)) begin
-                ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
-                ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
-            end else if (!ddr_wowner_aw_hs && ddr_wowner_byp && ddr_wowner_w_end) begin
-                ddr_wowner_ahead <= 1'b1;
-            end
-            if (ddr_wowner_valid && ddr_wowner_w_end) begin
-                ddr_wowner_rptr <= ddr_wowner_rptr + 1'b1;
-            end
-        end
-    )
-    wire [0:0] ddr_wowner_head = ddr_wowner_valid ? ddr_wowner_mem[ddr_wowner_rptr[3:0]]
-                                       : ddr_aw_arb_gnt;
-    assign cpu_32b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd0) && cpu_32b_w_to_ddr;
-    assign dma_32b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd1) && dma_32b_w_to_ddr;
-
-    // W channel (owner-gated mux across writing masters)
-    assign ddr_axi_wdata = ((cpu_32b_w_sel_ddr && cpu_32b_wvalid) ? cpu_32b_w.data : '0) |
-        ((dma_32b_w_sel_ddr && dma_32b_wvalid) ? dma_32b_w.data : '0);
-    assign ddr_axi_wstrb = ((cpu_32b_w_sel_ddr && cpu_32b_wvalid) ? cpu_32b_w.strb : '0) |
-        ((dma_32b_w_sel_ddr && dma_32b_wvalid) ? dma_32b_w.strb : '0);
-    assign ddr_axi_wlast = ((cpu_32b_w_sel_ddr && cpu_32b_wvalid) ? cpu_32b_w.last : '0) |
-        ((dma_32b_w_sel_ddr && dma_32b_wvalid) ? dma_32b_w.last : '0);
-    assign ddr_axi_wuser = ((cpu_32b_w_sel_ddr && cpu_32b_wvalid) ? cpu_32b_w.user : '0) |
-        ((dma_32b_w_sel_ddr && dma_32b_wvalid) ? dma_32b_w.user : '0);
-    assign ddr_axi_wvalid = (cpu_32b_w_sel_ddr && cpu_32b_wvalid) || (dma_32b_w_sel_ddr && dma_32b_wvalid);
-
-    // Bready (slave -> the master whose response arbiter granted it)
+    assign ddr_axi_lane_awvalid[0] = cpu_32b_aw_to_ddr && !cpu_32b_aw_hold_ddr && cpu_32b_awvalid;
+    assign ddr_axi_lane_aw[0*68 +: 68] = {cpu_32b_aw.id, cpu_32b_aw.addr, cpu_32b_aw.len, cpu_32b_aw.size, cpu_32b_aw.burst, cpu_32b_aw.lock, cpu_32b_aw.cache, cpu_32b_aw.prot, cpu_32b_aw.qos, cpu_32b_aw.region, cpu_32b_aw.user};
+    assign cpu_32b_w_sel_ddr = cpu_32b_w_to_ddr;
+    assign ddr_axi_lane_wvalid[0] = cpu_32b_w_to_ddr && cpu_32b_wvalid;
+    assign ddr_axi_lane_w[0*38 +: 38] = {cpu_32b_w.data, cpu_32b_w.strb, cpu_32b_w.last, cpu_32b_w.user};
+    assign ddr_axi_lane_arvalid[0] = cpu_32b_ar_to_ddr && cpu_32b_arvalid;
+    assign ddr_axi_lane_ar[0*68 +: 68] = {cpu_32b_ar.id, cpu_32b_ar.addr, cpu_32b_ar.len, cpu_32b_ar.size, cpu_32b_ar.burst, cpu_32b_ar.lock, cpu_32b_ar.cache, cpu_32b_ar.prot, cpu_32b_ar.qos, cpu_32b_ar.region, cpu_32b_ar.user};
+    assign ddr_axi_lane_awvalid[1] = dma_32b_aw_to_ddr && !dma_32b_aw_hold_ddr && dma_32b_awvalid;
+    assign ddr_axi_lane_aw[1*68 +: 68] = {dma_32b_aw.id, dma_32b_aw.addr, dma_32b_aw.len, dma_32b_aw.size, dma_32b_aw.burst, dma_32b_aw.lock, dma_32b_aw.cache, dma_32b_aw.prot, dma_32b_aw.qos, dma_32b_aw.region, dma_32b_aw.user};
+    assign dma_32b_w_sel_ddr = dma_32b_w_to_ddr;
+    assign ddr_axi_lane_wvalid[1] = dma_32b_w_to_ddr && dma_32b_wvalid;
+    assign ddr_axi_lane_w[1*38 +: 38] = {dma_32b_w.data, dma_32b_w.strb, dma_32b_w.last, dma_32b_w.user};
+    assign ddr_axi_lane_arvalid[1] = dma_32b_ar_to_ddr && dma_32b_arvalid;
+    assign ddr_axi_lane_ar[1*68 +: 68] = {dma_32b_ar.id, dma_32b_ar.addr, dma_32b_ar.len, dma_32b_ar.size, dma_32b_ar.burst, dma_32b_ar.lock, dma_32b_ar.cache, dma_32b_ar.prot, dma_32b_ar.qos, dma_32b_ar.region, dma_32b_ar.user};
+    assign ddr_axi_lane_awvalid[2] = 1'b0;
+    assign ddr_axi_lane_aw[2*68 +: 68] = '0;
+    assign ddr_axi_lane_wvalid[2] = 1'b0;
+    assign ddr_axi_lane_w[2*38 +: 38] = '0;
+    assign ddr_axi_lane_arvalid[2] = lfsr_32b_ar_to_ddr && lfsr_32b_arvalid;
+    assign ddr_axi_lane_ar[2*68 +: 68] = {lfsr_32b_ar.id, lfsr_32b_ar.addr, lfsr_32b_ar.len, lfsr_32b_ar.size, lfsr_32b_ar.burst, lfsr_32b_ar.lock, lfsr_32b_ar.cache, lfsr_32b_ar.prot, lfsr_32b_ar.qos, lfsr_32b_ar.region, lfsr_32b_ar.user};
+    assign ddr_axi_awid = '0;
+    assign ddr_axi_awaddr = '0;
+    assign ddr_axi_awlen = '0;
+    assign ddr_axi_awsize = '0;
+    assign ddr_axi_awburst = '0;
+    assign ddr_axi_awlock = '0;
+    assign ddr_axi_awcache = '0;
+    assign ddr_axi_awprot = '0;
+    assign ddr_axi_awqos = '0;
+    assign ddr_axi_awregion = '0;
+    assign ddr_axi_awuser = '0;
+    assign ddr_axi_awvalid = '0;
+    assign ddr_axi_wdata = '0;
+    assign ddr_axi_wstrb = '0;
+    assign ddr_axi_wlast = '0;
+    assign ddr_axi_wuser = '0;
+    assign ddr_axi_wvalid = '0;
+    assign ddr_axi_bridge_id_aw = '0;
+    assign ddr_axi_arid = '0;
+    assign ddr_axi_araddr = '0;
+    assign ddr_axi_arlen = '0;
+    assign ddr_axi_arsize = '0;
+    assign ddr_axi_arburst = '0;
+    assign ddr_axi_arlock = '0;
+    assign ddr_axi_arcache = '0;
+    assign ddr_axi_arprot = '0;
+    assign ddr_axi_arqos = '0;
+    assign ddr_axi_arregion = '0;
+    assign ddr_axi_aruser = '0;
+    assign ddr_axi_arvalid = '0;
+    assign ddr_axi_bridge_id_ar = '0;
     assign ddr_axi_bready = (cpu_32b_b_rgnt_ddr ? cpu_32b_bready : '0) |
         (dma_32b_b_rgnt_ddr ? dma_32b_bready : '0);
-
-    // Bridge ID (writes) — the granted master's id
-    assign ddr_axi_bridge_id_aw = (cpu_32b_aw_gnt_ddr ? cpu_bridge_id_aw : '0) |
-        (dma_32b_aw_gnt_ddr ? dma_bridge_id_aw : '0);
-
-    // AR request slots for ddr: arbitration at the slave pins
-    assign cpu_32b_ar_slot_ddr_in_valid = cpu_32b_ar_to_ddr && cpu_32b_arvalid;
-    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_cpu_32b_ar_slot_ddr (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(cpu_32b_ar_slot_ddr_in_valid), .wr_ready(cpu_32b_ar_slot_ddr_in_ready), .wr_data(cpu_32b_ar),
-        .rd_valid(cpu_32b_ar_slot_ddr_valid), .rd_ready(cpu_32b_ar_slot_ddr_ready), .rd_data(cpu_32b_ar_slot_ddr),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count(), .rd_count()
-        /* verilator lint_on PINCONNECTEMPTY */
-    );
-    assign dma_32b_ar_slot_ddr_in_valid = dma_32b_ar_to_ddr && dma_32b_arvalid;
-    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_dma_32b_ar_slot_ddr (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(dma_32b_ar_slot_ddr_in_valid), .wr_ready(dma_32b_ar_slot_ddr_in_ready), .wr_data(dma_32b_ar),
-        .rd_valid(dma_32b_ar_slot_ddr_valid), .rd_ready(dma_32b_ar_slot_ddr_ready), .rd_data(dma_32b_ar_slot_ddr),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count(), .rd_count()
-        /* verilator lint_on PINCONNECTEMPTY */
-    );
-    assign lfsr_32b_ar_slot_ddr_in_valid = lfsr_32b_ar_to_ddr && lfsr_32b_arvalid;
-    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_lfsr_32b_ar_slot_ddr (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(lfsr_32b_ar_slot_ddr_in_valid), .wr_ready(lfsr_32b_ar_slot_ddr_in_ready), .wr_data(lfsr_32b_ar),
-        .rd_valid(lfsr_32b_ar_slot_ddr_valid), .rd_ready(lfsr_32b_ar_slot_ddr_ready), .rd_data(lfsr_32b_ar_slot_ddr),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count(), .rd_count()
-        /* verilator lint_on PINCONNECTEMPTY */
-    );
-
-    // ---- AR arbiter for ddr: round-robin, lock until handshake ----
-    logic [2:0] ddr_ar_arb_req;
-    assign ddr_ar_arb_req = {lfsr_32b_ar_slot_ddr_valid, dma_32b_ar_slot_ddr_valid, cpu_32b_ar_slot_ddr_valid};
-    logic [1:0] ddr_ar_arb_lock, ddr_ar_arb_rr;
-    logic ddr_ar_arb_locked;
-    wire [1:0] ddr_ar_arb_pick = (ddr_ar_arb_rr == 2'd0) ? (ddr_ar_arb_req[0] ? 2'd0 : ddr_ar_arb_req[1] ? 2'd1 : 2'd2) : 
-        (ddr_ar_arb_rr == 2'd1) ? (ddr_ar_arb_req[1] ? 2'd1 : ddr_ar_arb_req[2] ? 2'd2 : 2'd0) : 
-        ddr_ar_arb_req[2] ? 2'd2 : ddr_ar_arb_req[0] ? 2'd0 : 2'd1;
-    wire ddr_ar_arb_gnt_valid = ddr_ar_arb_locked || (|ddr_ar_arb_req);
-    wire [1:0] ddr_ar_arb_gnt = ddr_ar_arb_locked ? ddr_ar_arb_lock : ddr_ar_arb_pick;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            ddr_ar_arb_lock   <= '0;
-            ddr_ar_arb_rr     <= '0;
-            ddr_ar_arb_locked <= 1'b0;
-        end else begin
-            if (ddr_axi_arvalid && ddr_axi_arready) begin
-                ddr_ar_arb_locked <= 1'b0;
-                ddr_ar_arb_rr <= (ddr_ar_arb_gnt == 2'd2) ? 2'd0 : ddr_ar_arb_gnt + 1'b1;
-            end else if (ddr_axi_arvalid) begin
-                ddr_ar_arb_lock   <= ddr_ar_arb_gnt;
-                ddr_ar_arb_locked <= 1'b1;
-            end
-        end
-    )
-    wire cpu_32b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 2'd0) && ddr_ar_arb_req[0];
-    wire dma_32b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 2'd1) && ddr_ar_arb_req[1];
-    wire lfsr_32b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 2'd2) && ddr_ar_arb_req[2];
-    assign cpu_32b_ar_slot_ddr_ready = cpu_32b_ar_gnt_ddr && ddr_axi_arready;
-    assign dma_32b_ar_slot_ddr_ready = dma_32b_ar_gnt_ddr && ddr_axi_arready;
-    assign lfsr_32b_ar_slot_ddr_ready = lfsr_32b_ar_gnt_ddr && ddr_axi_arready;
-
-    // AR channel (arbitrated mux across reading masters)
-    assign ddr_axi_arid = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.id : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.id : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.id : '0);
-    assign ddr_axi_araddr = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.addr : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.addr : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.addr : '0);
-    assign ddr_axi_arlen = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.len : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.len : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.len : '0);
-    assign ddr_axi_arsize = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.size : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.size : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.size : '0);
-    assign ddr_axi_arburst = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.burst : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.burst : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.burst : '0);
-    assign ddr_axi_arlock = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.lock : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.lock : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.lock : '0);
-    assign ddr_axi_arcache = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.cache : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.cache : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.cache : '0);
-    assign ddr_axi_arprot = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.prot : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.prot : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.prot : '0);
-    assign ddr_axi_arqos = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.qos : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.qos : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.qos : '0);
-    assign ddr_axi_arregion = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.region : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.region : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.region : '0);
-    assign ddr_axi_aruser = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar_slot_ddr.user : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_32b_ar_slot_ddr.user : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_32b_ar_slot_ddr.user : '0);
-    assign ddr_axi_arvalid = cpu_32b_ar_gnt_ddr || dma_32b_ar_gnt_ddr || lfsr_32b_ar_gnt_ddr;
-
-    // Rready (slave -> the master whose response arbiter granted it)
     assign ddr_axi_rready = (cpu_32b_r_rgnt_ddr ? cpu_32b_rready : '0) |
         (dma_32b_r_rgnt_ddr ? dma_32b_rready : '0) |
         (lfsr_32b_r_rgnt_ddr ? lfsr_32b_rready : '0);
-
-    // Bridge ID (reads) — the granted master's id
-    assign ddr_axi_bridge_id_ar = (cpu_32b_ar_gnt_ddr ? cpu_bridge_id_ar : '0) |
-        (dma_32b_ar_gnt_ddr ? dma_bridge_id_ar : '0) |
-        (lfsr_32b_ar_gnt_ddr ? lfsr_bridge_id_ar : '0);
 
 
     // ================================================================
@@ -1272,12 +1092,12 @@ module bridge_3x2_rw_mcdc_xbar
 
     // Master: cpu, Width path: 32b
     assign cpu_32b_awready = 
-        ((cpu_32b_aw_to_ddr && !cpu_32b_aw_hold_ddr) ? cpu_32b_aw_slot_ddr_in_ready : '0) |
+        ((cpu_32b_aw_to_ddr && !cpu_32b_aw_hold_ddr) ? ddr_axi_lane_awready[0] : '0) |
         ((cpu_32b_aw_to_sram && !cpu_32b_aw_hold_sram) ? cpu_32b_aw_slot_sram_in_ready : '0) |
         ((cpu_32b_aw_to_subtractive && !cpu_32b_aw_hold_subtractive) ? cpu_32b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_32b_wready = 
-        (cpu_32b_w_sel_ddr ? ddr_axi_wready : '0) |
+        (cpu_32b_w_sel_ddr ? ddr_axi_lane_wready[0] : '0) |
         (cpu_32b_w_sel_sram ? sram_axi_wready : '0) |
         (cpu_32b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
@@ -1302,7 +1122,7 @@ module bridge_3x2_rw_mcdc_xbar
         (cpu_32b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_32b_arready = 
-        ((cpu_32b_ar_to_ddr) ? cpu_32b_ar_slot_ddr_in_ready : '0) |
+        ((cpu_32b_ar_to_ddr) ? ddr_axi_lane_arready[0] : '0) |
         ((cpu_32b_ar_to_sram) ? cpu_32b_ar_slot_sram_in_ready : '0) |
         ((cpu_32b_ar_to_subtractive) ? cpu_32b_ar_slot_subtractive_in_ready : '0);
 
@@ -1339,12 +1159,12 @@ module bridge_3x2_rw_mcdc_xbar
 
     // Master: dma, Width path: 32b
     assign dma_32b_awready = 
-        ((dma_32b_aw_to_ddr && !dma_32b_aw_hold_ddr) ? dma_32b_aw_slot_ddr_in_ready : '0) |
+        ((dma_32b_aw_to_ddr && !dma_32b_aw_hold_ddr) ? ddr_axi_lane_awready[1] : '0) |
         ((dma_32b_aw_to_sram && !dma_32b_aw_hold_sram) ? dma_32b_aw_slot_sram_in_ready : '0) |
         ((dma_32b_aw_to_subtractive && !dma_32b_aw_hold_subtractive) ? dma_32b_aw_slot_subtractive_in_ready : '0);
 
     assign dma_32b_wready = 
-        (dma_32b_w_sel_ddr ? ddr_axi_wready : '0) |
+        (dma_32b_w_sel_ddr ? ddr_axi_lane_wready[1] : '0) |
         (dma_32b_w_sel_sram ? sram_axi_wready : '0) |
         (dma_32b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
@@ -1369,7 +1189,7 @@ module bridge_3x2_rw_mcdc_xbar
         (dma_32b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign dma_32b_arready = 
-        ((dma_32b_ar_to_ddr) ? dma_32b_ar_slot_ddr_in_ready : '0) |
+        ((dma_32b_ar_to_ddr) ? ddr_axi_lane_arready[1] : '0) |
         ((dma_32b_ar_to_sram) ? dma_32b_ar_slot_sram_in_ready : '0) |
         ((dma_32b_ar_to_subtractive) ? dma_32b_ar_slot_subtractive_in_ready : '0);
 
@@ -1406,7 +1226,7 @@ module bridge_3x2_rw_mcdc_xbar
 
     // Master: lfsr, Width path: 32b
     assign lfsr_32b_arready = 
-        ((lfsr_32b_ar_to_ddr) ? lfsr_32b_ar_slot_ddr_in_ready : '0) |
+        ((lfsr_32b_ar_to_ddr) ? ddr_axi_lane_arready[2] : '0) |
         ((lfsr_32b_ar_to_sram) ? lfsr_32b_ar_slot_sram_in_ready : '0) |
         ((lfsr_32b_ar_to_subtractive) ? lfsr_32b_ar_slot_subtractive_in_ready : '0);
 
