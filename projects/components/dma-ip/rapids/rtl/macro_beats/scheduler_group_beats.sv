@@ -34,12 +34,12 @@ module scheduler_group_beats #(
     parameter int DATA_WIDTH = 512,
     parameter int AXI_ID_WIDTH = 8,
     // Monitor Bus Parameters - Base IDs for each component
-    parameter DESC_MON_AGENT_ID = 16,       // 0x10 - Descriptor Engine
-    parameter SCHED_MON_AGENT_ID = 48,      // 0x30 - Scheduler
-    parameter CTRLRD_MON_AGENT_ID = 32,     // 0x20 - Control Read Engine
-    parameter CTRLWR_MON_AGENT_ID = 33,     // 0x21 - Control Write Engine
-    parameter MON_UNIT_ID = 1,              // 0x1
-    parameter MON_CHANNEL_ID = 0,           // Base channel ID
+    parameter int DESC_MON_AGENT_ID = 16,       // 0x10 - Descriptor Engine
+    parameter int SCHED_MON_AGENT_ID = 48,      // 0x30 - Scheduler
+    parameter int CTRLRD_MON_AGENT_ID = 32,     // 0x20 - Control Read Engine
+    parameter int CTRLWR_MON_AGENT_ID = 33,     // 0x21 - Control Write Engine
+    parameter int MON_UNIT_ID = 1,              // 0x1
+    parameter int MON_CHANNEL_ID = 0,           // Base channel ID
     // Direction enables (see scheduler_beats): SOURCE half = read-only (EN_WRITE=0),
     // SINK half = write-only (EN_READ=0); default both preserves mem-to-mem behavior.
     parameter bit EN_READ  = 1'b1,

@@ -639,7 +639,11 @@ module rapids_snk #(
     assign mon_arb_timestamp_in[1] = plane_mon_timestamp;
     assign plane_mon_ready         = mon_arb_ready_in[1];
 
-    // Client 2: tied-off placeholder (future data-path AXI monitor tap)
+    // Per-channel "data waiting in the sink SRAM", from snk_data_path_axis
+    // below; read here by the stall check
+    logic [NC-1:0]              w_chan_has_data;
+
+    // Client 2: the stalled-data check when TILE_CREDITS, else tied off
     generate
     if (TILE_CREDITS != 0) begin : g_stall_mon
         // Client 2: the stalled-data check (TILE_SPEC 11.9). A channel's data
@@ -760,7 +764,6 @@ module rapids_snk #(
     logic [rapids_pkg::TILE_EXT_W-2:0] w_hx_tsender;
     logic [rapids_pkg::TILE_EXT_W-2:0] w_land_ret_slot;
     logic [NC-1:0]              w_chan_can_take;
-    logic [NC-1:0]              w_chan_has_data;
 
     generate
     if (TILE_HDR != 0) begin : g_tile_hdr
