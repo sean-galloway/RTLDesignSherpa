@@ -411,6 +411,17 @@ async def cocotb_test_tile_strap_quiescent_reset(dut):
     _finish(tb, ok, stats, "quiescent-gated reset")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_tile_strap_regs(dut):
+    """TILE_STRAPS reads the build's straps (0 without TILE_CREDITS)."""
+    if int(os.environ.get('TEST_TILE_CREDITS', '0')):
+        tb = await _bring_up_straps(dut)
+    else:
+        tb = await _bring_up_tile(dut)
+    ok, stats = await tb.test_strap_regs()
+    _finish(tb, ok, stats, "strap registers")
+
+
 # ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
@@ -471,6 +482,10 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate', dut='rap
         # The BFMs must build the same link as the top: CXS_MAX_CREDIT
         # (top default 32) unless the cell overrides it
         'TEST_CXS_MAX_CREDIT': str(rtl_parameters.get('CXS_MAX_CREDIT', 32)),
+        # The straps the senders model, and TILE_STRAPS reads, are the top's
+        'TEST_TILE_CREDITS': str(rtl_parameters.get('TILE_CREDITS', 0)),
+        'TEST_TILE_LAND_FLITS': str(rtl_parameters.get('TILE_LAND_FLITS', 16)),
+        'TEST_TILE_DESC_PER_CORE': str(rtl_parameters.get('TILE_DESC_PER_CORE', 2)),
     }
 
     compile_args = [
@@ -673,6 +688,41 @@ def test_rapids_cxs_top_tile_straps(request, scenario, test_level):
     """Straps toward RAPIDS: landing space, intake queue, credit returns, resync (rapids TASK-027)."""
     _run_top(f"cocotb_test_tile_strap_{scenario}", f"test_rapids_cxs_top_tile_strap_{scenario}",
              extra_params=_CREDITS, test_level=test_level)
+
+
+# A non-default strap build: the senders model the same straps, and the
+# landing space and intake hold exactly that much.
+_STRAPS_ALT = {**_CREDITS, 'TILE_LAND_FLITS': 8, 'TILE_DESC_PER_CORE': 1}
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("build", ["off", "default", "alt"])
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_strap_regs(request, build, test_level):
+    """TILE_STRAPS at 0x7FC reads the build's straps, 0 without TILE_CREDITS (rapids TASK-031)."""
+    params = {'off': _TILE, 'default': _CREDITS, 'alt': _STRAPS_ALT}[build]
+    _run_top("cocotb_test_tile_strap_regs", f"test_rapids_cxs_top_tile_strap_regs_{build}",
+             extra_params=params, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("scenario", ["land", "isolation", "intake"])
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_straps_alt(request, scenario, test_level):
+    """The straps hold in a non-default build (TILE_LAND_FLITS 8, TILE_DESC_PER_CORE 1)."""
+    _run_top(f"cocotb_test_tile_strap_{scenario}", f"test_rapids_cxs_top_tile_strap_alt_{scenario}",
+             extra_params=_STRAPS_ALT, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_16ch_cxs_top_tile_strap_regs(request, test_level):
+    """The 16-channel map carries TILE_STRAPS at the same 0x7FC."""
+    _run_top("cocotb_test_tile_strap_regs", "test_rapids_16ch_cxs_top_tile_strap_regs",
+             extra_params=_CREDITS, test_level=test_level, dut="rapids_16ch_cxs_top", nch=16)
 
 
 @pytest.mark.top

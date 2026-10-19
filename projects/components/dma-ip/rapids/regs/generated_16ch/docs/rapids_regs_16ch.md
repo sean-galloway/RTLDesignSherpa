@@ -116,6 +116,7 @@ Don't override. Generated from: $root
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
 | 0x380|     HIST_TOTAL     |    Latency Histogram Metric Total    |
+| 0x7FC|     TILE_STRAPS    |              Tile Straps             |
 | 0x800|         MON        |       RAPIDS Monitor Registers       |
 
 ### CH0_DESC_ADDR_LOW register
@@ -2063,6 +2064,30 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Selected metric total transaction count [31:0]</p>
 
+### TILE_STRAPS register
+
+- Absolute Address: 0x7FC
+- Base Offset: 0x7FC
+- Size: 0x4
+
+<p>The straps this RAPIDS reserves toward it (TILE_SPEC 11.9), from
+its build parameters, for the Hive to check against the cells'
+and cores' straps. Both fields read 0 when TILE_CREDITS = 0 (no
+straps). The same values in both halves.</p>
+
+| Bits|  Identifier |Access|Reset|Name|
+|-----|-------------|------|-----|----|
+| 15:0|  LAND_FLITS |   r  |  —  |  — |
+|31:16|DESC_PER_CORE|   r  |  —  |  — |
+
+#### LAND_FLITS field
+
+<p>TILE_LAND_FLITS: landing-space flits per cell, header included</p>
+
+#### DESC_PER_CORE field
+
+<p>TILE_DESC_PER_CORE: descriptor-intake entries per control core</p>
+
 ## MON register file
 
 - Absolute Address: 0x800
@@ -3611,6 +3636,7 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
 | 0x380|     HIST_TOTAL     |    Latency Histogram Metric Total    |
+| 0x7FC|     TILE_STRAPS    |              Tile Straps             |
 | 0x800|         MON        |       RAPIDS Monitor Registers       |
 
 ### CH0_DESC_ADDR_LOW register
@@ -5557,6 +5583,30 @@ acceptance cross-check against the perf-window burst counters.</p>
 #### VAL field
 
 <p>Selected metric total transaction count [31:0]</p>
+
+### TILE_STRAPS register
+
+- Absolute Address: 0x17FC
+- Base Offset: 0x7FC
+- Size: 0x4
+
+<p>The straps this RAPIDS reserves toward it (TILE_SPEC 11.9), from
+its build parameters, for the Hive to check against the cells'
+and cores' straps. Both fields read 0 when TILE_CREDITS = 0 (no
+straps). The same values in both halves.</p>
+
+| Bits|  Identifier |Access|Reset|Name|
+|-----|-------------|------|-----|----|
+| 15:0|  LAND_FLITS |   r  |  —  |  — |
+|31:16|DESC_PER_CORE|   r  |  —  |  — |
+
+#### LAND_FLITS field
+
+<p>TILE_LAND_FLITS: landing-space flits per cell, header included</p>
+
+#### DESC_PER_CORE field
+
+<p>TILE_DESC_PER_CORE: descriptor-intake entries per control core</p>
 
 ## MON register file
 

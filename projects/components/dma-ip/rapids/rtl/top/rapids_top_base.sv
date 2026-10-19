@@ -961,6 +961,11 @@ module rapids_top_base #(
         hwif_in.SRC.TILE_CREDIT_STATUS.RET_COUNT.next      = w_tile_ret_count;
         hwif_in.SRC.TILE_STALLED.CH.next = 16'(w_tile_src_stalled);
         hwif_in.SNK.TILE_STALLED.CH.next = 16'(w_tile_snk_stalled);
+        // The build-time straps, for the Hive (0 = no straps)
+        hwif_in.SRC.TILE_STRAPS.LAND_FLITS.next    = (TILE_CREDITS != 0) ? 16'(TILE_LAND_FLITS)    : 16'h0;
+        hwif_in.SRC.TILE_STRAPS.DESC_PER_CORE.next = (TILE_CREDITS != 0) ? 16'(TILE_DESC_PER_CORE) : 16'h0;
+        hwif_in.SNK.TILE_STRAPS.LAND_FLITS.next    = (TILE_CREDITS != 0) ? 16'(TILE_LAND_FLITS)    : 16'h0;
+        hwif_in.SNK.TILE_STRAPS.DESC_PER_CORE.next = (TILE_CREDITS != 0) ? 16'(TILE_DESC_PER_CORE) : 16'h0;
 
         hwif_in.SRC.GLOBAL_STATUS.SYSTEM_IDLE.next   = src_system_idle;
         hwif_in.SRC.DESC_ENGINE_IDLE.DESC_IDLE.next  = `RAPIDS_REGS_NCH'(src_desc_engine_idle);

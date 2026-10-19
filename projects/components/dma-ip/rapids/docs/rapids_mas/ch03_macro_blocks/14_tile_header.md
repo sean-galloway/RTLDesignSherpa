@@ -316,8 +316,12 @@ the source and sink halves is unaffected.
 (`DROPn`) and `SNK.TILE_COUNTS`, plus, for `TILE_CREDITS`, `SRC.TILE_ADV_WINDOW`
 (RW), `SRC.TILE_LEGAL_DEST_LO` / `_HI`, `SRC.TILE_CREDIT_STATUS` (`ADV_DONE`,
 `RESYNC_BUSY`, `LAND_OVERRUN`, `INTAKE_OVERRUN`, `RET_COUNT`), `SRC.TILE_RESYNC`
-(`GO`, singlepulse), `SRC.TILE_STALL_CYCLES` (RW) and `SRC` / `SNK.TILE_STALLED`
-(see the Register Map). The W1C fields are live
+(`GO`, singlepulse), `SRC.TILE_STALL_CYCLES` (RW), `SRC` / `SNK.TILE_STALLED` and
+`TILE_STRAPS` (see the Register Map). `TILE_STRAPS` is the last config word of
+each half, 0x7FC below the monitor block (`SRC` 0x07FC, `SNK` 0x17FC, on the 8-
+and 16-channel maps alike), so the Hive finds it without the rest of the map:
+`LAND_FLITS` [15:0] = `TILE_LAND_FLITS` and `DESC_PER_CORE` [31:16] =
+`TILE_DESC_PER_CORE`, both 0 when `TILE_CREDITS` = 0. The W1C fields are live
 mirrors of stickies owned by the RTL. `rapids_top_base` decodes a write to
 either register from the register block's own request and sends a one-cycle
 clear (`wr_data & wr_biten`) to the owner, where a same-cycle event wins. The
@@ -350,6 +354,8 @@ with `TILE_HDR` = 1:
 | `tile_straps[intake_overrun]` | A flood past the intake queue: `INTAKE_OVERRUN`, every entry returned, the descriptor queue drops none, the survivors run in send order |
 | `tile_straps[resync]` | A resync waits for `tile_quiescent`, then sets exactly the legal cells (`TILE_LAND_FLITS`) and core (`TILE_DESC_PER_CORE`) |
 | `tile_straps[quiescent_reset]` | A channel reset written while not quiescent does nothing; written while quiescent it clears the channel's error |
+| `tile_strap_regs[off]` / `[default]` / `[alt]` | `TILE_STRAPS` sits at 0x7FC in both halves and reads 0 / 16, 2 / 8, 1 (also on `rapids_16ch_cxs_top`) |
+| `tile_straps_alt[land]` / `[isolation]` / `[intake]` | The straps hold in a `TILE_LAND_FLITS` = 8, `TILE_DESC_PER_CORE` = 1 build, with the senders modelling the same straps |
 | `tile_straps[stall_sink]` / `[stall_source]` | Held WREADY / late R data raise one MonBus stall record (agent, channel, kind, threshold) and the `TILE_STALLED` bit, which clears when the data moves; the data then lands / goes out correctly |
 
 : Table 3.14.7: Tile Header Test Cells

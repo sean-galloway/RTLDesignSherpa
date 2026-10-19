@@ -1,7 +1,7 @@
 # TASK-031: Strap values on RAPIDS and the Hive strap contract
 
 **Priority:** P3
-**Status:** open -- 2026-10-19, split from rapids TASK-027
+**Status:** open -- 2026-10-19; item 1 (TILE_STRAPS) built and tested; item 2 (TILE_SPEC 11.12) remains
 **Owner:** sean galloway
 
 ## Why
@@ -63,3 +63,21 @@ same values.
   non-default build; the MAS 3.14 and HAS register text name it.
 - TILE_SPEC 11.12 states the built straps and their values.
 - RAPIDS byte regression clean-all FULL.
+
+## Progress 2026-10-19: TILE_STRAPS built
+
+`TILE_STRAPS` @ 0x7FC in `rapids_engine_regs.rdl` (both halves, both maps):
+`LAND_FLITS` [15:0], `DESC_PER_CORE` [31:16], read-only, driven in
+`rapids_top_base` from the parameters, 0 when `TILE_CREDITS` = 0. Regblocks
+and regmaps regenerated (`check_rdl_regen` rc 0), tops current.
+
+Tests (gate, 8/8): `test_rapids_cxs_top_tile_strap_regs[off, default, alt]`
+(address by name = 0x07FC / 0x17FC, values 0 / 16,2 / 8,1),
+`test_rapids_16ch_cxs_top_tile_strap_regs`, and
+`test_rapids_cxs_top_tile_straps_alt[land, isolation, intake]` in the
+`TILE_LAND_FLITS` 8 / `TILE_DESC_PER_CORE` 1 build. The runner now exports
+`TEST_TILE_{CREDITS,LAND_FLITS,DESC_PER_CORE}` so the sender models follow
+the build; `test_land_isolation` sizes its packets to the strap (unchanged at
+16). Mutation: `SRC.LAND_FLITS` hard-wired to 16 failed `off` and `alt`,
+`default` passed (control). Light testing by owner direction: no full
+regression for this change.

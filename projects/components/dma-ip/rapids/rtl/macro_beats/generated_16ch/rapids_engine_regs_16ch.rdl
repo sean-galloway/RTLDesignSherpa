@@ -995,6 +995,29 @@ regfile rapids_engine_regs_16ch {
 
     } HIST_TOTAL @ 0x380;
 
+    // The last word of the config space, below the monitor block: fixed so
+    // the Hive finds it without knowing the rest of the map.
+    reg {
+        name = "Tile Straps";
+        desc = "The straps this RAPIDS reserves toward it (TILE_SPEC 11.9), from
+                its build parameters, for the Hive to check against the cells'
+                and cores' straps. Both fields read 0 when TILE_CREDITS = 0 (no
+                straps). The same values in both halves.";
+
+        field {
+            desc = "TILE_LAND_FLITS: landing-space flits per cell, header included";
+            sw = r;
+            hw = w;
+        } LAND_FLITS[15:0];
+
+        field {
+            desc = "TILE_DESC_PER_CORE: descriptor-intake entries per control core";
+            sw = r;
+            hw = w;
+        } DESC_PER_CORE[31:16];
+
+    } TILE_STRAPS @ 0x7FC;
+
     //=========================================================================
     // AXI Monitor register block - within this engine instance at +0x800 (fits in 4KB).
     // Hookup chosen by a parameter at integration (USE_MON_REGS / USE_AXI_MONITORS);

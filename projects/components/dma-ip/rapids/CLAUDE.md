@@ -122,7 +122,10 @@
 > `tile_quiescent` = 1 and `m_tile_credit_ready` = 1 by default; a data packet must come from a CELL coordinate
 > (ext = 1, level 0) or it is dropped as unsupported; SRAM_DEPTH per channel >= `TILE_LAND_FLITS` + 4; an
 > allocated-but-unfilled SRAM segment is free space, not data (the stall check's first cut got this wrong). Tests:
-> `test_rapids_cxs_top_tile_straps[...]` (`dv/tbclasses/rapids_cxs_tile_straps_tb.py`).
+> `test_rapids_cxs_top_tile_straps[...]` (`dv/tbclasses/rapids_cxs_tile_straps_tb.py`). `TILE_STRAPS` (rapids TASK-031)
+> reports the two build parameters at 0x7FC, the last config word of each half (owner: top or bottom of the config
+> space, monitor block excluded); keep it there. The runner exports `TEST_TILE_{CREDITS,LAND_FLITS,DESC_PER_CORE}`
+> from the build parameters, so the sender models follow a non-default strap build (`tile_straps_alt`).
 >
 > **8- and 16-channel builds (2026-10-17, byte tree):** one `rapids_top_base`, two register maps. The
 > 8-channel map is today's hand-written RDL (`rtl/macro_beats/rapids_{regs,engine_regs,mon_regs,regmap}.rdl`,

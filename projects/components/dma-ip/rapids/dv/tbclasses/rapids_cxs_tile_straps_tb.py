@@ -204,12 +204,13 @@ class RapidsCxsTileStrapsTB(RapidsCxsTileCreditsTB):
             errors.append(f"snk_sched_error=0x{self.read_sched_error('snk'):X}")
         return await self.finish_straps(errors, "landing space")
 
-    async def test_land_isolation(self, beats: int = 7) -> Tuple[bool, Dict[str, Any]]:
+    async def test_land_isolation(self, beats: int = 0) -> Tuple[bool, Dict[str, Any]]:
         """Cell A's channel has no descriptor yet: A's two packets wait in A's
         landing space (only their header flits come back). Cell B, on another
         channel, is not held up behind them: its packets land meanwhile. Once
         A's channel gets its descriptors, A's data drains and every flit
-        returns."""
+        returns. Two packets of `beats` (default LAND/2 - 1) fill A's strap."""
+        beats = beats or self.LAND // 2 - 1
         self.log.info("=== TILE straps: a waiting cell holds only its own landing space ===")
         a, b = cell(0, 0), cell(3, 3)
         ch_a, ch_b = 3, 4

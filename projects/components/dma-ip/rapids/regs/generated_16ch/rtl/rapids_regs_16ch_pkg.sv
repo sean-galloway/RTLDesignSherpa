@@ -277,6 +277,19 @@ package rapids_regs_16ch_pkg;
     } rapids_engine_regs_16ch__HIST_TOTAL__in_t;
 
     typedef struct {
+        logic [15:0] next;
+    } rapids_engine_regs_16ch__TILE_STRAPS__LAND_FLITS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } rapids_engine_regs_16ch__TILE_STRAPS__DESC_PER_CORE__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_STRAPS__LAND_FLITS__in_t LAND_FLITS;
+        rapids_engine_regs_16ch__TILE_STRAPS__DESC_PER_CORE__in_t DESC_PER_CORE;
+    } rapids_engine_regs_16ch__TILE_STRAPS__in_t;
+
+    typedef struct {
         logic next;
     } rapids_mon_regs_16ch__MON_FIFO_STATUS__MON_FIFO_FULL__in_t;
 
@@ -675,6 +688,7 @@ package rapids_regs_16ch_pkg;
         rapids_engine_regs_16ch__TILE_STALLED__in_t TILE_STALLED;
         rapids_engine_regs_16ch__HIST_DATA__in_t HIST_DATA;
         rapids_engine_regs_16ch__HIST_TOTAL__in_t HIST_TOTAL;
+        rapids_engine_regs_16ch__TILE_STRAPS__in_t TILE_STRAPS;
         rapids_mon_regs_16ch__in_t MON;
     } rapids_engine_regs_16ch__in_t;
 

@@ -81,8 +81,11 @@ returns every flit and entry it consumes, discards included, as a header-only
 behind data. After a root failover, `SRC.TILE_RESYNC.GO` sends a `set` to every
 legal sender once the tile is quiescent (`tile_quiescent`); channel resets wait
 for it too. `SRC.TILE_STALL_CYCLES` arms two stall checks that report on MonBus:
-sink data that has not moved, and source reads that got no data. The detail is
-in the MAS Tile Header chapter.
+sink data that has not moved, and source reads that got no data. The straps are
+fixed at build time and reported in `TILE_STRAPS`, the last config word of each
+half (`SRC` 0x07FC): `LAND_FLITS` [15:0] and `DESC_PER_CORE` [31:16], 0 without
+`TILE_CREDITS`. The Hive reads it to set the cells' and cores' straps to match.
+The detail is in the MAS Tile Header chapter.
 
 The authoritative definition is `rapids_pkg::descriptor_t` in `rtl/includes/rapids_pkg.sv`. Only bits `[255:0]` are fetched and used. Every field position is the same as in RAPIDS Beats, so a descriptor builder needs one change: the value written to `length`.
 

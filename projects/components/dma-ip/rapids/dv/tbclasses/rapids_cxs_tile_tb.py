@@ -23,6 +23,7 @@ packets RAPIDS sends out of the source port as {header, payload}.
 """
 
 from dataclasses import dataclass
+import os
 from typing import Any, Dict, List, Tuple
 
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_top_tb import RapidsCxsTopTB
@@ -179,6 +180,27 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
         if (p >> port_bit) & 1:
             errs.append(f"{port} still set after {half}.{reg} was cleared (the RTL sticky did not clear)")
         return errs
+
+    async def test_strap_regs(self) -> Tuple[bool, Dict[str, Any]]:
+        """TILE_STRAPS (rapids TASK-031): the last config word of each half
+        reads the build's straps, or 0 without TILE_CREDITS."""
+        credits = int(os.environ.get('TEST_TILE_CREDITS', '0'))
+        land = int(os.environ.get('TEST_TILE_LAND_FLITS', '16')) if credits else 0
+        per_core = int(os.environ.get('TEST_TILE_DESC_PER_CORE', '2')) if credits else 0
+        self.log.info(f"=== TILE_STRAPS: TILE_CREDITS {credits}, expect LAND_FLITS {land}, "
+                      f"DESC_PER_CORE {per_core} ===")
+        errors = []
+        for half, base in (('src', 0x0000), ('snk', 0x1000)):
+            addr = self.reg_abs(half, 'TILE_STRAPS')
+            if addr != base + 0x7FC:
+                errors.append(f"{half.upper()}.TILE_STRAPS at 0x{addr:X}, expected 0x{base + 0x7FC:X} "
+                              f"(the last config word, below MON)")
+            v = await self.read_reg(half, 'TILE_STRAPS')
+            got = (v & 0xFFFF, v >> 16)
+            if got != (land, per_core):
+                errors.append(f"{half.upper()}.TILE_STRAPS = 0x{v:08X}: LAND_FLITS {got[0]}, "
+                              f"DESC_PER_CORE {got[1]}; expected {land}, {per_core}")
+        return self._finish(errors, "strap registers")
 
     def _finish(self, errors: List[str], what: str) -> Tuple[bool, Dict[str, Any]]:
         errors = list(self.test_errors) + errors + self.cxs_link_errors()
