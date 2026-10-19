@@ -23,10 +23,27 @@
 
 # Scheduler Group AXI Signal Naming Conflicts
 
-**Status:** Known Issue - Workaround Available
+**Status:** RESOLVED 2026-10-19 -- the internal signals were renamed; the audit's remaining hit was a false positive in the tool
 **Component:** `projects/components/dma-ip/rapids/rtl/macro_beats/scheduler_group_beats.sv` (documented against the retired pre-beats scheduler_group.sv)
 **Severity:** Medium
 **Date Identified:** 2025-10-15
+
+> **Resolution (2026-10-19).** Nothing in the current RTL collides. The
+> internal descriptor handshake is `desceng_to_sched_valid/_ready` in both
+> `rtl/macro/scheduler_group.sv` and `rtl/macro_beats/scheduler_group_beats.sv`
+> (the rename this file proposed as Solution 1), and there is no internal
+> `prog_*` handshake left. Both TBs bind with `create_axi4_slave_rd(prefix="desc_")`
+> and serve real descriptor fetches: `test_scheduler_group.py` 70/70 and
+> `test_scheduler_group_beats.py` 70/70 at func from clean builds, no
+> "Signal conflicts" in any log.
+>
+> `bin/audit_signal_naming_conflicts.py` still reported one HIGH conflict on
+> each file because it grouped signals by `startswith('desc')`, so
+> `desceng_to_sched_valid` sat beside `desc_ar_valid`. The factories take the
+> prefix with its separator (`desc_`), so a `desceng_` name can never match.
+> The tool now groups by `prefix + '_'`: rapids, STREAM and `rtl/` all audit
+> clean, and a real `desc_valid`/`desc_ar_valid` pair is still flagged.
+> The body below is kept as history.
 
 > **Status (2026-07-22):** Written against the pre-beats scheduler_group.sv, which was replaced
 > by `rtl/macro_beats/scheduler_group_beats.sv`. The named integration test and line numbers no

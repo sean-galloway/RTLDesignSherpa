@@ -171,8 +171,10 @@ class SignalNamingAuditor:
         for file_path, signals in self.signals_by_file.items():
             # Group signals by potential prefix
             for prefix in self.COMMON_PREFIXES:
-                # Find all signals that start with this prefix
-                matching_signals = [s for s in signals if s.name.startswith(prefix)]
+                # Find all signals that start with this prefix. The factories take
+                # it with its separator (prefix="desc_"), so desceng_* is not a
+                # desc_ signal and cannot be matched by one.
+                matching_signals = [s for s in signals if s.name.startswith(prefix + '_')]
 
                 if len(matching_signals) < 2:
                     continue  # Need at least 2 signals to have a conflict
@@ -201,8 +203,8 @@ class SignalNamingAuditor:
     def _could_conflict(self, internal_name: str, external_name: str, prefix: str) -> bool:
         """Check if two signal names could conflict during pattern matching"""
         # Remove prefix from both names
-        internal_suffix = internal_name[len(prefix):]
-        external_suffix = external_name[len(prefix):]
+        internal_suffix = internal_name[len(prefix) + 1:]
+        external_suffix = external_name[len(prefix) + 1:]
 
         # Check if internal matches simple pattern while external matches AXI pattern
         for simple_pattern in self.INTERNAL_PATTERNS:

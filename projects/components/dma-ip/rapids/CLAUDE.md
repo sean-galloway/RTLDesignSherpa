@@ -206,9 +206,10 @@ catches them, are in `vault/handbook/design/naming-and-style.md`. Run
 What is RAPIDS-specific is below.
 
 **Known RAPIDS Conflicts:**
-See `projects/components/dma-ip/rapids/known_issues/scheduler_group_signal_naming_conflicts.md` for conflicts documented against the pre-beats scheduler_group.sv (the patterns still apply to `scheduler_group_beats.sv`):
-- `desc` prefix: 4 internal + 4 external (AR/R channels)
-- `prog` prefix: 4 internal + 6 external (AW/W/B channels)
+None (audited 2026-10-19: `rtl/` audits clean). The pre-beats
+`desc_valid`/`desc_ar_valid` collision is now `desceng_to_sched_*` in both
+scheduler groups; history in
+`known_issues/resolved/scheduler_group_signal_naming_conflicts.md`.
 
 **Recommended Workflow:**
 1. Write RTL module with signals

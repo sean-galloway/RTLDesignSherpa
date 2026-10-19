@@ -32,7 +32,6 @@ This directory tracks all known RTL issues in the RAPIDS subsystem, organized by
 ```
 known_issues/
 ├── README.md           ← This file
-├── scheduler_group_signal_naming_conflicts.md
 ├── active/             ← Unresolved issues and pending enhancements (empty)
 └── resolved/           ← Fixed; kept permanently for reference
     ├── desc_arsize_exceeds_bus_width.md
@@ -41,7 +40,8 @@ known_issues/
     ├── char_harness_sink_selfcheck_no_beats.md
     ├── sink_data_path.md
     ├── snk_scheduler_write_commit_stall.md
-    └── snk_hold_junk_next_packet.md
+    ├── snk_hold_junk_next_packet.md
+    └── scheduler_group_signal_naming_conflicts.md
 ```
 
 > **Status (2026-09-14):** `resolved/` exists again. The 2026-07-22 note said it
@@ -59,7 +59,7 @@ known_issues/
 
 ## Current Status
 
-### Resolved Issues (7)
+### Resolved Issues (8)
 
 | File (`resolved/`) | What it was | Closed |
 |---|---|---|
@@ -70,6 +70,7 @@ known_issues/
 | `desc_arsize_exceeds_bus_width.md` | Descriptor engine issued ARSIZE wider than the bus | fixed in `e236d102e`, tracker moved 2026-09-27 |
 | `sink_sram_control.md` | Single-read limit of the old `sink_sram_control` unit | module deleted in `bdf4e0dff` (STREAM `sram_controller` now), tracker retired 2026-09-27 |
 | `snk_hold_junk_next_packet.md` | Byte sink ingress leaked stream junk of a partial last beat into the channel's next packet | 2026-09-30 |
+| `scheduler_group_signal_naming_conflicts.md` | Internal `desc_*` handshake collided with the `desc_` AXI factory prefix; renamed long ago, and the audit's leftover hit was a tool false positive | 2026-10-19 |
 
 ### Active Issues (0)
 

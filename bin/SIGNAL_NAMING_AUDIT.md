@@ -146,6 +146,9 @@ The `--markdown` option generates a structured report suitable for documentation
 
 2. **Prefix Grouping**
    - Groups signals by common prefixes: desc, prog, data, cmd, resp, m_axi, s_axi, axi
+   - A prefix matches with its separator, as the factories take it (`desc_`):
+     `desceng_to_sched_valid` is not in the `desc` group (it was, as a false
+     positive, until 2026-10-19)
 
 3. **Pattern Matching**
    - Checks if internal signals match AXI channel patterns (ar_valid, r_ready, etc.)
@@ -417,7 +420,7 @@ chmod +x bin/audit_signal_naming_conflicts.py
 
 - **Signal Helper Implementation:** `src/CocoTBFramework/components/shared/signal_mapping_helper.py` (RTLDesignSherpa-DV repo)
 - **AXI Factory Functions:** `src/CocoTBFramework/components/axi4/axi4_factories.py` (RTLDesignSherpa-DV repo)
-- **Known Issues:** `projects/components/dma-ip/rapids/known_issues/scheduler_group_signal_naming_conflicts.md`
+- **Worked example (resolved):** `projects/components/dma-ip/rapids/known_issues/resolved/scheduler_group_signal_naming_conflicts.md`
 - **Example Report:** generate with `--markdown <path>` (tool output, not committed)
 
 ---
