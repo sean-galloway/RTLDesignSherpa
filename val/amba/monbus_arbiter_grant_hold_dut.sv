@@ -15,7 +15,7 @@
 `timescale 1ns / 1ps
 
 module monbus_arbiter_grant_hold_dut
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     parameter int CLIENTS            = 4,
     parameter int INPUT_SKID_ENABLE  = 0,

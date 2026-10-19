@@ -26,10 +26,10 @@
 
 `include "reset_defs.svh"
 module axi_monitor_timeout
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
-    // NOTE: `import monitor_pkg::*;` intentionally omitted -- its helper
-    // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
+    // NOTE: `import ocelus_pkg::*;` intentionally omitted -- its helper
+    // functions (get_packet_type etc.) duplicate ocelus_common_pkg's, and
     // Vivado flags the duplicates as ambiguous under wildcard imports.
 #(
     parameter int MAX_TRANSACTIONS   = 16,   // Maximum outstanding transactions

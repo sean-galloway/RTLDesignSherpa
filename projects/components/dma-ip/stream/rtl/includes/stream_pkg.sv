@@ -159,7 +159,7 @@ package stream_pkg;
     //=========================================================================
     // MonBus Event Types (STREAM-specific)
     //=========================================================================
-    // Uses standard 128-bit MonBus format from monitor_common_pkg
+    // Uses standard 128-bit MonBus format from ocelus_common_pkg
     // (event_code field is 8 bits at [104:97]).
     parameter logic [7:0] STREAM_EVENT_DESC_START     = 8'h00;  // Descriptor started
     parameter logic [7:0] STREAM_EVENT_DESC_COMPLETE  = 8'h01;  // Descriptor completed

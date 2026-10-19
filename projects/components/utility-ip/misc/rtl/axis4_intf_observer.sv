@@ -33,7 +33,7 @@
 //   drop count feeds OBS_STICKY.TAP_BLOCKED (latched sticky here; the
 //   core's counter clears itself when the report leaves).
 //
-//   The AXIS packet vocabulary is monitor_amba4_pkg's (PROTOCOL_AXIS is
+//   The AXIS packet vocabulary is ocelus_amba4_pkg's (PROTOCOL_AXIS is
 //   valid for Error, Timeout, Completion, Credit, Channel and Stream; there
 //   is NO Threshold class for AXIS, which is why MON_LATENCY drives a
 //   Credit/BACKPRESSURE event here rather than a Threshold packet):
@@ -73,8 +73,8 @@
 `include "reset_defs.svh"
 
 module axis4_intf_observer
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     // ---------- Tap count ----------
     parameter int NUM_PORTS          = 1,

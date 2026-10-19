@@ -777,7 +777,7 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
     toplevel = dut_name
 
     verilog_sources = [
-        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'monitor_pkg.sv'),
+        os.path.join(repo_root, 'rtl', 'amba', 'includes', 'ocelus_pkg.sv'),
         # RAPIDS package(s) from the project includes area
         # (prefer get_sources_from_filelist() with rtl/filelists/ in real tests)
         os.path.join(rtl_dict['rtl_fub_beats'], '..', 'includes', 'rapids_pkg.sv'),

@@ -47,7 +47,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 # ============================================================================
-# 64-bit packet field constants (see monitor_common_pkg.sv for full layout)
+# 64-bit packet field constants (see ocelus_common_pkg.sv for full layout)
 # ============================================================================
 # packet_type lives in bits [63:60]
 PKT_TYPE_SHIFT = 60

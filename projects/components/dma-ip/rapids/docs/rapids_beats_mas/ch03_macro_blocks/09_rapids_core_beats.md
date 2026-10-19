@@ -255,8 +255,8 @@ One packet port, carrying a struct rather than a flat 64-bit bus.
 |--------|-----------|-------|-------------|
 | `mon_valid` | output | 1 | Packet valid |
 | `mon_ready` | input | 1 | Consumer ready |
-| `mon_packet` | output | `monitor_common_pkg::monitor_packet_t` | Packet payload |
-| `mon_timestamp` | output | `monitor_common_pkg::monbus_timestamp_t` | Packet timestamp |
+| `mon_packet` | output | `ocelus_common_pkg::monitor_packet_t` | Packet payload |
+| `mon_timestamp` | output | `ocelus_common_pkg::monbus_timestamp_t` | Packet timestamp |
 
 : Table 3.9.10: Unified MonBus Interface
 

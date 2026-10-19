@@ -43,7 +43,7 @@
 `timescale 1ns / 1ps
 
 // Import common STREAM and monitor packages
-// (stream_imports.svh now brings in monitor_common_pkg AND monitor_arbiter_pkg,
+// (stream_imports.svh now brings in ocelus_common_pkg AND ocelus_arbiter_pkg,
 //  so the CORE_COMPL_* / CORE_ERR_* constants are visible here without a
 //  separate explicit import.)
 `include "stream_imports.svh"
@@ -135,13 +135,13 @@ module descriptor_engine #(
     output logic                        descriptor_engine_idle,
 
     // Free-running monitor-time broadcast (sampled on packet emit)
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
-    output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t     mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -277,8 +277,8 @@ module descriptor_engine #(
     // Monitor packet generation
     // Registered MonBus outputs (128-bit packet + 64-bit side-band timestamp)
     logic                                       r_mon_valid;
-    monitor_common_pkg::monitor_packet_t        r_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      r_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        r_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      r_mon_timestamp;
 
     //=========================================================================
     // FIXED: Channel Reset Management

@@ -521,7 +521,7 @@ def build_monbus_contract(wb):
          "corrupts them.",
          "no partial/torn packets under backpressure", ""),
         ("MonBus", "mon_packet", "128", "out", "arbiter",
-         "monitor_common_pkg::monitor_packet_t. STREAM events: DESC_START "
+         "ocelus_common_pkg::monitor_packet_t. STREAM events: DESC_START "
          "(CH_FETCH_DESC), DESC_COMPLETE / IRQ (CH_COMPLETE, or in-place "
          "advance under read-ahead), ERROR (CH_ERROR, one-shot), plus "
          "descriptor-engine DESCRIPTOR_LOADED / error packets.",

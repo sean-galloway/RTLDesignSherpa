@@ -37,7 +37,7 @@ def cam_key(agent, proto, ptype, evc):
 def make_packet(agent, proto, ptype, evc, channel=0, unit=0, data=0):
     """Build a 128-bit monbus packet.
 
-    Layout is NOT guessable -- taken from monitor_common_pkg.sv:
+    Layout is NOT guessable -- taken from ocelus_common_pkg.sv:
         [127:124] packet_type   [123:109] reserved    [108:105] protocol
         [104: 97] event_code    [ 96: 88] channel_id  [ 87: 72] agent_id
         [ 71: 64] unit_id       [ 63:  0] event_data

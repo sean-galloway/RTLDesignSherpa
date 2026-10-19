@@ -282,13 +282,13 @@ module scheduler_group_array #(
 
     // Free-running monitor-time broadcast (forwarded to all sub-blocks and
     // to the AXI master monitor; consumed by the monbus arbiter side-band).
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
-    output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t     mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -382,8 +382,8 @@ module scheduler_group_array #(
 
     logic [NUM_CHANNELS-1:0]                                mon_valid_ch;
     logic [NUM_CHANNELS-1:0]                                mon_ready_ch;
-    monitor_common_pkg::monitor_packet_t                    mon_packet_ch     [NUM_CHANNELS];
-    monitor_common_pkg::monbus_timestamp_t                  mon_timestamp_ch  [NUM_CHANNELS];
+    ocelus_common_pkg::monitor_packet_t                    mon_packet_ch     [NUM_CHANNELS];
+    ocelus_common_pkg::monbus_timestamp_t                  mon_timestamp_ch  [NUM_CHANNELS];
 
     //=========================================================================
     // Internal Signals - Descriptor AXI Arbitration
@@ -422,19 +422,19 @@ module scheduler_group_array #(
     // MonBus from descriptor AXI monitor (packet + side-band timestamp)
     logic                                       desc_axi_mon_valid;
     logic                                       desc_axi_mon_ready;
-    monitor_common_pkg::monitor_packet_t        desc_axi_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      desc_axi_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        desc_axi_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      desc_axi_mon_timestamp;
 
     // Shared engines' MonBus streams (driven only when SHARED_ENGINES != 0)
     logic                                       sh_desc_mon_valid,   sh_desc_mon_ready;
-    monitor_common_pkg::monitor_packet_t        sh_desc_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      sh_desc_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        sh_desc_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      sh_desc_mon_timestamp;
     logic                                       sh_ctrlrd_mon_valid, sh_ctrlrd_mon_ready;
-    monitor_common_pkg::monitor_packet_t        sh_ctrlrd_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      sh_ctrlrd_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        sh_ctrlrd_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      sh_ctrlrd_mon_timestamp;
     logic                                       sh_ctrlwr_mon_valid, sh_ctrlwr_mon_ready;
-    monitor_common_pkg::monitor_packet_t        sh_ctrlwr_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      sh_ctrlwr_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        sh_ctrlwr_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      sh_ctrlwr_mon_timestamp;
 
     // Combined MonBus arrays (9 sources: 8 channels + 1 desc AXI monitor)
     //   per-channel engines: one stream per scheduler_group + desc AXI monitor
@@ -443,8 +443,8 @@ module scheduler_group_array #(
     // Use unpacked arrays to match monbus_arbiter port types
     logic                                       monbus_valid_all     [MONBUS_SOURCES];
     logic                                       monbus_ready_all     [MONBUS_SOURCES];
-    monitor_common_pkg::monitor_packet_t        monbus_packet_all    [MONBUS_SOURCES];
-    monitor_common_pkg::monbus_timestamp_t      monbus_timestamp_all [MONBUS_SOURCES];
+    ocelus_common_pkg::monitor_packet_t        monbus_packet_all    [MONBUS_SOURCES];
+    ocelus_common_pkg::monbus_timestamp_t      monbus_timestamp_all [MONBUS_SOURCES];
 
     initial begin
         if ((TILE_HDR != 0) && (SHARED_ENGINES == 0))
@@ -912,12 +912,12 @@ module scheduler_group_array #(
         logic [NUM_CHANNELS-1:0][31:0]            s_ctrlwr_data;
 
         logic                                     s_dmon_valid, s_dmon_ready;
-        monitor_common_pkg::monitor_packet_t      s_dmon_packet;
-        monitor_common_pkg::monbus_timestamp_t    s_dmon_timestamp;
+        ocelus_common_pkg::monitor_packet_t      s_dmon_packet;
+        ocelus_common_pkg::monbus_timestamp_t    s_dmon_timestamp;
 
         for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_schedulers
             logic                                   w_smon_valid, w_smon_ready;
-            monitor_common_pkg::monitor_packet_t    w_smon_packet;
+            ocelus_common_pkg::monitor_packet_t    w_smon_packet;
             logic                                   w_smon_pass;
 
             scheduler #(
@@ -1005,8 +1005,8 @@ module scheduler_group_array #(
             // SCHED_CONFIG.COMPL_EN gates Completion packets (rapids ISSUE-005),
             // GEN_MON gates the stream entirely -- as scheduler_group does.
             assign w_smon_pass        = cfg_sched_compl_enable ||
-                                        (monitor_common_pkg::get_packet_type(w_smon_packet)
-                                         != monitor_common_pkg::PktTypeCompletion);
+                                        (ocelus_common_pkg::get_packet_type(w_smon_packet)
+                                         != ocelus_common_pkg::PktTypeCompletion);
             assign mon_valid_ch[ch]   = w_smon_valid && w_smon_pass && GEN_MON;
             assign w_smon_ready       = (w_smon_pass && GEN_MON) ? mon_ready_ch[ch] : 1'b1;
             assign mon_packet_ch[ch]  = w_smon_packet;
@@ -1082,8 +1082,8 @@ module scheduler_group_array #(
         // Descriptor-engine stream: COMPL_EN and GEN_MON gating, as before
         logic w_dmon_pass;
         assign w_dmon_pass             = cfg_sched_compl_enable ||
-                                         (monitor_common_pkg::get_packet_type(s_dmon_packet)
-                                          != monitor_common_pkg::PktTypeCompletion);
+                                         (ocelus_common_pkg::get_packet_type(s_dmon_packet)
+                                          != ocelus_common_pkg::PktTypeCompletion);
         assign sh_desc_mon_valid       = s_dmon_valid && w_dmon_pass && GEN_MON;
         assign s_dmon_ready            = (w_dmon_pass && GEN_MON) ? sh_desc_mon_ready : 1'b1;
         assign sh_desc_mon_packet      = s_dmon_packet;

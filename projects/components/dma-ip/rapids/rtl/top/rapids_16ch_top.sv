@@ -410,8 +410,8 @@ module rapids_16ch_top
     logic [31:0]                w_snk_plane_cfg_mon_timeout_cycles, w_snk_plane_cfg_mon_latency_thresh;
     logic [15:0]                w_snk_plane_cfg_mon_pkt_mask;
     logic                       w_snk_plane_mon_valid, w_snk_plane_mon_ready;
-    monitor_common_pkg::monitor_packet_t   w_snk_plane_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t w_snk_plane_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t   w_snk_plane_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t w_snk_plane_mon_timestamp;
     logic [DW-1:0]              w_src_axis_tdata;
     logic [SW-1:0]              w_src_axis_tstrb;
     logic                       w_src_axis_tlast;
@@ -426,8 +426,8 @@ module rapids_16ch_top
     logic [31:0]                w_src_plane_cfg_mon_timeout_cycles, w_src_plane_cfg_mon_latency_thresh;
     logic [15:0]                w_src_plane_cfg_mon_pkt_mask;
     logic                       w_src_plane_mon_valid, w_src_plane_mon_ready;
-    monitor_common_pkg::monitor_packet_t   w_src_plane_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t w_src_plane_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t   w_src_plane_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t w_src_plane_mon_timestamp;
 
     rapids_top_base #(
         .NUM_CHANNELS            (NUM_CHANNELS),

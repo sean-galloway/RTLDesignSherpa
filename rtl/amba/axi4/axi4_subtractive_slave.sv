@@ -49,8 +49,8 @@
 `include "reset_defs.svh"
 
 module axi4_subtractive_slave
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     parameter int AXI_ID_WIDTH    = 8,
     parameter int AXI_ADDR_WIDTH  = 32,

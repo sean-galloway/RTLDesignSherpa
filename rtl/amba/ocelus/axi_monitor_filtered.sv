@@ -37,10 +37,10 @@
 
 `include "reset_defs.svh"
 module axi_monitor_filtered
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
-    // NOTE: `import monitor_pkg::*;` intentionally omitted — its helper
-    // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
+    // NOTE: `import ocelus_pkg::*;` intentionally omitted — its helper
+    // functions (get_packet_type etc.) duplicate ocelus_common_pkg's, and
     // Vivado flags the duplicates as ambiguous under wildcard imports.
 #(
     // Ocelus parameters (passed through to axi_monitor_base)
@@ -184,13 +184,13 @@ module axi_monitor_filtered
     input  logic                        cfg_window_force_close,
 
     // Free-running ocelus-time broadcast from the monbus_group family
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Ocelus bus output (filtered, 128-bit packet)
     output logic                                    monbus_valid,
     input  logic                                    monbus_ready,
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,
-    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,
+    output ocelus_common_pkg::monitor_packet_t     monbus_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   monbus_timestamp,
 
     // Status outputs
     output logic                        block_ready,
@@ -227,8 +227,8 @@ module axi_monitor_filtered
     // Unfiltered ocelus bus from base ocelus (128-bit packet + 64-bit ts)
     logic                                            base_monbus_valid;
     logic                                            base_monbus_ready;
-    monitor_common_pkg::monitor_packet_t             base_monbus_packet;
-    monitor_common_pkg::monbus_timestamp_t           base_monbus_timestamp;
+    ocelus_common_pkg::monitor_packet_t             base_monbus_packet;
+    ocelus_common_pkg::monbus_timestamp_t           base_monbus_timestamp;
 
     // Packet analysis (widened to the new 128-bit field layout)
     logic [3:0]              pkt_type;
@@ -243,8 +243,8 @@ module axi_monitor_filtered
     // Pipeline stage (optional)
     logic                                            pipe_valid;
     logic                                            pipe_ready;
-    monitor_common_pkg::monitor_packet_t             pipe_packet;
-    monitor_common_pkg::monbus_timestamp_t           pipe_timestamp;
+    ocelus_common_pkg::monitor_packet_t             pipe_packet;
+    ocelus_common_pkg::monbus_timestamp_t           pipe_timestamp;
 
     // =========================================================================
     // Configuration Validation
@@ -385,7 +385,7 @@ module axi_monitor_filtered
     // Packet Analysis and Filtering Logic
     // =========================================================================
 
-    // Extract packet fields using monitor_pkg functions.
+    // Extract packet fields using ocelus_pkg functions.
     // 128-bit layout: protocol lives at [108:105].
     assign pkt_type = get_packet_type(base_monbus_packet);
     assign pkt_protocol = base_monbus_packet[108:105]; // 4-bit protocol field
@@ -415,13 +415,13 @@ module axi_monitor_filtered
                 // Level 3: Check individual event masking (only if not already dropped).
                 if (!pkt_drop) begin
                     case (pkt_type)
-                        monitor_common_pkg::PktTypeError:     pkt_event_masked = cfg_axi_error_mask[ec_idx];
-                        monitor_common_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axi_timeout_mask[ec_idx];
-                        monitor_common_pkg::PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[ec_idx];
-                        monitor_common_pkg::PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[ec_idx];
-                        monitor_common_pkg::PktTypePerf:      pkt_event_masked = cfg_axi_perf_mask[ec_idx];
-                        monitor_common_pkg::PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[ec_idx];
-                        monitor_common_pkg::PktTypeDebug:     pkt_event_masked = cfg_axi_debug_mask[ec_idx];
+                        ocelus_common_pkg::PktTypeError:     pkt_event_masked = cfg_axi_error_mask[ec_idx];
+                        ocelus_common_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axi_timeout_mask[ec_idx];
+                        ocelus_common_pkg::PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[ec_idx];
+                        ocelus_common_pkg::PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[ec_idx];
+                        ocelus_common_pkg::PktTypePerf:      pkt_event_masked = cfg_axi_perf_mask[ec_idx];
+                        ocelus_common_pkg::PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[ec_idx];
+                        ocelus_common_pkg::PktTypeDebug:     pkt_event_masked = cfg_axi_debug_mask[ec_idx];
                         default:                              pkt_event_masked = 1'b0;
                     endcase
 
@@ -451,8 +451,8 @@ module axi_monitor_filtered
         if (ADD_PIPELINE_STAGE) begin : gen_pipeline
 
             logic                                            pipe_valid_reg;
-            monitor_common_pkg::monitor_packet_t             pipe_packet_reg;
-            monitor_common_pkg::monbus_timestamp_t           pipe_timestamp_reg;
+            ocelus_common_pkg::monitor_packet_t             pipe_packet_reg;
+            ocelus_common_pkg::monbus_timestamp_t           pipe_timestamp_reg;
 
             `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin

@@ -225,8 +225,8 @@ def gen(tree, top, kind, nch=None, stem=None):
                   f"    logic [31:0]                w_{h}_plane_cfg_mon_timeout_cycles, w_{h}_plane_cfg_mon_latency_thresh;",
                   f"    logic [15:0]                w_{h}_plane_cfg_mon_pkt_mask;",
                   f"    logic                       w_{h}_plane_mon_valid, w_{h}_plane_mon_ready;",
-                  f"    monitor_common_pkg::monitor_packet_t   w_{h}_plane_mon_packet;",
-                  f"    monitor_common_pkg::monbus_timestamp_t w_{h}_plane_mon_timestamp;"]
+                  f"    ocelus_common_pkg::monitor_packet_t   w_{h}_plane_mon_packet;",
+                  f"    ocelus_common_pkg::monbus_timestamp_t w_{h}_plane_mon_timestamp;"]
     what = 'AXI-Stream' if kind == 'axis' else 'CXS (Arm IHI 0079 Issue D)'
     text = f"""// SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway

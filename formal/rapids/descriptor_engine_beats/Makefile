@@ -10,7 +10,7 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
        -I$(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/includes
 
 # Package files (order matters: dependencies first)
-# NOTE: monitor_pkg.sv re-exports create_monitor_packet from monitor_common_pkg,
+# NOTE: ocelus_pkg.sv re-exports create_monitor_packet from ocelus_common_pkg,
 # causing sv2v ambiguity. We use a local empty stub (monitor_pkg_stub.sv) instead,
 # which satisfies the import without re-exporting duplicate symbols.
 PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \

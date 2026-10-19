@@ -40,7 +40,7 @@ $CACHE_COMMON_ROOT/rtl/fub/l1_drain.sv
 # ACE snoop responder (carries the axi4ace_snoop_slave transport closure)
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
 
-# Drop-and-count MonBus observer (carries the monitor_common_pkg include,
+# Drop-and-count MonBus observer (carries the ocelus_common_pkg include,
 # the D11 gaxi_fifo_sync observer queue closure)
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_monlite.f
 

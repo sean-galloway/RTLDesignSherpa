@@ -66,8 +66,8 @@
  * cfg_error_enable independently gate the MATCH / MISS report paths.
  */
 module axi_monitor_addr_check
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     parameter int N_ADDR_RANGES = 4,             // number of independent ranges (>=1)
     parameter int ADDR_WIDTH    = 32,            // address width

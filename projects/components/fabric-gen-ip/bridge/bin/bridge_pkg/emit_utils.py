@@ -55,7 +55,7 @@ def generate_monitor_ports(channels_mode: str) -> List[str]:
     # enabled, regardless of which channel(s) are present.
     if channels:
         lines.append("    // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)")
-        lines.append("    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,")
+        lines.append("    input  ocelus_common_pkg::monbus_timestamp_t i_mon_time,")
         lines.append("")
 
     last_chan = channels[-1] if channels else None
@@ -63,8 +63,8 @@ def generate_monitor_ports(channels_mode: str) -> List[str]:
         lines.append(f"    // Monitor side-band: {chan} wrapper")
         lines.append(f"    output logic                                  monbus_{chan}_valid,")
         lines.append(f"    input  logic                                  monbus_{chan}_ready,")
-        lines.append(f"    output monitor_common_pkg::monitor_packet_t   monbus_{chan}_packet,")
-        lines.append(f"    output monitor_common_pkg::monbus_timestamp_t monbus_{chan}_timestamp,")
+        lines.append(f"    output ocelus_common_pkg::monitor_packet_t   monbus_{chan}_packet,")
+        lines.append(f"    output ocelus_common_pkg::monbus_timestamp_t monbus_{chan}_timestamp,")
         lines.append("")
         for i, sig in enumerate(Axi4TimingWrapper.MONITOR_CFG_SIGNALS):
             is_final_cfg = (chan == last_chan and i == len(Axi4TimingWrapper.MONITOR_CFG_SIGNALS) - 1)

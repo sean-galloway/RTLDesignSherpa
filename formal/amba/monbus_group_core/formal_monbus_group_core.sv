@@ -41,7 +41,7 @@ module formal_monbus_group_core (
     localparam int MAX_BURST_BEATS  = 1;
     localparam int FLUSH_TIMEOUT    = 8;    // short so the timeout-flush cover is reachable at depth 40
 
-    // packet field positions (monitor_common_pkg)
+    // packet field positions (ocelus_common_pkg)
     localparam [3:0] PROTOCOL_AXI = 4'h0, PROTOCOL_AXIS = 4'h1, PROTOCOL_CORE = 4'h4,
                      PROTOCOL_CXS = 4'h6;   // filtered through the AXIS slot
     localparam [3:0] T_ERROR = 4'h0, T_COMPL = 4'h1, T_THRESH = 4'h2, T_TIMEOUT = 4'h3,

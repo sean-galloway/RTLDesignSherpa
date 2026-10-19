@@ -212,7 +212,7 @@ in. The fixes, all in the RTL's package qualification (no logic change):
 - **Type collisions.** `channel_state_t`, `descriptor_t`, and
   `read_engine_state_t` exist in both packages; each use site was qualified with
   `rapids_pkg::`.
-- **Monitor response codes.** `monitor_amba4_pkg::AXI_ERR_RESP_*` was qualified
+- **Monitor response codes.** `ocelus_amba4_pkg::AXI_ERR_RESP_*` was qualified
   in the control engines, where it otherwise clashed under the merged `$unit`
   scope.
 

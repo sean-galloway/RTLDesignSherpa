@@ -46,7 +46,7 @@
 `include "reset_defs.svh"
 
 module monbus_group_core
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     parameter int FIFO_DEPTH_ERR        = 64,      // entries (192-bit records)
     parameter int FIFO_DEPTH_WRITE      = 96,      // beats (64-bit each) -- beat-granular

@@ -198,13 +198,13 @@ module scheduler_group #(
 
     // Free-running monitor-time broadcast (forwarded to all sub-reporters
     // and to the monbus arbiter timestamp side-band).
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
-    output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t     mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -236,13 +236,13 @@ module scheduler_group #(
     // expose per-packet side-band timestamps. Direct connection — no bridge.
     logic                                       desceng_mon_valid;
     logic                                       desceng_mon_ready;
-    monitor_common_pkg::monitor_packet_t        desceng_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      desceng_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        desceng_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      desceng_mon_timestamp;
 
     logic                                       sched_mon_valid;
     logic                                       sched_mon_ready;
-    monitor_common_pkg::monitor_packet_t        sched_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      sched_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        sched_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      sched_mon_timestamp;
 
     // Scheduler <-> Control Engine handshakes (Phase 2)
     logic                        sched_ctrlrd_valid, sched_ctrlrd_ready;
@@ -256,11 +256,11 @@ module scheduler_group #(
 
     // Control engine MonBus (native 128-bit packet + side-band timestamp)
     logic                                       ctrlrd_mon_valid, ctrlrd_mon_ready;
-    monitor_common_pkg::monitor_packet_t        ctrlrd_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      ctrlrd_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        ctrlrd_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      ctrlrd_mon_timestamp;
     logic                                       ctrlwr_mon_valid, ctrlwr_mon_ready;
-    monitor_common_pkg::monitor_packet_t        ctrlwr_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      ctrlwr_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        ctrlwr_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      ctrlwr_mon_timestamp;
 
     //=========================================================================
     // Component Instantiations
@@ -592,10 +592,10 @@ module scheduler_group #(
     logic w_desceng_mon_valid, w_sched_mon_valid;    // gated valids into the arbiter
     logic w_desceng_mon_ready, w_sched_mon_ready;    // arbiter readies back
 
-    assign w_desceng_compl_pkt = (monitor_common_pkg::get_packet_type(desceng_mon_packet)
-                                  == monitor_common_pkg::PktTypeCompletion);
-    assign w_sched_compl_pkt   = (monitor_common_pkg::get_packet_type(sched_mon_packet)
-                                  == monitor_common_pkg::PktTypeCompletion);
+    assign w_desceng_compl_pkt = (ocelus_common_pkg::get_packet_type(desceng_mon_packet)
+                                  == ocelus_common_pkg::PktTypeCompletion);
+    assign w_sched_compl_pkt   = (ocelus_common_pkg::get_packet_type(sched_mon_packet)
+                                  == ocelus_common_pkg::PktTypeCompletion);
     assign w_desceng_mon_pass  = cfg_sched_compl_enable || !w_desceng_compl_pkt;
     assign w_sched_mon_pass    = cfg_sched_compl_enable || !w_sched_compl_pkt;
 

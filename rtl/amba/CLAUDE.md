@@ -243,7 +243,7 @@ set of legal property values, checked at elaboration by
 No READY: the receive FIFO is the credit pool. Base + `_cg` + `_monlite`
 (no `_monlite_cg`: clock gating is FPGA-only). The monitor is
 `ocelus/cxs_monitor_lite.sv`, packets tagged `PROTOCOL_CXS` (4'h6) with codes
-in `includes/ocelus_cxs_pkg.sv` (package `monitor_cxs_pkg`, not re-exported);
+in `includes/ocelus_cxs_pkg.sv` (package `ocelus_cxs_pkg`, not re-exported);
 Python decode in `bin/TBClasses/monbus` is checked against that file.
 
 | Module | Purpose | Documentation |
@@ -388,7 +388,7 @@ gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 ### Q: "Ocelus packets format?"
 
 **A: 128-bit standardized `monitor_packet_t` + 64-bit side-band timestamp**
-(`monitor_common_pkg.sv`; widths locked, not parameters):
+(`ocelus_common_pkg.sv`; widths locked, not parameters):
 ```
 [127:124] Packet Type  (0=ERROR, 1=COMPL, 2=THRESH, 3=TIMEOUT, 4=PERF,
                         8=ADDR_MATCH, 9=APB, 0xD=PERFWIN, 0xE=PERFHIST,
@@ -407,7 +407,7 @@ gaxi_fifo_sync #(.REGISTERED(0), .DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 logic [3:0]  pkt_type   = monbus_packet[127:124];
 logic [3:0]  protocol   = monbus_packet[108:105];
 logic [63:0] event_data = monbus_packet[63:0];
-// or use monitor_common_pkg::get_packet_type() etc.
+// or use ocelus_common_pkg::get_packet_type() etc.
 ```
 
 **See:** `docs/markdown/rtl-amba/includes/ocelus_package_spec.md` (complete spec)

@@ -4,10 +4,10 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: monitor_wb4_pkg
+// Module: ocelus_wb4_pkg
 // Purpose: Wishbone B4 event codes for ocelus bus packets (protocol =
 //          PROTOCOL_WB). Imported by wb4_monitor alongside
-//          monitor_common_pkg; NOT re-exported by monitor_pkg, so no
+//          ocelus_common_pkg; NOT re-exported by ocelus_pkg, so no
 //          existing consumer's filelist changes.
 //
 // Documentation: docs/markdown/rtl-amba/wb4/wb4_monitor.md
@@ -19,10 +19,10 @@
 `timescale 1ns / 1ps
 
 // The file carries the Ocelus brand name; the package keeps its original
-// name (monitor_wb4_pkg) so the ~600 import sites stay valid. The mismatch
+// name (ocelus_wb4_pkg) so the ~600 import sites stay valid. The mismatch
 // is intentional -- tell Verilator's -Wall so (DECLFILENAME).
 /* verilator lint_off DECLFILENAME */
-package monitor_wb4_pkg;
+package ocelus_wb4_pkg;
 /* verilator lint_on DECLFILENAME */
 
     // Error events (packet_type = PktTypeError, protocol = PROTOCOL_WB)
@@ -125,4 +125,4 @@ package monitor_wb4_pkg;
         WB_DEBUG_USER_DEFINED   = 8'hF
     } wb_debug_code_t;
 
-endpackage : monitor_wb4_pkg
+endpackage : ocelus_wb4_pkg

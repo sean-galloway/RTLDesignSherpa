@@ -114,7 +114,7 @@ module monbus_pkt_tally #(
 );
 
     // ------------------------------------------------------------------------
-    // Packet field extraction (positions locked by monitor_common_pkg).
+    // Packet field extraction (positions locked by ocelus_common_pkg).
     //   [127:124] pkt_type   [108:105] protocol   [104:97] event_code
     // ------------------------------------------------------------------------
     logic [3:0] w_pkt_type;

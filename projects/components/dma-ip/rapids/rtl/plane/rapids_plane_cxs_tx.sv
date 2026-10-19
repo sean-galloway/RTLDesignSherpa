@@ -88,8 +88,8 @@ module rapids_plane_cxs_tx #(
     output logic [15:0]                           sts_mon_dropped_count,
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_timestamp,
+    output ocelus_common_pkg::monitor_packet_t   monbus_packet,
+    output ocelus_common_pkg::monbus_timestamp_t monbus_timestamp,
 
     // ---- Outer: the CXS link (Arm IHI 0079, Issue D) ----
     output logic                                      m_cxs_valid,

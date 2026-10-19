@@ -29,7 +29,7 @@ module axi_monitor_addr_check (
 	parameter signed [31:0] IW = ID_WIDTH;
 	input wire clk;
 	input wire aresetn;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	input wire [M - 1:0] cmd_addr;
 	input wire [IW - 1:0] cmd_id;
@@ -43,7 +43,7 @@ module axi_monitor_addr_check (
 	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_high;
 	output wire addr_pkt_valid;
 	input wire addr_pkt_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] addr_pkt_data;
 	output wire [63:0] addr_pkt_timestamp;
 	wire cmd_fire;
@@ -256,20 +256,20 @@ module axi_monitor_addr_check (
 	wire [8:0] channel_id_field;
 	wire [63:0] event_data_field;
 	wire [59:0] addr_payload;
-	localparam [3:0] monitor_common_pkg_PktTypeAddrMatch = 4'h8;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
+	localparam [3:0] ocelus_common_pkg_PktTypeAddrMatch = 4'h8;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		if (emit_is_miss) begin
-			pkt_type_field = monitor_common_pkg_PktTypeError;
+			pkt_type_field = ocelus_common_pkg_PktTypeError;
 			event_code_field = 8'h0d;
 			emit_idx = MISS_RANGE_SENTINEL;
 			emit_addr = r_miss_addr;
 			emit_id = r_miss_id;
 		end
 		else begin
-			pkt_type_field = monitor_common_pkg_PktTypeAddrMatch;
+			pkt_type_field = ocelus_common_pkg_PktTypeAddrMatch;
 			event_code_field = 8'h01;
 			emit_idx = match_emit_idx;
 			emit_addr = 1'sb0;
@@ -299,7 +299,7 @@ module axi_monitor_addr_check (
 		end
 	endgenerate
 	assign event_data_field = {emit_idx[3:0], addr_payload};
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -307,9 +307,9 @@ module axi_monitor_addr_check (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
-	assign addr_pkt_data = monitor_common_pkg_create_monitor_packet(pkt_type_field, 4'h0, event_code_field, channel_id_field, UNIT_ID, AGENT_ID, event_data_field);
+	assign addr_pkt_data = ocelus_common_pkg_create_monitor_packet(pkt_type_field, 4'h0, event_code_field, channel_id_field, UNIT_ID, AGENT_ID, event_data_field);
 	assign addr_pkt_timestamp = i_mon_time;
 	initial _sv2v_0 = 0;
 endmodule

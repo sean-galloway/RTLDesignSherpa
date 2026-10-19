@@ -132,13 +132,13 @@ module scheduler_group #(
 
     // Free-running monitor-time broadcast (forwarded to all sub-reporters
     // and to the monbus arbiter timestamp side-band).
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
-    output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t     mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -168,13 +168,13 @@ module scheduler_group #(
 
     logic                                       desceng_mon_valid;
     logic                                       desceng_mon_ready;
-    monitor_common_pkg::monitor_packet_t        desceng_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      desceng_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        desceng_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      desceng_mon_timestamp;
 
     logic                                       sched_mon_valid;
     logic                                       sched_mon_ready;
-    monitor_common_pkg::monitor_packet_t        sched_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      sched_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        sched_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      sched_mon_timestamp;
 
     //=========================================================================
     // Component Instantiations

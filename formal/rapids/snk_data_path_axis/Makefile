@@ -29,7 +29,7 @@ STREAM := $(REPO_ROOT)/projects/components/dma-ip/stream
 INC := -I$(REPO_ROOT)/rtl/amba/includes \
        -I$(RAPIDS)/rtl/includes
 
-# Package files (order matters: dependencies first). Real monitor_pkg flattens
+# Package files (order matters: dependencies first). Real ocelus_pkg flattens
 # clean for this closure (measured); the ctrlrd_engine stub is the fallback.
 PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \

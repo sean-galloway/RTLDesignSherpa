@@ -37,7 +37,7 @@ sys.path.insert(0, repo_root)
 from projects.components.utility_ip.misc.dv.tbclasses.axis4_intf_observer_tb import AXIS4IntfObserverTB  # noqa: E402
 from TBClasses.monbus.monbus_types import AXISErrorCode  # noqa: E402
 
-# monitor_amba4_pkg event codes this block emits, by class. The Python
+# ocelus_amba4_pkg event codes this block emits, by class. The Python
 # decoder carries AXISErrorCode; the other five AXIS classes are asserted
 # against the package's numbering here so a renumbering breaks this test
 # rather than silently reinterpreting a packet.

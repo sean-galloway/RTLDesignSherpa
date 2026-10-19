@@ -333,7 +333,7 @@ package rapids_pkg;
     //=========================================================================
     // MonBus Event Types (RAPIDS-specific)
     //=========================================================================
-    // NOTE: PktType* and PROTOCOL_* constants are imported from monitor_common_pkg
+    // NOTE: PktType* and PROTOCOL_* constants are imported from ocelus_common_pkg
     // via rapids_imports.svh. Do NOT redefine them here to avoid conflicts.
     // Uses standard 128-bit MonBus format (event_code is 8 bits [104:97]).
     parameter logic [7:0] RAPIDS_EVENT_DESC_START     = 8'h00;  // Descriptor started

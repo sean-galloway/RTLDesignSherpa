@@ -70,7 +70,7 @@
 // Related Modules:
 //------------------------------------------------------------------------------
 //   - apb4_monitor.sv (the family template), apb_monitor_addr_check.sv,
-//     wb4_master.sv / wb4_slave.sv (what it watches), monitor_wb4_pkg.sv
+//     wb4_master.sv / wb4_slave.sv (what it watches), ocelus_wb4_pkg.sv
 //
 //------------------------------------------------------------------------------
 // Test:
@@ -83,8 +83,8 @@
 `include "reset_defs.svh"
 
 module wb4_monitor
-    import monitor_common_pkg::*;   // PROTOCOL_WB, PktType*, packet builder
-    import monitor_wb4_pkg::*;      // WB_ERR_*, WB_TIMEOUT_*, WB_COMPL_*, WB_PERF_*, WB_DEBUG_*
+    import ocelus_common_pkg::*;   // PROTOCOL_WB, PktType*, packet builder
+    import ocelus_wb4_pkg::*;      // WB_ERR_*, WB_TIMEOUT_*, WB_COMPL_*, WB_PERF_*, WB_DEBUG_*
     import wb4_pkg::*;              // WB4_RSP_* status encoding
 #(
     parameter bit USE_MONITOR         = 1'b1,
@@ -152,13 +152,13 @@ module wb4_monitor
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_high,
 
     // Free-running ocelus-time broadcast
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Ocelus bus
     output logic                                    monbus_valid,
     input  logic                                    monbus_ready,
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,
-    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,
+    output ocelus_common_pkg::monitor_packet_t     monbus_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   monbus_timestamp,
 
     // Status
     output logic [7:0]               active_count,
@@ -397,12 +397,12 @@ module wb4_monitor
     // Packet construction, address checker merge, output skid
     // ------------------------------------------------------------------------
     logic                                    w_monbus_pkt_valid, w_monbus_pkt_ready;
-    monitor_common_pkg::monitor_packet_t     w_monbus_pkt_data, w_fifo_pkt_data;
-    monitor_common_pkg::monbus_timestamp_t   w_monbus_pkt_ts;
+    ocelus_common_pkg::monitor_packet_t     w_monbus_pkt_data, w_fifo_pkt_data;
+    ocelus_common_pkg::monbus_timestamp_t   w_monbus_pkt_ts;
 
-    assign w_fifo_pkt_data = monitor_common_pkg::create_monitor_packet(
+    assign w_fifo_pkt_data = ocelus_common_pkg::create_monitor_packet(
         w_fifo_rd_data.packet_type,
-        monitor_common_pkg::PROTOCOL_WB,
+        ocelus_common_pkg::PROTOCOL_WB,
         w_fifo_rd_data.event_code,
         9'h0,
         UNIT_ID,
@@ -411,8 +411,8 @@ module wb4_monitor
     );
 
     logic                                    w_addr_pkt_valid, w_addr_pkt_ready;
-    monitor_common_pkg::monitor_packet_t     w_addr_pkt_data;
-    monitor_common_pkg::monbus_timestamp_t   w_addr_pkt_timestamp;
+    ocelus_common_pkg::monitor_packet_t     w_addr_pkt_data;
+    ocelus_common_pkg::monbus_timestamp_t   w_addr_pkt_timestamp;
 
     if (N_ADDR_RANGES > 0) begin : gen_addr_check
         apb_monitor_addr_check #(
@@ -420,7 +420,7 @@ module wb4_monitor
             .ADDR_WIDTH    (ADDR_WIDTH),
             .UNIT_ID       (UNIT_ID),
             .AGENT_ID      (AGENT_ID),
-            .PROTOCOL      (monitor_common_pkg::PROTOCOL_WB)
+            .PROTOCOL      (ocelus_common_pkg::PROTOCOL_WB)
         ) addr_check (
             .clk                   (aclk),
             .aresetn               (aresetn),
@@ -468,7 +468,7 @@ module wb4_monitor
     assign w_addr_pkt_ready = w_monbus_pkt_ready && !w_fifo_rd_valid;
 
     localparam int MONBUS_TOTAL_W =
-        monitor_common_pkg::MONBUS_PKT_WIDTH + monitor_common_pkg::MONBUS_TS_WIDTH;
+        ocelus_common_pkg::MONBUS_PKT_WIDTH + ocelus_common_pkg::MONBUS_TS_WIDTH;
     logic [MONBUS_TOTAL_W-1:0] w_skid_wr_data, w_skid_rd_data;
     assign w_skid_wr_data = {w_monbus_pkt_data, w_monbus_pkt_ts};
 
@@ -490,8 +490,8 @@ module wb4_monitor
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
-    assign monbus_packet    = w_skid_rd_data[MONBUS_TOTAL_W-1 -: monitor_common_pkg::MONBUS_PKT_WIDTH];
-    assign monbus_timestamp = w_skid_rd_data[monitor_common_pkg::MONBUS_TS_WIDTH-1 : 0];
+    assign monbus_packet    = w_skid_rd_data[MONBUS_TOTAL_W-1 -: ocelus_common_pkg::MONBUS_PKT_WIDTH];
+    assign monbus_timestamp = w_skid_rd_data[ocelus_common_pkg::MONBUS_TS_WIDTH-1 : 0];
 
     // Ports kept for family uniformity that this ocelus does not act on yet.
     /* verilator lint_off UNUSEDSIGNAL */

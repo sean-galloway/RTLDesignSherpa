@@ -69,7 +69,7 @@ def strip_comments(text: str) -> str:
 def port_name(tail: str):
     """The port identifier from a direction-led declaration tail.
 
-    Handles qualified types (`monitor_common_pkg::monbus_timestamp_t sig`),
+    Handles qualified types (`ocelus_common_pkg::monbus_timestamp_t sig`),
     packed dimensions, and trailing commas/comments -- the name is the LAST
     bare identifier outside any bracket.
     """

@@ -191,7 +191,7 @@ def facts(sv_path, incdirs=(), verilator='verilator'):
                 cmd += ['-y', y]
             # -y resolves MODULES, not packages. A module that imports a
             # package in its header (axi_monitor_trans_mgr imports
-            # monitor_common_pkg) cannot elaborate unless the package source
+            # ocelus_common_pkg) cannot elaborate unless the package source
             # is compiled first, so pass every package explicitly, commons
             # ahead of the packages that build on them.
             for pkg in _packages():

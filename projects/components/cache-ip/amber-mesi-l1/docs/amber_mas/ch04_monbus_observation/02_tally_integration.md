@@ -38,7 +38,7 @@ The drop counter is 8 bits. The probability of 256 consecutive drops in a correc
 Amber's MonBus connects to the shared `monbus_tally_axil` agent exactly like STREAM and every other component in the repo. The agent:
 
 1. Accepts `mon_valid`/`mon_ready`.
-2. Parses the 128-bit packet using `monitor_common_pkg`.
+2. Parses the 128-bit packet using `ocelus_common_pkg`.
 3. Maintains per-event-class counters in AXI-Lite addressable registers.
 4. Reports dropped-packet counts.
 

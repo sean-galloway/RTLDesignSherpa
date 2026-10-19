@@ -92,7 +92,7 @@ On a miss, `l1_control` re-drives the original latched request into its own hit 
 
 ### Packet format
 
-Standard MonBus 128-bit packet with house UNIT/AGENT ids. The exact field layout follows the shared `monitor_common_pkg` spec; the MAS does not invent a new layout.
+Standard MonBus 128-bit packet with house UNIT/AGENT ids. The exact field layout follows the shared `ocelus_common_pkg` spec; the MAS does not invent a new layout.
 
 ### Drop-and-count
 

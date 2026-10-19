@@ -1103,8 +1103,8 @@ module amber_pair_harness
     // ------------------------------------------------------------------
     logic                    arb_vld [2];
     logic                    arb_rdy [2];
-    monitor_common_pkg::monitor_packet_t   arb_pkt [2];
-    monitor_common_pkg::monbus_timestamp_t arb_ts  [2];
+    ocelus_common_pkg::monitor_packet_t   arb_pkt [2];
+    ocelus_common_pkg::monbus_timestamp_t arb_ts  [2];
 
     assign arb_vld[0] = mon0_valid;
     assign arb_vld[1] = mon1_valid;

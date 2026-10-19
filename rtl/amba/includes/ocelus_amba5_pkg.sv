@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: monitor_amba5_pkg
+// Module: ocelus_amba5_pkg
 // Purpose: AMBA5 protocol extensions (AXI5, APB5, AXIS5)
 //
 // Documentation: docs/markdown/rtl-amba/index.md
@@ -26,14 +26,14 @@
  * or define new protocol-specific event types.
  */
 // The file carries the Ocelus brand name; the package keeps its original
-// name (monitor_amba5_pkg) so the ~600 import sites stay valid. The mismatch
+// name (ocelus_amba5_pkg) so the ~600 import sites stay valid. The mismatch
 // is intentional -- tell Verilator's -Wall so (DECLFILENAME).
 /* verilator lint_off DECLFILENAME */
-package monitor_amba5_pkg;
+package ocelus_amba5_pkg;
 /* verilator lint_on DECLFILENAME */
 
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 
     // =============================================================================
     // AXI5 EXTENDED EVENT CODES
@@ -342,4 +342,4 @@ package monitor_amba5_pkg;
         endcase
     endfunction
 
-endpackage : monitor_amba5_pkg
+endpackage : ocelus_amba5_pkg

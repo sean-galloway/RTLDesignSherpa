@@ -29,7 +29,7 @@ grant_ack / block_arb are all inputs) and emits its own telemetry packets --
 it performs NO arbitration and has no stream-merge inputs. The N:1 ocelus-bus
 merge is a different module, monbus_arbiter.
 
-PACKET FORMAT: the emitted packet is monitor_common_pkg::monitor_packet_t --
+PACKET FORMAT: the emitted packet is ocelus_common_pkg::monitor_packet_t --
 128 bits, plus a 64-bit side-band timestamp. The field positions are owned by
 that package (see monitor_package_spec.md); they are deliberately NOT restated
 here. This banner previously carried a hand-copied 60-bit layout
@@ -104,13 +104,13 @@ module arbiter_monbus_common #(
     input  logic [7:0]                    cfg_mon_sample_period,
 
     // Free-running ocelus-time broadcast from the monbus_group family
-    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t i_mon_time,
 
     // Ocelus bus output - 128-bit event packet + side-band timestamp
     output logic                          monbus_valid,
     input  logic                          monbus_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_timestamp,
+    output ocelus_common_pkg::monitor_packet_t   monbus_packet,
+    output ocelus_common_pkg::monbus_timestamp_t monbus_timestamp,
 
     // Enhanced debug outputs for silicon debug
     output logic [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count,
@@ -124,11 +124,11 @@ module arbiter_monbus_common #(
 );
 
     // Import ocelus package for event types and helper functions
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
-    import monitor_arbiter_pkg::*;
-    // NOTE: `import monitor_pkg::*;` intentionally omitted -- its helper
-    // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
+    import ocelus_arbiter_pkg::*;
+    // NOTE: `import ocelus_pkg::*;` intentionally omitted -- its helper
+    // functions (get_packet_type etc.) duplicate ocelus_common_pkg's, and
     // Vivado flags the duplicates as ambiguous under wildcard imports.
 
     // =========================================================================
@@ -844,7 +844,7 @@ module arbiter_monbus_common #(
     );
 
     // Optional: Additional debug wires to see packet breakdown in waveforms
-    // (128-bit layout — matches monitor_common_pkg::create_monitor_packet)
+    // (128-bit layout — matches ocelus_common_pkg::create_monitor_packet)
     assign w_packet_debug_fields = {
         w_packet_pkt_type,    // [127:124]
         15'h0,                // [123:109] reserved

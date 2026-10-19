@@ -33,8 +33,8 @@
 `timescale 1ns / 1ps
 
 module axi_monitor_pktgen_dut
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     parameter int MAX_TRANSACTIONS = 4,
     parameter int INTR_FIFO_DEPTH  = 8,

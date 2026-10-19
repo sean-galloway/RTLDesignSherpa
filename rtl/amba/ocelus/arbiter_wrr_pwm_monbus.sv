@@ -130,13 +130,13 @@ module arbiter_wrr_pwm_monbus #(
     input  logic [7:0]                    cfg_mon_sample_period,
 
     // Free-running ocelus-time broadcast from the monbus_group family
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Ocelus bus output - 128-bit packet + 64-bit side-band timestamp
     output logic                                    monbus_valid,
     input  logic                                    monbus_ready,
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,
-    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,
+    output ocelus_common_pkg::monitor_packet_t     monbus_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   monbus_timestamp,
 
     // Enhanced debug outputs for silicon debug (matching modern interface)
     output logic [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count,

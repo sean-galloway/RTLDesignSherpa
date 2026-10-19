@@ -31,7 +31,7 @@
 
 `include "reset_defs.svh"
 module axi4_slave_wr_mon_cg
-    import monitor_pkg::*;
+    import ocelus_pkg::*;
 #(
     // AXI4 Slave parameters (passed through to axi4_slave_wr_mon)
     parameter int SKID_DEPTH_AW     = 2,
@@ -212,13 +212,13 @@ module axi4_slave_wr_mon_cg
     input  logic [IW:0]                                                cfg_id_match_count,
 
     // Free-running ocelus-time broadcast from the monbus_group family
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Ocelus Bus Output
     output logic                                    monbus_valid,            // Ocelus bus valid
     input  logic                                    monbus_ready,            // Ocelus bus ready
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
-    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
+    output ocelus_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
+    output ocelus_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     // Status outputs for clock gating and monitoring
     output logic                       busy,

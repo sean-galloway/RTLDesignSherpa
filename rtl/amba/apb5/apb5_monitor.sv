@@ -36,9 +36,9 @@
 `include "reset_defs.svh"
 
 module apb5_monitor
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
-    import monitor_amba5_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
+    import ocelus_amba5_pkg::*;
 #(
     parameter bit USE_MONITOR         = 1'b1,  // 0 = omit ocelus body, tie outputs
     parameter int N_ADDR_RANGES       = 0,     // 0 = address-range checker disabled
@@ -123,13 +123,13 @@ module apb5_monitor
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_high,
 
     // Free-running ocelus-time broadcast from the monbus_group family
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Consolidated 128-bit event packet interface (ocelus bus)
     output logic                                    monbus_valid,
     input  logic                                    monbus_ready,
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,      // 128-bit packet
-    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,   // Side-band sampled time
+    output ocelus_common_pkg::monitor_packet_t     monbus_packet,      // 128-bit packet
+    output ocelus_common_pkg::monbus_timestamp_t   monbus_timestamp,   // Side-band sampled time
 
     // Status outputs
     output logic [7:0]               active_count,
@@ -742,15 +742,15 @@ module apb5_monitor
     // -------------------------------------------------------------------------
     logic                                    w_monbus_pkt_valid;
     logic                                    w_monbus_pkt_ready;
-    monitor_common_pkg::monitor_packet_t     w_monbus_pkt_data;
-    monitor_common_pkg::monbus_timestamp_t   w_monbus_pkt_ts;
+    ocelus_common_pkg::monitor_packet_t     w_monbus_pkt_data;
+    ocelus_common_pkg::monbus_timestamp_t   w_monbus_pkt_ts;
 
     // FIFO-side packet (reconstructed from monitor_entry_t into the 128-bit layout)
-    monitor_common_pkg::monitor_packet_t     w_fifo_pkt_data;
+    ocelus_common_pkg::monitor_packet_t     w_fifo_pkt_data;
 
-    assign w_fifo_pkt_data = monitor_common_pkg::create_monitor_packet(
+    assign w_fifo_pkt_data = ocelus_common_pkg::create_monitor_packet(
         w_fifo_rd_data.packet_type,                                // 4-bit packet_type
-        monitor_common_pkg::PROTOCOL_APB,                          // 4-bit protocol
+        ocelus_common_pkg::PROTOCOL_APB,                          // 4-bit protocol
         w_fifo_rd_data.event_code,                                 // 8-bit event_code
         9'h0,                                                      // 9-bit channel_id (unused for APB)
         UNIT_ID,                                                   // 8-bit unit_id
@@ -764,8 +764,8 @@ module apb5_monitor
     // Priority: FIFO (regular events) > addr_check (range violations).
     // addr_check stalls until the FIFO drains, then drains itself.
     logic                                    w_addr_pkt_valid;
-    monitor_common_pkg::monitor_packet_t     w_addr_pkt_data;
-    monitor_common_pkg::monbus_timestamp_t   w_addr_pkt_timestamp;
+    ocelus_common_pkg::monitor_packet_t     w_addr_pkt_data;
+    ocelus_common_pkg::monbus_timestamp_t   w_addr_pkt_timestamp;
     logic                                    w_addr_pkt_ready;
 
     if (N_ADDR_RANGES > 0) begin : gen_addr_check
@@ -819,7 +819,7 @@ module apb5_monitor
 
     // Ocelus bus output skid buffer — carries {packet[128], timestamp[64]}.
     localparam int MONBUS_TOTAL_W =
-        monitor_common_pkg::MONBUS_PKT_WIDTH + monitor_common_pkg::MONBUS_TS_WIDTH;
+        ocelus_common_pkg::MONBUS_PKT_WIDTH + ocelus_common_pkg::MONBUS_TS_WIDTH;
 
     logic [MONBUS_TOTAL_W-1:0] w_skid_wr_data;
     logic [MONBUS_TOTAL_W-1:0] w_skid_rd_data;
@@ -843,8 +843,8 @@ module apb5_monitor
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
-    assign monbus_packet    = w_skid_rd_data[MONBUS_TOTAL_W-1 -: monitor_common_pkg::MONBUS_PKT_WIDTH];
-    assign monbus_timestamp = w_skid_rd_data[monitor_common_pkg::MONBUS_TS_WIDTH-1 : 0];
+    assign monbus_packet    = w_skid_rd_data[MONBUS_TOTAL_W-1 -: ocelus_common_pkg::MONBUS_PKT_WIDTH];
+    assign monbus_timestamp = w_skid_rd_data[ocelus_common_pkg::MONBUS_TS_WIDTH-1 : 0];
 
     end else begin : gen_no_monitor
         // Ocelus omitted: tie outputs to non-blocking defaults.

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Formal verification Makefile for scheduler_group_array
-# Workflow: sed strips monitor_pkg imports -> sv2v flattens -> sby reads plain Verilog
+# Workflow: sed strips ocelus_pkg imports -> sv2v flattens -> sby reads plain Verilog
 #
 # This module has the largest dependency tree in STREAM:
 #   scheduler_group_array -> scheduler_group (x8) -> descriptor_engine -> gaxi_fifo_sync, gaxi_skid_buffer
@@ -21,14 +21,14 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
        -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
 
 # Package files (order matters: dependencies first)
-# monitor_pkg_stub.sv provides an empty monitor_pkg so sv2v resolves the import
+# monitor_pkg_stub.sv provides an empty ocelus_pkg so sv2v resolves the import
 PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
         monitor_pkg_stub.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
 
-# All RTL dependencies requiring monitor_pkg stripping
+# All RTL dependencies requiring ocelus_pkg stripping
 # (axi4_master_rd_mon and its monitor infrastructure)
 # The array carries axi4_master_rd_monlite since rtl/amba/monitors TASK-001
 # (2026-09-28: the list used to name the retired full-monitor stack).
@@ -37,7 +37,7 @@ MON_DEPS := $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_addr_check.sv \
             $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd.sv \
             $(REPO_ROOT)/rtl/amba/axi4/axi4_master_rd_monlite.sv
 
-# RTL dependencies that do NOT import monitor_pkg
+# RTL dependencies that do NOT import ocelus_pkg
 CLEAN_DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
               $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
               $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
@@ -76,8 +76,8 @@ cover: scheduler_group_array_flat.v
 scheduler_group_array_flat.v: $(DUT) $(PKGS) $(MON_DEPS) $(CLEAN_DEPS) patch_flat.py
 	@mkdir -p $(TMPDIR)
 	@for f in $(MON_DEPS); do \
-		sed -e 's/import monitor_pkg::\*;//g' \
-		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+		sed -e 's/import ocelus_pkg::\*;//g' \
+		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
 	done
 	$(SV2V) $(INC) $(PKGS) \
 		$(CLEAN_DEPS) \
@@ -110,8 +110,8 @@ check-flat: .check_flat_tmp
 .check_flat_tmp: $(DUT) $(PKGS) $(MON_DEPS) $(CLEAN_DEPS) patch_flat.py
 	@mkdir -p $(TMPDIR)
 	@for f in $(MON_DEPS); do \
-		sed -e 's/import monitor_pkg::\*;//g' \
-		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+		sed -e 's/import ocelus_pkg::\*;//g' \
+		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
 	done
 	$(SV2V) $(INC) $(PKGS) \
 		$(CLEAN_DEPS) \

@@ -215,13 +215,13 @@ module scheduler_group_array #(
 
     // Free-running monitor-time broadcast (forwarded to all sub-blocks and
     // to the AXI master monitor; consumed by the monbus arbiter side-band).
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
-    output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t     mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -245,8 +245,8 @@ module scheduler_group_array #(
 
     logic [NUM_CHANNELS-1:0]                                            mon_valid_ch;
     logic [NUM_CHANNELS-1:0]                                            mon_ready_ch;
-    monitor_common_pkg::monitor_packet_t                                mon_packet_ch     [NUM_CHANNELS];
-    monitor_common_pkg::monbus_timestamp_t                              mon_timestamp_ch  [NUM_CHANNELS];
+    ocelus_common_pkg::monitor_packet_t                                mon_packet_ch     [NUM_CHANNELS];
+    ocelus_common_pkg::monbus_timestamp_t                              mon_timestamp_ch  [NUM_CHANNELS];
 
     //=========================================================================
     // Internal Signals - Descriptor AXI Arbitration
@@ -286,21 +286,21 @@ module scheduler_group_array #(
     // MonBus from descriptor AXI monitor
     logic                                       desc_axi_mon_valid;
     logic                                       desc_axi_mon_ready;
-    monitor_common_pkg::monitor_packet_t        desc_axi_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      desc_axi_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        desc_axi_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      desc_axi_mon_timestamp;
 
     // Combined MonBus arrays (9 sources: 8 channels + 1 desc AXI monitor)
     // per channel: one stream per channel (scheduler_group) + desc AXI monitor;
     // shared: one per scheduler + the shared descriptor engine + the monitor
     localparam int MONBUS_SOURCES = (SHARED_ENGINES != 0) ? NUM_CHANNELS + 2 : NUM_CHANNELS + 1;
     logic                                       sh_desc_mon_valid, sh_desc_mon_ready;
-    monitor_common_pkg::monitor_packet_t        sh_desc_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t      sh_desc_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t        sh_desc_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t      sh_desc_mon_timestamp;
     // Use unpacked arrays to match monbus_arbiter port types
     logic                                       monbus_valid_all     [MONBUS_SOURCES];
     logic                                       monbus_ready_all     [MONBUS_SOURCES];
-    monitor_common_pkg::monitor_packet_t        monbus_packet_all    [MONBUS_SOURCES];
-    monitor_common_pkg::monbus_timestamp_t      monbus_timestamp_all [MONBUS_SOURCES];
+    ocelus_common_pkg::monitor_packet_t        monbus_packet_all    [MONBUS_SOURCES];
+    ocelus_common_pkg::monbus_timestamp_t      monbus_timestamp_all [MONBUS_SOURCES];
 
     //=========================================================================
     // Scheduler Group Array Instantiation

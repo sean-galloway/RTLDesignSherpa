@@ -772,11 +772,11 @@ module scheduler (
 	output wire dbg_read_error_sticky;
 	output wire dbg_write_error_sticky;
 	output wire dbg_timeout_expired;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire mon_valid;
 	input wire mon_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (DESC_WIDTH != 256) begin
@@ -1244,9 +1244,9 @@ module scheduler (
 	assign w_timeout_expired = cfg_sched_timeout_enable && (r_timeout_counter >= cfg_sched_timeout_cycles);
 	assign w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0) && (r_timeout_strikes >= cfg_sched_timeout_limit);
 	assign w_hard_error = (((descriptor_error || sched_rd_error) || sched_wr_error) || r_read_error_sticky) || r_write_error_sticky;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -1254,7 +1254,7 @@ module scheduler (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
 	localparam [7:0] stream_pkg_STREAM_EVENT_DESC_COMPLETE = 8'h01;
 	localparam [7:0] stream_pkg_STREAM_EVENT_DESC_START = 8'h00;
@@ -1276,30 +1276,30 @@ module scheduler (
 				7'b0000010: begin
 					r_mon_valid <= 1'b1;
 					r_mon_timestamp <= i_mon_time;
-					r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_START, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+					r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_START, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 				end
 				7'b0000100:
 					if (w_wr_advance) begin
 						r_mon_valid <= 1'b1;
 						r_mon_timestamp <= i_mon_time;
 						if (r_descriptor[193])
-							r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_IRQ, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+							r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_IRQ, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 						else
-							r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_COMPLETE, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+							r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_COMPLETE, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 					end
 				7'b0001000: begin
 					r_mon_valid <= 1'b1;
 					r_mon_timestamp <= i_mon_time;
 					if (r_descriptor[193])
-						r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_IRQ, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+						r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_IRQ, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 					else
-						r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_COMPLETE, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+						r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_COMPLETE, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 				end
 				7'b0100000:
 					if (!r_error_pkt_sent) begin
 						r_mon_valid <= 1'b1;
 						r_mon_timestamp <= i_mon_time;
-						r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeError, 4'h4, stream_pkg_STREAM_EVENT_ERROR, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {29'h00000000, r_write_error_sticky, r_read_error_sticky, 33'h000000000});
+						r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeError, 4'h4, stream_pkg_STREAM_EVENT_ERROR, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {29'h00000000, r_write_error_sticky, r_read_error_sticky, 33'h000000000});
 						r_error_pkt_sent <= 1'b1;
 					end
 				default:

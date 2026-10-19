@@ -82,11 +82,11 @@ module ctrlrd_engine_shared #(
     input  logic [1:0]                        r_resp,
     input  logic                              r_last,
 
-    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t  i_mon_time,
     output logic                                   mon_valid,
     input  logic                                   mon_ready,
-    output monitor_common_pkg::monitor_packet_t    mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t    mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     logic           w_eng_valid, w_eng_ready, w_eng_error, w_eng_idle;
@@ -100,7 +100,7 @@ module ctrlrd_engine_shared #(
     logic [CW-1:0]  r_rr_ptr;
     logic           w_accept;
     logic           r_clear;     // one-cycle engine reset that clears a stale error
-    monitor_common_pkg::monitor_packet_t w_eng_mon_packet;
+    ocelus_common_pkg::monitor_packet_t w_eng_mon_packet;
 
     // Offer a request only to an idle engine with no packet waiting and no
     // error left over from the previous owner. The engine keeps its error

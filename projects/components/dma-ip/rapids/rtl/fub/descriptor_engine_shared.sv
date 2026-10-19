@@ -144,11 +144,11 @@ module descriptor_engine_shared #(
     output logic [NC-1:0]                     descriptor_engine_idle,
 
     // MonBus (one stream for every channel)
-    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t  i_mon_time,
     output logic                                   mon_valid,
     input  logic                                   mon_ready,
-    output monitor_common_pkg::monitor_packet_t    mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t    mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     localparam bit EXT_EN = (USE_ROW_COL_MAJOR_ADDRESSING != 0);
@@ -611,12 +611,12 @@ module descriptor_engine_shared #(
     // error on the R side). Both enter a small FIFO; descriptor_engine drops a
     // packet that meets backpressure, and so does this one when the FIFO is
     // full.
-    localparam int MPW = $bits(monitor_common_pkg::monitor_packet_t) +
-                         $bits(monitor_common_pkg::monbus_timestamp_t);
+    localparam int MPW = $bits(ocelus_common_pkg::monitor_packet_t) +
+                         $bits(ocelus_common_pkg::monbus_timestamp_t);
 
     logic                                  w_ev_r;
-    monitor_common_pkg::monitor_packet_t   w_pkt_r;
-    monitor_common_pkg::monitor_packet_t   w_pkt_i;
+    ocelus_common_pkg::monitor_packet_t   w_pkt_r;
+    ocelus_common_pkg::monitor_packet_t   w_pkt_i;
     logic                                  r_mv_i, r_mv_r;
     logic [MPW-1:0]                        r_md_i, r_md_r;
 
@@ -695,8 +695,8 @@ module descriptor_engine_shared #(
         .count       ()
     );
 
-    assign mon_packet    = w_mf_rd_data[MPW-1 -: $bits(monitor_common_pkg::monitor_packet_t)];
-    assign mon_timestamp = w_mf_rd_data[$bits(monitor_common_pkg::monbus_timestamp_t)-1:0];
+    assign mon_packet    = w_mf_rd_data[MPW-1 -: $bits(ocelus_common_pkg::monitor_packet_t)];
+    assign mon_timestamp = w_mf_rd_data[$bits(ocelus_common_pkg::monbus_timestamp_t)-1:0];
 
     // r_last is single-beat by construction (ARLEN = 0)
     logic unused_ok;

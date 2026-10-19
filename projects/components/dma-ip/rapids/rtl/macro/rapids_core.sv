@@ -173,8 +173,8 @@ module rapids_core #(
     // client 1 of the src half's monbus_arbiter (rtl/plane)
     input  logic                                src_plane_mon_valid,
     output logic                                src_plane_mon_ready,
-    input  monitor_common_pkg::monitor_packet_t   src_plane_mon_packet,
-    input  monitor_common_pkg::monbus_timestamp_t src_plane_mon_timestamp,
+    input  ocelus_common_pkg::monitor_packet_t   src_plane_mon_packet,
+    input  ocelus_common_pkg::monbus_timestamp_t src_plane_mon_timestamp,
 
     // Status
     output logic                                src_system_idle,
@@ -353,8 +353,8 @@ module rapids_core #(
     // client 1 of the snk half's monbus_arbiter (rtl/plane)
     input  logic                                snk_plane_mon_valid,
     output logic                                snk_plane_mon_ready,
-    input  monitor_common_pkg::monitor_packet_t   snk_plane_mon_packet,
-    input  monitor_common_pkg::monbus_timestamp_t snk_plane_mon_timestamp,
+    input  ocelus_common_pkg::monitor_packet_t   snk_plane_mon_packet,
+    input  ocelus_common_pkg::monbus_timestamp_t snk_plane_mon_timestamp,
 
     // Status
     output logic                                snk_system_idle,
@@ -452,8 +452,8 @@ module rapids_core #(
     //=========================================================================
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
-    output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp,
+    output ocelus_common_pkg::monitor_packet_t     mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   mon_timestamp,
 
     //=========================================================================
     // SINK HALF (u_snk) - direction-unique ports (no prefix)
@@ -592,13 +592,13 @@ module rapids_core #(
     //=========================================================================
     logic                                    src_mon_valid;
     logic                                    src_mon_ready;
-    monitor_common_pkg::monitor_packet_t     src_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t   src_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t     src_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t   src_mon_timestamp;
 
     logic                                    snk_mon_valid;
     logic                                    snk_mon_ready;
-    monitor_common_pkg::monitor_packet_t     snk_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t   snk_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t     snk_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t   snk_mon_timestamp;
 
     //=========================================================================
     // Source Half (memory -> AXIS, read-only)
@@ -1154,8 +1154,8 @@ module rapids_core #(
     //=========================================================================
     logic                                    core_mon_valid_in    [2];
     logic                                    core_mon_ready_in    [2];
-    monitor_common_pkg::monitor_packet_t     core_mon_packet_in   [2];
-    monitor_common_pkg::monbus_timestamp_t   core_mon_timestamp_in[2];
+    ocelus_common_pkg::monitor_packet_t     core_mon_packet_in   [2];
+    ocelus_common_pkg::monbus_timestamp_t   core_mon_timestamp_in[2];
 
     // Client 0: source half
     assign core_mon_valid_in[0]     = src_mon_valid;

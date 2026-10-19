@@ -21,7 +21,7 @@
  *
  * This module provides a robust implementation for tracking AXI/AXI-Lite
  * transactions and reporting events and errors through the ocelus bus.
- * Updated to work with the enhanced monitor_pkg that supports multiple protocols.
+ * Updated to work with the enhanced ocelus_pkg that supports multiple protocols.
  *
  * Features:
  * - Transaction-based tracking for both AXI and AXI-Lite
@@ -33,7 +33,7 @@
  * - Updated for multi-protocol ocelus package
  */
 module axi_monitor_base
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     // Error Packet Identifiers (widened with 128-bit packet)
     parameter logic [7:0]  UNIT_ID    = 8'h09,    // 8-bit Unit ID
@@ -288,11 +288,11 @@ module axi_monitor_base
 );
 
     // Import standard ocelus types and constants
-    // (monitor_common_pkg already imported at module-header level for the typedefs
+    // (ocelus_common_pkg already imported at module-header level for the typedefs
     // used in the port list)
-    import monitor_amba4_pkg::*;
-    // NOTE: `import monitor_pkg::*;` intentionally omitted -- its helper
-    // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+    import ocelus_amba4_pkg::*;
+    // NOTE: `import ocelus_pkg::*;` intentionally omitted -- its helper
+    // functions (get_packet_type etc.) duplicate ocelus_common_pkg's, and
     // Vivado flags the duplicates as ambiguous under wildcard imports.
 
     // Transaction tracking table - Fixed: Use unpacked array consistently

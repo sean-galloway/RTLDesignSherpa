@@ -314,7 +314,7 @@ def build_monbus_contract(wb):
          "no partial/torn packets under backpressure",
          f"{HAS_INTERFACES}/05_observation_monbus.md"),
         ("MonBus", "mon_packet", "128", "out", "amber_monlite",
-         "Standard monitor_common_pkg packet with AMBER agent/unit ids and "
+         "Standard ocelus_common_pkg packet with AMBER agent/unit ids and "
          "event-specific payload.",
          "event classes match Chapter 4 of the MAS",
          f"{HAS_INTERFACES}/05_observation_monbus.md"),

@@ -68,13 +68,13 @@ module bridge_1x2_rd_axi5n_mon_ddr_rd_adapter
     output  logic         ddr_rd_axi_rready,
 
     // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)
-    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t i_mon_time,
 
     // Monitor side-band: rd wrapper
     output logic                                  monbus_rd_valid,
     input  logic                                  monbus_rd_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_rd_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_rd_timestamp,
+    output ocelus_common_pkg::monitor_packet_t   monbus_rd_packet,
+    output ocelus_common_pkg::monbus_timestamp_t monbus_rd_timestamp,
 
     input  logic         cfg_rd_monitor_enable,
     input  logic         cfg_rd_error_enable,

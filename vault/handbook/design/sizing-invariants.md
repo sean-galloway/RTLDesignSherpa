@@ -11,7 +11,7 @@ summary: Shared-resource capacity math lives in ONE place, never a comment.
   AR_MAX_OUTSTANDING(8) on a SHARED master (real bound 64) - "passive"
   claimed in a comment, datapath throttled from 2 channels up.
 - Invariants live in ONE place as a parameter or package function, derived
-  by every consumer. `monitor_common_pkg::cmd_entry_reserve` replaced two
+  by every consumer. `ocelus_common_pkg::cmd_entry_reserve` replaced two
   hand-synced localparams whose KEEP-IN-SYNC comment was the whole
   enforcement. A comment-encoded invariant is how that wedge shipped.
 - Where feasible, assert the invariant at elaboration or under

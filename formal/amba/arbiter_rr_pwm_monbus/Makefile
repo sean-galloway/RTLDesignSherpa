@@ -41,12 +41,12 @@ prove: arbiter_rr_pwm_monbus_flat.v
 cover: arbiter_rr_pwm_monbus_flat.v
 	sby -f arbiter_rr_pwm_monbus.sby cover
 
-# monitor_pkg re-exports sub-package types and trips sv2v "ambiguous
+# ocelus_pkg re-exports sub-package types and trips sv2v "ambiguous
 # identifier", so strip the import the way apb4_monitor does.
 arbiter_rr_pwm_monbus_flat.v: $(DUT) $(PKGS) $(DEPS)
 	@mkdir -p /tmp/formal_arbiter_rr_pwm_monbus
 	@for f in $(DEPS) $(DUT); do \
-	    sed -e 's/import monitor_pkg::\*;//g' -e 's/monitor_pkg:://g' $$f \
+	    sed -e 's/import ocelus_pkg::\*;//g' -e 's/ocelus_pkg:://g' $$f \
 	        > /tmp/formal_arbiter_rr_pwm_monbus/$$(basename $$f); \
 	done
 	# NO --exclude=Assert here: these modules carry no `ifdef FORMAL
@@ -81,7 +81,7 @@ check-flat: .check_flat_tmp
 .check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
 	@mkdir -p /tmp/formal_arbiter_rr_pwm_monbus
 	@for f in $(DEPS) $(DUT); do \
-	    sed -e 's/import monitor_pkg::\*;//g' -e 's/monitor_pkg:://g' $$f \
+	    sed -e 's/import ocelus_pkg::\*;//g' -e 's/ocelus_pkg:://g' $$f \
 	        > /tmp/formal_arbiter_rr_pwm_monbus/$$(basename $$f); \
 	done
 	# NO --exclude=Assert here: these modules carry no `ifdef FORMAL

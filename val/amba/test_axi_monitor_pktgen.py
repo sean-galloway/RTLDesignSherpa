@@ -46,7 +46,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 # ============================================================================
-# Constants mirrored from monitor_common_pkg.sv
+# Constants mirrored from ocelus_common_pkg.sv
 # ============================================================================
 PKT_ERROR      = 0x0
 PKT_COMPLETION = 0x1
@@ -65,7 +65,7 @@ N_SLOTS = 4
 
 
 def decode_monbus(pkt):
-    """Decode a 128-bit monbus packet (layout per monitor_common_pkg)."""
+    """Decode a 128-bit monbus packet (layout per ocelus_common_pkg)."""
     # Header fields decode via the house chokepoint (TBClasses.monbus.parse):
     # one field-layout source of truth + feeds MONBUS_COVERAGE. The
     # event_data sub-field splits below are test-specific and stay local.

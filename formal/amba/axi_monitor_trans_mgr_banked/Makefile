@@ -30,14 +30,14 @@ prove: axi_monitor_trans_mgr_banked_flat.v
 cover: axi_monitor_trans_mgr_banked_flat.v
 	sby -f axi_monitor_trans_mgr_banked.sby cover
 
-# Strip `import monitor_pkg::*;` and `monitor_pkg::` scope prefixes (monitor_pkg
+# Strip `import ocelus_pkg::*;` and `ocelus_pkg::` scope prefixes (ocelus_pkg
 # re-exports sub-package types and trips sv2v "ambiguous identifier"), then
 # flatten DUT + closure into a single Verilog file.
 axi_monitor_trans_mgr_banked_flat.v: $(DUT) $(PKGS) $(DEPS)
 	@mkdir -p $(TMPDIR)
 	@for f in $(DEPS) $(DUT); do \
-		sed -e 's/import monitor_pkg::\*;//g' \
-		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+		sed -e 's/import ocelus_pkg::\*;//g' \
+		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
 	done
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
 		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
@@ -66,8 +66,8 @@ check-flat: .check_flat_tmp
 .check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
 	@mkdir -p $(TMPDIR)
 	@for f in $(DEPS) $(DUT); do \
-		sed -e 's/import monitor_pkg::\*;//g' \
-		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+		sed -e 's/import ocelus_pkg::\*;//g' \
+		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
 	done
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
 		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@

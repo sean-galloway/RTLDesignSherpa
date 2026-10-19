@@ -40,12 +40,12 @@ prove: arbiter_monbus_common_flat.v
 cover: arbiter_monbus_common_flat.v
 	sby -f arbiter_monbus_common.sby cover
 
-# monitor_pkg re-exports sub-package types and trips sv2v "ambiguous
+# ocelus_pkg re-exports sub-package types and trips sv2v "ambiguous
 # identifier"; strip the import the way apb4_monitor does.
 arbiter_monbus_common_flat.v: $(DUT) $(PKGS) $(DEPS)
 	@mkdir -p $(TMPDIR)
 	@for f in $(DEPS) $(DUT); do \
-	    sed -e 's/import monitor_pkg::\*;//g' -e 's/monitor_pkg:://g' $$f \
+	    sed -e 's/import ocelus_pkg::\*;//g' -e 's/ocelus_pkg:://g' $$f \
 	        > $(TMPDIR)/$$(basename $$f); \
 	done
 	$(SV2V) --define=FORMAL $(INC) $(PKGS) \
@@ -75,7 +75,7 @@ check-flat: .check_flat_tmp
 .check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
 	@mkdir -p $(TMPDIR)
 	@for f in $(DEPS) $(DUT); do \
-	    sed -e 's/import monitor_pkg::\*;//g' -e 's/monitor_pkg:://g' $$f \
+	    sed -e 's/import ocelus_pkg::\*;//g' -e 's/ocelus_pkg:://g' $$f \
 	        > $(TMPDIR)/$$(basename $$f); \
 	done
 	$(SV2V) --define=FORMAL $(INC) $(PKGS) \

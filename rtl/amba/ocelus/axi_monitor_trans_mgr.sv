@@ -57,8 +57,8 @@
 `include "reset_defs.svh"
 
 module axi_monitor_trans_mgr
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     parameter int MAX_TRANSACTIONS    = 16,   // Maximum outstanding transactions
     parameter int ADDR_WIDTH          = 32,   // Width of address bus
@@ -275,7 +275,7 @@ module axi_monitor_trans_mgr
     // format intends to carry 38 address bits, but this table can only
     // supply 32 -- so with AW > 32 the top 6 intended bits are lost. The
     // real fix is widening bus_transaction_t.addr, which lives in
-    // monitor_amba4_pkg.sv and ripples into the reporter and timeout
+    // ocelus_amba4_pkg.sv and ripples into the reporter and timeout
     // blocks; that is outside this module and is left as a follow-up rather
     // than half-done here. The truncation is made explicit at the
     // assignment site below instead of being silent.
@@ -1010,7 +1010,7 @@ module axi_monitor_trans_mgr
     // the saturation-recovery guarantee for full tracking capacity.
     //
     // The reserve value and the recovery contract live in
-    // monitor_common_pkg::cmd_entry_reserve -- axi_monitor_base derives its
+    // ocelus_common_pkg::cmd_entry_reserve -- axi_monitor_base derives its
     // BLOCK_MARGIN from the same function, so the two cannot drift.
     // ------------------------------------------------------------------------
     localparam int CMD_ENTRY_RESERVE = cmd_entry_reserve(N);

@@ -63,7 +63,7 @@ module stream_core #(
     // The default sizes for zero backpressure, per the design rule "monitors
     // are sized so backpressure does not normally happen". Deliberately
     // OVERRIDABLE downward: the saturation-recovery contract
-    // (monitor_common_pkg::cmd_entry_reserve) guarantees an undersized
+    // (ocelus_common_pkg::cmd_entry_reserve) guarantees an undersized
     // monitor throttles and RECOVERS rather than deadlocking, and the
     // mon_small test config pins this small on purpose to keep that
     // guarantee exercised end-to-end. MON_TRANS_MARGIN (8) covers in-flight
@@ -568,11 +568,11 @@ module stream_core #(
     //=========================================================================
     // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band ts)
     //=========================================================================
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
-    output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t     mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -701,8 +701,8 @@ module stream_core #(
     //=========================================================================
     logic                                     schedgrp_mon_valid;
     logic                                     schedgrp_mon_ready;
-    monitor_common_pkg::monitor_packet_t      schedgrp_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t    schedgrp_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t      schedgrp_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t    schedgrp_mon_timestamp;
 
     // Data-read and data-write datapath monitor bus (from u_rd_axi_skid /
     // u_wr_axi_skid). These carry AddrMatch/Error/Perf packets tagged with
@@ -710,13 +710,13 @@ module stream_core #(
     // scheduler-group stream by the monbus arbiter below.
     logic                                     rdmon_mon_valid;
     logic                                     rdmon_mon_ready;
-    monitor_common_pkg::monitor_packet_t      rdmon_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t    rdmon_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t      rdmon_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t    rdmon_mon_timestamp;
 
     logic                                     wrmon_mon_valid;
     logic                                     wrmon_mon_ready;
-    monitor_common_pkg::monitor_packet_t      wrmon_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t    wrmon_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t      wrmon_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t    wrmon_mon_timestamp;
 
     //=========================================================================
     // Internal Signals - Monitor Configuration (conditional based on USE_AXI_MONITORS)
@@ -1071,8 +1071,8 @@ module stream_core #(
 
     logic                                  mon_arb_valid_in [MON_CLIENTS];
     logic                                  mon_arb_ready_in [MON_CLIENTS];
-    monitor_common_pkg::monitor_packet_t   mon_arb_packet_in[MON_CLIENTS];
-    monitor_common_pkg::monbus_timestamp_t mon_arb_ts_in    [MON_CLIENTS];
+    ocelus_common_pkg::monitor_packet_t   mon_arb_packet_in[MON_CLIENTS];
+    ocelus_common_pkg::monbus_timestamp_t mon_arb_ts_in    [MON_CLIENTS];
 
     // Client 0: scheduler-group monitor
     assign mon_arb_valid_in [0] = schedgrp_mon_valid;

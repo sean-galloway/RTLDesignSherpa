@@ -977,11 +977,11 @@ module arbiter_monbus_common (
 	input wire [15:0] cfg_mon_ack_timeout_thresh;
 	input wire [15:0] cfg_mon_efficiency_thresh;
 	input wire [7:0] cfg_mon_sample_period;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire monbus_valid;
 	input wire monbus_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] monbus_packet;
 	output wire [63:0] monbus_timestamp;
 	output wire [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count;
@@ -1455,11 +1455,11 @@ module arbiter_monbus_common (
 			r_completion_client <= w_completion_client;
 		end
 	assign w_packet_enum_protocol = w_packet_protocol;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
-	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
-	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	localparam [3:0] ocelus_common_pkg_PktTypePerf = 4'h4;
+	localparam [3:0] ocelus_common_pkg_PktTypeThreshold = 4'h2;
+	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -1469,23 +1469,23 @@ module arbiter_monbus_common (
 		w_packet_enum_arb_threshold = 8'h00;
 		w_packet_enum_arb_performance = 8'h00;
 		case (w_packet_pkt_type)
-			monitor_common_pkg_PktTypeError: w_packet_enum_arb_error = w_packet_event_code;
-			monitor_common_pkg_PktTypeTimeout: w_packet_enum_arb_timeout = w_packet_event_code;
-			monitor_common_pkg_PktTypeCompletion: w_packet_enum_arb_completion = w_packet_event_code;
-			monitor_common_pkg_PktTypeThreshold: w_packet_enum_arb_threshold = w_packet_event_code;
-			monitor_common_pkg_PktTypePerf: w_packet_enum_arb_performance = w_packet_event_code;
+			ocelus_common_pkg_PktTypeError: w_packet_enum_arb_error = w_packet_event_code;
+			ocelus_common_pkg_PktTypeTimeout: w_packet_enum_arb_timeout = w_packet_event_code;
+			ocelus_common_pkg_PktTypeCompletion: w_packet_enum_arb_completion = w_packet_event_code;
+			ocelus_common_pkg_PktTypeThreshold: w_packet_enum_arb_threshold = w_packet_event_code;
+			ocelus_common_pkg_PktTypePerf: w_packet_enum_arb_performance = w_packet_event_code;
 			default:
 				;
 		endcase
 	end
-	assign w_packet_starvation_pkt_en = r_starvation_event && cfg_mon_pkt_type_enable[monitor_common_pkg_PktTypeError];
-	assign w_packet_ack_timeout_pkt_en = r_ack_timeout_event && cfg_mon_pkt_type_enable[monitor_common_pkg_PktTypeTimeout];
-	assign w_packet_latency_thresh_pkt_en = r_latency_threshold_event && cfg_mon_pkt_type_enable[monitor_common_pkg_PktTypeThreshold];
-	assign w_packet_fairness_violation_pkt_en = r_fairness_violation_event && cfg_mon_pkt_type_enable[monitor_common_pkg_PktTypeThreshold];
-	assign w_packet_efficiency_thresh_pkt_en = r_efficiency_threshold_event && cfg_mon_pkt_type_enable[monitor_common_pkg_PktTypeThreshold];
-	assign w_packet_active_thresh_pkt_en = r_active_threshold_event && cfg_mon_pkt_type_enable[monitor_common_pkg_PktTypeThreshold];
-	assign w_packet_completion_pkt_en = r_completion_event && cfg_mon_pkt_type_enable[monitor_common_pkg_PktTypeCompletion];
-	assign w_packet_grant_perf_pkt_en = r_grant_event && cfg_mon_pkt_type_enable[monitor_common_pkg_PktTypePerf];
+	assign w_packet_starvation_pkt_en = r_starvation_event && cfg_mon_pkt_type_enable[ocelus_common_pkg_PktTypeError];
+	assign w_packet_ack_timeout_pkt_en = r_ack_timeout_event && cfg_mon_pkt_type_enable[ocelus_common_pkg_PktTypeTimeout];
+	assign w_packet_latency_thresh_pkt_en = r_latency_threshold_event && cfg_mon_pkt_type_enable[ocelus_common_pkg_PktTypeThreshold];
+	assign w_packet_fairness_violation_pkt_en = r_fairness_violation_event && cfg_mon_pkt_type_enable[ocelus_common_pkg_PktTypeThreshold];
+	assign w_packet_efficiency_thresh_pkt_en = r_efficiency_threshold_event && cfg_mon_pkt_type_enable[ocelus_common_pkg_PktTypeThreshold];
+	assign w_packet_active_thresh_pkt_en = r_active_threshold_event && cfg_mon_pkt_type_enable[ocelus_common_pkg_PktTypeThreshold];
+	assign w_packet_completion_pkt_en = r_completion_event && cfg_mon_pkt_type_enable[ocelus_common_pkg_PktTypeCompletion];
+	assign w_packet_grant_perf_pkt_en = r_grant_event && cfg_mon_pkt_type_enable[ocelus_common_pkg_PktTypePerf];
 	assign w_event_valid = ((((((w_packet_starvation_pkt_en || w_packet_ack_timeout_pkt_en) || w_packet_latency_thresh_pkt_en) || w_packet_fairness_violation_pkt_en) || w_packet_efficiency_thresh_pkt_en) || w_packet_active_thresh_pkt_en) || w_packet_completion_pkt_en) || w_packet_grant_perf_pkt_en;
 	function automatic [8:0] sv2v_cast_9;
 		input reg [8:0] inp;
@@ -1506,55 +1506,55 @@ module arbiter_monbus_common (
 		w_packet_agent_id = MON_AGENT_ID;
 		w_packet_data = 64'h0000000000000000;
 		if (w_packet_starvation_pkt_en) begin
-			w_packet_pkt_type = monitor_common_pkg_PktTypeError;
+			w_packet_pkt_type = ocelus_common_pkg_PktTypeError;
 			w_packet_event_code = 8'h00;
 			w_packet_channel_id = sv2v_cast_9(r_starvation_client);
 			w_packet_data = sv2v_cast_64(r_starvation_counters[r_starvation_client]);
 		end
 		else if (w_packet_ack_timeout_pkt_en) begin
-			w_packet_pkt_type = monitor_common_pkg_PktTypeTimeout;
+			w_packet_pkt_type = ocelus_common_pkg_PktTypeTimeout;
 			w_packet_event_code = 8'h00;
 			w_packet_channel_id = sv2v_cast_9(r_ack_timeout_client);
 			w_packet_data = sv2v_cast_64(r_ack_timers[r_ack_timeout_client]);
 		end
 		else if (w_packet_latency_thresh_pkt_en) begin
-			w_packet_pkt_type = monitor_common_pkg_PktTypeThreshold;
+			w_packet_pkt_type = ocelus_common_pkg_PktTypeThreshold;
 			w_packet_event_code = 8'h00;
 			w_packet_channel_id = sv2v_cast_9(r_latency_client);
 			w_packet_data = sv2v_cast_64(r_latency_counters[r_latency_client]);
 		end
 		else if (w_packet_fairness_violation_pkt_en) begin
-			w_packet_pkt_type = monitor_common_pkg_PktTypeThreshold;
+			w_packet_pkt_type = ocelus_common_pkg_PktTypeThreshold;
 			w_packet_event_code = 8'h02;
 			w_packet_channel_id = 9'h000;
 			w_packet_data = sv2v_cast_64(r_max_fairness_deviation);
 		end
 		else if (w_packet_efficiency_thresh_pkt_en) begin
-			w_packet_pkt_type = monitor_common_pkg_PktTypeThreshold;
+			w_packet_pkt_type = ocelus_common_pkg_PktTypeThreshold;
 			w_packet_event_code = 8'h05;
 			w_packet_channel_id = 9'h000;
 			w_packet_data = sv2v_cast_64(w_current_efficiency);
 		end
 		else if (w_packet_active_thresh_pkt_en) begin
-			w_packet_pkt_type = monitor_common_pkg_PktTypeThreshold;
+			w_packet_pkt_type = ocelus_common_pkg_PktTypeThreshold;
 			w_packet_event_code = 8'h03;
 			w_packet_channel_id = 9'h000;
 			w_packet_data = sv2v_cast_64(w_active_request_count);
 		end
 		else if (w_packet_completion_pkt_en) begin
-			w_packet_pkt_type = monitor_common_pkg_PktTypeCompletion;
+			w_packet_pkt_type = ocelus_common_pkg_PktTypeCompletion;
 			w_packet_event_code = 8'h02;
 			w_packet_channel_id = sv2v_cast_9(r_completion_client);
 			w_packet_data = sv2v_cast_64(r_completed_grants[r_completion_client]);
 		end
 		else if (w_packet_grant_perf_pkt_en) begin
-			w_packet_pkt_type = monitor_common_pkg_PktTypePerf;
+			w_packet_pkt_type = ocelus_common_pkg_PktTypePerf;
 			w_packet_event_code = 8'h00;
 			w_packet_channel_id = sv2v_cast_9(r_grant_client_id);
 			w_packet_data = sv2v_cast_64(r_grant_counters[r_grant_client_id]);
 		end
 	end
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -1562,9 +1562,9 @@ module arbiter_monbus_common (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
-	assign w_event_packet = monitor_common_pkg_create_monitor_packet(w_packet_pkt_type, w_packet_protocol, w_packet_event_code, w_packet_channel_id, w_packet_unit_id, w_packet_agent_id, w_packet_data);
+	assign w_event_packet = ocelus_common_pkg_create_monitor_packet(w_packet_pkt_type, w_packet_protocol, w_packet_event_code, w_packet_channel_id, w_packet_unit_id, w_packet_agent_id, w_packet_data);
 	assign w_packet_debug_fields = {w_packet_pkt_type, 15'h0000, w_packet_protocol, w_packet_event_code, w_packet_channel_id, w_packet_agent_id, w_packet_unit_id, w_packet_data};
 	assign w_packet_enable_mask = {w_packet_grant_perf_pkt_en, w_packet_completion_pkt_en, w_packet_active_thresh_pkt_en, w_packet_efficiency_thresh_pkt_en, w_packet_fairness_violation_pkt_en, w_packet_latency_thresh_pkt_en, w_packet_ack_timeout_pkt_en, w_packet_starvation_pkt_en};
 	assign w_fifo_wr_valid = w_event_valid;
@@ -1573,7 +1573,7 @@ module arbiter_monbus_common (
 	assign w_fifo_read_transfer = w_fifo_rd_valid & w_fifo_rd_ready;
 	gaxi_fifo_sync #(
 		.REGISTERED(0),
-		.DATA_WIDTH(monitor_common_pkg_MONBUS_PKT_WIDTH),
+		.DATA_WIDTH(ocelus_common_pkg_MONBUS_PKT_WIDTH),
 		.DEPTH(MON_FIFO_DEPTH),
 		.ALMOST_WR_MARGIN(MON_FIFO_ALMOST_MARGIN),
 		.ALMOST_RD_MARGIN(MON_FIFO_ALMOST_MARGIN)
@@ -1708,11 +1708,11 @@ module arbiter_rr_pwm_monbus (
 	input wire [15:0] cfg_mon_fairness;
 	input wire [15:0] cfg_mon_active;
 	input wire [7:0] cfg_mon_period;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire monbus_valid;
 	input wire monbus_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] monbus_packet;
 	output wire [63:0] monbus_timestamp;
 	output wire [4:0] debug_fifo_count;

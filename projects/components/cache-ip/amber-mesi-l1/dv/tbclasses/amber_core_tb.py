@@ -192,7 +192,7 @@ class FifoModel:
 
 
 def _parse_packet(pkt):
-    """monitor_common_pkg 128-bit layout (independent scored copy)."""
+    """ocelus_common_pkg 128-bit layout (independent scored copy)."""
     return {
         'pkt_type': (pkt >> 124) & 0xF,
         'protocol': (pkt >> 105) & 0xF,

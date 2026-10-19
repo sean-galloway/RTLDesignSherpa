@@ -12,7 +12,7 @@ test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_monlite.py
 
 # Contract: MAS ch04 Table 4.1.1. One 128-bit house-format packet per event
-# (monitor_common_pkg layout, PROTOCOL_CORE, designer-allocated
+# (ocelus_common_pkg layout, PROTOCOL_CORE, designer-allocated
 # AGENT_ID=16'h00A0 / UNIT_ID=8'h01, PktTypePerf; the drop report is
 # PktTypeError). event_data packing (right-aligned fields):
 #   HIT      [15:0] set | [19:16] way | [22:20] state_before |
@@ -153,7 +153,7 @@ gaps:
     (AXI-Lite register walk): this suite scores the packet stream
     directly, which is what the tally agent consumes; the hookup lands
     with l1_core where the arbitered monbus exists. The packet format
-    scored here is the house monitor_common_pkg layout the tally parses.
+    scored here is the house ocelus_common_pkg layout the tally parses.
   - >
     The E-state TRANSITION (write-hit promotion E->M, cause HIT_WR) is not
     stimulus-reachable without a tag-array backdoor (the CPU path never

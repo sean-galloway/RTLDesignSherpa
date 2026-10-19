@@ -52,7 +52,7 @@
 `include "reset_defs.svh"
 
 module cxs_intf_observer
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
     import cxs_pkg::*;
 #(
     // ---------- Tap count ----------

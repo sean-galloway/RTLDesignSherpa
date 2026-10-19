@@ -559,7 +559,7 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=includes,  # Include monitor_pkg.sv
+            includes=includes,  # Include ocelus_pkg.sv
             toplevel=toplevel,
             module=module,
             parameters=parameters,
@@ -686,7 +686,7 @@ if __name__ == "__main__":
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=includes,  # Include monitor_pkg.sv
+            includes=includes,  # Include ocelus_pkg.sv
             toplevel=toplevel,
             module=module,
             parameters=parameters,

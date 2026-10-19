@@ -2,7 +2,7 @@
 # Formal verification Makefile for ctrlrd_engine (RAPIDS control engine, Phase 2)
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog.
 # Modelled on descriptor_engine_beats: the engine imports the monitor packages
-# through rapids_imports.svh, so the same package list and monitor_pkg stub apply.
+# through rapids_imports.svh, so the same package list and ocelus_pkg stub apply.
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 

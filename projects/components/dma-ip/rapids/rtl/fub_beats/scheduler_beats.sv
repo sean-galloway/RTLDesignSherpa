@@ -170,11 +170,11 @@ module scheduler_beats #(
     output logic                        dbg_timeout_expired,    // w_timeout_expired (live)
 
     // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
-    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t  i_mon_time,
     output logic                                   mon_valid,
     input  logic                                   mon_ready,
-    output monitor_common_pkg::monitor_packet_t    mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t    mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     //=========================================================================
@@ -320,8 +320,8 @@ module scheduler_beats #(
     // Monitor packet generation
     // Registered outputs for MonBus interface
     logic r_mon_valid;
-    monitor_common_pkg::monitor_packet_t   r_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t   r_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t r_mon_timestamp;
     logic r_error_pkt_sent;   // Emit the rapids_pkg::CH_ERROR packet once per error episode
 
     // Completion flags
@@ -989,7 +989,7 @@ module scheduler_beats #(
     //=========================================================================
     // Generates 64-bit MonBus packets at key FSM state transitions
     //
-    // MonBus Packet Format (from monitor_pkg.sv):
+    // MonBus Packet Format (from ocelus_pkg.sv):
     //   [63:56] - agent_id:    RAPIDS Scheduler Agent ID (0x40)
     //   [55:52] - unit_id:     Unit identifier (0x1)
     //   [51:46] - channel_id:  Channel number (0-7)

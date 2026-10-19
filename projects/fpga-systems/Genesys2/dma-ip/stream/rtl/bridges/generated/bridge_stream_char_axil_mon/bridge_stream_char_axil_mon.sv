@@ -798,78 +798,78 @@ module bridge_stream_char_axil_mon
     // Per-wrapper monbus streams (adapter -> arbiter input)
     // ============================================================
     // Shared free-running timestamp from monbus_axil4_axil4_group
-    monitor_common_pkg::monbus_timestamp_t mon_time_w;
+    ocelus_common_pkg::monbus_timestamp_t mon_time_w;
 
     logic                                  monbus_host_0_wr_valid;
     logic                                  monbus_host_0_wr_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_host_0_wr_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_host_0_wr_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_host_0_wr_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_host_0_wr_timestamp;
     logic                                  monbus_host_0_rd_valid;
     logic                                  monbus_host_0_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_host_0_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_host_0_rd_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_host_0_rd_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_host_0_rd_timestamp;
     logic                                  monbus_stream_desc_1_rd_valid;
     logic                                  monbus_stream_desc_1_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_stream_desc_1_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_stream_desc_1_rd_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_stream_desc_1_rd_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_stream_desc_1_rd_timestamp;
     logic                                  monbus_monbus_wr_2_wr_valid;
     logic                                  monbus_monbus_wr_2_wr_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_monbus_wr_2_wr_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_monbus_wr_2_wr_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_monbus_wr_2_wr_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_monbus_wr_2_wr_timestamp;
     logic                                  monbus_stream_apb_0_wr_valid;
     logic                                  monbus_stream_apb_0_wr_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_stream_apb_0_wr_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_stream_apb_0_wr_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_stream_apb_0_wr_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_stream_apb_0_wr_timestamp;
     logic                                  monbus_stream_apb_0_rd_valid;
     logic                                  monbus_stream_apb_0_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_stream_apb_0_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_stream_apb_0_rd_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_stream_apb_0_rd_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_stream_apb_0_rd_timestamp;
     logic                                  monbus_harness_csr_1_wr_valid;
     logic                                  monbus_harness_csr_1_wr_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_harness_csr_1_wr_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_harness_csr_1_wr_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_harness_csr_1_wr_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_harness_csr_1_wr_timestamp;
     logic                                  monbus_harness_csr_1_rd_valid;
     logic                                  monbus_harness_csr_1_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_harness_csr_1_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_harness_csr_1_rd_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_harness_csr_1_rd_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_harness_csr_1_rd_timestamp;
     logic                                  monbus_desc_ram_2_wr_valid;
     logic                                  monbus_desc_ram_2_wr_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_desc_ram_2_wr_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_desc_ram_2_wr_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_desc_ram_2_wr_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_desc_ram_2_wr_timestamp;
     logic                                  monbus_desc_ram_2_rd_valid;
     logic                                  monbus_desc_ram_2_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_desc_ram_2_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_desc_ram_2_rd_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_desc_ram_2_rd_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_desc_ram_2_rd_timestamp;
     logic                                  monbus_stream_err_3_wr_valid;
     logic                                  monbus_stream_err_3_wr_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_stream_err_3_wr_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_stream_err_3_wr_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_stream_err_3_wr_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_stream_err_3_wr_timestamp;
     logic                                  monbus_stream_err_3_rd_valid;
     logic                                  monbus_stream_err_3_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_stream_err_3_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_stream_err_3_rd_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_stream_err_3_rd_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_stream_err_3_rd_timestamp;
     logic                                  monbus_debug_sram_4_wr_valid;
     logic                                  monbus_debug_sram_4_wr_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_debug_sram_4_wr_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_debug_sram_4_wr_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_debug_sram_4_wr_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_debug_sram_4_wr_timestamp;
     logic                                  monbus_debug_sram_4_rd_valid;
     logic                                  monbus_debug_sram_4_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_debug_sram_4_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_debug_sram_4_rd_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_debug_sram_4_rd_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_debug_sram_4_rd_timestamp;
     logic                                  monbus_dma_axil_5_wr_valid;
     logic                                  monbus_dma_axil_5_wr_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_dma_axil_5_wr_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_dma_axil_5_wr_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_dma_axil_5_wr_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_dma_axil_5_wr_timestamp;
     logic                                  monbus_dma_axil_5_rd_valid;
     logic                                  monbus_dma_axil_5_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_dma_axil_5_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_dma_axil_5_rd_timestamp;
+    ocelus_common_pkg::monitor_packet_t   monbus_dma_axil_5_rd_packet;
+    ocelus_common_pkg::monbus_timestamp_t monbus_dma_axil_5_rd_timestamp;
 
     // Arbiter output (-> monbus_axil4_axil4_group input)
     logic                                  mon_arb_monbus_valid;
     logic                                  mon_arb_monbus_ready;
-    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet;
-    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp;
+    ocelus_common_pkg::monitor_packet_t   mon_arb_monbus_packet;
+    ocelus_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp;
 
 
     // ============================================================
@@ -1294,7 +1294,7 @@ module bridge_stream_char_axil_mon
     logic        subtractive_hit_clear;
     logic subtractive_monbus_valid;
     logic subtractive_monbus_ready;
-    monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
+    ocelus_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
         .AXI_ID_WIDTH   (10),
@@ -3455,8 +3455,8 @@ module bridge_stream_char_axil_mon
     // ============================================================
     logic                                  mon_arb_monbus_valid_in     [16];
     logic                                  mon_arb_monbus_ready_in     [16];
-    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [16];
-    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [16];
+    ocelus_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [16];
+    ocelus_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [16];
     assign mon_arb_monbus_valid_in[0]     = monbus_host_0_wr_valid;
     assign monbus_host_0_wr_ready = mon_arb_monbus_ready_in[0];
     assign mon_arb_monbus_packet_in[0]    = monbus_host_0_wr_packet;

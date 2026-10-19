@@ -55,10 +55,10 @@ module axi_monitor_reporter_compl (
 	end
 	assign pkt_valid = w_has_event;
 	assign sel_idx = w_sel;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	assign pkt_type = monitor_common_pkg_PktTypeCompletion;
-	localparam [7:0] monitor_amba4_pkg_EVT_TRANS_COMPLETE = 8'h00;
-	assign pkt_event_code = monitor_amba4_pkg_EVT_TRANS_COMPLETE;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	assign pkt_type = ocelus_common_pkg_PktTypeCompletion;
+	localparam [7:0] ocelus_amba4_pkg_EVT_TRANS_COMPLETE = 8'h00;
+	assign pkt_event_code = ocelus_amba4_pkg_EVT_TRANS_COMPLETE;
 	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
 	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
 	initial _sv2v_0 = 0;
@@ -139,12 +139,12 @@ module axi_monitor_reporter_debug (
 				else
 					r_prev_state[idx] <= trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3];
 		end
-	localparam [3:0] monitor_common_pkg_PktTypeDebug = 4'hf;
+	localparam [3:0] ocelus_common_pkg_PktTypeDebug = 4'hf;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		pkt_valid = 1'b0;
-		pkt_type = monitor_common_pkg_PktTypeDebug;
+		pkt_type = ocelus_common_pkg_PktTypeDebug;
 		pkt_event_code = 8'h00;
 		pkt_channel = 1'sb0;
 		pkt_data = 1'sb0;
@@ -218,8 +218,8 @@ module axi_monitor_reporter_error (
 	end
 	assign pkt_valid = w_has_event;
 	assign sel_idx = w_sel;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	assign pkt_type = monitor_common_pkg_PktTypeError;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	assign pkt_type = ocelus_common_pkg_PktTypeError;
 	assign pkt_event_code = trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 7-:8];
 	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
 	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
@@ -309,7 +309,7 @@ module axi_monitor_reporter_perf (
 			if (!(pkt_valid && !pkt_taken))
 				r_state <= w_next_state;
 		end
-	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
+	localparam [3:0] ocelus_common_pkg_PktTypePerf = 4'h4;
 	function automatic [63:0] sv2v_cast_64;
 		input reg [63:0] inp;
 		sv2v_cast_64 = inp;
@@ -318,7 +318,7 @@ module axi_monitor_reporter_perf (
 		if (_sv2v_0)
 			;
 		pkt_valid = 1'b0;
-		pkt_type = monitor_common_pkg_PktTypePerf;
+		pkt_type = ocelus_common_pkg_PktTypePerf;
 		pkt_event_code = 8'h07;
 		pkt_channel = 1'sb0;
 		pkt_data = 1'sb0;
@@ -409,7 +409,7 @@ module axi_monitor_reporter_threshold (
 				end
 		end
 	end
-	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
+	localparam [3:0] ocelus_common_pkg_PktTypeThreshold = 4'h2;
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_3
@@ -435,11 +435,11 @@ module axi_monitor_reporter_threshold (
 						r_latency_over_thresh[idx] <= (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold);
 					end
 			end
-			if (((w_active_detect && pkt_taken) && (pkt_type == monitor_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h00))
+			if (((w_active_detect && pkt_taken) && (pkt_type == ocelus_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h00))
 				r_active_crossed <= 1'b1;
 			else if ({8'h00, w_active_count} <= active_trans_threshold)
 				r_active_crossed <= 1'b0;
-			if (((w_has_lat && pkt_taken) && (pkt_type == monitor_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h01))
+			if (((w_has_lat && pkt_taken) && (pkt_type == ocelus_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h01))
 				r_latency_crossed <= 1'b1;
 			else if (!w_has_lat)
 				r_latency_crossed <= 1'b0;
@@ -448,7 +448,7 @@ module axi_monitor_reporter_threshold (
 		if (_sv2v_0)
 			;
 		pkt_valid = 1'b0;
-		pkt_type = monitor_common_pkg_PktTypeThreshold;
+		pkt_type = ocelus_common_pkg_PktTypeThreshold;
 		pkt_event_code = 8'h00;
 		pkt_channel = 1'sb0;
 		pkt_data = 1'sb0;
@@ -526,8 +526,8 @@ module axi_monitor_reporter_timeout (
 	end
 	assign pkt_valid = w_has_event;
 	assign sel_idx = w_sel;
-	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
-	assign pkt_type = monitor_common_pkg_PktTypeTimeout;
+	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
+	assign pkt_type = ocelus_common_pkg_PktTypeTimeout;
 	assign pkt_event_code = trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 7-:8];
 	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
 	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
@@ -869,7 +869,7 @@ module axi_monitor_reporter (
 	input wire cfg_debug_enable;
 	input wire monbus_ready;
 	output reg monbus_valid;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output reg [127:0] monbus_packet;
 	output wire [15:0] event_count;
 	output wire [15:0] perf_completed_count;
@@ -1264,8 +1264,8 @@ module axi_monitor_reporter (
 	reg [7:0] r_event_code;
 	reg [63:0] r_event_data;
 	reg [8:0] r_event_channel;
-	localparam [7:0] monitor_amba4_pkg_EVT_NONE = 8'h00;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
+	localparam [7:0] ocelus_amba4_pkg_EVT_NONE = 8'h00;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
 	function automatic [15:0] sv2v_cast_16;
 		input reg [15:0] inp;
 		sv2v_cast_16 = inp;
@@ -1280,8 +1280,8 @@ module axi_monitor_reporter (
 			monbus_valid <= 1'b0;
 			r_event_count <= 1'sb0;
 			r_event_reported <= 1'sb0;
-			r_packet_type <= monitor_common_pkg_PktTypeError;
-			r_event_code <= monitor_amba4_pkg_EVT_NONE;
+			r_packet_type <= ocelus_common_pkg_PktTypeError;
+			r_event_code <= ocelus_amba4_pkg_EVT_NONE;
 			r_event_data <= 1'sb0;
 			r_event_channel <= 1'sb0;
 		end
@@ -1334,7 +1334,7 @@ module axi_monitor_reporter (
 	assign thresh_taken = (thresh_valid && !monbus_valid) && !w_fifo_rd_valid;
 	assign perf_taken = ((perf_valid && !monbus_valid) && !w_fifo_rd_valid) && !thresh_valid;
 	assign debug_taken = (((debug_valid && !monbus_valid) && !w_fifo_rd_valid) && !thresh_valid) && !perf_valid;
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -1342,12 +1342,12 @@ module axi_monitor_reporter (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		monbus_packet = monitor_common_pkg_create_monitor_packet(r_packet_type, 4'h0, r_event_code, r_event_channel, UNIT_ID, AGENT_ID, r_event_data);
+		monbus_packet = ocelus_common_pkg_create_monitor_packet(r_packet_type, 4'h0, r_event_code, r_event_channel, UNIT_ID, AGENT_ID, r_event_data);
 	end
 	wire unused_fifo_count;
 	assign unused_fifo_count = |w_fifo_count;

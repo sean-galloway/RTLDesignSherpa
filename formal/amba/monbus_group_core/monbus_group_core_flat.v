@@ -951,9 +951,9 @@ module monbus_compressor (
 	input wire clear;
 	input wire in_valid;
 	output wire in_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	input wire [127:0] in_packet;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] in_source_ts;
 	output reg out_valid;
 	input wire out_ready;
@@ -1470,9 +1470,9 @@ module monbus_group_core (
 	input wire cam_clear;
 	input wire monbus_valid;
 	output wire monbus_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	input wire [127:0] monbus_packet;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] monbus_timestamp;
 	output wire [63:0] mon_time_out;
 	output wire irq_out;
@@ -1564,7 +1564,7 @@ module monbus_group_core (
 	assign w_use_comp = (USE_COMPRESSION != 0) && cfg_compress_en;
 	wire [15:0] w_beats_per_unit;
 	assign w_beats_per_unit = (w_use_comp ? 16'd1 : 16'd3);
-	localparam signed [31:0] ERR_REC_WIDTH = monitor_common_pkg_MONBUS_PKT_WIDTH + monitor_common_pkg_MONBUS_TS_WIDTH;
+	localparam signed [31:0] ERR_REC_WIDTH = ocelus_common_pkg_MONBUS_PKT_WIDTH + ocelus_common_pkg_MONBUS_TS_WIDTH;
 	localparam signed [31:0] WRITE_FIFO_AW = $clog2(FIFO_DEPTH_WRITE);
 	localparam signed [31:0] NUM_PROTOCOLS_LP = NUM_PROTOCOLS;
 	wire [3:0] pkt_type;
@@ -1600,34 +1600,34 @@ module monbus_group_core (
 		else
 			r_ts_counter <= r_ts_counter + 1'b1;
 	assign mon_time_out = r_ts_counter;
-	function automatic [3:0] monitor_common_pkg_get_packet_type;
+	function automatic [3:0] ocelus_common_pkg_get_packet_type;
 		input reg [127:0] pkt;
-		monitor_common_pkg_get_packet_type = pkt[127:124];
+		ocelus_common_pkg_get_packet_type = pkt[127:124];
 	endfunction
-	assign pkt_type = monitor_common_pkg_get_packet_type(monbus_packet);
+	assign pkt_type = ocelus_common_pkg_get_packet_type(monbus_packet);
 	assign pkt_protocol = monbus_packet[108:105];
-	function automatic [7:0] monitor_common_pkg_get_event_code;
+	function automatic [7:0] ocelus_common_pkg_get_event_code;
 		input reg [127:0] pkt;
-		monitor_common_pkg_get_event_code = pkt[104:97];
+		ocelus_common_pkg_get_event_code = pkt[104:97];
 	endfunction
-	assign pkt_event_code = monitor_common_pkg_get_event_code(monbus_packet);
-	function automatic [63:0] monitor_common_pkg_get_event_data;
+	assign pkt_event_code = ocelus_common_pkg_get_event_code(monbus_packet);
+	function automatic [63:0] ocelus_common_pkg_get_event_data;
 		input reg [127:0] pkt;
-		monitor_common_pkg_get_event_data = pkt[63:0];
+		ocelus_common_pkg_get_event_data = pkt[63:0];
 	endfunction
-	assign pkt_event_data = monitor_common_pkg_get_event_data(monbus_packet);
+	assign pkt_event_data = ocelus_common_pkg_get_event_data(monbus_packet);
 	assign ec_idx = pkt_event_code[3:0];
 	assign ec_in_mask_range = pkt_event_code[7:4] == 4'h0;
-	localparam [3:0] monitor_common_pkg_PktTypeAddrMatch = 4'h8;
-	localparam [3:0] monitor_common_pkg_PktTypeChannel = 4'h6;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	localparam [3:0] monitor_common_pkg_PktTypeCredit = 4'h5;
-	localparam [3:0] monitor_common_pkg_PktTypeDebug = 4'hf;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
-	localparam [3:0] monitor_common_pkg_PktTypeStream = 4'h7;
-	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
-	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
+	localparam [3:0] ocelus_common_pkg_PktTypeAddrMatch = 4'h8;
+	localparam [3:0] ocelus_common_pkg_PktTypeChannel = 4'h6;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	localparam [3:0] ocelus_common_pkg_PktTypeCredit = 4'h5;
+	localparam [3:0] ocelus_common_pkg_PktTypeDebug = 4'hf;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	localparam [3:0] ocelus_common_pkg_PktTypePerf = 4'h4;
+	localparam [3:0] ocelus_common_pkg_PktTypeStream = 4'h7;
+	localparam [3:0] ocelus_common_pkg_PktTypeThreshold = 4'h2;
+	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -1642,13 +1642,13 @@ module monbus_group_core (
 					pkt_to_err_fifo = cfg_axi_err_select[pkt_type] && !pkt_drop;
 					if (ec_in_mask_range)
 						case (pkt_type)
-							monitor_common_pkg_PktTypeError: pkt_event_masked = cfg_axi_error_mask[ec_idx];
-							monitor_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_axi_timeout_mask[ec_idx];
-							monitor_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[ec_idx];
-							monitor_common_pkg_PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[ec_idx];
-							monitor_common_pkg_PktTypePerf: pkt_event_masked = cfg_axi_perf_mask[ec_idx];
-							monitor_common_pkg_PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[ec_idx];
-							monitor_common_pkg_PktTypeDebug: pkt_event_masked = cfg_axi_debug_mask[ec_idx];
+							ocelus_common_pkg_PktTypeError: pkt_event_masked = cfg_axi_error_mask[ec_idx];
+							ocelus_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_axi_timeout_mask[ec_idx];
+							ocelus_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[ec_idx];
+							ocelus_common_pkg_PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[ec_idx];
+							ocelus_common_pkg_PktTypePerf: pkt_event_masked = cfg_axi_perf_mask[ec_idx];
+							ocelus_common_pkg_PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[ec_idx];
+							ocelus_common_pkg_PktTypeDebug: pkt_event_masked = cfg_axi_debug_mask[ec_idx];
 							default: pkt_event_masked = 1'b0;
 						endcase
 				end
@@ -1657,12 +1657,12 @@ module monbus_group_core (
 					pkt_to_err_fifo = cfg_axis_err_select[pkt_type] && !pkt_drop;
 					if (ec_in_mask_range)
 						case (pkt_type)
-							monitor_common_pkg_PktTypeError: pkt_event_masked = cfg_axis_error_mask[ec_idx];
-							monitor_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_axis_timeout_mask[ec_idx];
-							monitor_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_axis_compl_mask[ec_idx];
-							monitor_common_pkg_PktTypeCredit: pkt_event_masked = cfg_axis_credit_mask[ec_idx];
-							monitor_common_pkg_PktTypeChannel: pkt_event_masked = cfg_axis_channel_mask[ec_idx];
-							monitor_common_pkg_PktTypeStream: pkt_event_masked = cfg_axis_stream_mask[ec_idx];
+							ocelus_common_pkg_PktTypeError: pkt_event_masked = cfg_axis_error_mask[ec_idx];
+							ocelus_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_axis_timeout_mask[ec_idx];
+							ocelus_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_axis_compl_mask[ec_idx];
+							ocelus_common_pkg_PktTypeCredit: pkt_event_masked = cfg_axis_credit_mask[ec_idx];
+							ocelus_common_pkg_PktTypeChannel: pkt_event_masked = cfg_axis_channel_mask[ec_idx];
+							ocelus_common_pkg_PktTypeStream: pkt_event_masked = cfg_axis_stream_mask[ec_idx];
 							default: pkt_event_masked = 1'b0;
 						endcase
 				end
@@ -1671,12 +1671,12 @@ module monbus_group_core (
 					pkt_to_err_fifo = cfg_core_err_select[pkt_type] && !pkt_drop;
 					if (ec_in_mask_range)
 						case (pkt_type)
-							monitor_common_pkg_PktTypeError: pkt_event_masked = cfg_core_error_mask[ec_idx];
-							monitor_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_core_timeout_mask[ec_idx];
-							monitor_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_core_compl_mask[ec_idx];
-							monitor_common_pkg_PktTypeThreshold: pkt_event_masked = cfg_core_thresh_mask[ec_idx];
-							monitor_common_pkg_PktTypePerf: pkt_event_masked = cfg_core_perf_mask[ec_idx];
-							monitor_common_pkg_PktTypeDebug: pkt_event_masked = cfg_core_debug_mask[ec_idx];
+							ocelus_common_pkg_PktTypeError: pkt_event_masked = cfg_core_error_mask[ec_idx];
+							ocelus_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_core_timeout_mask[ec_idx];
+							ocelus_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_core_compl_mask[ec_idx];
+							ocelus_common_pkg_PktTypeThreshold: pkt_event_masked = cfg_core_thresh_mask[ec_idx];
+							ocelus_common_pkg_PktTypePerf: pkt_event_masked = cfg_core_perf_mask[ec_idx];
+							ocelus_common_pkg_PktTypeDebug: pkt_event_masked = cfg_core_debug_mask[ec_idx];
 							default: pkt_event_masked = 1'b0;
 						endcase
 				end
@@ -1724,7 +1724,7 @@ module monbus_group_core (
 			;
 		(* full_case, parallel_case *)
 		case (r_slice_idx)
-			2'd0: fub_s_rdata = {WRITE_TAG_RAW, err_fifo_rd_data[187:monitor_common_pkg_MONBUS_PKT_WIDTH]};
+			2'd0: fub_s_rdata = {WRITE_TAG_RAW, err_fifo_rd_data[187:ocelus_common_pkg_MONBUS_PKT_WIDTH]};
 			2'd1: fub_s_rdata = err_fifo_rd_data[127:64];
 			2'd2: fub_s_rdata = err_fifo_rd_data[63:0];
 			default: fub_s_rdata = 1'sb0;
@@ -1819,7 +1819,7 @@ module monbus_group_core (
 	reg [63:0] _unused_lat_ts = r_lat_source_ts;
 	generate
 		if (USE_COMPRESSION != 0) begin : gen_compressor
-			localparam signed [31:0] COMP_IN_W = monitor_common_pkg_MONBUS_TS_WIDTH + monitor_common_pkg_MONBUS_PKT_WIDTH;
+			localparam signed [31:0] COMP_IN_W = ocelus_common_pkg_MONBUS_TS_WIDTH + ocelus_common_pkg_MONBUS_PKT_WIDTH;
 			wire comp_skid_wr_valid;
 			wire comp_skid_wr_ready;
 			wire [COMP_IN_W - 1:0] comp_skid_wr_data;

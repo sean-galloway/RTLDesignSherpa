@@ -16,7 +16,7 @@
 `timescale 1ns / 1ps
 
 module monbus_axi4_axi4_group
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     parameter int FIFO_DEPTH_ERR       = 64,
     parameter int FIFO_DEPTH_WRITE     = 96,

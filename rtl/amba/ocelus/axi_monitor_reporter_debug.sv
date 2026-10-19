@@ -27,8 +27,8 @@
 `include "reset_defs.svh"
 
 module axi_monitor_reporter_debug
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     parameter int MAX_TRANSACTIONS = 16,
     parameter int IDX_W            = $clog2(MAX_TRANSACTIONS)

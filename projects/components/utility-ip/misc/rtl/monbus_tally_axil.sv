@@ -41,7 +41,7 @@
 `include "reset_defs.svh"
 
 module monbus_tally_axil
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     parameter int ADDR_WIDTH       = 32,
     parameter int DATA_WIDTH       = 64,   // AXIL data width (monbus beats are 64b)

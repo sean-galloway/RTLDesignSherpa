@@ -88,12 +88,12 @@ module axis4_master_monlite
     input  logic [3:0]                            cfg_freq_sel,        // counter_freq_invariant LUT index
     input  logic [15:0]                           cfg_axis_pkt_mask,   // drop mask by packet type
     input  logic [31:0]                           cfg_stall_threshold, // stall CYCLES above which Credit/BACKPRESSURE reports; 0 = off
-    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t i_mon_time,
     // ---- Ocelus bus ----
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_timestamp,
+    output ocelus_common_pkg::monitor_packet_t   monbus_packet,
+    output ocelus_common_pkg::monbus_timestamp_t monbus_timestamp,
     // ---- Status ----
     output logic                                  in_packet,           // a beat accepted on the tapped port, TLAST not yet seen
     output logic [31:0]                           packet_count,        // packets completed on the tapped port

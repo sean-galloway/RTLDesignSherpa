@@ -111,7 +111,7 @@ HALF_DELTA_BITS = 10               # delta_ts in payload[22:13]
 HALF_DATA_BITS  = 13               # event_data / ed_delta in payload[12:0]
 NOP_SLOT        = HSUB_NOP << HALF_SUB_SHIFT
 
-# Packet field positions (see monitor_common_pkg.sv)
+# Packet field positions (see ocelus_common_pkg.sv)
 _PKT_TYPE_HI, _PKT_TYPE_LO     = 127, 124
 _PROTOCOL_HI, _PROTOCOL_LO     = 108, 105
 _EVENT_CODE_HI, _EVENT_CODE_LO = 104,  97

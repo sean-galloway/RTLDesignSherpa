@@ -27,7 +27,7 @@ from TBClasses.monbus.monbus_types import PktType, AXIErrorCode, AXITimeoutCode,
 from TBClasses.monbus.monbus_validators import find_packets_by_criteria
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
-# Packet vocabulary comes from the shared monbus types (mirrors monitor_pkg.sv);
+# Packet vocabulary comes from the shared monbus types (mirrors ocelus_pkg.sv);
 # nothing is redefined here. Completion payload layout is the lite's, matching
 # the full monitor's compl reporter: event_data[AW-1:0] = address,
 # event_data[63:48] = latency in cycles (docs/markdown/rtl-amba/monitor/axi_monitor_lite.md).

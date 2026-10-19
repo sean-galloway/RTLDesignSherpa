@@ -93,13 +93,13 @@ module axi4ace_snoop_slave_monlite
     input  logic                       cfg_compl_enable,
     input  logic [15:0]                cfg_timeout_cycles,  // microseconds at full width, 0 = never
     input  logic [3:0]                 cfg_freq_sel,
-    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t i_mon_time,
 
     // ---- Ocelus bus ----
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_timestamp,
+    output ocelus_common_pkg::monitor_packet_t   monbus_packet,
+    output ocelus_common_pkg::monbus_timestamp_t monbus_timestamp,
 
     // ---- Status ----
     output logic [7:0]                            active_transactions,

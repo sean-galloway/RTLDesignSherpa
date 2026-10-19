@@ -11,7 +11,7 @@
 //          TUSER terminate here. Same role as tb_axis4_pattern_pair.sv.
 `timescale 1ns / 1ps
 module tb_axis_monitor_lite
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     parameter logic [7:0]  UNIT_ID          = 8'h09,
     parameter logic [15:0] AGENT_ID         = 16'h0064,

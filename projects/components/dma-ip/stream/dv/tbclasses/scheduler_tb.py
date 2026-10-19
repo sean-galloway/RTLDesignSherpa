@@ -1164,7 +1164,7 @@ class SchedulerTB(TBBase):
 
         for idx, packet in enumerate(self.monitor_packets_received):
             # Use the shared monbus decoder from TBClasses.monbus —
-            # the on-wire packet format lives in monitor_common_pkg.sv
+            # the on-wire packet format lives in ocelus_common_pkg.sv
             # (128-bit, with the layout documented in MonitorPacket).
             p = parse_monbus_packet(packet)
             packet_type = p.packet_type

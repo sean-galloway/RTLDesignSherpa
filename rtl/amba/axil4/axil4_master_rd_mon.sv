@@ -35,7 +35,7 @@
  * - Reduced MAX_TRANSACTIONS (typically 4-8 vs 16-32)
  */
 module axil4_master_rd_mon
-    import monitor_pkg::*;
+    import ocelus_pkg::*;
 #(
     // AXIL4 Master parameters (passed through to axil4_master_rd)
     parameter int SKID_DEPTH_AR     = 2,
@@ -168,13 +168,13 @@ module axil4_master_rd_mon
     input  logic [AW-1:0]                                          cfg_addr_filter_low,
     input  logic [AW-1:0]                                          cfg_addr_filter_high,
     // Free-running ocelus-time broadcast from the monbus_group family
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Ocelus Bus Output
     output logic                                    monbus_valid,            // Ocelus bus valid
     input  logic                                    monbus_ready,            // Ocelus bus ready
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
-    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
+    output ocelus_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
+    output ocelus_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     // Status outputs for clock gating and monitoring
     output logic                       busy,

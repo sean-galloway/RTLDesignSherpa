@@ -108,14 +108,14 @@ prove: {name}_flat.v
 cover: {name}_flat.v
 \tsby -f {name}.sby cover
 
-# Strip `import monitor_pkg::*;` and `monitor_pkg::` scope prefixes (monitor_pkg
+# Strip `import ocelus_pkg::*;` and `ocelus_pkg::` scope prefixes (ocelus_pkg
 # re-exports sub-package types and trips sv2v "ambiguous identifier"), then
 # flatten DUT + closure into a single Verilog file.
 {name}_flat.v: $(DUT) $(PKGS) $(DEPS)
 \t@mkdir -p $(TMPDIR)
 \t@for f in $(DEPS) $(DUT); do \\
-\t\tsed -e 's/import monitor_pkg::\\*;//g' \\
-\t\t    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \\
+\t\tsed -e 's/import ocelus_pkg::\\*;//g' \\
+\t\t    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \\
 \tdone
 \t$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \\
 \t\t$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@

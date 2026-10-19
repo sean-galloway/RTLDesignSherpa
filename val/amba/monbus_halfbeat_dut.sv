@@ -12,7 +12,7 @@
 `timescale 1ns / 1ps
 
 module monbus_halfbeat_dut
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 (
     input  logic                clk,
     input  logic                rst_n,

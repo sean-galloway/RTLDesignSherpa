@@ -43,7 +43,7 @@
 `timescale 1ns / 1ps
 
 // Import common RAPIDS and monitor packages
-// (rapids_imports.svh already imports monitor_common_pkg AND monitor_arbiter_pkg,
+// (rapids_imports.svh already imports ocelus_common_pkg AND ocelus_arbiter_pkg,
 //  so the CORE_COMPL_* / CORE_ERR_* constants are visible here without a
 //  separate explicit import.)
 `include "rapids_imports.svh"
@@ -131,11 +131,11 @@ module descriptor_engine_beats #(
     output logic                        descriptor_engine_idle,
 
     // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
-    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t  i_mon_time,
     output logic                                   mon_valid,
     input  logic                                   mon_ready,
-    output monitor_common_pkg::monitor_packet_t    mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t    mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     //=========================================================================
@@ -271,8 +271,8 @@ module descriptor_engine_beats #(
     // Monitor packet generation
     // Registered MonBus outputs
     logic r_mon_valid;
-    monitor_common_pkg::monitor_packet_t   r_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t   r_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t r_mon_timestamp;
 
     //=========================================================================
     // FIXED: Channel Reset Management

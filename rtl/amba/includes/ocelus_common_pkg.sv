@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: monitor_common_pkg
+// Module: ocelus_common_pkg
 // Purpose: Common ocelus bus types and functions shared across all protocols
 //
 // Documentation: docs/markdown/rtl-amba/index.md
@@ -27,10 +27,10 @@
  * packet format and one timestamp format in the codebase.
  */
 // The file carries the Ocelus brand name; the package keeps its original
-// name (monitor_common_pkg) so the ~600 import sites stay valid. The mismatch
+// name (ocelus_common_pkg) so the ~600 import sites stay valid. The mismatch
 // is intentional -- tell Verilator's -Wall so (DECLFILENAME).
 /* verilator lint_off DECLFILENAME */
-package monitor_common_pkg;
+package ocelus_common_pkg;
 /* verilator lint_on DECLFILENAME */
 
     // -------------------------------------------------------------------------
@@ -49,8 +49,8 @@ package monitor_common_pkg;
         PROTOCOL_APB    = 4'h2,  // Advanced Peripheral Bus
         PROTOCOL_ARB    = 4'h3,  // Arbiter specific packets
         PROTOCOL_CORE   = 4'h4,  // Core specific packets
-        PROTOCOL_WB     = 4'h5,  // Wishbone B4 (event codes: monitor_wb4_pkg)
-        PROTOCOL_CXS    = 4'h6   // CXS, Arm IHI 0079 (event codes: monitor_cxs_pkg)
+        PROTOCOL_WB     = 4'h5,  // Wishbone B4 (event codes: ocelus_wb4_pkg)
+        PROTOCOL_CXS    = 4'h6   // CXS, Arm IHI 0079 (event codes: ocelus_cxs_pkg)
     } protocol_type_t;
 
     // Ocelus bus packet types (used in packet_type field [127:124])
@@ -325,4 +325,4 @@ package monitor_common_pkg;
         return idx;
     endfunction
 
-endpackage : monitor_common_pkg
+endpackage : ocelus_common_pkg

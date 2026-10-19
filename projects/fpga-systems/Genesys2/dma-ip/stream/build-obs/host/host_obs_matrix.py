@@ -17,7 +17,7 @@ reads them as -- so each row here enables the cone under test and little else,
 and the matrix as a whole covers what a single run cannot.
 
 Classes NOT here, deliberately:
-  PerfWin (0xD) and PerfHist (0xE) are defined in monitor_common_pkg but have
+  PerfWin (0xD) and PerfHist (0xE) are defined in ocelus_common_pkg but have
   NO RTL emit site anywhere in the tree -- PktTypePerfWin appears only inside a
   comment. They are CSR-readable concepts, not packets. A row for them would
   fail forever and look like a defect.

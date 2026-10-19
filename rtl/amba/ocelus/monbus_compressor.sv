@@ -89,7 +89,7 @@
 `include "reset_defs.svh"
 
 module monbus_compressor
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     // 0 = 64-bit-slot codec only (default; the committed, timing-closed path).
     // 1 = also expose a 30-bit half-slot sideband (out_half_*) for the

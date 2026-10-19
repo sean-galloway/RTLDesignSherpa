@@ -16,7 +16,7 @@
 """
 AXI4/AXIL Monitor Packet Definitions - FIXED FORWARD REFERENCES
 
-Updated to align with the enhanced monitor_pkg.sv changes:
+Updated to align with the enhanced ocelus_pkg.sv changes:
 1. Updated packet format with protocol field (2 bits at [59:58])
 2. Event data reduced from 38 bits to 36 bits
 3. Support for unified event codes and multi-protocol support
@@ -76,7 +76,7 @@ class InterruptPacketType(Enum):
 
 
 class ProtocolType(Enum):
-    """Protocol types from monitor_pkg.sv"""
+    """Protocol types from ocelus_pkg.sv"""
     AXI = 0x0
     PKT = 0x1  # Packet-based protocol
     APB = 0x2

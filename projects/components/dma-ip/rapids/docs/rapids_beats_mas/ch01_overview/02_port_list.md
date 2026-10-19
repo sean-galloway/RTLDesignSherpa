@@ -575,8 +575,8 @@ The two halves' monitor outputs are merged through a top-level monbus_arbiter, s
 |--------|-----------|-------|-------------|
 | `mon_valid` | output | 1 | - |
 | `mon_ready` | input | 1 | - |
-| `mon_packet` | output | `monitor_common_pkg::monitor_packet_t` | - |
-| `mon_timestamp` | output | `monitor_common_pkg::monbus_timestamp_t` | - |
+| `mon_packet` | output | `ocelus_common_pkg::monitor_packet_t` | - |
+| `mon_timestamp` | output | `ocelus_common_pkg::monbus_timestamp_t` | - |
 
 : Table 1.2.32: Monitor Bus
 

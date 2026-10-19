@@ -72,8 +72,8 @@ module rapids_plane_axis_tx #(
     output logic [15:0]                           sts_mon_dropped_count,
     output logic                                  monbus_valid,
     input  logic                                  monbus_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_timestamp,
+    output ocelus_common_pkg::monitor_packet_t   monbus_packet,
+    output ocelus_common_pkg::monbus_timestamp_t monbus_timestamp,
 
     // ---- Outer: the AXIS network port ----
     output logic [DW-1:0]                             m_axis_tdata,

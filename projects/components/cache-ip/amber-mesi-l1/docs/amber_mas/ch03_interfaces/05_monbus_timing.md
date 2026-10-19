@@ -25,7 +25,7 @@
 
 ## Packet Format
 
-`l1_monlite` emits standard 128-bit MonBus packets plus a 64-bit side-band timestamp. The packet layout is the house `monitor_common_pkg` spec; the timestamp is sampled at the same cycle as the packet and held stable while `mon_valid` is high.
+`l1_monlite` emits standard 128-bit MonBus packets plus a 64-bit side-band timestamp. The packet layout is the house `ocelus_common_pkg` spec; the timestamp is sampled at the same cycle as the packet and held stable while `mon_valid` is high.
 
 ## Emission Timing
 

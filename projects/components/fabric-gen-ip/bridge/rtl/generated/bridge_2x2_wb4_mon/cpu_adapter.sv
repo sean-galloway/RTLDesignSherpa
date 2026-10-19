@@ -123,13 +123,13 @@ module bridge_2x2_wb4_mon_cpu_adapter
     output logic         cpu_64b_rready,
 
     // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)
-    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t i_mon_time,
 
     // Monitor side-band: wr wrapper
     output logic                                  monbus_wr_valid,
     input  logic                                  monbus_wr_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_wr_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_wr_timestamp,
+    output ocelus_common_pkg::monitor_packet_t   monbus_wr_packet,
+    output ocelus_common_pkg::monbus_timestamp_t monbus_wr_timestamp,
 
     input  logic         cfg_wr_monitor_enable,
     input  logic         cfg_wr_error_enable,
@@ -154,8 +154,8 @@ module bridge_2x2_wb4_mon_cpu_adapter
     // Monitor side-band: rd wrapper
     output logic                                  monbus_rd_valid,
     input  logic                                  monbus_rd_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_rd_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_rd_timestamp,
+    output ocelus_common_pkg::monitor_packet_t   monbus_rd_packet,
+    output ocelus_common_pkg::monbus_timestamp_t monbus_rd_timestamp,
 
     input  logic         cfg_rd_monitor_enable,
     input  logic         cfg_rd_error_enable,

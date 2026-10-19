@@ -221,7 +221,7 @@ module axi_monitor_addr_check (
 	parameter signed [31:0] IW = ID_WIDTH;
 	input wire clk;
 	input wire aresetn;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	input wire [M - 1:0] cmd_addr;
 	input wire [IW - 1:0] cmd_id;
@@ -235,7 +235,7 @@ module axi_monitor_addr_check (
 	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_high;
 	output wire addr_pkt_valid;
 	input wire addr_pkt_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] addr_pkt_data;
 	output wire [63:0] addr_pkt_timestamp;
 	wire cmd_fire;
@@ -448,20 +448,20 @@ module axi_monitor_addr_check (
 	wire [8:0] channel_id_field;
 	wire [63:0] event_data_field;
 	wire [59:0] addr_payload;
-	localparam [3:0] monitor_common_pkg_PktTypeAddrMatch = 4'h8;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
+	localparam [3:0] ocelus_common_pkg_PktTypeAddrMatch = 4'h8;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		if (emit_is_miss) begin
-			pkt_type_field = monitor_common_pkg_PktTypeError;
+			pkt_type_field = ocelus_common_pkg_PktTypeError;
 			event_code_field = 8'h0d;
 			emit_idx = MISS_RANGE_SENTINEL;
 			emit_addr = r_miss_addr;
 			emit_id = r_miss_id;
 		end
 		else begin
-			pkt_type_field = monitor_common_pkg_PktTypeAddrMatch;
+			pkt_type_field = ocelus_common_pkg_PktTypeAddrMatch;
 			event_code_field = 8'h01;
 			emit_idx = match_emit_idx;
 			emit_addr = 1'sb0;
@@ -491,7 +491,7 @@ module axi_monitor_addr_check (
 		end
 	endgenerate
 	assign event_data_field = {emit_idx[3:0], addr_payload};
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -499,9 +499,9 @@ module axi_monitor_addr_check (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
-	assign addr_pkt_data = monitor_common_pkg_create_monitor_packet(pkt_type_field, 4'h0, event_code_field, channel_id_field, UNIT_ID, AGENT_ID, event_data_field);
+	assign addr_pkt_data = ocelus_common_pkg_create_monitor_packet(pkt_type_field, 4'h0, event_code_field, channel_id_field, UNIT_ID, AGENT_ID, event_data_field);
 	assign addr_pkt_timestamp = i_mon_time;
 	initial _sv2v_0 = 0;
 endmodule
@@ -865,7 +865,7 @@ module axi_monitor_lite (
 	input wire aclk;
 	input wire aresetn;
 	input wire clear;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	input wire [AW - 1:0] cmd_addr;
 	input wire [IW - 1:0] cmd_id;
@@ -897,7 +897,7 @@ module axi_monitor_lite (
 	input wire [(NAR * AW) - 1:0] cfg_addr_range_high;
 	output wire monbus_valid;
 	input wire monbus_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] monbus_packet;
 	output wire [63:0] monbus_timestamp;
 	output wire [7:0] active_count;
@@ -1424,14 +1424,14 @@ module axi_monitor_lite (
 		input reg [3:0] t;
 		type_allowed = !cfg_axi_pkt_mask[t];
 	endfunction
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	wire w_err_en = cfg_error_enable && type_allowed(monitor_common_pkg_PktTypeError);
-	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
-	wire w_tmo_en = type_allowed(monitor_common_pkg_PktTypeTimeout);
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	wire w_cmp_en = cfg_compl_enable && type_allowed(monitor_common_pkg_PktTypeCompletion);
-	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
-	wire w_thr_en = type_allowed(monitor_common_pkg_PktTypeThreshold);
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	wire w_err_en = cfg_error_enable && type_allowed(ocelus_common_pkg_PktTypeError);
+	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
+	wire w_tmo_en = type_allowed(ocelus_common_pkg_PktTypeTimeout);
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	wire w_cmp_en = cfg_compl_enable && type_allowed(ocelus_common_pkg_PktTypeCompletion);
+	localparam [3:0] ocelus_common_pkg_PktTypeThreshold = 4'h2;
+	wire w_thr_en = type_allowed(ocelus_common_pkg_PktTypeThreshold);
 	reg w_err_v;
 	reg [7:0] w_err_code;
 	reg [SW - 1:0] w_err_slot;
@@ -1534,7 +1534,7 @@ module axi_monitor_lite (
 		w_evt_hi = 1'sb0;
 		if (w_err_v) begin
 			w_evt_v = 1'b1;
-			w_evt_type = monitor_common_pkg_PktTypeError;
+			w_evt_type = ocelus_common_pkg_PktTypeError;
 			w_evt_code = w_err_code;
 			w_evt_from_slot = w_err_has_slot;
 			w_evt_slot = w_err_slot;
@@ -1542,7 +1542,7 @@ module axi_monitor_lite (
 		end
 		else if (w_tmo_v) begin
 			w_evt_v = 1'b1;
-			w_evt_type = monitor_common_pkg_PktTypeTimeout;
+			w_evt_type = ocelus_common_pkg_PktTypeTimeout;
 			w_evt_code = w_tmo_code;
 			if (r_tmo_pend) begin
 				w_evt_id_alt = r_tmo_id;
@@ -1557,7 +1557,7 @@ module axi_monitor_lite (
 		end
 		else if (w_cmp_v) begin
 			w_evt_v = 1'b1;
-			w_evt_type = monitor_common_pkg_PktTypeCompletion;
+			w_evt_type = ocelus_common_pkg_PktTypeCompletion;
 			w_evt_code = 8'h00;
 			w_evt_from_slot = !r_cmp_pend;
 			w_evt_slot = r_e_cslot;
@@ -1567,7 +1567,7 @@ module axi_monitor_lite (
 		end
 		else if (w_thr_v) begin
 			w_evt_v = 1'b1;
-			w_evt_type = monitor_common_pkg_PktTypeThreshold;
+			w_evt_type = ocelus_common_pkg_PktTypeThreshold;
 			if (r_e_thresh) begin
 				w_evt_code = 8'h00;
 				w_evt_addr_alt = sv2v_cast_DE851(r_e_occupancy);
@@ -1646,7 +1646,7 @@ module axi_monitor_lite (
 		if (w_evt_v)
 			w_entry_in = {w_evt_type, w_evt_code, sv2v_cast_6(w_evt_id), w_evt_hi, sv2v_cast_DE851(w_evt_addr)};
 		else
-			w_entry_in = {monitor_common_pkg_PktTypeError, 30'h03800000, sv2v_cast_DE851(r_dropped)};
+			w_entry_in = {ocelus_common_pkg_PktTypeError, 30'h03800000, sv2v_cast_DE851(r_dropped)};
 	end
 	reg [63:0] w_out_data;
 	always @(*) begin
@@ -1684,7 +1684,7 @@ module axi_monitor_lite (
 		.rd_data(w_q_rd_data)
 	);
 	wire [127:0] w_q_packet;
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -1692,9 +1692,9 @@ module axi_monitor_lite (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
-	assign w_q_packet = monitor_common_pkg_create_monitor_packet(w_entry_out[12 + (AW + 21)-:((12 + (AW + 21)) >= (30 + (AW + 0)) ? ((12 + (AW + 21)) - (30 + (AW + 0))) + 1 : ((30 + (AW + 0)) - (12 + (AW + 21))) + 1)], 4'h0, w_entry_out[14 + (AW + 15)-:((14 + (AW + 15)) >= (22 + (AW + 0)) ? ((14 + (AW + 15)) - (22 + (AW + 0))) + 1 : ((22 + (AW + 0)) - (14 + (AW + 15))) + 1)], {3'b000, w_entry_out[AW + 21-:((AW + 21) >= (16 + (AW + 0)) ? ((AW + 21) - (16 + (AW + 0))) + 1 : ((16 + (AW + 0)) - (AW + 21)) + 1)]}, UNIT_ID, AGENT_ID, w_out_data);
+	assign w_q_packet = ocelus_common_pkg_create_monitor_packet(w_entry_out[12 + (AW + 21)-:((12 + (AW + 21)) >= (30 + (AW + 0)) ? ((12 + (AW + 21)) - (30 + (AW + 0))) + 1 : ((30 + (AW + 0)) - (12 + (AW + 21))) + 1)], 4'h0, w_entry_out[14 + (AW + 15)-:((14 + (AW + 15)) >= (22 + (AW + 0)) ? ((14 + (AW + 15)) - (22 + (AW + 0))) + 1 : ((22 + (AW + 0)) - (14 + (AW + 15))) + 1)], {3'b000, w_entry_out[AW + 21-:((AW + 21) >= (16 + (AW + 0)) ? ((AW + 21) - (16 + (AW + 0))) + 1 : ((16 + (AW + 0)) - (AW + 21)) + 1)]}, UNIT_ID, AGENT_ID, w_out_data);
 	wire w_addr_valid;
 	wire w_addr_ready;
 	wire [127:0] w_addr_packet;

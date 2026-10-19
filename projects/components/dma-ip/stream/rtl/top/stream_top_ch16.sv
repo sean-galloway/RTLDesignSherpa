@@ -551,9 +551,9 @@ module stream_top_ch16 #(
     //-------------------------------------------------------------------------
     logic                                          mon_valid;
     logic                                          mon_ready;
-    monitor_common_pkg::monitor_packet_t           mon_packet;
-    monitor_common_pkg::monbus_timestamp_t         mon_timestamp;
-    monitor_common_pkg::monbus_timestamp_t         mon_time_w;
+    ocelus_common_pkg::monitor_packet_t           mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t         mon_timestamp;
+    ocelus_common_pkg::monbus_timestamp_t         mon_time_w;
 
     // (The write-engine active-channel sideband is no longer surfaced here --
     //  the harness axi_bus_meter that consumed it was retired in RFC Stage E.4;

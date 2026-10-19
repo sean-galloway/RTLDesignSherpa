@@ -6,7 +6,7 @@
 # Usage:   verilator --lint-only -f filelists/amba_all.f
 #
 # Notes:
-#   - Package files MUST be listed first (monitor_pkg, axi_pkg, apb4_pkg)
+#   - Package files MUST be listed first (ocelus_pkg, axi_pkg, apb4_pkg)
 #   - Modules that import packages depend on packages being compiled first
 #   - Files organized by protocol for maintainability
 #   - Self-contained: the rtl/common, rtl/math and rtl/cdc blocks these modules
@@ -25,12 +25,12 @@ $REPO_ROOT/rtl/amba/includes/ocelus_arbiter_pkg.sv
 $REPO_ROOT/rtl/amba/includes/ocelus_amba4_pkg.sv
 $REPO_ROOT/rtl/amba/includes/ocelus_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/ocelus_pkg.sv
-# monitor_wb4_pkg is NOT re-exported by monitor_pkg (only wb4_monitor imports
+# ocelus_wb4_pkg is NOT re-exported by ocelus_pkg (only wb4_monitor imports
 # it), but the lint gate needs it declared before that module is elaborated.
 $REPO_ROOT/rtl/amba/includes/ocelus_wb4_pkg.sv
 # cxs_pkg: CXSCNTL layout + per-issue legality, imported by the cxs endpoints
 $REPO_ROOT/rtl/amba/includes/cxs_pkg.sv
-# monitor_cxs_pkg: CXS ocelus event codes (PROTOCOL_CXS); not re-exported by monitor_pkg
+# ocelus_cxs_pkg: CXS ocelus event codes (PROTOCOL_CXS); not re-exported by ocelus_pkg
 $REPO_ROOT/rtl/amba/includes/ocelus_cxs_pkg.sv
 # Protocol packages
 $REPO_ROOT/rtl/amba/wb4/wb4_pkg.sv

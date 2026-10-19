@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: monitor_amba4_pkg
+// Module: ocelus_amba4_pkg
 // Purpose: AMBA4 protocol event codes (AXI4, APB4, AXIS4)
 //
 // Documentation: docs/markdown/rtl-amba/index.md
@@ -26,13 +26,13 @@
  * threshold, performance, and debug events.
  */
 // The file carries the Ocelus brand name; the package keeps its original
-// name (monitor_amba4_pkg) so the ~600 import sites stay valid. The mismatch
+// name (ocelus_amba4_pkg) so the ~600 import sites stay valid. The mismatch
 // is intentional -- tell Verilator's -Wall so (DECLFILENAME).
 /* verilator lint_off DECLFILENAME */
-package monitor_amba4_pkg;
+package ocelus_amba4_pkg;
 /* verilator lint_on DECLFILENAME */
 
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 
     // =============================================================================
     // AXI4 PROTOCOL EVENT CODES
@@ -774,4 +774,4 @@ package monitor_amba4_pkg;
         endcase
     endfunction
 
-endpackage : monitor_amba4_pkg
+endpackage : ocelus_amba4_pkg

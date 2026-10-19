@@ -158,8 +158,8 @@ module rapids_src #(
     // in-module AXIS monitor used to sit (rapids TASK-015).
     input  logic                                plane_mon_valid,
     output logic                                plane_mon_ready,
-    input  monitor_common_pkg::monitor_packet_t   plane_mon_packet,
-    input  monitor_common_pkg::monbus_timestamp_t plane_mon_timestamp,
+    input  ocelus_common_pkg::monitor_packet_t   plane_mon_packet,
+    input  ocelus_common_pkg::monbus_timestamp_t plane_mon_timestamp,
 
     // AXI Transfer Configuration
     input  logic [7:0]                          cfg_axi_rd_xfer_beats,
@@ -303,8 +303,8 @@ module rapids_src #(
     //=========================================================================
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
-    output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp,
+    output ocelus_common_pkg::monitor_packet_t     mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t   mon_timestamp,
 
     //=========================================================================
     // Debug Interface (Source Path)
@@ -410,8 +410,8 @@ module rapids_src #(
     //=========================================================================
     logic                                    arr_mon_valid;
     logic                                    arr_mon_ready;
-    monitor_common_pkg::monitor_packet_t     arr_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t   arr_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t     arr_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t   arr_mon_timestamp;
 
     //=========================================================================
     // Beats Scheduler Group Array (READ-ONLY: EN_WRITE=0)
@@ -629,8 +629,8 @@ module rapids_src #(
     //=========================================================================
     logic                                    mon_arb_valid_in    [3];
     logic                                    mon_arb_ready_in    [3];
-    monitor_common_pkg::monitor_packet_t     mon_arb_packet_in   [3];
-    monitor_common_pkg::monbus_timestamp_t   mon_arb_timestamp_in[3];
+    ocelus_common_pkg::monitor_packet_t     mon_arb_packet_in   [3];
+    ocelus_common_pkg::monbus_timestamp_t   mon_arb_timestamp_in[3];
 
     // Client 0: scheduler group array
     assign mon_arb_valid_in[0]     = arr_mon_valid;

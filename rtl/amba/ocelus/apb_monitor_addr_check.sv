@@ -43,8 +43,8 @@
  * Set both addr_low[i] and addr_high[i] equal for exact-match semantics.
  */
 module apb_monitor_addr_check
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     parameter int N_ADDR_RANGES = 4,
     parameter int ADDR_WIDTH    = 32,

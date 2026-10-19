@@ -8,7 +8,7 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Ocelus type packages only - no modules. For consumers whose port lists
-# reference monitor_common_pkg::monitor_packet_t and friends by name but
+# reference ocelus_common_pkg::monitor_packet_t and friends by name but
 # that do not instantiate a ocelus.
 $REPO_ROOT/rtl/amba/includes/ocelus_common_pkg.sv
 $REPO_ROOT/rtl/amba/includes/ocelus_amba4_pkg.sv

@@ -52,7 +52,7 @@ summary: Stability rules; observers gate commands only, never responses.
   COMMAND channels only - responses/data must never be stalled. Monitors
   size so backpressure does not normally happen ([[sizing-invariants]]),
   but when it does, blocking must throttle-and-recover, never deadlock
-  (the saturation-recovery contract, monitor_common_pkg::cmd_entry_reserve).
+  (the saturation-recovery contract, ocelus_common_pkg::cmd_entry_reserve).
 - **W must not lead AW on any bus carrying an AXI4 write monitor** (owner
   design law, 2026-08-14). AXI4 W beats have no WID, so a monitor attributes
   them by AW order: `axi_monitor_trans_mgr` pushes the AWID on the AW

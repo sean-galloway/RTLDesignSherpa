@@ -44,7 +44,7 @@ Because amber has no register block, the MonBus observation map replaces the tra
 
 : Table 4.1.1: MonBus event encodings
 
-The exact numeric codes are assigned in `l1_pkg` and match the house `monitor_common_pkg` allocation rules.
+The exact numeric codes are assigned in `l1_pkg` and match the house `ocelus_common_pkg` allocation rules.
 
 ## Payload Fields
 

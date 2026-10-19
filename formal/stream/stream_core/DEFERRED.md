@@ -9,7 +9,7 @@ drive the wire once, `assign fub_rd_axi_aruser = UW'(fub_rd_axi_arid)`. The
 flat confirms one declaration, one assignment, one consumer.
 
 **Two sections below are now superseded, and are kept only as history:**
-- "Files created" describes a Makefile using *sed preprocessing for monitor_pkg
+- "Files created" describes a Makefile using *sed preprocessing for ocelus_pkg
   imports*. That is gone -- the Makefile generates its closure from
   `rtl/filelists/macro/stream_core.f` via `bin/flatten_filelist.py`
   (`271143b55`), and the seven monitor sed rules were deleted.
@@ -88,7 +88,7 @@ Yosys flatten merges these into one wire with two drivers.
 All formal infrastructure files are complete and ready for use once the blocker
 is resolved:
 
-- `Makefile` -- sv2v with sed preprocessing for monitor_pkg imports
+- `Makefile` -- sv2v with sed preprocessing for ocelus_pkg imports
 - `stream_core.sby` -- SymbiYosys configuration (depth 15 BMC)
 - `formal_stream_core.sv` -- Formal wrapper with properties
 
@@ -109,8 +109,8 @@ is resolved:
    passthrough in `axi4_master_rd.sv` and `axi4_master_wr.sv`, or by
    setting `AXI_USER_WIDTH` >= 2 in the formal wrapper
 
-### sv2v workaround for monitor_pkg
+### sv2v workaround for ocelus_pkg
 
-The Makefile includes a sed preprocessing step that replaces `import monitor_pkg::*`
+The Makefile includes a sed preprocessing step that replaces `import ocelus_pkg::*`
 with individual sub-package imports to work around sv2v's typedef re-export
 ambiguity. This workaround is proven to work (the flat file builds successfully).

@@ -15,7 +15,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
 
-# Package files - STREAM only needs monitor_common_pkg (not the full monitor_pkg)
+# Package files - STREAM only needs ocelus_common_pkg (not the full ocelus_pkg)
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
 # Stream components - allocation controller and latency bridge

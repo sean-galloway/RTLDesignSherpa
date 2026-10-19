@@ -47,7 +47,7 @@
 //   ends with a HIT event; an upgrade commits its S->M tag write in
 //   FILL_WRITE (TRANSITION) and replays as a hit at M.
 //
-//   Packet format: the house monitor_common_pkg 128-bit layout built with
+//   Packet format: the house ocelus_common_pkg 128-bit layout built with
 //   create_monitor_packet -- PktTypePerf for event classes, PROTOCOL_CORE,
 //   designer-allocated AGENT_ID / UNIT_ID, channel/reserved zero. The
 //   64-bit event_data packing (right-aligned fields):
@@ -97,7 +97,7 @@
 //     Description: geometry per l1_pkg defaults (field widths only)
 //     Type: int
 //   AGENT_ID / UNIT_ID:
-//     Description: designer-allocated house monitor ids (monitor_common_pkg
+//     Description: designer-allocated house monitor ids (ocelus_common_pkg
 //       allocation rules; amber = 16'h00A0, monlite unit = 8'h01)
 //     Type: logic
 //   DROP_CODE:
@@ -116,7 +116,7 @@
 // Related Modules:
 //   - Instantiated by: l1_core (test harness: dv/tb/amber_monlite_th.sv)
 //   - Queue: gaxi_fifo_sync u_out_q (house shared storage primitive, D11)
-//   - Package: monitor_common_pkg (packet layout), l1_pkg (event codes,
+//   - Package: ocelus_common_pkg (packet layout), l1_pkg (event codes,
 //     ctrl_state_t, cache_state_t)
 //
 //------------------------------------------------------------------------------
@@ -128,7 +128,7 @@
 
 module l1_monlite
     import l1_pkg::*;
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     parameter int ADDR_WIDTH  = AMBER_ADDR_WIDTH,
     parameter int SETS        = AMBER_SETS,

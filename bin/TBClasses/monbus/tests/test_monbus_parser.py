@@ -33,7 +33,7 @@ from TBClasses.monbus import (  # noqa: E402
 # ---------------------------------------------------------------------------
 
 def test_field_widths_match_sv_packet_layout():
-    """Verify the bit slices match monitor_common_pkg.sv exactly:
+    """Verify the bit slices match ocelus_common_pkg.sv exactly:
     [127:124] pkt_type, [123:109] reserved, [108:105] protocol,
     [104:97] event_code, [96:88] channel_id, [87:72] agent_id,
     [71:64] unit_id, [63:0] event_data."""

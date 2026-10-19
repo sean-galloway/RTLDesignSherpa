@@ -613,15 +613,15 @@ class BridgeModuleGenerator:
             lines.append("    // Free-running monitor-time INPUT -- drive from external")
             lines.append("    // monbus_axil4_axil4_group's mon_time_out so every internal wrapper")
             lines.append("    // and the external group share one timebase.")
-            lines.append("    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,")
+            lines.append("    input  ocelus_common_pkg::monbus_timestamp_t i_mon_time,")
             lines.append("")
             lines.append("    // Post-arbiter aggregated stream (merge externally with other")
             lines.append("    // monbus sources, e.g. STREAM's monbus_axil4_axil4_group input).")
             lines.append("    output logic                                  monbus_agg_valid,")
             lines.append("    input  logic                                  monbus_agg_ready,")
-            lines.append("    output monitor_common_pkg::monitor_packet_t   monbus_agg_packet,")
+            lines.append("    output ocelus_common_pkg::monitor_packet_t   monbus_agg_packet,")
             lines.append("    // Last port -- no trailing comma.")
-            lines.append("    output monitor_common_pkg::monbus_timestamp_t monbus_agg_timestamp")
+            lines.append("    output ocelus_common_pkg::monbus_timestamp_t monbus_agg_timestamp")
         return lines
 
     def _generate_monitor_internal_signals(self, wrappers: List[MonitoredWrapper]) -> List[str]:
@@ -629,8 +629,8 @@ class BridgeModuleGenerator:
         net. Each wrapper's adapter output feeds a unique 4-wire stream
         named monbus_<port>_<idx>_<chan>_{valid,ready,packet,timestamp}.
 
-        Packet uses monitor_common_pkg::monitor_packet_t (128-bit typedef).
-        Timestamp is monitor_common_pkg::monbus_timestamp_t (64-bit), a
+        Packet uses ocelus_common_pkg::monitor_packet_t (128-bit typedef).
+        Timestamp is ocelus_common_pkg::monbus_timestamp_t (64-bit), a
         side-band that travels alongside the packet.
 
         A single shared `mon_time_w` net is also declared here -- the
@@ -643,19 +643,19 @@ class BridgeModuleGenerator:
         # Shared timestamp net: monbus_axil4_axil4_group's mon_time_out feeds
         # every wrapper's i_mon_time input.
         lines.append("    // Shared free-running timestamp from monbus_axil4_axil4_group")
-        lines.append("    monitor_common_pkg::monbus_timestamp_t mon_time_w;")
+        lines.append("    ocelus_common_pkg::monbus_timestamp_t mon_time_w;")
         lines.append("")
         for w in wrappers:
             lines.append(f"    logic                                  {w.monbus_valid};")
             lines.append(f"    logic                                  {w.monbus_ready};")
-            lines.append(f"    monitor_common_pkg::monitor_packet_t   {w.monbus_packet};")
-            lines.append(f"    monitor_common_pkg::monbus_timestamp_t {w.monbus_timestamp};")
+            lines.append(f"    ocelus_common_pkg::monitor_packet_t   {w.monbus_packet};")
+            lines.append(f"    ocelus_common_pkg::monbus_timestamp_t {w.monbus_timestamp};")
         lines.append("")
         lines.append("    // Arbiter output (-> monbus_axil4_axil4_group input)")
         lines.append("    logic                                  mon_arb_monbus_valid;")
         lines.append("    logic                                  mon_arb_monbus_ready;")
-        lines.append("    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet;")
-        lines.append("    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp;")
+        lines.append("    ocelus_common_pkg::monitor_packet_t   mon_arb_monbus_packet;")
+        lines.append("    ocelus_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp;")
         lines.append("")
         return lines
 
@@ -820,8 +820,8 @@ class BridgeModuleGenerator:
         # monbus_arbiter: unpacked-array inputs across CLIENTS
         lines.append("    logic                                  mon_arb_monbus_valid_in     [{}];".format(n))
         lines.append("    logic                                  mon_arb_monbus_ready_in     [{}];".format(n))
-        lines.append("    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [{}];".format(n))
-        lines.append("    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [{}];".format(n))
+        lines.append("    ocelus_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [{}];".format(n))
+        lines.append("    ocelus_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [{}];".format(n))
         for i, w in enumerate(wrappers):
             lines.append(f"    assign mon_arb_monbus_valid_in[{i}]     = {w.monbus_valid};")
             lines.append(f"    assign {w.monbus_ready} = mon_arb_monbus_ready_in[{i}];")
@@ -1461,7 +1461,7 @@ class BridgeModuleGenerator:
             lines.append(f"    logic        {pfx}_hit_clear;")
             lines.append(f"    logic {pfx}_monbus_valid;")
             lines.append(f"    logic {pfx}_monbus_ready;")
-            lines.append(f"    monitor_common_pkg::monitor_packet_t {pfx}_monbus_packet;")
+            lines.append(f"    ocelus_common_pkg::monitor_packet_t {pfx}_monbus_packet;")
             # bridge TASK-005 (was BRIDGE-016): the subtractive slave sits on the fabric side and
             # sees {master index, master id} like every other slave.
             from bridge_pkg.width_utils import xbar_id_width

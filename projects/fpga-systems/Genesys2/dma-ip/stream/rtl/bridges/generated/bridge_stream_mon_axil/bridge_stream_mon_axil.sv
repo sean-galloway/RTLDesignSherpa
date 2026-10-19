@@ -1291,7 +1291,7 @@ module bridge_stream_mon_axil
     logic        subtractive_hit_clear;
     logic subtractive_monbus_valid;
     logic subtractive_monbus_ready;
-    monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
+    ocelus_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
         .AXI_ID_WIDTH   (10),

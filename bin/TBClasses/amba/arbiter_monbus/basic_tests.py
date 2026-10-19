@@ -18,7 +18,7 @@
 Basic Functionality Tests - UPDATED FOR 3-BIT PROTOCOL FIELD
 
 This module contains fundamental tests for the arbiter monitor bus functionality,
-updated to work with the new monitor_pkg.sv packet format.
+updated to work with the new ocelus_pkg.sv packet format.
 
 KEY UPDATES:
 - All packet parsing uses new field positions

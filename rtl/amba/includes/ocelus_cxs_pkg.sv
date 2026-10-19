@@ -4,16 +4,16 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: monitor_cxs_pkg
+// Module: ocelus_cxs_pkg
 // Purpose: CXS (Arm IHI 0079) event codes for ocelus bus packets (protocol =
 //          PROTOCOL_CXS). Imported by cxs_monitor_lite alongside
-//          monitor_common_pkg; NOT re-exported by monitor_pkg, so no
+//          ocelus_common_pkg; NOT re-exported by ocelus_pkg, so no
 //          existing consumer's filelist changes (the WB4 precedent).
 //
 // Documentation: docs/markdown/rtl-amba/monitor/cxs_monitor_lite.md
 // Subsystem: amba
 //
-// Packet classes used (packet_type, monitor_common_pkg): Error, Timeout,
+// Packet classes used (packet_type, ocelus_common_pkg): Error, Timeout,
 // Completion, and the stream classes Credit / Channel / Stream that AXIS
 // introduced -- CXS is a stream too, so the classes mean the same thing.
 // EVENT_DROPPED is 8'hE in every lite ocelus (AXI, AXIS, CXS), so host tooling
@@ -27,7 +27,7 @@
 // File carries the Ocelus brand; the package uses the monitor_*_pkg name every
 // other ocelus package is imported by (see ocelus_wb4_pkg.sv).
 /* verilator lint_off DECLFILENAME */
-package monitor_cxs_pkg;
+package ocelus_cxs_pkg;
 /* verilator lint_on DECLFILENAME */
 
     // Error events (packet_type = PktTypeError)
@@ -151,4 +151,4 @@ package monitor_cxs_pkg;
         CXS_STREAM_USER_DEFINED    = 8'hF
     } cxs_stream_code_t;
 
-endpackage : monitor_cxs_pkg
+endpackage : ocelus_cxs_pkg

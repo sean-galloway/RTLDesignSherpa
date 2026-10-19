@@ -403,11 +403,11 @@ failed, blank = not started.
 | axi_pkg             | 0        |        | Type definitions only |
 | apb4_pkg             | 0        |        | Type definitions only |
 | apb5_pkg            | 0        |        | Type definitions only |
-| monitor_pkg         | 0        |        | Type definitions only |
-| monitor_amba4_pkg   | 0        |        | Type definitions only |
-| monitor_amba5_pkg   | 0        |        | Type definitions only |
-| monitor_arbiter_pkg | 0        |        | Type definitions only |
-| monitor_common_pkg  | 0        |        | Type definitions only |
+| ocelus_pkg         | 0        |        | Type definitions only |
+| ocelus_amba4_pkg   | 0        |        | Type definitions only |
+| ocelus_amba5_pkg   | 0        |        | Type definitions only |
+| ocelus_arbiter_pkg | 0        |        | Type definitions only |
+| ocelus_common_pkg  | 0        |        | Type definitions only |
 
 ---
 

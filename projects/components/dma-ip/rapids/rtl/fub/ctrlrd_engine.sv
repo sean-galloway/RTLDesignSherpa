@@ -77,11 +77,11 @@ module ctrlrd_engine #(
     input  logic                        r_last,
 
     // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
-    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t  i_mon_time,
     output logic                                   mon_valid,
     input  logic                                   mon_ready,
-    output monitor_common_pkg::monitor_packet_t    mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
+    output ocelus_common_pkg::monitor_packet_t    mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     //=========================================================================
@@ -180,8 +180,8 @@ module ctrlrd_engine #(
 
     // Monitor packet generation
     logic r_mon_valid;
-    monitor_common_pkg::monitor_packet_t   r_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t   r_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t r_mon_timestamp;
 
     //=========================================================================
     // Channel Reset Management
@@ -510,7 +510,7 @@ module ctrlrd_engine #(
                         r_mon_packet    <= create_monitor_packet(
                             PktTypeError,
                             PROTOCOL_AXI,
-                            (r_read_resp == 2'b10) ? monitor_amba4_pkg::AXI_ERR_RESP_SLVERR : monitor_amba4_pkg::AXI_ERR_RESP_DECERR,
+                            (r_read_resp == 2'b10) ? ocelus_amba4_pkg::AXI_ERR_RESP_SLVERR : ocelus_amba4_pkg::AXI_ERR_RESP_DECERR,
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,

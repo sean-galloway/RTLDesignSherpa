@@ -69,7 +69,7 @@
 //   - Instantiated by: the Task 12 ACE rig (dv/tests/test_amber_ace_top.py)
 //   - Instantiated: l1_core; amber_ace_issue;
 //     axi4ace_master_rd/wr_monlite; monbus_arbiter
-//   - Package: l1_pkg; monitor_common_pkg
+//   - Package: l1_pkg; ocelus_common_pkg
 //
 //------------------------------------------------------------------------------
 // Test:
@@ -755,8 +755,8 @@ module amber_ace_top
     // ------------------------------------------------------------------
     logic                    arb_vld [3];
     logic                    arb_rdy [3];
-    monitor_common_pkg::monitor_packet_t   arb_pkt [3];
-    monitor_common_pkg::monbus_timestamp_t arb_ts  [3];
+    ocelus_common_pkg::monitor_packet_t   arb_pkt [3];
+    ocelus_common_pkg::monbus_timestamp_t arb_ts  [3];
 
     assign arb_vld[0] = core_mon_valid;
     assign arb_vld[1] = rd_mon_valid;

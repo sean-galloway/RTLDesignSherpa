@@ -153,7 +153,7 @@ def parse_declarations(content: str, start_line: int = 1) -> Dict[str, SignalInf
     # split below has to come AFTER this: until 2026-09-25 it came before,
     # so the stripped text was never the text scanned, and a multi-line
     # function signature's port still registered as a package-scope signal
-    # -- monitor_amba4_pkg's `event_code` struct field was reported as a
+    # -- ocelus_amba4_pkg's `event_code` struct field was reported as a
     # use-before-declaration of is_valid_event_for_packet_type's argument.)
     content = strip_struct_bodies(strip_subprogram_bodies(content))
     lines = content.split('\n')

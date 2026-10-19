@@ -20,7 +20,7 @@ MonBus Packet Implementation — 128-bit format
 Defines MonbusPacket class and field configuration for monitor bus packets.
 Supports all protocol types including ARB and CORE with comprehensive validation.
 
-128-bit field layout (mirrors monitor_common_pkg.sv):
+128-bit field layout (mirrors ocelus_common_pkg.sv):
   [127:124] pkt_type    4 bits
   [123:109] reserved   15 bits
   [108:105] protocol    4 bits
@@ -41,7 +41,7 @@ def create_monbus_field_config() -> FieldConfig:
     """Create field configuration for MonBus packets (128-bit format)."""
     config = FieldConfig()
 
-    # 128-bit MonBus packet layout (mirrors monitor_common_pkg.sv):
+    # 128-bit MonBus packet layout (mirrors ocelus_common_pkg.sv):
     # [127:124] - pkt_type    4 bits
     # [123:109] - reserved   15 bits
     # [108:105] - protocol    4 bits

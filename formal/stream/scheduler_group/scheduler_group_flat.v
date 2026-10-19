@@ -926,16 +926,16 @@ module monbus_arbiter (
 	parameter signed [31:0] INPUT_SKID_DEPTH = 2;
 	parameter signed [31:0] OUTPUT_SKID_DEPTH = 2;
 	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
-	parameter signed [31:0] SKID_DATA_WIDTH = monitor_common_pkg_MONBUS_PKT_WIDTH + monitor_common_pkg_MONBUS_TS_WIDTH;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
+	parameter signed [31:0] SKID_DATA_WIDTH = ocelus_common_pkg_MONBUS_PKT_WIDTH + ocelus_common_pkg_MONBUS_TS_WIDTH;
 	input wire axi_aclk;
 	input wire axi_aresetn;
 	input wire block_arb;
 	input wire [0:CLIENTS - 1] monbus_valid_in;
 	output wire [0:CLIENTS - 1] monbus_ready_in;
-	input wire [(CLIENTS * monitor_common_pkg_MONBUS_PKT_WIDTH) - 1:0] monbus_packet_in;
-	input wire [(CLIENTS * monitor_common_pkg_MONBUS_TS_WIDTH) - 1:0] monbus_timestamp_in;
+	input wire [(CLIENTS * ocelus_common_pkg_MONBUS_PKT_WIDTH) - 1:0] monbus_packet_in;
+	input wire [(CLIENTS * ocelus_common_pkg_MONBUS_TS_WIDTH) - 1:0] monbus_timestamp_in;
 	output wire monbus_valid;
 	input wire monbus_ready;
 	output wire [127:0] monbus_packet;
@@ -961,9 +961,9 @@ module monbus_arbiter (
 			if (INPUT_SKID_EN == 1'b1) begin : gen_input_skid_enabled
 				wire [SKID_DATA_WIDTH - 1:0] skid_wr_data;
 				wire [SKID_DATA_WIDTH - 1:0] skid_rd_data;
-				assign skid_wr_data = {monbus_timestamp_in[((CLIENTS - 1) - i) * monitor_common_pkg_MONBUS_TS_WIDTH+:monitor_common_pkg_MONBUS_TS_WIDTH], monbus_packet_in[((CLIENTS - 1) - i) * monitor_common_pkg_MONBUS_PKT_WIDTH+:monitor_common_pkg_MONBUS_PKT_WIDTH]};
+				assign skid_wr_data = {monbus_timestamp_in[((CLIENTS - 1) - i) * ocelus_common_pkg_MONBUS_TS_WIDTH+:ocelus_common_pkg_MONBUS_TS_WIDTH], monbus_packet_in[((CLIENTS - 1) - i) * ocelus_common_pkg_MONBUS_PKT_WIDTH+:ocelus_common_pkg_MONBUS_PKT_WIDTH]};
 				assign int_monbus_packet_in[i] = skid_rd_data[127:0];
-				assign int_monbus_timestamp_in[i] = skid_rd_data[SKID_DATA_WIDTH - 1:monitor_common_pkg_MONBUS_PKT_WIDTH];
+				assign int_monbus_timestamp_in[i] = skid_rd_data[SKID_DATA_WIDTH - 1:ocelus_common_pkg_MONBUS_PKT_WIDTH];
 				gaxi_skid_buffer #(
 					.DATA_WIDTH(SKID_DATA_WIDTH),
 					.DEPTH(INPUT_SKID_DEPTH)
@@ -983,8 +983,8 @@ module monbus_arbiter (
 			else begin : gen_input_skid_disabled
 				assign int_monbus_valid_in[i] = monbus_valid_in[i];
 				assign monbus_ready_in[i] = int_monbus_ready_in[i];
-				assign int_monbus_packet_in[i] = monbus_packet_in[((CLIENTS - 1) - i) * monitor_common_pkg_MONBUS_PKT_WIDTH+:monitor_common_pkg_MONBUS_PKT_WIDTH];
-				assign int_monbus_timestamp_in[i] = monbus_timestamp_in[((CLIENTS - 1) - i) * monitor_common_pkg_MONBUS_TS_WIDTH+:monitor_common_pkg_MONBUS_TS_WIDTH];
+				assign int_monbus_packet_in[i] = monbus_packet_in[((CLIENTS - 1) - i) * ocelus_common_pkg_MONBUS_PKT_WIDTH+:ocelus_common_pkg_MONBUS_PKT_WIDTH];
+				assign int_monbus_timestamp_in[i] = monbus_timestamp_in[((CLIENTS - 1) - i) * ocelus_common_pkg_MONBUS_TS_WIDTH+:ocelus_common_pkg_MONBUS_TS_WIDTH];
 			end
 		end
 	endgenerate
@@ -1048,7 +1048,7 @@ module monbus_arbiter (
 			wire [SKID_DATA_WIDTH - 1:0] out_skid_rd_data;
 			assign out_skid_wr_data = {int_monbus_timestamp, int_monbus_packet};
 			assign monbus_packet = out_skid_rd_data[127:0];
-			assign monbus_timestamp = out_skid_rd_data[SKID_DATA_WIDTH - 1:monitor_common_pkg_MONBUS_PKT_WIDTH];
+			assign monbus_timestamp = out_skid_rd_data[SKID_DATA_WIDTH - 1:ocelus_common_pkg_MONBUS_PKT_WIDTH];
 			gaxi_skid_buffer #(
 				.DATA_WIDTH(SKID_DATA_WIDTH),
 				.DEPTH(OUTPUT_SKID_DEPTH)
@@ -1459,11 +1459,11 @@ module descriptor_engine (
 	input wire [ADDR_WIDTH - 1:0] cfg_addr1_limit;
 	input wire cfg_channel_reset;
 	output wire descriptor_engine_idle;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire mon_valid;
 	input wire mon_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (AXI_ID_WIDTH < CHAN_WIDTH) begin
@@ -1853,9 +1853,9 @@ module descriptor_engine (
 	assign ar_prot = 3'b000;
 	assign ar_qos = 4'h0;
 	assign ar_region = 4'h0;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -1863,7 +1863,7 @@ module descriptor_engine (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
 	function automatic [63:0] sv2v_cast_64;
 		input reg [63:0] inp;
@@ -1882,12 +1882,12 @@ module descriptor_engine (
 				3'b011: begin
 					r_mon_valid <= 1'b1;
 					r_mon_timestamp <= i_mon_time;
-					r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, 8'h00, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, sv2v_cast_64(r_axi_read_addr));
+					r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, 8'h00, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, sv2v_cast_64(r_axi_read_addr));
 				end
 				3'b100: begin
 					r_mon_valid <= 1'b1;
 					r_mon_timestamp <= i_mon_time;
-					r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeError, 4'h4, 8'h06, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {46'h000000000000, r_axi_read_resp, 16'h0000});
+					r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeError, 4'h4, 8'h06, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {46'h000000000000, r_axi_read_resp, 16'h0000});
 				end
 				default:
 					;
@@ -2009,11 +2009,11 @@ module scheduler (
 	output wire dbg_read_error_sticky;
 	output wire dbg_write_error_sticky;
 	output wire dbg_timeout_expired;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire mon_valid;
 	input wire mon_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (DESC_WIDTH != 256) begin
@@ -2481,9 +2481,9 @@ module scheduler (
 	assign w_timeout_expired = cfg_sched_timeout_enable && (r_timeout_counter >= cfg_sched_timeout_cycles);
 	assign w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0) && (r_timeout_strikes >= cfg_sched_timeout_limit);
 	assign w_hard_error = (((descriptor_error || sched_rd_error) || sched_wr_error) || r_read_error_sticky) || r_write_error_sticky;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -2491,7 +2491,7 @@ module scheduler (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
 	localparam [7:0] stream_pkg_STREAM_EVENT_DESC_COMPLETE = 8'h01;
 	localparam [7:0] stream_pkg_STREAM_EVENT_DESC_START = 8'h00;
@@ -2513,30 +2513,30 @@ module scheduler (
 				7'b0000010: begin
 					r_mon_valid <= 1'b1;
 					r_mon_timestamp <= i_mon_time;
-					r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_START, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+					r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_START, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 				end
 				7'b0000100:
 					if (w_wr_advance) begin
 						r_mon_valid <= 1'b1;
 						r_mon_timestamp <= i_mon_time;
 						if (r_descriptor[193])
-							r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_IRQ, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+							r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_IRQ, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 						else
-							r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_COMPLETE, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+							r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_COMPLETE, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 					end
 				7'b0001000: begin
 					r_mon_valid <= 1'b1;
 					r_mon_timestamp <= i_mon_time;
 					if (r_descriptor[193])
-						r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_IRQ, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+						r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_IRQ, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 					else
-						r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_COMPLETE, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
+						r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, stream_pkg_STREAM_EVENT_DESC_COMPLETE, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {32'h00000000, r_descriptor[159-:32]});
 				end
 				7'b0100000:
 					if (!r_error_pkt_sent) begin
 						r_mon_valid <= 1'b1;
 						r_mon_timestamp <= i_mon_time;
-						r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeError, 4'h4, stream_pkg_STREAM_EVENT_ERROR, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {29'h00000000, r_write_error_sticky, r_read_error_sticky, 33'h000000000});
+						r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeError, 4'h4, stream_pkg_STREAM_EVENT_ERROR, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {29'h00000000, r_write_error_sticky, r_read_error_sticky, 33'h000000000});
 						r_error_pkt_sent <= 1'b1;
 					end
 				default:
@@ -2696,11 +2696,11 @@ module scheduler_group (
 	input wire [31:0] sched_wr_commit_beats;
 	input wire sched_rd_error;
 	input wire sched_wr_error;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire mon_valid;
 	input wire mon_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	wire desceng_to_sched_valid;

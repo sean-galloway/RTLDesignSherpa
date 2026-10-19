@@ -125,7 +125,7 @@ All `obs_axis_*` ports are packed `[NUM_PORTS-1:0]` arrays and are inputs.
 
 Every packet is `PROTOCOL_AXIS`, `channel_id` = `tid` (low 9 bits),
 `agent_id` = `{8'h00, 4'h2, port[3:0]}`, `unit_id` = `UNIT_ID`. Event codes
-are `monitor_amba4_pkg`'s `axis_*_code_t` values.
+are `ocelus_amba4_pkg`'s `axis_*_code_t` values.
 
 | Class | Code | Fires when | `event_data[63:0]` |
 |---|---|---|---|

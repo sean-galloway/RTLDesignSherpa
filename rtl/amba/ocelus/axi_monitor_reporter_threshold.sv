@@ -23,8 +23,8 @@
 `include "reset_defs.svh"
 
 module axi_monitor_reporter_threshold
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     parameter int MAX_TRANSACTIONS = 16,
     parameter bit IS_READ          = 1'b1,

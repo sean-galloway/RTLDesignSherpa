@@ -61,8 +61,8 @@
 `include "reset_defs.svh"
 
 module axi_monitor_lite
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     parameter logic [7:0]  UNIT_ID          = 8'h09,
     parameter logic [15:0] AGENT_ID         = 16'h0063,

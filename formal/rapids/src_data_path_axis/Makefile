@@ -29,7 +29,7 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes \
 
 # Package files (order matters: dependencies first), same set as the sink
 # closure (rapids_imports.svh wildcard-imports monitor_common/monitor_amba4/
-# monitor_arbiter/rapids_pkg; monitor_pkg flattens clean for this closure).
+# monitor_arbiter/rapids_pkg; ocelus_pkg flattens clean for this closure).
 PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/ocelus_amba5_pkg.sv \

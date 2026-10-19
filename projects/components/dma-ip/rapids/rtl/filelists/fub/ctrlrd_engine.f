@@ -3,7 +3,7 @@
 # Purpose: Pre-descriptor control read engine with retry mechanism
 #
 # Dependencies:
-# - monitor_pkg.sv (monitor event definitions)
+# - ocelus_pkg.sv (monitor event definitions)
 # - rapids_pkg.sv (RAPIDS-specific definitions)
 # - gaxi_skid_buffer.sv (2-deep skid buffer for request buffering)
 

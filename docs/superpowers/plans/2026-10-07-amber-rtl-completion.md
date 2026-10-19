@@ -224,7 +224,7 @@ Expected: five registry/link PASS lines; the five existing unit suites (kmap, ta
 - Test: `dv/tests/test_amber_frontend.py`; plans `dv/testplans/amber_{cpu_frontend,monlite}_testplan.yaml`
 
 **Interfaces:**
-- Produces: `amber_cpu_frontend` — GAXI slave per MAS ch02/09 (`cpu_req_wr_*`, `cpu_rsp_rd_*`, `CPU_REQ_W` packing), `req_ready` only in `CTRL_IDLE` with no snoop stall, response held under `cpu_rsp_rd_ready` low; response staging in a `gaxi_fifo_sync` (DEPTH=2, D-6). `amber_monlite` — taps per MAS ch04 emit points, 128-bit MonBus packets with house UNIT/AGENT ids per `monitor_common_pkg` rules, drop-and-count with saturating counter re-emitted as `AMBER_EV_DROPPED`.
+- Produces: `amber_cpu_frontend` — GAXI slave per MAS ch02/09 (`cpu_req_wr_*`, `cpu_rsp_rd_*`, `CPU_REQ_W` packing), `req_ready` only in `CTRL_IDLE` with no snoop stall, response held under `cpu_rsp_rd_ready` low; response staging in a `gaxi_fifo_sync` (DEPTH=2, D-6). `amber_monlite` — taps per MAS ch04 emit points, 128-bit MonBus packets with house UNIT/AGENT ids per `ocelus_common_pkg` rules, drop-and-count with saturating counter re-emitted as `AMBER_EV_DROPPED`.
 - Consumes: house GAXI BFM family; `monbus_tally_axil` host tally agent.
 
 - [ ] **Step 1: Write the failing tests** — request latch/replay visibility; backpressured response held stable; monlite: every event class in Table 4.1.1 observed at least once per scenario run; sustained backpressure forces drops and the dropped-count packet appears later; **present-vs-absent**: same stimulus with `USE_MONITOR=0`/`mon_ready` tied 1 produces identical frontend behavior (Review Focus 5).

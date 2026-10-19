@@ -259,7 +259,7 @@ module bridge_1x2_wr_axi5
     logic        subtractive_hit_clear;
     logic subtractive_monbus_valid;
     logic subtractive_monbus_ready;
-    monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
+    ocelus_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
         .AXI_ID_WIDTH   (4),

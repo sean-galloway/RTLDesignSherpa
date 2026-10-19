@@ -84,7 +84,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_frontend_tb i
 
 
 # ---------------------------------------------------------------------------
-# monitor_common_pkg layout + amber event encoding (independent copies for
+# ocelus_common_pkg layout + amber event encoding (independent copies for
 # scoring; the RTL consumes the packages directly)
 # ---------------------------------------------------------------------------
 MONBUS_WIDTH = 128
@@ -142,7 +142,7 @@ class LruModel:
 
 
 def _parse_packet(pkt):
-    """monitor_common_pkg 128-bit layout (scored independent copy)."""
+    """ocelus_common_pkg 128-bit layout (scored independent copy)."""
     return {
         'pkt_type': (pkt >> 124) & 0xF,
         'reserved': (pkt >> 109) & 0x7FFF,

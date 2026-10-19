@@ -1018,8 +1018,8 @@ def _emit_bridge_variant(
 
     # Monitor packages MUST be compiled before the bridge adapters when
     # use_monitor=True — the adapter port lists reference
-    # `monitor_common_pkg::monitor_packet_t` and
-    # `monitor_common_pkg::monbus_timestamp_t` by fully-qualified name, so
+    # `ocelus_common_pkg::monitor_packet_t` and
+    # `ocelus_common_pkg::monbus_timestamp_t` by fully-qualified name, so
     # the package symbol has to be visible at adapter parse time.
     # ...and UNCONDITIONALLY since the subtractive catch-all landed: every
     # bridge now instantiates axi4_subtractive_slave, which reports unmapped

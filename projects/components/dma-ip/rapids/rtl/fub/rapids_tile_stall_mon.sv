@@ -51,11 +51,11 @@ module rapids_tile_stall_mon #(
     input  logic [NC-1:0]                          pending,
     input  logic [NC-1:0]                          moved,
 
-    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t  i_mon_time,
     output logic                                   mon_valid,
     input  logic                                   mon_ready,
-    output monitor_common_pkg::monitor_packet_t    mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp,
+    output ocelus_common_pkg::monitor_packet_t    mon_packet,
+    output ocelus_common_pkg::monbus_timestamp_t  mon_timestamp,
 
     output logic [NC-1:0]                          sts_stalled        // stalled now (one episode)
 );

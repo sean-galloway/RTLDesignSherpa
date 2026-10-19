@@ -378,8 +378,8 @@ module rapids_top_base #(
     output logic [15:0]                             src_plane_cfg_mon_pkt_mask,
     input  logic                                    src_plane_mon_valid,
     output logic                                    src_plane_mon_ready,
-    input  monitor_common_pkg::monitor_packet_t     src_plane_mon_packet,
-    input  monitor_common_pkg::monbus_timestamp_t   src_plane_mon_timestamp,
+    input  ocelus_common_pkg::monitor_packet_t     src_plane_mon_packet,
+    input  ocelus_common_pkg::monbus_timestamp_t   src_plane_mon_timestamp,
 
     //-------------------------------------------------------------------------
     // Network plane interface, SNK half (sink ingress / RX plane)
@@ -394,8 +394,8 @@ module rapids_top_base #(
     output logic [15:0]                             snk_plane_cfg_mon_pkt_mask,
     input  logic                                    snk_plane_mon_valid,
     output logic                                    snk_plane_mon_ready,
-    input  monitor_common_pkg::monitor_packet_t     snk_plane_mon_packet,
-    input  monitor_common_pkg::monbus_timestamp_t   snk_plane_mon_timestamp,
+    input  ocelus_common_pkg::monitor_packet_t     snk_plane_mon_packet,
+    input  ocelus_common_pkg::monbus_timestamp_t   snk_plane_mon_timestamp,
 
     //-------------------------------------------------------------------------
     // MonBus AXI-Lite Group (single merged egress; mirrors stream_top_ch8)
@@ -1636,8 +1636,8 @@ module rapids_top_base #(
     //=========================================================================
     logic                                    core_mon_valid;
     logic                                    core_mon_ready;
-    monitor_common_pkg::monitor_packet_t     core_mon_packet;
-    monitor_common_pkg::monbus_timestamp_t   core_mon_timestamp;
+    ocelus_common_pkg::monitor_packet_t     core_mon_packet;
+    ocelus_common_pkg::monbus_timestamp_t   core_mon_timestamp;
 
     //=========================================================================
     // RAPIDS Beats Core (two independent halves)
@@ -2045,7 +2045,7 @@ module rapids_top_base #(
     // sourced from hwif_out.SRC.MON.* (SNK.MON.* filter fields exist but are
     // not wired here; per-half egress splitting is a later stage).
     //=========================================================================
-    monitor_common_pkg::monbus_timestamp_t mon_grp_time_w;
+    ocelus_common_pkg::monbus_timestamp_t mon_grp_time_w;
     generate
     if (USE_AXI_MONITORS != 0) begin : g_monbus_axil
     monbus_axil4_axil4_group #(

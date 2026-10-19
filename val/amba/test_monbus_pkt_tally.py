@@ -51,7 +51,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 # ----------------------------------------------------------------------------
-# Packet construction — field positions locked by monitor_common_pkg:
+# Packet construction — field positions locked by ocelus_common_pkg:
 #   [127:124] pkt_type   [108:105] protocol   [104:97] event_code
 #   [87:72] agent_id     [63:0] data
 # ----------------------------------------------------------------------------

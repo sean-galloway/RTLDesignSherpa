@@ -49,7 +49,7 @@ fixed:
    occupancy pinned at `MAX_TRANSACTIONS`, and the old flat `MAX-3`
    `block_ready` margin placed the reopen threshold exactly AT the
    saturation point, so `block_ready` could never re-assert. Fixed by the
-   saturation-recovery contract (`monitor_common_pkg::cmd_entry_reserve`):
+   saturation-recovery contract (`ocelus_common_pkg::cmd_entry_reserve`):
    command entries capped below the reopen threshold, stray non-last beats
    absorbed without lifecycle updates, formal properties added
    (`ap_no_reopened_complete`, `ap_cmd_entry_cap`, mutation-checked).

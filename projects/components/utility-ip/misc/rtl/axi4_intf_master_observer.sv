@@ -44,7 +44,7 @@
 `include "reset_defs.svh"
 
 module axi4_intf_master_observer
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     // ---------- Tap counts ----------
     parameter int NUM_RD_PORTS       = 1,

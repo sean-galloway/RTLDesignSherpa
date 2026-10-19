@@ -125,7 +125,7 @@ package l1_pkg;
 
     // ------------------------------------------------------------------
     // MonBus event codes (MAS ch04 Table 4.1.1). event_code is the 8-bit
-    // field of the house 128-bit MonBus packet (monitor_common_pkg
+    // field of the house 128-bit MonBus packet (ocelus_common_pkg
     // layout [104:97]); the packet_type pairing is l1_monlite's
     // concern (Task 8), not this enum's.
     // ------------------------------------------------------------------

@@ -20,7 +20,7 @@
 // valid/ready stream and does not fit; this block watches what a CXS endpoint
 // actually does and emits it as the stream packet classes (Credit, Channel,
 // Stream) plus Error / Timeout / Completion, tagged PROTOCOL_CXS with the
-// monitor_cxs_pkg event codes. The delivery contract is axis_monitor_lite's,
+// ocelus_cxs_pkg event codes. The delivery contract is axis_monitor_lite's,
 // unchanged: events decided and REGISTERED, up to two queued per cycle, a
 // 4-deep unreset output queue, drop-and-count with the count reported as
 // Error/EVENT_DROPPED into an empty queue, microsecond timeouts, `clear`.
@@ -51,8 +51,8 @@
 `include "reset_defs.svh"
 
 module cxs_monitor_lite
-    import monitor_common_pkg::*;
-    import monitor_cxs_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_cxs_pkg::*;
     import cxs_pkg::*;
 #(
     parameter logic [7:0]  UNIT_ID              = 8'h0A,

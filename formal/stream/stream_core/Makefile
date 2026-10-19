@@ -14,9 +14,9 @@
 # one does because its closure is large enough that hand-listing demonstrably
 # failed. See vault BUG-003 and [[filelists]].
 #
-# The old `monitor_pkg` sed workaround is GONE. Its premise -- "sv2v cannot
+# The old `ocelus_pkg` sed workaround is GONE. Its premise -- "sv2v cannot
 # handle the typedef re-export ambiguity" -- was re-tested against sv2v v0.0.13
-# on the full 51-source closure INCLUDING monitor_pkg.sv: RC=0, clean stderr.
+# on the full 51-source closure INCLUDING ocelus_pkg.sv: RC=0, clean stderr.
 # Seven sed-prepped monitor copies are no longer needed.
 #
 # ONE prep remains: sv2v does not honour `// synopsys translate_off`, so the

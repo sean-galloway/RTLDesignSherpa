@@ -51,7 +51,7 @@ Parameters:
 */
 
 module monbus_arbiter
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     parameter int CLIENTS            = 4,
     parameter int INPUT_SKID_ENABLE  = 1,        // Keep as int but convert internally
