@@ -12,21 +12,21 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 27 | done (kept for history) |
+| [closed/](closed/) | 28 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-027** — end-to-end tile credits (counters, window, legal mask built) and straps toward RAPIDS (TILE_SPEC 11.9-11.11)
-- **TASK-029** — harden the snk_data_path_axis tests: stress checks memory, multi_channel respects the port's 3-deep capacity, test-settable scheduler timeout (rapids BUG-015 follow-up)
 
 ## Active
 
 ## Closed
 
+- **TASK-029** — CLOSED 2026-10-18: snk_data_path_axis tests check memory, assert zero BFM timeouts and missed takes; wrapper scheduler timeout is test-settable (limit 0 default, escalation tested); 4 mutations caught
 - **TASK-028** — CLOSED 2026-10-18: two-deep descriptor skid in every scheduler, in front of the engine FIFO; 4800/4800 full regression
 - **TASK-026** — CLOSED 2026-10-17: tile packet header on both ports (TILE_HDR) and cell-issued descriptors into the source channels' queues; grants moved to TASK-027
 - **TASK-025** — CLOSED 2026-10-16: CXS planes frame per stream (CXSSRCID = channel); CXS_MAX_CREDIT defaults to SRAM_DEPTH; concurrent-channel cells

@@ -72,6 +72,13 @@ module snk_data_path_axis_test #(
     input  logic [7:0]                  cfg_axi_wr_xfer_beats,
     input  logic [7:0]                  cfg_alloc_size,
     input  logic [NC-1:0]               cfg_channel_reset,
+    // Scheduler timeout, shared by every channel. Driven per test (rapids
+    // TASK-029): a tie-off of 1000 cycles escalating after one window made
+    // any TB pacing slip a sticky CH_ERROR whose beats then held the shared
+    // ingress for every channel (rapids BUG-015).
+    input  logic [31:0]                 cfg_sched_timeout_cycles,
+    input  logic [7:0]                  cfg_sched_timeout_limit,  // 0 = never escalate
+    input  logic                        cfg_sched_timeout_enable,
 
     //=========================================================================
     // Descriptor Interfaces (8 channels) - Simple valid/ready/packet pattern
@@ -315,9 +322,9 @@ module snk_data_path_axis_test #(
                 // Configuration (channel always enabled for test)
                 .cfg_channel_enable     (1'b1),
                 .cfg_channel_reset      (cfg_channel_reset[i]),
-                .cfg_sched_timeout_cycles(32'd1000),
-                .cfg_sched_timeout_limit (8'd1),  // escalate after one window (legacy timeout->error)
-                .cfg_sched_timeout_enable(1'b1),
+                .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+                .cfg_sched_timeout_limit (cfg_sched_timeout_limit),
+                .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
                 .tile_adv_done           (1'b0),          // TILE_CREDITS = 0 here
                 .tile_dest_legal         ('0),
 
