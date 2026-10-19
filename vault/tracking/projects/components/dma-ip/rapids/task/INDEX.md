@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — tasks
 
-**Next ID: TASK-029** — never recycle a number, even when its item closed.
+**Next ID: TASK-030** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 27 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,6 +21,7 @@ by construction rather than by discipline.
 ## Open
 
 - **TASK-027** — end-to-end tile credits (counters, window, legal mask built) and straps toward RAPIDS (TILE_SPEC 11.9-11.11)
+- **TASK-029** — harden the snk_data_path_axis tests: stress checks memory, multi_channel respects the port's 3-deep capacity, test-settable scheduler timeout (rapids BUG-015 follow-up)
 
 ## Active
 
