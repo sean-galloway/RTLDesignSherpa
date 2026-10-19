@@ -26,8 +26,8 @@ is the one to mirror:
 - source: `projects/components/mem-ctrl-ip/common-ip/docs/common_has/assets/graphviz/01_whole_unit.dot`
 - render: `.../common_has/assets/graphviz/01_whole_unit.png`
 
-**The owner values how clearly the flows read, not the palette.** Flow
-clarity is the contract and color doesn't matter. The rules below are in
+**The owner values how clearly the flows read.** Flow clarity is the
+contract; the element key (below) makes each box's kind readable at a glance. The rules below are in
 priority order.
 
 ## Prime directive: every flow is traceable at a glance
@@ -134,13 +134,45 @@ A label answers "what does it do?" before "what is it called?".
 - **Use left-justified lines (`\l`) for a legend box,** with a hanging indent
   on wrapped lines, so each name heads its own line.
 
-## Palette: your choice
+## Element key: shape and fill name the element (v2, trial 2026-10-19)
 
-The default is white boxes for external interfaces and `#D6E4F0` functional
-blocks on a white canvas. **Color never carries meaning.** Meaning lives in
-the geometry (flow routes, the trapezium, the bar) and in the labels.
-Swapping the palette must never change what the diagram says, and a
-black-and-white photocopy must still pass every rule above.
+**Owner, 2026-10-19:** "I can't tell what is what by looking at it." A box
+had to be read to learn whether it was a port, logic, a register or a
+memory. Every node now takes the shape and fill of its class. **Trial case:**
+`projects/components/dma-ip/rapids/docs/rapids_mas/assets/graphviz/06_axi_write_engine.dot`,
+which carries the key; it is pending owner approval before the repo-wide
+pass.
+
+| Class | Graphviz | Fill | What it marks |
+|---|---|---|---|
+| Interface / boundary | `shape=box, style="rounded,filled,bold"` | `#E2EFDA` green | A port of the drawn unit, and the boundary bar |
+| Combinational | `shape=box` | white | Logic with no state: masks, compares, muxes, decodes |
+| Registered | `shape=box, peripheries=2` | `#D6E4F0` blue | A block whose output is a flop: pipeline and issue registers, counters, sticky flags |
+| FSM | `shape=box, style="filled,diagonals", peripheries=2` | `#FCE4D6` peach | A sequencer with named states |
+| Storage | `shape=cylinder` | `#E8DFF5` lavender | FIFO, RAM, CAM, register file |
+| Arbiter / pick | `shape=invtrapezium` (rule 9) | `#FFF2CC` gold | A genuine many-to-one pick |
+| Optional | the class's shape, `style` plus `dashed` | the class's fill | Build-dependent (rule 8) |
+| Legend / note | `shape=note` | white | Parameters, notes, the key |
+
+: Element key
+
+- **Classify from the RTL, not the name.** A block whose output is
+  registered is Registered even if most of it is logic (the AW issue
+  register). A block that passes data straight through and holds a beat only
+  on an abort is Combinational, with the hold in its label (the W output).
+  If a timing cut matters to the reader (a request register added for 100
+  MHz), draw it as its own Registered box.
+- **Shape carries the class; fill repeats it.** A black-and-white copy must
+  still read: double border, cylinder, rounded, trapezium, diagonals. The
+  fills are fixed so every diagram in the repo reads the same.
+- **Every diagram carries the key** as a `cluster_key` row under the bar:
+  one sample node per class, plus a `shape=note` for the edge conventions
+  (solid flow, heavy main path or winner, dashed sideband). Keep all seven
+  samples even when a class is absent, so the key is identical everywhere.
+- **Edges keep their meaning:** solid for flow, heavy (`penwidth=1.8`) for
+  the main path or a pick's winner, dashed for sideband and feedback.
+- This supersedes the old palette rule ("color never carries meaning";
+  white ports, `#D6E4F0` blocks). Geometry still carries the flows.
 
 ## Tool: graphviz dot
 
@@ -154,7 +186,7 @@ checked-in asset, never a fence.
 graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
        nodesep="0.35", ranksep="0.60", splines=ortho];
 node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-       fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+       fillcolor="white", color="black", margin="0.12,0.06"];   // combinational default; see the element key
 edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 ```
 
